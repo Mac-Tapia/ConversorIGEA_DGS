@@ -27,9 +27,9 @@
       probó con obras reales de la spec 011 ni por la web, que se prueba con el estudio completo (T11).
 - [x] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
       Hecho cuando: pruebas de cada formato, con los huecos nombrados.
-      Hecho con pruebas sintéticas, sin DIgSILENT. F04 sigue vacío porque el modelo no lleva la baja de cada SED, y F06 hasta pasarle
-      los índices de 012. La evaluación con y sin proyecto espera las pérdidas de «Con proyecto» por año, que da T6; hasta entonces
-      devuelve su hueco. Solo mide el ahorro de pérdidas: la energía no servida y la calidad no entran en el flujo.
+      F03 y F04 salen de la tensión de cada barra; F04 mide la barra de baja de cada SED, no el extremo de una red de baja que no está
+      modelada, y lo dice. F06 lee el último estudio de confiabilidad guardado. La evaluación con y sin proyecto solo mide el ahorro
+      de pérdidas: la energía no servida y la calidad no entran en el flujo.
 - [x] T8 Generadores de los módulos del plan y del PIDE. (RF-4, RF-13, RF-14, RF-17, RF-21)
       Hecho cuando: los siete documentos se generan para una empresa de prueba.
       Hecho con una empresa de prueba sintética. Presentan lo medido y sus huecos; no redactan análisis, que es del asistente (T9).

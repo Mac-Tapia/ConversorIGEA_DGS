@@ -120,7 +120,20 @@ def test_f05_y_f06_solo_con_lo_medido():
     assert filas_de_perdidas([{'perdidas_kw': 50.0, 'cabeceras_kw': {'F1': 1000.0}}], 'SE1')[0][4] == pytest.approx(5.0)
     assert filas_de_perdidas([{'cabeceras_kw': {'F1': 1000.0}}], 'SE1') == []
     assert filas_de_calidad(None) == []
-    assert filas_de_calidad({'F1': {'SAIFI': 2.0}}, {'F1': 'SET A'}) == [['SET A', 'F1', 2.0, None, None, None]]
+    assert filas_de_calidad({'F1': {'saifi': 2.0}}, {'F1': 'SET A'}) == [['SET A', 'F1', 2.0, None, None, None]]
+
+
+def test_f03_y_f04_con_lo_medido_en_cada_barra():
+    """072:RF-16 — cada alimentador con su tensión, y cada SED con su barra de baja, peor primero."""
+    anios = [{'cabeceras_kw': {'F1': 1000.0, 'F2': 2000.0}, 'vm_min': 0.9, 'por_alimentador': {
+        'F1': {'kv': 10.0, 'vm_min': 0.97, 'fp': 0.95, 'km': 12.5}, 'F2': {'kv': 22.9, 'vm_min': 0.9, 'fp': None, 'km': 3.0}},
+        'sed_bt': [{'sed': 'S1', 'alimentador': 'F1', 'kv': 0.38, 'vm': 0.96}, {'sed': 'S2', 'alimentador': 'F2', 'kv': 0.38, 'vm': 0.88}]}]
+    r = formatos_del_estudio([], anios, factor_carga=0.5, centro_de={'F1': 'SET A'})
+    assert r['filas']['F03 Tensión MT'][0] == ['SET A', 'F1', 10.0, 1.0, 0.95, 0.5, 12.5, 3.0]
+    assert r['filas']['F03 Tensión MT'][1][7] == 10.0, 'cada uno con la suya, no la mínima de toda la red'
+    assert [f[2] for f in r['filas']['F04 Tensión BT']] == ['S2', 'S1'] and r['filas']['F04 Tensión BT'][0][8] == 12.0
+    motivos = {h['motivo'] for h in r['huecos'] if h['formato'] == 'F04 Tensión BT'}
+    assert any('barra de baja de cada SED; no incluye' in m for m in motivos) and any('no su red de baja' in m for m in motivos)
 
 
 def test_el_estudio_entero_cabe_en_el_libro_y_sus_huecos_quedan_escritos(tmp_path):

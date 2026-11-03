@@ -171,7 +171,8 @@ _TAREAS = (
           'transferencia_ejecutar', (
               'transfiere carga entre {alimentadores} [de|en] {proyecto}',
               'transferencia [de|entre] {alimentadores} [de|en] {proyecto}')),
-    Tarea('pide', 'Metodología del PIDE: diagnóstico, obras propias y formatos (024, T13 y T14).', (P, A),
+    Tarea('pide', 'Metodología del PIDE: diagnóstico, obras propias, formatos y módulos (024, 072).',
+          (P, A, Dato('periodo', 'periodo', obligatorio=False, descripcion='año de presentación del estudio')),
           True, 'trabajo', 'pide_ejecutar', (
               '[haz|ejecuta|corre] el pide de {proyecto} {alimentadores}', 'plan de inversiones de {proyecto} {alimentadores}',
               'pide [de|del proyecto|para] {proyecto} {alimentadores}', 'diagnóstico pide de {alimentadores} en {proyecto}')),

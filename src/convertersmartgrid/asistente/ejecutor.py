@@ -187,7 +187,10 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
         return [Paso('transferencia de carga', 'POST', '/pf/transferencia',
                      {'project': proyecto, 'feeders': feeders[:2]})]
     if tarea == 'pide':
-        return [Paso('PIDE', 'POST', '/pide', {'project': proyecto, 'feeders': feeders})]
+        # 072:RF-18: por la misma ruta que la web, con su año de presentación si la orden lo dice.
+        anio = str(datos.get('periodo') or '')[:4]
+        return [Paso('PIDE', 'POST', '/pide', {'project': proyecto, 'feeders': feeders,
+                                               **({'anio_presentacion': int(anio)} if anio.isdigit() else {})})]
     if tarea == 'gemelo_aprender':
         return [Paso('aprendizaje activo del gemelo', 'POST', '/digital-twin/aprender',
                      {'project': proyecto, 'feeders': feeders, 'n': int(datos.get('numero') or 20)})]

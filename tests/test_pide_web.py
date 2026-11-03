@@ -1,6 +1,8 @@
 """Spec 024, T14: propuesta del PIDE, obras propias y decisiones del operador, desde la web."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 pytest.importorskip('fastapi')
@@ -64,6 +66,36 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
+
+
+def test_el_estudio_deja_sus_modulos_y_usa_la_confiabilidad_guardada(client, monkeypatch, tmp_path):
+    """072:RF-1 / 072:RF-21 — con el año de la web salen los siete; sin él, se dice; F06 lee lo ya estudiado."""
+    wid = client.post('/api/workspaces', json={'name': 'modulos'}).json()['id']
+    ws = client.app.state.store.get(wid)
+    perfil = {'planificacion': PLAN, 'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
+              'empresa': 'Empresa de prueba'}
+    monkeypatch.setattr(services, 'native_action_context',
+                        lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, INFORME, tmp_path / 'pide.json'))
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    (ws.out_dir / 'estudio_sin_fiabilidad_x.json').write_text(json.dumps({'project': 'P', 'red': {'F1': {'saifi': 3.5}}}), encoding='utf-8')
+
+    class Ctx:
+        def log(self, _m):
+            pass
+
+        def __getattr__(self, _n):
+            return lambda *a, **k: None
+
+    r = services.pide_ejecutar(ws, Ctx(), 'P', ['F1'], implementar=False, anio_presentacion=2031)
+    assert len(r['informes_planeamiento']) == 7 and all((ws.out_dir / f).is_file() for f in r['informes_planeamiento'])
+    assert r['estudio']['anio_base'] == 2030
+    assert not [h for h in r['huecos'] if h['formato'] == 'F06 Calidad suministro' and h['campo'] in (None, 'SAIFI')]
+    assert 'hueco' in r['con_y_sin'], 'sin obras aplicadas, el motivo'
+    sin = services.pide_ejecutar(ws, Ctx(), 'P', ['F1'], implementar=False)
+    assert sin['informes_planeamiento'] == [] and any('año de presentación' in a for a in sin['avisos'])
 
 
 def test_pide_simula_y_aplica_solo_lo_que_funciona(client, monkeypatch, tmp_path):

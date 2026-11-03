@@ -85,6 +85,15 @@ def test_tasa_por_alimentador_y_cargas_restituidas(guion):
     assert app.ldf.scLoadFac == 100.0 and informe['tasa_por_alimentador'] == {'F1': 0.10, 'F2': 0.0}
 
 
+def test_la_red_se_resume_por_alimentador_y_por_sed(guion):
+    """072:RF-16 — la tensión es de su barra; una barra ajena al plan no cuenta."""
+    barras = {'a': {'nombre': 'B1', 'kv': 10.0, 'alimentador': 'F1'}, 'b': {'nombre': 'B2', 'kv': 10.0, 'alimentador': 'F1'},
+              'c': {'nombre': 'S1_BT', 'kv': 0.38, 'alimentador': 'F1'}, 'd': {'nombre': 'B3', 'kv': 22.9, 'alimentador': 'F2'}}
+    por, baja = guion.resumen_de_la_red({'a': 0.98, 'b': 0.95, 'c': 0.91, 'd': 1.0, 'otra': 0.5}, barras, {'F1': 0.9}, {'F1': 7.0})
+    assert por['F1'] == {'kv': 10.0, 'vm_min': 0.95, 'fp': 0.9, 'km': 7.0} and por['F2']['vm_min'] == 1.0
+    assert baja == [{'sed': 'S1', 'alimentador': 'F1', 'kv': 0.38, 'vm': 0.91}]
+
+
 def test_las_obras_entran_en_su_anio_y_se_quedan(guion, monkeypatch):
     """072:RF-12 — el año 04 lleva la obra del 04, no la del 08; el 08 lleva las dos; y se relee de DIgSILENT."""
     entran, salen = guion.obras_del_anio([{'variacion': 'A', 'anio': 4}, {'variacion': 'B', 'anio': 8}], 4)
@@ -107,6 +116,8 @@ def test_las_obras_entran_en_su_anio_y_se_quedan(guion, monkeypatch):
     assert con[4]['sin_aplicar'] == ['Borrada'], 'la que ya no existe se nombra, no bloquea'
     assert con[4]['converge'] and 'perdidas_kw' in con[4]
     assert 'perdidas_kw' in informe['anios'][0], 'los casos por año también miden las pérdidas'
+    assert 'F1' in informe['anios'][0]['por_alimentador'] and informe['anios'][0]['por_alimentador']['F1']['km'] is not None
+    assert 'sed_bt' in informe['anios'][0] and 'sed_bt' not in informe['anios'][1], 'las de baja, solo el primer año'
 
 
 def test_anios_en_carpetas_con_sus_casos_y_escenarios(guion, monkeypatch):
