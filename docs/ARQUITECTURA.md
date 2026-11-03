@@ -260,3 +260,24 @@ ejecuciones utilizadas. Los árboles se validan antes de retirar y se rechazan
 redirecciones, enlaces simbólicos y junctions. Los enlaces duros solo pierden
 la entrada de una ejecución obsoleta: la fuente externa conserva su nombre.
 La respuesta del monitor incluye política y resumen; no se añade sondeo en la web.
+
+## Estudio de planeamiento: PIDE y largo plazo (spec 072)
+
+Estado a 2026-11-02: **aprobada, sin implementar**. Hoy el código diagnostica por años (`tools/pide_pf.py`, spec 030) y da una
+propuesta parcial de obras; no genera los entregables. Lo calibrado hasta ahora es el caso base o año cero.
+
+| Entregable | Horizonte | Casos | Salidas |
+| --- | --- | --- | --- |
+| Largo plazo | 20 años | Años 04, 08, 12, 16, 20 | Mercado, densidad, diagnóstico, alternativas, plan de obras, F01-F07 |
+| PIDE | Años 04-07 | Alternativas con y sin proyecto | Fichas, costos, VAN, TIR, priorización, F08-F15 |
+
+- **Años:** el estudio declara su año de presentación, cada 4 años; el año 00 es el anterior. Con presentación 2027, año 00 = 2026.
+  Ningún año va fijo en el código.
+- **Flujo:** caso base → proyección de mercado (031/046) → cada caso por año (030) → obras acumuladas → evaluación → entregables.
+  El PIDE consume el largo plazo.
+- **Costos públicos de Osinergmin, Procesos Regulatorios:** SICODI para distribución, módulos estándar para transmisión y VNR
+  aprobado de cada empresa, cada uno con resolución, año y huella. No se mezclan ni llevan factores sin sustento.
+- **Modelos:** el pronóstico aporta la demanda; el oráculo, el flujo; los evolutivos, las alternativas; DIgSILENT confirma. El
+  asistente orquesta los mismos pasos y redacta; los entregables históricos le sirven de corpus, nunca como verdad eléctrica.
+- **Casos de prueba:** los nombres de empresas, clientes y proyectos de ejemplos, pruebas y documentos son casos de prueba del
+  conversor, no valores por defecto (072:RF-20).
