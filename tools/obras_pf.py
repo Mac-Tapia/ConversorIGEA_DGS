@@ -1301,8 +1301,10 @@ def construir_set_nueva(ctx) -> None:
         acopladores = {c.loc_name: c for c in elm.GetObjs('ElmCoup')}
         if parte.entrada in lineas_f:
             lineas_f[parte.entrada].outserv = 1
+            ctx.fila.setdefault('abiertos', []).append(['ElmLne', parte.entrada])     # 042:RF-19
         elif parte.entrada in acopladores:
             acopladores[parte.entrada].on_off = 0
+            ctx.fila.setdefault('abiertos', []).append(['ElmCoup', parte.entrada])
         tipo = (ctx.tipo('TypLne', o.tipo.nombre) if o.tipo is not None else
                 getattr(lineas_f.get((rama_red.troncal or ('',))[0]), 'typ_id', None))
         if tipo is None:
@@ -1651,6 +1653,7 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         # (una Obra_migracion_IN111 inactiva con 1457 objetos, 2026-10-15).
         variacion.Deactivate()
         variacion.Delete()
+        cerrar_lo_abierto(app, fila)                                          # 042:RF-19
         fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
         return
 
@@ -1669,8 +1672,25 @@ def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, 
     fila['flujo'][nombre]['diagnostico'] = diagnostico(
         Alimentadores(app, proyecto, [obra.alimentador]), obra.alimentador, {}, {})
     variacion.Deactivate()
+    cerrar_lo_abierto(app, fila)                                              # 042:RF-19
     fila['avisos'].append(f'Con la obra, el flujo de «{nombre}» no converge: queda inactiva '
                           'en ese caso y se conserva en el proyecto.')
+
+
+def cerrar_lo_abierto(app, fila: dict) -> list[str]:
+    """042:RF-19: abrir es dato del escenario; con la obra inactiva, lo abierto se vuelve a cerrar en el caso activo."""
+    cerrados = []
+    for clase, nombre in fila.get('abiertos') or []:
+        for obj in app.GetCalcRelevantObjects(f'{nombre}.{clase}') or []:
+            if clase == 'ElmCoup':
+                obj.on_off = 1
+            else:
+                obj.outserv = 0
+            cerrados.append(nombre)
+    if cerrados:
+        fila.setdefault('avisos', []).append('La obra quedó inactiva: se vuelven a cerrar ' + ', '.join(cerrados)
+                                             + ', que había abierto (042:RF-19).')
+    return cerrados
 
 
 def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe) -> None:

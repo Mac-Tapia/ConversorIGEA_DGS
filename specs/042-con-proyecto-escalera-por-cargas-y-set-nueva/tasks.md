@@ -42,6 +42,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T12. La carga que parte un tramo también entra en la SET nueva. (RF-18)
       Hecho cuando: `pytest -q tests/test_set_nueva_web.py` en verde.
+- [x] T13. La obra inactiva o fallida devuelve lo que abrió. (RF-19)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
