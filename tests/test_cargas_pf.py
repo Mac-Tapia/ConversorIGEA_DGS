@@ -303,3 +303,17 @@ def test_cada_etapa_nueva_tiene_su_segundo_propio():
         vistas.add(t)
         etapas.append(SimpleNamespace(tAcTime=t))
     assert guion.fecha_de_etapa_nueva(SimpleNamespace(GetContents=lambda *_a: []), hora) == hora - guion.VENTANA_ETAPAS_S
+
+
+def test_la_fila_cercana_que_no_cabe_en_la_sed_es_sed_nueva():
+    """040:RF-13 — Pisco: 1 600 kW a 25 m de una SED de 100 kVA no es su ampliación; 80 kW sí."""
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('cargas_pf.py', 'cargas_rf13', tools_en_path=True)
+    sed = {'sed': 'SE1', 'carga': None, 'barra': None, 'gps': (-13.8624, -76.1321), 'kva': 100.0}
+    grande = {'sed': 'CLIENTE GRANDE', 'kw': 1600.0, 'fp': 1.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(grande, [sed]) is None and '040:RF-13' in grande['_no_ampliacion']
+    chica = {'sed': 'CLIENTE CHICO', 'kw': 80.0, 'fp': 1.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(chica, [sed])['sed'] == 'SE1'
+    por_nombre = {'sed': 'AMPLIACION SE1', 'kw': 1600.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(por_nombre, [sed])['sed'] == 'SE1'

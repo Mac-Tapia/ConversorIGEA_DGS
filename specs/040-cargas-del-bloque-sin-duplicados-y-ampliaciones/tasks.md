@@ -31,3 +31,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (las dos duplicadas y las tres ampliaciones creadas como SED), 3 ampliaciones en SE50150, SE50324 y
       SE50323 con su propuesta de transformador, 1 carga nueva, 31 reutilizadas (15 renombradas con su
       alimentador); «Con proyecto» converge, sin fallos.
+- [x] T9. La fila cercana que no cabe en el transformador de la SED es SED nueva. (RF-13)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py` en verde.

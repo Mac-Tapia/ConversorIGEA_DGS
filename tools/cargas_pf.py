@@ -1028,9 +1028,27 @@ def sed_existentes(alims: Alimentadores, ya: dict | None) -> dict[str, list[dict
             if (f, nombre) in nuevas:
                 continue
             barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
-            lista.append({'sed': nombre, 'carga': carga, 'barra': barra, 'gps': _gps_de_sed(carga)})
+            lista.append({'sed': nombre, 'carga': carga, 'barra': barra, 'gps': _gps_de_sed(carga),
+                          'kva': _kva_de_la_barra(barra)})                         # 040:RF-13
         out[f] = sorted(lista, key=lambda s: str(s['sed']))
     return out
+
+
+def _kva_de_la_barra(barra) -> float | None:
+    """La potencia instalada de los transformadores que llegan a la barra de baja de la SED, en kVA (040:RF-13)."""
+    total = 0.0
+    for c in (barra.GetContents('*.StaCubic') if barra is not None else []) or []:
+        e = getattr(c, 'obj_id', None)
+        if e is not None and e.GetClassName() == 'ElmTr2' and getattr(e, 'typ_id', None) is not None:
+            total += float(getattr(e.typ_id, 'strn', 0) or 0) * 1000.0 * max(1, int(getattr(e, 'ntnum', 1) or 1))
+    return total or None
+
+
+def _demanda_kva(fila: dict) -> float:
+    """La demanda de la fila en kVA, con su factor de potencia si lo trae."""
+    kw = float(fila.get('kw') or 0.0)
+    fp = float(fila.get('fp') or 0.0)
+    return kw / fp if 0 < fp <= 1 else kw
 
 
 def ampliacion_de(fila: dict, existentes: list[dict], radio_m: float = AMPLIACION_M) -> dict | None:
@@ -1054,6 +1072,11 @@ def ampliacion_de(fila: dict, existentes: list[dict], radio_m: float = AMPLIACIO
         return None
     d, _n, i = cerca[0]
     s = existentes[i]
+    if s.get('kva') and _demanda_kva(fila) > float(s['kva']):
+        # 040:RF-13: una carga que no cabe en el transformador de la SED cercana no es su ampliación.
+        fila['_no_ampliacion'] = (f"a {d:.0f} m de la SED {s['sed']}, pero su demanda ({_demanda_kva(fila):,.0f} kVA) "
+                                  f"pasa de su transformador ({float(s['kva']):,.0f} kVA): SED nueva (040:RF-13)")
+        return None
     return {**s, 'distancia_m': d, 'criterio': f"a {d:.0f} m de la SED {s['sed']}"}
 
 
@@ -1178,6 +1201,8 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             a = ampliacion_de(fila, sed_de[f])
             if a is not None and (amp is None or (a['distancia_m'] or 0.0) < (amp[1]['distancia_m'] or 0.0)):
                 amp = (f, a)
+        if amp is None and fila.get('_no_ampliacion'):
+            avisos.append(f"{sed}: {fila.pop('_no_ampliacion')}.")
         if amp is not None:
             feeder, a = amp
             con_sed = sorted(entrada['con_sed']) if entrada else []
