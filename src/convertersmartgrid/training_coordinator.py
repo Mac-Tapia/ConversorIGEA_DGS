@@ -89,6 +89,9 @@ def _pid_vivo(pid: int) -> bool:
         return False
 
 
+#: Lectura pública para otros módulos de aplicación (050: marca de un ciclo en curso).
+pid_vivo = _pid_vivo
+
 class BloqueoGPU:
     def __init__(self, ruta: Path | str, model: str):
         self.ruta, self.model = Path(ruta), model
