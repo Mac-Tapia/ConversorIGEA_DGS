@@ -523,7 +523,7 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
         llamadas.append((tuple(feeders), tuple(cargas_activas or ()), aplicar))
         if aplicar:
             vistos_solo.append(k.get('solo'))
-        return {'alimentadores': [{'feeder': feeders[0], 'elegida': {'nombre': 'bancos'} if feeders == ['F1'] else None}]}
+        return {'alimentadores': [{'feeder': feeders[0], 'elegida': 'bancos' if feeders == ['F1'] else None}]}
     monkeypatch.setattr(services, 'obras_escalera', escalera)
 
     class Ctx:

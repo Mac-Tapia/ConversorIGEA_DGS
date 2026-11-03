@@ -6048,7 +6048,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         fila = next(iter(r.get('alimentadores') or []), {})
         ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
         if fila.get('elegida') and not fila.get('ya_cumple'):
-            elegidas[f] = str(fila['elegida'].get('nombre') or '')
+            e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
+            elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
                          'ya_cumple': bool(fila.get('ya_cumple'))}
         ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
