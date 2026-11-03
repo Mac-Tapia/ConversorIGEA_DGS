@@ -1,6 +1,6 @@
 # Spec 046 — Pronóstico causal multihorizonte
 
-Estado: aprobada · Fecha: 2026-10-31
+Estado: cumplida · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

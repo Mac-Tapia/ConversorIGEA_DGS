@@ -73,7 +73,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 043 Consolidación y gobierno de modelos | aprobada | ver sus tareas |
   | 044 Evaluación causal y verificación completa | aprobada | ver sus tareas |
   | 045 Gemelo físico y contratos PINN/GNN | aprobada | ver sus tareas |
-  | 046 Pronóstico causal multihorizonte | aprobada | ver sus tareas |
+  | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | aprobada | ver sus tareas |
   | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
