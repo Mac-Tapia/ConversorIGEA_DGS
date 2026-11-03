@@ -15,7 +15,7 @@
   C+æ02, queda cerca de DIgSILENT. Descartado el propio porque duplicaría un motor y su mantenimiento.
 - **Todos los tramos son trifásicos en pandapower**, que no tiene conductores ausentes. Un tramo
   monofásico solo lleva corriente en su fase: la caída sale de la impedancia propia, (Z0 + 2·Z1)/3.
-  El contraste de RF-14 lo mide; con un catálogo de R0 distinta de R1 aún falta medirlo.
+  El contraste de RF-14 lo mide.
 - **Una SED de n fases, YNyn de 3/n su potencia**: pandapower solo tiene trafos de tres columnas. Así
   cada fase conserva su potencia y su corriente nominal, y pasa la secuencia cero. Descartado colgar la
   carga en media tensión, porque omitiría el transformador (RF-6).
