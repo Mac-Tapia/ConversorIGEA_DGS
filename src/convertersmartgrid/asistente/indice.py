@@ -189,7 +189,7 @@ def verificables(repo: Path, hallados: Sequence[dict]) -> list[dict]:
 @dataclass(frozen=True)
 class Abstencion:
     """Cuándo hay respuesta, con umbrales calibrados (047:RF-31 a RF-34). «No lo sé» antes que citar
-    un trozo que no responde: con el coseno fijo en 0,55, «¿cuál es la capital de Mongolia?» salía con citas."""
+    un trozo que no responde: con el coseno fijo en 0,55, las diez preguntas ajenas al proyecto salían con citas."""
     calibrada: bool = False
     modelo_reranker: str | None = None
     umbral_reranker: float | None = None
