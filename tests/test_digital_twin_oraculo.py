@@ -13,6 +13,7 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
+from apoyo import contrato_fisico
 from test_digital_twin_episode import _payload
 
 from convertersmartgrid.digital_twin import oraculo as orc
@@ -34,7 +35,7 @@ def red_radial(rnd: random.Random, n: int, carga: float = 1.0) -> dict:
     ramas = [{'id': f'L{i}', 'desde': f'N{rnd.randrange(max(0, i - 3), i)}', 'hasta': f'N{i}',
               'cerrada': True, 'r_ohm': rnd.uniform(0.2, 0.8), 'x_ohm': rnd.uniform(0.2, 0.6),
               'inom_ka': 0.2} for i in range(1, n)]
-    return {'version': orc.VERSION_GRAFO, 'nodos': nodos, 'ramas': ramas}
+    return {'version': orc.VERSION_GRAFO, **contrato_fisico(), 'nodos': nodos, 'ramas': ramas}
 
 
 def _tensiones(grafo):

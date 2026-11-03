@@ -34,15 +34,12 @@ import numpy as np
 
 from ..evaluacion_modelos import PoliticaDeError, alcance_de, evaluar_candidato, particionar_registros
 from .buffer import BuferEpisodios, Consulta
+from .contratos_fisicos import VERSION_GRAFO, validar_alcance_fisico
 from .episode import Clase, Episodio
 from .escenarios import Escenario, familia, particion
 
 #: Potencia base del sistema por unidad (MVA).
 S_BASE = 10.0
-#: Versión del grafo de ``tools/escenarios_pf.py``. La 2 trae los acopladores y la consigna
-#: de las fuentes; los episodios con un grafo anterior no enseñan (sin acopladores, la red
-#: real quedaba casi entera sin fuente).
-VERSION_GRAFO = 2
 #: Clases que enseñan tensiones (RF-14: las violaciones y rechazos, no como objetivo).
 CLASES_OBJETIVO = (Clase.ACCEPTED.value, Clase.COUNTERFACTUAL.value)
 #: Miembros del conjunto: la desviación entre ellos es la incertidumbre (RF-15).
@@ -78,6 +75,47 @@ class Muestra:
     base: np.ndarray | None = None        # V y θ de la física (``_con_base``)
     base_clave: tuple | None = None       # (física, exponente) con que se calculó ``base``
     sistema: Any = None                   # ``flujo.SistemaMallado`` factorizado, una vez
+    ru: np.ndarray | None = None          # E: relación de cada arista en su origen (1 sin transformador)
+    rw: np.ndarray | None = None          # E: relación de cada arista en su destino
+    s_shunt: np.ndarray | None = None     # nodos: lo que consumen los bancos a 1 p.u.
+    version: int | None = None            # versión del grafo de que sale
+    bloqueos: tuple[str, ...] = ()        # por qué su física no vale (045:RF-4)
+    etiquetas_sin_fuente: int = 0         # tensiones medidas en barras que el grafo deja sin fuente
+
+
+def _factor_toma(toma: Mapping[str, Any] | None) -> tuple[float, int]:
+    """Lo que multiplica la tensión nominal la toma, y en qué lado (0 alta, 1 baja)."""
+    if not toma or not toma.get('paso_pct'):
+        return 1.0, 0
+    pasos = float(toma.get('posicion') or 0.0) - float(toma.get('neutra') or 0.0)
+    return 1.0 + pasos * float(toma['paso_pct']) / 100.0, int(toma.get('lado') or 0)
+
+
+def _relaciones(r: Mapping[str, Any], kv_a: float, kv_b: float) -> tuple[float, float, float]:
+    """Relación en cada extremo de la rama e impedancia base de sus ohmios (045:RF-4).
+
+    Los ohmios de un transformador están en la tensión nominal de su lado de alta, que no tiene
+    por qué ser la de la barra. Un grafo hecho desde una muestra trae las relaciones ya calculadas.
+    """
+    if 'ru' in r:
+        return float(r['ru']), float(r['rw']), kv_a ** 2 / S_BASE
+    ua, ub = r.get('u_desde_kv'), r.get('u_hasta_kv')
+    if not ua or not ub:
+        return 1.0, 1.0, kv_a ** 2 / S_BASE
+    t, lado = _factor_toma(r.get('toma'))
+    return float(ua) / kv_a * (t if lado == 0 else 1.0), float(ub) / kv_b * (t if lado == 1 else 1.0), float(ua) ** 2 / S_BASE
+
+
+def escalar_nodo(d: Mapping[str, Any], factor: float) -> dict[str, Any]:
+    """El nodo con la demanda por ``factor``: la carga escala; la central y el banco, no.
+
+    Con la potencia neta del grafo, escalar la demanda escalaba también lo que inyectan.
+    """
+    if 'carga_p_mw' not in d:
+        return {**d, 'p_mw': (d.get('p_mw') or 0.0) * factor, 'q_mvar': (d.get('q_mvar') or 0.0) * factor}
+    p, q = (d.get('carga_p_mw') or 0.0) * factor, (d.get('carga_q_mvar') or 0.0) * factor
+    return {**d, 'carga_p_mw': p, 'carga_q_mvar': q, 'p_mw': p - (d.get('gen_p_mw') or 0.0),
+            'q_mvar': q - (d.get('gen_q_mvar') or 0.0) - (d.get('banco_q_mvar') or 0.0)}
 
 
 def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = None,
@@ -89,24 +127,28 @@ def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = No
     kv = np.array([float(nodos[n].get('kv') or 1.0) for n in ids])
     p = np.array([float(nodos[n].get('p_mw') or 0.0) for n in ids]) / S_BASE
     q = np.array([float(nodos[n].get('q_mvar') or 0.0) for n in ids]) / S_BASE
+    # ``q_mvar`` es la neta, también en la entrada de la red; el banco en la física consume por |V|².
+    banco = np.array([float(nodos[n].get('banco_q_mvar') or 0.0) for n in ids]) / S_BASE
     fuente = np.array([bool(nodos[n].get('fuente')) for n in ids])
     # Consigna de la fuente: la del grafo o, en episodios anteriores, la tensión medida en ella.
     consigna = np.array([float(nodos[n].get('v_pu') or (tensiones or {}).get(n) or 1.0) if fuente[i] else 0.0
                          for i, n in enumerate(ids)])
     x = np.stack([np.log10(np.maximum(kv, 1e-3)), p, q, fuente.astype(float), consigna], axis=1)
-    origen, destino, z, inom, ramas = [], [], [], [], []
+    origen, destino, z, inom, ramas, ru, rw = [], [], [], [], [], [], []
     for r in grafo.get('ramas') or []:
         a, b = pos.get(r.get('desde')), pos.get(r.get('hasta'))
         if a is None or b is None or not r.get('cerrada', True):
             continue
-        z_base = kv[a] ** 2 / S_BASE
+        en_a, en_b, z_base = _relaciones(r, kv[a], kv[b])
         zz = complex(float(r.get('r_ohm') or 0.0), float(r.get('x_ohm') or 0.0)) / z_base
         if abs(zz) < Z_ACOPLADOR_PU:
             zz = complex(Z_ACOPLADOR_PU, Z_ACOPLADOR_PU)       # acoplador cerrado
         i_base = S_BASE / (math.sqrt(3) * kv[a])
-        for u, w in ((a, b), (b, a)):
+        for u, w, r_u, r_w in ((a, b, en_a, en_b), (b, a, en_b, en_a)):
             origen.append(u)
             destino.append(w)
+            ru.append(r_u)
+            rw.append(r_w)
             z.append(zz)
             inom.append(float(r.get('inom_ka') or 0.0) / i_base if i_base else 0.0)
             ramas.append(str(r.get('id')))
@@ -124,21 +166,37 @@ def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = No
                 alimentado[w] = True
                 pila.append(w)
     v = mascara = None
+    sin_fuente = 0
     if tensiones is not None:
         v = np.array([float(tensiones.get(n, 0.0)) for n in ids])
-        mascara = np.array([n in tensiones for n in ids])
+        # 045:RF-5: una barra sin fuente no enseña «0 p.u.» ni una tensión que el grafo no explica.
+        leida = np.array([n in tensiones and float(tensiones[n]) > 0 for n in ids])
+        mascara = leida & alimentado
+        sin_fuente = int(np.count_nonzero(leida & ~alimentado))
     return Muestra(ids, x, np.array([origen, destino], dtype=np.int64).reshape(2, -1),
-                   np.array(z, dtype=complex), np.array(inom), ramas, p + 1j * q, fuente, v, mascara,
-                   familia_, alimentado)
+                   np.array(z, dtype=complex), np.array(inom), ramas, p + 1j * (q + banco), fuente, v, mascara,
+                   familia_, alimentado, ru=np.array(ru, dtype=float), rw=np.array(rw, dtype=float),
+                   s_shunt=-1j * banco, version=grafo.get('version'), bloqueos=validar_alcance_fisico(grafo),
+                   etiquetas_sin_fuente=sin_fuente)
+
+
+def por_que_no_ensena(e: Episodio) -> str | None:
+    """Por qué un episodio no entra en el entrenamiento; ``None`` si entra (045:RF-2, RF-4)."""
+    grafo = (e.topologia or {}).get('grafo')
+    if not grafo or not (e.flujo.get('tensiones') or {}).get('valores'):
+        return 'sin grafo o sin tensiones'
+    if grafo.get('version') != VERSION_GRAFO:
+        return f"grafo de la versión {grafo.get('version')}, anterior a la {VERSION_GRAFO}"
+    bloqueos = validar_alcance_fisico(grafo)
+    return f'física no representada: {bloqueos[0]}' if bloqueos else None
 
 
 def muestra_de_episodio(e: Episodio) -> Muestra | None:
-    """La muestra de un episodio con grafo y tensiones; ``None`` si no los trae."""
-    grafo = (e.topologia or {}).get('grafo')
-    tens = (e.flujo.get('tensiones') or {}).get('valores')
-    if not grafo or not tens or grafo.get('version') != VERSION_GRAFO:
+    """La muestra de un episodio que puede enseñar; ``None`` si no (``por_que_no_ensena``)."""
+    if por_que_no_ensena(e) is not None:
         return None
-    return muestra(grafo, tens, familia({'nativo': e.nativo, 'accion': e.accion, 'topologia': e.topologia}))
+    return muestra(e.topologia['grafo'], e.flujo['tensiones']['valores'],
+                   familia({'nativo': e.nativo, 'accion': e.accion, 'topologia': e.topologia}))
 
 
 # ------------------------------------------------------------------ física
@@ -167,12 +225,70 @@ def residuo(m: Muestra, v: np.ndarray, theta: np.ndarray, exponente: float = 0.0
     grupo, real, exigir, n = barras_electricas(m)
     vc = v * np.exp(1j * theta)
     a, b = m.aristas[:, real]
+    ru, rw = m.ru[real], m.rw[real]
     corriente = np.zeros(len(m.ids), dtype=complex)
-    np.add.at(corriente, a, (vc[a] - vc[b]) / m.z[real])
-    s_nodo = vc * np.conj(corriente) + m.s_carga * np.abs(v) ** exponente   # sale + carga = 0
+    np.add.at(corriente, a, (vc[a] / ru - vc[b] / rw) / (m.z[real] * ru))
+    # sale + carga + banco = 0
+    s_nodo = vc * np.conj(corriente) + m.s_carga * np.abs(v) ** exponente + m.s_shunt * np.abs(v) ** 2
     s_barra = np.zeros(n, dtype=complex)
     np.add.at(s_barra, grupo, s_nodo)
     return np.where(exigir, np.abs(s_barra), 0.0)[grupo]
+
+
+def error_de_fronteras(m: Muestra, v: np.ndarray, theta: np.ndarray) -> float:
+    """Error cuadrático medio (p.u.²) de lo que no se predice: es dato (045:RF-5, RF-6).
+
+    Magnitud y ángulo de referencia en cada fuente, una barra eléctrica a una sola tensión y las
+    islas sin fuente a cero.
+    """
+    grupo, _real, _exigir, n = barras_electricas(m)
+    errores = [v[m.fuente] - m.x[m.fuente, 4], theta[m.fuente], v[~m.alimentado], theta[~m.alimentado]]
+    cuenta = np.bincount(grupo, minlength=n)
+    media = np.bincount(grupo, weights=v, minlength=n) / np.maximum(cuenta, 1)
+    errores.append((v - media[grupo])[(cuenta[grupo] > 1) & m.alimentado])
+    todos = np.concatenate(errores)
+    return float(np.mean(todos ** 2)) if todos.size else 0.0
+
+
+def perdidas_fisicas(prediccion: Mapping[str, Any], m: Muestra, *, pesos: Mapping[str, float],
+                     exponente: float = 0.0) -> dict[str, Any]:
+    """Datos, residuo físico y fronteras por separado (045:RF-6), en p.u. al cuadrado.
+
+    Sin barras medidas, ``datos`` es ``None`` y no 0: una ausencia no aparenta un ajuste perfecto.
+    """
+    faltan = [k for k in ('datos', 'fisica', 'fronteras') if k not in pesos]
+    if faltan:
+        raise ValueError(f'faltan los pesos de {", ".join(faltan)}')
+    v, theta = np.asarray(prediccion['v'], dtype=float), np.asarray(prediccion['theta'], dtype=float)
+    datos = None
+    if m.mascara is not None and m.mascara.any():
+        datos = float(np.mean((v - m.v)[m.mascara] ** 2))
+    grupo, _real, exigir, _n = barras_electricas(m)
+    balance = residuo(m, v, theta, exponente)
+    # ``residuo`` da el desbalance de la barra eléctrica en cada nodo suyo: una vez por barra.
+    primero = np.unique(grupo, return_index=True)[1]
+    fisica = float(np.mean(balance[primero][exigir] ** 2)) if exigir.any() else 0.0
+    fronteras = error_de_fronteras(m, v, theta)
+    total = float(pesos['fisica']) * fisica + float(pesos['fronteras']) * fronteras
+    if datos is not None:
+        total += float(pesos['datos']) * datos
+    return {'datos': datos, 'fisica': fisica, 'fronteras': fronteras, 'total': total,
+            'pesos': {k: float(pesos[k]) for k in ('datos', 'fisica', 'fronteras')},
+            'unidades': {'datos': 'p.u.²', 'fisica': 'p.u.²', 'fronteras': 'p.u.²'}}
+
+
+def imponer_fronteras(m: Muestra, v: np.ndarray, theta: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """La predicción con lo que es dato: la consigna y el ángulo 0 de la referencia de cada isla
+    energizada, que los acopladores comparten, y las barras sin fuente a 0 (045:RF-5).
+
+    La física fija el ángulo de cada isla en sus fuentes; la red de la 024 lo dejaba flotar.
+    """
+    sis = sistema_de(m)
+    v, theta = np.array(v, dtype=float), np.array(theta, dtype=float)
+    fijas = sis.fuente[sis.indice]
+    v[fijas], theta[fijas] = sis.consigna[sis.indice][fijas], 0.0
+    v[~m.alimentado], theta[~m.alimentado] = 0.0, 0.0
+    return v, theta
 
 
 @dataclass
@@ -191,10 +307,10 @@ class ModeloRadial:
     def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
         m = muestra(grafo)
         n = len(m.ids)
-        vecinos: list[list[tuple[int, complex]]] = [[] for _ in range(n)]
+        vecinos: list[list[tuple[int, int]]] = [[] for _ in range(n)]
         for k in range(m.aristas.shape[1]):
-            vecinos[m.aristas[0, k]].append((int(m.aristas[1, k]), m.z[k]))
-        padre, zpadre, orden = [-1] * n, [0j] * n, []
+            vecinos[m.aristas[0, k]].append((int(m.aristas[1, k]), k))
+        padre, arista, orden = [-1] * n, [-1] * n, []
         visto = [False] * n
         for s in np.flatnonzero(m.fuente):
             pila = [int(s)]
@@ -202,21 +318,23 @@ class ModeloRadial:
             while pila:
                 u = pila.pop()
                 orden.append(u)
-                for w, zz in vecinos[u]:
+                for w, k in vecinos[u]:
                     if not visto[w]:
-                        visto[w], padre[w], zpadre[w] = True, u, zz
+                        visto[w], padre[w], arista[w] = True, u, k
                         pila.append(w)
         vc = np.where(m.fuente, m.x[:, 4], 1.0).astype(complex)   # las fuentes, en su consigna
         for _ in range(self.iteraciones):
-            i_nodo = np.conj(m.s_carga * np.abs(vc) ** self.exponente / vc)
+            i_nodo = np.conj((m.s_carga * np.abs(vc) ** self.exponente + m.s_shunt * np.abs(vc) ** 2) / vc)
             i_rama = i_nodo.copy()
             for u in reversed(orden):
                 if padre[u] >= 0:
-                    i_rama[padre[u]] += i_rama[u]
+                    k = arista[u]
+                    i_rama[padre[u]] += i_rama[u] * m.rw[k] / m.ru[k]
             nuevo = vc.copy()
             for u in orden:
                 if padre[u] >= 0:
-                    nuevo[u] = nuevo[padre[u]] - zpadre[u] * i_rama[u]
+                    k = arista[u]
+                    nuevo[u] = m.rw[k] * (nuevo[padre[u]] / m.ru[k] - m.z[k] * m.rw[k] * i_rama[u])
             if np.max(np.abs(nuevo - vc)) < 1e-9:
                 vc = nuevo
                 break
@@ -224,7 +342,7 @@ class ModeloRadial:
         v = np.where(visto, np.abs(vc), 0.0)
         return {'ids': m.ids, 'v': v, 'theta': np.where(visto, np.angle(vc), 0.0),
                 'incertidumbre': np.zeros(n), 'residuo': residuo(m, v, np.angle(vc), self.exponente),
-                'fuera_de_dominio': False, 'modelo': self.nombre}
+                'fuera_de_dominio': bool(m.bloqueos), 'motivos': list(m.bloqueos), 'modelo': self.nombre}
 
 
 def sistema_de(m: Muestra):
@@ -232,7 +350,7 @@ def sistema_de(m: Muestra):
     if m.sistema is None:
         from .flujo import SistemaMallado
 
-        m.sistema = SistemaMallado(m.aristas, m.z, m.fuente, m.x[:, 4], m.alimentado)
+        m.sistema = SistemaMallado(m.aristas, m.z, m.fuente, m.x[:, 4], m.alimentado, m.ru, m.rw, m.s_shunt)
     return m.sistema
 
 
@@ -252,8 +370,10 @@ class ModeloMallado:
         sol = sistema_de(m).resolver(m.s_carga, exponente=self.exponente)
         v, th = (sol.v, sol.theta) if sol.convergio else (np.zeros(len(m.ids)), np.zeros(len(m.ids)))
         return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': np.zeros(len(m.ids)),
-                'residuo': residuo(m, v, th, self.exponente), 'fuera_de_dominio': not sol.convergio,
-                'motivos': [] if sol.convergio else ['el flujo físico no converge'],
+                'residuo': residuo(m, v, th, self.exponente),
+                # 045:RF-4: converger sobre una red que la física no representa no es un resultado.
+                'fuera_de_dominio': not sol.convergio or bool(m.bloqueos),
+                'motivos': ([] if sol.convergio else ['el flujo físico no converge']) + list(m.bloqueos),
                 'convergio': sol.convergio, 'perdidas_mw': sol.perdidas_pu * S_BASE, 'modelo': self.nombre}
 
     def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
@@ -341,9 +461,9 @@ def _red(ocultas: int = 64, pasos: int = 8, arquitectura: str = 'csg'):
             # los nodos a cientos de tramos (IN111–TA225: error de 0,035 p.u., 2026-10-22).
             v = x[:, 5] + 0.1 * torch.tanh(out[:, 0])
             th = x[:, 6] + 0.2 * torch.tanh(out[:, 1])
-            # En la fuente la tensión es su consigna: dato, no predicción.
+            # En la fuente tensión y ángulo son dato, no predicción (045:RF-5): el ángulo flotaba.
             es_fuente = x[:, 3] > 0.5
-            return torch.where(es_fuente, x[:, 4], v), th
+            return torch.where(es_fuente, x[:, 4], v), torch.where(es_fuente, x[:, 6], th)
 
     return Red()
 
@@ -366,22 +486,31 @@ def _tensores(m: Muestra, disp, exponente: float = 0.0, fisica: str = 'mallado')
             torch.tensor(e, dtype=torch.float32, device=disp))
 
 
-def _fisica(m: Muestra, disp, exponente: float = 0.0) -> dict:
+def _fisica(m: Muestra, disp, exponente: float = 0.0, dtype=None) -> dict:
     """Tensores fijos de la pérdida física de una muestra, creados una sola vez.
 
     Crearlos en cada paso agotó la memoria con IN111–TA225 (2470 nodos, 2026-10-22: «CUDA
     error: Memory allocation failure» con 1,3 GB de RAM libre) y tumbó la web.
     """
     torch = _torch()
+    dtype = dtype or torch.float32
     grupo, real, exigir, n = barras_electricas(m)
     z = m.z[real]
     return {'a': torch.tensor(m.aristas[0][real], device=disp), 'b': torch.tensor(m.aristas[1][real], device=disp),
-            'zr': torch.tensor(z.real, dtype=torch.float32, device=disp),
-            'zi': torch.tensor(z.imag, dtype=torch.float32, device=disp),
-            'sp': torch.tensor(m.s_carga.real, dtype=torch.float32, device=disp),
-            'sq': torch.tensor(m.s_carga.imag, dtype=torch.float32, device=disp),
+            'zr': torch.tensor(z.real, dtype=dtype, device=disp),
+            'zi': torch.tensor(z.imag, dtype=dtype, device=disp),
+            'ru': torch.tensor(m.ru[real], dtype=dtype, device=disp),
+            'rw': torch.tensor(m.rw[real], dtype=dtype, device=disp),
+            'sp': torch.tensor(m.s_carga.real, dtype=dtype, device=disp),
+            'sq': torch.tensor(m.s_carga.imag, dtype=dtype, device=disp),
+            'bq': torch.tensor(m.s_shunt.imag, dtype=dtype, device=disp),
             'grupo': torch.tensor(grupo, dtype=torch.long, device=disp), 'n': n,
-            'exigir': torch.tensor(exigir, device=disp), 'exponente': exponente}
+            'exigir': torch.tensor(exigir, device=disp), 'exponente': exponente,
+            # 045:RF-6: lo que es dato, para medir el error de fronteras aparte.
+            'fuente': torch.tensor(m.fuente, device=disp),
+            'consigna': torch.tensor(m.x[:, 4], dtype=dtype, device=disp),
+            'alimentado': torch.tensor(m.alimentado, device=disp),
+            'cuenta': torch.tensor(np.bincount(grupo, minlength=n), dtype=dtype, device=disp)}
 
 
 def _residuo_torch(f: dict, v, theta):
@@ -389,17 +518,37 @@ def _residuo_torch(f: dict, v, theta):
     torch = _torch()
     a, b, zr, zi = f['a'], f['b'], f['zr'], f['zi']
     vr, vi = v * torch.cos(theta), v * torch.sin(theta)
-    dr, di = vr[a] - vr[b], vi[a] - vi[b]
-    den = zr * zr + zi * zi
+    ru, rw = f['ru'], f['rw']
+    dr, di = vr[a] / ru - vr[b] / rw, vi[a] / ru - vi[b] / rw
+    den = (zr * zr + zi * zi) * ru
     ir, ii = (dr * zr + di * zi) / den, (di * zr - dr * zi) / den
     i_r = torch.zeros_like(v).index_add_(0, a, ir)
     i_i = torch.zeros_like(v).index_add_(0, a, ii)
     e = v.abs() ** f['exponente']
     p = vr * i_r + vi * i_i + f['sp'] * e
-    q = vi * i_r - vr * i_i + f['sq'] * e
+    q = vi * i_r - vr * i_i + f['sq'] * e + f['bq'] * v * v
     pb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], p)
     qb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], q)
     return (pb ** 2 + qb ** 2)[f['exigir']]
+
+
+def _fronteras_torch(f: dict, v, theta):
+    """``error_de_fronteras`` con gradiente: mismos términos, en PyTorch."""
+    torch = _torch()
+    fuente, vivo, grupo, cuenta = f['fuente'], f['alimentado'], f['grupo'], f['cuenta']
+    suma = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, grupo, v)
+    media = suma / cuenta.clamp(min=1)
+    errores = [v[fuente] - f['consigna'][fuente], theta[fuente], v[~vivo], theta[~vivo],
+               (v - media[grupo])[(cuenta[grupo] > 1) & vivo]]
+    todos = torch.cat(errores)
+    # Una red sin fuentes no llega a entrenar; aquí un NaN se llevaría todos los pesos.
+    return (todos ** 2).mean() if todos.numel() else torch.zeros((), dtype=v.dtype, device=v.device)
+
+
+def _terminos_torch(f: dict, v, theta, objetivo, mascara) -> dict:
+    """Los tres términos de la pérdida, sin sumar (045:RF-6)."""
+    return {'datos': ((v - objetivo)[mascara] ** 2).mean(), 'fisica': _residuo_torch(f, v, theta).mean(),
+            'fronteras': _fronteras_torch(f, v, theta)}
 
 
 @dataclass
@@ -429,6 +578,9 @@ class Entrenamiento:
     cobertura: float = 0.9
     """Cobertura del intervalo conforme de tensión por barra (027:RF-12)."""
     arquitectura: str = 'csg'
+    peso_fronteras: float = 0.0
+    """Peso del error de fronteras (045:RF-6). Se mide siempre y por defecto no se optimiza: la red ya
+    impone la fuente, y un peso nuevo cambiaría el objetivo sin una medida que lo justifique."""
 
     def __post_init__(self):
         # Los modelos entrenados antes de la spec 058 guardan el nombre anterior.
@@ -438,24 +590,27 @@ class Entrenamiento:
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
                      log: Callable[[str], None] = lambda _m: None, validacion: Sequence[Muestra] = (),
-                     historial: list | None = None, al_validar: Callable[[int, float], None] | None = None):
+                     historial: list | None = None, al_validar: Callable[[int, float], None] | None = None,
+                     terminos: list | None = None):
     """Un miembro del conjunto: error frente a DIgSILENT + residuo físico (PINN).
 
     Con ``validacion``, para tras ``cfg.paciencia`` épocas sin mejorar y devuelve los pesos de
     la mejor época (027:RF-5); ``historial`` recibe ``(época, mae de validación)`` y
     ``al_validar`` se llama con los dos tras cada medida (la poda de la búsqueda, RF-7).
+    ``terminos`` recibe, por época, la media de datos, física y fronteras (045:RF-6).
     """
     torch = _torch()
     try:
         return _entrenar_en(muestras, cfg, inicial, log, dispositivo(), validacion,
-                            historial if historial is not None else [], al_validar)
+                            historial if historial is not None else [], al_validar, terminos)
     finally:
         torch.cuda.empty_cache()     # cada miembro devuelve la memoria de la GPU
 
 
 def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None,
                  log: Callable[[str], None], disp, validacion: Sequence[Muestra] = (),
-                 historial: list | None = None, al_validar: Callable[[int, float], None] | None = None):
+                 historial: list | None = None, al_validar: Callable[[int, float], None] | None = None,
+                 terminos: list | None = None):
     torch = _torch()
     # 027:RF-9: mismo manifiesto, misma GPU, mismo modelo. ``index_add_`` en CUDA no tiene
     # versión determinista: se avisa en vez de fallar y la prueba mide la diferencia.
@@ -479,15 +634,21 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
     for epoca in range(cfg.epocas):
         random.shuffle(datos)
         total = 0.0
+        suma = {'datos': 0.0, 'fisica': 0.0, 'fronteras': 0.0}
         for f, x, ar, e, v, mask in datos:
             vp, th = red(x, ar, e)
-            perdida = ((vp - v)[mask] ** 2).mean() + cfg.peso_fisico * _residuo_torch(f, vp, th).mean()
+            t = _terminos_torch(f, vp, th, v, mask)
+            perdida = t['datos'] + cfg.peso_fisico * t['fisica'] + cfg.peso_fronteras * t['fronteras']
+            for clave in suma:
+                suma[clave] += float(t[clave].detach())
             opt.zero_grad()
             perdida.backward()
             torch.nn.utils.clip_grad_norm_(red.parameters(), cfg.recorte)
             opt.step()
             total += float(perdida.detach())
         plan.step()
+        if terminos is not None:
+            terminos.append({'epoca': epoca, **{k: w / max(len(datos), 1) for k, w in suma.items()}})
         if epoca % 100 == 0:
             log(f'  época {epoca}: pérdida {total / max(len(datos), 1):.3e}')
         if val and (epoca % cfg.cada == 0 or epoca == cfg.epocas - 1):
@@ -506,6 +667,31 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
                 break
     final = mejor_estado if mejor_estado is not None else red.state_dict()
     return {k: v.detach().cpu() for k, v in final.items()}
+
+
+def motivos_de_dominio(m: Muestra, dominio: Mapping[str, Any]) -> list[str]:
+    """Por qué esta red está fuera de lo que un modelo aprendió (RF-19, 045:RF-4, RF-9)."""
+    motivos = list(m.bloqueos)
+    # 045:RF-2: los pesos aprendieron con la física de su grafo; un modelo anterior no dice cuál fue.
+    if dominio.get('version_grafo') != m.version:
+        motivos.append(f"modelo entrenado con el grafo versión {dominio.get('version_grafo')}, esta red es "
+                       f'versión {m.version}')
+    lo, hi = np.array(dominio['x_min']), np.array(dominio['x_max'])
+    margen = 0.1 * np.maximum(hi - lo, 1e-6)
+    fuera = (m.x < lo - margen) | (m.x > hi + margen)
+    if fuera.any():
+        motivos.append(f'{int(fuera.any(axis=1).sum())} nodo(s) con datos fuera de lo aprendido')
+    n_min, n_max = dominio['nodos']
+    if not 0.5 * n_min <= len(m.ids) <= 2 * n_max:
+        motivos.append(f'{len(m.ids)} nodos frente a {n_min}–{n_max} aprendidos')
+    # 071:RF-2: rangos y tamaño no dicen de qué red se trata: un modelo con 0,0024 p.u. en su red
+    # dio 0,308 p.u. en otra (2026-10-28). Sin redes declaradas, tampoco se sabe: decide la física.
+    redes = dominio.get('redes')
+    if not redes:
+        motivos.append('el modelo no declara en qué redes se probó')
+    elif red_de(m) not in redes:
+        motivos.append('red distinta de aquellas en las que se probó el modelo')
+    return motivos
 
 
 @dataclass
@@ -534,23 +720,7 @@ class OraculoPINN:
 
     def fuera_de_dominio(self, m: Muestra) -> list[str]:
         """Motivos por los que esta red está fuera de lo aprendido (RF-19)."""
-        motivos = []
-        lo, hi = np.array(self.dominio['x_min']), np.array(self.dominio['x_max'])
-        margen = 0.1 * np.maximum(hi - lo, 1e-6)
-        fuera = (m.x < lo - margen) | (m.x > hi + margen)
-        if fuera.any():
-            motivos.append(f'{int(fuera.any(axis=1).sum())} nodo(s) con datos fuera de lo aprendido')
-        n_min, n_max = self.dominio['nodos']
-        if not 0.5 * n_min <= len(m.ids) <= 2 * n_max:
-            motivos.append(f'{len(m.ids)} nodos frente a {n_min}–{n_max} aprendidos')
-        # 071:RF-2: rangos y tamaño no dicen de qué red se trata: un modelo con 0,0024 p.u. en su red
-        # dio 0,308 p.u. en otra (2026-10-28). Sin redes declaradas, tampoco se sabe: decide la física.
-        redes = self.dominio.get('redes')
-        if not redes:
-            motivos.append('el modelo no declara en qué redes se probó')
-        elif red_de(m) not in redes:
-            motivos.append('red distinta de aquellas en las que se probó el modelo')
-        return motivos
+        return motivos_de_dominio(m, self.dominio)
 
     def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
         torch = _torch()
@@ -561,7 +731,7 @@ class OraculoPINN:
             salidas = [red(x, ar, e) for red in redes]
         vs = np.stack([s[0].cpu().numpy() for s in salidas])
         ths = np.stack([s[1].cpu().numpy() for s in salidas])
-        v, th = vs.mean(axis=0), ths.mean(axis=0)
+        v, th = imponer_fronteras(m, vs.mean(axis=0), ths.mean(axis=0))     # 045:RF-5
         motivos = self.fuera_de_dominio(m)
         sigma = vs.std(axis=0)
         # 027:RF-12: semiancho del intervalo con la cobertura pedida.
@@ -629,12 +799,12 @@ def estado_electrico(prediccion: Mapping[str, Any], grafo: Mapping[str, Any], li
     m = muestra(grafo)
     vc = np.asarray(prediccion['v']) * np.exp(1j * np.asarray(prediccion['theta']))
     a, b = m.aristas
-    i = (vc[a] - vc[b]) / m.z
+    i = (vc[a] / m.ru - vc[b] / m.rw) / m.z
     perdidas = float(np.sum(np.abs(i) ** 2 * m.z.real) / 2 * S_BASE)
     carga = {}
     for k, rama in enumerate(m.ramas):
         if m.inom[k] > 0:
-            carga[rama] = max(carga.get(rama, 0.0), 100 * abs(i[k]) / m.inom[k])
+            carga[rama] = max(carga.get(rama, 0.0), 100 * abs(i[k]) / m.ru[k] / m.inom[k])
     return {'requiere_pf': False, 'tensiones': dict(zip(m.ids, map(float, prediccion['v']), strict=True)),
             'incertidumbre': dict(zip(m.ids, map(float, prediccion['incertidumbre']), strict=True)),
             'perdidas_mw': perdidas, 'cargabilidad_pct': carga,
@@ -661,7 +831,8 @@ def _grafo_de_muestra(m: Muestra) -> dict:
     nodos = {}
     for i, n in enumerate(m.ids):
         nodos[n] = {'kv': 10 ** m.x[i, 0], 'p_mw': m.x[i, 1] * S_BASE, 'q_mvar': m.x[i, 2] * S_BASE,
-                    'fuente': bool(m.fuente[i]), 'v_pu': float(m.x[i, 4]) if m.fuente[i] else None}
+                    'fuente': bool(m.fuente[i]), 'v_pu': float(m.x[i, 4]) if m.fuente[i] else None,
+                    'banco_q_mvar': float(-m.s_shunt[i].imag * S_BASE)}
     ramas, vistos = [], set()
     kv = 10 ** m.x[:, 0]
     for k in range(m.aristas.shape[1]):
@@ -673,8 +844,9 @@ def _grafo_de_muestra(m: Muestra) -> dict:
         i_base = S_BASE / (math.sqrt(3) * kv[a])
         ramas.append({'id': m.ramas[k], 'desde': m.ids[a], 'hasta': m.ids[b], 'cerrada': True,
                       'r_ohm': m.z[k].real * z_base, 'x_ohm': m.z[k].imag * z_base,
-                      'inom_ka': m.inom[k] * i_base})
-    return {'nodos': nodos, 'ramas': ramas}
+                      'inom_ka': m.inom[k] * i_base, 'ru': float(m.ru[k]), 'rw': float(m.rw[k])})
+    # Sin versión ni motivos, lo evaluado parecería una red distinta de la que salió la muestra.
+    return {'nodos': nodos, 'ramas': ramas, 'version': m.version, 'bloqueos_heredados': list(m.bloqueos)}
 
 
 def guardar(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict) -> Path:
@@ -779,6 +951,19 @@ def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, 
     return {'promovido': not fallos, 'candidate_id': candidate_id, 'smoke_reload': smoke}
 
 
+def guardar_y_reabrir(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict, sonda: Muestra,
+                      reabrir: Callable[[Path], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Guarda un candidato sin promoverlo y lo reabre en otro proceso (045:RF-8, 043:RF-5).
+
+    Una ablación se mide con lo que queda en disco: en memoria, un fichero roto no se notaría.
+    """
+    carpeta = guardar(oraculo, bufer, meta)
+    grafo = _grafo_de_muestra(sonda)
+    (carpeta / 'readback.json').write_text(json.dumps(
+        {'grafo': grafo, 'v': oraculo.predecir(grafo)['v'].tolist()}, ensure_ascii=False, default=float), encoding='utf-8')
+    return {**(reabrir or _reabrir_en_otro_proceso)(carpeta), 'version': carpeta.name}
+
+
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
     """Pasa a ser el modelo en uso; el historial guarda cada cambio (RF-42)."""
     raiz = _raiz_modelos(bufer)
@@ -814,15 +999,23 @@ class Puertas:
     tolerancia_dorados: float = 1.05
 
 
-def _muestras(bufer: BuferEpisodios, consulta: Consulta) -> tuple[list[Muestra], list[str]]:
+def _muestras(bufer: BuferEpisodios, consulta: Consulta,
+              excluidos: dict[str, int] | None = None) -> tuple[list[Muestra], list[str]]:
+    """Las muestras de la consulta; ``excluidos`` recibe, por motivo, los episodios que no enseñan.
+
+    045:RF-2: sin ese recuento, un búfer entero de grafos anteriores parecía un búfer sin episodios.
+    """
     muestras, ids = [], []
     for e in bufer.consultar(consulta):
         if e.clase.value not in CLASES_OBJETIVO:
             continue
-        m = muestra_de_episodio(e)
-        if m is not None:
-            muestras.append(m)
-            ids.append(e.episode_id)
+        motivo = por_que_no_ensena(e)
+        if motivo is not None:
+            if excluidos is not None:
+                excluidos[motivo] = excluidos.get(motivo, 0) + 1
+            continue
+        muestras.append(muestra_de_episodio(e))
+        ids.append(e.episode_id)
     return muestras, ids
 
 
@@ -986,6 +1179,35 @@ def metricas_por_familia(candidato: Modelo, evaluacion: Sequence[Muestra], resid
     return salida
 
 
+def metricas_de_prueba(modelo: Modelo, prueba: Sequence[Muestra], fisica: Modelo) -> tuple[dict[str, Any], float]:
+    """Las métricas que juzga ``evaluar_candidato`` y la latencia media (s por red) de un modelo sin uso previo."""
+    inicio = time.perf_counter()
+    residuos = [float(np.mean(modelo.predecir(_grafo_de_muestra(m))['residuo'])) for m in prueba]
+    latencia = (time.perf_counter() - inicio) / max(len(prueba), 1)
+    return ({'global': {**_denominador(prueba), 'mae_v': mae(modelo, prueba), 'residuo': float(np.mean(residuos)),
+                        'mae_fisica': mae(fisica, prueba), 'mae_activo': None},
+             'familias': metricas_por_familia(modelo, prueba, residuos, fisica, None)}, latencia)
+
+
+def denominadores(grupos: Mapping[str, Sequence[Muestra]]) -> dict[str, dict[str, int]]:
+    """044:RF-8: de cuántos ejemplos, familias y barras sale cada partición."""
+    return {k: _denominador(v) for k, v in grupos.items()}
+
+
+def particiones_del_bufer(bufer: BuferEpisodios, consulta: Consulta | None = None, *,
+                          sistema: str | None = None, puertas: Puertas | None = None):
+    """Las particiones de custodia de los episodios vigentes, las mismas que usa ``entrenar`` (045:RF-8)."""
+    muestras, ids = _muestras(bufer, consulta or Consulta())
+    if not muestras:
+        raise ValueError('BLOQUEADO_POR_DATOS: no hay episodios vigentes con que comparar')
+    grupos = separar_calibracion(_grupos(muestras, ids, sistema))
+    identidades = {id(m): i for m, i in zip(muestras, ids, strict=True)}
+    nombres = {'entrenamiento': 'entrenamiento', 'validacion': 'seleccion', 'calibracion': 'calibracion', 'prueba': 'prueba'}
+    registros = [{'record_id': identidades[id(m)], 'group_id': f'{red_de(m)}:{m.familia}', 'particion': nombres[parte],
+                  'sistema': red_de(m)} for parte, ms in grupos.items() for m in ms]
+    return particionar_registros(registros, politica_pinn(puertas or Puertas(), Entrenamiento(), sistema))
+
+
 def informe_conforme(oraculo: OraculoPINN, calibracion: Sequence[Muestra], prueba: Sequence[Muestra]) -> dict[str, Any]:
     """Lo que se puede decir del intervalo, con sus denominadores (044:RF-4, RF-8).
 
@@ -1098,13 +1320,18 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     (RF-17, RF-43): ajuste fino, no desde cero."""
     consulta = consulta or Consulta()
     puertas = puertas or Puertas()
-    muestras, ids = _muestras(bufer, consulta)
+    excluidos: dict[str, int] = {}
+    muestras, ids = _muestras(bufer, consulta, excluidos)
+    for motivo, cuantos in sorted(excluidos.items()):
+        log(f'Gemelo: {cuantos} episodio(s) no enseñan: {motivo}')
     if sistema:
         # 027:RF-68: solo los episodios de ese sistema (su red, por la huella de sus nodos).
         elegidos = [i for i, m in enumerate(muestras) if red_de(m).startswith(sistema)]
         muestras, ids = [muestras[i] for i in elegidos], [ids[i] for i in elegidos]
     if not muestras:
-        return {'entrenado': False, 'motivo': 'no hay episodios con grafo y tensiones'}
+        detalle = ''.join(f'; {cuantos} con {motivo}' for motivo, cuantos in sorted(excluidos.items()))
+        return {'entrenado': False, 'motivo': f'no hay episodios con grafo y tensiones{detalle}',
+                'excluidos': excluidos}
     # 027:RF-29, RF-30: el dataset se audita antes; con valores no finitos no se entrena.
     from .auditoria import auditar_muestras
 
@@ -1170,15 +1397,17 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
                          max(len(m.ids) for m in grupos['entrenamiento'])],
                # 071:RF-1: la de prueba cuenta porque en ella se demuestra el error que abre la puerta.
                'redes': sorted({red_de(m) for ms in grupos.values() for m in ms})}
-    estados, curvas = [], []
+    dominio['version_grafo'] = VERSION_GRAFO                              # 045:RF-2
+    estados, curvas, terminos = [], [], []
     for k in range(MIEMBROS):
         inicial = actual.estados[k] if compatible and k < len(actual.estados) else None
         log(f'Gemelo: entrenando el miembro {k + 1} de {MIEMBROS} en {dispositivo()}…')
         curvas.append([])
+        terminos.append([])
         estados.append(entrenar_miembro(grupos['entrenamiento'],
                                         Entrenamiento(**{**cfg.__dict__, 'semilla': cfg.semilla + k}),
                                         inicial, log, validacion=grupos['validacion'],
-                                        historial=curvas[-1]))
+                                        historial=curvas[-1], terminos=terminos[-1]))
     candidato = OraculoPINN(estados, cfg, dominio)
     # 060:RF-2: calibración apartada también de la selección por parada temprana.
     calibracion = grupos['calibracion']
@@ -1193,7 +1422,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     dorados_m = [m for m, i in zip(muestras, ids, strict=True) if i in set(dorados)]
     error_dorados = mae(candidato, dorados_m) if dorados_m else None
     error_dorados_actual = mae(actual, dorados_m) if actual and dorados_m else None
-    meta = {'consulta': consulta.__dict__, 'episodios': ids, 'mae_v': error,
+    meta = {'consulta': consulta.__dict__, 'episodios': ids, 'mae_v': error, 'excluidos': excluidos,
+            'terminos_por_epoca': terminos,                               # 045:RF-6
             'particiones_ids': particiones_ids,
             'ajuste_acumulado_ids': {k: sorted(set(particiones_ids[k]) | (set(previas[k]) if compatible else set()))
                                     for k in ('entrenamiento', 'validacion')},
@@ -1351,14 +1581,12 @@ def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
 # ------------------------------------------------------------------ uso del oráculo
 def perturbar(grafo: Mapping[str, Any], escenario: Escenario) -> dict:
     """El grafo con la demanda escalada y los tramos del escenario abiertos."""
-    nodos = {n: {**d, 'p_mw': (d.get('p_mw') or 0) * escenario.factor_carga,
-                 'q_mvar': (d.get('q_mvar') or 0) * escenario.factor_carga}
-             for n, d in (grafo.get('nodos') or {}).items()}
+    nodos = {n: escalar_nodo(d, escenario.factor_carga) for n, d in (grafo.get('nodos') or {}).items()}
     abiertos = set(escenario.tramos_abiertos)
     ramas = [{**r, 'cerrada': r.get('cerrada', True) and not any(
         str(r.get('id', '')).endswith(f'\\{t}.ElmLne') or str(r.get('id')) == t for t in abiertos)}
         for r in grafo.get('ramas') or []]
-    return {'nodos': nodos, 'ramas': ramas}
+    return {**grafo, 'nodos': nodos, 'ramas': ramas}
 
 
 def incertidumbre_de_escenarios(grafo: Mapping[str, Any], bufer: BuferEpisodios | None = None):
@@ -1387,10 +1615,13 @@ def ordenar_candidatos(modelo: Modelo, grafo: Mapping[str, Any], candidatos: Seq
     """
     out = []
     for c in candidatos:
-        g = {'nodos': {n: dict(d) for n, d in (grafo.get('nodos') or {}).items()},
+        g = {**grafo, 'nodos': {n: dict(d) for n, d in (grafo.get('nodos') or {}).items()},
              'ramas': [dict(r) for r in grafo.get('ramas') or []]}
         if c.get('nodo') in g['nodos']:
-            g['nodos'][c['nodo']]['q_mvar'] = (g['nodos'][c['nodo']].get('q_mvar') or 0) - float(c.get('q_mvar') or 0)
+            nodo = g['nodos'][c['nodo']]
+            nodo['q_mvar'] = (nodo.get('q_mvar') or 0) - float(c.get('q_mvar') or 0)
+            if 'banco_q_mvar' in nodo:                                    # 045:RF-3: es un banco, no una carga
+                nodo['banco_q_mvar'] = float(nodo['banco_q_mvar'] or 0) + float(c.get('q_mvar') or 0)
         for r in g['ramas']:
             if c.get('rama') and r.get('id') == c['rama']:
                 r['r_ohm'] = r['r_ohm'] * float(c.get('factor_z') or 1)

@@ -99,6 +99,8 @@ def plan_de_lectura(plan: Mapping[str, Any], caso: Caso,
         'variaciones_esperadas': list(informe.get('variaciones_creadas') or []),
         'huellas_gps_de': sorted(plan.get('huellas_gps_esperadas') or {}),
         'native_action_context': plan.get('native_action_context'),
+        # 045:RF-1, RF-3: el caso del año, el año y el criterio de las fijas, si los hay; nunca supuestos.
+        **{k: plan[k] for k in ('anio_casos', 'periodo', 'criterio_fijas') if plan.get(k) is not None},
     }
 
 

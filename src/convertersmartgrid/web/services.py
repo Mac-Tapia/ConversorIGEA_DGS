@@ -4750,6 +4750,10 @@ LIMITE_ESTUDIO_S = 1800.0
 LIMITE_GEMELO_S = 300.0
 
 
+#: Rol de un caso en los estudios (spec 037) → caso del episodio del gemelo (045:RF-1).
+CASO_DEL_ROL = {'sin': 'sin_proyecto', 'cargas': 'cargas_nuevas', 'con': 'con_proyecto'}
+
+
 def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: str,
             rutas: dict[str, Path | None], manual: bool = False) -> dict | None:
     """Episodio del gemelo digital tras una acción nativa ya terminada (024:RF-1).
@@ -4779,7 +4783,8 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
                     # El orden del plan expresa la orientación (RF-2); el contexto los ordena.
                     'feeders': propios if sorted(propios) == firmados else firmados,
                     'native_action_context': contexto or None,
-                    'huellas_gps_esperadas': plan.get('huellas_gps_esperadas') or {}}
+                    'huellas_gps_esperadas': plan.get('huellas_gps_esperadas') or {},
+                    **{k: plan[k] for k in ('anio_casos', 'periodo', 'criterio_fijas') if plan.get(k) is not None}}
 
     def leer(plan_lectura: dict) -> dict:
         _rc, lectura, _report = _guion_pf(ws, ctx, 'digital_twin_snapshot_pf.py', plan_lectura,
@@ -5151,6 +5156,7 @@ def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan
         from ..digital_twin.evolutivo import afinar_bancos_pide, red_del_gemelo
     except ImportError as exc:
         return [f'los bancos no se optimizan: falta {exc.name} (extra «ml»)']
+    from ..digital_twin.contratos_fisicos import VERSION_GRAFO
     from ..perfil_empresa import bancos_kvar_por_tension
     from ..pide_economia import valor_kw_perdidas
 
@@ -5171,6 +5177,10 @@ def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan
     if valor is None:
         avisos.append('sin factor de carga o precio de compra en el perfil, las pérdidas solo desempatan '
                       'entre bancos (024:RF-70)')
+    if grafo.get('version') != VERSION_GRAFO:
+        # 045:RF-2: se usa porque DIgSILENT confirma lo que salga, pero sin callarlo.
+        avisos.append(f"la red del gemelo es un grafo de la versión {grafo.get('version')}, anterior a la "
+                      f'{VERSION_GRAFO}: conviene volver a capturarla')
     return avisos
 
 
@@ -6116,7 +6126,15 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
 
         pinn = cargar(BuferEpisodios())
         if pinn is not None:
-            pinn.predecir(datos['grafo'])
+            from ..digital_twin.benchmark_fisico import comprobar_dominio
+
+            # 045:RF-9: antes de inferir; fuera de lo validado decide la física, y se dice por qué.
+            dominio = comprobar_dominio(datos['grafo'], {'dominio': pinn.dominio})
+            if dominio['dentro']:
+                pinn.predecir(datos['grafo'])
+            else:
+                ctx.log('PINN fuera de su dominio (' + '; '.join(dominio['bloqueos'][:3]) + '): decide el flujo físico.')
+                pinn = None
     except Exception as exc:  # noqa: BLE001 - se dice y decide el flujo físico
         ctx.log(f'PINN no disponible ({exc}): decide el flujo físico (052:RF-17).')
         pinn = None
@@ -6939,11 +6957,10 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                                             limite_s=plan['limite_s'])
                 if inf.get('no_terminado'):
                     ctx.log(f'{estudio} en «{nombres[rol]}»: {inf["error"]}; se sigue con el siguiente.')
-                elif estudio == 'flujo' and rol in ('sin', 'con') and not inf.get('error'):
-                    # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo.
-                    _gemelo(ws, ctx, sub, inf, caso={'base': 'caso_base', 'sin': 'sin_proyecto',
-                                                     'con': 'con_proyecto'}[rol],
-                            rutas={'resultado': report})
+                elif estudio == 'flujo' and rol in CASO_DEL_ROL and not inf.get('error'):
+                    # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo. 045:RF-1: también
+                    # «Cargas nuevas», que no se capturaba y no llegaba a ser un episodio de la red.
+                    _gemelo(ws, ctx, sub, inf, caso=CASO_DEL_ROL[rol], rutas={'resultado': report})
                 informes.append({'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
                                  'nombre_caso': inf.get('nombre_caso') or (
                                      f'{nombres[rol]} {plan["anio_casos"]}' if plan.get('anio_casos')

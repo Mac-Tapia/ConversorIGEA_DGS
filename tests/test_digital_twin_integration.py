@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from test_digital_twin_capture import _flujo, _lectura
+from test_digital_twin_capture import _con_caso, _flujo, _lectura
 
 from convertersmartgrid.digital_twin import integration as it
 from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta
@@ -36,7 +36,7 @@ def _capturar(tmp_path, caso, informe=None, lectura='def', **kw):
     out = it.capturar_accion(
         _plan(), informe or {'status': 'OK', 'converged': True, 'cuadrado': True}, caso=caso,
         rutas={'resultado': resultado}, base=tmp_path,
-        leer=lambda _p: _lectura() if lectura == 'def' else lectura,
+        leer=lambda p: _con_caso(_lectura() if lectura == 'def' else lectura, Caso(p['case'])),
         perfil=PERFIL, estructura=None, bufer=bufer, log=avisos.append, **kw)
     return out, bufer, avisos
 
@@ -148,7 +148,7 @@ def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
 
     def guion(_ws, _ctx, script, plan, **_kw):
         pedidos.append((script, plan))
-        return 0, _lectura(), tmp_path / 'lectura.json'
+        return 0, _con_caso(_lectura(), Caso(plan['case'])), tmp_path / 'lectura.json'
 
     monkeypatch.setattr(services, '_guion_pf', guion)
 
@@ -182,9 +182,9 @@ def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes,
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {**PERFIL, 'gemelo': ajustes})
     limites = []
 
-    def guion(_ws, _ctx, _script, _plan, **kw):
+    def guion(_ws, _ctx, _script, plan, **kw):
         limites.append(kw['limite_s'])
-        return 0, _lectura(), tmp_path / 'lectura.json'
+        return 0, _con_caso(_lectura(), Caso(plan['case'])), tmp_path / 'lectura.json'
 
     monkeypatch.setattr(services, '_guion_pf', guion)
 

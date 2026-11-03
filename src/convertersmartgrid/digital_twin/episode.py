@@ -15,7 +15,10 @@ from enum import StrEnum
 from typing import Any
 from ..util import esquema_vigente
 
-ESQUEMA = 'convertersmartgrid-digital-twin-episode-v1'
+#: Esquema con que se escriben los episodios nuevos (045:RF-1). El v1 solo se lee, y tal cual: su huella
+#: es su identidad en el búfer y sale del contenido guardado (045:RF-2).
+ESQUEMA = 'convertersmartgrid-digital-twin-episode-v2'
+ESQUEMA_V1 = 'convertersmartgrid-digital-twin-episode-v1'
 
 
 class Clase(StrEnum):
@@ -34,7 +37,11 @@ class Caso(StrEnum):
     CASO_BASE = 'caso_base'
     SIN_PROYECTO = 'sin_proyecto'
     CON_PROYECTO = 'con_proyecto'
+    CARGAS_NUEVAS = 'cargas_nuevas'
 
+
+#: Los casos que conoce el esquema v1; «Cargas nuevas» (spec 037) solo existe desde el v2.
+CASOS_V1 = (Caso.CASO_BASE, Caso.SIN_PROYECTO, Caso.CON_PROYECTO)
 
 #: Lo que sale del flujo de potencia en los tres casos, con la misma definición (RF-28).
 RESULTADOS_FLUJO = ('balance', 'perdidas', 'cargabilidad', 'tensiones', 'confiabilidad')
@@ -50,6 +57,10 @@ INDICADORES_OBRA = ('coste', 'van', 'tir', 'retorno_anios')
 #: Campos de primer nivel obligatorios; ``episode_id`` es opcional en la entrada.
 CAMPOS = ('schema', 'clase', 'caso', 'creado', 'fuente', 'nativo', 'accion', 'topologia',
           'flujo', 'aceptacion', 'obras', 'artefactos')
+#: El v2 añade los controles y el caso nativo de la lectura (045:RF-3, RF-10).
+CAMPOS_V2 = (*CAMPOS, 'contexto_fisico')
+#: Las huellas de ``experimentos.ContextoExperimento`` que trae ``contexto_fisico``.
+HUELLAS_CONTEXTO = ('topology_hash', 'controls_hash', 'scenario_hash')
 
 _SHA256 = re.compile(r'^[0-9a-f]{64}$')
 
@@ -87,6 +98,7 @@ class Episodio:
     aceptacion: dict[str, Any]
     obras: tuple[dict[str, Any], ...]
     artefactos: tuple[Artefacto, ...]
+    contexto_fisico: dict[str, Any] | None = None
 
 
 def contenido_canonico(payload: dict[str, Any]) -> str:
@@ -150,6 +162,8 @@ def _validar_obras(obras: Any, caso: Caso) -> tuple[dict, ...]:
         raise EpisodioInvalido('obras', 'no es una lista')
     if obras and caso is Caso.CASO_BASE:
         raise EpisodioInvalido('obras', 'el «Caso base» es la red tal como está: no lleva obras')
+    if obras and caso is Caso.CARGAS_NUEVAS:
+        raise EpisodioInvalido('obras', '«Cargas nuevas» es un diagnóstico sin obras (045:RF-1)')
     for i, obra in enumerate(obras):
         ruta = f'obras[{i}]'
         if not isinstance(obra, dict):
@@ -186,20 +200,46 @@ def _validar_artefactos(artefactos: Any) -> tuple[Artefacto, ...]:
     return tuple(leidos)
 
 
-def leer_episodio(payload: dict[str, Any]) -> Episodio:
-    """Valida ``payload`` contra el contrato y devuelve el episodio con su huella.
+def _validar_contexto_fisico(contexto: Any, caso: Caso, clase: Clase) -> dict[str, Any]:
+    """045:RF-1, RF-3: el rol y la identidad del caso nativo, con sus huellas, o por qué faltan."""
+    if not isinstance(contexto, dict):
+        raise EpisodioInvalido('contexto_fisico', 'falta o no es un objeto')
+    if 'ausente' in contexto:
+        _texto(contexto, 'ausente', 'contexto_fisico')
+        if clase is Clase.ACCEPTED:
+            raise EpisodioInvalido('contexto_fisico', 'un episodio aceptado exige los controles y el caso nativo')
+        return contexto
+    _texto(contexto, 'case_id', 'contexto_fisico')
+    if contexto.get('case_role') != caso.value:
+        raise EpisodioInvalido('contexto_fisico.case_role',
+                               f'«{contexto.get("case_role")}» no es el caso del episodio («{caso.value}»)')
+    for clave in HUELLAS_CONTEXTO:
+        _sha(contexto.get(clave), f'contexto_fisico.{clave}')
+    return contexto
 
-    Lanza ``EpisodioInvalido`` con la ruta del primer campo que falla (RF-7, RF-9).
+
+def leer_episodio(payload: dict[str, Any]) -> Episodio:
+    """Valida ``payload`` contra el contrato de su esquema y devuelve el episodio con su huella.
+
+    Lanza ``EpisodioInvalido`` con la ruta del primer campo que falla (RF-7, RF-9). El esquema se
+    conserva como está escrito (045:RF-2): normalizarlo cambiaría la huella de lo guardado.
     """
     if not isinstance(payload, dict):
         raise EpisodioInvalido('', 'el episodio no es un objeto')
-    if esquema_vigente(payload.get('schema')) != ESQUEMA:
-        raise EpisodioInvalido('schema', f'se esperaba «{ESQUEMA}»')
-    for campo in CAMPOS:
+    vigente = esquema_vigente(payload.get('schema'))
+    if vigente not in (ESQUEMA, ESQUEMA_V1):
+        raise EpisodioInvalido('schema', f'se esperaba «{ESQUEMA}» o «{ESQUEMA_V1}»')
+    es_v2 = vigente == ESQUEMA
+    for campo in CAMPOS_V2 if es_v2 else CAMPOS:
         if campo not in payload:
             raise EpisodioInvalido(campo, 'falta')
     clase = _enum(Clase, payload['clase'], 'clase')
     caso = _enum(Caso, payload['caso'], 'caso')
+    if not es_v2 and caso not in CASOS_V1:
+        raise EpisodioInvalido('caso', f'el esquema v1 no conoce el caso «{caso.value}»')
+    if caso is Caso.CARGAS_NUEVAS and clase is Clase.ACCEPTED:
+        # Son las cargas sin obras: dato físico para aprender, nunca una obra aceptada (045:RF-1).
+        raise EpisodioInvalido('clase', '«Cargas nuevas» es un diagnóstico: no se acepta como obra')
     if not isinstance(payload['creado'], str) or not payload['creado']:
         raise EpisodioInvalido('creado', 'falta la fecha')
 
@@ -224,17 +264,19 @@ def leer_episodio(payload: dict[str, Any]) -> Episodio:
     _validar_flujo(flujo)
     obras = _validar_obras(payload['obras'], caso)
     artefactos = _validar_artefactos(payload['artefactos'])
+    contexto = _validar_contexto_fisico(payload['contexto_fisico'], caso, clase) if es_v2 else None
 
     huella = huella_episodio(payload)
     if 'episode_id' in payload and payload['episode_id'] != huella:
         raise EpisodioInvalido('episode_id', 'no es la huella de su contenido')
-    return Episodio(ESQUEMA, huella, clase, caso, payload['creado'], fuente, nativo, accion,
-                    topologia, flujo, aceptacion, obras, artefactos)
+    return Episodio(payload['schema'], huella, clase, caso, payload['creado'], fuente, nativo, accion,
+                    topologia, flujo, aceptacion, obras, artefactos, contexto)
 
 
 def episodio_a_dict(episodio: Episodio) -> dict[str, Any]:
     """Forma JSON del episodio, la que se guarda en el búfer."""
     return {
+        **({} if episodio.contexto_fisico is None else {'contexto_fisico': episodio.contexto_fisico}),
         'schema': episodio.esquema, 'episode_id': episodio.episode_id,
         'clase': episodio.clase.value, 'caso': episodio.caso.value, 'creado': episodio.creado,
         'fuente': episodio.fuente, 'nativo': episodio.nativo, 'accion': episodio.accion,

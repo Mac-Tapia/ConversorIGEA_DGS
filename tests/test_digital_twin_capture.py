@@ -6,7 +6,10 @@ import copy
 
 import pytest
 
+from apoyo import contrato_fisico
+
 from convertersmartgrid.digital_twin import capture as cp
+from convertersmartgrid.digital_twin.contratos_fisicos import VERSION_GRAFO
 from convertersmartgrid.digital_twin.episode import Caso, Clase
 from convertersmartgrid.digital_twin.evaluacion import Limites
 from convertersmartgrid.native_action import build_native_action_context
@@ -34,10 +37,19 @@ def _lectura(v=0.97, **cambios):
     base = {'project': 'P_IN111', 'folder': 'sistemaeletricoELD', 'pf_version': '2024',
             'feeders': ['IN111', 'TA225'], 'reopen_verified': True,
             'topologia': {'frontera': ['SEC_1091_1055021(1)'],
-                          'huellas_gps': {'Enlace_TA225_IN111': 'a' * 64}},
+                          'huellas_gps': {'Enlace_TA225_IN111': 'a' * 64},
+                          'grafo': {'version': VERSION_GRAFO, **contrato_fisico(), 'ramas': [],
+                                    'nodos': {'3091': {'kv': 10.0, 'fuente': True, 'v_pu': 1.0}}}},
             'flujo': _flujo(v)}
     base.update(cambios)
     return base
+
+
+def _con_caso(lectura, caso):
+    """La lectura identifica su caso (045:RF-1); ``_lectura`` no lo fija porque cada prueba elige uno."""
+    if lectura is None or 'caso_nativo' in lectura:
+        return lectura
+    return {**lectura, 'caso_nativo': {'rol': caso.value, 'nombre': caso.value, 'id': f'IntCase:{caso.value}'}}
 
 
 def _art():
@@ -49,7 +61,7 @@ def _construir(plan=None, resultado=None, lectura='def', caso=Caso.CON_PROYECTO,
              'creado': '2026-10-21T12:00:00+00:00'}
     datos.update(kw)
     return cp.construir_episodio(plan or _plan(), resultado or {'status': 'OK', 'converged': True},
-                                 _lectura() if lectura == 'def' else lectura, _art(), caso=caso,
+                                 _con_caso(_lectura() if lectura == 'def' else lectura, caso), _art(), caso=caso,
                                  **datos)
 
 
