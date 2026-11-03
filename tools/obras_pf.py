@@ -1648,7 +1648,7 @@ def _leer_grupo(grupo, alims, con_troncal, redes, avisos) -> None:
 
 
 def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
-                 redes=None) -> None:
+                 redes=None, conjunto: bool = False) -> None:
     """Una obra en su variación y en sus casos. Deja en ``fila`` lo que pasó.
 
     Solo en los casos que ya existen: si falta «Con proyecto», ``aplicar`` lo crea después
@@ -1690,8 +1690,35 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
             variacion.Deactivate()
 
     fila['casos_activos'], fila['flujo'] = [], {}
+    if conjunto:
+        return                    # 042:RF-23: el flujo es del plan completo, después de crearlas todas
     for rol in roles:                                                     # RF-66
         _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol)
+
+
+def flujo_del_plan(app, proyecto, casos, filas: list[dict]) -> dict:
+    """042:RF-23: un solo flujo de «Con proyecto» con todas las obras del plan; si no converge, se apagan todas."""
+    con = [f for f in filas if f.get('variacion') and not f.get('error')]
+    if not con or 'con' not in casos:
+        return {'obras': 0}
+    nombre = NOMBRES['con']
+    casos['con'].Activate()
+    flujo = flujo_de_carga(app)
+    for f in con:
+        f['flujo'][nombre] = {'converge': flujo['converged'], 'en_conjunto': True}
+        if flujo['converged']:
+            f['casos_activos'].append(nombre)
+    if flujo['converged']:
+        return {'obras': len(con), 'converge': True, 'vm_min': flujo.get('vm_min')}
+    diag = diagnostico(Alimentadores(app, proyecto, sorted({f['alimentador'] for f in con})),
+                       con[0]['alimentador'], {}, {})
+    for f in con:
+        _variacion(app, f['variacion']).Deactivate()
+        cerrar_lo_abierto(app, f)                                             # 042:RF-19
+        f['flujo'][nombre]['diagnostico'] = diag
+        f['avisos'].append(f'Con el plan completo ({len(con)} obras), el flujo de «{nombre}» no converge: '
+                           'quedan inactivas y se conservan en el proyecto (042:RF-23).')
+    return {'obras': len(con), 'converge': False}
 
 
 def _grabados(variacion) -> set[str]:
@@ -1885,8 +1912,10 @@ def aplicar(app, plan: dict, *, simular: bool = False,
                 _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
             if not fila['error']:
                 _aplicar_una(app, plan, proyecto, casos, alims, obra, fila, redes[obra.alimentador],
-                             redes)
+                             redes, conjunto=bool(plan.get('en_conjunto')))
             hechas.append((i, (obra, fila)))
+        if plan.get('en_conjunto') and not informe['cancelado']:
+            informe['plan_completo'] = flujo_del_plan(app, proyecto, casos, [f for _, (_, f) in hechas])
         if 'con' not in casos and not informe['cancelado']:
             _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
         informe['obras'] = [fila for _, (_, fila) in sorted(hechas, key=lambda h: h[0])]
