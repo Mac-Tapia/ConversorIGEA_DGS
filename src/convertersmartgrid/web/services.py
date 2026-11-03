@@ -1096,7 +1096,9 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                'invocation_id': invocation_id, 'job_id': getattr(getattr(ctx, 'job', None), 'id', None),
                'source': source_evidence, 'inputs': artifacts, 'reports': reports}
     write_json_atomic(reports_dir / 'request.json', request)
-    lines, ok_n, fail_n = [], 0, 0
+    from ..powerfactory_metadata import FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_flujo
+
+    lines, ok_n, fail_n, sin_aceptar = [], 0, 0, 0
     for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
@@ -1153,6 +1155,8 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
             lines.append(f'BLOQUEADO_INFORME {feeder}: sin informe válido de esta invocación; {exc}')
             continue
         report_evidence['valid'] = True
+        flujo = estado_flujo(acceptance)                                       # 078:RF-1
+        report_evidence['flujo'] = {k: flujo[k] for k in ('estado', 'return_code', 'motivo')}
         write_json_atomic(reports_dir / 'request.json', request)
         _publicar_informe_actual(acceptance_path, control.salida_dir)
         # Aunque termine el trabajo original, otra fuente puede estar ya activa:
@@ -1191,9 +1195,21 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
             ctx.log(f'  proyecto de PowerFactory: {proyecto}')
-        if rc == 0:
+        if rc == 0 and flujo['estado'] == FLUJO_CONVERGE:
             ok_n += 1
-            lines.append(f'OK {feeder} → convergencia / aceptación')
+            reducida = (f" con la demanda reducida al {float(flujo['factor_demanda']) * 100:.1f} %"
+                        if flujo['factor_demanda'] is not None else '')
+            lines.append(f"OK {feeder} → aceptación; flujo convergido (return_code {flujo['return_code']}){reducida}")
+        elif rc == 0:
+            # 078:RF-20 a RF-23: el guion termina con 0 si el flujo no calcula (015:RF-40), y esta línea
+            # decía «OK … convergencia» en un proyecto sin calcular. Queda importado, no aceptado.
+            sin_aceptar += 1
+            prefijo = ('IMPORTADO_SIN_CONVERGENCIA' if flujo['estado'] == FLUJO_NO_CONVERGE
+                       else 'IMPORTADO_SIN_DATO_DE_FLUJO')
+            detalle = '; '.join([flujo['motivo'], *flujo['fallos'][:3]])
+            lines.append(f'{prefijo} {feeder}: importado sin aceptar; {detalle}')
+            for paso in flujo['historial']:                                    # 078:RF-24
+                ctx.log(f'    intento {paso}')
         elif rc == 3:
             fail_n += 1
             lines.append(
@@ -1207,7 +1223,7 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
     for line in lines:
         ctx.log('  ' + line)
     ctx.log('--- Fin DigSILENT ---')
-    return {'ok': ok_n, 'failed': fail_n, 'requested': len(jobs),
+    return {'ok': ok_n, 'failed': fail_n, 'sin_aceptar': sin_aceptar, 'requested': len(jobs),
             'missing_dgs': missing, 'lines': lines, 'preflight': preflight,
             'source': source_evidence, 'invocation_id': invocation_id, 'reports': reports}
 
@@ -4256,15 +4272,15 @@ def _ajustes_por_token(rutas, project: str, token: str | None) -> dict[str, list
     return grupos
 
 
-def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:
-    """Guarda el vínculo del informe de aceptación, con el estado de su «Caso base».
+def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str):
+    """Guarda el vínculo del informe de aceptación, con el estado de su «Caso base», y lo devuelve.
 
     Se guarda aunque el «Caso base» no quede verificado (015:RF-14) y se fusiona con el
     estado de los alimentadores verificados antes en el mismo proyecto.
     """
     binding_payload = acceptance.get('project_binding')
     if not binding_payload:
-        return
+        return None
     from ..powerfactory_binding import (
         PowerFactoryProjectBinding, ProjectBindingError, fusionar_caso_base,
         record_project_binding, vinculo_guardado,
@@ -4276,9 +4292,34 @@ def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:
                         'corresponde al proyecto importado.')
     try:
         anterior = vinculo_guardado(ws, proyecto)
-        record_project_binding(ws, fusionar_caso_base(anterior, binding))
+        fusionado = fusionar_caso_base(anterior, binding)
+        record_project_binding(ws, fusionado)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
+    return fusionado
+
+
+def _caso_base_fusionado(acceptance: dict, fusionado) -> dict:
+    """El «Caso base» del informe con el flujo registrado en el vínculo (078:RF-16, RF-18).
+
+    El guion no conoce el vínculo: una verificación sin flujo sale sin dato, y lo que vale es lo
+    registrado al importar. Los estados del vínculo van por alimentador y el informe puede ser de un
+    grupo; todos los de una misma verificación son iguales.
+    """
+    caso = dict(acceptance.get('caso_base') or {})
+    propios = ((acceptance.get('project_binding') or {}).get('native_reread') or {}).get('caso_base') or {}
+    estados = (fusionado.native_reread.get('caso_base') or {}) if fusionado is not None else {}
+    estado = next((estados[f] for f in propios if f in estados), None)
+    comprobaciones = dict(caso.get('comprobaciones') or {})
+    if estado is None or 'flujo' not in (estado.get('comprobaciones') or {}) or 'flujo' in comprobaciones:
+        return caso
+    flujo = estado.get('flujo') or {}
+    registrado = f"Último flujo registrado: {flujo.get('motivo')} No se volvió a ejecutar (015:RF-39)."
+    paso = bool(estado['comprobaciones']['flujo'])
+    comprobaciones['flujo'] = {'pass': paso, 'fallos': [] if paso else [flujo.get('motivo')]}
+    avisos = [a for a in caso.get('avisos') or [] if not a.startswith('Sin dato de convergencia:')]
+    return {**caso, 'status': estado['status'], 'comprobaciones': comprobaciones, 'flujo': flujo,
+            'avisos': [registrado, *avisos]}
 
 
 def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
@@ -4358,20 +4399,20 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO',
                                'motivo': f'el guion terminó con el código {rc} sin informe'})
             continue
-        _registrar_vinculo(ws, acceptance, project)
-        caso = acceptance.get('caso_base') or {}
+        caso = _caso_base_fusionado(acceptance, _registrar_vinculo(ws, acceptance, project))
         ctx.log(f"  {feeder}: {caso.get('status') or 'NO_VERIFICADO'}")
         for aviso in caso.get('avisos') or []:
             ctx.log(f'    {aviso}')
         resultados.append({'feeder': feeder, 'status': caso.get('status') or 'NO_VERIFICADO',
                            'comprobaciones': caso.get('comprobaciones') or {},
-                           'avisos': caso.get('avisos') or [],
+                           'avisos': caso.get('avisos') or [], 'flujo': caso.get('flujo'),
                            'transformadores_corregidos': caso.get('transformadores_corregidos') or [],
                            'report': report.name})
     ctx.progress(len(jobs), len(jobs), 'listo')
     verificados = [r['feeder'] for r in resultados if r['status'] == 'VERIFICADO']
     if verificados:
-        # 024:RF-1 / RF-29: el «Caso base» verificado es la red tal como está.
+        # 024:RF-1 / RF-29: el «Caso base» verificado es la red tal como está. Solo con el flujo
+        # convergido: el episodio dice ``converged`` y entrena al gemelo (078:RF-18).
         from ..native_action import build_native_action_context
 
         contexto = build_native_action_context(binding, project, verificados, 'verificar_base')
@@ -8076,6 +8117,15 @@ def volver_al_modelo_anterior(modelo: str) -> dict:
     return {'modelo': modelo, 'version': version}
 
 
+def asistente_grupos(ws: Workspace) -> list[str]:
+    """Los grupos y sistemas ya convertidos que se pueden importar (078:RF-29).
+
+    Aparte del vocabulario, que entra en la huella del corpus con que se entrena (070:RF-72).
+    """
+    return sorted(n for n, g in ws.groups.items()
+                  if (g or {}).get('status') == 'ok' and (ws.out_dir / f'{n}.dgs').is_file())
+
+
 def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     """Lo que existe y contra lo que se contrastan los datos de una orden (026:RF-6)."""
     vocab: dict[str, list[str]] = {
@@ -8347,7 +8397,7 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
 
     interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto),
                          umbrales=almacen.leer_json('umbrales') or {})                       # 027:RF-38
-    plan = resolver(interp, asistente_vocabulario(ws))
+    plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
     if transformer is None:
         # 067:RF-8 a RF-10: seguir con Ollama está bien; callarlo, no.
         from ..asistente.plan import aviso_sin_transformer
@@ -9008,7 +9058,7 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
             if x not in (None, ''):
                 por_tipo.setdefault(d.tipo, []).append({'valor': str(x), 'confianza': 1.0})
     interp = Interpretacion(previo.texto, tarea, 1.0, 'operador', por_tipo, [], ['corrección del operador'])
-    plan = resolver(interp, asistente_vocabulario(ws))
+    plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
     if subtipo:
         plan.datos['subtipo'] = subtipo
     almacen.anotar('ejemplos', {**_ejemplo_de(previo.texto, tarea, plan.datos), 'origen': 'corregido'})

@@ -179,6 +179,7 @@ def test_la_importacion_deja_fuera_lo_que_no_converge(tmp_path, monkeypatch):
             'feeder': Path(dgs).stem, 'powerfactory_runtime_pass': True,
             'import': {'ok': True, 'dgs': dgs, 'project_path': 'UNITARIO', 'project_folder': 'Carpeta'},
             'source_verification': {'status': 'NOT_REQUESTED'},
+            'load_flow': {'requested': True, 'return_code': 0, 'ldf_valid': True},
         }), encoding='utf-8')
         return 0
     ctx = SimpleNamespace(log=logs.append, progress=lambda *_a: None, check_cancel=lambda: None,

@@ -47,6 +47,11 @@ class Plan:
                 'descripcion': TAREAS[self.tarea].descripcion if self.tarea else ''}
 
 
+#: 078:RF-29: las tareas cuyo destino puede ser un grupo ya convertido. Sin tarea nueva: el catálogo hasta la
+#: 069 entra en la huella de la prueba histórica (069:RF-13).
+_IMPORTAN_GRUPO = ('flujo',)
+
+
 def aviso_sin_transformer(motivo: str, modelo: str) -> str:
     """El Transformer no cargó y el operador lo lee (067:RF-9, RF-10): sin GPU se seguía con Ollama
     sin decirlo, y una orden mal entendida parecía un fallo del Transformer."""
@@ -84,8 +89,39 @@ def _trozos_lista(valor: str) -> list[str]:
     return [p.strip() for p in re.split(r',|;|\s+y\s+|\s+e\s+|\s+', valor) if p.strip()]
 
 
-def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan:
-    """El plan con los datos contrastados, lo que falta y por qué se decidió cada cosa."""
+def _patron_grupo(grupo: str) -> str:
+    """El nombre de un grupo en el texto, con cualquier separador; ``SISTEMA_X`` también «sistema eléctrico x»."""
+    partes = [re.escape(p) for p in re.split(r'[\s_\-]+', normalizar(grupo)) if p]
+    if partes and partes[0] == 'sistema':
+        partes[0] = r'sistema(?:\s+electrico)?'
+    return r'(?<!\w)' + r'[\s_\-]+'.join(partes) + r'(?!\w)'
+
+
+def _grupo_nombrado(valores: list[str], texto: str, grupos: Sequence[str]) -> str | None:
+    """El grupo ya convertido que nombra la orden; el más largo si uno contiene a otro (078:RF-30)."""
+    t = normalizar(texto)
+    hallados = [g for g in grupos if re.search(_patron_grupo(g), t)]
+    if hallados:
+        return max(hallados, key=len)
+    return next((o for v in valores if (o := parecido(v, grupos, 0.9))), None)
+
+
+def _falta_convertir(texto: str, grupos: Sequence[str], opciones: Sequence[str]) -> str | None:
+    """Lo que falta si la orden de importar nombra un sistema o una SET sin DGS, en vez de pedir alimentadores (078:RF-32)."""
+    m = re.search(r'(?<!\w)(?:sistema|set)(?:\s+electrico)?[\s_\-]+(?!(?:de|del|la|el|los|en)\b)[\w\-]+', normalizar(texto))
+    if m is None or _nombrados(texto, opciones):
+        return None
+    nombre = texto[m.start():m.end()]
+    hay = f" Los ya convertidos: {', '.join(grupos)}." if grupos else ''
+    return f'«{nombre}» aún no está convertido en este espacio: conviértalo antes de importarlo.{hay}'
+
+
+def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grupos: Sequence[str] = ()) -> Plan:
+    """El plan con los datos contrastados, lo que falta y por qué se decidió cada cosa.
+
+    ``grupos`` son los ya convertidos del espacio, solo para lo que los importa: van aparte del
+    vocabulario para no mover la huella del corpus (078:RF-35, 070:RF-72).
+    """
     plan = Plan(uuid.uuid4().hex[:12], interp.texto, interp.tarea, False, '', interpretado_por=interp.modelo,
                 confianza=interp.confianza, alternativas=list(interp.alternativas))
     if interp.consultados:
@@ -104,6 +140,18 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan
                              + (f': {interp.razon}' if interp.razon else '.'))
     for d in tarea.datos:
         valores = [x['valor'] for x in interp.datos.get(d.tipo) or []]
+        if d.tipo == 'alimentadores' and tarea.nombre in _IMPORTAN_GRUPO:
+            # 078:RF-29, RF-31: la plantilla dice «importa {alimentadores}» y la web importa un grupo por su
+            # nombre, pero el contraste solo miraba la fuente: «importa <grupo>» pedía alimentadores.
+            grupo = _grupo_nombrado(valores, interp.texto, grupos)
+            if grupo is not None:
+                plan.datos[d.nombre] = [grupo]
+                plan.razonamiento.append(f'destino: {grupo}, ya convertido en este espacio; se importa su DGS.')
+                continue
+            falta = _falta_convertir(interp.texto, grupos, list(vocab.get(d.tipo) or []))
+            if falta is not None:
+                plan.faltan.append(falta)
+                continue
         valor = _resolver_dato(d.tipo, valores, interp.texto, vocab, plan)
         if valor not in (None, [], ''):
             plan.datos[d.nombre] = valor
@@ -154,6 +202,11 @@ def _nombre(tipo: str, valores: list[str], texto: str, opciones: list[str], plan
             consejo = 'lea los proyectos de DIgSILENT' if tipo == 'proyecto' else 'cargue la fuente'
             plan.dudas.append(f'{tipo} «{v}» sin comprobar: la web no conoce ninguno ({consejo}).')
             return v
+        dentro = _nombrados(v, opciones)
+        if dentro:
+            # 078:RF-33: el modelo marcó de más («electrico X a DGS»); X existe y no hay nada que dudar.
+            plan.razonamiento.append(f'{tipo}: «{v}» → {dentro[0]} (nombrado en lo marcado).')
+            return dentro[0]
         plan.dudas.append(f'«{v}» no es un {tipo} que la web conozca.')
     nombrados = _nombrados(texto, opciones)
     if nombrados:

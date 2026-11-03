@@ -70,7 +70,7 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
     </>;
   } else if (job.kind === 'powerfactory' && r) {
     body = <>
-      <p>Solicitados: {r.requested} · OK: <b>{r.ok}</b> · Fallidos: <b>{r.failed}</b></p>
+      <p>Solicitados: {r.requested} · OK: <b>{r.ok}</b> · Importados sin aceptar: <b>{r.sin_aceptar ?? 0}</b> · Fallidos: <b>{r.failed}</b></p>
       <ul>{r.lines.map((l: string) => <li key={l}>{l}</li>)}</ul>
       <p className="muted">Reportes: *_powerfactory_acceptance.json / .txt en la salida.</p>
     </>;

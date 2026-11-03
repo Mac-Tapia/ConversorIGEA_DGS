@@ -73,6 +73,7 @@ def test_informe_actual_o_nada_de_mutacion(tmp_path, monkeypatch, modo):
             native_reread={'status': 'VERIFICADO_PERSISTENCIA' if runtime_ok else 'CASO_BASE_NO_VERIFICADO'},
         ).as_dict()
         dato = {'feeder': target, 'powerfactory_runtime_pass': runtime_ok,
+                'load_flow': {'requested': True, 'return_code': 0, 'ldf_valid': True},
                 'import': {'ok': True, 'dgs': str(fijado), 'project_path': 'PROYECTO_ACTUAL',
                            'project_folder': 'PRUEBA'},
                 'source_verification': {'status': 'VERIFIED_BEFORE_MUTATION',

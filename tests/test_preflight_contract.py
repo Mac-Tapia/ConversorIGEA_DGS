@@ -304,6 +304,7 @@ def test_importacion_fija_entrada_por_trabajo_y_limpia_solo_su_copia(tmp_path, m
         feeders = sorted({a['feeder'] for a in datos_metadata['assignments'] if a.get('feeder')})
         # Emisión unitaria del borde nativo; nunca se presenta como aceptación eléctrica.
         reporte = {'feeder': target, 'powerfactory_runtime_pass': True,
+                   'load_flow': {'requested': True, 'return_code': 0, 'ldf_valid': True},
                    'import': {'ok': True, 'dgs': str(fijado), 'project_path': 'UNITARIO',
                               'project_folder': 'PRUEBA'},
                    'source_verification': {'status': 'VERIFIED_BEFORE_MUTATION',

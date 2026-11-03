@@ -122,8 +122,8 @@ def _report(**cambios):
     base = {'gps': {'coordinate_mismatches': 0, 'invalid_in_manifest': 0,
                     'line_path_mismatches': 0, 'sin_coordenadas_en_archivo': 0},
             'connectivity': {'valid_lines': 3, 'total_lines': 3}, 'connectivity_pass': True,
-            'geographic_diagram_pass': True, 'convergence_pass': True,
-            'load_flow': {'requested': True}}
+            'geographic_diagram_pass': True,
+            'load_flow': {'requested': True, 'return_code': 0, 'ldf_valid': True}}
     base.update(cambios)
     return base
 
@@ -202,24 +202,31 @@ def test_equipos_que_el_archivo_no_trae_se_avisan_con_su_nombre():
     assert r['status'] == 'VERIFICADO'
     assert any('2 equipo(s)' in a and 'SEC_1_a' in a and 'Shunt/Filter' in a for a in r['avisos'])
 
-@pytest.mark.parametrize('converge', [False, None])
-def test_el_flujo_no_bloquea(converge):
-    """015:RF-8, 015:RF-10, 015:RF-40 — el flujo se informa en su comprobación, pero el
-    «Caso base» queda verificado si lo físico pasa."""
-    r = tool.resumen_caso_base(_report(convergence_pass=converge), _SIN_FALLOS, [], [])
-    assert r['status'] == 'VERIFICADO'
+@pytest.mark.parametrize('flujo, estado', [
+    ({'return_code': 1, 'ldf_valid': False}, 'NO_CONVERGE'),
+    ({'return_code': None, 'ldf_valid': None}, 'SIN_DATO_DE_FLUJO'),
+])
+def test_el_flujo_no_bloquea(flujo, estado):
+    """015:RF-8, 015:RF-10, 015:RF-40 — el flujo se informa en su comprobación y no impide calibrar;
+    pero ya no se llama VERIFICADO (078:RF-14, 078:RF-15, 078:RF-17)."""
+    r = tool.resumen_caso_base(_report(load_flow={'requested': True, **flujo}), _SIN_FALLOS, [], [])
+    assert r['status'] == estado
     assert r['comprobaciones']['flujo']['pass'] is False
 
 
 def test_el_flujo_de_la_importacion_actualiza_el_resumen():
     """015:RF-8, 015:RF-38, 015:RF-39 — el flujo que corrió al importar, y su ajuste, van al
     resumen sin cambiar el estado."""
-    r = tool.resumen_caso_base(_report(convergence_pass=None), _SIN_FALLOS, [], [])
-    tool.actualizar_flujo_caso_base(r, True, {'pass': True, 'factor': 0.7, 'escenario': 'Operador'})
+    r = tool.resumen_caso_base(_report(load_flow={'requested': False}), _SIN_FALLOS, [], [])
+    tool.actualizar_flujo_caso_base(r, {'load_flow': {
+        'requested': True, 'return_code': 1, 'ldf_valid': False,
+        'ajuste_de_cargas': {'pass': True, 'factor': 0.7, 'escenario': 'Operador',
+                             'final_load_flow': {'return_code': 0, 'ldf_valid': True}}}})
     assert r['status'] == 'VERIFICADO' and r['comprobaciones']['flujo']['pass'] is True
     assert any('70.0 %' in a and 'RF-38' in a for a in r['avisos'])
-    tool.actualizar_flujo_caso_base(r, False, {'omitido': 'sin_proyecto'})
-    assert r['status'] == 'VERIFICADO'
+    tool.actualizar_flujo_caso_base(r, {'load_flow': {'requested': True, 'return_code': 1, 'ldf_valid': False,
+                                                      'ajuste_de_cargas': {'omitido': 'sin_proyecto'}}})
+    assert r['status'] == 'NO_CONVERGE'
     assert any('RF-39' in a for a in r['avisos'])
 
 
@@ -263,9 +270,9 @@ def test_si_no_converge_ni_al_minimo_vuelve_la_demanda_original():
     ajuste = tool.converger_caso_base(app)
     assert ajuste['pass'] is False and ajuste['factor'] is None
     assert {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)} == pytest.approx(antes)
-    r = tool.resumen_caso_base(_report(convergence_pass=False, load_flow={'requested': True, 'ajuste_de_cargas': ajuste}),
-                               _SIN_FALLOS, [], [])
-    assert r['status'] == 'VERIFICADO' and any('RF-40' in a for a in r['avisos'])
+    r = tool.resumen_caso_base(_report(load_flow={'requested': True, 'return_code': 1, 'ldf_valid': False,
+                                                  'ajuste_de_cargas': ajuste}), _SIN_FALLOS, [], [])
+    assert r['status'] == 'NO_CONVERGE' and any('RF-40' in a for a in r['avisos'])
 
 
 def test_proyecto_existente_exige_manifiesto(tmp_path, capsys):
@@ -366,9 +373,8 @@ def test_con_sin_proyecto_creado_no_se_corrige_el_caso_base():
 def test_un_proyecto_ya_importado_se_verifica_sin_flujo(tmp_path, capsys):
     """015:RF-8, 015:RF-39 — la convergencia se prueba al importar el DGS: al verificar un
     proyecto existente no hay comprobación de flujo, y la orden no admite correrlo."""
-    r = tool.resumen_caso_base(_report(convergence_pass=None, load_flow={'requested': False}),
-                               _SIN_FALLOS, [], [])
-    assert 'flujo' not in r['comprobaciones'] and r['status'] == 'VERIFICADO'
+    r = tool.resumen_caso_base(_report(load_flow={'requested': False}), _SIN_FALLOS, [], [])
+    assert 'flujo' not in r['comprobaciones'] and r['status'] == 'SIN_DATO_DE_FLUJO'
     dgs = tmp_path / 'CA101.dgs'
     geo = tmp_path / 'CA101_geography.json'
     dgs.write_text('', encoding='utf-8')

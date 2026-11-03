@@ -127,6 +127,8 @@ def verify_source_contract(
 def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> None:
     from convertersmartgrid.powerfactory_metadata import (
         classify_convergence,
+        convergence_pass_de,
+        estado_flujo,
         load_intervention_from_attempts,
     )
 
@@ -158,6 +160,9 @@ def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> 
         'reason': 'DGS importado en proyecto nuevo; no se muta un proyecto preexistente.',
     }
     report['load_intervention'] = load_intervention_from_attempts(loop.get('attempts') or [])
+    # 078:RF-1, RF-8: el último paso de todas las vías: aquí se fija lo que el informe dice del flujo.
+    report['flujo'] = estado_flujo(report)
+    report['convergence_pass'] = convergence_pass_de(report['flujo'])
     report['convergence_classification'] = classify_convergence(report)
 
 
@@ -190,13 +195,17 @@ def attach_project_binding(
                                        'avisos': ['Sin la geografía del archivo original '
                                                   'no se verifica (015:RF-1).']}
     comprobaciones = {k: bool(v.get('pass')) for k, v in (caso.get('comprobaciones') or {}).items()}
+    sin_fallo = {'VERIFICADO': [], 'SIN_DATO_DE_FLUJO': ['flujo sin dato']}.get(caso.get('status'),
+                                                                                ['sin verificación completa'])
     estado = {
         'status': caso.get('status') or 'NO_VERIFICADO',
         'comprobaciones': comprobaciones,
-        'fallos': sorted(k for k, ok in comprobaciones.items() if not ok)
-        or ([] if caso.get('status') == 'VERIFICADO' else ['sin verificación completa']),
+        'fallos': sorted(k for k, ok in comprobaciones.items() if not ok) or sin_fallo,
         'recorded_at': time.time(),
     }
+    if caso.get('flujo'):
+        # 078:RF-16: lo que volver a verificar conserva, porque ahí no corre el flujo.
+        estado['flujo'] = {k: caso['flujo'].get(k) for k in ('estado', 'motivo', 'return_code', 'factor_demanda')}
     verificado = estado['status'] == 'VERIFICADO'
     native_hash, native_manifest = native_inventory_evidence(app, feeders)
     binding = PowerFactoryProjectBinding(
@@ -2544,17 +2553,46 @@ def variaciones_activas(app: Any) -> list[str]:
         return []
 
 
+#: 078:RF-15: el aviso que se quita si después llega el flujo de la importación, o el registrado.
+AVISO_SIN_FLUJO = 'Sin dato de convergencia: esta verificación no ejecuta el flujo (015:RF-39).'
+
+
+def _poner_flujo(caso_base: dict[str, Any], report: dict[str, Any]) -> None:
+    """La lectura del flujo y el estado que resulta (078:RF-13 a RF-15), en un solo sitio.
+
+    El flujo no bloquea (015:RF-38 a RF-40), pero se dice: con la comprobación ✗ y el estado
+    VERIFICADO, el operador leía «verificado» en un proyecto que no calculó.
+    """
+    from convertersmartgrid.powerfactory_metadata import FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_caso_base, estado_flujo
+
+    flujo = estado_flujo(report)
+    comprobaciones = caso_base['comprobaciones']
+    if flujo['solicitado']:
+        comprobaciones['flujo'] = {'pass': flujo['estado'] == FLUJO_CONVERGE,
+                                   'fallos': [] if flujo['estado'] == FLUJO_CONVERGE else [flujo['motivo'], *flujo['fallos']]}
+    caso_base['flujo'] = flujo
+    avisos = [a for a in caso_base.get('avisos') or []
+              if not a.startswith(('El flujo no converge:', 'Sin dato de convergencia:'))]
+    if flujo['estado'] == FLUJO_NO_CONVERGE:
+        avisos.insert(0, f"El flujo no converge: {flujo['motivo']}")
+    elif flujo['estado'] != FLUJO_CONVERGE:
+        avisos.insert(0, f"Sin dato de convergencia: {flujo['motivo']}" if flujo['solicitado'] else AVISO_SIN_FLUJO)
+    caso_base['avisos'] = avisos
+    fisico_ok = all(c['pass'] for k, c in comprobaciones.items() if k != 'flujo')
+    caso_base['status'] = estado_caso_base(fisico_ok, flujo['estado'])
+
+
 def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
                       correcciones: list[dict], variaciones: list[str]) -> dict[str, Any]:
     """Resultado por comprobación del «Caso base» (015:RF-9, RF-10).
 
-    Bloquean el GPS de las barras, el trazado de las líneas, la conectividad, el diagrama,
-    la capacidad definida y la convergencia. Una capacidad distinta, un equipo que el
-    archivo no trae, una corrección de transformador o una variación activa se avisan.
+    Bloquean el GPS de las barras, el trazado de las líneas, la conectividad, el diagrama
+    y la capacidad definida. Una capacidad distinta, un equipo que el archivo no trae, una
+    corrección de transformador o una variación activa se avisan. El flujo no bloquea y
+    tiene su propio estado (078:RF-13 a RF-15).
     """
     gps = report.get('gps') or {}
     conn = report.get('connectivity') or {}
-    flujo = report.get('convergence_pass')
 
     def comprobacion(ok, fallos=None):
         return {'pass': bool(ok), 'fallos': list(fallos or [])}
@@ -2573,11 +2611,6 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
                                  (report.get('diagram') or {}).get('fallos')),
         'capacidades': comprobacion(not equipos.get('sin_capacidad'), equipos.get('sin_capacidad')),
     }
-    # 015:RF-8, RF-39: el flujo solo se prueba al importar el DGS.
-    if (report.get('load_flow') or {}).get('requested'):
-        comprobaciones['flujo'] = comprobacion(
-            flujo is True, [] if flujo is True else
-            ['el flujo no se ejecutó' if flujo is None else 'no converge'])
     avisos = []
     for x in equipos.get('capacidad_distinta') or []:
         avisos.append(f"{x['nombre']}: {x['digsilent']} {x['magnitud']} en DIgSILENT y "
@@ -2613,13 +2646,12 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
     aviso = _aviso_convergencia((report.get('load_flow') or {}).get('ajuste_de_cargas'))
     if aviso:
         avisos.append(aviso)
-    # 015:RF-10, RF-38 a RF-40: el flujo se informa y no bloquea.
-    verificado = all(c['pass'] for k, c in comprobaciones.items() if k != 'flujo')
-    return {'status': 'VERIFICADO' if verificado else 'NO_VERIFICADO',
-            'comprobaciones': comprobaciones, 'transformadores_corregidos': correcciones,
-            'capacidad_distinta': list(equipos.get('capacidad_distinta') or []),
-            'no_en_archivo': list(equipos.get('no_en_archivo') or []),
-            'variaciones_activas': variaciones, 'avisos': avisos}
+    resumen = {'comprobaciones': comprobaciones, 'transformadores_corregidos': correcciones,
+               'capacidad_distinta': list(equipos.get('capacidad_distinta') or []),
+               'no_en_archivo': list(equipos.get('no_en_archivo') or []),
+               'variaciones_activas': variaciones, 'avisos': avisos}
+    _poner_flujo(resumen, report)                                              # 015:RF-8, RF-39; 078:RF-13
+    return resumen
 
 
 def converger_caso_base(app: Any, *, minimo: float = 0.1, paso: float = 0.1,
@@ -2691,23 +2723,14 @@ def _aviso_convergencia(ajuste: dict[str, Any] | None) -> str | None:
             'queda la del archivo; vea el diagnóstico. No bloquea (015:RF-40).')
 
 
-def actualizar_flujo_caso_base(caso_base: dict[str, Any] | None, converge: bool | None,
-                               ajuste: dict[str, Any] | None = None) -> None:
-    """El flujo que corrió en la importación, en el resumen del «Caso base» (015:RF-8).
-
-    No bloquea (RF-38 a RF-40): el estado lo deciden las demás comprobaciones.
-    """
+def actualizar_flujo_caso_base(caso_base: dict[str, Any] | None, report: dict[str, Any]) -> None:
+    """El flujo que corrió en la importación, en el resumen del «Caso base» (015:RF-8, 078:RF-14)."""
     if not caso_base or 'comprobaciones' not in caso_base or not caso_base['comprobaciones']:
         return
-    caso_base['comprobaciones']['flujo'] = {
-        'pass': converge is True,
-        'fallos': [] if converge is True else
-        ['el flujo no se ejecutó' if converge is None else 'no converge']}
-    aviso = _aviso_convergencia(ajuste)
+    aviso = _aviso_convergencia((report.get('load_flow') or {}).get('ajuste_de_cargas'))
     if aviso and aviso not in caso_base.setdefault('avisos', []):
         caso_base['avisos'].append(aviso)
-    caso_base['status'] = ('VERIFICADO' if all(c['pass'] for k, c in caso_base['comprobaciones'].items()
-                                               if k != 'flujo') else 'NO_VERIFICADO')
+    _poner_flujo(caso_base, report)
 
 
 def sin_proyecto_existe(app: Any) -> bool:
@@ -3035,12 +3058,16 @@ def run_acceptance(
             ldf = execute_load_flow(app, relaxed=False)
             load_flow['pass'] = ldf.get('pass')
             load_flow['return_code'] = ldf.get('return_code')
+            load_flow['return_meaning'] = ldf.get('return_meaning')
             load_flow['ldf_valid'] = ldf.get('ldf_valid')
+            load_flow['errors'] = list(ldf.get('errors') or [])                # 078:RF-6
             convergence_pass = bool(ldf.get('pass'))
             # 015:RF-38 a RF-40: no converger no bloquea; se reduce la demanda del «Caso
             # base» hasta que converja, salvo con «Sin proyecto» ya creado (RF-39).
             warnings.extend(ldf.get('errors') or [])
             if not convergence_pass:
+                # 078:RF-6: antes de tocar las cargas; 015:RF-40 lo pedía y esta vía no lo guardaba.
+                load_flow['diagnostico'] = {'issues': diagnose_nonconvergence(app, last_ldf=ldf)['issues']}
                 ajuste = converger_caso_base(app) if corregir else {'omitido': 'sin_proyecto'}
                 load_flow['ajuste_de_cargas'] = ajuste
                 if ajuste.get('pass'):
@@ -3112,6 +3139,7 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         f"líneas, {((report.get('diagram') or {}).get('curvas_grid_mapa') or {}).get('distintas')} distintas, "
         f"máx. {((report.get('diagram') or {}).get('curvas_grid_mapa') or {}).get('max_m')} m",
         f"Convergence PASS:          {report.get('convergence_pass')}",
+        f"Flujo (spec 078):          {(report.get('flujo') or {}).get('estado')} — {(report.get('flujo') or {}).get('motivo')}",
         f"Load flow executed:         {(report.get('load_flow') or {}).get('requested')}",
         f"Load flow PASS:             {(report.get('load_flow') or {}).get('pass')}",
         '',
@@ -3139,6 +3167,13 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
     lines.extend(f'  - {x}' for x in report['errors'])
     lines.append(f"WARNINGS: {len(report['warnings'])}")
     lines.extend(f'  - {x}' for x in report['warnings'])
+    flujo = report.get('flujo') or {}
+    if flujo.get('fallos') or flujo.get('historial'):                          # 078:RF-28
+        lines += ['', 'FLUJO']
+        lines.extend(f'  - {x}' for x in flujo.get('fallos') or [])
+        lines.extend(f"  intento: {h.get('accion') or json.dumps(h, ensure_ascii=False)} → "
+                     f"converge={h.get('converge')} return_code={h.get('return_code')}"
+                     for h in flujo.get('historial') or [])
     if report.get('import'):
         lines += ['', 'IMPORT', json.dumps(report['import'], ensure_ascii=False, indent=2)]
     if report.get('study_scenario'):
@@ -3853,7 +3888,10 @@ def main(argv=None) -> int:
                       else {'omitido': 'sin_proyecto'})
             report['load_flow']['ajuste_de_cargas'] = ajuste
             report['convergence_pass'] = bool(ajuste.get('pass'))
-        actualizar_flujo_caso_base(report.get('caso_base'), report['convergence_pass'], ajuste)
+        actualizar_flujo_caso_base(report.get('caso_base'), report)
+        if AVISO_SIN_FLUJO in report['warnings']:
+            # run_acceptance corrió sin flujo porque ya se había hecho en la importación.
+            report['warnings'].remove(AVISO_SIN_FLUJO)
         if not report['convergence_pass']:
             # 015:RF-40: se informa y no bloquea.
             report['warnings'].append('Load flow did not converge after correction intents')
@@ -3899,6 +3937,7 @@ def main(argv=None) -> int:
           + ', '.join(f"{k}={'OK' if v['pass'] else 'FALLA'}"
                       for k, v in (caso.get('comprobaciones') or {}).items()))
     print(f"Convergence PASS: {report.get('convergence_pass')}")
+    print(f"Flujo: {report['flujo']['estado']} — {report['flujo']['motivo']}")
     if dgs_persist_report:
         print(
             f"DGS persist: ok={dgs_persist_report.get('ok')} "

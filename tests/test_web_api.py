@@ -156,6 +156,7 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
             'import': {'ok': True, 'dgs': dgs_fijado, 'project_path': 'UNITARIO',
                        'project_folder': command[command.index('--pf-carpeta') + 1]},
             'source_verification': {'status': 'NOT_REQUESTED'},
+            'load_flow': {'requested': True, 'return_code': 0, 'ldf_valid': True},
         }), encoding='utf-8')
         return 0
     ctx = SimpleNamespace(

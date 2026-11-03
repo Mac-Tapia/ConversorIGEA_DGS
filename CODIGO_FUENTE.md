@@ -60,7 +60,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/asistente/transformer.py` | Transformer propio por caracteres: tarea y datos (etiquetas por carácter decididas por palabra), entrenamiento en GPU, prueba fija, registro, puertas, promoción y vuelta al anterior. | 026 (RF-2, RF-19, RF-20) |
 | `src/convertersmartgrid/asistente/ollama.py` | Cliente del modelo local de Ollama: solo direcciones de la máquina, tareas como herramientas con respuesta JSON, respuestas con cita y embeddings; modelo elegido por la medida. | 026 (RF-3, RF-5, RF-17, RF-18) |
 | `src/convertersmartgrid/asistente/interprete.py` | Intérprete híbrido: Transformer, si duda Ollama, si duda pregunta; reglas fijas de periodo, ruta y número. | 026 (RF-2 a RF-4) |
-| `src/convertersmartgrid/asistente/plan.py` | Del texto interpretado al plan: datos contrastados con lo que existe (parecido, tomados del texto), lo que falta, dudas y razonamiento. | 026 (RF-4, RF-6, RF-7, RF-8) |
+| `src/convertersmartgrid/asistente/plan.py` | Del texto interpretado al plan: datos contrastados con lo que existe (parecido, tomados del texto), lo que falta, dudas y razonamiento; un grupo ya convertido al importar. | 026 (RF-4, RF-6, RF-7, RF-8), 078 |
 | `src/convertersmartgrid/web/asistente_operacion.py` | Lo que cada tarea del asistente necesita del espacio, comprobado antes de ofrecer confirmar: calibración, libros, costeo, formulario y las formas que se leen de la orden. | 070 (RF-2 a RF-15, RF-29, RF-30, RF-58) |
 | `src/convertersmartgrid/web/asistente_consultas.py` | Las consultas del asistente sin escribir ni abrir DIgSILENT: qué dato se pide, su fuente, «no lo encuentro» y por qué un estudio no está disponible. | 070 (RF-40 a RF-49) |
 | `src/convertersmartgrid/asistente/prueba_sellada.py` | La prueba sellada de las órdenes desde la 070: seis frases por tarea, un vocabulario propio y una huella fija; declara cómo se generó y no se ajusta mirándola. | 070 (RF-69 a RF-71) |
@@ -112,8 +112,8 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/pf_arnes.py` | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. | 019, 064 |
 | `src/convertersmartgrid/pf_estado.py` | Foto del estado de DIgSILENT antes de una orden del servidor (caso, hora, escenario, variaciones) y su restitución si la orden falla. | 064 |
 | `src/convertersmartgrid/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | 034 (RF-29) |
-| `src/convertersmartgrid/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015 |
-| `src/convertersmartgrid/powerfactory_metadata.py` | Procedencia del conversor en los objetos de PowerFactory. | 034 (RF-21) |
+| `src/convertersmartgrid/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015, 078 |
+| `src/convertersmartgrid/powerfactory_metadata.py` | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. | 034 (RF-21), 078 |
 | `src/convertersmartgrid/preview.py` | Vista previa georreferenciada del modelo. | 034 (RF-14) |
 | `src/convertersmartgrid/puentes.py` | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas; su equipo pasa al extremo de la línea vecina si cabe. | 034, 021 |
 | `src/convertersmartgrid/reconstruction.py` | Contrato de la reconstrucción auditable del dataset. | 001 (RF-17 a RF-22) |
@@ -266,7 +266,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/set_nueva_operacion_pf.py` | Diagnóstico físico de conexiones y tipos de una SET existente; evalúa refuerzos y nuevas salidas en variaciones propias con copia del escenario. La conciliación explícita de fases conserva P/Q totales y su reparto relativo. Admite aplicación solo con ambos flujos aceptados y relectura; captura también los cuatro flujos de referencia. No recrea ni desplaza la SET. | 063 (RF-36 a RF-38) |
 | `tools/hojas_diagrama_pf.py` | Hoja de cada diagrama de un proyecto de DIgSILENT frente a sus gráficos y conectores, de solo lectura. | 022 (RF-93) |
 | `tools/pf_proyectos.py` | Proyectos de la carpeta de importación de DIgSILENT y sus alimentadores. | 005 |
-| `tools/powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. | 034, 010 (RF-6, RF-7), 015, 054 |
+| `tools/powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. | 034, 010 (RF-6, RF-7), 015, 054, 078 |
 | `tools/prueba_representacion.py` | Red, cargas y SED del TXT en una hoja de PowerFactory. | 034 (RF-33) |
 | `tools/run_one_study.py` | Trabajador de PowerFactory: importa y mide, o ejecuta un estudio. | 005 |
 | `tools/run_powerfactory_gate.bat` | Lanza `powerfactory_acceptance.py` con el intérprete de PowerFactory. | 034 (RF-33) |

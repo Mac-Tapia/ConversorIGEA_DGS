@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 from .util import esquema_vigente
+from .powerfactory_metadata import CASO_BASE_CALIBRABLE, FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_caso_base
 
 
 BINDING_SCHEMA = 'convertersmartgrid-powerfactory-project-binding-v1'
@@ -361,6 +362,27 @@ def record_project_binding(ws: Any, binding: PowerFactoryProjectBinding) -> None
         ws.save()
 
 
+def _arrastrar_flujo(anterior: dict[str, Any] | None, nuevo: dict[str, Any]) -> dict[str, Any]:
+    """La verificación sin flujo conserva el último registrado (078:RF-16, 015:RF-39).
+
+    Volver a verificar no corre el flujo y su resultado sustituía al de la importación: un proyecto
+    que no convergió volvía a salir VERIFICADO.
+    """
+    comprobaciones = dict(nuevo.get('comprobaciones') or {})
+    registrado = (anterior or {}).get('comprobaciones') or {}
+    if 'flujo' in comprobaciones or 'flujo' not in registrado:
+        return nuevo
+    paso = bool(registrado['flujo'])
+    comprobaciones['flujo'] = paso
+    estado = FLUJO_CONVERGE if paso else FLUJO_NO_CONVERGE
+    flujo = dict((anterior or {}).get('flujo') or {'estado': estado})
+    flujo.setdefault('motivo', 'el flujo registrado al importar ' + ('converge.' if paso else 'no converge.'))
+    fallos = (set(nuevo.get('fallos') or []) - {'flujo sin dato', 'sin verificación completa'}
+              | {k for k, ok in comprobaciones.items() if not ok})
+    return {**nuevo, 'status': estado_caso_base(nuevo.get('status') != 'NO_VERIFICADO', estado),
+            'comprobaciones': comprobaciones, 'fallos': sorted(fallos), 'flujo': {**flujo, 'arrastrado': True}}
+
+
 def fusionar_caso_base(
     anterior: dict[str, Any] | None, binding: PowerFactoryProjectBinding,
 ) -> PowerFactoryProjectBinding:
@@ -375,13 +397,17 @@ def fusionar_caso_base(
     previo = dict((anterior.get('native_reread') or {}).get('caso_base') or {})
     nuevo = dict(binding.native_reread.get('caso_base') or {})
     feeders = tuple(sorted(set(binding.feeders) | set(anterior.get('feeders') or [])))
+    nuevo = {f: _arrastrar_flujo(previo.get(f), estado) for f, estado in nuevo.items()}
+    reread = {**binding.native_reread, 'caso_base': {**previo, **nuevo}}
+    if nuevo and all(e.get('status') == 'VERIFICADO' for e in nuevo.values()):
+        reread['status'] = 'VERIFICADO_PERSISTENCIA'                           # 078:RF-16: con el flujo registrado
     return PowerFactoryProjectBinding(
         project=binding.project, folder=binding.folder,
         source_run_id=binding.source_run_id, source_mode=binding.source_mode,
         source_fingerprint=binding.source_fingerprint, feeders=feeders,
         dgs_sha256={**dict(anterior.get('dgs_sha256') or {}), **binding.dgs_sha256},
         native_inventory_sha256=binding.native_inventory_sha256,
-        native_reread={**binding.native_reread, 'caso_base': {**previo, **nuevo}},
+        native_reread=reread,
         accepted_at=binding.accepted_at,
     )
 
@@ -389,7 +415,8 @@ def fusionar_caso_base(
 def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[str, list[str]]:
     """Alimentador → comprobaciones que fallan en su «Caso base»; vacío si todos pasan.
 
-    Spec 015, RF-13: sin «Caso base» verificado no se calibra ni se crea «Sin proyecto».
+    Spec 015, RF-13: sin «Caso base» verificado no se calibra ni se crea «Sin proyecto». El flujo
+    no bloquea (015:RF-38 a RF-40, 078:RF-17): se calibra también si no converge o no hay dato.
     Un vínculo de antes de la spec 015 no trae ``caso_base`` (CA101, 2026-10-13, adoptado
     sin GPS ni convergencia y promovido por el ajuste): cuenta como no verificado y hay
     que volver a verificarlo.
@@ -409,7 +436,7 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
     out: dict[str, list[str]] = {}
     for feeder in feeders:
         estado = estados.get(str(feeder).strip()) or {}
-        if estado.get('status') != 'VERIFICADO':
+        if estado.get('status') not in CASO_BASE_CALIBRABLE:
             out[str(feeder).strip()] = list(estado.get('fallos') or ['sin verificar'])
     return out
 
