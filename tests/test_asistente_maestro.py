@@ -5,6 +5,7 @@ DIgSILENT o la GPU: lo que hagan de verdad allí queda en las tareas ``[DIgSILEN
 """
 from __future__ import annotations
 
+import json
 import re
 import time
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from convertersmartgrid.asistente import almacen
 from convertersmartgrid.web import asistente_operacion as operacion
 from convertersmartgrid.web import services
 from convertersmartgrid.web.app import create_app
@@ -1053,8 +1055,9 @@ def test_cadena_el_libro_es_solo_del_perfil():
     assert '_libro_del_informe(ctx, destino, imagenes)' in fuente
 
 # ------------------------------------------------------------------ T6, reglas de dominio
-def test_dominio_la_ruta_rechaza_mas_de_tres_coincidentes(api):
+def test_dominio_la_ruta_rechaza_mas_de_tres_coincidentes(api, monkeypatch):
     """070:RF-57 — también en el backend, y propone SET o sistema; por barra no hay tope."""
+    monkeypatch.setattr(services, 'demanda_cabecera', lambda *_a, **_k: {'resultados': []})
     cliente, app = api
     wid, _ws = espacio(cliente, app)
     medidores = [{'alimentador': f'F{i}', 'medidor': f'M{i}'} for i in range(1, 5)]
@@ -1062,6 +1065,7 @@ def test_dominio_la_ruta_rechaza_mas_de_tres_coincidentes(api):
     assert r.status_code == 400 and 'SET' in r.json()['detail'] and 'sistema' in r.json()['detail']
     r = cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'por_barra': True})
     assert r.status_code == 202
+    esperar(cliente, r.json()['id'])
 
 
 def test_dominio_las_centrales_no_cuentan_como_alimentadores(api, monkeypatch):
@@ -1071,7 +1075,9 @@ def test_dominio_las_centrales_no_cuentan_como_alimentadores(api, monkeypatch):
     wid, _ws = espacio(cliente, app)
     medidores = [{'alimentador': f'F{i}', 'medidor': f'M{i}'} for i in range(1, 4)] + [
         {'alimentador': 'Central F1', 'medidor': m} for m in ('G', 'L', 'S')]
-    assert cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'coincidente': True}).status_code == 202
+    r = cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'coincidente': True})
+    assert r.status_code == 202
+    esperar(cliente, r.json()['id'])
 
 
 @pytest.mark.parametrize('tarea, datos', [
@@ -1185,3 +1191,138 @@ def test_dominio_la_conclusion_de_conexion_manda_al_decidir_obras():
 
     r = _resumen({'factible': True, 'informe': 'i.docx', 'conclusion_conexion': {'factible': False, 'clave': 'requiere_refuerzo'}})
     assert r['factible'] is False and r['conclusion'] == 'requiere_refuerzo' and r['informe'] == 'i.docx'
+
+# ------------------------------------------------------------------ T7, la vía antigua
+def herramienta_entrenar():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('asistente_entrenar_070', RAIZ / 'tools/asistente_entrenar.py')
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_via_sin_opciones_toma_la_gobernada_y_nunca_la_antigua(entorno, monkeypatch):
+    """070:RF-62 / 070:RF-63 — la vigilancia la lanza sin ``--integral``: nunca llega a ``entrenar_y_promover``."""
+    from convertersmartgrid.asistente import clasificador, destilacion_integral as di, transformer
+
+    monkeypatch.setattr(transformer, 'entrenar_y_promover', lambda *_a, **_k: pytest.fail('vía antigua de órdenes'))
+    monkeypatch.setattr(clasificador, 'entrenar_y_promover', lambda *_a, **_k: pytest.fail('vía antigua de informes'))
+    vistos = []
+    monkeypatch.setattr(di, 'preparar_corpus', lambda vocab, *_a, **_k: vistos.append(vocab) or ([], {}))
+    monkeypatch.setattr(di, 'guardar_corpus', lambda *_a, **_k: None)
+    monkeypatch.setattr(di, 'entrenar_destilacion', lambda *_a, registro=None, **_k: {
+        'status': 'RECHAZADO', 'promovido': False, 'registro': str(registro),
+        'candidato': {'status': 'RECHAZADO', 'candidate_id': 'c'}})
+    from convertersmartgrid.asistente import modelos_en_uso
+
+    monkeypatch.setattr(modelos_en_uso, 'aplicar_decision', lambda familia, c: {'promovido': False, 'motivo': 'no pasa', 'en_uso': None})
+    monkeypatch.setattr(clasificador, 'entrenar_gobernado', lambda *_a, **_k: {'status': 'BLOQUEADO_POR_DATOS'})
+    almacen_vocab = {'alimentadores': ['F1']}
+    from convertersmartgrid.asistente import almacen
+
+    almacen.guardar_json('vocabulario', almacen_vocab)
+    salida = entorno / 'informe.json'
+    codigo = herramienta_entrenar().main(['--output-json', str(salida)])
+    informe = json.loads(salida.read_text(encoding='utf-8'))
+    assert codigo == 0 and informe['training_completed'] is True and 'model_registry' in informe['ordenes']['registro']
+    assert vistos == [almacen_vocab], 'el vocabulario que guardó la web, como en la vía antigua'
+
+
+@pytest.mark.parametrize('opciones, tocan_ordenes', [(['--solo', 'ordenes'], True), (['--destilar'], True), (['--solo', 'informes'], False)])
+def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, opciones, tocan_ordenes):
+    """070:RF-63 / 070:RF-64 — con turno de GPU, sin promover por su cuenta y con la decisión en el registro."""
+    from convertersmartgrid import trabajadores_ml
+    from convertersmartgrid.asistente import clasificador, destilacion, ollama, transformer
+    from convertersmartgrid.model_registry import RegistroModelo
+
+    turnos, kw_vistos = [], []
+
+    class Turno:
+        def __init__(self, nombre):
+            turnos.append(nombre)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+    monkeypatch.setattr(trabajadores_ml, 'turno_gpu', Turno)
+    monkeypatch.setattr(transformer, '_dispositivo', lambda: 'cuda')
+    import convertersmartgrid.digital_twin.oraculo as oraculo
+
+    monkeypatch.setattr(oraculo, 'dispositivo', lambda: 'cuda')
+
+    def antigua(vocab, **kw):
+        kw_vistos.append(kw)
+        return {'version': 'v1', 'promovido': False, 'fallos': [], 'acierto_tarea': .99, 'dataset': {'calidades': {'x': 1}}}
+
+    monkeypatch.setattr(transformer, 'entrenar_y_promover', antigua)
+    monkeypatch.setattr(clasificador, 'entrenar_gobernado', lambda *_a, **_k: {'status': 'BLOQUEADO_POR_DATOS', 'promovido': False})
+    monkeypatch.setattr(destilacion, 'MaestroArchivo', lambda: object())
+    salida = entorno / 'informe.json'
+    codigo = herramienta_entrenar().main(['--output-json', str(salida), *opciones])
+    informe = json.loads(salida.read_text(encoding='utf-8'))
+    assert codigo == 0, informe
+    assert turnos, 'sin turno de GPU'
+    if tocan_ordenes:
+        assert kw_vistos[0]['promover_directo'] is False and informe['ordenes']['promovido'] is False
+        registro = RegistroModelo(almacen.raiz() / 'model_registry')
+        assert registro.activo('transformer') is None
+        assert registro.ultimo('transformer')['status'] == 'RECHAZADO'
+
+
+def test_via_por_defecto_no_promueve_sin_registro(entorno, monkeypatch):
+    """070:RF-63 — sin pedirlo expresamente, ``entrenar_y_promover`` no toca el puntero."""
+    import inspect
+
+    from convertersmartgrid.asistente import transformer
+
+    assert inspect.signature(transformer.entrenar_y_promover).parameters['promover_directo'].default is False
+
+
+def test_via_quita_de_entrenar_los_textos_de_la_prueba():
+    """070:RF-65 — un texto de la prueba repetido en el entrenamiento no mide nada."""
+    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.asistente.sinteticos import Ejemplo
+
+    e = lambda t: Ejemplo(t, 'estado', [])  # noqa: E731
+    limpio, quitados = transformer.sin_textos_de_prueba([e('Uno  dos'), e('tres'), e('uno dos')], [e('uno dos')])
+    assert [x.texto for x in limpio] == ['tres'] and quitados == 2
+
+
+def test_via_clasificador_sin_fuga_y_con_calidad(entorno, monkeypatch):
+    """070:RF-65 / 070:RF-66 — el clasificador gobernado tampoco entrena con su prueba, y su manifiesto dice la calidad."""
+    from convertersmartgrid.asistente import clasificador as cl
+    from convertersmartgrid.model_registry import RegistroModelo
+
+    for i in range(5):
+        cl.registrar(f'informe real {i}', 'estudio', 'refuerzo de red', 'generado')
+    vistos = []
+
+    class Candidato:
+        red = None
+        subtipos = ['refuerzo de red']
+        version = ''
+
+    def entrenar(datos, *_a, **_k):
+        vistos.append(datos)
+        return Candidato()
+
+    def guardar(modelo, carpeta):
+        carpeta.mkdir(parents=True)
+        (carpeta / 'pesos.pt').write_bytes(b'p')
+        (carpeta / 'modelo.json').write_text('{}', encoding='utf-8')
+
+    monkeypatch.setattr(cl, 'entrenar', entrenar)
+    monkeypatch.setattr(cl, 'evaluar', lambda *_a: {'acierto_tipo': 1., 'acierto_subtipo': .97, 'ejemplos': 9})
+    monkeypatch.setattr(cl, 'cargar', lambda: None)
+    monkeypatch.setattr(cl, 'guardar_candidato', guardar)
+    monkeypatch.setattr(cl, 'generar', lambda s, **k: [('repetido', 'estudio', 'refuerzo de red')] if k.get('semilla') == cl.SEMILLA_PRUEBA
+                        else [('repetido', 'estudio', 'refuerzo de red'), ('propio', 'estudio', 'refuerzo de red')])
+    registro = RegistroModelo(almacen.raiz() / 'model_registry')
+    r = cl.entrenar_gobernado(registro, entorno / 'cand', reabrir=lambda _c: {'ok': True})
+    assert 'repetido' not in [x[0] for x in vistos[0]] and 'propio' in [x[0] for x in vistos[0]]
+    manifiesto = registro.detalle('clasificador', r['candidato']['candidate_id'], verificar_artefactos=False)['dataset_manifest']
+    assert manifiesto['calidades'] and manifiesto['textos_de_prueba_quitados'] == 1

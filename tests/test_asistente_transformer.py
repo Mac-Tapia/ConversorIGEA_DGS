@@ -24,7 +24,7 @@ def entrenado(tmp_path_factory):
     raiz = tmp_path_factory.mktemp('asistente')
     os.environ['CSG_ASISTENTE_DATA'] = str(raiz)
     try:
-        r = tr.entrenar_y_promover(VOCAB, cfg=CFG, puertas=tr.Puertas(acierto_tarea=0.9, f1_datos=0.8,
+        r = tr.entrenar_y_promover(VOCAB, promover_directo=True, cfg=CFG, puertas=tr.Puertas(acierto_tarea=0.9, f1_datos=0.8,
                                                                        acierto_real=0.0, f1_real=0.0))
         yield raiz, r
     finally:
@@ -56,7 +56,7 @@ def test_reentrena_con_ordenes_reales_y_prueba_fija(entrenado, monkeypatch):
                                     'datos': [[15, 20, 'alimentadores']], 'origen': 'corregido'})
     ent, prueba = tr.ejemplos_reales()
     assert len(ent) == 8 and len(prueba) == 2
-    r2 = tr.entrenar_y_promover(VOCAB, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=1.01, acierto_real=0.0, f1_real=0.0))
+    r2 = tr.entrenar_y_promover(VOCAB, promover_directo=True, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=1.01, acierto_real=0.0, f1_real=0.0))
     assert not r2['promovido'] and r2['fallos'] and tr.version_promovida() == r['version']
     tr.promover(r2['version'], 'prueba')
     assert tr.volver_al_anterior() == r['version'] and tr.version_promovida() == r['version']
@@ -79,7 +79,7 @@ def test_puertas_de_las_ordenes_reales(entrenado, monkeypatch):
     acierto ≥ 0,98 y F1 ≥ 0,95 en ellas, medidas aparte."""
     raiz, _r = entrenado
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
-    r = tr.entrenar_y_promover(VOCAB, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0,
+    r = tr.entrenar_y_promover(VOCAB, promover_directo=True, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0,
                                                                         acierto_real=1.01))
     assert r['reales'] is not None and r['reales']['ejemplos'] >= 1
     assert not r['promovido'] and any('órdenes reales' in f for f in r['fallos'])

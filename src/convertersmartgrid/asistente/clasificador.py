@@ -221,6 +221,14 @@ def cargar() -> ClasificadorInformes | None:
     return m
 
 
+def _sin_textos_de_prueba(datos: Sequence[tuple[str, str, str]], prueba: Sequence[tuple[str, str, str]]
+                          ) -> tuple[list[tuple[str, str, str]], int]:
+    """070:RF-65: un informe repetido en la prueba se acierta de memoria."""
+    vistos = {' '.join(t.lower().split()) for t, _tp, _s in prueba}
+    limpio = [f for f in datos if ' '.join(f[0].lower().split()) not in vistos]
+    return limpio, len(datos) - len(limpio)
+
+
 def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: float = 0.9,
                         log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
     """Entrena con sintéticos y reales; promueve si acierta el subtipo y no peor que el en uso."""
@@ -228,8 +236,8 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
     ent, prueba_real = reales()
     subtipos = subtipos_del_perfil()
     subtipos += sorted({s for _t, _tp, s in ent + prueba_real} - set(subtipos))
-    datos = generar(subtipos, semilla=cfg.semilla) + ent * 5
     prueba = generar(subtipos, por_subtipo=25, semilla=SEMILLA_PRUEBA) + prueba_real
+    datos, _quitados = _sin_textos_de_prueba(generar(subtipos, semilla=cfg.semilla) + ent * 5, prueba)
     candidato = entrenar(datos, subtipos, cfg, log)
     m = evaluar(candidato, prueba)
     actual = cargar()
@@ -301,8 +309,9 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
     cfg = cfg or Configuracion(epocas=12)
     subtipos = subtipos_del_perfil()
     subtipos += sorted({s for _t, _tp, s in ent + prueba_real} - set(subtipos))
-    candidato = entrenar(generar(subtipos, semilla=cfg.semilla) + ent * 5, subtipos, cfg, log)
     prueba = generar(subtipos, por_subtipo=25, semilla=SEMILLA_PRUEBA) + prueba_real
+    datos, quitados = _sin_textos_de_prueba(generar(subtipos, semilla=cfg.semilla) + ent * 5, prueba)
+    candidato = entrenar(datos, subtipos, cfg, log)
     m = evaluar(candidato, prueba)
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
@@ -327,7 +336,9 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
     c = registro.registrar_candidato(
         'clasificador', model_manifest={'algorithm': 'transformer_informes', 'cfg': asdict(cfg),
                                         'subtipos': subtipos, 'training_completed': True},
-        dataset_manifest={'informes_reales': len(ent) + len(prueba_real), 'prueba_real': len(prueba_real)},
+        dataset_manifest={'informes_reales': len(ent) + len(prueba_real), 'prueba_real': len(prueba_real),
+                          'calidades': {'plantillas': 'silver_deterministic', 'informes': 'gold_generado_o_corregido'},   # 070:RF-66
+                          'textos_de_prueba_quitados': quitados},
         metrics={'candidato': m, 'en_uso': del_actual},
         decision={'status': 'PROMOVIDO' if aprobado else 'RECHAZADO', 'gates': {'approved': aprobado}, 'fallos': fallos},
         smoke_reload=smoke,

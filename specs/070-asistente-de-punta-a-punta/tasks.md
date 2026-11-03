@@ -12,7 +12,7 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k cadena` en verde.
 - [x] T6 Reglas de dominio. (RF-57 a RF-61)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k dominio` en verde.
-- [ ] T7 Vía antigua de entrenamiento. (RF-62 a RF-66)
+- [x] T7 Vía antigua de entrenamiento. (RF-62 a RF-66)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k via` en verde.
 - [ ] T8 Currículo y prueba sellada nueva. (RF-67 a RF-75)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k curriculo` en verde.
