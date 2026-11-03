@@ -48,3 +48,10 @@ def test_la_arquitectura_lo_declara():
     """072:RF-20 — la regla consta donde se explica el sistema."""
     texto = (RAIZ / 'docs/ARQUITECTURA.md').read_text(encoding='utf-8')
     assert '**Casos de prueba:**' in texto and '072:RF-20' in texto
+
+
+def test_la_lista_negra_no_nombra_a_ninguna_empresa():
+    """081:RF-62, 077:RF-20 — ni la empresa ni su carpeta de datos: lo que está fuera del árbol ya se rechaza."""
+    from convertersmartgrid.asistente.lectura_proyecto import SEGMENTOS_NEGROS
+
+    assert not [s for s in SEGMENTOS_NEGROS if NOMBRES.search(s) or s[:9] == 'basedatos' or s.startswith('referencia_')]

@@ -64,6 +64,21 @@ def _cerrar_entrenamiento_vigilado(proceso, gemelo: bool, herramienta: str) -> N
     })
 
 
+def _sin_tumbar_la_web(anotar, *args) -> None:
+    """Un registro que no se puede escribir no impide abrir ni cerrar la web (081:RF-42)."""
+    try:
+        anotar(*args)
+    except OSError as exc:
+        print(f'No se pudo anotar el arranque o el cierre: {exc}', file=sys.stderr)
+
+
+def _suite_viva(fila) -> bool:
+    """Si vive el proceso que escribió esa fila de la suite (081:RF-41), también con su número reutilizado."""
+    from ..pf_arnes import dueno_vivo
+
+    return bool(fila.get('pid')) and dueno_vivo(fila)
+
+
 def arrancar_vigilancia(jobs: JobManager):
     """La vigilancia del asistente mientras la web está abierta (026:RF-22 a RF-25)."""
     import subprocess
@@ -99,7 +114,7 @@ def arrancar_vigilancia(jobs: JobManager):
                   # ni anuncia que reentrena, salvo que se pida.
                   contar_nuevos=(services.asistente_nuevos if os.environ.get('CSG_AUTOENTRENAMIENTO') == '1'
                                  else (lambda: (0, 0))),
-                  repo=project_root())
+                  repo=project_root(), proceso_vivo=_suite_viva)
     v.arrancar()
     return v
 
@@ -124,6 +139,10 @@ def _server_paths_allowed(host: str | None) -> bool:
 # navegador a una consulta CORS previa, que solo pasan los orígenes de desarrollo: una
 # página cualquiera no puede cerrar el Conversor con un formulario.
 CABECERA_LANZADOR = 'X-CSG-Lanzador'
+#: Lo que el lanzador dice para el registro de cierres (081:RF-42).
+CABECERA_MOTIVO = 'X-CSG-Motivo'
+#: Quien lo cerró, si lo pidió alguien; si no, el servidor se cerró por señal o Ctrl+C.
+_motivo_cierre: list[str] = []
 
 _cierre: list = []
 
@@ -145,6 +164,7 @@ def frontend_dist() -> Path:
 
 class OptionsIn(BaseModel):
     input_mode: Literal['txt', 'mdb', 'vnr'] | None = None
+    empresa_espacio: str | None = None                                          # 081:RF-51
     source_crs: str | None = None
     target_crs: str | None = None
     include_geography: bool | None = None
@@ -621,7 +641,7 @@ def create_app(
                     ws.events.append('log',{'job':data.get('id'),'text':f'Observación incompleta: {exc}'})
                     if data.get('status')=='queued':raise OSError('No se pudo registrar la operación nueva') from exc
                 # 067:RF-1: todo trabajo pasa por aquí, también los que encola el asistente.
-                if data.get('status')=='done' and (aviso:=services.asistente_custodiar_trabajo(ws,data)):
+                if data.get('status') in ('done','parcial','no_converge') and (aviso:=services.asistente_custodiar_trabajo(ws,data)):
                     ws.events.append('log',{'job':data.get('id'),'text':aviso})
             ws.events.append(kind, data)
 
@@ -634,11 +654,15 @@ def create_app(
     # Páginas conectadas por WebSocket (001:RF-35). Solo se toca desde el bucle de eventos.
     paginas = {'abiertas': 0}
 
+    from .cierre import anotar_arranque, anotar_cierre
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         # Solo el servidor real (``__main__`` pone la variable): las pruebas crean la app a
         # cientos y no deben vigilar ni correr la suite de noche.
         vigilante = arrancar_vigilancia(jobs) if os.environ.get('CSG_ASISTENTE_VIGILANCIA') == '1' else None
+        if vigilante is not None:                                              # 081:RF-42, RF-43
+            _sin_tumbar_la_web(anotar_arranque, huella)
         detener_retencion = asyncio.Event()
         tarea_retencion = asyncio.create_task(retencion.vigilar(detener_retencion))
         try:
@@ -647,6 +671,7 @@ def create_app(
             detener_retencion.set()
             await tarea_retencion
             if vigilante is not None:
+                _sin_tumbar_la_web(anotar_cierre, _motivo_cierre[0] if _motivo_cierre else 'señal, Ctrl+C o cierre de la ventana')
                 vigilante.parar()
             await asyncio.to_thread(jobs.shutdown)
 
@@ -713,7 +738,9 @@ def create_app(
             'servidor': {'pid': os.getpid(), 'huella': huella,
                          'trabajos_en_curso': jobs.en_curso(),
                          # RF-35: con una página conectada, el lanzador no abre otra pestaña.
-                         'paginas_abiertas': paginas['abiertas']},
+                         'paginas_abiertas': paginas['abiertas'],
+                         # 081:RF-44: de qué carpeta es; un lanzador de otra no lo sustituye.
+                         'raiz': str(project_root())},
         }
 
     @app.post('/api/sistema/cerrar', status_code=202)
@@ -727,6 +754,7 @@ def create_app(
             raise HTTPException(409, f'Hay {en_curso} trabajo(s) en curso: no se cierra.')
         if not _cierre:
             raise HTTPException(503, 'Este servidor no admite el cierre por petición.')
+        _motivo_cierre[:] = [request.headers.get(CABECERA_MOTIVO) or 'petición del lanzador, sin motivo']
         # Tras responder: si se cierra antes, el lanzador ve la conexión cortada.
         threading.Timer(0.2, _cierre[0]).start()
         return {'cerrando': True}

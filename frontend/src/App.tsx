@@ -97,8 +97,15 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   } else if (job.kind === 'catalog' && r) {
     body = <><p>{r.summary}</p><p>Descargue <b>{r.file}</b> en «Catálogo de parámetros», complete las columnas de ficha y vuelva a subirlo.</p></>;
   }
-  const title = `${job.title}${job.status === 'failed' ? ' — error' : job.status === 'cancelled' ? ' — cancelado' : ''}`;
-  return <Modal title={title} onClose={onClose} actions={<button className="btn btn-primary" autoFocus onClick={onClose}>Aceptar</button>}>{body}</Modal>;
+  // 081:RF-24: un trabajo que terminó sin que todo quedara bien lo dice en su título, con la lista.
+  const title = `${job.title}${job.status === 'failed' ? ' — error' : job.status === 'cancelled' ? ' — cancelado'
+    : job.status === 'parcial' ? ' — parcial' : job.status === 'no_converge' ? ' — no converge' : ''}`;
+  const pendientes = (r?.pendientes ?? []) as { alimentador: string; estado: string; motivo: string }[];
+  return <Modal title={title} onClose={onClose} actions={<button className="btn btn-primary" autoFocus onClick={onClose}>Aceptar</button>}>
+    {pendientes.length > 0 && <ul className="alert alert-warn">{pendientes.map((p) => (
+      <li key={p.alimentador}><strong>{p.alimentador}</strong> {p.estado}: {p.motivo}</li>))}</ul>}
+    {body}
+  </Modal>;
 }
 
 export default function App() {
@@ -117,7 +124,7 @@ export default function App() {
 
   const onFinished = useCallback((job: Job) => {
     // Los trabajos cortos no merecen un diálogo; los largos sí.
-    if (['load', 'convert', 'powerfactory', 'plan', 'system', 'catalog'].includes(job.kind) || job.status === 'failed') {
+    if (['load', 'convert', 'powerfactory', 'plan', 'system', 'catalog'].includes(job.kind) || job.status === 'failed' || job.status === 'parcial' || job.status === 'no_converge') {
       setSummary(job);
     }
   }, []);

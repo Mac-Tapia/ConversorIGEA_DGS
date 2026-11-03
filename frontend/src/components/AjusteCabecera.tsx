@@ -237,6 +237,14 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
         </div>
       )}
       {plan && plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
+      {/* 081:RF-24, RF-34: la verdad del trabajo; lo calibrado sigue abajo. */}
+      {resultado?.caso_base_cambio && <p className="alert alert-error">{resultado.caso_base_cambio.texto}</p>}
+      {(ultimo?.status === 'parcial' || ultimo?.status === 'no_converge') && (resultado?.pendientes?.length ?? 0) > 0 && (
+        <div className="alert alert-warn">
+          <strong>{ultimo?.status === 'parcial' ? 'Calibración parcial' : 'Ningún alimentador quedó calibrado'}:</strong>
+          <ul>{resultado?.pendientes?.map((p) => <li key={p.alimentador}>{p.alimentador} ({p.estado}): {p.motivo}</li>)}</ul>
+        </div>
+      )}
       {informes.map((inf, i) => (
         inf.no_empezado
           ? <p key={inf.feeder} className="alert alert-warn">{inf.feeder}: cancelado antes de empezar.</p>

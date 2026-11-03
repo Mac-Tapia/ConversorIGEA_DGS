@@ -1133,6 +1133,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `run_powerfactory_gate.bat` | Atajo de `powerfactory_acceptance.py` con el intérprete de PF (sección 5.3). | PF |
 | `show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador (`--feeder`). | PF |
 | `sistema_web.py` | Un sistema eléctrico de punta a punta por la web abierta: convierte por sistema, importa, busca la máxima por barra de SET y calibra el sistema entero; retoma lo hecho (spec 022, RF-56). | Web + PF |
+| `suite_por_tandas.py` | La suite nocturna por tandas, en un proceso separado de la web; registra siempre su resultado o «interrumpida» (081:RF-37 a RF-41). `--separar` la lanza aparte; `--correr` corre las tandas en este proceso. | Sin PF |
 | `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
 | `verify_architecture_links.py` | Comprueba los enlaces del espacio Structurizr (`docs/architecture/workspace.dsl`); necesita internet. | |
 | `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |

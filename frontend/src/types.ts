@@ -1336,6 +1336,10 @@ export interface AjusteResultado {
   reports?: string[];
   /** Spec 020: el plan del ajuste, para implementar transformadores desde su resultado. */
   token?: string;
+  /** 081:RF-19: lo que no quedó bien, con su motivo. */
+  pendientes?: { alimentador: string; estado: string; motivo: string }[];
+  /** 081:RF-34, RF-35: la calibración cambió el «Caso base», y cómo volver a su huella. */
+  caso_base_cambio?: { texto: string; cambios: string[]; volver: unknown[] } | null;
 }
 
 /** Spec 008: verificación de la convergencia del proyecto con lo que tenga activo. */
@@ -1357,8 +1361,8 @@ export interface VerificarInforme {
 
 /** Spec 015: el «Caso base» de un alimentador en el vínculo del proyecto. */
 export interface CasoBaseEstado {
-  /** Spec 078: VERIFICADO solo con lo físico y el flujo bien; los dos últimos calibran (015:RF-40). */
-  status: 'VERIFICADO' | 'NO_VERIFICADO' | 'NO_CONVERGE' | 'SIN_DATO_DE_FLUJO';
+  /** Spec 078: VERIFICADO solo con lo físico y el flujo bien; los demás calibran (015:RF-40), salvo NO_VERIFICADO. */
+  status: 'VERIFICADO' | 'NO_VERIFICADO' | 'CONVERGE_SIN_SERVIR' | 'NO_CONVERGE' | 'SIN_DATO_DE_FLUJO';
   comprobaciones: Record<string, boolean>;
   fallos: string[];
   flujo?: { estado?: string; motivo?: string; return_code?: number | null; arrastrado?: boolean } | null;
@@ -1684,6 +1688,8 @@ export interface EstructuraResumen {
   aviso?: string;
   /** 055:RF-6: la fuente es de otra empresa y su perfil no se aplica. */
   perfil_no_aplicado?: string;
+  /** 081:RF-53: en qué carpeta de DIgSILENT se importará, y si es un supuesto. */
+  carpeta_destino?: { carpeta: string; empresa: string | null; origen: string; supuesto: boolean; aviso: string | null };
   sin_set?: string[];
   /** 022:RF-78: los de la entrega que la tabla no traía, con la regla que los colocó. */
   deducidos?: { alimentador: string; set: string; zonal: string; regla: string }[];

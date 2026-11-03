@@ -2575,11 +2575,13 @@ def _poner_flujo(caso_base: dict[str, Any], report: dict[str, Any]) -> None:
               if not a.startswith(('El flujo no converge:', 'Sin dato de convergencia:'))]
     if flujo['estado'] == FLUJO_NO_CONVERGE:
         avisos.insert(0, f"El flujo no converge: {flujo['motivo']}")
+    elif flujo['estado'] == FLUJO_CONVERGE and not flujo['limpio']:           # 081:RF-15
+        avisos.insert(0, f"El flujo converge sin servir todo: {flujo['motivo']}")
     elif flujo['estado'] != FLUJO_CONVERGE:
         avisos.insert(0, f"Sin dato de convergencia: {flujo['motivo']}" if flujo['solicitado'] else AVISO_SIN_FLUJO)
     caso_base['avisos'] = avisos
     fisico_ok = all(c['pass'] for k, c in comprobaciones.items() if k != 'flujo')
-    caso_base['status'] = estado_caso_base(fisico_ok, flujo['estado'])
+    caso_base['status'] = estado_caso_base(fisico_ok, flujo['estado'], limpio=flujo['limpio'])
 
 
 def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
@@ -2706,6 +2708,174 @@ def converger_caso_base(app: Any, *, minimo: float = 0.1, paso: float = 0.1,
     return {'pass': bool(final.get('pass')), 'factor': bueno, 'cargas': len(cargas),
             'intentos': intentos, 'escenario': _name(esc) if esc is not None else None,
             'final_load_flow': final}
+
+
+#: Fases de ``ElmTerm.phtech`` (054:RF-3): ABC, ABC-N, BI, BI-N, 2PH, 2PH-N, 1PH y 1PH-N.
+_FASES_POR_PHTECH = {0: 3, 1: 3, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 1}
+#: Fases de ``ElmShnt.ctech`` (3PH-D, 3PH-Y, 3PH-YN, 2PH-Y, 2PH-YN, 1PH PH-PH, 1PH PH-N, 1PH PH-E); DIgSILENT lo confirma en la T10.
+_FASES_POR_CTECH = {0: 3, 1: 3, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1, 7: 1}
+_LETRAS_POR_FASES = {3: 'ABC', 2: 'AB', 1: 'A'}
+
+
+def _entero(obj: Any, atributo: str) -> int | None:
+    try:
+        return int(_attr(obj, atributo))
+    except (TypeError, ValueError):
+        return None
+
+
+def _barras_de(obj: Any) -> list[str]:
+    nombres = []
+    for atributo in ('bus1', 'bus2', 'bushv'):
+        terminal = _terminal_of_cubicle(_attr(obj, atributo))
+        if terminal is not None:
+            nombres.append(_name(terminal))
+    return nombres
+
+
+def _fases_de_pf(obj: Any, clase: str) -> int | None:
+    if clase in ('acoplador', 'regulador'):
+        return _entero(obj, 'nphase')
+    if clase == 'banco':
+        return _FASES_POR_CTECH.get(_entero(obj, 'ctech'))
+    return _entero(_attr(obj, 'typ_id'), 'nlnph' if clase == 'tramo' else 'nt2ph')
+
+
+def elementos_de_pf(app: Any) -> tuple[list[Any], dict[str, Any], dict[str, Any]]:
+    """El proyecto en la forma del contrato de fases (081:RF-10), sin escribir nada.
+
+    Las cargas no van: una carga sin tipo toma la tecnología de su barra (054), y las que no llegan
+    las ve la lectura tras el flujo. Devuelve también el objeto de cada elemento, para corregirlo.
+    """
+    from convertersmartgrid.comprobacion_fases import Barra, Elemento
+
+    barras = {}
+    for t in _calc_objects(app, '*.ElmTerm'):
+        n = _FASES_POR_PHTECH.get(_entero(t, 'phtech'))
+        if n is not None:
+            barras[_name(t)] = Barra(_name(t), n)
+    elementos, objetos = [], {}
+    for patron, clase in (('*.ElmCoup', 'acoplador'), ('*.ElmShnt', 'banco'), ('*.ElmLne', 'tramo'),
+                          ('*.ElmTr2', 'transformador'), ('*.ElmVoltreg', 'regulador')):
+        for obj in _calc_objects(app, patron):
+            n = _fases_de_pf(obj, clase)
+            if n is None or _is_out_of_service(obj):
+                continue
+            elementos.append(Elemento(clase, _name(obj), tuple(_barras_de(obj)), n))
+            objetos[f'{clase} {_name(obj)}'] = obj
+    return elementos, barras, objetos
+
+
+def corregir_fases_pf(app: Any) -> list[dict[str, Any]]:
+    """Corrige lo que es del propio elemento (081:RF-26, RF-27): el acoplador y el banco.
+
+    Tramos y transformadores comparten su tipo con otros: cambiarlo aquí arrastraría a todos; quedan
+    dichos, y se arreglan al reconvertir. Lo escrito lo confirma el flujo que viene después.
+    """
+    from convertersmartgrid.comprobacion_fases import comprobar
+    from convertersmartgrid.dgs import _capacitor_technology
+
+    elementos, barras, objetos = elementos_de_pf(app)
+    anotaciones = []
+    for h in comprobar(elementos, barras).hallazgos:
+        obj, nuevas = objetos[f'{h.clase} {h.nombre}'], int(h.fases_barra)
+        if h.clase == 'acoplador':
+            _set_attr(obj, 'nphase', nuevas)
+        elif h.clase == 'banco':
+            ctech, ilcph = _capacitor_technology(_LETRAS_POR_FASES[nuevas])
+            _set_attr(obj, 'ctech', ctech)
+            _set_attr(obj, 'ilcph', ilcph)
+        else:
+            continue
+        anotaciones.append({'elemento': f'{h.clase} {h.nombre}', 'antes': f'{h.fases_elemento} fases',
+                            'despues': f'{nuevas} fases', 'regla': 'las fases de su barra (081:RF-26)',
+                            'evidencia': h.linea()})
+    return anotaciones
+
+
+def _mensajes_de_salida(app: Any) -> str:
+    """Lo que dice DIgSILENT del último flujo (la ventana de salida), o nada si no se puede leer."""
+    try:
+        contenido = app.GetOutputWindow().GetContent()
+    except Exception:
+        return ''
+    return '\n'.join(str(x) for x in contenido) if isinstance(contenido, (list, tuple)) else str(contenido or '')
+
+
+def resolver_caso_base(app: Any, ldf: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Busca la causa y corrige lo reconstruible, hasta converger o no tener más (081:RF-25 a RF-29)."""
+    from convertersmartgrid.comprobacion_fases import comprobar
+    from convertersmartgrid.resolver_convergencia import FASES, resolver
+
+    ultimo = [ldf]
+    primera = [True]
+
+    def medir() -> dict[str, Any]:
+        if not primera[0]:
+            ultimo[0] = execute_load_flow(app, relaxed=False)
+        primera[0] = False
+        elementos, barras, _ = elementos_de_pf(app)
+        return {'estado': 'converge' if ultimo[0].get('pass') else 'no_converge',
+                'return_code': ultimo[0].get('return_code'),
+                'mensajes': '\n'.join([*(ultimo[0].get('errors') or []), str(ultimo[0].get('return_meaning') or ''),
+                                       _mensajes_de_salida(app)]),
+                'hallazgos_fases': [h.linea() for h in comprobar(elementos, barras).hallazgos]}
+
+    res = resolver(medir, {FASES: lambda _causa: corregir_fases_pf(app)})
+    return res.as_dict(), ultimo[0]
+
+
+def dar_solucion(app: Any, ldf: dict[str, Any], load_flow: dict[str, Any], *, corregir: bool) -> bool:
+    """El flujo del «Caso base» no convergió: la solución, sin parar nada; devuelve si convergió.
+
+    Primero la causa (081:RF-25 a RF-29) y solo después bajar la demanda (015:RF-38), que la esconde (spec 057).
+    Con «Sin proyecto» ya creado, el «Caso base» no se toca (081:RF-31, 015:RF-39).
+    """
+    # 078:RF-6: antes de tocar las cargas; 015:RF-40 lo pedía y esta vía no lo guardaba.
+    load_flow['diagnostico'] = {'issues': diagnose_nonconvergence(app, last_ldf=ldf)['issues']}
+    if not corregir:
+        load_flow['ajuste_de_cargas'] = {'omitido': 'sin_proyecto'}
+        return False
+    resolucion, ultimo = resolver_caso_base(app, ldf)
+    load_flow['resolucion'] = resolucion
+    if ultimo.get('pass'):
+        load_flow.update({'pass': True, 'return_code': ultimo.get('return_code'),
+                          'return_meaning': ultimo.get('return_meaning'),
+                          'ldf_valid': ultimo.get('ldf_valid'), 'errors': []})
+        return True
+    ajuste = converger_caso_base(app)
+    load_flow['ajuste_de_cargas'] = ajuste
+    if not ajuste.get('pass'):
+        return False
+    load_flow['pass'] = True
+    resolucion['queda'] = []
+    return True
+
+
+def leer_tras_flujo(app: Any) -> dict[str, Any]:
+    """Las barras de BT y las cargas que no se sirven, con el flujo ya calculado (081:RF-11 a RF-13).
+
+    Solo lee. Con una SED fuera de su ramal, DIgSILENT «converge» y deja su barra de baja sin
+    resultado. Si ninguna barra del proyecto tiene resultado, no hay lectura: se dice, sin
+    sacar de ahí que todo está a cero.
+    """
+    from convertersmartgrid.comprobacion_flujo import comprobar_tras_flujo
+
+    barras = [{'nombre': _name(t), 'uknom_kv': _attr(t, 'uknom'), 'u_pu': _attr(t, 'm:u')}
+              for t in _calc_objects(app, '*.ElmTerm')]
+    if not any(b['u_pu'] is not None for b in barras):
+        return {'sin_lectura': True, 'limpio': True, 'barras_bt_a_cero': 0, 'cargas_sin_consumo': 0}
+    cargas = []
+    for c in _loads(app):
+        terminal = _terminal_of_cubicle(_one_terminal_cubicle(c))
+        try:
+            programada = float(_attr(c, 'plini') or 0) * float(_attr(c, 'scale0') or 1)
+        except (TypeError, ValueError):
+            programada = 0.0
+        cargas.append({'nombre': _name(c), 'barra': _name(terminal) if terminal is not None else None,
+                       'programada_mw': programada, 'consumo_mw': _attr(c, 'm:Psum:bus1'),
+                       'en_servicio': not _is_out_of_service(c)})
+    return comprobar_tras_flujo(barras, cargas)
 
 
 def _aviso_convergencia(ajuste: dict[str, Any] | None) -> str | None:
@@ -3036,6 +3206,7 @@ def run_acceptance(
     }
     load_flow_loop = None
     convergence_pass = None
+    tras_flujo = None
     if run_load_flow:
         if fix_until_converge:
             load_flow_loop = run_load_flow_until_converged(app, max_intents=max_intents)
@@ -3066,16 +3237,13 @@ def run_acceptance(
             # base» hasta que converja, salvo con «Sin proyecto» ya creado (RF-39).
             warnings.extend(ldf.get('errors') or [])
             if not convergence_pass:
-                # 078:RF-6: antes de tocar las cargas; 015:RF-40 lo pedía y esta vía no lo guardaba.
-                load_flow['diagnostico'] = {'issues': diagnose_nonconvergence(app, last_ldf=ldf)['issues']}
-                ajuste = converger_caso_base(app) if corregir else {'omitido': 'sin_proyecto'}
-                load_flow['ajuste_de_cargas'] = ajuste
-                if ajuste.get('pass'):
-                    convergence_pass = True
-                    load_flow['pass'] = True
+                convergence_pass = dar_solucion(app, ldf, load_flow, corregir=corregir)
+            if convergence_pass:
+                tras_flujo = leer_tras_flujo(app)                              # 081:RF-11 a RF-13
 
     powerfactory_runtime_pass = not errors
     report = {
+        'tras_flujo': tras_flujo,
         'feeder': feeder,
         'network_id': manifest.get('network_id'),
         'powerfactory_runtime_pass': powerfactory_runtime_pass,

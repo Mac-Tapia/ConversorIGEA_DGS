@@ -683,7 +683,7 @@ def test_tareas_de_punta_a_punta_por_sistema_web(entorno, monkeypatch, tarea, da
     comandos = []
     ctx = SimpleNamespace(run_process=lambda cmd, **kw: comandos.append(cmd) or 0, job=SimpleNamespace(id='j'))
     plan = _plan(tarea, {**datos, 'ruta': 'D:/libros'})
-    r = services._asistente_proceso(SimpleNamespace(id='w'), ctx, plan)
+    r = services._asistente_proceso(SimpleNamespace(id='w', out_dir=Path('salida')), ctx, plan)
     assert r['codigo'] == 0
     cmd = comandos[0]
     assert cmd[cmd.index('--espacio') + 2:cmd.index('--espacio') + 2 + len(esperado)] == esperado

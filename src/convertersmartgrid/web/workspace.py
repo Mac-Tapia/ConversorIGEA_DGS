@@ -75,6 +75,8 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     # defecto, el 2026-11-01 un espacio vacío se abrió como «Tres TXT de CYMDIST».
     'input_mode': None,
     'source_company': None,
+    # 081:RF-51: la empresa de una fuente que no la dice (un TXT, una .mdb); ``source_company`` es lo elegido en VNR-GIS.
+    'empresa_espacio': None,
     'source_period': None,
     # Sin CRS: el del perfil de empresa o, sin perfil, se pide (spec 002, RF-32).
     'source_crs': None,
@@ -95,7 +97,7 @@ FUENTES = ('txt', 'mdb', 'vnr')
 PIDE_FUENTE = ('la fuente: los tres TXT de CYMDIST, una base Access (.mdb) o un paquete '
                'VNR-GIS, reconocida por el fichero que se carga')
 
-TEXT_OPTIONS = ('input_mode', 'source_company', 'source_period', 'source_crs', 'target_crs', 'hoja')
+TEXT_OPTIONS = ('input_mode', 'source_company', 'empresa_espacio', 'source_period', 'source_crs', 'target_crs', 'hoja')
 BOOL_OPTIONS = ('include_geography', 'strict', 'write_preview', 'export_xlsx', 'export_tsv')
 #: Tope del selector de procesos. Más allá no se gana (ver batch.AUTO_WORKERS_MAX) y
 #: cada proceso guarda una copia del dataset en memoria.

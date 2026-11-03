@@ -4,6 +4,8 @@ import { useApp } from '../context';
 import type { MonitorAgenteEstado } from '../types';
 
 const estados: Record<string, string> = {
+  parcial: 'Parcial',
+  no_converge: 'No converge',
   queued: 'En cola', running: 'Ejecutando', done: 'Ejecución terminada',
   failed: 'Falló', cancelled: 'Cancelado', hecha: 'Hecha', omitida: 'Omitida', pendiente: 'Pendiente',
 };

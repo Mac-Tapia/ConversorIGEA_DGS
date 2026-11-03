@@ -498,10 +498,37 @@ def _aviso_del_flujo(ctx, atributo: str, que: str) -> None:
             'estudios hasta que se active.')
 
 
+def _barra_con_tres_fases(ctx, barra):
+    """La barra de un banco trifásico nuevo: la pedida o la compatible más cercana (081:RF-8).
+
+    Un banco trifásico en una barra de dos fases dejó sin flujo toda la calibración de un sistema. Sin ninguna
+    barra compatible, queda en la pedida y se avisa (081:RF-9): nunca se rechaza por sus fases.
+    """
+    from convertersmartgrid.comprobacion_fases import Barra, ubicar_nuevo
+
+    def fases(b) -> int:
+        return {2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 1}.get(int(getattr(b, 'phtech', 0) or 0), 3)
+
+    if fases(barra) >= 3:
+        return barra
+    def distancia(b) -> float:
+        return math.hypot(float(getattr(b, 'GPSlat', 0) or 0) - float(getattr(barra, 'GPSlat', 0) or 0),
+                          float(getattr(b, 'GPSlon', 0) or 0) - float(getattr(barra, 'GPSlon', 0) or 0)) * 111_000.0
+
+    otras = {b.loc_name: b for b in ctx.elm.GetObjs('ElmTerm')
+             if b is not barra and math.isclose(float(b.uknom), float(barra.uknom), rel_tol=1e-3)}
+    ubicacion = ubicar_nuevo('banco', ctx.obra.barra, 3, Barra(barra.loc_name, fases(barra)),
+                             [(Barra(n, fases(b)), distancia(b)) for n, b in otras.items()])
+    if ubicacion.nota:
+        ctx.fila.setdefault('avisos', []).append(ubicacion.nota)
+    return otras.get(ubicacion.barra, barra)
+
+
 def construir_condensador(ctx) -> None:
     """Banco de condensadores en la barra, fijo o regulando por escalones (RF-71, RF-72)."""
     o = ctx.obra
     barra = ctx.objeto('ElmTerm', o.barra)
+    barra = _barra_con_tres_fases(ctx, barra)                                   # 081:RF-8, RF-9
     red = barra.GetParent()
     banco = red.CreateObject('ElmShnt', nombre_libre(red, 'ElmShnt', f'Banco_{o.barra}'))
     cub = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{banco.loc_name}'))

@@ -93,7 +93,7 @@ def trabajos_en_curso(url: str, salud: dict) -> int | None:
         n = 0
         for ws in _json(url + 'api/workspaces'):
             for job in _json(url + f'api/workspaces/{ws["id"]}').get('jobs', []):
-                if job.get('status') not in ('done', 'failed', 'cancelled'):
+                if job.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled'):
                     n += 1
         return n
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
@@ -118,12 +118,14 @@ def carpeta_registro() -> str:
     return os.path.join(os.environ.get('LOCALAPPDATA') or tempfile.gettempdir(), 'convertersmartgrid', 'trabajos_web')
 
 
-def pedir_cierre(url: str) -> bool:
+def pedir_cierre(url: str, motivo: str = '') -> bool:
     """Pide al Conversor de ``url`` que se cierre; True si lo acepta."""
-    from .app import CABECERA_LANZADOR
+    from .app import CABECERA_LANZADOR, CABECERA_MOTIVO
 
+    # 081:RF-42: va en cabecera, y una cabecera solo admite latin-1.
+    texto = f'{motivo} (lanzador {os.getpid()})'.encode('latin-1', 'replace').decode('latin-1')
     peticion = urllib.request.Request(url + 'api/sistema/cerrar', method='POST', data=b'',
-                                      headers={CABECERA_LANZADOR: '1'})
+                                      headers={CABECERA_LANZADOR: '1', CABECERA_MOTIVO: texto})
     try:
         with urllib.request.urlopen(peticion, timeout=5) as r:
             return r.status == 202
@@ -152,6 +154,16 @@ def puerto_libre_siguiente(host: str, port: int, intentos: int = 20) -> int | No
     return None
 
 
+def _anotar_terminado(pid: int, motivo: str) -> None:
+    """081:RF-42: quien lo termina lo escribe, porque ``taskkill /F`` no le deja hacerlo al servidor."""
+    from .cierre import anotar_cierre
+
+    try:
+        anotar_cierre(motivo, quien=f'lanzador {os.getpid()}', pid=pid)
+    except OSError:
+        pass
+
+
 def _terminar(pid: int) -> None:
     from ..powerfactory_env import terminar_arbol
 
@@ -161,6 +173,9 @@ def _terminar(pid: int) -> None:
         pass
 
 
+#: 081:RF-45: antes de terminar un Conversor que no responde. Con 8 s bastaba una noche con la suite
+#: y un trabajo pesado: ``taskkill /F`` sobre un servidor sano, sin dejar rastro en él.
+ESPERA_SIN_RESPUESTA_S = 60.0
 #: Lo que espera el lanzador a que una pestaña ya abierta se reconecte tras un reinicio: la
 #: página lo intenta cada 1,5 s (``useWorkspace.ts``).
 ESPERA_RECONEXION_S = 5.0
@@ -231,6 +246,7 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
     ``--no-browser``, uno colgado), y el operador no tiene por qué saber qué cerrar
     (spec 001, RF-28 a RF-31).
     """
+    from ..powerfactory_env import project_root
     from .app import frontend_dist
     from .runtime import huella_del_codigo
 
@@ -240,7 +256,10 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
     salud = conversor_en(url) or conversor_en(url)
     if salud is None:
         ocupante = quien_escucha(port)
-        if (ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1])
+        if ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1]) and not (trabajos_anotados(ocupante[0]) or 0):
+            print(f'El Conversor del puerto {port} (proceso {ocupante[0]}) no responde: se le da un minuto.')
+            salud = esperar_respuesta(url, ESPERA_SIN_RESPUESTA_S)                 # 081:RF-45
+        if (salud is None and ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1])
                 and (trabajos_anotados(ocupante[0]) or 0) > 0):
             # RF-34: ocupado con un trabajo largo no es colgado; se le da un minuto.
             print(f'El Conversor del puerto {port} (proceso {ocupante[0]}) tiene trabajos en curso '
@@ -259,6 +278,13 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
             if abrir:
                 mostrar_en_navegador(url, salud)
             return 'salir', 0
+        raiz = servidor.get('raiz')
+        if raiz and os.path.normcase(os.path.normpath(raiz)) != os.path.normcase(os.path.normpath(str(project_root()))):
+            # 081:RF-44: con otro worktree abierto en una sesión, cada arranque cerraba la web del operador.
+            nuevo = puerto_libre_siguiente(host, port)
+            print(f'En {url} está abierta la web de otra carpeta ({raiz}): se deja y esta se abre '
+                  f'{f"en el puerto {nuevo}" if nuevo else "cuando haya un puerto libre"}.')
+            return ('arrancar', nuevo) if nuevo else ('salir', 2)
         en_curso = trabajos_en_curso(url, salud)
         if en_curso != 0:
             motivo = (f'tiene {en_curso} trabajo(s) en curso' if en_curso
@@ -271,13 +297,14 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
                 mostrar_en_navegador(url, salud)
             return 'salir', SALIDA_OTRA_VERSION
         print(f'En {url} hay otra versión del Conversor sin trabajos: se cierra y se abre esta.')
-        if not (pedir_cierre(url) and esperar_puerto_libre(host, port, 45)):
+        if not (pedir_cierre(url, 'otra versión del código') and esperar_puerto_libre(host, port, 45)):
             # Servidor anterior a la petición de cierre, o que no la atendió.
             pid = servidor.get('pid') if isinstance(servidor.get('pid'), int) else None
             ocupante = quien_escucha(port)
             if ocupante and es_conversor(ocupante[1]):
                 pid = ocupante[0]
             if pid and pid != os.getpid():
+                _anotar_terminado(pid, 'otra versión que no atendió la petición de cierre')
                 _terminar(pid)
                 esperar_puerto_libre(host, port, 15)
     else:
@@ -285,6 +312,7 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
         if ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1]):
             print(f'El Conversor del puerto {port} (proceso {ocupante[0]}) no responde: se cierra '
                   'y se abre uno nuevo.')
+            _anotar_terminado(ocupante[0], f'no respondió en {ESPERA_SIN_RESPUESTA_S:.0f} s')
             _terminar(ocupante[0])
             esperar_puerto_libre(host, port, 15)
     if not puerto_ocupado(host, port):

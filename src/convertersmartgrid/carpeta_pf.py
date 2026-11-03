@@ -15,6 +15,8 @@ DIgSILENT (RF-4), y los guiones de ``tools/`` lo usan con el Python de la API.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from .util import NOMBRES_ANTERIORES_PF
@@ -77,6 +79,59 @@ def nombre_de_perfil(ruta: Path | None = None) -> str:
         return validar_nombre(nombre)
     except CarpetaError as exc:
         raise CarpetaError(f'{exc} (perfil {ruta.name}, clave {CLAVE_PERFIL!r})') from exc
+
+
+@dataclass(frozen=True)
+class DecisionCarpeta:
+    """En qué carpeta de DIgSILENT va una fuente, y por qué (081:RF-50 a RF-55)."""
+
+    carpeta: str
+    empresa: str | None              # la que manda: la de la fuente o la que dijo el operador
+    origen: str                      # 'fuente', 'operador', 'perfil' (supuesto) o 'sin_empresa'
+    supuesto: bool = False
+    aviso: str | None = None
+
+
+def carpeta_de_empresa(empresa: str) -> str:
+    """El nombre de carpeta de una empresa, siempre válido (081:RF-52): un nombre raro no impide importar."""
+    limpio = ''.join('_' if c in NO_ADMITIDOS or not c.isprintable() else c for c in str(empresa)).strip()
+    return validar_nombre(limpio[:LARGO_MAXIMO].strip() or NOMBRE_POR_DEFECTO)
+
+
+def decidir_carpeta(empresa_fuente: object, empresa_operador: object, propias: Iterable[object],
+                    carpeta_perfil: Callable[[], str], *, hay_perfil: bool) -> DecisionCarpeta:
+    """La única regla de la carpeta de una fuente (081:RF-50 a RF-55), para cualquier fuente y empresa.
+
+    La empresa es la que dice la fuente o, si no lo dice (un TXT o una .mdb), la que indicó el operador. La
+    suya, la del perfil; otra, la de su nombre. Sin saberla no se bloquea: la del perfil como supuesto y, sin
+    perfil, una neutra; y se dice. Antes una fuente sin empresa o un perfil sin código acababan en la carpeta del
+    perfil, mezclados con los proyectos de esa empresa.
+
+    ``carpeta_perfil`` se llama solo si hace falta: un perfil roto no afecta a una fuente de otra empresa.
+    """
+    fuente, operador = str(empresa_fuente or '').strip(), str(empresa_operador or '').strip()
+    empresa, origen = (fuente, 'fuente') if fuente else (operador, 'operador')
+    if empresa:
+        if empresa.casefold() in {str(x).strip().casefold() for x in propias if x}:
+            try:
+                return DecisionCarpeta(carpeta_perfil(), empresa, origen)
+            except CarpetaError:                                               # 081:RF-61: con la empresa basta
+                pass
+        carpeta = carpeta_de_empresa(empresa)
+        return DecisionCarpeta(carpeta, empresa, origen,
+                               aviso=f'La fuente es de la empresa {empresa}: se importa en su carpeta «{carpeta}» de DIgSILENT.')
+    try:
+        carpeta = carpeta_perfil()             # sin perfil, ``nombre_de_perfil`` da la neutra
+    except CarpetaError as exc:                                                # 081:RF-61, cambia 005:RF-4 en la web
+        return DecisionCarpeta(NOMBRE_POR_DEFECTO, None, 'sin_empresa', supuesto=True,
+                               aviso=f'{exc} Se importa en la carpeta neutra «{NOMBRE_POR_DEFECTO}»: corrija el perfil.')
+    if hay_perfil:
+        return DecisionCarpeta(carpeta, None, 'perfil', supuesto=True,
+                               aviso=f'La fuente no dice su empresa: se supone la del perfil, carpeta «{carpeta}». '
+                                     'Si es de otra empresa, indíquela en el espacio antes de importar.')
+    return DecisionCarpeta(carpeta, None, 'sin_empresa', supuesto=True,
+                           aviso=f'Ni la fuente ni un perfil dicen la empresa: se importa en la carpeta neutra «{carpeta}». '
+                                 'Indique la empresa en el espacio para que vaya a la suya.')
 
 
 # --------------------------------------------------------------------------- árbol

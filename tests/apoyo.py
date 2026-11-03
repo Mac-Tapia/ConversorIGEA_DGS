@@ -83,7 +83,7 @@ def esperar_trabajo(client, job: dict, timeout: float = 60.0) -> dict:
     deadline = time.time() + timeout
     while time.time() < deadline:
         state = client.get(f"/api/jobs/{job['id']}").json()
-        if state['status'] in ('done', 'failed', 'cancelled'):
+        if state['status'] in ('done', 'parcial', 'no_converge', 'failed', 'cancelled'):
             return state
         time.sleep(0.05)
     raise AssertionError(f"el trabajo {job.get('title', job['id'])} no terminó en {timeout} s")

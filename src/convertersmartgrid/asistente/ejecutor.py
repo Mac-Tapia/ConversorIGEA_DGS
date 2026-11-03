@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-TERMINADOS = ('done', 'failed', 'cancelled')
+TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
 _ENTREGABLE = re.compile(r'\.(dgs|docx|xlsx|zip|csv)$', re.IGNORECASE)
 
 
@@ -373,7 +373,8 @@ def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]
             fin = cliente.esperar(r)
             trabajos.append({'paso': p.nombre, 'trabajo': fin['id'], 'estado': fin['status'],
                              'error': fin.get('error')})
-            if fin['status'] != 'done':
+            # 081:RF-20: parcial o sin converger no para el plan: lo calibrado queda y se dice.
+            if fin['status'] not in ('done', 'parcial', 'no_converge'):
                 raise PasoFallido(f"el paso «{p.nombre}» terminó {fin['status']}: {fin.get('error') or ''}".strip())
             r = fin.get('result')
         resultados.append(r)

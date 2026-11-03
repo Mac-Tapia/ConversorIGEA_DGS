@@ -2884,6 +2884,8 @@
               "queued",
               "running",
               "done",
+              "parcial",
+              "no_converge",
               "failed",
               "cancelled"
             ],
@@ -3452,6 +3454,17 @@
       "OpcionesRespuesta": {
         "additionalProperties": false,
         "properties": {
+          "empresa_espacio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Empresa Espacio"
+          },
           "export_tsv": {
             "title": "Export Tsv",
             "type": "boolean"
@@ -3567,6 +3580,17 @@
       },
       "OptionsIn": {
         "properties": {
+          "empresa_espacio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Empresa Espacio"
+          },
           "export_tsv": {
             "anyOf": [
               {
@@ -4318,6 +4342,17 @@
           "pid": {
             "title": "Pid",
             "type": "integer"
+          },
+          "raiz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raiz"
           },
           "trabajos_en_curso": {
             "title": "Trabajos En Curso",

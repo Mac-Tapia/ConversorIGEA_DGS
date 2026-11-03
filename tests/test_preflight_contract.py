@@ -19,13 +19,15 @@ def _contexto():
 
 
 @pytest.mark.parametrize('fallos', [('A',), ('A', 'B')])
-def test_grupo_rechaza_cualquier_miembro(tmp_path, monkeypatch, fallos):
-    """065:RF-5 — el rechazo por miembro se propaga al DGS unido."""
+def test_grupo_avisa_de_cualquier_miembro_y_se_importa(tmp_path, monkeypatch, fallos):
+    """065:RF-5, 081:RF-57 — el aviso por miembro se propaga al DGS unido; antes impedía importarlo."""
     from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='grupo', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
     ws.groups['G'] = {'feeders': ['A', 'B']}
+    (ws.out_dir / 'G.dgs').write_text('DGS', encoding='ascii')
+    (ws.out_dir / 'G_feeder_metadata.json').write_text('{}', encoding='utf-8')
     monkeypatch.setattr(services, 'dgs_jobs', lambda *_: ([("G", ws.out_dir / 'G.dgs', None)], []))
     monkeypatch.setattr(services, '_script', lambda *_: tmp_path / 'sin_ejecutar.py')
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, tmp_path / 'sin_ejecutar.exe'))
@@ -38,8 +40,8 @@ def test_grupo_rechaza_cualquier_miembro(tmp_path, monkeypatch, fallos):
     ctx = _contexto()
     ctx.run_process = lambda cmd, **_: comandos.append(cmd) or 3
     resultado = services.powerfactory_flow(ws, ctx, ['A', 'B'])
-    assert comandos == []
-    assert resultado['failed'] == 1
+    assert len(comandos) == 1 and resultado['preflight']['import_continued'] is True
+    assert all(f'{f}: no converge' in resultado['avisos_oraculo']['G'] for f in fallos)
 
 
 @pytest.mark.parametrize('layout', ['reducido', 'completo'])
@@ -135,8 +137,9 @@ def test_control_requerido_falla_cerrado(tmp_path, monkeypatch, falla):
     else:
         monkeypatch.setattr(oraculo, 'disponible', lambda: False)
     res = services.pandapower_preflight(ws, [target], _contexto())
+    # 081:RF-57: cambia 065:RF-6: el motivo se dice, y ya no impide importar.
     assert target in res['no_convergen'], res
-    assert res['import_continued'] is False
+    assert res['import_continued'] is True and res['red_vacia'] == {}
 
 
 @pytest.mark.parametrize('estado', ['converge', 'miembro', 'ambos', 'unida', 'calculo', 'cambio_miembros'])
@@ -330,3 +333,32 @@ def test_importacion_fija_entrada_por_trabajo_y_limpia_solo_su_copia(tmp_path, m
     if terminacion != 'cancelacion':
         assert informes and informes[-1].is_file()
         assert (salida_original / f'{target}_powerfactory_acceptance.json').is_file() is (terminacion != 'error')
+
+
+def test_red_vacia_y_copia_sin_fijar_no_se_importan(tmp_path, monkeypatch):
+    """081:RF-59, 081:RF-60 — lo único que para: sin tramos no hay red, y sin copia no hay fichero. Los demás siguen."""
+    from convertersmartgrid import oraculo, preflight_contract
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws = Workspace(id='vacia', root=tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    vacio = SimpleNamespace(lines=[], name='V', combined=None)
+    monkeypatch.setattr(oraculo, 'disponible', lambda: True)
+    monkeypatch.setattr(preflight_contract, 'load_contract', lambda _d: {'model': vacio, 'members': [vacio], 'model_sha256': 'x'})
+    res = services.pandapower_preflight(ws, ['V'], _contexto())
+    assert res['red_vacia'] == {'V': 'la red no tiene ningún tramo'} and res['import_continued'] is False
+
+    monkeypatch.setattr(services, 'dgs_jobs', lambda *_: ([('V', ws.out_dir / 'V.dgs', None), ('P', ws.out_dir / 'P.dgs', None)], []))
+    monkeypatch.setattr(services, '_script', lambda *_: tmp_path / 'sin_ejecutar.py')
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, tmp_path / 'sin_ejecutar.exe'))
+    monkeypatch.setattr(services, 'carpeta_pf', lambda: 'PRUEBA')
+    monkeypatch.setattr(services, 'pf_subprocess_env', lambda *_: {})
+    monkeypatch.setattr(services, 'powerfactory_status', lambda: {'interpreter_reason': 'doble'})
+    monkeypatch.setattr(services, 'pandapower_preflight', lambda *_: {'disponible': True, 'no_convergen': {}, 'red_vacia': {'V': 'la red no tiene ningún tramo'}})
+    comandos = []
+    ctx = _contexto()
+    ctx.run_process = lambda cmd, **_: comandos.append(cmd) or 3
+    r = services.powerfactory_flow(ws, ctx, ['V', 'P'])
+    assert any(x.startswith('NO_IMPORTADO V') for x in r['lines']) and any(x.startswith('NO_IMPORTADO P') for x in r['lines'])
+    assert comandos == [], 'P no existe: su copia no se pudo fijar'
+    assert r['failed'] == 2 and r['estado_trabajo'] == 'no_converge'

@@ -44,7 +44,13 @@ RUNNING = 'running'
 DONE = 'done'
 FAILED = 'failed'
 CANCELLED = 'cancelled'
-FINISHED = (DONE, FAILED, CANCELLED)
+#: 081:RF-17, RF-18: terminó con resultado, y no todo quedó bien; un trabajo los pide con
+#: ``estado_trabajo`` en su resultado. «done» solo decía que no hubo excepción: una calibración
+#: con 17 alimentadores sin converger salía «done».
+PARCIAL = 'parcial'
+NO_CONVERGE = 'no_converge'
+CON_RESULTADO = (DONE, PARCIAL, NO_CONVERGE)
+FINISHED = (*CON_RESULTADO, FAILED, CANCELLED)
 
 
 
@@ -469,6 +475,12 @@ def trabajos_anotados(pid: int) -> int | None:
     return datos.get('en_curso') if isinstance(datos, dict) and datos.get('pid') == pid else None
 
 
+def _estado_del_resultado(resultado: Any) -> str:
+    """El estado con que termina un trabajo que no falló (081:RF-17, RF-18, RF-20)."""
+    estado = resultado.get('estado_trabajo') if isinstance(resultado, dict) else None
+    return estado if estado in (PARCIAL, NO_CONVERGE) else DONE
+
+
 class JobManager:
     def __init__(self, emit: Emit) -> None:
         self._emit = emit
@@ -621,7 +633,7 @@ class JobManager:
             self._finish(job, FAILED)
             return
         # Un lote cancelado devuelve igual su manifiesto: se conserva como resultado.
-        self._finish(job, CANCELLED if job.cancel.is_set() else DONE)
+        self._finish(job, CANCELLED if job.cancel.is_set() else _estado_del_resultado(job.result))
 
     def _finish(self, job: Job, status: str) -> None:
         job.status = status
