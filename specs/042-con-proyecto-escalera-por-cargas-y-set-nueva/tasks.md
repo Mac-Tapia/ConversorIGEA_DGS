@@ -52,6 +52,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T17. Cada etapa nueva con su segundo propio. (RF-25)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py` en verde.
+- [x] T18. La fila cercana que no cabe en el transformador de la SED es SED nueva. (RF-26)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

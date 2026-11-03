@@ -56,11 +56,6 @@ Ampliaciones de clientes existentes
   informe el transformador de ficha que la deja en el umbral o por debajo (020:RF-6 a RF-11),
   sin aplicarlo.
 
-- RF-13: SI una fila está a 30 m o menos de una SED existente pero su demanda pasa de la potencia del transformador de esa SED,
-  ENTONCES EL SISTEMA no la tomará como ampliación (RF-3, por distancia) sino como SED nueva con su propio transformador, y lo dirá.
-  Pisco (2026-11-03): SUREXPORT, 1 600 kW, quedó como ampliación de SE30380, de 100 kVA y 3 kW, y el flujo de «Cargas nuevas»
-  no convergía con ella. Por el nombre (RF-3) sigue siendo ampliación, y RF-5 propone el transformador.
-
 Eliminar lo duplicado que ya se creó
 
 - RF-6: SI una variación de carga nueva guarda una fila que es duplicada (RF-1), o una ampliación

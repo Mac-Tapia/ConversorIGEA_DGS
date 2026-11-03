@@ -1029,13 +1029,13 @@ def sed_existentes(alims: Alimentadores, ya: dict | None) -> dict[str, list[dict
                 continue
             barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
             lista.append({'sed': nombre, 'carga': carga, 'barra': barra, 'gps': _gps_de_sed(carga),
-                          'kva': _kva_de_la_barra(barra)})                         # 040:RF-13
+                          'kva': _kva_de_la_barra(barra)})                         # 042:RF-26
         out[f] = sorted(lista, key=lambda s: str(s['sed']))
     return out
 
 
 def _kva_de_la_barra(barra) -> float | None:
-    """La potencia instalada de los transformadores que llegan a la barra de baja de la SED, en kVA (040:RF-13)."""
+    """La potencia instalada de los transformadores que llegan a la barra de baja de la SED, en kVA (042:RF-26)."""
     total = 0.0
     for c in (barra.GetContents('*.StaCubic') if barra is not None else []) or []:
         e = getattr(c, 'obj_id', None)
@@ -1073,9 +1073,9 @@ def ampliacion_de(fila: dict, existentes: list[dict], radio_m: float = AMPLIACIO
     d, _n, i = cerca[0]
     s = existentes[i]
     if s.get('kva') and _demanda_kva(fila) > float(s['kva']):
-        # 040:RF-13: una carga que no cabe en el transformador de la SED cercana no es su ampliación.
+        # 042:RF-26: una carga que no cabe en el transformador de la SED cercana no es su ampliación.
         fila['_no_ampliacion'] = (f"a {d:.0f} m de la SED {s['sed']}, pero su demanda ({_demanda_kva(fila):,.0f} kVA) "
-                                  f"pasa de su transformador ({float(s['kva']):,.0f} kVA): SED nueva (040:RF-13)")
+                                  f"pasa de su transformador ({float(s['kva']):,.0f} kVA): SED nueva (042:RF-26)")
         return None
     return {**s, 'distancia_m': d, 'criterio': f"a {d:.0f} m de la SED {s['sed']}"}
 
