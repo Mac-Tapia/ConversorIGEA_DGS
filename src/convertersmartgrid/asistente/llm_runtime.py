@@ -9,6 +9,13 @@ import subprocess
 import sys
 
 
+def sha256_en_commit(repo: Path, ruta: str) -> str:
+    """La huella del fichero en el commit, no en disco: con ``core.autocrlf`` Windows cambia sus saltos de línea y la
+    licencia fijada no coincidía aunque el clon estuviera limpio (publicación del alumno, 2026-11-03)."""
+    contenido = subprocess.run(['git', '-C', str(repo), 'show', f'HEAD:{ruta}'], capture_output=True, check=True).stdout
+    return hashlib.sha256(contenido).hexdigest()
+
+
 def sha256(p: Path) -> str:
     with p.open('rb') as f:
         return hashlib.file_digest(f,'sha256').hexdigest()
@@ -68,7 +75,7 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
     repo=raiz/'external/upstream/llama_cpp'
     revision=subprocess.run(['git','-C',str(repo),'rev-parse','HEAD'],capture_output=True,text=True,check=True).stdout.strip()
     cambios=subprocess.run(['git','-C',str(repo),'status','--porcelain'],capture_output=True,text=True,check=True).stdout.strip()
-    if revision!=upstream['commit'] or cambios or sha256(repo/upstream['license_path'])!=upstream['license_sha256']:
+    if revision!=upstream['commit'] or cambios or sha256_en_commit(repo,upstream['license_path'])!=upstream['license_sha256']:
         raise ValueError('conversor o licencia difiere de la revision fijada')
     destino.mkdir(parents=True)
     etapas=[]

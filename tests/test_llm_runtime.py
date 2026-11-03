@@ -23,3 +23,24 @@ def test_checkpoint_que_cambio_se_rechaza(tmp_path):
     p.write_bytes(b'cambiado')
     with pytest.raises(ValueError,match='alterado'):
         verificar_checkpoint(tmp_path)
+
+
+def test_huella_de_licencia_con_autocrlf(tmp_path):
+    """047:RF-20 — la huella fijada es la del commit: los saltos de línea de Windows en disco no la cambian."""
+    import hashlib
+    import subprocess
+
+    from convertersmartgrid.asistente.llm_runtime import sha256_en_commit
+
+    def g(*a):
+        subprocess.run(['git', '-C', str(tmp_path), *a], check=True, capture_output=True)
+
+    g('init')
+    g('config', 'core.autocrlf', 'false')
+    g('config', 'user.email', 'prueba@ejemplo.invalid')
+    g('config', 'user.name', 'prueba')
+    (tmp_path / 'LICENSE').write_bytes(b'MIT\nlinea\n')
+    g('add', 'LICENSE')
+    g('commit', '-m', 'x')
+    (tmp_path / 'LICENSE').write_bytes(b'MIT\r\nlinea\r\n')
+    assert sha256_en_commit(tmp_path, 'LICENSE') == hashlib.sha256(b'MIT\nlinea\n').hexdigest()
