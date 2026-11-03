@@ -1,0 +1,1262 @@
+{
+"corpus": "077",
+"esquema": "csg-conjunto-rag-077-v1",
+"excluidas_sin_fuente_indexada": 17,
+"preguntas": [
+{
+"fuentes": [
+{
+"ancla": "`powerfactory` (guiones de DIgSILENT, en",
+"fichero": "docs/ARQUITECTURA.md"
+},
+{
+"ancla": "Lo que tarda más de un segundo es un",
+"fichero": "docs/constitution.md"
+}
+],
+"id": "arquitectura-006",
+"pregunta": "por q powerfactory va en serie",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "No hay GPU CUDA: el gemelo no entrena ni predice en la CPU.",
+"fichero": "src/convertersmartgrid/digital_twin/oraculo.py"
+}
+],
+"id": "arquitectura-014",
+"pregunta": "el gemelo corre sin gpu",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "El oráculo solo ordena y filtra",
+"fichero": "docs/ARQUITECTURA.md"
+}
+],
+"id": "arquitectura-015",
+"pregunta": "¿Manda el oráculo o DIgSILENT?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "nunca se publican, ni se suben, ni se envían a un servicio",
+"fichero": "docs/constitution.md"
+}
+],
+"id": "arquitectura-017",
+"pregunta": "¿Los datos de la distribuidora pueden ir a un servicio de IA externo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "Python 3.12 exacto",
+"fichero": "docs/constitution.md"
+}
+],
+"id": "arquitectura-018",
+"pregunta": "q version de python",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "class RerankerNoDisponible(RuntimeError):",
+"fichero": "src/convertersmartgrid/asistente/indice.py"
+},
+{
+"ancla": "Sin reranker",
+"fichero": "docs/ARQUITECTURA.md"
+}
+],
+"id": "arquitectura-021",
+"pregunta": "¿El RAG tiene reranker?",
+"tipo": "entregable"
+},
+{
+"id": "arquitectura-025",
+"pregunta": "¿Cuántos usuarios aguanta la web a la vez?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "arquitectura-027",
+"pregunta": "¿Cuándo se migra a la nube?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "const demasiados = tipoAnalisis === 'alimentadores' && feeders.length > 3;",
+"fichero": "frontend/src/components/DemandaMedida.tsx"
+}
+],
+"id": "calibracion_alcance-002",
+"pregunta": "cuantos alimentadores puedo calibrar juntos por alimentadores",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-28:",
+"fichero": "specs/028-escaneo-del-alimentador/spec.md"
+}
+],
+"id": "calibracion_alcance-003",
+"pregunta": "¿Con qué instante calibra dos o más alimentadores?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-13:",
+"fichero": "specs/015-caso-base-verificado/spec.md"
+}
+],
+"id": "calibracion_alcance-008",
+"pregunta": "q tiene q estar antes de calibrar",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-66:",
+"fichero": "specs/015-caso-base-verificado/spec.md"
+}
+],
+"id": "calibracion_alcance-014",
+"pregunta": "los bancos existentes como quedan",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-10:",
+"fichero": "specs/014-calibracion-en-sin-proyecto/spec.md"
+}
+],
+"id": "calibracion_alcance-017",
+"pregunta": "¿Gana mi cambio manual o la calibración?",
+"tipo": "entregable"
+},
+{
+"id": "calibracion_alcance-021",
+"pregunta": "¿Qué tolerancia usa la empresa SET-B en su calibración?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/053-catalogo-de-fichas-que-crece/spec.md"
+}
+],
+"id": "catalogo_parametros-005",
+"pregunta": "¿Qué hace con un código de conductor nuevo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/032-caso-base-original-fichas-en-sin-proyecto/spec.md"
+},
+{
+"ancla": "- RF-14:",
+"fichero": "specs/032-caso-base-original-fichas-en-sin-proyecto/spec.md"
+}
+],
+"id": "catalogo_parametros-012",
+"pregunta": "el dgs usa la ficha o la entrada",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-7:",
+"fichero": "specs/053-catalogo-de-fichas-que-crece/spec.md"
+}
+],
+"id": "catalogo_parametros-014",
+"pregunta": "el catalogo puede quedar a medias si se corta",
+"tipo": "entregable"
+},
+{
+"id": "catalogo_parametros-015",
+"pregunta": "¿Qué R tiene el conductor de ALIM-A?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-6:",
+"fichero": "specs/057-oraculo-corrige-antes-de-digsilent/spec.md"
+}
+],
+"id": "dgs_manifiesto-010",
+"pregunta": "si el oraculo no logra converger lo importa?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/054-fases-reales-en-el-dgs/spec.md"
+},
+{
+"ancla": "- RF-5:",
+"fichero": "specs/054-fases-reales-en-el-dgs/spec.md"
+}
+],
+"id": "dgs_manifiesto-012",
+"pregunta": "las fases salen trifasicas siempre?",
+"tipo": "entregable"
+},
+{
+"id": "dgs_manifiesto-016",
+"pregunta": "¿Cuántos tramos tiene ALIM-A?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "Si un flujo con la variante cumple (RF-50): converge, cada carga nueva con su tensión",
+"fichero": "src/convertersmartgrid/escalera_optima.py"
+}
+],
+"id": "escalera_obras-007",
+"pregunta": "¿Cuándo una variante cumple?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-74:",
+"fichero": "specs/025-calibracion-por-anio/spec.md"
+}
+],
+"id": "escalera_obras-012",
+"pregunta": "si con proyecto ya cumple",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-53:",
+"fichero": "specs/025-calibracion-por-anio/spec.md"
+}
+],
+"id": "escalera_obras-014",
+"pregunta": "costo anual de una variante",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-5:",
+"fichero": "specs/052-optimizacion-con-proyecto-con-el-oraculo/spec.md"
+}
+],
+"id": "escalera_obras-015",
+"pregunta": "¿Quién decide entre el oráculo y DIgSILENT?",
+"tipo": "entregable"
+},
+{
+"id": "escalera_obras-018",
+"pregunta": "es mejor la terna o el regulador para mi caso",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "Curvas tiempo-corriente de fusibles, reconectadores y relés",
+"fichero": "src/convertersmartgrid/studies.py"
+},
+{
+"ancla": "- RF-1:",
+"fichero": "specs/049-protecciones-nativas-y-coordinacion/spec.md"
+}
+],
+"id": "estudios-017",
+"pregunta": "¿Las protecciones se pueden coordinar?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-24:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+},
+{
+"ancla": "def estudios_no_ofrecidos(",
+"fichero": "src/convertersmartgrid/estudios_pf.py"
+}
+],
+"id": "estudios-020",
+"pregunta": "como dice q le falta a un estudio",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-3:",
+"fichero": "specs/037-cargas-nuevas-en-estudios-web/spec.md"
+}
+],
+"id": "estudios-023",
+"pregunta": "¿Puedo correr un estudio en el «Caso base»?",
+"tipo": "entregable"
+},
+{
+"id": "estudios-026",
+"pregunta": "¿Qué licencia de DIgSILENT tiene mi empresa?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "estudios-028",
+"pregunta": "¿El estudio de arco eléctrico está?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-43:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+}
+],
+"id": "estudios_resultados-005",
+"pregunta": "¿Qué contingencias simula el N-1?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-68:",
+"fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+}
+],
+"id": "estudios_resultados-009",
+"pregunta": "¿Qué da la confiabilidad entre los dos casos?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-49:",
+"fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+}
+],
+"id": "estudios_resultados-010",
+"pregunta": "capacidad de alojamiento donde queda",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-56:",
+"fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+},
+{
+"ancla": "Aceptar como obra",
+"fichero": "frontend/src/components/EstudiosPF.tsx"
+}
+],
+"id": "estudios_resultados-015",
+"pregunta": "¿Qué hago con un banco que propone el estudio de condensadores?",
+"tipo": "entregable"
+},
+{
+"id": "estudios_resultados-016",
+"pregunta": "¿Cuál es el SAIDI de ALIM-A?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-47:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+},
+{
+"ancla": "es de una carga ingresada sola (formulario «Una carga nueva»).",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "factibilidad_conexion-002",
+"pregunta": "puedo sacar factibilidad de una carga del excel en bloque?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-10:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+},
+{
+"ancla": "return Conclusion(False, 'requiere_refuerzo', violaciones, elementos)",
+"fichero": "src/convertersmartgrid/informes.py"
+}
+],
+"id": "factibilidad_conexion-005",
+"pregunta": "¿Y si hay violaciones pero «Con proyecto» no tiene obras?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-13:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "factibilidad_conexion-008",
+"pregunta": "¿Con qué límites juzga la conexión?",
+"tipo": "entregable"
+},
+{
+"id": "factibilidad_conexion-019",
+"pregunta": "¿Cuánto paga el cliente por conectarse en ALIM-B?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/059-fuente-por-lo-que-se-carga/spec.md"
+}
+],
+"id": "flujo_conversor-007",
+"pregunta": "¿Un espacio nuevo trae una fuente por defecto?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "Toda conversión pasa por `reglas.py`",
+"fichero": "docs/constitution.md"
+}
+],
+"id": "flujo_conversor-009",
+"pregunta": "¿Las reglas cambian según la vía de conversión?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-17:",
+"fichero": "specs/015-caso-base-verificado/spec.md"
+}
+],
+"id": "flujo_conversor-012",
+"pregunta": "caso base sin verificar puedo seguir",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-82:",
+"fichero": "specs/022-red-unida-por-zonal-y-set/spec.md"
+}
+],
+"id": "flujo_conversor-017",
+"pregunta": "¿Cómo convierto una SET sola?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-7:",
+"fichero": "specs/022-red-unida-por-zonal-y-set/spec.md"
+}
+],
+"id": "flujo_conversor-018",
+"pregunta": "sistema completo en un dgs",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/022-red-unida-por-zonal-y-set/spec.md"
+}
+],
+"id": "flujo_conversor-019",
+"pregunta": "¿De dónde sale la estructura de zonales y SET?",
+"tipo": "entregable"
+},
+{
+"id": "flujo_conversor-025",
+"pregunta": "¿Puedo pasar las cargas del TXT al VNR para completarlo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "flujo_conversor-026",
+"pregunta": "cuanto demora convertir todo el sistema",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "un costo que no se conoce queda vacío en vez de valer 0",
+"fichero": "src/convertersmartgrid/formatos_pide.py"
+}
+],
+"id": "formatos_pide-003",
+"pregunta": "¿Un costo desconocido se pone en cero?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "Los índices del último estudio de confiabilidad del proyecto, para F06 (072:RF-16); no se recalcula.",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "formatos_pide-007",
+"pregunta": "¿De dónde salen SAIFI y SAIDI del F06?",
+"tipo": "entregable"
+},
+{
+"id": "formatos_pide-015",
+"pregunta": "¿Qué valor va en el F09 de ALIM-B?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-31:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "informe_estudio-005",
+"pregunta": "si el estado actual ya cumple, igual evalúa obras?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-45:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "informe_estudio-009",
+"pregunta": "¿Qué flujo usa el informe si el desequilibrado no cuadra con el equilibrado?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-23:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "informe_estudio-010",
+"pregunta": "y si un dato del informe no sale?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-135:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "informe_estudio-013",
+"pregunta": "los bancos existentes como los nombra?",
+"tipo": "entregable"
+},
+{
+"id": "informe_estudio-017",
+"pregunta": "¿Cuánto cuesta hacer el informe de estudio de ALIM-A?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-4:",
+"fichero": "specs/066-libro-de-cada-informe/spec.md"
+}
+],
+"id": "libro_excel_informe-003",
+"pregunta": "¿De dónde toma las hojas y celdas de cada dato?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-13:",
+"fichero": "specs/066-libro-de-cada-informe/spec.md"
+}
+],
+"id": "libro_excel_informe-014",
+"pregunta": "grupos que el perfil marca sin dato q hace",
+"tipo": "entregable"
+},
+{
+"id": "libro_excel_informe-016",
+"pregunta": "¿Qué precio de energía va en el libro de ALIM-C este mes?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "<FileDrop",
+"fichero": "frontend/src/components/InputsPanel.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/inputs/{slot}'",
+"fichero": "src/convertersmartgrid/web/app.py"
+},
+{
+"ancla": "red: '.txt', loads: '.txt'",
+"fichero": "frontend/src/components/InputsPanel.tsx"
+},
+{
+"ancla": "y la casilla '",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-002",
+"pregunta": "meti un mdb en la casilla de RED q pasa",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<FileDrop",
+"fichero": "frontend/src/components/InputsPanel.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/inputs/{slot}'",
+"fichero": "src/convertersmartgrid/web/app.py"
+},
+{
+"ancla": "red: '.txt', loads: '.txt'",
+"fichero": "frontend/src/components/InputsPanel.tsx"
+},
+{
+"ancla": "y la casilla '",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-003",
+"pregunta": "primero cargo q y luego que",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/FeedersPanel.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/convert'",
+"fichero": "src/convertersmartgrid/web/app.py"
+},
+{
+"ancla": "Para unir en un solo DGS seleccione al menos dos alimentadores.",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "operacion_web-010",
+"pregunta": "¿Qué pasa si quiero unir uno solo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/FeedersPanel.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/powerfactory/flow'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-012",
+"pregunta": "¿«Cargar en DigSILENT + flujo» toca DIgSILENT?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/CargasTab.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/powerfactory/caso-base'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-014",
+"pregunta": "verificar caso base cambia algo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/CargasTab.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/powerfactory/verificar'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-015",
+"pregunta": "¿«Verificar la convergencia» escribe en el proyecto?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/DemandaMedida.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/powerfactory/escanear'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-020",
+"pregunta": "¿«Escanear» cambia el proyecto?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<FileDrop",
+"fichero": "frontend/src/components/InformesPF.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/informes/documentos'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-028",
+"pregunta": "¿Qué acepta la casilla del solicitante?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "<button",
+"fichero": "frontend/src/components/Asistente.tsx"
+},
+{
+"ancla": "@app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar'",
+"fichero": "src/convertersmartgrid/web/app.py"
+}
+],
+"id": "operacion_web-035",
+"pregunta": "confirmar y ejecutar no me deja",
+"tipo": "entregable"
+},
+{
+"id": "operacion_web-039",
+"pregunta": "¿Puedo subir un .rar con los TXT?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "operacion_web-040",
+"pregunta": "cual es el usuario y clave de la web",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/spec.md"
+},
+{
+"ancla": "\"ciclo_anios\": 4",
+"fichero": "config/pide_universal_2017.json"
+}
+],
+"id": "planeamiento_pide-002",
+"pregunta": "cuales son los años del largo plazo y del pide",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "las que se construyen solas (bancos,",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "planeamiento_pide-009",
+"pregunta": "¿Qué obras se aplican solas en «Con proyecto»?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-10:",
+"fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/spec.md"
+},
+{
+"ancla": "metodo = comparar_metodos(series, horizonte=4)['ganador']",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "planeamiento_pide-013",
+"pregunta": "¿Qué método de proyección usa?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-6:",
+"fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/spec.md"
+},
+{
+"ancla": "- [ ] T3 Adaptador de módulos estándar de transmisión.",
+"fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/tasks.md"
+}
+],
+"id": "planeamiento_pide-015",
+"pregunta": "¿Con qué se valoran las obras de transmisión?",
+"tipo": "entregable"
+},
+{
+"id": "planeamiento_pide-018",
+"pregunta": "¿Cuánto crecerá la demanda de ALIM-A en su año 20?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-115:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+},
+{
+"ancla": "BANDAS_TENSION = (85.0, 90.0, 95.0, 105.0)",
+"fichero": "src/convertersmartgrid/mapa_informe.py"
+}
+],
+"id": "planos_informe-004",
+"pregunta": "las bandas de colores de donde salen",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-47:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "planos_informe-012",
+"pregunta": "cargas nuevas tiene imagenes?",
+"tipo": "entregable"
+},
+{
+"id": "planos_informe-016",
+"pregunta": "¿Qué color le corresponde a la SET-A en el plano de mi empresa?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-13:",
+"fichero": "specs/046-pronostico-causal-multihorizonte/spec.md"
+}
+],
+"id": "pronostico-003",
+"pregunta": "¿Qué modelos compiten?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-20:",
+"fichero": "specs/046-pronostico-causal-multihorizonte/spec.md"
+}
+],
+"id": "pronostico-005",
+"pregunta": "¿El pronóstico se usa para calibrar?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-19:",
+"fichero": "specs/046-pronostico-causal-multihorizonte/spec.md"
+},
+{
+"ancla": "'marca': 'pronostico'})",
+"fichero": "src/convertersmartgrid/digital_twin/pronostico.py"
+}
+],
+"id": "pronostico-007",
+"pregunta": "¿Cómo reconozco un pronóstico?",
+"tipo": "entregable"
+},
+{
+"id": "pronostico-018",
+"pregunta": "¿Qué tan bueno es el pronóstico a cinco años?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-7:",
+"fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+}
+],
+"id": "salidas_auxiliares-004",
+"pregunta": "y del libro de la empresa",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "el plan del informe junto a su Word, para repetirlo desde la línea de",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "salidas_auxiliares-005",
+"pregunta": "¿Para qué sirve el .plan.json junto al informe?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-141:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "salidas_auxiliares-008",
+"pregunta": "los pdf se suben a algun lado",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/062-retencion-diaria-de-ejecuciones/spec.md"
+}
+],
+"id": "salidas_auxiliares-010",
+"pregunta": "cuanto duran los temporales",
+"tipo": "entregable"
+},
+{
+"id": "salidas_auxiliares-015",
+"pregunta": "puedo mandar el registro por correo desde la web",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-7:",
+"fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+}
+],
+"id": "set_nueva-003",
+"pregunta": "¿Cómo calcula la potencia del transformador nuevo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-11:",
+"fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+}
+],
+"id": "set_nueva-007",
+"pregunta": "¿En qué caso crea la SET?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-16:",
+"fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+}
+],
+"id": "set_nueva-009",
+"pregunta": "¿Cómo deja el cambiador de tomas?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-37:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "set_nueva-010",
+"pregunta": "puede bajar demanda para que cumpla",
+"tipo": "entregable"
+},
+{
+"id": "set_nueva-017",
+"pregunta": "¿Qué potencia de cortocircuito tiene la barra de SET-B?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-6:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "tipos_de_informe-013",
+"pregunta": "¿De dónde salen los números del informe?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-105:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "tipos_de_informe-015",
+"pregunta": "¿Se puede generar un informe por línea de órdenes?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-8:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+},
+{
+"ancla": "- RF-9:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "tipos_de_informe-019",
+"pregunta": "¿Los informes usan imágenes del modelo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-49:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "tipos_de_informe-020",
+"pregunta": "que pasa con un cliente que no corresponde a la carga",
+"tipo": "entregable"
+},
+{
+"id": "tipos_de_informe-023",
+"pregunta": "¿Hay plantilla de informe para otra distribuidora?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "tipos_de_informe-024",
+"pregunta": "cuantos informes hicimos este mes",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-105:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+}
+],
+"id": "transferencias-002",
+"pregunta": "calcula en un solo sentido?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-106:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+},
+{
+"ancla": "- RF-107:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+}
+],
+"id": "transferencias-003",
+"pregunta": "¿Y si no tienen enlace entre ellos?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "Es memoria, no libros: tras reiniciar la web hay que volver a",
+"fichero": "src/convertersmartgrid/web/services.py"
+}
+],
+"id": "transferencias-012",
+"pregunta": "reinicie la web y no me deja transferir",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-125:",
+"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
+}
+],
+"id": "transferencias-013",
+"pregunta": "¿Sin licencia del módulo de transferencia?",
+"tipo": "entregable"
+},
+{
+"id": "transferencias-017",
+"pregunta": "conviene dejar la transferencia permanente?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"pregunta": "como se hace un pan de masa madre",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "quien descubrio la penicilina",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cuantos planetas tienen anillos en el sistema solar",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que ejercicios sirven para el dolor de espalda",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cual es el idioma oficial de la india",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se limpia una alfombra de lana",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "en que anio cayo el muro de berlin",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que vino combina con un cordero al horno",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se instala una hamaca en el jardin",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "quien compuso la novena sinfonia",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cuanto mide la torre eiffel",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se cura una quemadura solar leve",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que deportes hay en los juegos de invierno",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cual es la moneda de tailandia",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se adiestra a un loro para hablar",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que libro recomiendan para aprender frances",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se hace una cometa de papel",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "por que el cielo se ve rojo al atardecer",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que animales viven en la antartida",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se pide una visa de turista para japon",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cual es la receta del pisco sour",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "quien fue el primer hombre en el espacio",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "como se riega un cactus en verano",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "cuantas cuerdas tiene un violonchelo",
+"sin_respuesta": true,
+"tipo": "fuera"
+},
+{
+"pregunta": "que se necesita para sacar el brevete de moto",
+"sin_respuesta": true,
+"tipo": "fuera"
+}
+],
+"procedencia": "sintetico_maestro_076_y_077",
+"reparto": "sellado"
+}

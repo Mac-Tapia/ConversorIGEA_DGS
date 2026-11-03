@@ -74,6 +74,8 @@ class CymdistDataset:
     customer_loads: dict[tuple[str, str], dict[str, str]]
     equipment_tables: dict[str, tuple[dict[str, str], ...]]
     capacitor_settings: tuple[dict[str, str], ...] = ()
+    #: De qué fuente vienen: «txt», «mdb» o «vnr» (056:RF-3). Los TXT, por defecto, para que su DGS no cambie.
+    fuente: str = 'txt'
 
     @classmethod
     def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':

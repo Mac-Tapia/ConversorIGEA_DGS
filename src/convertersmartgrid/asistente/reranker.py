@@ -16,7 +16,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .indice import Abstencion, RerankerNoDisponible
+from .indice import CORPUS_047, CORPUS_AMPLIADO, Abstencion, RerankerNoDisponible
 
 _RAIZ = Path(__file__).resolve().parents[3]
 CATALOGO = _RAIZ / 'docs' / 'MODELOS_IA_LOCK.json'
@@ -24,6 +24,13 @@ INFORME = _RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
 CONJUNTO = _RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'
 CALIBRACION = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_047.json'
 CONJUNTO_CALIBRACION = _RAIZ / 'docs' / 'RAG_ABSTENCION_CALIBRACION_047.json'
+#: Lo del corpus ampliado (spec 077): otros conjuntos, otros umbrales y otra medición.
+CALIBRACION_077 = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_077.json'
+CONJUNTO_CALIBRACION_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_CALIBRACION_077.json'
+CONJUNTO_SELLADO_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_SELLADO_077.json'
+MEDICION_077 = _RAIZ / 'docs' / 'EVALUACION_ABSTENCION_077.json'
+#: La puerta declarada en el plan de la 047 antes de medir; la 077 no la baja (077:RF-42).
+ABSTENCION_MINIMA = 0.90
 #: Candidatos de la evaluación, ambos con revisión fijada en el catálogo.
 MODELOS = ('BAAI/bge-reranker-v2-m3', 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')
 MAX_LARGO = 256
@@ -173,6 +180,38 @@ def abstencion(calibracion: Path = CALIBRACION, conjunto: Path = CONJUNTO_CALIBR
                       umbral_reranker=umbrales.get('reranker') if valido else None,
                       umbral_coseno=umbrales.get('coseno'), umbral_bm25=umbrales.get('bm25'),
                       umbral_bm25_solo=umbrales.get('bm25_solo'))
+
+
+def _medicion_aprobada(medicion: Path, conjunto: Path) -> dict[str, Any] | None:
+    """La medición del corpus ampliado, solo si es de su conjunto sellado y pasa la regla de la 047, la que aceptó el
+    usuario el 2026-11-02: reranker con la puerta completa, e híbrido y BM25 con la abstención mínima (077:RF-47, RF-48)."""
+    try:
+        datos = json.loads(medicion.read_text(encoding='utf-8'))
+        if datos['corpus'] != CORPUS_AMPLIADO or datos['conjunto_sha256'] != sha256_de(conjunto):
+            return None
+        if datos['puerta']['reranker']['cumple'] is not True:
+            return None
+        if any(float(datos['metodos'][m]['abstention_accuracy']) < ABSTENCION_MINIMA for m in ('hibrido', 'bm25')):
+            return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return datos
+
+
+def servicio(medicion: Path | None = None, conjunto: Path | None = None, calibracion: Path | None = None,
+             conjunto_calibracion: Path | None = None) -> dict[str, Any]:
+    """Qué corpus, política y umbrales sirve la web. Sin una medición aprobada del corpus ampliado, los de la 047: seguir
+    con sus umbrales sobre un índice mayor daría una abstención sin medir (077:RF-47)."""
+    base = {'corpus': CORPUS_047, 'politica': politica(), 'abstencion': abstencion()}
+    datos = _medicion_aprobada(medicion or MEDICION_077, conjunto or CONJUNTO_SELLADO_077)
+    if datos is None:
+        return base
+    umbrales = abstencion(calibracion or CALIBRACION_077, conjunto_calibracion or CONJUNTO_CALIBRACION_077)
+    if not umbrales.calibrada or umbrales.modelo_reranker != datos.get('modelo_reranker'):
+        return base
+    revision = ficha_modelo(umbrales.modelo_reranker)['revision']
+    return {'corpus': CORPUS_AMPLIADO, 'abstencion': umbrales,
+            'politica': {'hibrido': True, 'modelo': umbrales.modelo_reranker, 'revision': revision, 'motivo': ''}}
 
 
 def reordenador_de(pol: Mapping[str, Any], turno: Callable[[], Any] = contextlib.nullcontext

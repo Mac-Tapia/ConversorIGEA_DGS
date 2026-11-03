@@ -247,6 +247,7 @@ def canonical_to_cymdist(
         customer_loads=customer_loads,
         equipment_tables={'LINE': tuple(equipment_rows)},
         capacitor_settings=capacitor_settings,
+        fuente='vnr',
     )
 
     projected = model.metadata.get('working_crs_is_projected') is True

@@ -29,10 +29,18 @@ puerta que decida si el aprendizaje sigue.
 
 - RF-5: EL SISTEMA medirá la escalera y NSGA-II sobre las mismas obras y la misma red que verá el aprendizaje.
 - RF-6: EL SISTEMA solo dará por bueno el aprendizaje si, en alimentadores no vistos, deja el 100 % en norma con un costo no peor
-  que NSGA-II.
+  que NSGA-II; solo cuentan las redes que la referencia deja en norma (usuario, 2026-11-02).
 - RF-7: SI el entorno no reproduce lo que midió DIgSILENT en una red, en tensión o en la peor rama, ENTONCES EL SISTEMA no la usará
   en el piloto.
 - RF-8: EL SISTEMA capturará en el grafo las unidades en paralelo de cada transformador y el largo de cada tramo.
+
+### Sistema eléctrico
+
+- RF-11: EL SISTEMA tendrá un agente por cada alimentador de un sistema eléctrico, deducido de su cabecera en la red (usuario,
+  2026-11-02: «NSGA-II debes ampliarlo para todos los alimentadores necesarios para un sistema eléctrico; para eso también se
+  debe entrenar»).
+- RF-12: EL SISTEMA optimizará con NSGA-II todos los alimentadores del sistema, cada uno con su camino a la fuente, y medirá lo
+  elegido junto en el sistema entero.
 
 ### Aprendizaje
 

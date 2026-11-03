@@ -1,0 +1,278 @@
+{
+ "botones_excluidos": [
+  {
+   "componente": "CargasTab.tsx",
+   "linea": 554,
+   "motivo": "Quitar el libro de demandas elegido; solo vacía la casilla del navegador"
+  },
+  {
+   "componente": "CargasTab.tsx",
+   "linea": 597,
+   "motivo": "Quitar el libro de cargas nuevas elegido; solo vacía la casilla del navegador"
+  },
+  {
+   "componente": "CargasTab.tsx",
+   "linea": 758,
+   "motivo": "Quitar la base elegida en el navegador"
+  },
+  {
+   "componente": "CargasTab.tsx",
+   "linea": 759,
+   "motivo": "Usar la base elegida en el navegador"
+  },
+  {
+   "componente": "CargasTab.tsx",
+   "linea": 761,
+   "motivo": "Marca alimentadores en el navegador"
+  },
+  {
+   "componente": "DemandaMedida.tsx",
+   "linea": 551,
+   "motivo": "Añade un medidor escrito a la lista del navegador"
+  },
+  {
+   "componente": "DemandaMedida.tsx",
+   "linea": 556,
+   "motivo": "Abre el formulario de la central en el navegador"
+  },
+  {
+   "componente": "DemandaMedida.tsx",
+   "linea": 580,
+   "motivo": "Quita la central declarada en el navegador"
+  },
+  {
+   "componente": "InformesPF.tsx",
+   "linea": 112,
+   "motivo": "Vacía los PDF elegidos en el navegador"
+  },
+  {
+   "componente": "MonitorAgente.tsx",
+   "linea": 42,
+   "motivo": "Vuelve a pedir la evidencia del monitor; solo refresca la vista"
+  }
+ ],
+ "contradicciones": [
+  {
+   "codigo": {
+    "ancla": "MODULOS = (",
+    "fichero": "src/convertersmartgrid/informes_planeamiento.py",
+    "linea": 250,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "Estado a 2026-11-02: **aprobada, sin implementar**.",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 266,
+    "rf": null
+   },
+   "nota": "La arquitectura dice que el estudio de planeamiento está sin implementar, y el código genera sus siete módulos."
+  },
+  {
+   "codigo": {
+    "ancla": "class RerankerNoDisponible(RuntimeError):",
+    "fichero": "src/convertersmartgrid/asistente/indice.py",
+    "linea": 72,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "Sin reranker",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 184,
+    "rf": null
+   },
+   "nota": "La arquitectura dice que el RAG no tiene reranker, y el índice lo usa con su abstención."
+  },
+  {
+   "codigo": {
+    "ancla": "'marca': 'pronostico'})",
+    "fichero": "src/convertersmartgrid/digital_twin/pronostico.py",
+    "linea": 328,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "**Multihorizonte con cuantiles** (046): **solo especificado**",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 240,
+    "rf": null
+   },
+   "nota": "La arquitectura dice que el pronóstico multihorizonte no tiene código, y la spec 046 está cumplida con su código."
+  },
+  {
+   "codigo": {
+    "ancla": "N-HiTS, TFT y PatchTST de neuralforecast",
+    "fichero": "src/convertersmartgrid/digital_twin/adaptador_neuralforecast.py",
+    "linea": 1,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "| N-HiTS, TFT, PatchTST |",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 212,
+    "rf": null
+   },
+   "nota": "La arquitectura dice que N-HiTS, TFT y PatchTST solo están especificados, y hay adaptadores en CUDA."
+  },
+  {
+   "codigo": {
+    "ancla": "LANES = ('engine', 'powerfactory', 'asistente', 'control')",
+    "fichero": "src/convertersmartgrid/web/jobs.py",
+    "linea": 40,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "**Tres carriles**",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 118,
+    "rf": null
+   },
+   "nota": "La arquitectura habla de tres carriles y el código tiene cuatro, con «control»."
+  },
+  {
+   "codigo": {
+    "ancla": "[tool.convertersmartgrid.capas.modulos]",
+    "fichero": "pyproject.toml",
+    "linea": 109,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "97 excepciones sobre",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 47,
+    "rf": null
+   },
+   "nota": "La arquitectura cuenta 210 módulos con capa y pyproject.toml declara 230."
+  },
+  {
+   "codigo": {
+    "ancla": "leía ``promovido.json``",
+    "fichero": "src/convertersmartgrid/asistente/modelos_en_uso.py",
+    "linea": 4,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "(acierto 0,981)",
+    "fichero": "docs/ARQUITECTURA.md",
+    "linea": 202,
+    "rf": null
+   },
+   "nota": "La cifra de acierto del Transformer en uso no sale de ningún fichero del repositorio y el puntero del almacén de esta revisión no existe: hay que medirla de nuevo."
+  },
+  {
+   "codigo": {
+    "ancla": "Indique el alimentador del informe.",
+    "fichero": "src/convertersmartgrid/web/services.py",
+    "linea": 6926,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "- RF-29:",
+    "fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md",
+    "linea": 137,
+    "rf": null
+   },
+   "nota": "La spec pide el informe de estudio de uno o varios alimentadores y el código lo hace de uno."
+  },
+  {
+   "codigo": {
+    "ancla": "No hay mapa de fondo",
+    "fichero": "src/convertersmartgrid/mapa_informe.py",
+    "linea": 472,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "- RF-111:",
+    "fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md",
+    "linea": 312,
+    "rf": null
+   },
+   "nota": "La spec pide un mapa satélite de fondo y el código no lo dibuja para no enviar coordenadas a un servicio de teselas."
+  },
+  {
+   "codigo": {
+    "ancla": "leido = _perdidas_del_libro(ws, [alimentador])",
+    "fichero": "src/convertersmartgrid/web/services.py",
+    "linea": 7631,
+    "rf": null
+   },
+   "documento": {
+    "ancla": "transformador de la SET, del formulario mientras no se lean del libro de la empresa",
+    "fichero": "src/convertersmartgrid/web/services.py",
+    "linea": 7545,
+    "rf": null
+   },
+   "nota": "El docstring del informe de factibilidad dice que las pérdidas reconocidas vienen del formulario, y el código ya las lee del libro de pérdidas."
+  }
+ ],
+ "huecos": {
+  "arquitectura": [
+   "La arquitectura tiene datos desactualizados: ver las contradicciones."
+  ],
+  "calibracion_alcance": [
+   "El tope de tres alimentadores lo pone solo la web; el servidor no lo aplica.",
+   "No hay prueba de cómo trata «Recalibrar» un proyecto de una sola SET."
+  ],
+  "catalogo_parametros": [
+   "Las fichas de fabricante que falten quedan por confirmar."
+  ],
+  "dgs_manifiesto": [
+   "Solo se prueba el esquema de PowerFactory 2024."
+  ],
+  "escalera_obras": [
+   "La optimización con el oráculo espera su confirmación real en DIgSILENT (052 T4)."
+  ],
+  "estudios": [
+   "Protecciones, armónicos, cuasi-dinámica y flujo óptimo no se ofrecen; protecciones está solo especificada (049)."
+  ],
+  "estudios_resultados": [
+   "El cortocircuito no se ofrece en la web porque la impedancia de fuente viene por defecto."
+  ],
+  "factibilidad_conexion": [
+   "Exige una carga ingresada sola; las del bloque no tienen informe de factibilidad propio."
+  ],
+  "flujo_conversor": [
+   "La estructura de la empresa sale del perfil; leerla de la propia fuente está solo especificado (055)."
+  ],
+  "formatos_pide": [
+   "N y D de la NTCSE, COyM sin perfil y el desglose de costos por componente quedan como huecos nombrados."
+  ],
+  "informe_estudio": [
+   "Un alimentador por informe, aunque la spec pida uno o varios.",
+   "Sin PDF: solo Word y JSON."
+  ],
+  "libro_excel_informe": [
+   "Sin Excel o con otro programa que responda por COM no está comprobado el resultado en esta revisión.",
+   "La capacidad de los equipos de salida queda como hueco porque la red no la trae."
+  ],
+  "operacion_web": [
+   "Lo que se ve en pantalla queda sin comprobar en navegador.",
+   "Los botones de solo estado del navegador quedan fuera del catálogo con su motivo."
+  ],
+  "planeamiento_pide": [
+   "El adaptador de módulos estándar de transmisión no está (072 T3).",
+   "La evaluación con y sin proyecto solo mide pérdidas.",
+   "La aceptación real con el usuario está pendiente (072 T11)."
+  ],
+  "planos_informe": [
+   "No hay mapa de fondo, en contra de la spec."
+  ],
+  "pronostico": [
+   "No hay panel propio en la web; ningún neuronal superó las puertas en la medición real."
+  ],
+  "salidas_auxiliares": [
+   "No hay deshacer cargas nuevas en la web: solo por línea de órdenes."
+  ],
+  "set_nueva": [
+   "La regla del operador de ubicarla en área libre no está en el código."
+  ],
+  "tipos_de_informe": [
+   "No hay un tipo de informe para ampliaciones de clientes existentes."
+  ],
+  "transferencias": [
+   "Las curvas de la máxima viven en memoria: tras reiniciar la web hay que volver a buscarla."
+  ]
+ },
+ "pendientes": [
+  "Bancos y valle (spec 073): está en la rama asistente/073 y no en esta; sin filas hasta integrarla.",
+  "Revisión del operador de la hoja y decisión del usuario sobre su uso (076 T6)."
+ ]
+}

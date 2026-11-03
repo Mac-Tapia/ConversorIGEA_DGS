@@ -11,6 +11,9 @@ trabajo aparte, cancelable (``calcular_vectores``).
 
 Se reconstruye cuando cambia algún fichero (huella de fechas y tamaños): el índice nunca
 habla de un código que ya no existe.
+
+Hay dos corpus (spec 077): el de la 047, con el que se midieron sus umbrales y que no cambia, y el ampliado, con
+skills, documentos, planes, tareas, frontend y API, que no se sirve hasta pasar su propia medición.
 """
 from __future__ import annotations
 
@@ -27,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from ..runtime_paths import staging_publicacion
-from . import almacen
+from . import almacen, corpus_proyecto, lectura_proyecto
 from .ollama import MODELO_EMBEDDINGS
 from .sinteticos import normalizar
 
@@ -51,6 +54,12 @@ PREFIJO_DOCUMENTO = 'search_document: '
 _LARGO_EMBEDDING = 2000
 #: Códigos de red o de equipo: letras seguidas de cifras (SE50106, TM106).
 _CODIGO = re.compile(r'\b[A-Za-z]{1,8}\d{2,}[A-Za-z0-9]*\b')
+CORPUS_047 = '047'
+CORPUS_AMPLIADO = corpus_proyecto.CORPUS
+#: Cambia cuando cambia lo que se guarda de cada trozo: un índice viejo no traía su vigencia.
+_VERSION_INDICE = 'v2'
+#: De lo leído pasa al LLM a lo sumo esto por lectura: su contexto es de un modelo en 8 GB de GPU.
+_LARGO_LECTURA = 4000
 
 
 def fusion_rrf(rankings: Sequence[Sequence[Any]], *, k: int = 60) -> list[dict[str, Any]]:
@@ -78,6 +87,8 @@ class Fragmento:
     id: int
     fuente: str
     texto: str
+    vigencia: str = 'vigente'
+    estado_spec: str | None = None
 
 
 def palabras(texto: str) -> list[str]:
@@ -91,9 +102,18 @@ def _ficheros(repo: Path) -> list[Path]:
     return [p for p in out if p.is_file()]
 
 
-def huella(repo: Path) -> str:
-    h = hashlib.sha256()
-    for p in _ficheros(repo):
+def _ficheros_de(repo: Path, corpus: str) -> list[Path]:
+    base = _ficheros(repo)
+    if corpus == CORPUS_047:
+        return base
+    # 077:RF-15: también lo que el corpus de la 047 ya traía, como el docstring de la prueba sellada de las órdenes.
+    vigentes = [p for p in base if lectura_proyecto.motivo_de_rechazo(p.relative_to(repo).as_posix()) is None]
+    return list(dict.fromkeys(vigentes + corpus_proyecto.ficheros_extra(repo)))
+
+
+def huella(repo: Path, corpus: str = CORPUS_047) -> str:
+    h = hashlib.sha256(_VERSION_INDICE.encode())
+    for p in _ficheros_de(repo, corpus):
         st = p.stat()
         h.update(f'{p.relative_to(repo).as_posix()}|{st.st_mtime_ns}|{st.st_size}\n'.encode())
     return h.hexdigest()
@@ -160,15 +180,38 @@ def _trozos_de(p: Path, rel: str) -> list[tuple[str, str]]:
     return _de_markdown(rel, texto)
 
 
-def fragmentos(repo: Path) -> list[Fragmento]:
+def _trozos_ampliado(p: Path, rel: str) -> list[tuple[str, str]]:
+    """Lo que ya tiene forma en la 047 conserva su texto y sus vectores (077:RF-13); lo demás, sin perder líneas (RF-11)."""
+    if p.suffix == '.py' or rel == 'CODIGO_FUENTE.md' or (rel.startswith('specs/') and p.name == 'spec.md'):
+        return _trozos_de(p, rel)
+    return corpus_proyecto.trozos(rel, p.read_text(encoding='utf-8', errors='replace'))
+
+
+def _trozos_segun(p: Path, rel: str, corpus: str) -> list[tuple[str, str]]:
+    return _trozos_de(p, rel) if corpus == CORPUS_047 else _trozos_ampliado(p, rel)
+
+
+def _con_vigencia(repo: Path, trozos: Sequence[tuple[str, str]]) -> list[Fragmento]:
+    """Cada trozo con su vigencia y el estado de su spec (077:RF-6, RF-7, RF-10), mirados una vez por fichero."""
+    por_fichero: dict[str, tuple[str, str | None]] = {}
+    out = []
+    for i, (fuente, texto) in enumerate(trozos):
+        rel = fuente.rsplit(':', 1)[0]
+        if rel not in por_fichero:
+            por_fichero[rel] = lectura_proyecto.vigencia_de(repo, rel)
+        out.append(Fragmento(i, fuente, texto, *por_fichero[rel]))
+    return out
+
+
+def fragmentos(repo: Path, corpus: str = CORPUS_047) -> list[Fragmento]:
     """Los trozos del proyecto, cada uno con su fuente ``fichero:línea``."""
     trozos: list[tuple[str, str]] = []
-    for p in _ficheros(repo):
-        trozos += _trozos_de(p, p.relative_to(repo).as_posix())
-    return [Fragmento(i, f, t) for i, (f, t) in enumerate(trozos)]
+    for p in _ficheros_de(repo, corpus):
+        trozos += _trozos_segun(p, p.relative_to(repo).as_posix(), corpus)
+    return _con_vigencia(repo, trozos)
 
 
-def verificables(repo: Path, hallados: Sequence[dict]) -> list[dict]:
+def verificables(repo: Path, hallados: Sequence[dict], corpus: str = CORPUS_047) -> list[dict]:
     """Los hallados cuyo trozo sigue en su fichero (047:RF-29): el fichero puede cambiar bajo un
     índice ya cargado, y una cita a un texto que ya no está no se puede comprobar."""
     por_fichero: dict[str, set[tuple[str, str]]] = {}
@@ -178,7 +221,7 @@ def verificables(repo: Path, hallados: Sequence[dict]) -> list[dict]:
         if rel not in por_fichero:
             p = repo / rel
             try:
-                por_fichero[rel] = set(_trozos_de(p, rel)) if p.is_file() else set()
+                por_fichero[rel] = set(_trozos_segun(p, rel, corpus)) if p.is_file() else set()
             except OSError:
                 por_fichero[rel] = set()
         if (h['fuente'], h['texto']) in por_fichero[rel]:
@@ -219,8 +262,10 @@ class Abstencion:
 
 
 class Indice:
-    def __init__(self, frags: Sequence[Fragmento], vectores: Any = None, filas: Sequence[int] | None = None):
+    def __init__(self, frags: Sequence[Fragmento], vectores: Any = None, filas: Sequence[int] | None = None,
+                 corpus: str = CORPUS_047):
         """``vectores``: uno por trozo, con ``None`` donde falte, o una matriz cuyas ``filas`` dicen de qué trozo es cada una."""
+        self.corpus = corpus
         self.frags = list(frags)
         self.tokens = [palabras(f.texto) for f in self.frags]
         self.df = Counter(t for toks in self.tokens for t in set(toks))
@@ -294,6 +339,7 @@ class Indice:
 
         fusion = fusion_rrf([lista(lexico)] + ([lista(semantico)] if semantico is not None else []), k=K_RRF)
         hallados = [{'id': x['id'], 'fuente': self.frags[x['id']].fuente, 'texto': self.frags[x['id']].texto,
+                     'vigencia': self.frags[x['id']].vigencia, 'estado_spec': self.frags[x['id']].estado_spec,
                      'bm25': lexico[x['id']], 'coseno': semantico[x['id']] if semantico is not None else 0.0,
                      'puntos': x['score']} for x in fusion]
         return self.primero_los_codigos(consulta, hallados)[:k]
@@ -318,8 +364,8 @@ def _normalizada(vectores: Any, filas: Sequence[int] | None) -> tuple[Any, list[
     return matriz / normas, list(filas)
 
 
-def _carpeta() -> Path:
-    return almacen.raiz() / 'indice'
+def _carpeta(corpus: str = CORPUS_047) -> Path:
+    return almacen.raiz() / 'indice' if corpus == CORPUS_047 else almacen.raiz() / 'indice' / corpus
 
 
 def _clave(texto: str) -> str:
@@ -333,10 +379,10 @@ def _escribir(ruta: Path, escribir: Callable[[Path], None]) -> None:
         os.replace(temporal, ruta)
 
 
-def _leer_vectores() -> tuple[Any, dict[str, int]]:
+def _leer_vectores(corpus: str = CORPUS_047) -> tuple[Any, dict[str, int]]:
     """La matriz guardada y la fila de cada clave. Rotos o de otro modelo equivalen a no tenerlos:
     una respuesta nunca cae por un fichero de vectores."""
-    carpeta = _carpeta()
+    carpeta = _carpeta(corpus)
     try:
         import numpy as np
 
@@ -351,7 +397,7 @@ def _leer_vectores() -> tuple[Any, dict[str, int]]:
     return matriz, {c: i for i, c in enumerate(claves)}
 
 
-def _guardar_vectores(por_clave: dict[str, Any]) -> None:
+def _guardar_vectores(por_clave: dict[str, Any], corpus: str = CORPUS_047) -> None:
     """float32 en ``.npy``: miles de trozos en JSON ocupan cientos de MB al cargarlos, en un equipo de 16 GB."""
     import numpy as np
 
@@ -366,63 +412,77 @@ def _guardar_vectores(por_clave: dict[str, Any]) -> None:
         temporal.write_text(json.dumps({'modelo': MODELO_EMBEDDINGS, 'prefijo': PREFIJO_DOCUMENTO,
                                         'claves': claves}), encoding='utf-8')
 
-    _escribir(_carpeta() / 'vectores.npy', npy)
-    _escribir(_carpeta() / 'vectores_meta.json', meta)
+    _escribir(_carpeta(corpus) / 'vectores.npy', npy)
+    _escribir(_carpeta(corpus) / 'vectores_meta.json', meta)
 
 
-def _con_vectores(frags: list[Fragmento]) -> Indice:
-    matriz, fila_de = _leer_vectores()
+def _con_vectores(frags: list[Fragmento], corpus: str = CORPUS_047) -> Indice:
+    matriz, fila_de = _leer_vectores(corpus)
     if matriz is None:
-        return Indice(frags)
+        return Indice(frags, corpus=corpus)
     pares = [(i, fila_de[c]) for i, c in enumerate(_clave(f.texto) for f in frags) if c in fila_de]
     if not pares:
-        return Indice(frags)
-    return Indice(frags, matriz[[fila for _, fila in pares]], [i for i, _ in pares])
+        return Indice(frags, corpus=corpus)
+    return Indice(frags, matriz[[fila for _, fila in pares]], [i for i, _ in pares], corpus=corpus)
 
 
-def construir(repo: Path) -> Indice:
+def _fragmentos_con_cache(repo: Path, corpus: str, carpeta: Path) -> list[Fragmento]:
+    """El corpus ampliado solo vuelve a partir los ficheros que cambiaron (077:RF-12)."""
+    def guardar(ruta: Path, texto: str) -> None:
+        _escribir(ruta, lambda temporal: temporal.write_text(texto, encoding='utf-8'))
+
+    trozos, _ = corpus_proyecto.con_cache(_ficheros_de(repo, corpus), repo, carpeta,
+                                          lambda p, rel: _trozos_segun(p, rel, corpus), guardar)
+    return _con_vigencia(repo, trozos)
+
+
+def construir(repo: Path, corpus: str = CORPUS_047) -> Indice:
     """El índice desde los ficheros, con los vectores ya calculados de los trozos que no cambiaron."""
-    frags = fragmentos(repo)
-    carpeta = _carpeta()
+    carpeta = _carpeta(corpus)
     carpeta.mkdir(parents=True, exist_ok=True)
+    frags = fragmentos(repo) if corpus == CORPUS_047 else _fragmentos_con_cache(repo, corpus, carpeta)
     (carpeta / 'fragmentos.json').write_text(json.dumps([asdict(f) for f in frags], ensure_ascii=False),
                                              encoding='utf-8')
-    (carpeta / 'huella.txt').write_text(huella(repo), encoding='utf-8')
-    return _con_vectores(frags)
+    (carpeta / 'huella.txt').write_text(huella(repo, corpus), encoding='utf-8')
+    return _con_vectores(frags, corpus)
 
 
-def cargar_o_construir(repo: Path) -> Indice:
+def cargar_o_construir(repo: Path, corpus: str = CORPUS_047) -> Indice:
     """El índice guardado si el código no cambió; si cambió, se reconstruye (RF-17)."""
-    carpeta = _carpeta()
+    carpeta = _carpeta(corpus)
     guardada = carpeta / 'huella.txt'
-    if guardada.is_file() and guardada.read_text(encoding='utf-8') == huella(repo):
+    if guardada.is_file() and guardada.read_text(encoding='utf-8') == huella(repo, corpus):
         frags = [Fragmento(**f) for f in json.loads((carpeta / 'fragmentos.json').read_text(encoding='utf-8'))]
-        return _con_vectores(frags)
-    return construir(repo)
+        return _con_vectores(frags, corpus)
+    return construir(repo, corpus)
 
 
-def vectores_pendientes(repo: Path, ollama: Any) -> bool:
+def vectores_pendientes(repo: Path, ollama: Any, corpus: str = CORPUS_047) -> bool:
     """¿Hay vectores por calcular y quién los calcule (047:RF-22)? No calcula ninguno."""
     modelos = ollama.modelos()
     if not modelos or not any(str(m).split(':')[0] == MODELO_EMBEDDINGS for m in modelos):
         return False
-    return cargar_o_construir(repo).cobertura < 1.0
+    return cargar_o_construir(repo, corpus).cobertura < 1.0
 
 
 def calcular_vectores(repo: Path, ollama: Any, *, progreso: Callable[[int, int], None] | None = None,
                       cancelar: Callable[[], None] | None = None, ceder: Callable[[], bool] | None = None,
-                      lote: int = 16, cada: int = 8) -> dict[str, Any]:
+                      lote: int = 16, cada: int = 8, corpus: str = CORPUS_047) -> dict[str, Any]:
     """Los vectores que faltan, por lotes (047:RF-22). Guarda cada ``cada`` lotes y al salir por
     cualquier motivo (047:RF-24): cancelar, ceder el carril o caerse Ollama no pierde lo hecho."""
-    frags = cargar_o_construir(repo).frags
+    frags = cargar_o_construir(repo, corpus).frags
     try:
         import numpy  # noqa: F401
     except ImportError:
         return {'estado': 'sin_numpy', 'con_vector': 0, 'total': len(frags)}
-    matriz, fila_de = _leer_vectores()
     claves = [_clave(f.texto) for f in frags]
     vigentes = set(claves)
-    por_clave = {c: matriz[i] for c, i in fila_de.items() if c in vigentes} if matriz is not None else {}
+    por_clave: dict[str, Any] = {}
+    # 077:RF-13: los trozos que el corpus ampliado comparte con la 047 no se vuelven a calcular.
+    for origen in dict.fromkeys((CORPUS_047, corpus)):
+        matriz, fila_de = _leer_vectores(origen)
+        if matriz is not None:
+            por_clave.update({c: matriz[i] for c, i in fila_de.items() if c in vigentes})
     faltan = list({c: f.texto for c, f in zip(claves, frags, strict=True) if c not in por_clave}.items())
     estado, hechos, nuevos = 'completo', 0, False
     try:
@@ -445,11 +505,11 @@ def calcular_vectores(repo: Path, ollama: Any, *, progreso: Callable[[int, int],
             if cancelar:
                 cancelar()
             if n % cada == 0:
-                _guardar_vectores(por_clave)
+                _guardar_vectores(por_clave, corpus)
                 nuevos = False
     finally:
         if nuevos:
-            _guardar_vectores(por_clave)
+            _guardar_vectores(por_clave, corpus)
     return {'estado': estado, 'con_vector': sum(c in por_clave for c in claves), 'total': len(frags)}
 
 
@@ -501,7 +561,7 @@ def recuperar(indice: Indice, consulta: str, k: int = 6, *, vector: Sequence[flo
         if indice.cobertura < 1.0:
             avisos.append(f'vectores de {indice.con_vector} de {len(indice.frags)} trozos')
     if repo is not None:
-        candidatos = verificables(repo, candidatos)                     # 047:RF-29
+        candidatos = verificables(repo, candidatos, indice.corpus)      # 047:RF-29
     historico = bool(candidatos) and (max(c['bm25'] for c in candidatos) >= UMBRAL_BM25
                                       or max(c['coseno'] for c in candidatos) >= UMBRAL_COSENO)
     etiqueta = None
@@ -519,11 +579,14 @@ def recuperar(indice: Indice, consulta: str, k: int = 6, *, vector: Sequence[flo
                                         con_codigo=indice.nombra_codigo(consulta, candidatos))
         if senal == 'sin_calibrar':
             avisos.append('abstención sin calibrar para este método')   # 047:RF-33
-    return {'hallados': candidatos[:k], 'sabe': sabe, 'metodos': metodos, 'avisos': avisos, 'senal': senal}
+    # 077:RF-9: al final de todo, también tras los códigos: lo histórico nunca adelanta a lo vigente.
+    ordenados = ([c for c in candidatos if c.get('vigencia') != 'historico']
+                 + [c for c in candidatos if c.get('vigencia') == 'historico'])
+    return {'hallados': ordenados[:k], 'sabe': sabe, 'metodos': metodos, 'avisos': avisos, 'senal': senal}
 
 
 def _nombre_metodo(m: str) -> str:
-    return {'bm25': 'BM25', 'vectores': f'vectores ({MODELO_EMBEDDINGS})'}.get(m, m)
+    return {'bm25': 'BM25', 'vectores': f'vectores ({MODELO_EMBEDDINGS})', 'lectura': 'lectura directa'}.get(m, m)
 
 
 def _recuperacion(metodos: Sequence[str], avisos: Sequence[str], motivo_sin_vectores: str | None) -> str:
@@ -533,13 +596,90 @@ def _recuperacion(metodos: Sequence[str], avisos: Sequence[str], motivo_sin_vect
             + (f" ({'; '.join(notas)})" if notas else '') + '.')
 
 
+def _marca(h: dict) -> str:
+    """Cómo se presenta un trozo que no es lo vigente y cumplido (077:RF-8, RF-10); vacío si lo es."""
+    if h.get('vigencia') == 'historico':
+        return 'histórico, no vigente'
+    estado = h.get('estado_spec')
+    return f'spec {estado}, no cumplida' if estado and estado != 'cumplida' else ''
+
+
+def _con_marca(c: dict, texto: str) -> str:
+    return f"({c['marca']}) {texto}" if c.get('marca') else texto
+
+
+def _cita_de_lectura(salida: dict) -> dict | None:
+    """Lo leído como cita: su fuente es el fichero que se acaba de abrir, así que ya está comprobada."""
+    if salida['herramienta'] == 'leer_fichero':
+        texto = salida['texto']                                         # vacío si es un binario sin lector (077:RF-65)
+    elif salida['herramienta'] == 'consultar_api':
+        if not salida.get('existe'):
+            return None
+        texto = f"API {salida['ruta']}: {json.dumps(salida['operaciones'], ensure_ascii=False, sort_keys=True)}"
+    else:
+        if not salida['coincidencias']:
+            return None
+        texto = '\n'.join(f"{c['fuente']}: {c['texto']}" for c in salida['coincidencias'])
+        salida = {**salida, 'fuente': salida['coincidencias'][0]['fuente'], 'vigencia': 'vigente', 'estado_spec': None,
+                  'es_dato': any(c.get('es_dato') for c in salida['coincidencias']),
+                  'ruta': salida['coincidencias'][0]['ruta']}
+    texto = texto[:_LARGO_LECTURA]
+    if not texto.strip():
+        return None
+    cita = {'fuente': salida['fuente'], 'texto': texto, 'verificada': True, 'origen': 'lectura',
+            'es_dato': bool(salida.get('es_dato')), 'ruta': salida.get('ruta'),
+            'vigencia': salida['vigencia'], 'estado_spec': salida['estado_spec'],
+            'sha256': hashlib.sha256(texto.encode('utf-8')).hexdigest()}
+    return {**cita, 'marca': _marca(cita)}
+
+
+def _leer_nombradas(lector: Any, pregunta: str) -> tuple[list[dict], list[str], list[str]]:
+    """Lo que la pregunta nombra (077:RF-26), lo que nombra y no se puede leer (RF-27), y qué hacer con un binario (RF-65)."""
+    plan = lectura_proyecto.nombradas_en(lector.repo, pregunta, lector.politica)
+    citas, rechazadas, indicaciones = [], list(plan['rechazadas']), []
+    for nombre, argumentos in plan['pedidas']:
+        try:
+            salida = lector.ejecutar(nombre, argumentos)
+        except (ValueError, OSError):
+            rechazadas.append(str(argumentos.get('ruta')))
+            continue
+        cita = _cita_de_lectura(salida)
+        if cita is not None:
+            citas.append(cita)
+        elif salida.get('indicacion'):
+            indicaciones.append(salida['indicacion'])
+    return citas, rechazadas, indicaciones
+
+
+def _lecturas_del_llm(lector: Any, ollama: Any, pregunta: str, citas: Sequence[dict]) -> tuple[list[dict], int]:
+    """Lo que el LLM pide leer, cuando ya hay respuesta (077:RF-28, RF-32); lo que no vale se descarta (RF-29)."""
+    pedir = getattr(ollama, 'pedir_lecturas', None)
+    if lector is None or pedir is None:
+        return [], 0
+    pedidas = pedir(pregunta, [_con_marca(c, c['texto']) for c in citas], lectura_proyecto.catalogo(),
+                    lectura_proyecto.MAX_LECTURAS_LLM) or []
+    nuevas, descartadas = [], 0
+    for pedida in pedidas[:lectura_proyecto.MAX_LECTURAS_LLM]:
+        try:
+            cita = _cita_de_lectura(lector.ejecutar(pedida.get('herramienta'), pedida.get('argumentos')))
+        except (ValueError, OSError, AttributeError, TypeError):
+            descartadas += 1
+            continue
+        if cita is None:
+            descartadas += 1
+        elif all(cita['sha256'] != c['sha256'] for c in citas):
+            nuevas.append(cita)
+    return nuevas, descartadas
+
+
 def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, repo: Path | None = None,
               reordenador: Callable[[str, Sequence[dict]], list[dict]] | None = None,
-              usar_vectores: bool = True, abstencion: Abstencion | None = None) -> dict[str, Any]:
+              usar_vectores: bool = True, abstencion: Abstencion | None = None, lector: Any = None) -> dict[str, Any]:
     """La respuesta con sus citas y sus métodos; si ningún trozo responde, «No lo sé» (RF-18).
 
     Con ``repo``, cada cita se comprueba contra su fichero (047:RF-3, RF-29). Solo pide el vector
-    de la consulta, nunca los del corpus (047:RF-23)."""
+    de la consulta, nunca los del corpus (047:RF-23). Con ``lector`` (una ``LecturaGobernada``), lo que la
+    pregunta nombra se lee y el LLM puede pedir más lecturas si el índice ya respondió (077:RF-26, RF-28)."""
     vector, motivo = None, None
     if not usar_vectores:
         motivo = 'la evaluación sellada no los adoptó'
@@ -553,14 +693,35 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
         if indice.cosenos(vector) is None:
             vector, motivo = None, 'Ollama no dio un vector válido de la consulta'
     r = recuperar(indice, pregunta, k, vector=vector, reordenador=reordenador, repo=repo, abstencion=abstencion)
-    hallados = r['hallados']
-    base = {'metodos': r['metodos'], 'recuperacion': _recuperacion(r['metodos'], r['avisos'], motivo)}
-    if not r['sabe'] or not hallados:
-        return {'respuesta': 'No lo sé: nada del código, las specs ni el manual responde a eso.', 'citas': [],
+    hallados = r['hallados'] if r['sabe'] else []
+    leidas, rechazadas, indicaciones = _leer_nombradas(lector, pregunta) if lector is not None else ([], [], [])
+    nota = (f" No se lee {', '.join(rechazadas)}: queda fuera de lo que el asistente puede consultar." if rechazadas else '')
+    nota += ''.join(f' {x}' for x in indicaciones)
+    metodos = [*r['metodos'], 'lectura'] if leidas else r['metodos']
+    avisos = list(r['avisos'])
+    if getattr(lector, 'aviso', ''):
+        avisos.append(f'lectura restringida: {lector.aviso}')           # 077:RF-57, RF-58
+    base = {'metodos': metodos, 'recuperacion': _recuperacion(metodos, avisos, motivo)}
+    if rechazadas:
+        base['rechazadas'] = rechazadas
+    if not hallados and not leidas:
+        return {'respuesta': 'No lo sé: nada del código, las specs ni el manual responde a eso.' + nota, 'citas': [],
                 'sabe': False, **base}
-    citas = [{'n': i + 1, 'fuente': h['fuente'], 'texto': h['texto'], 'verificada': repo is not None,
-              'sha256': hashlib.sha256(h['texto'].encode('utf-8')).hexdigest()} for i, h in enumerate(hallados)]
-    redactada = ollama.responder(pregunta, [c['texto'] for c in citas]) if ollama is not None else None
+    citas = leidas + [{'fuente': h['fuente'], 'texto': h['texto'], 'verificada': repo is not None,
+                       'vigencia': h.get('vigencia', 'vigente'), 'estado_spec': h.get('estado_spec'), 'marca': _marca(h),
+                       'sha256': hashlib.sha256(h['texto'].encode('utf-8')).hexdigest()} for h in hallados]
+    if hallados and ollama is not None:                                 # 077:RF-32: nunca convierte un «No lo sé»
+        pedidas, descartadas = _lecturas_del_llm(lector, ollama, pregunta, citas)
+        citas += pedidas
+        if pedidas and 'lectura' not in metodos:
+            metodos = [*metodos, 'lectura']
+        if descartadas:
+            avisos.append(f'{descartadas} lectura(s) pedidas por el modelo, descartadas')
+        base.update(metodos=metodos, recuperacion=_recuperacion(metodos, avisos, motivo))
+    citas = [{'n': i + 1, **c} for i, c in enumerate(citas)]
+    if all(c.get('vigencia') == 'historico' for c in citas):
+        base['recuperacion'] += ' Solo hay documentos históricos: no es lo vigente.'     # 077:RF-8
+    redactada = ollama.responder(pregunta, [_con_marca(c, c['texto']) for c in citas]) if ollama is not None else None
     # Con cita y con texto: llama3.1:8b respondió solo «[5]» a «¿cómo se calibra una barra sin
     # medidor?» (2026-10-24); sin 40 letras de explicación vale más dar los trozos citados.
     explicacion = re.sub(r'\[\d+\]', '', redactada or '')
@@ -568,9 +729,12 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
             and len(re.findall(r'\w', explicacion)) >= 40:
         problemas = citas_que_no_apoyan(redactada, citas)                  # 027:RF-41
         if not problemas:
-            return {'respuesta': redactada, 'citas': citas, 'sabe': True, 'redactada_por': ollama.modelo, **base}
+            marcas = list(dict.fromkeys(c['marca'] for c in citas if c.get('marca')))
+            aviso_marcas = f" Citas con reservas: {'; '.join(marcas)}." if marcas else ''   # 077:RF-8, RF-10
+            return {'respuesta': redactada + aviso_marcas + nota, 'citas': citas, 'sabe': True,
+                    'redactada_por': ollama.modelo, **base}
     else:
         problemas = []
-    resumen = ' '.join(f'[{c["n"]}] {c["texto"][:300]}' for c in citas[:3])
+    resumen = ' '.join(f'[{c["n"]}] {_con_marca(c, c["texto"][:300])}' for c in citas[:3]) + nota
     return {'respuesta': resumen, 'citas': citas, 'sabe': True, 'redactada_por': None,
             **({'citas_sin_apoyo': problemas} if problemas else {}), **base}

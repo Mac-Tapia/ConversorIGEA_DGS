@@ -10,10 +10,12 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from ..asistente.lectura_proyecto import terminos_de_dato
 from ..asistente.sinteticos import normalizar
 
 #: Lo que devolvió la consulta, por espacio: la búsqueda en internet no puede sacarlo de la máquina (P9, 070:RF-46).
 _DEVUELTOS: dict[str, set[str]] = {}
+_LEIDOS: set[str] = set()
 #: Por orden: «¿qué medidores tiene la SED…?» es de medidores antes que de SED.
 _CLASES: tuple[tuple[str, str], ...] = (
     ('medidores', r'\bmedidor(es)?\b'),
@@ -50,7 +52,14 @@ def _hallado(ws, dato: str, filas: list, fuente: str, texto: str) -> dict:
 
 
 def terminos_devueltos(ws) -> Sequence[str]:
-    return sorted(_DEVUELTOS.get(ws.id, ()))
+    return sorted(_DEVUELTOS.get(ws.id, set()) | _LEIDOS)
+
+
+def anotar_lecturas(citas: Sequence[dict]) -> None:
+    """Lo que el asistente leyó de los datos locales tampoco sale, desde ningún espacio: un fichero es de la máquina (077:RF-59)."""
+    for cita in citas:
+        if cita.get('es_dato'):
+            _LEIDOS.update(terminos_de_dato(str(cita.get('texto') or ''), str(cita.get('ruta') or '')))
 
 
 def _alimentadores(svc, ws) -> dict:

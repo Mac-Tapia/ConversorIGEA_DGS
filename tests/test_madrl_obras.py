@@ -20,9 +20,12 @@ from convertersmartgrid.madrl_obras import (
     comparar_controles,
     control_escalera,
     control_nsga2,
+    control_nsga2_sistema,
     evaluar_grafo,
     fidelidad,
     puerta_del_aprendizaje,
+    subred,
+    zonas_por_alimentador,
     zonas_por_fuente,
 )
 
@@ -253,12 +256,61 @@ def test_comparar_deja_la_referencia():
     assert r['escalera']['control'] == 'escalera' and r['nsga2']['evaluaciones'] > 0
 
 
+def _sistema(n_alim=3, carga=0.35):
+    """Una SET con su barra, una fuente y un alimentador detrás de cada interruptor de cabecera."""
+    nodos = {'SET': {'kv': 10.0, 'fuente': True, 'v_pu': 1.0}, 'BARRA': {'kv': 10.0}}
+    ramas = [{'id': 'TR', 'clase': 'ElmLne', 'desde': 'SET', 'hasta': 'BARRA', 'r_ohm': 0.01, 'x_ohm': 0.01, 'inom_ka': 10.0}]
+    for a in range(n_alim):
+        nodos[f'F{a}_0'] = {'kv': 10.0}
+        ramas.append({'id': f'CB{a}', 'clase': 'ElmCoup', 'desde': 'BARRA', 'hasta': f'F{a}_0', 'r_ohm': 0.0, 'x_ohm': 0.0,
+                      'inom_ka': 0.0})
+        for i in range(1, 7):
+            nodos[f'F{a}_{i}'] = {'kv': 10.0, 'p_mw': carga if a == 0 else 0.05, 'q_mvar': (carga if a == 0 else 0.05) * 0.85}
+            ramas.append({'id': f'F{a}L{i}', 'clase': 'ElmLne', 'desde': f'F{a}_{i - 1}', 'hasta': f'F{a}_{i}', 'r_ohm': 0.6,
+                          'x_ohm': 0.5, 'inom_ka': 1.0})
+    return {'nodos': nodos, 'ramas': ramas}
+
+
+def test_un_agente_por_alimentador_del_sistema():
+    """074:RF-11 — cada cabecera es un alimentador; la barra de la SET no es de ninguno."""
+    z = zonas_por_alimentador(_sistema())
+    assert sorted(z) == ['CB0', 'CB1', 'CB2'] and z['CB0'] == sorted(f'F0_{i}' for i in range(7))
+    assert not any('BARRA' in v or 'SET' in v for v in z.values())
+    n, r = _linea('A', 3, 0.1)
+    assert zonas_por_alimentador({'nodos': n, 'ramas': r}) == {'A0': ['A0', 'A1', 'A2']}, 'sin cabeceras, la fuente'
+
+
+def test_nsga2_del_sistema_resuelve_cada_alimentador_y_mide_el_conjunto():
+    """074:RF-12 — solo el alimentador con problemas lleva obras, y el sistema queda en norma medido junto."""
+    g = _sistema()
+    p = ParametrosObras(0.95, 1.05, 100.0, 0.3, 10.0, candidatos=5, max_bancos=5)
+    e = EntornoObras(g, zonas_por_alimentador(g), p)
+    assert [a for a, x in e.por_zona.items() if not x.en_norma] == ['CB0']
+    r = control_nsga2_sistema(e, generaciones=20, poblacion=20)
+    assert r['en_norma'] and r['alimentadores_en_norma'] == 3 and r['alimentadores'] == 3
+    assert r['obras'] and all(o.startswith('CB0:') for o in r['obras'])
+    assert r['por_alimentador']['CB1'] == {'en_norma': True, 'obras': 0}
+    sub = subred(g, set(zonas_por_alimentador(g)['CB0']))
+    assert {'SET', 'BARRA'} <= set(sub['nodos']) and not any(n.startswith('F1') for n in sub['nodos'])
+
+
+def test_el_plano_da_pasos_para_todo_el_sistema():
+    """074:RF-11 — una obra por paso: el límite crece con los alimentadores."""
+    g = _sistema()
+    plano = EntornoPlano(EntornoObras(g, zonas_por_alimentador(g), P))
+    assert plano.e.limite_pasos == P.max_pasos * 3
+
+
 @pytest.mark.parametrize('aprendido, referencia, sigue, palabra', [
     ([{'en_norma': True, 'costo': 10}], [{'en_norma': True, 'costo': 10}], True, 'referencia'),
     ([{'en_norma': False, 'costo': 1}], [{'en_norma': True, 'costo': 10}], False, 'norma'),
     ([{'en_norma': True, 'costo': 11}], [{'en_norma': True, 'costo': 10}], False, 'cuesta'),
     ([], [], False, 'no vistos'),
     ([{'en_norma': True, 'costo': 1}], [], False, 'no vistos'),
+    # Donde la referencia tampoco llega, la red no cuenta.
+    ([{'en_norma': True, 'costo': 10}, {'en_norma': False, 'costo': 5}],
+     [{'en_norma': True, 'costo': 10}, {'en_norma': False, 'costo': 5}], True, 'referencia'),
+    ([{'en_norma': False, 'costo': 5}], [{'en_norma': False, 'costo': 5}], False, 'no deja en norma'),
 ])
 def test_la_puerta_no_deja_seguir_sin_superar_al_control(aprendido, referencia, sigue, palabra):
     """074:RF-6 — 100 % en norma y costo no peor; barato y fuera de norma no pasa."""
