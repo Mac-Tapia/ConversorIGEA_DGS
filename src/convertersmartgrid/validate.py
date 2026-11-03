@@ -8,7 +8,7 @@ from pathlib import Path
 import json
 import math
 
-from .model import FeederModel, Line
+from .model import FeederModel, Line, palabras_de
 from .naming import _siglas_canonicas, nombre_canonico
 from .schema import load_schema
 from .geography import GeographyManifest
@@ -402,7 +402,8 @@ def validate_dgs(
             continue
         if load.node_id != sed.node_id:
             connection_errors.append(
-                f'{sed.code}: SED node {sed.node_id} differs from load node {load.node_id} (TXT Location)'
+                f'{sed.code}: SED node {sed.node_id} differs from load node {load.node_id} '
+                f'({palabras_de(model.fuente)["ubicacion"]})'
             )
             continue
         if sub_fid not in tr2_by_fold:
@@ -756,8 +757,8 @@ def _report(
             dgs_length = float('nan')
     warnings = list(model.warnings)
     warnings.extend([
-        'CYMDIST B1/B0 are retained in the source model but are not transferred to TypLne bline/bline0 until unit equivalence is independently established.',
-        'SOURCE short-circuit strength/impedance is not present in the supplied TXT data; ElmXnet short-circuit fields are left unspecified.',
+        f'{palabras_de(model.fuente)["b1b0"]} are retained in the source model but are not transferred to TypLne bline/bline0 until unit equivalence is independently established.',
+        f'SOURCE short-circuit strength/impedance is not present in the {palabras_de(model.fuente)["datos"]}; ElmXnet short-circuit fields are left unspecified.',
         'PowerFactory import/execution cannot be proven by static validation; generated DGS still requires an import test in the target installation.',
     ])
     if geography is not None:
@@ -805,6 +806,7 @@ def _report(
             'difference': dgs_length - source_length if isinstance(dgs_length, float) and math.isfinite(dgs_length) else None,
             'georef_lines': sum(1 for line in model.lines if getattr(line, 'length_source', 'txt') == 'georef'),
             'txt_lines': sum(1 for line in model.lines if getattr(line, 'length_source', 'txt') != 'georef'),
+            'fuente': palabras_de(model.fuente)['fuente'],
         },
         'load_totals': {
             'p_mw': sum(x.p_mw for x in model.loads),
@@ -850,7 +852,7 @@ def write_validation_reports(report: dict, json_path: Path | str, txt_path: Path
         '',
         f"Line length source: {length.get('source')} km",
         f"Line length DGS:    {length.get('dgs')} km",
-        f"Lengths from georef: {length.get('georef_lines')} | from TXT: {length.get('txt_lines')}",
+        f"Lengths from georef: {length.get('georef_lines')} | from {length.get('fuente', 'TXT')}: {length.get('txt_lines')}",
         '',
         f"SCHEMA ERRORS: {len(report.get('schema_errors', []))}",
     ]

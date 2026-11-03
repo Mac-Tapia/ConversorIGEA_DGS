@@ -444,7 +444,7 @@ def import_dgs_file(
             raise ValueError('El nombre de proyecto PowerFactory no puede superar 40 caracteres.')
         pedido = project_name
     else:
-        pedido = _generated_project_name(stamp, dgs_path.stem)
+        pedido = _generated_project_name(stamp, dgs_path.stem, fuente_del_dgs(dgs_path))
 
     def fallo(*errores: str, carpeta_nombre: str | None = None) -> dict[str, Any]:
         return {'project_name': None, 'project_requested': pedido,
@@ -555,16 +555,41 @@ def import_dgs_file(
     }
 
 
-def _generated_project_name(stamp: str, dgs_stem: str) -> str:
-    """PowerFactory loc_name está limitado a 40 caracteres."""
+#: Sigla de la fuente en el nombre del proyecto (056:RF-1), por lo que dice la cabecera del DGS (056:RF-3).
+SIGLA_POR_ORIGEN = {'CYMDIST': 'TXT', 'Access (.mdb)': 'MDB', 'VNR-GIS': 'VNR'}
+
+
+def fuente_del_dgs(dgs_path: Path) -> str | None:
+    """La sigla de la fuente de un DGS (TXT, MDB o VNR), leída de su cabecera; ``None`` si no la dice.
+
+    Una conversión de VNR-GIS se importaba como ``…_CSG_W12882`` y nada en DIgSILENT decía de qué fuente
+    venía (2026-11-01). Se lee del fichero que se importa, no de un parámetro: es el que queda fijado.
+    """
+    try:
+        with open(dgs_path, encoding='utf-8', errors='replace') as f:
+            for _n, linea in zip(range(12), f):
+                if linea.startswith('* ') and linea.rstrip().endswith(' to DIgSILENT DGS converter'):
+                    return SIGLA_POR_ORIGEN.get(linea[2:].rstrip()[:-len(' to DIgSILENT DGS converter')])
+    except OSError:
+        return None
+    return None
+
+
+def _generated_project_name(stamp: str, dgs_stem: str, fuente: str | None = None) -> str:
+    """``<sello>_CSG_<fuente>_<red>`` (056:RF-1, 058:RF-4); sin fuente, ``<sello>_CSG_<red>``.
+
+    PowerFactory loc_name está limitado a 40 caracteres. Los proyectos ya importados no se renombran ni
+    se reconocen por su nombre, sino por su vínculo (056:RF-2, spec 018).
+    """
     import hashlib
 
-    candidate = f'{stamp}_CSG_{dgs_stem}'
+    prefijo = f'{stamp}_CSG_' + (f'{fuente}_' if fuente else '')
+    candidate = f'{prefijo}{dgs_stem}'
     if len(candidate) <= 40:
         return candidate
     digest = hashlib.sha256(dgs_stem.encode('utf-8')).hexdigest()[:8]
     tail = dgs_stem[-8:]
-    return f'{stamp}_CSG_{digest}_{tail}'[:40]
+    return f'{prefijo}{digest}_{tail}'[:40]
 
 
 # ---------------------------------------------------------------------------

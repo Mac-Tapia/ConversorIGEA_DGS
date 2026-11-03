@@ -846,6 +846,30 @@ def _section_projected_path(
     return path
 
 
+#: Cómo se nombra cada cosa en los avisos según la fuente (056:RF-4). El 2026-11-01 una conversión de VNR-GIS
+#: decía «0 conservaron Length del TXT» o «revise el export CYMDIST», y el operador creyó que se había cargado
+#: un TXT. Las palabras del TXT son las de siempre, letra a letra.
+PALABRAS_POR_FUENTE: dict[str, dict[str, str]] = {
+    'txt': {'fuente': 'TXT', 'del': 'del TXT', 'longitud': 'Length del TXT', 'nodo': 'nodo TXT',
+            'ubicacion': 'TXT Location', 'catalogo': 'BD_Equipo', 'export': 'export CYMDIST',
+            'sin_tramos': 'el RED no tiene filas SECTION', 'b1b0': 'CYMDIST B1/B0', 'datos': 'supplied TXT data'},
+    'mdb': {'fuente': 'MDB', 'del': 'de la base Access', 'longitud': 'la longitud de la base Access',
+            'nodo': 'nodo de la base Access', 'ubicacion': 'Location of the Access database',
+            'catalogo': 'el catálogo de equipos de la base', 'export': 'la base Access',
+            'sin_tramos': 'la base Access no tiene tramos', 'b1b0': 'Source B1/B0',
+            'datos': 'supplied Access database'},
+    'vnr': {'fuente': 'VNR-GIS', 'del': 'del VNR-GIS', 'longitud': 'la longitud del VNR-GIS',
+            'nodo': 'nodo del VNR-GIS', 'ubicacion': 'VNR-GIS location', 'catalogo': 'el catálogo del VNR-GIS',
+            'export': 'el paquete VNR-GIS', 'sin_tramos': 'el VNR-GIS no tiene tramos', 'b1b0': 'Source B1/B0',
+            'datos': 'supplied VNR-GIS package'},
+}
+
+
+def palabras_de(fuente: str | None) -> dict[str, str]:
+    """Las palabras de los avisos para ``fuente`` (056:RF-4); las del TXT si no se conoce."""
+    return PALABRAS_POR_FUENTE.get(str(fuente or 'txt').lower(), PALABRAS_POR_FUENTE['txt'])
+
+
 def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> FeederModel:
     """Replace LINE CONFIGURATION lengths with polyline meters from georeferenced nodes.
 
@@ -899,7 +923,7 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     if updated:
         model.warnings.append(
             f'Longitudes de {updated} tramo(s) MT actualizadas desde nodos georreferenciados '
-            f'(FromNode/ToNode + intermedios); {kept_txt} conservaron Length del TXT.'
+            f'(FromNode/ToNode + intermedios); {kept_txt} conservaron {palabras_de(model.fuente)["longitud"]}.'
         )
     return model
 
@@ -953,8 +977,9 @@ def check_length_scale_agreement(
     mad = _median([abs(r - median_ratio) for r in ratios])
     outside = sum(1 for r in ratios if not (warn_band[0] <= r <= warn_band[1]))
 
+    p = palabras_de(model.fuente)
     detail = (
-        f'{compared} tramo(s) comparados: razón georreferencia/TXT mediana '
+        f'{compared} tramo(s) comparados: razón georreferencia/{p["fuente"]} mediana '
         f'{median_ratio:.4g} (MAD {mad:.3g}); {outside} fuera de '
         f'[{warn_band[0]:g}, {warn_band[1]:g}]'
     )
@@ -962,14 +987,14 @@ def check_length_scale_agreement(
     warning = None
     if not (error_band[0] <= median_ratio <= error_band[1]):
         error = (
-            f'Escala de coordenadas incoherente con las longitudes del TXT. {detail}. '
+            f'Escala de coordenadas incoherente con las longitudes {p["del"]}. {detail}. '
             'Una discrepancia de este orden solo puede venir de unidades o proyección '
             'equivocadas (p. ej. CoordX/CoordY en grados o centímetros, o Length en '
             'otra unidad), no de holgura física. Revise --source-crs y las unidades '
             'del export antes de usar el modelo.'
         )
     elif outside:
-        warning = f'Longitudes georreferenciadas y del TXT no coinciden en todos los tramos. {detail}.'
+        warning = f'Longitudes georreferenciadas y {p["del"]} no coinciden en todos los tramos. {detail}.'
 
     return {
         'compared': compared,
@@ -1013,7 +1038,7 @@ def prove_mt_connections(
         if line.from_node != expected_from or line.to_node != expected_to:
             errors.append(
                 f'{line.section_id}: From/To del modelo ({line.from_node}->{line.to_node}) '
-                f'no coinciden con TXT normalizado ({expected_from}->{expected_to}; '
+                f'no coinciden con {palabras_de(model.fuente)["fuente"]} normalizado ({expected_from}->{expected_to}; '
                 f'original {txt_from}->{txt_to})'
             )
             continue
@@ -1058,7 +1083,7 @@ def prove_mt_connections(
             continue
         if sed.node_id != expected:
             errors.append(
-                f'SED {sed.code}: conectada a {sed.node_id} pero TXT Location={location} '
+                f'SED {sed.code}: conectada a {sed.node_id} pero {palabras_de(model.fuente)["ubicacion"]}={location} '
                 f'exige {expected} (sección {sed.section_id})'
             )
             continue
@@ -1323,7 +1348,8 @@ def build_feeder_model(
         typ, alias_target = _resolve_type(raw_code, overhead, by_code, aliases)
         if typ is None:
             raise ModelBuildError(
-                f'{network_id}: cannot resolve LineCableID {raw_code!r} and BD_Equipo has no usable DEFAULT'
+                f'{network_id}: cannot resolve LineCableID {raw_code!r} and '
+                f'{palabras_de(getattr(dataset, "fuente", "txt"))["catalogo"]} has no usable DEFAULT'
             )
         if alias_target is not None:
             applied_aliases[raw_code] = alias_target
@@ -1355,9 +1381,9 @@ def build_feeder_model(
     source_only = not lines
     if source_only and source_node not in dataset.nodes:
         raise ModelBuildError(
-            f'{name}: el RED no tiene filas SECTION y el nodo de cabecera '
+            f'{name}: {palabras_de(getattr(dataset, "fuente", "txt"))["sin_tramos"]} y el nodo de cabecera '
             f'{source_node!r} tampoco está en la tabla NODE. No hay nada que convertir '
-            f'para {network_id}; revise el export CYMDIST.'
+            f'para {network_id}; revise {palabras_de(getattr(dataset, "fuente", "txt"))["export"]}.'
         )
 
     section_by_id = {line.section_id: line for line in lines}
@@ -1497,11 +1523,13 @@ def build_feeder_model(
     if auto_aliased:
         detail = ', '.join(f'{src}->{dst}' for src, dst in sorted(auto_aliased.items()))
         warnings.append(
-            'Line types missing from BD_Equipo were auto-mapped to the nearest catalog ID: ' + detail
+            f'Line types missing from {palabras_de(getattr(dataset, "fuente", "txt"))["catalogo"]} were '
+            'auto-mapped to the nearest catalog ID: ' + detail
         )
     if defaulted:
         warnings.append(
-            'Line types without a unique BD_Equipo match used media DEFAULT (sections kept): '
+            f'Line types without a unique {palabras_de(getattr(dataset, "fuente", "txt"))["catalogo"]} match '
+            'used media DEFAULT (sections kept): '
             + ', '.join(defaulted)
         )
     if any(d.eq_state != 0 for d in devices):
@@ -1577,17 +1605,17 @@ def build_feeder_model(
         summary = (
             f'Prueba OK: {proof["lines_checked"]}/{proof["lines_total"]} tramos MT '
             f'conectados a From/To georreferenciados; '
-            f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el nodo TXT; '
+            f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el {palabras_de(model.fuente)["nodo"]}; '
             f'{proof["lines_with_georef_length"]} longitudes actualizadas por georreferencia.'
         )
         if proof['lines_without_coords'] or proof['seds_without_coords']:
             summary += (
                 f' Sin georreferencia (geografía desactivada): '
                 f'{proof["lines_without_coords"]} tramo(s) y '
-                f'{proof["seds_without_coords"]} SED conservan la longitud del TXT.'
+                f'{proof["seds_without_coords"]} SED conservan la longitud {palabras_de(model.fuente)["del"]}.'
             )
         if scale['compared']:
-            summary += f' Escala georreferencia/TXT: mediana {scale["median_ratio"]:.4g}.'
+            summary += f' Escala georreferencia/{palabras_de(model.fuente)["fuente"]}: mediana {scale["median_ratio"]:.4g}.'
         model.warnings.append(summary)
 
     return model

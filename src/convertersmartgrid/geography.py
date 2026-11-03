@@ -242,6 +242,19 @@ def _point_dict(point: GeoPoint) -> dict[str, float]:
     return result
 
 
+#: De dónde sale cada equipo, con las palabras de su fuente (056:RF-4); la del TXT, letra a letra la de antes.
+_NOTA_EQUIPOS = {
+    'txt': ('Transformers = SED ElmTr2 from CARGA. Capacitors come from [SHUNT CAPACITOR '
+            'SETTING] in RED or CYMSHUNTCAPACITOR in the .mdb; regulators from REGULATOR '
+            'SETTING. The BD_Equipo catalog alone is not placed on the network.'),
+    'mdb': ('Transformers = SED ElmTr2 from the load table of the Access database. Capacitors come from '
+            'CYMSHUNTCAPACITOR; regulators from their setting table. The equipment catalog alone is not '
+            'placed on the network.'),
+    'vnr': ('Transformers = SED ElmTr2 from the VNR-GIS substations. Capacitors and regulators from the '
+            'VNR-GIS equipment tables. The equipment catalog alone is not placed on the network.'),
+}
+
+
 def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) -> dict:
     sed_n = len(model.seds) if model is not None else 0
     # Una fuente por alimentador: en una red unida (combine) hay tantas como alimentadores.
@@ -323,11 +336,7 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'source_xy_bounds': list(geo.source_xy_bounds),
         'target_bounds': list(geo.target_bounds),
         'intermediate_sections': geo.intermediate_section_count,
-        'equipment_scope_note': (
-            'Transformers = SED ElmTr2 from CARGA. Capacitors come from [SHUNT CAPACITOR '
-            'SETTING] in RED or CYMSHUNTCAPACITOR in the .mdb; regulators from REGULATOR '
-            'SETTING. The BD_Equipo catalog alone is not placed on the network.'
-        ),
+        'equipment_scope_note': _NOTA_EQUIPOS.get(getattr(model, 'fuente', 'txt'), _NOTA_EQUIPOS['txt']),
         'nodes': {node_id: _point_dict(point) for node_id, point in geo.nodes.items()},
         'lines': {
             sid: {

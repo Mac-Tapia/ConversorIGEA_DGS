@@ -21,6 +21,7 @@ EXCEPCIONES_FICHERO = (
     '.agents/coordination/',  # registro entre sesiones, sin versionar: cita la ruta real de la carpeta
     'docs/implementacion065/',  # evidencia: cita proyectos reales de DIgSILENT y rutas; reescribirla la falsearía
     'tests/test_nombre_converter_smart_grid.py',
+    'tests/test_palabras_de_la_fuente.py',  # 056:RF-6: la prueba de que una salida no dice IGEA ni CYMDIST
 )
 #: Una rama que existe en git (historia) y lo que el código reconoce para leer lo ya guardado.
 EXCEPCIONES_LINEA = ('legado-058', 'feat/robustecimiento-igea')
