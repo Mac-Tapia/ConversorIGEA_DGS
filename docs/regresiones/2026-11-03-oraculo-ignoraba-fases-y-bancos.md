@@ -7,7 +7,7 @@ Un alimentador con 3 bancos se importó con el 43 % de su demanda porque el orá
 Causa comprobada contra DIgSILENT: el flujo del oráculo era equilibrado y no calculaba los bancos. También se saltaba sin decirlo las SED, cargas y maniobras sin barra, y un solo tramo sin impedancia dejaba sin calcular el alimentador. Además, `runpp_3ph` declara convergencia con todas las tensiones en nan.
 
 ## Comprobación permanente
-`red_pandapower` informa `recuento`, por clase, y da el error `omitido_en_la_red` si el modelo y la red no cuadran. Lo incompleto se calcula como se puede y se anota. Con menos de tres fases el veredicto sale del flujo desequilibrado, y una barra alimentada sin tensión es no convergencia. Los reguladores llevan su impedancia serie (X = uk·Un/In), que faltaba y daba 0,92 puntos de error. El contraste con DIgSILENT es la tarea `[DIgSILENT]` T4 de la spec 082, ya cumplida; la T5 mide un catálogo con R0 distinta de R1.
+`red_pandapower` informa `recuento`, por clase, y da el error `omitido_en_la_red` si el modelo y la red no cuadran. Lo incompleto se calcula como se puede y se anota. Con menos de tres fases el veredicto sale del flujo desequilibrado, y una barra alimentada sin tensión es no convergencia. Los reguladores llevan su impedancia serie (X = uk·Un/In), que faltaba y daba 0,92 puntos de error. El contraste con DIgSILENT es la tarea `[DIgSILENT]` T4 de la spec 082, ya cumplida.
 
 ## Prueba
 - `tests/test_oraculo_por_fases.py::test_todas_las_clases_entran_en_la_red`

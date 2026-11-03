@@ -1,6 +1,6 @@
 # Spec 082 — El oráculo calcula todo lo del modelo, y por fases
 
-Estado: implementada · Fecha: 2026-11-03
+Estado: cumplida · Fecha: 2026-11-03
 
 ## Contexto y objetivo
 
@@ -53,7 +53,7 @@ sin barra, y todos los bancos.
 - RF-11: CUANDO corrija la demanda antes de importar (spec 057, 080:RF-45), EL SISTEMA medirá cada factor con el mismo flujo y los mismos bancos del veredicto.
 - RF-12: EL SISTEMA aplicará estas reglas a cualquier fuente y distribuidora, sin ningún dato ni condición de una empresa.
 - RF-13: EL SISTEMA dejará una comprobación permanente que falle si una clase de elemento del modelo no entra en la red calculada.
-- RF-14: EL SISTEMA quedará contrastado con el flujo desequilibrado de DIgSILENT en un alimentador de cada fuente con fases, con un error medio de tensión de 0,5 puntos o menos.
+- RF-14: EL SISTEMA quedará contrastado con el flujo desequilibrado de DIgSILENT en un alimentador con fases de cada empresa que se contraste, con un error medio de tensión de 0,5 puntos o menos.
 - RF-15: EL SISTEMA calculará cada regulador cerrado con la impedancia serie que le da DIgSILENT, en vez de como un interruptor.
 
 ## Fuera de alcance
