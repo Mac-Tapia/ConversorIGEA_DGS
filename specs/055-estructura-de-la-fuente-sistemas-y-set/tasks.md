@@ -1,6 +1,6 @@
 # Tareas — Spec 055
 
-- [ ] T1. Estructura de la fuente en la carga y su orden frente al Excel y al perfil. (RF-1 a RF-5)
+- [x] T1. Estructura de la fuente en la carga y su orden frente al Excel y al perfil. (RF-1 a RF-5)
       Hecho cuando: las pruebas que citan sus RF pasan.
 - [ ] T3. Perfil de otra empresa: no se aplica, y la carpeta toma el nombre de la empresa de la
       fuente. (RF-6, RF-7)

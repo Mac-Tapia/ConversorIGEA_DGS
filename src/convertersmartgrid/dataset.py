@@ -5,7 +5,7 @@ Acepta las dos disposiciones del export, la reducida y la completa (constitució
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from collections import defaultdict
@@ -76,6 +76,8 @@ class CymdistDataset:
     capacitor_settings: tuple[dict[str, str], ...] = ()
     #: De qué fuente vienen: «txt», «mdb» o «vnr» (056:RF-3). Los TXT, por defecto, para que su DGS no cambie.
     fuente: str = 'txt'
+    #: Lo que la fuente dice de cada alimentador: sistema y SET (055:RF-1). Los TXT y la .mdb no lo traen.
+    estructura_fuente: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @classmethod
     def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':

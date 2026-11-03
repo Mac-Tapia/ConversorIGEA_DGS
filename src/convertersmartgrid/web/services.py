@@ -1337,14 +1337,15 @@ def estructura_resumen(ws: Workspace) -> dict:
     """Los zonales de la estructura con sus alimentadores en la entrega (022:RF-48)."""
     from ..estructura import asignar
 
-    e = estructura_del_espacio(ws)
+    e, origen = _estructura_y_origen(ws)
     if e is None:
-        return {'origen': None, 'zonales': []}
+        # 055:RF-4: la fuente no la trae: todos siguen convertibles uno a uno o unidos, y se dice.
+        return {'origen': None, 'zonales': [], 'aviso': 'Ni el Excel, ni el perfil, ni la fuente dan estructura: los '
+                'alimentadores se convierten uno a uno o unidos.'}
     from .reconstruction_service import resolve_selection
 
     entrega, _ids = resolve_selection(ws, [], all_feeders=True)
     a = asignar(e, entrega)
-    origen = 'excel' if ((ws.demanda or {}).get('estructura') or {}).get('path') else 'perfil'
     deducidos = [{'alimentador': f, 'set': e.set_de(f).codigo, 'zonal': e.set_de(f).zonal,
                   'regla': e.deducidos[f]} for f in sorted(a.set_de) if f in e.deducidos]
     de_set: dict[str, list[str]] = {}
@@ -2575,22 +2576,47 @@ def _informe_por_set(e: dict | None) -> list[str]:
 
 
 def estructura_del_espacio(ws: Workspace):
-    """La estructura zonal → SET → alimentador del espacio (022:RF-4) o del perfil (RF-1)."""
-    from ..estructura import EstructuraError, leer_tabla_excel
-    from ..perfil_empresa import PerfilError, estructura_empresa
+    """La estructura zonal → SET → alimentador del espacio: Excel, perfil o fuente (022:RF-4, 055:RF-2)."""
+    return _estructura_y_origen(ws)[0]
 
-    from ..estructura import cabeceras_de_inventario, completar
+
+def _estructura_y_origen(ws: Workspace) -> tuple[Any, str | None]:
+    """La estructura y de dónde sale: el Excel; el perfil, si asigna SET a alguno cargado; si no, la fuente (055:RF-2).
+
+    Con el perfil de una empresa y la fuente de otra, el perfil no asignaba ninguno y la web mostraba 0 sistemas de
+    168 alimentadores, aunque la copia VNR-GIS trae su estructura.
+    """
+    from ..estructura import (
+        EstructuraError,
+        asignar,
+        cabeceras_de_inventario,
+        clave,
+        completar,
+        estructura_de_la_fuente,
+        leer_tabla_excel,
+    )
+    from ..perfil_empresa import PerfilError, estructura_empresa
 
     ruta = ((ws.demanda or {}).get('estructura') or {}).get('path')
     try:
         e = leer_tabla_excel(ruta) if ruta else estructura_empresa()
     except (EstructuraError, PerfilError) as exc:
         raise UserError(f'Estructura de la empresa: {exc}') from exc
+    filas = (ws.inventory or {}).get('feeders') or []
+    if ruta:
+        origen = 'excel'
+    else:
+        origen = 'perfil'
+        nombres = [clave(f.get('feeder')) for f in filas]
+        if e is None or (nombres and not asignar(e, nombres).set_de):
+            de_fuente = estructura_de_la_fuente(getattr(getattr(ws, 'dataset', None), 'estructura_fuente', None) or {})
+            if de_fuente is not None:
+                return de_fuente, 'fuente'                                  # 055:RF-2, RF-3
+            return (None, None) if e is None else (e, 'perfil')
     # 022:RF-77: con los alimentadores de la entrega que la tabla aún no trae (Chincha
     # Nueva en RED_231026); un espacio cargado antes de RF-74 no tiene sus cabeceras y
     # solo coloca los de siglas conocidas hasta que se vuelve a cargar.
-    filas = (ws.inventory or {}).get('feeders') or []
-    return completar(e, cabeceras_de_inventario(filas)) if e is not None and filas else e
+    return (completar(e, cabeceras_de_inventario(filas)) if e is not None and filas else e), origen
 
 
 def _kv_alimentadores(ws: Workspace) -> dict[str, float]:

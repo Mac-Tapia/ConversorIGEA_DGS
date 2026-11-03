@@ -248,6 +248,7 @@ def canonical_to_cymdist(
         equipment_tables={'LINE': tuple(equipment_rows)},
         capacitor_settings=capacitor_settings,
         fuente='vnr',
+        estructura_fuente=dict(model.metadata.get('estructura_fuente') or {}),
     )
 
     projected = model.metadata.get('working_crs_is_projected') is True
