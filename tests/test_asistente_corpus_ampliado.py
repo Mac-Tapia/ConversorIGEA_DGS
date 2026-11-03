@@ -485,8 +485,10 @@ def _calibracion(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def test_sin_medicion_sirve_la_047(tmp_path):
-    """077:RF-47 — sin medición aprobada, la web sirve el corpus de la 047 con sus umbrales, también hoy en el repositorio."""
-    assert not reranker.MEDICION_077.exists()
+    """077:RF-47 — sin medición aprobada, la web sirve el corpus de la 047 con sus umbrales, también hoy en el repositorio.
+
+    Desde el 2026-11-03 la medición sellada existe y no pasa su puerta: tiene que seguir sirviéndose la 047.
+    """
     servir = reranker.servicio()
     assert servir['corpus'] == indice.CORPUS_047 and servir['abstencion'] == reranker.abstencion()
     assert servir['politica'] == reranker.politica()
