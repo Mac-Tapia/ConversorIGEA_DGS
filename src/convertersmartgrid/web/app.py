@@ -95,7 +95,11 @@ def arrancar_vigilancia(jobs: JobManager):
     v = Vigilante(listar_trabajos=lambda: [j.public() for j in jobs.list()], reintentar=reintentar,
                   entrenar_gemelo=lambda: lanzar('digital_twin_entrenar', True),
                   entrenar_asistente=lambda: lanzar('asistente_entrenar', False),
-                  contar_nuevos=services.asistente_nuevos, repo=project_root())
+                  # 071:RF-6: hasta que haya un solo pipeline por modelo, no lanza entrenamientos
+                  # ni anuncia que reentrena, salvo que se pida.
+                  contar_nuevos=(services.asistente_nuevos if os.environ.get('CSG_AUTOENTRENAMIENTO') == '1'
+                                 else (lambda: (0, 0))),
+                  repo=project_root())
     v.arrancar()
     return v
 

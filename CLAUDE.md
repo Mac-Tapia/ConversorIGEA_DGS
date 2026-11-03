@@ -98,6 +98,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | falta T7, T8 |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | reservada |  |
+  | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
