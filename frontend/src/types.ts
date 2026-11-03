@@ -1676,7 +1676,11 @@ export interface BarraDeSet {
 
 /** Spec 022, RF-48: los zonales de la estructura con sus alimentadores en la entrega. */
 export interface EstructuraResumen {
-  origen: 'perfil' | 'excel' | null;
+  origen: 'perfil' | 'excel' | 'fuente' | null;
+  /** 055:RF-4: la razón de que no haya estructura. */
+  aviso?: string;
+  /** 055:RF-6: la fuente es de otra empresa y su perfil no se aplica. */
+  perfil_no_aplicado?: string;
   sin_set?: string[];
   /** 022:RF-78: los de la entrega que la tabla no traía, con la regla que los colocó. */
   deducidos?: { alimentador: string; set: string; zonal: string; regla: string }[];

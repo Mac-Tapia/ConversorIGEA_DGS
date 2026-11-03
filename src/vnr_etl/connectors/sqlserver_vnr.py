@@ -148,6 +148,8 @@ CAMPOS: dict[str, tuple[str, ...]] = {
     'empresa': ('CodEmpresa', 'Datum', 'ZonaUTM'),
     'salida': ('CodSalidaMT', 'CodSet', 'CodTenNomi', 'EtiquetaSalida'),
     'set': ('CodSet', 'Nombre', 'UTMEste', 'UTMNorte'),
+    # El sistema eléctrico con su nombre y su sector típico (055:RF-1): «empSistemaElectrico».
+    'sistema': ('CodSisElectrico', 'Nombre', 'CodSectorTipico'),
     'tramo': ('CodTramoMT', 'CodSalidaMT', 'CodTramoMTPadre', 'CodNorma'),
     'vertice': ('CodTramoMT', 'SecVertice', 'UTMEste', 'UTMNorte'),
     'sed': ('CodSed', 'CodSalidaMT', 'PotInstalada', 'UTMEste', 'UTMNorte'),
@@ -189,6 +191,7 @@ class DatosVnr:
     empresa: list[dict] = field(default_factory=list)
     salidas: list[dict] = field(default_factory=list)
     sets: list[dict] = field(default_factory=list)
+    sistemas: list[dict] = field(default_factory=list)
     tramos: list[dict] = field(default_factory=list)
     vertices: list[dict] = field(default_factory=list)
     seds: list[dict] = field(default_factory=list)
@@ -484,6 +487,23 @@ def codigos_operativos(salidas: Sequence[Mapping], avisos: list[dict]) -> dict[s
     return codigos
 
 
+def estructura_de_salidas(datos: DatosVnr, codigo_de: Mapping[str, str], cargados: set[str]) -> dict[str, dict[str, str]]:
+    """Lo que VNR-GIS dice de cada alimentador cargado: su sistema eléctrico y su SET (055:RF-1)."""
+    sets = {_s(s, 'CodSet'): s for s in datos.sets}
+    sistemas = {_s(s, 'CodSisElectrico'): s for s in datos.sistemas}
+    out: dict[str, dict[str, str]] = {}
+    for fila in datos.salidas:
+        salida = _s(fila, 'CodSalidaMT')
+        codigo = codigo_de.get(salida, salida)
+        if codigo not in cargados:
+            continue
+        cod_set, cod_sis = _s(fila, 'CodSet'), _s(fila, 'CodSisElectrico')
+        sis = sistemas.get(cod_sis) or {}
+        out[codigo] = {'sistema_codigo': cod_sis, 'sistema_nombre': _s(sis, 'Nombre'), 'sector': _s(sis, 'CodSectorTipico'),
+                       'set_codigo': cod_set, 'set_nombre': _s(sets.get(cod_set) or {}, 'Nombre')}
+    return out
+
+
 def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                     tolerancia_m: float = TOLERANCIA_M) -> tuple[CanonicalModel, list[dict]]:
     """El modelo canónico de las salidas MT pedidas (todas si ``None``) y lo anotado (RF-9, RF-10).
@@ -666,6 +686,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
             if getattr(objeto, 'feeder_id', '') in codigo_de:
                 objeto.feeder_id = codigo_de[objeto.feeder_id]
     modelo.metadata['codigo_vnr'] = {c: s for s, c in codigo_de.items() if c != s}
+    modelo.metadata['estructura_fuente'] = estructura_de_salidas(datos, codigo_de, {f.feeder_id for f in modelo.sources})
     return modelo, avisos
 
 
@@ -736,7 +757,7 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
     extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal', 'CodNorma'),
              'tramo': ('CodTenNomi',),
              'equipo': ('CodNorma', 'UTMEste', 'UTMNorte')}
-    for concepto, atributo in (('empresa', 'empresa'), ('salida', 'salidas'), ('set', 'sets'),
+    for concepto, atributo in (('empresa', 'empresa'), ('salida', 'salidas'), ('set', 'sets'), ('sistema', 'sistemas'),
                                ('tramo', 'tramos'), ('vertice', 'vertices'), ('sed', 'seds'),
                                ('enlace', 'enlaces'), ('equipo', 'equipos')):
         if concepto in red:
@@ -745,6 +766,8 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
     for cn in ([cn_param] if cn_param is not None else []) + [cn_red]:
         cols_cn = columnas(cn)
         param = tablas_por_campos(cols_cn)
+        if not datos.sistemas and 'sistema' in param:
+            datos.sistemas = filas(cn, cols_cn, param['sistema'], CAMPOS['sistema'])
         if not datos.normas and 'norma' in param:
             datos.normas = filas(cn, cols_cn, param['norma'], ('CodNorma', 'Descripcion'))
         if not datos.tensiones and 'tension' in param:

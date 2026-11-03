@@ -131,6 +131,43 @@ class Estructura:
         return None
 
 
+def estructura_de_la_fuente(filas: Mapping[str, Mapping[str, str]]) -> Estructura | None:
+    """La estructura que trae la propia fuente: cada sistema, un zonal con sus SET (055:RF-3).
+
+    Un alimentador con sistema y sin SET va a un grupo «sin SET» de su sistema, convertible como los demás. Sin sistema
+    ni SET queda fuera de la estructura: aparece «Sin SET» y se convierte uno a uno (055:RF-4, RF-5). Una SET que da
+    a dos sistemas lleva uno por sistema, porque aquí una SET es de un solo zonal.
+    """
+    sets: dict[str, SetElectrica] = {}
+    alimentadores: dict[str, AlimentadorEstructura] = {}
+    sistemas: dict[str, Sistema] = {}
+    zonales: list[str] = []
+    sistemas_de_set: dict[str, set[str]] = defaultdict(set)
+    for f in filas.values():
+        if f.get('set_codigo') and f.get('sistema_codigo'):
+            sistemas_de_set[f['set_codigo']].add(f['sistema_codigo'])
+    for codigo, f in sorted(filas.items()):
+        cod_sis, cod_set = str(f.get('sistema_codigo') or ''), str(f.get('set_codigo') or '')
+        if not cod_sis and not cod_set:
+            continue
+        zonal = str(f.get('sistema_nombre') or cod_sis or 'Sin sistema')
+        if zonal not in zonales:
+            zonales.append(zonal)
+        if cod_sis:
+            sistemas.setdefault(cod_sis, Sistema(cod_sis, zonal, str(f.get('sector') or '')))
+        if not cod_set:
+            llave, nombre = f'{zonal} sin SET', 'sin SET'
+        elif len(sistemas_de_set[cod_set]) > 1:
+            llave, nombre = f'{cod_set} ({zonal})', str(f.get('set_nombre') or '')
+        else:
+            llave, nombre = cod_set, str(f.get('set_nombre') or '')
+        sets.setdefault(llave, SetElectrica(llave, nombre, zonal))
+        alimentadores[clave(codigo)] = AlimentadorEstructura(clave(codigo), llave, cod_sis)
+    if not alimentadores:
+        return None
+    return Estructura(sorted(zonales), sets, alimentadores, sistemas)
+
+
 def clave(codigo: Any) -> str:
     """El código como se compara: sin espacios de más y en mayúsculas («PN1T2  »)."""
     return ' '.join(str(codigo or '').split()).upper()
