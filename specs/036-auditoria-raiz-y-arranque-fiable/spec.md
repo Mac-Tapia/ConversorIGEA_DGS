@@ -1,6 +1,6 @@
 # Auditoría de raíz y correcciones del arranque
 
-Estado: aprobada (2026-10-29)
+Estado: cumplida (2026-11-03)
 
 ## Motivo
 
@@ -26,3 +26,8 @@ No se reorganizan las capas de la spec 002 ni se cambia la calibración de la sp
 No se borran datos empresariales, modelos, evidencias, Git, entornos operativos ni worktrees.
 La auditoría, las correcciones documentales y el manifiesto de limpieza acompañan el cambio;
 las mediciones de carpetas corresponden al equipo y a la fecha del informe.
+
+Aclaración del 2026-11-03: el informe y el manifiesto del 2026-10-29 nunca llegaron al
+repositorio ni se encuentran en disco. El inventario se rehízo en
+`docs/AUDITORIA_RAIZ_2026-11-03.md`. No acompaña manifiesto de limpieza: la tarea T5 se
+retiró, con su motivo en `tasks.md`.
