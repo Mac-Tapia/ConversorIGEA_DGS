@@ -51,6 +51,10 @@ pf_servidor.py» y entró cuando el servidor se cerró solo a los 120 s sin órd
 
 - [x] T11. Comprobar recarga del guion y de sus módulos de herramientas entre órdenes. (RF-26)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pf_servidor.py` pasa, incluida la prueba que cambia un módulo importado entre dos órdenes.
+- [x] T14. Borrar el turno tolera que otro lo esté leyendo. (RF-28)
+      Hecho cuando: `pytest -q tests/test_pf_arnes.py` en verde.
+- [x] T13. Cada orden con el código de quien la pidió. (RF-27)
+      Hecho cuando: `pytest -q tests/test_pf_servidor.py` en verde.
 - [x] T12. [DIgSILENT] Comprobar la recarga entre órdenes del servidor real. (RF-26)
       Hecho cuando: dos órdenes reales consecutivas acreditan la versión actual del guion y sus herramientas importadas, sin reiniciar un trabajo activo ni alterar proyectos para esta comprobación.
 

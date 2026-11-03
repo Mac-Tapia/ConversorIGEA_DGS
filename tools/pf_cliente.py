@@ -79,9 +79,24 @@ def asegurar_servidor(cola: Path, espera_s: float = pf_arnes.ESPERA_S, *,
     limite = reloj() + espera_s
     proceso = None
     ultimo_aviso = None
+    propio = pf_arnes.carpeta_del_codigo(__file__)
     while True:
-        if pf_arnes.servidor_vivo():
+        vivo = pf_arnes.servidor_vivo()
+        if vivo and vivo.get('codigo') == propio:   # sin carpeta: un servidor anterior a RF-27, de otro código
             return True
+        if vivo:
+            # 019:RF-27: es de otro worktree. Lo que tenga en curso se respeta; ocioso, se le pide cerrarse.
+            pf_arnes.pedir_cierre_si_ocioso(vivo)
+            if ultimo_aviso is None or reloj() - ultimo_aviso >= pf_arnes.AVISO_S:
+                print(f"DIgSILENT lo atiende un servidor de {vivo.get('codigo') or 'otro código'}: esta orden "
+                      f'espera para correr con {propio} (019:RF-27).', flush=True)
+                ultimo_aviso = reloj()
+            if reloj() >= limite:
+                print(f'ERROR: el servidor de otro código sigue ocupado tras {espera_s / 60:.0f} min (019:RF-27).',
+                      flush=True)
+                return False
+            dormir(0.5)
+            continue
         dueno = pf_arnes.leer_turno()
         # 019:RF-19: el que ya se despidió y cierra DIgSILENT no atiende; el servidor nuevo
         # espera en su turno a que acabe de cerrarse.
@@ -141,6 +156,7 @@ def enviar(guion: str, argv: list[str], cola: Path, *, dormir=time.sleep,
     ident = ident or os.environ.get(pf_arnes.VARIABLE_ORDEN) or uuid.uuid4().hex[:12]
     tmp = cola / f'{ident}.tmp'
     tmp.write_text(json.dumps({'id': ident, 'guion': guion, 'argv': argv,
+                               'raiz': pf_arnes.carpeta_del_codigo(__file__),       # 019:RF-27
                                'cliente': os.getpid(),
                                'cliente_inicio': pf_arnes.inicio_proceso(os.getpid())}),
                    encoding='utf-8')

@@ -1483,3 +1483,19 @@ def test_con_parte_de_los_alimentadores_avisa_de_lo_que_queda_fuera(monkeypatch)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
     assert any('063:RF-40' in a and f in a for a in informe['avisos']), informe['avisos']
+
+
+def test_la_obra_inactiva_vuelve_a_cerrar_lo_que_abrio():
+    """042:RF-19 — Pisco: los tramos abiertos por la SET nueva quedaban abiertos en el escenario con la obra inactiva."""
+    from types import SimpleNamespace
+
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf19', tools_en_path=True)
+    linea, acoplador = SimpleNamespace(outserv=1), SimpleNamespace(on_off=0)
+    objetos = {'T1.ElmLne': [linea], 'A1.ElmCoup': [acoplador]}
+    app = SimpleNamespace(GetCalcRelevantObjects=lambda patron: objetos.get(patron, []))
+    fila = {'abiertos': [['ElmLne', 'T1'], ['ElmCoup', 'A1'], ['ElmLne', 'NO']]}
+    assert guion.cerrar_lo_abierto(app, fila) == ['T1', 'A1']
+    assert linea.outserv == 0 and acoplador.on_off == 1 and '042:RF-19' in fila['avisos'][0]
+    assert guion.cerrar_lo_abierto(app, {}) == []

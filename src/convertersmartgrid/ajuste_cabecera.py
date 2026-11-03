@@ -401,6 +401,8 @@ class Cuadre:
     con_q: bool = False                  # 035:RF-5: también la Q de cabecera
     q_estado: str | None = None          # Q_CUADRADA, Q_INCOHERENTE_* o Q_SIN_BASE
     q_extremo: dict[str, Any] | None = None   # 035:RF-30: el flujo que lo demostró
+    metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
+    fijas_sospechosas: bool = False                              # 083:RF-7
 
     def errores(self) -> tuple[float | None, float | None]:
         """Error relativo de kW y kVAR en la cabecera, con signo (medido − objetivo)."""
@@ -518,6 +520,65 @@ def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float,
     return cuadrado_kw(medida, objetivo, tolerancia)
 
 
+#: Cuánto queda de las escaladas al probar «casi en cero» (083:RF-7).
+FACTOR_CASI_CERO = 1e-3
+#: Por debajo de esta fracción de su factor inicial, las escaladas ya no pueden bajar más; y lo que se
+#: corrige de las fijas como mucho: más que eso no es incoherencia de medida, es un dato mal (083:RF-30).
+ESCALADAS_AL_MINIMO = 0.05
+TOPE_CORRECCION_FIJAS = 0.10
+#: El error conjunto que no baja de esta fracción del de dos flujos antes es oscilación (083:RF-12).
+SIN_MEJORA = 0.9
+
+
+def _acotar(a: float, puntos: list[tuple[float, float]], objetivo: float) -> tuple[float, bool]:
+    """El factor dentro del intervalo donde ya se sabe que está la solución (083:RF-11); ``True`` si hubo que corregirlo."""
+    debajo = [x for x, y in puntos if y < objetivo]
+    encima = [x for x, y in puntos if y > objetivo]
+    if debajo and encima:
+        lo, hi = max(debajo), min(encima)
+        if lo < hi and not lo < a < hi:
+            return (lo + hi) / 2, True
+    return a, False
+
+
+class _Broyden:
+    """Paso conjunto que aprende cómo un alimentador afecta a otro (083:RF-12); sin dependencias, con pocas claves."""
+
+    def __init__(self, claves: tuple[str, ...], pendiente: Mapping[str, float]) -> None:
+        self.claves = claves
+        self.b = [[float(pendiente[k]) if i == j else 0.0 for j in range(len(claves))] for i, k in enumerate(claves)]
+        self.x: list[float] | None = None
+        self.y: list[float] | None = None
+
+    def actualizar(self, x: list[float], y: list[float]) -> None:
+        if self.x is not None and self.y is not None:
+            dx = [p - q for p, q in zip(x, self.x, strict=True)]
+            dy = [p - q for p, q in zip(y, self.y, strict=True)]
+            nn = sum(v * v for v in dx)
+            if nn > 1e-24:
+                prod = [sum(f * v for f, v in zip(fila, dx, strict=True)) for fila in self.b]
+                for i, fila in enumerate(self.b):
+                    for j in range(len(fila)):
+                        fila[j] += (dy[i] - prod[i]) * dx[j] / nn
+        self.x, self.y = x, y
+
+    def paso(self, residuo: list[float]) -> list[float] | None:
+        """El incremento de los factores, por eliminación con pivote; ``None`` si la matriz no sirve."""
+        n = len(residuo)
+        m = [list(f) + [r] for f, r in zip(self.b, residuo, strict=True)]
+        for c in range(n):
+            p = max(range(c, n), key=lambda i: abs(m[i][c]))
+            if abs(m[p][c]) < 1e-12:
+                return None
+            m[c], m[p] = m[p], m[c]
+            for i in range(n):
+                if i != c:
+                    f = m[i][c] / m[c][c]
+                    for j in range(c, n + 1):
+                        m[i][j] -= f * m[c][j]
+        return [m[i][n] / m[i][i] for i in range(n)]
+
+
 def _siguiente(x: float, y: float, objetivo: float, puntos: list[tuple[float, float]],
                pendiente: float) -> float:
     """Secante con los dos últimos puntos que convergieron; sin dos, la pendiente sin
@@ -559,6 +620,7 @@ def cuadrar(
         reparto = reparto.con_q()
     actual = meta = reparto      # meta: adonde se quería llegar cuando dejó de converger
     escalon = mitades = 0
+    casi_cero = False
     ultimo_flujo: Reparto | None = None
 
     while res.flujos < max_flujos:
@@ -607,6 +669,8 @@ def cuadrar(
             if a <= 0:
                 # Las pérdidas y las fijas ya pasan del objetivo: no se cruza el cero de un salto.
                 a = actual.a / 2
+            a, acotado = _acotar(a, puntos_p, objetivo.kw)          # 083:RF-11
+            res.metodos['acotados'] = res.metodos.get('acotados', 0) + int(acotado)
             # Sin bancos, la asignación inicial de Q se conserva y solo P se itera (RF-12); con
             # ellos, también la Q de las escaladas hasta la medida (035:RF-5, RF-6).
             b = None
@@ -620,6 +684,16 @@ def cuadrar(
             actual = meta = actual.con_factores(a, b)
             continue
 
+        # 083:RF-7: sin ningún flujo bueno, primero las escaladas casi en cero. Si ni así, no son ellas.
+        if res.reparto is None:
+            if not casi_cero:
+                if not res.remedios:
+                    res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+                casi_cero = True
+                actual = actual.con_factores(actual.a * FACTOR_CASI_CERO, actual.b * FACTOR_CASI_CERO)
+                continue
+            res.fijas_sospechosas = True
+            mitades = MITADES
         # No converge: acercarse a medio camino desde el último reparto que convergió
         # (o desde cero, si ninguno ha convergido todavía), con el ajuste que haya.
         if mitades < MITADES:
@@ -636,6 +710,8 @@ def cuadrar(
         nombre, ajustes = ESCALERA[escalon]
         res.remedios.append({'remedio': nombre, 'cambios': list(remedio(nombre, ajustes))})
         mitades = 0
+        casi_cero = False
+        puntos_p.clear()           # 083:RF-11: otra red, otro intervalo
         actual = meta              # con el flujo más tolerante, otra vez a por el objetivo
 
     if not res.cuadrado and not res.motivo:
@@ -860,6 +936,8 @@ class CuadreConjunto:
     ajustables: tuple[str, ...] = ()
     q_estado: dict[str, str] = field(default_factory=dict)     # 035:RF-5, por clave con Q
     q_extremo: dict[str, dict[str, Any]] = field(default_factory=dict)   # 035:RF-30
+    metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
+    fijas_sospechosas: bool = False                              # 083:RF-7
 
     def desvio(self, clave: str) -> float | None:
         """Error relativo de kW de una clave en el último flujo común que convergió."""
@@ -912,6 +990,9 @@ def cuadrar_conjunto(
     puntos_q: dict[str, list[tuple[float, float]]] = {k: [] for k in con_q}
     actual = meta = {k: (r.con_q() if k in con_q else r) for k, r in repartos.items()}
     escalon = mitades = 0
+    casi_cero = False
+    errores: list[float] = []                      # 083:RF-12: el error conjunto de cada flujo bueno
+    broyden = _Broyden(ajustables, pendiente)
     ultimo: dict[str, Reparto] | None = None
     while res.flujos < max_flujos:
         if cancelado():
@@ -950,10 +1031,34 @@ def cuadrar_conjunto(
                 res.cuadrado = True
                 return res
             nuevo = dict(actual)
-            for k in ajustables:
+            errores.append(max(abs(_rel(m.kw[k], objetivos[k].kw)) for k in ajustables))  # type: ignore[arg-type]
+            broyden.actualizar([actual[k].a for k in ajustables], [float(m.kw[k]) for k in ajustables])  # type: ignore[arg-type]
+            oscila = len(ajustables) > 1 and len(errores) >= 3 and errores[-1] >= SIN_MEJORA * errores[-3]
+            paso = broyden.paso([objetivos[k].kw - float(m.kw[k]) for k in ajustables]) if oscila else None  # type: ignore[arg-type]
+            if paso is not None:
+                res.metodos['broyden'] = res.metodos.get('broyden', 0) + 1
+            for n_k, k in enumerate(ajustables):
                 r, y = actual[k], m.kw[k]
                 puntos[k].append((r.a, y))  # type: ignore[arg-type]
-                a = _siguiente(r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
+                if abs(_rel(y, objetivos[k].kw)) <= tolerancia and (k not in con_q or q_listas[k]):  # type: ignore[arg-type]
+                    # 083:RF-10: el que ya cumple no se mueve: volver a calcularlo lo sacaba de tolerancia.
+                    res.metodos['quietos'] = res.metodos.get('quietos', 0) + 1
+                    continue
+                # 083:RF-30: con las escaladas al mínimo, lo que sobra solo puede salir de las fijas.
+                suma_fijas = sum(p for p, _q in r.fijas.values())
+                exceso = float(y) - objetivos[k].kw
+                if (exceso > tolerancia * objetivos[k].kw and r.a <= ESCALADAS_AL_MINIMO * repartos[k].a
+                        and exceso <= TOPE_CORRECCION_FIJAS * suma_fijas):
+                    factor = 1 - exceso / suma_fijas
+                    nuevo[k] = replace(r, fijas={s: (p * factor, q * factor) for s, (p, q) in r.fijas.items()})
+                    res.metodos['fijas_corregidas'] = res.metodos.get('fijas_corregidas', 0) + 1
+                    puntos[k].clear()
+                    continue
+                a = (r.a + paso[n_k]) if paso is not None else _siguiente(  # 083:RF-12
+                    r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
+                if a > 0:
+                    a, acotado = _acotar(a, puntos[k], objetivos[k].kw)   # 083:RF-11
+                    res.metodos['acotados'] = res.metodos.get('acotados', 0) + int(acotado)
                 b = None
                 if k in con_q and not q_listas[k] and m.kvar.get(k) is not None:
                     b, estado = _paso_q(r, m.kvar[k], objetivos[k], puntos_q[k],  # type: ignore[arg-type]
@@ -966,6 +1071,17 @@ def cuadrar_conjunto(
                 nuevo[k] = r.con_factores(a if a > 0 else r.a / 2, b)
             actual = meta = nuevo
             continue
+        # 083:RF-7: sin ningún flujo bueno, primero las escaladas casi en cero. Si ni así, no son ellas.
+        if res.repartos is None:
+            if not casi_cero:
+                if not res.remedios:
+                    res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+                casi_cero = True
+                actual = {k: (actual[k].con_factores(actual[k].a * FACTOR_CASI_CERO, actual[k].b * FACTOR_CASI_CERO)
+                              if k in ajustables else actual[k]) for k in claves}
+                continue
+            res.fijas_sospechosas = True
+            mitades = MITADES
         if mitades < MITADES:
             if not res.remedios:
                 res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
@@ -984,6 +1100,11 @@ def cuadrar_conjunto(
         nombre, ajustes = ESCALERA[escalon]
         res.remedios.append({'remedio': nombre, 'cambios': list(remedio(nombre, ajustes))})
         mitades = 0
+        casi_cero = False
+        errores.clear()
+        broyden = _Broyden(ajustables, pendiente)
+        for k in puntos:
+            puntos[k].clear()      # 083:RF-11: otra red, otro intervalo
         actual = meta
 
     if not res.cuadrado and not res.motivo:
@@ -995,6 +1116,13 @@ def cuadrar_conjunto(
         # La red queda con los últimos repartos que convergieron (006:RF-18, RF-56).
         res.medida = flujo(res.repartos)
     return res
+
+
+def fijas_corregidas(antes: Reparto, despues: Reparto) -> list[dict[str, Any]]:
+    """Las fijas que el cuadre bajó, con lo que tenían y lo que quedan (083:RF-30)."""
+    return [{'sed': s, 'antes_kw': round(p, 1), 'despues_kw': round(despues.fijas[s][0], 1)}
+            for s, (p, _q) in sorted(antes.fijas.items())
+            if s in despues.fijas and abs(despues.fijas[s][0] - p) > max(1e-6, 1e-6 * abs(p))]
 
 
 # =========================================================================== bancos que faltan
@@ -1169,10 +1297,16 @@ def resumen_probabilistico(rep: Reparto, muestras: list[dict[str, Any]],
             'prob_tension_fuera': (sum(bandas) / len(bandas)) if bandas else None}
 
 
+#: Muestras mínimas antes de cortar por tiempo, y tope por alimentador sin perfil (083:RF-25).
+MUESTRAS_MINIMAS = 20
+TOPE_MUESTRAS_S = 180.0
+
+
 def montecarlo(rep: Reparto, prob: Probabilistico,
                cuadrar_muestra: Callable[[Reparto], tuple[Reparto | None, dict[str, Any]]],
                *, cancelado: Callable[[], bool] = lambda: False,
                progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+               tope_s: float | None = None, reloj: Callable[[], float] | None = None,
                ) -> tuple[dict[str, Any], Reparto]:
     """Los N repartos posibles cuadrados a la cabecera, su resumen y el reparto P50 (041:RF-1 a RF-7).
 
@@ -1181,10 +1315,18 @@ def montecarlo(rep: Reparto, prob: Probabilistico,
     """
     import random
 
+    import time
+
+    reloj = reloj or time.perf_counter
     azar = random.Random(prob.semilla)
     muestras: list[dict[str, Any]] = []
+    inicio = reloj()
+    cortado = None
     for i in range(prob.n):
         if cancelado():
+            break
+        if tope_s is not None and i >= MUESTRAS_MINIMAS and reloj() - inicio >= tope_s:
+            cortado = (i, reloj() - inicio)                                   # 083:RF-25
             break
         cuadrada, leido = cuadrar_muestra(muestra_de_reparto(rep, prob, azar))
         progreso(i + 1, prob.n, f'reparto probabilístico {i + 1}/{prob.n}')
@@ -1195,4 +1337,9 @@ def montecarlo(rep: Reparto, prob: Probabilistico,
     for m in muestras:
         for s, v in m['kw'].items():
             kw_por_sed.setdefault(s, []).append(v)
-    return resumen_probabilistico(rep, muestras, prob), reparto_p50(rep, kw_por_sed)
+    resumen = resumen_probabilistico(rep, muestras, prob)
+    if cortado is not None:
+        resumen['muestras_hechas'] = cortado[0]
+        resumen['aviso_tope'] = (f'{cortado[0]} de {prob.n} repartos: el tope de {tope_s:.0f} s de las muestras en DIgSILENT se '
+                                 f'alcanzó en {cortado[1]:.0f} s; el P50 es de las hechas (083:RF-25).')
+    return resumen, reparto_p50(rep, kw_por_sed)

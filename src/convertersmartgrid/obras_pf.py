@@ -47,14 +47,14 @@ BANDA_TENSION_PU = 0.01
 #: Casos en que se puede activar una obra; el «Caso base» nunca (RF-58).
 CASOS = (SIN_PROYECTO, CON_PROYECTO)
 CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension', 'enlace',
-          'migracion', 'consigna', 'set_nueva')
+          'migracion', 'consigna', 'set_nueva', 'expreso')
 #: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
 #: proyecto» (016:RF-14, RF-25, RF-53). La consigna de cabecera también (019:RF-12).
-SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva')
+SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva', 'expreso')
 #: Clase de tipo que pide cada obra (RF-89). Banco y terna no tienen tipo; la migración
 #: copia los que ya usa el alimentador.
 CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne',
-                 'enlace': 'TypLne', 'set_nueva': 'TypLne'}
+                 'enlace': 'TypLne', 'set_nueva': 'TypLne', 'expreso': 'TypLne'}
 #: De dónde puede venir un tipo (RF-89 a RF-91).
 ORIGENES = ('proyecto', 'global', 'otro')
 
@@ -375,9 +375,22 @@ def _validar_set_nueva(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obr
                 nombre_set=str(datos.get('nombre_set') or '').strip())
 
 
+def _validar_expreso(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
+    """Alimentador expreso desde la SET del alimentador hasta cada nodo (042:RF-22)."""
+    ramas = _lista(datos.get('ramas'))
+    if not ramas:
+        raise ObrasError('El alimentador expreso necesita al menos una rama (ALIMENTADOR/NODO).')
+    for r in ramas:
+        alim, _, nodo = r.partition('/')
+        if not alim.strip() or not nodo.strip():
+            raise ObrasError(f'La rama {r!r} tiene que ser ALIMENTADOR/NODO.')
+    return Obra(**comunes, ramas=ramas, tipo=_tipo_ref(datos.get('tipo'), 'expreso', requerido=False))
+
+
 VALIDADORES: dict[str, Callable[[dict[str, Any], Mapping[str, Any]], Obra]] = {
     'consigna': _validar_consigna,
     'set_nueva': _validar_set_nueva,
+    'expreso': _validar_expreso,
 }
 
 
@@ -1001,9 +1014,31 @@ def _set_nueva(p: _Plan) -> None:
                             'ramas': ramas, 'tipo': o.tipo.nombre if o.tipo else None}
 
 
+def _expreso(p: _Plan) -> None:
+    """Alimentador expreso desde la barra de media de la SET del alimentador (042:RF-22)."""
+    ramas = []
+    for texto in p.obra.ramas:
+        alim, _, nodo = texto.partition('/')
+        red = p.redes.get(alim.strip())
+        if red is None or red.topologia is None or not red.cabecera:
+            raise ObrasError(f'No se leyó la red de {alim}: no se sabe qué pasa al alimentador expreso.')
+        if nodo == red.cabecera:
+            raise ObrasError(f'El nodo {nodo} es la cabecera de {alim}.')
+        try:
+            parte = aguas_abajo(red.topologia, red.cabecera, nodo.strip())
+        except TroncalError as exc:
+            raise ObrasError(f'El nodo {nodo} no es del alimentador {alim}: {exc}.') from None
+        ramas.append({'alimentador': alim.strip(), 'nodo': nodo.strip(), 'entrada': parte.entrada,
+                      'barras': len(parte.barras)})
+        p.elemento(f'Alimentador expreso hasta {nodo}', 'ElmLne',
+                   f'nuevo, desde la barra de media de la SET de {alim} hasta {nodo}')
+        p.elemento(parte.entrada or nodo, 'ElmLne', f'se abre: la rama de {nodo} pasa al alimentador expreso')
+    p.extra['expreso'] = {'ramas': ramas, 'tipo': p.obra.tipo.nombre if p.obra.tipo else None}
+
+
 _PLANES = {'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
            'seccion': _seccion, 'terna': _terna, 'tension': _tension, 'enlace': _enlace,
-           'migracion': _migracion, 'consigna': _consigna, 'set_nueva': _set_nueva}
+           'migracion': _migracion, 'consigna': _consigna, 'set_nueva': _set_nueva, 'expreso': _expreso}
 
 
 def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],

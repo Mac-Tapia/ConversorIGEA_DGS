@@ -724,6 +724,8 @@ def test_tareas_sistema_web_de_una_set(monkeypatch):
             r = {'id': trabajo['id'], 'status': 'done', 'result': {}}
             if trabajo['id'] == '/convert/sistema':
                 r['result'] = {'status': 'ok', 'group': 'SISTEMA_VALLE_SETA'}
+            if trabajo['id'] == '/powerfactory/caso-base':
+                r['result'] = {'feeders': [{'feeder': 'F1', 'status': 'VERIFICADO'}]}
             if trabajo['id'] == '/demanda/cabecera/buscar':
                 r['result'] = {'resultados': [{'medidor': 'M1', 'alimentador': 'F1', 'kw': 1.0}], 'barras': []}
             if trabajo['id'].endswith('/aplicar'):

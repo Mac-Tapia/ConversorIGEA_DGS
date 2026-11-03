@@ -118,6 +118,13 @@ Obras enchufables
   importa, para que un cambio en cualquiera valga desde la orden siguiente sin reiniciar el
   proceso (2026-11-01: la calibración de NJA202 siguió con el `escribir_carga` anterior de
   `cargas_pf`).
+- RF-27: EL SISTEMA atenderá cada orden con el código de quien la pidió: el turno dice de qué carpeta es el servidor y la
+  orden de cuál viene. SI el servidor vivo es de otra carpeta, ENTONCES el cliente esperará a que acabe lo que tiene, le
+  pedirá cerrarse y arrancará el suyo; y un servidor que reciba una orden de otra carpeta la devolverá a la cola y se
+  cerrará. Pisco (2026-11-03): la calibración corrió 4 min con el servidor de otro worktree, sin las correcciones que se
+  querían probar, y nada lo decía.
+- RF-28: CUANDO EL SISTEMA borre el turno de un dueño muerto y otro proceso lo esté leyendo, reintentará y no se caerá. Pisco (2026-11-03): el servidor murió con
+  `PermissionError` (WinError 32) al arrancar, y la web dijo «No se pudo conectar con DIgSILENT» con DIgSILENT libre.
 - RF-11: EL SISTEMA definirá cada clase de obra en un módulo propio con su validación, su
   simulación y su construcción, registrado por nombre, sin cambiar la lógica común de
   variaciones, casos, flujos y comprobación de «Sin proyecto».

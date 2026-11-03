@@ -14,7 +14,7 @@ import math
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,7 @@ class SetElectrica:
     nombre: str                     # «El Carmen»
     zonal: str
     siglas: tuple[str, ...] = ()    # de los medidores de barra (022:RF-38): «CA»
+    clientes_alta: tuple[str, ...] = ()   # medidores de clientes de 60 kV de la SET (028:RF-35)
 
     @property
     def rotulo(self) -> str:
@@ -194,6 +195,7 @@ def estructura_de_dict(datos: Mapping[str, Any], origen: str = 'estructura') -> 
                 a = a if isinstance(a, Mapping) else {'codigo': a}
                 filas.append({'zonal': zonal, 'set': st.get('codigo'), 'set_nombre': st.get('nombre'),
                               'siglas': st.get('siglas') or [], 'alimentador': a.get('codigo'),
+                              'clientes_alta': st.get('clientes_alta') or [],
                               'sistema': a.get('sistema')})
             if not st.get('alimentadores'):
                 filas.append({'zonal': zonal, 'set': st.get('codigo'), 'set_nombre': st.get('nombre'),
@@ -225,7 +227,7 @@ def _construir(filas: Iterable[Mapping[str, Any]], sistemas: dict[str, Sistema],
             raise EstructuraError(f'{donde}: la SET {codigo_set} está en {previa.zonal} y en {zonal}.')
         if previa is None:
             sets[codigo_set] = SetElectrica(codigo_set, str(f.get('set_nombre') or '').strip(),
-                                            zonal, siglas)
+                                            zonal, siglas, tuple(f.get('clientes_alta') or ()))
         elif siglas and not set(siglas) <= set(previa.siglas):
             sets[codigo_set] = SetElectrica(previa.codigo, previa.nombre or str(f.get('set_nombre') or ''),
                                             zonal, tuple(dict.fromkeys(previa.siglas + siglas)))
@@ -262,8 +264,17 @@ def estructura_de_perfil(datos: Mapping[str, Any], base: Path | None = None) -> 
             valor = json.loads(ruta.read_text(encoding='utf-8'))
         except (OSError, ValueError) as exc:
             raise EstructuraError(f'estructura: no se puede leer {ruta.name}: {exc}') from exc
-        return estructura_de_dict(valor, ruta.name)
-    return estructura_de_dict(valor)
+        return _con_clientes_de_alta(estructura_de_dict(valor, ruta.name), datos)
+    return _con_clientes_de_alta(estructura_de_dict(valor), datos)
+
+
+def _con_clientes_de_alta(estructura: Estructura, datos: Mapping[str, Any]) -> Estructura:
+    """Los clientes de 60 kV de cada SET, del perfil local (028:RF-35): sus nombres son datos de la empresa y el repositorio es público."""
+    for codigo, nombres in (datos.get('clientes_alta_por_set') or {}).items():
+        previa = estructura.sets.get(codigo)
+        if previa is not None:
+            estructura.sets[codigo] = replace(previa, clientes_alta=tuple(nombres))
+    return estructura
 
 
 #: Columnas de la tabla en Excel (022:RF-4), por su nombre normalizado y con alias.

@@ -53,6 +53,9 @@ class WebFalsa:
         self.esperados.append(trabajo['id'])
         if trabajo['id'] == '/convert/sistema':
             return {'status': 'done', 'result': {'status': 'ok', 'group': 'SISTEMA_PISCO'}}
+        if trabajo['id'] == '/powerfactory/caso-base':
+            return {'status': 'done', 'result': {'feeders': [
+                {'feeder': 'F', 'status': getattr(self, 'caso_base', 'VERIFICADO')}]}}
         if trabajo['id'] == '/demanda/cabecera/buscar':
             return {'id': 'max', 'status': 'done', 'result': {
                 'barras': [{'clave': 'SET 31 10 kV', 'kw': 5456.3, 'fecha': '2026-07-21 18:45',
@@ -153,10 +156,29 @@ def test_convierte_importa_y_calibra_el_sistema(herramienta, capsys):
     assert web.esperados[0] == 'v', 'primero lo que estaba en curso'
     rutas = [r for _m, r in web.llamadas]
     assert rutas.index('/convert/sistema') < rutas.index('/powerfactory/flow') < rutas.index(
-        '/demanda/ajuste/plan') < rutas.index('/demanda/ajuste/t/aplicar')
+        '/powerfactory/caso-base') < rutas.index('/demanda/ajuste/plan') < rutas.index('/demanda/ajuste/t/aplicar')
     salida = capsys.readouterr().out
     assert 'Proyecto: P_PISCO' in salida and 'Sin medidor (demanda del archivo): PI101' in salida
     assert '1 válido(s), 0 con fallos.' in salida
+
+
+def test_sin_caso_base_verificado_lo_dice_y_sigue(herramienta, capsys):
+    """015:RF-13 — el guion hace el paso 1.1; si no queda verificado lo dice, y nada para el flujo."""
+    web = WebFalsa(informes=[VALIDO])
+    web.caso_base = 'NO_VERIFICADO'
+    assert _correr(herramienta, web) == 0
+    assert '/demanda/ajuste/plan' in [r for _m, r in web.llamadas]
+    assert 'sin verificar' in capsys.readouterr().out
+
+
+def test_sin_calibracion_valida_pide_los_transformadores(herramienta, capsys):
+    """083:RF-8 — con SED fijas sobre su transformador y fichas propuestas, se cambian y se repite sin la opción."""
+    malo = {'feeder': 'PI102', 'cuadrado': False, 'status': 'NO_CONVERGE', 'flujos': 3, 'fijas_sobre_su_transformador': [
+        {'sed': 'S1', 'propuesta': {'kva': 250}, 'transformadores': ['T1']}]}
+    web = WebFalsa(informes=[malo])
+    _correr(herramienta, web)
+    assert ('POST', '/demanda/ajuste/t/transformadores') in web.llamadas
+    assert '083:RF-8' in capsys.readouterr().out
 
 
 def test_retoma_el_proyecto_ya_importado(herramienta):

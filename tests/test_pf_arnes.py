@@ -416,3 +416,34 @@ def test_conectar_avisa_al_vigia_al_responder(turno):
     assert plazo == pf_arnes.CONEXION_S < 180 and ruta == turno
     assert marca.read_text(encoding='utf-8') == 'fin'
     pf_arnes.soltar_turno()
+
+
+def test_borrar_el_turno_tolera_que_otro_lo_este_leyendo(tmp_path, monkeypatch):
+    """019:RF-28 — Pisco, 2026-11-03: WinError 32 al borrar el turno de un dueño muerto tumbaba el servidor."""
+    from pathlib import Path
+
+    from convertersmartgrid import pf_arnes
+
+    ruta = tmp_path / 'turno'
+    ruta.write_text('{}', encoding='utf-8')
+    original, fallos = Path.unlink, []
+
+    def ocupado(self, *a, **k):
+        if len(fallos) < 2:
+            fallos.append(1)
+            raise PermissionError(32, 'en uso')
+        return original(self, *a, **k)
+
+    monkeypatch.setattr(Path, 'unlink', ocupado)
+    monkeypatch.setattr(pf_arnes.time, 'sleep', lambda _s: None)
+    pf_arnes._borrar_turno(ruta)
+    assert fallos == [1, 1] and not ruta.exists()
+
+    # Si sigue ocupado no se cae: el bucle del turno lo reintenta.
+    ruta.write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(Path, 'unlink', lambda self, *a, **k: (_ for _ in ()).throw(PermissionError(32, 'en uso')))
+    pf_arnes._borrar_turno(ruta)
+    monkeypatch.setattr(Path, 'unlink', original)
+    assert ruta.exists()
+    pf_arnes._borrar_turno(ruta)
+    pf_arnes._borrar_turno(ruta)        # ya no existe: tampoco falla

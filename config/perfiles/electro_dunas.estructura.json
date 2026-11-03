@@ -59,7 +59,7 @@
         {"codigo": "PA108", "sistema": "SE2046"}, {"codigo": "PA109", "sistema": "SE2046"},
         {"codigo": "PA110", "sistema": "SE2046"}, {"codigo": "PA111", "sistema": "SE2046"},
         {"codigo": "PA217", "sistema": "SE2046"}, {"codigo": "PA218", "sistema": "SE2046"}]},
-      {"codigo": "SEIN", "nombre": "", "siglas": ["SI"], "alimentadores": [
+      {"codigo": "SEIN", "nombre": "", "siglas": ["SI", "INDP"], "alimentadores": [
         {"codigo": "SI112", "sistema": "SE1046"}, {"codigo": "SI213", "sistema": "SE1046"},
         {"codigo": "SI114", "sistema": "SE1046"}]},
       {"codigo": "SET 34", "nombre": "", "siglas": [], "alimentadores": [

@@ -123,12 +123,37 @@ alimentador o barra de cabecera»)
 - RF-31: DONDE el análisis sea de sistema eléctrico, EL SISTEMA calibrará todas sus SET en un único instante: el de la mayor
   suma coincidente de sus barras de 60 kV; una SET sin medidor de 60 kV no fija el instante, se calibra en él y lo avisará.
   Una barra con huecos cuenta donde tiene registro y no descarta las demás fechas; SI no tiene el registro del instante,
-  ENTONCES no suma y lo avisará. SI un alimentador no tiene registro en el instante, ENTONCES no se le atribuirá otro y lo
-  nombrará. SI ninguna SET tiene barra de 60 kV, ENTONCES lo dirá y no buscará.
+  ENTONCES no suma y lo avisará. Un alimentador sin registro en el instante sigue RF-38. SI ninguna SET tiene barra de 60 kV, ENTONCES lo dirá y no buscará.
 - RF-32: DONDE el análisis sea de dos o tres alimentadores, EL SISTEMA buscará por defecto el instante común de RF-28 y dará
   un desplegable con la máxima de la cabecera de cada seleccionado; CUANDO el operador elija una, TODOS los medidores se
   leerán en ese instante, y podrá volver al de por defecto. Usuario, 2026-11-02: «esto debería ser manual desde la cabecera
   con la selección desplegable, pero por defecto está bien así».
+- RF-33: DONDE el análisis sea de sistema eléctrico, EL SISTEMA leerá del libro de medidores las líneas LT de 60 kV: la
+  fila con sufijo «_L» o «-L» en su código o su SET es la llegada a las barras, y «_S» o «-S» la salida de la línea; su SET
+  sale de la columna SET sin el prefijo «LT» ni el sufijo (LTSET25_L → SET 25). Usuario, 2026-11-03: «los que comienzan con
+  s son de mediciones de la línea LT salidas y l son llegada a las barras».
+- RF-34: SI una SET del sistema no tiene medidor de barra de 60 kV y sí LT de llegada, ENTONCES EL SISTEMA obtendrá su
+  aporte por balance: sus llegadas menos sus salidas, menos sus clientes de alta; y, si el libro no da otras salidas que las
+  mismas llegadas, menos además las barras de 60 kV de las demás SET del sistema, porque esa línea es la entrada de todo el
+  sistema y sumarla entera contaría dos veces lo de ellas. Una fecha sin registro de alguno de esos medidores no se usa.
+  Usuario, 2026-11-03: «si hazlo por balance».
+- RF-35: EL SISTEMA leerá los clientes de alta de cada SET de `clientes_alta_por_set` en el perfil local (el repositorio es público) o de la estructura de la empresa (`clientes_alta`), porque el
+  libro no dice de qué SET son; no mueven el instante del sistema, que es el de la red de sus alimentadores.
+- RF-36: EL SISTEMA sumará al instante del sistema, en cada fecha, la generación coincidente de sus centrales térmicas,
+  de barra o de tramo, porque la barra de 60 kV mide lo neto; un hueco de una central no descarta la fecha. Usuario,
+  2026-11-03: «debe incluir las coincidentes para las centrales térmicas».
+- RF-37: EL SISTEMA hará todo lo anterior para cualquier sistema eléctrico y cualquier empresa, al calibrar y al
+  recalibrar, sin nombres de medidores ni de SET en el código. SI dos SET de un sistema necesitan balance y ninguna tiene
+  salidas propias, ENTONCES no se puede repartir: lo dirá y esas SET no fijarán el instante.
+- RF-38: SI en el análisis de sistema eléctrico un alimentador no tiene medida positiva en el instante del sistema, y solo
+  entonces, EL SISTEMA tomará su máxima del mes de ese instante y, si ese mes tampoco la tiene, la de su periodo; lo nombrará
+  con la fecha tomada, y sin ninguna medida en el periodo lo dirá. Usuario, 2026-11-03: «debe buscar en el mes de máxima
+  medición de los que no tienen, solo cuando ocurre eso» y «nada de quedar sin carga». Cambia lo dicho en RF-31.
+- RF-39: DONDE el análisis sea de sistema eléctrico, EL SISTEMA no fijará el instante en un registro de maniobra: el que tenga
+  algún alimentador a más de 3 rangos intercuartílicos de sus cuartiles (021:RF-32), porque es una transferencia de carga y no su
+  demanda. Dirá cuántos descartó; SI quedaran todos fuera, ENTONCES no filtrará. Pisco (2026-11-03): la máxima cruda del año, el
+  10-abr 12:00, tenía a PA110 en 3 408 kW con su red para 885 kW y a PA218 en 2 864 kW, y los dos quedaban sin calibrar. Usuario:
+  «deben entrar todos, analizar las mediciones y corregirlos».
 
 ## Fuera de alcance
 

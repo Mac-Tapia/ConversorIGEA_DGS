@@ -284,3 +284,16 @@ def test_el_crecimiento_tira_hacia_donde_estan_las_cargas_nuevas():
     otra = sn.ubicacion_optima(existentes, nuevas, incremento_kw=200_000.0, zona_m=1000.0,
                                sorteos=30, semilla=1)
     assert (otra['lat'], otra['lon'], otra['dispersion_m']) == (mucho['lat'], mucho['lon'], mucho['dispersion_m'])
+
+
+def test_las_cargas_se_agrupan_por_zona_geografica():
+    """042:RF-21 — Pisco: Salud Huaytará a 90 km no va con las de Pisco; sin radio, una sola zona."""
+    from convertersmartgrid.set_nueva import zonas_de_carga
+
+    cargas = [{'sed': 'A', 'kw': 4900, 'lat': -13.7654, 'lon': -76.1704},
+              {'sed': 'B', 'kw': 2100, 'lat': -13.7082, 'lon': -76.1582},
+              {'sed': 'C', 'kw': 658, 'lat': -13.6033, 'lon': -75.3437},
+              {'sed': 'D', 'kw': 300, 'lat': None, 'lon': None}]
+    zonas = zonas_de_carga(cargas, 10)
+    assert sorted(sorted(c['sed'] for c in z) for z in zonas) == [['A', 'B'], ['C'], ['D']]
+    assert zonas_de_carga(cargas, None) == [cargas]

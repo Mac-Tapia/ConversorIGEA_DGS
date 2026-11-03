@@ -673,11 +673,17 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
     """
     s = math.hypot(p_mw, q_mvar)
     cos = abs(p_mw) / s if s else 1.0
+    fases = ('r', 's', 't')
+    p_old = [float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in fases]
+    q_old = [float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in fases]
+    if int(getattr(obj, 'i_sym', 0) or 0) == 1 and str(getattr(obj, 'phtech', '') or '').startswith('3PH') and all(
+            max(v) - min(v) <= 1e-6 * max(map(abs, v)) for v in (p_old, q_old)):
+        # 054:RF-12: las fases son dato de la red, comunes a todos los casos, y P y Q del modo son del escenario. Con las
+        # fases reescritas, el «Caso base» de Pisco (2026-11-03) consumía 148,9 MW de la base calibrada en vez de sus
+        # 27,4 MW, y no convergía. Una trifásica con fases iguales es equilibrada: su potencia va en el escenario.
+        obj.i_sym = 0
     if int(getattr(obj, 'i_sym', 0) or 0) == 1:
         # Desequilibrada: P y Q por fase son los datos; se conserva el reparto.
-        fases = ('r', 's', 't')
-        p_old = [float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in fases]
-        q_old = [float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in fases]
         sp, sq = sum(p_old), sum(q_old)
         p_new = [x * p_mw / sp for x in p_old] if sp else [p_mw / 3.0] * 3
         q_new = [x * q_mvar / sq for x in q_old] if sq else [q_mvar / 3.0] * 3
@@ -686,7 +692,11 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
             setattr(obj, f'qlini{f}', qv)
         # DIgSILENT guarda la fase sin carga como 8·10⁻¹¹, no como 0 (W2875143 de NJA202,
         # 2026-11-01): una fase cuenta si pasa de una millonésima de la mayor.
-        if sum(1 for x in p_old if abs(x) > 1e-6 * max(map(abs, p_old), default=0.0)) == 3:
+        # 054:RF-11: las tres fases con valor no la hacen trifásica: una SED monofásica con 0 kW en el archivo las
+        # recibe a partes iguales, y volviendo aquí no se escribía su modo: 194 de 228 de CHI201 sin carga (2026-11-03).
+        tecnica = str(getattr(obj, 'phtech', '') or '')
+        no_trifasica = bool(tecnica) and not tecnica.startswith('3PH')
+        if not no_trifasica and sum(1 for x in p_old if abs(x) > 1e-6 * max(map(abs, p_old), default=0.0)) == 3:
             return
         # Una SED monofásica o bifásica sin tipo de carga queda «1PH PH-E» y el flujo consume
         # sus entradas de modo (``plini`` y ``coslini`` en PC), no sus fases (054, medido en
@@ -1078,6 +1088,21 @@ def _troncales(alims: Alimentadores):
     return de
 
 
+def es_trifasica(barra) -> bool:
+    """Si la barra lleva las tres fases (``phtech`` 0, como la escribe el DGS, 054:RF-10)."""
+    return int(getattr(barra, 'phtech', 0) or 0) == 0
+
+
+def barra_para_sed_nueva(sed: str, barra, cercanas: list, punto) -> tuple | None:
+    """``(barra, distancia)`` trifásica para una SED nueva con el contrato común (081:RF-8), o ``None`` si no hay."""
+    from convertersmartgrid.comprobacion_fases import Barra, ubicar_nuevo
+
+    opciones = ({b.loc_name: (b, distancia_m(pos, punto)) for b, pos, _interna in cercanas if es_trifasica(b)}
+                if punto is not None else {})
+    u = ubicar_nuevo('SED', sed, 3, Barra(barra.loc_name, 2), [(Barra(n, 3), d) for n, (_b, d) in opciones.items()])
+    return opciones[u.barra] if u.reubicado else None
+
+
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None,
                     minima_m: float | None = None):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
@@ -1261,6 +1286,15 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             no_creadas.append({'sed': sed, 'motivo': 'sin barra ni coordenadas'})
             continue
         feeder, barra, dist, criterio = eleccion
+        if not es_trifasica(barra):
+            # 054:RF-10: la SED nueva es trifásica; en un ramal de dos fases dejaba sin flujo todo el proyecto.
+            otra = barra_para_sed_nueva(sed, barra, cercanas[feeder], punto)
+            if otra is None:
+                no_creadas.append({'sed': sed, 'motivo': f'{barra.loc_name} no tiene las tres fases y '
+                                                         'no hay otra barra trifásica con GPS (054:RF-10)'})
+                continue
+            barra, dist = otra
+            conexion, criterio = None, f'barra trifásica más cercana: {barra.loc_name} no tiene las tres fases'
         tipo, origen_tipo = None, ''
         if con_cable(dist):                        # hace falta una línea de enlace (RF-88)
             if fila.get('tipo_linea') and fila['tipo_linea'] in tipos:

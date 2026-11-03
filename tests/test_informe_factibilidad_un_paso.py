@@ -484,3 +484,24 @@ def test_el_informe_prepara_solo_su_alimentador_sin_pasar_por_4_2(monkeypatch, t
     assert vistos == [('plan', f'PRY{k}', [elegido], list(services.ESTUDIOS_DEL_INFORME),
                        {'id': f'disco:PRY{k}', 'feeders': alims}), ('ejecutar', f't{k}')]
     assert set(services.ESTUDIOS_DEL_INFORME) == {'flujo', 'flujo_desequilibrado'}
+
+
+def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
+    """042:RF-17 — por encima del umbral, si el operador pide la escalera, se busca carga a carga."""
+    from convertersmartgrid.web import services
+
+    aplicadas = [{'sed': 'C0', 'alimentador': 'AL1', 'kw': 25_000.0, 'kvar': 0.0, 'barra': 'N0', 'variacion': 'Carga_0', 'sola': False}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+                        lambda: {'planificacion': {'set_nueva_desde_kw': 10_000}})
+    vistos = {}
+    monkeypatch.setattr(services, 'optimizar_con_proyecto',
+                        lambda *a, **k: vistos.setdefault('escalera', {'caben': 1, 'a_set_nueva': []}))
+    monkeypatch.setattr(services, 'set_nueva_proponer', lambda *a, **k: {'avisos': []})
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+    services.con_proyecto_optimizar(object(), Ctx(), 'P', ['AL1'], escalera_primero=True)
+    assert 'escalera' in vistos

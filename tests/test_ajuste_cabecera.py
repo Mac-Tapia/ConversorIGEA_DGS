@@ -337,8 +337,8 @@ def test_no_converge_se_acerca_en_pasos():
     red = RedDeJuguete(limite=2500.0)        # el reparto sin pérdidas ya pasa del límite
     res = cuadrar(r, o, red.flujo, remedio=red.remedio, max_flujos=60)
     assert res.remedios[0] == {'remedio': ESCALERA[0][0], 'cambios': []}
-    # El primer flujo no converge y el segundo va a medio camino desde cero.
-    assert res.historial[1]['a'] == pytest.approx(res.historial[0]['a'] / 2)
+    # 083:RF-7: el primer flujo no converge y el segundo prueba las escaladas casi en cero.
+    assert res.historial[1]['a'] == pytest.approx(res.historial[0]['a'] * 1e-3)
     # Solo después de MITADES flujos sin converger se toca el flujo de carga.
     fallidos = [i for i, h in enumerate(res.historial, 1) if not h['converge']]
     assert red.flujos_antes[0] >= fallidos[MITADES - 1]

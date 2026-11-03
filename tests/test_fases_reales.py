@@ -46,6 +46,101 @@ def test_ayudas_de_fases():
     assert dgs.it2p_de('ABC', 'ABC') == {'it2p1': 0, 'it2p2': 1, 'it2p3': 2}
 
 
+def test_sed_de_una_fase_que_no_llega_toma_las_del_ramal_en_txt_y_mdb():
+    """054:RF-9 — en el modelo común, no solo en VNR-GIS: una SED C en un ramal AB (Pisco) dejaba su baja a 0 p.u."""
+    from dataclasses import replace
+
+    from convertersmartgrid.fases_red import fases_desde_la_cabecera
+    from convertersmartgrid.model import Line, Load, _fases_coherentes
+
+    def linea(i, a, b, fase):
+        return Line(i, a, b, fase, 'T', 'T', 1.0, True)
+
+    def carga(i, nodo, fase):
+        return Load(i, i, '', '', nodo, .01, 0., 1., 10., 0., fase, sed_code=i)
+
+    lineas = [linea('T0', 'H', 'N0', 'ABC'), linea('R1', 'N0', 'N1', 'AB'), linea('R2', 'N1', 'N2', 'A'),
+              linea('R3', 'N2', 'N3', 'C')]                # otra letra: toma la del padre
+    cargas = [carga('S1', 'N1', 'C'), carga('S2', 'N0', 'C'), carga('S3', 'N1', 'AB'), carga('S4', 'ISLA', 'C')]
+    nuevas, resultado, avisos = _fases_coherentes('F', 'H', lineas, cargas)
+    assert {x.section_id: x.phase for x in nuevas}['R3'] == 'A'
+    assert [x.phase for x in resultado] == ['A', 'C', 'AB', 'C']       # la isla no se toca: nadie sabe qué le llega
+    assert 'FASE_RECONSTRUIDA' in avisos[0] and '1 tramo' in avisos[0] and '1 SED' in avisos[0]
+    # Cada SED con su alimentador, su fase original y la asignada, para el informe de conversión.
+    assert avisos[1:] == ['F: FASE_RECONSTRUIDA, S1: fase C → A.']
+    # Tres tras uno: devuelve sus fases aguas arriba, hasta un tramo que las tenga.
+    cambiados, en_nodo = fases_desde_la_cabecera(
+        [('A', 'H', 'N', 'ABC'), ('B', 'N', 'M', 'A'), ('C', 'M', 'P', 'ABC')], 'H')
+    assert cambiados == {'B': 'ABC'} and en_nodo['P'] == 'ABC'
+    # Lo coherente no cambia ni se anota, con cualquier código: los objetos son los mismos.
+    bien = [replace(lineas[0], phase='7'), replace(lineas[1], phase='4')]
+    nuevas, cargas_ok, avisos = _fases_coherentes('F', 'H', bien, [carga('S', 'N1', '1')])
+    assert nuevas == bien and cargas_ok[0].phase == '1' and avisos == []
+
+
+@pytest.mark.parametrize('layout', ('reducido', 'completo'))
+@pytest.mark.parametrize('semilla', (1, 7, 23))
+def test_fases_que_llegan_en_las_dos_disposiciones_y_con_cualquier_numero_de_workers(tmp_path, layout, semilla):
+    """054:RF-9 — con un tamaño sorteado, ningún tramo ni SED del TXT queda con fases que no le llegan, y el DGS es
+    idéntico byte a byte con uno y con varios procesos."""
+    import random
+
+    from synthetic_export import ExportSpec, load_export
+
+    from convertersmartgrid.fases_red import fases_desde_la_cabecera
+    from convertersmartgrid.model import build_feeder_model, decode_phase
+
+    azar = random.Random(semilla)
+    spec = ExportSpec(feeders=azar.randint(2, 4), sections_per_feeder=azar.randint(4, 9),
+                      loads_per_feeder=azar.randint(2, 4), layout=layout)
+    ds = load_export(spec, tmp_path / 'export')
+    feeders = sorted(ds.feeders)
+    for red in feeders:
+        m = build_feeder_model(ds, red, strict=False)
+        tramos = [(x.section_id, x.from_node, x.to_node, decode_phase(x.phase) or 'ABC') for x in m.lines]
+        cambiados, en_nodo = fases_desde_la_cabecera(tramos, m.source_node)
+        assert cambiados == {}, 'lo reconstruido ya no se tiene que reconstruir'
+        for c in m.loads:
+            if c.node_id in en_nodo:
+                assert set(decode_phase(c.phase) or 'ABC') <= set(en_nodo[c.node_id])
+    uno, varios = tmp_path / 'uno', tmp_path / 'varios'
+    convert_selection(ds, feeders, uno, workers=1, source_crs='EPSG:32718')
+    convert_selection(ds, feeders, varios, workers=2, source_crs='EPSG:32718')
+    dgs_uno = sorted(uno.rglob('*.dgs'))
+    assert dgs_uno and [x.name for x in dgs_uno] == [x.name for x in sorted(varios.rglob('*.dgs'))]
+    for x in dgs_uno:
+        assert x.read_bytes() == next(varios.rglob(x.name)).read_bytes()
+
+
+def test_carga_monofasica_con_tres_fases_con_valor_recibe_su_potencia():
+    """054:RF-11 — decide su técnica, no cuántas fases tienen valor; la trifásica no toca su modo (tres_fases)."""
+    import importlib.util
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    ruta = Path(__file__).resolve().parents[1] / 'tools' / 'cargas_pf.py'
+    spec = importlib.util.spec_from_file_location('cargas_pf_prueba', ruta)
+    guion = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guion)
+
+    def carga(tecnica):
+        return SimpleNamespace(i_sym=1, mode_inp='PC', phtech=tecnica, plini=1e-10, coslini=.97, pf_recap=0,
+                               plinir=.008, plinis=.008, plinit=.008, qlinir=.002, qlinis=.002, qlinit=.002)
+
+    mono = carga('1PH PH-E')
+    guion.escribir_carga(mono, .0245, .004975)
+    assert mono.plini == pytest.approx(.0245)
+    # 054:RF-12: la trifásica de fases iguales va al escenario y no reescribe las fases compartidas entre casos.
+    tres = carga("3PH-'D'")
+    guion.escribir_carga(tres, .03, .006)
+    assert tres.i_sym == 0 and tres.plini == pytest.approx(.03) and tres.plinir == pytest.approx(.008)
+    # Con fases distintas conserva su reparto (054:RF-12).
+    distinta = carga("3PH-'D'")
+    distinta.plinir, distinta.plinis, distinta.plinit = .01, .02, .03
+    guion.escribir_carga(distinta, .12, .006)
+    assert distinta.i_sym == 1 and distinta.plinit == pytest.approx(.06)
+
+
 def test_un_acoplador_lleva_las_fases_de_sus_dos_barras():
     """054:RF-3 — trifásico entre trifásicas, como siempre; entre una trifásica y una monofásica, monofásico."""
     assert dgs.fases_de_union('ABC', 'ABC') == 'ABC'

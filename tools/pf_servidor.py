@@ -203,6 +203,12 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
                    'ya no la espera (019:RF-17).')
             en_curso.unlink(missing_ok=True)
             continue
+        raiz = orden.get('raiz')
+        if raiz and os.path.normcase(raiz) != pf_arnes.carpeta_del_codigo(__file__):
+            # 019:RF-27: atenderla aquí la correría con otro código; su cliente arranca el suyo.
+            en_curso.replace(fichero)
+            _decir(f"Orden {orden['id']} es de {raiz}, no de este servidor: vuelve a la cola y se cierra (019:RF-27).")
+            return 0
         _decir(f"Orden {orden['id']}: {orden['guion']}")
         inicio = reloj()
         try:

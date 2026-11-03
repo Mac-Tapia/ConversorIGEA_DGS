@@ -1512,6 +1512,50 @@ def _hojas_de_maestro(libro: Any, path: Path | str) -> tuple[list[tuple[str, str
             if _texto(f, i_sum) and _texto(f, i_hoja)], []
 
 
+#: Hojas de un libro de clientes que no son de un cliente.
+_HOJAS_NO_DE_CLIENTE = {'resumen', 'data', 'resultados', 'buscar', 'maestro lib', 'no exportados'}
+
+
+def _hojas_por_contenido(libro: Any, codigos: Iterable[str]) -> dict[str, str]:
+    """Código de cliente → hoja, por lo que dice cada hoja en su cabecera (083:RF-14).
+
+    Los libros sin «maestro_lib» llevan el código del cliente en sus primeras filas, y el nombre de la hoja no lo dice
+    («Iqf_181546» es 181000546; «Admacon» es 281000289). Solo mira hasta la fila de títulos.
+    """
+    buscados = {clave_codigo(c) for c in codigos}
+    hojas: dict[str, str] = {}
+    for hoja in libro.sheet_names:
+        if normalizar(hoja) in _HOJAS_NO_DE_CLIENTE:
+            continue
+        for fila in _filas(libro, hoja)[:6]:
+            for celda in fila:
+                texto = str(celda).strip()
+                if texto.endswith('.0'):
+                    texto = texto[:-2]
+                clave = clave_codigo(texto) if texto else ''
+                if clave in buscados:
+                    hojas.setdefault(clave, hoja)
+    return hojas
+
+
+def _columnas_de_hoja(datos: Sequence[Sequence[Any]]) -> dict[str, int] | None:
+    """Las columnas del registro de un cliente, en sus dos disposiciones (083:RF-14).
+
+    La moderna: «FECHA, HORA, EA, ERI, POT». La de los libros .xlsb: «día, hora», con los datos ya por su factor de
+    medición en el último grupo «EA, ERI, ERC, Pot» de la fila de arriba; el primero aún no lo lleva.
+    """
+    for i, fila in enumerate(datos[:FILAS_CABECERA]):
+        nombres = [normalizar(c) for c in fila]
+        if {'fecha', 'hora', 'eri', 'pot'} <= set(nombres):
+            return {n: j for j, n in enumerate(nombres)}
+        if i and {'dia', 'hora'} <= set(nombres):
+            arriba = [normalizar(c) for c in datos[i - 1]]
+            grupo = {n: max((j for j, x in enumerate(arriba) if x == n), default=None) for n in ('ea', 'eri', 'pot')}
+            if None not in grupo.values():
+                return {'dia': nombres.index('dia'), 'hora': nombres.index('hora'), **grupo}
+    return None
+
+
 def _instante_de_hoja(fecha: Any, hora: Any) -> datetime | None:
     """FECHA y HORA de una hoja de cliente: en los libros reales vienen como texto
     («01/06/2026», «00:15»), y otras exportaciones las dan como fecha y hora."""
@@ -1610,23 +1654,27 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     libro = _abrir(path)
     pares, avisos = _hojas_de_maestro(libro, path)
     hoja_de = {clave_codigo(codigo): hoja for codigo, hoja in pares}
+    if faltan := [c for c in pot_de if clave_codigo(c) not in hoja_de]:
+        hoja_de.update(_hojas_por_contenido(libro, faltan))           # 083:RF-14
     out: dict[str, tuple[str, float, float | None] | None] = {}
     for codigo, pot in pot_de.items():
         hoja = hoja_de.get(clave_codigo(codigo))
         if not hoja or pot is None or hoja not in libro.sheet_names:
             continue
         datos = _filas(libro, hoja)
-        cols = next(({n: j for j, n in enumerate(normalizar(c) for c in f)}
-                     for f in datos[:FILAS_CABECERA]
-                     if {'fecha', 'hora', 'eri', 'pot'} <= {normalizar(c) for c in f}), None)
+        cols = _columnas_de_hoja(datos)
         if cols is None:
             avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA, ERI y POT.')
             continue
         fila = None
         if instante is not None:
             buscado = (instante.strftime('%d/%m/%Y'), instante.strftime('%H:%M'))
-            fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
-                        None)
+            if 'fecha' in cols:
+                fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
+                            None)
+            else:                                                     # 083:RF-14: el día del mes del libro
+                fila = next((f for f in datos if numero(_celda(f, cols['dia'])) == instante.day
+                             and _texto(f, cols['hora'])[:5] == buscado[1]), None)
             if fila is None and solo_instante:
                 out[codigo] = None
                 continue
@@ -1647,7 +1695,9 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
             continue
         ea = numero(_celda(fila, cols['ea'])) if 'ea' in cols else None
         kw = ea * 4.0 if en_el_instante and ea is not None else None
-        out[codigo] = (f"{_texto(fila, cols['fecha'])} {_texto(fila, cols['hora'])}".strip(), eri * 4.0, kw)
+        cuando = _texto(fila, cols['fecha']) if 'fecha' in cols else (
+            instante.strftime('%d/%m/%Y') if en_el_instante else f"día {_texto(fila, cols['dia'])}")
+        out[codigo] = (f"{cuando} {_texto(fila, cols['hora'])}".strip(), eri * 4.0, kw)
     return out, avisos
 
 
@@ -1984,6 +2034,50 @@ def leer_medidores_de_barra(path: Path | str, alias=ALIAS) -> list[MedidorBarra]
     return []
 
 
+@dataclass(frozen=True)
+class MedidorLinea:
+    """Una línea LT de 60 kV del libro de medidores: llegada a las barras o salida (028:RF-33)."""
+
+    medidor: str
+    kv: float | None
+    set_texto: str
+    sentido: str                    # «L» llegada, «S» salida
+
+
+_SENTIDO_LT = re.compile(r'[_\-\s]([LS])$')
+
+
+def leer_medidores_de_linea(path: Path | str, alias=ALIAS) -> list[MedidorLinea]:
+    """Las filas de LT del libro: de subtransmisión, que no son barra ni central, con su sentido (028:RF-33).
+
+    Las de barra las lee :func:`leer_medidores_de_barra`, que descartaba estas: en Pisco (2026-11-03) la SET Independencia no
+    tiene medidor de barra de 60 kV, sino L-6605 y L-6606, y no contaba en el instante del sistema.
+    """
+    libro = _abrir(path)
+    for hoja in libro.sheet_names:
+        filas = _filas(libro, hoja)
+        hallada = _buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
+                                   ('alimentador', 'medidor'))
+        if hallada is None:
+            continue
+        i, cols = hallada
+        out: list[MedidorLinea] = []
+        for fila in filas[i + 1:]:
+            codigo = ' '.join(_texto(fila, cols['alimentador']).split()).upper()
+            med = ' '.join(_texto(fila, cols['medidor']).split())
+            kv = numero(_celda(fila, cols.get('nivel')))
+            if not med or 'BARRA' in codigo or med.upper().startswith('CT') or kv is None:
+                continue
+            if not KV_MAX_MEDIA < kv <= KV_MAX_SUBTRANSMISION:
+                continue
+            texto = ' '.join(_texto(fila, cols.get('siglas')).split()).upper()
+            m = _SENTIDO_LT.search(codigo) or _SENTIDO_LT.search(texto)
+            if m:
+                out.append(MedidorLinea(med, kv, _SENTIDO_LT.sub('', texto), m.group(1)))
+        return out
+    return []
+
+
 def transformador_de(medidor: str, rotulo: str = '') -> str:
     """El transformador de la SET que mide un medidor de barra (022:RF-87): «T1», «T2» o
     «T3». Lo dice el rótulo («Barra60KV_T2») o el nombre del medidor (B-PA6T2, CAB1T2,
@@ -2177,6 +2271,63 @@ def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
     return [b for b in barras.values() if b.alimentadores or b.clave in usadas], avisos
 
 
+@dataclass
+class BalanceLinea:
+    """Una SET sin barra de 60 kV que aporta por el balance de sus LT (028:RF-34)."""
+
+    set_codigo: str
+    kv: float
+    llegadas: list[str]
+    salidas: list[str]
+    clientes: list[str]
+    alimentadores: list[str]
+
+
+def balances_de_linea(estructura, lineas: Sequence[MedidorLinea], barras: Sequence[BarraMedida],
+                      alimentadores: Sequence[str]) -> tuple[list[BalanceLinea], list[str]]:
+    """Las SET de los alimentadores pedidos sin barra de 60 kV y con LT de llegada (028:RF-33, RF-34, RF-35)."""
+    con_alta = {b.set_codigo for b in barras if b.alta}
+    por_set: dict[str, list[MedidorLinea]] = {}
+    for ln in lineas:
+        t = re.sub(r'^LT\s*', '', ln.set_texto)
+        st = (estructura.set_de_texto(t) or estructura.set_de_texto(re.sub(r'^SET\s*', '', t))) if t else None
+        if st is not None:
+            por_set.setdefault(st.codigo, []).append(ln)
+    de_set: dict[str, list[str]] = {}
+    for f in alimentadores:
+        st = estructura.set_de(f)
+        if st is not None and st.codigo not in con_alta and st.codigo in por_set:
+            de_set.setdefault(st.codigo, []).append(f)
+    salen: list[BalanceLinea] = []
+    for codigo, feeders in sorted(de_set.items()):
+        llegadas = list(dict.fromkeys(x.medidor for x in por_set[codigo] if x.sentido == 'L'))
+        if llegadas:
+            # La misma línea puede venir dos veces, por sus dos extremos: no es una salida de esta SET.
+            salidas = list(dict.fromkeys(x.medidor for x in por_set[codigo]
+                                         if x.sentido == 'S' and x.medidor not in llegadas))
+            salen.append(BalanceLinea(codigo, float(por_set[codigo][0].kv or 0.0), llegadas, salidas,
+                                      list(estructura.sets[codigo].clientes_alta), feeders))
+    sin_salidas = [b for b in salen if not b.salidas]
+    if len(sin_salidas) > 1:
+        return ([b for b in salen if b.salidas],
+                [f'{", ".join(b.set_codigo for b in sin_salidas)}: sin barra de 60 kV y sin salidas propias; '
+                 'el balance de sus LT no se puede repartir y no fijan el instante (028:RF-37).'])
+    return salen, []
+
+
+def curva_de_balance(llegadas: Sequence[Curva], restar: Sequence[Curva]) -> list[tuple[datetime, float, None]]:
+    """Llegadas menos lo demás, registro a registro; solo en las fechas que tienen todos (028:RF-34).
+
+    Con un hueco de lo que se resta, el balance saldría inflado y podría fijar él el instante.
+    """
+    a_kw = [{f: kw for f, kw, _q in c if f is not None and kw is not None} for c in llegadas]
+    b_kw = [{f: kw for f, kw, _q in c if f is not None and kw is not None} for c in restar]
+    if not a_kw:
+        return []
+    comunes = set(a_kw[0]).intersection(*a_kw[1:], *b_kw)
+    return [(f, sum(d[f] for d in a_kw) - sum(d[f] for d in b_kw), None) for f in sorted(comunes)]
+
+
 def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | None]]],
                       fecha: datetime) -> dict[str, Any] | None:
     """La suma de los medidores de una barra en una fecha y hora dada (022:RF-84): la de 22,9
@@ -2190,7 +2341,25 @@ def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | N
             'kvar': sum((p[1] or 0.0) for p in puntos), 'registros': 1}
 
 
-def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], periodo: str | None = None
+def registros_de_maniobra(curvas: Sequence[Curva]) -> set[datetime]:
+    """Los registros con algún medidor fuera de lo normal: 3 rangos intercuartílicos, el criterio de 021:RF-32 (028:RF-39).
+
+    Un medidor plano (rango cero, como el de un alimentador sin carga) no dice nada: cualquier valor saldría raro.
+    """
+    malos: set[datetime] = set()
+    for curva in curvas:
+        puntos = {f: kw for f, kw, _q in curva if f is not None and kw is not None}
+        if len(puntos) < FILAS_DATOS_MINIMAS:
+            continue
+        q1, q3 = _cuartiles(list(puntos.values()))
+        margen = RANGOS_IQR * (q3 - q1)
+        if margen > 0:
+            malos.update(f for f, kw in puntos.items() if not q1 - margen <= kw <= q3 + margen)
+    return malos
+
+
+def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], periodo: str | None = None,
+                               centrales: Sequence[Curva] = (), maniobras: frozenset | set = frozenset()
                                ) -> dict[str, Any] | None:
     """El único instante de un sistema eléctrico: la mayor suma coincidente de sus barras de 60 kV (028:RF-31).
 
@@ -2210,12 +2379,49 @@ def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], 
                 total[f] = total.get(f, 0.0) + sum(d[f] for d in fechas)
     if not total:
         return None
-    t = max(total, key=lambda f: (total[f], -f.timestamp()))
-    return {'fecha': t, 'total_kw': total[t]}
+    # 028:RF-36: la barra mide lo neto. Una central suma lo que genera a esa hora, y su hueco no descarta la fecha.
+    for curva in centrales:
+        for f, kw, _q in curva:
+            if f in total and kw is not None and kw > 0:
+                total[f] += kw
+    # 028:RF-39: una transferencia de carga no fija el instante; si no quedara ninguno, no se filtra.
+    normales = {f: v for f, v in total.items() if f not in maniobras} or total
+    t = max(normales, key=lambda f: (normales[f], -f.timestamp()))
+    return {'fecha': t, 'total_kw': normales[t], 'descartados': len(total) - len(normales)}
+
+
+def completar_sin_medida(res: Sequence[MaximaCabecera], fecha: datetime, periodo: str | None,
+                         buscar: Callable[[list[tuple[str, str]], str | None], list[MaximaCabecera]]
+                         ) -> tuple[list[MaximaCabecera], list[str]]:
+    """El alimentador sin medida positiva en el instante del sistema: su máxima del mes de ese instante y, si no, la del
+    periodo (028:RF-38). Solo a esos; el resto sigue en el instante.
+
+    Sin esto PI101 (Pisco, 2026-11-03) se quedaba con la demanda del archivo, donde muchas SED traen 0 kW: sin carga.
+    """
+    def falta(r: MaximaCabecera) -> bool:
+        return not r.alimentador.lower().startswith('central ') and (bool(r.error) or not (r.kw and r.kw > 0))
+
+    salen = list(res)
+    avisos: list[str] = []
+    mes = f'{fecha:%Y-%m}'
+    for donde in dict.fromkeys((mes, periodo)):
+        faltan = [i for i, r in enumerate(salen) if falta(r)]
+        if not faltan:
+            break
+        hallados = buscar([(salen[i].alimentador, salen[i].medidor) for i in faltan], donde)
+        for i, nuevo in zip(faltan, hallados, strict=True):
+            if not falta(nuevo):
+                avisos.append(f'{nuevo.alimentador}: sin medida el {fecha}; se toma su máxima de '
+                              f'{donde or "todo lo medido"}: {nuevo.kw:,.1f} kW el {nuevo.fecha} (028:RF-38).')
+                salen[i] = nuevo
+    avisos += [f'{r.alimentador}: sin medida positiva en {periodo or "lo medido"}; queda con la demanda del archivo '
+               '(028:RF-38).' for r in salen if falta(r)]
+    return salen, avisos
 
 
 def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso=lambda *_a: None,
-                      log=lambda _t: None, cancelado=lambda: False, comun_60kv: bool = False):
+                      log=lambda _t: None, cancelado=lambda: False, comun_60kv: bool = False,
+                      balances: Sequence[BalanceLinea] = ()):
     """La máxima de cada barra de SET y sus alimentadores en ese instante (022:RF-37 a RF-46,
     RF-84 a RF-91), sin nada de la web: corre en el proceso de su trabajo (027:RF-25). Devuelve
     ``(resultados, barras_informe, avisos, maximas_de_barra, instantes)``."""
@@ -2227,11 +2433,14 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
     avisos = list(avisos)
     # Los libros se abren una vez para la barra y todos sus instantes (022:RF-84).
     cabecera = Cabecera(libros, alias)
-    de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
+    de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales]
+                       + [(f'LT {x.set_codigo}', m) for x in balances for m in x.llegadas + x.salidas + x.clientes],
                        alias=alias, cancelado=cancelado, cabecera=cabecera)
     # Las curvas de los alimentadores de las SET con barra de 60 kV, con los libros ya
     # abiertos: su instante tiene que tener registro en todos (022:RF-91).
     con_alta = {f for b in barras if b.alta or b.de_alta for f in b.alimentadores}
+    if comun_60kv:                                                      # 028:RF-39: todos, para ver sus maniobras
+        con_alta |= {duenio(a).upper() for a, _m in pares}
     de_alimentador = maximas(libros, [(a, m) for a, m in pares if duenio(a).upper() in con_alta],
                              alias=alias, periodo=periodo, cancelado=cancelado,
                              cabecera=cabecera) if con_alta else []
@@ -2254,13 +2463,34 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
     comun = None
     if comun_60kv:                                                      # 028:RF-31
         altas = {b.clave: [curva_de.get((b.clave, m)) or [] for m in b.medidores] for b in barras if b.alta}
-        comun = instante_de_barras_de_alta(altas, periodo)
+        # 028:RF-34: una SET sin barra, por el balance de sus LT.
+        otras = [c for cs in altas.values() for c in cs if c]
+        curva_balance = {}
+        for x in balances:
+            clave_lt = f'LT {x.set_codigo}'
+            sin_curva = [m for m in x.llegadas + x.salidas + x.clientes if not curva_de.get((clave_lt, m))]
+            if sin_curva:
+                avisos.append(f'{x.set_codigo}: {", ".join(sin_curva)} sin registros: fuera de su balance (028:RF-34).')
+            llegan = [curva_de[(clave_lt, m)] for m in x.llegadas if m not in sin_curva]
+            restan = [curva_de[(clave_lt, m)] for m in x.salidas + x.clientes if m not in sin_curva]
+            curva_balance[x.set_codigo] = curva_de_balance(llegan, restan + ([] if x.salidas else otras))
+            altas[f'{x.set_codigo} {x.kv:g} kV'] = [curva_balance[x.set_codigo]]
+        # 028:RF-36: las centrales de barra y las de tramo, cada una con su generación a esa hora.
+        generacion = [c for b in barras for m in b.centrales if (c := curva_de.get((b.clave, m)))]
+        generacion += [r.curva for r in de_alimentador if r.curva and r.alimentador.lower().startswith('central ')]
+        maniobras = registros_de_maniobra([r.curva for r in de_alimentador if r.curva
+                                           and not r.alimentador.lower().startswith('central ')])
+        comun = instante_de_barras_de_alta(altas, periodo, generacion, maniobras)
+        if comun and comun.get('descartados'):
+            avisos.append(f"{comun['descartados']} registro(s) con algún alimentador en maniobra o transferencia de carga "
+                          'no cuentan para el instante del sistema (028:RF-39).')
         if comun is None:
             raise DemandaError('El análisis de sistema eléctrico necesita barras de 60 kV con registros comunes'
                                + (f' en {periodo}' if periodo else '') + ': ninguna los tiene.')
         # Una SET sin ningún medidor de barra no aparece en ``barras``: se nombran sus alimentadores.
-        con_barra = {f for b in barras for f in b.alimentadores}
-        sin_alta = (sorted({b.set_codigo for b in barras if not b.alta and not b.de_alta})
+        con_balance = {x.set_codigo for x in balances}
+        con_barra = {f for b in barras for f in b.alimentadores} | {f for x in balances for f in x.alimentadores}
+        sin_alta = (sorted({b.set_codigo for b in barras if not b.alta and not b.de_alta} - con_balance)
                     + sorted({duenio(a).upper() for a, _m in pares} - con_barra))
         if sin_alta:
             avisos.append(f'{", ".join(sin_alta)}: sin medidor de 60 kV; no fijan el instante, se calibran en él (028:RF-31).')
@@ -2334,6 +2564,19 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
         log(f'  {b.clave}: {valor} el {mx["fecha"]} ({suma})'
                 + (f', instante de {b.de_alta}' if alta is not None else '')
                 + (f'; {", ".join(b.alimentadores)} en esa fecha y hora' if b.alimentadores else ''))
+    for x in balances if comun is not None else ():
+        punto = next((c for c in curva_balance[x.set_codigo] if c[0] == comun['fecha']), None)
+        kw = punto[1] if punto else None
+        info.append({'clave': f'{x.set_codigo} {x.kv:g} kV', 'set': x.set_codigo, 'kv': x.kv, 'suelta': False,
+                     'alta': True, 'de_alta': '', 'transformadores': {}, 'medidores': x.llegadas, 'centrales': [],
+                     'alimentadores': [], 'fecha': comun['fecha'].isoformat(sep=' '), 'kw': kw, 'kvar': None,
+                     'registros': 1 if punto else 0, 'balance': {'llegadas': x.llegadas, 'salidas': x.salidas,
+                                                                 'clientes': x.clientes}})
+        avisos.append(f'{x.set_codigo}: sin barra de 60 kV; por el balance de {", ".join(x.llegadas)}: '
+                      + (f'{kw:,.1f} kW' if kw is not None else 'sin registro') + ' en el instante del sistema (028:RF-34).')
+        if kw is not None and kw < 0:
+            avisos.append(f'{x.set_codigo}: su balance sale negativo en el instante del sistema; revise sus LT o '
+                          'los clientes de alta de la estructura (028:RF-34).')
     # 022:RF-89: la barra de 60 kV tiene que dar al menos lo que dan sus barras de media en
     # su instante, menos la generación de sus centrales. CHNB6T1 (Chincha Nueva) marcó 8,3
     # frente a ~3 300 kW de media (2026-10-28): otra unidad (MW) o un medidor mal
@@ -2361,4 +2604,13 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                        instante=inst, cancelado=cancelado, cabecera=cabecera)
     orden = {m: i for i, (_a, m) in enumerate(pares)}
     res.sort(key=lambda r: orden.get(r.medidor, len(orden)))
+    if comun:
+        res, de_mes = completar_sin_medida(
+            res, comun['fecha'], periodo,
+            lambda ps, donde: maximas(libros, ps, alias=alias, periodo=donde, cancelado=cancelado, cabecera=cabecera))
+        avisos += de_mes
+        # Las fijas de ese alimentador van en la fecha que se le tomó.
+        for r in res:
+            if r.fecha and not r.error and r.fecha != comun['fecha'].isoformat(sep=' '):
+                instantes[duenio(r.alimentador).upper()] = datetime.fromisoformat(r.fecha)
     return res, info, avisos, de_barra, instantes

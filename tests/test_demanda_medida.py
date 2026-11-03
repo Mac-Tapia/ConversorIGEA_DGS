@@ -1228,6 +1228,107 @@ def test_instante_coincidente_con_el_periodo_de_un_anio_entero():
     assert dm.instante_coincidente(cabeceras, {}, '2025')['fecha'] is None
 
 
+def test_sistema_con_centrales_coincidentes_en_el_instante():
+    """028:RF-36 — la central suma lo que genera a esa hora y cambia el instante; su hueco no descarta la fecha."""
+    t0 = datetime(2026, 7, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(3)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
+    assert dm.instante_de_barras_de_alta({'A': [curva(50, 40, 10)]})['fecha'] == f[0]
+    r = dm.instante_de_barras_de_alta({'A': [curva(50, 40, 10)]}, centrales=[curva(0, 30, None)])
+    assert r['fecha'] == f[1] and r['total_kw'] == pytest.approx(70.0)
+    # El consumo propio de la central (negativo) no resta demanda.
+    r = dm.instante_de_barras_de_alta({'A': [curva(50, 40, 10)]}, centrales=[curva(-5, None, 1)])
+    assert r['fecha'] == f[0] and r['total_kw'] == pytest.approx(50.0)
+
+
+def test_balance_de_la_lt_sin_contar_dos_veces():
+    """028:RF-34 — llegadas menos barras y clientes: la entrada del sistema no se suma entera; sin registro, no se usa."""
+    t0 = datetime(2026, 7, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(3)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
+    salida = dm.curva_de_balance([curva(60, 70, 80), curva(40, 30, 20)], [curva(90, 90, None), curva(4, 6, 8)])
+    assert salida == [(f[0], 6, None), (f[1], 4, None)]
+    assert dm.curva_de_balance([], [curva(1, 1, 1)]) == []
+
+
+def test_lt_de_cualquier_empresa_por_su_sufijo_y_su_set(tmp_path):
+    """028:RF-33, 028:RF-35, 028:RF-37 — «_L» llega y «_S» sale; la misma línea por sus dos extremos no es salida."""
+    import openpyxl
+    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+
+    ruta = tmp_path / 'm.xlsx'
+    wb = openpyxl.Workbook()
+    for fila in (['codigo alimentador', 'Medidor', 'Nivel Tension', 'SET'],
+                 ['L-1_S', 'L-1', 60, 'LTSETXY_S'], ['L-1_L', 'L-1', 60, 'LTSETXY_L'], ['L-2_L', 'L-2', 60, 'LTSETXY_L'],
+                 ['L-3_S', 'L-3', 60, 'LTSET 8_S'], ['L-4', 'L-4', 60, ''], ['L-5_L', 'L-5', 220, 'LTSETXY_L'],
+                 ['Barra60KV', 'B-AB6', 60, 'SET 8'], ['XY101', 'XY101', 10, 'SET 9']):
+        wb.active.append(fila)
+    wb.save(ruta)
+    lineas = dm.leer_medidores_de_linea(ruta)
+    assert [(x.medidor, x.sentido, x.set_texto) for x in lineas] == [
+        ('L-1', 'S', 'LTSETXY'), ('L-1', 'L', 'LTSETXY'), ('L-2', 'L', 'LTSETXY'), ('L-3', 'S', 'LTSET 8')]
+    sets = {'SET 9': SetElectrica('SET 9', '', 'Z', ('XY',), ('CLI',)), 'SET 8': SetElectrica('SET 8', '', 'Z', ('AB',))}
+    alim = {'XY101': AlimentadorEstructura('XY101', 'SET 9', ''), 'AB101': AlimentadorEstructura('AB101', 'SET 8', '')}
+    e = Estructura(['Z'], sets, alim, {}, set(), {})
+    alta = dm.BarraMedida('SET 8 60 kV', 'SET 8', 60.0, medidores=['B-AB6'], alta=True)
+    balances, avisos = dm.balances_de_linea(e, lineas, [alta], ['XY101', 'AB101'])
+    assert avisos == [] and len(balances) == 1
+    b = balances[0]
+    assert (b.set_codigo, b.llegadas, b.salidas, b.clientes, b.alimentadores) == (
+        'SET 9', ['L-1', 'L-2'], [], ['CLI'], ['XY101'])
+
+
+def test_dos_set_sin_salidas_no_se_pueden_repartir():
+    """028:RF-37 — lo dice y no fijan el instante."""
+    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+
+    sets = {'SET 1': SetElectrica('SET 1', '', 'Z', ('AA',)), 'SET 2': SetElectrica('SET 2', '', 'Z', ('BB',))}
+    alim = {'AA1': AlimentadorEstructura('AA1', 'SET 1', ''), 'BB1': AlimentadorEstructura('BB1', 'SET 2', '')}
+    e = Estructura(['Z'], sets, alim, {}, set(), {})
+    lineas = [dm.MedidorLinea('L-1', 60.0, 'LTSET 1', 'L'), dm.MedidorLinea('L-2', 60.0, 'LTSET 2', 'L')]
+    balances, avisos = dm.balances_de_linea(e, lineas, [], ['AA1', 'BB1'])
+    assert balances == [] and '028:RF-37' in avisos[0]
+
+
+def test_sin_medida_en_el_instante_busca_en_el_mes_y_solo_entonces():
+    """028:RF-38 — sin dato, el mes de la máxima; si tampoco, su periodo; el que sí tiene no se toca; sin nada, lo dice."""
+    t = datetime(2026, 4, 10, 12)
+    m = dm.MaximaCabecera
+    res = [m('M1', 'BIEN', fecha='2026-04-10 12:00:00', kw=10.0), m('M2', 'SIN', error='sin registro'),
+           m('M3', 'CERO', fecha='2026-04-10 12:00:00', kw=0.0), m('M4', 'NADA', error='sin registro'),
+           m('C', 'Central X', error='sin registro')]
+    pedidos = []
+    datos = {'2026-04': {'M2': (5.0, '2026-04-02 09:00:00')}, '2026': {'M3': (7.0, '2026-08-01 10:00:00')}}
+
+    def buscar(pares, donde):
+        pedidos.append((donde, [x for _a, x in pares]))
+        return [m(x, a, fecha=datos[donde][x][1], kw=datos[donde][x][0]) if x in datos[donde] else m(x, a, error='no')
+                for a, x in pares]
+
+    salen, avisos = dm.completar_sin_medida(res, t, '2026', buscar)
+    assert pedidos == [('2026-04', ['M2', 'M3', 'M4']), ('2026', ['M3', 'M4'])]
+    assert [(r.medidor, r.kw) for r in salen[:3]] == [('M1', 10.0), ('M2', 5.0), ('M3', 7.0)]
+    assert salen[3].error and salen[4].error
+    assert sum('028:RF-38' in a for a in avisos) == 3 and 'NADA' in avisos[-1]
+
+
+def test_el_instante_del_sistema_no_cae_en_una_transferencia_de_carga():
+    """028:RF-39 — el registro con un alimentador fuera de lo normal no fija el instante; lo plano no dice nada."""
+    t0 = datetime(2026, 4, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(40)]
+    normal = [(t, 100.0 + i % 5, None) for i, t in enumerate(f)]
+    con_transferencia = [(t, 3000.0 if i == 7 else 50.0 + i % 5, None) for i, t in enumerate(f)]
+    plano = [(t, 0.0, None) for t in f]
+    malos = dm.registros_de_maniobra([normal, con_transferencia, plano])
+    assert malos == {f[7]}
+    barra = [(t, 3000.0 if i == 7 else 100.0 + i, None) for i, t in enumerate(f)]
+    assert dm.instante_de_barras_de_alta({'A': [barra]})['fecha'] == f[7]
+    r = dm.instante_de_barras_de_alta({'A': [barra]}, maniobras=malos)
+    assert r['fecha'] == f[39] and r['descartados'] == 1
+    # Si todos fueran maniobra, no se filtra: nunca se queda sin instante.
+    assert dm.instante_de_barras_de_alta({'A': [barra]}, maniobras=set(f))['fecha'] == f[7]
+
+
 def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
     """028:RF-31 — caso de Chincha: una barra casi muerta, con pocos registros, no fija el instante."""
     t0 = datetime(2026, 7, 1)
@@ -1236,3 +1337,14 @@ def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
     r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 20, 30, 10)],
                                        'SET CHN': [curva(None, None, None, 8, 8)]})
     assert r['fecha'] == f[1] and r['total_kw'] == pytest.approx(90.0)
+
+
+def test_los_clientes_de_alta_vienen_del_perfil_local():
+    """028:RF-35 — el repositorio es público: los nombres van en el perfil local, no en la estructura."""
+    from convertersmartgrid.estructura import estructura_de_perfil
+
+    datos = {'zonales': [{'nombre': 'Z', 'sets': [{'codigo': 'SET 1', 'nombre': 'N', 'siglas': ['A'],
+                                                   'alimentadores': [{'codigo': 'A1', 'sistema': 'S'}]}]}]}
+    e = estructura_de_perfil({'estructura': datos, 'clientes_alta_por_set': {'SET 1': ['Cliente X']}})
+    assert e.sets['SET 1'].clientes_alta == ('Cliente X',)
+    assert estructura_de_perfil({'estructura': datos}).sets['SET 1'].clientes_alta == ()

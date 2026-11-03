@@ -205,6 +205,33 @@ def grupo_de_set(zonal: str, set_electrica: str) -> str:
     return nombre_seguro(f'SISTEMA_{zonal}_{clave(set_electrica)}', maximo=60).upper()
 
 
+def _transformadores_pedidos(estado: dict) -> dict[str, list[str]]:
+    """Por alimentador, las SED fijas sobre su transformador con ficha propuesta (020) en un resultado de la calibración."""
+    pedidos = {}
+    for inf in (estado.get('result') or {}).get('informes', []):
+        seds = [x['sed'] for x in inf.get('fijas_sobre_su_transformador') or []
+                if (x.get('propuesta') or {}).get('kva') and len(x.get('transformadores') or []) == 1]
+        if seds:
+            pedidos[inf['feeder']] = seds
+            print(f"Transformadores nuevos en {inf['feeder']}: {', '.join(seds)}", flush=True)
+    return pedidos
+
+
+def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> None:
+    """Paso 1.1 del flujo normal, y dice cómo quedó (015:RF-13). Nada para el flujo: lo que no quede verificado lo dice la web.
+
+    Este guion pasaba de importar a calibrar: en Pisco (2026-11-03) ningún alimentador se habría calibrado.
+    """
+    grupos = web.get('').get('groups') or []
+    feeders = next((g.get('feeders') for g in grupos if g.get('name') == grupo), None) or [grupo]
+    estado = web.esperar(web.post('/powerfactory/caso-base', json={'project': proyecto, 'feeders': feeders}))
+    filas = (estado.get('result') or {}).get('feeders') or []
+    malos = [f.get('feeder') for f in filas if f.get('status') != 'VERIFICADO']
+    print(f"Caso base: {estado['status']} {'VERIFICADO' if filas and not malos else malos}", flush=True)
+    if not _terminado(estado) or not filas or malos:
+        print(f"AVISO: «Caso base» sin verificar: {malos or estado.get('error')}; se sigue (015:RF-13).", flush=True)
+
+
 def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
@@ -275,6 +302,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         if proyecto is None:
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
+        _caso_base_verificado(web, proyecto, grupo)
     elif proyecto is None or reconvertir:
         pedido = {'zonales': [], 'sets': [set_electrica]} if set_electrica else {'zonales': [zonal]}
         estado = web.esperar(web.post('/convert/sistema', json=pedido))
@@ -291,6 +319,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         if proyecto is None:
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
+        _caso_base_verificado(web, proyecto, res['group'])
     print(f'Proyecto: {proyecto}', flush=True)
     for tipo in TIPOS_DEMANDA:
         if tipo in libros:
@@ -454,14 +483,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         sim = web.esperar(web.post(f'/demanda/ajuste/{token}/simular'))
         if not _terminado(sim):
             return 2
-        pedidos = {}
-        for inf in (sim.get('result') or {}).get('informes', []):
-            seds = [x['sed'] for x in inf.get('fijas_sobre_su_transformador') or []
-                    if (x.get('propuesta') or {}).get('kva')
-                    and len(x.get('transformadores') or []) == 1]
-            if seds:
-                pedidos[inf['feeder']] = seds
-                print(f"Transformadores nuevos en {inf['feeder']}: {', '.join(seds)}", flush=True)
+        pedidos = _transformadores_pedidos(sim)
         if pedidos:
             ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores',
                                           json={'por_alimentador': pedidos}))
@@ -470,6 +492,13 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)
     if not _terminado(ultimo):
         return 2
+    # 083:RF-8: sin calibración válida y con SED fijas por encima de su transformador, se piden sin esperar a la opción.
+    if not transformadores and _resumen(ultimo)[1] and (pedidos := _transformadores_pedidos(ultimo)):
+        print('Sin calibración válida y con SED fijas sobre su transformador: se cambian y se repite (083:RF-8).', flush=True)
+        ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores', json={'por_alimentador': pedidos}))
+        print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)
+        if not _terminado(ultimo):
+            return 2
     validos, fallidos = _resumen(ultimo)
     _escribir_resumen(ultimo)
     print(f'{validos} válido(s), {fallidos} con fallos.')

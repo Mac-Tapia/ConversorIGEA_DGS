@@ -67,6 +67,8 @@ cuando el usuario ponga a mano la central de NA205.
 - [ ] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
       recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
       Hecho cuando: los dos proyectos válidos tras recalibrar y con su informe.
+- [ ] T15. [DIgSILENT] Pisco desde cero: instante con barras, balance de LT y centrales, y calibración válida. (RF-33, RF-34, RF-35, RF-36, RF-37, RF-38, RF-39)
+      Hecho cuando: el proyecto calibrado por la web converge con ese instante en «Sin proyecto».
 - [x] T14. Desplegable con la máxima de la cabecera de cada alimentador, y por defecto el instante común. (RF-32)
       Hecho cuando: `pytest -q tests/test_demanda_medida_web.py -k desplegable` en verde.
 - [x] T13. Selector de los tres tipos de análisis e instante común de las barras de 60 kV. (RF-27, RF-31)

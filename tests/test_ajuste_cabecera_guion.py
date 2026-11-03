@@ -662,8 +662,9 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
 def test_calibracion_con_cargas_dependientes_de_la_tension_no_es_valida(guion):
     """015:RF-47 / 015:RF-49 / 015:RF-51 / 015:RF-69 — CA101 en DIgSILENT, 2026-10-15: las
     cargas consumían lo escrito por u² con ``iopt_lev=1`` y la calibración quedaba «válida».
-    Ahora no lo es y el aviso nombra la fija que no consume lo suyo y el ajuste del flujo;
-    el reparto que cuadró queda grabado y ninguna escalada vuelve a cero (SL144 + SM117)."""
+    Ahora no lo es y el aviso nombra la fija que no consume lo suyo; el ajuste heredado vuelve
+    a 0 y queda dicho (083:RF-26); el reparto que cuadró queda grabado y ninguna escalada
+    vuelve a cero (SL144 + SM117)."""
     app = _app()
     object.__setattr__(app.ldf, 'iopt_lev', 1)
     antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
@@ -678,7 +679,7 @@ def test_calibracion_con_cargas_dependientes_de_la_tension_no_es_valida(guion):
     assert 'calibracion_revertida' not in informe and informe['calibracion_sin_validar'] is True
     assert informe['escenarios'], 'el reparto que cuadró se graba'
     aviso = next(a for a in informe['avisos'] if a.startswith('VALIDACION_FISICA'))
-    assert 'F1_S2' in aviso and 'iopt_lev=1' in aviso
+    assert 'F1_S2' in aviso and informe['ajustes_heredados_a_cero'] == {'iopt_lev': 1}
     balance = informe['validacion_posterior_nativa']['balance']
     assert balance['fijas_consumida_kw'] == pytest.approx(0.9 * balance['fijas_escrita_kw'])
     escaladas = {d['sed'] for d in informe['validacion_posterior_nativa']['cargas']

@@ -55,7 +55,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 025 Calibración por año de medición | aprobada | falta T21, T22 |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | falta T12 |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T22, T14, T26, T29, T30, T31 |
-  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11 |
+  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11, T15 |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
   | 031 Proyección econométrica de la demanda con variables exógenas | reservada |  |
@@ -110,7 +110,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16 |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
-  | 083 El oráculo antes de calibrar y recalibrar | reservada |  |
+  | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

@@ -394,6 +394,44 @@ def _zonas(nuevas, zona_m, origen):
     return out
 
 
+def zonas_de_carga(cargas: Sequence[Mapping[str, Any]], radio_km: float | None) -> list[list[Mapping[str, Any]]]:
+    """Las cargas agrupadas por zona: ninguna a más de ``radio_km`` del centro de carga de su zona (042:RF-21).
+
+    Aglomerativo de mayor a menor potencia: cada carga va a la zona más cercana que la admite sin que ninguna
+    de sus cargas quede fuera del radio; si ninguna, abre otra. Sin radio, una sola zona (P13). Sin GPS, la
+    carga va sola, porque no se sabe dónde está.
+    """
+    if not radio_km:
+        return [list(cargas)] if cargas else []
+    limite = float(radio_km) * 1000.0
+
+    def centro(grupo):
+        w = sum(float(c.get('kw') or 0) or 1.0 for c in grupo)
+        return (sum(float(c['lat']) * (float(c.get('kw') or 0) or 1.0) for c in grupo) / w,
+                sum(float(c['lon']) * (float(c.get('kw') or 0) or 1.0) for c in grupo) / w)
+
+    zonas: list[list[Mapping[str, Any]]] = []
+    for c in sorted(cargas, key=lambda c: (-float(c.get('kw') or 0), str(c.get('sed')))):
+        if c.get('lat') is None or c.get('lon') is None:
+            zonas.append([c])
+            continue
+        mejor = None
+        for z in zonas:
+            if any(x.get('lat') is None for x in z):
+                continue
+            nueva = z + [c]
+            cen = centro(nueva)
+            if all(distancia_m(cen, (float(x['lat']), float(x['lon']))) <= limite for x in nueva):
+                d = distancia_m(centro(z), (float(c['lat']), float(c['lon'])))
+                if mejor is None or d < mejor[0]:
+                    mejor = (d, z)
+        if mejor is None:
+            zonas.append([c])
+        else:
+            mejor[1].append(c)
+    return zonas
+
+
 def ubicacion_optima(existentes: Sequence[tuple[float, float, float]],
                      nuevas: Sequence[tuple[float, float, float]], *, incremento_kw: float,
                      zona_m: float, sorteos: int, semilla: int) -> dict[str, Any]:
