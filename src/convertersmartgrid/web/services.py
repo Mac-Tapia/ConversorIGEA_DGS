@@ -4669,7 +4669,8 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         implementadas = _pide_implementar(ws, ctx, project, feeders, propuesta['obras'],
                                           set(plan_pide.get('anios_pide') or []))
     token = uuid.uuid4().hex[:8]
-    libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', propuesta['formatos'])
+    formatos = _formatos_del_pide(ws, propuesta, informe, plan_pide, estudio, feeders, avisos)
+    libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
     # 027:RF-49: cada formato frente al entregado del mismo código, si hay corpus de ejemplos.
     from ..asistente.ejemplos_pide import comparar_formatos, ultimo_ejemplos
     from ..pide import FORMATOS
@@ -4677,7 +4678,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     comparacion = None
     ejemplos = ultimo_ejemplos(project_root())
     if ejemplos is not None:
-        comparacion = comparar_formatos(FORMATOS, propuesta['formatos'],
+        comparacion = comparar_formatos(FORMATOS, formatos['filas'],
                                         json.loads(ejemplos.read_text(encoding='utf-8')))
         ctx.log('PIDE: campos que coinciden con lo entregado: ' + ', '.join(
             f"{c} {v['coinciden']}/{v['campos']}" for c, v in comparacion.items()))
@@ -4689,7 +4690,49 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
+            'huecos': formatos['huecos'], 'con_y_sin': propuesta['con_y_sin'],   # 072:RF-14, RF-16
             'comparacion_formatos': comparacion}
+
+
+def _formatos_del_pide(ws: Workspace, propuesta: dict, informe: dict, plan_pide: dict, estudio, feeders: list[str],
+                       avisos: list[str]) -> dict:
+    """Reúne para los quince formatos lo que ya existe en el espacio y en el perfil (072:RF-13 a RF-16).
+
+    Lo que no esté queda como hueco nombrado: ni el libro del mercado ni la estructura de la empresa son
+    obligatorios para diagnosticar, y su falta no debe parar el estudio.
+    """
+    from ..formatos_pide import formatos_del_estudio
+    from ..metrados import metrados_de_lineas
+    from ..model import build_feeder_model
+    from ..perfil_empresa import estructura_empresa
+    from ..proyeccion_mercado import MercadoError, comparar_metodos, leer_formato_01
+
+    series, metodo = [], 'tasa_de_un_anio'
+    if plan_pide.get('formato_01'):
+        try:
+            series = leer_formato_01(plan_pide['formato_01'])
+            # El método sale de medir contra lo ocurrido en estas mismas series (072:RF-10, RF-11).
+            metodo = comparar_metodos(series, horizonte=4)['ganador']
+        except (MercadoError, OSError, ValueError) as exc:
+            avisos.append(f'Formato 01: {exc}')
+    e = estructura_empresa()
+    sistema_de, centro_de = {}, {}
+    for a in feeders:
+        fila, sede = (e.alimentador(a), e.set_de(a)) if e is not None else (None, None)
+        if fila is not None and fila.sistema:
+            sistema_de[a] = fila.sistema
+        if sede is not None:
+            centro_de[a] = sede.rotulo
+    medidas = []
+    for a in feeders:
+        try:
+            medidas.append((sistema_de.get(a), metrados_de_lineas(build_feeder_model(
+                _dataset_for_feeder(ws, a), a, strict=False, include_geography=False).lines)))
+        except Exception as exc:  # noqa: BLE001 - un alimentador sin red no tumba el estudio
+            avisos.append(f'F02: {a} sin metrados ({exc}).')
+    return formatos_del_estudio(propuesta['obras'], informe.get('anios') or [], estudio=estudio, series=series,
+                                metodo=metodo, factor_carga=plan_pide.get('factor_carga'), metrados=medidas,
+                                sistema_de=sistema_de, centro_de=centro_de)
 
 
 def _ingreso_de_las_cargas(ws: Workspace, project: str) -> list[dict]:

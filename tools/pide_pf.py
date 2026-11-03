@@ -226,6 +226,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                 tensiones = lectura['flujo']['tensiones']['valores']
                 fila['vm_min'] = min(tensiones.values()) if tensiones else None
                 fila['cabeceras_kw'] = lectura['flujo']['balance']['valores']['cabeceras']
+                # F05 y la evaluación con y sin proyecto (072:RF-14): sin dato, queda vacío y se nombra.
+                fila['perdidas_kw'] = ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')
             else:
                 fila['problemas'] = [{'tipo': 'flujo', 'elemento': 'red', 'causa': 'no_converge',
                                       'evidencia': 'el flujo no converge con esta demanda'}]

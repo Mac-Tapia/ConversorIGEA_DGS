@@ -20,13 +20,16 @@
       y la máxima por SET y alimentador.
 - [ ] T6 Obras acumuladas por año. (RF-12)
       Hecho cuando: en DIgSILENT, sobre un proyecto de prueba, cada año conserva las obras de los anteriores.
-- [ ] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
+- [x] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
       Hecho cuando: pruebas de cada formato, con los huecos nombrados.
+      Hecho con pruebas sintéticas, sin DIgSILENT. F04 sigue vacío porque el modelo no lleva la baja de cada SED, y F06 hasta pasarle
+      los índices de 012. La evaluación con y sin proyecto espera las pérdidas de «Con proyecto» por año, que da T6; hasta entonces
+      devuelve su hueco. Solo mide el ahorro de pérdidas: la energía no servida y la calidad no entran en el flujo.
 - [ ] T8 Generadores de los informes de largo plazo y PIDE. (RF-4, RF-13, RF-14, RF-17)
       Hecho cuando: los dos Word se generan para una empresa de prueba.
 - [ ] T9 Herramientas y entrenamiento del asistente. (RF-18, RF-19)
       Hecho cuando: el asistente completa un estudio por las rutas de la web, y el corpus revisado queda registrado.
-- [ ] T10 Etiqueta de casos de prueba. (RF-20)
+- [x] T10 Etiqueta de casos de prueba. (RF-20)
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
 - [ ] T11 Aceptación real de los dos entregables.
       Hecho cuando: el usuario los revisa en una empresa.

@@ -306,12 +306,15 @@ FORMATOS: dict[str, tuple[str, ...]] = {
 }
 
 
-def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]]) -> Path:
+def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]],
+                      huecos: Sequence[Mapping[str, Any]] = ()) -> Path:
     """Los formatos 01 a 15 en un libro, una hoja por formato, con lo que haya (RF-63).
 
     Un formato sin filas queda con su encabezado y la nota de qué falta, para que se vea
-    el hueco en vez de una hoja que parece completa.
+    el hueco en vez de una hoja que parece completa. Con ``huecos`` (072:RF-16), la nota es
+    su motivo y una hoja más los reúne todos.
     """
+    motivos = {h['formato']: h['motivo'] for h in huecos if h.get('campo') is None}
     from openpyxl import Workbook
 
     libro = Workbook()
@@ -323,7 +326,12 @@ def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]]) 
         for fila in datos:
             hoja.append(list(fila))
         if not datos:
-            hoja.append(['sin datos en esta ejecución'])
+            hoja.append([motivos.get(nombre, 'sin datos en esta ejecución')])
+    if huecos:
+        hoja = libro.create_sheet('Huecos')
+        hoja.append(['Formato', 'Campo', 'Filas sin dato', 'Motivo'])
+        for h in huecos:
+            hoja.append([h['formato'], h.get('campo') or '(todo el formato)', h.get('filas'), h['motivo']])
     ruta.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(ruta) as tmp:
         libro.save(tmp)

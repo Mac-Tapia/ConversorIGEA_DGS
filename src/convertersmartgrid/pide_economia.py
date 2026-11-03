@@ -21,6 +21,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+from .formatos_pide import filas_de_obras
 from .pide import RUBRO_DE_ALTERNATIVA
 from .util import finite_or_none
 
@@ -167,8 +168,51 @@ def valor_kw_perdidas(plan: Mapping[str, Any], *, factor_carga: float | None,
     """
     if factor_carga is None or precio_compra_kwh is None:
         return None
-    perdidas = 0.3 * factor_carga + 0.7 * factor_carga ** 2
-    return 8760 * perdidas * precio_compra_kwh / frc(float(plan['tasa_regulada']), int(plan['vida_util_anios']))
+    return _valor_anual_kw_perdido(factor_carga, precio_compra_kwh) / frc(float(plan['tasa_regulada']), int(plan['vida_util_anios']))
+
+
+def _valor_anual_kw_perdido(factor_carga: float, precio_compra_kwh: float) -> float:
+    return 8760 * (0.3 * factor_carga + 0.7 * factor_carga ** 2) * precio_compra_kwh
+
+
+def _entre_anios(medidas: Mapping[int, float], anio: int) -> float:
+    """El valor de un año entre dos medidos, en línea recta; fuera de ellos, el más cercano."""
+    anios = sorted(medidas)
+    if anio <= anios[0]:
+        return medidas[anios[0]]
+    if anio >= anios[-1]:
+        return medidas[anios[-1]]
+    hasta = next(a for a in anios if a >= anio)
+    desde = max(a for a in anios if a < anio)
+    return medidas[desde] + (medidas[hasta] - medidas[desde]) * (anio - desde) / (hasta - desde)
+
+
+def evaluar_con_y_sin(ci: float, perdidas_sin: Mapping[int, float], perdidas_con: Mapping[int, float],
+                      plan: Mapping[str, Any], *, factor_carga: float | None,
+                      precio_compra_kwh: float | None) -> dict[str, Any]:
+    """La cartera frente a no hacerla: lo que ahorra en pérdidas cada año, medido (072:RF-14).
+
+    Es la evaluación del art. 14 con los dos casos del mismo año; DIgSILENT mide cada uno. El ahorro de
+    pérdidas es el único beneficio que el flujo mide: la energía no servida y la calidad quedan fuera,
+    así que un VAN negativo aquí no dice que la obra no se justifique.
+    """
+    comunes = {a: v for a, v in perdidas_sin.items() if v is not None and perdidas_con.get(a) is not None}
+    if not ci:
+        return {'hueco': 'sin costo de la cartera: falta el libro CAPEX o el costo oficial'}
+    if not comunes:
+        return {'hueco': 'faltan las pérdidas de «Con proyecto» en los años del estudio (072:RF-12)'}
+    if factor_carga is None or precio_compra_kwh is None:
+        return {'hueco': 'faltan el factor de carga o el precio de compra para valorar las pérdidas'}
+    ahorro = {a: comunes[a] - float(perdidas_con[a]) for a in comunes}
+    horizonte = int(plan['horizonte_anios'])
+    valor = _valor_anual_kw_perdido(factor_carga, precio_compra_kwh)
+    por_anio = {t: _entre_anios(ahorro, t) for t in range(1, horizonte + 1)}
+    flujos = [-float(ci)] + [por_anio[t] * valor for t in range(1, horizonte + 1)]
+    avisos = []
+    if max(ahorro) < horizonte:
+        avisos.append(f'el ahorro del año {max(ahorro):02d} se mantiene hasta el {horizonte:02d}: no hay caso medido después')
+    return {'ahorro_kw': por_anio, 'flujos': flujos, 'van': van(flujos, float(plan['tasa_regulada'])),
+            'tir': tir(flujos), 'avisos': avisos}
 
 
 def van(flujos: Sequence[float], tasa: float) -> float:
@@ -431,7 +475,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                                'rubro': o.rubro, 'caracter': CARACTER_DE_ALTERNATIVA[o.alternativa],
                                'alimentador': alimentador, 'elemento': elemento,
                                'causa': o.causa, 'problemas': o.problemas[:20],
-                               'denominacion': (costo or {}).get('denominacion'), 'ci': ci,
+                               'denominacion': (costo or {}).get('denominacion'), 'ci': ci, 'kw_nuevos': kw,
+                               'energia_kwh': kw * factor_carga * 8760 if factor_carga else None,
                                'obra_011': obra, 'motivo_sin_obra': motivo, 'candidata': c})
     orden = priorizar(candidatas, plan.get('pesos_art_15_3') or {})
     prioridad = {c.codigo: i + 1 for i, c in enumerate(orden)}
@@ -441,37 +486,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
                  indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos)
     filas_obra.sort(key=lambda f: f['prioridad'])
-    return {'obras': filas_obra, 'avisos': avisos, 'formatos': _filas_formatos(filas_obra, anios)}
-
-
-def _filas_formatos(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[str, Any]]) -> dict[str, list]:
-    """Filas de los formatos 03, 07, 08, 09, 10 y 12 con lo calculado (RF-63)."""
-    f = {}
-    if anios:
-        f['F03 Tensión MT'] = [['', alim, '', kw / 1000 if kw else None, '', '', '',
-                                round(100 * (1 - (anios[0].get('vm_min') or 1)), 2)]
-                               for alim, kw in sorted((anios[0].get('cabeceras_kw') or {}).items())]
-    f['F07 Alternativas estudio'] = [[o['anio'], o['rubro'], o['codigo'], o['alternativa'], o['ci'],
-                                      o['indicadores'].get('costo_kw'), o['indicadores'].get('costo_kwh'),
-                                      None, None] for o in obras]
-    f['F08 Alternativas PIDE'] = [[o['anio'], o['rubro'], o['codigo'], o['alternativa'], None, None,
-                                   None, None, None, None] for o in obras]
-    f['F09 Evaluación económica'] = [[o['anio'], o['rubro'], o['codigo'], o['alternativa'], o['ci'],
-                                      o['indicadores'].get('costo_kw'), o['indicadores'].get('costo_kwh'),
-                                      None, None, (o['privada'] or {}).get('van'),
-                                      o['regulada'].get('costo_anual'), (o['privada'] or {}).get('tir')]
-                                     for o in obras]
-    resumen: dict[tuple, list[float]] = {}
-    for o in obras:
-        if o['descartada'] or o['sobredimensionada']:
-            continue
-        r = resumen.setdefault((o['anio'], o['rubro']), [0.0, 0.0])
-        r[0] += o['ci']
-        r[1] += o['regulada'].get('anualidad') or 0.0
-    f['F10 Propuesta empresa'] = [[a, rubro, None, None, None, ci, anu, None, None]
-                                  for (a, rubro), (ci, anu) in sorted(resumen.items())]
-    f['F12 Propuesta proyecto'] = [[o['alimentador'], o['anio'], o['rubro'], o['codigo'],
-                                    o['denominacion'] or o['alternativa'], o['ci'],
-                                    o['regulada'].get('anualidad'), None, o['regulada'].get('costo_anual')]
-                                   for o in obras if not (o['descartada'] or o['sobredimensionada'])]
-    return f
+    cartera = sum(f['ci'] for f in filas_obra if not (f['descartada'] or f['sobredimensionada']))
+    con_y_sin = evaluar_con_y_sin(cartera, {a['anio']: a.get('perdidas_kw') for a in anios},
+                                  informe.get('perdidas_con_proyecto') or {}, plan, factor_carga=factor_carga,
+                                  precio_compra_kwh=precio_compra_kwh)
+    return {'obras': filas_obra, 'avisos': avisos, 'formatos': filas_de_obras(filas_obra, anios), 'con_y_sin': con_y_sin}
