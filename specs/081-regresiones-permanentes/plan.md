@@ -51,3 +51,14 @@ una suite real ni DIgSILENT.
 
 Punto de unión con `fix/acopladores-con-fases`: `Elemento`, `Barra`, `comprobar` y `ubicar_nuevo` de `comprobacion_fases.py`. `poner_bancos` y
 `resolver_nuevas` son de esa rama: llaman a `ubicar_nuevo` en vez de «no se crea».
+
+Lo nuevo con las fases de su barra (RF-64 a RF-69, T19):
+
+- `comprobacion_fases.py`: `FASES_POR_PHTECH` (un solo sitio; la aceptación lo importa), `fases_de_phtech` y `corriente_por_fase_a`, puros.
+- `tools/cargas_pf.py`: `resolver_nuevas` mira las fases del punto (`fases_en_el_punto`: el tramo que se parte o la barra) y pasa por
+  `ubicar_sed_nueva` (`ubicar_nuevo`): la compatible más cercana o, sin ninguna, `fases` en lo resuelto y el aviso con `cifras_de_sed_adaptada`.
+  `crear_carga` da esas fases a las barras (`poner_fases`), al interruptor, al trafo (`_tipo_trafo(..., n)`) y a la línea
+  (`tipo_de_linea_con_fases`, copia `_nF` que el deshacer borra como los tipos de trafo).
+- `tools/ajuste_cabecera_pf.py::poner_bancos` y `tools/obras_pf.py::construir_condensador`: primero barras trifásicas; las que faltan, con las
+  fases de su barra (`adaptar_banco`, el `ctech` del DGS) y aviso con `cifras_de_banco`.
+- Descartado: dejar el elemento trifásico en la barra de menos fases con solo el aviso. Es el fallo de origen: DIgSILENT no calcula nada.

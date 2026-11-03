@@ -43,7 +43,10 @@ from pathlib import Path
 from typing import Any
 
 from cargas_pf import (
+    adaptar_banco,
+    cifras_de_banco,
     es_trifasica,
+    fases_de_barra,
     Alimentadores,
     _num,
     activar_proyecto,
@@ -2976,7 +2979,7 @@ def _cuadro_en_kw(inf: dict, plan: dict) -> bool:
 def barras_para_bancos(red, cabecera: str, n: int, validas: set[str] | None = None) -> list[str]:
     """Las barras de la troncal más cercanas a 2k/(2n+1) de su largo (021:RF-66); una barra
     no se repite. Con ``validas``, solo esas: un banco trifásico no cabe en una barra de menos
-    fases (054:RF-10)."""
+    fases (054:RF-10), y los que faltan los pone ``poner_bancos`` en otras (081:RF-68)."""
     from convertersmartgrid.ajuste_cabecera import distancias_de_bancos
     from convertersmartgrid.troncal import troncal as troncal_de
 
@@ -3029,10 +3032,15 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
             cab = cabecera_de(elm)
             barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
             trifasicas = {x for x, b in barras.items() if es_trifasica(b)}
-            elegidas = barras_para_bancos(leer_red(elm, cab), cab.loc_name, n, trifasicas)
+            red_alim = leer_red(elm, cab)
+            elegidas = barras_para_bancos(red_alim, cab.loc_name, n, trifasicas)
             if len(elegidas) < n:
-                avisos.append(f'{feeder}: su troncal solo tiene {len(elegidas)} barra(s) trifásica(s) para '
-                              f'{n} banco(s) pedidos; los demás no se ponen (054:RF-10).')
+                # 081:RF-68 (cambia 054:RF-10): sin barra trifásica, los que faltan van con las fases de
+                # otra barra de la troncal; antes no se ponían, y la calibración se quedaba sin esos kvar.
+                elegidas += barras_para_bancos(red_alim, cab.loc_name, n - len(elegidas), set(barras) - trifasicas)
+            if len(elegidas) < n:
+                avisos.append(f'{feeder}: su troncal solo tiene {len(elegidas)} barra(s) para {n} banco(s) '
+                              f'pedidos de {kvar:g} kvar; una barra no repite banco (021:RF-66).')
             for k, nombre in enumerate(elegidas, 1):
                 barra = barras[nombre]
                 red = barra.GetParent()
@@ -3044,9 +3052,14 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
                 banco.qcapn = kvar / 1000.0
                 banco.ncapx = banco.ncapa = 1
                 banco.i_cont, banco.iswitch = 0, 0
+                fases = fases_de_barra(barra)
+                adaptar_banco(banco, fases)
+                if fases < 3:
+                    avisos.append(f'{feeder}: banco {banco.loc_name} en {nombre}, que no lleva las tres fases y no '
+                                  f'quedan barras que las lleven: {cifras_de_banco(kvar, float(barra.uknom), fases)}')
                 objetos.append(banco.loc_name)
                 creados.append({'feeder': feeder, 'banco': banco.loc_name, 'barra': nombre,
-                                'kv': float(barra.uknom), 'kvar': kvar})
+                                'kv': float(barra.uknom), 'kvar': kvar, 'fases': fases})
     finally:
         for v in activas:
             v.Activate()

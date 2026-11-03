@@ -24,6 +24,10 @@
   Hecho cuando: `pytest -q tests/test_oraculo_corrige.py tests/test_preflight_contract.py tests/test_carpeta_pf.py tests/test_carpeta_por_empresa.py` en verde.
 - [x] T18 Sin nombres de empresa en la lista negra, y la ayuda del MCP en UTF-8. (RF-62, RF-63)
   Hecho cuando: `pytest -q tests/test_casos_de_prueba.py tests/test_asistente_lectura_local.py` en verde, sin `PYTHONUTF8`.
+- [x] T19 Lo nuevo se adapta a las fases de su barra: cargas nuevas, bancos de la calibración y de una obra. (RF-64 a RF-69)
+  Hecho cuando: `pytest -q tests/test_fases_de_lo_nuevo.py` en verde, con redes sorteadas.
+- [ ] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
+  Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.
 - [ ] T10 [DIgSILENT] Resolver en un proyecto de prueba de quien tenga el turno: un acoplador o un banco con más fases que su barra.
   Hecho cuando: importado por la web, el «Caso base» converge en DIgSILENT y su informe lleva la anotación.
 - [ ] T11 [DIgSILENT] La lectura real tras el flujo: una SED de una fase en un ramal sin esa fase, sobre una copia de prueba.

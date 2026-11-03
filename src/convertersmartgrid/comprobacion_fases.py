@@ -11,6 +11,7 @@ aunque 054:RF-9 lo corrija al construir el modelo: una guarda no reutiliza a qui
 """
 from __future__ import annotations
 
+import math
 from collections import Counter, deque
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -21,6 +22,9 @@ from .model import FeederModel, decode_phase
 MAS_FASES = 'mas_fases'
 NO_LLEGAN = 'no_llegan'
 _MAX_LINEAS = 50
+#: Fases de ``ElmTerm.phtech`` (054:RF-3): ABC, ABC-N, BI, BI-N, 2PH, 2PH-N, 1PH y 1PH-N.
+FASES_POR_PHTECH = {0: 3, 1: 3, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 1}
+LETRAS_POR_FASES = {3: 'ABC', 2: 'AB', 1: 'A'}
 
 
 @dataclass(frozen=True)
@@ -184,6 +188,22 @@ def reconstruir_bancos(model: FeederModel) -> list[str]:
                       f'fases {propias} → {nuevas}; conserva su potencia.')
     model.warnings.extend(lineas)
     return lineas
+
+
+def fases_de_phtech(valor: Any) -> int:
+    """Las fases de una barra de DIgSILENT; tres si no lo dice (054:RF-5)."""
+    return FASES_POR_PHTECH.get(int(valor or 0), 3)
+
+
+def corriente_por_fase_a(kva: float, kv: float, n: int) -> float | None:
+    """La corriente de ``kva`` en ``n`` fases a ``kv`` entre líneas; ``None`` sin tensión.
+
+    Con menos de tres fases el elemento va entre líneas (054:RF-4): S/U, √3 veces la trifásica. Es la
+    cifra que dice lo que cuesta adaptar una carga (081:RF-66): cada fase lleva bastante más.
+    """
+    if not kv:
+        return None
+    return float(kva) / float(kv) / (math.sqrt(3.0) if n >= 3 else 1.0)
 
 
 @dataclass(frozen=True)

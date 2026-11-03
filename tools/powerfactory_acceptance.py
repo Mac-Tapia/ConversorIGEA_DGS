@@ -2711,11 +2711,8 @@ def converger_caso_base(app: Any, *, minimo: float = 0.1, paso: float = 0.1,
             'final_load_flow': final}
 
 
-#: Fases de ``ElmTerm.phtech`` (054:RF-3): ABC, ABC-N, BI, BI-N, 2PH, 2PH-N, 1PH y 1PH-N.
-_FASES_POR_PHTECH = {0: 3, 1: 3, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 1}
 #: Fases de ``ElmShnt.ctech`` (3PH-D, 3PH-Y, 3PH-YN, 2PH-Y, 2PH-YN, 1PH PH-PH, 1PH PH-N, 1PH PH-E); DIgSILENT lo confirma en la T10.
 _FASES_POR_CTECH = {0: 3, 1: 3, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1, 7: 1}
-_LETRAS_POR_FASES = {3: 'ABC', 2: 'AB', 1: 'A'}
 
 
 def _entero(obj: Any, atributo: str) -> int | None:
@@ -2748,11 +2745,11 @@ def elementos_de_pf(app: Any) -> tuple[list[Any], dict[str, Any], dict[str, Any]
     Las cargas no van: una carga sin tipo toma la tecnología de su barra (054), y las que no llegan
     las ve la lectura tras el flujo. Devuelve también el objeto de cada elemento, para corregirlo.
     """
-    from convertersmartgrid.comprobacion_fases import Barra, Elemento
+    from convertersmartgrid.comprobacion_fases import FASES_POR_PHTECH, Barra, Elemento
 
     barras = {}
     for t in _calc_objects(app, '*.ElmTerm'):
-        n = _FASES_POR_PHTECH.get(_entero(t, 'phtech'))
+        n = FASES_POR_PHTECH.get(_entero(t, 'phtech'))
         if n is not None:
             barras[_name(t)] = Barra(_name(t), n)
     elementos, objetos = [], {}
@@ -2773,7 +2770,7 @@ def corregir_fases_pf(app: Any) -> list[dict[str, Any]]:
     Tramos y transformadores comparten su tipo con otros: cambiarlo aquí arrastraría a todos; quedan
     dichos, y se arreglan al reconvertir. Lo escrito lo confirma el flujo que viene después.
     """
-    from convertersmartgrid.comprobacion_fases import comprobar
+    from convertersmartgrid.comprobacion_fases import LETRAS_POR_FASES, comprobar
     from convertersmartgrid.dgs import _capacitor_technology
 
     elementos, barras, objetos = elementos_de_pf(app)
@@ -2783,7 +2780,7 @@ def corregir_fases_pf(app: Any) -> list[dict[str, Any]]:
         if h.clase == 'acoplador':
             _set_attr(obj, 'nphase', nuevas)
         elif h.clase == 'banco':
-            ctech, ilcph = _capacitor_technology(_LETRAS_POR_FASES[nuevas])
+            ctech, ilcph = _capacitor_technology(LETRAS_POR_FASES[nuevas])
             _set_attr(obj, 'ctech', ctech)
             _set_attr(obj, 'ilcph', ilcph)
         else:

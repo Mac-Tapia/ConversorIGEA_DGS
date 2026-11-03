@@ -63,8 +63,9 @@ from typing import Any, Callable
 
 from ajuste_cabecera_pf import _clave_objeto_nativo, cargas_sed, diagnostico
 from cargas_pf import (
-    Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
-    completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_cabecera, leer_red, medir_estado,
+    Alimentadores, activar_proyecto, adaptar_banco, cabecera_de, cifras_de_banco, clave_pf, crear_variacion,
+    error_inesperado, es_cable, completar_diagrama, distancia_m, fases_de_barra, flujo_de_carga, gps_de,
+    leer_cabecera, leer_red, medir_estado,
     nombre_libre, nombre_pf, partir_tramo, trazado_de,
 )
 from casos_pf import (
@@ -499,9 +500,7 @@ def _barra_con_tres_fases(ctx, barra):
     """
     from convertersmartgrid.comprobacion_fases import Barra, ubicar_nuevo
 
-    def fases(b) -> int:
-        return {2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 1}.get(int(getattr(b, 'phtech', 0) or 0), 3)
-
+    fases = fases_de_barra
     if fases(barra) >= 3:
         return barra
     def distancia(b) -> float:
@@ -532,6 +531,10 @@ def construir_condensador(ctx) -> None:
     # ComCapo instala sus bancos igual en DIgSILENT real).
     banco.qcapn = o.q_kvar / 1000.0 / o.escalones
     banco.ncapx = banco.ncapa = o.escalones
+    n_fases = fases_de_barra(barra)
+    adaptar_banco(banco, n_fases)                          # 081:RF-68: queda como dice el aviso
+    if n_fases < 3:
+        ctx.fila.setdefault('avisos', []).append(f'{banco.loc_name}: {cifras_de_banco(o.q_kvar, float(barra.uknom), n_fases)}')
     banco.i_cont = 0                                       # escalones discretos
     if o.consigna_pu:                                      # RF-72
         banco.iswitch = 1

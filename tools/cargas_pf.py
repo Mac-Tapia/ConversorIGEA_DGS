@@ -1088,19 +1088,114 @@ def _troncales(alims: Alimentadores):
     return de
 
 
+def fases_de_barra(barra) -> int:
+    """Las fases que lleva una barra del proyecto (054:RF-3)."""
+    from convertersmartgrid.comprobacion_fases import fases_de_phtech
+
+    return fases_de_phtech(getattr(barra, 'phtech', 0))
+
+
 def es_trifasica(barra) -> bool:
-    """Si la barra lleva las tres fases (``phtech`` 0, como la escribe el DGS, 054:RF-10)."""
-    return int(getattr(barra, 'phtech', 0) or 0) == 0
+    """Si la barra lleva las tres fases, con neutro o sin él (054:RF-10)."""
+    return fases_de_barra(barra) >= 3
 
 
-def barra_para_sed_nueva(sed: str, barra, cercanas: list, punto) -> tuple | None:
-    """``(barra, distancia)`` trifásica para una SED nueva con el contrato común (081:RF-8), o ``None`` si no hay."""
-    from convertersmartgrid.comprobacion_fases import Barra, ubicar_nuevo
+def fases_de_tipo(tipo, atributo: str) -> int:
+    """Las fases de un tipo de línea (``nlnph``) o de transformador (``nt2ph``); tres si no lo dice."""
+    return int(getattr(tipo, atributo, 3) or 3)
 
-    opciones = ({b.loc_name: (b, distancia_m(pos, punto)) for b, pos, _interna in cercanas if es_trifasica(b)}
-                if punto is not None else {})
-    u = ubicar_nuevo('SED', sed, 3, Barra(barra.loc_name, 2), [(Barra(n, 3), d) for n, (_b, d) in opciones.items()])
-    return opciones[u.barra] if u.reubicado else None
+
+def fases_en_el_punto(barra, conexion: dict | None) -> int:
+    """Las fases donde se engancharía la SED: las de la barra o, si parte un tramo, las de ese tramo (081:RF-67).
+
+    El tramo que se parte puede llevar menos fases que el extremo que se tomó de referencia: un ramal
+    monofásico que sale de una barra trifásica. Mirando solo la barra, la SED trifásica caía sobre la
+    barra nueva del ramal, que DIgSILENT rechaza como el resto de esta clase de fallos.
+    """
+    if conexion is not None:
+        return fases_de_tipo(getattr(conexion['linea'], 'typ_id', None), 'nlnph')
+    return fases_de_barra(barra)
+
+
+def ubicar_sed_nueva(sed: str, barra, fases_punto: int, cercanas: list, punto):
+    """Con el contrato común (081:RF-8, RF-9), ``(barra, distancia, ubicación)`` de una SED nueva.
+
+    La barra compatible más cercana y, sin ninguna, la pedida con sus fases: nunca se rechaza. Las
+    barras de media internas de una SED solo cuentan si no hay otras (007:RF-48).
+    """
+    from convertersmartgrid.comprobacion_fases import Barra as BarraFases
+    from convertersmartgrid.comprobacion_fases import ubicar_nuevo
+
+    lista = ([c for c in cercanas if not c[2]] or list(cercanas)) if punto is not None else []
+    opciones = {b.loc_name: (b, distancia_m(pos, punto)) for b, pos, _interna in lista}
+    u = ubicar_nuevo('SED', sed, 3, BarraFases(barra.loc_name, fases_punto),
+                     [(BarraFases(n, fases_de_barra(b)), d) for n, (b, d) in opciones.items()])
+    destino, distancia = opciones[u.barra] if u.reubicado else (barra, None)
+    return destino, distancia, u
+
+
+def cifras_de_sed_adaptada(fila: dict, kv: float, n: int) -> str:
+    """Lo que supone dejar la SED con ``n`` fases (081:RF-66): su potencia y la corriente de más."""
+    from convertersmartgrid.comprobacion_fases import corriente_por_fase_a
+
+    kw, kvar = float(fila.get('kw') or 0.0), float(fila.get('kvar') or 0.0)
+    kva = float(fila.get('kva_instalado') or 0.0) or math.hypot(kw, kvar)
+    con_n, con_tres = corriente_por_fase_a(kva, kv, n), corriente_por_fase_a(kva, kv, 3)
+    corriente = '' if con_n is None else f'; a {kv:g} kV, {con_n:.1f} A por fase frente a {con_tres:.1f} A con tres'
+    return f'{kva:g} kVA, {kw:g} kW y {kvar:g} kvar en {n} fase(s){corriente} (081:RF-66).'
+
+
+def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
+    """Lo que supone dejar un banco nuevo con ``n`` fases (081:RF-68)."""
+    from convertersmartgrid.comprobacion_fases import corriente_por_fase_a
+
+    corriente = corriente_por_fase_a(kvar, kv, n)
+    a_tension = f' a {kv:g} kV' if kv else ''
+    return (f'{kvar:g} kvar{a_tension} en {n} fase(s)'
+            + ('' if corriente is None else f', {corriente:.1f} A por fase') + ' (081:RF-68).')
+
+
+def poner_fases(n: int, *barras) -> None:
+    """Las barras nuevas con ``n`` fases; una trifásica queda como la deja DIgSILENT (054:RF-3)."""
+    if n < 3:
+        from convertersmartgrid.dgs import PHTECH_POR_FASES
+
+        for barra in barras:
+            if barra is not None:
+                barra.phtech = PHTECH_POR_FASES[n]
+
+
+def adaptar_banco(banco, n: int) -> None:
+    """Un banco nuevo con ``n`` fases (081:RF-68): ``ctech`` e ``ilcph``, como los escribe el DGS.
+
+    Sin esto el aviso decía «con las fases de esa barra» y el banco seguía trifásico, que es justo lo
+    que deja a DIgSILENT sin flujo en todo el proyecto.
+    """
+    if n < 3:
+        from convertersmartgrid.comprobacion_fases import LETRAS_POR_FASES
+        from convertersmartgrid.dgs import _capacitor_technology
+
+        banco.ctech, banco.ilcph = _capacitor_technology(LETRAS_POR_FASES[n])
+
+
+def tipo_de_linea_con_fases(proyecto, typ_folder, tipo, n: int):
+    """``(tipo, nuevo)``: el tipo con ``n`` fases, para la línea de enlace de una SED nueva (081:RF-65).
+
+    El tipo elegido sale de la red y puede tener otras fases que la SED: una línea trifásica en una
+    barra de una fase para todo el proyecto. Se copia para no arrastrar a las líneas que ya lo usan,
+    con el nombre de las variantes del DGS (``_1F``, 054:RF-2), y se reutiliza si ya está.
+    """
+    if tipo is None or fases_de_tipo(tipo, 'nlnph') == n:
+        return tipo, False
+    base = re.sub(r'_[12]F$', '', tipo.loc_name)
+    propio = nombre_pf(f'{base[:MAX_NOMBRE - 3]}_{n}F')
+    con_fases = {t.loc_name: t for t in proyecto.GetContents('*.TypLne', 1) if fases_de_tipo(t, 'nlnph') == n}
+    for nombre in ((base, propio) if n == 3 else (propio,)):
+        if nombre in con_fases:
+            return con_fases[nombre], False
+    copia = typ_folder.AddCopy(tipo, propio)
+    copia.nlnph, copia.nneutral = n, 0
+    return copia, True
 
 
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None,
@@ -1286,15 +1381,22 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             no_creadas.append({'sed': sed, 'motivo': 'sin barra ni coordenadas'})
             continue
         feeder, barra, dist, criterio = eleccion
-        if not es_trifasica(barra):
-            # 054:RF-10: la SED nueva es trifásica; en un ramal de dos fases dejaba sin flujo todo el proyecto.
-            otra = barra_para_sed_nueva(sed, barra, cercanas[feeder], punto)
-            if otra is None:
-                no_creadas.append({'sed': sed, 'motivo': f'{barra.loc_name} no tiene las tres fases y '
-                                                         'no hay otra barra trifásica con GPS (054:RF-10)'})
-                continue
-            barra, dist = otra
-            conexion, criterio = None, f'barra trifásica más cercana: {barra.loc_name} no tiene las tres fases'
+        fases_sed = 3
+        fases_punto = fases_en_el_punto(barra, conexion)
+        if fases_punto < 3:
+            # 054:RF-10: una SED trifásica en un ramal de dos fases dejaba sin flujo todo el proyecto. Sin
+            # barra trifásica no se creaba y la carga se perdía; ahora se adapta (081:RF-64, cambia 054:RF-10).
+            pedida = barra.loc_name
+            barra, otra_dist, ubicacion = ubicar_sed_nueva(sed, barra, fases_punto, cercanas[feeder], punto)
+            if ubicacion.reubicado:
+                dist, conexion = otra_dist, None
+                criterio = f'barra trifásica más cercana: {pedida} lleva {fases_punto} fase(s)'
+                avisos.append(ubicacion.nota)
+            else:
+                fases_sed = ubicacion.n
+                criterio = f'{criterio}; adaptada a {fases_sed} fase(s)'
+                avisos.append(f"{ubicacion.nota} "
+                              f"{cifras_de_sed_adaptada(fila, float(getattr(barra, 'uknom', 0) or 0), fases_sed)}")
         tipo, origen_tipo = None, ''
         if con_cable(dist):                        # hace falta una línea de enlace (RF-88)
             if fila.get('tipo_linea') and fila['tipo_linea'] in tipos:
@@ -1327,6 +1429,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             'tension_mt_kv': float(getattr(barra, 'uknom', 0) or 0),
             'tension_bt_kv': float(bt), 'red': red,
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
+            'fases': fases_sed,
         })
         existentes.add(sed)
     # 016:RF-47 (cambia con RF-77): dos cargas en el mismo tramo lo parten una tras otra;
@@ -1349,40 +1452,47 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     return resueltas, no_creadas, avisos
 
 
-def _tipo_trafo(alims, feeder, typ_folder, kva: float, mt: float, bt: float, frecuencia: float):
+def _tipo_trafo(alims, feeder, typ_folder, kva: float, mt: float, bt: float, frecuencia: float, n: int = 3):
     """Tipo de transformador: el del alimentador que ya coincide o uno hecho a su imagen.
 
     Antes se creaba un ``TypTr2`` por SED con uk 4 % y Dyn5 fijos. Ahora se reutiliza el
-    que tenga la misma potencia y tensiones; si no, se copia la impedancia y el grupo de
-    conexión del más parecido del alimentador.
+    que tenga la misma potencia, tensiones y fases (081:RF-69: con fases reales, una SED
+    monofásica de 100 kVA daría su tipo a una trifásica de 100 kVA); si no, se copia la
+    impedancia del más parecido y, si tiene sus fases, el grupo de conexión. Con menos de
+    tres fases, alta y baja en D, como 054:RF-4 midió en DIgSILENT.
     """
     strn = kva / 1000.0
     tipos = [getattr(tr, 'typ_id', None) for tr in alims.objetos(feeder, 'ElmTr2')]
     tipos = [t for t in tipos if t is not None]
-    for t in tipos:
+    iguales = [t for t in tipos if fases_de_tipo(t, 'nt2ph') == n]
+    for t in iguales:
         if (abs(float(t.strn) - strn) < 1e-9 and abs(float(t.utrn_h) - mt) < 1e-6
                 and abs(float(t.utrn_l) - bt) < 1e-6):
             return t, False, ''
-    modelo = min(tipos, key=lambda t: abs(float(t.strn) - strn), default=None)
-    nombre = nombre_pf(f'TR_{kva:g}kVA_{mt:g}_{bt:g}kV')
+    modelo = min(iguales or tipos, key=lambda t: abs(float(t.strn) - strn), default=None)
+    nombre = nombre_pf(f'TR_{kva:g}kVA_{mt:g}_{bt:g}kV' + (f'_{n}F' if n < 3 else ''))
     ya = [t for t in typ_folder.GetContents('*.TypTr2') if t.loc_name == nombre]
     if ya:
         return ya[0], False, ''
     nuevo = typ_folder.CreateObject('TypTr2', nombre)
-    nuevo.nt2ph, nuevo.strn, nuevo.utrn_h, nuevo.utrn_l = 3, strn, mt, bt
+    nuevo.nt2ph, nuevo.strn, nuevo.utrn_h, nuevo.utrn_l = n, strn, mt, bt
     if frecuencia:
         nuevo.frnom = frecuencia
     aviso = ''
+    grupo = ('D', 'YN', 5) if n == 3 else ('D', 'D', 0)
     if modelo is not None:
         escala = strn / float(modelo.strn) if float(modelo.strn) else 1.0
-        for attr in ('uktr', 'tr2cn_h', 'tr2cn_l', 'nt2ag'):
-            setattr(nuevo, attr, getattr(modelo, attr))
+        nuevo.uktr = getattr(modelo, 'uktr')
+        if fases_de_tipo(modelo, 'nt2ph') == n:
+            grupo = tuple(getattr(modelo, attr) for attr in ('tr2cn_h', 'tr2cn_l', 'nt2ag'))
+        nuevo.tr2cn_h, nuevo.tr2cn_l, nuevo.nt2ag = grupo
         nuevo.pcutr = float(getattr(modelo, 'pcutr', 0) or 0) * escala
     else:
-        nuevo.uktr, nuevo.tr2cn_h, nuevo.tr2cn_l, nuevo.nt2ag = 4.0, 'D', 'YN', 5
+        nuevo.uktr = 4.0
+        nuevo.tr2cn_h, nuevo.tr2cn_l, nuevo.nt2ag = grupo
         nuevo.pcutr = max(strn * 10.0, 0.1)
         aviso = (f'{nombre}: el alimentador no tiene transformadores de referencia; '
-                 'uk 4 % y Dyn5 típicos, revíselos')
+                 f'uk 4 % y {"Dyn5" if n == 3 else "Dd0"} típicos, revíselos')
     return nuevo, True, aviso
 
 
@@ -1469,22 +1579,27 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         return crear_ampliacion(feeder, r)
     fila, barra, red = r['fila'], r['barra'], r['red']
     sed = fila['sed']
+    fases = int(r.get('fases') or 3)                                     # 081:RF-64
     contenedor = red if red is not None else barra.GetParent()
     partido = None
     if r.get('partir'):
         p = r['partir']
         nombre = nombre_libre(p['linea'].GetParent(), 'ElmTerm', f'NODE_T_{sed}')
         barra, _ = partir_tramo(alims.app, p['linea'], p['fraccion'], nombre, gps=p['gps'])
+        poner_fases(fases, barra)                                        # 081:RF-65
         p['barra_nueva'] = barra
         partido = {'tramo': p['tramo'], 'fraccion': round(p.get('fraccion_tramo', p['fraccion']), 4)}
     mt, bt = r['tension_mt_kv'], r['tension_bt_kv']
     enganche, linea, nueva_barra = barra, None, None
+    tipo_linea, tipo_linea_nuevo = r['tipo'], False
     if con_cable(r['distancia_m']):                                      # 016:RF-88
         nueva_barra = contenedor.CreateObject('ElmTerm', nombre_pf(f'NODE_{sed}'))
         nueva_barra.uknom, nueva_barra.iUsage, nueva_barra.outserv = mt, 1, 0
         nueva_barra.GPSlat, nueva_barra.GPSlon = float(fila['lat']), float(fila['lon'])
+        poner_fases(fases, nueva_barra)                                  # 081:RF-65
         linea = contenedor.CreateObject('ElmLne', nombre_pf(f'LNE_{sed}'))
-        linea.typ_id = r['tipo']
+        tipo_linea, tipo_linea_nuevo = tipo_de_linea_con_fases(proyecto, typ_folder, r['tipo'], fases)
+        linea.typ_id = tipo_linea
         linea.dline = max(r['distancia_m'] / 1000.0, 1e-6)
         linea.nlnum = 1
         # 016:RF-89: el cable con su trazado, del nodo al punto; sin él los cables de
@@ -1501,15 +1616,16 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
     b_mt.uknom, b_mt.iUsage = mt, 0
     b_bt = sub.CreateObject('ElmTerm', nombre_pf(f'{sed}_BT'))
     b_bt.uknom, b_bt.iUsage = bt, 0
+    poner_fases(fases, b_mt, b_bt)                                       # 081:RF-65; 054:RF-4: BT 1PH
     tipo_tr, tipo_nuevo, aviso = _tipo_trafo(alims, feeder, typ_folder, float(fila['kva_instalado']),
-                                             mt, bt, r['frecuencia_hz'])
+                                             mt, bt, r['frecuencia_hz'], fases)
     tr = sub.CreateObject('ElmTr2', nombre_pf(f'TR_{sed}'))
     tr.typ_id, tr.ntnum, tr.outserv = tipo_tr, 1, 0
     for term, lado, nombre in ((b_mt, 0, 'Cub1_TR'), (b_bt, 1, 'Cub2_TR')):
         cub = term.CreateObject('StaCubic', nombre_pf(f'{nombre}_{sed}'))
         cub.obj_id, cub.obj_bus = tr, lado
     sw = sub.CreateObject('ElmCoup', nombre_pf(f'SW_{sed}'))
-    sw.on_off, sw.aUsage, sw.nphase = 1, 'cbk', 3
+    sw.on_off, sw.aUsage, sw.nphase = 1, 'cbk', fases
     for term, lado, nombre in ((enganche, 0, 'Cub1_SW'), (b_mt, 1, 'Cub2_SW')):
         cub = term.CreateObject('StaCubic', nombre_pf(f'{nombre}_{sed}'))
         cub.obj_id, cub.obj_bus = sw, lado
@@ -1537,7 +1653,8 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
             dibujo = {'error': f'{type(exc).__name__}: {exc}'}
     return {
         'sed': sed, 'alimentador': feeder, 'barra': barra.loc_name, 'criterio': r['criterio'],
-        'distancia_m': r['distancia_m'], 'tipo_linea': getattr(r['tipo'], 'loc_name', None),
+        'distancia_m': r['distancia_m'], 'tipo_linea': getattr(tipo_linea, 'loc_name', None),
+        'tipo_linea_nuevo': tipo_linea_nuevo, 'fases': fases,
         'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': mt, 'tension_bt_kv': bt,
         'kva_instalado': fila['kva_instalado'], 'kw': fila['kw'], 'kvar': fila['kvar'],
         'tipo_trafo': tipo_tr.loc_name, 'tipo_trafo_nuevo': tipo_nuevo,
@@ -2108,6 +2225,7 @@ def _crearian(r: dict, variacion: str) -> dict:
             'tipo_linea': getattr(r['tipo'], 'loc_name', None),
             'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
             'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota'),
+            'fases': int(r.get('fases') or 3),
             'ampliacion': ({k: r['ampliacion'][k] for k in ('sed', 'barra', 'criterio', 'distancia_m')}
                            if r.get('ampliacion') else None)}
 
@@ -2429,7 +2547,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                         por_feeder[feeder]['fallos'].append({'sed': creada['sed'], 'error': creada['error_relectura']})
                     por_feeder[feeder]['creadas'].append(creada)
                     informe['cargas'].append({k: creada.get(k) for k in (
-                        'sed', 'alimentador', 'variacion', 'barra', 'criterio', 'distancia_m', 'nota',
+                        'sed', 'alimentador', 'variacion', 'barra', 'criterio', 'distancia_m', 'nota', 'fases',
                         'con_proyecto', 'delta', 'economia', 'tecnico_economico', 'ampliacion')})
                     amp = creada.get('ampliacion')
                     if amp and amp.get('propuesta'):
@@ -2720,12 +2838,16 @@ def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, i
                 informe['simbolos'].append(grf.loc_name)
                 if not simular:
                     borrar_en_su_proyecto(grf, proyecto)                   # 084:RF-26
-    nuevos = {c['tipo_trafo'] for c in creadas if c.get('tipo_trafo_nuevo') and c.get('tipo_trafo')}
-    if nuevos:
+    # 081:RF-65: también la copia del tipo de línea con otras fases, que hizo esta inserción.
+    for campo, marca, clase, tipo_clase in (('tipo_trafo', 'tipo_trafo_nuevo', 'ElmTr2', 'TypTr2'),
+                                            ('tipo_linea', 'tipo_linea_nuevo', 'ElmLne', 'TypLne')):
+        nuevos = {c[campo] for c in creadas if c.get(marca) and c.get(campo)}
+        if not nuevos:
+            continue
         en_uso = {getattr(getattr(t, 'typ_id', None), 'loc_name', None)
-                  for t in proyecto.GetContents('*.ElmTr2', 1)}
+                  for t in proyecto.GetContents(f'*.{clase}', 1)}
         typ_folder = app.GetProjectFolder('equip') or proyecto
-        for tipo in typ_folder.GetContents('*.TypTr2', 1):
+        for tipo in typ_folder.GetContents(f'*.{tipo_clase}', 1):
             if tipo.loc_name not in nuevos:
                 continue
             if tipo.loc_name in en_uso:

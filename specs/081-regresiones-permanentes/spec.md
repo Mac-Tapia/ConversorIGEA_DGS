@@ -125,6 +125,19 @@ Usuario, 2026-11-03: «nada debe bloquear, debes dar solución, para eso están 
 - RF-62: EL SISTEMA no nombrará a una empresa ni a su carpeta de datos en la lista negra de lectura: la lectura restringida ya rechaza lo que está fuera del árbol (072:RF-20).
 - RF-63: LA ayuda de `tools/mcp_conversor.py` saldrá en UTF-8 con cualquier codificación de la consola.
 
+Lo nuevo se adapta a las fases de su barra
+
+Usuario, 2026-11-03: «nada debe bloquear, debes dar solución, para eso están los oráculos». 054:RF-10 (cumplida, sigue como está
+escrita) no creaba la SED nueva ni los bancos que faltan si no había barra trifásica, y RF-9 de esta spec pide adaptarlos. Cambia
+054:RF-10: la barra trifásica más cercana sigue siendo la primera opción (RF-8).
+
+- RF-64: SI no hay barra trifásica para una carga nueva, ENTONCES EL SISTEMA la creará con las fases del punto donde se engancha y la anotará (cambia 054:RF-10).
+- RF-65: CUANDO una carga nueva se adapta, EL SISTEMA dará esas fases a sus barras, su interruptor, su transformador y su línea de enlace, con un tipo de línea propio si el de la red tiene otras.
+- RF-66: CUANDO una carga nueva se adapta, EL SISTEMA dirá su potencia y su corriente por fase frente a la trifásica.
+- RF-67: SI la carga nueva parte un tramo, ENTONCES EL SISTEMA tomará como fases del punto las de ese tramo, no las de su extremo.
+- RF-68: SI faltan barras trifásicas para los bancos de la calibración o de una obra, ENTONCES EL SISTEMA los pondrá con las fases de su barra, con su potencia y su corriente por fase en el aviso (cambia 054:RF-10).
+- RF-69: EL SISTEMA reutilizará para una SED nueva solo un tipo de transformador con sus mismas fases; con menos de tres, alta y baja en D (054:RF-4).
+
 ## Fuera de alcance
 
 - Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).
@@ -134,5 +147,5 @@ Usuario, 2026-11-03: «nada debe bloquear, debes dar solución, para eso están 
 
 ## Criterios de finalización
 
-- `grep -rnoE "081:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-63.
+- `grep -rnoE "081:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-69.
 - Un «Caso base» que no converge por una causa reconstruible llega convergido, con su anotación, en la prueba con doble y en DIgSILENT.
