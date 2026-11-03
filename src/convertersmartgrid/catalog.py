@@ -1175,6 +1175,8 @@ def asegurar_catalogo_empresa(ruta: Path | str) -> Path:
 
     from openpyxl import Workbook
 
+    from .runtime_paths import staging_publicacion
+
     ruta = Path(ruta)
     with _bloqueo():
         if ruta.is_file():
@@ -1187,9 +1189,11 @@ def asegurar_catalogo_empresa(ruta: Path | str) -> Path:
             ws.append(list(COLUMNAS_CONDUCTOR))
             for fila in filas:
                 ws.append(['' if fila.get(c) is None else fila.get(c, '') for c in COLUMNAS_CONDUCTOR])
-        temporal = ruta.with_name(ruta.stem + '.tmp' + ruta.suffix)
-        libro.save(temporal)
-        os.replace(temporal, ruta)
+        # 065:RF-10, RF-11: el catálogo vive en input/ del checkout; su borrador «.tmp» quedaba junto a
+        # él si el proceso caía. Se prepara fuera del código, en el mismo volumen, y se publica de una vez.
+        with staging_publicacion(ruta) as temporal:
+            libro.save(temporal)
+            os.replace(temporal, ruta)
     return ruta
 
 _BLOQUEO_CATALOGO: list = []

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
-const entry = new URL('../src/solicitudLeida.ts', import.meta.url).pathname.replace(/^\/(.:\/)/, '$1');
+// 065:RF-9: `URL.pathname` deja «%20» y la prueba fallaba en una ruta con espacios.
+const entry = fileURLToPath(new URL('../src/solicitudLeida.ts', import.meta.url));
 
 async function cargar() {
   const salida = await build({

@@ -197,6 +197,24 @@ def test_reconciliar_crash_exige_pid_muerto_y_edad(tmp_path):
     assert (paths.temporales / 'csg-job-vivo').is_dir()
 
 
+def test_catalogo_de_empresa_se_prepara_fuera_de_su_carpeta(tmp_path, monkeypatch):
+    """065:RF-10, 065:RF-11 — el catálogo nuevo no deja borrador «.tmp» junto a él, ni si falla al guardar."""
+    import openpyxl
+    from convertersmartgrid.catalog import asegurar_catalogo_empresa
+    monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
+    monkeypatch.setenv('CSG_CACHE_HOME', str(tmp_path / 'cache'))
+    carpeta = tmp_path / 'input' / 'empresas' / 'E'
+    destino = asegurar_catalogo_empresa(carpeta / 'catalogo_parametros.xlsx')
+    assert list(carpeta.iterdir()) == [destino]
+    assert openpyxl.load_workbook(destino).sheetnames
+    otro = tmp_path / 'input' / 'empresas' / 'F'
+    monkeypatch.setattr(openpyxl.Workbook, 'save', lambda *_: (_ for _ in ()).throw(OSError('disco lleno')))
+    with pytest.raises(OSError, match='disco lleno'):
+        asegurar_catalogo_empresa(otro / 'catalogo_parametros.xlsx')
+    assert list(otro.iterdir()) == []
+    assert not list((tmp_path / 'runtime').rglob('csg-job-*'))
+
+
 def test_retencion_diaria_incluye_temporales_externos_propios(tmp_path, monkeypatch):
     """065:RF-13 / 062:RF-1 — la política tiene consumidor periódico, no solo una utilidad."""
     from convertersmartgrid.runtime_paths import rutas_runtime

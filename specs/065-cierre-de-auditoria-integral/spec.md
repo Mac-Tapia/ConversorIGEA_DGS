@@ -37,6 +37,7 @@ correcciones y guardas; no amplía silenciosamente specs ya cumplidas.
 - RF-24: EL SISTEMA verificará el candidato integrado mediante instalación reproducible, regresión, build y arranque aislado, conservando los fallos y las exclusiones.
 - RF-25: CUANDO reparta alimentadores entre procesos, EL SISTEMA limitará cada proceso a un hilo de cálculo numérico, salvo que el operador haya fijado otro valor.
 - RF-26: SI un espacio guardado trae campos propios de una obra ya aplicada o su índice de cabecera, ENTONCES EL SISTEMA lo abrirá sin error y conservará esos campos en la respuesta.
+- Aclaración de RF-5 y RF-7 (081:RF-57, decisión del usuario del 2026-11-03): el fallo de un miembro o del cálculo se propaga al grupo y se informa con su motivo, pero ya no impide importar; para únicamente la red vacía o la copia que no se pudo fijar (081:RF-59, 081:RF-60). Lo que resolvía el hallazgo ARQ-01, que el fallo de un miembro se perdía al comprobar el nombre del grupo, sigue exigido.
 
 ## Relación con specs existentes
 
