@@ -3,9 +3,9 @@
 Cuándo: un alimentador cargado tiene tramos sin nodo, sin fuente, sin configuración de línea o sin coordenadas, y por eso no se
 puede convertir. Nada bloquea salvo una red vacía: se reconstruye y se anota.
 
-1. Diagnosticar la selección: `POST /api/workspaces/<espacio>/diagnose` (`src/convertersmartgrid/web/app.py:1176`
+1. Diagnosticar la selección: `POST /api/workspaces/<espacio>/diagnose` (`src/convertersmartgrid/web/app.py:1195`
    («/api/workspaces/{wid}/diagnose»)). Dice qué falta en cada alimentador.
-2. Reconstruir: `POST /api/workspaces/<espacio>/reconstruct` (`src/convertersmartgrid/web/app.py:1186`
+2. Reconstruir: `POST /api/workspaces/<espacio>/reconstruct` (`src/convertersmartgrid/web/app.py:1205`
    («/api/workspaces/{wid}/reconstruct»)) con los alimentadores elegidos.
 3. La reconstrucción trabaja sobre una copia y anota cada cambio con su evidencia; el dato original no se toca
    (`src/convertersmartgrid/reconstruction_pipeline.py:32` («def reconstruir_seleccion»)). Sus pasos, en este orden:
