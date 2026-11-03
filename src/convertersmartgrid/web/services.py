@@ -4600,7 +4600,13 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     from ..digital_twin.integration import limites_combinados, normas_de
     from ..perfil_empresa import bancos_kvar_por_tension, datos_perfil, estructura_empresa
     from ..pide import escribir_formatos
-    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex, propuesta_pide
+    from ..pide_economia import (
+        EconomiaPideError,
+        con_y_sin_de_las_aplicadas,
+        costos_por_alternativa,
+        leer_capex,
+        propuesta_pide,
+    )
 
     project = project.strip()
     if not project:
@@ -4669,6 +4675,20 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         implementadas = _pide_implementar(ws, ctx, project, feeders, propuesta['obras'],
                                           set(plan_pide.get('anios_pide') or []))
     token = uuid.uuid4().hex[:8]
+    # 072:RF-12: con las obras ya en el proyecto, cada año se mide con las suyas y las de antes.
+    obras_por_anio = [{'variacion': o['variacion_autonoma'], 'anio': o['anio']}
+                      for o in propuesta['obras'] if o.get('variacion_autonoma')]
+    if obras_por_anio:
+        ctx.log(f'PIDE: midiendo cada año con sus obras acumuladas ({len(obras_por_anio)})…')
+        _rc, con_obras, _report = _guion_pf(ws, ctx, 'pide_pf.py', {**plan, 'obras_por_anio': obras_por_anio},
+                                            nombre='pide_con_obras', cancelable=False, limite_s=LIMITE_ESTUDIO_S)
+        if con_obras.get('error'):
+            avisos.append(f"Obras por año: {con_obras['error']}")
+        else:
+            informe = con_obras
+    con_y_sin = con_y_sin_de_las_aplicadas(propuesta['obras'], informe.get('anios') or [], plan_pide,
+                                           factor_carga=plan_pide.get('factor_carga'),
+                                           precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
     formatos = _formatos_del_pide(ws, propuesta, informe, plan_pide, estudio, feeders, avisos)
     libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
     # 027:RF-49: cada formato frente al entregado del mismo código, si hay corpus de ejemplos.
@@ -4690,7 +4710,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
-            'huecos': formatos['huecos'], 'con_y_sin': propuesta['con_y_sin'],   # 072:RF-14, RF-16
+            'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
             'comparacion_formatos': comparacion}
 
 

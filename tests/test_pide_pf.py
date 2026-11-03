@@ -85,6 +85,30 @@ def test_tasa_por_alimentador_y_cargas_restituidas(guion):
     assert app.ldf.scLoadFac == 100.0 and informe['tasa_por_alimentador'] == {'F1': 0.10, 'F2': 0.0}
 
 
+def test_las_obras_entran_en_su_anio_y_se_quedan(guion, monkeypatch):
+    """072:RF-12 — el año 04 lleva la obra del 04, no la del 08; el 08 lleva las dos; y se relee de DIgSILENT."""
+    entran, salen = guion.obras_del_anio([{'variacion': 'A', 'anio': 4}, {'variacion': 'B', 'anio': 8}], 4)
+    assert (entran, salen) == (['A'], ['B'])
+    assert guion.obras_del_anio([{'variacion': 'A', 'anio': 8}, {'variacion': 'A', 'anio': 4}], 4) == (['A'], [])
+    casos_pf = cargar_herramienta('casos_pf.py', tools_en_path=True)
+    monkeypatch.setattr(casos_pf, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=2, bt=True, flujo=True, escenario=True)
+    object.__setattr__(app.ldf, 'scLoadFac', 100.0)
+    base = {'variaciones': [], 'feeders': ['F1'], 'ajustes': [], 'excluidos': []}
+    plan_casos = {'project': 'P', 'folder': None, 'feeders': ['F1'], 'base': base, 'caso_base_sin_verificar': {}}
+    assert casos_pf.preparar_sin(app, plan_casos)[1] == 0 and casos_pf.preparar_con(app, plan_casos)[1] == 0
+    for nombre in ('Obra_A', 'Obra_B'):
+        fake_pf.variacion_del_operador(app, nombre, [])
+    obras = [{'variacion': 'Obra_A', 'anio': 4}, {'variacion': 'Obra_B', 'anio': 8}, {'variacion': 'Borrada', 'anio': 4}]
+    informe, rc = guion.ejecutar(app, _plan(anios=[0, 4, 8], casos_por_anio=True, obras_por_anio=obras))
+    assert rc == 0, informe
+    con = {a['anio']: a['con_proyecto'] for a in informe['anios']}
+    assert [con[a]['obras'] for a in (0, 4, 8)] == [[], ['Obra_A'], ['Obra_A', 'Obra_B']]
+    assert con[4]['sin_aplicar'] == ['Borrada'], 'la que ya no existe se nombra, no bloquea'
+    assert con[4]['converge'] and 'perdidas_kw' in con[4]
+    assert 'perdidas_kw' in informe['anios'][0], 'los casos por año también miden las pérdidas'
+
+
 def test_anios_en_carpetas_con_sus_casos_y_escenarios(guion, monkeypatch):
     """030:RF-1 / 030:RF-2 / 030:RF-3 / 030:RF-4 / 030:RF-5 / 030:RF-6 / 030:RF-7 / 030:RF-8 —
     «PIDE/Año NN» con «Sin proyecto» y «Con proyecto» copiados (sin «Cargas nuevas», que no hay),

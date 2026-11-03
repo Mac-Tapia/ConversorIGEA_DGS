@@ -142,7 +142,7 @@ def test_el_estudio_entero_cabe_en_el_libro_y_sus_huecos_quedan_escritos(tmp_pat
 
 def test_con_y_sin_proyecto_mide_el_ahorro_de_perdidas():
     """072:RF-14 — el beneficio es la diferencia entre los dos casos del mismo año, nunca un supuesto."""
-    r = ec.evaluar_con_y_sin(1000.0, {0: 100.0, 4: 140.0}, {0: 100.0, 4: 100.0}, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)
+    r = ec.evaluar_con_y_sin({0: 1000.0}, {0: 100.0, 4: 140.0}, {0: 100.0, 4: 100.0}, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)
     por_kw = 8760 * (0.3 * 0.5 + 0.7 * 0.25) * 0.1
     assert r['ahorro_kw'][1] == pytest.approx(10.0) and r['ahorro_kw'][4] == pytest.approx(40.0)
     assert r['ahorro_kw'][20] == pytest.approx(40.0)
@@ -151,8 +151,19 @@ def test_con_y_sin_proyecto_mide_el_ahorro_de_perdidas():
     assert any('se mantiene' in a for a in r['avisos'])
 
 
-@pytest.mark.parametrize('ci, con, fc, palabra', [(0.0, {0: 90.0}, 0.5, 'costo'), (1000.0, {}, 0.5, 'Con proyecto'),
-                                                  (1000.0, {0: 90.0}, None, 'factor de carga')])
+def test_la_obra_se_paga_en_su_anio_y_solo_cuentan_las_aplicadas():
+    """072:RF-14 — la inversión del año 04 va en el año 04; una obra sin aplicar no entra en el costo."""
+    r = ec.evaluar_con_y_sin({4: 1000.0}, {0: 100.0}, {0: 100.0}, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)
+    assert r['flujos'][0] == 0.0 and r['flujos'][4] == pytest.approx(-1000.0)
+    anios = [{'anio': 0, 'perdidas_kw': 100.0, 'con_proyecto': {'perdidas_kw': 90.0}}]
+    obras = [{'anio': 4, 'ci': 1000.0, 'variacion_autonoma': 'V1'}, {'anio': 4, 'ci': 9000.0}]
+    r = ec.con_y_sin_de_las_aplicadas(obras, anios, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)
+    assert r['flujos'][4] == pytest.approx(10 * 8760 * (0.3 * 0.5 + 0.7 * 0.25) * 0.1 - 1000.0)
+    assert 'costo' in ec.con_y_sin_de_las_aplicadas(obras[1:], anios, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)['hueco']
+
+
+@pytest.mark.parametrize('ci, con, fc, palabra', [({}, {0: 90.0}, 0.5, 'costo'), ({0: 1000.0}, {}, 0.5, 'Con proyecto'),
+                                                  ({0: 1000.0}, {0: 90.0}, None, 'factor de carga')])
 def test_con_y_sin_proyecto_sin_datos_lo_dice(ci, con, fc, palabra):
     """072:RF-16 — sin costo, sin el caso con obras o sin factor de carga, no hay resultado inventado."""
     r = ec.evaluar_con_y_sin(ci, {0: 100.0}, con, PLAN, factor_carga=fc, precio_compra_kwh=0.1)

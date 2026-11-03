@@ -187,17 +187,18 @@ def _entre_anios(medidas: Mapping[int, float], anio: int) -> float:
     return medidas[desde] + (medidas[hasta] - medidas[desde]) * (anio - desde) / (hasta - desde)
 
 
-def evaluar_con_y_sin(ci: float, perdidas_sin: Mapping[int, float], perdidas_con: Mapping[int, float],
+def evaluar_con_y_sin(inversiones: Mapping[int, float], perdidas_sin: Mapping[int, float], perdidas_con: Mapping[int, float],
                       plan: Mapping[str, Any], *, factor_carga: float | None,
                       precio_compra_kwh: float | None) -> dict[str, Any]:
     """La cartera frente a no hacerla: lo que ahorra en pérdidas cada año, medido (072:RF-14).
 
     Es la evaluación del art. 14 con los dos casos del mismo año; DIgSILENT mide cada uno. El ahorro de
     pérdidas es el único beneficio que el flujo mide: la energía no servida y la calidad quedan fuera,
-    así que un VAN negativo aquí no dice que la obra no se justifique.
+    así que un VAN negativo aquí no dice que la obra no se justifique. ``inversiones``: lo que se
+    invierte cada año, porque una obra del año 08 no se paga en el año 00.
     """
     comunes = {a: v for a, v in perdidas_sin.items() if v is not None and perdidas_con.get(a) is not None}
-    if not ci:
+    if not any(inversiones.values()):
         return {'hueco': 'sin costo de la cartera: falta el libro CAPEX o el costo oficial'}
     if not comunes:
         return {'hueco': 'faltan las pérdidas de «Con proyecto» en los años del estudio (072:RF-12)'}
@@ -207,7 +208,8 @@ def evaluar_con_y_sin(ci: float, perdidas_sin: Mapping[int, float], perdidas_con
     horizonte = int(plan['horizonte_anios'])
     valor = _valor_anual_kw_perdido(factor_carga, precio_compra_kwh)
     por_anio = {t: _entre_anios(ahorro, t) for t in range(1, horizonte + 1)}
-    flujos = [-float(ci)] + [por_anio[t] * valor for t in range(1, horizonte + 1)]
+    flujos = [-float(inversiones.get(0, 0.0))] + [por_anio[t] * valor - float(inversiones.get(t, 0.0))
+                                                  for t in range(1, horizonte + 1)]
     avisos = []
     if max(ahorro) < horizonte:
         avisos.append(f'el ahorro del año {max(ahorro):02d} se mantiene hasta el {horizonte:02d}: no hay caso medido después')
@@ -382,6 +384,23 @@ def priorizar(candidatas: Sequence[Candidata], pesos: Mapping[str, float]) -> li
 CAUSAS_DE_CALIDAD = ('caida_de_tension', 'factor_de_potencia', 'sobretension')
 
 
+def con_y_sin_de_las_aplicadas(obras: Iterable[Mapping[str, Any]], anios: Iterable[Mapping[str, Any]],
+                               plan: Mapping[str, Any], *, factor_carga: float | None,
+                               precio_compra_kwh: float | None) -> dict[str, Any]:
+    """Con y sin proyecto de lo que está en «Con proyecto»: solo las obras aplicadas (072:RF-14).
+
+    Una cartera de diez obras con dos construidas compararía el costo de diez con el ahorro de dos.
+    """
+    inversiones: dict[int, float] = {}
+    for o in obras:
+        if o.get('variacion_autonoma'):
+            inversiones[int(o['anio'])] = inversiones.get(int(o['anio']), 0.0) + float(o['ci'] or 0.0)
+    anios = list(anios)
+    return evaluar_con_y_sin(inversiones, {a['anio']: a.get('perdidas_kw') for a in anios},
+                             {a['anio']: (a.get('con_proyecto') or {}).get('perdidas_kw') for a in anios}, plan,
+                             factor_carga=factor_carga, precio_compra_kwh=precio_compra_kwh)
+
+
 def _problemas_por_anio(informe: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Cada problema con el primer año en que aparece en DIgSILENT (RF-51, RF-53)."""
     primero: dict[tuple, dict] = {}
@@ -486,8 +505,4 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
                  indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos)
     filas_obra.sort(key=lambda f: f['prioridad'])
-    cartera = sum(f['ci'] for f in filas_obra if not (f['descartada'] or f['sobredimensionada']))
-    con_y_sin = evaluar_con_y_sin(cartera, {a['anio']: a.get('perdidas_kw') for a in anios},
-                                  informe.get('perdidas_con_proyecto') or {}, plan, factor_carga=factor_carga,
-                                  precio_compra_kwh=precio_compra_kwh)
-    return {'obras': filas_obra, 'avisos': avisos, 'formatos': filas_de_obras(filas_obra, anios), 'con_y_sin': con_y_sin}
+    return {'obras': filas_obra, 'avisos': avisos, 'formatos': filas_de_obras(filas_obra, anios)}

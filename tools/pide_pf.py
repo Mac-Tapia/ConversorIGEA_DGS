@@ -243,6 +243,48 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def obras_del_anio(obras: list[dict], anio: int) -> tuple[list[str], list[str]]:
+    """Las variaciones de obra que ya entraron en ``anio`` y las que aún no (072:RF-12).
+
+    Cada año conserva las obras de los anteriores. La copia de «Con proyecto» las trae todas: sin esto,
+    el año 04 se calculaba con las obras del año 16 y parecía resuelto antes de construirlas.
+    """
+    entrada: dict[str, int] = {}
+    for o in obras:
+        nombre, a = str(o['variacion']), int(o['anio'])
+        entrada[nombre] = min(a, entrada.get(nombre, a))
+    return sorted(n for n, a in entrada.items() if a <= anio), sorted(n for n, a in entrada.items() if a > anio)
+
+
+def _con_obras_del_anio(app, proyecto, raiz, caso, plan, anio, lim, barras) -> dict:
+    """«Con proyecto» de un año con sus obras: las variaciones son del caso copiado, no del proyecto.
+
+    Lo aplicado se relee de DIgSILENT en vez de suponerlo, y una variación que ya no exista se nombra:
+    el operador pudo borrarla, y eso no invalida el año (cambios manuales: aviso, no bloqueo).
+    """
+    caso.Activate()
+    carpeta = app.GetProjectFolder('scheme')
+    todas = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+    entran, salen = obras_del_anio(plan['obras_por_anio'], anio)
+    activas = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+    for nombre in salen:
+        if nombre in activas and nombre in todas:
+            todas[nombre].Deactivate()
+    for nombre in entran:
+        if nombre not in activas and nombre in todas:
+            todas[nombre].Activate()
+    activas = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+    out = {'obras': sorted(n for n in entran if n in activas), 'sin_aplicar': sorted(n for n in entran if n not in activas)}
+    flujo = flujo_de_carga(app)
+    out['converge'] = flujo['converged']
+    if flujo['converged']:
+        lectura = {'flujo': resultados(app, proyecto, raiz, list(plan.get('feeders') or [])),
+                   'topologia': {'barras': barras}}
+        out['problemas'] = [{'causa': p.causa, 'elemento': p.elemento} for p in diagnosticar(lectura, **lim)]
+        out['perdidas_kw'] = ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')
+    return out
+
+
 def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_nombre, tasa, por_alim):
     """030:RF-1 a RF-7: cada año en su carpeta, con sus casos y escenarios, y su diagnóstico en el
     «Sin proyecto» del año. El caso que estaba activo vuelve a estarlo al terminar (RF-6)."""
@@ -281,9 +323,14 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
                 tensiones = lectura['flujo']['tensiones']['valores']
                 fila['vm_min'] = min(tensiones.values()) if tensiones else None
                 fila['cabeceras_kw'] = lectura['flujo']['balance']['valores']['cabeceras']
+                # F05 y la evaluación con y sin proyecto (072:RF-14): sin dato, queda vacío y se nombra.
+                fila['perdidas_kw'] = ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')
             else:
                 fila['problemas'] = [{'tipo': 'flujo', 'elemento': 'red', 'causa': 'no_converge',
                                       'evidencia': 'el flujo no converge con esta demanda'}]
+            if plan.get('obras_por_anio') and 'con' in casos:
+                fila['con_proyecto'] = _con_obras_del_anio(app, proyecto, raiz, casos['con']['objeto'], plan,
+                                                           int(anio), lim, barras)
             informe['anios'].append(fila)
     finally:
         # RF-6: los casos del proyecto con su demanda de antes. En DIgSILENT cada escenario guarda

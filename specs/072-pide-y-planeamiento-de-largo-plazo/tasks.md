@@ -20,6 +20,9 @@
       y la máxima por SET y alimentador.
 - [ ] T6 Obras acumuladas por año. (RF-12)
       Hecho cuando: en DIgSILENT, sobre un proyecto de prueba, cada año conserva las obras de los anteriores.
+      Código y simulador hechos el 2026-11-02: la copia de «Con proyecto» traía todas las obras en todos los años, y ahora cada año
+      activa las suyas y las anteriores. Falta la prueba real: el simulador comparte las variaciones entre casos y DIgSILENT las
+      guarda por caso, así que el aislamiento entre años solo se comprueba allí, leyendo el efecto en el flujo.
 - [x] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
       Hecho cuando: pruebas de cada formato, con los huecos nombrados.
       Hecho con pruebas sintéticas, sin DIgSILENT. F04 sigue vacío porque el modelo no lleva la baja de cada SED, y F06 hasta pasarle
