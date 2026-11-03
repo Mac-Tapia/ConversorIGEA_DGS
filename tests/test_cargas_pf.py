@@ -281,3 +281,39 @@ def test_carga_fraccionada_por_anios(tmp_path):
     assert 'Planta B' not in por and any('suman 900' in e and '1000' in e for e in lectura.errores)
     assert por['Planta C'].anio_ingreso == 2030 and por['Planta C'].etapas == ()
     assert por['Planta D'].kw == pytest.approx(150) and len(por['Planta D'].etapas) == 2
+
+
+def test_cada_etapa_nueva_tiene_su_segundo_propio():
+    """042:RF-25 — Pisco: sin hueco tras la última, las etapas caían todas en hora - 1; ahora cada una en un segundo libre."""
+    from types import SimpleNamespace
+
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('cargas_pf.py', 'cargas_rf25', tools_en_path=True)
+    hora = 2_000_000_000
+    etapas = [SimpleNamespace(tAcTime=hora - 1)]
+
+    def carpeta():
+        return SimpleNamespace(GetContents=lambda *_a: [SimpleNamespace(GetContents=lambda *_b: list(etapas))])
+
+    vistas = set()
+    for _ in range(5):
+        t = guion.fecha_de_etapa_nueva(carpeta(), hora)
+        assert t < hora and t not in vistas and t != hora - 1
+        vistas.add(t)
+        etapas.append(SimpleNamespace(tAcTime=t))
+    assert guion.fecha_de_etapa_nueva(SimpleNamespace(GetContents=lambda *_a: []), hora) == hora - guion.VENTANA_ETAPAS_S
+
+
+def test_la_fila_cercana_que_no_cabe_en_la_sed_es_sed_nueva():
+    """042:RF-26 — Pisco: 1 600 kW a 25 m de una SED de 100 kVA no es su ampliación; 80 kW sí."""
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('cargas_pf.py', 'cargas_rf13', tools_en_path=True)
+    sed = {'sed': 'SE1', 'carga': None, 'barra': None, 'gps': (-13.8624, -76.1321), 'kva': 100.0}
+    grande = {'sed': 'CLIENTE GRANDE', 'kw': 1600.0, 'fp': 1.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(grande, [sed]) is None and '042:RF-26' in grande['_no_ampliacion']
+    chica = {'sed': 'CLIENTE CHICO', 'kw': 80.0, 'fp': 1.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(chica, [sed])['sed'] == 'SE1'
+    por_nombre = {'sed': 'AMPLIACION SE1', 'kw': 1600.0, 'lat': -13.8625, 'lon': -76.1321}
+    assert guion.ampliacion_de(por_nombre, [sed])['sed'] == 'SE1'

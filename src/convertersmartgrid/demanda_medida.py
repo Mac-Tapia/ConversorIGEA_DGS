@@ -1533,7 +1533,7 @@ def _hojas_por_contenido(libro: Any, codigos: Iterable[str]) -> dict[str, str]:
                 if texto.endswith('.0'):
                     texto = texto[:-2]
                 clave = clave_codigo(texto) if texto else ''
-                if clave in buscados:
+                if clave in buscados and hoja not in hojas.values():
                     hojas.setdefault(clave, hoja)
     return hojas
 
@@ -1654,8 +1654,10 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     libro = _abrir(path)
     pares, avisos = _hojas_de_maestro(libro, path)
     hoja_de = {clave_codigo(codigo): hoja for codigo, hoja in pares}
-    if faltan := [c for c in pot_de if clave_codigo(c) not in hoja_de]:
-        hoja_de.update(_hojas_por_contenido(libro, faltan))           # 083:RF-14
+    # 083:RF-14: solo en los libros sin «maestro_lib»; con él, el que no está no tiene hoja. Buscarlo por
+    # contenido le daba al cliente sin hoja la de otro que lleva su número en sus datos (suite, 2026-11-03).
+    if not pares and (faltan := [c for c in pot_de if clave_codigo(c) not in hoja_de]):
+        hoja_de.update(_hojas_por_contenido(libro, faltan))
     out: dict[str, tuple[str, float, float | None] | None] = {}
     for codigo, pot in pot_de.items():
         hoja = hoja_de.get(clave_codigo(codigo))

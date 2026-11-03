@@ -6017,6 +6017,48 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
+def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                             anio_casos: int | None = None, tipo_cambio: float | None = None,
+                             capex: str | None = None, cargas: list[str] | None = None) -> dict:
+    """042:RF-24: cada alimentador con sus cargas nuevas sube la escalera; los que no cumplen pasan sus cargas a la siguiente obra."""
+    from ..demanda_medida import clave_codigo
+    from .. import set_nueva as sn
+
+    marcados = {clave_codigo(f) for f in feeders}
+    claves = {clave_codigo(n) for n in (cargas or [])}
+    aplicadas = [c for c in _cargas_nuevas_aplicadas(ws, project)
+                 if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')
+                 and (not claves or clave_codigo(c.get('sed')) in claves)]
+    if not aplicadas:
+        raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
+    por_alim: dict[str, list[dict]] = {}
+    for c in aplicadas:
+        f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
+        por_alim.setdefault(f, []).append(c)
+    cumplen, resto, por_feeder, memo = [], [], {}, {}
+    for f, cs in sorted(por_alim.items()):
+        ctx.check_cancel()
+        r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
+                           aplicar=False, basta_una=True, memo=memo, **opciones)
+        fila = next(iter(r.get('alimentadores') or []), {})
+        ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
+                         'ya_cumple': bool(fila.get('ya_cumple'))}
+        ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
+                + ('cumple con bancos, sección o terna (042:RF-24).' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
+        (cumplen if ok else resto).append(f)
+    escalera = None
+    if cumplen:
+        activas = [c['variacion'] for f in cumplen for c in por_alim[f]]
+        escalera = obras_escalera(ws, ctx, project, cumplen, cargas_activas=activas, aplicar=True, memo=memo, **opciones)
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
+    orden = sn.orden_de_cargas(aplicadas)
+    return {'project': project.strip(), 'orden': [{k: c.get(k) for k in campos} for c in orden],
+            'caben': sum(len(por_alim[f]) for f in cumplen), 'por_alimentador': por_feeder, 'escalera': escalera,
+            'a_set_nueva': [{k: c.get(k) for k in campos} for f in resto for c in por_alim[f]]}
+
+
 def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
                            capex: str | None = None, cargas: list[str] | None = None) -> dict:
@@ -6446,7 +6488,7 @@ def barra_del_tramo_partido(carga: dict, tramos: list[dict], media: dict) -> str
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                        a_set_nueva: list[dict], *, capex: str | None, alimentadores_nuevos: int,
                        anio_casos: int | None = None, nombre: str = '', oraculo: dict | None = None,
-                       expreso: bool = False) -> dict:
+                       expreso: bool = False, diferir: list | None = None) -> dict:
     """Diseña, sitúa y crea en «Con proyecto» la SET nueva de las cargas que no caben (042:RF-5 a RF-12).
 
     Lee la red en DIgSILENT (``obras_pf.py --set-nueva-datos``); por alimentador, las ramas que
@@ -6554,6 +6596,9 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
         for f in sorted({r['alimentador'] for r in ramas}):
             obra = {'clase': 'expreso', 'alimentador': f, 'casos': ['Con proyecto'],
                     'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas if r['alimentador'] == f]}
+            if diferir is not None:                                     # 042:RF-23
+                diferir.append(obra)
+                continue
             ident = obra_anadir(ws, obra)['id']
             hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos)
@@ -6609,6 +6654,10 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas],
             'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at'], 'nombre_set': nombre,
             'unidades': int(eleccion['modulo'].get('unidades') or 1)}
+    if diferir is not None:                                             # 042:RF-23
+        diferir.append(obra)
+        informe['obra'] = 'en el plan completo'
+        return informe
     ident = obra_anadir(ws, obra)['id']
     hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
                            anio_casos=anio_casos)
@@ -6691,6 +6740,9 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
         campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
         escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
+    elif escalera_primero:                                              # 042:RF-24
+        escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
+                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                           tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
@@ -6704,6 +6756,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     umbral_set = plan_perfil.get('set_nueva_desde_kw')
     oraculo = escalera.pop('_oraculo', None)
     por_zona = []
+    diferidas: list[dict] = []
     for n, zona in enumerate(zonas, 1):
         kw = sum(float(c.get('kw') or 0) for c in zona)
         expreso = umbral_set is not None and len(zonas) > 1 and kw < float(umbral_set)
@@ -6713,7 +6766,8 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         try:
             hecho = set_nueva_proponer(ws, ctx, project, feeders, zona, capex=capex,
                                        alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos,
-                                       nombre=nombre_z, oraculo=oraculo, expreso=expreso)
+                                       nombre=nombre_z, oraculo=oraculo, expreso=expreso,
+                                       diferir=diferidas if len(zonas) > 1 else None)
         except UserError as exc:
             ctx.log(f'Zona {n}: {exc}')
             hecho = {'avisos': [str(exc)]}
@@ -6721,6 +6775,15 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                          'cargas': [c.get('sed') for c in zona], **hecho})
     set_nueva = por_zona[0] if len(por_zona) == 1 else {'zonas': por_zona,
                                                          'avisos': [a for z in por_zona for a in z.get('avisos') or []]}
+    if diferidas:
+        # 042:RF-23: los expresos antes que las SET nuevas, y un solo flujo con el plan completo.
+        diferidas.sort(key=lambda o: o['clase'] != 'expreso')
+        ids = [obra_anadir(ws, o)['id'] for o in diferidas]
+        ctx.log(f'Plan completo: {len(ids)} obra(s) de {len(zonas)} zonas, medidas juntas (042:RF-23).')
+        hecho = obras_ejecutar(ws, ctx, project, feeders, ids, BIBLIOTECA_TIPOS, simular=False,
+                               anio_casos=anio_casos, en_conjunto=True)
+        set_nueva['plan_completo'] = (hecho.get('informe') or {}).get('plan_completo')
+        set_nueva['obras'] = (hecho.get('informe') or {}).get('obras')
     return {'project': project.strip(), 'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
 
 
@@ -6774,7 +6837,7 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    ids: list[str] | None, otro_proyecto: str, *, simular: bool,
                    anio_casos: int | None = None,
                    apartar_cargas_de: list[str] | None = None,
-                   apartar_variaciones: list[str] | None = None) -> dict:
+                   apartar_variaciones: list[str] | None = None, en_conjunto: bool = False) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
 
     Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
@@ -6797,6 +6860,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         plan['apartar_cargas_de'] = list(apartar_cargas_de)            # 025:RF-69
     if apartar_variaciones:
         plan['apartar_variaciones'] = list(apartar_variaciones)        # 042:RF-2
+    if en_conjunto:
+        plan['en_conjunto'] = True                                      # 042:RF-23
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',

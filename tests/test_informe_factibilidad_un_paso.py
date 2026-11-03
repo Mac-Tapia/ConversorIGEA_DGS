@@ -495,7 +495,7 @@ def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
     monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': 10_000}})
     vistos = {}
-    monkeypatch.setattr(services, 'optimizar_con_proyecto',
+    monkeypatch.setattr(services, 'escalera_por_alimentador',
                         lambda *a, **k: vistos.setdefault('escalera', {'caben': 1, 'a_set_nueva': []}))
     monkeypatch.setattr(services, 'set_nueva_proponer', lambda *a, **k: {'avisos': []})
 
@@ -505,3 +505,32 @@ def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
 
     services.con_proyecto_optimizar(object(), Ctx(), 'P', ['AL1'], escalera_primero=True)
     assert 'escalera' in vistos
+
+
+def test_la_escalera_va_por_alimentador(monkeypatch):
+    """042:RF-24 — cada alimentador sube la escalera con sus cargas; el que no cumple pasa sus cargas a la obra siguiente."""
+    from convertersmartgrid.web import services
+
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 900.0, 'variacion': 'Carga_A'},
+                 {'sed': 'B', 'alimentador': 'F2', 'kw': 4000.0, 'variacion': 'Carga_B'},
+                 {'sed': 'C', 'alimentador': 'F2', 'kw': 500.0, 'variacion': 'Carga_C'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    llamadas = []
+
+    def escalera(ws, ctx, project, feeders, *, cargas_activas=None, aplicar=True, **k):
+        llamadas.append((tuple(feeders), tuple(cargas_activas or ()), aplicar))
+        return {'alimentadores': [{'feeder': feeders[0], 'elegida': {'nombre': 'bancos'} if feeders == ['F1'] else None}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2'])
+    assert (('F1',), ('Carga_A',), False) in llamadas and (('F2',), ('Carga_B', 'Carga_C'), False) in llamadas
+    assert (('F1',), ('Carga_A',), True) in llamadas
+    assert r['caben'] == 1 and {c['sed'] for c in r['a_set_nueva']} == {'B', 'C'}
+    assert r['por_alimentador']['F2']['cumple'] is False

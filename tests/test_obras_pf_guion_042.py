@@ -218,3 +218,14 @@ def test_el_alimentador_expreso_sale_de_la_set_y_abre_la_entrada(perfil):
     assert any(o.loc_name == x['linea'] for o in app.proyecto.GetContents('*.ElmLne', 1))
     _activas(app, SIN)
     assert int(getattr(_linea(app, 'F1_L2'), 'outserv', 0) or 0) == 0
+
+
+def test_el_plan_completo_se_mide_con_todas_las_obras_juntas(perfil):
+    """042:RF-23 — dos expresos creados y un solo flujo del plan: si converge, quedan los dos activos en «Con proyecto»."""
+    app, alims = _calibrada(random.Random(SEMILLAS[0]), n_min=2, cargas_min=3)
+    obras = [{'clase': 'expreso', 'alimentador': 'F1', 'casos': [CON], 'ramas': ['F1/F1_B2']},
+             {'clase': 'expreso', 'alimentador': 'F2', 'casos': [CON], 'ramas': ['F2/F2_B2']}]
+    informe, codigo = guion.aplicar(app, {**_plan(alims, obras=obras), 'en_conjunto': True})
+    assert codigo == 0, informe
+    assert informe['plan_completo']['obras'] == 2 and informe['plan_completo']['converge'] is True
+    assert all(f['casos_activos'] == [CON] and f['flujo'][CON]['en_conjunto'] for f in informe['obras'])
