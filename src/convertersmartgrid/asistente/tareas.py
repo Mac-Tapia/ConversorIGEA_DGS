@@ -171,7 +171,9 @@ _TAREAS = (
           'transferencia_ejecutar', (
               'transfiere carga entre {alimentadores} [de|en] {proyecto}',
               'transferencia [de|entre] {alimentadores} [de|en] {proyecto}')),
-    Tarea('pide', 'Metodología del PIDE: diagnóstico, obras propias, formatos y módulos (024, 072).',
+    # La descripción entra en el identificador de cada fila del currículo: cambiarla movía la prueba histórica
+    # sellada (069:RF-13, 070:RF-72). Los módulos de la 072 y su año van en el dato «periodo», no aquí.
+    Tarea('pide', 'Metodología del PIDE: diagnóstico, obras propias y formatos (024, T13 y T14).',
           (P, A, Dato('periodo', 'periodo', obligatorio=False, descripcion='año de presentación del estudio')),
           True, 'trabajo', 'pide_ejecutar', (
               '[haz|ejecuta|corre] el pide de {proyecto} {alimentadores}', 'plan de inversiones de {proyecto} {alimentadores}',
