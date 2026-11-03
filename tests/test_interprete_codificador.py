@@ -344,7 +344,7 @@ def test_ninguna_deja_identico_lo_sellado():
     assert sellado(sin) == sellado(con)
     assert of.huella(of.generar({})) == '41f7ab110ac35c0b'
     assert huella(sorted(r['record_id'] for r in di.preparar_corpus({}, [], por_familia=5, ninguna=['charla de mas'])[0]
-                         if r['particion'] == 'prueba')) == '415e425a481ddfb0bd3af7bdeb042cf82fa3f23fda1ef97f95b8b2f955d502f3'
+                         if di.es_historica(r))) == '415e425a481ddfb0bd3af7bdeb042cf82fa3f23fda1ef97f95b8b2f955d502f3'
 
 
 def test_ninguna_no_cuenta_como_humana():

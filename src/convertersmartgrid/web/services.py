@@ -2362,8 +2362,6 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
     cada uno en el libro (vacío si no tiene). ``None`` si el proyecto no es de tipo «sistema»;
     con ``todos``, también el de un alimentador o de varios unidos (028:RF-24).
     """
-    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
-
     proyecto = project.strip()
     grupo = next((n for n, p in (ws.pf_projects or {}).items()
                   if p == proyecto and (todos or (ws.groups.get(n) or {}).get('tipo') == 'sistema')), None)
@@ -2371,14 +2369,60 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
         return None
     # Un alimentador solo se guarda con su código y sin grupo (CA101 → su proyecto).
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
+    medidores = medidores_por_alimentador(ws, alimentadores)
+    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
+            'tipo': (ws.groups.get(grupo) or {}).get('tipo') or ('unida' if grupo in ws.groups else 'alimentador')}
+
+
+def medidores_por_alimentador(ws: Workspace, alimentadores: list[str]) -> dict[str, list[str]]:
+    """Los medidores de cabecera de cada uno, leyendo el libro una vez; vacío sin libro (022:RF-54)."""
+    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
+
     try:
         filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
     except (DemandaError, UserError):
-        filas = []                    # sin libro de medidores, ninguno tiene medidor
+        return {a: [] for a in alimentadores}
     grafias = _grafias(ws)
-    medidores = {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
-    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
-            'tipo': (ws.groups.get(grupo) or {}).get('tipo') or ('unida' if grupo in ws.groups else 'alimentador')}
+    return {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
+
+
+def asistente_cancelar(ws: Workspace, ctx: JobContext, plan_id: str, cancelar: Callable[[str], Any]) -> dict:
+    """La orden de cancelar, confirmada, sin pasar por el carril ni la exclusión del asistente (070:RF-33).
+
+    Un trabajo del asistente tiene su exclusión por espacio; pasar por ella daría «límite de concurrencia»
+    justo mientras corre lo que se quiere parar. Solo cancela lo que el plan nombró al mostrarse.
+    """
+    from ..asistente import almacen
+
+    guardado = asistente_plan(ws, plan_id)
+    plan = guardado['plan']
+    if plan.tarea != 'cancelar_trabajo' or not plan.listo:
+        raise UserError('El plan no es una orden de cancelar completa.')
+    guardado['gobierno'].confirmar(plan)
+    hechos = []
+    for trabajo in guardado['extras'].get('cancelar') or []:
+        job = cancelar(trabajo['id'])
+        hechos.append({**trabajo, 'estado': job.status if job is not None else 'ya no existe'})
+        ctx.log(f"Asistente: se cancela «{trabajo['titulo']}».")
+    almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'decision': 'confirmada', 'datos': hechos})
+    guardado['terminado'] = True
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    PlanesGuardados(ws.root).borrar(plan_id)
+    return {'plan': plan.id, 'tarea': plan.tarea, 'completo': True, 'cancelados': hechos,
+            'texto': f'{len(hechos)} trabajo(s) con la cancelación pedida: ninguno empieza otra parte y los '
+                     'alimentadores en marcha terminan.'}
+
+
+def es_orden_de_cancelar(texto: str) -> bool:
+    """070:RF-33: se decide antes de encolar, por la frase, porque el carril depende de ello."""
+    from ..asistente.sinteticos import normalizar
+    from ..asistente.tareas import TAREAS
+
+    import re
+
+    t = normalizar(texto or '')
+    return any(re.search(f, t) for f in TAREAS['cancelar_trabajo'].frases_literales)
 
 
 def _grafias(ws: Workspace) -> Callable[[str], list[str]]:
@@ -3230,6 +3274,32 @@ def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float |
     return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
 
 
+def _feeder_de_la_entrada(ws: Workspace, alimentador: str) -> str | None:
+    """El alimentador de la entrada cargada que corresponde a ese código, escrito como sea."""
+    from ..demanda_medida import clave_codigo
+
+    clave = clave_codigo(alimentador)
+    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
+    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
+    # entrada con un aviso falso de «no está en la entrada cargada».
+    return next((f for f in ws.dataset.feeder_ids()
+                 if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave), None)
+
+
+def sed_de_alimentador(ws: Workspace, alimentador: str) -> dict:
+    """Las SED de un alimentador en la fuente cargada, con las reglas del DGS (070:RF-45).
+
+    Por el modelo de ese alimentador, que usa los índices del dataset: nada de recorrer tablas (P2).
+    """
+    require_loaded(ws)
+    feeder = _feeder_de_la_entrada(ws, alimentador)
+    if feeder is None:
+        raise UserError(f'{alimentador} no está en la fuente cargada.')
+    modelo = build_model(ws, feeder, geography=False)
+    return {'alimentador': alimentador, 'seds': [{'codigo': s.code, 'kva': float(s.design_kva) if s.design_kva else None}
+                                                 for s in modelo.seds]}
+
+
 def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float], str]:
     """kVA de cada SED del alimentador en la entrada cargada (RF-10), y un aviso si no hay.
 
@@ -3237,18 +3307,10 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     El código del libro de medidores puede venir escrito de otra forma que el de la
     entrada («PA217» y «pa-217»): se compara con ``clave_codigo``.
     """
-    from ..demanda_medida import clave_codigo
-
     if ws.dataset is None:
         return {}, ('Sin fuente canónica activa cargada: las SED sin transformador en '
                     'DIgSILENT no tendrán de dónde sacar su kVA.')
-    clave = clave_codigo(alimentador)
-    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
-    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
-    # entrada con un aviso falso de «no está en la entrada cargada».
-    feeder = next((f for f in ws.dataset.feeder_ids()
-                   if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave),
-                  None)
+    feeder = _feeder_de_la_entrada(ws, alimentador)
     if feeder is None:
         return {}, f'{alimentador} no está en la entrada cargada: no hay kVA de respaldo.'
     try:
@@ -3463,6 +3525,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    comprobar_que_se_calibra(project)                                          # 070:RF-61
     criterio_fijas = _criterio_fijas(criterio_fijas)                           # 039:RF-1
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
@@ -7730,6 +7793,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     except (UserError, ValueError, OSError):
         e = None
     vocab['sistema'] = list(e.zonales) if e is not None else []
+    vocab['set'] = sorted(e.sets) if e is not None else []                     # 070:RF-17
     if not vocab['alimentadores'] and e is not None:
         # Sin fuente cargada, los de la estructura de la empresa: tras reiniciar la web ningún
         # espacio tenía su inventario en memoria y el asistente no reconocía ni IN111 (2026-10-24).
@@ -7953,6 +8017,14 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
             clave = f"{f.get('clase')} · {f.get('caso')}"
             cuenta[clave] = cuenta.get(clave, 0) + 1
         return {'texto': f'{len(filas)} episodio(s) en el búfer del gemelo.', 'por_clase': cuenta}
+    if t == 'consultar_datos':
+        from .asistente_consultas import responder
+
+        return responder(sys.modules[__name__], ws, plan, trabajos)            # 070:RF-40 a RF-46
+    if t == 'no_disponible':
+        from .asistente_consultas import no_disponible
+
+        return no_disponible(sys.modules[__name__], ws, plan)                  # 070:RF-47 a RF-49
     if t == 'pregunta':
         return asistente_pregunta(str(datos.get('texto') or plan.texto))
     if t == 'clasificar_informe':
@@ -7989,7 +8061,9 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
         if (motivo := motivo_no_disponible()) is not None:
             plan.avisos.append(aviso_sin_transformer(motivo, plan.interpretado_por))
     extras = _asistente_extras(ws, plan, trabajos or [])
+    extras['_trabajos'] = trabajos or []                                       # solo para los requisitos (070:RF-32)
     _asistente_requisitos(ws, plan, extras)
+    extras.pop('_trabajos')
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         if not plan.datos.get('subtipo'):
             c = _asistente_clasificador()
@@ -8006,6 +8080,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     publico = plan.publico()
     if plan.tarea and plan.modo == 'trabajo':
         publico['pasos'] = describir(plan.tarea, plan.datos, extras)
+    elif plan.tarea and plan.modo == 'etapas':
+        publico['pasos'] = list(extras.get('etapas_en_palabras') or [])         # 070:RF-31, RF-51
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
     publico['equipo'] = gobierno.publico()
     _asistente_guardar_plan(ws, plan, extras, gobierno)
@@ -8018,7 +8094,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
 
 
 #: Tareas que necesitan la fuente del espacio (RED, CARGA y EQUIPOS, una .mdb o un VNR-GIS).
-_NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'sistema_completo')
+_NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'sistema_completo', 'convertir_set',
+                     'set_completo', 'alimentadores_completo', 'proyecto_entero')
 
 
 def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
@@ -8029,12 +8106,16 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     en la ruta con «Faltan entradas: RED…» (2026-10-24): lo que falta se dice en el plan. Con
     las entradas puestas y la fuente sin cargar, convertir empieza por cargarla.
     """
+    from .asistente_operacion import requisitos
+
+    requisitos(sys.modules[__name__], ws, plan, extras)                        # 070:RF-2 a RF-15
     if plan.tarea == 'informe_factibilidad' and all(plan.datos.get(k) for k in ('proyecto', 'alimentadores', 'sed')):
         # 067:RF-34: lo mismo que la ruta comprueba antes de encolar, antes de ofrecer confirmar.
         try:
             carga_del_informe(ws, plan.datos['proyecto'], plan.datos['alimentadores'][0], plan.datos['sed'])
         except UserError as exc:
-            plan.faltan.append(str(exc))
+            # 070:RF-11: el mensaje decía «paso 3», que el asistente no enseña.
+            plan.faltan.append(f'{exc} Conéctela antes con la orden de una carga nueva sola.')
     if plan.tarea not in _NECESITAN_FUENTE or (plan.tarea != 'cargar_fuente' and ws.dataset is not None):
         return
     try:
@@ -8044,12 +8125,12 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
                            'una base .mdb o un paquete VNR-GIS) y repita la orden; para un proyecto ya '
                            'importado, use la fuente de su vínculo en «Cargas en DIgSILENT».')
         return
-    if plan.tarea in ('convertir', 'unir', 'convertir_sistema'):
+    if plan.tarea in ('convertir', 'unir', 'convertir_sistema', 'convertir_set'):
         extras['cargar_antes'] = True
         # 047:RF-2: el vínculo pendiente se satisface al leer las entradas antes de
         # convertir; sin entradas válidas se conserva el bloqueo anterior.
         plan.faltan[:] = [f for f in plan.faltan if not f.startswith(
-            ('contexto vinculado de alimentadores:', 'contexto vinculado de sistema:'))]
+            ('contexto vinculado de alimentadores:', 'contexto vinculado de sistema:', 'contexto vinculado de set:'))]
         plan.razonamiento.append('La fuente del espacio no está cargada: primero se carga, con sus entradas.')
 
 
@@ -8205,6 +8286,12 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
     if plan.modo == 'proceso':
         return gobierno.ejecutar_proceso(lambda: _asistente_proceso(ws, ctx, plan),
                                          cancelado=ctx.cancel.is_set)
+    if plan.modo == 'etapas':
+        from .asistente_operacion import ejecutar_etapas
+
+        # Sin la acción exterior del gobierno: cada etapa abre la suya, y dos en el mismo espacio se excluyen.
+        return {'plan': plan.id, 'tarea': plan.tarea,
+                **ejecutar_etapas(sys.modules[__name__], ws, ctx, plan, guardado['extras'], base, http)}
     if http is None:
         import requests
 
@@ -8229,6 +8316,9 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
         resultado['reintento'] = {'error': str(exc), **decision}
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
+    from .asistente_operacion import presentar
+
+    presentar(ws, plan, resultado)                                             # 070:RF-35, RF-37
     ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
     return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
 
@@ -8329,16 +8419,27 @@ def asistente_custodiar_trabajo(ws: Workspace, trabajo: dict) -> str | None:
         return f'«{trabajo.get("title")}» no se custodia como evidencia: {exc}'
 
 
-def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False) -> dict:
-    """Las etapas del proyecto entero antes del clic; solo lee (067:RF-37)."""
-    from ..asistente.orquestador import lista_de_etapas
+def _proyecto_con_libros(ws: Workspace, datos: dict) -> dict:
+    """070:RF-6: sin carpeta en la orden, la de los libros del espacio; lista y ejecución ven lo mismo."""
+    if datos.get('ruta'):
+        return datos
+    carpeta = carpeta_de_libros(ws)
+    return {**datos, 'ruta': carpeta} if carpeta else datos
 
-    ruta = ws.out_dir / 'agente_proyecto.json'
+
+def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False, *, etapas: tuple | None = None,
+                          control: str = 'agente_proyecto.json', omitir: dict | None = None) -> dict:
+    """Las etapas antes del clic; solo lee (067:RF-37, 070:RF-51)."""
+    from ..asistente.orquestador import ETAPAS, lista_de_etapas
+
+    datos = _proyecto_con_libros(ws, datos)
+    ruta = ws.out_dir / control
     try:
-        control = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+        guardado = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
     except (OSError, ValueError) as exc:
         raise UserError(f'El punto de control del proyecto no se puede leer: {exc}') from exc
-    return lista_de_etapas(datos, control if isinstance(control, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar)
+    return lista_de_etapas(datos, guardado if isinstance(guardado, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar,
+                           etapas=etapas or ETAPAS, omitir=omitir)
 
 
 def agente_proyecto_anotar(ws: Workspace, datos: dict, lista: dict) -> None:
@@ -8356,29 +8457,34 @@ def _agente_identidad(ws: Workspace) -> dict:
 
 
 def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http: Any = None,
-                    reiniciar: bool = False) -> dict:
+                    reiniciar: bool = False, *, etapas: tuple | None = None,
+                    control: str = 'agente_proyecto.json') -> dict:
     """El proyecto entero desde el espacio, etapa por etapa y con su punto de control
     (027:RF-43, RF-44): retoma donde se cortó, sin repetir lo hecho."""
     import sys
 
     from ..asistente.ejecutor import ClienteWeb, PasoFallido
-    from ..asistente.orquestador import ejecutar_proyecto
+    from ..asistente.orquestador import ETAPAS, ejecutar_proyecto
     from ..asistente.observacion import preparar_control
 
-    ruta = ws.out_dir / 'agente_proyecto.json'
+    datos = _proyecto_con_libros(ws, datos)
+    ruta = ws.out_dir / control
     def identidad():
         return {**_agente_identidad(ws),'solicitud':dict(datos)}
     try:
-        control=preparar_control(ruta,identidad(),reiniciar=reiniciar)
+        punto=preparar_control(ruta,identidad(),reiniciar=reiniciar)
     except (OSError,ValueError) as exc:
         raise UserError(str(exc)) from exc
-    control.identidad_actual=identidad
+    punto.identidad_actual=identidad
     if http is None:
         import requests
 
         http = requests.Session()
 
     def proceso(tarea: str, d: dict) -> dict:
+        if tarea == 'recalibrar':
+            # 070:RF-26: la ruta da 409 con el carril del asistente ocupado, y aquí lo ocupa este mismo trabajo.
+            return recalibrar_sistema(ws, ctx, d['proyecto'], d['periodo'], demanda_dir=d.get('ruta'))
         cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', d['sistema'],
                '--periodo', d['periodo'], '--url', base.rstrip('/')]
         if d.get('ruta'):
@@ -8402,7 +8508,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         gobierno.validar_cliente(cliente)
         return gobierno
     try:
-        return ejecutar_proyecto(datos, cliente=cliente, control=control, proceso=proceso,
+        return ejecutar_proyecto(datos, cliente=cliente, control=punto, proceso=proceso, etapas=etapas or ETAPAS,
                                  log=ctx.log,avance=ctx.progress, gobierno_etapa=gobierno_etapa)
     except (PasoFallido, ValueError, RuntimeError) as exc:
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
@@ -8416,12 +8522,77 @@ def _entorno_del_trabajo(ctx: JobContext) -> dict[str, str]:
     return {**os.environ, 'CSG_TRABAJO_PROPIO': ctx.job.id}
 
 
+def alimentadores_del_analisis(pares: list[tuple[str, str]]) -> list[str]:
+    """Los alimentadores de una búsqueda; los medidores de una central no son otro alimentador (022:RF-88)."""
+    return list(dict.fromkeys(a for a, _m in pares if a and not a.lower().startswith('central ')))
+
+
+def comprobar_analisis_por_alimentadores(alimentadores: list[str]) -> None:
+    """070:RF-57: el análisis por alimentadores es de 1 a 3; con más, no se calcula una «coincidente» engañosa."""
+    from ..demanda_medida import MAX_ALIMENTADORES_ANALISIS
+
+    if len(alimentadores) > MAX_ALIMENTADORES_ANALISIS:
+        raise UserError(f'El análisis por alimentadores es de 1 a {MAX_ALIMENTADORES_ANALISIS}; son {len(alimentadores)}: '
+                        'use el análisis por SET o por sistema eléctrico.')
+
+
+def es_proyecto_de_transmision(project: str) -> bool:
+    """070:RF-61: el del perfil; sin perfil no se supone ninguno (P13)."""
+    from ..informes import ConfigInforme, InformeError
+    from ..perfil_empresa import PerfilError, datos_perfil
+
+    try:
+        proyecto = ConfigInforme.de_perfil(datos_perfil(), project_root()).proyecto_transmision
+    except (InformeError, PerfilError):
+        return False
+    return bool(proyecto) and proyecto.strip() == (project or '').strip()
+
+
+def comprobar_que_se_calibra(project: str) -> None:
+    if es_proyecto_de_transmision(project):
+        raise UserError(f'{project} es el proyecto de transmisión: no se calibra; sirve para la cargabilidad '
+                        'del transformador de la SET (017:RF-68).')
+
+
+def _set_del_grupo(ws: Workspace, grupo: str) -> tuple[str, str] | None:
+    """La zonal y la SET de un grupo convertido como SET sola (022:RF-82), o ``None``.
+
+    Por la estructura y no por el nombre: un zonal puede llevar «_» y el nombre solo no dice dónde acaba.
+    """
+    from ..estructura import clave
+
+    try:
+        e = estructura_del_espacio(ws)
+    except UserError:
+        return None
+    if e is None:
+        return None
+    for codigo, fila in e.sets.items():
+        if nombre_seguro(f'SISTEMA_{fila.zonal}_{clave(codigo)}', maximo=60).upper() == grupo:
+            return fila.zonal, codigo
+    return None
+
+
+def carpeta_de_libros(ws: Workspace) -> str | None:
+    """La carpeta común de los libros de demanda del espacio, o ``None`` si no tiene (028:RF-23, 070:RF-6)."""
+    import os
+
+    rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
+             for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
+    if not rutas:
+        return None
+    try:
+        return os.path.commonpath(rutas)
+    except ValueError:
+        return rutas[0]
+
+
 def recalibrar_datos(ws: Workspace, project: str) -> dict:
     """El sistema eléctrico del proyecto, o sus alimentadores si es de uno o de varios unidos, y
     la carpeta de los libros del espacio (028:RF-22 a RF-24)."""
-    import os
     import re
 
+    comprobar_que_se_calibra(project)                                          # 070:RF-61
     m = re.search(r'SISTEMA_([A-Za-z0-9]+)$', (project or '').strip())
     grupo = next((n for n, p in (ws.pf_projects or {}).items() if p == (project or '').strip()), None)
     if grupo is not None:
@@ -8431,14 +8602,14 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     if not m and grupo is None:
         raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico ni de alimentadores '
                         'convertidos en este espacio: conviértalos e impórtelos antes (028:RF-23).')
-    rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
-             for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
-    if not rutas:
+    carpeta = carpeta_de_libros(ws)
+    if carpeta is None:
         raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1» (028:RF-23).')
-    try:
-        carpeta = os.path.commonpath(rutas)
-    except ValueError:
-        carpeta = rutas[0]
+    # 070:RF-59: ``SISTEMA_<zonal>_<set>`` no casaba arriba y el proyecto de una SET se calibraba como alimentadores
+    # sueltos, sin su máxima de barra.
+    de_set = _set_del_grupo(ws, grupo) if grupo is not None and (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None
+    if de_set is not None:
+        return {'zonal': de_set[0], 'set': de_set[1], 'demanda_dir': carpeta}
     if m:
         return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
@@ -8461,6 +8632,8 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
            '--periodo', periodo, '--demanda-dir', demanda_dir]
     if zonal:
         cmd += ['--zonal', zonal]
+        if base.get('set'):
+            cmd += ['--set', base['set']]                                      # 070:RF-59
     else:
         # 028:RF-24: el proyecto de uno o de varios alimentadores unidos, por su grupo.
         zonal = ' + '.join(base['alimentadores'])
@@ -8482,13 +8655,20 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
 
     if plan.tarea == 'entrenar_asistente':
         return asistente_entrenar(ws, ctx)
-    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', plan.datos['sistema'],
+    if plan.tarea == 'recalibrar':
+        # 070:RF-26: la ruta da 409 con el carril del asistente ocupado, y aquí lo ocupa este mismo trabajo.
+        return {'plan': plan.id, 'tarea': plan.tarea,
+                **recalibrar_sistema(ws, ctx, plan.datos['proyecto'], plan.datos['periodo'], demanda_dir=plan.datos.get('ruta'))}
+    from .asistente_operacion import alcance_de_sistema_web
+
+    alcance, nombre = alcance_de_sistema_web(sys.modules[__name__], ws, plan)  # 070:RF-20, RF-21
+    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, *alcance,
            '--periodo', plan.datos['periodo']]
     if plan.datos.get('ruta'):
         cmd += ['--demanda-dir', plan.datos['ruta']]
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
-        raise UserError(f'El sistema {plan.datos["sistema"]} no se pudo llevar hasta el final (código {rc}).')
+        raise UserError(f'{nombre} no se pudo llevar hasta el final (código {rc}).')
     return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,
             'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro'}
 
@@ -8617,8 +8797,12 @@ def asistente_buscar(ws: Workspace, texto: str) -> dict:
     """GitHub y arXiv con una consulta sin datos de la red (026:RF-29 a RF-31)."""
     from ..asistente.internet import Buscador
 
+    from .asistente_consultas import terminos_devueltos
+
     vocab = asistente_vocabulario(ws)
-    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
+    # 070:RF-46: lo que devolvió la consulta de datos no sale de la máquina, tenga la forma que tenga (P9).
+    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema'], *(vocab.get('set') or []),
+                  *terminos_devueltos(ws)])
     r = b.buscar(texto, motivo='orden del operador')
     if r['bloqueada']:
         return {'texto': f"No se buscó: la consulta {r['bloqueada']} (P9). Escríbala solo con términos técnicos.",

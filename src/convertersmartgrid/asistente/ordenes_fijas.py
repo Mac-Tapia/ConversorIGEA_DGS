@@ -19,7 +19,7 @@ import random
 from collections.abc import Mapping, Sequence
 
 from .sinteticos import Ejemplo, expandir, normalizar
-from .tareas import TAREAS
+from .tareas import TAREAS_HASTA_069
 
 TOTAL = 200
 SEMILLA = 2026
@@ -88,7 +88,8 @@ FRASES: dict[str, tuple[str, ...]] = {
 def generar(vocab: Mapping[str, Sequence[str]] | None = None, *, total: int = TOTAL,
             semilla: int = SEMILLA) -> list[Ejemplo]:
     """Las ``total`` órdenes fijas, repartidas por igual entre las tareas (RF-65)."""
-    faltan = sorted(set(TAREAS) - set(FRASES))
+    # 070:RF-75: el conjunto es de las tareas hasta la 069; con las nuevas cambiaría su huella (068:RF-41).
+    faltan = sorted(set(TAREAS_HASTA_069) - set(FRASES))
     if faltan:
         raise ValueError(f'tareas sin frases del maestro: {faltan}')
     rnd = random.Random(semilla)

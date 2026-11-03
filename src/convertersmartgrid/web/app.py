@@ -1131,6 +1131,11 @@ def create_app(
         ws = ws_or_404(wid)
         return {'loaded': ws.dataset is not None, 'feeders': services.feeder_rows(ws)}
 
+    @app.get('/api/workspaces/{wid}/feeders/{feeder}/sed')
+    def feeder_sed(wid: str, feeder: str) -> dict:
+        """070:RF-45: las SED de un alimentador, de su modelo, sin abrir DIgSILENT."""
+        return services.sed_de_alimentador(ws_or_404(wid), feeder)
+
     def _check_selection(ws: Workspace, body: SelectionIn) -> list[str]:
         # Lo que falla por la petición falla aquí, con 400, y no como trabajo fallido.
         from .reconstruction_service import resolve_selection
@@ -1511,6 +1516,8 @@ def create_app(
         pares = [(m.alimentador.strip(), m.medidor.strip()) for m in body.medidores if m.medidor.strip()]
         if not pares:
             raise HTTPException(422, 'Indique al menos un medidor.')
+        if body.coincidente:                                                   # 070:RF-57
+            services.comprobar_analisis_por_alimentadores(services.alimentadores_del_analisis(pares))
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                             instante=body.instante,
@@ -1779,6 +1786,9 @@ def create_app(
         base = str(request.base_url).rstrip('/')
         http = getattr(app.state, 'asistente_http', None)
         plan = services.asistente_plan(ws, plan_id)['plan']
+        if plan.tarea == 'cancelar_trabajo':                                   # 070:RF-33
+            return submit(ws, 'asistente_control', f'Asistente · {plan.tarea}',
+                          lambda ctx: services.asistente_cancelar(ws, ctx, plan_id, jobs.cancel), lane='control')
         return submit(ws, 'asistente', f'Asistente · {plan.tarea}',
                       lambda ctx: services.asistente_ejecutar(ws, ctx, plan_id, base, http), lane='asistente')
 
@@ -1809,7 +1819,9 @@ def create_app(
                 _programar_vectores(ws)
             return result
 
-        return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret, lane='asistente')
+        # 070:RF-33: con el carril del asistente ocupado daría 409 justo cuando se quiere parar lo que corre.
+        return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret,
+                      lane='control' if services.es_orden_de_cancelar(body.texto) else 'asistente')
 
     def _programar_vectores(ws: Workspace) -> None:
         """047:RF-22: la pregunta ya tiene respuesta con lo que hay; lo que falte, detrás y sin pedirlo.

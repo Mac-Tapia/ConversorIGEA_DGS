@@ -43,8 +43,8 @@ from pathlib import Path
 
 import requests
 
-from convertersmartgrid.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
-                                     descubrir_libro_suministros)
+from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS_DEMANDA, DemandaError,
+                                     clasificar_carpeta_demanda, descubrir_libro_suministros)
 from convertersmartgrid.util import nombre_seguro
 
 TERMINADOS = ('done', 'failed', 'cancelled')
@@ -183,16 +183,29 @@ def libros_de_la_demanda(demanda_dir: Path, dados: dict[str, Path | None] | None
     return libros, avisos
 
 
+def grupo_de_set(zonal: str, set_electrica: str) -> str:
+    from convertersmartgrid.estructura import clave
+
+    return nombre_seguro(f'SISTEMA_{zonal}_{clave(set_electrica)}', maximo=60).upper()
+
+
 def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
            reconstruir: list[str] | None = None,
            libros: dict[str, Path] | None = None,
            red: list[str] | None = None, grupo: str | None = None,
-           criterio_fijas: str = 'coincidente') -> int:
+           criterio_fijas: str = 'coincidente', set_electrica: str | None = None) -> int:
     red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
     if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
         print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
+        return 2
+    if len(red) > MAX_ALIMENTADORES_ANALISIS:                                  # 070:RF-57
+        print(f'ERROR: el análisis por alimentadores es de 1 a {MAX_ALIMENTADORES_ANALISIS}; son {len(red)}: '
+              'use el análisis por SET o por sistema eléctrico (--zonal, --set).')
+        return 2
+    if set_electrica and (not zonal or reconstruir):
+        print('ERROR: --set va con su --zonal y no admite --reconstruir.')
         return 2
     if len(red) == 1 and grupo and grupo != red[0]:
         print('ERROR: un alimentador usa su código como grupo; --grupo solo nombra redes unidas.')
@@ -219,6 +232,9 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         # 028:RF-25: un alimentador con su código; varios, unidos con el nombre de la web.
         grupo = nombre_seguro((grupo or '').strip() or (red[0] if len(red) == 1 else
                               '_'.join(red[:4]) + ('_ETC' if len(red) > 4 else '')), maximo=60)
+    elif set_electrica:
+        # 070:RF-21: el mismo nombre que da ``sistema_seleccion`` a una SET sola (022:RF-82).
+        grupo = grupo_de_set(zonal, set_electrica)
     else:
         grupo = f'SISTEMA_{zonal.upper()}'
     proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
@@ -244,7 +260,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
     elif proyecto is None or reconvertir:
-        estado = web.esperar(web.post('/convert/sistema', json={'zonales': [zonal]}))
+        pedido = {'zonales': [], 'sets': [set_electrica]} if set_electrica else {'zonales': [zonal]}
+        estado = web.esperar(web.post('/convert/sistema', json=pedido))
         res = estado.get('result') or {}
         print(f"Conversión: {estado['status']} {res.get('status')} {res.get('group')}", flush=True)
         if estado['status'] != 'done' or res.get('status') != 'ok':
@@ -344,7 +361,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # 028:RF-27, RF-28: un sistema, por barra; un proyecto de alimentadores, su único instante común.
     maxima = web.esperar(web.post('/demanda/cabecera/buscar', json={
         'medidores': pares, 'periodo': periodo, 'por_barra': not red, 'centrales_tramo': tramo,
-        'sistema_60kv': not red,   # 028:RF-31: un sistema entero, en el instante común de sus barras de 60 kV
+        # 028:RF-31: un sistema entero, en el instante común de sus barras de 60 kV; 070:RF-60: una SET, su barra.
+        'sistema_60kv': not red and not set_electrica,
         'coincidente': bool(red), 'centrales': {a: {k: c[k] for k in ('generacion', 'llegada', 'salida')}
                                                 for a, c in del_perfil.items()}}))
     if not _terminado(maxima):
@@ -450,6 +468,8 @@ def main(argv=None) -> int:
     destino.add_argument('--red', nargs='+', metavar='COD',
                          help='Uno o varios alimentadores, unidos si son varios (028:RF-25)')
     p.add_argument('--grupo', help='Con --red, el nombre del proyecto unido en la web')
+    p.add_argument('--set', dest='set_electrica', metavar='SET',
+                   help='Con --zonal, solo esta SET, calibrada con la máxima de su barra (070:RF-21, RF-60)')
     p.add_argument('--demanda-dir', type=Path, required=True,
                    help='Carpeta con los libros de demanda; cada uno se reconoce por su contenido')
     p.add_argument('--medidores', type=Path, help='Libro de medidores por alimentador')
@@ -493,7 +513,8 @@ def main(argv=None) -> int:
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
                       bancos=not args.sin_bancos, solo=args.alimentadores,
                       reconstruir=args.reconstruir, libros=libros,
-                      red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas)
+                      red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas,
+                      set_electrica=args.set_electrica)
     except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2

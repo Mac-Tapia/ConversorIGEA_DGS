@@ -16,6 +16,10 @@ acierta al menos lo mismo que sin destilar.
 ``--vocabulario`` es un JSON ``{"alimentadores": [...], "proyecto": [...], "sistema": [...]}``
 con los nombres reales del espacio; sin él se usan los que guardó la web la última vez.
 
+Sin opciones, la vía gobernada por el registro, como ``--integral`` (070:RF-62): la vigilancia la lanza así.
+``--destilar`` y ``--solo`` piden la vía antigua: corre con su turno de GPU, deja la decisión en el registro y no pone
+ningún modelo en uso (070:RF-63, RF-64).
+
 Códigos de salida: 0 hecho, 2 sin PyTorch o sin GPU, 1 error.
 """
 from __future__ import annotations
@@ -61,6 +65,9 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     salida = Path(args.output_json)
     salida.parent.mkdir(parents=True, exist_ok=True)
+    # 070:RF-62: una llamada sin opciones de la vía antigua (la de la vigilancia) ya no promueve sin registro.
+    if not (args.dataset_v2 or args.evaluar or args.destilar or args.solo or args.maestro or args.modelo_codex):
+        args.integral = True
 
     if args.dataset_v2:
         from convertersmartgrid.trabajadores_ml import fallo,escribir_informe,semillas_de
@@ -86,7 +93,8 @@ def main(argv=None) -> int:
             from convertersmartgrid.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
             from convertersmartgrid.training_coordinator import BloqueoGPU
             destino = salida.parent / (salida.stem + '_integral')
-            vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
+            vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
+                     else almacen.leer_json('vocabulario') or {})
             from convertersmartgrid.asistente import codificador_ordenes
             from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
             ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
@@ -156,9 +164,28 @@ def main(argv=None) -> int:
                                'ollama': lambda: cliente_configurado(tiempo_max_s=60.0)}[maestro_nombre]()
                     # Codex fuera de la máquina: menos votos, cada uno es una llamada (RF-63).
                     kw = {'destilar': Destilacion(k=3 if maestro_nombre == 'codex' else 5), 'maestro': maestro}
-                out['ordenes'] = transformer.entrenar_y_promover(vocab, log=_log, **kw)
+                # 070:RF-63, RF-64: con su turno de GPU y sin tocar el puntero; la decisión queda en el registro.
+                from convertersmartgrid.model_registry import RegistroModelo
+                from convertersmartgrid.trabajadores_ml import turno_gpu
+
+                registro = RegistroModelo(almacen.raiz() / 'model_registry')
+                with turno_gpu('asistente-via-antigua'):
+                    r = transformer.entrenar_y_promover(vocab, log=_log, promover_directo=False, **kw)
+                c = registro.registrar_candidato(
+                    'transformer', model_manifest={'algorithm': 'transformer_letra_a_letra', 'via': 'antigua',
+                                                   'version': r.get('version'), 'training_completed': True},
+                    dataset_manifest=r.get('dataset') or {}, metrics={k: v for k, v in r.items() if k != 'dataset'},
+                    decision={'status': 'RECHAZADO', 'gates': {'approved': False},
+                              'fallos': [*(r.get('fallos') or ()), 'la vía antigua no pone modelos en uso (070:RF-63)']},
+                    smoke_reload={'ok': False, 'motivo': 'la vía antigua no se reabre: no se pone en uso'})
+                out['ordenes'] = {**r, 'promovido': False, 'candidato': c}
             if args.solo in (None, 'informes'):
-                out['informes'] = clasificador.entrenar_y_promover(log=_log)
+                from convertersmartgrid.model_registry import RegistroModelo
+                from convertersmartgrid.trabajadores_ml import turno_gpu
+
+                with turno_gpu('asistente-via-antigua'):
+                    out['informes'] = clasificador.entrenar_gobernado(
+                        RegistroModelo(almacen.raiz() / 'model_registry'), salida.parent / (salida.stem + '_informes'), log=_log)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         out, codigo = {'error': repr(exc), 'traza': traceback.format_exc()}, 1

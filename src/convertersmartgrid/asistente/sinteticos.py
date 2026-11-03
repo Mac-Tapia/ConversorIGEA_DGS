@@ -81,6 +81,8 @@ def _inventados(rnd: random.Random, tipo: str) -> str:
             rnd.choice(('', '', ' Alto', ' Bajo'))
     if tipo == 'sed':
         return f'{rnd.choice(("SE", "E", "S"))}{rnd.randint(10000, 99999)}'
+    if tipo == 'set':
+        return rnd.choice(('Norte', 'Sur', 'Puerto', 'Llano', 'Cerro', 'Lomas')) + rnd.choice(('', ' Alto', ' Nueva'))
     if tipo == 'ruta':
         return rnd.choice(('D:\\datos\\cargas nuevas.xlsx', 'C:/proyectos/demanda', 'D:/entregas/2026/cargas.xlsx',
                            'referencia\\demanda'))
@@ -109,6 +111,12 @@ def _valor(rnd: random.Random, tipo: str, vocab: Mapping[str, Sequence[str]]) ->
                            f'{anio}', f'el año {anio}'))
     if tipo == 'numero':
         return rnd.choice((str(rnd.randint(2, 60)), 'diez', 'veinte', 'cinco'))
+    if tipo == 'estudio':
+        return rnd.choice(('n-1', 'flujo', 'troncal', 'curvas pv', 'flujo desequilibrado', 'confiabilidad', 'balance de fases'))
+    if tipo == 'alcance':
+        return rnd.choice(('alimentadores', 'set', 'sistema'))
+    if tipo == 'anio':
+        return str(rnd.choice((2024, 2025, 2026, 2027)))
     if tipo == 'subtipo':
         return rnd.choice(list(vocab.get('subtipo') or SUBTIPOS_ESTUDIO)).lower()
     if tipo == 'texto':

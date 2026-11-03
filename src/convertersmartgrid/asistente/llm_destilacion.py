@@ -12,7 +12,8 @@ import random
 
 from .contratos_salida import validar_orden
 from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
-from .tareas import TIPOS_DATO, TAREAS
+# El corpus del ajuste generativo se selló con estas tareas; el catálogo nuevo no lo cambia (070, limitaciones).
+from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS
 from ..evaluacion_modelos import huella, texto_canonico
 
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')

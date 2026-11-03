@@ -22,7 +22,9 @@ from .tareas import TAREAS
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
 _NATIVAS = frozenset({'leer_proyectos', 'flujo', 'verificar_caso_base', 'cargas_nuevas',
     'obras', 'estudios', 'transferencia', 'pide', 'gemelo_aprender', 'sistema_completo',
-    'obras_escalera', 'optimizar_con_proyecto', 'informe_factibilidad'})
+    'obras_escalera', 'optimizar_con_proyecto', 'informe_factibilidad', 'set_completo', 'alimentadores_completo',
+    'calibrar', 'simular_calibracion', 'recalibrar', 'escanear', 'verificar_convergencia', 'carga_nueva_sola',
+    'proyecto_entero', 'evaluar_carga_nueva'})
 _CERROJO = threading.Lock()
 _ACTIVOS: set[str] = set()
 
@@ -242,7 +244,7 @@ class GobiernoEquipo:
                     return
             raise PermisoDenegado('petición fuera del paso autorizado')
         self._validar()
-        if metodo == 'GET' and (ruta in ('', '/obras') or ruta.startswith('/demanda/sistema?project=')):
+        if metodo == 'GET' and (ruta in ('', '/obras') or ruta.startswith(('/demanda/sistema?project=', '/demanda/ajuste/ultimo?project='))):
             return
         raise PermisoDenegado('la petición requiere un paso activo del plan autorizado')
 

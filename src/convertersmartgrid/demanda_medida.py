@@ -77,6 +77,11 @@ MAGNITUDES = ('kw', 'kvar', 'kva', 'fp')
 NOMBRE = {'kw': 'kW', 'kvar': 'kVAR', 'kva': 'kVA', 'fp': 'FP'}
 
 
+#: 070:RF-57: lo que decidió el usuario para el análisis por alimentadores (028:RF-27); con más, por SET o por sistema.
+#: No es el tamaño de la red: esta acepta cualquier número de alimentadores (P2).
+MAX_ALIMENTADORES_ANALISIS = 3
+
+
 class DemandaError(ValueError):
     """Error de usuario: libro que falta, hoja o columna que no está."""
 

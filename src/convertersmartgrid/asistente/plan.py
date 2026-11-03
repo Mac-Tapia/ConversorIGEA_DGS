@@ -170,7 +170,7 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
     opciones = list(vocab.get(tipo) or [])
     if tipo == 'alimentadores':
         return _alimentadores(valores, texto, opciones, plan)
-    if tipo in ('proyecto', 'sistema'):
+    if tipo in ('proyecto', 'sistema', 'set'):
         return _nombre(tipo, valores, texto, opciones, plan)
     if tipo == 'periodo':
         p = periodo_de(' '.join(valores)) if valores else periodo_de(texto)
@@ -183,6 +183,14 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
         return p
     if tipo == 'numero':
         return numero_de(' '.join(valores)) if valores else numero_de(texto)
+    if tipo == 'alcance':
+        crudo = normalizar(' '.join(valores))
+        return next((a for a in ('alimentadores', 'set', 'sistema') if a in crudo), None)
+    if tipo == 'estudio':
+        return valores[0] if valores else next(iter(_nombrados(texto, opciones)), None)
+    if tipo == 'anio':
+        p = periodo_de(' '.join(valores)) if valores else periodo_de(texto)
+        return p[:4] if p else None
     if tipo == 'ruta':
         if not valores:
             return None
@@ -194,7 +202,16 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
         if valores:
             return valores[0].upper()
         m = re.search(r'\bsed\s+([A-Za-z]*\d{3,})', texto, re.IGNORECASE)
-        return m.group(1).upper() if m else None
+        if m:
+            return m.group(1).upper()
+        # 070:RF-29: una carga nueva aún no tiene SED: se la llama por su nombre («conecta MINERA de 800 kW»).
+        m = re.search(r'\b(?:carga nueva|carga|cliente|conect[ae]r?)\s+(?!(?:de|del|en|la|el|una|sola|nueva|esta)\b)([\w.-]+)',
+                      normalizar(texto))
+        if m:
+            nombre = texto[m.start(1):m.end(1)].upper()
+            plan.razonamiento.append(f'carga: {nombre}, tomada del texto.')
+            return nombre
+        return None
     if tipo == 'subtipo':
         lista = list(vocab.get('subtipo') or SUBTIPOS_ESTUDIO)
         for v in valores:

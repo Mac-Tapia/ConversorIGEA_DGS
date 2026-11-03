@@ -100,10 +100,11 @@ def _por_frase_literal(texto: str, transformer: Any) -> str | None:
     nuevas no se alcanzarían hasta que un candidato pase las puertas: el modelo en uso entendía
     «haz la escalera de …» como ``obras``, que aplica otra cosa. Una pregunta sobre ella no es una orden."""
     t = normalizar(texto)
-    if '?' in texto or _PREGUNTA.search(t):
-        return None
+    pregunta = '?' in texto or bool(_PREGUNTA.search(t))
     conocidas = set(getattr(transformer, 'tareas', None) or ())
     for tarea in TAREAS.values():
+        if pregunta and not tarea.literal_en_pregunta:
+            continue
         if tarea.nombre not in conocidas and any(re.search(f, t) for f in tarea.frases_literales):
             return tarea.nombre
     return None

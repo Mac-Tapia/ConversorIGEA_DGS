@@ -14,12 +14,13 @@ import platform
 
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
-from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_ESTILO_REAL
+from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_ESTILO_REAL, PARAFRASIS_070
 from .interprete import UMBRAL_TRANSFORMER
 from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
+from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de_sellada, selladas
 from .sinteticos import Ejemplo, expandir
-from .tareas import TAREAS
+from .tareas import TAREAS, TAREAS_HASTA_069
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
@@ -92,6 +93,14 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                 # pocas filas frente a las que llevan códigos: las erratas se añaden igual.
                 if agregar(e, grupo, 'silver_teacher_verified', 'estilo_real', maestro='claude') != 'fuga':
                     erratas(e, grupo, 'silver_teacher_verified', 'estilo_real', rnd, maestro='claude')
+    for tarea, frases in sorted(PARAFRASIS_070.items()):                           # 070:RF-67, RF-68
+        for j, plantilla in enumerate(frases):
+            rnd = random.Random(5209 + j + int(huella(tarea)[:8], 16))
+            grupo = huella({'parafrasis_070': plantilla, 'tarea': tarea})
+            for _ in range(max(1, por_familia // 2)):
+                e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
+                if agregar(e, grupo, 'silver_teacher_verified', 'parafrasis_070', maestro='claude') != 'fuga':
+                    erratas(e, grupo, 'silver_teacher_verified', 'parafrasis_070', rnd, maestro='claude')
     por_tarea, leidas = Counter(), 0
     for f in sorted(etiquetas, key=lambda x: clave_texto(x['texto'])):
         leidas += 1
@@ -116,7 +125,31 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                                  'apartadas': cuenta['texto_real_apartadas'], 'por_tarea': dict(sorted((t, n) for t, n in por_tarea.items() if n))},
             'estilo_real': {'frases': sum(len(v) for v in ESTILO_REAL.values()), 'filas': cuenta['estilo_real_filas'],
                             'excluidas_por_fuga': cuenta['estilo_real_fuga'], 'maestro': MAESTRO_ESTILO_REAL},
+            'parafrasis_070': {'frases': sum(len(v) for v in PARAFRASIS_070.values()), 'filas': cuenta['parafrasis_070_filas'],
+                               'excluidas_por_fuga': cuenta['parafrasis_070_fuga'], 'maestro': MAESTRO_070},
             'erratas_del_catalogo': {'filas': cuenta['catalogo_filas'], 'excluidas_por_fuga': cuenta['catalogo_fuga']}}
+
+
+def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict]:
+    """070:RF-69, RF-71: la prueba nueva, separada por familia de todo lo que entrena, elige o calibra.
+
+    Lo que coincide con ella sale del entrenamiento. Si coincide con selección o calibración no se toca nada: se
+    para, porque cambiarlas movería sus huellas (069:RF-13) y dejarlo sería una fuga.
+    """
+    nueva = selladas()
+    textos = {clave_texto(r['texto']) for r in nueva}
+    familias = {firma_familia(r['texto'], r['datos']) for r in nueva}
+
+    def coincide(r):
+        return clave_texto(r['texto']) in textos or firma_familia(r['texto'], r['datos']) in familias
+
+    # Una orden humana igual a una frase sellada no es fuga: las dos son prueba (070:RF-76).
+    choques = [r for r in filas if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human' and coincide(r)]
+    if choques:
+        raise ValueError(f'la prueba sellada coincide con {len(choques)} fila(s) de selección, calibración o prueba')
+    conservadas = [r for r in filas if r['particion'] != 'entrenamiento' or not coincide(r)]
+    return [*conservadas, *nueva], {'huella': huella_de_sellada(nueva), 'filas': len(nueva), 'frases': len({r['group_id'] for r in nueva}),
+                                    'quitadas_de_entrenar': len(filas) - len(conservadas)}
 
 
 def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, etiquetas_reales: Sequence[dict] = (),
@@ -166,13 +199,15 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
                 agregar(expandir(plantilla, tarea, rnd, vocab, ruido=.08), grupo,
                         'entrenamiento', 'silver_deterministic')
         from .ordenes_fijas import FRASES
-        for j, plantilla in enumerate(FRASES[tarea]):
+        for j, plantilla in enumerate(FRASES.get(tarea, ())):                      # 070:RF-75: sin tareas nuevas
             rnd = random.Random(3103 + j + int(huella(tarea)[:8], 16))
             grupo = huella({'plantilla': plantilla, 'tarea': tarea})
             for _ in range(por_familia):
                 agregar(expandir(plantilla, tarea, rnd, vocab, ruido=.06), grupo,
                         'entrenamiento', 'silver_teacher_verified', maestro=True)
         for j, (parte, plantilla) in enumerate(zip(PARTES, FAMILIAS[tarea], strict=True)):
+            if parte == 'prueba' and tarea not in TAREAS_HASTA_069:
+                continue                                                           # su prueba es la sellada (070:RF-69)
             rnd = random.Random(991 + j + int(huella(tarea)[:8], 16))
             grupo = huella({'plantilla': plantilla, 'tarea': tarea})
             for _ in range(por_familia):
@@ -188,15 +223,25 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
         agregar(e, huella({'humana': texto_canonico(e.texto)}), 'prueba', 'gold_human')
     filas = sorted((r for r in filas if texto_canonico(r['texto']) not in cuarentena),
                    key=lambda r: r['record_id'])
+    filas, sellada = _con_la_prueba_sellada(filas)
+    # 070:RF-76: la comparación de arriba es con mayúsculas y tildes: «Qué hay» confirmada dejaba «que hay» entrenando.
+    confirmadas = {clave_texto(t) for t in humanos}
+    filas = [r for r in filas if r['particion'] != 'entrenamiento' or clave_texto(r['texto']) not in confirmadas]
     ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos,
                                          ninguna, ninguna_reservada) if ampliar else {})
     filas.sort(key=lambda r: r['record_id'])
     denominadores = defaultdict(Counter)
     for r in filas:
         denominadores[r['particion']][r['quality']] += 1
+    historicas = sorted(r['record_id'] for r in filas if es_historica(r))
+    sinteticas_historicas = sorted(r['record_id'] for r in filas if es_historica(r) and r['quality'] != 'gold_human')
     meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas), **ampliacion,
+            # 070:RF-72: mide lo mismo que la huella b800c6ca1a11d9ba si el vocabulario y las humanas son los de entonces.
+            'prueba_sellada': sellada, 'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas),
+                                                            'huella_sinteticas': huella(sinteticas_historicas)},
             'denominadores': {p: dict(sorted(c.items())) for p, c in sorted(denominadores.items())},
-            'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL}),
+            'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL,
+                                      'parafrasis_070': PARAFRASIS_070}),
             'calidades': dict(Counter(r['quality'] for r in filas)),
             'particiones': dict(Counter(r['particion'] for r in filas)),
             'vocabulario_hash': huella(vocab), 'por_familia': por_familia,
@@ -207,6 +252,11 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
             'metodo': 'response_distillation; CE de tareas y entidades; no logits ni racionales privados'}
     particionar_registros(filas, PoliticaEvaluacion(modo='agente'))
     return filas, meta
+
+
+def es_historica(r: dict) -> bool:
+    """070:RF-72: la fila es de la prueba anterior: las tareas de hasta la 069, sin marca de conjunto nuevo."""
+    return r['particion'] == 'prueba' and 'conjunto' not in r
 
 
 def guardar_corpus(destino: Path, registros: list[dict], manifiesto: dict, reservados: Sequence[str] = ()) -> None:
@@ -557,7 +607,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'codificador': {'nombre': co.NOMBRE_CODIFICADOR, 'revision': co.REVISION_CODIFICADOR},
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
                      (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
-                      Path(__file__).with_name('maestro_real.py'))},
+                      Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'))},
                  'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
                              'cuda': tr._torch().version.cuda,
                              'gpu': tr._torch().cuda.get_device_name(0) if tr._torch().cuda.is_available() else None}}
@@ -596,9 +646,14 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     final = destino / 'alumno'
     _guardar_alumno(modelo, final, {'version': final.name, 'seleccion': elegido,
         'calibracion': calibracion, 'dataset_hash': meta['dataset_hash'], 'policy_hash': politica.hash})
-    sinteticas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'])
+    # 070:RF-69, RF-72: decide la sellada nueva; la anterior se mide para compararla, sin decidir.
+    prueba_sintetica = [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO] or [
+        r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
+    sinteticas = evaluar_alumno(modelo, prueba_sintetica)
     humanas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'])
-    prueba_sintetica = [r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
+    filas_historicas = [r for r in por_parte['prueba'] if es_historica(r) and r['quality'] != 'gold_human']
+    historica = {'huella': (meta.get('prueba_historica') or {}).get('huella'), 'decide': False,
+                 'medida': evaluar_alumno(modelo, filas_historicas) if filas_historicas else None}
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
     decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo)
@@ -626,7 +681,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'policy_hash': politica.hash, 'training_completed': True, 'semillas': list(semillas)},
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
-        'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso},
+        'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
     # La activación es una operación explícita del registro, no un efecto del ensayo: la hace quien
     # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
@@ -634,6 +689,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'status': decision['status'], 'promovido': False, 'decision': decision,
         'denominadores': meta.get('denominadores'),                                       # 068:RF-29, 047:RF-13
         'rechazo': rechazo, 'cobertura': cobertura, 'modelo_en_uso': en_uso,              # 069:RF-20, RF-27
+        'prueba_sellada': meta.get('prueba_sellada'), 'prueba_historica': historica,      # 070:RF-69, RF-72
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
         'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}

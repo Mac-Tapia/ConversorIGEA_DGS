@@ -352,9 +352,16 @@ def ejemplos_reales() -> tuple[list[Ejemplo], list[Ejemplo]]:
     return entrenar_, prueba
 
 
+def sin_textos_de_prueba(datos: Sequence[Ejemplo], prueba: Sequence[Ejemplo]) -> tuple[list[Ejemplo], int]:
+    """070:RF-65: lo que se entrena no puede estar en la prueba: una frase repetida se acierta de memoria."""
+    vistos = {' '.join(normalizar(e.texto).split()) for e in prueba}
+    limpio = [e for e in datos if ' '.join(normalizar(e.texto).split()) not in vistos]
+    return limpio, len(datos) - len(limpio)
+
+
 def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puertas: Puertas | None = None,
                         log: Callable[[str], None] = lambda _m: None, destilar=None,
-                        maestro=None) -> dict[str, Any]:
+                        maestro=None, promover_directo: bool = False) -> dict[str, Any]:
     """Entrena un candidato con sintéticos y reales, lo evalúa en la prueba fija y lo promueve
     si pasa las puertas y no acierta menos que el modelo en uso (RF-20).
 
@@ -375,6 +382,7 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     fijas_ent, fijas_prueba = ordenes_fijas.repartir(fijas)
     datos = generar(vocab, por_tarea=cfg.por_tarea, semilla=cfg.semilla) + reales * 5 + fijas_ent * 2
     prueba = generar(vocab, por_tarea=20, semilla=SEMILLA_PRUEBA) + prueba_real + fijas_prueba
+    datos, quitados = sin_textos_de_prueba(datos, prueba)
     log(f'Asistente: {len(datos)} ejemplos ({len(reales)} reales), prueba fija de {len(prueba)}')
     # 027:RF-29, RF-33, RF-34: el dataset se audita antes y el informe va al registro.
     from ..digital_twin.auditoria import auditar_ordenes
@@ -431,8 +439,12 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
                                   'metricas_reales': reales_prueba,
                                   'ordenes_fijas': {'total': len(fijas), 'huella': ordenes_fijas.huella(fijas),
                                                     'prueba': len(fijas_prueba)}})
-    if not fallos:
+    # 070:RF-63: poner en uso es del registro; solo las pruebas de esta función mantienen el camino directo.
+    promovido = promover_directo and not fallos
+    if promovido:
         promover(version, f"acierto {metricas['acierto_tarea']:.3f}, F1 {metricas['f1_datos']:.3f}")
-    log(f"Asistente: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
-    return {'version': version, 'promovido': not fallos, 'fallos': fallos, **metricas, 'en_uso': del_actual,
-            'destilacion': destilado, 'reales': reales_prueba}
+    log(f"Asistente: candidato {version}: {'promovido' if promovido else 'no promovido: ' + ('; '.join(fallos) or 'lo decide el registro')}")
+    return {'version': version, 'promovido': promovido, 'fallos': fallos, **metricas, 'en_uso': del_actual,
+            'destilacion': destilado, 'reales': reales_prueba,
+            'dataset': {'calidades': {'plantillas': 'silver_deterministic', 'fijas': 'silver_teacher_verified', 'operador': 'gold_human'},   # 070:RF-66
+                        'reales': len(reales), 'ejemplos': len(datos), 'prueba': len(prueba), 'textos_de_prueba_quitados': quitados}}

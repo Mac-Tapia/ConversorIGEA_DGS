@@ -14,5 +14,7 @@
   Hecho cuando: `pytest -q tests/test_maestro_real.py -k curriculo` en verde.
 - [ ] T7 Reentrenar en la GPU con el corpus nuevo y leer la decisión del registro.
   Hecho cuando: el informe del integrador da el estado del candidato por familia y sus denominadores.
-- [ ] T8 Revisión del operador: que marque `revision.xlsx` y se importe.
+- [x] T8 Revisión del operador: que marque `revision.xlsx` y se importe.
   Hecho cuando: `importar` anota lo marcado y `ejemplos` crece solo con esas filas.
+  Hecho el 2026-11-02: el operador confirmó las 42 filas: 39 importadas, 3 ya estaban, 0 corregidas, 0 contradicciones.
+  `ejemplos.jsonl` queda con 44 confirmadas, 42 textos únicos; no entrenan (070:RF-76). Evidencia del integrador; los textos, fuera de git.
