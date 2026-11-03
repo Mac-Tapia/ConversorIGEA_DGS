@@ -52,7 +52,7 @@ def main(argv=None):
         from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
         from convertersmartgrid.asistente.ollama import ClienteOllama
         from convertersmartgrid.training_coordinator import BloqueoGPU
-        from convertersmartgrid.evaluacion_modelos import huella
+        from convertersmartgrid.evaluacion_modelos import huella, texto_canonico
         if args.accion == 'preparar':
             filas, meta = generar_propuestas()
             datos, fuente = leer_corpus(args.dataset)
@@ -133,6 +133,10 @@ def main(argv=None):
                         m = evaluar_ordenes(filas, cliente=cliente, vocabulario=VOCABULARIO)
                         reales = json.loads((args.corpus / 'humanas.json').read_text(encoding='utf-8'))
                         humanas = evaluar_ordenes(reales, cliente=cliente) if reales else {'ejemplos': 0}
+                        # 047:RF-9: independencia comprobada aquí, donde se ve el entrenamiento; si no, queda bloqueada.
+                        entrenamiento = {texto_canonico(r['texto']) for r in datos if r['particion'] == 'entrenamiento'}
+                        humanas.update(dataset_hash=huella(reales), sin_fuga=not any(
+                            texto_canonico(r['texto']) in entrenamiento for r in reales))
                     finally:
                         cliente.liberar_gpu(solo_actual=True)
                     m['sin_fuga'] = auditoria['sin_fuga']

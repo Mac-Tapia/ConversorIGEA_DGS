@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from . import almacen
+from .ajuste_condicionado import ACIERTO_REAL, F1_REAL
 from .datos_por_palabra import ETIQUETAS, LARGO_MAX, marcar_datos as _spans
 from .sinteticos import Ejemplo, normalizar
 from .tareas import TAREAS
@@ -50,8 +51,8 @@ class Puertas:
     acierto_tarea: float = 0.95
     f1_datos: float = 0.85
     #: 027:RF-18: en las órdenes reales de la prueba fija, aparte de las sintéticas.
-    acierto_real: float = 0.98
-    f1_real: float = 0.95
+    acierto_real: float = ACIERTO_REAL
+    f1_real: float = F1_REAL
 
 
 def _torch():

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dictamen de un rol de revisión; no autoriza ejecución",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "evidencia_ids", "incertidumbres", "contradicciones"],
+  "properties": {
+    "decision": {"enum": ["favorable", "bloqueada", "revisar"]},
+    "evidencia_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
+    "incertidumbres": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
+    "contradicciones": {"type": "array", "items": {"type": "string"}, "maxItems": 32}
+  }
+}

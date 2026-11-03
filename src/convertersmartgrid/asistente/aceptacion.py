@@ -7,6 +7,7 @@ import re
 import time
 
 from ..evaluacion_modelos import huella, texto_canonico
+from .ajuste_condicionado import decidir_ajuste, evaluar_puertas_reales, manifiesto_de_humanas
 from .tareas import TAREAS
 from .sinteticos import normalizar
 
@@ -76,7 +77,10 @@ def decidir_aceptacion(propuestas: dict, humanas: dict) -> dict:
                 for k in ('acierto_tarea', 'f1_datos')):
             fallos.append(f'{tarea}: puerta por tarea incumplida')
     n = humanas.get('ejemplos', 0)
-    return {'asistida': {'aprobada': not fallos, 'confirmacion_obligatoria': True, 'fallos': fallos},
+    # 047:RF-8, RF-9: las puertas de 027:RF-18 se dicen sobre lo humano: las 200 propuestas no se prestan.
+    manifiesto = manifiesto_de_humanas(humanas)
+    return {'puertas_reales': evaluar_puertas_reales(humanas, manifiesto), 'ajuste': decidir_ajuste(humanas, manifiesto),
+            'asistida': {'aprobada': not fallos, 'confirmacion_obligatoria': True, 'fallos': fallos},
             'humanas': dict(humanas),
             'autonoma': {'aprobada': False, 'motivo': f'{n} órdenes humanas; no se habilita ejecución autónoma'},
             'electrica': {'aprobada': False, 'motivo': 'sin ejecución ni relectura nativa de estos casos'},

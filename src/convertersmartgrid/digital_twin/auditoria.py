@@ -14,13 +14,15 @@ from typing import Any
 
 import numpy as np
 
+from ..asistente.ajuste_condicionado import MIN_ORDENES_REALES
+
 
 @dataclass(frozen=True)
 class Umbrales:
     v_min_pu: float = 0.8           # RF-32: fuera de este rango se marca, no se excluye
     v_max_pu: float = 1.2
     min_redes: int = 2              # RF-33
-    min_ordenes_reales: int = 200   # RF-19, RF-33
+    min_ordenes_reales: int = MIN_ORDENES_REALES   # RF-19, RF-33
 
 
 def _red(m: Any) -> tuple:

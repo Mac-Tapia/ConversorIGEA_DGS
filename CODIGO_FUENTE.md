@@ -451,7 +451,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
 | `src/convertersmartgrid/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
 | `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. | 067 (RF-20 a RF-24) |
-| `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas. | 065 (RF-23) |
+| `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. | 065 (RF-23), 047 (RF-5 a RF-7) |
 | `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 (RF-5, RF-6, RF-7) |
 | `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 (RF-10 a RF-13) |
 | `src/convertersmartgrid/web/api_contract.py` | Modelos públicos Pydantic y contratos OpenAPI del frontend. | 065 (RF-17, RF-26), 002 |
@@ -467,3 +467,6 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/package.json` | Dependencias del frontend y versiones compatibles de Node y npm. | 065 (RF-8) |
 | `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
 | `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |
+| `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |
+| `src/convertersmartgrid/asistente/ajuste_condicionado.py` | Puertas de 027:RF-18 sobre órdenes reales independientes y decisión de ajustar el LLM, sin entrenar ni activar. | 047 (RF-8, RF-9) |
+| `tools/asistente_comparar_revision.py` | Rol único frente a cuatro roles con los mismos casos declarados: errores, coste y latencia; `--solo-conjunto` sin Ollama. | 047 (RF-5) |
