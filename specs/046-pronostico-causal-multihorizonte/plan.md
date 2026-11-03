@@ -85,6 +85,34 @@ Pruebas nuevas citan `046:RF-n`; no cerrar tareas nativas con mocks.
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 046 T3`.
 
+### T4: Objetivos de cabecera y de clientes fijos
+
+**Cubre:** RF-9, RF-10, RF-11, RF-12.
+
+**Files:** Ampliar `demanda_medida.py` con `curvas_de_clientes`, que comparte con `registros_de_maxima` la lectura de «maestro_lib» y de las columnas (`_hojas_de_maestro`), y `digital_twin/temporal_entrenamiento.py` con `objetivos_de_cabecera`, `objetivos_de_clientes` e `inventariar`. Cabecera: `maximas` y `curva_de_demanda`, sin otro lector. Pruebas en `tests/test_pronostico_objetivos.py`.
+
+Un cliente se reparte en libros mensuales del mismo origen: se unen sus meses, y dos valores distintos del mismo instante apartan al objetivo. Decisión: unir aquí no mezcla fuentes (TXT/MDB/VNR son las fuentes; los libros son meses de una medición); descartada: leer un solo mes, que no llega a 30 días.
+
+### T5: Competición y ganador por objetivo
+
+**Cubre:** RF-13, RF-14, RF-15, RF-16, RF-17, RF-18.
+
+**Files:** `digital_twin/pronostico.py` (referencias, ventanas, contrato), `digital_twin/adaptador_neuralforecast.py`, `GemeloGRUMultihorizonte` en `digital_twin/temporal.py`, `comparar_pronosticos` en `temporal_entrenamiento.py` y decisión en `evaluacion_temporal.py`. Reutiliza `particionar_registros`, `verificar_familias` y `RegistroModelo`. Pruebas en `tests/test_pronostico_competicion.py` y, con CUDA, `tests/test_pronostico_gpu.py`.
+
+El ganador neuronal de un objetivo se elige en selección y solo él se juzga en prueba: elegirlo en prueba daría un error optimista. Descartada: un único ganador global, porque un cliente fijo y una cabecera no tienen la misma forma.
+
+### T6: Artefacto e integración opcional
+
+**Cubre:** RF-19, RF-20, RF-21, RF-22, RF-23, RF-24, RF-25.
+
+**Files:** `pronostico.json` por trabajo; `tools/digital_twin_temporal_entrenar.py --comparar`, `tools/reentrenar_modelos.py`, `modo: pronostico` en la ruta `/digital-twin/temporal`, `services.gemelo_pronostico`, paso del asistente en `asistente/ejecutor.py`. Pruebas en `tests/test_pronostico_integracion.py`, con una guarda por importaciones: calibración, informes, crecimiento y guiones de DIgSILENT no importan el pronóstico.
+
+### T7: Medición real en GPU
+
+**Cubre:** RF-5, RF-6, RF-7, RF-8, RF-13, RF-16, RF-17, RF-18.
+
+Ejecutar `--comparar` con medición real en el turno de GPU que asigne el integrador; guardar el informe fuera de git. Sin ese turno no se declara ni modelo ganador ni promoción.
+
 ## Cierre y evidencia
 
 Al ejecutar, actualizar [tasks.md](tasks.md) con comandos, resultado, hashes y rutas

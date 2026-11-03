@@ -1696,6 +1696,10 @@ def create_app(
     def gemelo_temporal(wid: str, body: dict[str, Any]) -> dict:
         """Gemelo temporal del mes con las curvas de cabecera (spec 024, T12)."""
         ws = ws_or_404(wid)
+        # 046:RF-23, RF-24: el pronóstico de cabecera o de clientes, solo si se pide expresamente.
+        if body.get('modo') == 'pronostico':
+            return submit(ws, 'gemelo_pronostico', 'Gemelo · pronóstico de demanda',
+                          lambda ctx: services.gemelo_pronostico(ws, ctx, body))
         alimentadores = {str(k): str(v) for k, v in (body.get('alimentadores') or {}).items()}
         if not body.get('job_id') or not alimentadores:
             raise HTTPException(422, 'Indique la búsqueda de la máxima y los medidores de los alimentadores.')

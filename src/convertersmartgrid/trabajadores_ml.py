@@ -57,6 +57,21 @@ def leer_dataset_v2(dataset: Path) -> tuple[dict,dict]:
     return partes,manifest
 
 
+def entorno_hijo_gpu() -> dict[str, str]:
+    """El entorno de un hijo que usa la GPU de este proceso.
+
+    Con la guardia tomada aquí, un hijo sin el token la encuentra ocupada; es el caso de la
+    reapertura en otro proceso de un candidato de pronóstico (046:RF-7).
+    """
+    entorno = dict(os.environ)
+    ruta = Path(entorno.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+    if ruta.is_file():
+        dueno = json.loads(ruta.read_text(encoding='utf-8'))
+        if dueno.get('pid') == os.getpid():
+            entorno['CSG_GPU_PARENT_TOKEN'] = dueno['token']
+    return entorno
+
+
 @contextmanager
 def turno_gpu(nombre: str):
     """Un hijo hereda solo la guardia demostrablemente conservada por su padre."""
