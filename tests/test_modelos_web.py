@@ -115,3 +115,128 @@ def test_puntero_activo_corrupto_no_rompe_consulta(tmp_path, monkeypatch):
     activo.write_text('[1]', encoding='utf-8')
     fila = next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'gru')
     assert fila['estado'] is None and fila['bloqueos']
+
+
+def test_los_cuatro_estados_con_su_evidencia(tmp_path, monkeypatch):
+    """043:RF-8 — cada estado terminal sale con su candidato y puertas; un PROMOVIDO, solo si está activo."""
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
+    from test_model_registry import _payload
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
+    registro = RegistroModelo(raiz / 'model_registry')
+    ids = {}
+    for familia, estado in (('transformer', 'PROMOVIDO'), ('clasificador', 'RECHAZADO'),
+                            ('embeddings', 'BLOQUEADO_POR_DATOS'), ('qlora', 'ERROR_ENTORNO')):
+        datos = _payload(tmp_path, status=estado, contenido=familia.encode())
+        ids[familia] = registro.registrar_candidato(familia, **datos)['candidate_id']
+    registro.promover('transformer', ids['transformer'])
+    filas = {f['familia']: f for f in services.asistente_estado_modelos()['familias']}
+    assert {f: filas[f]['estado'] for f in ids} == {'transformer': 'PROMOVIDO', 'clasificador': 'RECHAZADO',
+                                                    'embeddings': 'BLOQUEADO_POR_DATOS', 'qlora': 'ERROR_ENTORNO'}
+    assert all(filas[f]['candidate_id'] == c and filas[f]['report_path'].endswith('latest.json') for f, c in ids.items())
+    assert filas['transformer']['gates']['approved'] is True and filas['clasificador']['gates']['approved'] is False
+    assert filas['gru']['estado'] is None and filas['gru']['candidate_id'] is None
+
+
+def test_promovido_del_registro_sin_activar_no_se_muestra_promovido(tmp_path, monkeypatch):
+    """043:RF-8 — aprobar un candidato no es ponerlo en uso: sin activar, queda pendiente y dice por qué."""
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
+    from test_model_registry import _payload
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
+    RegistroModelo(raiz / 'model_registry').registrar_candidato('transformer', **_payload(tmp_path))
+    fila = next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'transformer')
+    assert fila['estado'] is None and any('sin candidato activo' in b for b in fila['bloqueos'])
+
+
+def test_el_pronostico_se_ve_en_la_familia_gru(tmp_path, monkeypatch):
+    """043:RF-8 — se registra por clase (046) y la web lo buscaba en ``gru``: una promoción real salía sin evidencia."""
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
+    from test_model_registry import _payload
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
+    registro = RegistroModelo(raiz / 'model_registry')
+    datos = _payload(tmp_path)
+    datos['model_manifest'] = {'algorithm': 'patchtst'}
+    c = registro.registrar_candidato('pronostico_cabecera', **datos)['candidate_id']
+    registro.promover('pronostico_cabecera', c)
+
+    def gru():
+        return next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'gru')
+    assert gru()['estado'] == 'PROMOVIDO' and gru()['algorithm'] == 'patchtst' and gru()['candidate_id'] == c
+    ruta = raiz / 'training/report.json'
+    ruta.parent.mkdir()
+    # Lo mismo desde el informe del coordinador, y otro nombre del registro no se acepta.
+    import os
+    from pathlib import Path
+    ruta.write_text(json.dumps({'stages': [{'model': 'gru', 'status': 'PROMOVIDO', 'algorithm': 'patchtst', 'candidate_id': c,
+                                            'modelo_registro': 'pronostico_cabecera'}]}), encoding='utf-8')
+    futuro = Path(raiz / 'model_registry/pronostico_cabecera/latest.json').stat().st_mtime + 60
+    os.utime(ruta, (futuro, futuro))
+    assert gru()['estado'] == 'PROMOVIDO' and gru()['report_path'] == str(ruta)
+    ruta.write_text(json.dumps({'stages': [{'model': 'gru', 'status': 'PROMOVIDO', 'candidate_id': c,
+                                            'modelo_registro': 'transformer'}]}), encoding='utf-8')
+    os.utime(ruta, (futuro, futuro))
+    assert gru()['estado'] is None
+
+
+def test_pinn_del_registro_en_uso_por_su_puntero(tmp_path, monkeypatch):
+    """043:RF-8, 071:RF-5 — anotada en el registro y en uso por su puntero; si se vuelve al anterior, ya no se dice en uso."""
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion, volver_al_anterior
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'bufer'))
+    from convertersmartgrid.digital_twin.buffer import raiz_buffer
+    bufer = BuferEpisodios(raiz_buffer())
+    registro = RegistroModelo(raiz / 'model_registry')
+    versiones = []
+    for version in ('v1', 'v2'):
+        carpeta = bufer.raiz / 'modelos' / version
+        carpeta.mkdir(parents=True)
+        (carpeta / 'modelo.json').write_text(json.dumps({'cfg': {}, 'version': version}), encoding='utf-8')
+        versiones.append(_decidir_promocion(bufer, carpeta, {'cfg': {}}, [], 'mae', registro=registro,
+                                            reabrir=lambda _c: {'ok': True})['candidate_id'])
+
+    def fila():
+        return next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'pinn')
+    assert fila()['estado'] == 'PROMOVIDO' and fila()['en_uso'] == 'v2' and fila()['candidate_id'] == versiones[1]
+    assert fila()['algorithm'] == 'pinn_gnn'
+    assert volver_al_anterior(bufer) == 'v1'
+    assert fila()['estado'] is None and fila()['en_uso'] == 'v1'
+
+
+def test_importar_nucleo_sin_adaptadores(tmp_path):
+    """043:RF-8, 043:RF-11 — sin PyG, NeuralForecast, pymoo ni Pyomo el núcleo arranca y la consulta responde."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    src = Path(__file__).resolve().parents[1] / 'src'
+    codigo = f"""
+import json, sys
+VETADOS = ('torch_geometric', 'neuralforecast', 'pymoo', 'pyomo')
+class Veto:
+    def find_spec(self, nombre, ruta=None, destino=None):
+        if nombre.split('.')[0] in VETADOS:
+            raise ImportError('adaptador opcional ausente: ' + nombre)
+sys.meta_path.insert(0, Veto())
+sys.path.insert(0, {str(src)!r})
+from fastapi.testclient import TestClient
+from convertersmartgrid.web.app import create_app
+from pathlib import Path
+with TestClient(create_app(Path({str(tmp_path / 'web')!r}))) as cliente:
+    r = cliente.get('/api/asistente/modelos')
+print(json.dumps({{'codigo': r.status_code, 'familias': len(r.json()['familias']),
+                  'cargados': [m for m in sys.modules if m.split('.')[0] in VETADOS]}}))
+"""
+    import os
+    r = subprocess.run([sys.executable, '-c', codigo], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=300,
+                       env={**os.environ, 'CSG_ASISTENTE_DATA': str(tmp_path / 'asistente'), 'CSG_WEB_FRONTEND': str(tmp_path / 'sin_front')})
+    assert r.returncode == 0, r.stderr[-2000:]
+    salida = json.loads(r.stdout.strip().splitlines()[-1])
+    assert salida['codigo'] == 200 and salida['familias'] and salida['cargados'] == []

@@ -1,5 +1,7 @@
 """043:RF-5 043:RF-7 — reanudación y verificación del contrato completo."""
 import json
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -66,3 +68,228 @@ def test_verify_rechazo_sin_entrenamiento_no_cierra(tmp_path):
     ruta.write_text(json.dumps({'complete': True, 'stages': [
         {'model': n, 'status': 'RECHAZADO'} for n in ORDEN_MODELOS]}), encoding='utf-8')
     assert verificar(ruta, fail_on_incomplete=True) != 0
+
+
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def turno_de_ensayo(tmp_path, monkeypatch):
+    """Estas pruebas nunca toman la guardia real: otra sesión puede estar entrenando en la GPU."""
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'ensayo-gpu.lock'))
+    src = str(RAIZ / 'src')
+    monkeypatch.setenv('PYTHONPATH', src)      # los hijos abren este código, también desde un worktree
+
+
+def _payload(tmp_path, status='PROMOVIDO', contenido=b'pesos', smoke=None):
+    artefacto = tmp_path / 'pesos.bin'
+    artefacto.write_bytes(contenido)
+    return dict(model_manifest={'algorithm': 'prueba'}, dataset_manifest={'sha256': 'd' * 64}, metrics={'mae': .1},
+                decision={'status': status, 'gates': {'approved': status == 'PROMOVIDO'}},
+                smoke_reload=smoke if smoke is not None else {'ok': status == 'PROMOVIDO'}, artifacts=[artefacto])
+
+
+def _carpeta_ilegible(tmp_path):
+    """Los ficheros de cualquier familia, truncados: se rompen al leerlos, antes de tocar pesos ni GPU."""
+    carpeta = tmp_path / 'candidato'
+    carpeta.mkdir()
+    for nombre in ('modelo.json', 'readback.json', 'sonda.npz', 'pesos.pt', 'miembro_0.pt', 'estado.json'):
+        (carpeta / nombre).write_bytes(b'{truncado')
+    return carpeta
+
+
+#: La orden real con que cada familia reabre un candidato en otro proceso.
+REAPERTURAS = {
+    'pinn': ('tools/digital_twin_entrenar.py', '--reabrir-candidato'),
+    'gru': ('tools/digital_twin_temporal_entrenar.py', '--reabrir-candidato'),
+    'transformer': ('tools/asistente_destilar.py', 'verificar', '--modelo'),
+    'clasificador': ('tools/asistente_destilar.py', 'verificar', '--familia', 'clasificador', '--modelo'),
+}
+
+
+@pytest.mark.parametrize('familia', REAPERTURAS)
+def test_smoke_fallido_no_promueve(tmp_path, familia):
+    """043:RF-5 — el proceso real de la familia no reabre un artefacto ilegible, y el activo sigue siendo el anterior."""
+    from convertersmartgrid.model_registry import RegistroModelo, reabrir_en_subproceso
+    herramienta, *opciones = REAPERTURAS[familia]
+    smoke = reabrir_en_subproceso([sys.executable, str(RAIZ / herramienta), *opciones, str(_carpeta_ilegible(tmp_path))],
+                                  timeout_s=300.)
+    assert smoke['ok'] is False and smoke['returncode'] not in (0, None), smoke
+    registro = RegistroModelo(tmp_path / 'registro')
+    anterior = registro.registrar_candidato(familia, **_payload(tmp_path))
+    registro.promover(familia, anterior['candidate_id'])
+    with pytest.raises(ValueError, match='reapertura'):
+        registro.registrar_candidato(familia, **_payload(tmp_path, contenido=b'nuevo', smoke=smoke))
+    registro.registrar_candidato(familia, **{**_payload(tmp_path, status='RECHAZADO', contenido=b'nuevo'), 'smoke_reload': smoke})
+    assert registro.activo(familia)['candidate_id'] == anterior['candidate_id']
+    assert registro.ultimo(familia)['status'] == 'RECHAZADO'
+
+
+def test_reapertura_del_indice_en_otro_proceso(tmp_path):
+    """043:RF-5 — la familia sin GPU, reabierta de verdad en otro proceso; alterada, deja de abrir."""
+    from types import SimpleNamespace
+    from convertersmartgrid.asistente.embeddings import guardar_indice_versionado
+    from convertersmartgrid.model_registry import reabrir_en_subproceso
+    frags = [SimpleNamespace(id='a', fuente='f', texto='texto del fragmento')]
+    guardar_indice_versionado(frags, [[1.0, 0.0]], tmp_path / 'indice', modelo='base', segmentacion={'dataset': 'v2'})
+    orden = [sys.executable, '-c',
+             'import json,sys; from convertersmartgrid.asistente.embeddings import reabrir_indice_versionado as r; '
+             'print(json.dumps({"ok": len(r(sys.argv[1]).buscar("texto", 1, [1.0, 0.0])) == 1}))', str(tmp_path / 'indice')]
+    assert reabrir_en_subproceso(orden, timeout_s=300.)['ok'] is True
+    (tmp_path / 'indice/vectores.json').write_text('[[0.0, 1.0]]', encoding='utf-8')
+    assert reabrir_en_subproceso(orden, timeout_s=300.)['ok'] is False
+
+
+def _candidato_pinn(tmp_path, contenido=b'{"miembros": 0}'):
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    bufer = BuferEpisodios(tmp_path / 'bufer')
+    carpeta = tmp_path / 'bufer/modelos/20261103-nuevo'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'modelo.json').write_bytes(contenido)
+    (carpeta / 'miembro_0.pt').write_bytes(b'pesos')
+    return bufer, carpeta
+
+
+def _puntero_pinn(bufer):
+    from convertersmartgrid.digital_twin.oraculo import promover
+    (bufer.raiz / 'modelos/anterior').mkdir(parents=True, exist_ok=True)
+    promover(bufer, 'anterior', 'el modelo en uso')
+    return json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version']
+
+
+def test_pinn_no_reabierta_no_se_promueve(tmp_path):
+    """043:RF-5 — la PINN se promovía con solo sus puertas; ahora la herramienta real la reabre y el puntero no se mueve."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.model_registry import RegistroModelo
+    bufer, carpeta = _candidato_pinn(tmp_path)        # sin readback.json: no se puede comprobar, luego no entra
+    assert _puntero_pinn(bufer) == 'anterior'
+    registro = RegistroModelo(tmp_path / 'registro')
+    fallos = []
+    r = _decidir_promocion(bufer, carpeta, {}, fallos, 'mae 0.001', registro=registro)
+    assert r['promovido'] is False and any('reapertura' in f for f in fallos), fallos
+    assert json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version'] == 'anterior'
+    ultimo = registro.ultimo('pinn')
+    assert ultimo['status'] == 'RECHAZADO' and ultimo['candidate_id'] == r['candidate_id']
+
+
+def test_pinn_aprobada_queda_en_el_registro_y_en_su_puntero(tmp_path):
+    """043:RF-1 — la decisión consta en el registro común y lo que la pone en uso sigue siendo un puntero (071:RF-5)."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.model_registry import RegistroModelo
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    registro = RegistroModelo(tmp_path / 'registro')
+    r = _decidir_promocion(bufer, carpeta, {'cfg': {'ocultas': 8}}, [], 'mae 0.001', registro=registro,
+                           reabrir=lambda _c: {'ok': True, 'proceso_nuevo': True})
+    assert r['promovido'] is True
+    assert json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version'] == carpeta.name
+    detalle = registro.ultimo('pinn')['detalle']
+    assert detalle['decision']['status'] == 'PROMOVIDO' and detalle['model_manifest']['version'] == carpeta.name
+    assert registro.activo('pinn') is None
+
+
+@pytest.mark.parametrize('caso', ['puertas', 'sin_anotar'])
+def test_pinn_sin_puertas_o_sin_anotar_no_toca_el_puntero(tmp_path, caso):
+    """043:RF-5 — con puertas falladas ni se reabre; sin decisión anotada tampoco hay promoción."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.model_registry import RegistroModelo
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    _puntero_pinn(bufer)
+    fallos = ['error de tensión sobre el umbral'] if caso == 'puertas' else []
+    registro = RegistroModelo(tmp_path / 'registro')
+    if caso == 'sin_anotar':
+        (tmp_path / 'registro').write_text('no es una carpeta', encoding='utf-8')
+    reabrir = (lambda _c: pytest.fail('reabrió un candidato rechazado')) if caso == 'puertas' else (lambda _c: {'ok': True})
+    r = _decidir_promocion(bufer, carpeta, {}, fallos, 'mae', registro=registro, reabrir=reabrir)
+    assert r['promovido'] is False and fallos
+    assert json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version'] == 'anterior'
+
+
+def _config(ruta, semillas, algoritmo='gru'):
+    from dataclasses import asdict
+    from test_experimentos import contexto
+    ruta.write_text(json.dumps({'schema_version': 1, 'contexto': asdict(contexto()), 'algoritmo': algoritmo, 'semillas': semillas,
+                                'revision': 'revision-fijada', 'politica': {'cobertura_objetivo': 0.9}}), encoding='utf-8')
+    return ruta
+
+
+def _main_sin_entrenar(monkeypatch, llamadas, status='RECHAZADO'):
+    """El ``main`` real con etapas que no tocan la GPU: se cuenta qué etapas corren de verdad."""
+    import tools.reentrenar_modelos as m
+    from convertersmartgrid.training_coordinator import ORDEN_MODELOS, TrainingStage
+
+    def etapas(_args, _run_dir):
+        return [TrainingStage(n, lambda n=n: llamadas.append(n) or {'status': status, 'metrica': len(llamadas)}, uses_gpu=False)
+                for n in ORDEN_MODELOS]
+    monkeypatch.setattr(m, '_etapas', etapas)
+    return m
+
+
+def test_resume_otra_semilla_no_reutiliza_metricas(tmp_path, monkeypatch, capsys):
+    """043:RF-7 — cambiar una semilla del contrato rechaza la reanudación: ni corre ni devuelve lo anterior."""
+    llamadas = []
+    m = _main_sin_entrenar(monkeypatch, llamadas)
+    run = tmp_path / 'run'
+    base = ['run', '--run-dir', str(run), '--dataset', str(tmp_path / 'd'), '--vocabulario', str(tmp_path / 'v'),
+            '--twin', str(tmp_path / 't'), '--resume']
+    assert m.main([*base, '--config', str(_config(tmp_path / 'a.json', [11, 23]))]) == 0
+    capsys.readouterr()
+    antes = (run / 'report.json').read_text(encoding='utf-8')
+    assert llamadas == ['gru']
+    assert m.main([*base, '--config', str(_config(tmp_path / 'b.json', [11, 29]))]) == 2
+    salida = json.loads(capsys.readouterr().out)
+    assert salida['ok'] is False and 'configuraci' in salida['reason']
+    assert llamadas == ['gru'] and (run / 'report.json').read_text(encoding='utf-8') == antes
+
+
+def test_resume_compatible_preserva_las_terminales(tmp_path):
+    """043:RF-7 — tras un corte se conservan las etapas terminales y solo corre lo que faltaba."""
+    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
+    llamadas = []
+    def etapa(nombre, cae=False):
+        def correr():
+            llamadas.append(nombre)
+            if cae:
+                raise KeyboardInterrupt
+            return {'status': 'RECHAZADO', 'corrida': len(llamadas)}
+        return correr
+    with pytest.raises(KeyboardInterrupt):
+        TrainingCoordinator([TrainingStage('gru', etapa('gru'), uses_gpu=False), TrainingStage('qlora', etapa('qlora', cae=True), uses_gpu=False)],
+                            tmp_path, config_hash='c' * 64).run()
+    informe = TrainingCoordinator([TrainingStage('gru', etapa('gru'), uses_gpu=False), TrainingStage('qlora', etapa('qlora'), uses_gpu=False)],
+                                  tmp_path, config_hash='c' * 64).run(resume=True)
+    assert llamadas == ['gru', 'qlora', 'qlora']
+    assert informe['complete'] is True and informe['stages'][0]['corrida'] == 1
+
+
+def test_etapa_temporal_conserva_alias_gru(tmp_path, monkeypatch, capsys):
+    """043:RF-7, 046:RF-13 — PatchTST se ejecuta y se informa como ``algorithm`` dentro de la etapa ``gru``."""
+    import tools.reentrenar_modelos as m
+    vistas = []
+    def subproceso(comando, reporte, modelo, **_k):
+        vistas.append((comando, modelo))
+        return {'status': 'RECHAZADO', 'training_completed': True, 'report': str(reporte)}
+    monkeypatch.setattr(m, '_subproceso', subproceso)
+    monkeypatch.setattr('convertersmartgrid.asistente.ollama.liberar_gpu_para_entrenar', lambda: None)
+    run = tmp_path / 'run'
+    assert m.main(['run', '--config', str(_config(tmp_path / 'c.json', [11], 'patchtst')), '--run-dir', str(run),
+                   '--dataset', str(tmp_path / 'd'), '--vocabulario', str(tmp_path / 'v'), '--twin', str(tmp_path / 't'),
+                   '--cabeceras', str(tmp_path / 'libro.xlsx'), '--zona-horaria', 'America/Lima',
+                   '--cadencia-temporal', '15']) == 0
+    capsys.readouterr()
+    informe = json.loads((run / 'report.json').read_text(encoding='utf-8'))
+    assert [(s['model'], s['algorithm']) for s in informe['stages']] == [('gru', 'patchtst')]
+    assert vistas[0][1] == 'gru' and any('ingenuo,estacional_semanal,gru,patchtst' == a for a in vistas[0][0])
+
+
+def test_runner_no_acepta_promovido_sin_candidato(tmp_path):
+    """043:RF-5 — un trabajador que dice promovido sin candidato en el registro no da PROMOVIDO: nunca un OK falso."""
+    from tools.reentrenar_modelos import _subproceso
+    ruta = tmp_path / 'r.json'
+    def correr(datos):
+        codigo = f'import json,pathlib; pathlib.Path({str(ruta)!r}).write_text(json.dumps({datos!r}))'
+        return _subproceso([sys.executable, '-c', codigo], ruta, 'gru')
+    falso = correr({'promovido': True, 'entrenado': True})
+    assert falso['status'] == 'RECHAZADO' and 'candidato' in falso['reason']
+    real = correr({'promovido': True, 'entrenado': True, 'candidate_id': 'a' * 64, 'modelo_registro': 'pronostico_cabecera'})
+    assert real['status'] == 'PROMOVIDO' and real['candidate_id'] == 'a' * 64
+    assert real['modelo_registro'] == 'pronostico_cabecera'

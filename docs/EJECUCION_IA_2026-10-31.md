@@ -86,9 +86,7 @@ y contando los grupos con más de un valor distinto; no se necesita alterar la f
 
 | Paquete | Pendiente concreto |
 | --- | --- |
-| 043 T1 | Integrar todos los lanzadores legacy con la exclusión común; actualmente el coordinador protege sus etapas, pero no se afirma exclusión de todos los accesos históricos directos a CUDA. |
-| 043 T3 | Adaptar/verificar los ejecutables de entrenamiento de cada familia en raíz: varios argumentos y herramientas del donante todavía no están consolidados. No lanzar el runner global esperando siete entrenamientos correctos. Reapertura real de artefactos de cada familia y publicación mediante el registro único. |
-| 043 T4 | Prueba visual de la tabla con los cuatro estados y artefactos de referencia. API y build verificados; no se cierra la aceptación visual por ello. |
+| 043 T9 | T1, T3 y T4 cerradas el 2026-11-03 (ver sus tareas). Falta la reapertura correcta en CUDA de cada familia y la campaña integral del coordinador. |
 | 044 T1–T2 | Particiones independientes de entrenamiento/selección/calibración/prueba y puertas por familia integradas en el entrenamiento vigente. La reutilización actual de validación del PINN sigue pendiente. |
 | 044 T3–T4 | Contexto, flujo/referencia, norma y persistencia completos en los consumidores top-k; prueba nativa después de reapertura. |
 | 045 | Episodios v2 con «Cargas nuevas», grafo v3, controles/fronteras/residuos y ablaciones con contraste nativo. PowerFlowNet tiene adaptador comprobado; faltan benchmark por familia y promoción. No se cambió el schema actual ni sus hashes. |

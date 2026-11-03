@@ -8282,7 +8282,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
 def asistente_estado_modelos() -> dict:
     """043:RF-8: leer evidencia no equivale a entrenar ni aprobar un modelo."""
     from ..asistente import almacen
-    from ..model_registry import EstadoModelo, RegistroModelo, estado_heredado
+    from ..model_registry import EstadoModelo, RegistroModelo, estado_heredado, registros_de
     from ..training_coordinator import ORDEN_MODELOS
 
     raiz = almacen.raiz()
@@ -8308,16 +8308,20 @@ def asistente_estado_modelos() -> dict:
     for nombre in ORDEN_MODELOS:
         etapa = por_nombre.get(nombre, {})
         ruta_fuente = ruta
-        ruta_ultima = raiz / 'model_registry' / nombre / 'latest.json'
+        # 043:RF-8: una familia puede anotar en varios nombres (el pronóstico, por clase): vale la decisión más reciente.
+        rutas_ultima = {r: raiz / 'model_registry' / r / 'latest.json' for r in registros_de(nombre)}
+        en_registro = max(rutas_ultima, key=lambda r: rutas_ultima[r].stat().st_mtime_ns if rutas_ultima[r].is_file() else -1)
+        ruta_ultima = rutas_ultima[en_registro]
         try:
             if not etapa or (ruta_ultima.is_file() and (not ruta.is_file()
                     or ruta_ultima.stat().st_mtime_ns > ruta.stat().st_mtime_ns)):
-                ultima = registro.ultimo(nombre)
+                ultima = registro.ultimo(en_registro)
                 if ultima is not None:
                     ruta_fuente = ruta_ultima
                     detalle = ultima['detalle']
                     etapa = {'status': ultima['status'], 'candidate_id': ultima['candidate_id'],
-                             'model_manifest': detalle['model_manifest'],
+                             'modelo_registro': en_registro, 'model_manifest': detalle['model_manifest'],
+                             'result': {'version': detalle['model_manifest'].get('version')},
                              'gates': detalle['decision'].get('gates') or {},
                              'reason': '; '.join(detalle['decision'].get('fallos') or ())}
         except (OSError, ValueError, TypeError, KeyError) as exc:
@@ -8328,23 +8332,26 @@ def asistente_estado_modelos() -> dict:
             estado = None
             bloqueos.append('sin estado terminal registrado')
         candidato = etapa.get('candidate_id')
-        algoritmo = (etapa.get('model_manifest') or {}).get('algorithm')
+        algoritmo = etapa.get('algorithm') or (etapa.get('model_manifest') or {}).get('algorithm')
         puertas = etapa.get('gates') or {}
         en_uso_pinn = (estado_heredado(heredados[nombre]) or {}).get('version') if nombre == 'pinn' and nombre in heredados else None
         if estado == EstadoModelo.PROMOVIDO.value and not _pinn_promovida_en_uso(nombre, estado, etapa, en_uso_pinn):
             try:
-                activo = registro.activo(nombre)
+                anotado = etapa.get('modelo_registro') or nombre
+                if anotado not in registros_de(nombre):
+                    raise ValueError(f'el informe anota la familia en {anotado}')
+                activo = registro.activo(anotado)
                 if not activo or activo.get('candidate_id') != candidato:
                     raise ValueError('sin candidato activo coincidente')
                 # La integridad completa se comprueba al promover; aquí se consulta
                 # su manifiesto sin releer gigabytes de pesos en una petición HTTP.
-                detalle = registro.detalle(nombre, candidato, verificar_artefactos=False)
+                detalle = registro.detalle(anotado, candidato, verificar_artefactos=False)
                 puertas = detalle['decision'].get('gates') or {}
                 if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
                         or puertas.get('approved') is not True
                         or detalle['smoke_reload'].get('ok') is not True):
                     raise ValueError('sin puertas y reapertura aprobadas')
-                algoritmo = detalle['model_manifest'].get('algorithm')
+                algoritmo = detalle['model_manifest'].get('algorithm') or algoritmo
             except (OSError, ValueError, TypeError, KeyError) as exc:
                 estado = None
                 bloqueos.append(f'promoción sin evidencia verificable: {exc}')

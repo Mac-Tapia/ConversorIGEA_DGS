@@ -626,6 +626,8 @@ def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, ho
         hecho = registro.registrar_candidato(
             modelo_registro,
             model_manifest={'clase': clase, 'ganadores': limpios, 'horizontes': list(horizontes), 'contexto_pasos': contexto,
+                            # 043:RF-8: lo que la web dice que ganó, dentro de la etapa ``gru``.
+                            'algorithm': ','.join(sorted({g['ganador'] for g in limpios.values() if not g['es_referencia']})) or None,
                             'semillas': {a: modelos[a]['semilla'] for a in evaluados}, 'cadencia_min': cadencia_min,
                             'ajustes': dict(ajustes_modelo or {})},
             dataset_manifest={'procedencia': procedencia, 'ventanas_huella': ventanas['huella'], 'politica_hash': politica.hash,

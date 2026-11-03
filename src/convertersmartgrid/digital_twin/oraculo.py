@@ -691,20 +691,85 @@ def guardar(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict) -> Path:
 
 def cargar(bufer: BuferEpisodios, version: str | None = None) -> OraculoPINN | None:
     """El modelo promovido (o la versión pedida), o ``None`` si no hay."""
-    torch = _torch()
     raiz = _raiz_modelos(bufer)
     if version is None:
         puntero = raiz / 'promovido.json'
         if not puntero.is_file():
             return None
         version = json.loads(puntero.read_text(encoding='utf-8'))['version']
-    carpeta = raiz / version
+    return _abrir_carpeta(raiz / version)
+
+
+def _abrir_carpeta(carpeta: Path) -> OraculoPINN:
     meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
+    torch = _torch()
     estados = [torch.load(carpeta / f'miembro_{i}.pt', weights_only=True) for i in range(meta['miembros'])]
     # Los modelos de antes del 2026-10-24 se entrenaron sobre el barrido radial.
     cfg = Entrenamiento(**{'fisica': 'radial', **meta['cfg']})
-    return OraculoPINN(estados, cfg, meta['dominio'], version=version,
+    return OraculoPINN(estados, cfg, meta['dominio'], version=carpeta.name,
                        cuantil=(meta.get('conforme') or {}).get('cuantil'))
+
+
+def verificar_reapertura(carpeta: Path | str) -> dict[str, Any]:
+    """043:RF-5: el candidato reabierto da lo mismo que al guardarlo; se llama en un proceso nuevo,
+    porque en el que entrena los pesos siguen en memoria y un fichero roto no se notaría."""
+    carpeta = Path(carpeta)
+    prueba = json.loads((carpeta / 'readback.json').read_text(encoding='utf-8'))
+    obtenido = np.asarray(_abrir_carpeta(carpeta).predecir(prueba['grafo'])['v'], dtype=float)
+    esperado = np.asarray(prueba['v'], dtype=float)
+    if obtenido.shape != esperado.shape or not obtenido.size:
+        return {'ok': False, 'motivo': 'la predicción reabierta no tiene la forma de la guardada', 'proceso_nuevo': True}
+    error = float(np.max(np.abs(obtenido - esperado)))
+    return {'ok': error <= TOLERANCIA_REPRODUCCION, 'error_max_pu': error, 'nodos': int(obtenido.size),
+            'proceso_nuevo': True}
+
+
+def _reabrir_en_otro_proceso(carpeta: Path) -> dict[str, Any]:
+    """043:RF-5: en un hijo, con el turno de GPU de quien entrena; sin el token la encontraría ocupada."""
+    import sys
+
+    from ..model_registry import reabrir_en_subproceso
+    from ..trabajadores_ml import entorno_hijo_gpu
+
+    herramienta = Path(__file__).resolve().parents[3] / 'tools' / 'digital_twin_entrenar.py'
+    return reabrir_en_subproceso([sys.executable, str(herramienta), '--reabrir-candidato', str(carpeta)],
+                                 timeout_s=600.0, env=entorno_hijo_gpu())
+
+
+def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, Any], fallos: list[str], motivo: str, *,
+                       reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None) -> dict[str, Any]:
+    """043:RF-1, RF-5: reapertura en otro proceso, decisión en el registro común y, si se aprueba, puntero.
+
+    La PINN se promovía con solo sus puertas: un fichero roto se habría puesto en uso y su decisión no
+    constaba en el registro de las demás familias. ``promovido.json`` sigue siendo lo único que la pone en
+    uso (071:RF-5), de modo que no hay un segundo puntero que se quede atrás al volver al anterior.
+    """
+    from ..model_registry import EstadoModelo
+
+    smoke: dict[str, Any] = {'ok': False, 'motivo': 'no se reabre: no pasó sus puertas'}
+    if not fallos:
+        smoke = (reabrir or _reabrir_en_otro_proceso)(carpeta)
+        if smoke.get('ok') is not True:
+            fallos.append('falló la reapertura en un proceso nuevo: '
+                          f"{smoke.get('error') or smoke.get('motivo') or smoke.get('stderr') or smoke.get('returncode')}")
+    candidate_id = None
+    if registro is not None:
+        estado = EstadoModelo.RECHAZADO if fallos else EstadoModelo.PROMOVIDO
+        artefactos = sorted(p for p in carpeta.iterdir() if p.is_file())
+        try:
+            candidate_id = registro.registrar_candidato(
+                'pinn', model_manifest={'algorithm': 'pinn_gnn', 'version': carpeta.name, 'cfg': meta.get('cfg'),
+                                        'manifiesto': meta.get('manifiesto')},
+                dataset_manifest={'particiones': meta.get('particiones'), 'particiones_ids': meta.get('particiones_ids')},
+                metrics={k: meta.get(k) for k in ('mae_v', 'residuo_medio', 'mae_dorados')},
+                decision={'status': estado.value, 'gates': {'approved': not fallos}, 'fallos': list(fallos)},
+                smoke_reload=smoke, artifacts=artefactos)['candidate_id']
+        except (OSError, ValueError) as exc:
+            # Sin decisión anotada no hay promoción: un valor no finito cae aquí, no en el puntero.
+            fallos.append(f'no se pudo anotar en el registro de modelos: {exc}')
+    if not fallos:
+        promover(bufer, carpeta.name, motivo)
+    return {'promovido': not fallos, 'candidate_id': candidate_id, 'smoke_reload': smoke}
 
 
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
@@ -930,7 +995,8 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
 
 def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: Entrenamiento | None = None,
              puertas: Puertas | None = None, dorados: Sequence[str] = (),
-             log: Callable[[str], None] = lambda _m: None, sistema: str | None = None) -> dict[str, Any]:
+             log: Callable[[str], None] = lambda _m: None, sistema: str | None = None,
+             reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None) -> dict[str, Any]:
     """Entrena un candidato con una consulta fija del búfer, lo evalúa por particiones de
     familia y lo promueve si supera las puertas sin empeorar los dorados (RF-12, RF-13,
     RF-16, RF-17, RF-42). Si ya hay modelo, parte de sus pesos y repite el histórico entero
@@ -1045,6 +1111,11 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
             'conforme': {'cuantil': candidato.cuantil, 'cobertura': cfg.cobertura,
                          'calibracion': len(calibracion)}}
     carpeta = guardar(candidato, bufer, meta)
+    # 043:RF-5: lo que se comprueba al reabrir; ``guardar`` ya dejó los pesos.
+    if evaluacion:
+        sonda = _grafo_de_muestra(evaluacion[0])
+        (carpeta / 'readback.json').write_text(json.dumps(
+            {'grafo': sonda, 'v': candidato.predecir(sonda)['v'].tolist()}, ensure_ascii=False, default=float), encoding='utf-8')
     fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:
         fallos.append(f'error de tensión {error} p.u. sobre {puertas.mae_v_max}')
@@ -1057,11 +1128,11 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     if error_dorados_actual is not None and error_dorados is not None and \
             error_dorados > puertas.tolerancia_dorados * error_dorados_actual + 1e-6:
         fallos.append('empeora los casos dorados')
-    if not fallos:
-        promover(bufer, candidato.version, f'mae {error:.4g}')
+    decidido = _decidir_promocion(bufer, carpeta, {**meta, 'cfg': cfg.__dict__}, fallos,
+                                  f'mae {error:.4g}' if error is not None else '', reabrir=reabrir, registro=registro)
     log(f"Gemelo: candidato {candidato.version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
-    return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta),
-            'promovido': not fallos, 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
+    return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta), **decidido,
+            'modelo_registro': 'pinn', 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
             **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
 
 
@@ -1134,7 +1205,7 @@ def deriva_por_familia(bufer: BuferEpisodios, *, minimo: int = 10, fraccion: flo
 
 
 def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
-                     log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+                     log: Callable[[str], None] = lambda _m: None, registro=None) -> dict[str, Any]:
     """Reentrena solo cuando hay episodios nuevos que el modelo en uso no vio (RF-39), o
     antes si los nuevos muestran deriva (RF-43)."""
     _muestras_todas, ids = _muestras(bufer, Consulta())
@@ -1148,7 +1219,7 @@ def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
         return {'entrenado': False, 'motivo': 'sin episodios nuevos'}
     if len(nuevos) < minimo and not deriva(bufer, nuevos):
         return {'entrenado': False, 'motivo': f'{len(nuevos)} episodio(s) nuevo(s), se espera a {minimo}'}
-    return entrenar(bufer, log=log)
+    return entrenar(bufer, log=log, registro=registro)
 
 
 # ------------------------------------------------------------------ uso del oráculo

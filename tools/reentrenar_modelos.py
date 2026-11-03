@@ -17,6 +17,12 @@ if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 
 
+FAMILIAS_DE_ALGORITMO = {'gru': 'gru', 'nhits': 'gru', 'tft': 'gru', 'patchtst': 'gru',
+                         'pinn_gnn': 'pinn', 'pinn': 'pinn', 'transformer': 'transformer',
+                         'clasificador': 'clasificador', 'evolutivos': 'evolutivos',
+                         'embeddings': 'embeddings', 'qlora': 'qlora'}
+
+
 def _leer(ruta: Path) -> dict:
     return json.loads(ruta.read_text(encoding='utf-8'))
 
@@ -31,9 +37,6 @@ def _estado(payload: dict, modelo: str) -> dict:
     if 'promovido' in payload:
         return {'status': 'PROMOVIDO' if payload['promovido'] else 'RECHAZADO',
                 'reason': '; '.join(payload.get('fallos') or ()), 'result': payload}
-    if modelo == 'evolutivos':
-        aprobado = bool(payload) and all((v or {}).get('approved') for v in payload.values())
-        return {'status': 'PROMOVIDO' if aprobado else 'RECHAZADO', 'result': payload}
     # Embeddings y QLoRA conservan candidatos, pero no se presentan como activos sin su
     # evaluación funcional/reapertura. RECHAZADO aquí significa "promoción no aprobada".
     if payload.get('status') in {'CANDIDATO', 'EVALUADO'}:
@@ -73,6 +76,11 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     except (OSError, ValueError) as exc:
         return {'status': 'ERROR_ENTORNO', 'reason': str(exc), 'log': str(log)}
     resultado = _estado(payload, modelo)
+    # 043:RF-1, RF-5, RF-8: la decisión se liga a su candidato; la web no veía el del informe y lo daba por pendiente.
+    resultado.update({k: payload[k] for k in ('candidate_id', 'modelo_registro', 'gates', 'version') if k in payload})
+    if resultado['status'] == 'PROMOVIDO' and not payload.get('candidate_id'):
+        # Sin candidato en el registro no hay puertas ni reapertura que lo respalden: nunca un OK falso.
+        resultado.update(status='RECHAZADO', reason='el trabajador dijo promovido sin candidato en el registro común')
     resultado['training_completed'] = (payload.get('entrenado') is True
                                       or payload.get('training_completed') is True)
     resultado['evaluation_completed']=payload.get('evaluation_completed') is True
@@ -169,6 +177,25 @@ def _etapas(args, run_dir: Path):
         TrainingStage('evolutivos', evolutivos, uses_gpu=False),
         TrainingStage('embeddings', embeddings), TrainingStage('qlora', qlora),
     ]
+
+
+def etapas_del_experimento(experimento, etapas: list, args, run_dir: Path) -> list:
+    """La familia del contrato; cada resultado dice su algoritmo, sin crear etapas fuera de ``ORDEN_MODELOS``.
+
+    046:RF-13: N-HiTS, TFT y PatchTST se ejecutan e informan dentro de la etapa ``gru``.
+    """
+    from convertersmartgrid.training_coordinator import TrainingStage
+
+    familia = FAMILIAS_DE_ALGORITMO[experimento.algoritmo]
+    elegidas = [etapa for etapa in etapas if etapa.name == familia]
+    if experimento.algoritmo in {'nhits', 'tft', 'patchtst'}:
+        reporte = run_dir / f'{experimento.algoritmo}.json'
+        orden = orden_temporal(args, reporte, experimento.algoritmo)
+        elegidas = [TrainingStage('gru', lambda: _subproceso(orden, reporte, 'gru'))]
+
+    def con_algoritmo(etapa):
+        return TrainingStage(etapa.name, lambda: {**etapa.run(), 'algorithm': experimento.algoritmo}, uses_gpu=etapa.uses_gpu)
+    return [con_algoritmo(etapa) for etapa in elegidas]
 
 
 def huella_entrada(ruta: Path, *, tipo: str) -> str:
@@ -269,11 +296,7 @@ def main(argv=None) -> int:
             experimento = cargar_experimento(args.config)
         except (OSError, ValueError) as exc:
             p.error(str(exc))
-        familias = {'gru': 'gru', 'nhits': 'gru', 'tft': 'gru', 'patchtst': 'gru',
-                    'pinn_gnn': 'pinn', 'pinn': 'pinn', 'transformer': 'transformer',
-                    'clasificador': 'clasificador', 'evolutivos': 'evolutivos',
-                    'embeddings': 'embeddings', 'qlora': 'qlora'}
-        familia = familias.get(experimento.algoritmo)
+        familia = FAMILIAS_DE_ALGORITMO.get(experimento.algoritmo)
         if familia is None:
             p.error(f'algoritmo no soportado: {experimento.algoritmo}')
         args.semillas = ','.join(str(s) for s in experimento.semillas)
@@ -287,15 +310,11 @@ def main(argv=None) -> int:
     from convertersmartgrid.asistente.ollama import liberar_gpu_para_entrenar
     from convertersmartgrid.training_coordinator import TrainingCoordinator
     etapas = _etapas(args, run_dir)
-    if familia:
-        etapas = [etapa for etapa in etapas if etapa.name == familia]
-    if experimento and experimento.algoritmo in {'nhits', 'tft', 'patchtst'}:
-        from convertersmartgrid.training_coordinator import TrainingStage
-        if not args.cabeceras or not args.zona_horaria or not args.cadencia_temporal:
+    if experimento:
+        if experimento.algoritmo in {'nhits', 'tft', 'patchtst'} and not (
+                args.cabeceras and args.zona_horaria and args.cadencia_temporal):
             p.error(f'{experimento.algoritmo} necesita --cabeceras, --zona-horaria y --cadencia-temporal')
-        reporte_temporal = run_dir / f'{experimento.algoritmo}.json'
-        orden = orden_temporal(args, reporte_temporal, experimento.algoritmo)
-        etapas = [TrainingStage('gru', lambda: _subproceso(orden, reporte_temporal, 'gru'))]
+        etapas = etapas_del_experimento(experimento, etapas, args, run_dir)
     entradas = {}
     for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset'):
         ruta = getattr(args, nombre)
@@ -310,12 +329,17 @@ def main(argv=None) -> int:
         'alcance_temporal':{'hojas':args.hojas_temporales,'desde':args.temporal_desde,'hasta':args.temporal_hasta},
         'model_catalog_sha256':huella_entrada(REPO/'docs/MODELOS_IA_LOCK.json',tipo='catalogo')},
         sort_keys=True).encode()).hexdigest()
-    informe = TrainingCoordinator(etapas, run_dir, config_hash=huella,
-                                  liberar_ollama=liberar_gpu_para_entrenar).run(resume=args.resume)
+    try:
+        informe = TrainingCoordinator(etapas, run_dir, config_hash=huella,
+                                      liberar_ollama=liberar_gpu_para_entrenar).run(resume=args.resume)
+    except ValueError as exc:
+        # 043:RF-7: otra configuración no reutiliza nada; se dice y no se toca lo que había.
+        print(json.dumps({'ok': False, 'reason': str(exc)}, ensure_ascii=False))
+        return 2
     destino = args.report or run_dir / 'report.json'
     if destino != run_dir / 'report.json':
-        destino.parent.mkdir(parents=True, exist_ok=True)
-        destino.write_text(json.dumps(informe, ensure_ascii=False, indent=2), encoding='utf-8')
+        from convertersmartgrid.trabajadores_ml import escribir_informe
+        escribir_informe(destino, informe)                                      # 043:RF-13
     print(json.dumps(informe, ensure_ascii=False, indent=2))
     return 0
 

@@ -22,6 +22,16 @@ class EstadoModelo(str, Enum):
     ERROR_ENTORNO = 'ERROR_ENTORNO'
 
 
+#: 043:RF-8: el pronóstico se registra por clase (046) y se informa dentro de la etapa ``gru``;
+#: sin este alias, una decisión real del registro quedaba como «sin evidencia» en la web.
+_REGISTROS_DE_FAMILIA = {'gru': ('gru', 'pronostico_cabecera', 'pronostico_cliente')}
+
+
+def registros_de(familia: str) -> tuple[str, ...]:
+    """Los nombres del registro común en que anota sus candidatos una familia del coordinador."""
+    return _REGISTROS_DE_FAMILIA.get(familia, (familia,))
+
+
 def estado_heredado(raiz: Path) -> dict[str, Any] | None:
     """060:RF-7: inspección de metadatos heredados, sin cargar ni promover pesos."""
     puntero = raiz / 'promovido.json'
@@ -146,7 +156,8 @@ class RegistroModelo:
         activo_ruta = self._modelo(modelo) / 'active.json'
         anterior = self.activo(modelo)
         payload = {'candidate_id': candidate_id, 'status': EstadoModelo.PROMOVIDO.value}
-        if anterior is not None:
+        # Repetir la promoción del activo no borra el anterior al que se puede volver.
+        if anterior is not None and anterior.get('candidate_id') != candidate_id:
             self._reemplazar_json(self.raiz / modelo / 'previous.json', anterior)
         self._reemplazar_json(activo_ruta, payload)
         return payload

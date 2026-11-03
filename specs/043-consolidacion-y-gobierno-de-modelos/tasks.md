@@ -4,7 +4,7 @@ Estado inicial: todas pendientes; este documento no acredita ejecución.
 Leer [spec.md](spec.md), [plan.md](plan.md) y sus contratos dependientes antes de editar.
 Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
-- [ ] T1. Integrar registro y exclusión de GPU. (RF-1, RF-6)
+- [x] T1. Integrar registro y exclusión de GPU. (RF-1, RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_model_registry.py tests/test_training_coordinator.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
@@ -12,18 +12,44 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_experimentos.py tests/test_asistente_dataset_entrenamiento.py tests/test_asistente_calidad_datos.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
-- [ ] T3. Runner, reanudación y promoción con reapertura. (RF-5, RF-7)
+- [x] T3. Runner, reanudación y promoción con reapertura. (RF-5, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_experimentos_runner.py tests/test_reentrenamiento_integral.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
 
-- [ ] T4. Visibilidad y aceptación de integración. (RF-8)
+- [x] T4. Visibilidad y aceptación de integración. (RF-8)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_modelos_web.py tests/test_model_registry.py tests/test_training_coordinator.py tests/test_experimentos.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
 
 - [x] T5. Preparar repositorios GitHub con URL, commit y licencia fijados, sin sobrescribir copias modificadas ni imponer dependencias al núcleo. (RF-9, RF-10, RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_upstream_ia.py` pasa y `tools/preparar_upstream_ia.py --verificar` valida las copias reales del catálogo.
 
+- [ ] T9. Reapertura correcta en CUDA de cada familia y campaña integral con el coordinador. (RF-5, RF-7)
+      Hecho cuando: con la GPU libre, `tests/test_digital_twin_oraculo.py` pasa con la reapertura de la PINN en otro proceso; un candidato real de transformer, clasificador, pronóstico, PINN y QLoRA se reabre en otro proceso con `reabrir_en_subproceso` y su resultado consta en el registro; `tools/reentrenar_modelos.py run` recorre las siete familias y `verify --report RUTA --fail-on-incomplete` da su veredicto real sobre ese informe. T3 cierra el código; esto, que pide GPU y datos, queda aquí.
+
 ## Evidencia de ejecución
+
+Cierre T1, T3 y T4, 2026-11-03, rama `feat/043-cierre` sobre `53434a43`, sin GPU real ni DIgSILENT (guardia en un
+fichero temporal de ensayo); cifras por fichero en el commit que las cierra.
+
+T1 (RF-1, RF-6): ya estaban registro, cuatro estados, publicación atómica, guardia del sistema operativo, `test_lock_ilegible_bloquea` y lo de la 071.
+Añadido: la PINN también anota en el registro; `test_estados_terminales`; `test_todo_lanzador_de_entrenamiento_toma_la_guardia`, que
+cierra el pendiente de lanzadores históricos recorriendo `tools/` (ninguno entrenaba fuera del turno) con `test_la_comprobacion_de_lanzadores_detecta_uno_sin_turno`
+como control; `test_token_inventado_no_hereda_la_guardia` con procesos reales; repetir una promoción ya no pierde el anterior.
+Límite: la rama POSIX de la guardia no se ha ejecutado en este equipo, que es Windows.
+
+T3 (RF-5, RF-7): añadidos `_decidir_promocion` para la PINN (reapertura en otro proceso con `readback.json`, decisión en el registro, luego puntero),
+`--reabrir-candidato`, rebaja de `PROMOVIDO` sin candidato, rechazo limpio con código 2 de otra configuración,
+`test_smoke_fallido_no_promueve` con la orden real de PINN, GRU, transformer y clasificador sobre artefactos ilegibles,
+`test_resume_otra_semilla_no_reutiliza_metricas`, `test_resume_compatible_preserva_las_terminales` y `test_etapa_temporal_conserva_alias_gru`.
+Reapertura correcta real en otro proceso: solo el índice de embeddings, que no pide GPU. La de las demás familias pide CUDA y pasa a T9, igual que la campaña
+que el plan de T7 ligaba a T3; por eso **la vía correcta de la PINN no se ha ejecutado aún**: su decisión se probó con una reapertura simulada y su fallo, con la real.
+
+T4 (RF-8): añadidos `registros_de` (el pronóstico se ve en `gru`), candidato y algoritmo en la etapa, columna «Evidencia» de la tabla,
+`test_los_cuatro_estados_con_su_evidencia`, `test_promovido_del_registro_sin_activar_no_se_muestra_promovido`, `test_el_pronostico_se_ve_en_la_familia_gru`,
+`test_pinn_del_registro_en_uso_por_su_puntero` y `test_importar_nucleo_sin_adaptadores`. `npm run build` correcto. Navegador real (Chromium, web del worktree en
+el puerto 8791 con registro de ensayo): la tabla muestra PROMOVIDO, RECHAZADO, BLOQUEADO_POR_DATOS, ERROR_ENTORNO y «Pendiente de evidencia», leídos del DOM;
+la captura de imagen falló en el navegador, así que no hay revisión visual de la imagen. Ese ensayo mostró una ruta a un informe inexistente en las
+filas pendientes, y se corrigió. Datos de ensayo, no modelos reales.
 
 - [x] T7. Completar los cuatro trabajadores ausentes y sus contratos con el runner. (RF-5, RF-6, RF-7, RF-13)
       Hecho cuando: existen y pasan ayuda/validación los CLI temporal, evolutivo, embeddings y QLoRA; el runner solo envía opciones aceptadas; se prueban informes reales de bloqueo y operaciones disponibles, exclusión GPU heredada y preservación del activo. Crear archivos no acredita ajustes completos ni aceptación integral.

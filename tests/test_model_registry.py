@@ -101,3 +101,42 @@ def test_promocion_exige_booleanos_reales(tmp_path, campo, valor):
         payload['smoke_reload']['ok'] = valor
     with pytest.raises(ValueError, match='puertas'):
         RegistroModelo(tmp_path / 'registro').registrar_candidato('gru', **payload)
+
+
+def test_estados_terminales(tmp_path):
+    """043:RF-1 — el vocabulario son exactamente cuatro estados; otro no se registra."""
+    from convertersmartgrid.model_registry import EstadoModelo, RegistroModelo
+    assert {e.value for e in EstadoModelo} == {'PROMOVIDO', 'RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'}
+    registro = RegistroModelo(tmp_path / 'registro')
+    for estado in EstadoModelo:
+        hecho = registro.registrar_candidato('gru', **_payload(tmp_path, status=estado.value))
+        assert hecho['status'] == estado.value and registro.ultimo('gru')['status'] == estado.value
+    for inventado in ('CANDIDATO', 'EVALUADO', 'OK', ''):
+        datos = _payload(tmp_path)
+        datos['decision'] = {'status': inventado, 'gates': {'approved': True}}
+        with pytest.raises(ValueError, match='estado terminal'):
+            registro.registrar_candidato('gru', **datos)
+
+
+def test_publicar_conserva_el_candidato_anterior(tmp_path):
+    """043:RF-1 — el reemplazo solo mueve el puntero: el candidato anterior sigue íntegro en disco."""
+    from convertersmartgrid.model_registry import RegistroModelo
+    registro = RegistroModelo(tmp_path / 'registro')
+    a = registro.registrar_candidato('gru', **_payload(tmp_path))
+    registro.promover('gru', a['candidate_id'])
+    b = registro.registrar_candidato('gru', **_payload(tmp_path, contenido=b'otros pesos'))
+    registro.promover('gru', b['candidate_id'])
+    assert registro.detalle('gru', a['candidate_id'])['decision']['status'] == 'PROMOVIDO'
+    assert registro.activo('gru')['candidate_id'] == b['candidate_id']
+
+
+def test_repetir_la_promocion_no_pierde_el_anterior(tmp_path):
+    """043:RF-1 — promover dos veces el activo dejaba el anterior apuntando a sí mismo."""
+    from convertersmartgrid.model_registry import RegistroModelo
+    registro = RegistroModelo(tmp_path / 'registro')
+    a = registro.registrar_candidato('gru', **_payload(tmp_path))
+    b = registro.registrar_candidato('gru', **_payload(tmp_path, contenido=b'otros pesos'))
+    registro.promover('gru', a['candidate_id'])
+    registro.promover('gru', b['candidate_id'])
+    registro.promover('gru', b['candidate_id'])
+    assert registro.volver_al_anterior('gru')['candidate_id'] == a['candidate_id']

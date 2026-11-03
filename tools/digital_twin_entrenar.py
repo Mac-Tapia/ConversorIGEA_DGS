@@ -25,8 +25,14 @@ from __future__ import annotations
 import argparse
 from contextlib import nullcontext
 import json
+import sys
 import traceback
 from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+if str(REPO / 'src') not in sys.path:
+    # 043:RF-5: la reapertura en otro proceso ha de abrir el mismo código que entrenó, también en un worktree.
+    sys.path.insert(0, str(REPO / 'src'))
 
 
 def _log(mensaje: str) -> None:
@@ -41,10 +47,25 @@ def _log(mensaje: str) -> None:
         pass
 
 
+def _reabrir(carpeta: Path) -> int:
+    """La última línea es el JSON que lee ``reabrir_en_subproceso``; un fallo también la deja."""
+    from convertersmartgrid.trabajadores_ml import fallo, turno_gpu
+
+    try:
+        from convertersmartgrid.digital_twin.oraculo import verificar_reapertura
+
+        with turno_gpu('pinn-reapertura'):
+            resultado = verificar_reapertura(carpeta)
+    except Exception as exc:  # noqa: BLE001 - un artefacto ilegible es un resultado, no un cuelgue
+        resultado = {**fallo(exc), 'ok': False}
+    print(json.dumps(resultado, ensure_ascii=True))
+    return 0 if resultado.get('ok') else 2
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Entrena el oráculo PINN/GNN del gemelo digital en su '
                                             'propio proceso (spec 024)')
-    p.add_argument('--output-json', required=True)
+    p.add_argument('--output-json', help='Informe del entrenamiento; obligatorio salvo con --reabrir-candidato')
     p.add_argument('--raiz', type=Path, help='Búfer del gemelo (por defecto, el de la web)')
     p.add_argument('--forzar', action='store_true', help='Entrenar aunque no haya episodios nuevos')
     p.add_argument('--minimo', type=int, default=10, help='Episodios nuevos para reentrenar')
@@ -62,7 +83,13 @@ def main(argv=None) -> int:
                    help='No entrenar: deriva por familia y si conviene reentrenar (027:RF-22, RF-23)')
     p.add_argument('--reproducir', metavar='VERSION',
                    help='Reentrenar un modelo con su manifiesto y comparar su error (027:RF-9)')
+    p.add_argument('--reabrir-candidato', type=Path, metavar='CARPETA',
+                   help='No entrenar: reabrir este candidato y comprobar que predice lo mismo (043:RF-5)')
     args = p.parse_args(argv)
+    if args.reabrir_candidato:
+        return _reabrir(args.reabrir_candidato)
+    if not args.output_json:
+        p.error('indique --output-json')
     salida = Path(args.output_json)
 
     from convertersmartgrid.digital_twin.buffer import BuferEpisodios
@@ -75,8 +102,11 @@ def main(argv=None) -> int:
                           encoding='utf-8')
         print(f'ERROR: {exc}')
         return 2
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.model_registry import RegistroModelo
     from convertersmartgrid.trabajadores_ml import turno_gpu
 
+    registro = RegistroModelo(almacen.raiz() / 'model_registry')                 # 043:RF-1
     bufer = BuferEpisodios(args.raiz)
     if not (args.evaluar or args.deriva) or args.curva:
         # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
@@ -130,11 +160,11 @@ def main(argv=None) -> int:
                            destino=bufer.raiz / 'modelos' / 'busquedas', log=_log)
                 _log(f"Búsqueda: mejor ensayo {b['mejor']['numero']} con {b['mejor']['mae_validacion']:.3e} p.u. "
                      f"en validación; ensayos en {b.get('ruta')}")
-                r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log), 'busqueda': b}
+                r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log, registro=registro), 'busqueda': b}
             elif args.forzar or args.sistema:
-                r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema)
+                r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema, registro=registro)
             else:
-                r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log)
+                r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log, registro=registro)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         r, codigo = {'entrenado': False, 'error': repr(exc), 'traza': traceback.format_exc()}, 1
