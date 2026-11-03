@@ -22,3 +22,5 @@
   Hecho cuando: hay capturas de un plan de etapas, de un plan con faltantes y de una consulta.
 - [ ] T11 [DIgSILENT] Un candidato entrenado pasa las puertas en la prueba nueva; lo lanza el integrador.
   Hecho cuando: el registro deja un candidato PROMOVIDO medido con esa prueba.
+- [x] T12 Un solo modelo del catálogo a la caché de la web. (RF-77)
+  Hecho cuando: `pytest -q tests/test_preparacion_modelos_ia.py` en verde; la web de prueba reabre el intérprete con el codificador en su caché.

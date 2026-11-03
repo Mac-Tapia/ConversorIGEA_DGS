@@ -18,6 +18,20 @@ def _modulo():
     return m
 
 
+def test_prepara_solo_el_modelo_pedido(tmp_path, monkeypatch):
+    """070:RF-77: un solo modelo del catálogo, sin tocar los demás."""
+    m = _modulo()
+    catalogo = {'modelos': [{'id': 'a/uno', 'backend': 'huggingface'}, {'id': 'b/dos', 'backend': 'huggingface'}]}
+    ruta = tmp_path / 'catalogo.json'
+    ruta.write_text(json.dumps(catalogo), encoding='utf-8')
+    monkeypatch.setattr(m, 'validar_catalogo', lambda c: c)
+    pedidos = []
+    monkeypatch.setattr(m, 'preparar_hf', lambda modelo, descargar: pedidos.append(modelo['id']) or {'id': modelo['id'], 'ok': True})
+    salida = tmp_path / 'informe.json'
+    assert m.main(['--catalogo', str(ruta), '--id', 'b/dos', '--output-json', str(salida)]) == 0
+    assert pedidos == ['b/dos']
+
+
 def test_archivo_completo_y_hash(tmp_path):
     """043:RF-12: existir no implica estar completo ni integro."""
     m = _modulo()

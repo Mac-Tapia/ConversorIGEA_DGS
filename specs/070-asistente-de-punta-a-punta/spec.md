@@ -119,6 +119,7 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 - RF-74: EL SISTEMA no etiquetará un pronóstico como reconstrucción del gemelo temporal.
 - RF-75: EL SISTEMA dejará idénticas las huellas de las órdenes fijas.
 - RF-76: EL SISTEMA dejará las órdenes confirmadas por el operador solo en la prueba, aunque un texto igual, sin contar mayúsculas ni tildes, estuviera como plata o en una plantilla.
+- RF-77: EL SISTEMA permitirá preparar un solo modelo del catálogo con su revisión fija, para dejar en la caché de la web el codificador que lee el intérprete.
 
 ## Fuera de alcance
 

@@ -229,6 +229,8 @@ def main(argv=None):
     p.add_argument('--catalogo', type=Path, default=RAIZ / 'docs/MODELOS_IA_LOCK.json')
     p.add_argument('--descargar', action='store_true')
     p.add_argument('--backend', choices=('huggingface', 'ollama'))
+    # 070:RF-77: la web lee su propia caché; preparar solo el modelo que falta, no los varios GB del catálogo.
+    p.add_argument('--id', dest='solo_id', help='Solo este modelo del catálogo')
     p.add_argument('--output-json', type=Path, required=True)
     args = p.parse_args(argv)
     informe = {'schema_version': 1, 'modelos': [], 'ok': False, 'activaciones': 0}
@@ -236,6 +238,8 @@ def main(argv=None):
         catalogo = validar_catalogo(json.loads(args.catalogo.read_text(encoding='utf-8')))
         for m in catalogo['modelos']:
             if args.backend and m['backend'] != args.backend:
+                continue
+            if args.solo_id and m['id'] != args.solo_id:
                 continue
             try:
                 r = (preparar_hf if m['backend'] == 'huggingface' else preparar_ollama)(m, args.descargar)
