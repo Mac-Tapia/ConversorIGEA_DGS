@@ -1286,6 +1286,33 @@ def construir_set_nueva(ctx) -> None:
     for barra, lado, nombre in ((at, 0, 'Cub1_TR_SET_NUEVA'), (mt, 1, 'Cub2_TR_SET_NUEVA')):
         c = barra.CreateObject('StaCubic', nombre_pf(nombre))
         c.obj_id, c.obj_bus = tr, lado
+    # 042:RF-20: una barra de media por tensión, cada una con su transformador desde la alta.
+    medias = {round(kv_mt, 1): mt}
+    niveles = [{'kv': kv_mt, 'barra': mt.loc_name, 'transformador': tr.loc_name}]
+
+    def media_de(kv: float):
+        if round(kv, 1) in medias:
+            return medias[round(kv, 1)]
+        barra = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', nombre_pf(f'{base}_MT_{kv:g}kV')))
+        barra.uknom, barra.iUsage = kv, 0
+        tipo = equip.CreateObject('TypTr2', nombre_libre(
+            equip, 'TypTr2', nombre_pf(f'TR_SET_NUEVA_{o.mva:g}MVA_{o.kv_alta:g}-{kv:g}kV')))
+        tipo.strn, tipo.utrn_h, tipo.utrn_l, tipo.uktr = float(o.mva), float(o.kv_alta), kv, tipo_tr.uktr
+        if frecuencia:
+            tipo.frnom = frecuencia
+        tipo.itapch, tipo.tap_side, tipo.dutap = 1, 0, tipo_tr.dutap
+        tipo.ntpmn, tipo.ntpmx, tipo.nntap0 = tipo_tr.ntpmn, tipo_tr.ntpmx, 0
+        otro = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', nombre_pf(f'TR_{base}_{kv:g}kV')))
+        otro.typ_id, otro.ntnum, otro.outserv, otro.nntap = tipo, tr.ntnum, 0, 0
+        for atributo, valor in regula.items():
+            setattr(otro, atributo, valor)
+        for b, lado in ((at, 0), (barra, 1)):
+            c = b.CreateObject('StaCubic', nombre_pf(f'Cub{lado + 1}_{otro.loc_name}'))
+            c.obj_id, c.obj_bus = otro, lado
+        medias[round(kv, 1)] = barra
+        niveles.append({'kv': kv, 'barra': barra.loc_name, 'transformador': otro.loc_name})
+        return barra
+
     lineas = []
     for texto in o.ramas:
         alim, _, nodo = texto.partition('/')
@@ -1311,7 +1338,8 @@ def construir_set_nueva(ctx) -> None:
             raise RuntimeError(f'sin tipo de línea para el alimentador nuevo hasta {nodo}: indíquelo')
         linea = red.CreateObject('ElmLne', nombre_libre(red, 'ElmLne', nombre_pf(f'SETN_{alim}_{nodo}')))
         linea.typ_id, linea.nlnum, linea.outserv = tipo, 1, 0
-        for barra, lado in ((mt, 0), (barras[nodo], 1)):
+        salida_mt = media_de(float(getattr(barras[nodo], 'uknom', 0) or kv_mt))         # 042:RF-20
+        for barra, lado in ((salida_mt, 0), (barras[nodo], 1)):
             c = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{linea.loc_name}_{lado}'))
             c.obj_id, c.obj_bus = linea, lado
             if lado == 0:
@@ -1322,7 +1350,7 @@ def construir_set_nueva(ctx) -> None:
                        'feeder': nuevo.loc_name})
 
     def situar(p: tuple[float, float]) -> None:
-        for b in (at, mt):
+        for b in (at, *medias.values()):
             b.GPSlat, b.GPSlon = p
         for x in lineas:
             fin = gps_de(x['nodo']) or p
@@ -1412,13 +1440,66 @@ def construir_set_nueva(ctx) -> None:
                          'flujos_en_punto': {'lat': punto[0], 'lon': punto[1], **flujos_finales},
                          'intentos': intentos, 'transformador': tr.loc_name, 'tipo_transformador': tipo_tr.loc_name,
                          'uk_pct': tipo_tr.uktr, 'red_externa': xnet.loc_name, 'copiado_de': fuentes[0].loc_name,
+                         'niveles': niveles,
                          'atributos_copiados': copiados,
                          'alimentadores_nuevos': [{k: x[k] for k in ('alimentador', 'entrada', 'feeder', 'largo_m')}
                                                   | {'linea': x['linea'].loc_name, 'nodo': x['nodo'].loc_name}
                                                   for x in lineas]}
 
 
-CONSTRUCTORES.update(set_nueva=construir_set_nueva)
+def construir_expreso(ctx) -> None:
+    """Alimentador expreso desde la barra de media de la SET del alimentador (042:RF-22).
+
+    Por rama: una línea de la cabecera hasta el nodo, por las vías, con el tipo de la troncal (o el de la obra),
+    su tramo de entrada abierto y un ``ElmFeeder`` nuevo. La zona no justifica una SET nueva.
+    """
+    hechos = []
+    for texto in ctx.obra.ramas:
+        alim, _, nodo = texto.partition('/')
+        elm = ctx.alims.elm.get(alim) if ctx.alims is not None else None
+        rama_red = ctx.redes.get(alim)
+        if elm is None or rama_red is None or rama_red.topologia is None:
+            raise RuntimeError(f'no se leyó el alimentador {alim} de la rama {texto}')
+        cabecera = cabecera_de(elm)
+        barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
+        if cabecera is None or nodo not in barras:
+            raise RuntimeError(f'{alim}: sin cabecera o sin el nodo {nodo}')
+        parte = aguas_abajo(rama_red.topologia, rama_red.cabecera, nodo)
+        lineas_f = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
+        acopladores = {c.loc_name: c for c in elm.GetObjs('ElmCoup')}
+        if parte.entrada in lineas_f:
+            lineas_f[parte.entrada].outserv = 1
+            ctx.fila.setdefault('abiertos', []).append(['ElmLne', parte.entrada])     # 042:RF-19
+        elif parte.entrada in acopladores:
+            acopladores[parte.entrada].on_off = 0
+            ctx.fila.setdefault('abiertos', []).append(['ElmCoup', parte.entrada])
+        tipo = (ctx.tipo('TypLne', ctx.obra.tipo.nombre) if ctx.obra.tipo is not None else
+                getattr(lineas_f.get((rama_red.troncal or ('',))[0]), 'typ_id', None))
+        if tipo is None:
+            raise RuntimeError(f'sin tipo de línea para el alimentador expreso hasta {nodo}: indíquelo')
+        red = cabecera.GetParent()
+        linea = red.CreateObject('ElmLne', nombre_libre(red, 'ElmLne', nombre_pf(f'EXP_{alim}_{nodo}')))
+        linea.typ_id, linea.nlnum, linea.outserv = tipo, 1, 0
+        for barra, lado in ((cabecera, 0), (barras[nodo], 1)):
+            c = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{linea.loc_name}_{lado}'))
+            c.obj_id, c.obj_bus = linea, lado
+            if lado == 0:
+                salida = c
+        inicio, fin = gps_de(cabecera), gps_de(barras[nodo])
+        largo_m = 0.0
+        if inicio and fin:
+            ruta = ruta_por_vias(tuple(inicio), tuple(fin), datos_perfil().get('vias'))
+            largo_m = ruta.largo_m
+            linea.SetAttribute('GPScoords', [list(q) for q in ruta.puntos])
+        linea.dline = max(largo_m / 1000.0, 1e-3)
+        nuevo = red.CreateObject('ElmFeeder', nombre_libre(red, 'ElmFeeder', nombre_pf(f'EXP_{alim}_{nodo}')))
+        nuevo.obj_id, nuevo.iorient = salida, 0
+        hechos.append({'alimentador': alim, 'nodo': nodo, 'entrada': parte.entrada, 'linea': linea.loc_name,
+                       'feeder': nuevo.loc_name, 'largo_m': largo_m, 'desde': cabecera.loc_name})
+    ctx.fila['expreso'] = {'alimentadores_nuevos': hechos}
+
+
+CONSTRUCTORES.update(set_nueva=construir_set_nueva, expreso=construir_expreso)
 CONSTRUCTORES.update(condensador=construir_condensador, reconectador=construir_reconectador,
                      regulador=construir_regulador, seccion=construir_seccion,
                      terna=construir_terna, tension=construir_tension, enlace=construir_enlace,
@@ -1427,7 +1508,7 @@ CONSTRUCTORES.update(condensador=construir_condensador, reconectador=construir_r
 #: Obras que necesitan la troncal o la red: sin tramos indicados, la sección y la terna
 #: van a la troncal (RF-77, RF-80); el enlace se apoya en las dos troncales y la migración
 #: toma lo que queda aguas abajo de un nodo (spec 016).
-CON_TRONCAL = ('seccion', 'terna', 'enlace', 'migracion', 'set_nueva')
+CON_TRONCAL = ('seccion', 'terna', 'enlace', 'migracion', 'set_nueva', 'expreso')
 
 
 def leer_troncal(elm, f: str) -> tuple[tuple[str, ...], object, str, list[str]]:

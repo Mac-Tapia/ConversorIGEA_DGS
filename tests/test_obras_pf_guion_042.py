@@ -187,3 +187,34 @@ def test_la_escalera_mide_la_barra_de_media_de_una_ampliacion():
     d = informe['alimentadores']['F1']
     assert d['media'] == {'F1_S2_BT': 'F1_B2'}
     assert 'F1_B2' in d['existen'] and 'F1_B2' in d['indices']
+
+
+def test_la_set_nueva_lleva_una_barra_y_un_transformador_por_tension(perfil):
+    """042:RF-20 — Pisco: una rama de 10 kV en la barra de 22,9 kV; cada tensión con su barra y su transformador."""
+    app, alims = _calibrada(random.Random(SEMILLAS[0]), n_min=2, cargas_min=3)
+    _con_red_externa(app)
+    otra_kv = 33.0 if round(_barra(app, 'F1_B0').uknom, 1) != 33.0 else 13.2
+    _barra(app, 'F2_B2').uknom = otra_kv
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra()]))
+    assert codigo == 0, informe
+    s = informe['obras'][0]['set_nueva']
+    assert otra_kv in {round(n['kv'], 1) for n in s['niveles']} and len(s['niveles']) == 2
+    otra = next(n for n in s['niveles'] if round(n['kv'], 1) == otra_kv)
+    _activas(app, CON)
+    tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == otra['transformador'])
+    assert tr.typ_id.utrn_l == otra_kv and tr.typ_id.utrn_h == 60.0 and tr.typ_id.strn == 25.0
+
+
+def test_el_alimentador_expreso_sale_de_la_set_y_abre_la_entrada(perfil):
+    """042:RF-22 — la zona que no justifica SET: una línea desde la cabecera hasta el nodo, su entrada abierta."""
+    app, alims = _calibrada(random.Random(SEMILLAS[0]), n_min=2, cargas_min=3)
+    obra = {'clase': 'expreso', 'alimentador': 'F1', 'casos': [CON], 'ramas': ['F1/F1_B2']}
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
+    assert codigo == 0, informe
+    (x,) = informe['obras'][0]['expreso']['alimentadores_nuevos']
+    assert (x['alimentador'], x['nodo'], x['entrada'], x['desde']) == ('F1', 'F1_B2', 'F1_L2', 'F1_B0')
+    _activas(app, CON)
+    assert _linea(app, 'F1_L2').outserv == 1
+    assert any(o.loc_name == x['linea'] for o in app.proyecto.GetContents('*.ElmLne', 1))
+    _activas(app, SIN)
+    assert int(getattr(_linea(app, 'F1_L2'), 'outserv', 0) or 0) == 0

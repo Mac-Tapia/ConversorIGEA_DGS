@@ -6063,7 +6063,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     if resto:
         ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
                 f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
-    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
             'caben': k, 'pruebas': pruebas, 'escalera': escalera,
             'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto]}
@@ -6277,7 +6277,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
                       {'project': project.strip(), **informe_oraculo})
     ctx.log(f"Tiempos: oráculo {tiempos['oraculo_s']} s ({ora.evaluaciones} flujos), DIgSILENT "
             f"{tiempos['digsilent_s']} s (052:RF-10).")
-    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     obras_elegidas = [o for f, e in eleccion.items() for v in e['orden'][:1] for o in v.obras]
     return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
             'caben': k, 'pruebas': pruebas, 'escalera': escalera,
@@ -6306,7 +6306,8 @@ def barra_del_tramo_partido(carga: dict, tramos: list[dict], media: dict) -> str
 
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                        a_set_nueva: list[dict], *, capex: str | None, alimentadores_nuevos: int,
-                       anio_casos: int | None = None, nombre: str = '', oraculo: dict | None = None) -> dict:
+                       anio_casos: int | None = None, nombre: str = '', oraculo: dict | None = None,
+                       expreso: bool = False) -> dict:
     """Diseña, sitúa y crea en «Con proyecto» la SET nueva de las cargas que no caben (042:RF-5 a RF-12).
 
     Lee la red en DIgSILENT (``obras_pf.py --set-nueva-datos``); por alimentador, las ramas que
@@ -6406,6 +6407,20 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
             if x is not None and gps.get(x['barra']):
                 nuevas_pts.append((gps[x['barra']][0], gps[x['barra']][1], float(c.get('kw') or 0)))
+    if expreso:
+        # 042:RF-22: la zona no justifica SET; cada rama sale de la barra de media de la SET de su alimentador.
+        if not ramas:
+            return {'avisos': avisos + ['Ninguna rama que llevar al alimentador expreso.'], 'obra': None}
+        hechas_e = []
+        for f in sorted({r['alimentador'] for r in ramas}):
+            obra = {'clase': 'expreso', 'alimentador': f, 'casos': ['Con proyecto'],
+                    'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas if r['alimentador'] == f]}
+            ident = obra_anadir(ws, obra)['id']
+            hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
+                                   anio_casos=anio_casos)
+            hechas_e += (hecho.get('informe') or {}).get('obras') or [hecho]
+        return {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')} for r in ramas],
+                'avisos': avisos, 'obras': hechas_e}
     # 029:RF-6: la tasa del perfil, si la trae, vale para todos; si no, la medida de cada uno.
     tasa_perfil = (perfil.get('planificacion') or {}).get('crecimiento_demanda_anual')
     if tasa_perfil is not None:
@@ -6535,7 +6550,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
 
         todas = sn.orden_de_cargas(evaluadas)
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
-        campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
+        campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
         escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
@@ -6543,13 +6558,30 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     # La escalera ya se midió (y aplicó lo que cabe): si falta un dato de la SET nueva (042:RF-8),
     # se dice sin perder lo hecho. NA203 + NA205 (2026-10-31): una hora de escalera y el trabajo
     # salía «fallido» sin decir cuántas cargas cabían.
-    try:
-        set_nueva = set_nueva_proponer(ws, ctx, project, feeders, escalera['a_set_nueva'], capex=capex,
+    # 042:RF-21, RF-22: por zona geográfica; SET nueva solo donde la zona la justifica.
+    from .. import set_nueva as sn
+    plan_perfil = datos_perfil().get('planificacion') or {}
+    zonas = sn.zonas_de_carga(escalera['a_set_nueva'], plan_perfil.get('radio_zona_set_km'))
+    umbral_set = plan_perfil.get('set_nueva_desde_kw')
+    oraculo = escalera.pop('_oraculo', None)
+    por_zona = []
+    for n, zona in enumerate(zonas, 1):
+        kw = sum(float(c.get('kw') or 0) for c in zona)
+        expreso = umbral_set is not None and len(zonas) > 1 and kw < float(umbral_set)
+        nombre_z = set_nueva_nombre if len(zonas) == 1 else f'{set_nueva_nombre or "SET NUEVA"} {n}'
+        ctx.log(f"Zona {n}: {kw / 1000:.2f} MW ({', '.join(str(c.get('sed'))[:30] for c in zona)}): "
+                + ('alimentador expreso desde su SET (042:RF-22).' if expreso else f'SET nueva {nombre_z} (042:RF-22).'))
+        try:
+            hecho = set_nueva_proponer(ws, ctx, project, feeders, zona, capex=capex,
                                        alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos,
-                                       nombre=set_nueva_nombre, oraculo=escalera.pop('_oraculo', None))
-    except UserError as exc:
-        ctx.log(f'SET nueva: {exc}')
-        set_nueva = {'avisos': [str(exc)]}
+                                       nombre=nombre_z, oraculo=oraculo, expreso=expreso)
+        except UserError as exc:
+            ctx.log(f'Zona {n}: {exc}')
+            hecho = {'avisos': [str(exc)]}
+        por_zona.append({'zona': n, 'kw': round(kw, 1), 'solucion': 'expreso' if expreso else 'set_nueva',
+                         'cargas': [c.get('sed') for c in zona], **hecho})
+    set_nueva = por_zona[0] if len(por_zona) == 1 else {'zonas': por_zona,
+                                                         'avisos': [a for z in por_zona for a in z.get('avisos') or []]}
     return {'project': project.strip(), 'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
 
 
@@ -7546,6 +7578,7 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
                 # 025:RF-44: si la barra ya existía o la crea la variación de la carga.
                 'criterio': c.get('criterio'), # 042:RF-18: el tramo que parte, de lo que creó la variación.
                 'tramo_partido': (creadas.get(clave_codigo(c.get('sed'))) or {}).get('tramo_partido'),
+                'lat': fila.get('lat'), 'lon': fila.get('lon'),                        # 042:RF-21
                 'variacion': c.get('variacion'), 'distancia_m': c.get('distancia_m'),
                 'kw': fila.get('kw'), 'kvar': fila.get('kvar'), 'kva_instalado': fila.get('kva_instalado'),
                 # 008:RF-24: la del formulario lleva la hoja «formulario»; las del libro, la suya.
