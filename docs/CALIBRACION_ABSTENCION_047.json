@@ -1,0 +1,32 @@
+{
+  "esquema": "csg-calibracion-abstencion-v1",
+  "procedencia": "sintetico_maestro_de_sesion",
+  "conjunto_sha256": "c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437",
+  "modelo_reranker": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "revision": "1427fd652930e4ba29e8149678df786c240d8825",
+  "objetivo": 0.95,
+  "umbrales": {
+    "reranker": -0.9091060294380188,
+    "bm25_solo": 12.386237060777274,
+    "bm25": 12.386237060777274,
+    "coseno": 0.7664131985435486
+  },
+  "en_calibracion": {
+    "reranker": {
+      "abstencion": 0.95,
+      "conserva": 1.0
+    },
+    "bm25_solo": {
+      "abstencion": 0.95,
+      "conserva": 0.8205128205128205
+    },
+    "hibrido": {
+      "abstencion": 0.95,
+      "conserva": 0.8461538461538461
+    }
+  },
+  "preguntas": {
+    "con_respuesta": 39,
+    "sin_respuesta": 40
+  }
+}
