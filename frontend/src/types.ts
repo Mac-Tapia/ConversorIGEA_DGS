@@ -1357,9 +1357,11 @@ export interface VerificarInforme {
 
 /** Spec 015: el «Caso base» de un alimentador en el vínculo del proyecto. */
 export interface CasoBaseEstado {
-  status: 'VERIFICADO' | 'NO_VERIFICADO';
+  /** Spec 078: VERIFICADO solo con lo físico y el flujo bien; los dos últimos calibran (015:RF-40). */
+  status: 'VERIFICADO' | 'NO_VERIFICADO' | 'NO_CONVERGE' | 'SIN_DATO_DE_FLUJO';
   comprobaciones: Record<string, boolean>;
   fallos: string[];
+  flujo?: { estado?: string; motivo?: string; return_code?: number | null; arrastrado?: boolean } | null;
   recorded_at?: number;
 }
 
@@ -1368,9 +1370,10 @@ export interface CasoBaseResultado {
   project: string;
   feeders: {
     feeder: string;
-    status: 'VERIFICADO' | 'NO_VERIFICADO';
+    status: 'VERIFICADO' | 'NO_VERIFICADO' | 'NO_CONVERGE' | 'SIN_DATO_DE_FLUJO';
     motivo?: string;
     comprobaciones?: Record<string, { pass: boolean; fallos: unknown[] }>;
+    flujo?: CasoBaseEstado['flujo'];
     avisos?: string[];
     report?: string;
   }[];

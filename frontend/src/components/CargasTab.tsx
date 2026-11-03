@@ -228,10 +228,11 @@ export function CargasTab() {
   const casoBaseRes = (lastBase?.result ?? null) as CasoBaseResultado | null;
   const estadoBase: Record<string, CasoBaseEstado> = { ...(current?.binding?.native_reread.caso_base ?? {}) };
   for (const x of casoBaseRes?.feeders ?? []) {
-    estadoBase[x.feeder] = { status: x.status, fallos: [],
+    estadoBase[x.feeder] = { status: x.status, fallos: [], flujo: x.flujo,
       comprobaciones: Object.fromEntries(Object.entries(x.comprobaciones ?? {}).map(([k, v]) => [k, v.pass])) };
   }
-  const sinVerificar = order.filter((f) => estadoBase[f]?.status !== 'VERIFICADO');
+  // 078:RF-17: el flujo no bloquea la calibración (015:RF-40); lo físico, sí.
+  const sinVerificar = order.filter((f) => !CALIBRAN.includes(estadoBase[f]?.status));
   // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto. RF-40: sin ninguno
   // en la sesión (tras reiniciar la web u otro espacio), el último guardado en disco.
   const [ajusteDisco, setAjusteDisco] = useState<Job | null>(null);
@@ -813,6 +814,16 @@ const COMPROBACIONES: [string, string][] = [
   ['diagrama', 'Diagrama'], ['capacidades', 'Capacidades'], ['flujo', 'Flujo'],
 ];
 
+const CALIBRAN: (CasoBaseEstado['status'] | undefined)[] = ['VERIFICADO', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO'];
+
+/** Rótulo y color de un «Caso base» (078:RF-25, RF-26); un vínculo viejo guarda VERIFICADO con el flujo en ✗. */
+function rotuloCasoBase(e: CasoBaseEstado): [string, 'ok' | 'warn' | 'err'] {
+  if (e.status === 'NO_VERIFICADO') return ['Sin verificar', 'err'];
+  if (e.status === 'NO_CONVERGE' || e.comprobaciones?.flujo === false) return ['No converge', 'err'];
+  if (e.status === 'SIN_DATO_DE_FLUJO') return ['Sin dato de flujo', 'warn'];
+  return ['Verificado', 'ok'];
+}
+
 /** «Caso base» de cada alimentador y avisos de la última verificación (spec 015, RF-9). */
 function CasoBase({ estado, ultimo }: { estado: Record<string, CasoBaseEstado>; ultimo: CasoBaseResultado | null }) {
   const feeders = Object.keys(estado).sort();
@@ -824,12 +835,13 @@ function CasoBase({ estado, ultimo }: { estado: Record<string, CasoBaseEstado>; 
         <thead><tr><th>Alimentador</th><th>Caso base</th>{COMPROBACIONES.map(([k, l]) => <th key={k}>{l}</th>)}</tr></thead>
         <tbody>{feeders.map((f) => {
           const e = estado[f];
+          const [rotulo, tono] = rotuloCasoBase(e);
+          const motivo = motivos[f]?.motivo ?? (tono === 'ok' ? null : e.flujo?.motivo);
           return (
             <tr key={f}>
               <td className="strong">{f}</td>
-              <td><span className={`badge ${e.status === 'VERIFICADO' ? 'ok' : 'err'}`}>
-                {e.status === 'VERIFICADO' ? 'Verificado' : 'Sin verificar'}</span>
-                {motivos[f]?.motivo && <small className="muted"> {motivos[f].motivo}</small>}</td>
+              <td><span className={`badge ${tono}`}>{rotulo}</span>
+                {motivo && <small className="muted"> {motivo}</small>}</td>
               {COMPROBACIONES.map(([k]) => (
                 <td key={k}>{e.comprobaciones?.[k] == null ? '—' : e.comprobaciones[k] ? '✓' : '✗'}</td>
               ))}

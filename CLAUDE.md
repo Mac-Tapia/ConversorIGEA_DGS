@@ -103,6 +103,9 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T8, T9, T10 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
+  | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | reservada |  |
+  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | reservada |  |
+  | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

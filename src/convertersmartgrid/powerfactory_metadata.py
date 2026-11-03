@@ -134,6 +134,88 @@ def load_intervention_from_attempts(attempts: Iterable[dict[str, Any]]) -> dict[
     }
 
 
+#: 078:RF-1: los tres estados de un flujo. «sin_dato» es un estado, no un «no»: confundirlos daba
+#: NOT_CONVERGED a un flujo bueno con ``load_flow_loop`` null, y por eso nadie creía la señal.
+FLUJO_CONVERGE = 'converge'
+FLUJO_NO_CONVERGE = 'no_converge'
+FLUJO_SIN_DATO = 'sin_dato'
+#: 078:RF-17, 015:RF-38 a RF-40: el flujo no bloquea la calibración; lo físico, sí.
+CASO_BASE_CALIBRABLE = ('VERIFICADO', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO')
+_MAX_FALLOS = 8
+_MAX_HISTORIAL = 30
+
+
+def _historial_flujo(report: dict[str, Any], load_flow: dict[str, Any], loop: dict[str, Any]) -> list[dict[str, Any]]:
+    """Los intentos del flujo, en una sola forma (078:RF-7): el informe, el bucle o la reducción de demanda."""
+    propio = report.get('historial')
+    if isinstance(propio, list) and propio:
+        return propio[:_MAX_HISTORIAL]
+    pasos: list[dict[str, Any]] = []
+    for intento in loop.get('attempts') or []:
+        flujo = intento.get('load_flow') or {}
+        pasos.append({'paso': intento.get('attempt'), 'accion': intento.get('intent') or intento.get('phase'),
+                      'converge': flujo.get('pass'), 'return_code': flujo.get('return_code')})
+    for intento in (load_flow.get('ajuste_de_cargas') or {}).get('intentos') or []:
+        pasos.append({'paso': len(pasos), 'accion': f"demanda al {float(intento['factor']) * 100:.1f} %",
+                      'factor': intento['factor'], 'converge': intento.get('converge')})
+    return pasos[:_MAX_HISTORIAL]
+
+
+def estado_flujo(report: dict[str, Any]) -> dict[str, Any]:
+    """La única lectura del flujo de un informe de aceptación (078:RF-1).
+
+    Mira lo que devolvió DIgSILENT en el último flujo que corrió: el de después de reducir la demanda
+    (015:RF-38), el del bucle o el simple. Había tres señales y cada una miraba otra cosa: el código de
+    salida del guion daba «OK» sin flujo, ``convergence_pass`` daba False sin flujo y la clasificación
+    solo miraba ``load_flow_loop``, null en la vía de la web.
+    """
+    load_flow = report.get('load_flow') or {}
+    loop = report.get('load_flow_loop') or {}
+    ajuste = load_flow.get('ajuste_de_cargas') or {}
+    ultimo = ajuste.get('final_load_flow') or loop.get('final_load_flow') or load_flow
+    codigo, valido = ultimo.get('return_code'), ultimo.get('ldf_valid')
+    if codigo not in (None, 0) or valido is False:
+        estado = FLUJO_NO_CONVERGE
+    elif valido is True:
+        estado = FLUJO_CONVERGE
+    else:
+        estado = FLUJO_SIN_DATO
+    factor = ajuste.get('factor') if ajuste.get('final_load_flow') else None
+    significado = ultimo.get('return_meaning')
+    solicitado = bool(load_flow.get('requested') or report.get('load_flow_loop'))
+    if estado == FLUJO_CONVERGE:
+        motivo = 'DIgSILENT devolvió return_code ' + ('0' if codigo == 0 else 'sin dato') + ' con el resultado válido.'
+        if factor is not None:
+            motivo += f' Con la demanda reducida al {float(factor) * 100:.1f} %.'
+    elif estado == FLUJO_NO_CONVERGE:
+        motivo = (f'DIgSILENT devolvió return_code {codigo}' if codigo not in (None, 0) else
+                  'DIgSILENT terminó el flujo sin un resultado válido') + (f': {significado}.' if significado else '.')
+    elif solicitado:
+        motivo = 'Se pidió el flujo y no hay resultado de DIgSILENT.'
+    else:
+        motivo = 'El flujo no se ejecutó: sin dato de convergencia.'
+    fallos: list[str] = []
+    if estado != FLUJO_CONVERGE:
+        for fuente in (ultimo.get('errors'), (load_flow.get('diagnostico') or {}).get('issues'),
+                       (loop.get('final_diagnosis') or {}).get('issues')):
+            fallos += [str(x) for x in fuente or [] if str(x) not in fallos]
+    return {'estado': estado, 'solicitado': solicitado, 'return_code': codigo, 'ldf_valid': valido,
+            'significado': significado, 'factor_demanda': factor, 'motivo': motivo, 'fallos': fallos[:_MAX_FALLOS],
+            'historial': _historial_flujo(report, load_flow, loop)}
+
+
+def convergence_pass_de(flujo: dict[str, Any]) -> bool | None:
+    """``convergence_pass`` de la lectura (078:RF-8): null si no hay dato."""
+    return {FLUJO_CONVERGE: True, FLUJO_NO_CONVERGE: False}.get(flujo['estado'])
+
+
+def estado_caso_base(fisico_ok: bool, flujo: str) -> str:
+    """El estado del «Caso base» (078:RF-13 a RF-15): VERIFICADO solo con lo físico y el flujo bien."""
+    if not fisico_ok:
+        return 'NO_VERIFICADO'
+    return {FLUJO_CONVERGE: 'VERIFICADO', FLUJO_NO_CONVERGE: 'NO_CONVERGE'}.get(flujo, 'SIN_DATO_DE_FLUJO')
+
+
 def classify_convergence(report: dict[str, Any]) -> str:
     """Classify convergence without promoting stale or operator-modified models."""
 
@@ -141,10 +223,12 @@ def classify_convergence(report: dict[str, Any]) -> str:
     if source.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return 'REJECTED_STALE_EVIDENCE'
 
-    loop = report.get('load_flow_loop') or {}
-    final = loop.get('final_load_flow') or {}
-    if not loop.get('pass') or not final.get('ldf_valid'):
+    flujo = estado_flujo(report)
+    if flujo['estado'] == FLUJO_SIN_DATO:                                       # 078:RF-9
+        return 'SIN_DATO'
+    if flujo['estado'] == FLUJO_NO_CONVERGE:                                    # 078:RF-10
         return 'NOT_CONVERGED'
+    loop = report.get('load_flow_loop') or {}
 
     reread = report.get('effective_reread') or {}
     rollback = report.get('rollback') or {}
@@ -161,7 +245,7 @@ def classify_convergence(report: dict[str, Any]) -> str:
     intervention = report.get('load_intervention') or load_intervention_from_attempts(
         loop.get('attempts') or []
     )
-    if intervention.get('attempted'):
+    if intervention.get('attempted') or flujo['factor_demanda'] is not None:    # 078:RF-12
         return 'NEEDS_OPERATOR_REVIEW'
 
     reconstruction = report.get('reconstruction_verification') or {}
