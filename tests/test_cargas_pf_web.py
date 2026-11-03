@@ -264,14 +264,18 @@ def test_un_plan_de_cargas_sobrevive_a_cambiar_las_entradas(client, tmp_path):
 
 
 def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
-    """005:RF-16 — el plan identifica el proyecto por su ruta y lleva la carpeta del perfil."""
-    from convertersmartgrid.web import services
+    """005:RF-16, 081:RF-54 — el plan lleva la ruta del proyecto y la carpeta de su vínculo, sin volver a deducirla.
+
+    Comparaba con la del perfil y solo pasaba en un árbol sin `config/perfil_empresa.json`.
+    """
+    from convertersmartgrid.powerfactory_binding import vinculo_guardado
 
     wid = _wid(client)
     r = _plan(client, wid, project='Oct/SI213', demandas=DEMANDAS)
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body['project'] == 'Oct/SI213' and body['folder'] == services.carpeta_pf()
+    vinculo = vinculo_guardado(client.app.state.store.get(wid), 'Oct/SI213')
+    assert body['project'] == 'Oct/SI213' and body['folder'] == vinculo['folder']
 
 
 def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatch):
