@@ -17,5 +17,8 @@
     "tension_min_pu": 0.95,
     "tension_max_pu": 1.05,
     "cargabilidad_max_pct": 100
+  },
+  "valle": {
+    "dias_ventana": 7
   }
 }

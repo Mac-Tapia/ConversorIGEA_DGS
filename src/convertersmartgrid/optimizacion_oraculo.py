@@ -29,6 +29,7 @@ from .digital_twin.evolutivo import _nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
+from .valle import anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
 KV_MEDIA_MIN = 1.0
@@ -253,28 +254,15 @@ class Oraculo:
 
         Sin puntos, ``valle`` es ``None``: no comprobado, nunca «cumple» (RF-24, RF-31).
         """
-        out: dict[str, Any] = {'valle': None, 'valle_motivos': [], 'valle_u_max': None, 'valle_nodo': None,
-                               'valle_fecha': None, 'valle_sin_comprobar': (valle or {}).get('motivo') or None}
-        puntos = (valle or {}).get('puntos') or []
-        if not puntos:
-            return out
-        out['valle'] = True
-        out['valle_sin_comprobar'] = None
-        for pt in puntos:
+        out = sin_comprobar((valle or {}).get('motivo'))
+        for pt in (valle or {}).get('puntos') or []:
             medida = {'factor_q': pt.get('factor_q'), 'factor_nuevas': float(pt.get('factor_nuevas') or 0.0)}
             con = self.medir(obras, k, float(pt['factor_p']), alimentador, **medida)
             sin = self.medir([], 0, float(pt['factor_p']), factor_q=pt.get('factor_q'))
             # Una carga nueva apagada no tiene barra que juzgar: solo las demás, como en «Sin proyecto».
             barras = self.barras_de(k, alimentador) if medida['factor_nuevas'] else []
             ok, motivos = cumple(sin.para_criterio(), con.para_criterio(), barras, p)
-            if not ok:
-                out['valle'] = False
-                out['valle_motivos'] += [f"{m} ({pt.get('etiqueta')}, {pt.get('fecha')})" for m in motivos]
-            if con.u:
-                nodo = max(sorted(con.u), key=con.u.__getitem__)
-                if out['valle_u_max'] is None or con.u[nodo] > out['valle_u_max']:
-                    out.update(valle_u_max=con.u[nodo], valle_nodo=nodo, valle_fecha=pt.get('fecha'))
-        out['valle_motivos'] = out['valle_motivos'][:5]
+            anotar_punto(out, pt, ok, motivos, con.u)
         return out
 
     def evaluar(self, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros,

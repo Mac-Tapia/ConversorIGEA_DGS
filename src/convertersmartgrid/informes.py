@@ -347,6 +347,8 @@ class Etapa:
     motivo: str | None = None
     obras: tuple[Mapping[str, Any], ...] = ()
     anio: int | None = None
+    #: 073:RF-32: lo medido en valle, de la escalera; sin él, «no comprobado en valle».
+    valle: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.clave not in ETAPAS:

@@ -15,9 +15,11 @@ import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+from .ajuste_cabecera import AjusteError, objetivo_de
 from .demanda_medida import ALIAS, en_periodo, maximas
 
 #: Lo que se aparta del mínimo, con la frase que lo dice (RF-6).
@@ -162,7 +164,7 @@ def _paso(fechas: Sequence[datetime]) -> timedelta | None:
     """El intervalo del medidor: la mediana de sus diferencias, sin suponer 15 minutos."""
     if len(fechas) < 2:
         return None
-    return statistics.median(b - a for a, b in zip(fechas, fechas[1:], strict=False))
+    return statistics.median(b - a for a, b in pairwise(fechas))
 
 
 def _sin_caidas(validos: dict, aj: Ajustes, apartados: dict) -> dict:
@@ -347,7 +349,71 @@ def puntos_de_valle(v: Valle, maximas: Mapping[str, Mapping[str, Any]], aj: Ajus
     if v.ventana and v.ventana['instante']['fecha'] != v.instante['fecha']:
         puntos.append(_punto(f"mínimo de la ventana del {v.ventana['desde']} al {v.ventana['hasta']}",
                              v.ventana['instante'], usados, kw_max, kvar_max, aj))
+    # RF-8: el alimentador de un medidor fuera de la suma no se queda en su máxima: en el valle del
+    # conjunto baja como los demás.
+    for d in maximas.values():
+        for pt in puntos:
+            pt['factores'].setdefault(str(d.get('alimentador')), pt['factor_p'])
     return {**base, 'comprobado': True, 'puntos': puntos}
+
+
+def sin_comprobar(motivo: str | None = None) -> dict[str, Any]:
+    """Lo que se sabe de una variante sin puntos de valle: nada (RF-24, RF-31)."""
+    return {'valle': None, 'valle_motivos': [], 'valle_u_max': None, 'valle_nodo': None, 'valle_fecha': None,
+            'valle_sin_comprobar': motivo or None}
+
+
+def anotar_punto(fila: dict[str, Any], punto: Mapping[str, Any], ok: bool, motivos: Sequence[str],
+                 tensiones: Mapping[str, float]) -> None:
+    """Suma a ``fila`` lo medido en un punto: oráculo y guion lo cuentan igual (RF-17, RF-30)."""
+    if fila.get('valle') is None:
+        fila.update(valle=True, valle_sin_comprobar=None)
+    if not ok:
+        fila['valle'] = False
+        fila['valle_motivos'] = (fila['valle_motivos']
+                                 + [f"{m} ({punto.get('etiqueta')}, {punto.get('fecha')})" for m in motivos])[:5]
+    if tensiones:
+        nodo = max(sorted(tensiones), key=tensiones.__getitem__)
+        if fila['valle_u_max'] is None or tensiones[nodo] > fila['valle_u_max']:
+            fila.update(valle_u_max=tensiones[nodo], valle_nodo=nodo, valle_fecha=punto.get('fecha'))
+
+
+def nombre_caso_valle(anio: int | None) -> str:
+    """El caso y el escenario de la calibración a valle, como ``tools/casos_pf.nombre_caso`` (RF-13)."""
+    return f'Valle {anio}' if anio else 'Valle'
+
+
+def filas_de_calibracion(rutas: Iterable[Path | str], pares: Sequence[tuple[str, str]], instante: datetime, *,
+                         alias=ALIAS, cabecera=None) -> list[dict[str, Any]]:
+    """La cabecera de cada medidor en el instante de valle, con la lectura de la máxima coincidente
+    (021:RF-50), en la forma que recibe la calibración (RF-16)."""
+    return [r.to_dict() for r in maximas(rutas, list(pares), alias=alias, instante=instante, cabecera=cabecera)]
+
+
+def plan_calibracion_valle(v: Valle, filas: Sequence[Mapping[str, Any]], anio: int | None) -> dict[str, Any]:
+    """El contrato de la calibración a valle (RF-13, RF-14, RF-16): la misma máquina, en otro instante.
+
+    No se ejecuta aún (T8): el guion de la calibración lee «Sin proyecto» y guarda la última
+    calibración de la que vive la escalera, y a ciegas machacaría la de la máxima. Las fijas van
+    coincidentes con esa hora (039:RF-1): el máximo del mes no es valle.
+    """
+    nombre = nombre_caso_valle(anio)
+    plan = {'rol': 'valle', 'caso': nombre, 'escenario': nombre, 'copia_de': f'Sin proyecto {anio}' if anio else 'Sin proyecto',
+            'criterio_fijas': 'coincidente', 'ejecutable': False,
+            'pendiente': 'separar en el guion la calibración a valle de la de la máxima y probarla en DIgSILENT (073 T8)',
+            'motivo': v.motivo, 'instante': None, 'objetivos': [], 'avisos': []}
+    if not v.comprobado or v.instante is None:
+        return plan
+    plan['instante'] = v.instante['fecha'].isoformat(sep=' ')
+    for fila in filas:
+        try:
+            o = objetivo_de(fila)
+        except AjusteError as exc:
+            plan['avisos'].append(str(exc))
+            continue
+        plan['objetivos'].append({'alimentador': o.alimentador, 'medidor': o.medidor, 'kw': o.kw, 'kvar': o.kvar,
+                                  'fecha': o.fecha})
+    return plan
 
 
 def frase_valle(fila: Mapping[str, Any] | None) -> str:

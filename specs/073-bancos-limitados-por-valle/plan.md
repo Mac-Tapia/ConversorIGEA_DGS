@@ -32,6 +32,18 @@ Lee: `docs/constitution.md`, 025 (RF-44, RF-50, RF-52b), 035, 052 y 063 (RF-21, 
   calibrar a valle por ahí machacaría `ultima_calibracion` de la máxima, de la que vive la escalera. Hay que separarlo y
   probarlo en DIgSILENT (T8), no a ciegas.
 
+## Límites de esta fase
+
+- El guion escala con `scale0`, que lleva P y Q juntas: la Q medida del valle solo entra en el oráculo y, en DIgSILENT, con la
+  calibración a valle (T8). El guion lo dice en sus avisos.
+- El oráculo aplica un factor único a toda la demanda existente, el del conjunto; el guion, uno por alimentador.
+- La búsqueda sin oráculo (052:RF-8) no mide `modulos_en_valle`: prueba los módulos del perfil o los de la regla anterior, y el
+  valle los filtra igual.
+- `_valle_del_proyecto` suma los medidores de los alimentadores marcados. Los de barra de SET o de sistema ya los acepta
+  `valle_de_alcance` (RF-4), pero la escalera, que va por alimentador, no los pasa todavía.
+- `propuesta_pide` recibe `valle` como parámetro: `pide_ejecutar` es de la 072 y no se toca, así que hoy no se lo pasa y sus
+  bancos salen «no comprobado en valle». Conectarlo es de una línea cuando la 072 cierre.
+
 ## Pruebas
 
 `tests/test_valle.py`, con curvas sintéticas sorteadas (`random.Random(semilla)`), medidores y días variables, dos perfiles

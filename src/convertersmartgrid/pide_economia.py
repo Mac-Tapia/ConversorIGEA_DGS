@@ -24,6 +24,7 @@ from typing import Any
 from .formatos_pide import filas_de_obras
 from .pide import RUBRO_DE_ALTERNATIVA
 from .util import finite_or_none
+from .valle import frase_valle
 
 #: Palabras de la denominación de una obra del CAPEX → alternativa del PIDE (RF-54).
 #: Se prueban en este orden: «transformador de potencia» es de una SET, no de una SED.
@@ -393,6 +394,12 @@ def _problemas_por_anio(informe: Mapping[str, Any]) -> list[dict[str, Any]]:
     return list(primero.values())
 
 
+def _valle_del_banco(de_alimentador: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Lo que el valle dice del banco de un alimentador (073:RF-29, RF-31)."""
+    d = de_alimentador or {}
+    return {'comprobado': bool(d.get('comprobado')), 'modulos_admisibles': d.get('modulos'), 'texto': frase_valle(d)}
+
+
 def _obra_011(alternativa: str, alimentador: str | None, elemento: str, kv: float | None,
               bancos_kvar: Mapping[float, float] | None) -> tuple[dict | None, str | None]:
     """La obra de la spec 011 que construye la alternativa, o el motivo de no tenerla."""
@@ -413,11 +420,15 @@ def _obra_011(alternativa: str, alimentador: str | None, elemento: str, kv: floa
 
 def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                    costos: Mapping[str, Mapping[str, Any]], bancos_kvar: Mapping[float, float] | None,
-                   factor_carga: float | None = None, precio_compra_kwh: float | None = None
-                   ) -> dict[str, Any]:
+                   factor_carga: float | None = None, precio_compra_kwh: float | None = None,
+                   valle: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, Any]:
     """Del diagnóstico año a año a las obras priorizadas, con su evaluación (RF-45, RF-52,
     RF-57 a RF-59), su obra de la spec 011 si se puede construir sola (RF-47) y las filas
-    de los formatos (RF-63)."""
+    de los formatos (RF-63).
+
+    073:RF-28, RF-29: ``valle``, por alimentador, ``comprobado``, ``modulos`` y su tensión. El módulo
+    que se propone sigue siendo uno, y nunca más de los que admite; sin él, «no comprobado en valle».
+    """
     from .pide import (
         ALTERNATIVAS_POR_CAUSA,
         CARACTER_DE_ALTERNATIVA,
@@ -441,11 +452,18 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
         avisos.append('sin libro CAPEX: las obras van sin costo y se eligen por menor intervención')
     candidatas, filas_obra = [], []
     n = 0
+    valle = valle or {}
     for alimentador, lista in sorted(por_alim.items(), key=lambda x: str(x[0])):
+        de_valle = valle.get(alimentador)
+        sin_modulos = bool(de_valle and de_valle.get('comprobado') and de_valle.get('modulos') == 0)
+        if sin_modulos:
+            avisos.append(f'{alimentador}: el valle no admite ningún módulo de banco: se toma la alternativa '
+                          'siguiente de cada causa (073:RF-28).')
         obras = plan_por_etapas([Problema(p['tipo'], p['elemento'], p.get('valor'), p.get('limite'),
                                           p['causa'], p.get('evidencia', ''), int(p['anio']))
                                  for p in lista if p.get('causa') in ALTERNATIVAS_POR_CAUSA],
-                                anios_pide=plan.get('anios_pide') or [4], costo_relativo=costo_rel or None)
+                                anios_pide=plan.get('anios_pide') or [4], costo_relativo=costo_rel or None,
+                                vetadas=('bancos',) if sin_modulos else ())
         for o in obras:
             n += 1
             codigo = f'AL{n:02d}'
@@ -468,8 +486,15 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                          opcion=str(plan.get('opcion_tarifaria_mt') or 'MT3'))
             criterios = {'subsanacion_calidad': 1.0 if o.causa in CAUSAS_DE_CALIDAD else 0.0,
                          'crecimiento_demanda': 1.0 if kw > 0 else 0.0}
-            c = Candidata(codigo, o.alternativa, f'{alimentador}:{o.causa}', True, ev, criterios)
+            # 073:RF-28: una causa que solo se resuelve con bancos se queda sin obra, con su motivo.
+            banco_vetado = sin_modulos and o.alternativa == 'bancos'
+            c = Candidata(codigo, o.alternativa, f'{alimentador}:{o.causa}', not banco_vetado, ev, criterios)
             obra, motivo = _obra_011(o.alternativa, alimentador, elemento, sitio.get('kv'), bancos_kvar)
+            if banco_vetado:
+                obra, motivo = None, 'el valle no admite ningún módulo y la causa no tiene otra alternativa (073:RF-28)'
+            en_valle = _valle_del_banco(de_valle) if o.alternativa == 'bancos' else None
+            if en_valle is not None and not en_valle['comprobado']:
+                avisos.append(f'{codigo}: banco de {alimentador}: no comprobado en valle (073:RF-24).')
             candidatas.append(c)
             filas_obra.append({'codigo': codigo, 'anio': o.anio, 'alternativa': o.alternativa,
                                'rubro': o.rubro, 'caracter': CARACTER_DE_ALTERNATIVA[o.alternativa],
@@ -477,7 +502,7 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                                'causa': o.causa, 'problemas': o.problemas[:20],
                                'denominacion': (costo or {}).get('denominacion'), 'ci': ci, 'kw_nuevos': kw,
                                'energia_kwh': kw * factor_carga * 8760 if factor_carga else None,
-                               'obra_011': obra, 'motivo_sin_obra': motivo, 'candidata': c})
+                               'obra_011': obra, 'motivo_sin_obra': motivo, 'candidata': c, 'valle': en_valle})
     orden = priorizar(candidatas, plan.get('pesos_art_15_3') or {})
     prioridad = {c.codigo: i + 1 for i, c in enumerate(orden)}
     for f in filas_obra:
@@ -485,6 +510,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
         f.update(prioridad=prioridad[c.codigo], puntaje=c.puntaje, sobredimensionada=c.sobredimensionada,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
                  indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos)
+        if f['alternativa'] == 'bancos' and (f['valle'] or {}).get('modulos_admisibles') == 0:
+            f['descartada'] = 'no cumple en valle: ' + str(f['motivo_sin_obra'])
     filas_obra.sort(key=lambda f: f['prioridad'])
     cartera = sum(f['ci'] for f in filas_obra if not (f['descartada'] or f['sobredimensionada']))
     con_y_sin = evaluar_con_y_sin(cartera, {a['anio']: a.get('perdidas_kw') for a in anios},
