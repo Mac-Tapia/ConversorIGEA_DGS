@@ -59,6 +59,10 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
   y los formatos F01 a F07.
 - RF-14: EL SISTEMA generará el informe PIDE con alternativas, evaluación con y sin proyecto, VAN, TIR, costo anual, priorización
   y los formatos F08 a F15.
+- RF-21: EL SISTEMA generará los entregables por módulos, un documento ligero por cada uno y con sus tablas y formatos del anexo,
+  siguiendo su artículo paso a paso: del plan, el diagnóstico y la formulación de alternativas; del PIDE, la formulación en su
+  periodo, la evaluación técnica, la económica, la priorización y selección, y la propuesta (usuario, 2026-11-02: «para que sea
+  ligero los informes se haga por módulos y entregables»).
 - RF-15: EL SISTEMA generará metrados desde la red de cada proyecto; sin metrado no habrá costo supuesto.
 - RF-16: SI un dato del entregable falta, ENTONCES EL SISTEMA dejará el hueco nombrado, sin inventarlo.
 - RF-17: EL SISTEMA tomará de un perfil de empresa todo lo propio de cada distribuidora; una fuente no alimenta a otra.

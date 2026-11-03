@@ -18,18 +18,20 @@
       (referencia) 4,93/7,98/9,40 %; sin crecimiento 4,70/9,30/12,21 %. Corte 2021 → 2025, sobre las 53 series: 12,5 % la tasa
       media y 15,8 % la referencia. Pocos perfiles y una sola empresa: orienta, no generaliza. Faltan variables exógenas (031)
       y la máxima por SET y alimentador.
-- [ ] T6 Obras acumuladas por año. (RF-12)
+- [x] T6 Obras acumuladas por año. (RF-12)
       Hecho cuando: en DIgSILENT, sobre un proyecto de prueba, cada año conserva las obras de los anteriores.
-      Código y simulador hechos el 2026-11-02: la copia de «Con proyecto» traía todas las obras en todos los años, y ahora cada año
-      activa las suyas y las anteriores. Falta la prueba real: el simulador comparte las variaciones entre casos y DIgSILENT las
-      guarda por caso, así que el aislamiento entre años solo se comprueba allí, leyendo el efecto en el flujo.
+      La copia de «Con proyecto» traía todas las obras en todos los años; ahora cada año activa las suyas y las anteriores.
+      Medido el 2026-11-02 en DIgSILENT, sobre una copia de L14243 borrada al terminar, con dos variaciones de prueba que acortan un
+      tramo. Releído cada caso al final, con flujo convergido: año 00 sin obras, 04 con la A y 08 con las dos, y los largos coinciden.
+      Pérdidas sin y con obras: 662,80 y 660,13 kW en el 04; 853,75 y 850,12 kW en el 08. «Con proyecto» original no cambió. No se
+      probó con obras reales de la spec 011 ni por la web, que se prueba con el estudio completo (T11).
 - [x] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
       Hecho cuando: pruebas de cada formato, con los huecos nombrados.
       Hecho con pruebas sintéticas, sin DIgSILENT. F04 sigue vacío porque el modelo no lleva la baja de cada SED, y F06 hasta pasarle
       los índices de 012. La evaluación con y sin proyecto espera las pérdidas de «Con proyecto» por año, que da T6; hasta entonces
       devuelve su hueco. Solo mide el ahorro de pérdidas: la energía no servida y la calidad no entran en el flujo.
-- [x] T8 Generadores de los informes de largo plazo y PIDE. (RF-4, RF-13, RF-14, RF-17)
-      Hecho cuando: los dos Word se generan para una empresa de prueba.
+- [x] T8 Generadores de los módulos del plan y del PIDE. (RF-4, RF-13, RF-14, RF-17, RF-21)
+      Hecho cuando: los siete documentos se generan para una empresa de prueba.
       Hecho con una empresa de prueba sintética. Presentan lo medido y sus huecos; no redactan análisis, que es del asistente (T9).
       La revisión del contenido con el usuario sobre una empresa real es T11.
 - [ ] T9 Herramientas y entrenamiento del asistente. (RF-18, RF-19)

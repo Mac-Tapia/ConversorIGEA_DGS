@@ -4719,25 +4719,19 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
 
 def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, formatos: dict, informe: dict, propuesta: dict,
                           con_y_sin: dict, perfil: dict, avisos: list[str]) -> list[str]:
-    """Los dos Word de un mismo estudio (072:RF-4, RF-17). Un modelo que falte no pierde el cálculo."""
-    from ..informes import InformeError
-    from ..informes_planeamiento import DatosPlaneamiento, escribir_informe_largo_plazo, escribir_informe_pide
+    """Un documento por módulo del mismo estudio (072:RF-4, RF-17, RF-21). Un modelo que falte no pierde el cálculo."""
+    from ..informes_planeamiento import DatosPlaneamiento, escribir_modulos
 
     seccion = perfil.get('informes') or {}
-    modelos = {t: (Path(v) if Path(v).is_absolute() else project_root() / v)
-               for t in ('largo_plazo', 'pide') if (v := seccion.get(f'modelo_{t}'))}
-    datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, anios=informe.get('anios') or [], obras=propuesta['obras'],
-                              con_y_sin=con_y_sin, empresa=perfil.get('empresa'), proyecto=project,
-                              metodo_proyeccion=formatos.get('metodo'), modelos=modelos,
-                              rotulos_cabecera=seccion.get('cabecera') or {})
-    hechos = []
-    for nombre, escribir in ((f'largo_plazo_{token}.docx', escribir_informe_largo_plazo),
-                             (f'pide_{token}.docx', escribir_informe_pide)):
-        try:
-            escribir(ws.out_dir / nombre, datos)
-            hechos.append(nombre)
-        except (InformeError, OSError) as exc:
-            avisos.append(f'{nombre}: {exc}')
+    valor = seccion.get('modelo_planeamiento')
+    modelo = (Path(valor) if Path(valor).is_absolute() else project_root() / valor) if valor else None
+    metodologia = json.loads((project_root() / 'config' / 'pide_universal_2017.json').read_text(encoding='utf-8'))
+    datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, articulos=metodologia['articulos'],
+                              anios=informe.get('anios') or [], obras=propuesta['obras'], con_y_sin=con_y_sin,
+                              empresa=perfil.get('empresa'), proyecto=project, metodo_proyeccion=formatos.get('metodo'),
+                              modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {})
+    hechos, fallos = escribir_modulos(ws.out_dir, token, datos)
+    avisos.extend(fallos)
     return hechos
 
 

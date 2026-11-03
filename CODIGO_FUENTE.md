@@ -99,7 +99,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/estudio_planeamiento.py` | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. | 072 |
 | `src/convertersmartgrid/costos_fuentes.py` | Costos oficiales: contrato de fuente, lector del SICODI público y cruce por código, tensión, estructura y sector típico. | 072 |
 | `src/convertersmartgrid/formatos_pide.py` | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. | 072 |
-| `src/convertersmartgrid/informes_planeamiento.py` | Los dos Word de un estudio, largo plazo y PIDE, desde un mismo cálculo. | 072 |
+| `src/convertersmartgrid/informes_planeamiento.py` | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. | 072 |
 | `src/convertersmartgrid/metrados.py` | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. | 072 |
 | `src/convertersmartgrid/proyeccion_mercado.py` | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. | 072 |
 | `src/convertersmartgrid/pide_economia.py` | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. 14, flujo privado con el pliego tarifario y la tasa privada, priorización del art. 15 con obras sobredimensionadas, y la propuesta con la obra de la spec 011 de lo que se construye solo. | 024 (RF-33, RF-34, RF-45 a RF-47, RF-54 a RF-59) |
