@@ -303,6 +303,8 @@ class FeederModel:
     # Hoja normalizada (``A0``…) opcional. None conserva 2,08 u/m y ajusta el lienzo
     # a la red. Ver dgs._diagram_mapper_hoja.
     diagram_sheet: str | None = None
+    #: La fuente del dataset del que salió (056:RF-3).
+    fuente: str = 'txt'
     # Unidades de diagrama por metro del perfil de empresa (spec 002, RF-31). None deja
     # la del motor, calibrada con NA205.
     diagram_units_per_meter: float | None = None
@@ -1497,6 +1499,7 @@ def build_feeder_model(
         islands=islands,
         node_aliases=node_aliases,
         capacitors=capacitors,
+        fuente=getattr(dataset, 'fuente', 'txt'),
     )
 
     # Electrical lengths follow the georeferenced polyline (From + intermediates + To)

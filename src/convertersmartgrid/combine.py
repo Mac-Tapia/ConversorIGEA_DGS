@@ -500,7 +500,10 @@ def combine_models(
                 f'{", ".join(sorted(por_alimentador)) or "ninguno con carga"}.'
             )
 
+    # Una red unida sale de una sola fuente: las fuentes nunca se mezclan (constitución, «Una fuente por vez»).
+    fuentes = {getattr(m, 'fuente', 'txt') for m in modelos}
     combinado = FeederModel(
+        fuente=fuentes.pop() if len(fuentes) == 1 else 'txt',
         name=name,
         network_id=name,
         nominal_kv=kv_dominante,
