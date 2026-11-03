@@ -1121,7 +1121,7 @@ def ubicar_sed_nueva(sed: str, barra, fases_punto: int, cercanas: list, punto):
     """Con el contrato común (081:RF-8, RF-9), ``(barra, distancia, ubicación)`` de una SED nueva.
 
     La barra compatible más cercana y, sin ninguna, la pedida con sus fases: nunca se rechaza. Las
-    barras de media internas de una SED solo cuentan si no hay otras (007:RF-48).
+    barras de media internas de una SED solo cuentan si no hay otras (004:RF-48).
     """
     from convertersmartgrid.comprobacion_fases import Barra as BarraFases
     from convertersmartgrid.comprobacion_fases import ubicar_nuevo
