@@ -12,6 +12,7 @@ from convertersmartgrid.formatos_pide import formatos_del_estudio
 from convertersmartgrid.informes import InformeError
 from convertersmartgrid.informes_planeamiento import (
     MODULOS,
+    TAMANO_DE_TABLA,
     TOPE_DE_FILAS,
     DatosPlaneamiento,
     escribir_modulo,
@@ -153,6 +154,29 @@ def test_lo_propio_de_la_empresa_viene_de_fuera(tmp_path):
     d.save(modelo)
     escribir_modulo(tmp_path / 'c.docx', MODULO['priorizacion'], _datos(modelo=modelo))
     assert 'cuerpo del modelo' not in _texto(tmp_path / 'c.docx')
+
+
+def test_lo_que_falta_es_ligero_y_de_lo_que_se_muestra(tmp_path):
+    """072:RF-16 / 072:RF-21 — un motivo por formato, y el PIDE no cuenta las obras fuera de su periodo."""
+    ruta = tmp_path / 'p.docx'
+    escribir_modulo(ruta, MODULO['propuesta_pide'], _datos())
+    d = docx.Document(ruta)
+    faltan = d.tables[-1]
+    assert [c.text for c in faltan.rows[0].cells] == ['Formato', 'Campos', 'Motivo']
+    filas_f13 = [f for f in faltan.rows if f.cells[0].text == 'F13 Detalle de costos']
+    assert len(filas_f13) == 1 and 'LP, RP, Reforzamiento' in filas_f13[0].cells[1].text
+    resumen = json.loads(ruta.with_suffix('.json').read_text(encoding='utf-8'))
+    assert {h['filas'] for h in resumen['huecos'] if h['formato'] == 'F13 Detalle de costos'} == {1}
+
+
+def test_las_tablas_anchas_caben(tmp_path):
+    """072:RF-21 — en blanco va apaisado y las tablas con letra menor: F13 tiene 15 columnas."""
+    ruta = tmp_path / 'p.docx'
+    escribir_modulo(ruta, MODULO['propuesta_pide'], _datos())
+    d = docx.Document(ruta)
+    assert d.sections[0].page_width > d.sections[0].page_height
+    trozo = d.tables[0].rows[0].cells[0].paragraphs[0].runs[0]
+    assert trozo.font.size.pt == TAMANO_DE_TABLA
 
 
 def test_un_formato_largo_se_corta_y_lo_avisa(tmp_path):

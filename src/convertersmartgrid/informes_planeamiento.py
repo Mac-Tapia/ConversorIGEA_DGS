@@ -17,12 +17,15 @@ from pathlib import Path
 from typing import Any
 
 from .estudio_planeamiento import Estudio
+from .formatos_pide import huecos_de
 from .informe_docx import Escritor, guardar_informe, preparar_modelo
 from .informes import InformeError
 from .pide import FORMATOS
 
 #: Filas de un formato que caben en el Word; el libro de formatos lleva todas.
 TOPE_DE_FILAS = 60
+#: Puntos de la letra en las tablas.
+TAMANO_DE_TABLA = 8
 
 #: Columna del año en los formatos que lo llevan, para quedarse con el periodo del PIDE.
 _COLUMNA_ANIO = {'F08': 0, 'F09': 0, 'F10': 0, 'F11': 1, 'F12': 1, 'F13': 1}
@@ -47,12 +50,37 @@ class DatosPlaneamiento:
     rotulos_cabecera: Mapping[str, str] = field(default_factory=dict)
 
 
+class _EscritorDeModulo(Escritor):
+    """Tablas compactas y títulos separados: F13 tiene 15 columnas, y a letra normal partía «Año» en dos líneas."""
+
+    def titulo(self, texto: str) -> None:
+        from docx.shared import Pt
+
+        super().titulo(texto)
+        self.d.paragraphs[-1].paragraph_format.space_before = Pt(12)
+
+    def tabla(self, cabecera: Sequence[str], filas: Sequence[Sequence[str]]) -> None:
+        from docx.shared import Pt
+
+        super().tabla(cabecera, filas)
+        for fila in self.d.tables[-1].rows:
+            for celda in fila.cells:
+                for parrafo in celda.paragraphs:
+                    for trozo in parrafo.runs:
+                        trozo.font.size = Pt(TAMANO_DE_TABLA)
+
+
 def _documento(datos: DatosPlaneamiento, titulo: str):
-    """El modelo de la empresa si su perfil lo da; sin él, un documento en blanco y no un error."""
+    """El modelo de la empresa si su perfil lo da; sin él, un documento apaisado en blanco y no un error."""
     if datos.modelo is None:
         import docx
+        from docx.enum.section import WD_ORIENT
 
-        return docx.Document()
+        documento = docx.Document()
+        seccion = documento.sections[0]
+        seccion.orientation = WD_ORIENT.LANDSCAPE
+        seccion.page_width, seccion.page_height = seccion.page_height, seccion.page_width
+        return documento
     if not Path(datos.modelo).is_file():
         raise InformeError(f'No existe el modelo de los informes de planeamiento: {datos.modelo}.')
     return preparar_modelo(Path(datos.modelo), datos.rotulos_cabecera, {'referencia': titulo})
@@ -230,10 +258,26 @@ MODULOS = (
 )
 
 
+def _huecos_del_modulo(modulo: Modulo, datos: DatosPlaneamiento) -> list[dict[str, Any]]:
+    """Lo que le falta a lo que el módulo muestra: el PIDE no cuenta las obras posteriores a su periodo."""
+    if modulo.entregable == 'PIDE':
+        visibles = {_nombre_del_formato(c): _del_periodo(datos, c) for c in modulo.formatos}
+        return [h for h in huecos_de(visibles) if h['formato'] in visibles]
+    return [h for h in datos.formatos['huecos'] if h['formato'].split()[0] in modulo.formatos]
+
+
+def _agrupados(huecos: Sequence[Mapping[str, Any]]) -> list[list[str]]:
+    """Una fila por formato y motivo: F13 repetía la misma frase por cada una de sus nueve columnas."""
+    grupos: dict[tuple[str, str], list[str]] = {}
+    for h in huecos:
+        grupos.setdefault((h['formato'], h['motivo']), []).append(h.get('campo') or '(todo el formato)')
+    return [[formato, ', '.join(campos), motivo] for (formato, motivo), campos in grupos.items()]
+
+
 def escribir_modulo(destino: Path, modulo: Modulo, datos: DatosPlaneamiento) -> list[str]:
     """Un módulo: su metodología, sus tablas y formatos, y lo que le falta (072:RF-21)."""
     titulo = f'{modulo.entregable}: {modulo.titulo}'
-    e = Escritor(_documento(datos, titulo))
+    e = _EscritorDeModulo(_documento(datos, titulo))
     e.titulo(titulo.upper())
     _generalidades(e, datos)
     e.titulo('Metodología')
@@ -241,10 +285,9 @@ def escribir_modulo(destino: Path, modulo: Modulo, datos: DatosPlaneamiento) -> 
     e.titulo('Resultados')
     modulo.cuerpo(e, datos)
     e.titulo('Datos que faltan')
-    huecos = [h for h in datos.formatos['huecos'] if h['formato'].split()[0] in modulo.formatos]
+    huecos = _huecos_del_modulo(modulo, datos)
     if huecos:
-        e.tabla(('Formato', 'Campo', 'Filas', 'Motivo'),
-                [[h['formato'], h.get('campo') or '(todo el formato)', str(h.get('filas') or ''), h['motivo']] for h in huecos])
+        e.tabla(('Formato', 'Campos', 'Motivo'), _agrupados(huecos))
     else:
         e.parrafo('Ninguno en sus formatos.')
     guardar_informe(e.d, destino, {'modulo': modulo.clave, 'entregable': modulo.entregable, 'estudio': datos.estudio.resumen(),
