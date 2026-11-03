@@ -19,6 +19,8 @@ from convertersmartgrid.web import services
 from convertersmartgrid.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
+#: Fijada antes de entrenar ningún candidato (070:RF-70): no se actualiza para que pase una prueba.
+HUELLA_PRUEBA_SELLADA = 'df5e1db88595d378'
 VOCAB = {'alimentadores': ['F1', 'F2', 'F3', 'F4'], 'proyecto': ['P1'], 'sistema': ['S1'], 'set': ['SETA'],
          'subtipo': ['refuerzo de red']}
 
@@ -1326,3 +1328,194 @@ def test_via_clasificador_sin_fuga_y_con_calidad(entorno, monkeypatch):
     assert 'repetido' not in [x[0] for x in vistos[0]] and 'propio' in [x[0] for x in vistos[0]]
     manifiesto = registro.detalle('clasificador', r['candidato']['candidate_id'], verificar_artefactos=False)['dataset_manifest']
     assert manifiesto['calidades'] and manifiesto['textos_de_prueba_quitados'] == 1
+
+# ------------------------------------------------------------------ T8, currículo y prueba
+def test_curriculo_cinco_parafrasis_de_entrenar_por_tarea_con_origen():
+    """070:RF-67 / 070:RF-68 — al menos cinco distintas por tarea, nuevas y antiguas, marcadas por su origen."""
+    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL, MAESTRO_070, PARAFRASIS_070
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_HASTA_069
+
+    assert MAESTRO_070['origen'] == 'sintetico_spec_070'
+    assert set(PARAFRASIS_070) == set(TAREAS_HASTA_069) and all(len(set(v)) >= 5 for v in PARAFRASIS_070.values())
+    assert all(len(set(ESTILO_REAL[t])) >= 5 for t in set(TAREAS) - set(TAREAS_HASTA_069))
+    filas, meta = preparar_corpus({}, [], por_familia=2)
+    nuevas = [r for r in filas if r.get('origen_curriculo') == 'parafrasis_070']
+    assert nuevas and all(r['particion'] == 'entrenamiento' for r in nuevas)
+    assert meta['parafrasis_070']['maestro'] == MAESTRO_070 and meta['parafrasis_070']['filas'] == len(nuevas)
+
+
+def test_curriculo_sin_nombres_de_empresa_ni_numeros_fijos():
+    """070:RF-67 — P2 y P13: nada de empresas, zonales ni códigos reales en lo que se añade."""
+    from convertersmartgrid.asistente.curriculo_maestro import PARAFRASIS_070
+    from convertersmartgrid.asistente.prueba_sellada import FRASES, VOCABULARIO
+
+    texto = normalizar_todo(PARAFRASIS_070, FRASES, VOCABULARIO)
+    for prohibida in ('dunas', 'pisco', 'chincha', 'nasca', 'copara', 'electro', 'na205', 'in111', '101 alimentadores'):
+        assert prohibida not in texto, prohibida
+
+
+def normalizar_todo(*dicts):
+    from convertersmartgrid.asistente.sinteticos import normalizar
+
+    return normalizar(' '.join(str(d) for d in dicts))
+
+
+def test_curriculo_prueba_sellada_con_varias_parafrasis_y_su_declaracion():
+    """070:RF-69 — varias frases por tarea de todo el catálogo, y el módulo dice cómo se generó."""
+    from convertersmartgrid.asistente import prueba_sellada as ps
+    from convertersmartgrid.asistente.tareas import TAREAS
+
+    assert set(ps.FRASES) == set(TAREAS) and all(len(set(v)) >= 5 for v in ps.FRASES.values())
+    filas = ps.selladas()
+    por_grupo = {}
+    for r in filas:
+        por_grupo.setdefault(r['tarea'], set()).add(r['group_id'])
+    assert all(len(g) >= 5 for g in por_grupo.values())
+    assert all(p in ps.__doc__ for p in ('sin mirar ningún modelo', 'expandir', 'semilla', 'HUELLA'))
+    assert all(r['quality'] != 'gold_human' for r in filas)
+
+
+def test_curriculo_prueba_sellada_huella_fija_sin_depender_del_espacio():
+    """070:RF-70 — la misma con cualquier vocabulario del espacio; si cambia, se rechaza."""
+    from convertersmartgrid.asistente import prueba_sellada as ps
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+
+    assert ps.HUELLA == HUELLA_PRUEBA_SELLADA and ps.huella_de(ps.filas()) == HUELLA_PRUEBA_SELLADA
+    uno, m1 = preparar_corpus({}, [], por_familia=1)
+    dos, m2 = preparar_corpus({'alimentadores': ['AB101'], 'proyecto': ['Otro'], 'sistema': ['Valle']}, [], por_familia=1)
+    sellada = lambda filas: sorted(r['record_id'] for r in filas if r.get('conjunto') == ps.CONJUNTO)  # noqa: E731
+    assert sellada(uno) == sellada(dos) and m1['prueba_sellada']['huella'] == m2['prueba_sellada']['huella'] == HUELLA_PRUEBA_SELLADA
+    original = ps.FRASES['estado']
+    try:
+        ps.FRASES['estado'] = (*original[:-1], 'una frase cambiada')
+        with pytest.raises(ValueError, match='huella'):
+            ps.selladas()
+    finally:
+        ps.FRASES['estado'] = original
+
+
+def test_curriculo_prueba_sellada_separada_por_familias():
+    """070:RF-71 — ni un texto ni una familia en entrenamiento, selección o calibración, también con erratas."""
+    from convertersmartgrid.asistente import prueba_sellada as ps
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.asistente.maestro_real import clave_texto, firma_familia
+
+    filas, _ = preparar_corpus({'alimentadores': ['AB101', 'CD202'], 'proyecto': ['Proyecto X'], 'sistema': ['Valle']}, [], por_familia=6)
+    sellada = [r for r in filas if r.get('conjunto') == ps.CONJUNTO]
+    resto = [r for r in filas if r['particion'] != 'prueba']
+    textos = {clave_texto(r['texto']) for r in sellada}
+    familias = {firma_familia(r['texto'], r['datos']) for r in sellada}
+    assert sellada and resto
+    assert not [r for r in resto if clave_texto(r['texto']) in textos or firma_familia(r['texto'], r['datos']) in familias]
+    assert not ({r['group_id'] for r in sellada} & {r['group_id'] for r in resto})
+
+
+def test_curriculo_prueba_historica_intacta_y_sin_tareas_nuevas():
+    """070:RF-72 — las filas de la anterior son las mismas y de las tareas de entonces."""
+    from convertersmartgrid.asistente.destilacion_integral import es_historica, preparar_corpus
+    from convertersmartgrid.asistente.tareas import TAREAS_HASTA_069
+    from convertersmartgrid.evaluacion_modelos import huella
+
+    filas, meta = preparar_corpus({}, [], por_familia=5)
+    historicas = [r for r in filas if es_historica(r)]
+    assert {r['tarea'] for r in historicas} == set(TAREAS_HASTA_069)
+    assert meta['prueba_historica'] == {'huella': huella(sorted(r['record_id'] for r in historicas)), 'filas': len(historicas)}
+    assert not [r for r in filas if es_historica(r) and r.get('conjunto')]
+
+
+def test_curriculo_decide_la_sellada_y_la_historica_se_mide_sin_decidir(tmp_path, monkeypatch):
+    """070:RF-69 / 070:RF-72 — el protocolo real con codificador falso: decisión con la nueva, medida con las dos."""
+    import convertersmartgrid.model_registry as mr
+    from test_interprete_codificador import CodificadorFalso
+
+    from convertersmartgrid.asistente import codificador_ordenes as co, destilacion_integral as di, prueba_sellada as ps, transformer as tr
+
+    monkeypatch.setattr(tr, 'liberar_gpu', lambda: None)
+    import torch
+
+    monkeypatch.setattr(tr, '_dispositivo', lambda: torch.device('cpu'))
+    monkeypatch.setattr(co, 'FABRICA', CodificadorFalso)
+    co._abiertos.clear()
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setattr(mr, 'reabrir_en_subproceso', lambda *_a, **_k: {'ok': True})
+    vistas = {}
+    original = di.decidir_promocion
+
+    def espia(sinteticas, humanas, familias, referencia, rechazo=None):
+        vistas['sinteticas'] = sinteticas
+        return original(sinteticas, humanas, familias, referencia, rechazo)
+
+    monkeypatch.setattr(di, 'decidir_promocion', espia)
+    filas, meta = di.preparar_corpus({}, [{'texto': 'carga la fuente', 'tarea': 'cargar_fuente', 'datos': [], 'origen': 'confirmado'}], por_familia=1)
+    di.guardar_corpus(tmp_path / 'corpus', filas, meta, [])
+    cfg = co.Configuracion(epocas=1, lote_tarea=64, lote_etiquetas=64, oculta_tarea=8, oculta_etiquetas=8)
+    r = di.entrenar_destilacion(tmp_path / 'corpus', tmp_path / 'run', cfg=cfg, semillas=(11,), registro=tmp_path / 'reg', log=lambda *_a, **_k: None)
+    n_sellada = sum(x.get('conjunto') == ps.CONJUNTO for x in filas)
+    assert vistas['sinteticas']['ejemplos'] == n_sellada and r['sinteticas']['ejemplos'] == n_sellada
+    assert r['prueba_sellada']['huella'] == HUELLA_PRUEBA_SELLADA
+    assert r['prueba_historica']['decide'] is False and r['prueba_historica']['medida']['ejemplos'] > 0
+    assert r['prueba_historica']['huella'] == meta['prueba_historica']['huella']
+
+
+@pytest.mark.parametrize('cambio', [{'acierto_tarea': .9499}, {'f1_datos': .8499}])
+def test_curriculo_puertas_de_familia_no_bajan(cambio):
+    """070:RF-73 — 0,95 y 0,85 por familia, ni una décima menos."""
+    from convertersmartgrid.asistente import destilacion_integral as di
+    from convertersmartgrid.asistente.tareas import TAREAS
+
+    perfecto = {'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}
+    familias = {t: dict(perfecto) for t in TAREAS}
+    rechazo = {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.}
+    assert di.decidir_promocion(perfecto, perfecto, familias, familias, rechazo)['status'] == 'PROMOVIDO'
+    familias['estado'] = {**perfecto, **cambio}
+    assert di.decidir_promocion(perfecto, perfecto, familias, None, rechazo)['status'] == 'RECHAZADO'
+
+
+@pytest.mark.parametrize('humanas, rechazo', [
+    ({'ejemplos': 3, 'acierto_tarea': .9799, 'f1_datos': 1.}, {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.}),
+    ({'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': .9499}, {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.}),
+    ({'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}, {'ejemplos': 200, 'rechazada': .8999, 'se_cuela': 0.}),
+    ({'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}, {'ejemplos': 200, 'rechazada': 1., 'se_cuela': .0201})])
+def test_curriculo_puertas_humanas_y_de_rechazo_no_bajan(humanas, rechazo):
+    """070:RF-73 — 0,98 y 0,95 humanas; rechazo de al menos 0,90 y como mucho 0,02."""
+    from convertersmartgrid.asistente import destilacion_integral as di
+    from convertersmartgrid.asistente.tareas import TAREAS
+
+    perfecto = {'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}
+    familias = {t: dict(perfecto) for t in TAREAS}
+    assert di.decidir_promocion(perfecto, humanas, familias, familias, rechazo)['status'] == 'RECHAZADO'
+
+
+def test_curriculo_un_pronostico_no_es_reconstruccion():
+    """070:RF-74 — «pronostica» estaba en ``gemelo_temporal``, que reconstruye a un paso."""
+    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL, FAMILIAS, PARAFRASIS_070
+    from convertersmartgrid.asistente.ordenes_fijas import FRASES
+    from convertersmartgrid.asistente.prueba_sellada import FRASES as SELLADA
+    from convertersmartgrid.asistente.tareas import TAREAS
+
+    conjuntos = (FAMILIAS, ESTILO_REAL, PARAFRASIS_070, FRASES, SELLADA, {t: v.plantillas for t, v in TAREAS.items()})
+    for c in conjuntos:
+        assert not [f for f in c.get('gemelo_temporal', ()) if 'pronostic' in f]
+    assert any('pronostic' in f for f in ESTILO_REAL['pronostico'])
+
+
+def test_curriculo_fijas_con_su_huella_intacta():
+    """070:RF-75 — con 48 tareas siguen siendo las 200 de siempre."""
+    from convertersmartgrid.asistente import ordenes_fijas as of
+
+    assert of.huella(of.generar({})) == '41f7ab110ac35c0b'
+
+
+def test_curriculo_interpreta_lo_mismo_con_tipos_nuevos_en_un_heredado():
+    """070:RF-18 — los modelos con menos etiquetas siguen leyéndose: sus índices no se movieron."""
+    import numpy as np
+
+    from convertersmartgrid.asistente.datos_por_palabra import ETIQUETAS, marcar_datos
+
+    heredadas = 1 + 2 * 10
+    p = np.zeros((10, heredadas), dtype='float32')
+    p[:, 0] = 1.
+    p[5:, ETIQUETAS.index('B-proyecto')] = 3.
+    p[5:, 0] = 0.
+    assert 'proyecto' in marcar_datos('hola AB101', p)

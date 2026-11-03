@@ -362,3 +362,37 @@ for _tarea, _frases in {
     'pronostico': ('pronostico de cabecera', 'pronostico de clientes', 'pronostica la demanda de {alimentadores} con {ruta}', 'pronostica clientes fijos con {ruta}'),
 }.items():
     ESTILO_REAL[_tarea] = (*ESTILO_REAL[_tarea], *_frases)
+
+# 070:RF-67, RF-68: paráfrasis solo de entrenamiento para las tareas de antes, con la forma de las del inventario
+# de operaciones. Son sintéticas (MAESTRO_070): no copian órdenes del operador ni nombran ninguna empresa (P9, P13).
+PARAFRASIS_070 = {
+    'estado': ('como vamos con lo mio', 'que esta corriendo ahora', 'que hay cargado en el espacio', 'dime como quedo lo ultimo', 'que tal va la corrida'),
+    'proyectos': ('que proyectos me conoces', 'pasame los proyectos de digsilent', 'nombra mis proyectos de pf', 'que hay en digsilent ya leido', 'cuantos proyectos tengo en pf'),
+    'resultados_pide': ('que obras salieron en el pide', 'dame las prioridades del pide de {proyecto}', 'en que archivo estan los formatos del pide', 'las obras que dejo el pide de {proyecto}', 'como quedo el pide de {proyecto}'),
+    'episodios': ('cuantos episodios van en {proyecto}', 'que guardo el gemelo de {proyecto}', 'muestrame lo que tiene el gemelo', 'lista los episodios del gemelo', 'los casos que guardo el gemelo'),
+    'pregunta': ('como se elige el instante', 'explicame la escalera', 'que hace sin proyecto', 'como funciona la calibracion por barra', 'que significa cargabilidad'),
+    'clasificar_informe': ('que estudio seria este {texto}', 'ponle tipo a {texto}', 'en que tipo entra {texto}', 'clasificame {texto}', 'que subtipo le toca a {texto}'),
+    'buscar_internet': ('busca algo sobre {texto} en internet', 'hay papers de {texto}', 'busca una libreria para {texto}', 'investiga {texto} en github', 'mira arxiv por {texto}'),
+    'leer_proyectos': ('actualizame los proyectos de digsilent', 'vuelve a leer que proyectos hay', 'refresca la lista de digsilent', 'lee otra vez digsilent', 'relee los proyectos de pf'),
+    'evaluar_gemelo': ('cuanto se equivoca el gemelo', 'mide la pinn contra digsilent', 'evalua el gemelo', 'que tan bien predice la pinn', 'error del gemelo frente a pf'),
+    'cargar_fuente': ('carga nomas la fuente', 'jala los datos del espacio', 'lee la red que subi', 'abre la fuente del espacio', 'carga lo que asigne'),
+    'convertir': ('pasame {alimentadores} a dgs', 'hazme el dgs de {alimentadores}', 'convierte {alimentadores} porfa', 'dame el dgs de {alimentadores}', 'genera en dgs {alimentadores}'),
+    'unir': ('juntame {alimentadores} en un solo dgs', 'arma la red unida con {alimentadores}', 'une {alimentadores} en un proyecto', 'un dgs para {alimentadores} juntos', 'red comun de {alimentadores}'),
+    'convertir_sistema': ('sacame el dgs del sistema {sistema}', 'convierte todo {sistema}', 'genera {sistema} como sistema electrico', 'dame {sistema} en dgs entero', 'dgs completo de {sistema}'),
+    'sistema_completo': ('hazme {sistema} completo para {periodo}', 'convierte importa y calibra {sistema} con {periodo}', 'lleva {sistema} completo con {periodo}', 'todo {sistema} con la medicion de {periodo}', 'sistema {sistema} calibrado con {periodo}'),
+    'flujo': ('importa {alimentadores} a digsilent y correle el flujo', 'mete {alimentadores} en power factory', 'sube {alimentadores} y prueba el flujo', 'pasa {alimentadores} a pf con flujo', 'dame el flujo en digsilent de {alimentadores}'),
+    'verificar_caso_base': ('chequea el caso base de {proyecto}', 'valida el caso base de {proyecto} contra el original', 'el caso base de {proyecto} esta conforme', 'revisamelo el caso base de {proyecto}', 'verificame el caso base de {proyecto}'),
+    'cargas_nuevas': ('carga el excel {ruta} de nuevas en {alimentadores} de {proyecto}', 'integra las nuevas de {ruta} en {proyecto}', 'sube el bloque de cargas {ruta} a {proyecto}', 'el bloque {ruta} va a {proyecto}', 'nuevas en bloque de {ruta} para {proyecto}'),
+    'obras': ('aplica las obras pendientes de {proyecto}', 'ejecuta las obras en {alimentadores} de {proyecto}', 'dale a las obras de {proyecto}', 'pon lo pendiente de obras en {proyecto}', 'las obras de {proyecto} aplicalas'),
+    'estudios': ('correme los estudios de {proyecto}', 'haz todos los estudios de {alimentadores} en {proyecto}', 'estudia la red de {proyecto}', 'correle {estudio} a {alimentadores} en {proyecto}', 'sacame {estudio} de {proyecto}', 'calcula {estudio} en {alimentadores} de {proyecto}'),
+    'obras_escalera': ('correle la escalera a {alimentadores} de {proyecto}', 'prueba bancos seccion y terna en {alimentadores} de {proyecto}', 'busca la obra mas simple para {proyecto}', 'escalera para {alimentadores} de {proyecto}', 'corre la escalera con el capex {ruta} en {proyecto}'),
+    'optimizar_con_proyecto': ('optimiza con proyecto de {proyecto} porfa', 'cuantas cargas entran en {alimentadores} de {proyecto}', 'reparte las nuevas entre obras y set nueva en {proyecto}', 'manda las nuevas directo a una set nueva {set} en {proyecto}', 'plantea set nueva para {proyecto} con el capex {ruta}'),
+    'transferencia': ('cuanta carga pasa entre {alimentadores} en {proyecto}', 'calcula transferencia entre {alimentadores} de {proyecto}', 'mira el respaldo entre {alimentadores} de {proyecto}', 'pasame carga entre {alimentadores} en {proyecto}', 'transferencia {alimentadores} {proyecto}'),
+    'pide': ('arma el pide de {proyecto} porfa', 'corre el plan de inversiones de {alimentadores} en {proyecto}', 'planifica {proyecto} con pide', 'el pide de {proyecto} correlo', 'plan pide para {alimentadores} de {proyecto}'),
+    'gemelo_aprender': ('que aprenda el gemelo con {proyecto}', 'simula {numero} escenarios en {proyecto}', 'hazle aprendizaje activo a {alimentadores} de {proyecto}', 'pon al gemelo a aprender de {proyecto}', '{numero} escenarios del gemelo con {proyecto}'),
+    'gemelo_entrenar': ('reentrena la pinn', 'entrena el modelo del gemelo', 'actualiza el gemelo con lo nuevo', 'que la pinn aprenda de nuevo', 'dale entrenamiento al oraculo'),
+    'gemelo_temporal': ('reproduce el mes de {alimentadores} con gru', 'corre el gemelo temporal de {alimentadores}', 'curvas del mes con la gru', 'rehaz el mes de {alimentadores}', 'serie del mes de {alimentadores}'),
+    'informe_estudio': ('sacame el informe de estudio de {alimentadores} en {proyecto}', 'redacta el estudio electrico de {alimentadores} en {proyecto}', 'genera el word del estudio de {alimentadores} de {proyecto}', 'informe de estudio {alimentadores} {proyecto}', 'el estudio de {alimentadores} en word de {proyecto}'),
+    'informe_factibilidad': ('haz la factibilidad de {sed} en {alimentadores} de {proyecto}', 'genera la factibilidad de {sed} en {proyecto}', 'saca el informe de factibilidad de {sed} en {proyecto}', 'la factibilidad de {sed} para {alimentadores} de {proyecto}', 'el word de factibilidad de {sed} en {proyecto}'),
+    'entrenar_asistente': ('reentrena el asistente con lo que hay', 'aprende de mis ordenes', 'que el asistente aprenda otra vez', 'entrena de nuevo el transformer', 'actualiza el modelo del asistente'),
+}

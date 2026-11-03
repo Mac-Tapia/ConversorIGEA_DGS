@@ -1,6 +1,6 @@
 # Spec 070 — El asistente opera el conversor de punta a punta
 
-Estado: aprobada
+Estado: implementada
 
 Rama de trabajo: `asistente/070`.
 Cita: 026 (asistente), 027 (RF-19, RF-43, RF-44, RF-65), 028 (RF-21 a RF-31), 046 (RF-20 a RF-24), 047 (RF-11),
