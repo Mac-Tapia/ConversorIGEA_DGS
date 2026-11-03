@@ -508,7 +508,7 @@ def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
 
 
 def test_la_escalera_va_por_alimentador(monkeypatch):
-    """042:RF-24 — cada alimentador sube la escalera con sus cargas; el que no cumple pasa sus cargas a la obra siguiente."""
+    """042:RF-24, 042:RF-29 — cada alimentador sube la escalera con sus cargas; el que no cumple pasa sus cargas a la obra siguiente."""
     from convertersmartgrid.web import services
 
     aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 900.0, 'variacion': 'Carga_A'},
@@ -517,8 +517,12 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
     llamadas = []
 
+    vistos_solo = []
+
     def escalera(ws, ctx, project, feeders, *, cargas_activas=None, aplicar=True, **k):
         llamadas.append((tuple(feeders), tuple(cargas_activas or ()), aplicar))
+        if aplicar:
+            vistos_solo.append(k.get('solo'))
         return {'alimentadores': [{'feeder': feeders[0], 'elegida': {'nombre': 'bancos'} if feeders == ['F1'] else None}]}
     monkeypatch.setattr(services, 'obras_escalera', escalera)
 
@@ -532,5 +536,6 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2'])
     assert (('F1',), ('Carga_A',), False) in llamadas and (('F2',), ('Carga_B', 'Carga_C'), False) in llamadas
     assert (('F1',), ('Carga_A',), True) in llamadas
+    assert vistos_solo == [{'F1': 'bancos'}], '042:RF-29: al aplicar, solo la obra elegida'
     assert r['caben'] == 1 and {c['sed'] for c in r['a_set_nueva']} == {'B', 'C'}
     assert r['por_alimentador']['F2']['cumple'] is False

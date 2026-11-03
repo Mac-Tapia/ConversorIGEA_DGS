@@ -5751,7 +5751,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
                    capex: str | None = None, cargas_activas: list[str] | None = None,
                    aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
-                   variantes_de: dict | None = None, solo_comun: bool = False) -> dict:
+                   variantes_de: dict | None = None, solo_comun: bool = False,
+                   solo: dict | None = None) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -5905,6 +5906,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         if variantes_de is not None and f in variantes_de:
             # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.
             vs = list(variantes_de[f])
+        if solo and f in solo:
+            # 042:RF-29: al aplicar, solo la obra que eligió la evaluación del alimentador; no se repiten sus variantes.
+            vs = [v for v in vs if v.nombre == solo[f]] or vs
         if not vs:
             fila['avisos'].append(f'{f}: ninguna variante que probar.')
             resultado.append(fila)
@@ -6036,22 +6040,26 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     for c in aplicadas:
         f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
         por_alim.setdefault(f, []).append(c)
-    cumplen, resto, por_feeder, memo = [], [], {}, {}
+    cumplen, resto, por_feeder, memo, elegidas = [], [], {}, {}, {}
     for f, cs in sorted(por_alim.items()):
         ctx.check_cancel()
         r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
                            aplicar=False, basta_una=True, memo=memo, **opciones)
         fila = next(iter(r.get('alimentadores') or []), {})
         ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        if fila.get('elegida') and not fila.get('ya_cumple'):
+            elegidas[f] = str(fila['elegida'].get('nombre') or '')
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
                          'ya_cumple': bool(fila.get('ya_cumple'))}
         ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
                 + ('cumple con bancos, sección o terna (042:RF-24).' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
         (cumplen if ok else resto).append(f)
     escalera = None
-    if cumplen:
-        activas = [c['variacion'] for f in cumplen for c in por_alim[f]]
-        escalera = obras_escalera(ws, ctx, project, cumplen, cargas_activas=activas, aplicar=True, memo=memo, **opciones)
+    con_obra = [f for f in cumplen if elegidas.get(f)]          # 042:RF-29: el que ya cumple no lleva obra
+    if con_obra:
+        activas = [c['variacion'] for f in con_obra for c in por_alim[f]]
+        escalera = obras_escalera(ws, ctx, project, con_obra, cargas_activas=activas, aplicar=True, basta_una=True,
+                                  memo=memo, solo={f: elegidas[f] for f in con_obra}, **opciones)
     campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     orden = sn.orden_de_cargas(aplicadas)
     return {'project': project.strip(), 'orden': [{k: c.get(k) for k in campos} for c in orden],
