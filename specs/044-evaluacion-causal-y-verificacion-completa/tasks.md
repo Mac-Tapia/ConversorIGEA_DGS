@@ -11,7 +11,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_evaluacion_modelos.py tests/test_digital_twin_particiones.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [ ] T2. Calibración y puertas por familia. (RF-4, RF-5, RF-8)
+- [x] T2. Calibración y puertas por familia. (RF-4, RF-5, RF-8)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_calibracion_independiente.py tests/test_digital_twin_oraculo.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
