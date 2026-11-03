@@ -87,6 +87,45 @@ def test_el_excel_gana_a_todo(monkeypatch, tmp_path):
     assert services._estructura_y_origen(_espacio(excel=str(tmp_path / 'x.xlsx')))[1] == 'excel'
 
 
+def _de_empresa(company=None, crs=None, opciones=None):
+    return SimpleNamespace(inventory={'provenance': {'company': company, 'crs': crs}}, options=opciones or {})
+
+
+def _perfil_de_empresa(monkeypatch, datos):
+    from convertersmartgrid.perfil_empresa import PerfilEmpresa
+
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: datos)
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.cargar_perfil',
+                        lambda *a, **k: PerfilEmpresa(crs_origen='EPSG:1', patron_sed_medicion='^M', escala_diagrama=2.0))
+    monkeypatch.setattr(services, 'carpeta_pf', lambda: 'carpeta_del_perfil')
+
+
+def test_el_perfil_de_otra_empresa_no_se_aplica(monkeypatch):
+    """055:RF-6 — ni su CRS, ni su patrón de SED de medición, ni su escala."""
+    _perfil_de_empresa(monkeypatch, {'codigo_empresa': 'AAA'})
+    ajena = services.perfil_de(_de_empresa('BBB'))
+    assert ajena.crs_origen is None and ajena.patron_sed_medicion is None and ajena.escala_diagrama is None
+    assert services.perfil_de(_de_empresa('aaa')).patron_sed_medicion == '^M', 'la suya, sin distinguir mayúsculas'
+
+
+def test_sin_dato_de_empresa_no_se_supone_ajena(monkeypatch):
+    """055:RF-6 — un TXT o una .mdb no dicen su empresa, y un perfil sin código no se compara."""
+    _perfil_de_empresa(monkeypatch, {'codigo_empresa': 'AAA'})
+    assert services.empresa_ajena(_de_empresa(None)) is None
+    _perfil_de_empresa(monkeypatch, {})
+    assert services.empresa_ajena(_de_empresa('BBB')) is None
+
+
+def test_se_importa_en_la_carpeta_de_su_empresa_y_con_su_crs(monkeypatch):
+    """055:RF-7 — la carpeta lleva el nombre de la empresa de la fuente; el CRS, el que trae la fuente."""
+    _perfil_de_empresa(monkeypatch, {'codigo_empresa': 'AAA'})
+    assert services.carpeta_de(_de_empresa('BBB')) == 'BBB'
+    assert services.carpeta_de(_de_empresa('AAA')) == 'carpeta_del_perfil'
+    assert services.crs_origen(_de_empresa('BBB', crs='EPSG:32718')) == 'EPSG:32718'
+    assert services.crs_origen(_de_empresa('BBB')) is None, 'sin él, se pide: no vale el del perfil de otra'
+    assert services.crs_origen(_de_empresa('BBB', crs='EPSG:32718', opciones={'source_crs': 'EPSG:9'})) == 'EPSG:9'
+
+
 def test_una_fuente_sin_estructura_no_inventa(monkeypatch):
     """055:RF-4 — TXT o .mdb sin estructura ni perfil: ninguna, y se dice; un perfil sin cubrir sigue siendo el perfil."""
     _perfil(monkeypatch, None)

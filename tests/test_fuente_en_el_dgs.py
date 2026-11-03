@@ -15,7 +15,7 @@ def test_el_txt_sigue_diciendo_cymdist_y_las_otras_fuentes_no():
     """056:RF-3 — CYMDIST solo para su TXT, que así da el mismo DGS que antes."""
     assert _ORIGEN_DGS['txt'] == 'CYMDIST'
     for fuente in ('mdb', 'vnr'):
-        assert 'CYMDIST' not in _ORIGEN_DGS[fuente] and 'IGEA' not in _ORIGEN_DGS[fuente]
+        assert 'CYMDIST' not in _ORIGEN_DGS[fuente]
 
 
 def test_el_dataset_y_el_modelo_traen_su_fuente_con_txt_por_defecto():

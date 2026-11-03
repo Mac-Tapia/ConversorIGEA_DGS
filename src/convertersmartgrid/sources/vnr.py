@@ -75,6 +75,7 @@ class VnrSourceAdapter:
         source.update({
             'company': alcance['company'],
             'period': alcance['period'],
+            'crs': modelo.metadata.get('source_crs'),                       # 055:RF-7: la dice su empresa
             'package_format': 'sqlserver_bak',
             'sqlserver': alcance,
             'canonical_counts': modelo.counts(),
