@@ -101,6 +101,8 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/costos_fuentes.py` | Costos oficiales: contrato de fuente, lector del SICODI público y cruce por código, tensión, estructura y sector típico. | 072 |
 | `src/convertersmartgrid/formatos_pide.py` | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. | 072 |
 | `src/convertersmartgrid/informes_planeamiento.py` | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. | 072 |
+| `src/convertersmartgrid/madrl_obras.py` | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. | 074 |
+| `src/convertersmartgrid/madrl_politica.py` | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. | 074 |
 | `src/convertersmartgrid/metrados.py` | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. | 072 |
 | `src/convertersmartgrid/proyeccion_mercado.py` | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. | 072 |
 | `src/convertersmartgrid/pide_economia.py` | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. 14, flujo privado con el pliego tarifario y la tasa privada, priorización del art. 15 con obras sobredimensionadas, y la propuesta con la obra de la spec 011 de lo que se construye solo. | 024 (RF-33, RF-34, RF-45 a RF-47, RF-54 a RF-59), 073 (RF-28, RF-29) |
@@ -274,6 +276,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/transformador_set_pf.py` | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la barra más el Δ de cabecera de 4.2), un flujo por estado, con la carga restituida y comprobada; `--listar` da las cargas de barra con su transformador y los casos. | 017 (RF-65 a RF-68, RF-70) |
 | `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto; un enlace entre barras de distinta tensión no se cierra ni se calcula. | 011 (RF-104 a RF-129), 016 (RF-62, RF-63) |
 | `tools/costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. | 072 |
+| `tools/madrl_entrenar.py` | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. | 074 |
+| `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019 |

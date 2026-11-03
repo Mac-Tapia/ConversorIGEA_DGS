@@ -80,5 +80,5 @@ retirada.
 | [071](071-puertas-de-los-modelos/spec.md) | Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | 8 | 8 | T5 |
 | [072](072-pide-y-planeamiento-de-largo-plazo/spec.md) | PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | 21 | 18 | T3, T9, T11 |
 | [073](073-bancos-limitados-por-valle/spec.md) | El número de bancos lo define la tensión en las ventanas de valle | aprobada | 41 | 41 | T8 (DIgSILENT), T9, T10 |
-| [074](074-piloto-madrl-en-obras/spec.md) | Reserva del número en esta rama | reservada | 0 | 0 | — |
+| [074](074-piloto-madrl-en-obras/spec.md) | Piloto MADRL en obras: medir antes de aprender | aprobada | 10 | 9 | T5, T7, T8 |
 | [075](075-validacion-cruzada-de-las-ordenes/spec.md) | Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | 46 | 46 | T6 (DIgSILENT) |

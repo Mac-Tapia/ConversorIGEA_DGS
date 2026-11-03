@@ -1,0 +1,11 @@
+# Spec 074: dependencias del piloto MADRL, verificadas el 2026-11-02 con torch 2.14.1 y CPython 3.12.
+# No van al .venv compartido: se instalan aparte y las herramientas las añaden a su ruta.
+#   python -m pip install --no-deps --target %USERPROFILE%\.convertersmartgrid\madrl_deps -r requirements-madrl.txt
+torchrl==0.14.1
+tensordict==0.14.3
+pyvers==0.2.3
+hoptorch==0.1.4
+sb3-contrib==2.9.2
+stable-baselines3==2.9.2
+gymnasium==1.4.0
+farama-notifications==0.0.6
