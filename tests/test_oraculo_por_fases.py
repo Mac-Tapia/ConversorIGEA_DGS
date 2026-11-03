@@ -15,7 +15,7 @@ import pytest
 pytest.importorskip('pandapower')
 
 from convertersmartgrid import oraculo  # noqa: E402
-from convertersmartgrid.model import CapacitorBank, SwitchingDevice, build_feeder_model  # noqa: E402
+from convertersmartgrid.model import CapacitorBank, Coupler, DatosRegulador, SwitchingDevice, build_feeder_model  # noqa: E402
 from synthetic_export import ExportSpec, load_export  # noqa: E402
 from test_oraculo_unido import _red  # noqa: E402
 
@@ -217,3 +217,39 @@ def test_con_todo_trifasico_los_dos_flujos_dicen_lo_mismo(tmp_path):
     net, _barra, _informe = oraculo.red_pandapower(modelo, por_fases=True)
     oraculo._ejecutar(pandapower, net)
     assert float(oraculo._tensiones(net).min()) == pytest.approx(equilibrada.v_min_pu, abs=0.005)
+
+
+def _con_regulador(modelo, corriente):
+    """El primer tramo de verdad pasa a ser un regulador entre sus dos barras."""
+    tramo = next(ln for ln in modelo.lines if ln.length_m >= oraculo._LARGO_CONEXION_M)
+    modelo.lines = [ln for ln in modelo.lines if ln.section_id != tramo.section_id]
+    modelo.devices = [d for d in modelo.devices if d.section_id != tramo.section_id]
+    datos = DatosRegulador(2, corriente, float(modelo.nominal_kv))
+    modelo.couplers = [Coupler('BR1', tramo.from_node, tramo.to_node, 1, 'regulador', 'E', 'E1', tramo.section_id,
+                               'ABC', regulador=datos)]
+    return modelo
+
+
+@pytest.mark.parametrize('por_fases', (False, True))
+def test_un_regulador_tiene_impedancia_y_no_cuenta_como_tramo(tmp_path, por_fases):
+    """082:RF-15 — sus 3 consumían 0,23 Mvar en DIgSILENT y el oráculo los daba por interruptor. X = uk·Un/In."""
+    modelo = _con_regulador(_trifasico(_modelo(tmp_path)), 100.0)
+    net, _barra, informe = oraculo.red_pandapower(modelo, por_fases=por_fases)
+    linea = net.line[net.line.name == 'BR1']
+    assert len(linea) == 1 and not (net.switch.name == 'BR1').any()
+    x_esperada = 0.003 * float(modelo.nominal_kv) * 1000 / 3 ** 0.5 / 100.0
+    assert float(linea.x_ohm_per_km.iloc[0]) == pytest.approx(x_esperada)
+    assert informe.lineas == len(net.line) - 1
+    assert _cuadra(informe), informe.recuento
+    assert oraculo.validar(modelo).convergio
+
+
+def test_un_regulador_abierto_corta_y_sin_corriente_es_interruptor(tmp_path):
+    """082:RF-15 — abierto no lleva corriente; sin corriente en la fuente no hay de dónde sacar su X."""
+    modelo = _con_regulador(_trifasico(_modelo(tmp_path)), 100.0)
+    modelo.couplers = [dataclasses.replace(modelo.couplers[0], on_off=0)]
+    net, _barra, _informe = oraculo.red_pandapower(modelo)
+    assert not bool(net.line[net.line.name == 'BR1'].in_service.iloc[0])
+    sin_dato = _con_regulador(_trifasico(_modelo(tmp_path / 'b')), None)
+    net, _barra, informe = oraculo.red_pandapower(sin_dato)
+    assert (net.switch.name == 'BR1').any() and _cuadra(informe)
