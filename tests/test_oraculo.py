@@ -100,15 +100,15 @@ def test_no_modifica_el_modelo_y_es_determinista(tmp_path):
     assert primero == segundo
 
 
-def test_una_impedancia_nula_es_error_y_no_se_calcula(tmp_path):
-    """Con R1 = X1 = 0 la matriz es singular: el oráculo dice la causa en vez de un
-    «no converge» que la tape, y no lanza excepción."""
+def test_una_impedancia_nula_es_error_y_se_calcula_el_resto(tmp_path):
+    """082:RF-1 — con R1 = X1 = 0 el tramo va como conexión: se dice la causa, sin un «no converge»
+    que la tape, y el resto del alimentador se calcula."""
     modelo = _modelos(tmp_path)[0]
     clave = next(iter(modelo.lines)).type_key
     modelo.line_types[clave] = dataclasses.replace(
         modelo.line_types[clave], r1_ohm_km=0.0, x1_ohm_km=0.0)
     inf = oraculo.validar(modelo)
-    assert not inf.convergio
+    assert inf.convergio and inf.veredicto == 'errores'
     assert 'impedancia_nula' in {h.codigo for h in inf.errores}
     assert 'no_converge' not in {h.codigo for h in inf.hallazgos}
 
