@@ -205,10 +205,15 @@ def test_peor_que_la_referencia_se_rechaza():
 
 
 def test_rol_sin_criterio_no_se_acepta_por_omision():
-    """044:RF-7 — «cargas_nuevas» no tiene caso en ``evaluar``: no se juzga con el criterio de otro."""
+    """044:RF-7 — «cargas_nuevas» no se acepta como obra: no se juzga con el criterio de otro caso.
+
+    Desde la 045 (045:RF-1) ``evaluar`` tiene su caso y lo da por contrafactual; antes no tenía criterio. En los
+    dos, lo que importa es que no se verifica y el motivo dice por qué.
+    """
     contexto = contexto_de('cargas_nuevas')
     r = _verificar(ALT, medida_nativa(0.97, 10.0, contexto=contexto), contexto=contexto)
-    assert not r['verificada'] and 'criterio de evaluación' in r['descartadas'][0]['motivo']
+    motivo = r['descartadas'][0]['motivo']
+    assert not r['verificada'] and ('criterio de evaluación' in motivo or 'counterfactual' in motivo), motivo
 
 
 def test_validar_reune_todos_los_motivos():
@@ -223,8 +228,8 @@ def test_validar_reune_todos_los_motivos():
 def test_ningun_llamador_verifica_sin_contexto():
     """044:RF-7 — quien llame a ``verificar_top_k`` en producción le pasa contexto y límites.
 
-    Hoy no tiene llamadores: ``optimizar_bancos`` propone y la confirmación de 052 va por ``obras_pf``.
-    Esto vigila al primero que lo conecte (T4): sin los dos, todo se descartaría sin saber por qué.
+    Desde la T5 la llama la aceptación de lo aplicado en la 052 (``web/services._aceptar_con_medicion_nativa``).
+    Esto vigila a ese llamador y a los siguientes: sin los dos, todo se descartaría sin saber por qué.
     """
     for carpeta in ('src', 'tools'):
         for ruta in (RAIZ / carpeta).rglob('*.py'):

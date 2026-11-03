@@ -71,7 +71,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6 |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
-  | 044 Evaluación causal y verificación completa | aprobada | ver sus tareas |
+  | 044 Evaluación causal y verificación completa | implementada | falta T4 |
   | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3, T4 |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |

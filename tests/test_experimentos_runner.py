@@ -293,3 +293,78 @@ def test_runner_no_acepta_promovido_sin_candidato(tmp_path):
     real = correr({'promovido': True, 'entrenado': True, 'candidate_id': 'a' * 64, 'modelo_registro': 'pronostico_cabecera'})
     assert real['status'] == 'PROMOVIDO' and real['candidate_id'] == 'a' * 64
     assert real['modelo_registro'] == 'pronostico_cabecera'
+
+
+def _guardia_en_otro_proceso(lock, segundos: float | None = None):
+    """Un doble de la otra sesión que tiene la GPU: toma la guardia común y la suelta tras ``segundos``
+    o al cerrar su entrada; no toca CUDA."""
+    import subprocess
+
+    espera = f'time.sleep({segundos})' if segundos is not None else 'sys.stdin.read()'
+    codigo = ('import sys,time; sys.path.insert(0,sys.argv[2]); '
+              'from convertersmartgrid.training_coordinator import BloqueoGPU; '
+              'b=BloqueoGPU(sys.argv[1],"otra-sesion"); b.__enter__(); print("LOCKED",flush=True); '
+              f'{espera}; b.__exit__(None,None,None)')
+    src = Path(__file__).resolve().parents[1] / 'src'
+    proc = subprocess.Popen([sys.executable, '-c', codigo, str(lock), str(src)], stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, text=True)
+    assert proc.stdout.readline().strip() == 'LOCKED'
+    return proc
+
+
+def test_reapertura_con_la_gpu_de_otro_dice_gpu_ocupada(tmp_path, monkeypatch):
+    """043:RF-5, 043:RF-6 — entrenar sin turno y con otra sesión en la GPU: la reapertura real no se hace,
+    nada se promueve y el motivo dice «GPU ocupada», no un código de salida (2026-11-03)."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    lock = tmp_path / 'gpu.lock'
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
+    monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    otra = _guardia_en_otro_proceso(lock)
+    try:
+        fallos = []
+        r = _decidir_promocion(bufer, carpeta, {}, fallos, 'mae')
+    finally:
+        otra.communicate('', timeout=30)
+    assert r['promovido'] is False and r['smoke_reload']['ok'] is False
+    assert any('reapertura' in f and 'GPU ocupada' in f for f in fallos), fallos
+
+
+def test_con_el_turno_tomado_la_reapertura_lo_hereda(tmp_path, monkeypatch):
+    """043:RF-5, 043:RF-6 — quien entrena con el turno lo pasa al hijo que reabre: el hijo llega a abrir el
+    candidato (aquí sin ``readback.json``, luego falla por eso) y no por la GPU."""
+    from apoyo import turno_gpu_esperando
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    lock = tmp_path / 'gpu.lock'
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
+    monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    fallos = []
+    with turno_gpu_esperando('prueba-reapertura', limite_s=0):
+        r = _decidir_promocion(bufer, carpeta, {}, fallos, 'mae')
+    assert r['promovido'] is False and fallos and not any('GPU ocupada' in f for f in fallos), fallos
+    assert 'readback' in fallos[0]
+
+
+def test_la_prueba_que_entrena_espera_su_turno(tmp_path, monkeypatch):
+    """043:RF-6 — con otra sesión en la GPU, la prueba espera su turno; si no llega a tiempo, falla diciendo
+    «GPU ocupada» en vez de dejar que el candidato se rechace por otro motivo."""
+    import time
+
+    from apoyo import turno_gpu_esperando
+    lock = tmp_path / 'gpu.lock'
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
+    monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
+    otra = _guardia_en_otro_proceso(lock)
+    try:
+        with pytest.raises(RuntimeError, match='GPU ocupada'):
+            with turno_gpu_esperando('prueba', limite_s=0.3, pausa_s=0.1):
+                pass
+    finally:
+        otra.communicate('', timeout=30)
+    otra = _guardia_en_otro_proceso(lock, segundos=1.0)
+    t0 = time.monotonic()
+    with turno_gpu_esperando('prueba', limite_s=60, pausa_s=0.2):
+        assert json.loads(lock.read_text(encoding='utf-8'))['model'] == 'prueba'
+    assert time.monotonic() - t0 >= 0.5
+    otra.wait(timeout=30)

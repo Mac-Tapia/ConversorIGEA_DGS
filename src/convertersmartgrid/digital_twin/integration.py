@@ -15,6 +15,7 @@ from typing import Any
 
 from .buffer import BuferEpisodios, Consulta
 from .capture import CapturaImposible, artefacto_de, construir_episodio
+from .contratos_fisicos import contexto_fisico
 from .episode import Caso, Clase, EpisodioInvalido
 from .evaluacion import Limites, limites_del_sistema
 
@@ -87,6 +88,87 @@ def limites_combinados(perfil: Mapping[str, Any], normas: Iterable[str | None]) 
                    min(lim.tension_max_pu for lim in todos),
                    min(lim.cargabilidad_max_pct for lim in todos),
                    min(trafos) if trafos else None)
+
+
+#: 044:RF-6: diferencias admitidas entre lo que predijo el oráculo y lo que mide DIgSILENT al aceptar una
+#: alternativa. No son de una empresa: son la precisión que se exige al gemelo (0,003 p.u. medida en el
+#: arranque de la 052). El perfil puede dar otras en ``gemelo.aceptacion``.
+TOLERANCIAS_ACEPTACION = {'tolerancia_v_pu': 0.01, 'tolerancia_perdidas': 0.2, 'tolerancia_perdidas_kw': None}
+
+
+def _contexto_experimento(origen: Mapping[str, Any], project: Any, feeders: Iterable[Any], caso: Mapping[str, Any],
+                          fisico: Mapping[str, Any], base: Mapping[str, Any]):
+    from ..experimentos import ContextoExperimento
+
+    try:
+        return ContextoExperimento(
+            source_run_id=origen.get('source_run_id'), source_mode=origen.get('source_mode'),
+            source_fingerprint=origen.get('source_fingerprint'), project=str(project or '').strip(),
+            feeders=tuple(sorted(str(f) for f in feeders)), case_id=caso.get('id'), case_role=caso.get('rol'),
+            year=base.get('year'), period=base.get('period'), criterio_fijas=base.get('criterio_fijas'),
+            profile_hash=base.get('profile_hash'), topology_hash=fisico.get('topology_hash'),
+            controls_hash=fisico.get('controls_hash'), scenario_hash=fisico.get('scenario_hash'))
+    except (TypeError, ValueError):
+        return None
+
+
+def contexto_de_lectura(lectura: Mapping[str, Any] | None, base: Mapping[str, Any], *, esperado: bool = False):
+    """El ``ContextoExperimento`` de una lectura nativa tras reabrir (044:RF-7); ``None`` si le falta algo.
+
+    Con ``esperado``, proyecto, alimentadores y fuente son los del contexto firmado de la acción, y el caso, el
+    pedido: así se nota una lectura de otro proyecto, otros alimentadores u otro caso. Topología, controles y
+    escenario solo los da DIgSILENT tras aplicar: no hay otra predicción de ellos.
+    """
+    if not isinstance(lectura, Mapping):
+        return None
+    fisico = contexto_fisico(lectura)
+    if 'ausente' in fisico:
+        return None
+    firmado = base.get('native_action_context') or {}
+    caso = dict(lectura.get('caso_nativo') or {})
+    if esperado:
+        caso['rol'] = base.get('case_role')
+        return _contexto_experimento(firmado.get('source') or {}, firmado.get('project'), firmado.get('feeders') or (),
+                                     caso, fisico, base)
+    return _contexto_experimento(firmado.get('source') or {}, lectura.get('project'), lectura.get('feeders') or (),
+                                 caso, fisico, base)
+
+
+def _flujo_de_media(lectura: Mapping[str, Any], kv_min: float) -> dict[str, Any] | None:
+    """El flujo leído con las tensiones de las barras de media, las que juzga el oráculo de la 052.
+
+    Con las de baja de cada SED, la mínima de DIgSILENT no sería la misma magnitud que la del oráculo.
+    """
+    flujo = lectura.get('flujo')
+    if not isinstance(flujo, Mapping):
+        return None
+    barras = (lectura.get('topologia') or {}).get('barras') or {}
+    tensiones = dict(flujo.get('tensiones') or {})
+    valores = {b: v for b, v in (tensiones.get('valores') or {}).items()
+               if float((barras.get(b) or {}).get('kv') or 0.0) >= kv_min}
+    return {**flujo, 'tensiones': {**tensiones, 'valores': valores}}
+
+
+def medicion_de_lecturas(con: Mapping[str, Any] | None, sin: Mapping[str, Any] | None, base: Mapping[str, Any], *,
+                         aplicadas: Iterable[str], kv_min: float) -> dict[str, Any]:
+    """La medición nativa que exige ``validar_medicion_nativa`` (044:RF-6, RF-7), de dos lecturas tras reabrir:
+    la del caso con la alternativa aplicada y la de su referencia, «Sin proyecto»."""
+    from ..evaluacion_modelos import UNIDADES_NATIVAS
+
+    con = con if isinstance(con, Mapping) and not con.get('error') else {}
+    sin = sin if isinstance(sin, Mapping) and not sin.get('error') else {}
+    flujo = _flujo_de_media(con, kv_min) if con else None
+    tensiones = list(((flujo or {}).get('tensiones') or {}).get('valores', {}).values())
+    perdidas = (((flujo or {}).get('perdidas') or {}).get('valores') or {}).get('total')
+    activas = set((con.get('topologia') or {}).get('variaciones_activas') or ())
+    return {'converge': flujo is not None, 'v_min': min(tensiones) if tensiones else None, 'perdidas_kw': perdidas,
+            'contexto': contexto_de_lectura(con, base), 'unidades': dict(UNIDADES_NATIVAS), 'flujo': flujo,
+            'reabierto': con.get('reopen_verified') is True,
+            # Una obra que tras reabrir ya no está activa no es la que se acepta.
+            'revertido': not set(aplicadas) <= activas,
+            'referencia': {'contexto': contexto_de_lectura(sin, base), 'flujo': _flujo_de_media(sin, kv_min) if sin else None,
+                           'reabierto': sin.get('reopen_verified') is True},
+            'avisos': list(con.get('avisos') or []) + list(sin.get('avisos') or [])}
 
 
 def plan_de_lectura(plan: Mapping[str, Any], caso: Caso,

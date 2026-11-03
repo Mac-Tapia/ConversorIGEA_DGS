@@ -6267,6 +6267,9 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
                                   aplicar=True, memo=memo, **opciones,
                                   variantes_de={f: [v for v in e['orden'] if v.nombre == elegidas.get(f)]
                                                 or e['orden'][:1] for f, e in eleccion.items()})
+    # 044:RF-6, RF-7: aplicada no es aceptada; se acepta con la medición nativa completa tras reabrir.
+    aceptacion = (_aceptar_o_avisar(ws, ctx, project, feeders, ora, eleccion, escalera, comun)
+                  if escalera else None)
     s_pf = time.monotonic() - t_pf
     resto = orden[k:]
     if resto:
@@ -6277,7 +6280,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
     resumen = {f: {x: e[x] for x in ('elegida', 'tabla', 'bayesiana', 'pareto', 'shapley')}
                for f, e in eleccion.items()}
     informe_oraculo = {'eleccion': resumen, 'discrepancias': discrepancias, 'comparacion': comparacion,
-                       'tiempos': tiempos, 'valle': valle,
+                       'tiempos': tiempos, 'valle': valle, 'aceptacion_nativa': aceptacion,
                        'markov': {x: markov[x] for x in ('estacionaria', 'transicion', 'niveles')}}
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(ws.out_dir / f"oraculo_con_proyecto_{time.strftime('%Y%m%d_%H%M%S')}.json",
@@ -6291,6 +6294,124 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
             'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto], 'oraculo': informe_oraculo,
             # 052:RF-18: para comprobar la SET nueva; no va al informe (no es JSON).
             '_oraculo': {'ora': ora, 'obras': obras_elegidas, 'p': p, 'valle': valle}}
+
+
+class _SinMedicion(Exception):
+    """No hubo lectura nativa con que aceptar (044:RF-7)."""
+
+
+def _aceptar_o_avisar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], ora,
+                      eleccion: dict, escalera: dict, comun: dict) -> dict:
+    """La aceptación nativa sin parar la corrida: lo aplicado ya está en DIgSILENT y la SET nueva va después."""
+    try:
+        return _aceptar_con_medicion_nativa(ws, ctx, project, feeders, ora, eleccion, escalera, comun)
+    except Exception as exc:  # noqa: BLE001 - borde de la web: se informa y no se acepta
+        ctx.log(f'AVISO: no se pudo comprobar la aceptación nativa ({exc!r}): no se acepta y la corrida sigue '
+                '(044:RF-7).')
+        return {'verificada': False, 'aceptada': False, 'motivos': [f'error al comprobarla: {exc!r}']}
+
+
+def _aceptar_con_medicion_nativa(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], ora,
+                                 eleccion: dict, escalera: dict, comun: dict) -> dict:
+    """Acepta lo aplicado en «Con proyecto» solo con la evaluación nativa completa (044:RF-6, RF-7).
+
+    La 052 confirmaba en DIgSILENT con ``obras_pf`` (cumple o no, en la máxima y los sorteos) y daba por buena
+    la obra sin comparar el oráculo con lo medido, sin reabrir y sin su referencia. Aquí se predice con el oráculo
+    el estado que queda en DIgSILENT (las obras aplicadas con las cargas nuevas activas), se leen tras reabrir
+    «Con proyecto» y «Sin proyecto» (``digital_twin_snapshot_pf.py``) y ``verificar_top_k`` decide. Lo que no pasa
+    se avisa con su motivo y no se acepta; la obra queda en DIgSILENT (los cambios no se borran) y la corrida
+    sigue con la SET nueva.
+    """
+    from ..digital_twin.evolutivo import verificar_top_k
+    from ..digital_twin.integration import (TOLERANCIAS_ACEPTACION, contexto_de_lectura, limites_combinados,
+                                            medicion_de_lecturas, normas_de)
+    from ..evaluacion_modelos import huella
+    from ..optimizacion_oraculo import KV_MEDIA_MIN
+    from ..perfil_empresa import estructura_empresa
+
+    filas = [a for a in escalera.get('alimentadores') or [] if a.get('aplicada')]
+    aplicadas = [v for a in filas for v in a['aplicada'] if v]
+    if not aplicadas:
+        return {'verificada': None, 'aceptada': False, 'motivos': ['no quedó ninguna obra aplicada que aceptar']}
+    elegidas = {a['alimentador']: a.get('elegida') for a in filas}
+    variantes = {f: next((x for x in (eleccion.get(f) or {}).get('orden') or () if x.nombre == n), None)
+                 for f, n in elegidas.items()}
+    sin_prediccion = sorted(f for f, v in variantes.items() if v is None)
+    if sin_prediccion:
+        # Predecir sin sus obras sería comparar DIgSILENT con otra red.
+        motivo = 'el oráculo no predijo la variante aplicada en ' + ', '.join(sin_prediccion)
+        ctx.log(f'AVISO: no se acepta lo aplicado: {motivo} (044:RF-7).')
+        return {'verificada': False, 'aceptada': False, 'motivos': [motivo]}
+    obras = [o for v in variantes.values() for o in v.obras]
+    # Lo que quedará leído: las obras con todas las cargas nuevas activas en «Con proyecto».
+    prediccion = ora.medir(obras, len(ora.nuevas))
+    alternativa = {'codigo': ' + '.join(f'{f}: {n}' for f, n in sorted(elegidas.items())), 'obras': obras,
+                   'v_min': prediccion.v_min, 'perdidas_kw': prediccion.perdidas_kw, 'oraculo': prediccion.oraculo}
+    perfil = comun.get('perfil') or {}
+    calibracion = ajuste_aplicado_en_disco(ws, project) or {}
+    periodo = next((str(c['periodo']) for c in (getattr(ws, 'criterio_cabecera', None) or {}).values()
+                    if (c or {}).get('periodo')), None)
+    accion = native_action_context(ws, project, feeders, 'obras')
+    base = {'native_action_context': accion, 'year': comun.get('anio_casos'), 'period': periodo,
+            'criterio_fijas': next((i.get('criterio_fijas') for i in calibracion.get('informes') or []
+                                    if i.get('criterio_fijas')), None),
+            'profile_hash': huella(perfil), 'case_role': 'con_proyecto'}
+    lecturas: dict[str, dict] = {}
+
+    def leer(caso: str) -> dict:
+        plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
+                'feeders': list(accion.get('feeders') or feeders), 'case': caso,
+                'variaciones_esperadas': aplicadas if caso == 'con_proyecto' else [],
+                'native_action_context': accion,
+                **{k: v for k, v in (('anio_casos', base['year']), ('periodo', periodo),
+                                     ('criterio_fijas', base['criterio_fijas'])) if v is not None}}
+        _rc, lectura, _rep = _guion_pf(ws, ctx, 'digital_twin_snapshot_pf.py', plan, nombre=f'aceptacion_{caso}',
+                                       cancelable=False)
+        lecturas[caso] = lectura
+        return lectura
+
+    avisos: list[str] = []
+    try:
+        medicion = medicion_de_lecturas(leer('con_proyecto'), leer('sin_proyecto'), base, aplicadas=aplicadas,
+                                        kv_min=KV_MEDIA_MIN)
+    except UserError as exc:
+        # Sin DIgSILENT no hay lectura: no se acepta, y lo demás sigue.
+        medicion = None
+        avisos.append(f'no se pudo leer DIgSILENT tras reabrir: {exc}')
+    avisos += [f"lectura de «{caso}»: {lectura['error']}" for caso, lectura in lecturas.items()
+               if isinstance(lectura, dict) and lectura.get('error')]
+    ajustes = {**TOLERANCIAS_ACEPTACION, **((perfil.get('gemelo') or {}).get('aceptacion') or {})}
+    try:
+        estructura = estructura_empresa()
+    except Exception:  # noqa: BLE001 - sin estructura no hay norma por sistema: evaluar lo dice
+        estructura = None
+    limites = limites_combinados(perfil, normas_de(estructura, feeders))
+    esperado = contexto_de_lectura(lecturas.get('con_proyecto'), base, esperado=True)
+    try:
+        if medicion is None:
+            raise _SinMedicion
+        r = verificar_top_k([alternativa], lambda _alt: medicion, tolerancia_v_pu=ajustes['tolerancia_v_pu'],
+                            tolerancia_perdidas=ajustes['tolerancia_perdidas'],
+                            tolerancia_perdidas_kw=ajustes.get('tolerancia_perdidas_kw'),
+                            contexto=esperado, limites=limites)
+    except _SinMedicion:
+        # Sin lectura, decir «no converge» sería falso: el motivo es la lectura, ya en ``avisos``.
+        r = {'verificada': False, 'descartadas': []}
+    except ValueError as exc:
+        r = {'verificada': False, 'descartadas': [{'motivo': f'tolerancias del perfil no válidas: {exc}'}]}
+    descartada = next(iter(r.get('descartadas') or []), {})
+    resultado = {'verificada': bool(r.get('verificada')), 'aceptada': bool(r.get('verificada')),
+                 'alternativa': alternativa['codigo'], 'oraculo': alternativa['oraculo'],
+                 'prediccion': {'v_min': alternativa['v_min'], 'perdidas_kw': alternativa['perdidas_kw']},
+                 'motivos': avisos + ([descartada['motivo']] if descartada.get('motivo') else []),
+                 'evaluacion': r.get('evaluacion'), 'validacion': r.get('validacion'),
+                 'tolerancias': ajustes, 'norma': limites.norma if limites is not None else None}
+    if resultado['aceptada']:
+        ctx.log(f"Aceptada en DIgSILENT con su evaluación nativa completa: {alternativa['codigo']} (044:RF-7).")
+    else:
+        ctx.log(f"AVISO: no se acepta {alternativa['codigo']}: {'; '.join(resultado['motivos'])}. La obra queda en "
+                '«Con proyecto» sin aceptar y la corrida sigue (044:RF-6, RF-7).')
+    return resultado
 
 
 def _punto_utm(lat: float, lon: float) -> dict | None:

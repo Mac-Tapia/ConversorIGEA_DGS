@@ -13,7 +13,7 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from apoyo import contrato_fisico
+from apoyo import contrato_fisico, turno_gpu_esperando
 from test_digital_twin_episode import _payload
 
 from convertersmartgrid.digital_twin import oraculo as orc
@@ -52,8 +52,18 @@ def _episodio(grafo, i, clase='counterfactual'):
     return leer_episodio(p)
 
 
+@pytest.fixture(scope='module', autouse=True)
+def turno():
+    """043:RF-6 — el módulo entrena y reabre en otro proceso: con el turno de la GPU, que su hijo hereda.
+
+    Sin él, con otra sesión en la GPU, la reapertura la encontraba ocupada y nada se promovía.
+    """
+    with turno_gpu_esperando('prueba-oraculo-pinn'):
+        yield
+
+
 @pytest.fixture(scope='module')
-def entrenado(tmp_path_factory):
+def entrenado(tmp_path_factory, turno):
     rnd = random.Random(11)
     bufer = BuferEpisodios(tmp_path_factory.mktemp('twin'))
     # 060:RF-2: 24 escenarios por red aportan familias distintas para selección

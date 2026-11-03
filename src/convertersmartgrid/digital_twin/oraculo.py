@@ -927,8 +927,11 @@ def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, 
     if not fallos:
         smoke = (reabrir or _reabrir_en_otro_proceso)(carpeta)
         if smoke.get('ok') is not True:
+            # El hijo deja su motivo en la última línea (``payload``). Sin leerlo, con la GPU en manos de
+            # otro proceso el operador veía «falló la reapertura en un proceso nuevo: 2» (2026-11-03).
+            hijo = smoke.get('payload') if isinstance(smoke.get('payload'), Mapping) else {}
             fallos.append('falló la reapertura en un proceso nuevo: '
-                          f"{smoke.get('error') or smoke.get('motivo') or smoke.get('stderr') or smoke.get('returncode')}")
+                          f"{smoke.get('error') or smoke.get('motivo') or hijo.get('error') or hijo.get('motivo') or smoke.get('stderr') or smoke.get('returncode')}")
     candidate_id = None
     if registro is not None:
         estado = EstadoModelo.RECHAZADO if fallos else EstadoModelo.PROMOVIDO

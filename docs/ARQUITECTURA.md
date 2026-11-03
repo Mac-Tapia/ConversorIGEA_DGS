@@ -239,7 +239,7 @@ El oráculo solo ordena y filtra: **toda obra se confirma con los módulos nativ
 - **Crecimiento por alimentador** (`crecimiento.py`, 029): tasa aritmética desde la medición de cabecera; conectado.
 - **Series causales** (`digital_twin/series_causales.py`, 046): preparación; solo por CLI.
 - **Multihorizonte con cuantiles** (046): **solo especificado**, no hay código.
-- **Particiones y puertas** (`evaluacion_modelos.py`, 044): conectadas, también en la PINN. `verificar_top_k` exige la medición nativa completa, pero aún **sin llamador en producción**: la confirmación de la 052 va por `obras_pf`; conectarla es de la 044 T4.
+- **Particiones y puertas** (`evaluacion_modelos.py`, 044): conectadas, también en la PINN. `verificar_top_k` exige la medición nativa completa. Desde la 044 T5 decide si se acepta lo aplicado en la 052, tras `obras_pf`: relee «Con proyecto» y «Sin proyecto» tras reabrir y lo compara con el oráculo. Lo que no pasa se avisa y no se acepta, sin parar la corrida. Probado con un doble; en DIgSILENT es de la 044 T4.
 
 ## Deudas conocidas
 
