@@ -297,7 +297,7 @@ def _modulo_mcp():
 
 
 def test_mcp_restringido_por_defecto():
-    """077:RF-61 / 077:RF-62 — el MCP abre lo local solo con su opción explícita, y su ayuda lo dice."""
+    """081:RF-63 / 077:RF-61 / 077:RF-62 — el MCP abre lo local solo con su opción explícita, y su ayuda lo dice."""
     fuente = (RAIZ / 'tools/mcp_conversor.py').read_text(encoding='utf-8')
     assert 'politica_local(texto_pdf) if args.datos_locales else RESTRINGIDA' in fuente
     r = subprocess.run([sys.executable, str(RAIZ / 'tools/mcp_conversor.py'), '--help'], capture_output=True, encoding='utf-8', check=False, timeout=60)

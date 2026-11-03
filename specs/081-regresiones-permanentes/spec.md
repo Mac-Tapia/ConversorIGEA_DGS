@@ -113,15 +113,26 @@ Usuario, 2026-11-03: «en DIgSILENT crea su carpeta para cada empresa para evita
 - RF-55: EL SISTEMA no ofrecerá entre las carpetas un proyecto de otra empresa.
 - RF-56: EL SISTEMA creará la carpeta si no existe, sin mover ni borrar los proyectos que ya haya en ninguna.
 
+Nada bloquea: el oráculo avisa y DIgSILENT dice la última palabra
+
+Usuario, 2026-11-03: «nada debe bloquear, debes dar solución, para eso están los oráculos». Cambia 057:RF-5, 057:RF-6 y 005:RF-4, que siguen como están escritas en su spec.
+
+- RF-57: SI el oráculo no converge o no se puede calcular, ENTONCES EL SISTEMA importará igual ese alimentador, con su aviso y su motivo (cambia 057:RF-5 y 057:RF-6).
+- RF-58: CUANDO se importa así, EL SISTEMA dará el estado con el flujo de DIgSILENT: «OK» si converge, y si no, `IMPORTADO_SIN_CONVERGENCIA` o `IMPORTADO_SIN_DATO_DE_FLUJO` (078:RF-19 a RF-21).
+- RF-59: SI la red no tiene ningún tramo, ENTONCES EL SISTEMA no la importará y lo dirá.
+- RF-60: SI no se pudo fijar la copia del DGS de un trabajo, ENTONCES EL SISTEMA no importará ese alimentador y lo dirá, porque no hay fichero que importar, y seguirá con los demás.
+- RF-61: SI el perfil trae una carpeta mal escrita y la empresa es desconocida, ENTONCES EL SISTEMA usará el nombre neutro y lo avisará, sin error (cambia 005:RF-4 en la web).
+- RF-62: EL SISTEMA no nombrará a una empresa ni a su carpeta de datos en la lista negra de lectura: la lectura restringida ya rechaza lo que está fuera del árbol (072:RF-20).
+- RF-63: LA ayuda de `tools/mcp_conversor.py` saldrá en UTF-8 con cualquier codificación de la consola.
+
 ## Fuera de alcance
 
 - Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).
 - Corregir las fases de tramos y SED en el modelo (054:RF-9, RF-10): las trae la rama de fases; esta spec las comprueba.
-- Cambiar qué bloquea el oráculo al importar (057:RF-6): sigue su spec, y queda dicho al integrador.
 - Probar en DIgSILENT, en el navegador o correr una suite real: van en sus tareas.
 - Averiguar la causa de (e): se dice «sin confirmar» y queda la huella para medirlo.
 
 ## Criterios de finalización
 
-- `grep -rnoE "081:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-56.
+- `grep -rnoE "081:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-63.
 - Un «Caso base» que no converge por una causa reconstruible llega convergido, con su anotación, en la prueba con doble y en DIgSILENT.

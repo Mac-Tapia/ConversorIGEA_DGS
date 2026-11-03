@@ -74,7 +74,7 @@ def test_sin_saber_la_empresa_no_bloquea():
     """081:RF-53 — el supuesto del perfil y, sin perfil, la neutra; los dos lo dicen."""
     d = decidir_carpeta(None, ' ', ('X',), _perfil_carpeta, hay_perfil=True)
     assert (d.carpeta, d.origen, d.supuesto) == ('carpeta_propia', 'perfil', True) and 'se supone' in d.aviso
-    d = decidir_carpeta(None, None, (), _perfil_carpeta, hay_perfil=False)
+    d = decidir_carpeta(None, None, (), lambda: NOMBRE_POR_DEFECTO, hay_perfil=False)
     assert (d.carpeta, d.origen, d.supuesto) == (NOMBRE_POR_DEFECTO, 'sin_empresa', True) and 'neutra' in d.aviso
 
 
@@ -89,6 +89,18 @@ def test_perfil_roto_no_afecta_a_otra_empresa(monkeypatch):
     monkeypatch.setattr(services, 'carpeta_pf', lambda: pytest.fail('no hace falta la del perfil'))
     nombre = _nombre()
     assert services.carpeta_de(_espacio(nombre)) == nombre
+
+
+def test_carpeta_mal_escrita_no_da_error():
+    """081:RF-61 — empresa desconocida: la neutra y el aviso con lo que está mal; empresa conocida: la de su nombre."""
+    from convertersmartgrid.carpeta_pf import CarpetaError
+
+    def mal():
+        raise CarpetaError("carpeta 'a/b' mal escrita")
+
+    d = decidir_carpeta(None, None, ('X',), mal, hay_perfil=True)
+    assert (d.carpeta, d.origen, d.supuesto) == (NOMBRE_POR_DEFECTO, 'sin_empresa', True) and "'a/b'" in d.aviso
+    assert decidir_carpeta('X', None, ('X',), mal, hay_perfil=True).carpeta == 'X'
 
 
 def test_el_espacio_guarda_la_empresa_aparte_de_la_fuente(tmp_path, perfil):
@@ -136,7 +148,7 @@ def test_ningun_plan_sale_sin_la_carpeta_de_su_vinculo():
     assert not re.findall(r"'project': (?:project|proyecto)[^\n]*'folder': carpeta_de\(ws\)", fuente)
     assert "'--pf-carpeta', carpeta_de(ws, project), '--source-dgs'" in fuente
     usos = [m for m in re.findall(r'^.*\bcarpeta_pf\b(?!\.py).*$', fuente, re.M) if 'from ..carpeta_pf' not in m]
-    assert [u for u in usos if 'def carpeta_pf' not in u and u.strip() != 'carpeta_pf,'] == []
+    assert [u for u in usos if 'def carpeta_pf' not in u and u.strip() != 'return carpeta_pf()'] == []
 
 
 def test_no_se_ofrece_el_proyecto_de_otra_empresa(tmp_path, perfil):

@@ -142,8 +142,8 @@ def test_aplicar_reglas_lo_informa_y_es_determinista(tmp_path):
     assert 'demanda_corregida' not in aplicar_reglas(modelo, SIN_REGLAS)
 
 
-def test_la_importacion_deja_fuera_lo_que_no_converge(tmp_path, monkeypatch):
-    """057:RF-5, 057:RF-6 — solo se importa lo que converge en el oráculo; el resto se nombra."""
+def test_la_importacion_sigue_si_el_oraculo_no_converge(tmp_path, monkeypatch):
+    """057:RF-5, 057:RF-6, 081:RF-57, 081:RF-58 — antes quedaba fuera; ahora se importa con su aviso y DIgSILENT dice la última palabra."""
     from types import SimpleNamespace
 
     from convertersmartgrid.web import services
@@ -189,7 +189,10 @@ def test_la_importacion_deja_fuera_lo_que_no_converge(tmp_path, monkeypatch):
 
     from pathlib import Path
     importados = [Path(c[c.index('--import-dgs') + 1]) for c in commands]
-    assert [p.name for p in importados] == ['BIEN.dgs']
+    assert [p.name for p in importados] == ['BIEN.dgs', 'MAL.dgs']
     assert all(p.parent != ws.out_dir for p in importados)  # 065:RF-6: entrada fijada por trabajo.
-    assert result['ok'] == 1 and result['failed'] == 1
-    assert any(l.startswith('NO_CONVERGE MAL') and 'TR_X' in l for l in result['lines'])
+    # Su flujo de DIgSILENT converge en este doble: OK, y se dice que el oráculo no opinaba igual.
+    assert result['ok'] == 2 and result['failed'] == 0 and 'TR_X' in result['avisos_oraculo']['MAL']
+    assert any(l.startswith('OK MAL') for l in result['lines'])
+    assert any('el oráculo no lo dio por bueno' in l and 'TR_X' in l for l in result['lines'])
+    assert any('AVISO oráculo MAL' in l for l in logs)

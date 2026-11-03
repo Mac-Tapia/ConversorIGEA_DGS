@@ -15,6 +15,13 @@ Lee: `docs/constitution.md`, specs 015, 054, 057, 078, y las notas `reconstruir-
 | Mejora continua | RF-46 a RF-49 | `docs/regresiones/`, `tests/test_regresiones.py` |
 | Carpeta por empresa | RF-50 a RF-56 | `carpeta_pf.decidir_carpeta`, `web/services.destino_carpeta` y `carpeta_de`, opción `empresa_espacio` |
 
+Decisiones de los cierres (RF-57 a RF-63):
+
+- Un control sin verificar (sin contrato, con el modelo o el DGS distintos de su contrato, o un cálculo que revienta) cuenta como «el oráculo no puede
+  calcular»: se importa con su aviso. Sigue en `no_convergen`, que ya solo informa; lo que para va en `red_vacia` y en los errores de fijar la copia.
+- Un error al fijar la copia del DGS sí deja ese alimentador fuera (RF-60): no es un veredicto, es que no hay fichero que importar con su hash.
+- `nombre_de_perfil` sigue rechazando una carpeta mal escrita (005:RF-4) para quien lo llame directo: guiones sueltos y `pf_proyectos`. Decide la web, en `decidir_carpeta`.
+
 Decisiones:
 
 - Carpeta: `empresa_ajena` no cambia, porque decide las convenciones del perfil (055:RF-6). La carpeta tiene su propia regla, en un solo sitio, porque

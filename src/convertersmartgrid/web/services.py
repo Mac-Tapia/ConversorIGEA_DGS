@@ -806,17 +806,23 @@ def empresa_ajena(ws: Workspace) -> str | None:
 
 def destino_carpeta(ws: Workspace):
     """En qué carpeta de DIgSILENT va lo que hay cargado en el espacio (081:RF-50 a RF-55, 055:RF-7)."""
-    from ..carpeta_pf import decidir_carpeta
+    from ..carpeta_pf import CarpetaError, decidir_carpeta
     from ..perfil_empresa import PerfilError, datos_perfil
 
     try:
         datos = datos_perfil()
     except PerfilError:
         datos = {}
+    def del_perfil() -> str:
+        try:
+            return carpeta_pf()
+        except UserError as exc:
+            raise CarpetaError(str(exc)) from exc                              # 081:RF-61: lo resuelve la regla
+
     opciones = getattr(ws, 'options', None) or {}
     return decidir_carpeta(_procedencia(ws).get('company'), opciones.get('empresa_espacio'),
                            (datos.get('codigo_empresa'), datos.get('nombre_empresa'), datos.get('empresa')),
-                           carpeta_pf,
+                           del_perfil,
                            # 005:RF-4: un perfil con su carpeta mal escrita se dice, no se toma por «sin perfil».
                            hay_perfil=bool(datos) or (project_root() / 'config' / 'perfil_empresa.json').is_file())
 
@@ -868,7 +874,7 @@ def pandapower_preflight(
     targets: list[str],
     ctx: JobContext,
 ) -> dict[str, Any]:
-    """Autoriza solamente el DGS cuyo modelo efectivo y miembros convergen.
+    """Calcula el modelo efectivo y sus miembros; avisa de lo que no converge y solo para una red vacía (081:RF-57, RF-59).
 
     La fuente puede haberse reconstruido y el perfil/alias pueden cambiar después:
     releerlos aquí validaría otra red (ARQ02). El productor conserva un snapshot
@@ -884,6 +890,7 @@ def pandapower_preflight(
     target_reports: list[dict[str, Any]] = []
     warnings: list[str] = []
     no_convergen: dict[str, str] = {}
+    red_vacia: dict[str, str] = {}
     for index, target in enumerate(targets, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(targets), f'pandapower: {target}')
@@ -892,6 +899,10 @@ def pandapower_preflight(
                 raise ValueError('pandapower no está disponible: control requerido no verificado.')
             contrato = load_contract(ws.out_dir / f'{target}.dgs')
             modelo = contrato['model']
+            # 081:RF-59: lo único que para. Sin tramos no hay red que calcular ni que importar.
+            if not any(m.lines for m in contrato['members']):
+                red_vacia[target] = 'la red no tiene ningún tramo'
+                continue
             group = ws.groups.get(target)
             if group and set(group.get('feeders') or []) != {m.name for m in contrato['members']}:
                 raise ValueError('Los miembros del grupo cambiaron desde la conversión.')
@@ -932,14 +943,15 @@ def pandapower_preflight(
             raise
         except Exception as exc:  # noqa: BLE001 - en el borde, fallar cerrado e informar
             no_convergen[target] = f'Control previo no verificado: {exc}'
-            ctx.log(f'  BLOQUEADO pandapower {target}: {no_convergen[target]}')
+            ctx.log(f'  SIN VERIFICAR pandapower {target}: {no_convergen[target]}')
     return {
         'disponible': disponible_actual,
-        'import_continued': not no_convergen,
+        'import_continued': not red_vacia,                                     # 081:RF-57, RF-59
         'feeders': reports,
         'targets': target_reports,
         'avisos': warnings,
         'no_convergen': no_convergen,
+        'red_vacia': red_vacia,
     }
 
 
@@ -1092,6 +1104,9 @@ def _causas_de_no_convergencia(flujo: dict, preflight: dict, feeder: str) -> lis
     oraculo = [str(h.get('texto') or h.get('detalle') or h) if isinstance(h, dict) else str(h)
                for r in preflight.get('feeders') or [] if r.get('feeder') == feeder or r.get('target') == feeder
                for h in r.get('hallazgos') or []]
+    motivo = (preflight.get('no_convergen') or {}).get(feeder)                 # 081:RF-57: también lo que impedía importar
+    if motivo:
+        oraculo.append(str(motivo))
     causas = clasificar_causas('\n'.join([flujo.get('motivo') or '', *(flujo.get('fallos') or [])]), oraculo=oraculo)
     return [{'causa': c.tipo, 'detalle': c.detalle, 'elementos': list(c.elementos), 'que_hacer': QUE_HACER[c.tipo]}
             for c in causas]
@@ -1104,23 +1119,25 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
     ctx.log('--- Preflight pandapower: conectividad, islas y convergencia ---')
     preflight = pandapower_preflight(control, [name for name, _dgs, _geo in jobs], ctx)
     preflight['artifacts'] = artifacts
-    preflight.setdefault('no_convergen', {}).update(pin_errors)
-    preflight['import_continued'] = not preflight['no_convergen']
+    # 081:RF-59, RF-60: solo para lo que no se puede importar: la red vacía y la copia que no se pudo fijar.
+    no_se_importa = {**(preflight.get('red_vacia') or {}), **pin_errors}
+    preflight['import_continued'] = not no_se_importa
     for aviso in preflight.get('avisos') or []:
         ctx.log(f'  AVISO pandapower: {aviso}')
-    no_convergen = dict(preflight.get('no_convergen') or {})
-    # Mantener la puerta por artefacto aunque el productor de informes registre
-    # solamente los miembros (ARQ01): G={A,B} nunca puede importar si falla A.
+    # 081:RF-57: lo que dice el oráculo es un aviso: DIgSILENT dice la última palabra (RF-58). Se nombra también en el
+    # grupo: el productor de informes registra solo los miembros, y G={A,B} se importa avisando si falla A.
+    avisos_oraculo = dict(preflight.get('no_convergen') or {})
     for target, _dgs, _geo in jobs:
         miembros = (control.groups.get(target) or {}).get('feeders') or [target]
-        fallos = [f'{miembro}: {no_convergen[miembro]}'
-                  for miembro in miembros if miembro in no_convergen]
+        fallos = [f'{miembro}: {avisos_oraculo[miembro]}'
+                  for miembro in miembros if miembro in avisos_oraculo]
         if fallos:
-            no_convergen[target] = '; '.join(fallos)
-    for feeder, motivo in no_convergen.items():
-        ctx.log(f'  NO SE IMPORTA {feeder}: no superó el control requerido (specs 057/065). '
-                f'{motivo}')
-    ctx.log('Preflight terminado; se importa cada DGS solicitado que converge en el oráculo.')
+            avisos_oraculo[target] = '; '.join(fallos)
+    for feeder, motivo in avisos_oraculo.items():
+        ctx.log(f'  AVISO oráculo {feeder}: se importa igual y DIgSILENT dice la última palabra (081:RF-57). {motivo}')
+    for feeder, motivo in no_se_importa.items():
+        ctx.log(f'  NO SE IMPORTA {feeder}: {motivo}')
+    ctx.log('Preflight terminado; se importa cada DGS solicitado.')
 
     destino = destino_carpeta(ws)
     carpeta = destino.carpeta
@@ -1152,9 +1169,9 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
     for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
-        if feeder in no_convergen:
+        if feeder in no_se_importa:
             fail_n += 1
-            lines.append(f'NO_CONVERGE {feeder}: no se importó; {no_convergen[feeder]}')
+            lines.append(f'NO_IMPORTADO {feeder}: {no_se_importa[feeder]}')
             continue
         ctx.log(f'[{index}/{len(jobs)}] Import + escenario + flujo {feeder}…')
         # Importar, activar escenario y correr el flujo: segundos. Sin --run-studies
@@ -1256,13 +1273,16 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
             reducida = (f" con la demanda reducida al {float(flujo['factor_demanda']) * 100:.1f} %"
                         if flujo['factor_demanda'] is not None else '')
             lines.append(f"OK {feeder} → aceptación; flujo convergido (return_code {flujo['return_code']}){reducida}")
+            if feeder in avisos_oraculo:                                       # 081:RF-58
+                lines.append(f'  {feeder}: el oráculo no lo dio por bueno y DIgSILENT sí: {avisos_oraculo[feeder]}')
         elif rc == 0:
             # 078:RF-20 a RF-23: el guion termina con 0 si el flujo no calcula (015:RF-40), y esta línea
             # decía «OK … convergencia» en un proyecto sin calcular. Queda importado, no aceptado.
             sin_aceptar += 1
             prefijo = ('IMPORTADO_SIN_CONVERGENCIA' if flujo['estado'] == FLUJO_NO_CONVERGE
                        else 'IMPORTADO_SIN_DATO_DE_FLUJO')
-            detalle = '; '.join([flujo['motivo'], *flujo['fallos'][:3]])
+            detalle = '; '.join([flujo['motivo'], *flujo['fallos'][:3],
+                                 *([f'oráculo: {avisos_oraculo[feeder]}'] if feeder in avisos_oraculo else [])])
             lines.append(f'{prefijo} {feeder}: importado sin aceptar; {detalle}')
             for paso in flujo['historial']:                                    # 078:RF-24
                 ctx.log(f'    intento {paso}')
@@ -1286,6 +1306,7 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'sin_aceptar': sin_aceptar, 'requested': len(jobs),
             'missing_dgs': missing, 'lines': lines, 'preflight': preflight, 'sin_resolver': sin_resolver,
+            'avisos_oraculo': avisos_oraculo,                                  # 081:RF-57
             'carpeta': asdict(destino),                                        # 081:RF-53, RF-54: también el supuesto
             'source': source_evidence, 'invocation_id': invocation_id, 'reports': reports,
             **veredicto_importacion(ok_n, fail_n, sin_aceptar)}                # 081:RF-22

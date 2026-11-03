@@ -55,6 +55,9 @@ def _servidor(lector: Any) -> Any:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # 081:RF-63: con la salida en un tubo, Windows escribe en cp1252 y la ayuda no se puede leer como UTF-8.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--datos-locales', action='store_true',
                         help='Abre el árbol entero y las raíces configuradas. Solo con un cliente que se ejecute en esta máquina.')

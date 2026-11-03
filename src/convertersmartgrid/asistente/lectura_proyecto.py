@@ -52,7 +52,7 @@ FICHEROS_BLANCOS = ('claude.md', 'codigo_fuente.md', 'vnr-gis.md', 'pyproject.to
 EXTENSIONES = ('.py', '.md', '.ts', '.tsx', '.css', '.json', '.toml', '.txt', '.yaml', '.yml', '.bat', '')
 SEGMENTOS_NEGROS = frozenset({'output', 'input', '.agents', '.git', '.venv', 'venv', 'node_modules', '__pycache__',
                               '.worktrees', 'referencia', 'maestro_real', 'dist', '.pytest_cache', '.cursor',
-                              '.ruff_cache', '.mypy_cache', 'basedatoselectrodunas', 'referencia_retirada_20261102'})
+                              '.ruff_cache', '.mypy_cache'})
 NOMBRES_NEGROS = ('perfil_empresa.json', 'line_type_aliases.json', 'demanda_medida_alias.json',
                   'costes_referenciales.json', 'vnr_settings.yaml')
 RUTAS_NEGRAS = ('config/perfiles/*',)

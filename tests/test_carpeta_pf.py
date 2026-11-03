@@ -638,17 +638,19 @@ def test_web_sin_perfil_usa_el_nombre_por_defecto(web):
     assert _valor(web.ordenes[0], '--carpeta') == NOMBRE_POR_DEFECTO
 
 
-def test_web_carpeta_invalida_no_lanza_digsilent(web):
-    """005:RF-4 — con el perfil inválido la web falla sin lanzar ningún guion de DIgSILENT."""
+def test_web_carpeta_invalida_usa_la_neutra_y_lo_avisa(web):
+    """081:RF-61 — cambia 005:RF-4 en la web: antes fallaba sin lanzar nada; ahora, nombre neutro y su aviso."""
     web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'a/b'}), encoding='utf-8')
-    with pytest.raises(web.services.UserError, match="'a/b'"):
-        web.services.pf_projects(web.ws, web.ctx)
+    destino = web.services.destino_carpeta(web.ws)
+    assert destino.carpeta == NOMBRE_POR_DEFECTO and destino.supuesto and "'a/b'" in destino.aviso
+    assert web.services.carpeta_de(web.ws) == NOMBRE_POR_DEFECTO
     dgs = web.ws.out_dir / 'RED.dgs'
     dgs.write_text('DGS', encoding='ascii')
     dgs.with_name('RED_feeder_metadata.json').write_text('{}', encoding='utf-8')
-    with pytest.raises(web.services.UserError, match="'a/b'"):
+    try:
         web.services.check_powerfactory_flow(web.ws, ['RED'])
-    assert web.ordenes == []
+    except web.services.UserError as exc:
+        assert "'a/b'" not in str(exc), 'la carpeta ya no para nada'
 
 
 def test_web_importa_en_la_carpeta_y_guarda_la_ruta(web, monkeypatch):
