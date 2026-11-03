@@ -6007,6 +6007,48 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
+def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                             anio_casos: int | None = None, tipo_cambio: float | None = None,
+                             capex: str | None = None, cargas: list[str] | None = None) -> dict:
+    """042:RF-24: cada alimentador con sus cargas nuevas sube la escalera; los que no cumplen pasan sus cargas a la siguiente obra."""
+    from ..demanda_medida import clave_codigo
+    from .. import set_nueva as sn
+
+    marcados = {clave_codigo(f) for f in feeders}
+    claves = {clave_codigo(n) for n in (cargas or [])}
+    aplicadas = [c for c in _cargas_nuevas_aplicadas(ws, project)
+                 if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')
+                 and (not claves or clave_codigo(c.get('sed')) in claves)]
+    if not aplicadas:
+        raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
+    por_alim: dict[str, list[dict]] = {}
+    for c in aplicadas:
+        f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
+        por_alim.setdefault(f, []).append(c)
+    cumplen, resto, por_feeder, memo = [], [], {}, {}
+    for f, cs in sorted(por_alim.items()):
+        ctx.check_cancel()
+        r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
+                           aplicar=False, basta_una=True, memo=memo, **opciones)
+        fila = next(iter(r.get('alimentadores') or []), {})
+        ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
+                         'ya_cumple': bool(fila.get('ya_cumple'))}
+        ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
+                + ('cumple con bancos, sección o terna (042:RF-24).' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
+        (cumplen if ok else resto).append(f)
+    escalera = None
+    if cumplen:
+        activas = [c['variacion'] for f in cumplen for c in por_alim[f]]
+        escalera = obras_escalera(ws, ctx, project, cumplen, cargas_activas=activas, aplicar=True, memo=memo, **opciones)
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
+    orden = sn.orden_de_cargas(aplicadas)
+    return {'project': project.strip(), 'orden': [{k: c.get(k) for k in campos} for c in orden],
+            'caben': sum(len(por_alim[f]) for f in cumplen), 'por_alimentador': por_feeder, 'escalera': escalera,
+            'a_set_nueva': [{k: c.get(k) for k in campos} for f in resto for c in por_alim[f]]}
+
+
 def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
                            capex: str | None = None, cargas: list[str] | None = None) -> dict:
@@ -6559,6 +6601,9 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
         campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
         escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
+    elif escalera_primero:                                              # 042:RF-24
+        escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
+                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                           tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)

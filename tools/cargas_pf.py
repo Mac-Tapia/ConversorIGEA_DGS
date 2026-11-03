@@ -1757,9 +1757,18 @@ def fecha_de_etapa_nueva(carpeta, hora_estudio: int) -> int:
     hora del estudio para que estén activas.
     """
     desde = hora_estudio - VENTANA_ETAPAS_S
-    usadas = [int(s.tAcTime) for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
-              for s in v.GetContents('*.IntSstage') if desde <= int(s.tAcTime) < hora_estudio]
-    return min(max(usadas) + 1, hora_estudio - 1) if usadas else desde
+    usadas = {int(s.tAcTime) for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+              for s in v.GetContents('*.IntSstage') if desde <= int(s.tAcTime) < hora_estudio}
+    if not usadas:
+        return desde
+    if max(usadas) + 1 < hora_estudio:
+        return max(usadas) + 1
+    # 042:RF-25: sin hueco después de la última, el libre más alto anterior; nunca un segundo ya usado.
+    # Pisco (2026-11-03): 14 cargas nuevas y las fichas en hora - 1, y DIgSILENT no aplicaba 5 de ellas.
+    t = hora_estudio - 1
+    while t in usadas and t > desde:
+        t -= 1
+    return t
 
 
 def etapas_al_dia(app) -> list[str]:

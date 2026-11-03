@@ -48,6 +48,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py tests/test_set_nueva.py tests/test_set_nueva_web.py` en verde.
 - [x] T15. «Con proyecto» medido con el plan completo de las zonas. (RF-23)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py` en verde.
+- [x] T16. La escalera por alimentador. (RF-24)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T17. Cada etapa nueva con su segundo propio. (RF-25)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
