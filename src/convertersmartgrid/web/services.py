@@ -8250,7 +8250,7 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
 
         return no_disponible(sys.modules[__name__], ws, plan)                  # 070:RF-47 a RF-49
     if t == 'pregunta':
-        return asistente_pregunta(str(datos.get('texto') or plan.texto))
+        return asistente_pregunta(str(datos.get('texto') or plan.texto), espacio=ws.id, plan=plan.id)
     if t == 'clasificar_informe':
         # La orden entera: el trozo marcado se quedaba en «suministro para 800 kW» y perdía
         # «solicitud de factibilidad», que es lo que dice el tipo (2026-10-24).
@@ -8970,10 +8970,12 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
     return {'plan': {**plan.publico(), 'equipo': gobierno.publico()}}
 
 
-def asistente_pregunta(texto: str) -> dict:
+def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | None = None) -> dict:
     """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18), y los
-    métodos con que se halló en el propio texto, que es lo que ve el operador (047:RF-26)."""
+    métodos con que se halló en el propio texto, que es lo que ve el operador (047:RF-26). Lee por el
+    gobierno del equipo, como operador, lo que la pregunta nombra o el LLM pide (077:RF-26, RF-33)."""
     from ..asistente import indice, reranker
+    from ..asistente.equipo import LecturaGobernada
     from ..asistente.ollama import cliente_configurado
     from ..trabajadores_ml import turno_gpu
 
@@ -8981,30 +8983,33 @@ def asistente_pregunta(texto: str) -> dict:
     if ollama.modelos() is None:
         ollama = None
     repo = project_root()
-    politica = reranker.politica()
+    servir = reranker.servicio()                                         # 077:RF-47, RF-48
+    politica = servir['politica']
     reordenador = reranker.reordenador_de(politica, lambda: turno_gpu('reranker'))
-    r = indice.responder(indice.cargar_o_construir(repo), texto, ollama, repo=repo,
+    r = indice.responder(indice.cargar_o_construir(repo, servir['corpus']), texto, ollama, repo=repo,
                          reordenador=reordenador, usar_vectores=politica['hibrido'],
-                         abstencion=reranker.abstencion())                # 047:RF-31 a RF-33
+                         abstencion=servir['abstencion'],                 # 047:RF-31 a RF-33
+                         lector=LecturaGobernada(repo, rol='operador', plan=plan, espacio=espacio))
     return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
-            'metodos': r['metodos']}
+            'metodos': r['metodos'], 'corpus': servir['corpus']}
 
 
 def asistente_vectores_pendientes() -> bool:
     """¿Hay vectores del índice por calcular y Ollama para hacerlo (047:RF-22)?"""
-    from ..asistente import indice
+    from ..asistente import indice, reranker
     from ..asistente.ollama import cliente_configurado
 
-    return indice.vectores_pendientes(project_root(), cliente_configurado())
+    return indice.vectores_pendientes(project_root(), cliente_configurado(), reranker.servicio()['corpus'])
 
 
 def asistente_calcular_vectores(ctx: JobContext, ceder) -> dict:
     """Los vectores del índice como trabajo: cancelable y cediendo el carril (047:RF-22, RF-24)."""
-    from ..asistente import indice
+    from ..asistente import indice, reranker
     from ..asistente.ollama import cliente_configurado
 
     r = indice.calcular_vectores(project_root(), cliente_configurado(), cancelar=ctx.check_cancel, ceder=ceder,
-                                 progreso=lambda n, total: ctx.progress(n, total, 'Vectores del índice'))
+                                 progreso=lambda n, total: ctx.progress(n, total, 'Vectores del índice'),
+                                 corpus=reranker.servicio()['corpus'])
     ctx.log(f"Vectores del índice: {r['con_vector']} de {r['total']} ({r['estado']}).")
     return r
 

@@ -104,6 +104,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | falta T6 |
+  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T6, T7 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -135,6 +136,9 @@ Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
 `CSG_SOLICITUD_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
 pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
+
+La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON`, un intérprete aparte con `requirements-mcp.txt`: el paquete es
+opcional y no se instala en `.venv`. Sin ella, esa prueba se omite y la suite no se da por buena.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:

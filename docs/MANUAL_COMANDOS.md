@@ -1190,3 +1190,16 @@ para consultar el último resumen. El resumen único se guarda en
 y los totales; los bytes son lógicos, no una medida de espacio físico liberado
 cuando hay enlaces duros. Si la web está apagada, recupera la revisión vencida
 al siguiente arranque. No hay una tarea de Windows que opere con la web cerrada.
+
+## Corpus ampliado y MCP del asistente (spec 077)
+
+```bash
+.venv/Scripts/python.exe tools/asistente_indice_ampliado.py medir         # tamaño de los dos corpus, sin GPU
+.venv/Scripts/python.exe tools/asistente_indice_ampliado.py recuperacion  # BM25 con el reparto corpus de la 076, sin GPU
+.venv/Scripts/python.exe tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --solo-conjunto
+.venv/Scripts/python.exe tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --calibrar   # con turno de GPU
+.venv/Scripts/python.exe tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --sellado    # con turno de GPU, una sola vez
+.venv/Scripts/python.exe tools/mcp_conversor.py                           # MCP por stdio; ver docs/MCP_CONVERSOR.md
+.venv/Scripts/python.exe tools/generar_contrato_api.py --solo-openapi     # docs/asistente/openapi.json
+```
+

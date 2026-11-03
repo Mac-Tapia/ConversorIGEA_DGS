@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -15,7 +16,7 @@ from typing import Any
 
 from . import indice as modulo_indice
 from .embeddings import ParContraste, comparar_pareado, evaluar_recuperador
-from .reranker import reordenar, sha256_de
+from .reranker import ABSTENCION_MINIMA, reordenar, sha256_de
 
 METRICA = 'mrr@10'
 CANDIDATO_K = 10
@@ -34,6 +35,24 @@ def _grupo(pregunta: str) -> str:
     return hashlib.sha256(pregunta.encode('utf-8')).hexdigest()
 
 
+def _casa_ancla(ancla: str, fichero: str, texto: str) -> bool:
+    """La 076 ancla un RF en la línea del fichero, «- RF-13:», y el índice lo guarda como «<spec> RF-13: …»."""
+    if (rf := re.match(r'^- (RF-[\w-]+):$', ancla)) is not None:
+        return texto.startswith(f"{fichero.split('/')[1]} {rf.group(1)}:")
+    return ancla in texto
+
+
+def _positivos_de(fila: Mapping[str, Any], por_fichero: Mapping[str, Sequence[Any]]) -> tuple[str, ...]:
+    """Los fragmentos de una pregunta. Las de la 047 anclan por el comienzo; las de la 077 traen varias fuentes, y su
+    ancla es una línea, que en el corpus ampliado puede ir dentro del trozo y no al principio (077:RF-44)."""
+    if 'fuentes' not in fila:
+        return tuple(str(f.fuente) for f in por_fichero.get(str(fila['fichero']), ())
+                     if str(f.texto).startswith(str(fila['ancla'])))
+    return tuple(dict.fromkeys(str(f.fuente) for fuente in fila['fuentes']
+                               for f in por_fichero.get(str(fuente['fichero']), ())
+                               if _casa_ancla(str(fuente['ancla']).strip(), str(fuente['fichero']), str(f.texto))))
+
+
 def resolver_pares(conjunto: Mapping[str, Any], frags: Sequence[Any]) -> tuple[list[ParContraste], list[str], set[str]]:
     """Cada pregunta con los fragmentos reales que la responden, las que perdieron su ancla y las de código.
 
@@ -48,8 +67,7 @@ def resolver_pares(conjunto: Mapping[str, Any], frags: Sequence[Any]) -> tuple[l
         if fila.get('sin_respuesta') is True:
             pares.append(ParContraste(pregunta, (), (), False, grupo))
             continue
-        positivos = tuple(str(f.fuente) for f in por_fichero.get(str(fila['fichero']), ())
-                          if str(f.texto).startswith(str(fila['ancla'])))
+        positivos = _positivos_de(fila, por_fichero)
         if not positivos:
             sin_ancla.append(pregunta)
             continue
@@ -57,6 +75,48 @@ def resolver_pares(conjunto: Mapping[str, Any], frags: Sequence[Any]) -> tuple[l
         if fila.get('tipo') == 'codigo':
             codigos.add(grupo)
     return pares, sin_ancla, codigos
+
+
+#: Más filas sin ancla que esto y la medición ya no sería del conjunto que se selló (077:RF-49).
+TOPE_SIN_ANCLA = 0.05
+
+
+def conjunto_de_entregables(filas: Sequence[Mapping[str, Any]], reparto: str, frags: Sequence[Any],
+                            fuera: Sequence[str]) -> dict[str, Any]:
+    """Un conjunto de la 077 desde un reparto de la 076, más preguntas ajenas al proyecto (077:RF-44).
+
+    Solo entran las filas con una fuente en el índice: una cuya única fuente es el cuerpo de una función no se puede
+    recuperar por diseño, y medirla sería medir el troceado. Se cuentan, no se ocultan."""
+    por_fichero: dict[str, list[Any]] = {}
+    for f in frags:
+        por_fichero.setdefault(str(f.fuente).rsplit(':', 1)[0], []).append(f)
+    preguntas, excluidas = [], 0
+    for fila in filas:
+        if fila['reparto'] != reparto:
+            continue
+        if fila['tipo'] == 'sin_respuesta':
+            preguntas.append({'id': fila['id'], 'pregunta': fila['pregunta'], 'sin_respuesta': True, 'tipo': 'dominio'})
+            continue
+        fuentes = [{'fichero': x['fichero'], 'ancla': x['ancla']} for x in fila['fuentes']]
+        if _positivos_de({'fuentes': fuentes}, por_fichero):
+            preguntas.append({'id': fila['id'], 'pregunta': fila['pregunta'], 'tipo': 'entregable', 'fuentes': fuentes})
+        else:
+            excluidas += 1
+    preguntas += [{'pregunta': q, 'sin_respuesta': True, 'tipo': 'fuera'} for q in fuera]
+    return {'esquema': 'csg-conjunto-rag-077-v1', 'procedencia': 'sintetico_maestro_076_y_077', 'corpus': '077',
+            'reparto': reparto, 'excluidas_sin_fuente_indexada': excluidas, 'preguntas': preguntas}
+
+
+def sin_anclas_perdidas(conjunto: Mapping[str, Any], frags: Sequence[Any], tope: float = TOPE_SIN_ANCLA) -> dict[str, Any]:
+    """El conjunto sin las filas cuya fuente ya cambió, o un error si son demasiadas (077:RF-49): las fuentes de la 076
+    siguen moviéndose con cada rama, y una fila perdida no debe parar la medición ni tantas falsearla. No cambia el sello."""
+    _, sin_ancla, _ = resolver_pares(conjunto, frags)
+    total = len(conjunto['preguntas'])
+    if total and len(sin_ancla) / total > tope:
+        raise ValueError(f'{len(sin_ancla)} de {total} preguntas perdieron su ancla: no se mide')
+    perdidas = set(sin_ancla)
+    return {**conjunto, 'preguntas': [f for f in conjunto['preguntas'] if f['pregunta'] not in perdidas],
+            'perdidas_al_medir': len(perdidas)}
 
 
 def _medir(pares: Sequence[ParContraste], buscar: Callable[[str, int], Sequence[Any]]) -> dict[str, Any]:
@@ -166,8 +226,7 @@ def evaluar(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[[str],
             'cobertura_vectores': indice.cobertura, 'metodos': metodos, 'decision': decision}
 
 
-#: La puerta y el margen de calibración, declarados en el plan de la 047 antes de medir.
-ABSTENCION_MINIMA = 0.90
+#: El margen de calibración, declarado en el plan de la 047 antes de medir, como la puerta (``ABSTENCION_MINIMA``).
 OBJETIVO_CALIBRACION = 0.95
 _POR_ENCIMA = 1e-6
 
@@ -295,6 +354,7 @@ def medir_sellado(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[
         con = [x for x in medido.get('per_query') or () if x['answerable']]
         medido['con_respuesta_abstenidas'] = sum(not x['ranking'] for x in con)
     return {'esquema': 'csg-abstencion-rag-v1', 'procedencia': conjunto['procedencia'],
+            'corpus': getattr(indice, 'corpus', None), 'perdidas_al_medir': conjunto.get('perdidas_al_medir', 0),
             'conjunto_sha256': conjunto['sha256'], 'modelo_reranker': modelo, 'preguntas': len(pares),
             'con_respuesta': sum(p.answerable for p in pares), 'cobertura_vectores': indice.cobertura,
             'abstencion_minima': ABSTENCION_MINIMA, 'metodos': metodos, 'puerta': puertas,

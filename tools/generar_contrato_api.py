@@ -23,6 +23,11 @@ def esquema_publico(raiz: Path, datos: Path) -> dict:
     return create_app(datos).openapi()
 
 
+def openapi_legible(esquema: dict) -> str:
+    """El OpenAPI que leen el índice y el MCP del asistente, sin arrancar el servidor ni cargar FastAPI (077:RF-5)."""
+    return json.dumps(esquema, indent=2, sort_keys=True, ensure_ascii=False) + '\n'
+
+
 def generar(esquema: dict, raiz: Path, temporal: Path) -> str:
     """Ejecuta el generador fijado y liga los bytes al esquema completo mediante SHA-256."""
     node = shutil.which('node')
@@ -64,13 +69,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Comprueba sin modificar tipos publicados')
     parser.add_argument('--raiz', type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument('--solo-openapi', action='store_true', help='Escribe docs/asistente/openapi.json, sin Node.')
     args = parser.parse_args(argv)
     sys.path.insert(0, str(args.raiz / 'src'))
     from convertersmartgrid.runtime_paths import temporal_administrado, rutas_runtime
 
     destino = args.raiz / 'frontend/src/api/esquema.ts'
+    legible = args.raiz / 'docs/asistente/openapi.json'
     with temporal_administrado(rutas_runtime(args.raiz), propietario='contrato-api') as temporal:
-        generado = generar(esquema_publico(args.raiz, temporal / 'web'), args.raiz, temporal)
+        esquema = esquema_publico(args.raiz, temporal / 'web')
+        if args.solo_openapi:
+            legible.write_text(openapi_legible(esquema), encoding='utf-8', newline='\n')
+            print(f'OpenAPI generado: {legible}')
+            return 0
+        generado = generar(esquema, args.raiz, temporal)
     if args.check:
         errores = comprobar(generado, destino)
         for error in errores:
@@ -80,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         return int(bool(errores))
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(generado, encoding='utf-8', newline='\n')
+    legible.write_text(openapi_legible(esquema), encoding='utf-8', newline='\n')
     print(f'Contrato generado: {destino}')
     return 0
 

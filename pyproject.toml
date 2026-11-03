@@ -32,6 +32,8 @@ access = ["pyodbc>=5.0"]
 validate = ["pandapower>=3.0"]
 preview = ["geopandas>=0.14", "leafmap>=0.30", "pyproj>=3.6"]
 # Interfaz web: API FastAPI que sirve el front React compilado (frontend/dist).
+# Servidor MCP local de solo lectura (spec 077): tools/mcp_conversor.py. La web no lo necesita.
+mcp = ["mcp>=2.3,<3"]
 web = [
     "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9", "psutil>=5.9",
     "pyproj>=3.6", "pandas>=2.0", "openpyxl>=3.1", "python-calamine>=0.3",
@@ -112,6 +114,8 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.ajuste_cabecera" = "dominio"
 "convertersmartgrid.asistente" = "aplicacion"
 "convertersmartgrid.asistente.custodia_corpus" = "aplicacion"
+"convertersmartgrid.asistente.corpus_proyecto" = "aplicacion"
+"convertersmartgrid.asistente.lectura_proyecto" = "aplicacion"
 "convertersmartgrid.asistente.reubicacion_corpus" = "aplicacion"
 "convertersmartgrid.asistente.aceptacion" = "aplicacion"
 "convertersmartgrid.asistente.almacen" = "aplicacion"

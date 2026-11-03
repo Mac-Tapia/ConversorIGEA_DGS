@@ -1,0 +1,2 @@
+# Opcional (spec 077): solo para tools/mcp_conversor.py. La web y el CLI no lo necesitan.
+mcp>=2.3,<3

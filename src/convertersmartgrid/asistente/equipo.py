@@ -16,10 +16,12 @@ import uuid
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import almacen
+from . import almacen, lectura_proyecto
 from .tareas import TAREAS
 
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
+#: Quién puede pedir una lectura del proyecto (077:RF-33): el rol lo fija el servidor, nunca el modelo.
+ROLES_LECTURA = ('operador', *ROLES_REVISION, 'cliente_mcp')
 _NATIVAS = frozenset({'leer_proyectos', 'flujo', 'verificar_caso_base', 'cargas_nuevas',
     'obras', 'estudios', 'transferencia', 'pide', 'gemelo_aprender', 'sistema_completo',
     'obras_escalera', 'optimizar_con_proyecto', 'informe_factibilidad', 'set_completo', 'alimentadores_completo',
@@ -70,8 +72,44 @@ def inventario_equipo() -> dict:
         'proyecto_entero': {'confirmacion': 'lista_unica_mostrada', 'confirmacion_por_etapa': False,
             'etapas_escritura': [e.nombre for e in ETAPAS if TAREAS[e.tarea].escribe],
             'ruta_lista': 'POST /api/workspaces/{id}/agente/proyecto/lista'},
+        'lectura_proyecto': {'escribe': False, 'roles': list(ROLES_LECTURA),      # 077:RF-35
+            'herramientas': lectura_proyecto.catalogo(), 'max_por_pregunta_llm': lectura_proyecto.MAX_LECTURAS_LLM,
+            'lista_blanca': {'carpetas': list(lectura_proyecto.CARPETAS_BLANCAS),
+                             'ficheros': list(lectura_proyecto.FICHEROS_BLANCOS)},
+            'lista_negra': {'segmentos': sorted(lectura_proyecto.SEGMENTOS_NEGROS),
+                            'nombres': list(lectura_proyecto.NOMBRES_NEGROS),
+                            'rutas': list(lectura_proyecto.RUTAS_NEGRAS)}},
         'concurrencia': {'por_espacio': 1, 'motor_nativo': 'carril powerfactory de JobManager',
                          'revision': 'secuencial; máximo dos rondas'}}
+
+
+class LecturaGobernada:
+    """Las lecturas del proyecto bajo el rol que fija el servidor (077:RF-33, RF-34).
+
+    Solo lee: no pasa por el plan porque no hay nada que confirmar, pero sí por el rol y por la bitácora. El MCP la usa
+    con un ``registrar`` a stderr, para que su «solo lectura» no escriba ni el registro.
+    """
+
+    def __init__(self, repo: Path, *, rol: str = 'operador', plan: str | None = None, espacio: str | None = None,
+                 registrar=None):
+        self.repo, self.rol, self.plan, self.espacio = Path(repo), rol, plan, espacio
+        self._registrar = registrar if registrar is not None else (lambda fila: almacen.anotar('equipo_acciones', fila))
+
+    def ejecutar(self, herramienta: str, argumentos: dict) -> dict:
+        """La lectura, o la excepción que dice por qué no; las dos quedan anotadas, nunca el contenido leído."""
+        base = {'accion': uuid.uuid4().hex, 'plan': self.plan, 'herramienta': str(herramienta), 'responsable': self.rol,
+                'alcance': {'espacio': self.espacio}, 'entradas': deepcopy(argumentos), 'carril': 'lectura',
+                'aceptacion_cientifica': False, 'aceptacion_nativa': None}
+        if self.rol not in ROLES_LECTURA:
+            self._registrar({**base, 'estado': 'lectura_rechazada', 'motivo': 'rol sin permiso de lectura'})
+            raise PermisoDenegado(f'el rol {self.rol!r} no tiene permiso de lectura')
+        try:
+            salida = lectura_proyecto.ejecutar(self.repo, herramienta, argumentos)
+        except ValueError as exc:                                       # ruta o argumentos rechazados
+            self._registrar({**base, 'estado': 'lectura_rechazada', 'motivo': str(exc)})
+            raise
+        self._registrar({**base, 'estado': 'lectura_proyecto', 'salida_sha256': _huella(salida)})
+        return salida
 
 
 class GobiernoEquipo:

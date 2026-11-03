@@ -8,6 +8,11 @@ Sin red: los rerankers salen de la caché de Hugging Face, con la revisión del 
 Uso: python tools/asistente_evaluar_rag.py --datos <carpeta> --salida docs/EVALUACION_RAG_047.json
      python tools/asistente_evaluar_rag.py --datos <carpeta> --calibrar   (fija los umbrales de abstención)
      python tools/asistente_evaluar_rag.py --datos <carpeta> --sellado    (una sola vez por conjunto)
+
+Corpus ampliado de la spec 077, con sus conjuntos nuevos, en este orden (los dos últimos, con turno de GPU):
+     python tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --solo-conjunto
+     python tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --calibrar
+     python tools/asistente_evaluar_rag.py --corpus 077 --datos <carpeta> --sellado
 """
 from __future__ import annotations
 
@@ -43,14 +48,22 @@ def _memoria_suficiente(paso: str) -> bool:
 
 def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_gpu, ClienteOllama) -> int:
     """Calibra con un conjunto o mide una vez el sellado, siempre con el reranker adoptado (047:RF-34, RF-35)."""
-    ruta_conjunto = reranker.CONJUNTO_CALIBRACION if args.calibrar else REPO / 'docs' / 'RAG_ABSTENCION_SELLADO_047.json'
-    salida = args.salida or (reranker.CALIBRACION if args.calibrar else REPO / 'docs' / 'EVALUACION_ABSTENCION_047.json')
+    ampliado = args.corpus == indice.CORPUS_AMPLIADO
+    if ampliado:                                                        # 077:RF-43: nada de los conjuntos de la 047
+        ruta_conjunto = reranker.CONJUNTO_CALIBRACION_077 if args.calibrar else reranker.CONJUNTO_SELLADO_077
+        salida = args.salida or (reranker.CALIBRACION_077 if args.calibrar else reranker.MEDICION_077)
+    else:
+        ruta_conjunto = reranker.CONJUNTO_CALIBRACION if args.calibrar else REPO / 'docs' / 'RAG_ABSTENCION_SELLADO_047.json'
+        salida = args.salida or (reranker.CALIBRACION if args.calibrar else REPO / 'docs' / 'EVALUACION_ABSTENCION_047.json')
     conjunto = evaluacion_rag.cargar_conjunto(ruta_conjunto)
+    umbrales = None
     if args.sellado:
         if salida.is_file() and json.loads(salida.read_text(encoding='utf-8')).get('conjunto_sha256') == conjunto['sha256']:
             print('El conjunto sellado ya se midió: no se repite (047:RF-35).', file=sys.stderr)
             return 2
-        if not reranker.abstencion().calibrada:
+        umbrales = (reranker.abstencion(reranker.CALIBRACION_077, reranker.CONJUNTO_CALIBRACION_077) if ampliado
+                    else reranker.abstencion())
+        if not umbrales.calibrada:
             print('Falta la calibración de la abstención: no se abre el conjunto sellado.', file=sys.stderr)
             return 2
     modelo = reranker.MODELOS[1]
@@ -59,12 +72,18 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
         return 3
     with turno_gpu('rag'):
         ollama = ClienteOllama(tiempo_max_s=120.0)
-        hecho = indice.calcular_vectores(REPO, ollama)
+        hecho = indice.calcular_vectores(REPO, ollama, corpus=args.corpus)
         print(json.dumps(hecho), flush=True)
         if hecho['estado'] != 'completo':
             print('Sin todos los vectores no se calibra ni se mide.', file=sys.stderr)
             return 2
-        i = indice.cargar_o_construir(REPO)
+        i = indice.cargar_o_construir(REPO, args.corpus)
+        if ampliado:
+            try:
+                conjunto = evaluacion_rag.sin_anclas_perdidas(conjunto, i.frags)      # 077:RF-49
+            except ValueError as exc:
+                print(str(exc), file=sys.stderr)
+                return 2
         memo = {}
 
         def vector_de(pregunta: str):
@@ -80,11 +99,12 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
         puntuar = reranker.PuntuadorPerezoso(modelo, revision)
         if args.calibrar:
             informe = {'esquema': 'csg-calibracion-abstencion-v1', 'procedencia': conjunto['procedencia'],
-                       'conjunto_sha256': conjunto['sha256'], 'modelo_reranker': modelo, 'revision': revision,
+                       'corpus': args.corpus, 'conjunto_sha256': conjunto['sha256'], 'modelo_reranker': modelo,
+                       'revision': revision,
                        **evaluacion_rag.calibrar(evaluacion_rag.leer_puntuaciones(i, conjunto, vector_de, puntuar, modelo))}
             puntuar.liberar()
         else:
-            informe = evaluacion_rag.medir_sellado(i, conjunto, vector_de, puntuar, modelo, reranker.abstencion())
+            informe = evaluacion_rag.medir_sellado(i, conjunto, vector_de, puntuar, modelo, umbrales)
     escribir_informe(salida, informe)
     resumen = informe if args.calibrar else {
         'cumple_todos': informe['cumple_todos'], 'puerta': informe['puerta'],
@@ -93,6 +113,23 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
                     for n, m in informe['metodos'].items()}}
     print(json.dumps(resumen, ensure_ascii=False, indent=1))
     return 0
+
+
+def _comprobar_conjuntos_077(evaluacion_rag, indice) -> int:
+    """Solo cuenta: el conjunto sellado no se enseña ni aquí, que es donde alguien miraría qué falta (077:RF-46)."""
+    from convertersmartgrid.asistente import reranker
+
+    frags, salida, malo = indice.fragmentos(REPO, indice.CORPUS_AMPLIADO), {}, False
+    for nombre, ruta in (('calibracion', reranker.CONJUNTO_CALIBRACION_077), ('sellado', reranker.CONJUNTO_SELLADO_077)):
+        conjunto = evaluacion_rag.cargar_conjunto(ruta)
+        pares, sin_ancla, _ = evaluacion_rag.resolver_pares(conjunto, frags)
+        total = len(conjunto['preguntas'])
+        salida[nombre] = {'sha256': conjunto['sha256'], 'preguntas': total, 'con_respuesta': sum(x.answerable for x in pares),
+                          'sin_respuesta': sum(not x.answerable for x in pares), 'sin_ancla': len(sin_ancla),
+                          'excluidas_sin_fuente_indexada': conjunto['excluidas_sin_fuente_indexada']}
+        malo = malo or len(sin_ancla) / max(total, 1) > evaluacion_rag.TOPE_SIN_ANCLA
+    print(json.dumps(salida, ensure_ascii=False, indent=1))
+    return 2 if malo else 0
 
 
 def main(argv=None) -> int:
@@ -104,6 +141,7 @@ def main(argv=None) -> int:
     p.add_argument('--solo-conjunto', action='store_true', help='Comprueba las anclas sin GPU ni modelos.')
     p.add_argument('--calibrar', action='store_true', help='Fija los umbrales de abstención con su conjunto de calibración.')
     p.add_argument('--sellado', action='store_true', help='Mide la abstención calibrada en el conjunto sellado, una sola vez.')
+    p.add_argument('--corpus', choices=('047', '077'), default='047', help='El corpus del índice; cada uno con sus conjuntos.')
     args = p.parse_args(argv)
     import os
 
@@ -111,6 +149,10 @@ def main(argv=None) -> int:
         os.environ['CSG_ASISTENTE_DATA'] = str(args.datos)
     from convertersmartgrid.asistente import evaluacion_rag, indice
 
+    if args.corpus == indice.CORPUS_AMPLIADO and args.solo_conjunto:
+        return _comprobar_conjuntos_077(evaluacion_rag, indice)
+    if args.corpus == indice.CORPUS_AMPLIADO and not (args.calibrar or args.sellado):
+        p.error('con --corpus 077 se usa --solo-conjunto, --calibrar o --sellado')
     conjunto = evaluacion_rag.cargar_conjunto(args.preguntas)
     if args.solo_conjunto:
         pares, sin_ancla, codigos = evaluacion_rag.resolver_pares(conjunto, indice.fragmentos(REPO))
