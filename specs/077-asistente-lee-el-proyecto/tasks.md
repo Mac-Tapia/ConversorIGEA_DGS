@@ -14,7 +14,9 @@
       Hecho cuando: `tests/test_asistente_lectura_local.py` pasa.
 - [x] T9 Lo leído no sale, MCP restringido por defecto, lectores de binarios y topes. (RF-59, RF-60, RF-61, RF-62, RF-63, RF-64, RF-65, RF-67, RF-68)
       Hecho cuando: `tests/test_asistente_lectura_local.py` y `tests/test_mcp_conversor.py` pasan.
-- [ ] T6 Medición real con turno de GPU: calibrar y medir una vez el conjunto sellado del corpus ampliado.
+- [x] T6 Medición real con turno de GPU: calibrar y medir una vez el conjunto sellado del corpus ampliado.
       Hecho cuando: `docs/EVALUACION_ABSTENCION_077.json` existe; la lanza el usuario. Se mide, no se ajusta.
 - [ ] T7 Comprobación en la web real, tras reiniciarla: una pregunta por un skill, por una ruta de la API y por un fichero rechazado.
       Hecho cuando: las tres respuestas se ven en el navegador con su cita o su rechazo.
+
+T6, 2026-11-03: medido una vez sobre el conjunto sellado (`docs/EVALUACION_ABSTENCION_077.json`, 15 673 vectores, 78 con respuesta y 50 sin ella). Reranker con puerta: MRR@10 0,316, recall@10 0,406, abstención 0,98, 33 de 78 preguntas con respuesta abstenidas. `cumple_todos` es falso: el índice ampliado no se sirve y sigue el de la 047. Se mide, no se ajusta.
