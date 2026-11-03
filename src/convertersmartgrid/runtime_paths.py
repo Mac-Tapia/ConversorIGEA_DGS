@@ -126,7 +126,17 @@ def _retirar_propio(folder: Path) -> None:
                 or not path.resolve().is_relative_to(root)):
             raise exc
         path.chmod(stat.S_IWRITE | stat.S_IREAD)
-        funcion(path)
+        for espera in (0.0, 0.1, 0.3, 0.6, 1.0):
+            # WinError 32: otro proceso (antivirus, indexador) tiene el fichero abierto un instante.
+            # La suite del 2026-11-03 cayó dos veces así al guardar un espacio; se reintenta.
+            time.sleep(espera)
+            try:
+                funcion(path)
+                return
+            except PermissionError as otro:
+                if getattr(otro, 'winerror', None) != 32:
+                    raise
+        raise exc
 
     shutil.rmtree(root, onexc=permitir_borrado)
 
@@ -152,7 +162,12 @@ def temporal_administrado(paths: RutasRuntime | None = None, *, propietario: str
             if current.get('nonce') == nonce:
                 current.update(estado='terminado', actualizado=time.time())
                 marker.write_text(json.dumps(current, ensure_ascii=False), encoding='utf-8')
-                _retirar_propio(folder)
+                try:
+                    _retirar_propio(folder)
+                except OSError:
+                    # Lo publicado ya está en su sitio: un temporal que no se deja borrar no hace fallar el
+                    # trabajo. Queda «terminado» con su manifiesto y lo retira reconciliar_temporales.
+                    pass
 
 
 @contextmanager

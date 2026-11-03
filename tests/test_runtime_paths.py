@@ -238,3 +238,52 @@ def test_retencion_diaria_incluye_temporales_externos_propios(tmp_path, monkeypa
         assert any(str(folder) in r['retirados'] for r in result['temporales_externos'])
     finally:
         jobs.shutdown()
+
+
+def test_un_temporal_bloqueado_no_hace_fallar_lo_publicado(tmp_path, monkeypatch):
+    """065:RF-11 — si Windows tiene abierto un fichero del temporal (WinError 32), se reintenta y, si sigue,
+    el temporal queda terminado para la reconciliación: el trabajo no falla."""
+    import dataclasses
+
+    from convertersmartgrid import runtime_paths as rp
+
+    paths = dataclasses.replace(rp.rutas_runtime(), temporales=tmp_path / 't')
+    intentos = []
+
+    def bloqueado(*_a, **_k):
+        intentos.append(1)
+        e = PermissionError(13, 'en uso')
+        e.winerror = 32
+        raise e
+
+    monkeypatch.setattr(rp.time, 'sleep', lambda _s: None)
+    monkeypatch.setattr(rp.shutil, 'rmtree', bloqueado)
+    with rp.temporal_administrado(paths, propietario='prueba') as carpeta:
+        (carpeta / 'dato.txt').write_text('x', encoding='utf-8')
+    assert intentos, 'se intentó retirar el temporal'
+    meta = json.loads((carpeta / 'owner.json').read_text(encoding='utf-8'))
+    assert meta['estado'] == 'terminado'
+
+
+def test_el_borrado_reintenta_un_fichero_en_uso(tmp_path, monkeypatch):
+    """065:RF-11 — un WinError 32 pasajero no impide retirar el temporal."""
+    from convertersmartgrid import runtime_paths as rp
+
+    carpeta = tmp_path / 'csg-job-x'
+    carpeta.mkdir()
+    (carpeta / 'owner.json').write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(rp.time, 'sleep', lambda _s: None)
+    real = rp.os.unlink
+    fallos = [2]
+
+    def unlink(ruta, *a, **k):
+        if Path(ruta).name == 'owner.json' and fallos[0]:
+            fallos[0] -= 1
+            e = PermissionError(13, 'en uso')
+            e.winerror = 32
+            raise e
+        return real(ruta, *a, **k)
+
+    monkeypatch.setattr(rp.os, 'unlink', unlink)
+    rp._retirar_propio(carpeta)
+    assert not carpeta.exists()
