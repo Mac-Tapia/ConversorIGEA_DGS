@@ -5,7 +5,8 @@ from convertersmartgrid.naming import feeder_short_name, feeder_tokens, sort_key
 
 def test_feeder_short_name_handles_varied_utility_patterns():
     assert feeder_short_name('NET_2030_142_IN111') == 'IN111'
-    assert feeder_short_name('ALIMENTADOR-12') == '12'
+    # 080:RF-28: un número solo no identifica al alimentador; queda el NetworkID entero.
+    assert feeder_short_name('ALIMENTADOR-12') == 'ALIMENTADOR-12'
     assert feeder_short_name('Feeder.A1') == 'A1'
     assert feeder_short_name('CIRCUITO/NORTE') == 'NORTE'
     assert feeder_short_name('SIMPLE') == 'SIMPLE'
