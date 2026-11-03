@@ -8,8 +8,10 @@ entrenamientos, y retenerlo ocuparía justo lo que el reentrenamiento necesita.
 from __future__ import annotations
 
 import contextlib
+import gc
 import hashlib
 import json
+import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -56,7 +58,10 @@ class Puntuador:
         return [float(x) for x in puntos]
 
     def liberar(self) -> None:
+        # El modelo guarda ciclos de referencias: sin recolectar, la Fase 2 mantuvo 2,3 GB de la GPU tras
+        # descargar bge-reranker, y empty_cache no devuelve lo que aún tiene dueño.
         self._modelo = None
+        gc.collect()
         self._torch.cuda.empty_cache()
 
 
@@ -65,6 +70,8 @@ def cargar_puntuador(modelo: str, revision: str) -> Puntuador:
     ficha = ficha_modelo(modelo)
     if revision != ficha['revision']:
         raise RerankerNoDisponible(f'la revisión de {modelo} no es la fijada en el catálogo')
+    # Con local_files_only, CrossEncoder aún consultó el Hub en la Fase 2 (aviso de peticiones sin token).
+    os.environ['HF_HUB_OFFLINE'] = '1'
     from ..training_coordinator import MemoriaMLInsuficiente, exigir_memoria_ml
 
     try:

@@ -6,6 +6,7 @@ GPU. La medición con los modelos reales es de ``tools/asistente_evaluar_rag.py`
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -406,8 +407,10 @@ def test_sin_cuda_queda_el_orden_hibrido_y_lo_dice(monkeypatch):
     """047:RF-30 — sin CUDA, sin memoria o con la GPU ocupada: error claro, sin CPU, y queda el orden."""
     monkeypatch.setattr('convertersmartgrid.training_coordinator.exigir_memoria_ml', lambda *a, **k: {})
     monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
+    monkeypatch.setenv('HF_HUB_OFFLINE', '0')
     with pytest.raises(indice.RerankerNoDisponible, match='CUDA'):
         reranker.cargar_puntuador(reranker.MODELOS[0], reranker.ficha_modelo(reranker.MODELOS[0])['revision'])
+    assert os.environ['HF_HUB_OFFLINE'] == '1'                    # sin red: lee solo la caché
 
     def no_hay_cuda(_consulta, _candidatos):
         raise indice.RerankerNoDisponible('CUDA no disponible')
@@ -616,6 +619,15 @@ def test_medir_exige_que_todo_el_conjunto_ancle():
     conjunto['preguntas'].append({'pregunta': 'otra', 'fichero': 'no.md', 'ancla': 'nada', 'tipo': 'spec'})
     with pytest.raises(ValueError, match='ancla'):
         evaluacion_rag.evaluar(Indice(frags), conjunto, _hibrido, {})
+
+
+def test_liberar_recolecta_antes_de_vaciar_la_cache(monkeypatch):
+    """047:RF-30 — descargar el modelo devuelve la GPU: primero se recolectan sus ciclos."""
+    orden = []
+    monkeypatch.setattr(reranker.gc, 'collect', lambda: orden.append('recolectar'))
+    torch = SimpleNamespace(cuda=SimpleNamespace(empty_cache=lambda: orden.append('vaciar')))
+    reranker.Puntuador(object(), torch).liberar()
+    assert orden == ['recolectar', 'vaciar']
 
 
 def test_gpu_ocupada_aparta_el_reranker_sin_esperar():
