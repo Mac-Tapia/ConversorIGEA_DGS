@@ -18,5 +18,7 @@
       Hecho cuando: el flujo a valle cuadra con la cabecera medida (`m:Psum`, memoria iopt-lev), la máxima sigue idéntica, y la tensión del oráculo y la de DIgSILENT quedan comparadas con una variante de bancos.
 - [ ] T9 Alimentador con central: el valle con su curva de demanda, `curva_de_demanda`, en vez de dejarlo sin comprobar. (RF-12)
       Hecho cuando: una prueba con una central da su valle por la demanda, no por la cabecera.
+- [x] T11 Corrección del usuario: energía, duración por optimización, cargas nuevas en dos casos y toda obra. (RF-35, RF-36, RF-37, RF-38, RF-39, RF-40, RF-41)
+      Hecho cuando: `pytest -q tests/test_valle.py` en verde, y la lectura real de `CSG_DEMANDA_DIR` da inicio, fin y duración por objetivo.
 - [ ] T10 La web muestra `valle_texto` en la tabla de variantes de `CargasTab.tsx`. (RF-30)
       Hecho cuando: se ve en el navegador real con `npm run build`; en esta fase el worktree no tiene `node_modules`.

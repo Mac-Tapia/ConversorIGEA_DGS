@@ -29,7 +29,7 @@ from .digital_twin.evolutivo import _nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
-from .valle import anotar_punto, sin_comprobar
+from .valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
 KV_MEDIA_MIN = 1.0
@@ -252,17 +252,23 @@ class Oraculo:
                  alimentador: str | None = None) -> dict[str, Any]:
         """La variante en cada punto de valle, con el criterio de siempre (073:RF-17, RF-23, RF-30).
 
-        Sin puntos, ``valle`` es ``None``: no comprobado, nunca «cumple» (RF-24, RF-31).
+        Sin las cargas nuevas y con ellas (RF-39): pueden ingresar en cualquier momento, y sin ellas es
+        el peor caso para la sobretensión. Tiene que cumplir en los dos. Sin puntos, ``valle`` es
+        ``None``: no comprobado, nunca «cumple» (RF-24, RF-31).
         """
         out = sin_comprobar((valle or {}).get('motivo'))
+        hay_nuevas = bool(self.activas(k, alimentador))
         for pt in (valle or {}).get('puntos') or []:
-            medida = {'factor_q': pt.get('factor_q'), 'factor_nuevas': float(pt.get('factor_nuevas') or 0.0)}
-            con = self.medir(obras, k, float(pt['factor_p']), alimentador, **medida)
-            sin = self.medir([], 0, float(pt['factor_p']), factor_q=pt.get('factor_q'))
-            # Una carga nueva apagada no tiene barra que juzgar: solo las demás, como en «Sin proyecto».
-            barras = self.barras_de(k, alimentador) if medida['factor_nuevas'] else []
-            ok, motivos = cumple(sin.para_criterio(), con.para_criterio(), barras, p)
-            anotar_punto(out, pt, ok, motivos, con.u)
+            fp, fq = float(pt['factor_p']), pt.get('factor_q')
+            sin = self.medir([], 0, fp, factor_q=fq)
+            for caso, factor_nuevas in CASOS_CARGAS:
+                if factor_nuevas and not hay_nuevas:
+                    continue
+                con = self.medir(obras, k, fp, alimentador, factor_q=fq, factor_nuevas=factor_nuevas)
+                # Sin las cargas nuevas no hay barra suya que juzgar: las demás, como en «Sin proyecto».
+                barras = self.barras_de(k, alimentador) if factor_nuevas else []
+                ok, motivos = cumple(sin.para_criterio(), con.para_criterio(), barras, p)
+                anotar_punto(out, pt, caso, ok, motivos, con.u)
         return out
 
     def evaluar(self, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros,
@@ -559,7 +565,7 @@ def modulos_en_valle(oraculo: Oraculo, barras: Sequence[str], banco_kvar: float,
     def tension(n: int) -> float:
         obras = [{'clase': 'condensador', 'barra': b, 'q_kvar': float(banco_kvar) * n} for b in barras]
         u = rapido.medir(obras, k, float(pt['factor_p']), alimentador, factor_q=pt.get('factor_q'),
-                         factor_nuevas=float(pt.get('factor_nuevas') or 0.0)).u
+                         factor_nuevas=0.0).u               # sin ellas: el peor caso (073:RF-39)
         return sum(u.get(b, 0.0) for b in barras)
 
     previa = tension(0)
@@ -620,7 +626,7 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
     con la bayesiana primero si cumple y cuesta menos (RF-12), el frente (RF-13) y el reparto de
     Shapley del costo de la elegida entre sus cargas (RF-15)."""
     campos = ('maxima', 'fraccion', 'motivos', 'perdidas_kw', 'v_min', 'aproximada', 'valle', 'valle_motivos',
-              'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar')       # 073:RF-30
+              'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar', 'valle_casos')   # 073:RF-30
     # Explorar (bayesiana, frente, Shapley) con el flujo físico, en milisegundos; el PINN juzga solo
     # las candidatas (RF-17). Con el PINN en cada combinación, NA203 + NA205 (2026-11-01) pasaba de 7 min.
     rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))

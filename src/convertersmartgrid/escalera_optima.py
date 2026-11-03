@@ -519,7 +519,8 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
             motivo = ('cumple con la máxima; en valle no: ' + '; '.join(e.get('valle_motivos') or [])
                       + ' (073:RF-17)')
         elif factible:
-            motivo = 'no comprobado en valle' if en_valle is None and 'bancos' in (e.get('escalones') or ()) else ''
+            # 073:RF-40: bancos y proyectos: toda obra que se vaya a implementar.
+            motivo = 'no comprobado en valle' if en_valle is None and e.get('escalones') else ''
         elif cumple_tec:
             motivo = 'cumple, pero sin costo: ' + str(e.get('sin_costo') or 'falta su costo unitario')
         elif e.get('maxima') and e.get('fraccion') is None:
@@ -572,7 +573,7 @@ def _marcas_de_valle(mejor: Mapping[str, Any] | None, tabla: Sequence[Mapping[st
     """Lo que la elección dice del valle: la elegida sin comprobar (073:RF-24) y que el valle no
     aguanta los bancos que pide la máxima, con el hueco de los bancos por pasos (RF-20, RF-27)."""
     out: dict[str, Any] = {}
-    if mejor is not None and mejor.get('valle') is None and 'bancos' in (mejor.get('escalones') or ()):
+    if mejor is not None and mejor.get('valle') is None and mejor.get('escalones'):
         out['sin_comprobar_valle'] = True
     solo_bancos = [t for t in tabla if tuple(t.get('escalones') or ()) == ('bancos',)]
     if not any(t.get('factible') for t in solo_bancos):

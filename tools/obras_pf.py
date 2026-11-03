@@ -2060,7 +2060,7 @@ class _Sorteo:
     """Escenario temporal, copia del del caso, donde se escalan las cargas existentes por el
     factor de su alimentador; se borra al salir y vuelve el escenario del caso (025:RF-51).
 
-    073:RF-23, RF-25: en valle, las cargas nuevas también, por el factor del perfil.
+    073:RF-25, RF-39: en valle, las cargas nuevas también: apagadas o a su potencia.
     """
 
     def __init__(self, app, alims, feeders, existentes: set[str]):
@@ -2121,7 +2121,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
     from convertersmartgrid.escalera_optima import cumple, parametros
-    from convertersmartgrid.valle import anotar_punto, sin_comprobar
+    from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
                                'avisos': [], 'cancelado': False}
@@ -2177,20 +2177,21 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         if puntos_valle:
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for pt in puntos_valle:
-                    s.escalar(pt['factores'], float(pt.get('factor_nuevas') or 0.0))
+                    s.escalar(pt['factores'], 0.0)
                     sin_valle.append(medida_para_criterio(app, alims, feeders))
 
         def medir_valle() -> dict[str, Any]:
-            """Lo que está activo en cada punto de valle, en un escenario temporal (073:RF-17, RF-25)."""
+            """Lo que está activo en cada punto de valle, sin las cargas nuevas y con ellas, en un
+            escenario temporal (073:RF-17, RF-25, RF-39)."""
             fila = sin_comprobar()
+            casos_valle = CASOS_CARGAS if barras else CASOS_CARGAS[:1]
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for pt, sin_i in zip(puntos_valle, sin_valle):
-                    factor_nuevas = float(pt.get('factor_nuevas') or 0.0)
-                    s.escalar(pt['factores'], factor_nuevas)
-                    con = medida_para_criterio(app, alims, feeders)
-                    # Una carga nueva apagada no tiene barra que juzgar (073:RF-23).
-                    bien, motivos = cumple(sin_i, con, barras if factor_nuevas else [], p)
-                    anotar_punto(fila, pt, bien, motivos, con.get('u') or {})
+                    for caso, factor_nuevas in casos_valle:
+                        s.escalar(pt['factores'], factor_nuevas)
+                        con = medida_para_criterio(app, alims, feeders)
+                        bien, motivos = cumple(sin_i, con, barras if factor_nuevas else [], p)
+                        anotar_punto(fila, pt, caso, bien, motivos, con.get('u') or {})
             return fila
 
         def con_variante(v, medir):

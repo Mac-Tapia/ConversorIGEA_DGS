@@ -25,118 +25,193 @@ def _forma(t: datetime) -> float:
     return 0.65 + 0.35 * math.sin(2 * math.pi * (t.hour + t.minute / 60 - 9) / 24)
 
 
-def _curva(rng: random.Random, dias: int, *, kw=None, fp=0.97, por_dia=None):
-    """Curva de 15 minutos con ruido y una demanda distinta cada día."""
+def _curva(rng: random.Random, dias: int, *, kw=None, fp=0.97, por_dia=None, inicio=INICIO, ruido=0.005):
+    """Curva de 15 minutos con ruido; ``por_dia``: el nivel de cada día."""
     kw = kw if kw is not None else rng.uniform(800, 9000)
-    por_dia = por_dia or [rng.uniform(0.75, 1.0) for _ in range(dias)]
+    por_dia = por_dia or [rng.uniform(0.985, 1.015) for _ in range(dias)]
     out = []
     for d in range(dias):
         for i in range(96):
-            t = INICIO + timedelta(days=d) + i * PASO
-            p = kw * _forma(t) * por_dia[d] * rng.uniform(0.98, 1.02)
+            t = inicio + timedelta(days=d) + i * PASO
+            p = kw * _forma(t) * por_dia[d] * rng.uniform(1 - ruido, 1 + ruido)
             out.append((t, p, p * math.tan(math.acos(fp))))
     return out
 
 
-def _bruto_minimo(curvas):
-    """El mínimo por recorrido directo, para contrastar."""
-    por: dict = {}
-    for c in curvas:
-        for t, kw, q in c:
-            a, b = por.get(t, (0.0, 0.0))
-            por[t] = (a + kw, b + q)
-    return min(por, key=lambda t: (math.hypot(*por[t]), t)), por
+def _con_valle(rng, dias, desde, largo, *, profundidad=0.7, ruido_dia=0.01):
+    """Niveles diarios con un periodo de menor energía de ``desde`` a ``desde + largo``."""
+    return [(profundidad if desde <= d < desde + largo else 1.0) * rng.uniform(1 - ruido_dia, 1 + ruido_dia)
+            for d in range(dias)]
 
 
-def _bruta_ventana(por, n):
-    dias: dict = {}
-    for t, (kw, q) in por.items():
-        dias.setdefault(t.date(), []).append(math.hypot(kw, q))
-    orden = sorted(dias)
-    mejor = None
-    for i in range(len(orden) - n + 1):
-        trozo = [x for d in orden[i:i + n] for x in dias[d]]
-        media = sum(trozo) / len(trozo)
-        if mejor is None or media < mejor[0] - 1e-12:
-            mejor = (media, orden[i], orden[i + n - 1])
-    return mejor
+def _sorteo_de_valle(rng):
+    dias = rng.randint(60, 365)
+    largo = rng.randint(10, dias // 2)
+    desde = rng.randint(8, dias - largo - 8)
+    return dias, desde, largo
+
+
+def _dia(n, inicio=INICIO):
+    return (inicio + timedelta(days=n)).date()
 
 
 @pytest.mark.parametrize('semilla', range(6))
-def test_ventana_instante_minimo_con_su_kw_y_kvar(semilla):
-    """073:RF-1, 073:RF-4, 073:RF-9 — el instante de menor kVA, con kW y kVAR de ese instante,
-    igual al del recorrido directo; la suma de los medidores, vectorial; misma entrada, mismo valle."""
+def test_ventana_inicio_y_duracion_salen_de_los_registros(semilla):
+    """073:RF-1, 073:RF-2, 073:RF-4, 073:RF-9, 073:RF-35, 073:RF-36 — con medidores, días y valle
+    sorteados, la ventana cae en el periodo de menor energía sin dar su duración; el punto para el
+    flujo es su registro menor, con kW y kVAR de ese instante; misma entrada, mismo valle."""
     rng = random.Random(semilla)
-    dias = rng.randint(5, 20)
-    medidores = {f'M{i}': _curva(rng, dias) for i in range(rng.randint(1, 4))}
+    dias, desde, largo = _sorteo_de_valle(rng)
+    por_dia = _con_valle(rng, dias, desde, largo)
+    medidores = {f'M{i}': _curva(rng, dias, por_dia=por_dia) for i in range(rng.randint(1, 4))}
     v = vl.valle_de_alcance('alimentador', medidores, vl.Ajustes())
-    t, por = _bruto_minimo(medidores.values())
-    assert v.comprobado and v.instante['fecha'] == t
-    assert v.instante['kw'] == pytest.approx(por[t][0]) and v.instante['kvar'] == pytest.approx(por[t][1])
-    assert v.instante['kva'] == pytest.approx(math.hypot(*por[t]))
+    assert v.comprobado and v.ventana
+    assert abs((v.ventana['inicio'] - _dia(desde)).days) <= 2 and abs((v.ventana['fin'] - _dia(desde + largo - 1)).days) <= 2
+    assert v.ventana['duracion_dias'] == (v.ventana['fin'] - v.ventana['inicio']).days + 1
+    assert v.ventana['kwh_dia_dentro'] < 0.8 * v.ventana['kwh_dia_fuera']
+    assert v.ventana['optimizacion']['semilla'] is None and v.ventana['optimizacion']['ventanas_evaluadas'] > 0
+    por: dict = {}
+    for c in medidores.values():
+        for t, kw, q in c:
+            a, b = por.get(t, (0.0, 0.0))
+            por[t] = (a + kw, b + q)
+    dentro = [t for t in por if v.ventana['inicio'] <= t.date() <= v.ventana['fin']]
+    t = min(dentro, key=lambda x: (por[x][0], x))
+    assert v.instante['fecha'] == t and v.instante['kw'] == pytest.approx(por[t][0])
+    assert v.instante['kvar'] == pytest.approx(por[t][1])
     desordenadas = {k: rng.sample(c, len(c)) for k, c in medidores.items()}
     assert vl.valle_de_alcance('alimentador', desordenadas, vl.Ajustes()) == v
 
 
-def test_ventana_suma_vectorial_con_kvar_de_signo_contrario():
-    """073:RF-4 — con la Q de un medidor capacitiva, el kVA no es la suma de los kVA de cada uno."""
+def _exacta_a_mano(fechas, kwh, cobertura):
+    """La misma función objetivo, sin sumas acumuladas, para contrastar el óptimo (073:RF-35)."""
+    y, sigma = vl._serie_de_busqueda(fechas, kwh)
+    d = len(y)
+    beta = 2 * math.log(d)
+    mejor = None
+    for i in range(d):
+        for j in range(i + vl.CICLO_SEMANAL - 1, d):
+            n = j - i + 1
+            span = (fechas[j] - fechas[i]).days + 1
+            if d - n < vl.CICLO_SEMANAL or span - n > (1 - cobertura) * span:
+                continue
+            dentro, fuera = y[i:j + 1], y[:i] + y[j + 1:]
+            md, mf = sum(dentro) / n, sum(fuera) / len(fuera)
+            if md >= mf:
+                continue
+            c = sum((x - md) ** 2 for x in dentro) + sum((x - mf) ** 2 for x in fuera) + beta * sigma ** 2 * d / n
+            if mejor is None or c < mejor[0] - 1e-9:
+                mejor = (c, fechas[i], fechas[j])
+    return mejor
+
+
+@pytest.mark.parametrize('semilla', range(5))
+def test_ventana_la_busqueda_da_el_optimo_exacto(semilla):
+    """073:RF-35 — el mínimo es el del recorrido directo de la función objetivo, en series sorteadas."""
+    rng = random.Random(semilla)
+    dias = rng.randint(40, 90)
+    desde, largo = rng.randint(7, 20), rng.randint(7, 20)
+    kwh = [1000.0 * x for x in _con_valle(rng, dias, desde, largo, profundidad=rng.uniform(0.6, 0.9))]
+    fechas = [_dia(i) for i in range(dias)]
+    r = vl.optimizar_ventana(fechas, kwh, cobertura=0.9)
+    c, ini, fin = _exacta_a_mano(fechas, kwh, 0.9)
+    assert (r['inicio'], r['fin']) == (ini, fin) and r['optimizacion']['objetivo'] == pytest.approx(c)
+    assert r == vl.optimizar_ventana(fechas, kwh, cobertura=0.9)
+
+
+@pytest.mark.parametrize('semilla', range(5))
+def test_ventana_un_dia_raro_no_gana(semilla):
+    """073:RF-35 — un día muy bajo pero solo, ni con valle ni sin él, no es el periodo de menor energía."""
+    rng = random.Random(semilla)
+    dias = rng.randint(90, 365)
+    kwh = [1000.0 * rng.uniform(0.99, 1.01) for _ in range(dias)]
+    kwh[rng.randrange(dias)] = 300.0
+    fechas = [_dia(i) for i in range(dias)]
+    assert vl.optimizar_ventana(fechas, kwh, cobertura=0.9) is None
+    desde, largo = 20, rng.randint(15, 40)
+    for i in range(desde, desde + largo):
+        kwh[i] *= 0.75
+    r = vl.optimizar_ventana(fechas, kwh, cobertura=0.9)
+    assert r['duracion_dias'] >= 10 and r['inicio'] >= _dia(desde - 2) and r['fin'] <= _dia(desde + largo + 2)
+
+
+@pytest.mark.parametrize('semilla', range(5))
+def test_ventana_sin_periodo_diferenciado_lo_dice(semilla):
+    """073:RF-37 — solo ruido o solo el ciclo semanal: no se inventa un periodo; se usa el registro menor."""
+    rng = random.Random(semilla)
+    dias = rng.randint(60, 300)
+    fechas = [_dia(i) for i in range(dias)]
+    plano = [1000.0 * rng.uniform(0.98, 1.02) for _ in range(dias)]
+    assert vl.optimizar_ventana(fechas, plano, cobertura=0.9) is None
+    domingos = [x * (0.6 if f.weekday() == 6 else 1.0) for x, f in zip(plano, fechas, strict=True)]
+    assert vl.optimizar_ventana(fechas, domingos, cobertura=0.9) is None
+    curva = _curva(rng, 30, kw=2000.0)
+    v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
+    assert v.comprobado and v.ventana is None and v.instante['fecha'] == min(curva, key=lambda x: (x[1], x[0]))[0]
+    assert any('073:RF-37' in a for a in v.avisos)
+    pocos = vl.valle_de_alcance('alimentador', {'M': _curva(rng, 10, kw=500.0)}, vl.Ajustes())
+    assert pocos.ventana is None and any('no alcanzan' in a for a in pocos.avisos)
+
+
+def test_ventana_es_energia_no_kva():
+    """073:RF-1 — un periodo de poca energía con mucha Q es valle; uno de poca Q con su energía, no."""
+    rng = random.Random(1)
+    dias = 120
+    filas = []
+    for d in range(dias):
+        for i in range(96):
+            t = INICIO + timedelta(days=d) + i * PASO
+            kw = 1000.0 * rng.uniform(0.99, 1.01) * (0.7 if 30 <= d < 50 else 1.0)
+            q = 900.0 if 30 <= d < 50 else (50.0 if 80 <= d < 100 else 300.0)
+            filas.append((t, kw, q))
+    v = vl.valle_de_alcance('alimentador', {'M': filas}, vl.Ajustes())
+    assert abs((v.ventana['inicio'] - _dia(30)).days) <= 1 and abs((v.ventana['fin'] - _dia(49)).days) <= 1
+
+
+def test_ventana_suma_de_kvar_con_signo_contrario():
+    """073:RF-4 — con la Q de un medidor capacitiva, el kVAR del punto es la suma con su signo."""
     t = INICIO
     a = [(t + i * PASO, 100.0 + i, 80.0) for i in range(96 * 3)]
     b = [(t + i * PASO, 100.0 + i, -80.0) for i in range(96 * 3)]
     v = vl.valle_de_alcance('set', {'T1': a, 'T2': b}, vl.Ajustes())
     assert v.instante['kvar'] == pytest.approx(0.0)
-    assert v.instante['kva'] == pytest.approx(v.instante['kw'])
+    assert v.instante['kw'] == pytest.approx(200.0)
     assert v.alcance == 'set'
 
 
-@pytest.mark.parametrize('semilla', range(6))
-def test_ventana_de_n_dias_contiguos(semilla):
-    """073:RF-2 — los N días contiguos de menor demanda media, con el instante mínimo dentro; N sorteado."""
-    rng = random.Random(semilla)
-    dias = rng.randint(10, 40)
-    n = rng.randint(2, 7)
-    curva = _curva(rng, dias)
-    v = vl.valle_de_alcance('sistema', {'B': curva}, vl.Ajustes(dias_ventana=n))
-    _t, por = _bruto_minimo([curva])
-    media, desde, hasta = _bruta_ventana(por, n)
-    assert v.ventana['desde'] == desde and v.ventana['hasta'] == hasta and v.ventana['dias'] == n
-    assert v.ventana['kva'] == pytest.approx(media)
-    dentro = [t for t in por if desde <= t.date() <= hasta]
-    menor = min(dentro, key=lambda t: (math.hypot(*por[t]), t))
-    assert v.ventana['instante']['fecha'] == menor
-
-
-def test_ventana_sin_dias_en_el_perfil_usa_el_instante_y_lo_dice():
-    """073:RF-3 — sin ``valle.dias_ventana``, el instante mínimo y el aviso; sin cifra en el código."""
-    v = vl.valle_de_alcance('alimentador', {'M': _curva(random.Random(3), 9)}, vl.ajustes_de({}))
-    assert v.ventana is None and v.instante is not None
-    assert any('dias_ventana' in a for a in v.avisos)
-    assert vl.ajustes_de({'valle': {'dias_ventana': 5}}).dias_ventana == 5
-    assert vl.ajustes_de({}).dias_ventana is None
+def test_ventana_un_registro_menor_fuera_del_valle_se_dice():
+    """073:RF-3 — si el registro menor queda fuera del valle, se dice, con su fecha y su valor."""
+    rng = random.Random(4)
+    curva = _curva(rng, 120, kw=1000.0, por_dia=_con_valle(rng, 120, 40, 30, profundidad=0.8))
+    i = next(j for j, x in enumerate(curva) if x[0] == INICIO + timedelta(days=90, hours=3))
+    curva[i] = (curva[i][0], 0.36 * curva[i][1], 0.36 * curva[i][2])
+    curva[i + 1] = (curva[i + 1][0], 0.36 * curva[i + 1][1], 0.36 * curva[i + 1][2])
+    v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
+    assert v.ventana['inicio'] <= _dia(45) <= v.ventana['fin'] and v.instante['fecha'] != curva[i][0]
+    assert any('073:RF-1' in a and 'fuera del valle' in a for a in v.avisos)
 
 
 def test_ventana_un_hueco_de_un_medidor_no_es_valle():
     """073:RF-5 — un medidor sin ese registro bajaría la suma: ese instante no cuenta."""
     rng = random.Random(4)
-    a, b = _curva(rng, 10, kw=1000.0), _curva(rng, 10, kw=1000.0)
-    t_real = _bruto_minimo([a, b])[0]
-    # Al mediodía del día 5 a «b» le faltan registros: sin la regla, «a» sola sería el mínimo.
-    hueco = {INICIO + timedelta(days=5, hours=12) + i * PASO for i in range(3)}
+    por_dia = _con_valle(rng, 90, 30, 20)
+    a, b = _curva(rng, 90, kw=1000.0, por_dia=por_dia), _curva(rng, 90, kw=1000.0, por_dia=por_dia)
+    limpio = vl.valle_de_alcance('alimentador', {'A': a, 'B': b}, vl.Ajustes())
+    hueco = {INICIO + timedelta(days=35, hours=3) + i * PASO for i in range(3)}
     b = [x for x in b if x[0] not in hueco]
     v = vl.valle_de_alcance('alimentador', {'A': a, 'B': b}, vl.Ajustes())
-    assert v.instante['fecha'] == t_real and v.instante['fecha'] not in hueco
-    assert v.apartados['hueco']['registros'] == len(hueco)
+    assert v.instante['fecha'] not in hueco and v.apartados['hueco']['registros'] == len(hueco)
+    assert (v.ventana['inicio'], v.ventana['fin']) == (limpio.ventana['inicio'], limpio.ventana['fin'])
 
 
 @pytest.mark.parametrize('motivo', ['cero', 'signo', 'congelado', 'duplicado', 'franja', 'aislada'])
-def test_ventana_dato_dudoso_no_define_el_minimo(motivo):
+def test_ventana_dato_dudoso_no_define_el_valle(motivo):
     """073:RF-6 — un cero, un signo contrario, un medidor congelado, un duplicado que no cuadra, una
     salida de servicio o un disparo de un registro se apartan con su motivo y no son el valle."""
     rng = random.Random(11)
-    curva = _curva(rng, 15, kw=2000.0)
+    curva = _curva(rng, 100, kw=2000.0, por_dia=_con_valle(rng, 100, 30, 25))
     limpio = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
-    dia = 7
-    i0 = next(i for i, x in enumerate(curva) if x[0] == INICIO + timedelta(days=dia, hours=11))
+    i0 = next(i for i, x in enumerate(curva) if x[0] == INICIO + timedelta(days=70, hours=11))
     if motivo == 'cero':
         curva[i0] = (curva[i0][0], 0.0, 0.0)
     elif motivo == 'signo':
@@ -148,22 +223,32 @@ def test_ventana_dato_dudoso_no_define_el_minimo(motivo):
     elif motivo == 'duplicado':
         curva.insert(i0 + 1, (curva[i0][0], 1.0, 0.1))
     elif motivo == 'franja':
-        # Una salida de servicio de horas: residuales que no llegan a cero.
-        for j in range(16):
+        for j in range(16):            # una salida de servicio de horas: residuales que no llegan a cero
             curva[i0 + j] = (curva[i0 + j][0], 12.0 + j, 1.0)
     elif motivo == 'aislada':
         curva[i0] = (curva[i0][0], 0.45 * curva[i0][1], 0.45 * curva[i0][2])
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
-    assert v.instante['fecha'] == limpio.instante['fecha'], v.apartados
-    assert v.apartados[motivo]['registros'] >= 1
-    assert v.apartados[motivo]['motivo']
+    assert (v.ventana['inicio'], v.ventana['fin']) == (limpio.ventana['inicio'], limpio.ventana['fin']), v.apartados
+    assert v.instante['fecha'] == limpio.instante['fecha'] and v.apartados[motivo]['registros'] >= 1
+    assert v.apartados[motivo]['motivo'] and 'demanda' not in v.apartados[motivo]['motivo']   # 073:RF-41
 
 
-def test_ventana_el_valle_real_de_cada_noche_no_se_aparta():
+def test_ventana_dias_enteros_en_cero_no_son_el_valle():
+    """073:RF-6, 073:RF-7 — días fuera de servicio, en cero, son lo que menos energía tendrían; se apartan
+    y el valle es el periodo de energía real."""
+    rng = random.Random(14)
+    curva = _curva(rng, 150, kw=1500.0, por_dia=_con_valle(rng, 150, 90, 30))
+    curva = [(t, 0.0, 0.0) if _dia(20) <= t.date() <= _dia(40) else (t, kw, q) for t, kw, q in curva]
+    v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
+    assert v.apartados['cero']['registros'] == 21 * 96
+    assert abs((v.ventana['inicio'] - _dia(90)).days) <= 2 and v.instante['kw'] > 0
+
+
+def test_ventana_el_valle_de_cada_noche_no_se_aparta():
     """073:RF-6 — la noche baja todas las noches: su franja también baja, y no es una salida."""
     rng = random.Random(21)
     curva = [(t, kw * (0.15 if 2 <= t.hour < 5 else 1.0), q * (0.15 if 2 <= t.hour < 5 else 1.0))
-             for t, kw, q in _curva(rng, 12, kw=3000.0)]
+             for t, kw, q in _curva(rng, 40, kw=3000.0, por_dia=_con_valle(rng, 40, 10, 12))]
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
     assert 2 <= v.instante['fecha'].hour < 5
     assert 'franja' not in v.apartados and 'aislada' not in v.apartados
@@ -176,25 +261,19 @@ def test_ventana_convencion_de_signo_al_reves_no_es_error():
     assert v.comprobado and v.instante['kw'] > 0 and 'signo' not in v.apartados
 
 
-def test_ventana_un_dia_sin_cobertura_corta_la_ventana():
-    """073:RF-7 — una ventana no salta un día sin datos ni lo cuenta."""
+def test_ventana_cruza_un_dia_sin_datos_solo_si_le_quedan_bastantes():
+    """073:RF-7 — un día sin datos no cuenta; una ventana larga lo cruza y dice cuántos tiene con dato."""
     rng = random.Random(31)
-    por_dia = [1.0] * 12
-    por_dia[3] = por_dia[4] = por_dia[6] = 0.5       # los más bajos, con un hueco en medio
-    curva = _curva(rng, 12, kw=1000.0, por_dia=por_dia)
-    roto = INICIO.date() + timedelta(days=5)
-    curva = [x for x in curva if x[0].date() != roto]
-    v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes(dias_ventana=3))
-    assert not v.ventana['desde'] <= roto <= v.ventana['hasta']
-    # Con el día 5 entero bastaría la ventana del 3 al 6; sin él, otra.
-    assert (v.ventana['desde'], v.ventana['hasta']) != (INICIO.date() + timedelta(days=4), INICIO.date() + timedelta(days=6))
-
-
-def test_ventana_no_hay_n_dias_contiguos_lo_dice():
-    """073:RF-7 — sin N días contiguos con cobertura, sin ventana y con el motivo; queda el instante."""
-    v = vl.valle_de_alcance('alimentador', {'M': _curva(random.Random(8), 4)}, vl.Ajustes(dias_ventana=9))
-    assert v.ventana is None and v.comprobado
-    assert any('9 días' in a for a in v.avisos)
+    curva = _curva(rng, 200, kw=1000.0, por_dia=_con_valle(rng, 200, 60, 60))
+    roto = _dia(90)
+    un_dia = [x for x in curva if x[0].date() != roto]
+    v = vl.valle_de_alcance('alimentador', {'M': un_dia}, vl.Ajustes())
+    assert v.ventana['inicio'] < roto < v.ventana['fin']
+    assert v.ventana['dias_con_dato'] == v.ventana['duracion_dias'] - 1
+    # Sin un tercio de sus días, ya no cabe en la cobertura: la ventana no los salta.
+    rotos = {_dia(60 + i) for i in range(0, 60, 3)}
+    v = vl.valle_de_alcance('alimentador', {'M': [x for x in curva if x[0].date() not in rotos]}, vl.Ajustes())
+    assert v.ventana is None or v.ventana['dias_con_dato'] >= 0.9 * v.ventana['duracion_dias']
 
 
 def test_ventana_medidor_con_pocos_registros_sale_de_la_suma_y_se_dice():
@@ -205,7 +284,7 @@ def test_ventana_medidor_con_pocos_registros_sale_de_la_suma_y_se_dice():
     malo = rng.sample(_curva(rng, 20, kw=8.0), 400)
     v = vl.valle_de_alcance('sistema', {'BUENO': bueno, 'MALO': malo}, vl.Ajustes())
     assert v.excluidos == ['MALO'] and any('MALO' in a for a in v.avisos)
-    assert v.instante['fecha'] == _bruto_minimo([bueno])[0]
+    assert v.registros >= 0.9 * len(bueno)
 
 
 def test_ventana_sin_ningun_instante_valido_no_revienta():
@@ -220,22 +299,57 @@ def test_ventana_por_periodo():
     """073:RF-2 — con ``periodo`` (025:RF-7), solo los registros de ese mes o año."""
     curva = _curva(random.Random(2), 60)
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes(), periodo='2026-04')
-    assert v.instante['fecha'].month == 4
+    assert v.instante['fecha'].month == 4 and v.anios == [2026]
 
 
 def test_ventana_kvar_ausente_se_dice():
-    """073:RF-4 — un medidor sin kVAR da el valle en kW, dicho; un dato sin Q no se inventa."""
+    """073:RF-4 — un medidor sin kVAR da el valle en energía igual, dicho; un dato sin Q no se inventa."""
     curva = [(t, kw, None) for t, kw, _q in _curva(random.Random(6), 5, kw=700.0)]
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
     assert v.comprobado and v.instante['kvar'] is None
-    assert v.instante['kva'] == pytest.approx(v.instante['kw'])
     assert any('kVAR' in a for a in v.avisos)
+
+
+def test_ventana_varios_anios_sin_mezclar_y_si_coinciden():
+    """073:RF-38 — cada año por su cuenta: el crecimiento no hace del año más antiguo el valle; usa el
+    último, dice los años y si coinciden en la época."""
+    rng = random.Random(51)
+    a1, a2, a3 = datetime(2024, 1, 1), datetime(2025, 1, 1), datetime(2026, 1, 1)
+    def anio(inicio, kw, desde):
+        dias = (datetime(inicio.year + 1, 1, 1) - inicio).days
+        return _curva(rng, dias, kw=kw, inicio=inicio, por_dia=_con_valle(rng, dias, desde, 40))
+    misma = anio(a1, 1000.0, 150) + anio(a2, 1400.0, 155) + anio(a3, 1900.0, 150)
+    v = vl.valle_de_alcance('alimentador', {'M': misma}, vl.Ajustes())
+    assert v.anios == [2024, 2025, 2026] and [x['anio'] for x in v.ventanas] == [2024, 2025, 2026]
+    assert v.coinciden is True and v.ventana['anio'] == 2026 and v.instante['fecha'].year == 2026
+    assert all(abs(x['duracion_dias'] - 40) <= 4 for x in v.ventanas)
+    otra = anio(a1, 1000.0, 30) + anio(a2, 1400.0, 250)
+    v = vl.valle_de_alcance('alimentador', {'M': otra}, vl.Ajustes())
+    assert v.coinciden is False and any('NO coinciden' in a for a in v.avisos)
+    r = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': 2000.0, 'kvar': 500.0}})
+    assert r['anios'] == [2024, 2025] and r['coinciden'] is False and len(r['ventanas']) == 2
+
+
+def test_ventana_tan_baja_que_puede_ser_una_transferencia_se_dice():
+    """073:RF-36 — una ventana de meses muy por debajo del resto puede ser una transferencia: se avisa."""
+    rng = random.Random(62)
+    v = vl.valle_de_alcance('alimentador', {'M': _curva(rng, 200, kw=900.0, por_dia=_con_valle(rng, 200, 50, 90, profundidad=0.3))},
+                            vl.Ajustes())
+    assert v.ventana and any('transferencia' in a for a in v.avisos)
+
+
+def test_ventana_que_toca_el_borde_se_dice():
+    """073:RF-36 — si el valle toca el principio o el final de los registros, puede seguir fuera de ellos."""
+    rng = random.Random(61)
+    v = vl.valle_de_alcance('alimentador', {'M': _curva(rng, 100, kw=900.0, por_dia=_con_valle(rng, 100, 0, 25))}, vl.Ajustes())
+    assert v.ventana and any('borde' in a for a in v.avisos)
 
 
 def test_ventana_lee_con_los_lectores_de_demanda_medida(tmp_path):
     """073:RF-11 — el valle de un libro de cabecera, por ``demanda_medida.maximas``."""
     openpyxl = pytest.importorskip('openpyxl')
-    curva = _curva(random.Random(9), 6, kw=1500.0)
+    rng = random.Random(9)
+    curva = _curva(rng, 40, kw=1500.0, por_dia=_con_valle(rng, 40, 12, 14))
     libro = openpyxl.Workbook()
     hoja = libro.active
     hoja.title = 'MED1'
@@ -247,7 +361,7 @@ def test_ventana_lee_con_los_lectores_de_demanda_medida(tmp_path):
     curvas, avisos = vl.curvas_medidas([ruta], [('F1', 'MED1')])
     assert avisos == [] and len(curvas['MED1']) == len(curva)
     v = vl.valle_de_alcance('alimentador', curvas, vl.Ajustes())
-    assert v.instante['fecha'] == _bruto_minimo([curva])[0]
+    assert abs((v.ventana['inicio'] - _dia(12)).days) <= 2
     vacio, avisos = vl.curvas_medidas([ruta], [('F1', 'NO_ESTA')])
     assert vacio == {} and any('NO_ESTA' in a for a in avisos)
 
@@ -255,41 +369,68 @@ def test_ventana_lee_con_los_lectores_de_demanda_medida(tmp_path):
 REAL = os.environ.get('CSG_DEMANDA_DIR', '').strip()
 
 
+def _una_fila_real(nombre, kind, v, curvas):
+    """Una línea para el informe de la prueba (con ``-s``), en cifras; no se guarda nada."""
+    total = sum(len(c) for c in curvas)
+    apartado = sum(x['registros'] for x in v.apartados.values())
+    if not v.ventanas:
+        return f'{kind};{nombre};sin ventana;;;;{v.anios};{100 * apartado / max(total, 1):.1f}'
+    w = v.ventana
+    return (f"{kind};{nombre};{w['inicio']};{w['fin']};{w['duracion_dias']};"
+            f"{w['kwh_dia_dentro'] / w['kwh_dia_fuera']:.2f};{v.anios};{100 * apartado / max(total, 1):.1f};{v.coinciden}")
+
+
 @pytest.mark.skipif(not REAL or not Path(REAL).is_dir(), reason='CSG_DEMANDA_DIR no apunta a la carpeta de la distribuidora')
 def test_ventana_real_con_la_medicion_de_la_distribuidora():
-    """073:RF-6, 073:RF-11 — con medición real, el valle no es un cero y lo apartado se nombra; no se
-    guarda ni se copia nada de esos datos."""
+    """073:RF-2, 073:RF-6, 073:RF-11, 073:RF-35 — con medición real, por objetivo, inicio, fin y duración
+    salen de los registros, el punto no es un cero y lo apartado se nombra. ``CSG_VALLE_OBJETIVOS`` dice
+    cuántos alimentadores lee, para la medición completa; nada de esos datos se guarda."""
     from convertersmartgrid import demanda_medida as dm
 
     def sub(prefijo):
         return next(p for p in Path(REAL).iterdir() if p.is_dir() and p.name.startswith(prefijo))
 
-    meds = dm.leer_medidores(next(sub('1.').iterdir()))
+    libro = next(sub('1.').iterdir())
+    meds = dm.leer_medidores(libro)
     pares = [(a, dm.medidores_de(meds, a)[0]) for a in dict.fromkeys(m.alimentador for m in meds)
-             if dm.medidores_de(meds, a)][:3]
-    curvas, _avisos = vl.curvas_medidas([sub('2.')], pares)
+             if dm.medidores_de(meds, a)]
+    pares = pares[:int(os.environ.get('CSG_VALLE_OBJETIVOS', 3))]
+    cabecera = dm.Cabecera([sub('2.')])
+    curvas, _avisos = vl.curvas_medidas([sub('2.')], pares, cabecera=cabecera)
     assert curvas
-    vistos = 0
-    for medidor, curva in curvas.items():
-        v = vl.valle_de_alcance('alimentador', {medidor: curva}, vl.Ajustes(dias_ventana=7))
+    vistos, aj = 0, vl.Ajustes()
+    print('\nobjetivo;nombre;inicio;fin;dias;dentro/fuera;anios;%apartado;coinciden')
+    for alim, medidor in pares:
+        if medidor not in curvas:
+            continue
+        v = vl.valle_de_alcance('alimentador', {medidor: curvas[medidor]}, aj)
+        print(_una_fila_real(alim, 'alimentador', v, [curvas[medidor]]))
         if v.comprobado:
             vistos += 1
-            assert v.instante['kva'] > 0
+            assert v.instante['kw'] > 0
     assert vistos
+    # El sistema: todos los leídos sumados; un medidor con pocos registros sale y se dice.
+    v = vl.valle_de_alcance('sistema', curvas, aj)
+    print(_una_fila_real(f'{len(curvas)} alimentadores', 'conjunto', v, curvas.values()))
+    assert v.comprobado
 
 
 def test_ventana_universal_sin_cifras_de_una_empresa():
-    """073:RF-34 — el módulo no lleva nombres de empresa ni tamaños de banco, y dos perfiles dan dos
-    ventanas distintas sobre la misma medición."""
+    """073:RF-34, 073:RF-41 — el módulo no lleva nombres de empresa, tamaños de banco ni duración, ni
+    llama demanda al valle en lo que muestra; el perfil solo afina la penalización."""
     texto = Path(vl.__file__).read_text(encoding='utf-8').lower()
-    for prohibido in ('electro', 'dunas', 'epsg', '450', '300 kvar'):
+    for prohibido in ('electro', 'dunas', 'epsg', '450', '300 kvar', 'dias_ventana', 'factor_cargas_nuevas'):
         assert prohibido not in texto, prohibido
-    curva = _curva(random.Random(13), 30)
-    a = vl.valle_de_alcance('alimentador', {'M': curva}, vl.ajustes_de({'valle': {'dias_ventana': 2}}))
-    b = vl.valle_de_alcance('alimentador', {'M': curva}, vl.ajustes_de({'valle': {'dias_ventana': 9}}))
-    assert a.ventana['dias'] == 2 and b.ventana['dias'] == 9
+    assert not hasattr(vl.ajustes_de({'valle': {'dias_ventana': 9}}), 'dias_ventana')
+    assert vl.ajustes_de({'valle': {'penalizacion': 3.0}}).penalizacion == 3.0
     with pytest.raises(vl.ValleError):
-        vl.ajustes_de({'valle': {'dias_ventana': 0}})
+        vl.ajustes_de({'valle': {'penalizacion': -1}})
+    rng = random.Random(13)
+    curva = _curva(rng, 120, por_dia=_con_valle(rng, 120, 40, 30))
+    v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
+    assert not any('demanda' in a.lower() for a in v.avisos)
+    assert 'demanda' not in vl.frase_valle({}) and 'demanda' not in vl.frase_valle(
+        {'valle': True, 'valle_u_max': 1.0, 'valle_nodo': 'B', 'valle_fecha': 'x'})
 
 
 # =========================================================================== escalera y oráculo
@@ -310,12 +451,12 @@ def _banco(n: int, kvar: float = 450.0, barra: str = 'B') -> dict:
     return {'clase': 'condensador', 'barra': barra, 'q_kvar': kvar * n, 'escalones': n}
 
 
-def _puntos(factor_p: float, factor_q: float | None = None, factor_nuevas: float = 0.0) -> dict:
+def _puntos(factor_p: float, factor_q: float | None = None) -> dict:
     """Un punto de valle como los da ``puntos_de_valle``."""
     return {'comprobado': True, 'motivo': '', 'avisos': [], 'pronostico': None,
-            'puntos': [{'etiqueta': 'instante mínimo', 'fecha': '2026-03-08 03:15:00', 'kw': 100.0, 'kvar': 30.0,
-                        'kva': 104.4, 'factor_p': factor_p, 'factor_q': factor_p if factor_q is None else factor_q,
-                        'factor_nuevas': factor_nuevas, 'factores': {'F1': factor_p}, 'origen': 'medicion'}]}
+            'puntos': [{'etiqueta': 'mínimo del valle', 'fecha': '2026-03-08 03:15:00', 'kw': 100.0, 'kvar': 30.0,
+                        'factor_p': factor_p, 'factor_q': factor_p if factor_q is None else factor_q,
+                        'factores': {'F1': factor_p}, 'origen': 'medicion'}]}
 
 
 def _red_con_margen():
@@ -365,8 +506,27 @@ def test_escalera_sin_valle_no_bloquea_y_queda_marcada():
     r = eo.elegir([_fila('banco', {'maxima': True, 'fraccion': 1.0})], p)
     assert r['elegida'] == 'banco' and r['sin_comprobar_valle'] is True
     assert 'no comprobado en valle' in r['tabla'][0]['motivo']
-    sin_bancos = eo.elegir([_fila('terna', {'maxima': True, 'fraccion': 1.0}, escalones=('terna',))], p)
-    assert 'sin_comprobar_valle' not in sin_bancos
+    # 073:RF-40: bancos y proyectos: una terna tampoco queda dada por buena en valle.
+    terna = eo.elegir([_fila('terna', {'maxima': True, 'fraccion': 1.0}, escalones=('terna',))], p)
+    assert terna['sin_comprobar_valle'] is True and 'no comprobado en valle' in terna['tabla'][0]['motivo']
+    sin_obra = eo.elegir([_fila('nada', {'maxima': True, 'fraccion': 1.0}, escalones=())], p)
+    assert 'sin_comprobar_valle' not in sin_obra
+
+
+def test_escalera_toda_obra_se_comprueba_en_valle():
+    """073:RF-40 — una sección o una terna que no cumple en valle tampoco se elige, y el oráculo mide
+    también las que no son bancos."""
+    p = _p()
+    r = eo.elegir([_fila('seccion', {'maxima': True, 'fraccion': 1.0, 'valle': False, 'valle_motivos': ['B sube']},
+                         escalones=('seccion',)),
+                   _fila('terna', {'maxima': True, 'fraccion': 1.0, 'valle': True}, 900.0, ('terna',))], p)
+    assert r['elegida'] == 'terna' and 'en valle' in r['tabla'][0]['motivo']
+    ora = oo.Oraculo(_grafo(), [{**NUEVA, 'alimentador': 'F1'}], tipos=TIPOS)
+    e = ora.evaluar([{'clase': 'terna', 'tramos': ['T1', 'T2']}], 1, p, alimentador='F1', valle=_puntos(0.2))
+    assert e['valle'] is True and e['valle_u_max'] is not None
+    set_nueva = ora.con_set_nueva([{'entrada': 'T2', 'nodo': 'B', 'distancia_km': 0.5, 'r_ohm_km': 0.5, 'x_ohm_km': 0.4,
+                                    'inom_ka': 0.3}], 10.0)
+    assert set_nueva.evaluar([], 1, p, valle=_puntos(0.2))['valle_casos']
 
 
 @pytest.mark.parametrize('semilla', range(5))
@@ -461,16 +621,22 @@ def test_escalera_el_kvar_de_valle_con_su_propio_factor():
     assert ora.medir([], 0, 0.3).u['B'] == pytest.approx(ora.medir([], 0, 0.3, factor_q=0.3).u['B'], abs=1e-12)
 
 
-def test_escalera_las_cargas_nuevas_en_valle_por_su_factor():
-    """073:RF-23 — por defecto apagadas: el banco sigue conectado y de ellas no hay medición. El perfil
-    puede dar otro factor, y con carga nueva encendida la tensión baja."""
+def test_escalera_las_cargas_nuevas_en_valle_en_los_dos_casos():
+    """073:RF-23, 073:RF-39 — sin las cargas nuevas, el peor caso, y con ellas; cumple solo si cumple en
+    los dos, y lo medido dice ambos. Ninguna opción del perfil lo decide."""
     ora = _red_con_margen()
     apagada = ora.medir([], 1, 0.05, factor_nuevas=0.0).u['B']
-    igual = ora.medir([], 0, 0.05).u['B']
-    encendida = ora.medir([], 1, 0.05, factor_nuevas=1.0).u['B']
-    assert apagada == pytest.approx(igual, abs=1e-12) and encendida < apagada
-    assert vl.ajustes_de({}).factor_cargas_nuevas == 0.0
-    assert vl.ajustes_de({'valle': {'factor_cargas_nuevas': 0.4}}).factor_cargas_nuevas == 0.4
+    assert apagada == pytest.approx(ora.medir([], 0, 0.05).u['B'], abs=1e-12)
+    assert ora.medir([], 1, 0.05, factor_nuevas=1.0).u['B'] < apagada
+    assert not hasattr(vl.Ajustes(), 'factor_cargas_nuevas')
+    # Con 2 bancos: a 1,04 no pasa sin la carga, pero sí con ella.
+    e = ora.evaluar([_banco(2)], 1, _p(tension_max_pu=1.04), valle=_puntos(0.05))
+    casos = e['valle_casos']
+    assert e['valle'] is False and casos['sin_cargas']['cumple'] is False
+    assert casos['con_cargas']['u_max'] < casos['sin_cargas']['u_max'] == e['valle_u_max']
+    assert 'sin cargas nuevas' in vl.frase_valle(e) and 'con cargas nuevas' in vl.frase_valle(e)
+    # Sin cargas activas, un solo caso.
+    assert set(ora.evaluar([_banco(1)], 0, _p(), valle=_puntos(0.05))['valle_casos']) == {'sin_cargas'}
 
 
 def _espacio_valle():
@@ -511,30 +677,24 @@ def test_escalera_busqueda_de_k_y_eleccion_con_el_valle():
     assert r['shapley'] is not None
 
 
-def test_escalera_puntos_con_el_factor_de_cada_uno():
-    """073:RF-22 — de la medición a los puntos: factor de P y de Q sobre la máxima, por alimentador y
-    del conjunto; el mínimo de la ventana entra solo si es otro instante."""
+def test_escalera_punto_con_el_factor_de_cada_uno():
+    """073:RF-22, 073:RF-1 — de la medición al punto: factor de P y de Q sobre la máxima, por alimentador
+    y del conjunto; un solo punto, el mínimo del valle."""
     rng = random.Random(77)
-    a, b = _curva(rng, 25, kw=1000.0), _curva(rng, 25, kw=3000.0)
+    por_dia = _con_valle(rng, 60, 20, 15)
+    a, b = _curva(rng, 60, kw=1000.0, por_dia=por_dia), _curva(rng, 60, kw=3000.0, por_dia=por_dia)
     maximas = {'MA': {'alimentador': 'F1', 'kw': 1200.0, 'kvar': 300.0},
                'MB': {'alimentador': 'F2', 'kw': 3500.0, 'kvar': 800.0}}
-    aj = vl.Ajustes(dias_ventana=3, factor_cargas_nuevas=0.25)
-    v = vl.valle_de_alcance('alimentador', {'MA': a, 'MB': b}, aj)
-    r = vl.puntos_de_valle(v, maximas, aj)
-    assert r['comprobado'] and r['puntos'][0]['etiqueta'] == 'instante mínimo'
+    v = vl.valle_de_alcance('alimentador', {'MA': a, 'MB': b}, vl.Ajustes())
+    r = vl.puntos_de_valle(v, maximas)
+    assert r['comprobado'] and len(r['puntos']) == 1 and r['puntos'][0]['etiqueta'].startswith('mínimo del valle')
+    assert r['ventanas'][0]['duracion_dias'] == v.ventana['duracion_dias']
     pt = r['puntos'][0]
     assert pt['factor_p'] == pytest.approx(v.instante['kw'] / 4700.0)
     assert pt['factor_q'] == pytest.approx(v.instante['kvar'] / 1100.0)
     por = v.instante['por_medidor']
     assert pt['factores'] == {'F1': pytest.approx(por['MA'][0] / 1200.0), 'F2': pytest.approx(por['MB'][0] / 3500.0)}
-    assert pt['factor_nuevas'] == 0.25 and pt['origen'] == 'medicion'
-    assert isinstance(pt['fecha'], str)
-    fechas = [x['fecha'] for x in r['puntos']]
-    assert len(set(fechas)) == len(fechas)
-    if v.ventana['instante']['fecha'] != v.instante['fecha']:
-        assert len(r['puntos']) == 2 and r['puntos'][1]['etiqueta'].startswith('mínimo de la ventana')
-    else:
-        assert len(r['puntos']) == 1
+    assert pt['origen'] == 'medicion' and isinstance(pt['fecha'], str)
     import json
     json.dumps(r)                                        # viaja en el plan del guion
 
@@ -545,7 +705,11 @@ def test_informe_frase_con_nodo_y_fecha_o_no_comprobado():
     bien = vl.frase_valle({'valle': True, 'valle_u_max': 1.0432, 'valle_nodo': 'B7', 'valle_fecha': '2026-03-08 03:15:00'})
     assert bien == 'tensión máxima en valle de 1,043 p.u. en B7 el 2026-03-08 03:15:00'
     mal = vl.frase_valle({'valle': False, 'valle_u_max': 1.07, 'valle_nodo': 'B7', 'valle_fecha': 'x'})
-    assert '1,070' in mal and 'sobrepasa' in mal
+    assert '1,070' in mal and 'no admisible' in mal
+    ambos = vl.frase_valle({'valle': True, 'valle_u_max': 1.04, 'valle_nodo': 'B7', 'valle_fecha': 'x', 'valle_casos': {
+        'sin_cargas': {'cumple': True, 'u_max': 1.04, 'nodo': 'B7', 'fecha': 'x'},
+        'con_cargas': {'cumple': True, 'u_max': 1.01, 'nodo': 'B2', 'fecha': 'x'}}})
+    assert 'sin cargas nuevas 1,040 p.u. en B7; con cargas nuevas 1,010 p.u. en B2' in ambos    # 073:RF-39
     for fila in (None, {}, {'valle': None}, {'valle': None, 'valle_sin_comprobar': 'sin medición'}):
         frase = vl.frase_valle(fila)
         assert frase.startswith('no comprobado en valle') and 'cumple' not in frase
@@ -557,20 +721,19 @@ def test_escalera_puntos_con_un_medidor_fuera_de_la_suma():
     queda en su máxima, que bajaría la tensión del valle sin medirlo."""
     rng = random.Random(41)
     bueno, malo = _curva(rng, 20, kw=5000.0), rng.sample(_curva(rng, 20, kw=8.0), 400)
-    aj = vl.Ajustes()
-    v = vl.valle_de_alcance('sistema', {'BUENO': bueno, 'MALO': malo}, aj)
+    v = vl.valle_de_alcance('sistema', {'BUENO': bueno, 'MALO': malo}, vl.Ajustes())
     maximas = {'BUENO': {'alimentador': 'F1', 'kw': 6000.0, 'kvar': 1000.0}, 'MALO': {'alimentador': 'F2', 'kw': 10.0, 'kvar': 1.0}}
-    (pt,) = vl.puntos_de_valle(v, maximas, aj)['puntos']
+    (pt,) = vl.puntos_de_valle(v, maximas)['puntos']
     assert pt['factores']['F2'] == pt['factor_p'] == pytest.approx(v.instante['kw'] / 6000.0)
 
 
 def test_escalera_puntos_sin_medicion_o_sin_la_maxima():
     """073:RF-24 — sin valle medido o sin la máxima para comparar, sin puntos y con el motivo."""
     aj = vl.Ajustes()
-    nada = vl.puntos_de_valle(vl.Valle(alcance='set', motivo='sin medición'), {}, aj)
+    nada = vl.puntos_de_valle(vl.Valle(alcance='set', motivo='sin medición'), {})
     assert not nada['comprobado'] and nada['puntos'] == [] and nada['motivo'] == 'sin medición'
     v = vl.valle_de_alcance('set', {'M': _curva(random.Random(3), 5)}, aj)
-    sin_max = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': None, 'kvar': None}}, aj)
+    sin_max = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': None, 'kvar': None}})
     assert not sin_max['comprobado'] and sin_max['puntos'] == [] and 'máxima' in sin_max['motivo']
 
 
@@ -579,11 +742,11 @@ def test_pronostico_no_sustituye_a_la_medicion():
     medición los puntos son los medidos."""
     aj = vl.Ajustes()
     pron = {'anio': 2030, 'kva': 123.0, 'fecha': '2030-02-01 03:00:00'}
-    sin = vl.puntos_de_valle(vl.Valle(alcance='set', motivo='sin medición'), {}, aj, pronostico=pron)
+    sin = vl.puntos_de_valle(vl.Valle(alcance='set', motivo='sin medición'), {}, pronostico=pron)
     assert not sin['comprobado'] and sin['puntos'] == [] and sin['pronostico'] == pron
     assert vl.frase_valle(oo.Oraculo(_grafo(), []).en_valle([], 0, _p(), sin)).startswith('no comprobado en valle')
     v = vl.valle_de_alcance('set', {'M': _curva(random.Random(3), 5)}, aj)
-    con = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': 2000.0, 'kvar': 500.0}}, aj, pronostico=pron)
+    con = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': 2000.0, 'kvar': 500.0}}, pronostico=pron)
     assert con['comprobado'] and all(x['origen'] == 'medicion' for x in con['puntos']) and con['pronostico'] == pron
 
 
@@ -678,7 +841,7 @@ def _guion():
     return modulo
 
 
-def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_cumple=False):
+def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_cumple=False, barras_cargas=()):
     """``evaluar`` con el flujo sustituido: en el escenario de valle, la barra sube a ``u_valle`` si
     la variante lleva banco. Lo que se pone en juego es el guion, no el doble."""
     from test_obras_pf_guion import PERFIL_ESCALERA, _calibrada_con_escenario, _plan
@@ -729,7 +892,7 @@ def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_c
                  {'nombre': 'terna', 'obras': [{'clase': 'terna', 'alimentador': f, 'casos': ['Con proyecto'],
                                                 'tramos': ['L1']}], 'costo_base': 50.0}]
     perfil = {**PERFIL_ESCALERA, 'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
-    plan = _plan(alims, variantes=variantes, sorteos=[{'factores': {a: 0.9 for a in alims}}], barras_cargas=[],
+    plan = _plan(alims, variantes=variantes, sorteos=[{'factores': {a: 0.9 for a in alims}}], barras_cargas=list(barras_cargas),
                  parametros=perfil, costo_por_kw_perdido=1.0, valle=puntos)
     informe, codigo = g.evaluar(app, plan)
     assert codigo == 0, informe
@@ -747,6 +910,14 @@ def test_guion_en_valle_rechaza_el_banco_y_no_lo_sortea(monkeypatch):
     assert filas['bancos']['fraccion'] is None and 'en valle' in filas['bancos']['sin_sortear']
     assert filas['terna']['valle'] is True and filas['terna']['fraccion'] == 1.0
     assert ({'F1': 0.2}, 0.0) in estado['escalados']
+    assert set(filas['bancos']['valle_casos']) == {'sin_cargas'}
+
+
+def test_guion_en_valle_mide_sin_y_con_las_cargas_nuevas(monkeypatch):
+    """073:RF-39 — con cargas nuevas en juego, cada variante se mide con ellas apagadas y a su potencia."""
+    informe, estado = _evaluar_en_valle(monkeypatch, _puntos(0.2), barras_cargas=['B1'], u_valle=1.0)
+    assert ({'F1': 0.2}, 0.0) in estado['escalados'] and ({'F1': 0.2}, 1.0) in estado['escalados']
+    assert set(informe['variantes'][0]['valle_casos']) == {'sin_cargas', 'con_cargas'}
 
 
 def test_guion_sin_puntos_de_valle_no_mide_ni_inventa(monkeypatch):
@@ -842,7 +1013,20 @@ def test_pide_sin_valle_no_bloquea_y_lo_dice():
     banco = next(o for o in p['obras'] if o['alternativa'] == 'bancos')
     assert banco['valle']['texto'].startswith('no comprobado en valle') and banco['valle']['modulos_admisibles'] is None
     assert any('no comprobado en valle' in a for a in p['avisos'])
-    assert all(o.get('valle') is None for o in p['obras'] if o['alternativa'] != 'bancos')
+    # 073:RF-40: bancos y proyectos: las demás obras tampoco quedan dadas por buenas.
+    assert all(o['valle']['texto'].startswith('no comprobado en valle') for o in p['obras'])
+
+
+def test_pide_otra_obra_que_no_cumple_en_valle_queda_descartada():
+    """073:RF-40 — una obra medida que no cumple en valle queda descartada con su motivo; la que cumple
+    lo dice con su tensión."""
+    p = _pide(valle={'F1': {'comprobado': True, 'modulos': 2, 'valle': True, 'valle_u_max': 1.0, 'valle_nodo': 'B', 'valle_fecha': 'x',
+                            'por_alternativa': {'cambio_seccion': {'valle': False, 'valle_u_max': 1.09, 'valle_nodo': 'B',
+                                                                   'valle_fecha': 'x'},
+                                                'nueva_terna': {'valle': False, 'valle_u_max': 1.09, 'valle_nodo': 'B', 'valle_fecha': 'x'}}}})
+    terna = next(o for o in p['obras'] if o['alternativa'] in ('cambio_seccion', 'nueva_terna'))
+    assert 'en valle' in terna['descartada'] and terna['obra_011'] is None and '1,090' in terna['valle']['texto']
+    assert next(o for o in p['obras'] if o['alternativa'] == 'bancos')['descartada'] is None
 
 
 # =========================================================================== servicio e informe
@@ -860,7 +1044,8 @@ def _escalera(tmp_path, monkeypatch, evaluar, **kw):
 
 
 def _curva_de_servicio(medidor='M1'):
-    return {medidor: _curva(random.Random(3), 10, kw=1000.0)}
+    rng = random.Random(3)
+    return {medidor: _curva(rng, 60, kw=1000.0, por_dia=_con_valle(rng, 60, 20, 15))}
 
 
 def test_informe_la_tabla_de_la_escalera_lleva_el_valle(tmp_path, monkeypatch):
@@ -870,7 +1055,8 @@ def test_informe_la_tabla_de_la_escalera_lleva_el_valle(tmp_path, monkeypatch):
         banco = nombre.startswith('bancos') and '+' not in nombre
         return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': [],
                 'valle': not banco, 'valle_motivos': ['B4 sube'] if banco else [], 'valle_u_max': 1.08 if banco else 1.01,
-                'valle_nodo': 'B4', 'valle_fecha': '2026-03-05 03:00:00'}
+                'valle_nodo': 'B4', 'valle_fecha': '2026-03-05 03:00:00',
+                'valle_casos': {'sin_cargas': {'cumple': not banco, 'u_max': 1.08, 'nodo': 'B4', 'fecha': 'x'}}}
 
     services, ws, ctx, planes, aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
     monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
@@ -881,6 +1067,8 @@ def test_informe_la_tabla_de_la_escalera_lleva_el_valle(tmp_path, monkeypatch):
     assert not f1['elegida'].startswith('bancos') and aplicadas
     fila = next(t for t in f1['tabla'] if t['nombre'].startswith('bancos'))
     assert fila['valle'] is False and fila['valle_u_max'] == 1.08 and '1,080' in fila['valle_texto']
+    assert fila['valle_casos']['sin_cargas']['u_max'] == 1.08 and 'sin cargas nuevas' in fila['valle_texto']
+    assert r['valle']['ventanas'][0]['duracion_dias'] > 0                         # 073:RF-36
     assert any('073:RF-20' in a for a in f1['avisos'])
     assert services.valle_de_la_obra(ws, 'P', 'F1')['valle'] is True
 
@@ -927,8 +1115,8 @@ def test_informe_alimentador_con_central_queda_sin_comprobar(tmp_path, monkeypat
 
 
 def test_informe_de_estudio_dice_la_tension_en_valle_de_cada_alternativa_con_bancos(tmp_path):
-    """073:RF-32, 073:RF-31 — la sección de una alternativa con bancos dice su tensión en valle o «no
-    comprobado en valle»; una alternativa sin bancos no lo menciona."""
+    """073:RF-32, 073:RF-31, 073:RF-40 — la sección de cada alternativa con obras, bancos o no, dice su
+    tensión en valle o «no comprobado en valle»."""
     from dataclasses import replace
 
     from docx import Document
@@ -953,10 +1141,8 @@ def test_informe_de_estudio_dice_la_tension_en_valle_de_cada_alternativa_con_ban
     assert 'o comprobado en valle' not in con
     conductor = Etapa('conductor', caso=caso_docx('Con proyecto', 0.96),
                       obras=({'tipo': 'conductor', 'conductor': 'AA 120', 'km': 1.5},), anio=2027)
-    assert 'en valle' not in texto([conductor])
-    # Con dos alternativas, en la sección de cada una; la que no lleva bancos, sin la frase de más.
-    dos = texto([base, conductor])
-    assert dos.count('o comprobado en valle') >= 1
+    assert 'No comprobado en valle' in texto([conductor])
+    assert texto([base, conductor]).count('o comprobado en valle') >= 2
 
 
 def test_informe_de_factibilidad_tambien_lo_dice(tmp_path):

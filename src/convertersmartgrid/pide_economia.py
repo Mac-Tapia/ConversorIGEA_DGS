@@ -394,9 +394,13 @@ def _problemas_por_anio(informe: Mapping[str, Any]) -> list[dict[str, Any]]:
     return list(primero.values())
 
 
-def _valle_del_banco(de_alimentador: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Lo que el valle dice del banco de un alimentador (073:RF-29, RF-31)."""
+def _valle_de_la_obra(de_alimentador: Mapping[str, Any] | None, alternativa: str) -> dict[str, Any]:
+    """Lo que el valle dice de una obra (073:RF-29, RF-31, RF-40): bancos y proyectos. ``modulos`` y la
+    tensión de arriba son del banco; las demás, de ``por_alternativa``, medida por quien la evalúa."""
     d = de_alimentador or {}
+    if alternativa != 'bancos':
+        otra = (d.get('por_alternativa') or {}).get(alternativa) or {}
+        return {'comprobado': otra.get('valle') is not None, 'modulos_admisibles': None, 'texto': frase_valle(otra)}
     return {'comprobado': bool(d.get('comprobado')), 'modulos_admisibles': d.get('modulos'), 'texto': frase_valle(d)}
 
 
@@ -426,8 +430,10 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
     RF-57 a RF-59), su obra de la spec 011 si se puede construir sola (RF-47) y las filas
     de los formatos (RF-63).
 
-    073:RF-28, RF-29: ``valle``, por alimentador, ``comprobado``, ``modulos`` y su tensión. El módulo
-    que se propone sigue siendo uno, y nunca más de los que admite; sin él, «no comprobado en valle».
+    073:RF-28, RF-29, RF-40: ``valle``, por alimentador, ``comprobado``, ``modulos`` y su tensión, y
+    ``por_alternativa`` para las obras que no son bancos. El módulo que se propone sigue siendo uno,
+    y nunca más de los que admite; sin dato, «no comprobado en valle». Una obra que se midió y no
+    cumple en valle queda descartada.
     """
     from .pide import (
         ALTERNATIVAS_POR_CAUSA,
@@ -492,9 +498,11 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
             obra, motivo = _obra_011(o.alternativa, alimentador, elemento, sitio.get('kv'), bancos_kvar)
             if banco_vetado:
                 obra, motivo = None, 'el valle no admite ningún módulo y la causa no tiene otra alternativa (073:RF-28)'
-            en_valle = _valle_del_banco(de_valle) if o.alternativa == 'bancos' else None
-            if en_valle is not None and not en_valle['comprobado']:
-                avisos.append(f'{codigo}: banco de {alimentador}: no comprobado en valle (073:RF-24).')
+            en_valle = _valle_de_la_obra(de_valle, o.alternativa)
+            if not en_valle['comprobado']:
+                avisos.append(f'{codigo}: {o.alternativa} de {alimentador}: no comprobado en valle (073:RF-24).')
+            if (de_valle or {}).get('por_alternativa', {}).get(o.alternativa, {}).get('valle') is False:
+                c.cumple_norma, obra, motivo = False, None, 'no cumple en valle (073:RF-40)'
             candidatas.append(c)
             filas_obra.append({'codigo': codigo, 'anio': o.anio, 'alternativa': o.alternativa,
                                'rubro': o.rubro, 'caracter': CARACTER_DE_ALTERNATIVA[o.alternativa],
@@ -510,7 +518,7 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
         f.update(prioridad=prioridad[c.codigo], puntaje=c.puntaje, sobredimensionada=c.sobredimensionada,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
                  indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos)
-        if f['alternativa'] == 'bancos' and (f['valle'] or {}).get('modulos_admisibles') == 0:
+        if f['descartada'] and 'valle' in str(f['motivo_sin_obra']):
             f['descartada'] = 'no cumple en valle: ' + str(f['motivo_sin_obra'])
     filas_obra.sort(key=lambda f: f['prioridad'])
     cartera = sum(f['ci'] for f in filas_obra if not (f['descartada'] or f['sobredimensionada']))

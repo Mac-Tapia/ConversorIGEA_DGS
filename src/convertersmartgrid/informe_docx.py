@@ -725,8 +725,9 @@ def _que_se_resalta(hasta: Sequence[Etapa], hay_existentes: bool) -> str:
 
 
 def _frase_de_valle(e: _Escritor, obras: Sequence[Mapping[str, Any]], valle: Mapping[str, Any] | None) -> None:
-    """La tensión en valle de lo que lleva bancos, o que no se comprobó: nunca que cumple (073:RF-32)."""
-    if any(o.get('tipo') == 'banco' for o in obras):
+    """La tensión en valle de una obra, bancos o proyecto, o que no se comprobó: nunca que cumple
+    (073:RF-32, RF-40)."""
+    if obras:
         frase = frase_valle(valle)
         e.parrafo(f'{frase[0].upper()}{frase[1:]}.')
 

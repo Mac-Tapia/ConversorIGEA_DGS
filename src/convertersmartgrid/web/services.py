@@ -5372,7 +5372,7 @@ def _valle_del_proyecto(ws: Workspace, ctx: JobContext, anio: int, feeders: list
 
     def sin_medir(motivo: str) -> dict:
         ctx.log(f'Valle sin comprobar: {motivo} (073:RF-24).')
-        return vl.puntos_de_valle(vl.Valle(alcance='alimentador', motivo=motivo), {}, vl.Ajustes())
+        return vl.puntos_de_valle(vl.Valle(alcance='alimentador', motivo=motivo), {})
 
     if con_central:
         return sin_medir(f"{', '.join(con_central)} con central: su cabecera no es su demanda (073:RF-12)")
@@ -5386,10 +5386,13 @@ def _valle_del_proyecto(ws: Workspace, ctx: JobContext, anio: int, feeders: list
     maximas_de = {str(objetivos[f]['medidor']): {'alimentador': f, 'kw': objetivos[f].get('kw'),
                                                  'kvar': objetivos[f].get('kvar')} for f in feeders}
     valle = vl.valle_de_alcance('alimentador', curvas, ajustes, str(anio))
-    puntos = vl.puntos_de_valle(valle, maximas_de, ajustes)
+    puntos = vl.puntos_de_valle(valle, maximas_de)
     puntos['avisos'] = [*avisos, *puntos['avisos']]
     if puntos['puntos']:
-        ctx.log('Valle: ' + '; '.join(f"{x['etiqueta']} el {x['fecha']}, {x['kva']:,.0f} kVA" for x in puntos['puntos'])
+        for x in puntos['ventanas']:
+            ctx.log(f"Valle de {x['anio']}: del {x['inicio']} al {x['fin']}, {x['duracion_dias']} días, "
+                    f"{x['kwh_dia_dentro']:,.0f} kWh/día dentro y {x['kwh_dia_fuera']:,.0f} fuera (073:RF-36).")
+        ctx.log('Punto para el flujo: ' + '; '.join(f"{x['etiqueta']}, {x['fecha']}" for x in puntos['puntos'])
                 + ' (073:RF-1).')
     else:
         ctx.log(f"Valle sin comprobar: {puntos['motivo']} (073:RF-24).")
@@ -5404,7 +5407,8 @@ def _guardar_valle_de_la_obra(ws: Workspace, project: str, alimentador: str, fil
     """Lo medido en valle de la variante aplicada, para el informe que se pida después (073:RF-32)."""
     ruta = _ruta_valle_de_obras(ws)
     datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
-    campos = ('valle', 'valle_motivos', 'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar')
+    campos = ('valle', 'valle_motivos', 'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar',
+              'valle_casos')
     datos.setdefault(project.strip(), {})[alimentador] = {k: fila.get(k) for k in campos}
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(ruta, datos)
@@ -5654,7 +5658,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                                   'factible', 'perdidas_kw', 'error', 'sin_sortear',
                                                   'u_cargas', 'u_min_mt',                   # 063:RF-28
                                                   'valle', 'valle_motivos', 'valle_u_max', 'valle_nodo',
-                                                  'valle_fecha', 'valle_sin_comprobar')}    # 073:RF-30
+                                                  'valle_fecha', 'valle_sin_comprobar',
+                                                  'valle_casos')}                           # 073:RF-30, RF-39
                            | {'valle_texto': frase_valle(t)}
                            | {'inversion': (t.get('costo') or {}).get('inversion'),
                               'costo_anual': (t.get('costo') or {}).get('costo_anual'),
@@ -5701,7 +5706,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 break
         resultado.append(fila)
     return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
-            'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado}
+            'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
 def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
@@ -5980,7 +5985,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
             'caben': k, 'pruebas': pruebas, 'escalera': escalera,
             'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto], 'oraculo': informe_oraculo,
             # 052:RF-18: para comprobar la SET nueva; no va al informe (no es JSON).
-            '_oraculo': {'ora': ora, 'obras': obras_elegidas, 'p': p}}
+            '_oraculo': {'ora': ora, 'obras': obras_elegidas, 'p': p, 'valle': valle}}
 
 
 def _punto_utm(lat: float, lon: float) -> dict | None:
@@ -6150,8 +6155,9 @@ def _set_nueva_en_el_oraculo(oraculo: dict, ramas: list[dict], gps: dict, ubic: 
     distancia GPS, con la impedancia por km del tramo abierto; se juzga con el criterio de la escalera.
     """
     from .. import set_nueva as sn
+    from ..valle import frase_valle
 
-    ora, obras, p = oraculo['ora'], oraculo['obras'], oraculo['p']
+    ora, obras, p, valle = oraculo['ora'], oraculo['obras'], oraculo['p'], oraculo.get('valle')
     filas = []
     for r in ramas:
         j = ora.rama_de.get(str(r.get('entrada')))
@@ -6165,9 +6171,11 @@ def _set_nueva_en_el_oraculo(oraculo: dict, ramas: list[dict], gps: dict, ubic: 
                       'x_ohm_km': float(tramo.get('x_ohm') or 0.0) / largo if largo else 0.0,
                       'inom_ka': float(tramo.get('inom_ka') or 0.0)})
     sub = ora.con_set_nueva(filas, kv)
-    e = sub.evaluar(obras, len(sub.nuevas), p)
-    return {'cumple': bool(e['maxima']), 'motivos': list(e.get('motivos') or []), 'v_min': e.get('v_min'),
-            'ramas': filas}
+    # 073:RF-40: bancos y proyectos: la SET nueva también se comprueba en valle.
+    e = sub.evaluar(obras, len(sub.nuevas), p, valle=valle)
+    return {'cumple': bool(e['maxima']) and e.get('valle') is not False,
+            'motivos': [*(e.get('motivos') or []), *(e.get('valle_motivos') or [])], 'v_min': e.get('v_min'),
+            'ramas': filas, 'valle_texto': frase_valle(e)}
 
 
 def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
