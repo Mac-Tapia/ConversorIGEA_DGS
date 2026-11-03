@@ -1,6 +1,6 @@
 # Tareas — Spec 073
 
-- [ ] T1 Ventana de valle desde la medición, por alcance. (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-34)
+- [x] T1 Ventana de valle desde la medición, por alcance. (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-34)
       Hecho cuando: `pytest -q tests/test_valle.py -k ventana` en verde, con curvas sorteadas.
 - [ ] T2 Contrato de la calibración a valle en su propio caso. (RF-13, RF-14, RF-15, RF-16)
       Hecho cuando: `pytest -q tests/test_valle.py -k calibracion` en verde, con el doble de DIgSILENT.
