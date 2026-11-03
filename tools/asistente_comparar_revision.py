@@ -25,6 +25,8 @@ CONJUNTO = RAIZ / 'docs' / 'REVISION_ROLES_CASOS_047.json'
 #: Fijada antes de medir: si cambian los casos, cambia lo que se compara.
 HUELLA = '102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}
+#: El de ``revision_roles.TOKENS``, sin cargar el paquete para ``--help``.
+TOKENS = 512
 
 
 def huella() -> str:
@@ -65,6 +67,7 @@ def main(argv=None) -> int:
     p.add_argument('--solo-conjunto', action='store_true', help='Comprueba los casos, sin Ollama.')
     p.add_argument('--modelo', help='Modelo de Ollama con que se mide.')
     p.add_argument('--salida', type=Path, help='Informe JSON; si existe, no se mide de nuevo.')
+    p.add_argument('--tokens', type=int, default=TOKENS, help=f'Tope de tokens por intervención (por defecto {TOKENS}).')
     args = p.parse_args(argv)
     casos = leer_casos()
     resumen = {'casos': len(casos), 'con_defecto': sum(c['defecto'] is not None for c in casos), 'conjunto_sha256': huella()}
@@ -73,6 +76,8 @@ def main(argv=None) -> int:
         return 0
     if not args.modelo or not args.salida:
         p.error('la medición pide --modelo y --salida')
+    if not 1 <= args.tokens <= 4096:
+        p.error('--tokens: entre 1 y 4096')
     if args.salida.exists():
         print(f'{args.salida} ya existe: no se mide de nuevo.', file=sys.stderr)
         return 2
@@ -86,12 +91,14 @@ def main(argv=None) -> int:
         return 2
     with tempfile.TemporaryDirectory(prefix='csg-revision-') as carpeta, turno_gpu('revision-comparacion'):
         informe = comparar_revision(materializar(casos, Path(carpeta)),
-                                    lambda medir: revisor_ollama(cliente, medir=medir))
+                                    lambda medir: revisor_ollama(cliente, num_predict=args.tokens, medir=medir))
     args.salida.parent.mkdir(parents=True, exist_ok=True)
-    args.salida.write_text(json.dumps({**resumen, 'modelo': args.modelo, **informe}, ensure_ascii=False, indent=2),
+    args.salida.write_text(json.dumps({**resumen, 'modelo': args.modelo, 'tokens': args.tokens, **informe},
+                                      ensure_ascii=False, indent=2),
                            encoding='utf-8')
     print(json.dumps({k: {c: informe[k][c] for c in ('detectados', 'perdidos', 'falsas_alarmas', 'sin_respuesta',
-                                                     'tokens_entrada', 'tokens_salida', 'segundos')}
+                                                     'motivos_sin_respuesta', 'tokens_entrada', 'tokens_salida',
+                                                     'segundos')}
                       for k in ('rol_unico', 'equipo')}, ensure_ascii=True))
     return 0
 

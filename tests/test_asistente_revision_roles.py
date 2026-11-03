@@ -243,3 +243,65 @@ def test_conjunto_de_la_comparacion_declarado_antes_de_medir(capsys):
     herramienta.HUELLA = '0' * 64
     with pytest.raises(ValueError, match='cambió'):
         herramienta.leer_casos()
+
+
+#: La forma de lo que devuelve /api/chat de Ollama 0.40 con un modelo que razona y sin ``think``, con las cifras de la
+#: medición de qwen3:8b (unos 505 de 512 tokens). El informe no guardó el texto: la forma es de la API, no una captura.
+RAZONA = {'model': 'qwen3:8b', 'created_at': '2026-11-03T12:00:00Z', 'done': True, 'done_reason': 'length',
+          'message': {'role': 'assistant', 'content': '', 'thinking': 'Okay, the user wants me to review ' * 80},
+          'prompt_eval_count': 740, 'eval_count': 512}
+CORTADA = {**RAZONA, 'message': {'role': 'assistant', 'content': '{"decision": "bloqueada", "evidencia_ids": ["e1"], "incert'}}
+
+
+@pytest.mark.parametrize('respuesta,frases', [
+    (RAZONA, ['vacía', 'razonar', 'tope (512 tokens)']),
+    (CORTADA, ['JSON no válido', 'tope (512 tokens)', 'inicio:', 'evidencia_ids']),
+    ({**RAZONA, 'done_reason': 'stop', 'message': {'content': 'no es json'}}, ['JSON no válido', "'stop'", 'no es json']),
+])
+def test_respuesta_no_reconocida_guarda_el_motivo_en_el_informe(tmp_path, respuesta, frases):
+    """047:RF-6 — la medición dijo «sin respuesta» en 23 de 24 sin dejar ver por qué; el informe guarda la causa."""
+    import json
+    from convertersmartgrid.asistente.revision_roles import comparar_revision, revisor_ollama
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:2]
+    r = comparar_revision(casos, lambda medir: revisor_ollama(_cliente(respuesta, []), medir=medir), rondas=1)
+    fila = r['equipo']['por_caso'][0]
+    assert fila['sin_respuesta'] and not fila['aprobada'] and len(fila['motivos']) == 4
+    assert fila['motivos'][0].startswith('fuentes: ') and all(f in fila['motivos'][0] for f in frases)
+    assert r['equipo']['detectados'] == 0 and r['equipo']['tokens_salida'] == 512 * 8
+    assert sum(r['equipo']['motivos_sin_respuesta'].values()) == 8 and len(r['equipo']['motivos_sin_respuesta']) == 1
+    assert 'inicio:' not in next(iter(r['equipo']['motivos_sin_respuesta']))
+    json.dumps(r, allow_nan=False)
+
+
+@pytest.mark.parametrize('pensar', [None, True, False])
+def test_la_revision_pide_sin_razonar_sea_cual_sea_el_cliente(tmp_path, pensar):
+    """047:RF-5 — el razonamiento gastaba el tope antes de escribir el dictamen; la configuración no lo reabre."""
+    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.revision_roles import revisor_ollama
+    contexto, evidencia = paquete(tmp_path)
+    peticiones = []
+    cliente = _cliente(_dictamen_llm(FAVORABLE), peticiones)
+    cliente.pensar = pensar
+    assert isinstance(cliente, ClienteOllama)
+    r = revisar_propuesta({'restricciones_deterministas': {'fisica': True}}, evidencia, contexto=contexto,
+                          revisor=revisor_ollama(cliente))
+    assert r['aprobada'] and all(c['think'] is False for _u, c in peticiones)
+
+
+def test_el_presupuesto_agotado_tambien_se_dice(tmp_path):
+    """047:RF-6 — una revisión que se queda sin tiempo no cuenta como hallazgo, y el informe lo dice."""
+    from convertersmartgrid.asistente import revision_roles
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
+    real = revision_roles.revisar_propuesta
+    def agotada(*a, **k):
+        return {**real(*a, **k), 'presupuesto_agotado': True, 'aprobada': False}
+    revision_roles.revisar_propuesta = agotada
+    try:
+        def fabrica(medir):
+            return lambda rol, p, ev, ctx, ronda: {**FAVORABLE, 'evidencia_ids': sorted(ev)}
+        fila = revision_roles.comparar_revision(casos, fabrica, rondas=1)['equipo']['por_caso'][0]
+    finally:
+        revision_roles.revisar_propuesta = real
+    assert fila['sin_respuesta'] and fila['motivos'] == ['presupuesto de tiempo agotado']

@@ -64,7 +64,8 @@ class ClienteOllama:
         self.perfil_prompt = perfil_prompt
 
     def _pedir(self, ruta: str, cuerpo: dict | None = None) -> dict | None:
-        if ruta == '/api/chat' and cuerpo is not None and self.pensar is not None:
+        # Quien ya fija ``think`` en su petición manda: la revisión pide JSON y no puede gastar su tope en razonar.
+        if ruta == '/api/chat' and cuerpo is not None and self.pensar is not None and 'think' not in cuerpo:
             cuerpo = {**cuerpo, 'think': self.pensar}
         datos = json.dumps(cuerpo).encode('utf-8') if cuerpo is not None else None
         peticion = urllib.request.Request(self.url + ruta, data=datos,
