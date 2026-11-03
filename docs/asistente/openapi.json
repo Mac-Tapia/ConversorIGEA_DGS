@@ -3401,6 +3401,11 @@
             "title": "Directo Set Nueva",
             "type": "boolean"
           },
+          "escalera_primero": {
+            "default": false,
+            "title": "Escalera Primero",
+            "type": "boolean"
+          },
           "feeders": {
             "items": {
               "type": "string"
