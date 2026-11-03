@@ -97,23 +97,40 @@ def cargas_de_rama(m, v: np.ndarray, th: np.ndarray) -> dict[str, float]:
     return cargas
 
 
-def evaluar_grafo(grafo: Mapping[str, Any], p: ParametrosObras, nodos: set[str] | None = None) -> Evaluacion:
-    """Suma de lo que cada barra de media y cada rama se pasa de su límite (074:RF-1)."""
+def evaluar_zonas(grafo: Mapping[str, Any], p: ParametrosObras,
+                  zonas: Mapping[str, set[str]] | None = None) -> tuple[Evaluacion, dict[str, Evaluacion]]:
+    """Toda la red y cada zona con un solo flujo (074:RF-1).
+
+    En un sistema, cada agente pedía su flujo: con los 30 alimentadores de Chincha eran 30 flujos de 0,7 s por paso.
+    """
     m = muestra(grafo)
     r = ModeloRadial().predecir(grafo)
     v, th = np.asarray(r['v']), np.asarray(r['theta'])
     kv = 10 ** m.x[:, 0]
-    dentro = np.array([(nodos is None or n in nodos) for n in m.ids])
     # Una barra sin fuente sale con 0 p.u.: no es una subtensión, es una isla (spec 024).
-    medibles = dentro & (kv >= 1) & (v > 0) & ~m.fuente
-    if not medibles.any():
-        return Evaluacion(0.0, 0.0, 0.0, 1.0)
-    sub = float(np.maximum(p.tension_min_pu - v[medibles], 0).sum())
-    sob = float(np.maximum(v[medibles] - p.tension_max_pu, 0).sum())
-    ramas_dentro = {m.ramas[k] for k in range(m.aristas.shape[1]) if dentro[m.aristas[0, k]]}
-    sobrecarga = sum(max(c - p.cargabilidad_max_pct, 0.0) for rama, c in cargas_de_rama(m, v, th).items()
-                     if rama in ramas_dentro)
-    return Evaluacion(sub, sob, float(sobrecarga), float(v[medibles].min()))
+    medible = (kv >= 1) & (v > 0) & ~m.fuente
+    cargas = cargas_de_rama(m, v, th)
+    origen_de_rama = {m.ramas[k]: m.ids[m.aristas[0, k]] for k in range(0, m.aristas.shape[1], 2)}
+    exceso = {rama: max(c - p.cargabilidad_max_pct, 0.0) for rama, c in cargas.items()}
+
+    def medir(dentro: np.ndarray, nodos: set[str] | None) -> Evaluacion:
+        sel = dentro & medible
+        if not sel.any():
+            return Evaluacion(0.0, 0.0, 0.0, 1.0)
+        sobre = sum(x for rama, x in exceso.items() if nodos is None or origen_de_rama.get(rama) in nodos)
+        return Evaluacion(float(np.maximum(p.tension_min_pu - v[sel], 0).sum()),
+                          float(np.maximum(v[sel] - p.tension_max_pu, 0).sum()), float(sobre), float(v[sel].min()))
+
+    total = medir(np.ones(len(m.ids), dtype=bool), None)
+    por = {z: medir(np.array([n in nodos for n in m.ids]), set(nodos)) for z, nodos in (zonas or {}).items()}
+    return total, por
+
+
+def evaluar_grafo(grafo: Mapping[str, Any], p: ParametrosObras, nodos: set[str] | None = None) -> Evaluacion:
+    """Suma de lo que cada barra de media y cada rama se pasa de su límite (074:RF-1)."""
+    if nodos is None:
+        return evaluar_zonas(grafo, p)[0]
+    return evaluar_zonas(grafo, p, {'_': set(nodos)})[1]['_']
 
 
 def fidelidad(grafo: Mapping[str, Any], tensiones: Mapping[str, float], cargas: Mapping[str, float], *,
@@ -171,14 +188,53 @@ def zonas_por_fuente(grafo: Mapping[str, Any]) -> dict[str, list[str]]:
     return zonas
 
 
-def candidatos_de(grafo: Mapping[str, Any], nodos: set[str], p: ParametrosObras) -> list[Accion]:
+def zonas_por_alimentador(grafo: Mapping[str, Any]) -> dict[str, list[str]]:
+    """Las barras de cada alimentador de un sistema: lo que cuelga de su cabecera (074:RF-11).
+
+    La cabecera es el interruptor del alimentador en su SET (spec 022): el primer acoplador al bajar desde la fuente.
+    En Chincha da 30 y en Nasca 18, los alimentadores de sus proyectos. Las barras de la SET, antes de las cabeceras,
+    no son de ningún agente. Sin acopladores, cada fuente es un alimentador.
+    """
+    nodos = grafo.get('nodos') or {}
+    vecinos: dict[str, list[tuple[str, str, str]]] = {}
+    for r in grafo.get('ramas') or []:
+        if r.get('cerrada', True) and r.get('desde') in nodos and r.get('hasta') in nodos:
+            vecinos.setdefault(r['desde'], []).append((r['hasta'], r.get('clase', ''), str(r['id'])))
+            vecinos.setdefault(r['hasta'], []).append((r['desde'], r.get('clase', ''), str(r['id'])))
+    zonas: dict[str, list[str]] = {}
+    visto: set[str] = set()
+    for fuente in sorted(n for n, d in nodos.items() if d.get('fuente')):
+        if fuente in visto:
+            continue
+        visto.add(fuente)
+        antes = len(zonas)
+        pila: list[tuple[str, str | None]] = [(fuente, None)]
+        sin_cabecera = [fuente]
+        while pila:
+            u, zona = pila.pop()
+            for w, clase, ident in vecinos.get(u, []):
+                if w in visto:
+                    continue
+                visto.add(w)
+                nueva = zona or (ident if clase == 'ElmCoup' else None)
+                if nueva:
+                    zonas.setdefault(nueva, []).append(w)
+                else:
+                    sin_cabecera.append(w)
+                pila.append((w, nueva))
+        if len(zonas) == antes:                                   # una fuente sin cabeceras: toda ella es un alimentador
+            zonas[fuente] = sin_cabecera
+    return {z: sorted(n) for z, n in zonas.items()}
+
+
+def candidatos_de(grafo: Mapping[str, Any], nodos: set[str], p: ParametrosObras, *, flujo: tuple | None = None) -> list[Accion]:
     """Las obras que puede elegir un agente: un espacio fijo, para que política y NSGA-II vean lo mismo.
 
     Los bancos van en las barras de menor tensión, repartidas a lo largo de la lista. La terna exige el
     metrado de su rama y un costo declarado: sin ellos no se ofrece, y no se supone un largo (072:RF-15).
+    ``flujo``: ``(muestra, tensiones)`` ya calculados, para no repetirlos por cada alimentador de un sistema.
     """
-    m = muestra(grafo)
-    v = np.asarray(ModeloRadial().predecir(grafo)['v'])
+    m, v = flujo if flujo is not None else (muestra(grafo), np.asarray(ModeloRadial().predecir(grafo)['v']))
     kv = 10 ** m.x[:, 0]
     barras = [i for i, n in enumerate(m.ids) if n in nodos and kv[i] >= 1 and v[i] > 0 and not m.fuente[i]]
     barras.sort(key=lambda i: (v[i], m.ids[i]))
@@ -233,25 +289,31 @@ class EntornoObras:
         self.original, self.p = grafo, p
         self.zonas = {a: set(n) for a, n in zonas.items()}
         self.lagrange = lagrange or Lagrange()
-        self.acciones = {a: candidatos_de(grafo, n, p) for a, n in self.zonas.items()}
+        flujo = (muestra(grafo), np.asarray(ModeloRadial().predecir(grafo)['v']))
+        self.acciones = {a: candidatos_de(grafo, n, p, flujo=flujo) for a, n in self.zonas.items()}
         self.escala = escala_costo or max(p.costo_banco, 1.0)
         self.presupuesto = max(sum(x.costo for lista in self.acciones.values() for x in lista) / self.escala, 1.0)
-        self.inicial = evaluar_grafo(grafo, p)
+        #: Pasos por episodio: ``max_pasos`` es por agente cuando las obras van de una en una (``EntornoPlano``).
+        self.limite_pasos = p.max_pasos
         self.reiniciar()
+        self.inicial = self.estado
+
+    def _medir(self) -> None:
+        self.estado, self.por_zona = evaluar_zonas(self.grafo, self.p, self.zonas)
 
     def reiniciar(self) -> None:
         self.grafo = copy.deepcopy(dict(self.original))
         self.hechas: dict[str, set[int]] = {a: set() for a in self.zonas}
         self.costo = 0.0
         self.pasos = 0
-        self.estado = evaluar_grafo(self.grafo, self.p)
+        self._medir()
 
     def mascara(self, agente: str) -> np.ndarray:
         """Qué puede elegir un agente: la acción 0 siempre; una obra, solo si hay problemas en su zona."""
         acciones = self.acciones[agente]
         m = np.zeros(len(acciones) + 1, dtype=bool)
         m[NINGUNA] = True
-        if evaluar_grafo(self.grafo, self.p, self.zonas[agente]).en_norma:
+        if self.por_zona[agente].en_norma:
             return m                                                     # obras solo si hay problemas
         hechas = self.hechas[agente]
         bancos = sum(acciones[i].tipo == 'banco' for i in hechas)
@@ -279,8 +341,8 @@ class EntornoObras:
             gasto += accion.costo
         self.costo += gasto
         self.pasos += 1
-        self.estado = evaluar_grafo(self.grafo, self.p)
-        fin = self.estado.en_norma or self.pasos >= self.p.max_pasos or not gasto
+        self._medir()
+        fin = self.estado.en_norma or self.pasos >= self.limite_pasos or not gasto
         # La violación se cobra una vez, por cómo queda la red. Cobrada en cada paso, cada obra alargaba el
         # episodio y sumaba castigo: MaskablePPO aprendió a terminar sin hacer nada, con el multiplicador en 27.
         return -gasto / self.escala - (self.penalidad_final() if fin else 0.0), fin
@@ -318,6 +380,8 @@ class EntornoPlano:
 
     def __init__(self, entorno: EntornoObras) -> None:
         self.e = entorno
+        # Una obra por paso: un sistema de 30 alimentadores necesita más pasos que uno solo.
+        entorno.limite_pasos = entorno.p.max_pasos * len(entorno.zonas)
         self.todas = [(a, i + 1) for a, lista in entorno.acciones.items() for i in range(len(lista))]
         self.n_acciones = len(self.todas) + 1
         self.tam_observacion = 4 + 2 * len(self.todas)
@@ -347,7 +411,9 @@ class EntornoPlano:
 
 def resultado(entorno: EntornoObras, nombre: str, evaluaciones: int) -> dict[str, Any]:
     return {'control': nombre, 'en_norma': entorno.estado.en_norma, 'costo': entorno.costo, 'vm_min': entorno.estado.vm_min,
-            'obras': entorno.obras(), 'evaluaciones': evaluaciones}
+            'obras': entorno.obras(), 'evaluaciones': evaluaciones,
+            'alimentadores_en_norma': sum(e.en_norma for e in entorno.por_zona.values()),
+            'alimentadores': len(entorno.zonas)}
 
 
 def control_escalera(entorno: EntornoObras) -> dict[str, Any]:
@@ -413,14 +479,83 @@ def control_nsga2(entorno: EntornoObras, *, generaciones: int = 30, poblacion: i
             aplicar(entorno.grafo, accion, p)
             entorno.hechas[a].add(entorno.acciones[a].index(accion))
             entorno.costo += accion.costo
-    entorno.estado = evaluar_grafo(entorno.grafo, p)
+    entorno._medir()
     return resultado(entorno, 'nsga2', cuenta[0])
 
 
+def subred(grafo: Mapping[str, Any], nodos: set[str]) -> dict[str, Any]:
+    """Un alimentador con el camino que lo une a su fuente: lo que NSGA-II necesita para evaluarlo solo."""
+    vecinos: dict[str, list[str]] = {}
+    for r in grafo.get('ramas') or []:
+        if r.get('cerrada', True):
+            vecinos.setdefault(r['desde'], []).append(r['hasta'])
+            vecinos.setdefault(r['hasta'], []).append(r['desde'])
+    padre: dict[str, str | None] = {}
+    for fuente in (n for n, d in grafo['nodos'].items() if d.get('fuente')):
+        if fuente in padre:
+            continue
+        padre[fuente] = None
+        pila = [fuente]
+        while pila:
+            u = pila.pop()
+            for w in vecinos.get(u, []):
+                if w not in padre:
+                    padre[w] = u
+                    pila.append(w)
+    dentro = set(nodos)
+    for n in nodos:
+        while (u := padre.get(n)) is not None and u not in dentro:
+            dentro.add(u)
+            n = u
+    return {'nodos': {n: d for n, d in grafo['nodos'].items() if n in dentro},
+            'ramas': [r for r in grafo.get('ramas') or [] if r['desde'] in dentro and r['hasta'] in dentro]}
+
+
+def control_nsga2_sistema(entorno: EntornoObras, *, generaciones: int = 30, poblacion: int = 40,
+                          semilla: int = 1) -> dict[str, Any]:
+    """NSGA-II para todos los alimentadores de un sistema eléctrico, uno a uno (074:RF-12).
+
+    Un solo NSGA-II con las obras de los 30 alimentadores de Chincha son 240 variables y un flujo de 0,7 s por
+    evaluación. Cada alimentador se optimiza con su camino a la fuente, que es lo que lo acopla a los demás en la
+    física radial, y lo elegido se mide luego junto en todo el sistema: ese resultado es el que cuenta.
+    """
+    entorno.reiniciar()
+    elegidas: list[tuple[str, Accion]] = []
+    por_alimentador: dict[str, Any] = {}
+    evaluaciones = 0
+    for agente, nodos in sorted(entorno.zonas.items()):
+        if entorno.por_zona[agente].en_norma or not entorno.acciones[agente]:
+            por_alimentador[agente] = {'en_norma': entorno.por_zona[agente].en_norma, 'obras': 0}
+            continue
+        sub = EntornoObras(subred(entorno.original, nodos), {agente: nodos}, entorno.p, escala_costo=entorno.escala)
+        sub.acciones = {agente: entorno.acciones[agente]}
+        r = control_nsga2(sub, generaciones=generaciones, poblacion=poblacion, semilla=semilla)
+        evaluaciones += r['evaluaciones']
+        elegidas += [(agente, sub.acciones[agente][i]) for i in sorted(sub.hechas[agente])]
+        por_alimentador[agente] = {'en_norma': r['en_norma'], 'obras': len(sub.hechas[agente]), 'costo': r['costo']}
+    entorno.reiniciar()
+    for agente, accion in elegidas:
+        aplicar(entorno.grafo, accion, entorno.p)
+        entorno.hechas[agente].add(entorno.acciones[agente].index(accion))
+        entorno.costo += accion.costo
+    entorno._medir()
+    salida = resultado(entorno, 'nsga2_sistema', evaluaciones)
+    salida['por_alimentador'] = por_alimentador
+    return salida
+
+
 def puerta_del_aprendizaje(aprendido: Sequence[Mapping[str, Any]], referencia: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Si el piloto sigue: en alimentadores no vistos, 100 % en norma y costo no peor que NSGA-II (074:RF-6)."""
+    """Si el piloto sigue: en alimentadores no vistos, 100 % en norma y costo no peor que NSGA-II (074:RF-6).
+
+    Solo cuentan las redes que la referencia deja en norma: donde nadie llega, ninguna política puede pasar, y
+    exigirlo rechazaba al aprendizaje por una red sin solución con esas obras (usuario, 2026-11-02).
+    """
     if not aprendido or len(aprendido) != len(referencia):
         return {'sigue': False, 'motivo': 'hacen falta los mismos alimentadores no vistos en los dos'}
+    pares = [(a, r) for a, r in zip(aprendido, referencia, strict=True) if r['en_norma']]
+    if not pares:
+        return {'sigue': False, 'motivo': 'la referencia no deja en norma ninguna red no vista: no hay con qué compararlo'}
+    aprendido, referencia = [a for a, _r in pares], [r for _a, r in pares]
     en_norma = sum(bool(x['en_norma']) for x in aprendido) / len(aprendido)
     costo, base = sum(x['costo'] for x in aprendido), sum(x['costo'] for x in referencia)
     if en_norma < 1:

@@ -66,7 +66,7 @@ def main(argv=None) -> int:
         ParametrosObras,
         comparar_controles,
         resultado,
-        zonas_por_fuente,
+        zonas_por_alimentador,
     )
 
     sys.path.insert(0, str(args.deps))
@@ -76,7 +76,7 @@ def main(argv=None) -> int:
         print(f'ERROR: faltan las dependencias del piloto en {args.deps} ({exc.name}); vea requirements-madrl.txt')
         return 2
     grafo = json.loads(args.grafo.read_text(encoding='utf-8'))
-    zonas = zonas_por_fuente(grafo)
+    zonas = zonas_por_alimentador(grafo)                            # 074:RF-11: un agente por alimentador
     if not zonas:
         print('ERROR: el grafo no tiene ninguna fuente')
         return 2

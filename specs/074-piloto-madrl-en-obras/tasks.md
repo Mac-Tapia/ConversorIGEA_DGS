@@ -12,6 +12,11 @@
 - [x] T4 Captura de transformadores en paralelo y largo de cada tramo. (RF-8)
       Hecho cuando: la prueba con el simulador los recoge.
       El error de carga estaba en los transformadores, casi siempre del doble en SM218: el grafo ignoraba `ntnum`.
+- [x] T9 Todos los alimentadores de un sistema. (RF-11, RF-12)
+      Hecho cuando: el entorno y NSGA-II trabajan sobre un sistema real con un agente por alimentador.
+      Medido el 2026-11-02 en los grafos guardados, solo leyendo: Nasca da 18 alimentadores y Chincha 30, los de sus proyectos.
+      Con hasta 3 bancos por alimentador, NSGA-II deja 15 de 18 y 21 de 30 en norma, en 15 y 33 s; la escalera, lo mismo con menos
+      obras. Ninguno de los dos pasa la fidelidad por la peor rama (133 y 3 727 puntos), que apunta otra vez a `ntnum` (T5).
 - [ ] T5 Volver a capturar y a medir. (RF-5, RF-7)
       Hecho cuando: en DIgSILENT se confirma `ntnum` y al menos una red con problemas pasa la fidelidad. Requiere turno de DIgSILENT
       sobre proyectos de prueba. Los episodios ya guardados conservan el grafo antiguo.

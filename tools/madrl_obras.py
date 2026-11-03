@@ -38,9 +38,9 @@ def main(argv=None) -> int:
     from convertersmartgrid.madrl_obras import (
         ParametrosObras,
         comparar_controles,
-        control_nsga2,
+        control_nsga2_sistema,
         fidelidad,
-        zonas_por_fuente,
+        zonas_por_alimentador,
     )
 
     if args.grafo:
@@ -66,20 +66,21 @@ def main(argv=None) -> int:
                 f"carga media {f['error_carga_pct']:.1f}, máx. {f['error_carga_max_pct']:.1f} %)" if 'error_carga_pct' in f else ''))
             if not f['vale']:
                 print('Esta red no entra al piloto; los controles que siguen solo orientan.')
-    zonas = zonas_por_fuente(grafo)
+    zonas = zonas_por_alimentador(grafo)                            # 074:RF-11: un agente por alimentador
     if not zonas:
         print('ERROR: el grafo no tiene ninguna fuente')
         return 2
     parametros = ParametrosObras(args.tension_min, args.tension_max, args.carga_max, args.banco_mvar, args.costo_banco,
                                  args.costo_terna_km, args.candidatos, args.max_bancos)
-    r = comparar_controles(grafo, zonas, parametros, medir_nsga2=lambda e: control_nsga2(
+    r = comparar_controles(grafo, zonas, parametros, medir_nsga2=lambda e: control_nsga2_sistema(
         e, generaciones=args.generaciones, poblacion=args.poblacion))
     print(f"{len(grafo['nodos'])} barras, {len(zonas)} agente(s); al inicio: en norma {r['inicio']['en_norma']}, "
           f"mínima {r['inicio']['vm_min']:.4f} p.u.")
     for clave in ('escalera', 'nsga2'):
         c = r[clave]
         print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., "
-              f"{len(c['obras'])} obra(s), {c['evaluaciones']} evaluación(es)")
+              f"{len(c['obras'])} obra(s), en norma {c['alimentadores_en_norma']}/{c['alimentadores']} alimentadores, "
+              f"{c['evaluaciones']} evaluación(es)")
     if args.salida:
         args.salida.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding='utf-8')
     return 0
