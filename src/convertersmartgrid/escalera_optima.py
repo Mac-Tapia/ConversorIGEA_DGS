@@ -74,6 +74,8 @@ class Parametros:
     modulos_max: int | None = None
     #: 084:RF-16: ``planificacion.ternas_subterraneas`` del perfil, con la capacidad por configuración.
     ternas: Mapping[str, Any] = field(default_factory=dict)
+    #: 042:RF-27: los conductores normalizados de la empresa (prefijo del tipo); vacío, todos.
+    secciones: tuple[str, ...] = ()
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -123,14 +125,15 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         max_variantes=int(esc.get('max_variantes') or 40), tasa=float(plan['tasa_regulada']),
         vida=int(plan['vida_util_anios']), tension_min_pu=float(lim['tension_min_pu']),
         tension_max_pu=float(lim['tension_max_pu']),
-        cargabilidad_max_pct=float(lim['cargabilidad_max_pct']),
+        cargabilidad_max_pct=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),   # 042:RF-28
         precio_perdidas_kwh=_opcional(esc.get('precio_perdidas_kwh')),
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
-        ternas=dict(plan.get('ternas_subterraneas') or {}))
+        ternas=dict(plan.get('ternas_subterraneas') or {}),
+        secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()))
 
 
 def _opcional(x) -> float | None:
@@ -314,6 +317,22 @@ def _escalon_terna(alim, troncal, cargas, ternas=None) -> list[Variante]:
     return out
 
 
+def normalizados(tipos, secciones: Sequence[str]) -> list[Mapping[str, Any]]:
+    """042:RF-27: solo los conductores normalizados, uno por código (el de ficha si existe); sin lista, todos."""
+    if not secciones:
+        return list(tipos)
+    por_codigo: dict[tuple, Mapping[str, Any]] = {}
+    for t in tipos:
+        nombre = str(t.get('nombre') or '')
+        codigo = next((s for s in secciones if nombre.upper().startswith(s.upper())), None)
+        if codigo is None:
+            continue
+        clave = (codigo, round(float((t.get('datos') or {}).get('uline') or 0), 1))
+        if clave not in por_codigo or nombre.upper().endswith('_FICHA'):
+            por_codigo[clave] = t
+    return list(por_codigo.values())
+
+
 def _conductores(tipos, kv, corriente_a) -> list[Mapping[str, Any]]:
     """Aéreos de la tensión del alimentador (±10 %) que llevan la corriente, de menor a mayor."""
     out = []
@@ -395,7 +414,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos)
                       if p.con_regulador else []),
         'terna': _escalon_terna(alimentador, troncal, cargas, p.ternas),
-        'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, tipos, avisos),
+        'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, normalizados(tipos, p.secciones), avisos),
     }
     solas = [v for e in ORDEN for v in por_escalon[e]]
     if modulos_valle is not None and evidencia and barras and banco_kvar:

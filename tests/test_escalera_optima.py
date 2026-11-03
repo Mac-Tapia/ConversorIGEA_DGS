@@ -372,3 +372,29 @@ def test_cada_obra_dice_su_nodo_de_mt_o_sus_nodos_de_inicio_y_fin(semilla):
                 assert f"desde el nodo {nodos[0]['desde']} hasta el nodo {nodos[-1]['hasta']}" in texto
                 assert nodos[-1]['hasta'] == destino or o['clase'] == 'seccion', semilla
     assert {'terna'} <= vistas, semilla
+
+
+def test_solo_secciones_normalizadas_y_una_por_codigo():
+    """042:RF-27 — Pisco: se probaban AA095, AA150 y CU070, cada uno dos veces; ahora solo los normalizados, el de ficha."""
+    from convertersmartgrid.escalera_optima import normalizados
+
+    tipos = [{'nombre': n, 'datos': {'uline': 22.9}} for n in
+             ('AA09503D_22_9kV', 'AA12003D_22_9kV', 'AA12003D_22_9kV_FICHA', 'CU07003D_22_9kV', 'AA05003D_22_9kV')]
+    nombres = sorted(t['nombre'] for t in normalizados(tipos, ('AA05003D', 'AA12003D', 'AA24003D', 'N212003D')))
+    assert nombres == ['AA05003D_22_9kV', 'AA12003D_22_9kV_FICHA']
+    assert len(normalizados(tipos, ())) == 5
+
+
+def test_el_planeamiento_limita_al_80_por_ciento():
+    """042:RF-28 — con `cargabilidad_planeamiento_pct` el límite de la escalera es el 80 %, no el de los estudios."""
+    from convertersmartgrid import escalera_optima as eo
+
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'cargabilidad_planeamiento_pct': 80, 'secciones_normalizadas': ['AA12003D']},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    p = eo.parametros(perfil)
+    assert p.cargabilidad_max_pct == 80 and p.secciones == ('AA12003D',)
+    ok, motivos = eo.cumple({'converge': True, 'u': {}, 'carga': {'L1': 50.0}},
+                            {'converge': True, 'u': {}, 'carga': {'L1': 85.0}}, [], p)
+    assert not ok and 'L1' in motivos[0]

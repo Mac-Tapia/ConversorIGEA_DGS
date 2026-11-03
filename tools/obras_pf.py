@@ -2247,6 +2247,16 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
                 out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
             except Exception:  # noqa: BLE001, S110
                 pass
+        # 042:RF-28: los transformadores de la SET que alimenta al alimentador, con el mismo límite.
+        elm = alims.elm.get(f)
+        cab = cabecera_de(elm) if elm is not None else None
+        for c in (cab.GetContents('*.StaCubic') if cab is not None else []) or []:
+            e = getattr(c, 'obj_id', None)
+            if e is not None and e.GetClassName() in ('ElmTr2', 'ElmTr3'):
+                try:
+                    out['carga'][e.loc_name] = float(e.GetAttribute('c:loading'))
+                except Exception:  # noqa: BLE001, S110
+                    pass
     # 025:RF-70: lo que entra por la cabecera menos lo que consumen las cargas en el flujo; con
     # su potencia nominal, a 0,88 p.u. las pérdidas de SI213 salían −2044 kW (2026-10-24).
     perdidas = []
