@@ -178,6 +178,36 @@ def test_inventario_datos_hash_opcional_detecta_cambio(tmp_path):
     assert modulo.inventariar_datos({'CSG_RED': ruta}, True) != completo
 
 
+def test_leer_la_fuente_no_cuenta_como_cambio(tmp_path, monkeypatch):
+    """065:RF-1/24 — mover la hora de acceso al leer no es un cambio; cambiar el contenido durante el hash, sí."""
+    import os
+    from pathlib import Path
+
+    ruta = tmp_path / 'fuente.txt'
+    ruta.write_text('primero', encoding='utf-8')
+    modulo = runner()
+    abrir = Path.open
+
+    def con_acceso(self, *a, **k):
+        fichero = abrir(self, *a, **k)
+        st = os.stat(self)
+        os.utime(self, ns=(st.st_atime_ns + 10**9, st.st_mtime_ns))
+        return fichero
+
+    monkeypatch.setattr(Path, 'open', con_acceso)
+    assert len(modulo.inventariar_datos({'CSG_RED': ruta}, True)['CSG_RED']['files'][0]['sha256']) == 64
+
+    def con_escritura(self, *a, **k):
+        fichero = abrir(self, *a, **k)
+        st = os.stat(self)
+        os.utime(self, ns=(st.st_atime_ns, st.st_mtime_ns + 10**9))
+        return fichero
+
+    monkeypatch.setattr(Path, 'open', con_escritura)
+    with pytest.raises(ValueError, match='cambió durante su hash'):
+        modulo.inventariar_datos({'CSG_RED': ruta}, True)
+
+
 @pytest.mark.parametrize('cuerpo,outcome,codigo', [
     ('assert False, "fallo controlado"', 'fail', 1),
     ('pytest.skip("recurso explícitamente ausente")', 'skip', 0),

@@ -130,7 +130,10 @@ def inventariar_datos(entradas: dict[str, Path], hash_datos: bool) -> dict:
                     for bloque in iter(lambda: fuente.read(1024 * 1024), b''):
                         digest.update(bloque)
                 fila['sha256'] = digest.hexdigest()
-                if archivo.stat() != stat:
+                # Solo tamaño y modificación: leer el fichero mueve su hora de acceso, y compararla daba
+                # «la fuente cambió» de forma intermitente con el equipo cargado (suite del 2026-11-03).
+                despues = archivo.stat()
+                if (despues.st_size, despues.st_mtime_ns) != (stat.st_size, stat.st_mtime_ns):
                     raise ValueError(f'La fuente cambió durante su hash: {variable}')
             filas.append(fila)
         informe[variable] = {'root': str(origen), 'mode': 'sha256' if hash_datos else 'metadata_no_criptografica',
