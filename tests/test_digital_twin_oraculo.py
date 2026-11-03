@@ -73,6 +73,9 @@ def entrenado(tmp_path_factory):
     # abajo, sin este parche, en test_la_puerta_real_rechaza_lo_que_no_mejora_la_fisica.
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(orc, 'fallos_de_comparacion', lambda *_a: [])
+        # 044:RF-5: tampoco por familia; sus puertas se prueban en test_calibracion_independiente.py.
+        mp.setattr(orc, 'evaluar_candidato', lambda _m, politica: {
+            'approved': True, 'gates': {}, 'bloqueos': [], 'politica_hash': politica.hash})
         r = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
     return bufer, r
 
@@ -208,7 +211,7 @@ def test_evaluar_si_aprendio(entrenado):
     bufer, r = entrenado
     e = orc.evaluar(bufer)
     assert e['modelo'] == orc.cargar(bufer).version and len(e['episodios']) >= 24
-    assert set(e['por_particion']) <= {'entrenamiento', 'validacion', 'prueba'}
+    assert set(e['por_particion']) <= {'entrenamiento', 'validacion', 'calibracion', 'prueba', 'sin_asignar'}
     assert all(d['episodios'] > 0 and 'mae_modelo' in d for d in e['por_particion'].values())
     # Otras pruebas del módulo guardan a propósito episodios con tensiones falsas (deriva):
     # la evaluación tiene que dejarlos a la vista, no esconderlos en la media.
@@ -344,10 +347,11 @@ def test_cuantil_conforme_con_su_cobertura():
     semilla = random.randrange(1 << 30)
     rnd = np.random.default_rng(semilla)
     for cobertura in (0.8, 0.9, 0.95):
-        escala = rnd.uniform(0.001, 0.02, size=4000)
-        error = np.abs(rnd.standard_normal(4000)) * escala
-        q = orc.cuantil_conforme((error[:2000] / escala[:2000]).tolist(), cobertura)
-        cubre = float(np.mean(error[2000:] <= q * escala[2000:]))
+        # Con 4000 barras, medido: 32 de 400 semillas caían bajo el margen por puro azar del muestreo.
+        escala = rnd.uniform(0.001, 0.02, size=40000)
+        error = np.abs(rnd.standard_normal(40000)) * escala
+        q = orc.cuantil_conforme((error[:20000] / escala[:20000]).tolist(), cobertura)
+        cubre = float(np.mean(error[20000:] <= q * escala[20000:]))
         assert cubre >= cobertura - 0.02, (semilla, cobertura, cubre)
     with pytest.raises(ValueError):
         orc.cuantil_conforme([], 0.9)
@@ -363,7 +367,9 @@ def test_intervalo_por_barra_y_no_confiable(entrenado):
     assert actual.cuantil is not None and actual.cuantil > 0
     g = red_radial(random.Random(11), 8)
     p = actual.predecir(g)
-    assert p['intervalo_pu'] is not None and len(p['intervalo_pu']) == len(p['ids']) and p['cobertura'] == 0.9
+    assert p['intervalo_pu'] is not None and len(p['intervalo_pu']) == len(p['ids'])
+    # 044:RF-8: la cobertura solo se afirma si hay familias de calibración que la sostengan.
+    assert p['cobertura'] == (0.9 if actual.cobertura_justificada else None)
     ancha = Limites('NTCSE', 0.95, 1.05, 100.0, None)
     estrecha = Limites('X', 1.0, 1.0 + 1e-9, 100.0, None)
     assert orc.confiable(p, ancha)[0] == (float(2 * np.max(p['intervalo_pu'])) <= 0.1)

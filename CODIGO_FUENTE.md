@@ -368,7 +368,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/upstream_ia.py` | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados; conserva copias existentes. | 043 (RF-9 a RF-11) |
 | `tools/preparar_upstream_ia.py` | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. | 043 (RF-9 a RF-11) |
 | `src/convertersmartgrid/digital_twin/adaptador_pyg.py` | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. | 045 (RF-8) |
-| `src/convertersmartgrid/evaluacion_modelos.py` | Política previa y validación de cuatro particiones por grupos; puertas independientes por familia. | 044 (RF-1 a RF-5, RF-8) |
+| `src/convertersmartgrid/evaluacion_modelos.py` | Política previa y validación de cuatro particiones por grupos; veredicto del candidato en conjunto y por familia; medición nativa completa antes de comparar. | 044 (RF-1 a RF-8) |
 | `src/convertersmartgrid/asistente/curriculo_maestro.py` | Familias sintéticas de órdenes escritas por el maestro de sesión, separadas antes del entrenamiento, y frases de estilo real solo de entrenamiento. | 047 (RF-11, RF-12), 068 (RF-35 a RF-37) |
 | `src/convertersmartgrid/asistente/destilacion_integral.py` | Comparación supervisado/destilado, calibración, prueba sellada, recarga y registro del alumno. | 047 (RF-11 a RF-15) |
 | `src/convertersmartgrid/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |

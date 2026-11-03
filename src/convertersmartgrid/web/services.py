@@ -8204,7 +8204,8 @@ def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
         r = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         raise UserError(f'La evaluación del gemelo terminó con el código {rc} sin informe.') from None
-    return {'modelo': r.get('modelo'), 'por_particion': r.get('por_particion'), 'informe': report.name}
+    return {'modelo': r.get('modelo'), 'por_particion': r.get('por_particion'), 'informe': report.name,
+            'unidades': r.get('unidades'), 'reparto': r.get('reparto'), 'politica_hash': r.get('politica_hash')}
 
 
 def gemelo_deriva(ws: Workspace, ctx: JobContext) -> dict:

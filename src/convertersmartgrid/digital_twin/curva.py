@@ -23,11 +23,16 @@ MINIMOS = {'entrenamiento': 30, 'validacion': 10, 'prueba': 10}
 MEJORA_MIN = 0.05
 
 
-def reparto_del_sistema(ids: Sequence[str]) -> dict[str, list[int]]:
-    """Los índices de los episodios de un sistema por partición, por la huella de cada uno."""
+def reparto_del_sistema(ids: Sequence[str], familias: Sequence[str] | None = None) -> dict[str, list[int]]:
+    """Los índices de los episodios de un sistema por partición, por la huella de su familia.
+
+    044:RF-1: repartidos por la huella de cada episodio, los hermanos de una familia caían a los dos
+    lados y ``entrenar`` lo rechazaba siempre (060:RF-2). Sin familia, cuenta su propio identificador.
+    """
     out: dict[str, list[int]] = {k: [] for k in MINIMOS}
     for i, ident in enumerate(ids):
-        out[particion(hashlib.sha256(ident.encode('utf-8')).hexdigest())].append(i)
+        clave = (familias[i] if familias is not None else '') or ident
+        out[particion(hashlib.sha256(clave.encode('utf-8')).hexdigest())].append(i)
     return out
 
 
@@ -38,7 +43,7 @@ def por_sistema(muestras: Sequence[Muestra], ids: Sequence[str]) -> list[dict[st
         grupos.setdefault(red_de(m), []).append(i)
     filas = []
     for red, idx in sorted(grupos.items(), key=lambda x: -len(x[1])):
-        reparto = reparto_del_sistema([ids[i] for i in idx])
+        reparto = reparto_del_sistema([ids[i] for i in idx], [muestras[i].familia for i in idx])
         cuenta = {k: len(v) for k, v in reparto.items()}
         faltan = {k: max(0, MINIMOS[k] - cuenta[k]) for k in MINIMOS}
         filas.append({'red': red[:12], 'nodos': len(muestras[idx[0]].ids), 'episodios': len(idx),

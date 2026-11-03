@@ -26,12 +26,13 @@ import os
 import random
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
+from ..evaluacion_modelos import PoliticaDeError, alcance_de, evaluar_candidato, particionar_registros
 from .buffer import BuferEpisodios, Consulta
 from .episode import Clase, Episodio
 from .escenarios import Escenario, familia, particion
@@ -517,7 +518,9 @@ class OraculoPINN:
     nombre: str = 'pinn_gnn'
     version: str = ''
     cuantil: float | None = None
-    """Cuantil conforme de |error| / (dispersión + ε) en validación (027:RF-12)."""
+    """Cuantil conforme de |error| / (dispersión + ε) en calibración (027:RF-12, 044:RF-4)."""
+    cobertura_justificada: bool = False
+    """Si hay familias de calibración para afirmar la cobertura pedida (044:RF-8)."""
 
     def _redes(self):
         disp = dispositivo()
@@ -564,7 +567,8 @@ class OraculoPINN:
         # 027:RF-12: semiancho del intervalo con la cobertura pedida.
         semiancho = None if self.cuantil is None else self.cuantil * (sigma + EPS_CONFORME)
         return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': sigma,
-                'intervalo_pu': semiancho, 'cobertura': self.cfg.cobertura if semiancho is not None else None,
+                'intervalo_pu': semiancho,
+                'cobertura': self.cfg.cobertura if semiancho is not None and self.cobertura_justificada else None,
                 'residuo': residuo(m, v, th, self.cfg.exponente_carga), 'fuera_de_dominio': bool(motivos),
                 'motivos': motivos,
                 'modelo': self.nombre, 'version': self.version}
@@ -706,8 +710,9 @@ def _abrir_carpeta(carpeta: Path) -> OraculoPINN:
     estados = [torch.load(carpeta / f'miembro_{i}.pt', weights_only=True) for i in range(meta['miembros'])]
     # Los modelos de antes del 2026-10-24 se entrenaron sobre el barrido radial.
     cfg = Entrenamiento(**{'fisica': 'radial', **meta['cfg']})
-    return OraculoPINN(estados, cfg, meta['dominio'], version=carpeta.name,
-                       cuantil=(meta.get('conforme') or {}).get('cuantil'))
+    conforme = meta.get('conforme') or {}
+    return OraculoPINN(estados, cfg, meta['dominio'], version=carpeta.name, cuantil=conforme.get('cuantil'),
+                       cobertura_justificada=conforme.get('publicable') is True)
 
 
 def verificar_reapertura(carpeta: Path | str) -> dict[str, Any]:
@@ -760,8 +765,10 @@ def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, 
             candidate_id = registro.registrar_candidato(
                 'pinn', model_manifest={'algorithm': 'pinn_gnn', 'version': carpeta.name, 'cfg': meta.get('cfg'),
                                         'manifiesto': meta.get('manifiesto')},
-                dataset_manifest={'particiones': meta.get('particiones'), 'particiones_ids': meta.get('particiones_ids')},
-                metrics={k: meta.get(k) for k in ('mae_v', 'residuo_medio', 'mae_dorados')},
+                dataset_manifest={'particiones': meta.get('particiones'), 'particiones_ids': meta.get('particiones_ids'),
+                                  'politica_hash': (meta.get('evaluacion') or {}).get('politica_hash')},
+                metrics={**{k: meta.get(k) for k in ('mae_v', 'residuo_medio', 'mae_dorados')},
+                         'evaluacion': meta.get('evaluacion'), 'conforme': meta.get('conforme')},
                 decision={'status': estado.value, 'gates': {'approved': not fallos}, 'fallos': list(fallos)},
                 smoke_reload=smoke, artifacts=artefactos)['candidate_id']
         except (OSError, ValueError) as exc:
@@ -873,7 +880,34 @@ def _grupos(muestras: Sequence[Muestra], ids: Sequence[str], sistema: str | None
         return particionar(muestras)
     from .curva import reparto_del_sistema
 
-    return {k: [muestras[i] for i in v] for k, v in reparto_del_sistema(ids).items()}
+    return {k: [muestras[i] for i in v]
+            for k, v in reparto_del_sistema(ids, [m.familia for m in muestras]).items()}
+
+
+def politica_pinn(puertas: Puertas, cfg: Entrenamiento, sistema: str | None) -> PoliticaDeError:
+    """Lo que se exige a la PINN, escrito antes de ajustar nada (044:RF-3, RF-5): las puertas de
+    siempre, ahora también por familia. El modo dice qué se puede afirmar del resultado (027:RF-68)."""
+    return PoliticaDeError(modo='por_sistema' if sistema else 'generalizacion',
+                           cobertura_objetivo=cfg.cobertura,
+                           semillas=tuple(cfg.semilla + k for k in range(MIEMBROS)),
+                           topes=(('mae_v', puertas.mae_v_max), ('residuo', puertas.residuo_max)),
+                           tolerancia_regresion=puertas.tolerancia_dorados)
+
+
+def fallos_de_custodia(grupos: Mapping[str, Sequence[Muestra]], identidades: Mapping[int, str],
+                       politica: PoliticaDeError) -> list[str]:
+    """044:RF-1, RF-2: las cuatro particiones pasan por el particionador común, con su familia como
+    grupo de custodia y su red como sistema; si no, cada familia de modelos tendría su criterio."""
+    nombres = {'entrenamiento': 'entrenamiento', 'validacion': 'seleccion',
+               'calibracion': 'calibracion', 'prueba': 'prueba'}
+    registros = [{'record_id': identidades[id(m)], 'group_id': f'{red_de(m)}:{m.familia}',
+                  'particion': nombres[parte], 'sistema': red_de(m)}
+                 for parte, ms in grupos.items() for m in ms]
+    try:
+        particionar_registros(registros, politica)
+    except ValueError as exc:
+        return [f'{exc} (044:RF-1, RF-2)']
+    return []
 
 
 def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
@@ -923,6 +957,67 @@ def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = 
             errores.append(float(np.mean(np.abs(p['v'][m.mascara] - m.v[m.mascara]))))
         return float(np.mean(errores)) if errores else 0.0
     return min(candidatos, key=error)
+
+
+#: Con qué se agrupa al apartar y al contar: las variantes de demanda de una maniobra no son independientes.
+AGRUPACION_DE_CUSTODIA = 'red y familia topológica: cada familia entera en una sola partición'
+
+
+def _denominador(muestras: Sequence[Muestra]) -> dict[str, int]:
+    """044:RF-8: una media sin saber de cuántos sale no se puede juzgar ni repetir."""
+    return {'ejemplos': len(muestras),
+            'grupos': len({(red_de(m), m.familia) for m in muestras}),
+            'barras': sum(int(np.count_nonzero(m.mascara)) for m in muestras)}
+
+
+def metricas_por_familia(candidato: Modelo, evaluacion: Sequence[Muestra], residuos: Sequence[float],
+                         fisica: Modelo, actual: Modelo | None) -> dict[str, dict[str, Any]]:
+    """Error del candidato, de la física y del modelo en uso en cada familia de la prueba (044:RF-5)."""
+    por_familia: dict[str, list[int]] = {}
+    for i, m in enumerate(evaluacion):
+        por_familia.setdefault(m.familia or '—', []).append(i)
+    salida = {}
+    for familia, indices in sorted(por_familia.items()):
+        ms = [evaluacion[i] for i in indices]
+        salida[familia] = {**_denominador(ms), 'mae_v': mae(candidato, ms),
+                           'residuo': float(np.mean([residuos[i] for i in indices])),
+                           'mae_fisica': mae(fisica, ms),
+                           'mae_activo': mae(actual, ms) if actual is not None else None}
+    return salida
+
+
+def informe_conforme(oraculo: OraculoPINN, calibracion: Sequence[Muestra], prueba: Sequence[Muestra]) -> dict[str, Any]:
+    """Lo que se puede decir del intervalo, con sus denominadores (044:RF-4, RF-8).
+
+    El cuantil sale de las barras, pero las barras de un episodio y los episodios de una familia están
+    correlacionados: el recuento que cuenta para la cobertura pedida es el de familias, no el de barras. Con
+    pocas, ⌈(g+1)·cobertura⌉ no cabe en g y no se afirma la cobertura: el intervalo sigue sirviendo para negar
+    una predicción demasiado ancha (027:RF-13), pero no se publica como un 90 % que nadie ha demostrado.
+    """
+    objetivo = oraculo.cfg.cobertura
+    grupos = _denominador(calibracion)['grupos']
+    motivo = None
+    if oraculo.cuantil is None or not math.isfinite(oraculo.cuantil):
+        motivo = 'sin cuantil calibrado'
+    elif math.ceil((grupos + 1) * objetivo) > grupos:
+        motivo = f'{grupos} familia(s) de calibración no bastan para afirmar una cobertura de {objetivo:g}'
+    cubiertas = barras = 0
+    if oraculo.cuantil is not None and math.isfinite(oraculo.cuantil):
+        for m in prueba:
+            p = oraculo.predecir(_grafo_de_muestra(m))
+            error = np.abs(np.asarray(p['v']) - m.v)[m.mascara]
+            semi = oraculo.cuantil * (np.asarray(p['incertidumbre'])[m.mascara] + EPS_CONFORME)
+            cubiertas += int(np.count_nonzero(error <= semi))
+            barras += int(error.size)
+    empirica = cubiertas / barras if barras else None
+    if motivo is None and empirica is None:
+        motivo = 'sin barras de prueba donde medir la cobertura'
+    return {'cuantil': oraculo.cuantil, 'cobertura': objetivo if motivo is None else None,
+            'cobertura_objetivo': objetivo, 'cobertura_empirica': empirica, 'calibracion': len(calibracion),
+            'denominadores': {'calibracion': _denominador(calibracion), 'prueba': _denominador(prueba)},
+            'metodo': 'conforme partida por barra', 'agrupacion': AGRUPACION_DE_CUSTODIA,
+            'garantia': 'sin garantía de datos intercambiables: las barras y los episodios están correlacionados',
+            'publicable': motivo is None, 'motivo': motivo}
 
 
 def _commit() -> str | None:
@@ -1037,11 +1132,13 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
                 fallos.append('familia compartida entre particiones (060:RF-2)')
                 break
             familias_asignadas[clave] = parte
+    identidades = {id(m): i for m, i in zip(muestras, ids, strict=True)}
+    if not fallos:
+        fallos += fallos_de_custodia(grupos, identidades, politica_pinn(puertas, actual_cfg, sistema))
     if fallos:
         return {'entrenado': False, 'promovido': False, 'status': 'BLOQUEADO_POR_DATOS',
                 'fallos': fallos, 'motivo': '; '.join(fallos),
                 'particiones': {k: len(v) for k, v in grupos.items()}}
-    identidades = {id(m): i for m, i in zip(muestras, ids, strict=True)}
     particiones_ids = {k: [identidades[id(m)] for m in ms] for k, ms in grupos.items()}
     particiones_familias = {k: sorted({red_de(m) + ':' + (m.familia or '') for m in ms})
                            for k, ms in grupos.items()}
@@ -1053,6 +1150,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     cfg = Entrenamiento(**{**cfg.__dict__,
                            'exponente_carga': elegir_exponente(grupos['entrenamiento'], fisica=cfg.fisica)})
     log(f'Gemelo: física {cfg.fisica}, modelo de carga S0·|V|^{cfg.exponente_carga:g}')
+    politica = politica_pinn(puertas, cfg, sistema)                      # 044:RF-3: sellada antes de ajustar.
     compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos, actual.cfg.fisica, actual.cfg.arquitectura) == \
         (cfg.ocultas, cfg.pasos, cfg.fisica, cfg.arquitectura)
     previas = previas_familias = None
@@ -1108,14 +1206,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
             'validacion': [{'mejor_epoca': min(c, key=lambda x: x[1])[0] if c else None,
                             'epocas': c[-1][0] + 1 if c else None, 'curva': c} for c in curvas],
             'manifiesto': man,
-            'conforme': {'cuantil': candidato.cuantil, 'cobertura': cfg.cobertura,
-                         'calibracion': len(calibracion)}}
-    carpeta = guardar(candidato, bufer, meta)
-    # 043:RF-5: lo que se comprueba al reabrir; ``guardar`` ya dejó los pesos.
-    if evaluacion:
-        sonda = _grafo_de_muestra(evaluacion[0])
-        (carpeta / 'readback.json').write_text(json.dumps(
-            {'grafo': sonda, 'v': candidato.predecir(sonda)['v'].tolist()}, ensure_ascii=False, default=float), encoding='utf-8')
+            'conforme': informe_conforme(candidato, calibracion, evaluacion)}
+    candidato.cobertura_justificada = meta['conforme']['publicable']
     fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:
         fallos.append(f'error de tensión {error} p.u. sobre {puertas.mae_v_max}')
@@ -1128,24 +1220,55 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     if error_dorados_actual is not None and error_dorados is not None and \
             error_dorados > puertas.tolerancia_dorados * error_dorados_actual + 1e-6:
         fallos.append('empeora los casos dorados')
+    # 044:RF-5: las de arriba miran la media; una familia pequeña que empeora no se ve en ella.
+    metricas = {'global': {**_denominador(evaluacion), 'mae_v': error, 'residuo': meta['residuo_medio'],
+                           'mae_fisica': error_fisica, 'mae_activo': error_actual},
+                'familias': metricas_por_familia(candidato, evaluacion, residuos,
+                                                 ModeloMallado(exponente=cfg.exponente_carga), actual)}
+    veredicto = evaluar_candidato(metricas, politica)
+    fallos += [b for b in veredicto['bloqueos'] if not b.startswith('global:')]
+    # 044:RF-8: con esto, el manifiesto y los identificadores de cada partición se puede repetir la evaluación.
+    meta['evaluacion'] = {
+        'schema_version': 1, 'politica': asdict(politica), 'politica_hash': politica.hash,
+        'alcance': alcance_de(politica), 'veredicto': veredicto,
+        'unidades': {'mae_v': 'p.u.', 'residuo': 'p.u.', 'mae_fisica': 'p.u.', 'mae_activo': 'p.u.'},
+        'agrupacion': AGRUPACION_DE_CUSTODIA,
+        'denominadores': {k: _denominador(v) for k, v in grupos.items()}}
+    carpeta = guardar(candidato, bufer, meta)
+    # 043:RF-5: lo que se comprueba al reabrir; ``guardar`` ya dejó los pesos.
+    if evaluacion:
+        sonda = _grafo_de_muestra(evaluacion[0])
+        (carpeta / 'readback.json').write_text(json.dumps(
+            {'grafo': sonda, 'v': candidato.predecir(sonda)['v'].tolist()}, ensure_ascii=False, default=float), encoding='utf-8')
     decidido = _decidir_promocion(bufer, carpeta, {**meta, 'cfg': cfg.__dict__}, fallos,
                                   f'mae {error:.4g}' if error is not None else '', reabrir=reabrir, registro=registro)
     log(f"Gemelo: candidato {candidato.version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
     return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta), **decidido,
             'modelo_registro': 'pinn', 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
+            'evaluacion': meta['evaluacion'], 'conforme': meta['conforme'],
             **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
 
 
 def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str, Any]:
     """Si el oráculo aprendió: cuánto se apartan de DIgSILENT el modelo promovido y la física
     sola en cada episodio entrenable, y la media por partición (RF-74). Lo que importa es la
-    partición de prueba, con familias que el modelo no vio al entrenar (RF-12)."""
+    partición de prueba, con familias que el modelo no vio al entrenar (RF-12).
+
+    044:RF-8: las particiones son las que guardó el modelo. Calcularlas de nuevo daba por «prueba» y
+    «validación» lo que el modelo con ``sistema`` usó de otro modo, y por validación su calibración.
+    """
     muestras, ids = _muestras(bufer, consulta or Consulta())
     actual = cargar(bufer) if muestras else None
     fisica = ModeloMallado(exponente=actual.cfg.exponente_carga if actual else 0.0)
     filas = []
-    grupos = particionar(muestras)                                       # 027:RF-2
-    parte_de = {id(m): p for p, ms in grupos.items() for m in ms}
+    meta = (json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+            if actual is not None else {})
+    guardadas = meta.get('particiones_ids')
+    if guardadas:
+        parte_de_id = {i: p for p, lista in guardadas.items() for i in lista}
+        parte_de = {id(m): parte_de_id.get(i, 'sin_asignar') for m, i in zip(muestras, ids, strict=True)}
+    else:
+        parte_de = {id(m): p for p, ms in particionar(muestras).items() for m in ms}     # 027:RF-2
     for m, i in zip(muestras, ids, strict=True):
         fila = {'episodio': i, 'particion': parte_de[id(m)], 'nodos': len(m.ids),
                 'mae_fisica': mae(fisica, [m])}
@@ -1153,13 +1276,16 @@ def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str
             fila['mae_modelo'] = mae(actual, [m])
         filas.append(fila)
     resumen: dict[str, dict[str, float]] = {}
-    for parte in ('entrenamiento', 'validacion', 'prueba'):
+    for parte in ('entrenamiento', 'validacion', 'calibracion', 'prueba', 'sin_asignar'):
         sel = [f for f in filas if f['particion'] == parte]
         if sel:
             resumen[parte] = {'episodios': len(sel), 'mae_fisica': float(np.mean([f['mae_fisica'] for f in sel]))}
             if actual is not None:
                 resumen[parte]['mae_modelo'] = float(np.mean([f['mae_modelo'] for f in sel]))
-    return {'modelo': actual.version if actual else None, 'por_particion': resumen, 'episodios': filas}
+    return {'modelo': actual.version if actual else None, 'por_particion': resumen, 'episodios': filas,
+            'unidades': {'mae_fisica': 'p.u.', 'mae_modelo': 'p.u.'},
+            'reparto': 'guardado con el modelo' if guardadas else 'calculado ahora: el modelo no guardó el suyo',
+            'politica_hash': (meta.get('evaluacion') or {}).get('politica_hash')}
 
 
 def deriva(bufer: BuferEpisodios, nuevos: Sequence[str], puertas: Puertas | None = None) -> bool:

@@ -29,6 +29,10 @@ from typing import Any
 
 import numpy as np
 
+from ..evaluacion_modelos import comprobar_tolerancias, validar_medicion_nativa
+from ..experimentos import ContextoExperimento
+from .episode import Caso, Clase
+from .evaluacion import Limites, evaluar
 from .oraculo import S_BASE, Muestra, muestra, sistema_de
 
 #: Aptitud de una solución que incumple: siempre peor que cualquiera que cumple (regla de
@@ -671,53 +675,59 @@ def afinar_bancos_pide(obras: list[dict], grafo: Mapping[str, Any], *, tension_m
     return avisos
 
 
-def _metricas_completas(valores: Mapping[str, Any], origen: str) -> str | None:
-    """044:RF-6: una ausencia o NaN no puede aparentar diferencia cero."""
-    for clave in ('v_min', 'perdidas_kw'):
-        valor = valores.get(clave)
-        try:
-            numero = float(valor) if not isinstance(valor, bool) else float('nan')
-        except (ValueError, TypeError, OverflowError):
-            numero = float('nan')
-        if not math.isfinite(numero) or (clave == 'perdidas_kw' and numero < 0):
-            return f'{origen}: métrica {clave} ausente o inválida'
-    return None
-
-
 def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[Mapping[str, Any]], Mapping | None],
                     *, tolerancia_v_pu: float, tolerancia_perdidas: float = 0.2,
+                    tolerancia_perdidas_kw: float | None = None, contexto: ContextoExperimento | None = None,
+                    limites: Limites | None = None,
                     guardar: Callable[[Mapping[str, Any], Mapping | None, str], None] = lambda *_a: None
                     ) -> dict[str, Any]:
-    """La primera de las k mejores que DIgSILENT confirma (027:RF-14 a RF-16).
+    """La primera de las k mejores que DIgSILENT confirma (027:RF-14 a RF-16, 044:RF-6, RF-7).
 
-    ``medir(alternativa)`` la simula en DIgSILENT y da ``{'converge', 'v_min', 'perdidas_kw'}``.
-    Si no converge o se aparta de lo predicho más que la tolerancia del gemelo (tensión mínima
-    en p.u., pérdidas en fracción), se descarta, se guarda como episodio (``guardar``) y se
-    prueba la siguiente. La elegida lleva la evaluación del gemelo y la de DIgSILENT.
+    ``medir(alternativa)`` la simula en DIgSILENT y da, además de ``converge``, ``v_min`` y
+    ``perdidas_kw``, lo que ``validar_medicion_nativa`` exige: ``contexto``, ``unidades``, ``flujo``,
+    ``reabierto``, ``revertido`` y la ``referencia`` vinculada. Antes bastaba ``converge=True`` con dos
+    cifras parecidas; una obra así podía aceptarse con una línea sobrecargada. Si no converge, si la
+    medición está incompleta, si se aparta de lo predicho más que la tolerancia (tensión mínima en p.u.,
+    pérdidas en fracción, o en kW con ``tolerancia_perdidas_kw`` si lo predicho es cero) o si ``evaluar``
+    no la acepta por su caso y norma, se descarta, se guarda como episodio (``guardar``) y se prueba la
+    siguiente. La elegida lleva la evaluación del gemelo y la de DIgSILENT.
     """
-    for nombre, valor in (('tolerancia_v_pu', tolerancia_v_pu), ('tolerancia_perdidas', tolerancia_perdidas)):
-        if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor) or valor < 0:
-            raise ValueError(f'{nombre}: tolerancia no finita o negativa')
+    politica = {'tolerancia_v_pu': tolerancia_v_pu, 'tolerancia_perdidas': tolerancia_perdidas,
+                'tolerancia_perdidas_kw': tolerancia_perdidas_kw}
+    comprobar_tolerancias(politica)
     descartadas = []
     for alt in alternativas:
         m = medir(alt)
         if not m or not m.get('converge'):
             motivo = 'el flujo de DIgSILENT no converge con ella'
-        elif (motivo := _metricas_completas(alt, 'predicción') or
-              _metricas_completas(m, 'DIgSILENT')):
-            pass
         else:
-            dv = abs(float(m['v_min']) - float(alt['v_min']))
-            pred, medida = float(alt['perdidas_kw']), float(m['perdidas_kw'])
-            dp = abs(medida - pred) / pred if pred else (0.0 if medida == 0 else math.inf)
-            motivo = None
-            if dv > tolerancia_v_pu:
-                motivo = f'tensión mínima {float(m["v_min"]):.4f} p.u. frente a {float(alt["v_min"]):.4f} del gemelo'
-            elif dp > tolerancia_perdidas:
-                motivo = f'pérdidas {medida:.1f} kW frente a {pred:.1f} del gemelo'
+            validacion = validar_medicion_nativa(alt, m, contexto, politica=politica)
+            motivo = '; '.join(validacion['motivos']) or None
             if motivo is None:
-                return {'elegida': dict(alt), 'gemelo': {k: alt.get(k) for k in ('v_min', 'perdidas_kw')},
-                        'digsilent': dict(m), 'descartadas': descartadas, 'verificada': True}
+                juicio, motivo = _juzgar_por_su_caso(m, contexto, limites)
+                if motivo is None:
+                    return {'elegida': dict(alt), 'gemelo': {k: alt.get(k) for k in ('v_min', 'perdidas_kw')},
+                            'digsilent': dict(m), 'descartadas': descartadas, 'verificada': True,
+                            'evaluacion': juicio, 'validacion': validacion}
         guardar(alt, m, motivo)
         descartadas.append({'alternativa': dict(alt), 'motivo': motivo, 'digsilent': dict(m or {})})
     return {'elegida': None, 'descartadas': descartadas, 'verificada': False}
+
+
+def _juzgar_por_su_caso(medicion: Mapping[str, Any], contexto: ContextoExperimento,
+                        limites: Limites | None) -> tuple[dict[str, Any] | None, str | None]:
+    """El veredicto de ``evaluacion.evaluar`` sobre el flujo ya validado: solo ``accepted`` confirma."""
+    try:
+        caso = Caso(contexto.case_role)
+    except ValueError:
+        return None, f'el caso {contexto.case_role} no tiene criterio de evaluación propio'
+    juicio = evaluar(caso, medicion['flujo'], convergio=True, revertido=medicion['revertido'],
+                     reabierto=medicion['reabierto'], limites=limites,
+                     calibracion_cuadra=medicion.get('calibracion_cuadra'),
+                     referencia=(medicion.get('referencia') or {}).get('flujo'))
+    publico = {'clase': juicio.clase.value, 'violaciones': list(juicio.violaciones),
+               'diagnostico': list(juicio.diagnostico), 'bloqueos': list(juicio.bloqueos)}
+    if juicio.clase is Clase.ACCEPTED:
+        return publico, None
+    razones = list(juicio.bloqueos) + list(juicio.violaciones)
+    return publico, f'evaluación nativa {juicio.clase.value}: ' + ('; '.join(razones[:5]) or 'sin motivo')

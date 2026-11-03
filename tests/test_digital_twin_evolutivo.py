@@ -284,11 +284,13 @@ def test_top_k_verificado_en_digsilent(bancos):
     assert 1 <= len(alts) <= 3 and alts[0]['bancos'] == r['bancos']
     assert len({tuple((b['barra'], b['modulos']) for b in a['bancos']) for a in alts}) == len(alts)
     guardados = []
-    medidas = iter([{'converge': True, 'v_min': alts[0]['v_min'] - 0.05, 'perdidas_kw': alts[0]['perdidas_kw']}]
-                   + [{'converge': True, 'v_min': a['v_min'] + 0.001, 'perdidas_kw': a['perdidas_kw'] * 1.05}
-                      for a in alts[1:]])
-    v = ev.verificar_top_k(alts, lambda _a: next(medidas), tolerancia_v_pu=0.01,
-                           guardar=lambda a, m, motivo: guardados.append(motivo))
+    # 044:RF-7: desde T3, una medición completa con su referencia, no solo tres cifras.
+    from test_verificacion_top_k_completa import LIMITES, contexto_de, medida_nativa
+
+    medidas = iter([medida_nativa(alts[0]['v_min'] - 0.05, alts[0]['perdidas_kw'])]
+                   + [medida_nativa(a['v_min'] + 0.001, a['perdidas_kw'] * 1.05) for a in alts[1:]])
+    v = ev.verificar_top_k(alts, lambda _a: next(medidas), tolerancia_v_pu=0.01, contexto=contexto_de(),
+                           limites=LIMITES, guardar=lambda a, m, motivo: guardados.append(motivo))
     if len(alts) > 1:
         assert v['verificada'] and v['elegida'] == alts[1] and len(v['descartadas']) == 1
         assert 'tensión mínima' in v['descartadas'][0]['motivo'] and guardados == [v['descartadas'][0]['motivo']]
