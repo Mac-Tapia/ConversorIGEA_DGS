@@ -6,6 +6,7 @@ GPU. La medición con los modelos reales es de ``tools/asistente_evaluar_rag.py`
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -137,6 +138,9 @@ def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
     monkeypatch.setattr(services, 'project_root', lambda: repo)
     monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
                         lambda: SimpleNamespace(modelos=lambda: None))
+    # El informe del repositorio adopta un reranker: esta prueba no debe cargarlo en la GPU.
+    monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
+    monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion(calibrada=True, umbral_bm25_solo=2.0))
     r = services.asistente_pregunta('¿cómo se reparte la medida de la barra?')
     assert r['sabe'] and r['citas'] and r['metodos'] == ['bm25'] and 'BM25' in r['texto']
     r = services.asistente_pregunta('receta de la tortilla de patatas')
@@ -406,8 +410,10 @@ def test_sin_cuda_queda_el_orden_hibrido_y_lo_dice(monkeypatch):
     """047:RF-30 — sin CUDA, sin memoria o con la GPU ocupada: error claro, sin CPU, y queda el orden."""
     monkeypatch.setattr('convertersmartgrid.training_coordinator.exigir_memoria_ml', lambda *a, **k: {})
     monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
+    monkeypatch.setenv('HF_HUB_OFFLINE', '0')
     with pytest.raises(indice.RerankerNoDisponible, match='CUDA'):
         reranker.cargar_puntuador(reranker.MODELOS[0], reranker.ficha_modelo(reranker.MODELOS[0])['revision'])
+    assert os.environ['HF_HUB_OFFLINE'] == '1'                    # sin red: lee solo la caché
 
     def no_hay_cuda(_consulta, _candidatos):
         raise indice.RerankerNoDisponible('CUDA no disponible')
@@ -618,6 +624,15 @@ def test_medir_exige_que_todo_el_conjunto_ancle():
         evaluacion_rag.evaluar(Indice(frags), conjunto, _hibrido, {})
 
 
+def test_liberar_recolecta_antes_de_vaciar_la_cache(monkeypatch):
+    """047:RF-30 — descargar el modelo devuelve la GPU: primero se recolectan sus ciclos."""
+    orden = []
+    monkeypatch.setattr(reranker.gc, 'collect', lambda: orden.append('recolectar'))
+    torch = SimpleNamespace(cuda=SimpleNamespace(empty_cache=lambda: orden.append('vaciar')))
+    reranker.Puntuador(object(), torch).liberar()
+    assert orden == ['recolectar', 'vaciar']
+
+
 def test_gpu_ocupada_aparta_el_reranker_sin_esperar():
     """047:RF-30 — otro entrenamiento tiene la GPU: no se espera ni se cae a CPU; queda el orden."""
     def ocupada():
@@ -648,3 +663,243 @@ def test_el_sello_no_depende_del_final_de_linea(tmp_path):
     assert evaluacion_rag.sha256_de(lf) == evaluacion_rag.sha256_de(crlf)
     crlf.write_bytes(b'{"a": 9}\r\n{"b": 2}\r\n')
     assert evaluacion_rag.sha256_de(lf) != evaluacion_rag.sha256_de(crlf)
+
+
+# ------------------------------------------------------------------- abstención calibrada
+Q_FRAGS = 'calibrar la barra sin medidor repartiendo potencia'
+CALIBRADA = indice.Abstencion(calibrada=True, modelo_reranker='m', umbral_reranker=5.0, umbral_coseno=0.9,
+                              umbral_bm25=50.0, umbral_bm25_solo=2.0)
+
+
+def _con_etiqueta(puntos):
+    def reordenador(consulta, candidatos):
+        return reranker.reordenar(consulta, candidatos, modelo='m', revision='', puntuar=lambda c, t: [puntos] * len(t))
+    reordenador.etiqueta = 'reranker:m'
+    return reordenador
+
+
+def test_decide_la_puntuacion_del_reranker_calibrado():
+    """047:RF-31 — con el reranker calibrado manda su umbral, aunque BM25 o el coseno digan otra cosa."""
+    i = Indice(FRAGS)
+    assert indice.responder(i, Q_FRAGS, None, reordenador=_con_etiqueta(9.0), abstencion=CALIBRADA)['sabe'] is True
+    r = indice.responder(i, Q_FRAGS, None, reordenador=_con_etiqueta(1.0), abstencion=CALIBRADA)
+    assert r['sabe'] is False and r['citas'] == [] and r['respuesta'].startswith('No lo sé')
+
+
+def test_otro_reranker_no_usa_el_umbral_calibrado():
+    """047:RF-31, RF-32 — el umbral es de ese modelo; otro no lo hereda y decide BM25."""
+    def otro(consulta, candidatos):
+        return reranker.reordenar(consulta, candidatos, modelo='x', revision='', puntuar=lambda c, t: [0.0] * len(t))
+    otro.etiqueta = 'reranker:otro'
+    assert indice.responder(Indice(FRAGS), Q_FRAGS, None, reordenador=otro, abstencion=CALIBRADA)['sabe'] is True
+
+
+def test_sin_reranker_deciden_coseno_y_bm25_calibrados():
+    """047:RF-32 — con vectores, cualquiera de sus dos umbrales; sin vectores, el de BM25 solo."""
+    i = Indice(FRAGS, [[1.0, 0.0]] * 4)
+    def cerca(t):
+        return SimpleNamespace(modelo='f', embeddings=lambda x: [[1.0, 0.0]], responder=lambda p, c: None)
+    def lejos(t):
+        return SimpleNamespace(modelo='f', embeddings=lambda x: [[0.0, 1.0]], responder=lambda p, c: None)
+    assert indice.responder(i, Q_FRAGS, cerca(0), abstencion=CALIBRADA)['sabe'] is True
+    assert indice.responder(i, Q_FRAGS, lejos(0), abstencion=CALIBRADA)['sabe'] is False       # BM25 bajo 50
+    assert indice.responder(Indice(FRAGS), Q_FRAGS, None, abstencion=CALIBRADA)['sabe'] is True
+    assert indice.responder(Indice(FRAGS), 'barra', None, abstencion=CALIBRADA)['sabe'] is False
+
+
+def test_reranker_apartado_cae_a_los_umbrales_sin_reranker():
+    """047:RF-30, RF-32 — sin CUDA no se usa el umbral del reranker: decide lo que queda."""
+    def apartado(_c, _t):
+        raise indice.RerankerNoDisponible('CUDA no disponible')
+    apartado.etiqueta = 'reranker:m'
+    r = indice.responder(Indice(FRAGS), Q_FRAGS, None, reordenador=apartado, abstencion=CALIBRADA)
+    assert r['sabe'] is True and r['metodos'] == ['bm25'] and 'CUDA' in r['recuperacion']
+
+
+def test_sin_calibrar_no_lo_se_y_lo_dice():
+    """047:RF-33 — sin calibración, «No lo sé» antes que una cita que no apoya, y dice por qué."""
+    r = indice.responder(Indice(FRAGS), Q_FRAGS, None, abstencion=indice.Abstencion())
+    assert r['sabe'] is False and r['citas'] == [] and 'sin calibrar' in r['recuperacion']
+    solo_vectores = indice.Abstencion(calibrada=True, umbral_coseno=0.5)
+    r = indice.responder(Indice(FRAGS), Q_FRAGS, None, abstencion=solo_vectores)      # sin vectores ni su umbral
+    assert r['sabe'] is False and 'sin calibrar' in r['recuperacion']
+
+
+def test_la_web_pasa_la_abstencion_y_sin_calibrar_no_cita(tmp_path, monkeypatch):
+    """047:RF-33 — la vía de la web usa la calibración guardada; sin ella, ninguna cita."""
+    repo = _repo(tmp_path)
+    monkeypatch.setattr(services, 'project_root', lambda: repo)
+    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
+                        lambda: SimpleNamespace(modelos=lambda: None))
+    monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
+    monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion())
+    r = services.asistente_pregunta('¿cómo se reparte la medida de la barra?')
+    assert r['sabe'] is False and r['citas'] == [] and r['texto'].startswith('No lo sé')
+
+
+def test_un_codigo_hallado_es_evidencia_y_uno_inventado_no():
+    """047:RF-37 — el código que está tal cual cuenta; uno que no está no abre la puerta."""
+    i = Indice(FRAGS)
+    alto = indice.Abstencion(calibrada=True, umbral_bm25_solo=999.0)
+    assert indice.responder(i, 'SE50106', None, abstencion=alto)['sabe'] is True
+    assert indice.responder(i, 'SE99871 barra', None, abstencion=alto)['sabe'] is False
+
+
+def _calibracion(tmp_path, **cambios):
+    conjunto = tmp_path / 'calibracion.json'
+    conjunto.write_text('{"preguntas": []}', encoding='utf-8')
+    modelo = reranker.MODELOS[1]
+    datos = {'conjunto_sha256': evaluacion_rag.sha256_de(conjunto), 'modelo_reranker': modelo,
+             'revision': reranker.ficha_modelo(modelo)['revision'],
+             'umbrales': {'reranker': 1.5, 'coseno': 0.8, 'bm25': None, 'bm25_solo': 9.0}, **cambios}
+    ruta = tmp_path / 'umbrales.json'
+    ruta.write_text(json.dumps(datos), encoding='utf-8')
+    return ruta, conjunto
+
+
+def test_los_umbrales_solo_valen_con_su_conjunto(tmp_path):
+    """047:RF-34 — la calibración vale con la huella de su conjunto; sin ella, sin calibrar."""
+    ruta, conjunto = _calibracion(tmp_path)
+    a = reranker.abstencion(ruta, conjunto)
+    assert a.calibrada and a.umbral_reranker == 1.5 and a.umbral_coseno == 0.8 and a.umbral_bm25 is None
+    assert a.modelo_reranker == reranker.MODELOS[1]
+    assert not reranker.abstencion(tmp_path / 'no.json', conjunto).calibrada
+    conjunto.write_text('{"preguntas": [1]}', encoding='utf-8')
+    assert not reranker.abstencion(ruta, conjunto).calibrada
+
+
+def test_revision_ajena_anula_solo_el_umbral_del_reranker(tmp_path):
+    """047:RF-34 — otra revisión del modelo no hereda el umbral; coseno y BM25 siguen valiendo."""
+    ruta, conjunto = _calibracion(tmp_path, revision='0' * 40)
+    a = reranker.abstencion(ruta, conjunto)
+    assert a.calibrada and a.umbral_reranker is None and a.umbral_bm25_solo == 9.0
+
+
+def _fila(responde, bm25=0.0, coseno=0.0, puntos=0.0, codigo=False):
+    return {'responde': responde, 'bm25': bm25, 'coseno': coseno, 'reranker': puntos, 'codigo': codigo}
+
+
+def test_calibrar_elige_el_umbral_mas_bajo_que_cumple():
+    """047:RF-34 — con 20 sin respuesta y objetivo 0,95, una puede pasar: el umbral queda sobre la segunda."""
+    sin = [_fila(False, puntos=float(n)) for n in range(20)]
+    con = [_fila(True, puntos=30.0), _fila(True, puntos=18.5), _fila(True, puntos=5.0)]
+    c = evaluacion_rag.calibrar(sin + con)
+    assert 18.0 < c['umbrales']['reranker'] < 18.1
+    assert c['en_calibracion']['reranker']['abstencion'] >= 0.95
+    assert c['en_calibracion']['reranker']['conserva'] == pytest.approx(2 / 3)
+
+
+def test_calibrar_el_par_conserva_mas_y_puede_prescindir_de_una_senal():
+    """047:RF-34 — BM25 no separa nada; el par se queda con el coseno y deja BM25 sin contar."""
+    sin = [_fila(False, bm25=9.0, coseno=0.1 + n / 100) for n in range(20)]
+    con = [_fila(True, bm25=9.0, coseno=0.9) for _ in range(5)]
+    u = evaluacion_rag.calibrar(sin + con)['umbrales']
+    # Un umbral de BM25 por encima de todas las preguntas tampoco decide nada.
+    assert (u['bm25'] is None or u['bm25'] > 9.0) and 0.2 < u['coseno'] < 0.9
+
+
+def test_calibrar_aparta_las_de_codigo_y_exige_los_dos_tipos():
+    """047:RF-34, RF-37 — el código se decide aparte; sin preguntas de los dos tipos no se calibra."""
+    sin = [_fila(False, puntos=1.0) for _ in range(20)]
+    u = evaluacion_rag.calibrar(sin + [_fila(True, puntos=2.0), _fila(True, puntos=-9.0, codigo=True)])['umbrales']
+    assert u['reranker'] == pytest.approx(1.0, abs=1e-3)
+    with pytest.raises(ValueError):
+        evaluacion_rag.calibrar(sin)
+
+
+def _sellado_sintetico():
+    frags = [Fragmento(i, f'doc{i}.md:1', f'clave{i} calibrar barra medidor texto propio del documento {i}') for i in range(30)]
+    preguntas = [{'pregunta': f'clave{i} calibrar barra', 'fichero': f'doc{i}.md', 'ancla': f'clave{i} ', 'tipo': 'spec'} for i in range(20)]
+    preguntas += [{'pregunta': f'calibrar barra pregunta{i}', 'sin_respuesta': True, 'tipo': 'dominio' if i % 2 else 'fuera'} for i in range(10)]
+    return Indice(frags, [[1.0, 0.0]] * 30), {'procedencia': 'sintetico_maestro_de_sesion', 'preguntas': preguntas, 'sha256': 'sello'}
+
+
+def test_el_sellado_mide_cada_metodo_y_aplica_la_puerta():
+    """047:RF-36 — reranker que separa bien cumple su puerta; híbrido y BM25 que no abstienen, no."""
+    i, conjunto = _sellado_sintetico()
+
+    def puntuar(consulta, textos):
+        return [5.0 if 'clave' in consulta and consulta.split()[0] + ' ' in t else -5.0 for t in textos]
+
+    abst = indice.Abstencion(calibrada=True, modelo_reranker='m', umbral_reranker=0.0, umbral_coseno=0.5, umbral_bm25_solo=0.0)
+    informe = evaluacion_rag.medir_sellado(i, conjunto, lambda q: [1.0, 0.0], puntuar, 'm', abst)
+    assert informe['puerta']['reranker']['cumple'] is True, informe['puerta']['reranker']
+    assert informe['metodos']['reranker']['abstention_accuracy'] == 1.0
+    assert informe['puerta']['hibrido']['cumple'] is False and informe['cumple_todos'] is False
+    assert any('abstención' in m for m in informe['puerta']['hibrido']['motivos'])
+    assert informe['metodos']['reranker']['abstencion_por_tipo'] == {'dominio': 1.0, 'fuera': 1.0}
+    assert informe['conjunto_sha256'] == 'sello'
+    assert 'calibrar barra' not in json.dumps(informe['metodos'], ensure_ascii=False)
+
+
+def test_perder_recall_veta_aunque_se_abstenga():
+    """047:RF-36 — abstenerse de todo daría 1,0 de abstención: la puerta lo rechaza por Recall@10."""
+    i, conjunto = _sellado_sintetico()
+    todo_no = indice.Abstencion(calibrada=True, modelo_reranker='m', umbral_reranker=99.0, umbral_coseno=99.0, umbral_bm25_solo=99.0)
+    informe = evaluacion_rag.medir_sellado(i, conjunto, lambda q: [1.0, 0.0], lambda c, t: [0.0] * len(t), 'm', todo_no)
+    assert informe['metodos']['reranker']['abstention_accuracy'] == 1.0
+    assert informe['puerta']['reranker']['cumple'] is False
+    assert any('Recall@10' in m for m in informe['puerta']['reranker']['motivos'])
+    assert any('significativa' in m for m in informe['puerta']['reranker']['motivos'])
+    # clave10 a clave19 son códigos que están tal cual: cuentan como evidencia (RF-37).
+    assert informe['metodos']['reranker']['con_respuesta_abstenidas'] == 10
+
+
+def test_un_reranker_que_falla_al_medir_no_cumple():
+    """047:RF-36 — si el reranker no corre, su puerta no se da por buena."""
+    i, conjunto = _sellado_sintetico()
+
+    def falla(_c, _t):
+        raise indice.RerankerNoDisponible('Memoria insuficiente')
+
+    abst = indice.Abstencion(calibrada=True, modelo_reranker='m', umbral_reranker=0.0, umbral_coseno=0.5, umbral_bm25_solo=0.0)
+    informe = evaluacion_rag.medir_sellado(i, conjunto, lambda q: [1.0, 0.0], falla, 'm', abst)
+    assert informe['puerta']['reranker']['cumple'] is False and 'Memoria' in informe['metodos']['reranker']['error']
+
+
+def test_el_sellado_no_se_mide_dos_veces(tmp_path, monkeypatch):
+    """047:RF-35 — con un informe de la misma huella, la herramienta se niega sin tocar la GPU."""
+    import importlib.util
+
+    ruta = RAIZ / 'tools' / 'asistente_evaluar_rag.py'
+    spec = importlib.util.spec_from_file_location('asistente_evaluar_rag', ruta)
+    herramienta = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(herramienta)
+    sello = evaluacion_rag.sha256_de(RAIZ / 'docs' / 'RAG_ABSTENCION_SELLADO_047.json')
+    salida = tmp_path / 'informe.json'
+    salida.write_text(json.dumps({'conjunto_sha256': sello}), encoding='utf-8')
+    monkeypatch.setattr(reranker, 'abstencion', lambda: pytest.fail('no debía seguir'))
+    assert herramienta.main(['--datos', str(tmp_path / 'd'), '--sellado', '--salida', str(salida)]) == 2
+
+
+def test_el_sellado_exige_calibracion_antes(tmp_path, monkeypatch):
+    """047:RF-34, RF-35 — sin umbrales fijados no se abre el conjunto sellado."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('asistente_evaluar_rag', RAIZ / 'tools' / 'asistente_evaluar_rag.py')
+    herramienta = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(herramienta)
+    monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion())
+    assert herramienta.main(['--datos', str(tmp_path / 'd'), '--sellado', '--salida', str(tmp_path / 'x.json')]) == 2
+
+
+def test_los_conjuntos_nuevos_estan_separados_y_anclan():
+    """047:RF-34 — calibración, sellado y los 76 no comparten preguntas ni respuestas esperadas."""
+    nombres = ('RAG_ABSTENCION_CALIBRACION_047', 'RAG_ABSTENCION_SELLADO_047', 'RAG_PREGUNTAS_SINTETICAS_047')
+    cal, sel, his = (evaluacion_rag.cargar_conjunto(RAIZ / 'docs' / f'{n}.json') for n in nombres)
+    def textos(c):
+        return {x['pregunta'] for x in c['preguntas']}
+    def anclas(c):
+        return {(x['fichero'], x['ancla']) for x in c['preguntas'] if 'ancla' in x}
+    for a, b in ((cal, sel), (cal, his), (sel, his)):
+        assert not textos(a) & textos(b) and not anclas(a) & anclas(b)
+    frags = indice.fragmentos(RAIZ)
+    for c in (cal, sel):
+        pares, sin_ancla, _ = evaluacion_rag.resolver_pares(c, frags)
+        assert len(sin_ancla) <= 4, sin_ancla                         # medir exige el 100 %; esto vigila la deriva
+        assert sum(not p.answerable for p in pares) == 40
+        assert {x['tipo'] for x in c['preguntas'] if x.get('sin_respuesta')} == {'dominio', 'fuera'}
+    assert sel['sha256'] == '2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231'
+    assert cal['sha256'] == 'c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437'
+    assert his['sha256'] == '88245a0755bac8813968dee64a03a22778168d8a6aec9d21e813f73a0ff5c36a'
+

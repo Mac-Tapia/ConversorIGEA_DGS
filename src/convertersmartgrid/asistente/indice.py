@@ -186,6 +186,38 @@ def verificables(repo: Path, hallados: Sequence[dict]) -> list[dict]:
     return out
 
 
+@dataclass(frozen=True)
+class Abstencion:
+    """Cuándo hay respuesta, con umbrales calibrados (047:RF-31 a RF-34). «No lo sé» antes que citar
+    un trozo que no responde: con el coseno fijo en 0,55, las diez preguntas ajenas al proyecto salían con citas."""
+    calibrada: bool = False
+    modelo_reranker: str | None = None
+    umbral_reranker: float | None = None
+    umbral_coseno: float | None = None
+    umbral_bm25: float | None = None
+    umbral_bm25_solo: float | None = None
+
+    def decide(self, candidatos: Sequence[dict], *, etiqueta: str | None, con_vectores: bool,
+               con_codigo: bool) -> tuple[bool, str]:
+        """Si hay respuesta y con qué señal se decidió."""
+        if not self.calibrada or not candidatos:
+            return False, 'sin_calibrar' if not self.calibrada else 'sin_candidatos'
+        if con_codigo:
+            return True, 'codigo'                                       # 047:RF-37
+        if (etiqueta and self.umbral_reranker is not None and etiqueta == f'reranker:{self.modelo_reranker}'
+                and all('reranker' in c for c in candidatos)):
+            return max(c['reranker'] for c in candidatos) >= self.umbral_reranker, 'reranker'
+        if con_vectores:
+            if self.umbral_bm25 is None and self.umbral_coseno is None:
+                return False, 'sin_calibrar'
+            return ((self.umbral_bm25 is not None and max(c['bm25'] for c in candidatos) >= self.umbral_bm25)
+                    or (self.umbral_coseno is not None
+                        and max(c['coseno'] for c in candidatos) >= self.umbral_coseno)), 'hibrido'
+        if self.umbral_bm25_solo is None:
+            return False, 'sin_calibrar'
+        return max(c['bm25'] for c in candidatos) >= self.umbral_bm25_solo, 'bm25'
+
+
 class Indice:
     def __init__(self, frags: Sequence[Fragmento], vectores: Any = None, filas: Sequence[int] | None = None):
         """``vectores``: uno por trozo, con ``None`` donde falte, o una matriz cuyas ``filas`` dicen de qué trozo es cada una."""
@@ -233,6 +265,11 @@ class Indice:
         for fila, valor in zip(self._filas, (self._matriz @ q).tolist(), strict=True):
             semantico[fila] = valor
         return semantico
+
+    def nombra_codigo(self, consulta: str, hallados: Sequence[dict]) -> bool:
+        """¿Algún trozo hallado trae tal cual un código de la consulta (047:RF-37)?"""
+        codigos = {c.lower() for c in _CODIGO.findall(consulta)}
+        return bool(codigos) and any(codigos & set(palabras(h['texto'])) for h in hallados)
 
     def primero_los_codigos(self, consulta: str, hallados: Sequence[dict]) -> list[dict]:
         """Los trozos con un código pedido, por delante y en su orden (047:RF-28): SE50106 es esa
@@ -452,8 +489,11 @@ def medir(indice: Indice, preguntas: Sequence[dict], ollama: Any = None) -> dict
 
 def recuperar(indice: Indice, consulta: str, k: int = 6, *, vector: Sequence[float] | None = None,
               reordenador: Callable[[str, Sequence[dict]], list[dict]] | None = None,
-              repo: Path | None = None) -> dict[str, Any]:
-    """Los trozos, si alguno responde, y con qué métodos: la misma vía para responder y para medir (047:RF-4)."""
+              repo: Path | None = None, abstencion: Abstencion | None = None) -> dict[str, Any]:
+    """Los trozos, si alguno responde, y con qué métodos: la misma vía para responder y para medir (047:RF-4).
+
+    ``abstencion=None`` conserva los umbrales históricos, con los que se midió el conjunto de 76; la
+    web siempre pasa la calibrada (047:RF-31 a RF-33)."""
     candidatos = indice.buscar(consulta, CANDIDATOS, vector)
     metodos, avisos = ['bm25'], []
     if indice.cosenos(vector) is not None:
@@ -462,15 +502,24 @@ def recuperar(indice: Indice, consulta: str, k: int = 6, *, vector: Sequence[flo
             avisos.append(f'vectores de {indice.con_vector} de {len(indice.frags)} trozos')
     if repo is not None:
         candidatos = verificables(repo, candidatos)                     # 047:RF-29
-    sabe = bool(candidatos) and (max(c['bm25'] for c in candidatos) >= UMBRAL_BM25
-                                 or max(c['coseno'] for c in candidatos) >= UMBRAL_COSENO)
-    if sabe and reordenador is not None:
+    historico = bool(candidatos) and (max(c['bm25'] for c in candidatos) >= UMBRAL_BM25
+                                      or max(c['coseno'] for c in candidatos) >= UMBRAL_COSENO)
+    etiqueta = None
+    if reordenador is not None and candidatos and (abstencion is not None or historico):
         try:
             candidatos = indice.primero_los_codigos(consulta, reordenador(consulta, candidatos))  # 047:RF-28
-            metodos.append(getattr(reordenador, 'etiqueta', 'reranker'))
+            etiqueta = getattr(reordenador, 'etiqueta', 'reranker')
+            metodos.append(etiqueta)
         except RerankerNoDisponible as exc:                             # 047:RF-30
             avisos.append(f'reranker apartado: {exc}')
-    return {'hallados': candidatos[:k], 'sabe': sabe, 'metodos': metodos, 'avisos': avisos}
+    if abstencion is None:
+        sabe, senal = historico, 'historico'
+    else:
+        sabe, senal = abstencion.decide(candidatos, etiqueta=etiqueta, con_vectores='vectores' in metodos,
+                                        con_codigo=indice.nombra_codigo(consulta, candidatos))
+        if senal == 'sin_calibrar':
+            avisos.append('abstención sin calibrar para este método')   # 047:RF-33
+    return {'hallados': candidatos[:k], 'sabe': sabe, 'metodos': metodos, 'avisos': avisos, 'senal': senal}
 
 
 def _nombre_metodo(m: str) -> str:
@@ -486,7 +535,7 @@ def _recuperacion(metodos: Sequence[str], avisos: Sequence[str], motivo_sin_vect
 
 def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, repo: Path | None = None,
               reordenador: Callable[[str, Sequence[dict]], list[dict]] | None = None,
-              usar_vectores: bool = True) -> dict[str, Any]:
+              usar_vectores: bool = True, abstencion: Abstencion | None = None) -> dict[str, Any]:
     """La respuesta con sus citas y sus métodos; si ningún trozo responde, «No lo sé» (RF-18).
 
     Con ``repo``, cada cita se comprueba contra su fichero (047:RF-3, RF-29). Solo pide el vector
@@ -503,7 +552,7 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
         vector = emb[0] if emb else None
         if indice.cosenos(vector) is None:
             vector, motivo = None, 'Ollama no dio un vector válido de la consulta'
-    r = recuperar(indice, pregunta, k, vector=vector, reordenador=reordenador, repo=repo)
+    r = recuperar(indice, pregunta, k, vector=vector, reordenador=reordenador, repo=repo, abstencion=abstencion)
     hallados = r['hallados']
     base = {'metodos': r['metodos'], 'recuperacion': _recuperacion(r['metodos'], r['avisos'], motivo)}
     if not r['sabe'] or not hallados:

@@ -8869,7 +8869,8 @@ def asistente_pregunta(texto: str) -> dict:
     politica = reranker.politica()
     reordenador = reranker.reordenador_de(politica, lambda: turno_gpu('reranker'))
     r = indice.responder(indice.cargar_o_construir(repo), texto, ollama, repo=repo,
-                         reordenador=reordenador, usar_vectores=politica['hibrido'])
+                         reordenador=reordenador, usar_vectores=politica['hibrido'],
+                         abstencion=reranker.abstencion())                # 047:RF-31 a RF-33
     return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
             'metodos': r['metodos']}
 

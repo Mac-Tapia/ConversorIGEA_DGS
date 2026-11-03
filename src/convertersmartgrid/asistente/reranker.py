@@ -8,18 +8,22 @@ entrenamientos, y retenerlo ocuparía justo lo que el reentrenamiento necesita.
 from __future__ import annotations
 
 import contextlib
+import gc
 import hashlib
 import json
+import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .indice import RerankerNoDisponible
+from .indice import Abstencion, RerankerNoDisponible
 
 _RAIZ = Path(__file__).resolve().parents[3]
 CATALOGO = _RAIZ / 'docs' / 'MODELOS_IA_LOCK.json'
 INFORME = _RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
 CONJUNTO = _RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'
+CALIBRACION = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_047.json'
+CONJUNTO_CALIBRACION = _RAIZ / 'docs' / 'RAG_ABSTENCION_CALIBRACION_047.json'
 #: Candidatos de la evaluación, ambos con revisión fijada en el catálogo.
 MODELOS = ('BAAI/bge-reranker-v2-m3', 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')
 MAX_LARGO = 256
@@ -56,7 +60,10 @@ class Puntuador:
         return [float(x) for x in puntos]
 
     def liberar(self) -> None:
+        # El modelo guarda ciclos de referencias: sin recolectar, la Fase 2 mantuvo 2,3 GB de la GPU tras
+        # descargar bge-reranker, y empty_cache no devuelve lo que aún tiene dueño.
         self._modelo = None
+        gc.collect()
         self._torch.cuda.empty_cache()
 
 
@@ -65,6 +72,8 @@ def cargar_puntuador(modelo: str, revision: str) -> Puntuador:
     ficha = ficha_modelo(modelo)
     if revision != ficha['revision']:
         raise RerankerNoDisponible(f'la revisión de {modelo} no es la fijada en el catálogo')
+    # Con local_files_only, CrossEncoder aún consultó el Hub en la Fase 2 (aviso de peticiones sin token).
+    os.environ['HF_HUB_OFFLINE'] = '1'
     from ..training_coordinator import MemoriaMLInsuficiente, exigir_memoria_ml
 
     try:
@@ -147,6 +156,23 @@ def politica(informe: Path = INFORME, conjunto: Path = CONJUNTO) -> dict[str, An
             return {**salida, 'modelo': elegido['modelo'], 'revision': fijada, 'motivo': ''}
         return {**salida, 'motivo': 'la revisión adoptada no es la del catálogo'}
     return salida
+
+
+def abstencion(calibracion: Path = CALIBRACION, conjunto: Path = CONJUNTO_CALIBRACION) -> Abstencion:
+    """Los umbrales guardados, solo si salen del conjunto de calibración de hoy (047:RF-33, RF-34).
+    Sin ellos, una ``Abstencion`` sin calibrar: «No lo sé» antes que una cita que no apoya."""
+    try:
+        datos = json.loads(calibracion.read_text(encoding='utf-8'))
+        if datos['conjunto_sha256'] != sha256_de(conjunto):
+            return Abstencion()
+        umbrales, modelo = datos['umbrales'], datos.get('modelo_reranker')
+        valido = bool(modelo) and ficha_modelo(modelo)['revision'] == datos.get('revision')
+    except (OSError, ValueError, KeyError, TypeError):
+        return Abstencion()
+    return Abstencion(calibrada=True, modelo_reranker=modelo if valido else None,
+                      umbral_reranker=umbrales.get('reranker') if valido else None,
+                      umbral_coseno=umbrales.get('coseno'), umbral_bm25=umbrales.get('bm25'),
+                      umbral_bm25_solo=umbrales.get('bm25_solo'))
 
 
 def reordenador_de(pol: Mapping[str, Any], turno: Callable[[], Any] = contextlib.nullcontext

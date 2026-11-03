@@ -164,3 +164,139 @@ def evaluar(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[[str],
             'conjunto_sha256': conjunto['sha256'], 'metrica_primaria': METRICA,
             'preguntas': len(pares), 'con_respuesta': sum(p.answerable for p in pares),
             'cobertura_vectores': indice.cobertura, 'metodos': metodos, 'decision': decision}
+
+
+#: La puerta y el margen de calibración, declarados en el plan de la 047 antes de medir.
+ABSTENCION_MINIMA = 0.90
+OBJETIVO_CALIBRACION = 0.95
+_POR_ENCIMA = 1e-6
+
+
+def leer_puntuaciones(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[[str], Sequence[float] | None],
+                      puntuar: Callable[[str, Sequence[str]], Sequence[float]], modelo: str) -> list[dict[str, Any]]:
+    """La mejor señal de cada método en cada pregunta, por la misma búsqueda que la respuesta."""
+    pares, sin_ancla, _ = resolver_pares(conjunto, indice.frags)
+    if sin_ancla:
+        raise ValueError(f'preguntas sin ancla en el índice, calibrar con ellas falsearía el umbral: {sin_ancla}')
+    filas = []
+    for par in pares:
+        candidatos = indice.buscar(par.pregunta, modulo_indice.CANDIDATOS, vector_de(par.pregunta))
+        puntuados = reordenar(par.pregunta, candidatos, modelo=modelo, revision='', puntuar=puntuar) if candidatos else []
+        filas.append({'responde': par.answerable, 'codigo': indice.nombra_codigo(par.pregunta, candidatos),
+                      'bm25': max((c['bm25'] for c in candidatos), default=float('-inf')),
+                      'coseno': max((c['coseno'] for c in candidatos), default=float('-inf')),
+                      'reranker': max((c['reranker'] for c in puntuados), default=float('-inf'))})
+    return filas
+
+
+def _candidatos_umbral(filas: Sequence[Mapping], senal: str) -> list[float]:
+    """Justo por encima de cada pregunta sin respuesta: los únicos umbrales que cambian la abstención."""
+    return sorted({float(f[senal]) + _POR_ENCIMA for f in filas if not f['responde'] and f[senal] != float('-inf')})
+
+
+def calibrar(filas: Sequence[Mapping[str, Any]], objetivo: float = OBJETIVO_CALIBRACION) -> dict[str, Any]:
+    """Los umbrales de cada método (047:RF-34): el más bajo con abstención ≥ ``objetivo``; en el par
+    coseno-BM25, el que más preguntas con respuesta conserve y, a igualdad, los más bajos."""
+    utiles = [f for f in filas if not f['codigo']]                     # el código se decide aparte (RF-37)
+    sin = [f for f in utiles if not f['responde']]
+    con = [f for f in utiles if f['responde']]
+    if not sin or not con:
+        raise ValueError('calibrar exige preguntas con respuesta y sin ella')
+
+    def tasas(cumple: Callable[[Mapping], bool]) -> tuple[float, float]:
+        return sum(not cumple(f) for f in sin) / len(sin), sum(cumple(f) for f in con) / len(con)
+
+    umbrales: dict[str, float | None] = {}
+    resumen: dict[str, Any] = {}
+    for clave, senal in (('reranker', 'reranker'), ('bm25_solo', 'bm25')):
+        for t in _candidatos_umbral(utiles, senal):
+            abstiene, conserva = tasas(lambda f, t=t, s=senal: f[s] >= t)
+            if abstiene >= objetivo:
+                umbrales[clave], resumen[clave] = t, {'abstencion': abstiene, 'conserva': conserva}
+                break
+    mejor = None
+    for ub in [*_candidatos_umbral(utiles, 'bm25'), None]:
+        for uc in [*_candidatos_umbral(utiles, 'coseno'), None]:
+            if ub is None and uc is None:
+                continue
+            abstiene, conserva = tasas(lambda f, ub=ub, uc=uc: (ub is not None and f['bm25'] >= ub)
+                                       or (uc is not None and f['coseno'] >= uc))
+            if abstiene < objetivo:
+                continue
+            clave = (-conserva, float('inf') if ub is None else ub, float('inf') if uc is None else uc)
+            if mejor is None or clave < mejor[0]:
+                mejor = (clave, ub, uc, abstiene, conserva)
+    if mejor is not None:
+        umbrales['bm25'], umbrales['coseno'] = mejor[1], mejor[2]
+        resumen['hibrido'] = {'abstencion': mejor[3], 'conserva': mejor[4]}
+    return {'objetivo': objetivo, 'umbrales': umbrales, 'en_calibracion': resumen,
+            'preguntas': {'con_respuesta': len(con), 'sin_respuesta': len(sin)}}
+
+
+def _puerta(con: Mapping[str, Any], sin: Mapping[str, Any]) -> dict[str, Any]:
+    """La puerta declarada en el plan, con y sin los umbrales calibrados (047:RF-36)."""
+    if con.get('error') or sin.get('error'):
+        return {'cumple': False, 'motivos': [f"error al medir: {con.get('error') or sin.get('error')}"]}
+    comparacion = comparar_pareado(sin, con, metrica=METRICA)
+    motivos = []
+    if float(con['abstention_accuracy']) < ABSTENCION_MINIMA:
+        motivos.append(f"abstención {con['abstention_accuracy']:.3f} bajo {ABSTENCION_MINIMA}")
+    if float(con['recall@10']) < float(sin['recall@10']):
+        motivos.append(f"Recall@10 baja de {sin['recall@10']:.3f} a {con['recall@10']:.3f}")
+    if comparacion.get('status') != 'OK':
+        motivos.append(f'{METRICA}: sin datos pareados')
+    elif comparacion['ci95_bootstrap'][1] < 0:
+        motivos.append(f"{METRICA} peor de forma significativa: IC95 % {comparacion['ci95_bootstrap']}")
+    return {'cumple': not motivos, 'motivos': motivos, METRICA: comparacion}
+
+
+def medir_sellado(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[[str], Sequence[float] | None],
+                  puntuar: Callable[[str, Sequence[str]], Sequence[float]], modelo: str,
+                  abstencion: modulo_indice.Abstencion) -> dict[str, Any]:
+    """Una medición del conjunto sellado: cada método con la abstención calibrada y con la histórica."""
+    pares, sin_ancla, _ = resolver_pares(conjunto, indice.frags)
+    if sin_ancla:
+        raise ValueError(f'preguntas sin ancla en el índice, medir falsearía la comparación: {sin_ancla}')
+    vectores = {p.pregunta: vector_de(p.pregunta) for p in pares}
+    fallo: list[str] = []
+
+    def reordenador(consulta: str, candidatos: Sequence[Mapping]) -> list[dict]:
+        if fallo:
+            raise modulo_indice.RerankerNoDisponible(fallo[0])
+        try:
+            return reordenar(consulta, candidatos, modelo=modelo, revision='', puntuar=puntuar)
+        except modulo_indice.RerankerNoDisponible as exc:
+            fallo.append(str(exc))
+            raise
+
+    reordenador.etiqueta = f'reranker:{modelo}'
+
+    def medir(con_vector: bool, reordena: Any, umbrales: Any) -> dict[str, Any]:
+        def buscar(pregunta: str, k: int) -> list[dict]:
+            r = modulo_indice.recuperar(indice, pregunta, k, vector=vectores[pregunta] if con_vector else None,
+                                        reordenador=reordena, abstencion=umbrales)
+            return r['hallados'] if r['sabe'] else []
+        return _medir(pares, buscar)
+
+    metodos, puertas = {}, {}
+    for nombre, con_vector, reordena in (('reranker', True, reordenador), ('hibrido', True, None), ('bm25', False, None)):
+        for sufijo, umbrales in (('', abstencion), ('_sin_puerta', None)):
+            medido = medir(con_vector, reordena, umbrales)
+            metodos[nombre + sufijo] = {'error': fallo[0]} if reordena is not None and fallo else medido
+        puertas[nombre] = _puerta(metodos[nombre], metodos[nombre + '_sin_puerta'])
+    if hasattr(puntuar, 'liberar'):
+        puntuar.liberar()
+    tipo = {_grupo(str(f['pregunta'])): f.get('tipo') for f in conjunto['preguntas']}
+    for medido in metodos.values():
+        filas = [x for x in medido.get('per_query') or () if not x['answerable']]
+        medido['abstencion_por_tipo'] = {t: sum(x['abstained'] for x in filas if tipo[x['group_id']] == t)
+                                         / max(sum(tipo[x['group_id']] == t for x in filas), 1)
+                                         for t in ('dominio', 'fuera')}
+        con = [x for x in medido.get('per_query') or () if x['answerable']]
+        medido['con_respuesta_abstenidas'] = sum(not x['ranking'] for x in con)
+    return {'esquema': 'csg-abstencion-rag-v1', 'procedencia': conjunto['procedencia'],
+            'conjunto_sha256': conjunto['sha256'], 'modelo_reranker': modelo, 'preguntas': len(pares),
+            'con_respuesta': sum(p.answerable for p in pares), 'cobertura_vectores': indice.cobertura,
+            'abstencion_minima': ABSTENCION_MINIMA, 'metodos': metodos, 'puerta': puertas,
+            'cumple_todos': all(x['cumple'] for x in puertas.values())}
+
