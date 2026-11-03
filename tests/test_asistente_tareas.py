@@ -18,7 +18,7 @@ def test_cada_tarea_apunta_a_algo_que_existe():
             assert (RAIZ / 'tools' / f'{t.funcion}.py').is_file(), t.nombre
         else:
             assert callable(getattr(services, t.funcion, None)), t.nombre
-        assert t.modo in ('consulta', 'trabajo', 'proceso')
+        assert t.modo in ('consulta', 'trabajo', 'proceso', 'etapas')             # 070:RF-31
 
 
 def test_lo_que_escribe_pide_confirmacion():

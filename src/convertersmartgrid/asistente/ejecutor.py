@@ -7,6 +7,7 @@ paso. Al final, los entregables (DGS, informes, formatos) con su enlace.
 """
 from __future__ import annotations
 
+import json
 import re
 import time
 from collections.abc import Callable, Mapping
@@ -27,6 +28,7 @@ class Paso:
     cuerpo: Any = None                      # dict, o función de los resultados anteriores
     archivos: Callable | None = None        # para subir un fichero (multipart)
     espera: bool = True
+    formulario: bool = False                # ruta de formulario sin fichero (la carga sola, 070:RF-29)
 
 
 class PasoFallido(RuntimeError):
@@ -211,7 +213,71 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
         # 070:RF-12: la ruta hace un informe por alimentador; se pedía el del primero y se perdían los demás.
         return [Paso(f'informe de {tipo} de {a}' if len(feeders) > 1 else f'informe de {tipo}', 'POST',
                      f'/informes/{tipo}', {**cuerpo, 'alimentador': a}) for a in (feeders or [''])]
+    nuevos = _pasos_070(tarea, datos, extras, proyecto, feeders)
+    if nuevos is not None:
+        return nuevos
     raise ValueError(f'la tarea {tarea!r} no tiene pasos: es una consulta o un proceso')
+
+
+def _pasos_de_calibrar(proyecto: str, extras: Mapping[str, Any], ultimo: str, nombre: str) -> list[Paso]:
+    """Como ``sistema_web``: relee los proyectos (el vínculo lo exige, spec 018), prepara el plan y lo ejecuta."""
+    maxima = extras.get('ultima_maxima') or {}
+    # Los de una central (022:RF-88) solo traen su curva al instante: el plan rechaza que sean cabeceras.
+    medidores = [r['medidor'] for r in (maxima.get('result') or {}).get('resultados') or []
+                 if not r.get('error') and r.get('medidor') and not str(r.get('alimentador') or '').lower().startswith('central ')]
+    return [Paso('releer los proyectos de DIgSILENT', 'POST', '/powerfactory/projects', {}),
+            Paso('preparar el plan de la calibración', 'POST', '/demanda/ajuste/plan',
+                 {'project': proyecto, 'job_id': maxima.get('id'), 'medidores': medidores,
+                  'completar_bancos': bool(extras.get('completar_bancos'))}, espera=False),
+            Paso(nombre, 'POST', lambda r: f"/demanda/ajuste/{r[-1]['token']}/{ultimo}", None)]
+
+
+def _pasos_070(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any], proyecto: str,
+               feeders: list[str]) -> list[Paso] | None:
+    """Las tareas de la spec 070, cada una por la ruta que usa el operador (026:RF-10)."""
+    if tarea == 'convertir_set':
+        return [Paso('convertir la SET', 'POST', '/convert/sistema', {'zonales': [], 'sets': [datos['set']]})]
+    if tarea == 'buscar_maxima':
+        return [Paso('buscar la máxima', 'POST', '/demanda/cabecera/buscar', dict(extras.get('maxima') or {}))]
+    if tarea == 'cruzar_clientes':
+        return [Paso('cruzar los clientes', 'POST', '/demanda/clientes/cruzar',
+                     {'alimentadores': feeders, 'periodo': datos.get('periodo'),
+                      'maximas': dict(extras.get('maximas_clientes') or {})}, espera=False)]
+    if tarea == 'calibrar':
+        return _pasos_de_calibrar(proyecto, extras, 'aplicar', 'aplicar la calibración')
+    if tarea == 'simular_calibracion':
+        return _pasos_de_calibrar(proyecto, extras, 'simular', 'simular la calibración')
+    if tarea == 'recalibrar':
+        return [Paso('recalibrar', 'POST', '/demanda/recalibrar',
+                     {'project': proyecto, 'periodo': datos.get('periodo'), 'demanda_dir': datos.get('ruta')})]
+    if tarea == 'escanear':
+        return [Paso('escanear', 'POST', '/powerfactory/escanear', {'project': proyecto, 'feeders': feeders})]
+    if tarea == 'verificar_convergencia':
+        return [Paso('verificar la convergencia', 'POST', '/powerfactory/verificar', {'project': proyecto, 'feeders': feeders})]
+    if tarea == 'carga_nueva_sola':
+        nueva = json.dumps(extras.get('nueva') or {}, ensure_ascii=False)
+        return [_ultima_calibracion(proyecto),
+                Paso('preparar la carga nueva', 'POST', '/lote/plan',
+                     lambda r: {'project': proyecto, 'feeders': feeders, 'nueva': nueva,
+                                'ajuste_job_id': _id_calibracion(r[-1], proyecto)}, espera=False, formulario=True),
+                Paso('conectar la carga nueva', 'POST', lambda r: f"/lote/{r[-1]['token']}/apply", None)]
+    if tarea == 'cancelar_trabajo':
+        return [Paso(f"cancelar «{t.get('titulo')}»", 'POST', f"/api/jobs/{t['id']}/cancel", {}, espera=False)
+                for t in extras.get('cancelar') or []]
+    if tarea == 'leer_solicitud':
+        rutas = [Path(r) for r in extras.get('documentos') or []]
+
+        def ficheros(_r):
+            return [('files', (p.name, p.read_bytes(), 'application/pdf')) for p in rutas]
+
+        return [Paso('leer los documentos del solicitante', 'POST', '/informes/documentos',
+                     {'tipo': extras.get('tipo_documentos') or 'factibilidad'}, archivos=ficheros)]
+    if tarea == 'descargar_resultados':
+        return [Paso('preparar el ZIP de los resultados', 'POST', '/outputs/archive', {'feeders': feeders})]
+    if tarea == 'pronostico':
+        return [Paso('pronóstico de demanda', 'POST', '/digital-twin/temporal',
+                     {**(extras.get('pronostico') or {}), 'modo': 'pronostico'})]
+    return None
 
 
 def describir(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any] | None = None) -> list[str]:
@@ -297,6 +363,8 @@ def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]
         log(f'Asistente: paso {i} de {len(lista)}, {p.nombre}…')
         if p.archivos is not None:
             r = cliente.pedir(p.metodo, ruta, data=cuerpo or {}, files=p.archivos(resultados))
+        elif p.formulario:
+            r = cliente.pedir(p.metodo, ruta, data=cuerpo or {})
         elif p.metodo == 'GET':
             r = cliente.pedir('GET', ruta)
         else:

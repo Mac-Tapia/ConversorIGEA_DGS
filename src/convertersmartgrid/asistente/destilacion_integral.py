@@ -19,8 +19,10 @@ from .interprete import UMBRAL_TRANSFORMER
 from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
 from .sinteticos import Ejemplo, expandir
-from .tareas import TAREAS
+from .tareas import TAREAS, TAREAS_HASTA_069
 
+#: 070:RF-69: filas de prueba que no son de la anterior, sellada con la huella b800c6ca1a11d9ba.
+CONJUNTO_SELLADO = 'sellada_070'
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
 #: 069:RF-17 a RF-19: puerta nueva de rechazo sobre la conversación reservada, además de las de ``PoliticaEvaluacion``.
@@ -152,6 +154,8 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
                                                for a, b, tipo in e.datos)))
         r = {'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in e.datos],
              'group_id': grupo, 'particion': parte, 'quality': calidad, 'del_maestro': maestro}
+        if parte == 'prueba' and calidad != 'gold_human' and e.tarea not in TAREAS_HASTA_069:
+            r['conjunto'] = CONJUNTO_SELLADO                                       # 070:RF-72
         if maestro:
             r['justificacion_verificable'] = TAREAS[e.tarea].descripcion
         r['record_id'] = huella(r)
@@ -166,7 +170,7 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
                 agregar(expandir(plantilla, tarea, rnd, vocab, ruido=.08), grupo,
                         'entrenamiento', 'silver_deterministic')
         from .ordenes_fijas import FRASES
-        for j, plantilla in enumerate(FRASES[tarea]):
+        for j, plantilla in enumerate(FRASES.get(tarea, ())):                      # 070:RF-75: sin tareas nuevas
             rnd = random.Random(3103 + j + int(huella(tarea)[:8], 16))
             grupo = huella({'plantilla': plantilla, 'tarea': tarea})
             for _ in range(por_familia):
@@ -207,6 +211,11 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
             'metodo': 'response_distillation; CE de tareas y entidades; no logits ni racionales privados'}
     particionar_registros(filas, PoliticaEvaluacion(modo='agente'))
     return filas, meta
+
+
+def es_historica(r: dict) -> bool:
+    """070:RF-72: la fila es de la prueba anterior: las tareas de hasta la 069, sin marca de conjunto nuevo."""
+    return r['particion'] == 'prueba' and 'conjunto' not in r
 
 
 def guardar_corpus(destino: Path, registros: list[dict], manifiesto: dict, reservados: Sequence[str] = ()) -> None:

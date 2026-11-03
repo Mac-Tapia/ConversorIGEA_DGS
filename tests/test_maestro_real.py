@@ -442,7 +442,9 @@ def test_corpus_prueba_sellada_de_la_linea_base():
     from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
     from convertersmartgrid.evaluacion_modelos import huella
     filas, _ = preparar_corpus({}, [], por_familia=5, etiquetas_reales=[_real()])
-    assert huella(sorted(r['record_id'] for r in filas if r['particion'] == 'prueba')) == HUELLA_PRUEBA_VACIA
+    # 070:RF-72: con las tareas nuevas, lo sellado antes de esa spec es la parte histórica.
+    from convertersmartgrid.asistente.destilacion_integral import es_historica
+    assert huella(sorted(r['record_id'] for r in filas if es_historica(r))) == HUELLA_PRUEBA_VACIA
 
 
 def test_corpus_denominadores_separados():
@@ -539,8 +541,10 @@ def test_curriculo_familias_siguen_con_sus_cuatro_columnas():
     """068:RF-37 — la posición en ``FAMILIAS`` decide la partición; alargarla cambiaría la prueba."""
     from convertersmartgrid.asistente.curriculo_maestro import FAMILIAS
     from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.asistente.tareas import TAREAS_HASTA_069
     assert all(len(v) == 4 for v in FAMILIAS.values())
-    assert huella(FAMILIAS) == HUELLA_FAMILIAS
+    # 070:RF-72, RF-74: solo cambió una frase de entrenar; ni la selección, ni la calibración, ni la prueba.
+    assert huella({t: FAMILIAS[t][1:] for t in TAREAS_HASTA_069}) == HUELLA_FAMILIAS_APARTADAS
 
 
 def test_curriculo_erratas_deterministas_y_observadas():
@@ -621,6 +625,6 @@ def test_extraer_no_carga_librerias_pesadas():
 
 # Valores de antes de esta spec, medidos sobre el commit f72e46cb con las mismas entradas.
 HUELLA_PRUEBA_VACIA = '415e425a481ddfb0bd3af7bdeb042cf82fa3f23fda1ef97f95b8b2f955d502f3'
-HUELLA_FAMILIAS = '42748d4abc4b5c089495eab8cb1489bcbce4873e7fa4325283b333f2ba9a3429'
+HUELLA_FAMILIAS_APARTADAS = 'e9162f14716150cc9c1748c30adda47ce22dc8418880bce3293aa65f694f307c'
 HUELLA_FIJAS_PRUEBA = '16b563b6381b2386'
 HUELLA_POLITICA = 'd996a254903807e96892d08469947dc43b7be10124a8653cb17ff960ea47e894'

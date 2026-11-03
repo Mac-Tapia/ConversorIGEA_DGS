@@ -1775,6 +1775,9 @@ def create_app(
         base = str(request.base_url).rstrip('/')
         http = getattr(app.state, 'asistente_http', None)
         plan = services.asistente_plan(ws, plan_id)['plan']
+        if plan.tarea == 'cancelar_trabajo':                                   # 070:RF-33
+            return submit(ws, 'asistente_control', f'Asistente · {plan.tarea}',
+                          lambda ctx: services.asistente_cancelar(ws, ctx, plan_id, jobs.cancel), lane='control')
         return submit(ws, 'asistente', f'Asistente · {plan.tarea}',
                       lambda ctx: services.asistente_ejecutar(ws, ctx, plan_id, base, http), lane='asistente')
 
@@ -1805,7 +1808,9 @@ def create_app(
                 _programar_vectores(ws)
             return result
 
-        return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret, lane='asistente')
+        # 070:RF-33: con el carril del asistente ocupado daría 409 justo cuando se quiere parar lo que corre.
+        return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret,
+                      lane='control' if services.es_orden_de_cancelar(body.texto) else 'asistente')
 
     def _programar_vectores(ws: Workspace) -> None:
         """047:RF-22: la pregunta ya tiene respuesta con lo que hay; lo que falte, detrás y sin pedirlo.

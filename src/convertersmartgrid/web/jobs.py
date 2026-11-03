@@ -35,7 +35,9 @@ from typing import Any, Callable
 
 #: «asistente» (spec 026) solo espera: sus pasos encolan en los otros dos carriles, así que
 #: no compite con ellos por el motor ni por DIgSILENT.
-LANES = ('engine', 'powerfactory', 'asistente')
+#: 070:RF-33: «control» solo atiende órdenes de cancelar: con el carril del asistente ocupado la ruta da 409,
+#: y es justo entonces cuando el operador quiere parar lo que corre (un «Recalibrar» de horas).
+LANES = ('engine', 'powerfactory', 'asistente', 'control')
 
 QUEUED = 'queued'
 RUNNING = 'running'

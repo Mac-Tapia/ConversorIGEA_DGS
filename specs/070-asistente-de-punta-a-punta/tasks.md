@@ -2,7 +2,7 @@
 
 - [x] T1 Huecos del ejecutor. (RF-1 a RF-16)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k huecos` en verde.
-- [ ] T2 Tareas nuevas por rutas existentes. (RF-17 a RF-39)
+- [x] T2 Tareas nuevas por rutas existentes. (RF-17 a RF-39)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k tareas` en verde.
 - [ ] T3 Consulta de datos. (RF-40 a RF-46)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k consulta` en verde.

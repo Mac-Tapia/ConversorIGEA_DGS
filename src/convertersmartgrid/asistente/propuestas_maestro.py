@@ -21,6 +21,8 @@ VOCABULARIO = {
     'ruta': ['D:/ensayo/demanda_01.xlsx', 'D:/ensayo/demanda_02.xlsx', 'D:/ensayo/demanda_03.xlsx'],
     'numero': ['5', '10', '20'],
     'subtipo': ['mejora de tensión', 'refuerzo de red', 'alimentación de carga nueva'],
+    'set': ['SET Uno', 'SET Dos', 'SET Tres'],
+    'estudio': ['flujo', 'troncal', 'n-1'],
     'texto': ['por qué puede no converger un flujo de carga',
               'cómo se verifica una tensión fuera de límites',
               'qué significa una sobrecarga en un transformador'],
@@ -57,6 +59,26 @@ PLANTILLAS = {
     'informe_factibilidad': ('Redacta la factibilidad de la SED {sed} de {alimentadores} en «{proyecto}»', 'Prepara el informe de factibilidad del suministro {sed} de {alimentadores} en «{proyecto}»'),
     'entrenar_asistente': ('Ajusta otra vez el Transformer que interpreta las instrucciones del operador', 'Reentrena al asistente de órdenes con su corpus disponible'),
 }
+
+PLANTILLAS.update({
+    'cancelar_trabajo': ('Interrumpe el trabajo que corre en este espacio', 'Detén la ejecución en curso de este espacio'),
+    'convertir_set': ('Construye el DGS de la subestación {set}', 'Pasa a DGS la subestación {set} con sus circuitos'),
+    'set_completo': ('Convierte, importa y calibra la subestación {set} con el período {periodo}', 'Proceso completo de la subestación {set} para {periodo}'),
+    'alimentadores_completo': ('Convierte, importa y calibra los circuitos {alimentadores} con {periodo}', 'Proceso completo de {alimentadores} para {periodo}'),
+    'buscar_maxima': ('Obtén la demanda máxima de {alimentadores} en {periodo}', 'Averigua el pico coincidente de {alimentadores}'),
+    'cruzar_clientes': ('Empareja los clientes importantes de {alimentadores}', 'Arma el cruce de suministros de {alimentadores}'),
+    'calibrar': ('Aplica el ajuste de demanda en «{proyecto}» con la máxima buscada', 'Graba en «{proyecto}» la calibración preparada'),
+    'simular_calibracion': ('Ensaya sin grabar la calibración de «{proyecto}»', 'Mide el efecto de calibrar «{proyecto}» sin aplicar'),
+    'recalibrar': ('Calibra de nuevo «{proyecto}» con {periodo}', 'Actualiza el ajuste de «{proyecto}» a {periodo}'),
+    'escanear': ('Examina lo cambiado a mano en {alimentadores} de «{proyecto}»', 'Lee generadores y bancos de {alimentadores} en «{proyecto}»'),
+    'verificar_convergencia': ('Comprueba que el flujo de «{proyecto}» tenga solución', 'Averigua si «{proyecto}» sigue resolviendo el flujo'),
+    'carga_nueva_sola': ('Añade solo el suministro {sed} a {alimentadores} en «{proyecto}»', 'Conecta como carga aislada {sed} en {alimentadores} de «{proyecto}»'),
+    'proyecto_entero': ('Realiza todo el trabajo de «{sistema}» con {periodo}', 'Recorre todas las etapas de «{sistema}» para {periodo}'),
+    'leer_solicitud': ('Toma los datos de los documentos en «{ruta}»', 'Revisa la documentación del solicitante en «{ruta}»'),
+    'descargar_resultados': ('Comprime las salidas de este espacio para bajarlas', 'Prepara el comprimido con los resultados'),
+    'pronostico': ('Calcula la demanda esperada de cabecera con «{ruta}»', 'Estima el consumo futuro de cabecera desde «{ruta}»'),
+})
+PLANTILLAS['set_completo'] = tuple(PLANTILLAS['set_completo'])
 
 PREFIJOS = ('', 'Por favor: ', 'Ahora, ', 'Necesito lo siguiente: ')
 

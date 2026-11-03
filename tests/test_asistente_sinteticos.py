@@ -54,11 +54,12 @@ def test_doscientas_ordenes_fijas_del_maestro():
     """027:RF-65 / 027:RF-66 — 200 órdenes de todas las tareas, con frases que no son las del
     entrenamiento, deterministas por su huella, 160 a entrenar y 40 a la prueba."""
     from convertersmartgrid.asistente import ordenes_fijas as of
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_HASTA_069
 
     vocab = {'alimentadores': ['IN111', 'TA225'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
     e = of.generar(vocab)
-    assert len(e) == 200 and {x.tarea for x in e} == set(TAREAS)
+    # 070:RF-75: son las tareas de hasta la 069; con las nuevas cambiaría su huella (068:RF-41).
+    assert len(e) == 200 and {x.tarea for x in e} == set(TAREAS_HASTA_069)
     assert of.huella(e) == of.huella(of.generar(vocab)) != of.huella(of.generar(vocab, semilla=1))
     plantillas = {p for t in TAREAS.values() for p in t.plantillas}
     assert not set(f for fs in of.FRASES.values() for f in fs) & plantillas

@@ -183,6 +183,14 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
         return p
     if tipo == 'numero':
         return numero_de(' '.join(valores)) if valores else numero_de(texto)
+    if tipo == 'alcance':
+        crudo = normalizar(' '.join(valores))
+        return next((a for a in ('alimentadores', 'set', 'sistema') if a in crudo), None)
+    if tipo == 'estudio':
+        return valores[0] if valores else next(iter(_nombrados(texto, opciones)), None)
+    if tipo == 'anio':
+        p = periodo_de(' '.join(valores)) if valores else periodo_de(texto)
+        return p[:4] if p else None
     if tipo == 'ruta':
         if not valores:
             return None

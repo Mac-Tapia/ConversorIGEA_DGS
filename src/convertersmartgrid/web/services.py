@@ -2362,8 +2362,6 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
     cada uno en el libro (vacío si no tiene). ``None`` si el proyecto no es de tipo «sistema»;
     con ``todos``, también el de un alimentador o de varios unidos (028:RF-24).
     """
-    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
-
     proyecto = project.strip()
     grupo = next((n for n, p in (ws.pf_projects or {}).items()
                   if p == proyecto and (todos or (ws.groups.get(n) or {}).get('tipo') == 'sistema')), None)
@@ -2371,14 +2369,60 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
         return None
     # Un alimentador solo se guarda con su código y sin grupo (CA101 → su proyecto).
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
+    medidores = medidores_por_alimentador(ws, alimentadores)
+    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
+            'tipo': (ws.groups.get(grupo) or {}).get('tipo') or ('unida' if grupo in ws.groups else 'alimentador')}
+
+
+def medidores_por_alimentador(ws: Workspace, alimentadores: list[str]) -> dict[str, list[str]]:
+    """Los medidores de cabecera de cada uno, leyendo el libro una vez; vacío sin libro (022:RF-54)."""
+    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
+
     try:
         filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
     except (DemandaError, UserError):
-        filas = []                    # sin libro de medidores, ninguno tiene medidor
+        return {a: [] for a in alimentadores}
     grafias = _grafias(ws)
-    medidores = {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
-    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
-            'tipo': (ws.groups.get(grupo) or {}).get('tipo') or ('unida' if grupo in ws.groups else 'alimentador')}
+    return {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
+
+
+def asistente_cancelar(ws: Workspace, ctx: JobContext, plan_id: str, cancelar: Callable[[str], Any]) -> dict:
+    """La orden de cancelar, confirmada, sin pasar por el carril ni la exclusión del asistente (070:RF-33).
+
+    Un trabajo del asistente tiene su exclusión por espacio; pasar por ella daría «límite de concurrencia»
+    justo mientras corre lo que se quiere parar. Solo cancela lo que el plan nombró al mostrarse.
+    """
+    from ..asistente import almacen
+
+    guardado = asistente_plan(ws, plan_id)
+    plan = guardado['plan']
+    if plan.tarea != 'cancelar_trabajo' or not plan.listo:
+        raise UserError('El plan no es una orden de cancelar completa.')
+    guardado['gobierno'].confirmar(plan)
+    hechos = []
+    for trabajo in guardado['extras'].get('cancelar') or []:
+        job = cancelar(trabajo['id'])
+        hechos.append({**trabajo, 'estado': job.status if job is not None else 'ya no existe'})
+        ctx.log(f"Asistente: se cancela «{trabajo['titulo']}».")
+    almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'decision': 'confirmada', 'datos': hechos})
+    guardado['terminado'] = True
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    PlanesGuardados(ws.root).borrar(plan_id)
+    return {'plan': plan.id, 'tarea': plan.tarea, 'completo': True, 'cancelados': hechos,
+            'texto': f'{len(hechos)} trabajo(s) con la cancelación pedida: ninguno empieza otra parte y los '
+                     'alimentadores en marcha terminan.'}
+
+
+def es_orden_de_cancelar(texto: str) -> bool:
+    """070:RF-33: se decide antes de encolar, por la frase, porque el carril depende de ello."""
+    from ..asistente.sinteticos import normalizar
+    from ..asistente.tareas import TAREAS
+
+    import re
+
+    t = normalizar(texto or '')
+    return any(re.search(f, t) for f in TAREAS['cancelar_trabajo'].frases_literales)
 
 
 def _grafias(ws: Workspace) -> Callable[[str], list[str]]:
@@ -7730,6 +7774,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     except (UserError, ValueError, OSError):
         e = None
     vocab['sistema'] = list(e.zonales) if e is not None else []
+    vocab['set'] = sorted(e.sets) if e is not None else []                     # 070:RF-17
     if not vocab['alimentadores'] and e is not None:
         # Sin fuente cargada, los de la estructura de la empresa: tras reiniciar la web ningún
         # espacio tenía su inventario en memoria y el asistente no reconocía ni IN111 (2026-10-24).
@@ -7976,7 +8021,9 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
         if (motivo := motivo_no_disponible()) is not None:
             plan.avisos.append(aviso_sin_transformer(motivo, plan.interpretado_por))
     extras = _asistente_extras(ws, plan, trabajos or [])
+    extras['_trabajos'] = trabajos or []                                       # solo para los requisitos (070:RF-32)
     _asistente_requisitos(ws, plan, extras)
+    extras.pop('_trabajos')
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         if not plan.datos.get('subtipo'):
             c = _asistente_clasificador()
@@ -7993,6 +8040,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     publico = plan.publico()
     if plan.tarea and plan.modo == 'trabajo':
         publico['pasos'] = describir(plan.tarea, plan.datos, extras)
+    elif plan.tarea and plan.modo == 'etapas':
+        publico['pasos'] = list(extras.get('etapas_en_palabras') or [])         # 070:RF-31, RF-51
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
     publico['equipo'] = gobierno.publico()
     _asistente_guardar_plan(ws, plan, extras, gobierno)
@@ -8005,7 +8054,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
 
 
 #: Tareas que necesitan la fuente del espacio (RED, CARGA y EQUIPOS, una .mdb o un VNR-GIS).
-_NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'sistema_completo')
+_NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'sistema_completo', 'convertir_set',
+                     'set_completo', 'alimentadores_completo', 'proyecto_entero')
 
 
 def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
@@ -8018,7 +8068,7 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     """
     from .asistente_operacion import requisitos
 
-    requisitos(ws, plan, extras)                                               # 070:RF-2 a RF-15
+    requisitos(sys.modules[__name__], ws, plan, extras)                        # 070:RF-2 a RF-15
     if plan.tarea == 'informe_factibilidad' and all(plan.datos.get(k) for k in ('proyecto', 'alimentadores', 'sed')):
         # 067:RF-34: lo mismo que la ruta comprueba antes de encolar, antes de ofrecer confirmar.
         try:
@@ -8035,12 +8085,12 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
                            'una base .mdb o un paquete VNR-GIS) y repita la orden; para un proyecto ya '
                            'importado, use la fuente de su vínculo en «Cargas en DIgSILENT».')
         return
-    if plan.tarea in ('convertir', 'unir', 'convertir_sistema'):
+    if plan.tarea in ('convertir', 'unir', 'convertir_sistema', 'convertir_set'):
         extras['cargar_antes'] = True
         # 047:RF-2: el vínculo pendiente se satisface al leer las entradas antes de
         # convertir; sin entradas válidas se conserva el bloqueo anterior.
         plan.faltan[:] = [f for f in plan.faltan if not f.startswith(
-            ('contexto vinculado de alimentadores:', 'contexto vinculado de sistema:'))]
+            ('contexto vinculado de alimentadores:', 'contexto vinculado de sistema:', 'contexto vinculado de set:'))]
         plan.razonamiento.append('La fuente del espacio no está cargada: primero se carga, con sus entradas.')
 
 
@@ -8196,6 +8246,12 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
     if plan.modo == 'proceso':
         return gobierno.ejecutar_proceso(lambda: _asistente_proceso(ws, ctx, plan),
                                          cancelado=ctx.cancel.is_set)
+    if plan.modo == 'etapas':
+        from .asistente_operacion import ejecutar_etapas
+
+        # Sin la acción exterior del gobierno: cada etapa abre la suya, y dos en el mismo espacio se excluyen.
+        return {'plan': plan.id, 'tarea': plan.tarea,
+                **ejecutar_etapas(sys.modules[__name__], ws, ctx, plan, guardado['extras'], base, http)}
     if http is None:
         import requests
 
@@ -8220,6 +8276,9 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
         resultado['reintento'] = {'error': str(exc), **decision}
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
+    from .asistente_operacion import presentar
+
+    presentar(ws, plan, resultado)                                             # 070:RF-35, RF-37
     ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
     return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
 
@@ -8491,13 +8550,16 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
 
     if plan.tarea == 'entrenar_asistente':
         return asistente_entrenar(ws, ctx)
-    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', plan.datos['sistema'],
+    from .asistente_operacion import alcance_de_sistema_web
+
+    alcance, nombre = alcance_de_sistema_web(sys.modules[__name__], ws, plan)  # 070:RF-20, RF-21
+    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, *alcance,
            '--periodo', plan.datos['periodo']]
     if plan.datos.get('ruta'):
         cmd += ['--demanda-dir', plan.datos['ruta']]
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
-        raise UserError(f'El sistema {plan.datos["sistema"]} no se pudo llevar hasta el final (código {rc}).')
+        raise UserError(f'{nombre} no se pudo llevar hasta el final (código {rc}).')
     return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,
             'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro'}
 
