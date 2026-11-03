@@ -7,7 +7,9 @@ Estaban copiados: ``_module`` (cargar un script de ``tools/``) en cuatro fichero
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
+from contextlib import contextmanager
 import time
 from pathlib import Path
 from types import ModuleType
@@ -95,3 +97,36 @@ def contrato_fisico() -> dict:
 
     return {'alcance_fisico': {'representacion': REPRESENTACION, 'no_representados': {}},
             'controles': {'comldf': dict.fromkeys(CONTROLES_LDF, 0)}}
+
+
+#: Segundos que una prueba que entrena espera su turno de GPU antes de fallar diciendo quién la tiene.
+ESPERA_TURNO_GPU_S = 1800.0
+
+
+@contextmanager
+def turno_gpu_esperando(nombre: str, limite_s: float | None = None, pausa_s: float = 5.0):
+    """El turno común de la GPU para una prueba que entrena, esperando a que lo suelte otro (043:RF-6).
+
+    Una prueba que llama a ``oraculo.entrenar`` sin turno reabre su candidato en un hijo que sí lo pide
+    (043:RF-5): con otro proceso en la GPU, el hijo lo encontraba ocupado, el candidato no se promovía y
+    seis pruebas fallaban sin decir por qué (2026-11-03). Como un lanzador de ``tools/``, la prueba toma el
+    turno y el hijo lo hereda; si no llega en ``limite_s`` (``CSG_GPU_ESPERA_S``), falla con «GPU ocupada».
+    """
+    from convertersmartgrid.trabajadores_ml import turno_gpu
+
+    limite = float(os.environ.get('CSG_GPU_ESPERA_S', ESPERA_TURNO_GPU_S)) if limite_s is None else limite_s
+    fin = time.monotonic() + limite
+    while True:
+        turno = turno_gpu(nombre)
+        try:
+            turno.__enter__()
+        except RuntimeError as exc:
+            if 'GPU ocupada' not in str(exc) or time.monotonic() >= fin:
+                raise
+            time.sleep(pausa_s)
+            continue
+        break
+    try:
+        yield
+    finally:
+        turno.__exit__(None, None, None)
