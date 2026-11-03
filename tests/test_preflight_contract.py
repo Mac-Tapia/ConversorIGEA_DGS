@@ -112,7 +112,7 @@ def test_snapshot_es_el_modelo_escrito_y_no_reconstruye(tmp_path, monkeypatch, l
 
 @pytest.mark.parametrize('falla', ['ausente', 'dgs_modificado', 'modelo_modificado', 'calculo', 'indisponible'])
 def test_control_requerido_falla_cerrado(tmp_path, monkeypatch, falla):
-    """065:RF-7 — ausencias, corrupción o cálculo fallido bloquean el target."""
+    """065:RF-7, 081:RF-57 — ausencias, corrupción o cálculo fallido quedan como motivo del target."""
     from convertersmartgrid import batch, oraculo
     from convertersmartgrid.web.workspace import Workspace
 
@@ -144,7 +144,7 @@ def test_control_requerido_falla_cerrado(tmp_path, monkeypatch, falla):
 
 @pytest.mark.parametrize('estado', ['converge', 'miembro', 'ambos', 'unida', 'calculo', 'cambio_miembros'])
 def test_grupo_calcula_miembros_y_union_publicada(tmp_path, monkeypatch, estado):
-    """065:RF-5, 065:RF-6, 065:RF-7 — cada miembro y el unido deben superar el control."""
+    """065:RF-5, 065:RF-6, 065:RF-7 — se calculan cada miembro y el unido; el fallo de cualquiera llega al grupo."""
     from convertersmartgrid import batch, oraculo
     from convertersmartgrid.web.workspace import Workspace
 

@@ -16,7 +16,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión. | 034 (RF-1) |
 | `src/convertersmartgrid/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | 034, 001 |
 | `src/convertersmartgrid/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66), 035 (RF-2 a RF-9), 035 (RF-28 a RF-30), 041 (RF-1 a RF-7) |
-| `src/convertersmartgrid/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | 034, 001, 022 (RF-7, RF-25, RF-34) |
+| `src/convertersmartgrid/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | 034, 001, 022 (RF-7, RF-25, RF-34), 065 (RF-11, RF-12, RF-25) |
 | `src/convertersmartgrid/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/convertersmartgrid/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73), 030 (RF-13, RF-14) |
 | `src/convertersmartgrid/valle.py` | El valle de un alcance desde la medición: limpieza de lo dudoso con su motivo, energía de sus medidores, inicio y duración por búsqueda exacta, por año; punto para la escalera, plan de la calibración a valle y la frase del informe. | 073 |
@@ -168,13 +168,13 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40), 061 (RF-1, RF-10) |
 | `src/convertersmartgrid/web/readiness.py` | Puertas por alimentador antes de producir DGS; quita la falta de conductor que la carga ya reconstruyó. | 001, 053 (RF-9) |
 | `src/convertersmartgrid/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
-| `src/convertersmartgrid/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28), 036 |
+| `src/convertersmartgrid/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28), 036, 065 (RF-3, RF-14, RF-15) |
 | `src/convertersmartgrid/web/services.py` | Las acciones de la interfaz, sin interfaz; conversión por sistema eléctrico (022:RF-47 a RF-51).; máxima por barra de SET y sus alimentadores en esa fecha; estructura del espacio | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57, RF-61, RF-64), 022 (RF-4, RF-37 a RF-44), 025 (RF-4, RF-8 a RF-11, RF-17, RF-20, RF-24, RF-28 a RF-33), 018 (RF-1 a RF-15), 030 (RF-10, RF-13, RF-14), 032 (RF-12, RF-29), 035 (RF-1 a RF-3, RF-17 a RF-22), 037 (RF-1 a RF-7), 038 (RF-1, RF-5, RF-8), 039 (RF-1 a RF-6), 041 (RF-7, RF-9), 042, 060 (RF-7), 061 (RF-2, RF-3, RF-5, RF-6, RF-7, RF-8, RF-9) |
 | `src/convertersmartgrid/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/convertersmartgrid/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS; la copia de SQL Server, por su `ConfigBD.config`. | 001 (RF-2), 059 (RF-8) |
 | `src/convertersmartgrid/web/sources/__init__.py` | Reexportación temporal de `convertersmartgrid.sources`. | 002 (RF-21 la retira) |
 | `src/convertersmartgrid/web/sources/vnr.py` | Reexportación temporal de `convertersmartgrid.sources.vnr`. | 002 (RF-21 la retira) |
-| `src/convertersmartgrid/web/workspace.py` | Espacio de trabajo: entradas, opciones, salida de una sesión y obras de mejora sin aplicar. | 001, 011 (RF-95), 025 (RF-17), 018 (RF-1 a RF-4, RF-13), 035 (RF-21), 038 (RF-1) |
+| `src/convertersmartgrid/web/workspace.py` | Espacio de trabajo: entradas, opciones, salida de una sesión y obras de mejora sin aplicar. | 001, 011 (RF-95), 025 (RF-17), 018 (RF-1 a RF-4, RF-13), 035 (RF-21), 038 (RF-1), 065 (RF-10) |
 
 ## `src/vnr_etl/` — módulo VNR-GIS
 
@@ -205,7 +205,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | `src/vnr_etl/connectors/vector.py` | GeoJSON, Shapefile y GeoPackage. | 001 (RF-26) |
 | `src/vnr_etl/discovery/__init__.py` | Descubrimiento, huella, catálogo y descarga de fuentes. | 001 |
 | `src/vnr_etl/discovery/catalog.py` | Catálogo de publicaciones y empresas. | 001 |
-| `src/vnr_etl/discovery/download.py` | Descargas y manejo seguro de archivos. | 001 |
+| `src/vnr_etl/discovery/download.py` | Descargas y manejo seguro de archivos. | 001, 065 (RF-11, RF-12, RF-18, RF-19) |
 | `src/vnr_etl/discovery/fingerprint.py` | Huella de fuente y de esquema. | 001 |
 | `src/vnr_etl/discovery/freshness.py` | La publicación más nueva por fecha autoritativa. | 001 |
 | `src/vnr_etl/discovery/official.py` | Publicaciones oficiales de OSINERGMIN. | 001 |
@@ -427,7 +427,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/observacion.py` | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. | 061 (RF-1, RF-2, RF-3, RF-7, RF-8, RF-9) |
 | `frontend/src/components/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
 | `tools/asistente_observar.py` | Incorpora y verifica informes locales del aprendizaje sin activar modelos. | 061 (RF-8) |
-| `src/convertersmartgrid/web/retencion.py` | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. | 062 (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8) |
+| `src/convertersmartgrid/web/retencion.py` | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. | 062 (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8), 065 (RF-13) |
 
 ## Cierre de auditoría integral — spec 065
 
@@ -436,13 +436,13 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/custodia_corpus.py` | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. | 047, 065 |
 | `src/convertersmartgrid/asistente/reubicacion_corpus.py` | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. | 047, 065 |
 | `tools/reubicar_corpus_llm.py` | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. | 047, 065 |
-| `tools/aceptar_dominio.py` | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. | 065 |
-| `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 |
-| `frontend/src/api/esquema.ts` | Tipos generados desde OpenAPI; no se editan a mano. | 065, 002 |
-| `frontend/src/components/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 |
-| `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 |
-| `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 |
-| `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 |
+| `tools/aceptar_dominio.py` | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. | 065 (RF-21) |
+| `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 (RF-1, RF-20, RF-21, RF-24) |
+| `frontend/src/api/esquema.ts` | Tipos generados desde OpenAPI; no se editan a mano. | 065 (RF-17), 002 |
+| `frontend/src/components/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 (RF-18, RF-19) |
+| `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 (RF-22) |
+| `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 (RF-22) |
+| `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 (RF-22, RF-23) |
 | `src/convertersmartgrid/asistente/codificador_ordenes.py` | Intérprete de órdenes con codificador preentrenado congelado, cabezas de tarea y de datos, clase «ninguna» y el lugar en que el modelo la ve. | 069 (RF-1 a RF-9), 075 (RF-37) |
 | `src/convertersmartgrid/asistente/validacion_cruzada.py` | Validación cruzada con las órdenes confirmadas: familias de frases casi iguales, reparto en 5 vueltas estratificado por tarea, cabezas por vuelta sobre la caché del codificador, medida fuera de grupo y modelo final. | 075 (RF-1 a RF-28) |
 | `src/convertersmartgrid/asistente/datos_por_palabra.py` | Etiquetas de los datos de una orden y su decisión por palabra, comunes a los dos modelos de órdenes. | 026 (RF-2), 069 (RF-1, RF-31) |
@@ -451,13 +451,19 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
 | `src/convertersmartgrid/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
 | `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. | 067 (RF-20 a RF-24) |
-| `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas. | 065 |
-| `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 |
-| `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 |
-| `src/convertersmartgrid/web/api_contract.py` | Modelos públicos Pydantic y contratos OpenAPI del frontend. | 065, 002 |
-| `src/convertersmartgrid/web/equipo_api.py` | API del equipo LLM: permisos por plan y revisiones locales en cola. | 065 |
-| `src/convertersmartgrid/web/operaciones_lentas.py` | ZIP cancelable, cuotas y entrega de archivos por trabajo. | 065 |
-| `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065, 002 |
-| `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 |
-| `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065, 002 |
-| `tools/trazabilidad_candidato.py` | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. | 065 |
+| `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas. | 065 (RF-23) |
+| `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 (RF-5, RF-6, RF-7) |
+| `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 (RF-10 a RF-13) |
+| `src/convertersmartgrid/web/api_contract.py` | Modelos públicos Pydantic y contratos OpenAPI del frontend. | 065 (RF-17, RF-26), 002 |
+| `src/convertersmartgrid/web/equipo_api.py` | API del equipo LLM: permisos por plan y revisiones locales en cola. | 065 (RF-22, RF-23) |
+| `src/convertersmartgrid/web/operaciones_lentas.py` | ZIP cancelable, cuotas y entrega de archivos por trabajo. | 065 (RF-12, RF-18, RF-19) |
+| `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065 (RF-16), 002 |
+| `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 (RF-15) |
+| `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065 (RF-17), 002 |
+| `tools/trazabilidad_candidato.py` | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. | 065 (RF-1, RF-20, RF-21) |
+| `run_gui.bat` | Lanzador de Windows: prepara el entorno y el frontend, y devuelve el código real del proceso web. | 065 (RF-2, RF-8) |
+| `frontend/scripts/build.mjs` | Compila fuera del checkout y publica `dist` completo, conservando el anterior ante cualquier fallo. | 065 (RF-3, RF-4) |
+| `frontend/scripts/runtime-paths.mjs` | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. | 065 (RF-10, RF-11) |
+| `frontend/package.json` | Dependencias del frontend y versiones compatibles de Node y npm. | 065 (RF-8) |
+| `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
+| `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |

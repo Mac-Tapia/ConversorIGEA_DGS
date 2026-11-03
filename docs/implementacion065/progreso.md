@@ -52,11 +52,32 @@ para pruebas, builds o copias de datos. El marcador de identidad del skill es me
 | M8 / M9 / M10 | tareas/specs/evidencias | evidencia nativa o científica ausente permanece pendiente |
 | M0 / M1–M10 | índice, specs generadas, commits | un integrador único; las tablas se generan al combinar |
 
-## Estado
+## Registro por fase
 
-- M0: en curso; candidato y contratos creados.
-- M1–M10: pendientes de implementación y evidencia, sin aceptación anticipada.
-- Asistente LLM/equipo: incluido explícitamente por la aclaración del usuario.
+Candidato: rama `feat/065-cierre`, worktree `.worktrees/cierre-065`, desde `integracion/065`
+(`3956ad2e`). Integrador único: sesión integradora de `integracion/065`. Implementación original:
+`codex/mejoras-auditoria-integral` (base `f5c9c89d`), incorporada en `80d1c4b1`. Comprobación tarea por
+tarea del 2026-11-03: `cierre_20261103/` de la evidencia externa. `tests/test_trazabilidad_candidato.py`
+exige esta tabla. Estados: los del protocolo de coordinación; «revisión» es hecho y a la espera de integrar.
+
+<!-- registro-fases -->
+| Fase | Responsable | Cambios | Dependencias | Evidencia | Estado |
+| --- | --- | --- | --- | --- | --- |
+| M0 | integrador | `docs/implementacion065/progreso.md` | ninguna | `tests/test_trazabilidad_candidato.py` | revisión |
+| M1 | implementador de arranque | `run_gui.bat`, `src/convertersmartgrid/web/runtime.py`, `frontend/scripts/build.mjs` | M0 | `tests/test_lanzador_exitcode.py`, `tests/test_web_runtime_front.py`, `frontend/test/buildPreservado.test.mjs` | revisión |
+| M2 | implementador de control previo | `src/convertersmartgrid/preflight_contract.py`, `src/convertersmartgrid/web/services.py` | M0; decisión 081:RF-57 | `tests/test_preflight_contract.py`, `tests/test_oraculo_corrige.py`, `tests/test_powerfactory_fresh_report.py` | revisión |
+| M3 | implementador de frontend | `frontend/package.json`, `frontend/package-lock.json`, `frontend/test/operacionSet.test.mjs`, `frontend/test/solicitudLeida.test.mjs` | M1 | `tests/test_frontend_rutas.py`, `tests/test_auditoria_raiz.py` | revisión |
+| M4 | implementador de almacenamiento | `src/convertersmartgrid/runtime_paths.py`, `src/convertersmartgrid/web/retencion.py`, `src/convertersmartgrid/batch.py` | M1, M2 | `tests/test_runtime_paths.py`, `tests/test_batch_staging_externo.py`, `tests/test_publicacion_externa.py`, `tests/test_workspace_runtime.py` | revisión |
+| M5 | implementador de instalación | `tools/fijar_entorno.py`, `constraints-python312-win.txt`, `src/convertersmartgrid/web/runtime.py` | M1, M4 | `tests/test_fijar_entorno.py`, `tests/test_web_runtime_dependencies.py`, `docs/implementacion065/instalacion_python.md` | revisión |
+| M6 | implementador de arquitectura | `tools/arquitectura.py`, `tools/generar_contrato_api.py`, `src/convertersmartgrid/web/api_contract.py` | M2, M3 | `tests/test_capas.py`, `tests/test_contrato_api.py`, `docs/implementacion065/M6-arquitectura-contrato.md` | revisión |
+| M7 | implementador de trabajos | `src/convertersmartgrid/web/operaciones_lentas.py`, `src/vnr_etl/discovery/download.py`, `frontend/src/components/DescargaZip.tsx` | M3, M4, M6 | `tests/test_operaciones_en_cola.py`, `tests/test_descarga_cancelable.py` | revisión |
+| M8 | implementador de trazabilidad | `tools/trazabilidad_candidato.py`, `tools/estado_specs.py`, `CODIGO_FUENTE.md` | M6 | `tests/test_trazabilidad_candidato.py`, `tests/test_trazabilidad_specs.py` | revisión |
+| M9 | implementadores de equipo y de dominio | `src/convertersmartgrid/asistente/equipo.py`, `src/convertersmartgrid/web/equipo_api.py`, `tools/aceptar_dominio.py` | M7, M8; T12 pide DIgSILENT | `tests/test_asistente_equipo.py`, `tests/test_asistente_equipo_web.py`, `tests/test_aceptar_dominio.py`, `docs/implementacion065/equipo_llm.md`, `docs/implementacion065/aceptacion_dominio.md` | en curso |
+| M10 | integrador | `tools/verificar_candidato.py` | M0 a M9; suite completa con datos reales | `tests/test_verificar_candidato.py`, `docs/implementacion065/verificacion_integrada.md` | pendiente |
+<!-- /registro-fases -->
+
+M9 sigue en curso por la T12 (aceptaciones en DIgSILENT) y M10 pendiente por la T13 (suite completa,
+instalación y arranque del candidato integrado). Asistente LLM/equipo: incluido por la aclaración del usuario.
 
 Ruling: configurar sys.dont_write_bytecode dentro de __init__ no evita el primer
 bytecode de ese mismo módulo: Python lo escribe antes de ejecutarlo. Se descartó

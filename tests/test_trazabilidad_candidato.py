@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -280,3 +281,62 @@ def test_cli_salida_externa_y_manifiesto_de_entradas(candidato):
     assert (salida / 'manifest.json').is_file()
     resultado = subprocess.run([sys.executable, '-B', str(Path(ES.__file__).with_name('trazabilidad_candidato.py')), '--help'], capture_output=True, text=True)
     assert resultado.returncode == 0 and '--junit' in resultado.stdout
+
+
+RAIZ = Path(__file__).resolve().parents[1]
+FASES_DEL_PLAN = [f'M{n}' for n in range(11)]
+ESTADOS_DEL_PROTOCOLO = {'pendiente', 'listo', 'en curso', 'revisión', 'bloqueado', 'integrado', 'archivado'}
+
+
+def _registro_de_fases(texto: str) -> list[list[str]]:
+    bloque = texto.split('<!-- registro-fases -->')[1].split('<!-- /registro-fases -->')[0]
+    filas = [[c.strip() for c in linea.strip().strip('|').split('|')]
+             for linea in bloque.splitlines() if linea.startswith('|')]
+    return filas[2:]
+
+
+def test_registro_tiene_candidato_responsable_cambios_dependencias_y_evidencia_por_fase():
+    """065:RF-1 — el registro decía «M1–M10 pendientes» con todo implementado: cada fase responde de lo suyo."""
+    texto = (RAIZ / 'docs/implementacion065/progreso.md').read_text(encoding='utf-8')
+    assert 'feat/065-cierre' in texto or 'integracion/065' in texto, 'Falta el candidato'
+    filas = _registro_de_fases(texto)
+    assert [f[0] for f in filas] == FASES_DEL_PLAN
+    for fase, responsable, cambios, dependencias, evidencia, estado in filas:
+        assert responsable and dependencias, fase
+        assert estado in ESTADOS_DEL_PROTOCOLO, fase
+        # Un fichero citado que no existe es un registro que miente: se comprueba, no se lee.
+        for columna in (cambios, evidencia):
+            rutas = re.findall(r'`([^`]+)`', columna)
+            assert rutas, fase
+            assert [r for r in rutas if not (RAIZ / r).is_file()] == [], fase
+
+
+def test_el_registro_no_da_por_hechas_las_fases_con_tarea_abierta():
+    """065:RF-1, 065:RF-21 — mientras T12 o T13 sigan abiertas, M9 y M10 no constan como hechas."""
+    filas = {f[0]: f[-1] for f in _registro_de_fases(
+        (RAIZ / 'docs/implementacion065/progreso.md').read_text(encoding='utf-8'))}
+    tareas = (RAIZ / 'specs/065-cierre-de-auditoria-integral/tasks.md').read_text(encoding='utf-8')
+    if '- [ ] T12 ' in tareas:
+        assert filas['M9'] not in {'integrado', 'revisión'}
+    if '- [ ] T13 ' in tareas:
+        assert filas['M10'] not in {'integrado', 'revisión'}
+
+
+def test_matriz_real_enlaza_cada_rf_de_la_spec_sin_dar_aceptacion():
+    """065:RF-20, 065:RF-21 — en el repositorio, no en un ejemplo: cada RF con código y prueba, y nada aceptado."""
+    informe = herramienta().construir_matriz(RAIZ)
+    assert informe['errors'] == []
+    filas = [f for f in informe['rows'] if f['requirement'].startswith('065:')]
+    spec = next(s for s in ES.leer_specs(RAIZ) if s.numero == '065')
+    assert len(filas) == len(spec.rf)
+    for fila in filas:
+        assert fila['implementation'], fila['requirement']
+        # RF-9 pide que las pruebas del frontend den lo mismo en cualquier ruta: lo que lo implementa son
+        # las propias pruebas, y la matriz no cuenta una prueba como código. Es la única excepción.
+        if fila['requirement'] != '065:RF-9':
+            assert 'implementacion_rf_sin_vinculo_explicito' not in fila['pending'], fila['requirement']
+        assert any(t['has_assertion'] for t in fila['tests']), fila['requirement']
+        # Sin una ejecución vinculada por hash, la matriz sigue diciendo que falta: citar no es ejecutar.
+        assert 'ejecucion_del_candidato_pendiente_o_no_aprobada' in fila['pending'], fila['requirement']
+        assert fila['acceptance'] == 'pendiente_revision_semantica', fila['requirement']
+    assert any('aceptacion_nativa_pendiente' in f['pending'] for f in filas if f['requirement'] == '065:RF-21')

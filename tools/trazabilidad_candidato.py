@@ -210,7 +210,8 @@ def _indice(raiz: Path, definidos: dict, errores: list[str]) -> list[dict]:
 
 
 def _rol(archivo: str) -> str:
-    if archivo.startswith(('src/', 'tools/', 'frontend/src/')):
+    # El lanzador y los guiones de compilación se ejecutan: implementan 065:RF-2 a RF-4 y no son documentación.
+    if archivo.startswith(('src/', 'tools/', 'frontend/src/', 'frontend/scripts/')) or archivo == 'run_gui.bat':
         return 'codigo_no_verificado_semanticamente'
     return 'documentacion_configuracion_no_ejecucion_dominio'
 
