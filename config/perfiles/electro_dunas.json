@@ -54,6 +54,7 @@
                "escala_capex": 1000,
                "coym_pct_anual": null},
   "normas": {"NTCSER": {"tension_min_pu": 0.94, "tension_max_pu": 1.06, "tension_bt_pct": 7.5}},
+  "empresa": "Electro Dunas",
   "_comentario_planificacion": "Planificación del PIDE (spec 024, RF-51 a RF-59): norma prepublicada con la RM 428-2017-MEM/DM. Tasa 12 % (art. 79 de la LCE y la privada, pedida por el usuario el 2026-10-21), vida útil 30 años (art. 14.4), horizonte 20 años y PIDE de 4 (años 04 a 07). Los pesos del art. 15.3 son iguales y provisionales: la norma solo dice «ponderados o valorados adecuadamente». Tarifas: pliego de Electro Dunas (Ica) de Osinergmin vigente desde el 2026-10-04, sin IGV. CAPEX: hoja y columnas del libro «RESUMEN PROP CAPEX» de la empresa.",
   "planificacion": {
     "_comentario_set_nueva": "Spec 042 (usuario, 2026-10-31): la SET nueva para las cargas que la red existente ya no atiende se dimensiona a la vida útil con un factor de seguridad de 1,25 y se elige entre los módulos del PIT del libro CAPEX (hoja PyOTx27: transformadores 60/22,9/10 kV de 15, 25 y 40 MVA y la Nueva SET Copara; costos en dólares, sin la escala de miles de la hoja 3_Crec_Dem).",

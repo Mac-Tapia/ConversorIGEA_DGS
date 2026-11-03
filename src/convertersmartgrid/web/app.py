@@ -1683,10 +1683,16 @@ def create_app(
         if not project:
             raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
         feeders = [str(f) for f in body.get('feeders') or []]
+        try:
+            anio = int(body['anio_presentacion']) if body.get('anio_presentacion') else None
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(422, 'El año de presentación tiene que ser un número.') from exc
         return submit(ws, 'pide', f'PIDE · {project}',
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
                                                          capex=body.get('capex'),
-                                                         implementar=bool(body.get('implementar', True))),
+                                                         implementar=bool(body.get('implementar', True)),
+                                                         anio_presentacion=anio,
+                                                         formato_01=body.get('formato_01')),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

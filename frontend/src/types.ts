@@ -1725,6 +1725,10 @@ export interface PideResultado {
   obras: ObraPIDE[];
   implementadas: { codigo: string; alternativa: string; variacion: string; aviso: string }[];
   avisos: string[];
+  /** Spec 072: un Word por módulo, lo que falta en los formatos y el ahorro con y sin obras. */
+  informes_planeamiento?: string[];
+  huecos?: { formato: string; campo: string | null; filas: number; motivo: string }[];
+  con_y_sin?: { hueco?: string; van?: number; tir?: number | null; avisos?: string[] };
 }
 
 /** Spec 026: el plan que arma el asistente a partir de una orden escrita. */

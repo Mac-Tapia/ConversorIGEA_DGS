@@ -19,6 +19,8 @@ const RUBRO: Record<string, string> = {
 export function GemeloPIDE({ project, feeders }: { project: string; feeders: string[] }) {
   const { ws, startJob, active, jobs, run } = useApp();
   const [capex, setCapex] = useState('');
+  const [anio, setAnio] = useState('');
+  const [formato01, setFormato01] = useState('');
   const [implementar, setImplementar] = useState(true);
   const [n, setN] = useState(20);
   const [episodios, setEpisodios] = useState<EpisodioResumen[]>([]);
@@ -48,10 +50,17 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
         <label className="field grow"><span>Libro CAPEX (ruta en el servidor, opcional)</span>
           <input className="search" value={capex} placeholder="p. ej. D:\…\RESUMEN PROP CAPEX.xlsx"
             onChange={(e) => setCapex(e.target.value)} /></label>
+        <label className="field"><span>Año de presentación (se presenta cada 4 años)</span>
+          <input type="number" min={2000} max={2100} value={anio} placeholder="sin él, sin módulos"
+            onChange={(e) => setAnio(e.target.value)} /></label>
+        <label className="field grow"><span>Formato 01 de la empresa (ruta en el servidor, opcional)</span>
+          <input className="search" value={formato01} placeholder="p. ej. D:\…\FORMATO 1.xlsx"
+            onChange={(e) => setFormato01(e.target.value)} /></label>
         <label className="check"><input type="checkbox" checked={implementar}
           onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>
         <button className="btn btn-pf" disabled={pfBusy || !project}
-          onClick={() => startJob(() => api.pide(ws.id, { project, feeders, capex: capex.trim() || null, implementar }))}>
+          onClick={() => startJob(() => api.pide(ws.id, { project, feeders, capex: capex.trim() || null,
+            anio_presentacion: anio ? Number(anio) : null, formato_01: formato01.trim() || null, implementar }))}>
           Planificar
         </button>
       </div>
@@ -118,6 +127,16 @@ function ResultadoPIDE({ r, ws, decidir }: { r: PideResultado; ws: string;
         </table>
       </div>
       <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws, r.formatos, true)}>Formatos 01 a 15 · {r.formatos}</a>
+      {r.informes_planeamiento?.map((f) => (
+        <a key={f} className="btn btn-sm btn-ghost" href={api.fileUrl(ws, f, true)}>{f}</a>))}
+      {r.con_y_sin && (
+        <p className="small">Con y sin proyecto: {r.con_y_sin.hueco
+          ?? `VAN ${fmtNum(r.con_y_sin.van ?? null, 0)}, TIR ${r.con_y_sin.tir != null ? `${fmtNum(r.con_y_sin.tir * 100, 2)} %` : 'no tiene'}; solo mide el ahorro de pérdidas`}</p>)}
+      {r.huecos && r.huecos.length > 0 && (
+        <details><summary className="small">Datos que faltan en los formatos ({r.huecos.length})</summary>
+          <ul className="small">{r.huecos.map((h) => (
+            <li key={`${h.formato}-${h.campo}-${h.motivo}`}>{h.formato}{h.campo ? ` · ${h.campo}` : ''}: {h.motivo}</li>))}</ul>
+        </details>)}
     </div>
   );
 }

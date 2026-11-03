@@ -346,7 +346,8 @@ export const api = {
     project: string; nombre: string; origen: 'caso' | 'proyecto'; parametros: Record<string, string>; casos: string[];
   }) => request<Job>(`${ws(id)}/pf/guiones/ejecutar`, json('POST', body)),
   // Spec 024: PIDE, gemelo digital y decisiones del operador.
-  pide: (id: string, body: { project: string; feeders: string[]; capex: string | null; implementar: boolean }) =>
+  pide: (id: string, body: { project: string; feeders: string[]; capex: string | null;
+    anio_presentacion: number | null; formato_01: string | null; implementar: boolean }) =>
     request<Job>(`${ws(id)}/pide`, json('POST', body)),
   pideDecision: (id: string, body: { project: string; codigo: string; decision: string; comentario?: string }) =>
     request<Record<string, unknown>>(`${ws(id)}/pide/decision`, json('POST', body)),

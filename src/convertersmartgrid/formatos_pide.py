@@ -19,7 +19,7 @@ MOTIVO_DEL_FORMATO = {
     'F01 Proyección': 'el plan no trae el libro del Formato 01 de la empresa («formato_01»)',
     'F02 Metrados': 'no hay red cargada en este espacio de la que medir los tramos',
     'F03 Tensión MT': 'el diagnóstico no devolvió ningún año convergido',
-    'F04 Tensión BT': 'el modelo no lleva la baja tensión de cada SED: su caída no se calcula',
+    'F04 Tensión BT': 'el diagnóstico no trajo la tensión de las barras de baja de las SED',
     'F05 Pérdidas': 'el flujo no dio las pérdidas: falta la cabecera o el consumo de algún alimentador',
     'F06 Calidad suministro': 'no se pasaron los índices de confiabilidad (spec 012)',
     'F07 Alternativas estudio': 'el diagnóstico no encontró problemas que pidan obras',
@@ -43,13 +43,15 @@ _MOTIVOS = {
      'Objetivo', 'Alcance', 'Tipo', 'Componente', 'Alimentador'): 'la obra no trae este dato',
     ('Energía MT MW.h', 'Tasa %'): 'la serie del sistema no alcanza para proyectarlo',
     ('Demanda MT MW',): 'el perfil no declara el factor de carga con que se pasa de energía a demanda',
-    ('Nivel kV',): 'la lectura de cabecera no trae la tensión del alimentador',
+    ('Nivel kV',): 'el flujo no dio barras de media tensión en este alimentador',
     ('Demanda MW',): 'la cabecera no dio su potencia',
-    ('FP', 'FC'): 'el resumen del año no guarda el factor de potencia ni el de carga por alimentador',
-    ('Longitud km',): 'el resumen del año no guarda la longitud del alimentador',
-    ('Caída máxima %',): 'el flujo da la tensión mínima de toda la red, no la de cada alimentador',
+    ('FP',): 'la cabecera no dio su potencia activa y reactiva',
+    ('FC',): 'el perfil no declara el factor de carga',
+    ('Longitud km',): 'el diagnóstico no trajo la longitud del alimentador',
+    ('Caída máxima %',): 'el flujo no dio tensiones en este alimentador',
     ('%',): 'la cabecera no dio su potencia',
-    ('SAIFI', 'SAIDI', 'N', 'D'): 'el estudio de confiabilidad no dio este índice',
+    ('SAIFI', 'SAIDI'): 'el estudio de confiabilidad no dio este índice: DIgSILENT no lo calculó de forma fiable',
+    ('N', 'D'): 'el estudio de confiabilidad da SAIFI y SAIDI, no el número y la duración de la NTCSE',
     ('Costo US$', 'Inversión US$', 'Anualidad US$', 'Costo anual US$', 'Total'): _SIN_CAPEX,
     ('COyM US$',): 'el perfil no da el costo de operación y mantenimiento',
     ('US$/kW',): f'{_SIN_CAPEX}, o {_SIN_DEMANDA}',
@@ -65,6 +67,12 @@ _MOTIVOS = {
     ('Especificaciones técnicas',): 'las especificaciones salen del diseño de la obra',
 }
 MOTIVO_DEL_CAMPO: dict[str, str] = {campo: motivo for campos, motivo in _MOTIVOS.items() for campo in campos}
+#: F04 va por SED: los mismos rótulos de F03 faltan allí por otra razón.
+MOTIVO_EN_FORMATO = {('F04 Tensión BT', 'Demanda MW'): 'el diagnóstico no lee la demanda de cada SED en cada año',
+                     ('F04 Tensión BT', 'FP'): 'el diagnóstico no lee el factor de potencia de cada SED',
+                     ('F04 Tensión BT', 'Longitud km'): 'el modelo lleva la barra de baja de cada SED, no su red de baja'}
+#: El alcance de lo que sí se midió en F04: no es el extremo de la red de baja, que no está modelada.
+ALCANCE_F04 = 'medida en la barra de baja de cada SED; no incluye la caída en la red de baja, que no está modelada'
 
 
 def _vacia(celda: Any) -> bool:
@@ -82,13 +90,14 @@ def huecos_de(filas: Mapping[str, Sequence[Sequence[Any]]]) -> list[dict[str, An
         for i, campo in enumerate(cabecera):
             n = sum(i >= len(fila) or _vacia(fila[i]) for fila in datos)
             if n:
-                huecos.append({'formato': nombre, 'campo': campo, 'filas': n, 'motivo': MOTIVO_DEL_CAMPO[campo]})
+                huecos.append({'formato': nombre, 'campo': campo, 'filas': n,
+                               'motivo': MOTIVO_EN_FORMATO.get((nombre, campo), MOTIVO_DEL_CAMPO[campo])})
     return huecos
 
 
 def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[str, Any]],
                    sistema_de: Mapping[str, str] | None = None, centro_de: Mapping[str, str] | None = None,
-                   ) -> dict[str, list]:
+                   factor_carga: float | None = None) -> dict[str, list]:
     """F03 y F07 a F15: lo que sale del diagnóstico y de las obras (024:RF-63, 072:RF-14).
 
     La inversión desconocida queda vacía: como 0 parecería una obra gratuita. Y el alimentador no se
@@ -98,11 +107,16 @@ def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[s
     f: dict[str, list] = {}
     if anios:
         cabeceras = anios[0].get('cabeceras_kw') or {}
+        red = anios[0].get('por_alimentador') or {}
         vm = anios[0].get('vm_min')
-        # vm_min es de toda la red: solo se atribuye si hay un único alimentador.
-        caida = round(100 * (1 - vm), 2) if len(cabeceras) == 1 and vm else None
-        f['F03 Tensión MT'] = [[centro_de.get(a), a, None, kw / 1000 if kw else None, None, None, None, caida]
-                               for a, kw in sorted(cabeceras.items())]
+        # vm_min es de toda la red: sin el resumen por alimentador, solo se atribuye si hay uno solo.
+        global_ = vm if len(cabeceras) == 1 else None
+        f['F03 Tensión MT'] = []
+        for a, kw in sorted(cabeceras.items()):
+            r = red.get(a) or {}
+            v = r.get('vm_min', global_)
+            f['F03 Tensión MT'].append([centro_de.get(a), a, r.get('kv'), kw / 1000 if kw else None, r.get('fp'), factor_carga,
+                                        r.get('km'), round(100 * (1 - v), 2) if v else None])
     f['F07 Alternativas estudio'] = [[o['anio'], o['rubro'], o['codigo'], o['alternativa'], o['ci'] or None,
                                       o['indicadores'].get('costo_kw'), o['indicadores'].get('costo_kwh'),
                                       o['indicadores'].get('costo_usuario'), o['indicadores'].get('costo_km')]
@@ -199,6 +213,15 @@ def filas_de_metrados(medidas: Iterable[tuple[str | None, Mapping[str, Any]]]) -
     return filas, huecos
 
 
+def filas_de_baja(anios: Sequence[Mapping[str, Any]], centro_de: Mapping[str, str] | None = None,
+                  factor_carga: float | None = None) -> list[list]:
+    """F04: cada SED por su barra de baja, las de mayor caída primero (el Word muestra solo las primeras)."""
+    centro_de = centro_de or {}
+    baja = sorted((anios[0].get('sed_bt') or []) if anios else [], key=lambda b: b['vm'])
+    return [[centro_de.get(b['alimentador']), b['alimentador'], b['sed'], b.get('kv'), None, None, factor_carga, None,
+             round(100 * (1 - b['vm']), 2)] for b in baja]
+
+
 def filas_de_perdidas(anios: Sequence[Mapping[str, Any]], sistema: str | None) -> list[list]:
     """F05: las pérdidas técnicas que midió el flujo del año base, sobre la potencia de cabecera."""
     if not anios or anios[0].get('perdidas_kw') is None:
@@ -211,7 +234,7 @@ def filas_de_perdidas(anios: Sequence[Mapping[str, Any]], sistema: str | None) -
 def filas_de_calidad(indices: Mapping[str, Mapping[str, Any]] | None, centro_de: Mapping[str, str] | None = None) -> list[list]:
     """F06: los índices por alimentador del estudio de confiabilidad (spec 012)."""
     centro_de = centro_de or {}
-    return [[centro_de.get(a), a, i.get('SAIFI'), i.get('SAIDI'), i.get('N'), i.get('D')]
+    return [[centro_de.get(a), a, i.get('saifi'), i.get('saidi'), i.get('n'), i.get('d')]
             for a, i in sorted((indices or {}).items())]
 
 
@@ -223,12 +246,15 @@ def formatos_del_estudio(obras: Sequence[Mapping[str, Any]], anios: Sequence[Map
                          sistema_de: Mapping[str, str] | None = None, centro_de: Mapping[str, str] | None = None,
                          ) -> dict[str, Any]:
     """Los quince formatos de un estudio y lo que les falta (072:RF-13, RF-14, RF-16)."""
-    filas = filas_de_obras(obras, anios, sistema_de, centro_de)
+    filas = filas_de_obras(obras, anios, sistema_de, centro_de, factor_carga)
     metrado, huecos_metrado = filas_de_metrados(metrados)
     sistemas = {v for v in (sistema_de or {}).values() if v}
     filas.update({'F01 Proyección': filas_de_proyeccion(series, estudio, metodo=metodo, factor_carga=factor_carga),
                   'F02 Metrados': metrado,
+                  'F04 Tensión BT': filas_de_baja(anios, centro_de, factor_carga),
                   # Varios sistemas no se reparten una sola medida de pérdidas.
                   'F05 Pérdidas': filas_de_perdidas(anios, next(iter(sistemas)) if len(sistemas) == 1 else None),
                   'F06 Calidad suministro': filas_de_calidad(calidad, centro_de)})
-    return {'filas': filas, 'huecos': huecos_de(filas) + huecos_metrado}
+    alcance = [{'formato': 'F04 Tensión BT', 'campo': 'Caída máxima %', 'filas': len(filas['F04 Tensión BT']),
+                'motivo': ALCANCE_F04}] if filas['F04 Tensión BT'] else []
+    return {'filas': filas, 'huecos': huecos_de(filas) + huecos_metrado + alcance}

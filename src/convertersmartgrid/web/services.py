@@ -4588,7 +4588,8 @@ def _estudio_del_plan(ws: Workspace, plan_pide: dict[str, Any], avisos: list[str
 
 
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
-                  capex: str | None = None, implementar: bool = True) -> dict:
+                  capex: str | None = None, implementar: bool = True, anio_presentacion: int | None = None,
+                  formato_01: str | None = None) -> dict:
     """Metodología del PIDE sobre el proyecto, de punta a punta (spec 024, T13 y T14).
 
     Diagnostica cada año del horizonte en DIgSILENT (``tools/pide_pf.py``), arma las obras
@@ -4623,8 +4624,14 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     avisos: list[str] = []
     # 072:RF-1 a RF-3: con el año de presentación del estudio, los años salen de él; se presenta cada
     # 4 años, así que un perfil no puede dejar años de calendario fijos.
+    if anio_presentacion:                                                       # 072:RF-1: lo pide la web
+        plan_pide['anio_presentacion'] = anio_presentacion
+    if formato_01 and formato_01.strip():
+        plan_pide['formato_01'] = formato_01.strip().strip('"')
     estudio = None
-    if plan_pide.get('anio_presentacion') is not None:
+    if plan_pide.get('anio_presentacion') is None:
+        avisos.append('Sin año de presentación no hay estudio: no se generan los módulos del plan y del PIDE (072:RF-1).')
+    else:
         estudio = _estudio_del_plan(ws, plan_pide, avisos)
         plan_pide.update(anios_horizonte=list(estudio.largo_plazo), anios_pide=list(estudio.detalle_pide))
     tasa = plan_pide.get('crecimiento_demanda_anual')
@@ -4689,7 +4696,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     con_y_sin = con_y_sin_de_las_aplicadas(propuesta['obras'], informe.get('anios') or [], plan_pide,
                                            factor_carga=plan_pide.get('factor_carga'),
                                            precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
-    formatos = _formatos_del_pide(ws, propuesta, informe, plan_pide, estudio, feeders, avisos)
+    formatos = _formatos_del_pide(ws, project, propuesta, informe, plan_pide, estudio, feeders, avisos)
     libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
     informes_planeamiento = _informes_del_estudio(ws, token, project, estudio, formatos, informe, propuesta, con_y_sin,
                                                   perfil, avisos) if estudio else []
@@ -4709,7 +4716,8 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
             'estudio': estudio.resumen() if estudio else None,
             'crecimiento': crecimiento,                                         # 029:RF-5
-            'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
+            # Las barras de baja van al libro: en la respuesta serían miles de filas.
+            'anios': [{k: v for k, v in a.items() if k not in ('problemas', 'sed_bt')} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
@@ -4735,8 +4743,20 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
     return hechos
 
 
-def _formatos_del_pide(ws: Workspace, propuesta: dict, informe: dict, plan_pide: dict, estudio, feeders: list[str],
-                       avisos: list[str]) -> dict:
+def _calidad_guardada(ws: Workspace, project: str) -> dict | None:
+    """Los índices del último estudio de confiabilidad del proyecto, para F06 (072:RF-16); no se recalcula."""
+    for ruta in sorted(ws.out_dir.glob('estudio_*_fiabilidad_*.json'), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            informe = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if informe.get('project') == project and informe.get('red'):
+            return informe['red']
+    return None
+
+
+def _formatos_del_pide(ws: Workspace, project: str, propuesta: dict, informe: dict, plan_pide: dict, estudio,
+                       feeders: list[str], avisos: list[str]) -> dict:
     """Reúne para los quince formatos lo que ya existe en el espacio y en el perfil (072:RF-13 a RF-16).
 
     Lo que no esté queda como hueco nombrado: ni el libro del mercado ni la estructura de la empresa son
@@ -4773,7 +4793,7 @@ def _formatos_del_pide(ws: Workspace, propuesta: dict, informe: dict, plan_pide:
             avisos.append(f'F02: {a} sin metrados ({exc}).')
     formatos = formatos_del_estudio(propuesta['obras'], informe.get('anios') or [], estudio=estudio, series=series,
                                     metodo=metodo, factor_carga=plan_pide.get('factor_carga'), metrados=medidas,
-                                    sistema_de=sistema_de, centro_de=centro_de)
+                                    calidad=_calidad_guardada(ws, project), sistema_de=sistema_de, centro_de=centro_de)
     return {**formatos, 'metodo': metodo if series else None}
 
 

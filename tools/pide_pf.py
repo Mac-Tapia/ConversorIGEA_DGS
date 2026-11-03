@@ -183,6 +183,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                 'nombre': b.loc_name, 'kv': _num(b, 'uknom'), 'alimentador': feeder}
         for ln in elm.GetObjs('ElmLne'):
             de_linea[ln.loc_name] = feeder
+        informe.setdefault('km_por_alimentador', {})[feeder] = sum(float(getattr(ln, 'dline', 0) or 0)
+                                                                   for ln in elm.GetObjs('ElmLne'))
     por_nombre = {v['nombre']: v for v in barras.values()}
     informe['barras_mt'] = sorted(v['nombre'] for v in barras.values() if (v['kv'] or 0) >= 1)
     # 029:RF-4: con tasa por alimentador, cada uno escala sus cargas con la suya (``scale0``) y el
@@ -226,8 +228,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                 tensiones = lectura['flujo']['tensiones']['valores']
                 fila['vm_min'] = min(tensiones.values()) if tensiones else None
                 fila['cabeceras_kw'] = lectura['flujo']['balance']['valores']['cabeceras']
-                # F05 y la evaluación con y sin proyecto (072:RF-14): sin dato, queda vacío y se nombra.
-                fila['perdidas_kw'] = ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')
+                _anotar_la_red(informe, fila, lectura, barras)
             else:
                 fila['problemas'] = [{'tipo': 'flujo', 'elemento': 'red', 'causa': 'no_converge',
                                       'evidencia': 'el flujo no converge con esta demanda'}]
@@ -241,6 +242,40 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     if por_alim:
         informe['tasa_por_alimentador'] = por_alim
     return informe, 0
+
+
+def resumen_de_la_red(tensiones: dict, barras: dict, fps: dict, km_de: dict) -> tuple[dict, list[dict]]:
+    """La tensión por alimentador y por barra de baja de cada SED (072:RF-16).
+
+    La tensión mínima global se repetía en cada alimentador de F03, y el DGS sí crea una barra
+    ``{sed}_BT`` por SED: con la barra se puede decir de qué alimentador o SED es cada medida.
+    """
+    por_alim: dict[str, dict] = {}
+    baja: list[dict] = []
+    for ident, u in tensiones.items():
+        b = barras.get(ident)
+        if b is None:
+            continue
+        a = b['alimentador']
+        fila = por_alim.setdefault(a, {'kv': None, 'vm_min': None, 'fp': fps.get(a), 'km': km_de.get(a)})
+        if (b['kv'] or 0) >= 1:
+            fila['kv'] = max(fila['kv'] or 0, b['kv'])
+            fila['vm_min'] = min(fila['vm_min'] if fila['vm_min'] is not None else u, u)
+        else:
+            baja.append({'sed': b['nombre'].removesuffix('_BT'), 'alimentador': a, 'kv': b['kv'], 'vm': u})
+    return por_alim, baja
+
+
+def _anotar_la_red(informe: dict, fila: dict, lectura: dict, barras: dict) -> None:
+    """F03, F04 y F05 de un año; las barras de baja solo en el primero, que es el diagnóstico de F04."""
+    flujo = lectura['flujo']
+    # F05 y la evaluación con y sin proyecto (072:RF-14): sin dato, queda vacío y se nombra.
+    fila['perdidas_kw'] = ((flujo.get('perdidas') or {}).get('valores') or {}).get('total')
+    fila['por_alimentador'], baja = resumen_de_la_red(flujo['tensiones']['valores'], barras,
+                                                      flujo['balance'].get('fp_cabeceras') or {},
+                                                      informe.get('km_por_alimentador') or {})
+    if not informe['anios']:
+        fila['sed_bt'] = baja
 
 
 def obras_del_anio(obras: list[dict], anio: int) -> tuple[list[str], list[str]]:
@@ -323,8 +358,7 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
                 tensiones = lectura['flujo']['tensiones']['valores']
                 fila['vm_min'] = min(tensiones.values()) if tensiones else None
                 fila['cabeceras_kw'] = lectura['flujo']['balance']['valores']['cabeceras']
-                # F05 y la evaluación con y sin proyecto (072:RF-14): sin dato, queda vacío y se nombra.
-                fila['perdidas_kw'] = ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')
+                _anotar_la_red(informe, fila, lectura, barras)
             else:
                 fila['problemas'] = [{'tipo': 'flujo', 'elemento': 'red', 'causa': 'no_converge',
                                       'evidencia': 'el flujo no converge con esta demanda'}]

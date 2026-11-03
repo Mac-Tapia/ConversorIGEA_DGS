@@ -83,7 +83,7 @@ def test_cada_modulo_sigue_su_articulo_paso_a_paso(tmp_path):
 def test_el_diagnostico_lleva_sus_formatos_y_es_ligero(tmp_path):
     """072:RF-13 / 072:RF-21 — mercado y diagnóstico con F01 a F06; nada de los otros módulos."""
     texto = _modulo(tmp_path, 'diagnostico')
-    for parte in ('mercado', 'tasa_media', 'Sistema de prueba', 'Empresa de prueba', '2030', 'no lleva la baja tensión',
+    for parte in ('mercado', 'tasa_media', 'Sistema de prueba', 'Empresa de prueba', '2030', 'barras de baja',
                   'F01', 'F02', 'F03', 'F04', 'F05', 'F06'):
         assert parte in texto, parte
     assert 'F07' not in texto and 'AL01' not in texto and 'Prioridad' not in texto
