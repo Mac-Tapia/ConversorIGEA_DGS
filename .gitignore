@@ -83,6 +83,8 @@ referencia/*/
 # tools/build_input_catalog.py, así que no se versiona.
 input/*.xlsx
 input/*.csv
+# 080:RF-49: el catálogo de cada empresa, con su uso de la red: no se versiona.
+input/empresas/
 
 # Perfil de empresa local (spec 005): convenciones de una distribuidora, fuera del repositorio.
 config/perfil_empresa.json

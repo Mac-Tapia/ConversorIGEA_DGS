@@ -266,9 +266,10 @@ def reconstruction_evidence(ws: Workspace) -> dict[str, Any] | None:
 
 
 def _catalog_sources(ws: Workspace) -> tuple[CatalogSource, ...]:
-    from ..reglas import catalogo_del_proyecto
+    from ..reglas import catalogo_de_fuente
 
-    return catalogos_del_fichero(ws.catalog_file or catalogo_del_proyecto())
+    return catalogos_del_fichero(ws.catalog_file
+                                 or catalogo_de_fuente((ws.inventory or {}).get('provenance')))
 
 
 def _decisions_by_network(result, network_ids):

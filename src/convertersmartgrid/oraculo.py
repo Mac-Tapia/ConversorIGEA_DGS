@@ -405,6 +405,8 @@ class CorreccionOraculo:
     factor: float | None = None
     cambios: list = field(default_factory=list)
     motivo: str = ''
+    #: «relleno» (057) o «por_igual» (080:RF-45).
+    regla: str = 'relleno'
 
     def as_dict(self) -> dict[str, Any]:
         # La auditoría de completitud cuadra la carga del DGS con la entrada más esta
@@ -413,6 +415,47 @@ class CorreccionOraculo:
                 'delta_kw': round(sum(c.p_nuevo_kw - c.p_fuente_kw for c in self.cambios), 6),
                 'delta_kvar': round(sum(c.q_nuevo_kvar - c.q_fuente_kvar for c in self.cambios), 6),
                 'lineas': [c.linea() for c in self.cambios], 'motivo': self.motivo}
+
+
+def _reducir_por_igual(model: FeederModel, original: list, res: CorreccionOraculo,
+                       pasos: int) -> CorreccionOraculo:
+    """080:RF-45, 015:RF-38: todas las cargas por un mismo factor, conservando su reparto.
+
+    Es el mayor con el que el flujo converge sin tensiones imposibles. Si ninguno sirve, el
+    modelo queda como estaba y se dice: la causa no es la demanda.
+    """
+    from dataclasses import replace
+
+    from .sed_potencia import CorreccionDemanda
+
+    def aplicar(f: float) -> None:
+        model.loads = [replace(c, p_mw=c.p_mw * f, q_mvar=c.q_mvar * f) for c in original]
+
+    def sirve(f: float) -> bool:
+        aplicar(f)
+        informe = validar(model)
+        return informe.convergio is True and not informe.errores
+
+    mejor, bajo, alto = None, 0.0, 1.0
+    for _ in range(pasos):
+        medio = (bajo + alto) / 2.0
+        if sirve(medio):
+            mejor, bajo = medio, medio
+        else:
+            alto = medio
+    if mejor is None:
+        model.loads = list(original)
+        res.convergio = False
+        res.motivo = (f'ni con toda la demanda al {1 / 2 ** pasos:.1%} converge el flujo: la causa '
+                      'no es la demanda (vea los hallazgos del oráculo)')
+        return res
+    aplicar(mejor)
+    res.convergio, res.factor, res.regla = True, round(mejor, 6), 'por_igual'
+    res.cambios = [CorreccionDemanda(
+        c.device_number, float(getattr(c, 'connected_kva', 0.0) or 0.0),
+        round(c.p_mw * 1000.0, 6), round(c.p_mw * mejor * 1000.0, 6), 'reducción por igual',
+        round(c.q_mvar * 1000.0, 6), round(c.q_mvar * mejor * 1000.0, 6)) for c in original]
+    return res
 
 
 def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION,
@@ -428,27 +471,31 @@ def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION
 
     res = CorreccionOraculo()
     claves = demanda_fuera_de_escala(model)
-    if not claves:
-        return res
     inf = validar(model)
     if not inf.disponible:
         res.motivo = inf.motivo_no_disponible
         return res
-    if inf.convergio:
-        res.convergio = True
+    if inf.convergio and not inf.errores:
+        res.convergio = True if claves else None
         return res
-    if any(h.codigo != 'no_converge' for h in inf.errores):
+    # 080:RF-43: una tensión imposible se busca corregir igual que una no convergencia.
+    if any(h.codigo not in ('no_converge', 'tension_imposible') for h in inf.errores):
         # Un tramo sin impedancia o sin tipo no se arregla con la demanda: se dice tal cual.
         res.convergio = False
         res.motivo = '; '.join(h.linea() for h in inf.errores)
         return res
-    reglas = {k: regla_de(model, k) for k in claves}
     original = list(model.loads)
+    if not claves:
+        return _reducir_por_igual(model, original, res, pasos)
+    reglas = {k: regla_de(model, k) for k in claves}
 
     def converge(f: float) -> bool:
         model.loads = list(original)
         corregir_demanda(model, claves, f, reglas=reglas)
-        return bool(validar(model).convergio)
+        # 080:RF-43: sin tensiones imposibles, o la importación lo rechazaría igualmente (TI01
+        # de Electro Sur Este converge al 70 % con 0,68 p.u.).
+        informe = validar(model)
+        return bool(informe.convergio) and not informe.errores
 
     mejor = tope if converge(tope) else None
     if mejor is None:
@@ -461,11 +508,8 @@ def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION
                 alto = medio
     model.loads = list(original)
     if mejor is None:
-        res.convergio = False
-        res.motivo = (f'ni con {len(claves)} SED de relleno o fuera de escala al '
-                      f'{tope / 2 ** pasos:.1%} de su potencia converge el flujo: la causa no es '
-                      'la demanda (vea los hallazgos del oráculo)')
-        return res
+        # 080:RF-45: las otras SED también pesan (C+æ02 de Luz del Sur): ahora, todas por igual.
+        return _reducir_por_igual(model, original, res, pasos)
     res.cambios = corregir_demanda(model, claves, mejor, reglas=reglas)
     res.factor = round(mejor, 6)
     res.convergio = True

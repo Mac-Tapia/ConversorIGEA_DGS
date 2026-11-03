@@ -328,6 +328,10 @@ export interface VnrPublication {
   publication_id: string;
   title: string;
   company: string;
+  empresa: string;
+  vigente: boolean;
+  regulatory_reference: string;
+  official_page: string;
   period_label: string;
   file_name: string;
   published_at?: string | null;
@@ -340,7 +344,8 @@ export interface VnrPublication {
 export interface VnrPublications {
   status: 'OFFICIAL_PACKAGE_AVAILABLE' | 'BLOCKED_MISSING_OFFICIAL_PACKAGE';
   publications: VnrPublication[];
-  refresh: unknown;
+  portal: string;
+  refresh: { errors?: { page: string; error: string }[] } | null;
 }
 
 export interface SourceRun {

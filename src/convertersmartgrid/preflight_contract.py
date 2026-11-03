@@ -17,7 +17,7 @@ from .util import write_json_atomic
 
 _TIPOS = {clase.__name__: clase for clase in (
     model.FeederModel, model.Node, model.Line, model.LineType, model.Load, model.Sed,
-    model.SwitchingDevice, model.Coupler, model.CapacitorBank,
+    model.SwitchingDevice, model.Coupler, model.DatosRegulador, model.CapacitorBank,
     combine.CombinedInfo, combine.FeederRef, combine.TiePoint, combine.BarraSet,
     combine.Cabecera, estructura.Sistema,
 )}

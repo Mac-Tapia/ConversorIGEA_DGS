@@ -92,6 +92,26 @@ def catalogo_del_proyecto() -> Path | None:
     return ruta if ruta.is_file() else None
 
 
+def catalogo_de_empresa(codigo: str) -> Path:
+    """080:RF-49: ``input/empresas/<código>/catalogo_parametros.xlsx``; se crea si no existe.
+
+    Cada empresa con sus propios archivos (usuario, 2026-11-03): en un fichero único, TI01 de
+    Electro Sur Este usaba filas añadidas al aparecer en Electro Oriente.
+    """
+    import re
+
+    from .catalog import CATALOG_FILENAME, asegurar_catalogo_empresa, input_dir
+
+    carpeta = re.sub(r'[^A-Za-z0-9_-]', '_', (codigo or '').strip()) or 'SIN_EMPRESA'
+    return asegurar_catalogo_empresa(input_dir(project_root()) / 'empresas' / carpeta / CATALOG_FILENAME)
+
+
+def catalogo_de_fuente(procedencia: dict | None) -> Path | None:
+    """080:RF-49: el de su empresa en una copia VNR-GIS; en las demás fuentes, el del proyecto."""
+    copia = (procedencia or {}).get('sqlserver') or {}
+    return catalogo_de_empresa(copia['company']) if copia.get('company') else catalogo_del_proyecto()
+
+
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
@@ -193,6 +213,11 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
                    correcciones: dict | None = None) -> dict[str, Any]:
     """Aplica al modelo, en el sitio, las reglas del proyecto. Devuelve lo que hizo."""
     informe: dict[str, Any] = {}
+    from .puentes import fundir_reguladores
+
+    reguladores = fundir_reguladores(model)      # 080:RF-38: siempre; es parte de la fuente
+    if reguladores:
+        informe['reguladores'] = reguladores
     if correcciones and reglas.aplicar_fichas:
         from .catalog import aplicar_correcciones
 
@@ -244,7 +269,12 @@ def _corregir_con_oraculo(model) -> dict[str, Any]:
     res = corregir_para_converger(model)
     if res.convergio is None or (res.convergio and not res.cambios):
         return {}
-    if res.convergio:
+    if res.convergio and res.regla == 'por_igual':
+        model.warnings.append(
+            f'El flujo no convergía con la demanda de la fuente: el oráculo redujo por igual las '
+            f'{len(res.cambios)} cargas × {res.factor:.4f}, conservando su reparto (080:RF-45, '
+            '015:RF-38). La calibración parte de aquí.')
+    elif res.convergio:
         model.warnings.append(
             f'{len(res.cambios)} SED con demanda de relleno o mayor que su potencia: el oráculo '
             f'la llevó a su potencia instalada × {res.factor:.4f} (FP 0,98) para que el flujo '
@@ -314,8 +344,11 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
 
     reconstruidos = sum(1 for ln in model.lines if ln.section_id.startswith(PREFIJO_RECONSTRUIDO))
     fallos = []
-    if n('ElmLne') - reconstruidos + puentes != len(secciones):
+    # 080:RF-38: el tramo auxiliar de un regulador llega al DGS como ElmVoltreg.
+    reguladores = n('ElmVoltreg')
+    if n('ElmLne') - reconstruidos + puentes + reguladores != len(secciones):
         fallos.append(f'tramos: entrada {len(secciones)} ≠ ElmLne {n("ElmLne")} + puentes {puentes}'
+                      + (f' + reguladores {reguladores}' if reguladores else '')
                       + (f' − reconstruidos {reconstruidos}' if reconstruidos else ''))
     if n('ElmLod') + nulas != len(cargas):
         fallos.append(f'cargas: entrada {len(cargas)} ≠ ElmLod {n("ElmLod")} + trafomix de 0 kW {nulas}')

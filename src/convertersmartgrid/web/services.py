@@ -255,9 +255,9 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         ctx.log(catalog_report.get('text') or '')
     ctx.check_cancel()
     # Reglas de entrada del proyecto: coordenadas por el grafo y catálogo Excel.
-    from ..reglas import catalogo_del_proyecto, preparar_dataset
+    from ..reglas import catalogo_de_fuente, preparar_dataset
 
-    entrada = preparar_dataset(dataset, catalogo=catalogo_del_proyecto())
+    entrada = preparar_dataset(dataset, catalogo=catalogo_de_fuente(loaded.provenance))
     ctx.log(entrada.texto())
     inventory = build_dataset_inventory(dataset, aliases=aliases)
     inventory['provenance'] = dict(loaded.provenance)
@@ -542,7 +542,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         # terminar (varios están en marcha a la vez). El texto dice cuál de los dos.
         ctx.log(f'[{index}/{total}] {name} listo' if n_workers > 1 else f'[{index}/{total}] {name}…')
 
-    from ..reglas import catalogo_del_proyecto
+    from ..reglas import catalogo_de_fuente
 
     manifest = convert_selection(
         dataset, None if all_feeders else selected, ws.out_dir,
@@ -567,7 +567,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         reglas=reglas_de(ws),
         # El dataset reconstruido ya contiene filas exactas y no puede volver a la
         # resolución difusa/DEFAULT del camino literal.
-        catalogo=None if use_reconstruction else catalogo_del_proyecto(),
+        catalogo=None if use_reconstruction else catalogo_de_fuente((ws.inventory or {}).get('provenance')),
     )
     _stamp_source_manifest(ws, manifest, snapshot, reconstruction)
     ws.record_conversions(manifest)
@@ -1389,11 +1389,11 @@ def fichas_conductores_de(ws: Workspace) -> dict[str, dict]:
     """Fichas de conductor para «Sin proyecto» (032:RF-14): el catálogo subido a la web o,
     sin él, el del proyecto; sin ninguno, vacío y el guion no cambia nada."""
     from ..catalog import fichas_para_pf, leer_catalogo
-    from ..reglas import catalogo_del_proyecto
+    from ..reglas import catalogo_de_fuente
 
     correcciones = ws.catalog_corrections()
     if not correcciones:
-        ruta = catalogo_del_proyecto()
+        ruta = catalogo_de_fuente((ws.inventory or {}).get('provenance'))    # 080:RF-49
         correcciones = leer_catalogo(ruta) if ruta else {}
     return fichas_para_pf(correcciones or {})
 
@@ -1423,7 +1423,7 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
     """
     require_loaded(ws)
     from ..model import build_feeder_model
-    from ..reglas import aplicar_reglas, catalogo_del_proyecto
+    from ..reglas import aplicar_reglas, catalogo_de_fuente
 
     dataset = _dataset_for_feeder(ws, feeder)
     try:
@@ -1434,10 +1434,11 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
     except Exception as exc:  # noqa: BLE001 - se informa al operador
         raise UserError(f'No se pudo construir {feeder}: {exc}') from exc
     correcciones = ws.catalog_corrections()
-    if not correcciones and catalogo_del_proyecto():
+    catalogo = catalogo_de_fuente((ws.inventory or {}).get('provenance'))    # 080:RF-49
+    if not correcciones and catalogo:
         from ..catalog import leer_catalogo
 
-        correcciones = leer_catalogo(catalogo_del_proyecto())
+        correcciones = leer_catalogo(catalogo)
     aplicar_reglas(modelo, reglas_de(ws), correcciones=correcciones)
     return modelo
 
@@ -1572,7 +1573,7 @@ def convert_group(
 
     from ..batch import convert_group as convertir_grupo
     from ..batch import load_aliases
-    from ..reglas import catalogo_del_proyecto
+    from ..reglas import catalogo_de_fuente
     from .reconstruction_service import (
         matching_reconstruction,
         reconstruct_selection,
@@ -1616,7 +1617,7 @@ def convert_group(
         perfil=perfil_de(ws),
         catalog_corrections=ws.catalog_corrections() or None,
         reglas=reglas_de(ws),
-        catalogo=None if use_reconstruction else catalogo_del_proyecto(),
+        catalogo=None if use_reconstruction else catalogo_de_fuente((ws.inventory or {}).get('provenance')),
         on_progress=on_progress, cancel=ctx.cancel, estructura=estructura,
         reconstruir=reconstruir,                                       # 022:RF-61
     )

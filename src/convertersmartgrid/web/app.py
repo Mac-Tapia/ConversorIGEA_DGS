@@ -771,22 +771,29 @@ def create_app(
     def vnr_publications(refresh: bool = False) -> dict:
         from vnr_etl.discovery.catalog import PublicationCatalog
         from vnr_etl.discovery.official import (
-            is_allowed_official_url, is_vnr_data_package, publication_evidence_sha256,
-            refresh_official_catalog,
+            PORTAL_VNR, is_allowed_official_url, is_vnr_data_package,
+            publication_evidence_sha256, refresh_official_catalog, vigentes_por_empresa,
         )
 
         report = None
         if refresh:
             raise HTTPException(409, 'Inicie la búsqueda como trabajo desde el espacio de trabajo.')
         catalog = PublicationCatalog.load(_vnr_catalog_dir())
+
+        def es_paquete(publication) -> bool:
+            return (is_vnr_data_package(publication)
+                    and is_allowed_official_url(publication.download_url))
+
+        # La vigencia la decide el servidor; la interfaz solo la muestra (080:RF-9).
+        por_empresa = vigentes_por_empresa(p for p in catalog.publications() if es_paquete(p))
         rows = []
         for publication in catalog.publications():
-            convertible = (
-                is_vnr_data_package(publication)
-                and is_allowed_official_url(publication.download_url)
-            )
+            convertible = es_paquete(publication)
+            grupo = por_empresa.get(publication.publication_id, {})
             rows.append({
                 **publication.as_dict(),
+                'empresa': grupo.get('empresa', publication.company),
+                'vigente': grupo.get('vigente', False),
                 'convertible': convertible,
                 'status': (
                     'OFFICIAL_DATA_PACKAGE' if convertible
@@ -801,6 +808,7 @@ def create_app(
                 else 'BLOCKED_MISSING_OFFICIAL_PACKAGE'
             ),
             'publications': rows,
+            'portal': PORTAL_VNR,
             'refresh': report,
         }
 
@@ -1058,7 +1066,9 @@ def create_app(
               response_model=JobRespuesta, response_model_exclude_unset=True)
     def download_vnr(wid: str, body: VnrDownloadIn) -> dict:
         from vnr_etl.discovery.catalog import PublicationCatalog
-        from vnr_etl.discovery.download import DownloadCancelled, DownloadManager
+        from vnr_etl.discovery.download import (
+            DownloadCancelled, DownloadError, DownloadManager, extraer_copia_sql,
+        )
         from vnr_etl.discovery.official import (
             DEFAULT_ALLOWED_HOSTS, is_allowed_official_url, is_vnr_data_package,
             validate_vnr_package_file,
@@ -1095,13 +1105,22 @@ def create_app(
                     cancelled=ctx.cancel.is_set,
                     on_progress=lambda n, total: ctx.progress(n, total or n or 1, 'Descargar paquete oficial'),
                 )
+                ctx.check_cancel()
+                validate_vnr_package_file(target)
+                # 080:RF-18: el paquete oficial es un comprimido con la copia dentro. Asignado
+                # tal cual se trataría como un paquete de capas, y la copia no se cargaría.
+                copia = extraer_copia_sql(
+                    target, target.parent / target.stem, cancelled=ctx.cancel.is_set,
+                    on_progress=lambda n, total: ctx.progress(n, total or 1, 'Extraer la copia de la base'),
+                )
             except DownloadCancelled as exc:
                 from .jobs import JobCancelled
 
                 raise JobCancelled() from exc
+            except DownloadError as exc:
+                raise UserError(str(exc)) from exc
             ctx.check_cancel()
-            validate_vnr_package_file(target)
-            assigned = _assign(ws, 'vnr_package', target, 'upload')
+            assigned = _assign(ws, 'vnr_package', copia or target, 'upload')
             ctx.progress(1, 1, 'Paquete custodiado')
             return {**assigned, 'manifest': manifest.as_dict()}
 

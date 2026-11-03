@@ -221,8 +221,13 @@ def validate_dgs(
     # ElmCoup: uno por SED (dentro de ella), más los que van en la red —enlaces entre
     # alimentadores y seccionadores de tramos puente fundidos (convertersmartgrid.puentes)—.
     combinado = getattr(model, 'combined', None)
-    n_red_coups = len(getattr(model, 'couplers', ()) or ()) + len(
+    # 080:RF-38: un regulador va como ElmVoltreg, no como ElmCoup.
+    reguladores = [c for c in (getattr(model, 'couplers', ()) or ()) if c.regulador is not None]
+    n_red_coups = len(getattr(model, 'couplers', ()) or ()) - len(reguladores) + len(
         getattr(combinado, 'ties', ()) or ())
+    n_voltreg = len(tables.get('ElmVoltreg', {}).get('rows_dict', []))
+    if n_voltreg != len(reguladores):
+        structural_errors.append(f'ElmVoltreg count {n_voltreg} != source regulators {len(reguladores)}')
     if len(coup_rows) != len(model.seds) - propias + n_red_coups:
         structural_errors.append(
             f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)} '
@@ -276,7 +281,8 @@ def validate_dgs(
 
     tr2_fids = {r.get('FID', '') for r in tr2_rows}
     coup_fids = {r.get('FID', '') for r in coup_rows}
-    valid_objects = line_fids | load_fids | source_fids | shunt_fids | tr2_fids | coup_fids
+    voltreg_fids = {r.get('FID', '') for r in tables.get('ElmVoltreg', {}).get('rows_dict', [])}
+    valid_objects = line_fids | load_fids | source_fids | shunt_fids | tr2_fids | coup_fids | voltreg_fids
     obj_cubics: dict[str, list[dict[str, str]]] = defaultdict(list)
     for r in cubic_rows:
         if r.get('fold_id','') not in term_fids:

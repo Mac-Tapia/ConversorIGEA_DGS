@@ -1115,7 +1115,82 @@ FAMILIA_EQUIVALENTE = {
     'EC': ('N2', 1.0, 'Cable seco Cu'),
     'NY': ('N2', 1.0, 'Cable NYY Cu'),
     'YC': ('N2', 1.0, 'Cable Cu'),
+    # 080:RF-50: con el catálogo propio ya no hay filas NK de otra empresa de las que deducir.
+    'NK': ('N2', 1.0, 'Cable NKY Cu'),
 }
+
+# --- 080:RF-49 a RF-51: la semilla del catálogo de una empresa, sin datos de ninguna.
+FUENTE_INDECO_AAAC = 'Indeco (Nexans Perú), catálogo de conductores: AAAC aleación 6201-T81'
+FUENTE_INDECO_CU = 'Indeco (Nexans Perú), catálogo de conductores: cobre desnudo temple duro'
+FUENTE_INDECO_N2XSY = 'Indeco (Nexans Perú), ficha N2XSY 8,7/15 kV: tres unipolares en triángulo'
+#: {sección mm²: (R Ω/km a 20 °C, ampacidad A)}, de la ficha del fabricante.
+FICHAS_AAAC = {16: (2.09, 100), 25: (1.31, 125), 35: (0.952, 160), 50: (0.663, 195), 70: (0.484, 235),
+               95: (0.352, 300), 120: (0.275, 340), 150: (0.227, 395), 185: (0.181, 455)}
+FICHAS_CU = {10: (1.87, 106), 16: (1.17, 141), 25: (0.741, 188), 35: (0.534, 229), 50: (0.395, 277),
+             70: (0.273, 348)}
+#: {sección mm²: (R Ω/km, X Ω/km, ampacidad A)}: la ficha del cable sí da la X.
+FICHAS_N2XSY = {25: (0.727, 0.1713, 160), 35: (0.524, 0.1627, 190), 50: (0.387, 0.1513, 225),
+                70: (0.268, 0.1426, 275), 95: (0.193, 0.1365, 325), 120: (0.153, 0.1305, 370)}
+#: Separación media geométrica entre fases de una línea aérea de MT (m): la X depende poco de ella
+#: (va en el logaritmo). Dato deducido, anotado en cada fila; la calibración no lo cambia.
+SEPARACION_AEREA_M = 1.2
+#: Radio medio geométrico de un conductor cableado de 7 hilos respecto de su radio.
+RMG_7_HILOS = 0.7265
+
+
+def reactancia_aerea_ohm_km(seccion_mm2: float) -> float:
+    """080:RF-51: X = 2πf·2·10⁻⁴·ln(DMG/RMG), en Ω/km a 60 Hz.
+
+    Ninguna ficha de fabricante trae la X de un conductor desnudo, porque depende de cómo se
+    tiende. La que usaba el catálogo era la del modelo de una empresa.
+    """
+    radio_m = math.sqrt(seccion_mm2 / math.pi) / 1000.0
+    return round(2 * math.pi * 60.0 * 2e-4 * math.log(SEPARACION_AEREA_M / (RMG_7_HILOS * radio_m)), 6)
+
+
+def filas_semilla() -> dict[str, list[dict[str, Any]]]:
+    """Las filas iniciales del catálogo de una empresa: solo fichas, sin uso de ninguna red."""
+    nota = (f'X calculada por geometría: separación de {SEPARACION_AEREA_M:g} m, 60 Hz, 7 hilos '
+            '(080:RF-51). R0 y X0 iguales a R1 y X1, sin efecto en el flujo equilibrado.')
+    aereos = []
+    for familia, fichas, material, fuente in (('AA', FICHAS_AAAC, 'AAAC', FUENTE_INDECO_AAAC),
+                                              ('CU', FICHAS_CU, 'Cobre', FUENTE_INDECO_CU)):
+        for seccion, (r1, amperios) in fichas.items():
+            x1 = reactancia_aerea_ohm_km(float(seccion))
+            aereos.append({'codigo': f'{familia}{seccion * 10:04d}3D', 'material': material,
+                           'seccion_mm2': seccion, 'R1_ficha_ohm_km': r1, 'X1_ficha_ohm_km': x1,
+                           'R0_ficha_ohm_km': r1, 'X0_ficha_ohm_km': x1, 'ampacidad_ficha_A': amperios,
+                           'estado': 'ficha', 'fuente': fuente, 'observaciones': nota})
+    cables = [{'codigo': f'N2{seccion * 10:04d}3D', 'material': 'Cable N2XSY Cu', 'seccion_mm2': seccion,
+               'R1_ficha_ohm_km': r1, 'X1_ficha_ohm_km': x1, 'R0_ficha_ohm_km': r1, 'X0_ficha_ohm_km': x1,
+               'ampacidad_ficha_A': amperios, 'estado': 'ficha', 'fuente': FUENTE_INDECO_N2XSY,
+               'observaciones': 'R0 y X0 iguales a R1 y X1, sin efecto en el flujo equilibrado.'}
+              for seccion, (r1, x1, amperios) in FICHAS_N2XSY.items()]
+    return {'conductores_aereos': aereos, 'cables_subterraneos': cables}
+
+
+def asegurar_catalogo_empresa(ruta: Path | str) -> Path:
+    """080:RF-50: el catálogo de una empresa; si no existe, se crea con la semilla."""
+    import os
+
+    from openpyxl import Workbook
+
+    ruta = Path(ruta)
+    with _bloqueo():
+        if ruta.is_file():
+            return ruta
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        libro = Workbook()
+        libro.remove(libro.active)
+        for hoja, filas in filas_semilla().items():
+            ws = libro.create_sheet(hoja)
+            ws.append(list(COLUMNAS_CONDUCTOR))
+            for fila in filas:
+                ws.append(['' if fila.get(c) is None else fila.get(c, '') for c in COLUMNAS_CONDUCTOR])
+        temporal = ruta.with_name(ruta.stem + '.tmp' + ruta.suffix)
+        libro.save(temporal)
+        os.replace(temporal, ruta)
+    return ruta
 
 _BLOQUEO_CATALOGO: list = []
 

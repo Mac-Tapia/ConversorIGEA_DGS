@@ -21,13 +21,14 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import subprocess
 import xml.etree.ElementTree as ET
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from vnr_etl.models import (Capacitor, CanonicalModel, ConductorType, Load, Node, Section,
+from vnr_etl.models import (Capacitor, CanonicalModel, ConductorType, Load, Node, Regulator, Section,
                             Source, Switch)
 
 #: Motor por omisión: la instancia de SQL Server Express de la máquina.
@@ -101,6 +102,38 @@ def conectar(servidor: str, base: str = 'master', *, conectar_odbc: Callable | N
             f'{exc}') from exc
 
 
+def _cuenta_del_motor(cur) -> str:
+    """La cuenta con la que corre el motor, que es quien abre la copia, no este proceso."""
+    try:
+        cur.execute("SELECT service_account FROM sys.dm_server_services "
+                    "WHERE servicename LIKE 'SQL Server (%'")
+        fila = cur.fetchone()
+        if fila and fila[0]:
+            return str(fila[0])
+    except Exception:  # noqa: BLE001 - esa vista pide un permiso que no todo usuario tiene
+        pass
+    cur.execute('SELECT @@SERVICENAME')
+    instancia = str(cur.fetchone()[0])
+    return 'NT SERVICE\\MSSQLSERVER' if instancia.upper() == 'MSSQLSERVER' else f'NT SERVICE\\MSSQL${instancia}'
+
+
+def permitir_lectura_al_motor(bak: Path, cuenta: str) -> None:
+    """080:RF-25, RF-26: lectura para el motor, solo a su cuenta y solo sobre este fichero.
+
+    Desde Python 3.12, ``mkdtemp`` crea en Windows carpetas privadas, y lo publicado desde ellas
+    conserva esos permisos. La custodia de la web deja así la copia, y el motor respondía «error
+    5, acceso denegado» (Electro Sur Este, 2026-11-02). Las empresas ya restauradas no lo
+    revelaban, porque su base se reutiliza sin abrir el fichero.
+    """
+    resultado = subprocess.run(['icacls', str(bak), '/grant', f'{cuenta}:R'],
+                               capture_output=True, text=True, errors='replace', check=False)
+    if resultado.returncode != 0:
+        raise MotorSqlNoDisponible(
+            f'SQL Server no puede leer «{bak.name}» y no se le pudo dar permiso a su cuenta '
+            f'{cuenta}: {(resultado.stdout + resultado.stderr).strip()}. Déle permiso de '
+            'lectura sobre el fichero o cópielo a una carpeta que el servicio pueda leer.')
+
+
 def restaurar(bak: Path | str, *, servidor: str = SERVIDOR, carpeta: Path | str | None = None,
               conectar_odbc: Callable | None = None) -> str:
     """Restaura la copia con su huella en el nombre; si ya está, la reutiliza (RF-3, RF-4).
@@ -122,7 +155,13 @@ def restaurar(bak: Path | str, *, servidor: str = SERVIDOR, carpeta: Path | str 
     else:
         carpeta = Path(carpeta).resolve()
         carpeta.mkdir(parents=True, exist_ok=True)
-    cur.execute(f"RESTORE FILELISTONLY FROM DISK = N'{_literal(bak)}'")
+    try:
+        cur.execute(f"RESTORE FILELISTONLY FROM DISK = N'{_literal(bak)}'")
+    except Exception as exc:  # noqa: BLE001 - pyodbc.Error y los de los dobles
+        if '3201' not in str(exc):
+            raise
+        permitir_lectura_al_motor(bak, _cuenta_del_motor(cur))
+        cur.execute(f"RESTORE FILELISTONLY FROM DISK = N'{_literal(bak)}'")
     ficheros = [(fila[0], fila[2]) for fila in cur.fetchall()]       # LogicalName, Type
     moves = ', '.join(
         f"MOVE N'{_literal(n)}' TO N'{_literal(Path(carpeta) / f'{nombre}_{i}{_ext(t)}')}'"
@@ -165,9 +204,16 @@ CAMPOS: dict[str, tuple[str, ...]] = {
 
 #: Tipos de equipo MT de VNR-GIS (``TIPO_EQUIPO_MT`` de los parámetros) que abren o cierran
 #: el circuito; el seccionalizador va aparte. Pararrayos y derivaciones no son maniobras.
-MANIOBRAS = {'IN', 'SE', 'SF', 'SC', 'RE', 'FU'}
+# 080:RF-35: celdas y derivaciones de bóveda y pedestal se perdían (190 en Luz del Sur, 2026-11-03).
+MANIOBRAS = {'IN', 'SE', 'SF', 'SC', 'RE', 'FU', 'CE', 'DB', 'DP'}
 SECCIONALIZADORES = {'SL'}
 BANCOS = {'BC'}
+REGULADORES = {'BR'}
+#: 080:RF-39: por decisión del usuario (2026-11-03) no se modelan en la entrada VNR-GIS.
+PARARRAYOS = {'PA'}
+SECCIONADORES = {'SE', 'SF', 'SC'}
+#: Separación del nodo que abre un tramo para poner en serie un regulador (m).
+SEPARACION_REGULADOR_M = 1.0
 
 
 def tablas_por_campos(columnas: Mapping[str, Iterable[str]]) -> dict[str, str]:
@@ -461,6 +507,28 @@ class _Nodos:
         return ra
 
 
+def codigos_operativos_sed(seds: Sequence[Mapping], avisos: list[dict]) -> dict[str, str]:
+    """080:RF-46, RF-47: ``{CodSed: código operativo}``, único y determinista.
+
+    Luz del Sur repite etiquetas (12 194 distintas en 13 095 SED, 2026-11-03) y DIgSILENT pide
+    nombres únicos: la primera por ``CodSed`` la conserva y las siguientes llevan un sufijo.
+    """
+    codigos: dict[str, str] = {}
+    vistas: dict[str, int] = defaultdict(int)
+    for sed in sorted(seds, key=lambda s: _s(s, 'CodSed')):
+        cod, etiqueta = _s(sed, 'CodSed'), _s(sed, 'EtiquetaCampo')
+        if not etiqueta:
+            avisos.append({'code': 'SED_SIN_ETIQUETA', 'source_id': cod})
+            codigos[cod] = cod
+            continue
+        vistas[etiqueta.upper()] += 1
+        n = vistas[etiqueta.upper()]
+        if n > 1:
+            avisos.append({'code': 'ETIQUETA_SED_REPETIDA', 'source_id': cod, 'etiqueta': etiqueta})
+        codigos[cod] = etiqueta if n == 1 else f'{etiqueta}_{n}'
+    return codigos
+
+
 def codigos_operativos(salidas: Sequence[Mapping], avisos: list[dict]) -> dict[str, str]:
     """``{CodSalidaMT: código operativo}``: el que el operador usa, ``EtiquetaSalida`` (056:RF-7).
 
@@ -515,6 +583,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
     pedidas = {s.strip() for s in salidas} if salidas is not None else None
     avisos: list[dict] = []
     codigo_de = codigos_operativos(datos.salidas, avisos)
+    codigo_de_sed = codigos_operativos_sed(datos.seds, avisos)
     # La tabla de códigos del regulador manda; lo que no trae, de la tabla «Tensiones» de la red.
     kv_de = {**tensiones_de_tabla(datos.tensiones), **tensiones_mt(datos.codigos_secundarios)}
     crs = crs_de_empresa(datos.empresa)
@@ -541,8 +610,26 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         kv = kv_de.get(letra)
         tramos = sorted(tramos_de.get(salida, []), key=lambda t: _s(t, 'CodTramoMT'))
         if not tramos:
-            avisos.append({'code': 'SALIDA_SIN_TRAMOS', 'source_id': salida})
-            continue
+            # 080:RF-32: SED sin ningún tramo (748055397 de Luz del Sur): su demanda es real y no
+            # se pierde. El tramo mínimo se arma en la primera SED ubicada.
+            con_lugar = sorted(
+                (s for s in datos.seds if _s(s, 'CodSalidaMT') == salida
+                 and None not in (_f(s, 'UTMEste'), _f(s, 'UTMNorte'))),
+                key=lambda s: _s(s, 'CodSed'))
+            if not con_lugar:
+                avisos.append({'code': 'SALIDA_SIN_TRAMOS', 'source_id': salida})
+                continue
+            normas_de_su_tension = Counter(_s(t, 'CodNorma') for t in datos.tramos
+                                           if _s(t, 'CodTenNomi').upper() in (letra, '') and _s(t, 'CodNorma'))
+            sintetico = f'{salida}_SED'
+            x, y = _f(con_lugar[0], 'UTMEste'), _f(con_lugar[0], 'UTMNorte')
+            vertices[sintetico] = [(0, x, y), (1, x, y)]
+            tramos = [{'CodTramoMT': sintetico, 'CodSalidaMT': salida, 'CodTramoMTPadre': '',
+                       'CodTenNomi': letra,
+                       'CodNorma': max(sorted(normas_de_su_tension),
+                                       key=lambda n: normas_de_su_tension[n], default='')}]
+            avisos.append({'code': 'SALIDA_SIN_TRAMOS_CON_SED', 'source_id': salida,
+                           'sed': len(con_lugar)})
         nodos = _Nodos(tolerancia_m)
         extremos: dict[str, tuple[str, str]] = {}
         geo: dict[str, list[tuple[float, float]]] = {}
@@ -595,10 +682,15 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                 origen[c] = i_raiz
                 continue
             # Otra raíz: un tramo cuyo padre no está; se une al nodo más cercano de la red.
-            d, i, n = min((math.dist(geo[c][-i if i else 0], nodos.xy[n]), i, n)
-                          for i in (0, 1) for n in nodos.xy
-                          if nodos.raiz(n) not in (nodos.raiz(extremos[c][0]),
-                                                   nodos.raiz(extremos[c][1])))
+            propios = (nodos.raiz(extremos[c][0]), nodos.raiz(extremos[c][1]))
+            candidatos_raiz = [(math.dist(geo[c][-i if i else 0], nodos.xy[n]), i, n)
+                               for i in (0, 1) for n in nodos.xy
+                               if nodos.raiz(n) not in propios]
+            if not candidatos_raiz:
+                # 080:RF-33: ya está en el mismo punto que el resto; no hay nada que unir.
+                origen[c] = 0
+                continue
+            d, i, n = min(candidatos_raiz)
             avisos.append({'code': 'TRAMO_SIN_PADRE_UNIDO', 'source_id': c,
                            'distancia_m': round(d, 2)})
             nodos.unir(extremos[c][i], n)
@@ -611,6 +703,17 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         usados = set()
         orientado: dict[str, tuple[str, str, list]] = {}
         fases_en_nodo: dict[str, str] = {}                     # 054:RF-1: las del tramo que llega
+        if len({nodos.raiz(n) for par in extremos.values() for n in par}) == 1:
+            # 080:RF-27: toda la salida en un punto: 47 de Electro Sur Este, de un tramo de 0,5 m
+            # con una SED. Sin tramo, la salida desaparecía con su demanda; se le da uno mínimo,
+            # a dos veces la tolerancia para que no vuelva a unirse.
+            cod = min(extremos)
+            x, y = nodos.xy[nodos.raiz(extremos[cod][0])]
+            final = nodos.nodo(f'{cod}_fin', x + 2 * tolerancia_m, y)
+            extremos[cod] = (extremos[cod][0], final)
+            geo[cod] = [(x, y), (x + 2 * tolerancia_m, y)]
+            origen[cod] = 0
+            avisos.append({'code': 'SALIDA_DE_TRAMO_NULO', 'source_id': salida, 'tramo': cod})
         for t in tramos:
             cod = _s(t, 'CodTramoMT')
             if cod not in geo:
@@ -673,7 +776,8 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                 load_id=cod, connection_node=nodo, kw=_f(sed, 'MaxDemTotal') or 0.0,
                 kvar=0.0, phases=fases_de_sed(_s(sed, 'CodNorma'), fases_en_nodo.get(nodo, 'ABC')),
                 nominal_kv=kv, source_layer='Sed', source_id=cod,
-                feeder_id=salida, connected_kva=_f(sed, 'PotInstalada')))
+                feeder_id=salida, connected_kva=_f(sed, 'PotInstalada'),
+                etiqueta=codigo_de_sed.get(cod, cod)))
         repartir_ramales_monofasicos(modelo, salida, avisos)
         coherencia_de_fases(modelo, salida, cabecera, avisos)
         _equipos(datos, salida, orientado, normas, kv, modelo, avisos)
@@ -690,6 +794,56 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
     return modelo, avisos
 
 
+def _regulador_en_serie(e: Mapping, tramo: str, salida: str,
+                        orientado: dict[str, tuple[str, str, list]], normas: Mapping[str, str],
+                        kv: float | None, lado_carga: bool, modelo: CanonicalModel,
+                        avisos: list[dict]) -> None:
+    """080:RF-38, RF-41: un banco de regulación de tensión en serie en su tramo.
+
+    Unidades, corriente y tensión salen de la leyenda de VNR-GIS («BANCO DE REGULACION DE TENSION
+    x 3, MONOFASICO, In = 200 A, 10 kV»), que no trae ni el rango ni los pasos. Se abre el tramo con
+    un nodo y un tramo auxiliar, para que la topología siga conexa; luego se funde en el regulador
+    (``puentes.fundir_reguladores``), como los puentes con su seccionador.
+    """
+    cod, norma = _s(e, 'CodEqp'), _s(e, 'CodNorma')
+    leyenda = normas.get(norma, '').upper()
+    unidades = re.search(r'X\s*(\d)\b', leyenda)
+    corriente = re.search(r'IN\s*=\s*(\d+(?:[.,]\d+)?)\s*A\b', leyenda)
+    a, b, puntos = orientado[tramo]
+    seccion = next(s for s in reversed(modelo.sections) if s.section_id == tramo)
+    (x, y) = puntos[-1] if lado_carga else puntos[0]
+    nuevo = f'{cod}_BRN'
+    punto_nuevo = (x + SEPARACION_REGULADOR_M, y)
+    if lado_carga:
+        desde, hasta = nuevo, b
+        seccion.to_node = nuevo
+        puntos = [*puntos[:-1], punto_nuevo]
+        orientado[tramo] = (a, nuevo, puntos)
+        tramo_serie = [punto_nuevo, (x, y)]
+    else:
+        desde, hasta = a, nuevo
+        seccion.from_node = nuevo
+        puntos = [punto_nuevo, *puntos[1:]]
+        orientado[tramo] = (nuevo, b, puntos)
+        tramo_serie = [(x, y), punto_nuevo]
+    seccion.geometry = puntos
+    modelo.nodes.append(Node(node_id=nuevo, x=punto_nuevo[0], y=punto_nuevo[1], nominal_kv=kv,
+                             phases='ABC', source_layer='mtEquipo', source_id=cod))
+    serie = f'{cod}_BR'
+    modelo.sections.append(Section(
+        section_id=serie, from_node=desde, to_node=hasta, conductor_code=seccion.conductor_code,
+        phases=seccion.phases, nominal_kv=kv, length_m=SEPARACION_REGULADOR_M, geometry=tramo_serie,
+        source_layer='mtEquipo', source_id=cod, feeder_id=salida))
+    modelo.regulators.append(Regulator(
+        regulator_id=cod, connection_node=desde, source_layer='mtEquipo', source_id=cod,
+        from_node=desde, to_node=hasta, section_id=serie, feeder_id=salida, nominal_kv=kv,
+        corriente_a=float(corriente.group(1).replace(',', '.')) if corriente else None,
+        unidades=int(unidades.group(1)) if unidades else 3,
+        on_off=0 if _s(e, 'CodEstadoOperacion').upper() == 'NA' else 1, norma=norma))
+    avisos.append({'code': 'REGULADOR_DEDUCIDO', 'source_id': cod, 'norma': norma,
+                   'detalle': 'rango y pasos deducidos: la leyenda de VNR-GIS no los trae'})
+
+
 def _equipos(datos: DatosVnr, salida: str, orientado: Mapping[str, tuple[str, str, list]],
              normas: Mapping[str, str], kv: float | None, modelo: CanonicalModel,
              avisos: list[dict]) -> None:
@@ -704,6 +858,15 @@ def _equipos(datos: DatosVnr, salida: str, orientado: Mapping[str, tuple[str, st
                       and math.dist((x, y), puntos[-1]) < math.dist((x, y), puntos[0]))
         nodo = b if lado_carga else a
         cod = _s(e, 'CodEqp')
+        abierto = _s(e, 'CodEstadoOperacion').upper() == 'NA'
+        # 080:RF-40: un seccionador abierto se queda: define dónde termina la red.
+        if tipo in PARARRAYOS or (tipo in SECCIONADORES and not abierto):
+            fuera = modelo.metadata.setdefault('equipos_no_modelados', {})
+            fuera[tipo] = fuera.get(tipo, 0) + 1
+            continue
+        if tipo in REGULADORES:
+            _regulador_en_serie(e, tramo, salida, orientado, normas, kv, lado_carga, modelo, avisos)
+            continue
         if tipo in MANIOBRAS | SECCIONALIZADORES:
             modelo.switches.append(Switch(
                 switch_id=cod, connection_node=nodo, kind=tipo,
@@ -713,8 +876,10 @@ def _equipos(datos: DatosVnr, salida: str, orientado: Mapping[str, tuple[str, st
         elif tipo in BANCOS:
             # Los kvar, de la descripción de su norma; sin ellos el banco queda sin potencia
             # y se dice (no se inventa).
-            m = re.search(r'(\d+(?:[.,]\d+)?)\s*KVAR', normas.get(_s(e, 'CodNorma'), '').upper())
-            kvar = float(m.group(1).replace(',', '.')) if m else 0.0
+            # 080:RF-36: «3x200 kVAR» son tres unidades de 200: 600 kvar, no 200.
+            m = re.search(r'(?:(\d+)\s*X\s*)?(\d+(?:[.,]\d+)?)\s*KVAR',
+                          normas.get(_s(e, 'CodNorma'), '').upper())
+            kvar = int(m.group(1) or 1) * float(m.group(2).replace(',', '.')) if m else 0.0
             if not kvar:
                 avisos.append({'code': 'BANCO_SIN_KVAR', 'source_id': cod})
             modelo.capacitors.append(Capacitor(
@@ -722,6 +887,10 @@ def _equipos(datos: DatosVnr, salida: str, orientado: Mapping[str, tuple[str, st
                 source_id=cod, feeder_id=salida, phases='ABC', nominal_kv=kv,
                 status='in_service' if _s(e, 'CodEstadoOperacion').upper() != 'NA'
                 else 'out_of_service'))
+        else:
+            # 080:RF-37: un tipo que no se modela se dice; antes se perdía sin ningún rastro.
+            avisos.append({'code': 'EQUIPO_SIN_MODELAR', 'source_id': cod, 'tipo': tipo,
+                           'tramo': tramo, 'norma': _s(e, 'CodNorma')})
 
 
 # --------------------------------------------------------------------------- lectura SQL
@@ -754,7 +923,7 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
 
     cols_red = columnas(cn_red)
     red = tablas_por_campos(cols_red)
-    extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal', 'CodNorma'),
+    extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal', 'CodNorma', 'EtiquetaCampo'),
              'tramo': ('CodTenNomi',),
              'equipo': ('CodNorma', 'UTMEste', 'UTMNorte')}
     for concepto, atributo in (('empresa', 'empresa'), ('salida', 'salidas'), ('set', 'sets'), ('sistema', 'sistemas'),

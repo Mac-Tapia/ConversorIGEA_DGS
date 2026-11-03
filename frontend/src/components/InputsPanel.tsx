@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, fmtBytes } from '../api';
 import { useApp } from '../context';
-import type { InputMode, SourceScope, VnrPublications } from '../types';
+import type { InputMode, SourceScope, VnrPublication, VnrPublications } from '../types';
 import { FileDrop, Pill, useConfirm, useToast } from './ui';
 
 // Los formatos de VNR-GIS no van aquí: los fija el servidor (health.slots.vnr_package
@@ -16,9 +16,14 @@ function VnrDiscovery() {
   const { ws, run, startJob, jobs, active } = useApp();
   const [catalog, setCatalog] = useState<VnrPublications | null>(null);
   const [refreshJob, setRefreshJob] = useState<string>();
+  const [empresa, setEmpresa] = useState('');
+  const [fallo, setFallo] = useState('');
+  // 080:RF-16: una sola búsqueda automática por apertura, aunque no encuentre nada.
+  const autoBuscada = useRef(false);
 
   const discover = async (refresh: boolean) => {
     if (refresh) {
+      setFallo('');
       const job = await startJob(() => api.vnrRefresh(ws.id));
       if (job) setRefreshJob(job.id);
       return;
@@ -31,31 +36,79 @@ function VnrDiscovery() {
     if (job?.status === 'done' && job.result?.publications) {
       setCatalog(job.result as VnrPublications);
       setRefreshJob(undefined);
+    } else if (job?.status === 'failed') {
+      setFallo(job.error || 'La búsqueda no terminó.');
+      setRefreshJob(undefined);
     }
   }, [jobs, refreshJob]);
   useEffect(() => { void discover(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const packages = catalog?.publications.filter((item) => item.convertible) ?? [];
+  useEffect(() => {
+    if (catalog && !packages.length && !autoBuscada.current && !active.engine) {
+      autoBuscada.current = true;
+      void discover(true);
+    }
+  }, [catalog]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const empresas = [...new Set(packages.map((item) => item.empresa))].sort((a, b) => a.localeCompare(b, 'es'));
+  const deLaEmpresa = packages.filter((item) => item.empresa === empresa);
+  const vigente = deLaEmpresa.find((item) => item.vigente);
+  const anteriores = deLaEmpresa.filter((item) => !item.vigente);
+  const errores = catalog?.refresh?.errors ?? [];
+
+  const paquete = (item: VnrPublication) => (
+    <div className="vnr-publication" key={item.publication_id}>
+      <div>
+        <b>{item.file_name}</b>
+        <br /><span className="muted small">
+          VNR {item.period_label}{item.regulatory_reference && <> · Resolución {item.regulatory_reference}</>}
+        </span>
+        <br /><span className="small">
+          <a href={item.download_url} target="_blank" rel="noreferrer">Enlace oficial</a>
+          {item.official_page && <> · <a href={item.official_page} target="_blank" rel="noreferrer">Página de la resolución</a></>}
+        </span>
+      </div>
+      <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={async () => {
+        await startJob(() => api.vnrDownload(ws.id, item.publication_id));
+      }}>Descargar y usar</button>
+    </div>
+  );
+
   return (
     <div className="vnr-discovery">
       <div className="row">
         <strong>Paquete oficial VNR-GIS</strong>
         <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={() => discover(true)}>
-          Buscar publicación oficial
+          Buscar publicaciones
         </button>
       </div>
-      {catalog?.status === 'BLOCKED_MISSING_OFFICIAL_PACKAGE' && (
+      {empresas.length > 0 && (
+        <label className="field">
+          <span>Distribuidora</span>
+          <select value={empresa} onChange={(event) => setEmpresa(event.target.value)}>
+            <option value="">— {empresas.length} encontradas, seleccione una —</option>
+            {empresas.map((nombre) => <option key={nombre}>{nombre}</option>)}
+          </select>
+        </label>
+      )}
+      {vigente && paquete(vigente)}
+      {anteriores.length > 0 && (
+        <details>
+          <summary className="muted small">Versiones anteriores ({anteriores.length})</summary>
+          {anteriores.map(paquete)}
+        </details>
+      )}
+      {catalog && !packages.length && !refreshJob && autoBuscada.current && (
         <p className="alert alert-warn">No se encontró un paquete oficial de datos convertible. Los PDF regulatorios no se usan como red. Suba abajo el paquete completo verificado.</p>
       )}
-      {packages.map((item) => (
-        <div className="vnr-publication" key={item.publication_id}>
-          <div><b>{item.title}</b><br /><span className="muted small">{item.company} · {item.period_label} · evidencia {item.evidence_sha256.slice(0, 12)}…</span></div>
-          <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={async () => {
-            await startJob(() => api.vnrDownload(ws.id, item.publication_id));
-          }}>Descargar y custodiar</button>
-        </div>
-      ))}
-      <p className="muted small">También puede subir o indicar la ruta de un ZIP/RAR/7z/GPKG/GeoJSON completo. La carga se valida antes de crear la ejecución.</p>
+      {(fallo || errores.length > 0) && (
+        <p className="alert alert-warn pre">{[fallo, ...errores.map((e) => `No se pudo leer ${e.page}: ${e.error}`)].filter(Boolean).join('\n')}</p>
+      )}
+      <p className="muted small">
+        Son los paquetes públicos de Osinergmin{catalog?.portal && <> (<a href={catalog.portal} target="_blank" rel="noreferrer">portal oficial del VNR</a>)</>}.
+        También puede subir abajo su propio paquete o copia. Cada uno es una fuente aparte: use un espacio de trabajo por empresa.
+      </p>
     </div>
   );
 }

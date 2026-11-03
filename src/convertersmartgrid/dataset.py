@@ -78,6 +78,7 @@ class CymdistDataset:
     fuente: str = 'txt'
     #: Lo que la fuente dice de cada alimentador: sistema y SET (055:RF-1). Los TXT y la .mdb no lo traen.
     estructura_fuente: dict[str, dict[str, str]] = field(default_factory=dict)
+    regulator_settings: tuple[dict[str, str], ...] = ()
 
     @classmethod
     def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':
