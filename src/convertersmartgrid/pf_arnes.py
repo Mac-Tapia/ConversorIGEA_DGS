@@ -300,6 +300,22 @@ def marcar_turno(ruta: Path | None = None, **campos: Any) -> None:
         _escribir_turno(ruta, {**dueno, **campos})
 
 
+def _borrar_turno(ruta: Path) -> None:
+    """Borra el turno; como al escribirlo, en Windows falla si otro proceso lo lee en ese instante (019:RF-28).
+
+    Si sigue ocupado no se cae: el bucle del turno lo volverá a ver y a intentar.
+    """
+    for intento in range(20):
+        try:
+            ruta.unlink()
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            if intento < 19:
+                time.sleep(0.05)
+
+
 def _borrar_si_sigue(ruta: Path, dueno: dict) -> None:
     """Borra el turno solo si sigue siendo ``dueno``.
 
@@ -307,16 +323,18 @@ def _borrar_si_sigue(ruta: Path, dueno: dict) -> None:
     borraba el turno recién tomado por el primero y entraban ambos (019:RF-19).
     """
     if leer_turno(ruta) == dueno:
-        try:
-            ruta.unlink()
-        except FileNotFoundError:
-            pass
+        _borrar_turno(ruta)
 
 
 def _abierto_a_mano() -> list[int]:
     from .powerfactory_env import powerfactory_abierto
 
     return powerfactory_abierto()
+
+
+def carpeta_del_codigo(guion: str | Path | None = None) -> str:
+    """La carpeta del guion que corre, para saber de qué worktree es un proceso (019:RF-27)."""
+    return os.path.normcase(str(Path(guion or sys.argv[0]).resolve().parent))
 
 
 def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
@@ -360,10 +378,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
                 # RF-4: el dueño murió sin soltarlo (una sonda cortada, un guion matado).
                 # RF-19: o soltó al salir y lleva más de ``CIERRE_S`` sin acabar de cerrarse.
                 if dueno is None:
-                    try:
-                        ruta.unlink()
-                    except FileNotFoundError:
-                        pass
+                    _borrar_turno(ruta)
                 else:
                     _borrar_si_sigue(ruta, dueno)
                     aviso(f"Turno de DIgSILENT liberado: {dueno.get('guion')} (proceso "
@@ -395,6 +410,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
             continue
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump({'pid': os.getpid(), 'inicio': inicio(os.getpid()), 'guion': guion,
+                       'codigo': carpeta_del_codigo(),                      # 019:RF-27
                        'desde': datetime.now().isoformat(timespec='seconds')}, f)
         return ruta
 

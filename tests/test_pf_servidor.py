@@ -388,7 +388,7 @@ def test_asegurar_servidor_lo_arranca_o_espera_su_turno(cola, cliente, monkeypat
 
     def lanzar(c):
         lanzados.append(c)
-        vivo['servidor'] = {'pid': 1, 'guion': pf_arnes.SERVIDOR}
+        vivo['servidor'] = {'pid': 1, 'guion': pf_arnes.SERVIDOR, 'codigo': pf_arnes.carpeta_del_codigo(cliente.__file__)}
         return SimpleNamespace(poll=lambda: None)
 
     monkeypatch.setattr(pf_arnes, 'servidor_vivo', lambda ruta=None: vivo['servidor'])
@@ -637,3 +637,44 @@ def test_si_atender_revienta_la_orden_se_cierra_y_el_servidor_sigue(cola, servid
     reloj = Reloj()
     assert servidor.servir(120.0, reloj=reloj, dormir=reloj.dormir) == 0
     assert hechas == ['segunda'] and (cola / 'b.fin.json').exists()
+
+
+def test_la_orden_de_otro_codigo_vuelve_a_la_cola_y_el_servidor_se_cierra(cola, servidor, monkeypatch, capsys):
+    """019:RF-27 — Pisco, 2026-11-03: la calibración corrió con el servidor de otro worktree, sin sus correcciones."""
+    atendidas = []
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=lambda argv: atendidas.append(guion) or 0))
+    (cola / 'a.orden.json').write_text(json.dumps(
+        {'id': 'a', 'guion': 'pf_proyectos.py', 'argv': [], 'raiz': 'D:/otro/worktree/tools'}))
+    reloj = Reloj()
+    assert servidor.servir(1.0, reloj=reloj, dormir=reloj.dormir) == 0
+    assert atendidas == [] and (cola / 'a.orden.json').exists() and not (cola / 'a.en_curso.json').exists()
+    assert '019:RF-27' in capsys.readouterr().out
+
+    propio = pf_arnes.carpeta_del_codigo(servidor.__file__)
+    (cola / 'a.orden.json').write_text(json.dumps({'id': 'a', 'guion': 'pf_proyectos.py', 'argv': [], 'raiz': propio}))
+    reloj = Reloj()
+    assert servidor.servir(1.0, reloj=reloj, dormir=reloj.dormir) == 0
+    assert atendidas == ['pf_proyectos.py']
+
+
+def test_el_cliente_no_usa_el_servidor_de_otro_codigo(cola, cliente, monkeypatch, capsys):
+    """019:RF-27 — con el servidor de otro worktree ocioso le pide cerrarse y no se conforma; con el suyo, sí."""
+    propio = pf_arnes.carpeta_del_codigo(cliente.__file__)
+    vivo = {'servidor': {'pid': 1, 'guion': pf_arnes.SERVIDOR, 'codigo': 'd:/otro/tools'}}
+    cierres = []
+    monkeypatch.setattr(pf_arnes, 'servidor_vivo', lambda ruta=None: vivo['servidor'])
+    monkeypatch.setattr(pf_arnes, 'pedir_cierre_si_ocioso', lambda d: cierres.append(d) or True)
+    reloj = Reloj()
+    assert not cliente.asegurar_servidor(cola, 60.0, lanzar=lambda c: pytest.fail('hay servidor vivo'),
+                                         reloj=reloj, dormir=reloj.dormir)
+    assert cierres and '019:RF-27' in capsys.readouterr().out
+
+    # Un servidor anterior a RF-27 no dice su carpeta: es el caso real y tampoco vale.
+    vivo['servidor'] = {'pid': 1, 'guion': pf_arnes.SERVIDOR}
+    reloj = Reloj()
+    assert not cliente.asegurar_servidor(cola, 60.0, lanzar=lambda c: pytest.fail('hay servidor vivo'),
+                                         reloj=reloj, dormir=reloj.dormir)
+
+    vivo['servidor'] = {'pid': 1, 'guion': pf_arnes.SERVIDOR, 'codigo': propio}
+    reloj = Reloj()
+    assert cliente.asegurar_servidor(cola, 60.0, reloj=reloj, dormir=reloj.dormir)

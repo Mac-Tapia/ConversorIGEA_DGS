@@ -13,6 +13,7 @@ import re
 from typing import Mapping, Sequence
 
 from .dataset import CymdistDataset
+from .fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
 from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
                        TABLAS_TIPOS_SUBTERRANEO)
 from .naming import feeder_short_name
@@ -1239,6 +1240,31 @@ def _short_default_node_aliases(
     return aliases
 
 
+def _fases_coherentes(name: str, source_node: str, lines: list[Line],
+                      loads: list[Load]) -> tuple[list[Line], list[Load], list[str]]:
+    """Cada tramo y SED del TXT o de la MDB con fases que le lleguen (054:RF-9).
+
+    En Pisco (TXT, 2026-11-02) 230 SED de fase C colgaban de ramales solo AB: DIgSILENT las dejaba con la barra de baja a
+    0 p.u., sin consumir y sin avisar, y el flujo «convergía». Con VNR-GIS ya pasaba (NJA202) y se resolvía solo allí.
+    """
+    letras = [(ln.section_id, ln.from_node, ln.to_node, decode_phase(ln.phase) or 'ABC') for ln in lines]
+    cambiados, en_nodo = fases_desde_la_cabecera(letras, source_node)
+    nuevas_lineas = [replace(ln, phase=cambiados[ln.section_id]) if ln.section_id in cambiados else ln for ln in lines]
+    nuevas_cargas, por_carga = [], []
+    for c in loads:
+        propias = decode_phase(c.phase) or 'ABC'
+        llegan = fases_de_carga_que_llegan(propias, en_nodo.get(c.node_id, propias))
+        if llegan != propias:
+            por_carga.append(f'{name}: FASE_RECONSTRUIDA, {c.sed_code or c.display_name or c.device_number}: '
+                             f'fase {propias} → {llegan}.')
+        nuevas_cargas.append(c if llegan == propias else replace(c, phase=llegan))
+    avisos = []
+    if cambiados or por_carga:
+        avisos.append(f'{name}: FASE_RECONSTRUIDA, {len(cambiados)} tramo(s) y {len(por_carga)} SED o carga(s) con fases que '
+                      'no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre.')
+    return nuevas_lineas, nuevas_cargas, avisos + por_carga
+
+
 def build_feeder_model(
     dataset: CymdistDataset,
     selector: str,
@@ -1380,6 +1406,8 @@ def build_feeder_model(
         ))
 
     loads = _assign_load_display_names(loads)
+    lines, loads, aviso_fases = _fases_coherentes(name, source_node, lines, loads)
+    section_by_id = {line.section_id: line for line in lines}
 
     seds: list[Sed] = []
     for load in loads:
@@ -1454,7 +1482,7 @@ def build_feeder_model(
             coord_inferida=raw.get('CoordOrigen') in ('grafo', 'sin_crs'),
         )
 
-    warnings: list[str] = []
+    warnings: list[str] = list(aviso_fases)
     if node_aliases:
         warnings.append(
             f'{name}: {len(node_aliases)} extremo(s) DEFAULT corto(s) conectado(s) a su '

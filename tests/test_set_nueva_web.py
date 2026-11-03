@@ -263,3 +263,14 @@ def test_si_caben_basta_una_obra_y_las_lecturas_comunes_van_una_vez(tmp_path, mo
     r = services_.obras_escalera(ws, ctx, 'P', ['F1', 'F2'], anio_casos=ANIO, aplicar=False)
     assert [f['alimentador'] for f in r['alimentadores']] == ['F1', 'F2']
     assert all('basta_una' not in p for a, p in planes if '--evaluar' in a)
+
+
+def test_la_carga_que_parte_un_tramo_entra_en_la_set_nueva():
+    """042:RF-18 — Pisco: su nodo solo existe en su variación; va por el extremo más cercano del tramo."""
+    from convertersmartgrid.web.services import barra_del_tramo_partido
+
+    tramos = [{'nombre': 'T1', 'desde': 'A', 'hasta': 'B'}]
+    assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T1', 'fraccion': 0.2}}, tramos, {}) == 'A'
+    assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T1', 'fraccion': 0.8}}, tramos, {'B': 'B_MT'}) == 'B_MT'
+    assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T9', 'fraccion': 0.8}}, tramos, {}) is None
+    assert barra_del_tramo_partido({}, tramos, {}) is None

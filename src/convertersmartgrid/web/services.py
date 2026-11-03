@@ -2830,8 +2830,8 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     """
     from collections import defaultdict
 
-    from ..demanda_medida import (DemandaError, barras_de_calibracion, leer_medidores_de_barra,
-                                  maximas_por_barra)
+    from ..demanda_medida import (DemandaError, balances_de_linea, barras_de_calibracion, leer_medidores_de_barra,
+                                  leer_medidores_de_linea, maximas_por_barra)
 
     estructura = estructura_del_espacio(ws)
     if estructura is None:
@@ -2859,11 +2859,17 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         alimentadores = sorted({duenio(a).upper() for a, _m in pares if a})
         barras, avisos = barras_de_calibracion(estructura, medidores, alimentadores,
                                                _kv_alimentadores(ws), en_tramo)
+        balances = []
+        if sistema_60kv:                                              # 028:RF-33, RF-34
+            balances, de_lt = balances_de_linea(estructura, leer_medidores_de_linea(_demanda_ruta(ws, 'medidores'), alias),
+                                                barras, alimentadores)
+            avisos = avisos + de_lt
         ctx.log(f'Máxima por barra de SET: {len(barras)} barra(s) con medidor para '
                 f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
         # 027:RF-25: los libros se leen en el proceso del trabajo, no en el de la API.
         res, info, avisos, de_barra, instantes = ctx.en_proceso(
-            maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv)
+            maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv,
+            balances=balances)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     if sistema_60kv:
@@ -2891,7 +2897,11 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     return {'resultados': [r.to_dict() for r in res], 'cancelado': False, 'periodo': periodo,
             'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos,
             'sistema_60kv': ({'fecha': next(iter(x['fecha'] for x in info), None),
-                              'total_kw': sum(x['kw'] or 0.0 for x in info if x['alta'])} if sistema_60kv else None)}
+                              # 028:RF-36: la demanda del sistema: lo neto de sus barras más lo que generan sus centrales.
+                              'total_kw': (sum(x['kw'] or 0.0 for x in info if x['alta'])
+                                           + sum(c['kw'] or 0.0 for x in info for c in x['centrales'])
+                                           + sum(r.kw or 0.0 for r in res if r.alimentador.lower().startswith('central ')))}
+                             if sistema_60kv else None)}
 
 
 # Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.
@@ -4082,6 +4092,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
             'sed': sed, 'escrita': escrita, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
             'escenario': informe.get('escenario'), 'recorded_at': time.time(),
             'anio': anio_medicion, 'caso': informe.get('caso'), 'recalibracion': numero,
+            'factor_escala': informe.get('factor_escala'),                  # 083:RF-9
             # 039:RF-5: la cabecera simulada y los bancos, para la Q de la red sin las cargas.
             'cabecera': {k: (informe.get('cabecera') or {}).get(k) for k in ('kw', 'kvar')},
             'bancos_kvar': (informe.get('cuadre_q') or {}).get('bancos_kvar')}
@@ -6052,7 +6063,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     if resto:
         ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
                 f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
-    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
     return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
             'caben': k, 'pruebas': pruebas, 'escalera': escalera,
             'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto]}
@@ -6266,7 +6277,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
                       {'project': project.strip(), **informe_oraculo})
     ctx.log(f"Tiempos: oráculo {tiempos['oraculo_s']} s ({ora.evaluaciones} flujos), DIgSILENT "
             f"{tiempos['digsilent_s']} s (052:RF-10).")
-    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
     obras_elegidas = [o for f, e in eleccion.items() for v in e['orden'][:1] for o in v.obras]
     return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
             'caben': k, 'pruebas': pruebas, 'escalera': escalera,
@@ -6281,6 +6292,16 @@ def _punto_utm(lat: float, lon: float) -> dict | None:
 
     v = _utm((lat, lon))
     return {'crs': (datos_perfil() or {}).get('crs_origen'), 'este': v[0], 'norte': v[1]} if v else None
+
+
+def barra_del_tramo_partido(carga: dict, tramos: list[dict], media: dict) -> str | None:
+    """El extremo más cercano del tramo que parte la carga (042:RF-18): su nodo solo existe en su variación."""
+    partido = carga.get('tramo_partido') or {}
+    tramo = next((t for t in tramos if t['nombre'] == partido.get('tramo')), None)
+    if tramo is None:
+        return None
+    punta = tramo['desde'] if float(partido.get('fraccion') or 0.0) <= 0.5 else tramo['hasta']
+    return media.get(punta, punta)
 
 
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
@@ -6353,6 +6374,8 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
                 barra = x['barra'] if x is not None else None
             if barra is None and str(c.get('barra') or '') in {b['nombre'] for b in d['barras']}:
                 barra = str(c['barra'])               # la que registró su variación (007)
+            if barra is None:
+                barra = barra_del_tramo_partido(c, d['tramos'], media)         # 042:RF-18
             if barra is None:
                 avisos.append(f"{c.get('sed')}: no se halló su barra en «Con proyecto» de {f}; "
                               'no entra en la SET nueva.')
@@ -6485,7 +6508,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
                            capex: str | None = None, alimentadores_nuevos: int = 4,
                            set_nueva_nombre: str = '', directo_set_nueva: bool = False,
-                           cargas: list[str] | None = None) -> dict:
+                           cargas: list[str] | None = None, escalera_primero: bool = False) -> dict:
     """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042).
 
     Con ``directo_set_nueva``, sin escalera: muchas cargas que bancos y ternas no resuelven van a
@@ -6501,7 +6524,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                  and (not pedidas or clave_codigo(c.get('sed')) in pedidas)]
     umbral = (datos_perfil().get('planificacion') or {}).get('set_nueva_desde_kw')
     total_kw = sum(float(c.get('kw') or 0) for c in evaluadas)
-    if not directo_set_nueva and umbral is not None and total_kw > float(umbral):
+    if not directo_set_nueva and not escalera_primero and umbral is not None and total_kw > float(umbral):   # 042:RF-17
         # 063:RF-34: con tanta carga nueva, bancos, secciones y ternas no la resuelven; la alternativa
         # es una SET nueva (NA203 + NA205, 2026-11-01: 35 cargas, unos 29 MW).
         directo_set_nueva = True
@@ -6512,7 +6535,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
 
         todas = sn.orden_de_cargas(evaluadas)
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
-        campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+        campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido')
         escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
@@ -7515,12 +7538,14 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
         except (OSError, ValueError):
             plan = {}
         filas = {clave_codigo(n.get('sed')): n for n in plan.get('nuevas') or []}
+        creadas = {clave_codigo(x.get('sed')): x for f in datos.get('feeders') or [] for x in f.get('creadas') or []}
         for c in datos['cargas']:
             fila = filas.get(clave_codigo(c.get('sed')), {})
             vistas[(clave_codigo(c.get('alimentador')), clave_codigo(c.get('sed')))] = {
                 'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'barra': c.get('barra'),
                 # 025:RF-44: si la barra ya existía o la crea la variación de la carga.
-                'criterio': c.get('criterio'),
+                'criterio': c.get('criterio'), # 042:RF-18: el tramo que parte, de lo que creó la variación.
+                'tramo_partido': (creadas.get(clave_codigo(c.get('sed'))) or {}).get('tramo_partido'),
                 'variacion': c.get('variacion'), 'distancia_m': c.get('distancia_m'),
                 'kw': fila.get('kw'), 'kvar': fila.get('kvar'), 'kva_instalado': fila.get('kva_instalado'),
                 # 008:RF-24: la del formulario lleva la hoja «formulario»; las del libro, la suya.

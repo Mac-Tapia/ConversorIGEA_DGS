@@ -23,3 +23,9 @@
       copia VNR-GIS: calibración VÁLIDA en «Sin proyecto» (−0,04 % y −0,00 %), todas consumen, reparto
       proporcional; hicieron falta 054:RF-9 (fases desde la cabecera) y escribir el modo de la carga
       monofásica (`escribir_carga`, fases vacías a 8·10⁻¹¹).
+- [x] T5. Elementos trifásicos nuevos solo en barras con las tres fases. (RF-10)
+      Hecho cuando: `pytest -q tests/test_ajuste_proyecto_guion.py -k bancos` en verde; en DIgSILENT se comprueba con la T15 de la spec 028.
+- [x] T6. La carga no trifásica recibe su potencia aunque sus tres fases tengan valor. (RF-11)
+      Hecho cuando: `pytest -q tests/test_fases_reales.py -k tres_fases` en verde; en DIgSILENT se comprueba con la T15 de la spec 028.
+- [x] T7. La trifásica de fases iguales se escribe en el escenario, sin tocar las fases compartidas. (RF-12)
+      Hecho cuando: `pytest -q tests/test_fases_reales.py -k tres_fases` en verde; en DIgSILENT se comprueba con la T15 de la spec 028.

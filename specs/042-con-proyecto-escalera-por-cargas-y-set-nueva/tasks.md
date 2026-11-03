@@ -38,6 +38,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T9. Toma y consigna de la SET nueva; el mejor punto probado. (RF-10, RF-16)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py` en verde, con el transformador
       regulando a la consigna de la cabecera y el informe con la toma y el punto elegidos.
+- [x] T11. La escalera primero, cuando el operador la pide. (RF-17)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T12. La carga que parte un tramo también entra en la SET nueva. (RF-18)
+      Hecho cuando: `pytest -q tests/test_set_nueva_web.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

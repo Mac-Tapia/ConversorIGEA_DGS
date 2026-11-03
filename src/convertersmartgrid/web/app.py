@@ -314,6 +314,8 @@ class ObrasIn(BaseModel):
     set_nueva_nombre: str = Field('', max_length=40)
     # Sin escalera: todas las cargas nuevas a la SET nueva (usuario, 2026-11-01).
     directo_set_nueva: bool = False
+    # 042:RF-17: el operador pide la escalera aunque las cargas pasen del umbral del perfil.
+    escalera_primero: bool = False
     # 063:RF-23: la evaluación de la conexión de estas cargas nuevas (por su nombre); sin ellas, todas.
     cargas: list[str] = Field(default_factory=list, max_length=500)
     # Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
@@ -2043,7 +2045,8 @@ def create_app(
                           tipo_cambio=body.tipo_cambio, capex=body.capex,
                           alimentadores_nuevos=body.alimentadores_nuevos,
                           set_nueva_nombre=body.set_nueva_nombre,
-                          directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None),
+                          directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None,
+                          escalera_primero=body.escalera_primero),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

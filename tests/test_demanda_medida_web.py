@@ -759,15 +759,16 @@ def test_sesenta_kv_da_un_unico_instante_a_todo_el_sistema(client, monkeypatch):
 
 
 def test_sesenta_kv_el_alimentador_sin_registro_en_el_instante_se_nombra(client, monkeypatch):
-    """028:RF-31 — no se le da otra fecha ni se calla: como CHN101 en la medición real de Chincha."""
+    """028:RF-38 — sin registro en el instante toma su máxima del mes, y se nombra con la fecha tomada; no queda sin carga."""
     wid = _wid(client)
     _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5, hueco_m3=5)
     job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
         'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))],
         'por_barra': True, 'sistema_60kv': True})
     res = esperar_trabajo(client, job.json())['result']
-    assert any(r['alimentador'] == 'A2' and r.get('error') for r in res['resultados'])
-    assert any(a.startswith('A2:') and 'instante del sistema' in a for a in res['avisos'])
+    a2 = next(r for r in res['resultados'] if r['alimentador'] == 'A2')
+    assert not a2.get('error') and a2['kw'] > 0 and a2['fecha'] != res['sistema_60kv']['fecha']
+    assert any(a.startswith('A2:') and '028:RF-38' in a for a in res['avisos'])
 
 
 def test_sesenta_kv_sin_ninguna_barra_de_60_lo_dice_y_no_busca(client, monkeypatch):

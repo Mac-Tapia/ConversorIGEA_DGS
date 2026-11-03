@@ -1,0 +1,10 @@
+# Spec 083: motores de flujo del oráculo, verificados el 2026-11-03 con numpy 2.4 y CPython 3.12 en Windows.
+# No van al .venv compartido: se instalan aparte, y digital_twin/motores_flujo.py los añade a su ruta.
+#   python -m pip install --no-deps --target %USERPROFILE%\.convertersmartgrid\motores_deps -r requirements-motores.txt
+power-grid-model==1.13.218
+lightsim2grid==1.2.0
+dss-python==0.15.7
+dss-python-backend==0.14.5
+cffi
+pycparser
+typing_extensions

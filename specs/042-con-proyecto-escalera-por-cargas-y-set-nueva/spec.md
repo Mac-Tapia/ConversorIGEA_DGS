@@ -115,6 +115,8 @@ Informe y web
   barra de media a la consigna de la red externa de la cabecera actual, y en la toma fija que la
   deja más cerca de esa consigna, para que el flujo del caso la cumpla aunque no ajuste tomas.
   (NA203 + NA205, 2026-11-01: sin regular, 15 barras de media bajo 0,95 p.u. con la SET COPARA.)
+- RF-17: CUANDO el operador pide la escalera primero, EL SISTEMA buscará carga a carga aunque las cargas pasen de `set_nueva_desde_kw` (063:RF-34); solo van a la SET nueva las que no quepan. Pisco (2026-11-03): 25,7 MW; el usuario eligió la escalera para saber qué resuelve cada obra.
+- RF-18: CUANDO una carga que pasa a la SET nueva se conecta partiendo un tramo, EL SISTEMA tomará como barra de su rama el extremo más cercano de ese tramo, porque su nodo solo existe en la variación de la carga, apartada al leer la red. Pisco (2026-11-03): 6 de 13 cargas quedaban fuera de la SET con «no se halló su barra». Usuario: «debió entrar todo».
 - Aclaración de RF-10 (2026-11-01): de los puntos probados queda el mejor (converge, menos barras
   fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
   quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.

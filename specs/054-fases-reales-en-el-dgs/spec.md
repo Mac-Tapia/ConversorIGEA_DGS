@@ -63,6 +63,17 @@ el flujo desequilibrado es obligatorio donde haya elementos monofásicos o bifá
   devuelve aguas arriba hasta un tramo que ya las tenga, y la SED toma las que le llegan; cada
   cambio se anota (`FASE_RECONSTRUIDA`). En NJA202 (2026-11-01) 374 de 849 SED
   quedaban sin tensión en el flujo por 18 empalmes así.
+- RF-10: EL SISTEMA conectará los elementos trifásicos que crea (bancos de la calibración y cargas nuevas) solo en barras con
+  las tres fases: uno trifásico en una barra de dos fases deja a DIgSILENT sin flujo en todo el proyecto («The no. of phases
+  (3) of the element must be less than or equal to the no. of phases (2)»; BC_CAL_CHI201_3 en Pisco, 2026-11-03). Toma la
+  barra trifásica más cercana y, si no hay ninguna, no lo crea y lo dice.
+- RF-11: EL SISTEMA escribirá la potencia de una carga no trifásica en las entradas de su modo aunque sus tres fases tengan
+  valor, porque es lo que consume en el flujo; decide su técnica (`phtech`), no cuántas fases tienen valor. Medido en DIgSILENT:
+  SE10008 (1PH PH-E, 0 kW en el TXT) quedaba con `plini` 10⁻¹⁰ y la calibración esperaba 24,5 kW.
+- RF-12: CUANDO la calibración o la inserción escriben una carga trifásica con sus fases iguales, EL SISTEMA la dejará equilibrada
+  (`i_sym=0`) y escribirá su potencia en el escenario, sin reescribir las fases, que son dato de red compartido: el «Caso base»
+  conserva así su demanda y su convergencia. La carga con fases distintas conserva su reparto. Usuario, 2026-11-03: «debe hacer
+  que converja, recuerda: el caso llega convergido».
 
 ## Relación con otras specs
 

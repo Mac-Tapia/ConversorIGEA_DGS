@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from convertersmartgrid.fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
 from vnr_etl.models import (Capacitor, CanonicalModel, ConductorType, Load, Node, Regulator, Section,
                             Source, Switch)
 
@@ -396,58 +397,21 @@ def coherencia_de_fases(modelo: CanonicalModel, salida: str, cabecera: str,
     tramos = [t for t in modelo.sections if t.feeder_id == salida]
     if not tramos:
         return
-    vecinos: dict[str, list] = defaultdict(list)
+    cambiados, en_nodo = fases_desde_la_cabecera(
+        [(t.section_id, t.from_node, t.to_node, t.phases or 'ABC') for t in tramos], cabecera)
+    cambios = len(cambiados)
     for t in tramos:
-        vecinos[t.from_node].append((t.to_node, t))
-        vecinos[t.to_node].append((t.from_node, t))
-    entrada: dict[str, tuple[str, object]] = {}          # nodo -> (nodo de arriba, tramo)
-    orden: list[tuple[str, str, object]] = []
-    vistos = {cabecera}
-    cola = [cabecera]
-    while cola:
-        n = cola.pop(0)
-        for nb, t in sorted(vecinos[n], key=lambda v: v[1].section_id):
-            if nb in vistos:
-                continue
-            vistos.add(nb)
-            entrada[nb] = (n, t)
-            orden.append((n, nb, t))
-            cola.append(nb)
-
-    def fases(n: str) -> str:
-        return 'ABC' if n == cabecera or n not in entrada else (entrada[n][1].phases or 'ABC')
-
-    cambios = 0
-
-    def subir(n: str, letras: set[str]) -> None:
-        """Devuelve ``letras`` a los tramos de arriba hasta uno que ya las tenga."""
-        nonlocal cambios
-        while n in entrada and not letras <= set(fases(n)):
-            arriba, t = entrada[n]
-            t.phases = ''.join(f for f in 'ABC' if f in set(t.phases or 'ABC') | letras)
-            cambios += 1
-            n = arriba
-
-    for arriba, _n, t in orden:
-        propias, llegan = t.phases or 'ABC', fases(arriba)
-        if set(propias) <= set(llegan):
-            continue
-        if len(propias) > len(llegan):
-            subir(arriba, set(propias))
-        else:
-            comunes = [f for f in llegan if f in propias]
-            t.phases = ''.join(sorted((comunes + [f for f in llegan if f not in comunes])[:len(propias)]))
-            cambios += 1
+        t.phases = cambiados.get(t.section_id, t.phases)
     for c in modelo.loads:
         if c.feeder_id != salida:
             continue
-        propias, llegan = c.phases or 'ABC', fases(c.connection_node)
-        if set(propias) <= set(llegan):
-            continue
+        propias = c.phases or 'ABC'
         # La SED no sube fases aguas arriba: sin sufijo de norma se supone trifásica (054:RF-5) y
         # el tramo, que sí dice sus fases, manda. Toma las que le llegan.
-        c.phases = llegan[:len(propias)]
-        cambios += 1
+        llegan = fases_de_carga_que_llegan(propias, en_nodo.get(c.connection_node, 'ABC'))
+        if llegan != propias:
+            c.phases = llegan
+            cambios += 1
     if cambios:
         avisos.append({'code': 'FASE_RECONSTRUIDA', 'source_id': salida,
                        'detalle': f'{cambios} tramo(s) o SED con fases que no les llegaban desde la '

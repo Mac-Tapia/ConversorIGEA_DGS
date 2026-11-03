@@ -289,6 +289,10 @@ def test_barras_de_los_bancos_en_la_troncal(guion):
     red = Red(barras, tramos)
     assert guion.barras_para_bancos(red, 'B0', 1) == ['B4']
     assert guion.barras_para_bancos(red, 'B0', 2) == ['B2', 'B5']
+    # 054:RF-10: un banco trifásico no cae en una barra sin las tres fases.
+    assert guion.barras_para_bancos(red, 'B0', 1, {'B2', 'B5'}) in (['B2'], ['B5'])
+    assert guion.barras_para_bancos(red, 'B0', 2, {'B5'}) == ['B5']
+    assert guion.barras_para_bancos(red, 'B0', 1, set()) == []
 
 
 def test_con_central_tambien_avisa_la_fija_sobre_su_transformador(guion):
