@@ -30,6 +30,7 @@ from .informes import (
     desarrollo_cola, etapa_recomendada, fuentes_del_caso, numero, obras_a_ejecutar, redactar_cargabilidad,
     redactar_tension, resumen_alternativa, texto_transformador, veredicto_factibilidad)
 from .libros_informe import DatosPerdidas
+from .valle import frase_valle
 
 #: Imágenes de cada estado: vista de ubicación y los dos coloreados (RF-10, RF-46).
 IMAGENES = ('ubicacion', 'tension', 'cargabilidad')
@@ -122,6 +123,8 @@ class DatosFactibilidad:
     aviso_cliente: str = ''
     #: 063:RF-53: las obras activas en «Con proyecto», como las describe el informe de estudio.
     obras: Sequence[Mapping[str, Any]] = ()
+    #: 073:RF-32: lo medido en valle de esas obras; sin él, «no comprobado en valle».
+    valle: Mapping[str, Any] | None = None
     #: Comparación de los balances medidos cuando no se evalúa una curva anual.
     perdidas_instantaneas: bool = False
     observaciones: Sequence[str] = ()
@@ -667,6 +670,7 @@ def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], conf
         for obra in x.obras:
             e.parrafo(describir_obra(obra))
             _trechos(e, obra)
+        _frase_de_valle(e, x.obras, x.valle)
     e.titulo(f'2.4.{n + 1} ESCENARIO ACTUAL Y PROYECTADO DEL ALIMENTADOR {lista}')
     e.parrafo(f'ESCENARIO ACTUAL: el alimentador {lista} en su configuración actual.')
     e.imagen((datos.imagenes.get('actual') or {}).get('ubicacion'),
@@ -726,6 +730,14 @@ def _que_se_resalta(hasta: Sequence[Etapa], hay_existentes: bool) -> str:
     return 'se señalan ' + (partes[0] if len(partes) == 1 else ', '.join(partes[:-1]) + ' y ' + partes[-1])
 
 
+def _frase_de_valle(e: _Escritor, obras: Sequence[Mapping[str, Any]], valle: Mapping[str, Any] | None) -> None:
+    """La tensión en valle de una obra, bancos o proyecto, o que no se comprobó: nunca que cumple
+    (073:RF-32, RF-40)."""
+    if obras:
+        frase = frase_valle(valle)
+        e.parrafo(f'{frase[0].upper()}{frase[1:]}.')
+
+
 def _bancos_nuevos(e: _Escritor, obras: Sequence[Mapping[str, Any]]) -> None:
     nuevos = [o for o in obras if o.get('tipo') == 'banco']
     if nuevos:
@@ -774,6 +786,7 @@ def _alternativas(e: _Escritor, datos: DatosEstudio, evaluadas: list[Etapa], rec
         _analisis_carga(e, f'2.3.{i}.4 ANÁLISIS DE CARGABILIDAD', caso, img.get('cargabilidad'),
                         f'alternativa {i}', config)
         e.parrafo(resumen_alternativa(i, x, config.limites))
+        _frase_de_valle(e, x.obras, x.valle)
 
     e.titulo(f'2.4 CUADRO COMPARATIVO DE LAS ALTERNATIVAS DEL ALIMENTADOR {lista}')     # RF-134
     filas = []
@@ -906,6 +919,7 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         for obra in datos.obras:
             e.parrafo(describir_obra(obra))
             _trechos(e, obra)
+        _frase_de_valle(e, datos.obras, datos.valle)
     proyectado = datos.proyectado
     if not _sin_flujo(e, proyectado):
         _datos_fuente(e, proyectado, 'Datos de la fuente en MD:',

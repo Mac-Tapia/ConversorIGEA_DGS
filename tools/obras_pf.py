@@ -2058,7 +2058,10 @@ def _apartar_cargas_de(app, feeders: list[str], variaciones=()) -> list:
 
 class _Sorteo:
     """Escenario temporal, copia del del caso, donde se escalan las cargas existentes por el
-    factor de su alimentador; se borra al salir y vuelve el escenario del caso (025:RF-51)."""
+    factor de su alimentador; se borra al salir y vuelve el escenario del caso (025:RF-51).
+
+    073:RF-25, RF-39: en valle, las cargas nuevas también: apagadas o a su potencia.
+    """
 
     def __init__(self, app, alims, feeders, existentes: set[str]):
         self.app, self.alims, self.feeders, self.existentes = app, alims, feeders, existentes
@@ -2082,19 +2085,23 @@ class _Sorteo:
         # 0,938 p.u. con factores de 0,35 a 0,74, y las variantes salían al 94,5 %. Con
         # ``scale0 × 0,35`` la demanda bajó a 3,2 MW e INKA subió a 0,960 p.u.
         self.base = {}
+        self.nuevas = {}
         for f in self.feeders:
             for c in _cargas_de(self.alims, f):                              # 063:RF-39
-                if c.loc_name in self.existentes:
-                    self.base[id(c)] = (c, f, float(getattr(c, 'scale0', 1.0) or 0.0))
+                destino = self.base if c.loc_name in self.existentes else self.nuevas
+                destino[id(c)] = (c, f, float(getattr(c, 'scale0', 1.0) or 0.0))
         return self
 
-    def escalar(self, factores: dict[str, float]) -> None:
+    def escalar(self, factores: dict[str, float], factor_nuevas: float | None = None) -> None:
         for c, f, s0 in self.base.values():
             c.scale0 = s0 * float(factores.get(f, 1.0))
+        if factor_nuevas is not None:
+            for c, _f, s0 in self.nuevas.values():
+                c.scale0 = s0 * float(factor_nuevas)
 
     def __exit__(self, *exc):
         try:
-            for c, _f, s0 in self.base.values():                    # todavía en el temporal
+            for c, _f, s0 in (*self.base.values(), *self.nuevas.values()):      # todavía en el temporal
                 c.scale0 = s0
             self.temporal.Deactivate(0)
         finally:
@@ -2109,11 +2116,12 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
 
     ``plan``: ``project``, ``anio_casos``, ``feeders``, ``variantes`` (``nombre`` y ``obras``),
     ``barras_cargas`` (las barras de media de las cargas nuevas), ``sorteos`` (``factores``
-    por alimentador) y ``parametros`` (el perfil con ``escalera``, ``planificacion`` y
-    ``estudios``). Devuelve por variante si cumple con la máxima, la fracción de sorteos que
-    cumplen y sus pérdidas con la máxima.
+    por alimentador), ``parametros`` (el perfil con ``escalera``, ``planificacion`` y
+    ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
+    máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
     from convertersmartgrid.escalera_optima import cumple, parametros
+    from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
                                'avisos': [], 'cancelado': False}
@@ -2132,6 +2140,12 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     alims = Alimentadores(app, proyecto, feeders)
     barras = list(plan.get('barras_cargas') or [])
     sorteos = list(plan.get('sorteos') or [])
+    # 073:RF-25: los puntos de valle de la medición. ``scale0`` lleva P y Q juntas: aquí la Q va con
+    # el factor de la P, y lo exacto es la calibración a valle en su caso (T8).
+    puntos_valle = list((plan.get('valle') or {}).get('puntos') or [])
+    if puntos_valle:
+        informe['avisos'].append('En valle, la Q se escala con el factor de la P (scale0): la Q medida entra con '
+                                 'la calibración a valle (073 T8).')
     inicial = app.GetActiveStudyCase()
     casos['con'].Activate()
     ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []),
@@ -2159,6 +2173,27 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     return informe, 2
                 s.escalar(sorteo['factores'])
                 sin_sorteos.append(medida_para_criterio(app, alims, feeders))
+        sin_valle = []
+        if puntos_valle:
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for pt in puntos_valle:
+                    s.escalar(pt['factores'], 0.0)
+                    sin_valle.append(medida_para_criterio(app, alims, feeders))
+
+        def medir_valle() -> dict[str, Any]:
+            """Lo que está activo en cada punto de valle, sin las cargas nuevas y con ellas, en un
+            escenario temporal (073:RF-17, RF-25, RF-39)."""
+            fila = sin_comprobar()
+            casos_valle = CASOS_CARGAS if barras else CASOS_CARGAS[:1]
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for pt, sin_i in zip(puntos_valle, sin_valle):
+                    for caso, factor_nuevas in casos_valle:
+                        s.escalar(pt['factores'], factor_nuevas)
+                        con = medida_para_criterio(app, alims, feeders)
+                        bien, motivos = cumple(sin_i, con, barras if factor_nuevas else [], p)
+                        anotar_punto(fila, pt, caso, bien, motivos, con.get('u') or {})
+            return fila
+
         def con_variante(v, medir):
             """Crea las obras de ``v``, mide con ``medir()`` y las borra (RF-54); ``None`` y el
             error si no se pudieron crear."""
@@ -2217,6 +2252,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 return informe, 2
             if fraccion >= p.cumplimiento:
                 informe['ya_cumple'] = {'fraccion': fraccion, 'perdidas_kw': con_actual['perdidas_kw']}
+                if puntos_valle:                                                       # 073:RF-26
+                    informe['ya_cumple'].update(medir_valle())
                 print(f'  «Con proyecto» ya cumple: sorteos {100 * fraccion:.0f} %', flush=True)
                 return informe, 0
 
@@ -2229,7 +2266,14 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 break
             fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
                     'perdidas_kw': None, 'error': None, 'sin_sortear': None}
-            con_max, fila['error'] = con_variante(v, lambda: medida_para_criterio(app, alims, feeders))
+            def medir_todo():
+                # 073:RF-30: con la obra ya creada, también en valle: crearla otra vez cuesta minutos.
+                con = medida_para_criterio(app, alims, feeders)
+                return con, (medir_valle() if puntos_valle and con.get('converge') else None)
+
+            medido, fila['error'] = con_variante(v, medir_todo)
+            con_max, en_valle = medido if medido is not None else (None, None)
+            fila.update(en_valle or {})
             mejora = ''
             if con_max is not None:
                 fila['perdidas_kw'] = con_max['perdidas_kw']
@@ -2250,7 +2294,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,
             # si también cumple en los sorteos, no se prueba ninguna más (NA203 + NA205,
             # 2026-11-01: cada prueba recorría las 20 y las 40 variantes, unos 60 min).
-            if plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None:
+            if (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
+                    and fila.get('valle') is not False):                                # 073:RF-18
                 if sorteos:
                     fila['fraccion'], error = con_variante(v, sortear)
                     fila['error'] = fila['error'] or error
@@ -2270,11 +2315,14 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         def costo(v, fila):
             return float(v['costo_base']) + k * float(fila['perdidas_kw'] or 0.0)
 
-        candidatas = sorted(((v, f) for v, f in filas if f['maxima'] and v.get('costo_base') is not None),
+        candidatas = sorted(((v, f) for v, f in filas if f['maxima'] and v.get('costo_base') is not None
+                             and f.get('valle') is not False),
                             key=lambda vf: (costo(*vf), vf[1]['nombre']))
         for v, fila in filas:
             if fila['maxima'] and v.get('costo_base') is None:
                 fila['sin_sortear'] = 'sin costo: no se puede elegir, no se sortea'
+            elif fila['maxima'] and fila.get('valle') is False:                        # 073:RF-18
+                fila['sin_sortear'] = 'no cumple en valle: los sorteos no lo compensan, no se sortea'
         ganadora = None
         for v, fila in candidatas:
             if informe['cancelado'] or cancelado():

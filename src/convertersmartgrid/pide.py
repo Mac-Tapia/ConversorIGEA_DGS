@@ -245,7 +245,8 @@ class ObraPropuesta:
 
 
 def plan_por_etapas(problemas: Iterable[Problema], *, anios_pide: Sequence[int],
-                    costo_relativo: Mapping[str, float] | None = None) -> list[ObraPropuesta]:
+                    costo_relativo: Mapping[str, float] | None = None,
+                    vetadas: Iterable[str] = ()) -> list[ObraPropuesta]:
     """Una obra por causa y elemento, en el año en que hace falta (RF-52).
 
     Entre las alternativas que resuelven la causa se toma la de menor costo relativo
@@ -253,13 +254,18 @@ def plan_por_etapas(problemas: Iterable[Problema], *, anios_pide: Sequence[int],
     no se adelanta: va en el año de su primer incumplimiento; uno anterior al periodo de
     fijación entra en su primer año (las de hoy, en el año 04). Las caídas de tensión del
     mismo alimentador se resuelven con una sola obra.
+
+    ``vetadas``: alternativas que no valen aquí, como el banco que el valle no admite (073:RF-28);
+    si la causa no tiene otra, se queda con la suya, para que quien llama la descarte con su motivo.
     """
     obras: dict[tuple[str, str], ObraPropuesta] = {}
     primero = min(anios_pide) if anios_pide else 0
+    vetadas = set(vetadas)
     for p in sorted(problemas, key=lambda x: (x.anio, x.causa, x.elemento)):
         candidatas = ALTERNATIVAS_POR_CAUSA.get(p.causa)
         if not candidatas:
             continue
+        candidatas = tuple(a for a in candidatas if a not in vetadas) or candidatas
         if costo_relativo:
             alternativa = min(candidatas, key=lambda a: (costo_relativo.get(a, math.inf), candidatas.index(a)))
         else:

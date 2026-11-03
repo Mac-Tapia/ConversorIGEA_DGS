@@ -40,6 +40,7 @@ from pathlib import Path
 from cargas_pf import activar_proyecto, error_inesperado, nombre_pf
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.obras_pf import PREFIJO_VARIACION
+from convertersmartgrid.valle import nombre_caso_valle
 
 #: Rol → nombre del caso. Fijos y reutilizados (usuario, 2026-10-11).
 NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
@@ -632,6 +633,52 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
         informe['converge'] = bool(flujo(app)[0])
         for x in informe['no_convergen']:
             informe['avisos'].append(f'«{nombre}»: {x.get("texto") or x["variacion"]} (025:RF-66).')
+    finally:
+        if previo is not None and app.GetActiveStudyCase() is not previo:
+            previo.Activate()
+    return informe
+
+
+# =========================================================================== valle
+ROL_VALLE = 'valle'
+
+
+def caso_valle(app, sin, anio: int | None) -> dict:
+    """«Valle <año>»: copia de «Sin proyecto <año>» con su propio escenario (073:RF-13, RF-14).
+
+    Es donde irá la calibración a valle, para no tocar el caso ni el escenario de la máxima. Un caso
+    reutilizado conserva su escenario; uno ajeno con ese nombre no se toca (RF-15). Deja activo el
+    caso que había. Aún no lo llama ningún trabajo de la web: se prueba en DIgSILENT en la 073 T8.
+    """
+    nombre = nombre_caso_valle(anio)
+    carpeta = app.GetProjectFolder('study')
+    clave = _clave(ROL_VALLE, anio)
+    casos = list(carpeta.GetContents('*.IntCase'))
+    caso = next((c for c in casos if c.loc_name == nombre and rol_de(c) == clave), None)
+    informe: dict = {'caso': nombre, 'escenario': None, 'creado': caso is None, 'avisos': []}
+    if caso is None and any(c.loc_name == nombre for c in casos):
+        informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; renómbrelo en '
+                                 'DIgSILENT para tener el de valle (073:RF-15).')
+        return {**informe, 'caso': None, 'creado': False}
+    previo = app.GetActiveStudyCase()
+    origen = _escenario_de(app, sin)
+    try:
+        if caso is None:
+            caso = carpeta.AddCopy(sin, nombre)
+            _marcar(caso, clave)
+        caso.Activate()
+        actual = app.GetActiveScenario()
+        if actual is None or actual.loc_name != nombre:
+            if actual is not None:
+                actual.Deactivate(0)
+            escenarios = app.GetProjectFolder('scen', 1)
+            propio = next((e for e in escenarios.GetContents('*.IntScenario') if e.loc_name == nombre), None)
+            if propio is None:
+                propio = (escenarios.AddCopy(origen, nombre) if origen is not None
+                          else escenarios.CreateObject('IntScenario', nombre))
+            propio.Activate()
+            actual = propio
+        informe['escenario'] = actual.loc_name
     finally:
         if previo is not None and app.GetActiveStudyCase() is not previo:
             previo.Activate()

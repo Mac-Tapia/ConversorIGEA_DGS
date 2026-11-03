@@ -29,6 +29,7 @@ from .digital_twin.evolutivo import _nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
+from .valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
 KV_MEDIA_MIN = 1.0
@@ -133,18 +134,24 @@ class Oraculo:
                 if alimentador is None or str(c.get('alimentador')) == str(alimentador)]
 
     def medir(self, obras: Sequence[Mapping[str, Any]], k: int, factor: float = 1.0,
-              alimentador: str | None = None) -> Medida:
+              alimentador: str | None = None, *, factor_q: float | None = None,
+              factor_nuevas: float = 1.0) -> Medida:
         """Flujo con la variante, las k primeras cargas nuevas y la demanda existente por ``factor``
-        (la máxima, 1; un sorteo, el suyo) (RF-3)."""
+        (la máxima, 1; un sorteo, el suyo) (RF-3).
+
+        073:RF-22, RF-23: en valle, la Q con ``factor_q``, porque un valle medido no es la máxima a
+        escala, y las cargas nuevas por ``factor_nuevas``.
+        """
         avisos: list[str] = []
         m, sis, ramas = self._sistema(obras, avisos)
         pos = {n: i for i, n in enumerate(m.ids)}
-        s = np.array([complex(float(self._nodos[n].get('p_mw') or 0.0),
-                              float(self._nodos[n].get('q_mvar') or 0.0)) for n in m.ids]) / S_BASE * factor
+        fq = factor if factor_q is None else factor_q
+        s = np.array([complex(float(self._nodos[n].get('p_mw') or 0.0) * factor,
+                              float(self._nodos[n].get('q_mvar') or 0.0) * fq) for n in m.ids]) / S_BASE
         for c in self.activas(k, alimentador):
             i = pos.get(c['nodo'])
             if i is not None:
-                s[i] += complex(float(c.get('p_mw') or 0.0), float(c.get('q_mvar') or 0.0)) / S_BASE
+                s[i] += complex(float(c.get('p_mw') or 0.0), float(c.get('q_mvar') or 0.0)) / S_BASE * factor_nuevas
         for o in obras:
             if o.get('clase') == 'condensador':
                 n = self.nodo_de.get(str(o.get('barra')))
@@ -241,10 +248,34 @@ class Oraculo:
         return list(dict.fromkeys(str(c.get('barra') or _nombre_corto(c['nodo']))
                                   for c in self.activas(k, alimentador)))
 
+    def en_valle(self, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros, valle: Mapping[str, Any] | None,
+                 alimentador: str | None = None) -> dict[str, Any]:
+        """La variante en cada punto de valle, con el criterio de siempre (073:RF-17, RF-23, RF-30).
+
+        Sin las cargas nuevas y con ellas (RF-39): pueden ingresar en cualquier momento, y sin ellas es
+        el peor caso para la sobretensión. Tiene que cumplir en los dos. Sin puntos, ``valle`` es
+        ``None``: no comprobado, nunca «cumple» (RF-24, RF-31).
+        """
+        out = sin_comprobar((valle or {}).get('motivo'))
+        hay_nuevas = bool(self.activas(k, alimentador))
+        for pt in (valle or {}).get('puntos') or []:
+            fp, fq = float(pt['factor_p']), pt.get('factor_q')
+            sin = self.medir([], 0, fp, factor_q=fq)
+            for caso, factor_nuevas in CASOS_CARGAS:
+                if factor_nuevas and not hay_nuevas:
+                    continue
+                con = self.medir(obras, k, fp, alimentador, factor_q=fq, factor_nuevas=factor_nuevas)
+                # Sin las cargas nuevas no hay barra suya que juzgar: las demás, como en «Sin proyecto».
+                barras = self.barras_de(k, alimentador) if factor_nuevas else []
+                ok, motivos = cumple(sin.para_criterio(), con.para_criterio(), barras, p)
+                anotar_punto(out, pt, caso, ok, motivos, con.u)
+        return out
+
     def evaluar(self, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros,
-                factores: Sequence[float] = (), alimentador: str | None = None) -> dict[str, Any]:
-        """Si la variante cumple con k cargas en la máxima y en qué fracción de los sorteos
-        (025:RF-50, RF-52b), en la forma de ``escalera_optima.elegir``."""
+                factores: Sequence[float] = (), alimentador: str | None = None,
+                valle: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        """Si la variante cumple con k cargas en la máxima, en qué fracción de los sorteos
+        (025:RF-50, RF-52b) y en valle (073:RF-17), en la forma de ``escalera_optima.elegir``."""
         barras = self.barras_de(k, alimentador)
         con = self.medir(obras, k, 1.0, alimentador)
         sin = self.medir([], 0)
@@ -257,7 +288,8 @@ class Oraculo:
                 buenos += cumple(s_.para_criterio(), c.para_criterio(), barras, p)[0]
             fraccion = buenos / len(factores)
         return {'maxima': ok, 'fraccion': fraccion, 'motivos': motivos,
-                'perdidas_kw': con.perdidas_kw, 'v_min': con.v_min, 'aproximada': con.aproximada}
+                'perdidas_kw': con.perdidas_kw, 'v_min': con.v_min, 'aproximada': con.aproximada,
+                **self.en_valle(obras, k, p, valle, alimentador)}
 
 
 def _aguas_abajo(m, a: int, b: int) -> np.ndarray:
@@ -501,12 +533,60 @@ class Alimentador:
 
 
 def _cumple_en(e: Mapping[str, Any], p: Parametros) -> bool:
-    """Cumple con la máxima y, si se sorteó, en la fracción del perfil (025:RF-52b)."""
-    return bool(e.get('maxima')) and (e.get('fraccion') is None or e['fraccion'] >= p.cumplimiento)
+    """Cumple con la máxima, si se sorteó en la fracción del perfil (025:RF-52b) y, si se midió,
+    en valle: la fracción no lo compensa (073:RF-18)."""
+    return (bool(e.get('maxima')) and (e.get('fraccion') is None or e['fraccion'] >= p.cumplimiento)
+            and e.get('valle') is not False)
+
+
+def modulos_en_valle(oraculo: Oraculo, barras: Sequence[str], banco_kvar: float, valle: Mapping[str, Any] | None,
+                     p: Parametros, *, k: int = 0, alimentador: str | None = None,
+                     tope: int | None = None) -> dict[str, Any]:
+    """Cuántos módulos de banco en cada barra admite el valle: el mayor que aún cumple (073:RF-19).
+
+    Sube de uno en uno con el flujo físico y para al pasarse o al no converger: en una red radial la
+    tensión solo sube con la Q, así que no hace falta otro tope que ``tope``, el del perfil. Si el
+    banco no mueve la tensión (una barra fuera del grafo, un tramo sin impedancia), para y lo dice.
+    """
+    out: dict[str, Any] = {'modulos': None, 'comprobado': False, 'por_tope': False, 'u_max': None,
+                           'motivo': (valle or {}).get('motivo') or '', 'aviso': None}
+    puntos = (valle or {}).get('puntos') or []
+    if not puntos or not banco_kvar:
+        return out
+    rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
+    rapido.pinn = None
+    out.update(modulos=0, comprobado=True)
+    barras = [b for b in barras if b in rapido.nodo_de]
+    if not barras:
+        out['aviso'] = 'las barras del banco no están en el grafo: el valle no admite ningún módulo sin medirlo'
+        return out
+    pt = puntos[0]
+
+    def tension(n: int) -> float:
+        obras = [{'clase': 'condensador', 'barra': b, 'q_kvar': float(banco_kvar) * n} for b in barras]
+        u = rapido.medir(obras, k, float(pt['factor_p']), alimentador, factor_q=pt.get('factor_q'),
+                         factor_nuevas=0.0).u               # sin ellas: el peor caso (073:RF-39)
+        return sum(u.get(b, 0.0) for b in barras)
+
+    previa = tension(0)
+    while tope is None or out['modulos'] < int(tope):
+        n = out['modulos'] + 1
+        e = rapido.en_valle([{'clase': 'condensador', 'barra': b, 'q_kvar': float(banco_kvar) * n} for b in barras],
+                            k, p, valle, alimentador)
+        if e['valle'] is False:
+            return out
+        ahora = tension(n)
+        if ahora <= previa + 1e-12:
+            out['aviso'] = f'{banco_kvar:g} kvar no mueven la tensión de {", ".join(barras)}: se para en {n - 1} módulos'
+            return out
+        previa = ahora
+        out.update(modulos=n, u_max=e['valle_u_max'])
+    out['por_tope'] = True
+    return out
 
 
 def buscar_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametros,
-             factores: Sequence[float] = ()) -> tuple[int, list[dict[str, Any]]]:
+             factores: Sequence[float] = (), *, valle: Mapping[str, Any] | None = None) -> tuple[int, list[dict[str, Any]]]:
     """El mayor k de cargas que caben con obra en cada alimentador, con el oráculo (RF-4).
 
     Galope y bisección de la 042 (``set_nueva.cuantas_caben``); para cada k, en cada alimentador
@@ -518,12 +598,12 @@ def buscar_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametr
         for a in alimentadores:
             if not oraculo.activas(k, a.nombre):
                 continue
-            if _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre), p):
+            if _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre, valle), p):
                 continue                               # ya cumple sin obra (025:RF-74)
             # 063:RF-22: primero el escalón más bajo (bancos, sección, terna), luego el costo.
             baratas = sorted(a.variantes, key=lambda v: (rango_escalon(v.escalones), a.costo(v, None) is None,
                                                          a.costo(v, None) or 0.0, v.nombre))
-            if not any(_cumple_en(oraculo.evaluar(v.obras, k, p, factores, a.nombre), p) for v in baratas):
+            if not any(_cumple_en(oraculo.evaluar(v.obras, k, p, factores, a.nombre, valle), p) for v in baratas):
                 return False
         return True
 
@@ -541,11 +621,12 @@ def _con_solo(oraculo: Oraculo, grupo: frozenset[str]) -> Oraculo:
 def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int, p: Parametros,
                   factores: Sequence[float] = (), *, evaluaciones_bayes: int = EVALUACIONES_BAYES,
                   permutaciones: int = PERMUTACIONES_SHAPLEY, semilla: int = 0,
-                  pareto: bool = True) -> dict[str, dict[str, Any]]:
+                  pareto: bool = True, valle: Mapping[str, Any] | None = None) -> dict[str, dict[str, Any]]:
     """Por alimentador con cargas entre las k: el orden en que DIgSILENT debe confirmar (RF-5),
     con la bayesiana primero si cumple y cuesta menos (RF-12), el frente (RF-13) y el reparto de
     Shapley del costo de la elegida entre sus cargas (RF-15)."""
-    campos = ('maxima', 'fraccion', 'motivos', 'perdidas_kw', 'v_min', 'aproximada')
+    campos = ('maxima', 'fraccion', 'motivos', 'perdidas_kw', 'v_min', 'aproximada', 'valle', 'valle_motivos',
+              'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar', 'valle_casos')   # 073:RF-30
     # Explorar (bayesiana, frente, Shapley) con el flujo físico, en milisegundos; el PINN juzga solo
     # las candidatas (RF-17). Con el PINN en cada combinación, NA203 + NA205 (2026-11-01) pasaba de 7 min.
     rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
@@ -557,7 +638,7 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
             continue
         tabla = []
         for v in a.variantes:
-            e = oraculo.evaluar(v.obras, k, p, factores, a.nombre)
+            e = oraculo.evaluar(v.obras, k, p, factores, a.nombre, valle)
             tabla.append({'variante': v, 'cumple': _cumple_en(e, p),
                           'costo_anual': a.costo(v, e.get('perdidas_kw')), **{x: e.get(x) for x in campos}})
         bayes = None
@@ -565,11 +646,11 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
             # Con la máxima, que descarta casi todo; los sorteos, solo a lo que la cumple (abajo).
             # Con los 200 sorteos en cada combinación, NA203 + NA205 (2026-11-01) pasaba de 15 min.
             def valorar(v: Variante, a=a):
-                e = rapido.evaluar(v.obras, k, p, (), a.nombre)
+                e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)                 # 073:RF-21
                 return a.costo(v, e.get('perdidas_kw')), _cumple_en(e, p), e
             bayes = buscar_combinacion(a.espacio, valorar, evaluaciones=evaluaciones_bayes, semilla=semilla)
             if bayes['variante'] is not None:
-                e = oraculo.evaluar(bayes['variante'].obras, k, p, factores, a.nombre)
+                e = oraculo.evaluar(bayes['variante'].obras, k, p, factores, a.nombre, valle)
                 tabla.append({'variante': bayes['variante'], 'cumple': _cumple_en(e, p),
                               'costo_anual': a.costo(bayes['variante'], e.get('perdidas_kw')),
                               'bayesiana': True, **{x: e.get(x) for x in campos}})
@@ -581,7 +662,7 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
         frente = None
         if pareto and a.espacio is not None:
             def medir(v: Variante, a=a):
-                e = rapido.evaluar(v.obras, k, p, (), a.nombre)
+                e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)                 # 073:RF-21
                 return a.costo(v, e.get('perdidas_kw')), e.get('perdidas_kw'), e.get('v_min'), _cumple_en(e, p)
             frente = frente_pareto(a.espacio, medir, semilla=semilla)
         shapley = None
@@ -591,10 +672,10 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
             def costo_grupo(grupo: frozenset[str], a=a):
                 sub = _con_solo(rapido, grupo)
                 n = len(sub.nuevas)
-                if _cumple_en(sub.evaluar([], n, p, (), a.nombre), p):
+                if _cumple_en(sub.evaluar([], n, p, (), a.nombre, valle), p):
                     return 0.0
                 for v in candidatas:
-                    e = sub.evaluar(v.obras, n, p, (), a.nombre)
+                    e = sub.evaluar(v.obras, n, p, (), a.nombre, valle)                # 073:RF-21
                     if _cumple_en(e, p):
                         return a.costo(v, e.get('perdidas_kw'))
                 return None

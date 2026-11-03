@@ -35,6 +35,9 @@ def rango(escalones) -> int:
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
                'seccion': 'cambio_seccion'}
+#: Módulos de banco que se prueban sin valle medido ni ``escalera.modulos_max`` (073:RF-24). Es la
+#: regla anterior a la spec 073, por compatibilidad, y solo vale marcada «no comprobado en valle».
+MODULOS_SIN_VALLE = 2
 #: Proyecto de DIgSILENT con los reguladores de catálogo (025:RF-59).
 BIBLIOTECA_TIPOS = 'CSG_Biblioteca_tipos'
 HORAS_ANIO = 8760
@@ -66,6 +69,8 @@ class Parametros:
     #: 025:RF-44: el regulador entra en la escalera, al final del orden (aclaración de 063:RF-26);
     #: un perfil puede quitarlo con ``escalera.con_regulador: false``.
     con_regulador: bool = True
+    #: 073:RF-19, RF-24: techo del perfil para los módulos de banco; sin él, los del valle.
+    modulos_max: int | None = None
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -120,7 +125,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
-        escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)))
+        escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
+        modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']))
 
 
 def _opcional(x) -> float | None:
@@ -162,6 +168,8 @@ class Variante:
     escalones: tuple[str, ...]
     obras: list[dict[str, Any]]
     cantidades: dict[str, float] = field(default_factory=dict)       # escalón → unidades o km
+    #: 073:RF-20: un módulo más de los que admite el valle: se mide para dejar constancia, sin combinar.
+    solo_evidencia: bool = False
 
 
 def _troncal_hasta(troncal: Sequence[Mapping[str, Any]], i: int) -> list[Mapping[str, Any]]:
@@ -196,17 +204,18 @@ def ubicacion(obra: Mapping[str, Any]) -> str:
     return f"{que} en los tramos " + ', '.join(str(t) for t in obra.get('tramos') or [])
 
 
-def _escalon_bancos(alim, barras, banco_kvar) -> list[Variante]:
+def _bancos_en(alim, barras, banco_kvar, n: int, solo_evidencia: bool = False) -> Variante:
+    # 063:RF-31: la barra del banco es el nodo de MT existente donde se instala.
+    obras = [{'clase': 'condensador', 'alimentador': alim, 'casos': [CON_PROYECTO], 'barra': b,
+              'q_kvar': float(banco_kvar) * n, 'escalones': n} for b in barras]
+    return Variante(f'bancos {n}×{banco_kvar:g} kvar', ('bancos',), obras, {'bancos': float(len(barras) * n)},
+                    solo_evidencia)
+
+
+def _escalon_bancos(alim, barras, banco_kvar, modulos: int) -> list[Variante]:
     if not barras or not banco_kvar:
         return []
-    out = []
-    for n in (1, 2):
-        # 063:RF-31: la barra del banco es el nodo de MT existente donde se instala.
-        obras = [{'clase': 'condensador', 'alimentador': alim, 'casos': [CON_PROYECTO], 'barra': b,
-                  'q_kvar': float(banco_kvar) * n, 'escalones': n} for b in barras]
-        out.append(Variante(f'bancos {n}×{banco_kvar:g} kvar', ('bancos',), obras,
-                            {'bancos': float(len(barras) * n)}))
-    return out
+    return [_bancos_en(alim, barras, banco_kvar, n) for n in range(1, int(modulos) + 1)]
 
 
 def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos) -> list[Variante]:
@@ -351,13 +360,16 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
 
 def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
               cargas: Sequence[Mapping[str, Any]], tipos: Sequence[Mapping[str, Any]], p: Parametros, *,
-              banco_kvar: float | None, fuera_desde: int | None = None) -> tuple[list[Variante], list[str]]:
+              banco_kvar: float | None, fuera_desde: int | None = None, modulos_valle: int | None = None,
+              evidencia: bool = True) -> tuple[list[Variante], list[str]]:
     """Las variantes de un alimentador en el orden de RF-44, con sus combinaciones (RF-49).
 
     ``troncal``: sus tramos desde la cabecera (``nombre``, ``largo_m``, ``corriente_a`` en
     «Con proyecto»). ``cargas``: las nuevas, con ``barra``, ``existe`` (si la barra está sin
     la carga: un banco en la que crea su variación dependería de ella) e ``indice_troncal``.
     ``fuera_desde``: índice del primer tramo cuya barra queda fuera de límites.
+    ``modulos_valle``: cuántos módulos de banco admite el valle (073:RF-19); con ``evidencia`` se
+    mide también uno más (RF-20), salvo que el tope lo ponga el perfil. Sin él, 073:RF-24.
     """
     avisos: list[str] = []
     barras = list(dict.fromkeys(str(c['barra']) for c in cargas if c.get('existe') and c.get('barra')))
@@ -366,8 +378,14 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                       'no hay escalón de bancos.')
     elif not banco_kvar:
         avisos.append(f'{alimentador}: el perfil no da el tamaño de banco de {kv:g} kV; no hay escalón de bancos.')
+    modulos = (modulos_valle if modulos_valle is not None
+               else p.modulos_max if p.modulos_max is not None else MODULOS_SIN_VALLE)
+    if modulos_valle is not None and barras and banco_kvar:
+        avisos.append(f'{alimentador}: el valle admite {modulos_valle} módulos de {banco_kvar:g} kvar en cada barra (073:RF-19).'
+                      if modulos_valle else
+                      f'{alimentador}: el valle no admite ningún módulo de {banco_kvar:g} kvar (073:RF-19).')
     por_escalon = {
-        'bancos': _escalon_bancos(alimentador, barras, banco_kvar),
+        'bancos': _escalon_bancos(alimentador, barras, banco_kvar, modulos),
         # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
         'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos)
                       if p.con_regulador else []),
@@ -375,6 +393,8 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, tipos, avisos),
     }
     solas = [v for e in ORDEN for v in por_escalon[e]]
+    if modulos_valle is not None and evidencia and barras and banco_kvar:
+        solas.insert(len(por_escalon['bancos']), _bancos_en(alimentador, barras, banco_kvar, modulos + 1, True))
     combinadas = []
     for i, a in enumerate(ORDEN):
         for b in ORDEN[i + 1:]:
@@ -489,11 +509,18 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     """
     tabla = []
     for e in evaluadas:
-        cumple_tec = bool(e.get('maxima')) and (e.get('fraccion') or 0) >= p.cumplimiento
+        # 073:RF-17, RF-18: en valle se cumple o no; la fracción de sorteos no lo compensa. Sin valle
+        # medido (``None``) no se bloquea, y queda dicho (RF-24).
+        en_valle = e.get('valle')
+        cumple_tec = bool(e.get('maxima')) and (e.get('fraccion') or 0) >= p.cumplimiento and en_valle is not False
         con_costo = (e.get('costo') or {}).get('costo_anual') is not None
         factible = cumple_tec and con_costo
-        if factible:
-            motivo = ''
+        if e.get('maxima') and en_valle is False:
+            motivo = ('cumple con la máxima; en valle no: ' + '; '.join(e.get('valle_motivos') or [])
+                      + ' (073:RF-17)')
+        elif factible:
+            # 073:RF-40: bancos y proyectos: toda obra que se vaya a implementar.
+            motivo = 'no comprobado en valle' if en_valle is None and e.get('escalones') else ''
         elif cumple_tec:
             motivo = 'cumple, pero sin costo: ' + str(e.get('sin_costo') or 'falta su costo unitario')
         elif e.get('maxima') and e.get('fraccion') is None:
@@ -519,19 +546,40 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
             else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
                                f"{mejor['costo']['costo_anual']:,.0f}")
-        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla}
+        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
     # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
     # con la máxima y los sorteos daban 94,5 % por un defecto de la evaluación, y el flujo saltaba
     # a la SET nueva.
-    con_maxima = [t for t in tabla if t.get('maxima') and (t.get('costo') or {}).get('costo_anual') is not None]
+    # 073:RF-18: aquí no entra lo que no cumple en valle.
+    con_maxima = [t for t in tabla if t.get('maxima') and t.get('valle') is not False
+                  and (t.get('costo') or {}).get('costo_anual') is not None]
     if con_maxima:
         mejor = min(con_maxima, key=lambda t: (rango(t.get('escalones') or ()), t['costo']['costo_anual'],
                                                t['nombre']))
         mejor['motivo'] = (f"cumple con la máxima en DIgSILENT; los sorteos dieron "
                            f"{100 * (mejor.get('fraccion') or 0):.1f} % (pide {100 * p.cumplimiento:.0f} %): "
                            'se elige y hay que revisar los sorteos (063:RF-33)')
-        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, 'sin_confirmar_sorteos': True}
-    cercana = max(tabla, key=lambda t: (bool(t.get('maxima')), t.get('fraccion') or 0), default=None)
-    return {'elegida': None, 'mas_cercana': cercana['nombre'] if cercana else None, 'tabla': tabla}
+        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, 'sin_confirmar_sorteos': True,
+                **_marcas_de_valle(mejor, tabla)}
+    cercana = max(tabla, key=lambda t: (bool(t.get('maxima')) and t.get('valle') is not False, t.get('fraccion') or 0),
+                  default=None)
+    return {'elegida': None, 'mas_cercana': cercana['nombre'] if cercana else None, 'tabla': tabla,
+            **_marcas_de_valle(None, tabla)}
+
+
+def _marcas_de_valle(mejor: Mapping[str, Any] | None, tabla: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Lo que la elección dice del valle: la elegida sin comprobar (073:RF-24) y que el valle no
+    aguanta los bancos que pide la máxima, con el hueco de los bancos por pasos (RF-20, RF-27)."""
+    out: dict[str, Any] = {}
+    if mejor is not None and mejor.get('valle') is None and mejor.get('escalones'):
+        out['sin_comprobar_valle'] = True
+    solo_bancos = [t for t in tabla if tuple(t.get('escalones') or ()) == ('bancos',)]
+    if not any(t.get('factible') for t in solo_bancos):
+        rechazadas = [t['nombre'] for t in solo_bancos if t.get('maxima') and t.get('valle') is False]
+        if rechazadas:
+            out['aviso_valle'] = (f"la máxima pide {', '.join(rechazadas)} y el valle no lo aguanta: sigue la escalera "
+                                  '(073:RF-20). La obra de banco por pasos existe (011:RF-71, RF-72), pero esta '
+                                  'escalera no la genera ni el oráculo la mide (073:RF-27).')
+    return out
