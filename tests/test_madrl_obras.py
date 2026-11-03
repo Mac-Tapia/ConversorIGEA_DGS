@@ -12,6 +12,7 @@ from convertersmartgrid.madrl_obras import (
     NINGUNA,
     EntornoError,
     EntornoObras,
+    EntornoPlano,
     Lagrange,
     ParametrosObras,
     candidatos_de,
@@ -168,6 +169,30 @@ def test_las_penalidades_se_aprenden_y_la_recompensa_paga_el_costo():
     assert con_obra.paso({'A': int(np.flatnonzero(con_obra.mascara('A'))[1]), 'B': NINGUNA})[0] == -1.0, 'sin penalidad, el costo'
 
 
+def _red_con_arreglo():
+    """Una red fuera de norma que cinco bancos dejan en norma."""
+    n = {f'A{i}': {'kv': 10.0, 'p_mw': 0.35, 'q_mvar': 0.3} for i in range(1, 7)}
+    n['A0'] = {'kv': 10.0, 'fuente': True, 'v_pu': 1.0}
+    r = [{'id': f'AL{i}', 'clase': 'ElmLne', 'desde': f'A{i}', 'hasta': f'A{i + 1}', 'r_ohm': 0.6, 'x_ohm': 0.5, 'inom_ka': 1.0,
+          'cerrada': True} for i in range(6)]
+    return {'nodos': n, 'ramas': r}, {'A': list(n)}, ParametrosObras(0.95, 1.05, 100.0, 0.3, 10.0, candidatos=5, max_bancos=5)
+
+
+def test_rendirse_no_sale_mas_barato_que_arreglar():
+    """074:RF-4 — la violación se cobra al final y pesa más que las obras, con los multiplicadores iniciales."""
+    g, z, p = _red_con_arreglo()
+    rendirse = EntornoObras(g, z, p).paso({'A': NINGUNA})[0]
+    e = EntornoObras(g, z, p)
+    assert not e.estado.en_norma
+    total, fin = 0.0, False
+    while not fin:
+        r_paso, fin = e.paso({'A': int(np.flatnonzero(e.mascara('A'))[1])})
+        total += r_paso
+        if not fin:
+            assert r_paso == -1.0, 'a medio camino solo se paga la obra'
+    assert e.estado.en_norma and total > rendirse
+
+
 def test_un_paso_sin_obras_termina_el_episodio():
     """074:RF-1 — sin gasto no hay nada más que esperar: un agente no se queda dando vueltas."""
     assert EntornoObras(*_red(), P).paso({'A': NINGUNA, 'B': NINGUNA})[1] is True
@@ -184,10 +209,9 @@ def test_los_agentes_cooperan_en_la_misma_red():
 
 def test_nsga2_y_escalera_sobre_las_mismas_obras():
     """074:RF-5 — los dos resuelven la misma red; NSGA-II no paga más que la óptima por fuerza bruta."""
-    n, r = _linea('A', 6, 0.25)
-    g, z = {'nodos': n, 'ramas': r}, {'A': list(n)}
-    p = ParametrosObras(0.95, 1.05, 100.0, 0.3, 10.0, candidatos=4, max_bancos=4)
+    g, z, p = _red_con_arreglo()
     e = EntornoObras(g, z, p)
+    assert not e.estado.en_norma, 'sin problemas, esta prueba se cumpliría con cero obras'
     nsga = control_nsga2(e, generaciones=25, poblacion=24)
     esc = control_escalera(EntornoObras(g, z, p))
     assert nsga['en_norma'] and esc['en_norma']
@@ -202,6 +226,23 @@ def test_nsga2_y_escalera_sobre_las_mismas_obras():
                 mejor = k * p.costo_banco
     assert mejor is not None and nsga['costo'] == mejor
     assert esc['costo'] >= mejor, 'la escalera nunca puede ganar a la óptima'
+
+
+def test_el_entorno_plano_es_el_mismo_entorno():
+    """074:RF-9 — una obra por paso, con la máscara del entorno, y las penalidades suben al terminar sin cumplir."""
+    e = EntornoObras(*_red(), P)
+    plano = EntornoPlano(e)
+    obs = plano.reiniciar()
+    assert obs.shape == (plano.tam_observacion,) and plano.n_acciones == 1 + sum(len(x) for x in e.acciones.values())
+    m = plano.mascara()
+    assert m[0] and m.sum() > 1 and not any(m[1 + i] for i, (a, _x) in enumerate(plano.todas) if a == 'B')
+    elegida = int(np.flatnonzero(m)[1])
+    obs2, r, fin = plano.paso(elegida)
+    assert e.costo == P.costo_banco and r < 0 and not fin and obs2[4 + 2 * (elegida - 1)] == 1.0
+    antes = e.lagrange.multiplicadores['subtension']
+    _o, _r, fin = plano.paso(0)
+    assert fin and e.lagrange.multiplicadores['subtension'] > antes
+    assert plano.reiniciar()[4] == 0.0 and e.costo == 0.0
 
 
 def test_comparar_deja_la_referencia():

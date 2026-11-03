@@ -235,6 +235,8 @@ class EntornoObras:
         self.lagrange = lagrange or Lagrange()
         self.acciones = {a: candidatos_de(grafo, n, p) for a, n in self.zonas.items()}
         self.escala = escala_costo or max(p.costo_banco, 1.0)
+        self.presupuesto = max(sum(x.costo for lista in self.acciones.values() for x in lista) / self.escala, 1.0)
+        self.inicial = evaluar_grafo(grafo, p)
         self.reiniciar()
 
     def reiniciar(self) -> None:
@@ -279,10 +281,68 @@ class EntornoObras:
         self.pasos += 1
         self.estado = evaluar_grafo(self.grafo, self.p)
         fin = self.estado.en_norma or self.pasos >= self.p.max_pasos or not gasto
-        return -gasto / self.escala - self.lagrange.penalidad(self.estado), fin
+        # La violación se cobra una vez, por cómo queda la red. Cobrada en cada paso, cada obra alargaba el
+        # episodio y sumaba castigo: MaskablePPO aprendió a terminar sin hacer nada, con el multiplicador en 27.
+        return -gasto / self.escala - (self.penalidad_final() if fin else 0.0), fin
+
+    def relativa(self) -> Evaluacion:
+        """Lo que queda de cada violación frente a la inicial: las sumas en p.u. no se comparan con un costo."""
+        def parte(ahora: float, inicio: float) -> float:
+            return ahora / inicio if inicio else 0.0
+
+        return Evaluacion(parte(self.estado.subtension, self.inicial.subtension),
+                          parte(self.estado.sobretension, self.inicial.sobretension),
+                          parte(self.estado.sobrecarga, self.inicial.sobrecarga), self.estado.vm_min)
+
+    def penalidad_final(self) -> float:
+        """Dejar el problema entero cuesta al menos todas las obras: si no, rendirse sale más barato que arreglar.
+
+        Con la violación en p.u., dejar la red fuera de norma costaba 2,6 y arreglarla, 5. El cargo fijo es
+        porque la puerta pide norma, sin términos medios: en proporción a lo que falta, MaskablePPO se quedaba
+        en 0,9472 p.u. con un banco menos.
+        """
+        if self.estado.en_norma:
+            return 0.0
+        return self.presupuesto * (1.0 + self.lagrange.penalidad(self.relativa()))
 
     def obras(self) -> list[str]:
         return sorted(f'{a}:{self.acciones[a][i].tipo}:{self.acciones[a][i].elemento}' for a, h in self.hechas.items() for i in h)
+
+
+class EntornoPlano:
+    """Una obra por paso en un espacio fijo: la forma que pide MaskablePPO, el control del piloto (074:RF-9).
+
+    No depende de ninguna biblioteca de aprendizaje; el adaptador a gymnasium vive en la herramienta. La
+    acción 0 termina el episodio; las penalidades se actualizan al terminar, con el estado final.
+    """
+
+    def __init__(self, entorno: EntornoObras) -> None:
+        self.e = entorno
+        self.todas = [(a, i + 1) for a, lista in entorno.acciones.items() for i in range(len(lista))]
+        self.n_acciones = len(self.todas) + 1
+        self.tam_observacion = 4 + 2 * len(self.todas)
+
+    def reiniciar(self) -> np.ndarray:
+        self.e.reiniciar()
+        return self.observar()
+
+    def observar(self) -> np.ndarray:
+        x = self.e.estado
+        obs = [x.vm_min, x.subtension, x.sobretension, x.sobrecarga / 100]
+        for a, i in self.todas:
+            obs += [float(i - 1 in self.e.hechas[a]), self.e.acciones[a][i - 1].costo / self.e.escala]
+        return np.asarray(obs, dtype=np.float32)
+
+    def mascara(self) -> np.ndarray:
+        por_agente = {a: self.e.mascara(a) for a in self.e.zonas}
+        return np.array([True] + [bool(por_agente[a][i]) for a, i in self.todas], dtype=bool)
+
+    def paso(self, indice: int) -> tuple[np.ndarray, float, bool]:
+        elegidas = {} if indice == 0 else dict([self.todas[indice - 1]])
+        recompensa, fin = self.e.paso(elegidas)
+        if fin:
+            self.e.lagrange.actualizar(self.e.relativa())
+        return self.observar(), recompensa, fin
 
 
 def resultado(entorno: EntornoObras, nombre: str, evaluaciones: int) -> dict[str, Any]:

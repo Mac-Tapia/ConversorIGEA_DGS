@@ -22,7 +22,8 @@ puerta que decida si el aprendizaje sigue.
   bancos antes que terna.
 - RF-3: SI una obra no tiene metrado o costo declarado, ENTONCES EL SISTEMA no la ofrecerá, sin suponerlos.
 - RF-4: EL SISTEMA calculará la recompensa con el costo y con penalidades por violación, cuyos multiplicadores de Lagrange se
-  aprenden; el agente no aprenderá la función de recompensa.
+  aprenden; el agente no aprenderá la función de recompensa. Terminar fuera de norma costará más que todas las obras, y se cobrará
+  una vez, al terminar.
 
 ### Medida
 
