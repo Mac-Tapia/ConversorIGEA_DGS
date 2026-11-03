@@ -14,7 +14,7 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k dominio` en verde.
 - [x] T7 Vía antigua de entrenamiento. (RF-62 a RF-66)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k via` en verde.
-- [x] T8 Currículo y prueba sellada nueva. (RF-67 a RF-75)
+- [x] T8 Currículo y prueba sellada nueva. (RF-67 a RF-76)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k curriculo` en verde.
 - [ ] T9 [DIgSILENT] Un alimentador y una SET de punta a punta y una carga nueva, desde la consola, en proyectos de prueba de la sesión.
   Hecho cuando: los informes de la calibración y de la factibilidad salen de órdenes escritas, con su evidencia.

@@ -55,7 +55,7 @@ ETAPAS: tuple[Etapa, ...] = (
 #: (063:RF-1); solo se rehace si hubo obras. Su libro lo decide el perfil, dentro del propio informe (066:RF-1).
 ETAPAS_CARGA: tuple[Etapa, ...] = (
     Etapa('diagnostico', 'verificar_convergencia', ('proyecto',)),
-    Etapa('calibracion', 'recalibrar', ('proyecto', 'periodo'), condicion='sin_calibracion'),
+    Etapa('calibracion', 'recalibrar', ('proyecto', 'periodo'), proceso=True, condicion='sin_calibracion'),
     Etapa('carga', 'carga_nueva_sola', ('proyecto', 'alimentadores', 'sed', 'nueva')),
     Etapa('evaluacion', 'informe_factibilidad', ('proyecto', 'alimentadores', 'sed', 'formulario')),
     Etapa('obras', 'optimizar_con_proyecto', ('proyecto', 'alimentadores'), condicion='si_no_factible'),

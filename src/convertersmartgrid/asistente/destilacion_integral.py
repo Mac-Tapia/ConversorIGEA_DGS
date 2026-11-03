@@ -143,10 +143,11 @@ def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict]:
     def coincide(r):
         return clave_texto(r['texto']) in textos or firma_familia(r['texto'], r['datos']) in familias
 
-    choques = [r for r in filas if r['particion'] != 'entrenamiento' and coincide(r)]
+    # Una orden humana igual a una frase sellada no es fuga: las dos son prueba (070:RF-76).
+    choques = [r for r in filas if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human' and coincide(r)]
     if choques:
         raise ValueError(f'la prueba sellada coincide con {len(choques)} fila(s) de selección, calibración o prueba')
-    conservadas = [r for r in filas if not coincide(r)]
+    conservadas = [r for r in filas if r['particion'] != 'entrenamiento' or not coincide(r)]
     return [*conservadas, *nueva], {'huella': huella_de_sellada(nueva), 'filas': len(nueva), 'frases': len({r['group_id'] for r in nueva}),
                                     'quitadas_de_entrenar': len(filas) - len(conservadas)}
 
@@ -223,6 +224,9 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     filas = sorted((r for r in filas if texto_canonico(r['texto']) not in cuarentena),
                    key=lambda r: r['record_id'])
     filas, sellada = _con_la_prueba_sellada(filas)
+    # 070:RF-76: la comparación de arriba es con mayúsculas y tildes: «Qué hay» confirmada dejaba «que hay» entrenando.
+    confirmadas = {clave_texto(t) for t in humanos}
+    filas = [r for r in filas if r['particion'] != 'entrenamiento' or clave_texto(r['texto']) not in confirmadas]
     ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos,
                                          ninguna, ninguna_reservada) if ampliar else {})
     filas.sort(key=lambda r: r['record_id'])
@@ -230,9 +234,11 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     for r in filas:
         denominadores[r['particion']][r['quality']] += 1
     historicas = sorted(r['record_id'] for r in filas if es_historica(r))
+    sinteticas_historicas = sorted(r['record_id'] for r in filas if es_historica(r) and r['quality'] != 'gold_human')
     meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas), **ampliacion,
             # 070:RF-72: mide lo mismo que la huella b800c6ca1a11d9ba si el vocabulario y las humanas son los de entonces.
-            'prueba_sellada': sellada, 'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas)},
+            'prueba_sellada': sellada, 'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas),
+                                                            'huella_sinteticas': huella(sinteticas_historicas)},
             'denominadores': {p: dict(sorted(c.items())) for p, c in sorted(denominadores.items())},
             'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL,
                                       'parafrasis_070': PARAFRASIS_070}),

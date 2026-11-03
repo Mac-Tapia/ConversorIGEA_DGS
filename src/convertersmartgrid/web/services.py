@@ -8469,6 +8469,9 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         http = requests.Session()
 
     def proceso(tarea: str, d: dict) -> dict:
+        if tarea == 'recalibrar':
+            # 070:RF-26: la ruta da 409 con el carril del asistente ocupado, y aquí lo ocupa este mismo trabajo.
+            return recalibrar_sistema(ws, ctx, d['proyecto'], d['periodo'], demanda_dir=d.get('ruta'))
         cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', d['sistema'],
                '--periodo', d['periodo'], '--url', base.rstrip('/')]
         if d.get('ruta'):
@@ -8639,6 +8642,10 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
 
     if plan.tarea == 'entrenar_asistente':
         return asistente_entrenar(ws, ctx)
+    if plan.tarea == 'recalibrar':
+        # 070:RF-26: la ruta da 409 con el carril del asistente ocupado, y aquí lo ocupa este mismo trabajo.
+        return {'plan': plan.id, 'tarea': plan.tarea,
+                **recalibrar_sistema(ws, ctx, plan.datos['proyecto'], plan.datos['periodo'], demanda_dir=plan.datos.get('ruta'))}
     from .asistente_operacion import alcance_de_sistema_web
 
     alcance, nombre = alcance_de_sistema_web(sys.modules[__name__], ws, plan)  # 070:RF-20, RF-21

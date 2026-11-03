@@ -295,6 +295,8 @@ def _pronostico(svc, ws, plan, extras: dict) -> None:
             pedido['centrales'] = {a: {k: c[k] for k in ('generacion', 'llegada', 'salida')} for a, c in centrales.items()}
     if (h := _HORIZONTES.search(t)) is not None:
         pedido['horizontes'] = [int(x) for x in h.group(1).split(',')]
+    if (c := re.search(r'\bclientes\s*:\s*([^;]+)', sin_ruta, re.IGNORECASE)) is not None:
+        pedido['clientes'] = [x.strip() for x in c.group(1).split(',') if x.strip()]
     algoritmos = [a for a in _ALGORITMOS if re.search(rf'\b{a}\b', t)]
     if algoritmos:
         pedido['algoritmos'] = algoritmos

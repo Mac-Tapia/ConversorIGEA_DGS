@@ -311,7 +311,6 @@ def test_tareas_tipos_nuevos_al_final_para_los_modelos_heredados():
      '/demanda/cabecera/buscar', {'medidores': [{'alimentador': 'F1', 'medidor': 'M1'}]}),
     ('cruzar_clientes', {'alimentadores': ['F1'], 'periodo': '2026-07'}, {}, 'POST', '/demanda/clientes/cruzar',
      {'alimentadores': ['F1'], 'periodo': '2026-07'}),
-    ('recalibrar', {'proyecto': 'P1', 'periodo': '2026-07'}, {}, 'POST', '/demanda/recalibrar', {'project': 'P1'}),
     ('escanear', {'proyecto': 'P1', 'alimentadores': ['F1']}, {}, 'POST', '/powerfactory/escanear', {'feeders': ['F1']}),
     ('verificar_convergencia', {'proyecto': 'P1'}, {}, 'POST', '/powerfactory/verificar', {'project': 'P1'}),
     ('descargar_resultados', {'alimentadores': ['F1']}, {}, 'POST', '/outputs/archive', {'feeders': ['F1']}),
@@ -319,7 +318,7 @@ def test_tareas_tipos_nuevos_al_final_para_los_modelos_heredados():
      {'clase': 'cabecera', 'modo': 'pronostico'}),
 ])
 def test_tareas_cada_una_por_su_ruta(tarea, datos, extras, metodo, ruta, parte):
-    """070:RF-19 / 070:RF-22 / 070:RF-23 / 070:RF-26 / 070:RF-27 / 070:RF-28 / 070:RF-35 / 070:RF-36 — la ruta del operador."""
+    """070:RF-19 / 070:RF-22 / 070:RF-23 / 070:RF-27 / 070:RF-28 / 070:RF-35 / 070:RF-36 — la ruta del operador."""
     from convertersmartgrid.asistente.ejecutor import pasos
 
     p = pasos(tarea, datos, extras)[-1]
@@ -590,6 +589,33 @@ def test_tareas_pronostico_con_todo_llega_a_su_ruta_y_dice_quien_gano(api, monke
     texto = fin['result']['texto']
     assert 'estacional_semanal' in texto and 'ningún neuronal la supera' in texto and 'referencia' in texto
     assert 'nunca una medición' in texto
+
+
+def test_tareas_recalibrar_con_su_carril_ocupado_por_el_propio_trabajo(api, monkeypatch, tmp_path):
+    """070:RF-26 — por la ruta daba 409: el trabajo del asistente ocupa el carril en el que ella se encola."""
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.pf_projects['P1'] = 'P1'
+    ws.demanda['medidores'] = {'path': str(tmp_path / 'm.xlsx')}
+    llamadas = []
+    monkeypatch.setattr(services, 'recalibrar_sistema', lambda ws, ctx, p, per, demanda_dir=None, **k: (
+        llamadas.append((p, per, demanda_dir)) or {'project': p, 'codigo': 0}))
+    plan = proponer(cliente, wid, monkeypatch, Modelo('recalibrar', proyecto='P1', periodo='2026-07'), 'recalibra')['plan']
+    assert plan['listo'], plan['faltan']
+    fin = confirmar(cliente, wid, plan)
+    assert fin['status'] == 'done', fin['error']
+    assert llamadas == [('P1', '2026-07', None)]
+
+
+def test_tareas_pronostico_con_clientes_nombrados(entorno, monkeypatch, tmp_path):
+    """070:RF-36 — los clientes son opcionales; si se nombran, van al pedido."""
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    libro = tmp_path / 'm.xlsx'
+    libro.write_bytes(b'x')
+    plan, extras = _plan('pronostico', {'ruta': str(libro)}, f'pronostica clientes con {libro} zona UTC cada 15 min clientes: C1, C2'), {}
+    operacion.requisitos(services, WorkspaceStore(entorno / 'w').create(), plan, extras)
+    assert not plan.faltan and extras['pronostico']['clase'] == 'cliente' and extras['pronostico']['clientes'] == ['C1', 'C2']
 
 
 def test_tareas_nuevas_que_escriben_esperan_confirmacion(api, monkeypatch):
@@ -902,8 +928,6 @@ class WebDeCarga:
         marca = ruta.strip('/').replace('/', '_') + f'-{len(self.llamadas)}'
         if ruta == '/powerfactory/verificar':
             self.resultados[marca] = {'returncode': self.verificar_rc, 'report': 'v.json'}
-        if ruta == '/demanda/recalibrar':
-            self.calibrado = True
         if ruta == '/informes/factibilidad':
             self.informes += 1
             self.resultados[marca] = {'factible': self.factible or self.informes > 1, 'informe': f'informe{self.informes}.docx',
@@ -919,9 +943,15 @@ def correr_carga(web, tmp_path):
     from convertersmartgrid.asistente.ejecutor import ClienteWeb
     from convertersmartgrid.asistente.orquestador import ETAPAS_CARGA, PuntoDeControl, ejecutar_proyecto
 
+    def proceso(tarea, _d):
+        assert tarea == 'recalibrar'
+        web.llamadas.append(('POST', 'proceso:recalibrar', None))
+        web.calibrado = True
+        return {'codigo': 0}
+
     control = PuntoDeControl.abrir(tmp_path / 'carga.json')
     r = ejecutar_proyecto(DATOS_CARGA, cliente=ClienteWeb(web, 'http://x', 'w', intervalo_s=0), control=control,
-                          proceso=lambda *_a: pytest.fail('sin proceso'), etapas=ETAPAS_CARGA)
+                          proceso=proceso, etapas=ETAPAS_CARGA)
     return r, control
 
 
@@ -930,7 +960,7 @@ def test_cadena_sin_problemas_no_hace_obras_y_lo_dice(tmp_path):
     web = WebDeCarga()
     r, _c = correr_carga(web, tmp_path)
     rutas = [x[1] for x in web.llamadas if x[0] == 'POST']
-    assert rutas[0] == '/powerfactory/verificar' and '/demanda/recalibrar' not in rutas and '/pf/obras/con-proyecto' not in rutas
+    assert rutas[0] == '/powerfactory/verificar' and 'proceso:recalibrar' not in rutas and '/pf/obras/con-proyecto' not in rutas
     assert rutas.count('/informes/factibilidad') == 1
     et = r['etapas']
     assert et['calibracion']['estado'] == 'omitida' and 'calibración' in et['calibracion']['resultado']['motivo']
@@ -954,7 +984,7 @@ def test_cadena_sin_calibracion_recalibra_antes_de_la_carga(tmp_path):
     web = WebDeCarga(calibrado=False)
     correr_carga(web, tmp_path)
     rutas = [x[1] for x in web.llamadas if x[0] == 'POST']
-    assert rutas.index('/demanda/recalibrar') < rutas.index('/lote/plan')
+    assert rutas.index('proceso:recalibrar') < rutas.index('/lote/plan')
 
 
 def test_cadena_no_sigue_si_no_converge(tmp_path):
@@ -1420,7 +1450,8 @@ def test_curriculo_prueba_historica_intacta_y_sin_tareas_nuevas():
     filas, meta = preparar_corpus({}, [], por_familia=5)
     historicas = [r for r in filas if es_historica(r)]
     assert {r['tarea'] for r in historicas} == set(TAREAS_HASTA_069)
-    assert meta['prueba_historica'] == {'huella': huella(sorted(r['record_id'] for r in historicas)), 'filas': len(historicas)}
+    assert meta['prueba_historica']['huella'] == huella(sorted(r['record_id'] for r in historicas))
+    assert meta['prueba_historica']['filas'] == len(historicas)
     assert not [r for r in filas if es_historica(r) and r.get('conjunto')]
 
 
@@ -1519,3 +1550,42 @@ def test_curriculo_interpreta_lo_mismo_con_tipos_nuevos_en_un_heredado():
     p[5:, ETIQUETAS.index('B-proyecto')] = 3.
     p[5:, 0] = 0.
     assert 'proyecto' in marcar_datos('hola AB101', p)
+
+def _humana(texto, tarea, datos=()):
+    return {'texto': texto, 'tarea': tarea, 'datos': list(datos), 'origen': 'confirmado'}
+
+
+def test_curriculo_lo_confirmado_nunca_entrena_aunque_fuera_plata():
+    """070:RF-76 — sin mayúsculas ni tildes es la misma frase: ni la plata, ni sus erratas, ni la plantilla que la repite."""
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.asistente.maestro_real import clave_texto
+
+    # Frase de catálogo que se genera sin datos: «que hay cargado» sale de las plantillas de ``estado``.
+    humana = 'Qué hay cargado'
+    plata = {'texto': 'qué hay cargado', 'tarea': 'estado', 'confianza': .95, 'spans': [], 'maestro': 'claude'}
+    filas, meta = preparar_corpus({}, [_humana(humana, 'estado')], por_familia=8, etiquetas_reales=[plata])
+    gold = [r for r in filas if r['quality'] == 'gold_human']
+    assert [r['particion'] for r in gold] == ['prueba'] and meta['ordenes_humanas_independientes'] == 1
+    clave = clave_texto(humana)
+    assert not [r for r in filas if r['particion'] != 'prueba' and clave_texto(r['texto']) == clave]
+    assert meta['etiquetas_reales']['usadas'] == 0
+
+
+def test_curriculo_una_humana_igual_a_la_sellada_no_para_el_corpus():
+    """070:RF-76 / 070:RF-71 — las dos son prueba: no hay fuga, y la sellada no cambia por una orden del operador."""
+    from convertersmartgrid.asistente import prueba_sellada as ps
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+
+    filas, meta = preparar_corpus({}, [_humana('Aborta eso', 'cancelar_trabajo')], por_familia=1)
+    assert meta['prueba_sellada']['huella'] == ps.HUELLA and meta['ordenes_humanas_independientes'] == 1
+    assert sum(r['quality'] == 'gold_human' for r in filas) == 1
+
+
+def test_curriculo_la_historica_sin_humanas_se_puede_comparar():
+    """070:RF-72 — con más órdenes confirmadas la huella con humanas se mueve; la de sus sintéticas lo dice aparte."""
+    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+
+    _, sin = preparar_corpus({}, [], por_familia=1)
+    _, con = preparar_corpus({}, [_humana('una orden confirmada cualquiera', 'estado')], por_familia=1)
+    assert sin['prueba_historica']['huella'] != con['prueba_historica']['huella']
+    assert sin['prueba_historica']['huella_sinteticas'] == con['prueba_historica']['huella_sinteticas']

@@ -50,7 +50,7 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 - RF-23: EL SISTEMA cruzará los clientes de la máxima ya buscada, con su fecha cuando la haya.
 - RF-24: EL SISTEMA calibrará un proyecto con la última máxima buscada, preparando el plan y aplicándolo.
 - RF-25: EL SISTEMA simulará esa misma calibración, sin aplicarla.
-- RF-26: EL SISTEMA recalibrará un proyecto por la ruta de recalibrar de la web.
+- RF-26: EL SISTEMA recalibrará un proyecto con la misma función que la ruta de recalibrar, en el trabajo del asistente, cuyo carril ocupa esa ruta.
 - RF-27: EL SISTEMA escaneará un proyecto por la ruta de escanear de la web.
 - RF-28: EL SISTEMA verificará la convergencia por la ruta de verificar de la web.
 - RF-29: EL SISTEMA conectará una carga nueva sola con el formulario de la ruta del plan de cargas, con la potencia, el factor de potencia y la ubicación de la orden.
@@ -118,6 +118,7 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 - RF-73: EL SISTEMA conservará las puertas de 0,95 y 0,85 por familia, de 0,98 y 0,95 humanas y de rechazo.
 - RF-74: EL SISTEMA no etiquetará un pronóstico como reconstrucción del gemelo temporal.
 - RF-75: EL SISTEMA dejará idénticas las huellas de las órdenes fijas.
+- RF-76: EL SISTEMA dejará las órdenes confirmadas por el operador solo en la prueba, aunque un texto igual, sin contar mayúsculas ni tildes, estuviera como plata o en una plantilla.
 
 ## Fuera de alcance
 
@@ -130,4 +131,7 @@ guiones como tareas; rellenar el formulario del informe desde el PDF, que sigue 
 - El tope de 3 alimentadores es una regla del análisis decidida por el usuario, no un tamaño de la red: no contradice P2.
 - 027:RF-65 pedía órdenes fijas de todas las tareas; las tareas nuevas no entran en ellas para conservar su huella (068:RF-41).
 - La frase literal reconoce tareas nuevas mientras no haya modelo que las conozca; no las reconoce con cualquier redacción.
+- El corpus sellado del ajuste generativo (047) sigue con las tareas de hasta la 069.
+- Las etiquetas de plata de los textos reales (068) se pusieron con el catálogo anterior: alguna orden que hoy es de una tarea nueva puede enseñar la antigua. La prueba sellada es sintética: el 98 % de las humanas sigue midiéndose con solo las que haya confirmado el operador.
+- La huella b800c6ca1a11d9ba incluía las 3 humanas de entonces. Con más órdenes confirmadas no se reproduce literalmente; lo comparable es la huella de sus filas sintéticas, y salen las que repitan el texto de una humana nueva (047:RF-11).
 - El factor de potencia de una carga sola, si la orden no lo trae, es el que propone el formulario 3.2 (008:RF-27), y el plan lo dice.

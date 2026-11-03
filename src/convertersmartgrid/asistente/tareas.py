@@ -274,8 +274,8 @@ _TAREAS = (
               'simula la calibración de {proyecto}', 'prueba el ajuste de {proyecto} sin grabar',
               'corre la calibración de {proyecto} en seco'),
           frases_literales=(r'\bsimula\w* (la )?calibracion\b', r'\bcalibracion\b.*\ben seco\b', r'\bajuste\b.*\bsin grabar\b')),
-    Tarea('recalibrar', 'Recalibra un proyecto ya importado, sin reconvertir (028:RF-21).', (P, PER, LIBROS), True, 'trabajo',
-          'recalibrar_sistema', (
+    Tarea('recalibrar', 'Recalibra un proyecto ya importado, sin reconvertir (028:RF-21).', (P, PER, LIBROS), True, 'proceso',
+          'sistema_web', (
               'recalibra {proyecto} con {periodo}', 'vuelve a calibrar {proyecto} con {periodo}',
               'actualiza la calibración de {proyecto} a {periodo}'),
           frases_literales=(r'^(?!.*\bsistema\b).*\brecalibr\w*\b', r'\bvuelve a calibrar\b')),

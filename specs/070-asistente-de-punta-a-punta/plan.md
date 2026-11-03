@@ -28,6 +28,7 @@ Lee: `docs/constitution.md`, `specs/070-asistente-de-punta-a-punta/spec.md`, 067
 - La base calibrada se pide en un paso de lectura (`/demanda/ajuste/ultimo`) y no se guarda en el plan: en el proyecto entero aún no existe al proponerlo.
 - La prueba sellada usa un vocabulario propio y fijo, sin nombres de empresa. Descartado el vocabulario del espacio: su huella cambiaría con cada espacio.
 - La histórica se reconoce por tarea anterior y sin marca de conjunto; sus filas no cambian porque su semilla depende de la plantilla y de la tarea.
+- Recalibrar va por la función de servicio y no por su ruta: la ruta se encola en el carril del asistente, que ocupa el propio trabajo, y daría 409.
 - Descartado añadir las tareas nuevas a las órdenes fijas: cambiaría su huella (068:RF-41, 069:RF-13).
 
 ## Pruebas

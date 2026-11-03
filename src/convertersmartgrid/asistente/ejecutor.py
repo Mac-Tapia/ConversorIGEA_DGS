@@ -247,9 +247,6 @@ def _pasos_070(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any], 
         return _pasos_de_calibrar(proyecto, extras, 'aplicar', 'aplicar la calibración')
     if tarea == 'simular_calibracion':
         return _pasos_de_calibrar(proyecto, extras, 'simular', 'simular la calibración')
-    if tarea == 'recalibrar':
-        return [Paso('recalibrar', 'POST', '/demanda/recalibrar',
-                     {'project': proyecto, 'periodo': datos.get('periodo'), 'demanda_dir': datos.get('ruta')})]
     if tarea == 'escanear':
         return [Paso('escanear', 'POST', '/powerfactory/escanear', {'project': proyecto, 'feeders': feeders})]
     if tarea == 'verificar_convergencia':
