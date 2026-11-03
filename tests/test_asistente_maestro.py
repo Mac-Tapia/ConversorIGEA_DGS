@@ -1482,9 +1482,10 @@ def test_curriculo_decide_la_sellada_y_la_historica_se_mide_sin_decidir(tmp_path
     di.guardar_corpus(tmp_path / 'corpus', filas, meta, [])
     cfg = co.Configuracion(epocas=1, lote_tarea=64, lote_etiquetas=64, oculta_tarea=8, oculta_etiquetas=8)
     r = di.entrenar_destilacion(tmp_path / 'corpus', tmp_path / 'run', cfg=cfg, semillas=(11,), registro=tmp_path / 'reg', log=lambda *_a, **_k: None)
-    n_sellada = sum(x.get('conjunto') == ps.CONJUNTO for x in filas)
+    # 079:RF-45: decide la sellada nueva; la de la 070 se mide con su huella y sin decidir.
+    n_sellada = sum(x.get('conjunto') == 'sellada_079' for x in filas)
     assert vistas['sinteticas']['ejemplos'] == n_sellada and r['sinteticas']['ejemplos'] == n_sellada
-    assert r['prueba_sellada']['huella'] == HUELLA_PRUEBA_SELLADA
+    assert r['prueba_sellada']['huella'] == HUELLA_PRUEBA_SELLADA and r['prueba_sellada']['decide'] is False
     assert r['prueba_historica']['decide'] is False and r['prueba_historica']['medida']['ejemplos'] > 0
     assert r['prueba_historica']['huella'] == meta['prueba_historica']['huella']
 

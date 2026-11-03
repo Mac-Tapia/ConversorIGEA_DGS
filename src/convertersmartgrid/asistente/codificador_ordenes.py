@@ -7,11 +7,15 @@ solo se aprenden dos cabezas sobre un codificador que ya sabe español, y una de
 Los artefactos son las cabezas y sus metadatos; el codificador se nombra con su revisión y se lee de la caché local,
 sin red. El contrato de ``predecir`` es el de ``transformer.ModeloOrdenes``, y el intérprete, el registro y
 ``modelos_en_uso`` no distinguen uno de otro.
+
+079: con ``afinar_capas`` las últimas capas aprenden junto con las cabezas (``afinado_ordenes``), y el artefacto las lleva.
 """
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+import copy
 from dataclasses import dataclass, field
+import hashlib
 import random
 from typing import Any
 
@@ -21,6 +25,7 @@ from .sinteticos import Ejemplo
 from .tareas import TAREAS
 
 ARQUITECTURA = 'codificador_preentrenado_v1'
+ARQUITECTURA_AFINADA = 'codificador_afinado_v1'
 NOMBRE_CODIFICADOR = 'intfloat/multilingual-e5-base'
 #: La revisión se fija: otra revisión del codificador daría otras representaciones para las mismas cabezas.
 REVISION_CODIFICADOR = 'd128750597153bb5987e10b1c3493a34e5a4502a'
@@ -28,6 +33,8 @@ PREFIJO = 'query: '
 LARGO_TOKENS = 96
 RASGOS_FORMA = 6
 UMBRAL_HEREDADO = .85
+#: 079:RF-59: la orden que deja el codificador en la caché que lee este proceso.
+ORDEN_PREPARAR = f'python tools/preparar_modelos_ia.py --descargar --backend huggingface --id {NOMBRE_CODIFICADOR} --output-json preparar.json'
 
 
 def _torch():
@@ -48,6 +55,22 @@ class Configuracion:
     suavizado: float = .05
     peso_maximo: float = 20.
     semilla: int = 0
+    # 079: 0 es solo las cabezas (RF-2). Con 2 capas: 14,2 M de los 278 M parámetros, 58 MB en `pesos.pt` con las cabezas (medido el 2026-11-03).
+    afinar_capas: int = 0
+    afinar_epocas: int = 8
+    #: Una época aquí es este tope de pasos: con 44 298 filas, medir selección solo al recorrerlas todas pararía tarde.
+    pasos_por_epoca: int = 800
+    afinar_lote: int = 32
+    #: Relleno incluido: la media es de 18 piezas, el 95 % bajo 29 y el máximo 55 en lo sintético (medido el 2026-11-03).
+    afinar_piezas: int = 1536
+    lr_cabezas: float = 1e-3
+    lr_tramo: float = 2e-5
+    decaimiento_capa: float = .8
+    paciencia: int = 2
+    peso_contrastiva: float = .2
+    temperatura_contrastiva: float = .1
+    filas_de_grupo: int = 2
+    tope_gpu_gb: float = 5.
 
 
 @dataclass
@@ -55,6 +78,15 @@ class Codificado:
     """Lo que el codificador da de cada frase: su vector, un vector por pieza y dónde está cada pieza."""
     oraciones: Any
     tokens: list
+    tramos: list[list[tuple[int, int]]]
+
+
+@dataclass
+class Prefijo:
+    """Lo que dan las capas congeladas de unas frases: lo único que el afinado puede guardar (079:RF-16)."""
+    estados: Any
+    atencion: Any
+    indices: list[list[int]]
     tramos: list[list[tuple[int, int]]]
 
 
@@ -68,30 +100,112 @@ class CodificadorPreentrenado:
             self.red = AutoModel.from_pretrained(nombre, revision=revision, local_files_only=True)
         except (ImportError, OSError, ValueError) as exc:
             raise RuntimeError(f'El codificador {nombre} (revisión {revision}) no está en la caché local de '
-                               f'Hugging Face o faltan sus librerías: {exc}') from exc
+                               f'Hugging Face que usa este proceso, o faltan sus librerías; se prepara con: {ORDEN_PREPARAR}: {exc}') from exc
         self.red.to(dispositivo).eval()
         for p in self.red.parameters():
             p.requires_grad_(False)
         self.dispositivo = dispositivo
         self.dim = int(self.red.config.hidden_size)
+        self._huellas: dict[int, str] = {}
 
-    def __call__(self, textos: Sequence[str]) -> Codificado:
-        torch = _torch()
+    def _tokenizar(self, textos: Sequence[str]) -> tuple[dict, list[list[int]], list[list[tuple[int, int]]]]:
         lote = self.tokenizador([PREFIJO + t for t in textos], padding=True, truncation=True, max_length=LARGO_TOKENS,
                                 return_offsets_mapping=True, return_tensors='pt')
         posiciones = lote.pop('offset_mapping').tolist()
-        lote = {k: v.to(self.dispositivo) for k, v in lote.items()}
+        indices, tramos = [], []
+        for pos in posiciones:
+            # Las piezas del prefijo y las especiales no son de la orden; lo demás se mide desde su inicio.
+            propios = [i for i, (a, b) in enumerate(pos) if b > len(PREFIJO) and b > a]
+            indices.append(propios)
+            tramos.append([(max(0, pos[i][0] - len(PREFIJO)), pos[i][1] - len(PREFIJO)) for i in propios])
+        return {k: v.to(self.dispositivo) for k, v in lote.items()}, indices, tramos
+
+    def __call__(self, textos: Sequence[str]) -> Codificado:
+        torch = _torch()
+        lote, indices, tramos = self._tokenizar(textos)
         with torch.no_grad():
             h = self.red(**lote).last_hidden_state
         mascara = lote['attention_mask'].unsqueeze(-1).to(h.dtype)
         oraciones = torch.nn.functional.normalize((h * mascara).sum(1) / mascara.sum(1), dim=-1)
-        tokens, tramos = [], []
-        for fila, pos in enumerate(posiciones):
-            # Las piezas del prefijo y las especiales no son de la orden; lo demás se mide desde su inicio.
-            indices = [i for i, (a, b) in enumerate(pos) if b > len(PREFIJO) and b > a]
-            tramos.append([(max(0, pos[i][0] - len(PREFIJO)), pos[i][1] - len(PREFIJO)) for i in indices])
-            tokens.append(h[fila, indices])
-        return Codificado(oraciones, tokens, tramos)
+        return Codificado(oraciones, [h[fila, propios] for fila, propios in enumerate(indices)], tramos)
+
+    def _mascara(self, atencion, estados):
+        from transformers.masking_utils import create_bidirectional_mask
+
+        return create_bidirectional_mask(config=self.red.config, inputs_embeds=estados, attention_mask=atencion)
+
+    def prefijo(self, textos: Sequence[str], capas: int) -> Prefijo:
+        """Hasta justo antes de las ``capas`` que se afinan; con ellas da lo mismo que ``red`` entera (079:RF-16)."""
+        torch = _torch()
+        lote, indices, tramos = self._tokenizar(textos)
+        with torch.no_grad():
+            h = self.red.embeddings(input_ids=lote['input_ids'])
+            mascara = self._mascara(lote['attention_mask'], h)
+            for capa in self.red.encoder.layer[:-capas]:
+                h = capa(h, mascara)
+        return Prefijo(h, lote['attention_mask'], indices, tramos)
+
+    def tramo_original(self, capas: int):
+        """Una copia, con gradiente, de las últimas capas tal como vienen en la revisión: lo compartido no se toca (079:RF-14)."""
+        tramo = copy.deepcopy(self.red.encoder.layer[-capas:])
+        for p in tramo.parameters():
+            p.requires_grad_(True)
+        return tramo
+
+    def aplicar_tramo(self, tramo, estados, atencion):
+        mascara = self._mascara(atencion, estados)
+        h = estados
+        for capa in tramo:
+            h = capa(h, mascara)
+        return h
+
+    def huella_congelada(self, capas: int) -> str:
+        """De embeddings y capas congeladas; se calcula una vez por proceso: es 1 GB de pesos (079:RF-19)."""
+        if capas not in self._huellas:
+            self._huellas[capas] = huella_tensores([
+                *self.red.embeddings.state_dict(prefix='embeddings.').items(),
+                *((f'capa.{i}.{n}', v) for i, c in enumerate(self.red.encoder.layer[:-capas]) for n, v in c.state_dict().items())])
+        return self._huellas[capas]
+
+
+def huella_tensores(pares: Sequence[tuple[str, Any]]) -> str:
+    """De unos pesos, en un orden fijo y sin depender del dispositivo: dice si son exactamente los mismos (079:RF-19)."""
+    h = hashlib.blake2b(digest_size=16)
+    for nombre, tensor in sorted(pares, key=lambda p: p[0]):
+        h.update(nombre.encode('utf-8'))
+        h.update(tensor.detach().cpu().contiguous().numpy().tobytes())
+    return h.hexdigest()
+
+
+def piezas_del_tramo(estados, atencion, indices):
+    """Del paso por el tramo a lo que leen las cabezas: el vector de la frase y un vector por pieza de la orden."""
+    torch = _torch()
+    mascara = atencion.unsqueeze(-1).to(estados.dtype)
+    oraciones = torch.nn.functional.normalize((estados * mascara).sum(1) / mascara.sum(1).clamp_min(1), dim=-1)
+    return oraciones, [estados[fila, idx] for fila, idx in enumerate(indices)]
+
+
+class CodificadorAfinado:
+    """Lo congelado, compartido en el proceso, más el tramo afinado de este modelo. Se llama como el congelado (079:RF-22)."""
+
+    def __init__(self, base, tramo, capas: int):
+        self.base, self.tramo, self.capas = base, tramo, capas
+
+    @property
+    def dim(self) -> int:
+        return int(self.base.dim)
+
+    def __call__(self, textos: Sequence[str]) -> Codificado:
+        with _torch().no_grad():
+            p = self.base.prefijo(textos, self.capas)
+            h = self.base.aplicar_tramo(self.tramo, p.estados, p.atencion)
+            oraciones, tokens = piezas_del_tramo(h, p.atencion, p.indices)
+        return Codificado(oraciones, tokens, p.tramos)
+
+    def meta_tramo(self) -> dict[str, Any]:
+        return {'capas': self.capas, 'parametros': sum(int(p.numel()) for p in self.tramo.parameters()),
+                'huella': huella_tensores(list(self.tramo.state_dict().items())),
+                'huella_congelada': self.base.huella_congelada(self.capas)}
 
 
 #: Se cambia en las pruebas para inyectar un codificador falso, sin descargar nada.
@@ -155,12 +269,21 @@ class ModeloCodificador:
     temperatura: float = 1.
     umbral: float = UMBRAL_HEREDADO
     simbolos: dict = field(default_factory=dict)
+    afinado: dict | None = None
+    #: 079:RF-54: la regla de Ollama elegida para este modelo; sin ella, la fija de 075:RF-37 (RF-56).
+    puesto_charla: int | None = None
+    piso_charla: float = 0.
 
     @property
     def meta_extra(self) -> dict[str, Any]:
-        return {'arquitectura': ARQUITECTURA, 'umbral': self.umbral,
-                'codificador': {'nombre': NOMBRE_CODIFICADOR, 'revision': REVISION_CODIFICADOR, 'prefijo': PREFIJO,
-                                'largo_tokens': LARGO_TOKENS, 'dim': int(self.codificador.dim)}}
+        tramo = getattr(self.codificador, 'meta_tramo', None)
+        datos = {'nombre': NOMBRE_CODIFICADOR, 'revision': REVISION_CODIFICADOR, 'prefijo': PREFIJO,
+                 'largo_tokens': LARGO_TOKENS, 'dim': int(self.codificador.dim)}
+        extra = {'arquitectura': ARQUITECTURA_AFINADA if tramo else ARQUITECTURA, 'umbral': self.umbral,
+                 'codificador': {**datos, 'tramo': tramo()} if tramo else datos}
+        if self.puesto_charla is not None:
+            extra['regla_charla'] = {'puesto': self.puesto_charla, 'piso': self.piso_charla}
+        return extra
 
     def logits_tarea(self, textos: Sequence[str]):
         self.red.eval()
@@ -258,6 +381,8 @@ def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None, log:
     """
     torch = _torch()
     cfg = cfg or Configuracion()
+    if cfg.afinar_capas:                                                             # 079:RF-1, RF-2
+        return cache.entrenar(ejemplos, cfg, log, dispositivo)
     disp = dispositivo
     codificador = cache.codificador
     cache.asegurar([e.texto for e in ejemplos], log)
@@ -326,6 +451,22 @@ def _entrenar_etiquetas(red, ejemplos, cache, cfg: Configuracion, rnd: random.Ra
         log(f'  época {epoca} de datos: pérdida {total / max(n, 1):.4f}')
 
 
+def _abrir_tramo(meta: dict, pesos: dict, cfg: Configuracion, base, disp) -> tuple[Any, CodificadorAfinado]:
+    """Las cabezas y el tramo de un modelo guardado, comprobando que son los que se guardaron (079:RF-19, RF-20)."""
+    datos = meta['codificador']
+    tramo_meta = datos['tramo']
+    capas = int(tramo_meta['capas'])
+    red = construir_cabezas(int(datos['dim']), len(meta['tareas']), len(meta['etiquetas']), cfg)
+    red.tramo = base.tramo_original(capas)
+    red.load_state_dict(pesos)
+    red.to(disp).eval()
+    if huella_tensores(list(red.tramo.state_dict().items())) != tramo_meta['huella']:
+        raise ValueError('la huella del tramo afinado no coincide con la guardada')
+    if base.huella_congelada(capas) != tramo_meta['huella_congelada']:
+        raise ValueError(f"la huella de las capas congeladas no coincide: ¿es la revisión {datos['revision']} del codificador?")
+    return red, CodificadorAfinado(base, red.tramo, capas)
+
+
 def modelo_desde(meta: dict, pesos: dict, version: str, dispositivo) -> ModeloCodificador:
     """Reabre un modelo guardado: sus cabezas, y el codificador de su nombre y su revisión, sin red (069:RF-4, RF-5)."""
     if meta.get('etiquetas') != list(ETIQUETAS) or meta.get('tareas') != tareas_del_modelo():
@@ -334,8 +475,13 @@ def modelo_desde(meta: dict, pesos: dict, version: str, dispositivo) -> ModeloCo
     disp = dispositivo
     codificador = obtener_codificador(datos['nombre'], datos['revision'], disp)
     cfg = Configuracion(**meta['cfg'])
-    red = construir_cabezas(int(datos['dim']), len(meta['tareas']), len(meta['etiquetas']), cfg)
-    red.load_state_dict(pesos)
-    red.to(disp).eval()
+    if datos.get('tramo'):                                                           # 079:RF-18 a RF-21
+        red, codificador = _abrir_tramo(meta, pesos, cfg, codificador, disp)
+    else:
+        red = construir_cabezas(int(datos['dim']), len(meta['tareas']), len(meta['etiquetas']), cfg)
+        red.load_state_dict(pesos)
+        red.to(disp).eval()
+    regla = meta.get('regla_charla') or {}
     return ModeloCodificador(red, codificador, list(meta['tareas']), cfg, version or meta.get('version', ''),
-                             float(meta.get('temperatura', 1.)), float(meta.get('umbral', UMBRAL_HEREDADO)))
+                             float(meta.get('temperatura', 1.)), float(meta.get('umbral', UMBRAL_HEREDADO)),
+                             puesto_charla=regla.get('puesto'), piso_charla=float(regla.get('piso', 0.)))

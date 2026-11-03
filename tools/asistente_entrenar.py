@@ -23,6 +23,9 @@ ningún modelo en uso (070:RF-63, RF-64).
 ``--validacion-cruzada`` (075:RF-35), con la vía gobernada: las órdenes confirmadas entrenan en 5 vueltas, la puerta humana se
 mide fuera de grupo y el modelo final se entrena con todas. Sin ella, las confirmadas solo examinan (070:RF-76).
 
+``--afinar`` (079:RF-61), con la vía gobernada: afina las últimas capas del codificador junto con las cabezas, con parada por
+selección. Sin ella, solo las cabezas (079:RF-2). Lee el codificador de la caché del proceso, sin red: ver 079:RF-58 en su plan.
+
 Códigos de salida: 0 hecho, 2 sin PyTorch o sin GPU, 1 error.
 """
 from __future__ import annotations
@@ -66,6 +69,11 @@ def main(argv=None) -> int:
     p.add_argument('--modelo-codex', help='Modelo de Codex como maestro (por defecto, el de su configuración)')
     p.add_argument('--validacion-cruzada', action='store_true',
                    help='Con --integral: entrenar con las órdenes confirmadas en 5 vueltas y decidir con la medida fuera de grupo (075:RF-35)')
+    p.add_argument('--afinar', action='store_true', help='Con --integral: afinar las últimas capas del codificador junto con las cabezas (079:RF-1)')
+    p.add_argument('--afinar-capas', type=int, default=2, help='Cuántas últimas capas afinar (079:RF-5)')
+    p.add_argument('--afinar-lote', type=int, default=32, help='Frases por lote al afinar; bájelo si falta memoria de GPU (079:RF-8)')
+    p.add_argument('--afinar-epocas', type=int, default=8, help='Tope de épocas de afinado, con parada por selección (079:RF-12)')
+    p.add_argument('--afinar-pasos', type=int, default=800, help='Pasos de cada época de afinado')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
@@ -75,6 +83,10 @@ def main(argv=None) -> int:
         args.integral = True
     if args.validacion_cruzada and not args.integral:
         p.error('--validacion-cruzada solo vale con --integral')
+    if args.afinar and not args.integral:                                            # 079:RF-62
+        p.error('--afinar solo vale con --integral')
+    if args.afinar and min(args.afinar_capas, args.afinar_lote, args.afinar_epocas, args.afinar_pasos) < 1:
+        p.error('las opciones de --afinar deben ser positivas')
 
     if args.dataset_v2:
         from convertersmartgrid.trabajadores_ml import fallo,escribir_informe,semillas_de
@@ -115,7 +127,10 @@ def main(argv=None) -> int:
             lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
-                    cfg=codificador_ordenes.Configuracion(epocas=args.epocas),
+                    cfg=codificador_ordenes.Configuracion(
+                        epocas=args.epocas, **({'afinar_capas': args.afinar_capas, 'afinar_lote': args.afinar_lote,
+                                                'afinar_epocas': args.afinar_epocas, 'pasos_por_epoca': args.afinar_pasos}
+                                               if args.afinar else {})),
                     semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
                     registro=almacen.raiz() / 'model_registry',
                     validacion_cruzada=args.validacion_cruzada, vedadas_extra=fijas_de_prueba)
