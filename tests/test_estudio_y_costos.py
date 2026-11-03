@@ -5,12 +5,14 @@ import json
 import re
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from convertersmartgrid.costos_fuentes import (CostosError, FuenteCostos, cruzar_codigos, leer_sicodi,
                                                partir_codigo_vnr)
 from convertersmartgrid.estudio_planeamiento import EstudioError, aviso_del_anio_medido, estudio_de
+from convertersmartgrid.metrados import metrados_de_lineas, valorar_metrados
 
 RAIZ = Path(__file__).resolve().parents[1]
 HORIZONTE = json.loads((RAIZ / 'config/pide_universal_2017.json').read_text(encoding='utf-8'))['horizonte']
@@ -104,7 +106,8 @@ def test_lo_que_no_cruza_se_nombra_sin_costo(zip_sicodi):
     assert 'estructura' in sin_est['sin_costo'][0]['motivo']
 
 
-@pytest.mark.parametrize('codigo, partes', [('AA03503G', ('AA03503', 'G')), ('12345', ('12345', '')), ('', ('', ''))])
+@pytest.mark.parametrize('codigo, partes', [('AA03503G', ('AA03503', 'G')), ('12345', ('12345', '')), ('', ('', '')),
+                                            ('DEFAULT', ('DEFAULT', ''))])
 def test_partir_codigo(codigo, partes):
     """072:RF-7 — la letra final es la tensión; sin ella, no se inventa."""
     assert partir_codigo_vnr(codigo) == partes
@@ -165,3 +168,70 @@ def test_datos_del_plan_activan_el_estudio():
     """072:RF-1 — el servicio del PIDE forma los años desde el plan, no de una lista fija."""
     fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert "estudio_de(plan_pide['anio_presentacion']" in fuente
+
+
+def _tramo(seccion, codigo, largo_m, aereo=True):
+    return SimpleNamespace(section_id=seccion, source_type_code=codigo, length_m=largo_m, overhead=aereo)
+
+
+def test_metrados_por_codigo_cuadran_y_nombran_lo_que_falta():
+    """072:RF-15 — los km por código más los sin código son los del modelo; aéreo y subterráneo aparte."""
+    m = metrados_de_lineas([_tramo('S1', 'AA03503G', 1000), _tramo('S2', 'AA03503G', 500, False),
+                            _tramo('S3', 'AA05003G', 250), _tramo('S4', '', 100)])
+    assert m['tramos'] == 4 and m['km'] == pytest.approx(1.85)
+    fila = m['por_codigo']['AA03503G']
+    assert fila['tramos'] == 2 and fila['km'] == pytest.approx(1.5)
+    assert fila['km_aereo'] == pytest.approx(1.0) and fila['km_subterraneo'] == pytest.approx(0.5)
+    assert m['sin_codigo'] == ['S4'] and m['km_sin_codigo'] == pytest.approx(0.1)
+    assert sum(x['km'] for x in m['por_codigo'].values()) + m['km_sin_codigo'] == pytest.approx(m['km'])
+
+
+def test_valorar_es_metrado_por_costo_y_no_oculta_huecos(zip_sicodi):
+    """072:RF-7, 072:RF-15 — sin costo no suma; el total lleva su moneda y su resolución."""
+    m = metrados_de_lineas([_tramo('S1', 'AA03503G', 2000), _tramo('S2', 'AA03503H', 3000)])
+    v = valorar_metrados(m['por_codigo'], _tabla(zip_sicodi), sector='ST2', estructura='C')
+    assert v['total'] == pytest.approx(200.0) and v['km_valorados'] == pytest.approx(2.0)
+    assert v['km_sin_costo'] == pytest.approx(3.0) and 'tensión' in v['sin_costo'][0]['motivo']
+    assert v['moneda'] == 'M' and v['resolucion'] == 'R-1'
+
+
+def test_solo_las_redes_se_valoran_por_km(tmp_path):
+    """072:RF-15 — un equipo no se multiplica por un largo: queda nombrado."""
+    ruta = tmp_path / 'e.zip'
+    fila = _fila('EQ1', 'G', 'C', 'ST2', 10.0).replace('\tRED\tA1', '\tEQUIPOS\tA1')
+    with zipfile.ZipFile(ruta, 'w') as z:
+        z.writestr('Instalacion.txt', CAB + '\n' + fila)
+    v = valorar_metrados({'EQ1G': {'km': 2.0}}, _tabla(ruta), sector='ST2', estructura='C')
+    assert v['total'] == 0.0 and 'no se valora por km' in v['sin_costo'][0]['motivo']
+
+
+def test_metrados_de_un_alimentador_real():
+    """072:RF-15 — con datos reales: cuadra con el largo de todos los tramos del modelo."""
+    import os
+
+    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.model import build_feeder_model
+
+    rutas = [os.environ.get(k) for k in ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT')]
+    if not all(rutas):
+        pytest.skip('sin los TXT reales')
+    ds = CymdistDataset.from_files(*rutas)
+    modelo = build_feeder_model(ds, ds.feeder_ids()[0])
+    m = metrados_de_lineas(modelo.lines)
+    assert m['tramos'] == len(modelo.lines) > 0
+    assert m['km'] == pytest.approx(sum(x.length_km for x in modelo.lines))
+    assert sum(x['tramos'] for x in m['por_codigo'].values()) + len(m['sin_codigo']) == m['tramos']
+
+
+def test_subterraneo_usa_su_unica_estructura_y_default_no_es_codigo(tmp_path):
+    """072:RF-7, 072:RF-15 — caso de CA101: el cable no pide concreto; DEFAULT no da una tensión falsa."""
+    ruta = tmp_path / 'c.zip'
+    with zipfile.ZipFile(ruta, 'w') as z:
+        z.writestr('Instalacion.txt', CAB + chr(10) + _fila('N205003', 'D', 'E', 'ST2', 40.0))
+    tabla = _tabla(ruta)
+    m = metrados_de_lineas([_tramo('S1', 'N205003D', 1000, False), _tramo('S2', 'DEFAULT', 500)])
+    v = valorar_metrados(m['por_codigo'], tabla, sector='ST2', estructura='C')
+    assert v['total'] == pytest.approx(40.0) and v['km_valorados'] == pytest.approx(1.0)
+    assert 'no es un código de costo' in v['sin_costo'][0]['motivo']
+    aereo = valorar_metrados({'N205003D': {'km': 1.0, 'km_aereo': 1.0}}, tabla, sector='ST2', estructura='C')
+    assert aereo['total'] == 0.0, 'un tramo aéreo no toma otra estructura: se nombra'

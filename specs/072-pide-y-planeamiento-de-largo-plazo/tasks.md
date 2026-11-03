@@ -9,7 +9,7 @@
       Falta declarar la moneda (el TXT no la dice) y el sector típico de cada sistema.
 - [ ] T3 Adaptador de módulos estándar de transmisión. (RF-5, RF-6)
       Hecho cuando: el fichero de la resolución está ubicado y una obra de transmisión se valora con él.
-- [ ] T4 Metrados desde la red. (RF-15)
+- [x] T4 Metrados desde la red. (RF-15)
       Hecho cuando: los metrados de un alimentador real cuadran con sus longitudes.
 - [ ] T5 Proyección de mercado y prueba contra lo ocurrido. (RF-10, RF-11)
       Hecho cuando: medida contra la tasa de 029 en una prueba sin mirar el futuro.

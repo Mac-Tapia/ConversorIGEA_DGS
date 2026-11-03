@@ -64,6 +64,7 @@ class Costo:
     nombre: str
     componentes: Mapping[str, float | None]
     fuente: FuenteCostos
+    familia: str = ''
 
     @property
     def total(self) -> float:
@@ -82,13 +83,23 @@ class TablaCostos:
         self.codigos = {k[0] for k in self.filas}
         self.tensiones = {k[1] for k in self.filas}
         self.sectores = {k[3] for k in self.filas}
+        self._estructuras: dict[tuple[str, str, str], set[str]] = {}
+        for k in self.filas:
+            self._estructuras.setdefault((k[0], k[1], k[3]), set()).add(k[2])
 
     def buscar(self, codigo: str, tension: str, estructura: str, sector: str) -> Costo | None:
         """El costo exacto, o ``None``: nunca el más parecido (072:RF-7)."""
         return self.filas.get((codigo, tension, estructura, sector))
 
+    def estructura_unica(self, codigo: str, tension: str, sector: str) -> str | None:
+        """La estructura si el costo solo existe con una: un cable subterráneo no lleva postes."""
+        hallados = self._estructuras.get((codigo, tension, sector), ())
+        return next(iter(hallados)) if len(hallados) == 1 else None
+
     def motivo_sin_costo(self, codigo: str, tension: str, estructura: str, sector: str) -> str:
         """Por qué no hay costo, para nombrar el hueco (072:RF-7)."""
+        if not tension:
+            return f'«{codigo}» no es un código de costo con su tensión'
         if not sector or sector not in self.sectores:
             return f'sector típico «{sector}» no está en {self.fuente.nombre}'
         if tension not in self.tensiones:
@@ -131,14 +142,16 @@ def leer_sicodi(ruta: Path | str, *, resolucion: str, anio: int, moneda: str, ur
             raise CostosError(f'{_INSTALACION}, fila {n}: costo no numérico ({exc})') from exc
         if componentes['total'] is None:
             raise CostosError(f'{_INSTALACION}, fila {n}: sin total')
-        filas[clave] = Costo(clave[0], clave[1], clave[2], clave[3], v[i['NOMBRE']], componentes, fuente)
+        filas[clave] = Costo(clave[0], clave[1], clave[2], clave[3], v[i['NOMBRE']], componentes, fuente,
+                             v[i['FAMILIA']])
     return TablaCostos(fuente, filas)
 
 
 def partir_codigo_vnr(codigo: str) -> tuple[str, str]:
     """`AA03503G` → (`AA03503`, `G`): en la red, la letra final del código es la tensión."""
     codigo = str(codigo or '').strip()
-    if len(codigo) < 2 or not codigo[-1].isalpha():
+    # Un nombre como DEFAULT no es un código de costo: partido daba la tensión falsa «T».
+    if len(codigo) < 2 or not codigo[-1].isalpha() or not any(c.isdigit() for c in codigo):
         return codigo, ''
     return codigo[:-1], codigo[-1]
 
