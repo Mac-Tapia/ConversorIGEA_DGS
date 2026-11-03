@@ -75,21 +75,19 @@ def main(argv=None):
             (args.destino/'seleccion.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps({'ok':True,'modelo':resultado['modelo'],'criterio':'seleccion'}));return 0
         if args.accion=='evaluar':
-            import tempfile
-            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
             from convertersmartgrid.asistente.llm_destilacion import evaluar_version_llm
             args.destino.mkdir(parents=True);creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','evaluacion-llm-generativo'):
+            with turno_gpu('evaluacion-llm-generativo'):
                 resultado=evaluar_version_llm(args.dataset,args.modelo,parte=args.parte,seleccion=args.seleccion,
                     log=print)
             (args.destino/'resultado.json').write_text(json.dumps(resultado,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
             print(json.dumps({k:v for k,v in resultado.items() if k!='metricas'},ensure_ascii=True));return 0
         if args.accion=='entrenar-epoca':
-            import tempfile
-            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
             from convertersmartgrid.asistente.llm_destilacion import entrenar_epoca
             creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','destilacion-llm-generativo'):
+            with turno_gpu('destilacion-llm-generativo'):
                 resultado=entrenar_epoca(args.dataset,args.destino,epoca=args.epoca,desde=args.desde,
                     semilla=args.semilla,rango=args.rango,lr=args.lr,acumulacion=args.acumulacion,
                     max_tokens=args.max_tokens)
@@ -101,11 +99,10 @@ def main(argv=None):
             print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
                               'por_particion':resultado['por_particion']},ensure_ascii=True));return 0
         if args.accion=='exportar':
-            import tempfile
-            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
             from convertersmartgrid.asistente.llm_destilacion import exportar_fusionado
             creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','exportar-alumno-llm'):
+            with turno_gpu('exportar-alumno-llm'):
                 resultado=exportar_fusionado(args.destino,args.adaptador)
             print(json.dumps(resultado,ensure_ascii=True));return 0
         args.destino.mkdir(parents=True)

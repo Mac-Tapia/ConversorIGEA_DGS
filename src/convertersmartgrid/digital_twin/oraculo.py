@@ -540,6 +540,13 @@ class OraculoPINN:
         n_min, n_max = self.dominio['nodos']
         if not 0.5 * n_min <= len(m.ids) <= 2 * n_max:
             motivos.append(f'{len(m.ids)} nodos frente a {n_min}–{n_max} aprendidos')
+        # 071:RF-2: rangos y tamaño no dicen de qué red se trata: un modelo con 0,0024 p.u. en su red
+        # dio 0,308 p.u. en otra (2026-10-28). Sin redes declaradas, tampoco se sabe: decide la física.
+        redes = self.dominio.get('redes')
+        if not redes:
+            motivos.append('el modelo no declara en qué redes se probó')
+        elif red_de(m) not in redes:
+            motivos.append('red distinta de aquellas en las que se probó el modelo')
         return motivos
 
     def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
@@ -749,6 +756,23 @@ def _muestras(bufer: BuferEpisodios, consulta: Consulta) -> tuple[list[Muestra],
 
 #: Episodios de prueba de otra red sin los que no se promueve (027:RF-3; usuario, 2026-10-28).
 MIN_EPISODIOS_PRUEBA = 10
+
+
+def fallos_de_comparacion(error: float | None, error_fisica: float | None, error_actual: float | None,
+                          puertas: Puertas) -> list[str]:
+    """Lo que impide promover frente al flujo físico y al modelo en uso (071:RF-3, RF-4).
+
+    Sin esta comparación, una PINN peor que el flujo que ya tiene el conversor pasaba solo por
+    no superar 0,005 p.u. Sin una medida de la física no se puede demostrar que la mejore.
+    """
+    fallos = []
+    if error is None or error_fisica is None:
+        fallos.append('sin medida en la prueba para comparar con el flujo físico')
+    elif error >= error_fisica:
+        fallos.append(f'no mejora al flujo físico: {error:.4g} frente a {error_fisica:.4g} p.u.')
+    if error is not None and error_actual is not None and error > puertas.tolerancia_dorados * error_actual + 1e-6:
+        fallos.append(f'empeora al modelo en uso: {error:.4g} frente a {error_actual:.4g} p.u.')
+    return fallos
 
 
 def red_de(m: Muestra) -> str:
@@ -979,7 +1003,9 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     x_all = np.concatenate([m.x for m in grupos['entrenamiento']])
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']),
-                         max(len(m.ids) for m in grupos['entrenamiento'])]}
+                         max(len(m.ids) for m in grupos['entrenamiento'])],
+               # 071:RF-1: la de prueba cuenta porque en ella se demuestra el error que abre la puerta.
+               'redes': sorted({red_de(m) for ms in grupos.values() for m in ms})}
     estados, curvas = [], []
     for k in range(MIEMBROS):
         inicial = actual.estados[k] if compatible and k < len(actual.estados) else None
@@ -1024,6 +1050,10 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         fallos.append(f'error de tensión {error} p.u. sobre {puertas.mae_v_max}')
     if meta['residuo_medio'] > puertas.residuo_max:
         fallos.append(f"residuo físico {meta['residuo_medio']:.3g} sobre {puertas.residuo_max}")
+    # 071:RF-3, RF-4: en la misma prueba, frente al flujo físico y al modelo en uso.
+    error_fisica = mae(ModeloMallado(exponente=cfg.exponente_carga), evaluacion)
+    error_actual = mae(actual, evaluacion) if actual is not None else None
+    fallos += fallos_de_comparacion(error, error_fisica, error_actual, puertas)
     if error_dorados_actual is not None and error_dorados is not None and \
             error_dorados > puertas.tolerancia_dorados * error_dorados_actual + 1e-6:
         fallos.append('empeora los casos dorados')
@@ -1031,7 +1061,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         promover(bufer, candidato.version, f'mae {error:.4g}')
     log(f"Gemelo: candidato {candidato.version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
     return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta),
-            'promovido': not fallos, 'fallos': fallos, **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
+            'promovido': not fallos, 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
+            **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
 
 
 def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str, Any]:

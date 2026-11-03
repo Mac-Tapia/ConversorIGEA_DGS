@@ -23,6 +23,7 @@ Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 1 erro
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 import traceback
 from pathlib import Path
@@ -74,6 +75,8 @@ def main(argv=None) -> int:
                           encoding='utf-8')
         print(f'ERROR: {exc}')
         return 2
+    from convertersmartgrid.trabajadores_ml import turno_gpu
+
     bufer = BuferEpisodios(args.raiz)
     if not (args.evaluar or args.deriva) or args.curva:
         # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
@@ -81,54 +84,57 @@ def main(argv=None) -> int:
 
         liberar_gpu_para_entrenar()
     try:
-        if args.curva:
-            from convertersmartgrid.digital_twin.buffer import Consulta
-            from convertersmartgrid.digital_twin.curva import informe
+        entrena = not (args.evaluar or args.deriva) or args.curva
+        # 071:RF-7: el mismo turno que los demás entrenamientos; ocupado, no entrena y lo dice.
+        with (turno_gpu('pinn-gemelo') if entrena else nullcontext()):
+            if args.curva:
+                from convertersmartgrid.digital_twin.buffer import Consulta
+                from convertersmartgrid.digital_twin.curva import informe
 
-            muestras, ids = oraculo._muestras(bufer, Consulta())
-            r = informe(muestras, ids, log=_log)
-            for f in r['sistemas']:
-                c = f.get('curva')
-                print(f"red {f['red']} ({f['nodos']} nodos): {f['entrenamiento']}/{f['validacion']}/{f['prueba']}"
-                      + (f"; faltan {f['faltan']}" if not f['suficiente'] else '')
-                      + (f"; mejora con un 20 % más: {c['mejora_ultimo_20pct']:.1%}"
-                         f" ({'convergido' if c['convergido'] else 'inestable' if c.get('inestable') else 'hacen falta más'})"
-                         if c else ''))
-            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
-            return 0
-        if args.deriva:
-            r = oraculo.deriva_por_familia(bufer)
-            for m in r['motivos'] or ['sin deriva: no hace falta reentrenar']:
-                print(m)
-            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
-            return 0
-        if args.reproducir:
-            r = oraculo.reproducir(bufer, args.reproducir, log=_log)
-            print(f"{r['version']}: original {r['mae_original']}, reproducido {r['mae_reproducido']}, "
-                  f"diferencia {r['diferencia']:.2e} ({'reproducible' if r['reproducible'] else 'NO reproducible'})")
-            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
-            return 0 if r['reproducible'] else 1
-        if args.evaluar:
-            r = oraculo.evaluar(bufer)
-            for parte, d in r['por_particion'].items():
-                modelo = f", modelo {d['mae_modelo']:.5f}" if 'mae_modelo' in d else ''
-                print(f"{parte}: {d['episodios']} episodio(s), física {d['mae_fisica']:.5f} p.u.{modelo}")
-            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
-            return 0
-        if args.buscar:
-            from convertersmartgrid.digital_twin.buffer import Consulta
-            from convertersmartgrid.digital_twin.hiperparametros import buscar
+                muestras, ids = oraculo._muestras(bufer, Consulta())
+                r = informe(muestras, ids, log=_log)
+                for f in r['sistemas']:
+                    c = f.get('curva')
+                    print(f"red {f['red']} ({f['nodos']} nodos): {f['entrenamiento']}/{f['validacion']}/{f['prueba']}"
+                          + (f"; faltan {f['faltan']}" if not f['suficiente'] else '')
+                          + (f"; mejora con un 20 % más: {c['mejora_ultimo_20pct']:.1%}"
+                             f" ({'convergido' if c['convergido'] else 'inestable' if c.get('inestable') else 'hacen falta más'})"
+                             if c else ''))
+                salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+                return 0
+            if args.deriva:
+                r = oraculo.deriva_por_familia(bufer)
+                for m in r['motivos'] or ['sin deriva: no hace falta reentrenar']:
+                    print(m)
+                salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+                return 0
+            if args.reproducir:
+                r = oraculo.reproducir(bufer, args.reproducir, log=_log)
+                print(f"{r['version']}: original {r['mae_original']}, reproducido {r['mae_reproducido']}, "
+                      f"diferencia {r['diferencia']:.2e} ({'reproducible' if r['reproducible'] else 'NO reproducible'})")
+                salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+                return 0 if r['reproducible'] else 1
+            if args.evaluar:
+                r = oraculo.evaluar(bufer)
+                for parte, d in r['por_particion'].items():
+                    modelo = f", modelo {d['mae_modelo']:.5f}" if 'mae_modelo' in d else ''
+                    print(f"{parte}: {d['episodios']} episodio(s), física {d['mae_fisica']:.5f} p.u.{modelo}")
+                salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+                return 0
+            if args.buscar:
+                from convertersmartgrid.digital_twin.buffer import Consulta
+                from convertersmartgrid.digital_twin.hiperparametros import buscar
 
-            muestras, _ids = oraculo._muestras(bufer, Consulta())
-            b = buscar(muestras, ensayos=args.ensayos, limite_s=args.limite_s,
-                       destino=bufer.raiz / 'modelos' / 'busquedas', log=_log)
-            _log(f"Búsqueda: mejor ensayo {b['mejor']['numero']} con {b['mejor']['mae_validacion']:.3e} p.u. "
-                 f"en validación; ensayos en {b.get('ruta')}")
-            r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log), 'busqueda': b}
-        elif args.forzar or args.sistema:
-            r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema)
-        else:
-            r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log)
+                muestras, _ids = oraculo._muestras(bufer, Consulta())
+                b = buscar(muestras, ensayos=args.ensayos, limite_s=args.limite_s,
+                           destino=bufer.raiz / 'modelos' / 'busquedas', log=_log)
+                _log(f"Búsqueda: mejor ensayo {b['mejor']['numero']} con {b['mejor']['mae_validacion']:.3e} p.u. "
+                     f"en validación; ensayos en {b.get('ruta')}")
+                r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log), 'busqueda': b}
+            elif args.forzar or args.sistema:
+                r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema)
+            else:
+                r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         r, codigo = {'entrenado': False, 'error': repr(exc), 'traza': traceback.format_exc()}, 1

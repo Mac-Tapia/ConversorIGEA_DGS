@@ -7744,7 +7744,8 @@ def asistente_estado_modelos() -> dict:
         candidato = etapa.get('candidate_id')
         algoritmo = (etapa.get('model_manifest') or {}).get('algorithm')
         puertas = etapa.get('gates') or {}
-        if estado == EstadoModelo.PROMOVIDO.value:
+        en_uso_pinn = (estado_heredado(heredados[nombre]) or {}).get('version') if nombre == 'pinn' and nombre in heredados else None
+        if estado == EstadoModelo.PROMOVIDO.value and not _pinn_promovida_en_uso(nombre, estado, etapa, en_uso_pinn):
             try:
                 activo = registro.activo(nombre)
                 if not activo or activo.get('candidate_id') != candidato:
@@ -7767,6 +7768,9 @@ def asistente_estado_modelos() -> dict:
                 heredado = estado_heredado(heredados[nombre])
                 en_uso = heredado['version'] if heredado else None
                 # 067:RF-29: lo que puso el registro en uso no es un modelo heredado sin validar.
+                # 071:RF-5: la PINN no pasa por el registro: su puntero es lo que la pone en uso.
+                if heredado and _pinn_promovida_en_uso(nombre, estado, etapa, en_uso):
+                    heredado = None
                 if heredado and estado == EstadoModelo.PROMOVIDO.value and candidato and en_uso == f'reg-{candidato[:16]}':
                     heredado = None
                 if heredado:
@@ -7780,6 +7784,15 @@ def asistente_estado_modelos() -> dict:
                          'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
     return {'schema_version': 1, 'familias': familias,
             'complete': bool(informe.get('complete')) and all(f['estado'] for f in familias)}
+
+
+def _pinn_promovida_en_uso(nombre: str, estado: str | None, etapa: dict[str, Any], en_uso: str | None) -> bool:
+    """La PINN que el entrenamiento promovió y es la del puntero (071:RF-5): ``complete`` quedaba
+    en falso justo cuando promovía, porque se le pedía un ``active.json`` que nadie escribe."""
+    version = (etapa.get('result') or {}).get('version')
+    from ..model_registry import EstadoModelo
+
+    return nombre == 'pinn' and estado == EstadoModelo.PROMOVIDO.value and bool(version) and version == en_uso
 
 
 def contexto_observacion(ws: Workspace) -> dict:

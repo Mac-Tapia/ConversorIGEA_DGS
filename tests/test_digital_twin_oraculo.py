@@ -5,6 +5,7 @@ la PINN, RF-38): así la prueba entrena y evalúa de verdad sin DIgSILENT.
 """
 from __future__ import annotations
 
+import json
 import random
 
 import numpy as np
@@ -67,7 +68,12 @@ def entrenado(tmp_path_factory):
                 nodo['p_mw'] = (nodo.get('p_mw') or 0.0) * factor
                 nodo['q_mvar'] = (nodo.get('q_mvar') or 0.0) * factor
             bufer.guardar(_episodio(g, r * 24 + k))
-    r = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
+    # 071:RF-3: aquí las tensiones de cada episodio son la propia física, que ninguna red puede
+    # mejorar: el resto de las pruebas necesita un modelo promovido, y la comparación se prueba
+    # abajo, sin este parche, en test_la_puerta_real_rechaza_lo_que_no_mejora_la_fisica.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(orc, 'fallos_de_comparacion', lambda *_a: [])
+        r = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
     return bufer, r
 
 
@@ -150,6 +156,18 @@ def test_puertas_que_no_se_pasan_no_promueven(entrenado):
         orc.entrenar_miembro = original
     assert all(llamadas) and not r2['promovido'] and r2['fallos']
     assert orc.cargar(bufer).version == r['version']
+
+
+def test_la_puerta_real_rechaza_lo_que_no_mejora_la_fisica(entrenado):
+    """071:RF-1, 071:RF-3, 071:RF-4 — un candidato sobre etiquetas que son la física no entra, y
+    declara en su dominio las redes de todas sus particiones."""
+    bufer, r = entrenado
+    r2 = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
+    assert not r2['promovido'] and any('no mejora al flujo físico' in f for f in r2['fallos']), r2
+    assert r2['mae_fisica'] is not None and r2['mae_en_uso'] is not None
+    assert orc.cargar(bufer).version == r['version']
+    meta = json.loads((bufer.raiz / 'modelos' / r2['version'] / 'modelo.json').read_text(encoding='utf-8'))
+    assert len(meta['dominio']['redes']) == 4
 
 
 def test_volver_al_modelo_anterior(tmp_path, entrenado):
