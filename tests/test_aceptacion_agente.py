@@ -189,7 +189,7 @@ def test_no_se_exigen_200_humanas_para_promocion_asistida_con_puertas():
     from convertersmartgrid.asistente.tareas import TAREAS
     m = {'acierto_tarea': 1., 'f1_datos': 1., 'ejemplos': 200}
     familias = {t: m for t in TAREAS}
-    r = decidir_promocion(m, {**m, 'ejemplos': 3}, familias, familias)
+    r = decidir_promocion(m, {**m, 'ejemplos': 3}, familias, familias, {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.})
     assert r['status'] == 'PROMOVIDO' and r['alcance'] == 'asistido'
     assert r['ordenes_humanas'] == 3 and r['confirmacion_obligatoria']
 

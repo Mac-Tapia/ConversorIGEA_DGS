@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping, Sequence
+import hashlib
 import json
 from pathlib import Path
 import random
@@ -24,6 +25,8 @@ CALIDAD = 'silver_maestro_texto_real'
 CONFIANZA_MINIMA = .7
 NINGUNA = 'ninguna'
 SUBCARPETA = 'maestro_real'
+#: Parte de los mensajes «ninguna» que no entrena y mide el rechazo (069:RF-11).
+PORCENTAJE_RESERVADO = 30
 
 _SIN_PALABRA = re.compile(r'[^\w]+')
 _PALABRA = re.compile(r'\w+')
@@ -133,6 +136,33 @@ def leer_etiquetas(raiz: Path | str | None = None, *, minimo: float = CONFIANZA_
                 cuenta['validas'] += confianza >= CONFIANZA_MINIMA
                 filas.append({**f, 'texto': texto, 'spans': spans})
     return filas, cuenta
+
+
+def leer_ninguna(raiz: Path | str | None = None) -> tuple[list[str], list[str]]:
+    """Los mensajes que el maestro leyó y no son una orden: los de entrenar y los reservados (069:RF-10, RF-11).
+
+    El reparto sale del hash del texto normalizado: no depende del orden ni de cuántos haya, y dos
+    formas del mismo mensaje caen del mismo lado.
+    """
+    if raiz is None:
+        from . import almacen
+        raiz = almacen.raiz()
+    ruta = Path(raiz) / SUBCARPETA / 'etiquetas.jsonl'
+    if not ruta.is_file():
+        return [], []
+    unicos: dict[str, str] = {}
+    for linea in ruta.read_text(encoding='utf-8').splitlines():
+        try:
+            f = json.loads(linea)
+        except ValueError:
+            continue
+        if isinstance(f, dict) and f.get('tarea') == NINGUNA and f.get('quality') == CALIDAD and str(f.get('texto') or '').strip():
+            unicos.setdefault(clave_texto(f['texto']), str(f['texto']))
+    entrenar, reservados = [], []
+    for clave in sorted(unicos):
+        cubeta = int(hashlib.sha256(f'ninguna-rechazo-v1:{clave}'.encode('utf-8')).hexdigest()[:8], 16) % 100
+        (reservados if cubeta < PORCENTAJE_RESERVADO else entrenar).append(unicos[clave])
+    return entrenar, reservados
 
 
 def _errata(palabra: str, rnd: random.Random, prob: float) -> str:

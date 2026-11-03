@@ -36,7 +36,7 @@ from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
 from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
-from .jobs import JobManager
+from .jobs import FINISHED, JobManager
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
@@ -177,6 +177,12 @@ class DemandaMedidoresIn(BaseModel):
     # 022:RF-88: las centrales (CT…) conectadas en un tramo de su alimentador, no en la barra:
     # {medidor: alimentador}.
     centrales_tramo: dict[str, str] = Field(default_factory=dict)
+    # 028:RF-28: proyecto de alimentadores: su único instante de mayor demanda conjunta, con los
+    # medidores de sus centrales: {alimentador: {generacion, llegada, salida}}.
+    coincidente: bool = False
+    centrales: dict[str, dict[str, str]] = Field(default_factory=dict)
+    # 028:RF-31: análisis de sistema eléctrico: el instante común de sus barras de 60 kV (con por_barra).
+    sistema_60kv: bool = False
 
 
 class DemandaClientesIn(BaseModel):
@@ -675,7 +681,8 @@ def create_app(
 
     def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine') -> dict:
         with encolando:
-            busy = [j for j in jobs.active(ws.id) if j.lane == lane]
+            # 047:RF-24: los vectores del índice ceden ante cualquier orden, no la rechazan.
+            busy = [j for j in jobs.active(ws.id) if j.lane == lane and j.kind != 'asistente_indice']
             if busy:
                 raise HTTPException(409, f'Ya hay un trabajo en curso en este espacio: «{busy[0].title}». '
                                          'Espere a que termine o cancélelo.')
@@ -1504,7 +1511,10 @@ def create_app(
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                             instante=body.instante,
                                                             por_barra=body.por_barra,
-                                                            centrales_tramo=body.centrales_tramo))
+                                                            centrales_tramo=body.centrales_tramo,
+                                                            coincidente=body.coincidente,
+                                                            centrales=body.centrales,
+                                                            sistema_60kv=body.sistema_60kv))
 
     @app.get('/api/workspaces/{wid}/demanda/centrales')
     def demanda_centrales(wid: str) -> dict:
@@ -1791,9 +1801,31 @@ def create_app(
                     lambda child: services.asistente_ejecutar(ws, child, plan['id'], base, http),
                     lane='asistente').public()
             ctx.progress(1, 1, 'Orden interpretada')
+            if plan.get('tarea') == 'pregunta':
+                _programar_vectores(ws)
             return result
 
         return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret, lane='asistente')
+
+    def _programar_vectores(ws: Workspace) -> None:
+        """047:RF-22: la pregunta ya tiene respuesta con lo que hay; lo que falte, detrás y sin pedirlo.
+        Solo el servidor real: las pruebas crean la app a cientos y no deben usar Ollama por su cuenta."""
+        if os.environ.get('CSG_ASISTENTE_VECTORES') != '1':
+            return
+        if any(j.kind == 'asistente_indice' and j.status not in FINISHED for j in jobs.list()):
+            return
+        try:
+            if not services.asistente_vectores_pendientes():
+                return
+        except (OSError, ValueError):                                  # sin vectores se sigue con BM25 (RF-25)
+            return
+
+        def ceder() -> bool:
+            return any(j.lane == 'asistente' and j.kind != 'asistente_indice' and j.status not in FINISHED
+                       for j in jobs.list())
+
+        jobs.submit(ws.id, 'asistente_indice', 'Asistente · vectores del índice',
+                    lambda ctx: services.asistente_calcular_vectores(ctx, ceder), lane='asistente')
 
     @app.get('/api/workspaces/{wid}/asistente/planes')
     def asistente_planes(wid: str) -> dict:

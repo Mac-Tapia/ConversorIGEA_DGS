@@ -338,6 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault(VARIABLE_REGISTRO, carpeta_registro())       # RF-34
     # 026:RF-22: la vigilancia del asistente corre en el servidor real, no en las pruebas.
     os.environ.setdefault('CSG_ASISTENTE_VIGILANCIA', '1')
+    os.environ.setdefault('CSG_ASISTENTE_VECTORES', '1')       # 047:RF-22
 
     from .app import al_pedir_cierre, frontend_dist
 

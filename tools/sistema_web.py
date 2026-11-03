@@ -341,9 +341,12 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     for c in centrales:
         print(f"  central {c['medidor']} ({c['set'] or 'sin SET'}, {c['kv']} kV): "
               + (f"en el tramo de {c['tramo']}" if c.get('tramo') else 'en la barra'), flush=True)
-    # 028:RF-24: fuera de un sistema, cada alimentador con su propia máxima (spec 006).
+    # 028:RF-27, RF-28: un sistema, por barra; un proyecto de alimentadores, su único instante común.
     maxima = web.esperar(web.post('/demanda/cabecera/buscar', json={
-        'medidores': pares, 'periodo': periodo, 'por_barra': not red, 'centrales_tramo': tramo}))
+        'medidores': pares, 'periodo': periodo, 'por_barra': not red, 'centrales_tramo': tramo,
+        'sistema_60kv': not red,   # 028:RF-31: un sistema entero, en el instante común de sus barras de 60 kV
+        'coincidente': bool(red), 'centrales': {a: {k: c[k] for k in ('generacion', 'llegada', 'salida')}
+                                                for a, c in del_perfil.items()}}))
     if not _terminado(maxima):
         return 2
     res = maxima.get('result') or {}

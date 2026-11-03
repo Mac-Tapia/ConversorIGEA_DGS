@@ -8,7 +8,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_salida_estructurada.py tests/test_asistente_interprete.py tests/test_asistente_ollama.py tests/test_asistente_tareas.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [ ] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4)
+- [ ] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-30)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_reranker.py tests/test_asistente_indice.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
@@ -70,3 +70,4 @@ Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
 
+T2, 2026-11-02, Fase 1 (código y pruebas sintéticas, reranker falso inyectado, sin GPU ni modelos cargados): `tests/test_asistente_reranker.py` falló antes del cambio (30 de 40) y pasa después; `test_asistente_indice`, `test_asistente_embeddings`, `test_asistente_web`, `test_capas`, `test_inventario` y `test_trazabilidad_specs` en verde, por fichero. `tools/asistente_evaluar_rag.py --solo-conjunto`: 76 preguntas sintéticas del maestro (66 con respuesta, 6 de ellas de código, y 10 sin respuesta), ninguna sin ancla, SHA-256 `88245a0755bac8813968dee64a03a22778168d8a6aec9d21e813f73a0ff5c36a`. **T2 sigue abierta:** falta la Fase 2, medición real en CUDA con `tools/asistente_evaluar_rag.py`; sin su informe ningún reranker entra en producción (RF-27) y no se acredita mejora alguna. El conjunto no acredita 027:RF-42.

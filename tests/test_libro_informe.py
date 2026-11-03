@@ -100,6 +100,16 @@ def test_las_celdas_salen_del_perfil_y_lo_que_falta_es_hueco(tmp_path):
         {'celda': 'Hoja!Z9', 'valor': 'CLIENTE X'}]
 
 
+def test_los_datos_de_fichas_llenan_el_grupo_sin_dato(tmp_path):
+    """066:RF-13: con los datos en el informe, se escriben, su celda no se vacía y deja de ser hueco."""
+    r = {**RESUMEN, 'datos_sin_dato': {'capacidad': {'Informe!H1': 370}}}
+    plan = plan_del_libro(_config(tmp_path), r, destino=tmp_path / 'f.xlsx')
+    assert {'celda': 'Informe!H1', 'valor': 370} in plan['escribir']
+    assert 'Informe!H1' not in plan['vaciar'] and 'capacidad' not in plan['huecos']
+    sin = plan_del_libro(_config(tmp_path), RESUMEN, destino=tmp_path / 'g.xlsx')
+    assert 'Informe!H1' in sin['vaciar'] and 'capacidad' in sin['huecos']
+
+
 def test_libro_generado_sin_nada_del_modelo_y_con_sus_formulas(tmp_path):
     """066:RF-1, 066:RF-5, 066:RF-6, 066:RF-7 — hoja oculta fuera, texto del modelo vacío, fórmula ajena intacta."""
     _modelo(tmp_path)

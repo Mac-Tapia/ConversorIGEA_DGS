@@ -1125,6 +1125,10 @@ def test_central_en_el_instante_coincidente():
     raro = next(p[0] for p in cab if (p[1] + next(x[1] for x in lle if x[0] == p[0])) > 5000)
     r2 = dm.demanda_con_central(cab, gen, lle, sal, instante=raro)
     assert r2.fecha == raro.isoformat(sep=' ') and any('fuera de lo normal' in a for a in r2.avisos)
+    # 028:RF-28: «Todo 2026» también vale con central; comparado con «AAAA-MM», daba error.
+    anio = dm.demanda_con_central(cab, gen, lle, sal, periodo=str(t.year))
+    assert anio.error is None and anio.fecha.startswith(str(t.year))
+    assert dm.demanda_con_central(cab, gen, lle, sal, periodo=str(t.year + 1)).error
     r3 = dm.demanda_con_central(cab, gen, lle, sal, periodo='2026-07')
     assert r3.fecha.startswith('2026-07')
 
@@ -1142,3 +1146,93 @@ def test_nombre_del_cliente_en_el_cruce(tmp_path):
     hoja = load_workbook(destino)['Clientes']
     cabecera = [c.value for c in hoja[1]]
     assert cabecera[1] == 'Cliente' and hoja.cell(2, 2).value == 'C1'
+
+
+# --------------------------------------------------------------- 028:RF-28
+def _curvas_coincidentes(rng):
+    """Dos alimentadores y una central en el segundo, sorteados; un pico real y una maniobra."""
+    t0 = datetime(2026, 9, 1)
+    n = rng.randint(200, 400)
+    fechas = [t0 + timedelta(minutes=15 * i) for i in range(n)]
+    pico, maniobra = rng.sample(range(10, n - 10), 2)
+    a, cab, gen, lle, sal = [], [], [], [], []
+    for i, t in enumerate(fechas):
+        kw_a = rng.uniform(900, 1000) + (300 if i == pico else 0)
+        g = rng.uniform(4900, 5000)
+        s = rng.uniform(4000, 4100) + (300 if i == pico else 0)
+        ll = g - s
+        arriba = rng.uniform(190, 210)
+        c = arriba - ll
+        if i == maniobra:   # un solo registro con la cabecera disparada: no es demanda
+            c += 9000
+        a.append((t, kw_a, 10.0))
+        cab.append((t, c, 10.0))
+        gen.append((t, g, 0.0))
+        lle.append((t, ll, 0.0))
+        sal.append((t, s, 0.0))
+    return fechas, pico, maniobra, a, cab, gen, lle, sal
+
+
+def test_instante_coincidente_con_central_descarta_la_maniobra():
+    """028:RF-28 — la mayor suma con las zonas de la central; el registro de maniobra no cuenta."""
+    rng = random.Random(SEMILLA)
+    for _ in range(10):
+        fechas, pico, maniobra, a, cab, gen, lle, sal = _curvas_coincidentes(rng)
+        r = dm.instante_coincidente({'A': a, 'B': cab}, {'B': (gen, lle, sal)})
+        assert r['fecha'] == fechas[pico] and r['fecha'] != fechas[maniobra], SEMILLA
+        assert r['descartados'] >= 1 and set(r['por_alimentador']) == {'A', 'B'}, SEMILLA
+        assert r['total_kw'] == pytest.approx(sum(r['por_alimentador'].values())), SEMILLA
+
+
+def test_instante_coincidente_no_es_la_maxima_de_cada_uno():
+    """028:RF-28 — sin central, la mayor suma aunque ninguno marque ahí su propia máxima."""
+    t0 = datetime(2026, 9, 1)
+    fechas = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    a = [(t, kw, None) for t, kw in zip(fechas, (10.0, 90.0, 60.0, 10.0, 10.0))]
+    b = [(t, kw, None) for t, kw in zip(fechas, (10.0, 10.0, 60.0, 90.0, 10.0))]
+    r = dm.instante_coincidente({'A': a, 'B': b}, {})
+    assert r['fecha'] == fechas[2] and r['total_kw'] == pytest.approx(120.0)
+
+
+def test_instante_coincidente_respeta_el_mes_y_avisa_si_la_central_no_cuadra():
+    """028:RF-28 — solo el mes pedido; con el balance roto, ese alimentador va por su cabecera."""
+    rng = random.Random(SEMILLA)
+    fechas, _p, _m, a, cab, gen, lle, sal = _curvas_coincidentes(rng)
+    rotas = [(t, kw + rng.uniform(4000, 9000), q) for t, kw, q in sal]
+    r = dm.instante_coincidente({'A': a, 'B': cab}, {'B': (gen, lle, rotas)})
+    assert r['avisos'] and 'B' in r['avisos'][0], SEMILLA
+    otro = dm.instante_coincidente({'A': a, 'B': cab}, {}, periodo='2030-01')
+    assert otro['fecha'] is None and otro['avisos'], SEMILLA
+
+
+def test_sesenta_kv_la_mayor_suma_coincidente_no_la_de_cada_barra():
+    """028:RF-31 — la mayor suma de las barras, con sus transformadores, aunque ninguna marque ahí su máxima."""
+    t0 = datetime(2026, 9, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw)]
+    r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 60, 10, 10)],
+                                       'SET B': [curva(5, 5, 30, 45, 5), curva(5, 5, 30, 45, 5)]})
+    assert r['fecha'] == f[2] and r['total_kw'] == pytest.approx(120.0)
+    assert dm.instante_de_barras_de_alta({'SET A': [curva(1, 2, 3, 4, 5)]}, periodo='2030-01') is None
+    assert dm.instante_de_barras_de_alta({}) is None
+
+
+def test_instante_coincidente_con_el_periodo_de_un_anio_entero():
+    """028:RF-28 — «Todo 2026» es un periodo válido: comparado con «AAAA-MM», no quedaba ninguna fecha."""
+    t0 = datetime(2026, 9, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(3)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw)]
+    cabeceras = {'A': curva(1, 9, 2), 'B': curva(1, 9, 2)}
+    assert dm.instante_coincidente(cabeceras, {}, '2026')['fecha'] == f[1]
+    assert dm.instante_coincidente(cabeceras, {}, '2026-09')['fecha'] == f[1]
+    assert dm.instante_coincidente(cabeceras, {}, '2025')['fecha'] is None
+
+
+def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
+    """028:RF-31 — caso de Chincha: una barra casi muerta, con pocos registros, no fija el instante."""
+    t0 = datetime(2026, 7, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
+    r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 20, 30, 10)],
+                                       'SET CHN': [curva(None, None, None, 8, 8)]})
+    assert r['fecha'] == f[1] and r['total_kw'] == pytest.approx(90.0)

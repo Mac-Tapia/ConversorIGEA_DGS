@@ -69,7 +69,7 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
     assert 'const aBuscar = [...elegidos, ' in DEMANDA
     # 022:RF-88: con las centrales en el tramo de su alimentador.
     assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,'
-            in DEMANDA) and 'centrales_tramo: centralTramo }))' in DEMANDA
+            in DEMANDA) and 'centrales_tramo: centralTramo, coincidente: !porBarra' in DEMANDA
 
 
 def test_clientes_de_los_marcados():

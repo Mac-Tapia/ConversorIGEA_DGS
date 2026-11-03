@@ -29,6 +29,9 @@ deben llegar al libro de otro cliente, como la solicitud de Minera Santa María 
   avisará.
 - RF-11: CUANDO el libro se genere, EL SISTEMA lo ofrecerá en la web junto al Word.
 - RF-12: DONDE el perfil declare el libro del informe, EL SISTEMA también lo dejará junto a cada informe de estudio.
+- RF-13: DONDE el informe traiga los datos de un grupo que el perfil declara sin dato, EL SISTEMA los escribirá en sus
+  celdas, conservará las fórmulas de ese grupo y no lo nombrará entre los huecos. (Usuario, 2026-11-02: «si no existen en
+  el libro original, reemplázalos de acuerdo a las fichas técnicas de los fabricantes; busca en la web o catálogos».)
 
 ## Fuera de alcance
 

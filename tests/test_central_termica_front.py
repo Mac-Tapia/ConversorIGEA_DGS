@@ -140,10 +140,13 @@ def test_sin_periodo_no_se_cruzan_clientes():
 
 
 def test_instante_coincidente_de_la_maxima_de_un_alimentador():
-    """021:RF-50, 021:RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
-    se vuelve a buscar con ese instante y se avisa de que es coincidente."""
+    """021:RF-50, 021:RF-52, 028:RF-32 — tras la búsqueda, se puede calibrar a todos en la máxima de
+    una cabecera: se vuelve a buscar con ese instante y se avisa de que es coincidente; por defecto,
+    la coincidente de los seleccionados."""
     assert 'Instante de la calibración' in DEMANDA
-    assert 'Coincidente: la máxima de {x.alimentador} · {x.fecha}' in DEMANDA
+    assert 'Máxima de la cabecera de {x.alimentador} · {x.fecha}' in DEMANDA
+    assert 'Máxima coincidente de los seleccionados' in DEMANDA and '(por defecto)' in DEMANDA
+    assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción'
     assert "onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
 
@@ -178,10 +181,10 @@ def test_casilla_de_los_bancos_que_falten():
 
 
 def test_maxima_por_barra_de_set_en_la_web():
-    """022:RF-39, 022:RF-41, 022:RF-44 — casilla «Máxima por barra de SET» en 2.2, que va en
-    la búsqueda; la tabla de cada barra con su máxima, su central y sus alimentadores en esa
-    fecha."""
-    assert 'Máxima por barra de SET' in DEMANDA and 'por_barra: porBarra && !instante' in DEMANDA
+    """022:RF-39, 022:RF-41, 022:RF-44, 028:RF-27 — la máxima por barra de SET en 2.2, la decide
+    el tipo de proyecto y va en la búsqueda; la tabla de cada barra con su máxima, su central y
+    sus alimentadores en esa fecha."""
+    assert 'máxima de barra de SET' in DEMANDA and 'por_barra: porBarra && !instante' in DEMANDA
     assert '<BarrasDeSet barras={barrasSet} avisos=' in DEMANDA
     assert '<th>Alimentadores (en esa fecha)</th>' in DEMANDA
     assert 'por_barra: Boolean(criterio.por_barra),' in API
@@ -209,7 +212,7 @@ def test_barras_de_60_kv_en_la_web():
     assert 'transformadores?: Record<string, string>' in TIPOS and 'kw: number | null' in TIPOS
     assert 'en el instante de {b.de_alta}' in DEMANDA and 'Centrales térmicas (CT)' in DEMANDA
     assert 'Medidores (transformador)' in DEMANDA and 'Avisos del libro de medidores' in DEMANDA
-    assert 'Máxima por barra de SET (60 kV → 22,9 y 10 kV)' in DEMANDA
+    assert 'máxima de barra de SET (60 kV → 22,9 y 10 kV)' in DEMANDA
     # 022:RF-88: cada central CT del libro, en barra o en el tramo de un alimentador.
     assert 'api.demandaCentrales(ws.id)' in DEMANDA and 'centrales_tramo: centralTramo' in DEMANDA
     assert 'En un tramo de {a}' in DEMANDA and 'export interface CentralDeBarra' in TIPOS
@@ -239,6 +242,6 @@ def test_proyecto_por_sistema_en_la_calibracion():
     """022:RF-54 — con un proyecto por sistema eléctrico, la web lee su sistema, marca la
     máxima por barra de SET y dice qué alimentadores quedan sin medidor (022:RF-53)."""
     assert 'api.demandaSistema(ws.id, project)' in DEMANDA
-    assert 'if (r.sistema) setPorBarra(true);' in DEMANDA
+    assert "setTipoAnalisis(r.sistema ? 'sistema' : 'alimentadores');" in DEMANDA
     assert 'Sin medidor (quedan con la demanda del archivo, en los mismos flujos)' in DEMANDA
     assert '/demanda/sistema?project=' in API and 'export interface SistemaDelProyecto' in TIPOS

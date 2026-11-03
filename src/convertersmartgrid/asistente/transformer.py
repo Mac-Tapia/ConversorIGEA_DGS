@@ -24,11 +24,10 @@ from pathlib import Path
 from typing import Any
 
 from . import almacen
+from .datos_por_palabra import ETIQUETAS, LARGO_MAX, marcar_datos as _spans
 from .sinteticos import Ejemplo, normalizar
-from .tareas import TAREAS, TIPOS_DATO
+from .tareas import TAREAS
 
-LARGO_MAX = 192
-ETIQUETAS = ('O',) + tuple(f'{p}-{t}' for t in TIPOS_DATO for p in ('B', 'I'))
 PAD, DESCONOCIDO, INICIO = 0, 1, 2
 #: Semilla del conjunto de prueba fijo: el mismo para el candidato y el modelo en uso (RF-20).
 SEMILLA_PRUEBA = 9973
@@ -154,62 +153,6 @@ class ModeloOrdenes:
         return {'tarea': self.tareas[orden[0]], 'confianza': float(p[orden[0]]),
                 'alternativas': [(self.tareas[i], float(p[i])) for i in orden[1:]],
                 'datos': datos, 'modelo': 'transformer', 'version': self.version}
-
-
-#: Palabras de unión que el etiquetado arrastra a los bordes de un dato («pisco con»,
-#: «en IN111 del proyecto», 2026-10-24); dentro de una lista («IN111 y TA225») se quedan.
-_UNION = {'de', 'del', 'en', 'con', 'para', 'la', 'el', 'los', 'las', 'y', 'a', 'al', 'proyecto',
-          'alimentador', 'alimentadores', 'sistema', 'sed', 'desde', 'entre', 'por'}
-
-
-def _recortar(valor: str) -> str:
-    palabras = valor.strip(' ,.;:¿?¡!"\'').split()
-    while palabras and normalizar(palabras[0]).strip(',.') in _UNION:
-        palabras.pop(0)
-    while palabras and normalizar(palabras[-1]).strip(',.') in _UNION:
-        palabras.pop()
-    return ' '.join(palabras).strip(' ,.;:¿?¡!"\'')
-
-
-def _spans(texto: str, probabilidades) -> dict[str, list[dict]]:
-    """Los datos, decididos por palabra: cada palabra toma el tipo que votan sus caracteres.
-
-    Los datos son palabras enteras (IN111, «CA101 13», «julio de 2026»). Etiquetando
-    carácter a carácter salían trozos como «C» y «101» de CA101 (F1 de 0,13 en la prueba
-    fija, 2026-10-24); con el voto por palabra, el dato sale entero o no sale.
-    """
-    palabras = []
-    for m in re.finditer(r'\S+', texto[:LARGO_MAX]):
-        a, b = m.span()
-        votos = probabilidades[a:b].sum(0)
-        k = int(votos.argmax())
-        nombre = ETIQUETAS[k]
-        tipo = None if nombre == 'O' else nombre[2:]
-        if tipo is not None:
-            # El voto del tipo junta B e I; la confianza es la media de lo que no es O.
-            idx = [i for i, e in enumerate(ETIQUETAS) if e[2:] == tipo]
-            por_tipo = float(probabilidades[a:b][:, idx].sum(-1).mean())
-            if por_tipo < 0.5:
-                tipo = None
-        palabras.append((a, b, tipo, float(1 - probabilidades[a:b][:, 0].mean()), nombre.startswith('B-')))
-    out: dict[str, list[dict]] = {}
-    actual = None
-    for a, b, tipo, conf, empieza in palabras + [(len(texto), len(texto), None, 0.0, False)]:
-        if actual is not None and (tipo != actual[2] or empieza):
-            valor = _recortar(texto[actual[0]:actual[1]])
-            if valor:
-                ini = texto.find(valor, actual[0])
-                out.setdefault(actual[2], []).append({'valor': valor, 'inicio': ini, 'fin': ini + len(valor),
-                                                      'confianza': sum(actual[3]) / len(actual[3])})
-            actual = None
-        if tipo is None:
-            continue
-        if actual is None:
-            actual = [a, b, tipo, [conf]]
-        else:
-            actual[1] = b
-            actual[3].append(conf)
-    return out
 
 
 def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None,
@@ -369,6 +312,12 @@ def cargar(version: str | None = None) -> ModeloOrdenes | None:
     if clave in _cache and _cache[clave][0] == version:
         return _cache[clave][1]
     meta, pesos = cargar_pesos('ordenes', version)
+    if 'codificador' in meta:                                    # 069:RF-7: los heredados siguen por debajo
+        from .codificador_ordenes import modelo_desde
+
+        modelo = modelo_desde(meta, pesos, version, _dispositivo())
+        _cache[clave] = (version, modelo)
+        return modelo
     cfg = Configuracion(**meta['cfg'])
     red = construir_red(len(meta['simbolos']) + 3, {'tarea': len(meta['tareas'])}, cfg, len(meta['etiquetas']))
     red.load_state_dict(pesos)

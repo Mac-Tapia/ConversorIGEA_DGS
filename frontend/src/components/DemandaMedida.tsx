@@ -216,10 +216,14 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
-  // 022:RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
-  const [porBarra, setPorBarra] = useState(false);
+  // 028:RF-27: el operador elige el análisis: alimentadores (1 a 3 juntos), SET (máxima de barra, 022:RF-39
+  // a RF-41) o sistema eléctrico (barras de 60 kV coincidentes, RF-31). «Son cosas diferentes, no se mezclan».
+  const [tipoAnalisis, setTipoAnalisis] = useState<'alimentadores' | 'set' | 'sistema'>('alimentadores');
+  const porBarra = tipoAnalisis !== 'alimentadores';
+  // 028:RF-30: el último escaneo de cada proyecto, también el automático de una recalibración.
+  const [escaneosGuardados, setEscaneosGuardados] = useState<Record<string, Escaneo>>({});
   // 022:RF-88: las centrales térmicas (CT…) del libro y dónde se conecta cada una: en la
-  // barra de su SET (vacío) o en el tramo de un alimentador. Se piden al marcar «por barra».
+  // barra de su SET (vacío) o en el tramo de un alimentador. Se piden en un sistema.
   const [centralesLibro, setCentralesLibro] = useState<CentralDeBarra[] | null>(null);
   const [centralTramo, setCentralTramo] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -273,13 +277,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   }, [project, marcados]);
 
   useEffect(() => {
-    if (!project) { setSistema(null); return; }
+    if (!project) { setSistema(null); setTipoAnalisis('alimentadores'); return; }
     let vivo = true;
     api.demandaSistema(ws.id, project).then((r) => {
       if (!vivo) return;
       setSistema(r.sistema);
-      if (r.sistema) setPorBarra(true);
-    }).catch(() => setSistema(null));
+      setTipoAnalisis(r.sistema ? 'sistema' : 'alimentadores');
+    }).catch(() => { setSistema(null); setTipoAnalisis('alimentadores'); });
     return () => { vivo = false; };
   }, [ws.id, project, ws.demanda?.medidores?.name]);
 
@@ -353,18 +357,30 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
     startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,
-      centrales_tramo: centralTramo }));
+      sistema_60kv: tipoAnalisis === 'sistema' && !instante,
+      centrales_tramo: centralTramo, coincidente: !porBarra && !instante && feeders.length > 1,
+      centrales: Object.fromEntries(feeders.filter((f) => centralCompleta(centrales[f])).map((f) => [f, {
+        generacion: centrales[f].generacion, llegada: centrales[f].llegada, salida: centrales[f].salida }])) }));
   };
+  const demasiados = tipoAnalisis === 'alimentadores' && feeders.length > 3;
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
   const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
-  // RF-52: el instante de la máxima de cada alimentador marcado, para elegirlo como común.
-  const instantes = cabecera.filter((r) => !r.error && r.fecha && feeders.includes(r.alimentador))
-    .map((r) => ({ alimentador: r.alimentador, fecha: r.fecha as string, kw: r.kw }));
+  // 028:RF-32: por defecto, el instante común de la mayor demanda conjunta; a mano, la máxima de una cabecera.
+  const instantes = (ultimo?.result?.maximas_propias as { alimentador: string; fecha: string; kw: number }[] | undefined) ?? [];
+  const instanteElegido = ultimo?.result?.coincidente ? '' : instanteActual;
   // Spec 028: el último escaneo de este proyecto en DIgSILENT (solo lectura).
-  const escaneo = Object.values(jobs)
+  const trabajosDePf = Object.values(jobs).filter((j) => j.status === 'done' && (j.kind === 'pf_escaneo'
+    || j.kind.startsWith('ajuste_') || j.kind.includes('recalibr'))).length;
+  useEffect(() => {
+    // 028:RF-30: al terminar una calibración o recalibración, su escaneo automático ya está guardado.
+    let vivo = true;
+    api.pfEscaneoGuardado(ws.id).then((r) => { if (vivo) setEscaneosGuardados(r.escaneo ?? {}); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [ws.id, trabajosDePf]);
+  const escaneo = (Object.values(jobs)
     .filter((j) => j.kind === 'pf_escaneo' && j.result && (j.result as unknown as Escaneo).project === project)
-    .pop()?.result as unknown as Escaneo | undefined;
+    .pop()?.result as unknown as Escaneo | undefined) ?? escaneosGuardados[project];
   const escanear = () => startJob(() => api.pfEscanear(ws.id, project, feeders, anio ? Number(anio) : null));
   const firmaEscaneo = escaneo ? JSON.stringify(Object.keys(escaneo.alimentadores)) + escaneo.project : '';
   useEffect(() => {
@@ -496,6 +512,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           Escanear en DIgSILENT</button>
         {!ws.demanda?.medidores && <small className="muted">Falta el libro de medidores por alimentador.</small>}
       </div>
+      {escaneo && <DetectadoEnElEscaneo escaneo={escaneo} centrales={centrales} />}
       {escaneo && <EscaneoTabla escaneo={escaneo} />}
       <datalist id="demanda-alimentadores">{lista.map((a) => <option key={a} value={a} />)}</datalist>
       {buscados && (
@@ -586,13 +603,18 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       {faltaAnio && <small className="muted">Hay mediciones de {anios.join(', ')}: elija el año antes de buscar la
         máxima, para no mezclar años.</small>}
       <div className="row">
-        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio} onClick={() => maxima()}>
+        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio || demasiados} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
-        <label className="check" title="Con medidor de 60 kV en la SET: su máxima (suma de T1, T2, T3) fija la fecha y hora de sus barras de 22,9 y 10 kV, sus centrales térmicas (CT…) y cada alimentador. Sin él, la máxima de su barra de media. Del libro de medidores: columnas ALIMENTADOR («Barra…»), MEDIDOR, nivel y SET (022:RF-84 a RF-87)">
-          <input type="checkbox" checked={porBarra} disabled={engineBusy} onChange={(e) => setPorBarra(e.target.checked)} />
-          {' '}Máxima por barra de SET (60 kV → 22,9 y 10 kV)
+        <label className="field-inline">Tipo de análisis{' '}
+          <select value={tipoAnalisis} disabled={engineBusy}
+            onChange={(e) => setTipoAnalisis(e.target.value as 'alimentadores' | 'set' | 'sistema')}>
+            <option value="alimentadores">Alimentadores (1 a 3 juntos): su máxima coincidente</option>
+            <option value="set">Por SET: máxima de barra de SET (60 kV → 22,9 y 10 kV)</option>
+            <option value="sistema">Sistema eléctrico: máxima coincidente de sus barras de 60 kV</option>
+          </select>
         </label>
+        {demasiados && <small className="muted">Son {feeders.length} alimentadores: elija SET o sistema eléctrico, o marque hasta 3.</small>}
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
       {porBarra && !!centralesLibro?.length && (
@@ -664,16 +686,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           {instantes.length > 1 && (
             <label className="row">
               <span>Instante de la calibración</span>
-              <select value={instanteActual} disabled={engineBusy}
+              <select value={instanteElegido} disabled={engineBusy}
                 onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}>
-                <option value="">La máxima de cada alimentador{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''}</option>
+                <option value="">Máxima coincidente de los seleccionados{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>
                 {instantes.map((x) => (
                   <option key={x.alimentador} value={x.fecha}>
-                    Coincidente: la máxima de {x.alimentador} · {x.fecha}
+                    Máxima de la cabecera de {x.alimentador} · {x.fecha} · {fmtNum(x.kw)} kW
                   </option>
                 ))}
-                {instanteActual && !instantes.some((x) => x.fecha === instanteActual) && (
-                  <option value={instanteActual}>Coincidente: {instanteActual}</option>
+                {instanteElegido && !instantes.some((x) => x.fecha === instanteElegido) && (
+                  <option value={instanteElegido}>Instante común: {instanteElegido}</option>
                 )}
               </select>
             </label>
@@ -946,6 +968,32 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
           <ul className="small">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
         </details>
       )}
+    </div>
+  );
+}
+
+/** 028:RF-30: lo que el escaneo halló y qué falta: los medidores de cada central, aquí mismo arriba. */
+function DetectadoEnElEscaneo({ escaneo, centrales }: { escaneo: Escaneo; centrales: Record<string, CentralTermica> }) {
+  const avisos: string[] = [];
+  Object.entries(escaneo.alimentadores).forEach(([f, d]) => {
+    const gens = (d.generadores ?? []).filter((g) => g.en_servicio);
+    if (gens.length) {
+      const nombres = gens.map((g) => `${g.generador} en ${g.barra}`).join(', ');
+      avisos.push(centralCompleta(centrales[f]) ? `${f}: central ${nombres}, con sus medidores.`
+        : `${f}: central ${nombres}. Elija sus medidores de generación, llegada y salida; sin ellos se calibra con el generador tal como está.`);
+    }
+    const enBarra = (d.generadores_en_barra ?? []).filter((g) => g.en_servicio);
+    if (enBarra.length) avisos.push(`${f}, barra de cabecera: central ${enBarra.map((g) => `${g.generador} en ${g.barra}`).join(', ')}.`);
+    const bancosBarra = (d.bancos_en_barra ?? []).filter((b) => b.en_servicio);
+    if (bancosBarra.length) avisos.push(`${f}, barra de cabecera: ${bancosBarra.length} banco(s) en ${bancosBarra[0].barra}.`);
+    const bancos = (d.bancos ?? []).filter((b) => b.en_servicio);
+    if (bancos.length) avisos.push(`${f}: ${bancos.length} banco(s) en servicio en el alimentador.`);
+  });
+  if (!avisos.length) return null;
+  return (
+    <div className="alert alert-info" role="status">
+      <strong>Detectado en DIgSILENT</strong>
+      {avisos.map((a) => <p key={a}>{a}</p>)}
     </div>
   );
 }

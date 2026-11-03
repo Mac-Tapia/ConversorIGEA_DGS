@@ -65,6 +65,40 @@ def _generadores(alims, feeder: str, de_objeto: dict) -> list[dict]:
     return sorted(filas, key=lambda x: (str(x['barra']), x['generador']))
 
 
+def _en_barra_de_cabecera(alims, feeder: str, de_objeto: dict) -> tuple[list[dict], list[dict]]:
+    """RF-29: generadores y bancos en la barra de cabecera; el ``ElmFeeder`` empieza aguas abajo de ella.
+
+    Van aparte de los del alimentador: una central en barra no parte el alimentador en dos zonas
+    (022:RF-88). La misma barra sale en cada alimentador que cuelga de ella.
+    """
+    from cargas_pf import _num
+
+    cubiculo = getattr(alims.elm.get(feeder), 'obj_id', None)
+    barra = getattr(cubiculo, 'cterm', None)
+    generadores, bancos = [], []
+    if barra is None:
+        return generadores, bancos
+    for cub in barra.GetContents('*.StaCubic', 0) or []:
+        obj = getattr(cub, 'obj_id', None)
+        clase = obj.GetClassName() if obj is not None else ''
+        if clase in CLASES_GENERADOR:
+            p, q = _num(obj, 'pgini'), _num(obj, 'qgini')
+            variacion = de_objeto.get((clase, obj.loc_name))
+            generadores.append({'generador': obj.loc_name, 'clase': clase, 'barra': barra.loc_name,
+                                'kv': _num(barra, 'uknom'), 'p_kw': None if p is None else p * 1000.0,
+                                'q_kvar': None if q is None else q * 1000.0,
+                                'en_servicio': not int(getattr(obj, 'outserv', 0) or 0),
+                                'variacion': variacion, **origen_de(obj.loc_name, variacion)})
+        elif clase == 'ElmShnt':
+            escalon, pasos = _num(obj, 'qcapn'), _num(obj, 'ncapa') or 1.0
+            variacion = de_objeto.get(('ElmShnt', obj.loc_name))
+            bancos.append({'banco': obj.loc_name, 'barra': barra.loc_name, 'kv': _num(barra, 'uknom'),
+                           'q_nominal_kvar': None if escalon is None else escalon * pasos * 1000.0,
+                           'en_servicio': not int(getattr(obj, 'outserv', 0) or 0),
+                           'variacion': variacion, **origen_de(obj.loc_name, variacion)})
+    return sorted(generadores, key=lambda x: x['generador']), sorted(bancos, key=lambda x: x['banco'])
+
+
 def _tramos_nuevos(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> list[dict]:
     """RF-17: los tramos del alimentador que no venían en el DGS aceptado."""
     from cargas_pf import _num
@@ -144,7 +178,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                       for b in bancos_instalados(alims, f)]
             cargas, _sin = cargas_sed(alims, f)
             cambiadas, _nombre = cambios_manuales(cargas, ultimas.get(f))
+            en_barra = _en_barra_de_cabecera(alims, f, de_objeto)
             informe['alimentadores'][f] = {'generadores': _generadores(alims, f, de_objeto),
+                                           'generadores_en_barra': en_barra[0], 'bancos_en_barra': en_barra[1],
                                            'bancos': bancos, 'cargas_cambiadas': cambiadas,
                                            'tramos_nuevos': _tramos_nuevos(alims, f, de_dgs, de_objeto)
                                            if de_dgs else [],

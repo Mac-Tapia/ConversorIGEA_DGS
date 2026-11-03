@@ -524,10 +524,11 @@ def test_uso_puerta_de_comparacion_mide_el_modelo_activo(entorno, monkeypatch):
 
     perfecto = {'ejemplos': 3, 'acierto_tarea': 1.0, 'f1_datos': 1.0}
     familias = {t: dict(perfecto) for t in TAREAS}
-    assert di.decidir_promocion(perfecto, perfecto, familias, referencia)['status'] == 'PROMOVIDO'
-    assert di.decidir_promocion(perfecto, perfecto, familias, None)['status'] == 'RECHAZADO'
+    rechazo = {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.}                     # 069:RF-17: puerta adicional
+    assert di.decidir_promocion(perfecto, perfecto, familias, referencia, rechazo)['status'] == 'PROMOVIDO'
+    assert di.decidir_promocion(perfecto, perfecto, familias, None, rechazo)['status'] == 'RECHAZADO'
     peor = {**familias, 'estado': {'ejemplos': 3, 'acierto_tarea': 0.96, 'f1_datos': 1.0}}
-    d = di.decidir_promocion(perfecto, perfecto, peor, referencia)
+    d = di.decidir_promocion(perfecto, perfecto, peor, referencia, rechazo)
     assert d['status'] == 'RECHAZADO' and any('regresión' in f for f in d['fallos'])
 
 

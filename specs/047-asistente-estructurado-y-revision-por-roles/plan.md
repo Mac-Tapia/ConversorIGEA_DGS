@@ -176,7 +176,7 @@ No se dispone de logits internos del maestro; el método es destilación de resp
 
 **Files:** Modificar `asistente/indice.py`; crear `asistente/reranker.py` y `tests/test_asistente_reranker.py`; integrar dataset de evaluación y etapa embeddings de 043.
 
-**Interfaces:** `reordenar(consulta: str, candidatos: Sequence[Mapping], *, modelo: str, revision: str) -> list[dict]` preserva IDs, fuente y fragmento. BM25 aporta candidatos junto a vectores; proteger matches exactos de códigos. Comparar Recall@k, MRR/nDCG, corrección de citas, abstención y latencia con política sellada, sin promover embeddings por empate.
+**Interfaces:** `reordenar(consulta: str, candidatos: Sequence[Mapping], *, modelo: str, revision: str, puntuar=None) -> list[dict]` preserva IDs, fuente y fragmento. BM25 aporta candidatos junto a vectores; proteger matches exactos de códigos. Comparar Recall@k, MRR/nDCG, corrección de citas, abstención y latencia con política sellada, sin promover embeddings por empate.
 
 - [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
   `test_codigo_exacto_se_conserva`: consulta SE50106 mantiene su fuente exacta cuando existe; `test_cita_apunta_fragmento_real`: el span citado existe en el documento; `test_sin_evidencia_abstiene`: no fabricar cita; usar corpus de pruebas sin datos privados publicados y evaluación real local.
@@ -188,6 +188,15 @@ No se dispone de logits internos del maestro; el método es destilación de resp
   solo a las regresiones de los módulos tocados y registrar evidencia real indicada.
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 047 T2`.
+
+**Política de adopción, declarada antes de medir (RF-4, RF-27).** Conjunto: `docs/RAG_PREGUNTAS_SINTETICAS_047.json`, sellado por su SHA-256. Son preguntas **sintéticas del maestro de sesión** sobre fragmentos reales del índice: no son órdenes de operadores ni acreditan 027:RF-42. La misma prueba mide `bm25`, `hibrido` y cada reranker, sin ajustar nada con ella. Parámetros fijados: RRF `k=60`; 30 candidatos; respuesta con 6 trozos; `max_length=256`, lotes de 4, solo CUDA. Rerankers candidatos, ambos con revisión fijada en `docs/MODELOS_IA_LOCK.json`: `BAAI/bge-reranker-v2-m3` y `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`. Cada uno reordena los candidatos de la recuperación híbrida.
+
+- Métrica primaria: MRR@10 sobre las preguntas con respuesta.
+- `hibrido` se adopta frente a `bm25` si la diferencia media de MRR@10 es positiva (sin promover por empate), Recall@10 no baja y ninguna pregunta de código pierde su primer lugar. Mientras no haya informe, con vectores se usa el híbrido, porque es lo que se ordenó construir; el informe puede apartarlo.
+- Un reranker se adopta solo si mejora a **los dos**, `bm25` e `hibrido`: diferencia media de MRR@10 positiva y límite inferior de su IC95 % pareado mayor que cero (`comparar_pareado`, 4000 remuestreos, semilla 0), Recall@10 no menor, ninguna pregunta de código pierde su primer lugar y percentil 95 de latencia de 5 s o menos. Entre dos que cumplan, el de mayor MRR@10.
+- Si ninguno cumple, el reranker queda desactivado y esa es la decisión. Con el conjunto cambiado o sin informe, también. Un modelo que no cabe o falla al medir se anota con su error y no se adopta.
+
+**Superficie.** `asistente/reranker.py` carga y reordena, `asistente/evaluacion_rag.py` mide y decide, `tools/asistente_evaluar_rag.py` es la Fase 2 real. Vectores en `vectores.npy` más `vectores_meta.json` (float32): el JSON canónico de `manifiesto_indice` ocupa cientos de MB de memoria con miles de fragmentos y un equipo de 16 GB compartidos no lo admite, así que el índice versionado sigue siendo de la herramienta de embeddings. `nomic-embed-text` con sus prefijos de tarea. El trabajo `asistente_indice` no ocupa el 409 del carril y cede ante cualquier otra orden; se programa tras una pregunta, que ya recibió respuesta con lo que hay, y solo en el servidor real. El reranker adoptado se carga, puntúa y descarga en cada respuesta bajo `turno_gpu`: la GPU de 8 GB la comparten Ollama y los entrenamientos.
 
 ### T3: Revisión por roles acotada y trazable
 

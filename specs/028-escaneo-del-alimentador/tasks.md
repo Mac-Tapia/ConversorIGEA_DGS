@@ -67,3 +67,14 @@ cuando el usuario ponga a mano la central de NA205.
 - [ ] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
       recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
       Hecho cuando: los dos proyectos válidos tras recalibrar y con su informe.
+- [x] T14. Desplegable con la máxima de la cabecera de cada alimentador, y por defecto el instante común. (RF-32)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py -k desplegable` en verde.
+- [x] T13. Selector de los tres tipos de análisis e instante común de las barras de 60 kV. (RF-27, RF-31)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py tests/test_demanda_medida_web.py tests/test_escaneo.py -k "sesenta or selector"`
+      en verde, y el selector comprobado en el navegador real.
+- [x] T12. El tipo de proyecto decide el instante y lo detectado activa la selección. (RF-27, RF-28, RF-29, RF-30)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py tests/test_demanda_medida_web.py tests/test_escaneo.py
+      -k "coincidente or barra_de_cabecera or detectado"` en verde, y comprobado en el navegador real.
+      Hecho el 2026-11-02: con NA203_NA205 en el navegador, «Detectado en DIgSILENT» y el formulario de la central
+      salen del escaneo guardado, sin casilla de barra y sin errores en la consola; la búsqueda por la web da
+      2026-09-25 12:00 y 19 641,5 kW, con 651 registros de maniobra descartados.

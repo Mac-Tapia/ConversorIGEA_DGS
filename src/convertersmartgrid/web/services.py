@@ -2418,19 +2418,44 @@ def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
 
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
-                     por_barra: bool = False, centrales_tramo: dict[str, str] | None = None) -> dict:
+                     por_barra: bool = False, centrales_tramo: dict[str, str] | None = None,
+                     coincidente: bool = False,
+                     centrales: dict[str, dict[str, str]] | None = None,
+                     sistema_60kv: bool = False) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores.
 
     ``periodo``: la máxima de ese mes (013:RF-11). ``instante``: el registro de esa fecha
-    y hora en todos los medidores, para calibrar a la vez (021:RF-50).
+    y hora en todos los medidores, para calibrar a la vez (021:RF-50). ``coincidente``: en un
+    proyecto de alimentadores, ese instante es el de su mayor demanda conjunta (028:RF-28).
     """
-    from ..demanda_medida import DemandaError, maximas
+    from ..demanda_medida import DemandaError, instante_coincidente, maximas
 
     if not pares:
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
-        return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo)   # 022:RF-37 a RF-46, RF-88
+        return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo,   # 022:RF-37 a RF-46, RF-88
+                                  sistema_60kv=sistema_60kv)                  # 028:RF-31
+    alimentadores = {a: m for a, m in pares if not a.startswith('Central ')}
+    conjunto = None
+    if coincidente and instante is None and len(alimentadores) > 1:           # 028:RF-28
+        libros = _libros_de_cabecera(ws, periodo)
+        try:
+            curvas = {r.medidor: r.curva for r in maximas(libros, pares, alias=demanda_alias(), periodo=periodo,
+                                                          cancelado=ctx.cancel.is_set)}
+        except DemandaError as exc:
+            raise UserError(str(exc)) from exc
+        de_central = {a: tuple(curvas.get(c.get(k)) or [] for k in ('generacion', 'llegada', 'salida'))
+                      for a, c in (centrales or {}).items() if a in alimentadores}
+        conjunto = instante_coincidente({a: curvas.get(m) or [] for a, m in alimentadores.items()},
+                                        {a: c for a, c in de_central.items() if all(c)}, periodo)
+        for aviso in conjunto['avisos']:
+            ctx.log(f'  aviso: {aviso}')
+        if conjunto['fecha'] is None:
+            raise UserError('No hay un instante común a los alimentadores: ' + '; '.join(conjunto['avisos']))
+        instante = conjunto['fecha']
+        ctx.log(f'Instante común de los {len(alimentadores)} alimentadores: {instante}, '
+                f'{conjunto["total_kw"]:,.1f} kW de demanda conjunta (028:RF-28).')
     # Con un instante, el año es el suyo (021:RF-50): sus libros, no todos.
     libros = _libros_de_cabecera(ws, periodo or (instante.strftime('%Y') if instante else None))
     alias = demanda_alias()
@@ -2459,7 +2484,31 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': instante}}
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares),
-            'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None}
+            'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None,
+            'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None),
+            'maximas_propias': _maximas_propias(res, alimentadores, periodo)}
+
+
+def _maximas_propias(res, alimentadores: dict[str, str], periodo: str | None) -> list[dict]:
+    """La máxima de la cabecera de cada alimentador, para elegirla a mano como instante común (028:RF-32).
+
+    Sale de la curva y no del resultado: con un instante común, ``r.fecha`` y ``r.kw`` son los de ese
+    registro, y el desplegable se quedaba con una sola fecha repetida por alimentador.
+    """
+    from ..demanda_medida import en_periodo
+
+    if len(alimentadores) < 2:
+        return []
+    propias = []
+    for r in res:
+        if alimentadores.get(r.alimentador) != r.medidor:
+            continue
+        puntos = [(f, kw) for f, kw, _q in r.curva or []
+                  if f is not None and kw is not None and (not periodo or en_periodo(f, periodo))]
+        if puntos:
+            f, kw = max(puntos, key=lambda p: (p[1], -p[0].timestamp()))
+            propias.append({'alimentador': r.alimentador, 'fecha': f.isoformat(sep=' '), 'kw': kw})
+    return propias
 
 
 def _informe_por_set(e: dict | None) -> list[str]:
@@ -2551,7 +2600,8 @@ def demanda_centrales_de_barra(ws: Workspace) -> dict:
 
 
 def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]],
-                       periodo: str | None, centrales_tramo: dict[str, str] | None = None) -> dict:
+                       periodo: str | None, centrales_tramo: dict[str, str] | None = None, *,
+                       sistema_60kv: bool = False) -> dict:
     """La máxima de cada barra de SET con medidor y sus alimentadores en esa fecha y hora
     (022:RF-37 a RF-46). El usuario, el 2026-10-17: «cuando se identifique el máximo valor
     en la barra, los alimentadores de la misma barra se deben calibrar con la misma fecha
@@ -2593,9 +2643,23 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
                 f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
         # 027:RF-25: los libros se leen en el proceso del trabajo, no en el de la API.
         res, info, avisos, de_barra, instantes = ctx.en_proceso(
-            maximas_por_barra, libros, alias, barras, pares, periodo, avisos)
+            maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    if sistema_60kv:
+        # 028:RF-31: CHN101, CHN102 y CHN201 no tienen el registro del instante de Chincha: no se
+        # les da otra fecha (el sistema tiene una sola), y el operador lo tiene que ver.
+        # Si su medición empieza después (CHN101, desde el 24 de julio), se dice: no es un hueco.
+        def _sin_registro(r) -> str:
+            fechas = [f for f, kw, _q in r.curva or [] if f is not None and kw is not None]
+            t = instantes.get(duenio(r.alimentador).upper())
+            return (f'{r.alimentador} (su medición empieza el {min(fechas):%Y-%m-%d %H:%M})'
+                    if fechas and t and min(fechas) > t else r.alimentador)
+
+        sin_registro = sorted({_sin_registro(r) for r in res if r.error})
+        if sin_registro:
+            avisos.append(f'{", ".join(sin_registro)}: sin registro en el instante del sistema; '
+                          'no se calibran con él: revise su medición (028:RF-31).')
     for aviso in avisos:
         ctx.log(f'  aviso: {aviso}')
     with ws.lock:
@@ -2605,7 +2669,9 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': None,
                                              'instantes': instantes}}
     return {'resultados': [r.to_dict() for r in res], 'cancelado': False, 'periodo': periodo,
-            'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos}
+            'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos,
+            'sistema_60kv': ({'fecha': next(iter(x['fecha'] for x in info), None),
+                              'total_kw': sum(x['kw'] or 0.0 for x in info if x['alta'])} if sistema_60kv else None)}
 
 
 # Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.
@@ -8488,16 +8554,41 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
 
 
 def asistente_pregunta(texto: str) -> dict:
-    """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18)."""
-    from ..asistente import indice
+    """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18), y los
+    métodos con que se halló en el propio texto, que es lo que ve el operador (047:RF-26)."""
+    from ..asistente import indice, reranker
     from ..asistente.ollama import cliente_configurado
+    from ..trabajadores_ml import turno_gpu
 
     ollama = cliente_configurado()
     if ollama.modelos() is None:
         ollama = None
-    i = indice.cargar_o_construir(project_root(), ollama)
-    r = indice.responder(i, texto, ollama)
-    return {'texto': r['respuesta'], 'citas': r['citas'], 'sabe': r['sabe']}
+    repo = project_root()
+    politica = reranker.politica()
+    reordenador = reranker.reordenador_de(politica, lambda: turno_gpu('reranker'))
+    r = indice.responder(indice.cargar_o_construir(repo), texto, ollama, repo=repo,
+                         reordenador=reordenador, usar_vectores=politica['hibrido'])
+    return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
+            'metodos': r['metodos']}
+
+
+def asistente_vectores_pendientes() -> bool:
+    """¿Hay vectores del índice por calcular y Ollama para hacerlo (047:RF-22)?"""
+    from ..asistente import indice
+    from ..asistente.ollama import cliente_configurado
+
+    return indice.vectores_pendientes(project_root(), cliente_configurado())
+
+
+def asistente_calcular_vectores(ctx: JobContext, ceder) -> dict:
+    """Los vectores del índice como trabajo: cancelable y cediendo el carril (047:RF-22, RF-24)."""
+    from ..asistente import indice
+    from ..asistente.ollama import cliente_configurado
+
+    r = indice.calcular_vectores(project_root(), cliente_configurado(), cancelar=ctx.check_cancel, ceder=ceder,
+                                 progreso=lambda n, total: ctx.progress(n, total, 'Vectores del índice'))
+    ctx.log(f"Vectores del índice: {r['con_vector']} de {r['total']} ({r['estado']}).")
+    return r
 
 
 def asistente_clasificar(texto: str) -> dict:
