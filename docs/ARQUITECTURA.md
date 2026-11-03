@@ -182,7 +182,7 @@ Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escr
 | Planes guardados | `asistente/planes_guardados.py` | conectado y probado con reinicio simulado: siguen pidiendo confirmación y nunca se reanudan solos |
 | Monitor y vigilancia | `asistente/{observacion,vigilancia}.py` | conectados y probados |
 | RAG con citas | `asistente/indice.py` | conectado: BM25, y coseno si hay vectores. Sin reranker |
-| Corpus ampliado y lecturas del proyecto | `asistente/{corpus_proyecto,lectura_proyecto}.py`, `tools/mcp_conversor.py` | lecturas conectadas a `pregunta` y al MCP local, solo lectura. El corpus ampliado no se sirve hasta pasar su medición (077:RF-47); sus cifras y las de la 047 no son intercambiables |
+| Corpus ampliado y lecturas del proyecto | `asistente/{corpus_proyecto,lectura_proyecto}.py`, `tools/mcp_conversor.py` | lecturas conectadas a `pregunta` y al MCP local, solo lectura: con LLM local, todo el árbol y las raíces configuradas salvo secretos, lo sellado y el examen humano; el MCP, restringido salvo `--datos-locales`. El corpus ampliado no se sirve hasta pasar su medición (077:RF-47); sus cifras y las de la 047 no son intercambiables |
 | Revisión por roles y evidencia | `asistente/revision_roles.py`, `asistente/evidencias_web.py` | conectadas y probadas con el transporte de Ollama simulado; sin revisión real registrada |
 
 **Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no

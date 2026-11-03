@@ -27,6 +27,11 @@ Decisiones:
 - **El MCP no escribe nada en disco.** Su bitácora va a stderr, para que «solo lectura» sea literal; la web anota en `equipo_acciones` porque ya es su registro.
 - **Vectores por corpus, en carpetas separadas.** `calcular_vectores` de uno no borra los del otro; los del corpus de la 047 siembran los del ampliado, porque el texto de esos trozos es el mismo.
 
+- **Dos políticas, y la abierta la decide el servidor.** `Politica` no es un argumento del catálogo: ni el modelo ni un cliente pueden pedirla. Por defecto, la restringida. La web abre la local tras `ollama.destino_llm`; el MCP, solo con `--datos-locales`. El índice siempre usa la restringida. Alternativa descartada: una sola lista amplia, porque un cliente MCP puede estar en la nube. (RF-51, RF-57, RF-61, RF-66)
+- **`cliente_configurado` no lee ninguna dirección:** siempre usa `127.0.0.1`, y `ClienteOllama` rechaza otro servidor. `destino_llm` mira además si `ollama.json` declara otra dirección, porque alguien la quiso así, y si el modelo es de los `-cloud` de Ollama, que se sirven en local y se ejecutan fuera. Alternativa descartada: fiarse del anfitrión. (RF-57, RF-58)
+- **Lo leído bloquea por palabras con mayúscula o cifra.** Sobra bloqueo si un dato trae «Flujo», pero P9 falla por el lado seguro; bloquear también las minúsculas dejaría la búsqueda sin uso. (RF-59)
+- **`ordenes_fijas.py` y `prueba_sellada.py` quedan vedados** porque sus frases deciden una puerta de las órdenes, y `docs/asistente/*` salvo el OpenAPI porque mezcla los dos repartos de la 076. (RF-54)
+
 Pruebas: rutas con `..`, enlaces, uniones, mayúsculas y nombres de NTFS, en un repositorio sintético; el MCP con un servidor real por stdio si el paquete está, y sin él; un doble de Ollama para las lecturas pedidas por el LLM. Sin datos reales.
 
 Lo que no se comprueba aquí: la medición con vectores y reranker, que pide turno de GPU, y la respuesta en la web real.

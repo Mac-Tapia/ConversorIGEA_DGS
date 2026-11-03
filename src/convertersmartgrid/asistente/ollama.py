@@ -233,6 +233,36 @@ def liberar_gpu_para_entrenar() -> list[str]:
     return ClienteOllama(tiempo_max_s=10.0).liberar_gpu()
 
 
+def destino_llm() -> tuple[bool, str]:
+    """¿El LLM es de esta máquina?, y si no, por qué (077:RF-57, RF-58). Ante la duda, no: abre lectura de datos locales.
+
+    ``cliente_configurado`` usa siempre la dirección local y no lee ninguna de ``ollama.json``; una dirección escrita ahí se
+    atiende igual, porque alguien quiso sacarlo de la máquina. Y un modelo ``-cloud`` se pide en local pero corre fuera."""
+    from . import almacen
+
+    ruta = almacen.raiz() / 'ollama.json'
+    try:
+        cfg = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    except (OSError, ValueError):
+        return False, 'la configuración de Ollama no se puede leer'
+    if not isinstance(cfg, dict):
+        return False, 'la configuración de Ollama no se puede leer'
+    for clave in ('url', 'host', 'base_url', 'servidor'):
+        valor = cfg.get(clave)
+        if valor is None:
+            continue
+        try:
+            host = urlparse(str(valor) if '://' in str(valor) else f'//{valor}').hostname or ''
+        except ValueError:
+            host = ''
+        if host not in LOCALES:
+            return False, f'la configuración de Ollama apunta a otro servidor ({host or valor!r})'
+    modelo = str(cfg.get('modelo') or '').casefold()
+    if modelo.endswith(('-cloud', ':cloud')):
+        return False, f'el modelo {modelo} de Ollama se ejecuta en la nube'
+    return True, ''
+
+
 def cliente_configurado(tiempo_max_s: float = 30.0) -> ClienteOllama:
     """El cliente con el modelo que eligió la medida (``tools/asistente_medir_ollama.py``)."""
     from . import almacen

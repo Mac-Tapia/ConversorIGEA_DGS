@@ -106,7 +106,9 @@ def _ficheros_de(repo: Path, corpus: str) -> list[Path]:
     base = _ficheros(repo)
     if corpus == CORPUS_047:
         return base
-    return list(dict.fromkeys(base + corpus_proyecto.ficheros_extra(repo)))
+    # 077:RF-15: también lo que el corpus de la 047 ya traía, como el docstring de la prueba sellada de las órdenes.
+    vigentes = [p for p in base if lectura_proyecto.motivo_de_rechazo(p.relative_to(repo).as_posix()) is None]
+    return list(dict.fromkeys(vigentes + corpus_proyecto.ficheros_extra(repo)))
 
 
 def huella(repo: Path, corpus: str = CORPUS_047) -> str:
@@ -609,7 +611,7 @@ def _con_marca(c: dict, texto: str) -> str:
 def _cita_de_lectura(salida: dict) -> dict | None:
     """Lo leído como cita: su fuente es el fichero que se acaba de abrir, así que ya está comprobada."""
     if salida['herramienta'] == 'leer_fichero':
-        texto = salida['texto']
+        texto = salida['texto']                                         # vacío si es un binario sin lector (077:RF-65)
     elif salida['herramienta'] == 'consultar_api':
         if not salida.get('existe'):
             return None
@@ -618,29 +620,35 @@ def _cita_de_lectura(salida: dict) -> dict | None:
         if not salida['coincidencias']:
             return None
         texto = '\n'.join(f"{c['fuente']}: {c['texto']}" for c in salida['coincidencias'])
-        salida = {**salida, 'fuente': salida['coincidencias'][0]['fuente'], 'vigencia': 'vigente', 'estado_spec': None}
+        salida = {**salida, 'fuente': salida['coincidencias'][0]['fuente'], 'vigencia': 'vigente', 'estado_spec': None,
+                  'es_dato': any(c.get('es_dato') for c in salida['coincidencias']),
+                  'ruta': salida['coincidencias'][0]['ruta']}
     texto = texto[:_LARGO_LECTURA]
     if not texto.strip():
         return None
     cita = {'fuente': salida['fuente'], 'texto': texto, 'verificada': True, 'origen': 'lectura',
+            'es_dato': bool(salida.get('es_dato')), 'ruta': salida.get('ruta'),
             'vigencia': salida['vigencia'], 'estado_spec': salida['estado_spec'],
             'sha256': hashlib.sha256(texto.encode('utf-8')).hexdigest()}
     return {**cita, 'marca': _marca(cita)}
 
 
-def _leer_nombradas(lector: Any, pregunta: str) -> tuple[list[dict], list[str]]:
-    """Lo que la propia pregunta nombra (077:RF-26), y lo que nombra y no se puede leer (RF-27)."""
-    plan = lectura_proyecto.nombradas_en(lector.repo, pregunta)
-    citas, rechazadas = [], list(plan['rechazadas'])
+def _leer_nombradas(lector: Any, pregunta: str) -> tuple[list[dict], list[str], list[str]]:
+    """Lo que la pregunta nombra (077:RF-26), lo que nombra y no se puede leer (RF-27), y qué hacer con un binario (RF-65)."""
+    plan = lectura_proyecto.nombradas_en(lector.repo, pregunta, lector.politica)
+    citas, rechazadas, indicaciones = [], list(plan['rechazadas']), []
     for nombre, argumentos in plan['pedidas']:
         try:
-            cita = _cita_de_lectura(lector.ejecutar(nombre, argumentos))
+            salida = lector.ejecutar(nombre, argumentos)
         except (ValueError, OSError):
             rechazadas.append(str(argumentos.get('ruta')))
             continue
+        cita = _cita_de_lectura(salida)
         if cita is not None:
             citas.append(cita)
-    return citas, rechazadas
+        elif salida.get('indicacion'):
+            indicaciones.append(salida['indicacion'])
+    return citas, rechazadas, indicaciones
 
 
 def _lecturas_del_llm(lector: Any, ollama: Any, pregunta: str, citas: Sequence[dict]) -> tuple[list[dict], int]:
@@ -686,10 +694,13 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
             vector, motivo = None, 'Ollama no dio un vector válido de la consulta'
     r = recuperar(indice, pregunta, k, vector=vector, reordenador=reordenador, repo=repo, abstencion=abstencion)
     hallados = r['hallados'] if r['sabe'] else []
-    leidas, rechazadas = _leer_nombradas(lector, pregunta) if lector is not None else ([], [])
+    leidas, rechazadas, indicaciones = _leer_nombradas(lector, pregunta) if lector is not None else ([], [], [])
     nota = (f" No se lee {', '.join(rechazadas)}: queda fuera de lo que el asistente puede consultar." if rechazadas else '')
+    nota += ''.join(f' {x}' for x in indicaciones)
     metodos = [*r['metodos'], 'lectura'] if leidas else r['metodos']
     avisos = list(r['avisos'])
+    if getattr(lector, 'aviso', ''):
+        avisos.append(f'lectura restringida: {lector.aviso}')           # 077:RF-57, RF-58
     base = {'metodos': metodos, 'recuperacion': _recuperacion(metodos, avisos, motivo)}
     if rechazadas:
         base['rechazadas'] = rechazadas

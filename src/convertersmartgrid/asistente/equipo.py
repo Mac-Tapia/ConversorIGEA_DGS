@@ -78,7 +78,11 @@ def inventario_equipo() -> dict:
                              'ficheros': list(lectura_proyecto.FICHEROS_BLANCOS)},
             'lista_negra': {'segmentos': sorted(lectura_proyecto.SEGMENTOS_NEGROS),
                             'nombres': list(lectura_proyecto.NOMBRES_NEGROS),
-                            'rutas': list(lectura_proyecto.RUTAS_NEGRAS)}},
+                            'rutas': list(lectura_proyecto.RUTAS_NEGRAS)},
+            # 077:RF-51 a RF-55: con LLM local se lee todo menos esto; estas listas valen con las dos políticas.
+            'exclusion_siempre': {'secretos': list(lectura_proyecto.SECRETOS), 'sellados': list(lectura_proyecto.SELLADOS),
+                                  'examen_humano': list(lectura_proyecto.EXAMEN_HUMANO)},
+            'politica_por_defecto': 'restringida'},
         'concurrencia': {'por_espacio': 1, 'motor_nativo': 'carril powerfactory de JobManager',
                          'revision': 'secuencial; máximo dos rondas'}}
 
@@ -91,8 +95,9 @@ class LecturaGobernada:
     """
 
     def __init__(self, repo: Path, *, rol: str = 'operador', plan: str | None = None, espacio: str | None = None,
-                 registrar=None):
+                 registrar=None, politica: lectura_proyecto.Politica = lectura_proyecto.RESTRINGIDA, aviso: str = ''):
         self.repo, self.rol, self.plan, self.espacio = Path(repo), rol, plan, espacio
+        self.politica, self.aviso = politica, aviso
         self._registrar = registrar if registrar is not None else (lambda fila: almacen.anotar('equipo_acciones', fila))
 
     def ejecutar(self, herramienta: str, argumentos: dict) -> dict:
@@ -104,7 +109,7 @@ class LecturaGobernada:
             self._registrar({**base, 'estado': 'lectura_rechazada', 'motivo': 'rol sin permiso de lectura'})
             raise PermisoDenegado(f'el rol {self.rol!r} no tiene permiso de lectura')
         try:
-            salida = lectura_proyecto.ejecutar(self.repo, herramienta, argumentos)
+            salida = lectura_proyecto.ejecutar(self.repo, herramienta, argumentos, self.politica)
         except ValueError as exc:                                       # ruta o argumentos rechazados
             self._registrar({**base, 'estado': 'lectura_rechazada', 'motivo': str(exc)})
             raise

@@ -205,6 +205,14 @@ def _filas(libro, hoja: str) -> list[list[Any]]:
     return libro.get_sheet_by_name(hoja).to_python(skip_empty_area=False)
 
 
+def hojas_del_libro(path: Path | str, hoja: str | None = None) -> tuple[list[str], str | None, list[list[Any]]]:
+    """Las hojas, la elegida o la primera, y sus filas; sin esa hoja, sin filas (077:RF-63)."""
+    libro = _abrir(path)
+    hojas = list(libro.sheet_names)
+    elegida = hoja if hoja is not None else (hojas[0] if hojas else None)
+    return hojas, elegida, _filas(libro, elegida) if elegida in hojas else []
+
+
 @dataclass(frozen=True)
 class LibroClientesMes:
     """Un libro mensual indexado, incluida la evidencia de cómo se obtuvo su mes."""

@@ -126,6 +126,35 @@ asyncio.run(principal())
         assert salida[clave][0] is True, clave
 
 
+@pytest.mark.skipif(not _hay_mcp(), reason='CSG_MCP_PYTHON no apunta a un intérprete con el paquete opcional mcp')
+@pytest.mark.parametrize('opciones,abierto', [([], False), (['--datos-locales'], True)])
+def test_servidor_real_y_sus_datos_locales(opciones, abierto):
+    """077:RF-61 / 077:RF-62 — por stdio real: `.gitignore` solo se abre con la opción; secretos y sellados, nunca."""
+    guion = r'''
+import asyncio, json, sys
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def principal():
+    async with stdio_client(StdioServerParameters(command=sys.executable, args=sys.argv[1:])) as (lectura, escritura):
+        async with ClientSession(lectura, escritura) as sesion:
+            await sesion.initialize()
+            salida = {}
+            for ruta in ('.gitignore', '.env', 'docs/CONJUNTO_ABSTENCION_SELLADO_077.json', 'output/ejemplos.jsonl'):
+                r = await sesion.call_tool('leer_fichero', {'ruta': ruta, 'hasta': 1})
+                salida[ruta] = r.is_error
+            print(json.dumps(salida))
+
+asyncio.run(principal())
+'''
+    r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION), *opciones], capture_output=True, encoding='utf-8', check=False, timeout=120,
+                       env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+    assert r.returncode == 0, r.stderr[-2000:]
+    salida = json.loads(r.stdout.strip().splitlines()[-1])
+    assert salida['.gitignore'] is (not abierto)
+    assert all(salida[x] is True for x in ('.env', 'docs/CONJUNTO_ABSTENCION_SELLADO_077.json', 'output/ejemplos.jsonl'))
+
+
 def test_herramientas_iguales_a_las_de_la_web():
     """077:RF-37 — el guion no define lecturas: sus funciones son solo el servidor y el registro."""
     arbol = ast.parse(GUION.read_text(encoding='utf-8'))

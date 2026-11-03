@@ -85,6 +85,33 @@ turno de GPU.
 - RF-49: SI una fila de los conjuntos nuevos pierde todas sus anclas y son más de un 5 % del conjunto, ENTONCES EL SISTEMA no medirá.
 - RF-50: EL SISTEMA medirá sin GPU la recuperación BM25 con el reparto `corpus` de la 076, sin abrir el reparto `sellado`.
 
+### Lectura de lo local con un LLM local (corrección del usuario, 2026-11-02)
+
+El usuario: «no debería proteger, se supone que se está especializando para operar en local al LLM» y «el LLM debe leer todos
+los archivos del proyecto, incluso del local». Lo de abajo cambia para el LLM local lo que RF-19 y RF-20 cerraban.
+
+- Aclaración de RF-19: la lista blanca solo vale para la política restringida (RF-57, RF-61); con el LLM local manda RF-51.
+- Aclaración de RF-20: la lista negra entera solo vale para la política restringida; con el LLM local quedan RF-53, RF-54 y RF-55.
+- Aclaración de RF-25: esto es lectura; las escrituras siguen por plan y confirmación del operador, sin ningún camino nuevo.
+- RF-51: MIENTRAS el LLM sea local, EL SISTEMA leerá en la web cualquier fichero del árbol del proyecto, también los ignorados por git.
+- RF-52: MIENTRAS el LLM sea local, EL SISTEMA leerá también las raíces de `CSG_LLM_RAICES`, `CSG_DEMANDA_DIR` y `raices_llm` del perfil local, sin ninguna ruta fija en el código.
+- RF-53: EL SISTEMA no leerá con ninguna política credenciales ni secretos, porque sirven para entrar en otro sitio, no explican el proyecto y una vez leídos pueden acabar citados.
+- RF-54: EL SISTEMA no leerá con ninguna política los conjuntos sellados ni sus resultados, porque deciden una puerta y un modelo que los lee deja de medirse a ciegas.
+- RF-55: EL SISTEMA no leerá con ninguna política `ejemplos.jsonl` ni `etiquetas*.jsonl`, porque las órdenes confirmadas son la prueba humana y las etiquetas guardan su parte reservada.
+- RF-56: EL SISTEMA no indexará ni recorrerá en una búsqueda `.git`, `.venv`, `node_modules`, `.worktrees` ni las cachés, que se leerán solo si se nombran.
+- RF-57: SI la configuración de Ollama apunta a un servidor que no sea de esta máquina o elige un modelo en la nube, ENTONCES EL SISTEMA aplicará la política restringida y lo avisará en la respuesta.
+- RF-58: SI la configuración de Ollama no se puede leer, ENTONCES EL SISTEMA aplicará la política restringida y lo avisará en la respuesta.
+- RF-59: CUANDO se haya leído un dato local, EL SISTEMA bloqueará en la búsqueda en internet su ruta, sus códigos y sus nombres propios.
+- RF-60: EL SISTEMA no tendrá ningún camino por el que una lectura llame a internet o a un servicio externo.
+- RF-61: EL SISTEMA servirá el MCP con la política restringida por defecto, porque su cliente puede estar en la nube.
+- RF-62: DONDE se arranque el MCP con `--datos-locales`, EL SISTEMA le abrirá lo mismo que al LLM local, salvo RF-53, RF-54 y RF-55.
+- RF-63: CUANDO se lea un libro de Excel, EL SISTEMA usará el lector del proyecto, con una fila por línea y sus hojas.
+- RF-64: CUANDO se lea un PDF, EL SISTEMA usará el lector del proyecto.
+- RF-65: CUANDO se pida una base de Access u otro binario, EL SISTEMA dirá qué ruta usar y no devolverá sus bytes.
+- RF-66: EL SISTEMA no indexará los datos locales, que se leerán bajo demanda.
+- RF-67: EL SISTEMA cortará toda búsqueda en un tope declarado de tiempo y de resultados, y dirá que cortó.
+- RF-68: EL SISTEMA leerá un rango de un fichero grande sin cargarlo entero en memoria.
+
 ## Requisitos no funcionales
 
 - Python 3.12; la dependencia `mcp` es opcional y queda fuera de `requirements.txt`.
@@ -96,6 +123,7 @@ turno de GPU.
 - Entrenar o ajustar ningún modelo, y bajar la puerta de abstención.
 - Cambiar `interprete.py`, `codificador_ordenes.py`, `validacion_cruzada.py`, `valle.py`, `escalera_optima.py` o `digital_twin/`.
 - Tocar `docs/EVALUACION_*_047.json`, sus conjuntos o sus umbrales.
+- Duplicar `consultar_datos`: lo que ya responde esa orden se sigue pidiendo por ella.
 - MCP por HTTP, recursos o herramientas de escritura.
 - Indexar el cuerpo del código Python, que se consulta con la búsqueda literal.
 - Pantallas nuevas en la web.

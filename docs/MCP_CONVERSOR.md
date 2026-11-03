@@ -38,7 +38,20 @@ absolutas de su máquina:
 
 O con la orden de Claude Code, `claude mcp add conversor -- <python> <repositorio>/tools/mcp_conversor.py`.
 
-## Qué se puede leer
+## Datos locales
+
+Por defecto el servidor usa la política restringida de abajo, porque un cliente MCP puede estar en la nube y lo que lea sale de
+la máquina con él. Si el cliente es local de verdad, se abre con `--datos-locales`, añadido a `args`:
+
+```json
+"args": ["D:/ruta/al/repositorio/tools/mcp_conversor.py", "--datos-locales"]
+```
+
+Abre lo mismo que el LLM local de la web: todo el árbol del proyecto y las raíces de `CSG_LLM_RAICES`, `CSG_DEMANDA_DIR` y
+`raices_llm` del perfil. Nunca abre credenciales ni secretos, conjuntos sellados y sus resultados, `ejemplos.jsonl` ni
+`etiquetas*.jsonl`. El servidor no puede comprobar dónde corre su cliente: esa decisión es de quien añade la opción.
+
+## Qué se puede leer con la política restringida
 
 La lista blanca y la lista negra están en `src/convertersmartgrid/asistente/lectura_proyecto.py`, y las publica
 `GET /api/asistente/equipo` en `lectura_proyecto`. La lista negra manda sobre la blanca y no distingue mayúsculas.

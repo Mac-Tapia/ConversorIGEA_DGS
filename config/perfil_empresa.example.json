@@ -10,6 +10,8 @@
   "escala_diagrama": null,
   "_comentario_forma": "Expresión regular que deben cumplir los nombres cortos de alimentador; solo avisa de los que no la cumplen.",
   "forma_alimentador": null,
+  "_comentario_raices_llm": "Carpetas locales que puede leer bajo demanda el LLM local (spec 077), además de CSG_LLM_RAICES; no se indexan.",
+  "raices_llm": [],
   "_comentario_carpeta": "Carpeta de DIgSILENT de los proyectos importados (spec 005). Sin ella, «ConverterSmartGrid».",
   "carpeta_proyectos_pf": "ConverterSmartGrid",
   "_comentario_estudios": "Límites con que los estudios juzgan tensiones y cargabilidad (spec 011, RF-35). Sin esta clave se usan 0,95 – 1,05 p.u. y 100 %; el operador los puede cambiar antes de ejecutar.",

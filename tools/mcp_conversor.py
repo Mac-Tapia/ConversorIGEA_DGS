@@ -5,6 +5,9 @@ Solo por stdio, sin puerto ni red. No tiene lógica propia: cada herramienta es 
 `asistente/lectura_proyecto.py` por `LecturaGobernada`, con el rol `cliente_mcp`, las mismas listas y el mismo tope
 que la web. No escribe nada, ni la bitácora: va a stderr (stdout es el canal del protocolo).
 
+Política restringida por defecto, porque el cliente puede estar en la nube. Con `--datos-locales`, lo mismo que el LLM
+local de la web: el árbol entero y las raíces configuradas. Nunca secretos, conjuntos sellados ni el examen humano.
+
 Dependencia opcional: `pip install -r requirements-mcp.txt`. Cómo conectarlo: docs/MCP_CONVERSOR.md.
 Códigos de salida: 0 correcto, 3 falta el paquete `mcp`.
 """
@@ -53,7 +56,9 @@ def _servidor(lector: Any) -> Any:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.parse_args(argv)
+    parser.add_argument('--datos-locales', action='store_true',
+                        help='Abre el árbol entero y las raíces configuradas. Solo con un cliente que se ejecute en esta máquina.')
+    args = parser.parse_args(argv)
     try:
         import anyio
         from mcp.server.stdio import stdio_server
@@ -61,8 +66,14 @@ def main(argv: list[str] | None = None) -> int:
         print('Falta el paquete opcional «mcp»: pip install -r requirements-mcp.txt. La web no lo necesita.', file=sys.stderr)
         return SIN_PAQUETE
     from convertersmartgrid.asistente.equipo import LecturaGobernada
+    from convertersmartgrid.asistente.lectura_proyecto import (
+        RESTRINGIDA,
+        politica_local,
+    )
+    from convertersmartgrid.documentos_solicitud import texto_pdf
 
-    servidor = _servidor(LecturaGobernada(REPO, rol='cliente_mcp', registrar=_registrar))
+    politica = politica_local(texto_pdf) if args.datos_locales else RESTRINGIDA  # 077:RF-61, RF-62
+    servidor = _servidor(LecturaGobernada(REPO, rol='cliente_mcp', registrar=_registrar, politica=politica))
 
     async def correr() -> None:
         async with stdio_server() as (lectura, escritura):

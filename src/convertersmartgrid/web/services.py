@@ -8976,7 +8976,10 @@ def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | No
     gobierno del equipo, como operador, lo que la pregunta nombra o el LLM pide (077:RF-26, RF-33)."""
     from ..asistente import indice, reranker
     from ..asistente.equipo import LecturaGobernada
-    from ..asistente.ollama import cliente_configurado
+    from ..asistente.lectura_proyecto import RESTRINGIDA, politica_local
+    from ..asistente.ollama import cliente_configurado, destino_llm
+    from ..documentos_solicitud import texto_pdf
+    from .asistente_consultas import anotar_lecturas
     from ..trabajadores_ml import turno_gpu
 
     ollama = cliente_configurado()
@@ -8985,11 +8988,15 @@ def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | No
     repo = project_root()
     servir = reranker.servicio()                                         # 077:RF-47, RF-48
     politica = servir['politica']
+    es_local, aviso = destino_llm()                                      # 077:RF-51, RF-57, RF-58
+    lector = LecturaGobernada(repo, rol='operador', plan=plan, espacio=espacio,
+                              politica=politica_local(texto_pdf) if es_local else RESTRINGIDA, aviso=aviso)
     reordenador = reranker.reordenador_de(politica, lambda: turno_gpu('reranker'))
     r = indice.responder(indice.cargar_o_construir(repo, servir['corpus']), texto, ollama, repo=repo,
                          reordenador=reordenador, usar_vectores=politica['hibrido'],
                          abstencion=servir['abstencion'],                 # 047:RF-31 a RF-33
-                         lector=LecturaGobernada(repo, rol='operador', plan=plan, espacio=espacio))
+                         lector=lector)
+    anotar_lecturas(r['citas'])                                          # 077:RF-59
     return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
             'metodos': r['metodos'], 'corpus': servir['corpus']}
 
