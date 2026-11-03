@@ -57,16 +57,17 @@ def crear_politica(ocultas: int = 32, cabezas: int = 2):
             self.critico = nn.Sequential(nn.Linear(2 * ocultas, ocultas), nn.Tanh(), nn.Linear(ocultas, 1))
 
         def forward(self, o: dict[str, Any]):
-            x = torch.as_tensor(o['x'])
-            ei = torch.as_tensor(o['aristas'])
+            d = next(self.parameters()).device
+            x = torch.as_tensor(o['x'], device=d)
+            ei = torch.as_tensor(o['aristas'], device=d)
             h = torch.relu(self.g1(x, ei))
             h = torch.relu(self.g2(h, ei))
             red = torch.cat([h.mean(0), h.max(0).values])
-            tipo = torch.as_tensor(o['tipo']).float()
-            rasgos = torch.stack([tipo, 1 - tipo, torch.as_tensor(o['hechas'])], dim=1)
-            obras = self.actor(torch.cat([h[torch.as_tensor(o['sitio'])], rasgos], dim=1)).squeeze(1)
+            tipo = torch.as_tensor(o['tipo'], device=d).float()
+            rasgos = torch.stack([tipo, 1 - tipo, torch.as_tensor(o['hechas'], device=d)], dim=1)
+            obras = self.actor(torch.cat([h[torch.as_tensor(o['sitio'], device=d)], rasgos], dim=1)).squeeze(1)
             logits = torch.cat([self.nada(h.mean(0)), obras])
-            logits = logits.masked_fill(~torch.as_tensor(o['mascara']), -1e9)
+            logits = logits.masked_fill(~torch.as_tensor(o['mascara'], device=d), -1e9)
             return logits, self.critico(red).squeeze(0)
 
     return Politica()
@@ -95,19 +96,21 @@ def _episodio(plano: EntornoPlano, politica, *, muestrear: bool):
         dist = torch.distributions.Categorical(logits=logits)
         accion = int(dist.sample()) if muestrear else int(torch.argmax(logits))
         _obs, recompensa, fin = plano.paso(accion)
-        pasos.append({'o': o, 'a': accion, 'logp': float(dist.log_prob(torch.tensor(accion))), 'v': float(valor),
+        pasos.append({'o': o, 'a': accion, 'logp': float(dist.log_prob(torch.tensor(accion, device=logits.device))),
+                      'v': float(valor),
                       'r': float(recompensa)})
     return pasos
 
 
-def entrenar_ppo(plano: EntornoPlano, cfg: Entrenamiento | None = None, politica=None) -> tuple[Any, list[float]]:
+def entrenar_ppo(plano: EntornoPlano, cfg: Entrenamiento | None = None, politica=None,
+                 dispositivo: str = 'cpu') -> tuple[Any, list[float]]:
     """PPO con recorte, retorno descontado y ventaja contra el crítico central. Devuelve (política, retorno medio)."""
     import torch
 
     cfg = cfg or Entrenamiento()
 
     torch.manual_seed(cfg.semilla)
-    politica = politica or crear_politica()
+    politica = (politica or crear_politica()).to(dispositivo)
     opt = torch.optim.Adam(politica.parameters(), lr=cfg.tasa)
     curva: list[float] = []
     for _ in range(cfg.iteraciones):
@@ -121,15 +124,15 @@ def entrenar_ppo(plano: EntornoPlano, cfg: Entrenamiento | None = None, politica
             retornos_ep.append(pasos[0]['g'])
             lote += pasos
         curva.append(float(np.mean(retornos_ep)))
-        ventajas = torch.tensor([p['g'] - p['v'] for p in lote])
+        ventajas = torch.tensor([p['g'] - p['v'] for p in lote], device=dispositivo)
         if len(lote) > 1:
             ventajas = (ventajas - ventajas.mean()) / (ventajas.std() + 1e-8)
         for _ep in range(cfg.epocas):
-            perdida = torch.zeros(())
+            perdida = torch.zeros((), device=dispositivo)
             for p, adv in zip(lote, ventajas, strict=True):
                 logits, valor = politica(p['o'])
                 dist = torch.distributions.Categorical(logits=logits)
-                razon = torch.exp(dist.log_prob(torch.tensor(p['a'])) - p['logp'])
+                razon = torch.exp(dist.log_prob(torch.tensor(p['a'], device=dispositivo)) - p['logp'])
                 actor = -torch.min(razon * adv, torch.clamp(razon, 1 - cfg.recorte, 1 + cfg.recorte) * adv)
                 perdida = perdida + actor + 0.5 * (valor - p['g']) ** 2 - 0.01 * dist.entropy()
             opt.zero_grad()

@@ -52,7 +52,10 @@ def main(argv=None) -> int:
     p.add_argument('--costo-terna-km', type=float, help='Sin él, no se ofrecen ternas')
     p.add_argument('--candidatos', type=int, default=8)
     p.add_argument('--max-bancos', type=int, default=3)
-    p.add_argument('--pasos', type=int, default=20000)
+    p.add_argument('--politica', choices=('maskable_ppo', 'gatv2'), default='maskable_ppo',
+                   help='maskable_ppo: el control; gatv2: la política con atención y crítico central')
+    p.add_argument('--iteraciones', type=int, default=40, help='Iteraciones de PPO, con gatv2')
+    p.add_argument('--pasos', type=int, default=20000, help='Pasos de entrenamiento, con maskable_ppo')
     p.add_argument('--semilla', type=int, default=1)
     p.add_argument('--dispositivo', choices=('cuda', 'cpu'), required=True, help='cpu: solo para comprobar el montaje')
     p.add_argument('--deps', type=Path, default=Path(os.environ.get('CSG_MADRL_DEPS') or Path.home() / '.convertersmartgrid' / 'madrl_deps'),
@@ -70,11 +73,12 @@ def main(argv=None) -> int:
     )
 
     sys.path.insert(0, str(args.deps))
-    try:
-        from sb3_contrib import MaskablePPO
-    except ImportError as exc:
-        print(f'ERROR: faltan las dependencias del piloto en {args.deps} ({exc.name}); vea requirements-madrl.txt')
-        return 2
+    if args.politica == 'maskable_ppo':
+        try:
+            from sb3_contrib import MaskablePPO
+        except ImportError as exc:
+            print(f'ERROR: faltan las dependencias del piloto en {args.deps} ({exc.name}); vea requirements-madrl.txt')
+            return 2
     grafo = json.loads(args.grafo.read_text(encoding='utf-8'))
     zonas = zonas_por_alimentador(grafo)                            # 074:RF-11: un agente por alimentador
     if not zonas:
@@ -85,6 +89,11 @@ def main(argv=None) -> int:
     plano = EntornoPlano(EntornoObras(grafo, zonas, parametros))
 
     def entrenar():
+        if args.politica == 'gatv2':
+            from convertersmartgrid.madrl_politica import Entrenamiento, entrenar_ppo
+
+            return entrenar_ppo(plano, Entrenamiento(iteraciones=args.iteraciones, semilla=args.semilla),
+                                dispositivo=args.dispositivo)[0]
         modelo = MaskablePPO('MlpPolicy', _entorno_gym(plano), n_steps=64, batch_size=32, seed=args.semilla,
                              device=args.dispositivo, verbose=0)
         modelo.learn(args.pasos)
@@ -98,14 +107,19 @@ def main(argv=None) -> int:
     else:
         print('Aviso: en cpu solo se comprueba el montaje; esto no es una medida del piloto.')
         modelo = entrenar()
-    obs, fin = plano.reiniciar(), False
-    while not fin:
-        accion, _ = modelo.predict(obs, action_masks=plano.mascara(), deterministic=True)
-        obs, _r, fin = plano.paso(int(accion))
-    aprendido = resultado(plano.e, 'maskable_ppo', args.pasos)
-    salida = {**comparar_controles(grafo, zonas, parametros), 'maskable_ppo': aprendido,
+    if args.politica == 'gatv2':
+        from convertersmartgrid.madrl_politica import evaluar_politica
+
+        aprendido = evaluar_politica(plano, modelo)
+    else:
+        obs, fin = plano.reiniciar(), False
+        while not fin:
+            accion, _ = modelo.predict(obs, action_masks=plano.mascara(), deterministic=True)
+            obs, _r, fin = plano.paso(int(accion))
+        aprendido = resultado(plano.e, 'maskable_ppo', args.pasos)
+    salida = {**comparar_controles(grafo, zonas, parametros), args.politica: aprendido,
               'multiplicadores': plano.e.lagrange.multiplicadores, 'dispositivo': args.dispositivo}
-    for clave in ('escalera', 'nsga2', 'maskable_ppo'):
+    for clave in ('escalera', 'nsga2', args.politica):
         c = salida[clave]
         print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., {len(c['obras'])} obra(s)")
     if args.salida:
