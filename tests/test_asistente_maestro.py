@@ -5,6 +5,7 @@ DIgSILENT o la GPU: lo que hagan de verdad allí queda en las tareas ``[DIgSILEN
 """
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
@@ -706,3 +707,162 @@ def test_tareas_sistema_web_de_una_set(monkeypatch):
     assert enviados['/convert/sistema'] == {'zonales': [], 'sets': ['SETA']}
     assert enviados['/demanda/cabecera/buscar']['por_barra'] is True
     assert enviados['/demanda/cabecera/buscar']['sistema_60kv'] is False
+
+# ------------------------------------------------------------------ T3, consulta de datos
+def consultar(cliente, wid, monkeypatch, texto, **datos):
+    r = proponer(cliente, wid, monkeypatch, Modelo('consultar_datos', **datos), texto)
+    assert r['plan']['tarea'] == 'consultar_datos' and r['plan']['listo'], r['plan']
+    return r['respuesta']
+
+
+def test_consulta_no_escribe_ni_abre_digsilent(api, monkeypatch):
+    """070:RF-40 — se responde en la misma orden; ningún trabajo del carril de DIgSILENT."""
+    from convertersmartgrid.asistente.tareas import TAREAS
+
+    assert not TAREAS['consultar_datos'].escribe and TAREAS['consultar_datos'].modo == 'consulta'
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    r = consultar(cliente, wid, monkeypatch, '¿qué proyectos tengo?')
+    assert not r['encontrado']
+    assert not [j for j in app.state.jobs.list(wid) if j.lane == 'powerfactory']
+
+
+@pytest.mark.parametrize('texto, dato', [
+    ('¿qué alimentadores hay?', 'alimentadores'), ('¿qué SED tiene F1?', 'sed'), ('dame los medidores de F1', 'medidores'),
+    ('¿qué clientes son fijos en F1?', 'clientes'), ('dame las máximas ya buscadas', 'maximas'),
+    ('¿qué años de medición tengo?', 'anios'), ('muestra el catálogo', 'catalogo'), ('¿qué variaciones tiene P1?', 'variaciones'),
+    ('lista de proyectos', 'proyectos'), ('¿cuál fue la última calibración de P1?', 'calibracion')])
+def test_consulta_entiende_que_dato_se_pide_y_si_no_esta_lo_dice(api, monkeypatch, texto, dato):
+    """070:RF-41 / 070:RF-43 — en un espacio vacío, «no lo encuentro» y qué hacer, nunca un valor."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    r = consultar(cliente, wid, monkeypatch, texto, alimentadores='F1', proyecto='P1')
+    assert r['dato'] == dato
+    assert not r['encontrado'] and r['filas'] == [] and r['fuente'] is None
+    assert r['texto'].startswith('No lo encuentro') and r['que_hacer']
+
+
+def test_consulta_con_datos_da_su_fuente(api, monkeypatch):
+    """070:RF-42 — cada respuesta dice de dónde sale."""
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.demanda['medidores'] = {'path': 'x.xlsx', 'name': 'medidores.xlsx'}
+    ws.demanda['cabecera'] = {'path': 'c', 'name': 'cabecera', 'anios': [2025, 2026]}
+    ws.escaneo['P1'] = {'resumen': {'F1': {'generadores': 1, 'bancos': 2}}}
+    monkeypatch.setattr(services, 'medidores_por_alimentador', lambda _ws, a: {x: ['M1'] for x in a})
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda *_a, **_k: {
+        'report': 'ajuste_cabecera_aplicacion_t.json', 'informes': [{'feeder': 'F1', 'status': 'ok', 'cuadrado': True}]})
+    casos = {'dame los medidores de F1': 'medidores.xlsx', '¿qué años de medición tengo?': 'cabecera',
+             '¿qué variaciones tiene P1?': 'escaneo de P1', '¿cuál fue la última calibración de P1?': 'ajuste_cabecera_aplicacion_t.json'}
+    for texto, fuente in casos.items():
+        r = consultar(cliente, wid, monkeypatch, texto, alimentadores='F1', proyecto='P1')
+        assert r['encontrado'] and fuente in r['fuente'] and fuente in r['texto'], texto
+
+
+def test_consulta_maximas_tras_reiniciar_pide_volver_a_buscar(api, monkeypatch):
+    """070:RF-44 — lo que vivía en memoria no se da por inexistente."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    r = consultar(cliente, wid, monkeypatch, 'dame las máximas ya buscadas')
+    assert 'Vuelva a buscarla' in r['que_hacer']
+
+
+def test_consulta_maxima_viva_con_sus_cifras(api, monkeypatch):
+    """070:RF-41 / 070:RF-42 — con la búsqueda viva, las cifras que dio ese trabajo y su nombre."""
+    monkeypatch.setattr(services, 'demanda_cabecera', lambda *_a, **_k: {'resultados': [
+        {'alimentador': 'F1', 'medidor': 'M1', 'fecha': '2026-07-21 18:45', 'kw': 123.4}]})
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    t = cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': [{'alimentador': 'F1', 'medidor': 'M1'}]})
+    assert esperar(cliente, t.json()['id'])['status'] == 'done'
+    r = consultar(cliente, wid, monkeypatch, 'dame las máximas ya buscadas')
+    assert r['filas'][0]['kw'] == 123.4 and 'Máxima de cabecera' in r['fuente']
+
+
+def test_consulta_sed_por_el_modelo_sin_recorrer_tablas(tmp_path):
+    """070:RF-45 — la ruta usa el modelo del alimentador; con las tablas envenenadas funciona igual (P2)."""
+    import sys
+
+    sys.path.insert(0, str(RAIZ / 'tests'))
+    from synthetic_export import ExportSpec, load_export
+    from test_flexibility_and_scale import _NoFullScan
+
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    ds = load_export(ExportSpec(feeders=3, sections_per_feeder=6, loads_per_feeder=4, seed=70), tmp_path / 'src')
+    ds.customer_loads_by_feeder, ds.switching_by_feeder, ds.intermediate_by_section
+    for nombre in ('customer_loads', 'switch_settings', 'sectionalizer_settings', 'intermediate_nodes'):
+        object.__setattr__(ds, nombre, _NoFullScan(nombre, getattr(ds, nombre)))
+    ws = WorkspaceStore(tmp_path / 'w').create()
+    ws.dataset = ds
+    from convertersmartgrid.naming import feeder_short_name
+
+    for network_id in ds.feeder_ids():
+        r = services.sed_de_alimentador(ws, feeder_short_name(network_id))
+        assert r['seds'] and all(s['codigo'] for s in r['seds'])
+
+
+def test_consulta_sed_ruta_web(api, monkeypatch):
+    """070:RF-45 — la ruta dice el motivo con 400, sin fuente cargada."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    assert cliente.get(f'/api/workspaces/{wid}/feeders/F1/sed').status_code == 400
+    monkeypatch.setattr(services, 'sed_de_alimentador', lambda ws, a: {'alimentador': a, 'seds': [{'codigo': 'S1', 'kva': 50.0}]})
+    assert cliente.get(f'/api/workspaces/{wid}/feeders/F1/sed').json()['seds'][0]['codigo'] == 'S1'
+
+
+def test_consulta_lo_devuelto_no_sale_a_internet(api, monkeypatch):
+    """070:RF-46 — un código que devolvió la consulta queda vetado en la búsqueda (P9), aunque no tenga forma de código."""
+    monkeypatch.setattr(services, 'sed_de_alimentador', lambda ws, a: {'alimentador': a, 'seds': [{'codigo': 'Quebrada Honda', 'kva': 50.0}]})
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.dataset = object()
+    r = consultar(cliente, wid, monkeypatch, '¿qué SED tiene F1?', alimentadores='F1')
+    assert r['encontrado']
+    salida = services.asistente_buscar(ws, 'caida de tension en quebrada honda')
+    assert salida['bloqueada'] and 'No se buscó' in salida['texto']
+
+
+@pytest.mark.parametrize('texto', ['¿qué SED tiene F1?', 'dame los medidores de F1', '¿qué clientes son fijos en F1?',
+                                   '¿qué años de medición tengo?', '¿qué variaciones tiene P1?', 'dame las máximas ya buscadas'])
+def test_consulta_por_frase_literal_aunque_sea_pregunta(texto):
+    """070:RF-39 / 070:RF-41 — tiene forma de pregunta y es una orden de esta tarea."""
+    from convertersmartgrid.asistente.interprete import interpretar
+
+    assert interpretar(texto, transformer=Modelo('estado')).tarea == 'consultar_datos'
+
+# ------------------------------------------------------------------ T4, no disponible
+@pytest.mark.parametrize('texto, clave', [
+    ('¿me sacas el cortocircuito de F1?', 'cortocircuito'), ('corrientes de falla de SETA', 'cortocircuito'),
+    ('corre el flujo óptimo de P1', 'flujo_optimo'), ('quiero armónicos de F1', 'armonicos'),
+    ('revisa la coordinación de protecciones de F1', 'protecciones'), ('¿coordinan los relés de SETA?', 'protecciones')])
+def test_nodisponible_del_catalogo_con_su_motivo(api, monkeypatch, texto, clave):
+    """070:RF-47 / 070:RF-48 — el motivo es el de ``estudios_no_ofrecidos``, no uno escrito aquí."""
+    from convertersmartgrid.estudios_pf import estudios_no_ofrecidos
+
+    fila = next(e for e in estudios_no_ofrecidos() if clave in e['clave'])
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    r = proponer(cliente, wid, monkeypatch, Modelo('estado'), texto)
+    assert r['plan']['tarea'] == 'no_disponible' and not r['plan']['escribe']
+    assert r['respuesta']['disponible'] is False and r['respuesta']['motivo'] == fila['motivo']
+    assert fila['motivo'] in r['respuesta']['texto']
+
+
+@pytest.mark.parametrize('texto, spec', [('corre la optimización no lineal de P1', '048'), ('corre el pnl de P1', '048')])
+def test_nodisponible_lo_que_solo_esta_especificado(api, monkeypatch, texto, spec):
+    """070:RF-47 / 070:RF-49 — se dice que está especificado y no hecho; ninguna cifra ni trabajo."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    r = proponer(cliente, wid, monkeypatch, Modelo('estado'), texto)
+    assert r['plan']['tarea'] == 'no_disponible' and spec in r['respuesta']['motivo']
+    assert 'trabajo' not in r and not re.search(r'\d+[.,]\d+', r['respuesta']['texto'])
+    assert not [j for j in app.state.jobs.list(wid) if j.kind not in ('asistente_interpretar',)]
+
+
+@pytest.mark.parametrize('texto', ['¿qué es el cortocircuito?', 'cómo funciona la coordinación de protecciones'])
+def test_nodisponible_una_pregunta_de_concepto_sigue_siendo_pregunta(texto):
+    """070:RF-47 — explicar el concepto no es pedir el estudio."""
+    from convertersmartgrid.asistente.interprete import interpretar
+
+    assert interpretar(texto, transformer=Modelo('estado')).tarea == 'estado'

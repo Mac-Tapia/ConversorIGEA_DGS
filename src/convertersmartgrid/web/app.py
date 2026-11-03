@@ -1127,6 +1127,11 @@ def create_app(
         ws = ws_or_404(wid)
         return {'loaded': ws.dataset is not None, 'feeders': services.feeder_rows(ws)}
 
+    @app.get('/api/workspaces/{wid}/feeders/{feeder}/sed')
+    def feeder_sed(wid: str, feeder: str) -> dict:
+        """070:RF-45: las SED de un alimentador, de su modelo, sin abrir DIgSILENT."""
+        return services.sed_de_alimentador(ws_or_404(wid), feeder)
+
     def _check_selection(ws: Workspace, body: SelectionIn) -> list[str]:
         # Lo que falla por la petición falla aquí, con 400, y no como trabajo fallido.
         from .reconstruction_service import resolve_selection

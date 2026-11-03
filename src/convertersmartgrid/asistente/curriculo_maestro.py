@@ -84,6 +84,10 @@ MAESTRO_070 = {'autor': 'Claude, maestro de la sesión', 'revision': '2026-11-02
 
 # Spec 070: las tareas nuevas, con la misma regla de las cuatro columnas. Solo sintéticas (P9, P13).
 FAMILIAS.update({
+    'consultar_datos': ('enumera las subestaciones de distribucion de {alimentadores}', 'relacion de medidores asociados a {alimentadores}',
+                        'indica las variaciones presentes en {proyecto}', 'informa de los clientes importantes de {alimentadores}'),
+    'no_disponible': ('determina la corriente de falla de {proyecto}', 'estudio de falla trifasica de {proyecto}',
+                      'evalua la selectividad de los equipos en {proyecto}', 'programacion no lineal de {proyecto}'),
     'cancelar_trabajo': ('aborta el trabajo que va en marcha', 'interrumpe la tarea que esta en proceso',
                          'detiene lo que se esta ejecutando ahora', 'anula el proceso que corre en este espacio'),
     'convertir_set': ('exporta a dgs la subestacion {set}', 'crea el archivo dgs de la set {set}',
@@ -321,6 +325,17 @@ ESTILO_REAL = {
 }
 
 # 068:RF-35: al menos doce frases por tarea, también en las de la 070.
+ESTILO_REAL['no_disponible'] = (
+    'cortocircuito de {proyecto}', 'corre cortocircuito en {proyecto}', 'me sacas el cortocircuito de {proyecto}', 'corrientes de falla de {proyecto}',
+    'revisa la coordinacion de protecciones de {proyecto}', 'coordinan los reles de {proyecto}', 'valida la selectividad de {proyecto}', 'corre la optimizacion no lineal de {proyecto}',
+    'has el pnl de {proyecto}', 'flujo optimo de {proyecto}', 'armonicos de {proyecto}', 'cuasi dinamica de {proyecto}')
+
+ESTILO_REAL['consultar_datos'] = (
+    'que sed tiene {alimentadores}', 'dame los medidores de {alimentadores}', 'que variaciones tiene {proyecto}', 'que clientes son fijos en {alimentadores}',
+    'que anos de medicion tengo', 'muestra el catalogo', 'cuales sed tiene {alimentadores}', 'lista las sed de {alimentadores}', 'dime los medidores de {alimentadores}',
+    'cuantas sed tiene {alimentadores}', 'dame las maximas ya buscadas', 'cual fue la ultima calibracion de {proyecto}', 'que alimentadores hay en la fuente',
+    'lista de medidores de {alimentadores}', 'muestrame las variaciones de {proyecto}', 'que catalogo de equipos tengo')
+
 for _tarea, _frases in {
     'cancelar_trabajo': ('cancela la corrida', 'cancela ese proceso', 'para la calibracion que esta corriendo', 'ya no sigas'),
     'convertir_set': ('dgs de {set}', 'convierte solo {set} como set', 'conviertela la set {set}', 'genera el dgs de la set {set} nomas'),

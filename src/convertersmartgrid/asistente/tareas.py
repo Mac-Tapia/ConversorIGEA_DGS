@@ -198,6 +198,27 @@ _TAREAS = (
               'factibilidad de la carga [de|en] {sed} {alimentadores} {proyecto}',
               'informe de factibilidad {proyecto} {alimentadores} {sed}')),
     # ------------------------------------------------------------ spec 070, por las mismas rutas de la web
+    Tarea('consultar_datos', 'Consulta lo que hay: alimentadores, SED, medidores, clientes fijos, máximas buscadas, años de '
+          'medición, catálogo, variaciones escaneadas, proyectos y última calibración, con su fuente (070:RF-41).',
+          (A_OPC, P_OPC, SET_OPC, Dato('periodo', 'periodo', obligatorio=False, descripcion='mes AAAA-MM o año AAAA')),
+          False, 'consulta', 'sed_de_alimentador', (
+              '[qué|que] sed tiene {alimentadores}', 'dame los medidores de {alimentadores}', '[qué|que] variaciones tiene {proyecto}',
+              '[qué|que] clientes son fijos en {alimentadores}', '[qué|que] años de medición tengo', 'muéstrame el catálogo de equipos'),
+          frases_literales=(
+              r'\b(que|cuales|cuantas?|cuantos|dame|dime|lista\w*|muestra\w*|ensename)\b.*\b(seds?|medidor(es)?|variacion(es)?|catalogo)\b',
+              r'\b(que|cuales|cuantos|dame|lista\w*|muestra\w*)\b.*\bclientes\b.*\bfijos\b',
+              r'\bque clientes\b', r'\b(anos|ano) de medicion\b', r'\bmaximas? (ya )?buscadas?\b',
+              r'\bultima calibracion\b', r'\bque alimentadores hay\b(?!.*\bcargad)'),
+          literal_en_pregunta=True),
+    Tarea('no_disponible', 'Dice por qué un estudio no está disponible: cortocircuito, protecciones, optimización no lineal '
+          'y los que el catálogo no ofrece, sin ejecutar nada (070:RF-47).', (ESTUDIO_OPC, P_OPC), False, 'consulta',
+          'estudios_catalogo', (
+              '[corre|hazme|sácame] el cortocircuito de {proyecto}', 'revisa la coordinación de protecciones de {proyecto}',
+              'corre la optimización no lineal de {proyecto}', 'corrientes de falla de {proyecto}'),
+          frases_literales=(r'^(?!\W*(que es|que significa|como funciona|como se|explica)).*\b('
+                            r'cortocircuito|corrientes? de falla|protecciones|reles|selectividad|flujo optimo|armonic\w*|'
+                            r'cuasi\w*|pnl|optimizacion no lineal|optimizacion mixta)\b',),
+          literal_en_pregunta=True),
     Tarea('cancelar_trabajo', 'Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32).', (),
           True, 'trabajo', 'pf_projects', (
               '[cancela|cancelar|para] lo que [está|esta] corriendo', '[para|detén|deten] ese trabajo',

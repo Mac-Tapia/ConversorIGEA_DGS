@@ -3274,6 +3274,32 @@ def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float |
     return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
 
 
+def _feeder_de_la_entrada(ws: Workspace, alimentador: str) -> str | None:
+    """El alimentador de la entrada cargada que corresponde a ese código, escrito como sea."""
+    from ..demanda_medida import clave_codigo
+
+    clave = clave_codigo(alimentador)
+    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
+    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
+    # entrada con un aviso falso de «no está en la entrada cargada».
+    return next((f for f in ws.dataset.feeder_ids()
+                 if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave), None)
+
+
+def sed_de_alimentador(ws: Workspace, alimentador: str) -> dict:
+    """Las SED de un alimentador en la fuente cargada, con las reglas del DGS (070:RF-45).
+
+    Por el modelo de ese alimentador, que usa los índices del dataset: nada de recorrer tablas (P2).
+    """
+    require_loaded(ws)
+    feeder = _feeder_de_la_entrada(ws, alimentador)
+    if feeder is None:
+        raise UserError(f'{alimentador} no está en la fuente cargada.')
+    modelo = build_model(ws, feeder, geography=False)
+    return {'alimentador': alimentador, 'seds': [{'codigo': s.code, 'kva': float(s.design_kva) if s.design_kva else None}
+                                                 for s in modelo.seds]}
+
+
 def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float], str]:
     """kVA de cada SED del alimentador en la entrada cargada (RF-10), y un aviso si no hay.
 
@@ -3281,18 +3307,10 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     El código del libro de medidores puede venir escrito de otra forma que el de la
     entrada («PA217» y «pa-217»): se compara con ``clave_codigo``.
     """
-    from ..demanda_medida import clave_codigo
-
     if ws.dataset is None:
         return {}, ('Sin fuente canónica activa cargada: las SED sin transformador en '
                     'DIgSILENT no tendrán de dónde sacar su kVA.')
-    clave = clave_codigo(alimentador)
-    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
-    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
-    # entrada con un aviso falso de «no está en la entrada cargada».
-    feeder = next((f for f in ws.dataset.feeder_ids()
-                   if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave),
-                  None)
+    feeder = _feeder_de_la_entrada(ws, alimentador)
     if feeder is None:
         return {}, f'{alimentador} no está en la entrada cargada: no hay kVA de respaldo.'
     try:
@@ -7985,6 +8003,14 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
             clave = f"{f.get('clase')} · {f.get('caso')}"
             cuenta[clave] = cuenta.get(clave, 0) + 1
         return {'texto': f'{len(filas)} episodio(s) en el búfer del gemelo.', 'por_clase': cuenta}
+    if t == 'consultar_datos':
+        from .asistente_consultas import responder
+
+        return responder(sys.modules[__name__], ws, plan, trabajos)            # 070:RF-40 a RF-46
+    if t == 'no_disponible':
+        from .asistente_consultas import no_disponible
+
+        return no_disponible(sys.modules[__name__], ws, plan)                  # 070:RF-47 a RF-49
     if t == 'pregunta':
         return asistente_pregunta(str(datos.get('texto') or plan.texto))
     if t == 'clasificar_informe':
@@ -8688,8 +8714,12 @@ def asistente_buscar(ws: Workspace, texto: str) -> dict:
     """GitHub y arXiv con una consulta sin datos de la red (026:RF-29 a RF-31)."""
     from ..asistente.internet import Buscador
 
+    from .asistente_consultas import terminos_devueltos
+
     vocab = asistente_vocabulario(ws)
-    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
+    # 070:RF-46: lo que devolvió la consulta de datos no sale de la máquina, tenga la forma que tenga (P9).
+    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema'], *(vocab.get('set') or []),
+                  *terminos_devueltos(ws)])
     r = b.buscar(texto, motivo='orden del operador')
     if r['bloqueada']:
         return {'texto': f"No se buscó: la consulta {r['bloqueada']} (P9). Escríbala solo con términos técnicos.",

@@ -61,6 +61,8 @@ PLANTILLAS = {
 }
 
 PLANTILLAS.update({
+    'consultar_datos': ('Enumera las subestaciones de distribución de {alimentadores}', 'Relaciona los medidores asociados a {alimentadores}'),
+    'no_disponible': ('Calcula las corrientes de cortocircuito de «{proyecto}»', 'Comprueba la selectividad de protecciones de «{proyecto}»'),
     'cancelar_trabajo': ('Interrumpe el trabajo que corre en este espacio', 'Detén la ejecución en curso de este espacio'),
     'convertir_set': ('Construye el DGS de la subestación {set}', 'Pasa a DGS la subestación {set} con sus circuitos'),
     'set_completo': ('Convierte, importa y calibra la subestación {set} con el período {periodo}', 'Proceso completo de la subestación {set} para {periodo}'),
@@ -78,8 +80,6 @@ PLANTILLAS.update({
     'descargar_resultados': ('Comprime las salidas de este espacio para bajarlas', 'Prepara el comprimido con los resultados'),
     'pronostico': ('Calcula la demanda esperada de cabecera con «{ruta}»', 'Estima el consumo futuro de cabecera desde «{ruta}»'),
 })
-PLANTILLAS['set_completo'] = tuple(PLANTILLAS['set_completo'])
-
 PREFIJOS = ('', 'Por favor: ', 'Ahora, ', 'Necesito lo siguiente: ')
 
 

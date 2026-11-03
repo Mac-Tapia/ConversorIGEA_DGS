@@ -4,9 +4,9 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k huecos` en verde.
 - [x] T2 Tareas nuevas por rutas existentes. (RF-17 a RF-39)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k tareas` en verde.
-- [ ] T3 Consulta de datos. (RF-40 a RF-46)
+- [x] T3 Consulta de datos. (RF-40 a RF-46)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k consulta` en verde.
-- [ ] T4 Respuestas de no disponible. (RF-47 a RF-49)
+- [x] T4 Respuestas de no disponible. (RF-47 a RF-49)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k nodisponible` en verde.
 - [ ] T5 Encadenar la evaluación de una carga nueva. (RF-50 a RF-56)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k cadena` en verde.
