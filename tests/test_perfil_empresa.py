@@ -272,6 +272,8 @@ def test_electro_dunas_es_un_perfil_mas():
         'vias',
         # 024:RF-31, RF-58c: normas de calidad de sus sistemas, tasas, tarifas y libro CAPEX.
         'normas', 'planificacion',
+        # 072:RF-17 y 055:RF-6: su nombre en los entregables y su código, para saber si una fuente es suya.
+        'empresa', 'codigo_empresa',
             # 022:RF-3: la estructura zonal → SET → alimentadores, en un JSON aparte.
             'estructura',
             # 025:RF-50, RF-57: fracción, sorteos y tolerancias de la escalera optimizada.
