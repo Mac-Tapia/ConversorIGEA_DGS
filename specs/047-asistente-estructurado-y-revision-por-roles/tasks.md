@@ -8,7 +8,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_salida_estructurada.py tests/test_asistente_interprete.py tests/test_asistente_ollama.py tests/test_asistente_tareas.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [ ] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-30)
+- [ ] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-37)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_reranker.py tests/test_asistente_indice.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 

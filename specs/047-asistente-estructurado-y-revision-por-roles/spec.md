@@ -43,6 +43,13 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-28: SI la consulta nombra un código que aparece tal cual en un fragmento, ENTONCES EL SISTEMA pondrá ese fragmento por delante de los demás, con reranker o sin él.
 - RF-29: SI una cita no se puede comprobar contra su fichero, ENTONCES EL SISTEMA la quitará de la respuesta y, sin citas, dirá que no lo sabe.
 - RF-30: SI el reranker adoptado no puede correr en CUDA, ENTONCES EL SISTEMA conservará el orden sin reranker, sin caer a CPU, y lo dirá en la respuesta.
+- RF-31: CUANDO el reranker calibrado haya puntuado, EL SISTEMA decidirá si hay respuesta comparando su mejor puntuación con su umbral calibrado.
+- RF-32: SI no hay reranker calibrado que haya puntuado, ENTONCES EL SISTEMA decidirá con los umbrales calibrados de coseno y BM25, o con el de BM25 solo si no hay vectores.
+- RF-33: SI no hay umbral calibrado para el método disponible, ENTONCES EL SISTEMA responderá «No lo sé» y lo dirá en la respuesta.
+- RF-34: EL SISTEMA fijará los umbrales solo con el conjunto de calibración y guardará su huella, sin usar el conjunto de 76 ni el sellado.
+- RF-35: SI ya hay un informe del conjunto sellado de abstención con la misma huella, ENTONCES EL SISTEMA rechazará medirlo de nuevo.
+- RF-36: CUANDO se mida el conjunto sellado, EL SISTEMA aplicará a cada método la puerta declarada en el plan e informará si la cumple.
+- RF-37: SI la consulta nombra un código que está tal cual en un fragmento hallado, ENTONCES EL SISTEMA lo contará como evidencia sin aplicar el umbral.
 
 ## Requisitos no funcionales
 
