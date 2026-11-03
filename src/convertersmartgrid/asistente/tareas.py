@@ -219,6 +219,15 @@ _TAREAS = (
                             r'cortocircuito|corrientes? de falla|protecciones|reles|selectividad|flujo optimo|armonic\w*|'
                             r'cuasi\w*|pnl|optimizacion no lineal|optimizacion mixta)\b',),
           literal_en_pregunta=True),
+    Tarea('evaluar_carga_nueva', 'Evalúa una carga nueva de una vez: diagnóstico, calibración si hace falta, carga, informe y '
+          'obras solo si hay problemas (070:RF-50).',
+          (P, A, SED, Dato('periodo', 'periodo', obligatorio=False, descripcion='con qué calibrar, si hace falta'), LIBROS),
+          True, 'etapas', 'agente_proyecto', (
+              'evalúa la carga nueva {sed} en {alimentadores} de {proyecto}',
+              '[¿|]se puede conectar {sed} en {alimentadores} de {proyecto}[?|]',
+              'evaluación de conexión de {sed} en {alimentadores} de {proyecto}',
+              'ingreso de la carga nueva {sed} en {alimentadores} de {proyecto}'),
+          frases_literales=(r'\bevalu\w*\b.*\bcarga nueva\b', r'\bevalu\w*\b.*\bconexion\b', r'\bingreso de (una |la )?carga nueva\b')),
     Tarea('cancelar_trabajo', 'Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32).', (),
           True, 'trabajo', 'pf_projects', (
               '[cancela|cancelar|para] lo que [está|esta] corriendo', '[para|detén|deten] ese trabajo',

@@ -8413,17 +8413,19 @@ def _proyecto_con_libros(ws: Workspace, datos: dict) -> dict:
     return {**datos, 'ruta': carpeta} if carpeta else datos
 
 
-def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False) -> dict:
-    """Las etapas del proyecto entero antes del clic; solo lee (067:RF-37)."""
-    from ..asistente.orquestador import lista_de_etapas
+def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False, *, etapas: tuple | None = None,
+                          control: str = 'agente_proyecto.json', omitir: dict | None = None) -> dict:
+    """Las etapas antes del clic; solo lee (067:RF-37, 070:RF-51)."""
+    from ..asistente.orquestador import ETAPAS, lista_de_etapas
 
     datos = _proyecto_con_libros(ws, datos)
-    ruta = ws.out_dir / 'agente_proyecto.json'
+    ruta = ws.out_dir / control
     try:
-        control = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+        guardado = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
     except (OSError, ValueError) as exc:
         raise UserError(f'El punto de control del proyecto no se puede leer: {exc}') from exc
-    return lista_de_etapas(datos, control if isinstance(control, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar)
+    return lista_de_etapas(datos, guardado if isinstance(guardado, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar,
+                           etapas=etapas or ETAPAS, omitir=omitir)
 
 
 def agente_proyecto_anotar(ws: Workspace, datos: dict, lista: dict) -> None:
@@ -8441,24 +8443,25 @@ def _agente_identidad(ws: Workspace) -> dict:
 
 
 def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http: Any = None,
-                    reiniciar: bool = False) -> dict:
+                    reiniciar: bool = False, *, etapas: tuple | None = None,
+                    control: str = 'agente_proyecto.json') -> dict:
     """El proyecto entero desde el espacio, etapa por etapa y con su punto de control
     (027:RF-43, RF-44): retoma donde se cortó, sin repetir lo hecho."""
     import sys
 
     from ..asistente.ejecutor import ClienteWeb, PasoFallido
-    from ..asistente.orquestador import ejecutar_proyecto
+    from ..asistente.orquestador import ETAPAS, ejecutar_proyecto
     from ..asistente.observacion import preparar_control
 
     datos = _proyecto_con_libros(ws, datos)
-    ruta = ws.out_dir / 'agente_proyecto.json'
+    ruta = ws.out_dir / control
     def identidad():
         return {**_agente_identidad(ws),'solicitud':dict(datos)}
     try:
-        control=preparar_control(ruta,identidad(),reiniciar=reiniciar)
+        punto=preparar_control(ruta,identidad(),reiniciar=reiniciar)
     except (OSError,ValueError) as exc:
         raise UserError(str(exc)) from exc
-    control.identidad_actual=identidad
+    punto.identidad_actual=identidad
     if http is None:
         import requests
 
@@ -8488,7 +8491,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         gobierno.validar_cliente(cliente)
         return gobierno
     try:
-        return ejecutar_proyecto(datos, cliente=cliente, control=control, proceso=proceso,
+        return ejecutar_proyecto(datos, cliente=cliente, control=punto, proceso=proceso, etapas=etapas or ETAPAS,
                                  log=ctx.log,avance=ctx.progress, gobierno_etapa=gobierno_etapa)
     except (PasoFallido, ValueError, RuntimeError) as exc:
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc

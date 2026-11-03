@@ -88,6 +88,8 @@ FAMILIAS.update({
                         'indica las variaciones presentes en {proyecto}', 'informa de los clientes importantes de {alimentadores}'),
     'no_disponible': ('determina la corriente de falla de {proyecto}', 'estudio de falla trifasica de {proyecto}',
                       'evalua la selectividad de los equipos en {proyecto}', 'programacion no lineal de {proyecto}'),
+    'evaluar_carga_nueva': ('estudia si admite la red el suministro {sed} en {alimentadores} de {proyecto}', 'analisis de admision de {sed} en {alimentadores} del proyecto {proyecto}',
+                            'valora el ingreso de {sed} en {alimentadores} de {proyecto} con su informe', 'dictamina la conexion de {sed} a {alimentadores} en {proyecto}'),
     'cancelar_trabajo': ('aborta el trabajo que va en marcha', 'interrumpe la tarea que esta en proceso',
                          'detiene lo que se esta ejecutando ahora', 'anula el proceso que corre en este espacio'),
     'convertir_set': ('exporta a dgs la subestacion {set}', 'crea el archivo dgs de la set {set}',
@@ -329,6 +331,11 @@ ESTILO_REAL['no_disponible'] = (
     'cortocircuito de {proyecto}', 'corre cortocircuito en {proyecto}', 'me sacas el cortocircuito de {proyecto}', 'corrientes de falla de {proyecto}',
     'revisa la coordinacion de protecciones de {proyecto}', 'coordinan los reles de {proyecto}', 'valida la selectividad de {proyecto}', 'corre la optimizacion no lineal de {proyecto}',
     'has el pnl de {proyecto}', 'flujo optimo de {proyecto}', 'armonicos de {proyecto}', 'cuasi dinamica de {proyecto}')
+
+ESTILO_REAL['evaluar_carga_nueva'] = (
+    'evalua esta carga nueva {sed} en {alimentadores} de {proyecto}', 'evalua la carga nueva {sed}', 'se puede conectar {sed} en {alimentadores} de {proyecto}', 'evaluacion de conexion de {sed} en {proyecto}',
+    'ingreso de la carga nueva {sed} en {alimentadores}', 'has la evaluacion de la carga nueva {sed} en {proyecto}', 'corre la evaluacion de conexion de {sed}', 'evalua el ingreso de {sed} en {alimentadores} de {proyecto}',
+    'evalua {sed} como carga nueva en {proyecto}', 'hazme la evaluacion de carga nueva de {sed} en {alimentadores}', 'lleva la carga nueva {sed} hasta el informe en {proyecto}', 'evalua de una vez la carga nueva {sed} en {proyecto}')
 
 ESTILO_REAL['consultar_datos'] = (
     'que sed tiene {alimentadores}', 'dame los medidores de {alimentadores}', 'que variaciones tiene {proyecto}', 'que clientes son fijos en {alimentadores}',

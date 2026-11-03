@@ -866,3 +866,188 @@ def test_nodisponible_una_pregunta_de_concepto_sigue_siendo_pregunta(texto):
     from convertersmartgrid.asistente.interprete import interpretar
 
     assert interpretar(texto, transformer=Modelo('estado')).tarea == 'estado'
+
+# ------------------------------------------------------------------ T5, evaluar una carga nueva
+class WebDeCarga:
+    """La API de la web, sustituida: cada POST es un trabajo que termina como pida la prueba."""
+
+    def __init__(self, *, calibrado=True, factible=True, verificar_rc=0, cortar_en=None):
+        self.calibrado, self.factible, self.verificar_rc, self.cortar_en = calibrado, factible, verificar_rc, cortar_en
+        self.llamadas, self.resultados, self.informes = [], {}, 0
+
+    def request(self, metodo, url, **kw):
+        ruta = url.split('/api/workspaces/w', 1)[-1] if '/api/workspaces/w' in url else url.split('/api', 1)[-1]
+        self.llamadas.append((metodo, ruta, kw.get('json') or kw.get('data')))
+
+        class R:
+            def __init__(s, codigo, datos):
+                s.status_code, s._d, s.content, s.text = codigo, datos, b'x', str(datos)
+
+            def json(s):
+                return s._d
+
+        if ruta.startswith('/jobs/'):
+            return R(200, {'id': ruta[6:], 'status': 'done', 'result': self.resultados.get(ruta[6:], {})})
+        if self.cortar_en and ruta.startswith(self.cortar_en):
+            self.cortar_en = None
+            return R(409, {'detail': 'DIgSILENT ocupado'})
+        if ruta.startswith('/demanda/ajuste/ultimo'):
+            return R(200, {'ajuste': {'id': 'disco:t'} if self.calibrado else None})
+        if ruta == '/lote/plan':
+            return R(200, {'token': 'tk'})
+        marca = ruta.strip('/').replace('/', '_') + f'-{len(self.llamadas)}'
+        if ruta == '/powerfactory/verificar':
+            self.resultados[marca] = {'returncode': self.verificar_rc, 'report': 'v.json'}
+        if ruta == '/demanda/recalibrar':
+            self.calibrado = True
+        if ruta == '/informes/factibilidad':
+            self.informes += 1
+            self.resultados[marca] = {'factible': self.factible or self.informes > 1, 'informe': f'informe{self.informes}.docx',
+                                      'libro_xlsx': None, 'sin_libro': 'el perfil no lo declara'}
+        return R(202, {'id': marca, 'status': 'queued'})
+
+
+DATOS_CARGA = {'proyecto': 'P1', 'alimentadores': ['F1'], 'sed': 'S9', 'nueva': {'Kw': 800.0, 'FP': .98, 'barra': 'B7', 'SED': 'S9', 'alimentador': 'F1', 'nombre': 'S9'},
+               'formulario': {'solicitud': {'cliente': 'c'}}, 'periodo': '2026-07', 'ruta': 'D:/libros'}
+
+
+def correr_carga(web, tmp_path):
+    from convertersmartgrid.asistente.ejecutor import ClienteWeb
+    from convertersmartgrid.asistente.orquestador import ETAPAS_CARGA, PuntoDeControl, ejecutar_proyecto
+
+    control = PuntoDeControl.abrir(tmp_path / 'carga.json')
+    r = ejecutar_proyecto(DATOS_CARGA, cliente=ClienteWeb(web, 'http://x', 'w', intervalo_s=0), control=control,
+                          proceso=lambda *_a: pytest.fail('sin proceso'), etapas=ETAPAS_CARGA)
+    return r, control
+
+
+def test_cadena_sin_problemas_no_hace_obras_y_lo_dice(tmp_path):
+    """070:RF-50 / 070:RF-53 / 070:RF-54 — con calibración y factible, sin calibrar ni obras, con el motivo."""
+    web = WebDeCarga()
+    r, _c = correr_carga(web, tmp_path)
+    rutas = [x[1] for x in web.llamadas if x[0] == 'POST']
+    assert rutas[0] == '/powerfactory/verificar' and '/demanda/recalibrar' not in rutas and '/pf/obras/con-proyecto' not in rutas
+    assert rutas.count('/informes/factibilidad') == 1
+    et = r['etapas']
+    assert et['calibracion']['estado'] == 'omitida' and 'calibración' in et['calibracion']['resultado']['motivo']
+    assert et['obras']['estado'] == 'omitida' and 'sin obras' in et['obras']['resultado']['motivo']
+    assert et['informe']['estado'] == 'omitida'
+
+
+def test_cadena_con_problemas_hace_obras_de_esa_carga_y_rehace_el_informe(tmp_path):
+    """070:RF-50 — solo esa carga (063:RF-23), y el informe se rehace con las obras."""
+    web = WebDeCarga(factible=False)
+    r, _c = correr_carga(web, tmp_path)
+    cuerpos = {x[1]: x[2] for x in web.llamadas}
+    assert cuerpos['/pf/obras/con-proyecto']['cargas'] == ['S9']
+    assert [x[1] for x in web.llamadas].count('/informes/factibilidad') == 2
+    assert cuerpos['/informes/factibilidad']['preparar_casos'] is True
+    assert r['etapas']['informe']['estado'] == 'hecha'
+
+
+def test_cadena_sin_calibracion_recalibra_antes_de_la_carga(tmp_path):
+    """070:RF-50 — la calibración hace falta y va antes de conectar."""
+    web = WebDeCarga(calibrado=False)
+    correr_carga(web, tmp_path)
+    rutas = [x[1] for x in web.llamadas if x[0] == 'POST']
+    assert rutas.index('/demanda/recalibrar') < rutas.index('/lote/plan')
+
+
+def test_cadena_no_sigue_si_no_converge(tmp_path):
+    """070:RF-50 — no se conecta nada sobre una red que no converge; se para y se dice (no aceptar que no converge)."""
+    web = WebDeCarga(verificar_rc=2)
+    with pytest.raises(RuntimeError, match='no converge'):
+        correr_carga(web, tmp_path)
+    assert '/lote/plan' not in [x[1] for x in web.llamadas]
+
+
+def test_cadena_cortada_retoma_sin_repetir(tmp_path):
+    """070:RF-56 — lo hecho no se repite; retomar exige volver a llamarla, no ocurre solo."""
+    from convertersmartgrid.asistente.ejecutor import PasoFallido
+
+    web = WebDeCarga(cortar_en='/informes/factibilidad')
+    with pytest.raises(PasoFallido):
+        correr_carga(web, tmp_path)
+    web2 = WebDeCarga()
+    correr_carga(web2, tmp_path)
+    assert '/lote/plan' not in [x[1] for x in web2.llamadas] and '/informes/factibilidad' in [x[1] for x in web2.llamadas]
+
+
+def test_cadena_el_plan_ensena_las_etapas_y_confirma_una_vez(api, monkeypatch):
+    """070:RF-51 — la lista va en el plan, y un solo clic va por el agente con esas etapas."""
+    con_calibracion(monkeypatch)
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.informes['formularios']['P1'] = {'factibilidad': {'solicitud': {'cliente': 'c'}}}
+    llamadas = []
+    monkeypatch.setattr(services, 'agente_proyecto', lambda ws, ctx, datos, base, http=None, reiniciar=False, **kw: (
+        llamadas.append((datos, kw)) or {'completo': True, 'etapas': {'evaluacion': {'estado': 'hecha', 'resultado': {
+            'factible': True, 'informe': 'i.docx'}}}, 'datos': datos}))
+    plan = proponer(cliente, wid, monkeypatch, Modelo('estado', proyecto='P1', alimentadores='F1', sed='S9'),
+                    'evalúa la carga nueva S9 de 800 kW en F1 de P1 barra B7')['plan']
+    assert plan['tarea'] == 'evaluar_carga_nueva' and plan['modo'] == 'etapas', plan
+    assert plan['listo'] and plan['escribe'], plan['faltan']
+    texto = ' '.join(plan['pasos'])
+    assert 'calibracion' in texto and 'ya tiene' in texto and 'obras' in texto and 'solo si' in texto
+    assert not llamadas
+    fin = confirmar(cliente, wid, plan)
+    assert fin['status'] == 'done', fin['error']
+    assert len(llamadas) == 1 and llamadas[0][0]['nueva']['Kw'] == 800.0
+    assert 'i.docx' in fin['result']['entregables'] and 'factible' in fin['result']['texto']
+
+
+def test_cadena_que_cambio_no_se_ejecuta(api, monkeypatch):
+    """070:RF-52 — si la calibración apareció o desapareció, la lista ya no es la que se confirmó."""
+    con_calibracion(monkeypatch)
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.informes['formularios']['P1'] = {'factibilidad': {'solicitud': {'cliente': 'c'}}}
+    monkeypatch.setattr(services, 'agente_proyecto', lambda *_a, **_k: pytest.fail('no debía ejecutarse'))
+    plan = proponer(cliente, wid, monkeypatch, Modelo('estado', proyecto='P1', alimentadores='F1', sed='S9', periodo='2026-07'),
+                    'evalúa la carga nueva S9 de 800 kW en F1 de P1 barra B7 con 2026-07')['plan']
+    assert plan['listo'], plan['faltan']
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda *_a, **_k: None)
+    fin = confirmar(cliente, wid, plan)
+    assert fin['status'] == 'failed' and 'cambió' in fin['error']
+
+
+@pytest.mark.parametrize('texto, falta', [
+    ('evalúa la carga nueva S9 en F1 de P1 barra B7', 'potencia'),
+    ('evalúa la carga nueva S9 de 800 kW en F1 de P1', 'ubicación')])
+def test_cadena_dice_lo_que_falta_de_la_carga(api, monkeypatch, texto, falta):
+    """070:RF-51 — lo mismo que la carga sola: no se deduce."""
+    con_calibracion(monkeypatch)
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    ws.informes['formularios']['P1'] = {'factibilidad': {'solicitud': {'cliente': 'c'}}}
+    plan = proponer(cliente, wid, monkeypatch, Modelo('estado', proyecto='P1', alimentadores='F1', sed='S9'), texto)['plan']
+    assert not plan['listo'] and any(falta in f for f in plan['faltan'])
+
+
+def test_cadena_la_carga_se_llama_por_su_nombre():
+    """070:RF-29 — sin SED todavía, el nombre que da la orden; una palabra de unión no es un nombre."""
+    from convertersmartgrid.asistente.interprete import Interpretacion
+    from convertersmartgrid.asistente.plan import resolver
+
+    def nombre(texto):
+        return resolver(Interpretacion(texto, 'carga_nueva_sola', 1., 'x', {}), {}).datos.get('sed')
+
+    assert nombre('conecta Quebrada de 800 kW') == 'QUEBRADA' and nombre('evalúa la carga nueva S9 de 800 kW') == 'S9'
+    assert nombre('conecta en F1 de 800 kW') is None
+
+
+def test_cadena_sin_formulario_ni_calibracion_lo_dice(api, monkeypatch):
+    """070:RF-51 / 070:RF-53 — sin formulario del informe; sin calibración pide el periodo con que hacerla."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    plan = proponer(cliente, wid, monkeypatch, Modelo('estado', proyecto='P1', alimentadores='F1', sed='S9'),
+                    'evalúa la carga nueva S9 de 800 kW en F1 de P1 barra B7')['plan']
+    assert any('formulario' in f for f in plan['faltan']) and any('periodo' in f for f in plan['faltan'])
+
+
+def test_cadena_el_libro_es_solo_del_perfil():
+    """070:RF-55 — lo decide el informe, que ya lo escribe solo si el perfil lo declara (066:RF-1): aquí no se fuerza."""
+    fuente = (RAIZ / 'src/convertersmartgrid/asistente/orquestador.py').read_text(encoding='utf-8')
+    assert 'libro_informe' not in fuente and 'libro_xlsx' not in fuente
+    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    assert '_libro_del_informe(ctx, destino, imagenes)' in fuente

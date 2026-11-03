@@ -8,7 +8,7 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k consulta` en verde.
 - [x] T4 Respuestas de no disponible. (RF-47 a RF-49)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k nodisponible` en verde.
-- [ ] T5 Encadenar la evaluación de una carga nueva. (RF-50 a RF-56)
+- [x] T5 Encadenar la evaluación de una carga nueva. (RF-50 a RF-56)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k cadena` en verde.
 - [ ] T6 Reglas de dominio. (RF-57 a RF-61)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k dominio` en verde.

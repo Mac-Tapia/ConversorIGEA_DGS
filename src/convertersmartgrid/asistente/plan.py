@@ -202,7 +202,16 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
         if valores:
             return valores[0].upper()
         m = re.search(r'\bsed\s+([A-Za-z]*\d{3,})', texto, re.IGNORECASE)
-        return m.group(1).upper() if m else None
+        if m:
+            return m.group(1).upper()
+        # 070:RF-29: una carga nueva aún no tiene SED: se la llama por su nombre («conecta MINERA de 800 kW»).
+        m = re.search(r'\b(?:carga nueva|carga|cliente|conect[ae]r?)\s+(?!(?:de|del|en|la|el|una|sola|nueva|esta)\b)([\w.-]+)',
+                      normalizar(texto))
+        if m:
+            nombre = texto[m.start(1):m.end(1)].upper()
+            plan.razonamiento.append(f'carga: {nombre}, tomada del texto.')
+            return nombre
+        return None
     if tipo == 'subtipo':
         lista = list(vocab.get('subtipo') or SUBTIPOS_ESTUDIO)
         for v in valores:

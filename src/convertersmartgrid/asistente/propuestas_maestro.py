@@ -63,6 +63,7 @@ PLANTILLAS = {
 PLANTILLAS.update({
     'consultar_datos': ('Enumera las subestaciones de distribución de {alimentadores}', 'Relaciona los medidores asociados a {alimentadores}'),
     'no_disponible': ('Calcula las corrientes de cortocircuito de «{proyecto}»', 'Comprueba la selectividad de protecciones de «{proyecto}»'),
+    'evaluar_carga_nueva': ('Evalúa de una vez la conexión de {sed} en {alimentadores} de «{proyecto}»', 'Lleva hasta su informe la carga nueva {sed} de {alimentadores} en «{proyecto}»'),
     'cancelar_trabajo': ('Interrumpe el trabajo que corre en este espacio', 'Detén la ejecución en curso de este espacio'),
     'convertir_set': ('Construye el DGS de la subestación {set}', 'Pasa a DGS la subestación {set} con sus circuitos'),
     'set_completo': ('Convierte, importa y calibra la subestación {set} con el período {periodo}', 'Proceso completo de la subestación {set} para {periodo}'),

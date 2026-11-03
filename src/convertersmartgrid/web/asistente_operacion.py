@@ -196,6 +196,10 @@ def _numero(texto: str) -> float:
 
 def _carga_sola(svc, ws, plan, extras: dict) -> None:
     _exige_calibracion(svc, ws, plan)
+    _datos_de_la_carga(plan, extras)
+
+
+def _datos_de_la_carga(plan, extras: dict) -> None:
     feeders = plan.datos.get('alimentadores') or []
     if len(feeders) > 1:
         plan.faltan.append('un solo alimentador: la carga sola se conecta en uno.')
@@ -303,8 +307,11 @@ def alcance_de_sistema_web(svc, ws, plan) -> tuple[list[str], str]:
 
 def _etapas_en_palabras(lista: dict) -> list[str]:
     def fila(e: dict) -> str:
-        sufijo = {'hecha': ' (ya hecha)', 'se_omitira': f" (se omitirá: falta {', '.join(e['falta'])})",
+        por_que = e.get('motivo') or f"falta {', '.join(e['falta'])}"
+        sufijo = {'hecha': ' (ya hecha)', 'se_omitira': f' (se omitirá: {por_que})',
                   'falta_dato': f" (falta {', '.join(e['falta'])})"}.get(e['estado'], '')
+        if not sufijo and e.get('condicion'):
+            sufijo = f" ({e['condicion']})"
         return f"{e['nombre']}{sufijo}"
 
     return [fila(e) for e in lista['etapas']]
@@ -323,8 +330,65 @@ def _proyecto_entero(svc, ws, plan, extras: dict) -> None:
     extras['etapas_en_palabras'] = _etapas_en_palabras(lista)
 
 
+def _ruta_de_control_de_carga(plan_datos: dict) -> str:
+    return f"agente_carga_{re.sub(r'[^0-9A-Za-z]+', '_', str(plan_datos.get('sed') or ''))[:40]}.json"
+
+
+def _lista_de_la_carga(svc, ws, datos: dict) -> dict:
+    """Con lo que ya se sabe del proyecto, para que la lista no prometa una calibración que no hará (070:RF-53)."""
+    from ..asistente.orquestador import ETAPAS_CARGA
+
+    omitir = {}
+    if svc.ajuste_aplicado_en_disco(ws, datos['proyecto']) is not None:
+        omitir['calibracion'] = f"{datos['proyecto']} ya tiene calibración aplicada"
+    return svc.agente_proyecto_lista(ws, datos, etapas=ETAPAS_CARGA, control=_ruta_de_control_de_carga(datos), omitir=omitir)
+
+
+def _evaluar_carga(svc, ws, plan, extras: dict) -> None:
+    _datos_de_la_carga(plan, extras)
+    proyecto = plan.datos.get('proyecto')
+    if not proyecto or not plan.datos.get('sed') or not plan.datos.get('alimentadores'):
+        return
+    formulario = ((ws.informes.get('formularios') or {}).get(proyecto) or {}).get('factibilidad')
+    if not formulario:
+        plan.faltan.append('el formulario del informe de factibilidad: rellénelo una vez en el paso 4.4.')
+    elif not formulario.get('solicitud'):
+        plan.faltan.append('la solicitud de la carga en el formulario del informe: rellénela en el paso 4.4.')
+    if svc.ajuste_aplicado_en_disco(ws, proyecto) is None:
+        if not plan.datos.get('periodo'):
+            plan.faltan.append(f'el periodo con que calibrar: {proyecto} no tiene calibración aplicada.')
+        _libros_de_la_demanda(svc, ws, plan)
+    datos = {'proyecto': proyecto, 'alimentadores': list(plan.datos['alimentadores']), 'sed': plan.datos['sed'],
+             'nueva': extras.get('nueva') or {}, 'formulario': formulario or {},
+             **{k: plan.datos[k] for k in ('periodo', 'ruta') if plan.datos.get(k)}}
+    tipo_cambio = tipo_de_cambio_de(plan.texto)
+    if tipo_cambio:
+        datos['tipo_cambio'] = tipo_cambio
+    lista = _lista_de_la_carga(svc, ws, datos)
+    if lista['bloqueo']:
+        plan.faltan.append(lista['bloqueo'])
+    extras['datos_etapas'] = datos
+    extras['lista_confirmacion'] = lista['confirmacion']
+    extras['etapas_en_palabras'] = _etapas_en_palabras(lista)
+
+
 def ejecutar_etapas(svc, ws, ctx, plan, extras: dict, base: str, http: Any) -> dict:
     """La lista confirmada; si cambió desde que se mostró, no se ejecuta (067:RF-39, 070:RF-52)."""
+    if plan.tarea == 'evaluar_carga_nueva':
+        from ..asistente.ejecutor import entregables
+        from ..asistente.orquestador import ETAPAS_CARGA
+
+        datos = extras['datos_etapas']
+        lista = _lista_de_la_carga(svc, ws, datos)
+        if lista['confirmacion'] != extras.get('lista_confirmacion'):
+            raise svc.UserError('La lista de etapas cambió desde que se mostró: escriba la orden de nuevo.')
+        svc.agente_proyecto_anotar(ws, datos, lista)
+        r = svc.agente_proyecto(ws, ctx, datos, base, http, etapas=ETAPAS_CARGA, control=_ruta_de_control_de_carga(datos))
+        evaluacion = ((r.get('etapas') or {}).get('informe') or {}).get('resultado') or ((r.get('etapas') or {}).get('evaluacion') or {}).get('resultado') or {}
+        conclusion = evaluacion.get('factible')
+        return {**r, 'entregables': entregables(r.get('etapas')),
+                'texto': (f"Carga {datos['sed']}: " + ('factible' if conclusion is True else 'no factible' if conclusion is False else 'sin conclusión')
+                          + '; vea el informe.')}
     datos = _datos_del_proyecto_entero(plan)
     lista = svc.agente_proyecto_lista(ws, datos)
     if lista['confirmacion'] != extras.get('lista_confirmacion'):
@@ -370,6 +434,8 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _pronostico(svc, ws, plan, extras)
     elif tarea == 'proyecto_entero':
         _proyecto_entero(svc, ws, plan, extras)
+    elif tarea == 'evaluar_carga_nueva':
+        _evaluar_carga(svc, ws, plan, extras)
     elif tarea in ('alimentadores_completo', 'set_completo'):
         _libros_de_la_demanda(svc, ws, plan)
     elif tarea == 'recalibrar':
