@@ -280,7 +280,9 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
             if capacity.kvar_per_step is not None and capacity.total_kvar is not None
             and bank.node_id in geo.nodes
         ),
-        'regulators': 0,
+        # 080:RF-48: los bancos de regulación de VNR-GIS, que llegan al DGS como ElmVoltreg.
+        'regulators': sum(1 for c in getattr(model, 'couplers', ()) or ()
+                          if getattr(c, 'regulador', None) is not None),
     }
     return {
         'format': 'convertersmartgrid-geography-v1',

@@ -86,6 +86,8 @@ class Load:
     source_id: str = ''
     feeder_id: str = ''
     lineage: Lineage | None = None
+    #: 080:RF-46: el código operativo de la SED; ``load_id`` es el interno de la fuente.
+    etiqueta: str = ''
     connected_kva: float | None = None
     """Potencia instalada de la SED (VNR-GIS ``Sed.PotInstalada``, spec 023)."""
 
@@ -134,6 +136,16 @@ class Regulator:
     connection_node: str
     source_layer: str = ''
     source_id: str = ''
+    # 080:RF-38: en serie entre dos nodos, con lo que da la leyenda de VNR-GIS.
+    from_node: str = ''
+    to_node: str = ''
+    section_id: str = ''
+    feeder_id: str = ''
+    nominal_kv: float | None = None
+    corriente_a: float | None = None
+    unidades: int = 3
+    on_off: int = 1
+    norma: str = ''
 
 
 @dataclass

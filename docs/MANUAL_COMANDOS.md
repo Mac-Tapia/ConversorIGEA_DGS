@@ -1135,6 +1135,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `sistema_web.py` | Un sistema eléctrico de punta a punta por la web abierta: convierte por sistema, importa, busca la máxima por barra de SET y calibra el sistema entero; retoma lo hecho (spec 022, RF-56). | Web + PF |
 | `suite_por_tandas.py` | La suite nocturna por tandas, en un proceso separado de la web; registra siempre su resultado o «interrumpida» (081:RF-37 a RF-41). `--separar` la lanza aparte; `--correr` corre las tandas en este proceso. | Sin PF |
 | `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
+| `validar_totalidad_vnr.py` | Cruza con consultas propias a la base restaurada lo que lista la web de una copia VNR-GIS (`--espacio`, `--web`): salidas, tramos y SED; error si algo no cuadra (Spec 080). | Web |
 | `verify_architecture_links.py` | Comprueba los enlaces del espacio Structurizr (`docs/architecture/workspace.dsl`); necesita internet. | |
 | `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |
 

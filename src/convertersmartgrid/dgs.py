@@ -133,6 +133,42 @@ def _type_name(key: str, code: str, kv: float | None = None) -> str:
 USO_POR_CLASE = {'SWITCH': 'dct', 'SECTIONALIZER': 'swt'}
 
 
+def _fila_regulador(rows, schema: DgsSchema, reg, acoplador, node_fids, tipos: dict[str, str],
+                    carpeta: str) -> None:
+    """080:RF-38, RF-41: ``ElmVoltreg`` con la toma neutra y su ``TypVoltreg``.
+
+    Corriente y tensión, de la leyenda de VNR-GIS. Rango, pasos y conexión no están en ella: se
+    toman los del catálogo de reguladores del proyecto. Con la toma neutra y sin control, el
+    «Caso base» no depende de ellos; la calibración decide si la toma se mueve.
+    """
+    from .catalogo_reguladores import CONFIG_ESTRELLA, PASOS, RANGO_PCT, TIPO_B
+
+    datos = acoplador.regulador
+    kv = float(datos.nominal_kv or 0.0)
+    corriente = float(datos.corriente_a or 0.0)
+    nombre_tipo = f'BR_{sufijo_tension(kv)}_{corriente:g}A_x{datos.unidades}'
+    if nombre_tipo not in tipos:
+        tipos[nombre_tipo] = reg.new()
+        rows['TypVoltreg'].append(_make_row(
+            schema, 'TypVoltreg', FID=tipos[nombre_tipo], OP='C', loc_name=_loc_name(nombre_tipo),
+            # 080:RF-52: a 60 Hz como la red; el catálogo Eaton del que salen los pasos es de 50.
+            type=TIPO_B, config=CONFIG_ESTRELLA, frnom=60, Un=kv / math.sqrt(3),
+            In=corriente, pcReg=RANGO_PCT, nntap0=0, ntapmin=-PASOS, ntapmax=PASOS,
+        ))
+    fid = reg.new()
+    rows['ElmVoltreg'].append(_make_row(
+        schema, 'ElmVoltreg', FID=fid, OP='C', loc_name=_loc_name(acoplador.name), fold_id=carpeta,
+        typ_id=tipos[nombre_tipo], outserv=0 if acoplador.on_off else 1, nntap1=0, nntap2=0, nntap3=0,
+        ntrcn=0, i_cont=0, usetp=1.0,
+    ))
+    for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub{lado + 1}_{acoplador.name}'),
+            fold_id=node_fids[nodo], obj_bus=lado, obj_id=fid, it2p1=0, it2p2=1, it2p3=2,
+        ))
+
+
 def _make_row(schema: DgsSchema, table: str, **values) -> str:
     fields = schema.fields(table)
     return '  ' + ';'.join(_fmt(values.get(field, '')) for field in fields)
@@ -1485,10 +1521,15 @@ def write_dgs(
     # convertersmartgrid.puentes). Uno por dispositivo de la base, con su estado normal, entre
     # las dos barras que unía el puente. Van en la red, no en una SED.
     coupler_rows: list[tuple[object, str]] = []
+    tipos_regulador: dict[str, str] = {}
     coupler_cubic_fids: dict[tuple[str, int], str] = {}
     for acoplador in sorted(getattr(model, 'couplers', ()),
                             key=lambda c: (c.section_id, c.node_a, c.name)):
         if acoplador.node_a not in node_fids or acoplador.node_b not in node_fids:
+            continue
+        if acoplador.regulador is not None:
+            _fila_regulador(rows, schema, reg, acoplador, node_fids, tipos_regulador,
+                            net_fids.get(red_del_par(acoplador.node_a, acoplador.node_b), network_fid))
             continue
         coup_fid = reg.new()
         coupler_rows.append((acoplador, coup_fid))
@@ -1808,6 +1849,8 @@ def write_dgs(
     }
     if complete_capacitors:
         used_tables.add('ElmShnt')
+    if rows['ElmVoltreg']:
+        used_tables |= {'ElmVoltreg', 'TypVoltreg'}
     if sed_keys:
         used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
     if rows['ElmZone']:

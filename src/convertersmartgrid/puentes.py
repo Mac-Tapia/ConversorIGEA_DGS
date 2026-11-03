@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from .model import Coupler, FeederModel, Node
+from .model import Coupler, DatosRegulador, FeederModel, Node
 
 #: Códigos de tipo que marcan un tramo puente en CYMDIST.
 CODIGOS_PUENTE = ('DEFAULT',)
@@ -103,6 +103,40 @@ def es_puente(line, codigos=CODIGOS_PUENTE, *, largo_max_m: float = LARGO_MAXIMO
         return False
     largo = line.txt_length_m if line.txt_length_m is not None else line.length_m
     return largo <= largo_max_m
+
+
+def fundir_reguladores(model: FeederModel) -> list[str]:
+    """Cada tramo auxiliar de un regulador pasa a ser el regulador entre sus dos barras (080:RF-38).
+
+    El tramo existe para que la topología siga conexa al construir el modelo. El oráculo ve el
+    elemento como una unión cerrada, que es lo que hace un regulador con la toma neutra.
+    """
+    hechos: list[str] = []
+    quedan = []
+    for ln in model.lines:
+        fila = model.reguladores.get(ln.section_id)
+        if fila is None:
+            quedan.append(ln)
+            continue
+        amperios = str(fila.get('Amps') or '').strip()
+        tension = str(fila.get('NominalKV') or '').strip()
+        model.couplers = [*model.couplers, Coupler(
+            name=fila['EqNumber'], node_a=ln.from_node, node_b=ln.to_node,
+            on_off=int(fila.get('Status') or 1), kind='BR', eq_id=fila.get('Norma', ''),
+            eq_number=fila['EqNumber'], section_id=ln.section_id, phase=ln.phase,
+            feeder=model.name, network_id=model.network_id,
+            regulador=DatosRegulador(
+                unidades=int(fila.get('Units') or 3),
+                corriente_a=float(amperios) if amperios else None,
+                nominal_kv=float(tension) if tension else model.nominal_kv,
+                norma=fila.get('Norma', '')),
+        )]
+        hechos.append(fila['EqNumber'])
+    if hechos:
+        model.lines = quedan
+        model.section_by_id = {ln.section_id: ln for ln in quedan}
+        model.reguladores = {}
+    return hechos
 
 
 def fundir_puentes(model: FeederModel, *, codigos=CODIGOS_PUENTE) -> InformePuentes:

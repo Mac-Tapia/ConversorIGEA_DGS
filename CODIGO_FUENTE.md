@@ -280,6 +280,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/run_powerfactory_gate.bat` | Lanza `powerfactory_acceptance.py` con el intérprete de PowerFactory. | 034 (RF-33) |
 | `tools/show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador. | 005 |
 | `tools/suite_por_tandas.py` | La suite nocturna en un proceso separado de la web, por tandas; registra siempre su resultado o «interrumpida». | 081 (RF-37 a RF-41) |
+| `tools/validar_totalidad_vnr.py` | Cruza con consultas propias a la base restaurada las salidas, tramos y SED de una copia VNR-GIS con lo que lista la web; termina con error si algo no cuadra. | 080 (RF-29, RF-30, RF-31) |
 | `tools/sistema_web.py` | Un sistema eléctrico de punta a punta por la web: espera lo que corre, convierte por sistema, importa en DIgSILENT, busca la máxima por barra de SET y calibra el sistema entero; retoma lo hecho y reintenta si la web corta. | 022 (RF-56), 025 (RF-25, RF-25b, RF-25c), 039 (RF-1) |
 | `tools/suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | 034 (RF-33) |
 | `tools/transformador_set_pf.py` | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la barra más el Δ de cabecera de 4.2), un flujo por estado, con la carga restituida y comprobada; `--listar` da las cargas de barra con su transformador y los casos. | 017 (RF-65 a RF-68, RF-70) |

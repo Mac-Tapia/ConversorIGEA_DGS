@@ -30,6 +30,10 @@ def feeder_short_name(network_id: str) -> str:
     """
     parts = feeder_tokens(network_id)
     nombre = parts[-1] if parts else (network_id or '').strip()
+    if len(parts) > 1 and nombre.isdigit():
+        # 080:RF-28: un número solo no identifica nada: de «AN01-642-001» quedaba «001», y 498
+        # salidas de Electro Sur Este se llamaban igual en la web (2026-11-02).
+        return (network_id or '').strip()
     m = re.match(r'([A-Za-z]+)(\d.*)$', nombre)
     if m:
         canonicas = _siglas_canonicas()

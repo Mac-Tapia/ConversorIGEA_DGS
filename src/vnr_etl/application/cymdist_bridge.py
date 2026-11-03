@@ -171,6 +171,10 @@ def canonical_to_cymdist(
             'Value2': _text(power_factor),
             # Spec 023: la potencia instalada de la SED, si la fuente la trae.
             'ConnectedKVA': _text(getattr(load, 'connected_kva', None) or ''),
+            # 080:RF-44: viene de la tabla Sed: es una SED, tenga el código que tenga.
+            # 080:RF-46: con su código operativo, si lo tiene.
+            'SedCode': (getattr(load, 'etiqueta', '') or load.load_id)
+            if getattr(load, 'source_layer', '') == 'Sed' else '',
             'KWH': '',
             'Phase': load.phases,
             'NumberOfCustomer': '1',
@@ -231,6 +235,12 @@ def canonical_to_cymdist(
             intermediate_nodes.append({'SectionID': section.section_id, 'SeqNumber': str(i),
                                        'CoordX': _text(x), 'CoordY': _text(y)})
 
+    # 080:RF-38: los bancos de regulación, por el tramo auxiliar que los sostiene.
+    regulator_settings = tuple({
+        'SectionID': r.section_id, 'EqNumber': r.regulator_id, 'Units': str(r.unidades),
+        'Amps': _text(r.corriente_a), 'NominalKV': _text(r.nominal_kv),
+        'Status': '1' if r.on_off else '0', 'Norma': r.norma,
+    } for r in model.regulators if r.section_id in sections)
     dataset = CymdistDataset(
         red_path=Path(source_path), loads_path=Path(source_path), equipment_path=Path(source_path),
         headnodes=headnodes,
@@ -249,6 +259,7 @@ def canonical_to_cymdist(
         capacitor_settings=capacitor_settings,
         fuente='vnr',
         estructura_fuente=dict(model.metadata.get('estructura_fuente') or {}),
+        regulator_settings=regulator_settings,
     )
 
     projected = model.metadata.get('working_crs_is_projected') is True

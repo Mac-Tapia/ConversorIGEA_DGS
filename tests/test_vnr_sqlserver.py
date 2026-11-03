@@ -14,6 +14,12 @@ import pytest
 from vnr_etl.connectors import sqlserver_vnr as sv
 
 
+@pytest.fixture(autouse=True)
+def _catalogo_de_empresa_aislado(monkeypatch, tmp_path):
+    """080:RF-49: el catálogo de cada empresa se crea al cargar; una prueba no toca el real."""
+    monkeypatch.setattr('convertersmartgrid.reglas.project_root', lambda: tmp_path)
+
+
 # --------------------------------------------------------------------------- doble del motor
 class Cursor:
     def __init__(self, motor):

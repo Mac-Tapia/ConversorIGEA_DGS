@@ -66,10 +66,15 @@ class VnrSourceAdapter:
         original = Path(snapshot.files['vnr_package'].source_path or bak)
         modelo, avisos, alcance = cargar_copia(bak, servidor=servidor,
                                                vecinas=[original.parent])
-        fichas = fichas_del_catalogo(modelo)
-        ampliado = ampliar_con_lo_que_falta(modelo, origen=f"{alcance['company']} ({bak.name})")
+        # 080:RF-49: el catálogo de esta empresa, sin filas de otra.
+        from ..reglas import catalogo_de_empresa
+
+        catalogo = catalogo_de_empresa(alcance['company'])
+        fichas = fichas_del_catalogo(modelo, catalogo)
+        ampliado = ampliar_con_lo_que_falta(modelo, origen=f"{alcance['company']} ({bak.name})",
+                                            catalogo=catalogo)
         if ampliado:
-            fichas = fichas_del_catalogo(modelo)
+            fichas = fichas_del_catalogo(modelo, catalogo)
         bridge = canonical_to_cymdist(modelo, source_path=bak)
         source = provenance(snapshot)
         source.update({

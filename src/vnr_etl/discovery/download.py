@@ -13,9 +13,10 @@ import shutil
 import stat
 import time
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
 from convertersmartgrid.util import importar_opcional, sha256_file, write_json_atomic
@@ -36,6 +37,34 @@ class DownloadQuotaExceeded(DownloadError):
 
 class ArchiveSecurityError(DownloadError):
     pass
+
+
+def preparar_unrar() -> None:
+    """080:RF-23, RF-24: deja listo el extractor de RAR, o dice que falta.
+
+    WinRAR no se añade al PATH al instalarse, y «rarfile» solo busca allí: en esta máquina,
+    con WinRAR instalado, todo RAR oficial se daba por inválido (2026-11-02).
+    """
+    rarfile = importar_opcional('rarfile', DownloadError(
+        'Para leer un paquete RAR falta el driver opcional «rarfile» (ver requirements-drivers.txt).'))
+    candidatos = [os.environ.get('CSG_UNRAR'), shutil.which('unrar')]
+    for variable in ('ProgramFiles', 'ProgramFiles(x86)'):
+        if os.environ.get(variable):
+            candidatos.append(str(Path(os.environ[variable]) / 'WinRAR' / 'UnRAR.exe'))
+    for candidato in candidatos:
+        if candidato and Path(candidato).is_file():
+            rarfile.UNRAR_TOOL = candidato
+            try:
+                rarfile.tool_setup(force=True)
+                return
+            except rarfile.RarCannotExec:
+                continue
+    try:
+        rarfile.tool_setup(force=True)
+    except rarfile.RarCannotExec as exc:
+        raise DownloadError(
+            'Falta un extractor de RAR: instale WinRAR o indique su UnRAR.exe en CSG_UNRAR.'
+        ) from exc
 
 
 @dataclass
@@ -113,6 +142,8 @@ class DownloadManager:
             'La descarga necesita la dependencia «requests» (ver requirements.txt '
             'y `python -m vnr_etl doctor`).'))
         destination = Path(destination)
+        if self.verify_archive and destination.suffix.lower() == '.rar':
+            preparar_unrar()  # Antes de bajar cientos de MB que no se podrían verificar (080:RF-24).
         destination.parent.mkdir(parents=True, exist_ok=True)
 
         if destination.is_file() and not force:
@@ -352,6 +383,86 @@ def safe_extract_zip(
     return extracted
 
 
+@contextmanager
+def _comprimido(archive: Path) -> Iterator[tuple[list[tuple[str, int]], Callable]]:
+    """Los ficheros de un ZIP o un RAR, con su tamaño, y cómo abrirlos."""
+    sufijo = archive.suffix.lower()
+    if sufijo == '.zip':
+        with zipfile.ZipFile(archive) as zf:
+            yield [(i.filename, i.file_size) for i in zf.infolist() if not i.is_dir()], zf.open
+    elif sufijo == '.rar':
+        rarfile = importar_opcional('rarfile', DownloadError(
+            'Para leer un paquete RAR falta el driver opcional «rarfile».'))
+        preparar_unrar()
+        with rarfile.RarFile(archive) as rf:
+            yield [(i.filename, int(i.file_size)) for i in rf.infolist() if not i.isdir()], rf.open
+    else:
+        yield [], archive.open
+
+
+def extraer_copia_sql(
+    archive: Path | str,
+    destination: Path | str,
+    *,
+    cancelled: Callable[[], bool] | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> Path | None:
+    """080:RF-18 a RF-22: la copia ``.bak`` de un paquete oficial, o ``None`` si no trae.
+
+    El paquete trae, junto a la copia, el instalador de VNRGIS con sus ejecutables. Solo se
+    sacan los ``.bak`` y ``.config`` de la carpeta de la copia, escritos por su nombre base, de
+    modo que ninguna ruta del comprimido decide dónde se escribe y nada ejecutable sale de él.
+    """
+    archive, destination = Path(archive), Path(destination)
+    with _comprimido(archive) as (ficheros, abrir):
+        rutas = [(nombre, tam, PurePosixPath(nombre.replace('\\', '/'))) for nombre, tam in ficheros]
+        copias = [r for r in rutas if r[2].suffix.lower() == '.bak']
+        if not copias:
+            return None
+        # La de red, aunque la de parámetros pudiera pesar más: esa la encuentra la spec 023 junto a ella.
+        de_red = [r for r in copias if 'param' not in r[2].name.casefold()] or copias
+        red = max(de_red, key=lambda r: r[1])
+        elegidos = [r for r in rutas if r[2].parent == red[2].parent
+                    and r[2].suffix.lower() in ('.bak', '.config')]
+        total = sum(r[1] for r in elegidos)
+        if cancelled is not None and cancelled():
+            raise DownloadCancelled('Extracción cancelada.')
+        existente = next(p for p in (destination, *destination.parents) if p.exists())
+        libre = shutil.disk_usage(existente).free
+        if total > libre:
+            raise DownloadError(
+                f'No hay espacio para extraer la copia: necesita {total / 1024**3:.1f} GB '
+                f'y quedan {libre / 1024**3:.1f} GB.')
+        destination.mkdir(parents=True, exist_ok=True)
+        escritos: list[Path] = []
+        hecho = 0
+        try:
+            for nombre, tam, ruta in elegidos:
+                final = destination / ruta.name
+                if final.is_file() and final.stat().st_size == tam:
+                    hecho += tam
+                    continue
+                parte = final.with_name(final.name + '.parte')
+                try:
+                    with abrir(nombre) as origen, parte.open('wb') as salida:
+                        while bloque := origen.read(1024 * 1024):
+                            if cancelled is not None and cancelled():
+                                raise DownloadCancelled('Extracción cancelada.')
+                            salida.write(bloque)
+                            hecho += len(bloque)
+                            if on_progress is not None:
+                                on_progress(hecho, total)
+                    os.replace(parte, final)
+                    escritos.append(final)
+                finally:
+                    parte.unlink(missing_ok=True)
+        except BaseException:
+            for fichero in escritos:
+                fichero.unlink(missing_ok=True)
+            raise
+    return destination / red[2].name
+
+
 def safe_extract_rar(
     archive: Path | str,
     destination: Path | str,
@@ -366,6 +477,7 @@ def safe_extract_rar(
             'La extracción de RAR necesita el driver opcional «rarfile» '
             '(ver requirements-drivers.txt).'
         ) from exc
+    preparar_unrar()
     archive = Path(archive)
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)

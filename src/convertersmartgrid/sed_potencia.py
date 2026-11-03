@@ -21,6 +21,7 @@ transformador el que tiene que darla.
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass, replace
 
 from .model import FeederModel
@@ -116,6 +117,13 @@ def _demanda_por_sed(model: FeederModel) -> dict[tuple[str, str], list]:
     return por
 
 
+#: 080:RF-42: tantas razones demanda/potencia, o menos, cubren esta parte de las SED: no es medida.
+RAZONES_DE_RELLENO = 6
+CUOTA_DE_RELLENO = 0.90
+#: Con pocas SED, cualquier demanda medida cabe en seis razones: el patrón no dice nada.
+MINIMO_SED_RELLENO = 20
+
+
 def demanda_fuera_de_escala(model: FeederModel) -> list[tuple[str, str]]:
     """Claves de las SED con demanda de relleno o mayor que su potencia instalada (057:RF-2).
 
@@ -131,6 +139,13 @@ def demanda_fuera_de_escala(model: FeederModel) -> list[tuple[str, str]]:
     fuera = {k for k in con_carga if s_kva[k] > kva[k] * (1 + 1e-9)}
     if (len(con_carga) >= 2 and len({round(p_kw[k], 6) for k in con_carga}) == 1
             and len({kva[k] for k in con_carga}) >= 2):
+        fuera.update(con_carga)
+    # 080:RF-42: también de relleno si es la potencia por un factor fijo. En Electro Sur Este
+    # (2026-11-03) TI01 sumaba así 14,5 MW en 508 km, con solo 0,87, 0,88, 0,90 y 0,80, y no convergía.
+    razones = Counter(round(p_kw[k] / kva[k], 2) for k in con_carga)
+    if (len(con_carga) >= MINIMO_SED_RELLENO and len({kva[k] for k in con_carga}) >= 2
+            and sum(n for _r, n in razones.most_common(RAZONES_DE_RELLENO))
+            >= CUOTA_DE_RELLENO * len(con_carga)):
         fuera.update(con_carga)
     return sorted(fuera)
 

@@ -146,6 +146,16 @@ class SwitchingDevice:
 
 
 @dataclass(frozen=True)
+class DatosRegulador:
+    """Lo que da la leyenda de VNR-GIS de un banco de regulación de tensión (080:RF-38)."""
+
+    unidades: int
+    corriente_a: float | None
+    nominal_kv: float | None
+    norma: str = ''
+
+
+@dataclass(frozen=True)
 class Coupler:
     """Interruptor entre dos barras, sin tramo de línea que lo sostenga (``ElmCoup``).
 
@@ -166,6 +176,8 @@ class Coupler:
     phase: str
     feeder: str = ''
     network_id: str = ''
+    #: 080:RF-38: con datos, el elemento entre las dos barras es un regulador, no un interruptor.
+    regulador: DatosRegulador | None = None
 
 
 @dataclass(frozen=True)
@@ -312,6 +324,8 @@ class FeederModel:
     # From/To para no ocultar qué identidad del RED se normalizó.
     node_aliases: dict[str, str] = field(default_factory=dict)
     capacitors: list[CapacitorBank] = field(default_factory=list)
+    #: 080:RF-38: {tramo auxiliar: fila de la fuente}, hasta fundirlos en su regulador.
+    reguladores: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 #: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
@@ -1340,7 +1354,9 @@ def build_feeder_model(
             continue
         p_mw, q_mvar, pf = _calc_p_q(row)
         customer_number = row.get('CustomerNumber', '')
-        sed_code = extract_sed_code(customer_number, device_number, section_id)
+        # 080:RF-44: primero lo que declara la fuente. Sin eso, el extractor no reconoce
+        # «12027990» y cae al código del tramo, y la SED se llamaría como el tramo.
+        sed_code = row.get('SedCode') or extract_sed_code(customer_number, device_number, section_id)
         display = sed_loc_name(sed_code) if sed_code else (customer_number or device_number or section_id)
         loads.append(Load(
             section_id=section_id,
@@ -1500,6 +1516,8 @@ def build_feeder_model(
         node_aliases=node_aliases,
         capacitors=capacitors,
         fuente=getattr(dataset, 'fuente', 'txt'),
+        reguladores={row['SectionID']: dict(row) for row in dataset.regulator_settings
+                     if row['SectionID'] in section_by_id},
     )
 
     # Electrical lengths follow the georeferenced polyline (From + intermediates + To)
