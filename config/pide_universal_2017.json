@@ -2,6 +2,7 @@
   "schema": "csg-pide-universal-v1",
   "version": "2017-prepublicacion-v1",
   "estado_juridico": "proyecto",
+  "horizonte": {"ciclo_anios": 4, "largo_plazo": [4, 8, 12, 16, 20], "detalle_pide": [4, 5, 6, 7]},
   "fuente": {
     "titulo": "Norma Criterios y Metodología de Planificación para la Elaboración del PIDE",
     "acto": "RM 428-2017-MEM/DM",
