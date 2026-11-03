@@ -204,6 +204,7 @@ No se dispone de logits internos del maestro; el método es destilación de resp
 - **Calibración.** En cada método, el umbral más bajo que deja abstención ≥ 0,95 en calibración, con margen sobre la puerta de 0,90 porque el umbral se ajusta a esas preguntas. En el par coseno-BM25, el que más preguntas con respuesta conserve; a igualdad, los más bajos. Un valor nulo significa que esa señal no cuenta.
 - **Puerta, medida una sola vez en el sellado, para cada método (reranker, híbrido, BM25).** Abstención ≥ 0,90 en las preguntas sin respuesta; Recall@10 con la puerta ≥ Recall@10 sin ella en las mismas preguntas (se elige esta comparación pareada, y no las cifras del conjunto de 76, porque son otras preguntas; esas se informan solo como referencia); MRR@10 no peor de forma significativa: el límite superior del IC95 % pareado de la diferencia no es negativo. «Sin ella» es el umbral histórico.
 - **T2 se cierra solo si los tres métodos cumplen.** Si alguno no cumple, se dice y T2 sigue abierta; no se recalibra con lo visto en el sellado.
+- **Decisión del usuario, 2026-11-02, tras ver la medición del sellado («acepta»):** T2 se cierra si el reranker cumple la puerta completa y el híbrido y BM25 cumplen la abstención ≥ 0,90. La pérdida de respuestas sin reranker se acepta porque falla por el lado seguro («No lo sé»). No se recalibró nada con el sellado.
 
 ### T3: Revisión por roles acotada y trazable
 
