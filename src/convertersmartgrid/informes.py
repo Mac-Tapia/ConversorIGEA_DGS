@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .estudios_pf import EstudiosError, Limites
+from .instalacion_ternas import describir as describir_ternas
 
 #: Los dos tipos de informe (RF-1, RF-1b).
 TIPOS = ('factibilidad', 'estudio')
@@ -728,11 +729,15 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
                     f'{numero(km, 2)} km: ' + '; '.join(partes) + '.')
         if obra.get('km') is None:
             return f'Renovar la troncal con conductor {obra["conductor"]}.'
-        return f'Renovar {numero(obra["km"], 2)} km de la troncal con conductor {obra["conductor"]}.'
+        # 084:RF-30: sin trecho no se calla: la geografía del flujo es lo que lo da (017:RF-131).
+        return (f'Renovar {numero(obra["km"], 2)} km de la troncal con conductor {obra["conductor"]}. '
+                'Trecho desde–hasta sin datos: el flujo guardado no trae su geografía.')
     if tipo == 'terna':                                                    # RF-127
         tramos = list(obra.get('tramos') or [])
         donde = f'los tramos {", ".join(tramos)}' if tramos else 'toda la troncal'
-        return f'Tender una terna más en {donde} del alimentador {obra.get("alimentador", "")}.'
+        texto = f'Tender una terna más en {donde} del alimentador {obra.get("alimentador", "")}.'
+        # 084:RF-17: la configuración y la capacidad para ella, por tipo de cable y sin citar la norma.
+        return ' '.join([texto, *dict.fromkeys(describir_ternas(i) for i in obra.get('instalaciones') or [])])
     if tipo == 'enlace':
         via = 'por la vía pública' if obra.get('por_via') else 'en recta (sin trazado por la vía)'
         return (f'Construir el enlace de {numero(obra["km"], 2)} km con conductor '
@@ -770,7 +775,8 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
                                f"{numero(float(obra.get('consigna_pu') or 0), 2)} p.u."}
     if clase == 'terna':                                                   # RF-127
         return {'tipo': 'terna', 'tramos': list(obra.get('tramos') or []),
-                'alimentador': obra.get('alimentador', '')}
+                'alimentador': obra.get('alimentador', ''),
+                **({'instalaciones': list(obra['instalaciones'])} if obra.get('instalaciones') else {})}
     if clase == 'enlace':
         # El largo, los extremos y el trazado son los de la obra aplicada (017:RF-35).
         e = obra.get('enlace') or {}

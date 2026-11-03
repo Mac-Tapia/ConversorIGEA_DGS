@@ -21,6 +21,12 @@ from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
 from .tareas import TAREAS
 
 
+#: 084:RF-25: los verbos de una orden de borrar. «borra la escalera de X» activaba la frase literal de la
+#: escalera y lanzaba justo la obra que se quería quitar.
+_PIDE_BORRAR = re.compile(r'\b(?:borr(?:a|ar|e|en|ame)|elimin(?:a|ar|e|en)|suprim(?:e|ir|a|an)|quit(?:a|ar|e|en)|'
+                          r'limpi(?:a|ar|e|en))\b')
+
+
 @dataclass
 class Plan:
     id: str
@@ -134,6 +140,12 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
         return plan
     tarea = TAREAS[interp.tarea]
     plan.escribe, plan.modo = tarea.escribe, tarea.modo
+    if tarea.escribe and _PIDE_BORRAR.search(normalizar(interp.texto)):
+        # Protege datos reales: esta sí se detiene. El asistente no tiene ninguna orden de borrar.
+        plan.tarea = None
+        plan.faltan.append('El asistente no borra en DIgSILENT: esa orden se da en DIgSILENT, en su proyecto '
+                           '(084:RF-25).')
+        return plan
     quien = ('el Transformer propio' if interp.modelo == 'transformer' else
              'la frase literal del catálogo' if interp.modelo == 'catalogo' else f'el modelo local {interp.modelo}')
     plan.razonamiento.append(f'Entendí «{tarea.descripcion}» con {quien} (confianza {interp.confianza:.0%})'

@@ -60,6 +60,8 @@
   "planificacion": {
     "_comentario_set_nueva": "Spec 042 (usuario, 2026-10-31): la SET nueva para las cargas que la red existente ya no atiende se dimensiona a la vida útil con un factor de seguridad de 1,25 y se elige entre los módulos del PIT del libro CAPEX (hoja PyOTx27: transformadores 60/22,9/10 kV de 15, 25 y 40 MVA y la Nueva SET Copara; costos en dólares, sin la escala de miles de la hoja 3_Crec_Dem).",
     "factor_seguridad_set": 1.0,
+    "_comentario_sitio_set": "Spec 084: distancia mínima de una SET nueva al trazado de los alimentadores y a las calles. 30 m es un supuesto de la sesión del 2026-11-03, sin norma detrás: a confirmar por el usuario. Sin calles locales el punto queda sin verificar en plano.",
+    "sitio_set": {"retiro_min_m": 30},
     "_comentario_transformador_set": "Spec 042: lo que el libro CAPEX no trae del transformador de la SET nueva. uk mínima por potencia de la IEC 60076-5:2006, tabla 1 (hasta 25 MVA 8 %, hasta 40 MVA 10 %, hasta 63 MVA 11 %, hasta 100 MVA 12,5 %); cambiador en alta de ±8 tomas de 1,25 %. Hasta 2 transformadores iguales en paralelo cuando ningún módulo cubre solo la potencia de diseño (usuario, 2026-10-31, spec 042 RF-14).",
     "transformador_set": {"uk_pct_hasta_mva": [[0.63, 4.0], [1.25, 5.0], [2.5, 6.0], [6.3, 7.0], [25, 8.0], [40, 10.0], [63, 11.0], [100, 12.5]],
                           "toma_paso_pct": 1.25, "tomas": 8, "unidades_en_paralelo_max": 2},

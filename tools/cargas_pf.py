@@ -48,6 +48,7 @@ from collections import Counter
 from pathlib import Path
 
 from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.pf_arnes import borrar_en_su_proyecto
 from convertersmartgrid.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
 from convertersmartgrid.troncal import troncal as troncal_de
 
@@ -2113,6 +2114,7 @@ def eliminar_variaciones(app, lista: list[dict], por_nombre: dict) -> list[dict]
     caso deja ese caso con una referencia rota. Deja activo el caso que lo estaba.
     """
     objs = [por_nombre[x['variacion']] for x in lista]
+    proyecto = app.GetActiveProject()
     previo = app.GetActiveStudyCase()
     estudio = app.GetProjectFolder('study')
     for caso in (estudio.GetContents('*.IntCase', 1) if estudio else []):
@@ -2127,7 +2129,7 @@ def eliminar_variaciones(app, lista: list[dict], por_nombre: dict) -> list[dict]
     for x, v in zip(lista, objs):
         try:
             v.Deactivate()
-            fallo = v.Delete()
+            fallo = borrar_en_su_proyecto(v, proyecto)                     # 084:RF-26
         except Exception as exc:  # noqa: BLE001 - una que no se borra no impide las demás
             fallo = f'{type(exc).__name__}: {exc}'
         hechas.append({**x, 'eliminada': not fallo, **({'error': str(fallo)} if fallo else {})})
@@ -2669,7 +2671,7 @@ def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, i
             continue
         if not simular:
             v.Deactivate()
-            v.Delete()
+            borrar_en_su_proyecto(v, proyecto)                             # 084:RF-26
         informe['variaciones'].append(nombre)
     # Los nombres que da ``Diagrama.dibujar``.
     simbolos = set()
@@ -2683,7 +2685,7 @@ def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, i
             if grf.loc_name in simbolos:
                 informe['simbolos'].append(grf.loc_name)
                 if not simular:
-                    grf.Delete()
+                    borrar_en_su_proyecto(grf, proyecto)                   # 084:RF-26
     nuevos = {c['tipo_trafo'] for c in creadas if c.get('tipo_trafo_nuevo') and c.get('tipo_trafo')}
     if nuevos:
         en_uso = {getattr(getattr(t, 'typ_id', None), 'loc_name', None)
@@ -2697,7 +2699,7 @@ def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, i
                 continue
             informe['tipos'].append(tipo.loc_name)
             if not simular:
-                tipo.Delete()
+                borrar_en_su_proyecto(tipo, proyecto)                      # 084:RF-26
     informe['variaciones_activas_fin'] = variaciones_activas(app)
     return informe, 0
 

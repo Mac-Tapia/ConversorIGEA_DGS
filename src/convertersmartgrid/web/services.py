@@ -6179,7 +6179,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
                              modulos_valle if modulos_valle is not None
                              else p.modulos_max if p.modulos_max is not None else eo.MODULOS_SIN_VALLE, tramos,
                              [{'nombre': t['nombre'], 'origen': t.get('origen') or 'proyecto',
-                               'proyecto': t.get('proyecto') or ''} for t in aptos]) if (tramos or banco) else None
+                               'proyecto': t.get('proyecto') or ''} for t in aptos], p.ternas) if (tramos or banco) else None
         alims.append(oo.Alimentador(f, vs, costo, espacio))
     opciones_eleccion = {'evaluaciones_bayes': int(ajustes.get('evaluaciones_bayes') or oo.EVALUACIONES_BAYES),
                          'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),
@@ -6298,6 +6298,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     from ..obras_pf import nombre_pf
     from ..perfil_empresa import datos_perfil
     from .. import set_nueva as sn
+    from .. import sitio_set
     from ..troncal import Barra, Tramo, red_de
 
     if not a_set_nueva:
@@ -6400,7 +6401,15 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     ubic = sn.ubicacion_optima(existentes, nuevas_pts, incremento_kw=registrada_kw * (diseno['factor_crecimiento'] - 1.0),
                                zona_m=1000.0, sorteos=int(escalera.get('sorteos') or 200),
                                semilla=int(escalera.get('semilla') or 0))
-    informe = {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')}
+    # 084:RF-1 a RF-8: un predio, no solo el óptimo eléctrico; el oráculo y DIgSILENT miden ya el punto apartado.
+    trazados = [x for f in sorted(por_alim) for x in sitio_set.trazados_de_red(
+        ((datos.get('alimentadores') or {}).get(f) or {}).get('barras') or [],
+        ((datos.get('alimentadores') or {}).get(f) or {}).get('tramos') or [])]
+    sitio = sitio_set.situar((ubic['lat'], ubic['lon']), trazados, sitio_set.parametros(perfil))
+    ubic = {**ubic, 'lat': sitio['lat'], 'lon': sitio['lon']}
+    avisos.extend(x for x in sitio['avisos'] if x not in avisos)
+    ctx.log(sitio['frase'])
+    informe = {'sitio': sitio, 'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')}
                          | {'barras': len(r['barras'])} for r in ramas],
                'diseno': diseno, 'modulo': eleccion['modulo'], 'motivo_modulo': eleccion['motivo'],
                'ubicacion': {'lat': ubic['lat'], 'lon': ubic['lon'], 'dispersion_m': ubic['dispersion_m'],
@@ -6429,8 +6438,15 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     informe['obra'] = hechas[0] if hechas else hecho
     final = (hechas[0].get('set_nueva') if hechas else None) or {}
     if final.get('lat') is not None:
-        informe['ubicacion_final'] = {'lat': final['lat'], 'lon': final['lon'], 'cumple': final.get('cumple'),
-                                      'intentos': final.get('intentos'), 'utm': _punto_utm(final['lat'], final['lon'])}
+        # 084:RF-10: un punto cuyos flujos son de otro sitio no «cumple», diga lo que diga la obra.
+        al_dia = sitio_set.flujos_al_dia((final['lat'], final['lon']), final.get('flujos_en_punto'))
+        informe['ubicacion_final'] = {'lat': final['lat'], 'lon': final['lon'], 'cumple': bool(final.get('cumple')) and al_dia,
+                                      'intentos': final.get('intentos'), 'utm': _punto_utm(final['lat'], final['lon']),
+                                      'sitio': final.get('sitio'), 'flujos_en_punto': final.get('flujos_en_punto')}
+        if not al_dia:
+            avisos.append('Flujos sin repetir en el punto final de la SET nueva: repítalos antes de darla por buena '
+                          '(084:RF-10).')
+        avisos.extend(x for x in (final.get('sitio') or {}).get('avisos') or [] if x not in avisos)
     return informe
 
 
@@ -6605,6 +6621,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 if 1 <= n <= len(elegidas) and elegidas[n - 1]['id'] in aplicadas:
                     # 017:RF-127: con lo que dejó la obra (el largo y los extremos del enlace).
                     hecho = {'enlace': fila['enlace']} if fila.get('enlace') else {}
+                    if fila.get('instalaciones'):                                  # 084:RF-17
+                        hecho['instalaciones'] = fila['instalaciones']
                     registrar_obra_aplicada(ws, plan['project'], fila['variacion'],
                                             {**elegidas[n - 1], **hecho})
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]

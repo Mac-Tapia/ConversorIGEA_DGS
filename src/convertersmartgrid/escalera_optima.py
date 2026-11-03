@@ -21,6 +21,7 @@ from typing import Any
 
 from .catalogo_reguladores import CatalogoError, unidad_para_corriente, unidades_para
 from .estudios_pf import CON_PROYECTO
+from .instalacion_ternas import capacidad_de_tramos
 from .pide_economia import costo_anual
 
 #: Orden de la escalera: bancos, cambio de sección, terna y, al final, regulador (063:RF-21; cambia
@@ -71,6 +72,8 @@ class Parametros:
     con_regulador: bool = True
     #: 073:RF-19, RF-24: techo del perfil para los módulos de banco; sin él, los del valle.
     modulos_max: int | None = None
+    #: 084:RF-16: ``planificacion.ternas_subterraneas`` del perfil, con la capacidad por configuración.
+    ternas: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -126,7 +129,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
-        modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']))
+        modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
+        ternas=dict(plan.get('ternas_subterraneas') or {}))
 
 
 def _opcional(x) -> float | None:
@@ -299,12 +303,13 @@ def _caminos(troncal, cargas) -> list[list[Mapping[str, Any]]]:
     return out
 
 
-def _escalon_terna(alim, troncal, cargas) -> list[Variante]:
+def _escalon_terna(alim, troncal, cargas, ternas=None) -> list[Variante]:
     out = []
     for tramos in _caminos(troncal, cargas):                               # 063:RF-32
         out.append(Variante(f"terna hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)", ('terna',),
                             [{'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO],
-                              'tramos': [t['nombre'] for t in tramos], 'nodos': _nodos(tramos)}],
+                              'tramos': [t['nombre'] for t in tramos], 'nodos': _nodos(tramos),
+                              **capacidad_de_tramos(tramos, ternas)}],
                             {'terna': _km(tramos)}))
     return out
 
@@ -389,7 +394,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
         'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos)
                       if p.con_regulador else []),
-        'terna': _escalon_terna(alimentador, troncal, cargas),
+        'terna': _escalon_terna(alimentador, troncal, cargas, p.ternas),
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, tipos, avisos),
     }
     solas = [v for e in ORDEN for v in por_escalon[e]]
