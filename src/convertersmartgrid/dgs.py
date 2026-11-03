@@ -903,6 +903,10 @@ def seds_con_barra_propia(model) -> dict[tuple[str, str], str]:
     }
 
 
+#: Lo que dice la cabecera del DGS según la fuente (056:RF-3): CYMDIST solo para sus TXT, que no cambian.
+_ORIGEN_DGS = {'txt': 'CYMDIST', 'mdb': 'Access (.mdb)', 'vnr': 'VNR-GIS'}
+
+
 def write_dgs(
     model: FeederModel,
     path: Path | str,
@@ -1776,7 +1780,7 @@ def write_dgs(
     preamble = [
         '*' * 80,
         '*',
-        '* CYMDIST to DIgSILENT DGS converter',
+        f'* {_ORIGEN_DGS.get(getattr(model, "fuente", "txt"), _ORIGEN_DGS["txt"])} to DIgSILENT DGS converter',
         f'* Compatibility profile: {schema.profile}',
         f'* Project: {model.name}',
         '* Reference DGS runtime dependency: NONE',
