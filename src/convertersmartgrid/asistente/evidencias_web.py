@@ -70,7 +70,7 @@ def _entregables(raiz: Path, resultado: Any) -> list[dict]:
 
 def custodiar_trabajo(ws: Any, trabajo: dict) -> str | None:
     """Custodia un trabajo terminado; devuelve el aviso para el Registro si no se puede (067:RF-4)."""
-    if trabajo.get('kind') not in TRABAJOS_CON_EVIDENCIA or trabajo.get('status') != 'done':
+    if trabajo.get('kind') not in TRABAJOS_CON_EVIDENCIA or trabajo.get('status') not in ('done', 'parcial', 'no_converge'):
         return None
     resultado = trabajo.get('result')
     proyecto = resultado.get('project') if isinstance(resultado, dict) else None

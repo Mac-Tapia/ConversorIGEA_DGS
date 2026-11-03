@@ -60,6 +60,8 @@ class Reglas:
     #: Spec 057: la demanda de relleno o mayor que su SED se corrige con el oráculo antes de
     #: escribir el DGS, para que el «Caso base» llegue convergido a DIgSILENT.
     corregir_con_oraculo: bool = True
+    #: 081:RF-5: un banco de la fuente con fases que su barra no lleva toma las de su barra.
+    reconstruir_fases: bool = True
     #: Del perfil de empresa (spec 002, RF-31 a RF-33): sin patrón no se excluye ninguna
     #: SED por su nombre, y sin escala queda la del motor.
     patron_sed_medicion: str | None = None
@@ -70,7 +72,8 @@ class Reglas:
 REGLAS_PROYECTO = Reglas()
 #: Conversión literal de la entrada, sin ninguna regla (pruebas de fidelidad).
 SIN_REGLAS = Reglas(hoja=None, fundir_puentes=False, excluir_trafomix=False,
-                    redimensionar_sed=False, dibujar_todo=False, corregir_con_oraculo=False)
+                    redimensionar_sed=False, dibujar_todo=False, corregir_con_oraculo=False,
+                    reconstruir_fases=False)
 
 
 def reglas_de_perfil(perfil, base: Reglas = REGLAS_PROYECTO) -> Reglas:
@@ -213,6 +216,12 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         from .sed_potencia import redimensionar_sobrecargadas
 
         informe['sed_redimensionadas'] = [r.linea() for r in redimensionar_sobrecargadas(model)]
+    if reglas.reconstruir_fases:
+        from .comprobacion_fases import reconstruir_bancos
+
+        reconstruidos = reconstruir_bancos(model)
+        if reconstruidos:          # 081:RF-7: con todo en su sitio, el informe queda como estaba
+            informe['fases_reconstruidas'] = reconstruidos
     if reglas.corregir_con_oraculo:
         informe.update(_corregir_con_oraculo(model))
     if reglas.hoja:

@@ -140,7 +140,8 @@ FLUJO_CONVERGE = 'converge'
 FLUJO_NO_CONVERGE = 'no_converge'
 FLUJO_SIN_DATO = 'sin_dato'
 #: 078:RF-17, 015:RF-38 a RF-40: el flujo no bloquea la calibración; lo físico, sí.
-CASO_BASE_CALIBRABLE = ('VERIFICADO', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO')
+#: 081:RF-15, RF-30: «CONVERGE_SIN_SERVIR» tampoco bloquea; solo no se llama VERIFICADO.
+CASO_BASE_CALIBRABLE = ('VERIFICADO', 'CONVERGE_SIN_SERVIR', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO')
 _MAX_FALLOS = 8
 _MAX_HISTORIAL = 30
 
@@ -199,9 +200,19 @@ def estado_flujo(report: dict[str, Any]) -> dict[str, Any]:
         for fuente in (ultimo.get('errors'), (load_flow.get('diagnostico') or {}).get('issues'),
                        (loop.get('final_diagnosis') or {}).get('issues')):
             fallos += [str(x) for x in fuente or [] if str(x) not in fallos]
+    # 081:RF-14: DIgSILENT convergió y lo sigue diciendo; lo que no se sirvió va aparte, para que no parezca limpio.
+    tras = report.get('tras_flujo') or {}
+    limpio = estado == FLUJO_CONVERGE and tras.get('limpio', True)
+    if estado == FLUJO_CONVERGE and not limpio:
+        from .comprobacion_flujo import texto_tras_flujo
+
+        motivo += f' Pero {texto_tras_flujo(tras)}.'
+    resolucion = load_flow.get('resolucion') or {}                              # 081:RF-27, RF-29
     return {'estado': estado, 'solicitado': solicitado, 'return_code': codigo, 'ldf_valid': valido,
             'significado': significado, 'factor_demanda': factor, 'motivo': motivo, 'fallos': fallos[:_MAX_FALLOS],
-            'historial': _historial_flujo(report, load_flow, loop)}
+            'historial': _historial_flujo(report, load_flow, loop), 'limpio': limpio,
+            'tras_flujo': tras or None, 'correcciones': list(resolucion.get('anotaciones') or []),
+            'queda': list(resolucion.get('queda') or [])}
 
 
 def convergence_pass_de(flujo: dict[str, Any]) -> bool | None:
@@ -209,10 +220,15 @@ def convergence_pass_de(flujo: dict[str, Any]) -> bool | None:
     return {FLUJO_CONVERGE: True, FLUJO_NO_CONVERGE: False}.get(flujo['estado'])
 
 
-def estado_caso_base(fisico_ok: bool, flujo: str) -> str:
-    """El estado del «Caso base» (078:RF-13 a RF-15): VERIFICADO solo con lo físico y el flujo bien."""
+def estado_caso_base(fisico_ok: bool, flujo: str, *, limpio: bool = True) -> str:
+    """El estado del «Caso base» (078:RF-13 a RF-15): VERIFICADO solo con lo físico y el flujo bien.
+
+    Y limpio (081:RF-15): con la barra de baja de una SED a 0 p.u., el flujo «converge» sin servirla.
+    """
     if not fisico_ok:
         return 'NO_VERIFICADO'
+    if flujo == FLUJO_CONVERGE and not limpio:
+        return 'CONVERGE_SIN_SERVIR'
     return {FLUJO_CONVERGE: 'VERIFICADO', FLUJO_NO_CONVERGE: 'NO_CONVERGE'}.get(flujo, 'SIN_DATO_DE_FLUJO')
 
 
@@ -247,6 +263,9 @@ def classify_convergence(report: dict[str, Any]) -> str:
     )
     if intervention.get('attempted') or flujo['factor_demanda'] is not None:    # 078:RF-12
         return 'NEEDS_OPERATOR_REVIEW'
+
+    if flujo['correcciones']:                                                   # 081:RF-32
+        return 'CONVERGED_RECONSTRUCTED'
 
     reconstruction = report.get('reconstruction_verification') or {}
     if reconstruction and reconstruction.get('status') != 'VERIFIED_BEFORE_MUTATION':

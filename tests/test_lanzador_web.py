@@ -160,6 +160,8 @@ def test_conversor_colgado_se_termina(uvicorn_falso, monkeypatch):
     monkeypatch.setattr(lanzador, 'quien_escucha',
                         lambda _p: (999_999, 'python.exe -m convertersmartgrid.web --no-browser'))
     monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
+    monkeypatch.setattr(lanzador, 'ESPERA_SIN_RESPUESTA_S', 0.1)                  # 081:RF-45
+    monkeypatch.setattr(lanzador, '_anotar_terminado', lambda *_a: None)
     assert lanzador.main(['--port', str(port), '--no-browser']) == 0
     assert terminados == [999_999]
     assert [a['port'] for a in uvicorn_falso] == [port]
@@ -274,6 +276,8 @@ def test_health_publica_el_servidor(tmp_path):
     """001:RF-33 — health da el PID, la huella del código y los trabajos en curso."""
     client = TestClient(app_mod.create_app(tmp_path))
     servidor = client.get('/api/health').json()['servidor']
+    raiz = servidor.pop('raiz')                                                    # 081:RF-44
+    assert Path(raiz).is_dir()
     assert servidor == {'pid': os.getpid(), 'huella': _huella_actual(), 'trabajos_en_curso': 0,
                         'paginas_abiertas': 0}                                    # 001:RF-35
 

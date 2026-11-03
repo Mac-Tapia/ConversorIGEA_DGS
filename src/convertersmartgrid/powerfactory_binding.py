@@ -379,7 +379,9 @@ def _arrastrar_flujo(anterior: dict[str, Any] | None, nuevo: dict[str, Any]) -> 
     flujo.setdefault('motivo', 'el flujo registrado al importar ' + ('converge.' if paso else 'no converge.'))
     fallos = (set(nuevo.get('fallos') or []) - {'flujo sin dato', 'sin verificación completa'}
               | {k for k, ok in comprobaciones.items() if not ok})
-    return {**nuevo, 'status': estado_caso_base(nuevo.get('status') != 'NO_VERIFICADO', estado),
+    # 081:RF-15: lo que no se sirvió sigue valiendo hasta el siguiente flujo.
+    return {**nuevo, 'status': estado_caso_base(nuevo.get('status') != 'NO_VERIFICADO', estado,
+                                                limpio=flujo.get('limpio', True) is not False),
             'comprobaciones': comprobaciones, 'fallos': sorted(fallos), 'flujo': {**flujo, 'arrastrado': True}}
 
 

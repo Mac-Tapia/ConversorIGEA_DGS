@@ -28,7 +28,7 @@ class JobRespuesta(Respuesta):
     title: str
     workspace_id: str
     lane: Literal['engine', 'powerfactory', 'asistente', 'control']
-    status: Literal['queued', 'running', 'done', 'failed', 'cancelled']
+    status: Literal['queued', 'running', 'done', 'parcial', 'no_converge', 'failed', 'cancelled']
     progress: ProgresoRespuesta | None
     result: Any = Field(description='Resultado variable según kind; incluye informes nativos y extensiones.')
     error: str | None
@@ -41,6 +41,7 @@ class JobRespuesta(Respuesta):
 class OpcionesRespuesta(Respuesta):
     input_mode: ModoFuente | None
     source_company: str | None
+    empresa_espacio: str | None = None
     source_period: str | None
     source_crs: str | None
     target_crs: str
@@ -93,6 +94,7 @@ class ServidorRespuesta(Respuesta):
     huella: str
     trabajos_en_curso: int
     paginas_abiertas: int
+    raiz: str | None = None
 
 
 class HealthRespuesta(Respuesta):

@@ -1,0 +1,127 @@
+# Spec 081 — Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua
+
+Estado: implementada · Fecha: 2026-11-03 · Origen: fallos reales de la importación de un sistema, y orden del usuario
+
+Cita: 015 (RF-38 a RF-40), 054 (RF-3, RF-9, RF-10), 057, 078 (RF-1 a RF-17), 026 (RF-25), 001 (RF-29, RF-31).
+
+## Contexto y objetivo
+
+Usuario, 2026-11-03: «debe hacerse cada vez más robusta e implementar mejoras, estos errores ya no deberían ocurrir, se supone
+que estamos haciendo la mejora continua»; «debe hacer que converja, recuerda en caso llega convergido»; y, sobre una primera
+versión de esta spec que bloqueaba la calibración: «nada debe bloquear, eso ya está definido, debes dar solución, el conversor,
+para eso están los oráculos».
+
+Siete fallos del mismo día, cada uno arreglado o pendiente caso a caso:
+
+a. Acopladores de tres fases en barras monofásicas impedían todo el flujo.
+b. Un banco trifásico en una barra de dos fases dio «Error in load flow data» en toda la calibración.
+c. Una SED de una fase que no llega a su ramal: su barra de baja a 0 p.u. y su carga sin consumir, con el flujo «convergido».
+d. «Calibración: done» con alimentadores `NO_CONVERGE`.
+e. Tras esa calibración, el «Caso base» dejó de converger (causa sin confirmar).
+f. La suite nocturna quedó «empezada» sin resultado al morir la web, y la web cayó sin causa conocida.
+g. La web decía «OK» y «VERIFICADO» sin converger (corregido en 078).
+
+Comprobado en el código: el DGS deduce las fases de cada barra de sus tramos y SED, sin mirar los bancos (`dgs.py`), así que (b)
+también puede venir de la fuente; un trabajo termina `done` con solo no lanzar excepción (`jobs.py`), que es (d); y la suite corría
+como hija de un hilo de la web, que es (f).
+
+Dos ideas. Veracidad y solución van juntas: nunca un «OK» falso, y nunca sin solución si el oráculo o la física la tienen. Y cada
+fallo real deja una comprobación permanente y una entrada en `docs/regresiones/`, con la prueba que lo cita. Nada se rechaza ni se
+para: lo único que puede parar es la red vacía.
+
+## Requisitos funcionales (EARS)
+
+Comprobación previa de fases
+
+- RF-1: ANTES de importar, EL SISTEMA comparará las fases de cada elemento (acoplador, banco, carga, transformador, tramo y regulador) con las de cada barra a la que se conecta.
+- RF-2: EL SISTEMA dirá las fases de un elemento que no le llegan desde la cabecera.
+- RF-3: EL SISTEMA dirá cada elemento que no cuadra con su clase, su barra y sus fases, con el conteo por clase.
+- RF-4: SI un elemento no cuadra, ENTONCES EL SISTEMA seguirá con la importación.
+- RF-5: SI un banco de la fuente tiene fases que su barra no lleva, ENTONCES EL SISTEMA le dará las de su barra, conservando su potencia, y lo anotará con `FASE_RECONSTRUIDA`.
+- RF-6: EL SISTEMA hará la comprobación sobre el modelo común, igual para TXT, MDB y VNR-GIS.
+- RF-7: CUANDO todo cuadra, EL SISTEMA dejará el modelo y el informe de reglas como estaban, y el DGS idéntico byte a byte.
+- RF-8: ANTES de crear un elemento nuevo de una obra, SI su barra no lleva sus fases, ENTONCES EL SISTEMA lo llevará a la barra compatible más cercana.
+- RF-9: SI no hay barra compatible para un elemento nuevo, ENTONCES EL SISTEMA lo dejará en su barra con las fases de esa barra y lo anotará.
+- RF-10: EL SISTEMA leerá la misma comprobación de un proyecto de DIgSILENT, sin escribir en él.
+
+Comprobación posterior al flujo
+
+- RF-11: CUANDO el flujo converge, EL SISTEMA contará cada barra de baja tensión con carga a 0 p.u.
+- RF-12: CUANDO el flujo converge, EL SISTEMA contará cada carga en servicio con demanda que no consume.
+- RF-13: EL SISTEMA hará esa lectura sin escribir en DIgSILENT.
+- RF-14: SI hay alguna de RF-11 o RF-12, ENTONCES la lectura única del flujo seguirá en `converge` y dirá que no está limpio, con el conteo.
+- RF-15: SI el flujo no está limpio y lo físico pasa, ENTONCES EL SISTEMA dará el «Caso base» por `CONVERGE_SIN_SERVIR`, que calibra y no es `VERIFICADO`.
+- RF-16: SI el flujo no está limpio, ENTONCES la importación dirá `IMPORTADO_CON_CARGAS_SIN_SERVIR` en vez de «OK».
+
+Veracidad del trabajo
+
+- RF-17: SI alguno de los alimentadores de una calibración no converge o no cumple y otro sí, ENTONCES EL SISTEMA terminará el trabajo en `parcial`.
+- RF-18: SI ninguno de los alimentadores de una calibración queda bien y alguno no converge, ENTONCES EL SISTEMA terminará el trabajo en `no_converge`.
+- RF-19: EL SISTEMA dará en el resultado la lista de esos alimentadores, con su estado y su motivo.
+- RF-20: EL SISTEMA conservará en `parcial` y `no_converge` todo lo que guarda un trabajo terminado, sin detener nada de lo que sigue.
+- RF-21: SI la recalibración de un sistema termina con fallos, ENTONCES EL SISTEMA terminará el trabajo en `parcial`, con la lista.
+- RF-22: SI una importación deja proyectos sin aceptar o sin importar, ENTONCES EL SISTEMA terminará el trabajo en `parcial`, o en `no_converge` si ninguno quedó aceptado.
+- RF-23: EL SISTEMA tratará `parcial` y `no_converge` como terminados con resultado en la API, la vigilancia, el asistente y la interfaz.
+- RF-24: LA interfaz mostrará en el título del trabajo y en la calibración la lista de RF-19.
+
+Solución: el «Caso base» llega convergido
+
+- RF-25: SI el flujo del «Caso base» no converge o no tiene dato, ENTONCES EL SISTEMA buscará la causa con los mensajes de DIgSILENT, las fases de sus elementos y lo que halló el oráculo.
+- RF-26: SI la causa es reconstruible, ENTONCES EL SISTEMA la corregirá en el «Caso base», antes de reducir la demanda.
+- RF-27: EL SISTEMA anotará de cada corrección el elemento, el valor anterior, el nuevo, la regla y la evidencia.
+- RF-28: EL SISTEMA volverá a medir tras cada corrección, hasta converger o hasta no tener corrección nueva.
+- RF-29: SI aun así no converge, ENTONCES EL SISTEMA dirá por alimentador cada causa que queda, con su elemento y qué hacer.
+- RF-30: EL SISTEMA no impedirá calibrar por el estado del flujo del «Caso base» (078:RF-17): calibra lo que se pueda y lo dice por alimentador.
+- RF-31: MIENTRAS exista «Sin proyecto», EL SISTEMA no corregirá el «Caso base» (015:RF-39).
+- RF-32: CUANDO el flujo converge tras reconstruir, la lectura dirá `converge` con sus correcciones, y la clasificación `CONVERGED_RECONSTRUCTED`.
+
+«Caso base» inmutable
+
+- RF-33: EL SISTEMA comparará la huella del «Caso base» (su flujo y sus cargas) de antes y de después de calibrar.
+- RF-34: SI la huella cambió, ENTONCES EL SISTEMA lo dirá como fallo grave, con lo que cambió.
+- RF-35: SI la huella cambió, ENTONCES EL SISTEMA ofrecerá el plan para volver a ella.
+- RF-36: SI la huella cambió, ENTONCES EL SISTEMA terminará el trabajo en `parcial` sin parar lo demás.
+
+Suite nocturna y cierre de la web
+
+- RF-37: EL SISTEMA correrá la suite nocturna en un proceso separado que sobrevive al cierre de la web, también al de su árbol de procesos.
+- RF-38: EL SISTEMA correrá la suite por tandas de ficheros, cada tanda en su proceso y una tras otra, con `OPENBLAS_NUM_THREADS=1`.
+- RF-39: EL SISTEMA registrará el resultado de cada tanda y el total.
+- RF-40: SI la suite se corta o revienta, ENTONCES EL SISTEMA registrará «interrumpida» con su motivo.
+- RF-41: SI la última suite sigue «empezada» y su proceso ya no vive, ENTONCES EL SISTEMA registrará «interrumpida» y avisará.
+- RF-42: EL SISTEMA registrará cada arranque de la web y cada cierre con su motivo y quién lo pidió.
+- RF-43: SI una web arranca y la anterior no registró su cierre, ENTONCES EL SISTEMA avisará de que cayó sin motivo conocido.
+- RF-44: SI un lanzador de otra carpeta encuentra una web abierta en el puerto, ENTONCES EL SISTEMA la dejará abierta y arrancará en el puerto siguiente.
+- RF-45: SI un Conversor no responde, ENTONCES EL SISTEMA esperará un plazo antes de terminarlo.
+
+Mejora continua
+
+- RF-46: EL SISTEMA tendrá en `docs/regresiones/` una entrada por fallo real, con su síntoma, causa, comprobación permanente y prueba.
+- RF-47: LA suite fallará si una entrada no apunta a una prueba que exista o le falta un apartado.
+- RF-48: `docs/regresiones/` tendrá una entrada por cada fallo de los de hoy.
+- RF-49: LA suite fallará si una entrada nombra a un cliente, un alimentador o una empresa.
+
+Una carpeta de DIgSILENT por empresa
+
+Usuario, 2026-11-03: «en DIgSILENT crea su carpeta para cada empresa para evitar mezclar, y ahí debe importar cada vez que se haga de una empresa diferente». Completa 055:RF-7.
+
+- RF-50: EL SISTEMA decidirá la carpeta de una fuente con una sola regla, por la empresa que dice la fuente o, si no la dice, la que indicó el operador en el espacio.
+- RF-51: EL SISTEMA guardará en el espacio la empresa que indique el operador, aparte de la fuente.
+- RF-52: SI la empresa coincide con la del perfil, ENTONCES EL SISTEMA usará la carpeta del perfil; SI difiere o no hay perfil, la de su nombre, que siempre es válida.
+- RF-53: SI no se sabe la empresa, ENTONCES EL SISTEMA usará la carpeta del perfil como supuesto o, sin perfil, una neutra, y lo dirá en el plan, al importar y en el informe.
+- RF-54: EL SISTEMA leerá la carpeta de un proyecto ya importado de su vínculo, sin volver a deducirla.
+- RF-55: EL SISTEMA no ofrecerá entre las carpetas un proyecto de otra empresa.
+- RF-56: EL SISTEMA creará la carpeta si no existe, sin mover ni borrar los proyectos que ya haya en ninguna.
+
+## Fuera de alcance
+
+- Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).
+- Corregir las fases de tramos y SED en el modelo (054:RF-9, RF-10): las trae la rama de fases; esta spec las comprueba.
+- Cambiar qué bloquea el oráculo al importar (057:RF-6): sigue su spec, y queda dicho al integrador.
+- Probar en DIgSILENT, en el navegador o correr una suite real: van en sus tareas.
+- Averiguar la causa de (e): se dice «sin confirmar» y queda la huella para medirlo.
+
+## Criterios de finalización
+
+- `grep -rnoE "081:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-56.
+- Un «Caso base» que no converge por una causa reconstruible llega convergido, con su anotación, en la prueba con doble y en DIgSILENT.

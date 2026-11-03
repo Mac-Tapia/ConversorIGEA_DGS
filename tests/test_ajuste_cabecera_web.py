@@ -456,7 +456,9 @@ def test_un_ajuste_que_falla_no_para_el_siguiente(client):
     token = _plan(client, wid, job, project='FALLA_A1').json()['token']
     estado = esperar_trabajo(client, client.post(
         f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json())
-    assert estado['status'] == 'done', estado
+    # 081:RF-17, RF-19: el trabajo terminó y sigue sin parar, pero ya no se llama «done».
+    assert estado['status'] == 'parcial', estado
+    assert [p['alimentador'] for p in estado['result']['pendientes']] == ['A1']
     a1, a2 = estado['result']['informes']
     assert 'ElmFeeder' in a1['error'] and a1['feeder'] == 'A1'
     assert 'error' not in a2 and a2['recibido']['feeder'] == 'A2'

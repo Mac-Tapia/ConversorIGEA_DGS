@@ -28,6 +28,9 @@ function bootWorkspace(): Promise<WorkspaceState> {
   return bootPromise;
 }
 
+/** 081:RF-23: «parcial» y «no_converge» terminaron, con su resultado. */
+const TERMINADOS: string[] = ['done', 'parcial', 'no_converge', 'failed', 'cancelled'];
+
 export interface LogLine {
   seq: number;
   ts: number;
@@ -153,11 +156,11 @@ export function useWorkspace(onJobFinished: (job: Job) => void) {
           for (const j of jobUpdates) {
             const before = next[j.id];
             next[j.id] = j;
-            const ended = ['done', 'failed', 'cancelled'].includes(j.status);
+            const ended = TERMINADOS.includes(j.status);
             // Al recargar se reproduce el Registro desde el principio: un trabajo que
             // terminó antes de abrir la página no debe volver a avisar.
             const fresh = (j.finished_at ?? 0) * 1000 >= bootedAt.current - 2000;
-            if (ended && fresh && (!before || !['done', 'failed', 'cancelled'].includes(before.status))) {
+            if (ended && fresh && (!before || !TERMINADOS.includes(before.status))) {
               queueMicrotask(() => {
                 void refresh(id).catch(() => undefined);
                 finishedRef.current(j);

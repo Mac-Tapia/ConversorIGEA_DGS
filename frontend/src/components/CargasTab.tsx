@@ -814,13 +814,14 @@ const COMPROBACIONES: [string, string][] = [
   ['diagrama', 'Diagrama'], ['capacidades', 'Capacidades'], ['flujo', 'Flujo'],
 ];
 
-const CALIBRAN: (CasoBaseEstado['status'] | undefined)[] = ['VERIFICADO', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO'];
+const CALIBRAN: (CasoBaseEstado['status'] | undefined)[] = ['VERIFICADO', 'CONVERGE_SIN_SERVIR', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO'];
 
 /** Rótulo y color de un «Caso base» (078:RF-25, RF-26); un vínculo viejo guarda VERIFICADO con el flujo en ✗. */
 function rotuloCasoBase(e: CasoBaseEstado): [string, 'ok' | 'warn' | 'err'] {
   if (e.status === 'NO_VERIFICADO') return ['Sin verificar', 'err'];
   if (e.status === 'NO_CONVERGE' || e.comprobaciones?.flujo === false) return ['No converge', 'err'];
   if (e.status === 'SIN_DATO_DE_FLUJO') return ['Sin dato de flujo', 'warn'];
+  if (e.status === 'CONVERGE_SIN_SERVIR') return ['Converge sin servir todo', 'warn'];   // 081:RF-15
   return ['Verificado', 'ok'];
 }
 

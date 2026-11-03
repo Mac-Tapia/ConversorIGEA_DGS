@@ -804,17 +804,39 @@ def empresa_ajena(ws: Workspace) -> str | None:
     return empresa if propia and empresa.casefold() != propia.casefold() else None
 
 
-def carpeta_de(ws: Workspace) -> str:
-    """La carpeta de DIgSILENT del espacio: la de la empresa de la fuente si es otra (055:RF-7), o la del perfil."""
-    from ..carpeta_pf import CarpetaError, validar_nombre
+def destino_carpeta(ws: Workspace):
+    """En qué carpeta de DIgSILENT va lo que hay cargado en el espacio (081:RF-50 a RF-55, 055:RF-7)."""
+    from ..carpeta_pf import decidir_carpeta
+    from ..perfil_empresa import PerfilError, datos_perfil
 
-    ajena = empresa_ajena(ws)
-    if ajena is None:
-        return carpeta_pf()
     try:
-        return validar_nombre(ajena)
-    except CarpetaError as exc:
-        raise UserError(str(exc)) from exc
+        datos = datos_perfil()
+    except PerfilError:
+        datos = {}
+    opciones = getattr(ws, 'options', None) or {}
+    return decidir_carpeta(_procedencia(ws).get('company'), opciones.get('empresa_espacio'),
+                           (datos.get('codigo_empresa'), datos.get('nombre_empresa'), datos.get('empresa')),
+                           carpeta_pf,
+                           # 005:RF-4: un perfil con su carpeta mal escrita se dice, no se toma por «sin perfil».
+                           hay_perfil=bool(datos) or (project_root() / 'config' / 'perfil_empresa.json').is_file())
+
+
+def carpeta_de(ws: Workspace, proyecto: str | None = None) -> str:
+    """La carpeta de DIgSILENT: la del vínculo de ``proyecto`` si ya se importó, o la de la regla.
+
+    081:RF-54: lo importado no se vuelve a deducir. Si el operador cambia la empresa del espacio, el proyecto
+    sigue donde está; la siguiente lectura lo buscaría en otra carpeta y no lo encontraría.
+    """
+    if proyecto:
+        from ..powerfactory_binding import ProjectBindingError, vinculo_guardado
+
+        try:
+            carpeta = str((vinculo_guardado(ws, proyecto) or {}).get('folder') or '').strip()
+        except ProjectBindingError:
+            carpeta = ''
+        if carpeta:
+            return carpeta
+    return destino_carpeta(ws).carpeta
 
 
 def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
@@ -852,6 +874,7 @@ def pandapower_preflight(
     releerlos aquí validaría otra red (ARQ02). El productor conserva un snapshot
     seguro post-reglas, post-unión y post-SET enlazado al hash del DGS (065:RF-6).
     """
+    from ..comprobacion_fases import comprobar_modelo
     from ..oraculo import disponible, validar, validar_unida
     from ..preflight_contract import load_contract
     from .jobs import JobCancelled
@@ -877,6 +900,13 @@ def pandapower_preflight(
                 ctx.check_cancel()
                 report = validar(miembro)
                 data = {**report.as_dict(), 'feeder': miembro.name, 'target': target}
+                # 081:RF-1 a RF-4: lo que no cuadra se dice por elemento y la importación sigue.
+                fases = comprobar_modelo(miembro)
+                data['fases'] = fases.as_dict()
+                if fases.hallazgos:
+                    ctx.log(f'  {miembro.name}: {fases.resumen()}')
+                    for linea in data['fases']['lineas']:
+                        ctx.log(f'    {linea}')
                 reports.append(data)
                 ctx.log(f'  pandapower {miembro.name}: {report.resumen()}')
                 if not report.disponible or not report.convergio:
@@ -1055,6 +1085,18 @@ def _publicar_informe_actual(ruta: Path, salida: Path) -> None:
             stage.replace(estable)
 
 
+def _causas_de_no_convergencia(flujo: dict, preflight: dict, feeder: str) -> list[dict]:
+    """Las causas de un flujo que no converge (081:RF-25, RF-29), con lo que halló el oráculo de ese alimentador."""
+    from ..resolver_convergencia import QUE_HACER, clasificar_causas
+
+    oraculo = [str(h.get('texto') or h.get('detalle') or h) if isinstance(h, dict) else str(h)
+               for r in preflight.get('feeders') or [] if r.get('feeder') == feeder or r.get('target') == feeder
+               for h in r.get('hallazgos') or []]
+    causas = clasificar_causas('\n'.join([flujo.get('motivo') or '', *(flujo.get('fallos') or [])]), oraculo=oraculo)
+    return [{'causa': c.tipo, 'detalle': c.detalle, 'elementos': list(c.elementos), 'que_hacer': QUE_HACER[c.tipo]}
+            for c in causas]
+
+
 def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_errors, artifacts) -> dict:
     """Calcula e importa las mismas copias privadas durante toda la vida del proceso."""
     script = _script('powerfactory_acceptance.py')
@@ -1080,7 +1122,10 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                 f'{motivo}')
     ctx.log('Preflight terminado; se importa cada DGS solicitado que converge en el oráculo.')
 
-    carpeta = carpeta_de(ws)
+    destino = destino_carpeta(ws)
+    carpeta = destino.carpeta
+    if destino.aviso:
+        ctx.log(destino.aviso)                                                 # 081:RF-53
     pf_dir, interpreter = _require_pf()
     ctx.log(f'Intérprete para la API: {interpreter}  [{powerfactory_status()["interpreter_reason"]}]')
     ctx.log(f'Carpeta de DIgSILENT: {carpeta}')
@@ -1096,9 +1141,14 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                'invocation_id': invocation_id, 'job_id': getattr(getattr(ctx, 'job', None), 'id', None),
                'source': source_evidence, 'inputs': artifacts, 'reports': reports}
     write_json_atomic(reports_dir / 'request.json', request)
+    from dataclasses import asdict
+
+    from ..comprobacion_flujo import veredicto_importacion
     from ..powerfactory_metadata import FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_flujo
+    from ..resolver_convergencia import texto_de_resolucion
 
     lines, ok_n, fail_n, sin_aceptar = [], 0, 0, 0
+    sin_resolver: dict[str, list[dict]] = {}
     for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
@@ -1195,8 +1245,14 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
             ctx.log(f'  proyecto de PowerFactory: {proyecto}')
-        if rc == 0 and flujo['estado'] == FLUJO_CONVERGE:
+        if rc == 0 and flujo['estado'] == FLUJO_CONVERGE and not flujo['limpio']:     # 081:RF-16
+            # El flujo «convergió» con una SED sin servir: ni fallo ni «OK». Queda importado y se dice.
+            sin_aceptar += 1
+            lines.append(f"IMPORTADO_CON_CARGAS_SIN_SERVIR {feeder}: importado sin aceptar; {flujo['motivo']}")
+        elif rc == 0 and flujo['estado'] == FLUJO_CONVERGE:
             ok_n += 1
+            for texto in texto_de_resolucion({'anotaciones': flujo['correcciones']}):      # 081:RF-27
+                lines.append(f'  {feeder}: {texto}')
             reducida = (f" con la demanda reducida al {float(flujo['factor_demanda']) * 100:.1f} %"
                         if flujo['factor_demanda'] is not None else '')
             lines.append(f"OK {feeder} → aceptación; flujo convergido (return_code {flujo['return_code']}){reducida}")
@@ -1210,6 +1266,11 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
             lines.append(f'{prefijo} {feeder}: importado sin aceptar; {detalle}')
             for paso in flujo['historial']:                                    # 078:RF-24
                 ctx.log(f'    intento {paso}')
+            # 081:RF-25, RF-29: la causa, por alimentador: lo que dice DIgSILENT y lo que halló el oráculo.
+            queda = flujo['queda'] or _causas_de_no_convergencia(flujo, preflight, feeder)
+            sin_resolver[feeder] = queda
+            for texto in texto_de_resolucion({'anotaciones': flujo['correcciones'], 'queda': queda}):
+                lines.append(f'  {feeder}: {texto}')
         elif rc == 3:
             fail_n += 1
             lines.append(
@@ -1224,8 +1285,10 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
         ctx.log('  ' + line)
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'sin_aceptar': sin_aceptar, 'requested': len(jobs),
-            'missing_dgs': missing, 'lines': lines, 'preflight': preflight,
-            'source': source_evidence, 'invocation_id': invocation_id, 'reports': reports}
+            'missing_dgs': missing, 'lines': lines, 'preflight': preflight, 'sin_resolver': sin_resolver,
+            'carpeta': asdict(destino),                                        # 081:RF-53, RF-54: también el supuesto
+            'source': source_evidence, 'invocation_id': invocation_id, 'reports': reports,
+            **veredicto_importacion(ok_n, fail_n, sin_aceptar)}                # 081:RF-22
 
 
 # ---------------------------------------------------------------------------
@@ -1394,10 +1457,14 @@ def estructura_resumen(ws: Workspace) -> dict:
     from ..estructura import asignar
 
     e, origen = _estructura_y_origen(ws)
+    from dataclasses import asdict
+
     ajena = empresa_ajena(ws)
+    destino = destino_carpeta(ws)
     # 055:RF-6: se dice en la web, para que no parezca que el perfil se aplicó.
     perfil_no_aplicado = {'perfil_no_aplicado': f'La fuente es de la empresa {ajena}: no se aplican las convenciones del '
-                          f'perfil activo, y se importa en la carpeta «{ajena}» de DIgSILENT.'} if ajena else {}
+                          f'perfil activo, y se importa en la carpeta «{destino.carpeta}» de DIgSILENT.'} if ajena else {}
+    perfil_no_aplicado['carpeta_destino'] = asdict(destino)                    # 081:RF-53: dicho antes de importar
     if e is None:
         # 055:RF-4: la fuente no la trae: todos siguen convertibles uno a uno o unidos, y se dice.
         return {'origen': None, 'zonales': [], **perfil_no_aplicado,
@@ -2006,7 +2073,7 @@ def cargas_plan(
             project=project, feeders=feeders, demandas=demandas, nuevas=nuevas,
             costos=asdict(costos) if costos is not None else None,
             tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
-            carpeta=carpeta_de(ws), base=base, minima_m=minima_m,
+            carpeta=carpeta_de(ws, project), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
         # 040:RF-5: las fichas del perfil para proponer el transformador de la SED de una
@@ -3803,7 +3870,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             continue
         plan = {
             'schema': 'convertersmartgrid-ajuste-cabecera-v2', 'project': project.strip(),
-            'folder': carpeta_de(ws), 'feeder': alimentador, 'stamp': stamp,
+            'folder': carpeta_de(ws, project), 'feeder': alimentador, 'stamp': stamp,
             'source': {
                 'source_run_id': project_binding.source_run_id,
                 'source_mode': project_binding.source_mode,
@@ -4014,6 +4081,8 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
     (020:RF-25), que recalibran con el mismo guion: aplicando, la calibración que valga
     queda registrada.
     """
+    from ..comprobacion_flujo import veredicto_calibracion
+
     pf_dir, interpreter = _require_pf()
     cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py'))]
     for path, report in zip(paths, reports):
@@ -4054,6 +4123,8 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
         if not simular:
             _guardar_calibracion(ws, project, feeder, informe, **anios)
         informes.append(informe)
+    for pendiente in veredicto_calibracion(informes)['pendientes']:       # 081:RF-19: lo que dice el trabajo, en su Registro
+        ctx.log(f"{pendiente['alimentador']}: {pendiente['estado']}: {pendiente['motivo']}")
     if not simular and paths:
         # 024:RF-1 / RF-30: un episodio de «Sin proyecto» por proyecto, aceptado solo si
         # todos sus alimentadores cuadran con la medida.
@@ -4064,6 +4135,24 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
                  'cuadrado': all(i.get('cuadrado') for i in informes)},
                 caso='sin_proyecto', rutas={'plan': Path(paths[0]), 'resultado': reports[0]})
     return informes, rc
+
+
+def _verdad_de_la_calibracion(ctx: JobContext, informes: list[dict]) -> dict:
+    """Lo que el trabajo dice de sí mismo (081:RF-17 a RF-19, RF-33 a RF-36): nunca «done» con alimentadores sin converger.
+
+    Un sistema de 22 alimentadores terminó «Calibración: done» con 17 NO_CONVERGE, porque un trabajo era «done» con
+    solo no lanzar excepción. No para nada: lo calibrado queda, y lo demás se dice.
+    """
+    from ..comprobacion_flujo import revisar_huellas, veredicto_calibracion
+
+    verdad = veredicto_calibracion(informes)
+    grave = revisar_huellas(informes)
+    if grave is not None:
+        ctx.log(grave['texto'])
+        verdad['caso_base_cambio'] = grave
+        if verdad['estado_trabajo'] == 'done':
+            verdad['estado_trabajo'] = 'parcial'
+    return verdad
 
 
 def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
@@ -4101,7 +4190,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
             'informe': informes[0], 'informes': informes,
             'sistema': plan.get('sistema'),                                  # 022:RF-53
-            'escaneo': (escaneo or {}).get('resumen')}                       # 028:RF-16
+            'escaneo': (escaneo or {}).get('resumen'),                       # 028:RF-16
+            **_verdad_de_la_calibracion(ctx, informes)}
 
 
 def _plan_y_sufijo(plan: dict, feeder: str) -> tuple[str, str]:
@@ -4207,7 +4297,8 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
         raise UserError(f"{feeder}: {informe['error']}")
     return {'returncode': rc, 'modo': informe.get('modo'), 'report': reports[n].name,
             'reports': [r.name for r in reports], 'project': plan['project'],
-            'feeders': plan['feeders'], 'token': token, 'informe': informe, 'informes': informes}
+            'feeders': plan['feeders'], 'token': token, 'informe': informe, 'informes': informes,
+            **_verdad_de_la_calibracion(ctx, informes)}
 
 
 def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
@@ -4376,7 +4467,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         report = ws.out_dir / f'{feeder}_caso_base.json'
         report.unlink(missing_ok=True)
         cmd = [str(interpreter), str(script), '--existing-project', project,
-               '--pf-carpeta', carpeta_de(ws), '--source-dgs', str(dgs), '--manifest', str(geo),
+               '--pf-carpeta', carpeta_de(ws, project), '--source-dgs', str(dgs), '--manifest', str(geo),
                '--feeder-metadata', str(dgs.with_name(f'{dgs.stem}_feeder_metadata.json')),
                # 015:RF-39: sin flujo; la convergencia se probó al importar el DGS.
                '--require-diagram',
@@ -4416,7 +4507,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         from ..native_action import build_native_action_context
 
         contexto = build_native_action_context(binding, project, verificados, 'verificar_base')
-        _gemelo(ws, ctx, {'project': project, 'folder': carpeta_de(ws), 'feeders': verificados,
+        _gemelo(ws, ctx, {'project': project, 'folder': carpeta_de(ws, project), 'feeders': verificados,
                           'native_action_context': contexto},
                 {'status': 'OK', 'converged': True}, caso='caso_base',
                 rutas={f'caso_base_{f}': ws.out_dir / f'{f}_caso_base.json' for f in verificados})
@@ -4437,7 +4528,7 @@ def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'verificar_{token}.json'
-    path.write_text(json.dumps({'project': project.strip(), 'folder': carpeta_de(ws),
+    path.write_text(json.dumps({'project': project.strip(), 'folder': carpeta_de(ws, project),
                                 'feeders': feeders,
                                 'native_action_context': action_context},
                                ensure_ascii=False), encoding='utf-8')
@@ -4760,7 +4851,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     if tasa is None:
         avisos.append('sin tasa de crecimiento de la demanda en el perfil ni en la cabecera: solo el '
                       'diagnóstico del año 00 (RF-51)')
-    plan = {'project': project, 'folder': carpeta_de(ws), 'feeders': feeders, 'case': 'sin_proyecto',
+    plan = {'project': project, 'folder': carpeta_de(ws, project), 'feeders': feeders, 'case': 'sin_proyecto',
             'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
             'casos_por_anio': True,                                            # 030:RF-1, RF-2
             'cargas_nuevas': _ingreso_de_las_cargas(ws, project),              # 030:RF-9 a RF-12
@@ -5133,7 +5224,7 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
     ajustes = dict(perfil.get('gemelo') or {})
     segundos = float(segundos or ajustes.get('licencia_s') or 600)
     feeders = list(contexto['feeders'])
-    base = {'project': project, 'folder': carpeta_de(ws), 'feeders': feeders, 'case': caso,
+    base = {'project': project, 'folder': carpeta_de(ws, project), 'feeders': feeders, 'case': caso,
             'native_action_context': contexto}
     _rc, tramos, _r = _guion_pf(ws, ctx, 'escenarios_pf.py', {**base, 'solo_tramos': True},
                                 nombre='gemelo_tramos', cancelable=False, limite_s=segundos)
@@ -5444,7 +5535,7 @@ def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders
 
     if not project.strip() or not feeders:
         raise UserError('Elija el proyecto y al menos un alimentador para escanear.')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': list(feeders),
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': list(feeders),
             'anio_casos': anio,
             'ultima_calibracion': ws.calibraciones.get(clave_calibracion(project.strip(), anio)) or {},
             'tramos_dgs': sorted(_tramos_del_dgs_aceptado(ws, project.strip()))}       # RF-17
@@ -5497,7 +5588,7 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     action_context = native_action_context(ws, project, feeders, 'obras_bibliotecas')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws),
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
             'feeders': action_context['feeders'],
             'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context}
@@ -5733,7 +5824,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # El guion compara los alimentadores del plan con los del contexto firmado: cada
         # alimentador va con el suyo (Pisco, 2026-10-24: «BLOQUEADO_DATOS» con el de los dos).
         # 025:RF-69: activas solo sus cargas nuevas y las de los ya resueltos.
-        comun = {'project': project.strip(), 'folder': carpeta_de(ws), 'anio_casos': anio_casos,
+        comun = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos,
                  'native_action_context': native_action_context(ws, project, [f], 'obras'),
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
                  'apartar_variaciones': apartar_variaciones}
@@ -5975,7 +6066,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
         f = de.get(clave_codigo(c.get('alimentador')))
         if f and c.get('barra') and str(c['barra']) not in barras[f]:
             barras[f].append(str(c['barra']))
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'anio_casos': comun['anio_casos'],
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': comun['anio_casos'],
             'native_action_context': native_action_context(ws, project, feeders, 'obras'),
             'feeders': list(feeders), 'barras': barras, 'tension_min_pu': p.tension_min_pu,
             'nuevas': [{k: c.get(k) for k in ('sed', 'variacion', 'barra', 'alimentador', 'kw', 'kvar')}
@@ -6203,7 +6294,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
         por_alim.setdefault(next((f for f in feeders if clave_codigo(f) == clave_codigo(c.get('alimentador'))),
                                  str(c.get('alimentador'))), []).append(c)
     rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
-        'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': list(feeders), 'anio_casos': anio_casos,
+        'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': list(feeders), 'anio_casos': anio_casos,
         'barras': {f: sorted({str(c['barra']) for c in cs if c.get('barra')}) for f, cs in por_alim.items()},
         'native_action_context': native_action_context(ws, project, feeders, 'obras')},
         nombre='set_nueva_datos', args=('--set-nueva-datos',))
@@ -6464,7 +6555,7 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     elegidas = [o for o in ws.obras if not ids or o['id'] in ids]
     if not elegidas:
         raise UserError('No hay obras que simular ni aplicar: defina alguna primero.')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws),
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
             'feeders': action_context['feeders'],
             'obras': [{k: v for k, v in o.items() if k != 'id'} for o in elegidas],
             'otro_proyecto': otro_proyecto.strip(),
@@ -6609,7 +6700,7 @@ def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders:
     pedidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
     if not pedidos:
         raise UserError('Marque los alimentadores a los que aplicar el libro.')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': pedidos,
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': pedidos,
             'libro': libro.a_dict(), 'clases_equipo': _clases_de_la_entrada(ws, pedidos),
             'native_action_context': native_action_context(ws, project, pedidos, 'confiabilidad')}
     ctx.log(f"Libro {ws.datos_empresa[project.strip()]['nombre']} → {project.strip()}")
@@ -6662,7 +6753,7 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
               'se estudia igual.' for a in base['ajustes']
               if a['feeder'] in estudiables and not a.get('cuadrado')]
     token = uuid.uuid4().hex[:12]
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': estudiables,
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': estudiables,
             'base': base, 'estudios': claves, 'limites': asdict(lim),
             'anio_casos': base.get('anio_casos'),
             'limite_s': float(limite_s or LIMITE_ESTUDIO_S),
@@ -6714,7 +6805,7 @@ def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: l
     if accion not in ('diagnostico', 'evaluar', 'aplicar'):
         raise UserError('La acción de la SET debe ser diagnóstico, evaluación o aplicación.')
     action_context = native_action_context(ws, project, feeders, 'obras')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': list(feeders),
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': list(feeders),
             'native_action_context': action_context, 'accion': accion,
             'cambios': list(cambios or []), 'desactivar_variaciones': list(desactivar_variaciones or []),
             'sincronizar_cargas': sincronizar_cargas, 'ajustes_flujo': dict(ajustes_flujo or {}),
@@ -6963,7 +7054,7 @@ def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders
     temporal = instantes_de_transferencia(ws, cabecera_job_id, feeders)
     token = uuid.uuid4().hex[:12]
     fichero = ws.out_dir / f'transferencias_{token}.xlsx'
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'feeders': feeders,
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': feeders,
             'casos': list(casos), 'limites': dict(limites or {}),
             'seccionadores': _seccionadores_de_la_entrada(ws, feeders),
             'native_action_context': action_context, **temporal}
@@ -6992,7 +7083,7 @@ def guiones_listar(ws: Workspace, ctx: JobContext, project: str) -> dict:
         raise UserError('Elija el proyecto de DIgSILENT.')
     bound = alimentadores_vinculados(ws, project.strip())
     action_context = native_action_context(ws, project, list(bound), 'guion')
-    plan = {'project': project.strip(), 'folder': carpeta_de(ws),
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
             'feeders': list(bound), 'native_action_context': action_context}
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer los guiones del operador')
     rc, informe, report = _guion_pf(ws, ctx, 'estudios_pf.py', plan, nombre='guiones',
@@ -7030,7 +7121,7 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
                 cancelado = True
                 break
             ctx.progress(n, len(casos), f'{nombre} · {caso}')
-            plan = {'project': project.strip(), 'folder': carpeta_de(ws), 'caso': roles[caso],
+            plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'caso': roles[caso],
                     'feeders': list(bound), 'native_action_context': action_context,
                     'guion': {'nombre': nombre.strip(), 'origen': origen},
                     'parametros': dict(parametros)}
@@ -7625,7 +7716,7 @@ def transformador_set_listar(ws: Workspace, ctx: JobContext, transmision: str | 
     proyecto = _proyecto_transmision(transmision)
     ctx.log(f'Proyecto de transmisión: {proyecto}  ·  cargas de barra y casos de estudio')
     _rc, informe, _report = _guion_pf(ws, ctx, 'transformador_set_pf.py',
-                                      {'project': proyecto, 'folder': carpeta_de(ws)},
+                                      {'project': proyecto, 'folder': carpeta_de(ws, proyecto)},
                                       nombre='trafo_set_listar', args=('--listar',), cancelable=False)
     if informe.get('error'):
         raise UserError(informe['error'])
@@ -7658,7 +7749,7 @@ def transformador_set_calcular(ws: Workspace, ctx: JobContext, project: str, ali
             f'{delta_kw:+.1f} kW, {delta_kvar:+.1f} kvar (de {sin["_fichero"]} y {con["_fichero"]})')
     rc, informe, report = _guion_pf(
         ws, ctx, 'transformador_set_pf.py',
-        {'project': proyecto, 'folder': carpeta_de(ws), 'caso': caso, 'carga': carga,
+        {'project': proyecto, 'folder': carpeta_de(ws, proyecto), 'caso': caso, 'carga': carga,
          'delta_kw': delta_kw, 'delta_kvar': delta_kvar},
         nombre='trafo_set', cancelable=False)
     if informe.get('error'):
@@ -8275,7 +8366,7 @@ def asistente_monitor(ws: Workspace,trabajos: list[dict],*,limite: int=50,errore
         anterior=por_id.get(j['id'],{})
         # _finish cambia memoria antes de persistir. Si la consulta quedó entre
         # ambos pasos, conserva el terminal más reciente sin perder su contexto.
-        terminales=('done','failed','cancelled')
+        terminales=('done','parcial','no_converge','failed','cancelled')  # 081:RF-23
         usar_anterior=(anterior.get('status') in terminales and j.get('status') not in terminales)
         actual=anterior if usar_anterior else resumen_operacion(j)
         por_id[j['id']]={**anterior,**actual,'contexto':anterior.get('contexto',{}),'seguimiento':'en_sesion'}
@@ -8332,7 +8423,7 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
     if t == 'estado':
         filas = feeder_rows(ws)
         salidas = [p for p in ws.out_dir.rglob('*') if p.is_file()] if ws.out_dir.is_dir() else []
-        en_curso = [j for j in trabajos if j.get('status') not in ('done', 'failed', 'cancelled')]
+        en_curso = [j for j in trabajos if j.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled')]
         texto = (f"{'Fuente cargada' if ws.dataset is not None else 'Sin fuente cargada'}; {len(filas)} "
                  f'alimentador(es); {len(en_curso)} trabajo(s) en curso; {len(salidas)} fichero(s) de salida.')
         return {'texto': texto, 'trabajos': [{'titulo': j['title'], 'estado': j['status']} for j in en_curso]}
@@ -8961,6 +9052,19 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     return {'zonal': '', 'grupo': grupo, 'alimentadores': alimentadores, 'demanda_dir': carpeta}
 
 
+def _verdad_del_sistema(ruta: Path, rc: int) -> dict:
+    """La lista de lo que ``tools/sistema_web.py`` no dejó calibrado (081:RF-21); un código 1 nunca es «done»."""
+    if rc == 0:
+        return {'estado_trabajo': 'done', 'pendientes': []}
+    try:
+        leido = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        leido = {}
+    estado = leido.get('estado_trabajo')
+    return {'estado_trabajo': estado if estado in ('parcial', 'no_converge') else 'parcial',
+            'pendientes': leido.get('pendientes') or []}
+
+
 def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: str, *,
                        zonal: str | None = None, demanda_dir: str | None = None,
                        transformadores: bool = False,
@@ -8987,11 +9091,14 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
     if transformadores:
         cmd.append('--transformadores')
     cmd += ['--criterio-fijas', _criterio_fijas(criterio_fijas)]                # 039:RF-1
+    resumen = ws.out_dir / f'recalibrar_resumen_{ctx.job.id}.json'
+    cmd += ['--resumen-json', str(resumen)]                                     # 081:RF-21
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
         raise UserError(f'La recalibración de {zonal} no llegó al final (código {rc}): vea el Registro.')
     return {'project': project, 'zonal': zonal, 'periodo': periodo, 'codigo': rc,
-            'texto': 'recalibrado y válido' if rc == 0 else 'recalibrado con fallos: vea el Registro'}
+            'texto': 'recalibrado y válido' if rc == 0 else 'recalibrado con fallos: vea el Registro',
+            **_verdad_del_sistema(resumen, rc)}
 
 
 def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
@@ -9011,11 +9118,14 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
            '--periodo', plan.datos['periodo']]
     if plan.datos.get('ruta'):
         cmd += ['--demanda-dir', plan.datos['ruta']]
+    resumen = ws.out_dir / f'sistema_resumen_{ctx.job.id}.json'
+    cmd += ['--resumen-json', str(resumen)]                                     # 081:RF-21
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
         raise UserError(f'{nombre} no se pudo llevar hasta el final (código {rc}).')
     return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,
-            'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro'}
+            'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro',
+            **_verdad_del_sistema(resumen, rc)}
 
 
 def _asistente_clasificar_generado(ws: Workspace, plan, nombres: list[str]) -> dict | None:

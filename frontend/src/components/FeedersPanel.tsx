@@ -409,6 +409,7 @@ export function FeedersPanel() {
             {errorEstructura && <small className="alert alert-error">Estructura de la empresa: {errorEstructura}</small>}
             {estructura && !estructura.zonales.length && <small className="muted">Sin estructura de la empresa: súbala en el paso de demanda o póngala en el perfil.</small>}
             {estructura?.perfil_no_aplicado && <small className="muted">{estructura.perfil_no_aplicado}</small>}
+            {estructura?.carpeta_destino?.aviso && !estructura.perfil_no_aplicado && <small className="muted">{estructura.carpeta_destino.aviso}</small>}
             {estructura?.origen && !!estructura.zonales.length && <small className="muted">Estructura tomada {
               { excel: 'del Excel subido', perfil: 'del perfil de la empresa', fuente: 'de la propia fuente' }[estructura.origen]}.</small>}
             {!!estructura?.deducidos?.length && (

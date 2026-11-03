@@ -34,7 +34,7 @@ class RegistroOperaciones:
     def anotar(self,trabajo: dict,contexto: dict) -> None:
         if trabajo.get('workspace_id')!=self.workspace_id:
             raise ValueError('trabajo de otro espacio')
-        if not trabajo.get('id') or trabajo.get('status') not in ('queued','running','done','failed','cancelled'):
+        if not trabajo.get('id') or trabajo.get('status') not in ('queued','running','done','parcial','no_converge','failed','cancelled'):
             raise ValueError('estado de operación inválido')
         # El informe completo permanece en los entregables originales. Evita copiar
         # curvas grandes en cada avance; el monitor no certifica aceptación eléctrica.

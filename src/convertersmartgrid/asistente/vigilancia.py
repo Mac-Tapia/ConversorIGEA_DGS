@@ -13,6 +13,7 @@ puertas. Lo que escribe en DIgSILENT lo propone como una orden que el operador c
 from __future__ import annotations
 
 import ast
+import os
 import re
 import statistics
 import subprocess
@@ -113,9 +114,17 @@ def revisar_calidad(trabajos: Iterable[Mapping[str, Any]], tolerancia_pct: float
     de los trabajos terminados; cada uno con la orden que lo trataría (RF-24)."""
     avisos = []
     for t in trabajos:
-        if t.get('status') != 'done' or not isinstance(t.get('result'), Mapping):
+        if t.get('status') not in ('done', 'parcial', 'no_converge') or not isinstance(t.get('result'), Mapping):
             continue
         r = t['result']
+        pendientes = r.get('pendientes') or []
+        if t.get('status') != 'done':                                          # 081:RF-23
+            avisos.append(Aviso(f"parcial:{t['id']}", 'error',
+                                f"«{t['title']}» terminó {t['status']}: "
+                                + ('; '.join(f"{p.get('alimentador')} {p.get('estado')}" for p in pendientes[:10])
+                                   or 'vea su Registro') + '.', trabajo=t['id']))
+        if r.get('caso_base_cambio'):                                          # 081:RF-34
+            avisos.append(Aviso(f"caso_base:{t['id']}", 'error', r['caso_base_cambio']['texto'], trabajo=t['id']))
         proyecto = r.get('project') or ''
         feeders = ' '.join(r.get('feeders') or [])
         no_converge = [ruta for ruta, v in _recorrer(r) if ruta.split('.')[-1] in ('converge', 'converged')
@@ -161,7 +170,8 @@ def rf_de_prueba(repo: Path, nodo: str) -> list[str]:
 
 
 def correr_suite(repo: Path, *, argumentos: Iterable[str] = ('-q', '-rs', '-p', 'no:cacheprovider'),
-                 limite_s: float = 4 * 3600, env: Mapping[str, str] | None = None) -> dict[str, Any]:
+                 limite_s: float = 4 * 3600, env: Mapping[str, str] | None = None,
+                 registro: str = 'suite') -> dict[str, Any]:
     """La suite en otro proceso; lo que falla, con el RF que cita cada prueba (RF-25)."""
     inicio = time.monotonic()
     try:
@@ -178,8 +188,97 @@ def correr_suite(repo: Path, *, argumentos: Iterable[str] = ('-q', '-rs', '-p', 
     fila = {'codigo': codigo, 'resumen': resumen.strip('= '), 'segundos': round(time.monotonic() - inicio),
             'fallidas': [{'prueba': f, 'rf': rf_de_prueba(repo, f)} for f in fallidas],
             'omitidas': len(re.findall(r'^SKIPPED', salida, re.MULTILINE))}
+    almacen.anotar(registro, fila)
+    return fila
+
+
+#: Ficheros por tanda. Un solo proceso con toda la suite llegó a agotar la memoria de 16 GB compartidos
+#: con otras sesiones; cada tanda devuelve la suya al terminar. Una tras otra, nunca a la vez (trabajo en serie).
+FICHEROS_POR_TANDA = 25
+#: Un fichero no tarda esto; una tanda colgada no debe tapar el resultado de las demás.
+LIMITE_TANDA_S = 3600.0
+#: Sin esto, cada proceso de numpy reserva un hilo por núcleo: medido al correr pruebas por fichero (spec 081).
+ENTORNO_SUITE = {'OPENBLAS_NUM_THREADS': '1'}
+EMPEZADA, INTERRUMPIDA = 'empezada', 'interrumpida'
+
+
+def tandas_de_pruebas(repo: Path, por_tanda: int = FICHEROS_POR_TANDA) -> list[list[str]]:
+    """Los ficheros de pruebas en tandas, en orden estable (081:RF-38); el número no está fijado."""
+    ficheros = sorted(p.relative_to(repo).as_posix() for p in (repo / 'tests').glob('test_*.py'))
+    return [ficheros[i:i + por_tanda] for i in range(0, len(ficheros), por_tanda)]
+
+
+def correr_por_tandas(repo: Path, *, tandas: list[list[str]] | None = None,
+                      ejecutar: Callable[..., dict[str, Any]] = correr_suite,
+                      env: Mapping[str, str] | None = None) -> dict[str, Any]:
+    """Cada tanda en su proceso y el total al acabar (081:RF-38, RF-39).
+
+    Si algo la corta o revienta, queda «interrumpida» con su motivo (RF-40) y con las tandas que
+    sí acabaron: la suite del 2026-11-03 murió con la web y su registro quedó en «empezada».
+    """
+    entorno = {**(dict(env) if env is not None else dict(os.environ)), **ENTORNO_SUITE}
+    # Heredada del servidor, cada prueba que abre la web arrancaba la vigilancia del de verdad, y una suite que se
+    # lanzara de noche podía lanzar otra: es la web, no las pruebas, quien vigila.
+    entorno.pop('CSG_ASISTENTE_VIGILANCIA', None)
+    tandas = tandas_de_pruebas(repo) if tandas is None else tandas
+    hechas: list[dict[str, Any]] = []
+    try:
+        for tanda in tandas:
+            hechas.append(ejecutar(repo, argumentos=('-q', '-rs', '-p', 'no:cacheprovider', *tanda),
+                                   limite_s=LIMITE_TANDA_S, env=entorno, registro='suite_tandas'))
+    except BaseException as exc:  # noqa: BLE001 - también la señal de cierre: el registro no puede quedar a medias
+        fila = {'codigo': -1, 'resumen': INTERRUMPIDA, 'motivo': repr(exc), **_totales(hechas, len(tandas))}
+        almacen.anotar('suite', fila)
+        if isinstance(exc, Exception):
+            return fila
+        raise
+    fila = {'codigo': max((abs(h['codigo'] or 0) for h in hechas), default=0),
+            'resumen': _texto_total(hechas, len(tandas)), **_totales(hechas, len(tandas))}
     almacen.anotar('suite', fila)
     return fila
+
+
+def _totales(hechas: list[dict[str, Any]], total: int) -> dict[str, Any]:
+    return {'tandas': f'{len(hechas)}/{total}', 'segundos': sum(h.get('segundos') or 0 for h in hechas),
+            'fallidas': [f for h in hechas for f in h.get('fallidas') or []],
+            'omitidas': sum(h.get('omitidas') or 0 for h in hechas)}
+
+
+def _texto_total(hechas: list[dict[str, Any]], total: int) -> str:
+    def suma(palabra: str) -> int:
+        return sum(int(m) for h in hechas for m in re.findall(rf'(\d+) {palabra}', h.get('resumen') or ''))
+
+    return f"{suma('passed')} passed, {suma('failed')} failed, {suma('skipped')} skipped en {total} tandas"
+
+
+def revisar_suite(filas: list[dict[str, Any]], proceso_vivo: Callable[[Mapping[str, Any]], bool]) -> Aviso | None:
+    """La última suite sigue «empezada» y su proceso ya no vive (081:RF-41): se cierra su registro y se avisa."""
+    ultima = filas[-1] if filas else None
+    if not ultima or ultima.get('resumen') != EMPEZADA or proceso_vivo(ultima):
+        return None
+    almacen.anotar('suite', {'codigo': -1, 'resumen': INTERRUMPIDA,
+                             'motivo': f"el proceso {ultima.get('pid') or 'de la suite'} ya no vive y no dejó resultado"})
+    return Aviso(f"suite:{ultima.get('fecha')}", 'error',
+                 f"La suite empezada el {ultima.get('fecha')} se interrumpió sin dejar resultado: no probó nada esa noche.")
+
+
+def lanzar_suite_separada(repo: Path, *, lanzar: Callable[..., Any] = subprocess.run) -> bool:
+    """Lanza ``tools/suite_por_tandas.py``, que se separa de la web (081:RF-37). Devuelve si salió bien.
+
+    Espera solo al paso intermedio, que termina enseguida y deja registrada la suite: así dos
+    vueltas de la vigilancia no lanzan dos.
+    """
+    herramienta = repo / 'tools' / 'suite_por_tandas.py'
+    try:
+        r = lanzar([sys.executable, str(herramienta), '--separar'], cwd=str(repo), timeout=120, check=False,
+                   creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if r.returncode == 0:
+            return True
+        motivo = f'el lanzador de la suite terminó con el código {r.returncode}'
+    except (OSError, subprocess.SubprocessError) as exc:
+        motivo = repr(exc)
+    almacen.anotar('suite', {'codigo': -1, 'resumen': INTERRUMPIDA, 'motivo': motivo})
+    return False
 
 
 @dataclass
@@ -196,6 +295,8 @@ class Vigilante:
     hora_suite: int = 22
     reintentados: set[str] = field(default_factory=set)
     vistos: set[str] = field(default_factory=set)
+    #: Si vive el proceso de una fila de la suite; lo pone la web, que puede preguntar al sistema (RF-41).
+    proceso_vivo: Callable[[Mapping[str, Any]], bool] = lambda _fila: False
     _parar: threading.Event = field(default_factory=threading.Event)
 
     def tic(self, ahora: float | None = None, fecha: datetime | None = None) -> list[Aviso]:
@@ -220,10 +321,15 @@ class Vigilante:
             almacen.anotar('avisos', asdict(a))
             nuevos.append(a)
         fecha = fecha or datetime.now().astimezone()
-        ultima = (almacen.leer('suite', 1) or [{}])[-1].get('fecha')
+        filas = almacen.leer('suite', 1)
+        interrumpida = revisar_suite(filas, self.proceso_vivo)
+        if interrumpida is not None:
+            almacen.anotar('avisos', asdict(interrumpida))
+            nuevos.append(interrumpida)
+        ultima = (filas or [{}])[-1].get('fecha')
         if toca_suite(fecha, ultima, self.hora_suite):
-            almacen.anotar('suite', {'codigo': None, 'resumen': 'empezada'})
-            threading.Thread(target=correr_suite, args=(self.repo,), name='csg-suite', daemon=True).start()
+            # 081:RF-37: en un hilo de este proceso, moría con la web y dejaba «empezada» para siempre.
+            lanzar_suite_separada(self.repo)
         return nuevos
 
     def arrancar(self) -> threading.Thread:

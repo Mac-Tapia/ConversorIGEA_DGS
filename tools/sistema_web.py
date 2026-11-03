@@ -36,6 +36,7 @@ Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -47,7 +48,7 @@ from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS
                                      clasificar_carpeta_demanda, descubrir_libro_suministros)
 from convertersmartgrid.util import nombre_seguro
 
-TERMINADOS = ('done', 'failed', 'cancelled')
+TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
 NECESARIOS = ('medidores', 'cabecera')
 
@@ -94,8 +95,23 @@ class Web:
         raise TimeoutError(f"{trabajo.get('title')}: sin terminar en {limite_s / 3600:g} h")
 
 
+#: Dónde deja la lista de lo que no quedó calibrado (081:RF-21); la web la pasa con ``--resumen-json``.
+_RESUMEN: list[Path] = []
+
+
+def _escribir_resumen(estado: dict) -> None:
+    if not _RESUMEN:
+        return
+    resultado = estado.get('result') or {}
+    _RESUMEN[0].parent.mkdir(parents=True, exist_ok=True)
+    _RESUMEN[0].write_text(json.dumps({'estado_trabajo': estado.get('status'),
+                                       'pendientes': resultado.get('pendientes') or []},
+                                      ensure_ascii=False), encoding='utf-8')
+
+
 def _terminado(estado: dict) -> bool:
-    if estado.get('status') == 'done':
+    # 081:RF-20, RF-23: «parcial» y «no_converge» terminaron con su resultado: se sigue y se dice.
+    if estado.get('status') in ('done', 'parcial', 'no_converge'):
         return True
     print(f"ERROR: trabajo {estado.get('id', '')}: {estado.get('status')}; "
           f"{estado.get('error') or ''}", flush=True)
@@ -455,6 +471,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     if not _terminado(ultimo):
         return 2
     validos, fallidos = _resumen(ultimo)
+    _escribir_resumen(ultimo)
     print(f'{validos} válido(s), {fallidos} con fallos.')
     return 0 if validos and not fallidos else 1
 
@@ -491,7 +508,9 @@ def main(argv=None) -> int:
                    help='Fijas en el instante de la máxima de cabecera o en su máximo del mes (039:RF-1)')
     p.add_argument('--alimentadores', nargs='+', metavar='COD',
                    help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
+    p.add_argument('--resumen-json', type=Path, help='Dónde dejar la lista de lo que no quedó calibrado (081:RF-21)')
     args = p.parse_args(argv)
+    _RESUMEN[:] = [args.resumen_json] if args.resumen_json else []
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     except (AttributeError, ValueError):

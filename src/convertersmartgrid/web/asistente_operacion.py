@@ -242,7 +242,7 @@ def _datos_de_la_carga(plan, extras: dict) -> None:
 def _cancelar(plan, extras: dict) -> None:
     fuera = ('asistente_interpretar', 'asistente_control', 'asistente_indice')
     vivos = [{'id': j['id'], 'titulo': j.get('title') or j['id']} for j in extras.get('_trabajos') or []
-             if j.get('status') not in ('done', 'failed', 'cancelled') and j.get('kind') not in fuera]
+             if j.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled') and j.get('kind') not in fuera]
     if not vivos:
         plan.faltan.append('un trabajo en curso: en este espacio no hay ninguno que cancelar.')
     extras['cancelar'] = vivos
