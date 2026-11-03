@@ -14,13 +14,16 @@ Dependencias y relación: 043; solo T0 puede adelantarse porque corrige el auxil
 ## Requisitos funcionales (EARS)
 
 - RF-1: CUANDO se evalúe un modelo, EL SISTEMA separará entrenamiento, selección, calibración y prueba mediante grupos de custodia sin solapamiento.
+- Aclaración de RF-1: los grupos de custodia de un episodio son su red y su familia topológica. Con un sistema entero (027:RF-68) el reparto se hace por la huella de la familia, no por la de cada episodio: por episodio, las variantes de demanda de una maniobra caían a los dos lados y 060:RF-2 lo rechazaba siempre. Las cuotas 30/10/10 de ese modo son de grupos.
 - RF-2: SI falta una partición o su mínimo predeclarado, ENTONCES EL SISTEMA bloqueará la promoción sin sustituirla por datos de entrenamiento.
 - RF-3: EL SISTEMA ajustará transformaciones e hiperparámetros sin utilizar la partición de prueba sellada.
 - RF-4: CUANDO se calibre incertidumbre, EL SISTEMA utilizará únicamente la partición de calibración no usada para selección.
 - RF-5: CUANDO se compare un candidato, EL SISTEMA aplicará puertas predeclaradas por familia además de los resultados agregados.
+- Aclaración de RF-5: en la PINN, cada familia de la prueba pasa los topes 0,005 p.u. y 0,05 y no puede superar 1,05 veces el error del flujo físico ni el del modelo en uso. La comparación global con el flujo físico sigue siendo estricta (071:RF-3).
 - RF-6: SI faltan métricas nativas obligatorias o contienen valores no finitos, ENTONCES EL SISTEMA rechazará la verificación de la alternativa.
 - RF-7: CUANDO se acepte una alternativa, EL SISTEMA exigirá la evaluación nativa completa del caso y de su referencia vinculada.
 - RF-8: CUANDO se publique una evaluación, EL SISTEMA conservará denominadores, unidades, particiones y política suficientes para reproducirla.
+- Aclaración de RF-8: la cobertura de un intervalo solo se afirma si las familias de calibración alcanzan para ella (⌈(g+1)·cobertura⌉ ≤ g, nueve para un 90 %); con menos, se publica la empírica con sus denominadores y la cobertura queda vacía. Nunca se promete garantía de datos intercambiables.
 - RF-9: CUANDO se confirme un diseño en PowerFactory, EL SISTEMA verificará su persistencia después de reabrirlo.
 
 ## Requisitos no funcionales

@@ -70,7 +70,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6 |
-  | 043 Consolidación y gobierno de modelos | aprobada | ver sus tareas |
+  | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | aprobada | ver sus tareas |
   | 045 Gemelo físico y contratos PINN/GNN | aprobada | ver sus tareas |
   | 046 Pronóstico causal multihorizonte | cumplida |  |

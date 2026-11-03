@@ -57,10 +57,15 @@ function Modelos() {
     }}>
       <summary className="small">Estado de los modelos y evidencia de evaluación</summary>
       {modelos && <table className="small">
-        <thead><tr><th>Familia</th><th>Algoritmo</th><th>Estado</th><th>En uso</th><th>Observaciones</th></tr></thead>
+        <thead><tr><th>Familia</th><th>Algoritmo</th><th>Estado</th><th>En uso</th><th>Evidencia</th><th>Observaciones</th></tr></thead>
         <tbody>{modelos.familias.map((f) => <tr key={f.familia}>
           <td>{f.familia}</td><td>{f.algorithm ?? '—'}</td>
-          <td>{f.estado ?? 'Pendiente de evidencia'}</td><td>{f.en_uso ?? '—'}</td><td>{f.bloqueos.join('; ') || '—'}</td>
+          <td>{f.estado ?? 'Pendiente de evidencia'}</td><td>{f.en_uso ?? '—'}</td>
+          {/* 043:RF-8: el estado con lo que lo respalda; sin candidato, solo hay informe o nada. */}
+          <td>{f.candidate_id ? `Candidato ${f.candidate_id.slice(0, 12)} · ` : ''}
+            {f.gates.approved === true ? 'puertas aprobadas · ' : f.candidate_id ? 'puertas no aprobadas · ' : ''}
+            {f.estado ? f.report_path : '—'}</td>
+          <td>{f.bloqueos.join('; ') || '—'}</td>
         </tr>)}</tbody>
       </table>}
     </details>

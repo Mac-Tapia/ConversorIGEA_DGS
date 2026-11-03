@@ -89,7 +89,7 @@ ausente. La API de modelos conserva Transformer RECHAZADO, QLoRA ERROR_ENTORNO y
 
 | Spec | Evidencia/implementación observada | Falta exigida por su contrato |
 | --- | --- | --- |
-| 043 | registro/coordinador y GET real con estados y bloqueos | runner y publicación conjunta verificables; T1/T3/T4 siguen abiertas |
+| 043 | registro/coordinador y GET real con estados y bloqueos | reapertura correcta en CUDA y campaña integral: T9 abierta; T1/T3/T4 cerradas el 2026-11-03 |
 | 044 | contratos de experimentos/evaluación disponibles | verificación completa por alternativa y reapertura nativa, no solo convergencia |
 | 045 | episode/buffer/oraculo y adaptador_pyg existentes | contratos_fisicos/benchmark_fisico y pruebas previstas ausentes; ablación/domain gate y contraste nativo siguen pendientes |
 | 046 | series_causales.py y su prueba existentes | pronostico/adaptador_neuralforecast/evaluacion_temporal y pruebas previstas ausentes; benchmark causal real y promoción por horizonte pendientes |
