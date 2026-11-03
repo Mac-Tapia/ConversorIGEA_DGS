@@ -87,3 +87,11 @@ def esperar_trabajo(client, job: dict, timeout: float = 60.0) -> dict:
             return state
         time.sleep(0.05)
     raise AssertionError(f"el trabajo {job.get('title', job['id'])} no terminó en {timeout} s")
+
+
+def contrato_fisico() -> dict:
+    """Lo que un grafo versión 3 declara de su física (045:RF-3), para las redes sintéticas."""
+    from convertersmartgrid.digital_twin.contratos_fisicos import CONTROLES_LDF, REPRESENTACION
+
+    return {'alcance_fisico': {'representacion': REPRESENTACION, 'no_representados': {}},
+            'controles': {'comldf': dict.fromkeys(CONTROLES_LDF, 0)}}

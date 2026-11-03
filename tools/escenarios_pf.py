@@ -25,7 +25,7 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, clave_pf, flujo_de_carga
-from digital_twin_snapshot_pf import CASOS, _caso, _red, grafo, resultados
+from digital_twin_snapshot_pf import CASOS, _caso, _red, caso_nativo, contexto_del_plan, grafo, resultados
 
 from convertersmartgrid.digital_twin.native_snapshot import componentes
 from convertersmartgrid.native_action import native_action_block_report
@@ -46,12 +46,14 @@ def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
         return {**informe, 'error': 'DIgSILENT no copió el proyecto'}, 2
     copia.Activate()
     try:
+        identidad = None
         nombre_caso = CASOS.get(plan.get('case') or '', plan.get('case'))
         if nombre_caso:
-            caso = _caso(app, nombre_caso)
+            caso = _caso(app, nombre_caso, plan.get('anio_casos'))
             if caso is None:
                 return {**informe, 'error': f'el proyecto no tiene el caso «{nombre_caso}»'}, 2
             caso.Activate()
+            identidad = caso_nativo(app, copia, caso, plan.get('case'))    # 045:RF-1
         raiz = clave_pf(copia)
         elms = {f.loc_name: f for f in copia.GetContents('*.ElmFeeder', 1)}
         lineas = {ln.loc_name: ln for f in feeders if f in elms for ln in elms[f].GetObjs('ElmLne')}
@@ -78,7 +80,7 @@ def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
                     barras, tramos, frontera, info = _red(app, raiz)
                     fila['lectura'] = {
                         'project': plan['project'], 'folder': plan.get('folder'), 'feeders': feeders,
-                        'reopen_verified': True,
+                        'reopen_verified': True, 'caso_nativo': identidad, 'contexto': contexto_del_plan(plan),
                         'topologia': {'componentes': componentes(barras, tramos), 'frontera': frontera,
                                       'barras': info, 'grafo': grafo(app, copia, raiz, feeders,
                                                                      float(e['factor_carga']))},

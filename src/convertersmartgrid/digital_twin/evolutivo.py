@@ -33,7 +33,7 @@ from ..evaluacion_modelos import comprobar_tolerancias, validar_medicion_nativa
 from ..experimentos import ContextoExperimento
 from .episode import Caso, Clase
 from .evaluacion import Limites, evaluar
-from .oraculo import S_BASE, Muestra, muestra, sistema_de
+from .oraculo import S_BASE, Muestra, escalar_nodo, muestra, sistema_de
 
 #: Aptitud de una solución que incumple: siempre peor que cualquiera que cumple (regla de
 #: factibilidad de Deb); entre las que incumplen, gana la que menos se aparta.
@@ -428,7 +428,7 @@ def optimizar_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kva
 
 
 def _grafo_con_estados(grafo: Mapping[str, Any], cerradas: Mapping[str, bool]) -> dict:
-    return {'nodos': grafo.get('nodos') or {}, 'version': grafo.get('version'),
+    return {**grafo, 'nodos': grafo.get('nodos') or {},
             'ramas': [{**r, 'cerrada': cerradas.get(str(r.get('id')), r.get('cerrada', True))}
                       for r in grafo.get('ramas') or []]}
 
@@ -570,7 +570,7 @@ def red_del_gemelo(episodios: Sequence[Any]) -> dict | None:
     abiertos = set(esc.get('tramos_abiertos') or ())
     if factor == 1.0 and not abiertos:
         return grafo
-    nodos = {n: {**d, 'p_mw': (d.get('p_mw') or 0.0) / factor, 'q_mvar': (d.get('q_mvar') or 0.0) / factor}
+    nodos = {n: escalar_nodo(d, 1.0 / factor)
              for n, d in grafo['nodos'].items()}
     ramas = [{**r, 'cerrada': True} if _nombre_corto(str(r.get('id'))) in abiertos else r
              for r in grafo.get('ramas') or []]
@@ -697,6 +697,12 @@ def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[
     comprobar_tolerancias(politica)
     descartadas = []
     for alt in alternativas:
+        if alt.get('fuera_de_dominio'):
+            # 045:RF-9: lo predicho fuera de lo validado no se compara ni se da por diseño.
+            motivo = 'la predicción está fuera del dominio validado del modelo'
+            guardar(alt, None, motivo)
+            descartadas.append({'alternativa': dict(alt), 'motivo': motivo, 'digsilent': {}})
+            continue
         m = medir(alt)
         if not m or not m.get('converge'):
             motivo = 'el flujo de DIgSILENT no converge con ella'

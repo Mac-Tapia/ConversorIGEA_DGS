@@ -26,22 +26,45 @@ from pathlib import Path
 from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de
 from estudios_pf import _num, medida
 
+from convertersmartgrid.digital_twin.contratos_fisicos import (
+    APROXIMACIONES,
+    CLASES_NO_REPRESENTADAS,
+    CONTROLES_LDF,
+    MODOS_PQ,
+    REPRESENTACION,
+    UNIDADES,
+    VERSION_GRAFO,
+)
 from convertersmartgrid.digital_twin.native_snapshot import (
     componentes,
     huella_gps,
     identidad_nativa,
 )
-from convertersmartgrid.digital_twin.oraculo import VERSION_GRAFO
 from convertersmartgrid.native_action import native_action_block_report
 
 #: Caso del episodio → nombre del caso de estudio que deja la spec 011.
-CASOS = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto', 'con_proyecto': 'Con proyecto'}
+CASOS = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto', 'con_proyecto': 'Con proyecto',
+         'cargas_nuevas': 'Cargas nuevas'}
 
 
-def _caso(app, nombre: str):
+def _caso(app, nombre: str, anio=None):
+    """El caso pedido; con año, el de ese año («Sin proyecto 2025», spec 025): el otro es otra demanda."""
     carpeta = app.GetProjectFolder('study')
+    buscado = f'{nombre} {anio}' if anio else nombre
     return next((c for c in (carpeta.GetContents('*.IntCase') if carpeta else [])
-                 if c.loc_name == nombre), None)
+                 if c.loc_name == buscado), None)
+
+
+def caso_nativo(app, proyecto, caso, rol) -> dict:
+    """045:RF-1: el rol con la identidad del caso activo en DIgSILENT, no solo lo que pidió el plan."""
+    raiz = clave_pf(proyecto)
+    return {'rol': rol, 'nombre': caso.loc_name, 'id': identidad_nativa('IntCase', clave_pf(caso), raiz)}
+
+
+def contexto_del_plan(plan: dict) -> dict:
+    """Lo que dice el plan del caso; lo que no dice queda en ``None``, sin suponer."""
+    return {'year': plan.get('anio_casos'), 'period': plan.get('periodo'),
+            'criterio_fijas': plan.get('criterio_fijas')}
 
 
 def _version(app) -> str | None:
@@ -113,10 +136,12 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         return {**lectura, 'error': 'el proyecto no se pudo volver a activar'}, 2
     nombre_caso = CASOS.get(plan.get('case') or '', plan.get('case'))
     if nombre_caso:
-        caso = _caso(app, nombre_caso)
+        caso = _caso(app, nombre_caso, plan.get('anio_casos'))
         if caso is None:
             return {**lectura, 'error': f'el proyecto no tiene el caso «{nombre_caso}»'}, 2
         caso.Activate()
+        lectura['caso_nativo'] = caso_nativo(app, proyecto, caso, plan.get('case'))
+    lectura['contexto'] = contexto_del_plan(plan)
     lectura['pf_version'] = _version(app)
     variaciones = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
     esperadas = set(plan.get('variaciones_esperadas') or [])
@@ -162,51 +187,177 @@ def _barra(cub, raiz: str) -> str | None:
     return _id(barra, raiz) if barra is not None else None
 
 
+def _medido(obj, atributo: str) -> float | None:
+    """Un resultado del flujo; ``None`` si no lo hay (el grafo también se lee sin flujo, ``solo_tramos``)."""
+    try:
+        return _num(obj, atributo)
+    except Exception:  # noqa: BLE001 - la API lanza si el resultado no existe
+        return None
+
+
+def _faltan(valores: dict) -> list[str]:
+    return [k for k, v in valores.items() if v is None]
+
+
+def _comldf(app) -> dict:
+    """045:RF-3: lo que pidió el flujo que dio las etiquetas; un ajuste que no se lee queda en ``None``."""
+    ldf = app.GetFromStudyCase('ComLdf')
+    return {k: (None if (v := getattr(ldf, k, None)) is None else int(v)) for k in CONTROLES_LDF}
+
+
+def _central(g, raiz: str, nodos: dict) -> dict | None:
+    """Una central con lo escrito y lo medido, sin que uno sustituya a otro (045:RF-3, RF-10)."""
+    n = _barra(getattr(g, 'bus1', None), raiz)
+    if n not in nodos:
+        return None
+    unidades = _num(g, 'ngnum')
+    p, q = _num(g, 'pgini'), _num(g, 'qgini')
+    faltan = _faltan({'pgini': p, 'qgini': q})
+    escala = max(int(unidades or 1), 1)
+    return {'id': _id(g, raiz), 'clase': g.GetClassName(), 'nodo': n,
+            'en_servicio': not int(getattr(g, 'outserv', 0) or 0),
+            'p_mw': None if p is None else p * escala, 'q_mvar': None if q is None else q * escala,
+            'control': getattr(g, 'av_mode', None), 'usetp': _num(g, 'usetp'),
+            'referencia': bool(int(getattr(g, 'ip_ctrl', 0) or 0)),
+            'p_medida_mw': _medido(g, 'm:P:bus1'), 'q_medida_mvar': _medido(g, 'm:Q:bus1'),
+            **({'faltan': faltan} if faltan else {})}
+
+
+def _banco(sh, raiz: str, nodos: dict) -> dict | None:
+    """Un banco con su escalón y lo que entrega medido (045:RF-10)."""
+    n = _barra(getattr(sh, 'bus1', None), raiz)
+    if n not in nodos:
+        return None
+    total, por_escalon, escalones = _num(sh, 'qtotn'), _num(sh, 'qcapn'), _num(sh, 'ncapa')
+    q = total or (por_escalon * (escalones or 1.0) if por_escalon is not None else None)
+    return {'id': _id(sh, raiz), 'clase': 'ElmShnt', 'nodo': n, 'en_servicio': not int(getattr(sh, 'outserv', 0) or 0),
+            'q_mvar': q, 'escalones': escalones, 'q_medida_mvar': _medido(sh, 'm:Q:bus1'),
+            **({'faltan': ['qtotn o qcapn']} if q is None else {})}
+
+
+def _rama_de_linea(ln, cubs: list, tipo, raiz: str) -> dict:
+    n = max(int(getattr(ln, 'nlnum', 1) or 1), 1)
+    largo = _num(ln, 'dline')
+    r, x, inom = _num(tipo, 'rline'), _num(tipo, 'xline'), _num(tipo, 'sline')
+    faltan = _faltan({'dline': largo, 'rline': r, 'xline': x})
+    return {'id': _id(ln, raiz), 'clase': 'ElmLne', 'desde': _barra(cubs[0], raiz),
+            'hasta': _barra(cubs[1], raiz), 'cerrada': _cerrado(ln, cubs),
+            'r_ohm': (r or 0.0) * (largo or 0.0) / n, 'x_ohm': (x or 0.0) * (largo or 0.0) / n,
+            'inom_ka': (inom or 0.0) * n, 'km': largo or 0.0, 'fases': _num(tipo, 'nlnph'),
+            **({'faltan': faltan} if faltan else {})}
+
+
+def _rama_de_trafo(tr, hv, lv, tipo, raiz: str) -> dict:
+    s, uh, ul = _num(tipo, 'strn'), _num(tipo, 'utrn_h'), _num(tipo, 'utrn_l')
+    pcu, uk = _num(tipo, 'pcutr'), _num(tipo, 'uktr')
+    faltan = _faltan({'strn': s, 'utrn_h': uh, 'utrn_l': ul, 'pcutr': pcu, 'uktr': uk})
+    s, uh = s or 0.0, uh or 0.0
+    z_base = uh * uh / s if s else 0.0
+    # Las unidades en paralelo, como las ternas de una línea (074:RF-8): sin ellas, SM218 veía al 131 %
+    # un transformador que DIgSILENT mide al 65 %.
+    u = max(int(_num(tr, 'ntnum') or 1), 1)
+    # 045:RF-4: la toma y si la mueve un control. Sin posición ni paso no se sabe la relación efectiva.
+    posicion, paso = _num(tr, 'nntap'), _num(tipo, 'dutap')
+    faltan += _faltan({'nntap': posicion, 'dutap': paso})
+    if _num(tipo, 'dphitap'):
+        faltan.append('el desfase por toma (dphitap) no está representado')
+    return {'id': _id(tr, raiz), 'clase': 'ElmTr2', 'desde': _barra(hv, raiz),
+            'hasta': _barra(lv, raiz), 'cerrada': not int(getattr(tr, 'outserv', 0) or 0),
+            'r_ohm': (pcu or 0.0) / 1000 / s * z_base / u if s else 0.0,
+            'x_ohm': (uk or 0.0) / 100 * z_base / u,
+            'inom_ka': s / (3 ** 0.5 * uh) * u if uh else 0.0,
+            'relacion': uh / (ul or uh) if uh else None, 'unidades': u, 'fases': _num(tipo, 'nt2ph'),
+            **({'u_desde_kv': uh, 'u_hasta_kv': ul} if uh and ul else {}),
+            'toma': {'posicion': posicion, 'neutra': _num(tipo, 'nntap0'), 'paso_pct': paso,
+                     'lado': _num(tipo, 'tap_side'), 'automatica': bool(int(getattr(tr, 'ntrcn', 0) or 0))},
+            **({'faltan': faltan} if faltan else {})}
+
+
 def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> dict:
-    """Nodos y ramas con sus parámetros en unidades físicas (kV, MW, Mvar, Ω, kA)."""
+    """Nodos y ramas en unidades físicas (kV, MW, Mvar, Ω, kA), con su alcance físico (045:RF-3).
+
+    ``p_mw`` y ``q_mvar`` son la demanda neta de la barra; ``carga_*``, ``gen_*`` y ``banco_*``, sus
+    partes. Lo que no se puede leer queda en ``None`` y en ``faltan``: un atributo a 0 dejaba una línea
+    como acoplador sin decirlo, y una central fuera del grafo, como una carga que nadie compensaba.
+    """
     nodos = {}
     for b in app.GetCalcRelevantObjects('*.ElmTerm'):
-        nodos[_id(b, raiz)] = {'kv': _num(b, 'uknom'), 'p_mw': 0.0, 'q_mvar': 0.0, 'fuente': False}
+        nodos[_id(b, raiz)] = {'kv': _num(b, 'uknom'), 'p_mw': 0.0, 'q_mvar': 0.0, 'fuente': False,
+                               'carga_p_mw': 0.0, 'carga_q_mvar': 0.0, 'gen_p_mw': 0.0, 'gen_q_mvar': 0.0,
+                               'banco_q_mvar': 0.0, 'carga_p_efectiva_mw': None, 'carga_q_efectiva_mvar': None}
+    medida_p: dict[str, list] = {}
+    medida_q: dict[str, list] = {}
     for c in app.GetCalcRelevantObjects('*.ElmLod'):
         if int(getattr(c, 'outserv', 0) or 0):
             continue
         n = _barra(getattr(c, 'bus1', None), raiz)
         if n in nodos:
             escala = (_num(c, 'scale0') or 1.0) * factor
-            nodos[n]['p_mw'] += (_num(c, 'plini') or 0.0) * escala
-            nodos[n]['q_mvar'] += (_num(c, 'qlini') or 0.0) * escala
-    for sh in app.GetCalcRelevantObjects('*.ElmShnt'):
-        n = _barra(getattr(sh, 'bus1', None), raiz)
-        if n in nodos and not int(getattr(sh, 'outserv', 0) or 0):
-            q = _num(sh, 'qtotn') or (_num(sh, 'qcapn') or 0.0) * (_num(sh, 'ncapa') or 1.0)
-            nodos[n]['q_mvar'] -= q
+            nodos[n]['carga_p_mw'] += (_num(c, 'plini') or 0.0) * escala
+            nodos[n]['carga_q_mvar'] += (_num(c, 'qlini') or 0.0) * escala
+            medida_p.setdefault(n, []).append(_medido(c, 'm:Psum:bus1'))
+            medida_q.setdefault(n, []).append(_medido(c, 'm:Qsum:bus1'))
+    # 015:RF-49: lo escrito no es lo consumido (CA101 escribía 3677 kW y consumía 2686). Se guardan las dos.
+    for n, valores in medida_p.items():
+        if all(v is not None for v in valores):
+            nodos[n]['carga_p_efectiva_mw'] = sum(valores)
+    for n, valores in medida_q.items():
+        if all(v is not None for v in valores):
+            nodos[n]['carga_q_efectiva_mvar'] = sum(valores)
+    bancos = [b for sh in app.GetCalcRelevantObjects('*.ElmShnt') if (b := _banco(sh, raiz, nodos))]
+    for b in bancos:
+        if b['en_servicio'] and b['q_mvar'] is not None:
+            nodos[b['nodo']]['banco_q_mvar'] += b['q_mvar']
+    generadores = []
+    for clase in ('ElmGenstat', 'ElmSym'):
+        generadores += [g for o in (app.GetCalcRelevantObjects(f'*.{clase}') or []) if (g := _central(o, raiz, nodos))]
+    for g in generadores:
+        # La central que inyecta lo escrito resta de la demanda; la de referencia es una fuente, y otra
+        # (control de tensión) la rechaza ``validar_alcance_fisico``.
+        if g['en_servicio'] and not g['referencia'] and g['control'] in MODOS_PQ:
+            nodos[g['nodo']]['gen_p_mw'] += g['p_mw'] or 0.0
+            nodos[g['nodo']]['gen_q_mvar'] += g['q_mvar'] or 0.0
     redes = list(app.GetCalcRelevantObjects('*.ElmXnet'))
-    fuentes = [_barra(getattr(x, 'bus1', None), raiz) for x in redes]
+    fuentes_info = []
     # La consigna de tensión de cada red externa: IN111 está a 1,02 p.u. y TA225 a 1,00, y sin
     # ella el oráculo tenía que adivinar el nivel de toda la red (024, 2026-10-22).
-    for x, f in zip(redes, fuentes, strict=True):
-        if f in nodos and (u := _num(x, 'usetp')) is not None:
+    for x in redes:
+        f = _barra(getattr(x, 'bus1', None), raiz)
+        if f not in nodos:
+            continue
+        if (u := _num(x, 'usetp')) is not None:
             nodos[f]['v_pu'] = u
-    if not any(fuentes):
-        # Sin red externa (el doble de pruebas), la fuente es la barra de cada cabecera.
+        nodos[f]['angulo_deg'] = _num(x, 'phiini')
+        nodos[f]['fuente'] = True
+        fuentes_info.append({'id': _id(x, raiz), 'clase': 'ElmXnet', 'nodo': f, 'v_pu': nodos[f].get('v_pu'),
+                             'angulo_deg': nodos[f]['angulo_deg'], 'modo': getattr(x, 'bustp', None),
+                             'p_medida_mw': _medido(x, 'm:P:bus1'), 'q_medida_mvar': _medido(x, 'm:Q:bus1')})
+    for g in generadores:
+        if g['en_servicio'] and g['referencia']:
+            nodos[g['nodo']].update(fuente=True, angulo_deg=nodos[g['nodo']].get('angulo_deg'))
+            if g['usetp'] is not None:
+                nodos[g['nodo']]['v_pu'] = g['usetp']
+            fuentes_info.append({'id': g['id'], 'clase': g['clase'], 'nodo': g['nodo'], 'v_pu': g['usetp'],
+                                 'angulo_deg': None, 'modo': 'referencia', 'p_medida_mw': g['p_medida_mw'],
+                                 'q_medida_mvar': g['q_medida_mvar']})
+    if not any(d['fuente'] for d in nodos.values()):
+        # Sin red externa (el doble de pruebas), la fuente es la barra de cada cabecera; sin consigna,
+        # ``validar_alcance_fisico`` lo dice.
         elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
-        fuentes = [_barra(getattr(elms[f], 'obj_id', None), raiz) for f in feeders if f in elms]
-    for f in fuentes:
-        if f in nodos:
-            nodos[f]['fuente'] = True
-    ramas = []
+        for f in [_barra(getattr(elms[f], 'obj_id', None), raiz) for f in feeders if f in elms]:
+            if f in nodos:
+                nodos[f]['fuente'] = True
+    for d in nodos.values():
+        d['p_mw'] = d['carga_p_mw'] - d['gen_p_mw']
+        d['q_mvar'] = d['carga_q_mvar'] - d['gen_q_mvar'] - d['banco_q_mvar']
+    ramas, sin_rama = [], {}
     for ln in app.GetCalcRelevantObjects('*.ElmLne'):
         tipo = getattr(ln, 'typ_id', None)
         cubs = [c for c in (getattr(ln, 'bus1', None), getattr(ln, 'bus2', None)) if c is not None]
         if tipo is None or len(cubs) != 2:
+            sin_rama.setdefault('ElmLne', []).append(_id(ln, raiz))
             continue
-        n = max(int(getattr(ln, 'nlnum', 1) or 1), 1)
-        largo = _num(ln, 'dline') or 0.0
-        ramas.append({'id': _id(ln, raiz), 'clase': 'ElmLne', 'desde': _barra(cubs[0], raiz),
-                      'hasta': _barra(cubs[1], raiz), 'cerrada': _cerrado(ln, cubs),
-                      'r_ohm': (_num(tipo, 'rline') or 0.0) * largo / n,
-                      'x_ohm': (_num(tipo, 'xline') or 0.0) * largo / n,
-                      'inom_ka': (_num(tipo, 'sline') or 0.0) * n, 'km': largo})
+        ramas.append(_rama_de_linea(ln, cubs, tipo, raiz))
     # Los acopladores (interruptores y seccionadores de barra): desde la spec 022 la cabecera
     # de cada alimentador es un interruptor en su SET. Sin ellos, de 2470 nodos de IN111–TA225
     # solo 91 quedaban unidos a una fuente (2026-10-22).
@@ -220,19 +371,24 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
         tipo = getattr(tr, 'typ_id', None)
         hv, lv = getattr(tr, 'bushv', None), getattr(tr, 'buslv', None)
         if tipo is None or hv is None or lv is None:
+            sin_rama.setdefault('ElmTr2', []).append(_id(tr, raiz))
             continue
-        s, uh = _num(tipo, 'strn') or 0.0, _num(tipo, 'utrn_h') or 0.0
-        z_base = uh * uh / s if s else 0.0
-        # Las unidades en paralelo, como las ternas de una línea (074:RF-8): sin ellas, SM218 veía al 131 %
-        # un transformador que DIgSILENT mide al 65 %.
-        u = max(int(_num(tr, 'ntnum') or 1), 1)
-        ramas.append({'id': _id(tr, raiz), 'clase': 'ElmTr2', 'desde': _barra(hv, raiz),
-                      'hasta': _barra(lv, raiz), 'cerrada': not int(getattr(tr, 'outserv', 0) or 0),
-                      'r_ohm': (_num(tipo, 'pcutr') or 0.0) / 1000 / s * z_base / u if s else 0.0,
-                      'x_ohm': (_num(tipo, 'uktr') or 0.0) / 100 * z_base / u,
-                      'inom_ka': s / (3 ** 0.5 * uh) * u if uh else 0.0,
-                      'relacion': uh / (_num(tipo, 'utrn_l') or uh)})
-    return {'version': VERSION_GRAFO, 'nodos': nodos, 'ramas': ramas}
+        ramas.append(_rama_de_trafo(tr, hv, lv, tipo, raiz))
+    no_representados = {clase: ids for clase, ids in sin_rama.items()}
+    equipos = {'ElmLne': sum(r['clase'] == 'ElmLne' for r in ramas), 'ElmCoup': sum(r['clase'] == 'ElmCoup' for r in ramas),
+               'ElmTr2': sum(r['clase'] == 'ElmTr2' for r in ramas), 'ElmShnt': len(bancos),
+               'central': len(generadores), 'ElmXnet': len(redes)}
+    for clase in CLASES_NO_REPRESENTADAS:
+        presentes = app.GetCalcRelevantObjects(f'*.{clase}') or []
+        if presentes:
+            no_representados[clase] = sorted(_id(o, raiz) for o in presentes)
+    no_trifasicas = sum(1 for r in ramas if r.get('fases') is not None and r['fases'] < 3)
+    return {'version': VERSION_GRAFO, 'unidades': UNIDADES, 'nodos': nodos, 'ramas': ramas,
+            'bancos': bancos, 'generadores': generadores, 'fuentes': fuentes_info,
+            'controles': {'comldf': _comldf(app)},
+            'alcance_fisico': {'representacion': REPRESENTACION, 'equipos': equipos,
+                               'no_representados': no_representados, 'aproximaciones': list(APROXIMACIONES),
+                               'ramas_no_trifasicas': no_trifasicas}}
 
 
 def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:

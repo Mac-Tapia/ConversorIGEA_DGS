@@ -11,6 +11,7 @@ import random
 import numpy as np
 import pytest
 
+from apoyo import contrato_fisico
 from convertersmartgrid.digital_twin import hiperparametros as hp
 from convertersmartgrid.digital_twin import oraculo as orc
 from convertersmartgrid.digital_twin.buffer import BuferEpisodios
@@ -24,7 +25,7 @@ def _red(prefijo: str, n: int, demanda: float, tension: float) -> tuple[dict, di
                                'fuente': i == 0, 'v_pu': 1.0 if i == 0 else None} for i in range(n)}
     ramas = [{'id': f'{prefijo}L{i}', 'desde': f'{prefijo}{i}', 'hasta': f'{prefijo}{i + 1}', 'cerrada': True,
               'r_ohm': 0.3, 'x_ohm': 0.2, 'inom_ka': 0.2} for i in range(n - 1)]
-    return {'nodos': nodos, 'ramas': ramas, 'version': orc.VERSION_GRAFO}, {f'{prefijo}{i}': tension for i in range(n)}
+    return {'nodos': nodos, 'ramas': ramas, 'version': orc.VERSION_GRAFO, **contrato_fisico()}, {f'{prefijo}{i}': tension for i in range(n)}
 
 
 def _conjunto(rng: random.Random):
@@ -68,7 +69,7 @@ def banco(tmp_path, monkeypatch):
         ms = list(ms)
         return float(np.mean([errores[tipo(modelo)](m.familia) for m in ms])) if ms else None
 
-    def miembro(ms, cfg, inicial=None, log=None, validacion=(), historial=None, al_validar=None):
+    def miembro(ms, cfg, inicial=None, log=None, validacion=(), historial=None, al_validar=None, terminos=None):
         registro['ajuste'].append(list(ms))
         registro['seleccion'].append(list(validacion))
         return {'peso': 0}

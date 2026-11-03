@@ -14,6 +14,7 @@ import pytest
 
 pytest.importorskip('scipy')
 
+from apoyo import contrato_fisico
 from convertersmartgrid.digital_twin import evolutivo as ev
 from convertersmartgrid.digital_twin import oraculo as orc
 from convertersmartgrid.pide_economia import valor_kw_perdidas
@@ -28,7 +29,7 @@ def cadena(n: int = 20, p: float = 0.2, q: float = 0.12, r: float = 0.35, x: flo
                        'fuente': i == 0, 'v_pu': v_fuente if i == 0 else None} for i in range(n)}
     ramas = [{'id': f'L{i}', 'desde': f'N{i - 1}', 'hasta': f'N{i}', 'cerrada': True,
               'r_ohm': r, 'x_ohm': x, 'inom_ka': 0.3} for i in range(1, n)]
-    return {'version': orc.VERSION_GRAFO, 'nodos': nodos, 'ramas': ramas}
+    return {'version': orc.VERSION_GRAFO, **contrato_fisico(), 'nodos': nodos, 'ramas': ramas}
 
 
 def _v_min(grafo: dict) -> float:

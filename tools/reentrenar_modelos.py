@@ -136,7 +136,15 @@ def _etapas(args, run_dir: Path):
         reporte = run_dir / 'pinn.json'
         cmd = [py, str(REPO / 'tools' / 'digital_twin_entrenar.py'), '--forzar',
                '--raiz', str(args.twin), '--output-json', str(reporte)]
-        return _subproceso(cmd, reporte, 'pinn')
+        resultado = _subproceso(cmd, reporte, 'pinn')
+        if getattr(args, 'ablaciones', False) and getattr(args, 'config', None):
+            # 045:RF-8: informa; no decide la promoción, que sigue siendo la del candidato de arriba.
+            informe = run_dir / 'pinn_ablaciones.json'
+            hecho = subprocess.run([py, str(REPO / 'tools' / 'digital_twin_entrenar.py'), '--ablaciones', str(args.config),
+                                    '--raiz', str(args.twin), '--output-json', str(informe)], cwd=REPO, check=False,
+                                   capture_output=True, text=True, encoding='utf-8', errors='replace')
+            resultado['ablaciones'] = {'informe': str(informe), 'returncode': hecho.returncode}
+        return resultado
 
     def evolutivos():
         reporte = run_dir / 'evolutivos.json'
@@ -249,6 +257,8 @@ def main(argv=None) -> int:
     run = sub.add_parser('run')
     run.add_argument('--config', type=Path, help='Contrato ExperimentoSpec con contexto y política sellados')
     run.add_argument('--validar-config', action='store_true', help='Valida y muestra huella sin entrenar')
+    run.add_argument('--ablaciones', action='store_true',
+                     help='Tras la etapa pinn, comparar las físicas con el contrato de --config (045:RF-8)')
     run.add_argument('--run-dir', type=Path)
     run.add_argument('--report', type=Path)
     run.add_argument('--resume', action='store_true')

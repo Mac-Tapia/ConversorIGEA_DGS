@@ -16,7 +16,8 @@ episodios nuevos y fuera de dominio y si conviene reentrenar (spec 027, RF-22 y 
 ``--curva`` dice los episodios de cada sistema frente a los 30/10/10 y, si los tiene, su curva de
 aprendizaje (spec 027, RF-53). Con ``--buscar`` busca antes los hiperparámetros
 (TPE y poda, solo en validación, con ``--ensayos`` y ``--limite-s``), guarda los ensayos y entrena
-con los elegidos (spec 027, RF-7).
+con los elegidos (spec 027, RF-7). Con ``--ablaciones CONTRATO`` compara física pura, red sin término
+físico, híbrido y PowerFlowNet sobre las mismas particiones y no promueve nada (spec 045, RF-8).
 
 Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 1 error.
 """
@@ -83,6 +84,8 @@ def main(argv=None) -> int:
                    help='No entrenar: deriva por familia y si conviene reentrenar (027:RF-22, RF-23)')
     p.add_argument('--reproducir', metavar='VERSION',
                    help='Reentrenar un modelo con su manifiesto y comparar su error (027:RF-9)')
+    p.add_argument('--ablaciones', type=Path, metavar='CONTRATO',
+                   help='No promover: comparar las físicas con un contrato ExperimentoSpec (045:RF-8)')
     p.add_argument('--reabrir-candidato', type=Path, metavar='CARPETA',
                    help='No entrenar: reabrir este candidato y comprobar que predice lo mismo (043:RF-5)')
     args = p.parse_args(argv)
@@ -138,6 +141,14 @@ def main(argv=None) -> int:
                     print(m)
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0
+            if args.ablaciones:
+                from convertersmartgrid.digital_twin.benchmark_fisico import comparar_fisicas
+                from convertersmartgrid.experimentos import cargar_experimento
+
+                experimento = cargar_experimento(args.ablaciones)
+                r = comparar_fisicas(experimento, oraculo.particiones_del_bufer(bufer), bufer=bufer, log=_log)
+                salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+                return 0 if r['completo'] else 2
             if args.reproducir:
                 r = oraculo.reproducir(bufer, args.reproducir, log=_log)
                 print(f"{r['version']}: original {r['mae_original']}, reproducido {r['mae_reproducido']}, "

@@ -17,6 +17,7 @@ from ..native_action import (
     native_result_status,
     verify_native_action_context,
 )
+from .contratos_fisicos import contexto_fisico
 from .episode import (
     ESQUEMA,
     RESULTADOS_FLUJO,
@@ -50,7 +51,7 @@ def _flujo_ausente(motivo: str) -> dict[str, Any]:
 
 
 def _bloqueos_de_lectura(lectura: Mapping[str, Any] | None, contexto: Mapping[str, Any],
-                         plan: Mapping[str, Any]) -> list[str]:
+                         plan: Mapping[str, Any], caso: Caso) -> list[str]:
     if lectura is None:
         return ['falta la lectura nativa tras la acción']
     bloqueos = []
@@ -59,6 +60,13 @@ def _bloqueos_de_lectura(lectura: Mapping[str, Any] | None, contexto: Mapping[st
                         f"«{contexto['project']}»")
     if sorted(lectura.get('feeders') or []) != list(contexto.get('feeders') or []):
         bloqueos.append('la lectura no tiene los mismos alimentadores que el contexto firmado')
+    # 045:RF-1: el caso que se leyó en DIgSILENT, no el que dice la acción.
+    rol = (lectura.get('caso_nativo') or {}).get('rol')
+    if rol != caso.value:
+        bloqueos.append(f'la lectura es del caso «{rol}», no de «{caso.value}»')
+    fisico = contexto_fisico(lectura)
+    if 'ausente' in fisico:
+        bloqueos.append(fisico['ausente'])
     # El trazado manual de un enlace es intencional: si su huella cambió sin que el plan lo
     # pidiera, el episodio no puede enseñar que ese cambio estaba bien (RF-3, RF-25).
     huellas = (lectura.get('topologia') or {}).get('huellas_gps') or {}
@@ -83,7 +91,7 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
     revertido = bool((resultado.get('rollback') or {}).get('restored') or resultado.get('revertido'))
     convergio = estado != 'NO_CONVERGE' and resultado.get('converged') is not False
     aplicada = resultado.get('aplicada', True) is not False
-    bloqueos = _bloqueos_de_lectura(lectura, contexto, plan)
+    bloqueos = _bloqueos_de_lectura(lectura, contexto, plan, caso)
 
     if bloqueos and not revertido and convergio:
         evaluacion = Evaluacion(Clase.QUARANTINE, bloqueos=tuple(bloqueos))
@@ -122,8 +130,11 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
         'aceptacion': {'estado_nativo': estado, 'bloqueos': list(evaluacion.bloqueos),
                        'violaciones': list(evaluacion.violaciones),
                        'diagnostico': list(evaluacion.diagnostico)},
-        'obras': [dict(o) for o in resultado.get('obras') or []] if caso is not Caso.CASO_BASE else [],
+        'obras': ([dict(o) for o in resultado.get('obras') or []]
+                  if caso not in (Caso.CASO_BASE, Caso.CARGAS_NUEVAS) else []),
         'artefactos': [{'rol': a.rol, 'ruta': a.ruta, 'sha256': a.sha256, 'bytes': a.bytes}
                        for a in artefactos],
+        # Una lectura que no vale no deja controles: serían los de otro caso o de otro proyecto.
+        'contexto_fisico': {'ausente': bloqueos[0]} if bloqueos else contexto_fisico(lectura),
     }
     return leer_episodio(payload)

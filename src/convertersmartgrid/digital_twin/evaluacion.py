@@ -1,11 +1,13 @@
 """Evaluación del episodio por caso y norma (spec 024, T3).
 
-Lo que se mide es igual en los tres casos (RF-28); lo que se exige cambia (RF-29 a RF-31).
+Lo que se mide es igual en todos los casos (RF-28); lo que se exige cambia (RF-29 a RF-31).
 El «Caso base» es la red tal como está y «Sin proyecto» su calibración con lo que hizo el
 operador: una subtensión ahí es un hecho de la red real, que el gemelo tiene que aprender,
 no un error. Solo «Con proyecto» se juzga contra la norma, porque es donde se proponen las
 obras. En IN111–TA225 el flujo convergió tras reabrir con 0,8683 p.u. en una barra: eso es
-una obra que no cumple, y la convergencia no puede ocultarlo (RF-26).
+una obra que no cumple, y la convergencia no puede ocultarlo (RF-26). «Cargas nuevas» son las
+cargas sin obras: enseña la física de la red, con lo que viole en el diagnóstico, y nunca se
+acepta como obra (045:RF-1).
 """
 from __future__ import annotations
 
@@ -140,6 +142,8 @@ def evaluar(caso: Caso, flujo: dict[str, Any], *, convergio: bool, revertido: bo
             if calibracion_cuadra is None:
                 return Evaluacion(Clase.QUARANTINE, diagnostico=tuple(diagnostico),
                                   bloqueos=('sin medida para comprobar la calibración',))
+        if caso is Caso.CARGAS_NUEVAS:
+            return Evaluacion(Clase.COUNTERFACTUAL, diagnostico=tuple(diagnostico))
         return Evaluacion(Clase.ACCEPTED, diagnostico=tuple(diagnostico))
 
     if limites is None:

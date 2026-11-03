@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "convertersmartgrid-digital-twin-episode-v2",
+  "title": "Episodio del gemelo digital, con su contexto físico (spec 045)",
+  "description": "Evidencia de un trabajo fuente–DIgSILENT, con los cuatro casos y los controles de la lectura nativa. episode_id es el SHA-256 del JSON canónico sin el propio episode_id. Lo valida convertersmartgrid.digital_twin.episode.leer_episodio; los episodios v1 se siguen leyendo con su esquema, intactos.",
+  "type": "object",
+  "required": [
+    "schema",
+    "clase",
+    "caso",
+    "creado",
+    "fuente",
+    "nativo",
+    "accion",
+    "topologia",
+    "flujo",
+    "aceptacion",
+    "obras",
+    "artefactos",
+    "contexto_fisico"
+  ],
+  "properties": {
+    "schema": {
+      "const": "convertersmartgrid-digital-twin-episode-v2"
+    },
+    "episode_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "clase": {
+      "enum": [
+        "accepted",
+        "converged_with_violations",
+        "rejected",
+        "counterfactual",
+        "quarantine"
+      ]
+    },
+    "caso": {
+      "enum": [
+        "caso_base",
+        "sin_proyecto",
+        "con_proyecto",
+        "cargas_nuevas"
+      ]
+    },
+    "creado": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fuente": {
+      "type": "object",
+      "required": [
+        "source_run_id",
+        "source_mode",
+        "source_fingerprint"
+      ],
+      "properties": {
+        "source_run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_mode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "nativo": {
+      "type": "object",
+      "required": [
+        "project",
+        "feeders"
+      ],
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "folder": {
+          "type": "string"
+        },
+        "feeders": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pf_version": {
+          "type": "string"
+        },
+        "reopen_verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "accion": {
+      "type": "object"
+    },
+    "topologia": {
+      "type": "object"
+    },
+    "flujo": {
+      "type": "object",
+      "required": [
+        "balance",
+        "perdidas",
+        "cargabilidad",
+        "tensiones",
+        "confiabilidad"
+      ],
+      "properties": {
+        "balance": {
+          "$ref": "#/$defs/resultado"
+        },
+        "perdidas": {
+          "$ref": "#/$defs/resultado"
+        },
+        "cargabilidad": {
+          "$ref": "#/$defs/resultado"
+        },
+        "tensiones": {
+          "$ref": "#/$defs/resultado"
+        },
+        "confiabilidad": {
+          "$ref": "#/$defs/resultado"
+        }
+      }
+    },
+    "aceptacion": {
+      "type": "object"
+    },
+    "obras": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/obra"
+      }
+    },
+    "artefactos": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artefacto"
+      }
+    },
+    "contexto_fisico": {
+      "type": "object",
+      "description": "Controles y caso nativo de la lectura, o el motivo de su ausencia en «ausente».",
+      "oneOf": [
+        {
+          "required": [
+            "ausente"
+          ],
+          "properties": {
+            "ausente": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "case_role",
+            "case_id",
+            "topology_hash",
+            "controls_hash",
+            "scenario_hash"
+          ],
+          "not": {
+            "required": [
+              "ausente"
+            ]
+          },
+          "properties": {
+            "case_role": {
+              "enum": [
+                "caso_base",
+                "sin_proyecto",
+                "con_proyecto",
+                "cargas_nuevas"
+              ]
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "topology_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "controls_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "scenario_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "criterio_fijas": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "year": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "period": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "comldf": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "consignas": {
+              "type": "object"
+            },
+            "efectivos": {
+              "type": "object"
+            },
+            "bloqueos_fisicos": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "numero_o_nulo": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "resultado": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "ausente"
+          ],
+          "properties": {
+            "ausente": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "unidad",
+            "valores"
+          ],
+          "properties": {
+            "unidad": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valores": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "obra": {
+      "type": "object",
+      "required": [
+        "alternativa",
+        "elemento"
+      ],
+      "properties": {
+        "alternativa": {
+          "enum": [
+            "bancos",
+            "reguladores",
+            "cambio_seccion",
+            "nueva_terna",
+            "refuerzo_red",
+            "nueva_sed",
+            "nuevo_alimentador",
+            "nueva_set"
+          ]
+        },
+        "elemento": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coste": {
+          "$ref": "#/$defs/numero_o_nulo"
+        },
+        "van": {
+          "$ref": "#/$defs/numero_o_nulo"
+        },
+        "tir": {
+          "$ref": "#/$defs/numero_o_nulo"
+        },
+        "retorno_anios": {
+          "$ref": "#/$defs/numero_o_nulo"
+        }
+      }
+    },
+    "artefacto": {
+      "type": "object",
+      "required": [
+        "rol",
+        "ruta",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "rol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ruta": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

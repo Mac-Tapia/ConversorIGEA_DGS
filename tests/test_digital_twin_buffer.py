@@ -82,7 +82,9 @@ def test_indice_borrado_se_reconstruye_igual(bufer):
     semilla = random.randrange(1 << 30)
     rnd = random.Random(semilla)
     for i in range(rnd.randint(3, 30)):
-        p = _payload(caso=rnd.choice([c.value for c in ep.Caso]))
+        caso = rnd.choice([c.value for c in ep.Caso])
+        # 045:RF-1: «Cargas nuevas» nunca es una obra aceptada.
+        p = _payload(caso=caso, clase='counterfactual' if caso == 'cargas_nuevas' else 'accepted')
         p['nativo']['feeders'] = [f'F{i}', f'F{i + 1}']
         bufer.guardar(ep.leer_episodio(p))
     antes = [e.episode_id for e in bufer.consultar(bf.Consulta(caso='sin_proyecto'))]

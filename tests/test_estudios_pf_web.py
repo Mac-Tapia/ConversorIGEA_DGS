@@ -137,6 +137,20 @@ def test_casos_y_luego_cada_estudio_sin_y_con_proyecto(client):
         assert client.get(f'/api/workspaces/{wid}/files/{nombre}').status_code == 200
 
 
+def test_el_flujo_de_cada_caso_se_captura_con_su_rol(client, monkeypatch):
+    """045:RF-1 — los flujos de «Sin proyecto», «Cargas nuevas» y «Con proyecto» dejan su episodio, cada uno con
+    su caso: «Cargas nuevas» no se capturaba y su flujo no llegaba al gemelo."""
+    from convertersmartgrid.web import services
+
+    casos = []
+    monkeypatch.setattr(services, '_gemelo', lambda _ws, _ctx, _plan, _inf, *, caso, **_k: casos.append(caso))
+    wid = _espacio(client)
+    token = _plan(client, wid, _ajuste(client, wid)).json()['token']
+    estado = esperar_trabajo(client, _ejecutar(client, wid, token))
+    assert estado['status'] == 'done', estado
+    assert casos[-3:] == ['sin_proyecto', 'cargas_nuevas', 'con_proyecto'], casos
+
+
 def test_sin_cargas_nuevas_solo_sin_proyecto(client):
     """011:RF-9, 011:RF-25 — si «Con proyecto» no tiene cargas nuevas, solo se estudia «Sin
     proyecto»."""

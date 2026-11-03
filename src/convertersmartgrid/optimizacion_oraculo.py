@@ -129,7 +129,7 @@ class Oraculo:
                              for o in obras if o.get('clase') in ('terna', 'seccion')))
         if clave not in self._sistemas:
             ramas = self._ramas_con(obras, avisos)
-            m = muestra({'nodos': self._nodos, 'ramas': ramas})
+            m = muestra({**self.grafo, 'nodos': self._nodos, 'ramas': ramas})
             self._sistemas[clave] = (m, sistema_de(m), ramas)
         return self._sistemas[clave]
 
@@ -195,9 +195,11 @@ class Oraculo:
 
     def _con_pinn(self, m, s: np.ndarray, ramas: list[dict], v: np.ndarray) -> tuple[np.ndarray, str]:
         """La tensión del PINN promovido si la red está en su dominio; si no, la física (RF-17)."""
-        nodos = {n: {**self._nodos[n], 'p_mw': float(s[i].real * S_BASE), 'q_mvar': float(s[i].imag * S_BASE)}
+        # ``s`` no lleva los bancos, que están en ``m.s_shunt``; ``q_mvar`` es la neta (045:RF-3).
+        nodos = {n: {**self._nodos[n], 'p_mw': float(s[i].real * S_BASE),
+                     'q_mvar': float(s[i].imag * S_BASE) - float(self._nodos[n].get('banco_q_mvar') or 0.0)}
                  for i, n in enumerate(m.ids)}
-        pred = self.pinn.predecir({'nodos': nodos, 'ramas': ramas})
+        pred = self.pinn.predecir({**self.grafo, 'nodos': nodos, 'ramas': ramas})
         if pred.get('fuera_de_dominio'):
             return v, 'fisica'
         indice = {n: i for i, n in enumerate(pred['ids'])}

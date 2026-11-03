@@ -12,6 +12,10 @@ resto de barras resuelve ``Y_LL·V_L = I_L(V) − Y_LS·V_S`` por punto fijo, co
 factorización LU de ``Y_LL`` hecha una sola vez. Los acopladores (impedancia nula) unen sus
 dos barras en una antes de factorizar: con su admitancia de 10⁶ p.u. la matriz quedaba mal
 condicionada.
+
+Las relaciones de un transformador (045:RF-4) entran en la matriz: una barra de 10 kV con un
+transformador de 10,5 kV o una toma fuera de la neutra no están a la relación 1. Un banco consume
+S·|V|², impedancia constante, sea cual sea el modelo de las cargas.
 """
 from __future__ import annotations
 
@@ -37,11 +41,14 @@ class SistemaMallado:
     """La red reducida y factorizada, lista para resolver muchas demandas distintas.
 
     ``aristas`` trae cada rama en los dos sentidos (como ``oraculo.Muestra``); ``z`` es su
-    impedancia por unidad. Las barras sin camino a una fuente quedan a 0 p.u.
+    impedancia por unidad. Las barras sin camino a una fuente quedan a 0 p.u. ``ru`` y ``rw`` son la
+    relación de cada arista en su origen y en su destino (1 sin transformador) y ``s_shunt`` lo que
+    consume cada banco a 1 p.u.
     """
 
     def __init__(self, aristas: np.ndarray, z: np.ndarray, fuente: np.ndarray,
-                 consigna: np.ndarray, alimentado: np.ndarray):
+                 consigna: np.ndarray, alimentado: np.ndarray, ru: np.ndarray | None = None,
+                 rw: np.ndarray | None = None, s_shunt: np.ndarray | None = None):
         import scipy.sparse as sp
         import scipy.sparse.linalg as spl
 
@@ -67,9 +74,16 @@ class SistemaMallado:
         ramas = ~acoplador
         ka, kb = self.indice[a[ramas]], self.indice[b[ramas]]
         y = 1.0 / z[ramas]
-        # Cada rama llega en los dos sentidos: (a,a) += y y (a,b) −= y por sentido.
-        self.y = sp.coo_matrix((np.concatenate([y, -y]), (np.concatenate([ka, ka]), np.concatenate([ka, kb]))),
+        origen = np.ones(len(z)) if ru is None else np.asarray(ru, dtype=float)
+        destino = np.ones(len(z)) if rw is None else np.asarray(rw, dtype=float)
+        ro, rd = origen[ramas], destino[ramas]
+        # Cada rama llega en los dos sentidos: (a,a) += y/ro² y (a,b) −= y/(ro·rd) por sentido.
+        self.y = sp.coo_matrix((np.concatenate([y / ro ** 2, -y / (ro * rd)]),
+                                (np.concatenate([ka, ka]), np.concatenate([ka, kb]))),
                                shape=(self.n, self.n)).tocsr()
+        self.s_shunt = np.zeros(self.n, dtype=complex)
+        if s_shunt is not None:
+            np.add.at(self.s_shunt, self.indice, np.asarray(s_shunt, dtype=complex))
         self.fuente = np.zeros(self.n, dtype=bool)
         np.logical_or.at(self.fuente, self.indice, np.asarray(fuente, dtype=bool))
         self.alimentado = np.zeros(self.n, dtype=bool)
@@ -105,7 +119,7 @@ class SistemaMallado:
             convergio = False
             for it in range(1, iteraciones + 1):
                 vl = v[libres]
-                corriente = -np.conj(s[libres] * np.abs(vl) ** exponente / vl)
+                corriente = -np.conj((s[libres] * np.abs(vl) ** exponente + self.s_shunt[libres] * np.abs(vl) ** 2) / vl)
                 nuevo = self._lu.solve(corriente - empuje)
                 if not np.all(np.isfinite(nuevo)):
                     break
@@ -120,6 +134,7 @@ class SistemaMallado:
         # Lo que entra a la red por todas las barras es lo que se pierde en sus ramas.
         perdidas = float(np.sum(inyeccion.real)) if convergio else float('nan')
         s_fuentes = np.array([inyeccion[self.indice[i]] + s[self.indice[i]] * abs(v[self.indice[i]]) ** exponente
+                              + self.s_shunt[self.indice[i]] * abs(v[self.indice[i]]) ** 2
                               for i in self._fuentes_orig])
         return Solucion(np.abs(v)[self.indice], np.angle(v)[self.indice], it, convergio,
                         perdidas, s_fuentes)

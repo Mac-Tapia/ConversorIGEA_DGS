@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from apoyo import cargar_herramienta
 
+from convertersmartgrid.digital_twin.contratos_fisicos import VERSION_GRAFO
 from convertersmartgrid.digital_twin.capture import construir_episodio
 from convertersmartgrid.digital_twin.episode import Caso, Clase
 from convertersmartgrid.digital_twin.evaluacion import Limites
@@ -98,7 +99,12 @@ def test_la_subtension_queda_como_violacion():
     plan = {'project': ESPERADO['project'], 'feeders': list(ESPERADO['feeders']),
             'native_action_context': build_native_action_context(
                 binding, ESPERADO['project'], ESPERADO['feeders'], 'digital_twin_aceptacion')}
-    e = construir_episodio(plan, {'status': 'OK', 'converged': True}, _lectura(), [],
+    lectura = _lectura()
+    # 045:RF-1, RF-3: la lectura real trae el caso y el grafo.
+    lectura['caso_nativo'] = {'rol': 'con_proyecto', 'nombre': 'Con proyecto', 'id': 'IntCase:Con proyecto'}
+    lectura['topologia']['grafo'] = {'version': VERSION_GRAFO, 'ramas': [],
+                                     'nodos': {b: {'kv': d['kv']} for b, d in lectura['topologia']['barras'].items()}}
+    e = construir_episodio(plan, {'status': 'OK', 'converged': True}, lectura, [],
                            caso=Caso.CON_PROYECTO, limites=Limites('NTCSE', 0.95, 1.05, 100, 80),
                            referencia=None, calibracion_cuadra=None, creado='2026-10-21T00:00:00+00:00')
     assert e.clase is Clase.CONVERGED_WITH_VIOLATIONS

@@ -20,11 +20,11 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 
 def _muestra(ids):
-    return SimpleNamespace(ids=list(ids), x=np.zeros((len(ids), 2)))
+    return SimpleNamespace(ids=list(ids), x=np.zeros((len(ids), 2)), bloqueos=(), version=o.VERSION_GRAFO)
 
 
 def _pinn(redes=None):
-    dominio = {'x_min': [-1.0, -1.0], 'x_max': [1.0, 1.0], 'nodos': [2, 2]}
+    dominio = {'x_min': [-1.0, -1.0], 'x_max': [1.0, 1.0], 'nodos': [2, 2], 'version_grafo': o.VERSION_GRAFO}
     if redes is not None:
         dominio['redes'] = redes
     return o.OraculoPINN([], o.Entrenamiento(), dominio)

@@ -38,6 +38,17 @@ def _payload(**cambios) -> dict:
         'artefactos': [{'rol': 'resultado', 'ruta': 'r.json', 'sha256': H, 'bytes': 10}],
     }
     base.update(cambios)
+    base.setdefault('contexto_fisico', {'case_role': base['caso'], 'case_id': f"IntCase:Estudios\\{base['caso']}",
+                                        'topology_hash': H, 'controls_hash': H, 'scenario_hash': H})
+    return base
+
+
+def _payload_v1(**cambios) -> dict:
+    """El mismo episodio como se escribía antes de la spec 045: sin contexto físico."""
+    base = _payload()
+    del base['contexto_fisico']
+    base['schema'] = ep.ESQUEMA_V1
+    base.update(cambios)
     return base
 
 
@@ -163,6 +174,8 @@ def test_sorteo_de_clases_casos_y_alimentadores():
     for _ in range(25):
         p = _payload(clase=rnd.choice([c.value for c in ep.Clase]),
                      caso=rnd.choice([c.value for c in ep.Caso]))
+        if p['caso'] == 'cargas_nuevas' and p['clase'] == 'accepted':          # 045:RF-1: nunca una obra aceptada
+            p = {**p, 'clase': 'counterfactual'}
         p['nativo']['feeders'] = [f'F{i}' for i in range(rnd.randint(1, 40))]
         mezclado = dict(rnd.sample(list(p.items()), len(p)))
         assert ep.huella_episodio(mezclado) == ep.leer_episodio(p).episode_id, f'semilla {semilla}'
@@ -173,9 +186,9 @@ def test_el_esquema_json_coincide_con_el_contrato():
     esquema = json.loads((RAIZ / 'src' / 'convertersmartgrid' / 'schemas'
                           / 'digital_twin_episode_v1.schema.json').read_text(encoding='utf-8'))
     props = esquema['properties']
-    assert props['schema']['const'] == ep.ESQUEMA
+    assert props['schema']['const'] == ep.ESQUEMA_V1
     assert props['clase']['enum'] == [c.value for c in ep.Clase]
-    assert props['caso']['enum'] == [c.value for c in ep.Caso]
+    assert props['caso']['enum'] == [c.value for c in ep.CASOS_V1]
     assert props['flujo']['required'] == list(ep.RESULTADOS_FLUJO)
     assert esquema['$defs']['obra']['properties']['alternativa']['enum'] == list(ep.ALTERNATIVAS_PIDE)
     assert set(esquema['required']) == set(ep.CAMPOS)
