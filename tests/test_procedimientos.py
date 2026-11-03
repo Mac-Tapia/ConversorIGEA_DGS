@@ -12,7 +12,7 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parent.parent
 CARPETA = RAIZ / 'docs' / 'procedimientos'
-CITA = re.compile(r'`([^`\s]+):(\d+)`\s*\(«(.+?)»\)', re.S)
+CITA = re.compile(r'`([^`\s]+):(\d+)`\s*\(«(.+?)»\)', re.DOTALL)
 RF = re.compile(r'\b(\d{3}):RF-(\d+[a-z]?)\b')
 #: Líneas que una cita puede haberse movido sin dejar de valer: otros cambios corren los ficheros.
 HOLGURA = 40
@@ -56,16 +56,16 @@ def test_cada_rf_citado_esta_definido(nombre):
     for spec, n in RF.findall(_textos()[nombre]):
         carpetas = list((RAIZ / 'specs').glob(f'{spec}-*'))
         texto = (carpetas[0] / 'spec.md').read_text(encoding='utf-8') if carpetas else ''
-        if not re.search(rf'^- RF-{n}:', texto, re.M):
+        if not re.search(rf'^- RF-{n}:', texto, re.MULTILINE):
             faltan.append(f'{spec}:RF-{n}')
     assert not faltan, faltan
 
 
 def test_sin_nombres_de_alimentadores_ni_empresas():
     """Marcadores, no datos de una distribuidora."""
-    reales = re.compile(r'\b[A-Z]{2}\d{3}\b|electro ?(dunas|oriente)|\bELOR\b|\bELD\b', re.I)
+    reales = re.compile(r'\b[A-Z]{2}\d{3}\b|electro ?(dunas|oriente)|\bELOR\b|\bELD\b', re.IGNORECASE)
     for nombre, texto in _textos().items():
-        sin_codigo = re.sub(r'`[^`]*`|\(«.+?»\)', '', texto, flags=re.S)
+        sin_codigo = re.sub(r'`[^`]*`|\(«.+?»\)', '', texto, flags=re.DOTALL)
         assert not reales.search(sin_codigo), nombre
 
 
