@@ -170,7 +170,7 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
     opciones = list(vocab.get(tipo) or [])
     if tipo == 'alimentadores':
         return _alimentadores(valores, texto, opciones, plan)
-    if tipo in ('proyecto', 'sistema'):
+    if tipo in ('proyecto', 'sistema', 'set'):
         return _nombre(tipo, valores, texto, opciones, plan)
     if tipo == 'periodo':
         p = periodo_de(' '.join(valores)) if valores else periodo_de(texto)

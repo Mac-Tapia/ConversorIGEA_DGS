@@ -38,7 +38,7 @@ class Etapa:
 #: Las etapas del proyecto desde cero (RF-43), en orden.
 ETAPAS: tuple[Etapa, ...] = (
     Etapa('fuente', 'cargar_fuente'),
-    Etapa('sistema', 'sistema_completo', ('sistema', 'periodo'), proceso=True),
+    Etapa('sistema', 'sistema_completo', ('sistema', 'periodo', 'ruta'), proceso=True),
     Etapa('caso_base', 'verificar_caso_base', ('proyecto',)),
     Etapa('cargas_nuevas', 'cargas_nuevas', ('proyecto', 'ruta_cargas'), opcional=True),
     Etapa('obras', 'obras', ('proyecto',)),
@@ -46,6 +46,10 @@ ETAPAS: tuple[Etapa, ...] = (
     Etapa('pide', 'pide', ('proyecto',)),
     Etapa('informe', 'informe_estudio', ('proyecto', 'formulario'), opcional=True),
 )
+
+
+#: Datos que deja una etapa para las siguientes, y que por eso no faltan antes de empezar.
+LOS_DEJA_UNA_ETAPA = ('proyecto', 'alimentadores')
 
 
 @dataclass
@@ -147,6 +151,12 @@ def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control:
                       avance: Callable[[int,int,str],None] = lambda *_a:None) -> dict[str, Any]:
     """Las etapas que faltan, en orden, con su punto de control (RF-43, RF-44)."""
     datos = {**control.estado.get('datos', {}), **dict(datos)}
+    # 070:RF-8: lo que no va a aparecer por el camino se dice antes de empezar: se cargaba la fuente y
+    # la etapa siguiente moría por una opción obligatoria de ``sistema_web.py``.
+    previos = sorted({k for e in etapas if not e.opcional and not control.hecha(e.nombre)
+                      for k in e.requiere if k not in LOS_DEJA_UNA_ETAPA and not datos.get(k)})
+    if previos:
+        raise ValueError(f'el proyecto necesita {", ".join(previos)} antes de empezar')
     for i, e in enumerate(etapas, 1):
         control.validar_identidad()
         avance(i-1,len(etapas),e.nombre)

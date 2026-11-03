@@ -35,6 +35,8 @@ class WebFalsa:
             return _Respuesta(200, {'pf_projects': {'SISTEMA_PISCO': 'P_PISCO'}})
         if metodo == 'GET' and ruta.startswith('/demanda/sistema'):
             return _Respuesta(200, {'sistema': {'alimentadores': ['PI101', 'PI102']}})
+        if metodo == 'GET' and ruta.startswith('/demanda/ajuste/ultimo'):
+            return _Respuesta(200, {'ajuste': {'id': 'disco:t1'}})
         if metodo == 'GET' and ruta == '/obras':
             return _Respuesta(200, [{'id': 'o1', 'alimentador': 'PI101'}])
         if metodo == 'GET':
@@ -56,7 +58,7 @@ def test_cortado_a_mitad_y_retomado_sin_repetir(tmp_path):
     control = PuntoDeControl.abrir(tmp_path / 'agente.json')
     web = WebFalsa(fallar='/pf/estudios/plan')
     with pytest.raises(PasoFallido):
-        ejecutar_proyecto({'sistema': 'Pisco', 'periodo': '2026-07'}, cliente=_cliente(web), control=control,
+        ejecutar_proyecto({'sistema': 'Pisco', 'periodo': '2026-07', 'ruta': 'D:/libros'}, cliente=_cliente(web), control=control,
                           proceso=proceso)
     hechas = {k for k, v in control.estado['etapas'].items() if v['estado'] in ('hecha', 'omitida')}
     assert hechas == {'fuente', 'sistema', 'caso_base', 'cargas_nuevas', 'obras'}
@@ -65,7 +67,7 @@ def test_cortado_a_mitad_y_retomado_sin_repetir(tmp_path):
     assert procesos == [('sistema_completo', 'Pisco', '2026-07')]
     # Se reinicia la web: el punto de control se lee del disco.
     web2 = WebFalsa()
-    r = ejecutar_proyecto({'sistema': 'Pisco', 'periodo': '2026-07'}, cliente=_cliente(web2),
+    r = ejecutar_proyecto({'sistema': 'Pisco', 'periodo': '2026-07', 'ruta': 'D:/libros'}, cliente=_cliente(web2),
                           control=PuntoDeControl.abrir(tmp_path / 'agente.json'), proceso=proceso)
     assert r['completo'] and len(procesos) == 1, 'el sistema no se repite'
     rutas = [rt for m, rt in web2.llamadas if m == 'POST']

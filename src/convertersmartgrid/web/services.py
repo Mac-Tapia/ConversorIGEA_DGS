@@ -8016,12 +8016,16 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     en la ruta con «Faltan entradas: RED…» (2026-10-24): lo que falta se dice en el plan. Con
     las entradas puestas y la fuente sin cargar, convertir empieza por cargarla.
     """
+    from .asistente_operacion import requisitos
+
+    requisitos(ws, plan, extras)                                               # 070:RF-2 a RF-15
     if plan.tarea == 'informe_factibilidad' and all(plan.datos.get(k) for k in ('proyecto', 'alimentadores', 'sed')):
         # 067:RF-34: lo mismo que la ruta comprueba antes de encolar, antes de ofrecer confirmar.
         try:
             carga_del_informe(ws, plan.datos['proyecto'], plan.datos['alimentadores'][0], plan.datos['sed'])
         except UserError as exc:
-            plan.faltan.append(str(exc))
+            # 070:RF-11: el mensaje decía «paso 3», que el asistente no enseña.
+            plan.faltan.append(f'{exc} Conéctela antes con la orden de una carga nueva sola.')
     if plan.tarea not in _NECESITAN_FUENTE or (plan.tarea != 'cargar_fuente' and ws.dataset is not None):
         return
     try:
@@ -8316,10 +8320,19 @@ def asistente_custodiar_trabajo(ws: Workspace, trabajo: dict) -> str | None:
         return f'«{trabajo.get("title")}» no se custodia como evidencia: {exc}'
 
 
+def _proyecto_con_libros(ws: Workspace, datos: dict) -> dict:
+    """070:RF-6: sin carpeta en la orden, la de los libros del espacio; lista y ejecución ven lo mismo."""
+    if datos.get('ruta'):
+        return datos
+    carpeta = carpeta_de_libros(ws)
+    return {**datos, 'ruta': carpeta} if carpeta else datos
+
+
 def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False) -> dict:
     """Las etapas del proyecto entero antes del clic; solo lee (067:RF-37)."""
     from ..asistente.orquestador import lista_de_etapas
 
+    datos = _proyecto_con_libros(ws, datos)
     ruta = ws.out_dir / 'agente_proyecto.json'
     try:
         control = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
@@ -8352,6 +8365,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
     from ..asistente.orquestador import ejecutar_proyecto
     from ..asistente.observacion import preparar_control
 
+    datos = _proyecto_con_libros(ws, datos)
     ruta = ws.out_dir / 'agente_proyecto.json'
     def identidad():
         return {**_agente_identidad(ws),'solicitud':dict(datos)}
@@ -8403,10 +8417,23 @@ def _entorno_del_trabajo(ctx: JobContext) -> dict[str, str]:
     return {**os.environ, 'CSG_TRABAJO_PROPIO': ctx.job.id}
 
 
+def carpeta_de_libros(ws: Workspace) -> str | None:
+    """La carpeta común de los libros de demanda del espacio, o ``None`` si no tiene (028:RF-23, 070:RF-6)."""
+    import os
+
+    rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
+             for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
+    if not rutas:
+        return None
+    try:
+        return os.path.commonpath(rutas)
+    except ValueError:
+        return rutas[0]
+
+
 def recalibrar_datos(ws: Workspace, project: str) -> dict:
     """El sistema eléctrico del proyecto, o sus alimentadores si es de uno o de varios unidos, y
     la carpeta de los libros del espacio (028:RF-22 a RF-24)."""
-    import os
     import re
 
     m = re.search(r'SISTEMA_([A-Za-z0-9]+)$', (project or '').strip())
@@ -8418,14 +8445,9 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     if not m and grupo is None:
         raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico ni de alimentadores '
                         'convertidos en este espacio: conviértalos e impórtelos antes (028:RF-23).')
-    rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
-             for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
-    if not rutas:
+    carpeta = carpeta_de_libros(ws)
+    if carpeta is None:
         raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1» (028:RF-23).')
-    try:
-        carpeta = os.path.commonpath(rutas)
-    except ValueError:
-        carpeta = rutas[0]
     if m:
         return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])

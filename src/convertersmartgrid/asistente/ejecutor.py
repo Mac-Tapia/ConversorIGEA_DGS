@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 TERMINADOS = ('done', 'failed', 'cancelled')
 _ENTREGABLE = re.compile(r'\.(dgs|docx|xlsx|zip|csv)$', re.IGNORECASE)
@@ -85,6 +86,34 @@ def _feeders(datos: Mapping) -> list[str]:
     return [a for a in datos.get('alimentadores') or [] if a != 'todos']
 
 
+def _ultima_calibracion(proyecto: str) -> Paso:
+    """La base se lee al ejecutar: en el proyecto entero la calibración no existe aún al proponerlo."""
+    return Paso('buscar la última calibración', 'GET', f'/demanda/ajuste/ultimo?project={quote(proyecto)}', espera=False)
+
+
+def _id_calibracion(respuesta: Any, proyecto: str) -> str:
+    ajuste = (respuesta or {}).get('ajuste') if isinstance(respuesta, Mapping) else None
+    if not ajuste or not ajuste.get('id'):
+        raise PasoFallido(f'{proyecto} no tiene ninguna calibración aplicada: calíbrelo antes.')
+    return str(ajuste['id'])
+
+
+def _cuerpo_de_obras(proyecto: str, feeders: list[str], datos: Mapping[str, Any], extras: Mapping[str, Any]) -> dict:
+    """070:RF-13: sin el libro y el tipo de cambio de la orden, la ruta costeaba sin ellos o se rechazaba."""
+    cuerpo: dict[str, Any] = {'project': proyecto, 'feeders': feeders}
+    if datos.get('ruta'):
+        cuerpo['capex'] = str(datos['ruta'])
+    if extras.get('tipo_cambio'):
+        cuerpo['tipo_cambio'] = extras['tipo_cambio']
+    if extras.get('directo_set_nueva'):
+        cuerpo['directo_set_nueva'] = True
+    if datos.get('set'):
+        cuerpo['set_nueva_nombre'] = str(datos['set'])
+    if extras.get('cargas'):
+        cuerpo['cargas'] = list(extras['cargas'])
+    return cuerpo
+
+
 def pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any] | None = None) -> list[Paso]:
     """Los pasos de la tarea; ``extras`` trae lo que la web sabe y el plan no (la última máxima,
     el formulario del informe guardado en 4.4, si hay que cargar la fuente antes)."""
@@ -125,8 +154,11 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
             return {'create_file': (ruta.name, ruta.read_bytes(),
                                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
 
-        return [Paso('preparar el plan de las cargas nuevas', 'POST', '/lote/plan',
-                     {'project': proyecto, 'feeders': feeders}, archivos=fichero, espera=False),
+        # 070:RF-9: la base es la de la última calibración, como cuando el operador la elige en 3.
+        return [_ultima_calibracion(proyecto),
+                Paso('preparar el plan de las cargas nuevas', 'POST', '/lote/plan',
+                     lambda r: {'project': proyecto, 'feeders': feeders, 'ajuste_job_id': _id_calibracion(r[-1], proyecto)},
+                     archivos=fichero, espera=False),
                 Paso('aplicar las cargas nuevas', 'POST', lambda r: f"/lote/{r[-1]['token']}/apply", None)]
     if tarea == 'obras':
         return [Paso('leer las obras pendientes', 'GET', '/obras', espera=False),
@@ -134,16 +166,21 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
                     'project': proyecto, 'feeders': feeders,
                     'ids': [o['id'] for o in r[-1] or [] if not feeders or o.get('alimentador') in feeders]})]
     if tarea == 'estudios':
-        return [Paso('leer el catálogo de estudios', 'GET', '/api/pf/estudios', espera=False),
+        # 070:RF-1, RF-3: sin la base, el plan de estudios se rechazaba; y el catálogo sin espacio
+        # ofrecía estudios que el libro o la licencia del proyecto no permiten.
+        elegido = datos.get('estudio')
+        return [_ultima_calibracion(proyecto),
+                Paso('leer el catálogo de estudios', 'GET', f'/pf/estudios?project={quote(proyecto)}', espera=False),
                 Paso('preparar los estudios', 'POST', '/pf/estudios/plan', lambda r: {
-                    'project': proyecto, 'feeders': feeders,
-                    'estudios': [e['clave'] for e in r[-1].get('ofrecidos') or []]}, espera=False),
+                    'project': proyecto, 'feeders': feeders, 'ajuste_job_id': _id_calibracion(r[-2], proyecto),
+                    'estudios': [elegido] if elegido else [e['clave'] for e in r[-1].get('ofrecidos') or []]},
+                     espera=False),
                 Paso('ejecutar los estudios', 'POST', lambda r: f"/pf/estudios/{r[-1]['token']}/ejecutar", None)]
     if tarea == 'obras_escalera':
-        return [Paso('escalera de obras', 'POST', '/pf/obras/escalera', {'project': proyecto, 'feeders': feeders})]
+        return [Paso('escalera de obras', 'POST', '/pf/obras/escalera', _cuerpo_de_obras(proyecto, feeders, datos, extras))]
     if tarea == 'optimizar_con_proyecto':
         return [Paso('optimizar «Con proyecto»', 'POST', '/pf/obras/con-proyecto',
-                     {'project': proyecto, 'feeders': feeders})]
+                     _cuerpo_de_obras(proyecto, feeders, datos, extras))]
     if tarea == 'transferencia':
         return [Paso('transferencia de carga', 'POST', '/pf/transferencia',
                      {'project': proyecto, 'feeders': feeders[:2]})]
@@ -170,7 +207,10 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
         cuerpo = {**formulario, 'project': proyecto, 'alimentador': feeders[0] if feeders else ''}
         if tipo == 'factibilidad':
             cuerpo['sed'] = datos.get('sed') or formulario.get('sed') or ''
-        return [Paso(f'informe de {tipo}', 'POST', f'/informes/{tipo}', cuerpo)]
+            return [Paso(f'informe de {tipo}', 'POST', f'/informes/{tipo}', cuerpo)]
+        # 070:RF-12: la ruta hace un informe por alimentador; se pedía el del primero y se perdían los demás.
+        return [Paso(f'informe de {tipo} de {a}' if len(feeders) > 1 else f'informe de {tipo}', 'POST',
+                     f'/informes/{tipo}', {**cuerpo, 'alimentador': a}) for a in (feeders or [''])]
     raise ValueError(f'la tarea {tarea!r} no tiene pasos: es una consulta o un proceso')
 
 
@@ -273,4 +313,5 @@ def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]
             cliente.gobierno.registrar_salida_paso(i - 1, r)
             cliente.gobierno.despues_paso(p)
     final = resultados[-1] if resultados else None
-    return {'completo': True, 'pasos': trabajos, 'resultado': final, 'entregables': entregables(final)}
+    # 070:RF-16: de todos los pasos; con un informe por alimentador se perdían todos menos el último.
+    return {'completo': True, 'pasos': trabajos, 'resultado': final, 'entregables': entregables(resultados)}

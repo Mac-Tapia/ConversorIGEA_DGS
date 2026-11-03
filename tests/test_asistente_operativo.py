@@ -55,6 +55,10 @@ def entorno(tmp_path, monkeypatch):
 @pytest.fixture
 def api(entorno, monkeypatch):
     monkeypatch.setattr(services, '_asistente_modelos', lambda: (Transformer(), None))
+    # 070:RF-14: el perfil para costear se comprueba al proponer; estas pruebas no traen ninguno.
+    from convertersmartgrid.web import asistente_operacion
+
+    monkeypatch.setattr(asistente_operacion, 'parametros_de_costeo', lambda _t: None)
     app = create_app(entorno / 'web')
     with TestClient(app) as cliente:
         app.state.asistente_http = cliente

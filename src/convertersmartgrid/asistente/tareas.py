@@ -15,8 +15,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: Tipos de dato que el intérprete reconoce y el plan contrasta (RF-2, RF-6).
+#: 070:RF-18: los nuevos, siempre al final: la etiqueta de un modelo heredado es su posición en esta lista.
 TIPOS_DATO = ('proyecto', 'alimentadores', 'sistema', 'periodo', 'caso', 'numero', 'ruta',
-              'sed', 'subtipo', 'texto')
+              'sed', 'subtipo', 'texto', 'set', 'estudio', 'alcance', 'anio')
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,11 @@ N = Dato('numero', 'numero', obligatorio=False, descripcion='cuántos escenarios
 SED = Dato('sed', 'sed', descripcion='SED de la carga del informe')
 SUB = Dato('subtipo', 'subtipo', obligatorio=False, descripcion='subtipo de estudio')
 TXT = Dato('texto', 'texto', descripcion='la pregunta o el texto')
+SET = Dato('set', 'set', descripcion='SET de la estructura')
+SET_OPC = Dato('set', 'set', obligatorio=False, descripcion='SET de la estructura')
+ESTUDIO_OPC = Dato('estudio', 'estudio', obligatorio=False, descripcion='el estudio del catálogo, si es solo uno')
+LIBROS = Dato('ruta', 'ruta', obligatorio=False, descripcion='carpeta de los libros de demanda; sin ella, la del espacio')
+CAPEX = Dato('ruta', 'ruta', obligatorio=False, descripcion='libro CAPEX')
 
 _TAREAS = (
     # ------------------------------------------------------------ consultas (sin confirmar)
@@ -114,7 +120,7 @@ _TAREAS = (
               'convierte el sistema {sistema}', 'dgs del sistema [eléctrico|electrico] {sistema}',
               'convierte por sistema {sistema}', 'genera el sistema {sistema}')),
     Tarea('sistema_completo', 'Sistema eléctrico de punta a punta: convertir, importar y calibrar (022:RF-56).',
-          (S, PER, Dato('ruta', 'ruta', obligatorio=False, descripcion='carpeta de los libros de demanda')),
+          (S, PER, LIBROS),
           True, 'proceso', 'sistema_web', (
               'calibra el sistema {sistema} con {periodo}', 'calibra {sistema} [para|en|con] {periodo}',
               '[haz|ejecuta] el sistema {sistema} completo [con|para] {periodo}',
@@ -139,19 +145,19 @@ _TAREAS = (
               'aplica las obras [de|en] {alimentadores} [de|del proyecto] {proyecto}',
               'implementa las obras pendientes de {proyecto} {alimentadores}',
               'ejecuta las obras de {alimentadores} en {proyecto}')),
-    Tarea('estudios', 'Estudios de la red en los casos del proyecto (spec 011).', (P, A), True, 'trabajo',
+    Tarea('estudios', 'Estudios de la red en los casos del proyecto (spec 011).', (P, A, ESTUDIO_OPC), True, 'trabajo',
           'estudios_ejecutar', (
               '[corre|ejecuta|haz] los estudios de {alimentadores} [de|en] {proyecto}',
               'estudios de {proyecto} {alimentadores}', 'estudio de la red de {alimentadores} en {proyecto}')),
     Tarea('obras_escalera', 'Escalera de obras en «Con proyecto»: bancos, sección y terna hasta dejar la red en '
-          'norma (025:RF-44).', (P, A), True, 'trabajo', 'obras_escalera', (
+          'norma (025:RF-44).', (P, A, CAPEX), True, 'trabajo', 'obras_escalera', (
               '[haz|corre|ejecuta] la escalera de obras [de|en] {alimentadores} [de|en] {proyecto}',
               'escalera de obras de {proyecto} {alimentadores}',
               '[lanza|aplica] la escalera en {alimentadores} [de|del proyecto] {proyecto}',
               'bancos sección y terna en escalera para {alimentadores} de {proyecto}'),
           frases_literales=(r'\bescalera\b',)),
     Tarea('optimizar_con_proyecto', 'Optimiza «Con proyecto»: escalera carga a carga y SET nueva para las que no '
-          'caben (042:RF-13, spec 052).', (P, A), True, 'trabajo', 'con_proyecto_optimizar', (
+          'caben (042:RF-13, spec 052).', (P, A, CAPEX, SET_OPC), True, 'trabajo', 'con_proyecto_optimizar', (
               '[optimiza|optimizar] con proyecto [de|en] {alimentadores} [de|en] {proyecto}',
               'optimización de con proyecto de {proyecto} {alimentadores}',
               'optimiza el caso con proyecto de {alimentadores} en {proyecto}',
