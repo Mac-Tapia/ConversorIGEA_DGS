@@ -1,0 +1,259 @@
+{
+  "casos": 12,
+  "con_defecto": 6,
+  "conjunto_sha256": "102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d",
+  "modelo": "qwen3:8b",
+  "tokens": 512,
+  "rol_unico": {
+    "modo": "rol_unico",
+    "casos": 12,
+    "con_defecto": 6,
+    "sin_respuesta": 0,
+    "motivos_sin_respuesta": {},
+    "detectados": 6,
+    "perdidos": 0,
+    "falsas_alarmas": 6,
+    "intervenciones": 12,
+    "tokens_entrada": 8983,
+    "tokens_salida": 1536,
+    "segundos": 123.562,
+    "p95_por_caso_s": 12.109,
+    "por_caso": [
+      {
+        "id": "sano-bancos",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.859
+      },
+      {
+        "id": "sano-seccion",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 8.907
+      },
+      {
+        "id": "sano-terna",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 12.109
+      },
+      {
+        "id": "sano-regulador",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.016
+      },
+      {
+        "id": "sano-transferencia",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 9.453
+      },
+      {
+        "id": "sano-sed",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 8.656
+      },
+      {
+        "id": "defecto-fisica-tension",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.969
+      },
+      {
+        "id": "defecto-fisica-carga",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.734
+      },
+      {
+        "id": "defecto-coste-cantidad",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.609
+      },
+      {
+        "id": "defecto-coste-precio",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 11.266
+      },
+      {
+        "id": "defecto-riesgo-respaldo",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 9.828
+      },
+      {
+        "id": "defecto-fuentes-ausente",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "segundos": 10.156
+      }
+    ]
+  },
+  "equipo": {
+    "modo": "equipo",
+    "casos": 12,
+    "con_defecto": 6,
+    "sin_respuesta": 0,
+    "motivos_sin_respuesta": {},
+    "detectados": 6,
+    "perdidos": 0,
+    "falsas_alarmas": 6,
+    "intervenciones": 48,
+    "tokens_entrada": 35908,
+    "tokens_salida": 7263,
+    "segundos": 480.86,
+    "p95_por_caso_s": 52.469,
+    "por_caso": [
+      {
+        "id": "sano-bancos",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 41.532
+      },
+      {
+        "id": "sano-seccion",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 39.484
+      },
+      {
+        "id": "sano-terna",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 43.672
+      },
+      {
+        "id": "sano-regulador",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 41.078
+      },
+      {
+        "id": "sano-transferencia",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 46.344
+      },
+      {
+        "id": "sano-sed",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 33.047
+      },
+      {
+        "id": "defecto-fisica-tension",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 29.906
+      },
+      {
+        "id": "defecto-fisica-carga",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 38.703
+      },
+      {
+        "id": "defecto-coste-cantidad",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 36.703
+      },
+      {
+        "id": "defecto-coste-precio",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 38.5
+      },
+      {
+        "id": "defecto-riesgo-respaldo",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 39.422
+      },
+      {
+        "id": "defecto-fuentes-ausente",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "segundos": 52.469
+      }
+    ]
+  },
+  "autoriza_ejecucion": false,
+  "aceptacion_cientifica": false
+}
