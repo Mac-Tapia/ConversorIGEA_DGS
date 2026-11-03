@@ -420,7 +420,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 |
 | `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 |
 | `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 |
-| `src/convertersmartgrid/asistente/codificador_ordenes.py` | Intérprete de órdenes con codificador preentrenado congelado, cabezas de tarea y de datos y clase «ninguna». | 069 (RF-1 a RF-9) |
+| `src/convertersmartgrid/asistente/codificador_ordenes.py` | Intérprete de órdenes con codificador preentrenado congelado, cabezas de tarea y de datos, clase «ninguna» y el lugar en que el modelo la ve. | 069 (RF-1 a RF-9), 075 (RF-37) |
+| `src/convertersmartgrid/asistente/validacion_cruzada.py` | Validación cruzada con las órdenes confirmadas: familias de frases casi iguales, reparto en 5 vueltas estratificado por tarea, cabezas por vuelta sobre la caché del codificador, medida fuera de grupo y modelo final. | 075 (RF-1 a RF-28) |
 | `src/convertersmartgrid/asistente/datos_por_palabra.py` | Etiquetas de los datos de una orden y su decisión por palabra, comunes a los dos modelos de órdenes. | 026 (RF-2), 069 (RF-1, RF-31) |
 | `src/convertersmartgrid/asistente/maestro_real.py` | Lee y valida las etiquetas de plata del maestro sobre textos reales, dice cuándo dos textos son la misma frase o familia y añade las erratas observadas. | 068 (RF-21 a RF-27, RF-38, RF-39) |
 | `tools/asistente_ordenes_reales.py` | Reúne las órdenes reales de las sesiones y del almacén, crea el libro de revisión e importa solo lo que el operador marque. | 068 (RF-1 a RF-20) |

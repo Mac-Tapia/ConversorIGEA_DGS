@@ -20,6 +20,9 @@ Sin opciones, la vía gobernada por el registro, como ``--integral`` (070:RF-62)
 ``--destilar`` y ``--solo`` piden la vía antigua: corre con su turno de GPU, deja la decisión en el registro y no pone
 ningún modelo en uso (070:RF-63, RF-64).
 
+``--validacion-cruzada`` (075:RF-35), con la vía gobernada: las órdenes confirmadas entrenan en 5 vueltas, la puerta humana se
+mide fuera de grupo y el modelo final se entrena con todas. Sin ella, las confirmadas solo examinan (070:RF-76).
+
 Códigos de salida: 0 hecho, 2 sin PyTorch o sin GPU, 1 error.
 """
 from __future__ import annotations
@@ -61,6 +64,8 @@ def main(argv=None) -> int:
     p.add_argument('--maestro', choices=('claude', 'codex', 'ollama'), default=None,
                    help='Maestro de la destilación: las etiquetas de Claude, Codex o Ollama (027:RF-56)')
     p.add_argument('--modelo-codex', help='Modelo de Codex como maestro (por defecto, el de su configuración)')
+    p.add_argument('--validacion-cruzada', action='store_true',
+                   help='Con --integral: entrenar con las órdenes confirmadas en 5 vueltas y decidir con la medida fuera de grupo (075:RF-35)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
@@ -68,6 +73,8 @@ def main(argv=None) -> int:
     # 070:RF-62: una llamada sin opciones de la vía antigua (la de la vigilancia) ya no promueve sin registro.
     if not (args.dataset_v2 or args.evaluar or args.destilar or args.solo or args.maestro or args.modelo_codex):
         args.integral = True
+    if args.validacion_cruzada and not args.integral:
+        p.error('--validacion-cruzada solo vale con --integral')
 
     if args.dataset_v2:
         from convertersmartgrid.trabajadores_ml import fallo,escribir_informe,semillas_de
@@ -102,12 +109,16 @@ def main(argv=None) -> int:
                                           etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
                                           ninguna=ninguna, ninguna_reservada=reservados)
             guardar_corpus(destino / 'corpus', filas, meta, reservados)
+            # 075:RF-28: una confirmada igual a una fija de prueba no entrena, como la plata (027:RF-66).
+            from convertersmartgrid.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
+            fijas_de_prueba = [e.texto for e in repartir_fijas(generar_fijas(vocab))[1]] if args.validacion_cruzada else []
             lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
                     cfg=codificador_ordenes.Configuracion(epocas=args.epocas),
                     semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
-                    registro=almacen.raiz() / 'model_registry')
+                    registro=almacen.raiz() / 'model_registry',
+                    validacion_cruzada=args.validacion_cruzada, vedadas_extra=fijas_de_prueba)
                 # 067:RF-20, RF-24: lo que el registro aprobó pasa a uso; lo demás deja el modelo actual.
                 from convertersmartgrid.asistente.modelos_en_uso import aplicar_decision
                 from convertersmartgrid.model_registry import RegistroModelo

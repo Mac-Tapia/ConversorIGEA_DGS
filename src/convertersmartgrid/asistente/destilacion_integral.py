@@ -15,7 +15,7 @@ import platform
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
 from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_ESTILO_REAL, PARAFRASIS_070
-from .interprete import UMBRAL_TRANSFORMER
+from .interprete import PUESTO_CHARLA, UMBRAL_TRANSFORMER, charla_cerca
 from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
 from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de_sellada, selladas
@@ -33,6 +33,8 @@ UMBRALES = (.85, .90, .95)
 REJILLA_INFORME = (.5, .7, .75, .8, .85, .9, .95)
 ACIERTO_DEL_UMBRAL = .98
 ARCHIVO_RESERVADOS = 'rechazo_reservado.json'
+#: 075:RF-43, RF-44: declarados antes de medir la regla de Ollama. Dicen si cumple; no deciden la promoción.
+REGLA_RESERVADOS_MAXIMO, REGLA_ORDENES_MAXIMO = .02, .05
 _DESCRIPCION_NINGUNA = 'Mensaje que no es una orden del catálogo: conversación con el operador.'
 
 
@@ -354,6 +356,34 @@ def cobertura_por_umbral(modelo, registros: Sequence[dict], umbrales: Sequence[f
     return salida
 
 
+def medir_regla_ollama(modelo, seleccion: Sequence[dict], reservados: Sequence[str] | None) -> dict:
+    """075:RF-42 a RF-45: qué haría la regla, solo en desarrollo y sin Ollama, suponiendo que imponga tarea siempre.
+
+    Es una cota: lo que llega a Ollama es lo que podría colarse. Solo cifras, y no decide nada; ni la prueba sellada ni
+    las órdenes humanas pasan por aquí.
+    """
+    umbral = getattr(modelo, 'umbral', None)
+    umbral = umbral if type(umbral) is float else UMBRAL_TRANSFORMER
+
+    def contar(textos: Sequence[str]) -> dict:
+        dudosas = frenadas = 0
+        for t in textos:
+            p = modelo.predecir(t)
+            if p['tarea'] != NINGUNA and p['confianza'] < umbral:
+                dudosas += 1
+                frenadas += charla_cerca(modelo, t)
+        return {'ejemplos': len(textos), 'dudosas': dudosas, 'frenadas': frenadas, 'a_ollama': dudosas - frenadas}
+
+    ordenes = contar([r['texto'] for r in seleccion])
+    charla = contar(list(reservados or ()))
+    tasa_charla = charla['a_ollama'] / charla['ejemplos'] if charla['ejemplos'] else None
+    tasa_ordenes = ordenes['frenadas'] / ordenes['ejemplos'] if ordenes['ejemplos'] else None
+    return {'regla': f'ninguna entre las {PUESTO_CHARLA} primeras opciones', 'decide': False, 'ollama_consultado': False,
+            'ordenes_seleccion': ordenes, 'mensajes_reservados': charla, 'reservados_a_ollama': tasa_charla, 'ordenes_frenadas': tasa_ordenes,
+            'cumple': (tasa_charla is not None and tasa_ordenes is not None and tasa_charla <= REGLA_RESERVADOS_MAXIMO
+                       and tasa_ordenes <= REGLA_ORDENES_MAXIMO)}
+
+
 def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
                       rechazo: dict | None = None) -> dict:
     politica = PoliticaEvaluacion(modo='agente')
@@ -580,9 +610,11 @@ def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int
 
 
 def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11, 23, 37),
-                         registro: Path | None = None, log=print) -> dict:
+                         registro: Path | None = None, log=print, validacion_cruzada: bool = False,
+                         vedadas_extra: Sequence[str] = ()) -> dict:
     from . import codificador_ordenes as co
     from . import transformer as tr
+    from . import validacion_cruzada as vc
     from ..model_registry import RegistroModelo, reabrir_en_subproceso
     filas, meta = leer_corpus(dataset)
     reservados = leer_reservados(dataset, meta)
@@ -605,16 +637,21 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
                  'codificador': {'nombre': co.NOMBRE_CODIFICADOR, 'revision': co.REVISION_CODIFICADOR},
+                 # 075:RF-46: lo que decide la medida fuera de grupo queda escrito antes de la primera vuelta.
+                 'validacion_cruzada': ({'vueltas': vc.VUELTAS, 'semilla': vc.SEMILLA, 'ediciones_frase': vc.EDICIONES_FRASE,
+                                         'ediciones_palabra': vc.EDICIONES_PALABRA, 'repeticiones_confirmada': vc.REPETICIONES_CONFIRMADA,
+                                         'variantes_confirmada': vc.VARIANTES_CONFIRMADA} if validacion_cruzada else None),
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
                      (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
-                      Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'))},
+                      Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'),
+                      Path(vc.__file__))},
                  'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
                              'cuda': tr._torch().version.cuda,
                              'gpu': tr._torch().cuda.get_device_name(0) if tr._torch().cuda.is_available() else None}}
     codigo = destino / 'codigo'
     codigo.mkdir()
     for archivo in (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
-                    Path(__file__).with_name('maestro_real.py'),
+                    Path(__file__).with_name('maestro_real.py'), Path(vc.__file__),
                     Path(__file__).with_name('ordenes_fijas.py'), Path(__file__).parents[1] / 'evaluacion_modelos.py'):
         (codigo / archivo.name).write_text(archivo.read_text(encoding='utf-8'), encoding='utf-8')
     (destino / 'protocolo.json').write_text(json.dumps(protocolo, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -636,10 +673,26 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
             del modelo
             tr._torch().cuda.empty_cache()
     elegido = elegir_candidato(candidatos)
-    # La reapertura abre otro codificador en otro proceso: la caché ya no hace falta y al equipo le falta memoria.
-    cache.filas.clear()
     # El ganador queda registrado antes de leer calibración o prueba.
     (destino / 'ganador_seleccion.json').write_text(json.dumps(elegido, ensure_ascii=False, indent=2), encoding='utf-8')
+    filas_humanas = [r for r in por_parte['prueba'] if r['quality'] == 'gold_human']
+    validacion = None
+    if validacion_cruzada:
+        # 075:RF-16: el método y la semilla ya elegidos sin mirar a las confirmadas. RF-28: lo que mide no se toca.
+        vedadas = [vc.clave_de_familia(r['texto'], r['datos']) for r in filas
+                   if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human']
+        vedadas += [vc.clave_de_familia(t) for t in (*(reservados or ()), *vedadas_extra)]
+        validacion = vc.ejecutar(filas_humanas, base if elegido['metodo'] == 'supervisado' else [*base, *maestro], vedadas,
+                                 cfg=replace(cfg, semilla=elegido['semilla']), cache=cache, dispositivo=disp,
+                                 liberar=tr._torch().cuda.empty_cache, log=lambda m: log(m, flush=True))
+        carpeta = destino / 'con-confirmadas'
+        _guardar_alumno(validacion.modelo_final, carpeta, {'version': carpeta.name, 'metodo': elegido['metodo'],
+                        'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
+        elegido = {**elegido, 'path': str(carpeta.resolve()), 'con_confirmadas': validacion.informe['confirmadas_que_entrenan']}
+        validacion.modelo_final = None
+        tr._torch().cuda.empty_cache()
+    # La reapertura abre otro codificador en otro proceso: la caché ya no hace falta y al equipo le falta memoria.
+    cache.filas.clear()
     modelo = cargar_alumno(Path(elegido['path']))
     calibracion = calibrar_temperatura(modelo, por_parte['calibracion'])
     calibracion = {**calibracion, **calibrar_umbral(modelo, por_parte['calibracion'])}
@@ -650,14 +703,30 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     prueba_sintetica = [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO] or [
         r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
     sinteticas = evaluar_alumno(modelo, prueba_sintetica)
-    humanas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'])
+    humanas = evaluar_alumno(modelo, filas_humanas)
+    bloque_cruzada = None
+    if validacion is not None:
+        # 075:RF-30: el modelo final ya leyó estas órdenes: su medida se da, y no decide.
+        final_humanas = {**humanas, 'independiente': False, 'decide': False}
+        # 075:RF-21: decide la agregada fuera de grupo; sin medida, «sin evaluación humana» (RF-9).
+        humanas = evaluar_alumno(validacion.medida, filas_humanas) if validacion.medida is not None else {'ejemplos': 0}
+        bloque_cruzada = {**validacion.informe, 'humanas_modelo_final': final_humanas,
+                          'humanas_fuera_de_grupo': {k: humanas[k] for k in ('acierto_tarea', 'f1_datos', 'ejemplos') if k in humanas},
+                          'por_tarea': vc.resumen_por_tarea(humanas.get('familias') or {}, validacion.por_tarea,
+                                                            acierto_minimo=.98, f1_minimo=.95) or validacion.por_tarea}
     filas_historicas = [r for r in por_parte['prueba'] if es_historica(r) and r['quality'] != 'gold_human']
     historica = {'huella': (meta.get('prueba_historica') or {}).get('huella'), 'decide': False,
                  'medida': evaluar_alumno(modelo, filas_historicas) if filas_historicas else None}
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
     decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo)
-    en_uso = _medir_en_uso(prueba_sintetica, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'], reservados)
+    if validacion is not None:
+        decision['tareas_sin_independencia'] = {t: d['motivo'] for t, d in validacion.por_tarea.items()     # 075:RF-26
+                                                if d['estado'] == 'sin_independencia'}
+        if validacion.medida is None:
+            decision['fallos'].append(f"validación cruzada sin medir: {validacion.informe['motivo']}")
+    regla_ollama = medir_regla_ollama(modelo, por_parte['seleccion'], reservados)                           # 075:RF-42
+    en_uso = _medir_en_uso(prueba_sintetica, filas_humanas, reservados)
     funcionamiento = ensayar_funcionamiento(modelo)
     if not funcionamiento['ok']:
         decision['gates']['approved'] = False
@@ -681,7 +750,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'policy_hash': politica.hash, 'training_completed': True, 'semillas': list(semillas)},
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
-        'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica},
+        'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica,
+        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
     # La activación es una operación explícita del registro, no un efecto del ensayo: la hace quien
     # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
@@ -692,6 +762,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'prueba_sellada': meta.get('prueba_sellada'), 'prueba_historica': historica,      # 070:RF-69, RF-72
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
+        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama,
         'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
     (destino / 'decision.json').write_text(json.dumps(reporte, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
     return reporte

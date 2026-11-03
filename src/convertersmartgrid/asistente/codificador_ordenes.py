@@ -168,6 +168,14 @@ class ModeloCodificador:
         with torch.no_grad():
             return self.red.tarea(self.codificador(textos).oraciones.float())
 
+    def puesto_ninguna(self, texto: str) -> int | None:
+        """075:RF-37: en qué lugar ve el modelo «esto no es una orden», 1 el primero. Va aparte de ``predecir``,
+        cuyos campos fija 069:RF-2 y cuyas alternativas no la nombran (069:RF-16); la temperatura no cambia el orden."""
+        if NINGUNA not in self.tareas:
+            return None
+        z = self.logits_tarea([texto])[0]
+        return 1 + int((z > z[self.tareas.index(NINGUNA)]).sum())
+
     def predecir(self, texto: str) -> dict[str, Any]:
         torch = _torch()
         self.red.eval()

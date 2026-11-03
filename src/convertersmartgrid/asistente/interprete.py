@@ -19,6 +19,8 @@ from .tareas import TAREAS
 
 UMBRAL_TRANSFORMER = 0.85
 UMBRAL_OLLAMA = 0.6
+#: 075:RF-37: hasta qué lugar de las opciones del modelo se le cree a «esto no es una orden» cuando duda.
+PUESTO_CHARLA = 2
 
 _NUMEROS = {'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8,
             'nueve': 9, 'diez': 10, 'quince': 15, 'veinte': 20, 'treinta': 30, 'cuarenta': 40, 'cincuenta': 50}
@@ -110,6 +112,13 @@ def _por_frase_literal(texto: str, transformer: Any) -> str | None:
     return None
 
 
+def charla_cerca(modelo: Any, texto: str) -> bool:
+    """Si el modelo tiene «ninguna» entre sus primeras opciones; el que no tiene esa clase no opina (075:RF-41)."""
+    puesto = getattr(modelo, 'puesto_ninguna', None)
+    lugar = puesto(texto) if callable(puesto) else None
+    return type(lugar) is int and lugar <= PUESTO_CHARLA
+
+
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA,
                 contexto: Sequence[str] = (), umbrales: Mapping[str, float] | None = None) -> Interpretacion:
@@ -138,10 +147,19 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
         # 069:RF-26: el umbral calibrado del modelo, si lo trae, en vez del fijo; 027:RF-38: el de su tarea, si lo hay.
         calibrado = getattr(transformer, 'umbral', None)
         minimo = calibrado if type(calibrado) is float and umbral == UMBRAL_TRANSFORMER else umbral
+        exigida = None if previa is None else (umbrales or {}).get(previa['tarea'], minimo)
         if (previa is not None and not getattr(ollama, 'revisar_transformer', False)
-                and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], minimo)):
+                and previa['confianza'] >= exigida):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
+        if (ollama is not None and previa is not None and previa['confianza'] < exigida
+                and charla_cerca(transformer, texto)):
+            # 075:RF-37: «muchas gracias» a secas cayó bajo el umbral y Ollama impuso `estado` con confianza 1,0
+            # (web, 2026-11-02). El modelo ya dudaba de que fuera una orden: se le pregunta al operador, no a otro modelo.
+            return Interpretacion(texto, None, previa['confianza'], 'ninguno', {},
+                                  [(previa['tarea'], previa['confianza']), *(previa.get('alternativas') or [])],
+                                  [*consultados, 'sin Ollama: el modelo duda de que sea una orden'],
+                                  'puede que no sea una orden del catálogo')
     if ollama is not None:
         # 027:RF-37, RF-39: con órdenes parecidas y notas de fallos, si las hay.
         r = ollama.interpretar(texto, contexto=list(contexto)) if contexto else ollama.interpretar(texto)
