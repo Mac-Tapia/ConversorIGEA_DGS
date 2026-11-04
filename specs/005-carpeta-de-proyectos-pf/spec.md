@@ -89,6 +89,11 @@ PowerFactory que no responde (añadido el 2026-10-14)
   PowerFactory y dirá que PowerFactory no responde y qué revisar. Motivo: tras reiniciar
   la web con sesiones cortadas, la lectura se quedó parada en `GetCurrentUser` sin
   escribir nada y dejó deshabilitados todos los botones de DIgSILENT.
+- RF-22: CUANDO un proyecto se importa bien en la carpeta, EL SISTEMA eliminará de esa misma carpeta los
+  proyectos con el mismo nombre tras el sello `AAAAMMDD-HHMMSS_` y un sello anterior (sus versiones
+  obsoletas), salvo el que esté activo, y lo dirá. Solo cuentan los del sello del conversor: los hechos a
+  mano, los respaldos y los de otra carpeta no se tocan. Usuario (2026-11-03): «los duplicados en cualquier
+  [caso] debe ser eliminado el de la versión obsoleta»; en Pisco quedaban cinco `…_CSG_SISTEMA_PISCO`.
 
 ## Requisitos no funcionales
 

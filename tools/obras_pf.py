@@ -274,6 +274,25 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
             continue
         informe['alimentadores'][f] = leer_alimentador(elm)
 
+    # 042:RF-40: a la tensión que se lee de cada alimentador, para cualquier empresa.
+    tensiones = sorted({float(a['kv']) for a in informe['alimentadores'].values() if a.get('kv')})
+    if plan.get('secciones_nuevas') and tensiones:
+        # 042:RF-30: los normalizados que no están en ninguna biblioteca, desde su ficha.
+        from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+        from convertersmartgrid.reglas import catalogo_del_proyecto
+
+        filas = filas_de_conductores(catalogo_del_proyecto())
+        conductores = [t for c in plan['secciones_nuevas'] for kv in tensiones if (t := tipo_de_ficha(c, kv, filas)) is not None]
+        informe['conductores_creados'] = crear_tipos_conductor(app, conductores, informe['avisos'])
+        if app.GetActiveProject() is not proyecto:
+            proyecto.Activate()
+    if plan.get('crear_reguladores') and tensiones:
+        # 042:RF-34: sin esto, todas las variantes con regulador fallaban por el tipo que faltaba.
+        reguladores, _codigo = crear_tipos_regulador(app, {'tensiones_kv': tensiones})
+        informe['avisos'] += list(reguladores.get('avisos') or []) + ([reguladores['error']] if reguladores.get('error') else [])
+        informe['reguladores_creados'] = [r['nombre'] for r in reguladores.get('creados') or []]
+        if app.GetActiveProject() is not proyecto:
+            proyecto.Activate()
     otro = None
     ruta = plan.get('otro_proyecto')
     if ruta:
@@ -338,6 +357,49 @@ def _iguales(leidos: dict, pedidos: dict) -> bool:
                for k, v in pedidos.items())
 
 
+def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> list[str]:
+    """042:RF-30: un ``TypLne`` en el proyecto biblioteca por cada conductor que no tiene ningún tipo de su código a
+    su tensión (±10 %) en el proyecto, la biblioteca global o la de tipos. Devuelve los nombres creados."""
+    try:
+        _p, equip = _proyecto_biblioteca(app, BIBLIOTECA_TIPOS, avisos)
+    except RuntimeError as exc:
+        avisos.append(f'No se crearon los conductores normalizados: {exc}')
+        return []
+    existentes = (_tipos_en(app.GetLocalLibrary('TypLne'), 'TypLne') + _tipos_en(app.GetGlobalLibrary('TypLne'), 'TypLne')
+                  + _tipos_en(equip, 'TypLne'))
+
+    def a_tension(o, kv) -> bool:
+        return abs(float(getattr(o, 'uline', 0) or 0) - kv) <= 0.1 * kv
+
+    creados = []
+    for c in conductores:
+        kv = float(c['kv'])
+        if any(o.loc_name.upper().startswith(c['codigo'].upper()) and a_tension(o, kv) for o in existentes):
+            continue
+        # En la biblioteca del proyecto activo: en la del proyecto biblioteca, sin activarlo, DIgSILENT no deja
+        # crear un TypLne (Pisco, 2026-11-03: CreateObject devolvió None para AA24003D).
+        local = app.GetLocalLibrary('TypLne')
+        tipo = (local.CreateObject('TypLne', c['nombre']) if local is not None else None) or equip.CreateObject('TypLne', c['nombre'])
+        if tipo is None:
+            avisos.append(f"DIgSILENT no dejó crear el tipo {c['nombre']!r} (042:RF-30).")
+            continue
+        ref = next((o for o in existentes if a_tension(o, kv)), None)
+        if ref is not None and getattr(ref, 'frnom', None):
+            tipo.frnom = ref.frnom                                   # la frecuencia de la red, no la de fábrica
+        for atributo, valor in c['datos'].items():
+            setattr(tipo, atributo, valor)
+        leidos = {a: getattr(tipo, a, None) for a in c['datos']}
+        if not _iguales(leidos, c['datos']):
+            tipo.Delete()
+            avisos.append(f"El tipo {c['nombre']!r} no quedó con los datos de su ficha: {leidos} (042:RF-30).")
+            continue
+        existentes.append(tipo)
+        creados.append(c['nombre'])
+        avisos.append(f"Se creó el tipo {c['nombre']} en la biblioteca del proyecto: {c['datos']['sline'] * 1000:.0f} A, "
+                      f"R {c['datos']['rline']:.4f} Ω/km, de su ficha ({c.get('fuente') or 'catálogo'}) (042:RF-30).")
+    return creados
+
+
 def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
     """Los ``TypVoltreg`` del catálogo para cada tensión del plan, en el proyecto biblioteca
     (025:RF-59). Los que ya existen con ese nombre no se tocan ni se duplican."""
@@ -362,6 +424,11 @@ def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
                 informe['existentes'].append(u.nombre)
                 continue
             tipo = equip.CreateObject('TypVoltreg', u.nombre)
+            if tipo is None:
+                # 042:RF-34: sin activar, DIgSILENT no deja escribir en el proyecto biblioteca (Pisco, 2026-11-03).
+                _proyecto.Activate()
+                equip = app.GetProjectFolder('equip', 1) or equip
+                tipo = equip.CreateObject('TypVoltreg', u.nombre)
             if tipo is None:
                 return {**informe, 'error': f'DIgSILENT no dejó crear el tipo {u.nombre!r}'}, 2
             for atributo, valor in u.datos_tipo().items():
@@ -1927,6 +1994,61 @@ def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
             f"de {d['antes']} a {d['despues']}: una obra tocó algo compartido.")
 
 
+#: Elementos con sitio en la red, y los atributos con sus barras (042:RF-36).
+CLASES_CON_SITIO = ('ElmLne', 'ElmShnt', 'ElmVoltreg', 'ElmTerm', 'ElmTr2')
+
+
+def _barras_de(objeto) -> list:
+    """Las barras de un elemento: él mismo si es barra; si no, las de sus conexiones."""
+    if objeto.GetClassName() == 'ElmTerm':
+        return [objeto]
+    return [t for t in (getattr(getattr(objeto, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv'))
+            if t is not None]
+
+
+def _punto_de(barra, transformar, crs) -> dict | None:
+    gps = gps_de(barra)
+    if not gps:
+        return None
+    punto = {'barra': barra.loc_name, 'lat': gps[0], 'lon': gps[1]}
+    if transformar is not None:
+        este, norte = transformar.transform(gps[1], gps[0])
+        punto.update(crs=crs, este=round(este, 1), norte=round(norte, 1))
+    return punto
+
+
+def georreferenciar_obras(app, filas: list[dict]) -> None:
+    """042:RF-36: ``ubicacion`` de cada obra con su variación, con «Con proyecto» activo.
+
+    Se lee de lo que grabó su etapa, sin saber de cada clase de obra: la que venga mañana también queda situada.
+    """
+    from convertersmartgrid.geography import make_transformer
+
+    crs = datos_perfil().get('crs_origen')
+    try:
+        transformar = make_transformer('EPSG:4326', crs) if crs else None
+    except (ImportError, ValueError):
+        transformar = None
+    vivos = {(clase, o.loc_name): o for clase in CLASES_CON_SITIO for o in app.GetCalcRelevantObjects(f'*.{clase}') or []}
+    carpeta = app.GetProjectFolder('scheme')
+    variaciones = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []}
+    for fila in filas:
+        v = variaciones.get(fila.get('variacion'))
+        if v is None:
+            continue
+        ubicacion = []
+        for etapa in v.GetContents('*.IntSstage') or []:
+            for o in etapa.GetContents('*', 1) or []:
+                vivo = vivos.get((o.GetClassName(), o.loc_name))
+                if vivo is None:
+                    continue
+                puntos = [p for p in (_punto_de(b, transformar, crs) for b in _barras_de(vivo)) if p]
+                ubicacion.append({'elemento': vivo.loc_name, 'clase': vivo.GetClassName(), 'puntos': puntos})
+        fila['ubicacion'] = ubicacion
+        if any(not u['puntos'] for u in ubicacion):
+            fila.setdefault('avisos', []).append('Hay elementos de esta obra sin coordenadas en sus barras (042:RF-36).')
+
+
 def aplicar(app, plan: dict, *, simular: bool = False,
             cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica las obras del plan. Devuelve (informe, código de salida)."""
@@ -2012,6 +2134,10 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             # 016:RF-89: el enlace y las mitades de un tramo partido, en el diagrama; en
             # «Con proyecto», que tiene también las obras de «Sin proyecto».
             casos['con'].Activate()
+            try:
+                georreferenciar_obras(app, informe['obras'])             # 042:RF-36
+            except Exception as exc:  # noqa: BLE001 - situarlas no puede perder las obras ya aplicadas
+                informe['avisos'].append(f'No se pudieron leer las coordenadas de las obras: {exc} (042:RF-36).')
             informe['dibujo'] = completar_diagrama(app, proyecto)
     finally:
         if ajenas:
@@ -2034,6 +2160,35 @@ def _resultado(obj, atributo: str) -> float | None:
     except Exception:  # noqa: BLE001 - sin resultado del flujo
         return None
     return float(v) if isinstance(v, (int, float)) and math.isfinite(float(v)) else None
+
+
+def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
+    """042:RF-32: activa en «Con proyecto» las variaciones de ``variaciones`` que estén desactivadas."""
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'reponer_cargas', 'repuestas': [], 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    inicial = app.GetActiveStudyCase()
+    nombres = set(plan.get('variaciones') or ())
+    try:
+        casos['con'].Activate()
+        activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+        carpeta = app.GetProjectFolder('scheme')
+        for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []:
+            if v.loc_name in nombres and v.loc_name not in activas:
+                v.Activate()
+                informe['repuestas'].append(v.loc_name)
+        ahora = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+        if faltan := sorted(nombres - ahora):
+            informe['avisos'].append(f"No se pudieron activar: {', '.join(faltan)} (042:RF-32).")
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
 
 
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
@@ -2178,8 +2333,18 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     caminos[nombre] = c
                     if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:
                         banco_en[nombre] = c[-1]['desde']        # aguas arriba, por el camino real
+            # 042:RF-43: los tramos de cualquier ramal que pasan del límite con las cargas nuevas.
+            limite = float(plan.get('cargabilidad_max_pct') or 0)
+            por_nombre = {t['nombre']: t for t in tramos_red}
+            sobrecargados = []
+            for ln in (lineas.values() if limite and flujo['converged'] else ()):
+                carga = _resultado(ln, 'c:loading')
+                if carga is not None and carga > limite:
+                    sobrecargados.append({**por_nombre.get(ln.loc_name, {}), 'nombre': ln.loc_name, 'carga_pct': float(carga),
+                                          'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
+                                          'nlnum': int(getattr(ln, 'nlnum', 1) or 1)})
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices,
-                                           'banco_en': banco_en, 'caminos': caminos,
+                                           'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
     finally:
@@ -2781,6 +2946,8 @@ def main(argv=None) -> int:
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     p.add_argument('--evaluar', action='store_true',
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
+    p.add_argument('--reponer-cargas', action='store_true',
+                   help='Activa en «Con proyecto» las cargas nuevas del plan que estén desactivadas (042:RF-32)')
     p.add_argument('--escalera-datos', action='store_true',
                    help='Troncal, corrientes y tramo de cada carga nueva para la escalera (025:RF-49)')
     p.add_argument('--oraculo-datos', action='store_true',
@@ -2814,6 +2981,8 @@ def main(argv=None) -> int:
             informe, codigo = crear_tipos_regulador(app, plan)
         elif args.evaluar:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
+        elif args.reponer_cargas:
+            informe, codigo = reponer_cargas(app, plan)
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
         elif args.oraculo_datos:

@@ -471,6 +471,7 @@ def test_deshacer_y_eliminar_no_borran_lo_de_otro_proyecto():
 BORRADOS = {
     # Lo creó la misma ejecución y lo retira al terminar: órdenes, selecciones, variaciones temporales.
     'temporal': {
+        'tools/obras_pf.py::crear_tipos_conductor',
         'tools/capacidad_pf.py::alojamiento', 'tools/capacidad_pf.py::curvas_pv', 'tools/capacidad_pf.py::condensadores',
         'tools/cargas_pf.py::crear_variacion', 'tools/cargas_pf.py::_una_carga', 'tools/check_pf_license.py::main',
         'tools/confiabilidad_pf.py::fiabilidad', 'tools/confiabilidad_pf.py::reconectadores',
@@ -482,6 +483,7 @@ BORRADOS = {
         'tools/transferencia_pf.py::_en_un_caso'},
     # Objetos con nombre propio del conversor, en el proyecto activado por la orden, que se renuevan sin duplicar.
     'renovado': {
+        'src/convertersmartgrid/carpeta_pf.py::eliminar_versiones_anteriores',
         'tools/ajuste_cabecera_pf.py::_limpiar_etapa_de_la_central', 'tools/casos_pf.py::_escenario_renovado',
         'tools/confiabilidad_pf.py::escribir_modelos', 'tools/confiabilidad_pf.py::aplicar_datos',
         'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca'},

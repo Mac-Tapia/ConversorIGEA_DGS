@@ -203,6 +203,47 @@ def factor_potencia_cargas(datos: dict[str, Any],
     return float(valor)
 
 
+#: 042:RF-39: criterios técnicos de referencia, no convenciones de una empresa: tensión ±5 %, carga al 100 %, vida de 30 años y
+#: tasa del 12 %. Solo se usan si el perfil no los da, y se dicen como supuesto.
+PLANEAMIENTO_DE_REFERENCIA: dict[str, dict[str, Any]] = {
+    'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
+    'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0, 'max_variantes': 150},
+    'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30, 'horizonte_set_anios': 5, 'factor_seguridad_set': 1.0,
+                      'set_nueva_desde_kw': 10000, 'radio_zona_set_km': 10,
+                      # Sin libro no hay hoja que leer: la SET se dimensiona con su transformador normalizado (042:RF-33).
+                      'modulos_pit': {'hoja': '', 'fila_cabecera_contiene': '', 'columnas': {}}},
+}
+#: Tamaño de módulo de banco de referencia por tensión; se toma el de la tensión más cercana (042:RF-39).
+BANCOS_KVAR_DE_REFERENCIA = {10.0: 300.0, 22.9: 450.0}
+#: Conductores de refuerzo si la empresa no da su lista: AAAC de ficha universal (042:RF-40).
+SECCIONES_DE_REFERENCIA = ('AA05003D', 'AA12003D', 'AA24003D')
+#: Crecimiento anual de referencia si ningún alimentador tiene el suyo (042:RF-41).
+TASA_CRECIMIENTO_DE_REFERENCIA = 0.03
+
+
+def completar_planeamiento(datos: dict[str, Any] | None, tipo_cambio: float | None = None) -> tuple[dict[str, Any], list[str]]:
+    """042:RF-39: el perfil con los criterios técnicos que le faltan, y la lista de lo supuesto; lo suyo no se pisa."""
+    perfil = dict(datos or {})
+    supuestos = []
+    # El horizonte de la SET cae en la vida útil si la empresa la da; solo sin ella se supone uno (con 30 años salía de 372 MVA).
+    con_vida = bool((perfil.get('planificacion') or {}).get('vida_util_anios'))
+    for seccion, referencia in PLANEAMIENTO_DE_REFERENCIA.items():
+        propio = dict(perfil.get(seccion) or {})
+        for clave, valor in referencia.items():
+            if propio.get(clave) is None and not (clave == 'horizonte_set_anios' and con_vida):
+                propio[clave] = valor
+                if clave != 'modulos_pit':
+                    supuestos.append(f'{seccion}.{clave} = {valor}')
+        perfil[seccion] = propio
+    esc = perfil['escalera']
+    if (esc.get('moneda_precios_perdidas') or esc.get('moneda')) != esc.get('moneda') and not tipo_cambio:
+        # Sin tipo de cambio no se valoran las pérdidas, pero las obras se proponen igual.
+        esc['precio_perdidas_kwh'] = esc['precio_perdidas_kw_mes'] = None
+        supuestos.append('pérdidas sin valorar: falta el tipo de cambio')
+    avisos = [f"Supuestos técnicos de referencia, el perfil no los da: {'; '.join(supuestos)} (042:RF-39)."] if supuestos else []
+    return perfil, avisos
+
+
 def bancos_kvar_por_tension(datos: dict[str, Any]) -> dict[float, float] | None:
     """El tamaño de banco por tensión de ``calibracion.bancos_kvar_por_tension`` (021:RF-65).
 

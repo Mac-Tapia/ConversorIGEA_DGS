@@ -31,7 +31,7 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from convertersmartgrid import pf_arnes, pf_estado  # noqa: E402
+from convertersmartgrid import estadistica_ordenes, pf_arnes, pf_estado  # noqa: E402
 
 
 def _olvidar_modulos_de_tools(carpeta: Path = HERE) -> list[str]:
@@ -142,6 +142,16 @@ def _decir(texto: str) -> None:
 RESTOS_S = 24 * 3600.0
 
 
+def _registrar(cola: Path, orden: dict, codigo: int, segundos: float, causa: str = '') -> None:
+    """081:RF-70: una línea de ``ordenes.jsonl`` por orden; si no se puede escribir, la orden no falla por ello."""
+    try:
+        fila = estadistica_ordenes.registro(orden, codigo, segundos, causa)
+        with open(cola / estadistica_ordenes.REGISTRO, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(fila, ensure_ascii=False) + '\n')
+    except Exception as exc:  # noqa: BLE001 - medir no puede tumbar la cola
+        _decir(f'No se pudo registrar la orden {orden.get("id")}: {exc}')
+
+
 def limpiar_cola(cola: Path, ahora=time.time) -> None:
     """Deja la cola como la necesita un servidor recién arrancado (019:RF-21).
 
@@ -156,6 +166,11 @@ def limpiar_cola(cola: Path, ahora=time.time) -> None:
             f.write('ERROR: el proceso de DIgSILENT que atendía la orden murió a mitad '
                     '(019:RF-8).\n')
         (cola / f'{ident}.fin.json').write_text(json.dumps({'codigo': 3}), encoding='utf-8')
+        try:
+            orden = json.loads(en_curso.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            orden = {'id': ident}
+        _registrar(cola, orden, 3, 0.0, 'DIgSILENT murió a mitad de la orden')       # 081:RF-70
         en_curso.unlink(missing_ok=True)
         _decir(f'Orden {ident} de un proceso anterior cerrada con código 3.')
     for patron in ('*.log', '*.fin.json', '*.tmp'):
@@ -217,7 +232,10 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
             _decir(f"Orden {orden['id']}: el servidor no pudo atenderla ({exc}); se sigue.")
             codigo = 1
         en_curso.unlink(missing_ok=True)
-        _decir(f"Orden {orden['id']} terminada con código {codigo} en {reloj() - inicio:.0f} s.")
+        segundos = reloj() - inicio
+        _registrar(cola, orden, codigo, segundos,
+                   estadistica_ordenes.ultima_causa(cola / f"{orden['id']}.log") if codigo else '')   # 081:RF-70
+        _decir(f"Orden {orden['id']} terminada con código {codigo} en {segundos:.0f} s.")
         ultima = reloj()
     _decir(f'Sin órdenes en {inactividad_s:g} s: se cierra (019:RF-8).')
     return 0

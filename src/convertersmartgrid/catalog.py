@@ -1169,6 +1169,45 @@ def filas_semilla() -> dict[str, list[dict[str, Any]]]:
     return {'conductores_aereos': aereos, 'cables_subterraneos': cables}
 
 
+def filas_de_conductores(ruta: Path | str | None = None) -> list[dict[str, Any]]:
+    """042:RF-30: las filas de la semilla y, encima, las del catálogo ``ruta`` si existe."""
+    por_codigo = {f['codigo']: f for filas in filas_semilla().values() for f in filas}
+    if ruta is not None and Path(ruta).is_file():
+        from openpyxl import load_workbook
+
+        libro = load_workbook(ruta, read_only=True, data_only=True)
+        for hoja in ('conductores_aereos', 'cables_subterraneos'):
+            if hoja in libro.sheetnames:
+                for f in _filas_de(libro[hoja]):
+                    por_codigo[str(f['codigo']).strip()] = f
+    return list(por_codigo.values())
+
+
+def tipo_de_ficha(codigo: str, kv: float, filas: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
+    """042:RF-30: el ``TypLne`` de un código a una tensión, con sus datos de ficha o deducidos (spec 053).
+
+    ``{'codigo', 'nombre', 'kv', 'datos': {atributo de TypLne: valor}, 'fuente'}``; None sin R o sin ampacidad.
+    """
+    fila = next((f for f in filas if str(f.get('codigo') or '').strip().upper() == codigo.upper()), None)
+    if fila is None or _valor(fila, 'R1', 'ohm_km') is None or _valor(fila, 'ampacidad', 'A') is None:
+        fila = deducir_conductor(codigo, filas)
+    r1, amperios = _valor(fila, 'R1', 'ohm_km'), _valor(fila, 'ampacidad', 'A')
+    seccion = seccion_de_codigo(codigo)
+    if r1 is None or not amperios or not seccion:
+        return None
+    aereo = not codigo.upper().startswith('N2')
+    x1 = _valor(fila, 'X1', 'ohm_km') or (reactancia_aerea_ohm_km(seccion) if aereo else None)
+    if x1 is None:
+        return None
+    datos = {'uline': float(kv), 'sline': round(amperios / 1000.0, 6), 'rline': r1, 'xline': x1,
+             'rline0': _valor(fila, 'R0', 'ohm_km') or r1, 'xline0': _valor(fila, 'X0', 'ohm_km') or x1,
+             'cohl_': 1 if aereo else 0, 'qurs': float(seccion), 'nlnph': 3, 'systp': 0}
+    if (b1 := _valor(fila, 'B1', 'uS_km')) is not None:
+        datos['bline'] = b1
+    return {'codigo': codigo, 'kv': float(kv), 'nombre': f"{codigo}_{float(kv):g}kV_FICHA".replace('.', '_'),
+            'datos': datos, 'fuente': str(fila.get('fuente') or '')}
+
+
 def asegurar_catalogo_empresa(ruta: Path | str) -> Path:
     """080:RF-50: el catálogo de una empresa; si no existe, se crea con la semilla."""
     import os

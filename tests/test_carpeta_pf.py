@@ -916,3 +916,27 @@ def test_guion_que_el_vigia_termino_se_reintenta_una_vez(monkeypatch, tmp_path):
                     f'p.write_text(str(n + 1)); print("x"); sys.exit({SIN_RESPUESTA} if n == 0 else 0)')
     assert ctx.run_process([sys.executable, '-c', a_la_segunda], env=env) == 0
     assert veces.read_text() == '2'
+
+
+def test_al_importar_se_eliminan_las_versiones_anteriores():
+    """005:RF-22 — Pisco: cinco «…_CSG_SISTEMA_PISCO» en la carpeta; queda solo el nuevo.
+    Los de otro nombre, sin sello, de sello posterior o activos no se tocan."""
+    from convertersmartgrid.carpeta_pf import eliminar_versiones_anteriores, versiones_anteriores
+
+    app = _app()
+    carpeta = asegurar_carpeta(app.usuario, 'Red')
+    nuevo = '20261103-013907_CSG_SISTEMA_PISCO'
+    viejos = ['20261102-234719_CSG_SISTEMA_PISCO', '20261103-000709_CSG_SISTEMA_PISCO']
+    quedan = ['20261103-142640_CSG_TXT_NA101', 'RESPALDO_SM218', '20261104-000000_CSG_SISTEMA_PISCO']
+    for n in (nuevo, *viejos, *quedan):
+        _proyecto(app, carpeta, n)
+    assert versiones_anteriores([nuevo, *viejos, *quedan], nuevo) == viejos
+    assert versiones_anteriores(viejos, 'Hecho a mano') == []
+    avisos = eliminar_versiones_anteriores(app, carpeta, nuevo)
+    nombres = sorted(h.loc_name for h in carpeta.GetContents('*.IntPrj'))
+    assert nombres == sorted([nuevo, *quedan]) and len(avisos) == 2 and all('005:RF-22' in a for a in avisos)
+
+    otro = _proyecto(app, carpeta, '20261101-000000_CSG_SISTEMA_PISCO')
+    otro.Activate()
+    assert 'activo' in eliminar_versiones_anteriores(app, carpeta, nuevo)[0]
+    assert otro in carpeta.GetContents('*.IntPrj')

@@ -197,6 +197,60 @@ def elegir_modulo(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt
                       f'(el mayor de {kv_mt:g} kV es de {mayor:g} MVA{paralelo})'}
 
 
+#: Potencias normalizadas de transformador de potencia (MVA), para dimensionar sin módulo en el libro (042:RF-33).
+MVA_NORMALIZADOS = (5.0, 7.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 80.0, 100.0, 120.0)
+#: Tensión de alta si ni el libro ni el perfil la dicen: la de subtransmisión de la distribución (se anota).
+KV_ALTA_SUPUESTA = 60.0
+
+
+def tasas_completas(tasas: Mapping[str, float | None], referencia: float) -> tuple[dict[str, float], list[str]]:
+    """042:RF-41: la tasa de cada alimentador; al que no la tiene, la media de los demás o, sin ninguna, la de referencia."""
+    con_dato = [float(t) for t in tasas.values() if t is not None]
+    relleno = sum(con_dato) / len(con_dato) if con_dato else float(referencia)
+    faltan = sorted(f for f, t in tasas.items() if t is None)
+    avisos = ([f"Sin tasa de crecimiento medida en {', '.join(faltan)}: se usa {100 * relleno:.2f} %/año (042:RF-41)."] if faltan else [])
+    return {f: (float(t) if t is not None else relleno) for f, t in tasas.items()}, avisos
+
+
+def modulos_del_libro(capex: str | None, cfg: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    """042:RF-33: los módulos del libro; sin libro o si no se puede leer, ninguno y se dice: la SET se dimensiona igual."""
+    if not capex or not capex.strip():
+        return [], ['Sin libro CAPEX: la SET se dimensiona con transformadores normalizados y su costo queda por confirmar (042:RF-33).']
+    try:
+        return leer_modulos_pit(Path(capex.strip().strip('"')), cfg), []
+    except (SetNuevaError, OSError, KeyError, ValueError) as exc:
+        return [], [f'No se pudo leer el libro CAPEX ({exc}): la SET se dimensiona con transformadores normalizados y su costo '
+                    'queda por confirmar (042:RF-33).']
+
+
+def modulo_deducido(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt: float,
+                    kv_at: float | None = None, *, max_unidades: int = 1) -> dict[str, Any]:
+    """042:RF-33: sin módulo en el libro, el menor transformador normalizado que cubre la potencia de diseño.
+
+    Si no hay ninguno tan grande, en paralelo hasta ``max_unidades``, y si aun así no llega, más unidades: siempre hay
+    solución, por confirmar. El costo sale del costo por MVA del módulo de potencia más parecida; sin ninguno, ``None``.
+    """
+    kva = max(float(kva_diseno), 1.0)
+    mayor = MVA_NORMALIZADOS[-1]
+    mva = next((m for m in MVA_NORMALIZADOS if m * 1000.0 >= kva), None)
+    unidades = 1
+    if mva is None:
+        unidades = math.ceil(kva / (mayor * 1000.0))
+        mva = mayor
+    altas = sorted({float(m['kv_at']) for m in modulos if m.get('kv_at')})
+    alta = kv_at or (altas[-1] if altas else KV_ALTA_SUPUESTA)
+    con_costo = [m for m in modulos if m.get('costo') and m.get('mva')]
+    parecido = min(con_costo, key=lambda m: (m['tipo'] != 'set', abs(float(m['mva']) - mva)), default=None)
+    costo = float(parecido['costo']) / float(parecido['mva']) * mva * unidades if parecido else None
+    motivo = (f'ningún módulo del libro cubre {kva / 1000.0:.1f} MVA a {kv_mt:g} kV: {unidades} × {mva:g} MVA normalizado'
+              + (f', con el costo por MVA de «{parecido["descripcion"]}»' if parecido else ', sin costo')
+              + ', por confirmar (042:RF-33)')
+    return {'modulo': {'descripcion': f'SET nueva {alta:g}/{kv_mt:g} kV de {mva:g} MVA (deducida)', 'tipo': 'set', 'kv_at': alta,
+                       'kv_mt': float(kv_mt), 'kv': [alta, float(kv_mt)], 'mva': mva, 'costo': costo, 'moneda': (parecido or {}).get('moneda', ''),
+                       'unidades': unidades, 'mva_total': unidades * mva, 'costo_total': costo, 'por_confirmar': True},
+            'motivo': motivo}
+
+
 # =========================================================================== RF-1 a RF-3
 def orden_de_cargas(cargas: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     """De mayor a menor potencia (usuario, 2026-10-31); a igual kW, por nombre (042:RF-1)."""

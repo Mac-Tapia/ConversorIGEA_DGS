@@ -169,11 +169,12 @@ def test_set_nueva_toma_la_barra_de_una_carga_apartada(monkeypatch, tmp_path):
     assert rama['destino'] == ['C', 'D'] and not any('N1' in a or 'N2' in a for a in r['avisos'])
 
 
-def test_sin_libro_capex_no_se_elige_modulo(monkeypatch):
-    """042:RF-8 — sin el libro CAPEX no hay módulos PIT entre los que elegir: se dice."""
-    with pytest.raises(services.UserError, match='CAPEX'):
-        services.set_nueva_proponer(None, _Ctx(), 'P', ['F1'], [{'sed': 'N1'}], capex='',
-                                    alimentadores_nuevos=2)
+def test_sin_libro_capex_la_set_se_dimensiona_igual(tmp_path):
+    """042:RF-33 — sin libro, o con uno que no se lee, no hay módulos pero tampoco error: se dice y se sigue."""
+    from convertersmartgrid import set_nueva as sn
+
+    assert sn.modulos_del_libro('', {})[0] == [] and 'CAPEX' in sn.modulos_del_libro('', {})[1][0]
+    assert sn.modulos_del_libro(str(tmp_path / 'no.xlsx'), {'hoja': 'x'})[0] == []
 
 
 def test_la_web_ofrece_la_optimizacion_de_con_proyecto():

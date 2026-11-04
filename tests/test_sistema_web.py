@@ -452,3 +452,54 @@ def test_el_criterio_de_las_fijas_va_al_cruce_y_al_plan(herramienta, criterio):
     esperado = criterio or 'coincidente'
     assert web.cuerpos['/demanda/clientes/cruzar']['criterio'] == esperado
     assert web.cuerpos['/demanda/ajuste/plan']['criterio_fijas'] == esperado
+
+
+def test_con_proyecto_espera_el_que_corre_o_lo_lanza(herramienta, capsys, tmp_path):
+    """042:RF-31 — Pisco: se espera el «Con proyecto» ya lanzado; si no hay, se lanza; el resumen queda escrito."""
+    class Web:
+        def __init__(self, jobs):
+            self.jobs, self.lanzados = jobs, []
+
+        def get(self, ruta):
+            return {'jobs': self.jobs}
+
+        def post(self, ruta, json=None):
+            self.lanzados.append((ruta, json))
+            return {'id': 'nuevo', 'status': 'queued'}
+
+        def esperar(self, trabajo, limite_s=0):
+            return {'id': trabajo['id'], 'status': 'done', 'result': {'escalera': {'alimentadores': [
+                {'alimentador': 'F1', 'ya_cumple': True}, {'alimentador': 'F2', 'elegida': 'terna hasta L9'},
+                {'alimentador': 'F3'}]}}}
+
+    corre = Web([{'id': 'j1', 'kind': 'obras_con_proyecto', 'title': 'Optimizar «Con proyecto» · P', 'status': 'running'}])
+    herramienta._RESUMEN[:] = [tmp_path / 'r.json']
+    assert herramienta.con_proyecto(corre, 'P', ['F1', 'F2', 'F3']) == 0 and not corre.lanzados
+    salida = capsys.readouterr().out
+    assert 'se espera el trabajo j1' in salida and 'F1: ya cumple' in salida and 'F2: obra terna hasta L9' in salida
+    assert 'F3: ninguna variante cumple' in salida and (tmp_path / 'r.json').is_file()
+    vacia = Web([])
+    herramienta._RESUMEN[:] = []
+    assert herramienta.con_proyecto(vacia, 'P', ['F1'], tipo_cambio=3.495) == 0
+    assert vacia.lanzados == [('/pf/obras/con-proyecto', {'project': 'P', 'feeders': ['F1'], 'escalera_primero': True,
+                                                          'tipo_cambio': 3.495})]
+
+
+def test_con_proyecto_no_adopta_un_trabajo_terminado_y_pasa_el_capex(herramienta):
+    """042:RF-31, 042:RF-7 — un «Con proyecto» ya terminado no cuenta: se lanza otro, con su libro CAPEX."""
+    class Web:
+        lanzado = None
+
+        def get(self, ruta):
+            return {'jobs': [{'id': 'viejo', 'kind': 'obras_con_proyecto', 'title': '· P', 'status': 'done'}]}
+
+        def post(self, ruta, json=None):
+            Web.lanzado = json
+            return {'id': 'nuevo', 'status': 'queued'}
+
+        def esperar(self, trabajo, limite_s=0):
+            return {'id': trabajo['id'], 'status': 'done', 'result': {}}
+
+    herramienta._RESUMEN[:] = []
+    assert herramienta.con_proyecto(Web(), 'P', ['F1'], capex='libro.xlsx') == 0
+    assert Web.lanzado['capex'] == 'libro.xlsx'

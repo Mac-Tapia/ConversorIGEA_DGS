@@ -13,6 +13,7 @@ Puro: arma las variantes, juzga cada flujo, sortea, costea y elige. Medir en DIg
 """
 from __future__ import annotations
 
+import itertools
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -76,6 +77,8 @@ class Parametros:
     ternas: Mapping[str, Any] = field(default_factory=dict)
     #: 042:RF-27: los conductores normalizados de la empresa (prefijo del tipo); vacío, todos.
     secciones: tuple[str, ...] = ()
+    #: 042:RF-35: desde este largo del camino a una carga, el regulador va por delante del tope de variantes.
+    linea_larga_km: float = 10.0
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -133,7 +136,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
         ternas=dict(plan.get('ternas_subterraneas') or {}),
-        secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()))
+        secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
+        linea_larga_km=float(esc.get('linea_larga_km') or 10.0))
 
 
 def _opcional(x) -> float | None:
@@ -223,6 +227,22 @@ def _escalon_bancos(alim, barras, banco_kvar, modulos: int) -> list[Variante]:
     if not barras or not banco_kvar:
         return []
     return [_bancos_en(alim, barras, banco_kvar, n) for n in range(1, int(modulos) + 1)]
+
+
+def nodo_a_dos_tercios(tramos: Sequence[Mapping[str, Any]]) -> str | None:
+    """042:RF-37: la barra existente más cercana a 2/3 del camino; la de una carga nueva solo existe con ella."""
+    total = _km(tramos)
+    if total <= 0:
+        return None
+    acumulado, mejor = 0.0, None
+    for t in tramos:
+        acumulado += float(t.get('largo_m') or 0.0) / 1000.0
+        hasta = str(t.get('hasta') or '')
+        if hasta and not hasta.startswith('NODE_T_'):
+            distancia = abs(acumulado - 2.0 * total / 3.0)
+            if mejor is None or distancia < mejor[0]:
+                mejor = (distancia, hasta)
+    return mejor[1] if mejor else None
 
 
 def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos) -> list[Variante]:
@@ -382,10 +402,41 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
     return out
 
 
+def _ternas_que_faltan(t: Mapping[str, Any], v: Variante, capacidades: Mapping[str, float], limite: float) -> int:
+    """Cuántas ternas más necesita el tramo ``t`` con la variante ``v`` para quedar bajo ``limite`` (042:RF-43)."""
+    k = max(1, int(t.get('nlnum') or 1))
+    carga = float(t['carga_pct'])
+    for o in v.obras:
+        nueva = capacidades.get(str((o.get('tipo') or {}).get('nombre')))
+        if o.get('clase') == 'seccion' and t['nombre'] in o.get('tramos', ()) and nueva and t.get('inom_a'):
+            carga *= float(t['inom_a']) / float(nueva)
+    pedidas = math.ceil(k * carga / limite - 1e-9) - k
+    ya = sum(1 for o in v.obras if o.get('clase') == 'terna' and t['nombre'] in o.get('tramos', ()))
+    return max(0, pedidas - ya)
+
+
+def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Parametros) -> Variante:
+    """La variante con las ternas que les faltan a los tramos sobrecargados, de cualquier ramal (042:RF-43)."""
+    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct)) for t in sobrecargados]
+    obras, km = [], 0.0
+    for i in range(1, max((m for _, m in faltan), default=0) + 1):
+        tramos = [t for t, m in faltan if m >= i]
+        obras.append({'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO], 'tramos': [t['nombre'] for t in tramos],
+                      'nodos': _nodos(tramos), **capacidad_de_tramos(tramos, p.ternas)})
+        km += _km(tramos)
+    if not obras:
+        return v
+    n = sum(1 for _, m in faltan if m)
+    nombre = f'refuerzo de {n} tramos sobrecargados ({km:.2f} km)'
+    return Variante(f'{v.nombre} + {nombre}' if v.nombre else nombre, tuple(dict.fromkeys(v.escalones + ('terna',))),
+                    v.obras + obras, {**v.cantidades, 'terna': float(v.cantidades.get('terna') or 0.0) + km}, v.solo_evidencia)
+
+
 def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
               cargas: Sequence[Mapping[str, Any]], tipos: Sequence[Mapping[str, Any]], p: Parametros, *,
               banco_kvar: float | None, fuera_desde: int | None = None, modulos_valle: int | None = None,
-              evidencia: bool = True) -> tuple[list[Variante], list[str]]:
+              evidencia: bool = True,
+              sobrecargados: Sequence[Mapping[str, Any]] | None = None) -> tuple[list[Variante], list[str]]:
     """Las variantes de un alimentador en el orden de RF-44, con sus combinaciones (RF-49).
 
     ``troncal``: sus tramos desde la cabecera (``nombre``, ``largo_m``, ``corriente_a`` en
@@ -419,14 +470,61 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     solas = [v for e in ORDEN for v in por_escalon[e]]
     if modulos_valle is not None and evidencia and barras and banco_kvar:
         solas.insert(len(por_escalon['bancos']), _bancos_en(alimentador, barras, banco_kvar, modulos + 1, True))
-    combinadas = []
+    combinadas, dobles = [], []
     for i, a in enumerate(ORDEN):
         for b in ORDEN[i + 1:]:
             for va in por_escalon[a]:
                 for vb in por_escalon[b]:
-                    combinadas.append(Variante(f'{va.nombre} + {vb.nombre}', va.escalones + vb.escalones,
-                                               va.obras + vb.obras, {**va.cantidades, **vb.cantidades}))
-    todas = solas + combinadas
+                    v = Variante(f'{va.nombre} + {vb.nombre}', va.escalones + vb.escalones,
+                                 va.obras + vb.obras, {**va.cantidades, **vb.cantidades})
+                    if {a, b} == {'seccion', 'terna'}:
+                        # 042:RF-30: sección y terna en caminos distintos no se refuerzan; en el mismo, son la
+                        # doble terna del conductor nuevo, y van antes que el resto (el tope de variantes).
+                        sec, ter = (va, vb) if a == 'seccion' else (vb, va)
+                        if not set(sec.obras[0]['tramos']) <= set(ter.obras[0]['tramos']):
+                            continue
+                        dobles.append(v)
+                    else:
+                        combinadas.append(v)
+    caminos = _caminos(troncal, cargas)
+    largo_km = max((_km(c) for c in caminos), default=0.0)
+    if largo_km >= p.linea_larga_km and banco_kvar:
+        # 042:RF-37: en línea larga, también donde más rinde el banco; SI112 no tenía ninguno, su carga parte un tramo.
+        nodo = nodo_a_dos_tercios(max(caminos, key=_km))
+        if nodo and nodo not in barras:
+            en_nodo = [_bancos_en(alimentador, [nodo], banco_kvar, n) for n in range(1, int(modulos) + 1)]
+            for v in en_nodo:
+                v.nombre = f'{v.nombre} a 2/3 de la línea en {nodo}'
+            solas[len(por_escalon['bancos']):len(por_escalon['bancos'])] = en_nodo
+    if por_escalon['regulador'] and largo_km >= p.linea_larga_km:
+        # 042:RF-35: en línea larga, el regulador no puede quedar detrás del tope; también con la doble terna más larga.
+        mas_largas = sorted(dobles, key=lambda v: -float(v.cantidades.get('terna') or 0.0))[:3]
+        triples = [Variante(f'{d.nombre} + {r.nombre}', d.escalones + r.escalones, d.obras + r.obras,
+                            {**d.cantidades, **r.cantidades}) for d in mas_largas for r in por_escalon['regulador']]
+        combinadas = (triples + [v for v in combinadas if 'regulador' in v.escalones]
+                      + [v for v in combinadas if 'regulador' not in v.escalones])
+        avisos.append(f'{alimentador}: línea de {largo_km:.1f} km: se plantean reguladores, también con la doble terna (042:RF-35).')
+    # 042:RF-38: todas las obras integradas: de tres en tres y las cuatro, con sección y terna en el mismo camino.
+    mayores = []
+    for k in (3, 4):
+        for grupo in itertools.combinations(ORDEN, k):
+            for partes in itertools.product(*(por_escalon[e] for e in grupo)):
+                sec = next((v for e, v in zip(grupo, partes) if e == 'seccion'), None)
+                ter = next((v for e, v in zip(grupo, partes) if e == 'terna'), None)
+                if sec is not None and ter is not None and not set(sec.obras[0]['tramos']) <= set(ter.obras[0]['tramos']):
+                    continue
+                mayores.append(Variante(' + '.join(v.nombre for v in partes), sum((v.escalones for v in partes), ()),
+                                        [o for v in partes for o in v.obras],
+                                        {c: n for v in partes for c, n in v.cantidades.items()}))
+    vistas: set[str] = set()
+    todas = [v for v in solas + dobles + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
+    if sobrecargados:
+        # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
+        capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
+        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p)
+        todas = [solo] + [v if v.solo_evidencia else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p) for v in todas]
+        avisos.append(f"{alimentador}: {len(sobrecargados)} tramos pasan de {p.cargabilidad_max_pct:g} % con las cargas nuevas; "
+                      'cada variante los refuerza (042:RF-43).')
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
                       'en el orden de la escalera (escalera.max_variantes del perfil).')
@@ -488,6 +586,15 @@ def sorteos(curva: Sequence[tuple[Any, Mapping[str, float]]], maximas: Mapping[s
                             'alimentadores medidos: no se puede sortear (025:RF-51)')
     rng = random.Random(semilla)
     return [{'instante': str(t), 'factores': fs} for t, fs in rng.choices(puntos, k=int(n))]
+
+
+def sorteos_o_maxima(curva: Sequence[tuple[Any, Mapping[str, float]]], maximas: Mapping[str, float],
+                     n: int, semilla: int) -> tuple[list[dict[str, Any]], list[str]]:
+    """042:RF-42: los sorteos de la curva; sin ningún instante con todos medidos, solo la máxima, y se dice."""
+    try:
+        return sorteos(curva, maximas, n, semilla), []
+    except EscaleraError as exc:
+        return [{'instante': 'máxima', 'factores': {}}], [f'{exc}: las obras se evalúan solo en la máxima (042:RF-42).']
 
 
 # --------------------------------------------------------------------------- costo y elección

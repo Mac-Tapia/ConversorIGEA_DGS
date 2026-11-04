@@ -119,6 +119,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/pide_dataset.py` | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. | 024 (diseño `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideelor-design.md`) |
 | `src/convertersmartgrid/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`; fichas de transformadores de SED; tamaño de banco por tensión (021:RF-65); centrales térmicas por alimentador; uno o varios patrones de nombre de los libros de clientes. | 002 (RF-31 a RF-37), 020 (RF-29 a RF-31), 021 (RF-27), 025 (RF-6b) |
 | `src/convertersmartgrid/mapa_informe.py` | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT; conductor nuevo y bancos resaltados con rótulos que no se pisan. | 017 (RF-11b, RF-116, RF-133) |
+| `src/convertersmartgrid/estadistica_ordenes.py` | Estadística de las órdenes de DIgSILENT: registro por orden, descriptiva con IC 95 %, contraste de versiones (Mann-Whitney, Fisher) y fallos que se repiten. | 081 |
 | `src/convertersmartgrid/pf_arnes.py` | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. | 019, 064 |
 | `src/convertersmartgrid/pf_estado.py` | Foto del estado de DIgSILENT antes de una orden del servidor (caso, hora, escenario, variaciones) y su restitución si la orden falla. | 064 |
 | `src/convertersmartgrid/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | 034 (RF-29) |
@@ -301,6 +302,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019 |
+| `tools/estadistica_ordenes.py` | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. | 081 |
 | `tools/pf_servidor.py` | Proceso que mantiene DIgSILENT abierto y atiende las órdenes de los guiones; se cierra a los 2 minutos sin órdenes; repone el estado tras una orden fallida. | 019, 064 |
 | `tools/restitucion_pf.py` | Órdenes de aceptación de la restitución del servidor: copiar, alterar y fallar, leer y borrar una copia `PRUEBA064_*`. | 064 |
 | `tools/aceptar_restitucion_pf.py` | Aceptación nativa de la restitución por el camino de la web y el servidor, con evidencia en JSON. | 064 |

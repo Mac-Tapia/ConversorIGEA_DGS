@@ -229,3 +229,83 @@ def test_el_plan_completo_se_mide_con_todas_las_obras_juntas(perfil):
     assert codigo == 0, informe
     assert informe['plan_completo']['obras'] == 2 and informe['plan_completo']['converge'] is True
     assert all(f['casos_activos'] == [CON] and f['flujo'][CON]['en_conjunto'] for f in informe['obras'])
+
+
+def test_reponer_cargas_activa_solo_las_pedidas():
+    """042:RF-32 — las variaciones pedidas y apagadas se activan en «Con proyecto»; las demás no se tocan."""
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf32', tools_en_path=True)
+    activas = []
+
+    def variacion(nombre):
+        return N(loc_name=nombre, Activate=lambda: activas.append(v[nombre]))
+
+    v = {n: variacion(n) for n in ('Carga_A', 'Carga_B', 'Otra')}
+    activas.append(v['Carga_B'])
+    caso = N(Activate=lambda: None)
+    app = N(GetActiveStudyCase=lambda: caso, GetActiveNetworkVariations=lambda: list(activas),
+            GetProjectFolder=lambda _c: N(GetContents=lambda *_a: list(v.values())))
+    guion.activar_proyecto = lambda *_a: object()
+    guion.casos_del_proyecto = lambda *_a: {'con': caso}
+    informe, codigo = guion.reponer_cargas(app, {'project': 'P', 'variaciones': ['Carga_A', 'Carga_B']})
+    assert codigo == 0 and informe['repuestas'] == ['Carga_A'] and not informe['avisos']
+    assert v['Otra'] not in activas
+
+
+def test_el_tipo_de_regulador_se_crea_activando_la_biblioteca(monkeypatch):
+    """042:RF-34 — sin activar, CreateObject da None; se activa la biblioteca y se crea, y no se repite el que hay."""
+    from types import SimpleNamespace as N
+
+    from convertersmartgrid.catalogo_reguladores import unidades_para
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf34', tools_en_path=True)
+    creados = []
+
+    class Equip:
+        def __init__(self, deja):
+            self.deja = deja
+
+        def CreateObject(self, _clase, nombre):
+            if not self.deja:
+                return None
+            o = N(loc_name=nombre, Delete=lambda: None)
+            creados.append(o)
+            return o
+
+        def GetContents(self, *_a):
+            return list(creados)
+
+    bloqueada, abierta = Equip(False), Equip(True)
+    activada = []
+    proyecto = N(Activate=lambda: activada.append(True))
+    monkeypatch.setattr(guion, '_proyecto_biblioteca', lambda *_a: (proyecto, bloqueada))
+    monkeypatch.setattr(guion, '_iguales', lambda *_a: True)
+    informe, codigo = guion.crear_tipos_regulador(N(GetProjectFolder=lambda *_a: abierta), {'tensiones_kv': [22.9]})
+    assert codigo == 0 and activada and len(informe['creados']) == len(unidades_para(22.9))
+
+
+def test_cada_obra_aplicada_queda_georreferenciada(monkeypatch):
+    """042:RF-36 — de lo que grabó la etapa: el banco en su barra, el tramo en sus dos extremos, con UTM del perfil."""
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf36', tools_en_path=True)
+
+    def elemento(clase, nombre, **k):
+        return N(GetClassName=lambda: clase, loc_name=nombre, **k)
+
+    a, b = elemento('ElmTerm', 'A', GPSlat=-13.7, GPSlon=-76.1), elemento('ElmTerm', 'B', GPSlat=-13.8, GPSlon=-76.2)
+    banco = elemento('ElmShnt', 'Banco', bus1=N(cterm=a))
+    linea = elemento('ElmLne', 'L1', bus1=N(cterm=a), bus2=N(cterm=b))
+    etapa = N(GetContents=lambda *_a: [elemento('ElmShnt', 'Banco'), elemento('ElmLne', 'L1'), elemento('StaCubic', 'C')])
+    variacion = N(loc_name='Obra_1', GetContents=lambda *_a: [etapa])
+    vivos = {'ElmShnt': [banco], 'ElmLne': [linea]}
+    app = N(GetCalcRelevantObjects=lambda patron: vivos.get(patron[2:], []),
+            GetProjectFolder=lambda _c: N(GetContents=lambda *_a: [variacion]))
+    monkeypatch.setattr(guion, 'datos_perfil', lambda: {'crs_origen': 'EPSG:32718'})
+    monkeypatch.setattr(guion, 'gps_de', lambda t: (t.GPSlat, t.GPSlon))
+    filas = [{'variacion': 'Obra_1'}, {'variacion': None}]
+    guion.georreferenciar_obras(app, filas)
+    sitio = {u['elemento']: u['puntos'] for u in filas[0]['ubicacion']}
+    assert [p['barra'] for p in sitio['Banco']] == ['A'] and [p['barra'] for p in sitio['L1']] == ['A', 'B']
+    assert sitio['Banco'][0]['crs'] == 'EPSG:32718' and sitio['Banco'][0]['este'] > 0 and 'ubicacion' not in filas[1]

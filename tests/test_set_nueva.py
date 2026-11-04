@@ -297,3 +297,23 @@ def test_las_cargas_se_agrupan_por_zona_geografica():
     zonas = zonas_de_carga(cargas, 10)
     assert sorted(sorted(c['sed'] for c in z) for z in zonas) == [['A', 'B'], ['C'], ['D']]
     assert zonas_de_carga(cargas, None) == [cargas]
+
+
+def test_sin_modulo_que_cubra_la_set_se_deduce(tmp_path):
+    """042:RF-33 — nada queda sin solución: el menor normalizado, con el costo por MVA del módulo más parecido."""
+    mods = sn.leer_modulos_pit(_libro(tmp_path), CFG_PIT)
+    d = sn.modulo_deducido(mods, 60_000.0, 22.9)
+    m = d['modulo']
+    assert m['mva'] == 60.0 and m['kv_at'] == 60.0 and m['costo'] > 0 and m['por_confirmar'] and '042:RF-33' in d['motivo']
+    solo = sn.modulo_deducido([], 13_800.0, 22.9)['modulo']
+    assert solo['mva'] == 15.0 and solo['costo'] is None and solo['kv_at'] == sn.KV_ALTA_SUPUESTA
+    enorme = sn.modulo_deducido([], 300_000.0, 22.9)['modulo']
+    assert enorme['unidades'] * enorme['mva'] >= 300.0
+
+
+def test_sin_tasa_de_crecimiento_la_set_se_disena_igual():
+    """042:RF-41 — el que no tiene tasa toma la media de los demás; sin ninguna, la de referencia; y se dice."""
+    tasas, avisos = sn.tasas_completas({'F1': 0.02, 'F2': None, 'F3': 0.04}, 0.03)
+    assert tasas == {'F1': 0.02, 'F2': 0.03, 'F3': 0.04} and 'F2' in avisos[0]
+    assert sn.tasas_completas({'F1': None}, 0.05)[0] == {'F1': 0.05}
+    assert sn.tasas_completas({'F1': 0.01}, 0.05) == ({'F1': 0.01}, [])
