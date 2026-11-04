@@ -1001,7 +1001,9 @@ def notas_alternativas_escalera(por_alimentador) -> list[str]:
         notas.append(f"Las filas «{'» y «'.join(etiquetas)}» son obras presentadas aparte: no están en «Con proyecto» ni en sus "
                      'flujos, y sus cifras no son efecto de ninguna obra aplicada. Se midieron con la demanda máxima, sin sorteos.')
     if any(a.get('definitiva') is not None for lista in por_alimentador.values() for a in lista):      # 042:RF-75
-        notas.append('Definitiva: con la demanda proyectada al horizonte de vida útil, medida en DIgSILENT, el flujo converge, '
+        tasas = sorted({float(a['tasa_horizonte']) for lista in por_alimentador.values() for a in lista if a.get('tasa_horizonte')})
+        con_tasa = f" con {' y '.join(f'{100 * t:.2f}'.replace('.', ',') for t in tasas)} % al año de largo plazo" if tasas else ''
+        notas.append(f'Definitiva: con la demanda proyectada al horizonte de vida útil{con_tasa}, medida en DIgSILENT, el flujo converge, '
                      'todas las barras quedan en límites y ningún tramo pasa del límite de planeamiento. Las cargas nuevas se '
                      'mantienen en su potencia solicitada. El alcance no cambia el orden, que es por costo anual.')
     factores = sorted({float(a['factor']) for lista in por_alimentador.values() for a in lista if a.get('factor')})

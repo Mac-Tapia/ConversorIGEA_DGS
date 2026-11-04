@@ -1306,3 +1306,17 @@ def test_si_ninguna_corrige_el_deficit_lo_dice_con_su_motivo(tmp_path, monkeypat
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
                                 previas={'F1': ['SIN_CAMINO']}, etiqueta_previas='déficit previo')
     assert 'no hay variante' in r['alimentadores'][0]['alternativas'][0]['nombre']
+
+
+def test_la_evaluacion_proyecta_con_la_tasa_de_largo_plazo_y_dice_la_medida(tmp_path, monkeypatch):
+    """042:RF-86 — el plan lleva la de largo plazo aunque la medida sea mucho mayor, y el aviso dice las dos."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
+    monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
+    monkeypatch.setattr(services, '_tasa_del_alimentador', lambda *_a: 0.165)
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True)
+    (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
+    assert ev['horizonte']['tasa'] < 0.1
+    assert any('042:RF-86' in a and '16.50' in a for a in r['alimentadores'][0]['avisos'])

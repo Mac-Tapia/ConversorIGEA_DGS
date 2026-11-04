@@ -110,6 +110,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `npx tsc --noEmit`, `npm test` y `pytest -q tests/test_set_nueva_web.py` en verde.
 - [x] T52. Tolerancia en valle sobre el máximo. (RF-85)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_valle.py` en verde.
+- [x] T53. El alcance con la tasa de largo plazo. (RF-86)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_valle.py` en verde.
 - [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
       Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
 - [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)

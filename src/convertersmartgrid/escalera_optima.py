@@ -24,6 +24,7 @@ from .catalogo_reguladores import CatalogoError, unidad_para_corriente, unidades
 from .estudios_pf import CON_PROYECTO
 from .instalacion_ternas import capacidad_de_tramos
 from .pide_economia import costo_anual
+from .perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA
 from .set_nueva import margen_sin_tasa
 
 #: Orden de la escalera: bancos, cambio de sección, terna y, al final, regulador (063:RF-21; cambia
@@ -109,6 +110,8 @@ class Parametros:
     factor_sin_tasa: float = 1.0
     #: 042:RF-73: los años a que una alternativa es definitiva.
     horizonte_anios: int = 20
+    #: 042:RF-86: el crecimiento con que se proyecta ese horizonte.
+    tasa_largo_plazo: float = 0.03
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -172,7 +175,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
         factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
                                         (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
-        horizonte_anios=int((perfil.get('planificacion') or {}).get('horizonte_anios') or 20))
+        horizonte_anios=int((perfil.get('planificacion') or {}).get('horizonte_anios') or 20),
+        tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA))
 
 
 def _opcional(x) -> float | None:

@@ -828,3 +828,10 @@ def test_en_valle_la_carga_nueva_sigue_estricta_y_por_abajo_tambien():
     """042:RF-85 — no vale para la barra de una carga nueva ni para bajar del mínimo."""
     assert eo.cumple_en_valle({'u': {'B': 1.049}, 'carga': {}}, {'converge': True, 'u': {'B': 1.051}, 'carga': {}}, ['B'], P)[0] is False
     assert eo.cumple_en_valle({'u': {'B': 0.951}, 'carga': {}}, {'converge': True, 'u': {'B': 0.948}, 'carga': {}}, [], P)[0] is False
+
+
+def test_el_horizonte_usa_la_tasa_de_largo_plazo_del_perfil():
+    """042:RF-86 — la del perfil; sin ella, la de referencia. No la medida, que en un alimentador salía 16,5 %."""
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'crecimiento_demanda_anual': 0.0346}})
+    assert p.tasa_largo_plazo == 0.0346 and P.tasa_largo_plazo == 0.03
+    assert eo.plan_de_horizonte('F1', p.tasa_largo_plazo, p)['factores']['20']['F1'] == pytest.approx(1.0346 ** 20)

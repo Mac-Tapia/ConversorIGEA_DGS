@@ -6034,7 +6034,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'barras_cargas': barras, 'sorteos': [] if (solo and f in solo) or objetivo_previo else sorteos, 'parametros': perfil,
             'tipo_cambio': tipo_cambio,
             **({'alternativas': eo.MAX_ALTERNATIVAS,                                      # 042:RF-55
-                'horizonte': eo.plan_de_horizonte(f, _tasa_del_alimentador(ws, ctx, project, f, fila['avisos']), p)}   # 042:RF-73
+                'horizonte': eo.plan_de_horizonte(f, p.tasa_largo_plazo, p)}                  # 042:RF-73, RF-86
                if por_alternativas else {}),
             'otro_proyecto': eo.BIBLIOTECA_TIPOS,
             'estado_con_proyecto': datos.get('variaciones_activas'), 'valle': valle,      # 073:RF-25
@@ -6076,6 +6076,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             evaluadas.append(e)
         decision = eo.elegir(evaluadas, p)
         fila['alternativas'] = decision.get('alternativas') or []                # 042:RF-58
+        if por_alternativas:
+            medida = _tasa_del_alimentador(ws, ctx, project, f, fila['avisos'])  # 042:RF-86: se dice, no se proyecta
+            fila['avisos'].append(f'{f}: el alcance se proyecta con {100 * p.tasa_largo_plazo:.2f} %/año de largo plazo'
+                                  + (f'; el crecimiento medido es {100 * medida:.2f} %/año' if medida is not None else '')
+                                  + ' (042:RF-86).')
+            for alt in fila['alternativas']:
+                alt['tasa_horizonte'] = p.tasa_largo_plazo
         if objetivo_previo:                                                      # 042:RF-65, RF-66
             cercana = next((t for t in decision['tabla'] if t['nombre'] == decision['mas_cercana']), None)
             fila['alternativas'] = ([{**a, 'fraccion': None} for a in fila['alternativas']] or [{
