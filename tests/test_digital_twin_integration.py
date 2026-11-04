@@ -127,7 +127,7 @@ def test_captura_se_apaga_con_su_variable(monkeypatch):
 
 
 @pytest.mark.parametrize('funcion', ['cargas_ejecutar', '_correr_guion_ajuste', 'pf_verificar_base',
-                                     'obras_ejecutar', 'estudios_ejecutar', 'transferencia_ejecutar',
+                                     'obras_ejecutar', '_correr_estudios', 'transferencia_ejecutar',
                                      'guion_ejecutar'])
 def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
     """024:RF-1 — toda acción nativa de la web pasa por el único punto de captura."""
