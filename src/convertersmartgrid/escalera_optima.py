@@ -228,6 +228,22 @@ def _escalon_bancos(alim, barras, banco_kvar, modulos: int) -> list[Variante]:
     return [_bancos_en(alim, barras, banco_kvar, n) for n in range(1, int(modulos) + 1)]
 
 
+def nodo_a_dos_tercios(tramos: Sequence[Mapping[str, Any]]) -> str | None:
+    """042:RF-37: la barra existente más cercana a 2/3 del camino; la de una carga nueva solo existe con ella."""
+    total = _km(tramos)
+    if total <= 0:
+        return None
+    acumulado, mejor = 0.0, None
+    for t in tramos:
+        acumulado += float(t.get('largo_m') or 0.0) / 1000.0
+        hasta = str(t.get('hasta') or '')
+        if hasta and not hasta.startswith('NODE_T_'):
+            distancia = abs(acumulado - 2.0 * total / 3.0)
+            if mejor is None or distancia < mejor[0]:
+                mejor = (distancia, hasta)
+    return mejor[1] if mejor else None
+
+
 def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos) -> list[Variante]:
     """Hasta tres sitios en la troncal, antes de la primera barra fuera de límites, con la
     unidad más chica que lleva la corriente del tramo (RF-60)."""
@@ -438,7 +454,16 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                         dobles.append(v)
                     else:
                         combinadas.append(v)
-    largo_km = max((_km(c) for c in _caminos(troncal, cargas)), default=0.0)
+    caminos = _caminos(troncal, cargas)
+    largo_km = max((_km(c) for c in caminos), default=0.0)
+    if largo_km >= p.linea_larga_km and banco_kvar:
+        # 042:RF-37: en línea larga, también donde más rinde el banco; SI112 no tenía ninguno, su carga parte un tramo.
+        nodo = nodo_a_dos_tercios(max(caminos, key=_km))
+        if nodo and nodo not in barras:
+            en_nodo = [_bancos_en(alimentador, [nodo], banco_kvar, n) for n in range(1, int(modulos) + 1)]
+            for v in en_nodo:
+                v.nombre = f'{v.nombre} a 2/3 de la línea en {nodo}'
+            solas[len(por_escalon['bancos']):len(por_escalon['bancos'])] = en_nodo
     if por_escalon['regulador'] and largo_km >= p.linea_larga_km:
         # 042:RF-35: en línea larga, el regulador no puede quedar detrás del tope; también con la doble terna más larga.
         mas_largas = sorted(dobles, key=lambda v: -float(v.cantidades.get('terna') or 0.0))[:3]

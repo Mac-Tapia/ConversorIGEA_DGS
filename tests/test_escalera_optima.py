@@ -451,3 +451,23 @@ def test_en_linea_larga_el_regulador_no_queda_fuera_del_tope():
     assert triple and any('042:RF-35' in a for a in avisos)
     cortas, avisos_c = de(100.0)
     assert not [v for v in cortas if len(v.escalones) == 3] and not any('042:RF-35' in a for a in avisos_c)
+
+
+def test_en_linea_larga_los_bancos_tambien_a_dos_tercios():
+    """042:RF-37 — la barra existente a 2/3 del camino, nunca la que crea una carga nueva; en línea corta, no."""
+    from convertersmartgrid import escalera_optima as eo
+
+    tramos = [{'nombre': f'L{i}', 'largo_m': 3000.0, 'hasta': f'B{i}'} for i in range(5)]
+    assert eo.nodo_a_dos_tercios(tramos) == 'B2'
+    tramos[2]['hasta'] = 'NODE_T_CARGA'
+    assert eo.nodo_a_dos_tercios(tramos) in ('B1', 'B3')
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'max_variantes': 40, 'modulos_max': 2},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    cargas = [{'barra': 'NODE_T_X', 'existe': False, 'camino': tramos}]
+    vs, _a = eo.variantes('F', 22.9, tramos, cargas, [], eo.parametros(perfil), banco_kvar=450.0)
+    assert [v for v in vs if '2/3' in v.nombre]
+    cortos = [{**t, 'largo_m': 100.0} for t in tramos]
+    vs, _a = eo.variantes('F', 22.9, cortos, [{**cargas[0], 'camino': cortos}], [], eo.parametros(perfil), banco_kvar=450.0)
+    assert not [v for v in vs if '2/3' in v.nombre]

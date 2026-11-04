@@ -1903,6 +1903,61 @@ def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
             f"de {d['antes']} a {d['despues']}: una obra tocó algo compartido.")
 
 
+#: Elementos con sitio en la red, y los atributos con sus barras (042:RF-36).
+CLASES_CON_SITIO = ('ElmLne', 'ElmShnt', 'ElmVoltreg', 'ElmTerm', 'ElmTr2')
+
+
+def _barras_de(objeto) -> list:
+    """Las barras de un elemento: él mismo si es barra; si no, las de sus conexiones."""
+    if objeto.GetClassName() == 'ElmTerm':
+        return [objeto]
+    return [t for t in (getattr(getattr(objeto, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv'))
+            if t is not None]
+
+
+def _punto_de(barra, transformar, crs) -> dict | None:
+    gps = gps_de(barra)
+    if not gps:
+        return None
+    punto = {'barra': barra.loc_name, 'lat': gps[0], 'lon': gps[1]}
+    if transformar is not None:
+        este, norte = transformar.transform(gps[1], gps[0])
+        punto.update(crs=crs, este=round(este, 1), norte=round(norte, 1))
+    return punto
+
+
+def georreferenciar_obras(app, filas: list[dict]) -> None:
+    """042:RF-36: ``ubicacion`` de cada obra con su variación, con «Con proyecto» activo.
+
+    Se lee de lo que grabó su etapa, sin saber de cada clase de obra: la que venga mañana también queda situada.
+    """
+    from convertersmartgrid.geography import make_transformer
+
+    crs = datos_perfil().get('crs_origen')
+    try:
+        transformar = make_transformer('EPSG:4326', crs) if crs else None
+    except (ImportError, ValueError):
+        transformar = None
+    vivos = {(clase, o.loc_name): o for clase in CLASES_CON_SITIO for o in app.GetCalcRelevantObjects(f'*.{clase}') or []}
+    carpeta = app.GetProjectFolder('scheme')
+    variaciones = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []}
+    for fila in filas:
+        v = variaciones.get(fila.get('variacion'))
+        if v is None:
+            continue
+        ubicacion = []
+        for etapa in v.GetContents('*.IntSstage') or []:
+            for o in etapa.GetContents('*', 1) or []:
+                vivo = vivos.get((o.GetClassName(), o.loc_name))
+                if vivo is None:
+                    continue
+                puntos = [p for p in (_punto_de(b, transformar, crs) for b in _barras_de(vivo)) if p]
+                ubicacion.append({'elemento': vivo.loc_name, 'clase': vivo.GetClassName(), 'puntos': puntos})
+        fila['ubicacion'] = ubicacion
+        if any(not u['puntos'] for u in ubicacion):
+            fila.setdefault('avisos', []).append('Hay elementos de esta obra sin coordenadas en sus barras (042:RF-36).')
+
+
 def aplicar(app, plan: dict, *, simular: bool = False,
             cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica las obras del plan. Devuelve (informe, código de salida)."""
@@ -1988,6 +2043,10 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             # 016:RF-89: el enlace y las mitades de un tramo partido, en el diagrama; en
             # «Con proyecto», que tiene también las obras de «Sin proyecto».
             casos['con'].Activate()
+            try:
+                georreferenciar_obras(app, informe['obras'])             # 042:RF-36
+            except Exception as exc:  # noqa: BLE001 - situarlas no puede perder las obras ya aplicadas
+                informe['avisos'].append(f'No se pudieron leer las coordenadas de las obras: {exc} (042:RF-36).')
             informe['dibujo'] = completar_diagrama(app, proyecto)
     finally:
         if ajenas:
