@@ -33,7 +33,7 @@ retirada.
 | [024](024-pinn-gemelo-digital/spec.md) | PINN como oráculo y gemelo digital de la red calibrada | cumplida | 80 | 80 | — |
 | [025](025-calibracion-por-anio/spec.md) | Calibración por año de medición | aprobada | 85 | 85 | T21 (DIgSILENT), T22 |
 | [026](026-asistente-ordenes/spec.md) | Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | 32 | 32 | T12 (DIgSILENT) |
-| [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 69 | 61 | T11, T22, T14 (DIgSILENT), T26, T29 (DIgSILENT), T30 (DIgSILENT), T31 (DIgSILENT) |
+| [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 69 | 61 | T11, T22 (DIgSILENT), T14 (DIgSILENT), T26, T29 (DIgSILENT), T30 (DIgSILENT), T31 (DIgSILENT) |
 | [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | implementada | 39 | 39 | T6 (DIgSILENT), T11 (DIgSILENT), T15 (DIgSILENT) |
 | [029](029-crecimiento-por-alimentador/spec.md) | Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida | 7 | 7 | — |
 | [030](030-pide-por-anios-en-digsilent/spec.md) | Los años del PIDE en casos y escenarios de DIgSILENT | cumplida | 15 | 15 | — |
@@ -53,7 +53,7 @@ retirada.
 | [044](044-evaluacion-causal-y-verificacion-completa/spec.md) | Evaluación causal y verificación completa | implementada | 9 | 9 | T4 (DIgSILENT) |
 | [045](045-gemelo-fisico-y-contratos-pinn-gnn/spec.md) | Gemelo físico y contratos PINN/GNN | aprobada | 11 | 10 | T3, T4 (DIgSILENT) |
 | [046](046-pronostico-causal-multihorizonte/spec.md) | Pronóstico causal multihorizonte | cumplida | 25 | 25 | — |
-| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 37 | 37 | T4, T8, T7 |
+| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 41 | 41 | T4, T8, T7 |
 | [048](048-optimizacion-mixta-evolutiva-y-pnl/spec.md) | Optimización mixta evolutiva y PNL | aprobada | 9 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [049](049-protecciones-nativas-y-coordinacion/spec.md) | Protecciones nativas y coordinación | aprobada | 10 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 10 | 10 | T1b, T2b, T3b, T4b, T5b |
