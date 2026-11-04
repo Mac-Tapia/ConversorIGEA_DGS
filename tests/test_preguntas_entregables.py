@@ -22,7 +22,8 @@ RAIZ = PE.RAIZ
 #: Huellas del contenido, fijadas al escribir el conjunto; cambiarlas es cambiar el conjunto (076:RF-7, RF-9).
 #: 081:RF-70 (2026-11-03): catalogo_parametros-003, -004 y operacion_web-031, y los dos hechos del catálogo, revisados
 #: porque el aviso «Reconvierta…» que citaban se corrigió; lo sellado no cambia.
-HUELLA_CONJUNTO = '7a2ef176bd0cc04358b12f34057171376b85c53e20c7aff36b64d88f16c79875'
+#: 042:RF-33 (2026-11-04): set_nueva-002 revisada, porque sin libro CAPEX la SET ya se crea igual; lo sellado no cambia.
+HUELLA_CONJUNTO = '40dfc35456f7cedc6de03df4839d442d115b03def486a99a75fd31de696f44b4'
 HUELLA_SELLADO = 'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 
