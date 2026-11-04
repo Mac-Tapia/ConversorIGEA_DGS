@@ -4,23 +4,28 @@
 
 - [ ] T1 Registrar las decisiones D1 a D7 del usuario, con fecha, en `spec.md`.
   Hecho cuando: D1 a D5 están respondidas; D6 y D7 tienen responsable.
-- [ ] T2 Integrar `feat/decisiones-usuario`, `entrega/042-doble-terna`, `entrega/083-calibracion` y lo que falte de `fix/acopladores-con-fases`, con una ventana acordada con las otras sesiones. (RF-45)
+- [x] T2 Integrar `feat/decisiones-usuario`, `entrega/042-doble-terna`, `entrega/083-calibracion` y lo que falte de `fix/acopladores-con-fases`, con una ventana acordada con las otras sesiones. (RF-45)
   Hecho cuando: `git cherry` no da trabajo pendiente en ellas, y suite completa con las nueve variables y `CSG_MCP_PYTHON`, sin omitidas ni fallos, sobre esa revisión.
-- [ ] T3 Pasar a `main`, `pip install -e .`, compilar, reiniciar la web y aplicar el modelo provisional. (RF-45)
+  Evidencia: suite sobre ab8efa9c, 6 753 aprobadas, 0 omitidas, 0 caídas y 2 fallos de pruebas que leían un texto ya cambiado; corregidos en c7c04175 y c79013c2, que solo tocan esas pruebas, y pasan aparte. La suite limpia de cierre es la T31. `entrega/083-calibracion` queda sustituida por la 042; `fix/*`, ya presentes; 042:RF-48 y la 087 esperan prueba en DIgSILENT.
+- [x] T3 Pasar a `main`, `pip install -e .`, compilar, reiniciar la web y aplicar el modelo provisional. (RF-45)
   Hecho cuando: la web muestra el aviso provisional con sus cifras y `test_entry_points_instalados_coinciden_con_pyproject` pasa.
+  Evidencia: `main` en c79013c2; navegador real en el 8765, con el aviso «examen 0,964 de 0,98 y F1 0,918 de 0,95 […] sellada 0,860; sintéticas 0,829; se cuela 0,0 %».
 - [ ] T4 Aclarar `factor_seguridad_set` en `config/perfiles/electro_dunas.json:64` (1,0 frente a un comentario de 1,25) y corregir lo que confirme el usuario. (RF-45)
   Hecho cuando: el perfil coincide con su comentario.
 - [ ] T5 Decidir RF-42 de la 042 con la cabecera compartida frente a la regla «siempre una solución».
   Hecho cuando: el caso produce una solución con su aviso y prueba, o el usuario acepta el comportamiento actual.
+
+- [ ] T37 El informe separa lo que causa la carga del déficit que ya existía. (RF-48, RF-49, RF-50) (`v1/deficit`)
+  Hecho cuando: con una barra baja que no empeora, el informe la lista como déficit previo con su tensión y barra, y nunca dice «en norma» sin ese matiz.
 
 ## F1 Datos que no se pierden (`v1/datos`)
 
 - [x] T6 Escritura duradera, espacio dañado y rutas conservadas. (RF-1, RF-2, RF-3)
   Hecho cuando: pruebas de JSON truncado y de unidad ausente: el espacio se ve, se puede restaurar y ninguna ruta se pierde al guardar.
   Por la API; el botón y el aviso en la interfaz siguen en T35.
-- [ ] T7 Migraciones, rutas relativas e identidad estable. (RF-4, RF-5, RF-6, RF-7, RF-8)
+- [x] T7 Migraciones, rutas relativas e identidad estable. (RF-4, RF-5, RF-6, RF-7, RF-8)
   Hecho cuando: todos los espacios actuales migran sobre una copia sin perder nada; mover la carpeta conserva los espacios; escribir en otra unidad funciona.
-  Hecho, salvo una parte: la migración sobre copia se midió con la raíz de ejecución actual (2 espacios, sin perder nada). Falta repetirla con los de `output/web`, que el agente no debía tocar, justo antes de T9.
+  Evidencia: los 24 de `output/web` (2026-11-04), 0 fallos, 0 diferencias al expandir, 24 copias `workspace.v2.json` idénticas y el origen intacto por sus huellas; los 2 de la raíz de ejecución, igual. Solo se copiaron los JSON: las entradas se ven como no disponibles porque sus ficheros no se copiaron. El espacio abre con las dos raíces (`WorkspaceStore.roots`).
 - [x] T8 Trabajos interrumpidos, copia y restauración. (RF-9, RF-10, RF-47)
   Hecho cuando: matar el proceso a media corrida deja el trabajo como interrumpido; restaurar una copia devuelve el mismo estado.
   Por la API y por `tools/copia_datos.py`; verlo en la interfaz sigue en T35. El corte de luz real es la T33.
