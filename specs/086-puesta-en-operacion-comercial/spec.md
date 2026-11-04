@@ -33,7 +33,7 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - D1 Alcance geográfico. Recomendado: **solo Perú** en la 1.0 (60 Hz, soles y normas peruanas siguen en el perfil o como jurisdicción).
 - D2 Modelo de venta. Recomendado: **puesto local por licencia**, un equipo por operador, sin servidor multiusuario.
 - D3 Repositorio. Hoy el repositorio de GitHub es **público y sin licencia** (comprobado el 2026-11-04). Decidido por el usuario, 2026-11-04:
-  **sigue público para recibir comentarios**. La entrega al cliente sigue siendo la empaquetada (D4), y antes de cada push se revisa que no vayan
+  **sigue público para recibir comentarios, y se puede usar y reutilizar**: licencia MIT desde el 2026-11-04 (`LICENSE`). La entrega al cliente sigue siendo la empaquetada (D4), y antes de cada push se revisa que no vayan
   datos de la distribuidora ni secretos.
 - D4 Entrega. Recomendado: **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`.
 - D5 Comentarios con casos reales en el código entregado. Recomendado: **neutralizarlos en la línea de producto**, conservando el motivo
