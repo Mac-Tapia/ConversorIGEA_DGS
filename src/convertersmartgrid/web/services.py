@@ -5771,6 +5771,17 @@ def _guardar_valle_de_la_obra(ws: Workspace, project: str, alimentador: str, fil
     write_json_atomic(ruta, datos)
 
 
+#: 042:RF-65: la fila del informe de la obra que no paga la carga.
+ETIQUETA_PREVIO = 'déficit previo'
+
+
+def _barras_del_deficit_previo(fuera: dict | None) -> list[str]:
+    """La que la carga no causa, de la más baja a la menos (042:RF-64): sin comparación tampoco se sabe que la cause."""
+    filas = sorted(list((fuera or {}).get('previo') or []) + list((fuera or {}).get('sin_comparacion') or []),
+                   key=lambda x: (x['u'], x['barra']))
+    return [str(x['barra']) for x in filas]
+
+
 def _ruta_alternativas_escalera(ws: Workspace) -> Path:
     return ws.out_dir / 'alternativas_escalera.json'
 
@@ -5823,7 +5834,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    capex: str | None = None, cargas_activas: list[str] | None = None,
                    aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
                    variantes_de: dict | None = None, solo_comun: bool = False,
-                   solo: dict | None = None, por_alternativas: bool = False) -> dict:
+                   solo: dict | None = None, por_alternativas: bool = False, previas: dict | None = None) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -5951,6 +5962,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
                  'apartar_variaciones': apartar_variaciones}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
+        objetivo_previo = bool(previas and previas.get(f))                       # 042:RF-64
+        if objetivo_previo:
+            de_f = [{'barra': b, 'alimentador': f} for b in previas[f]]
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
             **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu,
@@ -5978,7 +5992,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # puede estar en el NODE_T_ que creó su variación).
         existen = set(d.get('existen') or ())
         cargas_f = [_carga_para_escalera(media.get(str(c['barra']), str(c['barra'])), existen, d)
-                    for c in de_f if c.get('barra')]
+                    for c in (de_f[:1] if objetivo_previo else de_f) if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
                               banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'),
                               nivel=d.get('nivel'))
@@ -5991,6 +6005,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             vs = [v for v in vs if v.nombre == solo[f]] or vs
         if not vs:
             fila['avisos'].append(f'{f}: ninguna variante que probar.')
+            if objetivo_previo:                                                  # 042:RF-66
+                fila['alternativas'] = [{'numero': 1, 'nombre': f'ninguna obra corrige; no hay variante que probar hasta {barras[0]}',
+                                         'escalones': [], 'inversion': None, 'costo_anual': None, 'fraccion': None, 'elegida': False}]
+                _guardar_alternativas_escalera(ws, project, f'{f} · {ETIQUETA_PREVIO}', fila['alternativas'])
             resultado.append(fila)
             continue
         ctx.log(f"{f}: {len(vs)} variantes en el orden {', '.join(eo.ORDEN)}…")   # 063:RF-21
@@ -6009,7 +6027,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
                           for v in vs],
             # 042:RF-59: la obra que esta corrida acaba de sortear no se vuelve a sortear al aplicarla.
-            'barras_cargas': barras, 'sorteos': [] if solo and f in solo else sorteos, 'parametros': perfil,
+            'barras_cargas': barras, 'sorteos': [] if (solo and f in solo) or objetivo_previo else sorteos, 'parametros': perfil,
             'tipo_cambio': tipo_cambio,
             **({'alternativas': eo.MAX_ALTERNATIVAS} if por_alternativas else {}),        # 042:RF-55
             'otro_proyecto': eo.BIBLIOTECA_TIPOS,
@@ -6052,7 +6070,14 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             evaluadas.append(e)
         decision = eo.elegir(evaluadas, p)
         fila['alternativas'] = decision.get('alternativas') or []                # 042:RF-58
-        if por_alternativas:
+        if objetivo_previo:                                                      # 042:RF-65, RF-66
+            cercana = next((t for t in decision['tabla'] if t['nombre'] == decision['mas_cercana']), None)
+            fila['alternativas'] = ([{**a, 'fraccion': None} for a in fila['alternativas']] or [{
+                'numero': 1, 'nombre': f"ninguna obra corrige; la más cercana: {decision['mas_cercana'] or 'ninguna'}"
+                + (f": {cercana['motivo']}" if cercana and cercana.get('motivo') else ''),
+                'escalones': [], 'inversion': None, 'costo_anual': None, 'fraccion': None, 'elegida': False}])
+            _guardar_alternativas_escalera(ws, project, f'{f} · {ETIQUETA_PREVIO}', fila['alternativas'])
+        elif por_alternativas:
             _guardar_alternativas_escalera(ws, project, f, fila['alternativas'])
         fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
                     tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
@@ -6211,7 +6236,19 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                 escalera = hecha
             else:
                 escalera['alimentadores'] = list(escalera.get('alimentadores') or []) + list(hecha.get('alimentadores') or [])
-        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
+        deficit = None
+        barras_previas = _barras_del_deficit_previo(fila.get('bajo_limite')) if ok else []
+        if barras_previas:                                                        # 042:RF-64
+            ctx.check_cancel()
+            ctx.log(f"{f}: {len(barras_previas)} barra(s) ya bajas; se evalúa su obra, aparte de la de la carga (042:RF-64).")
+            previo = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+                                    basta_una=True, memo=memo, por_alternativas=True, previas={f: barras_previas}, **opciones)
+            de_previo = next(iter(previo.get('alimentadores') or []), {})
+            deficit = {'barras': barras_previas, 'alternativas': de_previo.get('alternativas') or []}
+            for alt in deficit['alternativas']:
+                ctx.log(f"{f}, {ETIQUETA_PREVIO}: alternativa {alt['numero']}: {alt['nombre']}"
+                        + (f", {alt['costo_anual']:,.0f} al año" if alt.get('costo_anual') is not None else '') + ' (042:RF-65).')
+        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok, 'deficit_previo': deficit,
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
         # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
         resto_bajo = ' El alimentador sigue con barras bajo el límite: vea sus avisos.' if queda_deficit(fila.get('bajo_limite')) else ''

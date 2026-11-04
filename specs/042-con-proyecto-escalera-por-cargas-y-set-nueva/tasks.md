@@ -96,6 +96,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_016.py` en verde.
 - [ ] T42. [DIgSILENT] Un alimentador de 10 kV sin barra de 22,9 kV en su SET converge con el elevador. (RF-61)
       Hecho cuando: el flujo converge con el elevador sobre un proyecto de prueba, y su medida queda en la tarea.
+- [x] T43. Obra aparte para el déficit previo, con su costo. (RF-64, RF-65, RF-66)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py tests/test_valle.py` en verde.
+- [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
+      Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
 - [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
       Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
 - [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)

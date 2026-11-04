@@ -1271,3 +1271,37 @@ def test_las_alternativas_se_piden_se_guardan_y_al_aplicar_no_se_vuelve_a_sortea
     services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=True, basta_una=True, solo={'F1': f1['elegida']})
     aplicar = [x for x in planes if '--evaluar' in x[0]]
     assert all(not ev['sorteos'] and 'alternativas' not in ev for _a, ev in aplicar)
+
+
+def test_la_obra_del_deficit_previo_va_aparte_y_sin_sorteos(tmp_path, monkeypatch):
+    """042:RF-64, 042:RF-65 — su objetivo son esas barras, se mide con la máxima y se guarda con su etiqueta, sin aplicarse."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
+
+    services, ws, ctx, planes, aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
+    monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
+                                previas={'F1': ['F1_B4', 'F1_B2']})
+    (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
+    assert ev['barras_cargas'] == ['F1_B4', 'F1_B2'] and ev['sorteos'] == [] and not aplicadas
+    (f1,) = r['alimentadores']
+    assert f1['alternativas'] and all(a['fraccion'] is None for a in f1['alternativas'])
+    guardadas = services.alternativas_de_la_escalera(ws, 'P')
+    assert list(guardadas) == ['F1 · déficit previo']
+
+
+def test_si_ninguna_corrige_el_deficit_lo_dice_con_su_motivo(tmp_path, monkeypatch):
+    """042:RF-66 — nunca sin respuesta: la más cercana y lo que queda."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': False, 'fraccion': None, 'perdidas_kw': 10.0, 'motivos': ['F1_B4 a 0,91 p.u.']}
+
+    services, ws, ctx, _planes, _aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
+    monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
+                                previas={'F1': ['F1_B4']})
+    (alt,) = r['alimentadores'][0]['alternativas']
+    assert alt['nombre'].startswith('ninguna obra corrige; la más cercana:') and 'F1_B4 a 0,91' in alt['nombre']
+    assert alt['costo_anual'] is None
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
+                                previas={'F1': ['SIN_CAMINO']})
+    assert 'no hay variante' in r['alimentadores'][0]['alternativas'][0]['nombre']

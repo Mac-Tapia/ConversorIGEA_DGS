@@ -641,3 +641,38 @@ def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
     orden.clear()
     services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'])
     assert orden == ['reponer', 'escalera']
+
+
+def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
+    """042:RF-64 — con obra para la carga y sin ella: segunda escalera con las barras previas; ninguna obra si no las hay."""
+    from convertersmartgrid.web import services
+
+    baja = {'previo': [{'barra': 'B2', 'u': 0.94}, {'barra': 'B1', 'u': 0.93}], 'causado': [], 'sin_comparacion': [{'barra': 'B3', 'u': 0.945}]}
+    filas = {'F1': {'alimentador': 'F1', 'elegida': 'obra', 'bajo_limite': baja},
+             'F2': {'alimentador': 'F2', 'ya_cumple': True, 'bajo_limite': baja},
+             'F3': {'alimentador': 'F3', 'ya_cumple': True, 'bajo_limite': {'causado': [{'barra': 'B9', 'u': 0.9}]}}}
+    aplicadas = [{'sed': f, 'alimentador': f, 'kw': 10.0, 'variacion': f'Carga_{f}'} for f in filas]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    pedidas = {}
+
+    def escalera(ws, ctx, project, feeders, *, previas=None, **k):
+        f = feeders[0]
+        if previas:
+            pedidas[f] = (previas[f], k['aplicar'])
+            return {'alimentadores': [{'alimentador': f, 'alternativas': [{'numero': 1, 'nombre': 'x', 'costo_anual': 5.0}]}]}
+        return {'alimentadores': [filas[f]]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', list(filas))
+    assert pedidas == {'F1': (['B1', 'B2', 'B3'], False), 'F2': (['B1', 'B2', 'B3'], False)}
+    assert r['por_alimentador']['F2']['deficit_previo']['alternativas'][0]['nombre'] == 'x'
+    assert r['por_alimentador']['F3']['deficit_previo'] is None
