@@ -100,7 +100,7 @@ def test_las_obras_nuevas_vuelven_igual_del_espacio():
     ({'clase': 'migracion', 'alimentador': 'IN111', 'kv_destino': 22.9}, 'nodo'),
     ({'clase': 'migracion', 'alimentador': 'IN111', 'nodo': 'N7'}, 'tensión'),
     ({'clase': 'seccion', 'alimentador': 'A1', 'toda_troncal': True, 'tramos': ['L1'],
-      'tipo': AAAC_120}, 'no las dos'),
+      'tipo': AAAC_120}, 'solo una de las tres'),
 ])
 def test_obra_nueva_incompleta_se_rechaza(datos, falta):
     """016:RF-23, 016:RF-31, 016:RF-51 — lo que falta o no vale se dice al definir la obra."""
@@ -285,3 +285,41 @@ def test_migracion_avisa_de_un_anillo_que_une_las_dos_partes():
     obra = _obra(clase='migracion', alimentador='IN111', nodo='A', kv_destino=22.9, casos=CON)
     (fila,) = op.plan_simulacion([obra], {'IN111': red}, _tipos(10.0))
     assert any('L4' in a and 'anillo' in a for a in fila['avisos'])
+
+
+# --------------------------------------------------------------------------- spec 017
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_seccion_de_la_troncal_hasta_la_sed_que_indica_el_operador(semilla):
+    """017:RF-41, 017:RF-42b — el cambio de conductor va en los tramos del camino de la
+    cabecera a la SED indicada (con el árbol de la spec 016), no en el camino más largo."""
+    from convertersmartgrid.troncal import arbol
+
+    rng = random.Random(semilla)
+    red = _alimentador(rng, 'CA', 10.0)
+    sed = rng.choice(sorted(red.trafo_barra))
+    camino = [t.nombre for t in arbol(red.topologia, red.cabecera).camino(red.trafo_barra[sed])]
+    obra = _obra(clase='seccion', alimentador='CA', hasta=sed, tipo=AAAC_120, casos=CON)
+    assert op.validar_obra(obra.a_dict()) == obra, 'la SED de destino se guarda y se reconstruye'
+    (fila,) = op.plan_simulacion([obra], {'CA': red}, _tipos(10.0))
+    assert not fila['error'], fila
+    cambian = {e['elemento'] for e in fila['elementos']}
+    assert cambian == {t for t in camino if red.tramos[t].tipo != 'AAAC_120'}
+    assert fila['hasta']['tramos'] == len(camino) and fila['hasta']['barra'] == red.trafo_barra[sed]
+    assert not any('troncal' in a for a in fila['avisos']), 'el camino a la SED es la troncal de la obra'
+    # Por la barra de la SED también vale.
+    (por_barra,) = op.plan_simulacion([_obra(clase='seccion', alimentador='CA', casos=CON,
+                                             hasta=red.trafo_barra[sed], tipo=AAAC_120)],
+                                      {'CA': red}, _tipos(10.0))
+    assert por_barra['elementos'] == fila['elementos']
+
+
+def test_la_sed_que_no_esta_en_el_alimentador_se_dice():
+    """017:RF-42c — una SED que no es del alimentador no se evalúa y se dice cuál es; la SED
+    no se pide a la vez que unos tramos o toda la troncal."""
+    red = _alimentador(random.Random(9), 'CA', 10.0)
+    obra = _obra(clase='seccion', alimentador='CA', hasta='SE_OTRA', tipo=AAAC_120, casos=CON)
+    (fila,) = op.plan_simulacion([obra], {'CA': red}, _tipos(10.0))
+    assert 'SE_OTRA' in fila['error'] and 'CA' in fila['error'] and not fila['elementos']
+    for otra in ({'toda_troncal': True}, {'tramos': ['CA_L1']}):
+        with pytest.raises(op.ObrasError, match='solo una de las tres'):
+            _obra(clase='seccion', alimentador='CA', hasta='X', tipo=AAAC_120, casos=CON, **otra)

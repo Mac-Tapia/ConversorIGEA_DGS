@@ -195,6 +195,19 @@ def aguas_abajo(red: Red, cabecera: str, nodo: str) -> Subarbol:
     return Subarbol(nodo, tuple(sorted(barras)), tuple(sorted(tramos)), entrada)
 
 
+def camino_hasta(red: Red, cabecera: str, barra: str) -> tuple[str, ...]:
+    """Los tramos del camino de la cabecera a ``barra``, en ese orden (017:RF-41).
+
+    Es la troncal de la cabecera a una SED que indica el operador: en CA101, la que va a
+    la SED del cliente (SE20701), no el camino más largo del alimentador.
+    """
+    a = arbol(red, cabecera)
+    if barra not in a.padre:
+        raise TroncalError(f'la barra {barra} no está en el alimentador o no tiene camino '
+                           f'cerrado desde su cabecera {cabecera}')
+    return tuple(t.nombre for t in a.camino(barra))
+
+
 def red_de(barras: Iterable[Barra], tramos: Iterable[Tramo]) -> Red:
     return Red({b.nombre: b for b in barras}, tuple(tramos))
 

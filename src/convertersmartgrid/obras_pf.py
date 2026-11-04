@@ -36,7 +36,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .instalacion_ternas import CONFIGURACIONES
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
-from .troncal import Red, TroncalError, aguas_abajo
+from .troncal import Red, TroncalError, aguas_abajo, camino_hasta
 
 #: DIgSILENT no admite más en ``loc_name``.
 LARGO_MAXIMO = 40
@@ -183,6 +183,8 @@ class Obra:
     kv_destino: float | None = None
     toda_troncal: bool = False
     """Sección de todos los tramos de la troncal (016:RF-6)."""
+    hasta: str = ''
+    """Sección de la troncal de la cabecera a esta SED o barra (017:RF-41)."""
     tipo_cable: TipoRef | None = None
     """Para los tramos de cable de la troncal (016:RF-7)."""
     cede: str = ''
@@ -428,9 +430,11 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
     if clase == 'seccion':
         toda = bool(datos.get('toda_troncal'))
         tramos = _lista(datos.get('tramos'))
-        if toda and tramos:
-            raise ObrasError('Elija «toda la troncal» o unos tramos, no las dos cosas.')
-        return Obra(**comunes, tramos=tramos, toda_troncal=toda,
+        hasta = str(datos.get('hasta') or '').strip()
+        if sum((toda, bool(tramos), bool(hasta))) > 1:
+            raise ObrasError('Elija «toda la troncal», unos tramos o la SED hasta la que llega la '
+                             'troncal: solo una de las tres.')
+        return Obra(**comunes, tramos=tramos, toda_troncal=toda, hasta=hasta,
                     tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True),
                     tipo_cable=_tipo_ref(datos.get('tipo_cable'), clase, requerido=False))
     if clase == 'terna':
@@ -628,12 +632,38 @@ class _Plan:
         return nombre
 
     def tramos(self) -> list[str]:
-        """Los que indica el operador o, si no indica ninguno, la troncal (RF-78, RF-80)."""
+        """Los que indica el operador o, si no indica ninguno, la troncal (RF-78, RF-80);
+        con una SED de destino, el camino de la cabecera a ella (017:RF-41)."""
+        if self.obra.hasta:
+            return [self.tramo(t) for t in self.camino_hasta()]
         pedidos = list(self.obra.tramos) or list(self.red.troncal)
         if not pedidos:
             raise ObrasError(f'No se leyó la troncal del alimentador {self.red.alimentador}: '
                              f'indique los tramos.')
         return [self.tramo(t) for t in pedidos]
+
+    def camino_hasta(self) -> tuple[str, ...]:
+        """La troncal de la cabecera a la SED o barra ``hasta`` de la obra (017:RF-41, RF-42b).
+
+        La SED se busca por su transformador (lleva a su barra de media) o por la barra.
+        Una que no está en el alimentador no se cambia y se dice cuál es (RF-42c).
+        """
+        o, red = self.obra, self.red
+        if red.topologia is None or not red.cabecera:
+            raise ObrasError(f'No se leyó la red del alimentador {o.alimentador}: no se sabe qué '
+                             f'tramos van de la cabecera a {o.hasta}.')
+        barra = red.trafo_barra.get(o.hasta, o.hasta)
+        try:
+            tramos = camino_hasta(red.topologia, red.cabecera, barra)
+        except TroncalError:
+            raise ObrasError(f'La SED {o.hasta} no está en el alimentador {o.alimentador}: no se '
+                             f'evalúa la obra de la troncal hasta ella.') from None
+        if not tramos:
+            raise ObrasError(f'{o.hasta} es la cabecera de {o.alimentador}: no hay troncal hasta ella.')
+        largos = {t.nombre: t.largo_m for t in red.topologia.tramos}
+        self.extra['hasta'] = {'sed': o.hasta, 'barra': barra, 'tramos': len(tramos),
+                               'largo_m': round(sum(largos.get(t, 0.0) for t in tramos), 1)}
+        return tramos
 
     def traer(self, ref: TipoRef) -> Tipo:
         if ref.origen == 'proyecto':
@@ -796,8 +826,9 @@ def _seccion(p: _Plan) -> None:
     if o.toda_troncal:
         _toda_la_troncal(p, tipo)
         return
-    troncal = set(p.red.troncal)
-    if not troncal:
+    # Con una SED de destino, el camino a ella es la troncal de la obra (017:RF-41).
+    troncal = set() if o.hasta else set(p.red.troncal)
+    if not troncal and not o.hasta:
         p.avisos.append('No se leyó la troncal del alimentador: no se comprueba si los tramos '
                         'son de ella.')
     for tramo in p.tramos():

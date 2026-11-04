@@ -86,6 +86,75 @@ def _proyeccion(puntos: list[tuple[float, float]]):
     return a_px, escala
 
 
+#: Pie de la vista de ubicación, que se dibuja sin mapa de fondo (017:RF-112).
+PIE_SIN_FONDO = 'Sin mapa de fondo: dibujado con las coordenadas de la red'
+#: Pie de la imagen de un alimentador sin coordenadas (017:RF-12).
+PIE_ESQUEMATICO = 'Esquemático: el alimentador no tiene coordenadas GPS'
+#: Paso del esquemático entre niveles y entre filas, en «grados» ficticios.
+_PASO_ESQUEMA = 0.001
+
+
+def esquematico(geo: Mapping[str, Any]) -> Mapping[str, Any]:
+    """La geografía de un alimentador sin GPS, con posiciones de esquema (017:RF-12).
+
+    ``tools/estudios_pf.py`` guarda en ``esquema`` las barras y los tramos de un alimentador
+    sin ninguna coordenada. Se dibuja como un árbol desde la cabecera: cada barra a la
+    derecha de la que la alimenta y cada rama en su fila, con el mismo coloreado por
+    tensión y por cargabilidad. Una geografía con coordenadas se devuelve tal cual.
+    """
+    esquema = geo.get('esquema')
+    tiene_gps = any(b[1] is not None and b[2] is not None for b in geo.get('barras') or [])
+    if not esquema or tiene_gps or any(len(t[1] or []) >= 2 for t in geo.get('tramos') or []):
+        return geo
+    datos = {b[0]: b for b in esquema.get('barras') or []}
+    vecinos: dict[str, list[str]] = {}
+    for _n, a, b, _c in esquema.get('tramos') or []:
+        vecinos.setdefault(a, []).append(b)
+        vecinos.setdefault(b, []).append(a)
+    for _n, a, b in geo.get('acoples') or []:
+        vecinos.setdefault(a, []).append(b)
+        vecinos.setdefault(b, []).append(a)
+    for v in vecinos.values():
+        v.sort()
+    posicion: dict[str, tuple[int, float]] = {}
+    fila = 0.0
+    raices = [geo['cabecera']] if geo.get('cabecera') in vecinos else []
+    raices += sorted(set(vecinos) | set(datos))
+    for raiz in raices:
+        if raiz in posicion:
+            continue
+        # Recorrido en profundidad sin recursión: un alimentador real tiene miles de barras.
+        # El primer hijo sigue en la fila de su padre; cada rama nueva abre una fila.
+        nivel, padre, hijos = {raiz: 0}, {raiz: None}, {}
+        orden: list[str] = []
+        pila = [raiz]
+        while pila:
+            n = pila.pop()
+            orden.append(n)
+            hijos[n] = [h for h in vecinos.get(n, []) if h not in nivel]
+            for h in hijos[n]:
+                nivel[h], padre[h] = nivel[n] + 1, n
+            pila.extend(reversed(hijos[n]))
+        fila_de: dict[str, float] = {}
+        for n in orden:
+            p = padre[n]
+            if p is not None and hijos[p][0] != n:
+                fila += 1
+            fila_de[n] = fila if p is None or hijos[p][0] != n else fila_de[p]
+            posicion[n] = (nivel[n], fila_de[n])
+        fila += 1
+
+    def coord(n):
+        x, y = posicion[n]
+        return [round(-y * _PASO_ESQUEMA, 7), round(x * _PASO_ESQUEMA, 7)]
+
+    barras = [[n, *coord(n), (datos.get(n) or [n, None, 0.0])[1], (datos.get(n) or [n, None, 0.0])[2]]
+              for n in sorted(posicion)]
+    tramos = [[n, [coord(a), coord(b)], c, a, b, None, None]
+              for n, a, b, c in esquema.get('tramos') or [] if a in posicion and b in posicion]
+    return {**geo, 'barras': barras, 'tramos': tramos, 'pie': PIE_ESQUEMATICO}
+
+
 def _fuente(tam: int):
     from PIL import ImageFont
 
@@ -115,6 +184,7 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
     """
     from PIL import Image, ImageDraw
 
+    geo = esquematico(geo)                                                       # RF-12
     barras = [b for b in geo.get('barras') or [] if b[1] is not None and b[2] is not None]
     tramos = [t for t in geo.get('tramos') or [] if len(t[1] or []) >= 2]
     puntos = [(b[1], b[2]) for b in barras] + [tuple(p) for t in tramos for p in t[1]]
@@ -324,11 +394,15 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
             y += 6
     pie = ('Topología nativa; sin solución de flujo' if (resaltar or {}).get('sin_resultados')
            else 'Resultados del flujo de DIgSILENT')
+    if geo.get('pie'):                                                           # RF-12
+        for i, linea in enumerate(textwrap.wrap(geo['pie'], width=36)):
+            d.text((x0, ALTO_PX - 90 + 20 * i), linea, fill=(90, 90, 90), font=_fuente(16))
     d.text((x0, ALTO_PX - 40), pie, fill=(90, 90, 90),
            font=_fuente(16))
     destino.parent.mkdir(parents=True, exist_ok=True)
     from PIL.PngImagePlugin import PngInfo
     info = PngInfo()
+    info.add_text('pie', geo.get('pie') or pie)
     if resaltar is not None:
         evidencia = {'tension_fuera': (None if resaltar.get('sin_resultados') else [x[0] for x in resaltar['tension']]),
                      'sobrecargas': (None if resaltar.get('sin_resultados') else [x[0] for x in resaltar['carga']]),
@@ -519,7 +593,10 @@ def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: st
     d.text((x0, ALTO_PX - 60), 'Sin mapa de fondo: dibujado con las', fill=(90, 90, 90), font=_fuente(16))
     d.text((x0, ALTO_PX - 40), 'coordenadas de la red (RF-112)', fill=(90, 90, 90), font=_fuente(16))
     destino.parent.mkdir(parents=True, exist_ok=True)
-    img.save(destino, 'PNG', dpi=(250, 250))
+    from PIL.PngImagePlugin import PngInfo
+    info = PngInfo()
+    info.add_text('pie', PIE_SIN_FONDO)
+    img.save(destino, 'PNG', dpi=(250, 250), pnginfo=info)
     return destino
 
 
@@ -586,6 +663,7 @@ def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, 
     refuerzos; los registros de obras se filtran por sus variaciones activas.
     """
     resaltar = None
+    geo = esquematico(geo)                                                       # RF-12
     if limites is not None:
         obras, resaltar = _capas_del_estado(geo, red or {}, limites, referencia,
                                           obras_aplicadas, obras_activas, obras, vinculos_equipos or {})

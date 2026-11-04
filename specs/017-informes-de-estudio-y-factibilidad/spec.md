@@ -91,7 +91,11 @@ el modelo no se incluyen.
   DIgSILENT, como el recibo de luz del modelo de estudio.
 - RF-10: EL SISTEMA exportará, por cada caso del informe, una imagen del alimentador
   coloreado por tensión y otra coloreado por cargabilidad.
-- RF-11: EL SISTEMA exportará las imágenes del diagrama geográfico del alimentador.
+- RF-11: no se usa desde el 2026-11-03 (los guiones trabajan siempre sin ventana (T4,
+  2026-10-15) y DIgSILENT no exporta ni dibuja el diagrama ni su mapa de fondo; la imagen la
+  dibuja la web con el GPS (RF-11b, y RF-124 cambiado el 2026-11-01), sin enviar coordenadas
+  fuera (P9, RF-112)): era «EL SISTEMA exportará las imágenes del diagrama geográfico del
+  alimentador.»
 - RF-11b: SI DIgSILENT trabaja sin ventana y no puede dibujar el diagrama, ENTONCES EL
   SISTEMA dibujará las imágenes con la posición GPS de cada barra y el trazado GPS de cada
   tramo y con la tensión y la cargabilidad del flujo de DIgSILENT del caso, coloreadas con
@@ -153,22 +157,34 @@ el modelo no se incluyen.
   propias variaciones, activas solo en «Con proyecto».
 - RF-36: EL SISTEMA leerá de DIgSILENT los bancos de condensadores del alimentador con su
   nodo, su potencia en kvar y su estado de servicio.
-- RF-36b: DONDE el operador indique un proyecto anterior de DIgSILENT del mismo
-  alimentador (en CA101, «CA101 13»), EL SISTEMA leerá sus bancos de condensadores con su
-  nodo, kvar, tipo y estado, los comparará por nodo con los del proyecto estudiado y dirá
-  en el informe cuáles faltan o difieren. (El usuario, 2026-10-15: es un caso
-  excepcional, no la regla.)
-- RF-36c: DONDE se dé ese proyecto anterior, EL SISTEMA creará en la etapa 1, en una
-  variación activa solo en «Con proyecto», los bancos que faltan, en los mismos nodos y con
-  las mismas características, y los dejará en servicio.
-- RF-36d: SI el nodo de un banco del proyecto anterior no está en el proyecto estudiado,
-  ENTONCES EL SISTEMA no lo creará y dirá en el informe qué banco y qué nodo faltan.
+- RF-36b: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+  13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
+  son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «DONDE el
+  operador indique un proyecto anterior de DIgSILENT del mismo alimentador (en CA101, «CA101
+  13»), EL SISTEMA leerá sus bancos de condensadores con su nodo, kvar, tipo y estado, los
+  comparará por nodo con los del proyecto estudiado y dirá en el informe cuáles faltan o
+  difieren. (El usuario, 2026-10-15: es un caso excepcional, no la regla.)»
+- RF-36c: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+  13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
+  son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «DONDE se
+  dé ese proyecto anterior, EL SISTEMA creará en la etapa 1, en una variación activa solo en
+  «Con proyecto», los bancos que faltan, en los mismos nodos y con las mismas
+  características, y los dejará en servicio.»
+- RF-36d: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+  13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
+  son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «SI el nodo
+  de un banco del proyecto anterior no está en el proyecto estudiado, ENTONCES EL SISTEMA no
+  lo creará y dirá en el informe qué banco y qué nodo faltan.»
 - RF-37: EL SISTEMA modelará la etapa de bancos existentes con esos bancos en servicio y en
   sus mismos nodos.
 - RF-38: SI los bancos existentes ya están en servicio en «Sin proyecto», ENTONCES EL
   SISTEMA dirá que la etapa 1 coincide con el estado actual y pasará a la etapa 2.
-- RF-39: EL SISTEMA propondrá los bancos nuevos con la ubicación óptima de condensadores de
-  DIgSILENT (`ComCapo`), limitada al alimentador y con la banda de tensión como restricción.
+- RF-39: no se usa desde el 2026-11-03 (las obras de «Con proyecto» las elige la escalera
+  bancos, sección, terna y regulador al final (063:RF-21, RF-22, RF-26 y su aclaración), con
+  el oráculo y la confirmación en DIgSILENT (052), y los bancos son de tamaño fijo por
+  tensión, sin tabla de costes (usuario, 2026-10-15)): era «EL SISTEMA propondrá los bancos
+  nuevos con la ubicación óptima de condensadores de DIgSILENT (`ComCapo`), limitada al
+  alimentador y con la banda de tensión como restricción.»
 - RF-39b: EL SISTEMA tomará los bancos disponibles (kvar, tensión, coste de inversión y de
   mantenimiento anual) y el precio de la energía de una tabla de costes de la empresa, con
   la fuente y la fecha de cada fila.
@@ -179,10 +195,18 @@ el modelo no se incluyen.
   empresa la sustituya por sus cotizaciones.
 - RF-39e: EL SISTEMA dirá en el informe si los costes usados son referenciales o de la
   empresa.
-- RF-40: EL SISTEMA propondrá los reguladores de tensión con la ubicación óptima de equipos
-  de DIgSILENT (`ComPlaceopt`, «Optimal Equipment Placement»), limitada al alimentador.
-- RF-40b: EL SISTEMA ejecutará `ComPlaceopt` con la banda de tensión y el umbral de
-  cargabilidad como restricciones y con los nodos de la troncal como candidatos.
+- RF-40: no se usa desde el 2026-11-03 (las obras de «Con proyecto» las elige la escalera
+  bancos, sección, terna y regulador al final (063:RF-21, RF-22, RF-26 y su aclaración), con
+  el oráculo y la confirmación en DIgSILENT (052), y los bancos son de tamaño fijo por
+  tensión, sin tabla de costes (usuario, 2026-10-15)): era «EL SISTEMA propondrá los
+  reguladores de tensión con la ubicación óptima de equipos de DIgSILENT (`ComPlaceopt`,
+  «Optimal Equipment Placement»), limitada al alimentador.»
+- RF-40b: no se usa desde el 2026-11-03 (las obras de «Con proyecto» las elige la escalera
+  bancos, sección, terna y regulador al final (063:RF-21, RF-22, RF-26 y su aclaración), con
+  el oráculo y la confirmación en DIgSILENT (052), y los bancos son de tamaño fijo por
+  tensión, sin tabla de costes (usuario, 2026-10-15)): era «EL SISTEMA ejecutará
+  `ComPlaceopt` con la banda de tensión y el umbral de cargabilidad como restricciones y con
+  los nodos de la troncal como candidatos.»
 - RF-40c: EL SISTEMA tomará los tipos de regulador, su coste de instalación y de
   mantenimiento de la tabla de costes de RF-39b.
 - RF-40d: EL SISTEMA guardará los bancos y reguladores propuestos en variaciones propias,
@@ -307,10 +331,17 @@ captura de Google Earth.
 - RF-109: EL SISTEMA dará en 2.1 una imagen de la ubicación del cliente nuevo sobre un
   mapa, con el cliente marcado y rotulado con su nombre, su punto de conexión y los
   alimentadores cercanos, cada uno en su color y rotulado con su nombre.
-- RF-110: EL SISTEMA tomará la imagen de ubicación del diagrama geográfico de DIgSILENT,
-  con el mapa de fondo y centrada en el cliente y su punto de conexión.
-- RF-111: EL SISTEMA usará de fondo el mapa satélite configurado en DIgSILENT (Esri
-  ArcGIS u OpenStreetMap), sin enviar coordenadas a ningún servicio fuera de DIgSILENT.
+- RF-110: no se usa desde el 2026-11-03 (los guiones trabajan siempre sin ventana (T4,
+  2026-10-15) y DIgSILENT no exporta ni dibuja el diagrama ni su mapa de fondo; la imagen la
+  dibuja la web con el GPS (RF-11b, y RF-124 cambiado el 2026-11-01), sin enviar coordenadas
+  fuera (P9, RF-112)): era «EL SISTEMA tomará la imagen de ubicación del diagrama geográfico
+  de DIgSILENT, con el mapa de fondo y centrada en el cliente y su punto de conexión.»
+- RF-111: no se usa desde el 2026-11-03 (los guiones trabajan siempre sin ventana (T4,
+  2026-10-15) y DIgSILENT no exporta ni dibuja el diagrama ni su mapa de fondo; la imagen la
+  dibuja la web con el GPS (RF-11b, y RF-124 cambiado el 2026-11-01), sin enviar coordenadas
+  fuera (P9, RF-112)): era «EL SISTEMA usará de fondo el mapa satélite configurado en
+  DIgSILENT (Esri ArcGIS u OpenStreetMap), sin enviar coordenadas a ningún servicio fuera de
+  DIgSILENT.»
 - RF-112: SI no se puede cargar el mapa de fondo, ENTONCES EL SISTEMA dará el diagrama
   geográfico sin fondo y lo dirá al pie de la imagen.
 - RF-113: EL SISTEMA pondrá antes de cada imagen coloreada por tensión la leyenda de ese
@@ -449,20 +480,51 @@ etapa con todas las obras juntas y no se sabía qué lograban los bancos solos.
 
 Apartado 5.2 · Análisis eléctrico
 
-- RF-83: EL SISTEMA mostrará en 5.2 las cinco etapas de obras de RF-32, en su orden, cada
-  una con una casilla para incluirla o no.
-- RF-84: EL SISTEMA mostrará en la etapa de bancos existentes los bancos que lee de
-  DIgSILENT (nodo, kvar y estado), o dirá que el alimentador no tiene ninguno.
-- RF-85: EL SISTEMA pedirá en la etapa de cambio de conductor el tipo de línea, elegido de
-  las bibliotecas del proyecto como en las obras de la spec 011.
-- RF-86: EL SISTEMA pedirá en la etapa de migración la tensión de destino en kV.
-- RF-86b: EL SISTEMA pedirá en las etapas de cambio de conductor y de migración la SED hasta
-  la que llega la troncal, con búsqueda entre las SED de los alimentadores marcados, y
-  mostrará la longitud de esa troncal.
-- RF-87: EL SISTEMA permitirá dar a cada etapa un año opcional para el detalle de obras
-  (RF-45).
-- RF-88: EL SISTEMA ofrecerá una casilla «Evaluar todas las etapas aunque una ya cumpla»,
-  desmarcada por defecto (RF-33).
+- RF-83: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA mostrará en 5.2 las cinco
+  etapas de obras de RF-32, en su orden, cada una con una casilla para incluirla o no.»
+- RF-84: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA mostrará en la etapa de
+  bancos existentes los bancos que lee de DIgSILENT (nodo, kvar y estado), o dirá que el
+  alimentador no tiene ninguno.»
+- RF-85: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA pedirá en la etapa de
+  cambio de conductor el tipo de línea, elegido de las bibliotecas del proyecto como en las
+  obras de la spec 011.»
+- RF-86: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA pedirá en la etapa de
+  migración la tensión de destino en kV.»
+- RF-86b: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA pedirá en las etapas de
+  cambio de conductor y de migración la SED hasta la que llega la troncal, con búsqueda
+  entre las SED de los alimentadores marcados, y mostrará la longitud de esa troncal.»
+- RF-87: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA permitirá dar a cada etapa
+  un año opcional para el detalle de obras (RF-45).»
+- RF-88: no se usa desde el 2026-11-03 (las etapas ya no se configuran en 4.4.1: las obras
+  se definen en 4.1 (011, 016) o las elige la escalera (063:RF-21, RF-22, que para en el
+  primer escalón que cumple), y el informe toma las alternativas aplicadas (RF-128); los
+  bancos existentes los lista la calibración (015:RF-60) y el informe (RF-135), y el año de
+  las obras es un campo del formulario (RF-45)): era «EL SISTEMA ofrecerá una casilla
+  «Evaluar todas las etapas aunque una ya cumpla», desmarcada por defecto (RF-33).»
 
 Generación, progreso y resultado
 
@@ -586,4 +648,11 @@ Resueltas el 2026-10-15:
 - Bancos de «otro modelo ya considerado» (RF-36b a RF-36d): el proyecto anterior de
   DIgSILENT «CA101 13»; se copian a los mismos nodos con las mismas características.
 
-Abiertas: ninguna.
+Abiertas (2026-11-03):
+
+- RF-42 [NECESITA ACLARACIÓN: la migración «solo en la troncal de la cabecera a la SED, con lo
+  que cuelga de ella» ¿pasa a la otra tensión solo los tramos del camino y las SED que cuelgan
+  directamente de sus barras, abriendo los ramales, o todo lo de aguas abajo de un nodo, como la
+  migración de la spec 016 (016:RF-51, RF-64) que cita RF-42b? Con todo lo que cuelga del camino
+  desde la cabecera se migraría el alimentador entero.] El cambio de conductor hasta la SED
+  (RF-41) y la SED que no está (RF-42c) ya funcionan.

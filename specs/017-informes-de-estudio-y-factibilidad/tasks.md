@@ -38,22 +38,33 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       huecos, tablas y figuras, y escritura atómica. (RF-2, RF-3, RF-6 a RF-9, RF-23 a
       RF-25, RF-27, RF-44, RF-45, RF-106, RF-113, RF-114, RF-118, RF-120)
       Hecho cuando: `pytest -q tests/test_informe_docx.py` en verde.
-- [ ] T7. Casos, medidas, imágenes y restauración sin un guion `tools/informes_pf.py` aparte
+- [x] T7. Casos, medidas, imágenes y restauración sin un guion `tools/informes_pf.py` aparte
       (cambio de diseño, 033: el informe se arma con lo que guardan `tools/estudios_pf.py` y
       `tools/obras_pf.py` al correr los casos desde la web, y `mapa_informe.py` dibuja las
       imágenes con el GPS, RF-11b); falta lo que solo da DIgSILENT con ventana.
       (RF-1, RF-1b, RF-10 a RF-12, RF-24, RF-28 a RF-30, RF-46 a RF-49, RF-52, RF-53,
       RF-109 a RF-112, RF-116, RF-117)
       Hecho cuando: las pruebas que citan los RF de esta tarea pasan sobre `fake_pf`.
-- [ ] T8. Etapas 1 a 3: bancos existentes y del proyecto anterior, sonda y uso de `ComCapo`
+      Cierre 2026-11-03: RF-12 hecho (sin GPS, `tools/estudios_pf.py` guarda `esquema` y
+      `mapa_informe.esquematico` lo dibuja con su pie; `tests/test_estudios_pf_guion.py`,
+      `tests/test_mapa_informe.py`); RF-112 con su pie probado; RF-11, RF-110 y RF-111 no se
+      usan (sin ventana no hay diagrama de DIgSILENT ni mapa de fondo, RF-11b y RF-124).
+- [x] T8. Etapas 1 a 3: bancos existentes y del proyecto anterior, sonda y uso de `ComCapo`
       y `ComPlaceopt`. (RF-32, RF-35 a RF-40d)
       Hecho cuando: pruebas sobre `fake_pf` en verde y la sonda anotada en el plan.
+      Cierre 2026-11-03: RF-38 en el Word (`tests/test_informe_alternativas.py`), RF-40d en
+      `tests/test_obras_pf.py`; RF-36b a RF-36d no se usan (015:RF-61) y RF-39, RF-40 y
+      RF-40b tampoco: la escalera de 063 sustituye a `ComCapo` y `ComPlaceopt`, así que no
+      hace falta la sonda (anotado en el plan).
 - [ ] T9. Etapas 4 y 5 con la troncal de la 016 (necesita las T6 a T8 de la 016).
       (RF-41 a RF-42c)
       Hecho cuando: pruebas sobre `fake_pf` en verde.
-- [ ] T10. Transformador de la SET en el proyecto de transmisión, sin guardar. (RF-65 a
+- [x] T10. Transformador de la SET en el proyecto de transmisión, sin guardar. (RF-65 a
       RF-70, RF-119)
       Hecho cuando: pruebas sobre `fake_pf` en verde.
+      Cierre 2026-11-03: falta RF-42, con su duda en la spec. Hechos RF-41 y RF-42b (obra
+      de sección con `hasta`: el camino de la cabecera a la SED con el árbol de la 016) y
+      RF-42c (la SED que no está se dice), en `tests/test_obras_pf_016.py`.
       Sonda del 2026-10-15 (solo lectura, solo cargas, barras y trafos de AD08): las 859
       cargas de AD08 son por barra de SET y tensión (`LElCarmen10` en `CAR10A`, 7,53 MW;
       `LElCarmen23` en `CAR23A`), ninguna por alimentador; CA101 va dentro de `LElCarmen10`,
@@ -63,15 +74,20 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `tests/test_transformador_set_pf.py` y en DIgSILENT real sobre AD08 con Δ = 0
       (no hay flujo de «Con proyecto» de CA101 guardado): 2026_D, `LElCarmen10`,
       devanado de 10 kV al 42,27 %, carga restituida; el listado da 525 cargas con
-      transformador en 28 s. Botones en 4.4.2. Falta la imagen del unifilar (RF-69,
-      RF-119) y la prueba con un Δ real (T14).
-- [ ] T11. API, trabajo en el carril `powerfactory` y CLI con el mismo plan. (RF-26, RF-82,
+      transformador en 28 s. Botones en 4.4.2. Cierre 2026-11-03: el unifilar (RF-69,
+      RF-119) lo dibuja `mapa_informe.transformador_de_la_set`, probado en
+      `tests/test_mapa_informe.py`; la prueba con un Δ real queda en la T14.
+- [x] T11. API, trabajo en el carril `powerfactory` y CLI con el mismo plan. (RF-26, RF-82,
       RF-96, RF-97, RF-99, RF-103 a RF-105)
       Hecho cuando: una prueba por endpoint en `tests/test_web_api.py`.
       Estado 2026-10-15: `GET informes` (contexto), `POST informes/estudio` y
       `POST informes/factibilidad` en el carril `engine`, con lo ya guardado, probados en
       `tests/test_informe_web.py`; RF-82 (formulario en el servidor) hecho el mismo día;
       faltan el carril `powerfactory` (con T7) y la CLI.
+      Cierre 2026-11-03: una prueba por endpoint en `tests/test_informe_web.py` (también
+      `perdidas/path`, `DELETE perdidas` y `transformador/cargas`, en el carril
+      `powerfactory`); el estudio va al carril `engine` porque se arma con lo guardado
+      (cambio de diseño del plan); la CLI, en `tests/test_informe_web_cli.py` (RF-105).
 - [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
       el 2026-10-15). (RF-51, RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
@@ -81,6 +97,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (RF-93, RF-94); faltan las etapas de 5.2 (RF-83 a RF-88, con T8 y T9), el proyecto de
       transmisión (RF-95, con T10), la vista previa de ubicación (RF-124) y las miniaturas
       (RF-101, con T7).
+      Estado 2026-11-03: RF-83 a RF-88 no se usan (las etapas salen de las obras de 4.1 y
+      de la escalera de 063); RF-95, RF-101 y RF-124 ya tienen prueba. Falta pasar
+      `tsc`, `npm run build` y la checklist en el navegador sobre esta revisión.
 - [ ] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
       «CA101 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
@@ -98,7 +117,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: las pruebas que citan 017:RF-126 y RF-127 pasan y el informe de
       estudio de TA225 en DIgSILENT trae la etapa.
 
-- [ ] T17. Alternativas de obras en el informe de estudio: bancos y cambio de sección,
+- [x] T17. Alternativas de obras en el informe de estudio: bancos y cambio de sección,
       con el trecho del conductor desde–hasta, su plano y los bancos existentes por nodo.
       (RF-128 a RF-135)
       Hecho cuando: las pruebas que citan 017:RF-128 a RF-135 pasan y el informe de
@@ -108,8 +127,15 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       el cambio de sección: 0,985 p.u. y 63 %, cumple; un trecho de 6,58 km en 21 tramos de
       14812 hasta SE20701) e informe generado; falta que el usuario lo dé por bueno, y que
       la web lo haga al ejecutar los estudios (el plan ya lleva las alternativas).
+      Cierre 2026-11-03: la web lleva las alternativas del proyecto y de los alimentadores
+      marcados al flujo de «Con proyecto» (`tests/test_informe_alternativas.py`); la
+      revisión del usuario pasa a la T19.
 
 - [x] T18. Documentos del solicitante en 4.4: PDF de la carta u oficio en la factibilidad y
       varios PDF del expediente en el estudio, leídos con su texto o con OCR. (RF-136 a RF-141)
       Hecho cuando: las pruebas que citan 017:RF-136 a RF-141 pasan, también con los PDF de
       `referencia/` (`CSG_SOLICITUD_PDF`, `CSG_SOLICITUD_DIR`), y se ve en el navegador.
+
+- [ ] T19. [DIgSILENT] Informe de estudio de CA101 con las dos alternativas medidas en
+      DIgSILENT desde la web, revisado por el usuario. (RF-128 a RF-135)
+      Hecho cuando: el usuario da por bueno el `.docx`.

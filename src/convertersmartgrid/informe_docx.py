@@ -606,6 +606,18 @@ def _bancos(e: _Escritor, bancos: Sequence[Mapping[str, Any]], lista: str) -> No
             [[str(b.get('nombre') or ''), _nodo_banco(b), str(b.get('barra') or ''),
               _f(b.get('kvar'), 0), _utm_texto(b.get('utm')),
               'En servicio' if b.get('en_servicio') else 'Fuera de servicio'] for b in bancos])
+    # RF-38: los bancos existentes van en la calibración («Sin proyecto», 015:RF-60), así que
+    # la etapa de bancos existentes no es una obra: coincide con el estado actual. En CA101
+    # (2026-10-15) los tres bancos ya estaban en servicio.
+    fuera = len(bancos) - len(servicio)
+    if not fuera:
+        e.parrafo('Los bancos existentes ya están en servicio en el estado actual («Sin proyecto»): '
+                  'la etapa de bancos existentes coincide con él, y las obras empiezan por los '
+                  'bancos propuestos.')
+    else:
+        e.parrafo(f'{fuera} de los bancos existentes {"está" if fuera == 1 else "están"} fuera de '
+                  'servicio en el estado actual y no cuenta' + ('' if fuera == 1 else 'n')
+                  + ' en sus resultados.')
 
 
 def _fijas(e: _Escritor, fijas: Sequence[Mapping[str, Any]], lista: str) -> None:

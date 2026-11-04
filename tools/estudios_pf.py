@@ -309,31 +309,37 @@ def geografia(elm, app=None) -> dict:
     def objetos(clase):
         return list(app.GetCalcRelevantObjects(f'*.{clase}')) if app is not None else list(elm.GetObjs(clase))
 
-    barras = []
+    barras, sin_gps = [], []
     for b in objetos('ElmTerm'):
         g = gps_de(b)
+        u = _num(b, 'm:u')
+        u = None if u is None else round(u, 4)
+        kv = float(getattr(b, 'uknom', 0) or 0)
         if g is not None:
-            u = _num(b, 'm:u')
-            barras.append([b.loc_name, round(g[0], 7), round(g[1], 7),
-                           None if u is None else round(u, 4), float(getattr(b, 'uknom', 0) or 0)])
-    tramos = []
+            barras.append([b.loc_name, round(g[0], 7), round(g[1], 7), u, kv])
+        else:
+            sin_gps.append([b.loc_name, u, kv])
+    tramos, esquema = [], []
     for ln in objetos('ElmLne'):
         puntos = trazado_de(ln)
         if not puntos:
             extremos = [gps_de(getattr(getattr(ln, c, None), 'cterm', None))
                         for c in ('bus1', 'bus2')]
             puntos = tuple(p for p in extremos if p is not None)
+        carga = _num(ln, 'c:loading')
+        carga = None if carga is None else round(carga, 2)
+        # 017:RF-131: barras, tipo y longitud, para decir desde dónde hasta dónde va el
+        # cambio de conductor (CA101, 2026-10-16: 21 tramos sin más que su nombre).
+        barras_ln = [getattr(getattr(getattr(ln, c, None), 'cterm', None), 'loc_name', None)
+                     for c in ('bus1', 'bus2')]
         if len(puntos) >= 2:
-            carga = _num(ln, 'c:loading')
-            # 017:RF-131: barras, tipo y longitud, para decir desde dónde hasta dónde va el
-            # cambio de conductor (CA101, 2026-10-16: 21 tramos sin más que su nombre).
-            barras_ln = [getattr(getattr(getattr(ln, c, None), 'cterm', None), 'loc_name', None)
-                         for c in ('bus1', 'bus2')]
             tipo = getattr(getattr(ln, 'typ_id', None), 'loc_name', None)
             km = _num(ln, 'dline')
             tramos.append([ln.loc_name, [[round(a, 7), round(o, 7)] for a, o in puntos],
-                           None if carga is None else round(carga, 2), barras_ln[0], barras_ln[1],
+                           carga, barras_ln[0], barras_ln[1],
                            tipo, None if km is None else round(km, 4)])
+        elif all(barras_ln):
+            esquema.append([ln.loc_name, barras_ln[0], barras_ln[1], carga])
     # 017:RF-132: los acoples cerrados unen barras sin ser líneas. Sin ellos, el cambio de
     # conductor de CA101 (2026-10-16) salía en 10 trechos, cuatro de 0,00 a 0,02 km,
     # cortados en cada seccionador de la troncal.
@@ -345,8 +351,13 @@ def geografia(elm, app=None) -> dict:
             if all(extremos):
                 acoples.append([c.loc_name, extremos[0], extremos[1]])
     cabecera = cabecera_de(elm) if elm is not None else None
-    return {'barras': sorted(barras), 'tramos': sorted(tramos, key=lambda t: t[0]),
-            'acoples': sorted(acoples), 'cabecera': getattr(cabecera, 'loc_name', None)}
+    geo = {'barras': sorted(barras), 'tramos': sorted(tramos, key=lambda t: t[0]),
+           'acoples': sorted(acoples), 'cabecera': getattr(cabecera, 'loc_name', None)}
+    # 017:RF-12: un alimentador sin ninguna coordenada no tiene vista geográfica; se guarda
+    # su topología para dibujar el esquemático, y el pie de la imagen lo dice.
+    if not barras and not tramos and esquema:
+        geo['esquema'] = {'barras': sorted(sin_gps), 'tramos': sorted(esquema)}
+    return geo
 
 
 def medidas(alims: Alimentadores, feeders: list[str], converge: bool) -> dict:

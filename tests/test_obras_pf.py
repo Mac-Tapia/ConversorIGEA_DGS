@@ -144,6 +144,22 @@ def test_variaciones_con_nombre_de_obra_y_alimentador_sin_repetir():
         assert all(len(n) <= op.LARGO_MAXIMO for n in nombres)
 
 
+def test_bancos_y_reguladores_propuestos_en_su_variacion_solo_en_con_proyecto():
+    """017:RF-40d — un banco y un regulador propuestos van cada uno en su variación, con
+    su clase en el nombre, y se piden solo para «Con proyecto»."""
+    banco = _obra(clase='condensador', alimentador='AL01', barra='N3', q_kvar=300, escalones=1,
+                  casos=[CON_PROYECTO])
+    regulador = _obra(clase='regulador', alimentador='AL01', tramo='L4', consigna_pu=1.0,
+                      rango_pct=10, pasos=16, tipo={'nombre': 'VR', 'clase': 'TypVoltreg'},
+                      casos=[CON_PROYECTO])
+    assert banco.casos == regulador.casos == (CON_PROYECTO,)
+    ocupadas: list[str] = []
+    for obra in (banco, regulador, banco):
+        ocupadas.append(op.nombre_variacion(obra, ocupadas))
+    assert len({n.lower() for n in ocupadas}) == 3
+    assert 'condensador' in ocupadas[0] and 'regulador' in ocupadas[1]
+
+
 def test_nombre_libre_respeta_el_largo_de_digsilent():
     """011:RF-56 — el sufijo que desempata no hace pasar de 40 caracteres."""
     base = 'X' * 40
