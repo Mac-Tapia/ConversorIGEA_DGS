@@ -27,8 +27,8 @@ from .informes import (
     Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, formato_pu, antecedentes_factibilidad,
     FuenteMedida, conclusion_cola, conclusiones_estudio, conclusiones_factibilidad, conclusiones_por_caso,
     demanda_antes_despues, demanda_por_alimentador, descripcion_factibilidad, describir_obra,
-    desarrollo_cola, etapa_recomendada, fuentes_del_caso, numero, obras_a_ejecutar, redactar_cargabilidad,
-    redactar_tension, resumen_alternativa, texto_transformador, veredicto_factibilidad)
+    desarrollo_cola, etapa_recomendada, frases_bajo_limite, fuentes_del_caso, numero, obras_a_ejecutar,
+    queda_deficit, redactar_cargabilidad, redactar_tension,resumen_alternativa, texto_transformador, veredicto_factibilidad)
 from .libros_informe import DatosPerdidas
 from .valle import frase_valle
 
@@ -156,6 +156,8 @@ class DatosFactibilidad:
     cola_conexion: Mapping[str, Any] = field(default_factory=dict)
     #: 063:RF-54: aclaraciones a las cifras de los casos, como el nivel de tensión que se juzga.
     notas_casos: Sequence[str] = ()
+    #: 086:RF-48, RF-49: las barras bajas del estado proyectado, según quién las dejó así.
+    bajo_limite: Mapping[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------- modelo
@@ -656,9 +658,14 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
             e.vinieta(texto)
         else:
             e.parrafo(texto)
+    # 086:RF-49: en párrafos, porque de aquí sale la conclusión del libro de la empresa (066:RF-12).
+    final = a_ejecutar[-1].bajo_limite if a_ejecutar and not rec.actual_cumple else None
+    for texto in frases_bajo_limite(final):
+        e.parrafo(texto)
 
     _guardar(documento, destino, {
         'tipo': 'estudio', 'corrida': datos.corrida, 'alimentadores': list(datos.alimentadores), 'numero': datos.numero,
+        'bajo_limite': final, 'textos_bajo_limite': frases_bajo_limite(final),
         'encabezado': {**asdict(enc), 'fecha': enc.fecha.isoformat()},
         'actual': asdict(datos.actual), 'etapas': [asdict(x) for x in etapas],
         'recomendada': rec.etapa.clave if rec.etapa else None, 'cumplen': dict(rec.cumplen),
@@ -1087,11 +1094,13 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
 
         conexion = conclusion_factibilidad(datos.actual, datos.cargas,
                                            proyectado if datos.con_obras else None, config.limites,
-                                           con_proyecto_verificado=datos.con_proyecto_verificado)
+                                           con_proyecto_verificado=datos.con_proyecto_verificado,
+                                           bajo_limite=datos.bajo_limite)
         excesos = [] if conexion.factible else list(conexion.violaciones)
         if not conexion.factible:
             excesos += [f'Requiere corregir el elemento {n}.' for n in conexion.elementos]
-        transmision = (veredicto_factibilidad(proyectado, [d] if d else None, config.limites)
+        transmision = (veredicto_factibilidad(proyectado, [d] if d else None, config.limites,
+                                              actual=datos.actual, bajo_limite=datos.bajo_limite)
                        if datos.incluir_transformador_set else None)
         if transmision is not None:
             excesos += list(transmision.excesos)
@@ -1099,7 +1108,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                               tuple(dict.fromkeys(excesos)))
     else:
         veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites,
-                                           exigir_transformador=datos.incluir_transformador_set)
+                                           exigir_transformador=datos.incluir_transformador_set,
+                                           actual=datos.actual, bajo_limite=datos.bajo_limite)
     if datos.aviso_cliente:
         e.hueco(datos.aviso_cliente)
     if s is None:
@@ -1110,7 +1120,12 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                          'sin obras cumplen los límites evaluados.',
             'con_obras': 'La conexión es factible con las obras evaluadas, una vez ejecutadas y '
                         'verificadas en campo.',
-            'con_obras_verificadas': 'La conexión es viable con las obras evaluadas y la configuración '
+            # 086:RF-50: la obra basta para la carga, y el alimentador no queda con toda su tensión en la banda.
+            'con_obras_deficit': 'La obra basta para la carga analizada: la conexión es factible con las obras '
+                                 'evaluadas, una vez ejecutadas y verificadas en campo. El alimentador sigue con '
+                                 f'barras bajo el límite de {formato_pu(config.limites.tension_min_pu)}, que se '
+                                 'indican a continuación y que esta obra no resuelve.',
+            'con_obras_verificadas':'La conexión es viable con las obras evaluadas y la configuración '
                                     'nativamente verificada. La referencia completa sin obras no converge '
                                     'y no es evaluable eléctricamente; esta viabilidad queda condicionada '
                                     'a ejecutar y verificar las obras en campo y conservar la operación estudiada.',
@@ -1126,6 +1141,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                 e.parrafo(describir_obra(obra))
             for texto in conexion.violaciones:
                 e.parrafo(f'Motivo de las obras: {texto}')
+        for texto in frases_bajo_limite(datos.bajo_limite):                           # 086:RF-48, RF-49
+            e.parrafo(texto)
         if conexion.factible and not veredicto.factible:
             e.parrafo('La aceptación integral queda pendiente por los incumplimientos del '
                       'transformador de transmisión que se detallan a continuación.')
@@ -1163,7 +1180,9 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
             for texto in textos:
                 e.parrafo(texto)
     else:
-        for texto in conclusiones_factibilidad(s, veredicto, datos.codigo_punto or '', d):
+        for texto in conclusiones_factibilidad(s, veredicto, datos.codigo_punto or '', d, bajo_limite=datos.bajo_limite):
+            e.parrafo(texto)
+        for texto in frases_bajo_limite(datos.bajo_limite):                           # 086:RF-48, RF-49
             e.parrafo(texto)
 
     def resumen_caso(caso):
@@ -1182,6 +1201,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         'actual': resumen_caso(datos.actual), 'proyectado': resumen_caso(proyectado),
         'cargas': resumen_caso(datos.cargas),
         'con_proyecto_verificado': datos.con_proyecto_verificado,
+        'bajo_limite': datos.bajo_limite, 'textos_bajo_limite': frases_bajo_limite(datos.bajo_limite),
+        'queda_deficit': queda_deficit(datos.bajo_limite),
         'conclusion_conexion': asdict(conexion) if conexion is not None else None,
         'ficha_punto': dict(datos.ficha_punto),
         'incluir_transformador_set': datos.incluir_transformador_set,

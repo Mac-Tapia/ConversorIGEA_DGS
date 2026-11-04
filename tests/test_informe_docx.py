@@ -192,6 +192,104 @@ def test_factibilidad_tres_casos_con_obras_insuficientes_no_aprueba(tmp_path):
     assert resumen['cargas']['nombre'] == 'Cargas nuevas'
 
 
+def _caso_con_barra_baja(nombre='Con proyecto', u=0.9449):
+    return Caso(nombre, True, fuente=Potencia(3000, 900), perdidas=Potencia(150, 120),
+                tension_min={'trifásica': Extremo(u, 'RAMAL')}, tension_max=Extremo(1.0, 'CAB'),
+                nodos_fuera=1, cargabilidad_max=Extremo(60.0, 'T1'))
+
+
+BAJA_PREVIA = {'causado': [], 'previo': [{'barra': 'RAMAL', 'u': 0.9449, 'sin': 0.9452}], 'sin_comparacion': [],
+               'tolerancia_pu': 0.005}
+
+
+def _factibilidad_con_baja(tmp_path, bajas, **extra):
+    destino = tmp_path / 'baja.docx'
+    datos = _factibilidad(tmp_path, actual=_caso_con_barra_baja('Sin proyecto', 0.9452), cargas=_caso('Cargas', 0.93),
+                          proyectado=_caso_con_barra_baja(), bajo_limite=bajas, **extra)
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    return destino, json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+
+
+def test_factibilidad_lista_el_deficit_previo_con_su_barra_y_tension(tmp_path):
+    """086:RF-48, 086:RF-50 — SI112: la obra basta para la carga, y el ramal figura como déficit previo."""
+    from convertersmartgrid.libro_informe import conclusiones_del_word
+
+    destino, resumen = _factibilidad_con_baja(tmp_path, BAJA_PREVIA)
+    assert resumen['factible'] and resumen['conclusion_conexion']['clave'] == 'con_obras_deficit'
+    assert resumen['queda_deficit'] and resumen['bajo_limite']['previo'][0]['barra'] == 'RAMAL'
+    texto = _texto(destino)
+    assert 'Déficit previo, fuera de esta obra: RAMAL a 0,9449 p.u. (0,9452 p.u. sin el proyecto).' in texto
+    assert 'La obra basta para la carga analizada' in texto and 'sigue con barras bajo el límite' in texto
+    assert 'en norma' not in texto and 'obras evaluadas son insuficientes' not in texto
+    assert 'RF-' not in texto
+    # 066: la conclusión del libro de la empresa sale de estos mismos párrafos.
+    assert 'Déficit previo, fuera de esta obra: RAMAL' in conclusiones_del_word(destino)
+
+
+def test_factibilidad_separa_lo_que_causa_la_carga_y_no_pasa(tmp_path):
+    """086:RF-49 — la barra que empeora va aparte, no es factible, y a corregir va ella, no la que ya estaba baja."""
+    bajas = {**BAJA_PREVIA, 'causado': [{'barra': 'OTRA', 'u': 0.94, 'sin': 0.96}]}
+    destino, resumen = _factibilidad_con_baja(tmp_path, bajas)
+    assert not resumen['factible'] and resumen['conclusion_conexion']['clave'] == 'obras_insuficientes'
+    assert resumen['conclusion_conexion']['elementos'] == ['OTRA']
+    texto = _texto(destino)
+    assert 'Lo que causa la carga o la obra: OTRA a 0,9400 p.u.' in texto
+    assert 'Déficit previo, fuera de esta obra: RAMAL' in texto
+    assert texto.index('Lo que causa la carga') < texto.index('Déficit previo')
+
+
+def test_factibilidad_sin_dato_previo_no_lo_afirma(tmp_path):
+    """086:RF-48 — sin la tensión de la barra sin el proyecto: bajo el límite, sin comparación; nunca «previo»."""
+    bajas = {'causado': [], 'previo': [], 'sin_comparacion': [{'barra': 'RAMAL', 'u': 0.9449, 'sin': None}],
+             'tolerancia_pu': 0.005}
+    destino, resumen = _factibilidad_con_baja(tmp_path, bajas)
+    assert resumen['factible'] and resumen['queda_deficit']
+    texto = _texto(destino)
+    assert 'Bajo el límite, sin comparación disponible: RAMAL a 0,9449 p.u.' in texto
+    assert 'Déficit previo' not in texto
+
+
+def test_factibilidad_con_transformador_no_atribuye_el_deficit_a_transmision(tmp_path):
+    """086:RF-50 — con el transformador en el alcance, la tensión baja previa tampoco es un exceso suyo."""
+    _destino, resumen = _factibilidad_con_baja(tmp_path, BAJA_PREVIA, incluir_transformador_set=True)
+    assert resumen['factible'] and resumen['excesos'] == []
+
+
+def test_factibilidad_sin_barras_bajas_es_el_texto_de_siempre(tmp_path):
+    """086:RF-50 — sin déficit, el texto de siempre y sin matiz."""
+    destino = tmp_path / 'sin.docx'
+    datos = _factibilidad(tmp_path, cargas=_caso('Cargas', 0.93), proyectado=_caso('Con proyecto', 0.96),
+                          bajo_limite={'causado': [], 'previo': [], 'sin_comparacion': [], 'tolerancia_pu': 0.005})
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    assert 'La conexión es factible con las obras evaluadas, una vez ejecutadas y verificadas en campo.' in texto
+    assert 'Déficit previo' not in texto and 'bajo el límite' not in texto
+    assert not json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['queda_deficit']
+
+
+def test_factibilidad_sin_cargas_nuevas_no_dice_dentro_de_la_banda(tmp_path):
+    """086:RF-50 — sin el flujo de «Cargas nuevas», el apartado b) tampoco."""
+    destino = tmp_path / 'b.docx'
+    datos = _factibilidad(tmp_path, actual=_caso_con_barra_baja('Sin proyecto', 0.9452), proyectado=_caso_con_barra_baja(),
+                          bajo_limite=BAJA_PREVIA, incluir_transformador_set=False)
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    assert 'admite la carga' in texto and 'dentro de la banda admitida' not in texto
+    assert 'Déficit previo, fuera de esta obra: RAMAL' in texto
+
+
+def test_estudio_separa_el_deficit_previo_de_la_etapa_final(tmp_path):
+    """086:RF-49 — el informe de estudio no recomienda otra cosa, y dice qué barras ya estaban bajas."""
+    destino = tmp_path / 'e.docx'
+    etapas = [Etapa('bancos_nuevos', caso=_caso_con_barra_baja(), obras=({'tipo': 'banco', 'nodo': 'N15', 'kvar': 300},),
+                    anio=2027, bajo_limite=BAJA_PREVIA)]
+    escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path, etapas=etapas))
+    texto = _texto(destino)
+    assert 'Déficit previo, fuera de esta obra: RAMAL a 0,9449 p.u.' in texto
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    assert resumen['recomendada'] is None and resumen['textos_bajo_limite']
+
+
 def test_factibilidad_sin_obras_no_exige_transformador_fuera_de_alcance(tmp_path):
     """063:RF-8: una evaluación de conexión explicita su alcance sin inventar datos de transmisión."""
     destino = tmp_path / 'conexion.docx'

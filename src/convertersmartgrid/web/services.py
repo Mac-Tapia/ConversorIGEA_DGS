@@ -6004,6 +6004,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             fila['avisos'].append(f"{f}: «Con proyecto» ya cumple con lo que tiene (sorteos "
                                   f"{100 * float(ev['ya_cumple'].get('fraccion') or 0):.0f} %): no se aplica "
                                   'nada (025:RF-74).')
+            fila['bajo_limite'] = ev['ya_cumple'].get('bajo_limite')             # 086:RF-48
+            fila['avisos'] += _avisos_bajo_limite(f, '«Con proyecto»', fila['bajo_limite'], None, p.tension_min_pu)
             resueltos.append(f)
             resultado.append(fila)
             continue
@@ -6025,7 +6027,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
                                                   'factible', 'perdidas_kw', 'error', 'sin_sortear',
                                                   'u_cargas', 'u_min_mt',                   # 063:RF-28
-                                                  'valle', 'valle_motivos', 'valle_u_max', 'valle_nodo',
+                                                  'bajo_limite',                            # 086:RF-48
+                                                  'valle','valle_motivos', 'valle_u_max', 'valle_nodo',
                                                   'valle_fecha', 'valle_sin_comprobar',
                                                   'valle_casos')}                           # 073:RF-30, RF-39
                            | {'valle_texto': frase_valle(t)}
@@ -6041,6 +6044,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             fila['avisos'].append(f"{f}: «{decision['elegida']}» cumple con la máxima; no comprobado en valle"
                                   + (f" ({valle['motivo']})" if valle.get('motivo') else '') + ' (073:RF-24).')
         if decision['elegida']:
+            # 086:RF-48, RF-50: la obra basta para las cargas; lo que quede bajo el límite se dice aquí mismo.
+            hecha = next(t for t in decision['tabla'] if t['nombre'] == decision['elegida'])
+            fila['bajo_limite'] = hecha.get('bajo_limite')
+            fila['avisos'] += _avisos_bajo_limite(f, f"«{decision['elegida']}»", hecha.get('bajo_limite'),
+                                                  hecha.get('u_min_mt'), p.tension_min_pu)
             fila['ubicacion'] = [eo.ubicacion(o) for o in por_nombre[decision['elegida']].obras]
             for linea in fila['ubicacion']:
                 ctx.log(f"{f}: «{decision['elegida']}»: {linea} (063:RF-31).")
@@ -6077,6 +6085,24 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
+def _avisos_bajo_limite(alimentador: str, obra: str, fuera: dict | None, u_min: float | None, limite: float) -> list[str]:
+    """Lo que el operador lee cuando la escalera da por buena una obra con barras bajas (086:RF-48, RF-50).
+
+    Sin el detalle no se afirma nada de esas barras: una evaluación de antes de esto se reutiliza 24 h
+    (025:RF-73) y solo trae la mínima de media.
+    """
+    from ..informes import frases_bajo_limite
+
+    frases = frases_bajo_limite(fuera)
+    if frases:
+        return [f'{alimentador}: {obra} basta para las cargas nuevas, pero el alimentador sigue con barras bajo el '
+                f'límite de {limite:g} p.u. ' + ' '.join(frases)]
+    if fuera is None and u_min is not None and u_min < limite:
+        return [f'{alimentador}: {obra} basta para las cargas nuevas, pero el alimentador sigue con una mínima de media '
+                f'de {u_min:.4f} p.u., bajo el límite de {limite:g} p.u.; esta evaluación no da el detalle por barra.']
+    return []
+
+
 def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                            anio_casos: int | None, variaciones: list[str]) -> None:
     """042:RF-32: una evaluación cortada no deja la escalera midiendo sin las cargas nuevas."""
@@ -6097,6 +6123,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                              capex: str | None = None, cargas: list[str] | None = None) -> dict:
     """042:RF-24: cada alimentador con sus cargas nuevas sube la escalera; los que no cumplen pasan sus cargas a la siguiente obra."""
     from ..demanda_medida import clave_codigo
+    from ..informes import queda_deficit
     from .. import set_nueva as sn
 
     marcados = {clave_codigo(f) for f in feeders}
@@ -6123,9 +6150,11 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
             elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
-                         'ya_cumple': bool(fila.get('ya_cumple'))}
+                         'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
+        # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
+        resto_bajo = ' El alimentador sigue con barras bajo el límite: vea sus avisos.' if queda_deficit(fila.get('bajo_limite')) else ''
         ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
-                + ('cumple con bancos, sección o terna (042:RF-24).' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
+                + (f'cumple con bancos, sección o terna (042:RF-24).{resto_bajo}' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
         (cumplen if ok else resto).append(f)
     escalera = None
     con_obra = [f for f in cumplen if elegidas.get(f)]          # 042:RF-29: el que ya cumple no lleva obra
@@ -7756,7 +7785,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
 
     from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO, Limites
     from ..informe_docx import DatosEstudio, escribir_informe_estudio
-    from ..informes import (Caso, ConfigInforme, Encabezado, Etapa, InformeError, etapa_de_obras,
+    from ..informes import (Caso, ConfigInforme, Encabezado, Etapa, InformeError, bajo_limite, etapa_de_obras,
                             obra_para_informe)
     from ..perfil_empresa import datos_perfil
 
@@ -7804,6 +7833,13 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     resaltar: dict[str, dict] = {}
     geo_de: dict[str, dict] = {}
     existentes = sin['medidas'][alimentador].get('bancos') or []
+    barras_nuevas = _barras_de_cargas_nuevas(ws, proyecto, alimentador)
+
+    def bajas(medida: dict) -> dict | None:
+        """086:RF-49: las barras bajas de la etapa, frente a «Sin proyecto»; guardadas ya por los estudios."""
+        return bajo_limite(sin['medidas'][alimentador], medida, lim, barras_cargas=barras_nuevas,
+                           tolerancia_pu=_tolerancia_pu_del_perfil())
+
     if con is not None and len(alternativas) > 1:
         por_variacion = {a['variacion']: a['obra'] for a in ws.obras_aplicadas
                          if a['obra'].get('alimentador') == alimentador
@@ -7820,7 +7856,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
             descritas = [_obra_con_trechos(obra_para_informe(o), geo_alt, geo_sin) for o in propias]
             etapas.append(Etapa(alt['clave'], caso=Caso.desde_medida(
                 CON_PROYECTO, alt['medidas'][alimentador], lim), obras=tuple(descritas),
-                anio=formulario.get('anio'), valle=valle_de_la_obra(ws, proyecto, alimentador)))
+                anio=formulario.get('anio'), valle=valle_de_la_obra(ws, proyecto, alimentador),
+                bajo_limite=bajas(alt['medidas'][alimentador])))
             resaltar[alt['clave']] = _resaltar(todas, geo_alt, geo_sin, existentes)
             geo_de[alt['clave']] = geo_alt
         fuentes.append(con['_fichero'])
@@ -7829,7 +7866,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         etapas.append(Etapa(clave, caso=Caso.desde_medida(CON_PROYECTO, con['medidas'][alimentador], lim),
                             obras=tuple(_obra_con_trechos(obra_para_informe(o), geo_con, geo_sin)
                                         for o in obras),
-                            anio=formulario.get('anio'), valle=valle_de_la_obra(ws, proyecto, alimentador)))
+                            anio=formulario.get('anio'), valle=valle_de_la_obra(ws, proyecto, alimentador),
+                            bajo_limite=bajas(con['medidas'][alimentador])))
         resaltar[clave] = _resaltar(obras, geo_con, geo_sin, existentes)
         geo_de[clave] = geo_con
         fuentes.append(con['_fichero'])
@@ -7891,7 +7929,9 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     libro = _libro_del_informe(ctx, destino, {'actual': imagenes.get('actual') or {},
                                               'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
     _paso_informe(ctx, 3, 'listo')
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
     return {'project': proyecto or (sin or {}).get('project'), 'informe': destino.name, 'json': destino.with_suffix('.json').name,
+            'textos_bajo_limite': resumen.get('textos_bajo_limite') or [],                  # 086:RF-49
             'corrida': (corrida or {}).get('token'), 'huecos': huecos, 'avisos_perfil': avisos_perfil, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'estudio', plan)}
 
@@ -8096,6 +8136,7 @@ def _informes_generados(ws: Workspace) -> list[dict]:
                     'alimentadores': alimentadores, 'numero': datos.get('numero'),
                     'fecha': (datos.get('encabezado') or {}).get('fecha'),
                     'huecos': datos.get('huecos') or [], 'factible': datos.get('factible'),
+                    'queda_deficit': bool(datos.get('queda_deficit')),                 # 086:RF-50
                     'creado': docx_path.stat().st_mtime})
     return sorted(out, key=lambda x: x['creado'], reverse=True)
 
@@ -8395,8 +8436,23 @@ def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: 
     return {'fichero': destino.relative_to(ws.out_dir).as_posix(), 'rotulo': texto}
 
 
+def _barras_de_cargas_nuevas(ws: Workspace, project: str | None, alimentador: str) -> list[str]:
+    """Las barras de las cargas nuevas del alimentador: una barra de carga baja nunca es un déficit previo (086:RF-49)."""
+    if not project:
+        return []
+    return [str(c['barra']) for c in _cargas_nuevas_aplicadas(ws, project)
+            if c.get('alimentador') == alimentador and c.get('barra')]
+
+
+def _tolerancia_pu_del_perfil() -> float:
+    """La de la escalera (025:RF-50), para juzgar igual. Sin ella, 0: cualquier bajada cuenta como causada."""
+    from ..perfil_empresa import datos_perfil
+
+    return float((datos_perfil().get('escalera') or {}).get('tolerancia_pu') or 0.0)
+
+
 def _conclusion_conexion(ws: Workspace, project: str, alimentador: str, actual, con_estudio: dict | None,
-                         lim, cargas: dict | None, con_obras: bool = False) -> dict | None:
+                         lim, cargas: dict | None, con_obras: bool = False, fuera: dict | None = None) -> dict | None:
     """Si la carga se conecta ya, con obras o necesita refuerzo (063:RF-7 a RF-11).
 
     Con el estado actual, el de «Cargas nuevas» (la carga sin obras) y «Con proyecto» solo si
@@ -8415,7 +8471,7 @@ def _conclusion_conexion(ws: Workspace, project: str, alimentador: str, actual, 
     con = None
     if con_estudio and (con_estudio.get('obras_activas') or (con_obras and not con_estudio.get('_fichero'))):
         con = Caso.desde_medida(CON_PROYECTO, con_estudio['medidas'][alimentador], lim)
-    c = conclusion_factibilidad(actual, Caso.desde_medida('Cargas nuevas', medida, lim), con, lim)
+    c = conclusion_factibilidad(actual, Caso.desde_medida('Cargas nuevas', medida, lim), con, lim, bajo_limite=fuera)
     return {**asdict(c), 'estudio_cargas': cargas['_fichero']}
 
 
@@ -8436,7 +8492,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     plan = _copia_del_plan(formulario)                                                # RF-105
     from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
     from ..informe_docx import DatosFactibilidad, escribir_informe_factibilidad
-    from ..informes import (Caso, ConfigInforme, Devanado, Encabezado, InformeError, Solicitud,
+    from ..informes import (Caso, ConfigInforme, Devanado, Encabezado, InformeError, Solicitud, bajo_limite,
                             cliente_ajeno, perdidas_anuales)
     from ..libros_informe import DatosPerdidas
     from ..perfil_empresa import datos_perfil
@@ -8503,6 +8559,9 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     # 063:RF-7: «Con proyecto» es el estado con obras solo si el alimentador las tiene.
     con_obras = any(a.get('project') == project and (a.get('obra') or {}).get('alimentador') == alimentador
                     for a in ws.obras_aplicadas)
+    # 086:RF-48: las dos medidas ya guardan la tensión de cada barra: aquí no se vuelve a DIgSILENT.
+    fuera = bajo_limite(medida_sin, medida_con, lim, tolerancia_pu=_tolerancia_pu_del_perfil(),
+                        barras_cargas=[*_barras_de_cargas_nuevas(ws, project, alimentador), str(carga['barra'])])
 
     # RF-52: tensión de la barra de conexión en «Con proyecto»; kW y kvar, los de la carga.
     u = next((u for nombre, u in medida_con.get('barras') or [] if nombre == carga['barra']), None)
@@ -8579,7 +8638,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         valle=valle_de_la_obra(ws, project, alimentador),
         aviso_cliente=(f'el cliente «{solicitud.cliente}» no parece el de la carga «{carga["sed"]}»: compruebe la solicitud'
                        if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''),
-        avisos=tuple(avisos), corrida=(corrida or {}).get('token'))
+        avisos=tuple(avisos), corrida=(corrida or {}).get('token'), bajo_limite=fuera)
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:
@@ -8590,6 +8649,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     if ctx is not None:
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
                 f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+        for texto in resumen.get('textos_bajo_limite') or []:                        # 086:RF-48, RF-49
+            ctx.log(f'{alimentador}: {texto}')
     avisos_perfil = _avisos_de_la_plantilla(ctx, destino)                            # 086:RF-31
     from ..informe_docx import exportar_pdf
 
@@ -8599,7 +8660,9 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     libro_xlsx = _libro_del_informe(ctx, destino, imagenes)                          # 066:RF-1
     _paso_informe(ctx, 3, 'listo')
     return {'project': project, 'corrida': (corrida or {}).get('token'),
-            'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim, cargas_est, con_obras),
+            'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim, cargas_est, con_obras, fuera),
+            'textos_bajo_limite': resumen.get('textos_bajo_limite') or [],               # 086:RF-48, RF-49
+            'queda_deficit': bool(resumen.get('queda_deficit')),                         # 086:RF-50
             'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos, 'avisos_perfil': avisos_perfil,
             'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf, **libro_xlsx,
             'estudios': [f for f in (sin['_fichero'], con['_fichero']) if f], 'factible': resumen.get('factible'),

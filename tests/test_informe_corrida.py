@@ -45,7 +45,7 @@ def _carga_aplicada(ws) -> None:
          'kva_instalado': 1000}]}), encoding='utf-8')
 
 
-def _doble_del_guion(ws, comportamiento, feeders, *, vmin=None, gemelo=True):
+def _doble_del_guion(ws, comportamiento, feeders, *, vmin=None, gemelo=True, barras_de=None):
     """``comportamiento(rol, estudio, ctx)`` decide; sin decisión, el guion termina bien y deja su informe."""
     vmin = vmin or {'sin': 0.90, 'cargas': 0.93, 'con': 0.99}
 
@@ -61,6 +61,11 @@ def _doble_del_guion(ws, comportamiento, feeders, *, vmin=None, gemelo=True):
             return forzado.get('rc', 1), forzado, report                  # lo que no termina no deja informe
         barras = {f: {**_medida(vmin[rol]), 'barras': [['CAB', 1.0], ['N1', vmin[rol]], ['B_NUEVA', vmin[rol]]]}
                   for f in feeders}
+        if barras_de:
+            lista = [[n, u] for n, u in barras_de[rol].items()]
+            peor = min(barras_de[rol], key=barras_de[rol].get)
+            barras = {f: {**barras[f], 'barras': lista, 'vm_min': barras_de[rol][peor], 'vm_min_barra': peor,
+                          'vm_min_fases': None} for f in feeders}
         informe = {'project': plan['project'], 'caso': rol, 'estudio': estudio, 'avisos': [], 'medidas': barras,
                    'obras_activas': ['V_OBRA'] if rol == 'con' else []}
         report.write_text(json.dumps(informe), encoding='utf-8')
@@ -162,6 +167,77 @@ def test_estudio_con_la_web_caida_a_media_corrida(client, monkeypatch):  # noqa:
     res = visto['res']
     assert not ficheros_viejos & set(res['estudios'])
     assert any('no terminó' in h for h in res['huecos']), res['huecos']
+
+
+def _si112(ws, monkeypatch, con, cargas=None):
+    """SI112 (2026-11-04): con la obra la carga queda en norma y un ramal sigue a 0,9449 p.u., límite 0,95."""
+    sin = {'CAB': 1.0, 'RAMAL': 0.9452}
+    monkeypatch.setattr(services, '_tolerancia_pu_del_perfil', lambda: 0.005)
+    _correr(ws, monkeypatch, barras_de={'sin': sin, 'con': con, 'cargas': cargas or {**con, 'B_NUEVA': 0.93}})
+
+
+def test_la_tolerancia_es_la_de_la_escalera_y_sin_ella_no_se_disculpa_nada(monkeypatch):
+    """086:RF-48 — la del perfil, para juzgar como la escalera; sin ella, 0: nunca un «previo» de más."""
+    from convertersmartgrid import perfil_empresa
+
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {'escalera': {'tolerancia_pu': 0.005}})
+    assert services._tolerancia_pu_del_perfil() == 0.005
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {})
+    assert services._tolerancia_pu_del_perfil() == 0.0
+
+
+def test_factibilidad_por_la_web_lista_el_deficit_previo(client, monkeypatch):  # noqa: F811
+    """086:RF-48, 086:RF-50 — por el servicio: sale de lo que guardan los estudios, sin volver a DIgSILENT, y la
+    web recibe «factible» con el matiz; la barra de la carga no se confunde con un déficit."""
+    _wid, ws = _espacio(client)
+    _carga_aplicada(ws)
+    ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
+    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.963})
+
+    res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
+
+    assert res['factible'] and res['queda_deficit'], res
+    assert res['conclusion_conexion']['clave'] == 'con_obras_deficit'
+    assert any('Déficit previo, fuera de esta obra: RAMAL a 0,9449 p.u.' in t for t in res['textos_bajo_limite'])
+    assert not any('B_NUEVA' in t for t in res['textos_bajo_limite'])
+    assert not any('RF-' in t for t in res['textos_bajo_limite'])
+    generado = next(g for g in services._informes_generados(ws) if g['docx'] == res['informe'])
+    assert generado['queda_deficit']
+
+
+def test_factibilidad_por_la_web_con_la_barra_de_la_carga_baja_no_pasa(client, monkeypatch):  # noqa: F811
+    """086:RF-49 — la carga nueva bajo el límite es cosa de la carga, aunque no tenga comparación."""
+    _wid, ws = _espacio(client)
+    _carga_aplicada(ws)
+    ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
+    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.94})
+
+    res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
+
+    assert not res['factible'] and res['conclusion_conexion']['clave'] == 'obras_insuficientes'
+    assert any(t.startswith('Lo que causa la carga o la obra: B_NUEVA') for t in res['textos_bajo_limite'])
+
+
+def test_factibilidad_por_la_web_sin_barras_bajas_dice_factible_a_secas(client, monkeypatch):  # noqa: F811
+    """086:RF-50 — sin barras bajas, como siempre."""
+    _wid, ws = _espacio(client)
+    _carga_aplicada(ws)
+    ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
+    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.96, 'B_NUEVA': 0.97}, {'CAB': 1.0, 'RAMAL': 0.93, 'B_NUEVA': 0.93})
+
+    res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
+
+    assert res['factible'] and not res['queda_deficit'] and res['textos_bajo_limite'] == []
+    assert res['conclusion_conexion']['clave'] == 'con_obras'
+
+
+def test_estudio_por_la_web_lista_el_deficit_previo(client, monkeypatch):  # noqa: F811
+    """086:RF-49 — el informe de estudio, con lo que guardan sus flujos."""
+    _wid, ws = _espacio(client)
+    ws.obras = [OBRA]
+    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449})
+    res = services.informe_estudio(ws, None, _formulario())
+    assert any('Déficit previo, fuera de esta obra: RAMAL' in t for t in res['textos_bajo_limite'])
 
 
 @pytest.mark.parametrize('modo', ['agotado', 'cancelado', 'error'])

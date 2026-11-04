@@ -1108,6 +1108,7 @@ def test_si_con_proyecto_ya_cumple_no_se_prueba_ninguna_variante(monkeypatch):
     assert codigo == 0, informe
     assert informe['ya_cumple']['fraccion'] == 1.0 and informe['variantes'] == [] and creadas == []
     assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+    assert 'bajo_limite' in informe['ya_cumple']        # 086:RF-48: lo que ya tiene también dice sus barras bajas
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
@@ -1134,6 +1135,36 @@ def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
     assert not filas['no converge']['maxima'] and filas['no converge']['fraccion'] is None
     assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
     assert {e.loc_name for e in app.GetProjectFolder('scen', 1).GetContents('*.IntScenario')} == escenarios
+
+
+def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
+    """086:RF-48 — la evaluación da, por variante y sin la ``u`` entera, cada barra baja con su tensión y la de
+    «Sin proyecto»: el ``escalera_evaluar_*.json`` de SI112 (2026-11-04) solo decía la mínima de media."""
+    app, alims = _calibrada_con_escenario(random.Random(43))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    sin_u = {'RAMAL': 0.9452, 'PEOR': 0.9601, 'BIEN': 0.98}
+    con_u = {'RAMAL': 0.9449, 'NUEVA_T': 0.9440, 'BIEN': 0.97, 'CARGA': 0.963}
+
+    def medida(app_, _alims, _feeders):
+        sin = app_.GetActiveStudyCase().loc_name.startswith('Sin')
+        return {'converge': True, 'u': sin_u if sin else con_u, 'carga': {}, 'perdidas_kw': 1.0}
+
+    monkeypatch.setattr(guion, 'medida_para_criterio', medida)
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                 sorteos=[], barras_cargas=['CARGA'],
+                 parametros={**PERFIL_ESCALERA, 'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05,
+                                                             'cargabilidad_max_pct': 1000}})
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['maxima'], fila      # el criterio de la escalera no cambia
+    bajas =fila['bajo_limite']
+    assert bajas['previo'] == [{'barra': 'RAMAL', 'u': 0.9449, 'sin': 0.9452}]
+    assert bajas['sin_comparacion'] == [{'barra': 'NUEVA_T', 'u': 0.9440, 'sin': None}]
+    assert bajas['causado'] == []
+    assert 'u' not in fila
 
 
 def test_basta_una_variante_que_cumple_para_saber_si_caben(monkeypatch):
