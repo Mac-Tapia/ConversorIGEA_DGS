@@ -6969,7 +6969,9 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         todas = sn.orden_de_cargas(evaluadas)
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
         campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
-        escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
+        # 042:RF-80: la misma forma que los otros dos flujos: la web busca el proyecto y lee el orden.
+        escalera = {'project': project.strip(), 'caben': 0, 'orden': [{k: c.get(k) for k in campos} for c in todas],
+                    'pruebas': [], 'escalera': None, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
     elif escalera_primero:                                              # 042:RF-24
         escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
                                             tipo_cambio=tipo_cambio, capex=capex, cargas=cargas,

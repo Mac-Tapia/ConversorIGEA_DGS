@@ -280,7 +280,7 @@ export const api = {
     request<{ quitado: boolean }>(`${ws(id)}/informes/perdidas`, { method: 'DELETE' }),
   informesTrafoCargas: (id: string, transmision = '') =>
     request<Job>(`${ws(id)}/informes/transformador/cargas`, json('POST', { transmision })),
-  informesTrafo: (id: string, body: { project: string; alimentador: string; carga: string; caso: string }) =>
+  informesTrafo: (id: string, body: { project: string; alimentador: string; carga: string; caso: string; transmision?: string }) =>
     request<Job>(`${ws(id)}/informes/transformador`, json('POST', body)),
   informeEstudio: (id: string, body: InformeEstudioForm) =>
     request<Job>(`${ws(id)}/informes/estudio`, json('POST', body)),

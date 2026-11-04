@@ -967,6 +967,11 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
             ? <>Solas tampoco: {lista(juntas.solas_que_no_convergen)}.</>
             : <>Cada una sola, sí.</>}
           {juntas.basta_quitar_una_de.length > 0 && <> Basta quitar una de: {lista(juntas.basta_quitar_una_de)}.</>}
+        </div>
+      )}
+      {/* 042:RF-81: también si converge: con barras bajas también hacen falta obras. */}
+      {!simular && (
+        <div className="step-box">
           <div className="row">
             <label className="small">Tipo de cambio{' '}
               <input type="text" inputMode="decimal" size={7} value={tipoCambio} placeholder="p. ej. 3,495"
@@ -1006,7 +1011,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
             </>}
             <small className="muted">
               Bancos, regulador, terna y cambio de sección en {lista(feedersEscalera)}, varias variantes y sus
-              combinaciones en «{juntas.caso}»; gana la de menor costo anual entre las que cumplen. El tipo de
+              combinaciones en «{juntas?.caso ?? 'Con proyecto'}»; gana la de menor costo anual entre las que cumplen. El tipo de
               cambio pasa los precios de pérdidas (en la moneda de su publicación) a la del costo
               (la del libro CAPEX): unidades de la primera por una de la segunda.
               {tipoCambio.trim() !== '' && !tcValido ? ' El tipo de cambio tiene que ser un número mayor que 0.'
@@ -1066,23 +1071,14 @@ function CargasNuevasCaso({ c }: { c: NonNullable<CargasInforme['cargas_nuevas']
   );
 }
 
-/** Spec 042, RF-12: qué carga va a la red existente y cuál a la SET nueva, y su diseño. */
-function ConProyecto({ r }: { r: ConProyectoResultado }) {
-  const e = r.escalera_por_cargas;
-  const s = r.set_nueva;
+/** 042:RF-83: el diseño de una SET nueva, sola o de cada zona, y la variación creada. */
+function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
   const u = s.ubicacion_final ?? s.ubicacion;
   return (
-    <div className="step-box">
-      <h4>«Con proyecto» optimizado</h4>
-      <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
-        ({e.pruebas ? `de mayor a menor potencia; ${e.pruebas.length} escaleras medidas` : 'por alimentador'}).</p>
-      {e.a_set_nueva.length > 0 && (
-        <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
-      )}
-      {Object.entries(e.por_alimentador ?? {}).map(([f, a]) => (
-        <AlternativasDe key={f} f={f} a={a} moneda={e.escalera?.moneda ?? ''} />))}
-      {e.escalera && <Escalera r={e.escalera} />}
-      {s.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
+    <>
+      {s.obra && (s.obra.error
+        ? <p className="alert alert-error">No se creó la obra: {s.obra.error}</p>
+        : s.obra.variacion ? <p className="small">Variación creada: <strong>{s.obra.variacion}</strong></p> : null)}
       {s.diseno && (
         <p className="small">Potencia de diseño: ({fmtNum(s.diseno.kva_trasladado, 0)} kVA trasladados +{' '}
           {fmtNum(s.diseno.kva_nuevas, 0)} kVA nuevos) × {fmtNum(s.diseno.factor_crecimiento, 3)} (crecimiento{' '}
@@ -1112,6 +1108,34 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
           </table>
         </div>
       )}
+    </>
+  );
+}
+
+/** Spec 042, RF-12: qué carga va a la red existente y cuál a la SET nueva, y su diseño. */
+function ConProyecto({ r }: { r: ConProyectoResultado }) {
+  const e = r.escalera_por_cargas;
+  const s = r.set_nueva;
+  return (
+    <div className="step-box">
+      <h4>«Con proyecto» optimizado</h4>
+      <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
+        ({e.pruebas ? `de mayor a menor potencia; ${e.pruebas.length} escaleras medidas` : 'por alimentador'}).</p>
+      {e.a_set_nueva.length > 0 && (
+        <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
+      )}
+      {Object.entries(e.por_alimentador ?? {}).map(([f, a]) => (
+        <AlternativasDe key={f} f={f} a={a} moneda={e.escalera?.moneda ?? ''} />))}
+      {e.escalera && <Escalera r={e.escalera} />}
+      {s.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
+      {s.zonas
+        ? s.zonas.map((z) => (
+          <div key={z.zona}>
+            <p><strong>Zona {z.zona}</strong>: {fmtNum(z.kw / 1000, 2)} MW ·{' '}
+              {z.solucion === 'expreso' ? 'alimentador expreso desde su SET' : 'SET nueva'} · {lista(z.cargas)}</p>
+            <SetNuevaVista s={z} />
+          </div>))
+        : <SetNuevaVista s={s} />}
     </div>
   );
 }
@@ -1171,7 +1195,8 @@ function Escalera({ r }: { r: EscaleraResultado }) {
       {r.alimentadores.map((a) => (
         <div key={a.alimentador}>
           <p><strong>{a.alimentador}</strong>:{' '}
-            {a.elegida ? <>se aplica «{a.elegida}»</>
+            {a.ya_cumple ? <>ya cumple tal como está, sin obra para las cargas</>
+              : a.elegida ? <>se aplica «{a.elegida}»</>
               : <span className="badge err">ninguna cumple{a.mas_cercana ? `; la más cercana, «${a.mas_cercana}»` : ''}</span>}
           </p>
           {a.avisos.map((x) => <div key={x} className="muted small">{x}</div>)}

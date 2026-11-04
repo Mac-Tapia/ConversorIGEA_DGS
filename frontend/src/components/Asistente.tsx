@@ -346,6 +346,8 @@ export function Asistente() {
               <p className={job.status === 'failed' ? 'alert alert-error' : 'small'}>
                 Trabajo «{job.title}»: {job.status}{job.error ? ` — ${job.error}` : ''}
                 {typeof job.result?.texto === 'string' && ` — ${job.result.texto}`}
+                {/* 042:RF-84: el texto dice «bájelo del enlace»: el enlace tiene que estar. */}
+                {typeof job.result?.enlace === 'string' && <> <a href={job.result.enlace}>Descargar</a></>}
               </p>
             )}
             {entregables.length > 0 && (

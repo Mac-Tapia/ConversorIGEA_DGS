@@ -331,6 +331,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/operacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
 | `frontend/src/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
+| `frontend/src/components/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
 | `frontend/src/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
 | `frontend/src/api.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |
 | `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021, 025 (RF-4, RF-24, RF-28), 037 (RF-1, RF-5), 039 (RF-1, RF-5), 041 (RF-6, RF-9), 061 (RF-2, RF-9) |

@@ -566,10 +566,12 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     const t = (v: number | null) => (v == null ? '' : String(Math.round(v * 100) / 100));
     fijar({ trafo: { kv: t(r.devanado.kv), sin_pct: t(r.devanado.sin_pct), con_pct: t(r.devanado.con_pct), caso: r.caso } });
   }, [jobTrafo?.id, jobTrafo?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+  // 042:RF-84: el servidor lo pide aquí si el perfil de empresa no lo trae.
+  const [transmision, setTransmision] = useState('');
   const calcularTrafo = () => {
     if (!carga) return;
     void startJob(() => api.informesTrafo(ws.id, { project, alimentador: carga.alimentador, carga: f.trafoCarga,
-      caso: casoElegido }));
+      caso: casoElegido, transmision: transmision.trim() }));
   };
 
   // RF-60 y RF-92: factor de carga del mes de la máxima del medidor de ese alimentador.
@@ -814,7 +816,10 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           </label>
         </div>
         <div className="row">
-          <button className="btn btn-sm" disabled={pfBusy} onClick={() => void startJob(() => api.informesTrafoCargas(ws.id))}>
+          <label className="field"><span>Proyecto de transmisión</span>
+            <input value={transmision} onChange={(e) => setTransmision(e.target.value)} placeholder="el del perfil de empresa" />
+          </label>
+          <button className="btn btn-sm" disabled={pfBusy} onClick={() => void startJob(() => api.informesTrafoCargas(ws.id, transmision.trim()))}>
             Leer cargas del proyecto de transmisión
           </button>
           <button className="btn btn-sm btn-pf" disabled={pfBusy || !f.trafoCarga.trim()} onClick={calcularTrafo}>

@@ -146,6 +146,12 @@ Informe y web
 - RF-45: SI no hay camino eléctrico hasta una carga nueva, ENTONCES EL SISTEMA dirá que coloca las obras por cercanía GPS.
 - RF-46: EL SISTEMA encontrará los tipos del proyecto biblioteca por el nombre con que se piden, aunque el proyecto conserve su nombre anterior. Pisco (2026-11-04): la biblioteca conservaba su nombre anterior, la obra pedía `CSG_Biblioteca_tipos` y todas las variantes con regulador fallaban con «No está el tipo»: el regulador nunca se había medido.
 - RF-47: DONDE la lectura dé la tensión de las barras, EL SISTEMA planteará el regulador sobre el camino de cada carga: en el último tramo con la tensión dentro del límite y a mitad de la caída hasta ese punto, con la unidad que lleva la corriente del tramo bajo el límite de planeamiento. Usuario (2026-11-04): «tienen que integrarse los reguladores en puntos óptimos cuando bancos y sección no solucionan la caída de tensión».
+- RF-79: CUANDO una pantalla de la web falla al dibujarse, EL SISTEMA dirá que falló y dejará recargar, en vez de quedar en blanco.
+- RF-80: CUANDO las cargas van directo a la SET nueva, EL SISTEMA devolverá el mismo resultado que los demás flujos, para que la web lo muestre. Hasta ahora ese resultado no se veía.
+- RF-81: EL SISTEMA ofrecerá las obras en escalera y «Con proyecto» siempre que haya una aplicación de cargas, converja o no: una red que converge con barras bajas también las necesita.
+- RF-82: CUANDO un alimentador ya cumple, EL SISTEMA lo dirá en la web, en vez de «ninguna cumple».
+- RF-83: EL SISTEMA mostrará en la web el diseño de cada zona de SET nueva y la variación creada con su error.
+- RF-84: EL SISTEMA dejará escribir en la web el proyecto de transmisión que pide su mensaje de error, y el asistente mostrará el enlace del ZIP que anuncia.
 - RF-76: EL SISTEMA dejará elegir en la web la evaluación por alimentador con sus alternativas, marcada por defecto, y rehacer las obras ya aplicadas, desmarcado por defecto. Hasta ahora solo se llegaba por la línea de órdenes: el botón corría el flujo anterior.
 - RF-77: EL SISTEMA mostrará en la web, por alimentador, las alternativas con su costo, sorteos, valle, alcance y cuál se aplica, y aparte las del déficit previo y las sin comparación, avisando de que estas no están en «Con proyecto».
 - RF-78: CUANDO la web abre un resultado del flujo por alimentador, EL SISTEMA lo mostrará sin exigir las pruebas por tandas, que ese flujo no tiene. Pisco: `e.pruebas.length` sobre un dato ausente rompía la página.

@@ -275,3 +275,27 @@ def test_la_carga_que_parte_un_tramo_entra_en_la_set_nueva():
     assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T1', 'fraccion': 0.8}}, tramos, {'B': 'B_MT'}) == 'B_MT'
     assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T9', 'fraccion': 0.8}}, tramos, {}) is None
     assert barra_del_tramo_partido({}, tramos, {}) is None
+
+
+def test_el_resultado_directo_a_set_nueva_tiene_la_forma_de_los_demas():
+    """042:RF-80 — con proyecto, orden y pruebas: sin ellos la web lo descartaba y el operador no veía su SET nueva."""
+    from pathlib import Path
+
+    from convertersmartgrid.web import services
+
+    fuente = Path(services.__file__).read_text(encoding='utf-8')
+    tramo = fuente.split('if directo_set_nueva:', 1)[1].split('elif escalera_primero', 1)[0]
+    for clave in ("'project'", "'orden'", "'pruebas'", "'escalera'", "'a_set_nueva'"):
+        assert clave in tramo
+
+
+def test_la_web_no_queda_en_blanco_ni_esconde_resultados():
+    """042:RF-79, 042:RF-81, 042:RF-82, 042:RF-83, 042:RF-84 — comprobado además en el navegador."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    assert 'SinPantallaEnBlanco' in (raiz / 'main.tsx').read_text(encoding='utf-8')
+    cargas = (raiz / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    assert '{!simular && (' in cargas and 'a.ya_cumple ?' in cargas and 's.zonas' in cargas and 's.obra.error' in cargas
+    assert 'job.result?.enlace' in (raiz / 'components' / 'Asistente.tsx').read_text(encoding='utf-8')
+    assert 'transmision: transmision.trim()' in (raiz / 'components' / 'InformesPF.tsx').read_text(encoding='utf-8')
