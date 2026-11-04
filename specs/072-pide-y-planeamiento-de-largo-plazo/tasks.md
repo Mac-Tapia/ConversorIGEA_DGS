@@ -38,5 +38,7 @@
       Hecho cuando: el asistente completa un estudio por las rutas de la web, y el corpus revisado queda registrado.
 - [x] T10 Etiqueta de casos de prueba. (RF-20)
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
+- [x] T12 El COyM del perfil en la propuesta del PIDE y en F10 a F12. (RF-22)
+      Hecho cuando: `pytest -q tests/test_formatos_pide.py -k coym` en verde.
 - [ ] T11 Aceptación real de los dos entregables.
       Hecho cuando: el usuario los revisa en una empresa.

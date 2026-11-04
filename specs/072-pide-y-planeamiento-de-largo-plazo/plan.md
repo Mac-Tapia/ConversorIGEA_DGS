@@ -15,6 +15,7 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
 | Evaluación con y sin proyecto, F01 a F15 | RF-13, RF-14 | Amplía `pide_economia` |
 | Generadores 4.1 y 4.2 | RF-13, RF-14, RF-16 | `informe_docx.py`, perfil de empresa |
 | Herramientas y entrenamiento del asistente | RF-18, RF-19 | Coordinado con la spec 070 |
+| COyM del perfil en la propuesta | RF-22 | `propuesta_pide(coym_pct_anual=)`, `formatos_pide._por_grupo`; lo pasa `web/services.py` |
 
 Fuentes públicas ubicadas el 2026-11-02, en Procesos Regulatorios de Osinergmin: SICODI y VNR al 31-12-2025 (Res. 184-2026-OS/CD);
 VNR de Electro Oriente, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD).

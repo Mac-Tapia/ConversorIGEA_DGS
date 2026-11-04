@@ -2,7 +2,7 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 443. Huella del contenido: `f502b95952484da60abe6e3d27a38f7db2552e89fae882ba07532c7fcc0f858c`.
+Filas: 443. Huella del contenido: `7a2ef176bd0cc04358b12f34057171376b85c53e20c7aff36b64d88f16c79875`.
 Huella de lo sellado: `f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |

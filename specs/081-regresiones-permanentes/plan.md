@@ -62,3 +62,5 @@ Lo nuevo con las fases de su barra (RF-64 a RF-69, T19):
 - `tools/ajuste_cabecera_pf.py::poner_bancos` y `tools/obras_pf.py::construir_condensador`: primero barras trifásicas; las que faltan, con las
   fases de su barra (`adaptar_banco`, el `ctech` del DGS) y aviso con `cifras_de_banco`.
 - Descartado: dejar el elemento trifásico en la barra de menos fases con solo el aviso. Es el fallo de origen: DIgSILENT no calcula nada.
+- RF-70: `web/services.py::AVISO_CATALOGO_APLICADO`, que devuelve `apply_catalog` y escriben el Registro (`web/app.py`) y el aviso de
+  `Modules.tsx`. Descartado: corregir solo las dos frases, que ya se habían separado una vez del código.

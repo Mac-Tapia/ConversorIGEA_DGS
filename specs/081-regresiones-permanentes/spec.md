@@ -138,6 +138,15 @@ escrita) no creaba la SED nueva ni los bancos que faltan si no había barra trif
 - RF-68: SI faltan barras trifásicas para los bancos de la calibración o de una obra, ENTONCES EL SISTEMA los pondrá con las fases de su barra, con su potencia y su corriente por fase en el aviso (cambia 054:RF-10).
 - RF-69: EL SISTEMA reutilizará para una SED nueva solo un tipo de transformador con sus mismas fases; con menos de tres, alta y baja en D (054:RF-4).
 
+Avisos que prometen lo que el código no hace
+
+La revisión de la 076 (2026-11-03, filas `operacion_web-031` y `catalogo_parametros-003`) halló que la web, al subir el catálogo
+corregido, decía «Reconvierta para llevarlo al DGS». 032:RF-2 (cumplida) hace que el DGS escriba los parámetros de la entrada y
+032:RF-14 lleva las fichas a «Sin proyecto»: el operador reconvertía y el DGS seguía igual.
+
+- RF-70: CUANDO el operador sube el catálogo corregido, EL SISTEMA dirá que sus fichas se aplicarán al calibrar «Sin proyecto» y que
+  el DGS del «Caso base» conserva los parámetros de la entrada, con una sola frase que dan el Registro y la pantalla.
+
 ## Fuera de alcance
 
 - Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).

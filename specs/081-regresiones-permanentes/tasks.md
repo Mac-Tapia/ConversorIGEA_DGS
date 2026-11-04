@@ -26,6 +26,10 @@
   Hecho cuando: `pytest -q tests/test_casos_de_prueba.py tests/test_asistente_lectura_local.py` en verde, sin `PYTHONUTF8`.
 - [x] T19 Lo nuevo se adapta a las fases de su barra: cargas nuevas, bancos de la calibración y de una obra. (RF-64 a RF-69)
   Hecho cuando: `pytest -q tests/test_fases_de_lo_nuevo.py` en verde, con redes sorteadas.
+- [x] T21 El aviso del catálogo subido dice dónde entran sus fichas. (RF-70)
+  Hecho cuando: `pytest -q tests/test_aviso_catalogo.py` en verde.
+- [ ] T22 [DIgSILENT] El aviso del catálogo en el navegador real, con la web reiniciada y el frente reconstruido; no toca DIgSILENT. (RF-70)
+  Hecho cuando: al subir un catálogo, la pantalla y el Registro dan la misma frase, y la confirmación de «Quitar» dice que el DGS no cambia.
 - [ ] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
   Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.
 - [ ] T10 [DIgSILENT] Resolver en un proyecto de prueba de quien tenga el turno: un acoplador o un banco con más fases que su barra.

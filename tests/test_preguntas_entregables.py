@@ -20,9 +20,11 @@ PE = cargar_herramienta('preguntas_entregables.py')
 RAIZ = PE.RAIZ
 
 #: Huellas del contenido, fijadas al escribir el conjunto; cambiarlas es cambiar el conjunto (076:RF-7, RF-9).
-HUELLA_CONJUNTO = 'f502b95952484da60abe6e3d27a38f7db2552e89fae882ba07532c7fcc0f858c'
+#: 081:RF-70 (2026-11-03): catalogo_parametros-003, -004 y operacion_web-031, y los dos hechos del catálogo, revisados
+#: porque el aviso «Reconvierta…» que citaban se corrigió; lo sellado no cambia.
+HUELLA_CONJUNTO = '7a2ef176bd0cc04358b12f34057171376b85c53e20c7aff36b64d88f16c79875'
 HUELLA_SELLADO = 'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e'
-HUELLA_HECHOS = 'f9745ff3b6d258a6558b79c1399bd62e4279f69486c3d14b15e700535515806f'
+HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 
 #: sha256('076:' + texto normalizado)[:16] de nombres de clientes y obras que solo salen en los casos de prueba.
 NOMBRES_PRIVADOS = frozenset({'1d409437293f8e90', '3498bf03a218f2c3', '3e59bdab0a823374', '442eea8a24c9cc8b', 'a1a7c9ecc9d9117c',
