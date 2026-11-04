@@ -1148,7 +1148,7 @@ def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
     sin_u = {'RAMAL': 0.9452, 'PEOR': 0.9601, 'BIEN': 0.98}
     con_u = {'RAMAL': 0.9449, 'NUEVA_T': 0.9440, 'BIEN': 0.97, 'CARGA': 0.963}
 
-    def medida(app_, _alims, _feeders):
+    def medida(app_, _alims, _feeders, **_k):
         sin = app_.GetActiveStudyCase().loc_name.startswith('Sin')
         return {'converge': True, 'u': sin_u if sin else con_u, 'carga': {}, 'perdidas_kw': 1.0}
 
@@ -1212,7 +1212,7 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
     vistos = []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         assert float(carga.plini) == p0, 'el sorteo no escribe plini (063:RF-28)'
         vistos.append((getattr(app_.GetActiveScenario(), 'loc_name', ''), float(carga.scale0) / s0 * p0))
         return medir(app_, alims_, feeders)
@@ -1289,7 +1289,7 @@ def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatc
     vistas = []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         vistas.append({v.loc_name for v in app_.GetActiveNetworkVariations() or []})
         return medir(app_, alims_, feeders)
 
@@ -1382,7 +1382,7 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
         actual['v'] = sub['obras'][0]['tramos'][0]
         return {'obras': [{'variacion': None}]}, 0
 
-    def medir(app_, alims_, feeders):
+    def medir(app_, alims_, feeders, **_k):
         medidas['n'] += 1
         return {'converge': True, 'u': {}, 'carga': {}, 'perdidas_kw': 10.0}
 
@@ -1487,7 +1487,7 @@ def test_los_sorteos_y_el_criterio_cubren_todas_las_troncales(monkeypatch):
     escalas, vistas = [], []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         escalas.append(round(float(carga.scale0) / s0, 6))
         m = medir(app_, alims_, feeders)
         vistas.append(barra.loc_name in m['u'])
@@ -1565,7 +1565,7 @@ def test_los_sorteos_van_por_etapas(monkeypatch, sigue, medidos):
     monkeypatch.setattr(escalera_optima, 'hace_falta_seguir', lambda _fr, m, n, _p: sigue and m < n)
     flujos = []
     real = guion.medida_para_criterio
-    monkeypatch.setattr(guion, 'medida_para_criterio', lambda *a: (flujos.append(1), real(*a))[1])
+    monkeypatch.setattr(guion, 'medida_para_criterio', lambda *a, **k: (flujos.append(1), real(*a, **k))[1])
     perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'sorteos_etapa': 10}}
     sorteos = [{'factores': {a: 0.9 for a in alims}} for _ in range(12)]
     antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
@@ -1591,3 +1591,37 @@ def test_sin_etapas_se_miden_todos(monkeypatch):
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
     assert informe['variantes'][0]['sorteos_medidos'] == 7
+
+
+def test_los_sorteos_leen_lo_del_criterio_y_nada_mas(monkeypatch):
+    """042:RF-89 — sin extremos de toda la red, y el informe dice cuánto tardaron."""
+    app, alims = _calibrada_con_escenario(random.Random(46))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    llamadas = []
+    real = guion.flujo_de_carga
+    monkeypatch.setattr(guion, 'flujo_de_carga', lambda a, **k: (llamadas.append(k), real(a, **k))[1])
+    antes = guion.TIEMPOS['flujos']
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=[{'factores': {a: 0.9 for a in alims}} for _ in range(4)], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert sum(1 for k in llamadas if k.get('extremos') is False) >= 8                # referencia y variante, 4 de cada una
+    assert informe['tiempos_medida']['flujos'] >= antes + 8
+    assert informe['variantes'][0]['perdidas_kw'] is not None or informe['variantes'][0]['maxima'] is False
+
+
+def test_las_fases_se_miran_una_vez_por_caso(monkeypatch):
+    """042:RF-89 — recorrer la red en cada sorteo costaba más que el flujo."""
+    from types import SimpleNamespace as N
+
+    from convertersmartgrid import dgs
+
+    miradas = []
+    monkeypatch.setattr(dgs, 'red_con_monofasicos', lambda _a: (miradas.append(1), True)[1])
+    guion._MONOFASICOS.clear()
+    caso = {'c': 'Con proyecto'}
+    app = N(GetActiveStudyCase=lambda: N(loc_name=caso['c']))
+    assert guion._monofasicos_del_caso(app) and guion._monofasicos_del_caso(app) and len(miradas) == 1
+    caso['c'] = 'Sin proyecto'
+    assert guion._monofasicos_del_caso(app) and len(miradas) == 2

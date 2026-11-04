@@ -856,7 +856,7 @@ def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_c
         estado['obra'] = sub['obras'][0]['clase']
         return {'obras': [{'variacion': None}]}, 0
 
-    def medir(_app, _alims, _feeders):
+    def medir(_app, _alims, _feeders, **_k):
         u = u_valle if estado['valle'] and estado['obra'] == 'condensador' else 1.0
         return {'converge': True, 'u': {barra: u}, 'carga': {}, 'perdidas_kw': 10.0}
 

@@ -57,6 +57,7 @@ import argparse
 import json
 import math
 import re
+import time
 import traceback
 from pathlib import Path
 from typing import Any, Callable
@@ -2616,11 +2617,31 @@ def _cargas_de(alims, feeder: str) -> list:
     return list(cargas.values())
 
 
-def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
+#: 042:RF-89: lo que tarda cada parte de las medidas ligeras, para saber dónde se va el tiempo.
+TIEMPOS = {'flujos': 0, 'flujo_s': 0.0, 'lectura_s': 0.0}
+#: 042:RF-89: las fases se miran una vez por caso: una obra de la escalera no las cambia.
+_MONOFASICOS: dict[str, bool] = {}
+
+
+def _monofasicos_del_caso(app) -> bool:
+    caso = getattr(app.GetActiveStudyCase(), 'loc_name', '')
+    if caso not in _MONOFASICOS:
+        from convertersmartgrid.dgs import red_con_monofasicos
+
+        _MONOFASICOS[caso] = red_con_monofasicos(app)
+    return _MONOFASICOS[caso]
+
+
+def medida_para_criterio(app, alims, feeders: list[str], *, ligera: bool = False) -> dict[str, Any]:
     """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
     y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
-    flujo = flujo_de_carga(app)
+    inicio = time.perf_counter()
+    flujo = flujo_de_carga(app, extremos=False, monofasicos=_monofasicos_del_caso(app)) if ligera else flujo_de_carga(app)
+    medio = time.perf_counter()
     out: dict[str, Any] = {'converge': bool(flujo['converged']), 'u': {}, 'carga': {}, 'perdidas_kw': None}
+    if ligera:
+        TIEMPOS['flujos'] += 1
+        TIEMPOS['flujo_s'] += medio - inicio
     if not out['converge']:
         return out
 
@@ -2658,6 +2679,9 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
                     out['carga'][e.loc_name] = float(e.GetAttribute('c:loading'))
                 except Exception:  # noqa: BLE001, S110
                     pass
+    if ligera:                                                                  # 042:RF-89: el criterio no usa pérdidas
+        TIEMPOS['lectura_s'] += time.perf_counter() - medio
+        return out
     # 025:RF-70: lo que entra por la cabecera menos lo que consumen las cargas en el flujo; con
     # su potencia nominal, a 0,88 p.u. las pérdidas de SI213 salían −2044 kW (2026-10-24).
     perdidas = []
@@ -2816,7 +2840,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         informe['cancelado'] = True
                         return False
                     s.escalar(sorteos[i]['factores'])
-                    sin_sorteos.append(medida_para_criterio(app, alims, feeders))
+                    sin_sorteos.append(medida_para_criterio(app, alims, feeders, ligera=True))
             return True
 
         if not referencia_hasta(en_primera):
@@ -2826,7 +2850,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for pt in puntos_valle:
                     s.escalar(pt['factores'], 0.0)
-                    sin_valle.append(medida_para_criterio(app, alims, feeders))
+                    sin_valle.append(medida_para_criterio(app, alims, feeders, ligera=True))
 
         def medir_valle() -> dict[str, Any]:
             """Lo que está activo en cada punto de valle, sin las cargas nuevas y con ellas, en un
@@ -2837,7 +2861,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 for pt, sin_i in zip(puntos_valle, sin_valle):
                     for caso, factor_nuevas in casos_valle:
                         s.escalar(pt['factores'], factor_nuevas)
-                        con = medida_para_criterio(app, alims, feeders)
+                        con = medida_para_criterio(app, alims, feeders, ligera=True)
                         bien, motivos = cumple_en_valle(sin_i, con, barras if factor_nuevas else [], p)    # 042:RF-85
                         anotar_punto(fila, pt, caso, bien, motivos, con.get('u') or {})
             return fila
@@ -2888,7 +2912,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         informe['cancelado'] = True
                         return None
                     s.escalar(sorteo['factores'])
-                    bien, motivos = cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)
+                    bien, motivos = cumple(sin_i, medida_para_criterio(app, alims, feeders, ligera=True), barras, p)
                     if not bien:
                         fallos += 1
                         fallidos.append({'instante': sorteo.get('instante'), 'factores': sorteo.get('factores'),
@@ -3022,13 +3046,14 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if (fila['fraccion'] or 0) >= p.cumplimiento:
                 ganadora = fila['nombre']
         horizonte = plan.get('horizonte')
+        informe['tiempos_medida'] = TIEMPOS                                     # 042:RF-89
         if horizonte:                                                           # 042:RF-73, RF-74
             def alcance():
                 primeros: list[str] = []
                 with _Sorteo(app, alims, feeders, existentes) as s:
                     for anios in horizonte['anios']:
                         s.escalar(horizonte['factores'][str(anios)])
-                        bien, motivos = definitiva(medida_para_criterio(app, alims, feeders), p)
+                        bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p)
                         if bien:
                             return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros}
                         primeros = primeros or list(motivos)
@@ -3044,6 +3069,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 fila['error'] = fila['error'] or error
                 print(f"  {v['nombre']}: alcance {fila['horizonte']}", flush=True)
         informe['variantes'] = [f for _v, f in filas]
+        print(f"  Tiempos de las medidas ligeras: {TIEMPOS['flujos']} flujos, {TIEMPOS['flujo_s']:.1f} s de flujo y "
+              f"{TIEMPOS['lectura_s']:.1f} s de lectura (042:RF-89).", flush=True)
     finally:
         if ajenas:
             casos['con'].Activate()

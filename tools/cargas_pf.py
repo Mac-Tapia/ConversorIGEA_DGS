@@ -2004,7 +2004,7 @@ def _misma(a, b) -> bool:
         return a is b
 
 
-def flujo_de_carga(app) -> dict:
+def flujo_de_carga(app, *, extremos: bool = True, monofasicos: bool | None = None) -> dict:
     """``ComLdf`` con lo activo; convergencia y tensiones extremas (RF-18).
 
     054:RF-7: con líneas o trafos de menos de 3 fases, el flujo desequilibrado; si no, el que
@@ -2012,12 +2012,13 @@ def flujo_de_carga(app) -> dict:
     from convertersmartgrid.dgs import red_con_monofasicos
 
     ldf = app.GetFromStudyCase('ComLdf')
-    if red_con_monofasicos(app):
+    # 042:RF-89: recorrer la red en cada sorteo costaba más que el flujo: quien repite ya lo sabe.
+    if red_con_monofasicos(app) if monofasicos is None else monofasicos:
         ldf.iopt_net = 1
     ret = ldf.Execute()
     valido = app.IsLdfValid()
     out = {'return_code': ret, 'ldf_valid': bool(valido), 'converged': ret == 0 and bool(valido)}
-    if out['converged']:
+    if out['converged'] and extremos:
         tensiones = []
         for bus in app.GetCalcRelevantObjects('*.ElmTerm'):
             try:
