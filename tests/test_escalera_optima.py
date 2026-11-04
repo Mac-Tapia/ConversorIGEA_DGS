@@ -561,3 +561,14 @@ def test_cada_variante_refuerza_los_tramos_sobrecargados_de_cualquier_ramal():
     # Sin sobrecargas las variantes no cambian.
     limpias, _a = eo.variantes('F', 22.9, troncal, cargas, [], eo.parametros(perfil), banco_kvar=450.0)
     assert not [v for v in limpias if 'refuerzo' in v.nombre]
+
+
+def test_el_camino_pasa_por_los_acopladores_y_solo_las_lineas_llevan_obra():
+    """042:RF-44 — Pisco: el camino se cortaba en cada maniobra; con ella pasa, y el acoplador no se refuerza."""
+    red = [{'nombre': 'L1', 'desde': 'CAB', 'hasta': 'A', 'largo_m': 100.0},
+           {'nombre': 'SW', 'desde': 'A', 'hasta': 'B', 'largo_m': 0.0, 'puente': True},
+           {'nombre': 'L2', 'desde': 'B', 'hasta': 'C', 'largo_m': 200.0}]
+    assert eo.camino_electrico(red[:1] + red[2:], 'CAB', 'C') == []
+    camino = eo.camino_electrico(red, 'CAB', 'C')
+    assert [t['nombre'] for t in camino] == ['L1', 'SW', 'L2']
+    assert [t['nombre'] for t in eo.solo_lineas(camino)] == ['L1', 'L2']

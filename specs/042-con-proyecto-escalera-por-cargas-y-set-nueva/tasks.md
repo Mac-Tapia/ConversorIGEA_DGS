@@ -78,6 +78,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: cada alimentador con cargas nuevas termina con obra medida o «ya cumple».
 - [x] T30. Cada variante refuerza los tramos sobrecargados de cualquier ramal. (RF-43)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T31. El camino eléctrico pasa por acopladores y equipos en serie. (RF-44, RF-45)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_042.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

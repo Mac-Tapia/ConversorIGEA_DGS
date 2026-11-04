@@ -309,3 +309,26 @@ def test_cada_obra_aplicada_queda_georreferenciada(monkeypatch):
     sitio = {u['elemento']: u['puntos'] for u in filas[0]['ubicacion']}
     assert [p['barra'] for p in sitio['Banco']] == ['A'] and [p['barra'] for p in sitio['L1']] == ['A', 'B']
     assert sitio['Banco'][0]['crs'] == 'EPSG:32718' and sitio['Banco'][0]['este'] > 0 and 'ubicacion' not in filas[1]
+
+
+def test_los_puentes_de_la_red():
+    """042:RF-44, 042:RF-45 — acopladores cerrados y equipos en servicio unen dos barras; el abierto o fuera de servicio, no."""
+    from pathlib import Path
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf44', tools_en_path=True)
+
+    def barra(n):
+        return N(cterm=N(loc_name=n))
+
+    objetos = {'ElmCoup': [N(loc_name='cerrado', on_off=1, outserv=0, bus1=barra('A'), bus2=barra('B')),
+                           N(loc_name='abierto', on_off=0, outserv=0, bus1=barra('B'), bus2=barra('C')),
+                           N(loc_name='fuera', on_off=1, outserv=1, bus1=barra('C'), bus2=barra('D'))],
+               'ElmVoltreg': [N(loc_name='reg', outserv=0, bus1=barra('D'), bus2=barra('E'))],
+               'ElmTr2': [N(loc_name='tr', outserv=0, bushv=barra('E'), buslv=barra('F'))]}
+    app = N(GetCalcRelevantObjects=lambda patron: objetos.get(patron[2:], []))
+    puentes = guion.puentes_de_la_red(app)
+    assert {p['nombre'] for p in puentes} == {'cerrado', 'reg', 'tr'} and all(p['puente'] and p['largo_m'] == 0.0 for p in puentes)
+    assert next(p for p in puentes if p['nombre'] == 'tr')['hasta'] == 'F'
+    fuente = (Path(__file__).resolve().parents[1] / 'tools' / 'obras_pf.py').read_text(encoding='utf-8')
+    assert 'por cercanía GPS (042:RF-45)' in fuente

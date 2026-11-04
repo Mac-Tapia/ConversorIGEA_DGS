@@ -311,6 +311,11 @@ def camino_electrico(tramos: Sequence[Mapping[str, Any]], origen: str, destino: 
     return out[::-1]
 
 
+def solo_lineas(camino: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """042:RF-44: del camino eléctrico, los tramos que pueden llevar obra: un acoplador conecta, pero no se refuerza."""
+    return [t for t in camino if not t.get('puente')]
+
+
 def _caminos(troncal, cargas) -> list[list[Mapping[str, Any]]]:
     """Por carga, los tramos donde van sección y terna: su camino eléctrico si la lectura lo da
     (063:RF-32); si no, la troncal hasta su índice (025:RF-44). Sin repetir caminos."""

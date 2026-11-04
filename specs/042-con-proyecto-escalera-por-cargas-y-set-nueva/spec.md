@@ -142,6 +142,8 @@ Informe y web
 - RF-41: SI un alimentador no tiene tasa de crecimiento, ENTONCES EL SISTEMA diseñará la SET con la media de los demás o, sin ninguna, con la tasa de referencia, y lo dirá.
 - RF-42: SI un alimentador no tiene máxima, medidor o curva del año, o ningún instante tiene a todos medidos, ENTONCES EL SISTEMA evaluará las obras igual, a su demanda calibrada en la máxima y sorteando solo los medidos, y lo dirá.
 - RF-43: SI con las cargas nuevas un tramo del alimentador pasa del límite de carga, ENTONCES EL SISTEMA añadirá a cada variante las ternas que ese tramo necesita para quedar bajo el límite, descontando lo que ya le dé la propia variante, y probará también ese refuerzo solo. Pisco (2026-11-04): un alimentador con cinco cargas en varios ramales tenía un tramo al 141 %; cada variante reforzaba un solo camino, las tensiones cumplían (0,97 p.u.) y ninguna podía cumplir.
+- RF-44: EL SISTEMA buscará el camino eléctrico de cada carga nueva pasando por los acopladores cerrados y los demás equipos en serie, y solo las líneas de ese camino recibirán obras. Pisco (2026-11-04): el camino se buscaba solo por líneas, se cortaba en cada maniobra y ningún alimentador lo tenía; las obras se colocaban por cercanía GPS, y SI112 reforzaba una rama de 36 A que no era la de su carga de 58 A.
+- RF-45: SI no hay camino eléctrico hasta una carga nueva, ENTONCES EL SISTEMA dirá que coloca las obras por cercanía GPS.
 - Aclaración de RF-10 (2026-11-01): de los puntos probados queda el mejor (converge, menos barras
   fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
   quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.
