@@ -109,6 +109,7 @@ def test_no_se_termina_sin_dar_un_plazo(monkeypatch):
     """081:RF-45 — la otra vía: ``taskkill /F`` tras 8 s sin contestar, por una noche cargada. Se le da un plazo, y si contesta sigue."""
     esperas, terminados = [], []
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
+    monkeypatch.setattr(lanzador, 'es_web_de_otra_sesion', lambda *_a, **_k: False)  # sin esto, mira la web real del 8765
     monkeypatch.setattr(lanzador, 'quien_escucha', lambda _p: (4242, 'python -m convertersmartgrid.web'))
     monkeypatch.setattr(lanzador, 'esperar_respuesta', lambda _u, s: esperas.append(s) or None)
     monkeypatch.setattr(lanzador, '_terminar', terminados.append)

@@ -130,6 +130,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/recursos/leaflet/LICENSE` | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.css` | Estilos de Leaflet, copia exacta con huella comprobada. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.js` | Leaflet, copia exacta con huella comprobada. | 086 |
+| `src/convertersmartgrid/recursos/NOTAS_VERSION.md` | Notas de la versión que muestra la pantalla «Acerca de». | 086 |
 | `src/convertersmartgrid/registro_rotativo.py` | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. | 086 (RF-41) |
 | `src/convertersmartgrid/edicion.py` | Qué edición corre y qué entrega la de producto: rutas y tareas fuera de alcance, y funciones en beta. | 086 (RF-15, RF-16, RF-22) |
 | `src/convertersmartgrid/salidas_red.py` | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. | 086 (RF-22) |
