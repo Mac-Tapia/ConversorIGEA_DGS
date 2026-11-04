@@ -471,3 +471,26 @@ def test_en_linea_larga_los_bancos_tambien_a_dos_tercios():
     cortos = [{**t, 'largo_m': 100.0} for t in tramos]
     vs, _a = eo.variantes('F', 22.9, cortos, [{**cargas[0], 'camino': cortos}], [], eo.parametros(perfil), banco_kvar=450.0)
     assert not [v for v in vs if '2/3' in v.nombre]
+
+
+def test_las_obras_se_integran_de_tres_y_de_cuatro_sin_repetir():
+    """042:RF-38 — bancos + sección + terna + regulador juntos, sección y terna en el mismo camino, ninguna repetida."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+
+    t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
+    tipo = {'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'otro', 'proyecto': eo.BIBLIOTECA_TIPOS}
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'max_variantes': 500, 'modulos_max': 2, 'secciones_normalizadas': ['AA24003D']},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    troncal = [{'nombre': f'L{i}', 'largo_m': 4000.0, 'corriente_a': 100.0, 'inom_a': 340.0} for i in range(6)]
+    cargas = [{'barra': 'B5', 'existe': True, 'indice_troncal': 5}, {'barra': 'B2', 'existe': True, 'indice_troncal': 2}]
+    vs, _a = eo.variantes('F', 22.9, troncal, cargas, [tipo], eo.parametros(perfil), banco_kvar=450.0)
+    assert len({v.nombre for v in vs}) == len(vs)
+    assert [v for v in vs if set(v.escalones) == set(eo.ORDEN)]
+    for v in vs:
+        sec = [o for o in v.obras if o['clase'] == 'seccion']
+        ter = [o for o in v.obras if o['clase'] == 'terna']
+        if sec and ter:
+            assert set(sec[0]['tramos']) <= set(ter[0]['tramos'])

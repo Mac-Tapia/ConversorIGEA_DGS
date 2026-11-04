@@ -13,6 +13,7 @@ Puro: arma las variantes, juzga cada flujo, sortea, costea y elige. Medir en DIg
 """
 from __future__ import annotations
 
+import itertools
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -472,7 +473,20 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         combinadas = (triples + [v for v in combinadas if 'regulador' in v.escalones]
                       + [v for v in combinadas if 'regulador' not in v.escalones])
         avisos.append(f'{alimentador}: línea de {largo_km:.1f} km: se plantean reguladores, también con la doble terna (042:RF-35).')
-    todas = solas + dobles + combinadas
+    # 042:RF-38: todas las obras integradas: de tres en tres y las cuatro, con sección y terna en el mismo camino.
+    mayores = []
+    for k in (3, 4):
+        for grupo in itertools.combinations(ORDEN, k):
+            for partes in itertools.product(*(por_escalon[e] for e in grupo)):
+                sec = next((v for e, v in zip(grupo, partes) if e == 'seccion'), None)
+                ter = next((v for e, v in zip(grupo, partes) if e == 'terna'), None)
+                if sec is not None and ter is not None and not set(sec.obras[0]['tramos']) <= set(ter.obras[0]['tramos']):
+                    continue
+                mayores.append(Variante(' + '.join(v.nombre for v in partes), sum((v.escalones for v in partes), ()),
+                                        [o for v in partes for o in v.obras],
+                                        {c: n for v in partes for c, n in v.cantidades.items()}))
+    vistas: set[str] = set()
+    todas = [v for v in solas + dobles + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
                       'en el orden de la escalera (escalera.max_variantes del perfil).')
