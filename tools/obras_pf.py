@@ -1998,7 +1998,7 @@ def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
 CLASES_CON_SITIO = ('ElmLne', 'ElmShnt', 'ElmVoltreg', 'ElmTerm', 'ElmTr2')
 
 
-def _barras_de(objeto) -> list:
+def _extremos_de(objeto) -> list:
     """Las barras de un elemento: él mismo si es barra; si no, las de sus conexiones."""
     if objeto.GetClassName() == 'ElmTerm':
         return [objeto]
@@ -2042,7 +2042,7 @@ def georreferenciar_obras(app, filas: list[dict]) -> None:
                 vivo = vivos.get((o.GetClassName(), o.loc_name))
                 if vivo is None:
                     continue
-                puntos = [p for p in (_punto_de(b, transformar, crs) for b in _barras_de(vivo)) if p]
+                puntos = [p for p in (_punto_de(b, transformar, crs) for b in _extremos_de(vivo)) if p]
                 ubicacion.append({'elemento': vivo.loc_name, 'clase': vivo.GetClassName(), 'puntos': puntos})
         fila['ubicacion'] = ubicacion
         if any(not u['puntos'] for u in ubicacion):
