@@ -1,6 +1,6 @@
 # Spec 086 — Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta
 
-Estado: aprobada · Fecha: 2026-11-04 · Origen: petición del usuario; aprobada con «sigue», tras avisar de que seguiría con lo recomendado en lo reversible
+Estado: aprobada · Fecha: 2026-11-04 · Origen: petición del usuario; aprobada por el usuario: «esta aprobado el paln implementa». D1 a D7 siguen con la recomendación en lo reversible; D3 espera su orden
 
 Cita: 002, 017, 025, 042, 047, 052, 055, 056, 058, 062, 065, 067, 072, 073, 077, 081, 083, 084, 085.
 
