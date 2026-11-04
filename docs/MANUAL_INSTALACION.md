@@ -80,6 +80,58 @@ quedan los datos de ahora. Una versión anterior no abre un espacio que una más
 
 La web avisa cuando la última copia es vieja. Las órdenes `verificar` y `restaurar` están en su ayuda (`copia_datos.cmd --help`).
 
+## Llevarlo a otro equipo o a otro usuario
+
+El programa se instala **por usuario de Windows**: cada usuario tiene su instalación y sus datos, y no se comparten solos. DIgSILENT no
+viene en el instalador: cada equipo usa el suyo, con su propia licencia.
+
+### En el equipo o el usuario nuevo
+
+1. Compruebe que tiene DIgSILENT PowerFactory 2024 con su Python 3.12, abierto al menos una vez con su licencia. Si está en otra carpeta,
+   defina la variable de usuario `PF_PYTHON` con la ruta de su carpeta `Python\3.12`.
+2. Copie `ConverterSmartGrid-<versión>-setup.exe` e instálelo como se dice en [Instalar](#instalar). No hace falta internet.
+3. Abra **ConverterSmartGrid - diagnóstico**. Tiene que decir «listo para trabajar» y, en DIgSILENT, la carpeta de su API.
+4. Si es otra empresa, cree su perfil como se dice en [Perfil de empresa](#perfil-de-empresa) y compruébelo con `validar-perfil`.
+5. Pruebe con un proyecto de prueba antes de trabajar: cargue la fuente, convierta un alimentador e impórtelo en DIgSILENT.
+
+### Llevarse los datos, si hace falta
+
+Una instalación nueva empieza sin espacios, y es lo normal en otra empresa. Para conservar los de otro puesto:
+
+1. En el puesto antiguo, con el programa cerrado: `copia_datos.cmd crear --destino E:\copias`.
+2. Lleve la carpeta `csg-copia-…` al puesto nuevo.
+3. En el puesto nuevo, con el programa cerrado: `copia_datos.cmd verificar --copia E:\copias\csg-copia-…` y, si está bien,
+   `copia_datos.cmd restaurar --copia E:\copias\csg-copia-…`. Lo que hubiera se aparta, sin borrarlo.
+4. Abra el programa. Lo que estaba fuera de los datos, como una fuente en otra unidad, sale como **no disponible**: vuelva a indicarlo o
+   descártelo.
+
+**La copia no lleva los proyectos de DIgSILENT**, que viven en la base de datos de DIgSILENT. Expórtelos e impórtelos con DIgSILENT, o vuelva a
+importar desde la web. Los datos de una distribuidora son suyos: no los copie a otro equipo sin su permiso, ni los suba a internet.
+
+### Si algo no sale
+
+| Qué ve | Qué hacer |
+| --- | --- |
+| El diagnóstico no encuentra DIgSILENT | Defina `PF_PYTHON`, o instale la versión con Python 3.12 |
+| «Esta pestaña no tiene sesión» | Abra el acceso directo: cada arranque usa una sesión nueva, y los enlaces guardados dejan de valer |
+| En el puerto hay un Conversor de otra sesión | Ciérrelo y vuelva a abrir el acceso directo |
+| El instalador rechaza la carpeta | Use una ruta más corta: Windows no carga librerías por encima de 259 caracteres |
+| Windows avisa de un editor desconocido | El instalador no va firmado; compruebe que vino de quien se lo dio |
+
+## Construir el instalador
+
+Solo para quien prepara una versión; un operador no lo necesita. Hace falta el repositorio, con Python 3.12, Node e
+[Inno Setup 6](https://jrsoftware.org/isinfo.php), y el `python-3.12.x-embed-amd64.zip` de python.org.
+
+```bat
+cd frontend && npm ci && npm run build && cd ..
+python tools\construir_candidato.py candidato --salida C:\csg\candidato --python-embebido python-3.12.10-embed-amd64.zip
+python tools\comprobar_entrega.py --candidato C:\csg\candidato
+ISCC.exe /DCandidato=C:\csg\candidato /DVersion=1.0.0rc1 /OC:\csg\salida instalador\ConverterSmartGrid.iss
+```
+
+Use rutas cortas: la de construir se suma a la de cada fichero. El candidato rechaza lo que lleve el nombre de una empresa o un peso entrenado.
+
 ## Complemento de IA (opcional)
 
 El núcleo no trae `torch`: pesa gigas y nada de lo que se vende en la 1.0 lo necesita. Su lista está en

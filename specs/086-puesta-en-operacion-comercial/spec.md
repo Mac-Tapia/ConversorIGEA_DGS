@@ -124,6 +124,7 @@ Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento»
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.
 - RF-46: La 1.0 se aceptará en un equipo limpio, con una empresa distinta de Electro Dunas y con un corte de luz simulado a media corrida.
+- Aclaración de RF-46 (usuario, 2026-11-04: «haslo todo con este local; para otro local o usuario se debe dejar un manual»): la aceptación se hace en este equipo, con su DIgSILENT y por turnos, instalando con el `setup.exe` en un entorno sin nada de desarrollo. No demuestra lo que dependa de lo que este Windows ya tiene: el manual de instalación explica cómo llevarlo a otro equipo o usuario, y el primer cliente se acompaña.
 
 ## Fuera de alcance
 
