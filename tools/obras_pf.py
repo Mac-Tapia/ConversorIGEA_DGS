@@ -278,6 +278,13 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
         informe['conductores_creados'] = crear_tipos_conductor(app, plan['conductores_nuevos'], informe['avisos'])
         if app.GetActiveProject() is not proyecto:
             proyecto.Activate()
+    if plan.get('tensiones_regulador'):
+        # 042:RF-34: sin esto, todas las variantes con regulador fallaban por el tipo que faltaba.
+        reguladores, _codigo = crear_tipos_regulador(app, {'tensiones_kv': plan['tensiones_regulador']})
+        informe['avisos'] += list(reguladores.get('avisos') or []) + ([reguladores['error']] if reguladores.get('error') else [])
+        informe['reguladores_creados'] = [r['nombre'] for r in reguladores.get('creados') or []]
+        if app.GetActiveProject() is not proyecto:
+            proyecto.Activate()
     otro = None
     ruta = plan.get('otro_proyecto')
     if ruta:
@@ -409,6 +416,11 @@ def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
                 informe['existentes'].append(u.nombre)
                 continue
             tipo = equip.CreateObject('TypVoltreg', u.nombre)
+            if tipo is None:
+                # 042:RF-34: sin activar, DIgSILENT no deja escribir en el proyecto biblioteca (Pisco, 2026-11-03).
+                _proyecto.Activate()
+                equip = app.GetProjectFolder('equip', 1) or equip
+                tipo = equip.CreateObject('TypVoltreg', u.nombre)
             if tipo is None:
                 return {**informe, 'error': f'DIgSILENT no dejó crear el tipo {u.nombre!r}'}, 2
             for atributo, valor in u.datos_tipo().items():

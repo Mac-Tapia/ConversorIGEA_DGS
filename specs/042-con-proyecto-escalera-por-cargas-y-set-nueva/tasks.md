@@ -64,6 +64,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_sistema_web.py` en verde.
 - [x] T23. Las cargas nuevas se reponen antes de la escalera. (RF-32)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py tests/test_obras_pf_guion_042.py` en verde.
+- [x] T24. La SET sin módulo se dimensiona igual y los tipos de regulador se crean. (RF-33, RF-34)
+      Hecho cuando: `pytest -q tests/test_set_nueva.py tests/test_set_nueva_web.py tests/test_obras_pf_guion_042.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

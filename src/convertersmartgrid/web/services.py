@@ -5624,7 +5624,7 @@ def obra_quitar(ws: Workspace, obra_id: str) -> None:
 
 def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                       otro_proyecto: str = '', clases: list[str] | None = None,
-                      conductores: list[dict] | None = None) -> dict:
+                      conductores: list[dict] | None = None, tensiones_regulador: list[float] | None = None) -> dict:
     """Alimentadores y tipos de las tres bibliotecas para el formulario (RF-88 a RF-94).
 
     La lectura queda en el espacio para no volver a abrir DIgSILENT al cambiar de obra.
@@ -5636,7 +5636,8 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             'feeders': action_context['feeders'],
             'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context,
-            **({'conductores_nuevos': conductores} if conductores else {})}          # 042:RF-30
+            **({'conductores_nuevos': conductores} if conductores else {}),          # 042:RF-30
+            **({'tensiones_regulador': tensiones_regulador} if tensiones_regulador else {})}   # 042:RF-34
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer bibliotecas de tipos')
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='obras_bibliotecas',
                                     args=('--bibliotecas',), cancelable=False)
@@ -5864,8 +5865,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         except PerfilError:
             kvar = {}
         conductores = _conductores_normalizados(p.secciones, kvar)                   # 042:RF-30
-        lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS if conductores else '',
-                                    conductores=conductores)['informe']
+        tensiones = [float(k) for k in kvar] if p.con_regulador else []               # 042:RF-34
+        lectura = obras_bibliotecas(ws, ctx, project, feeders,
+                                    otro_proyecto=eo.BIBLIOTECA_TIPOS if conductores or tensiones else '',
+                                    conductores=conductores, tensiones_regulador=tensiones)['informe']
         # 073: el valle de la medición del año; lo que no se pueda leer se dice y no bloquea.
         valle = _valle_del_proyecto(ws, ctx, anio_curva, feeders, objetivos, perfil,
                                     [str(i.get('feeder')) for i in base.get('informes') or [] if i.get('central')])
@@ -6549,13 +6552,11 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     if not a_set_nueva:
         return {'avisos': ['Todas las cargas nuevas caben en la red existente: no hace falta SET nueva.']}
     perfil = datos_perfil()
-    if not capex or not capex.strip():
-        raise UserError('La SET nueva se elige entre los módulos PIT del libro CAPEX: indique el libro (042:RF-7).')
     try:
         p = sn.parametros(perfil)
-        modulos = sn.leer_modulos_pit(Path(capex.strip().strip('"')), p.modulos_pit)
-    except (sn.SetNuevaError, OSError) as exc:
+    except sn.SetNuevaError as exc:
         raise UserError(f'SET nueva: {exc}') from exc
+    modulos, avisos_libro = sn.modulos_del_libro(capex, p.modulos_pit)                # 042:RF-33
     por_alim: dict[str, list[dict]] = {}
     for c in a_set_nueva:
         por_alim.setdefault(next((f for f in feeders if clave_codigo(f) == clave_codigo(c.get('alimentador'))),
@@ -6659,6 +6660,9 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     except sn.SetNuevaError as exc:
         raise UserError(str(exc)) from exc
     eleccion = sn.elegir_modulo(modulos, diseno['kva_diseno'], float(kv_mt or 0), max_unidades=p.max_unidades)
+    if eleccion['modulo'] is None:                                                    # 042:RF-33
+        eleccion = sn.modulo_deducido(modulos, diseno['kva_diseno'], float(kv_mt or 0), max_unidades=p.max_unidades)
+    avisos.extend(x for x in avisos_libro if x not in avisos)
     escalera = (perfil.get('escalera') or {})
     # 042:RF-7: solo crece la demanda registrada; las cargas nuevas son fijas.
     registrada_kw = sum(pq[0] for pq in trasladado.values())
@@ -6682,9 +6686,6 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     ctx.log(f"SET nueva: {diseno['kva_diseno'] / 1000:.1f} MVA de diseño a {p.anios} años "
             f"(tasa {100 * diseno['tasa_ponderada']:.2f} %/año, factor {p.factor_seguridad:g}); "
             f"{eleccion['motivo']}; punto {ubic['lat']:.6f}, {ubic['lon']:.6f} (042:RF-7, RF-9).")
-    if eleccion['modulo'] is None:
-        informe['avisos'].append(f"{eleccion['motivo']}: no se crea la SET nueva (042:RF-8).")
-        return informe
     if oraculo:
         informe['oraculo'] = _set_nueva_en_el_oraculo(oraculo, ramas, gps, ubic, float(kv_mt or 0))
         veredicto = ('cumple' if informe['oraculo']['cumple']

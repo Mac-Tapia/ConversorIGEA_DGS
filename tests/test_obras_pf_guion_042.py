@@ -251,3 +251,35 @@ def test_reponer_cargas_activa_solo_las_pedidas():
     informe, codigo = guion.reponer_cargas(app, {'project': 'P', 'variaciones': ['Carga_A', 'Carga_B']})
     assert codigo == 0 and informe['repuestas'] == ['Carga_A'] and not informe['avisos']
     assert v['Otra'] not in activas
+
+
+def test_el_tipo_de_regulador_se_crea_activando_la_biblioteca(monkeypatch):
+    """042:RF-34 — sin activar, CreateObject da None; se activa la biblioteca y se crea, y no se repite el que hay."""
+    from types import SimpleNamespace as N
+
+    from convertersmartgrid.catalogo_reguladores import unidades_para
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf34', tools_en_path=True)
+    creados = []
+
+    class Equip:
+        def __init__(self, deja):
+            self.deja = deja
+
+        def CreateObject(self, _clase, nombre):
+            if not self.deja:
+                return None
+            o = N(loc_name=nombre, Delete=lambda: None)
+            creados.append(o)
+            return o
+
+        def GetContents(self, *_a):
+            return list(creados)
+
+    bloqueada, abierta = Equip(False), Equip(True)
+    activada = []
+    proyecto = N(Activate=lambda: activada.append(True))
+    monkeypatch.setattr(guion, '_proyecto_biblioteca', lambda *_a: (proyecto, bloqueada))
+    monkeypatch.setattr(guion, '_iguales', lambda *_a: True)
+    informe, codigo = guion.crear_tipos_regulador(N(GetProjectFolder=lambda *_a: abierta), {'tensiones_kv': [22.9]})
+    assert codigo == 0 and activada and len(informe['creados']) == len(unidades_para(22.9))
