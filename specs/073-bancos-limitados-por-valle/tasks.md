@@ -16,9 +16,15 @@
       Hecho cuando: `pytest -q tests/test_valle.py -k pronostico` en verde.
 - [ ] T8 [DIgSILENT] Calibrar a valle en «Valle <año>» y correr la escalera con esos puntos, sobre un proyecto de prueba de la sesión.
       Hecho cuando: el flujo a valle cuadra con la cabecera medida (`m:Psum`, memoria iopt-lev), la máxima sigue idéntica, y la tensión del oráculo y la de DIgSILENT quedan comparadas con una variante de bancos.
-- [ ] T9 Alimentador con central: el valle con su curva de demanda, `curva_de_demanda`, en vez de dejarlo sin comprobar. (RF-12)
+- [x] T9 Alimentador con central: el valle con su curva de demanda, `curva_de_demanda`, en vez de dejarlo sin comprobar. (RF-12)
       Hecho cuando: una prueba con una central da su valle por la demanda, no por la cabecera.
+      Hecho el 2026-11-03: `valle.curva_con_central` y `_valle_del_proyecto`, con los medidores de `centrales_termicas` del
+      perfil. Sobre curvas sorteadas el valle cae en el de la demanda y la cabecera sola lo daría donde genera la central.
+      `pytest -q tests/test_valle.py -k central` en verde (6). Sin DIgSILENT: la tensión en valle de una central real no se
+      ha medido, y esa medida deja el generador como en la calibración.
 - [x] T11 Corrección del usuario: energía, duración por optimización, cargas nuevas en dos casos y toda obra. (RF-35, RF-36, RF-37, RF-38, RF-39, RF-40, RF-41)
       Hecho cuando: `pytest -q tests/test_valle.py` en verde, y la lectura real de `CSG_DEMANDA_DIR` da inicio, fin y duración por objetivo.
 - [ ] T10 La web muestra `valle_texto` en la tabla de variantes de `CargasTab.tsx`. (RF-30)
       Hecho cuando: se ve en el navegador real con `npm run build`; en esta fase el worktree no tiene `node_modules`.
+      Avance del 2026-11-03: columna «En valle» en `CargasTab.tsx`; `npm run typecheck` y `npm run build` con código 0. Falta verla:
+      reiniciar la web y correr la escalera en «Con proyecto» sobre un proyecto de prueba, porque la tabla sale de ese resultado.

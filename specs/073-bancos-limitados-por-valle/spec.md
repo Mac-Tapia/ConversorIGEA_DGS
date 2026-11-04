@@ -53,6 +53,9 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-11: EL SISTEMA leerá la medición de 15 minutos solo con los lectores de `demanda_medida`.
 - RF-12: SI un alimentador lleva central en su calibración, ENTONCES EL SISTEMA dejará el valle sin comprobar y lo dirá,
   porque su cabecera no es su demanda (021:RF-28).
+- Aclaración de RF-12 (T9): con los medidores de su central declarados en el perfil (021:RF-27), EL SISTEMA tomará el valle de
+  su curva de demanda (021:RF-47); sin esos medidores, o si esa demanda no se puede reconstruir, seguirá sin comprobar con su
+  motivo. La medida en valle escala las cargas y deja la central como en su calibración, y lo dirá.
 
 ### Calibración a valle
 
@@ -124,8 +127,8 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 
 ## Fuera de alcance
 
-Esta fase no escribe en DIgSILENT ni usa GPU. El pronóstico de años futuros no se cambia (046). El alimentador con central
-queda sin comprobar hasta llevar su curva de demanda (T9). Generar bancos por pasos en la escalera. La búsqueda de ventana por
+Esta fase no escribe en DIgSILENT ni usa GPU. El pronóstico de años futuros no se cambia (046). La generación de la central
+en el instante de valle (RF-12). Generar bancos por pasos en la escalera. La búsqueda de ventana por
 algoritmo genético: la exacta cabe en coste y da el óptimo. No se afirma nada de obras ya entregadas.
 
 ## Criterios de finalización

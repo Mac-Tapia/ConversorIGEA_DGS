@@ -1159,3 +1159,93 @@ def test_informe_de_factibilidad_tambien_lo_dice(tmp_path):
     valle = {'valle': True, 'valle_u_max': 1.02, 'valle_nodo': 'N15', 'valle_fecha': '2026-03-08 03:15:00'}
     escribir_informe_factibilidad(_config(tmp_path), destino, _factibilidad(tmp_path, obras=obra, valle=valle))
     assert 'ensión máxima en valle de 1,020 p.u. en N15' in '\n'.join(x.text for x in Document(destino).paragraphs)
+
+
+def _con_central(rng, dias, valle, generando):
+    """Cabecera, generación, llegada y salida de un alimentador con central en su troncal.
+
+    La demanda (aguas arriba más aguas abajo) tiene su valle en ``valle``; la central genera de más en
+    ``generando``, y su cabecera baja allí sin que baje la demanda. Balance de la barra: generación =
+    salida + llegada, con los flujos que salen de ella positivos (021:RF-29).
+    """
+    desde, largo = valle
+    por_dia = _con_valle(rng, dias, desde, largo)
+    arriba = _curva(rng, dias, kw=rng.uniform(2000, 4000), por_dia=por_dia, ruido=0)
+    abajo = _curva(rng, dias, kw=rng.uniform(1000, 2000), por_dia=por_dia, ruido=0)
+    g0, g1 = generando
+    cab, gen, lle, sal = [], [], [], []
+    for (t, pa, qa), (_t, pb, qb) in zip(arriba, abajo):
+        d = (t - INICIO).days
+        g = (0.45 if g0 <= d < g1 else 0.05) * (pa + pb)
+        llegada = g - pb
+        cab.append((t, pa - llegada, qa))
+        gen.append((t, g, 0.0))
+        lle.append((t, llegada, 0.0))
+        sal.append((t, pb, qb))
+    return cab, gen, lle, sal
+
+
+@pytest.mark.parametrize('semilla', range(3))
+def test_alimentador_con_central_da_su_valle_por_la_demanda_no_por_la_cabecera(semilla):
+    """073:RF-12 — T9: con los medidores de la central, el valle sale de la curva de demanda (021:RF-47), en
+    el periodo de menor demanda, y no donde la central hace bajar la cabecera."""
+    rng = random.Random(semilla)
+    dias = rng.randint(90, 150)
+    valle = (rng.randint(55, dias - 30), rng.randint(12, 20))
+    generando = (rng.randint(5, 15), rng.randint(30, 45))
+    cab, gen, lle, sal = _con_central(rng, dias, valle, generando)
+    curvas = {'CAB': cab, 'GEN': gen, 'LLE': lle, 'SAL': sal}
+    central = {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}
+
+    demanda, motivo = vl.curva_con_central(curvas, 'CAB', central)
+    assert motivo is None and demanda
+    de_la_demanda = vl.valle_de_alcance('alimentador', {'CAB': demanda}, vl.Ajustes())
+    de_la_cabecera = vl.valle_de_alcance('alimentador', {'CAB': cab}, vl.Ajustes())
+    assert de_la_demanda.comprobado and de_la_demanda.ventana
+    assert abs((de_la_demanda.ventana['inicio'] - _dia(valle[0])).days) <= 2
+    assert abs((de_la_demanda.ventana['fin'] - _dia(valle[0] + valle[1] - 1)).days) <= 2
+    # La cabecera sola lo pondría donde genera la central: por eso no se usa.
+    assert de_la_cabecera.ventana and de_la_cabecera.ventana['fin'] < _dia(valle[0])
+
+
+def test_alimentador_con_central_sin_un_medidor_queda_sin_comprobar_con_su_motivo():
+    """073:RF-12 — sin la curva de un medidor de la central, sin comprobar y dicho; nunca un error."""
+    rng = random.Random(7)
+    cab, gen, lle, _sal = _con_central(rng, 60, (30, 10), (5, 15))
+    demanda, motivo = vl.curva_con_central({'CAB': cab, 'GEN': gen, 'LLE': lle}, 'CAB',
+                                           {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'})
+    assert demanda == [] and 'SAL' in motivo
+
+
+def test_el_proyecto_con_central_declarada_toma_el_valle_de_su_demanda(tmp_path, monkeypatch):
+    """073:RF-12 — T9: con la central del perfil (021:RF-27), `_valle_del_proyecto` lee sus tres medidores y
+    da el punto de valle de la demanda, con el aviso; sin ella, sin comprobar (prueba de arriba)."""
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
+
+    rng = random.Random(3)
+    cab, gen, lle, sal = _con_central(rng, 120, (80, 15), (10, 40))
+    pedidos = []
+
+    def leer(_libros, pares, **_k):
+        pedidos.extend(m for _a, m in pares)
+        return {'CAB': cab, 'GEN': gen, 'LLE': lle, 'SAL': sal}, []
+
+    monkeypatch.setattr(vl, 'curvas_medidas', leer)
+    monkeypatch.setattr(services, '_libros_de_cabecera', lambda *_a: [])
+
+    class Ctx:
+        class cancel:
+            is_set = staticmethod(lambda: False)
+
+        def log(self, *_a):
+            pass
+
+    perfil = {'centrales_termicas': {'F1': {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}}}
+    r = services._valle_del_proyecto(Workspace(id='w', root=tmp_path), Ctx(), 2026, ['F1'],
+                                     {'F1': {'kw': 6000.0, 'kvar': 1500.0, 'medidor': 'CAB'}}, perfil, ['F1'])
+    assert sorted(pedidos) == ['CAB', 'GEN', 'LLE', 'SAL']
+    assert r['comprobado'] and r['puntos'], r['motivo']
+    assert any('073:RF-12' in a for a in r['avisos'])
+    fecha = datetime.fromisoformat(str(r['puntos'][0]['fecha'])).date()
+    assert _dia(78) <= fecha <= _dia(97)

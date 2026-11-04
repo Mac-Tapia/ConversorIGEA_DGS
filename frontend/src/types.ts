@@ -594,6 +594,8 @@ export interface EscaleraVariante {
   fraccion: number | null;
   factible: boolean;
   motivo: string;
+  /** 073:RF-30: la frase del valle de esta variante, la misma del informe. */
+  valle_texto?: string | null;
   inversion: number | null;
   costo_anual: number | null;
   perdidas_kw: number | null;
