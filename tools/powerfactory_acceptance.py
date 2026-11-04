@@ -431,7 +431,8 @@ def import_dgs_file(
     ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``).
     """
     from convertersmartgrid.carpeta_pf import (
-        CarpetaError, asegurar_carpeta, nombre_de_perfil, nombre_libre, validar_nombre,
+        CarpetaError, asegurar_carpeta, eliminar_versiones_anteriores, nombre_de_perfil, nombre_libre,
+        validar_nombre,
     )
 
     dgs_path = Path(dgs_path).resolve()
@@ -542,6 +543,9 @@ def import_dgs_file(
         errors.append(f'El proyecto activo es '
                       f'{_name(active_after) if active_after is not None else None!r}, '
                       f'no el importado {nombre!r}.')
+    if not errors:
+        # 005:RF-22: importado y activo el nuevo, las versiones obsoletas del mismo proyecto sobran.
+        warnings += eliminar_versiones_anteriores(app, destino, nombre)
 
     return {
         'project_name': nombre,

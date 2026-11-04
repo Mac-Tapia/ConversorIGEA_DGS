@@ -15,6 +15,7 @@ DIgSILENT (RF-4), y los guiones de ``tools/`` lo usan con el Python de la API.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -187,6 +188,50 @@ def nombre_libre(carpeta, nombre: str) -> str:
         if candidato.lower() not in ocupados:
             return candidato
         n += 1
+
+
+#: El sello con que el conversor nombra cada importación (``20261103-013907_CSG_SISTEMA_PISCO``).
+SELLO = re.compile(r'^(\d{8}-\d{6})_(.+)$')
+
+
+def versiones_anteriores(nombres: Iterable[str], nuevo: str) -> list[str]:
+    """005:RF-22: los nombres con el mismo resto tras el sello de ``nuevo`` y un sello anterior.
+
+    Sin sello (hechos a mano, respaldos) no hay versión que comparar: no se devuelve ninguno.
+    """
+    m = SELLO.match(nuevo)
+    if m is None:
+        return []
+    sello, resto = m.group(1), m.group(2).lower()
+    out = []
+    for n in nombres:
+        o = SELLO.match(n)
+        if o is not None and n != nuevo and o.group(2).lower() == resto and o.group(1) < sello:
+            out.append(n)
+    return sorted(out)
+
+
+def eliminar_versiones_anteriores(app, carpeta, nuevo: str) -> list[str]:
+    """005:RF-22: borra de la carpeta las versiones obsoletas de ``nuevo``, salvo la activa.
+
+    Pisco (2026-11-03): cinco importaciones del mismo sistema quedaban en la carpeta y el operador no
+    sabía cuál era la vigente. Devuelve un aviso por cada una, borrada o no.
+    """
+    proyectos = {p.loc_name: p for p in _hijos(carpeta, 'IntPrj')}
+    activo = app.GetActiveProject()
+    avisos = []
+    for nombre in versiones_anteriores(proyectos, nuevo):
+        p = proyectos[nombre]
+        if activo is not None and activo is p:
+            avisos.append(f'{nombre} es una versión anterior de {nuevo}, pero está activo: no se borra (005:RF-22).')
+            continue
+        try:
+            ok = int(p.Delete() or 0) == 0
+        except Exception as exc:  # noqa: BLE001 - se dice y la importación sigue valiendo
+            ok, nombre = False, f'{nombre} ({exc})'
+        avisos.append(f'Se eliminó la versión anterior {nombre} (005:RF-22).' if ok else
+                      f'No se pudo eliminar la versión anterior {nombre} (005:RF-22).')
+    return avisos
 
 
 def proyectos_de(carpeta) -> list[tuple[str, object]]:

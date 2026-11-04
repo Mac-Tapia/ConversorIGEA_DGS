@@ -54,3 +54,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `limite_arranque_s` y cierra la entrada estándar del guion; `services.pf_projects`
       convierte el corte en un aviso claro. (RF-21)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
+- [x] T14. Al importar, se eliminan las versiones anteriores del mismo proyecto. (RF-22)
+      Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
