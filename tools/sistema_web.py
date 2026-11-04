@@ -557,8 +557,9 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
             print(f"    alternativa {a['numero']}: {a['nombre']}: {a['costo_anual']:,.0f} al año"
                   + (', se aplica' if a['elegida'] else ''), flush=True)
     for f, datos in (por_cargas.get('por_alimentador') or {}).items():          # 042:RF-65
-        for a in (datos.get('deficit_previo') or {}).get('alternativas') or []:
-            print(f"  {f}, déficit previo: alternativa {a['numero']}: {a['nombre']}", flush=True)
+        for clave, rotulo in (('deficit_previo', 'déficit previo'), ('sin_comparacion', 'sin comparación')):
+            for a in (datos.get(clave) or {}).get('alternativas') or []:
+                print(f"  {f}, {rotulo}: alternativa {a['numero']}: {a['nombre']}", flush=True)
     for clave in ('zonas', 'expresos', 'set_nueva', 'aplicadas'):
         if resultado.get(clave):
             print(f'  {clave}: {json.dumps(resultado[clave], ensure_ascii=False, default=str)[:600]}', flush=True)

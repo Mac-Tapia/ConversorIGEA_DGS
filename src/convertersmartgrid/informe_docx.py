@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .estudios_pf import Limites
-from .informes import filas_alternativas_escalera
+from .informes import filas_alternativas_escalera, notas_alternativas_escalera
 from .informes import (
     ETAPAS, NOMBRE_ETAPA, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado,
     Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, formato_pu, antecedentes_factibilidad,
@@ -912,6 +912,8 @@ def _alternativas(e: _Escritor, datos: DatosEstudio, evaluadas: list[Etapa], rec
         e.parrafo('De menor a mayor costo anual; todas cumplen con la máxima en DIgSILENT:')
         cabecera, filas_eco = filas_alternativas_escalera(datos.alternativas_escalera)
         e.tabla(cabecera, filas_eco)
+        for nota in notas_alternativas_escalera(datos.alternativas_escalera):   # 042:RF-67
+            e.parrafo(nota)
     e.titulo(f'2.4 CUADRO COMPARATIVO DE LAS ALTERNATIVAS DEL ALIMENTADOR {lista}')     # RF-134
     filas = []
     for nombre, caso in [('Estado actual', datos.actual)] + [

@@ -1281,8 +1281,9 @@ def test_la_obra_del_deficit_previo_va_aparte_y_sin_sorteos(tmp_path, monkeypatc
     services, ws, ctx, planes, aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
     monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
-                                previas={'F1': ['F1_B4', 'F1_B2']})
+                                previas={'F1': ['F1_B4', 'F1_B2']}, etiqueta_previas='déficit previo')
     (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
+    assert 'valle' in ev                                                        # 042:RF-69: también se mide en valle
     assert ev['barras_cargas'] == ['F1_B4', 'F1_B2'] and ev['sorteos'] == [] and not aplicadas
     (f1,) = r['alimentadores']
     assert f1['alternativas'] and all(a['fraccion'] is None for a in f1['alternativas'])
@@ -1298,10 +1299,10 @@ def test_si_ninguna_corrige_el_deficit_lo_dice_con_su_motivo(tmp_path, monkeypat
     services, ws, ctx, _planes, _aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
     monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
-                                previas={'F1': ['F1_B4']})
+                                previas={'F1': ['F1_B4']}, etiqueta_previas='déficit previo')
     (alt,) = r['alimentadores'][0]['alternativas']
     assert alt['nombre'].startswith('ninguna obra corrige; la más cercana:') and 'F1_B4 a 0,91' in alt['nombre']
     assert alt['costo_anual'] is None
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True,
-                                previas={'F1': ['SIN_CAMINO']})
+                                previas={'F1': ['SIN_CAMINO']}, etiqueta_previas='déficit previo')
     assert 'no hay variante' in r['alimentadores'][0]['alternativas'][0]['nombre']

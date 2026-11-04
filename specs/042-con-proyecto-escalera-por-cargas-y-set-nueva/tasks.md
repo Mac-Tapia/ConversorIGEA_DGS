@@ -98,6 +98,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el flujo converge con el elevador sobre un proyecto de prueba, y su medida queda en la tarea.
 - [x] T43. Obra aparte para el déficit previo, con su costo. (RF-64, RF-65, RF-66)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py tests/test_valle.py` en verde.
+- [x] T45. Rótulos, nota del informe, valle y factor del elevador. (RF-67, RF-68, RF-69, RF-70)
+      Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_valle.py tests/test_escalera_optima.py` en verde.
 - [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
       Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
 - [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)

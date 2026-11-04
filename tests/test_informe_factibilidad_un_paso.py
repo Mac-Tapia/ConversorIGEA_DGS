@@ -659,7 +659,7 @@ def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
     def escalera(ws, ctx, project, feeders, *, previas=None, **k):
         f = feeders[0]
         if previas:
-            pedidas[f] = (previas[f], k['aplicar'])
+            pedidas[(f, k['etiqueta_previas'])] = (previas[f], k['aplicar'])
             return {'alimentadores': [{'alimentador': f, 'alternativas': [{'numero': 1, 'nombre': 'x', 'costo_anual': 5.0}]}]}
         return {'alimentadores': [filas[f]]}
 
@@ -673,6 +673,8 @@ def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
             pass
 
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', list(filas))
-    assert pedidas == {'F1': (['B1', 'B2', 'B3'], False), 'F2': (['B1', 'B2', 'B3'], False)}
+    assert pedidas == {(f, e): (b, False) for f in ('F1', 'F2')
+                       for e, b in (('déficit previo', ['B1', 'B2']), ('sin comparación', ['B3']))}   # 042:RF-68
     assert r['por_alimentador']['F2']['deficit_previo']['alternativas'][0]['nombre'] == 'x'
+    assert r['por_alimentador']['F2']['sin_comparacion']['barras'] == ['B3']
     assert r['por_alimentador']['F3']['deficit_previo'] is None

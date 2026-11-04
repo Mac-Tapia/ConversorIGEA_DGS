@@ -104,6 +104,8 @@ class Parametros:
     #: 042:RF-50: la tensión que se pasa y a cuál.
     migrar_desde_kv: float = 10.0
     migrar_a_kv: float = 22.9
+    #: 042:RF-70: margen del elevador por el crecimiento que la corriente medida no cuenta (086:RF-51).
+    factor_elevador: float = 1.0
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -164,7 +166,9 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
         linea_larga_km=float(esc.get('linea_larga_km') or 10.0),
         regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']),
-        migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9))
+        migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
+        factor_elevador=float((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa')
+                              or (perfil.get('planificacion') or {}).get('factor_seguridad_set') or 1.0))
 
 
 def _opcional(x) -> float | None:
@@ -521,7 +525,7 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
 
 def mva_del_elevador(kv: float, corriente_a: float, p: Parametros) -> float | None:
     """042:RF-61: el menor normalizado con la corriente de salida bajo el límite; ``None`` si no hay ninguno (RF-62)."""
-    necesarios = math.sqrt(3) * kv * corriente_a / 1000.0 / max(p.cargabilidad_max_pct / 100.0, 0.01)
+    necesarios = p.factor_elevador * math.sqrt(3) * kv * corriente_a / 1000.0 / max(p.cargabilidad_max_pct / 100.0, 0.01)
     return next((m for m in MVA_ELEVADOR if m >= necesarios), None)
 
 
@@ -783,7 +787,7 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
         escogidas = escogidas[:MAX_ALTERNATIVAS - 1] + [t for t in orden if t['nombre'] == elegida]
     return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
              'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
-             'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'),
+             'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'), 'valle': t.get('valle'),
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
 
 

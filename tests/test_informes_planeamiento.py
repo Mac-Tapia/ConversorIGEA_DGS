@@ -198,7 +198,7 @@ def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
 
     cabecera, filas = filas_alternativas_escalera(ALTERNATIVAS)
     assert 'Costo anual US$' in cabecera
-    assert [(f[1], f[2], f[-2], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
+    assert [(f[1], f[2], f[-3], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
 
 
 def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
@@ -224,3 +224,16 @@ def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
     e = E()
     ip._alternativas_por_alimentador(e, _datos())
     assert not e.titulos
+
+
+def test_el_informe_dice_que_la_obra_del_deficit_no_esta_en_los_flujos():
+    """042:RF-67, 042:RF-69 — con esas filas, la nota; sin ellas, ninguna; y cada fila dice su valle."""
+    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+
+    assert notas_alternativas_escalera(ALTERNATIVAS) == []
+    (nota,) = notas_alternativas_escalera({**ALTERNATIVAS, 'F1 · déficit previo': ALTERNATIVAS['F1'],
+                                           'F1 · sin comparación': ALTERNATIVAS['F1']})
+    assert 'no están en «Con proyecto» ni en sus flujos' in nota and 'sin sorteos' in nota
+    assert '«déficit previo» y «sin comparación»' in nota
+    cabecera, filas = filas_alternativas_escalera({'F1': [{'numero': 1, 'nombre': 'x', 'costo_anual': 1.0, 'valle': True}]})
+    assert filas[0][cabecera.index('En valle')] == 'cumple'

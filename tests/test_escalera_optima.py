@@ -727,3 +727,18 @@ def test_el_elevador_que_no_conviene_dice_su_motivo_y_sigue_a_la_set_nueva():
     assert any('pasaría de 20 MVA' in a and 'RF-62' in a for a in avisos)
     _vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**COMPARTIDA, 'nodo': ''})
     assert any('primer nodo' in a for a in avisos)
+
+
+def test_el_elevador_lleva_el_margen_de_lo_que_no_cuenta_el_crecimiento():
+    """042:RF-70 — 100 A a 10 kV son 1,73 MVA, por 1,25 son 2,17: el de 3 MVA, no el de 2."""
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'factor_seguridad_set': 1.0,
+                                                   'factor_seguridad_set_sin_tasa': 1.25}})
+    assert eo.mva_del_elevador(10.0, 100.0, p) == 3.0
+    assert eo.mva_del_elevador(10.0, 100.0, P) == 2.0
+
+
+def test_una_alternativa_dice_si_cumple_en_valle():
+    """042:RF-69 — la que no cumple en valle no se presenta; la que no se comprobó, sí, y lo dice."""
+    d = eo.elegir([{**_opcion('a', ('seccion',), 100.0, 1.0), 'valle': False}, {**_opcion('b', ('terna',), 200.0, 1.0), 'valle': True},
+                   _opcion('c', ('nivel',), 300.0, 1.0)], P)
+    assert [(a['nombre'], a['valle']) for a in d['alternativas']] == [('b', True), ('c', None)]

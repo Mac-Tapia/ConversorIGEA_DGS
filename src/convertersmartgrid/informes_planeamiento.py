@@ -19,7 +19,7 @@ from typing import Any
 from .estudio_planeamiento import Estudio
 from .formatos_pide import huecos_de
 from .informe_docx import Escritor, guardar_informe, preparar_modelo
-from .informes import InformeError, filas_alternativas_escalera
+from .informes import InformeError, filas_alternativas_escalera, notas_alternativas_escalera
 from .pide import FORMATOS
 
 #: Filas de un formato que caben en el Word; el libro de formatos lleva todas.
@@ -178,6 +178,8 @@ def _alternativas_por_alimentador(e: Escritor, datos: DatosPlaneamiento) -> None
         e.titulo('Alternativas de solución por alimentador')
         e.parrafo('De menor a mayor costo anual; todas cumplen con la máxima en DIgSILENT.')
         e.tabla(*filas_alternativas_escalera(datos.alternativas_escalera))
+        for nota in notas_alternativas_escalera(datos.alternativas_escalera):   # 042:RF-67
+            e.parrafo(nota)
 
 
 def _alternativas(e: Escritor, datos: DatosPlaneamiento) -> None:
