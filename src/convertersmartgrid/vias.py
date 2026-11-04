@@ -17,6 +17,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
+from .salidas_red import motivo_apagada, salida_permitida
+
 Punto = tuple[float, float]
 RADIO_TIERRA_M = 6_371_008.8
 TIEMPO_POR_DEFECTO_S = 10.0
@@ -66,6 +68,8 @@ def ruta_por_vias(a: Punto, b: Punto, config: Mapping[str, Any] | None, *,
     servicio = str(config.get('servicio') or '').strip().lower()
     if not servicio:                                                   # RF-86
         return _recta(a, b)
+    if not salida_permitida('vias'):                                   # 086:RF-22
+        return _recta(a, b, [f'{motivo_apagada("vias")} El enlace va en recta.'], servicio)
     if servicio != 'osrm':
         return _recta(a, b, [f'Enrutador de vías {servicio!r} desconocido: el enlace va en recta.'])
     url = str(config.get('url') or '').rstrip('/')

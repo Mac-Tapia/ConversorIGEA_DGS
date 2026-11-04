@@ -19,6 +19,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
+from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
 from convertersmartgrid.util import importar_opcional, sha256_file, write_json_atomic
 from convertersmartgrid.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 
@@ -138,6 +139,10 @@ class DownloadManager:
         if cancelled is not None and cancelled():
             raise DownloadCancelled('Descarga cancelada.')
         self._validate_url(url)
+        destination = Path(destination)
+        # 086:RF-22: el paquete ya descargado se puede usar; bajarlo es lo que no sale.
+        if not salida_permitida('vnr_oficial') and (force or not destination.is_file()):
+            raise DownloadError(motivo_apagada('vnr_oficial'))
         requests = importar_opcional('requests', DownloadError(
             'La descarga necesita la dependencia «requests» (ver requirements.txt '
             'y `python -m vnr_etl doctor`).'))

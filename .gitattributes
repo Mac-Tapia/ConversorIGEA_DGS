@@ -1,3 +1,6 @@
 # Binarios: sin conversión de finales de línea (core.autocrlf=true corrompía el PDF
 # de docs/architecture al sacarlo, 2026-10-28).
 *.pdf binary
+
+# Copia exacta de Leaflet: su huella se comprueba, y core.autocrlf=true la cambiaria (086:RF-21).
+src/convertersmartgrid/recursos/** -text

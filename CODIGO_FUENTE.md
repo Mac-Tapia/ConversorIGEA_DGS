@@ -125,7 +125,10 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | 034 (RF-29) |
 | `src/convertersmartgrid/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015, 078 |
 | `src/convertersmartgrid/powerfactory_metadata.py` | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. | 034 (RF-21), 078 |
-| `src/convertersmartgrid/preview.py` | Vista previa georreferenciada del modelo. | 034 (RF-14) |
+| `src/convertersmartgrid/preview.py` | Vista previa georreferenciada del modelo, con Leaflet propio dentro del fichero y su política de contenido. | 034 (RF-14), 086 (RF-21, RF-22) |
+| `src/convertersmartgrid/edicion.py` | La única función que dice si corre la edición de producto. | 086 (RF-22) |
+| `src/convertersmartgrid/salidas_red.py` | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. | 086 (RF-22) |
+| `src/convertersmartgrid/sesion_web.py` | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. | 086 (RF-19) |
 | `src/convertersmartgrid/puentes.py` | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas; su equipo pasa al extremo de la línea vecina si cabe. | 034, 021 |
 | `src/convertersmartgrid/reconstruction.py` | Contrato de la reconstrucción auditable del dataset. | 001 (RF-17 a RF-22) |
 | `src/convertersmartgrid/reconstruction_pipeline.py` | Reconstrucción de una selección de alimentadores, sin estado de la web. | 001 (RF-8, RF-9) |
@@ -172,6 +175,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40), 061 (RF-1, RF-10) |
 | `src/convertersmartgrid/web/readiness.py` | Puertas por alimentador antes de producir DGS; quita la falta de conductor que la carga ya reconstruyó. | 001, 053 (RF-9) |
 | `src/convertersmartgrid/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
+| `src/convertersmartgrid/web/seguridad.py` | La puerta de la web, en un middleware ASGI: Host, Origin, token de la sesión (también en el WebSocket) y política de contenido; rechaza a quien no sea de esta máquina. | 086 (RF-17 a RF-21) |
 | `src/convertersmartgrid/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28), 036, 065 (RF-3, RF-14, RF-15) |
 | `src/convertersmartgrid/web/services.py` | Las acciones de la interfaz, sin interfaz; conversión por sistema eléctrico (022:RF-47 a RF-51).; máxima por barra de SET y sus alimentadores en esa fecha; estructura del espacio | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57, RF-61, RF-64), 022 (RF-4, RF-37 a RF-44), 025 (RF-4, RF-8 a RF-11, RF-17, RF-20, RF-24, RF-28 a RF-33), 018 (RF-1 a RF-15), 030 (RF-10, RF-13, RF-14), 032 (RF-12, RF-29), 035 (RF-1 a RF-3, RF-17 a RF-22), 037 (RF-1 a RF-7), 038 (RF-1, RF-5, RF-8), 039 (RF-1 a RF-6), 041 (RF-7, RF-9), 042, 060 (RF-7), 061 (RF-2, RF-3, RF-5, RF-6, RF-7, RF-8, RF-9) |
 | `src/convertersmartgrid/web/requisitos.py` | Lo que un servicio exige antes de trabajar y el error del operador. | 002 |

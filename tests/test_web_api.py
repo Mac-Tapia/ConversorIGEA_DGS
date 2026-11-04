@@ -414,10 +414,11 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
     monkeypatch.setenv('CSG_WEB_SERVER_PATHS', '1')
     # Sin esto la prueba fallaba con la web del operador abierta en el 8765.
     monkeypatch.setattr(lanzador, 'puerto_ocupado', lambda *_a: False)
-    assert lanzador.main(['--host', '0.0.0.0', '--no-browser']) == 0
-    assert llamadas and llamadas[0]['host'] == '0.0.0.0'
+    # 086:RF-20: fuera de esta máquina ya no arranca; lo prueba tests/test_seguridad_web.py.
+    assert lanzador.main(['--host', 'localhost', '--no-browser']) == 0
+    assert llamadas and llamadas[0]['host'] == 'localhost'
     import os
-    assert os.environ['CSG_WEB_HOST'] == '0.0.0.0'
+    assert os.environ['CSG_WEB_HOST'] == 'localhost'
 
 
 

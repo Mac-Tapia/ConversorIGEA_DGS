@@ -3,21 +3,52 @@
 Construye capas de nodos y tramos a partir de ``FeederModel`` + ``GeographyManifest``
 y escribe un HTML interactivo con popups de atributos DGS.
 
-Backends (en orden):
-1. ``leafmap`` (+ ``geopandas`` si está disponible) — preferido (@opengeos)
-2. HTML Leaflet autónomo (sin dependencias opcionales) — fallback de tests/CI
+Backends:
+1. HTML Leaflet autónomo, con Leaflet dentro del propio fichero (086:RF-21): el de siempre.
+2. ``leafmap`` (+ ``geopandas``), solo si se pide por su nombre: su página trae todo de CDN.
 """
 
 from __future__ import annotations
 
+import html as html_std
 import json
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from .geography import GeographyManifest
 from .model import FeederModel, LineType
+from .salidas_red import motivo_apagada, salida_permitida
+
+CARPETA_LEAFLET = Path(__file__).resolve().parent / 'recursos' / 'leaflet'
+#: 086:RF-21: la huella que publica Leaflet para su 1.9.4; la comprueba una prueba.
+HUELLAS_LEAFLET = {'leaflet.js': 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+                   'leaflet.css': 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='}
+ORIGEN_TESELAS = 'https://*.tile.openstreetmap.org'
+URL_TESELAS = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+
+
+@lru_cache(maxsize=2)
+def _recurso_leaflet(nombre: str) -> str:
+    return (CARPETA_LEAFLET / nombre).read_text(encoding='utf-8')
+
+
+def _politica_base() -> str:
+    """Solo lo que va dentro del fichero, y las teselas si esa salida está encendida (086:RF-22)."""
+    imagenes = f'data: {ORIGEN_TESELAS}' if salida_permitida('teselas') else 'data:'
+    return (f"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src {imagenes}; "
+            "base-uri 'none'; form-action 'none'")
+
+
+def politica_pagina_generada() -> str:
+    """La que sirve la web con cada página generada: aislada, sin origen propio ni cookies.
+
+    Sus textos (nombres de la red, popups) vienen de la entrega. Con ``sandbox`` y sin
+    ``connect-src``, un nombre con código dentro corre, pero sin alcance a la API de la web.
+    """
+    return 'sandbox allow-scripts; ' + _politica_base()
 
 
 class PreviewError(ValueError):
@@ -279,19 +310,41 @@ def to_geodataframes(layers: PreviewLayers):
 
 
 def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
-    """HTML autónomo con Leaflet CDN (sin leafmap)."""
+    """HTML autónomo, con Leaflet dentro: abre igual desde la web, desde el disco y sin red (086:RF-21)."""
     geojson = layers_to_geojson(layers)
     lat, lon = layers.center
-    payload = json.dumps(geojson, ensure_ascii=False)
-    title = f'Preview DGS — {layers.feeder}'
+    # Un nombre de la entrega con «</script>» cerraba el guion y lo que siguiera se ejecutaba.
+    payload = json.dumps(geojson, ensure_ascii=False).replace('<', '\\u003c')
+    feeder = html_std.escape(str(layers.feeder))
+    title = f'Preview DGS — {feeder}'
+    # 086:RF-22: sin la salida no se pide ninguna tesela; si está encendida y no hay red, también se dice.
+    if salida_permitida('teselas'):
+        teselas = f"""const fondo = L.tileLayer({json.dumps(URL_TESELAS)}, {{
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }}).addTo(map);
+    fondo.once('tileerror', function () {{
+      const aviso = document.getElementById('sin-fondo');
+      aviso.textContent = 'Sin fondo de mapa: no se pudo llegar a OpenStreetMap. La red se dibuja igual.';
+      aviso.hidden = false;
+    }});"""
+        aviso_fondo = ''
+    else:
+        teselas = ''
+        aviso_fondo = html_std.escape(f'Sin fondo de mapa. {motivo_apagada("teselas")}')
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="Content-Security-Policy" content="{_politica_base()}"/>
   <title>{title}</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+{_recurso_leaflet('leaflet.css')}
+  </style>
+  <script>
+{_recurso_leaflet('leaflet.js')}
+  </script>
   <style>
     html, body, #map {{ height: 100%; margin: 0; }}
     .info {{
@@ -299,19 +352,19 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
       background: rgba(255,255,255,0.92); padding: 8px 12px; border-radius: 4px;
       font: 13px/1.35 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.25);
     }}
+    #sin-fondo {{ display: block; margin-top: 4px; color: #92400e; }}
+    #sin-fondo[hidden] {{ display: none; }}
   </style>
 </head>
 <body>
-  <div class="info"><b>{layers.feeder}</b> · {layers.nominal_kv:g} kV ·
-    nodos={len(layers.nodes)} · tramos={len(layers.lines)} · CRS {layers.target_crs}</div>
+  <div class="info"><b>{feeder}</b> · {layers.nominal_kv:g} kV ·
+    nodos={len(layers.nodes)} · tramos={len(layers.lines)} · CRS {html_std.escape(str(layers.target_crs))}
+    <span id="sin-fondo"{'' if aviso_fondo else ' hidden'}>{aviso_fondo}</span></div>
   <div id="map"></div>
   <script>
     const data = {payload};
     const map = L.map('map').setView([{lat}, {lon}], 14);
-    L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }}).addTo(map);
+    {teselas}
     const layer = L.geoJSON(data, {{
       style: function (feature) {{
         if (feature.geometry.type === 'LineString') {{
@@ -391,17 +444,14 @@ def write_preview_html(
     """Escribe el mapa interactivo HTML.
 
     ``backend``: ``auto`` | ``leafmap`` | ``leaflet``.
-    En ``auto`` usa leafmap si está instalado; si no, Leaflet CDN.
+    ``auto`` es Leaflet propio: con leafmap instalado, la página salía a CDN de terceros y sin
+    red quedaba en blanco (086:RF-21). leafmap solo si se pide por su nombre.
     """
     layers = build_preview_layers(model, geography)
     out = Path(path)
     choice = backend.lower().strip()
     if choice == 'auto':
-        try:
-            import leafmap  # noqa: F401
-            choice = 'leafmap'
-        except ImportError:
-            choice = 'leaflet'
+        choice = 'leaflet'
 
     if choice == 'leafmap':
         return _write_leafmap_html(layers, out)

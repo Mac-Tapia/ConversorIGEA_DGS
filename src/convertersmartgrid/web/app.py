@@ -31,12 +31,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .. import __version__
+from .. import __version__, sesion_web
+from ..edicion import es_edicion_producto
 from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
+from ..preview import politica_pagina_generada
 from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
 from .jobs import FINISHED, JobManager
+from .seguridad import instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
@@ -677,7 +680,9 @@ def create_app(
                 vigilante.parar()
             await asyncio.to_thread(jobs.shutdown)
 
-    app = FastAPI(title='ConverterSmartGrid', version=__version__, lifespan=lifespan)
+    # Sin /docs ni /redoc: traen su página de un CDN, una salida a la red que nadie pidió (086:RF-22).
+    app = FastAPI(title='ConverterSmartGrid', version=__version__, lifespan=lifespan,
+                  docs_url=None, redoc_url=None)
     app.state.store = store
     app.state.jobs = jobs
     app.state.retencion = retencion
@@ -689,12 +694,17 @@ def create_app(
 
     # Solo el servidor de desarrollo de Vite. En producción el front se sirve desde
     # este mismo origen y CORS no interviene.
-    dev_origins = os.environ.get('CSG_WEB_DEV_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
+    dev_origins = os.environ.get('CSG_WEB_DEV_ORIGINS',
+                                 '' if es_edicion_producto() else 'http://localhost:5173,http://127.0.0.1:5173')
+    origenes_dev = tuple(o.strip() for o in dev_origins.split(',') if o.strip())
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[o.strip() for o in dev_origins.split(',') if o.strip()],
+        allow_origins=list(origenes_dev),
         allow_methods=['*'], allow_headers=['*'],
     )
+    # Por fuera de CORS, y de todo lo demás: Host, Origin, token y política de contenido (086:RF-17 a RF-21).
+    if sesion_web.EXIGIR_SEGURIDAD:
+        instalar_seguridad(app, origenes_dev)
 
     @app.exception_handler(UserError)
     async def _user_error(_request: Request, exc: UserError):
@@ -1332,7 +1342,9 @@ def create_app(
         if not path.is_file():
             raise HTTPException(404, 'Fichero no encontrado.')
         media = 'text/html' if path.suffix.lower() == '.html' and not download else None
-        return FileResponse(path, media_type=media,
+        # 086:RF-21: una página generada lleva dentro textos de la entrega; aislada, no llega a la API.
+        cabeceras = {'Content-Security-Policy': politica_pagina_generada()} if media else None
+        return FileResponse(path, media_type=media, headers=cabeceras,
                             filename=path.name if download or media is None else None)
 
     @app.post('/api/workspaces/{wid}/outputs/archive', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

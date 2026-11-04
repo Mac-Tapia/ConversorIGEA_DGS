@@ -102,7 +102,7 @@ def _parser() -> argparse.ArgumentParser:
         '--preview-backend',
         default='auto',
         choices=('auto', 'leafmap', 'leaflet'),
-        help='Motor del mapa: leafmap (@opengeos) o Leaflet por CDN',
+        help='Motor del mapa: Leaflet propio, sin salir a la red, o leafmap (@opengeos), que sí sale',
     )
     conv.add_argument(
         '--hoja', default=None, choices=('A0', 'A1', 'A2', 'A3', 'A4'),
@@ -269,6 +269,9 @@ def main(argv=None) -> int:
     from .runtime_paths import configurar_entorno
 
     configurar_entorno()
+    from .salidas_red import preparar_entorno_sin_red
+
+    preparar_entorno_sin_red()                                         # 086:RF-22
     args = _parser().parse_args(argv)
 
     if args.command == 'web':

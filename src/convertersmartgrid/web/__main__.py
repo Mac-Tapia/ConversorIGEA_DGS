@@ -1,8 +1,8 @@
 """Arranca la interfaz web: ``python -m convertersmartgrid.web`` o ``convertersmartgrid-web``.
 
-Por defecto escucha solo en 127.0.0.1, que es lo que permite indicar rutas del disco
-local en lugar de subir los ficheros. Con ``--host 0.0.0.0`` se expone en la red y
-esas rutas se desactivan siempre, aunque ``CSG_WEB_SERVER_PATHS`` valga ``1``.
+Solo escucha en esta máquina (127.0.0.1): es un puesto local, sin usuarios ni TLS, y fuera de
+ella se niega a arrancar (086:RF-20). Crea el token de la sesión y abre el navegador con él
+(086:RF-19); los programas locales lo leen con ``sesion_web.cabeceras_locales``.
 """
 
 from __future__ import annotations
@@ -14,8 +14,13 @@ import re
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 import webbrowser
+
+from ..salidas_red import preparar_entorno_sin_red
+from ..sesion_web import (VARIABLE_PUERTO, cabeceras_locales, crear_sesion, devolver_sesion, ruta_sesion,
+                          url_de_entrada)
 
 
 def puerto_ocupado(host: str, port: int) -> bool:
@@ -71,15 +76,31 @@ def quien_escucha(port: int) -> tuple[int, str] | None:
 def conversor_en(url: str, timeout: float = 4.0) -> dict | None:
     """La respuesta de ``/api/health`` si en ``url`` hay un Conversor, o None."""
     try:
-        with urllib.request.urlopen(url + 'api/health', timeout=timeout) as r:
+        with urllib.request.urlopen(_pedido(url + 'api/health'), timeout=timeout) as r:
             datos = json.loads(r.read().decode('utf-8'))
     except (OSError, ValueError):
         return None
     return datos if isinstance(datos, dict) and 'slots' in datos and 'version' in datos else None
 
 
+def _pedido(url: str, **kw) -> urllib.request.Request:
+    """Con el token de la sesión (086:RF-19): la API lo exige también en ``/api/health``."""
+    return urllib.request.Request(url, headers={**cabeceras_locales(url), **kw.pop('headers', {})}, **kw)
+
+
+def es_web_de_otra_sesion(url: str, timeout: float = 4.0) -> bool:
+    """Si responde un Conversor cuyo token este lanzador no tiene: ni está colgado ni se toca."""
+    try:
+        with urllib.request.urlopen(_pedido(url + 'api/health'), timeout=timeout):
+            return False
+    except urllib.error.HTTPError as exc:
+        return exc.code == 401
+    except (OSError, ValueError):
+        return False
+
+
 def _json(url: str, timeout: float = 4.0):
-    with urllib.request.urlopen(url, timeout=timeout) as r:
+    with urllib.request.urlopen(_pedido(url), timeout=timeout) as r:
         return json.loads(r.read().decode('utf-8'))
 
 
@@ -124,8 +145,8 @@ def pedir_cierre(url: str, motivo: str = '') -> bool:
 
     # 081:RF-42: va en cabecera, y una cabecera solo admite latin-1.
     texto = f'{motivo} (lanzador {os.getpid()})'.encode('latin-1', 'replace').decode('latin-1')
-    peticion = urllib.request.Request(url + 'api/sistema/cerrar', method='POST', data=b'',
-                                      headers={CABECERA_LANZADOR: '1', CABECERA_MOTIVO: texto})
+    peticion = _pedido(url + 'api/sistema/cerrar', method='POST', data=b'',
+                       headers={CABECERA_LANZADOR: '1', CABECERA_MOTIVO: texto})
     try:
         with urllib.request.urlopen(peticion, timeout=5) as r:
             return r.status == 202
@@ -206,7 +227,7 @@ def mostrar_en_navegador(url: str, salud: dict | None = None,
             break
         time.sleep(0.5)
         salud = conversor_en(url, timeout=1.0)
-    webbrowser.open(url)
+    webbrowser.open(url_de_entrada(url))              # 086:RF-19: la web cambia el token por una cookie
     return True
 
 
@@ -254,6 +275,12 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
 
     url = f'http://{_destino(host)}:{port}/'
     salud = conversor_en(url) or conversor_en(url)
+    if salud is None and es_web_de_otra_sesion(url):
+        # Sin esto se trataba como colgado, y el lanzador terminaba una web que funciona.
+        nuevo = puerto_libre_siguiente(host, port)
+        print(f'En {url} hay un Conversor con otra sesión: se deja'
+              f'{f" y este se abre en el puerto {nuevo}" if nuevo else " y no hay otro puerto libre"}.')
+        return ('arrancar', nuevo) if nuevo else ('salir', 2)
     if salud is None:
         ocupante = quien_escucha(port)
         if ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1]) and not (trabajos_anotados(ocupante[0]) or 0):
@@ -342,6 +369,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--reload', action='store_true', help='Recarga en caliente (desarrollo)')
     args = p.parse_args(argv)
 
+    if args.host.strip().lower() not in ('127.0.0.1', 'localhost'):        # 086:RF-20
+        print(f'No se escucha en {args.host}: esta versión no tiene usuarios ni TLS, y cualquiera en esa red '
+              'podría usar la web y leer sus datos. Use 127.0.0.1, que es la dirección de un puesto local.',
+              file=sys.stderr)
+        return 1
+    preparar_entorno_sin_red()                                             # 086:RF-22
+
     # En Windows, con la salida redirigida (servicio, .bat > log), la consola es cp1252
     # y cualquier carácter fuera de ella tumbaba el arranque antes de servir nada.
     for stream in (sys.stdout, sys.stderr):
@@ -379,7 +413,12 @@ def main(argv: list[str] | None = None) -> int:
         if accion == 'salir':
             return valor
         port = valor
+    # Tras decidir el puerto, para no pisar el token de la web que ya estaba en él (086:RF-19).
+    sesion = crear_sesion(port)
+    os.environ[VARIABLE_PUERTO] = str(port)
     url = f'http://{_destino(args.host)}:{port}/'
+    if args.no_browser:
+        print(f'Sin navegador: el token de esta sesión está en {ruta_sesion(port)}.')
     if not (frontend_dist() / 'index.html').is_file():
         print('AVISO: no está compilado el front (frontend/dist). Solo responderá la API.\n'
               '       Compílelo con:  cd frontend && npm install && npm run build',
@@ -388,14 +427,16 @@ def main(argv: list[str] | None = None) -> int:
         abrir_cuando_responda(url)
 
     print(f'ConverterSmartGrid en {url}  (Ctrl+C o cerrar esta ventana para salir)')
+    servidor = None
     try:
         if args.reload:
             uvicorn.run('convertersmartgrid.web.app:create_app', factory=True, host=args.host, port=port,
                         reload=True, log_level='info')
         else:
+            # proxy_headers: sin proxy delante, un X-Forwarded-For local falsearía quién pide (086:RF-20).
             servidor = uvicorn.Server(uvicorn.Config(
                 'convertersmartgrid.web.app:create_app', factory=True, host=args.host, port=port,
-                log_level='info'))
+                log_level='info', proxy_headers=False, server_header=False))
             # Con el servidor a mano, el cierre que pide el lanzador es el mismo que Ctrl+C:
             # termina las peticiones y cancela los trabajos limpio (RF-29).
             al_pedir_cierre(lambda: setattr(servidor, 'should_exit', True))
@@ -408,6 +449,10 @@ def main(argv: list[str] | None = None) -> int:
         registro = registro_de_trabajos(os.getpid())
         if registro is not None:
             registro.unlink(missing_ok=True)
+        # El fichero se queda al cerrar: el siguiente arranque toma de él el token de relevo.
+        # Si otro proceso ganó el puerto, en cambio, ese fichero tiene que volver a ser suyo.
+        if servidor is not None and getattr(servidor, 'started', True) is False:
+            devolver_sesion(sesion)
     return 0
 
 

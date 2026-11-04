@@ -185,6 +185,7 @@ class MaestroCodex:
         self.vocab, self.tiempo_max_s = vocab, tiempo_max_s
         self.modelo = f"codex:{modelo or 'predeterminado'}"
         self._modelo_cli = modelo
+        self._por_cli = ejecutar is None
         self._ejecutar = ejecutar or self._codex
 
     def _codex(self, prompt: str) -> str | None:
@@ -209,7 +210,11 @@ class MaestroCodex:
 
     def interpretar(self, texto: str, *, temperatura: float = 0.0, semilla: int = 0, **_kw) -> dict | None:
         from .tareas import descripcion_para_modelo
+        from ..salidas_red import salida_permitida
 
+        # 086:RF-22: apagada es como sin la CLI, y antes de anotar una consulta que no va a salir.
+        if self._por_cli and not salida_permitida('codex'):
+            return None
         oculto, tabla = enmascarar(texto, self.vocab)
         almacen.anotar('internet', {'destino': 'codex', 'consulta': oculto,
                                     'motivo': 'maestro de destilación (027:RF-63)'})

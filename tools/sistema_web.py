@@ -46,6 +46,7 @@ import requests
 
 from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS_DEMANDA, DemandaError,
                                      clasificar_carpeta_demanda, descubrir_libro_suministros)
+from convertersmartgrid.sesion_web import cabeceras_locales
 from convertersmartgrid.util import nombre_seguro
 
 TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
@@ -68,6 +69,8 @@ class Web:
     def _pedir(self, metodo: str, ruta: str, **kw):
         for intento in range(self.reintentos):
             try:
+                # 086:RF-19: se lee cada vez, porque un reinicio de la web a media corrida cambia el token.
+                self.http.headers.update(cabeceras_locales(self.url))
                 r = self.http.request(metodo, self.url + ruta, timeout=300, **kw)
                 break
             except requests.RequestException as exc:

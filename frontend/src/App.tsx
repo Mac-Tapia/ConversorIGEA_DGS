@@ -165,8 +165,9 @@ export default function App() {
   }, [run, w]);
 
   if (w.bootError) {
+    // 086:RF-19: sin sesión el servidor sí está arrancado; el mensaje del servidor ya dice qué hacer.
     return <div className="boot"><h1>No se pudo abrir el espacio de trabajo</h1><p>{w.bootError}</p>
-      <p className="muted">¿Está arrancado el servidor? <code>python -m convertersmartgrid.web</code></p></div>;
+      {!w.bootError.includes('sesión') && <p className="muted">¿Está arrancado el servidor? <code>python -m convertersmartgrid.web</code></p>}</div>;
   }
   if (!health || !w.state) return <div className="boot"><div className="spinner" /><p>Conectando con el conversor…</p></div>;
 
