@@ -118,6 +118,7 @@ Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI112 qu
 Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento».
 
 - RF-51: SI la potencia de diseño de la SET nueva no cuenta la tasa de crecimiento, ENTONCES EL SISTEMA usará `factor_seguridad_set_sin_tasa`; con la tasa, `factor_seguridad_set`.
+- RF-53: CUANDO dimensiona un elevador o un regulador sin contar la tasa de crecimiento, EL SISTEMA usará también `factor_seguridad_set_sin_tasa`. Usuario (2026-11-04): «sí aplica, para regulador 1.25».
 
 ### Aceptación
 

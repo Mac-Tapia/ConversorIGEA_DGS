@@ -20,6 +20,8 @@
   Hecho cuando: con una barra baja que no empeora, el informe la lista como déficit previo con su tensión y barra, y nunca dice «en norma» sin ese matiz.
   Evidencia: pruebas con dobles, sin DIgSILENT, en `tests/test_deficit_previo.py`, `tests/test_informe_docx.py`, `tests/test_informe_corrida.py`, `tests/test_casos_por_anio.py` y `tests/test_obras_pf_guion.py`. La confirmación en DIgSILENT queda en las corridas de la F6, y verlo en el navegador real, sin hacer.
 
+- [ ] T39 El factor 1,25 en el elevador y en el regulador, cuando no cuentan la tasa de crecimiento. Lo implementa la sesión de la 042 en su rama. (RF-53)
+  Hecho cuando: prueba de cada uno con y sin dato en el perfil; el dimensionado se ve en el informe.
 - [ ] T38 Obra para el déficit previo, con su costo aparte, con o sin obra para la carga. La implementa la sesión de la 042 en su rama. (RF-52)
   Hecho cuando: «ya cumple» no se queda sin obra si hay una barra previa baja; prueba con doble y medida en DIgSILENT sobre SI112; el informe separa los dos costos.
 
