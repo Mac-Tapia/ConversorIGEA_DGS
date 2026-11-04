@@ -60,6 +60,10 @@ class DatosEstudio:
     #: Clientes fijos de la última calibración con su FP real (EA/ERI) y el corregido
     #: (spec 015, RF-65).
     fijas: Sequence[Mapping[str, Any]] = ()
+    #: 086:RF-12: lo que el informe no tiene de su corrida; va a la vista en sus conclusiones.
+    avisos: Sequence[str] = ()
+    #: 086:RF-11: la corrida de estudios de donde salen sus flujos.
+    corrida: str | None = None
 
 
 def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
@@ -73,9 +77,14 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
 
     pdf = Path(docx).with_suffix('.pdf')
     inicio = time.time() - 2
+
+    def literal(ruta: Path) -> str:
+        # En PowerShell, dentro de comillas simples el apóstrofo se dobla: una carpeta «INKA'S» rompía la orden.
+        return "'" + str(ruta.resolve()).replace("'", "''") + "'"
+
     orden = ("$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
-             f"try {{ $d = $w.Documents.Open('{Path(docx).resolve()}', $false, $true); "
-             f"$d.SaveAs([ref]'{pdf.resolve()}', [ref]17); $d.Close(0) }} finally {{ $w.Quit() }}")
+             f"try {{ $d = $w.Documents.Open({literal(Path(docx))}, $false, $true); "
+             f"$d.SaveAs([ref]{literal(pdf)}, [ref]17); $d.Close(0) }} finally {{ $w.Quit() }}")
     correr = ejecutar or (lambda c: subprocess.run(
         ['powershell', '-NoProfile', '-NonInteractive', '-Command', c], capture_output=True, text=True,
         encoding='utf-8', errors='replace', timeout=300, check=False))
@@ -121,6 +130,10 @@ class DatosFactibilidad:
     incluir_transformador_set: bool = True
     #: 063:RF-49: el cliente de la solicitud no parece el de la carga; se señala como hueco.
     aviso_cliente: str = ''
+    #: 086:RF-12: lo que el informe no tiene de su corrida; va a la vista en sus conclusiones.
+    avisos: Sequence[str] = ()
+    #: 086:RF-11: la corrida de estudios de donde salen sus flujos.
+    corrida: str | None = None
     #: 063:RF-53: las obras activas en «Con proyecto», como las describe el informe de estudio.
     obras: Sequence[Mapping[str, Any]] = ()
     #: 073:RF-32: lo medido en valle de esas obras; sin él, «no comprobado en valle».
@@ -361,6 +374,11 @@ class _Escritor:
             _vacio(p)
             self.huecos.append(motivo)
 
+    def aviso(self, texto: str) -> None:
+        """Lo que quien lee el Word debe saber antes de creerlo (086:RF-12), también en la lista de huecos."""
+        self.d.add_paragraph('AVISO: ' + re.sub(r'\s*\(\d{3}:RF-\d+\)', '', texto))      # el requisito no es para el cliente
+        self.huecos.append(texto)
+
     def hueco(self, motivo: str) -> None:
         _vacio(self.d.add_paragraph())
         self.huecos.append(motivo)
@@ -553,6 +571,8 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
         _proyectado(e, datos, a_ejecutar, config, lista)
 
     e.titulo('3. CONCLUSIONES Y RECOMENDACIONES')
+    for texto in datos.avisos:
+        e.aviso(texto)
     obras = {describir_obra(o) for x in a_ejecutar for o in x.obras}
     for texto in _conclusiones(datos, rec, config):
         if texto in obras:
@@ -561,7 +581,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
             e.parrafo(texto)
 
     _guardar(documento, destino, {
-        'tipo': 'estudio', 'alimentadores': list(datos.alimentadores), 'numero': datos.numero,
+        'tipo': 'estudio', 'corrida': datos.corrida, 'alimentadores': list(datos.alimentadores), 'numero': datos.numero,
         'encabezado': {**asdict(enc), 'fecha': enc.fecha.isoformat()},
         'actual': asdict(datos.actual), 'etapas': [asdict(x) for x in etapas],
         'recomendada': rec.etapa.clave if rec.etapa else None, 'cumplen': dict(rec.cumplen),
@@ -980,6 +1000,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                  'cargabilidad del transformador de la SET', pie)
 
     e.titulo('3. CONCLUSIONES')
+    for texto in datos.avisos:
+        e.aviso(texto)
     conexion = None
     if datos.cargas is not None:
         from .informes import Veredicto, conclusion_factibilidad
@@ -1075,7 +1097,7 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         return datos_caso
 
     _guardar(documento, destino, {
-        'tipo': 'factibilidad', 'numero': datos.numero,
+        'tipo': 'factibilidad', 'corrida': datos.corrida, 'numero': datos.numero,
         'encabezado': {**asdict(enc), 'fecha': enc.fecha.isoformat()},
         'solicitud': ({**asdict(s), 'fecha_solicitud': s.fecha_solicitud.isoformat()} if s else None),
         'actual': resumen_caso(datos.actual), 'proyectado': resumen_caso(proyectado),

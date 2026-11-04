@@ -224,7 +224,11 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> None:
     """
     grupos = web.get('').get('groups') or []
     feeders = next((g.get('feeders') for g in grupos if g.get('name') == grupo), None) or [grupo]
-    estado = web.esperar(web.post('/powerfactory/caso-base', json={'project': proyecto, 'feeders': feeders}))
+    try:
+        estado = web.esperar(web.post('/powerfactory/caso-base', json={'project': proyecto, 'feeders': feeders}))
+    except RuntimeError as exc:
+        print(f'AVISO: «Caso base» sin verificar: {exc}; se sigue (015:RF-13).', flush=True)
+        return
     filas = (estado.get('result') or {}).get('feeders') or []
     malos = [f.get('feeder') for f in filas if f.get('status') != 'VERIFICADO']
     print(f"Caso base: {estado['status']} {'VERIFICADO' if filas and not malos else malos}", flush=True)
@@ -302,7 +306,6 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         if proyecto is None:
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
-        _caso_base_verificado(web, proyecto, grupo)
     elif proyecto is None or reconvertir:
         pedido = {'zonales': [], 'sets': [set_electrica]} if set_electrica else {'zonales': [zonal]}
         estado = web.esperar(web.post('/convert/sistema', json=pedido))
@@ -315,12 +318,17 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
         if not _terminado(estado):
             return 2
-        proyecto = (web.get('').get('pf_projects') or {}).get(res['group'])
+        grupo = res['group']
+        proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
         if proyecto is None:
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
-        _caso_base_verificado(web, proyecto, res['group'])
     print(f'Proyecto: {proyecto}', flush=True)
+    # 086:RF-13: aquí pasan importar, retomar y la vuelta de ``--reconstruir``: al retomar no se verificaba
+    # y la calibración decía «no está verificado» o dejaba fuera a sus alimentadores. Lo que se va a
+    # reconstruir no: se verifica lo nuevo en su vuelta.
+    if not reconstruir:
+        _caso_base_verificado(web, proyecto, grupo)
     for tipo in TIPOS_DEMANDA:
         if tipo in libros:
             print(f'  {TIPOS_DEMANDA[tipo]}: {libros[tipo]}', flush=True)
@@ -493,13 +501,14 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     if not _terminado(ultimo):
         return 2
     # 083:RF-8: sin calibración válida y con SED fijas por encima de su transformador, se piden sin esperar a la opción.
-    if not transformadores and _resumen(ultimo)[1] and (pedidos := _transformadores_pedidos(ultimo)):
+    validos, fallidos = _resumen(ultimo)                 # una vez: imprime, y el resumen salía repetido
+    if not transformadores and fallidos and (pedidos := _transformadores_pedidos(ultimo)):
         print('Sin calibración válida y con SED fijas sobre su transformador: se cambian y se repite (083:RF-8).', flush=True)
         ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores', json={'por_alimentador': pedidos}))
         print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)
         if not _terminado(ultimo):
             return 2
-    validos, fallidos = _resumen(ultimo)
+        validos, fallidos = _resumen(ultimo)
     _escribir_resumen(ultimo)
     print(f'{validos} válido(s), {fallidos} con fallos.')
     return 0 if validos and not fallidos else 1

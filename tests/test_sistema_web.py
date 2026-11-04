@@ -192,6 +192,51 @@ def test_retoma_el_proyecto_ya_importado(herramienta):
     assert ('POST', '/convert/sistema') in web.llamadas
 
 
+def test_al_retomar_tambien_verifica_el_caso_base(herramienta, capsys):
+    """086:RF-13 — retomar no importa de nuevo, pero el «Caso base» se verifica igual, antes del plan."""
+    web = WebFalsa(proyecto='P_PISCO', informes=[VALIDO])
+    assert _correr(herramienta, web) == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert '/powerfactory/flow' not in rutas
+    assert rutas.count('/powerfactory/caso-base') == 1
+    assert rutas.index('/powerfactory/caso-base') < rutas.index('/demanda/ajuste/plan')
+    assert 'Caso base: done VERIFICADO' in capsys.readouterr().out
+
+
+def test_al_retomar_la_verificacion_que_no_se_puede_pedir_no_para(herramienta, capsys):
+    """086:RF-13, 015:RF-13 — si la web rechaza la verificación se dice y se sigue: nada bloquea aquí."""
+    web = WebFalsa(proyecto='P_PISCO', informes=[VALIDO])
+    original = web.post
+
+    def post(ruta, **kw):
+        if ruta == '/powerfactory/caso-base':
+            raise RuntimeError('POST /powerfactory/caso-base: 400 sin vínculo')
+        return original(ruta, **kw)
+
+    web.post = post
+    assert _correr(herramienta, web) == 0
+    salida = capsys.readouterr().out
+    assert 'sin verificar' in salida and 'sin vínculo' in salida
+
+
+def test_importar_verifica_una_sola_vez(herramienta):
+    """086:RF-13 — el mismo paso para importar y para retomar: no se verifica dos veces."""
+    web = WebFalsa(informes=[VALIDO])
+    assert _correr(herramienta, web) == 0
+    assert [r for _m, r in web.llamadas].count('/powerfactory/caso-base') == 1
+
+
+def test_reconstruir_verifica_el_proyecto_nuevo(herramienta):
+    """086:RF-13 — ``--reconstruir`` importa otra vez y entraba por «retomar»: se calibraba sin verificar lo nuevo."""
+    web = WebFalsa(proyecto='P', informes=[VALIDO])
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
+                              transformadores=False, tension_pu=None, bancos=True, reconstruir=['PI101'],
+                              libros=LIBROS) == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert rutas.count('/powerfactory/caso-base') == 1
+    assert rutas.index('/powerfactory/flow') < rutas.index('/powerfactory/caso-base') < rutas.index('/demanda/ajuste/plan')
+
+
 def test_con_fallos_lo_dice_y_sale_con_1(herramienta, capsys):
     """022:RF-56 — un alimentador con remedios y validación que falla da código 1 y su
     primer flujo con lo que dijo DIgSILENT."""

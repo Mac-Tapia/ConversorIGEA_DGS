@@ -98,6 +98,17 @@ def huella_de_caso(cargas: Iterable[Mapping[str, Any]], flujo: Mapping[str, Any]
     return {'cargas': filas, 'flujo': resumen, 'sha256': sello}
 
 
+def _mismo_flujo(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    """Dos flujos de la misma red no dan el mismo kW al decimal: paran dentro de su criterio de
+    convergencia, y eso no puede sonar a «FALLO GRAVE» (086:RF-14). El mismo ruido que la validación del guion."""
+    if a.get('converge') != b.get('converge') or a.get('return_code') != b.get('return_code'):
+        return False
+    ka, kb = a.get('kw'), b.get('kw')
+    if ka is None or kb is None:
+        return ka == kb
+    return abs(ka - kb) <= max(1.0, abs(ka) * 1e-4)
+
+
 def comparar_huellas(antes: Mapping[str, Any], despues: Mapping[str, Any]) -> dict[str, Any]:
     """Qué cambió en el «Caso base» (081:RF-34), y el plan para volver a su huella (081:RF-35)."""
     if antes.get('sha256') == despues.get('sha256'):
@@ -111,6 +122,8 @@ def comparar_huellas(antes: Mapping[str, Any], despues: Mapping[str, Any]) -> di
             if nombre in a:
                 p, q, escala, servicio = a[nombre]
                 volver.append({'carga': nombre, 'p_kw': p, 'q_kvar': q, 'escala': escala, 'en_servicio': servicio})
+    if not cambios and _mismo_flujo(antes.get('flujo') or {}, despues.get('flujo') or {}):
+        return {'cambio': False, 'cambios': [], 'volver': []}
     if antes.get('flujo') != despues.get('flujo'):
         cambios.insert(0, f"flujo: {antes.get('flujo')} → {despues.get('flujo')}")
     return {'cambio': True, 'cambios': cambios[:_MAX_LISTA], 'total': len(cambios), 'volver': volver}
