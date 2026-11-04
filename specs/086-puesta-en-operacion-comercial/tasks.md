@@ -10,10 +10,11 @@
 - [x] T3 Pasar a `main`, `pip install -e .`, compilar, reiniciar la web y aplicar el modelo provisional. (RF-45)
   Hecho cuando: la web muestra el aviso provisional con sus cifras y `test_entry_points_instalados_coinciden_con_pyproject` pasa.
   Evidencia: `main` en c79013c2; navegador real en el 8765, con el aviso «examen 0,964 de 0,98 y F1 0,918 de 0,95 […] sellada 0,860; sintéticas 0,829; se cuela 0,0 %».
-- [ ] T4 Aclarar `factor_seguridad_set` en `config/perfiles/electro_dunas.json:64` (1,0 frente a un comentario de 1,25) y corregir lo que confirme el usuario. (RF-45)
+- [x] T4 Aclarar `factor_seguridad_set` en `config/perfiles/electro_dunas.json:64` (1,0 frente a un comentario de 1,25) y corregir lo que confirme el usuario. (RF-45, RF-51)
   Hecho cuando: el perfil coincide con su comentario.
-- [ ] T5 Decidir RF-42 de la 042 con la cabecera compartida frente a la regla «siempre una solución».
-  Hecho cuando: el caso produce una solución con su aviso y prueba, o el usuario acepta el comportamiento actual.
+  Evidencia: `tests/test_set_nueva.py::test_el_factor_de_la_set_depende_de_si_se_cuenta_la_tasa`; 1,25 sin tasa y 1,0 con ella, como decidió el usuario.
+- [ ] T5 Cabecera compartida: proponer solución en vez de quedarse sin obra (decidido por el usuario, 2026-11-04). La implementa la sesión de la 042 en `entrega/042-nivel`, sobre 042:RF-53.
+  Hecho cuando: el caso produce una solución con su aviso y prueba, medida en DIgSILENT.
 
 - [ ] T37 El informe separa lo que causa la carga del déficit que ya existía. (RF-48, RF-49, RF-50) (`v1/deficit`)
   Hecho cuando: con una barra baja que no empeora, el informe la lista como déficit previo con su tensión y barra, y nunca dice «en norma» sin ese matiz.

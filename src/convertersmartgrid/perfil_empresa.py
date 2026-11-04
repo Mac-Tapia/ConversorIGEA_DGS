@@ -226,6 +226,7 @@ PLANEAMIENTO_DE_REFERENCIA: dict[str, dict[str, Any]] = {
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
     'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0, 'max_variantes': 150},
     'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30, 'horizonte_set_anios': 5, 'factor_seguridad_set': 1.0,
+                      'factor_seguridad_set_sin_tasa': 1.25,  # 086:RF-51
                       'set_nueva_desde_kw': 10000, 'radio_zona_set_km': 10,
                       # Sin libro no hay hoja que leer: la SET se dimensiona con su transformador normalizado (042:RF-33).
                       'modulos_pit': {'hoja': '', 'fila_cabecera_contiene': '', 'columnas': {}}},

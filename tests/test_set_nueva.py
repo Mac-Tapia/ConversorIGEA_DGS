@@ -73,6 +73,18 @@ def test_parametros_del_perfil_dicen_lo_que_falta():
 
 
 # =========================================================================== módulos PIT
+def test_el_factor_de_la_set_depende_de_si_se_cuenta_la_tasa():
+    """086:RF-51 — 1,25 si no se considera el crecimiento; con la tasa, el del perfil, sin cobrar dos veces."""
+    plan = {'vida_util_anios': 30, 'factor_seguridad_set': 1.0, 'factor_seguridad_set_sin_tasa': 1.25,
+            'modulos_pit': CFG_PIT}
+    p = sn.parametros({'planificacion': plan})
+    assert p.factor_para(0.02) == 1.0
+    assert p.factor_para(0.0) == 1.25
+    # Sin el dato no se supone otro: vale el del perfil.
+    sin_dato = {k: v for k, v in plan.items() if k != 'factor_seguridad_set_sin_tasa'}
+    assert sn.parametros({'planificacion': sin_dato}).factor_para(0.0) == 1.0
+
+
 def test_modulos_pit_del_libro_capex(tmp_path):
     """042:RF-5, 042:RF-7 — del libro se leen los módulos de SET y de transformador con su
     relación de tensiones, su potencia y su costo; la línea de 220 kV no es un módulo de SET."""

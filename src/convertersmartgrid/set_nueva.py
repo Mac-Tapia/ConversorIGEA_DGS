@@ -34,6 +34,18 @@ class Parametros:
     modulos_pit: Mapping[str, Any]
     max_unidades: int = 1
     """Transformadores iguales en paralelo que admite la empresa (042:RF-14); sin dato, uno."""
+    factor_seguridad_sin_tasa: float | None = None
+    """El de diseñar sin contar el crecimiento (086:RF-51); sin dato, ``factor_seguridad``."""
+
+    def factor_para(self, tasa_ponderada: float) -> float:
+        """086:RF-51: el margen es por el crecimiento que no se cuenta. Con la tasa, no se cobra dos veces.
+
+        Usuario (2026-11-04): «debe ser 1.25 si no se considera la tasa de crecimiento». La SET de
+        NA203 + NA205 se diseña con la tasa medida y el 1,0 del perfil; sin tasa, ese 1,0 no dejaba margen.
+        """
+        if self.anios > 0 and tasa_ponderada > 0:
+            return self.factor_seguridad
+        return self.factor_seguridad if self.factor_seguridad_sin_tasa is None else self.factor_seguridad_sin_tasa
 
 
 def parametros(perfil: Mapping[str, Any]) -> Parametros:
@@ -48,8 +60,9 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
     # El horizonte de diseño de la SET, aparte de la vida útil del costeo: con 30 años y la tasa
     # medida, la SET de NA203 + NA205 salía de 372 MVA (usuario, 2026-11-01: horizonte del PIDE).
     horizonte = plan.get('horizonte_set_anios') or plan['vida_util_anios']
+    sin_tasa = plan.get('factor_seguridad_set_sin_tasa')
     return Parametros(int(horizonte), float(plan['factor_seguridad_set']),
-                      plan['modulos_pit'], max(1, unidades))
+                      plan['modulos_pit'], max(1, unidades), None if sin_tasa is None else float(sin_tasa))
 
 
 def distancia_m(a: tuple[float, float], b: tuple[float, float]) -> float:

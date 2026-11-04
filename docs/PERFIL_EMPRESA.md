@@ -102,6 +102,7 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | `escalera.costos_unitarios` | empresa | Costo de bancos y reguladores | Esas variantes se evalúan sin elegirse por costo |
 | `planificacion.tasa_regulada` | norma | Evaluación económica | 12 % de referencia, con aviso |
 | `planificacion.vida_util_anios` | norma | Evaluación económica y SET nueva | 30 años de referencia, con aviso |
+| `planificacion.factor_seguridad_set_sin_tasa` | norma | SET nueva sin tasa de crecimiento | 1,25 de referencia, con aviso; con tasa se usa `factor_seguridad_set` |
 | `planificacion.capex` | empresa | Leer el libro CAPEX | Sin costo del libro, y se dice |
 | `planificacion.tarifas` | empresa | Evaluación privada del PIDE | Queda señalada como pendiente |
 

@@ -32,8 +32,9 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 
 - D1 Alcance geográfico. Recomendado: **solo Perú** en la 1.0 (60 Hz, soles y normas peruanas siguen en el perfil o como jurisdicción).
 - D2 Modelo de venta. Recomendado: **puesto local por licencia**, un equipo por operador, sin servidor multiusuario.
-- D3 Repositorio. Hoy el repositorio de GitHub es **público y sin licencia** (comprobado el 2026-11-04). Recomendado: **hacerlo privado** y
-  entregar desde un repositorio de producto con historia limpia. Los clones ya hechos no se recuperan.
+- D3 Repositorio. Hoy el repositorio de GitHub es **público y sin licencia** (comprobado el 2026-11-04). Decidido por el usuario, 2026-11-04:
+  **sigue público para recibir comentarios**. La entrega al cliente sigue siendo la empaquetada (D4), y antes de cada push se revisa que no vayan
+  datos de la distribuidora ni secretos.
 - D4 Entrega. Recomendado: **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`.
 - D5 Comentarios con casos reales en el código entregado. Recomendado: **neutralizarlos en la línea de producto**, conservando el motivo
   sin el nombre del cliente. Choca con la regla de `CLAUDE.md` de citar el caso real.
@@ -110,6 +111,12 @@ Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI112 qu
 - RF-48: CUANDO una barra de un alimentador con obra queda bajo el límite sin empeorar frente a «Sin proyecto», EL SISTEMA la anotará como déficit previo con su barra y su tensión.
 - RF-49: EL SISTEMA separará en el informe lo que causa la carga de lo que ya estaba fuera de límites.
 - RF-50: SI queda un déficit previo, ENTONCES EL SISTEMA no dirá que el alimentador queda en norma.
+
+### Factor de seguridad de la SET nueva
+
+Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento».
+
+- RF-51: SI la potencia de diseño de la SET nueva no cuenta la tasa de crecimiento, ENTONCES EL SISTEMA usará `factor_seguridad_set_sin_tasa`; con la tasa, `factor_seguridad_set`.
 
 ### Aceptación
 

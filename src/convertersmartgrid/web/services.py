@@ -6704,7 +6704,10 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     avisos.extend(x for x in supuestos + avisos_tasa if x not in avisos)
     nuevas_pq = (sum(float(c.get('kw') or 0) for c in a_set_nueva), sum(float(c.get('kvar') or 0) for c in a_set_nueva))
     try:
-        diseno = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=p.factor_seguridad)
+        # La tasa ponderada sale del propio cálculo: primero sin margen, para saber cuál le toca (086:RF-51).
+        sin_margen = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=1.0)
+        factor_set = p.factor_para(sin_margen['tasa_ponderada'])
+        diseno = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=factor_set)
     except sn.SetNuevaError as exc:
         raise UserError(str(exc)) from exc
     eleccion = sn.elegir_modulo(modulos, diseno['kva_diseno'], float(kv_mt or 0), max_unidades=p.max_unidades)
@@ -6732,7 +6735,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
                              'sorteos': ubic['sorteos'], 'utm': _punto_utm(ubic['lat'], ubic['lon'])},
                'avisos': avisos, 'obra': None}
     ctx.log(f"SET nueva: {diseno['kva_diseno'] / 1000:.1f} MVA de diseño a {p.anios} años "
-            f"(tasa {100 * diseno['tasa_ponderada']:.2f} %/año, factor {p.factor_seguridad:g}); "
+            f"(tasa {100 * diseno['tasa_ponderada']:.2f} %/año, factor {factor_set:g}); "
             f"{eleccion['motivo']}; punto {ubic['lat']:.6f}, {ubic['lon']:.6f} (042:RF-7, RF-9).")
     if oraculo:
         informe['oraculo'] = _set_nueva_en_el_oraculo(oraculo, ramas, gps, ubic, float(kv_mt or 0))
