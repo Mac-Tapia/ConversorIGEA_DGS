@@ -78,7 +78,7 @@ class LoadTemplateError(ValueError):
     """El libro no se puede leer o su contenido no es utilizable."""
 
 
-def _normalise(header: Any) -> str:
+def normalise_header(header: Any) -> str:
     text = ('' if header is None else str(header)).strip().lower()
     for ch in ' ()[]-_./\\':
         text = text.replace(ch, '')
@@ -89,7 +89,7 @@ def canonical_columns(header: Sequence[Any]) -> dict[int, str]:
     """Índice de columna → nombre canónico, tolerando variantes de grafía."""
     mapping: dict[int, str] = {}
     for index, raw in enumerate(header):
-        key = _normalise(raw)
+        key = normalise_header(raw)
         if key in COLUMN_ALIASES:
             mapping[index] = COLUMN_ALIASES[key]
     return mapping
@@ -133,7 +133,7 @@ class SheetRead:
     no_data: list[str] = field(default_factory=list)
 
 
-def _number(value: Any) -> float | None:
+def parse_number(value: Any) -> float | None:
     text = ('' if value is None else str(value)).strip().replace(',', '.')
     if not text:
         return None
@@ -144,13 +144,13 @@ def _number(value: Any) -> float | None:
     return number if math.isfinite(number) else float('nan')
 
 
-def _resolve_power(
+def resolve_power(
     kw: float | None, kvar: float | None, kva: float | None, fp: float | None,
 ) -> tuple[float, float, float, float, bool, bool]:
     """Devuelve ``(kw, kvar, kva, fp, derivado, sin_datos)``.
 
     Pares, por orden: Kw y Kvar tal cual; Kw y FP; (kVA) y FP, que es el caso del
-    fichero real. Si la fila trae más de un par, ``_power_conflict`` comprueba que
+    fichero real. Si la fila trae más de un par, ``power_conflict`` comprueba que
     coincidan. Sin ningún par, la carga queda en cero.
     """
     if kw is not None and kvar is None and fp is not None and 0 < fp <= 1:
@@ -172,7 +172,7 @@ def _resolve_power(
     return 0.0, 0.0, s, factor, False, True
 
 
-def _power_conflict(
+def power_conflict(
     kva: float | None, fp: float | None, p: float, q: float,
 ) -> str | None:
     """Si la fila trae (kVA)/FP que no cuadran con la carga resuelta, dice en qué.
@@ -228,7 +228,7 @@ def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str
         numbers = {}
         bad = False
         for name in ('Kw', 'Kvar', '(kVA)', 'FP', 'kVA_instalado'):
-            value = _number(cell.get(name))
+            value = parse_number(cell.get(name))
             if value is not None and math.isnan(value):
                 result.errors.append(
                     f'hoja {feeder}, fila {row_no}: {name}={cell.get(name)!r} no es un número'
@@ -258,10 +258,10 @@ def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str
             # La plantilla trae todas las SED: la que se deja en blanco no se toca.
             # Ponerla en cero sería borrar la carga de todo lo que no se midió.
             continue
-        kw, kvar, kva, factor, derived, no_data = _resolve_power(
+        kw, kvar, kva, factor, derived, no_data = resolve_power(
             numbers['Kw'], numbers['Kvar'], numbers['(kVA)'], fp,
         )
-        conflict = _power_conflict(numbers['(kVA)'], fp, kw, kvar)
+        conflict = power_conflict(numbers['(kVA)'], fp, kw, kvar)
         if conflict:
             result.errors.append(
                 f'hoja {feeder}, fila {row_no}: {code}: {conflict}. '

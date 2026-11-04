@@ -128,20 +128,20 @@ def _convert(model: FeederModel, path: Path) -> dict:
 def test_adjacency_index_is_not_rebuilt_per_line(tmp_path, monkeypatch):
     """The guard: index builds must stay constant, not grow with section count."""
     calls = {'n': 0}
-    original = dgs_module._line_neighbors
+    original = dgs_module.line_neighbors
 
     def counting(model):
         calls['n'] += 1
         return original(model)
 
-    monkeypatch.setattr(dgs_module, '_line_neighbors', counting)
+    monkeypatch.setattr(dgs_module, 'line_neighbors', counting)
 
     model = _chain_model(300)
     report = _convert(model, tmp_path / 'chain.dgs')
 
     assert report['errors_total'] == 0, report
     assert calls['n'] <= MAX_NEIGHBOR_BUILDS, (
-        f'_line_neighbors se construyó {calls["n"]} veces para 300 tramos; '
+        f'line_neighbors se construyó {calls["n"]} veces para 300 tramos; '
         'volvió a quedar dentro de un bucle (regresión O(lines²))'
     )
 

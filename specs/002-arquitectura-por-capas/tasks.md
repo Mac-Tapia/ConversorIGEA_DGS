@@ -13,13 +13,16 @@ Access.
       Del 2026-10-28: la vía MDB en su propia línea base, `output/linea_base_001_mdb.json`,
       generada con `--mdb` sola; la herramienta rechaza TXT y MDB en una misma orden.
       Hecho cuando: `pytest -q tests/test_linea_base_001.py`, con las variables `CSG_*`, en verde.
-- [ ] T2. `tests/test_capas.py` y la tabla módulo → capa en `pyproject.toml`, con las
+- [x] T2. `tests/test_capas.py` y la tabla módulo → capa en `pyproject.toml`, con las
       excepciones medidas del plan. (RF-2 a RF-5)
       Hecho cuando: `pytest -q tests/test_capas.py` en verde y una violación nueva lo pone en rojo.
+      Del 2026-11-03: lo cumplió la 065 con `tools/arquitectura.py` y el registro `docs/implementacion065/deuda_arquitectura.json`;
+      `test_violacion_deliberada_en_modulos_arbitrarios` es la violación nueva que pone la prueba en rojo.
 - [ ] T3. Romper los 5 ciclos. (RF-4)
       Hecho cuando: la lista de ciclos permitidos de `test_capas.py` está vacía.
-- [ ] T4. Quitar las 12 importaciones de nombres privados. (RF-5)
+- [x] T4. Quitar las 12 importaciones de nombres privados. (RF-5)
       Hecho cuando: la lista de privados permitidos está vacía.
+      Del 2026-11-03: eran 36 al medir de nuevo, no 12; pasan a nombres públicos y `test_no_quedan_nombres_privados_entre_modulos` lo fija.
 - [x] T5. Perfil de empresa: CRS, patrón de SED de medición, escala y forma del
       alimentador; perfil de Electro Dunas; pedir el CRS si falta; manifiesto. (RF-31 a RF-37)
       Hecho cuando: `pytest -q tests/test_perfil_empresa.py` en verde y `git grep EPSG:32718 -- src tools`

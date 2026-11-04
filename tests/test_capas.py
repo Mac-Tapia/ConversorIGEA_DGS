@@ -114,3 +114,10 @@ def test_dominio_no_importa_borde_ni_driver(tmp_path, dependencia):
     fuentes(tmp_path, {'p.puro': f'import {dependencia}'})
     assert f'dominio_externo|p.puro|{dependencia}' in h.analizar(
         tmp_path, {'p.puro': 'dominio'}).violaciones
+
+
+def test_no_quedan_nombres_privados_entre_modulos():
+    """002:RF-5 — T4: la lista de privados permitidos está vacía y no vuelve a crecer."""
+    h = herramienta()
+    informe = h.comprobar(RAIZ)
+    assert not [v for v in informe.violaciones if v.startswith('privado|')]

@@ -62,7 +62,7 @@ def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> 
     return estado
 
 
-def _pid_vivo(pid: int) -> bool:
+def proceso_vivo(pid: int) -> bool:
     if pid <= 0:
         return False
     if os.name == 'nt':
@@ -90,7 +90,7 @@ def _pid_vivo(pid: int) -> bool:
 
 
 #: Lectura pública para otros módulos de aplicación (050: marca de un ciclo en curso).
-pid_vivo = _pid_vivo
+pid_vivo = proceso_vivo
 
 class BloqueoGPU:
     def __init__(self, ruta: Path | str, model: str):
@@ -136,7 +136,7 @@ class BloqueoGPU:
                     raise RuntimeError('GPU ocupada: lock ilegible; se conserva fail-closed') from None
                 if not isinstance(previo, dict) or type(previo.get('pid')) is not int or previo['pid'] <= 0:
                     raise RuntimeError('GPU ocupada: lock sin propietario válido; se conserva')
-                if _pid_vivo(previo['pid']):
+                if proceso_vivo(previo['pid']):
                     raise RuntimeError(f'GPU ocupada por PID {previo.get("pid")} ({previo.get("model")})')
                 try:
                     self.ruta.unlink()

@@ -373,7 +373,7 @@ def test_afinado_sin_gpu_el_error_de_siempre(falso, monkeypatch):
 
     def sin_gpu():
         raise RuntimeError('No hay GPU con CUDA')
-    monkeypatch.setattr(tr, '_dispositivo', sin_gpu)
+    monkeypatch.setattr(tr, 'dispositivo_de_calculo', sin_gpu)
     monkeypatch.setattr(co, 'FABRICA', lambda *_a: pytest.fail('no debe abrir el codificador'))
     with pytest.raises(RuntimeError, match='CUDA'):
         di.entrenar_destilacion(falso / 'corpus', falso / 'run', cfg=_cfg(), semillas=(11,), log=lambda *_a, **_k: None)
@@ -840,7 +840,7 @@ def corrida(tmp_path_factory):
     parche.setenv('CSG_ASISTENTE_DATA', str(raiz / 'almacen'))
     parche.setattr(co, 'FABRICA', BaseFalsa)
     parche.setattr(co, '_abiertos', {})
-    parche.setattr(tr, '_dispositivo', lambda: CPU)
+    parche.setattr(tr, 'dispositivo_de_calculo', lambda: CPU)
     parche.setattr(tr, 'liberar_gpu', lambda: None)
     parche.setattr(tr, '_cache', {})
     parche.setattr(mr, 'reabrir_en_subproceso', lambda *_a, **_k: {'ok': True})

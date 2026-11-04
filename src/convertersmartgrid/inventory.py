@@ -16,9 +16,9 @@ def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
     Con ellas la estructura coloca en su zonal la SET que la tabla de la empresa aún no
     trae (022:RF-74: Chincha Nueva en RED_231026). ``None`` si el nodo no las tiene.
     """
-    from .reconstruction_topology import _source_node
+    from .reconstruction_topology import find_source_node
 
-    nodo = dataset.nodes.get(_source_node(dataset, network_id)) or {}
+    nodo = dataset.nodes.get(find_source_node(dataset, network_id)) or {}
     try:
         x, y = float(nodo.get('CoordX') or ''), float(nodo.get('CoordY') or '')
     except ValueError:

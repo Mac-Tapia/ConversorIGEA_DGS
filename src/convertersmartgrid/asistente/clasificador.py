@@ -24,8 +24,8 @@ from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
 from .transformer import (
     LARGO_MAX,
     Configuracion,
-    _dispositivo,
-    _torch,
+    dispositivo_de_calculo,
+    modulo_torch,
     alfabeto,
     cargar_pesos,
     codificar,
@@ -123,7 +123,7 @@ class ClasificadorInformes:
     version: str = ''
 
     def clasificar(self, texto: str) -> dict[str, Any]:
-        torch = _torch()
+        torch = modulo_torch()
         disp = next(self.red.parameters()).device
         self.red.eval()
         with torch.no_grad():
@@ -138,12 +138,12 @@ class ClasificadorInformes:
 
 def entrenar(ejemplos: Sequence[tuple[str, str, str]], subtipos: Sequence[str], cfg: Configuracion | None = None,
              log: Callable[[str], None] = lambda _m: None) -> ClasificadorInformes:
-    torch = _torch()
+    torch = modulo_torch()
     cfg = cfg or Configuracion(epocas=12)
     liberar_gpu()
     torch.manual_seed(cfg.semilla)
     rnd = random.Random(cfg.semilla)
-    disp = _dispositivo()
+    disp = dispositivo_de_calculo()
     subtipos = list(subtipos)
     simbolos = {c: i + 3 for i, c in enumerate(alfabeto([t for t, _, _ in ejemplos]))}
     red = construir_red(len(simbolos) + 3, {'tipo': len(TIPOS_INFORME), 'subtipo': len(subtipos)}, cfg).to(disp)
@@ -226,7 +226,7 @@ def cargar() -> ClasificadorInformes | None:
     red = construir_red(len(meta['simbolos']) + 3, {'tipo': len(TIPOS_INFORME), 'subtipo': len(meta['subtipos'])},
                         cfg)
     red.load_state_dict(pesos)
-    red.to(_dispositivo()).eval()
+    red.to(dispositivo_de_calculo()).eval()
     m = ClasificadorInformes(red, meta['simbolos'], meta['subtipos'], cfg, version)
     _cache['informes'] = (version, m)
     return m
@@ -270,7 +270,7 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
 def guardar_candidato(modelo: ClasificadorInformes, carpeta: Path) -> None:
     """Pesos, metadatos y predicciones de reapertura de un candidato, fuera de los modelos en uso."""
     carpeta.mkdir(parents=True, exist_ok=False)
-    _torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
+    modulo_torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
     (carpeta / 'modelo.json').write_text(json.dumps({
         'version': carpeta.name, 'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
         'subtipos': modelo.subtipos, 'tipos': list(TIPOS_INFORME)}, ensure_ascii=False), encoding='utf-8')
@@ -286,8 +286,8 @@ def verificar_reapertura(carpeta: Path) -> dict[str, Any]:
     prueba = json.loads((carpeta / 'readback.json').read_text(encoding='utf-8'))
     cfg = Configuracion(**meta['cfg'])
     red = construir_red(len(meta['simbolos']) + 3, {'tipo': len(TIPOS_INFORME), 'subtipo': len(meta['subtipos'])}, cfg)
-    red.load_state_dict(_torch().load(carpeta / 'pesos.pt', weights_only=True, map_location='cpu'))
-    red.to(_dispositivo()).eval()
+    red.load_state_dict(modulo_torch().load(carpeta / 'pesos.pt', weights_only=True, map_location='cpu'))
+    red.to(dispositivo_de_calculo()).eval()
     modelo = ClasificadorInformes(red, meta['simbolos'], meta['subtipos'], cfg, meta.get('version', ''))
     obtenidas = [modelo.clasificar(t) for t in prueba['textos']]
     iguales = all(a['tipo'] == b['tipo'] and a['subtipo'] == b['subtipo']

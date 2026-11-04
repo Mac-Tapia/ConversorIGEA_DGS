@@ -55,13 +55,13 @@ class Puertas:
     f1_real: float = F1_REAL
 
 
-def _torch():
+def modulo_torch():
     import torch
 
     return torch
 
 
-def _dispositivo():
+def dispositivo_de_calculo():
     from ..digital_twin.oraculo import dispositivo
 
     return dispositivo()
@@ -81,7 +81,7 @@ def alfabeto(textos: Sequence[str]) -> list[str]:
 
 def construir_red(n_simbolos: int, salidas: dict[str, int], cfg: Configuracion, etiquetas: int = 0):
     """Codificador Transformer con una cabeza por salida de clase y, si ``etiquetas``, otra por carácter."""
-    torch = _torch()
+    torch = modulo_torch()
     nn = torch.nn
 
     class Red(nn.Module):
@@ -115,7 +115,7 @@ def lotes(n: int, tam: int, rnd: random.Random) -> list[list[int]]:
 
 
 def rellenar(filas: Sequence[Sequence[int]], valor: int = PAD):
-    torch = _torch()
+    torch = modulo_torch()
     largo = max(len(f) for f in filas)
     return torch.tensor([list(f) + [valor] * (largo - len(f)) for f in filas], dtype=torch.long)
 
@@ -142,7 +142,7 @@ class ModeloOrdenes:
 
     def predecir(self, texto: str) -> dict[str, Any]:
         """Tarea con su confianza y los datos marcados, cada uno con la suya."""
-        torch = _torch()
+        torch = modulo_torch()
         disp = next(self.red.parameters()).device
         ids = rellenar(codificar([texto], self.simbolos)).to(disp)
         self.red.eval()
@@ -165,12 +165,12 @@ def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None,
     ellas la pérdida de tarea es α·CE con su tarea más votada + (1 − α)·T²·KL(maestro ‖
     alumno a temperatura T); en las demás, la CE de siempre.
     """
-    torch = _torch()
+    torch = modulo_torch()
     cfg = cfg or Configuracion()
     liberar_gpu()
     torch.manual_seed(cfg.semilla)
     rnd = random.Random(cfg.semilla)
-    disp = _dispositivo()
+    disp = dispositivo_de_calculo()
     tareas = sorted(TAREAS)
     duros = len(ejemplos)
     ejemplos = [*ejemplos, *(Ejemplo(b.texto, b.tarea, list(b.datos)) for b in blandos)]
@@ -246,7 +246,7 @@ def raiz_modelos(nombre: str = 'ordenes') -> Path:
 
 def guardar_pesos(red, meta: dict, nombre: str) -> str:
     """Pesos y metadatos de un modelo en su carpeta de versión; devuelve la versión."""
-    torch = _torch()
+    torch = modulo_torch()
     version = time.strftime('%Y%m%d-%H%M%S') + f'-{random.getrandbits(16):04x}'
     carpeta = raiz_modelos(nombre) / version
     carpeta.mkdir(parents=True)
@@ -285,7 +285,7 @@ def version_promovida(nombre: str = 'ordenes') -> str | None:
 
 def cargar_pesos(nombre: str, version: str | None = None) -> tuple[dict, Any] | None:
     """Metadatos y pesos de la versión pedida o de la promovida."""
-    torch = _torch()
+    torch = modulo_torch()
     version = version or version_promovida(nombre)
     if version is None:
         return None
@@ -316,13 +316,13 @@ def cargar(version: str | None = None) -> ModeloOrdenes | None:
     if 'codificador' in meta:                                    # 069:RF-7: los heredados siguen por debajo
         from .codificador_ordenes import modelo_desde
 
-        modelo = modelo_desde(meta, pesos, version, _dispositivo())
+        modelo = modelo_desde(meta, pesos, version, dispositivo_de_calculo())
         _cache[clave] = (version, modelo)
         return modelo
     cfg = Configuracion(**meta['cfg'])
     red = construir_red(len(meta['simbolos']) + 3, {'tarea': len(meta['tareas'])}, cfg, len(meta['etiquetas']))
     red.load_state_dict(pesos)
-    red.to(_dispositivo()).eval()
+    red.to(dispositivo_de_calculo()).eval()
     temperatura = meta.get('temperatura', 1.)
     import math
     if type(temperatura) not in (int, float) or not math.isfinite(temperatura) or temperatura <= 0:

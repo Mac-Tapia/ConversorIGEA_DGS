@@ -287,7 +287,7 @@ def corrida(tmp_path_factory):
     llamadas, decisiones = [], []
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv('CSG_ASISTENTE_DATA', str(tmp / 'almacen'))
-        mp.setattr(tr, '_dispositivo', lambda: CPU)
+        mp.setattr(tr, 'dispositivo_de_calculo', lambda: CPU)
         mp.setattr(tr, 'liberar_gpu', lambda: None)
         mp.setattr(tr, '_cache', {})
         mp.setattr(co, 'FABRICA', CodificadorFalso)
@@ -495,7 +495,7 @@ def test_opcion_sin_pedirla_las_confirmadas_solo_examinan(tmp_path, monkeypatch)
         return original(ejemplos, cfg, log, cache=cache, dispositivo=dispositivo)
 
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'almacen'))
-    monkeypatch.setattr(tr, '_dispositivo', lambda: CPU)
+    monkeypatch.setattr(tr, 'dispositivo_de_calculo', lambda: CPU)
     monkeypatch.setattr(tr, 'liberar_gpu', lambda: None)
     monkeypatch.setattr(co, 'FABRICA', CodificadorFalso)
     monkeypatch.setattr(co, '_abiertos', {})

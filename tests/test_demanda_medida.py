@@ -648,7 +648,7 @@ def test_catalogo_acepta_extensiones_y_no_abre_nombres_resueltos(tmp_path, monke
                '0426clientes.xlsm']
     for nombre in nombres:
         (tmp_path / nombre).write_bytes(b'no hace falta abrir')
-    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('no debía abrir el libro'))
+    monkeypatch.setattr(dm, 'abrir_libro', lambda _p: pytest.fail('no debía abrir el libro'))
 
     catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {}, dm.ALIAS)
 
@@ -690,7 +690,7 @@ def test_asignacion_manual_manda_sobre_nombre_y_contenido(tmp_path, monkeypatch)
     path = tmp_path / '0126clientesImportantes.xlsx'
     path.write_bytes(b'no abrir')
     patron = r'^(?P<mes>\d{2})(?P<anio>\d{2})clientesImportantes\.xlsx$'
-    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('la asignación manual era suficiente'))
+    monkeypatch.setattr(dm, 'abrir_libro', lambda _p: pytest.fail('la asignación manual era suficiente'))
 
     catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {path.name: '2026-07'}, dm.ALIAS)
 
@@ -709,7 +709,7 @@ def test_duplicado_mensual_usa_el_mas_reciente_y_avisa_ambos(tmp_path, monkeypat
     os.utime(antiguo, ns=(1_000_000_000, 1_000_000_000))
     os.utime(nuevo, ns=(2_000_000_000, 2_000_000_000))
     patron = r'^(?P<mes>\d{2})(?P<anio>\d{2})clientesImportantes\.(xlsb|xlsx)$'
-    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('el nombre resuelve el mes'))
+    monkeypatch.setattr(dm, 'abrir_libro', lambda _p: pytest.fail('el nombre resuelve el mes'))
 
     catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {}, dm.ALIAS)
     por_nombre = {x.nombre: x for x in catalogo}

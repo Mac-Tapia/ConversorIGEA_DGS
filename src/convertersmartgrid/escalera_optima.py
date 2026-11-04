@@ -333,7 +333,7 @@ def normalizados(tipos, secciones: Sequence[str]) -> list[Mapping[str, Any]]:
     return list(por_codigo.values())
 
 
-def _conductores(tipos, kv, corriente_a) -> list[Mapping[str, Any]]:
+def conductores_aptos(tipos, kv, corriente_a) -> list[Mapping[str, Any]]:
     """Aéreos de la tensión del alimentador (±10 %) que llevan la corriente, de menor a mayor."""
     out = []
     for t in tipos:
@@ -356,7 +356,7 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
         # del tramo más cargado del camino (que ya es de mayor sección).
         delgados = [t for t in tramos if t.get('inom_a') is not None]
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
-        aptos = _conductores(tipos, kv, None if delgados else (max(corrientes) if corrientes else None))
+        aptos = conductores_aptos(tipos, kv, None if delgados else (max(corrientes) if corrientes else None))
         if not aptos:
             avisos.append(f"{alim}: ningún conductor aéreo de {kv:g} kV lleva la corriente hasta "
                           f"{tramos[-1]['nombre']}; no hay escalón de sección allí.")

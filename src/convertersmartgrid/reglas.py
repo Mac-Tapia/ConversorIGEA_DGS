@@ -135,7 +135,7 @@ def codigos_en_red(dataset) -> set[tuple[str, bool]]:
             for lc in dataset.line_configurations.values() if lc.get('LineCableID')}
 
 
-def _con_impedancia(fila: dict) -> bool:
+def con_impedancia(fila: dict) -> bool:
     """Si la fila de un tipo de conductor trae R1 y X1 (vacíos o «None» no cuentan)."""
     return all(str(fila.get(c, '') or '').strip() not in ('', 'None') for c in ('R1', 'X1'))
 
@@ -158,7 +158,7 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
         # sus conductores (AA03503D, CU01603G…) solo descritos, sin R ni X; la carga los dejaba
         # «incompletos» y la reconstrucción esperaba a convertir.
         presentes = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
-                     for f in tablas.get(t, ()) if _con_impedancia(f)}
+                     for f in tablas.get(t, ()) if con_impedancia(f)}
         faltan = {(c, aereo) for c, aereo in usados if c not in presentes and c.upper() != 'DEFAULT'}
         if faltan:
             eq = tablas_equipo_desde_catalogo(catalogo, codigos_en_red=faltan)
@@ -172,11 +172,11 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
                                           if str(f.get('ID', '')) not in ids) + tuple(nuevas)
             # La vacía puede estar en otra tabla (aérea o subterránea) que la completa: también fuera.
             completos = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
-                         for f in tablas.get(t, ()) if _con_impedancia(f)}
+                         for f in tablas.get(t, ()) if con_impedancia(f)}
             for tabla in TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO:
                 if tabla in tablas:
                     tablas[tabla] = tuple(f for f in tablas[tabla]
-                                          if _con_impedancia(f) or str(f.get('ID', '')) not in completos)
+                                          if con_impedancia(f) or str(f.get('ID', '')) not in completos)
             informe.completados_catalogo = dict(eq.completados)
             informe.sin_parametros = sorted(eq.sin_resolver)
             tramos: dict[str, int] = {}
@@ -296,7 +296,7 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     ``informes`` son los de :func:`aplicar_reglas` de cada alimentador: lo que las
     reglas quitaron o transformaron a propósito no cuenta como pérdida.
     """
-    from .model import _calc_p_q
+    from .model import calc_p_q
 
     informes = list(informes)
     nets = list(networks)
@@ -305,7 +305,7 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
               if k in dataset.load_placements]
     kw = kvar = 0.0
     for _k, fila in cargas:
-        p, q, _pf = _calc_p_q(fila)
+        p, q, _pf = calc_p_q(fila)
         kw += p * 1000.0
         kvar += q * 1000.0
     maniobras = sum(len(dataset.switching_by_feeder.get(n, ())) for n in nets)

@@ -19,7 +19,7 @@ FRACCIONES_DIAS = (.6, .15, .1, .15)
 UNIDADES = {'kW': ('kW', 1.0), 'MW': ('kW', 1000.0), 'kVAR': ('kVAR', 1.0), 'MVAR': ('kVAR', 1000.0)}
 
 
-def _instante(valor: str, zona: ZoneInfo) -> datetime:
+def instante_local(valor: str, zona: ZoneInfo) -> datetime:
     instante = datetime.fromisoformat(valor)
     if instante.tzinfo is None:
         if instante.replace(tzinfo=zona, fold=0).utcoffset() != instante.replace(tzinfo=zona, fold=1).utcoffset():
@@ -48,12 +48,12 @@ def preparar_serie(registros: Sequence[Mapping], *, corte: str, cadencia_min: in
     if type(cadencia_min) is not int or cadencia_min <= 0:
         raise ValueError('cadencia_min debe ser un entero positivo')
     zona = ZoneInfo(zona_horaria)
-    emision = _instante(corte, zona)
+    emision = instante_local(corte, zona)
     medidas = {}
     paso = timedelta(minutes=cadencia_min)
     bases = set()
     for fila in registros:
-        instante = _instante(fila['instante'], zona)
+        instante = instante_local(fila['instante'], zona)
         if instante in medidas:
             raise ValueError(f'instante duplicado: {instante.isoformat()}')
         medidas[instante] = _valor(fila.get('valor'), fila.get('unidad'))
@@ -80,10 +80,10 @@ def preparar_serie(registros: Sequence[Mapping], *, corte: str, cadencia_min: in
     for nombre, filas in covariables.items():
         indice = {}
         for fila in filas:
-            instante = _instante(fila['instante'], zona)
+            instante = instante_local(fila['instante'], zona)
             if instante in indice:
                 raise ValueError(f'covariable {nombre}: instante duplicado')
-            desde = _instante(fila['disponible_desde'], zona) if fila.get('disponible_desde') else None
+            desde = instante_local(fila['disponible_desde'], zona) if fila.get('disponible_desde') else None
             valor = fila.get('valor')
             if valor is not None and (isinstance(valor, bool) or not math.isfinite(float(valor))):
                 raise ValueError(f'covariable {nombre} no finita')

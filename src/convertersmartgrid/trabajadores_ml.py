@@ -75,7 +75,7 @@ def entorno_hijo_gpu() -> dict[str, str]:
 @contextmanager
 def turno_gpu(nombre: str):
     """Un hijo hereda solo la guardia demostrablemente conservada por su padre."""
-    from .training_coordinator import BloqueoGPU,_pid_vivo
+    from .training_coordinator import BloqueoGPU,proceso_vivo
     ruta=Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock'))
     token=os.environ.get('CSG_GPU_PARENT_TOKEN')
     if token:
@@ -84,7 +84,7 @@ def turno_gpu(nombre: str):
         # El redirector python.exe del venv Windows puede interponerse entre padre e hijo.
         ancestros={p.pid for p in psutil.Process().parents()}
         padre=estado.get('pid',0)
-        if (padre not in ancestros or estado.get('token')!=token or not _pid_vivo(padre)):
+        if (padre not in ancestros or estado.get('token')!=token or not proceso_vivo(padre)):
             raise RuntimeError('guardia GPU heredada no corresponde al padre vivo')
         yield
     else:

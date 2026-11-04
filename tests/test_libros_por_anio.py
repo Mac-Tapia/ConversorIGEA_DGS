@@ -394,7 +394,7 @@ def test_real_cada_anio_da_la_maxima_de_sus_alimentadores():
     arbol = lpa.arbol_de_libros(_sub_real('2.'))
     for anio in lpa.anios_de(arbol):
         libros = [x.ruta for x in lpa.libros_del_periodo(arbol, str(anio))]
-        hojas = {h for p in libros for h in dm._abrir(p).sheet_names}
+        hojas = {h for p in libros for h in dm.abrir_libro(p).sheet_names}
         # Las filas «Barra10KV», «Barra60KV»… no son alimentadores: agrupan los medidores de
         # barra de varias SET (CHNB1T1 no existe en 2025) y van por 022:RF-84 (libro del
         # 2026-10-27).

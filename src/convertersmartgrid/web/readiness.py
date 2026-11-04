@@ -237,10 +237,10 @@ def revisar_conductores(readiness: dict[str, dict[str, Any]], dataset: Any,
     tiene R1 y X1, la falta pasa a aviso ``CONDUCTOR_RECONSTRUIDO``. Devuelve cuántos cambian.
     """
     from ..dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
-    from ..reglas import _con_impedancia
+    from ..reglas import con_impedancia
 
     completos = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
-                 for f in dataset.equipment_tables.get(t, ()) if _con_impedancia(f)}
+                 for f in dataset.equipment_tables.get(t, ()) if con_impedancia(f)}
     deducidos = set(deducidos)
     cambiados = 0
     for network_id, fila in readiness.items():

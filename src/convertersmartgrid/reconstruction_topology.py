@@ -97,7 +97,7 @@ def repair_discontinuities(
         if selected is not None and network_id not in selected:
             continue
         section_ids = tuple(dataset.feeders[network_id])
-        source_node = _source_node(dataset, network_id)
+        source_node = find_source_node(dataset, network_id)
         if not source_node:
             continue
         # One accepted alias may make a second island reachable, so recompute after
@@ -196,7 +196,7 @@ def _derived_node_row(dataset, section_id, section, side, node_id) -> dict[str, 
     return row
 
 
-def _source_node(dataset, network_id: str) -> str:
+def find_source_node(dataset, network_id: str) -> str:
     source = dataset.sources.get(network_id, {})
     direct = (source.get('NodeID') or '').strip()
     if direct:

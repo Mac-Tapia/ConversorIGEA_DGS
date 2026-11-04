@@ -46,7 +46,7 @@ def test_sin_etiqueta_o_repetida_conserva_el_codigo_y_se_anota():
 def test_conductor_sin_impedancia_se_reconstruye_al_cargar(tmp_path):
     """053:RF-9: el código que la fuente trae sin R ni X se completa con su ficha en la carga,
     sin duplicar la fila, y el alimentador sale listo con CONDUCTOR_RECONSTRUIDO."""
-    from convertersmartgrid.reglas import _con_impedancia, preparar_dataset
+    from convertersmartgrid.reglas import con_impedancia, preparar_dataset
     from convertersmartgrid.web.readiness import revisar_conductores
     from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
 
@@ -63,7 +63,7 @@ def test_conductor_sin_impedancia_se_reconstruye_al_cargar(tmp_path):
 
     informe = preparar_dataset(dataset, catalogo=_catalogo(tmp_path))
     filas = [f for f in dataset.equipment_tables.get('LINE', ()) if f['ID'] == 'AA05003D']
-    assert len(filas) == 1 and _con_impedancia(filas[0])
+    assert len(filas) == 1 and con_impedancia(filas[0])
     cambiados = revisar_conductores(readiness, dataset,
                                     (d['codigo'] for d in informe.conductores_deducidos))
     assert cambiados == 1

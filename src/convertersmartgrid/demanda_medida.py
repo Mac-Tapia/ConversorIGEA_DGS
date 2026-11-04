@@ -184,7 +184,7 @@ def columnas(cabecera: Sequence[Any], campos: Iterable[str],
     return out
 
 
-def _abrir(path: Path | str):
+def abrir_libro(path: Path | str):
     try:
         from python_calamine import CalamineWorkbook
     except ImportError as exc:
@@ -201,16 +201,16 @@ def _abrir(path: Path | str):
         raise DemandaError(f'{src.name}: no se pudo abrir ({exc}).') from exc
 
 
-def _filas(libro, hoja: str) -> list[list[Any]]:
+def filas_de_hoja(libro, hoja: str) -> list[list[Any]]:
     return libro.get_sheet_by_name(hoja).to_python(skip_empty_area=False)
 
 
 def hojas_del_libro(path: Path | str, hoja: str | None = None) -> tuple[list[str], str | None, list[list[Any]]]:
     """Las hojas, la elegida o la primera, y sus filas; sin esa hoja, sin filas (077:RF-63)."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     hojas = list(libro.sheet_names)
     elegida = hoja if hoja is not None else (hojas[0] if hojas else None)
-    return hojas, elegida, _filas(libro, elegida) if elegida in hojas else []
+    return hojas, elegida, filas_de_hoja(libro, elegida) if elegida in hojas else []
 
 
 @dataclass(frozen=True)
@@ -398,12 +398,12 @@ def _mes_de_valor(valor: Any, *, columna_fecha: bool) -> str | None:
 
 def meses_de_contenido(path: Path | str, alias=ALIAS) -> set[str]:
     """Meses explícitos dentro del libro; no interpreta números ni texto ambiguo."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     nombres_fecha = {normalizar(n) for n in alias.get('fecha', ())}
     nombres_fecha.update({'mes', 'periodo'})
     meses: set[str] = set()
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
+        filas = filas_de_hoja(libro, hoja)
         # Una celda que el motor ya tipó como fecha es evidencia aun fuera de una tabla.
         for fila in filas:
             for valor in fila:
@@ -463,7 +463,7 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
             # Sin mes en el nombre el libro se abre de todos modos: «0926 Clientes_spl.xlsx»
             # (el de suministros) tiene fechas de septiembre y se activaba como clientes de
             # ese mes. Sin hoja «resumen» no es de clientes (004:RF-65).
-            if not _hojas_resumen(_abrir(path).sheet_names):
+            if not _hojas_resumen(abrir_libro(path).sheet_names):
                 avisos = ('sin hoja «resumen»: no es un libro de clientes importantes '
                           '(¿es el de suministros?); no se usa.',)
             else:
@@ -501,7 +501,7 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
     return catalogo
 
 
-def _buscar_cabecera(filas: Sequence[Sequence[Any]], campos: Sequence[str], alias,
+def buscar_cabecera(filas: Sequence[Sequence[Any]], campos: Sequence[str], alias,
                      obligatorios: Sequence[str]) -> tuple[int, dict[str, int]] | None:
     for i, fila in enumerate(filas[:FILAS_CABECERA]):
         cols = columnas(fila, campos, alias)
@@ -510,7 +510,7 @@ def _buscar_cabecera(filas: Sequence[Sequence[Any]], campos: Sequence[str], alia
     return None
 
 
-def _texto(fila: Sequence[Any], indice: int | None) -> str:
+def texto_de_celda(fila: Sequence[Any], indice: int | None) -> str:
     if indice is None or indice >= len(fila) or fila[indice] is None:
         return ''
     v = fila[indice]
@@ -533,16 +533,16 @@ class Medidor:
 
 def leer_medidores(path: Path | str, alias=ALIAS) -> list[Medidor]:
     """Filas del libro medidor por alimentador, de su primera hoja con esas columnas."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
-        hallada = _buscar_cabecera(filas, ('alimentador', 'medidor'), alias, ('alimentador', 'medidor'))
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, ('alimentador', 'medidor'), alias, ('alimentador', 'medidor'))
         if hallada is None:
             continue
         i, cols = hallada
         out = []
         for n, fila in enumerate(filas[i + 1:], start=i + 2):
-            ali, med = _texto(fila, cols['alimentador']), _texto(fila, cols['medidor'])
+            ali, med = texto_de_celda(fila, cols['alimentador']), texto_de_celda(fila, cols['medidor'])
             if ali and med:
                 out.append(Medidor(ali, med, n))
         return out
@@ -625,10 +625,10 @@ def indexar_libro_cabecera(path: Path | str, alias=ALIAS) -> dict[str, Any]:
     motivo, y los demás siguen.
     """
     try:
-        libro = _abrir(path)
+        libro = abrir_libro(path)
         hojas, meses = [], set()
         for hoja in libro.sheet_names:
-            registros, usadas = _registros_hoja(_filas(libro, hoja), alias)
+            registros, usadas = registros_de_hoja(filas_de_hoja(libro, hoja), alias)
             if 'kw' not in usadas or not registros:
                 continue
             hojas.append(hoja)
@@ -684,7 +684,7 @@ def _fecha_de(fila: Sequence[Any], cols_fecha: Sequence[int]) -> Any:
     return next((v for v in valores if v not in (None, '')), None)
 
 
-def _registros_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Registro], dict[str, str]]:
+def registros_de_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Registro], dict[str, str]]:
     """Registros de una hoja de medición y qué cabecera se usó para cada magnitud."""
     hallada = None
     for i, fila in enumerate(filas[:FILAS_CABECERA]):
@@ -944,7 +944,7 @@ class Cabecera:
 
     def _libro(self, path: Path):
         if path not in self._abiertos:
-            self._abiertos[path] = _abrir(path)
+            self._abiertos[path] = abrir_libro(path)
         return self._abiertos[path]
 
     def _hojas(self, path: Path) -> list[str]:
@@ -978,7 +978,7 @@ class Cabecera:
         for hoja in dict.fromkeys(candidatas):
             if hoja in res.hojas:
                 continue
-            regs, usadas = _registros_hoja(_filas(self._libro(path), hoja), self.alias)
+            regs, usadas = registros_de_hoja(filas_de_hoja(self._libro(path), hoja), self.alias)
             if len(usadas) == 1 and next(iter(usadas)) in faltan:
                 m = next(iter(usadas))
                 por_magnitud.setdefault(m, []).append((hoja, regs, usadas[m]))
@@ -1017,7 +1017,7 @@ class Cabecera:
             if casan:
                 path, hoja = casan[0]
                 res.libro = path.name
-                registros, usadas = _registros_hoja(_filas(self._libro(path), hoja), self.alias)
+                registros, usadas = registros_de_hoja(filas_de_hoja(self._libro(path), hoja), self.alias)
                 res.hojas, res.columnas = [hoja], dict(usadas)
                 res.avisos.append(f'no hay hoja {medidor}; se usa {hoja}, la del código del '
                                   f'alimentador {alimentador} (025:RF-12)')
@@ -1057,7 +1057,7 @@ class Cabecera:
                               + f'; se usa {path.name}')
         res.libro = path.name
         if entera:
-            registros, usadas = _registros_hoja(_filas(self._libro(path), entera[0]), self.alias)
+            registros, usadas = registros_de_hoja(filas_de_hoja(self._libro(path), entera[0]), self.alias)
             if 'kw' in usadas or not partes:
                 res.hojas, res.columnas = list(entera), dict(usadas)
                 if 'kw' not in usadas:
@@ -1067,7 +1067,7 @@ class Cabecera:
             res.avisos.append(f'{entera[0]}: sin columna de kW; se usan sus hojas por magnitud')
         trozos, completas = [], []
         for hoja in partes:
-            registros, usadas = _registros_hoja(_filas(self._libro(path), hoja), self.alias)
+            registros, usadas = registros_de_hoja(filas_de_hoja(self._libro(path), hoja), self.alias)
             if len(usadas) > 1:
                 # «L-6613_PE» y «L-6613_TM» en Chincha: hojas completas, cada una un punto
                 # de medida, no magnitudes sueltas del mismo medidor.
@@ -1389,11 +1389,11 @@ class Suministro:
 
 def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], list[str]]:
     """Código actual, anterior, SED y radial de cada suministro (RF-33)."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     campos = ('suministro_act', 'suministro', 'sed', 'radial', 'nota_asignacion')
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
-        hallada = _buscar_cabecera(filas, campos, alias, ('sed',))
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, campos, alias, ('sed',))
         if hallada is None or not ({'suministro_act', 'suministro'} & set(hallada[1])):
             continue
         i, cols = hallada
@@ -1401,11 +1401,11 @@ def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], l
         if 'suministro_act' not in cols:
             avisos.append(f'{Path(path).name}: sin columna «Suministro Act»; se cruza solo por «Suministro».')
         for n, fila in enumerate(filas[i + 1:], start=i + 2):
-            act, ant = _texto(fila, cols.get('suministro_act')), _texto(fila, cols.get('suministro'))
+            act, ant = texto_de_celda(fila, cols.get('suministro_act')), texto_de_celda(fila, cols.get('suministro'))
             if act or ant:
-                out.append(Suministro(act, ant, _texto(fila, cols['sed']),
-                                      _texto(fila, cols.get('radial')), n,
-                                      _texto(fila, cols.get('nota_asignacion'))))
+                out.append(Suministro(act, ant, texto_de_celda(fila, cols['sed']),
+                                      texto_de_celda(fila, cols.get('radial')), n,
+                                      texto_de_celda(fila, cols.get('nota_asignacion'))))
         return out, avisos
     raise DemandaError(f'{Path(path).name}: ninguna hoja tiene «Suministro Act» o «Suministro» y «SED».')
 
@@ -1501,15 +1501,15 @@ def _hojas_de_maestro(libro: Any, path: Path | str) -> tuple[list[tuple[str, str
     maestro = next((h for h in libro.sheet_names if normalizar(h) == 'maestro lib'), None)
     if maestro is None:
         return [], []
-    filas = _filas(libro, maestro)
+    filas = filas_de_hoja(libro, maestro)
     cab = next((i for i, f in enumerate(filas[:FILAS_CABECERA])
                 if {'numero suministro', 'nombre hoja exportacion'} <= {normalizar(c) for c in f}), None)
     if cab is None:
         return [], [f'{Path(path).name} › {maestro}: sin «numero_suministro» ni «nombre_hoja_exportacion».']
     norm = [normalizar(c) for c in filas[cab]]
     i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
-    return [(_texto(f, i_sum), _texto(f, i_hoja)) for f in filas[cab + 1:]
-            if _texto(f, i_sum) and _texto(f, i_hoja)], []
+    return [(texto_de_celda(f, i_sum), texto_de_celda(f, i_hoja)) for f in filas[cab + 1:]
+            if texto_de_celda(f, i_sum) and texto_de_celda(f, i_hoja)], []
 
 
 #: Hojas de un libro de clientes que no son de un cliente.
@@ -1527,7 +1527,7 @@ def _hojas_por_contenido(libro: Any, codigos: Iterable[str]) -> dict[str, str]:
     for hoja in libro.sheet_names:
         if normalizar(hoja) in _HOJAS_NO_DE_CLIENTE:
             continue
-        for fila in _filas(libro, hoja)[:6]:
+        for fila in filas_de_hoja(libro, hoja)[:6]:
             for celda in fila:
                 texto = str(celda).strip()
                 if texto.endswith('.0'):
@@ -1586,7 +1586,7 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
     cero parecería un corte de suministro. El libro de mayo de 2026 no trae «maestro_lib», pero
     cada hoja dice su SUMINISTRO: entonces el código sale de ella, y si tampoco, se dice.
     """
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     pares, avisos = _hojas_de_maestro(libro, path)
     con_maestro = bool(pares or avisos)
     pedidos = None if codigos is None else {clave_codigo(c) for c in codigos}
@@ -1597,7 +1597,7 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
         if hoja not in libro.sheet_names:
             avisos.append(f'{codigo}: la hoja «{hoja}» del maestro no está en {Path(path).name}.')
             continue
-        datos = _filas(libro, hoja)
+        datos = filas_de_hoja(libro, hoja)
         cab, cols = next(((i, {n: j for j, n in enumerate(normalizar(c) for c in f)})
                           for i, f in enumerate(datos[:FILAS_CABECERA])
                           if {'fecha', 'hora', 'ea'} <= {normalizar(c) for c in f}), (None, None))
@@ -1606,7 +1606,7 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
                 avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA y EA.')
             continue
         if not codigo:
-            propios = {_texto(f, cols['suministro']) for f in datos[cab + 1:]} - {''} if 'suministro' in cols else set()
+            propios = {texto_de_celda(f, cols['suministro']) for f in datos[cab + 1:]} - {''} if 'suministro' in cols else set()
             if len(propios) != 1:
                 continue
             codigo = propios.pop()
@@ -1651,7 +1651,7 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     registro de ese instante va con ``None``: tomar el de su POT mezclaba los dos criterios sin
     decirlo. El que no tiene hoja no está, como siempre: con los dos criterios va con su EA/ERI.
     """
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     pares, avisos = _hojas_de_maestro(libro, path)
     hoja_de = {clave_codigo(codigo): hoja for codigo, hoja in pares}
     # 083:RF-14: solo en los libros sin «maestro_lib»; con él, el que no está no tiene hoja. Buscarlo por
@@ -1663,7 +1663,7 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
         hoja = hoja_de.get(clave_codigo(codigo))
         if not hoja or pot is None or hoja not in libro.sheet_names:
             continue
-        datos = _filas(libro, hoja)
+        datos = filas_de_hoja(libro, hoja)
         cols = _columnas_de_hoja(datos)
         if cols is None:
             avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA, ERI y POT.')
@@ -1672,11 +1672,11 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
         if instante is not None:
             buscado = (instante.strftime('%d/%m/%Y'), instante.strftime('%H:%M'))
             if 'fecha' in cols:
-                fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
+                fila = next((f for f in datos if (texto_de_celda(f, cols['fecha']), texto_de_celda(f, cols['hora'])[:5]) == buscado),
                             None)
             else:                                                     # 083:RF-14: el día del mes del libro
                 fila = next((f for f in datos if numero(_celda(f, cols['dia'])) == instante.day
-                             and _texto(f, cols['hora'])[:5] == buscado[1]), None)
+                             and texto_de_celda(f, cols['hora'])[:5] == buscado[1]), None)
             if fila is None and solo_instante:
                 out[codigo] = None
                 continue
@@ -1697,9 +1697,9 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
             continue
         ea = numero(_celda(fila, cols['ea'])) if 'ea' in cols else None
         kw = ea * 4.0 if en_el_instante and ea is not None else None
-        cuando = _texto(fila, cols['fecha']) if 'fecha' in cols else (
-            instante.strftime('%d/%m/%Y') if en_el_instante else f"día {_texto(fila, cols['dia'])}")
-        out[codigo] = (f"{cuando} {_texto(fila, cols['hora'])}".strip(), eri * 4.0, kw)
+        cuando = texto_de_celda(fila, cols['fecha']) if 'fecha' in cols else (
+            instante.strftime('%d/%m/%Y') if en_el_instante else f"día {texto_de_celda(fila, cols['dia'])}")
+        out[codigo] = (f"{cuando} {texto_de_celda(fila, cols['hora'])}".strip(), eri * 4.0, kw)
     return out, avisos
 
 
@@ -1712,10 +1712,10 @@ def _hojas_resumen(nombres: Sequence[str]) -> list[str]:
 def es_libro_clientes(path: Path | str, alias=ALIAS) -> bool:
     """Hoja «resumen» con el código del cliente: es de clientes importantes (004:RF-62)."""
     try:
-        libro = _abrir(path)
+        libro = abrir_libro(path)
         hojas = _hojas_resumen(libro.sheet_names)
-        return bool(hojas) and _buscar_cabecera(
-            _filas(libro, hojas[0]), ('cliente_codigo',), alias, ('cliente_codigo',)) is not None
+        return bool(hojas) and buscar_cabecera(
+            filas_de_hoja(libro, hojas[0]), ('cliente_codigo',), alias, ('cliente_codigo',)) is not None
     except (DemandaError, OSError, ValueError):
         return False
 
@@ -1734,7 +1734,7 @@ def tipo_de_libro(path: Path | str, alias=ALIAS) -> str | None:
     se lee entero para saber qué es. ``None`` si no se abre o no es de ninguno.
     """
     try:
-        libro = _abrir(path)
+        libro = abrir_libro(path)
     except DemandaError:
         return None
     if _hojas_resumen(libro.sheet_names):
@@ -1745,9 +1745,9 @@ def tipo_de_libro(path: Path | str, alias=ALIAS) -> str | None:
                 skip_empty_area=False, nrows=FILAS_CABECERA + FILAS_DATOS_MINIMAS)
         except Exception:  # noqa: BLE001 - una hoja ilegible no dice de qué es el libro
             continue
-        if _buscar_cabecera(filas, ('alimentador', 'medidor'), alias, ('alimentador', 'medidor')):
+        if buscar_cabecera(filas, ('alimentador', 'medidor'), alias, ('alimentador', 'medidor')):
             return 'medidores'
-        hallada = _buscar_cabecera(filas, ('suministro_act', 'suministro', 'sed'), alias, ('sed',))
+        hallada = buscar_cabecera(filas, ('suministro_act', 'suministro', 'sed'), alias, ('sed',))
         if hallada and {'suministro_act', 'suministro'} & set(hallada[1]):
             return 'suministros'
         for fila in filas[:FILAS_CABECERA]:
@@ -1808,12 +1808,12 @@ def clasificar_carpeta_demanda(carpeta: Path | str, alias=ALIAS) -> tuple[dict[s
 
 def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante], list[str]]:
     """Hoja resumen de clientes importantes, en cualquiera de sus dos formatos (RF-34)."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     hojas = _hojas_resumen(libro.sheet_names)
     if not hojas:
         raise DemandaError(f'{Path(path).name}: no tiene hoja «resumen».')
-    filas = _filas(libro, hojas[0])
-    hallada = _buscar_cabecera(filas, ('cliente_codigo', 'ea', 'eri', 'pot', 'cliente_nombre'), alias,
+    filas = filas_de_hoja(libro, hojas[0])
+    hallada = buscar_cabecera(filas, ('cliente_codigo', 'ea', 'eri', 'pot', 'cliente_nombre'), alias,
                                ('cliente_codigo',))
     if hallada is None:
         raise DemandaError(f'{Path(path).name} › {hojas[0]}: sin columna «Nis» ni «Suministro».')
@@ -1823,7 +1823,7 @@ def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante
     vistos: dict[str, int] = {}
     out: list[ClienteImportante] = []
     for n, fila in enumerate(filas[i + 1:], start=i + 2):
-        codigo = _texto(fila, cols['cliente_codigo'])
+        codigo = texto_de_celda(fila, cols['cliente_codigo'])
         if not codigo:
             continue
         clave = clave_codigo(codigo)
@@ -1834,7 +1834,7 @@ def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante
         out.append(ClienteImportante(
             codigo=codigo, fila=n, ea=numero(_celda(fila, cols.get('ea'))),
             eri=numero(_celda(fila, cols.get('eri'))), pot=numero(_celda(fila, cols.get('pot'))),
-            nombre=_texto(fila, cols.get('cliente_nombre')) if 'cliente_nombre' in cols else '',
+            nombre=texto_de_celda(fila, cols.get('cliente_nombre')) if 'cliente_nombre' in cols else '',
         ))
     return out, avisos
 
@@ -2009,26 +2009,26 @@ def _partir_medidores_de_barra(celda: str) -> list[str]:
 
 def leer_medidores_de_barra(path: Path | str, alias=ALIAS) -> list[MedidorBarra]:
     """Las filas de barra del libro: las que en «código alimentador» dicen «Barra»."""
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
-        hallada = _buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
                                    ('alimentador', 'medidor'))
         if hallada is None:
             continue
         i, cols = hallada
         out = []
         for n, fila in enumerate(filas[i + 1:], start=i + 2):
-            crudo = _texto(fila, cols['alimentador'])
+            crudo = texto_de_celda(fila, cols['alimentador'])
             tipo = normalizar(crudo.split('/')[0])
-            med = ' '.join(_texto(fila, cols['medidor']).split())
+            med = ' '.join(texto_de_celda(fila, cols['medidor']).split())
             if 'barra' not in tipo or not med:
                 continue
             for parte in _partir_medidores_de_barra(med):
                 # 022:RF-44: un medidor que empieza por CT es de una central térmica
                 # (CT_PEDREG, CT_LUREN, CT_BH4 NA), diga lo que diga su rótulo.
                 out.append(MedidorBarra(parte, numero(_celda(fila, cols.get('nivel'))),
-                                        ' '.join(_texto(fila, cols.get('siglas')).split()).upper(),
+                                        ' '.join(texto_de_celda(fila, cols.get('siglas')).split()).upper(),
                                         _es_central(tipo) or parte.upper().startswith('CT'), n,
                                         crudo.split('/', 1)[1].strip().upper() if '/' in crudo else '',
                                         crudo))
@@ -2055,24 +2055,24 @@ def leer_medidores_de_linea(path: Path | str, alias=ALIAS) -> list[MedidorLinea]
     Las de barra las lee :func:`leer_medidores_de_barra`, que descartaba estas: en Pisco (2026-11-03) la SET Independencia no
     tiene medidor de barra de 60 kV, sino L-6605 y L-6606, y no contaba en el instante del sistema.
     """
-    libro = _abrir(path)
+    libro = abrir_libro(path)
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
-        hallada = _buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
                                    ('alimentador', 'medidor'))
         if hallada is None:
             continue
         i, cols = hallada
         out: list[MedidorLinea] = []
         for fila in filas[i + 1:]:
-            codigo = ' '.join(_texto(fila, cols['alimentador']).split()).upper()
-            med = ' '.join(_texto(fila, cols['medidor']).split())
+            codigo = ' '.join(texto_de_celda(fila, cols['alimentador']).split()).upper()
+            med = ' '.join(texto_de_celda(fila, cols['medidor']).split())
             kv = numero(_celda(fila, cols.get('nivel')))
             if not med or 'BARRA' in codigo or med.upper().startswith('CT') or kv is None:
                 continue
             if not KV_MAX_MEDIA < kv <= KV_MAX_SUBTRANSMISION:
                 continue
-            texto = ' '.join(_texto(fila, cols.get('siglas')).split()).upper()
+            texto = ' '.join(texto_de_celda(fila, cols.get('siglas')).split()).upper()
             m = _SENTIDO_LT.search(codigo) or _SENTIDO_LT.search(texto)
             if m:
                 out.append(MedidorLinea(med, kv, _SENTIDO_LT.sub('', texto), m.group(1)))

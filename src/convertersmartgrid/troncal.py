@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Iterable, Mapping, NamedTuple, Sequence
 
-from .dgs import _geo_to_meters
+from .dgs import geo_to_meters
 
 #: Dos caminos cuya longitud difiere menos que esto son iguales (m): las longitudes de
 #: DIgSILENT son ``float`` en km y la suma depende del orden.
@@ -224,7 +224,7 @@ Punto = tuple[float, float]
 
 def _metros(p: Punto, origen: Punto) -> tuple[float, float]:
     """Metros locales este/norte respecto a ``origen``: la misma cuenta que el diagrama."""
-    return _geo_to_meters(_Geo(*p), origen[0], origen[1])
+    return geo_to_meters(_Geo(*p), origen[0], origen[1])
 
 
 def _sobre_segmento(q, a, b) -> tuple[float, float]:

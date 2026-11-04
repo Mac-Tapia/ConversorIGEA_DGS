@@ -6246,7 +6246,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
         if por_camino:
             tramos = list(por_camino.values())
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
-        aptos = eo._conductores(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
+        aptos = eo.conductores_aptos(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
         espacio = oo.Espacio(f, con_banco, banco,
                              modulos_valle if modulos_valle is not None
                              else p.modulos_max if p.modulos_max is not None else eo.MODULOS_SIN_VALLE, tramos,

@@ -673,7 +673,7 @@ def unresolved_line_type_codes(
     return unresolved
 
 
-def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
+def calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     value_type = row.get('ValueType', '')
     value1 = _float(row.get('Value1'))
     value2 = _float(row.get('Value2'))
@@ -1404,7 +1404,7 @@ def build_feeder_model(
         node_id = _load_node(location, line, strict)
         if node_id is None:
             continue
-        p_mw, q_mvar, pf = _calc_p_q(row)
+        p_mw, q_mvar, pf = calc_p_q(row)
         customer_number = row.get('CustomerNumber', '')
         # 080:RF-44: primero lo que declara la fuente. Sin eso, el extractor no reconoce
         # «12027990» y cae al código del tramo, y la SED se llamaría como el tramo.

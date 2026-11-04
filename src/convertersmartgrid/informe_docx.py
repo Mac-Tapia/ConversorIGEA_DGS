@@ -24,7 +24,7 @@ from typing import Any, Mapping, Sequence
 from .estudios_pf import Limites
 from .informes import (
     ETAPAS, NOMBRE_ETAPA, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado,
-    Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, _pu, antecedentes_factibilidad,
+    Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, formato_pu, antecedentes_factibilidad,
     FuenteMedida, conclusion_cola, conclusiones_estudio, conclusiones_factibilidad, conclusiones_por_caso,
     demanda_antes_despues, demanda_por_alimentador, descripcion_factibilidad, describir_obra,
     desarrollo_cola, etapa_recomendada, fuentes_del_caso, numero, obras_a_ejecutar, redactar_cargabilidad,
@@ -662,7 +662,7 @@ def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], conf
     if antes is not None and despues is not None:
         cambio = 'una mejora' if despues.valor > antes.valor else 'una variación'
         texto += (f' Los resultados de la simulación indican {cambio} de la tensión mínima del alimentador '
-                  f'{lista}, de {_pu(antes.valor)} a {_pu(despues.valor)}, según se detalla a continuación:')
+                  f'{lista}, de {formato_pu(antes.valor)} a {formato_pu(despues.valor)}, según se detalla a continuación:')
     e.parrafo(texto)
     if not _sin_flujo(e, caso):
         _datos_fuente(e, caso, 'Datos de la fuente:')
