@@ -597,3 +597,30 @@ def test_el_flujo_guarda_la_geografia_para_las_imagenes_del_informe():
         assert all(len(t[1]) >= 2 for t in geo['tramos'])
     informe, rc = guion.ejecutar(app, _plan(feeders, 'punto_apertura'))
     assert 'geo' not in informe, 'solo los estudios de flujo la guardan'
+
+
+def test_sin_gps_el_flujo_guarda_la_topologia_para_el_esquematico():
+    """017:RF-12 — un alimentador sin coordenadas guarda sus barras con su tensión y sus
+    tramos con sus dos barras y su cargabilidad, para dibujar el esquemático."""
+    from convertersmartgrid.mapa_informe import esquematico
+
+    app, feeders = _red(random.Random(6))
+    for barra in app.proyecto.GetContents('*.ElmTerm', 1):
+        barra.GPSlat = barra.GPSlon = 0.0          # DIgSILENT deja 0,0 sin posición
+    for linea in app.proyecto.GetContents('*.ElmLne', 1):
+        linea.GPScoords = []
+    informe, rc = guion.ejecutar(app, _plan(feeders))
+    assert rc == 0, informe
+    for f in feeders:
+        geo = informe['geo'][f]
+        assert not geo['barras'] and not geo['tramos']
+        esquema = geo['esquema']
+        assert esquema['barras'] and all(len(b) == 3 for b in esquema['barras'])
+        assert esquema['tramos'] and all(len(t) == 4 and t[1] and t[2] for t in esquema['tramos'])
+        dibujable = esquematico(geo)
+        assert len(dibujable['tramos']) == len(esquema['tramos'])
+    app, feeders = _red(random.Random(5))
+    for barra in app.proyecto.GetContents('*.ElmTerm', 1):
+        barra.GPSlat, barra.GPSlon = -14.0 - random.random() / 100, -75.7 + random.random() / 100
+    informe, rc = guion.ejecutar(app, _plan(feeders))
+    assert all('esquema' not in informe['geo'][f] for f in feeders), 'con GPS no hace falta'

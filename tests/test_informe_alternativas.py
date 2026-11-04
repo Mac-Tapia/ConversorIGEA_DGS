@@ -51,6 +51,27 @@ def test_la_consigna_no_es_alternativa_propia():
     assert alternativas_de_obras([]) == []
 
 
+def test_la_web_lleva_al_estudio_las_alternativas_del_proyecto_y_sus_alimentadores():
+    """017:RF-128, 017:RF-130 — el flujo de «Con proyecto» que lanza la web recibe las
+    alternativas de las obras aplicadas en ese proyecto y en los alimentadores marcados,
+    sin las de otro proyecto ni las de otro alimentador."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.web.services import _alternativas_del_proyecto
+
+    def aplicada(variacion, clase, alimentador, proyecto):
+        return {'variacion': variacion, 'project': proyecto,
+                'obra': {'clase': clase, 'alimentador': alimentador}}
+
+    ws = SimpleNamespace(obras_aplicadas=[
+        aplicada('C1', 'condensador', 'AL01', 'P'), aplicada('S1', 'seccion', 'AL01', 'P'),
+        aplicada('C9', 'condensador', 'AL09', 'P'), aplicada('S8', 'seccion', 'AL01', 'OTRO')])
+    assert _alternativas_del_proyecto(ws, 'P', ['AL01']) == [
+        {'clave': 'bancos_nuevos', 'variaciones': ['C1']},
+        {'clave': 'conductor', 'variaciones': ['C1', 'S1']}]
+    assert _alternativas_del_proyecto(ws, 'OTRO', ['AL09']) == []
+
+
 # --------------------------------------------------------------------------- RF-130, RF-131
 def _variacion_que_cambia(app, nombre, carga, instante):
     """Variación de obra en el caso activo que deja una carga fuera de servicio.
@@ -225,9 +246,9 @@ def _texto(ruta):
 
 
 def test_informe_con_dos_alternativas_cuadro_y_recomendacion(tmp_path):
-    """017:RF-128, 017:RF-132, 017:RF-134, 017:RF-135 — sección por alternativa, trecho
-    desde–hasta, cuadro comparativo, la primera que cumple recomendada y los bancos
-    existentes con su nodo."""
+    """017:RF-128, 017:RF-132, 017:RF-134, 017:RF-135, 017:RF-38 — sección por alternativa,
+    trecho desde–hasta, cuadro comparativo, la primera que cumple recomendada, y los bancos
+    existentes con su nodo y la etapa 1 que coincide con el estado actual."""
     from dataclasses import asdict
     trechos = [{**asdict(t), 'desde_utm': [400000.0, 8450000.0], 'hasta_utm': [400100.0, 8449600.0]}
                for t in trechos_de_conductor(GEO, ['L1', 'L2', 'L3', 'L4'], GEO_SIN)]
@@ -257,10 +278,18 @@ def test_informe_con_dos_alternativas_cuadro_y_recomendacion(tmp_path):
     assert 'Alternativa 1 | 0,930 | N4' in texto and 'Alternativa 2 | 0,980 | N4' in texto
     assert 'Shunt/Filter | SE20701 | Terminal | 300 | E 401000,0 / N 8451000,0 | En servicio' in texto
     assert 'Se mantiene en servicio el banco existente: 300 kvar en el nodo SE20701.' in texto
+    assert 'la etapa de bancos existentes coincide con él' in texto                    # RF-38
     # 017:RF-133: el plano de solo bancos no habla de conductor nuevo.
     assert ('Plano de la alternativa 1: se señalan los bancos de condensadores nuevos (triángulo lleno) '
             'y los bancos existentes (triángulo hueco).') in texto
     assert 'Plano de la alternativa 2: se señalan los tramos con el conductor nuevo en trazo grueso' in texto
+    fuera = ({**bancos[0], 'en_servicio': False},)
+    escribir_informe_estudio(_config(tmp_path), destino, DatosEstudio(
+        alimentadores=['AL01'], encabezado=datos.encabezado, actual=datos.actual, etapas=etapas,
+        bancos=fuera, imagenes=imagenes))
+    texto = _texto(destino)
+    assert 'coincide con él' not in texto
+    assert '1 de los bancos existentes está fuera de servicio en el estado actual' in texto
 
 
 class _Nodo:

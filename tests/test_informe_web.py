@@ -224,6 +224,57 @@ def test_libro_de_perdidas_se_lee_y_entra_en_el_informe(client, tmp_path, monkey
     assert resumen['perdidas']['actual']['no_reconocida_soles'] is not None
 
 
+def test_libro_de_perdidas_por_ruta_del_servidor_y_quitarlo(client, tmp_path):
+    """017:RF-93 — el libro se indica por su ruta solo en un servidor local, se rechaza si no
+    es un libro Excel, y se quita del espacio."""
+    import openpyxl
+
+    libro = tmp_path / 'perdidas.xlsx'
+    openpyxl.Workbook().save(libro)
+    wid, _ = _espacio(client, tmp_path)
+    r = client.post(f'/api/workspaces/{wid}/informes/perdidas/path', json={'path': str(libro)})
+    assert r.status_code == 403, 'sin saber dónde escucha, las rutas del servidor están cerradas'
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as local:
+        assert local.post(f'/api/workspaces/{wid}/informes/perdidas/path',
+                          json={'path': str(tmp_path / 'no_existe.xlsx')}).status_code == 400
+        txt = tmp_path / 'perdidas.txt'
+        txt.write_text('x', encoding='utf-8')
+        assert local.post(f'/api/workspaces/{wid}/informes/perdidas/path',
+                          json={'path': str(txt)}).status_code == 400
+        r = local.post(f'/api/workspaces/{wid}/informes/perdidas/path', json={'path': str(libro)})
+        assert r.status_code == 200 and r.json() == {'name': 'perdidas.xlsx', 'origin': 'server'}
+        r = local.delete(f'/api/workspaces/{wid}/informes/perdidas')
+        assert r.status_code == 200, r.text
+        ctx = local.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY'}).json()
+        assert not (ctx.get('libro_perdidas') or {}).get('name')
+
+
+def test_cargas_del_proyecto_de_transmision_en_el_carril_de_digsilent(client, tmp_path, monkeypatch):
+    """017:RF-26, 017:RF-95 — listar las cargas de barra del proyecto de transmisión es un
+    trabajo del carril de DIgSILENT con el proyecto pedido; su error llega al operador."""
+    from convertersmartgrid.web import services
+
+    wid, salida = _espacio(client, tmp_path)
+    planes = []
+
+    def guion(_ws, _ctx, script, plan, **kw):
+        planes.append((script, plan, kw.get('args')))
+        if plan['project'] == 'MAL':
+            return 1, {'error': 'No está el proyecto MAL.'}, salida / 'l.json'
+        return 0, {'cargas': [{'nombre': 'LCarga10', 'trafo': 'TR1'}], 'casos': ['2026_D']}, salida / 'l.json'
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    job = client.post(f'/api/workspaces/{wid}/informes/transformador/cargas', json={'transmision': 'TX1'})
+    assert job.status_code == 202 and job.json()['lane'] == 'powerfactory'
+    fin = esperar_trabajo(client, job.json())
+    assert fin['status'] == 'done', fin
+    assert planes[0][0] == 'transformador_set_pf.py' and planes[0][2] == ('--listar',)
+    assert fin['result']['project'] == 'TX1' and fin['result']['casos'] == ['2026_D']
+    mal = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/transformador/cargas',
+                                              json={'transmision': 'MAL'}).json())
+    assert mal['status'] == 'failed' and 'MAL' in json.dumps(mal, ensure_ascii=False)
+
+
 def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, monkeypatch):
     """017:RF-65, 017:RF-67, 017:RF-67b — el Δ de cabecera «Con − Sin» de 4.2 va al guion de
     transmisión; nada se vuelve a simular en el proyecto del alimentador."""

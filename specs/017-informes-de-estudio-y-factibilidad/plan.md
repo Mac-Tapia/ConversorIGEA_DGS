@@ -202,3 +202,15 @@ fichero vacío, así que las imágenes se dibujan con el GPS (RF-11b). El códig
 
 Lo que falta sigue en las tareas abiertas T5, T7 a T12, T15 y T17, y en las de DIgSILENT T13 y T14.
 
+
+## Cierre del 2026-11-03
+
+- Sin GPS (RF-12): `tools/estudios_pf.py` guarda en `geo['esquema']` las barras y los tramos
+  de un alimentador sin ninguna coordenada, y `mapa_informe.esquematico` los coloca en árbol
+  desde la cabecera; el pie de la imagen (y su texto `pie` del PNG) dice que es esquemático.
+- Hasta una SED (RF-41, RF-42b, RF-42c): la obra de sección acepta `hasta` (SED o barra) y
+  cambia los tramos de `troncal.camino_hasta`; la SED que no está es el error de la obra.
+- `ComCapo` y `ComPlaceopt` (RF-39, RF-40, RF-40b) no se usan: la escalera de 063 elige las
+  obras, así que la sonda de la T8 no hace falta. Los bancos del proyecto anterior (RF-36b a
+  RF-36d) tampoco, por 015:RF-61.
+- RF-42 sigue abierto con su duda en la spec.

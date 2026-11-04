@@ -259,3 +259,67 @@ def test_esquema_no_convergente_no_declara_cero_violaciones(tmp_path):
     assert evidencia['tension_fuera'] is None and evidencia['sobrecargas'] is None
     assert not any('tensión fuera' in texto or 'sobrecarga' in texto for texto in evidencia['leyenda'])
     assert len(evidencia['cargas_nuevas']) == 1
+
+
+# --------------------------------------------------------------------------- 017:RF-12
+#: Un alimentador sin ninguna coordenada: solo su topología, como la guarda el flujo.
+ESQUEMA = {'cabecera': 'CAB', 'barras': [], 'tramos': [], 'acoples': [['S1', 'N2', 'N2b']],
+           'esquema': {'barras': [['CAB', 1.0, 10.0], ['N1', 0.97, 10.0], ['N2', 0.93, 10.0],
+                                  ['N2b', 0.92, 10.0], ['N3', 0.80, 10.0]],
+                       'tramos': [['L1', 'CAB', 'N1', 40.0], ['L2', 'N1', 'N2', 112.0],
+                                  ['L3', 'N1', 'N3', 20.0]]}}
+
+
+def test_sin_gps_se_dibuja_el_esquematico_y_lo_dice_el_pie(tmp_path):
+    """017:RF-12 — sin diagrama geográfico, el esquemático con el mismo coloreado y su pie."""
+    from convertersmartgrid.mapa_informe import PIE_ESQUEMATICO, esquematico
+
+    geo = esquematico(ESQUEMA)
+    pos = {b[0]: (b[1], b[2]) for b in geo['barras']}
+    assert set(pos) == {'CAB', 'N1', 'N2', 'N2b', 'N3'}
+    assert pos['CAB'][1] < pos['N1'][1] < pos['N2'][1] < pos['N2b'][1], \
+        'cada barra a la derecha de la que la alimenta'
+    assert pos['N1'][0] == pos['CAB'][0] and pos['N3'][0] != pos['N2'][0], 'cada rama en su fila'
+    assert {t[0] for t in geo['tramos']} == {'L1', 'L2', 'L3'}
+    rutas = imagenes_del_estado(ESQUEMA, tmp_path, 'E', estado='estado actual', alimentador='AL01',
+                                bandas_tension=(85, 90, 95, 105), bandas_carga=(80, 90, 95, 105, 150))
+    assert set(rutas) == {'ubicacion', 'tension', 'cargabilidad'}
+    for modo, ruta in rutas.items():
+        with Image.open(ruta) as img:
+            assert img.info['pie'] == PIE_ESQUEMATICO
+            colores = {c for _, c in img.getcolors(1 << 20)}
+        if modo != 'ubicacion':
+            assert (200, 30, 30) in colores, 'N3 a 0,80 p.u. y L2 al 112 % salen en rojo'
+    # Con coordenadas, la geografía no cambia y el pie es el de siempre.
+    assert esquematico(GEO) is GEO
+    with Image.open(dibujar(GEO, 'tension', tmp_path / 'g.png', titulo='g')) as img:
+        assert img.info['pie'] == 'Resultados del flujo de DIgSILENT'
+
+
+def test_la_ubicacion_sin_fondo_lo_dice_el_pie(tmp_path):
+    """017:RF-109, 017:RF-112 — la vista de ubicación sin mapa de fondo lo dice al pie."""
+    from convertersmartgrid.mapa_informe import PIE_SIN_FONDO, ubicacion_del_cliente
+
+    otro = {'cabecera': 'X', 'barras': [['X', -14.012, -75.692, 1.0, 10.0]],
+            'tramos': [['LX', [[-14.012, -75.692], [-14.013, -75.691]], 10.0]]}
+    ruta = ubicacion_del_cliente({'AL01': GEO, 'AL02': otro}, 'AL01', 'N1', 'Carga-X-100 kW-Cod N1',
+                                 tmp_path / 'u.png', titulo='Ubicación')
+    with Image.open(ruta) as img:
+        assert img.info['pie'] == PIE_SIN_FONDO
+    with pytest.raises(MapaError, match='coordenadas'):
+        ubicacion_del_cliente({'AL01': GEO}, 'AL01', 'NO_ESTA', 't', tmp_path / 'v.png', titulo='v')
+
+
+def test_unifilar_del_transformador_con_la_cargabilidad_de_cada_devanado(tmp_path):
+    """017:RF-69, 017:RF-119 — la imagen del transformador de la SET con un rótulo por
+    devanado; sin ningún devanado no se inventa."""
+    from convertersmartgrid.mapa_informe import transformador_de_la_set
+
+    ruta = transformador_de_la_set('TR1', 'SET1', [(10.0, 42.27), (22.9, 110.0)], tmp_path / 't.png',
+                                   titulo='Transformador de la SET')
+    with Image.open(ruta) as img:
+        assert img.format == 'PNG' and img.size[0] == 1600
+        colores = {c for _, c in img.getcolors(1 << 20)}
+    assert (40, 150, 60) in colores and (200, 30, 30) in colores, 'cada devanado con el color de su banda'
+    with pytest.raises(MapaError, match='devanado'):
+        transformador_de_la_set('TR1', 'SET1', [], tmp_path / 'n.png', titulo='x')
