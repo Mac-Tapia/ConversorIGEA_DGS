@@ -36,13 +36,14 @@ from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
 from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
+from .copia_datos import estado_copia
 from .jobs import FINISHED, JobManager
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
 from .services import UserError
 from .workspace import (
-    BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore, safe_filename,
+    BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
 )
 
 
@@ -160,6 +161,11 @@ def frontend_dist() -> Path:
 # ---------------------------------------------------------------------------
 # Modelos de petición
 # ---------------------------------------------------------------------------
+
+
+class DescartarNoDisponibleIn(BaseModel):
+    campo: str
+    clave: str
 
 
 class OptionsIn(BaseModel):
@@ -647,7 +653,8 @@ def create_app(
                     ws.events.append('log',{'job':data.get('id'),'text':aviso})
             ws.events.append(kind, data)
 
-    jobs = JobManager(emit)
+    # 086:RF-9: lo que quede a medias se ve tras reiniciar; vive junto a los espacios.
+    jobs = JobManager(emit, diario=store.root / '_trabajos')
     from .retencion import RetencionDiaria
     retencion = RetencionDiaria(store, jobs)
     from .runtime import huella_del_codigo
@@ -703,6 +710,10 @@ def create_app(
     def ws_or_404(wid: str) -> Workspace:
         ws = store.get(wid)
         if ws is None:
+            # 086:RF-2, RF-5: uno dañado o más nuevo existe: dice qué le pasa, no «no encontrado».
+            problema = store.problema(wid)
+            if problema:
+                raise HTTPException(409, problema['motivo'])
             raise HTTPException(404, 'Espacio de trabajo no encontrado.')
         return ws
 
@@ -743,6 +754,8 @@ def create_app(
                          'paginas_abiertas': paginas['abiertas'],
                          # 081:RF-44: de qué carpeta es; un lanzador de otra no lo sustituye.
                          'raiz': str(project_root())},
+            # 086:RF-47: el aviso de que la última copia de los datos es vieja o no existe.
+            'copia_datos': estado_copia(store.root),
         }
 
     @app.post('/api/sistema/cerrar', status_code=202)
@@ -897,6 +910,24 @@ def create_app(
                 for item in sorted(snapshot.files.values(), key=lambda item: item.slot)
             ],
         }
+
+    @app.post('/api/workspaces/{wid}/restaurar-copia', response_model=EspacioRespuesta, response_model_exclude_unset=True)
+    def restaurar_copia_espacio(wid: str) -> dict:
+        """086:RF-2: un espacio dañado vuelve a su copia anterior; lo dañado se aparta."""
+        try:
+            return store.restaurar_copia(wid).public()
+        except EspacioNoUtilizable as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(500, f'No se pudo restaurar la copia: {exc}') from exc
+
+    @app.post('/api/workspaces/{wid}/no-disponibles/descartar', response_model=EspacioRespuesta, response_model_exclude_unset=True)
+    def descartar_no_disponible(wid: str, body: DescartarNoDisponibleIn) -> dict:
+        """086:RF-3: el operador da por perdida una referencia a un fichero que no volverá."""
+        ws = ws_or_404(wid)
+        if not ws.descartar_no_disponible(body.campo, body.clave):
+            raise HTTPException(404, 'Esa referencia no está entre las no disponibles.')
+        return ws.public()
 
     @app.delete('/api/workspaces/{wid}', status_code=204)
     def delete_workspace(wid: str) -> None:
@@ -1261,6 +1292,13 @@ def create_app(
         if job is None:
             raise HTTPException(404, 'Trabajo no encontrado.')
         return job.public()
+
+    @app.get('/api/jobs/{job_id}/registro')
+    def registro_job(job_id: str, ultimas: int = Query(2000, ge=1, le=20000)) -> dict:
+        """086:RF-9: el registro de un trabajo, también de uno interrumpido antes de reiniciar."""
+        if jobs.get(job_id) is None:
+            raise HTTPException(404, 'Trabajo no encontrado.')
+        return {'job': job_id, 'lineas': jobs.registro(job_id, ultimas) or []}
 
     @app.post('/api/jobs/{job_id}/cancel', response_model=JobRespuesta, response_model_exclude_unset=True)
     def cancel_job(job_id: str) -> dict:

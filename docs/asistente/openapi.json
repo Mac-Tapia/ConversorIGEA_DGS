@@ -1561,6 +1561,24 @@
         "title": "DemandaRespuesta",
         "type": "object"
       },
+      "DescartarNoDisponibleIn": {
+        "properties": {
+          "campo": {
+            "title": "Campo",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campo",
+          "clave"
+        ],
+        "title": "DescartarNoDisponibleIn",
+        "type": "object"
+      },
       "EntradaAsignadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1724,6 +1742,13 @@
             ],
             "title": "Active Run Id"
           },
+          "avisos_datos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos Datos",
+            "type": "array"
+          },
           "calibraciones": {
             "additionalProperties": {
               "additionalProperties": {
@@ -1863,6 +1888,13 @@
             "title": "Missing Inputs",
             "type": "array"
           },
+          "no_disponibles": {
+            "items": {
+              "$ref": "#/components/schemas/NoDisponibleRespuesta"
+            },
+            "title": "No Disponibles",
+            "type": "array"
+          },
           "obras": {
             "items": {
               "$ref": "#/components/schemas/ObraRespuesta"
@@ -1979,6 +2011,8 @@
           "created_at",
           "options",
           "inputs",
+          "no_disponibles",
+          "avisos_datos",
           "missing_inputs",
           "loaded",
           "loaded_at",
@@ -2006,6 +2040,73 @@
           "last_seq"
         ],
         "title": "EspacioRespuesta",
+        "type": "object"
+      },
+      "EstadoCopiaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "edad_dias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edad Dias"
+          },
+          "maxima_dias": {
+            "title": "Maxima Dias",
+            "type": "number"
+          },
+          "ruta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruta"
+          },
+          "ultima": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima"
+          },
+          "vencida": {
+            "title": "Vencida",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ultima",
+          "ruta",
+          "edad_dias",
+          "maxima_dias",
+          "vencida",
+          "aviso"
+        ],
+        "title": "EstadoCopiaRespuesta",
         "type": "object"
       },
       "EstadoPowerFactoryRespuesta": {
@@ -2454,6 +2555,9 @@
           "capabilities": {
             "$ref": "#/components/schemas/CapacidadesRespuesta"
           },
+          "copia_datos": {
+            "$ref": "#/components/schemas/EstadoCopiaRespuesta"
+          },
           "crs_presets": {
             "items": {
               "$ref": "#/components/schemas/CrsRespuesta"
@@ -2511,7 +2615,8 @@
           "server_paths",
           "parallel",
           "source_modes",
-          "servidor"
+          "servidor",
+          "copia_datos"
         ],
         "title": "HealthRespuesta",
         "type": "object"
@@ -2887,7 +2992,8 @@
               "parcial",
               "no_converge",
               "failed",
-              "cancelled"
+              "cancelled",
+              "interrumpido"
             ],
             "title": "Status",
             "type": "string"
@@ -3044,6 +3150,35 @@
           "avisos"
         ],
         "title": "LibroClienteRespuesta",
+        "type": "object"
+      },
+      "NoDisponibleRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "campo": {
+            "title": "Campo",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campo",
+          "clave",
+          "nombre",
+          "ruta"
+        ],
+        "title": "NoDisponibleRespuesta",
         "type": "object"
       },
       "ObraAplicadaRespuesta": {
@@ -4246,6 +4381,15 @@
             ],
             "title": "Created At"
           },
+          "estado": {
+            "enum": [
+              "ok",
+              "danado",
+              "version_futura"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -4267,13 +4411,30 @@
           "modified_at": {
             "title": "Modified At",
             "type": "number"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "restaurable": {
+            "default": false,
+            "title": "Restaurable",
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "created_at",
           "inputs",
-          "modified_at"
+          "modified_at",
+          "estado"
         ],
         "title": "ResumenEspacioRespuesta",
         "type": "object"
@@ -5422,6 +5583,60 @@
           }
         },
         "summary": "Cancel Job"
+      }
+    },
+    "/api/jobs/{job_id}/registro": {
+      "get": {
+        "description": "086:RF-9: el registro de un trabajo, también de uno interrumpido antes de reiniciar.",
+        "operationId": "registro_job_api_jobs__job_id__registro_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ultimas",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "maximum": 20000,
+              "minimum": 1,
+              "title": "Ultimas",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Registro Job Api Jobs  Job Id  Registro Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registro Job"
       }
     },
     "/api/modelos/{modelo}/volver": {
@@ -10177,6 +10392,56 @@
         "summary": "Lote Simular"
       }
     },
+    "/api/workspaces/{wid}/no-disponibles/descartar": {
+      "post": {
+        "description": "086:RF-3: el operador da por perdida una referencia a un fichero que no volverá.",
+        "operationId": "descartar_no_disponible_api_workspaces__wid__no_disponibles_descartar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescartarNoDisponibleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EspacioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Descartar No Disponible"
+      }
+    },
     "/api/workspaces/{wid}/obras": {
       "get": {
         "operationId": "obras_listar_api_workspaces__wid__obras_get",
@@ -11840,6 +12105,46 @@
           }
         },
         "summary": "Reconstruct"
+      }
+    },
+    "/api/workspaces/{wid}/restaurar-copia": {
+      "post": {
+        "description": "086:RF-2: un espacio dañado vuelve a su copia anterior; lo dañado se aparta.",
+        "operationId": "restaurar_copia_espacio_api_workspaces__wid__restaurar_copia_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EspacioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restaurar Copia Espacio"
       }
     },
     "/api/workspaces/{wid}/runs": {

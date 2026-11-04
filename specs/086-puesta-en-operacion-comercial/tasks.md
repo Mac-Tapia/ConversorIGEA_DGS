@@ -15,12 +15,17 @@
 
 ## F1 Datos que no se pierden (`v1/datos`)
 
-- [ ] T6 Escritura duradera, espacio dañado y rutas conservadas. (RF-1, RF-2, RF-3)
+- [x] T6 Escritura duradera, espacio dañado y rutas conservadas. (RF-1, RF-2, RF-3)
   Hecho cuando: pruebas de JSON truncado y de unidad ausente: el espacio se ve, se puede restaurar y ninguna ruta se pierde al guardar.
+  Por la API; el botón y el aviso en la interfaz siguen en T35.
 - [ ] T7 Migraciones, rutas relativas e identidad estable. (RF-4, RF-5, RF-6, RF-7, RF-8)
   Hecho cuando: todos los espacios actuales migran sobre una copia sin perder nada; mover la carpeta conserva los espacios; escribir en otra unidad funciona.
-- [ ] T8 Trabajos interrumpidos, copia y restauración. (RF-9, RF-10, RF-47)
+  Hecho, salvo una parte: la migración sobre copia se midió con la raíz de ejecución actual (2 espacios, sin perder nada). Falta repetirla con los de `output/web`, que el agente no debía tocar, justo antes de T9.
+- [x] T8 Trabajos interrumpidos, copia y restauración. (RF-9, RF-10, RF-47)
   Hecho cuando: matar el proceso a media corrida deja el trabajo como interrumpido; restaurar una copia devuelve el mismo estado.
+  Por la API y por `tools/copia_datos.py`; verlo en la interfaz sigue en T35. El corte de luz real es la T33.
+- [ ] T35 Ver en la interfaz lo de T6 y T8: espacio dañado con su botón de restaurar, entradas no disponibles, trabajo interrumpido con su registro y aviso de copia vieja. (RF-2, RF-3, RF-9, RF-47)
+  Hecho cuando: los cuatro se ven y funcionan en el navegador real, en claro y oscuro.
 
 ## F2 Renombrar
 

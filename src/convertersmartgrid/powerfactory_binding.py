@@ -11,17 +11,14 @@ no puede demostrarse la fuente, el proyecto o el alimentador solicitado.
 
 from __future__ import annotations
 
-from .runtime_paths import staging_publicacion
-
 import hashlib
 import json
-import os
 import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
-from .util import esquema_vigente
+from .util import esquema_vigente, publicar_duradero
 from .powerfactory_metadata import CASO_BASE_CALIBRABLE, FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_caso_base
 
 
@@ -86,12 +83,8 @@ def _leer_registro(path: Path) -> dict[str, dict[str, Any]]:
 
 def _escribir_registro(path: Path, vinculos: dict[str, dict[str, Any]]) -> None:
     """Escritura atómica: un fallo a mitad deja el registro anterior, no uno a medias."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with staging_publicacion(path) as tmp:
-        payload = {'schema': REGISTRO_SCHEMA, 'vinculos': vinculos}
-        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
-                       encoding='utf-8')
-        os.replace(tmp, path)
+    payload = {'schema': REGISTRO_SCHEMA, 'vinculos': vinculos}
+    publicar_duradero(path, json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True))
 
 
 def sembrar_registro(path: Path, vinculos_por_espacio: Iterable[Any]) -> dict[str, int]:

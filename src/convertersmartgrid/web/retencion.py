@@ -20,10 +20,19 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .source_runs import valid_run_id
+from .workspace import expandir_rutas
 
-_RUN_EN_TEXTO = re.compile(r'\d{8}T\d{6}-[a-f0-9]{12}')
-_PESOS = {'.pt', '.pth', '.onnx', '.gguf', '.safetensors', '.bin'}
+RUN_EN_TEXTO = re.compile(r'\d{8}T\d{6}-[a-f0-9]{12}')
+PESOS = {'.pt', '.pth', '.onnx', '.gguf', '.safetensors', '.bin'}
 _DOCUMENTOS = {'.pdf', '.docx', '.xlsx', '.xls', '.html'}
+
+
+def es_valioso(path: Path) -> bool:
+    """Un modelo o un informe: ni la limpieza lo retira ni la copia lo deja fuera (086:RF-10)."""
+    name = path.name.lower()
+    return path.suffix.lower() in (PESOS | _DOCUMENTOS) or any(
+        token in name for token in ('informe', 'aceptacion', 'acceptance', 'native_report', 'modelo', 'checkpoint')
+    )
 
 
 class RetencionDiaria:
@@ -108,7 +117,7 @@ class RetencionDiaria:
                 for item in value:
                     recoger(item)
             elif isinstance(value, str):
-                runs.update(_RUN_EN_TEXTO.findall(value))
+                runs.update(RUN_EN_TEXTO.findall(value))
                 if Path(value).is_absolute():
                     rutas.add(os.path.normcase(os.path.abspath(value)))
 
@@ -125,7 +134,8 @@ class RetencionDiaria:
                     data = json.loads(p.read_text(encoding='utf-8'))
                     if not isinstance(data, dict):
                         raise ValueError(f'Metadatos no válidos: {p}')
-                    recoger(data)
+                    # 086:RF-6: guardadas son relativas; sin esto, un temporal en uso parecería libre.
+                    recoger(expandir_rutas(data, folder))
             ws = self.store.get(folder.name)
             if ws is None:
                 raise ValueError(f'No se pudo leer el espacio: {folder.name}')
@@ -146,13 +156,6 @@ class RetencionDiaria:
             if current.is_dir():
                 pending.extend(current.iterdir())
         return items
-
-    @staticmethod
-    def _valioso(path: Path) -> bool:
-        name = path.name.lower()
-        return path.suffix.lower() in (_PESOS | _DOCUMENTOS) or any(
-            token in name for token in ('informe', 'aceptacion', 'acceptance', 'native_report', 'modelo', 'checkpoint')
-        )
 
     def _revisar(self) -> dict:
         ahora = self.ahora()
@@ -179,7 +182,7 @@ class RetencionDiaria:
                                 manifest = json.loads((run / 'source_manifest.json').read_text(encoding='utf-8'))
                                 if manifest.get('run_id') != run.name or manifest.get('mode') not in ('txt', 'mdb', 'vnr'):
                                     raise ValueError(f'Ejecución no reconocida: {run}')
-                                if any(self._valioso(p) for p in items if p.is_file()):
+                                if any(es_valioso(p) for p in items if p.is_file()):
                                     report['conservados'].append({'ruta': str(run), 'motivo': 'modelo o informe'})
                                     continue
                                 if any(p.stat().st_mtime >= ahora - 7 * 86400 for p in items):
@@ -201,7 +204,7 @@ class RetencionDiaria:
                             if not self._sin_redireccion(p):
                                 report['errores'].append(f'Temporal con redirección: {p}')
                                 continue
-                            if not p.is_file() or os.path.normcase(os.path.abspath(p)) in rutas or self._valioso(p):
+                            if not p.is_file() or os.path.normcase(os.path.abspath(p)) in rutas or es_valioso(p):
                                 continue
                             if p.stat().st_mtime < ahora - 7 * 86400:
                                 size = p.stat().st_size

@@ -10,6 +10,7 @@ import hashlib
 import importlib
 import json
 import math
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -23,20 +24,70 @@ def sha256_file(path: Path | str) -> str:
     return digest.hexdigest()
 
 
-def write_json_atomic(path: Path, payload: Any) -> None:
-    """Prepara fuera del checkout y publica en el mismo volumen con ``replace``.
+def sincronizar_carpeta(carpeta: Path | str) -> None:
+    """Hace duradero un ``replace`` en POSIX; Windows no deja abrir una carpeta para sincronizarla."""
+    if os.name == 'nt':
+        return
+    descriptor = os.open(carpeta, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
-    Se serializa antes de abrir el temporal, así que un error de serialización deja el
-    fichero anterior intacto. ``default=str`` admite rutas y fechas en los manifiestos.
+
+def publicar_duradero(path: Path | str, contenido: str | bytes) -> None:
+    """Escribe en un temporal, lo sincroniza y solo entonces sustituye el fichero (086:RF-1).
+
+    ``replace`` sin ``fsync`` es atómico frente a un proceso que muere, pero no frente a un corte
+    de luz: el sistema puede grabar el cambio de nombre antes que los datos, y deja un
+    ``workspace.json`` vacío donde había uno bueno.
     """
     from .runtime_paths import staging_publicacion
 
-    contenido = json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n'
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(path) as temporary:
-        temporary.write_text(contenido, encoding='utf-8')
+        if isinstance(contenido, str):
+            temporary.write_text(contenido, encoding='utf-8')
+        else:
+            temporary.write_bytes(contenido)
+        with temporary.open('rb+') as escrito:
+            os.fsync(escrito.fileno())
         temporary.replace(path)
+    sincronizar_carpeta(path.parent)
+
+
+def ruta_copia_anterior(path: Path | str) -> Path:
+    """Dónde queda la versión anterior de un fichero de estado: ``workspace.json.bak``."""
+    path = Path(path)
+    return path.with_name(path.name + '.bak')
+
+
+def _guardar_copia_anterior(path: Path) -> None:
+    """Conserva la versión buena: un fichero ya dañado nunca pisa la copia que lo puede arreglar."""
+    try:
+        actual = path.read_bytes()
+    except FileNotFoundError:
+        return
+    try:
+        json.loads(actual)
+    except ValueError:
+        return
+    publicar_duradero(ruta_copia_anterior(path), actual)
+
+
+def write_json_atomic(path: Path, payload: Any, *, copia: bool = False) -> None:
+    """Prepara fuera del checkout, sincroniza y publica en el mismo volumen con ``replace``.
+
+    Se serializa antes de abrir el temporal, así que un error de serialización deja el
+    fichero anterior intacto. ``default=str`` admite rutas y fechas en los manifiestos.
+    Con ``copia``, la versión anterior queda en ``<nombre>.bak`` (086:RF-2).
+    """
+    contenido = json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n'
+    path = Path(path)
+    if copia:
+        _guardar_copia_anterior(path)
+    publicar_duradero(path, contenido)
 
 
 def finite_or_none(value: Any) -> float | None:

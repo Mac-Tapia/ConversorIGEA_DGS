@@ -28,7 +28,7 @@ class JobRespuesta(Respuesta):
     title: str
     workspace_id: str
     lane: Literal['engine', 'powerfactory', 'asistente', 'control']
-    status: Literal['queued', 'running', 'done', 'parcial', 'no_converge', 'failed', 'cancelled']
+    status: Literal['queued', 'running', 'done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido']
     progress: ProgresoRespuesta | None
     result: Any = Field(description='Resultado variable según kind; incluye informes nativos y extensiones.')
     error: str | None
@@ -97,6 +97,15 @@ class ServidorRespuesta(Respuesta):
     raiz: str | None = None
 
 
+class EstadoCopiaRespuesta(Respuesta):
+    ultima: float | None
+    ruta: str | None
+    edad_dias: float | None
+    maxima_dias: float
+    vencida: bool
+    aviso: str | None
+
+
 class HealthRespuesta(Respuesta):
     version: str
     capabilities: CapacidadesRespuesta
@@ -108,6 +117,7 @@ class HealthRespuesta(Respuesta):
     parallel: ParalelismoRespuesta
     source_modes: list[ModoFuente]
     servidor: ServidorRespuesta
+    copia_datos: EstadoCopiaRespuesta
 
 
 class EntradaRespuesta(Respuesta):
@@ -365,11 +375,20 @@ class DemandaRespuesta(Respuesta):
     alimentadores: int | None = None
 
 
+class NoDisponibleRespuesta(Respuesta):
+    campo: str
+    clave: str
+    nombre: str
+    ruta: str
+
+
 class EspacioRespuesta(Respuesta):
     id: str
     created_at: float
     options: OpcionesRespuesta
     inputs: dict[str, EntradaRespuesta]
+    no_disponibles: list[NoDisponibleRespuesta]
+    avisos_datos: list[str]
     missing_inputs: list[str]
     loaded: bool
     loaded_at: float | None
@@ -404,6 +423,9 @@ class ResumenEspacioRespuesta(Respuesta):
     created_at: float | None
     inputs: dict[str, str | None]
     modified_at: float
+    estado: Literal['ok', 'danado', 'version_futura']
+    motivo: str | None = None
+    restaurable: bool = False
 
 
 class EntradaAsignadaRespuesta(EntradaRespuesta):

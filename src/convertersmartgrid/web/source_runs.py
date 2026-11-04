@@ -8,6 +8,7 @@ la presencia de casillas de otra modalidad no puede alterar la conversión activ
 from __future__ import annotations
 
 from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 
 import hashlib
 import json
@@ -88,12 +89,7 @@ def _sha256_copy(source: Path, target: Path) -> tuple[int, str]:
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with staging_publicacion(path) as temporary:
-        temporary.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False), encoding='utf-8',
-        )
-        temporary.replace(path)
+    publicar_duradero(path, json.dumps(payload, indent=2, ensure_ascii=False))
 
 
 def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
