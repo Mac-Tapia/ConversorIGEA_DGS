@@ -6723,6 +6723,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     una solución de transmisión, la SET nueva con sus transformadores (usuario, 2026-11-01).
     """
     from ..demanda_medida import clave_codigo
+    from ..escalera_optima import BIBLIOTECA_TIPOS
     from ..perfil_empresa import datos_perfil
 
     marcados = {clave_codigo(f) for f in feeders}
