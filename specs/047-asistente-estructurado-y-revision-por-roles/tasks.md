@@ -30,9 +30,23 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
 
-- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6)
+- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41)
       Hecho cuando: `tools/asistente_comparar_revision.py` sobre sus 12 casos da 0 falsas alarmas sin perder defectos, con el
       informe en `docs/asistente/`, sin ajustar nada mirando esos casos (si hace falta, con un conjunto nuevo declarado antes de medir).
+      Código, 2026-11-03 (rama `feat/027-047t8`): causa hallada en el código y en el encargo, sin leer el contenido de los
+      12 casos y sin Ollama. (1) El encargo solo decía cuándo bloquear («ante evidencia insuficiente usa bloqueada») y
+      prohibía aprobar la física («no apruebes física por consenso textual»), que solo se revisa por texto; el de riesgo
+      pedía imaginar que la propuesta «falla». Ninguna regla decía cuándo es favorable. (2) La decisión era el primer
+      campo del esquema y, sin razonar (`think: false`), el modelo la escribía antes de comparar nada. (3) Un dictamen
+      «bloqueada» sin contradicción ni incertidumbre contaba como defecto hallado: los «6 de 6» no lo acreditan.
+      (4) El proyecto y el fichero de cada caso se llamaban como el caso («sano-…», «defecto-…») y viajaban al LLM con
+      la ruta y la huella. (5) El informe no guardaba los dictámenes. Corregido con RF-38 a RF-41: regla de decisión
+      común, decisión al final del esquema, bloqueo sin hallazgo como dictamen no válido (cuenta como sin respuesta, no
+      como detección), al LLM solo la propuesta y los fragmentos, nombres opacos, dictámenes en el informe. Mismo
+      conjunto, misma huella `102bdfbf…1ca6d`: no se cambió ni se declaró otro, porque la corrección no mira los casos.
+      Pruebas: `tests/test_asistente_revision_roles.py` 26 aprobadas (las 5 nuevas fallaban antes del cambio).
+      Falta: medir con `tools/asistente_comparar_revision.py --modelo qwen3:8b --salida docs/asistente/COMPARACION_REVISION_047_T8.json`
+      (pide la GPU). Se cierra con 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos.
 
 ## Evidencia de ejecución
 

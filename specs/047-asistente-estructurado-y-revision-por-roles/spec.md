@@ -50,6 +50,10 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-35: SI ya hay un informe del conjunto sellado de abstención con la misma huella, ENTONCES EL SISTEMA rechazará medirlo de nuevo.
 - RF-36: CUANDO se mida el conjunto sellado, EL SISTEMA aplicará a cada método la puerta declarada en el plan e informará si la cumple.
 - RF-37: SI la consulta nombra un código que está tal cual en un fragmento hallado, ENTONCES EL SISTEMA lo contará como evidencia sin aplicar el umbral.
+- RF-38: SI un dictamen no es favorable y no nombra ninguna contradicción ni incertidumbre, ENTONCES EL SISTEMA lo tratará como dictamen no válido, que bloquea sin contarse como defecto hallado.
+- RF-39: CUANDO se pida un dictamen al LLM, EL SISTEMA le enviará solo la propuesta y el localizador y el fragmento de cada evidencia, sin rutas, huellas ni nombres de proyecto o de caso.
+- RF-40: CUANDO se pida un dictamen al LLM, EL SISTEMA le pedirá las contradicciones y las incertidumbres antes que la decisión, con la regla que da la decisión a partir de ellas.
+- RF-41: CUANDO se mida la revisión, EL SISTEMA guardará en el informe la decisión, la evidencia citada, las contradicciones y las incertidumbres de cada dictamen.
 
 ## Requisitos no funcionales
 

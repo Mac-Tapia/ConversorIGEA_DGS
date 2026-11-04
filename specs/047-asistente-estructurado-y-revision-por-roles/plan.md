@@ -225,6 +225,23 @@ No se dispone de logits internos del maestro; el método es destilación de resp
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 047 T3`.
 
+### T8: La revisión distingue lo sano de lo defectuoso
+
+**Cubre:** RF-38, RF-39, RF-40, RF-41 (y RF-5, RF-6).
+
+**Files:** `asistente/revision_roles.py` (regla de decisión común `_REGLA`, encargo de riesgo sin fallo imaginado,
+dictamen no favorable sin hallazgo como no válido, al LLM solo propuesta y fragmentos, dictámenes en el informe),
+`schemas/revision_propuesta_v1.schema.json` (la decisión, el último campo), `tools/asistente_comparar_revision.py`
+(proyecto y fichero opacos por caso), `tests/test_asistente_revision_roles.py`.
+
+**Decisiones.** La decisión la sigue escribiendo el modelo, pero después de sus listas y con una regla que la da a partir
+de ellas; se descarta derivarla en el código, porque cambiaría el contrato del dictamen que ya guarda la web. Un bloqueo
+sin hallazgo cuenta como «sin respuesta», no como detección ni como falsa alarma: así el informe no puede pasar la puerta
+convirtiendo falsas alarmas en silencio, porque la tarea exige también 0 sin respuesta. El conjunto de 12 casos y su
+huella no cambian: la corrección no se hizo mirando sus contenidos.
+
+**Puerta (sin cambiar tras medir):** con `qwen3:8b`, en los dos modos, 0 falsas alarmas, 0 perdidos y 0 sin respuesta.
+
 ### T4: Evaluación real y ajuste condicionado
 
 **Cubre:** RF-8, RF-9.
