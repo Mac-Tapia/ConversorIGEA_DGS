@@ -1,0 +1,1742 @@
+{
+  "casos": 12,
+  "con_defecto": 6,
+  "conjunto_sha256": "102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d",
+  "modelo": "qwen3:8b",
+  "tokens": 512,
+  "rol_unico": {
+    "modo": "rol_unico",
+    "casos": 12,
+    "con_defecto": 6,
+    "sin_respuesta": 0,
+    "motivos_sin_respuesta": {},
+    "detectados": 5,
+    "perdidos": 1,
+    "falsas_alarmas": 3,
+    "intervenciones": 16,
+    "tokens_entrada": 8014,
+    "tokens_salida": 1998,
+    "segundos": 122.687,
+    "p95_por_caso_s": 19.735,
+    "por_caso": [
+      {
+        "id": "sano-bancos",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 9.812
+      },
+      {
+        "id": "sano-seccion",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas: No hay evidencia que confirme o refute el valor de los campos 'contexto_vigente' y 'plan_completo'."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 71 %, pero la evidencia e1 menciona 71 % como cargabilidad actual, no como final. No hay cambio, pero la propuesta lo presenta como si fuera un resultado final, lo que podría ser una contradicción en la interpretación.",
+              "coste_usd: La propuesta indica 50 000 USD, pero la evidencia e2 menciona un precio de 25 000 USD por km para una longitud de 2,0 km, lo que daría un coste total de 50 000 USD. Por lo tanto, el valor propuesto es consistente con la evidencia, no contradictorio."
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas: No hay evidencia que confirme o refute el valor de los campos 'contexto_vigente' y 'plan_completo'."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 71 %, pero la evidencia e1 menciona 7,1 % como cargabilidad actual, no como final. No hay cambio, pero la propuesta lo presenta como si fuera un resultado final, lo que podría ser una contradicción en la interpretación."
+            ]
+          }
+        ],
+        "segundos": 18.469
+      },
+      {
+        "id": "sano-terna",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta menciona 58 %, pero la evidencia e3 indica que con una terna fuera, la otra lleva 94 %, dentro del límite de 100 %.",
+              "cargabilidad_final_pct: La evidencia e1 menciona 58 % en cada una de las ternas, pero e3 sugiere que una de ellas puede llegar al 94 %, lo que contradice la idea de que ambas estén en 58 %."
+            ]
+          }
+        ],
+        "segundos": 8.187
+      },
+      {
+        "id": "sano-regulador",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 1.01 vs 0,95 (e3)",
+              "tension_final_pu: 1.01 vs 1,01 (e1)"
+            ]
+          }
+        ],
+        "segundos": 6.719
+      },
+      {
+        "id": "sano-transferencia",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 5.86
+      },
+      {
+        "id": "sano-sed",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 5.906
+      },
+      {
+        "id": "defecto-fisica-tension",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs 0.95 p.u. (e1)",
+              "coste_usd: 12000 vs 12000 USD (e2)"
+            ]
+          }
+        ],
+        "segundos": 6.75
+      },
+      {
+        "id": "defecto-fisica-carga",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas: No hay evidencia que confirme o refute el valor de 'contexto_vigente' y 'plan_completo'."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 80 %, pero la evidencia e1 menciona una cargabilidad de 118 % con el mismo flujo de 95 mm2.",
+              "coste_usd: La propuesta indica 20000 USD, pero la evidencia e2 menciona un costo de 20 000 USD por km para una longitud de 1,0 km, lo que coincide, pero la propuesta no especifica la longitud, lo que podría generar ambigüedad."
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas: No hay evidencia que confirme o refute el valor de 'contexto_vigente' y 'plan_completo'."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 80 %, pero la evidencia e1 menciona una cargabilidad de 118 % con el mismo flujo de 95 mm2.",
+              "coste_usd: La propuesta indica 20000 USD, pero la evidencia e2 menciona un costo de 20 000 USD por km para una longitud de 1,0 km, lo que coincide, pero la propuesta no especifica la longitud, lo que podría generar ambigüedad."
+            ]
+          }
+        ],
+        "segundos": 18.515
+      },
+      {
+        "id": "defecto-coste-cantidad",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 70 %, que coincide con el valor en e1. No hay contradicción.",
+              "coste_usd: La propuesta indica 25000 USD, que coincide con el valor en e2. No hay contradicción.",
+              "restricciones_deterministas: La propuesta indica contexto_vigente: true y plan_completo: true, pero no hay evidencia que confirme o refute estos valores. No hay contradicción."
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 70 %, que coincide con el valor en e1. No hay contradicción.",
+              "coste_usd: La propuesta indica 25000 USD, que coincide con el valor en e2. No hay contradicción.",
+              "restricciones_deterministas.contexto_vigente: La propuesta indica true, pero no hay evidencia que confirme o refute este valor. No hay contradicción.",
+              "restricciones_deterministas.plan_comlet: La propuesta indica true, pero no hay evidencia que confirme o refute este valor. No hay contradicción."
+            ]
+          }
+        ],
+        "segundos": 19.735
+      },
+      {
+        "id": "defecto-coste-precio",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 1.0 vs 0,95-1,05 p.u. (e1)",
+              "coste_usd: 3000 vs 30 000 USD (e2)"
+            ]
+          }
+        ],
+        "segundos": 6.469
+      },
+      {
+        "id": "defecto-riesgo-respaldo",
+        "con_defecto": true,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 5.203
+      },
+      {
+        "id": "defecto-fuentes-ausente",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw",
+              "tension_final_pu"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw",
+              "tension_final_pu"
+            ],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 11.062
+      }
+    ]
+  },
+  "equipo": {
+    "modo": "equipo",
+    "casos": 12,
+    "con_defecto": 6,
+    "sin_respuesta": 1,
+    "motivos_sin_respuesta": {
+      "dictamen favorable con incertidumbres o contradicciones pendientes": 2
+    },
+    "detectados": 5,
+    "perdidos": 1,
+    "falsas_alarmas": 5,
+    "intervenciones": 80,
+    "tokens_entrada": 48560,
+    "tokens_salida": 7441,
+    "segundos": 448.344,
+    "p95_por_caso_s": 54.422,
+    "por_caso": [
+      {
+        "id": "sano-bancos",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": true,
+        "motivos": [
+          "fisica: dictamen favorable con incertidumbres o contradicciones pendientes",
+          "coste: dictamen favorable con incertidumbres o contradicciones pendientes"
+        ],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [],
+            "incertidumbres": [
+              "dictamen favorable con incertidumbres o contradicciones pendientes"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [],
+            "incertidumbres": [
+              "dictamen favorable con incertidumbres o contradicciones pendientes"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 23.485
+      },
+      {
+        "id": "sano-seccion",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "cargabilidad_final_pct",
+              "coste_usd"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 71 vs evidencia e1 71",
+              "coste_usd: propuesta 50000 vs evidencia e2 25000"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "coste_usd: 50000 vs evidencia e2: 25000 USD por km para 2,0 km (total 50000 USD)",
+              "cargabilidad_final_pct: 71 vs evidencia e1: 71 %"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 71 vs evidencia e1 71 (no contradicción)",
+              "coste_usd: propuesta 50000 vs evidencia e2 25000 por km para 2,0 km (contradicción: 50000 vs 50000 calculado como 25000 * 2,0)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e3 no menciona contexto_vigente (no contradicción)",
+              "restricciones_deterministas.plan_completo: propuesta true vs evidencia e3 menciona 'sin clientes sin servicio' (no contradicción)"
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "coste_usd: propuesta 50000 vs evidencia e2 25000 por km para 2,0 km (total 50000 USD)"
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "coste_usd: propuesta 50000 vs evidencia e2 25000 por km para 2,0 km (total 50000 USD)",
+              "cargabilidad_final_pct: propuesta 71 vs evidencia e1 71 %"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "coste_usd: propuesta 50000 vs evidencia e2 25000 por km para 2,0 km (total 50000 USD)",
+              "cargabilidad_final_pct: propuesta 71 vs evidencia e1 71 %"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "coste_usd: propuesta 50000 vs evidencia e2 25000 por km para 2,0 km (total 50000 USD)"
+            ]
+          }
+        ],
+        "segundos": 52.125
+      },
+      {
+        "id": "sano-terna",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: La propuesta indica 58 %, pero la evidencia e3 menciona 94 %.",
+              "restricciones_deterministas.contexto_vigente: La propuesta indica true, pero no hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: La propuesta indica true, pero no hay evidencia que confirme o refute este valor."
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: 58 vs e1: 58 % en cada una; límite 100 %",
+              "coste_usd: 90000 vs e2: Precio de la segunda terna: 90 000 USD."
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 22.468
+      },
+      {
+        "id": "sano-regulador",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.plan_completo: no está en ninguna evidencia",
+              "tension_final_pu: no está en ninguna evidencia"
+            ],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u. vs evidencia e1 que indica límites entre 0,95 y 1,05 p.u. (tensión final no está especificada en la evidencia)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e1 que no menciona contexto vigente (no se puede confirmar ni negar)"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u., evidencia e1 da 0,98 a 1,01 p.u.",
+              "tension_final_pu: propuesta 1.01 p.u., evidencia e3 da 0,95 p.u."
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.plan_completo: no está en ninguna evidencia",
+              "tension_final_pu: no está en ninguna evidencia"
+            ],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u. vs evidencia e1 que indica límites entre 0,95 y 1,05 p.u. (tensión final no está especificada en la evidencia)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e1 que no menciona contexto vigente (no se puede confirmar ni negar)",
+              "tension_final_pu: propuesta 1.01 p.u., evidencia e1 da 0,98 a 1,01 p.u.",
+              "tension_final_pu: propuesta 1.01 p.u., evidencia e3 da 0,95 p.u."
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.plan_completo: no está en ninguna evidencia",
+              "tension_final_pu: no está en ninguna evidencia"
+            ],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u. vs evidencia e1 que indica límites entre 0,95 y 1,05 p.u. (tensión final no está especificada en la evidencia)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e1 que no menciona contexto vigente (no se puede confirmar ni negar)"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.plan_completo: no está en ninguna evidencia",
+              "tension_final_pu: no está en ninguna evidencia"
+            ],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u. vs evidencia e1 que indica límites entre 0,95 y 1,05 p.u. (tensión final no está especificada en la evidencia)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e1 que no menciona contexto vigente (no se puede confirmar ni negar)"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.plan_completo: no está en ninguna evidencia",
+              "tension_final_pu: no está en ninguna evidencia"
+            ],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.01 p.u. vs evidencia e1 que indica límites entre 0,95 y 1,05 p.u. (tensión final no está especificada en la evidencia)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia e1 que no menciona contexto vigente (no se puede confirmar ni negar)"
+            ]
+          }
+        ],
+        "segundos": 54.422
+      },
+      {
+        "id": "sano-transferencia",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "cargabilidad_a2_pct",
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "cargabilidad_a2_pct",
+              "accion"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "cargabilidad_a2_pct",
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "accion",
+              "cargabilidad_a2_pct"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "accion",
+              "cargabilidad_a2_pct",
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "accion",
+              "restricciones_deterministas"
+            ],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 35.391
+      },
+      {
+        "id": "sano-sed",
+        "con_defecto": false,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": [
+              "carga_final_pct: La propuesta indica 72%, mientras que la evidencia e1 menciona que la carga final es el 72% de 160 kVA, lo cual es consistente. No hay contradicción.",
+              "coste_usd: La propuesta indica 8000 USD, que coincide con el valor de la evidencia e2 (8 000 USD). No hay contradicción.",
+              "restricciones_deterministas.contexto_vigente: La propuesta indica true, pero no hay evidencia que confirme o refute este valor. No hay contradicción.",
+              "restricciones_deterministas.plan_completo: La propuesta indica true, pero no hay evidencia que confirme o refute este valor. No hay contradicción."
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "accion: cambiar el transformador de la SED S7 de 100 a 160 kVA vs no hay evidencia"
+            ],
+            "contradicciones": [
+              "carga_final_pct: 72 vs 72 (no hay contradicción)",
+              "coste_usd: 8000 vs 8000 (no hay contradicción)"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor.",
+              "accion: cambiar el transformador de la SED S7 de 100 a 160 kVA vs no hay evidencia"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente: No hay evidencia que confirme o refute este valor.",
+              "restricciones_deterministas.plan_completo: No hay evidencia que confirme o refute este valor."
+            ],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 49.594
+      },
+      {
+        "id": "defecto-fisica-tension",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "tension_final_pu"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u."
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u.",
+              "coste_usd: 12000 vs. e2: Precio del banco de 300 kvar instalado: 12 000 USD."
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs 0.95 p.u. (e1)",
+              "coste_usd: 12000 vs 12 000 USD (e2)"
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u."
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u.",
+              "coste_usd: 12000 vs. e2: Precio del banco de 300 kvar instalado: 12 000 USD."
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u.",
+              "coste_usd: 12000 vs. e2: Precio del banco de 300 kvar instalado: 12 000 USD."
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 0.97 vs. e1: tensión mínima 0,91 p.u.; límite 0,95 p.u.",
+              "tension_final_pu: 0.97 vs 0,95 p.u. (e1)"
+            ]
+          }
+        ],
+        "segundos": 43.593
+      },
+      {
+        "id": "defecto-fisica-carga",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "cargabilidad_final_pct",
+              "coste_usd"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 100%"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: 80 vs evidencia e1: 118 %",
+              "coste_usd: 20000 vs evidencia e2: 20 000 USD por km para 1,0 km"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "coste_usd: propuesta 20000 vs evidencia e2 20000 (no contradicción)",
+              "restricciones_deterministas.contexto_vigente: propuesta true vs evidencia no disponible",
+              "restricciones_deterministas.plan_completo: propuesta true vs evidencia no disponible"
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "coste_usd: propuesta 20000 vs evidencia e2 20 000 USD por km para 1,0 km"
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 100%",
+              "coste_usd: propuesta 20000 vs evidencia e2 20 000 USD por km para 1,0 km"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 100%",
+              "coste_usd: propuesta 20000 vs evidencia e2 20 000 USD por km para 1,0 km"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 118%",
+              "cargabilidad_final_pct: propuesta 80 vs evidencia e1 100%",
+              "coste_usd: propuesta 20000 vs evidencia e2 20 000 USD por km para 1,0 km"
+            ]
+          }
+        ],
+        "segundos": 47.5
+      },
+      {
+        "id": "defecto-coste-cantidad",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: 70 vs 70 (no contradicción)",
+              "coste_usd: 25000 vs 25000 (no contradicción)",
+              "restricciones_deterministas.contexto_vigente: true vs no especificado en evidencia",
+              "restricciones_deterministas.plan_completo: true vs no especificado en evidencia"
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "cargabilidad_final_pct: 70 vs 70 (no hay contradicción)",
+              "coste_usd: 25000 vs 25000 (no hay contradicción)",
+              "restricciones_deterministas.contexto_vigente: true vs no está en evidencia",
+              "restricciones_deterministas.plan_completo: true vs no está en evidencia"
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "restricciones_deterministas.contexto_vigente",
+              "restricciones_deterministas.plan_completo"
+            ],
+            "contradicciones": [
+              "restricciones_deterministas.contexto_vigente: true vs no especificado en evidencia",
+              "restricciones_deterministas.plan_completo: true vs no especificado en evidencia"
+            ]
+          }
+        ],
+        "segundos": 46.969
+      },
+      {
+        "id": "defecto-coste-precio",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 1.0 vs. e1: 0,98 a 1,00 p.u.",
+              "tension_final_pu: 1.0 vs. e3: 0,96 p.u."
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: propuesta 1.0 vs evidencia e1 0,98-1,00 p.u.",
+              "coste_usd: propuesta 3000 vs evidencia e2 30 000 USD."
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 1.0 vs. e1: 0,98 a 1,00 p.u.",
+              "tension_final_pu: 1.0 vs. e3: 0,96 p.u."
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              "tension_final_pu: 1.0 vs. e1: 0,98 a 1,00 p.u.",
+              "tension_final_pu: 1.0 vs. e3: 0,96 p.u. mínima con regulador en derivación"
+            ]
+          }
+        ],
+        "segundos": 22.0
+      },
+      {
+        "id": "defecto-riesgo-respaldo",
+        "con_defecto": true,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 16.75
+      },
+      {
+        "id": "defecto-fuentes-ausente",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2",
+              "e3"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          }
+        ],
+        "segundos": 34.047
+      }
+    ]
+  },
+  "autoriza_ejecucion": false,
+  "aceptacion_cientifica": false
+}
