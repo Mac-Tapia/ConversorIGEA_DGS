@@ -143,14 +143,18 @@ def biblioteca_de_otro(proyecto):
     return None
 
 
-def leer_tipos(app, clases, otro=None) -> list[dict]:
-    """Los tipos de las tres bibliotecas, ordenados por clase, origen y nombre."""
+def leer_tipos(app, clases, otro=None, nombre_otro: str = '') -> list[dict]:
+    """Los tipos de las tres bibliotecas, ordenados por clase, origen y nombre.
+
+    042:RF-46: los de ``otro`` llevan el nombre con que se pidió: el proyecto puede conservar su nombre anterior, y quien busca el
+    tipo lo busca por el nombre que pidió (Pisco, 2026-11-04: el nombre anterior frente a `CSG_Biblioteca_tipos`).
+    """
     out = []
     origenes = [('proyecto', '', lambda c: app.GetLocalLibrary(c)),
                 ('global', '', lambda c: app.GetGlobalLibrary(c))]
     if otro is not None:
         lib = biblioteca_de_otro(otro)
-        origenes.append(('otro', otro.loc_name, lambda _c: lib))
+        origenes.append(('otro', nombre_otro or otro.loc_name, lambda _c: lib))
     for clase in clases:
         for origen, proyecto, carpeta in origenes:
             out += [ficha(o, origen, proyecto) for o in _tipos_en(carpeta(clase), clase)]
@@ -306,7 +310,7 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
         elif biblioteca_de_otro(otro) is None:
             informe['avisos'].append(f'El proyecto {ruta!r} no tiene biblioteca de tipos.')
             otro = None
-    informe['tipos'] = leer_tipos(app, clases, otro)
+    informe['tipos'] = leer_tipos(app, clases, otro, str(plan.get('otro_proyecto') or ''))
     return informe, 0
 
 
@@ -1753,7 +1757,7 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
         if otro is None or biblioteca_de_otro(otro) is None:
             avisos.append(f"No se pudo leer el proyecto {plan['otro_proyecto']!r}.")
             otro = None
-    tipos = [tipo_de_ficha(t) for t in leer_tipos(app, CLASES_TIPO, otro)]
+    tipos = [tipo_de_ficha(t) for t in leer_tipos(app, CLASES_TIPO, otro, str(plan.get('otro_proyecto') or ''))]
     return redes, tipos, avisos
 
 
@@ -2191,6 +2195,23 @@ def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+#: Lo que une dos barras en serie sin ser una línea: el camino eléctrico pasa por ello (042:RF-44).
+EQUIPOS_EN_SERIE = ('ElmCoup', 'ElmVoltreg', 'ElmTr2', 'ElmZpu', 'ElmSind')
+
+
+def puentes_de_la_red(app) -> list[dict]:
+    """042:RF-44: los equipos en serie en servicio, como tramos de largo 0 que no llevan obra; un acoplador abierto no une nada."""
+    out = []
+    for clase in EQUIPOS_EN_SERIE:
+        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+            if int(getattr(o, 'outserv', 0) or 0) or (clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1) or 0)):
+                continue
+            barras = [t for t in (getattr(getattr(o, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv')) if t is not None]
+            if len(barras) == 2:
+                out.append({'nombre': o.loc_name, 'desde': barras[0].loc_name, 'hasta': barras[1].loc_name, 'largo_m': 0.0, 'puente': True})
+    return out
+
+
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     """Lo que necesita armar las variantes de la escalera, en «Con proyecto <año>» (025:RF-49,
     RF-60): la troncal de cada alimentador desde la cabecera, leída sin las cargas nuevas
@@ -2264,7 +2285,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                    if media.get(b, b) != b and media[b] in sin_cargas_de.get(f, set())]))
         # 063:RF-32: el camino eléctrico de la cabecera a cada carga, con todas las cargas y el
         # flujo que convergió; sobre él van sección y terna, y el banco en su barra de aguas arriba.
-        from convertersmartgrid.escalera_optima import camino_electrico
+        from convertersmartgrid.escalera_optima import camino_electrico, solo_lineas
         tramos_red = []
         for ln in app.GetCalcRelevantObjects('*.ElmLne') or []:
             a = getattr(getattr(ln, 'bus1', None), 'cterm', None)
@@ -2274,12 +2295,15 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             tipo = getattr(ln, 'typ_id', None)
             i = _resultado(ln, 'm:I:bus1') if flujo['converged'] else None
             tramos_red.append({'nombre': ln.loc_name, 'desde': a.loc_name, 'hasta': b.loc_name,
+                               'u': ({a.loc_name: _resultado(a, 'm:u'), b.loc_name: _resultado(b, 'm:u')}
+                                     if flujo['converged'] else {}),                  # 042:RF-47
                                'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
                                'corriente_a': i * 1000 if i is not None else None,
                                'tipo': tipo.loc_name if tipo is not None else None,
                                'cable': bool(es_cable(ln)),                # 084:RF-16
                                'inom_a': (float(getattr(tipo, 'sline', 0) or 0) * 1000
                                           if tipo is not None else None)})
+        tramos_red += puentes_de_la_red(app)                                  # 042:RF-44
         for f, troncal in troncales.items():
             elm = alims.elm[f]
             lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
@@ -2328,11 +2352,13 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             cab = cabecera_de(elm)
             caminos = {}
             for nombre in dict.fromkeys(media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])):
-                c = camino_electrico(tramos_red, cab.loc_name, nombre) if cab is not None else []
+                c = solo_lineas(camino_electrico(tramos_red, cab.loc_name, nombre)) if cab is not None else []
                 if c:
                     caminos[nombre] = c
                     if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:
                         banco_en[nombre] = c[-1]['desde']        # aguas arriba, por el camino real
+                else:
+                    informe['avisos'].append(f'{f}: sin camino eléctrico hasta {nombre}: sus obras se colocan por cercanía GPS (042:RF-45).')
             # 042:RF-43: los tramos de cualquier ramal que pasan del límite con las cargas nuevas.
             limite = float(plan.get('cargabilidad_max_pct') or 0)
             por_nombre = {t['nombre']: t for t in tramos_red}
