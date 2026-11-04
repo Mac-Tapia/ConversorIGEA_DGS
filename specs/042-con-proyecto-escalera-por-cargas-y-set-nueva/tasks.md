@@ -90,6 +90,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
 - [x] T36. Celda nueva en la barra de 22,9 kV de la SET, o cambio con su fuente. (RF-51, RF-52)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_016.py` en verde.
+- [x] T40. Rehacer las obras de los alimentadores marcados. (RF-60)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py tests/test_informe_factibilidad_un_paso.py` en verde.
 - [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
       Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
 - [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)

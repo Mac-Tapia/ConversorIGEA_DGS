@@ -518,7 +518,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
 
 
 def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None,
-                 capex: str | None = None) -> int:
+                 capex: str | None = None, rehacer_obras: bool = False) -> int:
     """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-72).
 
     Pisco (2026-11-03): el usuario pidió que lo que falta se lance y cierre solo. Si ya corre un «Con proyecto»
@@ -535,7 +535,8 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
         print(f'«Con proyecto» de {proyecto}: se lanza para {", ".join(feeders)}', flush=True)
         trabajo = web.post('/pf/obras/con-proyecto', json={
             'project': proyecto, 'feeders': feeders, 'escalera_primero': True,
-            **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {})})
+            **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {}),
+            **({'rehacer_obras': True} if rehacer_obras else {})})
     else:
         print(f"«Con proyecto» de {proyecto}: se espera el trabajo {trabajo['id']} ya lanzado", flush=True)
     if trabajo.get('started_at'):
@@ -608,6 +609,8 @@ def main(argv=None) -> int:
                    help='Tras calibrar (o ya calibrado), «Con proyecto» de estos alimentadores y su estadística (042:RF-31)')
     p.add_argument('--proyecto', help='Con --con-proyecto, el proyecto de DIgSILENT ya calibrado: no se calibra de nuevo')
     p.add_argument('--tipo-cambio', type=float, help='Con --con-proyecto, moneda local por dólar')
+    p.add_argument('--rehacer-obras', action='store_true',
+                   help='Con --con-proyecto, retira las obras de esos alimentadores y las evalúa de nuevo (042:RF-60)')
     p.add_argument('--capex', help='Con --con-proyecto, el libro CAPEX: costea las obras y elige la SET nueva (042:RF-7)')
     args = p.parse_args(argv)
     _RESUMEN[:] = [args.resumen_json] if args.resumen_json else []
@@ -618,7 +621,8 @@ def main(argv=None) -> int:
     web = Web(args.url, args.espacio)
     if args.con_proyecto and args.proyecto:
         try:
-            return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex)
+            return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex,
+                                rehacer_obras=args.rehacer_obras)
         except (RuntimeError, TimeoutError, requests.RequestException) as exc:
             print(f'ERROR: {exc}')
             return 2

@@ -599,3 +599,45 @@ def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypat
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2', 'F3'])
     assert orden == [('evalua', 'F1'), ('aplica', 'F1'), ('evalua', 'F2'), ('evalua', 'F3'), ('aplica', 'F3')]
     assert [a['alimentador'] for a in r['escalera']['alimentadores']] == ['F1', 'F3']
+
+
+def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
+    """042:RF-60 — retira, repone y evalúa, en ese orden; sin pedirlo no se retira nada."""
+    from convertersmartgrid.web import services
+
+    orden = []
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: orden.append('reponer'))
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a: 'C')
+    monkeypatch.setattr(services, 'native_action_context', lambda *a: {})
+
+    def guion(ws, ctx, guion_py, plan, **k):
+        orden.append(k['nombre'])
+        return 0, {'retiradas': ['Obra_terna_F1']}, None
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+
+    def escalera(ws, ctx, project, feeders, **k):
+        orden.append('escalera')
+        return {'alimentadores': [{'ya_cumple': True}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    class Ws:
+        obras_aplicadas = [{'project': 'P', 'variacion': 'Obra_terna_F1'}, {'project': 'P', 'variacion': 'Obra_terna_F2'}]
+
+    ws = Ws()
+    services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'], rehacer_obras=True)
+    assert orden == ['retirar_obras', 'reponer', 'escalera']
+    assert [o['variacion'] for o in ws.obras_aplicadas] == ['Obra_terna_F2']
+    orden.clear()
+    services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'])
+    assert orden == ['reponer', 'escalera']

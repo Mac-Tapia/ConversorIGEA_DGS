@@ -2241,6 +2241,38 @@ def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def es_obra_de(nombre: str, alimentador: str) -> bool:
+    """``Obra_<clase>_<alimentador>`` con su número si se repite; otro alimentador no entra por parecerse (042:RF-60)."""
+    return bool(re.fullmatch(rf'Obra_[A-Za-z_]+?_{re.escape(alimentador)}(_\d+)?', nombre))
+
+
+def retirar_obras(app, plan: dict) -> tuple[dict, int]:
+    """042:RF-60: borra las variaciones de obra de ``feeders``; las de carga y las de otros alimentadores no se tocan."""
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'retirar_obras', 'retiradas': [], 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    inicial = app.GetActiveStudyCase()
+    feeders = [str(f) for f in plan.get('feeders') or ()]
+    try:
+        casos['con'].Activate()
+        carpeta = app.GetProjectFolder('scheme')
+        for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []:
+            if any(es_obra_de(v.loc_name, f) for f in feeders):
+                nombre = v.loc_name
+                v.Deactivate()                      # activa y grabando, DIgSILENT no la borra (2026-10-15)
+                v.Delete()
+                informe['retiradas'].append(nombre)
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
+
+
 #: Lo que une dos barras en serie sin ser una línea: el camino eléctrico pasa por ello (042:RF-44).
 EQUIPOS_EN_SERIE = ('ElmCoup', 'ElmVoltreg', 'ElmTr2', 'ElmZpu', 'ElmSind')
 
@@ -3044,6 +3076,8 @@ def main(argv=None) -> int:
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     p.add_argument('--evaluar', action='store_true',
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
+    p.add_argument('--retirar-obras', action='store_true',
+                   help='borra las variaciones de obra de los alimentadores del plan (042:RF-60)')
     p.add_argument('--reponer-cargas', action='store_true',
                    help='Activa en «Con proyecto» las cargas nuevas del plan que estén desactivadas (042:RF-32)')
     p.add_argument('--escalera-datos', action='store_true',
@@ -3081,6 +3115,8 @@ def main(argv=None) -> int:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
         elif args.reponer_cargas:
             informe, codigo = reponer_cargas(app, plan)
+        elif args.retirar_obras:
+            informe, codigo = retirar_obras(app, plan)
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
         elif args.oraculo_datos:

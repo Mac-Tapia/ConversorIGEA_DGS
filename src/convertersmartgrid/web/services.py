@@ -6134,6 +6134,20 @@ def _avisos_bajo_limite(alimentador: str, obra: str, fuera: dict | None, u_min: 
     return []
 
 
+def _retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], anio_casos: int | None) -> None:
+    """042:RF-60: lo elegido con reglas anteriores se quita de DIgSILENT y de lo aplicado, para evaluarlo de nuevo."""
+    _rc, informe, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos, 'feeders': list(feeders),
+        'native_action_context': native_action_context(ws, project, list(feeders), 'obras')},
+        nombre='retirar_obras', args=('--retirar-obras',))
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    retiradas = set(informe.get('retiradas') or ())
+    ws.obras_aplicadas = [o for o in ws.obras_aplicadas
+                          if not (o.get('project') == project.strip() and o.get('variacion') in retiradas)]
+    ctx.log(f"Obras retiradas para rehacerlas: {', '.join(sorted(retiradas)) or 'ninguna'} (042:RF-60).")
+
+
 def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                            anio_casos: int | None, variaciones: list[str]) -> None:
     """042:RF-32: una evaluación cortada no deja la escalera midiendo sin las cargas nuevas."""
@@ -6151,7 +6165,8 @@ def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders
 
 def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                              anio_casos: int | None = None, tipo_cambio: float | None = None,
-                             capex: str | None = None, cargas: list[str] | None = None) -> dict:
+                             capex: str | None = None, cargas: list[str] | None = None,
+                             rehacer_obras: bool = False) -> dict:
     """042:RF-24: cada alimentador con sus cargas nuevas sube la escalera; los que no cumplen pasan sus cargas a la siguiente obra."""
     from ..demanda_medida import clave_codigo
     from ..informes import queda_deficit
@@ -6164,6 +6179,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                  and (not claves or clave_codigo(c.get('sed')) in claves)]
     if not aplicadas:
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    if rehacer_obras:
+        _retirar_obras(ws, ctx, project, feeders, anio_casos)
     _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     por_alim: dict[str, list[dict]] = {}
@@ -6872,7 +6889,8 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
                            capex: str | None = None, alimentadores_nuevos: int = 4,
                            set_nueva_nombre: str = '', directo_set_nueva: bool = False,
-                           cargas: list[str] | None = None, escalera_primero: bool = False) -> dict:
+                           cargas: list[str] | None = None, escalera_primero: bool = False,
+                           rehacer_obras: bool = False) -> dict:
     """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042).
 
     Con ``directo_set_nueva``, sin escalera: muchas cargas que bancos y ternas no resuelven van a
@@ -6904,7 +6922,8 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
     elif escalera_primero:                                              # 042:RF-24
         escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
-                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
+                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas,
+                                            rehacer_obras=rehacer_obras)
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                           tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
