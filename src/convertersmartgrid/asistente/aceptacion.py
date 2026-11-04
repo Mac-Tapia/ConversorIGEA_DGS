@@ -118,7 +118,7 @@ def _casos_coherentes(m):
 
 
 def _normalizar_slot(tipo, valor):
-    from .plan import _trozos_lista
+    from .plan import trozos_lista
     from .interprete import numero_de, periodo_de
     valores = valor if isinstance(valor, list) else [valor]
     salida = set()
@@ -131,7 +131,7 @@ def _normalizar_slot(tipo, valor):
         if tipo == 'alimentadores':
             if re.search(r'\btodos?\b', s):
                 salida.add((tipo, '*')); continue
-            salida.update((tipo, normalizar(x)) for x in _trozos_lista(s))
+            salida.update((tipo, normalizar(x)) for x in trozos_lista(s))
         elif tipo == 'periodo':
             salida.add((tipo, periodo_de(s) or s))
         elif tipo == 'numero':

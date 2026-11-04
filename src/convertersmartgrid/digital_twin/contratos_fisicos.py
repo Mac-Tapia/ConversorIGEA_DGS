@@ -22,6 +22,9 @@ from .native_snapshot import componentes
 #: episodio versión 2 pudo capturarse antes o después de la 074 (``ntnum``, SM218 al 131 % frente
 #: al 65 % de DIgSILENT) y no hay forma de distinguirlo, así que no enseña.
 VERSION_GRAFO = 3
+#: Tope de la impedancia de una rama en p.u. (r y x): un acoplador cerrado, sin impedancia en el
+#: grafo. Cambiarlo invalida los pesos entrenados con el anterior (027:RF-31).
+Z_ACOPLADOR_PU = 1e-6
 
 #: Lo único que sabe calcular la física del gemelo: una fase equivalente por barra, sin desfase de grupo.
 REPRESENTACION = 'equilibrada_secuencia_positiva'

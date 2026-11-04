@@ -297,19 +297,19 @@ def leer_tabla_excel(ruta: Path | str) -> Estructura:
     Una fila por alimentador; la SET puede venir con su nombre («SET 21 EL CARMEN») o en
     columnas aparte, y el zonal en todas sus filas.
     """
-    from .demanda_medida import ALIAS, _abrir, _buscar_cabecera, _filas, _texto, normalizar
+    from .demanda_medida import ALIAS, abrir_libro, buscar_cabecera, filas_de_hoja, texto_de_celda, normalizar
 
     alias = {**ALIAS, **{k: tuple(normalizar(x) for x in v) for k, v in ALIAS_TABLA.items()}}
-    libro = _abrir(ruta)
+    libro = abrir_libro(ruta)
     for hoja in libro.sheet_names:
-        filas = _filas(libro, hoja)
-        hallada = _buscar_cabecera(filas, tuple(ALIAS_TABLA), alias, ('zonal', 'set', 'alimentador'))
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, tuple(ALIAS_TABLA), alias, ('zonal', 'set', 'alimentador'))
         if hallada is None:
             continue
         i, cols = hallada
         datos = []
         for n, fila in enumerate(filas[i + 1:], start=i + 2):
-            f = {k: _texto(fila, cols.get(k)) for k in ALIAS_TABLA}
+            f = {k: texto_de_celda(fila, cols.get(k)) for k in ALIAS_TABLA}
             if not any(f.values()):
                 continue
             set_, nombre = _partir_set(f['set'], f['set_nombre'])

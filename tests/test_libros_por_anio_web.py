@@ -262,7 +262,7 @@ def test_asignar_carpeta_lista_los_anios_sin_abrir_libros(client, tmp_path, monk
     from convertersmartgrid import demanda_medida as dm
 
     carpeta = _arbol(tmp_path / 'cabecera')
-    monkeypatch.setattr(dm, '_abrir', lambda *_a, **_k: pytest.fail('abrió un libro'))
+    monkeypatch.setattr(dm, 'abrir_libro', lambda *_a, **_k: pytest.fail('abrió un libro'))
     wid = _wid(client)
     r = client.post(f'/api/workspaces/{wid}/demanda/cabecera/path', json={'path': str(carpeta)})
     assert r.status_code == 200, r.text

@@ -32,11 +32,11 @@ def _section_rows(root: Path) -> Iterable[dict[str, Any]]:
     from vnr_etl.connectors import resolve_adapter
     from vnr_etl.connectors.registry import iter_supported_sources
     from vnr_etl.discovery.schema import resolve_alias
-    from vnr_etl.pipeline import _geojson_rows, normalize_feature_record
+    from vnr_etl.pipeline import geojson_rows, normalize_feature_record
 
     for path in iter_supported_sources(root):
         if path.suffix.lower() in ('.geojson', '.json'):
-            rows, _crs = _geojson_rows(path)
+            rows, _crs = geojson_rows(path)
             normalized = [normalize_feature_record(row) for row in rows]
             fields = sorted({str(key) for row in normalized for key in row})
             section, _ = resolve_alias('section_id', fields)
@@ -64,7 +64,7 @@ def _inspect_extracted(
     selected_period: str | None = None,
 ) -> SourceScope:
     from vnr_etl.discovery.schema import resolve_alias
-    from vnr_etl.pipeline import _period_key
+    from vnr_etl.pipeline import period_key
 
     rows = list(_section_rows(root))
     if not rows:
@@ -86,7 +86,7 @@ def _inspect_extracted(
     periods = tuple(sorted({
         str(row.get(period_field)).strip() for row in scoped
         if period_field and row.get(period_field) not in (None, '')
-    }, key=_period_key))
+    }, key=period_key))
     period = (selected_period or '').strip() or (periods[0] if len(periods) == 1 else None)
     if period is not None and periods and period not in periods:
         raise ValueError(f'Periodo no encontrado para {company or "la fuente"}: {period}')

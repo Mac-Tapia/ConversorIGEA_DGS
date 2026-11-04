@@ -42,7 +42,7 @@ from convertersmartgrid.coordenadas import completar_coordenadas  # noqa: E402
 from convertersmartgrid.dataset import CymdistDataset  # noqa: E402
 from convertersmartgrid.dgs import formato_hoja, write_dgs  # noqa: E402
 from convertersmartgrid.geography import assert_metre_source_crs, build_geography  # noqa: E402
-from convertersmartgrid.model import _calc_p_q, build_feeder_model  # noqa: E402
+from convertersmartgrid.model import calc_p_q, build_feeder_model  # noqa: E402
 from convertersmartgrid.naming import feeder_short_name  # noqa: E402
 from convertersmartgrid.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
 from convertersmartgrid.trafomix import es_trafomix, excluir_trafomix  # noqa: E402
@@ -63,7 +63,7 @@ def auditar(dataset, net: str, model, tablas: dict, trafomix) -> dict:
     ubicadas = [(k, r) for k, r in cargas_txt if k in dataset.load_placements]
     kw_txt = kvar_txt = 0.0
     for _k, fila in ubicadas:
-        p, q, _pf = _calc_p_q(fila)
+        p, q, _pf = calc_p_q(fila)
         kw_txt += p * 1000.0
         kvar_txt += q * 1000.0
     maniobras_txt = len(dataset.switching_by_feeder.get(net, ()))

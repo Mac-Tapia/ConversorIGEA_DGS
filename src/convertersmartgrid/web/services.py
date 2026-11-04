@@ -31,11 +31,8 @@ from ..powerfactory_env import (
 from ..powerfactory_binding import alimentadores_vinculados
 from ..util import nombre_seguro, write_json_atomic
 from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
+from .requisitos import UserError, require_active_source_run, require_loaded
 from .workspace import Workspace
-
-
-class UserError(ValueError):
-    """Error del operador (falta un fichero, selección vacía…). Se muestra tal cual."""
 
 
 # ---------------------------------------------------------------------------
@@ -216,11 +213,6 @@ def check_ready(ws: Workspace) -> None:
         raise UserError(f'No se encuentra el JSON de aliases: {aliases}')
 
 
-def require_loaded(ws: Workspace) -> None:
-    if ws.dataset is None:
-        raise UserError('Primero cargue y liste los alimentadores (paso 2).')
-
-
 def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
     from ..batch import load_aliases
@@ -313,30 +305,6 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         'universal_audit': source_audit_dict,
         **loaded.provenance,
     }
-
-
-def require_active_source_run(ws: Workspace):
-    """Impide usar un dataset o artefacto que pertenezca a otra ejecución."""
-    snapshot = ws.active_run()
-    # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir
-    # «las entradas cambiaron» (IN111 + TA225, 2026-10-14) mandaba a buscar un cambio
-    # que no existía.
-    if snapshot is not None and ws.loaded_run_id is None:
-        raise UserError(
-            'SOURCE_RUN_MISMATCH: la red no está cargada en esta sesión de la web (por '
-            'ejemplo, tras reiniciarla). Pulse «Cargar / listar alimentadores».'
-        )
-    if (
-        snapshot is None
-        or ws.loaded_run_id != snapshot.run_id
-        or ws.loaded_source_mode != snapshot.mode
-        or ws.loaded_source_fingerprint != snapshot.fingerprint
-    ):
-        raise UserError(
-            'SOURCE_RUN_MISMATCH: las entradas cambiaron desde la carga. '
-            'Pulse «Cargar / listar alimentadores» para crear una ejecución nueva.'
-        )
-    return snapshot
 
 
 def feeder_rows(ws: Workspace) -> list[dict]:
@@ -3119,7 +3087,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
     de_otros = 0
     if alimentadores:
-        cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores)
+        cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores, corto=feeder_short_name)
     # 004:RF-66: la reactiva de cada cliente en el registro de 15 minutos de su POT, de su
     # hoja del mismo libro; solo los cruzados (los de un alimentador, en el plan).
     coincidente = criterio == CRITERIO_COINCIDENTE
@@ -3224,7 +3192,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
             libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros))
             leidos.append({'mes': mes, 'libro': libro.name})
         libro, (todos, aparte_mes) = libros[mes]
-        suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders)
+        suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders, corto=feeder_short_name)
         de_otros += otros
         for c in aparte:
             aparte_out.setdefault(c.codigo, c)
@@ -6283,7 +6251,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
         if por_camino:
             tramos = list(por_camino.values())
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
-        aptos = eo._conductores(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
+        aptos = eo.conductores_aptos(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
         espacio = oo.Espacio(f, con_banco, banco,
                              modulos_valle if modulos_valle is not None
                              else p.modulos_max if p.modulos_max is not None else eo.MODULOS_SIN_VALLE, tramos,

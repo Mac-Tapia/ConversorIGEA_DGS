@@ -18,7 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from .demanda_medida import EXTENSIONES, DemandaError
+#: Aquí y no en ``demanda_medida``, que recorre las carpetas con este módulo (002:RF-4).
+EXTENSIONES = ('.xls', '.xlsx', '.xlsb', '.xlsm')
+
+
+class DemandaError(ValueError):
+    """Error de usuario: libro que falta, hoja o columna que no está."""
+
 
 _ANIO = re.compile(r'\d{4}')
 _PERIODO = re.compile(r'(?P<anio>\d{4})(?:-(?P<mes>0[1-9]|1[0-2]))?')

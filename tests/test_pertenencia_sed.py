@@ -35,7 +35,7 @@ def test_ambiguedad_no_se_oculta_por_mayusculas_ni_por_radial_anterior():
     cliente = dm.ClienteImportante('123', 2, sed='SE10', radial='ANTERIOR')
     buenos, ambiguos = dm.reconciliar_radiales([cliente], {'SE10': {'A1'}, 'se10': {'B2'}})
     assert not buenos and len(ambiguos) == 1
-    _, aparte, _ = dm.del_alimentador(buenos, ambiguos, ['B2'])
+    _, aparte, _ = dm.del_alimentador(buenos, ambiguos, ['B2'], corto=str)
     assert len(aparte) == 1
 
 

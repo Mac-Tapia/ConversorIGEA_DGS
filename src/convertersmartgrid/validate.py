@@ -9,7 +9,7 @@ import json
 import math
 
 from .model import FeederModel, Line, palabras_de
-from .naming import _siglas_canonicas, nombre_canonico
+from .naming import siglas_canonicas, nombre_canonico
 from .schema import load_schema
 from .geography import GeographyManifest
 from .util import finite_or_none
@@ -97,7 +97,7 @@ def validate_dgs(
     geography: GeographyManifest | None = None,
 ) -> dict:
     global _CANONICAS
-    _CANONICAS = _siglas_canonicas()                                   # 027:T23, las del DGS
+    _CANONICAS = siglas_canonicas()                                   # 027:T23, las del DGS
     schema = load_schema(schema_profile)
     tables = parse_dgs(dgs_path)
     schema_errors: list[str] = []
@@ -517,14 +517,14 @@ def validate_dgs(
             graphic_errors.append('ElmNet.pDiagram does not reference the generated IntGrfnet')
 
         from .dgs import (
-            _line_neighbors,
+            line_neighbors,
             diagram_anchor_node,
             diagram_line_sections,
             visible_pointterm_nodes,
         )
 
         # One adjacency index and one drawn-section set for the whole graphic check.
-        neighbors = _line_neighbors(model)
+        neighbors = line_neighbors(model)
         drawn_sections = diagram_line_sections(model, neighbors=neighbors)
         visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_sections)
         for load in model.loads:

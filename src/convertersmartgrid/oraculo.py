@@ -190,8 +190,8 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     """
     import pandapower as pp
 
-    from .dgs import (NA205_SED_LV_KV, NA205_TR2_UK_PCT, _tr2_curmg_pct, _tr2_losses_kw,
-                      _tr2_strn_mva, letras_de_fase)
+    from .dgs import (NA205_SED_LV_KV, NA205_TR2_UK_PCT, tr2_curmg_pct, tr2_losses_kw,
+                      tr2_strn_mva, letras_de_fase)
     from .model import resolve_capacitor_capacity
 
     informe = InformeOraculo()
@@ -343,11 +343,11 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     fase_de_carga = {(c.section_id, c.device_number): letras_de_fase(c.phase) for c in model.loads}
     fases_de_barra: dict[int, str] = {}
     for sed in sorted(model.seds, key=lambda s: s.load_key):
-        strn = _tr2_strn_mva(sed.design_kva)
+        strn = tr2_strn_mva(sed.design_kva)
         kva = strn * 1000.0
-        pcu_kw, pfe_kw = _tr2_losses_kw(kva, uk_pct=NA205_TR2_UK_PCT)
+        pcu_kw, pfe_kw = tr2_losses_kw(kva, uk_pct=NA205_TR2_UK_PCT)
         bt = int(pp.create_bus(net, vn_kv=NA205_SED_LV_KV, name=f'{sed.loc_name}_BT'))
-        i0 = _tr2_curmg_pct(kva, pfe_kw)
+        i0 = tr2_curmg_pct(kva, pfe_kw)
         extra: dict[str, Any] = {}
         if por_fases:
             # 082:RF-6: pandapower solo tiene trafos de tres columnas. Una SED de n fases se da

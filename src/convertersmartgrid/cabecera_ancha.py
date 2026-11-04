@@ -17,7 +17,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
-from .demanda_medida import ALIAS, DemandaError, _abrir, _filas, clave_codigo, normalizar, numero
+from .demanda_medida import ALIAS, DemandaError, abrir_libro, filas_de_hoja, clave_codigo, normalizar, numero
 
 FILAS_CABECERA = 12
 EXTENSIONES = ('.xlsx', '.xlsm', '.xls', '.xlsb')
@@ -137,9 +137,9 @@ def leer_ancho(rutas: Iterable[Path | str], codigos: Sequence[str],
     lectura = lectura or Lectura()
     pedidos = {clave_codigo(c): c for c in codigos}
     for ruta in libros_de(rutas):
-        libro = _abrir(ruta)
+        libro = abrir_libro(ruta)
         for hoja in libro.sheet_names:
-            filas = _filas(libro, hoja)
+            filas = filas_de_hoja(libro, hoja)
             hallada = _cabecera_ancha(filas, pedidos)
             if hallada is None:
                 continue
@@ -198,9 +198,9 @@ def leer_maximas_mensuales(rutas: Iterable[Path | str], codigos: Sequence[str], 
     lectura = lectura or Lectura()
     pedidos = {clave_codigo(c): c for c in codigos}
     for ruta in libros_de(rutas):
-        libro = _abrir(ruta)
+        libro = abrir_libro(ruta)
         for hoja in libro.sheet_names:
-            filas = _filas(libro, hoja)
+            filas = filas_de_hoja(libro, hoja)
             anio = _anio(hoja, filas)
             for i, fila in enumerate(filas[:FILAS_CABECERA]):
                 meses = {j: m for j, c in enumerate(fila) if (m := _mes(c))}

@@ -57,7 +57,7 @@ def falso(monkeypatch, tmp_path):
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'almacen'))
     monkeypatch.setattr(co, 'FABRICA', CodificadorFalso)
     monkeypatch.setattr(co, '_abiertos', {})
-    monkeypatch.setattr(tr, '_dispositivo', lambda: CPU)
+    monkeypatch.setattr(tr, 'dispositivo_de_calculo', lambda: CPU)
     monkeypatch.setattr(tr, 'liberar_gpu', lambda: None)
     monkeypatch.setattr(tr, '_cache', {})
     return tmp_path
@@ -212,7 +212,7 @@ def test_modelo_sin_gpu_el_error_de_siempre(falso, monkeypatch):
 
     def sin_gpu():
         raise RuntimeError('No hay GPU con CUDA')
-    monkeypatch.setattr(tr, '_dispositivo', sin_gpu)
+    monkeypatch.setattr(tr, 'dispositivo_de_calculo', sin_gpu)
     monkeypatch.setattr(co, 'FABRICA', lambda *_a: pytest.fail('no debe abrir el codificador'))
     monkeypatch.setattr(co, '_abiertos', {})
     with pytest.raises(RuntimeError, match='CUDA'):

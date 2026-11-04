@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..puertos import VERSION_PUERTOS, Modulo
 from .base import SourceLoadResult, provenance, validate_snapshot
 from .snapshot import SourceSnapshot
 
@@ -66,3 +67,6 @@ class TxtSourceAdapter:
             catalog_report=report,
             provenance=provenance(snapshot),
         )
+
+
+MODULO = Modulo('lector-txt', 'lector', VERSION_PUERTOS, TxtSourceAdapter)

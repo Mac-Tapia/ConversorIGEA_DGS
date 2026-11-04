@@ -159,16 +159,6 @@ class ReconstructionResult:
         )
         return self.report.record_change(decision)
 
-    def resolve_equipment(
-        self,
-        catalogs: Iterable[Any],
-        network_ids: Iterable[str] | None = None,
-    ) -> dict[str, Any]:
-        """Apply the universal resolver to this derived dataset."""
-        from .catalog_resolution import resolve_dataset_equipment
-
-        return resolve_dataset_equipment(self, catalogs, network_ids)
-
 
 def _copy_dataset(dataset: CymdistDataset) -> CymdistDataset:
     """Copy only declared canonical fields, excluding cached derived indexes."""

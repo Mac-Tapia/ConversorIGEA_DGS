@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..puertos import VERSION_PUERTOS, Modulo
 from .base import SourceLoadResult, provenance, validate_snapshot
 from .snapshot import SourceSnapshot
 
@@ -179,3 +180,6 @@ def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
         completados += all(x is not None for x in (tipo.r1_ohm_km, tipo.x1_ohm_km,
                                                    tipo.r0_ohm_km, tipo.x0_ohm_km))
     return {'completados': completados, 'sin_ficha': len(tipos) - completados}
+
+
+MODULO = Modulo('lector-vnr', 'lector', VERSION_PUERTOS, VnrSourceAdapter)

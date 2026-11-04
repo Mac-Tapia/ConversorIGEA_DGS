@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from .digital_twin.evolutivo import _nombre_corto, nsga2
+from .digital_twin.evolutivo import nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
@@ -83,8 +83,8 @@ class Oraculo:
                 d['q_mvar'] = float(d.get('q_mvar') or 0.0) - float(c.get('q_mvar') or 0.0)
         self._nodos = nodos
         self._ramas = [dict(r) for r in self.grafo.get('ramas') or []]
-        self.nodo_de = {_nombre_corto(n): n for n in nodos}
-        self.rama_de = {_nombre_corto(str(r.get('id'))): i for i, r in enumerate(self._ramas)}
+        self.nodo_de = {nombre_corto(n): n for n in nodos}
+        self.rama_de = {nombre_corto(str(r.get('id'))): i for i, r in enumerate(self._ramas)}
         self._lineas = {str(r.get('id')) for r in self._ramas if r.get('clase', 'ElmLne') == 'ElmLne'}
 
     # ------------------------------------------------------------------ el grafo de una variante
@@ -181,7 +181,7 @@ class Oraculo:
         # transformador al 104 % y por una barra de baja ya fuera de límites.
         media = np.array([float(self._nodos[n].get('kv') or 0.0) >= KV_MEDIA_MIN for n in m.ids])
         energ = m.alimentado & ~m.fuente & media
-        u = {_nombre_corto(n): float(v[i]) for i, n in enumerate(m.ids) if m.alimentado[i] and media[i]}
+        u = {nombre_corto(n): float(v[i]) for i, n in enumerate(m.ids) if m.alimentado[i] and media[i]}
         carga = {}
         if len(m.z):
             vc = sol.v * np.exp(1j * sol.theta)
@@ -189,7 +189,7 @@ class Oraculo:
             corriente = np.abs(vc[a] - vc[b]) / np.abs(m.z)
             for e in range(0, len(m.ramas), 2):            # cada rama llega en los dos sentidos
                 if m.inom[e] > 0 and m.ramas[e] in self._lineas:
-                    carga[_nombre_corto(m.ramas[e])] = float(100.0 * corriente[e] / m.inom[e])
+                    carga[nombre_corto(m.ramas[e])] = float(100.0 * corriente[e] / m.inom[e])
         return Medida(True, u, carga, sol.perdidas_pu * S_BASE * 1000.0,
                       float(v[energ].min()) if energ.any() else None, aproximada, oraculo)
 
@@ -253,7 +253,7 @@ class Oraculo:
     def barras_de(self, k: int, alimentador: str | None = None) -> list[str]:
         """Las barras que juzga el criterio: la de media de cada carga (``barra``; la de una
         ampliación es la de baja de su SED, 042) o, sin ella, la de su nodo."""
-        return list(dict.fromkeys(str(c.get('barra') or _nombre_corto(c['nodo']))
+        return list(dict.fromkeys(str(c.get('barra') or nombre_corto(c['nodo']))
                                   for c in self.activas(k, alimentador)))
 
     def en_valle(self, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros, valle: Mapping[str, Any] | None,

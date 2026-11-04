@@ -338,7 +338,7 @@ def test_sigla_alternativa_valida_con_su_canonica(tmp_path, monkeypatch, layout)
 
     canon = lambda: {'AL': 'ALT'}
     for modulo in (naming, dgs, validate):
-        monkeypatch.setattr(modulo, '_siglas_canonicas', canon)
+        monkeypatch.setattr(modulo, 'siglas_canonicas', canon)
     ds = load_export(_spec(layout), tmp_path / layout)
     salida = tmp_path / f'out_{layout}'
     manifest = convert_selection(ds, None, str(salida), all_feeders=True, aliases={}, strict=True,

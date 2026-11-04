@@ -501,14 +501,14 @@ def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
     else:
         minima = proyectado.minima
         if minima is not None and minima.valor < limites.tension_min_pu:
-            excesos.append(f'tensión mínima de {_pu(minima.valor)} en {minima.donde}, '
-                           f'{_pu(limites.tension_min_pu - minima.valor)} por debajo de '
-                           f'{_pu(limites.tension_min_pu)}')
+            excesos.append(f'tensión mínima de {formato_pu(minima.valor)} en {minima.donde}, '
+                           f'{formato_pu(limites.tension_min_pu - minima.valor)} por debajo de '
+                           f'{formato_pu(limites.tension_min_pu)}')
         maxima = proyectado.tension_max
         if maxima is not None and maxima.valor > limites.tension_max_pu:
-            excesos.append(f'tensión máxima de {_pu(maxima.valor)} en {maxima.donde}, '
-                           f'{_pu(maxima.valor - limites.tension_max_pu)} por encima de '
-                           f'{_pu(limites.tension_max_pu)}')
+            excesos.append(f'tensión máxima de {formato_pu(maxima.valor)} en {maxima.donde}, '
+                           f'{formato_pu(maxima.valor - limites.tension_max_pu)} por encima de '
+                           f'{formato_pu(limites.tension_max_pu)}')
         carga = proyectado.cargabilidad_max
         if carga is not None and carga.valor > limites.cargabilidad_max_pct:
             excesos.append(f'cargabilidad de {numero(carga.valor, 1)} % en {carga.donde}, '
@@ -613,7 +613,7 @@ def numero(v: float, decimales: int) -> str:
     return f'{v:.{decimales}f}'.replace('.', ',')
 
 
-def _pu(v: float) -> str:
+def formato_pu(v: float) -> str:
     return f'{numero(v, 3)} p.u.'
 
 
@@ -627,7 +627,7 @@ def banda_texto(limites: Limites) -> str:
     abajo, arriba = 1.0 - limites.tension_min_pu, limites.tension_max_pu - 1.0
     if abs(abajo - arriba) < 1e-9 and abajo > 0:
         return f'±{_g(round(abajo * 100, 3))} % de la tensión nominal'
-    return f'entre {_pu(limites.tension_min_pu)} y {_pu(limites.tension_max_pu)}'
+    return f'entre {formato_pu(limites.tension_min_pu)} y {formato_pu(limites.tension_max_pu)}'
 
 
 def fecha_larga(fecha: date) -> str:
@@ -666,7 +666,7 @@ def redactar_tension(caso: Caso, limites: Limites, norma: str | None = None) -> 
     minima = caso.minima
     if minima is None:
         return 'El flujo de carga no dio la tensión de los nodos.'
-    texto = f'La tensión mínima del alimentador es de {_pu(minima.valor)} en el nodo {minima.donde}'
+    texto = f'La tensión mínima del alimentador es de {formato_pu(minima.valor)} en el nodo {minima.donde}'
     if caso.desequilibrado:
         texto += ' (fase ' + next(f for f, e in caso.tension_min.items() if e == minima) + ')'
     segun = f', conforme a lo establecido en la {norma}' if norma else ''
@@ -979,7 +979,7 @@ def conclusiones_estudio(alimentadores: list[str], actual: Caso, rec: Recomendac
     final = a_ejecutar[-1].caso if a_ejecutar else None
     if rec.etapa is not None and final is not None and final.minima is not None:
         puntos.append(f'Con la implementación de estas obras se logrará una tensión mínima de '
-                      f'{_pu(final.minima.valor)}, dentro del {banda_texto(limites)}{segun}, '
+                      f'{formato_pu(final.minima.valor)}, dentro del {banda_texto(limites)}{segun}, '
                       'mejorando la calidad del servicio eléctrico.')
     elif final is not None and final.converge:
         puntos.append('Con las obras evaluadas el alimentador todavía presenta '
@@ -999,7 +999,7 @@ def resumen_alternativa(n: int, etapa: Etapa, limites: Limites) -> str:
         return f'{que}: el flujo de carga no converge.'
     datos = []
     if caso.minima is not None:
-        datos.append(f'una tensión mínima de {_pu(caso.minima.valor)} en {caso.minima.donde}')
+        datos.append(f'una tensión mínima de {formato_pu(caso.minima.valor)} en {caso.minima.donde}')
     if caso.cargabilidad_max is not None:
         datos.append(f'una cargabilidad máxima de {numero(caso.cargabilidad_max.valor, 1)} %')
     logra = f' logra {" y ".join(datos)}' if datos else ''
@@ -1014,7 +1014,7 @@ def _incumplimientos(caso: Caso, limites: Limites) -> str:
     partes = []
     if not caso.cumple_tension(limites):
         m = caso.minima
-        partes.append(f'una tensión mínima de {_pu(m.valor)} en el nodo {m.donde}, fuera del '
+        partes.append(f'una tensión mínima de {formato_pu(m.valor)} en el nodo {m.donde}, fuera del '
                       f'{banda_texto(limites)}' if m else 'nodos fuera de los parámetros de tensión')
     if not caso.cumple_cargabilidad(limites):
         c, tr = caso.cargabilidad_max, caso.trafo_max
@@ -1182,9 +1182,9 @@ def _caso_cuantitativo(titulo: str, caso: Caso, limites: Limites, nominal: float
         partes.append(f', para una demanda nominal de {numero(nominal, 0)} kW')
     partes.append('.')
     if caso.minima is not None:
-        partes.append(f' La tensión mínima es de {_pu(caso.minima.valor)} en {caso.minima.donde}')
+        partes.append(f' La tensión mínima es de {formato_pu(caso.minima.valor)} en {caso.minima.donde}')
         if caso.tension_max is not None:
-            partes.append(f' y la máxima de {_pu(caso.tension_max.valor)} en {caso.tension_max.donde}')
+            partes.append(f' y la máxima de {formato_pu(caso.tension_max.valor)} en {caso.tension_max.donde}')
         partes.append(f'; {caso.nodos_fuera} nodos quedan fuera de {_g(limites.tension_min_pu)}–'
                       f'{_g(limites.tension_max_pu)} p.u.')
     if caso.cargabilidad_max is not None:
@@ -1211,11 +1211,11 @@ def conclusiones_por_caso(actual: Caso, cargas: Caso, proyectado: Caso, limites:
     cambio = proyectado.minima.valor - actual.minima.valor
     verbo = 'sube' if cambio >= 0 else 'baja'
     texto = (f'Frente al estado actual, con las obras la tensión mínima {verbo} {numero(abs(cambio), 3)} p.u. '
-             f'(de {_pu(actual.minima.valor)} a {_pu(proyectado.minima.valor)}) y los nodos fuera de la banda '
+             f'(de {formato_pu(actual.minima.valor)} a {formato_pu(proyectado.minima.valor)}) y los nodos fuera de la banda '
              f'pasan de {actual.nodos_fuera} a {proyectado.nodos_fuera}.')
     if cargas.converge and cargas.minima:
         solo = cargas.minima.valor - actual.minima.valor
-        texto += (f' Solo con la carga analizada y sin obras, la tensión mínima sería de {_pu(cargas.minima.valor)}, '
+        texto += (f' Solo con la carga analizada y sin obras, la tensión mínima sería de {formato_pu(cargas.minima.valor)}, '
                   f'{numero(abs(solo), 3)} p.u. {"más" if solo >= 0 else "menos"} que en el estado actual.')
     textos.append(texto)
     return textos

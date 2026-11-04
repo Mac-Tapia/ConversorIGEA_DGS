@@ -552,7 +552,7 @@ def evaluar_alumno(modelo, registros: list[dict]) -> dict:
 def _guardar_alumno(modelo, carpeta: Path, meta: dict):
     from . import transformer as tr
     carpeta.mkdir(parents=True, exist_ok=False)
-    tr._torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
+    tr.modulo_torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
     datos = {**meta, 'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
              'tareas': modelo.tareas, 'etiquetas': list(tr.ETIQUETAS),
              'temperatura': modelo.temperatura, **getattr(modelo, 'meta_extra', {})}
@@ -564,14 +564,14 @@ def cargar_alumno(carpeta: Path):
     meta = json.loads((Path(carpeta) / 'modelo.json').read_text(encoding='utf-8'))
     if 'codificador' in meta:                                                        # 069:RF-9
         from .codificador_ordenes import modelo_desde
-        return modelo_desde(meta, tr._torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'),
-                            meta.get('version', 'candidato'), tr._dispositivo())
+        return modelo_desde(meta, tr.modulo_torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'),
+                            meta.get('version', 'candidato'), tr.dispositivo_de_calculo())
     if meta.get('etiquetas') != list(tr.ETIQUETAS) or meta.get('tareas') != sorted(TAREAS):
         raise ValueError('contrato de tareas o entidades incompatible')
     cfg = tr.Configuracion(**meta['cfg'])
     red = tr.construir_red(len(meta['simbolos']) + 3, {'tarea': len(meta['tareas'])}, cfg, len(tr.ETIQUETAS))
-    red.load_state_dict(tr._torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'))
-    red.to(tr._dispositivo()).eval()
+    red.load_state_dict(tr.modulo_torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'))
+    red.to(tr.dispositivo_de_calculo()).eval()
     temperatura = meta.get('temperatura', 1.)
     if type(temperatura) not in (int, float) or not math.isfinite(temperatura) or temperatura <= 0:
         raise ValueError('temperatura de calibración inválida')
@@ -582,7 +582,7 @@ def cargar_alumno(carpeta: Path):
 def calibrar_temperatura(modelo, registros: list[dict]) -> dict:
     """Ajusta una sola temperatura usando únicamente la partición de calibración."""
     from . import transformer as tr
-    torch = tr._torch()
+    torch = tr.modulo_torch()
     if not registros or any(r['particion'] != 'calibracion' for r in registros):
         raise ValueError('calibración independiente obligatoria')
     disp = next(modelo.red.parameters()).device
@@ -667,7 +667,7 @@ def casos_funcionales(registros: list[dict], *, por_tarea: int = 1) -> list[dict
 def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int = 1) -> dict:
     """Diagnóstico de intérprete/plan con contextos sintéticos; no ejecuta sus acciones."""
     from .interprete import interpretar
-    from .plan import resolver, _trozos_lista
+    from .plan import resolver, trozos_lista
     resultados = []
     for r in casos_funcionales(registros, por_tarea=por_tarea):
         vocab = defaultdict(list)
@@ -675,7 +675,7 @@ def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int
         for a, b, tipo in r['datos']:
             valor = r['texto'][a:b]
             if tipo == 'alimentadores':
-                vocab[tipo].extend(_trozos_lista(valor))
+                vocab[tipo].extend(trozos_lista(valor))
             else:
                 vocab[tipo].append(valor)
         i = interpretar(r['texto'], transformer=modelo, ollama=ollama)
@@ -718,7 +718,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         raise ValueError('se conserva una ejecución existente; use otro destino')
     destino.mkdir(parents=True, exist_ok=True)
     cfg = cfg or co.Configuracion()
-    disp = tr._dispositivo()                                                         # 069:RF-6, 079:RF-10
+    disp = tr.dispositivo_de_calculo()                                                         # 069:RF-6, 079:RF-10
     tr.liberar_gpu()
     por_parte = {p: [r for r in filas if r['particion'] == p] for p in PARTES}
     codificador = co.obtener_codificador(co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR, disp)
@@ -743,9 +743,9 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                      (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
                       Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'),
                       Path(__file__).with_name('prueba_sellada_079.py'), Path(vc.__file__), Path(af.__file__))},
-                 'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
-                             'cuda': tr._torch().version.cuda,
-                             'gpu': tr._torch().cuda.get_device_name(0) if tr._torch().cuda.is_available() else None}}
+                 'entorno': {'python': platform.python_version(), 'torch': tr.modulo_torch().__version__,
+                             'cuda': tr.modulo_torch().version.cuda,
+                             'gpu': tr.modulo_torch().cuda.get_device_name(0) if tr.modulo_torch().cuda.is_available() else None}}
     codigo = destino / 'codigo'
     codigo.mkdir()
     for archivo in (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
@@ -769,7 +769,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                                'seleccion': seleccion, 'afinado': modelo.afinado})     # 079:RF-17
             (destino / 'seleccion.json').write_text(json.dumps(candidatos, ensure_ascii=False, indent=2), encoding='utf-8')
             del modelo
-            tr._torch().cuda.empty_cache()
+            tr.modulo_torch().cuda.empty_cache()
     elegido = elegir_candidato(candidatos)
     # El ganador queda registrado antes de leer calibración o prueba.
     (destino / 'ganador_seleccion.json').write_text(json.dumps(elegido, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -782,13 +782,13 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         vedadas += [vc.clave_de_familia(t) for t in (*(reservados or ()), *vedadas_extra)]
         validacion = vc.ejecutar(filas_humanas, base if elegido['metodo'] == 'supervisado' else [*base, *maestro], vedadas,
                                  cfg=replace(cfg, semilla=elegido['semilla']), cache=cache, dispositivo=disp,
-                                 liberar=tr._torch().cuda.empty_cache, log=lambda m: log(m, flush=True))
+                                 liberar=tr.modulo_torch().cuda.empty_cache, log=lambda m: log(m, flush=True))
         carpeta = destino / 'con-confirmadas'
         _guardar_alumno(validacion.modelo_final, carpeta, {'version': carpeta.name, 'metodo': elegido['metodo'],
                         'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
         elegido = {**elegido, 'path': str(carpeta.resolve()), 'con_confirmadas': validacion.informe['confirmadas_que_entrenan']}
         validacion.modelo_final = None
-        tr._torch().cuda.empty_cache()
+        tr.modulo_torch().cuda.empty_cache()
     # La reapertura abre otro codificador en otro proceso: la caché ya no hace falta y al equipo le falta memoria.
     cache.filas.clear()
     modelo = cargar_alumno(Path(elegido['path']))
@@ -853,7 +853,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     esperado = [modelo.predecir(t) for t in textos]
     (final / 'readback.json').write_text(json.dumps({'textos': textos, 'predicciones': esperado}, ensure_ascii=False), encoding='utf-8')
     del modelo
-    tr._torch().cuda.empty_cache()
+    tr.modulo_torch().cuda.empty_cache()
     herramienta = Path(__file__).resolve().parents[3] / 'tools/asistente_destilar.py'
     # Abrir el codificador tardó hasta 70 s con el equipo ocupado (2026-11-02): 120 s se quedaban justos.
     smoke = reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--modelo', str(final.resolve())], timeout_s=300.)

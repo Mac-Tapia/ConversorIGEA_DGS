@@ -13,9 +13,9 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
                      hojas: tuple[str,...] = (), desde: str | None = None,
                      hasta: str | None = None) -> tuple[dict,dict]:
     """Consume los lectores de cabecera existentes; nunca rellena huecos con cero."""
-    from ..demanda_medida import _abrir,_filas,_registros_hoja,ALIAS
+    from ..demanda_medida import abrir_libro,filas_de_hoja,registros_de_hoja,ALIAS
     from ..cabecera_ancha import instante
-    from .series_causales import preparar_serie, _instante
+    from .series_causales import preparar_serie, instante_local
     from zoneinfo import ZoneInfo
     from ..trabajadores_ml import sha_archivo
     if not ruta.is_file():raise ValueError('no existe el libro de cabeceras')
@@ -23,8 +23,8 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
     if not zona_horaria:raise ValueError('indique --zona-horaria para las fechas del libro')
     zona=ZoneInfo(zona_horaria)
     if bool(desde)!=bool(hasta):raise ValueError('declare ambos límites desde/hasta')
-    inicio=_instante(desde,zona) if desde else None
-    fin=_instante(hasta,zona) if hasta else None
+    inicio=instante_local(desde,zona) if desde else None
+    fin=instante_local(hasta,zona) if hasta else None
     if inicio is not None and inicio>=fin:raise ValueError('intervalo temporal vacío o invertido')
     if codigos and hojas:raise ValueError('seleccione códigos de libro ancho u hojas, no ambos')
     series={};fechas={};omitidas=[]
@@ -34,11 +34,11 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         crudas={n:[(t,pq[0],None) for t,pq in sorted(s.items())] for n,s in lectura.series.items()}
         if set(crudas)!=set(codigos):raise ValueError('faltan codigos solicitados en el libro ancho')
     else:
-        libro=_abrir(ruta);crudas={}
+        libro=abrir_libro(ruta);crudas={}
         try:
             if set(hojas)-set(libro.sheet_names):raise ValueError('faltan hojas solicitadas en el libro')
             for nombre in hojas or libro.sheet_names:
-                registros,usadas=_registros_hoja(_filas(libro,nombre),ALIAS)
+                registros,usadas=registros_de_hoja(filas_de_hoja(libro,nombre),ALIAS)
                 if 'kw' not in usadas:
                     if hojas:raise ValueError(f'{nombre}: hoja solicitada sin columna kW')
                     omitidas.append(nombre);continue
@@ -60,7 +60,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         for t,v,fila in lectura:
             if t is None:raise ValueError(f'{nombre}: fila {fila}: fecha ausente/inválida')
             try:
-                utc=_instante(t.isoformat(),zona)
+                utc=instante_local(t.isoformat(),zona)
             except ValueError as exc:
                 raise ValueError(f'{nombre}: fila {fila}: fecha inválida: {exc}') from exc
             if inicio is not None and not inicio<=utc<fin:

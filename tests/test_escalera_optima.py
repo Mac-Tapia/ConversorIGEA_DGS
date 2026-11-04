@@ -269,7 +269,7 @@ def test_la_seccion_sube_de_una_en_una(semilla):
     vs, _ = eo.variantes('F1', kv, troncal, carga, tipos, P, banco_kvar=None)
     secciones = [v for v in vs if v.escalones == ('seccion',)]
     nombres = [v.obras[0]['tipo']['nombre'] for v in secciones]
-    aptos = [t['nombre'] for t in eo._conductores(tipos, kv, max(float(t['corriente_a']) for t in troncal))]
+    aptos = [t['nombre'] for t in eo.conductores_aptos(tipos, kv, max(float(t['corriente_a']) for t in troncal))]
     assert nombres == aptos and len(nombres) == len(set(nombres)), semilla
     evaluadas = [{'nombre': v.nombre, 'maxima': True, 'fraccion': 1.0, 'escalones': v.escalones,
                   'costo': {'costo_anual': 100.0 * (i + 1)}, 'motivos': []} for i, v in enumerate(secciones)]
@@ -286,7 +286,7 @@ def test_la_seccion_solo_cambia_los_tramos_mas_delgados(semilla):
     kv = 22.9
     troncal = _troncal(rng)
     tipos = _tipos(kv)
-    aptos = eo._conductores(tipos, kv, max(float(t['corriente_a']) for t in troncal))
+    aptos = eo.conductores_aptos(tipos, kv, max(float(t['corriente_a']) for t in troncal))
     if not aptos:
         pytest.skip('sin conductor apto en el sorteo')
     inoms = sorted({float(t['datos']['sline']) * 1000 for t in aptos})

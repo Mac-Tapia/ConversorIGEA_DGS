@@ -673,7 +673,7 @@ def unresolved_line_type_codes(
     return unresolved
 
 
-def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
+def calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     value_type = row.get('ValueType', '')
     value1 = _float(row.get('Value1'))
     value2 = _float(row.get('Value2'))
@@ -1183,14 +1183,24 @@ COINCIDENT_NODE_TOLERANCE_M = 0.01
 """Diferencia máxima de coordenadas para reconocer IDs duplicados del mismo punto."""
 
 
+#: Códigos de tipo que marcan un tramo puente en CYMDIST. Viven en el modelo porque este
+#: los necesita al construir, y ``puentes`` ya depende del modelo (002:RF-4).
+CODIGOS_PUENTE = ('DEFAULT',)
+
+#: Longitud máxima de un puente. En 260924.mdb los 1.791 puentes miden como mucho 5 m.
+#: Un tramo ``DEFAULT`` más largo es una línea real cuyo conductor no se conoce: se
+#: modela como línea (con el tipo DEFAULT del catálogo) y NO se funde, porque fundirlo
+#: borraría su impedancia y su longitud. Mismo umbral que la carga a mitad de tramo
+#: (model.LARGO_MAXIMO_CARGA_CENTRAL_M): por debajo de 10 m el error es despreciable.
+LARGO_MAXIMO_PUENTE_M = 10.0
+
+
 def _short_default_node_aliases(
     dataset: CymdistDataset,
     network_id: str,
     source_node: str,
 ) -> dict[str, str]:
     """Repara solo el endpoint aislado de un puente corto con coordenada duplicada."""
-    from .puentes import CODIGOS_PUENTE, LARGO_MAXIMO_PUENTE_M
-
     degree: dict[str, int] = defaultdict(int)
     adjacency: dict[str, list[str]] = defaultdict(list)
     short_defaults: set[str] = set()
@@ -1404,7 +1414,7 @@ def build_feeder_model(
         node_id = _load_node(location, line, strict)
         if node_id is None:
             continue
-        p_mw, q_mvar, pf = _calc_p_q(row)
+        p_mw, q_mvar, pf = calc_p_q(row)
         customer_number = row.get('CustomerNumber', '')
         # 080:RF-44: primero lo que declara la fuente. Sin eso, el extractor no reconoce
         # «12027990» y cae al código del tramo, y la SED se llamaría como el tramo.

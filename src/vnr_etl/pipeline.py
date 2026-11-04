@@ -73,7 +73,7 @@ def safe_extract_package(source: Path | str, destination: Path | str) -> Extract
         )
 
 
-def _geojson_rows(path: Path) -> tuple[list[dict], str]:
+def geojson_rows(path: Path) -> tuple[list[dict], str]:
     payload = json.loads(path.read_text(encoding='utf-8-sig'))
     if payload.get('type') != 'FeatureCollection' or not isinstance(payload.get('features'), list):
         raise ValueError(f'{path.name} no es un FeatureCollection GeoJSON.')
@@ -100,7 +100,7 @@ def canonicalize_vnr_package(
     for path in iter_supported_sources(package_root):
         try:
             if path.suffix.lower() in ('.geojson', '.json'):
-                rows, crs = _geojson_rows(path)
+                rows, crs = geojson_rows(path)
                 layer_name = path.name
             else:
                 adapter = resolve_adapter(str(path))
@@ -317,7 +317,7 @@ def select_source_scope(
     periods = sorted({
         str(row.get(period_field)).strip() for row in selected
         if period_field and row.get(period_field) not in (None, '')
-    }, key=_period_key)
+    }, key=period_key)
     requested_period = (period or '').strip()
     if not requested_period and len(periods) > 1:
         raise ValueError(
@@ -340,7 +340,7 @@ def select_source_scope(
     return selected, {'company': selected_company, 'period': selected_period}
 
 
-def _period_key(value: str) -> tuple:
+def period_key(value: str) -> tuple:
     numbers = tuple(int(item) for item in re.findall(r'\d+', value))
     return (*numbers, value)
 

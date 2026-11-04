@@ -376,7 +376,7 @@ def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None, log:
              *, cache: CacheCodificada, dispositivo) -> ModeloCodificador:
     """Las dos cabezas sobre el codificador congelado; las semillas no cambian lo que él da.
 
-    El dispositivo lo da quien llama, con ``transformer._dispositivo``: sin GPU, su error de siempre, sin caer a la
+    El dispositivo lo da quien llama, con ``transformer.dispositivo_de_calculo``: sin GPU, su error de siempre, sin caer a la
     CPU (069:RF-6). Aquí no hay ningún valor por defecto que permita caer.
     """
     torch = _torch()

@@ -13,7 +13,7 @@ import random
 from .contratos_salida import validar_orden
 from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
 # El corpus del ajuste generativo se selló con estas tareas; el catálogo nuevo no lo cambia (070, limitaciones).
-from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS
+from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS, sistema_alumno
 from ..evaluacion_modelos import huella, texto_canonico
 
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
@@ -375,18 +375,6 @@ def validar_corpus_real(filas: list[dict], meta: dict, *, custodia: CustodiaCorp
         verificar_fuente(f, custodia=custodia)
 
 
-def sistema_alumno() -> str:
-    """El mismo contrato compacto se usa para ajuste y para atender ordenes."""
-    catalogo = '\n'.join(f'{t.nombre}: {t.descripcion} Campos: '
-        + ','.join(d.tipo for d in t.datos) for t in TAREAS.values())
-    return ('Interpreta una solicitud del operador del conversor de redes electricas. '
-        'Devuelve solo JSON con tarea, datos y confianza. Elige exactamente una tarea del catalogo. '
-        'datos es un objeto de listas de textos literales copiados de la solicitud. '
-        'No inventes entidades ni declares haber ejecutado acciones. No agregues campos de otras tareas. '
-        'Si no corresponde a ninguna tarea devuelve tarea null, datos {} y confianza 0. '
-        'La respuesta propone una solicitud; la web verifica fuentes, permisos y confirmacion.\n' + catalogo)
-
-
 def sellar_particiones(dataset: Path, destino: Path) -> dict:
     """El entrenador no necesita abrir los textos de prueba para validar su entrada."""
     import shutil
@@ -578,7 +566,7 @@ def config_exportacion(original: dict) -> dict:
 
 
 def validar_reanudacion(estado: dict, configuracion: dict, epoca: int, base: dict) -> None:
-    from .llm_runtime import validar_base_checkpoint
+    from .llm_checkpoint import validar_base_checkpoint
     validar_base_checkpoint(estado,base)
     if estado['configuracion'] != configuracion or estado['epoca'] not in (epoca,epoca-1):
         raise ValueError('checkpoint incompatible con datos/configuracion/epoca')
@@ -609,7 +597,7 @@ def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path 
     estado_previo = None
     base=ficha_base()
     if desde:
-        from .llm_runtime import verificar_checkpoint
+        from .llm_checkpoint import verificar_checkpoint
         estado_previo = verificar_checkpoint(desde, exigir_completo=False)
         validar_reanudacion(estado_previo,configuracion,epoca,base)
     destino.mkdir(parents=True)
@@ -739,7 +727,7 @@ def exportar_fusionado(destino: Path, adaptador: Path | None = None, *, log=prin
         raise ValueError('destino existente conservado')
     base=ficha_base()
     if adaptador:
-        from .llm_runtime import verificar_checkpoint, validar_base_checkpoint
+        from .llm_checkpoint import verificar_checkpoint, validar_base_checkpoint
         estado=verificar_checkpoint(adaptador.parent)
         validar_base_checkpoint(estado,base)
     destino.mkdir(parents=True)

@@ -36,13 +36,13 @@ def feeder_short_name(network_id: str) -> str:
         return (network_id or '').strip()
     m = re.match(r'([A-Za-z]+)(\d.*)$', nombre)
     if m:
-        canonicas = _siglas_canonicas()
+        canonicas = siglas_canonicas()
         if m.group(1).upper() in canonicas:
             return canonicas[m.group(1).upper()] + m.group(2)
     return nombre
 
 
-def _siglas_canonicas() -> dict[str, str]:
+def siglas_canonicas() -> dict[str, str]:
     """``{siglas alternativas: canónicas}`` de la estructura del perfil activo, leída una vez
     por versión del perfil (ruta y fecha del fichero)."""
     try:
@@ -65,7 +65,7 @@ def nombre_canonico(nombre: str, canonicas: dict[str, str] | None = None) -> str
     aunque el alimentador ya se llamaba CHN101: ``NODE_2030_1192582_CHN101``. Solo cambia las
     siglas alternativas de la estructura del perfil; sin perfil, el nombre tal cual.
     """
-    canonicas = _siglas_canonicas() if canonicas is None else canonicas
+    canonicas = siglas_canonicas() if canonicas is None else canonicas
     if not canonicas or not nombre:
         return nombre
     return _TROZO.sub(lambda m: canonicas.get(m.group(1).upper(), m.group(1)) + m.group(2)

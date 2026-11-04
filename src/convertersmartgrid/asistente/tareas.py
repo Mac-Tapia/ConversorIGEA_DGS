@@ -340,3 +340,15 @@ def descripcion_para_modelo() -> list[dict]:
     return [{'tarea': t.nombre, 'descripcion': t.descripcion,
              'datos': {d.nombre: {'tipo': d.tipo, 'obligatorio': d.obligatorio, 'que_es': d.descripcion}
                        for d in t.datos}} for t in _TAREAS]
+
+
+def sistema_alumno() -> str:
+    """El mismo contrato compacto se usa para ajuste y para atender ordenes."""
+    catalogo = '\n'.join(f'{t.nombre}: {t.descripcion} Campos: '
+        + ','.join(d.tipo for d in t.datos) for t in TAREAS_HASTA_069.values())
+    return ('Interpreta una solicitud del operador del conversor de redes electricas. '
+        'Devuelve solo JSON con tarea, datos y confianza. Elige exactamente una tarea del catalogo. '
+        'datos es un objeto de listas de textos literales copiados de la solicitud. '
+        'No inventes entidades ni declares haber ejecutado acciones. No agregues campos de otras tareas. '
+        'Si no corresponde a ninguna tarea devuelve tarea null, datos {} y confianza 0. '
+        'La respuesta propone una solicitud; la web verifica fuentes, permisos y confirmacion.\n' + catalogo)

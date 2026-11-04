@@ -92,6 +92,7 @@ config/perfil_empresa.json
 # Alias y nombres de columna de una distribuidora (spec 009, RF-14): como el perfil de
 # empresa, viven en local. Se versionan solo los ``*.example.json``.
 config/line_type_aliases.json
+config/modulos_permitidos.json
 config/demanda_medida_alias.json
 
 # Instantáneas del navegador de las pruebas desde la web (Playwright).

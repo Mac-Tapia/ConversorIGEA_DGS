@@ -8,7 +8,7 @@ retirada.
 | Spec | Nombre | Estado | RF | RF con prueba | Tareas abiertas |
 | --- | --- | --- | --- | --- | --- |
 | [001](001-reorganizacion/spec.md) | Reorganización: una responsabilidad, un sitio | cumplida | 35 | 35 | — |
-| [002](002-arquitectura-por-capas/spec.md) | Arquitectura por capas y módulos enchufables | aprobada | 37 | 14 | T2, T3, T4, T6, T7, T8, T9, T10, T11, T12 |
+| [002](002-arquitectura-por-capas/spec.md) | Arquitectura por capas y módulos enchufables | aprobada | 37 | 31 | T7, T8, T9, T11, T12 |
 | [003](003-integracion-web-retiro-gui/spec.md) | Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | reservada | 0 | 0 | — |
 | [004](004-cargas-en-powerfactory/spec.md) | Cargas en un proyecto existente de DIgSILENT | cumplida | 67 | 67 | — |
 | [005](005-carpeta-de-proyectos-pf/spec.md) | Carpeta de proyectos importados en DIgSILENT | implementada | 21 | 21 | T12 (DIgSILENT) |

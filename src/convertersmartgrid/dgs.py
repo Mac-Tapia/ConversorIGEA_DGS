@@ -10,7 +10,7 @@ from typing import Mapping
 import math
 
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
-from .naming import _siglas_canonicas, nombre_canonico, nombre_con_tension, sufijo_tension
+from .naming import siglas_canonicas, nombre_canonico, nombre_con_tension, sufijo_tension
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -246,7 +246,7 @@ def _capacitor_technology(phases: str) -> tuple[int, int]:
 LineNeighborIndex = dict[str, list[tuple[str, Line]]]
 
 
-def _line_neighbors(model: FeederModel) -> LineNeighborIndex:
+def line_neighbors(model: FeederModel) -> LineNeighborIndex:
     """Build the node adjacency index.
 
     Callers must build this **once** per model and pass it down via the
@@ -288,7 +288,7 @@ def diagram_anchor_node(
     adjacency index for a single lookup.
     """
     max_stub_m = _umbral_tramo_oculto(model, max_stub_m)
-    index = _line_neighbors(model) if neighbors is None else neighbors
+    index = line_neighbors(model) if neighbors is None else neighbors
     adjacent = index.get(node_id, ())
     if len(adjacent) != 1:
         return node_id
@@ -314,7 +314,7 @@ def is_micro_service_stub_line(
     max_stub_m = _umbral_tramo_oculto(model, max_stub_m)
     if line.length_m > max_stub_m:
         return False
-    index = _line_neighbors(model) if neighbors is None else neighbors
+    index = line_neighbors(model) if neighbors is None else neighbors
     if diagram_anchor_node(model, line.from_node, max_stub_m=max_stub_m, neighbors=index) == line.to_node:
         return True
     if diagram_anchor_node(model, line.to_node, max_stub_m=max_stub_m, neighbors=index) == line.from_node:
@@ -329,7 +329,7 @@ def diagram_line_sections(
     neighbors: LineNeighborIndex | None = None,
 ) -> set[str]:
     """SectionIDs that receive IntGrf d_lin (excludes micro service stubs)."""
-    index = _line_neighbors(model) if neighbors is None else neighbors
+    index = line_neighbors(model) if neighbors is None else neighbors
     return {
         line.section_id
         for line in model.lines
@@ -404,7 +404,7 @@ def visible_pointterm_nodes(
     - micro service-stub tips (≤1 m) whose ``d_lin`` is omitted — never added,
       because anchors resolve to the primary bus
     """
-    index = _line_neighbors(model) if neighbors is None else neighbors
+    index = line_neighbors(model) if neighbors is None else neighbors
     if drawn is None:
         drawn = diagram_line_sections(model, neighbors=index)
     visible: set[str] = {model.source_node}
@@ -568,7 +568,7 @@ def _diagram_symbol_layout(
     )
 
 
-def _geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tuple[float, float]:
+def geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tuple[float, float]:
     """Local equirectangular meters — preserves X/Y aspect ratio."""
     meters_per_deg_lat = 110540.0
     meters_per_deg_lon = 111320.0 * math.cos(math.radians(origin_lat))
@@ -613,13 +613,13 @@ def _geography_meter_frame(
     origin_lat = sum(lats) / len(lats)
     origin_lon = sum(lons) / len(lons)
     meter_xy = {
-        node_id: _geo_to_meters(point, origin_lat, origin_lon)
+        node_id: geo_to_meters(point, origin_lat, origin_lon)
         for node_id, point in geography.nodes.items()
     }
     extras: list[tuple[float, float]] = []
     for gline in geography.lines.values():
         for point in gline.path:
-            extras.append(_geo_to_meters(point, origin_lat, origin_lon))
+            extras.append(geo_to_meters(point, origin_lat, origin_lon))
     return origin_lat, origin_lon, meter_xy, extras
 
 
@@ -651,7 +651,7 @@ def _diagram_mapper_hoja(geography: GeographyManifest, formato: str):
     oy = (alto - span_y * escala) / 2.0 - ymin * escala
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
-        x_m, y_m = _geo_to_meters(point, origin_lat, origin_lon)
+        x_m, y_m = geo_to_meters(point, origin_lat, origin_lon)
         return x_m * escala + ox, y_m * escala + oy
 
     sheet = DiagramSheet(scale=escala, xmin=0.0, ymin=0.0, xmax=ancho, ymax=alto,
@@ -679,7 +679,7 @@ def _diagram_mapper(
     )
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
-        x_m, y_m = _geo_to_meters(point, origin_lat, origin_lon)
+        x_m, y_m = geo_to_meters(point, origin_lat, origin_lon)
         return x_m * scale, y_m * scale
 
     sheet_points = [map_point(p) for p in geography.nodes.values()]
@@ -867,7 +867,7 @@ def _sed_stype(sed: Sed) -> str:
     return ''
 
 
-def _tr2_strn_mva(design_kva: float) -> float:
+def tr2_strn_mva(design_kva: float) -> float:
     """Transformer rated power in MVA (NA205 TypTr2.strn)."""
     return max(float(design_kva), 1.0) / 1000.0
 
@@ -876,7 +876,7 @@ def _tr2_strn_mva(design_kva: float) -> float:
 NA205_TR2_UK_PCT = 4.0
 
 
-def _tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tuple[float, float]:
+def tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tuple[float, float]:
     """Pérdidas ``(cobre, hierro)`` en kW, coherentes con la potencia y con ``uk``.
 
     Hay una restricción física que PowerFactory comprueba y que es fácil violar por
@@ -884,7 +884,7 @@ def _tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tu
     total. En porcentaje, ``uR% = Pcu / Sn · 100`` debe ser menor que ``uk%``.
 
     La versión anterior calculaba ``Pcu = max(Sn·10, 0.1) kW`` con un suelo fijo de
-    0,1 kW. Ese suelo, combinado con el suelo de 1 kVA de :func:`_tr2_strn_mva`, daba
+    0,1 kW. Ese suelo, combinado con el suelo de 1 kVA de :func:`tr2_strn_mva`, daba
     para una SED de potencia declarada 0 un ``uR%`` del 10 % frente a un ``uk%`` del
     4 %: impedancia imposible. **Y PowerFactory no la descarta sola: rechaza el cálculo
     entero.** Una SED así entre 7.282 dejaba sin flujo de potencia a toda la red, con
@@ -912,7 +912,7 @@ def _tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tu
     return min(pcu_kw, tope_kw), min(pfe_kw, tope_kw)
 
 
-def _tr2_curmg_pct(design_kva: float, pfe_kw: float) -> float:
+def tr2_curmg_pct(design_kva: float, pfe_kw: float) -> float:
     """Corriente de vacío en %, nunca por debajo de la que exigen las pérdidas.
 
     PowerFactory comprueba que la corriente de vacío no sea menor que su componente
@@ -967,10 +967,10 @@ def write_dgs(
     ``trafos`` son los datos de catálogo de los transformadores de SED por potencia
     en kVA —``uk_pct``, ``Pk_W``, ``Po_W`` y opcionalmente ``io_pct``— (ver
     :func:`convertersmartgrid.catalog.leer_trafos`). Una potencia que el catálogo trae completa
-    usa esos valores; las demás, los máximos del Reglamento (:func:`_tr2_losses_kw`).
+    usa esos valores; las demás, los máximos del Reglamento (:func:`tr2_losses_kw`).
     """
     global _CANONICAS
-    _CANONICAS = _siglas_canonicas()                                   # 027:T23, una vez por DGS
+    _CANONICAS = siglas_canonicas()                                   # 027:T23, una vez por DGS
     schema = load_schema(schema_profile)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1097,7 +1097,7 @@ def write_dgs(
 
     def clave_tr2(sed) -> tuple:
         # One TypTr2 per distinct (strn, utrn_h, utrn_l); 054:RF-4: y sus fases si no es trifásica.
-        clave = (round(_tr2_strn_mva(sed.design_kva), 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
+        clave = (round(tr2_strn_mva(sed.design_kva), 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
         n = len(fases_sed[(sed.section_id, sed.device_number)])
         return clave if n == 3 else clave + (n,)
 
@@ -1251,7 +1251,7 @@ def write_dgs(
         nfases = clave_tipo[3] if len(clave_tipo) > 3 else 3
         # Pérdidas del Reglamento (UE) 548/2014 y recortadas para que uR% < uk%.
         # El suelo fijo anterior violaba esa condición en una SED de 0 kVA y
-        # PowerFactory rechazaba el cálculo de TODA la red (ver _tr2_losses_kw).
+        # PowerFactory rechazaba el cálculo de TODA la red (ver tr2_losses_kw).
         kva = strn * 1000.0
         uk = NA205_TR2_UK_PCT
         ficha = (trafos or {}).get(round(kva, 3))
@@ -1262,13 +1262,13 @@ def write_dgs(
             pcutr = min(float(ficha['Pk_W']) / 1000.0, uk * 0.95 * kva / 100.0)
             pfe_kw = float(ficha['Po_W']) / 1000.0
             io = float(ficha.get('io_pct') or 0.0)
-            curmg = max(io, pfe_kw / kva * 100.0 * 1.05) if io else _tr2_curmg_pct(kva, pfe_kw)
+            curmg = max(io, pfe_kw / kva * 100.0 * 1.05) if io else tr2_curmg_pct(kva, pfe_kw)
         else:
-            pcutr, pfe_kw = _tr2_losses_kw(kva, uk_pct=uk)
+            pcutr, pfe_kw = tr2_losses_kw(kva, uk_pct=uk)
             # Corriente de vacío coherente con las pérdidas en hierro: si curmg queda
             # en cero pero pfe no, PowerFactory avisa por cada transformador —909
             # avisos en trece alimentadores— y la recalcula sola.
-            curmg = _tr2_curmg_pct(kva, pfe_kw)
+            curmg = tr2_curmg_pct(kva, pfe_kw)
         rows['TypTr2'].append(_make_row(
             schema, 'TypTr2', FID=fid, OP='C',
             loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'
@@ -1616,7 +1616,7 @@ def write_dgs(
     if geography is not None:
         # Build the adjacency index and the drawn-section set once for the whole
         # graphic layer; every helper below reuses them.
-        neighbors = _line_neighbors(model)
+        neighbors = line_neighbors(model)
         drawn_line_sections = diagram_line_sections(model, neighbors=neighbors)
         visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_line_sections)
         formato = getattr(model, 'diagram_sheet', None)

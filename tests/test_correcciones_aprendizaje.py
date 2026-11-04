@@ -76,10 +76,10 @@ def test_custodia_politica_copia_inmutable_y_detecta_cambio(tmp_path):
     ([date(2025,1,2),datetime(2025,1,2,5,15)],datetime(2025,1,2,5,15))])
 def test_fecha_local_medianoche_no_salta_a_timestamp(fechas,esperada):
     """060:RF-5: prioridad por columna temporal, incluidas celdas date a medianoche."""
-    from convertersmartgrid.demanda_medida import _registros_hoja,ALIAS
+    from convertersmartgrid.demanda_medida import registros_de_hoja,ALIAS
     anterior=datetime(2025,1,1,23,45) if esperada.hour==0 else date(2025,1,1)
     filas=[['Local Time','Timestamp','kW tot'],[anterior,datetime(2025,1,2,4,45),1], [*fechas,2]]
-    registros,_=_registros_hoja(filas,ALIAS)
+    registros,_=registros_de_hoja(filas,ALIAS)
     assert registros[-1].fecha==esperada
 
 

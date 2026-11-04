@@ -38,12 +38,12 @@ def test_siglas_canonicas_del_perfil(monkeypatch):
     nada cambia."""
     from convertersmartgrid import naming
 
-    monkeypatch.setattr(naming, '_siglas_canonicas', lambda: {'CN': 'CHN'})
+    monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {'CN': 'CHN'})
     assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CHN101'
     assert naming.feeder_short_name('NET_2030_1192601_cn201') == 'CHN201'
     assert naming.feeder_short_name('NET_2030_131_CA101') == 'CA101'
     assert naming.feeder_short_name('ALIMENTADOR-CN') == 'CN'
-    monkeypatch.setattr(naming, '_siglas_canonicas', lambda: {})
+    monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {})
     assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CN101'
 
 

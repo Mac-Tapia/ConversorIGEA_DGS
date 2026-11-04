@@ -294,12 +294,12 @@ def test_digsilent_confirma_y_si_discrepa_manda_el(monkeypatch, tmp_path):
 
 def _lectura(ora, obras, rol, *, perdidas_kw=None, variaciones=(), quitar=()):
     """La lectura de ``digital_twin_snapshot_pf.py`` tras reabrir, con el flujo que da el oráculo para ``obras``."""
-    from convertersmartgrid.digital_twin.evolutivo import _nombre_corto
+    from convertersmartgrid.digital_twin.evolutivo import nombre_corto
 
     m = ora.medir(obras, len(ora.nuevas))
     grafo = ora.grafo
-    flujo = {'tensiones': {'unidad': 'p.u.', 'valores': {n: m.u[_nombre_corto(n)] for n in grafo['nodos']
-                                                         if _nombre_corto(n) in m.u}},
+    flujo = {'tensiones': {'unidad': 'p.u.', 'valores': {n: m.u[nombre_corto(n)] for n in grafo['nodos']
+                                                         if nombre_corto(n) in m.u}},
              'perdidas': {'unidad': 'kW', 'valores': {'total': m.perdidas_kw if perdidas_kw is None else perdidas_kw}},
              'cargabilidad': {'unidad': '%', 'valores': {'lineas': dict(m.carga)}}}
     for bloque in quitar:

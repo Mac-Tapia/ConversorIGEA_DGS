@@ -11,6 +11,7 @@ from ..catalog_resolution import CatalogSource
 from ..reconstruction import EvidenceLevel, ReconstructionPolicy
 from ..reconstruction_pipeline import PASOS, catalogos_del_fichero, reconstruir_seleccion
 from .readiness import assess_feeder_readiness
+from .requisitos import UserError, require_active_source_run, require_loaded
 from .workspace import Workspace
 from ..util import write_json_atomic
 
@@ -25,8 +26,6 @@ def resolve_selection(
 
     inventory = list((ws.inventory or {}).get('feeders') or [])
     if not inventory:
-        from .services import UserError
-
         raise UserError('EMPTY_FEEDER_INVENTORY')
     by_key: dict[str, dict[str, Any]] = {}
     for row in inventory:
@@ -46,12 +45,8 @@ def resolve_selection(
                 selected.append(row)
                 seen.add(network_id)
         if unknown:
-            from .services import UserError
-
             raise UserError('UNKNOWN_FEEDER: ' + ', '.join(unknown))
     if not selected:
-        from .services import UserError
-
         raise UserError('EMPTY_FEEDER_SELECTION')
     return (
         [str(row['feeder']) for row in selected],
@@ -81,8 +76,6 @@ def diagnose_selection(
     ctx=None,
 ) -> dict[str, Any]:
     """Read-only diagnostics over the active original dataset."""
-
-    from .services import require_active_source_run, require_loaded
 
     require_loaded(ws)
     snapshot = require_active_source_run(ws)
@@ -127,8 +120,6 @@ def reconstruct_selection(
     Con ``ctx``, una cancelación antes de publicar deja activo el dataset anterior
     (RF-9): todo se construye sobre una copia y el espacio solo se toca al final.
     """
-
-    from .services import require_active_source_run, require_loaded
 
     require_loaded(ws)
     snapshot = require_active_source_run(ws)

@@ -320,7 +320,7 @@ def violacion_tension(v: np.ndarray, medir: np.ndarray, tension_min_pu: float, t
     return float(np.sum(np.maximum(tension_min_pu - vv, 0.0)) + np.sum(np.maximum(vv - tension_max_pu, 0.0)))
 
 
-def _nombre_corto(nodo: str) -> str:
+def nombre_corto(nodo: str) -> str:
     """El ``loc_name`` de una identidad ``Clase:ruta\\Nombre.Clase``."""
     return nodo.rsplit('\\', 1)[-1].rsplit(':', 1)[-1].rsplit('.', 1)[0]
 
@@ -407,13 +407,13 @@ def optimizar_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kva
             continue
         vistas.add(clave)
         alternativas.append({
-            'bancos': [{'nodo': nodos[i], 'barra': _nombre_corto(nodos[i]), 'modulos': int(k),
+            'bancos': [{'nodo': nodos[i], 'barra': nombre_corto(nodos[i]), 'modulos': int(k),
                         'q_kvar': float(k * kvar_modulo)} for i, k in enumerate(g) if k > 0],
             'inversion': inversion(g), 'coste_total': coste(g, s), 'perdidas_kw': perdidas_kw(s),
             'v_min': float(s.v[medir].min()) if medir.any() else None})
     return {
         'alternativas': alternativas,
-        'bancos': [{'nodo': nodos[i], 'barra': _nombre_corto(nodos[i]), 'modulos': int(k),
+        'bancos': [{'nodo': nodos[i], 'barra': nombre_corto(nodos[i]), 'modulos': int(k),
                     'q_kvar': float(k * kvar_modulo)} for i, k in enumerate(elegido) if k > 0],
         'factible': bool(factible), 'inversion': inversion(elegido), 'coste_total': coste(elegido, sol),
         'perdidas_kw': perdidas_kw(sol) if sol.convergio else None,
@@ -572,7 +572,7 @@ def red_del_gemelo(episodios: Sequence[Any]) -> dict | None:
         return grafo
     nodos = {n: escalar_nodo(d, 1.0 / factor)
              for n, d in grafo['nodos'].items()}
-    ramas = [{**r, 'cerrada': True} if _nombre_corto(str(r.get('id'))) in abiertos else r
+    ramas = [{**r, 'cerrada': True} if nombre_corto(str(r.get('id'))) in abiertos else r
              for r in grafo.get('ramas') or []]
     return {**grafo, 'nodos': nodos, 'ramas': ramas}
 
@@ -619,7 +619,7 @@ def afinar_bancos_pide(obras: list[dict], grafo: Mapping[str, Any], *, tension_m
     m = muestra(grafo)
     por_nombre: dict[str, list[int]] = {}
     for i, n in enumerate(m.ids):
-        por_nombre.setdefault(_nombre_corto(n), []).append(i)
+        por_nombre.setdefault(nombre_corto(n), []).append(i)
     kv = 10 ** m.x[:, 0]
     grupos: dict[tuple, list[dict]] = {}
     for o in obras:

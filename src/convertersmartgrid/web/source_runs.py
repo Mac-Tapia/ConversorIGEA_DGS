@@ -18,15 +18,26 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from ..sources.snapshot import (  # noqa: F401 - SourceFile/SourceSnapshot: API pública
     COMMON_SLOTS, MODE_SLOTS, SourceFile, SourceMode, SourceSnapshot,
     fingerprint as source_fingerprint,
 )
 
-if TYPE_CHECKING:  # pragma: no cover - solo para tipos, evita un ciclo de imports
-    from .workspace import Workspace
+
+class EspacioDeFuentes(Protocol):
+    """Lo que la custodia usa del espacio de trabajo; ``Workspace`` lo cumple (002:RF-4)."""
+
+    active_run_id: str | None
+    inputs: Any
+    lock: Any
+    options: Any
+    root: Path
+
+    def save(self) -> None:
+        ...
+
 
 _RUN_ID_RE = re.compile(r'^\d{8}T\d{6}-[a-f0-9]{12}$')
 
@@ -85,7 +96,7 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
         temporary.replace(path)
 
 
-def create_source_run(ws: Workspace) -> SourceSnapshot:
+def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
     """Copia solo las entradas del modo activo y activa la instantánea resultante."""
     raw_mode = str(ws.options.get('input_mode') or '')
     if not raw_mode:
@@ -146,7 +157,7 @@ def create_source_run(ws: Workspace) -> SourceSnapshot:
     return snapshot
 
 
-def load_source_run(ws: Workspace, run_id: str) -> SourceSnapshot:
+def load_source_run(ws: EspacioDeFuentes, run_id: str) -> SourceSnapshot:
     if not valid_run_id(run_id):
         raise ValueError(f'Identificador de ejecución inválido: {run_id!r}.')
     run_root = ws.root / 'runs' / run_id

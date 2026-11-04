@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .loads import (
-    LoadTemplateError, SUPPORTED_SUFFIXES, _normalise, _number, _power_conflict,
-    _resolve_power, canonical_columns, read_sheet,
+    LoadTemplateError, SUPPORTED_SUFFIXES, normalise_header, parse_number, power_conflict,
+    resolve_power, canonical_columns, read_sheet,
 )
 
 SCHEMA = 'convertersmartgrid-cargas-pf-v1'
@@ -266,17 +266,17 @@ def leer_hoja_nuevas(
     avisos = [] if avisos is None else avisos
     mapping = dict(canonical_columns(header))
     for index, raw in enumerate(header):
-        clave = _normalise(raw)
+        clave = normalise_header(raw)
         if clave in NUEVA_ALIASES:
             mapping[index] = NUEVA_ALIASES[clave]
     for index, raw in enumerate(header):
-        nombre = '' if index in mapping else _columna_por_patron(_normalise(raw))
+        nombre = '' if index in mapping else _columna_por_patron(normalise_header(raw))
         if nombre and nombre not in mapping.values():
             mapping[index] = nombre
     # 030:RF-13: las columnas de año de una carga fraccionada.
     etapas_de: dict[int, int] = {}
     for index, raw in enumerate(header):
-        m = _ANIO_DE_ETAPA.match(_normalise(raw)) if index not in mapping else None
+        m = _ANIO_DE_ETAPA.match(normalise_header(raw)) if index not in mapping else None
         if m:
             etapas_de[index] = int(m.group(1))
     # Sin columna de nombre ni de demanda, cada fila se saltaría como «resto de la hoja»
@@ -310,7 +310,7 @@ def leer_hoja_nuevas(
         malo = ''
         for nombre in ('Lat', 'Lon', 'CoordX', 'CoordY', 'kVA_instalado', 'Kw', 'Kvar',
                        '(kVA)', 'FP', 'tension_bt_kv', 'anio_ingreso'):
-            valor = _number(cell.get(nombre))
+            valor = parse_number(cell.get(nombre))
             if valor is not None and math.isnan(valor):
                 malo = f'{nombre}={cell.get(nombre)!r} no es un número'
                 break
@@ -323,7 +323,7 @@ def leer_hoja_nuevas(
             malo = f'año de ingreso {ingreso} no es un año entero'
         etapas = []
         for index, anio_etapa in sorted(etapas_de.items(), key=lambda x: x[1]):
-            v = _number(values[index]) if index < len(values) else None
+            v = parse_number(values[index]) if index < len(values) else None
             if v is not None and not math.isnan(v) and v > 0:
                 etapas.append((anio_etapa, float(v)))
         if not malo and numeros.get('FP') is not None and not 0 <= numeros['FP'] <= 1:
@@ -346,15 +346,15 @@ def leer_hoja_nuevas(
         if malo:
             errores.append(f'{donde}: {malo}')
             continue
-        kw, kvar, _kva, fp, _derivada, sin_datos = _resolve_power(
+        kw, kvar, _kva, fp, _derivada, sin_datos = resolve_power(
             numeros.get('Kw'), numeros.get('Kvar'), numeros.get('(kVA)'), numeros.get('FP'))
-        conflicto = _power_conflict(numeros.get('(kVA)'), numeros.get('FP'), kw, kvar)
+        conflicto = power_conflict(numeros.get('(kVA)'), numeros.get('FP'), kw, kvar)
         if conflicto:
             errores.append(f'{donde}: {conflicto}. Deje un solo par: Kw y Kvar, Kw y FP, o (kVA) y FP.')
             continue
         if sin_datos and etapas:
             # 030:RF-13: sin total, el total es la suma de sus partes.
-            kw, kvar, _kva, fp, _derivada, sin_datos = _resolve_power(
+            kw, kvar, _kva, fp, _derivada, sin_datos = resolve_power(
                 sum(x for _a, x in etapas), numeros.get('Kvar'), None, numeros.get('FP'))
         if sin_datos:
             errores.append(f'{donde}: sin demanda (Kw, o (kVA) y FP)')

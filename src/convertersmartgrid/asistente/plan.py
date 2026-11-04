@@ -101,7 +101,7 @@ def _nombrados(texto: str, opciones: Sequence[str]) -> list[str]:
     return [o for _p, o in sorted(hallados)]
 
 
-def _trozos_lista(valor: str) -> list[str]:
+def trozos_lista(valor: str) -> list[str]:
     return [p.strip() for p in re.split(r',|;|\s+y\s+|\s+e\s+|\s+', valor) if p.strip()]
 
 
@@ -188,7 +188,7 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
 
 
 def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Plan) -> list[str]:
-    crudos = [p for v in valores for p in _trozos_lista(v)]
+    crudos = [p for v in valores for p in trozos_lista(v)]
     if any(normalizar(p) in ('todos', 'todo', 'todos los alimentadores') for p in crudos) or (not crudos and re.search(
             r'\btodos los alimentadores\b', normalizar(texto))):
         if opciones:

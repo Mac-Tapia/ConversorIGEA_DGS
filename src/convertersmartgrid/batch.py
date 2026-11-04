@@ -35,7 +35,8 @@ from .model import ModelBuildError, build_feeder_model
 from .naming import feeder_short_name, sort_key_feeder
 from .preview import write_preview_geojson, write_preview_html
 from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
-from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset
+from .registro_modulos import Resolucion, instalar_en_proceso, resolver
+from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset, project_root
 from .util import nombre_seguro
 from .runtime_paths import staging_publicacion
 from .validate import parse_dgs, validate_dgs, write_validation_reports
@@ -330,9 +331,10 @@ def _convert_feeder(
 _WORKER_STATE: tuple[CymdistDataset, _FeederOptions] | None = None
 
 
-def _init_worker(dataset: CymdistDataset, opts: _FeederOptions) -> None:
+def _init_worker(dataset: CymdistDataset, opts: _FeederOptions, modulos: Resolucion | None = None) -> None:
     global _WORKER_STATE
     _WORKER_STATE = (dataset, opts)
+    instalar_en_proceso(modulos)      # 002:RF-29: lo que resolvió el principal, sin releer nada
 
 
 def _convert_in_worker(network_id: str, feeder: str, out_dir: Path) -> tuple[dict, list[str]]:
@@ -407,7 +409,7 @@ def _convert_parallel(
     total = len(networks)
     done = 0
     with _un_hilo_de_calculo(), ProcessPoolExecutor(
-        max_workers=n_workers, initializer=_init_worker, initargs=(dataset, opts),
+        max_workers=n_workers, initializer=_init_worker, initargs=(dataset, opts, resolver(project_root())),
     ) as pool:
         pending = {
             pool.submit(_convert_in_worker, network_id, names[network_id], out_dir): network_id

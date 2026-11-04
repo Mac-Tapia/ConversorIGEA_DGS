@@ -34,9 +34,9 @@ import numpy as np
 
 from ..evaluacion_modelos import PoliticaDeError, alcance_de, evaluar_candidato, particionar_registros
 from .buffer import BuferEpisodios, Consulta
-from .contratos_fisicos import VERSION_GRAFO, validar_alcance_fisico
+from .contratos_fisicos import VERSION_GRAFO, Z_ACOPLADOR_PU, validar_alcance_fisico
 from .episode import Clase, Episodio
-from .escenarios import Escenario, familia, particion
+from .escenarios import Escenario, familia, particion, reparto_del_sistema
 
 #: Potencia base del sistema por unidad (MVA).
 S_BASE = 10.0
@@ -44,9 +44,6 @@ S_BASE = 10.0
 CLASES_OBJETIVO = (Clase.ACCEPTED.value, Clase.COUNTERFACTUAL.value)
 #: Miembros del conjunto: la desviación entre ellos es la incertidumbre (RF-15).
 MIEMBROS = 3
-#: Tope de la impedancia de una rama en p.u. (r y x): un acoplador cerrado, sin impedancia en el
-#: grafo. Cambiarlo invalida los pesos entrenados con el anterior (027:RF-31).
-Z_ACOPLADOR_PU = 1e-6
 
 
 class Modelo(Protocol):
@@ -1074,8 +1071,6 @@ def _grupos(muestras: Sequence[Muestra], ids: Sequence[str], sistema: str | None
     episodio (RF-68, el de ``curva.reparto_del_sistema``)."""
     if not sistema:
         return particionar(muestras)
-    from .curva import reparto_del_sistema
-
     return {k: [muestras[i] for i in v]
             for k, v in reparto_del_sistema(ids, [m.familia for m in muestras]).items()}
 

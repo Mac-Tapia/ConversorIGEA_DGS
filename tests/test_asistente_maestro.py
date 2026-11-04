@@ -1283,7 +1283,7 @@ def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, o
             return False
 
     monkeypatch.setattr(trabajadores_ml, 'turno_gpu', Turno)
-    monkeypatch.setattr(transformer, '_dispositivo', lambda: 'cuda')
+    monkeypatch.setattr(transformer, 'dispositivo_de_calculo', lambda: 'cuda')
     import convertersmartgrid.digital_twin.oraculo as oraculo
 
     monkeypatch.setattr(oraculo, 'dispositivo', lambda: 'cuda')
@@ -1467,7 +1467,7 @@ def test_curriculo_decide_la_sellada_y_la_historica_se_mide_sin_decidir(tmp_path
     monkeypatch.setattr(tr, 'liberar_gpu', lambda: None)
     import torch
 
-    monkeypatch.setattr(tr, '_dispositivo', lambda: torch.device('cpu'))
+    monkeypatch.setattr(tr, 'dispositivo_de_calculo', lambda: torch.device('cpu'))
     monkeypatch.setattr(co, 'FABRICA', CodificadorFalso)
     co._abiertos.clear()
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))

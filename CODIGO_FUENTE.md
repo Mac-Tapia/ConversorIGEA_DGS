@@ -173,6 +173,10 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
 | `src/convertersmartgrid/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28), 036, 065 (RF-3, RF-14, RF-15) |
 | `src/convertersmartgrid/web/services.py` | Las acciones de la interfaz, sin interfaz; conversión por sistema eléctrico (022:RF-47 a RF-51).; máxima por barra de SET y sus alimentadores en esa fecha; estructura del espacio | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57, RF-61, RF-64), 022 (RF-4, RF-37 a RF-44), 025 (RF-4, RF-8 a RF-11, RF-17, RF-20, RF-24, RF-28 a RF-33), 018 (RF-1 a RF-15), 030 (RF-10, RF-13, RF-14), 032 (RF-12, RF-29), 035 (RF-1 a RF-3, RF-17 a RF-22), 037 (RF-1 a RF-7), 038 (RF-1, RF-5, RF-8), 039 (RF-1 a RF-6), 041 (RF-7, RF-9), 042, 060 (RF-7), 061 (RF-2, RF-3, RF-5, RF-6, RF-7, RF-8, RF-9) |
+| `src/convertersmartgrid/web/requisitos.py` | Lo que un servicio exige antes de trabajar y el error del operador. | 002 |
+| `src/convertersmartgrid/puertos.py` | Interfaces y versión de los módulos enchufables. | 002 |
+| `src/convertersmartgrid/registro_modulos.py` | Descubre, filtra y carga los módulos; carril de los estudios. | 002 |
+| `src/convertersmartgrid/escritores.py` | El escritor DGS como módulo y la entrega del modelo auditado a un escritor. | 002 |
 | `src/convertersmartgrid/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/convertersmartgrid/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS; la copia de SQL Server, por su `ConfigBD.config`. | 001 (RF-2), 059 (RF-8) |
 | `src/convertersmartgrid/web/sources/__init__.py` | Reexportación temporal de `convertersmartgrid.sources`. | 002 (RF-21 la retira) |
@@ -383,6 +387,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
 | `tools/asistente_destilar.py` | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. | 047 (RF-11 a RF-15) |
 | `src/convertersmartgrid/asistente/llm_destilacion.py` | Custodia de referencia, corpus del LLM con entidades reales y objetivos causales de respuesta. | 047 (RF-19, RF-20), 060 (RF-4) |
+| `src/convertersmartgrid/asistente/llm_checkpoint.py` | Comprobaciones de un checkpoint, comunes a entrenar y publicar. | 002 |
 | `src/convertersmartgrid/asistente/llm_runtime.py` | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback; no activa. | 047 (RF-19) |
 | `src/convertersmartgrid/asistente/curriculo_llm_real.py` | Solicitudes nuevas de prueba redactadas por el maestro; valores procedentes de fuentes reales. | 047 (RF-19, RF-20) |
 | `tools/llm_destilar.py` | Prepara el corpus del alumno LLM a partir de fuentes verificadas de este proyecto. | 047 (RF-19, RF-20), 060 (RF-4) |

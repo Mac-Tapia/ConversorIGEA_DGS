@@ -16,7 +16,7 @@ import math
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
-from .catalog_resolution import CatalogSource
+from .catalog_resolution import CatalogSource, resolve_dataset_equipment
 from .reconstruction import (
     EvidenceLevel, ReconstructionPolicy, ReconstructionResult, reconstruct_dataset,
 )
@@ -53,7 +53,7 @@ def reconstruir_seleccion(
     avance(5, PASOS, 'Coordenadas')
     _complete_coordinates(result, network_ids)
     avance(6, PASOS, 'Catálogo')
-    resolutions = result.resolve_equipment(tuple(catalogos), network_ids)
+    resolutions = resolve_dataset_equipment(result, tuple(catalogos), network_ids)
     return result, resolutions
 
 
