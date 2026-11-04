@@ -1417,6 +1417,8 @@ export interface TipoRef {
 export interface Obra {
   clase: ClaseObra;
   alimentador: string;
+  /** 017:RF-41, RF-42: la SED hasta la que llega la obra de la troncal. */
+  hasta?: string;
   casos: string[];
   barra?: string;
   tramo?: string;

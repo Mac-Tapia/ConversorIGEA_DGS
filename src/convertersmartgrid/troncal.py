@@ -208,6 +208,31 @@ def camino_hasta(red: Red, cabecera: str, barra: str) -> tuple[str, ...]:
     return tuple(t.nombre for t in a.camino(barra))
 
 
+@dataclass(frozen=True)
+class CaminoConRamales:
+    """Lo que pasa de tensión en una migración solo por la troncal, y lo que hay que abrir (017:RF-42, RF-42d)."""
+
+    barras: tuple[str, ...]
+    tramos: tuple[str, ...]
+    ramales: tuple[str, ...]
+    """Tramos cerrados que tocan el camino sin ser de él, también los que cierran un anillo entre dos de sus barras."""
+    fuera: tuple[str, ...]
+    """Barras a las que hoy se llega desde la cabecera y que dejan de alimentarse al abrir los ramales."""
+
+
+def camino_y_ramales(red: Red, cabecera: str, barra: str) -> CaminoConRamales:
+    """El camino de la cabecera a ``barra`` con todo lo que cuelga de él, por separado (017:RF-42d)."""
+    tramos = camino_hasta(red, cabecera, barra)
+    a = arbol(red, cabecera)
+    barras = [barra]
+    while a.padre[barras[-1]] is not None:
+        barras.append(a.padre[barras[-1]][0])
+    dentro, propios = set(barras), set(tramos)
+    ramales = sorted(t.nombre for t in red.tramos if t.cerrado and t.nombre not in propios
+                     and t.desde != t.hasta and (t.desde in dentro or t.hasta in dentro))
+    return CaminoConRamales(tuple(sorted(barras)), tramos, tuple(ramales), tuple(sorted(set(a.orden) - dentro)))
+
+
 def red_de(barras: Iterable[Barra], tramos: Iterable[Tramo]) -> Red:
     return Red({b.nombre: b for b in barras}, tuple(tramos))
 

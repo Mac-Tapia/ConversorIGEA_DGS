@@ -6889,6 +6889,10 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     hecho = {'enlace': fila['enlace']} if fila.get('enlace') else {}
                     if fila.get('instalaciones'):                                  # 084:RF-17
                         hecho['instalaciones'] = fila['instalaciones']
+                    if fila.get('clase') == 'migracion' and fila.get('parte'):     # 017:RF-44, RF-42f
+                        hecho.update(transformadores=fila['parte'].get('seds', 0),
+                                     ramales=len(fila['parte'].get('ramales') or ()),
+                                     sin_alimentar=fila['parte'].get('sin_alimentar'))
                     registrar_obra_aplicada(ws, plan['project'], fila['variacion'],
                                             {**elegidas[n - 1], **hecho})
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]

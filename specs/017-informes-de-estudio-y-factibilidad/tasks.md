@@ -56,9 +56,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `tests/test_obras_pf.py`; RF-36b a RF-36d no se usan (015:RF-61) y RF-39, RF-40 y
       RF-40b tampoco: la escalera de 063 sustituye a `ComCapo` y `ComPlaceopt`, así que no
       hace falta la sonda (anotado en el plan).
-- [ ] T9. Etapas 4 y 5 con la troncal de la 016 (necesita las T6 a T8 de la 016).
-      (RF-41 a RF-42c)
+- [x] T9. Etapas 4 y 5 con la troncal de la 016 (necesita las T6 a T8 de la 016).
+      (RF-41 a RF-42f)
       Hecho cuando: pruebas sobre `fake_pf` en verde.
+      Cierre 2026-11-04: RF-42 con la lectura A que eligió el usuario, en
+      `tests/test_obras_pf_016.py` y `tests/test_obras_pf_guion_016.py`.
 - [x] T10. Transformador de la SET en el proyecto de transmisión, sin guardar. (RF-65 a
       RF-70, RF-119)
       Hecho cuando: pruebas sobre `fake_pf` en verde.
@@ -88,7 +90,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `perdidas/path`, `DELETE perdidas` y `transformador/cargas`, en el carril
       `powerfactory`); el estudio va al carril `engine` porque se arma con lo guardado
       (cambio de diseño del plan); la CLI, en `tests/test_informe_web_cli.py` (RF-105).
-- [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
+- [x] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
       el 2026-10-15). (RF-51, RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
       `convertersmartgrid-frontend`.
@@ -100,6 +102,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Estado 2026-11-03: RF-83 a RF-88 no se usan (las etapas salen de las obras de 4.1 y
       de la escalera de 063); RF-95, RF-101 y RF-124 ya tienen prueba. Falta pasar
       `tsc`, `npm run build` y la checklist en el navegador sobre esta revisión.
+      Cierre 2026-11-04: `npm run typecheck` y `npm run build` correctos; en el navegador, con la web de esta rama y datos
+      propios, la pestaña del asistente en modo claro y oscuro. El paso 4.4 con un proyecto de DIgSILENT sigue en T13, T14 y T19.
 - [ ] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
       «CA101 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
@@ -109,8 +113,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Pendiente aparte (usuario, 2026-10-16): es otro análisis, el punto de diseño de una
       carga nueva ingresada sola en 3.2, no las del libro en bloque. La prueba de estudio
       con IN111 + TA225 se cerró sin ella.
-- [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "017:RF-[0-9]+" tests | sort -u` lista todos los RF.
+      Cierre 2026-11-04: todos salvo los 19 que declaran «no se usa», 16 de ellos aceptados por el usuario.
 
 - [x] T16. Etapa «refuerzo de la red» con la terna y el enlace, y su descripción en el
       informe. (RF-126, RF-127)

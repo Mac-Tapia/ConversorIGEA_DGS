@@ -744,8 +744,15 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
                 f'{obra["conductor"]} entre {obra["desde"]} ({obra["recibe"]}) y {obra["hasta"]} '
                 f'({obra["cede"]}), {via}.')
     if tipo == 'migracion':
-        return (f'Migrar la troncal a {_g(obra["kv"])} kV y acondicionar {obra["transformadores"]} '
-                f'transformadores de distribución para operar a {_g(obra["kv"])} kV.')
+        donde = f' hasta la SED {obra["hasta"]}' if obra.get('hasta') else ''
+        texto = (f'Migrar la troncal{donde} a {_g(obra["kv"])} kV y acondicionar {obra["transformadores"]} '
+                 f'transformadores de distribución para operar a {_g(obra["kv"])} kV.')
+        fuera = obra.get('sin_alimentar') or {}
+        if obra.get('ramales'):                                                  # 017:RF-42f
+            kw = f', {numero(fuera["kw"], 1)} kW' if fuera.get('kw') is not None else ''
+            texto += (f' Se abren {obra["ramales"]} ramales, que dejan sin alimentar {fuera.get("seds", 0)} SED{kw}: '
+                      'hay que alimentarlas por otra vía.')
+        return texto
     return str(obra.get('descripcion') or obra)
 
 
@@ -788,7 +795,8 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
                 'por_via': bool((e.get('trazado') or {}).get('por_via'))}
     if clase in ('tension', 'migracion'):
         return {'tipo': 'migracion', 'kv': float(obra.get('kv_destino') or 0),
-                'transformadores': obra.get('transformadores', 0)}
+                'transformadores': obra.get('transformadores', 0), 'hasta': obra.get('hasta', ''),
+                'ramales': obra.get('ramales', 0), 'sin_alimentar': obra.get('sin_alimentar')}
     return {'descripcion': f'Obra de {clase} en {nodo or obra.get("alimentador", "")}.'}
 
 

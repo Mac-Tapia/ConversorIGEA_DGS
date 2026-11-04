@@ -36,7 +36,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .instalacion_ternas import CONFIGURACIONES
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
-from .troncal import Red, TroncalError, aguas_abajo, camino_hasta
+from .troncal import Red, TroncalError, aguas_abajo, camino_hasta, camino_y_ramales
 
 #: DIgSILENT no admite más en ``loc_name``.
 LARGO_MAXIMO = 40
@@ -161,6 +161,8 @@ class RedAlimentador:
     cabecera: str = ''
     trafo_barra: Mapping[str, str] = field(default_factory=dict)
     """Transformador de SED → su barra de media: la migración cambia los de la parte que pasa."""
+    banco_barra: Mapping[str, str] = field(default_factory=dict)
+    """Banco → su barra: la migración solo por la troncal cambia los de sus barras (017:RF-42)."""
 
 
 @dataclass(frozen=True)
@@ -184,7 +186,7 @@ class Obra:
     toda_troncal: bool = False
     """Sección de todos los tramos de la troncal (016:RF-6)."""
     hasta: str = ''
-    """Sección de la troncal de la cabecera a esta SED o barra (017:RF-41)."""
+    """Sección o migración de la troncal de la cabecera a esta SED o barra (017:RF-41, RF-42)."""
     tipo_cable: TipoRef | None = None
     """Para los tramos de cable de la troncal (016:RF-7)."""
     cede: str = ''
@@ -454,8 +456,12 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
                     minima_m=_decimal(datos, 'minima_m', 'la distancia mínima (m)'),
                     origen=origen, destino=destino)
     if clase == 'migracion':
-        return Obra(**comunes, nodo=_texto(datos, 'nodo', 'el nodo desde el que se pasa a la '
-                                                             'tensión de destino'),
+        hasta = str(datos.get('hasta') or '').strip()
+        if hasta and str(datos.get('nodo') or '').strip():
+            raise ObrasError('Elija el nodo desde el que pasa lo de aguas abajo o la SED hasta la que pasa la troncal: '
+                             'solo uno de los dos.')
+        return Obra(**comunes, hasta=hasta,
+                    nodo='' if hasta else _texto(datos, 'nodo', 'el nodo desde el que se pasa a la tensión de destino'),
                     kv_destino=_numero(datos, 'kv_destino', 'la tensión de destino (kV)'))
     return Obra(**comunes, kv_destino=_numero(datos, 'kv_destino',
                                               'la tensión de destino (kV)'))
@@ -961,8 +967,54 @@ def _enlace(p: _Plan) -> None:
                          'destino': o.destino}
 
 
+def _migracion_camino(p: _Plan) -> None:
+    """Solo el camino de la cabecera a la SED y las SED de sus barras, a otra tensión; lo que cuelga se abre (017:RF-42).
+
+    El usuario, 2026-11-04: lectura A de «se está migrando según la troncal que va a Casa Blanca». Con todo lo que cuelga,
+    como en la 016 desde la cabecera, se migraría el alimentador entero. Abrir los ramales deja demanda sin alimentar y
+    el flujo mejora por eso: se dice, con cuánta, para que nadie lea esa mejora como efecto de la obra (RF-42f).
+    """
+    o, red, estado = p.obra, p.red, p.estado
+    if red.cabecera_compartida_con:
+        # Como en la obra del alimentador entero (011:RF-102): esa barra alimenta a otros, que quedarían a otra tensión.
+        raise ObrasError(f'La barra de cabecera o la fuente de {o.alimentador} alimentan también a '
+                         f'{", ".join(red.cabecera_compartida_con)}: la troncal no se migra desde ella. Migre desde un '
+                         f'nodo con enlace (016:RF-51) o lleve la rama a una SET nueva (042:RF-6).')
+    tramos = p.camino_hasta()                                                    # RF-42c
+    camino = camino_y_ramales(red.topologia, red.cabecera, p.extra['hasta']['barra'])
+    origen, destino = estado.kv, o.kv_destino
+    if math.isclose(origen, destino):
+        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
+    dentro, fuera = set(camino.barras), set(camino.fuera)
+    for barra in camino.barras:
+        kv = estado.barras.get(barra)
+        if kv is not None and math.isclose(kv, origen):
+            p.elemento(barra, 'ElmTerm', f'uknom {origen:g} → {destino:g} kV')
+            estado.barras[barra] = destino
+    lineas = [n for n in tramos if n in estado.tipo_tramo]
+    trafos = sorted(tr for tr, b in red.trafo_barra.items() if b in dentro and tr in estado.trafos)
+    _tipos_a_tension(p, lineas, trafos, origen, destino)
+    for nombre, kv in sorted(red.condensadores.items()):
+        if red.banco_barra.get(nombre) in dentro and kv is not None and math.isclose(kv, origen):
+            p.elemento(nombre, 'ElmShnt', f'ushnm {origen:g} → {destino:g} kV')
+    for ramal in camino.ramales:                                                 # RF-42d
+        p.elemento(ramal, 'ElmLne' if ramal in estado.tipo_tramo else 'ElmCoup', 'se abre: ramal que cuelga de la troncal que se migra')
+    sin_alimentar = sorted(tr for tr, b in red.trafo_barra.items() if b in fuera)
+    if camino.ramales:                                                           # RF-42f
+        p.avisos.append(f'Se abren {len(camino.ramales)} ramal(es) que cuelgan de la troncal: {len(sin_alimentar)} SED y '
+                        f'{len(fuera)} barra(s) quedan sin alimentar a {origen:g} kV, y su demanda sale del flujo de '
+                        f'«Con proyecto». Hay que alimentarlas por otra vía.')
+    p.extra.update(kv_origen=origen, kv_destino=destino,
+                   parte={'barras': len(camino.barras), 'tramos': len(lineas), 'seds': len(trafos), 'entrada': None,
+                          'ramales': list(camino.ramales),
+                          'sin_alimentar': {'seds': len(sin_alimentar), 'barras': len(fuera)}})
+
+
 def _migracion(p: _Plan) -> None:
     """Lo que queda aguas abajo de un nodo, a otra tensión (016:RF-51 a RF-66)."""
+    if p.obra.hasta:
+        _migracion_camino(p)
+        return
     o, red, estado = p.obra, p.red, p.estado
     if red.topologia is None or not red.cabecera:
         raise ObrasError(f'No se leyó la red del alimentador {o.alimentador}: no se sabe qué '
@@ -1154,7 +1206,8 @@ def red_de_lectura(alimentador: str, leido: Mapping[str, Any], *,
         reguladores={r['nombre']: r.get('tipo') or '' for r in leido.get('reguladores') or []},
         cabecera_compartida_con=tuple(leido.get('cabecera_compartida_con') or ()),
         topologia=topologia, cabecera=cabecera,
-        trafo_barra={t['nombre']: t['barra'] for t in leido.get('trafos') or [] if t.get('barra')})
+        trafo_barra={t['nombre']: t['barra'] for t in leido.get('trafos') or [] if t.get('barra')},
+        banco_barra={c['nombre']: c['barra'] for c in leido.get('condensadores') or [] if c.get('barra')})
 
 
 #: Diferencia que la comprobación de «Sin proyecto» tolera (RF-64): la red es la misma, así

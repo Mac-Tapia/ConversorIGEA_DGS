@@ -89,7 +89,7 @@ from convertersmartgrid.obras_pf import (
 from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
 from convertersmartgrid.naming import feeder_short_name
 from convertersmartgrid.obras_pf import nombre_copia, punto_indicado
-from convertersmartgrid.troncal import (Conexion, TroncalError, aguas_abajo, extremos_del_enlace,
+from convertersmartgrid.troncal import (Conexion, TroncalError, aguas_abajo, camino_y_ramales, extremos_del_enlace,
                               punto_en_troncal)
 from convertersmartgrid.troncal import troncal as troncal_de
 
@@ -245,7 +245,8 @@ def leer_alimentador(elm) -> dict:
         'trafos': [{'nombre': tr.loc_name, 'tipo': tipo(tr),
                     'barra': getattr(getattr(getattr(tr, 'bushv', None), 'cterm', None), 'loc_name', None)}
                    for tr in sorted(elm.GetObjs('ElmTr2'), key=nombre)],
-        'condensadores': [{'nombre': o.loc_name, 'kv': getattr(o, 'ushnm', None)}
+        'condensadores': [{'nombre': o.loc_name, 'kv': getattr(o, 'ushnm', None),
+                           'barra': getattr(getattr(getattr(o, 'bus1', None), 'cterm', None), 'loc_name', None)}
                           for o in sorted(elm.GetObjs('ElmShnt'), key=nombre)],
         'reguladores': [{'nombre': o.loc_name, 'tipo': tipo(o)}
                         for o in sorted(elm.GetObjs('ElmVoltreg'), key=nombre)],
@@ -958,6 +959,86 @@ def _barras_de(app, linea) -> set[str]:
             if getattr(c, 'cterm', None) is not None}
 
 
+def _kw_sin_alimentar(ctx, fuera: set[str]) -> float:
+    """La demanda escrita de las barras que dejan de alimentarse y de la baja de sus SED (017:RF-42f)."""
+    barras = set(fuera)
+    for trafo in ctx.elm.GetObjs('ElmTr2'):
+        if getattr(getattr(getattr(trafo, 'bushv', None), 'cterm', None), 'loc_name', None) in fuera:
+            baja = getattr(getattr(getattr(trafo, 'buslv', None), 'cterm', None), 'loc_name', None)
+            if baja:
+                barras.add(baja)
+    return sum(float(getattr(c, 'plini', 0.0) or 0.0) * float(getattr(c, 'scale0', 1.0) or 1.0) * 1000.0
+               for c in ctx.elm.GetObjs('ElmLod')
+               if getattr(getattr(getattr(c, 'bus1', None), 'cterm', None), 'loc_name', None) in barras)
+
+
+def construir_migracion_camino(ctx) -> None:
+    """Solo el camino a la SED y las SED de sus barras, a la tensión de destino; se abren los ramales (017:RF-42, RF-42d).
+
+    Se recalcula con la red de ahora, como la migración desde un nodo. Todo se comprueba antes de la primera escritura y
+    se relee después: lo que lance una excepción aquí lo borra ``_grabar_una`` con su variación (RF-42e).
+    """
+    o, fila = ctx.obra, ctx.fila
+    origen, destino = float(fila['kv_origen']), float(o.kv_destino)
+    flujo_de_carga(ctx.app)
+    cabecera = cabecera_de(ctx.elm)
+    if cabecera is None:
+        raise RuntimeError(f'el alimentador {o.alimentador} no dice su cabecera')
+    try:
+        camino = camino_y_ramales(leer_red(ctx.elm, cabecera), cabecera.loc_name, fila['hasta']['barra'])
+    except TroncalError as exc:
+        raise RuntimeError(str(exc)) from None
+    dentro = set(camino.barras)
+    barras = {b.loc_name: b for b in ctx.elm.GetObjs('ElmTerm')}
+    barras[cabecera.loc_name] = cabecera
+    lineas = {ln.loc_name: ln for ln in ctx.elm.GetObjs('ElmLne')}
+    acopladores = {c.loc_name: c for c in ctx.elm.GetObjs('ElmCoup')}
+    faltan = [n for n in camino.barras if n not in barras] + [n for n in camino.ramales if n not in lineas and n not in acopladores]
+    if faltan:
+        raise RuntimeError(f'la red leída nombra elementos que el alimentador no devuelve: {", ".join(sorted(faltan))}')
+    # Las copias de tipo antes de escribir: una que falte para aquí, sin haber cambiado ninguna tensión.
+    tipos_lineas = [(lineas[n], _tipo_a_tension(ctx, lineas[n], 'TypLne', 'uline', origen, destino))
+                    for n in camino.tramos if n in lineas]
+    trafos = [tr for tr in ctx.elm.GetObjs('ElmTr2')
+              if getattr(getattr(getattr(tr, 'bushv', None), 'cterm', None), 'loc_name', None) in dentro]
+    tipos_trafos = [(tr, _tipo_a_tension(ctx, tr, 'TypTr2', 'utrn_h', origen, destino)) for tr in trafos]
+    kw_fuera = _kw_sin_alimentar(ctx, set(camino.fuera))
+    a_cambiar = [barras[n] for n in camino.barras if math.isclose(float(getattr(barras[n], 'uknom', 0) or 0), origen)]
+    for barra in a_cambiar:
+        barra.uknom = destino
+    for objeto, tipo in tipos_lineas + tipos_trafos:
+        objeto.typ_id = tipo
+    for banco in ctx.elm.GetObjs('ElmShnt'):
+        donde = getattr(getattr(getattr(banco, 'bus1', None), 'cterm', None), 'loc_name', None)
+        if donde in dentro and math.isclose(float(getattr(banco, 'ushnm', 0) or 0), origen):
+            banco.ushnm = destino
+    for ramal in camino.ramales:
+        # 042:RF-19: anotado antes de abrirlo, para volver a cerrarlo si la obra no llega a quedar.
+        if ramal in lineas:
+            fila.setdefault('abiertos', []).append(['ElmLne', ramal])
+            lineas[ramal].outserv = 1
+        else:
+            fila.setdefault('abiertos', []).append(['ElmCoup', ramal])
+            acopladores[ramal].on_off = 0
+    a_medias = ([b.loc_name for b in a_cambiar if not math.isclose(float(b.uknom), destino)]
+                + [n for n in camino.ramales if (n in lineas and not int(lineas[n].outserv))
+                   or (n in acopladores and int(acopladores[n].on_off))])
+    if a_medias:
+        raise RuntimeError(f'la migración no quedó entera, no se aplica: {", ".join(sorted(a_medias))}')
+    reguladores = [r.loc_name for r in ctx.elm.GetObjs('ElmVoltreg')
+                   if getattr(getattr(getattr(r, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+    if reguladores:
+        fila['avisos'].append(f'Los reguladores de la troncal no se cambian: {", ".join(sorted(reguladores))}; '
+                              f'revíselos a {destino:g} kV.')
+    parte = {'barras': len(camino.barras), 'tramos': len(tipos_lineas), 'seds': len(trafos), 'entrada': None,
+             'ramales': list(camino.ramales), 'sin_alimentar': {**fila.get('parte', {}).get('sin_alimentar', {}),
+                                                                'barras': len(camino.fuera), 'kw': round(kw_fuera, 1)}}
+    fila['parte'] = parte
+    if camino.ramales:
+        fila['avisos'].append(f'Con los ramales abiertos salen del flujo {kw_fuera:.1f} kW de demanda escrita: la mejora de '
+                              f'«Con proyecto» incluye esa baja, no es solo efecto de la migración.')
+
+
 def construir_migracion(ctx) -> None:
     """Lo que queda aguas abajo del nodo, a la tensión de destino (016:RF-54 a RF-58).
 
@@ -968,6 +1049,9 @@ def construir_migracion(ctx) -> None:
     las líneas y de las SED (solo la alta) y se abre el tramo que entra al nodo; nada más
     del alimentador (RF-57).
     """
+    if ctx.obra.hasta:
+        construir_migracion_camino(ctx)
+        return
     o, fila = ctx.obra, ctx.fila
     origen, destino = float(fila['kv_origen']), float(o.kv_destino)
     # Un flujo antes de leer, como el enlace: sin él, el ElmFeeder no daba el nodo que

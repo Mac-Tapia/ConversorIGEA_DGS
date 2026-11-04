@@ -513,3 +513,77 @@ def test_leer_red_con_objetos_nuevos_en_cada_acceso():
     assert len(envuelta.tramos) == len(directa.tramos) == 3
     assert {(t.nombre, t.desde, t.hasta) for t in envuelta.tramos} == {
         (t.nombre, t.desde, t.hasta) for t in directa.tramos}
+
+
+# --------------------------------------------------------------------------- 017:RF-42
+def _migracion_hasta(f, sed, destino=22.9):
+    return {'clase': 'migracion', 'alimentador': f, 'casos': [CON], 'hasta': sed, 'kv_destino': destino}
+
+
+@pytest.mark.parametrize('semilla', (81, 82, 83))
+def test_migracion_hasta_la_sed_solo_el_camino_y_abre_el_ramal(semilla):
+    """017:RF-42, 017:RF-42d, 017:RF-42f — hasta ``TR_F1_S2`` pasan el camino y sus SED; lo de después se abre y no cambia de
+    tensión; se dice la demanda que sale; el otro alimentador y «Sin proyecto» no cambian."""
+    app, alims = _calibrada(random.Random(semilla), n_min=2, cargas_min=4)
+    n = len(_elm(app, 'F1').GetObjs('ElmLne'))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion_hasta('F1', 'TR_F1_S2')]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert not fila['error'] and fila['flujo'][CON]['converge'] and fila['casos_activos'] == [CON]
+    _activas(app, CON)
+    for i in range(n + 1):
+        assert _uknom(app, f'F1_B{i}') == (22.9 if i <= 2 else 10.0), i
+    for i in range(1, n + 1):
+        ln = _linea(app, f'F1_L{i}')
+        assert ln.typ_id.loc_name == ('AAAC_F1_22_9kV' if i <= 2 else 'AAAC_F1'), i
+        assert ln.outserv == (1 if i == 3 else 0), i
+        assert _trafo(app, f'TR_F1_S{i}').typ_id.loc_name == ('TR100_F1_22_9kV' if i <= 2 else 'TR100_F1'), i
+    assert fila['parte']['ramales'] == ['F1_L3'] and fila['parte']['seds'] == 2
+    assert fila['parte']['sin_alimentar']['kw'] > 0 and fila['parte']['sin_alimentar']['seds'] == n - 2
+    assert any('kW de demanda escrita' in a for a in fila['avisos'])
+    assert {b.uknom for b in _elm(app, 'F2').GetObjs('ElmTerm')} == {10.0}
+    _activas(app, SIN)
+    assert {b.uknom for b in _elm(app, 'F1').GetObjs('ElmTerm')} == {10.0}
+    assert {ln.outserv for ln in _elm(app, 'F1').GetObjs('ElmLne')} == {0}
+
+
+def test_migracion_hasta_que_falla_a_mitad_no_deja_nada(monkeypatch):
+    """017:RF-42e — si falla al escribir, la variación se borra, lo abierto se cierra y queda el motivo."""
+    from dataclasses import replace
+
+    app, alims = _calibrada(random.Random(84), n_min=2, cargas_min=4)
+    original = guion.camino_y_ramales
+
+    def rota(*a):
+        """La red dice un ramal que el alimentador no devuelve: el fallo llega antes de la primera escritura."""
+        return replace(original(*a), ramales=('NO_EXISTE',))
+
+    monkeypatch.setattr(guion, 'camino_y_ramales', rota)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion_hasta('F1', 'TR_F1_S2')]))
+    (fila,) = informe['obras']
+    assert codigo != 0 and 'NO_EXISTE' in fila['error'] and not fila['variacion']
+    _activas(app, CON)
+    assert {b.uknom for b in _elm(app, 'F1').GetObjs('ElmTerm')} == {10.0}
+    assert {ln.outserv for ln in _elm(app, 'F1').GetObjs('ElmLne')} == {0}
+
+
+def test_migracion_hasta_que_falla_tras_escribir_borra_lo_escrito(monkeypatch):
+    """017:RF-42e — con una línea que no se deja abrir, la relectura lo ve, y no queda ni la tensión cambiada ni nada abierto."""
+    app, alims = _calibrada(random.Random(85), n_min=2, cargas_min=4)
+    ramal = _linea(app, 'F1_L3')
+    clase = type(ramal)
+    original = clase.__setattr__
+
+    def sin_abrir(self, nombre, valor):
+        if nombre == 'outserv' and valor == 1 and self.loc_name == 'F1_L3':
+            return
+        original(self, nombre, valor)
+
+    monkeypatch.setattr(clase, '__setattr__', sin_abrir)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion_hasta('F1', 'TR_F1_S2')]))
+    monkeypatch.undo()
+    (fila,) = informe['obras']
+    assert codigo != 0 and 'no quedó entera' in fila['error'] and not fila['variacion']
+    _activas(app, CON)
+    assert {b.uknom for b in _elm(app, 'F1').GetObjs('ElmTerm')} == {10.0}
+    assert {ln.typ_id.loc_name for ln in _elm(app, 'F1').GetObjs('ElmLne')} == {'AAAC_F1'}
