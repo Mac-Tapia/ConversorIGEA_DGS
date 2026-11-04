@@ -587,12 +587,18 @@ export interface CargasInforme {
   };
 }
 
+/** 086:RF-48, RF-49: una barra bajo el límite, con su tensión y la que tenía sin el proyecto, si se conoce. */
+export interface BarraBaja { barra: string; u: number; sin: number | null }
+export interface BajoLimite { causado: BarraBaja[]; previo: BarraBaja[]; sin_comparacion: BarraBaja[] }
+
 /** Spec 025, RF-49 a RF-58: cada variante probada, con su fracción de sorteos y su costo. */
 export interface EscaleraVariante {
   nombre: string;
   /** 063:RF-28: la tensión que deja en cada barra de carga nueva y la mínima de media. */
   u_cargas?: Record<string, number | null> | null;
   u_min_mt?: number | null;
+  /** 086:RF-48: las barras bajo el límite con la máxima, según quién las dejó así. */
+  bajo_limite?: BajoLimite | null;
   /** 063:RF-31: dónde va cada obra (nodo de MT del banco; nodos de inicio y fin de los tramos). */
   ubicacion?: string[];
   maxima: boolean;
@@ -915,6 +921,8 @@ export interface InformeGenerado {
   fecha: string | null;
   huecos: string[];
   factible: boolean | null;
+  /** 086:RF-50: factible para la carga, con barras bajo el límite que ella no causa. */
+  queda_deficit?: boolean;
   creado: number;
 }
 
@@ -1032,6 +1040,10 @@ export interface InformeResultado {
   etapa?: string | null;
   factible?: boolean;
   excesos?: string[];
+  /** 086:RF-49: lo que causa la carga y lo que ya estaba bajo el límite, con cada barra y su tensión. */
+  textos_bajo_limite?: string[];
+  /** 086:RF-50: queda alguna barra baja que la carga no causa. */
+  queda_deficit?: boolean;
   punto_diseno?: Record<string, number | null> | null;
   /** 017:RF-105: el plan del informe, para tools/informe_web.py. */
   plan?: string;

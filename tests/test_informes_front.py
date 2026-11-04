@@ -20,6 +20,15 @@ def test_informes_en_4_4_con_sus_dos_apartados():
     assert INFORMES.index('4.4.1 · Análisis eléctrico') < INFORMES.index('4.4.2 · Conexión de un cliente nuevo')
 
 
+def test_la_web_no_dice_factible_a_secas_con_barras_bajas():
+    """086:RF-48, 086:RF-49, 086:RF-50 — el aviso verde solo sin déficit, y cada barra baja a la vista."""
+    assert "r.factible && !r.queda_deficit ? 'alert-ok' : 'alert-warn'" in INFORMES
+    assert 'Factible para la carga: el alimentador sigue con barras bajo el límite.' in INFORMES
+    assert 'r.textos_bajo_limite!.map' in INFORMES
+    assert 'g.queda_deficit' in INFORMES
+    assert "barrasAjenas(v) > 0 ? 'cumple para las cargas' : 'cumple'" in CARGAS
+
+
 def test_encabezado_en_los_dos_apartados():
     """017:RF-79 — fecha, asunto, destinatario y antecedentes en los dos informes; los de la
     factibilidad salen redactados con las frases del modelo (RF-107)."""

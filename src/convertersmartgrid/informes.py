@@ -325,13 +325,8 @@ class Caso:
             tension_min = {TRIFASICA: Extremo(float(medida['vm_min']), str(medida['vm_min_barra']))}
         else:
             tension_min = {}
-        barras = medida.get('barras') or []
-        # 063:RF-43, RF-44: las islas sin tensión no son nodos fuera de banda, y se juzga la media
-        # tensión si la medida dice cuál es (una guardada antes no lo dice: todas).
-        sin_tension = set(medida.get('sin_tension') or ())
-        mt = set(medida.get('barras_mt') or ())
-        barras = [(n, u) for n, u in barras if n not in sin_tension and (not mt or n in mt)]
-        lineas = [e for e in (medida.get('elementos') or []) if e[1] == 'ElmLne']
+        barras = _barras_juzgadas(medida)
+        lineas =[e for e in (medida.get('elementos') or []) if e[1] == 'ElmLne']
         trafos = [e for e in (medida.get('elementos') or []) if e[1] == 'ElmTr2']
         if lineas:
             peor_linea = max(lineas, key=lambda e: e[2])
@@ -399,6 +394,8 @@ class Etapa:
     anio: int | None = None
     #: 073:RF-32: lo medido en valle, de la escalera; sin él, «no comprobado en valle».
     valle: Mapping[str, Any] | None = None
+    #: 086:RF-49: sus barras bajas, según quién las dejó así (``clasificar_bajo_limite``).
+    bajo_limite: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.clave not in ETAPAS:
@@ -537,19 +534,136 @@ def cliente_ajeno(carga: str, cliente: str) -> bool:
     return bool(de_la_carga and del_cliente and not de_la_carga & del_cliente)
 
 
+# --------------------------------------------------------------------------- 086:RF-48 a RF-50
+#: Por debajo de esto una barra no tiene tensión: es una isla sin fuente, no una caída (063:RF-43).
+_SIN_TENSION_PU = 0.1
+#: Qué es cada barra bajo el límite, en el orden en que se cuenta.
+_TITULOS_BAJO_LIMITE = (('causado', 'Lo que causa la carga o la obra'),
+                        ('previo', 'Déficit previo, fuera de esta obra'),
+                        ('sin_comparacion', 'Bajo el límite, sin comparación disponible'))
+
+
+def _barras_juzgadas(medida: Mapping[str, Any]) -> list[tuple[str, float]]:
+    """Las barras que se juzgan de una medida guardada por los estudios.
+
+    063:RF-43, RF-44: las islas sin tensión no son nodos fuera de banda, y se juzga la media
+    tensión si la medida dice cuál es (una guardada antes no lo dice: todas).
+    """
+    sin_tension = set(medida.get('sin_tension') or ())
+    mt = set(medida.get('barras_mt') or ())
+    return [(n, u) for n, u in medida.get('barras') or [] if n not in sin_tension and (not mt or n in mt)]
+
+
+def clasificar_bajo_limite(u_sin: Mapping[str, float], u_con: Mapping[str, float], barras_cargas: Sequence[str],
+                           tension_min_pu: float, tolerancia_pu: float) -> dict[str, Any]:
+    """Cada barra bajo el límite, según quién la dejó así (086:RF-48, RF-49).
+
+    SI112 (2026-11-04), con su obra: la carga nueva a 0,963 p.u. y un ramal a 0,9449 p.u., con límite 0,95. El
+    criterio de la escalera (``escalera_optima.cumple``, 025:RF-50) lo da por bueno porque el ramal no empeora: ese
+    criterio no cambia, y esto usa su misma regla para decir qué queda. ``causado``: la barra de una carga nueva, la
+    que entra bajo el límite o la que baja más que la tolerancia, lo que la escalera rechaza. ``previo``: ya estaba
+    baja y no empeora. ``sin_comparacion``: no hay su tensión sin el proyecto, y entonces no se sabe.
+
+    Recorre lo ya medido de un flujo, una vez por flujo: no pregunta nada a la red.
+    """
+    fuera: dict[str, Any] = {clave: [] for clave, _ in _TITULOS_BAJO_LIMITE}
+    cargas = set(barras_cargas)
+    for barra, u in u_con.items():
+        if u is None or u <= _SIN_TENSION_PU or u >= tension_min_pu:
+            continue
+        s = u_sin.get(barra)
+        s = s if s is not None and s > _SIN_TENSION_PU else None
+        if barra in cargas:
+            clase = 'causado'
+        elif s is None:
+            clase = 'sin_comparacion'
+        elif s < tension_min_pu and u >= s - tolerancia_pu:
+            clase = 'previo'
+        else:
+            clase = 'causado'
+        fuera[clase].append({'barra': barra, 'u': u, 'sin': s})
+    for filas in fuera.values():
+        filas.sort(key=lambda f: (f['u'], f['barra']))
+    fuera['tolerancia_pu'] = tolerancia_pu
+    return fuera
+
+
+def bajo_limite(sin: Mapping[str, Any], con: Mapping[str, Any], limites: Limites, *,
+                barras_cargas: Sequence[str] = (), tolerancia_pu: float = 0.0) -> dict[str, Any] | None:
+    """:func:`clasificar_bajo_limite` con dos medidas guardadas; ``None`` si el flujo con obra no dio tensiones."""
+    if not con.get('converge'):
+        return None
+    u_con: dict[str, float] = {}
+    for barra, u in _barras_juzgadas(con):
+        # Dos barras con el mismo nombre: cuenta la más baja, para no tapar una con la otra.
+        if u is not None and (barra not in u_con or u < u_con[barra]):
+            u_con[barra] = u
+    u_sin = dict(_barras_juzgadas(sin)) if sin.get('converge') else {}
+    return clasificar_bajo_limite(u_sin, u_con, barras_cargas, limites.tension_min_pu, tolerancia_pu)
+
+
+def queda_deficit(fuera: Mapping[str, Any] | None) -> bool:
+    """Si queda alguna barra baja que la carga no causa, y por tanto no se puede decir que esté en norma (RF-50)."""
+    return bool(fuera and (fuera.get('previo') or fuera.get('sin_comparacion')))
+
+
+def frases_bajo_limite(fuera: Mapping[str, Any] | None) -> list[str]:
+    """Una frase por clase, con cada barra y su tensión (RF-48, RF-49). Sin barras bajas, ninguna.
+
+    Con cuatro decimales: 0,9499 p.u. saldría «0,950», igual al límite que no alcanza.
+    """
+    def barra(f: Mapping[str, Any]) -> str:
+        antes = f' ({numero(f["sin"], 4)} p.u. sin el proyecto)' if f.get('sin') is not None else ''
+        return f'{f["barra"]} a {numero(f["u"], 4)} p.u.{antes}'
+
+    return [f'{titulo}: {_lista([barra(f) for f in fuera[clave]])}.'
+            for clave, titulo in _TITULOS_BAJO_LIMITE if fuera and fuera.get(clave)]
+
+
+def baja_ajena_a_la_carga(caso: Caso, actual: Caso, fuera: Mapping[str, Any] | None, limites: Limites) -> bool:
+    """Si lo único que ``caso`` incumple son barras bajas que la carga no causa (RF-50).
+
+    Es tan estricto como el criterio de la escalera solo en la tensión baja: una sobrecarga o una sobretensión no se
+    disculpan, y lo que no cuadra con la lista, tampoco.
+    """
+    if fuera is None or not caso.converge or not queda_deficit(fuera) or fuera.get('causado'):
+        return False
+    if not caso.cumple_cargabilidad(limites):
+        return False
+    if caso.tension_max is not None and caso.tension_max.valor > limites.tension_max_pu:
+        return False
+    listadas = {f['barra'] for clave in ('previo', 'sin_comparacion') for f in fuera[clave]}
+    # Más nodos fuera que barras bajas: los demás están sobre la banda.
+    if caso.nodos_fuera > len(listadas):
+        return False
+    minima = caso.minima
+    if minima is not None and minima.valor < limites.tension_min_pu and minima.donde not in listadas:
+        return False
+    # La lista va por barra, y en el desequilibrado la mínima es de una fase: esa también tiene que no empeorar.
+    if caso.desequilibrado and minima is not None:
+        previa = actual.minima
+        if previa is None or minima.valor < previa.valor - float(fuera.get('tolerancia_pu') or 0.0):
+            return False
+    return True
+
+
 def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
-                           limites: Limites, *, exigir_transformador: bool = True) -> Veredicto:
+                           limites: Limites, *, exigir_transformador: bool = True,
+                           actual: Caso | None = None, bajo_limite: Mapping[str, Any] | None = None) -> Veredicto:
     """Factible solo si el proyectado cumple banda y umbral y la SET no pasa del 100 % (RF-71).
 
     Sin datos del transformador (RF-70) no se puede afirmar que la SET la admite, así
     que no es factible y se dice por qué, salvo que el informe lo deje fuera (063:RF-46).
+    Con ``actual`` y ``bajo_limite``, las barras bajas que la carga no causa no cuentan
+    como exceso: se dicen aparte (086:RF-48).
     """
     excesos = []
     if not proyectado.converge:
         excesos.append('el flujo de carga del estado proyectado no converge')
     else:
         minima = proyectado.minima
-        if minima is not None and minima.valor < limites.tension_min_pu:
+        ajena = actual is not None and baja_ajena_a_la_carga(proyectado, actual, bajo_limite, limites)
+        if minima is not None and minima.valor < limites.tension_min_pu and not ajena:
             excesos.append(f'tensión mínima de {formato_pu(minima.valor)} en {minima.donde}, '
                            f'{formato_pu(limites.tension_min_pu - minima.valor)} por debajo de '
                            f'{formato_pu(limites.tension_min_pu)}')
@@ -563,7 +677,7 @@ def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
             excesos.append(f'cargabilidad de {numero(carga.valor, 1)} % en {carga.donde}, '
                            f'{numero(carga.valor - limites.cargabilidad_max_pct, 1)} puntos sobre el '
                            f'{_g(limites.cargabilidad_max_pct)} %')
-        if proyectado.nodos_fuera and (minima is None or minima.valor >= limites.tension_min_pu):
+        if proyectado.nodos_fuera and not ajena and (minima is None or minima.valor >= limites.tension_min_pu):
             excesos.append(f'{proyectado.nodos_fuera} nodos fuera de la banda de tensión')
         if proyectado.tramos_sobre and (carga is None or carga.valor <= limites.cargabilidad_max_pct):
             excesos.append(f'{proyectado.tramos_sobre} tramos sobre el umbral de cargabilidad')
@@ -582,7 +696,8 @@ def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
 class Conclusion:
     """Lo que concluye el informe con los tres casos (063:RF-7 a RF-11).
 
-    ``clave``: ``sin_obras``, ``con_obras``, ``requiere_refuerzo``, ``obras_insuficientes`` o
+    ``clave``: ``sin_obras``, ``con_obras``, ``con_obras_deficit`` (la obra basta para la carga y quedan
+    barras bajas que ella no causa, 086:RF-48), ``requiere_refuerzo``, ``obras_insuficientes`` o
     ``no_converge``. ``violaciones`` dice qué motivó las obras, por caso; ``elementos``, qué
     nodos y tramos las requieren.
     """
@@ -609,8 +724,19 @@ def _elementos_fuera(caso: Caso, limites: Limites) -> list[str]:
     return out
 
 
+def _elementos_a_corregir(con: Caso, limites: Limites, fuera: Mapping[str, Any] | None) -> list[str]:
+    """Lo que hay que corregir en «Con proyecto»: nunca una barra que ya estaba baja, sino lo que causa la carga."""
+    elementos = _elementos_fuera(con, limites)
+    if not fuera:
+        return elementos
+    ajenas = {f['barra'] for clave in ('previo', 'sin_comparacion') for f in fuera.get(clave) or ()}
+    causadas = [f['barra'] for f in fuera.get('causado') or ()]
+    return list(dict.fromkeys(causadas + [e for e in elementos if e not in ajenas]))
+
+
 def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limites: Limites, *,
-                            con_proyecto_verificado: bool = False) -> Conclusion:
+                            con_proyecto_verificado: bool = False,
+                            bajo_limite: Mapping[str, Any] | None = None) -> Conclusion:
     """Factible, con o sin obras, a partir del estado actual, el de la carga y «Con proyecto».
 
     063:RF-8 a RF-11. Las obras solo se justifican si el estado actual o el de la carga violan
@@ -618,8 +744,12 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
     decide «Con proyecto» si tiene obras (``con`` no es ``None``); sin obras, no es factible
     sin refuerzo. INKA'S BERRIES en SM218: el estado actual ya tenía un cuello de botella al
     131 % y con la carga el punto de diseño bajaba a 0,934 p.u.
+
+    086:RF-48: con ``bajo_limite``, una barra baja que la carga no causa no hace insuficiente la
+    obra. SI112 (2026-11-04) elegía su obra en la escalera, porque ese ramal no empeora, y este
+    informe la declaraba insuficiente por el mismo ramal.
     """
-    casos = [('estado actual', actual), ('con la carga', cargas)] + ([('con proyecto', con)] if con else [])
+    casos =[('estado actual', actual), ('con la carga', cargas)] + ([('con proyecto', con)] if con else [])
     sin_flujo = [f'el flujo {nombre} no converge ({caso.nombre})' for nombre, caso in casos if not caso.converge]
     if sin_flujo:
         # RF-38: la certificación nativa del estado final puede sustentar las obras aunque
@@ -631,10 +761,10 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
                 and (con.cargabilidad_max is not None or con.trafo_max is not None)):
             motivos = tuple(sin_flujo) + ((f'estado actual: {_incumplimientos(actual, limites)}',)
                                          if not actual.cumple(limites) else ())
-            if con.cumple(limites):
+            if con.cumple(limites) or baja_ajena_a_la_carga(con, actual, bajo_limite, limites):
                 return Conclusion(True, 'con_obras_verificadas', motivos,
                                   tuple(_elementos_fuera(actual, limites)))
-            return Conclusion(False, 'obras_insuficientes', motivos, tuple(_elementos_fuera(con, limites)))
+            return Conclusion(False, 'obras_insuficientes', motivos, tuple(_elementos_a_corregir(con, limites, bajo_limite)))
         return Conclusion(False, 'no_converge', tuple(sin_flujo))
     if actual.cumple(limites) and cargas.cumple(limites):
         return Conclusion(True, 'sin_obras')
@@ -645,7 +775,10 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
         return Conclusion(False, 'requiere_refuerzo', violaciones, elementos)
     if con.cumple(limites):
         return Conclusion(True, 'con_obras', violaciones, elementos)
-    return Conclusion(False, 'obras_insuficientes', violaciones, tuple(_elementos_fuera(con, limites)) or elementos)
+    if baja_ajena_a_la_carga(con, actual, bajo_limite, limites):
+        return Conclusion(True, 'con_obras_deficit', violaciones, elementos)
+    return Conclusion(False, 'obras_insuficientes', violaciones,
+                      tuple(_elementos_a_corregir(con, limites, bajo_limite)) or elementos)
 
 
 
@@ -1143,7 +1276,7 @@ def texto_transformador(s: Solicitud, devanado: Devanado | None, caso_transmisio
 
 
 def conclusiones_factibilidad(s: Solicitud, veredicto: Veredicto, punto_diseno: str,
-                              devanado: Devanado | None) -> list[str]:
+                              devanado: Devanado | None, *, bajo_limite: Mapping[str, Any] | None = None) -> list[str]:
     """Conclusiones en apartados a) a d), como el modelo (RF-122)."""
     if s.en_concesion is None:
         concesion = '[A CONFIRMAR POR EL OPERADOR: si el predio está en el área de concesión]'
@@ -1153,8 +1286,11 @@ def conclusiones_factibilidad(s: Solicitud, veredicto: Veredicto, punto_diseno: 
     a = (f'a) La solicitud de {s.tipo_solicitud} presentada por {s.cliente}, para una demanda de '
          f'{_g(s.potencia_kw)} kW, {concesion}.')
     alimentador = [x for x in veredicto.excesos if 'transformador' not in x]
-    b = (f'b) El alimentador {s.alimentador} admite la carga en el estado proyectado, con la tensión '
-         'dentro de la banda admitida y sin tramos sobre el umbral de cargabilidad.' if not alimentador
+    # 086:RF-50: con barras bajas que la carga no causa, admite la carga, pero la tensión no queda en la banda.
+    tension = ('sin tramos sobre el umbral de cargabilidad, aunque el alimentador sigue con barras bajo el '
+               'límite de tensión' if queda_deficit(bajo_limite)
+               else 'con la tensión dentro de la banda admitida y sin tramos sobre el umbral de cargabilidad')
+    b = (f'b) El alimentador {s.alimentador} admite la carga en el estado proyectado, {tension}.' if not alimentador
          else f'b) El alimentador {s.alimentador} no admite la carga: ' + '; '.join(alimentador) + '.')
     trafo = [x for x in veredicto.excesos if 'transformador' in x]
     c = (f'c) El transformador de potencia de la SET {s.set_nombre} tiene capacidad disponible '

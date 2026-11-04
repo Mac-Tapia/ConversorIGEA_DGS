@@ -1104,6 +1104,11 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
   );
 }
 
+/** 086:RF-48: las barras bajo el límite que la obra deja como estaban o de las que no hay comparación. */
+function barrasAjenas(v: EscaleraResultado['alimentadores'][number]['tabla'][number]): number {
+  return (v.bajo_limite?.previo.length ?? 0) + (v.bajo_limite?.sin_comparacion.length ?? 0);
+}
+
 /** Spec 025, RF-54 a RF-56: cada variante probada, la elegida y por qué no las demás. */
 function Escalera({ r }: { r: EscaleraResultado }) {
   const dinero = (x: number | null) => (x == null ? '—' : `${fmtNum(x, 0)} ${r.moneda}`);
@@ -1131,11 +1136,14 @@ function Escalera({ r }: { r: EscaleraResultado }) {
                     <td>{v.nombre}
                       {/* 063:RF-31: nodo de MT de cada banco y nodos de inicio y fin de los tramos. */}
                       {(v.ubicacion ?? []).map((u) => <div key={u} className="muted small">{u}</div>)}</td>
-                    <td>{v.error ? <span className="badge err">error</span> : v.maxima ? 'cumple' : 'no cumple'}</td>
+                    {/* 086:RF-50: con barras bajas que ella no causa, cumple para la carga, no para el alimentador. */}
+                    <td>{v.error ? <span className="badge err">error</span> : !v.maxima ? 'no cumple'
+                      : barrasAjenas(v) > 0 ? 'cumple para las cargas' : 'cumple'}</td>
                     {/* 063:RF-28: cuánto mejora cada escalón, también cuando no basta. */}
                     <td className="small">{Object.entries(v.u_cargas ?? {}).filter(([, u]) => u != null)
                       .map(([b, u]) => `${b}: ${fmtNum(u as number, 3)} p.u.`).join(' · ')}
-                      {v.u_min_mt != null && <div className="muted">mínima de media {fmtNum(v.u_min_mt, 3)} p.u.</div>}</td>
+                      {v.u_min_mt != null && <div className="muted">mínima de media {fmtNum(v.u_min_mt, 3)} p.u.</div>}
+                      {barrasAjenas(v) > 0 && <div className="muted">{barrasAjenas(v)} barra(s) bajo el límite que esta obra no resuelve</div>}</td>
                     <td className="num">{v.fraccion == null ? '—' : `${fmtNum(100 * v.fraccion, 0)} %`}</td>
                     {/* 073:RF-30: la tensión máxima en valle, con su nodo y su fecha, o por qué no se comprobó. */}
                     <td className="small">{v.valle_texto ?? '—'}</td>

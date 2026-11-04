@@ -20,7 +20,7 @@ from convertersmartgrid.informe_docx import (
     escribir_informe_factibilidad,
 )
 from convertersmartgrid.informes import (
-    Caso, ConfigInforme, Encabezado, FuenteMedida, PerdidasAnuales, Solicitud, perdidas_anuales)
+    Caso, ConfigInforme, Encabezado, FuenteMedida, PerdidasAnuales, Solicitud, bajo_limite, perdidas_anuales)
 from convertersmartgrid.libros_informe import DatosPerdidas
 from convertersmartgrid.mapa_informe import imagenes_del_estado
 from convertersmartgrid.perfil_empresa import datos_perfil
@@ -287,6 +287,10 @@ def generar(plan: dict, destino: Path, raiz: Path) -> dict:
         por_modo = {modo: Caso.desde_medida(nombre, d['red_proyecto']['medida'], config.limites)
                     for r, modo, d in pruebas if r == rol}
         casos_dictamen[rol] = caso_conservador(por_modo['flujo'], por_modo['flujo_desequilibrado'])
+    # 086:RF-48: las barras bajas por el flujo equilibrado, con la tolerancia de la escalera (025:RF-50).
+    medida_de = {r: d['red_proyecto']['medida'] for r, modo, d in pruebas if modo == 'flujo'}
+    fuera = bajo_limite(medida_de['sin'], medida_de['con'], config.limites, barras_cargas=[plan['barra']],
+                        tolerancia_pu=float((datos_perfil().get('escalera') or {}).get('tolerancia_pu') or 0.0))
     punto = next(x for x in casos['con']['red_proyecto']['tensiones_por_nivel']['mt']
                  if x['nombre'] == plan['barra'])
     u = min(x for x in punto['fases'].values() if x is not None)
@@ -313,8 +317,8 @@ def generar(plan: dict, destino: Path, raiz: Path) -> dict:
         demanda_antes=_fuentes_medidas(casos['sin']), demanda_despues=_fuentes_medidas(casos['con']),
         demanda_alimentadores=plan.get('demanda_alimentadores', ()),
         resumen_obras=plan.get('resumen_obras', ()), cola_conexion=plan.get('cola_conexion', {}),
-        notas_casos=plan.get('notas_casos', ()))
-    huecos = escribir_informe_factibilidad(config, destino, datos)
+        notas_casos=plan.get('notas_casos', ()), bajo_limite=fuera)
+    huecos =escribir_informe_factibilidad(config, destino, datos)
     if huecos:
         raise ValueError('El informe conserva huecos: ' + ', '.join(huecos))
     documento = docx.Document(destino)

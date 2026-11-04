@@ -2633,6 +2633,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
     from convertersmartgrid.escalera_optima import cumple, parametros
+    from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
@@ -2729,6 +2730,11 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                             var.Deactivate()
                         var.Delete()
 
+        def bajas(con: dict[str, Any]) -> dict[str, Any]:
+            """086:RF-48: de cada barra, solo las que quedan bajo el límite con la máxima; las dos medidas ya están
+            hechas, y guardar la ``u`` entera por variante pesaría sin que nadie la use (SI112, 2026-11-04)."""
+            return clasificar_bajo_limite(sin_max.get('u') or {}, con.get('u') or {}, barras, p.tension_min_pu, p.tolerancia_pu)
+
         fallidos: list[dict] = []        # 063:RF-28: qué sorteos fallan y por qué, de la última variante
 
         def sortear():
@@ -2763,7 +2769,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if fraccion is None:
                 return informe, 2
             if fraccion >= p.cumplimiento:
-                informe['ya_cumple'] = {'fraccion': fraccion, 'perdidas_kw': con_actual['perdidas_kw']}
+                informe['ya_cumple'] = {'fraccion': fraccion, 'perdidas_kw': con_actual['perdidas_kw'],
+                                        'bajo_limite': bajas(con_actual)}              # 086:RF-48
                 if puntos_valle:                                                       # 073:RF-26
                     informe['ya_cumple'].update(medir_valle())
                 print(f'  «Con proyecto» ya cumple: sorteos {100 * fraccion:.0f} %', flush=True)
@@ -2796,7 +2803,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 u = con_max.get('u') or {}
                 fila['u_cargas'] = {b: u.get(b) for b in barras}
                 fila['u_min_mt'] = min(u.values()) if u else None
-                partes = [f'{b} a {x:.3f} p.u.' for b, x in fila['u_cargas'].items() if x is not None]
+                fila['bajo_limite'] = bajas(con_max)                                   # 086:RF-48
+                partes =[f'{b} a {x:.3f} p.u.' for b, x in fila['u_cargas'].items() if x is not None]
                 if fila['u_min_mt'] is not None:
                     partes.append(f"mínima de media {fila['u_min_mt']:.3f} p.u.")
                 mejora = f" ({'; '.join(partes)})" if partes else ''

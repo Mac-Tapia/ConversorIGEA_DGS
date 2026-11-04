@@ -555,6 +555,55 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     assert any(n.startswith('terna') and 'no hace falta' in m for n, m in motivos.items())   # 063:RF-22
 
 
+@pytest.mark.parametrize('bajas, espera, no_dice', [
+    ({'previo': [{'barra': 'RAMAL', 'u': 0.9449, 'sin': 0.9452}], 'causado': [], 'sin_comparacion': []},
+     ('Déficit previo, fuera de esta obra', 'RAMAL', '0,9449 p.u.'), ('sin comparación',)),
+    ({'previo': [], 'causado': [], 'sin_comparacion': [{'barra': 'T_NUEVO', 'u': 0.94, 'sin': None}]},
+     ('sin comparación disponible', 'T_NUEVO'), ('revio',)),
+])
+def test_la_escalera_dice_las_barras_bajas_de_la_obra_que_elige(tmp_path, monkeypatch, bajas, espera, no_dice):
+    """086:RF-48, 086:RF-50 — elige y aplica la obra igual, y el aviso dice qué sigue bajo el límite, sin códigos."""
+    def evaluar(nombre):
+        cumple = nombre.startswith('sección')
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None, 'perdidas_kw': 10.0,
+                'motivos': [], 'u_min_mt': bajas['previo'][0]['u'] if bajas['previo'] else 0.94, 'bajo_limite': bajas}
+
+    services, ws, ctx, _planes, aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    assert f1['elegida'].startswith('sección') and aplicadas, 'la obra se elige y se aplica igual'
+    assert f1['bajo_limite'] == bajas
+    aviso = next(a for a in f1['avisos'] if 'bajo el límite' in a)
+    assert 'basta para las cargas nuevas' in aviso
+    assert all(x in aviso for x in espera) and not any(x in aviso for x in no_dice)
+    assert 'RF-' not in aviso
+
+
+def test_la_escalera_sin_barras_bajas_no_anade_avisos(tmp_path, monkeypatch):
+    """086:RF-50 — sin barras bajas, los avisos de siempre."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': nombre.startswith('sección'), 'fraccion': 1.0, 'perdidas_kw': 10.0,
+                'motivos': [], 'u_min_mt': 0.96, 'bajo_limite': {'previo': [], 'causado': [], 'sin_comparacion': []}}
+
+    services, ws, ctx, *_resto = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    assert not any('bajo el límite' in a for a in f1['avisos'])
+
+
+def test_una_evaluacion_de_antes_sin_el_detalle_no_da_un_ok_falso(tmp_path, monkeypatch):
+    """086:RF-50 — 025:RF-73 reutiliza 24 h una evaluación que solo trae la mínima: se dice y no se afirma que sea previa."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': nombre.startswith('sección'), 'fraccion': 1.0, 'perdidas_kw': 10.0,
+                'motivos': [], 'u_min_mt': 0.9449}
+
+    services, ws, ctx, *_resto = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    aviso = next(a for a in f1['avisos'] if 'bajo el límite' in a)
+    assert 'no da el detalle por barra' in aviso and 'revio' not in aviso
+
+
 def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga(tmp_path, monkeypatch):
     """025:RF-44 — si DIgSILENT dice que la barra de la carga nueva no existe sin ella (un
     NODE_T_ de su variación) y la lectura no da barra existente en su tramo, no hay variante con
@@ -643,6 +692,24 @@ def test_la_escalera_no_vuelve_a_medir_lo_ya_evaluado(tmp_path, monkeypatch):
     assert not [a for a, _p in planes if '--evaluar' in a]
     assert f1['elegida'].startswith('terna') and len(aplicadas) == 1
     assert vistos == [['Carga_Q']]
+
+
+def test_si_ya_cumple_con_barras_bajas_tambien_lo_dice(tmp_path, monkeypatch):
+    """086:RF-48, 086:RF-50 — «ya cumple» es para las cargas: las barras bajas que siguen se dicen al lado."""
+    services, ws, ctx, _planes, aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, lambda n: {'nombre': n}, {'nueva_terna': 40000})
+    falso = services._guion_pf
+    bajas = {'previo': [{'barra': 'RAMAL', 'u': 0.9449, 'sin': 0.9452}], 'causado': [], 'sin_comparacion': []}
+
+    def guion(ws_, ctx_, script, plan, *, nombre, args=(), **k):
+        if '--evaluar' in args:
+            return 0, {'variantes': [], 'ya_cumple': {'fraccion': 1.0, 'perdidas_kw': 5.0, 'bajo_limite': bajas}}, None
+        return falso(ws_, ctx_, script, plan, nombre=nombre, args=args, **k)
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    assert aplicadas == [] and f1['ya_cumple']
+    assert any('Déficit previo, fuera de esta obra: RAMAL a 0,9449 p.u.' in a and 'bajo el límite' in a for a in f1['avisos'])
 
 
 def test_si_con_proyecto_ya_cumple_no_se_aplica_nada_y_queda_resuelto(tmp_path, monkeypatch):

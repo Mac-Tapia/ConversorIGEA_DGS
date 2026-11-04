@@ -224,9 +224,14 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
         </div>
       )}
       {r.factible !== undefined && (
-        <p className={`alert ${r.factible ? 'alert-ok' : 'alert-warn'}`}>
-          {r.factible ? 'Factible.' : `No factible: ${(r.excesos ?? []).join('; ')}.`}
+        <p className={`alert ${r.factible && !r.queda_deficit ? 'alert-ok' : 'alert-warn'}`}>
+          {/* 086:RF-50: la obra basta para la carga, y eso no deja al alimentador entero dentro de sus límites. */}
+          {!r.factible ? `No factible: ${(r.excesos ?? []).join('; ')}.`
+            : r.queda_deficit ? 'Factible para la carga: el alimentador sigue con barras bajo el límite.' : 'Factible.'}
         </p>)}
+      {/* 086:RF-48, RF-49: cada barra baja con su tensión, separando lo que causa la carga. */}
+      {(r.textos_bajo_limite?.length ?? 0) > 0 && (
+        <ul className="small">{r.textos_bajo_limite!.map((t) => <li key={t}>{t}</li>)}</ul>)}
       {r.huecos.length > 0 && (
         <details className="alert alert-warn"><summary>Huecos señalados en el Word: {r.huecos.length}</summary>
           <ul className="small">{r.huecos.map((h) => <li key={h}>{h}</li>)}</ul>
@@ -337,7 +342,7 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
             <tbody>{ctx.generados.map((g) => (
               <tr key={g.docx}>
                 <td>{g.tipo === 'estudio' ? 'Estudio eléctrico' : `Factibilidad${g.factible == null ? ''
-                  : g.factible ? ' · factible' : ' · no factible'}`}</td>
+                  : !g.factible ? ' · no factible' : g.queda_deficit ? ' · factible para la carga, con barras bajo el límite' : ' · factible'}`}</td>
                 <td>{g.fecha ?? '—'}</td><td>{g.alimentadores.join(', ')}</td><td>{g.numero ?? '—'}</td>
                 <td className="num" title={g.huecos.join('\n')}>{g.huecos.length}</td>
                 <td><a href={api.fileUrl(ws.id, g.docx, true)}>{g.docx}</a></td>
