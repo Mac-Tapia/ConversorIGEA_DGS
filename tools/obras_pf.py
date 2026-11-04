@@ -2959,9 +2959,14 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         variantes = list(plan.get('variantes') or [])
         filas = []
         clases_que_cumplen: set = set()                                     # 042:RF-55
+        primera_que_cumple = None                                           # 042:RF-90
         for v in variantes:
             if cancelado():
                 informe['cancelado'] = True
+                break
+            if primera_que_cumple is not None and len(filas) - primera_que_cumple >= p.variantes_tras_cumplir:
+                informe['avisos'].append(f'Se paró tras {p.variantes_tras_cumplir} variantes más desde la primera que '
+                                         f'cumple, con {len(clases_que_cumplen)} alternativa(s) (042:RF-90).')
                 break
             fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
                     'perdidas_kw': None, 'error': None, 'sin_sortear': None}
@@ -2997,6 +3002,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if (plan.get('alternativas') and fila['maxima'] and v.get('costo_base') is not None
                     and fila.get('valle') is not False):                                # 042:RF-55
                 clases_que_cumplen.add(frozenset(v.get('escalones') or ()))
+                primera_que_cumple = len(filas) if primera_que_cumple is None else primera_que_cumple
                 if len(clases_que_cumplen) >= int(plan['alternativas']):
                     break
             elif (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None

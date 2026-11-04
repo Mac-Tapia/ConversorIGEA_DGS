@@ -1625,3 +1625,20 @@ def test_las_fases_se_miran_una_vez_por_caso(monkeypatch):
     assert guion._monofasicos_del_caso(app) and guion._monofasicos_del_caso(app) and len(miradas) == 1
     caso['c'] = 'Sin proyecto'
     assert guion._monofasicos_del_caso(app) and len(miradas) == 2
+
+
+def test_tras_la_primera_que_cumple_hay_un_tope_de_variantes(monkeypatch):
+    """042:RF-90 — con una alternativa y tope 2, para ahí y lo dice; las demás no se miden."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(47))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 2}}
+    variantes = [{'nombre': f'terna {i}', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0, 'escalones': ['terna']}
+                 for i in range(6)]
+    plan = _plan(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=perfil, basta_una=True, alternativas=3)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 3 and any('042:RF-90' in a for a in informe['avisos'])
+    assert escalera_optima.parametros(PERFIL_ESCALERA).variantes_tras_cumplir == 25

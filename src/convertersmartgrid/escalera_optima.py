@@ -116,6 +116,8 @@ class Parametros:
     sorteos_etapa: int = 50
     sorteos_decide_si: float = 0.98
     sorteos_decide_no: float = 0.90
+    #: 042:RF-90: las que se prueban tras la primera que cumple, buscando otras alternativas.
+    variantes_tras_cumplir: int = 25
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -183,7 +185,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA),
         sorteos_etapa=int(50 if esc.get('sorteos_etapa') is None else esc['sorteos_etapa']),
         sorteos_decide_si=float(esc.get('sorteos_decide_si') or 0.98),
-        sorteos_decide_no=float(esc.get('sorteos_decide_no') or 0.90))
+        sorteos_decide_no=float(esc.get('sorteos_decide_no') or 0.90),
+        variantes_tras_cumplir=int(esc.get('variantes_tras_cumplir') or 25))
 
 
 def _opcional(x) -> float | None:
