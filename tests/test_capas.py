@@ -121,3 +121,10 @@ def test_no_quedan_nombres_privados_entre_modulos():
     h = herramienta()
     informe = h.comprobar(RAIZ)
     assert not [v for v in informe.violaciones if v.startswith('privado|')]
+
+
+def test_no_quedan_ciclos_entre_modulos():
+    """002:RF-4 — T3: la lista de ciclos permitidos está vacía y no vuelve a crecer."""
+    h = herramienta()
+    informe = h.comprobar(RAIZ)
+    assert not [v for v in informe.violaciones if v.startswith('ciclo|')]

@@ -37,17 +37,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from .model import Coupler, DatosRegulador, FeederModel, Node
-
-#: Códigos de tipo que marcan un tramo puente en CYMDIST.
-CODIGOS_PUENTE = ('DEFAULT',)
-
-#: Longitud máxima de un puente. En 260924.mdb los 1.791 puentes miden como mucho 5 m.
-#: Un tramo ``DEFAULT`` más largo es una línea real cuyo conductor no se conoce: se
-#: modela como línea (con el tipo DEFAULT del catálogo) y NO se funde, porque fundirlo
-#: borraría su impedancia y su longitud. Mismo umbral que la carga a mitad de tramo
-#: (model.LARGO_MAXIMO_CARGA_CENTRAL_M): por debajo de 10 m el error es despreciable.
-LARGO_MAXIMO_PUENTE_M = 10.0
+from .model import CODIGOS_PUENTE, LARGO_MAXIMO_PUENTE_M, Coupler, DatosRegulador, FeederModel, Node
 
 
 @dataclass

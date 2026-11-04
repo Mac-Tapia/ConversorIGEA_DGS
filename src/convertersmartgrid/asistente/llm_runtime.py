@@ -8,45 +8,14 @@ import re
 import subprocess
 import sys
 
+from .llm_checkpoint import sha256, validar_base_checkpoint, verificar_checkpoint  # noqa: F401 - API pública
+
 
 def sha256_en_commit(repo: Path, ruta: str) -> str:
     """La huella del fichero en el commit, no en disco: con ``core.autocrlf`` Windows cambia sus saltos de línea y la
     licencia fijada no coincidía aunque el clon estuviera limpio (publicación del alumno, 2026-11-03)."""
     contenido = subprocess.run(['git', '-C', str(repo), 'show', f'HEAD:{ruta}'], capture_output=True, check=True).stdout
     return hashlib.sha256(contenido).hexdigest()
-
-
-def sha256(p: Path) -> str:
-    with p.open('rb') as f:
-        return hashlib.file_digest(f,'sha256').hexdigest()
-
-
-def validar_base_checkpoint(estado: dict, base: dict) -> None:
-    if not estado.get('base') or estado['base'] != base:
-        raise ValueError('base, revision o inventario de configuracion/tokenizador distintos del checkpoint')
-
-
-def verificar_checkpoint(carpeta: Path, *, exigir_completo: bool = True) -> dict:
-    estado=json.loads((carpeta/'estado.json').read_text(encoding='utf-8'))
-    if exigir_completo and not estado.get('training_completed'):
-        raise ValueError('checkpoint no completado')
-    artefactos=estado.get('artefactos')
-    if not isinstance(artefactos,dict) or not artefactos:
-        raise ValueError('checkpoint sin hashes')
-    raiz=carpeta.resolve()
-    for nombre,huella in artefactos.items():
-        archivo=(raiz/nombre).resolve()
-        if not archivo.is_relative_to(raiz) or not archivo.is_file() or sha256(archivo)!=huella:
-            raise ValueError('checkpoint alterado: '+nombre)
-    requeridos={'adaptador/adapter_model.safetensors','adaptador/adapter_config.json','optimizador.pt'}
-    if not requeridos.issubset(artefactos):
-        raise ValueError('checkpoint incompleto')
-    vistos, total = estado.get('ejemplos_vistos_epoca'), estado.get('registros_train')
-    if (type(vistos) is not int or type(total) is not int or total < 1 or not 0 <= vistos <= total or
-            estado.get('siguiente_indice') != vistos or
-            (estado.get('training_completed') and vistos != total)):
-        raise ValueError('corpus no completado')
-    return estado
 
 
 def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:

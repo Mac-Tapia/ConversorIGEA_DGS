@@ -99,6 +99,23 @@ def particion(clave_familia: str) -> str:
     return PARTICIONES[-1][0]
 
 
+#: Episodios mínimos por sistema y partición (027:RF-53).
+MINIMOS = {'entrenamiento': 30, 'validacion': 10, 'prueba': 10}
+
+
+def reparto_del_sistema(ids: Sequence[str], familias: Sequence[str] | None = None) -> dict[str, list[int]]:
+    """Los índices de los episodios de un sistema por partición, por la huella de su familia.
+
+    044:RF-1: repartidos por la huella de cada episodio, los hermanos de una familia caían a los dos
+    lados y ``entrenar`` lo rechazaba siempre (060:RF-2). Sin familia, cuenta su propio identificador.
+    """
+    out: dict[str, list[int]] = {k: [] for k in MINIMOS}
+    for i, ident in enumerate(ids):
+        clave = (familias[i] if familias is not None else '') or ident
+        out[particion(hashlib.sha256(clave.encode('utf-8')).hexdigest())].append(i)
+    return out
+
+
 def elegir(escenarios: Sequence[Escenario], n: int,
            incertidumbre: Callable[[Escenario], float] | None = None,
            hechos: Iterable[str] = ()) -> list[Escenario]:

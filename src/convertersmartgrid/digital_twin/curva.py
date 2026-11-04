@@ -10,30 +10,14 @@ mejora el error de validación menos de un 5 %, ha convergido y no se piden más
 """
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from .escenarios import particion
+from .escenarios import MINIMOS, reparto_del_sistema
 from .oraculo import Entrenamiento, Muestra, OraculoPINN, entrenar_miembro, mae, red_de
 
-#: Episodios mínimos por sistema y partición (RF-53).
-MINIMOS = {'entrenamiento': 30, 'validacion': 10, 'prueba': 10}
 #: Mejora relativa por debajo de la cual, con un 20 % más de episodios, se da por convergido.
 MEJORA_MIN = 0.05
-
-
-def reparto_del_sistema(ids: Sequence[str], familias: Sequence[str] | None = None) -> dict[str, list[int]]:
-    """Los índices de los episodios de un sistema por partición, por la huella de su familia.
-
-    044:RF-1: repartidos por la huella de cada episodio, los hermanos de una familia caían a los dos
-    lados y ``entrenar`` lo rechazaba siempre (060:RF-2). Sin familia, cuenta su propio identificador.
-    """
-    out: dict[str, list[int]] = {k: [] for k in MINIMOS}
-    for i, ident in enumerate(ids):
-        clave = (familias[i] if familias is not None else '') or ident
-        out[particion(hashlib.sha256(clave.encode('utf-8')).hexdigest())].append(i)
-    return out
 
 
 def por_sistema(muestras: Sequence[Muestra], ids: Sequence[str]) -> list[dict[str, Any]]:

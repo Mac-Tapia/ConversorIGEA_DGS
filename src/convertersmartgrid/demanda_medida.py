@@ -34,7 +34,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
-EXTENSIONES = ('.xls', '.xlsx', '.xlsb', '.xlsm')
+from .libros_por_anio import EXTENSIONES, DemandaError
+
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
 FILAS_DATOS_MINIMAS = 2      # una hoja de medición con menos no es un medidor
 
@@ -80,10 +81,6 @@ NOMBRE = {'kw': 'kW', 'kvar': 'kVAR', 'kva': 'kVA', 'fp': 'FP'}
 #: 070:RF-57: lo que decidió el usuario para el análisis por alimentadores (028:RF-27); con más, por SET o por sistema.
 #: No es el tamaño de la red: esta acepta cualquier número de alimentadores (P2).
 MAX_ALIMENTADORES_ANALISIS = 3
-
-
-class DemandaError(ValueError):
-    """Error de usuario: libro que falta, hoja o columna que no está."""
 
 
 # =========================================================================== normalizar
@@ -1909,7 +1906,7 @@ def reconciliar_radiales(clientes: Sequence[ClienteImportante],
 
 
 def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[ClienteImportante],
-                    alimentadores: Iterable[str],
+                    alimentadores: Iterable[str], *, corto: Callable[[str], str],
                     ) -> tuple[list[ClienteImportante], list[ClienteImportante], int]:
     """Solo los clientes cuyo suministro cuelga de esos alimentadores, por su radial (RF-43).
 
@@ -1920,11 +1917,10 @@ def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[Clie
     cruzados quedaron fuera por ser de otro alimentador.
     """
     claves = {clave_codigo(a) for a in alimentadores if str(a).strip()}
-    from .naming import feeder_short_name
-
+    # ``corto`` lo da quien llama: la medición no depende de los nombres de la red (002:RF-4).
     suyo = [c for c in cruzados if clave_codigo(c.radial) in claves]
     otros = [c for c in aparte if not c.cruzado_por or clave_codigo(c.radial) in claves
-             or any(clave_codigo(feeder_short_name(f)) in claves for f in c.radiales_fuente)]
+             or any(clave_codigo(corto(f)) in claves for f in c.radiales_fuente)]
     return suyo, otros, len(cruzados) - len(suyo)
 
 

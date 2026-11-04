@@ -17,7 +17,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import urlparse
 
-from .tareas import TAREAS, descripcion_para_modelo
+from .tareas import TAREAS, descripcion_para_modelo, sistema_alumno
 from .contratos_salida import esquema_orden, validar_orden
 
 URL_LOCAL = 'http://127.0.0.1:11434'
@@ -98,7 +98,6 @@ class ClienteOllama:
             {**t, 'ejemplo_entrenamiento': TAREAS[t['tarea']].plantillas[0]}
             for t in descripcion_para_modelo()], ensure_ascii=False)
         if self.perfil_prompt == 'llm_destilado_v1':
-            from .llm_destilacion import sistema_alumno
             sistema = sistema_alumno()
         elegida = None
         if self.dos_etapas:

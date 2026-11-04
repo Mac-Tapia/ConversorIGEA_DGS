@@ -36,7 +36,7 @@ def auditar_muestras(muestras: Sequence[Any], ids: Sequence[str], *, parametros:
                      umbrales: Umbrales | None = None) -> dict[str, Any]:
     """El informe del dataset del gemelo (RF-29 a RF-33); ``apto`` es falso sin muestras o con
     valores no finitos."""
-    from .oraculo import Z_ACOPLADOR_PU
+    from .contratos_fisicos import Z_ACOPLADOR_PU
 
     u = umbrales or Umbrales()
     if not muestras:
