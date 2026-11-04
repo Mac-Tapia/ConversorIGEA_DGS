@@ -594,7 +594,7 @@ def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
     """042:RF-47 — 85 A al 80 % piden 106 A: la unidad de 150 A; las variantes van sobre el camino de la carga."""
     from convertersmartgrid.perfil_empresa import completar_planeamiento
 
-    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500}})[0]
+    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500, 'regulador_min_km': 0}})[0]
     p = eo.parametros(perfil)
     camino = _camino_que_cae()
     vs, _a = eo.variantes('F', 22.9, [], [{'barra': 'B5', 'existe': False, 'camino': camino}], [], p, banco_kvar=None)
