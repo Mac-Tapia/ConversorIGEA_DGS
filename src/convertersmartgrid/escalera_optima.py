@@ -24,6 +24,7 @@ from .catalogo_reguladores import CatalogoError, unidad_para_corriente, unidades
 from .estudios_pf import CON_PROYECTO
 from .instalacion_ternas import capacidad_de_tramos
 from .pide_economia import costo_anual
+from .set_nueva import margen_sin_tasa
 
 #: Orden de la escalera: bancos, cambio de sección, terna y, al final, regulador (063:RF-21; cambia
 #: 025:RF-44). Usuario, 2026-11-01: «primero debe comenzar con bancos y luego con cambio de sección
@@ -104,8 +105,8 @@ class Parametros:
     #: 042:RF-50: la tensión que se pasa y a cuál.
     migrar_desde_kv: float = 10.0
     migrar_a_kv: float = 22.9
-    #: 042:RF-70: margen del elevador por el crecimiento que la corriente medida no cuenta (086:RF-51).
-    factor_elevador: float = 1.0
+    #: 042:RF-70, RF-71: margen del elevador y del regulador por el crecimiento que la corriente medida no cuenta.
+    factor_sin_tasa: float = 1.0
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -167,8 +168,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         linea_larga_km=float(esc.get('linea_larga_km') or 10.0),
         regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']),
         migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
-        factor_elevador=float((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa')
-                              or (perfil.get('planificacion') or {}).get('factor_seguridad_set') or 1.0))
+        factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
+                                        (perfil.get('planificacion') or {}).get('factor_seguridad_set')))
 
 
 def _opcional(x) -> float | None:
@@ -319,7 +320,8 @@ def _reguladores_en_caminos(alim, kv, caminos, p: Parametros, avisos) -> list[Va
     for camino in sorted(caminos, key=_km, reverse=True):
         for i in puntos_de_regulador(camino, p.tension_min_pu):
             t = camino[i]
-            corriente = float(t.get('corriente_a') or 0.0) / max(p.cargabilidad_max_pct / 100.0, 0.01)
+            # 042:RF-71: con el margen, como el elevador.
+            corriente = p.factor_sin_tasa * float(t.get('corriente_a') or 0.0) / max(p.cargabilidad_max_pct / 100.0, 0.01)
             unidad = unidad_para_corriente(kv, corriente)
             if unidad is None:
                 avisos.append(f"{alim}: ningún regulador del catálogo lleva {corriente:.0f} A en {t['nombre']} (042:RF-47).")
@@ -345,7 +347,7 @@ def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos, ca
         corriente = t.get('corriente_a')
         if corriente is None:
             continue
-        unidad = unidad_para_corriente(kv, float(corriente))
+        unidad = unidad_para_corriente(kv, p.factor_sin_tasa * float(corriente))       # 042:RF-71
         if unidad is not None:
             candidatos.append((i, t, unidad))
     if not candidatos:
@@ -525,7 +527,7 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
 
 def mva_del_elevador(kv: float, corriente_a: float, p: Parametros) -> float | None:
     """042:RF-61: el menor normalizado con la corriente de salida bajo el límite; ``None`` si no hay ninguno (RF-62)."""
-    necesarios = p.factor_elevador * math.sqrt(3) * kv * corriente_a / 1000.0 / max(p.cargabilidad_max_pct / 100.0, 0.01)
+    necesarios = p.factor_sin_tasa * math.sqrt(3) * kv * corriente_a / 1000.0 / max(p.cargabilidad_max_pct / 100.0, 0.01)
     return next((m for m in MVA_ELEVADOR if m >= necesarios), None)
 
 
@@ -788,6 +790,8 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
     return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
              'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
              'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'), 'valle': t.get('valle'),
+             # 042:RF-72: solo donde se dimensionó con él.
+             'factor': p.factor_sin_tasa if 'regulador' in (t.get('escalones') or ()) or 'elevador' in t['nombre'] else None,
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
 
 

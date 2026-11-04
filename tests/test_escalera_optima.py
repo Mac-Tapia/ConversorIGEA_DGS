@@ -742,3 +742,43 @@ def test_una_alternativa_dice_si_cumple_en_valle():
     d = eo.elegir([{**_opcion('a', ('seccion',), 100.0, 1.0), 'valle': False}, {**_opcion('b', ('terna',), 200.0, 1.0), 'valle': True},
                    _opcion('c', ('nivel',), 300.0, 1.0)], P)
     assert [(a['nombre'], a['valle']) for a in d['alternativas']] == [('b', True), ('c', None)]
+
+
+def _p_con_factor():
+    return eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'factor_seguridad_set': 1.0,
+                                                      'factor_seguridad_set_sin_tasa': 1.25}})
+
+
+def test_el_regulador_lleva_el_mismo_margen():
+    """042:RF-71 — justo en la corriente de una unidad, sin factor basta esa; con 1,25 hace falta una mayor."""
+    unidad = eo.unidad_para_corriente(22.9, 1.0)
+    camino = [{**t, 'corriente_a': float(unidad.corriente_a)} for t in _camino_que_cae()]
+
+    def nombres(p):
+        return {v.nombre.split(' en ')[0] for v in eo._reguladores_en_caminos('F', 22.9, [camino], p, [])}
+
+    assert nombres(P) == {f'regulador {unidad.corriente_a:g} A'}
+    assert nombres(_p_con_factor()) and nombres(_p_con_factor()) != nombres(P)
+
+
+@pytest.mark.parametrize('planificacion,factor', [({}, 1.0), ({'factor_seguridad_set': 1.1}, 1.1),
+                                                  ({'factor_seguridad_set_sin_tasa': 1.25}, 1.25),
+                                                  ({'factor_seguridad_set': 1.0, 'factor_seguridad_set_sin_tasa': 1.25}, 1.25)])
+def test_el_factor_con_y_sin_el_dato_en_el_perfil(planificacion, factor):
+    """042:RF-71 — una sola regla: sirve con un perfil parcial, y la SET da el mismo resultado sin contar la tasa."""
+    from convertersmartgrid.set_nueva import Parametros, margen_sin_tasa
+
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], **planificacion}})
+    assert p.factor_sin_tasa == factor
+    assert margen_sin_tasa(planificacion.get('factor_seguridad_set_sin_tasa'), planificacion.get('factor_seguridad_set')) == factor
+    if planificacion.get('factor_seguridad_set'):
+        set_nueva = Parametros(5, planificacion['factor_seguridad_set'], {}, 1, planificacion.get('factor_seguridad_set_sin_tasa'))
+        assert set_nueva.factor_para(0.0) == factor
+
+
+def test_la_alternativa_dice_el_factor_si_lleva_regulador_o_elevador():
+    """042:RF-72 — con regulador o elevador, su factor; con las demás, ninguno."""
+    p = _p_con_factor()
+    d = eo.elegir([_opcion('terna', ('terna',), 100.0, 1.0), _opcion('regulador', ('regulador',), 200.0, 1.0),
+                   _opcion('paso con elevador dedicado', ('nivel',), 300.0, 1.0)], p)
+    assert {a['nombre']: a['factor'] for a in d['alternativas']} == {'terna': None, 'regulador': 1.25, 'paso con elevador dedicado': 1.25}

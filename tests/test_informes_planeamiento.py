@@ -237,3 +237,12 @@ def test_el_informe_dice_que_la_obra_del_deficit_no_esta_en_los_flujos():
     assert '«déficit previo» y «sin comparación»' in nota
     cabecera, filas = filas_alternativas_escalera({'F1': [{'numero': 1, 'nombre': 'x', 'costo_anual': 1.0, 'valle': True}]})
     assert filas[0][cabecera.index('En valle')] == 'cumple'
+
+
+def test_el_informe_dice_el_factor_del_dimensionado():
+    """042:RF-72 — se ve el factor usado; sin regulador ni elevador, no se menciona."""
+    from convertersmartgrid.informes import notas_alternativas_escalera
+
+    (nota,) = notas_alternativas_escalera({'F1': [{'nombre': 'regulador', 'factor': 1.25}, {'nombre': 'terna', 'factor': None}]})
+    assert 'factor de 1,25' in nota
+    assert notas_alternativas_escalera({'F1': [{'nombre': 'terna', 'factor': None}]}) == []

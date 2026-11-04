@@ -996,10 +996,16 @@ ETIQUETA_SIN_COMPARACION = 'sin comparación'
 def notas_alternativas_escalera(por_alimentador) -> list[str]:
     """Lo que hay que saber para leer esas filas: no son efecto de una obra aplicada (042:RF-67)."""
     etiquetas = [e for e in (ETIQUETA_PREVIO, ETIQUETA_SIN_COMPARACION) if any(f.endswith(f'· {e}') for f in por_alimentador)]
-    if not etiquetas:
-        return []
-    return [f"Las filas «{'» y «'.join(etiquetas)}» son obras presentadas aparte: no están en «Con proyecto» ni en sus "
-            'flujos, y sus cifras no son efecto de ninguna obra aplicada. Se midieron con la demanda máxima, sin sorteos.']
+    notas = []
+    if etiquetas:
+        notas.append(f"Las filas «{'» y «'.join(etiquetas)}» son obras presentadas aparte: no están en «Con proyecto» ni en sus "
+                     'flujos, y sus cifras no son efecto de ninguna obra aplicada. Se midieron con la demanda máxima, sin sorteos.')
+    factores = sorted({float(a['factor']) for lista in por_alimentador.values() for a in lista if a.get('factor')})
+    if factores:                                                                # 042:RF-72
+        cuales = ' y '.join(f'{x:g}'.replace('.', ',') for x in factores)
+        notas.append(f'Los reguladores y elevadores se dimensionaron con un factor de {cuales} sobre la corriente medida, '
+                     'por el crecimiento de la demanda que no se cuenta.')
+    return notas
 
 
 def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[list[str]]]:
