@@ -1,0 +1,64 @@
+{
+  "_comentario": "Lista mínima de 086:RF-33: sha256(sal:texto normalizado)[:16], la forma de 076:RF-6. Sin lista local también se comprueba, y aquí no hay ningún nombre. La sal 076 son las huellas de 076:RF-6.",
+  "huellas": {
+    "076": {
+      "cliente u obra": [
+        "1d409437293f8e90",
+        "3498bf03a218f2c3",
+        "3e59bdab0a823374",
+        "442eea8a24c9cc8b",
+        "a1a7c9ecc9d9117c",
+        "b1bcb0e7a64793e8",
+        "c207484c9b5d789b"
+      ]
+    },
+    "086": {
+      "empresa": [
+        "0e9c75f588780064",
+        "17955f099ef309ea",
+        "209bc9213dc400bc",
+        "262a89f79310cfbc",
+        "3b833f0e48fd55e8",
+        "4a2b9b82bd4f8536",
+        "4b94a82090925982",
+        "53ebfb0c4357445e",
+        "5b0e9e00454bf2b7",
+        "6ce4485ddfc75013",
+        "755d8708ea474ad9",
+        "806cbb98ae98d490",
+        "8602b61ef88fa80c",
+        "89295335ad710b2e",
+        "9698703e4b646c23",
+        "99d32a8fa06cc9b6",
+        "b4424a8ebcd5b04e",
+        "d1e4d3c43373be32",
+        "d8c21c7f8eb56a31",
+        "d919ad937d30f5d5",
+        "dcd7c91abd5b78fd",
+        "f436e021b4abac61",
+        "f74bf7543c4a3d4b"
+      ],
+      "cliente, obra o zona": [
+        "115e3f712dc4e219",
+        "1abeb0746c28dde6",
+        "46b940aba024e1c7",
+        "614799ff15ac29c9",
+        "617313abdcffdf72",
+        "7767ac4d8f867676",
+        "7cc951fe8a632d48",
+        "7dd308a9a2e79f68",
+        "84b15f755e0ee0dd",
+        "93c114647759d7f4",
+        "9fb2863d4c585c26",
+        "a0fd5620710e88dd",
+        "a657bfaadfa0f37f",
+        "c0c88402149dc9cc",
+        "c3820523dc7a216e",
+        "daca38b2f211e2b3",
+        "eb61613f05bd2be6",
+        "ee221014d5f13566",
+        "fa4d760a24b4a286"
+      ]
+    }
+  }
+}

@@ -10,7 +10,7 @@ import pytest
 from convertersmartgrid.batch import convert_selection, load_aliases
 from convertersmartgrid.dgs import (
     DIAGRAM_SHEET_MARGIN_DU,
-    NA205_DIAGRAM_UNITS_PER_METER,
+    REF_DIAGRAM_UNITS_PER_METER,
     _diagram_mapper,
     write_dgs,
 )
@@ -131,14 +131,14 @@ def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     visible = set(sample_model.nodes)
     _map_point, sheet = _diagram_mapper(geo, visible)
-    assert sheet.scale == pytest.approx(NA205_DIAGRAM_UNITS_PER_METER)
+    assert sheet.scale == pytest.approx(REF_DIAGRAM_UNITS_PER_METER)
     assert sheet.width >= 2 * DIAGRAM_SHEET_MARGIN_DU
     assert sheet.height >= 2 * DIAGRAM_SHEET_MARGIN_DU
 
     out = tmp_path / f'{sample_model.name}_sheet.dgs'
     manifest = write_dgs(sample_model, out, geography=geo)
     assert manifest.diagram_sheet is not None
-    assert manifest.diagram_sheet.scale == pytest.approx(NA205_DIAGRAM_UNITS_PER_METER)
+    assert manifest.diagram_sheet.scale == pytest.approx(REF_DIAGRAM_UNITS_PER_METER)
 
     tables = parse_dgs(out)
     xs, ys = _all_graphic_xy(tables)

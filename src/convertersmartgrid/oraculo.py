@@ -190,7 +190,7 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     """
     import pandapower as pp
 
-    from .dgs import (NA205_SED_LV_KV, NA205_TR2_UK_PCT, tr2_curmg_pct, tr2_losses_kw,
+    from .dgs import (REF_SED_LV_KV, REF_TR2_UK_PCT, tr2_curmg_pct, tr2_losses_kw,
                       tr2_strn_mva, letras_de_fase)
     from .model import resolve_capacitor_capacity
 
@@ -345,8 +345,8 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     for sed in sorted(model.seds, key=lambda s: s.load_key):
         strn = tr2_strn_mva(sed.design_kva)
         kva = strn * 1000.0
-        pcu_kw, pfe_kw = tr2_losses_kw(kva, uk_pct=NA205_TR2_UK_PCT)
-        bt = int(pp.create_bus(net, vn_kv=NA205_SED_LV_KV, name=f'{sed.loc_name}_BT'))
+        pcu_kw, pfe_kw = tr2_losses_kw(kva, uk_pct=REF_TR2_UK_PCT)
+        bt = int(pp.create_bus(net, vn_kv=REF_SED_LV_KV, name=f'{sed.loc_name}_BT'))
         i0 = tr2_curmg_pct(kva, pfe_kw)
         extra: dict[str, Any] = {}
         if por_fases:
@@ -358,14 +358,14 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
             multiplo = 3.0 / len(letras)
             strn, i0 = strn * multiplo, i0 / multiplo
             extra = {'vector_group': 'Dyn' if len(letras) == 3 else 'YNyn',
-                     'vk0_percent': NA205_TR2_UK_PCT, 'vkr0_percent': pcu_kw / kva * 100.0,
+                     'vk0_percent': REF_TR2_UK_PCT, 'vkr0_percent': pcu_kw / kva * 100.0,
                      # 100 veces Z0: con 100 % la secuencia cero se iba por la magnetización y una
                      # SED monofásica caía de menos (lo destapó 082:RF-5).
                      'mag0_percent': 10_000.0, 'mag0_rx': 0.0, 'si0_hv_partial': 0.9}
         pp.create_transformer_from_parameters(
             net, barra[sed.node_id], bt, sn_mva=strn, vn_hv_kv=kv_de(sed.node_id),
-            vn_lv_kv=NA205_SED_LV_KV,
-            vk_percent=NA205_TR2_UK_PCT, vkr_percent=pcu_kw / kva * 100.0, pfe_kw=pfe_kw,
+            vn_lv_kv=REF_SED_LV_KV,
+            vk_percent=REF_TR2_UK_PCT, vkr_percent=pcu_kw / kva * 100.0, pfe_kw=pfe_kw,
             i0_percent=i0, name=f'TR_{sed.loc_name}', **extra)
         lado_baja[sed.load_key] = bt
 

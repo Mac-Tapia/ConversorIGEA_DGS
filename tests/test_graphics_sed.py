@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 
 from convertersmartgrid.dgs import (
-    NA205_DIAGRAM_UNITS_PER_METER,
-    NA205_SED_LV_KV,
-    NA205_SED_SIZE,
-    NA205_SYMBOL_SIZE,
+    REF_DIAGRAM_UNITS_PER_METER,
+    REF_SED_LV_KV,
+    REF_SED_SIZE,
+    REF_SYMBOL_SIZE,
     _adaptive_scale,
     _line_irot,
     _radial_offsets,
@@ -164,7 +164,7 @@ def test_adaptive_scale_matches_na205_units_per_meter():
         'C': (50.0, 80.0),
     }
     scale = _adaptive_scale(meter_xy, set(meter_xy))
-    assert scale == NA205_DIAGRAM_UNITS_PER_METER
+    assert scale == REF_DIAGRAM_UNITS_PER_METER
 
 
 def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
@@ -184,13 +184,13 @@ def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
         'A': (0.0, 0.0),
         'B': (100_000.0, 0.0),
     }
-    assert _adaptive_scale(meter_xy, set(meter_xy)) == NA205_DIAGRAM_UNITS_PER_METER
+    assert _adaptive_scale(meter_xy, set(meter_xy)) == REF_DIAGRAM_UNITS_PER_METER
 
 
 def test_la_escala_real_no_depende_del_tamano_de_la_red():
     meter_xy = {'A': (0.0, 0.0), 'B': (5_000_000.0, 0.0)}
     escala = _adaptive_scale(meter_xy, set(meter_xy))
-    assert escala == NA205_DIAGRAM_UNITS_PER_METER
+    assert escala == REF_DIAGRAM_UNITS_PER_METER
     assert 5_000_000.0 * escala > 10_000_000.0
 
 
@@ -208,7 +208,7 @@ def test_los_vertices_intermedios_cuentan_para_la_hoja():
     lejano = 80_000.0
     escala = _adaptive_scale(meter_xy, set(meter_xy), extra_points=[(lejano, 0.0)])
     # A escala de referencia la hoja cabe de sobra, así que no se encoge nada.
-    assert escala == NA205_DIAGRAM_UNITS_PER_METER
+    assert escala == REF_DIAGRAM_UNITS_PER_METER
     assert lejano * escala + 2.0 * DIAGRAM_SHEET_MARGIN_DU > 55_000.0
 
 
@@ -367,8 +367,8 @@ def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
     assert not any(r.get('pDataObj') == lod['FID'] for r in tables['IntGrf']['rows_dict'])
     sed_grf = next(r for r in tables['IntGrf']['rows_dict'] if r.get('pDataObj') == sub['FID'])
     assert sed_grf['sSymNam'] == 'SecSubProd'
-    assert float(sed_grf['rSizeX']) == NA205_SED_SIZE
-    assert float(sed_grf['rSizeY']) == NA205_SED_SIZE
+    assert float(sed_grf['rSizeX']) == REF_SED_SIZE
+    assert float(sed_grf['rSizeY']) == REF_SED_SIZE
     assert not any(c.get('fold_id') == sed_grf['FID'] for c in tables['IntGrfcon']['rows_dict'])
 
     # Interior electrical (double-click triangle).
@@ -378,7 +378,7 @@ def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
     inner_terms = [r for r in tables['ElmTerm']['rows_dict'] if r.get('fold_id') == sub['FID']]
     assert len(inner_terms) == 2
     uk = sorted(float(r['uknom']) for r in inner_terms)
-    assert uk[0] == NA205_SED_LV_KV
+    assert uk[0] == REF_SED_LV_KV
     assert uk[1] == model.nominal_kv
     mt = next(r for r in inner_terms if float(r['uknom']) >= 1.0)
     sed = model.seds[0]
@@ -398,8 +398,8 @@ def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
     for row in tables['IntGrf']['rows_dict']:
         if row['sSymNam'] == 'SecSubProd':
             continue
-        assert float(row['rSizeX']) == NA205_SYMBOL_SIZE
-        assert float(row['rSizeY']) == NA205_SYMBOL_SIZE
+        assert float(row['rSizeX']) == REF_SYMBOL_SIZE
+        assert float(row['rSizeY']) == REF_SYMBOL_SIZE
 
     report = validate_dgs(model, out, geography=geo)
     assert report['errors_total'] == 0, report

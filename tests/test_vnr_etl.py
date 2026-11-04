@@ -13,6 +13,7 @@ Spec 034: 034:RF-4.
 from __future__ import annotations
 
 import json
+import os
 import time
 import zipfile
 from pathlib import Path
@@ -810,10 +811,19 @@ def test_target_profile_loads_relative_sample_and_validates_hash(tmp_path):
     assert profile.verified
 
 
-def test_repository_dgs_profile_matches_reference_sample():
-    profile = TargetProfile.load(Path('config/vnr_dgs_profile.json'))
-    assert profile.verified
+def test_repository_dgs_profile_matches_reference_sample(monkeypatch):
+    """086:RF-32 — la ruta de la muestra ya no va en el contrato: con los datos reales se busca por su huella;
+    sin ellos, el perfil queda sin verificar, que no bloquea. Sin omitir: la suite no acepta omitidas."""
+    ruta = Path('config/vnr_dgs_profile.json')
+    monkeypatch.delenv('CSG_VNR_MUESTRA_DGS', raising=False)
+    profile = TargetProfile.load(ruta)
+    assert not profile.sample_path and not profile.verified
     assert profile.object_mapping['schema_profile'] == 'pf21_dgs_1_8_4'
+    carpeta = os.environ.get('CSG_DEMANDA_DIR')
+    if carpeta:
+        muestra = next(p for p in Path(carpeta).glob('*.dgs') if sha256_of(p) == profile.sample_hash)
+        monkeypatch.setenv('CSG_VNR_MUESTRA_DGS', str(muestra))
+        assert TargetProfile.load(ruta).verified
 
 
 def test_target_profile_detects_tampered_sample(tmp_path):

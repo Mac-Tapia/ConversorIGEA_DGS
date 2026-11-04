@@ -59,14 +59,18 @@
 
 ## F4 Universal (`v1/universal`)
 
-- [ ] T16 Moneda, web sin casos y valores por defecto. (RF-28, RF-29, RF-35)
+- [x] T16 Moneda, web sin casos y valores por defecto. (RF-28, RF-29, RF-35)
   Hecho cuando: una prueba recorre el núcleo y la web con la lista de términos, y no halla ninguno.
-- [ ] T17 Esquema, `validar-perfil` y `docs/PERFIL_EMPRESA.md`. (RF-30)
+  Fuera de los comentarios, que D5 neutraliza al empaquetar y T19 sigue contando. Evidencia: `tests/test_entrega_universal.py`; navegador real en el 8793, con el perfil ficticio.
+- [x] T17 Esquema, `validar-perfil` y `docs/PERFIL_EMPRESA.md`. (RF-30)
   Hecho cuando: un perfil incompleto dice qué falta y qué función afecta.
-- [ ] T18 Plantillas neutras, perfil plantilla y perfil ficticio. (RF-31, RF-32)
+  Evidencia: `tests/test_entrega_universal.py`. La orden solo lee: nada de lo que falta bloquea más que antes.
+- [x] T18 Plantillas neutras, perfil plantilla y perfil ficticio. (RF-31, RF-32)
   Hecho cuando: con el perfil ficticio y sin modelos de empresa se convierte y se genera un informe.
-- [ ] T19 Lista de lo que entra en el paquete, términos prohibidos y pesos. (RF-33, RF-34)
+  Sin DIgSILENT: el informe sale de datos de prueba, con la carpeta de perfiles como en un paquete. Con DIgSILENT y otra empresa es la T32.
+- [x] T19 Lista de lo que entra en el paquete, términos prohibidos y pesos. (RF-33, RF-34)
   Hecho cuando: un candidato con un término o peso ajeno se rechaza; comentarios según D5.
+  `config/entrega.json` es la lista que leerá la T21. Neutralizar los comentarios es un paso de empaquetar: hoy se cuentan y solo rechazan en un candidato, no en el repositorio.
 
 ## F5 Instalador y soporte (`v1/instalador`)
 

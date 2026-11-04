@@ -1,6 +1,6 @@
 {
   "_comentario": "Copie este fichero como perfil_empresa.json (local, fuera de git) y ponga las convenciones de su empresa. Sin perfil no se supone ninguna: el CRS se pide y no se excluye ninguna SED por su nombre (spec 002).",
-  "_comentario_perfil": "Opcional: heredar las convenciones de un perfil de config/perfiles/ (p. ej. \"electro_dunas\", el caso de prueba). Las claves de este fichero pisan las heredadas; una clave a null anula la heredada.",
+  "_comentario_perfil": "Opcional: heredar las convenciones de un perfil de config/perfiles/ (p. ej. \"ficticia\", el de ejemplo). Las claves de este fichero pisan las heredadas; una clave a null anula la heredada.",
   "perfil": null,
   "_comentario_crs": "CRS de CoordX/CoordY de su exportación: un EPSG proyectado en metros (el UTM de su zona). Sin él, la web y el CLI lo piden antes de georreferenciar.",
   "crs_origen": null,

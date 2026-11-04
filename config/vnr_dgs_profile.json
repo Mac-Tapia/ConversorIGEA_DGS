@@ -2,7 +2,7 @@
   "simulator": "DIgSILENT PowerFactory",
   "version": "2024 / DGS compatibility 1.8.4",
   "workflow": "Importación DGS mediante el perfil versionado pf21_dgs_1_8_4",
-  "sample_path": "D:/BaseDatosElectroDunas/referencia_retirada_20261102/NA205.dgs",
+  "_comentario_muestra": "086:RF-32: la muestra con esta huella es un fichero local; su ruta va en la variable CSG_VNR_MUESTRA_DGS. Sin ella el perfil queda sin verificar y se exporta igual, con aviso.",
   "sample_hash": "1545b0f6fe32ca5ce91c6cae7218741c3fac7ce19cedf87168b68ea70325056f",
   "encoding": "utf-8",
   "delimiter": ";",

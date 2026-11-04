@@ -454,22 +454,22 @@ class DiagramSymbolLayout:
     def tam(self, simbolo: str) -> float:
         """``rSizeX``/``rSizeY`` del símbolo: multiplicador de su tamaño propio en PF."""
         return dict(self.sizes).get(
-            simbolo, NA205_SED_SIZE if simbolo == 'SecSubProd' else NA205_SYMBOL_SIZE)
+            simbolo, REF_SED_SIZE if simbolo == 'SecSubProd' else REF_SYMBOL_SIZE)
 
 
 # Reference IntGrf conventions (Ica / Nazca geographic export NA205):
 # PointTerm / d_lin / d_load / d_net → rSizeX=rSizeY=1
 # SecSubProd (SED triangle) → rSizeX=rSizeY=5
-NA205_SYMBOL_SIZE = 1.0
-NA205_SED_SIZE = 5.0
+REF_SYMBOL_SIZE = 1.0
+REF_SED_SIZE = 5.0
 # Offsets in diagram units at NA205 geographic scale (~2.08 u/m).
-NA205_LOAD_RADIUS = 40.0
-NA205_SED_RADIUS = 20.0
-NA205_SOURCE_OFFSET = 40.0
+REF_LOAD_RADIUS = 40.0
+REF_SED_RADIUS = 20.0
+REF_SOURCE_OFFSET = 40.0
 # Inside ElmSubstat (double-click triangle): LV bus like NA205 SE_*_2.
-NA205_SED_LV_KV = 0.22
+REF_SED_LV_KV = 0.22
 # DigSilent feeder colour (NA205 uses 10/11); one ElmFeeder per converted network.
-NA205_FEEDER_ICOLOR = 11
+REF_FEEDER_ICOLOR = 11
 # Offset between true parallel circuits sharing the same From↔To endpoints.
 PARALLEL_CIRCUIT_OFFSET_DU = 4.0
 
@@ -560,11 +560,11 @@ def _diagram_symbol_layout(
         )
     _ = (geography, model, map_point, min_segment_m)
     return DiagramSymbolLayout(
-        load_radius=NA205_LOAD_RADIUS,
-        sed_radius=NA205_SED_RADIUS,
-        source_offset=NA205_SOURCE_OFFSET,
-        sed_size=NA205_SED_SIZE,
-        median_segment=NA205_LOAD_RADIUS,
+        load_radius=REF_LOAD_RADIUS,
+        sed_radius=REF_SED_RADIUS,
+        source_offset=REF_SOURCE_OFFSET,
+        sed_size=REF_SED_SIZE,
+        median_segment=REF_LOAD_RADIUS,
     )
 
 
@@ -581,15 +581,15 @@ def geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tupl
 # IntGrf extent ≈ 54623 over ≈ 26283 m GPS span → ~2.08 diagram units per meter.
 # Same scale keeps schematic + DigSilent Geographic Diagram element sizes aligned
 # with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
-NA205_DIAGRAM_UNITS_PER_METER = 2.08
+REF_DIAGRAM_UNITS_PER_METER = 2.08
 # Escala geográfica calibrada con NA205; el lienzo se dimensiona con la red y nunca
 # reduce esta escala por el tamaño total del dibujo.
 # Margin so edge symbols (loads/SED/source) and parallel-circuit offsets stay on-sheet.
 DIAGRAM_SHEET_MARGIN_DU = max(
-    NA205_LOAD_RADIUS,
-    NA205_SED_RADIUS,
-    NA205_SOURCE_OFFSET,
-) + PARALLEL_CIRCUIT_OFFSET_DU + NA205_SYMBOL_SIZE
+    REF_LOAD_RADIUS,
+    REF_SED_RADIUS,
+    REF_SOURCE_OFFSET,
+) + PARALLEL_CIRCUIT_OFFSET_DU + REF_SYMBOL_SIZE
 
 
 def _adaptive_scale(
@@ -597,7 +597,7 @@ def _adaptive_scale(
     visible_ids: set[str],
     *,
     extra_points: list[tuple[float, float]] | None = None,
-    units_per_meter: float = NA205_DIAGRAM_UNITS_PER_METER,
+    units_per_meter: float = REF_DIAGRAM_UNITS_PER_METER,
 ) -> float:
     """Mantiene la escala real de referencia; el tamaño de hoja no interviene."""
     _ = (meter_xy, visible_ids, extra_points)
@@ -675,7 +675,7 @@ def _diagram_mapper(
         meter_xy,
         visible_ids,
         extra_points=extras,
-        units_per_meter=units_per_meter or NA205_DIAGRAM_UNITS_PER_METER,
+        units_per_meter=units_per_meter or REF_DIAGRAM_UNITS_PER_METER,
     )
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
@@ -873,10 +873,10 @@ def tr2_strn_mva(design_kva: float) -> float:
 
 
 #: Tensión de cortocircuito que se escribe en TypTr2 mientras no haya ficha.
-NA205_TR2_UK_PCT = 4.0
+REF_TR2_UK_PCT = 4.0
 
 
-def tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tuple[float, float]:
+def tr2_losses_kw(design_kva: float, *, uk_pct: float = REF_TR2_UK_PCT) -> tuple[float, float]:
     """Pérdidas ``(cobre, hierro)`` en kW, coherentes con la potencia y con ``uk``.
 
     Hay una restricción física que PowerFactory comprueba y que es fácil violar por
@@ -1097,7 +1097,7 @@ def write_dgs(
 
     def clave_tr2(sed) -> tuple:
         # One TypTr2 per distinct (strn, utrn_h, utrn_l); 054:RF-4: y sus fases si no es trifásica.
-        clave = (round(tr2_strn_mva(sed.design_kva), 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
+        clave = (round(tr2_strn_mva(sed.design_kva), 9), round(kv_de(sed.node_id), 9), REF_SED_LV_KV)
         n = len(fases_sed[(sed.section_id, sed.device_number)])
         return clave if n == 3 else clave + (n,)
 
@@ -1179,7 +1179,7 @@ def write_dgs(
             GPSlon=gp.lon if gp is not None else '',
         ))
 
-    lv_phase = NA205_SED_LV_KV / math.sqrt(3.0)
+    lv_phase = REF_SED_LV_KV / math.sqrt(3.0)
     for node_id in sorted(model.nodes):
         gp = geography.nodes[node_id] if geography is not None else None
         kv = kv_de(node_id)
@@ -1215,7 +1215,7 @@ def write_dgs(
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=sed_bt_fids[key], OP='C',
             loc_name=_loc_name(f'{sed.loc_name}_BT'), fold_id=sub_fid, typ_id='',
-            systype=0, iUsage=0, uknom=NA205_SED_LV_KV, unknom=lv_phase,
+            systype=0, iUsage=0, uknom=REF_SED_LV_KV, unknom=lv_phase,
             iminus=0, outserv=fuera(sed.node_id),
             GPSlat=gp.lat if gp is not None else '',
             GPSlon=gp.lon if gp is not None else '',
@@ -1253,7 +1253,7 @@ def write_dgs(
         # El suelo fijo anterior violaba esa condición en una SED de 0 kVA y
         # PowerFactory rechazaba el cálculo de TODA la red (ver tr2_losses_kw).
         kva = strn * 1000.0
-        uk = NA205_TR2_UK_PCT
+        uk = REF_TR2_UK_PCT
         ficha = (trafos or {}).get(round(kva, 3))
         if ficha and all(ficha.get(k) for k in ('uk_pct', 'Pk_W', 'Po_W')):
             # Datos del catálogo. Se respetan salvo que violen uR% < uk%, que
@@ -1580,7 +1580,7 @@ def write_dgs(
             schema, 'ElmFeeder', FID=reg.new(), OP='C',
             loc_name=_loc_name(nombre_fuente),
             obj_id=feeder_cubic_fid,
-            iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
+            iorient=0, i_scale=0, Sset=0, icolor=REF_FEEDER_ICOLOR, outserv=0,
         ))
 
     # 022:RF-14: con la estructura, el ElmFeeder de cada alimentador en el cubículo de su
@@ -1592,7 +1592,7 @@ def write_dgs(
             continue
         rows['ElmFeeder'].append(_make_row(
             schema, 'ElmFeeder', FID=reg.new(), OP='C', loc_name=_loc_name(cab.feeder),
-            obj_id=cub, iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
+            obj_id=cub, iorient=0, i_scale=0, Sset=0, icolor=REF_FEEDER_ICOLOR, outserv=0,
         ))
 
     switch_fids: dict[tuple[str, str, str], str] = {}

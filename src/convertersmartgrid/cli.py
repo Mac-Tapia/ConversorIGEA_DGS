@@ -1,4 +1,4 @@
-"""Interfaz de línea de comandos ``convertersmartgrid``: ``list``, ``convert`` y ``web``.
+"""Interfaz de línea de comandos ``convertersmartgrid``: ``list``, ``convert``, ``web`` y ``validar-perfil``.
 
 Lee la entrada con los mismos adaptadores que la web (spec 001, RF-1).
 """
@@ -137,7 +137,25 @@ def _parser() -> argparse.ArgumentParser:
     web.add_argument('--host', default='127.0.0.1', help='Interfaz de escucha')
     web.add_argument('--port', type=int, default=8765, help='Puerto')
     web.add_argument('--no-browser', action='store_true', help='No abrir el navegador')
+
+    # 086:RF-30: solo lee; lo que falta se dice sin bloquear, y un valor imposible sale con 1.
+    perfil = sub.add_parser('validar-perfil', help='Comprobar el perfil de empresa: qué falta y qué función afecta')
+    perfil.add_argument('--ruta', help='Fichero de perfil; por defecto, el perfil activo')
+    perfil.add_argument('--perfil', help='Un perfil con nombre de config/perfiles')
+    perfil.add_argument('--json', action='store_true', help='Salida en JSON')
     return parser
+
+
+def _validar_perfil(args) -> int:
+    from dataclasses import asdict
+
+    from .perfil_esquema import texto_del_resultado, validar_fichero
+
+    if args.ruta and args.perfil:
+        raise SystemExit('--ruta y --perfil no se pueden combinar')
+    r = validar_fichero(Path(args.ruta) if args.ruta else None, args.perfil)
+    print(json.dumps(asdict(r), ensure_ascii=False, indent=2) if args.json else texto_del_resultado(r))
+    return 1 if r.errores else 0
 
 
 def _entrada(args) -> tuple[str, dict[str, str]]:
@@ -274,6 +292,8 @@ def main(argv=None) -> int:
     preparar_entorno_sin_red()                                         # 086:RF-22
     args = _parser().parse_args(argv)
 
+    if args.command == 'validar-perfil':
+        return _validar_perfil(args)
     if args.command == 'web':
         from .web.__main__ import main as web_main
         argv_web = ['--host', args.host, '--port', str(args.port)]

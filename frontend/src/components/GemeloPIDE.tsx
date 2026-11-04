@@ -53,13 +53,13 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
         solos en «Con proyecto», cada uno en su variación para poder deshacerlo.</p>
       <div className="row">
         <label className="field grow"><span>Libro CAPEX (ruta en el servidor, opcional)</span>
-          <input className="search" value={capex} placeholder="p. ej. D:\…\RESUMEN PROP CAPEX.xlsx"
+          <input className="search" value={capex} placeholder="p. ej. D:\…\capex.xlsx"
             onChange={(e) => setCapex(e.target.value)} /></label>
         <label className="field"><span>Año de presentación (se presenta cada 4 años)</span>
           <input type="number" min={2000} max={2100} value={anio} placeholder="sin él, sin módulos"
             onChange={(e) => setAnio(e.target.value)} /></label>
         <label className="field grow"><span>Formato 01 de la empresa (ruta en el servidor, opcional)</span>
-          <input className="search" value={formato01} placeholder="p. ej. D:\…\FORMATO 1.xlsx"
+          <input className="search" value={formato01} placeholder="p. ej. D:\…\formato01.xlsx"
             onChange={(e) => setFormato01(e.target.value)} /></label>
         <label className="check"><input type="checkbox" checked={implementar}
           onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>

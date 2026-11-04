@@ -1,0 +1,18 @@
+{
+  "_comentario": "086:RF-32: el perfil de una empresa inventada, para ver cómo queda uno completo y para probar sin datos de nadie. Nada de esto describe una red real, y nunca se prueba con él en DIgSILENT.",
+  "empresa": "Distribuidora Ficticia del Altiplano",
+  "codigo_empresa": "DFAL",
+  "crs_origen": "EPSG:32719",
+  "patron_sed_medicion": "(?i)^MED\\d+$",
+  "escala_diagrama": 1.5,
+  "forma_alimentador": "^[A-Z]{1,3}\\d{1,4}$",
+  "carpeta_proyectos_pf": "ConverterSmartGrid",
+  "_comentario_estudios": "Banda de la norma peruana de calidad: ±5 % y cargabilidad hasta el 100 %.",
+  "estudios": {"tension_min_pu": 0.95, "tension_max_pu": 1.05, "cargabilidad_max_pct": 100},
+  "calibracion": {"factor_potencia_cargas": 0.95, "factor_potencia_minimo_fijas": 0.92, "factor_potencia_minimo_escaladas": 0.9,
+                  "bancos_kvar_por_tension": {"13.2": 300, "33": 600}},
+  "informes": {"moneda": "S/", "bandas_tension_pct": [80, 90, 95, 105], "bandas_cargabilidad_pct": [50, 75, 100, 130],
+               "norma": "NTCSE", "regulador": "Osinergmin"},
+  "escalera": {"moneda": "USD", "secciones_normalizadas": ["AA05003D", "AA12003D"], "costos_unitarios": {"bancos": 8000, "reguladores": 30000}},
+  "planificacion": {"tasa_regulada": 0.12, "vida_util_anios": 30}
+}

@@ -540,7 +540,7 @@ def _hoja_conductores(aud: Auditoria, aereos: bool) -> list[list[Any]]:
     return filas
 
 
-def _hoja_trafos(aud: Auditoria, nominal_kv: float) -> list[list[Any]]:
+def _hoja_trafos(aud: Auditoria, nominal_kv: float | None) -> list[list[Any]]:
     filas: list[list[Any]] = []
     for kva, cuantos in sorted(aud.trafos_kva.items()):
         pk1 = trafo_interpola(kva, TRAFO_PERDIDAS_UE, 0)
@@ -551,7 +551,8 @@ def _hoja_trafos(aud: Auditoria, nominal_kv: float) -> list[list[Any]]:
         io = trafo_interpola(kva, TRAFO_IO_TIPICO)
         dentro = pk1 is not None
         filas.append([
-            kva, cuantos, round(nominal_kv, 4), 0.22, TRAFO_GRUPO_TIPICO,
+            # 086:RF-35: sin la tensión del modelo la celda queda por rellenar; antes salía la de una empresa.
+            kva, cuantos, round(nominal_kv, 4) if nominal_kv else '', 0.22, TRAFO_GRUPO_TIPICO,
             round(uk, 2) if uk is not None else '',
             round(pk2, 0) if pk2 is not None else '',
             round(po2, 0) if po2 is not None else '',
@@ -568,7 +569,7 @@ def _hoja_trafos(aud: Auditoria, nominal_kv: float) -> list[list[Any]]:
     return filas
 
 
-def construir_hojas(aud: Auditoria, *, nominal_kv: float = 22.9) -> dict[str, tuple[tuple[str, ...], list[list[Any]]]]:
+def construir_hojas(aud: Auditoria, *, nominal_kv: float | None = None) -> dict[str, tuple[tuple[str, ...], list[list[Any]]]]:
     """Cabeceras y filas de cada hoja del catálogo."""
     return {
         'conductores_aereos': (COLUMNAS_CONDUCTOR, _hoja_conductores(aud, True)),
@@ -600,7 +601,7 @@ def input_dir(base: Path | str = '.') -> Path:
 
 def escribir_catalogo(
     aud: Auditoria, path: Path | str | None = None, *,
-    base: Path | str = '.', nominal_kv: float = 22.9,
+    base: Path | str = '.', nominal_kv: float | None = None,
 ) -> Path:
     """Escribe el catálogo en ``input/catalogo_parametros.xlsx``."""
     try:

@@ -11,7 +11,10 @@ Ahora cada una sale de un perfil (RF-31):
 - ``config/perfil_empresa.json``, local y fuera de git, es el perfil activo. Puede dar los
   valores él mismo o heredar los de un perfil con nombre con ``"perfil": "<nombre>"``.
 - ``config/perfiles/<nombre>.json`` son perfiles con nombre, en git, con convenciones y
-  nunca datos de la red. ``electro_dunas.json`` es uno más (RF-35).
+  nunca datos de la red. ``electro_dunas.json`` es uno más (RF-35), pero no se entrega: el
+  paquete solo lleva ``plantilla.json`` y ``ficticia.json`` (086:RF-32).
+
+El esquema con cada clave y lo que afecta si falta está en ``perfil_esquema.py`` (086:RF-30).
 
 Sin perfil, nada se supone: sin CRS no se convierte con georreferenciación hasta que el
 usuario lo elija (RF-32), y sin patrón no se excluye ninguna SED por su nombre (RF-33).
@@ -184,6 +187,20 @@ def cargar_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> P
     valores = {k: v for k, v in heredado.valores().items() if k in CLAVES}
     valores.update({k: datos[k] for k in CLAVES if k in datos})
     return _construir(heredado.nombre, valores, ruta.name)
+
+
+def moneda_informes(datos: dict[str, Any]) -> str | None:
+    """El rótulo de la moneda de informes y pantallas (086:RF-28), o None si el perfil no lo da.
+
+    Los dos informes escribían una moneda fija: la de otra empresa o país habría ido mal rotulada sin
+    avisar. Sin clave no se supone ninguna.
+    """
+    valor = (datos.get('informes') or {}).get('moneda')
+    if valor is None:
+        return None
+    if not isinstance(valor, str) or not valor.strip():
+        raise PerfilError(f'informes.moneda tiene que ser un texto como el símbolo de la moneda, no {valor!r}.')
+    return valor.strip()
 
 
 def factor_potencia_cargas(datos: dict[str, Any],

@@ -332,7 +332,69 @@ def _total_de_paginas(documento) -> None:
                 anterior = nuevo
 
 
-def _preparar(modelo: Path, rotulos, valores) :
+def plantilla_neutra(valores: Mapping[str, str | None]):
+    """El documento de una empresa que no trae modelo (086:RF-31): A4, cabecera con n.º y referencia, y paginación.
+
+    Sale de la plantilla vacía de ``python-docx``: nada de otra empresa puede colarse, y el modelo
+    de cada una sigue siendo un fichero suyo, fuera de lo que se entrega.
+    """
+    import docx
+    from docx.shared import Cm
+
+    documento = docx.Document()
+    documento.core_properties.author = ''
+    documento.core_properties.comments = ''
+    seccion = documento.sections[0]
+    seccion.page_width, seccion.page_height = Cm(21), Cm(29.7)
+    seccion.left_margin = seccion.right_margin = seccion.top_margin = seccion.bottom_margin = Cm(2.5)
+    ancho = seccion.page_width - seccion.left_margin - seccion.right_margin
+    cabecera = seccion.header.add_table(1, 2, width=ancho)
+    _texto_celda(cabecera.cell(0, 0), 'INFORME TÉCNICO Nº :', valores.get('numero'))
+    _texto_celda(cabecera.cell(0, 1), 'REFERENCIA:', valores.get('referencia'))
+    pie = seccion.footer.paragraphs[0]
+    pie.add_run('Página 1 de 1')
+    _campo_de_paginas(pie.runs[0])
+    return documento
+
+
+def _campo_de_paginas(run) -> None:
+    """«Página X de Y» con campos de Word: las cuentan al abrir, igual que hace ``_total_de_paginas``."""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    run.text = 'Página '
+    anterior = run._element
+
+    def anadir(hijo) -> None:
+        nonlocal anterior
+        nuevo = OxmlElement('w:r')
+        nuevo.append(hijo)
+        anterior.addnext(nuevo)
+        anterior = nuevo
+
+    for instruccion in (' PAGE ', ' NUMPAGES '):
+        for tipo, texto in (('begin', None), (None, instruccion), ('separate', None), ('t', '1'), ('end', None)):
+            if tipo == 't':
+                hijo = OxmlElement('w:t')
+                hijo.text = texto
+            elif tipo:
+                hijo = OxmlElement('w:fldChar')
+                hijo.set(qn('w:fldCharType'), tipo)
+            else:
+                hijo = OxmlElement('w:instrText')
+                hijo.set(qn('xml:space'), 'preserve')
+                hijo.text = texto
+            anadir(hijo)
+        if instruccion == ' PAGE ':
+            separador = OxmlElement('w:t')
+            separador.set(qn('xml:space'), 'preserve')
+            separador.text = ' de '
+            anadir(separador)
+
+
+def _preparar(modelo: Path | None, rotulos, valores):
+    if modelo is None:
+        return plantilla_neutra(valores)
     documento = abrir_modelo(modelo)
     _vaciar_cuerpo(documento)
     _rellenar_cabecera(documento, rotulos, valores)
@@ -505,7 +567,20 @@ def _rutas(imagenes: Mapping[str, Mapping[str, Path | None]]) -> dict:
 
 
 def _limites(config: ConfigInforme, tipo: str) -> None:
-    config.modelo(tipo)  # dice qué clave del perfil falta (RF-5, RF-14)
+    config.modelo(tipo)  # dice qué hay que pedir antes (RF-14)
+
+
+def _moneda(config: ConfigInforme) -> str:
+    """El rótulo de la moneda del perfil; sin ella se dice, para no escribir la de nadie (086:RF-28)."""
+    return config.moneda or 'moneda de la empresa'
+
+
+def _de_la_plantilla(config: ConfigInforme, modelo: Path | None) -> dict[str, Any]:
+    """Con qué forma salió el informe y lo que se tomó sin que lo dijera el perfil (086:RF-31, RF-35)."""
+    avisos = list(config.avisos_perfil)
+    if modelo is None:
+        avisos.insert(0, 'La empresa no trae modelo de informe: sale con la plantilla neutra.')
+    return {'plantilla': modelo.name if modelo else 'neutra', 'avisos_perfil': avisos}
 
 
 # --------------------------------------------------------------------------- estudio
@@ -527,8 +602,10 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
     El orden es el del modelo de Casa Blanca (RF-3), sin el recibo de luz (RF-9).
     """
     _limites(config, 'estudio')
+    config = config.con_bandas()
     enc = datos.encabezado
-    documento = _preparar(config.modelo('estudio'), config.rotulos_cabecera,
+    modelo = config.modelo('estudio')
+    documento = _preparar(modelo, config.rotulos_cabecera,
                           {'numero': datos.numero, 'referencia': enc.asunto})
     e = _Escritor(documento)
     lista = ', '.join(datos.alimentadores)
@@ -587,7 +664,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
         'recomendada': rec.etapa.clave if rec.etapa else None, 'cumplen': dict(rec.cumplen),
         'obras_propuestas': [x.clave for x in a_ejecutar], 'bancos': [dict(b) for b in datos.bancos],
         'fijas': [dict(f) for f in datos.fijas],
-        'imagenes': _rutas(datos.imagenes), 'huecos': e.huecos,
+        'imagenes': _rutas(datos.imagenes), 'huecos': e.huecos, **_de_la_plantilla(config, modelo),
     })
     return e.huecos
 
@@ -871,8 +948,10 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
     El orden es el de RF-106, el del modelo EMAPICA.
     """
     _limites(config, 'factibilidad')
+    config = config.con_bandas()
     enc, s = datos.encabezado, datos.solicitud
-    documento = _preparar(config.modelo('factibilidad'), config.rotulos_cabecera,
+    modelo = config.modelo('factibilidad')
+    documento = _preparar(modelo, config.rotulos_cabecera,
                           {'numero': datos.numero, 'referencia': enc.asunto})
     e = _Escritor(documento)
     alimentador = s.alimentador if s else ''
@@ -1114,6 +1193,7 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         'libro': asdict(datos.libro) if datos.libro else None,
         'transformador': asdict(d) if d else None, 'factible': veredicto.factible,
         'excesos': list(veredicto.excesos), 'imagenes': _rutas(datos.imagenes), 'huecos': e.huecos,
+        **_de_la_plantilla(config, modelo),
     })
     return e.huecos
 
@@ -1162,7 +1242,7 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
                   _f(p.no_reconocida_soles, 2)]
                  for nombre, p in (('Estado actual', datos.perdidas_actual), ('Con proyecto', datos.perdidas_proyectado))]
         e.tabla(['', 'MD kW', 'MD kWh', 'Pérdidas téc. kWh - año', 'Pérdidas téc. kWh (%)',
-                 'Pérdida/año no reconocida (S/.)'], filas)
+                 f'Pérdida/año no reconocida ({_moneda(config)})'], filas)
         return
     e.parrafo('Pérdidas obtenidas en los escenarios del alimentador.')
     filas = []
@@ -1174,4 +1254,4 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
         filas.append([f'{nombre} {alimentador}'.strip(), _f(p.maxima_kw, 2), _f(p.energia_kwh, 2),
                       _f(p.perdidas_kwh, 2), f'{numero(p.perdidas_pct, 2)} %', _f(p.no_reconocida_soles, 2)])
     e.tabla(['', 'MD kW', 'MD kWh', 'Pérdidas téc. kWh - año', 'Pérdidas téc. kWh (%)',
-             'Pérdida/año no reconocida (S/.)'], filas)
+             f'Pérdida/año no reconocida ({_moneda(config)})'], filas)

@@ -388,6 +388,8 @@ class InformeEstudioIn(BaseModel):
     antecedentes: list[str] = Field(default_factory=list, max_length=200)
     descripcion: list[str] = Field(default_factory=list, max_length=200)
     limites: dict[str, float] = Field(default_factory=dict)
+    # 086:RF-35: las bandas de coloreado que el perfil no da.
+    bandas: dict[Literal['tension', 'cargabilidad'], list[float]] = Field(default_factory=dict)
     anio: int | None = None
     imagenes: dict[str, dict[str, str | None]] = Field(default_factory=dict)
 
@@ -478,6 +480,8 @@ class InformeFactibilidadIn(BaseModel):
     destinatario: str = ''
     solicitud: SolicitudIn
     limites: dict[str, float] = Field(default_factory=dict)
+    # 086:RF-35: las bandas de coloreado que el perfil no da.
+    bandas: dict[Literal['tension', 'cargabilidad'], list[float]] = Field(default_factory=dict)
     factor_carga: float | None = Field(None, gt=0, le=1)
     perdidas_reconocidas: PerdidasReconocidasIn = Field(default_factory=PerdidasReconocidasIn)
     transformador_set: TransformadorSetIn = Field(default_factory=TransformadorSetIn)

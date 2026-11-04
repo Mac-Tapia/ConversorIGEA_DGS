@@ -457,8 +457,8 @@ def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
 
 
 def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path, monkeypatch):
-    """017:RF-76 / 017:RF-81 / 017:RF-90 — sin el modelo de un tipo, el contexto dice qué clave
-    del perfil falta; sin banda ni umbral, los deja vacíos para pedirlos; sin cargas nuevas
+    """017:RF-76 / 017:RF-81 / 017:RF-90 / 086:RF-31 — sin el modelo de un tipo, el contexto dice que va
+    la plantilla neutra; sin banda ni umbral, los deja vacíos para pedirlos; sin cargas nuevas
     aplicadas en el proyecto, no hay ninguna que elegir."""
     perfil = tmp_path / 'perfil_sin_factibilidad.json'
     perfil.write_text(json.dumps({'informes': {'modelo_estudio': str(tmp_path / 'modelo.docx'),
@@ -466,8 +466,8 @@ def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(perfil))
     wid, _salida = _espacio(client, tmp_path)
     ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']}).json()
-    assert any('modelo_factibilidad' in x for x in ctx['faltan']['factibilidad'])
-    assert not any('modelo_estudio' in x for x in ctx['faltan']['estudio'])
+    assert ctx['faltan']['factibilidad'] == [] and ctx['plantilla_neutra']['factibilidad'] is True
+    assert ctx['faltan']['estudio'] == [] and ctx['plantilla_neutra']['estudio'] is False
     assert all(ctx['limites'].get(k) is None for k in ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct'))
     assert ctx['cargas'] == []
 
