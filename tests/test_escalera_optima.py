@@ -529,3 +529,35 @@ def test_sin_medicion_las_obras_se_evaluan_en_la_maxima():
     assert lista == [{'instante': 'máxima', 'factores': {}}] and '042:RF-42' in avisos[0]
     lista, avisos = eo.sorteos_o_maxima([('t', {'F1': 50.0})], {'F1': 100.0}, 3, 1)
     assert len(lista) == 3 and lista[0]['factores'] == {'F1': 0.5} and not avisos
+
+
+def test_cada_variante_refuerza_los_tramos_sobrecargados_de_cualquier_ramal():
+    """042:RF-43 — un ramal al 141 %: un refuerzo solo y cada variante con él; sin repetir lo que ya hace la variante."""
+    import math
+
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.perfil_empresa import completar_planeamiento
+
+    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500}})[0]
+    troncal = [{'nombre': f'L{i}', 'largo_m': 1000.0, 'corriente_a': 50.0, 'inom_a': 340.0} for i in range(3)]
+    ramal = {'nombre': 'R1', 'largo_m': 500.0, 'carga_pct': 141.0, 'nlnum': 1, 'inom_a': 100.0, 'desde': 'A', 'hasta': 'B'}
+    cargas = [{'barra': 'B2', 'existe': True, 'indice_troncal': 2}]
+    vs, avisos = eo.variantes('F', 22.9, troncal, cargas, [], eo.parametros(perfil), banco_kvar=450.0, sobrecargados=[ramal])
+    assert any('042:RF-43' in a for a in avisos)
+    assert vs[0].nombre.startswith('refuerzo de 1 tramos') and vs[0].cantidades['terna'] == 0.5
+    for v in vs:
+        ternas = [o for o in v.obras if o['clase'] == 'terna' and 'R1' in o['tramos']]
+        assert len(ternas) == 1, v.nombre
+    # Al 200 % con un límite de 80 % hacen falta 2 ternas más; si la variante ya pone una, solo falta otra.
+    doble = {**ramal, 'carga_pct': 200.0}
+    p = eo.parametros(perfil)
+    assert math.ceil(200.0 / 80.0) - 1 == 2
+    assert eo._ternas_que_faltan(doble, eo.Variante('', (), [], {}), {}, p.cargabilidad_max_pct) == 2
+    con_terna = eo.Variante('t', ('terna',), [{'clase': 'terna', 'tramos': ['R1']}], {})
+    assert eo._ternas_que_faltan(doble, con_terna, {}, p.cargabilidad_max_pct) == 1
+    # Un conductor nuevo cinco veces mayor ya lo resuelve: no se añade terna.
+    con_seccion = eo.Variante('s', ('seccion',), [{'clase': 'seccion', 'tramos': ['R1'], 'tipo': {'nombre': 'G'}}], {})
+    assert eo._ternas_que_faltan(doble, con_seccion, {'G': 500.0}, p.cargabilidad_max_pct) == 0
+    # Sin sobrecargas las variantes no cambian.
+    limpias, _a = eo.variantes('F', 22.9, troncal, cargas, [], eo.parametros(perfil), banco_kvar=450.0)
+    assert not [v for v in limpias if 'refuerzo' in v.nombre]

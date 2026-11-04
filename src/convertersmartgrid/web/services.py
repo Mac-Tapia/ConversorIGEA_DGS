@@ -5894,7 +5894,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
-            **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu},
+            **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu,
+            'cargabilidad_max_pct': p.cargabilidad_max_pct},
             nombre='escalera_datos', args=('--escalera-datos',))
         d = (datos.get('alimentadores') or {}).get(f)
         fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
@@ -5920,7 +5921,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         cargas_f = [_carga_para_escalera(media.get(str(c['barra']), str(c['barra'])), existen, d)
                     for c in de_f if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
-                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'))
+                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'))
         fila['avisos'] += av
         if variantes_de is not None and f in variantes_de:
             # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.

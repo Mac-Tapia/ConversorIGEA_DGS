@@ -141,6 +141,7 @@ Informe y web
 - RF-40: EL SISTEMA creará los conductores normalizados y los reguladores a la tensión que lee de cada alimentador, no a una tabla; sin lista de la empresa, los AAAC de 50, 120 y 240 mm². Con 13,8 kV o 33 kV la escalera tiene las mismas obras que con 22,9 kV.
 - RF-41: SI un alimentador no tiene tasa de crecimiento, ENTONCES EL SISTEMA diseñará la SET con la media de los demás o, sin ninguna, con la tasa de referencia, y lo dirá.
 - RF-42: SI un alimentador no tiene máxima, medidor o curva del año, o ningún instante tiene a todos medidos, ENTONCES EL SISTEMA evaluará las obras igual, a su demanda calibrada en la máxima y sorteando solo los medidos, y lo dirá.
+- RF-43: SI con las cargas nuevas un tramo del alimentador pasa del límite de carga, ENTONCES EL SISTEMA añadirá a cada variante las ternas que ese tramo necesita para quedar bajo el límite, descontando lo que ya le dé la propia variante, y probará también ese refuerzo solo. Pisco (2026-11-04): un alimentador con cinco cargas en varios ramales tenía un tramo al 141 %; cada variante reforzaba un solo camino, las tensiones cumplían (0,97 p.u.) y ninguna podía cumplir.
 - Aclaración de RF-10 (2026-11-01): de los puntos probados queda el mejor (converge, menos barras
   fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
   quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.

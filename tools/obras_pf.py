@@ -2249,8 +2249,18 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     caminos[nombre] = c
                     if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:
                         banco_en[nombre] = c[-1]['desde']        # aguas arriba, por el camino real
+            # 042:RF-43: los tramos de cualquier ramal que pasan del límite con las cargas nuevas.
+            limite = float(plan.get('cargabilidad_max_pct') or 0)
+            por_nombre = {t['nombre']: t for t in tramos_red}
+            sobrecargados = []
+            for ln in (lineas.values() if limite and flujo['converged'] else ()):
+                carga = _resultado(ln, 'c:loading')
+                if carga is not None and carga > limite:
+                    sobrecargados.append({**por_nombre.get(ln.loc_name, {}), 'nombre': ln.loc_name, 'carga_pct': float(carga),
+                                          'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
+                                          'nlnum': int(getattr(ln, 'nlnum', 1) or 1)})
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices,
-                                           'banco_en': banco_en, 'caminos': caminos,
+                                           'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
     finally:

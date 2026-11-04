@@ -402,10 +402,41 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
     return out
 
 
+def _ternas_que_faltan(t: Mapping[str, Any], v: Variante, capacidades: Mapping[str, float], limite: float) -> int:
+    """Cuántas ternas más necesita el tramo ``t`` con la variante ``v`` para quedar bajo ``limite`` (042:RF-43)."""
+    k = max(1, int(t.get('nlnum') or 1))
+    carga = float(t['carga_pct'])
+    for o in v.obras:
+        nueva = capacidades.get(str((o.get('tipo') or {}).get('nombre')))
+        if o.get('clase') == 'seccion' and t['nombre'] in o.get('tramos', ()) and nueva and t.get('inom_a'):
+            carga *= float(t['inom_a']) / float(nueva)
+    pedidas = math.ceil(k * carga / limite - 1e-9) - k
+    ya = sum(1 for o in v.obras if o.get('clase') == 'terna' and t['nombre'] in o.get('tramos', ()))
+    return max(0, pedidas - ya)
+
+
+def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Parametros) -> Variante:
+    """La variante con las ternas que les faltan a los tramos sobrecargados, de cualquier ramal (042:RF-43)."""
+    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct)) for t in sobrecargados]
+    obras, km = [], 0.0
+    for i in range(1, max((m for _, m in faltan), default=0) + 1):
+        tramos = [t for t, m in faltan if m >= i]
+        obras.append({'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO], 'tramos': [t['nombre'] for t in tramos],
+                      'nodos': _nodos(tramos), **capacidad_de_tramos(tramos, p.ternas)})
+        km += _km(tramos)
+    if not obras:
+        return v
+    n = sum(1 for _, m in faltan if m)
+    nombre = f'refuerzo de {n} tramos sobrecargados ({km:.2f} km)'
+    return Variante(f'{v.nombre} + {nombre}' if v.nombre else nombre, tuple(dict.fromkeys(v.escalones + ('terna',))),
+                    v.obras + obras, {**v.cantidades, 'terna': float(v.cantidades.get('terna') or 0.0) + km}, v.solo_evidencia)
+
+
 def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
               cargas: Sequence[Mapping[str, Any]], tipos: Sequence[Mapping[str, Any]], p: Parametros, *,
               banco_kvar: float | None, fuera_desde: int | None = None, modulos_valle: int | None = None,
-              evidencia: bool = True) -> tuple[list[Variante], list[str]]:
+              evidencia: bool = True,
+              sobrecargados: Sequence[Mapping[str, Any]] | None = None) -> tuple[list[Variante], list[str]]:
     """Las variantes de un alimentador en el orden de RF-44, con sus combinaciones (RF-49).
 
     ``troncal``: sus tramos desde la cabecera (``nombre``, ``largo_m``, ``corriente_a`` en
@@ -487,6 +518,13 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                                         {c: n for v in partes for c, n in v.cantidades.items()}))
     vistas: set[str] = set()
     todas = [v for v in solas + dobles + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
+    if sobrecargados:
+        # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
+        capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
+        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p)
+        todas = [solo] + [v if v.solo_evidencia else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p) for v in todas]
+        avisos.append(f"{alimentador}: {len(sobrecargados)} tramos pasan de {p.cargabilidad_max_pct:g} % con las cargas nuevas; "
+                      'cada variante los refuerza (042:RF-43).')
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
                       'en el orden de la escalera (escalera.max_variantes del perfil).')
