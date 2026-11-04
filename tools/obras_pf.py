@@ -2000,6 +2000,35 @@ def _resultado(obj, atributo: str) -> float | None:
     return float(v) if isinstance(v, (int, float)) and math.isfinite(float(v)) else None
 
 
+def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
+    """042:RF-32: activa en «Con proyecto» las variaciones de ``variaciones`` que estén desactivadas."""
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'reponer_cargas', 'repuestas': [], 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    inicial = app.GetActiveStudyCase()
+    nombres = set(plan.get('variaciones') or ())
+    try:
+        casos['con'].Activate()
+        activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+        carpeta = app.GetProjectFolder('scheme')
+        for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []:
+            if v.loc_name in nombres and v.loc_name not in activas:
+                v.Activate()
+                informe['repuestas'].append(v.loc_name)
+        ahora = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+        if faltan := sorted(nombres - ahora):
+            informe['avisos'].append(f"No se pudieron activar: {', '.join(faltan)} (042:RF-32).")
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
+
+
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     """Lo que necesita armar las variantes de la escalera, en «Con proyecto <año>» (025:RF-49,
     RF-60): la troncal de cada alimentador desde la cabecera, leída sin las cargas nuevas
@@ -2745,6 +2774,8 @@ def main(argv=None) -> int:
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     p.add_argument('--evaluar', action='store_true',
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
+    p.add_argument('--reponer-cargas', action='store_true',
+                   help='Activa en «Con proyecto» las cargas nuevas del plan que estén desactivadas (042:RF-32)')
     p.add_argument('--escalera-datos', action='store_true',
                    help='Troncal, corrientes y tramo de cada carga nueva para la escalera (025:RF-49)')
     p.add_argument('--oraculo-datos', action='store_true',
@@ -2778,6 +2809,8 @@ def main(argv=None) -> int:
             informe, codigo = crear_tipos_regulador(app, plan)
         elif args.evaluar:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
+        elif args.reponer_cargas:
+            informe, codigo = reponer_cargas(app, plan)
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
         elif args.oraculo_datos:

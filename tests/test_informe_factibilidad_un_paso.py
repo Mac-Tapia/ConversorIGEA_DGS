@@ -525,6 +525,7 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
             vistos_solo.append(k.get('solo'))
         return {'alimentadores': [{'feeder': feeders[0], 'elegida': 'bancos' if feeders == ['F1'] else None}]}
     monkeypatch.setattr(services, 'obras_escalera', escalera)
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
 
     class Ctx:
         def log(self, *_a, **_k):
@@ -539,3 +540,31 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
     assert vistos_solo == [{'F1': 'bancos'}], '042:RF-29: al aplicar, solo la obra elegida'
     assert r['caben'] == 1 and {c['sed'] for c in r['a_set_nueva']} == {'B', 'C'}
     assert r['por_alimentador']['F2']['cumple'] is False
+
+
+def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch):
+    """042:RF-32 — Pisco: tras una caída, 6 de 14 cargas seguían apartadas y AL209 se medía sin ellas."""
+    from convertersmartgrid.web import services
+
+    orden = []
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'},
+                 {'sed': 'B', 'alimentador': 'F1', 'kw': 90.0, 'variacion': 'Carga_B'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas',
+                        lambda ws, ctx, project, feeders, anio, variaciones: orden.append(('reponer', tuple(variaciones))))
+
+    def escalera(ws, ctx, project, feeders, **k):
+        orden.append(('escalera', tuple(feeders)))
+        return {'alimentadores': [{'ya_cumple': True}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
+    assert orden[0] == ('reponer', ('Carga_A', 'Carga_B')) and orden[1] == ('escalera', ('F1',))

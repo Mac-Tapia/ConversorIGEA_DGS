@@ -6037,6 +6037,21 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
+def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           anio_casos: int | None, variaciones: list[str]) -> None:
+    """042:RF-32: una evaluación cortada no deja la escalera midiendo sin las cargas nuevas."""
+    _rc, informe, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos, 'feeders': list(feeders),
+        'native_action_context': native_action_context(ws, project, list(feeders), 'obras'),
+        'variaciones': sorted(variaciones)}, nombre='reponer_cargas', args=('--reponer-cargas',))
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    if informe.get('repuestas'):
+        ctx.log(f"Cargas nuevas repuestas en «Con proyecto»: {', '.join(informe['repuestas'])} (042:RF-32).")
+    for aviso in informe.get('avisos') or []:
+        ctx.log(aviso)
+
+
 def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                              anio_casos: int | None = None, tipo_cambio: float | None = None,
                              capex: str | None = None, cargas: list[str] | None = None) -> dict:
@@ -6051,6 +6066,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                  and (not claves or clave_codigo(c.get('sed')) in claves)]
     if not aplicadas:
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     por_alim: dict[str, list[dict]] = {}
     for c in aplicadas:

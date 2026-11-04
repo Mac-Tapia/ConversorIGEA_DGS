@@ -483,3 +483,23 @@ def test_con_proyecto_espera_el_que_corre_o_lo_lanza(herramienta, capsys, tmp_pa
     assert herramienta.con_proyecto(vacia, 'P', ['F1'], tipo_cambio=3.495) == 0
     assert vacia.lanzados == [('/pf/obras/con-proyecto', {'project': 'P', 'feeders': ['F1'], 'escalera_primero': True,
                                                           'tipo_cambio': 3.495})]
+
+
+def test_con_proyecto_no_adopta_un_trabajo_terminado_y_pasa_el_capex(herramienta):
+    """042:RF-31, 042:RF-7 — un «Con proyecto» ya terminado no cuenta: se lanza otro, con su libro CAPEX."""
+    class Web:
+        lanzado = None
+
+        def get(self, ruta):
+            return {'jobs': [{'id': 'viejo', 'kind': 'obras_con_proyecto', 'title': '· P', 'status': 'done'}]}
+
+        def post(self, ruta, json=None):
+            Web.lanzado = json
+            return {'id': 'nuevo', 'status': 'queued'}
+
+        def esperar(self, trabajo, limite_s=0):
+            return {'id': trabajo['id'], 'status': 'done', 'result': {}}
+
+    herramienta._RESUMEN[:] = []
+    assert herramienta.con_proyecto(Web(), 'P', ['F1'], capex='libro.xlsx') == 0
+    assert Web.lanzado['capex'] == 'libro.xlsx'

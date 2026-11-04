@@ -229,3 +229,25 @@ def test_el_plan_completo_se_mide_con_todas_las_obras_juntas(perfil):
     assert codigo == 0, informe
     assert informe['plan_completo']['obras'] == 2 and informe['plan_completo']['converge'] is True
     assert all(f['casos_activos'] == [CON] and f['flujo'][CON]['en_conjunto'] for f in informe['obras'])
+
+
+def test_reponer_cargas_activa_solo_las_pedidas():
+    """042:RF-32 — las variaciones pedidas y apagadas se activan en «Con proyecto»; las demás no se tocan."""
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf32', tools_en_path=True)
+    activas = []
+
+    def variacion(nombre):
+        return N(loc_name=nombre, Activate=lambda: activas.append(v[nombre]))
+
+    v = {n: variacion(n) for n in ('Carga_A', 'Carga_B', 'Otra')}
+    activas.append(v['Carga_B'])
+    caso = N(Activate=lambda: None)
+    app = N(GetActiveStudyCase=lambda: caso, GetActiveNetworkVariations=lambda: list(activas),
+            GetProjectFolder=lambda _c: N(GetContents=lambda *_a: list(v.values())))
+    guion.activar_proyecto = lambda *_a: object()
+    guion.casos_del_proyecto = lambda *_a: {'con': caso}
+    informe, codigo = guion.reponer_cargas(app, {'project': 'P', 'variaciones': ['Carga_A', 'Carga_B']})
+    assert codigo == 0 and informe['repuestas'] == ['Carga_A'] and not informe['avisos']
+    assert v['Otra'] not in activas
