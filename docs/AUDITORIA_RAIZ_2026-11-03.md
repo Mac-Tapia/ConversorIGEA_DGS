@@ -36,6 +36,7 @@ no lo continúa, lo rehace.
 | `docs/` | sí | 1 MB | Manuales, arquitectura, regresiones e informes | `src/convertersmartgrid/asistente/`, pruebas |
 | `external/` | ignorada por dentro | 0,65 GiB | Revisiones fijadas de terceros y solucionadores | `upstream_ia.py`, `asistente/llm_runtime.py`, `tools/preparar_upstream_ia.py` |
 | `frontend/` | sí | 63 MB con `node_modules` y `dist` | Interfaz web | `web/app.py` sirve `dist`; `run_gui.bat` la compila |
+| `instalador/` | sí | 4 kB | Guion de Inno Setup de la versión de producto (086:RF-36) | `tools/construir_candidato.py` |
 | `input/` | sí, solo `README.md` | 43 kB | Catálogo de parámetros local | `catalog.py`, `reglas.py`, `cli.py` |
 | `output/` | ignorada | 98,2 GiB lógicos, 36,3 GiB reales | Espacios web, modelos, corpus, informes y evidencia | Web, gemelo, asistente, informes; no es carpeta de temporales |
 | `specs/` | sí | 1,4 MB | Especificaciones | `tools/estado_specs.py`, pruebas |
