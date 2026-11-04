@@ -709,6 +709,21 @@ def cumple(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequen
     return not motivos, motivos[:5]
 
 
+def cumple_en_valle(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequence[str],
+                    p: Parametros) -> tuple[bool, list[str]]:
+    """042:RF-85: como :func:`cumple`, pero subir por milésimas sobre el máximo en valle no es culpa de la obra.
+
+    Solo por arriba y solo fuera de las barras de las cargas nuevas: una carga nueva tiene que quedar en límites.
+    """
+    hi, cargas, u_sin = p.tension_max_pu, set(barras_cargas), sin.get('u') or {}
+    u_con = dict(con.get('u') or {})
+    for b, u in u_con.items():
+        s = u_sin.get(b)
+        if b not in cargas and s is not None and u is not None and p.tension_min_pu <= s <= hi and hi < u <= s + p.tolerancia_pu:
+            u_con[b] = hi
+    return cumple(sin, {**con, 'u': u_con}, barras_cargas, p)
+
+
 # --------------------------------------------------------------------------- sorteos
 def sorteos(curva: Sequence[tuple[Any, Mapping[str, float]]], maximas: Mapping[str, float],
             n: int, semilla: int) -> list[dict[str, Any]]:

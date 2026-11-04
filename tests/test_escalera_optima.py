@@ -814,3 +814,17 @@ def test_el_alcance_no_cambia_ni_el_orden_ni_la_eleccion():
     assert d['elegida'] == 'barata'
     assert [(a['nombre'], a['definitiva'], a['aguanta_anios']) for a in d['alternativas']] == [
         ('barata', False, 5), ('cara', True, 20), ('otra', None, None)]
+
+
+@pytest.mark.parametrize('sin,con,bien', [(1.049, 1.0503, True), (1.049, 1.0539, True), (1.049, 1.0545, False), (1.049, 1.057, False)])
+def test_en_valle_subir_por_milesimas_no_es_culpa_de_la_obra(sin, con, bien):
+    """042:RF-85 — con 0,005 p.u. de tolerancia, sobre el máximo; más que eso, sí."""
+    medida = {'converge': True, 'u': {'B': con}, 'carga': {}}
+    assert eo.cumple_en_valle({'u': {'B': sin}, 'carga': {}}, medida, [], P)[0] is bien
+    assert eo.cumple({'u': {'B': sin}, 'carga': {}}, medida, [], P)[0] is False      # con la máxima sigue estricto
+
+
+def test_en_valle_la_carga_nueva_sigue_estricta_y_por_abajo_tambien():
+    """042:RF-85 — no vale para la barra de una carga nueva ni para bajar del mínimo."""
+    assert eo.cumple_en_valle({'u': {'B': 1.049}, 'carga': {}}, {'converge': True, 'u': {'B': 1.051}, 'carga': {}}, ['B'], P)[0] is False
+    assert eo.cumple_en_valle({'u': {'B': 0.951}, 'carga': {}}, {'converge': True, 'u': {'B': 0.948}, 'carga': {}}, [], P)[0] is False

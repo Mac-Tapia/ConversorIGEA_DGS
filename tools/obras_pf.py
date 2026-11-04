@@ -2755,7 +2755,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import cumple, definitiva, grupo_economico, parametros
+    from convertersmartgrid.escalera_optima import cumple, cumple_en_valle, definitiva, grupo_economico, parametros
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -2826,7 +2826,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     for caso, factor_nuevas in casos_valle:
                         s.escalar(pt['factores'], factor_nuevas)
                         con = medida_para_criterio(app, alims, feeders)
-                        bien, motivos = cumple(sin_i, con, barras if factor_nuevas else [], p)
+                        bien, motivos = cumple_en_valle(sin_i, con, barras if factor_nuevas else [], p)    # 042:RF-85
                         anotar_punto(fila, pt, caso, bien, motivos, con.get('u') or {})
             return fila
 

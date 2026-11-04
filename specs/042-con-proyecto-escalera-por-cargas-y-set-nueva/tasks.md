@@ -108,6 +108,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `npm test` en `frontend` y `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T51. Fallos de la auditoría de la web: pantalla en blanco, resultados ocultos y campos que faltaban. (RF-79, RF-80, RF-81, RF-82, RF-83, RF-84)
       Hecho cuando: `npx tsc --noEmit`, `npm test` y `pytest -q tests/test_set_nueva_web.py` en verde.
+- [x] T52. Tolerancia en valle sobre el máximo. (RF-85)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_valle.py` en verde.
 - [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
       Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
 - [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
