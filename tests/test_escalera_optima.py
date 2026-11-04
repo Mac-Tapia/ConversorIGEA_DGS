@@ -427,3 +427,27 @@ def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
         assert set(sec['tramos']) <= set(ter['tramos'])
     solas = [v for v in vs if len(v.escalones) == 1]
     assert vs.index(dobles[0]) == len(solas), 'la doble terna va primero entre las combinaciones'
+
+
+def test_en_linea_larga_el_regulador_no_queda_fuera_del_tope():
+    """042:RF-35 — con el camino largo, sección + terna + regulador entran antes del tope; con el corto, no se añaden."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+
+    t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
+    tipo = {'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'otro', 'proyecto': eo.BIBLIOTECA_TIPOS}
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'max_variantes': 12, 'consigna_regulador_pu': 1.0, 'secciones_normalizadas': ['AA24003D']},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+
+    def de(largo_m):
+        troncal = [{'nombre': f'L{i}', 'largo_m': largo_m, 'corriente_a': 100.0, 'inom_a': 340.0} for i in range(6)]
+        return eo.variantes('F', 22.9, troncal, [{'barra': 'B', 'existe': False, 'indice_troncal': 5}], [tipo],
+                            eo.parametros(perfil), banco_kvar=None)
+
+    largas, avisos = de(4000.0)
+    triple = [v for v in largas if {'seccion', 'terna', 'regulador'} == set(v.escalones)]
+    assert triple and any('042:RF-35' in a for a in avisos)
+    cortas, avisos_c = de(100.0)
+    assert not [v for v in cortas if len(v.escalones) == 3] and not any('042:RF-35' in a for a in avisos_c)

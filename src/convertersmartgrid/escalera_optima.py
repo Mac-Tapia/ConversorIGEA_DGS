@@ -76,6 +76,8 @@ class Parametros:
     ternas: Mapping[str, Any] = field(default_factory=dict)
     #: 042:RF-27: los conductores normalizados de la empresa (prefijo del tipo); vacío, todos.
     secciones: tuple[str, ...] = ()
+    #: 042:RF-35: desde este largo del camino a una carga, el regulador va por delante del tope de variantes.
+    linea_larga_km: float = 10.0
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -133,7 +135,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
         ternas=dict(plan.get('ternas_subterraneas') or {}),
-        secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()))
+        secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
+        linea_larga_km=float(esc.get('linea_larga_km') or 10.0))
 
 
 def _opcional(x) -> float | None:
@@ -435,6 +438,15 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                         dobles.append(v)
                     else:
                         combinadas.append(v)
+    largo_km = max((_km(c) for c in _caminos(troncal, cargas)), default=0.0)
+    if por_escalon['regulador'] and largo_km >= p.linea_larga_km:
+        # 042:RF-35: en línea larga, el regulador no puede quedar detrás del tope; también con la doble terna más larga.
+        mas_largas = sorted(dobles, key=lambda v: -float(v.cantidades.get('terna') or 0.0))[:3]
+        triples = [Variante(f'{d.nombre} + {r.nombre}', d.escalones + r.escalones, d.obras + r.obras,
+                            {**d.cantidades, **r.cantidades}) for d in mas_largas for r in por_escalon['regulador']]
+        combinadas = (triples + [v for v in combinadas if 'regulador' in v.escalones]
+                      + [v for v in combinadas if 'regulador' not in v.escalones])
+        avisos.append(f'{alimentador}: línea de {largo_km:.1f} km: se plantean reguladores, también con la doble terna (042:RF-35).')
     todas = solas + dobles + combinadas
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
