@@ -102,6 +102,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_valle.py tests/test_escalera_optima.py` en verde.
 - [x] T46. El factor en el regulador, con una sola regla, y su valor en el informe. (RF-71, RF-72)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_set_nueva.py tests/test_informes_planeamiento.py` en verde.
+- [x] T47. Alcance de cada alternativa, definitiva a 20 años o temporal. (RF-73, RF-74, RF-75)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py tests/test_informes_planeamiento.py` en verde.
+- [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
+      Hecho cuando: la tabla de alternativas de Pisco trae su alcance medido, sin «sin medir».
 - [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
       Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
 - [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)

@@ -555,6 +555,7 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
               f"obra {e.get('nombre') if isinstance(e, dict) else e}" if e else 'ninguna variante cumple'), flush=True)
         for a in f.get('alternativas') or []:                                  # 042:RF-58
             print(f"    alternativa {a['numero']}: {a['nombre']}: {a['costo_anual']:,.0f} al año"
+                  + (f", definitiva: {a['definitiva']}, aguanta {a.get('aguanta_anios')} años" if a.get('definitiva') is not None else '')
                   + (', se aplica' if a['elegida'] else ''), flush=True)
     for f, datos in (por_cargas.get('por_alimentador') or {}).items():          # 042:RF-65
         for clave, rotulo in (('deficit_previo', 'déficit previo'), ('sin_comparacion', 'sin comparación')):

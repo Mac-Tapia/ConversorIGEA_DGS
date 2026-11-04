@@ -5771,6 +5771,15 @@ def _guardar_valle_de_la_obra(ws: Workspace, project: str, alimentador: str, fil
     write_json_atomic(ruta, datos)
 
 
+def _tasa_del_alimentador(ws: Workspace, ctx: JobContext, project: str, f: str, avisos: list[str]) -> float | None:
+    """042:RF-73: la medida en la cabecera; lo que no se pueda leer se dice y no bloquea: se usa el factor."""
+    try:
+        return ((_crecimiento_de_la_cabecera(ws, ctx, project, [f], avisos, todos=True) or {}).get(f) or {}).get('tasa')
+    except (UserError, KeyError, TypeError, ValueError, OSError) as exc:
+        avisos.append(f'{f}: tasa de crecimiento sin leer: {exc}; el alcance se mide con el factor (042:RF-73).')
+        return None
+
+
 def _barras_de(fuera: dict | None, clase: str) -> list[str]:
     """Las de esa clase de :func:`informes.clasificar_bajo_limite`, de la más baja a la menos (042:RF-64, RF-68)."""
     return [str(x['barra']) for x in sorted((fuera or {}).get(clase) or [], key=lambda x: (x['u'], x['barra']))]
@@ -6024,7 +6033,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             # 042:RF-59: la obra que esta corrida acaba de sortear no se vuelve a sortear al aplicarla.
             'barras_cargas': barras, 'sorteos': [] if (solo and f in solo) or objetivo_previo else sorteos, 'parametros': perfil,
             'tipo_cambio': tipo_cambio,
-            **({'alternativas': eo.MAX_ALTERNATIVAS} if por_alternativas else {}),        # 042:RF-55
+            **({'alternativas': eo.MAX_ALTERNATIVAS,                                      # 042:RF-55
+                'horizonte': eo.plan_de_horizonte(f, _tasa_del_alimentador(ws, ctx, project, f, fila['avisos']), p)}   # 042:RF-73
+               if por_alternativas else {}),
             'otro_proyecto': eo.BIBLIOTECA_TIPOS,
             'estado_con_proyecto': datos.get('variaciones_activas'), 'valle': valle,      # 073:RF-25
             **({'basta_una': True} if basta_una else {})}

@@ -782,3 +782,35 @@ def test_la_alternativa_dice_el_factor_si_lleva_regulador_o_elevador():
     d = eo.elegir([_opcion('terna', ('terna',), 100.0, 1.0), _opcion('regulador', ('regulador',), 200.0, 1.0),
                    _opcion('paso con elevador dedicado', ('nivel',), 300.0, 1.0)], p)
     assert {a['nombre']: a['factor'] for a in d['alternativas']} == {'terna': None, 'regulador': 1.25, 'paso con elevador dedicado': 1.25}
+
+
+def test_el_horizonte_con_la_tasa_del_alimentador_o_con_el_factor():
+    """042:RF-73 — con tasa, 20, 10 y 5 años a interés compuesto; sin ella, un solo flujo con el factor."""
+    p = _p_con_factor()
+    h = eo.plan_de_horizonte('F1', 0.03, p)
+    assert h['anios'] == [20, 10, 5] and h['factores']['20']['F1'] == pytest.approx(1.03 ** 20)
+    sin = eo.plan_de_horizonte('F1', None, p)
+    assert sin['anios'] == [20] and sin['factores']['20'] == {'F1': 1.25}
+    assert eo.plan_de_horizonte('F1', -0.01, p)['anios'] == [20]
+
+
+@pytest.mark.parametrize('medida,bien', [
+    ({'converge': False}, False),
+    ({'converge': True, 'u': {'A': 0.96}, 'carga': {'L': 50.0}}, True),
+    ({'converge': True, 'u': {'A': 0.94}, 'carga': {}}, False),
+    ({'converge': True, 'u': {'A': 1.06}, 'carga': {}}, False),
+    ({'converge': True, 'u': {'A': 0.96}, 'carga': {'L': 120.0}}, False),
+    ({'converge': True, 'u': {'SIN_TENSION': 0.0}, 'carga': {}}, True)])
+def test_definitiva_es_en_absoluto(medida, bien):
+    """042:RF-74 — todas las barras en límites y ningún tramo sobre el límite; una barra sin tensión no cuenta."""
+    assert eo.definitiva(medida, P)[0] is bien
+
+
+def test_el_alcance_no_cambia_ni_el_orden_ni_la_eleccion():
+    """042:RF-75 — la temporal más barata sigue primera y es la elegida; cada una dice su alcance."""
+    d = eo.elegir([{**_opcion('barata', ('seccion',), 100.0, 1.0), 'horizonte': {'definitiva': False, 'aguanta_anios': 5, 'motivos': ['x']}},
+                   {**_opcion('cara', ('terna',), 900.0, 1.0), 'horizonte': {'definitiva': True, 'aguanta_anios': 20, 'motivos': []}},
+                   _opcion('otra', ('nivel',), 950.0, 1.0)], P)
+    assert d['elegida'] == 'barata'
+    assert [(a['nombre'], a['definitiva'], a['aguanta_anios']) for a in d['alternativas']] == [
+        ('barata', False, 5), ('cara', True, 20), ('otra', None, None)]

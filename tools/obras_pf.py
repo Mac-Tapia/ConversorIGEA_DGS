@@ -2755,7 +2755,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import cumple, grupo_economico, parametros
+    from convertersmartgrid.escalera_optima import cumple, definitiva, grupo_economico, parametros
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -2989,6 +2989,28 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
             if (fila['fraccion'] or 0) >= p.cumplimiento:
                 ganadora = fila['nombre']
+        horizonte = plan.get('horizonte')
+        if horizonte:                                                           # 042:RF-73, RF-74
+            def alcance():
+                primeros: list[str] = []
+                with _Sorteo(app, alims, feeders, existentes) as s:
+                    for anios in horizonte['anios']:
+                        s.escalar(horizonte['factores'][str(anios)])
+                        bien, motivos = definitiva(medida_para_criterio(app, alims, feeders), p)
+                        if bien:
+                            return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros}
+                        primeros = primeros or list(motivos)
+                return {'definitiva': False, 'aguanta_anios': 0, 'motivos': primeros}
+
+            vistas: set = set()
+            for v, fila in candidatas:
+                clase = frozenset(v.get('escalones') or ())
+                if clase in vistas or informe['cancelado'] or cancelado():
+                    continue
+                vistas.add(clase)
+                fila['horizonte'], error = con_variante(v, alcance)
+                fila['error'] = fila['error'] or error
+                print(f"  {v['nombre']}: alcance {fila['horizonte']}", flush=True)
         informe['variantes'] = [f for _v, f in filas]
     finally:
         if ajenas:

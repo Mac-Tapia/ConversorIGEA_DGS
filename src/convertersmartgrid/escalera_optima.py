@@ -107,6 +107,8 @@ class Parametros:
     migrar_a_kv: float = 22.9
     #: 042:RF-70, RF-71: margen del elevador y del regulador por el crecimiento que la corriente medida no cuenta.
     factor_sin_tasa: float = 1.0
+    #: 042:RF-73: los años a que una alternativa es definitiva.
+    horizonte_anios: int = 20
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -169,7 +171,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']),
         migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
         factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
-                                        (perfil.get('planificacion') or {}).get('factor_seguridad_set')))
+                                        (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
+        horizonte_anios=int((perfil.get('planificacion') or {}).get('horizonte_anios') or 20))
 
 
 def _opcional(x) -> float | None:
@@ -767,6 +770,28 @@ def costo(v: Variante, costos_alternativa: Mapping[str, Mapping[str, Any]], p: P
     return {**out, 'inversion': ci, 'avisos': avisos}
 
 
+def plan_de_horizonte(alimentador: str, tasa: float | None, p: Parametros) -> dict[str, Any]:
+    """042:RF-73, RF-74: los años que se miden y el factor de cada uno, del horizonte hacia abajo.
+
+    Sin tasa solo hay un factor, sin años que distinguir: un único flujo.
+    """
+    h = p.horizonte_anios
+    if tasa is None or tasa <= 0:
+        return {'anios': [h], 'factores': {str(h): {alimentador: p.factor_sin_tasa}}, 'tasa': None}
+    anios = sorted({h, max(h // 2, 1), max(h // 4, 1)}, reverse=True)
+    return {'anios': anios, 'factores': {str(a): {alimentador: (1.0 + tasa) ** a} for a in anios}, 'tasa': tasa}
+
+
+def definitiva(con: Mapping[str, Any], p: Parametros) -> tuple[bool, list[str]]:
+    """042:RF-74: en absoluto, no respecto de otro caso: a 20 años no importa quién lo causó."""
+    if not con.get('converge'):
+        return False, ['no converge']
+    motivos = [f'{b} a {u:.3f} p.u.' for b, u in sorted((con.get('u') or {}).items(), key=lambda x: x[1] or 0.0)
+               if u is not None and u > 0.05 and not p.tension_min_pu <= u <= p.tension_max_pu]
+    motivos += [f'{e} al {c:.0f} %' for e, c in (con.get('carga') or {}).items() if c > p.cargabilidad_max_pct]
+    return not motivos, motivos[:3]
+
+
 def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Parametros) -> list[dict[str, Any]]:
     """Hasta 3 soluciones de obras distintas, numeradas de menor a mayor costo anual (042:RF-55, RF-58).
 
@@ -790,6 +815,10 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
     return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
              'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
              'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'), 'valle': t.get('valle'),
+             # 042:RF-75: sin medir, ninguna de las dos claves dice nada.
+             'definitiva': (t.get('horizonte') or {}).get('definitiva'),
+             'aguanta_anios': (t.get('horizonte') or {}).get('aguanta_anios'),
+             'motivos_horizonte': (t.get('horizonte') or {}).get('motivos') or [],
              # 042:RF-72: solo donde se dimensionó con él.
              'factor': p.factor_sin_tasa if 'regulador' in (t.get('escalones') or ()) or 'elevador' in t['nombre'] else None,
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]

@@ -198,7 +198,7 @@ def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
 
     cabecera, filas = filas_alternativas_escalera(ALTERNATIVAS)
     assert 'Costo anual US$' in cabecera
-    assert [(f[1], f[2], f[-3], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
+    assert [(f[1], f[2], f[cabecera.index('Sorteos que cumplen')], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
 
 
 def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
@@ -246,3 +246,16 @@ def test_el_informe_dice_el_factor_del_dimensionado():
     (nota,) = notas_alternativas_escalera({'F1': [{'nombre': 'regulador', 'factor': 1.25}, {'nombre': 'terna', 'factor': None}]})
     assert 'factor de 1,25' in nota
     assert notas_alternativas_escalera({'F1': [{'nombre': 'terna', 'factor': None}]}) == []
+
+
+def test_la_tabla_dice_el_alcance_de_cada_alternativa():
+    """042:RF-75 — definitiva, temporal con sus años, o sin medir; y la nota dice qué significa."""
+    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+
+    lista = {'F1': [{'numero': 1, 'nombre': 'a', 'costo_anual': 1.0, 'definitiva': False, 'aguanta_anios': 5},
+                    {'numero': 2, 'nombre': 'b', 'costo_anual': 2.0, 'definitiva': True, 'aguanta_anios': 20},
+                    {'numero': 3, 'nombre': 'c', 'costo_anual': 3.0}]}
+    cabecera, filas = filas_alternativas_escalera(lista)
+    i = cabecera.index('Alcance')
+    assert [f[i] for f in filas] == ['temporal, aguanta 5 años', 'definitiva, 20 años', 'sin medir']
+    assert any('Definitiva:' in n for n in notas_alternativas_escalera(lista))

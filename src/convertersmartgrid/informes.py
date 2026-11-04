@@ -1000,6 +1000,10 @@ def notas_alternativas_escalera(por_alimentador) -> list[str]:
     if etiquetas:
         notas.append(f"Las filas «{'» y «'.join(etiquetas)}» son obras presentadas aparte: no están en «Con proyecto» ni en sus "
                      'flujos, y sus cifras no son efecto de ninguna obra aplicada. Se midieron con la demanda máxima, sin sorteos.')
+    if any(a.get('definitiva') is not None for lista in por_alimentador.values() for a in lista):      # 042:RF-75
+        notas.append('Definitiva: con la demanda proyectada al horizonte de vida útil, medida en DIgSILENT, el flujo converge, '
+                     'todas las barras quedan en límites y ningún tramo pasa del límite de planeamiento. Las cargas nuevas se '
+                     'mantienen en su potencia solicitada. El alcance no cambia el orden, que es por costo anual.')
     factores = sorted({float(a['factor']) for lista in por_alimentador.values() for a in lista if a.get('factor')})
     if factores:                                                                # 042:RF-72
         cuales = ' y '.join(f'{x:g}'.replace('.', ',') for x in factores)
@@ -1019,11 +1023,18 @@ def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[
     def en_valle(a):
         return 'cumple' if a.get('valle') is True else 'no comprobado'
 
+    def alcance(a):
+        if a.get('definitiva') is None:
+            return 'sin medir'
+        if a['definitiva']:
+            return f"definitiva, {a.get('aguanta_anios')} años"
+        return f"temporal, aguanta {a['aguanta_anios']} años" if a.get('aguanta_anios') else 'temporal'
+
     filas = [[str(f), str(a.get('numero')), str(a.get('nombre')), cifra(a.get('inversion')), cifra(a.get('costo_anual')),
-              sorteos(a), en_valle(a), 'Sí' if a.get('elegida') else 'No']
+              sorteos(a), en_valle(a), alcance(a), 'Sí' if a.get('elegida') else 'No']
              for f, lista in sorted(por_alimentador.items())
              for a in sorted(lista, key=lambda x: float(x.get('costo_anual') or 0.0))]
-    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'En valle', 'Se aplica'), filas
+    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'En valle', 'Alcance', 'Se aplica'), filas
 
 
 def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, Any]]:

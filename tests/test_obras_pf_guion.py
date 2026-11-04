@@ -1531,3 +1531,24 @@ def test_la_obra_inactiva_vuelve_a_cerrar_lo_que_abrio():
     assert guion.cerrar_lo_abierto(app, fila) == ['T1', 'A1']
     assert linea.outserv == 0 and acoplador.on_off == 1 and '042:RF-19' in fila['avisos'][0]
     assert guion.cerrar_lo_abierto(app, {}) == []
+
+
+def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
+    """042:RF-73, 042:RF-74 — baja del horizonte hasta el año que aguanta; no deja obra ni escenario temporal."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(43))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    respuestas = iter([(False, ['no converge']), (True, [])])
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _con, _p: next(respuestas))
+    f = alims[0]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    horizonte = {'anios': [20, 10], 'factores': {'20': {f: 1.8}, '10': {f: 1.3}}}
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0, 'escalones': ['terna']}],
+                 sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA, basta_una=True, alternativas=3, horizonte=horizonte)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 10, 'motivos': ['no converge']}
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
