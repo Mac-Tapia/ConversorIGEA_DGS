@@ -1104,6 +1104,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `build_interactive_architecture.py` | Genera la página de la arquitectura C4 interactiva desde `docs/architecture/`. | |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
+| `estadistica_ordenes.py` | Estadística de las órdenes de DIgSILENT: por guion y día (n, fallos, mediana con IC 95 %, p90), fallos repetidos y, con `--corte`, contraste de hipótesis entre dos versiones (spec 081). | |
 | `estado_specs.py` | Estado de las specs: numeración, tareas abiertas y RF con prueba; `--escribir` regenera `specs/README.md` y `--comprobar` sale con 1 si no está al día (spec 033). | |
 | `construir_dataset_entrenamiento.py` | `[--destino CARPETA] [--output-json INFORME.json]`: importa el historial de la web y construye las particiones en una carpeta nueva, sin pisar la anterior; el informe dice si está completo (200 órdenes reales, 10 episodios por proyecto) y qué falta (spec 043, RF-14 y RF-15). | Ninguno |
 | `construir_dataset_pide.py` | Corpus PIDE universal de una empresa: `--raiz`, `--destino`, `--empresa`, `--contrato` (solo lee el expediente); `--solo-ejemplos` saca de él los ejemplos del agente por artículo, formato e informe (spec 027, RF-48 y RF-50). | |

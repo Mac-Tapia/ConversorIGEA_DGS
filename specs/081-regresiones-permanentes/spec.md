@@ -137,6 +137,10 @@ escrita) no creaba la SED nueva ni los bancos que faltan si no había barra trif
 - RF-67: SI la carga nueva parte un tramo, ENTONCES EL SISTEMA tomará como fases del punto las de ese tramo, no las de su extremo.
 - RF-68: SI faltan barras trifásicas para los bancos de la calibración o de una obra, ENTONCES EL SISTEMA los pondrá con las fases de su barra, con su potencia y su corriente por fase en el aviso (cambia 054:RF-10).
 - RF-69: EL SISTEMA reutilizará para una SED nueva solo un tipo de transformador con sus mismas fases; con menos de tres, alta y baja en D (054:RF-4).
+- RF-70: CUANDO DIgSILENT termina una orden, EL SISTEMA añadirá a `ordenes.jsonl` de la cola su fecha, guion, modo, código, duración y causa del fallo normalizada, también si DIgSILENT murió a mitad. Pisco (2026-11-02 y 03): dos días y dos noches con solo 6,9 h de DIgSILENT calculando, 62 de 316 órdenes fallidas, dos caídas y 71 arranques; sin registro no se veía dónde se perdía el tiempo.
+- RF-71: EL SISTEMA dará por guion y por día el número de órdenes, los fallos y su tasa, las horas, la media, la mediana con su intervalo de confianza del 95 % (remuestreo con semilla fija), el p90 y el máximo (`tools/estadistica_ordenes.py`).
+- RF-72: DADO un corte entre dos versiones, EL SISTEMA contrastará H1 «la nueva tarda menos» con Mann-Whitney de una cola y «la nueva falla menos» con la exacta de Fisher, a un α que dice, y dirá si se demuestra; con menos de 5 órdenes en un grupo dirá que no hay contraste de duración. Usuario (2026-11-03): «esto debería entrar en estadística descriptiva e inferencia para demostración de hipótesis».
+- RF-73: EL SISTEMA listará los fallos con la misma causa en el mismo guion más de una vez: un fallo que vuelve es una regresión y pide su comprobación permanente (RF-46). Usuario: «que cada vez mejore y no vuelva a fallar en lo mismo».
 
 ## Fuera de alcance
 
