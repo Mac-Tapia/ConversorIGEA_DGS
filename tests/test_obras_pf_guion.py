@@ -996,6 +996,7 @@ def test_migracion_con_la_cabecera_compartida_se_rechaza():
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion(f, 22.9)]))
     assert codigo == 2
     assert otro in informe['obras'][0]['error'] and 'no se migra' in informe['obras'][0]['error']
+    assert all(c in informe['obras'][0]['error'] for c in ('042:RF-51', '042:RF-61', '042:RF-6)'))   # 042:RF-63
     assert not any(n.startswith('Obra_') for n in _variaciones(app))
 
 

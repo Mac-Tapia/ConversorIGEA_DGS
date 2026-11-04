@@ -49,9 +49,12 @@ def grupo_economico(escalones) -> int:
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
                'seccion': 'cambio_seccion', 'nivel': 'cambio_tension', 'sed_nivel': 'cambio_tension_sed',
-               'celda_nivel': 'celda'}
+               'celda_nivel': 'celda', 'elevador_nivel': 'elevador'}
 #: 042:RF-54: en dólares y por confirmar, para la empresa cuyo libro y perfil no traen estos costos.
-COSTOS_NIVEL_DE_REFERENCIA = {'cambio_tension': 40000.0, 'cambio_tension_sed': 9000.0, 'celda': 80000.0}
+COSTOS_NIVEL_DE_REFERENCIA = {'cambio_tension': 40000.0, 'cambio_tension_sed': 9000.0, 'celda': 80000.0,
+                              'elevador': 50000.0}
+#: 042:RF-61: potencias normalizadas del elevador dedicado, en MVA; por encima de la última, RF-62.
+MVA_ELEVADOR = (1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0)
 #: Alternativas que se cuentan por unidad, no por km.
 POR_UNIDAD = ('bancos', 'reguladores', 'cambio_tension_sed', 'celda')
 #: Módulos de banco que se prueban sin valle medido ni ``escalera.modulos_max`` (073:RF-24). Es la
@@ -172,6 +175,10 @@ def _en(precio, tipo_cambio: float) -> float | None:
     return None if precio is None else float(precio) / tipo_cambio
 
 
+def _unidad_de(alternativa: str) -> str:
+    return 'MVA' if alternativa == 'elevador' else 'Und' if alternativa in POR_UNIDAD else 'km'
+
+
 def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros) -> dict[str, dict[str, Any]]:
     """Los del libro CAPEX, y los que el perfil da para las alternativas que el libro no tiene
     (bancos y reguladores en Electro Dunas); el libro manda si tiene la alternativa.
@@ -190,16 +197,14 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
            for k, v in capex.items()}
     for alt, costo_u in p.costos_unitarios.items():
         if alt not in out or not out[alt].get('costo_unitario'):
-            out[alt] = {'costo_unitario': costo_u, 'unidad': 'Und' if alt in POR_UNIDAD else 'km',
-                        'origen': 'perfil'}
+            out[alt] = {'costo_unitario': costo_u, 'unidad': _unidad_de(alt), 'origen': 'perfil'}
     for alt, referencia in COSTOS_NIVEL_DE_REFERENCIA.items():                  # 042:RF-54
         if not (out.get(alt) or {}).get('costo_unitario'):
             seccion = out.get('cambio_seccion') or {}
             if alt == 'cambio_tension' and seccion.get('costo_unitario'):
                 out[alt] = {**seccion, 'origen': 'deducido del cambio de sección, por confirmar'}
             else:
-                out[alt] = {'costo_unitario': referencia, 'unidad': 'Und' if alt in POR_UNIDAD else 'km',
-                            'origen': 'referencia, por confirmar'}
+                out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt), 'origen': 'referencia, por confirmar'}
     return out
 
 
@@ -514,7 +519,14 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
                     v.obras + obras, {**v.cantidades, 'terna': float(v.cantidades.get('terna') or 0.0) + km}, v.solo_evidencia)
 
 
-def _escalon_nivel(alim: str, kv: float, datos: Mapping[str, Any] | None, p: Parametros, avisos: list[str]) -> list[Variante]:
+def mva_del_elevador(kv: float, corriente_a: float, p: Parametros) -> float | None:
+    """042:RF-61: el menor normalizado con la corriente de salida bajo el límite; ``None`` si no hay ninguno (RF-62)."""
+    necesarios = math.sqrt(3) * kv * corriente_a / 1000.0 / max(p.cargabilidad_max_pct / 100.0, 0.01)
+    return next((m for m in MVA_ELEVADOR if m >= necesarios), None)
+
+
+def _escalon_nivel(alim: str, kv: float, datos: Mapping[str, Any] | None, p: Parametros, avisos: list[str],
+                   corriente_a: float = 0.0) -> list[Variante]:
     """042:RF-50 a RF-53: el alimentador entero a la tensión de destino, por una celda nueva o con su fuente."""
     if not datos or abs(kv - p.migrar_desde_kv) > 0.05 * p.migrar_desde_kv:
         return []
@@ -527,8 +539,15 @@ def _escalon_nivel(alim: str, kv: float, datos: Mapping[str, Any] | None, p: Par
     if not datos.get('compartida'):
         return [Variante(f'cambio a {p.migrar_a_kv:g} kV con su fuente ({km:.2f} km, {seds:.0f} SED)', ('nivel',),
                          [{**comunes, 'clase': 'tension'}], {'nivel': km, 'sed_nivel': seds})]
-    avisos.append(f'{alim}: su SET no tiene barra de {p.migrar_a_kv:g} kV y comparte cabecera: el paso de tensión '
-                  'necesita un transformador: lo resuelve la SET nueva (042:RF-53).')
+    mva = mva_del_elevador(kv, corriente_a, p)
+    if mva is not None and datos.get('nodo'):                                   # 042:RF-61
+        obra = {**comunes, 'clase': 'migracion', 'nodo': datos['nodo'], 'elevador_mva': mva}
+        return [Variante(f'paso a {p.migrar_a_kv:g} kV con elevador dedicado de {mva:g} MVA ({km:.2f} km, {seds:.0f} SED)',
+                         ('nivel',), [obra], {'nivel': km, 'sed_nivel': seds, 'elevador_nivel': mva})]
+    motivo = ('no se conoce el primer nodo de su salida' if mva is not None
+              else f'el elevador pasaría de {MVA_ELEVADOR[-1]:g} MVA con {corriente_a:.0f} A de salida')
+    avisos.append(f'{alim}: su SET no tiene barra de {p.migrar_a_kv:g} kV y comparte cabecera; {motivo}: '
+                  'sigue la escalera hasta la SET nueva (042:RF-53, RF-62).')
     return []
 
 
@@ -611,7 +630,8 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         avisos.append(f'{alimentador}: línea de {largo_km:.1f} km: se plantean reguladores, también con la doble terna (042:RF-35).')
     # 042:RF-50: tras los bancos, y antes de la sección; no se combina.
     cuantos_bancos = next((i for i, v in enumerate(solas) if 'bancos' not in v.escalones), len(solas))
-    solas[cuantos_bancos:cuantos_bancos] = _escalon_nivel(alimentador, kv, nivel, p, avisos)
+    salida_a = max((float(t.get('corriente_a') or 0.0) for t in troncal), default=0.0)
+    solas[cuantos_bancos:cuantos_bancos] = _escalon_nivel(alimentador, kv, nivel, p, avisos, salida_a)
     # 042:RF-38: todas las obras integradas: de tres en tres y las cuatro, con sección y terna en el mismo camino.
     mayores = []
     for k in (3, 4):

@@ -1131,6 +1131,36 @@ def _celda_nueva(ctx, nodo, nombre_salida: str, kv: float) -> None:
     ctx.fila['salida_nueva'] = {'celda': celda.loc_name, 'barra': salida.loc_name, 'nodo': nodo.loc_name}
 
 
+#: IEC 60076-5, tabla 1, si el perfil no da la suya: hasta tantos MVA, tanta uk en %.
+UK_IEC_HASTA_MVA = ((0.63, 4.0), (1.25, 5.0), (2.5, 6.0), (6.3, 7.0), (25.0, 10.0))
+
+
+def _elevador_dedicado(ctx, cabecera, nodo, origen: float, destino: float) -> None:
+    """El transformador solo para esta salida, de la barra compartida al primer nodo (042:RF-61).
+
+    La barra sigue a su tensión para los demás alimentadores. El ``ElmFeeder`` sale por el lado de baja, en esa barra:
+    orientado desde ahí, sigue viendo aguas abajo lo que pasó de tensión, con su nombre.
+    """
+    if cabecera is None or nodo is None:
+        raise RuntimeError(f'sin cabecera o sin el nodo para el elevador de {ctx.obra.alimentador}')
+    mva = float(ctx.obra.elevador_mva)
+    cfg = (datos_perfil().get('planificacion') or {}).get('transformador_set') or {}
+    equip = ctx.app.GetProjectFolder('equip') or ctx.proyecto
+    tipo = equip.CreateObject('TypTr2', nombre_libre(equip, 'TypTr2', nombre_pf(f'TR_ELEVADOR_{mva:g}MVA_{origen:g}-{destino:g}kV')))
+    tipo.strn, tipo.utrn_h, tipo.utrn_l = mva, destino, origen
+    tipo.uktr = next((uk for hasta, uk in sorted(cfg.get('uk_pct_hasta_mva') or UK_IEC_HASTA_MVA) if mva <= float(hasta)),
+                     UK_IEC_HASTA_MVA[-1][1])
+    red = cabecera.GetParent()
+    tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', nombre_pf(f'TR_ELEVADOR_{ctx.obra.alimentador}')))
+    tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo, 1, 0, 0
+    alta = nodo.CreateObject('StaCubic', nombre_pf(f'Cub_{tr.loc_name}_alta'))
+    alta.obj_id, alta.obj_bus = tr, 0
+    baja = cabecera.CreateObject('StaCubic', nombre_pf(f'Cub_{tr.loc_name}_baja'))
+    baja.obj_id, baja.obj_bus = tr, 1
+    ctx.elm.obj_id = baja
+    ctx.fila['elevador'] = {'transformador': tr.loc_name, 'mva': mva, 'barra': cabecera.loc_name, 'nodo': nodo.loc_name}
+
+
 def barra_de_destino(app, cabecera, kv: float, radio_m: float = 500.0):
     """La barra principal a ``kv`` de la misma SET: la más cercana a la cabecera, por GPS (042:RF-51).
 
@@ -1202,10 +1232,13 @@ def construir_migracion(ctx) -> None:
             trafo.typ_id = _tipo_a_tension(ctx, trafo, 'TypTr2', 'utrn_h', origen, destino)
     entrada = parte.entrada                                                          # RF-58
     acopladores = {c.loc_name: c for c in ctx.elm.GetObjs('ElmCoup')}
-    if o.salida:
+    if o.salida or o.elevador_mva:
         bancos = [s for s in ctx.elm.GetObjs('ElmShnt')
                   if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
-        _celda_nueva(ctx, barras.get(o.nodo), o.salida, destino)                     # 042:RF-51
+        if o.salida:
+            _celda_nueva(ctx, barras.get(o.nodo), o.salida, destino)                 # 042:RF-51
+        else:
+            _elevador_dedicado(ctx, cabecera, barras.get(o.nodo), origen, destino)   # 042:RF-61
         for banco in bancos:
             banco.ushnm = destino
     if entrada in lineas:
@@ -1241,7 +1274,7 @@ def construir_migracion(ctx) -> None:
             fila['avisos'].append(f'El enlace {linea.loc_name} ya une barras de {destino:g} kV: '
                                   f'queda en servicio y cerrado ({cuales}); la parte que pasa '
                                   f'se alimenta por él.')
-    otros = [] if o.salida else [
+    otros = [] if o.salida or o.elevador_mva else [
         s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
         if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
     if otros:

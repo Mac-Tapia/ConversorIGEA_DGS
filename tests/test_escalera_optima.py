@@ -701,3 +701,29 @@ def test_una_alternativa_que_los_sorteos_desmienten_no_se_presenta():
     """042:RF-57 — sin sortear sí se presenta y lo dice; con sorteos por debajo del criterio, no."""
     d = eo.elegir([_opcion('a', ('seccion',), 100.0, 0.5), _opcion('b', ('terna',), 200.0, 1.0), _opcion('c', ('nivel',), 300.0)], P)
     assert [a['nombre'] for a in d['alternativas']] == ['b', 'c'] and d['alternativas'][1]['fraccion'] is None
+
+
+COMPARTIDA = {'salida': '', 'nodo': 'N1', 'km': 3.0, 'seds': 5, 'compartida': True}
+
+
+def test_cabecera_compartida_sin_barra_de_destino_lleva_elevador_dedicado():
+    """042:RF-61 — 100 A a 10 kV con 100 % de límite son 1,73 MVA: el de 2 MVA, costeado por MVA y por confirmar."""
+    vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=COMPARTIDA)
+    (v,) = [v for v in vs if 'nivel' in v.escalones]
+    obra = v.obras[0]
+    assert (obra['clase'], obra['nodo'], obra['elevador_mva'], obra['kv_destino']) == ('migracion', 'N1', 2.0, 22.9)
+    assert not obra.get('salida') and not any('RF-62' in a for a in avisos)
+    costos = eo.costos_de_alternativas({}, P)
+    assert costos['elevador']['unidad'] == 'MVA' and 'por confirmar' in costos['elevador']['origen']
+    inversion = eo.costo(v, costos, P, perdidas_kw=0.0, factor_perdidas=None)['inversion']
+    assert inversion == pytest.approx(3 * 40000 + 5 * 9000 + 2 * 50000)
+
+
+def test_el_elevador_que_no_conviene_dice_su_motivo_y_sigue_a_la_set_nueva():
+    """042:RF-62 — más de 20 MVA, o sin primer nodo: lo dice con su motivo; hay variantes de los demás escalones."""
+    grande = [{**t, 'corriente_a': 2000.0} for t in _tramos_de(5.0)]
+    vs, avisos = eo.variantes('F1', 10.0, grande, [], [], P, banco_kvar=None, nivel=COMPARTIDA)
+    assert not [v for v in vs if 'nivel' in v.escalones]
+    assert any('pasaría de 20 MVA' in a and 'RF-62' in a for a in avisos)
+    _vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**COMPARTIDA, 'nodo': ''})
+    assert any('primer nodo' in a for a in avisos)

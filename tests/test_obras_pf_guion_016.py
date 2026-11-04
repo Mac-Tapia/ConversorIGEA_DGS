@@ -622,3 +622,18 @@ def test_la_barra_de_destino_es_la_de_la_misma_set_por_posicion():
 
     assert guion.barra_de_destino(App(), cabecera, 22.9).loc_name == 'CERCA'
     assert guion.barra_de_destino(App(), cabecera, 33.0) is None
+
+
+def test_elevador_dedicado_en_la_salida_compartida():
+    """042:RF-61 — la barra sigue a 10 kV; lo de aguas abajo pasa a 22,9 kV por un transformador solo para esta salida."""
+    app, alims = _calibrada(random.Random(82), n_min=2, cargas_min=3)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[{**_migracion('F1', 'F1_B1'), 'elevador_mva': 3.0}]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert fila['elevador']['mva'] == 3.0 and fila['elevador']['nodo'] == 'F1_B1'
+    _activas(app, CON)
+    assert _uknom(app, 'F1_B1') == 22.9 and _uknom(app, 'F1_B0') == 10.0
+    assert _linea(app, 'F1_L1').outserv == 1
+    tipo = next(t for t in app.proyecto.GetContents('*.TypTr2', 1) if t.loc_name.startswith('TR_ELEVADOR_'))
+    assert (tipo.strn, tipo.utrn_h, tipo.utrn_l) == (3.0, 22.9, 10.0)
+    assert _elm(app, 'F1').obj_id.cterm.loc_name == fila['elevador']['barra']

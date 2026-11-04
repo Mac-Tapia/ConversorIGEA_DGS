@@ -92,6 +92,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_016.py` en verde.
 - [x] T40. Rehacer las obras de los alimentadores marcados. (RF-60)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T41. Elevador dedicado en cabecera compartida, con su costo y su límite. (RF-61, RF-62, RF-63)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_016.py` en verde.
+- [ ] T42. [DIgSILENT] Un alimentador de 10 kV sin barra de 22,9 kV en su SET converge con el elevador. (RF-61)
+      Hecho cuando: el flujo converge con el elevador sobre un proyecto de prueba, y su medida queda en la tarea.
 - [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
       Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
 - [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)
