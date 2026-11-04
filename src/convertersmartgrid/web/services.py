@@ -5691,15 +5691,43 @@ def _valle_del_proyecto(ws: Workspace, ctx: JobContext, anio: int, feeders: list
         ctx.log(f'Valle sin comprobar: {motivo} (073:RF-24).')
         return vl.puntos_de_valle(vl.Valle(alcance='alimentador', motivo=motivo), {})
 
-    if con_central:
-        return sin_medir(f"{', '.join(con_central)} con central: su cabecera no es su demanda (073:RF-12)")
+    # 073:RF-12, T9: con central, el valle sale de la demanda (cabecera más central, 021:RF-47) si el
+    # perfil declara sus medidores; sin ellos la cabecera no es la demanda y queda sin comprobar.
+    from ..demanda_medida import clave_codigo
+    from ..perfil_empresa import PerfilError, centrales_termicas
+    try:
+        declaradas = centrales_termicas(perfil)
+    except PerfilError:
+        declaradas = {}
+    centrales = {f: next((c for a, c in declaradas.items() if clave_codigo(a) == clave_codigo(f)), None)
+                 for f in con_central}
+    sin_medidores = [f for f, c in centrales.items() if c is None]
+    if sin_medidores:
+        return sin_medir(f"{', '.join(sin_medidores)} con central sin sus medidores en el perfil: su cabecera "
+                         'no es su demanda (073:RF-12)')
     try:
         ajustes = vl.ajustes_de(perfil)
         libros = _libros_de_cabecera(ws, str(anio))
         pares = [(f, str(objetivos[f]['medidor'])) for f in feeders]
+        pares += [(f'Central {f}', c[k]) for f, c in centrales.items() if c for k in vl.MEDIDORES_CENTRAL]
         curvas, avisos = vl.curvas_medidas(libros, pares, alias=demanda_alias(), cancelado=ctx.cancel.is_set)
     except Exception as exc:  # noqa: BLE001 - el valle no bloquea la escalera (073:RF-24); el motivo se dice
         return sin_medir(str(exc))
+    for f, c in centrales.items():
+        if c is None:
+            continue
+        cabecera = str(objetivos[f]['medidor'])
+        demanda, motivo = vl.curva_con_central(curvas, cabecera, c)
+        if motivo:
+            return sin_medir(f'{f}: {motivo} (073:RF-12)')
+        de_la_central = {clave_codigo(c[k]) for k in vl.MEDIDORES_CENTRAL}
+        curvas = {m: v for m, v in curvas.items()
+                  if clave_codigo(m) not in de_la_central and clave_codigo(m) != clave_codigo(cabecera)}
+        curvas[cabecera] = demanda
+        # La medida en valle escala las cargas y no toca el generador: se dice para no leerla como la
+        # generación de ese instante.
+        avisos.append(f'{f}: el valle sale de su demanda, cabecera más central, no de su cabecera; al medirlo, '
+                      'la central sigue como en su calibración (073:RF-12).')
     maximas_de = {str(objetivos[f]['medidor']): {'alimentador': f, 'kw': objetivos[f].get('kw'),
                                                  'kvar': objetivos[f].get('kvar')} for f in feeders}
     valle = vl.valle_de_alcance('alimentador', curvas, ajustes, str(anio))

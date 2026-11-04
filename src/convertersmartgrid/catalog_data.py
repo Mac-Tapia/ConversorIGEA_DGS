@@ -222,11 +222,11 @@ PARAMETROS: tuple[ParametroPF, ...] = (
         'Cortocircuito monofásico, protecciones de tierra'),
     ParametroPF(
         'Tramo MT aéreo', 'TypLne', 'bline', 'Susceptancia capacitiva directa',
-        'µS/km', 'cero', 'Ninguna: el catálogo CYMDIST ya la trae',
+        'µS/km', 'cero', 'Ninguna: el catálogo de equipos de la fuente ya la trae',
         'Corriente capacitiva, reactiva en vacío, efecto Ferranti'),
     ParametroPF(
         'Tramo MT aéreo', 'TypLne', 'bline0', 'Susceptancia capacitiva homopolar',
-        'µS/km', 'cero', 'Ninguna: el catálogo CYMDIST ya la trae',
+        'µS/km', 'cero', 'Ninguna: el catálogo de equipos de la fuente ya la trae',
         'Corriente de falla a tierra en redes con neutro aislado o compensado'),
     ParametroPF(
         'Tramo MT aéreo', 'TypLne', 'sline', 'Corriente admisible',
@@ -248,7 +248,7 @@ PARAMETROS: tuple[ParametroPF, ...] = (
     ParametroPF(
         'Cable MT subterráneo', 'TypLne', 'bline',
         'Susceptancia capacitiva (mucho mayor que en aéreo)',
-        'µS/km', 'cero', 'Ninguna: el catálogo CYMDIST ya la trae',
+        'µS/km', 'cero', 'Ninguna: el catálogo de equipos de la fuente ya la trae',
         'Reactiva capacitiva, corriente de falla a tierra, regulación de tensión'),
     ParametroPF(
         'Cable MT subterráneo', 'TypLne', 'cohl_', 'Marca de cable frente a línea aérea',
@@ -297,7 +297,7 @@ PARAMETROS: tuple[ParametroPF, ...] = (
     ParametroPF(
         'Regulador de tensión', 'ElmTr2 + ElmTap', 'dutap / ntpmn / ntpmx',
         'Escalón de regulación y número de tomas',
-        '%', 'ausente', 'Ficha del regulador (CYMDIST: tabla REGULATOR)',
+        '%', 'ausente', 'Ficha del regulador',
         'Perfil de tensión a lo largo del alimentador'),
     ParametroPF(
         'Regulador de tensión', 'ElmTr2', 'usetp / uk / Sn',

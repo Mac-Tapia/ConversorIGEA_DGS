@@ -118,6 +118,35 @@ def curvas_medidas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, s
     return curvas, avisos
 
 
+#: Los medidores de una central en el perfil (021:RF-27), en el orden de ``curva_de_demanda``.
+MEDIDORES_CENTRAL = ('generacion', 'llegada', 'salida')
+
+
+def curva_con_central(curvas: Mapping[str, Sequence], cabecera: str,
+                      central: Mapping[str, str]) -> tuple[list, str | None]:
+    """La demanda de un alimentador con central, registro a registro, para buscarle el valle (073:RF-12, T9).
+
+    Su cabecera no es su demanda: con la central generando, la cabecera baja y daría un valle que el
+    alimentador no tiene. Se toma la de ``curva_de_demanda`` (021:RF-47), la misma con que se calibra.
+    Devuelve ``(puntos, None)`` o ``([], motivo)``; nunca un error, porque el valle no bloquea (RF-24).
+    """
+    from .demanda_medida import clave_codigo, curva_de_demanda
+
+    def de(medidor: str) -> Sequence | None:
+        return next((c for m, c in curvas.items() if clave_codigo(m) == clave_codigo(medidor)), None)
+
+    nombres = [cabecera, *((central.get(k) or '').strip() for k in MEDIDORES_CENTRAL)]
+    leidas = [de(m) if m else None for m in nombres]
+    faltan = [m or k for m, c, k in zip(nombres, leidas, ('cabecera', *MEDIDORES_CENTRAL)) if not c]
+    if faltan:
+        return [], f"sin curva de {', '.join(faltan)} para la demanda con la central"
+    cab, gen, lle, sal = (list(c or ()) for c in leidas)
+    puntos, res = curva_de_demanda(cab, gen, lle, sal)
+    if not puntos:
+        return [], f'sin demanda con la central ({res.error or "sin registros comunes"})'
+    return puntos, None
+
+
 def _registro(apartados: dict, clave: str, fecha: datetime | None, kw: float | None) -> None:
     fila = apartados.setdefault(clave, {'motivo': MOTIVOS[clave], 'registros': 0, 'menor_kw': None, 'primera': None})
     fila['registros'] += 1

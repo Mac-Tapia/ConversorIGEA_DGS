@@ -175,6 +175,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: los dos con su variante elegida o con la más cercana dicha (RF-56).
 - [ ] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
       Hecho cuando: `grep -rnoE "025:RF-[0-9]+[a-z]?" tests | sort -u` lista RF-44 a RF-60 y la suite con las siete variables pasa sin omitidas.
+      Avance del 2026-11-03: el grep lista RF-44 a RF-60, y los 12 ficheros de pruebas que los citan pasan sin datos reales. Falta
+      solo la suite completa con las variables `CSG_*` de `CLAUDE.md` y `-rs`, sin omitidas: `python -m pytest -q -rs`.
 - [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_web.py
       tests/test_cargas_pf_guion_016.py tests/test_cargas_tres_pasos_front.py` en verde.

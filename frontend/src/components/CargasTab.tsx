@@ -1116,6 +1116,7 @@ function Escalera({ r }: { r: EscaleraResultado }) {
               <table className="table">
                 <thead><tr><th>Variante</th><th>Con la máxima</th><th>Tensión que deja</th>
                   <th className="num">Sorteos que cumplen</th>
+                  <th>En valle</th>
                   <th className="num">Inversión</th><th className="num">Costo anual</th><th>Por qué no</th></tr></thead>
                 <tbody>{a.tabla.map((v) => (
                   <tr key={v.nombre} className={v.nombre === a.elegida ? 'strong' : ''}>
@@ -1128,6 +1129,8 @@ function Escalera({ r }: { r: EscaleraResultado }) {
                       .map(([b, u]) => `${b}: ${fmtNum(u as number, 3)} p.u.`).join(' · ')}
                       {v.u_min_mt != null && <div className="muted">mínima de media {fmtNum(v.u_min_mt, 3)} p.u.</div>}</td>
                     <td className="num">{v.fraccion == null ? '—' : `${fmtNum(100 * v.fraccion, 0)} %`}</td>
+                    {/* 073:RF-30: la tensión máxima en valle, con su nodo y su fecha, o por qué no se comprobó. */}
+                    <td className="small">{v.valle_texto ?? '—'}</td>
                     <td className="num">{dinero(v.inversion)}</td>
                     <td className="num">{dinero(v.costo_anual)}</td>
                     <td className="small">{v.error ?? v.motivo}</td>
