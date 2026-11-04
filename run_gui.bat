@@ -12,19 +12,15 @@ if not defined PY set "PY=python"
 
 set PYTHONPATH=src
 set PYTHONDONTWRITEBYTECODE=1
+rem 086:RF-39: arrancar nunca instala. Instalaba de internet lo que faltara, y un paquete mas nuevo o una red
+rem cortada cambiaba el programa o lo dejaba a medias en mitad de un arranque.
 "%PY%" -m convertersmartgrid.web.runtime
-if errorlevel 2 goto :dependency_error
-if errorlevel 1 (
-  echo Instalando dependencias de produccion para TXT, MDB y VNR-GIS...
-  "%PY%" -m pip install -r "%~dp0requirements.txt" --disable-pip-version-check
-  if errorlevel 1 goto :dependency_error
-  "%PY%" -m convertersmartgrid.web.runtime
-  if errorlevel 1 goto :dependency_error
-)
+if errorlevel 1 goto :dependency_error
 
 rem El front se compila si falta o si su codigo es mas reciente que la compilacion
 rem (spec 001, RF-27): antes solo si faltaba, y tras un cambio se seguia sirviendo
-rem la version anterior sin avisar. Node.js solo hace falta para compilar.
+rem la version anterior sin avisar. Node.js solo hace falta para compilar, y sus paquetes
+rem se instalan aparte: compilar no sale a internet (086:RF-39).
 "%PY%" -m convertersmartgrid.web.runtime --front
 if errorlevel 1 (
   where npm 1>nul 2>nul
@@ -35,13 +31,12 @@ if errorlevel 1 (
     goto :front_error
   ) else (
     echo Compilando la interfaz web...
-    pushd frontend
-    if errorlevel 1 goto :front_error
-    call npm ci --no-audit --no-fund
-    if errorlevel 1 (
-      popd
+    if not exist "frontend\node_modules\" (
+      echo Faltan los paquetes del front. Instalelos una vez con:  cd frontend ^&^& npm ci
       goto :front_error
     )
+    pushd frontend
+    if errorlevel 1 goto :front_error
     call npm run build
     if errorlevel 1 (
       popd
@@ -80,8 +75,8 @@ endlocal & exit /b %WEB_EXITCODE%
 
 :dependency_error
 echo.
-echo No se pudo preparar el entorno completo TXT, MDB y VNR-GIS.
-echo Revise la salida anterior y AUDIT\web_runtime si existe.
+echo El entorno no esta completo: arriba se indica que falta. Este lanzador no instala nada.
+echo Instale las dependencias con:  "%PY%" -m pip install -r requirements.txt
 pause
 endlocal
 exit /b 1

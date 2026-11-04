@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .powerfactory_env import project_root
+from .runtime_paths import raiz_local
 
 #: Marcador de tipo para los tramos puente mientras se construye el modelo. Se funden
 #: antes de escribir y ningún DGS lo lleva (lo comprueba la auditoría).
@@ -88,7 +89,7 @@ def catalogo_del_proyecto() -> Path | None:
     """``input/catalogo_parametros.xlsx`` del proyecto, si existe."""
     from .catalog import CATALOG_FILENAME, input_dir
 
-    ruta = input_dir(project_root()) / CATALOG_FILENAME
+    ruta = input_dir(raiz_local(project_root())) / CATALOG_FILENAME
     return ruta if ruta.is_file() else None
 
 
@@ -103,7 +104,7 @@ def catalogo_de_empresa(codigo: str) -> Path:
     from .catalog import CATALOG_FILENAME, asegurar_catalogo_empresa, input_dir
 
     carpeta = re.sub(r'[^A-Za-z0-9_-]', '_', (codigo or '').strip()) or 'SIN_EMPRESA'
-    return asegurar_catalogo_empresa(input_dir(project_root()) / 'empresas' / carpeta / CATALOG_FILENAME)
+    return asegurar_catalogo_empresa(input_dir(raiz_local(project_root())) / 'empresas' / carpeta / CATALOG_FILENAME)
 
 
 def catalogo_de_fuente(procedencia: dict | None) -> Path | None:

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from ..powerfactory_env import project_root
+from ..runtime_paths import es_programa_instalado, raiz_local
 from ..runtime_paths import FICHERO_INSTALACION, rutas_runtime
 from ..util import publicar_duradero, sha256_file, sincronizar_carpeta, write_json_atomic
 from .jobs import INTERRUMPIDO
@@ -51,7 +52,11 @@ def raices_de_datos(checkout: Path | None = None) -> dict[str, Path]:
     heredada = programa / 'output' / 'web'
     if heredada.is_dir() and heredada.resolve() != raices['datos'].resolve():
         raices['heredada'] = heredada
-    raices['config'] = programa / 'config'
+    raices['config'] = raiz_local(programa) / 'config'
+    # Instalado, los catálogos con las fichas del operador también se quedan fuera del programa y son datos.
+    entrada = raiz_local(programa) / 'input'
+    if es_programa_instalado(programa) and entrada.is_dir():
+        raices['input'] = entrada
     return raices
 
 

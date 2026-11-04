@@ -439,3 +439,9 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
   .ws-id { margin-left: 0; }
   .search { min-width: 0; flex: 1 1 100%; }
 }
+
+/* 086:RF-40: la versión de la cabecera abre el doctor; se ve como texto hasta que se apunta. */
+.btn-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline dotted; }
+.btn-link:hover { color: var(--text); }
+.doctor { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.doctor p { margin: .15rem 0 0; }

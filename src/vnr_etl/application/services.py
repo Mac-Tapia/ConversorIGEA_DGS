@@ -93,7 +93,15 @@ class VnrApplicationService:
 
     def _profile(self, target: str) -> TargetProfile | None:
         configured = self.settings.templates.get(target)
-        return TargetProfile.load(configured) if configured else None
+        if not configured:
+            return None
+        ruta = Path(configured)
+        if not ruta.is_absolute() and not ruta.is_file():
+            # La plantilla de serie es relativa: instalado, el proceso no corre en la carpeta del programa (086:RF-36).
+            from convertersmartgrid.runtime_paths import raiz_programa
+
+            ruta = raiz_programa() / ruta
+        return TargetProfile.load(ruta)
 
     def _exporter(self, target: str):
         profile = self._profile(target)

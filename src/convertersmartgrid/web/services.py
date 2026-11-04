@@ -27,6 +27,7 @@ from typing import Any, Callable
 
 from ..edicion import MENSAJE_FUERA_DE_ALCANCE, es_edicion_producto, tarea_fuera_de_alcance
 from ..naming import feeder_short_name
+from ..runtime_paths import raiz_local
 from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
@@ -757,7 +758,7 @@ def carpeta_pf() -> str:
     from ..carpeta_pf import CarpetaError, nombre_de_perfil
 
     try:
-        return nombre_de_perfil(project_root() / 'config' / 'perfil_empresa.json')
+        return nombre_de_perfil(raiz_local(project_root()) / 'config' / 'perfil_empresa.json')
     except CarpetaError as exc:
         raise UserError(str(exc)) from exc
 
@@ -805,7 +806,7 @@ def destino_carpeta(ws: Workspace):
                            (datos.get('codigo_empresa'), datos.get('nombre_empresa'), datos.get('empresa')),
                            del_perfil,
                            # 005:RF-4: un perfil con su carpeta mal escrita se dice, no se toma por «sin perfil».
-                           hay_perfil=bool(datos) or (project_root() / 'config' / 'perfil_empresa.json').is_file())
+                           hay_perfil=bool(datos) or (raiz_local(project_root()) / 'config' / 'perfil_empresa.json').is_file())
 
 
 def carpeta_de(ws: Workspace, proyecto: str | None = None) -> str:
@@ -2202,7 +2203,7 @@ def demanda_alias():
     from ..demanda_medida import DemandaError, cargar_alias
 
     try:
-        return cargar_alias(project_root() / 'config' / 'demanda_medida_alias.json')
+        return cargar_alias(raiz_local(project_root()) / 'config' / 'demanda_medida_alias.json')
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
 
@@ -4943,7 +4944,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     from ..pide import FORMATOS
 
     comparacion = None
-    ejemplos = ultimo_ejemplos(project_root())
+    ejemplos = ultimo_ejemplos(raiz_local(project_root()))
     if ejemplos is not None:
         comparacion = comparar_formatos(FORMATOS, formatos['filas'],
                                         json.loads(ejemplos.read_text(encoding='utf-8')))
@@ -4970,7 +4971,7 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
 
     seccion = perfil.get('informes') or {}
     valor = seccion.get('modelo_planeamiento')
-    modelo = (Path(valor) if Path(valor).is_absolute() else project_root() / valor) if valor else None
+    modelo = (Path(valor) if Path(valor).is_absolute() else raiz_local(project_root()) / valor) if valor else None
     metodologia = json.loads((project_root() / 'config' / 'pide_universal_2017.json').read_text(encoding='utf-8'))
     datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, articulos=metodologia['articulos'],
                               anios=informe.get('anios') or [], obras=propuesta['obras'], con_y_sin=con_y_sin,
@@ -7794,7 +7795,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     if not alimentador:
         raise UserError('Indique el alimentador del informe.')
     try:
-        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        config = ConfigInforme.de_perfil(datos_perfil(), raiz_local(project_root()))
         limites = formulario.get('limites') or {}
         if limites:
             config = config.con_limites(**{k: limites.get(k) for k in
@@ -8159,7 +8160,7 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
     # 086:RF-28, RF-31, RF-35: lo que la pantalla dice o pide antes de generar.
     moneda, bandas, neutra = None, {'tension': None, 'cargabilidad': None}, {t: False for t in TIPOS}
     try:
-        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        config = ConfigInforme.de_perfil(datos_perfil(), raiz_local(project_root()))
         moneda = config.moneda
         bandas = {'tension': config.bandas_tension_pct, 'cargabilidad': config.bandas_cargabilidad_pct}
         neutra = {t: config.modelos.get(t) is None for t in TIPOS}
@@ -8327,7 +8328,7 @@ def _proyecto_transmision(transmision: str | None) -> str:
     if transmision and transmision.strip():
         return transmision.strip()
     try:
-        proyecto = ConfigInforme.de_perfil(datos_perfil(), project_root()).proyecto_transmision
+        proyecto = ConfigInforme.de_perfil(datos_perfil(), raiz_local(project_root())).proyecto_transmision
     except InformeError as exc:
         raise UserError(str(exc)) from exc
     if not proyecto:
@@ -8501,7 +8502,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     alimentador = str(formulario.get('alimentador') or '').strip()
     carga = carga_del_informe(ws, project, alimentador, str(formulario.get('sed') or ''))
     try:
-        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        config = ConfigInforme.de_perfil(datos_perfil(), raiz_local(project_root()))
         limites = formulario.get('limites') or {}
         if limites:
             config = config.con_limites(**{k: limites.get(k) for k in
@@ -8676,7 +8677,7 @@ def _libro_del_informe(ctx: JobContext | None, destino: Path, imagenes: dict) ->
     from ..libro_informe import ConfigLibro, generar_libro
     from ..perfil_empresa import datos_perfil
 
-    config = ConfigLibro.de_perfil(datos_perfil(), project_root())
+    config = ConfigLibro.de_perfil(datos_perfil(), raiz_local(project_root()))
     if config is None:
         return {}
     resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
@@ -9691,7 +9692,7 @@ def es_proyecto_de_transmision(project: str) -> bool:
     from ..perfil_empresa import PerfilError, datos_perfil
 
     try:
-        proyecto = ConfigInforme.de_perfil(datos_perfil(), project_root()).proyecto_transmision
+        proyecto = ConfigInforme.de_perfil(datos_perfil(), raiz_local(project_root())).proyecto_transmision
     except (InformeError, PerfilError):
         return False
     return bool(proyecto) and proyecto.strip() == (project or '').strip()

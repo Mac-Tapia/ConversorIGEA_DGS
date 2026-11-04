@@ -136,6 +136,9 @@ preparado. La interfaz de escritorio Tkinter (`convertersmartgrid.gui`) se retir
 | `convertersmartgrid convert` | Convertir uno, varios (`--feeder` repetido) o todos (`--all`). | 4 |
 | `convertersmartgrid web` | Arrancar la interfaz web y abrir el navegador. | 1 |
 | `convertersmartgrid validar-perfil` | Comprobar el perfil de empresa: qué falta, qué función afecta y qué valores son imposibles. Solo lee; ver `docs/PERFIL_EMPRESA.md`. | 1 si hay un valor imposible |
+| `convertersmartgrid doctor [--json]` | Qué le falta a esta instalación, qué función afecta y cómo arreglarlo. Solo lee, y no gasta licencia. | 1 si falta algo imprescindible |
+| `convertersmartgrid soporte [--destino DIR]` | Reúne un `.zip` para soporte, con lista cerrada y registros anonimizados, sin datos del cliente. No lo envía. | 0 |
+| `convertersmartgrid version` | La versión del programa y sus notas. | 0 |
 | `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (`docs/VNR_GIS_PRODUCTION.md`). | — |
 
 `convertersmartgrid` equivale a `python -m convertersmartgrid.cli`; los ejemplos usan una u otra forma.
@@ -633,8 +636,8 @@ todos los alimentadores; con alimentadores marcados, solo esos.
 Desde la línea de órdenes:
 
 ```bat
-.venv\Scripts\python.exe toolsuild_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
-.venv\Scripts\python.exe toolsuild_input_catalog.py --mdb BaseDatos.mdb
+.venv\Scripts\python.exe tools\build_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
+.venv\Scripts\python.exe tools\build_input_catalog.py --mdb BaseDatos.mdb
 ```
 
 Sale `input\catalogo_parametros.xlsx` con siete hojas:
@@ -680,10 +683,10 @@ se corrige el número.
 
 ```bat
 rem Ver qué cambiaría, sin escribir nada
-.venv\Scripts\python.exe toolspply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt
+.venv\Scripts\python.exe tools\apply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt
 
 rem Convertir a DGS con las características corregidas
-.venv\Scripts\python.exe toolspply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt ^
+.venv\Scripts\python.exe tools\apply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt ^
     --out-dir output\corregido --escribir-dgs --informe-json output\cambios.json
 
 rem O directamente en la conversión normal
@@ -1112,6 +1115,8 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
 | `comprobar_entrega.py` | Comprueba lo que se entregaría según `config/entrega.json`: términos prohibidos, pesos y datos. Sin opciones mira el repositorio; con `--candidato DIR`, un paquete armado. La lista completa va fuera de git, en la ruta de `CSG_TERMINOS_PROHIBIDOS`. Sale con 0 si se puede entregar, con 2 si se rechaza y con 1 si no se pudo comprobar. | |
+| `construir_candidato.py` | Arma un candidato de la entrega: `rueda` (el programa, con lo que deja entrar `config/entrega.json`), `lock` (las ruedas del núcleo con su huella) y `candidato` (todo junto, con el Python embebido, y lo comprueba). Compile antes el front. Salida: 0 bien, 1 no se pudo armar, 2 rechazado. |
+| `instalar_candidato.py` | Instala o actualiza desde un candidato (`instalar`), vuelve a la versión anterior con sus datos (`volver`), dice qué hay (`estado`) y comprueba las huellas (`verificar`). Solo biblioteca estándar: lo corre el instalador con el Python del candidato. |
 | `estadistica_ordenes.py` | Estadística de las órdenes de DIgSILENT: por guion y día (n, fallos, mediana con IC 95 %, p90), fallos repetidos y, con `--corte`, contraste de hipótesis entre dos versiones (spec 081). | |
 | `estado_specs.py` | Estado de las specs: numeración, tareas abiertas y RF con prueba; `--escribir` regenera `specs/README.md` y `--comprobar` sale con 1 si no está al día (spec 033). | |
 | `construir_dataset_entrenamiento.py` | `[--destino CARPETA] [--output-json INFORME.json]`: importa el historial de la web y construye las particiones en una carpeta nueva, sin pisar la anterior; el informe dice si está completo (200 órdenes reales, 10 episodios por proyecto) y qué falta (spec 043, RF-14 y RF-15). | Ninguno |

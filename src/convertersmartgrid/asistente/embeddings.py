@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import mean
 from typing import Any, Callable, Iterable, Mapping, Sequence
+from ..runtime_paths import raiz_programa
 
 
 def _json_canonico(valor: Any) -> str:
@@ -241,7 +242,7 @@ def reabrir_indice_versionado(origen: Path | str):
 
 def protocolo_encoder(modelo_id: str) -> dict:
     """El protocolo proviene de la base fijada o de metadata persistida, nunca del nombre de carpeta."""
-    catalogo=json.loads((Path(__file__).resolve().parents[3]/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
+    catalogo=json.loads((raiz_programa()/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
     ficha=next(m for m in catalogo['modelos'] if m['id']=='intfloat/multilingual-e5-base')
     esperado={'schema_version':1,'base_id':ficha['id'],'revision':ficha['revision'],
               'query_prefix':'query: ','passage_prefix':'passage: '}
@@ -263,7 +264,7 @@ def identidad_encoder(modelo_id: str) -> dict:
                   for f in sorted(modelo.rglob('*')) if f.is_file()]
         if not archivos:raise ValueError('carpeta de encoder vacia')
         return {'archivos':archivos}
-    catalogo=json.loads((Path(__file__).resolve().parents[3]/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
+    catalogo=json.loads((raiz_programa()/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
     ficha=next((m for m in catalogo['modelos'] if m['id']==modelo_id and m['backend']=='huggingface'),None)
     if ficha:
         from huggingface_hub import hf_hub_download
@@ -293,7 +294,7 @@ def cargar_encoder(modelo_id: str):
     if Path(modelo_id).is_dir():
         return SentenceTransformer(modelo_id,device='cuda',local_files_only=True,
             model_kwargs={'device_map':{'':0}})
-    catalogo=json.loads((Path(__file__).resolve().parents[3]/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
+    catalogo=json.loads((raiz_programa()/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
     ficha=next((m for m in catalogo['modelos'] if m['id']==modelo_id and m['backend']=='huggingface'),None)
     if not ficha or modelo_id!='intfloat/multilingual-e5-base':raise ValueError('encoder no fijado en el catalogo')
     return SentenceTransformer(modelo_id,revision=ficha['revision'],device='cuda',local_files_only=True,

@@ -1,0 +1,18 @@
+# Complemento de IA de ConverterSmartGrid (spec 086, RF-37): aparte del núcleo y opcional.
+#
+# Solo hace falta para los modelos locales del asistente de órdenes, que está en beta. Convertir, calibrar, cargas nuevas, obras
+# e informes no lo usan, y la versión 1.0 no entrega pesos: los modelos se descargan aparte, con CSG_SALIDA_HUGGING_FACE=1.
+#
+# Instalación, con el Python del programa y salida a internet. Con GPU NVIDIA, torch desde el índice de su CUDA:
+#   python -m pip install -r requirements-complemento-ia.txt
+#
+# Lista declarada, sin construir ni fijar con huella todavía: torch con sus librerías CUDA pesa varios GB, y redistribuir CUDA es una
+# de las preguntas para la asesoría legal (086, D7). Quedan fuera las de entrenar (peft, bitsandbytes, optuna, PINN y GRU), que no se
+# entregan en la 1.0. Versiones: las de `pyproject.toml`, extra `ml`.
+torch>=2.4
+transformers==5.20.2
+sentence-transformers==5.7.0
+accelerate==1.15.0
+safetensors==0.8.0
+huggingface-hub==2.3.0
+sentencepiece==0.2.1

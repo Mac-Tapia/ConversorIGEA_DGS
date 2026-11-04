@@ -130,6 +130,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/recursos/leaflet/LICENSE` | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.css` | Estilos de Leaflet, copia exacta con huella comprobada. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.js` | Leaflet, copia exacta con huella comprobada. | 086 |
+| `src/convertersmartgrid/registro_rotativo.py` | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. | 086 (RF-41) |
 | `src/convertersmartgrid/edicion.py` | Qué edición corre y qué entrega la de producto: rutas y tareas fuera de alcance, y funciones en beta. | 086 (RF-15, RF-16, RF-22) |
 | `src/convertersmartgrid/salidas_red.py` | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. | 086 (RF-22) |
 | `src/convertersmartgrid/sesion_web.py` | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. | 086 (RF-19) |
@@ -177,6 +178,8 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/__main__.py` | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
 | `src/convertersmartgrid/web/cierre.py` | Registro de cada arranque y cierre de la web, con su motivo; avisa si la anterior cayó sin registrarlo. | 081 (RF-42, RF-43) |
 | `src/convertersmartgrid/web/app.py` | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7, RF-47 a RF-49), 025 (RF-7, RF-28, RF-32), 035 (RF-1), 039 (RF-1, RF-5), 042, 061 (RF-1, RF-3, RF-10) |
+| `src/convertersmartgrid/web/doctor.py` | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. | 086 (RF-40) |
+| `src/convertersmartgrid/web/soporte.py` | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. | 086 (RF-42) |
 | `src/convertersmartgrid/web/copia_datos.py` | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. | 086 (RF-10, RF-47) |
 | `src/convertersmartgrid/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7); diario de lo que queda a medias. | 001 (RF-8), 011 (RF-39, RF-40), 061 (RF-1, RF-10), 086 (RF-9) |
 | `src/convertersmartgrid/web/readiness.py` | Puertas por alimentador antes de producir DGS; quita la falta de conductor que la carga ya reconstruyó. | 001, 053 (RF-9) |
@@ -281,6 +284,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/estudios_pf.py` | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores; mide cada alimentador. Con `--guion`, lista o ejecuta los guiones DPL y Python del operador. En «Con proyecto», mide cada alternativa del informe con solo sus obras; guarda la geografía con barras, tipo y largo de cada tramo y los acoples, y el nodo de la red de cada banco. Los estudios de la 012 con sus guiones y la comprobación de estado al terminar. | 011 (RF-17, RF-20 a RF-22, RF-26, RF-27 a RF-30, RF-31, RF-33, RF-36, RF-38, RF-43 a RF-45, RF-49), 017 (RF-130, RF-131, RF-135), 012 (RF-2, RF-60, RF-61), 037 (RF-4, RF-7) |
 | `tools/check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | 005, 011, 012 (RF-4) |
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | 034 (RF-33) |
+| `tools/construir_candidato.py` | Arma el candidato: rueda con lo de `config/entrega.json` y comentarios neutralizados, lock con huellas, Python embebido, documentos, SBOM y manifiesto. | 086 (RF-36, RF-37, RF-39, RF-44) |
+| `tools/instalar_candidato.py` | Instala, actualiza y vuelve atrás desde un candidato: huellas, sin red, puntero de versión y copia previa de los datos. | 086 (RF-36, RF-38, RF-39) |
 | `tools/comprobar_entrega.py` | Comprueba lo que se entregaría según `config/entrega.json`: términos prohibidos (perfiles excluidos, huellas con sal y lista local fuera de git), pesos y datos; solo da cifras. | 086 (RF-33, RF-34) |
 | `tools/cabecera_ancha.py` | Herramienta de la spec 051: pasa la medición de cabecera a lo ancho o las máximas mensuales al formato de la calibración, con `NOMBRE_EN_DIGSILENT=CODIGO`. | 051 (RF-8) |
 | `tools/estado_specs.py` | Estado de las specs: lee numeración, tareas, estado y citas de las pruebas, y escribe `specs/README.md`. | 033 (RF-1 a RF-22) |
@@ -327,6 +332,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `frontend/src/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2), 061 (RF-4) |
+| `frontend/src/components/AcercaDe.tsx` | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. | 086 (RF-40, RF-43) |
 | `frontend/src/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
 | `frontend/src/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/operacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |

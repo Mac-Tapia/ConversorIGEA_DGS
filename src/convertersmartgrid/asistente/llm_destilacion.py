@@ -15,6 +15,7 @@ from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
 # El corpus del ajuste generativo se selló con estas tareas; el catálogo nuevo no lo cambia (070, limitaciones).
 from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS, sistema_alumno
 from ..evaluacion_modelos import huella, texto_canonico
+from ..runtime_paths import raiz_programa
 
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
 
@@ -325,7 +326,7 @@ def construir_corpus_real(contextos: list[dict], fuentes_manifest: dict, *, max_
         if tareas != set(TAREAS):
             raise ValueError(f'faltan tareas con fuentes reales en {parte}: {set(TAREAS) - tareas}')
     from .curriculo_llm_real import ABSTENCION_TRAIN
-    norma = custodiar(politica or Path(__file__).resolve().parents[3] / 'docs/constitution.md',
+    norma = custodiar(politica or raiz_programa() / 'docs/constitution.md',
                       localizador='P9/P11: custodia local y resultados comprobados')
     fuente_real = next(r['fuentes'] for r in filas if r['particion'] == 'entrenamiento')
     for orden in ABSTENCION_TRAIN:
@@ -577,7 +578,7 @@ def validar_reanudacion(estado: dict, configuracion: dict, epoca: int, base: dic
 
 
 def ficha_base() -> dict:
-    catalogo=json.loads((Path(__file__).resolve().parents[3]/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
+    catalogo=json.loads((raiz_programa()/'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
     return next(m for m in catalogo['modelos'] if m['backend']=='huggingface' and 'Instruct-2507-bnb-4bit' in m['id'])
 
 

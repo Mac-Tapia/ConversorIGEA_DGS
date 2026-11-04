@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from .indice import CORPUS_047, CORPUS_AMPLIADO, Abstencion, RerankerNoDisponible
+from ..runtime_paths import raiz_programa
 
-_RAIZ = Path(__file__).resolve().parents[3]
+_RAIZ = raiz_programa()
 CATALOGO = _RAIZ / 'docs' / 'MODELOS_IA_LOCK.json'
 INFORME = _RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
 CONJUNTO = _RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'

@@ -21,6 +21,7 @@ from typing import Any
 
 from . import almacen
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
+from ..runtime_paths import raiz_programa
 from .transformer import (
     LARGO_MAX,
     Configuracion,
@@ -337,7 +338,7 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
         import sys
 
         from ..model_registry import reabrir_en_subproceso
-        herramienta = Path(__file__).resolve().parents[3] / 'tools/asistente_destilar.py'
+        herramienta = raiz_programa() / 'tools/asistente_destilar.py'
         reabrir = lambda c: reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--familia',  # noqa: E731
                                                    'clasificador', '--modelo', str(c)])
     smoke = reabrir(final)

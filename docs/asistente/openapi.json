@@ -1144,6 +1144,50 @@
         "title": "CompletitudRespuesta",
         "type": "object"
       },
+      "ComprobacionDoctorRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "afecta": {
+            "title": "Afecta",
+            "type": "string"
+          },
+          "arreglo": {
+            "title": "Arreglo",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "detalle": {
+            "title": "Detalle",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "obligatoria": {
+            "title": "Obligatoria",
+            "type": "boolean"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "ok",
+          "obligatoria",
+          "detalle",
+          "afecta",
+          "arreglo"
+        ],
+        "title": "ComprobacionDoctorRespuesta",
+        "type": "object"
+      },
       "ConversionEsperadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1606,6 +1650,48 @@
           "clave"
         ],
         "title": "DescartarNoDisponibleIn",
+        "type": "object"
+      },
+      "DiagnosticoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "comprobaciones": {
+            "items": {
+              "$ref": "#/components/schemas/ComprobacionDoctorRespuesta"
+            },
+            "title": "Comprobaciones",
+            "type": "array"
+          },
+          "instalado": {
+            "title": "Instalado",
+            "type": "boolean"
+          },
+          "listo": {
+            "title": "Listo",
+            "type": "boolean"
+          },
+          "pendientes": {
+            "title": "Pendientes",
+            "type": "integer"
+          },
+          "python": {
+            "title": "Python",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "instalado",
+          "python",
+          "listo",
+          "pendientes",
+          "comprobaciones"
+        ],
+        "title": "DiagnosticoRespuesta",
         "type": "object"
       },
       "EdicionRespuesta": {
@@ -5293,6 +5379,25 @@
         "title": "VerificarIn",
         "type": "object"
       },
+      "VersionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "notas": {
+            "title": "Notas",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "notas"
+        ],
+        "title": "VersionRespuesta",
+        "type": "object"
+      },
       "VinculoProyectoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5442,7 +5547,7 @@
   },
   "info": {
     "title": "ConverterSmartGrid",
-    "version": "2.1.0"
+    "version": "1.0.0rc1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5852,6 +5957,44 @@
           }
         },
         "summary": "Cerrar Servidor"
+      }
+    },
+    "/api/sistema/diagnostico": {
+      "get": {
+        "description": "086:RF-40: la pantalla del doctor. Sin ``async``: corre en un hilo y no para la web mientras importa.",
+        "operationId": "diagnostico_del_programa_api_sistema_diagnostico_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Diagnostico Del Programa"
+      }
+    },
+    "/api/sistema/version": {
+      "get": {
+        "description": "086:RF-43: la misma versión que dicen la orden y el instalador, con sus notas.",
+        "operationId": "version_del_programa_api_sistema_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version Del Programa"
       }
     },
     "/api/vnr/artifacts/{job_id}/{index}": {

@@ -31,7 +31,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .. import __version__, sesion_web
+from .. import __version__, notas_de_la_version, sesion_web
 from ..edicion import estado_edicion, es_edicion_producto
 from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
@@ -41,7 +41,7 @@ from . import services
 from .copia_datos import estado_copia
 from .jobs import FINISHED, JobManager
 from .seguridad import AlcanceEdicion, instalar_seguridad
-from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
+from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
 from .services import UserError
@@ -778,6 +778,18 @@ def create_app(
             'copia_datos': estado_copia(store.root),
             'edicion': estado_edicion(),                                       # 086:RF-16
         }
+
+    @app.get('/api/sistema/version', response_model=VersionRespuesta)
+    def version_del_programa() -> dict:
+        """086:RF-43: la misma versión que dicen la orden y el instalador, con sus notas."""
+        return {'version': __version__, 'notas': notas_de_la_version()}
+
+    @app.get('/api/sistema/diagnostico', response_model=DiagnosticoRespuesta)
+    def diagnostico_del_programa() -> dict:
+        """086:RF-40: la pantalla del doctor. Sin ``async``: corre en un hilo y no para la web mientras importa."""
+        from .doctor import diagnosticar
+
+        return diagnosticar()
 
     @app.post('/api/sistema/cerrar', status_code=202)
     def cerrar_servidor(request: Request) -> dict:

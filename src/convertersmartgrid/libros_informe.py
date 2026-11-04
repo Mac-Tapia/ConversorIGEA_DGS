@@ -18,8 +18,10 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping
 
+from .runtime_paths import raiz_programa
+
 #: Tabla de costes de referencia versionada, con precios públicos de la web (RF-39d).
-COSTES_REFERENCIALES = Path(__file__).resolve().parents[2] / 'config' / 'costes_referenciales.example.json'
+COSTES_REFERENCIALES = raiz_programa() / 'config' / 'costes_referenciales.example.json'
 #: Clave del perfil (dentro de ``informes``) con los nombres del libro de pérdidas.
 CLAVE_LIBRO = 'libro_perdidas'
 _COLUMNAS = ('alimentador', 'sistema_electrico', 'reconocido_kw_pct', 'reconocido_kwh_pct')

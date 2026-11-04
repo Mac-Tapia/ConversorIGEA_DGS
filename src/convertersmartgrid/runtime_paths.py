@@ -22,6 +22,45 @@ import uuid
 
 #: El identificador estable de la instalación (086:RF-7), fuera de git: es de cada máquina.
 FICHERO_INSTALACION = '.convertersmartgrid-instalacion.json'
+#: Carpeta del paquete instalado que repite la forma del repositorio (``tools/``, ``config/``, ``frontend/dist/``),
+#: con lo que ``config/entrega.json`` deja entrar. La rellena solo ``tools/construir_candidato.py`` (086:RF-36).
+CARPETA_PROGRAMA = '_programa'
+#: Dónde guarda una instalación lo que cambia en cada empresa; sin ella, en la carpeta del usuario.
+VARIABLE_DATOS = 'CSG_DATOS_HOME'
+
+
+def es_programa_instalado(raiz: Path) -> bool:
+    """Si ``raiz`` es la carpeta de recursos de un paquete instalado, y no un árbol de desarrollo."""
+    return raiz.name == CARPETA_PROGRAMA and raiz.parent.name == 'convertersmartgrid'
+
+
+def raiz_programa() -> Path:
+    """Lo que se lee y no cambia: guiones, plantillas, front compilado (086:RF-36).
+
+    Un wheel en ``site-packages`` no tiene ``parents[2]/tools``: fuera del repositorio cada guion, cada
+    fichero de ``config/`` y el front daban «no existe» en la primera orden, ya en casa del cliente.
+    En un árbol de desarrollo sigue siendo la raíz del repositorio.
+    """
+    paquete = Path(__file__).resolve().parent
+    instalado = paquete / CARPETA_PROGRAMA
+    return instalado if instalado.is_dir() else paquete.parents[1]
+
+
+def raiz_local(programa: Path | None = None, environ: Mapping[str, str] | None = None) -> Path:
+    """Lo que se escribe en cada instalación: perfil, alias y catálogos, con ``config/`` e ``input/`` (086:RF-38).
+
+    Actualizar sustituye la carpeta del programa, que puede además no admitir escritura: si el perfil de la
+    empresa viviera dentro, la primera actualización se lo llevaría. En desarrollo es el propio repositorio.
+    """
+    env = os.environ if environ is None else environ
+    raiz = raiz_programa() if programa is None else Path(programa)
+    if not es_programa_instalado(raiz):
+        return raiz
+    otra = str(env.get(VARIABLE_DATOS) or '').strip()
+    if otra:
+        return Path(otra)
+    base = env.get('LOCALAPPDATA') or env.get('XDG_DATA_HOME') or Path.home() / '.local' / 'share'
+    return Path(base) / 'ConverterSmartGrid' / 'datos'
 
 
 def _primario(checkout: Path) -> Path:
@@ -91,13 +130,15 @@ def fijar_identidad(paths: RutasRuntime, *, runtime_propio: bool = True) -> dict
     instalación existente sigue en su raíz sin mover un fichero, y desde entonces renombrar la
     carpeta no le cambia los datos. En la raíz de datos queda otra copia, que dice de quién son.
     """
-    existente = _leer_instalacion(paths.checkout)
+    # Instalado, «junto al programa» no sirve: actualizar sustituye esa carpeta y la identidad se perdería.
+    junto = raiz_local(paths.checkout)
+    existente = _leer_instalacion(junto)
     datos = existente or {'version': 1, 'id': paths.identidad, 'creada': time.time()}
     if existente is None and runtime_propio:
         datos['runtime'] = str(paths.runtime)
-    for carpeta in (paths.checkout, paths.runtime):
+    for carpeta in (junto, paths.runtime):
         ruta = carpeta / FICHERO_INSTALACION
-        if carpeta == paths.checkout and existente is not None:
+        if carpeta == junto and existente is not None:
             continue
         if carpeta == paths.runtime and ruta.is_file():
             continue
@@ -119,11 +160,14 @@ def rutas_runtime(checkout: Path | None = None,
                   environ: Mapping[str, str] | None = None) -> RutasRuntime:
     """Calcula rutas sin crear carpetas ni cambiar el entorno del llamador."""
     env = os.environ if environ is None else environ
-    root = (checkout or Path(__file__).resolve().parents[2]).resolve()
+    root = (checkout or raiz_programa()).resolve()
     primary = _primario(root)
-    instalacion = _leer_instalacion(root)
-    identity = instalacion['id'] if instalacion else _identidad_por_ruta(root)
-    default_runtime = primary.parent / '.convertersmartgrid-runtime' / identity
+    instalado = es_programa_instalado(root)
+    # Instalada, la identidad y los datos cuelgan de la carpeta de datos: la del programa se sustituye al actualizar.
+    junto = raiz_local(root, env).resolve() if instalado else root
+    instalacion = _leer_instalacion(junto)
+    identity = instalacion['id'] if instalacion else _identidad_por_ruta(junto)
+    default_runtime = junto / 'runtime' if instalado else primary.parent / '.convertersmartgrid-runtime' / identity
     # Movida a otra carpeta madre sin sus datos, la raíz sigue donde estaba: la anotada.
     anotada = Path(str((instalacion or {}).get('runtime') or ''))
     if instalacion and instalacion.get('runtime') and not default_runtime.is_dir() and anotada.is_dir():
@@ -159,8 +203,11 @@ def configurar_entorno(checkout: Path | None = None) -> RutasRuntime:
         'CSG_RUNTIME_HOME': paths.runtime, 'CSG_CACHE_HOME': paths.cache,
         'CSG_TEMP_HOME': paths.temporales,
     }.items() if not inputs.get(name)}
+    # Con un prefijo, Python deja de mirar los .pyc que el instalador compiló, y sin poder escribir nada
+    # recompilaría pandas y compañía en cada arranque y en cada guion.
+    instalado = es_programa_instalado(paths.checkout)
     for name, relative in {
-        'PYTHONPYCACHEPREFIX': 'python', 'RUFF_CACHE_DIR': 'ruff',
+        **({} if instalado else {'PYTHONPYCACHEPREFIX': 'python'}), 'RUFF_CACHE_DIR': 'ruff',
         'npm_config_cache': 'npm', 'TORCH_HOME': 'torch',
         'TORCHINDUCTOR_CACHE_DIR': 'torchinductor', 'TRITON_CACHE_DIR': 'triton',
         'HF_HOME': 'huggingface', 'HF_HUB_CACHE': 'huggingface/hub',
