@@ -1,4 +1,4 @@
-"""081:RF-70 a RF-73 — estadística de las órdenes de DIgSILENT."""
+"""081:RF-71 a RF-74 — estadística de las órdenes de DIgSILENT."""
 from __future__ import annotations
 
 import json
@@ -15,7 +15,7 @@ def _filas(n, media, fallos, guion='obras_pf.py', dia='2026-11-03', causa='ERROR
 
 
 def test_registro_de_una_orden_con_su_causa(tmp_path):
-    """081:RF-70 — la fila lleva guion, modo, código, duración y causa sin rutas ni números."""
+    """081:RF-71 — la fila lleva guion, modo, código, duración y causa sin rutas ni números."""
     log = tmp_path / 'a.log'
     log.write_text('leyendo\nERROR: no existe D:/x/y.json en 12 s\n', encoding='utf-8')
     f = eo.registro({'id': 'a', 'guion': 'obras_pf.py', 'argv': ['--evaluar', '--plan', 'p.json']}, 1, 12.34,
@@ -26,7 +26,7 @@ def test_registro_de_una_orden_con_su_causa(tmp_path):
 
 
 def test_descriptiva_con_intervalo_de_la_mediana():
-    """081:RF-71 — n, tasa de fallos, mediana dentro de su IC 95 %, p90 ≤ máximo; reproducible."""
+    """081:RF-72 — n, tasa de fallos, mediana dentro de su IC 95 %, p90 ≤ máximo; reproducible."""
     filas = _filas(40, 100.0, 8) + _filas(10, 5.0, 0, guion='estudios_pf.py')
     t = eo.descriptiva(filas)
     r = next(x for x in t if x['guion'] == 'obras_pf.py')
@@ -37,7 +37,7 @@ def test_descriptiva_con_intervalo_de_la_mediana():
 
 
 def test_contraste_demuestra_la_mejora_y_no_la_inventa():
-    """081:RF-72 — B claramente más rápida y con menos fallos: se demuestra; iguales o pocas: no."""
+    """081:RF-73 — B claramente más rápida y con menos fallos: se demuestra; iguales o pocas: no."""
     a, b = _filas(30, 400.0, 12), _filas(30, 100.0, 1)
     c = eo.contrastar(a, b)
     assert c['duracion']['demostrado'] and c['fallos']['demostrado']
@@ -46,7 +46,7 @@ def test_contraste_demuestra_la_mejora_y_no_la_inventa():
 
 
 def test_fallos_repetidos_y_historial_del_servidor(tmp_path):
-    """081:RF-73 — la misma causa dos veces es una regresión; RF-70: el historial anterior sale de servidor.log."""
+    """081:RF-74 — la misma causa dos veces es una regresión; RF-71: el historial anterior sale de servidor.log."""
     assert eo.repetidos(_filas(10, 50.0, 3)) == [('obras_pf.py', 'ERROR: no converge en la barra #', 3)]
     (tmp_path / 'servidor.log').write_text(
         '2026-11-03 14:14:14 Orden 593a8771de0d: obras_pf.py\n'

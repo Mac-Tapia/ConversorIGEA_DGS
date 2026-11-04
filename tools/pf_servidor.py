@@ -143,7 +143,7 @@ RESTOS_S = 24 * 3600.0
 
 
 def _registrar(cola: Path, orden: dict, codigo: int, segundos: float, causa: str = '') -> None:
-    """081:RF-70: una línea de ``ordenes.jsonl`` por orden; si no se puede escribir, la orden no falla por ello."""
+    """081:RF-71: una línea de ``ordenes.jsonl`` por orden; si no se puede escribir, la orden no falla por ello."""
     try:
         fila = estadistica_ordenes.registro(orden, codigo, segundos, causa)
         with open(cola / estadistica_ordenes.REGISTRO, 'a', encoding='utf-8') as f:
@@ -170,7 +170,7 @@ def limpiar_cola(cola: Path, ahora=time.time) -> None:
             orden = json.loads(en_curso.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             orden = {'id': ident}
-        _registrar(cola, orden, 3, 0.0, 'DIgSILENT murió a mitad de la orden')       # 081:RF-70
+        _registrar(cola, orden, 3, 0.0, 'DIgSILENT murió a mitad de la orden')       # 081:RF-71
         en_curso.unlink(missing_ok=True)
         _decir(f'Orden {ident} de un proceso anterior cerrada con código 3.')
     for patron in ('*.log', '*.fin.json', '*.tmp'):
@@ -234,7 +234,7 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
         en_curso.unlink(missing_ok=True)
         segundos = reloj() - inicio
         _registrar(cola, orden, codigo, segundos,
-                   estadistica_ordenes.ultima_causa(cola / f"{orden['id']}.log") if codigo else '')   # 081:RF-70
+                   estadistica_ordenes.ultima_causa(cola / f"{orden['id']}.log") if codigo else '')   # 081:RF-71
         _decir(f"Orden {orden['id']} terminada con código {codigo} en {segundos:.0f} s.")
         ultima = reloj()
     _decir(f'Sin órdenes en {inactividad_s:g} s: se cierra (019:RF-8).')

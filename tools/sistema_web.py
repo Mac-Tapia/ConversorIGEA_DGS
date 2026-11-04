@@ -507,7 +507,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
 
 def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None,
                  capex: str | None = None) -> int:
-    """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-71).
+    """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-72).
 
     Pisco (2026-11-03): el usuario pidió que lo que falta se lance y cierre solo. Si ya corre un «Con proyecto»
     de ese proyecto, se espera a él en vez de lanzar otro; uno ya terminado no se adopta: se lanza de nuevo.

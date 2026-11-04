@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Estadística de las órdenes de DIgSILENT: descriptiva, contraste entre versiones y fallos repetidos (081:RF-71 a RF-73).
+"""Estadística de las órdenes de DIgSILENT: descriptiva, contraste entre versiones y fallos repetidos (081:RF-72 a RF-74).
 
     python tools/estadistica_ordenes.py [--desde 2026-11-02] [--guion obras_pf.py] [--corte 2026-11-03T20:35]
                                          [--alfa 0.05] [--json salida.json]
@@ -23,7 +23,7 @@ from convertersmartgrid import estadistica_ordenes as eo  # noqa: E402
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description='Estadística de las órdenes de DIgSILENT (081:RF-71 a RF-73)')
+    p = argparse.ArgumentParser(description='Estadística de las órdenes de DIgSILENT (081:RF-72 a RF-74)')
     p.add_argument('--cola', help='Carpeta de la cola de DIgSILENT (por defecto, la de esta máquina)')
     p.add_argument('--desde', default='', help='Fecha ISO desde la que contar')
     p.add_argument('--guion', default='', help='Solo las órdenes de este guion')
@@ -54,7 +54,7 @@ def main(argv=None) -> int:
               f"{f'{lo:.0f}–{hi:.0f}':>15s} {r['p90_s']:6.0f} {r['max_s']:6.0f}")
     rep = eo.repetidos(filas)
     if rep:
-        print('\nFallos que se repiten (081:RF-73):')
+        print('\nFallos que se repiten (081:RF-74):')
         for g, causa, n in rep[:15]:
             print(f'  {n}× {g}: {causa}')
     resumen: dict[str, Any] = {'ordenes': len(filas), 'fallos': fallos, 'horas': horas, 'por_guion': tabla,

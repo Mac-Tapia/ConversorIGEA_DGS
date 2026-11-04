@@ -1,4 +1,4 @@
-"""Estadística de las órdenes de DIgSILENT: descriptiva, contraste entre versiones y fallos que se repiten (081:RF-70 a RF-73).
+"""Estadística de las órdenes de DIgSILENT: descriptiva, contraste entre versiones y fallos que se repiten (081:RF-71 a RF-74).
 
 Pisco (2026-11-02 y 03): dos días y dos noches para un sistema, con solo 6,9 h de DIgSILENT calculando; el resto
 fueron 62 órdenes fallidas de 316, dos caídas del motor y 71 arranques. Sin medirlo no se ve dónde se pierde el
@@ -18,16 +18,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-#: Fichero de la cola de DIgSILENT con una línea JSON por orden atendida (081:RF-70).
+#: Fichero de la cola de DIgSILENT con una línea JSON por orden atendida (081:RF-71).
 REGISTRO = 'ordenes.jsonl'
-#: Nivel de significación por defecto de los contrastes (081:RF-72).
+#: Nivel de significación por defecto de los contrastes (081:RF-73).
 ALFA = 0.05
 _LINEA = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (.*)$')
 
 
 def registro(orden: Mapping[str, Any], codigo: int, segundos: float, causa: str = '',
              ahora: datetime | None = None) -> dict[str, Any]:
-    """081:RF-70: la fila de una orden: cuándo, qué guion y modo, cuánto tardó, cómo terminó y por qué falló."""
+    """081:RF-71: la fila de una orden: cuándo, qué guion y modo, cuánto tardó, cómo terminó y por qué falló."""
     argv = [str(a) for a in orden.get('argv') or []]
     return {'fecha': (ahora or datetime.now()).isoformat(timespec='seconds'), 'id': str(orden.get('id') or ''),
             'guion': str(orden.get('guion') or '?'), 'modo': [a for a in argv if a.startswith('--') and a not in
@@ -36,7 +36,7 @@ def registro(orden: Mapping[str, Any], codigo: int, segundos: float, causa: str 
 
 
 def causa_corta(texto: str) -> str:
-    """La causa normalizada de un fallo: sin números, rutas ni identificadores, para contar las que se repiten (RF-73)."""
+    """La causa normalizada de un fallo: sin números, rutas ni identificadores, para contar las que se repiten (RF-74)."""
     t = (texto or '').strip().splitlines()[-1] if (texto or '').strip() else ''
     t = re.sub(r'[A-Za-z]:[\\/][^\s\'"]+', '<ruta>', t)
     t = re.sub(r'\b[0-9a-f]{12,}\b', '<id>', t)
@@ -103,7 +103,7 @@ def _mediana_ic(datos: Sequence[float], nivel: float = 0.95, remuestras: int = 2
 
 
 def descriptiva(filas: Iterable[Mapping[str, Any]], clave: str = 'guion') -> list[dict[str, Any]]:
-    """081:RF-71: por guion (o ``clave``): n, fallos y su tasa, horas, media, mediana con su IC 95 %, p90 y máximo."""
+    """081:RF-72: por guion (o ``clave``): n, fallos y su tasa, horas, media, mediana con su IC 95 %, p90 y máximo."""
     grupos: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for f in filas:
         grupos[str(f.get(clave) if clave != 'dia' else str(f['fecha'])[:10])].append(f)
@@ -119,7 +119,7 @@ def descriptiva(filas: Iterable[Mapping[str, Any]], clave: str = 'guion') -> lis
 
 
 def contrastar(a: Sequence[Mapping[str, Any]], b: Sequence[Mapping[str, Any]], alfa: float = ALFA) -> dict[str, Any]:
-    """081:RF-72: H1 «B tarda menos que A» (Mann-Whitney U, una cola) y «B falla menos que A» (Fisher, una cola).
+    """081:RF-73: H1 «B tarda menos que A» (Mann-Whitney U, una cola) y «B falla menos que A» (Fisher, una cola).
 
     Con menos de 5 órdenes en un grupo no hay contraste de duración: se dice, en vez de dar un p sin potencia.
     """
@@ -142,7 +142,7 @@ def contrastar(a: Sequence[Mapping[str, Any]], b: Sequence[Mapping[str, Any]], a
 
 
 def repetidos(filas: Iterable[Mapping[str, Any]]) -> list[tuple[str, str, int]]:
-    """081:RF-73: los fallos con la misma causa en el mismo guion más de una vez: ``(guion, causa, veces)``.
+    """081:RF-74: los fallos con la misma causa en el mismo guion más de una vez: ``(guion, causa, veces)``.
 
     Un fallo real se arregla una vez y pasa a comprobación permanente (RF-46); si vuelve, es una regresión.
     """
