@@ -202,7 +202,9 @@ def test_config_sin_datos_de_una_empresa():
                             text=True, encoding='utf-8', check=True).stdout.split()
     # El contrato universal del PIDE es la norma de 2017, sin datos de ninguna empresa
     # (test_pide_dataset lo comprueba).
-    genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json'}
+    # 086:RF-33, RF-34: la lista de lo que se entrega no es de ninguna empresa, y la de términos solo lleva huellas.
+    genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json', 'config/entrega.json',
+                 'config/terminos_huellas.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
              and not (f.startswith('config/perfiles/') and f.endswith('.json'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'

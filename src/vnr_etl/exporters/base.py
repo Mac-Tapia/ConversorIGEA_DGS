@@ -9,6 +9,7 @@ inventan clases/columnas DGS ni columnas CYMDIST.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +17,10 @@ from typing import Protocol, runtime_checkable
 
 from convertersmartgrid.util import sha256_file
 from vnr_etl.models import CanonicalModel
+
+
+#: Ruta local de la muestra DGS con la que se verifica el contrato (086:RF-32).
+VARIABLE_MUESTRA = 'CSG_VNR_MUESTRA_DGS'
 
 
 @dataclass(frozen=True)
@@ -49,10 +54,12 @@ class TargetProfile:
         values = {name: data.get(name, field_.default)
                   for name, field_ in cls.__dataclass_fields__.items()}
         values['required_fields'] = tuple(values.get('required_fields') or ())
-        sample_path = Path(str(values.get('sample_path') or ''))
-        if sample_path and not sample_path.is_absolute():
+        # 086:RF-32: la muestra es un fichero de una empresa: su ruta es de cada máquina y no viaja en el contrato.
+        muestra = str(values.get('sample_path') or os.environ.get(VARIABLE_MUESTRA, '')).strip()
+        sample_path = Path(muestra) if muestra else None
+        if sample_path is not None and not sample_path.is_absolute():
             sample_path = (path.parent / sample_path).resolve()
-        values['sample_path'] = str(sample_path) if str(sample_path) else ''
+        values['sample_path'] = str(sample_path) if sample_path is not None else ''
         return cls(**values)
 
     @property

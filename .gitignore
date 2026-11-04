@@ -54,6 +54,9 @@ desktop.ini
 # Generated conversion dumps
 output/
 
+# Lista completa de términos prohibidos (086:RF-33): lleva los nombres; en git solo van sus huellas.
+config/terminos_prohibidos*
+
 # Identidad de cada instalación (086:RF-7): de esta máquina, no del código.
 .convertersmartgrid-instalacion.json
 

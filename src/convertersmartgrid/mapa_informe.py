@@ -39,7 +39,8 @@ COLOR_SET = (95, 45, 170)
 COLOR_TRANSFORMADOR = (115, 55, 150)
 COLOR_CARGA_NUEVA = (0, 110, 75)
 COLOR_TRANSFERENCIA = (85, 95, 110)
-#: Bandas por defecto si el perfil no las trae: las del modelo EMAPICA (017:RF-115).
+#: 086:RF-35: de referencia, para quien dibuja sin dar bandas: las que salen de ±5 % y de un umbral del 100 %
+#: (``informes.bandas_de_limites``). El informe no llega aquí sin las suyas: las saca de sus propios límites.
 BANDAS_TENSION = (85.0, 90.0, 95.0, 105.0)
 BANDAS_CARGA = (80.0, 90.0, 95.0, 105.0, 150.0)
 
@@ -601,7 +602,7 @@ def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: st
 
 
 def transformador_de_la_set(nombre: str, set_nombre: str, devanados: Sequence[tuple[float, float | None]],
-                            destino: Path, *, titulo: str) -> Path:
+                            destino: Path, *, titulo: str, bandas_carga: Sequence[float] | None = None) -> Path:
     """Unifilar del transformador de la SET con la cargabilidad de cada devanado (017:RF-69,
     RF-119): «Cargabilidad devanado {kV} kV {x} %».
 
@@ -612,6 +613,8 @@ def transformador_de_la_set(nombre: str, set_nombre: str, devanados: Sequence[tu
 
     if not devanados:
         raise MapaError('Sin la cargabilidad de ningún devanado del transformador de la SET.')
+    # 086:RF-35: este dibujo ignoraba las bandas del perfil y usaba siempre las constantes.
+    bandas = tuple(bandas_carga or BANDAS_CARGA)
     img = Image.new('RGB', (ANCHO_PX, 900), 'white')
     d = ImageDraw.Draw(img)
     f_titulo, f_texto = _fuente(30), _fuente(24)
@@ -625,7 +628,7 @@ def transformador_de_la_set(nombre: str, set_nombre: str, devanados: Sequence[tu
     n = len(devanados)
     for i, (kv, pct) in enumerate(devanados):
         x = cx + (i - (n - 1) / 2) * 420
-        color = (0, 0, 0) if pct is None else _color(_banda(pct, BANDAS_CARGA), BANDAS_CARGA, COLORES_CARGA)
+        color = (0, 0, 0) if pct is None else _color(_banda(pct, bandas), bandas, COLORES_CARGA)
         d.ellipse([x - 70, 360, x + 70, 500], outline=color, width=5)                # secundario
         d.line([(x, 500), (x, 600)], fill=(0, 0, 0), width=4)
         d.line([(x - 170, 600), (x + 170, 600)], fill=(0, 0, 0), width=8)

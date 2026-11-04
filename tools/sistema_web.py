@@ -573,7 +573,7 @@ def main(argv=None) -> int:
                                             'entero por la web (spec 022 y 025)')
     p.add_argument('--espacio', required=True, help='Id del espacio de trabajo de la web')
     destino = p.add_mutually_exclusive_group(required=True)
-    destino.add_argument('--zonal', help='Zonal de la estructura (Nasca, Pisco…)')
+    destino.add_argument('--zonal', help='Zonal de la estructura de la empresa')
     destino.add_argument('--red', nargs='+', metavar='COD',
                          help='Uno o varios alimentadores, unidos si son varios (028:RF-25)')
     p.add_argument('--grupo', help='Con --red, el nombre del proyecto unido en la web')

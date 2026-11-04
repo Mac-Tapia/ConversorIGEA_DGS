@@ -2681,6 +2681,22 @@
             "title": "Asunto",
             "type": "string"
           },
+          "bandas": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "tension",
+                "cargabilidad"
+              ]
+            },
+            "title": "Bandas",
+            "type": "object"
+          },
           "descripcion": {
             "items": {
               "type": "string"
@@ -2763,6 +2779,22 @@
             "default": "",
             "title": "Asunto",
             "type": "string"
+          },
+          "bandas": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "tension",
+                "cargabilidad"
+              ]
+            },
+            "title": "Bandas",
+            "type": "object"
           },
           "codigo_punto": {
             "default": "",

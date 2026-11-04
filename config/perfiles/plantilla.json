@@ -1,0 +1,19 @@
+{
+  "_comentario": "086:RF-32: la plantilla del perfil de una empresa nueva. Copie este fichero como config/perfil_empresa.json y rellene lo suyo; docs/PERFIL_EMPRESA.md explica cada clave y la orden `convertersmartgrid validar-perfil` dice qué falta. Una clave en null es «no se supone nada».",
+  "empresa": null,
+  "codigo_empresa": null,
+  "crs_origen": null,
+  "patron_sed_medicion": null,
+  "escala_diagrama": null,
+  "forma_alimentador": null,
+  "patron_libro_clientes": null,
+  "carpeta_proyectos_pf": null,
+  "estructura": null,
+  "estudios": {"tension_min_pu": null, "tension_max_pu": null, "cargabilidad_max_pct": null},
+  "calibracion": {"factor_potencia_cargas": null, "factor_potencia_minimo_fijas": null, "factor_potencia_minimo_escaladas": null,
+                  "bancos_kvar_por_tension": null, "transformadores_sed": null},
+  "informes": {"moneda": null, "modelo_estudio": null, "modelo_factibilidad": null, "bandas_tension_pct": null, "bandas_cargabilidad_pct": null,
+               "norma": null, "regulador": null},
+  "escalera": {"moneda": null, "secciones_normalizadas": null, "costos_unitarios": null},
+  "planificacion": {"tasa_regulada": null, "vida_util_anios": null}
+}

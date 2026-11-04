@@ -85,6 +85,8 @@
                            "inversion": "INVERSIÓN TOTAL", "cantidad": "Cantidad", "unidad": "Und", "costo_unitario": "Costo  Unitario"}}
   },
   "informes": {
+    "_comentario_moneda": "086:RF-28: el rótulo de sus informes.",
+    "moneda": "S/.",
     "bandas_tension_pct": [85, 90, 95, 105],
     "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],
     "_comentario_cabecera": "Rótulos de las celdas de la cabecera del modelo de Casa Blanca donde van el n.º de informe y la referencia (asunto).",

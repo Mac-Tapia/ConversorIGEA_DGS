@@ -212,7 +212,7 @@ def test_barras_de_60_kv_en_la_web():
     assert 'transformadores?: Record<string, string>' in TIPOS and 'kw: number | null' in TIPOS
     assert 'en el instante de {b.de_alta}' in DEMANDA and 'Centrales térmicas (CT)' in DEMANDA
     assert 'Medidores (transformador)' in DEMANDA and 'Avisos del libro de medidores' in DEMANDA
-    assert 'máxima de barra de SET (60 kV → 22,9 y 10 kV)' in DEMANDA
+    assert 'máxima de barra de SET (alta tensión → media tensión)' in DEMANDA   # 086:RF-29: sin niveles de una empresa
     # 022:RF-88: cada central CT del libro, en barra o en el tramo de un alimentador.
     assert 'api.demandaCentrales(ws.id)' in DEMANDA and 'centrales_tramo: centralTramo' in DEMANDA
     assert 'En un tramo de {a}' in DEMANDA and 'export interface CentralDeBarra' in TIPOS

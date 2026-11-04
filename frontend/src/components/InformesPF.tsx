@@ -278,6 +278,11 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
   const limitesForm = (): Partial<Limites> => Object.fromEntries(
     faltanLimites.map(([k]) => [k, num(limites[k] ?? '')]).filter(([, v]) => v != null));
   const limitesCompletos = faltanLimites.every(([k]) => num(limites[k] ?? '') != null);
+  // 086:RF-35: las bandas que el perfil no da se piden; vacías, el servidor las deriva de los límites y lo avisa.
+  const faltanBandas = BANDAS.filter(([k]) => ctx?.bandas?.[k] == null);
+  const bandasForm = (): BandasForm => Object.fromEntries(faltanBandas
+    .map(([k, , clave]) => [k, listaDeBandas(limites[clave] ?? '')]).filter(([, v]) => v?.length)) as BandasForm;
+  const bandasValidas = faltanBandas.every(([, , clave]) => listaDeBandas(limites[clave] ?? '') != null);
 
   if (!ctx) return <p className="muted">Leyendo lo que ya guardó la web…</p>;
   return (
@@ -297,12 +302,26 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
           ))}
         </div>
       )}
+      {faltanBandas.length > 0 && (
+        <div className="form-grid">
+          {faltanBandas.map(([k, label, clave]) => (
+            <label key={k} className="field">
+              <span>{label}</span>
+              <input value={limites[clave] ?? ''} placeholder="Porcentajes de menor a mayor, separados por espacios"
+                onChange={(e) => setLimites((v) => ({ ...v, [clave]: e.target.value }))} />
+              {listaDeBandas(limites[clave] ?? '') == null
+                ? <small className="alert-error">Escriba porcentajes positivos, de menor a mayor.</small>
+                : <small className="muted">El perfil no las trae. Vacío: salen de la banda de tensión y del umbral, y el informe lo avisa.</small>}
+            </label>
+          ))}
+        </div>
+      )}
       <h4>4.4.1 · Análisis eléctrico (informe de estudio)</h4>
       <InformeEstudio key={`e-${project}`} project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
-        limites={limitesForm} limitesOk={limitesCompletos} limitesTexto={limites} />
+        limites={limitesForm} limitesOk={limitesCompletos && bandasValidas} limitesTexto={limites} bandas={bandasForm} />
       <h4>4.4.2 · Conexión de un cliente nuevo (factibilidad y punto de diseño)</h4>
       <InformeFactibilidad key={`f-${project}`} project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
-        limites={limitesForm} limitesOk={limitesCompletos} maximas={maximas} recargar={recargar} />
+        limites={limitesForm} limitesOk={limitesCompletos && bandasValidas} maximas={maximas} recargar={recargar} bandas={bandasForm} />
       {ctx.generados.length > 0 && <>
         <h4>Informes generados</h4>
         <div className="table-wrap table-short">
@@ -326,7 +345,25 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
 
 interface Seccion {
   project: string; feeders: string[]; ctx: InformesContexto; busy: boolean;
-  limites: () => Partial<Limites>; limitesOk: boolean;
+  limites: () => Partial<Limites>; limitesOk: boolean; bandas: () => BandasForm;
+}
+
+type BandasForm = NonNullable<InformeEstudioForm['bandas']>;
+const BANDAS: ['tension' | 'cargabilidad', string, string][] = [
+  ['tension', 'Bandas del coloreado por tensión (%)', 'bandas_tension'],
+  ['cargabilidad', 'Bandas del coloreado por cargabilidad (%)', 'bandas_cargabilidad'],
+];
+
+/** Los porcentajes escritos; vacío es una lista vacía y `null`, que no valen como bandas. */
+function listaDeBandas(texto: string): number[] | null {
+  const partes = texto.trim().split(/\s+/).filter(Boolean).map((x) => Number(x.replace(',', '.')));
+  const validas = partes.every((v, i) => Number.isFinite(v) && v > 0 && (i === 0 || v > partes[i - 1]));
+  return validas ? partes : null;
+}
+
+/** 086:RF-31: lo dice antes de generar: una empresa sin modelo también tiene su informe. */
+function AvisoPlantilla({ neutra }: { neutra: boolean }) {
+  return neutra ? <small className="muted">Su empresa no trae modelo de este informe: saldrá con la plantilla neutra.</small> : null;
 }
 
 /** Lo que va a usar el informe y por qué no se puede generar todavía (RF-75 a RF-78). */
@@ -344,7 +381,7 @@ function Origen({ ctx, alimentador, conCon }: { ctx: InformesContexto; alimentad
   </ul>;
 }
 
-function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limitesTexto }: Seccion & {
+function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limitesTexto, bandas }: Seccion & {
   limitesTexto: Record<string, string>;
 }) {
   const { ws, startJob, jobs } = useApp();
@@ -376,7 +413,7 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
   const generar = () => {
     const body: InformeEstudioForm = {
       project, alimentador, ...cab, asunto, antecedentes: parrafos(antecedentes), descripcion: parrafos(descripcion),
-      limites: limites(), anio: num(anio),
+      limites: limites(), bandas: bandas(), anio: num(anio),
     };
     void startJob(() => api.informeEstudio(ws.id, body));
   };
@@ -411,6 +448,7 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
         <button className="btn btn-primary" disabled={busy || Boolean(motivo)} onClick={generar}>
           Generar informe de estudio
         </button>
+        <AvisoPlantilla neutra={ctx.plantilla_neutra.estudio} />
         {motivo && <small className="muted">{motivo}</small>}
         {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>
@@ -443,7 +481,7 @@ const PERDIDAS: [keyof Perd, string, string?][] = [
   ['sistema_electrico', 'Sistema eléctrico'], ['codigo_sistema', 'Código del sistema'],
   ['reconocido_kw_pct', 'Pérdidas reconocidas en kW (%)', 'decimal'],
   ['reconocido_kwh_pct', 'Pérdidas reconocidas en kWh (%)', 'decimal'],
-  ['precio_compra', 'Precio de compra (S/./kWh)', 'decimal'],
+  ['precio_compra', 'Precio de compra (moneda/kWh)', 'decimal'],
 ];
 type Trafo = Record<'kv' | 'sin_pct' | 'con_pct' | 'caso', string>;
 const TRAFO: [keyof Trafo, string, string?][] = [
@@ -451,7 +489,7 @@ const TRAFO: [keyof Trafo, string, string?][] = [
   ['con_pct', 'Cargabilidad con proyecto (%)', 'decimal'], ['caso', 'Caso del proyecto de transmisión'],
 ];
 
-function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, maximas, recargar }: Seccion & {
+function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, maximas, recargar, bandas }: Seccion & {
   maximas: MaximaCabecera[]; recargar: () => void;
 }) {
   const { ws, startJob, jobs, run, health } = useApp();
@@ -621,7 +659,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     const body: InformeFactibilidadForm = {
       project, alimentador: carga.alimentador, sed: carga.sed, ...cab,
       asunto: cab.asunto || asuntoPropuesto,
-      limites: limites(), factor_carga: num(fc), codigo_punto: codigo, preparar_casos: true,
+      limites: limites(), bandas: bandas(), factor_carga: num(fc), codigo_punto: codigo, preparar_casos: true,
       punto_ficha: { pcc_mva: num(punto.pcc_mva), utm_x: num(punto.utm_x), utm_y: num(punto.utm_y) },
       solicitud: { ...sol, potencia_kw: num(sol.potencia_kw), tension_kv: num(sol.tension_kv),
         potencia_actual_kw: num(sol.potencia_actual_kw),
@@ -740,7 +778,8 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
             </div>}
             {!libro && <small className="muted">Sin libro, escriba lo reconocido abajo; si falta, queda señalado en el Word.</small>}
           </div>
-          <Campos campos={PERDIDAS} valores={perd} fijar={(k, v) => setPerd((p) => ({ ...p, [k]: v }))} />
+          <Campos campos={PERDIDAS.map(([k, label, modo]): [keyof Perd, string, string?] => [k, label.replace('moneda/', `${ctx.moneda ?? 'moneda'}/`), modo])}
+            valores={perd} fijar={(k, v) => setPerd((p) => ({ ...p, [k]: v }))} />
         </div>
         <p><strong>Transformador de la SET (del proyecto de transmisión)</strong></p>
         <p className="muted small">El proyecto de transmisión tiene una carga por barra de SET, no por alimentador: elija
@@ -784,6 +823,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
         <button className="btn btn-primary" disabled={busy || Boolean(motivo)} onClick={generar}>
           Generar informe de factibilidad
         </button>
+        <AvisoPlantilla neutra={ctx.plantilla_neutra.factibilidad} />
         {motivo && <small className="muted">{motivo}</small>}
         {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>

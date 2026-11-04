@@ -402,7 +402,7 @@ export function FeedersPanel() {
               ))}
             </select>
             <button className="btn" disabled={engineBusy || !allReady || !setElegida} onClick={convertirSet}
-              title="Un DGS con solo esta SET: su red, sus barras de 10 y 22,9 kV y la red externa de cada barra, como dentro de su sistema (spec 022, RF-82)">
+              title="Un DGS con solo esta SET: su red, sus barras de media tensión y la red externa de cada barra, como dentro de su sistema (spec 022, RF-82)">
               Convertir SET {setElegida}
             </button>
             {!estructura && !errorEstructura && feeders.length > 0 && <small className="muted">Leyendo la estructura de la empresa…</small>}

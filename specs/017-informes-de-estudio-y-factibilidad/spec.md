@@ -82,6 +82,7 @@ el modelo no se incluyen.
   perfil de empresa, nunca de una ruta fija ni de `referencia/`.
 - RF-5: SI el perfil de empresa no indica el modelo de un tipo de informe, ENTONCES EL
   SISTEMA no generará ese tipo y dirá qué clave del perfil falta.
+- Aclaración de RF-5 (086:RF-31): sin modelo ya no se pierde el informe: sale con una plantilla neutra y se dice. Un modelo declarado que no existe sigue siendo un error.
 - RF-6: EL SISTEMA sacará todo valor numérico del informe de DIgSILENT, del libro de la
   empresa (RF-36) o de lo que escriba el operador, y nunca lo copiará del modelo.
 - RF-7: EL SISTEMA sacará toda imagen del informe de DIgSILENT, exportada del proyecto
@@ -353,6 +354,7 @@ captura de Google Earth.
   coloreado, con sus bandas, colores y anchuras de línea.
 - RF-114: EL SISTEMA pondrá antes de cada imagen coloreada por cargabilidad la leyenda de
   ese coloreado, con sus bandas, colores y anchuras de línea.
+- Aclaración de RF-115 (086:RF-35): si el perfil no da las bandas, se piden en la web; sin dato, salen de la banda de tensión y del umbral, con aviso.
 - RF-115: EL SISTEMA tomará las bandas de los dos coloreados del perfil de empresa. (Las del
   modelo, que irán en el perfil de Electro Dunas: tensión 85, 90, 95 y 105 % de la
   nominal; cargabilidad 80, 90, 95, 105 y 150 %.)

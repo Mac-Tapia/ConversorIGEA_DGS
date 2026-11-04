@@ -288,7 +288,7 @@ def comprobar_libro(config: ConfigLibro, ruta: Path, r: Mapping[str, Any]) -> li
         hoja, celda = ref.rsplit('!', 1)
         valor = libro[hoja][celda].value if hoja in libro.sheetnames else None
         if esperado is not None and (not isinstance(valor, (int, float)) or abs(valor - esperado) > TOLERANCIA_SOLES):
-            avisos.append(f'{ref} da {valor} y el informe {esperado:.2f} S/. en el estado {estado}')
+            avisos.append(f'{ref} da {valor} y el informe {esperado:.2f} en el estado {estado}')
     return avisos
 
 

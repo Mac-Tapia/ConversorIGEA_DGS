@@ -918,6 +918,12 @@ export interface InformesContexto {
   faltan: Record<'estudio' | 'factibilidad', string[]>;
   /** Banda y umbral que trae el perfil; los que falten se piden (RF-81). */
   limites: Partial<Limites>;
+  /** 086:RF-28: el rótulo de la moneda del perfil; sin él no se supone ninguna. */
+  moneda: string | null;
+  /** 086:RF-35: las bandas de coloreado que da el perfil; las que falten se piden. */
+  bandas: Record<'tension' | 'cargabilidad', number[] | null>;
+  /** 086:RF-31: la empresa no trae modelo: sale con la plantilla neutra. */
+  plantilla_neutra: Record<'estudio' | 'factibilidad', boolean>;
   estudios: Record<'sin' | 'con', { fichero: string; alimentadores: Record<string, boolean> } | null>;
   obras: Record<string, number>;
   cargas: CargaAplicada[];
@@ -947,6 +953,8 @@ export interface InformeEstudioForm {
   antecedentes: string[];
   descripcion: string[];
   limites: Partial<Limites>;
+  /** 086:RF-35: las bandas de coloreado que el perfil no da. */
+  bandas?: Partial<Record<'tension' | 'cargabilidad', number[]>>;
   anio: number | null;
 }
 
@@ -960,6 +968,8 @@ export interface InformeFactibilidadForm {
   asunto: string;
   destinatario: string;
   limites: Partial<Limites>;
+  /** 086:RF-35: las bandas de coloreado que el perfil no da. */
+  bandas?: Partial<Record<'tension' | 'cargabilidad', number[]>>;
   factor_carga: number | null;
   codigo_punto: string;
   /** 063:RF-1: el botón prepara los casos y corre sus flujos en el mismo trabajo. */

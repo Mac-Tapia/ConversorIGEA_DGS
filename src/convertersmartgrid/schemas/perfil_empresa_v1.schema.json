@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Perfil de empresa de ConverterSmartGrid (086:RF-30)",
+  "description": "Una clave ausente nunca bloquea: x-si-falta dice qué hace el programa. x-origen distingue lo propio de la empresa de lo que dice una norma. Las claves que empiezan por «_» son comentarios.",
+  "type": "object",
+  "properties": {
+    "perfil": {"type": ["string", "null"], "x-opcional": true, "x-funcion": "Herencia de un perfil con nombre de config/perfiles", "x-si-falta": "El perfil da sus valores él mismo.", "x-origen": "empresa"},
+    "empresa": {"type": ["string", "null"], "x-funcion": "Nombre de la empresa en los informes de planeamiento y el PIDE", "x-si-falta": "Queda el hueco señalado en esos informes.", "x-origen": "empresa"},
+    "codigo_empresa": {"type": ["string", "null"], "x-funcion": "Elegir la empresa propia dentro de un paquete VNR-GIS con varias", "x-si-falta": "Se pide si el paquete trae varias.", "x-origen": "empresa"},
+    "crs_origen": {"type": ["string", "null"], "x-funcion": "Georreferenciar la red y dibujar sus mapas", "x-si-falta": "La web y el CLI piden el CRS; sin él, se convierte sin GPS.", "x-origen": "empresa"},
+    "patron_sed_medicion": {"type": ["string", "null"], "x-formato": "regex", "x-funcion": "Excluir las SED que solo son medición en media tensión", "x-si-falta": "No se excluye ninguna SED por su nombre.", "x-origen": "empresa"},
+    "escala_diagrama": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Escala del diagrama geográfico del DGS", "x-si-falta": "Se usa la escala del motor.", "x-origen": "empresa"},
+    "forma_alimentador": {"type": ["string", "null"], "x-formato": "regex", "x-funcion": "Avisar de los nombres de alimentador que no siguen su forma", "x-si-falta": "No se avisa de ninguno.", "x-origen": "empresa"},
+    "patron_libro_clientes": {"type": ["string", "array", "null"], "x-funcion": "Reconocer los libros mensuales de clientes importantes", "x-si-falta": "Los libros se eligen a mano en la web.", "x-origen": "empresa"},
+    "carpeta_proyectos_pf": {"type": ["string", "null"], "x-funcion": "Carpeta de DIgSILENT de los proyectos importados", "x-si-falta": "Se usa «ConverterSmartGrid».", "x-origen": "empresa"},
+    "raices_llm": {"type": ["array", "null"], "x-opcional": true, "x-funcion": "Carpetas que puede leer el asistente local", "x-si-falta": "El asistente lee solo las del proyecto.", "x-origen": "empresa"},
+    "estructura": {"type": ["string", "object", "null"], "x-funcion": "Agrupar por zonal, SET y sistema eléctrico", "x-si-falta": "Se usa la estructura de la propia fuente si la trae.", "x-origen": "empresa"},
+    "centrales_termicas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Medidores de una central dentro de un alimentador al calibrar", "x-si-falta": "Las centrales del libro se conectan desde la web.", "x-origen": "empresa"},
+    "vias": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Trazar los enlaces por la vía pública con un servicio externo", "x-si-falta": "El enlace se traza en línea recta y no sale nada a la red.", "x-origen": "empresa"},
+    "normas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Normas de calidad distintas de la principal", "x-si-falta": "Solo se juzga con la principal.", "x-origen": "norma"},
+    "gemelo": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Semilla y aceptación de los modelos, que no se venden en la 1.0", "x-si-falta": "Sin efecto en la 1.0.", "x-origen": "empresa"},
+    "asistente": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Subtipos de estudio que entiende el asistente", "x-si-falta": "Los del programa.", "x-origen": "empresa"},
+    "valle": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Puntos de la búsqueda de la ventana de valle", "x-si-falta": "Los del programa.", "x-origen": "empresa"},
+    "estudios": {
+      "type": ["object", "null"],
+      "properties": {
+        "tension_min_pu": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Juzgar la tensión en estudios e informes", "x-si-falta": "Los estudios usan 0,95 de referencia; los informes lo piden en la web.", "x-origen": "norma"},
+        "tension_max_pu": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Juzgar la tensión en estudios e informes", "x-si-falta": "Los estudios usan 1,05 de referencia; los informes lo piden en la web.", "x-origen": "norma"},
+        "cargabilidad_max_pct": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Juzgar la cargabilidad en estudios e informes", "x-si-falta": "Los estudios usan el 100 % de referencia; los informes lo piden en la web.", "x-origen": "norma"}
+      }
+    },
+    "calibracion": {
+      "type": ["object", "null"],
+      "properties": {
+        "factor_potencia_cargas": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 1, "x-funcion": "Factor de potencia de las SED escaladas al calibrar", "x-si-falta": "Se conserva el de la fuente.", "x-origen": "empresa"},
+        "factor_potencia_minimo_fijas": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 1, "x-funcion": "Mínimo de los clientes fijos, compensados por su banco", "x-si-falta": "Se usa su factor de potencia medido.", "x-origen": "empresa"},
+        "factor_potencia_minimo_escaladas": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 1, "x-funcion": "Cuánto puede bajar el factor de potencia para cuadrar la reactiva de cabecera", "x-si-falta": "No baja del de las SED escaladas.", "x-origen": "empresa"},
+        "bancos_kvar_por_tension": {"type": ["object", "null"], "x-funcion": "Tamaño de banco por nivel de tensión", "x-si-falta": "Se avisa y se usa un tamaño de referencia en «Con proyecto»; la calibración no los completa.", "x-origen": "empresa"},
+        "transformadores_sed": {"type": ["object", "null"], "x-funcion": "Fichas de los transformadores nuevos de SED sobrecargadas", "x-si-falta": "Se avisa de la sobrecarga sin proponer transformador.", "x-origen": "norma"},
+        "reparto_probabilistico": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Reparto probabilístico de las SED escaladas", "x-si-falta": "El reparto es el determinista.", "x-origen": "empresa"}
+      }
+    },
+    "informes": {
+      "type": ["object", "null"],
+      "properties": {
+        "moneda": {"type": ["string", "null"], "x-funcion": "Rótulo de la moneda en informes y pantallas", "x-si-falta": "Se escribe «moneda de la empresa», sin suponer ninguna.", "x-origen": "empresa"},
+        "modelo_estudio": {"type": ["string", "null"], "x-funcion": "Forma del informe de estudio eléctrico", "x-si-falta": "Sale con la plantilla neutra, y se dice.", "x-origen": "empresa"},
+        "modelo_factibilidad": {"type": ["string", "null"], "x-funcion": "Forma del informe de factibilidad", "x-si-falta": "Sale con la plantilla neutra, y se dice.", "x-origen": "empresa"},
+        "modelo_libro": {"type": ["string", "null"], "x-opcional": true, "x-funcion": "Libro Excel de cada informe", "x-si-falta": "El informe sale sin libro, y se dice.", "x-origen": "empresa"},
+        "modelo_planeamiento": {"type": ["string", "null"], "x-opcional": true, "x-funcion": "Forma de los documentos de planeamiento", "x-si-falta": "Salen con el documento en blanco.", "x-origen": "empresa"},
+        "bandas_tension_pct": {"type": ["array", "null"], "items": {"type": "number", "exclusiveMinimum": 0}, "x-creciente": true, "x-funcion": "Coloreado por tensión de las figuras", "x-si-falta": "Se pide en la web; sin dato, se deriva de la banda de tensión, con aviso.", "x-origen": "empresa"},
+        "bandas_cargabilidad_pct": {"type": ["array", "null"], "items": {"type": "number", "exclusiveMinimum": 0}, "x-creciente": true, "x-funcion": "Coloreado por cargabilidad de las figuras", "x-si-falta": "Se pide en la web; sin dato, se deriva del umbral de cargabilidad, con aviso.", "x-origen": "empresa"},
+        "proyecto_transmision": {"type": ["string", "null"], "x-opcional": true, "x-funcion": "Cargabilidad del transformador de la SET en la factibilidad", "x-si-falta": "Esa sección queda señalada; sale el resto.", "x-origen": "empresa"},
+        "cabecera": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Rótulos de la cabecera del modelo donde van el número y la referencia", "x-si-falta": "La cabecera queda como en el modelo.", "x-origen": "empresa"},
+        "norma": {"type": ["string", "null"], "x-funcion": "Norma de calidad que citan los textos", "x-si-falta": "Los textos no nombran ninguna.", "x-origen": "norma"},
+        "regulador": {"type": ["string", "null"], "x-funcion": "Regulador que citan los textos", "x-si-falta": "Los textos no nombran ninguno.", "x-origen": "norma"},
+        "libro_perdidas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Leer las pérdidas reconocidas del libro de la empresa", "x-si-falta": "Se escriben a mano; si faltan, quedan señaladas en el informe.", "x-origen": "empresa"},
+        "libro_informe": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Plano del libro Excel que acompaña al informe", "x-si-falta": "El informe sale sin libro, y se dice.", "x-origen": "empresa"}
+      }
+    },
+    "escalera": {
+      "type": ["object", "null"],
+      "x-abierta": true,
+      "properties": {
+        "moneda": {"type": ["string", "null"], "x-funcion": "Moneda de trabajo del costo de las obras", "x-si-falta": "El costo se muestra sin rótulo de moneda.", "x-origen": "empresa"},
+        "secciones_normalizadas": {"type": ["array", "null"], "x-funcion": "Conductores de refuerzo de la escalera de obras", "x-si-falta": "Se usan conductores de ficha universal, con aviso.", "x-origen": "empresa"},
+        "costos_unitarios": {"type": ["object", "null"], "x-funcion": "Costo de bancos y reguladores", "x-si-falta": "Esas variantes se evalúan sin elegirse por costo.", "x-origen": "empresa"}
+      }
+    },
+    "planificacion": {
+      "type": ["object", "null"],
+      "x-abierta": true,
+      "properties": {
+        "tasa_regulada": {"type": ["number", "null"], "x-funcion": "Evaluación económica de obras y PIDE", "x-si-falta": "Se usa el 12 % de referencia, con aviso.", "x-origen": "norma"},
+        "vida_util_anios": {"type": ["number", "null"], "x-funcion": "Evaluación económica y dimensionado de la SET nueva", "x-si-falta": "Se usan 30 años de referencia, con aviso.", "x-origen": "norma"},
+        "capex": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Leer el libro CAPEX de la empresa", "x-si-falta": "Las obras quedan sin costo del libro, y se dice.", "x-origen": "empresa"},
+        "tarifas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Evaluación privada del PIDE", "x-si-falta": "Esa evaluación queda señalada como pendiente.", "x-origen": "empresa"}
+      }
+    }
+  }
+}

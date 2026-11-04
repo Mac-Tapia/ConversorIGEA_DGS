@@ -610,8 +610,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           <select value={tipoAnalisis} disabled={engineBusy}
             onChange={(e) => setTipoAnalisis(e.target.value as 'alimentadores' | 'set' | 'sistema')}>
             <option value="alimentadores">Alimentadores (1 a 3 juntos): su máxima coincidente</option>
-            <option value="set">Por SET: máxima de barra de SET (60 kV → 22,9 y 10 kV)</option>
-            <option value="sistema">Sistema eléctrico: máxima coincidente de sus barras de 60 kV</option>
+            <option value="set">Por SET: máxima de barra de SET (alta tensión → media tensión)</option>
+            <option value="sistema">Sistema eléctrico: máxima coincidente de sus barras de alta tensión</option>
           </select>
         </label>
         {demasiados && <small className="muted">Son {feeders.length} alimentadores: elija SET o sistema eléctrico, o marque hasta 3.</small>}
@@ -642,8 +642,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
               </tr>
             ))}</tbody>
           </table>
-          <small className="muted">En la barra (CT_PEDREG en la de 10 kV de Pedregal): generador en esa barra con su
-            medida en el instante de la barra de 60 kV. En un tramo (la de Nasca en la troncal de 22,9 kV de NA205): se
+          <small className="muted">En la barra: generador en esa barra de su SET con su
+            medida en el instante de la barra de alta tensión. En un tramo (una central en la troncal de un alimentador): se
             mide con su alimentador en ese mismo instante y no va a la barra (022:RF-88).</small>
         </div>
       )}
@@ -938,7 +938,7 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
   const conAlta = barras.some((b) => b.alta);
   return (
     <div className="table-wrap">
-      <strong>Máxima por barra de SET{conAlta ? ': instante de la barra de 60 kV' : ''}</strong>
+      <strong>Máxima por barra de SET{conAlta ? ': instante de la barra de alta tensión' : ''}</strong>
       <table className="small">
         <thead><tr><th>SET</th><th>Barra</th><th>Medidores (transformador)</th><th>Fecha y hora</th>
           <th>kW</th><th>kVAR</th><th>Centrales térmicas (CT)</th><th>Alimentadores (en esa fecha)</th></tr></thead>
@@ -959,7 +959,7 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
       </table>
       <small className="muted">
         {conAlta
-          ? 'En cada SET con medidor de 60 kV, la máxima es la suma de sus transformadores (T1, T2, T3) en 60 kV; sus barras de 22,9 y 10 kV, sus centrales y cada alimentador se toman en esa misma fecha y hora (022:RF-84, RF-87). '
+          ? 'En cada SET con medidor de alta tensión, la máxima es la suma de sus transformadores (T1, T2, T3) en alta tensión; sus barras de media tensión, sus centrales y cada alimentador se toman en esa misma fecha y hora (022:RF-84, RF-87). '
           : ''}
         Cada alimentador se calibra con su kW y kVAR de esa fecha y hora, no con su máxima (022:RF-41).
       </small>

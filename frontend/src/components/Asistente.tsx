@@ -184,7 +184,7 @@ function ProyectoDesdeCero() {
           vez retoma desde la que falta.</p>
         <div className="row">
           <label className="field"><span>Sistema eléctrico</span>
-            <input value={sistema} placeholder="Pisco" onChange={(e) => setSistema(e.target.value)} /></label>
+            <input value={sistema} placeholder="Nombre del sistema" onChange={(e) => setSistema(e.target.value)} /></label>
           <label className="field"><span>Periodo</span>
             <input value={periodo} placeholder="2026-07" onChange={(e) => setPeriodo(e.target.value)} /></label>
           <label className="field"><span>Carpeta de la demanda</span>
@@ -283,7 +283,7 @@ export function Asistente() {
       <Modelos />
       <Aceptacion />
       <p className="muted small">
-        Escriba lo que quiere hacer, por ejemplo «calibra el sistema Pisco con julio de 2026» o «¿cómo se calibra una
+        Escriba lo que quiere hacer, por ejemplo «calibra el sistema X con julio de 2026» o «¿cómo se calibra una
         barra sin medidor?». Las consultas se responden al momento; lo que escribe en DIgSILENT o en disco espera su
         confirmación. Todo se interpreta en esta máquina.
       </p>

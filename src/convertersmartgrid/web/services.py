@@ -7736,6 +7736,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         if limites:
             config = config.con_limites(**{k: limites.get(k) for k in
                                            ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct')})
+        config = _bandas_del_formulario(config, formulario)                           # 086:RF-35
         config.modelo('estudio')
     except InformeError as exc:
         raise UserError(str(exc)) from exc
@@ -7852,12 +7853,28 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         raise UserError(str(exc)) from exc
     if ctx is not None:
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
+    avisos_perfil = _avisos_de_la_plantilla(ctx, destino)                            # 086:RF-31
     libro = _libro_del_informe(ctx, destino, {'actual': imagenes.get('actual') or {},
                                               'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
     _paso_informe(ctx, 3, 'listo')
     return {'project': proyecto or (sin or {}).get('project'), 'informe': destino.name, 'json': destino.with_suffix('.json').name,
-            'corrida': (corrida or {}).get('token'), 'huecos': huecos, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
+            'corrida': (corrida or {}).get('token'), 'huecos': huecos, 'avisos_perfil': avisos_perfil, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'estudio', plan)}
+
+
+def _bandas_del_formulario(config, formulario: dict):
+    """Las bandas de coloreado con lo escrito en la web; sin ellas, las de los límites (086:RF-35)."""
+    bandas = formulario.get('bandas') or {}
+    return config.con_bandas(tension=bandas.get('tension'), carga=bandas.get('cargabilidad'))
+
+
+def _avisos_de_la_plantilla(ctx: JobContext | None, destino: Path) -> list[str]:
+    """Lo que el informe tomó sin que lo diera el perfil: al Registro y al resultado (086:RF-31, RF-35)."""
+    avisos = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8')).get('avisos_perfil') or []
+    if ctx is not None:
+        for aviso in avisos:
+            ctx.log(aviso)
+    return avisos
 
 
 def _copia_del_plan(formulario: dict) -> dict:
@@ -8064,8 +8081,13 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
 
     faltan: dict[str, list[str]] = {}
     limites: dict = {}
+    # 086:RF-28, RF-31, RF-35: lo que la pantalla dice o pide antes de generar.
+    moneda, bandas, neutra = None, {'tension': None, 'cargabilidad': None}, {t: False for t in TIPOS}
     try:
         config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        moneda = config.moneda
+        bandas = {'tension': config.bandas_tension_pct, 'cargabilidad': config.bandas_cargabilidad_pct}
+        neutra = {t: config.modelos.get(t) is None for t in TIPOS}
         for tipo in TIPOS:
             # La banda y el umbral que falten se piden en el formulario (RF-81).
             faltan[tipo] = [x for x in config.faltan(tipo) if x.startswith('informes.')]
@@ -8113,7 +8135,8 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
         if a.get('variacion') in activas and a.get('project') == project.strip()                 and clave_codigo(f) in claves:
             obras[f] = obras.get(f, 0) + 1
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
-    return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'avisos_corrida': avisos_corrida, 'obras': obras,
+    return {'faltan': faltan, 'limites': limites, 'moneda': moneda, 'bandas': bandas, 'plantilla_neutra': neutra,
+            'estudios': estudios, 'avisos_corrida': avisos_corrida, 'obras': obras,
             'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),
             'generados': _informes_generados(ws),
             'formularios': dict((ws.informes.get('formularios') or {}).get(project.strip()) or {}),
@@ -8393,6 +8416,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         if limites:
             config = config.con_limites(**{k: limites.get(k) for k in
                                            ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct')})
+        config = _bandas_del_formulario(config, formulario)                           # 086:RF-35
         config.modelo('factibilidad')
     except InformeError as exc:
         raise UserError(str(exc)) from exc
@@ -8532,6 +8556,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     if ctx is not None:
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
                 f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+    avisos_perfil = _avisos_de_la_plantilla(ctx, destino)                            # 086:RF-31
     from ..informe_docx import exportar_pdf
 
     pdf, sin_pdf = exportar_pdf(destino)                                             # 063:RF-42
@@ -8541,7 +8566,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     _paso_informe(ctx, 3, 'listo')
     return {'project': project, 'corrida': (corrida or {}).get('token'),
             'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim, cargas_est, con_obras),
-            'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+            'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos, 'avisos_perfil': avisos_perfil,
             'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf, **libro_xlsx,
             'estudios': [f for f in (sin['_fichero'], con['_fichero']) if f], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
@@ -8673,7 +8698,8 @@ def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: d
         r = intentar('transformador de la SET', lambda: transformador_de_la_set(
             solicitud.transformador or 'Transformador', solicitud.set_nombre, [(devanado.kv, devanado.con_pct)],
             carpeta / f'{prefijo}_transformador.png',
-            titulo=f'Transformador de la SET {solicitud.set_nombre} · estado proyectado'))
+            titulo=f'Transformador de la SET {solicitud.set_nombre} · estado proyectado',
+            bandas_carga=config.bandas_cargabilidad_pct))
         if r:
             out['transformador'] = {'cargabilidad': r}
     return out

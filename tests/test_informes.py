@@ -45,15 +45,14 @@ def test_el_modelo_sale_del_perfil(tmp_path):
 
 
 def test_sin_modelo_no_hay_informe_y_se_dice_la_clave(tmp_path):
-    """017:RF-5 — sin el modelo de un tipo, ese tipo no se genera y se nombra la clave."""
+    """086:RF-31 — sin el modelo de un tipo ya no se pierde el informe: va la plantilla neutra (antes, 017:RF-5)."""
     _modelos(tmp_path)
     datos = json.loads(json.dumps(COMPLETO))
     del datos['informes']['modelo_estudio']
     config = ConfigInforme.de_perfil(datos, tmp_path)
-    assert config.faltan('estudio') == ['informes.modelo_estudio']
+    assert config.faltan('estudio') == []
     assert config.faltan('factibilidad') == []
-    with pytest.raises(InformeError, match='informes.modelo_estudio'):
-        config.modelo('estudio')
+    assert config.modelo('estudio') is None
 
 
 def test_modelo_que_no_existe(tmp_path):
@@ -64,13 +63,11 @@ def test_modelo_que_no_existe(tmp_path):
 
 
 def test_sin_perfil_no_se_supone_nada(tmp_path):
-    """017:RF-5 — sin perfil faltan modelo, bandas, banda de tensión y umbral."""
+    """017:RF-14, 086:RF-31, 086:RF-35 — sin perfil solo se piden la banda de tensión y el umbral."""
     config = ConfigInforme.de_perfil({}, tmp_path)
     assert config.limites is None and config.proyecto_transmision is None
     assert config.faltan('factibilidad') == [
-        'informes.modelo_factibilidad', 'informes.bandas_tension_pct',
-        'informes.bandas_cargabilidad_pct', 'estudios.tension_min_pu',
-        'estudios.tension_max_pu', 'estudios.cargabilidad_max_pct']
+        'estudios.tension_min_pu', 'estudios.tension_max_pu', 'estudios.cargabilidad_max_pct']
 
 
 # --------------------------------------------------------------------------- RF-13, RF-14

@@ -6,9 +6,11 @@ módulo es la parte del informe que no necesita DIgSILENT: qué se usa del perfi
 empresa, los cálculos y la redacción. El guion ``tools/informes_pf.py`` mide y exporta
 las imágenes, y ``informe_docx.py`` escribe el Word.
 
-Nada se supone (P13): sin modelo no hay informe de ese tipo, y sin banda de tensión o
-umbral de cargabilidad se piden en el formulario. Los ±5 % por defecto de los estudios
-de la 011 no valen aquí, porque el informe concluye con ellos ante el regulador.
+Nada de otra empresa se supone (P13). Sin modelo sale con una plantilla neutra y lo dice
+(086:RF-31). La banda de tensión y el umbral de cargabilidad se piden en el formulario: los
+±5 % por defecto de los estudios de la 011 no valen aquí, porque el informe concluye con ellos
+ante el regulador. Las bandas de coloreado solo pintan: sin perfil ni operador salen de esa
+banda, con aviso (086:RF-35).
 """
 from __future__ import annotations
 
@@ -22,6 +24,7 @@ from typing import Any, Mapping, Sequence
 
 from .estudios_pf import EstudiosError, Limites
 from .instalacion_ternas import describir as describir_ternas
+from .perfil_empresa import PerfilError, moneda_informes
 
 #: Los dos tipos de informe (RF-1, RF-1b).
 TIPOS = ('factibilidad', 'estudio')
@@ -48,12 +51,26 @@ def _bandas(valor: Any, clave: str) -> tuple[float, ...]:
     return tuple(float(v) for v in valor)
 
 
+def bandas_de_limites(limites: Limites) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """Las bandas de coloreado que resultan de la banda de calidad y del umbral (086:RF-35).
+
+    Antes eran constantes copiadas del modelo de una empresa. Salen de lo que el informe ya juzga:
+    tensión, dos escalones bajo el mínimo, el mínimo y el máximo; cargabilidad, cinco fracciones del
+    umbral, una por color de la paleta, y lo que lo pasa ya sale en rojo. Solo colorean: ninguna
+    conclusión del informe depende de ellas.
+    """
+    minimo, maximo = round(limites.tension_min_pu * 100, 6), round(limites.tension_max_pu * 100, 6)
+    umbral = float(limites.cargabilidad_max_pct)
+    return ((round(minimo - 10, 6), round(minimo - 5, 6), minimo, maximo),
+            tuple(round(umbral * f, 6) for f in (0.8, 0.9, 0.95, 1.05, 1.5)))
+
+
 @dataclass(frozen=True)
 class ConfigInforme:
     """Lo que el informe toma del perfil de empresa (RF-4, RF-13, RF-115).
 
-    Un campo en None es que el perfil no lo da; :meth:`faltan` dice cuáles impiden
-    generar cada tipo.
+    Un campo en None es que el perfil no lo da; :meth:`faltan` dice cuáles hay que pedir
+    antes de generar cada tipo.
     """
 
     modelos: Mapping[str, Path | None] = field(default_factory=dict)
@@ -71,6 +88,10 @@ class ConfigInforme:
     regulador: str | None = None
     #: Valores de banda y umbral que el perfil da a medias: el formulario los completa.
     limites_parciales: Mapping[str, float] = field(default_factory=dict)
+    #: 086:RF-28: el rótulo de la moneda de los informes; sin ella no se escribe la de nadie.
+    moneda: str | None = None
+    #: 086:RF-35: lo que se tomó sin que lo dijera el perfil, para decirlo al operador.
+    avisos_perfil: tuple[str, ...] = ()
 
     @classmethod
     def de_perfil(cls, datos: Mapping[str, Any], raiz: Path) -> 'ConfigInforme':
@@ -110,9 +131,13 @@ class ConfigInforme:
         limites_perfil = datos.get(CLAVE_LIMITES) or {}
         parciales = {k: limites_perfil[k] for k in _LIMITES
                      if isinstance(limites_perfil, Mapping) and limites_perfil.get(k) is not None}
+        try:
+            moneda = moneda_informes(datos)
+        except PerfilError as exc:
+            raise InformeError(str(exc)) from exc
         config = cls(modelos=modelos, proyecto_transmision=proyecto or None, rotulos_cabecera=dict(rotulos), **textos,
                      limites_parciales=parciales, bandas_tension_pct=tension,
-                     bandas_cargabilidad_pct=carga)
+                     bandas_cargabilidad_pct=carga, moneda=moneda)
         return config.con_limites() if len(parciales) == len(_LIMITES) else config
 
     def con_limites(self, **operador: float | None) -> 'ConfigInforme':
@@ -133,31 +158,55 @@ class ConfigInforme:
             raise InformeError(str(exc)) from exc
         return replace(self, limites=limites, limites_parciales=valores)
 
-    def faltan(self, tipo: str) -> list[str]:
-        """Claves del perfil que faltan para generar un informe de ``tipo`` (RF-5, RF-14).
+    def con_bandas(self, *, tension: Any = None, carga: Any = None) -> 'ConfigInforme':
+        """Las bandas de coloreado: lo del operador, si no lo del perfil, si no las de los límites (086:RF-35).
 
-        Las de banda y umbral se pueden dar en el formulario; el modelo y las bandas de
-        coloreado, solo en el perfil. El proyecto de transmisión no está: sin él, la
-        sección del transformador queda señalada y sale el resto (RF-70).
+        Sin límites todavía no se deriva nada: los pide el formulario, y ya se volverá aquí.
+        Volver a llamarla no repite el aviso.
+        """
+        cambios: dict[str, Any] = {}
+        for clave, operador in ((_BANDAS[0], tension), (_BANDAS[1], carga)):
+            if operador not in (None, [], ()):
+                cambios[clave] = _bandas(operador, clave)
+        nueva = replace(self, **cambios) if cambios else self
+        if nueva.limites is None or None not in (nueva.bandas_tension_pct, nueva.bandas_cargabilidad_pct):
+            return nueva
+        de_tension, de_carga = bandas_de_limites(nueva.limites)
+        # Solo las que de verdad se derivaron: con una escrita en la web, el aviso general decía algo falso.
+        derivadas = [c for c in _BANDAS if getattr(nueva, c) is None]
+        aviso = (f'Bandas de coloreado derivadas de los límites del informe: ni el perfil ni el formulario dan '
+                 f'{", ".join(f"{CLAVE_PERFIL}.{c}" for c in derivadas)}.')
+        return replace(nueva, bandas_tension_pct=nueva.bandas_tension_pct or de_tension,
+                       bandas_cargabilidad_pct=nueva.bandas_cargabilidad_pct or de_carga,
+                       avisos_perfil=(*nueva.avisos_perfil, aviso))
+
+    def faltan(self, tipo: str) -> list[str]:
+        """Lo que hay que pedir para generar un informe de ``tipo`` (RF-14).
+
+        Solo la banda y el umbral, porque el informe concluye con ellos. Lo demás no bloquea:
+        sin modelo sale con plantilla neutra (086:RF-31), sin bandas de coloreado se derivan
+        (086:RF-35), y sin proyecto de transmisión queda señalada su sección (RF-70).
         """
         if tipo not in TIPOS:
             raise InformeError(f'Tipo de informe desconocido: {tipo!r} (son {", ".join(TIPOS)}).')
-        faltan = []
-        if self.modelos.get(tipo) is None:
-            faltan.append(f'{CLAVE_PERFIL}.modelo_{tipo}')
-        faltan += [f'{CLAVE_PERFIL}.{c}' for c in _BANDAS if getattr(self, c) is None]
         if self.limites is None:
-            faltan += [f'{CLAVE_LIMITES}.{k}' for k in _LIMITES if k not in self.limites_parciales]
-        return faltan
+            return [f'{CLAVE_LIMITES}.{k}' for k in _LIMITES if k not in self.limites_parciales]
+        return []
 
-    def modelo(self, tipo: str) -> Path:
-        """El ``.docx`` modelo de ``tipo``; error con la clave que falta si no lo hay."""
+    def modelo(self, tipo: str) -> Path | None:
+        """El ``.docx`` modelo de ``tipo``; ``None`` si la empresa no trae, y va la plantilla neutra (086:RF-31).
+
+        Una ruta declarada que no existe sigue siendo un error: la empresa cree tener su modelo y el
+        informe saldría con otra forma sin que nadie lo hubiera pedido.
+        """
         faltan = self.faltan(tipo)
         if faltan:
             raise InformeError(f'No se puede generar el informe de {tipo}: falta en el perfil de '
                                f'empresa {", ".join(faltan)}.')
-        ruta = self.modelos[tipo]
-        if ruta is None or not ruta.is_file():
+        ruta = self.modelos.get(tipo)
+        if ruta is None:
+            return None
+        if not ruta.is_file():
             raise InformeError(f'No existe el modelo del informe de {tipo}: {ruta} '
                                f'({CLAVE_PERFIL}.modelo_{tipo} del perfil de empresa).')
         return ruta

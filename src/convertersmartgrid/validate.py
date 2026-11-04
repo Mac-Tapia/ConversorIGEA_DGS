@@ -364,7 +364,7 @@ def validate_dgs(
             expected_sed = sed_by_name.get(_loc(sed.loc_name))
             if expected_sed is None or drow.get('fold_id') != expected_sed.get('FID'):
                 connection_errors.append(
-                    f'{load.device_number}: SED load must fold under its ElmSubstat (NA205 triangle module)'
+                    f'{load.device_number}: SED load must fold under its ElmSubstat (triangle module)'
                 )
                 continue
             # Load cubicle must sit on the internal BT bus (uknom ≈ 0.22 kV).
@@ -377,7 +377,7 @@ def validate_dgs(
                 connection_errors.append(f'{sed.code}: ElmSubstat missing BT ElmTerm (uknom<1)')
             elif not cubs or cubs[0].get('fold_id') not in bt_fids:
                 connection_errors.append(
-                    f'{sed.code}: SED load must connect to internal BT bus (NA205 SE_*_2)'
+                    f'{sed.code}: SED load must connect to internal BT bus (SE_*_2)'
                 )
         else:
             expected_term = term_by_name.get(_loc(load.node_id), {}).get('FID')
@@ -407,7 +407,7 @@ def validate_dgs(
             )
             continue
         if sub_fid not in tr2_by_fold:
-            connection_errors.append(f'{sed.code}: ElmSubstat missing ElmTr2 (NA205 TR_*)')
+            connection_errors.append(f'{sed.code}: ElmSubstat missing ElmTr2 (TR_*)')
         kids = terms_by_fold.get(sub_fid, [])
         mt_terms = [t for t in kids if (u := _finite_uknom(t)) is not None and u >= 1.0]
         bt_terms = [t for t in kids if (u := _finite_uknom(t)) is not None and u < 1.0]
