@@ -19,7 +19,7 @@ from typing import Any
 from .estudio_planeamiento import Estudio
 from .formatos_pide import huecos_de
 from .informe_docx import Escritor, guardar_informe, preparar_modelo
-from .informes import InformeError
+from .informes import InformeError, filas_alternativas_escalera
 from .pide import FORMATOS
 
 #: Filas de un formato que caben en el Word; el libro de formatos lleva todas.
@@ -48,6 +48,8 @@ class DatosPlaneamiento:
     metodo_proyeccion: str | None = None
     modelo: Path | None = None
     rotulos_cabecera: Mapping[str, str] = field(default_factory=dict)
+    #: 042:RF-58: hasta 3 alternativas por alimentador, de menor a mayor costo anual.
+    alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
 
 
 class _EscritorDeModulo(Escritor):
@@ -171,8 +173,16 @@ def _diagnostico(e: Escritor, datos: DatosPlaneamiento) -> None:
         _tabla_de_formato(e, datos, codigo)
 
 
+def _alternativas_por_alimentador(e: Escritor, datos: DatosPlaneamiento) -> None:
+    if datos.alternativas_escalera:                                             # 042:RF-58
+        e.titulo('Alternativas de solución por alimentador')
+        e.parrafo('De menor a mayor costo anual; todas cumplen con la máxima en DIgSILENT.')
+        e.tabla(*filas_alternativas_escalera(datos.alternativas_escalera))
+
+
 def _alternativas(e: Escritor, datos: DatosPlaneamiento) -> None:
     _tabla_de_formato(e, datos, 'F07')
+    _alternativas_por_alimentador(e, datos)
     e.titulo('Plan de obras de largo plazo')
     cartera = [o for o in datos.obras if not (o.get('descartada') or o.get('sobredimensionada'))]
     if not cartera:
@@ -188,6 +198,7 @@ def _formulacion_pide(e: Escritor, datos: DatosPlaneamiento) -> None:
     e.parrafo('Años de detalle del PIDE: ' + ', '.join(f'{a:02d} ({est.calendario(a)})' for a in est.detalle_pide) + '.')
     e.parrafo('Las cifras son las del estudio de largo plazo del mismo proyecto, sin recalcular.')
     _tabla_de_formato(e, datos, 'F08', _del_periodo(datos, 'F08'))
+    _alternativas_por_alimentador(e, datos)
 
 
 def _evaluacion_tecnica(e: Escritor, datos: DatosPlaneamiento) -> None:

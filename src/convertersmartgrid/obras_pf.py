@@ -197,6 +197,8 @@ class Obra:
     destino: str = ''
     """Barra, o «latitud, longitud», que indica el operador (016:RF-31)."""
     nodo: str = ''
+    #: 042:RF-51: la barra de la SET a la tensión de destino donde se crea la celda nueva.
+    salida: str = ''
     """Migración: desde dónde se pasa a la tensión de destino (016:RF-51)."""
     ramas: tuple[str, ...] = ()
     """SET nueva: ``ALIMENTADOR/NODO`` de cada rama que pasa a ella (042:RF-6)."""
@@ -462,6 +464,7 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
                              'solo uno de los dos.')
         return Obra(**comunes, hasta=hasta,
                     nodo='' if hasta else _texto(datos, 'nodo', 'el nodo desde el que se pasa a la tensión de destino'),
+                    salida=str(datos.get('salida') or '').strip(),
                     kv_destino=_numero(datos, 'kv_destino', 'la tensión de destino (kV)'))
     return Obra(**comunes, kv_destino=_numero(datos, 'kv_destino',
                                               'la tensión de destino (kV)'))
@@ -1042,8 +1045,14 @@ def _migracion(p: _Plan) -> None:
                     if barra in dentro and tr in estado.trafos)
     _tipos_a_tension(p, tramos, trafos, origen, destino)
     # Con el tramo de entrada cerrado la parte que pasa sigue unida a la que no (RF-58).
-    p.elemento(parte.entrada, 'ElmLne',
+    p.elemento(parte.entrada, 'ElmLne' if parte.entrada in estado.tipo_tramo or not o.salida else 'ElmCoup',
                'se abre (fuera de servicio): separa la parte que pasa de la que no pasa')
+    if o.salida:                                                        # 042:RF-51
+        p.elemento(f'Celda nueva {o.salida} → {o.nodo}', 'ElmCoup', f'nueva: alimenta la parte que pasa desde {o.salida}')
+        for nombre, kv in sorted(red.condensadores.items()):
+            if red.banco_barra.get(nombre) in dentro and kv is not None and math.isclose(kv, origen):
+                p.elemento(nombre, 'ElmShnt', f'ushnm {origen:g} → {destino:g} kV')
+        p.extra['salida'] = o.salida
     for nombre in sorted(
             t.nombre for t in red.topologia.tramos
             if t.cerrado and t.nombre != parte.entrada and t.nombre not in parte.tramos

@@ -1249,3 +1249,25 @@ def test_el_proyecto_con_central_declarada_toma_el_valle_de_su_demanda(tmp_path,
     assert any('073:RF-12' in a for a in r['avisos'])
     fecha = datetime.fromisoformat(str(r['puntos'][0]['fecha'])).date()
     assert _dia(78) <= fecha <= _dia(97)
+
+
+def test_las_alternativas_se_piden_se_guardan_y_al_aplicar_no_se_vuelve_a_sortear(tmp_path, monkeypatch):
+    """042:RF-55, 042:RF-58, 042:RF-59 — evaluar pide 3 y las guarda para el informe; aplicar la elegida no sortea."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera(tmp_path, monkeypatch, evaluar)
+    monkeypatch.setattr(vl, 'curvas_medidas', lambda *_a, **_k: (_curva_de_servicio(), []))
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True)
+    (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
+    assert ev['alternativas'] == 3 and ev['sorteos'] and all('escalones' in v for v in ev['variantes'])
+    (f1,) = r['alimentadores']
+    assert 1 <= len(f1['alternativas']) <= 3
+    costos = [a['costo_anual'] for a in f1['alternativas']]
+    assert costos == sorted(costos) and sum(a['elegida'] for a in f1['alternativas']) == 1
+    assert services.alternativas_de_la_escalera(ws, 'P') == {'F1': f1['alternativas']}
+    assert services.alternativas_de_la_escalera(ws, 'P', ['OTRO']) == {}
+    planes.clear()
+    services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=True, basta_una=True, solo={'F1': f1['elegida']})
+    aplicar = [x for x in planes if '--evaluar' in x[0]]
+    assert all(not ev['sorteos'] and 'alternativas' not in ev for _a, ev in aplicar)

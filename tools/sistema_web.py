@@ -549,6 +549,9 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
         e = f.get('elegida')
         print(f"  {f.get('alimentador')}: " + ('ya cumple' if f.get('ya_cumple') else
               f"obra {e.get('nombre') if isinstance(e, dict) else e}" if e else 'ninguna variante cumple'), flush=True)
+        for a in f.get('alternativas') or []:                                  # 042:RF-58
+            print(f"    alternativa {a['numero']}: {a['nombre']}: {a['costo_anual']:,.0f} al año"
+                  + (', se aplica' if a['elegida'] else ''), flush=True)
     for clave in ('zonas', 'expresos', 'set_nueva', 'aplicadas'):
         if resultado.get(clave):
             print(f'  {clave}: {json.dumps(resultado[clave], ensure_ascii=False, default=str)[:600]}', flush=True)

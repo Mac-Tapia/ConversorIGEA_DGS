@@ -988,6 +988,21 @@ def etapa_de_obras(obras: list[Mapping[str, Any]]) -> str | None:
     return max(claves, key=ETAPAS.index) if claves else None
 
 
+def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[list[str]]]:
+    """La tabla de hasta 3 alternativas por alimentador, de menor a mayor costo anual (042:RF-58)."""
+    def cifra(x):
+        return f'{float(x):,.0f}' if x is not None else ''
+
+    def sorteos(a):
+        return f"{100 * float(a['fraccion']):.0f} %" if a.get('fraccion') is not None else 'sin sortear'
+
+    filas = [[str(f), str(a.get('numero')), str(a.get('nombre')), cifra(a.get('inversion')), cifra(a.get('costo_anual')),
+              sorteos(a), 'Sí' if a.get('elegida') else 'No']
+             for f, lista in sorted(por_alimentador.items())
+             for a in sorted(lista, key=lambda x: float(x.get('costo_anual') or 0.0))]
+    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'Se aplica'), filas
+
+
 def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Las alternativas del informe con las obras activas de «Con proyecto» (RF-128, RF-129).
 

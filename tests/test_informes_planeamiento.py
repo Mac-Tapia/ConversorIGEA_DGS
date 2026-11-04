@@ -186,3 +186,41 @@ def test_un_formato_largo_se_corta_y_lo_avisa(tmp_path):
     filas = {**datos.formatos['filas'], 'F03 Tensión MT': largas}
     texto = _modulo(tmp_path, 'diagnostico', formatos={**datos.formatos, 'filas': filas})
     assert f'Se muestran {TOPE_DE_FILAS} de {TOPE_DE_FILAS + 5} filas' in texto
+
+
+ALTERNATIVAS = {'F1': [{'numero': 2, 'nombre': 'terna', 'inversion': 900.0, 'costo_anual': 200.0, 'fraccion': None, 'elegida': False},
+                       {'numero': 1, 'nombre': 'sección', 'inversion': 500.0, 'costo_anual': 100.0, 'fraccion': 1.0, 'elegida': True}]}
+
+
+def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
+    """042:RF-58 — numeradas por costo anual, con cuál se aplica y lo que no se sorteó."""
+    from convertersmartgrid.informes import filas_alternativas_escalera
+
+    cabecera, filas = filas_alternativas_escalera(ALTERNATIVAS)
+    assert 'Costo anual US$' in cabecera
+    assert [(f[1], f[2], f[-2], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
+
+
+def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
+    """042:RF-58 — en los dos módulos, y sin datos no se escribe la sección."""
+    from convertersmartgrid import informes_planeamiento as ip
+
+    class E:
+        def __init__(self):
+            self.titulos, self.tablas = [], []
+
+        def titulo(self, t):
+            self.titulos.append(t)
+
+        def parrafo(self, _t):
+            pass
+
+        def tabla(self, cabecera, filas, **_k):
+            self.tablas.append(filas)
+
+    e = E()
+    ip._alternativas_por_alimentador(e, _datos(alternativas_escalera=ALTERNATIVAS))
+    assert e.titulos == ['Alternativas de solución por alimentador'] and e.tablas[0][0][2] == 'sección'
+    e = E()
+    ip._alternativas_por_alimentador(e, _datos())
+    assert not e.titulos

@@ -1110,6 +1110,45 @@ def construir_migracion_camino(ctx) -> None:
                               f'«Con proyecto» incluye esa baja, no es solo efecto de la migración.')
 
 
+def _celda_nueva(ctx, nodo, nombre_salida: str, kv: float) -> None:
+    """La salida nueva en la barra de la tensión de destino de la SET, y el alimentador sale por ella (042:RF-51).
+
+    Con la barra de 10 kV compartida, cambiar su tensión pasaría también a los demás alimentadores; por eso una celda
+    en la barra de 22,9 kV y no un cambio de la cabecera. El ``ElmFeeder`` conserva su nombre y queda en la celda nueva.
+    """
+    salida = next((b for b in ctx.app.GetCalcRelevantObjects('*.ElmTerm') if b.loc_name == nombre_salida), None)
+    if salida is None or nodo is None:
+        raise RuntimeError(f'sin la barra {nombre_salida} o sin el nodo para la celda nueva de {ctx.obra.alimentador}')
+    red = salida.GetParent()
+    celda = red.CreateObject('ElmCoup', nombre_libre(red, 'ElmCoup', nombre_pf(f'CELDA_{ctx.obra.alimentador}_{kv:g}kV')))
+    celda.aUsage, celda.on_off = 'cbk', 1
+    cubiculo = None
+    for barra, lado in ((salida, 0), (nodo, 1)):
+        c = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{celda.loc_name}_{lado}'))
+        c.obj_id, c.obj_bus = celda, lado
+        cubiculo = cubiculo or c
+    ctx.elm.obj_id = cubiculo
+    ctx.fila['salida_nueva'] = {'celda': celda.loc_name, 'barra': salida.loc_name, 'nodo': nodo.loc_name}
+
+
+def barra_de_destino(app, cabecera, kv: float, radio_m: float = 500.0):
+    """La barra principal a ``kv`` de la misma SET: la más cercana a la cabecera, por GPS (042:RF-51).
+
+    Por posición y no por nombre: cada empresa llama a sus barras a su manera, y de la SET no hay otro dato común.
+    """
+    origen = gps_de(cabecera)
+    if not origen:
+        return None
+    mejor, mejor_m = None, radio_m
+    for barra in app.GetCalcRelevantObjects('*.ElmTerm'):
+        if (int(getattr(barra, 'iUsage', 1) or 0) == 0 and abs(float(getattr(barra, 'uknom', 0) or 0) - kv) < 0.05 * kv
+                and (punto := gps_de(barra))):
+            metros = 111320.0 * math.hypot(punto[0] - origen[0], (punto[1] - origen[1]) * math.cos(math.radians(origen[0])))
+            if metros <= mejor_m:
+                mejor, mejor_m = barra, metros
+    return mejor
+
+
 def construir_migracion(ctx) -> None:
     """Lo que queda aguas abajo del nodo, a la tensión de destino (016:RF-54 a RF-58).
 
@@ -1163,6 +1202,12 @@ def construir_migracion(ctx) -> None:
             trafo.typ_id = _tipo_a_tension(ctx, trafo, 'TypTr2', 'utrn_h', origen, destino)
     entrada = parte.entrada                                                          # RF-58
     acopladores = {c.loc_name: c for c in ctx.elm.GetObjs('ElmCoup')}
+    if o.salida:
+        bancos = [s for s in ctx.elm.GetObjs('ElmShnt')
+                  if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+        _celda_nueva(ctx, barras.get(o.nodo), o.salida, destino)                     # 042:RF-51
+        for banco in bancos:
+            banco.ushnm = destino
     if entrada in lineas:
         lineas[entrada].outserv = 1
     elif entrada in acopladores:
@@ -1196,8 +1241,9 @@ def construir_migracion(ctx) -> None:
             fila['avisos'].append(f'El enlace {linea.loc_name} ya une barras de {destino:g} kV: '
                                   f'queda en servicio y cerrado ({cuales}); la parte que pasa '
                                   f'se alimenta por él.')
-    otros = [s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
-             if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+    otros = [] if o.salida else [
+        s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
+        if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
     if otros:
         fila['avisos'].append(f'Los bancos y reguladores de la parte que pasa no se cambian: '
                               f'{", ".join(sorted(otros))}; revíselos a {destino:g} kV.')
@@ -2369,7 +2415,19 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     sobrecargados.append({**por_nombre.get(ln.loc_name, {}), 'nombre': ln.loc_name, 'carga_pct': float(carga),
                                           'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
                                           'nlnum': int(getattr(ln, 'nlnum', 1) or 1)})
-            informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices,
+            nivel = None
+            if plan.get('migrar_a_kv') and cab is not None:                    # 042:RF-50 a RF-53
+                salida = barra_de_destino(app, cab, float(plan['migrar_a_kv']))
+                con_cabecera = [t for t in tramos_red if cab.loc_name in (t['desde'], t['hasta'])
+                                and t['nombre'] in {x.loc_name for x in list(elm.GetObjs('ElmLne')) + list(elm.GetObjs('ElmCoup'))}]
+                primero = (con_cabecera[0]['hasta'] if con_cabecera and con_cabecera[0]['desde'] == cab.loc_name
+                           else con_cabecera[0]['desde'] if con_cabecera else '')
+                nivel = {'salida': salida.loc_name if salida is not None else '', 'nodo': primero,
+                         'km': sum(float(getattr(ln, 'dline', 0) or 0) for ln in elm.GetObjs('ElmLne')),
+                         'seds': len(elm.GetObjs('ElmTr2')),
+                         'compartida': any(g != f and (c := cabecera_de(otro)) is not None and clave_pf(c) == clave_pf(cab)
+                                           for g, otro in alims.elm.items())}
+            informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
@@ -2632,7 +2690,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import cumple, parametros
+    from convertersmartgrid.escalera_optima import cumple, grupo_economico, parametros
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -2779,6 +2837,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         # Fase 1: todas con la máxima (RF-52b); con eso ya se sabe su costo anual entero.
         variantes = list(plan.get('variantes') or [])
         filas = []
+        clases_que_cumplen: set = set()                                     # 042:RF-55
         for v in variantes:
             if cancelado():
                 informe['cancelado'] = True
@@ -2814,7 +2873,12 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,
             # si también cumple en los sorteos, no se prueba ninguna más (NA203 + NA205,
             # 2026-11-01: cada prueba recorría las 20 y las 40 variantes, unos 60 min).
-            if (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
+            if (plan.get('alternativas') and fila['maxima'] and v.get('costo_base') is not None
+                    and fila.get('valle') is not False):                                # 042:RF-55
+                clases_que_cumplen.add(frozenset(v.get('escalones') or ()))
+                if len(clases_que_cumplen) >= int(plan['alternativas']):
+                    break
+            elif (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
                     and fila.get('valle') is not False):                                # 073:RF-18
                 if sorteos:
                     fila['fraccion'], error = con_variante(v, sortear)
@@ -2826,7 +2890,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 if (fila['fraccion'] or 0) >= p.cumplimiento:
                     informe['basta_una'] = fila['nombre']
                     break
-        if informe.get('basta_una') or plan.get('basta_una'):
+        if informe.get('basta_una') or (plan.get('basta_una') and not plan.get('alternativas')):
             informe['variantes'] = [f for _v, f in filas]
             return informe, 0
         # Fase 2 (RF-71): de la más barata a la más cara, hasta la primera que cumple en los sorteos.
@@ -2837,7 +2901,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
 
         candidatas = sorted(((v, f) for v, f in filas if f['maxima'] and v.get('costo_base') is not None
                              and f.get('valle') is not False),
-                            key=lambda vf: (costo(*vf), vf[1]['nombre']))
+                            key=lambda vf: (grupo_economico(vf[0].get('escalones')), costo(*vf), vf[1]['nombre']))   # 042:RF-56
         for v, fila in filas:
             if fila['maxima'] and v.get('costo_base') is None:
                 fila['sin_sortear'] = 'sin costo: no se puede elegir, no se sortea'

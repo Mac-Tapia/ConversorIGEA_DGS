@@ -86,6 +86,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T34. El regulador solo por encima de 15 km. (RF-49)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T35. Escalón de 10 a 22,9 kV en la escalera, con su costo. (RF-50, RF-53, RF-54)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T36. Celda nueva en la barra de 22,9 kV de la SET, o cambio con su fuente. (RF-51, RF-52)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_016.py` en verde.
+- [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
+      Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
+- [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T39. Las alternativas en el informe de estudio, el plan y el PIDE. (RF-58)
+      Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_informe_alternativas.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

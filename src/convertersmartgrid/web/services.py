@@ -4975,7 +4975,8 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
     datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, articulos=metodologia['articulos'],
                               anios=informe.get('anios') or [], obras=propuesta['obras'], con_y_sin=con_y_sin,
                               empresa=perfil.get('empresa'), proyecto=project, metodo_proyeccion=formatos.get('metodo'),
-                              modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {})
+                              modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {},
+                              alternativas_escalera=alternativas_de_la_escalera(ws, project))    # 042:RF-58
     hechos, fallos = escribir_modulos(ws.out_dir, token, datos)
     avisos.extend(fallos)
     return hechos
@@ -5770,6 +5771,28 @@ def _guardar_valle_de_la_obra(ws: Workspace, project: str, alimentador: str, fil
     write_json_atomic(ruta, datos)
 
 
+def _ruta_alternativas_escalera(ws: Workspace) -> Path:
+    return ws.out_dir / 'alternativas_escalera.json'
+
+
+def _guardar_alternativas_escalera(ws: Workspace, project: str, alimentador: str, alternativas: list) -> None:
+    """Para el informe que se pida después: el informe se arma con lo guardado al correr (042:RF-58)."""
+    ruta = _ruta_alternativas_escalera(ws)
+    datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    datos.setdefault(project.strip(), {})[alimentador] = alternativas
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(ruta, datos)
+
+
+def alternativas_de_la_escalera(ws: Workspace, project: str | None, feeders=None) -> dict[str, list]:
+    """Las alternativas guardadas por alimentador, de todos o de ``feeders`` (042:RF-58)."""
+    ruta = _ruta_alternativas_escalera(ws)
+    if not project or not ruta.is_file():
+        return {}
+    guardadas = json.loads(ruta.read_text(encoding='utf-8')).get(project.strip()) or {}
+    return {f: a for f, a in guardadas.items() if feeders is None or f in feeders}
+
+
 def valle_de_la_obra(ws: Workspace, project: str | None, alimentador: str) -> dict | None:
     """Lo guardado por :func:`_guardar_valle_de_la_obra`, o ``None`` si esa obra no pasó por aquí."""
     ruta = _ruta_valle_de_obras(ws)
@@ -5800,7 +5823,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    capex: str | None = None, cargas_activas: list[str] | None = None,
                    aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
                    variantes_de: dict | None = None, solo_comun: bool = False,
-                   solo: dict | None = None) -> dict:
+                   solo: dict | None = None, por_alternativas: bool = False) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -5931,7 +5954,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
             **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu,
-            'cargabilidad_max_pct': p.cargabilidad_max_pct},
+            'cargabilidad_max_pct': p.cargabilidad_max_pct, 'migrar_a_kv': p.migrar_a_kv},
             nombre='escalera_datos', args=('--escalera-datos',))
         d = (datos.get('alimentadores') or {}).get(f)
         fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
@@ -5957,7 +5980,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         cargas_f = [_carga_para_escalera(media.get(str(c['barra']), str(c['barra'])), existen, d)
                     for c in de_f if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
-                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'))
+                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'),
+                              nivel=d.get('nivel'))
         fila['avisos'] += av
         if variantes_de is not None and f in variantes_de:
             # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.
@@ -5982,8 +6006,12 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                   + 12 * (p.precio_perdidas_kw_mes or 0.0))
         plan_ev = {
             **comun, 'feeders': [f], 'costo_por_kw_perdido': por_kw,
-            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
-            'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
+            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
+                          for v in vs],
+            # 042:RF-59: la obra que esta corrida acaba de sortear no se vuelve a sortear al aplicarla.
+            'barras_cargas': barras, 'sorteos': [] if solo and f in solo else sorteos, 'parametros': perfil,
+            'tipo_cambio': tipo_cambio,
+            **({'alternativas': eo.MAX_ALTERNATIVAS} if por_alternativas else {}),        # 042:RF-55
             'otro_proyecto': eo.BIBLIOTECA_TIPOS,
             'estado_con_proyecto': datos.get('variaciones_activas'), 'valle': valle,      # 073:RF-25
             **({'basta_una': True} if basta_una else {})}
@@ -6023,6 +6051,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     e['sin_costo'] = str(exc)
             evaluadas.append(e)
         decision = eo.elegir(evaluadas, p)
+        fila['alternativas'] = decision.get('alternativas') or []                # 042:RF-58
+        if por_alternativas:
+            _guardar_alternativas_escalera(ws, project, f, fila['alternativas'])
         fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
                     tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
                                                   'factible', 'perdidas_kw', 'error', 'sin_sortear',
@@ -6144,9 +6175,12 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     for f, cs in sorted(por_alim.items()):
         ctx.check_cancel()
         r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
-                           aplicar=False, basta_una=True, memo=memo, **opciones)
+                           aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones)
         fila = next(iter(r.get('alimentadores') or []), {})
         ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        for alt in fila.get('alternativas') or []:
+            ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
+                    + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')
         if fila.get('elegida') and not fila.get('ya_cumple'):
             e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
             elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
@@ -6154,6 +6188,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             ctx.check_cancel()
             hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True,
                                    basta_una=True, memo=memo, solo={f: elegidas[f]}, **opciones)
+            for de_f in hecha.get('alimentadores') or []:
+                de_f['alternativas'] = fila.get('alternativas') or []            # 042:RF-58: las de la evaluación
             if escalera is None:
                 escalera = hecha
             else:
@@ -7919,7 +7955,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                                        'sed_cercana': _sed_cercana(b.get('gps'), geo_sin)}
                                       for b in sin['medidas'][alimentador].get('bancos') or ()),
                          fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)),
-                         avisos=tuple(avisos), corrida=(corrida or {}).get('token'))
+                         avisos=tuple(avisos), corrida=(corrida or {}).get('token'),
+                         alternativas_escalera=alternativas_de_la_escalera(ws, proyecto, [alimentador]))   # 042:RF-58
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
     _paso_informe(ctx, 2, 'documento')
     try:

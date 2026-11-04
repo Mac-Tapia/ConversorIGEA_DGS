@@ -31,12 +31,29 @@ from .pide_economia import costo_anual
 ORDEN = ('bancos', 'seccion', 'terna', 'regulador')
 
 
+#: 042:RF-55: alternativas de solución que se presentan por alimentador.
+MAX_ALTERNATIVAS = 3
+#: 042:RF-50: el paso a 22,9 kV no se combina: va solo, tras los bancos y antes de la sección.
+ESCALERA = ('bancos', 'nivel', 'seccion', 'terna', 'regulador')
+
+
 def rango(escalones) -> int:
     """El escalón más alto que usa una variante; sin escalones (sin obras), antes de todos (063:RF-22)."""
-    return max((ORDEN.index(e) for e in escalones if e in ORDEN), default=-1)
+    return max((ESCALERA.index(e) for e in escalones if e in ESCALERA), default=-1)
+def grupo_economico(escalones) -> int:
+    """042:RF-56: los bancos solos antes (063:RF-22), el regulador al final (RF-49); el resto compite por costo."""
+    e = set(escalones or ())
+    return 0 if e and e <= {'bancos'} else 2 if 'regulador' in e else 1
+
+
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
-               'seccion': 'cambio_seccion'}
+               'seccion': 'cambio_seccion', 'nivel': 'cambio_tension', 'sed_nivel': 'cambio_tension_sed',
+               'celda_nivel': 'celda'}
+#: 042:RF-54: en dólares y por confirmar, para la empresa cuyo libro y perfil no traen estos costos.
+COSTOS_NIVEL_DE_REFERENCIA = {'cambio_tension': 40000.0, 'cambio_tension_sed': 9000.0, 'celda': 80000.0}
+#: Alternativas que se cuentan por unidad, no por km.
+POR_UNIDAD = ('bancos', 'reguladores', 'cambio_tension_sed', 'celda')
 #: Módulos de banco que se prueban sin valle medido ni ``escalera.modulos_max`` (073:RF-24). Es la
 #: regla anterior a la spec 073, por compatibilidad, y solo vale marcada «no comprobado en valle».
 MODULOS_SIN_VALLE = 2
@@ -81,6 +98,9 @@ class Parametros:
     linea_larga_km: float = 10.0
     #: 042:RF-49: el regulador es un caso extremo: por debajo de este largo no se plantea.
     regulador_min_km: float = 15.0
+    #: 042:RF-50: la tensión que se pasa y a cuál.
+    migrar_desde_kv: float = 10.0
+    migrar_a_kv: float = 22.9
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -140,7 +160,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         ternas=dict(plan.get('ternas_subterraneas') or {}),
         secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
         linea_larga_km=float(esc.get('linea_larga_km') or 10.0),
-        regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']))
+        regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']),
+        migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9))
 
 
 def _opcional(x) -> float | None:
@@ -169,8 +190,16 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
            for k, v in capex.items()}
     for alt, costo_u in p.costos_unitarios.items():
         if alt not in out or not out[alt].get('costo_unitario'):
-            out[alt] = {'costo_unitario': costo_u, 'unidad': 'Und' if alt in ('bancos', 'reguladores') else 'km',
+            out[alt] = {'costo_unitario': costo_u, 'unidad': 'Und' if alt in POR_UNIDAD else 'km',
                         'origen': 'perfil'}
+    for alt, referencia in COSTOS_NIVEL_DE_REFERENCIA.items():                  # 042:RF-54
+        if not (out.get(alt) or {}).get('costo_unitario'):
+            seccion = out.get('cambio_seccion') or {}
+            if alt == 'cambio_tension' and seccion.get('costo_unitario'):
+                out[alt] = {**seccion, 'origen': 'deducido del cambio de sección, por confirmar'}
+            else:
+                out[alt] = {'costo_unitario': referencia, 'unidad': 'Und' if alt in POR_UNIDAD else 'km',
+                            'origen': 'referencia, por confirmar'}
     return out
 
 
@@ -485,11 +514,29 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
                     v.obras + obras, {**v.cantidades, 'terna': float(v.cantidades.get('terna') or 0.0) + km}, v.solo_evidencia)
 
 
+def _escalon_nivel(alim: str, kv: float, datos: Mapping[str, Any] | None, p: Parametros, avisos: list[str]) -> list[Variante]:
+    """042:RF-50 a RF-53: el alimentador entero a la tensión de destino, por una celda nueva o con su fuente."""
+    if not datos or abs(kv - p.migrar_desde_kv) > 0.05 * p.migrar_desde_kv:
+        return []
+    km, seds = float(datos.get('km') or 0.0), float(datos.get('seds') or 0.0)
+    comunes = {'alimentador': alim, 'casos': [CON_PROYECTO], 'kv_destino': p.migrar_a_kv}
+    if datos.get('salida') and datos.get('nodo'):
+        obra = {**comunes, 'clase': 'migracion', 'nodo': datos['nodo'], 'salida': datos['salida']}
+        return [Variante(f"paso a {p.migrar_a_kv:g} kV por celda nueva en {datos['salida']} ({km:.2f} km, {seds:.0f} SED)",
+                         ('nivel',), [obra], {'nivel': km, 'sed_nivel': seds, 'celda_nivel': 1.0})]
+    if not datos.get('compartida'):
+        return [Variante(f'cambio a {p.migrar_a_kv:g} kV con su fuente ({km:.2f} km, {seds:.0f} SED)', ('nivel',),
+                         [{**comunes, 'clase': 'tension'}], {'nivel': km, 'sed_nivel': seds})]
+    avisos.append(f'{alim}: su SET no tiene barra de {p.migrar_a_kv:g} kV y comparte cabecera: el paso de tensión '
+                  'necesita un transformador: lo resuelve la SET nueva (042:RF-53).')
+    return []
+
+
 def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
               cargas: Sequence[Mapping[str, Any]], tipos: Sequence[Mapping[str, Any]], p: Parametros, *,
               banco_kvar: float | None, fuera_desde: int | None = None, modulos_valle: int | None = None,
-              evidencia: bool = True,
-              sobrecargados: Sequence[Mapping[str, Any]] | None = None) -> tuple[list[Variante], list[str]]:
+              evidencia: bool = True, sobrecargados: Sequence[Mapping[str, Any]] | None = None,
+              nivel: Mapping[str, Any] | None = None) -> tuple[list[Variante], list[str]]:
     """Las variantes de un alimentador en el orden de RF-44, con sus combinaciones (RF-49).
 
     ``troncal``: sus tramos desde la cabecera (``nombre``, ``largo_m``, ``corriente_a`` en
@@ -562,6 +609,9 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         combinadas = (triples + [v for v in combinadas if 'regulador' in v.escalones]
                       + [v for v in combinadas if 'regulador' not in v.escalones])
         avisos.append(f'{alimentador}: línea de {largo_km:.1f} km: se plantean reguladores, también con la doble terna (042:RF-35).')
+    # 042:RF-50: tras los bancos, y antes de la sección; no se combina.
+    cuantos_bancos = next((i for i, v in enumerate(solas) if 'bancos' not in v.escalones), len(solas))
+    solas[cuantos_bancos:cuantos_bancos] = _escalon_nivel(alimentador, kv, nivel, p, avisos)
     # 042:RF-38: todas las obras integradas: de tres en tres y las cuatro, con sección y terna en el mismo camino.
     mayores = []
     for k in (3, 4):
@@ -580,7 +630,9 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
         capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
         solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p)
-        todas = [solo] + [v if v.solo_evidencia else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p) for v in todas]
+        # 042:RF-50: a 22,9 kV la corriente baja a menos de la mitad: el paso de tensión no lleva refuerzo.
+        todas = [solo] + [v if v.solo_evidencia or 'nivel' in v.escalones
+                          else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p) for v in todas]
         avisos.append(f"{alimentador}: {len(sobrecargados)} tramos pasan de {p.cargabilidad_max_pct:g} % con las cargas nuevas; "
                       'cada variante los refuerza (042:RF-43).')
     if len(todas) > p.max_variantes:
@@ -689,6 +741,32 @@ def costo(v: Variante, costos_alternativa: Mapping[str, Mapping[str, Any]], p: P
     return {**out, 'inversion': ci, 'avisos': avisos}
 
 
+def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Parametros) -> list[dict[str, Any]]:
+    """Hasta 3 soluciones de obras distintas, numeradas de menor a mayor costo anual (042:RF-55, RF-58).
+
+    De cada clase de obra, la más barata que cumple con la máxima; la que los sorteos desmienten no es una solución,
+    salvo que sea la elegida (063:RF-33). La elegida siempre está, aunque por costo quedase fuera.
+    """
+    por_clase: dict[frozenset, Mapping[str, Any]] = {}
+    for t in tabla:
+        if (not t.get('maxima') or t.get('valle') is False or (t.get('costo') or {}).get('costo_anual') is None
+                or (t.get('fraccion') is not None and t['fraccion'] < p.cumplimiento and t.get('nombre') != elegida)):
+            continue
+        clase = frozenset(t.get('escalones') or ())
+        actual = por_clase.get(clase)
+        if (actual is None or (t.get('nombre') == elegida)
+                or (actual.get('nombre') != elegida and t['costo']['costo_anual'] < actual['costo']['costo_anual'])):
+            por_clase[clase] = t
+    orden = sorted(por_clase.values(), key=lambda t: (t['costo']['costo_anual'], t['nombre']))
+    escogidas = orden[:MAX_ALTERNATIVAS]
+    if elegida and not any(t['nombre'] == elegida for t in escogidas):
+        escogidas = escogidas[:MAX_ALTERNATIVAS - 1] + [t for t in orden if t['nombre'] == elegida]
+    return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
+             'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
+             'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'),
+             'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
+
+
 def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, Any]:
     """La de menor costo anual entre las que cumplen con la máxima y en la fracción de sorteos
     del perfil (RF-52b, RF-53); si ninguna, la que más se acerca, sin aplicarla (RF-56).
@@ -722,20 +800,20 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
         tabla.append({**e, 'factible': factible, 'motivo': motivo})
     factibles = [t for t in tabla if t['factible']]
     if factibles:
-        # 063:RF-22: el primer escalón que cumple; dentro de él, la de menor costo anual. En SM218
-        # (2026-11-01) 128 m de conductor salían más baratos que los bancos, y el usuario pide los
-        # bancos si ya bastan.
-        mejor = min(factibles, key=lambda t: (rango(t.get('escalones') or ()), t['costo']['costo_anual'],
+        # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
+        # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
+        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
                                               t['nombre']))
         for t in factibles:
             if t is mejor:
                 continue
-            if rango(t.get('escalones') or ()) > rango(mejor.get('escalones') or ()):
+            if grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
                 t['motivo'] = f"no hace falta: «{mejor['nombre']}» ya cumple en un escalón anterior"
             else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
                                f"{mejor['costo']['costo_anual']:,.0f}")
-        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla)}
+        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla),
+                'alternativas': alternativas(tabla, mejor['nombre'], p)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
     # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
@@ -745,17 +823,17 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     con_maxima = [t for t in tabla if t.get('maxima') and t.get('valle') is not False
                   and (t.get('costo') or {}).get('costo_anual') is not None]
     if con_maxima:
-        mejor = min(con_maxima, key=lambda t: (rango(t.get('escalones') or ()), t['costo']['costo_anual'],
+        mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
                                                t['nombre']))
         mejor['motivo'] = (f"cumple con la máxima en DIgSILENT; los sorteos dieron "
                            f"{100 * (mejor.get('fraccion') or 0):.1f} % (pide {100 * p.cumplimiento:.0f} %): "
                            'se elige y hay que revisar los sorteos (063:RF-33)')
         return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, 'sin_confirmar_sorteos': True,
-                **_marcas_de_valle(mejor, tabla)}
+                **_marcas_de_valle(mejor, tabla), 'alternativas': alternativas(tabla, mejor['nombre'], p)}
     cercana = max(tabla, key=lambda t: (bool(t.get('maxima')) and t.get('valle') is not False, t.get('fraccion') or 0),
                   default=None)
     return {'elegida': None, 'mas_cercana': cercana['nombre'] if cercana else None, 'tabla': tabla,
-            **_marcas_de_valle(None, tabla)}
+            **_marcas_de_valle(None, tabla), 'alternativas': []}
 
 
 def _marcas_de_valle(mejor: Mapping[str, Any] | None, tabla: Sequence[Mapping[str, Any]]) -> dict[str, Any]:

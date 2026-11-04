@@ -242,7 +242,7 @@ def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
     sin = eo.parametros({**PERFIL, 'escalera': {k: v for k, v in PERFIL['escalera'].items() if k != 'escala_capex'}})
     with pytest.raises(eo.EscaleraError, match='escala_capex'):
         eo.costos_de_alternativas(libro, sin)
-    assert eo.costos_de_alternativas({}, sin) == {}
+    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA)      # 042:RF-54
 
 
 def test_sin_regulador_salvo_que_el_perfil_lo_pida():
@@ -338,8 +338,8 @@ def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
              dict(_evaluada('terna', True, 0.945, 300.0), escalones=('terna',)),
              dict(_evaluada('banco', False, None, 50.0), escalones=('bancos',))]
     r = eo.elegir(tabla, P)
-    assert r['elegida'] == 'banco+seccion' and r['sin_confirmar_sorteos'] is True
-    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
+    assert r['elegida'] == 'terna' and r['sin_confirmar_sorteos'] is True      # 042:RF-56: la de menor costo
+    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'terna')
     sin_maxima = eo.elegir([_evaluada('a', False, None, 10.0)], P)
     assert sin_maxima['elegida'] is None and 'sin_confirmar_sorteos' not in sin_maxima
 
@@ -624,3 +624,80 @@ def test_el_largo_del_regulador_lo_da_el_perfil():
     p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'regulador_min_km': 5}})
     vs, _ = eo.variantes('F1', 22.9, _tramos_de(9.0), [], [], p, banco_kvar=None, fuera_desde=1)
     assert any('regulador' in v.escalones for v in vs)
+
+
+NIVEL = {'salida': 'B_22', 'nodo': 'N1', 'km': 12.0, 'seds': 40, 'compartida': True}
+
+
+def test_a_10_kv_el_paso_a_22_9_va_tras_los_bancos_y_antes_de_la_seccion():
+    """042:RF-50, 042:RF-51 — con celda nueva en la barra de la SET; va solo y sin refuerzo."""
+    vs, _ = eo.variantes('F1', 10.0, _tramos_de(5.0), [{'barra': 'B4', 'existe': True}], [], P, banco_kvar=300.0, nivel=NIVEL,
+                         sobrecargados=[{'nombre': 'T1', 'largo_m': 10.0, 'corriente_a': 300.0, 'tipo': 'X', 'nlnum': 1, 'carga_pct': 120.0}])
+    i = next(n for n, v in enumerate(vs) if 'nivel' in v.escalones)
+    assert len([v for v in vs if 'nivel' in v.escalones]) == 1 and vs[i].escalones == ('nivel',)
+    obra = vs[i].obras[0]
+    assert (obra['clase'], obra['nodo'], obra['salida'], obra['kv_destino']) == ('migracion', 'N1', 'B_22', 22.9)
+    assert len(vs[i].obras) == 1
+    assert all('bancos' in v.escalones or 'seccion' not in v.escalones or n > i for n, v in enumerate(vs) if n)
+    assert eo.rango(('bancos',)) < eo.rango(('nivel',)) < eo.rango(('seccion',)) < eo.rango(('regulador',))
+
+
+def test_a_22_9_kv_no_hay_paso_de_tension():
+    """042:RF-50 — solo el alimentador a la tensión que se pasa."""
+    vs, _ = eo.variantes('F1', 22.9, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=NIVEL)
+    assert not [v for v in vs if 'nivel' in v.escalones]
+
+
+def test_sin_barra_de_destino_con_su_fuente_o_a_la_set_nueva():
+    """042:RF-52, 042:RF-53 — sin cabecera compartida cambia con su fuente; compartida, lo dice y sigue la escalera."""
+    solo = {'salida': '', 'nodo': '', 'km': 3.0, 'seds': 5, 'compartida': False}
+    vs, _ = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=solo)
+    (v,) = [v for v in vs if 'nivel' in v.escalones]
+    assert v.obras[0]['clase'] == 'tension' and 'celda_nivel' not in v.cantidades
+    vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**solo, 'compartida': True})
+    assert not [v for v in vs if 'nivel' in v.escalones] and any('042:RF-53' in a for a in avisos)
+
+
+def test_el_paso_de_tension_se_costea_aunque_el_libro_no_lo_traiga():
+    """042:RF-54 — por km, SED y celda; del cambio de sección si lo hay, o de referencia, y marcado por confirmar."""
+    v = next(v for v in eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=NIVEL)[0]
+             if 'nivel' in v.escalones)
+    costos = eo.costos_de_alternativas({}, P)
+    assert 'por confirmar' in costos['cambio_tension']['origen'] and costos['celda']['unidad'] == 'Und'
+    inversion = eo.costo(v, costos, P, perdidas_kw=0.0, factor_perdidas=None)['inversion']
+    assert inversion == pytest.approx(12 * eo.COSTOS_NIVEL_DE_REFERENCIA['cambio_tension']
+                                      + 40 * eo.COSTOS_NIVEL_DE_REFERENCIA['cambio_tension_sed']
+                                      + eo.COSTOS_NIVEL_DE_REFERENCIA['celda'])
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'escala_capex': 1000}})
+    con_libro = eo.costos_de_alternativas({'cambio_seccion': {'costo_unitario': 50.0, 'unidad': 'km'}}, p)
+    assert con_libro['cambio_tension']['costo_unitario'] == 50000.0 and 'por confirmar' in con_libro['cambio_tension']['origen']
+
+
+def _opcion(nombre, escalones, anual, fraccion=None, maxima=True):
+    return {'nombre': nombre, 'escalones': escalones, 'maxima': maxima, 'fraccion': fraccion, 'motivos': [],
+            'costo': {'costo_anual': anual, 'inversion': anual * 10}}
+
+
+def test_hasta_3_alternativas_de_menor_a_mayor_costo_anual():
+    """042:RF-55, 042:RF-56, 042:RF-58 — una por clase de obra; se elige la más barata aunque la sección vaya antes."""
+    d = eo.elegir([_opcion('sección', ('seccion',), 900.0, 1.0), _opcion('sección mayor', ('seccion',), 950.0),
+                   _opcion('22,9 kV', ('nivel',), 700.0, 1.0), _opcion('terna', ('terna',), 1200.0),
+                   _opcion('sección + terna', ('seccion', 'terna'), 1500.0), _opcion('no', ('terna',), 10.0, maxima=False)], P)
+    assert d['elegida'] == '22,9 kV'
+    assert [(a['numero'], a['nombre']) for a in d['alternativas']] == [(1, '22,9 kV'), (2, 'sección'), (3, 'terna')]
+    assert [a['elegida'] for a in d['alternativas']] == [True, False, False]
+
+
+def test_los_bancos_que_bastan_y_el_regulador_al_final_aunque_cuesten_otra_cosa():
+    """042:RF-56 — bancos solos antes (063:RF-22), regulador solo si no hay otra (042:RF-49); la tabla sigue por costo."""
+    d = eo.elegir([_opcion('sección', ('seccion',), 100.0, 1.0), _opcion('bancos', ('bancos',), 200.0, 1.0)], P)
+    assert d['elegida'] == 'bancos' and [a['nombre'] for a in d['alternativas']] == ['sección', 'bancos']
+    d = eo.elegir([_opcion('regulador', ('regulador',), 50.0, 1.0), _opcion('terna', ('terna',), 900.0, 1.0)], P)
+    assert d['elegida'] == 'terna'
+    assert eo.elegir([_opcion('regulador', ('regulador',), 50.0, 1.0)], P)['elegida'] == 'regulador'
+
+
+def test_una_alternativa_que_los_sorteos_desmienten_no_se_presenta():
+    """042:RF-57 — sin sortear sí se presenta y lo dice; con sorteos por debajo del criterio, no."""
+    d = eo.elegir([_opcion('a', ('seccion',), 100.0, 0.5), _opcion('b', ('terna',), 200.0, 1.0), _opcion('c', ('nivel',), 300.0)], P)
+    assert [a['nombre'] for a in d['alternativas']] == ['b', 'c'] and d['alternativas'][1]['fraccion'] is None
