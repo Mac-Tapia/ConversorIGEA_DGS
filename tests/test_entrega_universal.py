@@ -35,6 +35,14 @@ RAIZ = CE.RAIZ
 LIMITES = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}
 
 
+def _perfil_excluido(sufijo: str = '.json') -> Path:
+    """El perfil de la empresa de prueba, sin escribir su nombre: el que está en el repositorio y no se entrega."""
+    manifiesto = CE.leer_manifiesto()
+    return next(r for r in sorted((RAIZ / 'config' / 'perfiles').glob('*.json'))
+                if not CE.entra(f'config/perfiles/{r.name}', manifiesto)
+                and r.name.endswith('.estructura.json') == (sufijo == '.estructura.json'))
+
+
 def _config(tmp_path: Path, **informes) -> ConfigInforme:
     """Un perfil sin modelo: lo que trae una empresa que estrena el conversor."""
     return ConfigInforme.de_perfil({'estudios': LIMITES, 'informes': informes}, tmp_path)
@@ -161,7 +169,7 @@ def test_clave_desconocida_se_avisa_sin_bloquear():
 
 def test_el_esquema_cubre_todas_las_claves_de_un_perfil_real():
     """086:RF-30 — sin esto, una clave nueva quedaría sin validar ni documentar."""
-    datos = json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.json').read_text(encoding='utf-8'))
+    datos = json.loads(_perfil_excluido().read_text(encoding='utf-8'))
     r = validar_perfil(datos)
     assert r.errores == [] and r.desconocidas == []
 
@@ -253,7 +261,7 @@ def test_lo_entregado_son_la_plantilla_y_la_ficticia(manifiesto):
     """086:RF-32 — el perfil de la empresa de prueba sigue en el repositorio, fuera del paquete."""
     entregados = {r.name for r, _ in CE.ficheros_de_la_entrega(RAIZ, manifiesto) if r.parent.name == 'perfiles'}
     assert entregados == {'plantilla.json', 'ficticia.json'}
-    assert 'electro_dunas' in perfiles_disponibles(), 'en el repositorio sigue, para sus pruebas'
+    assert _perfil_excluido().stem in perfiles_disponibles(), 'en el repositorio sigue, para sus pruebas'
 
 
 def test_plantilla_sin_ninguna_convencion():
@@ -343,11 +351,11 @@ def _paquete(tmp_path: Path) -> Path:
 
 
 def _empresa_de_prueba() -> str:
-    return json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.json').read_text(encoding='utf-8'))['empresa']
+    return json.loads(_perfil_excluido().read_text(encoding='utf-8'))['empresa']
 
 
 def _codigo_de_prueba() -> str:
-    datos = json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.estructura.json').read_text(encoding='utf-8'))
+    datos = json.loads(_perfil_excluido('.estructura.json').read_text(encoding='utf-8'))
     return next(n for n, t in CE._nombres_de_estructura(datos) if t == 'codigo' and re.fullmatch(r'[A-Z]{2}\d{3}', n))
 
 
@@ -465,9 +473,10 @@ def test_candidato_con_una_prueba_o_un_perfil_excluido_se_rechaza(tmp_path, mani
     base = _paquete(tmp_path)
     (base / 'tests').mkdir()
     (base / 'tests' / 'test_x.py').write_text('X = 1\n', encoding='utf-8')
-    shutil.copy(RAIZ / 'config' / 'perfiles' / 'electro_dunas.json', base / 'config' / 'perfiles' / 'electro_dunas.json')
+    excluido = _perfil_excluido()
+    shutil.copy(excluido, base / 'config' / 'perfiles' / excluido.name)
     motivos = {r: m for r, m in _revisar(base, manifiesto).rechazos}
-    assert 'tests/test_x.py' in motivos and 'config/perfiles/electro_dunas.json' in motivos
+    assert 'tests/test_x.py' in motivos and f'config/perfiles/{excluido.name}' in motivos
 
 
 def test_salida_de_la_orden_sin_nombres(tmp_path, capsys, monkeypatch):
@@ -505,7 +514,7 @@ def test_lista_de_entrega_unica_y_declarativa(manifiesto):
     for dentro in ('src/convertersmartgrid/cli.py', 'tools/cargas_pf.py', 'config/entrega.json', 'docs/PERFIL_EMPRESA.md'):
         assert CE.entra(dentro, manifiesto), dentro
     for fuera in ('tests/test_x.py', 'specs/086/spec.md', '.claude/x.md', '.git/config', 'output/x.dgs',
-                  'config/perfil_empresa.json', 'config/perfiles/electro_dunas.json', 'tools/madrl_obras.py',
+                  'config/perfil_empresa.json', f'config/perfiles/{_perfil_excluido().name}', 'tools/madrl_obras.py',
                   'tools/asistente_entrenar.py', 'CLAUDE.md', 'docs/constitution.md'):
         assert not CE.entra(fuera, manifiesto), fuera
     assert manifiesto['pesos_permitidos'] == []
