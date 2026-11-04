@@ -490,3 +490,17 @@ def test_lo_de_pantalla_queda_sin_comprobar(filas, hechos):
     assert all(f['verificacion'] == 'sin_comprobar_en_navegador' for f in gen if f['aspecto'] == 'requisito')
     web = [f for f in filas if f['entregable'] == 'operacion_web' and f['aspecto'] == 'requisito']
     assert web and all(f['verificacion'] == 'sin_comprobar_en_navegador' for f in web)
+
+
+def test_importar_del_maestro_queda_como_suya_y_no_humana(tmp_path):
+    """076:RF-28 — la marca del maestro lleva su revisor, no pone «revisado_por_operador» y no cuenta como humana."""
+    ruta, filas = _conjunto(tmp_path)
+    huella_antes = PE.huella(filas)
+    hoja = _hoja(tmp_path, filas, {'x-0': ('s', None), 'x-1': ('n', 'no lo dice el código')})
+    assert PE.importar(hoja, ruta, 'maestro') == {'correctas': 1, 'incorrectas': 1, 'sin_marca': 2}
+    leidas = PE.leer_jsonl(ruta)
+    marcadas = [f for f in leidas if f.get('revisado_por_maestro')]
+    assert len(marcadas) == 2 and all(f['revision']['revisor'] == 'maestro' and f['revisado_por_operador'] is False for f in marcadas)
+    assert PE.humanas(leidas) == [] and PE.huella(leidas) == huella_antes
+    with pytest.raises(PE.HojaError):
+        PE.importar(hoja, ruta, 'otro')

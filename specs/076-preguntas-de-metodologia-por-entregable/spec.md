@@ -48,6 +48,8 @@ El operador que revisa la hoja, el usuario que decide cómo se usa y quien mida 
   s/n» y corrección, en `output/`, fuera de git.
 - RF-11: CUANDO se pida `importar`, EL SISTEMA marcará `revisado_por_operador` solo en lo marcado, sin duplicar filas.
 - RF-27: SI una marca de la hoja no se entiende, ENTONCES EL SISTEMA rechazará la hoja entera sin escribir nada.
+- RF-28: DONDE la hoja la marque el maestro, EL SISTEMA guardará en cada fila el revisor `maestro` y no la contará como revisada por
+  el operador ni como humana.
 - RF-12: EL SISTEMA no contará una fila sin marca como humana, y ninguna fila contará como orden confirmada del operador (068:RF-30).
 - RF-13: CUANDO se pida `informe`, EL SISTEMA dará por entregable sus filas, con y sin respuesta, y sus huecos.
 

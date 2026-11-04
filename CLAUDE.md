@@ -103,7 +103,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T8, T9, T10 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
-  | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | falta T6 |
+  | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | falta T8 |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T6, T7 |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | falta T7 |
@@ -112,6 +112,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
+  | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | falta T6 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

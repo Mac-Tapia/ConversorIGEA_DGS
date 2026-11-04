@@ -193,6 +193,17 @@ def registrar(texto: str, tipo: str, subtipo: str, origen: str) -> None:
     almacen.anotar('informes', {'texto': texto[:LARGO_MAX * 8], 'tipo': tipo, 'subtipo': subtipo, 'origen': origen})
 
 
+def origenes_de_informes() -> dict[str, dict[str, int]]:
+    """085:RF-25: cuántos informes de entrenamiento y de prueba trae cada origen; los del maestro no son del operador."""
+    salida: dict[str, dict[str, int]] = {'entrenamiento': {}, 'prueba': {}}
+    for i, f in enumerate(almacen.leer('informes')):
+        if f.get('tipo') in TIPOS_INFORME and f.get('subtipo'):
+            parte = salida['prueba' if i % 5 == 4 else 'entrenamiento']
+            origen = str(f.get('origen') or 'sin_origen')
+            parte[origen] = parte.get(origen, 0) + 1
+    return salida
+
+
 def reales() -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
     entrenar_, prueba = [], []
     for i, f in enumerate(almacen.leer('informes')):
@@ -337,6 +348,7 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
         'clasificador', model_manifest={'algorithm': 'transformer_informes', 'cfg': asdict(cfg),
                                         'subtipos': subtipos, 'training_completed': True},
         dataset_manifest={'informes_reales': len(ent) + len(prueba_real), 'prueba_real': len(prueba_real),
+                          'origenes': origenes_de_informes(),                                                     # 085:RF-25
                           'calidades': {'plantillas': 'silver_deterministic', 'informes': 'gold_generado_o_corregido'},   # 070:RF-66
                           'textos_de_prueba_quitados': quitados},
         metrics={'candidato': m, 'en_uso': del_actual},
