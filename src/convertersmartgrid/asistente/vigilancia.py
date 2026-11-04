@@ -297,6 +297,9 @@ class Vigilante:
     vistos: set[str] = field(default_factory=set)
     #: Si vive el proceso de una fila de la suite; lo pone la web, que puede preguntar al sistema (RF-41).
     proceso_vivo: Callable[[Mapping[str, Any]], bool] = lambda _fila: False
+    #: 050:RF-4: si está, los datos nuevos del gemelo y del asistente lanzan un solo ciclo común,
+    #: con sus motivos, en lugar de dos entrenamientos que leen el búfer en momentos distintos.
+    ciclo: Callable[[list[str]], Any] | None = None
     _parar: threading.Event = field(default_factory=threading.Event)
 
     def tic(self, ahora: float | None = None, fecha: datetime | None = None) -> list[Aviso]:
@@ -306,7 +309,7 @@ class Vigilante:
         avisos = revisar_trabajos(trabajos, ahora, self.reintentados) + revisar_calidad(trabajos)
         episodios, ordenes = self.contar_nuevos()
         avisos += revisar_modelos(episodios_nuevos=episodios, ordenes_nuevas=ordenes)
-        nuevos = []
+        nuevos, motivos_ciclo = [], []
         for a in avisos:
             if a.clave in self.vistos:
                 continue
@@ -314,12 +317,16 @@ class Vigilante:
             if a.accion == 'reintentar' and a.trabajo:
                 self.reintentados.add(a.trabajo)
                 self.reintentar(a.trabajo)
+            elif a.accion in ('entrenar_gemelo', 'entrenar_asistente') and self.ciclo is not None:
+                motivos_ciclo.append(a.texto)
             elif a.accion == 'entrenar_gemelo':
                 self.entrenar_gemelo()
             elif a.accion == 'entrenar_asistente':
                 self.entrenar_asistente()
             almacen.anotar('avisos', asdict(a))
             nuevos.append(a)
+        if motivos_ciclo:
+            self.ciclo(motivos_ciclo)
         fecha = fecha or datetime.now().astimezone()
         filas = almacen.leer('suite', 1)
         interrumpida = revisar_suite(filas, self.proceso_vivo)
