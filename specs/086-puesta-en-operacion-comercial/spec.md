@@ -103,6 +103,14 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-43: EL SISTEMA tendrá una sola versión, mostrada en la web y con sus notas.
 - RF-44: EL SISTEMA dará manuales de instalación y de operador, una hoja de seguridad y privacidad, y las licencias de terceros.
 
+### Déficit previo
+
+Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI112 quedó a 0,945 p.u. con la obra aplicada, y PA217 a 0,925: la carga cumple, y un ramal existente sigue bajo el límite sin empeorar.
+
+- RF-48: CUANDO una barra de un alimentador con obra queda bajo el límite sin empeorar frente a «Sin proyecto», EL SISTEMA la anotará como déficit previo con su barra y su tensión.
+- RF-49: EL SISTEMA separará en el informe lo que causa la carga de lo que ya estaba fuera de límites.
+- RF-50: SI queda un déficit previo, ENTONCES EL SISTEMA no dirá que el alimentador queda en norma.
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.
