@@ -245,14 +245,59 @@ def nodo_a_dos_tercios(tramos: Sequence[Mapping[str, Any]]) -> str | None:
     return mejor[1] if mejor else None
 
 
-def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos) -> list[Variante]:
-    """Hasta tres sitios en la troncal, antes de la primera barra fuera de límites, con la
-    unidad más chica que lleva la corriente del tramo (RF-60)."""
+def puntos_de_regulador(camino: Sequence[Mapping[str, Any]], tension_min: float) -> list[int]:
+    """042:RF-47: dónde rinde el regulador en el camino de una carga, por su tensión medida.
+
+    En el último tramo que sale con la tensión dentro del límite, y a mitad de la caída hasta ese punto: más arriba lleva más
+    corriente; más abajo ya hay barras fuera. Nunca el primero, que sale de la cabecera. Sin caída fuera de límites, ninguno.
+    """
+    def tension(t) -> float | None:
+        u = (t.get('u') or {}).get(t.get('hasta'))
+        return float(u) if u is not None else None
+
+    tensiones = [tension(t) for t in camino]
+    primero = next((i for i, u in enumerate(tensiones) if u is not None and u < tension_min), None)
+    if primero is None or primero == 0:
+        return [] if primero is None else [1] if len(camino) > 1 else []
+    inicio = next((u for u in tensiones if u is not None), tension_min)
+    objetivo = (inicio + tension_min) / 2
+    medio = next((i for i, u in enumerate(tensiones) if u is not None and u < objetivo), primero)
+    return sorted({max(1, primero), max(1, min(medio, primero))} & set(range(1, len(camino))))
+
+
+def _regulador_en(alim, t, unidad, p: Parametros) -> Variante:
+    obra = {'clase': 'regulador', 'alimentador': alim, 'casos': [CON_PROYECTO], 'tramo': t['nombre'],
+            'consigna_pu': p.consigna_regulador_pu, 'rango_pct': 10.0, 'pasos': 16,
+            'tipo': {'nombre': unidad.nombre, 'clase': 'TypVoltreg', 'origen': 'otro', 'proyecto': BIBLIOTECA_TIPOS}}
+    return Variante(f"regulador {unidad.corriente_a:g} A en {t['nombre']}", ('regulador',), [obra], {'regulador': 1.0})
+
+
+def _reguladores_en_caminos(alim, kv, caminos, p: Parametros, avisos) -> list[Variante]:
+    """042:RF-47: en los puntos de cada camino, con la unidad que lleva su corriente bajo el límite de planeamiento."""
+    out: dict[str, Variante] = {}
+    for camino in sorted(caminos, key=_km, reverse=True):
+        for i in puntos_de_regulador(camino, p.tension_min_pu):
+            t = camino[i]
+            corriente = float(t.get('corriente_a') or 0.0) / max(p.cargabilidad_max_pct / 100.0, 0.01)
+            unidad = unidad_para_corriente(kv, corriente)
+            if unidad is None:
+                avisos.append(f"{alim}: ningún regulador del catálogo lleva {corriente:.0f} A en {t['nombre']} (042:RF-47).")
+                continue
+            out.setdefault(t['nombre'], _regulador_en(alim, t, unidad, p))
+    return list(out.values())
+
+
+def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos, caminos=()) -> list[Variante]:
+    """042:RF-47 en el camino de cada carga si se conoce su tensión; si no, hasta tres sitios en la troncal, antes de la
+    primera barra fuera de límites, con la unidad más chica que lleva la corriente del tramo (RF-60)."""
     try:
         unidades_para(kv)
     except CatalogoError as exc:
         avisos.append(f'{alim}: {exc}; no hay escalón de regulador.')
         return []
+    en_caminos = _reguladores_en_caminos(alim, kv, caminos, p, avisos)
+    if en_caminos:
+        return en_caminos
     hasta = len(troncal) if fuera_desde is None else max(0, int(fuera_desde))
     candidatos = []
     for i, t in enumerate(troncal[:hasta]):
@@ -467,7 +512,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     por_escalon = {
         'bancos': _escalon_bancos(alimentador, barras, banco_kvar, modulos),
         # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
-        'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos)
+        'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos, _caminos(troncal, cargas))
                       if p.con_regulador else []),
         'terna': _escalon_terna(alimentador, troncal, cargas, p.ternas),
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, normalizados(tipos, p.secciones), avisos),

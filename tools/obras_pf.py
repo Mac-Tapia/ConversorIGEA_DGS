@@ -143,14 +143,18 @@ def biblioteca_de_otro(proyecto):
     return None
 
 
-def leer_tipos(app, clases, otro=None) -> list[dict]:
-    """Los tipos de las tres bibliotecas, ordenados por clase, origen y nombre."""
+def leer_tipos(app, clases, otro=None, nombre_otro: str = '') -> list[dict]:
+    """Los tipos de las tres bibliotecas, ordenados por clase, origen y nombre.
+
+    042:RF-46: los de ``otro`` llevan el nombre con que se pidió: el proyecto puede conservar su nombre anterior, y quien busca el
+    tipo lo busca por el nombre que pidió (Pisco, 2026-11-04: `IGEA_Biblioteca_tipos` frente a `CSG_Biblioteca_tipos`).
+    """
     out = []
     origenes = [('proyecto', '', lambda c: app.GetLocalLibrary(c)),
                 ('global', '', lambda c: app.GetGlobalLibrary(c))]
     if otro is not None:
         lib = biblioteca_de_otro(otro)
-        origenes.append(('otro', otro.loc_name, lambda _c: lib))
+        origenes.append(('otro', nombre_otro or otro.loc_name, lambda _c: lib))
     for clase in clases:
         for origen, proyecto, carpeta in origenes:
             out += [ficha(o, origen, proyecto) for o in _tipos_en(carpeta(clase), clase)]
@@ -306,7 +310,7 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
         elif biblioteca_de_otro(otro) is None:
             informe['avisos'].append(f'El proyecto {ruta!r} no tiene biblioteca de tipos.')
             otro = None
-    informe['tipos'] = leer_tipos(app, clases, otro)
+    informe['tipos'] = leer_tipos(app, clases, otro, str(plan.get('otro_proyecto') or ''))
     return informe, 0
 
 
@@ -1753,7 +1757,7 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
         if otro is None or biblioteca_de_otro(otro) is None:
             avisos.append(f"No se pudo leer el proyecto {plan['otro_proyecto']!r}.")
             otro = None
-    tipos = [tipo_de_ficha(t) for t in leer_tipos(app, CLASES_TIPO, otro)]
+    tipos = [tipo_de_ficha(t) for t in leer_tipos(app, CLASES_TIPO, otro, str(plan.get('otro_proyecto') or ''))]
     return redes, tipos, avisos
 
 
@@ -2291,6 +2295,8 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             tipo = getattr(ln, 'typ_id', None)
             i = _resultado(ln, 'm:I:bus1') if flujo['converged'] else None
             tramos_red.append({'nombre': ln.loc_name, 'desde': a.loc_name, 'hasta': b.loc_name,
+                               'u': ({a.loc_name: _resultado(a, 'm:u'), b.loc_name: _resultado(b, 'm:u')}
+                                     if flujo['converged'] else {}),                  # 042:RF-47
                                'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
                                'corriente_a': i * 1000 if i is not None else None,
                                'tipo': tipo.loc_name if tipo is not None else None,

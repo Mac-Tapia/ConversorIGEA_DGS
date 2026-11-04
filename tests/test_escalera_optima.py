@@ -572,3 +572,32 @@ def test_el_camino_pasa_por_los_acopladores_y_solo_las_lineas_llevan_obra():
     camino = eo.camino_electrico(red, 'CAB', 'C')
     assert [t['nombre'] for t in camino] == ['L1', 'SW', 'L2']
     assert [t['nombre'] for t in eo.solo_lineas(camino)] == ['L1', 'L2']
+
+
+def _camino_que_cae():
+    tensiones = [0.99, 0.98, 0.97, 0.96, 0.94, 0.92]
+    barras = ['CAB'] + [f'B{i}' for i in range(len(tensiones))]
+    return [{'nombre': f'L{i}', 'desde': barras[i], 'hasta': barras[i + 1], 'largo_m': 2000.0, 'corriente_a': 100.0 - 5 * i,
+             'u': {barras[i + 1]: u}} for i, u in enumerate(tensiones)]
+
+
+def test_el_regulador_va_donde_cae_la_tension():
+    """042:RF-47 — en el primer tramo fuera del límite y a mitad de la caída; sin caída, en ninguno; nunca el de la cabecera."""
+    camino = _camino_que_cae()
+    assert eo.puntos_de_regulador(camino, 0.95) == [3, 4]
+    assert eo.puntos_de_regulador(camino, 0.90) == []
+    assert eo.puntos_de_regulador(camino, 0.995) == [1]
+
+
+def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
+    """042:RF-47 — 85 A al 80 % piden 106 A: la unidad de 150 A; las variantes van sobre el camino de la carga."""
+    from convertersmartgrid.perfil_empresa import completar_planeamiento
+
+    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500}})[0]
+    p = eo.parametros(perfil)
+    camino = _camino_que_cae()
+    vs, _a = eo.variantes('F', 22.9, [], [{'barra': 'B5', 'existe': False, 'camino': camino}], [], p, banco_kvar=None)
+    solas = [v for v in vs if v.escalones == ('regulador',)]
+    assert {v.obras[0]['tramo'] for v in solas} == {'L3', 'L4'}
+    en_l3 = next(v for v in solas if v.obras[0]['tramo'] == 'L3')
+    assert en_l3.nombre == 'regulador 150 A en L3' and en_l3.obras[0]['tipo']['proyecto'] == eo.BIBLIOTECA_TIPOS
