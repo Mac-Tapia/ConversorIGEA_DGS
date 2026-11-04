@@ -83,7 +83,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
   | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | cumplida |  |
   | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | implementada | falta T2 |
-  | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | aprobada | falta T1, T3 |
+  | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | implementada | falta T3 |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
   | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |
   | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
@@ -100,7 +100,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 070 El asistente opera el conversor de punta a punta | implementada | falta T9, T10, T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T3, T9, T11 |
-  | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T8, T9, T10 |
+  | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T8, T10 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | falta T8 |
