@@ -8550,6 +8550,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
 def asistente_estado_modelos() -> dict:
     """043:RF-8: leer evidencia no equivale a entrenar ni aprobar un modelo."""
     from ..asistente import almacen
+    from ..asistente.modelos_en_uso import FAMILIAS as FAMILIAS_EN_USO, aviso_provisional, uso_provisional
     from ..model_registry import EstadoModelo, RegistroModelo, estado_heredado, registros_de
     from ..training_coordinator import ORDEN_MODELOS
 
@@ -8623,11 +8624,17 @@ def asistente_estado_modelos() -> dict:
             except (OSError, ValueError, TypeError, KeyError) as exc:
                 estado = None
                 bloqueos.append(f'promoción sin evidencia verificable: {exc}')
-        heredado = en_uso = None
+        heredado = en_uso = provisional = None
         if nombre in heredados:
             try:
                 heredado = estado_heredado(heredados[nombre])
                 en_uso = heredado['version'] if heredado else None
+                # 085:RF-30: en uso por decisión del usuario, ni aprobado ni heredado; su estado sigue siendo el del registro.
+                if heredado and en_uso.startswith('prov-') and nombre in FAMILIAS_EN_USO:
+                    uso = uso_provisional(nombre)
+                    provisional = {**uso, 'aviso': aviso_provisional(uso)}
+                    heredado = None
+                    bloqueos.append(provisional['aviso'])
                 # 067:RF-29: lo que puso el registro en uso no es un modelo heredado sin validar.
                 # 071:RF-5: la PINN no pasa por el registro: su puntero es lo que la pone en uso.
                 if heredado and _pinn_promovida_en_uso(nombre, estado, etapa, en_uso):
@@ -8640,7 +8647,7 @@ def asistente_estado_modelos() -> dict:
             except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
                 bloqueos.append(f'modelo heredado ilegible: {exc}')
         familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato, 'heredado': heredado,
-                         'en_uso': en_uso,
+                         'en_uso': en_uso, 'provisional': provisional,
                          'algorithm': algoritmo, 'report_path': str(ruta_fuente), 'gates': puertas,
                          'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
     return {'schema_version': 1, 'familias': familias,
@@ -8721,6 +8728,23 @@ def _asistente_modelos() -> tuple[Any, Any]:
     from ..asistente.ollama import cliente_configurado
 
     return modelo, cliente_configurado()
+
+
+def _asistente_con_modelo_provisional(plan) -> None:
+    """Un modelo provisional se dice en cada plan, y ese plan espera al operador (085:RF-30, RF-32).
+
+    Va en todos: el que interpreta mal no sabe que interpreta mal, y confirmar a ciegas es lo que esto quiere evitar."""
+    from ..asistente.modelos_en_uso import aviso_provisional, uso_provisional
+
+    try:
+        uso = uso_provisional('transformer')
+    except (OSError, ValueError):                          # el puntero o la anotación ilegibles: se confirma y se dice
+        plan.solo_con_confirmacion = True
+        plan.avisos.append('No se pudo leer si el modelo de órdenes es provisional: cada plan espera su confirmación.')
+        return
+    if uso is not None:
+        plan.solo_con_confirmacion = True
+        plan.avisos.append(aviso_provisional(uso))
 
 
 def _asistente_clasificador():
@@ -8811,6 +8835,7 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
 
         if (motivo := motivo_no_disponible()) is not None:
             plan.avisos.append(aviso_sin_transformer(motivo, plan.interpretado_por))
+    _asistente_con_modelo_provisional(plan)
     extras = _asistente_extras(ws, plan, trabajos or [])
     extras['_trabajos'] = trabajos or []                                       # solo para los requisitos (070:RF-32)
     _asistente_requisitos(ws, plan, extras)
@@ -9486,6 +9511,7 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
                 por_tipo.setdefault(d.tipo, []).append({'valor': str(x), 'confianza': 1.0})
     interp = Interpretacion(previo.texto, tarea, 1.0, 'operador', por_tipo, [], ['corrección del operador'])
     plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
+    _asistente_con_modelo_provisional(plan)
     if subtipo:
         plan.datos['subtipo'] = subtipo
     almacen.anotar('ejemplos', {**_ejemplo_de(previo.texto, tarea, plan.datos), 'origen': 'corregido'})

@@ -43,13 +43,20 @@ class Plan:
     alternativas: list[tuple[str, float]] = field(default_factory=list)
     #: 067:RF-9, RF-10: lo que el operador debe saber de quién interpretó la orden.
     avisos: list[str] = field(default_factory=list)
+    #: 085:RF-32: con un modelo provisional, también los trabajos de solo lectura esperan al operador.
+    solo_con_confirmacion: bool = False
 
     @property
     def listo(self) -> bool:
         return self.tarea is not None and not self.faltan
 
+    @property
+    def espera_confirmacion(self) -> bool:
+        """Lo que no se lanza sin el operador: todo lo que escribe y, con un modelo provisional, todo trabajo (085:RF-31, RF-32)."""
+        return self.escribe or (self.solo_con_confirmacion and self.modo != 'consulta')
+
     def publico(self) -> dict:
-        return {**asdict(self), 'listo': self.listo,
+        return {**asdict(self), 'listo': self.listo, 'espera_confirmacion': self.espera_confirmacion,
                 'descripcion': TAREAS[self.tarea].descripcion if self.tarea else ''}
 
 

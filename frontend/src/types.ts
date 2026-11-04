@@ -1767,6 +1767,8 @@ export interface AsistentePlan {
   confianza: number;
   alternativas: [string, number][];
   listo: boolean;
+  /** 085:RF-31, RF-32: no se lanza sin el operador; lo decide el servidor. */
+  espera_confirmacion?: boolean;
   pasos?: string[];
   /** 067:RF-9, RF-10: quién interpretó la orden, si no fue el Transformer. */
   avisos?: string[];
@@ -1800,6 +1802,8 @@ export interface EstadoModelos {
     candidate_id: string | null;
     algorithm: string | null;
     en_uso?: string | null;
+    /** 085:RF-30: en uso por decisión del usuario, sin pasar las puertas. */
+    provisional?: { aviso: string; decidido_por?: string; fecha?: string; motivo?: string; modelo_anterior?: string | null } | null;
     report_path: string;
     gates: Record<string, unknown>;
     bloqueos: string[];
