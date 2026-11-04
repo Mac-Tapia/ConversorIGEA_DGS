@@ -30,7 +30,7 @@ def test_la_pestana_se_ve_sin_entradas():
     assert "{ id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false }" in APP
     for tab in ('results', 'catalog', 'system'):
         assert re.search(rf"id: '{tab}'.*entradas: true", APP), tab
-    assert 'TABS.filter((t) => w.state!.loaded || !t.entradas)' in APP
+    assert 'TABS.filter((t) => (w.state!.loaded || !t.entradas)' in APP
     assert '{w.state.loaded && (\n                <section className="card">' not in APP
 
 
