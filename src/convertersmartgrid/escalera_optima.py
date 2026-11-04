@@ -79,6 +79,8 @@ class Parametros:
     secciones: tuple[str, ...] = ()
     #: 042:RF-35: desde este largo del camino a una carga, el regulador va por delante del tope de variantes.
     linea_larga_km: float = 10.0
+    #: 042:RF-49: el regulador es un caso extremo: por debajo de este largo no se plantea.
+    regulador_min_km: float = 15.0
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -137,7 +139,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
         ternas=dict(plan.get('ternas_subterraneas') or {}),
         secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
-        linea_larga_km=float(esc.get('linea_larga_km') or 10.0))
+        linea_larga_km=float(esc.get('linea_larga_km') or 10.0),
+        regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']))
 
 
 def _opcional(x) -> float | None:
@@ -509,11 +512,18 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         avisos.append(f'{alimentador}: el valle admite {modulos_valle} módulos de {banco_kvar:g} kvar en cada barra (073:RF-19).'
                       if modulos_valle else
                       f'{alimentador}: el valle no admite ningún módulo de {banco_kvar:g} kvar (073:RF-19).')
+    caminos = _caminos(troncal, cargas)
+    largo_km = max((_km(c) for c in caminos), default=0.0) or _km(troncal)
+    # 042:RF-49: caso extremo; en Pisco se planteaba en un camino de 9,4 km que resuelve la sección.
+    extremo = largo_km > p.regulador_min_km
+    if p.con_regulador and not extremo:
+        avisos.append(f'{alimentador}: camino de {largo_km:.1f} km, sin regulador: es para más de '
+                      f'{p.regulador_min_km:g} km (042:RF-49).')
     por_escalon = {
         'bancos': _escalon_bancos(alimentador, barras, banco_kvar, modulos),
         # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
-        'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos, _caminos(troncal, cargas))
-                      if p.con_regulador else []),
+        'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos, caminos)
+                      if p.con_regulador and extremo else []),
         'terna': _escalon_terna(alimentador, troncal, cargas, p.ternas),
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, normalizados(tipos, p.secciones), avisos),
     }
@@ -536,9 +546,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                         dobles.append(v)
                     else:
                         combinadas.append(v)
-    caminos = _caminos(troncal, cargas)
-    largo_km = max((_km(c) for c in caminos), default=0.0)
-    if largo_km >= p.linea_larga_km and banco_kvar:
+    if caminos and largo_km >= p.linea_larga_km and banco_kvar:
         # 042:RF-37: en línea larga, también donde más rinde el banco; SI112 no tenía ninguno, su carga parte un tramo.
         nodo = nodo_a_dos_tercios(max(caminos, key=_km))
         if nodo and nodo not in barras:

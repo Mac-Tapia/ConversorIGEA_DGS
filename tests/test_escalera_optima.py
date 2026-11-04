@@ -10,7 +10,8 @@ from convertersmartgrid import escalera_optima as eo
 SEMILLAS = (3, 17, 41, 88)
 PERFIL = {
     'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'semilla': 7, 'tolerancia_pu': 0.005,
-                 'tolerancia_carga_pct': 1.0, 'max_variantes': 400},
+                 'tolerancia_carga_pct': 1.0, 'max_variantes': 400,
+                 'regulador_min_km': 0},     # estas redes sorteadas son cortas; 042:RF-49 tiene sus pruebas
     'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
 }
@@ -601,3 +602,25 @@ def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
     assert {v.obras[0]['tramo'] for v in solas} == {'L3', 'L4'}
     en_l3 = next(v for v in solas if v.obras[0]['tramo'] == 'L3')
     assert en_l3.nombre == 'regulador 150 A en L3' and en_l3.obras[0]['tipo']['proyecto'] == eo.BIBLIOTECA_TIPOS
+
+
+def _tramos_de(km_total, n=4):
+    return [{'nombre': f'T{i}', 'largo_m': km_total * 1000 / n, 'corriente_a': 100.0, 'desde': f'B{i}', 'hasta': f'B{i + 1}',
+             'tipo': 'X', 'inom_a': 300.0} for i in range(n)]
+
+
+@pytest.mark.parametrize('km,hay', [(9.0, False), (15.0, False), (15.5, True)])
+def test_el_regulador_solo_pasa_de_15_km(km, hay):
+    """042:RF-49 — el regulador es un caso extremo: en 15 km justos todavía no se plantea, y queda dicho."""
+    esc = {k: v for k, v in PERFIL['escalera'].items() if k != 'regulador_min_km'}
+    p = eo.parametros({**PERFIL, 'escalera': esc})
+    vs, avisos = eo.variantes('F1', 22.9, _tramos_de(km), [], [], p, banco_kvar=None, fuera_desde=1)
+    assert any('regulador' in v.escalones for v in vs) is hay
+    assert any('042:RF-49' in a for a in avisos) is not hay
+
+
+def test_el_largo_del_regulador_lo_da_el_perfil():
+    """042:RF-49 — otra empresa puede poner su propio largo."""
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'regulador_min_km': 5}})
+    vs, _ = eo.variantes('F1', 22.9, _tramos_de(9.0), [], [], p, banco_kvar=None, fuera_desde=1)
+    assert any('regulador' in v.escalones for v in vs)
