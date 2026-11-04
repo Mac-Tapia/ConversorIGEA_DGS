@@ -486,7 +486,8 @@ BORRADOS = {
         'src/convertersmartgrid/carpeta_pf.py::eliminar_versiones_anteriores',
         'tools/ajuste_cabecera_pf.py::_limpiar_etapa_de_la_central', 'tools/casos_pf.py::_escenario_renovado',
         'tools/confiabilidad_pf.py::escribir_modelos', 'tools/confiabilidad_pf.py::aplicar_datos',
-        'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca'},
+        'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca',
+        'tools/obras_pf.py::retirar_obras'},
     # Con su guarda: la de esta spec, o la de la copia de prueba (064).
     'con_guarda': {'src/convertersmartgrid/pf_arnes.py::borrar_en_su_proyecto', 'tools/restitucion_pf.py::borrar'},
 }
