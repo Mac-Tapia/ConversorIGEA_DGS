@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..puertos import VERSION_PUERTOS, Modulo
 from .base import SourceLoadResult, provenance, validate_snapshot
 from .snapshot import SourceSnapshot
 
@@ -38,3 +39,6 @@ class MdbSourceAdapter:
             **anio,
         )
         return SourceLoadResult(dataset=dataset, provenance=provenance(snapshot))
+
+
+MODULO = Modulo('lector-mdb', 'lector', VERSION_PUERTOS, MdbSourceAdapter)
