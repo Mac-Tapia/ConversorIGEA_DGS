@@ -111,6 +111,7 @@ Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI112 qu
 - RF-48: CUANDO una barra de un alimentador con obra queda bajo el límite sin empeorar frente a «Sin proyecto», EL SISTEMA la anotará como déficit previo con su barra y su tensión.
 - RF-49: EL SISTEMA separará en el informe lo que causa la carga de lo que ya estaba fuera de límites.
 - RF-50: SI queda un déficit previo, ENTONCES EL SISTEMA no dirá que el alimentador queda en norma.
+- RF-52: SI un alimentador tiene una barra que ya estaba bajo el límite, con o sin obra para la carga, ENTONCES EL SISTEMA presentará una obra que la corrija, con su costo aparte del de la carga. Usuario (2026-11-04): «si existe barra que ya estaba baja se presenta obra».
 
 ### Factor de seguridad de la SET nueva
 

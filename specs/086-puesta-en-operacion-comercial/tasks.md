@@ -20,6 +20,9 @@
   Hecho cuando: con una barra baja que no empeora, el informe la lista como déficit previo con su tensión y barra, y nunca dice «en norma» sin ese matiz.
   Evidencia: pruebas con dobles, sin DIgSILENT, en `tests/test_deficit_previo.py`, `tests/test_informe_docx.py`, `tests/test_informe_corrida.py`, `tests/test_casos_por_anio.py` y `tests/test_obras_pf_guion.py`. La confirmación en DIgSILENT queda en las corridas de la F6, y verlo en el navegador real, sin hacer.
 
+- [ ] T38 Obra para el déficit previo, con su costo aparte, con o sin obra para la carga. La implementa la sesión de la 042 en su rama. (RF-52)
+  Hecho cuando: «ya cumple» no se queda sin obra si hay una barra previa baja; prueba con doble y medida en DIgSILENT sobre SI112; el informe separa los dos costos.
+
 ## F1 Datos que no se pierden (`v1/datos`)
 
 - [x] T6 Escritura duradera, espacio dañado y rutas conservadas. (RF-1, RF-2, RF-3)
