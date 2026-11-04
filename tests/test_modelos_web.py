@@ -227,8 +227,11 @@ class Veto:
 sys.meta_path.insert(0, Veto())
 sys.path.insert(0, {str(src)!r})
 from fastapi.testclient import TestClient
+from convertersmartgrid import sesion_web
 from convertersmartgrid.web.app import create_app
 from pathlib import Path
+# Otro proceso no hereda lo que hace conftest.py: sin esto, la puerta de 086:RF-19 responde 401.
+sesion_web.EXIGIR_SEGURIDAD = False
 with TestClient(create_app(Path({str(tmp_path / 'web')!r}))) as cliente:
     r = cliente.get('/api/asistente/modelos')
 print(json.dumps({{'codigo': r.status_code, 'familias': len(r.json()['familias']),
