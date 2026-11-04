@@ -68,6 +68,7 @@ from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_si
 from casos_pf import anio_del_plan, nombre_caso
 from casos_pf import caso as caso_del_sistema
 
+from convertersmartgrid.comprobacion_flujo import huella_de_caso
 from convertersmartgrid.native_action import native_action_block_report
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
@@ -2267,6 +2268,76 @@ def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None,
             + '. La calibración no es válida y las cargas vuelven a como estaban (015:RF-49).')
 
 
+def _leer_huella_caso_base(app, anio: int | None) -> dict | None:
+    """La huella del «Caso base»: sus cargas y su flujo (081:RF-33), sin escribir (081:RF-13).
+
+    Con el caso activo de antes al volver. Las cargas son las del caso, no las de los alimentadores
+    calibrados: lo que comparte la red puede cambiar en cualquiera.
+    """
+    from collections import Counter
+
+    base = caso_del_sistema(app, 'base', anio)
+    if base is None:
+        return None
+    activo = app.GetActiveStudyCase()
+    base.Activate()
+    try:
+        rc = app.GetFromStudyCase('ComLdf').Execute()
+        objetos = list(app.GetCalcRelevantObjects('*.ElmLod') or [])
+        veces = Counter(o.loc_name for o in objetos)
+        filas, kw = [], 0.0
+        for obj in objetos:
+            p_kw, q_kvar = potencia(obj)
+            filas.append({'nombre': obj.GetFullName() if veces[obj.loc_name] > 1 else obj.loc_name,
+                          'p_kw': p_kw, 'q_kvar': q_kvar, 'escala': factor_de_escala(obj),
+                          'en_servicio': not int(getattr(obj, 'outserv', 0) or 0)})
+            consumo = _num(obj, 'm:Psum:bus1') if not rc else None
+            kw = None if consumo is None or kw is None else kw + 1000.0 * consumo
+        return huella_de_caso(filas, {'converge': not rc, 'return_code': int(rc or 0), 'kw': kw})
+    finally:
+        if activo is not None:
+            activo.Activate()
+
+
+def _huella_antes(app, estado: dict, anio: int | None) -> None:
+    """La huella antes de escribir nada de la calibración (086:RF-14), una sola vez: con bancos el proyecto se
+    recorre dos veces, y tomarla en la segunda taparía lo que hubiera cambiado la primera.
+
+    Tras fijar la consigna: el «Caso base» la lleva a propósito (063:RF-29) y no es un cambio que avisar.
+    Vigila, no decide: si no se puede leer, se dice y se calibra.
+    """
+    if 'huella_antes' in estado:
+        return
+    estado['huella_anio'] = anio
+    try:
+        estado['huella_antes'] = _leer_huella_caso_base(app, anio)
+    except Exception as exc:  # noqa: BLE001 - la huella no puede parar la calibración
+        estado['huella_antes'] = None
+        estado['huella_aviso'] = f'{type(exc).__name__}: {exc}'
+
+
+def _huella_despues(app, estado: dict, informe: dict) -> None:
+    """Pone ``caso_base_huella`` en el informe: la guarda de 081 lee ahí y nadie la escribía (086:RF-14).
+
+    Una por proyecto, en el primer informe: lleva todas sus cargas. También tras una calibración que
+    falla, que es cuando el «Caso base» dejó de converger (docs/regresiones).
+    """
+    if 'huella_antes' not in estado:                       # al simular, o si no se llegó a escribir nada
+        return
+    antes, aviso = estado['huella_antes'], estado.get('huella_aviso')
+    if antes is not None:
+        try:
+            despues = _leer_huella_caso_base(app, estado.get('huella_anio'))
+            if despues is not None:
+                informe['caso_base_huella'] = {'antes': antes, 'despues': despues}
+        except Exception as exc:  # noqa: BLE001 - lo calibrado queda: se dice que no se pudo comparar
+            aviso = f'{type(exc).__name__}: {exc}'
+    if 'caso_base_huella' not in informe:
+        informe.setdefault('avisos', []).append(
+            'No se pudo tomar la huella del «Caso base»: no se comprobó que la calibración lo dejara igual'
+            + (f' ({aviso}).' if aviso else ' (no se encontró el caso).'))
+
+
 def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica el ajuste. Devuelve (informe, código de salida)."""
     estado = {'apartadas': []}
@@ -2274,6 +2345,7 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         informe, rc = _ejecutar(app, plan, simular=simular, cancelado=cancelado, estado=estado)
     finally:
         _devolver_cargas_nuevas(app, estado)
+    _huella_despues(app, estado, informe)                               # 086:RF-14
     cambios = cambios_en_la_red(informe)                                # 020:RF-60
     if cambios:
         informe['cambios_en_la_red'] = cambios
@@ -2530,6 +2602,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             app, float(plan['tension_fuente_pu']), [sin, con, caso_del_sistema(app, 'base', anio)])
         escenario = app.GetActiveScenario()
     if not simular:
+        _huella_antes(app, estado, anio)                               # 086:RF-14
+        escenario = app.GetActiveScenario()
         # 032:RF-14: los conductores con su ficha antes del primer flujo.
         _conductores_con_ficha(app, plan, [feeder], alims, [informe])
     p = _preparar_alimentador(app, plan, informe, alims=alims, feeder=feeder,
@@ -2937,10 +3011,14 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     estado = {'apartadas': []}
     try:
         if bancos:
-            return _con_bancos_que_faltan(app, planes, cancelado=cancelado, estado=estado)
-        return _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
+            resultados = _con_bancos_que_faltan(app, planes, cancelado=cancelado, estado=estado)
+        else:
+            resultados = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
     finally:
         _devolver_cargas_nuevas(app, estado)
+    if resultados:
+        _huella_despues(app, estado, resultados[0][0])                  # 086:RF-14
+    return resultados
 
 
 def _deficit(inf: dict, plan: dict) -> tuple[float | None, float | None]:
@@ -3453,6 +3531,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     pu = next((float(p['tension_fuente_pu']) for p in validos if p.get('tension_fuente_pu')), None)
     consigna = (fijar_consigna_de_la_fuente(app, pu, [sin, con, caso_del_sistema(app, 'base', anio)])
                 if pu else [])                                           # 021:RF-61, 063:RF-29
+    _huella_antes(app, estado, anio)                                     # 086:RF-14
     escenario = app.GetActiveScenario()
     for f in feeders:
         if pu:

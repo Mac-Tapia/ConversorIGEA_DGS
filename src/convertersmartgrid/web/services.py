@@ -4153,6 +4153,12 @@ def _verdad_de_la_calibracion(ctx: JobContext, informes: list[dict]) -> dict:
         verdad['caso_base_cambio'] = grave
         if verdad['estado_trabajo'] == 'done':
             verdad['estado_trabajo'] = 'parcial'
+    # 086:RF-14: una huella lleva todas las cargas del proyecto; completa queda en el informe en disco.
+    for informe in informes:
+        if informe.get('caso_base_huella'):
+            informe['caso_base_huella'] = {
+                k: {c: (informe['caso_base_huella'].get(k) or {}).get(c) for c in ('sha256', 'flujo')}
+                for k in ('antes', 'despues')}
     return verdad
 
 
@@ -7199,17 +7205,39 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
 
     Cancelar termina el estudio en curso, no empieza otro y conserva los terminados
     (RF-41): los ficheros se escriben con lo que haya.
+
+    086:RF-11: la corrida queda registrada desde que empieza y se actualiza tras cada estudio. Lo que
+    no termina no deja informe, y el registro es lo único que distingue «no terminó» de «no hay»: sin
+    él, el informe tomaba por fecha el flujo de la corrida anterior. Si la web muere a media corrida,
+    el registro se queda ``en_curso``, y eso también se dice.
     """
+    meta = ws.cargas_planes.get(token)
+    if meta is None or meta.get('kind') != 'estudios' or not Path(meta['path']).is_file():
+        raise UserError('El plan de los estudios ya no existe: vuelva a prepararlo.')
+    plan = json.loads(Path(meta['path']).read_text(encoding='utf-8'))
+    corrida = {'token': token, 'project': plan['project'], 'feeders': list(plan['feeders']),
+               'pedidos': list(plan['estudios']), 'inicio': time.time_ns(), 'estado': 'en_curso', 'estudios': []}
+    _guardar_corrida(ws, corrida)
+    try:
+        return _correr_estudios(ws, ctx, token, plan, corrida)
+    except BaseException as exc:
+        _guardar_corrida(ws, {**corrida, 'estado': 'fallida', 'error': str(exc)})
+        raise
+
+
+def _guardar_corrida(ws: Workspace, corrida: dict) -> None:
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(ws.out_dir / f"estudios_corrida_{corrida['token']}.json", corrida)
+
+
+def _correr_estudios(ws: Workspace, ctx: JobContext, token: str, plan: dict, corrida: dict) -> dict:
+    """Los estudios de :func:`estudios_ejecutar`, con su registro al día (086:RF-11)."""
     from ..estudios_pf import (
         COLUMNAS_RESULTADOS, COLUMNAS_VIOLACIONES, CON_PROYECTO, SIN_PROYECTO, Limites,
         escribir_csv, filas_resultados, filas_violaciones,
     )
     from .jobs import JobCancelled
 
-    meta = ws.cargas_planes.get(token)
-    if meta is None or meta.get('kind') != 'estudios' or not Path(meta['path']).is_file():
-        raise UserError('El plan de los estudios ya no existe: vuelva a prepararlo.')
-    plan = json.loads(Path(meta['path']).read_text(encoding='utf-8'))
     nombres = {'sin': SIN_PROYECTO, 'cargas': 'Cargas nuevas', 'con': CON_PROYECTO}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
     from ..powerfactory_binding import caso_base_verificado
@@ -7227,6 +7255,7 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     if casos.get('error'):
         raise UserError(casos['error'])                                # RF-13, RF-16
     feeders = casos.get('feeders') or plan['feeders']
+    corrida['feeders'] = list(feeders)
     roles = ['sin'] + [r for r in ('cargas', 'con')
                        if (casos.get('casos') or {}).get(r, {}).get('estudiable')]
     total = len(roles) * len(plan['estudios'])
@@ -7261,7 +7290,7 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                     # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo. 045:RF-1: también
                     # «Cargas nuevas», que no se capturaba y no llegaba a ser un episodio de la red.
                     _gemelo(ws, ctx, sub, inf, caso=CASO_DEL_ROL[rol], rutas={'resultado': report})
-                informes.append({'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
+                informes.append({'rol': rol, 'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
                                  'nombre_caso': inf.get('nombre_caso') or (
                                      f'{nombres[rol]} {plan["anio_casos"]}' if plan.get('anio_casos')
                                      else nombres[rol]),
@@ -7273,12 +7302,16 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                     resultados.append({'caso': nombres[rol], 'alimentador': f,
                                        'estudio': estudio, **medida})
                 _resultados_de_red(ws, estudio, nombres[rol], inf, red, capacidad, propuestas)
+                corrida['estudios'] = informes
+                _guardar_corrida(ws, corrida)
             if cancelado:
                 break
     except JobCancelled:
         cancelado = True
     if cancelado:
         ctx.log('Cancelado: se conservan los estudios terminados.')
+    corrida.update(estudios=informes, estado='cancelada' if cancelado else 'terminada')
+    _guardar_corrida(ws, corrida)
     limites = Limites(**plan['limites'])
     ficheros = []
     result_rows = filas_resultados(resultados, limites) if resultados else []
@@ -7298,7 +7331,7 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
             ficheros.append(escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv').name)
     fiab = {c: {r['alimentador']: r for r in red if r['estudio'] == 'fiabilidad' and r['caso'] == c}
             for c in (SIN_PROYECTO, CON_PROYECTO)}
-    return {'project': plan['project'], 'feeders': feeders, 'casos': casos,
+    return {'token': token, 'project': plan['project'], 'feeders': feeders, 'casos': casos,
             'casos_report': casos_report.name, 'estudios': informes, 'ficheros': ficheros,
             'medidas': resultados, 'resultados': result_rows, 'violaciones': violation_rows,
             'red': red_rows, 'capacidad': capacidad, 'propuestas': propuestas,
@@ -7505,28 +7538,81 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
 TOLERANCIA_FLUJOS = 0.02
 
 
-def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None) -> dict | None:
-    """El último informe de flujo que dejó el paso de estudios en ese caso.
+def _corridas_de_estudios(ws: Workspace, project: str | None) -> list[dict]:
+    """Las corridas registradas del proyecto, de la más reciente a la más antigua (086:RF-11)."""
+    corridas = []
+    for ruta in ws.out_dir.glob('estudios_corrida_*.json'):
+        try:
+            datos = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if not project or str(datos.get('project') or '').strip() == project.strip():
+            corridas.append(datos)
+    return sorted(corridas, key=lambda c: c.get('inicio') or 0, reverse=True)
+
+
+def _corrida_del_alimentador(corridas: list[dict], alimentador: str | None) -> dict | None:
+    """La última corrida que pidió un flujo de ese alimentador.
+
+    Una corrida de solo contingencias, o de otro alimentador, no deja sin datos a este: con AL01
+    estudiado y después AL02, el informe de AL01 fallaba porque miraba solo el último (086:RF-11).
+    """
+    from ..demanda_medida import clave_codigo
+
+    for corrida in corridas:
+        if not set(corrida.get('pedidos') or ()) & set(ESTUDIOS_DEL_INFORME):
+            continue
+        if alimentador is None or any(clave_codigo(f) == clave_codigo(alimentador) for f in corrida.get('feeders') or ()):
+            return corrida
+    return None
+
+
+def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, alimentador: str | None = None,
+                    corrida: dict | None = None) -> dict | None:
+    """El flujo de ese caso con el que se arma el informe: el de la corrida, nunca el de otra.
 
     El informe se arma con lo que guardaron los estudios al ejecutar «Sin proyecto» y
     «Con proyecto» desde la web, no con otra ejecución de DIgSILENT (el usuario,
     2026-10-15). Se prefiere el flujo desequilibrado: da la tensión de cada fase (RF-17).
     Con ``project``, solo los de ese proyecto: un espacio puede haber estudiado otro antes.
 
+    086:RF-11, RF-12: de la última corrida de ``alimentador`` (o de ``corrida``), y si esa no lo tiene,
+    ``None``: tomar el último fichero por fecha daba, con «Con proyecto» cancelado, un «factible» con
+    el flujo de la corrida anterior. Solo los flujos guardados sin registro, de antes de esta spec, se
+    buscan por fecha; quien los use lo dice con :func:`_avisos_de_la_corrida`.
+
     063:RF-45: el desequilibrado solo vale si su cabecera cuadra con la del equilibrado. En SM218
     (2026-11-02) daba 11 873 kW frente a los 9 284 kW medidos, y el informe salía con cuellos del
     185 % que no existen; entonces se usa el equilibrado y lo dice ``_aviso_flujo``.
     """
+    corrida = corrida or _corrida_del_alimentador(_corridas_de_estudios(ws, project), alimentador)
+
+    def leer(fichero: Path) -> dict | None:
+        try:
+            datos = json.loads(fichero.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            return None                         # un informe a medias no impide el informe
+        medidas = datos.get('medidas') or {}
+        if not medidas or (alimentador is not None and alimentador not in medidas):
+            return None
+        return {**datos, '_fichero': fichero.name, **({'_corrida': corrida['token']} if corrida else {})}
+
     def ultimo(desequilibrado: bool) -> dict | None:
+        if corrida is not None:
+            estudio = 'flujo_desequilibrado' if desequilibrado else 'flujo'
+            fila = next((e for e in corrida.get('estudios') or ()
+                         if e.get('rol') == rol and e.get('estudio') == estudio and not e.get('no_terminado')), None)
+            return leer(ws.out_dir / fila['report']) if fila else None
         patron = f'estudio_{rol}_flujo_{"desequilibrado_" if desequilibrado else ""}*.json'
         for fichero in sorted(ws.out_dir.glob(patron), key=lambda p: p.stat().st_mtime, reverse=True):
             if not desequilibrado and 'desequilibrado' in fichero.name:
                 continue
-            datos = json.loads(fichero.read_text(encoding='utf-8'))
+            datos = leer(fichero)
+            if datos is None:
+                continue
             if project and str(datos.get('project') or '').strip() not in ('', project.strip()):
                 continue
-            if datos.get('medidas'):
-                return {**datos, '_fichero': fichero.name}
+            return datos
         return None
 
     des, equi = ultimo(True), ultimo(False)
@@ -7543,6 +7629,71 @@ def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None) -> dict
                 f'El flujo desequilibrado de {f} da {a:,.0f} kW en cabecera y el equilibrado {b:,.0f} kW: no '
                 'cuadra con la calibración, y el informe usa el equilibrado (063:RF-45).')}
     return des
+
+
+def _avisos_de_la_corrida(corrida: dict | None, flujos: dict[str, dict | None], alimentador: str,
+                          opcionales: tuple[str, ...] = ()) -> list[str]:
+    """Lo que el informe no tiene de su corrida, con su motivo (086:RF-12): se entrega y lo dice.
+
+    ``opcionales``: los casos que, si la corrida terminó y no los estudió, no faltan. Un informe de
+    estudio sin obras no tiene «Con proyecto», y no por eso le falta algo.
+    """
+    # Va también al Word, y el Word no nombra los casos de DIgSILENT: habla de estados (017:RF-29).
+    nombres = {'sin': 'estado actual', 'cargas': 'estado proyectado sin obras', 'con': 'estado proyectado'}
+    avisos = [d['_aviso_flujo'] for d in flujos.values() if d and d.get('_aviso_flujo')]
+    if corrida is None:
+        usados = [nombres[r] for r, d in flujos.items() if d and d.get('_fichero')]
+        if usados:
+            avisos.append(f"Los flujos de {', '.join(usados)} se guardaron sin registro y no están ligados a "
+                          'ninguna corrida: pueden ser de una ejecución anterior; repita los estudios (086:RF-11).')
+        return avisos
+    estado = corrida.get('estado')
+    for rol, datos in flujos.items():
+        filas = [e for e in corrida.get('estudios') or ()
+                 if e.get('rol') == rol and e.get('estudio') in ESTUDIOS_DEL_INFORME]
+        fallidas = [e for e in filas if e.get('no_terminado') or e.get('error')]
+        caso = f'{nombres[rol]} de {alimentador}'
+        if datos is not None:
+            avisos += [f"El flujo desequilibrado del {caso} no sirve en esta corrida ({e.get('error') or 'no terminó'}): "
+                       'el informe usa el equilibrado.'
+                       for e in fallidas if e['estudio'] == 'flujo_desequilibrado']
+            continue
+        if fallidas:
+            motivo = '; '.join(f"{e['estudio']}: {e.get('error') or 'no terminó'}" for e in fallidas)
+        elif estado == 'en_curso':
+            motivo = 'la corrida no terminó: se interrumpió o sigue en curso'
+        elif estado == 'cancelada':
+            motivo = 'la corrida se canceló antes de estudiarlo'
+        elif estado == 'fallida':
+            motivo = f"la corrida falló: {corrida.get('error') or 'vea el Registro'}"
+        elif filas:
+            motivo = 'el flujo no trae ese alimentador'
+        elif rol in opcionales:
+            continue
+        else:
+            motivo = 'esta corrida no lo estudió'
+        avisos.append(f"Sin el flujo del {caso} en la corrida {corrida['token']} ({motivo}): el informe no usa uno "
+                      'anterior; repita los estudios (086:RF-12).')
+    return avisos
+
+
+def _flujos_del_informe(ws: Workspace, project: str | None, alimentador: str, roles: tuple[str, ...],
+                        opcionales: tuple[str, ...] = (), token: str | None = None
+                        ) -> tuple[dict[str, dict | None], dict | None, list[str]]:
+    """Los flujos de un informe, todos de una corrida, esa corrida y lo que falta (086:RF-11, RF-12).
+
+    ``token``: la corrida que acaba de lanzar el botón del informe; sin él, la última del alimentador.
+    """
+    corridas = _corridas_de_estudios(ws, project)
+    corrida = next((c for c in corridas if c.get('token') == token), None) if token else None
+    corrida = corrida or _corrida_del_alimentador(corridas, alimentador)
+    flujos = {rol: _ultimo_estudio(ws, rol, project, alimentador, corrida) for rol in roles}
+    return flujos, corrida, _avisos_de_la_corrida(corrida, flujos, alimentador, opcionales)
+
+
+def _flujo_que_falta(project: str | None, alimentador: str) -> dict:
+    """El caso de un flujo que su corrida no tiene: no converge para el informe, y no inventa nada."""
+    return {'project': project, 'medidas': {alimentador: {'converge': False}}, '_fichero': None}
 
 
 def _fijas_de_la_calibracion(ws: Workspace, estudio: dict, alimentador: str) -> list[dict]:
@@ -7590,13 +7741,16 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     lim: Limites = config.limites
 
     proyecto = str(formulario.get('project') or '').strip() or None
-    sin = _ultimo_estudio(ws, 'sin', proyecto)
-    if sin is None or alimentador not in (sin.get('medidas') or {}):
-        raise UserError(f'No hay un flujo de «{SIN_PROYECTO}» de {alimentador}: ejecute antes el '
-                        'estudio de flujo en el paso de estudios.')
+    flujos, corrida, avisos = _flujos_del_informe(ws, proyecto, alimentador, ('sin', 'con'), opcionales=('con',))
+    sin, con = flujos['sin'], flujos['con']
+    if sin is None:
+        # 086:RF-12: de una corrida que no llegó se entrega el informe diciéndolo; sin ninguna, no hay nada que entregar.
+        if corrida is None:
+            raise UserError(f'No hay un flujo de «{SIN_PROYECTO}» de {alimentador}: ejecute antes el '
+                            'estudio de flujo en el paso de estudios.')
+        sin = _flujo_que_falta(proyecto, alimentador)
     actual = Caso.desde_medida(SIN_PROYECTO, sin['medidas'][alimentador], lim)
     etapas = []
-    con = _ultimo_estudio(ws, 'con', proyecto)
     obras = [o for o in (ws.obras or []) if o.get('alimentador') == alimentador
              and CON_PROYECTO in (o.get('casos') or [])]
     # 017:RF-35: y las ya aplicadas cuya variación está activa en el flujo de «Con proyecto».
@@ -7605,7 +7759,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
               if a.get('variacion') in activas and a['obra'].get('alimentador') == alimentador
               and (proyecto is None or a.get('project') == proyecto)]
     clave = etapa_de_obras(obras)
-    fuentes = [sin['_fichero']]
+    fuentes = [sin['_fichero']] if sin['_fichero'] else []
     geo_sin = (sin.get('geo') or {}).get(alimentador) or {}
     # 017:RF-128: con alternativas medidas, una etapa por alternativa con sus obras propias;
     # el plano de cada una resalta todas las obras que lleva (RF-133).
@@ -7687,7 +7841,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                          bancos=tuple({**b, 'utm': _utm(b.get('gps')),                    # RF-135
                                        'sed_cercana': _sed_cercana(b.get('gps'), geo_sin)}
                                       for b in sin['medidas'][alimentador].get('bancos') or ()),
-                         fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)))
+                         fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)),
+                         avisos=tuple(avisos), corrida=(corrida or {}).get('token'))
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
     _paso_informe(ctx, 2, 'documento')
     try:
@@ -7700,7 +7855,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                                               'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
     _paso_informe(ctx, 3, 'listo')
     return {'project': proyecto or (sin or {}).get('project'), 'informe': destino.name, 'json': destino.with_suffix('.json').name,
-            'huecos': huecos, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
+            'corrida': (corrida or {}).get('token'), 'huecos': huecos, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'estudio', plan)}
 
 
@@ -7920,14 +8075,31 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
     except InformeError as exc:
         faltan = {tipo: [str(exc)] for tipo in TIPOS}
     claves = {clave_codigo(f) for f in feeders}
-    estudios = {}
-    for rol in ('sin', 'con'):
-        datos = _ultimo_estudio(ws, rol, project)
-        estudios[rol] = None if datos is None else {
-            'fichero': datos['_fichero'],
-            'alimentadores': {f: bool(m.get('converge')) for f, m in (datos.get('medidas') or {}).items()
-                              if clave_codigo(f) in claves},
-        }
+    estudios: dict[str, dict | None] = {'sin': None, 'con': None}
+    # 086:RF-11: lo que se ve aquí es lo que usará el informe: de cada alimentador, su última corrida.
+    # Se lee una vez por corrida; los flujos sin registro, uno por alimentador, como los busca el informe.
+    corridas = _corridas_de_estudios(ws, project)
+    por_corrida: dict[str, tuple[dict | None, list[str]]] = {}
+    for f in feeders:
+        c = _corrida_del_alimentador(corridas, f)
+        por_corrida.setdefault(c['token'] if c else f'sin registro {f}', (c, []))[1].append(f)
+    avisos_corrida: list[dict] = []
+    activas: set[str] = set()
+    for c, suyos in por_corrida.values():
+        flujos = {rol: _ultimo_estudio(ws, rol, project, None if c else suyos[0], c) for rol in estudios}
+        activas |= set((flujos['con'] or {}).get('obras_activas') or [])
+        de_ellos = {clave_codigo(f) for f in suyos}
+        for rol, datos in flujos.items():
+            medidas = {f: bool(m.get('converge')) for f, m in ((datos or {}).get('medidas') or {}).items()
+                       if clave_codigo(f) in de_ellos}
+            if medidas:
+                fila = estudios[rol] or {'fichero': datos['_fichero'], 'alimentadores': {}}
+                fila['alimentadores'].update(medidas)
+                estudios[rol] = fila
+        for f in suyos:
+            propios = {rol: d if d and f in (d.get('medidas') or {}) else None for rol, d in flujos.items()}
+            avisos_corrida += [{'alimentador': f, 'corrida': (c or {}).get('token'), 'texto': texto}
+                               for texto in _avisos_de_la_corrida(c, propios, f, opcionales=('con',))]
     obras: dict[str, int] = {}
     for o in ws.obras or []:
         if clave_codigo(o.get('alimentador')) in claves and CON_PROYECTO in (o.get('casos') or []):
@@ -7935,14 +8107,12 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
     # 017:RF-35: y las ya aplicadas activas en el último flujo de «Con proyecto», como las
     # cuenta el informe: el formulario decía «0 obras» con cuatro aplicadas en TA225 e
     # IN111 (2026-10-15).
-    con = _ultimo_estudio(ws, 'con', project)
-    activas = set((con or {}).get('obras_activas') or [])
     for a in ws.obras_aplicadas or []:
         f = a['obra'].get('alimentador')
         if a.get('variacion') in activas and a.get('project') == project.strip()                 and clave_codigo(f) in claves:
             obras[f] = obras.get(f, 0) + 1
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
-    return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'obras': obras,
+    return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'avisos_corrida': avisos_corrida, 'obras': obras,
             'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),
             'generados': _informes_generados(ws),
             'formularios': dict((ws.informes.get('formularios') or {}).get(project.strip()) or {}),
@@ -8095,7 +8265,7 @@ def transformador_set_calcular(ws: Workspace, ctx: JobContext, project: str, ali
     from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
 
     proyecto = _proyecto_transmision(transmision)
-    sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
+    sin, con = _ultimo_estudio(ws, 'sin', project, alimentador), _ultimo_estudio(ws, 'con', project, alimentador)
     medidas = []
     for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
         medida = ((datos or {}).get('medidas') or {}).get(alimentador)
@@ -8150,7 +8320,7 @@ def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: 
     from ..mapa_informe import MapaError, rotulo_de_carga, ubicacion_del_cliente
 
     carga = carga_del_informe(ws, project, alimentador, sed)
-    con = _ultimo_estudio(ws, 'con', project)
+    con = _ultimo_estudio(ws, 'con', project, carga['alimentador'])
     geos = (con or {}).get('geo') or {}
     if not geos.get(carga['alimentador']):
         raise UserError(f'No hay un flujo de «Con proyecto» de {alimentador} con su geografía: ejecute '
@@ -8168,24 +8338,24 @@ def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: 
 
 
 def _conclusion_conexion(ws: Workspace, project: str, alimentador: str, actual, con_estudio: dict | None,
-                         lim) -> dict | None:
+                         lim, cargas: dict | None, con_obras: bool = False) -> dict | None:
     """Si la carga se conecta ya, con obras o necesita refuerzo (063:RF-7 a RF-11).
 
     Con el estado actual, el de «Cargas nuevas» (la carga sin obras) y «Con proyecto» solo si
     tiene obras: sin ellas es la misma red que «Cargas nuevas». Sin el flujo de «Cargas
-    nuevas» guardado no se concluye nada aquí.
+    nuevas» guardado no se concluye nada aquí. Con obras y sin el flujo de su corrida, no converge: la
+    conclusión no puede salir de «Cargas nuevas» como si no las hubiera (086:RF-12).
     """
     from dataclasses import asdict
 
     from ..estudios_pf import CON_PROYECTO
     from ..informes import Caso, conclusion_factibilidad
 
-    cargas = _ultimo_estudio(ws, 'cargas', project)
     medida = ((cargas or {}).get('medidas') or {}).get(alimentador)
     if medida is None:
         return None
     con = None
-    if con_estudio and con_estudio.get('obras_activas'):
+    if con_estudio and (con_estudio.get('obras_activas') or (con_obras and not con_estudio.get('_fichero'))):
         con = Caso.desde_medida(CON_PROYECTO, con_estudio['medidas'][alimentador], lim)
     c = conclusion_factibilidad(actual, Caso.desde_medida('Cargas nuevas', medida, lim), con, lim)
     return {**asdict(c), 'estudio_cargas': cargas['_fichero']}
@@ -8233,21 +8403,27 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
             else _perdidas_del_libro(ws, [alimentador])
         if previo and previo['error']:
             raise UserError(f'Libro de pérdidas: {previo["error"]}')
-        preparar_flujos_del_informe(ws, ctx, project, alimentador)                 # 063:RF-1
-    sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
+        lanzada = preparar_flujos_del_informe(ws, ctx, project, alimentador)       # 063:RF-1
+    else:
+        lanzada = None
+    flujos, corrida, avisos = _flujos_del_informe(ws, project, alimentador, ('sin', 'con', 'cargas'),
+                                                  opcionales=('cargas',), token=(lanzada or {}).get('token'))
+    sin, con, cargas_est = flujos['sin'], flujos['con'], flujos['cargas']
     if ctx is not None:
-        for datos in (sin, con):
-            if datos and datos.get('_aviso_flujo'):
-                ctx.log(datos['_aviso_flujo'])
-    for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
-        if datos is None or alimentador not in (datos.get('medidas') or {}):
-            raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: el proyecto no tiene ese '
-                            'caso o su flujo no terminó; vea el Registro.')
+        for aviso in avisos:
+            ctx.log(aviso)
+    # 086:RF-12: lo que su corrida no tiene se entrega sin convergencia y dicho: nunca el anterior ni un
+    # «factible». Sin ninguna corrida ni flujo guardado no hay nada que entregar.
+    if corrida is None:
+        for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
+            if datos is None:
+                raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: el proyecto no tiene ese '
+                                'caso o su flujo no terminó; vea el Registro.')
+    sin, con = sin or _flujo_que_falta(project, alimentador), con or _flujo_que_falta(project, alimentador)
     medida_sin, medida_con = sin['medidas'][alimentador], con['medidas'][alimentador]
     actual = Caso.desde_medida(SIN_PROYECTO, medida_sin, lim)
     proyectado = Caso.desde_medida(CON_PROYECTO, medida_con, lim)
     # 063:RF-7: «Cargas nuevas» es el estado proyectado sin obras.
-    cargas_est = _ultimo_estudio(ws, 'cargas', project)
     sin_obras = (Caso.desde_medida('Cargas nuevas', cargas_est['medidas'][alimentador], lim)
                  if cargas_est and alimentador in (cargas_est.get('medidas') or {}) else None)
 
@@ -8343,7 +8519,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         obras=_obras_del_informe(ws, project, alimentador, sin, con),
         valle=valle_de_la_obra(ws, project, alimentador),
         aviso_cliente=(f'el cliente «{solicitud.cliente}» no parece el de la carga «{carga["sed"]}»: compruebe la solicitud'
-                       if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''))
+                       if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''),
+        avisos=tuple(avisos), corrida=(corrida or {}).get('token'))
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:
@@ -8361,10 +8538,11 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         ctx.log(f'El PDF no se generó: {sin_pdf}. El Word editable sí está.')
     libro_xlsx = _libro_del_informe(ctx, destino, imagenes)                          # 066:RF-1
     _paso_informe(ctx, 3, 'listo')
-    return {'project': project, 'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
+    return {'project': project, 'corrida': (corrida or {}).get('token'),
+            'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim, cargas_est, con_obras),
             'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf, **libro_xlsx,
-            'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
+            'estudios': [f for f in (sin['_fichero'], con['_fichero']) if f], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
             'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'factibilidad', plan)}

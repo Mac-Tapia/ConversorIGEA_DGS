@@ -30,10 +30,12 @@
 
 ## F3 Veracidad, seguridad y producto
 
-- [ ] T10 Reproducir y corregir el informe con flujo de otra corrida, y el que elige el estudio de otro alimentador. (RF-11, RF-12) (`v1/informes`)
+- [x] T10 Reproducir y corregir el informe con flujo de otra corrida, y el que elige el estudio de otro alimentador. (RF-11, RF-12) (`v1/informes`)
   Hecho cuando: con «Con proyecto» fallido, cancelado o agotado, el informe no usa datos viejos sin decirlo; prueba con doble.
-- [ ] T11 «Caso base» al retomar y su huella. (RF-13, RF-14) (`v1/informes`)
+  Evidencia: `tests/test_informe_corrida.py`, con doble; en DIgSILENT, en la R1 (T24).
+- [x] T11 «Caso base» al retomar y su huella. (RF-13, RF-14) (`v1/informes`)
   Hecho cuando: retomar verifica; el guion escribe `caso_base_huella` y la guarda de 081 actúa.
+  Evidencia: `tests/test_sistema_web.py` y `tests/test_huella_caso_base.py`, con `fake_pf`. La huella real sigue abierta en 081 T12 (R3, T26).
 - [ ] T12 Edición de producto: sin suite nocturna, sin entrenar, oculto lo que no se vende. (RF-15, RF-16) (`v1/producto`)
   Hecho cuando: pruebas en las dos ediciones, y comprobación en el navegador real.
 - [ ] T13 Host, Origin, token y escucha. (RF-17, RF-18, RF-19, RF-20) (`v1/seguridad`)
