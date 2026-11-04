@@ -108,6 +108,7 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
       origen: clase === 'enlace' ? v.origen?.trim() || undefined : undefined,
       destino: clase === 'enlace' ? v.destino?.trim() || undefined : undefined,
       nodo: clase === 'migracion' ? v.nodo?.trim() || undefined : undefined,
+      hasta: clase === 'migracion' ? v.hasta?.trim() || undefined : undefined,
     };
     const r = await run(() => api.obraAnadir(ws.id, obra));
     if (r) {
@@ -249,8 +250,9 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
         </>}
         {clase === 'migracion' && <>
           {texto('nodo', 'Nodo desde el que se pasa a la tensión nueva', red, 'nombre de la barra')}
+          {texto('hasta', 'O bien, SED hasta la que pasa solo la troncal', red, 'nombre de la SED o de su barra')}
           {campo('kv_destino', `Tensión nueva (kV)${red?.kv ? `; hoy ${red.kv} kV` : ''}`,
-            'Pasa lo que queda aguas abajo del nodo; se abre el tramo que entra a él.')}
+            'Con nodo, pasa lo que queda aguas abajo y se abre el tramo que entra a él. Con SED, pasan solo los tramos del camino y las SED de sus barras, y se abren los ramales: lo que cuelga queda sin alimentar, y se dice cuánto.')}
         </>}
         {claseTipo && (
           <label className="field span-2">
@@ -299,7 +301,7 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
                 <td className="small">{[o.barra, o.tramo, o.tramos?.join(', '), o.toda_troncal ? 'toda la troncal' : '',
                   o.tipo?.nombre, o.tipo_cable ? `cable ${o.tipo_cable.nombre}` : '', o.cede ? `cede ${o.cede}` : '',
                   o.minima_m != null ? `mínima ${o.minima_m} m` : '', o.origen ? `desde ${o.origen}` : '',
-                  o.destino ? `hasta ${o.destino}` : '', o.nodo ? `desde el nodo ${o.nodo}` : '',
+                  o.destino ? `hasta ${o.destino}` : '', o.nodo ? `desde el nodo ${o.nodo}` : '', o.hasta ? `troncal hasta ${o.hasta}` : '',
                   o.kv_destino != null ? `${o.kv_destino} kV` : ''].filter(Boolean).join(' · ')}</td>
                 <td><button className="btn btn-sm btn-ghost" onClick={() => quitar(o.id)}>Quitar</button></td>
               </tr>

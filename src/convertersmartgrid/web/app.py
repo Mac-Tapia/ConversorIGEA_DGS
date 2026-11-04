@@ -1862,7 +1862,8 @@ def create_app(
             result = services.asistente_orden(ws, body.texto, [j.public() for j in jobs.list(ws.id)])
             ctx.check_cancel()
             plan = result['plan']
-            if plan['listo'] and plan['modo'] != 'consulta' and not plan['escribe']:
+            # 085:RF-31, RF-32: nunca por la confianza del modelo; solo lo que el plan declara que no espera al operador.
+            if plan['listo'] and plan['modo'] != 'consulta' and not plan['espera_confirmacion']:
                 # El trabajo actual aún ocupa el carril. La cola admite el siguiente
                 # paso automático; no se espera a él ni se bloquea a sí misma.
                 result['trabajo'] = jobs.submit(

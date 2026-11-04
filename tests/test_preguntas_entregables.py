@@ -72,7 +72,7 @@ def test_una_pregunta_por_criterio_y_estilo_de_operador(filas):
 
 
 def test_minimos_por_entregable_y_tema(filas):
-    """076:RF-2, RF-17 — 12 y 3 por entregable, 20 y 5 por tema, y repartidas por aspecto."""
+    """076:RF-2, 076:RF-17 — 12 y 3 por entregable, 20 y 5 por tema, y repartidas por aspecto."""
     cuenta = defaultdict(Counter)
     aspectos = defaultdict(set)
     for f in filas:
@@ -506,3 +506,61 @@ def test_importar_del_maestro_queda_como_suya_y_no_humana(tmp_path):
     assert PE.humanas(leidas) == [] and PE.huella(leidas) == huella_antes
     with pytest.raises(PE.HojaError):
         PE.importar(hoja, ruta, 'otro')
+
+
+# ----------------------------------------------------------------- entrada al corpus
+def test_corpus_entra_solo_lo_marcado_si_del_reparto_corpus(filas):
+    """076:RF-29, 076:RF-30 — lo marcado «sí» del reparto `corpus`; lo marcado «no» se queda fuera y sigue en el conjunto."""
+    dentro = PE.filas_al_corpus(filas)
+    assert dentro and all(f['reparto'] == 'corpus' and f['revision']['veredicto'] == 'correcta' for f in dentro)
+    texto = PE.documento_corpus(filas)
+    ids = set(re.findall(r'^## (.+)$', texto, re.M))
+    assert ids == {f['id'] for f in dentro}
+    fuera = [f for f in filas if f['reparto'] == 'corpus' and f['revision']['veredicto'] != 'correcta']
+    assert fuera and not ids & {f['id'] for f in fuera}
+    assert {f['id'] for f in fuera} <= {f['id'] for f in PE.leer_jsonl(PE.DATASET)}, 'sin borrar'
+
+
+def test_corpus_sin_marca_no_entra():
+    """076:RF-30 — una fila sin marca no entra."""
+    fila = {'id': 'x', 'reparto': 'corpus', 'revision': None, 'revisado_por_operador': False}
+    assert PE.filas_al_corpus([fila]) == []
+
+
+def test_corpus_no_lleva_nada_sellado(filas):
+    """076:RF-31 — ninguna fila ni grupo del reparto `sellado`, aunque esté marcado correcto, y sus preguntas no aparecen."""
+    texto = PE.documento_corpus(filas)
+    sellados = [f for f in filas if f['reparto'] == 'sellado']
+    assert any(f['revision']['veredicto'] == 'correcta' for f in sellados)
+    grupos = {f['grupo_parafrasis'] for f in sellados}
+    assert not grupos & {f['grupo_parafrasis'] for f in PE.filas_al_corpus(filas)}
+    assert not [f['id'] for f in sellados if f"Pregunta: {f['pregunta']}" in texto]
+
+
+def test_corpus_no_cuenta_como_humana(filas):
+    """076:RF-32, 068:RF-30 — cada fila dice su origen y que la marcó el maestro; ni humanas ni órdenes confirmadas."""
+    texto = PE.documento_corpus(filas)
+    dentro = PE.filas_al_corpus(filas)
+    assert texto.count('Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.') == len(dentro)
+    assert PE.humanas(dentro) == [] and PE.ordenes_confirmadas(dentro) == []
+
+
+def test_corpus_documento_al_dia_y_determinista(filas, tmp_path):
+    """076:RF-29, 076:RF-33 — el documento del repositorio es el de las marcas; otra marca sin regenerar es un error."""
+    assert PE.errores_de_corpus(filas) == []
+    assert PE.documento_corpus(list(reversed(filas))) == PE.documento_corpus(filas)
+    ruta = tmp_path / 'doc.md'
+    ruta.write_bytes(PE.documento_corpus(filas).encode('utf-8'))
+    assert PE.errores_de_corpus(filas, ruta) == []
+    otra = [dict(f) for f in filas]
+    cambiada = next(f for f in otra if f['reparto'] == 'corpus' and f['revision']['veredicto'] == 'correcta')
+    cambiada['revision'] = {**cambiada['revision'], 'veredicto': 'incorrecta'}
+    assert PE.errores_de_corpus(otra, ruta)
+
+
+def test_corpus_entra_al_ampliado_y_no_al_de_la_047():
+    """076:RF-29, 076:RF-34, 077:RF-47 — está en los ficheros del índice ampliado, no en los del que se sirve hoy."""
+    from convertersmartgrid.asistente import indice
+
+    assert PE.CORPUS_MAESTRO in indice._ficheros_de(RAIZ, indice.CORPUS_AMPLIADO)
+    assert PE.CORPUS_MAESTRO not in indice._ficheros_de(RAIZ, indice.CORPUS_047)

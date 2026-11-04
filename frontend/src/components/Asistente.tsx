@@ -72,6 +72,26 @@ function Modelos() {
   );
 }
 
+/** 085:RF-30: un modelo que no pasa las puertas no se usa en silencio; y volver al anterior está a un clic. */
+function ModeloProvisional() {
+  const { run } = useApp();
+  const [aviso, setAviso] = useState<string | null>(null);
+  const leer = () => run(api.asistenteModelos).then((r) => {
+    if (r) setAviso(r.familias.find((f) => f.provisional)?.provisional?.aviso ?? null);
+  });
+  useEffect(() => { void leer(); }, [run]);
+  if (!aviso) return null;
+  return (
+    <div className="alert alert-warn stack">
+      <p>{aviso}</p>
+      <div className="row">
+        <button className="btn btn-ghost" onClick={() => void run(() => api.volverModelo('asistente')).then(leer)}>
+          Volver al modelo anterior</button>
+      </div>
+    </div>
+  );
+}
+
 function Aceptacion() {
   const { run } = useApp();
   const [estado, setEstado] = useState<EstadoAceptacionAgente | null>(null);
@@ -257,6 +277,7 @@ export function Asistente() {
 
   return (
     <div className="stack">
+      <ModeloProvisional />
       <MonitorAgente />
       <EquipoAsistente />
       <Modelos />
@@ -318,7 +339,7 @@ export function Asistente() {
                 <a key={e} href={api.fileUrl(ws.id, e, true)}>{e} </a>
               ))}</p>
             )}
-            {plan.listo && plan.escribe && !x.trabajo && (
+            {plan.listo && (plan.espera_confirmacion ?? plan.escribe) && !x.trabajo && (
               <div className="row">
                 <button className="btn btn-primary" disabled={plan.guardado?.vigente === false} onClick={() => void confirmar(i, plan.id)}>Confirmar y ejecutar</button>
                 <button className="btn btn-ghost" title="El plan no es lo que pidió: cuenta como penalización para el modelo"

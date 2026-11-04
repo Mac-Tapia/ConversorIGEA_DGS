@@ -13,3 +13,5 @@
   Hecho el 2026-11-03: 423 órdenes válidas (387 de las 48 tareas, 36 «ninguna»), 0 rechazadas; examen 110 órdenes de las 48 tareas, 308 entrenan, 5 descartadas por chocar con lo que mide. Los textos, fuera de git.
 - [ ] T6 Entrenar en la GPU con el corpus nuevo y leer la decisión. (RF-17 a RF-22)
   Hecho cuando: el informe del integrador da las tres cifras con sus denominadores y qué conjunto decidió.
+- [x] T7 Modelo en uso provisional por decisión del usuario, sin aprobarlo: registro, puntero, avisos y herramienta. (RF-26 a RF-33)
+  Hecho cuando: `pytest -q tests/test_modelo_provisional.py` en verde. El usuario lo aplica con `tools/asistente_modelo_provisional.py poner`.

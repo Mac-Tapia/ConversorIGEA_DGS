@@ -62,10 +62,25 @@ algo. Las tres cifras se dan separadas: humanas reales, maestro y sintéticas. L
 
 - RF-25: EL SISTEMA dará en el manifiesto del clasificador de informes cuántos informes de entrenamiento y de prueba llevan cada origen.
 
+### Modelo en uso provisional
+
+El usuario, el 2026-11-04 («has lo recomendado»): el candidato del entrenamiento rechazado es mucho mejor que el modelo en uso (prueba
+sellada 0,860 frente a 0,17; se cuela 0 % frente a 67 %), aunque no pasa las puertas. Se usa pidiendo siempre confirmación, con sus
+cifras a la vista y sin marcarlo aprobado: las puertas no bajan.
+
+- RF-26: CUANDO el usuario decida usar un candidato que no pasa las puertas, EL SISTEMA guardará en el registro quién lo decide, la fecha, el motivo, las cifras del candidato y el modelo anterior.
+- RF-27: SI el candidato no está rechazado por sus puertas, no reabrió en un proceso nuevo o falla su integridad, ENTONCES EL SISTEMA no lo pondrá en uso provisional y dirá por qué.
+- RF-28: EL SISTEMA dejará intacta la decisión de las puertas del candidato, sin darlo por aprobado ni por activo en el registro.
+- RF-29: CUANDO se vuelva al anterior o entre un modelo aprobado, EL SISTEMA dejará de tratar como provisional al modelo que sale.
+- RF-30: MIENTRAS el modelo de órdenes en uso sea provisional, EL SISTEMA dirá «provisional, no pasa las puertas» y sus cifras en la web y en cada plan del asistente.
+- RF-31: EL SISTEMA no ejecutará ninguna tarea que escribe sin la confirmación del operador, sea cual sea la confianza del modelo.
+- RF-32: MIENTRAS el modelo de órdenes en uso sea provisional, EL SISTEMA tampoco lanzará sin confirmación un trabajo de solo lectura.
+- RF-33: EL SISTEMA dará una herramienta para ver, poner y retirar el modelo provisional, que no aplica nada sin el candidato, quien decide y el motivo.
+
 ## Fuera de alcance
 
 Entrenar o usar la GPU; cambiar `ajuste_condicionado.py`, que decide el ajuste del LLM solo con órdenes reales (047:RF-8); cambiar las
-descripciones de `TAREAS_HASTA_069`, las órdenes fijas o las selladas; marcar algo como confirmado por el operador.
+descripciones de `TAREAS_HASTA_069`, las órdenes fijas o las selladas; marcar algo como confirmado por el operador. Bajar una puerta o aprobar un candidato por decisión del usuario: la 085 usa, no aprueba.
 
 ## Limitaciones declaradas
 
@@ -76,3 +91,7 @@ descripciones de `TAREAS_HASTA_069`, las órdenes fijas o las selladas; marcar a
   su tarea.
 - RF-19 es la decisión del usuario del 2026-11-03: que el maestro cumpla el rol que no cubren las órdenes humanas. Si el operador llega a
   200, decide RF-21.
+- RF-32 lee «pidiendo siempre confirmación» también para los trabajos de lectura, que no escriben pero sí ocupan DIgSILENT o la GPU; las
+  consultas al momento siguen respondiendo, porque no ejecutan nada. Con un modelo aprobado, los trabajos de lectura vuelven a lanzarse solos.
+- La prueba sellada de las cifras (`df5e1db88595d378`) ya no era ciega cuando se midió (079) y no decide; el examen del maestro es del
+  mismo autor que su entrenamiento. Son lo que hay para decidir a la vista, no una aprobación.

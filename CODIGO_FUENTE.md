@@ -366,7 +366,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/mcp_conversor.py` | Servidor MCP local, solo stdio y solo lectura, con las tres lecturas del asistente; restringido salvo `--datos-locales`; dependencia opcional. | 077 |
 | `tools/asistente_indice_ampliado.py` | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos. | 077 |
 | `tools/asistente_evaluar_rag.py` | Medición real de la recuperación en la GPU, comprobación del conjunto sin ella con `--solo-conjunto`, calibración de la abstención y su medición sellada única. | 047 (RF-4, RF-27, RF-34, RF-35) |
-| `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable y genera preguntas estocásticas de la web con semilla. | 076 |
+| `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable, genera preguntas estocásticas de la web con semilla y escribe lo marcado «sí» como documento del corpus ampliado. | 076 |
 | `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
 | `src/convertersmartgrid/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
@@ -385,6 +385,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/destilacion_integral.py` | Comparación supervisado/destilado, calibración, prueba sellada, recarga y registro del alumno. | 047 (RF-11 a RF-15) |
 | `src/convertersmartgrid/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |
 | `src/convertersmartgrid/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
+| `tools/asistente_modelo_provisional.py` | Ve, pone y retira un modelo en uso provisional por decisión del usuario, sin aprobarlo ni bajar las puertas. | 085 (RF-26 a RF-33) |
 | `tools/asistente_destilar.py` | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. | 047 (RF-11 a RF-15) |
 | `src/convertersmartgrid/asistente/llm_destilacion.py` | Custodia de referencia, corpus del LLM con entidades reales y objetivos causales de respuesta. | 047 (RF-19, RF-20), 060 (RF-4) |
 | `src/convertersmartgrid/asistente/llm_checkpoint.py` | Comprobaciones de un checkpoint, comunes a entrenar y publicar. | 002 |
@@ -461,7 +462,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/asistente_ordenes_reales.py` | Reúne las órdenes reales de las sesiones y del almacén, crea el libro de revisión e importa solo lo que el operador marque. | 068 (RF-1 a RF-20) |
 | `src/convertersmartgrid/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
 | `src/convertersmartgrid/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
-| `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. | 067 (RF-20 a RF-24) |
+| `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo; y el uso provisional por decisión del usuario, sin aprobar nada. | 067 (RF-20 a RF-24), 085 (RF-26 a RF-30) |
 | `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. | 065 (RF-23), 047 (RF-5 a RF-7) |
 | `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 (RF-5, RF-6, RF-7) |
 | `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 (RF-10 a RF-13) |

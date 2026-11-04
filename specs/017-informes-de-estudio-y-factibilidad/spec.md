@@ -1,6 +1,6 @@
 # Spec 017 — Informes de estudio eléctrico y de factibilidad de suministro
 
-Estado: aprobada (2026-10-15, «continúa con el flujo hasta cerrar los dos informes») · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 («para
+Estado: implementada (2026-10-15, «continúa con el flujo hasta cerrar los dos informes») · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 («para
 cerrar el proyecto, el resultado se plasma en un informe de cada análisis: uno de punto
 de diseño y factibilidad de suministro y otro de análisis de estudios eléctricos»)
 
@@ -215,9 +215,14 @@ el modelo no se incluyen.
   operador (120 mm² en CA101) en los tramos de la troncal que van de la cabecera a la SED
   que indique el operador.
 - RF-42: EL SISTEMA modelará la migración con la tensión que indique el operador (22,9 kV
-  en CA101) solo en la troncal que va de la cabecera a la SED que indique el operador, con
-  lo que cuelga de ella, y no en el alimentador entero. (El usuario, 2026-10-15: «se está
-  migrando según la troncal que va a Casa Blanca», es decir, hasta la SED SE20701.)
+  en CA101) solo en los tramos de la troncal que van de la cabecera a la SED que indique el
+  operador y en las SED de sus barras, y no en el alimentador entero. (El usuario, 2026-10-15:
+  «se está migrando según la troncal que va a Casa Blanca», es decir, hasta la SED SE20701;
+  2026-11-04: lectura A de lo que cuelga, RF-42d.)
+- RF-42d: EL SISTEMA abrirá, en la variación de la obra, los ramales que cuelgan de esos tramos.
+- RF-42e: SI la migración no se puede aplicar entera, ENTONCES EL SISTEMA no dejará nada de ella
+  en el proyecto y dirá el motivo.
+- RF-42f: EL SISTEMA dirá las SED, las barras y la demanda que quedan sin alimentar al abrir los ramales.
 - RF-42b: EL SISTEMA construirá la troncal de RF-41 y RF-42 y la migración por tramos con
   las obras de la spec 016 (troncal y migración aguas abajo de un nodo), que esta spec
   necesita implementadas.
@@ -648,11 +653,14 @@ Resueltas el 2026-10-15:
 - Bancos de «otro modelo ya considerado» (RF-36b a RF-36d): el proyecto anterior de
   DIgSILENT «CA101 13»; se copian a los mismos nodos con las mismas características.
 
-Abiertas (2026-11-03):
+Resueltas el 2026-11-04 por el usuario («has lo recomendado»):
 
-- RF-42 [NECESITA ACLARACIÓN: la migración «solo en la troncal de la cabecera a la SED, con lo
-  que cuelga de ella» ¿pasa a la otra tensión solo los tramos del camino y las SED que cuelgan
-  directamente de sus barras, abriendo los ramales, o todo lo de aguas abajo de un nodo, como la
-  migración de la spec 016 (016:RF-51, RF-64) que cita RF-42b? Con todo lo que cuelga del camino
-  desde la cabecera se migraría el alimentador entero.] El cambio de conductor hasta la SED
-  (RF-41) y la SED que no está (RF-42c) ya funcionan.
+- RF-42, lectura A: la migración hasta la SED pasa de tensión solo los tramos del camino y las SED
+  de sus barras, y abre los ramales que cuelgan (RF-42d). Con todo lo que cuelga, desde la cabecera
+  se migraría el alimentador entero. La migración desde un nodo de la 016 sigue igual.
+- Los 16 RF marcados «no se usa» el 2026-11-03 quedan aceptados como no usados: RF-11, RF-36b,
+  RF-36c, RF-36d, RF-39, RF-40, RF-40b, RF-83, RF-84, RF-85, RF-86, RF-86b, RF-87, RF-88, RF-110 y RF-111.
+
+Limitación declarada de RF-42: una cabecera que alimenta a otros alimentadores no cambia de
+tensión (011:RF-102), así que ahí la obra no se aplica y dice que se migre desde un nodo con enlace
+o se lleve la rama a una SET nueva.

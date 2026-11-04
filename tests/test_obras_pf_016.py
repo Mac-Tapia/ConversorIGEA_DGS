@@ -323,3 +323,93 @@ def test_la_sed_que_no_esta_en_el_alimentador_se_dice():
     for otra in ({'toda_troncal': True}, {'tramos': ['CA_L1']}):
         with pytest.raises(op.ObrasError, match='solo una de las tres'):
             _obra(clase='seccion', alimentador='CA', hasta='X', tipo=AAAC_120, casos=CON, **otra)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_migracion_solo_por_la_troncal_hasta_la_sed(semilla):
+    """017:RF-42, 017:RF-42b, 017:RF-42d, 017:RF-42f — pasan solo los tramos del camino y las SED de sus barras; se abre
+    lo que cuelga, se dice qué queda sin alimentar, y ningún ramal cambia de tensión."""
+    from convertersmartgrid.troncal import arbol, camino_y_ramales
+
+    rng = random.Random(semilla)
+    red = _alimentador(rng, 'CA', 10.0)
+    sed = rng.choice(sorted(red.trafo_barra))
+    barra = red.trafo_barra[sed]
+    camino = [t.nombre for t in arbol(red.topologia, red.cabecera).camino(barra)]
+    obra = _obra(clase='migracion', alimentador='CA', hasta=sed, kv_destino=22.9, casos=CON)
+    assert op.validar_obra(obra.a_dict()) == obra and obra.nodo == ''
+    (fila,) = op.plan_simulacion([obra], {'CA': red}, _tipos(10.0))
+    assert not fila['error'], fila
+    c = camino_y_ramales(red.topologia, red.cabecera, barra)
+    assert set(c.tramos) == set(camino) and red.cabecera in c.barras and barra in c.barras
+    por_cambio = {e['elemento']: e['cambio'] for e in fila['elementos']}
+    assert {e['elemento'] for e in fila['elementos'] if e['clase'] == 'ElmTerm'} == set(c.barras)
+    seds = {t for t, b in red.trafo_barra.items() if b in set(c.barras)}
+    assert {e['elemento'] for e in fila['elementos'] if e['clase'] == 'ElmTr2'} == seds
+    lineas = {e['elemento'] for e in fila['elementos'] if e['clase'] == 'ElmLne'}
+    assert lineas == set(camino) | set(c.ramales)
+    assert all('se abre' in por_cambio[r] for r in c.ramales) and not any('se abre' in por_cambio[t] for t in camino)
+    # Los ramales cuelgan del camino: todo tramo cerrado que lo toca está abierto o es del camino.
+    for t in red.topologia.tramos:
+        if t.desde in c.barras or t.hasta in c.barras:
+            assert t.nombre in camino or t.nombre in c.ramales
+    sin = {t for t, b in red.trafo_barra.items() if b in set(c.fuera)}
+    assert fila['parte']['sin_alimentar'] == {'seds': len(sin), 'barras': len(c.fuera)}
+    assert fila['parte']['seds'] == len(seds) and fila['hasta']['sed'] == sed and fila['kv_destino'] == 22.9
+    if c.ramales:
+        assert any(f'{len(sin)} SED' in a and 'sin alimentar' in a for a in fila['avisos'])
+
+
+def test_migracion_hasta_cambia_los_bancos_de_sus_barras_y_no_los_otros():
+    """017:RF-42 — un banco de media en el camino pasa a la tensión nueva; uno en un ramal o de baja se queda."""
+    from dataclasses import replace
+    from convertersmartgrid.troncal import camino_y_ramales
+
+    red = _alimentador(random.Random(5), 'CA', 10.0)
+    sed = max(red.trafo_barra, key=lambda t: len(camino_y_ramales(red.topologia, red.cabecera, red.trafo_barra[t]).tramos))
+    c = camino_y_ramales(red.topologia, red.cabecera, red.trafo_barra[sed])
+    otra = next((b for b in red.topologia.barras if b not in c.barras), None)
+    bancos = {'EN_CAMINO': 10.0, 'DE_BAJA': 0.38, **({'EN_RAMAL': 10.0} if otra else {})}
+    donde = {'EN_CAMINO': c.barras[0], 'DE_BAJA': c.barras[0], **({'EN_RAMAL': otra} if otra else {})}
+    red = replace(red, condensadores=bancos, banco_barra=donde)
+    (fila,) = op.plan_simulacion([_obra(clase='migracion', alimentador='CA', hasta=sed, kv_destino=22.9, casos=CON)],
+                                 {'CA': red}, _tipos(10.0))
+    assert {e['elemento'] for e in fila['elementos'] if e['clase'] == 'ElmShnt'} == {'EN_CAMINO'}
+
+
+@pytest.mark.parametrize('cambio, texto', [({'hasta': 'SE_OTRA'}, 'SE_OTRA'), ({'kv_destino': 10.0}, 'ya está')])
+def test_migracion_hasta_que_no_se_puede_lo_dice_sin_elementos(cambio, texto):
+    """017:RF-42c, 017:RF-42e — la SED que no está o la misma tensión: no se planifica nada y se dice el motivo."""
+    red = _alimentador(random.Random(9), 'CA', 10.0)
+    datos = {'clase': 'migracion', 'alimentador': 'CA', 'hasta': sorted(red.trafo_barra)[0], 'kv_destino': 22.9, 'casos': CON, **cambio}
+    (fila,) = op.plan_simulacion([_obra(**datos)], {'CA': red}, _tipos(10.0))
+    assert texto in fila['error'] and not fila['elementos'] and not fila.get('variacion')
+
+
+def test_migracion_hasta_con_cabecera_compartida_dice_la_salida():
+    """017:RF-42e — esa barra alimenta a otros: no se migra, y dice por dónde sí."""
+    from dataclasses import replace
+
+    red = replace(_alimentador(random.Random(9), 'CA', 10.0), cabecera_compartida_con=('CB',))
+    (fila,) = op.plan_simulacion([_obra(clase='migracion', alimentador='CA', hasta=sorted(red.trafo_barra)[0], kv_destino=22.9, casos=CON)],
+                                 {'CA': red}, _tipos(10.0))
+    assert 'CB' in fila['error'] and 'SET nueva' in fila['error'] and not fila['elementos']
+
+
+def test_migracion_pide_nodo_o_sed_y_no_los_dos():
+    """017:RF-42 — o desde un nodo (016:RF-51), o hasta una SED."""
+    with pytest.raises(op.ObrasError, match='solo uno de los dos'):
+        _obra(clase='migracion', alimentador='CA', hasta='S', nodo='N', kv_destino=22.9, casos=CON)
+    with pytest.raises(op.ObrasError, match='nodo'):
+        _obra(clase='migracion', alimentador='CA', kv_destino=22.9, casos=CON)
+
+
+def test_informe_dice_lo_que_deja_sin_alimentar():
+    """017:RF-42f, 017:RF-44 — el detalle de obras da los transformadores, los ramales y la demanda que se queda fuera."""
+    from convertersmartgrid.informes import describir_obra, obra_para_informe
+
+    guardada = {'clase': 'migracion', 'alimentador': 'CA', 'hasta': 'SE1', 'kv_destino': 22.9, 'transformadores': 4, 'ramales': 2,
+                'sin_alimentar': {'seds': 7, 'barras': 9, 'kw': 350.0}}
+    texto = describir_obra(obra_para_informe(guardada))
+    assert 'hasta la SED SE1' in texto and '4 transformadores' in texto and '2 ramales' in texto and '7 SED' in texto and 'kW' in texto
+    assert 'ramales' not in describir_obra(obra_para_informe({'clase': 'migracion', 'kv_destino': 22.9, 'transformadores': 4}))

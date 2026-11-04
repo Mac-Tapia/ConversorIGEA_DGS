@@ -44,7 +44,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
   | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | implementada | falta T18 |
-  | 017 Informes de estudio eléctrico y de factibilidad de suministro | aprobada | falta T9, T12, T13, T14, T15, T19 |
+  | 017 Informes de estudio eléctrico y de factibilidad de suministro | implementada | falta T13, T14, T19 |
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |
   | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida |  |
@@ -103,7 +103,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T8, T10 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
-  | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | falta T8 |
+  | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T6, T7 |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | falta T7 |

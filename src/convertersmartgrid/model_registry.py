@@ -192,6 +192,44 @@ class RegistroModelo:
         self._reemplazar_json(self._modelo(modelo) / 'previous.json', activo)
         (self._modelo(modelo) / 'active.json').unlink()
 
+    def validar_uso_provisional(self, modelo: str, candidate_id: str) -> dict[str, Any]:
+        """El detalle íntegro de un candidato rechazado y reabierto, el único que se puede usar sin aprobar (085:RF-27).
+
+        Uno aprobado entra por ``promover``; uno que no reabrió no cargaría, y uno sin datos no se midió."""
+        detalle = self.detalle(modelo, candidate_id)
+        if detalle['decision'].get('status') != EstadoModelo.RECHAZADO.value:
+            raise ValueError(f"el uso provisional es de un candidato rechazado; este está en {detalle['decision'].get('status')}")
+        if detalle['smoke_reload'].get('ok') is not True:
+            raise ValueError('el candidato no reabrió en un proceso nuevo: no se puede poner en uso')
+        return detalle
+
+    def anotar_uso_provisional(self, modelo: str, candidate_id: str, *, version: str, decidido_por: str, motivo: str,
+                               fecha: str, cifras: dict, anterior: str | None) -> dict[str, Any]:
+        """Anota la decisión del usuario junto al candidato, sin tocar su decisión ni ``active.json`` (085:RF-26, RF-28).
+
+        La decisión de las puertas entra en la identidad del candidato: reescribirla como aprobada daría otro
+        candidato, y es justo lo que el usuario no pidió. Esto es otra cosa, y queda aparte, con su autor."""
+        if not str(decidido_por).strip() or not str(motivo).strip() or not str(fecha).strip():
+            raise ValueError('una puesta en uso provisional necesita quién la decide, cuándo y su motivo')
+        self.validar_uso_provisional(modelo, candidate_id)
+        fila = {'decision': 'uso_provisional', 'candidate_id': candidate_id, 'version': version,
+                'decidido_por': str(decidido_por).strip(), 'motivo': str(motivo).strip(), 'fecha': str(fecha).strip(),
+                'cifras': cifras, 'modelo_anterior': anterior, 'puertas_aprobadas': False,
+                'confirmacion_obligatoria': True}
+        ruta = self._modelo(modelo) / 'usos_provisionales.jsonl'
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        with ruta.open('a', encoding='utf-8') as f:
+            f.write(json.dumps(fila, ensure_ascii=False, allow_nan=False) + '\n')
+        return fila
+
+    def uso_provisional(self, modelo: str, candidate_id: str) -> dict[str, Any] | None:
+        """La última decisión de uso provisional de ese candidato (085:RF-26)."""
+        ruta = self._modelo(modelo) / 'usos_provisionales.jsonl'
+        if not ruta.is_file():
+            return None
+        filas = [json.loads(x) for x in ruta.read_text(encoding='utf-8').splitlines() if x.strip()]
+        return next((f for f in reversed(filas) if f.get('candidate_id') == candidate_id), None)
+
     def ultimo(self, modelo: str) -> dict[str, Any] | None:
         """Última decisión; no implica que el candidato esté activo."""
         ruta = self._modelo(modelo) / 'latest.json'
