@@ -352,3 +352,7 @@ Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo d
 ## Resultado de ejemplo (IN111)
 
 En un export concreto con `--source-crs EPSG:32718`, IN111 produjo del orden de ~1,936 `ElmTerm`, ~1,934 `ElmLne`, ~383 `ElmLod`, ~791 `StaSwitch` y cobertura geográfica 100 %. **Esos conteos no son fijos**: dependen del alimentador y de los TXT cargados. El número total de alimentadores también varía por export (puede ser más o menos que en un lote anterior). Artefactos de ejemplo en `output/IN111_CONVERTIDO/`.
+
+## Licencia
+
+El código se publica con licencia [MIT](LICENSE): se puede usar, modificar y reutilizar, también comercialmente, conservando el aviso de la licencia. Las dependencias y Leaflet (`src/convertersmartgrid/recursos/leaflet/LICENSE`) mantienen las suyas, y DIgSILENT PowerFactory necesita su propia licencia. Los datos de una distribuidora no forman parte del repositorio.
