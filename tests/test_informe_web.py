@@ -628,7 +628,7 @@ def test_el_desequilibrado_que_no_cuadra_no_entra_en_el_informe(tmp_path):
     (tmp_path / 'estudio_sin_flujo_desequilibrado_a.json').write_text(
         json.dumps({'medidas': {'AL01': {**_medida(0.90), 'cabecera_kw': 7800.0}}}), encoding='utf-8')
     no = services._ultimo_estudio(ws, 'sin')
-    assert no['_fichero'] == 'estudio_sin_flujo_b.json' and '063:RF-45' in no['_aviso_flujo']
+    assert no['_fichero'] == 'estudio_sin_flujo_b.json' and 'no cuadra' in no['_aviso_flujo']
     assert no['medidas']['AL01']['vm_min_fases'] is None
 
 
