@@ -132,7 +132,7 @@ export function CatalogTab() {
             if (!r) return;
             setWs(r.workspace);
             setApplied(r);
-            toast('ok', 'Catálogo aplicado', `${r.count} código(s). Reconvierta para llevarlo al DGS.`);
+            toast('ok', 'Catálogo aplicado', `${r.count} código(s). ${r.aviso}`);
           }}><span>Soltar .xlsx o <u>elegir</u></span></FileDrop>
           <small className="muted">Solo cuentan las filas con estado «ficha» o «derivado».</small>
         </div>
@@ -141,7 +141,7 @@ export function CatalogTab() {
             <h3>Catálogo activo</h3>
             <p><Pill tone="info">{ws.catalog_file}</Pill></p>
             <button className="btn btn-ghost" onClick={async () => {
-              if (!(await confirm('Quitar catálogo corregido', <p>Las próximas conversiones volverán a usar los valores del export.</p>, 'Quitar', true))) return;
+              if (!(await confirm('Quitar catálogo corregido', <p>La calibración de «Sin proyecto» volverá a usar las fichas del catálogo del proyecto; el DGS no cambia.</p>, 'Quitar', true))) return;
               const r = await run(() => api.catalogClear(ws.id));
               if (r) { setWs(r); setApplied(null); }
             }}>Quitar</button>

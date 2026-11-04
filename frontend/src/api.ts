@@ -177,6 +177,8 @@ export const api = {
       count: number;
       preview_feeder: string | null;
       changes: { line: string; variation_pct: number | null }[];
+      /** 081:RF-70: dónde entran las fichas; lo escribe el servidor, no la pantalla. */
+      aviso: string;
       workspace: WorkspaceState;
     }>(`${ws(id)}/catalog/apply${previewFeeder ? `?preview_feeder=${enc(previewFeeder)}` : ''}`, form(file)),
   catalogClear: (id: string) => request<WorkspaceState>(`${ws(id)}/catalog`, { method: 'DELETE' }),

@@ -181,3 +181,54 @@ def test_con_y_sin_proyecto_sin_datos_lo_dice(ci, con, fc, palabra):
     """072:RF-16 — sin costo, sin el caso con obras o sin factor de carga, no hay resultado inventado."""
     r = ec.evaluar_con_y_sin(ci, {0: 100.0}, con, PLAN, factor_carga=fc, precio_compra_kwh=0.1)
     assert palabra in r['hueco'] and 'van' not in r
+
+
+_INFORME_COYM = {'anios': [
+    {'anio': 0, 'cabeceras_kw': {'F1': 1000.0}, 'vm_min': 0.90, 'problemas': [
+        {'tipo': 'tension', 'elemento': 'B9', 'valor': 0.90, 'limite': 0.95, 'causa': 'caida_de_tension',
+         'evidencia': 'e', 'kv': 10.0, 'alimentador': 'F1'}]},
+    {'anio': 4, 'cabeceras_kw': {'F1': 1170.0}, 'vm_min': 0.88, 'problemas': [
+        {'tipo': 'tension', 'elemento': 'B9', 'valor': 0.88, 'limite': 0.95, 'causa': 'caida_de_tension',
+         'evidencia': 'e', 'kv': 10.0, 'alimentador': 'F1'}]}]}
+_PLAN_COYM = {**PLAN, 'anios_pide': [4, 5, 6, 7], 'pesos_art_15_3': {'subsanacion_calidad': 1}}
+_COSTOS_COYM = {'bancos': {'costo_unitario': 3500.0, 'unidad': 'Und', 'obras': 1, 'denominacion': 'Banco'}}
+
+
+def _col(filas, formato, campo='COyM US$'):
+    return filas[formato][0][FORMATOS[formato].index(campo)]
+
+
+def test_el_coym_del_perfil_llega_a_f10_f11_y_f12():
+    """072:RF-22 — con el COyM del perfil en % de la inversión, F10 a F12 lo escriben y el costo anual lo suma.
+
+    Antes la propuesta pasaba siempre ``coym_anual=None``: la columna quedaba vacía aunque el perfil lo diera.
+    """
+    p = ec.propuesta_pide(_INFORME_COYM, _PLAN_COYM, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0}, coym_pct_anual=2.0)
+    banco = next(o for o in p['obras'] if o['alternativa'] == 'bancos')
+    assert banco['regulada']['coym'] == pytest.approx(70.0)
+    assert banco['regulada']['costo_anual'] == pytest.approx(banco['regulada']['anualidad'] + 70.0)
+    f = p['formatos']
+    fila = next(r for r in f['F12 Propuesta proyecto'] if r[3] == banco['codigo'])
+    assert fila[FORMATOS['F12 Propuesta proyecto'].index('COyM US$')] == pytest.approx(70.0)
+    assert _col(f, 'F10 Propuesta empresa') == pytest.approx(70.0)
+    assert _col(f, 'F11 Propuesta sistema') == pytest.approx(70.0)
+    assert not [h for h in huecos_de(f) if h['campo'] == 'COyM US$']
+
+
+@pytest.mark.parametrize('costos, pct', [(_COSTOS_COYM, None), ({}, 2.0)])
+def test_sin_coym_del_perfil_queda_el_hueco_nombrado(costos, pct):
+    """072:RF-22, 072:RF-16 — sin el dato del perfil, o sin inversión, el COyM queda vacío, no en 0."""
+    p = ec.propuesta_pide(_INFORME_COYM, _PLAN_COYM, costos=costos, bancos_kvar={10.0: 300.0}, coym_pct_anual=pct)
+    assert p['obras'] and all(o['regulada']['coym'] is None for o in p['obras'])
+    huecos = [h for h in huecos_de(p['formatos']) if h['campo'] == 'COyM US$']
+    assert huecos and huecos[0]['motivo'] == MOTIVO_DEL_CAMPO['COyM US$']
+
+
+def test_el_coym_de_un_grupo_no_se_suma_a_medias():
+    """072:RF-22 — si una obra del grupo no trae COyM, el del grupo queda vacío: una suma parcial engañaría."""
+    con = _obra()
+    con['regulada'] = {**con['regulada'], 'coym': 20.0}
+    sin = _obra('AL02')
+    assert _col(filas_de_obras([con, sin], [], {'F1': 'SE1'}), 'F10 Propuesta empresa') is None
+    sin['regulada'] = {**sin['regulada'], 'coym': 30.0}
+    assert _col(filas_de_obras([con, sin], [], {'F1': 'SE1'}), 'F10 Propuesta empresa') == pytest.approx(50.0)

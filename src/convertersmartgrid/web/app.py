@@ -2305,7 +2305,7 @@ def create_app(
         finally:
             _limpiar_upload(tmp)
         ws.events.append('log', {'text': f"Catálogo corregido aplicado: {result['count']} código(s). "
-                                         'Reconvierta para llevarlo al DGS.'})
+                                         f"{result['aviso']}"})
         return {**result, 'workspace': ws.public()}
 
     @app.delete('/api/workspaces/{wid}/catalog')

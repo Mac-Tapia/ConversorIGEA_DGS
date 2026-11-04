@@ -134,7 +134,8 @@ def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[s
     # Tras la clave de tres campos van usuarios, demanda, energía, inversión, anualidad, COyM y costo anual.
     f['F11 Propuesta sistema'] = [[*fila[:3], *fila[6:]] for fila in por_sistema]
     f['F12 Propuesta proyecto'] = [[sistema_de.get(o['alimentador']), o['anio'], o['rubro'], o['codigo'], _proyecto(o),
-                                    o['ci'] or None, _si_hay_costo(o, 'anualidad'), None, _si_hay_costo(o, 'costo_anual')]
+                                    o['ci'] or None, _si_hay_costo(o, 'anualidad'), _si_hay_costo(o, 'coym'),
+                                    _si_hay_costo(o, 'costo_anual')]
                                    for o in cartera]
     f['F13 Detalle de costos'] = [[sistema_de.get(o['alimentador']), o['anio'], o['rubro'], o['codigo'], _proyecto(o),
                                    *[None] * 9, o['ci'] or None] for o in cartera]
@@ -160,18 +161,22 @@ def _por_grupo(obras: Iterable[Mapping[str, Any]], clave) -> list[list]:
     """Filas de F10: la clave, y usuarios, demanda, energía, inversión, anualidad, COyM y costo anual."""
     grupos: dict[tuple, dict[str, list]] = {}
     for o in obras:
-        g = grupos.setdefault(clave(o), {'kw': [], 'kwh': [], 'ci': [], 'anu': [], 'costo': []})
+        g = grupos.setdefault(clave(o), {'kw': [], 'kwh': [], 'ci': [], 'anu': [], 'coym': [], 'costo': []})
         g['kw'].append(o.get('kw_nuevos') or 0.0)
         g['kwh'].append(o.get('energia_kwh') or 0.0)
         if o['ci']:
             g['ci'].append(o['ci'])
             g['anu'].append(_si_hay_costo(o, 'anualidad') or 0.0)
+            # 072:RF-22: el COyM del grupo solo si todas sus obras con inversión lo traen: una suma
+            # parcial se leería como el COyM del grupo entero.
+            g['coym'].append(_si_hay_costo(o, 'coym'))
             g['costo'].append(_si_hay_costo(o, 'costo_anual') or 0.0)
     filas = []
     for k, g in sorted(grupos.items(), key=lambda x: tuple(str(v) for v in x[0])):
         ci = sum(g['ci']) or None
+        coym = sum(g['coym']) if ci and None not in g['coym'] else None
         filas.append([*k, None, sum(g['kw']) or None, sum(g['kwh']) or None, ci,
-                      sum(g['anu']) if ci else None, None, sum(g['costo']) if ci else None])
+                      sum(g['anu']) if ci else None, coym, sum(g['costo']) if ci else None])
     return filas
 
 

@@ -4636,6 +4636,13 @@ def build_catalog(ws: Workspace, ctx: JobContext, feeders: list[str] | None) -> 
     }
 
 
+#: 081:RF-70: lo que hace el catálogo subido. Decía «Reconvierta para llevarlo al DGS», pero el DGS escribe
+#: los parámetros de la entrada (032:RF-2: ``Reglas.aplicar_fichas`` queda en False) y las fichas entran al
+#: calibrar «Sin proyecto» (032:RF-14): el operador reconvertía y el DGS seguía igual.
+AVISO_CATALOGO_APLICADO = ('Sus fichas se aplicarán al calibrar «Sin proyecto»; el DGS del «Caso base» '
+                           'conserva los parámetros de la entrada (032:RF-2, RF-14).')
+
+
 def apply_catalog(ws: Workspace, upload: Path, preview_feeder: str | None) -> dict:
     from ..catalog import CatalogError, aplicar_correcciones, leer_catalogo
 
@@ -4657,13 +4664,13 @@ def apply_catalog(ws: Workspace, upload: Path, preview_feeder: str | None) -> di
         ws.save()
     changes: list[dict] = []
     if preview_feeder and ws.dataset is not None:
-        # Vista previa sobre un modelo desechable: el efecto real ocurre al convertir.
+        # Vista previa sobre un modelo desechable: el efecto real ocurre al calibrar «Sin proyecto».
         model = build_model(ws, preview_feeder, geography=False)
         for c in aplicar_correcciones(model, corrections):
             changes.append({'line': c.linea(), 'variation_pct': c.variacion_pct,
                             'code': c.codigo, 'attribute': c.atributo_pf})
     return {'codes': sorted(corrections), 'count': len(corrections),
-            'preview_feeder': preview_feeder, 'changes': changes}
+            'preview_feeder': preview_feeder, 'changes': changes, 'aviso': AVISO_CATALOGO_APLICADO}
 
 
 def clear_catalog(ws: Workspace) -> None:
@@ -4915,7 +4922,9 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     propuesta = propuesta_pide(informe, plan_pide, costos=costos,
                                bancos_kvar=bancos_kvar_por_tension(perfil),
                                factor_carga=plan_pide.get('factor_carga'),
-                               precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
+                               precio_compra_kwh=plan_pide.get('precio_compra_kwh'),
+                               # 072:RF-22: el COyM del perfil, el mismo dato de la escalera (025:RF-53).
+                               coym_pct_anual=(perfil.get('escalera') or {}).get('coym_pct_anual'))
     avisos += propuesta['avisos']
     avisos += _pide_optimizar(project, propuesta['obras'], limites, perfil, plan_pide, costos, ctx)
     implementadas: list[dict] = []

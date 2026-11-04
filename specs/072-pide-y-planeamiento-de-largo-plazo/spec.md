@@ -66,6 +66,10 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-15: EL SISTEMA generará metrados desde la red de cada proyecto; sin metrado no habrá costo supuesto.
 - RF-16: SI un dato del entregable falta, ENTONCES EL SISTEMA dejará el hueco nombrado, sin inventarlo.
 - RF-17: EL SISTEMA tomará de un perfil de empresa todo lo propio de cada distribuidora; una fuente no alimenta a otra.
+- RF-22: DONDE el perfil dé el COyM en % de la inversión (`escalera.coym_pct_anual`, el mismo dato de 025:RF-53), EL SISTEMA lo
+  sumará al costo anual de cada obra con inversión conocida (024:RF-58) y lo escribirá en F10, F11 y F12; un grupo con alguna obra
+  sin COyM queda vacío, con su hueco nombrado (RF-16). (Revisión de la 076, fila `formatos_pide-012`, 2026-11-03: la propuesta
+  pasaba siempre el COyM vacío y la columna quedaba en blanco aunque el perfil lo diera.)
 
 ### Asistente
 

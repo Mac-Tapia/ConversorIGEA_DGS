@@ -444,7 +444,8 @@ def _obra_011(alternativa: str, alimentador: str | None, elemento: str, kv: floa
 def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                    costos: Mapping[str, Mapping[str, Any]], bancos_kvar: Mapping[float, float] | None,
                    factor_carga: float | None = None, precio_compra_kwh: float | None = None,
-                   valle: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, Any]:
+                   valle: Mapping[str, Mapping[str, Any]] | None = None,
+                   coym_pct_anual: float | None = None) -> dict[str, Any]:
     """Del diagnóstico año a año a las obras priorizadas, con su evaluación (RF-45, RF-52,
     RF-57 a RF-59), su obra de la spec 011 si se puede construir sola (RF-47) y las filas
     de los formatos (RF-63).
@@ -453,6 +454,10 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
     ``por_alternativa`` para las obras que no son bancos. El módulo que se propone sigue siendo uno,
     y nunca más de los que admite; sin dato, «no comprobado en valle». Una obra que se midió y no
     cumple en valle queda descartada.
+
+    072:RF-22: ``coym_pct_anual`` es el COyM del perfil en % de la inversión, el mismo dato que usa la
+    escalera (025:RF-53). Antes se pasaba siempre None y F10 a F12 salían sin COyM aunque el perfil lo
+    diera; sin inversión conocida, el COyM tampoco se conoce y queda vacío.
     """
     from .pide import (
         ALTERNATIVAS_POR_CAUSA,
@@ -506,7 +511,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
             kw = 0.0
             if o.rubro == 'ampliacion_reforzamiento' and alimentador:
                 kw = max(0.0, (cab_obra.get(alimentador) or 0) - (cab0.get(alimentador) or 0))
-            ev = evaluar(ci, kw_nuevos=kw, usuarios=0, km=0, coym_anual=None, cp_anual=None, plan=plan,
+            coym = ci * float(coym_pct_anual) / 100 if coym_pct_anual is not None and ci else None
+            ev = evaluar(ci, kw_nuevos=kw, usuarios=0, km=0, coym_anual=coym, cp_anual=None, plan=plan,
                          factor_carga=factor_carga, precio_compra_kwh=precio_compra_kwh,
                          opcion=str(plan.get('opcion_tarifaria_mt') or 'MT3'))
             criterios = {'subsanacion_calidad': 1.0 if o.causa in CAUSAS_DE_CALIDAD else 0.0,
