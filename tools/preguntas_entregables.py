@@ -1,7 +1,8 @@
 """Preguntas de metodología y criterios por entregable: comprueba, reparte, exporta, importa y sortea (spec 076).
 
 Subórdenes: `verificar` (fuentes, cifras, nombres y hechos), `exportar` (hoja de revisión en `output/`), `importar`
-(marcas del operador), `informe` (por entregable), `generar` (preguntas estocásticas de la web) y `cobertura`.
+(marcas del operador), `informe` (por entregable), `generar` (preguntas estocásticas de la web), `cobertura` y `corpus`
+(lo marcado «sí» del reparto `corpus`, como documento del corpus ampliado del RAG).
 Una fila, marcada o no, nunca es una orden confirmada del operador (068:RF-30). Sin DIgSILENT, sin GPU y sin datos
 de la distribuidora.
 """
@@ -29,6 +30,9 @@ HECHOS = DOCS / 'hechos_web.jsonl'
 REGLAS = DOCS / 'reglas_operador_sin_codigo.jsonl'
 HUECOS = DOCS / 'preguntas_entregables_huecos.json'
 INFORME = DOCS / 'preguntas_entregables_informe.md'
+#: Fuera de `docs/asistente/`, que la lectura local veda porque mezcla los dos repartos; aquí no hay ninguna fila sellada,
+#: y como `docs/*.md` lo recoge el corpus ampliado (077) sin que `src/` conozca este conjunto (076:RF-16, RF-29).
+CORPUS_MAESTRO = RAIZ / 'docs' / 'PREGUNTAS_MAESTRO_076.md'
 HOJA = RAIZ / 'output' / 'preguntas_entregables_revision.xlsx'
 #: Todas las líneas citadas son de esta revisión: el árbol se mueve y la cita no (076:RF-4).
 REVISION = '10fd3e1d29822d326be088e38c5a90f438e76d5e'
@@ -564,6 +568,38 @@ def informe_md(filas: Sequence[Mapping[str, Any]], datos: Mapping[str, Any]) -> 
     return '\n'.join(t)
 
 
+# ----------------------------------------------------------------------- corpus
+def filas_al_corpus(filas: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """Lo que entra al corpus: reparto `corpus` y marcado «sí» (076:RF-29, RF-30, RF-31). Lo demás sigue en el conjunto, sin borrar."""
+    return sorted((f for f in filas if f.get('reparto') == 'corpus'
+                   and (f.get('revision') or {}).get('veredicto') == 'correcta'), key=lambda f: f['id'])
+
+
+def _quien_marco(f: Mapping[str, Any]) -> str:
+    """Quién marcó la fila, sin ascender nunca al maestro a humano (076:RF-32, 068:RF-30)."""
+    return 'operador' if f.get('revisado_por_operador') is True else 'maestro, no es una revisión humana'
+
+
+def documento_corpus(filas: Iterable[Mapping[str, Any]]) -> str:
+    """El documento que indexa el corpus ampliado; con las mismas filas, los mismos bytes (076:RF-29, RF-32)."""
+    t = ['# Preguntas del maestro marcadas como correctas (spec 076)', '',
+         'Generado con `tools/preguntas_entregables.py corpus`. No editar a mano.', '',
+         f'Decisión del usuario del 2026-11-04. Escritas y marcadas por el maestro contra el código de la revisión `{REVISION[:8]}`: '
+         'no son órdenes del operador ni cuentan como humanas. Si una contradice al código, manda el código.', '']
+    for f in filas_al_corpus(filas):
+        t += [f"## {f['id']}", '', f"Pregunta: {f['pregunta']}", '', f"Respuesta: {f['respuesta_esperada']}", '']
+        fuentes = ', '.join(f"{s['fichero']}:{s['linea']}" for s in f.get('fuentes') or [])
+        t += [f'Fuentes: {fuentes or "ninguna: lo preguntado no está en el repositorio"}.',
+              f"Origen: {f['origen']}. Marcó: {_quien_marco(f)}.", '']
+    return '\n'.join(t)
+
+
+def errores_de_corpus(filas: Sequence[Mapping[str, Any]], ruta: Path = CORPUS_MAESTRO) -> list[str]:
+    """El documento dice lo que dicen las marcas; una marca nueva sin regenerarlo se ve aquí (076:RF-33)."""
+    actual = ruta.read_bytes().decode('utf-8').replace('\r\n', '\n') if ruta.is_file() else None
+    return [] if actual == documento_corpus(filas) else [f'{ruta.name}: no coincide con las marcas; ejecute `corpus`']
+
+
 # ----------------------------------------------------------------------- órdenes
 def _verificar() -> int:
     filas, hechos, reglas = leer_jsonl(DATASET), leer_jsonl(HECHOS), leer_jsonl(REGLAS)
@@ -572,6 +608,7 @@ def _verificar() -> int:
     errores += errores_de_nombres(filas + hechos + reglas, nombres_del_perfil(), PATRONES_REALES, frozenset())
     reparto = repartir(filas)
     errores += [f"{f['id']}: reparto" for f in filas if reparto[f['id']] != f['reparto']]
+    errores += errores_de_corpus(filas)
     for e in errores:
         print(e)
     print(f'{len(filas)} filas, {len(hechos)} hechos, {len(reglas)} reglas sin código: {len(errores)} error(es).')
@@ -598,6 +635,7 @@ def _parser() -> argparse.ArgumentParser:
     i.add_argument('--dataset', type=Path, default=DATASET)
     i.add_argument('--revisor', choices=REVISORES, default='operador', help='quién marcó la hoja (076:RF-28)')
     sub.add_parser('informe', help='reescribe el informe por entregable')
+    sub.add_parser('corpus', help='reescribe el documento de lo marcado «sí», que indexa el corpus ampliado')
     g = sub.add_parser('generar', help='preguntas estocásticas de la web, deterministas con la semilla')
     g.add_argument('--semilla', type=int, required=True)
     g.add_argument('--cuantas', type=int, required=True)
@@ -629,6 +667,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         texto = informe_md(leer_jsonl(DATASET), json.loads(HUECOS.read_text(encoding='utf-8')))
         INFORME.write_bytes(texto.encode('utf-8'))
         print(INFORME)
+        return 0
+    if a.orden == 'corpus':
+        CORPUS_MAESTRO.write_bytes(documento_corpus(leer_jsonl(DATASET)).encode('utf-8'))
+        print(CORPUS_MAESTRO)
         return 0
     _cargar_src()
     hechos = leer_jsonl(HECHOS)

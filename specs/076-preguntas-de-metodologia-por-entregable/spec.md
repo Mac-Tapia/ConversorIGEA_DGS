@@ -1,6 +1,6 @@
 # Spec 076 — Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web
 
-Estado: aprobada · Fecha: 2026-11-02 · Origen: petición del usuario
+Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
@@ -38,6 +38,8 @@ El operador que revisa la hoja, el usuario que decide cómo se usa y quien mida 
   `regla_operador_sin_codigo` para revisar, sin darla por hecha.
 - RF-15: EL SISTEMA anotará cada contradicción entre la documentación y el código con sus dos fuentes; manda el código.
 - RF-16: EL SISTEMA no llevará este conjunto al índice del RAG ni a ningún entrenamiento, y no tocará los conjuntos sellados del RAG.
+- Aclaración de RF-16 (el usuario, 2026-11-04, «si entran»): lo marcado «sí» entra al corpus ampliado por RF-29 a RF-34. El resto de RF-16 sigue:
+  ningún entrenamiento, ningún conjunto sellado tocado, y `src/` no lee este conjunto.
 - RF-17: EL SISTEMA tendrá los temas `flujo_conversor`, `arquitectura`, `estudios`, `tipos_de_informe` y `operacion_web`.
 - RF-18: EL SISTEMA no tendrá preguntas que comparen o mezclen las fuentes TXT, MDB y VNR-GIS.
 - RF-26: MIENTRAS «bancos y valle» (073) no esté en la rama, EL SISTEMA no tendrá filas de ese entregable y lo dará como pendiente.
@@ -52,6 +54,15 @@ El operador que revisa la hoja, el usuario que decide cómo se usa y quien mida 
   el operador ni como humana.
 - RF-12: EL SISTEMA no contará una fila sin marca como humana, y ninguna fila contará como orden confirmada del operador (068:RF-30).
 - RF-13: CUANDO se pida `informe`, EL SISTEMA dará por entregable sus filas, con y sin respuesta, y sus huecos.
+
+### Entrada al corpus del RAG
+
+- RF-29: CUANDO se pida `corpus`, EL SISTEMA escribirá un documento con las filas del reparto `corpus` marcadas correctas, que indexa el corpus ampliado (077).
+- RF-30: EL SISTEMA dejará fuera de ese documento las filas marcadas incorrectas y las sin marca, sin borrarlas del conjunto.
+- RF-31: EL SISTEMA no pondrá en ese documento ninguna fila ni ningún grupo de paráfrasis del reparto `sellado`, aunque esté marcado correcto.
+- RF-32: EL SISTEMA dirá en ese documento el origen de cada fila y quién la marcó, y una fila del maestro no contará como humana.
+- RF-33: SI ese documento no coincide con las marcas del conjunto, ENTONCES `verificar` lo dirá como error.
+- RF-34: EL SISTEMA no llevará ese documento al corpus de la 047, el que se sirve hoy con sus umbrales medidos.
 
 ### Operación de la web y preguntas estocásticas
 
@@ -76,8 +87,14 @@ que la fila hay que revisarla. Git en Windows puede sacar CRLF: la huella se cal
 
 ## Fuera de alcance
 
-Integrarlo en el RAG o entrenar con él, que decide el usuario al revisar. Corregir lo que el conjunto halle en el código o en la
+Entrenar con él. Integrar el reparto `sellado` en el RAG. Corregir lo que el conjunto halle en el código o en la
 documentación: se anota. Comprobar la web en un navegador. Las filas de «bancos y valle».
+
+## Limitaciones declaradas
+
+- Las filas que entran comparten pregunta con el conjunto de calibración de la 077, formado del mismo reparto, y una medición nueva del corpus ampliado
+  con ese conjunto saldría optimista: antes de medirlo hay que formar otros conjuntos. La medición sellada que ya existe es del corpus sin estas filas.
+- El corpus ampliado no se sirve hasta pasar su medición (077:RF-47): hasta entonces, estas filas están en el índice ampliado y no en las respuestas de la web.
 
 ## Criterios de finalización
 

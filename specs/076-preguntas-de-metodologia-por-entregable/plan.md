@@ -8,7 +8,12 @@
 - `tools/preguntas_entregables.py`: `verificar`, `exportar`, `importar`, `informe`, `generar`, `cobertura`. (RF-4, RF-5, RF-8 a RF-13, RF-20 a RF-24)
 - `tests/test_preguntas_entregables.py`: huella, fuentes, cifras, nombres, reparto, hoja y generador.
 
+- `docs/PREGUNTAS_MAESTRO_076.md`: lo marcado «sí» del reparto `corpus`; lo genera `corpus`, y `docs/*.md` ya entra al corpus ampliado. (RF-29 a RF-34)
+
 Decisiones:
+
+- Lo marcado entra como un documento generado, sin que `src/` lea el conjunto. Alternativas descartadas: que `corpus_proyecto.py` leyera el conjunto, que
+  mezcla los dos repartos y está vedado a la lectura local; y el corpus de la 047, cuyos umbrales sellados se medirían sobre otro índice.
 
 - La huella es del contenido canónico sin los campos de revisión. Alternativa descartada: la de los bytes del fichero, que cambiaría
   al importar la hoja y al sacar CRLF.

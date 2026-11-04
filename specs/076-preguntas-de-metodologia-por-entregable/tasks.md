@@ -16,5 +16,7 @@
       443 filas marcadas contra el código, con `importar --revisor maestro`; la decisión de uso sigue en T8.
 - [x] T7 La marca del maestro queda como suya y no como humana. (RF-28)
       Hecho cuando: `pytest -q tests/test_preguntas_entregables.py -k maestro` en verde.
-- [ ] T8 Decisión del usuario sobre si el conjunto marcado entra al corpus del RAG o a un entrenamiento. (RF-16)
+- [x] T8 Decisión del usuario sobre si el conjunto marcado entra al corpus del RAG o a un entrenamiento. (RF-16, RF-29 a RF-34)
       Hecho cuando: el usuario lo decide; mientras tanto el conjunto no entra en ninguno.
+      Hecho el 2026-11-04: «si entran». `corpus` escribe `docs/PREGUNTAS_MAESTRO_076.md` con las 266 filas del reparto `corpus` marcadas «sí»;
+      quedan fuera, sin borrar, las 57 marcadas «no» y las 120 selladas. `pytest -q tests/test_preguntas_entregables.py -k corpus` en verde.

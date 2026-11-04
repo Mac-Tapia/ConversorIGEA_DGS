@@ -366,7 +366,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/mcp_conversor.py` | Servidor MCP local, solo stdio y solo lectura, con las tres lecturas del asistente; restringido salvo `--datos-locales`; dependencia opcional. | 077 |
 | `tools/asistente_indice_ampliado.py` | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos. | 077 |
 | `tools/asistente_evaluar_rag.py` | Medición real de la recuperación en la GPU, comprobación del conjunto sin ella con `--solo-conjunto`, calibración de la abstención y su medición sellada única. | 047 (RF-4, RF-27, RF-34, RF-35) |
-| `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable y genera preguntas estocásticas de la web con semilla. | 076 |
+| `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable, genera preguntas estocásticas de la web con semilla y escribe lo marcado «sí» como documento del corpus ampliado. | 076 |
 | `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
 | `src/convertersmartgrid/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
