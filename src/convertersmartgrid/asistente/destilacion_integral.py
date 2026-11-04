@@ -24,6 +24,7 @@ from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de
 from .sinteticos import Ejemplo, expandir
 from .tareas import TAREAS, TAREAS_HASTA_069
 from . import ordenes_maestro as ordenes_maestro_085
+from ..runtime_paths import raiz_programa
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
@@ -854,7 +855,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     (final / 'readback.json').write_text(json.dumps({'textos': textos, 'predicciones': esperado}, ensure_ascii=False), encoding='utf-8')
     del modelo
     tr.modulo_torch().cuda.empty_cache()
-    herramienta = Path(__file__).resolve().parents[3] / 'tools/asistente_destilar.py'
+    herramienta = raiz_programa() / 'tools/asistente_destilar.py'
     # Abrir el codificador tardó hasta 70 s con el equipo ocupado (2026-11-02): 120 s se quedaban justos.
     smoke = reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--modelo', str(final.resolve())], timeout_s=300.)
     if not smoke['ok']:

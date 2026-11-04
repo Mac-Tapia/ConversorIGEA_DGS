@@ -360,6 +360,7 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from ..registro_rotativo import configurar_registro
     from ..runtime_paths import configurar_entorno
 
     configurar_entorno()
@@ -376,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 1
     preparar_entorno_sin_red()                                             # 086:RF-22
+    configurar_registro('web')                                             # 086:RF-41
 
     # En Windows, con la salida redirigida (servicio, .bat > log), la consola es cp1252
     # y cualquier carácter fuera de ella tumbaba el arranque antes de servir nada.
@@ -436,9 +438,11 @@ def main(argv: list[str] | None = None) -> int:
                         reload=True, log_level='info')
         else:
             # proxy_headers: sin proxy delante, un X-Forwarded-For local falsearía quién pide (086:RF-20).
-            servidor = uvicorn.Server(uvicorn.Config(
+            configuracion = uvicorn.Config(
                 'convertersmartgrid.web.app:create_app', factory=True, host=args.host, port=port,
-                log_level='info', proxy_headers=False, server_header=False))
+                log_level='info', proxy_headers=False, server_header=False)
+            configurar_registro('web')                     # crear la Config quita los manejadores de uvicorn
+            servidor = uvicorn.Server(configuracion)
             # Con el servidor a mano, el cierre que pide el lanzador es el mismo que Ctrl+C:
             # termina las peticiones y cancela los trabajos limpio (RF-29).
             al_pedir_cierre(lambda: setattr(servidor, 'should_exit', True))

@@ -397,13 +397,16 @@ Cada procedimiento dice qué hace falta antes, los pasos y cómo se sabe que sal
 
 ## P1. Preparar el equipo
 
+Este procedimiento es para un árbol de desarrollo. Para instalar el programa en el puesto de un operador, vea el
+[Manual de instalación](MANUAL_INSTALACION.md).
+
 **Antes:** Windows con DIgSILENT PowerFactory 2024 y su intérprete Python 3.12.
 
 1. Crear el entorno con **Python 3.12 exacto** (la API de PowerFactory 2024 solo carga en 3.12):
    `py -3.12 -m venv .venv`.
 2. Instalar: `.venv\Scripts\python.exe -m pip install -r requirements.txt`. Para VNR-GIS, además
    `pip install -r requirements-drivers.txt`.
-3. Compilar el front una vez: `cd frontend && npm install && npm run build`.
+3. Compilar el front una vez: `cd frontend && npm ci && npm run build`.
 4. Copiar o crear `config/perfil_empresa.json` con el perfil de la empresa (§8).
 
 **Salió bien si** `.venv\Scripts\python.exe -m pytest -q` termina sin fallos.
@@ -505,8 +508,8 @@ Con la web abierta, `tools/sistema_web.py` hace lo mismo que el operador en la w
 importa y calibra, y retoma lo ya hecho.
 
 ```bat
-> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-09
-> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --red NA203 NA205 --grupo NA203_NA205 --demanda-dir referencia --periodo 2026-09 --criterio-fijas coincidente
+> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir D:\ruta\de\la\demanda --periodo 2026-09
+> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --red NA203 NA205 --grupo NA203_NA205 --demanda-dir D:\ruta\de\la\demanda --periodo 2026-09 --criterio-fijas coincidente
 ```
 
 Las opciones están en el [Manual de comandos](MANUAL_COMANDOS.md).

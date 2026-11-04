@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api';
+import { AcercaDe } from './components/AcercaDe';
 import { Ctx, type AppCtx } from './context';
 import { betaActiva } from './edicion';
 import { Asistente } from './components/Asistente';
@@ -208,7 +209,7 @@ export default function App() {
             <span className="logo" aria-hidden>⚡</span>
             <div>
               <h1>ConverterSmartGrid</h1>
-              <span className="muted small">DIgSILENT PowerFactory · v{health.version}</span>
+              <span className="muted small">DIgSILENT PowerFactory · <AcercaDe version={health.version} /></span>
             </div>
           </div>
           <div className="caps">

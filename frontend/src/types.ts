@@ -222,6 +222,7 @@ export interface PerfilEmpresa {
 }
 
 export type Health = components['schemas']['HealthRespuesta'];
+export type Diagnostico = components['schemas']['DiagnosticoRespuesta'];
 export type ResumenEspacio = components['schemas']['ResumenEspacioRespuesta'];
 
 export interface PowerFactoryStatus {

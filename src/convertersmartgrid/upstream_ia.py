@@ -13,7 +13,9 @@ import stat
 import subprocess
 from collections.abc import Mapping
 
-RAIZ = Path(__file__).resolve().parents[2]
+from .runtime_paths import raiz_programa
+
+RAIZ = raiz_programa()
 
 
 def _git(argumentos: list[str], *, cwd: Path | None = None) -> bytes:

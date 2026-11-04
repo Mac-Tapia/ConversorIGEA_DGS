@@ -121,7 +121,11 @@ def ruta_perfil_activo() -> Path:
     import os
 
     otra = os.environ.get(VARIABLE_RUTA, '').strip()
-    return Path(otra) if otra else _raiz() / 'config' / 'perfil_empresa.json'
+    if otra:
+        return Path(otra)
+    from .runtime_paths import raiz_local
+
+    return raiz_local(_raiz()) / 'config' / 'perfil_empresa.json'
 
 
 def carpeta_perfiles() -> Path:

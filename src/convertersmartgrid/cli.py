@@ -143,7 +143,40 @@ def _parser() -> argparse.ArgumentParser:
     perfil.add_argument('--ruta', help='Fichero de perfil; por defecto, el perfil activo')
     perfil.add_argument('--perfil', help='Un perfil con nombre de config/perfiles')
     perfil.add_argument('--json', action='store_true', help='Salida en JSON')
+
+    # 086:RF-40: solo lee; sale con 1 si falta algo sin lo que no se puede trabajar.
+    doctor = sub.add_parser('doctor', help='Qué le falta a esta instalación, qué función afecta y cómo arreglarlo')
+    doctor.add_argument('--json', action='store_true', help='Salida en JSON')
+    # 086:RF-42: se escribe en local y lo envía el operador, después de mirarlo.
+    soporte = sub.add_parser('soporte', help='Reunir un paquete de soporte anonimizado, sin datos del cliente')
+    soporte.add_argument('--destino', help='Carpeta donde dejarlo; por defecto, «soporte» en la carpeta de datos')
+    # 086:RF-43
+    sub.add_parser('version', help='La versión del programa y sus notas')
     return parser
+
+
+def _doctor(args) -> int:
+    from .web.doctor import diagnosticar, texto_del_informe
+
+    informe = diagnosticar()
+    print(json.dumps(informe, ensure_ascii=False, indent=2) if args.json else texto_del_informe(informe))
+    return 0 if informe['listo'] else 1
+
+
+def _soporte(args) -> int:
+    from .runtime_paths import rutas_runtime
+    from .web.soporte import crear_paquete
+
+    destino = Path(args.destino) if args.destino else rutas_runtime().runtime / 'soporte'
+    print(f'Paquete de soporte: {crear_paquete(destino)}. Revíselo antes de enviarlo: dice qué lleva en LEAME.txt.')
+    return 0
+
+
+def _version() -> int:
+    from . import __version__, notas_de_la_version
+
+    print(f'ConverterSmartGrid {__version__}\n\n{notas_de_la_version()}')
+    return 0
 
 
 def _validar_perfil(args) -> int:
@@ -292,8 +325,17 @@ def main(argv=None) -> int:
     preparar_entorno_sin_red()                                         # 086:RF-22
     args = _parser().parse_args(argv)
 
+    from .registro_rotativo import configurar_registro
+
+    configurar_registro('cli')                                         # 086:RF-41
     if args.command == 'validar-perfil':
         return _validar_perfil(args)
+    if args.command == 'doctor':
+        return _doctor(args)
+    if args.command == 'soporte':
+        return _soporte(args)
+    if args.command == 'version':
+        return _version()
     if args.command == 'web':
         from .web.__main__ import main as web_main
         argv_web = ['--host', args.host, '--port', str(args.port)]

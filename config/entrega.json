@@ -15,10 +15,7 @@
     "docs/PERFIL_EMPRESA.md",
     "input/README.md",
     "frontend/dist/*",
-    "pyproject.toml",
-    "requirements.txt",
-    "constraints-python312-win.txt",
-    "run_gui.bat"
+    "docs/MODELOS_IA_LOCK.json"
   ],
   "_comentario_excluir": "D4: sin pruebas, specs, instrucciones de agentes ni .git. Las herramientas de desarrollo y de entrenamiento no se entregan (086: fuera de la 1.0; RF-15). De los perfiles con nombre solo entran la plantilla y la ficticia: los de una empresa concreta siguen en el repositorio y no se listan (RF-32).",
   "excluir": [
@@ -48,6 +45,7 @@
     "tools/asistente_*",
     "tools/build_interactive_architecture.py",
     "tools/comprobar_entrega.py",
+    "tools/construir_candidato.py",
     "tools/construir_dataset_*",
     "tools/digital_twin_auditar.py",
     "tools/digital_twin_buffer.py",
@@ -63,7 +61,6 @@
     "tools/llm_destilar.py",
     "tools/madrl_*",
     "tools/mcp_conversor.py",
-    "tools/powerfactory_acceptance.py",
     "tools/preguntas_entregables.py",
     "tools/preparar_modelos_ia.py",
     "tools/preparar_upstream_ia.py",
@@ -76,6 +73,15 @@
     "tools/verificar_candidato.py",
     "tools/verify_architecture_links.py"
   ],
+  "_comentario_candidato": "086:RF-36 a RF-39. La forma del paquete armado por tools/construir_candidato.py. Lo de «terceros» no lleva términos que buscar, pero cada fichero va con su huella en el manifiesto; dentro de la rueda propia, cada fichero se comprueba por la lista de arriba.",
+  "candidato": {
+    "raices": ["manifiesto_candidato.json", "programa/*.whl", "instalador/*", "documentos/*", "terceros/*"],
+    "terceros": ["terceros/*"],
+    "rueda_propia": "programa/convertersmartgrid-*.whl",
+    "_comentario_seguridad": "Versiones más nuevas que constraints-python312-win.txt, por pip-audit del 2026-11-04 (Pillow con escrituras fuera del búfer; pypdf con bucles infinitos sobre un PDF del solicitante; certifi con una raíz retirada). El entorno de desarrollo aún no las usa: al integrar, regenerar constraints y quitar de aquí lo que ya coincida.",
+    "versiones_de_seguridad": {"pillow": "13.0.0", "pypdf": "6.21.4", "certifi": "2026.10.18"},
+    "fuera_del_nucleo": ["torch", "torchvision", "torchaudio", "transformers", "sentence-transformers", "tokenizers", "accelerate", "peft", "bitsandbytes", "safetensors", "huggingface-hub", "torch-geometric", "neuralforecast", "optuna", "pytest", "httpx2", "httpcore2", "pluggy", "iniconfig"]
+  },
   "_comentario_compilado": "Lo que se entrega compilado se comprueba en el repositorio por su fuente: el paquete ya lleva dist/, y el árbol de trabajo puede no tenerlo.",
   "fuente_de_lo_compilado": {"frontend/dist/*": ["frontend/src/*", "frontend/index.html"]},
   "_comentario_pesos": "RF-34: ningún peso entra si no está aquí, con su huella y con qué datos se entrenó. La 1.0 no entrega ninguno: lo vedado por empresa no se puede demostrar sin esta lista.",

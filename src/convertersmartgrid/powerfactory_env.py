@@ -13,12 +13,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .runtime_paths import raiz_programa
+
 # Carpeta por defecto de la API Python de PowerFactory (se sobrescribe con PF_PYTHON).
 DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
 
 
 def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    """La carpeta de lo que se lee: el repositorio o, instalado, la del paquete (086:RF-36)."""
+    return raiz_programa()
 
 
 def tools_dir() -> Path:

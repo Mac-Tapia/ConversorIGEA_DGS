@@ -11,6 +11,8 @@ import os
 import re
 from dataclasses import dataclass
 
+from .runtime_paths import es_programa_instalado, raiz_programa
+
 VARIABLE_EDICION = 'CSG_EDICION'
 #: Las funciones en beta que esta instalación no quiere, separadas por comas (086, «desactivable»).
 VARIABLE_BETA_APAGADAS = 'CSG_BETA_APAGADAS'
@@ -65,8 +67,13 @@ _RUTAS_BETA = {b.clave: tuple(re.compile(p) for p in b.rutas) for b in _BETAS}
 
 
 def es_edicion_producto() -> bool:
-    """Si esto es la edición de producto. Sin la variable es desarrollo: el árbol de hoy no cambia."""
-    return os.environ.get(VARIABLE_EDICION, '').strip().lower() == 'producto'
+    """Si esto es la edición de producto. Sin la variable manda de dónde corre: el árbol de hoy no cambia.
+
+    Un programa instalado es de producto aunque nadie lo haya dicho: abrirlo sin el lanzador
+    (``python -m convertersmartgrid.web``) no puede destapar el entrenamiento en el equipo de un cliente.
+    """
+    valor = os.environ.get(VARIABLE_EDICION, '').strip().lower()
+    return valor == 'producto' if valor else es_programa_instalado(raiz_programa())
 
 
 def _betas_apagadas() -> frozenset[str]:

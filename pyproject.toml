@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "convertersmartgrid"
-version = "2.1.0"
+dynamic = ["version"]
 description = "Conversor universal CYMDIST TXT → DIgSILENT PowerFactory DGS"
 readme = "README.md"
 # Python 3.12 exacto, y el límite superior es tan importante como el inferior.
@@ -94,8 +94,13 @@ lector-vnr = "convertersmartgrid.sources.vnr:MODULO"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# 086:RF-43: una sola versión, escrita en el paquete. setuptools la lee sin importarlo.
+[tool.setuptools.dynamic]
+version = {attr = "convertersmartgrid.__version__"}
+
 [tool.setuptools.package-data]
-convertersmartgrid = ["schemas/*.json", "recursos/leaflet/*"]
+# 086:RF-36: «_programa» solo existe en el árbol que prepara tools/construir_candidato.py; en desarrollo no hay nada.
+convertersmartgrid = ["schemas/*.json", "recursos/leaflet/*", "recursos/*.md", "_programa/**/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -266,6 +271,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.reconstruction_pipeline" = "aplicacion"
 "convertersmartgrid.reconstruction_topology" = "dominio"
 "convertersmartgrid.reglas" = "aplicacion"
+"convertersmartgrid.registro_rotativo" = "adaptadores"
 "convertersmartgrid.resolver_convergencia" = "dominio"
 "convertersmartgrid.runtime_paths" = "dominio"
 "convertersmartgrid.edicion" = "dominio"
@@ -316,6 +322,8 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.web.asistente_operacion" = "presentacion"
 "convertersmartgrid.web.asistente_consultas" = "presentacion"
 "convertersmartgrid.web.copia_datos" = "presentacion"
+"convertersmartgrid.web.doctor" = "presentacion"
+"convertersmartgrid.web.soporte" = "presentacion"
 "convertersmartgrid.web.jobs" = "presentacion"
 "convertersmartgrid.web.operaciones_lentas" = "presentacion"
 "convertersmartgrid.web.readiness" = "presentacion"

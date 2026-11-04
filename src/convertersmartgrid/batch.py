@@ -37,6 +37,7 @@ from .preview import write_preview_geojson, write_preview_html
 from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
 from .registro_modulos import Resolucion, instalar_en_proceso, resolver
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset, project_root
+from .runtime_paths import raiz_local
 from .util import nombre_seguro
 from .runtime_paths import staging_publicacion
 from .validate import parse_dgs, validate_dgs, write_validation_reports
@@ -409,7 +410,7 @@ def _convert_parallel(
     total = len(networks)
     done = 0
     with _un_hilo_de_calculo(), ProcessPoolExecutor(
-        max_workers=n_workers, initializer=_init_worker, initargs=(dataset, opts, resolver(project_root())),
+        max_workers=n_workers, initializer=_init_worker, initargs=(dataset, opts, resolver(raiz_local(project_root()))),
     ) as pool:
         pending = {
             pool.submit(_convert_in_worker, network_id, names[network_id], out_dir): network_id

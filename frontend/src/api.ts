@@ -1,4 +1,4 @@
-import type { Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
+import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -55,6 +55,9 @@ export type DemandaTipo = 'medidores' | 'cabecera' | 'suministros' | 'clientes' 
 
 export const api = {
   health: () => request<Health>('/api/health'),
+  // 086:RF-40, RF-43: el doctor y la versión con sus notas.
+  diagnostico: () => request<Diagnostico>('/api/sistema/diagnostico'),
+  versionPrograma: () => request<{ version: string; notas: string }>('/api/sistema/version'),
   powerfactory: (refresh = false) =>
     request<PowerFactoryStatus>(`/api/powerfactory${refresh ? '?refresh=true' : ''}`),
 

@@ -118,6 +118,30 @@ class EdicionRespuesta(Respuesta):
     beta: list[BetaRespuesta]
 
 
+class ComprobacionDoctorRespuesta(Respuesta):
+    clave: str
+    nombre: str
+    ok: bool
+    obligatoria: bool
+    detalle: str
+    afecta: str
+    arreglo: str
+
+
+class DiagnosticoRespuesta(Respuesta):
+    version: str
+    instalado: bool
+    python: str
+    listo: bool
+    pendientes: int
+    comprobaciones: list[ComprobacionDoctorRespuesta]
+
+
+class VersionRespuesta(Respuesta):
+    version: str
+    notas: str
+
+
 class HealthRespuesta(Respuesta):
     version: str
     capabilities: CapacidadesRespuesta

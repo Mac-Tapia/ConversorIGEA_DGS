@@ -74,14 +74,22 @@
 
 ## F5 Instalador y soporte (`v1/instalador`)
 
-- [ ] T20 Trasladar a datos del paquete lo que se lee del checkout. (RF-36)
+- [x] T20 Trasladar a datos del paquete lo que se lee del checkout. (RF-36)
   Hecho cuando: el programa corre desde un wheel fuera del repositorio y las líneas base siguen iguales.
-- [ ] T21 Instalador sin internet, núcleo y complemento de IA, datos aparte, actualización con vuelta atrás. (RF-36, RF-37, RF-38, RF-39)
-  Hecho cuando: instalar, actualizar y volver atrás en una máquina virtual limpia conserva los datos.
-- [ ] T22 `doctor`, registro rotativo, paquete de soporte y versión única. (RF-40, RF-41, RF-42, RF-43)
+  Evidencia: `tests/test_instalacion_programa.py`, que construye la rueda y compara sus DGS con los del árbol en las dos disposiciones y con `workers` 1 y 2. Con los ocho casos de `ExportSpec` de la base `c79013c2`, los DGS desde el programa instalado salen idénticos byte a byte. Las líneas base con datos reales las corre el integrador en su suite completa (T31).
+- [x] T21 Candidato sin internet, núcleo aparte del complemento de IA, datos aparte y actualización con vuelta atrás, probados fuera del repositorio. (RF-36, RF-37, RF-38, RF-39)
+  Hecho cuando: instalar, actualizar y volver atrás en una carpeta con el Python embebido, sin `PATH` y sin Node conserva los datos; `comprobar_entrega` acepta el candidato.
+  Evidencia: `tests/test_instalacion_programa.py`, y ensayo real del 2026-11-04 con el candidato, en una carpeta fuera del repositorio, con Python 3.12.10 embebido y `PATH` solo con `System32`: instaló en 150 s; convirtió por la web instalada; rechazó un candidato alterado sin cambiar nada; actualizó de rc1 a rc2 y volvió a rc1, con los mismos datos por huella (solo se añade el apunte de la copia) y lo posterior apartado. Las librerías salieron de `--no-index`; la red de la máquina no se cortó. No es una máquina limpia, no se compiló el `.iss` (no hay Inno Setup aquí), DIgSILENT no se tocó y el complemento de IA solo está declarado: todo eso es la T37.
+- [x] T22 `doctor`, registro rotativo, paquete de soporte y versión única. (RF-40, RF-41, RF-42, RF-43)
   Hecho cuando: quitar cada requisito opcional dice qué función afecta; el paquete de soporte no lleva datos del cliente.
-- [ ] T23 Manuales, hoja de seguridad, `THIRD_PARTY_NOTICES`, SBOM, `pip-audit`; corregir README y `MANUAL_COMANDOS` (órdenes rotas en `:629,676`). (RF-44)
-  Hecho cuando: una persona ajena instala y convierte siguiendo el manual; auditoría sin vulnerabilidades graves.
+  Evidencia: `tests/test_instalacion_programa.py`, y en el navegador real, contra el programa instalado, la pantalla del doctor con sus datos, y sus colores calculados en claro y oscuro; la captura de imagen falló en esa máquina, así que el aspecto no se ha mirado. `vnr_etl` conserva su propia versión de módulo interno, que la web no enseña.
+- [x] T23 Manuales, hoja de seguridad, `THIRD_PARTY_NOTICES`, SBOM, `pip-audit`; corregir README y `MANUAL_COMANDOS` (órdenes rotas en `:629,676`). (RF-44)
+  Hecho cuando: los documentos existen sin nombres de empresa y sus órdenes responden; auditoría sin vulnerabilidades graves.
+  Evidencia: `tests/test_instalacion_programa.py`; `pip-audit` del lock el 2026-11-04, sin avisos, tras subir Pillow, pypdf y certifi (`docs/regresiones/2026-11-04-versiones-con-vulnerabilidades-en-el-entorno.md`). Las licencias quedan como inventario para la asesoría (D7), sin conclusiones. La persona ajena es la T38.
+- [ ] T37 [DIgSILENT] Compilar `instalador/ConverterSmartGrid.iss` con Inno Setup, y en una máquina virtual limpia instalar, actualizar y volver atrás, con DIgSILENT importando con el Python embebido. Construir y probar el complemento de IA. (RF-36, RF-37, RF-38, RF-39)
+  Hecho cuando: el instalador compilado conserva los datos en esa máquina, un guion importa `powerfactory` con el Python del programa, y el complemento instala con huella y carga sus modelos.
+- [ ] T38 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
+  Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 
 ## F6 Corridas reales sobre el candidato congelado
 

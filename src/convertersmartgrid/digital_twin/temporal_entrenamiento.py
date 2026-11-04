@@ -7,6 +7,7 @@ from datetime import timedelta
 import uuid
 
 import numpy as np
+from ..runtime_paths import raiz_programa
 
 
 def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] = (),
@@ -285,7 +286,7 @@ def _reabrir_en_otro_proceso(carpeta: Path) -> dict:
     from ..model_registry import reabrir_en_subproceso
     from ..trabajadores_ml import entorno_hijo_gpu
 
-    herramienta = Path(__file__).resolve().parents[3] / 'tools' / 'digital_twin_temporal_entrenar.py'
+    herramienta = raiz_programa() / 'tools' / 'digital_twin_temporal_entrenar.py'
     return reabrir_en_subproceso([sys.executable, str(herramienta), '--reabrir-candidato', str(carpeta)],
                                  timeout_s=600.0, env=entorno_hijo_gpu())
 

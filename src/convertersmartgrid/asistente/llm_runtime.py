@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from .llm_checkpoint import sha256, validar_base_checkpoint, verificar_checkpoint  # noqa: F401 - API pública
+from ..runtime_paths import raiz_programa
 
 
 def sha256_en_commit(repo: Path, ruta: str) -> str:
@@ -35,7 +36,7 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
         raise RuntimeError('no se puede consultar el inventario Ollama')
     if any(m.get('name')==modelo for m in tags['models']):
         raise ValueError('tag existente conservado')
-    raiz=Path(__file__).resolve().parents[3]
+    raiz=raiz_programa()
     lock=json.loads((raiz/'docs/LLAMA_CPP_RUNTIME_LOCK.json').read_text(encoding='utf-8'))
     quant=raiz/lock['exe_relativo']
     if not quant.is_file() or sha256(quant)!=lock['sha256_quantize_exe']:

@@ -1,6 +1,8 @@
-# CYMDIST → DIgSILENT DGS Universal Engine v2
+# ConverterSmartGrid
 
-Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo` exportados desde CYMDIST en archivos DGS para DIgSILENT PowerFactory.
+Convierte la red de una distribuidora (TXT de CYMDIST, base Access o paquete VNR-GIS) en archivos DGS para DIgSILENT PowerFactory, y la calibra y estudia allí.
+
+Este README es para quien desarrolla. Para instalar y usar el programa: [manual de instalación](docs/MANUAL_INSTALACION.md), [manual del operador](docs/MANUAL_OPERADOR.md) y [hoja de seguridad y privacidad](docs/SEGURIDAD_Y_PRIVACIDAD.md). El instalador se arma con `tools/construir_candidato.py`.
 
 **Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
@@ -111,16 +113,15 @@ de medición y la escala del diagrama, que hoy todavía tienen un valor por defe
 
 El Registro llega por WebSocket línea a línea, también la salida de los guiones de
 PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**
-(`output/web/<id>/`), que se reabre al volver.
+(en la raíz de ejecución, fuera del código: `copia_datos.py estado` la dice), que se reabre al volver.
 
-**Primera vez**: `run_gui.bat` compila el front si falta `frontend/dist`. Para eso
-hace falta Node.js 20+ **solo una vez**; después, no.
+**Primera vez**: instale los paquetes del front con `cd frontend && npm ci`; `run_gui.bat` lo compila si falta `frontend/dist` o está desfasado, sin salir a internet. Hace falta la versión de Node.js que declara `frontend/package.json`.
 
 **Desarrollo del front** (recarga en caliente):
 
 ```bash
 python -m convertersmartgrid.web --no-browser     # API en :8765
-cd frontend && npm install && npm run dev   # front en :5173, reenvía /api a :8765
+cd frontend && npm ci && npm run dev   # front en :5173, reenvía /api a :8765
 ```
 
 **Seguridad** (spec 086): es un puesto local. Solo escucha en `127.0.0.1` y se niega a arrancar
@@ -207,7 +208,7 @@ Alternativa con extras de `pyproject.toml`:
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `convertersmartgrid` (CLI) e `convertersmartgrid-web` (interfaz web). `run_gui.bat` instala `requirements.txt` si faltan dependencias. Tras actualizar el código, `pip install -e .` retira el antiguo `convertersmartgrid-gui` del entorno.
+Entradas de consola: `convertersmartgrid` (CLI) e `convertersmartgrid-web` (interfaz web). `run_gui.bat` nunca instala: si falta algo, lo dice (086:RF-39). `convertersmartgrid doctor` dice qué falta y qué función afecta. Tras actualizar el código, `pip install -e .` retira el antiguo `convertersmartgrid-gui` del entorno.
 
 ## Principio de arquitectura
 
@@ -230,6 +231,7 @@ La fuente de verdad para cada conversión es:
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
 | CLI `list` / `convert` / `web` (TXT, Access y VNR-GIS) | Listo |
 | Interfaz web (FastAPI + React) | Listo (`src/convertersmartgrid/web/` + `frontend/` + `run_gui.bat`) |
+| Instalador sin internet (spec 086) | Candidato y guion listos; instalador compilado y máquina limpia pendientes (T37) |
 | Interfaz de escritorio Tkinter | Retirada (spec 001, RF-16) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
@@ -239,8 +241,10 @@ La fuente de verdad para cada conversión es:
 | Cargas, calibración, estudios y obras en PowerFactory | Implementado (specs 004 a 008, 011, 014, 015); falta la prueba en DIgSILENT de varias specs |
 | Troncal, enlace, migración y cargas en un tramo (spec 016) | Cumplida: probada en DIgSILENT con IN111 + TA225 el 2026-10-16 («Con proyecto» converge con 9 cargas, enlace por la vía, migración y segunda terna) |
 | Informes de estudio y factibilidad (spec 017) | Estudio probado con IN111 y TA225; factibilidad pendiente, con otro alimentador |
-| Arquitectura por capas (spec 002) | Pendiente: aprobada, sin hacer |
-| Confiabilidad y capacidad (spec 012) | En curso: T1–T2 de 13 |
+| Arquitectura por capas (spec 002) | En curso: su estado, en `specs/README.md` |
+| Confiabilidad y capacidad (spec 012) | Implementada: falta su prueba en DIgSILENT |
+
+El estado al día de cada spec está en `specs/README.md`.
 
 ## Estructura
 
@@ -337,15 +341,7 @@ Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su expor
 
 Instale deps de desarrollo: `pip install -r requirements.txt`.
 
-Sin TXT, pasan las unitarias (schema, independencia, gráficos, resolución de tipos). Con TXT:
-
-```bat
-set CSG_TXT_DIR=D:\ruta\a\carpeta_con_RED_CARGA_BD
-set PYTHONPATH=src
-pytest -q
-```
-
-También: `CSG_RED`, `CSG_LOADS`, `CSG_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
+Sin datos, pasan solo las sintéticas, y la suite «pasa» sin haber probado nada real. Con datos reales hacen falta `CSG_RED`, `CSG_LOADS` y `CSG_EQUIPMENT` (`CSG_TXT_DIR` no basta): la lista completa de variables, y la regla de darla por buena solo sin ninguna omitida, está en `CLAUDE.md`.
 
 Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
 

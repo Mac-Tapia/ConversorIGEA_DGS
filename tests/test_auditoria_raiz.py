@@ -94,7 +94,7 @@ def test_el_extractor_del_corpus_saca_el_texto_de_un_pdf(tmp_path):
 RUNTIME_PIDE_COMPILAR = 'import sys\nraise SystemExit(1 if "--front" in sys.argv else 0)\n'
 
 
-def _lanzar_aislado(tmp_path, fallo, *, runtime=RUNTIME_PIDE_COMPILAR, con_npm=True):
+def _lanzar_aislado(tmp_path, fallo, *, runtime=RUNTIME_PIDE_COMPILAR, con_npm=True, con_paquetes=True):
     """Ejecuta cmd.exe y el batch real; los servicios externos quedan fuera del ensayo."""
     shutil.copyfile(RAIZ / 'run_gui.bat', tmp_path / 'run_gui.bat')
     entorno = tmp_path / '.venv'
@@ -113,6 +113,8 @@ def _lanzar_aislado(tmp_path, fallo, *, runtime=RUNTIME_PIDE_COMPILAR, con_npm=T
     front = tmp_path / 'frontend'
     (front / 'dist').mkdir(parents=True)
     (front / 'dist' / 'index.html').write_text('compilacion anterior', encoding='ascii')
+    if con_paquetes:
+        (front / 'node_modules').mkdir()
     if con_npm:
         (scripts / 'npm.cmd').write_text(
             '@echo off\n'
@@ -131,15 +133,24 @@ def _lanzar_aislado(tmp_path, fallo, *, runtime=RUNTIME_PIDE_COMPILAR, con_npm=T
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
-@pytest.mark.parametrize('fallo,esperadas', [('ci', ['ci']), ('run', ['ci', 'run'])])
-def test_un_fallo_de_npm_no_abre_una_interfaz_anterior(tmp_path, fallo, esperadas):
-    """036:RF-3; 065:RF-8 — el batch real no inicia servidor si falla ci o build."""
-    resultado, llamadas = _lanzar_aislado(tmp_path, fallo)
-    assert llamadas == esperadas, resultado.stdout + resultado.stderr
+def test_un_fallo_de_npm_no_abre_una_interfaz_anterior(tmp_path):
+    """036:RF-3; 065:RF-8 — el batch real no inicia servidor si falla la compilación."""
+    resultado, llamadas = _lanzar_aislado(tmp_path, 'run')
+    assert llamadas == ['run'], resultado.stdout + resultado.stderr
     assert resultado.returncode != 0, resultado.stdout + resultado.stderr
     assert not (tmp_path / 'servidor_iniciado').exists()
     # Sin el motivo, el operador solo ve una ventana que se cierra (la segunda mitad de RF-3).
     assert 'No se abre una compilacion anterior' in resultado.stdout
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
+def test_sin_paquetes_del_front_no_los_instala_al_arrancar(tmp_path):
+    """086:RF-39; 036:RF-3 — arrancar no ejecuta «npm ci»: dice que falta, y no abre una interfaz anterior."""
+    resultado, llamadas = _lanzar_aislado(tmp_path, 'ninguno', con_paquetes=False)
+    assert llamadas == [], resultado.stdout + resultado.stderr
+    assert resultado.returncode != 0
+    assert 'npm ci' in resultado.stdout
+    assert not (tmp_path / 'servidor_iniciado').exists()
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
@@ -154,14 +165,12 @@ def test_sin_npm_el_lanzador_dice_que_falta_y_no_abre(tmp_path):
 
 @pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
 def test_sin_el_vigilante_no_arranca_una_web_degradada(tmp_path):
-    """036:RF-1 — si el comprobador sigue pidiendo psutil tras instalar, no se inicia el servidor."""
-    # El comprobador falso dice «falta una dependencia» y el entorno aislado no trae pip ni
-    # requirements.txt: la instalación falla como fallaría sin red.
+    """036:RF-1; 086:RF-39 — si el comprobador dice que falta psutil, no se instala ni se inicia el servidor: lo dice."""
     resultado, llamadas = _lanzar_aislado(tmp_path, 'ninguno', runtime='raise SystemExit(1)\n')
     assert llamadas == []
     assert resultado.returncode == 1, resultado.stdout + resultado.stderr
     assert not (tmp_path / 'servidor_iniciado').exists()
-    assert 'No se pudo preparar el entorno' in resultado.stdout
+    assert 'Este lanzador no instala nada' in resultado.stdout
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
@@ -169,7 +178,7 @@ def test_el_lanzador_sigue_abriendo_tras_npm_correcto(tmp_path):
     """036:RF-3 — controlar el error no bloquea el camino que compila correctamente."""
     resultado, llamadas = _lanzar_aislado(tmp_path, 'ninguno')
     assert resultado.returncode == 0, resultado.stdout + resultado.stderr
-    assert llamadas == ['ci', 'run']
+    assert llamadas == ['run']
     assert (tmp_path / 'servidor_iniciado').is_file()
 
 

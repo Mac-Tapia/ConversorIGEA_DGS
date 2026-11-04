@@ -37,6 +37,7 @@ from .buffer import BuferEpisodios, Consulta
 from .contratos_fisicos import VERSION_GRAFO, Z_ACOPLADOR_PU, validar_alcance_fisico
 from .episode import Clase, Episodio
 from .escenarios import Escenario, familia, particion, reparto_del_sistema
+from ..runtime_paths import raiz_programa
 
 #: Potencia base del sistema por unidad (MVA).
 S_BASE = 10.0
@@ -905,7 +906,7 @@ def _reabrir_en_otro_proceso(carpeta: Path) -> dict[str, Any]:
     from ..model_registry import reabrir_en_subproceso
     from ..trabajadores_ml import entorno_hijo_gpu
 
-    herramienta = Path(__file__).resolve().parents[3] / 'tools' / 'digital_twin_entrenar.py'
+    herramienta = raiz_programa() / 'tools' / 'digital_twin_entrenar.py'
     return reabrir_en_subproceso([sys.executable, str(herramienta), '--reabrir-candidato', str(carpeta)],
                                  timeout_s=600.0, env=entorno_hijo_gpu())
 
