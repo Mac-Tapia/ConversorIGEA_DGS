@@ -111,6 +111,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       6 capas, 0,927 y 0,841. La tarea mejora con capacidad; el F1 de los datos no (el marcado de
       trozos por carácter es el cuello de botella). Sigue: búsqueda de hiperparámetros con Optuna
       sobre las fijas de entrenamiento y, si no llega, cabeza de datos con CRF o ajuste fino.
+      Revisado el 2026-11-03 (rama `feat/027-047t8`): sigue abierta. Ningún intérprete pasa aún RF-18
+      (069 T7, 079 T7 y 085 T6 abiertas, las tres con su medida en la GPU), y `decidir_ajuste` de 047 T4
+      (`tests/test_asistente_ajuste_condicionado.py`, 19 aprobadas) decide **bloqueada**: 3 órdenes humanas
+      de 200 no acreditan el incumplimiento real que RF-21 exige. El QLoRA es 047 T7 (falló por memoria el
+      2026-11-01). No hay medida de que no haga falta ni modelo ajustado que pase: no se cierra.
 - [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
       Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
@@ -175,7 +180,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       `agente_proyecto.json` del espacio; prueba cortada en los estudios y retomada sin repetir la
       fuente, el sistema ni el «Caso base». La corrida real desde cero con VNR-GIS es la de T14
       (RF-55).
-- [ ] T22. PIDE completo con lo implementado y comparación de cada formato con el entregado.
+- [ ] T22. [DIgSILENT] PIDE completo con lo implementado y comparación de cada formato con el entregado.
       (RF-45, RF-49)
       Hecho cuando: F01 a F15 producidos para un sistema, con la fracción de campos coincidentes.
       Avance del 2026-10-28 (código): `ejemplos_pide.comparar_formatos` (palabras y unidades de
@@ -183,11 +188,19 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (`comparacion_formatos`) y en `--solo-ejemplos`; los encabezados del conversor coinciden en
       63 de 122 campos con los entregados de PIDEELOR (F10 7/9, F13 9/15; F15 1/4). Falta producir
       F01 a F15 de un sistema en DIgSILENT (con T14).
+      Revisado el 2026-11-03: el código está. 072 T7 genera F01 a F15 con sus huecos nombrados
+      (`tests/test_formatos_pide.py`, 17 aprobadas) y `comparar_formatos` mide la fracción
+      (`tests/test_ejemplos_pide.py`, 4 aprobadas, 027:RF-49). Lo que falta es producirlos de un sistema
+      real, y F03, F04 y F06 salen de flujos y de estudios de confiabilidad en DIgSILENT: por eso pasa a
+      `[DIgSILENT]` (regla de la 033: una tarea que mezcla código y DIgSILENT cierra el código con sus pruebas).
 - [ ] T14. [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
       de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
       sus informes (RF-43).
+      Revisado el 2026-11-03: sigue abierta. El código de RF-43 es de la 070 (implementada; faltan sus T9 a
+      T11 en DIgSILENT y en el navegador) y las puertas del asistente no se cumplen (T11). Sin informe de los
+      cuatro sistemas en DIgSILENT.
 - [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
@@ -230,6 +243,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       0,980 sin destilar (se usa el destilado); no se promueve porque el modelo en uso acierta 0,987.
       Codex, pendiente: su cuenta de ChatGPT rechaza el modelo configurado (`gpt-5.6-sol`) y también
       gpt-5.5, gpt-5 y gpt-5-codex; falta configurar un modelo que la cuenta admita.
+      Revisado el 2026-11-03: sigue abierta, solo por la corrida con Codex por su CLI. Las 200 propuestas
+      que Codex redactó como maestro de sesión (047 T6, origen `propuesta_maestro_codex_20261031_v1`) no son
+      esa corrida: no pasan por `MaestroCodex` ni por el enmascarado de RF-63. De
+      `tests/test_asistente_destilacion.py` aprueban 5 sin GPU; las 2 que entrenan exigen CUDA (`SinGPU`),
+      que esta revisión ocultó.
 - [x] T27. Conjunto fijo de 200 órdenes del maestro en el entrenamiento y en la prueba fija, con
       su huella en el registro del modelo. (RF-65 a RF-67)
       Hecho cuando: pruebas en verde (200, todas las tareas, reparto 160/40, no cambian RF-19) y
@@ -254,3 +272,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho cuando: el resultado de T8 medido en DIgSILENT desde la web.
 - [ ] T31. [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)
       Hecho cuando: el resultado de T24 medido en DIgSILENT desde la web.
+
+Revisión del 2026-11-03 de T29, T30 y T31: siguen abiertas. Ninguna spec posterior las midió en DIgSILENT:
+`docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en
+copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por familia), y 044 T4 sigue abierta.

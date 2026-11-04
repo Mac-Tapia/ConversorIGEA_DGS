@@ -49,13 +49,15 @@ def materializar(casos: list[dict], carpeta: Path) -> list[dict]:
     """Cada evidencia a un fichero con su huella, como la que custodia la web; contexto propio por caso."""
     salida = []
     for caso in casos:
-        contexto = SimpleNamespace(project=caso['id'], source_fingerprint='casos-047')
+        # Proyecto y fichero opacos: con el id del caso («sano-…», «defecto-…») la etiqueta llegaba al revisor (047:RF-39).
+        proyecto = 'caso-' + hashlib.sha256(caso['id'].encode('utf-8')).hexdigest()[:12]
+        contexto = SimpleNamespace(project=proyecto, source_fingerprint='casos-047')
         evidencia = {}
         for clave, texto in caso['evidencia'].items():
-            ruta = carpeta / f"{caso['id']}_{clave}.txt"
+            ruta = carpeta / f"{proyecto}_{clave}.txt"
             ruta.write_text(texto, encoding='utf-8')
             evidencia[clave] = {'archivo': str(ruta), 'sha256': hashlib.sha256(ruta.read_bytes()).hexdigest(),
-                                'proyecto': caso['id'], 'fuente': 'casos-047', 'localizador': 'texto', 'fragmento': texto}
+                                'proyecto': proyecto, 'fuente': 'casos-047', 'localizador': 'texto', 'fragmento': texto}
         restricciones = {'plan_completo': True, 'contexto_vigente': True}
         salida.append({'id': caso['id'], 'defecto': caso['defecto'], 'contexto': contexto, 'evidencia': evidencia,
                        'propuesta': {**caso['propuesta'], 'restricciones_deterministas': restricciones}})

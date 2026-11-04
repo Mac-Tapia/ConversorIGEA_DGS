@@ -305,3 +305,92 @@ def test_el_presupuesto_agotado_tambien_se_dice(tmp_path):
     finally:
         revision_roles.revisar_propuesta = real
     assert fila['sin_respuesta'] and fila['motivos'] == ['presupuesto de tiempo agotado']
+
+
+def test_dictamen_que_no_aprueba_nombra_su_hallazgo(tmp_path):
+    """047:RF-38 — qwen3:8b bloqueó 12 de 12 sin que el contrato le pidiera decir qué estaba mal (047 T8)."""
+    contexto, evidencia = paquete(tmp_path)
+    for decision in ('bloqueada', 'revisar'):
+        vacio = {'decision': decision, 'evidencia_ids': ['e1'], 'incertidumbres': [], 'contradicciones': []}
+        r = revisar_propuesta({'restricciones_deterministas': {'fisica': True}}, evidencia, contexto=contexto,
+                              max_rondas=1, revisor=lambda *_a, d=vacio: dict(d))
+        assert not r['aprobada']
+        assert all(d['fallo_revisor'] and 'sin hallazgo' in d['incertidumbres'][0] for d in r['dictamenes'])
+    con_hallazgo = {'decision': 'bloqueada', 'evidencia_ids': ['e1'], 'incertidumbres': [],
+                    'contradicciones': ['e1 da 0,95 p.u. y la propuesta 1,01']}
+    r = revisar_propuesta({'restricciones_deterministas': {'fisica': True}}, evidencia, contexto=contexto,
+                          max_rondas=1, revisor=lambda *_a: dict(con_hallazgo))
+    assert not r['aprobada'] and not any(d.get('fallo_revisor') for d in r['dictamenes'])
+
+
+def test_bloquear_sin_hallazgo_no_cuenta_como_deteccion(tmp_path):
+    """047:RF-38 — «6 de 6 defectos hallados» no lo era si el mismo dictamen vacío bloqueaba también los sanos."""
+    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
+    def fabrica(medir):
+        return lambda rol, p, ev, ctx, ronda: {'decision': 'bloqueada', 'evidencia_ids': sorted(ev),
+                                               'incertidumbres': [], 'contradicciones': []}
+    r = comparar_revision(casos, fabrica, rondas=1)
+    for modo in ('rol_unico', 'equipo'):
+        assert r[modo]['sin_respuesta'] == len(casos) and r[modo]['detectados'] == 0
+        assert r[modo]['falsas_alarmas'] == 0
+        assert all('sin hallazgo' in m for m in r[modo]['motivos_sin_respuesta'])
+
+
+def test_el_revisor_solo_ve_la_propuesta_y_los_fragmentos(tmp_path):
+    """047:RF-39 — el proyecto y el fichero de cada caso se llamaban «sano-…» o «defecto-…», y viajaban al LLM."""
+    import json
+    from convertersmartgrid.asistente.revision_roles import revisor_ollama
+    herramienta = _herramienta_comparar()
+    nombres = [c['id'] for c in herramienta.leer_casos()]
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
+    for caso in casos:
+        assert not any(n in caso['contexto'].project for n in nombres)
+        assert not any(n in Path(v['archivo']).name for v in caso['evidencia'].values() for n in nombres)
+    caso = casos[0]
+    peticiones = []
+    revisar_propuesta(caso['propuesta'], caso['evidencia'], contexto=caso['contexto'], max_rondas=1,
+                      revisor=revisor_ollama(_cliente(_dictamen_llm(FAVORABLE), peticiones)))
+    assert len(peticiones) == 4
+    for _u, cuerpo in peticiones:
+        usuario = json.loads(cuerpo['messages'][1]['content'])
+        assert set(usuario) == {'propuesta', 'evidencia', 'ronda'}
+        assert all(set(v) == {'localizador', 'fragmento'} for v in usuario['evidencia'].values())
+        texto = json.dumps(cuerpo, ensure_ascii=False)
+        assert caso['contexto'].project not in texto and not any(n in texto for n in nombres)
+        assert not any(json.dumps(v['archivo'])[1:-1] in texto for v in caso['evidencia'].values())
+
+
+def test_el_dictamen_escribe_sus_hallazgos_antes_de_decidir(tmp_path):
+    """047:RF-40 — sin razonar, la decisión era el primer campo: se elegía antes de comparar nada con la evidencia."""
+    from convertersmartgrid.asistente.revision_roles import esquema_dictamen, revisor_ollama
+    orden = list(esquema_dictamen()['properties'])
+    assert orden[-1] == 'decision' and orden.index('contradicciones') < orden.index('decision')
+    assert esquema_dictamen()['required'] == orden
+    contexto, evidencia = paquete(tmp_path)
+    peticiones = []
+    revisar_propuesta({}, evidencia, contexto=contexto, max_rondas=1,
+                      revisor=revisor_ollama(_cliente(_dictamen_llm(FAVORABLE), peticiones)))
+    for _u, cuerpo in peticiones:
+        assert list(cuerpo['format']['properties']) == orden
+        sistema = cuerpo['messages'][0]['content']
+        # La regla de decisión, igual para todos los roles: favorable cuando no se halla nada.
+        assert 'favorable si las dos están vacías' in sistema
+        # Lo que empujaba a bloquear siempre: «no apruebes la física» y el riesgo de que la propuesta «falle».
+        assert 'No apruebes' not in sistema and 'o falla' not in sistema
+
+
+def test_el_informe_guarda_cada_dictamen(tmp_path):
+    """047:RF-41 — la medición de T8 no guardó qué dijo el modelo, y la causa de las falsas alarmas no se veía."""
+    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
+    def fabrica(medir):
+        return lambda rol, p, ev, ctx, ronda: {'decision': 'bloqueada', 'evidencia_ids': sorted(ev),
+                                               'incertidumbres': [], 'contradicciones': [f'{rol}: valor distinto']}
+    fila = comparar_revision(casos, fabrica, rondas=1)['equipo']['por_caso'][0]
+    assert [d['rol'] for d in fila['dictamenes']] == ['fuentes', 'fisica', 'coste', 'riesgo']
+    assert fila['dictamenes'][0] == {'rol': 'fuentes', 'ronda': 1, 'decision': 'bloqueada',
+                                     'evidencia_ids': sorted(casos[0]['evidencia']), 'incertidumbres': [],
+                                     'contradicciones': ['fuentes: valor distinto']}
