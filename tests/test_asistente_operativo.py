@@ -144,7 +144,9 @@ def test_evidencia_del_trabajo_real_alimenta_la_revision_sin_registro_manual(api
     assert len(peticiones) == 4
     evidencia = json.loads(peticiones[0]['messages'][-1]['content'])['evidencia']
     fila = next(iter(evidencia.values()))
-    assert fila['proyecto'] == 'P1' and fila['fuente'] == 'huella-txt'
+    # 047:RF-38 a RF-41: al LLM solo le llega el localizador y el fragmento; su proyecto y su fuente se cruzan antes,
+    # porque el nombre del caso le decía la respuesta.
+    assert 'proyecto' not in fila and 'fuente' not in fila
     assert hashlib.sha256(b'documento real del trabajo').hexdigest() in fila['fragmento']
 
 
