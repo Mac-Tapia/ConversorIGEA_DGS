@@ -203,6 +203,15 @@ MVA_NORMALIZADOS = (5.0, 7.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 80
 KV_ALTA_SUPUESTA = 60.0
 
 
+def tasas_completas(tasas: Mapping[str, float | None], referencia: float) -> tuple[dict[str, float], list[str]]:
+    """042:RF-41: la tasa de cada alimentador; al que no la tiene, la media de los demás o, sin ninguna, la de referencia."""
+    con_dato = [float(t) for t in tasas.values() if t is not None]
+    relleno = sum(con_dato) / len(con_dato) if con_dato else float(referencia)
+    faltan = sorted(f for f, t in tasas.items() if t is None)
+    avisos = ([f"Sin tasa de crecimiento medida en {', '.join(faltan)}: se usa {100 * relleno:.2f} %/año (042:RF-41)."] if faltan else [])
+    return {f: (float(t) if t is not None else relleno) for f, t in tasas.items()}, avisos
+
+
 def modulos_del_libro(capex: str | None, cfg: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     """042:RF-33: los módulos del libro; sin libro o si no se puede leer, ninguno y se dice: la SET se dimensiona igual."""
     if not capex or not capex.strip():

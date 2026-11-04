@@ -72,6 +72,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_042.py` en verde.
 - [x] T27. Todas las obras integradas en las variantes. (RF-38)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T28. «Con proyecto» de cualquier empresa siempre propone obras. (RF-39, RF-40, RF-41, RF-42)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_set_nueva.py` en verde.
+- [ ] T29. [DIgSILENT] «Con proyecto» de un sistema de otra empresa y otra tensión, sin perfil, desde la web. (RF-39, RF-40)
+      Hecho cuando: cada alimentador con cargas nuevas termina con obra medida o «ya cumple».
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

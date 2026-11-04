@@ -426,7 +426,8 @@ def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
     n = rng.randint(2, 12)
     pesos = [rng.random() for _ in range(n)]
     aplicadas = [{'sed': f'C{i}', 'alimentador': 'AL1', 'kw': objetivo * w / sum(pesos), 'kvar': 0.0,
-                  'barra': f'N{i}', 'variacion': f'Carga_{i}', 'sola': False} for i, w in enumerate(pesos)]
+                  'barra': f'N{i}', 'variacion': f'Carga_{i}', 'sola': False,
+                  'lat': -13.0, 'lon': -76.0} for i, w in enumerate(pesos)]
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
     monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': umbral}})

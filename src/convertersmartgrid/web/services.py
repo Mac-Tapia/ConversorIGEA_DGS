@@ -5624,7 +5624,7 @@ def obra_quitar(ws: Workspace, obra_id: str) -> None:
 
 def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                       otro_proyecto: str = '', clases: list[str] | None = None,
-                      conductores: list[dict] | None = None, tensiones_regulador: list[float] | None = None) -> dict:
+                      secciones_nuevas: list[str] | None = None, crear_reguladores: bool = False) -> dict:
     """Alimentadores y tipos de las tres bibliotecas para el formulario (RF-88 a RF-94).
 
     La lectura queda en el espacio para no volver a abrir DIgSILENT al cambiar de obra.
@@ -5636,8 +5636,8 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             'feeders': action_context['feeders'],
             'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context,
-            **({'conductores_nuevos': conductores} if conductores else {}),          # 042:RF-30
-            **({'tensiones_regulador': tensiones_regulador} if tensiones_regulador else {})}   # 042:RF-34
+            **({'secciones_nuevas': secciones_nuevas} if secciones_nuevas else {}),   # 042:RF-30, RF-40
+            **({'crear_reguladores': True} if crear_reguladores else {})}             # 042:RF-34
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer bibliotecas de tipos')
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='obras_bibliotecas',
                                     args=('--bibliotecas',), cancelable=False)
@@ -5648,38 +5648,35 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
-def _conductores_normalizados(secciones, tensiones) -> list[dict]:
-    """042:RF-30: el tipo de ficha de cada conductor normalizado a cada tensión con bancos del perfil."""
-    from ..catalog import filas_de_conductores, tipo_de_ficha
-    from ..reglas import catalogo_del_proyecto
-
-    if not secciones or not tensiones:
-        return []
-    filas = filas_de_conductores(catalogo_del_proyecto())
-    out = [tipo_de_ficha(c, float(kv), filas) for c in secciones for kv in tensiones]
-    return [t for t in out if t is not None]
-
-
-def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[str, str]) -> dict:
+def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[str, str],
+                    avisos: list[str] | None = None) -> dict:
     """``{alimentador: [(instante, kW), …]}`` de la medición de cabecera del año (025:RF-51).
 
-    Con sus propios libros del año, sin tocar la máxima que el operador buscó en la web.
+    Con sus propios libros del año, sin tocar la máxima que el operador buscó en la web. Con ``avisos``, lo que no
+    tiene curva se dice y se sigue con el resto (042:RF-42); sin ellos, es un error.
     """
     from ..demanda_medida import DemandaError, maximas
 
-    libros = _libros_de_cabecera(ws, str(anio))
     try:
+        libros = _libros_de_cabecera(ws, str(anio))
         res = maximas(libros, list(medidores.items()), alias=demanda_alias(), periodo=str(anio),
                       cancelado=ctx.cancel.is_set)
-    except DemandaError as exc:
-        raise UserError(str(exc)) from exc
+    except (DemandaError, UserError, OSError) as exc:
+        if avisos is None:
+            raise UserError(str(exc)) from exc
+        avisos.append(f'Sin curva de cabecera de {anio}: {exc} (042:RF-42).')
+        return {}
     por_medidor = {r.medidor: r for r in res}
     out = {}
     for f, medidor in medidores.items():
         r = por_medidor.get(medidor)
         if r is None or r.error or not r.curva:
-            raise UserError(f'{f}: el medidor {medidor} no tiene curva de {anio} en la cabecera '
-                            '(025:RF-51)' + (f': {r.error}' if r is not None and r.error else ''))
+            texto = (f'{f}: el medidor {medidor} no tiene curva de {anio} en la cabecera '
+                     '(025:RF-51)' + (f': {r.error}' if r is not None and r.error else ''))
+            if avisos is None:
+                raise UserError(texto)
+            avisos.append(f'{texto}; se evalúa a su demanda calibrada (042:RF-42).')
+            continue
         out[f] = [(t, kw) for t, kw, *_ in r.curva if kw is not None]
     return out
 
@@ -5791,12 +5788,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     from ..informes import factor_de_carga, factor_de_perdidas
     from ..valle import frase_valle
     from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex
-    from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil
+    from ..perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA, PerfilError, bancos_kvar_por_tension,
+                                  completar_planeamiento, datos_perfil)
 
     # 025:RF-57, RF-67, RF-68: antes de tocar DIgSILENT, el perfil y el tipo de cambio que
     # escribió el operador tienen que bastar para costear.
     try:
-        perfil = datos_perfil()
+        perfil, supuestos = completar_planeamiento(datos_perfil(), tipo_cambio)       # 042:RF-39
         p = eo.parametros(perfil, tipo_cambio)
     except (eo.EscaleraError, PerfilError) as exc:
         raise UserError(str(exc)) from exc
@@ -5819,9 +5817,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         if cargas_activas is not None:
             return {'project': project.strip(), 'anio_casos': anio_casos, 'alimentadores': [], 'avisos': []}
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay escalera que hacer.')
-    faltan = [f for f in feeders if not (objetivos.get(f) or {}).get('kw') or not (objetivos.get(f) or {}).get('medidor')]
-    if faltan:
-        raise UserError('Sin máxima ni medidor de su calibración: ' + ', '.join(faltan) + ' (025:RF-51)')
+    # 042:RF-42: el que no tiene máxima o medidor se evalúa a su demanda calibrada, sin sortear.
+    medidos = [f for f in feeders if (objetivos.get(f) or {}).get('kw') and (objetivos.get(f) or {}).get('medidor')]
+    sin_medida = [f for f in feeders if f not in medidos]
     # 042: la bisección de cuántas cargas caben llama a la escalera varias veces en el mismo
     # trabajo; la curva, los sorteos, el CAPEX y los tipos no cambian entre llamadas y se leen
     # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA203 + NA205).
@@ -5831,16 +5829,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         avisos = list(avisos)
     else:
         anio_curva = anio_casos or datetime.now().year
-        curvas = _curva_del_anio(ws, ctx, anio_curva, {f: str(objetivos[f]['medidor']) for f in feeders})
+        avisos_medida = ([f"Sin máxima ni medidor de su calibración: {', '.join(sin_medida)}; se evalúa a su demanda calibrada "
+                          '(042:RF-42).'] if sin_medida else [])
+        curvas = _curva_del_anio(ws, ctx, anio_curva, {f: str(objetivos[f]['medidor']) for f in medidos}, avisos_medida)
         instantes: dict[Any, dict[str, float]] = {}
         for f, curva in curvas.items():
             for t, kw in curva:
                 instantes.setdefault(t, {})[f] = kw
-        try:
-            sorteos = eo.sorteos(sorted(instantes.items(), key=lambda x: x[0]),
-                                 {f: float(objetivos[f]['kw']) for f in feeders}, p.sorteos, p.semilla)
-        except eo.EscaleraError as exc:
-            raise UserError(str(exc)) from exc
+        sorteos, avisos_sorteo = eo.sorteos_o_maxima(sorted(instantes.items(), key=lambda x: x[0]),
+                                                     {f: float(objetivos[f]['kw']) for f in curvas}, p.sorteos, p.semilla)
+        avisos_medida += avisos_sorteo
         perdidas = {}
         for f, curva in curvas.items():
             fc = factor_de_carga([(t, kw, None) for t, kw in curva])
@@ -5848,7 +5846,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         ctx.log(f'Escalera de {project.strip()} en «Con proyecto{f" {anio_casos}" if anio_casos else ""}»: '
                 f'{len(sorteos)} sorteos de la curva de {anio_curva}, costo en {p.moneda or "la moneda del perfil"}.')
 
-        costos_capex, avisos = {}, []
+        costos_capex, avisos = {}, list(supuestos) + avisos_medida
         if capex and capex.strip():
             try:
                 obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')),
@@ -5861,17 +5859,19 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
         costos = eo.costos_de_alternativas(costos_capex, p)
         try:
-            kvar = bancos_kvar_por_tension(perfil) or {}
+            kvar = bancos_kvar_por_tension(perfil) or dict(BANCOS_KVAR_DE_REFERENCIA)      # 042:RF-39
         except PerfilError:
-            kvar = {}
-        conductores = _conductores_normalizados(p.secciones, kvar)                   # 042:RF-30
-        tensiones = [float(k) for k in kvar] if p.con_regulador else []               # 042:RF-34
-        lectura = obras_bibliotecas(ws, ctx, project, feeders,
-                                    otro_proyecto=eo.BIBLIOTECA_TIPOS if conductores or tensiones else '',
-                                    conductores=conductores, tensiones_regulador=tensiones)['informe']
+            kvar = dict(BANCOS_KVAR_DE_REFERENCIA)
+        # 042:RF-30, RF-34, RF-40: lo que falta se crea, a la tensión de cada alimentador y para cualquier empresa.
+        lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS,
+                                    secciones_nuevas=list(p.secciones or SECCIONES_DE_REFERENCIA),
+                                    crear_reguladores=p.con_regulador)['informe']
         # 073: el valle de la medición del año; lo que no se pueda leer se dice y no bloquea.
-        valle = _valle_del_proyecto(ws, ctx, anio_curva, feeders, objetivos, perfil,
-                                    [str(i.get('feeder')) for i in base.get('informes') or [] if i.get('central')])
+        try:
+            valle = _valle_del_proyecto(ws, ctx, anio_curva, medidos, objetivos, perfil,
+                                        [str(i.get('feeder')) for i in base.get('informes') or [] if i.get('central')])
+        except (UserError, KeyError, TypeError, ValueError) as exc:             # 042:RF-42
+            valle = {'avisos': [f'Valle sin comprobar: {exc} (042:RF-42).']}
         avisos += list(valle.get('avisos') or [])
         if memo is not None:
             memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura, valle)
@@ -6551,7 +6551,9 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
 
     if not a_set_nueva:
         return {'avisos': ['Todas las cargas nuevas caben en la red existente: no hace falta SET nueva.']}
-    perfil = datos_perfil()
+    from ..perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA, completar_planeamiento
+
+    perfil, supuestos = completar_planeamiento(datos_perfil())                        # 042:RF-39
     try:
         p = sn.parametros(perfil)
     except sn.SetNuevaError as exc:
@@ -6654,6 +6656,8 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     else:
         tasas_det = _crecimiento_de_la_cabecera(ws, ctx, project, list(trasladado), avisos, todos=True) or {}
         tasas = {f: (tasas_det.get(f) or {}).get('tasa') for f in trasladado}
+    tasas, avisos_tasa = sn.tasas_completas(tasas, TASA_CRECIMIENTO_DE_REFERENCIA)    # 042:RF-41
+    avisos.extend(x for x in supuestos + avisos_tasa if x not in avisos)
     nuevas_pq = (sum(float(c.get('kw') or 0) for c in a_set_nueva), sum(float(c.get('kvar') or 0) for c in a_set_nueva))
     try:
         diseno = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=p.factor_seguridad)
@@ -6793,7 +6797,9 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     # salía «fallido» sin decir cuántas cargas cabían.
     # 042:RF-21, RF-22: por zona geográfica; SET nueva solo donde la zona la justifica.
     from .. import set_nueva as sn
-    plan_perfil = datos_perfil().get('planificacion') or {}
+    from ..perfil_empresa import completar_planeamiento
+
+    plan_perfil = completar_planeamiento(datos_perfil())[0]['planificacion']           # 042:RF-39
     zonas = sn.zonas_de_carga(escalera['a_set_nueva'], plan_perfil.get('radio_zona_set_km'))
     umbral_set = plan_perfil.get('set_nueva_desde_kw')
     oraculo = escalera.pop('_oraculo', None)

@@ -309,3 +309,11 @@ def test_sin_modulo_que_cubra_la_set_se_deduce(tmp_path):
     assert solo['mva'] == 15.0 and solo['costo'] is None and solo['kv_at'] == sn.KV_ALTA_SUPUESTA
     enorme = sn.modulo_deducido([], 300_000.0, 22.9)['modulo']
     assert enorme['unidades'] * enorme['mva'] >= 300.0
+
+
+def test_sin_tasa_de_crecimiento_la_set_se_disena_igual():
+    """042:RF-41 — el que no tiene tasa toma la media de los demás; sin ninguna, la de referencia; y se dice."""
+    tasas, avisos = sn.tasas_completas({'F1': 0.02, 'F2': None, 'F3': 0.04}, 0.03)
+    assert tasas == {'F1': 0.02, 'F2': 0.03, 'F3': 0.04} and 'F2' in avisos[0]
+    assert sn.tasas_completas({'F1': None}, 0.05)[0] == {'F1': 0.05}
+    assert sn.tasas_completas({'F1': 0.01}, 0.05) == ({'F1': 0.01}, [])

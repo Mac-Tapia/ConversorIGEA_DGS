@@ -273,14 +273,21 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
             continue
         informe['alimentadores'][f] = leer_alimentador(elm)
 
-    if plan.get('conductores_nuevos'):
+    # 042:RF-40: a la tensión que se lee de cada alimentador, para cualquier empresa.
+    tensiones = sorted({float(a['kv']) for a in informe['alimentadores'].values() if a.get('kv')})
+    if plan.get('secciones_nuevas') and tensiones:
         # 042:RF-30: los normalizados que no están en ninguna biblioteca, desde su ficha.
-        informe['conductores_creados'] = crear_tipos_conductor(app, plan['conductores_nuevos'], informe['avisos'])
+        from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+        from convertersmartgrid.reglas import catalogo_del_proyecto
+
+        filas = filas_de_conductores(catalogo_del_proyecto())
+        conductores = [t for c in plan['secciones_nuevas'] for kv in tensiones if (t := tipo_de_ficha(c, kv, filas)) is not None]
+        informe['conductores_creados'] = crear_tipos_conductor(app, conductores, informe['avisos'])
         if app.GetActiveProject() is not proyecto:
             proyecto.Activate()
-    if plan.get('tensiones_regulador'):
+    if plan.get('crear_reguladores') and tensiones:
         # 042:RF-34: sin esto, todas las variantes con regulador fallaban por el tipo que faltaba.
-        reguladores, _codigo = crear_tipos_regulador(app, {'tensiones_kv': plan['tensiones_regulador']})
+        reguladores, _codigo = crear_tipos_regulador(app, {'tensiones_kv': tensiones})
         informe['avisos'] += list(reguladores.get('avisos') or []) + ([reguladores['error']] if reguladores.get('error') else [])
         informe['reguladores_creados'] = [r['nombre'] for r in reguladores.get('creados') or []]
         if app.GetActiveProject() is not proyecto:

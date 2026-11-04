@@ -550,6 +550,15 @@ def sorteos(curva: Sequence[tuple[Any, Mapping[str, float]]], maximas: Mapping[s
     return [{'instante': str(t), 'factores': fs} for t, fs in rng.choices(puntos, k=int(n))]
 
 
+def sorteos_o_maxima(curva: Sequence[tuple[Any, Mapping[str, float]]], maximas: Mapping[str, float],
+                     n: int, semilla: int) -> tuple[list[dict[str, Any]], list[str]]:
+    """042:RF-42: los sorteos de la curva; sin ningún instante con todos medidos, solo la máxima, y se dice."""
+    try:
+        return sorteos(curva, maximas, n, semilla), []
+    except EscaleraError as exc:
+        return [{'instante': 'máxima', 'factores': {}}], [f'{exc}: las obras se evalúan solo en la máxima (042:RF-42).']
+
+
 # --------------------------------------------------------------------------- costo y elección
 def _cantidad_en(unidad: str, cantidad: float, escalon: str) -> float:
     u = (unidad or '').strip().lower()

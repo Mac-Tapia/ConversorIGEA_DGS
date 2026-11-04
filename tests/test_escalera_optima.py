@@ -494,3 +494,38 @@ def test_las_obras_se_integran_de_tres_y_de_cuatro_sin_repetir():
         ter = [o for o in v.obras if o['clase'] == 'terna']
         if sec and ter:
             assert set(sec[0]['tramos']) <= set(ter[0]['tramos'])
+
+
+def test_otra_empresa_sin_perfil_y_otra_tension_tiene_todas_las_obras():
+    """042:RF-39, 042:RF-40 — sin perfil y a 13,8 kV: bancos, sección, terna y regulador; lo supuesto se dice y lo propio no se pisa."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid import set_nueva as sn
+    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+    from convertersmartgrid.perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA,
+                                                   completar_planeamiento)
+
+    perfil, avisos = completar_planeamiento({})
+    assert avisos and '042:RF-39' in avisos[0]
+    p = eo.parametros(perfil)
+    assert p.tension_min_pu == 0.95 and sn.parametros(perfil).anios == 5
+    assert completar_planeamiento({'estudios': {'tension_min_pu': 0.9}})[0]['estudios']['tension_min_pu'] == 0.9
+    filas = filas_de_conductores()
+    tipos = []
+    for c in SECCIONES_DE_REFERENCIA:
+        t = tipo_de_ficha(c, 13.8, filas)
+        assert t['datos']['uline'] == 13.8
+        tipos.append({'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'proyecto', 'proyecto': ''})
+    banco = min(BANCOS_KVAR_DE_REFERENCIA.items(), key=lambda par: abs(par[0] - 13.8))[1]
+    troncal = [{'nombre': f'L{i}', 'largo_m': 4000.0, 'corriente_a': 60.0, 'inom_a': 100.0} for i in range(6)]
+    vs, _a = eo.variantes('F', 13.8, troncal, [{'barra': 'B', 'existe': True, 'indice_troncal': 5}], tipos, p, banco_kvar=banco)
+    assert {e for v in vs for e in v.escalones} == set(eo.ORDEN)
+
+
+def test_sin_medicion_las_obras_se_evaluan_en_la_maxima():
+    """042:RF-42 — sin ningún instante con todos medidos no hay error: un solo punto, la máxima, y se dice."""
+    from convertersmartgrid import escalera_optima as eo
+
+    lista, avisos = eo.sorteos_o_maxima([], {'F1': 100.0}, 200, 1)
+    assert lista == [{'instante': 'máxima', 'factores': {}}] and '042:RF-42' in avisos[0]
+    lista, avisos = eo.sorteos_o_maxima([('t', {'F1': 50.0})], {'F1': 100.0}, 3, 1)
+    assert len(lista) == 3 and lista[0]['factores'] == {'F1': 0.5} and not avisos

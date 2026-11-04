@@ -151,8 +151,8 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
 
 
 def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):
-    """025:RF-68 — precios de pérdidas en otra moneda y sin tipo de cambio: la escalera no
-    toca DIgSILENT y el trabajo dice qué falta."""
+    """042:RF-39 (en la web sustituye a 025:RF-68) — sin tipo de cambio no se valoran las pérdidas, pero ya no es
+    lo que para la escalera: aquí se detiene porque el proyecto no está calibrado."""
     from convertersmartgrid.web import services
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005,
@@ -166,4 +166,4 @@ def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):
     wid = _espacio(client)
     estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/escalera',
                                           json={'project': 'P', 'feeders': ['A1']}))
-    assert estado['status'] == 'failed' and 'tipo de cambio' in estado['error'] and not tocado
+    assert estado['status'] == 'failed' and 'tipo de cambio' not in estado['error'] and not tocado
