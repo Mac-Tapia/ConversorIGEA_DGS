@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ..edicion import es_edicion_producto
 from .buffer import BuferEpisodios, Consulta
 from .capture import CapturaImposible, artefacto_de, construir_episodio
 from .contratos_fisicos import contexto_fisico
@@ -35,7 +36,8 @@ ALTERNATIVA_DE_OBRA = {'condensador': 'bancos', 'regulador': 'reguladores',
 
 
 def captura_activa() -> bool:
-    return os.environ.get(VARIABLE_CAPTURA, '1').strip() != '0'
+    # 086:RF-16: capturar es para entrenar: en producto, cada acción abriría una lectura más de DIgSILENT para nada.
+    return os.environ.get(VARIABLE_CAPTURA, '1').strip() != '0' and not es_edicion_producto()
 
 
 def obras_pide(obras: Iterable[Mapping[str, Any]],

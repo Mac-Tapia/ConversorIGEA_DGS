@@ -14,6 +14,7 @@ from convertersmartgrid.web.app import create_app
 ORDENES = {
     'que hay cargado': ('estado', 0.99, {}),
     'lee los proyectos de digsilent': ('leer_proyectos', 0.99, {}),
+    'busca la maxima': ('buscar_maxima', 0.99, {}),
     'reentrena la pinn': ('gemelo_entrenar', 0.98, {}),
     'xyzzy': ('estado', 0.2, {}),
     'convierte IN111': ('convertir', 0.97, {'alimentadores': [{'valor': 'IN111', 'confianza': 0.9}]}),
@@ -72,15 +73,16 @@ def test_consulta_respondida_al_momento(client):
 
 
 def test_lo_que_solo_lee_se_lanza_sin_confirmar(client, monkeypatch):
-    """026:RF-9 / 026:RF-10 — leer los proyectos de DIgSILENT no escribe: se lanza solo, por la
-    misma ruta y el mismo carril que la pestaña."""
-    monkeypatch.setattr(services, 'pf_projects', lambda ws, ctx: {'projects': [{'name': 'P1'}]})
-    r = _orden(client, _wid(client), 'lee los proyectos de digsilent')
+    """026:RF-9 / 026:RF-10 — buscar la máxima solo lee los libros: se lanza solo, por la misma ruta y el mismo
+    carril que la pestaña. Leer los proyectos de DIgSILENT ya no es de estas: ocupa la licencia (086:RF-24)."""
+    monkeypatch.setattr(services, '_asistente_requisitos', lambda *_a, **_k: None)
+    from convertersmartgrid.asistente import ejecutor
+
+    monkeypatch.setattr(ejecutor, 'pasos', lambda *_a, **_k: [ejecutor.Paso('versión', 'GET', '/api/health', espera=False)])
+    r = _orden(client, _wid(client), 'busca la maxima')
     assert r['trabajo']['lane'] == 'asistente'
     fin = _esperar(client, r['trabajo']['id'])
     assert fin['status'] == 'done', fin['error']
-    assert fin['result']['pasos'][0]['estado'] == 'done'
-    assert fin['result']['resultado'] == {'projects': [{'name': 'P1'}]}
 
 
 def test_lo_que_escribe_espera_la_confirmacion(client, monkeypatch):

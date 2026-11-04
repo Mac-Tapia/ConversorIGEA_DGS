@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../context';
 import type { GuionOperador, GuionResultado } from '../types';
 import { CASOS_OBRA } from './ObrasPF';
+import { useConfirm } from './ui';
 
 /** Rol que da el guion de estudios a cada caso. */
 const ROL: Record<string, string> = { 'Sin proyecto': 'sin', 'Con proyecto': 'con' };
@@ -16,6 +17,7 @@ const ROL: Record<string, string> = { 'Sin proyecto': 'sin', 'Con proyecto': 'co
  */
 export function GuionesPF({ project }: { project: string }) {
   const { ws, startJob, active, jobs } = useApp();
+  const confirm = useConfirm();
   const [elegido, setElegido] = useState('');
   const [valores, setValores] = useState<Record<string, string>>({});
   const [casos, setCasos] = useState<string[]>([...CASOS_OBRA]);
@@ -35,10 +37,18 @@ export function GuionesPF({ project }: { project: string }) {
     const g = guiones.find((x) => clave(x) === k);
     setValores(Object.fromEntries((g?.parametros ?? []).map((p) => [p.nombre, p.valor])));
   };
-  const ejecutar = () => guion && startJob(() => api.guionEjecutar(ws.id, {
-    project, nombre: guion.nombre, origen: guion.origen, parametros: valores,
-    casos: casos.filter((c) => posibles.includes(c)),
-  }));
+  // 086:RF-25: el guion hace en la red lo que diga su código, y no se protege: quien lo lanza lo tiene que saber.
+  const ejecutar = async () => {
+    if (!guion) return;
+    const enCasos = casos.filter((c) => posibles.includes(c));
+    if (!await confirm(`Ejecutar el guion ${guion.nombre}`, <>
+      <p>Se ejecutará en {enCasos.join(' y ')}, y hará en el proyecto lo que diga su código: el conversor no lo revisa
+        ni lo deshace. Usa la licencia de DIgSILENT mientras corre.</p>
+    </>, 'Ejecutar', true)) return;
+    await startJob(() => api.guionEjecutar(ws.id, {
+      project, nombre: guion.nombre, origen: guion.origen, parametros: valores, casos: enCasos, confirmado: true,
+    }));
+  };
 
   return (
     <div>
@@ -87,7 +97,7 @@ export function GuionesPF({ project }: { project: string }) {
               </div>
             </div>
             <div className="row span-2">
-              <button className="btn btn-pf" disabled={pfBusy || !casos.some((c) => posibles.includes(c))} onClick={ejecutar}>
+              <button className="btn btn-pf" disabled={pfBusy || !casos.some((c) => posibles.includes(c))} onClick={() => void ejecutar()}>
                 Ejecutar {guion.nombre}
               </button>
             </div>

@@ -121,8 +121,12 @@ class EventLog:
 
     def __init__(self, maxlen: int = 5000) -> None:
         self._events: deque[dict] = deque(maxlen=maxlen)
-        self._seq = itertools.count(1)
-        self._last = 0
+        # 086:RF-9: la numeración sigue creciendo entre arranques. Empezaba en 1 en cada proceso, y una pestaña
+        # abierta que volvía con ``since=67`` no veía nada hasta que el servidor nuevo pasaba de 67 eventos.
+        # Un proceso no escribe más de un evento por microsegundo vivido: el siguiente siempre empieza por encima.
+        # Y en microsegundos cabe entero en un número de JavaScript, que llega a 2^53.
+        self._last = int(time.time() * 1_000_000)
+        self._seq = itertools.count(self._last + 1)
         self._cond = threading.Condition()
 
     @property

@@ -129,7 +129,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/recursos/leaflet/LICENSE` | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.css` | Estilos de Leaflet, copia exacta con huella comprobada. | 086 |
 | `src/convertersmartgrid/recursos/leaflet/leaflet.js` | Leaflet, copia exacta con huella comprobada. | 086 |
-| `src/convertersmartgrid/edicion.py` | La única función que dice si corre la edición de producto. | 086 (RF-22) |
+| `src/convertersmartgrid/edicion.py` | Qué edición corre y qué entrega la de producto: rutas y tareas fuera de alcance, y funciones en beta. | 086 (RF-15, RF-16, RF-22) |
 | `src/convertersmartgrid/salidas_red.py` | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. | 086 (RF-22) |
 | `src/convertersmartgrid/sesion_web.py` | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. | 086 (RF-19) |
 | `src/convertersmartgrid/puentes.py` | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas; su equipo pasa al extremo de la línea vecina si cabe. | 034, 021 |
@@ -324,6 +324,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `frontend/src/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2), 061 (RF-4) |
+| `frontend/src/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
+| `frontend/src/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/operacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
 | `frontend/src/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
 | `frontend/src/api.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |
@@ -347,6 +349,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
 | `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
+| `frontend/src/components/AvisosDatos.tsx` | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. | 086 (RF-2, RF-3, RF-9, RF-47) |
+| `frontend/src/components/MarcaBeta.tsx` | La marca y el aviso de una función en beta; en desarrollo no se ven. | 086 (RF-16) |
 | `frontend/src/components/OperacionSet.tsx` | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. | 063 |
 | `frontend/src/components/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
 | `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red; tensión en la fuente; bancos que falten. | 006, 008, 020 (RF-62), 021, 025 (RF-24), 035 (RF-11, RF-16, RF-21, RF-22), 039 (RF-1), 035 (RF-30), 039 (RF-1), 041 (RF-6, RF-9) |
@@ -488,6 +492,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/scripts/build.mjs` | Compila fuera del checkout y publica `dist` completo, conservando el anterior ante cualquier fallo. | 065 (RF-3, RF-4) |
 | `frontend/scripts/runtime-paths.mjs` | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. | 065 (RF-10, RF-11) |
 | `frontend/package.json` | Dependencias del frontend y versiones compatibles de Node y npm. | 065 (RF-8) |
+| `frontend/test/reconexion.test.mjs` | Pruebas de los trabajos al reconectar y de la edición en la web. | 086 (RF-9, RF-16) |
 | `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
 | `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |
 | `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |

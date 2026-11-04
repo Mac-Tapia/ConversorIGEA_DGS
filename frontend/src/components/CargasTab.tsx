@@ -16,6 +16,8 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
+import { AvisoBeta, MarcaBeta } from './MarcaBeta';
+import { betaActiva, esProducto } from '../edicion';
 import { FileDrop, Modal, Toggle, useToast } from './ui';
 
 const ANIO = new Date().getFullYear();
@@ -643,8 +645,11 @@ export function CargasTab() {
           tipo_cambio: tipoCambio, capex, alimentadores_nuevos: nuevos,
           set_nueva_nombre: setNombre, directo_set_nueva: directo }))} />}
 
-      {current && order.length > 0 && <OperacionSet wsId={ws.id} project={project} feeders={order} ocupado={pfBusy}
-        jobs={todos} startJob={startJob} />}
+      {current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
+        <AvisoBeta clave="set_nueva" />
+        <OperacionSet wsId={ws.id} project={project} feeders={order} ocupado={pfBusy}
+          jobs={todos} startJob={startJob} />
+      </>}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box">
@@ -664,11 +669,11 @@ export function CargasTab() {
       </div>
 
       {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
-      <div className="step-box">
-        <h3>5 · Planificación PIDE y gemelo digital</h3>
+      {betaActiva(health, 'pide') && <div className="step-box">
+        <h3>{esProducto(health) ? '5 · Planificación PIDE' : '5 · Planificación PIDE y gemelo digital'} <MarcaBeta clave="pide" /></h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
           : <GemeloPIDE project={project} feeders={order} />}
-      </div>
+      </div>}
       </fieldset>
 
       {plan && (
@@ -914,6 +919,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
   onConProyecto: (feeders: string[], tipoCambio: number | null, capex: string, nuevos: number,
     setNombre: string, directo: boolean) => void;
 }) {
+  const { health } = useApp();
   // Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
   const [nuevos, setNuevos] = useState('4');
   const nNuevos = Number(nuevos);
@@ -970,6 +976,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
               onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null, capex.trim())}>
               Proponer obras en escalera
             </button>
+            {betaActiva(health, 'set_nueva') && <>
             <label className="small">Alimentadores nuevos{' '}
               <input type="number" min={1} max={20} step={1} value={nuevos} style={{ width: '4em' }}
                 aria-label="Alimentadores nuevos que puede tener la SET nueva" onChange={(e) => setNuevos(e.target.value)} />
@@ -978,7 +985,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
               || (tipoCambio.trim() !== '' && !tcValido)}
               onClick={() => onConProyecto(feedersEscalera, tcValido ? tc : null, capex.trim(), nNuevos,
                 setNombre.trim(), directo)}>
-              Optimizar «Con proyecto» con SET nueva
+              Optimizar «Con proyecto» con SET nueva <MarcaBeta clave="set_nueva" />
             </button>
             <label className="small">Nombre de la SET nueva{' '}
               <input type="text" size={18} maxLength={40} value={setNombre} aria-label="Nombre de la SET nueva"
@@ -986,6 +993,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
             </label>
             <label className="small"><input type="checkbox" checked={directo}
               onChange={(e) => setDirecto(e.target.checked)} /> Directo a SET nueva, sin escalera</label>
+            </>}
             <small className="muted">
               Bancos, regulador, terna y cambio de sección en {lista(feedersEscalera)}, varias variantes y sus
               combinaciones en «{juntas.caso}»; gana la de menor costo anual entre las que cumplen. El tipo de

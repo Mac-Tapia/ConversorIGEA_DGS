@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from .interprete import Interpretacion, numero_de, periodo_de
+from ..edicion import tarea_fuera_de_alcance
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
-from .tareas import TAREAS
+from .tareas import EFECTOS, TAREAS, requiere_confirmacion
 
 
 #: 084:RF-25: los verbos de una orden de borrar. «borra la escalera de X» activaba la frase literal de la
@@ -52,11 +53,14 @@ class Plan:
 
     @property
     def espera_confirmacion(self) -> bool:
-        """Lo que no se lanza sin el operador: todo lo que escribe y, con un modelo provisional, todo trabajo (085:RF-31, RF-32)."""
-        return self.escribe or (self.solo_con_confirmacion and self.modo != 'consulta')
+        """Lo que no se lanza sin el operador: lo que escribe, lo que usa la licencia o sale a la red (086:RF-24)
+        y, con un modelo provisional, todo trabajo (085:RF-31, RF-32)."""
+        return (self.escribe or requiere_confirmacion(self.tarea)
+                or (self.solo_con_confirmacion and self.modo != 'consulta'))
 
     def publico(self) -> dict:
         return {**asdict(self), 'listo': self.listo, 'espera_confirmacion': self.espera_confirmacion,
+                'efectos': list(EFECTOS.get(self.tarea or '', ())),             # 086:RF-23
                 'descripcion': TAREAS[self.tarea].descripcion if self.tarea else ''}
 
 
@@ -155,6 +159,11 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
         plan.faltan.append('la tarea: no entendí la orden con suficiente confianza'
                            + (f'; ¿quiso decir {dudas}?' if dudas else ''))
         return plan
+    if tarea_fuera_de_alcance(interp.tarea):
+        # 086:RF-16: va en las dudas y no en lo que falta: no hay dato que dar, y el plan no se puede confirmar.
+        plan.tarea = None
+        plan.dudas.append('Esa orden es de una función que no forma parte de esta versión del programa.')
+        return plan
     tarea = TAREAS[interp.tarea]
     plan.escribe, plan.modo = tarea.escribe, tarea.modo
     if tarea.escribe and _PIDE_BORRAR.search(normalizar(interp.texto)):
@@ -191,6 +200,8 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
             plan.faltan.append(f'{d.nombre}: {d.descripcion}')
     if plan.escribe:
         plan.razonamiento.append('Esta tarea escribe en DIgSILENT o en disco: espera su confirmación (RF-8).')
+    elif requiere_confirmacion(tarea.nombre):
+        plan.razonamiento.append('Esta tarea usa la licencia de DIgSILENT o sale a la red: espera su confirmación.')
     return plan
 
 

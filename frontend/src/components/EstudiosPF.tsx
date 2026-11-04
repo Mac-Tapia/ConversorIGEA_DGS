@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../context';
 import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, Limites, OpcionesEstudios, PropuestaRed } from '../types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
+import { betaActiva } from '../edicion';
 import { GuionesPF } from './GuionesPF';
 import { Modal } from './ui';
 
@@ -22,7 +23,7 @@ const LIMITES: [keyof Limites, string][] = [
 export function EstudiosPF({ project, feeders, ajusteJobId }: {
   project: string; feeders: string[]; ajusteJobId: string | null;
 }) {
-  const { ws, run, startJob, active, jobs } = useApp();
+  const { ws, run, startJob, active, jobs, health } = useApp();
   const [catalogo, setCatalogo] = useState<EstudiosCatalogo | null>(null);
   const [elegidos, setElegidos] = useState<string[]>(['flujo']);
   const [limites, setLimites] = useState<Record<string, string>>({});
@@ -92,7 +93,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId }: {
           </button>
         ))}
       </div>
-      <DatosEmpresaPF project={project} feeders={feeders} libro={catalogo.datos_empresa} onCambio={cargar} />
+      {betaActiva(health, 'confiabilidad') && <DatosEmpresaPF project={project} feeders={feeders} libro={catalogo.datos_empresa} onCambio={cargar} />}
       <OpcionesRed elegidos={elegidos} opciones={opciones} setOpciones={setOpciones} />
       {catalogo.no_ofrecidos.length > 0 && (
         <details><summary className="muted">No disponibles todavía ({catalogo.no_ofrecidos.length})</summary>

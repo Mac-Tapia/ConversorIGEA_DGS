@@ -21,6 +21,7 @@ import sys
 import time
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
+from ..edicion import motivo_ruta_negada
 from ..sesion_web import (CABECERA_TOKEN, HOSTS_LOCALES, PARAMETRO_ACCESO, VARIABLE_PUERTO, Sesion,
                           leer_sesion)
 
@@ -214,6 +215,24 @@ class SeguridadWeb:
                                 (b'cache-control', b'no-store'), (b'referrer-policy', b'no-referrer'),
                                 (b'content-length', b'0')]})
         await send({'type': 'http.response.body', 'body': b''})
+
+
+class AlcanceEdicion:
+    """086:RF-16: lo que la edición de producto no entrega se niega aquí, y no ruta por ruta: la lista está en
+    ``edicion.py``, y ocultar el botón dejaba la ruta abierta a cualquier petición."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        motivo = motivo_ruta_negada(scope.get('path', '')) if scope['type'] == 'http' else None
+        if motivo is None:
+            await self.app(scope, receive, send)
+            return
+        cuerpo = json.dumps({'detail': motivo}, ensure_ascii=False).encode('utf-8')
+        await send({'type': 'http.response.start', 'status': 403,
+                    'headers': [(b'content-type', b'application/json'), (b'content-length', str(len(cuerpo)).encode())]})
+        await send({'type': 'http.response.body', 'body': cuerpo})
 
 
 def instalar_seguridad(app, origenes_desarrollo: tuple[str, ...]) -> None:

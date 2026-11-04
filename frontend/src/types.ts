@@ -176,6 +176,10 @@ export interface WorkspaceState {
   created_at: number;
   options: Options;
   inputs: Record<string, InputMeta>;
+  /** 086:RF-3: lo que apunta a un fichero que hoy no está: se conserva, y el operador lo ve. */
+  no_disponibles: components['schemas']['NoDisponibleRespuesta'][];
+  /** 086:RF-2, RF-4: lo que pasó al abrir el espacio. */
+  avisos_datos: string[];
   missing_inputs: string[];
   loaded: boolean;
   loaded_at: number | null;
@@ -218,6 +222,7 @@ export interface PerfilEmpresa {
 }
 
 export type Health = components['schemas']['HealthRespuesta'];
+export type ResumenEspacio = components['schemas']['ResumenEspacioRespuesta'];
 
 export interface PowerFactoryStatus {
   api_dir: string | null;
@@ -919,6 +924,8 @@ export interface InformesContexto {
   /** Banda y umbral que trae el perfil; los que falten se piden (RF-81). */
   limites: Partial<Limites>;
   estudios: Record<'sin' | 'con', { fichero: string; alimentadores: Record<string, boolean> } | null>;
+  /** 086:RF-12: lo que no salió de la última corrida de un alimentador y el informe usará o no dirá. */
+  avisos_corrida: { alimentador: string; corrida: string | null; texto: string }[];
   obras: Record<string, number>;
   cargas: CargaAplicada[];
   /** Por medidor de la última máxima buscada: factor de carga del mes de su máxima. */
@@ -1771,6 +1778,8 @@ export interface AsistentePlan {
   listo: boolean;
   /** 085:RF-31, RF-32: no se lanza sin el operador; lo decide el servidor. */
   espera_confirmacion?: boolean;
+  /** 086:RF-23: qué hace en el mundo: leer, gastar la licencia, salir a la red o escribir. */
+  efectos?: ('lee' | 'usa_licencia' | 'sale_a_la_red' | 'escribe')[];
   pasos?: string[];
   /** 067:RF-9, RF-10: quién interpretó la orden, si no fue el Transformer. */
   avisos?: string[];

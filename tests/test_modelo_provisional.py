@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from convertersmartgrid.asistente import modelos_en_uso as meu
 from convertersmartgrid.asistente import transformer
-from convertersmartgrid.asistente.tareas import TAREAS
+from convertersmartgrid.asistente.tareas import TAREAS, requiere_confirmacion
 from convertersmartgrid.model_registry import EstadoModelo
 from convertersmartgrid.web import services
 from convertersmartgrid.web.app import create_app
@@ -233,7 +233,9 @@ def test_con_confianza_maxima_lo_que_escribe_espera_y_la_escritura_exige_el_clic
 
 def test_con_modelo_provisional_tampoco_se_lanza_solo_un_trabajo_de_lectura(api, datos, monkeypatch):
     """085:RF-32 — sin provisional la lectura se lanza sola como siempre; con él, espera su clic."""
-    lectura = next(n for n, t in TAREAS.items() if not t.escribe and t.modo == 'trabajo' and not [d for d in t.datos if d.obligatorio])
+    # 086:RF-24: una que no use la licencia ni salga a la red: esas esperan aunque el modelo sea bueno.
+    lectura = next(n for n, t in TAREAS.items() if not t.escribe and t.modo == 'trabajo' and not requiere_confirmacion(n)
+                   and not [d for d in t.datos if d.obligatorio])
     wid = api.post('/api/workspaces', json={'name': 'p'}).json()['id']
     monkeypatch.setattr(services, '_asistente_requisitos', lambda *_a, **_k: None)
     monkeypatch.setattr(services, '_asistente_ejecutar_plan', lambda *_a, **_k: {'texto': 'hecho', 'completo': True})

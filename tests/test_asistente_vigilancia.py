@@ -23,11 +23,11 @@ def _t(i, kind, status, *, start=None, end=None, lane='engine', error=None, crea
 
 def test_fallos_largos_y_colas_paradas():
     """026:RF-22 — avisa de fallos, de trabajos que tardan mucho más que su mediana y de colas
-    paradas; solo el 4002 se reintenta, y una vez."""
+    paradas; solo el 4002 de lo que solo lee se reintenta (086:RF-26), y una vez."""
     trabajos = [_t('a', 'pide', 'done', start=0, end=100), _t('b', 'pide', 'done', start=0, end=120),
                 _t('c', 'pide', 'running', start=1000),
-                _t('d', 'flujo', 'failed', error='DIgSILENT devolvió 4002 al conectar'),
-                _t('e', 'flujo', 'failed', error='no converge'),
+                _t('d', 'pf_projects', 'failed', error='DIgSILENT devolvió 4002 al conectar'),
+                _t('e', 'pf_projects', 'failed', error='no converge'),
                 _t('f', 'cargas', 'queued', lane='powerfactory', created=0)]
     avisos = {a.clave: a for a in revisar_trabajos(trabajos, ahora=2000)}
     assert 'largo:c' in avisos and avisos['fallo:d'].accion == 'reintentar' and avisos['fallo:e'].accion is None
@@ -53,7 +53,7 @@ def test_el_vigilante_actua_una_vez(tmp_path, monkeypatch):
     """026:RF-22 / 026:RF-23 — cada vuelta actúa sobre lo nuevo y no repite avisos."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     hechos = []
-    v = Vigilante(listar_trabajos=lambda: [_t('d', 'flujo', 'failed', error='4002')],
+    v = Vigilante(listar_trabajos=lambda: [_t('d', 'pf_projects', 'failed', error='4002')],
                   reintentar=lambda i: hechos.append(('reintentar', i)),
                   entrenar_gemelo=lambda: hechos.append('gemelo'), entrenar_asistente=lambda: hechos.append('asis'),
                   contar_nuevos=lambda: (15, 0), repo=tmp_path)

@@ -1,7 +1,7 @@
 import type { Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios,
-  FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
+  FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
@@ -59,6 +59,12 @@ export const api = {
     request<PowerFactoryStatus>(`/api/powerfactory${refresh ? '?refresh=true' : ''}`),
 
   createWorkspace: () => request<WorkspaceState>('/api/workspaces', { method: 'POST' }),
+  // 086:RF-2, RF-3, RF-9: lo que le pasó a los datos, con lo que se puede hacer.
+  espacios: () => request<ResumenEspacio[]>('/api/workspaces'),
+  restaurarCopia: (id: string) => request<WorkspaceState>(`${ws(id)}/restaurar-copia`, { method: 'POST' }),
+  descartarNoDisponible: (id: string, campo: string, clave: string) =>
+    request<WorkspaceState>(`${ws(id)}/no-disponibles/descartar`, json('POST', { campo, clave })),
+  registroTrabajo: (jobId: string) => request<{ job: string; lineas: string[] }>(`/api/jobs/${enc(jobId)}/registro`),
   workspace: (id: string) => request<WorkspaceState>(ws(id)),
   setOptions: (id: string, opts: Partial<Options>) =>
     request<WorkspaceState>(`${ws(id)}/options`, json('PUT', opts)),
@@ -346,6 +352,7 @@ export const api = {
   guiones: (id: string, project: string) => request<Job>(`${ws(id)}/pf/guiones`, json('POST', { project })),
   guionEjecutar: (id: string, body: {
     project: string; nombre: string; origen: 'caso' | 'proyecto'; parametros: Record<string, string>; casos: string[];
+    confirmado: boolean;
   }) => request<Job>(`${ws(id)}/pf/guiones/ejecutar`, json('POST', body)),
   // Spec 024: PIDE, gemelo digital y decisiones del operador.
   pide: (id: string, body: { project: string; feeders: string[]; capex: string | null;

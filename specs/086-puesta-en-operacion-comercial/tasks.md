@@ -24,8 +24,9 @@
 - [x] T8 Trabajos interrumpidos, copia y restauración. (RF-9, RF-10, RF-47)
   Hecho cuando: matar el proceso a media corrida deja el trabajo como interrumpido; restaurar una copia devuelve el mismo estado.
   Por la API y por `tools/copia_datos.py`; verlo en la interfaz sigue en T35. El corte de luz real es la T33.
-- [ ] T35 Ver en la interfaz lo de T6 y T8: espacio dañado con su botón de restaurar, entradas no disponibles, trabajo interrumpido con su registro y aviso de copia vieja. (RF-2, RF-3, RF-9, RF-47)
+- [x] T35 Ver en la interfaz lo de T6 y T8: espacio dañado con su botón de restaurar, entradas no disponibles, trabajo interrumpido con su registro y aviso de copia vieja. (RF-2, RF-3, RF-9, RF-47)
   Hecho cuando: los cuatro se ven y funcionan en el navegador real, en claro y oscuro.
+  Evidencia: navegador real contra una web propia en el 8792, datos sintéticos, en las dos ediciones. También `avisos_corrida` en informes, y la pestaña abierta tras reiniciar el servidor: `tests/test_edicion_producto.py`, `frontend/test/reconexion.test.mjs`. El trabajo interrumpido de esa prueba se sembró en su diario; matar el proceso de verdad es la T8.
 
 ## F2 Renombrar
 
@@ -41,8 +42,9 @@
 - [x] T11 «Caso base» al retomar y su huella. (RF-13, RF-14) (`v1/informes`)
   Hecho cuando: retomar verifica; el guion escribe `caso_base_huella` y la guarda de 081 actúa.
   Evidencia: `tests/test_sistema_web.py` y `tests/test_huella_caso_base.py`, con `fake_pf`. La huella real sigue abierta en 081 T12 (R3, T26).
-- [ ] T12 Edición de producto: sin suite nocturna, sin entrenar, oculto lo que no se vende. (RF-15, RF-16) (`v1/producto`)
+- [x] T12 Edición de producto: sin suite nocturna, sin entrenar, oculto lo que no se vende. (RF-15, RF-16) (`v1/producto`)
   Hecho cuando: pruebas en las dos ediciones, y comprobación en el navegador real.
+  Evidencia: `tests/test_edicion_producto.py`; navegador real en el 8792 en las dos ediciones, con las rutas negadas también desde la página. La lista de lo que no se empaqueta es la T19.
 - [x] T13 Host, Origin, token y escucha. (RF-17, RF-18, RF-19, RF-20) (`v1/seguridad`)
   Hecho cuando: pruebas negativas por cada una, también en WebSocket; la web sigue funcionando en el navegador real.
   Evidencia: `tests/test_seguridad_web.py`; navegador real contra una web propia en el 8791, con una página de otro origen rechazada en POST, GET y WebSocket.
@@ -51,8 +53,9 @@
   Evidencia: `tests/test_seguridad_web.py`; navegador real en el 8791, sin conexiones externas del servidor. El flujo completo con la red cortada de verdad es la T36.
 - [ ] T36 [DIgSILENT] El flujo completo con la red del equipo cortada de verdad: importar, calibrar e informe. (RF-22)
   Hecho cuando: sin red, el flujo termina y cada salida apagada lo dice.
-- [ ] T15 Tareas por efecto, guiones con confirmación, reintentos e independencia de GPU. (RF-23, RF-24, RF-25, RF-26, RF-27) (`v1/producto`)
+- [x] T15 Tareas por efecto, guiones con confirmación, reintentos e independencia de GPU. (RF-23, RF-24, RF-25, RF-26, RF-27) (`v1/producto`)
   Hecho cuando: una prueba exige que cada tarea declare su efecto; sin CUDA, el trabajo sigue con aviso.
+  Evidencia: `tests/test_edicion_producto.py`; el diálogo del guion, en el navegador, con el proyecto simulado. En DIgSILENT, en las corridas de la F6.
 
 ## F4 Universal (`v1/universal`)
 
