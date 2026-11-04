@@ -102,3 +102,102 @@ def test_un_vnr_gis_convertido_no_deja_palabras_de_cymdist(tmp_path):
                 linea = next(ln for ln in texto.splitlines() if p in ln)
                 halladas.setdefault(f.name, []).append(f'{p}: {linea[:160]}')
     assert not halladas, halladas
+
+
+#: Los nombres de tablas y campos del TXT de CYMDIST, que otra fuente no tiene.
+DEL_TXT = (*PROHIBIDAS, '[CUSTOMER LOADS]', '[SUBSTATION]', '[SECTION]', 'NumberOfCustomer', 'FailRate')
+
+
+@pytest.mark.parametrize('fuente', ['mdb', 'vnr'])
+def test_el_catalogo_de_estudios_habla_con_las_palabras_de_su_fuente(fuente):
+    """056:RF-4 — el catálogo de datos de los estudios de una .mdb o de un VNR-GIS no nombra ficheros,
+    tablas ni campos del TXT; con las mismas claves y los mismos datos que el del TXT."""
+    from convertersmartgrid.studies import ESTUDIOS, estudios_de
+
+    otro = estudios_de(fuente)
+    assert [e.clave for e in otro] == [e.clave for e in ESTUDIOS]
+    for estudio in otro:
+        assert [x.nombre for x in estudio.entradas] == [
+            x.nombre for x in next(e for e in ESTUDIOS if e.clave == estudio.clave).entradas]
+        for x in estudio.entradas:
+            for texto in (x.donde, x.sin_esto):
+                assert not any(p in texto for p in DEL_TXT), (fuente, estudio.clave, x.nombre, texto)
+
+
+def test_lo_que_el_vnr_no_trae_no_se_da_por_disponible():
+    """056:RF-4 — lo que un VNR-GIS no puede traer (energía, clientes, impedancia de las SET) se dice con
+    sus palabras y bloquea como lo que falta, no como un dato «disponible»."""
+    from convertersmartgrid.studies import AUSENTE, DISPONIBLE, entradas_por_nombre
+
+    txt, vnr = entradas_por_nombre('txt'), entradas_por_nombre('vnr')
+    assert txt['Número de clientes por SED'].estado == DISPONIBLE
+    assert vnr['Número de clientes por SED'].estado == AUSENTE
+    assert 'VNR-GIS' in vnr['Número de clientes por SED'].donde
+    assert vnr['Energía anual por suministro (kWh)'].estado == AUSENTE
+    assert '200 MVA' in txt['Potencia e impedancia de cortocircuito de cada subestación de cabecera'].donde
+
+
+def test_el_informe_de_datos_llega_a_una_base_access(monkeypatch):
+    """056:RF-4 — `base_scenario` carga una .mdb con el argumento real del lector: con `equipment_path` la
+    orden caía antes de llegar al catálogo de esa fuente."""
+    import argparse
+    import importlib.util
+    import inspect
+
+    from convertersmartgrid import access
+
+    ruta = Path(__file__).resolve().parents[1] / 'tools' / 'base_scenario.py'
+    spec = importlib.util.spec_from_file_location('base_scenario_056', ruta)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    firma = inspect.signature(access.read_access_dataset)
+
+    def leer(*a, **k):
+        firma.bind(*a, **k)
+        return 'dataset'
+
+    monkeypatch.setattr(access, 'read_access_dataset', leer)
+    args = argparse.Namespace(mdb='red.mdb', equipment_mdb='equipos.mdb')
+    assert mod._cargar_dataset(args) == 'dataset'
+
+
+def test_la_hoja_de_parametros_no_nombra_una_fuente():
+    """056:RF-4 — la hoja de parámetros por elemento del libro del catálogo vale para cualquier fuente: ni
+    CYMDIST en lo que pide ni «txt» como origen."""
+    from convertersmartgrid.catalog import auditar, construir_hojas
+
+    _columnas, filas = construir_hojas(auditar([]))['parametros_por_elemento']
+    assert filas
+    for fila in filas:
+        assert fila[5] != 'txt', fila
+        assert not any(p in str(c) for c in fila for p in PROHIBIDAS), fila
+
+
+def test_el_txt_conserva_su_catalogo():
+    """056:RF-4 — sin fuente declarada, o con un TXT, el catálogo es el de siempre."""
+    from convertersmartgrid.studies import ESTUDIOS, datos_que_faltan, estudios_de
+
+    assert estudios_de(None) == estudios_de('txt') == ESTUDIOS
+    assert datos_que_faltan() == datos_que_faltan('txt')
+    assert any('BD_Equipo' in x.donde for e in ESTUDIOS for x in e.entradas)
+
+
+def test_la_auditoria_de_un_vnr_gis_no_nombra_las_tablas_del_txt(tmp_path):
+    """056:RF-4 — la auditoría de datos de un VNR-GIS convertido dice lo que su paquete no trae con sus
+    palabras, sin «KWH», «[CUSTOMER LOADS]» ni «[SUBSTATION]»."""
+    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+    from vnr_etl.connectors import sqlserver_vnr as sv
+
+    from convertersmartgrid.studies import auditar_datos
+    from test_vnr_sqlserver import _datos, _tablas
+
+    datos, _motor = _datos(_tablas())
+    modelo, _avisos = sv.modelo_canonico(datos)
+    dataset = canonical_to_cymdist(modelo, source_path=tmp_path / 'copia').dataset
+    aud = auditar_datos(dataset)
+    assert aud.cargas_totales > 0
+    texto = aud.texto()
+    assert 'VNR-GIS' in texto
+    for p in (*DEL_TXT, 'KWH'):
+        assert p not in texto, (p, texto)

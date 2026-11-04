@@ -1,6 +1,6 @@
 # Spec 056 — Nombres y mensajes según la fuente: cada fuente con sus propias palabras
 
-Estado: aprobada (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
+Estado: implementada (2026-11-03) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
 NJA202 (W12882) de Electro Oriente desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
 debería aparecer, la otra empresa no usa esos software; si es universal, nada debería aparecer
 como o con esos».

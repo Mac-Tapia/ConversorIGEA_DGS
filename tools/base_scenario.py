@@ -75,7 +75,7 @@ LIMITE_CARGABILIDAD = 80.0
 def _cargar_dataset(args):
     if args.mdb:
         from convertersmartgrid.access import read_access_dataset
-        return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
+        return read_access_dataset(args.mdb, equipment_db=args.equipment_mdb)
     from convertersmartgrid.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
@@ -86,10 +86,12 @@ def _cargar_dataset(args):
 
 def informe_de_datos(dataset) -> dict:
     """Qué estudios están listos, cuáles no, y qué dato desbloquea cada cosa."""
-    listos = estudios_ejecutables()
-    bloqueados = estudios_bloqueados()
-    faltantes = datos_que_faltan()
-    entradas = entradas_por_nombre()
+    # 056:RF-4: el catálogo con las palabras de la fuente cargada, no las del TXT.
+    fuente = getattr(dataset, 'fuente', None)
+    listos = estudios_ejecutables(fuente)
+    bloqueados = estudios_bloqueados(fuente)
+    faltantes = datos_que_faltan(fuente)
+    entradas = entradas_por_nombre(fuente)
 
     print('=' * 78)
     print('DATOS DE ENTRADA — qué hay y qué falta para el año 0')

@@ -578,7 +578,7 @@ def construir_hojas(aud: Auditoria, *, nominal_kv: float = 22.9) -> dict[str, tu
         'reguladores': (COLUMNAS_REGULADOR, []),
         'parametros_por_elemento': (COLUMNAS_PARAMETRO, [
             [p.elemento, p.clase_pf, p.atributo, p.descripcion, p.unidad,
-             p.origen, p.ficha_necesaria, p.impacto]
+             {'txt': 'fuente'}.get(p.origen, p.origen), p.ficha_necesaria, p.impacto]
             for p in PARAMETROS
         ]),
         'hallazgos': (COLUMNAS_HALLAZGO, [
