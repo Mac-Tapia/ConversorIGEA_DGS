@@ -29,7 +29,7 @@ function bootWorkspace(): Promise<WorkspaceState> {
 }
 
 /** 081:RF-23: «parcial» y «no_converge» terminaron, con su resultado. */
-const TERMINADOS: string[] = ['done', 'parcial', 'no_converge', 'failed', 'cancelled'];
+const TERMINADOS: string[] = ['done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido'];
 
 export interface LogLine {
   seq: number;

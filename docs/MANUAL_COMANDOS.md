@@ -45,7 +45,13 @@ aceptación eléctrica. Véase [verificación integrada](implementacion065/verif
 ```powershell
 .venv/Scripts/python.exe -B tools/aceptar_dominio.py --help
 .venv/Scripts/python.exe -B tools/reubicar_corpus_llm.py --help
+.venv/Scripts/python.exe -B tools/copia_datos.py --help
 ```
+
+`copia_datos.py` hace la copia de los datos con su manifiesto (`crear --destino`), comprueba cada huella
+(`verificar --copia`), los restaura apartando lo que hubiera (`restaurar --copia`, con la web parada), dice la edad de la
+última copia (`estado`; `CSG_COPIA_MAX_DIAS` fija el máximo, siete días si no) y fija la identidad de la instalación antes
+de renombrar su carpeta (`identidad --fijar`). Los ficheros de fuera de los datos no se copian: el manifiesto los lista.
 
 `aceptar_dominio.py` verifica identidad y evidencia del caso sin abrir PowerFactory.
 `reubicar_corpus_llm.py` requiere origen, destino nuevo y ambas raíces explícitas;

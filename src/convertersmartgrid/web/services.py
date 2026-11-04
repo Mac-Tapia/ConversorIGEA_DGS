@@ -32,7 +32,7 @@ from ..powerfactory_binding import alimentadores_vinculados
 from ..util import nombre_seguro, write_json_atomic
 from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
 from .requisitos import UserError, require_active_source_run, require_loaded
-from .workspace import Workspace
+from .workspace import Workspace, leer_metadatos_espacio
 
 
 # ---------------------------------------------------------------------------
@@ -1832,7 +1832,8 @@ def adoptar_fuente_del_vinculo(ws: Workspace, project: str) -> dict[str, Any]:
     demanda: dict[str, Any] = {}
     if espacio_origen != ws.root:
         try:
-            datos = json.loads((espacio_origen / 'workspace.json').read_text(encoding='utf-8'))
+            # 086:RF-6: sus rutas enteras; guardadas son relativas a su espacio.
+            datos = leer_metadatos_espacio(espacio_origen)
         except (OSError, ValueError):
             datos = {}
         calibracion = (datos.get('calibraciones') or {}).get(project)

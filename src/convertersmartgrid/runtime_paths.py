@@ -20,6 +20,9 @@ import time
 from typing import Iterator, Mapping
 import uuid
 
+#: El identificador estable de la instalación (086:RF-7), fuera de git: es de cada máquina.
+FICHERO_INSTALACION = '.convertersmartgrid-instalacion.json'
+
 
 def _primario(checkout: Path) -> Path:
     marker = checkout / '.git'
@@ -50,12 +53,66 @@ class RutasRuntime:
     temporales: Path
 
     def staging_para(self, destino: Path) -> Path:
-        """Publicar por rename exige el mismo volumen, también en Windows."""
+        """Publicar por rename exige el mismo volumen, también en Windows.
+
+        Otra unidad o una ruta de red no tiene raíz runtime propia: el temporal va junto al
+        destino (086:RF-8). Antes se negaba, y un informe a ``\\\\servidor\\recurso`` fallaba al final
+        de la corrida, con todo el cálculo ya hecho.
+        """
         destination = destino.resolve()
         for base in (self.runtime, self.cache.parent):
             if os.path.normcase(destination.anchor) == os.path.normcase(base.anchor):
                 return base / 'staging'
-        raise ValueError('Configure una raíz runtime o caché en el volumen del destino para publicar.')
+        return destination.parent
+
+
+def _identidad_por_ruta(root: Path) -> str:
+    """La identidad de antes de 086:RF-7; una instalación existente la conserva como la suya."""
+    spelling = root.as_posix().casefold() if os.name == 'nt' else root.as_posix()
+    return hashlib.sha256(spelling.encode('utf-8')).hexdigest()[:16]
+
+
+def _leer_instalacion(root: Path) -> dict | None:
+    """El fichero de identidad; uno ilegible no cambia la identidad a una nueva y vacía."""
+    try:
+        datos = json.loads((root / FICHERO_INSTALACION).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    if isinstance(datos, dict) and re.fullmatch('[a-f0-9]{16,32}', str(datos.get('id') or '')):
+        return datos
+    return None
+
+
+def fijar_identidad(paths: RutasRuntime, *, runtime_propio: bool = True) -> dict:
+    """Deja escrita la identidad de esta instalación, una sola vez (086:RF-7).
+
+    Va junto al programa porque desde ahí se calcula la raíz de datos: dentro de ella no se
+    encontraría sin saber ya la identidad. Se queda con la que ya calculaba, de modo que la
+    instalación existente sigue en su raíz sin mover un fichero, y desde entonces renombrar la
+    carpeta no le cambia los datos. En la raíz de datos queda otra copia, que dice de quién son.
+    """
+    existente = _leer_instalacion(paths.checkout)
+    datos = existente or {'version': 1, 'id': paths.identidad, 'creada': time.time()}
+    if existente is None and runtime_propio:
+        datos['runtime'] = str(paths.runtime)
+    for carpeta in (paths.checkout, paths.runtime):
+        ruta = carpeta / FICHERO_INSTALACION
+        if carpeta == paths.checkout and existente is not None:
+            continue
+        if carpeta == paths.runtime and ruta.is_file():
+            continue
+        temporal = ruta.with_name(f'{ruta.name}.{uuid.uuid4().hex[:8]}')
+        try:
+            carpeta.mkdir(parents=True, exist_ok=True)
+            with temporal.open('w', encoding='utf-8') as destino:
+                destino.write(json.dumps(datos, ensure_ascii=False, indent=2) + '\n')
+                destino.flush()
+                os.fsync(destino.fileno())
+            os.replace(temporal, ruta)
+        except OSError:
+            # Una carpeta de programa de solo lectura no impide trabajar: la ruta sigue dando la identidad.
+            temporal.unlink(missing_ok=True)
+    return datos
 
 
 def rutas_runtime(checkout: Path | None = None,
@@ -64,9 +121,13 @@ def rutas_runtime(checkout: Path | None = None,
     env = os.environ if environ is None else environ
     root = (checkout or Path(__file__).resolve().parents[2]).resolve()
     primary = _primario(root)
-    spelling = root.as_posix().casefold() if os.name == 'nt' else root.as_posix()
-    identity = hashlib.sha256(spelling.encode('utf-8')).hexdigest()[:16]
+    instalacion = _leer_instalacion(root)
+    identity = instalacion['id'] if instalacion else _identidad_por_ruta(root)
     default_runtime = primary.parent / '.convertersmartgrid-runtime' / identity
+    # Movida a otra carpeta madre sin sus datos, la raíz sigue donde estaba: la anotada.
+    anotada = Path(str((instalacion or {}).get('runtime') or ''))
+    if instalacion and instalacion.get('runtime') and not default_runtime.is_dir() and anotada.is_dir():
+        default_runtime = anotada
     runtime = _externa(Path(env.get('CSG_RUNTIME_HOME') or default_runtime), root, primary)
     local = Path(env.get('LOCALAPPDATA') or env.get('XDG_CACHE_HOME') or Path.home() / '.cache')
     cache = _externa(Path(env.get('CSG_CACHE_HOME') or local / 'ConverterSmartGrid' / identity / 'cache'), root, primary)
@@ -87,6 +148,7 @@ def configurar_entorno(checkout: Path | None = None) -> RutasRuntime:
         if inputs.get(name) == anteriores.get(name):
             inputs.pop(name, None)
     paths = rutas_runtime(checkout, inputs)
+    fijar_identidad(paths, runtime_propio=not inputs.get('CSG_RUNTIME_HOME'))
     paths.temporales.mkdir(parents=True, exist_ok=True)
     paths.cache.mkdir(parents=True, exist_ok=True)
     os.environ.update(CSG_RUNTIME_HOME=str(paths.runtime), CSG_CACHE_HOME=str(paths.cache),

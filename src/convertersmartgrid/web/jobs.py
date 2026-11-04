@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import logging
 import os
 import queue
 import subprocess
@@ -49,9 +50,17 @@ CANCELLED = 'cancelled'
 #: con 17 alimentadores sin converger salía «done».
 PARCIAL = 'parcial'
 NO_CONVERGE = 'no_converge'
+#: 086:RF-9: el servidor se detuvo con el trabajo a medias; solo sale de leer el diario al arrancar.
+INTERRUMPIDO = 'interrumpido'
 CON_RESULTADO = (DONE, PARCIAL, NO_CONVERGE)
-FINISHED = (*CON_RESULTADO, FAILED, CANCELLED)
+FINISHED = (*CON_RESULTADO, FAILED, CANCELLED, INTERRUMPIDO)
 
+#: Registro de un trabajo en su diario; un guion muy hablador no llena el disco por esto.
+LIMITE_REGISTRO_BYTES = 50 * 2**20
+#: Cada cuánto se sincroniza el registro y el avance: un corte de luz pierde a lo sumo esto.
+INTERVALO_DIARIO_S = 2.0
+#: Interrumpidos que se conservan: el resto ya no se recuerda, y su registro pesa.
+MAX_INTERRUMPIDOS = 50
 
 
 #: Código con que ``run_process`` informa de un guion terminado por pasar su límite de
@@ -186,9 +195,10 @@ Emit = Callable[[str, str, dict], None]
 class JobContext:
     """Lo que un trabajo puede hacer: escribir en el Registro, avanzar, cancelarse."""
 
-    def __init__(self, job: Job, emit: Emit) -> None:
+    def __init__(self, job: Job, emit: Emit, diario: 'DiarioTrabajos | None' = None) -> None:
         self.job = job
         self._emit = emit
+        self._diario = diario
 
     @property
     def cancel(self) -> threading.Event:
@@ -196,10 +206,14 @@ class JobContext:
 
     def log(self, text: str) -> None:
         if text:
+            if self._diario is not None:
+                self._diario.linea(self.job.id, text)
             self._emit(self.job.workspace_id, 'log', {'job': self.job.id, 'text': text})
 
     def progress(self, index: int, total: int, label: str = '') -> None:
         self.job.progress = {'index': index, 'total': total, 'label': label}
+        if self._diario is not None:
+            self._diario.avance(self.job)
         self._emit(self.job.workspace_id, 'job', self.job.public())
 
     def check_cancel(self) -> None:
@@ -481,8 +495,145 @@ def _estado_del_resultado(resultado: Any) -> str:
     return estado if estado in (PARCIAL, NO_CONVERGE) else DONE
 
 
+def _inicio_de_proceso(pid: int) -> float | None:
+    """Cuándo arrancó ``pid``, o None si ya no existe: un pid solo no basta, Windows los reutiliza."""
+    try:
+        import psutil
+
+        return psutil.Process(pid).create_time()
+    except Exception:  # noqa: BLE001 - ni el proceso ni psutil: se da por muerto
+        return None
+
+
+class DiarioTrabajos:
+    """Lo que sobrevive a un reinicio de los trabajos sin terminar (086:RF-9).
+
+    Los trabajos vivían solo en memoria: al caer la web, una calibración de horas desaparecía, sin
+    rastro de hasta dónde llegó ni de qué dijo DIgSILENT. Cada trabajo sin terminar tiene aquí
+    ``<id>.json`` y ``<id>.log``. Terminado con normalidad, los borra: su resultado y su registro ya
+    están donde siempre, y la carpeta solo guarda lo que quedó a medias. Un fallo del diario se
+    anota en el log del servidor y nunca hace fallar el trabajo.
+    """
+
+    def __init__(self, carpeta: Path) -> None:
+        self.carpeta = Path(carpeta)
+        self._lock = threading.Lock()
+        self._ficheros: dict[str, Any] = {}
+        self._sincronizado: dict[str, float] = {}
+        self._avance: dict[str, float] = {}
+        self._mi_pid = os.getpid()
+        self._mi_inicio = _inicio_de_proceso(self._mi_pid)
+
+    def _ruta(self, job_id: str, extension: str) -> Path:
+        return self.carpeta / f'{job_id}.{extension}'
+
+    def anotar(self, job: Job) -> None:
+        from ..util import write_json_atomic
+
+        try:
+            write_json_atomic(self._ruta(job.id, 'json'), {
+                'id': job.id, 'kind': job.kind, 'title': job.title, 'workspace_id': job.workspace_id,
+                'lane': job.lane, 'status': job.status, 'progress': job.progress, 'error': job.error,
+                'created_at': job.created_at, 'started_at': job.started_at, 'finished_at': job.finished_at,
+                'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
+            })
+        except (OSError, ValueError) as exc:
+            logging.getLogger(__name__).warning('Diario de trabajos sin anotar %s: %s', job.id, exc)
+
+    def avance(self, job: Job) -> None:
+        ahora = time.monotonic()
+        if ahora - self._avance.get(job.id, 0.0) >= INTERVALO_DIARIO_S:
+            self._avance[job.id] = ahora
+            self.anotar(job)
+
+    def linea(self, job_id: str, texto: str) -> None:
+        try:
+            with self._lock:
+                fichero = self._ficheros.get(job_id)
+                if fichero is None:
+                    self.carpeta.mkdir(parents=True, exist_ok=True)
+                    fichero = self._ficheros[job_id] = self._ruta(job_id, 'log').open('a', encoding='utf-8')
+                if fichero.tell() >= LIMITE_REGISTRO_BYTES:
+                    return
+                fichero.write(texto + '\n')
+                # flush: sobrevive a matar el proceso; fsync de vez en cuando: a un corte de luz.
+                fichero.flush()
+                ahora = time.monotonic()
+                if ahora - self._sincronizado.get(job_id, 0.0) >= INTERVALO_DIARIO_S:
+                    self._sincronizado[job_id] = ahora
+                    os.fsync(fichero.fileno())
+        except (OSError, ValueError) as exc:
+            logging.getLogger(__name__).warning('Registro del trabajo %s sin escribir: %s', job_id, exc)
+
+    def olvidar(self, job_id: str) -> None:
+        """El trabajo terminó: Windows no deja borrar un fichero abierto, primero se cierra."""
+        with self._lock:
+            fichero = self._ficheros.pop(job_id, None)
+            self._sincronizado.pop(job_id, None)
+            self._avance.pop(job_id, None)
+        try:
+            if fichero is not None:
+                fichero.close()
+            self._ruta(job_id, 'json').unlink(missing_ok=True)
+            self._ruta(job_id, 'log').unlink(missing_ok=True)
+        except OSError as exc:
+            logging.getLogger(__name__).warning('Diario del trabajo %s sin retirar: %s', job_id, exc)
+
+    def registro(self, job_id: str, ultimas: int = 2000) -> list[str] | None:
+        """Las últimas líneas del registro, o None si este trabajo no tiene."""
+        with self._lock:
+            fichero = self._ficheros.get(job_id)
+            if fichero is not None:
+                fichero.flush()
+        try:
+            lineas = self._ruta(job_id, 'log').read_text(encoding='utf-8', errors='replace').splitlines()
+        except OSError:
+            return None
+        return lineas[-ultimas:]
+
+    def recuperar(self) -> list[Job]:
+        """Lo que quedó a medias de un servidor anterior, como interrumpido.
+
+        El de un servidor que sigue vivo no se toca: sigue en marcha, y marcarlo interrumpido
+        sería mentira; por eso se compara también la hora de arranque del proceso.
+        """
+        if not self.carpeta.is_dir():
+            return []
+        trabajos: list[Job] = []
+        for ruta in sorted(self.carpeta.glob('*.json')):
+            try:
+                datos = json.loads(ruta.read_text(encoding='utf-8'))
+                job = Job(kind=str(datos['kind']), title=str(datos['title']),
+                          workspace_id=str(datos['workspace_id']), lane=str(datos['lane']),
+                          fn=lambda _ctx: None, id=str(datos['id']), status=str(datos['status']),
+                          progress=datos.get('progress'), error=datos.get('error'),
+                          created_at=float(datos['created_at']), started_at=datos.get('started_at'),
+                          finished_at=datos.get('finished_at'))
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                logging.getLogger(__name__).warning('Diario de trabajos ilegible, %s: %s', ruta.name, exc)
+                continue
+            if job.lane not in LANES:
+                job.lane = 'engine'  # de una versión con otros carriles: se ve igual
+            if job.status != INTERRUMPIDO:
+                pid, inicio = datos.get('pid'), datos.get('inicio_proceso')
+                if type(pid) is int and (_inicio_de_proceso(pid) == inicio if inicio is not None
+                                         else pid == self._mi_pid):
+                    continue
+                registro = self._ruta(job.id, 'log')
+                job.finished_at = registro.stat().st_mtime if registro.is_file() else ruta.stat().st_mtime
+                job.error = ('El servidor se detuvo con este trabajo a medias: no terminó y su resultado no '
+                             'vale. Su registro se conserva; retómelo si hace falta.')
+                job.status = INTERRUMPIDO
+                self.anotar(job)
+            trabajos.append(job)
+        trabajos.sort(key=lambda j: j.created_at)
+        for viejo in trabajos[:-MAX_INTERRUMPIDOS]:
+            self.olvidar(viejo.id)
+        return trabajos[-MAX_INTERRUMPIDOS:]
+
+
 class JobManager:
-    def __init__(self, emit: Emit) -> None:
+    def __init__(self, emit: Emit, *, diario: Path | None = None) -> None:
         self._emit = emit
         self._jobs: dict[str, Job] = {}
         self._queues = {lane: queue.Queue() for lane in LANES}
@@ -490,6 +641,18 @@ class JobManager:
         self._lock = threading.Lock()
         self._closing = False
         self._admision = threading.RLock()
+        self._diario = DiarioTrabajos(diario) if diario is not None else None
+        if self._diario is not None:
+            for job in self._diario.recuperar():
+                self._jobs[job.id] = job
+                try:
+                    self._emit(job.workspace_id, 'job', job.public())
+                except Exception as exc:  # noqa: BLE001 - un espacio que ya no está no impide arrancar
+                    logging.getLogger(__name__).warning('Trabajo interrumpido %s sin publicar: %s', job.id, exc)
+
+    def registro(self, job_id: str, ultimas: int = 2000) -> list[str] | None:
+        """El registro guardado de un trabajo, también de uno interrumpido en otra ejecución."""
+        return self._diario.registro(job_id, ultimas) if self._diario is not None else None
 
     def mantenimiento_si_libre(self, fn: Callable[[], Any]) -> Any:
         """062:RF-3: comprobar inactividad y limpiar excluye nuevas admisiones."""
@@ -548,6 +711,8 @@ class JobManager:
                 self._jobs.pop(job.id,None)
             self._anotar()
             raise
+        if self._diario is not None:
+            self._diario.anotar(job)
         self._queues[lane].put(job)
         return job
 
@@ -619,8 +784,10 @@ class JobManager:
     def _run(self, job: Job) -> None:
         job.status = RUNNING
         job.started_at = time.time()
+        if self._diario is not None:
+            self._diario.anotar(job)
         self._emit(job.workspace_id, 'job', job.public())
-        ctx = JobContext(job, self._emit)
+        ctx = JobContext(job, self._emit, self._diario)
         try:
             job.result = job.fn(ctx)
         except JobCancelled:
@@ -638,5 +805,7 @@ class JobManager:
     def _finish(self, job: Job, status: str) -> None:
         job.status = status
         job.finished_at = time.time()
+        if self._diario is not None:
+            self._diario.olvidar(job.id)
         self._anotar()
         self._emit(job.workspace_id, 'job', job.public())

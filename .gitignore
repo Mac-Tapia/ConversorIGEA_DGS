@@ -54,6 +54,9 @@ desktop.ini
 # Generated conversion dumps
 output/
 
+# Identidad de cada instalación (086:RF-7): de esta máquina, no del código.
+.convertersmartgrid-instalacion.json
+
 # Local execution evidence and simulator acceptance reports. These may contain
 # utility identifiers and machine-specific paths; publish only curated summaries.
 AUDIT/

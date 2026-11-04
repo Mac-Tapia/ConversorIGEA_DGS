@@ -6,7 +6,7 @@ RF-31); nada se reescribe.
 """
 from __future__ import annotations
 
-from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 
 import json
 import os
@@ -40,6 +40,9 @@ def anotar(registro: str, fila: dict[str, Any]) -> dict[str, Any]:
         ruta.parent.mkdir(parents=True, exist_ok=True)
         with open(ruta, 'a', encoding='utf-8') as f:
             f.write(json.dumps(fila, ensure_ascii=False, default=str) + '\n')
+            # 086:RF-1: una orden confirmada o una lección no se pierden en un corte de luz.
+            f.flush()
+            os.fsync(f.fileno())
     return fila
 
 
@@ -60,10 +63,7 @@ def leer(registro: str, ultimas: int | None = None) -> list[dict[str, Any]]:
 def guardar_json(nombre: str, datos: Any) -> Path:
     """Escribe ``<nombre>.json`` de forma atómica."""
     ruta = raiz() / f'{nombre}.json'
-    ruta.parent.mkdir(parents=True, exist_ok=True)
-    with staging_publicacion(ruta) as tmp:
-        tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
-        os.replace(tmp, ruta)
+    publicar_duradero(ruta, json.dumps(datos, ensure_ascii=False, indent=2, default=str))
     return ruta
 
 

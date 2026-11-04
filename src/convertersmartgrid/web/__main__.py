@@ -93,7 +93,7 @@ def trabajos_en_curso(url: str, salud: dict) -> int | None:
         n = 0
         for ws in _json(url + 'api/workspaces'):
             for job in _json(url + f'api/workspaces/{ws["id"]}').get('jobs', []):
-                if job.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled'):
+                if job.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'interrumpido', 'cancelled'):
                     n += 1
         return n
     except (OSError, ValueError, KeyError, TypeError, AttributeError):

@@ -9,9 +9,10 @@ Lo que se guarda en disco (``workspace.json``) son las rutas y las opciones. El
 dataset leído vive solo en memoria: son cientos de MB de objetos Python y releer los
 TXT tarda segundos. Si el servidor se reinicia, basta volver a pulsar «Cargar».
 
-Las reglas de ``settings.py`` se mantienen:
+Las reglas de ``settings.py`` se mantienen, con un matiz de 086:RF-3:
 
-* una ruta solo se restaura si el fichero sigue existiendo;
+* una ruta solo se usa si el fichero sigue existiendo, pero se conserva aparte, marcada como
+  no disponible: una unidad desconectada no es una orden de olvidar lo que había en ella;
 * «convertir TODOS» no es una opción guardada: es la acción, no una preferencia.
 """
 
@@ -136,6 +137,176 @@ def safe_filename(name: str) -> str:
     return cleaned or 'fichero'
 
 
+#: Versión de ``workspace.json`` que escribe este código (086:RF-4).
+VERSION_ESPACIO = 3
+#: Una ruta de dentro del espacio, relativa a su carpeta (086:RF-6).
+PREFIJO_RELATIVA = 'espacio:'
+#: Campos con rutas de ficheros. Quedan fuera los vínculos con DIgSILENT y el inventario: son
+#: evidencia con su huella, y lo guardado no se reescribe (058:RF-6).
+CAMPOS_CON_RUTAS = ('inputs', 'catalog_file', 'groups', 'calibraciones', 'escaneo', 'demanda',
+                    'obras', 'obras_aplicadas', 'informes', 'datos_empresa')
+_RUTA_ABSOLUTA = re.compile(r'^(?:[A-Za-z]:[\\/]|\\\\|/)')
+#: Cada cuánto se mira si volvió una unidad ausente; en una ruta de red, mirar puede tardar segundos.
+REVISION_NO_DISPONIBLES_S = 30.0
+
+
+class EspacioNoUtilizable(ValueError):
+    """Un espacio que se ve en la lista pero no se puede abrir; ``str`` dice por qué."""
+
+
+class EspacioDanado(EspacioNoUtilizable):
+    """``workspace.json`` no se puede leer (086:RF-2)."""
+
+
+class EspacioVersionFutura(EspacioNoUtilizable):
+    """``workspace.json`` es de una versión más nueva que este código (086:RF-5)."""
+
+
+def _recorrer_textos(valor: Any, cambiar) -> Any:
+    if isinstance(valor, dict):
+        return {k: _recorrer_textos(v, cambiar) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [_recorrer_textos(v, cambiar) for v in valor]
+    return cambiar(valor) if isinstance(valor, str) else valor
+
+
+def relativizar_rutas(valor: Any, root: Path) -> Any:
+    """Lo que está dentro de ``root`` pasa a ``espacio:…``; las rutas de fuera siguen enteras (086:RF-6)."""
+    base = os.path.normcase(os.path.abspath(root))
+
+    def cambiar(texto: str) -> str:
+        if not _RUTA_ABSOLUTA.match(texto):
+            return texto
+        ruta = os.path.normpath(texto)
+        if not os.path.normcase(ruta).startswith(base + os.sep):
+            return texto
+        return PREFIJO_RELATIVA + ruta[len(base) + 1:].replace(os.sep, '/')
+
+    return _recorrer_textos(valor, cambiar)
+
+
+def expandir_rutas(valor: Any, root: Path) -> Any:
+    """Lo contrario de :func:`relativizar_rutas`, en la carpeta donde esté hoy el espacio."""
+
+    def cambiar(texto: str) -> str:
+        if not texto.startswith(PREFIJO_RELATIVA):
+            return texto
+        relativa = texto[len(PREFIJO_RELATIVA):]
+        if '..' in relativa.split('/') or _RUTA_ABSOLUTA.match(relativa):
+            return texto  # no salió de save(): queda sin resolver y se verá como no disponible
+        return str(Path(root) / relativa)
+
+    return _recorrer_textos(valor, cambiar)
+
+
+def _rebasar_rutas(valor: Any, wid: str, root: Path) -> Any:
+    """Las rutas absolutas de un espacio movido: su componente ``<id>`` dice dónde empieza lo suyo."""
+
+    def cambiar(texto: str) -> str:
+        if not _RUTA_ABSOLUTA.match(texto):
+            return texto
+        partes = re.split(r'[\\/]+', texto)
+        if wid not in partes:
+            return texto
+        return str(Path(root, *partes[partes.index(wid) + 1:]))
+
+    return _recorrer_textos(valor, cambiar)
+
+
+def leer_metadatos_espacio(root: Path) -> dict[str, Any]:
+    """``workspace.json`` de otro espacio, con sus rutas enteras, sin migrarlo ni escribir nada."""
+    datos = json.loads((root / 'workspace.json').read_text(encoding='utf-8'))
+    if not isinstance(datos, dict):
+        raise ValueError(f'{root.name}: workspace.json no es un objeto')
+    return {k: expandir_rutas(v, root) if k in CAMPOS_CON_RUTAS else v for k, v in datos.items()}
+
+
+def _de_1_a_2(datos: dict[str, Any], _root: Path) -> dict[str, Any]:
+    """Los ficheros sin ``version`` o con la 1 tienen los mismos campos; lo que falta se lee vacío."""
+    return datos
+
+
+def _de_2_a_3(datos: dict[str, Any], root: Path) -> dict[str, Any]:
+    """Rutas relativas al espacio (086:RF-6); arregla de paso las de un espacio ya movido."""
+    wid = str(datos.get('id') or root.name)
+    return {k: relativizar_rutas(_rebasar_rutas(v, wid, root), root) if k in CAMPOS_CON_RUTAS else v
+            for k, v in datos.items()}
+
+
+#: Un paso por versión, de la clave a la siguiente (086:RF-4). Una versión nueva añade aquí el suyo.
+MIGRACIONES = {1: _de_1_a_2, 2: _de_2_a_3}
+
+
+def _version_de(datos: dict[str, Any]) -> int:
+    version = datos.get('version', 1)
+    if type(version) is not int or version < 1:
+        raise EspacioDanado(f'workspace.json con una versión no válida: {version!r}')
+    return version
+
+
+def _leer_estado(root: Path) -> dict[str, Any]:
+    """El ``workspace.json`` de ``root`` comprobado, o la excepción que dice qué le pasa."""
+    try:
+        datos = json.loads((root / 'workspace.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise EspacioDanado(f'workspace.json no se puede leer: {exc}') from exc
+    if not isinstance(datos, dict) or not datos.get('id'):
+        raise EspacioDanado('workspace.json no tiene el contenido esperado')
+    version = _version_de(datos)
+    if version > VERSION_ESPACIO:
+        raise EspacioVersionFutura(
+            f'Este espacio es de una versión más nueva ({version}; este programa llega a la '
+            f'{VERSION_ESPACIO}). No se abre ni se escribe para no estropearlo: actualice el programa.')
+    return datos
+
+
+def _migrar(root: Path, datos: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """Copia primero y luego los pasos, uno a uno; la copia de la versión no se pisa nunca (086:RF-4)."""
+    version = _version_de(datos)
+    if version == VERSION_ESPACIO:
+        return datos, None
+    from ..util import publicar_duradero
+
+    copia = root / f'workspace.v{version}.json'
+    if not copia.exists():
+        publicar_duradero(copia, (root / 'workspace.json').read_bytes())
+    actual = version
+    while actual < VERSION_ESPACIO:
+        datos = MIGRACIONES[actual](datos, root)
+        actual += 1
+        datos['version'] = actual
+    return datos, f'Espacio migrado de la versión {version} a la {actual}; copia en {copia.name}.'
+
+
+def _leer_conversiones(root: Path) -> tuple[dict[str, Any], str | None]:
+    """``conversiones.json``, o su copia si está dañado; lo dañado se aparta, no se pisa."""
+    from ..util import ruta_copia_anterior
+
+    ruta = root / 'conversiones.json'
+    if not ruta.is_file():
+        return {}, None
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+        if isinstance(datos, dict):
+            return datos, None
+    except (OSError, ValueError):
+        pass
+    apartado = ruta.with_name(f'conversiones.danado-{time.strftime("%Y%m%dT%H%M%S")}.json')
+    try:
+        shutil.copy2(ruta, apartado)
+    except OSError:
+        pass
+    try:
+        datos = json.loads(ruta_copia_anterior(ruta).read_text(encoding='utf-8'))
+        if isinstance(datos, dict):
+            return datos, (f'conversiones.json estaba dañado: se recuperó su copia anterior y el '
+                           f'dañado queda en {apartado.name}.')
+    except (OSError, ValueError):
+        pass
+    return {}, (f'conversiones.json estaba dañado y no hay copia anterior: la tabla de alimentadores se '
+                f'rehace al convertir, y el dañado queda en {apartado.name}.')
+
+
 @dataclass
 class Workspace:
     id: str
@@ -181,7 +352,13 @@ class Workspace:
     # 'libro'}, RF-20) y los módulos que DIgSILENT rechazó por licencia (RF-4).
     datos_empresa: dict[str, dict[str, Any]] = field(default_factory=dict)
     sin_licencia: list[str] = field(default_factory=list)
+    # 086:RF-3: lo que apunta a un fichero que hoy no está. Fuera de ``inputs`` y compañía, porque
+    # quien los lee da por hecho que el fichero existe; save() lo vuelve a escribir tal cual.
+    no_disponibles: dict[str, Any] = field(default_factory=dict)
     # --- solo en memoria
+    # 086:RF-2, RF-4: lo que pasó al abrir el espacio, para decírselo al operador.
+    avisos_datos: list[str] = field(default_factory=list)
+    _no_disponibles_revisados: float = field(default=0.0, repr=False)
     dataset: Any = None
     # 038:RF-1: índice de pertenencia por identidad de la fuente, solo en memoria.
     _sed_owners_cache: tuple[Any, dict[str, set[str]]] | None = field(default=None, repr=False)
@@ -235,13 +412,18 @@ class Workspace:
 
     # -------------------------------------------------------------- persistencia
     def save(self) -> None:
+        nd = self.no_disponibles
+        informes = dict(self.informes)
+        if 'libro_perdidas' in nd:
+            informes.setdefault('libro_perdidas', nd['libro_perdidas'])
         payload = {
-            'version': 2,
+            'version': VERSION_ESPACIO,
             'id': self.id,
             'created_at': self.created_at,
             'options': self.options,
-            'inputs': self.inputs,
-            'catalog_file': self.catalog_file,
+            # Lo vigente manda sobre lo no disponible de la misma casilla: el operador ya eligió otro.
+            'inputs': {**(nd.get('inputs') or {}), **self.inputs},
+            'catalog_file': self.catalog_file or nd.get('catalog_file'),
             'groups': self.groups,
             'pf_projects': self.pf_projects,
             'pf_project_bindings': self.pf_project_bindings,
@@ -249,38 +431,55 @@ class Workspace:
             'escaneo': self.escaneo,
             'anios_casos': self.anios_casos,
             'pf_inventory': self.pf_inventory,
-            'active_run_id': self.active_run_id,
-            'demanda': self.demanda,
+            'active_run_id': self.active_run_id or nd.get('active_run_id'),
+            'demanda': {**(nd.get('demanda') or {}), **self.demanda},
             'obras': self.obras,
             'obras_aplicadas': self.obras_aplicadas,
-            'informes': self.informes,
-            'datos_empresa': self.datos_empresa,
+            'informes': informes,
+            'datos_empresa': {**(nd.get('datos_empresa') or {}), **self.datos_empresa},
             'sin_licencia': self.sin_licencia,
         }
+        payload = {k: relativizar_rutas(v, self.root) if k in CAMPOS_CON_RUTAS else v
+                   for k, v in payload.items()}
         self.root.mkdir(parents=True, exist_ok=True)
         from ..util import write_json_atomic
 
-        write_json_atomic(self.root / 'workspace.json', payload)
-        write_json_atomic(self.root / 'conversiones.json', self.conversions)
+        ruta = self.root / 'workspace.json'
+        # 086:RF-5: otro proceso más nuevo pudo actualizarlo después de que este lo abriera.
+        try:
+            _leer_estado(self.root)
+        except EspacioVersionFutura:
+            raise
+        except EspacioDanado:
+            pass  # lo que hay en memoria es mejor; write_json_atomic no copia lo dañado sobre el .bak
+        write_json_atomic(ruta, payload, copia=True)
+        write_json_atomic(self.root / 'conversiones.json', relativizar_rutas(self.conversions, self.root),
+                          copia=True)
 
     @classmethod
     def load(cls, root: Path) -> 'Workspace':
-        data = json.loads((root / 'workspace.json').read_text(encoding='utf-8'))
+        crudo = _leer_estado(root)
+        data, migrado = _migrar(root, crudo)
+        data = {k: expandir_rutas(v, root) if k in CAMPOS_CON_RUTAS else v for k, v in data.items()}
         ws = cls(id=data['id'], root=root, created_at=data.get('created_at', time.time()))
         options = dict(DEFAULT_OPTIONS)
         options.update({k: v for k, v in (data.get('options') or {}).items()
                         if k in DEFAULT_OPTIONS})
         ws.options = options
-        # Una ruta que ya no existe no se restaura: el campo queda vacío en lugar de
-        # apuntar a la nada y fallar cuando alguien pulse convertir.
-        ws.inputs = {slot: meta for slot, meta in (data.get('inputs') or {}).items()
-                     if slot in SLOTS and Path(meta.get('path', '')).is_file()}
+        # Una ruta que ya no existe no se usa: el campo queda vacío en lugar de apuntar a la
+        # nada y fallar cuando alguien pulse convertir. Pero se conserva (086:RF-3).
+        entradas = {slot: meta for slot, meta in (data.get('inputs') or {}).items()
+                    if slot in SLOTS and isinstance(meta, dict)}
+        ws.inputs = {s: m for s, m in entradas.items() if Path(m.get('path', '')).is_file()}
+        ws._apartar('inputs', {s: m for s, m in entradas.items() if s not in ws.inputs and m.get('path')})
         # La fuente es la de lo cargado, no la guardada si no tiene entradas suyas (059:RF-2).
         if ws.options.get('input_mode') not in FUENTES or not any(
                 SLOTS[slot]['grupo'] == ws.options['input_mode'] for slot in ws.inputs):
             ws.options['input_mode'] = ws.fuente_por_entradas()
         catalog = data.get('catalog_file')
         ws.catalog_file = catalog if catalog and Path(catalog).is_file() else None
+        if catalog and not ws.catalog_file:
+            ws.no_disponibles['catalog_file'] = catalog
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
         ws.pf_project_bindings = dict(data.get('pf_project_bindings') or {})
@@ -288,34 +487,120 @@ class Workspace:
         ws.escaneo = dict(data.get('escaneo') or {})
         ws.anios_casos = {str(k): int(v) for k, v in (data.get('anios_casos') or {}).items()}
         ws.pf_inventory = dict(data.get('pf_inventory') or {})
-        # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
-        ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
-                      if isinstance(meta, dict) and Path(meta.get('path', '')).exists()}
+        # Igual que las entradas: un libro o una carpeta que ya no está no se usa, y se conserva.
+        demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items() if isinstance(meta, dict)}
+        ws.demanda = {t: m for t, m in demanda.items() if Path(m.get('path', '')).exists()}
+        ws._apartar('demanda', {t: m for t, m in demanda.items() if t not in ws.demanda and m.get('path')})
         ws.obras = [o for o in (data.get('obras') or []) if isinstance(o, dict) and o.get('id')]
         ws.obras_aplicadas = [o for o in (data.get('obras_aplicadas') or [])
                               if isinstance(o, dict) and o.get('variacion')]
         informes = data.get('informes') if isinstance(data.get('informes'), dict) else {}
         libro = informes.get('libro_perdidas')
+        libro_esta = isinstance(libro, dict) and Path(libro.get('path', '')).is_file()
         ws.informes = {
             'formularios': dict(informes.get('formularios') or {}),
-            # Como las entradas: un libro que ya no está no se restaura.
-            **({'libro_perdidas': libro} if isinstance(libro, dict)
-               and Path(libro.get('path', '')).is_file() else {}),
+            **({'libro_perdidas': libro} if libro_esta else {}),
         }
-        # Como las entradas: un libro de la empresa que ya no está no se restaura.
-        ws.datos_empresa = {p: d for p, d in (data.get('datos_empresa') or {}).items()
-                            if isinstance(d, dict) and Path(d.get('path', '')).is_file()}
+        if isinstance(libro, dict) and not libro_esta and libro.get('path'):
+            ws.no_disponibles['libro_perdidas'] = libro
+        # Como las entradas: un libro de la empresa que ya no está no se usa, y se conserva.
+        empresa = {p: d for p, d in (data.get('datos_empresa') or {}).items() if isinstance(d, dict)}
+        ws.datos_empresa = {p: d for p, d in empresa.items() if Path(d.get('path', '')).is_file()}
+        ws._apartar('datos_empresa', {p: d for p, d in empresa.items()
+                                      if p not in ws.datos_empresa and d.get('path')})
         ws.sin_licencia = [str(m) for m in data.get('sin_licencia') or []]
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
-        conv = root / 'conversiones.json'
-        if conv.is_file():
+        elif run_id:
+            # La migración de T7 sobre una copia sin ``runs`` lo destapó: se perdía sin decir nada.
+            ws.no_disponibles['active_run_id'] = str(run_id)
+        conversiones, aviso = _leer_conversiones(root)
+        ws.conversions = expandir_rutas(_rebasar_rutas(conversiones, ws.id, root), root)
+        ws.avisos_datos.extend(a for a in (migrado, aviso) if a)
+        if migrado:
             try:
-                ws.conversions = json.loads(conv.read_text(encoding='utf-8'))
-            except (OSError, ValueError):
-                ws.conversions = {}
+                ws.save()
+            except OSError as exc:
+                # En memoria ya está migrado, y su copia guardada: se reintenta en el próximo guardado.
+                logging.getLogger(__name__).warning('Espacio %s sin guardar tras migrar: %s', ws.id, exc)
         return ws
+
+    # -------------------------------------------------------------- no disponibles
+    def _apartar(self, campo: str, entradas: dict[str, Any]) -> None:
+        if entradas:
+            self.no_disponibles[campo] = entradas
+
+    def _resumen_no_disponibles(self) -> list[dict[str, str]]:
+        """Lo que apunta a un fichero que no está, para que el operador lo vea (086:RF-3)."""
+        nd = self.no_disponibles
+        filas = [(campo, clave, meta) for campo in ('inputs', 'demanda', 'datos_empresa')
+                 for clave, meta in (nd.get(campo) or {}).items()]
+        if 'libro_perdidas' in nd:
+            filas.append(('libro_perdidas', 'libro_perdidas', nd['libro_perdidas']))
+        if 'catalog_file' in nd:
+            filas.append(('catalog_file', 'catalog_file', {'path': nd['catalog_file']}))
+        if 'active_run_id' in nd:
+            filas.append(('active_run_id', 'active_run_id', {
+                'path': str(self.root / 'runs' / nd['active_run_id']), 'name': nd['active_run_id']}))
+        return [{'campo': campo, 'clave': clave, 'ruta': str(meta.get('path') or ''),
+                 'nombre': str(meta.get('name') or meta.get('nombre') or Path(str(meta.get('path') or '')).name)}
+                for campo, clave, meta in filas]
+
+    def reponer_disponibles(self, *, ahora: float | None = None) -> None:
+        """Una unidad que vuelve con la web abierta devuelve lo suyo sin reiniciar (086:RF-3)."""
+        reloj = time.monotonic() if ahora is None else ahora
+        if not self.no_disponibles or reloj - self._no_disponibles_revisados < REVISION_NO_DISPONIBLES_S:
+            return
+        self._no_disponibles_revisados = reloj
+        # Con el cerrojo ocupado se mira a la próxima: una petición no espera por esto.
+        if not self.lock.acquire(blocking=False):
+            return
+        try:
+            self._reponer()
+        finally:
+            self.lock.release()
+
+    def _reponer(self) -> None:
+        nd = self.no_disponibles
+        for campo, vigentes, existe in (('inputs', self.inputs, Path.is_file), ('demanda', self.demanda, Path.exists),
+                                        ('datos_empresa', self.datos_empresa, Path.is_file)):
+            for clave, meta in list((nd.get(campo) or {}).items()):
+                if clave in vigentes:
+                    del nd[campo][clave]
+                elif existe(Path(meta.get('path', ''))):
+                    vigentes[clave] = meta
+                    del nd[campo][clave]
+            if campo in nd and not nd[campo]:
+                del nd[campo]
+        libro = nd.get('libro_perdidas')
+        if libro and Path(libro.get('path', '')).is_file():
+            self.informes.setdefault('libro_perdidas', libro)
+            del nd['libro_perdidas']
+        catalogo = nd.get('catalog_file')
+        if catalogo and Path(catalogo).is_file():
+            self.catalog_file = self.catalog_file or catalogo
+            del nd['catalog_file']
+        ejecucion = nd.get('active_run_id')
+        if ejecucion and (self.root / 'runs' / ejecucion / 'source_manifest.json').is_file():
+            self.active_run_id = self.active_run_id or ejecucion
+            del nd['active_run_id']
+        if self.options.get('input_mode') not in FUENTES:
+            self.options['input_mode'] = self.fuente_por_entradas()
+
+    def descartar_no_disponible(self, campo: str, clave: str) -> bool:
+        """El operador da por perdida una referencia; sin esto, el aviso quedaría para siempre."""
+        with self.lock:
+            nd = self.no_disponibles
+            if campo in ('libro_perdidas', 'catalog_file', 'active_run_id'):
+                quitado = nd.pop(campo, None) is not None
+            else:
+                quitado = (nd.get(campo) or {}).pop(clave, None) is not None
+                if campo in nd and not nd[campo]:
+                    del nd[campo]
+            if quitado:
+                self.save()
+            return quitado
 
     # -------------------------------------------------------------- entradas
     def invalidate(self) -> None:
@@ -337,6 +622,8 @@ class Workspace:
         self.loaded_at = None
         self.plans.clear()
         self.active_run_id = None
+        # Otra entrada deja sin sentido la ejecución que se esperaba que volviera.
+        self.no_disponibles.pop('active_run_id', None)
 
     def active_run(self):
         """Devuelve la instantánea activa persistida, o ``None`` si fue invalidada."""
@@ -361,6 +648,7 @@ class Workspace:
         with self.lock:
             old = self.inputs.get(slot)
             self.inputs[slot] = meta
+            self._olvidar_entrada_no_disponible(slot)
             if slot == 'vnr_package':
                 self.options['source_company'] = None
                 self.options['source_period'] = None
@@ -372,6 +660,7 @@ class Workspace:
     def clear_input(self, slot: str) -> None:
         with self.lock:
             old = self.inputs.pop(slot, None)
+            self._olvidar_entrada_no_disponible(slot)
             self.invalidate()
             self._drop_upload(old)
             # Sin ningún fichero de su fuente, el espacio deja de tener esa fuente (059:RF-2).
@@ -379,6 +668,13 @@ class Workspace:
             if not any(SLOTS[s]['grupo'] == mode for s in self.inputs):
                 self.options['input_mode'] = self.fuente_por_entradas()
             self.save()
+
+    def _olvidar_entrada_no_disponible(self, slot: str) -> None:
+        """Elegir otra o quitarla es decisión del operador: lo que había en la casilla ya no vuelve."""
+        entradas = self.no_disponibles.get('inputs') or {}
+        entradas.pop(slot, None)
+        if 'inputs' in self.no_disponibles and not entradas:
+            del self.no_disponibles['inputs']
 
     def _drop_upload(self, meta: dict | None, keep: Path | None = None) -> None:
         """Borra un fichero subido que ya no usa nadie. Nunca uno del servidor."""
@@ -458,6 +754,8 @@ class Workspace:
             'created_at': self.created_at,
             'options': self.options,
             'inputs': self.inputs,
+            'no_disponibles': self._resumen_no_disponibles(),
+            'avisos_datos': self.avisos_datos,
             'missing_inputs': self.missing_inputs(),
             'loaded': self.dataset is not None,
             'loaded_at': self.loaded_at,
@@ -551,46 +849,116 @@ class WorkspaceStore:
             self._items[wid] = ws
         return ws
 
+    def _carpeta(self, wid: str) -> Path | None:
+        """La carpeta de ``wid``; también si solo le queda la copia, para poder recuperarla."""
+        from ..util import ruta_copia_anterior
+
+        folders = [base / wid for base in self.roots
+                   if (base / wid / 'workspace.json').is_file()
+                   or ruta_copia_anterior(base / wid / 'workspace.json').is_file()]
+        if len(folders) > 1:
+            raise ValueError(f'Identificador de espacio duplicado en dos raíces: {wid}')
+        if not folders:
+            return None
+        folder = folders[0]
+        if folder.is_symlink() or folder.is_junction() or folder.resolve().parent != folder.parent.resolve():
+            return None
+        return folder
+
     def get(self, wid: str) -> Workspace | None:
         if not _ID_RE.match(wid or ''):
             return None
         with self._lock:
             ws = self._items.get(wid)
-            if ws is not None:
-                return ws
-            folders = [base / wid for base in self.roots if (base / wid / 'workspace.json').is_file()]
-            if len(folders) > 1:
-                raise ValueError(f'Identificador de espacio duplicado en dos raíces: {wid}')
-            if not folders:
+            if ws is None:
+                folder = self._carpeta(wid)
+                if folder is None:
+                    return None
+                try:
+                    ws = Workspace.load(folder)
+                except (OSError, ValueError, KeyError):
+                    return None
+                ws.vinculos_compartidos = folder.parent / REGISTRO_VINCULOS_FILE
+                self._items[wid] = ws
+        # Fuera del cerrojo del almacén: mirar una ruta de red no para a los demás espacios.
+        ws.reponer_disponibles()
+        return ws
+
+    def problema(self, wid: str) -> dict[str, Any] | None:
+        """Por qué un espacio que existe no se abre (086:RF-2, RF-5), o None si no le pasa nada."""
+        if not _ID_RE.match(wid or ''):
+            return None
+        with self._lock:
+            if wid in self._items:
                 return None
-            folder = folders[0]
-            if folder.is_symlink() or folder.is_junction() or folder.resolve().parent != folder.parent.resolve():
-                return None
+            folder = self._carpeta(wid)
+        return self._problema_de(folder) if folder is not None else None
+
+    @staticmethod
+    def _problema_de(folder: Path) -> dict[str, Any] | None:
+        from ..util import ruta_copia_anterior
+
+        try:
+            _leer_estado(folder)
+        except EspacioVersionFutura as exc:
+            return {'estado': 'version_futura', 'motivo': str(exc), 'restaurable': False}
+        except EspacioDanado as exc:
+            copia = ruta_copia_anterior(folder / 'workspace.json')
             try:
-                ws = Workspace.load(folder)
-            except (OSError, ValueError, KeyError):
-                return None
-            ws.vinculos_compartidos = folder.parent / REGISTRO_VINCULOS_FILE
-            self._items[wid] = ws
-            return ws
+                restaurable = isinstance(json.loads(copia.read_text(encoding='utf-8')), dict)
+            except (OSError, ValueError):
+                restaurable = False
+            return {'estado': 'danado', 'motivo': str(exc), 'restaurable': restaurable}
+        return None
+
+    def restaurar_copia(self, wid: str) -> Workspace:
+        """Un espacio dañado vuelve a su copia anterior; lo dañado se aparta, no se borra (086:RF-2)."""
+        from ..util import publicar_duradero, ruta_copia_anterior
+
+        folder = self._carpeta(wid) if _ID_RE.match(wid or '') else None
+        problema = self._problema_de(folder) if folder is not None else None
+        if folder is None or problema is None or problema['estado'] != 'danado':
+            raise EspacioNoUtilizable('Este espacio no está dañado: no hay nada que restaurar.')
+        if not problema['restaurable']:
+            raise EspacioDanado(f"No hay copia anterior que restaurar. {problema['motivo']}")
+        meta = folder / 'workspace.json'
+        if meta.is_file():
+            shutil.copy2(meta, folder / f'workspace.danado-{time.strftime("%Y%m%dT%H%M%S")}.json')
+        publicar_duradero(meta, ruta_copia_anterior(meta).read_bytes())
+        with self._lock:
+            self._items.pop(wid, None)
+        ws = self.get(wid)
+        if ws is None:
+            raise EspacioDanado('La copia anterior tampoco se puede abrir.')
+        ws.avisos_datos.append('Espacio restaurado de su copia anterior; lo dañado se conserva aparte.')
+        return ws
 
     def list(self) -> list[dict]:
+        from ..util import ruta_copia_anterior
+
         out = []
         for folder in (p for base in self.roots if base.is_dir() for p in base.iterdir()):
             if folder.is_symlink() or folder.is_junction():
                 continue
             meta = folder / 'workspace.json'
-            if not meta.is_file():
+            if not meta.is_file() and not ruta_copia_anterior(meta).is_file():
                 continue
+            modificado = (meta if meta.is_file() else ruta_copia_anterior(meta)).stat().st_mtime
+            # Dañado o más nuevo, se ve con su motivo: sin esto, el espacio desaparecía sin decir nada.
+            problema = self._problema_de(folder)
             try:
                 data = json.loads(meta.read_text(encoding='utf-8'))
-            except (OSError, ValueError):
-                continue
+                entradas = {k: v.get('name') for k, v in (data.get('inputs') or {}).items()}
+            except (OSError, ValueError, AttributeError):
+                data, entradas = {}, {}
+            if problema and problema['estado'] == 'danado':
+                data, entradas = {}, {}
             out.append({
                 'id': data.get('id', folder.name),
                 'created_at': data.get('created_at'),
-                'inputs': {k: v.get('name') for k, v in (data.get('inputs') or {}).items()},
-                'modified_at': meta.stat().st_mtime,
+                'inputs': entradas,
+                'modified_at': modificado,
+                **(problema or {'estado': 'ok'}),
             })
         return sorted(out, key=lambda d: d['modified_at'], reverse=True)
 
