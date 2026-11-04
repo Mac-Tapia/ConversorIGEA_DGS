@@ -361,7 +361,10 @@ def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> li
         kv = float(c['kv'])
         if any(o.loc_name.upper().startswith(c['codigo'].upper()) and a_tension(o, kv) for o in existentes):
             continue
-        tipo = equip.CreateObject('TypLne', c['nombre'])
+        # En la biblioteca del proyecto activo: en la del proyecto biblioteca, sin activarlo, DIgSILENT no deja
+        # crear un TypLne (Pisco, 2026-11-03: CreateObject devolvió None para AA24003D).
+        local = app.GetLocalLibrary('TypLne')
+        tipo = (local.CreateObject('TypLne', c['nombre']) if local is not None else None) or equip.CreateObject('TypLne', c['nombre'])
         if tipo is None:
             avisos.append(f"DIgSILENT no dejó crear el tipo {c['nombre']!r} (042:RF-30).")
             continue
@@ -377,7 +380,7 @@ def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> li
             continue
         existentes.append(tipo)
         creados.append(c['nombre'])
-        avisos.append(f"Se creó el tipo {c['nombre']} en {BIBLIOTECA_TIPOS}: {c['datos']['sline'] * 1000:.0f} A, "
+        avisos.append(f"Se creó el tipo {c['nombre']} en la biblioteca del proyecto: {c['datos']['sline'] * 1000:.0f} A, "
                       f"R {c['datos']['rline']:.4f} Ω/km, de su ficha ({c.get('fuente') or 'catálogo'}) (042:RF-30).")
     return creados
 
