@@ -505,6 +505,56 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     return 0 if validos and not fallidos else 1
 
 
+def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None) -> int:
+    """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-71).
+
+    Pisco (2026-11-03): el usuario pidió que lo que falta se lance y cierre solo. Si ya corre un «Con proyecto»
+    de ese proyecto, se espera a él en vez de lanzar otro; si terminó bien, se da su resultado.
+    """
+    inicio = time.strftime('%Y-%m-%dT%H:%M:%S')
+    trabajo = None
+    for j in reversed(web.get('').get('jobs') or []):
+        if j.get('kind') == 'obras_con_proyecto' and proyecto in str(j.get('title')) and j.get('status') not in (
+                'failed', 'cancelled'):
+            trabajo = j
+            break
+    if trabajo is None or trabajo.get('status') in ('parcial', 'no_converge'):
+        print(f'«Con proyecto» de {proyecto}: se lanza para {", ".join(feeders)}', flush=True)
+        trabajo = web.post('/pf/obras/con-proyecto', json={
+            'project': proyecto, 'feeders': feeders, 'escalera_primero': True,
+            **({'tipo_cambio': tipo_cambio} if tipo_cambio else {})})
+    else:
+        print(f"«Con proyecto» de {proyecto}: se espera el trabajo {trabajo['id']} ya lanzado", flush=True)
+    if trabajo.get('started_at'):
+        inicio = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(float(trabajo['started_at'])))
+    estado = web.esperar(trabajo, limite_s=12 * 3600)
+    resultado = estado.get('result') or {}
+    print(f"Trabajo {estado['id']}: {estado['status']}" + (f" — {estado.get('error')}" if estado.get('error') else ''),
+          flush=True)
+    filas = ((resultado.get('escalera') or {}).get('alimentadores') or resultado.get('alimentadores') or [])
+    for f in filas:
+        e = f.get('elegida')
+        print(f"  {f.get('alimentador')}: " + ('ya cumple' if f.get('ya_cumple') else
+              f"obra {e.get('nombre') if isinstance(e, dict) else e}" if e else 'ninguna variante cumple'), flush=True)
+    for clave in ('zonas', 'expresos', 'set_nueva', 'aplicadas'):
+        if resultado.get(clave):
+            print(f'  {clave}: {json.dumps(resultado[clave], ensure_ascii=False, default=str)[:600]}', flush=True)
+    try:
+        from convertersmartgrid import estadistica_ordenes as eo
+        from convertersmartgrid import pf_arnes
+
+        ordenes = [o for o in eo.leer(pf_arnes.ruta_cola()) if o['fecha'] >= inicio]
+        for r in eo.descriptiva(ordenes):
+            print(f"  DIgSILENT {r['guion']}: {r['n']} órdenes, {r['tasa_fallos']:.0%} fallidas, {r['horas']:.2f} h, "
+                  f"mediana {r['mediana_s']:.0f} s", flush=True)
+    except Exception as exc:  # noqa: BLE001 - la estadística no decide el resultado
+        print(f'  sin estadística de órdenes: {exc}', flush=True)
+    if _RESUMEN:
+        _RESUMEN[0].write_text(json.dumps({'trabajo': estado['id'], 'estado': estado['status'], 'resultado': resultado},
+                                          ensure_ascii=False, indent=1, default=str), encoding='utf-8')
+    return 0 if estado['status'] == 'done' else 1
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Convierte, importa y calibra un sistema eléctrico '
                                             'entero por la web (spec 022 y 025)')
@@ -538,6 +588,10 @@ def main(argv=None) -> int:
     p.add_argument('--alimentadores', nargs='+', metavar='COD',
                    help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
     p.add_argument('--resumen-json', type=Path, help='Dónde dejar la lista de lo que no quedó calibrado (081:RF-21)')
+    p.add_argument('--con-proyecto', nargs='+', metavar='COD',
+                   help='Tras calibrar (o ya calibrado), «Con proyecto» de estos alimentadores y su estadística (042:RF-31)')
+    p.add_argument('--proyecto', help='Con --con-proyecto, el proyecto de DIgSILENT ya calibrado: no se calibra de nuevo')
+    p.add_argument('--tipo-cambio', type=float, help='Con --con-proyecto, moneda local por dólar')
     args = p.parse_args(argv)
     _RESUMEN[:] = [args.resumen_json] if args.resumen_json else []
     try:
@@ -545,6 +599,12 @@ def main(argv=None) -> int:
     except (AttributeError, ValueError):
         pass
     web = Web(args.url, args.espacio)
+    if args.con_proyecto and args.proyecto:
+        try:
+            return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio)
+        except (RuntimeError, TimeoutError, requests.RequestException) as exc:
+            print(f'ERROR: {exc}')
+            return 2
     try:
         demanda_dir = args.demanda_dir.resolve()
         # Relativa, dentro de la carpeta de la demanda («--medidores medidores.xlsx»); pero si ya
