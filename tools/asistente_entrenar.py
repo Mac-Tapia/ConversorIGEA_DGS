@@ -117,9 +117,11 @@ def main(argv=None) -> int:
             from convertersmartgrid.asistente import codificador_ordenes
             from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
             ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
+            from convertersmartgrid.asistente import ordenes_maestro
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
                                           etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
-                                          ninguna=ninguna, ninguna_reservada=reservados)
+                                          ninguna=ninguna, ninguna_reservada=reservados,
+                                          ordenes_maestro=ordenes_maestro.leer(almacen.raiz())[0])   # 085:RF-1
             guardar_corpus(destino / 'corpus', filas, meta, reservados)
             # 075:RF-28: una confirmada igual a una fija de prueba no entrena, como la plata (027:RF-66).
             from convertersmartgrid.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas

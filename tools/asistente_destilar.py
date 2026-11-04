@@ -59,10 +59,14 @@ def main(argv=None) -> int:
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
             etiquetas, lectura = leer_etiquetas(almacen.raiz())                # 068:RF-33
             ninguna, reservados = leer_ninguna(almacen.raiz())                 # 069:RF-28
+            from convertersmartgrid.asistente import ordenes_maestro
+            maestro, lectura_maestro = ordenes_maestro.leer(almacen.raiz())     # 085:RF-1
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'), por_familia=args.por_familia,
-                                          etiquetas_reales=etiquetas, ninguna=ninguna, ninguna_reservada=reservados)
+                                          etiquetas_reales=etiquetas, ninguna=ninguna, ninguna_reservada=reservados,
+                                          ordenes_maestro=maestro)
             guardar_corpus(args.destino, filas, meta, reservados)
-            resultado = {'ok': True, **meta, 'lectura_etiquetas': dict(lectura)}
+            resultado = {'ok': True, **meta, 'lectura_etiquetas': dict(lectura),
+                         'lectura_ordenes_maestro': dict(lectura_maestro)}
         elif args.accion == 'entrenar':
             from convertersmartgrid.asistente.codificador_ordenes import Configuracion
             from convertersmartgrid.training_coordinator import BloqueoGPU

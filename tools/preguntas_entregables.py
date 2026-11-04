@@ -35,7 +35,9 @@ REVISION = '10fd3e1d29822d326be088e38c5a90f438e76d5e'
 SAL_REPARTO = '076-reparto'
 FRACCION_SELLADO = 0.25
 #: Campos del operador: revisar no cambia lo sellado (076:RF-9).
-CAMPOS_REVISION = ('revisado_por_operador', 'revision')
+CAMPOS_REVISION = ('revisado_por_operador', 'revision', 'revisado_por_maestro')
+#: 076:RF-28: quién marcó la hoja; el maestro hace el rol del revisor por orden del usuario (2026-11-03), y no es humano.
+REVISORES = ('operador', 'maestro')
 
 ENTREGABLES = ('informe_estudio', 'factibilidad_conexion', 'libro_excel_informe', 'planos_informe', 'formatos_pide',
                'planeamiento_pide', 'dgs_manifiesto', 'calibracion_alcance', 'estudios_resultados', 'transferencias',
@@ -470,9 +472,15 @@ def exportar(filas: Iterable[Mapping[str, Any]], reglas: Iterable[Mapping[str, A
     return destino
 
 
-def importar(hoja: Path | str, dataset: Path | str = DATASET) -> dict[str, int]:
-    """Marca solo lo marcado; toda la hoja o nada (076:RF-11, RF-12, RF-27). La corrección no pisa la respuesta esperada."""
+def importar(hoja: Path | str, dataset: Path | str = DATASET, revisor: str = 'operador') -> dict[str, int]:
+    """Marca solo lo marcado; toda la hoja o nada (076:RF-11, RF-12, RF-27). La corrección no pisa la respuesta esperada.
+
+    Con ``revisor='maestro'`` la marca queda como del maestro: no pone ``revisado_por_operador`` y no cuenta como humana (RF-28).
+    """
     from openpyxl import load_workbook
+
+    if revisor not in REVISORES:
+        raise HojaError(f'revisor {revisor}: use {" o ".join(REVISORES)}')
 
     filas = leer_jsonl(dataset)
     por_id = {f['id']: f for f in filas}
@@ -502,8 +510,12 @@ def importar(hoja: Path | str, dataset: Path | str = DATASET) -> dict[str, int]:
             marcas[i] = {'veredicto': _MARCAS[marca], 'correccion': str(valores[cc] or '').strip()}
     libro.close()
     for i, revision in marcas.items():
-        por_id[i]['revisado_por_operador'] = True
-        por_id[i]['revision'] = revision
+        if revisor == 'maestro':
+            por_id[i]['revisado_por_maestro'] = True
+            por_id[i]['revision'] = {**revision, 'revisor': 'maestro'}
+        else:
+            por_id[i]['revisado_por_operador'] = True
+            por_id[i]['revision'] = revision
     if marcas:
         escribir_jsonl(dataset, filas)
     veredictos = Counter(r['veredicto'] for r in marcas.values())
@@ -584,6 +596,7 @@ def _parser() -> argparse.ArgumentParser:
     i = sub.add_parser('importar', help='marca lo que el operador marcó en la hoja')
     i.add_argument('hoja', type=Path)
     i.add_argument('--dataset', type=Path, default=DATASET)
+    i.add_argument('--revisor', choices=REVISORES, default='operador', help='quién marcó la hoja (076:RF-28)')
     sub.add_parser('informe', help='reescribe el informe por entregable')
     g = sub.add_parser('generar', help='preguntas estocásticas de la web, deterministas con la semilla')
     g.add_argument('--semilla', type=int, required=True)
@@ -607,7 +620,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if a.orden == 'importar':
         try:
-            print(json.dumps(importar(a.hoja, a.dataset), ensure_ascii=False))
+            print(json.dumps(importar(a.hoja, a.dataset, a.revisor), ensure_ascii=False))
         except HojaError as exc:
             print(f'Hoja rechazada, no se escribió nada: {exc}', file=sys.stderr)
             return 1

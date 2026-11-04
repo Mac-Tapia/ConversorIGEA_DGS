@@ -23,6 +23,7 @@ from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de
 from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de_079, selladas as selladas_079
 from .sinteticos import Ejemplo, expandir
 from .tareas import TAREAS, TAREAS_HASTA_069
+from . import ordenes_maestro as ordenes_maestro_085
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
@@ -86,7 +87,9 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
         # Sale del texto: añadir una etiqueta no cambia las variantes de las demás.
         return random.Random(int(huella({'erratas': texto})[:8], 16))
 
-    for r in sorted((r for r in filas if r['particion'] == 'entrenamiento'), key=lambda r: r['record_id']):
+    # 085:RF-11: las del maestro ya traen sus variantes; repetirlas aquí les quitaría el origen.
+    for r in sorted((r for r in filas if r['particion'] == 'entrenamiento' and r.get('origen') != ordenes_maestro_085.ORIGEN),
+                    key=lambda r: r['record_id']):
         erratas(Ejemplo(r['texto'], r['tarea'], [tuple(d) for d in r['datos']]), r['group_id'], r['quality'], 'catalogo',
                 semilla_de(r['texto']))
     for tarea in sorted(TAREAS):
@@ -176,7 +179,7 @@ def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict, dict]:
 
 def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, etiquetas_reales: Sequence[dict] = (),
                     ampliar: bool = True, ninguna: Sequence[str] = (),
-                    ninguna_reservada: Sequence[str] = ()) -> tuple[list[dict], dict]:
+                    ninguna_reservada: Sequence[str] = (), ordenes_maestro: Sequence[dict] = ()) -> tuple[list[dict], dict]:
     """Expande familias declaradas; todos los ejemplos humanos quedan fuera del ajuste.
 
     ``etiquetas_reales`` (068) son plata del maestro sobre textos del operador; nunca cuentan como humanas.
@@ -249,6 +252,14 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     # 070:RF-76: la comparación de arriba es con mayúsculas y tildes: «Qué hay» confirmada dejaba «que hay» entrenando.
     confirmadas = {clave_texto(t) for t in humanos}
     filas = [r for r in filas if r['particion'] != 'entrenamiento' or clave_texto(r['texto']) not in confirmadas]
+    maestro_085 = {}
+    if ordenes_maestro:
+        # 085:RF-13: lo que mide no se toca; las fijas de prueba y los reservados tampoco entran por esta vía.
+        medidas = [r for r in filas if r['particion'] != 'entrenamiento']
+        vedados = {clave_texto(t) for t in (*humanos, *cuarentena, *ninguna_reservada)} | {clave_texto(r['texto']) for r in medidas}
+        vedados |= {clave_texto(e.texto) for e in repartir(generar_fijas(vocab))[1]}
+        maestro_085 = ordenes_maestro_085.ampliar(filas, ordenes_maestro, vedados,
+                                                  {firma_familia(r['texto'], r['datos']) for r in medidas})
     ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos,
                                          ninguna, ninguna_reservada) if ampliar else {})
     filas.sort(key=lambda r: r['record_id'])
@@ -258,6 +269,7 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     historicas = sorted(r['record_id'] for r in filas if es_historica(r))
     sinteticas_historicas = sorted(r['record_id'] for r in filas if es_historica(r) and r['quality'] != 'gold_human')
     meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas), **ampliacion,
+            **({'ordenes_maestro_085': maestro_085} if maestro_085 else {}),
             # 070:RF-72: mide lo mismo que la huella b800c6ca1a11d9ba si el vocabulario y las humanas son los de entonces.
             'prueba_sellada': sellada, 'prueba_sellada_079': sellada_079,
             'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas),
@@ -316,7 +328,9 @@ def leer_corpus(destino: Path) -> tuple[list[dict], dict]:
         if identidad != huella({k: v for k, v in r.items() if k != 'record_id'}):
             raise ValueError('integridad de registro inválida')
         # 069:RF-10: «ninguna» solo es válida como plata de entrenamiento.
-        ninguna_valida = (r.get('tarea') == NINGUNA and r.get('quality') == CALIDAD and r.get('particion') == 'entrenamiento')
+        # 085:RF-12: también las del maestro, con su origen; siempre en entrenamiento.
+        ninguna_valida = (r.get('tarea') == NINGUNA and r.get('particion') == 'entrenamiento' and (
+            r.get('quality') == CALIDAD or (r.get('origen') == ordenes_maestro_085.ORIGEN and r.get('quality') == ordenes_maestro_085.CALIDAD)))
         if (r.get('tarea') not in TAREAS and not ninguna_valida) or r.get('quality') not in {
                 'gold_human', 'silver_deterministic', 'silver_teacher_verified', CALIDAD}:
             raise ValueError('etiqueta o calidad no admitida')
@@ -447,7 +461,17 @@ def medir_regla_ollama(modelo, seleccion: Sequence[dict], reservados: Sequence[s
 
 
 def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
-                      rechazo: dict | None = None) -> dict:
+                      rechazo: dict | None = None, maestro: dict | None = None, humanas_distintas: int | None = None) -> dict:
+    if maestro is not None:
+        # 085:RF-19 a RF-22: sin 200 humanas distintas decide el examen del maestro, y lo dice; las humanas se siguen dando.
+        distintas = humanas.get('ejemplos', 0) if humanas_distintas is None else humanas_distintas
+        eleccion = ordenes_maestro_085.puerta_de_ordenes(humanas, distintas, maestro)
+        if eleccion['conjunto'] == ordenes_maestro_085.ORIGEN:
+            d = decidir_promocion(sinteticas, maestro, familias, referencia, rechazo)
+            d['fallos'] = [f.replace('prueba humana:', 'examen del maestro:') for f in d['fallos']]
+            return {**d, 'puerta_ordenes': eleccion, 'ordenes_humanas': distintas, 'humanas_no_deciden': dict(humanas),
+                    'muestra_humana_amplia': False}
+        return {**decidir_promocion(sinteticas, humanas, familias, referencia, rechazo), 'puerta_ordenes': eleccion}
     politica = PoliticaEvaluacion(modo='agente')
     fallos = verificar_familias(familias, referencia, politica, esperadas=tuple(TAREAS))
     fallos += _fallos_de_rechazo(rechazo)
@@ -471,6 +495,12 @@ def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referenci
             'gates': {'approved': not fallos}, 'fallos': fallos, 'ordenes_humanas': n,
             'alcance': 'asistido', 'confirmacion_obligatoria': True,
             'muestra_humana_amplia': n >= 200}
+
+
+def tres_cifras(humanas: dict | None, maestro: dict | None, sinteticas: dict | None) -> dict:
+    """085:RF-17: humanas, maestro y sintéticas, cada una con su denominador; nunca sumadas."""
+    return {k: ({c: v[c] for c in ('acierto_tarea', 'f1_datos', 'ejemplos') if c in v} if v else None)
+            for k, v in (('humanas', humanas), ('maestro', maestro), ('sinteticas', sinteticas))}
 
 
 def _medir_en_uso(sinteticas: list[dict], humanas: list[dict], reservados: Sequence[str] | None) -> dict | None:
@@ -774,7 +804,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     # 079:RF-45: decide la sellada nueva; un corpus anterior sin ella decide como entonces (070:RF-69, RF-72).
     prueba_sintetica = ([r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_079]
                         or [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO]
-                        or [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'])
+                        or [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'
+                            and r.get('conjunto') != ordenes_maestro_085.CONJUNTO])
     sinteticas = evaluar_alumno(modelo, prueba_sintetica)
     humanas = evaluar_alumno(modelo, filas_humanas)
     bloque_cruzada = None
@@ -797,7 +828,14 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                         'medida': evaluar_alumno(modelo, filas_anterior) if filas_anterior else None}
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
-    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo)
+    # 085:RF-17, RF-18: la tercera cifra, aparte de humanas y sintéticas, con su denominador y por tarea.
+    filas_maestro = [r for r in por_parte['prueba'] if r.get('conjunto') == ordenes_maestro_085.CONJUNTO]
+    examen_maestro = {**evaluar_alumno(modelo, filas_maestro), 'conjunto': ordenes_maestro_085.CONJUNTO,
+                      'no_son_humanas': True} if filas_maestro else None
+    # Sin examen del maestro la llamada es la de antes de la 085: decide como entonces.
+    extra = ({'maestro': examen_maestro, 'humanas_distintas': meta.get('ordenes_humanas_independientes')}
+             if examen_maestro else {})
+    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo, **extra)
     if validacion is not None:
         decision['tareas_sin_independencia'] = {t: d['motivo'] for t, d in validacion.por_tarea.items()     # 075:RF-26
                                                 if d['estado'] == 'sin_independencia'}
@@ -830,6 +868,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
         'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica,
         'prueba_sellada': sellada_anterior, 'prueba_sellada_079': meta.get('prueba_sellada_079'),
+        'examen_maestro': examen_maestro,
         'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
         'confusiones': confundidas},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
@@ -842,6 +881,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'prueba_sellada': sellada_anterior, 'prueba_historica': historica,                # 070:RF-72, 079:RF-46
         'prueba_sellada_079': meta.get('prueba_sellada_079'),                             # 079:RF-45, RF-47
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
+        'examen_maestro': examen_maestro,                                                  # 085:RF-17
+        'tres_cifras': tres_cifras(humanas, examen_maestro, sinteticas),
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
         'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
         'confusiones': confundidas, 'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}

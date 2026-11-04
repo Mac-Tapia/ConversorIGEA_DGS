@@ -10,5 +10,11 @@
       Hecho cuando: `verificar` termina sin errores y la huella queda fijada.
 - [x] T5 Catálogo de hechos de la web y generador estocástico. (RF-19, RF-20, RF-21, RF-22, RF-23, RF-24, RF-25)
       Hecho cuando: `tests/test_preguntas_entregables.py` pasa con varias semillas.
-- [ ] T6 Revisión del operador y decisión del usuario sobre su uso.
+- [x] T6 Revisión del operador y decisión del usuario sobre su uso.
       Hecho cuando: el operador devuelve la hoja, `importar` la marca y el usuario decide si entra al corpus.
+      Hecho el 2026-11-03 por el maestro, en el rol del revisor por orden del usuario («tú debes cumplir el rol de humano»):
+      443 filas marcadas contra el código, con `importar --revisor maestro`; la decisión de uso sigue en T8.
+- [x] T7 La marca del maestro queda como suya y no como humana. (RF-28)
+      Hecho cuando: `pytest -q tests/test_preguntas_entregables.py -k maestro` en verde.
+- [ ] T8 Decisión del usuario sobre si el conjunto marcado entra al corpus del RAG o a un entrenamiento. (RF-16)
+      Hecho cuando: el usuario lo decide; mientras tanto el conjunto no entra en ninguno.
