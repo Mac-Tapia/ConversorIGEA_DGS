@@ -220,6 +220,16 @@ def test_el_cierre_del_lanzador_sigue_funcionando_con_token(puerta):
         assert c.post('/api/sistema/cerrar', headers=puerta.con_token).status_code == 403
 
 
+def test_un_enlace_viejo_ve_una_pagina_y_la_api_su_json(puerta):
+    """086:RF-19 — con el enlace de un arranque anterior, la persona lee qué hacer; un programa sigue con su JSON."""
+    with _cliente(puerta.app) as c:
+        r = c.get(f'/?{sesion_web.PARAMETRO_ACCESO}=viejo', headers={'Accept': 'text/html,*/*'})
+        assert r.status_code == 401 and r.headers['content-type'].startswith('text/html')
+        assert 'acceso directo' in r.text and '"detail"' not in r.text
+        api = c.get('/api/workspaces', headers={'Accept': 'application/json'})
+        assert api.status_code == 401 and api.json()['detail']
+
+
 def test_la_direccion_del_lanzador_se_cambia_por_una_cookie(puerta):
     """086:RF-19 — HttpOnly y SameSite=Strict, sin el token en la barra de direcciones."""
     with _cliente(puerta.app) as c:

@@ -55,7 +55,7 @@ export function AcercaDe({ version }: { version: string }) {
               </>
             )}
             <h3>Notas de la versión</h3>
-            <pre className="report">{notas || 'Sin notas.'}</pre>
+            <pre className="report" style={{ whiteSpace: 'pre-wrap' }}>{notas || 'Sin notas.'}</pre>
           </div>
         </Modal>
       )}

@@ -9,7 +9,7 @@ Primera versión que se instala fuera del entorno de desarrollo.
 - Orden `doctor` y pantalla de diagnóstico: qué falta, qué función afecta y cómo arreglarlo.
 - Registro en ficheros rotativos y paquete de soporte sin datos del cliente.
 
-Se vende: cargar la fuente y convertir; importar con «Caso base» verificado; calibrar; cargas nuevas; «Con proyecto» con escalera;
+Incluye: cargar la fuente y convertir; importar con «Caso base» verificado; calibrar; cargas nuevas; «Con proyecto» con escalera;
 informes de estudio y de factibilidad con su Excel; estudios de flujo, N-1 y transferencia.
 
 En beta, dicho en pantalla: asistente de órdenes, SET nueva, diagnóstico y borrador del PIDE, confiabilidad.

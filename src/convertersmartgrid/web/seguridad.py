@@ -12,6 +12,7 @@ historial. Los programas locales lo mandan en cabecera (``sesion_web.cabeceras_l
 from __future__ import annotations
 
 import hmac
+import html
 import json
 import logging
 import os
@@ -136,9 +137,18 @@ class SeguridadWeb:
             await receive()           # websocket.connect: se cierra sin aceptar, y el navegador ve el fallo
             await send({'type': 'websocket.close', 'code': 4000 + estado, 'reason': detalle[:100]})
             return
-        cuerpo = json.dumps({'detail': detalle}, ensure_ascii=False).encode('utf-8')
+        cabeceras = {k.decode('latin-1').lower(): v.decode('latin-1') for k, v in scope.get('headers', ())}
+        # 086:RF-19: quien llega con un enlace de un arranque anterior es una persona, no un programa,
+        # y veía un JSON crudo. Solo la navegación recibe la página: la API sigue dando su JSON.
+        pagina = estado == 401 and scope.get('method') == 'GET' and 'text/html' in cabeceras.get('accept', '')
+        if pagina:
+            cuerpo = (f'<!doctype html><html lang="es"><meta charset="utf-8"><title>ConverterSmartGrid</title>'
+                      f'<body style="font:16px system-ui;margin:3rem"><h1>ConverterSmartGrid</h1>'
+                      f'<p>{html.escape(detalle)}</p></body></html>').encode('utf-8')
+        else:
+            cuerpo = json.dumps({'detail': detalle}, ensure_ascii=False).encode('utf-8')
         await send({'type': 'http.response.start', 'status': estado,
-                    'headers': [(b'content-type', b'application/json'),
+                    'headers': [(b'content-type', b'text/html; charset=utf-8' if pagina else b'application/json'),
                                 (b'content-length', str(len(cuerpo)).encode()),
                                 (b'x-content-type-options', b'nosniff')]})
         await send({'type': 'http.response.body', 'body': cuerpo})
