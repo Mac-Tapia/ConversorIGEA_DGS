@@ -631,12 +631,25 @@ export interface EscaleraResultado {
   }[];
 }
 
+/** 042:RF-77: lo de cada alimentador en el flujo por alimentador. */
+export interface ConProyectoAlimentador {
+  cargas: number;
+  kw: number;
+  cumple: boolean;
+  ya_cumple: boolean;
+  alternativas?: import('./alternativas').Alternativa[];
+  deficit_previo?: { barras: string[]; alternativas: import('./alternativas').Alternativa[] } | null;
+  sin_comparacion?: { barras: string[]; alternativas: import('./alternativas').Alternativa[] } | null;
+}
+
 /** Spec 042: escalera carga a carga y SET nueva para las que no caben (RF-12). */
 export interface ConProyectoCarga { sed: string; alimentador: string; kw: number | null; variacion: string }
 export interface ConProyectoResultado {
   escalera_por_cargas: {
     project: string; caben: number; orden: ConProyectoCarga[]; a_set_nueva: ConProyectoCarga[];
-    pruebas: { cargas: number; cabe: boolean }[]; escalera: EscaleraResultado | null;
+    /** 042:RF-78: solo el flujo por tandas; el flujo por alimentador trae ``por_alimentador``. */
+    pruebas?: { cargas: number; cabe: boolean }[]; escalera: EscaleraResultado | null;
+    por_alimentador?: Record<string, ConProyectoAlimentador>;
   };
   set_nueva: {
     avisos: string[];

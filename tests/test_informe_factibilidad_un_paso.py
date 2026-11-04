@@ -678,3 +678,25 @@ def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
     assert r['por_alimentador']['F2']['deficit_previo']['alternativas'][0]['nombre'] == 'x'
     assert r['por_alimentador']['F2']['sin_comparacion']['barras'] == ['B3']
     assert r['por_alimentador']['F3']['deficit_previo'] is None
+
+
+def test_la_web_recibe_las_alternativas_de_cada_alimentador(monkeypatch):
+    """042:RF-76, 042:RF-77, 042:RF-78 — el resultado trae las alternativas por alimentador, y no trae pruebas por tandas."""
+    from convertersmartgrid.web import services
+
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 10.0, 'variacion': 'Carga_A'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    alternativas = [{'numero': 1, 'nombre': 'x', 'costo_anual': 5.0, 'elegida': False}]
+    monkeypatch.setattr(services, 'obras_escalera', lambda *a, **k: {
+        'alimentadores': [{'alimentador': 'F1', 'ya_cumple': True, 'alternativas': alternativas}]})
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
+    assert r['por_alimentador']['F1']['alternativas'] == alternativas and 'pruebas' not in r

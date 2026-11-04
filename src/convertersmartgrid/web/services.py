@@ -6261,6 +6261,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                 ctx.log(f"{f}, {etiqueta}: alternativa {alt['numero']}: {alt['nombre']}"
                         + (f", {alt['costo_anual']:,.0f} al año" if alt.get('costo_anual') is not None else '') + ' (042:RF-65).')
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok, **aparte,
+                         'alternativas': fila.get('alternativas') or [],                     # 042:RF-77
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
         # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
         resto_bajo = ' El alimentador sigue con barras bajo el límite: vea sus avisos.' if queda_deficit(fila.get('bajo_limite')) else ''

@@ -1,9 +1,10 @@
+import { alcanceDe, porCosto, sorteosDe, valleDe, type Alternativa } from '../alternativas';
 import { useEffect, useRef, useState } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
-  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConProyectoResultado, Economia, EscaleraResultado, Job,
+  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConProyectoAlimentador, ConProyectoResultado, Economia, EscaleraResultado, Job,
   PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
@@ -640,10 +641,11 @@ export function CargasTab() {
         onEscalera={(feeders, tipoCambio, capex) => startJob(() => api.obrasEscalera(ws.id, {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
           tipo_cambio: tipoCambio, capex }))}
-        onConProyecto={(feeders, tipoCambio, capex, nuevos, setNombre, directo) => startJob(() => api.obrasConProyecto(ws.id, {
+        onConProyecto={(feeders, tipoCambio, capex, nuevos, setNombre, directo, porAlimentador, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
           tipo_cambio: tipoCambio, capex, alimentadores_nuevos: nuevos,
-          set_nueva_nombre: setNombre, directo_set_nueva: directo }))} />}
+          set_nueva_nombre: setNombre, directo_set_nueva: directo,
+          escalera_primero: porAlimentador, rehacer_obras: rehacer }))} />}
 
       {current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
         <AvisoBeta clave="set_nueva" />
@@ -917,7 +919,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
   conProyecto: ConProyectoResultado | null; ocupado: boolean;
   onEscalera: (feeders: string[], tipoCambio: number | null, capex: string) => void;
   onConProyecto: (feeders: string[], tipoCambio: number | null, capex: string, nuevos: number,
-    setNombre: string, directo: boolean) => void;
+    setNombre: string, directo: boolean, porAlimentador: boolean, rehacer: boolean) => void;
 }) {
   const { health } = useApp();
   // Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
@@ -927,6 +929,9 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
   // 052:RF-19, 063:RF-34: el nombre de la SET nueva y, sin escalera, todas las cargas a ella.
   const [setNombre, setSetNombre] = useState('');
   const [directo, setDirecto] = useState(false);
+  // 042:RF-76: por alimentador, con sus alternativas; rehacer borra sus obras: nunca por defecto.
+  const [porAlimentador, setPorAlimentador] = useState(true);
+  const [rehacer, setRehacer] = useState(false);
   // Spec 025, RF-67: el tipo de cambio lo escribe el operador; no sale del perfil.
   const [tipoCambio, setTipoCambio] = useState('');
   // RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
@@ -984,7 +989,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
             <button className="btn btn-sm" disabled={ocupado || !capex.trim() || !nuevosValido
               || (tipoCambio.trim() !== '' && !tcValido)}
               onClick={() => onConProyecto(feedersEscalera, tcValido ? tc : null, capex.trim(), nNuevos,
-                setNombre.trim(), directo)}>
+                setNombre.trim(), directo, porAlimentador && !directo, rehacer && !directo)}>
               Optimizar «Con proyecto» con SET nueva <MarcaBeta clave="set_nueva" />
             </button>
             <label className="small">Nombre de la SET nueva{' '}
@@ -993,6 +998,11 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
             </label>
             <label className="small"><input type="checkbox" checked={directo}
               onChange={(e) => setDirecto(e.target.checked)} /> Directo a SET nueva, sin escalera</label>
+            <label className="small"><input type="checkbox" checked={porAlimentador && !directo} disabled={directo}
+              onChange={(e) => setPorAlimentador(e.target.checked)} /> Por alimentador, con hasta 3 alternativas</label>
+            <label className="small" title="Borra las obras de estos alimentadores en «Con proyecto» y las evalúa de nuevo">
+              <input type="checkbox" checked={rehacer && !directo} disabled={directo}
+                onChange={(e) => setRehacer(e.target.checked)} /> Rehacer las obras ya aplicadas</label>
             </>}
             <small className="muted">
               Bancos, regulador, terna y cambio de sección en {lista(feedersEscalera)}, varias variantes y sus
@@ -1065,10 +1075,12 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
     <div className="step-box">
       <h4>«Con proyecto» optimizado</h4>
       <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
-        (de mayor a menor potencia; {e.pruebas.length} escaleras medidas).</p>
+        ({e.pruebas ? `de mayor a menor potencia; ${e.pruebas.length} escaleras medidas` : 'por alimentador'}).</p>
       {e.a_set_nueva.length > 0 && (
         <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
       )}
+      {Object.entries(e.por_alimentador ?? {}).map(([f, a]) => (
+        <AlternativasDe key={f} f={f} a={a} moneda={e.escalera?.moneda ?? ''} />))}
       {e.escalera && <Escalera r={e.escalera} />}
       {s.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
       {s.diseno && (
@@ -1100,6 +1112,45 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 042:RF-58, RF-77: una tabla de alternativas, de menor a mayor costo anual. */
+function TablaAlternativas({ lista, moneda }: { lista: Alternativa[]; moneda: string }) {
+  const dinero = (x: number | null) => (x == null ? '—' : `${fmtNum(x, 0)} ${moneda}`);
+  return (
+    <div className="table-wrap table-short">
+      <table className="table">
+        <thead><tr><th className="num">N.º</th><th>Obras</th><th className="num">Inversión</th>
+          <th className="num">Costo anual</th><th>Sorteos</th><th>En valle</th><th>Alcance</th><th>Se aplica</th></tr></thead>
+        <tbody>{porCosto(lista).map((x) => (
+          <tr key={x.nombre} className={x.elegida ? 'strong' : ''}>
+            <td className="num">{x.numero}</td>
+            <td>{x.nombre}{x.factor ? <div className="muted small">dimensionada con factor {fmtNum(x.factor, 2)}</div> : null}</td>
+            <td className="num">{dinero(x.inversion)}</td><td className="num">{dinero(x.costo_anual)}</td>
+            <td>{sorteosDe(x)}</td><td>{valleDe(x)}</td><td>{alcanceDe(x)}</td><td>{x.elegida ? 'Sí' : 'No'}</td>
+          </tr>))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/** 042:RF-77: lo que paga la carga y, aparte, lo que no: esto último no está en «Con proyecto». */
+function AlternativasDe({ f, a, moneda }: { f: string; a: ConProyectoAlimentador; moneda: string }) {
+  const aparte = [['déficit previo', a.deficit_previo], ['sin comparación', a.sin_comparacion]] as const;
+  return (
+    <div>
+      <p><strong>{f}</strong>: {fmtNum(a.cargas)} carga(s), {fmtNum(a.kw / 1000, 2)} MW ·{' '}
+        {a.ya_cumple ? 'ya cumple, sin obra para la carga'
+          : a.cumple ? 'cumple con obra' : <span className="badge err">la escalera no basta</span>}</p>
+      {(a.alternativas ?? []).length > 0 && <TablaAlternativas lista={a.alternativas!} moneda={moneda} />}
+      {aparte.map(([rotulo, d]) => d && (
+        <div key={rotulo}>
+          <p className="small"><strong>Obra aparte, {rotulo}</strong>: {fmtNum(d.barras.length)} barra(s) bajo el límite que
+            la carga no causa. No está en «Con proyecto» ni en sus flujos; se midió con la máxima, sin sorteos.</p>
+          <TablaAlternativas lista={d.alternativas} moneda={moneda} />
+        </div>))}
     </div>
   );
 }

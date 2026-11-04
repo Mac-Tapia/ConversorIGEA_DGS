@@ -104,6 +104,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_set_nueva.py tests/test_informes_planeamiento.py` en verde.
 - [x] T47. Alcance de cada alternativa, definitiva a 20 años o temporal. (RF-73, RF-74, RF-75)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py tests/test_informes_planeamiento.py` en verde.
+- [x] T49. La web llega al flujo por alimentador y muestra sus alternativas. (RF-76, RF-77, RF-78)
+      Hecho cuando: `npm test` en `frontend` y `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
+- [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
+      Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
 - [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
       Hecho cuando: la tabla de alternativas de Pisco trae su alcance medido, sin «sin medir».
 - [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
