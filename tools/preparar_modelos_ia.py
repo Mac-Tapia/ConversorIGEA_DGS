@@ -18,10 +18,13 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 
 RAIZ = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RAIZ / 'src'))
+from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida  # noqa: E402
 
 
 def validar_catalogo(catalogo):
@@ -233,6 +236,9 @@ def main(argv=None):
     p.add_argument('--id', dest='solo_id', help='Solo este modelo del catálogo')
     p.add_argument('--output-json', type=Path, required=True)
     args = p.parse_args(argv)
+    if args.descargar and not salida_permitida('hugging_face'):                # 086:RF-22
+        print(motivo_apagada('hugging_face'), file=sys.stderr)
+        return 1
     informe = {'schema_version': 1, 'modelos': [], 'ok': False, 'activaciones': 0}
     try:
         catalogo = validar_catalogo(json.loads(args.catalogo.read_text(encoding='utf-8')))

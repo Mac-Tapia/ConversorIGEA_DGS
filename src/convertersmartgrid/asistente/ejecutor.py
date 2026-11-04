@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from ..sesion_web import cabeceras_locales
+
 TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
 _ENTREGABLE = re.compile(r'\.(dgs|docx|xlsx|zip|csv)$', re.IGNORECASE)
 
@@ -60,6 +62,9 @@ class ClienteWeb:
             if isinstance(self.http, requests.Session):
                 self.http.trust_env = False
                 kw['allow_redirects'] = False
+        # 086:RF-19: la API también se lo exige a sí misma; solo sale si la dirección es de esta máquina.
+        if credenciales := cabeceras_locales(self.base):
+            kw['headers'] = {**credenciales, **(kw.get('headers') or {})}
         r = self.http.request(metodo, self._url(ruta), **kw)
         if r.status_code >= 300:
             try:

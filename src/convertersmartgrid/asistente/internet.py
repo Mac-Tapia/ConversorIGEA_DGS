@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from ..salidas_red import motivo_apagada, salida_permitida
 from . import almacen
 from .sinteticos import normalizar
 
@@ -56,7 +57,8 @@ class Buscador:
         return json.loads(texto) if json_ else texto
 
     def _consultar(self, destino: str, consulta: str, motivo: str, hacer: Callable[[], list[dict]]) -> dict:
-        motivo_bloqueo = self.bloqueo(consulta)
+        motivo_bloqueo = None if salida_permitida('internet') else motivo_apagada('internet')      # 086:RF-22
+        motivo_bloqueo = motivo_bloqueo or self.bloqueo(consulta)
         if motivo_bloqueo:
             almacen.anotar('internet', {'destino': destino, 'consulta': '[retenida]', 'motivo': motivo,
                                         'bloqueada': motivo_bloqueo})

@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
 from convertersmartgrid.util import importar_opcional
 
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
@@ -22,6 +23,8 @@ class ArcGISError(RuntimeError):
 
 
 def _require_requests():
+    if not salida_permitida('arcgis'):                                         # 086:RF-22
+        raise ArcGISError(motivo_apagada('arcgis'))
     return importar_opcional('requests', ArcGISError(
         'El conector ArcGIS necesita «requests» (ver requirements.txt).'))
 

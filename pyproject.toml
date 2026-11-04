@@ -95,7 +95,7 @@ lector-vnr = "convertersmartgrid.sources.vnr:MODULO"
 where = ["src"]
 
 [tool.setuptools.package-data]
-convertersmartgrid = ["schemas/*.json"]
+convertersmartgrid = ["schemas/*.json", "recursos/leaflet/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -267,6 +267,9 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.reglas" = "aplicacion"
 "convertersmartgrid.resolver_convergencia" = "dominio"
 "convertersmartgrid.runtime_paths" = "dominio"
+"convertersmartgrid.edicion" = "dominio"
+"convertersmartgrid.salidas_red" = "dominio"
+"convertersmartgrid.sesion_web" = "dominio"
 "convertersmartgrid.schema" = "adaptadores"
 "convertersmartgrid.sed_potencia" = "dominio"
 "convertersmartgrid.set_nueva" = "aplicacion"
@@ -318,6 +321,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.web.reconstruction_service" = "presentacion"
 "convertersmartgrid.web.retencion" = "presentacion"
 "convertersmartgrid.web.runtime" = "presentacion"
+"convertersmartgrid.web.seguridad" = "presentacion"
 "convertersmartgrid.web.services" = "presentacion"
 "convertersmartgrid.web.requisitos" = "presentacion"
 "convertersmartgrid.web.source_runs" = "presentacion"

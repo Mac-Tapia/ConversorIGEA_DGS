@@ -21,6 +21,8 @@ from pathlib import PurePosixPath
 from unicodedata import combining, normalize
 from urllib.parse import unquote, urljoin, urlparse
 
+from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
+
 from .catalog import Publication, PublicationCatalog
 
 DEFAULT_ALLOWED_HOSTS = (
@@ -343,6 +345,8 @@ def refresh_official_catalog(
 def _fetch_html(url: str) -> str:
     if not is_allowed_official_url(url):
         raise OfficialDiscoveryError(f'Página de descubrimiento no oficial: {url}')
+    if not salida_permitida('vnr_oficial'):                                    # 086:RF-22
+        raise OfficialDiscoveryError(motivo_apagada('vnr_oficial'))
     try:
         import requests
     except ImportError as exc:

@@ -6,12 +6,22 @@ are required (IN111/TA121 etc. are optional samples when present).
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from csg_paths import SKIP_MSG, resolve_txt_paths
+from convertersmartgrid import sesion_web
 from convertersmartgrid.naming import feeder_short_name
+
+# Aquí y no en un fixture: hay módulos que crean la aplicación al importarse o con fixtures de
+# módulo. La puerta de la web se prueba en test_seguridad_web.py (086:RF-17 a RF-20), que la
+# enciende; las demás prueban las rutas. Y la sesión real de la máquina no se toca nunca.
+sesion_web.EXIGIR_SEGURIDAD = False
+os.environ[sesion_web.VARIABLE_CARPETA] = tempfile.mkdtemp(prefix='csg-sesiones-pruebas-')
+os.environ.pop(sesion_web.VARIABLE_PUERTO, None)
 
 
 @pytest.fixture(autouse=True)

@@ -123,9 +123,14 @@ python -m convertersmartgrid.web --no-browser     # API en :8765
 cd frontend && npm install && npm run dev   # front en :5173, reenvía /api a :8765
 ```
 
-**Seguridad**: por defecto escucha solo en `127.0.0.1`. Con `--host 0.0.0.0` se expone
-en la red y se desactivan las rutas locales del servidor (solo subida de ficheros);
-no hay autenticación todavía, así que no lo exponga fuera de una red de confianza.
+**Seguridad** (spec 086): es un puesto local. Solo escucha en `127.0.0.1` y se niega a arrancar
+fuera de esta máquina, porque no tiene usuarios ni TLS. Cada arranque crea un token que el lanzador
+entrega al navegador, y los programas locales lo leen con `sesion_web.cabeceras_locales`. La web
+rechaza un `Host` ajeno y un `Origin` ajeno. Con `npm run dev`, abra antes la dirección con `?acceso=`
+del token en el puerto 8765: las cookies no distinguen puertos y Vite la reenvía.
+
+Salidas a la red: están en `salidas_red.py`, cada una con su variable (`CSG_SALIDA_TESELAS=1`, por
+ejemplo). En desarrollo siguen encendidas; con `CSG_EDICION=producto`, apagadas hasta que se activen.
 
 ### Colas de trabajo
 
