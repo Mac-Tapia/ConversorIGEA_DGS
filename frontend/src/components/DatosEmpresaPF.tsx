@@ -1,6 +1,7 @@
 import { api } from '../api';
 import { useApp } from '../context';
 import type { DatosEmpresa } from '../types';
+import { AvisoBeta, MarcaBeta } from './MarcaBeta';
 import { FileDrop } from './ui';
 
 /**
@@ -26,7 +27,8 @@ export function DatosEmpresaPF({ project, feeders, libro, onCambio }: {
 
   return (
     <div className="card">
-      <p className="strong">Libro de la empresa: tasas de falla, tiempos y costes</p>
+      <p className="strong">Libro de la empresa: tasas de falla, tiempos y costes <MarcaBeta clave="confiabilidad" /></p>
+      <AvisoBeta clave="confiabilidad" />
       <p className="muted small">La confiabilidad, los reconectadores y los condensadores solo se ejecutan con las cifras de
         la empresa; no se rellenan con valores típicos. <a href={api.datosEmpresaPlantillaUrl(ws.id)}>Descargar la
         plantilla</a>.</p>

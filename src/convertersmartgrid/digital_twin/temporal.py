@@ -21,6 +21,8 @@ import numpy as np
 
 #: Puntos por día con medidas cada 15 minutos.
 PUNTOS_DIA = 96
+_AVISO_SIN_GRU = ('Se siguió sin el modelo temporal, porque {motivo}: la curva se reprodujo con el mismo instante '
+                  'del día anterior.')
 
 
 @dataclass
@@ -29,6 +31,8 @@ class ModeloEstacional:
 
     periodo: int = PUNTOS_DIA
     nombre: str = 'estacional'
+    #: 086:RF-27: por qué se usa este y no la GRU, cuando alguien la quería; lo lee el operador.
+    aviso: str | None = None
 
     def reproducir(self, serie: Sequence[float]) -> np.ndarray:
         s = np.asarray(serie, dtype=float)
@@ -377,17 +381,31 @@ def instante_critico(curvas: Mapping[str, Sequence[float]], instantes: Sequence[
 
 def elegido(modelo, serie: Sequence[float]):
     """El modelo que se usa para la serie: la GRU entrenada solo si mejora al estacional en la
-    última parte de la serie (027:RF-11); si no, el estacional."""
+    última parte de la serie (027:RF-11); si no, el estacional. Con la GPU ocupada falla aquí y no al crearla:
+    es lo mismo que no tenerla (086:RF-27)."""
     if hasattr(modelo, 'entrenar'):
-        modelo.entrenar(serie)
+        try:
+            modelo.entrenar(serie)
+        except RuntimeError as exc:
+            if 'CUDA' not in str(exc):
+                raise
+            return ModeloEstacional(aviso=_AVISO_SIN_GRU.format(motivo='la GPU no tuvo memoria libre para entrenarla'))
         if not (getattr(modelo, 'validacion', {}) or {}).get('supera_estacional', False):
             return ModeloEstacional()
     return modelo
 
 
 def modelo_temporal(**kw):
-    """La GRU si hay PyTorch; si no, el estacional (mismo contrato ``reproducir``)."""
+    """La GRU si hay PyTorch y GPU; si no, el estacional (mismo contrato ``reproducir``), y lo dice (086:RF-27).
+
+    Sin CUDA, ``SinGPU`` hacía fallar el trabajo entero. La GRU no se entrena en la CPU, regla del proyecto
+    (024:RF-44): lo que sigue es el estacional, que no entrena nada.
+    """
+    from .oraculo import SinGPU
+
     try:
         return GemeloGRU(**kw)
     except ImportError:
-        return ModeloEstacional()
+        return ModeloEstacional(aviso=_AVISO_SIN_GRU.format(motivo='este equipo no tiene el complemento de IA'))
+    except SinGPU:
+        return ModeloEstacional(aviso=_AVISO_SIN_GRU.format(motivo='este equipo no tiene una GPU disponible'))

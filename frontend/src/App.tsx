@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api } from './api';
+import { api, ApiError } from './api';
 import { Ctx, type AppCtx } from './context';
+import { betaActiva } from './edicion';
 import { Asistente } from './components/Asistente';
+import { AvisosDatos, EspacioNoDisponible } from './components/AvisosDatos';
 import { CargasTab } from './components/CargasTab';
 import { FeedersPanel } from './components/FeedersPanel';
 import { InputsPanel } from './components/InputsPanel';
 import { JobBar } from './components/JobBar';
 import { LogPanel } from './components/LogPanel';
+import { MarcaBeta } from './components/MarcaBeta';
 import { CatalogTab, ResultsTab, SystemTab } from './components/Modules';
 import { OptionsPanel } from './components/OptionsPanel';
 import { Modal, Pill, useConfirm, useToast } from './components/ui';
@@ -39,7 +42,9 @@ function readLogHeight(): number {
 function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   const r = job.result;
   let body: ReactNode = <p>Terminado. El detalle está en el Registro.</p>;
-  if (job.status === 'failed') {
+  if (job.status === 'interrumpido') {
+    body = <><p className="alert alert-warn">{job.error}</p><p className="muted">Su registro sigue disponible en el aviso de arriba.</p></>;
+  } else if (job.status === 'failed') {
     body = <><p className="alert alert-error">{job.error}</p><p className="muted">El detalle completo está en el Registro.</p></>;
   } else if (job.status === 'cancelled' && !r) {
     body = <p>Cancelado. Lo ya terminado se conserva; el alimentador en curso se descartó entero, nunca a medias.</p>;
@@ -99,6 +104,7 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   }
   // 081:RF-24: un trabajo que terminó sin que todo quedara bien lo dice en su título, con la lista.
   const title = `${job.title}${job.status === 'failed' ? ' — error' : job.status === 'cancelled' ? ' — cancelado'
+    : job.status === 'interrumpido' ? ' — interrumpido'
     : job.status === 'parcial' ? ' — parcial' : job.status === 'no_converge' ? ' — no converge' : ''}`;
   const pendientes = (r?.pendientes ?? []) as { alimentador: string; estado: string; motivo: string }[];
   return <Modal title={title} onClose={onClose} actions={<button className="btn btn-primary" autoFocus onClick={onClose}>Aceptar</button>}>
@@ -124,16 +130,20 @@ export default function App() {
 
   const onFinished = useCallback((job: Job) => {
     // Los trabajos cortos no merecen un diálogo; los largos sí.
-    if (['load', 'convert', 'powerfactory', 'plan', 'system', 'catalog'].includes(job.kind) || job.status === 'failed' || job.status === 'parcial' || job.status === 'no_converge') {
+    if (['load', 'convert', 'powerfactory', 'plan', 'system', 'catalog'].includes(job.kind) || job.status === 'failed' || job.status === 'parcial' || job.status === 'no_converge' || job.status === 'interrumpido') {
       setSummary(job);
     }
   }, []);
-  const w = useWorkspace(onFinished);
+  // 086:RF-47: tras reiniciar, el servidor es otro y puede decir otra cosa de la copia y de la edición.
+  const leerHealth = useCallback(() => {
+    api.health().then(setHealth).catch((e) => toast('error', 'No responde la API', String(e.message ?? e)));
+  }, [toast]);
+  const w = useWorkspace(onFinished, leerHealth);
 
   useEffect(() => {
-    api.health().then(setHealth).catch((e) => toast('error', 'No responde la API', String(e.message ?? e)));
+    leerHealth();
     api.powerfactory().then(setPf).catch(() => undefined);
-  }, [toast]);
+  }, [leerHealth]);
 
   // La selección se limpia de nombres que ya no existen (otra entrega cargada).
   useEffect(() => {
@@ -159,11 +169,19 @@ export default function App() {
   }, [toast]);
 
   const startJob = useCallback(async (fn: () => Promise<Job>) => {
-    const job = await run(fn);
-    if (job) w.trackJob(job);
-    return job;
-  }, [run, w]);
+    try {
+      const job = await fn();
+      w.trackJob(job);
+      return job;
+    } catch (e) {
+      toast('error', 'No se pudo completar', e instanceof Error ? e.message : String(e));
+      // 086:RF-9: el servidor rechazó algo que la pantalla ofrecía: lo que se ve estaba viejo, y se pone al día.
+      if (e instanceof ApiError && e.status === 400) void w.refresh().catch(() => undefined);
+      return undefined;
+    }
+  }, [toast, w]);
 
+  if (w.espacioNoAbre) return <EspacioNoDisponible {...w.espacioNoAbre} />;
   if (w.bootError) {
     // 086:RF-19: sin sesión el servidor sí está arrancado; el mensaje del servidor ya dice qué hacer.
     return <div className="boot"><h1>No se pudo abrir el espacio de trabajo</h1><p>{w.bootError}</p>
@@ -177,7 +195,8 @@ export default function App() {
   };
   const running = [active.engine, active.powerfactory, active.asistente].filter(Boolean) as Job[];
   // RF-2: sin entradas, solo las pestañas que no las necesitan.
-  const tabs = TABS.filter((t) => w.state!.loaded || !t.entradas);
+  // 086:RF-16: un asistente en beta apagado no se ofrece.
+  const tabs = TABS.filter((t) => (w.state!.loaded || !t.entradas) && (t.id !== 'asistente' || betaActiva(health, 'asistente')));
   const actual = tabs.find((t) => t.id === tab) ?? tabs[0];
   const caps = health.capabilities;
 
@@ -212,6 +231,7 @@ export default function App() {
         </header>
 
         <main className="content">
+          <AvisosDatos />
           <JobBar jobs={running} />
           <div className="grid">
             <div className="col-side">
@@ -224,7 +244,7 @@ export default function App() {
                 <nav className="tabs" role="tablist">
                   {tabs.map((t) => (
                     <button key={t.id} role="tab" aria-selected={actual.id === t.id} className={actual.id === t.id ? 'on' : ''}
-                      onClick={() => setTab(t.id)}>{t.label}</button>
+                      onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</button>
                   ))}
                 </nav>
                 {actual.el}

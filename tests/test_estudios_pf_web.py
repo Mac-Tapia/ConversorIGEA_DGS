@@ -326,7 +326,7 @@ def test_guion_en_los_dos_casos_con_sus_parametros(client):
     los valores del operador, y devuelve por caso su código y su ventana de salida."""
     wid = _espacio(client)
     estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/pf/guiones/ejecutar', json={
-        'project': 'P', 'nombre': 'Revisar', 'origen': 'proyecto',
+        'project': 'P', 'nombre': 'Revisar', 'origen': 'proyecto', 'confirmado': True,
         'parametros': {'umbral': '0.93', 'barra': 'B1.ElmTerm'}}).json())
     assert estado['status'] == 'done', estado
     res = estado['result']['resultados']
@@ -340,7 +340,7 @@ def test_guion_con_error_sigue_con_el_otro_caso(client):
     salida y se sigue con el otro."""
     wid = _espacio(client)
     estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/pf/guiones/ejecutar', json={
-        'project': 'P', 'nombre': 'FALLA'}).json())
+        'project': 'P', 'nombre': 'FALLA', 'confirmado': True}).json())
     assert estado['status'] == 'done', estado
     sin, con = estado['result']['resultados']
     assert sin['codigo_guion'] == 3 and 'código 3' in sin['error'] and sin['salida'] == ['algo salió mal']
@@ -352,5 +352,5 @@ def test_guion_nunca_en_el_caso_base(client):
     «Caso base»."""
     wid = _espacio(client)
     estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/pf/guiones/ejecutar', json={
-        'project': 'P', 'nombre': 'Revisar', 'casos': ['Caso base']}).json())
+        'project': 'P', 'nombre': 'Revisar', 'casos': ['Caso base'], 'confirmado': True}).json())
     assert estado['status'] == 'failed' and 'Caso base' in estado['error']

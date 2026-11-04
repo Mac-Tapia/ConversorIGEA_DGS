@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
+import { esProducto } from '../edicion';
+import { AvisoBeta } from './MarcaBeta';
 import type { EpisodioResumen, ObraPIDE, PideResultado } from '../types';
 
 const RUBRO: Record<string, string> = {
@@ -17,7 +19,9 @@ const RUBRO: Record<string, string> = {
  * gemelo aprende de cada acción y de los escenarios que simula en una copia del proyecto.
  */
 export function GemeloPIDE({ project, feeders }: { project: string; feeders: string[] }) {
-  const { ws, startJob, active, jobs, run } = useApp();
+  const { ws, startJob, active, jobs, run, health } = useApp();
+  // 086:RF-16: el gemelo (PINN, aprendizaje) no se entrega; su ruta también se niega, y aquí ni se pregunta.
+  const producto = esProducto(health);
   const [capex, setCapex] = useState('');
   const [anio, setAnio] = useState('');
   const [formato01, setFormato01] = useState('');
@@ -33,7 +37,7 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
     const e = await run(() => api.gemeloEpisodios(ws.id, { proyecto: project }));
     if (e) setEpisodios(e);
   };
-  useEffect(() => { if (project) void cargarEpisodios(); }, [project, ultima?.id, aprendido?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (project && !producto) void cargarEpisodios(); }, [project, ultima?.id, aprendido?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const decidir = async (o: ObraPIDE, decision: 'aceptada' | 'rechazada' | 'modificada') => {
     await run(() => api.pideDecision(ws.id, { project, codigo: o.codigo, decision }));
@@ -42,7 +46,8 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
   if (!feeders.length) return <p className="muted">Marque al menos un alimentador en el paso 2.</p>;
   return (
     <div>
-      <h4>5.1 · Plan de inversiones (PIDE)</h4>
+      <AvisoBeta clave="pide" />
+      <h4>{producto ? 'Plan de inversiones (PIDE)' : '5.1 · Plan de inversiones (PIDE)'}</h4>
       <p className="muted">Diagnóstico de «Sin proyecto» en DIgSILENT para cada año del horizonte, obras por rubro con su
         costo, evaluación (art. 14) y prioridad (art. 15). Los bancos y las ternas se simulan y, si funcionan, se aplican
         solos en «Con proyecto», cada uno en su variación para poder deshacerlo.</p>
@@ -66,6 +71,7 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
       </div>
       {r && <ResultadoPIDE r={r} ws={ws.id} decidir={decidir} />}
 
+      {!producto && <>
       <h4>5.2 · Gemelo digital</h4>
       <p className="muted">Aprende de cada acción en DIgSILENT. Aquí simula escenarios (demanda y tramos fuera de servicio)
         en una copia del proyecto, que se borra al terminar, y reentrena el modelo si toca.</p>
@@ -96,6 +102,7 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
           </table>
         </div>
       )}
+      </>}
     </div>
   );
 }

@@ -567,6 +567,35 @@
         "title": "AutoEntradasRespuesta",
         "type": "object"
       },
+      "BetaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "activa": {
+            "title": "Activa",
+            "type": "boolean"
+          },
+          "aviso": {
+            "title": "Aviso",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "aviso",
+          "activa"
+        ],
+        "title": "BetaRespuesta",
+        "type": "object"
+      },
       "BibliotecasIn": {
         "description": "Lectura de alimentadores y tipos para el formulario de obras (spec 011, RF-88 a RF-94).",
         "properties": {
@@ -1579,6 +1608,28 @@
         "title": "DescartarNoDisponibleIn",
         "type": "object"
       },
+      "EdicionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "beta": {
+            "items": {
+              "$ref": "#/components/schemas/BetaRespuesta"
+            },
+            "title": "Beta",
+            "type": "array"
+          },
+          "producto": {
+            "title": "Producto",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "producto",
+          "beta"
+        ],
+        "title": "EdicionRespuesta",
+        "type": "object"
+      },
       "EntradaAsignadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -2477,6 +2528,11 @@
             "title": "Casos",
             "type": "array"
           },
+          "confirmado": {
+            "default": false,
+            "title": "Confirmado",
+            "type": "boolean"
+          },
           "limite_s": {
             "anyOf": [
               {
@@ -2568,6 +2624,9 @@
           "default_options": {
             "$ref": "#/components/schemas/OpcionesRespuesta"
           },
+          "edicion": {
+            "$ref": "#/components/schemas/EdicionRespuesta"
+          },
           "parallel": {
             "$ref": "#/components/schemas/ParalelismoRespuesta"
           },
@@ -2616,7 +2675,8 @@
           "parallel",
           "source_modes",
           "servidor",
-          "copia_datos"
+          "copia_datos",
+          "edicion"
         ],
         "title": "HealthRespuesta",
         "type": "object"

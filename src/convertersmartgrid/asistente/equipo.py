@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from . import almacen, lectura_proyecto
-from .tareas import TAREAS
+from .tareas import EFECTOS, TAREAS, requiere_confirmacion
 
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
 #: Quién puede pedir una lectura del proyecto (077:RF-33): el rol lo fija el servidor, nunca el modelo.
@@ -65,8 +65,8 @@ def inventario_equipo() -> dict:
                    'requiere_permiso_del_plan': True} for r in ('operador', *ROLES_REVISION)],
         'herramientas': [{'herramienta': t.nombre, 'funcion': t.funcion, 'modo': t.modo,
             'escribe': t.escribe, 'carril': 'powerfactory' if t.nombre in _NATIVAS else 'engine',
-            'permiso_efectivo': False, 'rol_ejecutor': 'operador',
-            'confirmacion_obligatoria': t.escribe,
+            'permiso_efectivo': False, 'rol_ejecutor': 'operador', 'efectos': list(EFECTOS[t.nombre]),
+            'confirmacion_obligatoria': t.escribe or requiere_confirmacion(t.nombre),   # 086:RF-24
             'confirmacion_en_proyecto': 'lista_unica_mostrada' if t.nombre in en_proyecto else None}
             for t in TAREAS.values()],
         'proyecto_entero': {'confirmacion': 'lista_unica_mostrada', 'confirmacion_por_etapa': False,
@@ -143,7 +143,8 @@ class GobiernoEquipo:
                 instancia.archivos_entrada[str(Path(ruta).resolve())] = hashlib.file_digest(archivo, 'sha256').hexdigest()
         instancia.confirmado = False
         instancia.listo = plan.listo
-        instancia.lectura = plan.tarea in TAREAS and not TAREAS[plan.tarea].escribe
+        instancia.lectura = (plan.tarea in TAREAS and not TAREAS[plan.tarea].escribe
+                             and not requiere_confirmacion(plan.tarea))          # 086:RF-24
         instancia._activa = False
         return instancia
 

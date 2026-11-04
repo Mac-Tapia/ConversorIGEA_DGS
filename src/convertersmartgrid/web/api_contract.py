@@ -106,6 +106,18 @@ class EstadoCopiaRespuesta(Respuesta):
     aviso: str | None
 
 
+class BetaRespuesta(Respuesta):
+    clave: str
+    nombre: str
+    aviso: str
+    activa: bool
+
+
+class EdicionRespuesta(Respuesta):
+    producto: bool
+    beta: list[BetaRespuesta]
+
+
 class HealthRespuesta(Respuesta):
     version: str
     capabilities: CapacidadesRespuesta
@@ -118,6 +130,7 @@ class HealthRespuesta(Respuesta):
     source_modes: list[ModoFuente]
     servidor: ServidorRespuesta
     copia_datos: EstadoCopiaRespuesta
+    edicion: EdicionRespuesta
 
 
 class EntradaRespuesta(Respuesta):

@@ -260,7 +260,8 @@ def test_websocket_entrega_el_registro(client, export):
     wid = _loaded(client, export)
     with client.websocket_connect(f'/api/workspaces/{wid}/ws?since=0') as ws:
         batch = ws.receive_json()
-    assert batch and batch[0]['seq'] == 1
+    # 086:RF-9: la numeración no empieza en 1: sigue creciendo de un arranque a otro.
+    assert batch and [e['seq'] for e in batch] == sorted(e['seq'] for e in batch)
 
 
 def test_un_fichero_en_la_casilla_equivocada_avisa_pero_entra(client, export):

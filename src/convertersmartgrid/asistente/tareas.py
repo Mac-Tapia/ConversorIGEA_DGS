@@ -325,6 +325,36 @@ _TAREAS = (
 
 TAREAS: dict[str, Tarea] = {t.nombre: t for t in _TAREAS}
 
+#: 086:RF-23: lo que hace cada tarea en el mundo. Aparte de ``Tarea`` porque el catálogo hasta la 069 entra en la
+#: huella de la prueba sellada (069:RF-13). Una tarea nueva sin su línea hace fallar ``test_cada_tarea_declara_su_efecto``.
+LEE, LICENCIA, RED, ESCRIBE = 'lee', 'usa_licencia', 'sale_a_la_red', 'escribe'
+EFECTOS: dict[str, tuple[str, ...]] = {
+    **dict.fromkeys(('estado', 'proyectos', 'resultados_pide', 'episodios', 'pregunta', 'clasificar_informe',
+                     'consultar_datos', 'no_disponible', 'evaluar_gemelo', 'buscar_maxima', 'cruzar_clientes',
+                     'descargar_resultados'), (LEE,)),
+    **dict.fromkeys(('leer_proyectos', 'escanear', 'verificar_convergencia'), (LICENCIA,)),
+    'buscar_internet': (RED,),
+    **dict.fromkeys(('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'convertir_set', 'gemelo_entrenar',
+                     'gemelo_temporal', 'informe_estudio', 'leer_solicitud', 'pronostico', 'entrenar_asistente',
+                     'cancelar_trabajo'), (ESCRIBE,)),
+    **dict.fromkeys(('sistema_completo', 'set_completo', 'alimentadores_completo', 'flujo', 'verificar_caso_base',
+                     'cargas_nuevas', 'obras', 'estudios', 'obras_escalera', 'optimizar_con_proyecto', 'transferencia',
+                     'pide', 'gemelo_aprender', 'informe_factibilidad', 'evaluar_carga_nueva', 'calibrar',
+                     'simular_calibracion', 'recalibrar', 'carga_nueva_sola', 'proyecto_entero'), (ESCRIBE, LICENCIA)),
+}
+#: 086:RF-26: lo que el asistente puede repetir solo tras un fallo: repetirlo da lo mismo. Lo que escribe en un
+#: proyecto de DIgSILENT no está: «aplica las obras» fallaba a mitad y se volvía a ejecutar entero.
+TAREAS_IDEMPOTENTES = frozenset({
+    *(n for n, e in EFECTOS.items() if ESCRIBE not in e and RED not in e),
+    'cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'convertir_set', 'gemelo_entrenar', 'gemelo_temporal',
+    'informe_estudio', 'leer_solicitud', 'pronostico', 'entrenar_asistente',
+})
+
+
+def requiere_confirmacion(tarea: str | None) -> bool:
+    """086:RF-24: gastar la licencia o salir a la red también espera al operador, aunque no se escriba nada."""
+    return bool({LICENCIA, RED} & set(EFECTOS.get(tarea or '', ())))
+
 #: Las del catálogo hasta la spec 069. La prueba anterior, las órdenes fijas y el corpus sellado del LLM son de
 #: ellas: sus huellas no pueden moverse con las tareas nuevas (068:RF-28, RF-41, 069:RF-13, 070:RF-72, RF-75).
 TAREAS_HASTA_069: dict[str, Tarea] = {n: TAREAS[n] for n in (

@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
+import { esProducto } from '../edicion';
 import type { MonitorAgenteEstado } from '../types';
 
 const estados: Record<string, string> = {
   parcial: 'Parcial',
   no_converge: 'No converge',
   queued: 'En cola', running: 'Ejecutando', done: 'Ejecución terminada',
-  failed: 'Falló', cancelled: 'Cancelado', hecha: 'Hecha', omitida: 'Omitida', pendiente: 'Pendiente',
+  failed: 'Falló', cancelled: 'Cancelado', interrumpido: 'Interrumpido', hecha: 'Hecha', omitida: 'Omitida', pendiente: 'Pendiente',
 };
 
 /** 061: supervisión de las operaciones existentes; suscripción mediante jobs/WebSocket. */
 export function MonitorAgente() {
-  const { ws, jobs, run } = useApp();
+  const { ws, jobs, run, health } = useApp();
   const [vista, setVista] = useState<MonitorAgenteEstado | null>(null);
   const [aviso, setAviso] = useState('');
   const [revision, setRevision] = useState(0);
@@ -85,7 +86,7 @@ export function MonitorAgente() {
               <span className="muted">La aceptación nativa se comprueba en el informe de la operación.</span></td>
           </tr>)}</tbody></table>}
     </details>
-    {vista?.workspace_id === ws.id && <details>
+    {!esProducto(health) && vista?.workspace_id === ws.id && <details>
       <summary>Aprendizaje y evidencias de los modelos ({vista.evidencias.length})</summary>
       <p className="muted small">{vista.alcance_modelos}. Un informe incorporado no activa sus pesos.</p>
       {!vista.evidencias.length && <p className="small">No hay informes incorporados; el estado de evaluación se consulta en el panel de modelos.</p>}

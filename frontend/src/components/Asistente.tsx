@@ -3,6 +3,8 @@ import { api } from '../api';
 import { useApp } from '../context';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../types';
 import type { EstadoAceptacionAgente } from '../asistenteAceptacion';
+import { esProducto } from '../edicion';
+import { AvisoBeta } from './MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
 
@@ -15,13 +17,22 @@ interface Intercambio {
   trabajo?: string;
 }
 
+/** 086:RF-23, RF-24: lo que el operador autoriza al confirmar, dicho antes de pulsar. */
+const QUE_HACE: Record<string, string> = {
+  usa_licencia: 'Ocupa la licencia de DIgSILENT mientras corre.',
+  sale_a_la_red: 'Sale a internet.',
+  escribe: 'Escribe en DIgSILENT o en disco.',
+};
+
 function Plan({ plan }: { plan: AsistentePlan }) {
   const datos = Object.entries(plan.datos);
+  const efectos = (plan.efectos ?? []).filter((e) => QUE_HACE[e]);
   return (
     <div className="stack">
       {plan.tarea
         ? <p><b>{plan.descripcion}</b> <span className="muted small">({plan.interpretado_por}, {Math.round(plan.confianza * 100)} %)</span></p>
-        : <p className="alert alert-warn">No entendí la orden.</p>}
+        : plan.dudas.length === 0 && <p className="alert alert-warn">No entendí la orden.</p>}
+      {efectos.length > 0 && <p className="small">{efectos.map((e) => QUE_HACE[e]).join(' ')}</p>}
       {(plan.avisos ?? []).map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
       {plan.guardado && (
         <p className={plan.guardado.vigente ? 'small' : 'alert alert-warn'}>
@@ -125,7 +136,7 @@ function Aceptacion() {
 }
 
 function Registro() {
-  const { run } = useApp();
+  const { run, health } = useApp();
   const [registro, setRegistro] = useState<Record<string, unknown[]> | null>(null);
   const filas = (k: string) => (registro?.[k] ?? []) as Record<string, unknown>[];
   return (
@@ -134,11 +145,11 @@ function Registro() {
       {registro && (
         <div className="stack small">
           <p>{Object.entries(registro).map(([k, v]) => `${k}: ${v.length}`).join(' · ')}</p>
-          {filas('conjunto_real').map((c, i) => (
+          {!esProducto(health) && filas('conjunto_real').map((c, i) => (
             <p key={i}>Órdenes reales únicas del operador: {String(c.ordenes)}.
               {' '}Referencia de muestra humana: {String(c.hacen_falta)}.
               {c.confirmacion_obligatoria ? ' Las escrituras requieren confirmación.' : ''}</p>))}
-          {filas('senales').length > 0 && (
+          {!esProducto(health) && filas('senales').length > 0 && (
             <table className="small">
               <thead><tr><th>Tarea</th><th>Recompensas</th><th>Penalizaciones</th><th>Confirmadas</th>
                 <th>Corregidas</th><th>Rechazadas</th><th>Fallidas</th></tr></thead>
@@ -213,7 +224,9 @@ function ProyectoDesdeCero() {
 }
 
 export function Asistente() {
-  const { ws, run, startJob, jobs, active } = useApp();
+  const { ws, run, startJob, jobs, active, health } = useApp();
+  // 086:RF-16: entrenar y la revisión por roles no se entregan; el servidor también niega sus rutas.
+  const desarrollo = !esProducto(health);
   const [texto, setTexto] = useState('');
   const [historial, setHistorial] = useState<Intercambio[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -277,11 +290,12 @@ export function Asistente() {
 
   return (
     <div className="stack">
+      <AvisoBeta clave="asistente" />
       <ModeloProvisional />
       <MonitorAgente />
-      <EquipoAsistente />
-      <Modelos />
-      <Aceptacion />
+      {desarrollo && <EquipoAsistente />}
+      {desarrollo && <Modelos />}
+      {desarrollo && <Aceptacion />}
       <p className="muted small">
         Escriba lo que quiere hacer, por ejemplo «calibra el sistema Pisco con julio de 2026» o «¿cómo se calibra una
         barra sin medidor?». Las consultas se responden al momento; lo que escribe en DIgSILENT o en disco espera su
@@ -295,9 +309,9 @@ export function Asistente() {
         <button className="btn btn-primary" disabled={enviando || !texto.trim()} onClick={() => void enviar()}>
           {enviando ? 'Interpretando…' : 'Enviar'}
         </button>
-        <button className="btn btn-ghost" disabled={Boolean(active.engine)}
+        {desarrollo && <button className="btn btn-ghost" disabled={Boolean(active.engine)}
           title="Reentrena el Transformer de órdenes y, si hay informes reales, el clasificador. Solo pasa a uso lo que aprueben sus puertas; si no, sigue el modelo actual"
-          onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>
+          onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>}
       </div>
       <Registro />
       <ProyectoDesdeCero />
@@ -319,7 +333,7 @@ export function Asistente() {
           <article key={plan.id} className="card stack">
             <p><b>›</b> {x.texto}</p>
             <Plan plan={plan} />
-            <EquipoAsistente planId={plan.id} />
+            {desarrollo && <EquipoAsistente planId={plan.id} />}
             {x.r.respuesta && (
               <div className="stack">
                 <p>{x.r.respuesta.texto}</p>

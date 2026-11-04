@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .. import __version__, sesion_web
-from ..edicion import es_edicion_producto
+from ..edicion import estado_edicion, es_edicion_producto
 from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
 from ..preview import politica_pagina_generada
@@ -40,7 +40,7 @@ from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_adminis
 from . import services
 from .copia_datos import estado_copia
 from .jobs import FINISHED, JobManager
-from .seguridad import instalar_seguridad
+from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
@@ -97,6 +97,8 @@ def arrancar_vigilancia(jobs: JobManager):
             jobs.submit(j.workspace_id, j.kind, f'{j.title} (reintento)', j.fn, lane=j.lane)
 
     def lanzar(herramienta: str, gemelo: bool) -> None:
+        if es_edicion_producto():                                              # 086:RF-15
+            return
         # En su propio proceso, como desde la web (024): un fallo de la GPU no tumba el servidor.
         salida = almacen.raiz() / f'vigilancia_{herramienta}.json'
         salida.parent.mkdir(parents=True, exist_ok=True)
@@ -524,6 +526,8 @@ class GuionIn(BaseModel):
     parametros: dict[str, str] = Field(default_factory=dict)
     casos: list[str] = Field(default_factory=lambda: ['Sin proyecto', 'Con proyecto'])
     limite_s: float | None = Field(None, ge=10, le=86400)
+    #: 086:RF-25: el guion hace en la red lo que quiera, y lo decide quien lo escribió: lo dice quien pulsa.
+    confirmado: bool = False
 
 
 class AsistenteOrdenIn(BaseModel):
@@ -709,6 +713,8 @@ def create_app(
         allow_origins=list(origenes_dev),
         allow_methods=['*'], allow_headers=['*'],
     )
+    # 086:RF-16: dentro de la puerta: una petición sin sesión no llega a saber qué se vende y qué no.
+    app.add_middleware(AlcanceEdicion)
     # Por fuera de CORS, y de todo lo demás: Host, Origin, token y política de contenido (086:RF-17 a RF-21).
     if sesion_web.EXIGIR_SEGURIDAD:
         instalar_seguridad(app, origenes_dev)
@@ -766,6 +772,7 @@ def create_app(
                          'raiz': str(project_root())},
             # 086:RF-47: el aviso de que la última copia de los datos es vieja o no existe.
             'copia_datos': estado_copia(store.root),
+            'edicion': estado_edicion(),                                       # 086:RF-16
         }
 
     @app.post('/api/sistema/cerrar', status_code=202)
@@ -1932,7 +1939,7 @@ def create_app(
     def _programar_vectores(ws: Workspace) -> None:
         """047:RF-22: la pregunta ya tiene respuesta con lo que hay; lo que falte, detrás y sin pedirlo.
         Solo el servidor real: las pruebas crean la app a cientos y no deben usar Ollama por su cuenta."""
-        if os.environ.get('CSG_ASISTENTE_VECTORES') != '1':
+        if os.environ.get('CSG_ASISTENTE_VECTORES') != '1' or es_edicion_producto():       # 086:RF-16
             return
         if any(j.kind == 'asistente_indice' and j.status not in FINISHED for j in jobs.list()):
             return
@@ -2171,6 +2178,9 @@ def create_app(
     @app.post('/api/workspaces/{wid}/pf/guiones/ejecutar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def guion_ejecutar(wid: str, body: GuionIn) -> dict:
         ws = ws_or_404(wid)
+        if not body.confirmado:                                                # 086:RF-25
+            raise HTTPException(409, f'Confirme que quiere ejecutar el guion {body.nombre.strip()}: '
+                                     'hará en el proyecto lo que diga su código.')
         return submit(ws, 'guion_ejecutar', f'Guion {body.nombre.strip()} · {body.project.strip()}',
                       lambda ctx: services.guion_ejecutar(ws, ctx, body.project, body.nombre, body.origen,
                                                           body.parametros, body.casos, body.limite_s),

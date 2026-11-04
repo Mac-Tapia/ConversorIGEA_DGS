@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
+import { fusionarTrabajos } from './reconexion';
 import type { EventItem, FeederRow, Job, OutputFile, WorkspaceState } from './types';
 
 const STORAGE_KEY = 'convertersmartgrid.workspace';
@@ -8,6 +9,15 @@ const MAX_LOG = 4000;
 // Una sola vez por carga de página: en StrictMode el efecto corre dos veces y, sin
 // esto, la primera visita creaba dos espacios y dejaba uno huérfano en el servidor.
 let bootPromise: Promise<WorkspaceState> | null = null;
+
+/** 086:RF-2, RF-5: el espacio existe y no se abre (dañado o de una versión más nueva); hay qué hacer con él. */
+class EspacioNoAbre extends Error {
+  id: string;
+  constructor(id: string, mensaje: string) {
+    super(mensaje);
+    this.id = id;
+  }
+}
 
 function bootWorkspace(): Promise<WorkspaceState> {
   bootPromise ??= (async () => {
@@ -19,6 +29,7 @@ function bootWorkspace(): Promise<WorkspaceState> {
       try {
         return await api.workspace(stored);
       } catch (e) {
+        if (e instanceof ApiError && e.status === 409) throw new EspacioNoAbre(stored, e.message);
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
     }
@@ -67,6 +78,12 @@ function readStoredId(): string | null {
   }
 }
 
+/** Abre ese espacio desde cero: el arranque solo corre una vez por carga de página. */
+export function abrirEspacio(id: string) {
+  storeId(id);
+  window.location.reload();
+}
+
 function storeId(id: string) {
   try {
     localStorage.setItem(STORAGE_KEY, id);
@@ -81,7 +98,7 @@ function storeId(id: string) {
  * El Registro llega por WebSocket con números de secuencia; al reconectar se pide
  * «desde el último visto», así que un corte de red no pierde ni duplica líneas.
  */
-export function useWorkspace(onJobFinished: (job: Job) => void) {
+export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: () => void = () => undefined) {
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [feeders, setFeeders] = useState<FeederRow[]>([]);
   const [outputs, setOutputs] = useState<OutputFile[]>([]);
@@ -89,11 +106,14 @@ export function useWorkspace(onJobFinished: (job: Job) => void) {
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   const [connected, setConnected] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [espacioNoAbre, setEspacioNoAbre] = useState<{ id: string; mensaje: string } | null>(null);
 
   const seqRef = useRef(0);
   const bootedAt = useRef(Date.now());
   const finishedRef = useRef(onJobFinished);
   finishedRef.current = onJobFinished;
+  const reconectadoRef = useRef(onReconectado);
+  reconectadoRef.current = onReconectado;
   const id = state?.id ?? null;
 
   const refresh = useCallback(async (wid: string) => {
@@ -117,7 +137,9 @@ export function useWorkspace(onJobFinished: (job: Job) => void) {
         setJobs(initialJobs);
         await refresh(ws.id);
       } catch (e) {
-        if (!cancelled) setBootError(e instanceof Error ? e.message : String(e));
+        if (cancelled) return;
+        if (e instanceof EspacioNoAbre) setEspacioNoAbre({ id: e.id, mensaje: e.message });
+        else setBootError(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => {
@@ -172,12 +194,27 @@ export function useWorkspace(onJobFinished: (job: Job) => void) {
       }
     };
 
+    // 086:RF-9: al volver a conectar puede ser otro servidor, que no tiene la fuente en memoria ni los trabajos del
+    // anterior. La pestaña seguía creyendo «cargada» la fuente, y convertir daba 400 hasta recargar la página.
+    const reconciliar = () => {
+      reconectadoRef.current();
+      void refresh(id).then((ws) => {
+        if (alive) setJobs((prev) => fusionarTrabajos(prev, ws.jobs ?? [], id, Date.now() / 1000));
+      }).catch(() => undefined);
+    };
+
+    let conectoAntes = false;
     const connect = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       socket = new WebSocket(`${proto}://${location.host}/api/workspaces/${id}/ws?since=${seqRef.current}`);
       // Un socket de un efecto ya desmontado (StrictMode lo monta dos veces) cierra
       // tarde: sin comprobar «alive», su onclose marcaba desconectado al socket bueno.
-      socket.onopen = () => alive && setConnected(true);
+      socket.onopen = () => {
+        if (!alive) return;
+        setConnected(true);
+        if (conectoAntes) reconciliar();
+        conectoAntes = true;
+      };
       socket.onmessage = (msg) => alive && handle(JSON.parse(msg.data) as EventItem[]);
       socket.onclose = () => {
         if (!alive) return;
@@ -210,7 +247,7 @@ export function useWorkspace(onJobFinished: (job: Job) => void) {
   }, []);
 
   return {
-    state, setState, feeders, outputs, log, setLog, jobs, connected, bootError,
+    state, setState, feeders, outputs, log, setLog, jobs, connected, bootError, espacioNoAbre,
     refresh: () => (id ? refresh(id) : Promise.resolve(null)),
     newWorkspace, trackJob,
   };

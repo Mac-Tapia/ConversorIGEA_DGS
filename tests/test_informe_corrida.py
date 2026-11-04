@@ -222,7 +222,7 @@ def test_regla_del_desequilibrado_que_no_cuadra_dentro_de_la_corrida(client, mon
     datos['medidas']['AL01']['cabecera_kw'] = 7000.0
     fichero.write_text(json.dumps(datos), encoding='utf-8')
     elegido = services._ultimo_estudio(ws, 'sin', 'PRY', 'AL01')
-    assert 'desequilibrado' not in elegido['_fichero'] and '063:RF-45' in elegido['_aviso_flujo']
+    assert 'desequilibrado' not in elegido['_fichero'] and 'no cuadra' in elegido['_aviso_flujo']
     assert elegido['_corrida'] == token
 
 

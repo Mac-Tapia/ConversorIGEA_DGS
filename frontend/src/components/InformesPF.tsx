@@ -285,6 +285,13 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
       <p className="muted">Los informes se arman con lo ya ejecutado desde la web: el último estudio de flujo de 4.2 en «Sin
         proyecto» (estado actual) y en «Con proyecto» (proyectado), las obras de 4.1 y las cargas nuevas del paso 3. Vuelva
         a ejecutar el flujo en 4.2 si cambió algo después.</p>
+      {/* 086:RF-12: lo que el operador no veía hasta abrir el Word: de qué corrida sale cada alimentador. */}
+      {ctx.avisos_corrida.length > 0 && (
+        <div className="alert alert-warn stack" role="status">
+          <p><strong>Antes de generar un informe</strong></p>
+          <ul className="small">{ctx.avisos_corrida.map((a) => <li key={`${a.alimentador}-${a.texto}`}><strong>{a.alimentador}</strong>: {a.texto}</li>)}</ul>
+        </div>
+      )}
       {faltanLimites.length > 0 && (
         <div className="form-grid">
           {faltanLimites.map(([k, label]) => (
