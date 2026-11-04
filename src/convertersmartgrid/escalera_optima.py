@@ -419,14 +419,23 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     solas = [v for e in ORDEN for v in por_escalon[e]]
     if modulos_valle is not None and evidencia and barras and banco_kvar:
         solas.insert(len(por_escalon['bancos']), _bancos_en(alimentador, barras, banco_kvar, modulos + 1, True))
-    combinadas = []
+    combinadas, dobles = [], []
     for i, a in enumerate(ORDEN):
         for b in ORDEN[i + 1:]:
             for va in por_escalon[a]:
                 for vb in por_escalon[b]:
-                    combinadas.append(Variante(f'{va.nombre} + {vb.nombre}', va.escalones + vb.escalones,
-                                               va.obras + vb.obras, {**va.cantidades, **vb.cantidades}))
-    todas = solas + combinadas
+                    v = Variante(f'{va.nombre} + {vb.nombre}', va.escalones + vb.escalones,
+                                 va.obras + vb.obras, {**va.cantidades, **vb.cantidades})
+                    if {a, b} == {'seccion', 'terna'}:
+                        # 042:RF-30: sección y terna en caminos distintos no se refuerzan; en el mismo, son la
+                        # doble terna del conductor nuevo, y van antes que el resto (el tope de variantes).
+                        sec, ter = (va, vb) if a == 'seccion' else (vb, va)
+                        if not set(sec.obras[0]['tramos']) <= set(ter.obras[0]['tramos']):
+                            continue
+                        dobles.append(v)
+                    else:
+                        combinadas.append(v)
+    todas = solas + dobles + combinadas
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
                       'en el orden de la escalera (escalera.max_variantes del perfil).')

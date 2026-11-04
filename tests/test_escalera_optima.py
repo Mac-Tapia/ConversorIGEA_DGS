@@ -398,3 +398,32 @@ def test_el_planeamiento_limita_al_80_por_ciento():
     ok, motivos = eo.cumple({'converge': True, 'u': {}, 'carga': {'L1': 50.0}},
                             {'converge': True, 'u': {}, 'carga': {'L1': 85.0}}, [], p)
     assert not ok and 'L1' in motivos[0]
+
+
+def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
+    """042:RF-30 — Pisco: sin tipo AL 240 en la red nunca se probó; ahora se crea de su ficha y la escalera
+    propone «sección + terna» solo en el mismo camino, antes que las demás combinaciones."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+
+    t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
+    assert t['nombre'] == 'AA24003D_22_9kV_FICHA' and t['datos']['cohl_'] == 1
+    assert 0.13 < t['datos']['rline'] < 0.15 and 500 < t['datos']['sline'] * 1000 < 600
+    assert tipo_de_ficha('N212003D', 10, filas_de_conductores())['datos']['cohl_'] == 0
+
+    troncal = [{'nombre': f'L{i}', 'largo_m': 1000.0, 'corriente_a': 300.0, 'inom_a': 340.0} for i in range(3)]
+    cargas = [{'barra': 'B2', 'existe': False, 'indice_troncal': 2}, {'barra': 'B1', 'existe': False, 'indice_troncal': 1}]
+    tipo = {'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'otro', 'proyecto': eo.BIBLIOTECA_TIPOS}
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'max_variantes': 40, 'secciones_normalizadas': ['AA24003D']},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    vs, _av = eo.variantes('F', 22.9, troncal, cargas, [tipo], eo.parametros(perfil), banco_kvar=None)
+    dobles = [v for v in vs if set(v.escalones) == {'seccion', 'terna'}]
+    assert dobles
+    for v in dobles:
+        sec = next(o for o in v.obras if o['clase'] == 'seccion')
+        ter = next(o for o in v.obras if o['clase'] == 'terna')
+        assert set(sec['tramos']) <= set(ter['tramos'])
+    solas = [v for v in vs if len(v.escalones) == 1]
+    assert vs.index(dobles[0]) == len(solas), 'la doble terna va primero entre las combinaciones'

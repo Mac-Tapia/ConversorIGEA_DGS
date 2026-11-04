@@ -273,6 +273,11 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
             continue
         informe['alimentadores'][f] = leer_alimentador(elm)
 
+    if plan.get('conductores_nuevos'):
+        # 042:RF-30: los normalizados que no están en ninguna biblioteca, desde su ficha.
+        informe['conductores_creados'] = crear_tipos_conductor(app, plan['conductores_nuevos'], informe['avisos'])
+        if app.GetActiveProject() is not proyecto:
+            proyecto.Activate()
     otro = None
     ruta = plan.get('otro_proyecto')
     if ruta:
@@ -335,6 +340,46 @@ def _iguales(leidos: dict, pedidos: dict) -> bool:
     """DIgSILENT guarda en coma flotante simple: 22,9/√3 vuelve como 13,2213…"""
     return all(isinstance(leidos.get(k), (int, float)) and math.isclose(float(leidos[k]), float(v), rel_tol=1e-5)
                for k, v in pedidos.items())
+
+
+def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> list[str]:
+    """042:RF-30: un ``TypLne`` en el proyecto biblioteca por cada conductor que no tiene ningún tipo de su código a
+    su tensión (±10 %) en el proyecto, la biblioteca global o la de tipos. Devuelve los nombres creados."""
+    try:
+        _p, equip = _proyecto_biblioteca(app, BIBLIOTECA_TIPOS, avisos)
+    except RuntimeError as exc:
+        avisos.append(f'No se crearon los conductores normalizados: {exc}')
+        return []
+    existentes = (_tipos_en(app.GetLocalLibrary('TypLne'), 'TypLne') + _tipos_en(app.GetGlobalLibrary('TypLne'), 'TypLne')
+                  + _tipos_en(equip, 'TypLne'))
+
+    def a_tension(o, kv) -> bool:
+        return abs(float(getattr(o, 'uline', 0) or 0) - kv) <= 0.1 * kv
+
+    creados = []
+    for c in conductores:
+        kv = float(c['kv'])
+        if any(o.loc_name.upper().startswith(c['codigo'].upper()) and a_tension(o, kv) for o in existentes):
+            continue
+        tipo = equip.CreateObject('TypLne', c['nombre'])
+        if tipo is None:
+            avisos.append(f"DIgSILENT no dejó crear el tipo {c['nombre']!r} (042:RF-30).")
+            continue
+        ref = next((o for o in existentes if a_tension(o, kv)), None)
+        if ref is not None and getattr(ref, 'frnom', None):
+            tipo.frnom = ref.frnom                                   # la frecuencia de la red, no la de fábrica
+        for atributo, valor in c['datos'].items():
+            setattr(tipo, atributo, valor)
+        leidos = {a: getattr(tipo, a, None) for a in c['datos']}
+        if not _iguales(leidos, c['datos']):
+            tipo.Delete()
+            avisos.append(f"El tipo {c['nombre']!r} no quedó con los datos de su ficha: {leidos} (042:RF-30).")
+            continue
+        existentes.append(tipo)
+        creados.append(c['nombre'])
+        avisos.append(f"Se creó el tipo {c['nombre']} en {BIBLIOTECA_TIPOS}: {c['datos']['sline'] * 1000:.0f} A, "
+                      f"R {c['datos']['rline']:.4f} Ω/km, de su ficha ({c.get('fuente') or 'catálogo'}) (042:RF-30).")
+    return creados
 
 
 def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:

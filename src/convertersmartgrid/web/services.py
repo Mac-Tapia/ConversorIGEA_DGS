@@ -5623,7 +5623,8 @@ def obra_quitar(ws: Workspace, obra_id: str) -> None:
 
 
 def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                      otro_proyecto: str = '', clases: list[str] | None = None) -> dict:
+                      otro_proyecto: str = '', clases: list[str] | None = None,
+                      conductores: list[dict] | None = None) -> dict:
     """Alimentadores y tipos de las tres bibliotecas para el formulario (RF-88 a RF-94).
 
     La lectura queda en el espacio para no volver a abrir DIgSILENT al cambiar de obra.
@@ -5634,7 +5635,8 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
             'feeders': action_context['feeders'],
             'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip(),
-            'native_action_context': action_context}
+            'native_action_context': action_context,
+            **({'conductores_nuevos': conductores} if conductores else {})}          # 042:RF-30
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer bibliotecas de tipos')
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='obras_bibliotecas',
                                     args=('--bibliotecas',), cancelable=False)
@@ -5643,6 +5645,18 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     with ws.lock:
         ws.pf_bibliotecas = {**informe, 'project': plan['project']}
     return {'returncode': rc, 'report': report.name, 'informe': informe}
+
+
+def _conductores_normalizados(secciones, tensiones) -> list[dict]:
+    """042:RF-30: el tipo de ficha de cada conductor normalizado a cada tensión con bancos del perfil."""
+    from ..catalog import filas_de_conductores, tipo_de_ficha
+    from ..reglas import catalogo_del_proyecto
+
+    if not secciones or not tensiones:
+        return []
+    filas = filas_de_conductores(catalogo_del_proyecto())
+    out = [tipo_de_ficha(c, float(kv), filas) for c in secciones for kv in tensiones]
+    return [t for t in out if t is not None]
 
 
 def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[str, str]) -> dict:
@@ -5849,7 +5863,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             kvar = bancos_kvar_por_tension(perfil) or {}
         except PerfilError:
             kvar = {}
-        lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+        conductores = _conductores_normalizados(p.secciones, kvar)                   # 042:RF-30
+        lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS if conductores else '',
+                                    conductores=conductores)['informe']
         # 073: el valle de la medición del año; lo que no se pueda leer se dice y no bloquea.
         valle = _valle_del_proyecto(ws, ctx, anio_curva, feeders, objetivos, perfil,
                                     [str(i.get('feeder')) for i in base.get('informes') or [] if i.get('central')])
