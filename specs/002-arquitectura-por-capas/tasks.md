@@ -34,6 +34,10 @@ Access.
       `pip install -e .`: hasta entonces la prueba de RF-28 falla y pide esa orden, como manda el requisito.
       La conversión aún crea sus lectores con `sources.adapter_for` y su DGS con `write_dgs`; el registro los declara
       y los carga, y el paso de la conversión al registro se hace con T7, cuando se muevan esos módulos.
+Comparación del 2026-11-03: con T2, T3, T4 y T6 los DGS son idénticos a los de la revisión de partida `9dba2297`
+(TXT con 1 y 4 procesos, red unida y Access). `output/linea_base_001*.json`, del 2026-11-02, ya no coincide en esa
+misma revisión de partida por cambios ajenos a esta spec; `test_linea_base_001.py` falla hasta regenerarla.
+
 Plan de lo abierto (2026-11-03): T7 a T9 mueven 250 módulos y tocan casi todas las pruebas, `tools/` y los
 guiones de PowerFactory; van por capas, de abajo arriba, una por commit y con la línea base en cada una. T8 y T9
 van después de T7. T11 reordena `frontend/src` y pide probar la web en el navegador real. T12 es el cierre.
