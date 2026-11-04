@@ -46,9 +46,11 @@
 - [x] T13 Host, Origin, token y escucha. (RF-17, RF-18, RF-19, RF-20) (`v1/seguridad`)
   Hecho cuando: pruebas negativas por cada una, también en WebSocket; la web sigue funcionando en el navegador real.
   Evidencia: `tests/test_seguridad_web.py`; navegador real contra una web propia en el 8791, con una página de otro origen rechazada en POST, GET y WebSocket.
-- [ ] T14 Leaflet propio, política de contenido y sin salida a la red por defecto. (RF-21, RF-22) (`v1/seguridad`)
-  Hecho cuando: con la red cortada, todo el flujo funciona y el mapa abre; una prueba recorre las salidas conocidas.
-  Hecho: Leaflet, política, salidas y la prueba que las recorre; en el navegador, cargar, convertir, descargar y abrir el mapa con lo externo cortado en el navegador y sin conexiones externas del servidor. Falta: el mismo flujo con la red del equipo cortada de verdad y con DIgSILENT (importar, calibrar, informe).
+- [x] T14 Leaflet propio, política de contenido y sin salida a la red por defecto. (RF-21, RF-22) (`v1/seguridad`)
+  Hecho cuando: con lo externo cortado en el navegador, cargar, convertir, descargar y abrir el mapa funcionan; una prueba recorre las salidas conocidas.
+  Evidencia: `tests/test_seguridad_web.py`; navegador real en el 8791, sin conexiones externas del servidor. El flujo completo con la red cortada de verdad es la T36.
+- [ ] T36 [DIgSILENT] El flujo completo con la red del equipo cortada de verdad: importar, calibrar e informe. (RF-22)
+  Hecho cuando: sin red, el flujo termina y cada salida apagada lo dice.
 - [ ] T15 Tareas por efecto, guiones con confirmación, reintentos e independencia de GPU. (RF-23, RF-24, RF-25, RF-26, RF-27) (`v1/producto`)
   Hecho cuando: una prueba exige que cada tarea declare su efecto; sin CUDA, el trabajo sigue con aviso.
 

@@ -126,6 +126,9 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015, 078 |
 | `src/convertersmartgrid/powerfactory_metadata.py` | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. | 034 (RF-21), 078 |
 | `src/convertersmartgrid/preview.py` | Vista previa georreferenciada del modelo, con Leaflet propio dentro del fichero y su política de contenido. | 034 (RF-14), 086 (RF-21, RF-22) |
+| `src/convertersmartgrid/recursos/leaflet/LICENSE` | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. | 086 |
+| `src/convertersmartgrid/recursos/leaflet/leaflet.css` | Estilos de Leaflet, copia exacta con huella comprobada. | 086 |
+| `src/convertersmartgrid/recursos/leaflet/leaflet.js` | Leaflet, copia exacta con huella comprobada. | 086 |
 | `src/convertersmartgrid/edicion.py` | La única función que dice si corre la edición de producto. | 086 (RF-22) |
 | `src/convertersmartgrid/salidas_red.py` | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. | 086 (RF-22) |
 | `src/convertersmartgrid/sesion_web.py` | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. | 086 (RF-19) |
