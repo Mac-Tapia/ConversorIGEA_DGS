@@ -569,3 +569,33 @@ def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch):
 
     services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
     assert orden[0] == ('reponer', ('Carga_A', 'Carga_B')) and orden[1] == ('escalera', ('F1',))
+
+
+def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypatch):
+    """042:RF-48 — al elegir la obra de F1 se aplica ya; F2 se evalúa después, y el que no cumple no aplica nada."""
+    from convertersmartgrid.web import services
+
+    orden = []
+    aplicadas = [{'sed': f'S{f}', 'alimentador': f, 'kw': 10.0, 'variacion': f'Carga_{f}'} for f in ('F1', 'F2', 'F3')]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, solo=None, **k):
+        f = feeders[0]
+        orden.append(('aplica' if aplicar else 'evalua', f))
+        if aplicar:
+            return {'alimentadores': [{'alimentador': f, 'aplicada': [f'Obra_{f}']}]}
+        return {'alimentadores': [{'alimentador': f, 'elegida': None if f == 'F2' else f'obra de {f}'}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2', 'F3'])
+    assert orden == [('evalua', 'F1'), ('aplica', 'F1'), ('evalua', 'F2'), ('evalua', 'F3'), ('aplica', 'F3')]
+    assert [a['alimentador'] for a in r['escalera']['alimentadores']] == ['F1', 'F3']

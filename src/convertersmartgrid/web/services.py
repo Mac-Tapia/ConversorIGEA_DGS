@@ -6140,6 +6140,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
         por_alim.setdefault(f, []).append(c)
     cumplen, resto, por_feeder, memo, elegidas = [], [], {}, {}, {}
+    escalera = None
     for f, cs in sorted(por_alim.items()):
         ctx.check_cancel()
         r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
@@ -6149,6 +6150,14 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         if fila.get('elegida') and not fila.get('ya_cumple'):
             e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
             elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
+            # 042:RF-48: enseguida: si DIgSILENT cae después, lo resuelto queda, y el siguiente se mide con esta obra.
+            ctx.check_cancel()
+            hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True,
+                                   basta_una=True, memo=memo, solo={f: elegidas[f]}, **opciones)
+            if escalera is None:
+                escalera = hecha
+            else:
+                escalera['alimentadores'] = list(escalera.get('alimentadores') or []) + list(hecha.get('alimentadores') or [])
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
         # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
@@ -6156,12 +6165,6 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
                 + (f'cumple con bancos, sección o terna (042:RF-24).{resto_bajo}' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
         (cumplen if ok else resto).append(f)
-    escalera = None
-    con_obra = [f for f in cumplen if elegidas.get(f)]          # 042:RF-29: el que ya cumple no lleva obra
-    if con_obra:
-        activas = [c['variacion'] for f in con_obra for c in por_alim[f]]
-        escalera = obras_escalera(ws, ctx, project, con_obra, cargas_activas=activas, aplicar=True, basta_una=True,
-                                  memo=memo, solo={f: elegidas[f] for f in con_obra}, **opciones)
     campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     orden = sn.orden_de_cargas(aplicadas)
     return {'project': project.strip(), 'orden': [{k: c.get(k) for k in campos} for c in orden],
