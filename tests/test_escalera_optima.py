@@ -835,3 +835,10 @@ def test_el_horizonte_usa_la_tasa_de_largo_plazo_del_perfil():
     p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'crecimiento_demanda_anual': 0.0346}})
     assert p.tasa_largo_plazo == 0.0346 and P.tasa_largo_plazo == 0.03
     assert eo.plan_de_horizonte('F1', p.tasa_largo_plazo, p)['factores']['20']['F1'] == pytest.approx(1.0346 ** 20)
+
+
+@pytest.mark.parametrize('fraccion,medidos,seguir', [(1.0, 50, False), (0.98, 50, False), (0.96, 50, True), (0.90, 50, True),
+                                                     (0.88, 50, False), (0.96, 200, False)])
+def test_los_sorteos_siguen_solo_si_la_etapa_queda_cerca_del_criterio(fraccion, medidos, seguir):
+    """042:RF-87 — lejos del 95 %, los demás no cambiarían la decisión; con todos medidos no hay más."""
+    assert eo.hace_falta_seguir(fraccion, medidos, 200, P) is seguir

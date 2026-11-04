@@ -1552,3 +1552,42 @@ def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
     (fila,) = informe['variantes']
     assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 10, 'motivos': ['no converge']}
     assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+
+
+@pytest.mark.parametrize('sigue,medidos', [(False, 10), (True, 12)])
+def test_los_sorteos_van_por_etapas(monkeypatch, sigue, medidos):
+    """042:RF-87, 042:RF-88 — con etapa de 10 de 12: si está claro, para ahí; si no, mide los otros 2 con su referencia."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(44))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'hace_falta_seguir', lambda _fr, m, n, _p: sigue and m < n)
+    flujos = []
+    real = guion.medida_para_criterio
+    monkeypatch.setattr(guion, 'medida_para_criterio', lambda *a: (flujos.append(1), real(*a))[1])
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'sorteos_etapa': 10}}
+    sorteos = [{'factores': {a: 0.9 for a in alims}} for _ in range(12)]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=sorteos, barras_cargas=[], parametros=perfil)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['sorteos_medidos'] == medidos and fila['fraccion'] is not None
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+    # La referencia y la variante, una vez por sorteo medido, más los flujos fijos de la evaluación.
+    assert len(flujos) >= 2 * medidos
+
+
+def test_sin_etapas_se_miden_todos(monkeypatch):
+    """042:RF-87 — el perfil lo apaga con 0."""
+    app, alims = _calibrada_con_escenario(random.Random(45))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'sorteos_etapa': 0}}
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=[{'factores': {a: 0.9 for a in alims}} for _ in range(7)], barras_cargas=[], parametros=perfil)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert informe['variantes'][0]['sorteos_medidos'] == 7

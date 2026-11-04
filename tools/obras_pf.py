@@ -2755,7 +2755,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import cumple, cumple_en_valle, definitiva, grupo_economico, parametros
+    from convertersmartgrid.escalera_optima import (cumple, cumple_en_valle, definitiva, grupo_economico,
+                                                    hace_falta_seguir, parametros)
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -2801,14 +2802,25 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                                          'en los sorteos, las pérdidas y el criterio (063:RF-40).')
         sin_max = medida_para_criterio(app, alims, feeders)
         informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
-        sin_sorteos = []
-        with _Sorteo(app, alims, feeders, existentes) as s:
-            for i, sorteo in enumerate(sorteos):
-                if i % 10 == 0 and cancelado():
-                    informe['cancelado'] = True
-                    return informe, 2
-                s.escalar(sorteo['factores'])
-                sin_sorteos.append(medida_para_criterio(app, alims, feeders))
+        sin_sorteos: list = []
+        # 042:RF-87: en la primera etapa, y sin etapas (0) o con pocos sorteos, todos.
+        en_primera = len(sorteos) if not 0 < p.sorteos_etapa < len(sorteos) else p.sorteos_etapa
+
+        def referencia_hasta(n: int) -> bool:
+            """042:RF-88: la referencia sin obra de los sorteos que van a usarse; ``False`` si se cancela."""
+            if n <= len(sin_sorteos):
+                return True
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for i in range(len(sin_sorteos), n):
+                    if i % 10 == 0 and cancelado():
+                        informe['cancelado'] = True
+                        return False
+                    s.escalar(sorteos[i]['factores'])
+                    sin_sorteos.append(medida_para_criterio(app, alims, feeders))
+            return True
+
+        if not referencia_hasta(en_primera):
+            return informe, 2
         sin_valle = []
         if puntos_valle:
             with _Sorteo(app, alims, feeders, existentes) as s:
@@ -2860,16 +2872,18 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
 
         fallidos: list[dict] = []        # 063:RF-28: qué sorteos fallan y por qué, de la última variante
 
-        def sortear():
+        def sortear(desde=0, hasta=None, fallos_antes=0):
             """Fracción de sorteos que cumplen; deja de sortear en cuanto ya no puede llegar a la
             del perfil (RF-72). Anota en ``fallidos`` el instante, el factor y el motivo de cada
             sorteo que falla: en SM218 (2026-11-01) tres variantes se quedaban en el 94,5 % y no se
             sabía si era por la máxima o por el valle."""
             admite = int((1 - p.cumplimiento) * len(sorteos) + 1e-9)
-            fallos = 0
-            fallidos.clear()
+            hasta = len(sorteos) if hasta is None else hasta
+            fallos = fallos_antes
+            if not desde:
+                fallidos.clear()
             with _Sorteo(app, alims, feeders, existentes) as s:
-                for i, (sorteo, sin_i) in enumerate(zip(sorteos, sin_sorteos)):
+                for i, (sorteo, sin_i) in enumerate(zip(sorteos[desde:hasta], sin_sorteos[desde:hasta]), desde):
                     if i % 10 == 0 and cancelado():          # una variante puede llevar minutos
                         informe['cancelado'] = True
                         return None
@@ -2880,15 +2894,33 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         fallidos.append({'instante': sorteo.get('instante'), 'factores': sorteo.get('factores'),
                                          'motivos': list(motivos)[:3]})
                     if fallos > admite:
-                        break
-            return (len(sorteos) - fallos) / len(sorteos)
+                        # En la primera etapa, sobre lo medido: con más fallos de los que caben no hay que seguir.
+                        return ((len(sorteos) - fallos) / len(sorteos) if hasta == len(sorteos)
+                                else (i + 1 - fallos) / (i + 1))
+            return (hasta - fallos) / hasta
+
+        def por_etapas(v=None):
+            """042:RF-87: la primera etapa y, si queda cerca del criterio, el resto; ``(fracción, error, medidos)``."""
+            medir = (lambda f: con_variante(v, f)) if v is not None else (lambda f: (f(), None))
+            n = len(sorteos)
+            fraccion, error = medir(lambda: sortear(0, en_primera))
+            if error or fraccion is None or not hace_falta_seguir(fraccion, en_primera, n, p):
+                return fraccion, error, en_primera
+            fallos = round((1 - fraccion) * en_primera)
+            casos['sin'].Activate()
+            listo = referencia_hasta(n)
+            casos['con'].Activate()
+            if not listo:
+                return None, None, en_primera
+            fraccion, error = medir(lambda: sortear(en_primera, n, fallos))
+            return fraccion, error, n
 
         # RF-74: con lo que ya tiene «Con proyecto» (una obra de una escalera anterior), si
         # cumple no se prueba ninguna variante.
         casos['con'].Activate()
         con_actual = medida_para_criterio(app, alims, feeders)
         if cumple(sin_max, con_actual, barras, p)[0]:
-            fraccion = sortear() if sorteos else 1.0
+            fraccion = por_etapas()[0] if sorteos else 1.0
             if fraccion is None:
                 return informe, 2
             if fraccion >= p.cumplimiento:
@@ -2946,7 +2978,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             elif (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
                     and fila.get('valle') is not False):                                # 073:RF-18
                 if sorteos:
-                    fila['fraccion'], error = con_variante(v, sortear)
+                    fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas(v)         # 042:RF-88
                     fila['error'] = fila['error'] or error
                     fila['sorteos_fallidos'] = list(fallidos)
                 else:
@@ -2983,7 +3015,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if not sorteos:
                 fila['fraccion'] = 1.0
             else:
-                fila['fraccion'], error = con_variante(v, sortear)
+                fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas(v)             # 042:RF-88
                 fila['error'] = fila['error'] or error
                 fila['sorteos_fallidos'] = list(fallidos)                     # 063:RF-28
             print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)

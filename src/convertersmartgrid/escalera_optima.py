@@ -112,6 +112,10 @@ class Parametros:
     horizonte_anios: int = 20
     #: 042:RF-86: el crecimiento con que se proyecta ese horizonte.
     tasa_largo_plazo: float = 0.03
+    #: 042:RF-87: los sorteos de la primera etapa y las fracciones con que ya se decide.
+    sorteos_etapa: int = 50
+    sorteos_decide_si: float = 0.98
+    sorteos_decide_no: float = 0.90
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -176,7 +180,10 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
                                         (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
         horizonte_anios=int((perfil.get('planificacion') or {}).get('horizonte_anios') or 20),
-        tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA))
+        tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA),
+        sorteos_etapa=int(50 if esc.get('sorteos_etapa') is None else esc['sorteos_etapa']),
+        sorteos_decide_si=float(esc.get('sorteos_decide_si') or 0.98),
+        sorteos_decide_no=float(esc.get('sorteos_decide_no') or 0.90))
 
 
 def _opcional(x) -> float | None:
@@ -711,6 +718,11 @@ def cumple(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequen
         elif c > s + p.tolerancia_carga_pct:
             motivos.append(f'{e} se carga más: {s:.0f} → {c:.0f} %')
     return not motivos, motivos[:5]
+
+
+def hace_falta_seguir(fraccion: float, medidos: int, total: int, p: Parametros) -> bool:
+    """042:RF-87: si la primera etapa queda cerca del criterio; lejos de él, los demás no cambiarían la decisión."""
+    return medidos < total and p.sorteos_decide_no <= fraccion < p.sorteos_decide_si
 
 
 def cumple_en_valle(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequence[str],
