@@ -147,7 +147,7 @@ def leer_tipos(app, clases, otro=None, nombre_otro: str = '') -> list[dict]:
     """Los tipos de las tres bibliotecas, ordenados por clase, origen y nombre.
 
     042:RF-46: los de ``otro`` llevan el nombre con que se pidió: el proyecto puede conservar su nombre anterior, y quien busca el
-    tipo lo busca por el nombre que pidió (Pisco, 2026-11-04: `IGEA_Biblioteca_tipos` frente a `CSG_Biblioteca_tipos`).
+    tipo lo busca por el nombre que pidió (Pisco, 2026-11-04: el nombre anterior frente a `CSG_Biblioteca_tipos`).
     """
     out = []
     origenes = [('proyecto', '', lambda c: app.GetLocalLibrary(c)),

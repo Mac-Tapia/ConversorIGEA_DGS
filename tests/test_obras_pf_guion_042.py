@@ -341,11 +341,14 @@ def test_el_tipo_del_proyecto_biblioteca_se_encuentra_por_el_nombre_pedido():
     guion = cargar_herramienta('obras_pf.py', 'obras_rf46', tools_en_path=True)
     tipo = N(loc_name='VR32_10kV_50A', GetClassName=lambda: 'TypVoltreg')
     carpeta = N(GetContents=lambda *_a: [tipo])
-    otro = N(loc_name='IGEA_Biblioteca_tipos', GetContents=lambda *_a: [])
+    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+
+    anterior = NOMBRES_ANTERIORES_PF['CSG_Biblioteca_tipos']
+    otro = N(loc_name=anterior, GetContents=lambda *_a: [])
     vacia = N(GetContents=lambda *_a: [])
     app = N(GetLocalLibrary=lambda _c: vacia, GetGlobalLibrary=lambda _c: vacia)
     guion.biblioteca_de_otro = lambda _p: carpeta
     guion.datos_tipo = lambda _o: {}
     tipos = guion.leer_tipos(app, ['TypVoltreg'], otro, 'CSG_Biblioteca_tipos')
     assert [(t['nombre'], t['proyecto']) for t in tipos] == [('VR32_10kV_50A', 'CSG_Biblioteca_tipos')]
-    assert guion.leer_tipos(app, ['TypVoltreg'], otro)[0]['proyecto'] == 'IGEA_Biblioteca_tipos'
+    assert guion.leer_tipos(app, ['TypVoltreg'], otro)[0]['proyecto'] == anterior
