@@ -48,7 +48,7 @@ pide = ["pypdf>=5.0"]
 # temporal estacional cumplen el mismo contrato. Con GPU NVIDIA, instalar el de CUDA:
 # pip install torch --index-url https://download.pytorch.org/whl/cu126
 ml = [
-    "torch>=2.4", "numpy>=1.26", "scipy>=1.11", "optuna>=4.0", "psutil>=5.9",
+    "torch>=2.4", "numpy>=1.26", "scipy>=1.11", "optuna>=4.0", "lightgbm==4.6.0", "pyarrow>=14", "psutil>=5.9",
     # Revisiones evaluadas de los adaptadores; el lock documental conserva hashes/licencias.
     "torch-geometric @ git+https://github.com/pyg-team/pytorch_geometric.git@ea2c5f62d54c8b414dd3ea7139814a7c1ef83182",
     "neuralforecast @ git+https://github.com/Nixtla/neuralforecast.git@cf7449383ac5ff6041ec35cbd97b84c23dd559a0",
@@ -254,6 +254,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.oraculo_calibracion" = "adaptadores"
 "convertersmartgrid.digital_twin.motores_flujo" = "adaptadores"
 "convertersmartgrid.oraculo" = "adaptadores"
+"convertersmartgrid.pronostico_demanda" = "adaptadores"
 "convertersmartgrid.perfil_empresa" = "dominio"
 "convertersmartgrid.perfil_esquema" = "adaptadores"
 "convertersmartgrid.pf_arnes" = "adaptadores"

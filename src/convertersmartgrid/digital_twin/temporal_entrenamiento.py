@@ -7,6 +7,7 @@ from datetime import timedelta
 import uuid
 
 import numpy as np
+from ..pronostico_demanda import objetivos_de_cabecera, objetivos_de_clientes, sentido_de_serie  # noqa: F401 - su sitio es 089
 from ..runtime_paths import raiz_programa
 
 
@@ -55,7 +56,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
             cerrar=getattr(libro,'close',None)
             if cerrar:cerrar()
     if not crudas:raise ValueError('sin series de fecha y kW; libro ancho requiere --codigos')
-    fuera={}
+    fuera={};invertidas=[]
     for nombre,lectura in crudas.items():
         pares=[];fuera[nombre]=0;vistos=set()
         for t,v,fila in lectura:
@@ -71,6 +72,12 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
             if v is None:raise ValueError(f'{nombre}: fila {fila}: potencia ausente/inválida')
             pares.append((t,v))
         if not pares:raise ValueError(f'{nombre}: sin observaciones en el intervalo declarado')
+        sentido=sentido_de_serie(np.array([v for _,v in pares]))
+        if sentido=='ambos':
+            if hojas or codigos:raise ValueError(f'{nombre}: flujo en ambos sentidos; no es una serie de demanda')
+            omitidas.append(nombre);continue
+        if sentido=='invertido':
+            pares=[(t,-v) for t,v in pares];invertidas.append(nombre)
         registros=[{'instante':t.isoformat(),'valor':v,'unidad':'kW'} for t,v in pares]
         # La escala devuelta por este validador no se usa: la GRU la ajusta solo en train.
         try:
@@ -81,10 +88,11 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         if not all(preparada['mascara']):raise ValueError(f'{nombre}: huecos; no se imputan objetivos')
         series[nombre]=[r['valor'] for r in preparada['filas']]
         fechas[nombre]=[r['instante'] for r in preparada['filas']]
+    if not series:raise ValueError('todas las series van en ambos sentidos; ninguna es de demanda')
     if len({tuple(v) for v in fechas.values()})!=1:raise ValueError('las series no comparten cronologia')
     if sha_archivo(ruta)!=hash_antes:raise ValueError('el libro cambió durante la lectura')
     return series,{'path':str(ruta.resolve()),'sha256':hash_antes,'zona_horaria':zona_horaria,
-        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,
+        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'invertidas':invertidas,
         'alcance':{'hojas':list(hojas),'codigos':list(codigos),'desde':desde,'hasta_exclusivo':hasta,
                    'filas_fuera_intervalo':fuera},
         'instantes':next(iter(fechas.values()))}
@@ -163,99 +171,6 @@ def reabrir_temporal(carpeta: Path) -> dict:
 
 
 # ---------------------------------------------------------------------- pronóstico (spec 046)
-def _objetivos_kw_kvar(clase: str, ident: str, curva, fuente: dict):
-    """kW y kVAR de una misma curva ``(t, kW, kVAR)``; el kVAR solo si el libro lo trae."""
-    from .pronostico import Objetivo
-
-    salida = [Objetivo(clase, ident, 'kW', 'kW', [(t, kw) for t, kw, _q in curva], fuente)]
-    if any(q is not None for _t, _p, q in curva):
-        salida.append(Objetivo(clase, ident, 'kVAR', 'kVAR', [(t, q) for t, _p, q in curva if q is not None], fuente))
-    return salida
-
-
-def objetivos_de_cabecera(rutas, pares=None, *, centrales=None) -> tuple[list, list[dict]]:
-    """kW y kVAR de cada ``(alimentador, medidor)``, con ``maximas`` (046:RF-9).
-
-    Sin pares, cada hoja con kW es un objetivo. Con los medidores de una central, la demanda es la
-    de ``curva_de_demanda`` (046:RF-10): sin ella, una cabecera con generación aguas abajo daría
-    la potencia del alimentador en vez de su demanda.
-    """
-    from ..demanda_medida import curva_de_demanda, indexar_libro_cabecera, libros_de_cabecera, maximas
-
-    libros = libros_de_cabecera(rutas)
-    if pares is None:
-        pares = [(h, h) for p in libros for h in indexar_libro_cabecera(p)['hojas']]
-    centrales = dict(centrales or {})
-    pedidos = list(pares)
-    for alimentador, c in centrales.items():
-        pedidos += [(alimentador, c[k]) for k in ('generacion', 'llegada', 'salida')]
-    leidos = {(r.alimentador, r.medidor): r for r in maximas(libros, pedidos)}
-    objetivos, apartados = [], []
-    for alimentador, medidor in pares:
-        r = leidos.get((alimentador, medidor))
-        if r is None or r.error or not r.curva:
-            apartados.append({'objetivo': f'cabecera:{alimentador}',
-                              'motivo': (r.error if r is not None and r.error else f'{medidor}: sin curva en los libros')})
-            continue
-        curva = r.curva
-        central = centrales.get(alimentador)
-        if central:
-            otros = [leidos.get((alimentador, central[k])) for k in ('generacion', 'llegada', 'salida')]
-            if any(o is None or not o.curva for o in otros):
-                apartados.append({'objetivo': f'cabecera:{alimentador}',
-                                  'motivo': 'falta la curva de un medidor de la central; no se pronostica sin descontarla'})
-                continue
-            curva, informe = curva_de_demanda(curva, otros[0].curva, otros[1].curva, otros[2].curva)
-            if not curva:
-                apartados.append({'objetivo': f'cabecera:{alimentador}', 'motivo': f'sin demanda con la central: {informe.error}'})
-                continue
-        objetivos += _objetivos_kw_kvar('cabecera', alimentador, curva, {
-            'medidor': medidor, 'libros': [r.libro], 'central_descontada': bool(central), 'avisos': list(r.avisos)})
-    return objetivos, apartados
-
-
-def objetivos_de_clientes(rutas, codigos=None) -> tuple[list, list[dict]]:
-    """kW y kVAR de cada cliente libre desde sus hojas de 15 minutos (046:RF-11).
-
-    Un cliente viene repartido en un libro por mes. Dos valores distintos del mismo instante
-    no se eligen: el objetivo se aparta y se dice (046:RF-12).
-    """
-    from ..cabecera_ancha import libros_de
-    from ..demanda_medida import curvas_de_clientes
-
-    por_cliente: dict[str, dict] = {}
-    libros_de_cliente: dict[str, list[str]] = {}
-    contradictorios: dict[str, str] = {}
-    avisos: dict[str, list[str]] = {}
-    apartados: list[dict] = []
-    for libro in libros_de(rutas):
-        curvas, notas = curvas_de_clientes(libro, codigos)
-        if not curvas and not codigos:
-            # Un mes que no se puede leer no se calla: el objetivo tendría un hueco sin explicar.
-            apartados.append({'objetivo': f'libro:{libro.name}', 'motivo': '; '.join(notas) or 'sin curvas de clientes'})
-        for codigo, curva in curvas.items():
-            serie = por_cliente.setdefault(codigo, {})
-            libros_de_cliente.setdefault(codigo, []).append(libro.name)
-            for t, kw, kvar in curva:
-                previo = serie.setdefault(t, (kw, kvar))
-                if previo != (kw, kvar):
-                    contradictorios[codigo] = f'{libro.name} da otro valor en el mismo instante ({t.isoformat()})'
-        for nota in notas:
-            avisos.setdefault(nota.split(':', 1)[0], []).append(nota)
-    objetivos = []
-    for codigo, serie in por_cliente.items():
-        if codigo in contradictorios:
-            apartados.append({'objetivo': f'cliente:{codigo}', 'motivo': contradictorios[codigo]})
-            continue
-        curva = [(t, *serie[t]) for t in sorted(serie)]
-        objetivos += _objetivos_kw_kvar('cliente', codigo, curva, {
-            'libros': libros_de_cliente[codigo], 'avisos': avisos.get(codigo, [])})
-    for codigo in codigos or ():
-        if not any(c == codigo for c in por_cliente):
-            apartados.append({'objetivo': f'cliente:{codigo}', 'motivo': 'no está en el maestro de ningún libro'})
-    return objetivos, apartados
-
-
 def inventariar(objetivos, *, cadencia_min: int, zona_horaria: str) -> dict:
     """Qué hay de verdad, sin entrenar ni rellenar nada: rango, cadencia, huecos y ceros (046:RF-12)."""
     from .pronostico import construir_conjunto

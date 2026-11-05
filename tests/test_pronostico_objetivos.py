@@ -74,7 +74,7 @@ def test_medidor_inexistente_se_aparta_con_su_motivo(tmp_path):
 def test_la_central_se_descuenta_con_curva_de_demanda(tmp_path):
     """046:RF-10 — con los medidores de la central, la demanda es la de ``curva_de_demanda``."""
     from convertersmartgrid.demanda_medida import curva_de_demanda, maximas
-    libro = _cabecera(tmp_path / 'cabecera.xlsx', {'CAB': 500.0, 'GEN': 80.0, 'LLE': 300.0, 'SAL': 200.0}, 200)
+    libro = _cabecera(tmp_path / 'cabecera.xlsx', {'CAB': 500.0, 'GEN': 500.0, 'LLE': 300.0, 'SAL': 200.0}, 200)
     central = {'A1': {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}}
     objetivos, _apartados = te.objetivos_de_cabecera([libro], [('A1', 'CAB')], centrales=central)
     kw = next(o for o in objetivos if o.magnitud == 'kW')

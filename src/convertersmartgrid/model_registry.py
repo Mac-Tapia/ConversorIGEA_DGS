@@ -24,7 +24,7 @@ class EstadoModelo(str, Enum):
 
 #: 043:RF-8: el pronóstico se registra por clase (046) y se informa dentro de la etapa ``gru``;
 #: sin este alias, una decisión real del registro quedaba como «sin evidencia» en la web.
-_REGISTROS_DE_FAMILIA = {'gru': ('gru', 'pronostico_cabecera', 'pronostico_cliente')}
+_REGISTROS_DE_FAMILIA = {'gru': ('gru', 'pronostico_cabecera', 'pronostico_cliente', 'pronostico_escaladas')}
 
 
 def registros_de(familia: str) -> tuple[str, ...]:

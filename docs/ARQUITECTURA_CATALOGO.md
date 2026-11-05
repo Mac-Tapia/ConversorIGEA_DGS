@@ -8,14 +8,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 227 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 228 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 91 |
+| Herramientas y guiones | `tools/` | 92 |
 | Interfaz | `frontend/src/` | 43 |
 | Pruebas de la interfaz | `frontend/test/` | 7 |
-| Pruebas | `tests/` | 358 |
+| Pruebas | `tests/` | 360 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 262 |
+| Specs | `specs/` | 266 |
 
 `web/services.py` tiene 10107 líneas y 301 funciones, pendiente de partir (002).
 
@@ -23,24 +23,24 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 39 |
+| cumplida | 40 |
 | implementada | 25 |
-| aprobada | 21 |
-| reservada | 5 |
+| aprobada | 22 |
+| reservada | 3 |
 
-90 specs con 2849 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+90 specs con 2949 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 111 |
+| adaptadores | Ada | 112 |
 | aplicacion | Apl | 96 |
 | presentacion | Pre | 30 |
 | dominio | Dom | 28 |
 | puertos | Pue | 2 |
 
-267 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+268 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -332,7 +332,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060 | Máxima de cabecera por medidor y clientes importantes con su SED. |
+| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089 | Máxima de cabecera por medidor y clientes importantes con su SED. |
 | `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
@@ -762,6 +762,15 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/operacionSet.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/projectBinding.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+
+### Sin subsistema asignado
+
+Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
+| `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 
 ### Configuración, dependencias y entrega
 
