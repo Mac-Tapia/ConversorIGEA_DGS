@@ -30,7 +30,7 @@ import math
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field, fields, replace
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
@@ -928,6 +928,40 @@ def reducir_curva(curva: Sequence[tuple[datetime, float, float | None]], desde: 
     return [tramo[k] for k in sorted({k for e in extremos.values() for k in e})]
 
 
+def q_negativa_con_fp(registros: Sequence[Registro]) -> tuple[int, int]:
+    """La Q de los registros con kVAR negativo, con su factor de potencia (088:RF-1 a RF-5).
+
+    El usuario, el 2026-11-05: «el factor de potencia es inductivo y es positivo el Q y si el factor
+    de potencia es capacitivo es negativo Q». El signo es en el sentido de la carga, respecto de P:
+    un medidor en sentido contrario (kW y kVAR negativos con ``PF lag``) es inductivo con Q
+    del signo de su P; forzarla positiva rompería el balance de las centrales (021:RF-29).
+
+    Sin ``lag`` ni ``lead``, FP = |kW|/kVA: ``PF sign tot us`` no es un FP en esos libros (``fp_decimal``)
+    y nada dice que cambie el signo. Devuelve cuántos se calcularon y cuántos conservan la columna.
+    """
+    calculados = conservados = 0
+    for r in registros:
+        kw, kvar = r.valores.get('kw'), r.valores.get('kvar')
+        if kw is None or kvar is None or kvar >= 0:
+            continue
+        fp, kva = r.valores.get('fp'), r.valores.get('kva')
+        palabras = normalizar(r.fuente_fp).split()
+        if kw and fp and ('lead' in palabras or 'lag' in palabras):
+            modulo = abs(kw) * math.tan(math.acos(abs(fp)))
+            if kva and modulo > kva:
+                # 088:RF-12: un FP medio bajo en un intervalo con maniobra da más Q que kVA, y eso no es físico (hasta 54 188 veces la columna).
+                conservados += 1
+                continue
+            r.valores['kvar'] = math.copysign(modulo, kw if 'lag' in palabras else -kw)
+        elif kw and kva and kva >= abs(kw):
+            r.valores['kvar'] = -math.sqrt(kva * kva - kw * kw)
+        else:
+            conservados += 1
+            continue
+        calculados += 1
+    return calculados, conservados
+
+
 class Cabecera:
     """Libros de cabecera abiertos una vez por búsqueda: abrir un .xls de 400 MB cuesta ~1 s."""
 
@@ -996,6 +1030,19 @@ class Cabecera:
         res.avisos.append(', '.join(de_donde) + ', del mismo registro que el kW máximo')
         return _unir_por_fecha(trozos)
 
+    def _medir(self, registros: list[Registro], res: MaximaCabecera, periodo: str | None,
+               instante: datetime | None) -> MaximaCabecera:
+        """La máxima y la curva, con la Q negativa desde el FP (088:RF-9). Aquí y no en cada consumidor:
+        calibración, valle, crecimiento y pronóstico leen por esta clase."""
+        calculados, conservados = q_negativa_con_fp(registros)
+        maxima_de_registros(registros, res, periodo, instante)
+        if calculados:
+            res.columnas['kvar'] = 'calculado con el FP de los registros con kVAR negativo'
+        if conservados:
+            res.avisos.append(f'{conservados} registro(s) con kVAR negativo sin FP que lo calcule: conservan '
+                              'el kVAR de su columna (088:RF-6).')
+        return res
+
     def _por_alimentador(self, res: MaximaCabecera, medidor: str, alimentador: str,
                          periodo: str | None, instante: datetime | None) -> MaximaCabecera:
         """La hoja con el código del alimentador, si la del medidor no está (025:RF-12).
@@ -1021,7 +1068,7 @@ class Cabecera:
                 if 'kw' not in usadas:
                     res.error = f'{path.name} › {hoja}: sin columna de kW'
                     return res
-                return maxima_de_registros(registros, res, periodo, instante)
+                return self._medir(registros, res, periodo, instante)
         res.error = (f'el medidor {medidor} no está en ningún libro de cabecera'
                      + (f', ni una hoja con el código {alimentador}' if alimentador else ''))
         return res
@@ -1060,7 +1107,7 @@ class Cabecera:
                 if 'kw' not in usadas:
                     res.error = f'{path.name} › {entera[0]}: sin columna de kW'
                     return res
-                return maxima_de_registros(self._completar(path, medidor, registros, res), res, periodo, instante)
+                return self._medir(self._completar(path, medidor, registros, res), res, periodo, instante)
             res.avisos.append(f'{entera[0]}: sin columna de kW; se usan sus hojas por magnitud')
         trozos, completas = [], []
         for hoja in partes:
@@ -1080,7 +1127,7 @@ class Cabecera:
             hoja, registros, usadas = completas[0]
             res.hojas, res.columnas = [hoja], dict(usadas)
             res.avisos.append(f'sin hoja {medidor}: se usa {hoja}, la única con su código')
-            return maxima_de_registros(registros, res, periodo, instante)
+            return self._medir(registros, res, periodo, instante)
         if 'kw' not in res.columnas and completas:
             res.error = (f'{path.name}: {medidor} tiene varias hojas completas ('
                          + ', '.join(h for h, _r, _u in completas)
@@ -1089,7 +1136,7 @@ class Cabecera:
         if 'kw' not in res.columnas:
             res.error = f'{path.name} › {", ".join(entera + partes)}: sin columna de kW'
             return res
-        return maxima_de_registros(_unir_por_fecha(trozos), res, periodo, instante)
+        return self._medir(_unir_por_fecha(trozos), res, periodo, instante)
 
 
 def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *, alias=ALIAS,
@@ -1564,6 +1611,9 @@ def _instante_de_hoja(fecha: Any, hora: Any) -> datetime | None:
             return None
     if isinstance(hora, datetime):
         hora = hora.time()
+    siguiente = isinstance(hora, str) and hora.strip()[:5] == '24:00'       # 089:RF-15: los libros de 2025
+    if siguiente:
+        hora = time(0, 0)
     if isinstance(hora, str):
         try:
             hora = datetime.strptime(hora.strip()[:5], '%H:%M').time()
@@ -1571,10 +1621,44 @@ def _instante_de_hoja(fecha: Any, hora: Any) -> datetime | None:
             return None
     if not isinstance(dia, date) or not isinstance(hora, time):
         return None
-    return datetime.combine(dia, hora)
+    return datetime.combine(dia, hora) + timedelta(days=1 if siguiente else 0)
 
 
-def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
+def _curva_por_dia(datos: Sequence[Sequence[Any]], cols: Mapping[str, int], mes: str) -> tuple[list, int]:
+    """La curva de una hoja «día, hora», con el mes de su libro (089:RF-14, RF-15).
+
+    El «00:00» o «24:00» con que acaba un día es la medianoche siguiente: si no, retrocedería 24 horas.
+    El libro real acaba el mes con «día 1, 00:00», que es el día siguiente al anterior y no el 1 de ese mes:
+    leído tal cual, 255 clientes se apartaban por un valor contradictorio que no existía.
+    """
+    anio, numero_mes = int(mes[:4]), int(mes[5:7])
+    curva, fuera, anterior = [], 0, None
+    for f in datos:
+        dia, hora = numero(_celda(f, cols['dia'])), _celda(f, cols['hora'])
+        if dia is None or not isinstance(hora, (str, time, datetime)):
+            continue
+        try:
+            fecha = date(anio, numero_mes, int(dia))
+        except ValueError:
+            fuera += 1
+            continue
+        t = _instante_de_hoja(fecha, hora)
+        ea = numero(_celda(f, cols['ea']))
+        if t is None or ea is None:
+            fuera += 1
+            continue
+        if anterior is not None and t <= anterior:
+            if t.time() != time(0, 0):             # 089:RF-79: una fila repetida; sumarle un día corría las fechas hasta otro año
+                fuera += 1
+                continue
+            t = datetime.combine(anterior.date() + timedelta(days=1), t.time())
+        anterior = t
+        eri = numero(_celda(f, cols['eri']))
+        curva.append((t, ea * 4.0, None if eri is None else eri * 4.0))
+    return curva, fuera
+
+
+def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *, mes: str | None = None,
                        ) -> tuple[dict[str, list[tuple[datetime, float, float | None]]], list[str]]:
     """La curva ``(fecha, kW = EA × 4, kVAR = ERI × 4)`` de cada cliente libre (046:RF-11).
 
@@ -1582,12 +1666,16 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
     registro sin EA o sin fecha no entra en la curva, y se cuenta en el aviso: dibujarlo como
     cero parecería un corte de suministro. El libro de mayo de 2026 no trae «maestro_lib», pero
     cada hoja dice su SUMINISTRO: entonces el código sale de ella, y si tampoco, se dice.
+
+    Con ``mes`` (``AAAA-MM``), también las hojas «día, hora» de los libros de enero a abril (089:RF-14): sin
+    él, «día 3» no es una fecha y esas hojas se quedan fuera, como siempre.
     """
     libro = abrir_libro(path)
     pares, avisos = _hojas_de_maestro(libro, path)
     con_maestro = bool(pares or avisos)
     pedidos = None if codigos is None else {clave_codigo(c) for c in codigos}
     out: dict[str, list[tuple[datetime, float, float | None]]] = {}
+    por_contenido: dict[str, str] | None = None
     for codigo, hoja in pares or [('', h) for h in libro.sheet_names if not con_maestro]:
         if codigo and pedidos is not None and clave_codigo(codigo) not in pedidos:
             continue
@@ -1599,6 +1687,21 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
                           for i, f in enumerate(datos[:FILAS_CABECERA])
                           if {'fecha', 'hora', 'ea'} <= {normalizar(c) for c in f}), (None, None))
         if cols is None:
+            antigua = _columnas_de_hoja(datos) if mes else None
+            if antigua and 'dia' in antigua:
+                if por_contenido is None and not con_maestro:
+                    resumen = leer_clientes(path)[0] if _hojas_resumen(libro.sheet_names) else []
+                    claves = {clave_codigo(c.codigo): c.codigo for c in resumen}
+                    por_contenido = {h: claves[k] for k, h in _hojas_por_contenido(libro, claves).items()}
+                propio = codigo or (por_contenido or {}).get(hoja, '')
+                if not propio or (pedidos is not None and clave_codigo(propio) not in pedidos):
+                    continue
+                curva, fuera = _curva_por_dia(datos, antigua, mes)
+                if fuera:
+                    avisos.append(f'{propio}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
+                curva.sort(key=lambda p: p[0])
+                out[propio] = curva
+                continue
             if codigo:
                 avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA y EA.')
             continue

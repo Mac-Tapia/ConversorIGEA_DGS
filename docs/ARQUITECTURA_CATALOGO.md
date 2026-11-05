@@ -8,14 +8,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 232 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 233 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 92 |
+| Herramientas y guiones | `tools/` | 93 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 364 |
+| Pruebas | `tests/` | 366 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 264 |
+| Specs | `specs/` | 268 |
 
 `web/services.py` tiene 10722 líneas y 322 funciones, pendiente de partir (002).
 
@@ -23,25 +23,24 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 39 |
+| cumplida | 40 |
 | implementada | 26 |
-| aprobada | 21 |
-| reservada | 4 |
+| aprobada | 22 |
+| reservada | 2 |
 
-90 specs con 2949 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+90 specs con 3049 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 111 |
-| aplicacion | Apl | 96 |
+| adaptadores | Ada | 112 |
+| aplicacion | Apl | 97 |
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
-| sin capa | — | 1 |
 
-272 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+273 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -333,7 +332,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060 | Máxima de cabecera por medidor y clientes importantes con su SED. |
+| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089 | Máxima de cabecera por medidor y clientes importantes con su SED. |
 | `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
@@ -775,10 +774,12 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
-| `src/convertersmartgrid/obras_integrales.py` | — | 087 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), y el área del alimentador nuevo. |
+| `src/convertersmartgrid/obras_integrales.py` | Apl | 087 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), y el área del alimentador nuevo. |
 | `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
+| `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
+| `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 
 ### Configuración, dependencias y entrega
 

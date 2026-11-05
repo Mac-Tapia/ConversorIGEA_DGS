@@ -115,8 +115,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | falta T6 |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | falta T12, T13, T14, T27 |
-  | 088 Q negativa desde el factor de potencia | reservada |  |
-  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | reservada |  |
+  | 088 Q negativa desde el factor de potencia | cumplida |  |
+  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T5, T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

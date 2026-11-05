@@ -20,9 +20,10 @@ import numpy as np
 
 from .series_causales import CUANTILES, tramos_observados
 
-CLASE = {'nhits': 'NHITS', 'tft': 'TFT', 'patchtst': 'PatchTST'}
+CLASE = {'nhits': 'NHITS', 'tft': 'TFT', 'patchtst': 'PatchTST', 'nbeatsx': 'NBEATSx', 'itransformer': 'iTransformer',
+         'timesnet': 'TimesNet', 'tide': 'TiDE', 'tsmixerx': 'TSMixerx', 'bitcn': 'BiTCN'}
 #: Los que aceptan el calendario como futuro conocido. PatchTST declara ``EXOGENOUS_FUTR = False``.
-CON_CALENDARIO = ('nhits', 'tft')
+CON_CALENDARIO = ('nhits', 'tft', 'nbeatsx', 'itransformer', 'timesnet', 'tide', 'tsmixerx', 'bitcn')
 #: Ventanas por tanda al predecir: una tanda grande llena la memoria con la tabla de entrada.
 VENTANAS_POR_TANDA = 64
 

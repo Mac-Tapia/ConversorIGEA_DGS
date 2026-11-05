@@ -33,7 +33,7 @@ from .series_causales import (
 
 REFERENCIAS = ('ingenuo', 'estacional_semanal')
 NEURONALES = ('gru', 'nhits', 'tft', 'patchtst')
-CLASES = ('cabecera', 'cliente')
+CLASES = ('cabecera', 'cliente', 'escaladas')
 #: Lo único que se usa además de la serie: se conoce al emitir porque es el reloj (046:RF-2).
 COVARIABLES = ('hora_sin', 'hora_cos', 'dia_sin', 'dia_cos')
 #: Un objetivo con más ceros que esto en lo observado no tiene señal que aprender. Hay medidores

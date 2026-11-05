@@ -325,6 +325,7 @@ Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_regi
 | Flujo físico propio | `digital_twin/{flujo,motores_flujo}.py` | Comprobación sin pesos | conectado. Z-bus por defecto; Anderson, Newton, power-grid-model y OpenDSS con sus dependencias aparte (083) |
 | GRU | `digital_twin/temporal.py` | Serie a reconstrucción un paso adelante, y multihorizonte para competir | conectada: entrena en cada trabajo |
 | Pronóstico multihorizonte | `digital_twin/{pronostico,temporal_entrenamiento,series_causales,evaluacion_temporal,adaptador_neuralforecast}.py` | Compite ingenuo, estacional semanal, GRU, N-HiTS, TFT y PatchTST | conectado por la tarea `pronostico`. Deja candidatos con `promovido: false`: ningún pronóstico se pone en uso solo |
+| Dataset y backtest de demanda | `pronostico_demanda.py`, `tools/pronostico_demanda.py` | Módulo único (089): descubre los libros en cada carga, limpia una copia, da cabecera, clientes y escaladas, elige entre perfiles y hace competir 11 modelos a 15 minutos con su puerta | por CLI, sin panel; no alimenta calibración ni obras. Sin modelos entrenados aún |
 
 Ninguna de estas cifras se volvió a medir para este documento: las de los punteros son las que guardan sus ficheros.
 
@@ -367,7 +368,7 @@ el dominio antes de inferir. Los escenarios corren sobre copias de proyectos imp
 
 El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 
-## Pronóstico y evaluación (029, 044, 046)
+## Pronóstico y evaluación (029, 044, 046, 089)
 
 - **Crecimiento por alimentador** (`crecimiento.py`, 029): tasa desde la medición de cabecera; conectado.
 - **Multihorizonte con cuantiles** (046): ver la tabla de modelos. Particiones por día y ventanas causales (`series_causales.py`),

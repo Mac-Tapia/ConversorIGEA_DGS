@@ -1227,3 +1227,16 @@ al siguiente arranque. No hay una tarea de Windows que opere con la web cerrada.
 .venv/Scripts/python.exe tools/generar_contrato_api.py --solo-openapi     # docs/asistente/openapi.json
 ```
 
+## Pronóstico de demanda (`pronostico_demanda.py`, spec 089)
+
+Lee los libros de cada carpeta sin lista fija: un mes nuevo entra solo. No usa DIgSILENT y no toca la calibración ni las obras.
+
+```bash
+# Dataset limpio y backtest de perfiles; apoyo de años anteriores solo antes del primer dato de la base
+python tools/pronostico_demanda.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta> --suministros <libro>   --apoyo <carpeta> --apoyo-clientes <carpeta> --exogenas <carpeta> --guardar-dataset <carpeta> --output-json informe.json
+
+# Competición de modelos en una clase y magnitud, desde el dataset guardado
+python tools/pronostico_demanda.py --dataset <carpeta> --exogenas <carpeta> --modelos nhits,patchtst,lightgbm   --clase cabecera --magnitud kW --horizonte-dias 28 --output-json modelos.json
+```
+
+Ambas dejan en el informe el motivo de cada serie apartada y la decisión de la puerta; si ningún modelo la pasa, queda el perfil.
