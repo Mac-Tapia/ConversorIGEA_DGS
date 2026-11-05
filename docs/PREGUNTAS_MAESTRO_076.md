@@ -121,15 +121,6 @@ Respuesta: Sí: está implementado en el gemelo; la arquitectura dice que es sol
 Fuentes: specs/046-pronostico-causal-multihorizonte/spec.md:28, src/convertersmartgrid/digital_twin/pronostico.py:328.
 Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
-## arquitectura-023
-
-Pregunta: ¿Qué acierto tiene hoy el Transformer en uso?
-
-Respuesta: No lo sé: la cifra del documento no sale del código y hay que medirla de nuevo.
-
-Fuentes: docs/ARQUITECTURA.md:202.
-Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
-
 ## arquitectura-024
 
 Pregunta: cual es mejor arquitectura microservicios o esta

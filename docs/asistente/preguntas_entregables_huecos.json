@@ -65,6 +65,7 @@
     "linea": 266,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura dice que el estudio de planeamiento está sin implementar, y el código genera sus siete módulos."
   },
   {
@@ -80,6 +81,7 @@
     "linea": 184,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura dice que el RAG no tiene reranker, y el índice lo usa con su abstención."
   },
   {
@@ -95,6 +97,7 @@
     "linea": 240,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura dice que el pronóstico multihorizonte no tiene código, y la spec 046 está cumplida con su código."
   },
   {
@@ -110,6 +113,7 @@
     "linea": 212,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura dice que N-HiTS, TFT y PatchTST solo están especificados, y hay adaptadores en CUDA."
   },
   {
@@ -125,6 +129,7 @@
     "linea": 118,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura habla de tres carriles y el código tiene cuatro, con «control»."
   },
   {
@@ -140,6 +145,7 @@
     "linea": 47,
     "rf": null
    },
+   "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
    "nota": "La arquitectura cuenta 210 módulos con capa y pyproject.toml declara 230."
   },
   {
