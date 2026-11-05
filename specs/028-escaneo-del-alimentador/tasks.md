@@ -67,6 +67,9 @@ cuando el usuario ponga a mano la central de NA205.
 - [ ] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
       recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
       Hecho cuando: los dos proyectos válidos tras recalibrar y con su informe.
+- [ ] T16. «Recalibrar» de la web con la elección de los alimentadores del sistema: la ruta los valida y los pasa a
+      `sistema_web.py --alimentadores`; el front los lista para marcar. (RF-40, RF-41, RF-42)
+      Hecho cuando: `pytest -q tests/test_escaneo.py -k recalibrar` en verde y la elección comprobada en el navegador real.
 - [ ] T15. [DIgSILENT] Pisco desde cero: instante con barras, balance de LT y centrales, y calibración válida. (RF-33, RF-34, RF-35, RF-36, RF-37, RF-38, RF-39)
       Hecho cuando: el proyecto calibrado por la web converge con ese instante en «Sin proyecto».
 - [x] T14. Desplegable con la máxima de la cabecera de cada alimentador, y por defecto el instante común. (RF-32)

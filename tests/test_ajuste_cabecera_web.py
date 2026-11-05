@@ -896,6 +896,39 @@ def test_proyecto_por_sistema_calibra_todos_y_dice_los_sin_medidor(client):
     assert estado['result']['sistema']['sin_medidor'] == ['B9']
 
 
+def test_el_plan_lleva_el_criterio_de_cada_alimentador(client):
+    """039:RF-8 — cada plan con el criterio de su alimentador: el marcado, «máximo del mes»; el otro, el general."""
+    import json
+
+    wid, job = _maxima_dos(client)
+    r = _plan(client, wid, job, criterio_fijas='coincidente', criterio_por_alimentador={'A2': 'maximo_mes'})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['criterios'] == {'A1': 'coincidente', 'A2': 'maximo_mes'}
+    ws = client.app.state.store.get(wid)
+    planes = {}
+    for ruta in ws.cargas_planes[body['token']]['paths']:
+        plan = json.loads(Path(ruta).read_text(encoding='utf-8'))
+        planes[plan['feeder']] = plan['criterio_fijas']
+    assert planes == {'A1': 'coincidente', 'A2': 'maximo_mes'}
+
+
+def test_no_elegidos_ya_calibrados_conservan_su_calibracion(client):
+    """028:RF-41 — al recalibrar solo unos, los ya calibrados que no se eligieron se dicen como «conservan su última
+    calibración», no como «sin medidor… con la demanda del archivo» (Pisco, 2026-11-05: AL209 y PA217)."""
+    wid, job = _maxima_dos(client)
+    ws = client.app.state.store.get(wid)
+    ws.groups['SISTEMA_X'] = {'tipo': 'sistema', 'feeders': ['A1', 'A2', 'B9', 'C7'], 'status': 'ok'}
+    ws.pf_projects['SISTEMA_X'] = 'P'
+    ws.calibraciones = {clave: {'A2': {'recalibracion': 5}, 'C7': {'recalibracion': 5}}
+                        for clave in ('P', 'P@2025', 'P@2026')}
+    body = _plan(client, wid, job, medidores=['M1']).json()
+    assert body['feeders'] == ['A1']
+    assert body['sistema']['conservan'] == ['A2', 'C7'] and body['sistema']['sin_medidor'] == ['B9']
+    assert any('A2, C7' in a and '028:RF-41' in a for a in body['avisos'])
+    assert not any('A2' in a and '022:RF-53' in a for a in body['avisos'])
+
+
 def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch):
     """022:RF-55 — un alimentador cuyo medidor da más que sus fijas y su kVA instalado por el
     FP no se calibra; con varios, se dice y se calibran los demás (Chincha, 2026-10-18:

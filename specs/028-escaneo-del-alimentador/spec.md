@@ -154,6 +154,13 @@ alimentador o barra de cabecera»)
   demanda. Dirá cuántos descartó; SI quedaran todos fuera, ENTONCES no filtrará. Pisco (2026-11-03): la máxima cruda del año, el
   10-abr 12:00, tenía a PA110 en 3 408 kW con su red para 885 kW y a PA218 en 2 864 kW, y los dos quedaban sin calibrar. Usuario:
   «deben entrar todos, analizar las mediciones y corregirlos».
+- RF-40: DONDE el proyecto sea de un sistema eléctrico, EL SISTEMA dejará elegir en «Recalibrar» de la web qué alimentadores
+  del sistema se recalibran, y sin elegir ninguno los recalibrará todos. Usuario, 2026-11-05, tras recalibrar solo AL209 y
+  PA217 de Pisco con `tools/sistema_web.py --alimentadores`: «ese modo de recalibración debe estar implementado en la web;
+  haz que la web haga lo mismo que tú haces».
+- RF-41: CUANDO se recalibran solo unos alimentadores del sistema, EL SISTEMA tomará el instante del sistema igual que con
+  todos, y no escribirá las cargas de los demás: conservan las que dejó su última calibración.
+- RF-42: SI un alimentador elegido no es del sistema del proyecto, ENTONCES EL SISTEMA lo dirá antes de empezar y no recalibrará.
 
 ## Fuera de alcance
 

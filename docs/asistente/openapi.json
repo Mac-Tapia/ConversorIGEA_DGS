@@ -152,6 +152,17 @@
             "title": "Criterio Fijas",
             "type": "string"
           },
+          "criterio_por_alimentador": {
+            "additionalProperties": {
+              "enum": [
+                "coincidente",
+                "maximo_mes"
+              ],
+              "type": "string"
+            },
+            "title": "Criterio Por Alimentador",
+            "type": "object"
+          },
           "desconectados": {
             "items": {
               "type": "string"
@@ -1303,6 +1314,17 @@
             ],
             "title": "Criterio",
             "type": "string"
+          },
+          "criterio_por_alimentador": {
+            "additionalProperties": {
+              "enum": [
+                "coincidente",
+                "maximo_mes"
+              ],
+              "type": "string"
+            },
+            "title": "Criterio Por Alimentador",
+            "type": "object"
           },
           "maximas": {
             "additionalProperties": {
@@ -4408,6 +4430,13 @@
             ],
             "title": "Demanda Dir"
           },
+          "maximo_mes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Maximo Mes",
+            "type": "array"
+          },
           "periodo": {
             "pattern": "^\\d{4}(-(0[1-9]|1[0-2]))?$",
             "title": "Periodo",
@@ -4417,6 +4446,13 @@
             "minLength": 1,
             "title": "Project",
             "type": "string"
+          },
+          "solo": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Solo",
+            "type": "array"
           },
           "transformadores": {
             "default": false,

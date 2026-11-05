@@ -190,6 +190,30 @@ def test_con_maximo_del_mes_cada_fija_va_con_su_pot_y_el_eri_de_ese_registro(cli
         assert f['p_kw'] == pytest.approx(400.0) and f['q_kvar'] == pytest.approx(7.5 * 4)
 
 
+def test_criterio_por_alimentador_en_la_tabla_cruzada(client):
+    """039:RF-7, 039:RF-8 — el alimentador marcado en el desplegable toma sus fijas con su máximo del mes y el otro
+    con el criterio general; la tabla dice el de cada fila (Pisco, 2026-11-05)."""
+    wid = client.post('/api/workspaces').json()['id']
+    _subir(client, wid, 'suministros', {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'],
+                                              [11, 9011, 'E1', 'A1'], [15, 9015, 'E5', 'B1']]}, 'sum.xlsx')
+    _subir(client, wid, 'clientes', {
+        'resumen': [['x'], ['Nis', 'EA', 'ERI', 'Pot'], [11, 900.0, 300.0, 400.0], [15, 900.0, 300.0, 400.0]],
+        'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['11', 'cli11'], ['15', 'cli15']],
+        'cli11': _hoja_dia('01/07/2026', 9), 'cli15': _hoja_dia('01/07/2026', 9)}, 'ci.xlsx')
+    maxima = {'fecha': '2026-07-01T00:30:00', 'kw': 1000.0, 'kvar': 250.0, 'fp': None}
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar', json={
+        'alimentadores': ['A1', 'B1'], 'maximas': {'A1': maxima, 'B1': maxima},
+        'criterio': 'coincidente', 'criterio_por_alimentador': {'a1': 'maximo_mes'}})
+    assert r.status_code == 200, r.text
+    cruce = r.json()
+    assert cruce['criterios'] == {'A1': 'maximo_mes', 'B1': 'coincidente'}
+    filas = {c['codigo']: c for c in cruce['cruzados']}
+    assert filas['11']['criterio'] == 'maximo_mes' and filas['11']['fecha_valores'] == '01/07/2026 02:15'
+    assert filas['11']['p_kw'] == pytest.approx(400.0)
+    assert filas['15']['criterio'] == 'coincidente' and filas['15']['metodo'] == 'REGISTRO_DEL_INSTANTE'
+    assert filas['15']['p_kw'] == pytest.approx(12 * 4)
+
+
 def test_un_criterio_que_no_existe_se_rechaza(client):
     """039:RF-1 — solo «coincidente» o «maximo_mes»."""
     wid = client.post('/api/workspaces').json()['id']

@@ -27,10 +27,13 @@ export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibracion
   return hechas.length ? Math.max(...hechas) : 0;
 }
 
-export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente' }: {
+export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente',
+  criterioPorAlimentador = {} }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
   /** 039:RF-1: el criterio de las fijas elegido en la tabla cruzada (2.3). */
   criterioFijas?: CriterioFijas;
+  /** 039:RF-8: el de los alimentadores marcados en el desplegable de 2.3. */
+  criterioPorAlimentador?: Record<string, CriterioFijas>;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
   centrales?: Record<string, CentralTermica>;
 }) {
@@ -100,6 +103,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
       centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
+      criterio_por_alimentador: criterioPorAlimentador,
     }));
     if (!p) return;
     setPlan(p);

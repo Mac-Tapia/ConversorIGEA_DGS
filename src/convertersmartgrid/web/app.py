@@ -231,6 +231,8 @@ class DemandaClientesIn(BaseModel):
     maximas: dict[str, dict[str, Any]] = Field(default_factory=dict)
     # 039:RF-1: las fijas coincidentes con la cabecera (por defecto) o su máximo del mes.
     criterio: Literal['coincidente', 'maximo_mes'] = 'coincidente'
+    # 039:RF-7: el criterio de los alimentadores marcados en el desplegable; los demás, ``criterio``.
+    criterio_por_alimentador: dict[str, Literal['coincidente', 'maximo_mes']] = Field(default_factory=dict)
 
 
 class CompararFijasIn(BaseModel):
@@ -281,6 +283,8 @@ class AjusteIn(BaseModel):
     completar_bancos: bool = False
     # 039:RF-1: el mismo criterio de las fijas que se eligió en la tabla cruzada.
     criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
+    # 039:RF-8: el de cada alimentador marcado en la tabla cruzada.
+    criterio_por_alimentador: dict[str, Literal['coincidente', 'maximo_mes']] = Field(default_factory=dict)
 
 
 class VerificarIn(BaseModel):
@@ -604,6 +608,10 @@ class RecalibrarIn(BaseModel):
     transformadores: bool = False
     # 039:RF-1: el criterio de las fijas, el mismo de la tabla cruzada.
     criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
+    # 028:RF-40: solo estos alimentadores del sistema; vacío, todos.
+    solo: list[str] = Field(default_factory=list)
+    # 039:RF-8: los que toman sus fijas con «máximo del mes»; los demás, ``criterio_fijas``.
+    maximo_mes: list[str] = Field(default_factory=list)
 
 
 class EscaneoIn(BaseModel):
@@ -1512,12 +1520,14 @@ def create_app(
     @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def recalibrar(wid: str, body: RecalibrarIn) -> dict:
         ws = ws_or_404(wid)
-        services.recalibrar_datos(ws, body.project)          # 028:RF-23, antes de encolar
-        return submit(ws, 'recalibrar', f'Recalibrar · {body.project}',
+        base = services.recalibrar_datos(ws, body.project)          # 028:RF-23, antes de encolar
+        solo = services.comprobar_solo_del_sistema(base, body.solo)  # 028:RF-42, también antes
+        return submit(ws, 'recalibrar', f'Recalibrar · {body.project}' + (f" · {', '.join(solo)}" if solo else ''),
                       lambda ctx: services.recalibrar_sistema(ws, ctx, body.project, body.periodo,
                                                               zonal=body.zonal, demanda_dir=body.demanda_dir,
                                                               transformadores=body.transformadores,
-                                                              criterio_fijas=body.criterio_fijas),
+                                                              criterio_fijas=body.criterio_fijas, solo=solo,
+                                                              maximo_mes=body.maximo_mes),
                       lane='asistente')
 
     @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
@@ -1703,7 +1713,8 @@ def create_app(
         return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None,
                                          periodo=body.periodo if body else None,
                                          maximas=body.maximas if body else None,
-                                         criterio=body.criterio if body else None)
+                                         criterio=body.criterio if body else None,
+                                         criterio_por_alimentador=body.criterio_por_alimentador if body else None)
 
     # 039:RF-5: las fijas con los dos criterios, frente a la cabecera y a la red simulada.
     @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
@@ -1733,7 +1744,8 @@ def create_app(
                                     tension_fuente_pu=body.tension_fuente_pu,
                                     completar_bancos=body.completar_bancos,
                                     barras=job.result.get('barras'),
-                                    criterio_fijas=body.criterio_fijas)
+                                    criterio_fijas=body.criterio_fijas,
+                                    criterio_por_alimentador=body.criterio_por_alimentador)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)

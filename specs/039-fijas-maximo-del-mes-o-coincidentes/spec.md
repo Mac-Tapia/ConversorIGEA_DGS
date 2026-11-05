@@ -34,6 +34,12 @@ libro de clientes lo tiene y, si no, la POT del mes, sin que el operador lo elij
   en el instante de la máxima; y la Q de la red y de los bancos de la última simulación en
   DIgSILENT, con la Q que quedaría para las escaladas con cada criterio.
 - RF-6: EL SISTEMA dirá en el informe de la calibración el criterio de las fijas que usó.
+- RF-7: EL SISTEMA tendrá en la tabla cruzada un desplegable con los alimentadores de la máxima buscada, para marcar
+  cuáles toman sus fijas con «máximo del mes»; los no marcados toman el criterio general del selector. Usuario,
+  2026-11-05, Pisco: «¿podría hacerse un desplegable para seleccionar qué alimentadores se van a considerar en las
+  máximas del mes en la tabla cruzada?», con el criterio por alimentador y todos calibrados juntos.
+- RF-8: EL SISTEMA llevará el criterio de cada alimentador a la tabla, al plan de la calibración y de la recalibración,
+  y al informe (RF-6), y dirá en la tabla el criterio de cada fila.
 
 ## Relación con otras specs
 

@@ -3059,6 +3059,16 @@ def _criterio_fijas(criterio: str | None) -> str:
     return c
 
 
+def criterios_por_alimentador(por_alimentador: dict[str, str] | None) -> dict[str, str]:
+    """039:RF-7: el criterio de cada alimentador marcado, por su código en mayúsculas; los demás, el general."""
+    return {str(a).strip().upper(): _criterio_fijas(c) for a, c in (por_alimentador or {}).items() if str(a).strip()}
+
+
+def criterio_de(alimentador: str, general: str, por_alimentador: dict[str, str] | None) -> str:
+    """039:RF-7, RF-8: el del alimentador si se marcó; si no, el general del selector."""
+    return (por_alimentador or {}).get(str(alimentador).strip().upper(), general)
+
+
 def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
     """El motivo de 039:RF-4, con el periodo que daría la misma fecha."""
     if instante is None:
@@ -3071,7 +3081,8 @@ def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
                      *, periodo: str | None = None, instante: datetime | None = None,
                      maximas: dict[str, dict] | None = None,
-                     criterio: str | None = None) -> dict:
+                     criterio: str | None = None,
+                     criterio_por_alimentador: dict[str, str] | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43).
 
@@ -3081,12 +3092,14 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
 
     ``criterio`` (039:RF-1 a RF-4): «coincidente» (por defecto) toma de cada fija solo su
     registro del instante de la máxima, y la que no lo tiene va en ``no_coincidentes``;
-    «maximo_mes», el registro de su POT del mes.
+    «maximo_mes», el registro de su POT del mes. ``criterio_por_alimentador``: el de los
+    alimentadores marcados en el desplegable (039:RF-7); sin máximas buscadas no hay por
+    alimentador y vale el general.
     """
     criterio = _criterio_fijas(criterio)
     if maximas:
         return _clientes_en_sus_maximas(ws, alimentadores or list(maximas), maximas, periodo,
-                                        criterio)
+                                        criterio, criterios_por_alimentador(criterio_por_alimentador))
     from ..demanda_medida import (DemandaError, del_alimentador, leer_clientes,
                                   leer_suministros, registros_de_maxima)
 
@@ -3143,7 +3156,8 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
 
 
 def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: dict[str, dict],
-                             periodo: str | None, criterio: str = CRITERIO_COINCIDENTE) -> dict:
+                             periodo: str | None, criterio: str = CRITERIO_COINCIDENTE,
+                             por_alimentador: dict[str, str] | None = None) -> dict:
     """La tabla de clientes con lo que el ajuste escribirá (035:RF-1 a RF-3).
 
     Hasta el 2026-10-29 la tabla se cruzaba sin instante: la POT de cada cliente, cada una de
@@ -3164,9 +3178,11 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         fp_min = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_fijas')
     except PerfilError as exc:
         raise UserError(f'Perfil de empresa: {exc}') from exc
-    grupos: dict[tuple[str | None, datetime | None], list[str]] = {}
+    # 039:RF-7: también por criterio, porque un mismo instante y mes se leen distinto con cada uno.
+    grupos: dict[tuple[str | None, datetime | None, str], list[str]] = {}
     objetivos, avisos = {}, []
     for f in alimentadores:
+        crit = criterio_de(f, criterio, por_alimentador)
         m = maximas.get(f) or {}
         try:
             instante = datetime.fromisoformat(str(m['fecha'])) if m.get('fecha') else None
@@ -3176,10 +3192,10 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
             objetivos[f] = objetivo_de({**m, 'alimentador': f})
         except AjusteError as exc:
             avisos.append(f'{f}: {exc} La tabla no puede decir su P y su Q.')
-        if instante is None and criterio == CRITERIO_MAXIMO_MES:
+        if instante is None and crit == CRITERIO_MAXIMO_MES:
             avisos.append(f'{f}: sin fecha de su máxima; sus clientes con el registro de su POT.')
         mes = instante.strftime('%Y-%m') if instante else periodo
-        grupos.setdefault((mes, instante), []).append(f)
+        grupos.setdefault((mes, instante, crit), []).append(f)
     try:
         suministros, avisos_s = leer_suministros(_demanda_ruta(ws, 'suministros'), alias)
     except DemandaError as exc:
@@ -3187,9 +3203,9 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
     avisos += avisos_s
     libros: dict[str | None, tuple] = {}
     cruzados_out, aparte_out, de_otros, leidos, no_coincidentes = [], {}, 0, [], []
-    coincidente = criterio == CRITERIO_COINCIDENTE
     total_clientes = 0
-    for (mes, instante), feeders in sorted(grupos.items(), key=lambda g: (g[0][0] or '', str(g[0][1]))):
+    for (mes, instante, crit), feeders in sorted(grupos.items(), key=lambda g: (g[0][0] or '', str(g[0][1]), g[0][2])):
+        coincidente = crit == CRITERIO_COINCIDENTE
         if mes:
             # 035:RF-17: el libro del mes de la máxima; solo si no está, el del mes anterior
             # más cercano, como el plan del ajuste, y dicho.
@@ -3240,6 +3256,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
             obj = objetivos.get(f) if f else None
             fila['alimentador_maxima'] = f
             fila['instante_maxima'] = instante.isoformat(sep=' ') if instante else None
+            fila['criterio'] = crit                                                    # 039:RF-8
             if obj is not None:
                 d = derivacion_cliente(fila, obj.tan_phi, obj.fp, fp_min)
                 if d is not None:
@@ -3255,8 +3272,10 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         'libro': ', '.join(x['libro'] for x in leidos),
         'mes': leidos[0]['mes'] if len(leidos) == 1 else None,
         'maximas': {f: (inst.isoformat(sep=' ') if inst else None)
-                    for (_mes, inst), fs in grupos.items() for f in fs},
+                    for (_mes, inst, _c), fs in grupos.items() for f in fs},
         'criterio': criterio,
+        # 039:RF-8: el de cada alimentador, el marcado o el general.
+        'criterios': {f: c for (_mes, _inst, c), fs in grupos.items() for f in fs},
         'no_coincidentes': no_coincidentes,
         'cruzados': cruzados_out,
         'no_cruzados': aparte_list,
@@ -3674,7 +3693,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 tension_fuente_pu: float | None = None,
                 completar_bancos: bool = False,
                 barras: list[dict] | None = None,
-                criterio_fijas: str | None = None) -> dict:
+                criterio_fijas: str | None = None,
+                criterio_por_alimentador: dict[str, str] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -3699,7 +3719,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     comprobar_que_se_calibra(project)                                          # 070:RF-61
-    criterio_fijas = _criterio_fijas(criterio_fijas)                           # 039:RF-1
+    criterio_general = _criterio_fijas(criterio_fijas)                         # 039:RF-1
+    por_alimentador = criterios_por_alimentador(criterio_por_alimentador)       # 039:RF-7
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
     anios_medidos = {int(str(f['fecha'])[:4]) for f in filas
@@ -3789,6 +3810,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         if not alimentador:
             raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
         pre = f'{alimentador}: ' if varios else ''
+        criterio_fijas = criterio_de(alimentador, criterio_general, por_alimentador)   # 039:RF-8
         maximum_period = periodo_de_fecha(central['maxima']['fecha'] if central else objetivo.fecha)
         client_period = _periodo_clientes_para_maxima(ws, maximum_period)
         if client_period.status != 'NO_CLIENT_BOOK':
@@ -3971,9 +3993,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     if sistema is not None:
         calibrados = {f.upper() for f in feeders}
         sistema['calibrados'] = feeders
+        # 028:RF-41: los que ya tienen calibración y no se eligieron no se escriben: conservan la suya. Pisco
+        # (2026-11-05, solo AL209 y PA217) decía de los otros 20 «sin medidor… con la demanda del archivo».
+        previas = {a.upper() for a in (ws.calibraciones.get(clave_calibracion(project, anio_casos)) or {})}
+        sistema['conservan'] = [a for a in sistema['alimentadores']
+                                if a.upper() not in calibrados and a.upper() in previas]
         sistema['sin_medidor'] = [a for a in sistema['alimentadores']
-                                  if a.upper() not in calibrados]
+                                  if a.upper() not in calibrados and a.upper() not in previas]
         sistema.pop('medidores', None)
+        if sistema['conservan']:
+            avisos.append(f"{sistema['grupo']}: {', '.join(sistema['conservan'])} no se recalibran y conservan su "
+                          'última calibración (028:RF-41).')
         if sistema['sin_medidor']:
             avisos.append(f"{sistema['grupo']}: {len(sistema['sin_medidor'])} de "
                           f"{len(sistema['alimentadores'])} alimentadores sin medidor "
@@ -3995,7 +4025,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'native_action_context': action_context,
             'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos, 'sistema': sistema,
             'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion,
-            'criterio_fijas': criterio_fijas}
+            'criterio_fijas': criterio_general,
+            # 039:RF-8: el de cada alimentador del plan.
+            'criterios': {a['feeder']: criterio_de(a['feeder'], criterio_general, por_alimentador) for a in ajustes}}
 
 
 def clave_calibracion(project: str, anio_casos: int | None) -> str:
@@ -10373,12 +10405,31 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     # 070:RF-59: ``SISTEMA_<zonal>_<set>`` no casaba arriba y el proyecto de una SET se calibraba como alimentadores
     # sueltos, sin su máxima de barra.
     de_set = _set_del_grupo(ws, grupo) if grupo is not None and (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None
+    # 028:RF-40: los alimentadores del sistema, para elegir cuáles se recalibran (Pisco, 2026-11-05: solo AL209 y PA217).
+    del_sistema = ({'del_sistema': list((ws.groups.get(grupo) or {}).get('feeders') or [])}
+                   if grupo is not None and (ws.groups.get(grupo) or {}).get('feeders') else {})
     if de_set is not None:
-        return {'zonal': de_set[0], 'set': de_set[1], 'demanda_dir': carpeta}
+        return {'zonal': de_set[0], 'set': de_set[1], 'demanda_dir': carpeta, **del_sistema}
     if m:
-        return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
+        return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta, **del_sistema}
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
     return {'zonal': '', 'grupo': grupo, 'alimentadores': alimentadores, 'demanda_dir': carpeta}
+
+
+def comprobar_solo_del_sistema(base: dict, solo: list[str] | None) -> list[str]:
+    """028:RF-40, RF-42: los elegidos, en mayúsculas y sin repetir; uno que no es del sistema se dice antes de empezar."""
+    elegidos = list(dict.fromkeys(str(a).strip().upper() for a in solo or [] if str(a).strip()))
+    if not elegidos:
+        return []
+    if base.get('alimentadores'):
+        raise UserError('Elegir alimentadores es para el proyecto de un sistema eléctrico; este ya se recalibra con los '
+                        'suyos (028:RF-40).')
+    del_sistema = {a.upper() for a in base.get('del_sistema') or []}
+    fuera = [a for a in elegidos if a not in del_sistema]
+    if fuera:
+        raise UserError(f"{', '.join(fuera)} no {'es' if len(fuera) == 1 else 'son'} del sistema del proyecto: "
+                        'no se recalibra (028:RF-42).')
+    return elegidos
 
 
 def _verdad_del_sistema(ruta: Path, rc: int) -> dict:
@@ -10397,13 +10448,17 @@ def _verdad_del_sistema(ruta: Path, rc: int) -> dict:
 def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: str, *,
                        zonal: str | None = None, demanda_dir: str | None = None,
                        transformadores: bool = False,
-                       criterio_fijas: str | None = None) -> dict:
+                       criterio_fijas: str | None = None,
+                       solo: list[str] | None = None,
+                       maximo_mes: list[str] | None = None) -> dict:
     """Recalibra «Sin proyecto» del sistema sobre el proyecto ya importado: escaneo, máxima del
     periodo y calibración, sin reconvertir (028:RF-16, RF-21). Es ``tools/sistema_web.py`` sin
-    ``--reconvertir``, el mismo recorrido del operador."""
+    ``--reconvertir``, el mismo recorrido del operador. ``solo``: los alimentadores del sistema
+    que se recalibran; los demás conservan su última calibración (028:RF-40, RF-41)."""
     import sys
 
     base = recalibrar_datos(ws, project)
+    solo = comprobar_solo_del_sistema(base, solo)
     zonal = '' if base.get('alimentadores') else ((zonal or '').strip() or base['zonal'])
     demanda_dir = (demanda_dir or '').strip() or base['demanda_dir']
     cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id,
@@ -10416,10 +10471,17 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
         # 028:RF-24: el proyecto de uno o de varios alimentadores unidos, por su grupo.
         zonal = ' + '.join(base['alimentadores'])
         cmd += ['--red', *base['alimentadores'], '--grupo', base['grupo']]
-    ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir} (028:RF-21).')
+    if solo:
+        # 028:RF-41: el instante sigue siendo el del sistema (``--zonal``); solo se escriben estos.
+        cmd += ['--alimentadores', *solo]
+    ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir}'
+            + (f"; solo {', '.join(solo)}" if solo else '') + ' (028:RF-21).')
     if transformadores:
         cmd.append('--transformadores')
     cmd += ['--criterio-fijas', _criterio_fijas(criterio_fijas)]                # 039:RF-1
+    marcados = list(dict.fromkeys(str(a).strip().upper() for a in maximo_mes or [] if str(a).strip()))
+    if marcados:
+        cmd += ['--maximo-mes', *marcados]                                      # 039:RF-8
     resumen = ws.out_dir / f'recalibrar_resumen_{ctx.job.id}.json'
     cmd += ['--resumen-json', str(resumen)]                                     # 081:RF-21
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))

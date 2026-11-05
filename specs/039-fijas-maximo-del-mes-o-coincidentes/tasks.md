@@ -21,6 +21,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       NA203 con septiembre de 2026 (máxima 29/09 15:30, 10 043 kW y 1 777 kvar): «máximo del mes»
       7 707,5 kW y 3 725,5 kvar; «coincidente» 6 505,9 kW y 2 906,1 kvar; red y bancos −278,1 kvar
       del último informe; quedan −851,1 y −1 670,4 kvar para las escaladas.
+- [ ] T5. Criterio por alimentador: `criterio_por_alimentador` en el cruce, en el plan y en `sistema_web.py`
+      (`--maximo-mes COD…`), y el desplegable en 2.3 y en «Recalibrar». (RF-7, RF-8)
+      Hecho cuando: `pytest -q tests/test_tabla_en_el_instante.py tests/test_ajuste_cabecera_web.py tests/test_escaneo.py`
+      en verde, `npm run build` sin errores y el desplegable comprobado en el navegador real.
 - [ ] T4. [DIgSILENT] NA203 recalibrado con los dos criterios desde la web. (Todos)
       Hecho cuando: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar de fijas y «coincidente» con
       2026-09 el registro de cada fija en el instante de su máxima de cabecera.

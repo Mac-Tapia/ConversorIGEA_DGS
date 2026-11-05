@@ -354,6 +354,97 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
     assert 'Recalibrar «Sin proyecto»' in demanda and 'api.recalibrar(ws.id' in demanda
 
 
+def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
+    """028:RF-40 / 028:RF-41 / 028:RF-42 / 039:RF-8 — en un sistema se eligen los que se recalibran (Pisco, 2026-11-05: AL209 y
+    PA217); van a ``--alimentadores`` con el instante del sistema (``--zonal``), y uno ajeno se rechaza antes de empezar."""
+    from pathlib import Path
+
+    from apoyo import esperar_trabajo
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.web import jobs
+    from convertersmartgrid.web.app import create_app
+
+    ordenes = []
+    monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    libros = tmp_path / 'referencia'
+    (libros / '2.-cabecera').mkdir(parents=True)
+    proyecto = '20261103_CSG_SISTEMA_VALLE'
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        ws = c.app.state.store.get(wid)
+        ws.demanda = {'cabecera': {'path': str(libros / '2.-cabecera')}}
+        ws.pf_projects = {'SISTEMA_VALLE': proyecto}
+        ws.groups = {'SISTEMA_VALLE': {'tipo': 'sistema', 'feeders': ['VA101', 'VA202', 'VA303']}}
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': proyecto}).json()
+        assert d['zonal'] == 'Valle' and d['del_sistema'] == ['VA101', 'VA202', 'VA303'] and 'alimentadores' not in d
+        r = c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                   json={'project': proyecto, 'periodo': '2026', 'solo': ['VA101', 'XX999']})
+        assert r.status_code == 400 and 'XX999' in r.text and 'RF-42' in r.text
+        assert not ordenes
+        fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar', json={
+            'project': proyecto, 'periodo': '2026', 'solo': ['va303', 'VA101'], 'maximo_mes': ['va303']}).json())
+        assert fin['status'] == 'done'
+        fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                                        json={'project': proyecto, 'periodo': '2026'}).json())
+        assert fin['status'] == 'done'
+    cmd, todos = ordenes
+    assert cmd[cmd.index('--zonal') + 1] == 'Valle' and cmd[cmd.index('--alimentadores') + 1:][:2] == ['VA303', 'VA101']
+    assert cmd[cmd.index('--criterio-fijas') + 1] == 'coincidente'
+    assert cmd[cmd.index('--maximo-mes') + 1:] [:1] == ['VA303']                  # 039:RF-8
+    assert '--alimentadores' not in todos
+    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    assert 'del_sistema' in demanda and 'criterio_fijas: criterioFijas, solo,' in demanda and 'AlimentadoresMaximoMes' in demanda
+
+
+def test_solo_unos_busca_la_maxima_con_todo_el_sistema(monkeypatch):
+    """028:RF-41 / 039:RF-8 — con ``--alimentadores`` la máxima se busca con todos los medidores del sistema (el instante del sistema)
+    y el plan lleva solo los elegidos. Pisco (2026-11-05): con solo AL209 y PA217 el instante salió el 10-abr 12:00."""
+    from pathlib import Path
+
+    from apoyo import cargar_herramienta
+
+    h = cargar_herramienta('sistema_web.py', 'sistema_web_solo')
+    enviados = {}
+
+    class Web:
+        def get(self, ruta, **kw):
+            if ruta == '':
+                return {'loaded': True, 'jobs': [], 'pf_projects': {'SISTEMA_VALLE': 'P_SIS'}}
+            if ruta == '/demanda/sistema':
+                return {'sistema': {'grupo': 'SISTEMA_VALLE', 'alimentadores': ['F1', 'F2', 'F3'],
+                                    'medidores': {'F1': ['M1'], 'F2': ['M2'], 'F3': ['M3']}}}
+            return {'centrales': []}
+
+        def post(self, ruta, **kw):
+            enviados[ruta] = kw.get('json')
+            return {'token': 't'} if ruta == '/demanda/ajuste/plan' else {'id': ruta, 'title': ruta}
+
+        def esperar(self, trabajo):
+            r = {'id': trabajo['id'], 'status': 'done', 'result': {}}
+            if trabajo['id'] == '/powerfactory/caso-base':
+                r['result'] = {'feeders': [{'feeder': f, 'status': 'VERIFICADO'} for f in ('F1', 'F2', 'F3')]}
+            if trabajo['id'] == '/demanda/cabecera/buscar':
+                r['result'] = {'resultados': [{'medidor': f'M{i}', 'alimentador': f'F{i}', 'kw': 1.0} for i in (1, 2, 3)],
+                               'barras': []}
+            if trabajo['id'].endswith('/aplicar'):
+                r['result'] = {'informes': [{'feeder': 'F2', 'cuadrado': True, 'status': 'ok', 'flujos': 1,
+                                             'validacion_posterior_nativa': {'status': 'VALIDO'}}]}
+            return r
+
+    codigo = h.correr(Web(), 'Valle', demanda_dir=Path('libros'), periodo='2026', reconvertir=False, transformadores=False,
+                      tension_pu=None, bancos=True, solo=['f2'], maximo_mes=['f2'],
+                      libros={'medidores': Path('m'), 'cabecera': Path('c'), 'clientes': Path('cl'), 'suministros': Path('s')})
+    assert codigo == 0
+    # 039:RF-8: el marcado, con su máximo del mes en el plan; con un año entero el plan cruza cada uno con su mes.
+    assert '/demanda/clientes/cruzar' not in enviados
+    assert enviados['/demanda/ajuste/plan']['criterio_por_alimentador'] == {'F2': 'maximo_mes'}
+    assert [p['medidor'] for p in enviados['/demanda/cabecera/buscar']['medidores']] == ['M1', 'M2', 'M3']
+    assert enviados['/demanda/cabecera/buscar']['sistema_60kv'] is True
+    assert enviados['/demanda/ajuste/plan']['medidores'] == ['M2']
+
+
 @pytest.mark.parametrize('grupo,feeders,project', [
     ('CA101', None, 'P_CA101'),
     ('RED', ['CA101', 'CA102'], 'P_RED'),

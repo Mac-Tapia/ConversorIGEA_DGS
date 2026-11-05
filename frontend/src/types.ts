@@ -876,6 +876,8 @@ export interface ClienteImportante {
   fecha_valores?: string | null;
   /** 039:RF-4: con «coincidente», la fija con hoja pero sin su registro del instante. */
   sin_coincidente?: string | null;
+  /** 039:RF-8: el criterio de su alimentador, el marcado en el desplegable o el general. */
+  criterio?: CriterioFijas;
 }
 
 /** 039:RF-1: fijas coincidentes con la máxima de cabecera o en su máximo del mes. */
@@ -909,6 +911,8 @@ export interface ClientesCruce {
   maximas?: Record<string, string | null>;
   /** 039:RF-1: el criterio de todas las fijas; 039:RF-4, las que no tienen el instante. */
   criterio?: CriterioFijas;
+  /** 039:RF-8: el de cada alimentador. */
+  criterios?: Record<string, CriterioFijas>;
   no_coincidentes?: string[];
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];

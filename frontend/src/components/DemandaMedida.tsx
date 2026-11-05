@@ -124,6 +124,31 @@ function SelectorCriterio({ valor, cambiar, disabled }: {
   );
 }
 
+/** 039:RF-7: desplegable con los alimentadores que toman sus fijas con «máximo del mes»; los demás, el criterio general. */
+function AlimentadoresMaximoMes({ alimentadores, marcados, cambiar, disabled }: {
+  alimentadores: string[]; marcados: string[]; cambiar: (m: string[]) => void; disabled?: boolean;
+}) {
+  if (!alimentadores.length) return null;
+  const suyos = marcados.filter((a) => alimentadores.includes(a));
+  return (
+    <details className="field" aria-label="Alimentadores con fijas en su máximo del mes">
+      <summary className="small">Con «{CRITERIOS_FIJAS[1].texto}»: {suyos.length ? suyos.join(', ') : 'ninguno'}
+        {' '}(los demás, el criterio de arriba; 039:RF-7)</summary>
+      <div className="row">
+        {alimentadores.map((a) => (
+          <label key={a} className="row small">
+            <input type="checkbox" checked={suyos.includes(a)} disabled={disabled}
+              onChange={(e) => cambiar(e.target.checked ? [...suyos, a] : suyos.filter((x) => x !== a))} /> {a}
+          </label>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+const porAlimentador = (marcados: string[], de: string[]): Record<string, CriterioFijas> =>
+  Object.fromEntries(marcados.filter((a) => de.includes(a)).map((a) => [a, 'maximo_mes' as CriterioFijas]));
+
 const rangoMeses = (meses: string[]) => (meses.length === 0 ? '—'
   : meses.length === 1 ? nombreMes(meses[0]) : `${nombreMes(meses[0])} a ${nombreMes(meses[meses.length - 1])}`);
 
@@ -213,6 +238,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [periodo, setPeriodo] = useState('');
   // 039:RF-1: el criterio de todas las fijas; por defecto, coincidentes con la cabecera.
   const [criterioFijas, setCriterioFijas] = useState<CriterioFijas>('coincidente');
+  // 039:RF-7: los alimentadores marcados con «máximo del mes».
+  const [maximoMes, setMaximoMes] = useState<string[]>([]);
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
@@ -421,7 +448,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruzando(true);
     try {
       const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined,
-        hayMaximas ? maximas : undefined, criterioFijas));
+        hayMaximas ? maximas : undefined, criterioFijas, porAlimentador(maximoMes, feeders)));
       if (r) { setCruce(r); setDesconectados(new Set()); }
       // 004:RF-64: un fallo puede dejar el hueco de suministros sin libro y con su aviso.
       else await refresh().catch(() => undefined);
@@ -438,6 +465,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // 039:RF-1: con otro criterio las fijas son otras; el plan (2.4) lleva el mismo.
   const elegirCriterio = (c: CriterioFijas) => {
     setCriterioFijas(c);
+    setCruce(null);
+    setDesconectados(new Set());
+  };
+  const elegirMaximoMes = (m: string[]) => {
+    setMaximoMes(m);
     setCruce(null);
     setDesconectados(new Set());
   };
@@ -713,6 +745,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
       {selectorMes}
       <SelectorCriterio valor={criterioFijas} cambiar={elegirCriterio} disabled={engineBusy || cruzando} />
+      <AlimentadoresMaximoMes alimentadores={feeders} marcados={maximoMes} cambiar={elegirMaximoMes}
+        disabled={engineBusy || cruzando} />
       {otrosMesesMaxima.length > 0 && (
         <small className="alert alert-warn">
           {otrosMesesMaxima.map(([mes, alims]) => `${alims.join(', ')} tiene su máxima en ${nombreMes(mes)}`).join('; ')}:
@@ -748,7 +782,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
       <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados}
         centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))}
-        criterioFijas={criterioFijas} />
+        criterioFijas={criterioFijas} criterioPorAlimentador={porAlimentador(maximoMes, feeders)} />
     </div>
   );
 }
@@ -840,7 +874,8 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             </td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
             {conMaxima ? <>
-              <td className="small">{c.fecha_valores || '—'}</td>
+              <td className="small">{c.fecha_valores || '—'}
+                {c.criterio && c.criterio !== cruce.criterio && <span className="muted"> ({criterioDe(c.criterio).texto})</span>}</td>
               <td className="num strong">{c.p_kw == null ? '—' : fmtNum(c.p_kw, 2)}</td>
               <td className="num strong">{c.q_kvar == null ? '—' : fmtNum(c.q_kvar, 2)}</td>
               <td className="small">{c.sin_coincidente
@@ -1047,19 +1082,27 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
   const [periodo, setPeriodo] = useState('');
   const [zonal, setZonal] = useState('');
   const [alimentadores, setAlimentadores] = useState<string[]>([]);
+  // 028:RF-40: los del sistema y los marcados; sin marcar ninguno se recalibran todos.
+  const [delSistema, setDelSistema] = useState<string[]>([]);
+  const [solo, setSolo] = useState<string[]>([]);
+  // 039:RF-8: los que toman sus fijas con «máximo del mes» en la recalibración.
+  const [maximoMesR, setMaximoMesR] = useState<string[]>([]);
   const [carpeta, setCarpeta] = useState('');
   const [transformadores, setTransformadores] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
-    setError('');
+    setError(''); setSolo([]); setMaximoMesR([]);
     if (!project) return;
     void api.recalibrarDatos(ws.id, project).then((d) => {
       setZonal(d.zonal); setCarpeta(d.demanda_dir); setAlimentadores(d.alimentadores ?? []);
+      setDelSistema(d.del_sistema ?? []);
     })
       .catch((e: Error) => setError(e.message));
   }, [ws.id, project]);
   // 035:RF-21: se activa con la primera calibración del proyecto.
   const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
+  // 039:RF-8: los que pueden tomar «máximo del mes»: los elegidos, o todos los del proyecto.
+  const candidatos = solo.length ? solo : delSistema.length ? delSistema : alimentadores;
   const listo = calibrado && Boolean(project) && /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo.trim()) && !error;
   return (
     <div className="step-box">
@@ -1084,9 +1127,26 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
           <button className="btn btn-pf" disabled={!listo || Boolean(active.asistente) || Boolean(active.powerfactory)}
             onClick={() => startJob(() => api.recalibrar(ws.id, {
               project, periodo: periodo.trim(), zonal: zonal.trim(), demanda_dir: carpeta.trim(), transformadores,
-              criterio_fijas: criterioFijas }))}>
-            Recalibrar</button>
+              criterio_fijas: criterioFijas, solo, maximo_mes: maximoMesR.filter((a) => candidatos.includes(a)) }))}>
+            {solo.length ? `Recalibrar ${solo.join(' + ')}` : 'Recalibrar'}</button>
         </div>
+      )}
+      {!error && <AlimentadoresMaximoMes alimentadores={candidatos} marcados={maximoMesR} cambiar={setMaximoMesR}
+        disabled={Boolean(active.powerfactory)} />}
+      {!error && !alimentadores.length && delSistema.length > 0 && (
+        <fieldset className="step-box" aria-label="Alimentadores a recalibrar">
+          <legend className="small">Solo estos alimentadores (sin marcar ninguno, todos). El instante es el del sistema y
+            los demás conservan su última calibración (028:RF-40, RF-41).</legend>
+          <div className="row">
+            {delSistema.map((a) => (
+              <label key={a} className="row small">
+                <input type="checkbox" checked={solo.includes(a)} disabled={Boolean(active.powerfactory)}
+                  onChange={(e) => setSolo((s) => e.target.checked ? [...s, a] : s.filter((x) => x !== a))} /> {a}
+              </label>
+            ))}
+            {solo.length > 0 && <button className="btn" onClick={() => setSolo([])}>Todos</button>}
+          </div>
+        </fieldset>
       )}
       {!calibrado && project && <small className="muted">Se activa con la primera calibración del proyecto (2.2 a 2.4).
         Para recalibrar eligiendo antes la máxima del alimentador o de su barra y SET y revisando la tabla cruzada, use

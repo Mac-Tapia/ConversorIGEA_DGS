@@ -245,7 +245,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
            reconstruir: list[str] | None = None,
            libros: dict[str, Path] | None = None,
            red: list[str] | None = None, grupo: str | None = None,
-           criterio_fijas: str = 'coincidente', set_electrica: str | None = None) -> int:
+           criterio_fijas: str = 'coincidente', set_electrica: str | None = None,
+           maximo_mes: list[str] | None = None) -> int:
     red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
     if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
         print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
@@ -351,10 +352,17 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         return 2
     # ``solo``: una parte del sistema, con el resto en los mismos flujos y la demanda del
     # archivo, para aislar qué alimentador impide converger (Chincha, 2026-10-18).
+    # 028:RF-41: la máxima se busca con todos los medidores del sistema, y solo el plan se limita a los elegidos.
+    # Pisco (2026-11-05): con solo los de AL209 y PA217 el instante salió el 10-abr 12:00, el registro de maniobra
+    # que 028:RF-39 descarta con todos, y no el del sistema (23-ene 12:15).
     elegidos = {a.upper() for a in solo or []}
+    # 039:RF-7, RF-8: los marcados con «máximo del mes»; los demás, el criterio general.
+    por_alimentador = {a.upper(): 'maximo_mes' for a in maximo_mes or []}
     pares = [{'alimentador': a, 'medidor': m}
-             for a, ms in sistema['medidores'].items() for m in ms
-             if not elegidos or a.upper() in elegidos]
+             for a, ms in sistema['medidores'].items() for m in ms]
+    if elegidos and not elegidos & {p['alimentador'].upper() for p in pares}:
+        print(f"ERROR: ninguno de {', '.join(sorted(elegidos))} tiene medidor en el sistema.")
+        return 2
     print(f"{sistema['grupo']}: {len(sistema['alimentadores'])} alimentadores, "
           f"{len({p['alimentador'] for p in pares})} con medidor", flush=True)
     if not pares:
@@ -441,7 +449,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # no son cabeceras de alimentador y el plan los rechazaba (PROJECT_BINDING_FEEDER_MISMATCH,
     # Nasca, 2026-10-27), como ya los deja fuera la web al elegir los del ajuste.
     medidores = [x['medidor'] for x in res.get('resultados', [])
-                 if not x.get('error') and not str(x.get('alimentador') or '').lower().startswith('central ')]
+                 if not x.get('error') and not str(x.get('alimentador') or '').lower().startswith('central ')
+                 and (not elegidos or str(x.get('alimentador') or '').upper() in elegidos)]        # 028:RF-41
     if reconstruir:
         # 022:RF-57 a RF-61: con las medidas de esta máxima, se reconvierte uniendo cada uno a
         # la red de su vecino, se importa de nuevo y se calibra el proyecto nuevo.
@@ -462,7 +471,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             return 2
         return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
                       transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
-                      solo=solo, libros=libros, criterio_fijas=criterio_fijas)
+                      solo=solo, libros=libros, criterio_fijas=criterio_fijas, maximo_mes=maximo_mes)
     if 'clientes' in libros and 'suministros' in libros and (not periodo or len(periodo) == 7):
         # Con un año entero no hay un mes que cruzar aquí: el plan cruza cada alimentador
         # con el libro del mes de su máxima (025:RF-10). Como el front (035:RF-1), con la
@@ -475,7 +484,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
                    and str(x.get('alimentador') or '').upper() in del_sistema}
         web.post('/demanda/clientes/cruzar', json={
             'alimentadores': sistema['alimentadores'], 'periodo': periodo,
-            'criterio': criterio_fijas, **({'maximas': maximas} if maximas else {})})
+            'criterio': criterio_fijas, 'criterio_por_alimentador': por_alimentador,
+            **({'maximas': maximas} if maximas else {})})
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
     # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
     if not _terminado(web.esperar(web.post('/powerfactory/projects'))):
@@ -483,7 +493,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
         'completar_bancos': bancos, 'tension_fuente_pu': tension_pu,
-        'centrales': del_perfil, 'criterio_fijas': criterio_fijas})            # 039:RF-1
+        'centrales': del_perfil, 'criterio_fijas': criterio_fijas,             # 039:RF-1
+        'criterio_por_alimentador': por_alimentador})                          # 039:RF-8
     for aviso in plan.get('avisos', []):
         if 'RF-62' not in aviso:              # las fijas compensadas, una por cliente
             print(f'  aviso: {aviso}', flush=True)
@@ -612,6 +623,9 @@ def main(argv=None) -> int:
                         '(022:RF-57 a RF-61); reconvierte e importa de nuevo')
     p.add_argument('--criterio-fijas', choices=('coincidente', 'maximo_mes'), default='coincidente',
                    help='Fijas en el instante de la máxima de cabecera o en su máximo del mes (039:RF-1)')
+    p.add_argument('--maximo-mes', nargs='+', metavar='COD', default=[],
+                   help='Estos alimentadores toman sus fijas con su máximo del mes; los demás, '
+                        'con --criterio-fijas (039:RF-7)')
     p.add_argument('--alimentadores', nargs='+', metavar='COD',
                    help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
     p.add_argument('--resumen-json', type=Path, help='Dónde dejar la lista de lo que no quedó calibrado (081:RF-21)')
@@ -655,6 +669,7 @@ def main(argv=None) -> int:
                       bancos=not args.sin_bancos, solo=args.alimentadores,
                       reconstruir=args.reconstruir, libros=libros,
                       red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas,
+                      maximo_mes=args.maximo_mes,
                       set_electrica=args.set_electrica)
     except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
