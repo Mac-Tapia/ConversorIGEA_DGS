@@ -114,6 +114,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | falta T6 |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
+  | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | reservada |  |
+  | 088 Q negativa desde el factor de potencia | reservada |  |
+  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | reservada |  |
+  | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -124,6 +128,9 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   **Un fichero nuevo entra en el índice en el mismo cambio**: `tests/test_inventario.py`
   (spec 009) falla si falta, si una herramienta no responde a `--help`, si una función de
   `src/` no la usa nada o si una spec con sus tareas hechas tiene un RF sin prueba.
+- `docs/ARQUITECTURA_CATALOGO.md` lo genera `tools/generar_arquitectura.py` (spec 090) y no se edita a mano: los ganchos de `.githooks/`
+  lo regeneran en cada commit y fusión (`python tools/generar_arquitectura.py --instalar-ganchos`, una vez por clon). Un fichero nuevo
+  entra solo; su subsistema se asigna en `docs/architecture/subsistemas.json`.
 - `docs/superpowers/specs/` y `plans/`, y `docs/DIAGNOSTICO_*.md`, son históricos: no tienen
   requisitos numerados ni casillas al día.
 

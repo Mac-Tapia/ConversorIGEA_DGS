@@ -433,7 +433,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `CLAUDE.md` | Reglas para trabajar en el repositorio. | vigente |
 | `CODIGO_FUENTE.md` | Este índice. | vigente |
 | `docs/constitution.md` | Principios innegociables. | vigente |
-| `docs/ARQUITECTURA.md` | Arquitectura actual: capas de hecho, flujos, casos de PowerFactory, carriles y mapa de specs. | vigente |
+| `docs/ARQUITECTURA.md` | Arquitectura actual: capas de hecho, flujos, casos de PowerFactory, carriles, asistente y modelos. | vigente |
+| `docs/ARQUITECTURA_CATALOGO.md` | Catálogo generado: cada fichero, cifras, tareas del asistente y roles de su equipo. | generado |
+| `docs/architecture/subsistemas.json` | A qué subsistema del catálogo va cada fichero. | vigente |
 | `docs/VERIFICACION_SPECS_2026-10-14.md` | Verificación de cada spec, RF por RF y tarea por tarea. | histórico |
 | `docs/REVISION_SPECS_2026-10-29.md` | Revisión de numeración, estado y trazabilidad spec ↔ tareas ↔ pruebas ↔ código, con el plan de saneamiento (futura spec 033). | vigente |
 | `docs/MANUAL_COMANDOS.md` | Cada orden del CLI y cada herramienta. | vigente |
@@ -496,6 +498,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/web/operaciones_lentas.py` | ZIP cancelable, cuotas y entrega de archivos por trabajo. | 065 (RF-12, RF-18, RF-19) |
 | `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065 (RF-16), 002 |
 | `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 (RF-15) |
+| `tools/generar_arquitectura.py` | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo; lo llaman los ganchos de `.githooks/`. | 090 |
 | `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065 (RF-17), 002 |
 | `tools/trazabilidad_candidato.py` | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. | 065 (RF-1, RF-20, RF-21) |
 | `run_gui.bat` | Lanzador de Windows: prepara el entorno y el frontend, y devuelve el código real del proceso web. | 065 (RF-2, RF-8) |

@@ -28,7 +28,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            jobs = container "Colas de trabajo" "Serializa engine, powerfactory y asistente." "Python threads/queues" {
+            jobs = container "Colas de trabajo" "Serializa engine, powerfactory y asistente; el carril control solo cancela." "Python threads/queues" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/jobs.py"
                 tags "Queue"
             }
@@ -53,7 +53,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "Engine"
             }
 
-            nativeRunner = container "Ejecutor PowerFactory" "Lanza tools/*_pf.py con plan JSON y recibe informe JSON." "Python 3.12 / PowerFactory API" {
+            nativeRunner = container "Ejecutor PowerFactory" "Lanza tools/*_pf.py con plan JSON y turno exclusivo del motor; recibe informe JSON. Calibra, aplica obras y corre estudios." "Python 3.12 / PowerFactory API" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/services.py"
                 tags "Native"
             }
@@ -63,12 +63,12 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "AI"
             }
 
-            optimizer = container "PIDE y optimizacion" "Evalua alternativas con GA, NSGA-II y evolucion diferencial." "Python + NumPy" {
+            optimizer = container "PIDE y optimizacion" "Ordena alternativas con escalera, Optuna, GA y NSGA-II; DIgSILENT confirma." "Python + NumPy + Optuna" {
                 url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/evolutivo.py"
                 tags "AI"
             }
 
-            assistant = container "Asistente" "Interpreta ordenes, muestra el plan y ejecuta solo tras confirmacion." "Reglas + Transformer + Ollama local" {
+            assistant = container "Asistente" "Interpreta ordenes, muestra el plan y ejecuta solo tras confirmacion." "Reglas + codificador de ordenes + Ollama local" {
                 url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/asistente"
                 tags "AI"
             }
@@ -89,11 +89,37 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/asistente/observacion.py" // legado-058: ruta real del checkout existente
                 tags "Store"
             }
+
+            security = container "Puerta de seguridad" "Host, Origin, token de sesion, politica de contenido, edicion y salidas a la red." "Middleware ASGI" {
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/web/seguridad.py" // legado-058: ruta real del checkout existente
+                tags "API"
+            }
+
+            reports = container "Informes" "Word, PDF, imagenes y libro Excel de estudio y factibilidad, con lo guardado por la web." "python-docx + COM" {
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/informes.py" // legado-058: ruta real del checkout existente
+                tags "Engine"
+            }
+
+            planning = container "Planeamiento" "Largo plazo y PIDE: mercado, costos oficiales, formatos y entregables por modulo." "Python" {
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/estudio_planeamiento.py" // legado-058: ruta real del checkout existente
+                tags "Engine"
+            }
+
+            modelGovernance = container "Gobierno de modelos" "Registro de candidatos, puertas, puntero en uso, guardia de GPU y ciclo de aprendizaje." "Python + JSON + SHA-256" {
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/model_registry.py" // legado-058: ruta real del checkout existente
+                tags "AI"
+            }
+
+            mcp = container "MCP local" "Las lecturas del asistente para un cliente de esta maquina: solo stdio y solo lectura." "Python + MCP (opcional)" {
+                url "file:///D:/converter/ConversorIGEA_DGS/tools/mcp_conversor.py" // legado-058: ruta real del checkout existente
+                tags "AI"
+            }
         }
 
         operador -> frontend "Usa" "HTTP local"
         fuentes -> api "Entrega archivos o rutas" "Upload/path"
-        frontend -> api "Invoca y consulta" "REST + WebSocket"
+        frontend -> security "Invoca y consulta" "REST + WebSocket"
+        security -> api "Deja pasar lo de esta maquina"
         api -> jobs "Encola trabajos"
         api -> operationStore "Registra estados y consulta el monitor por espacio"
         assistant -> operationStore "Consulta avances e informes sin activar pesos"
@@ -116,6 +142,14 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
         operador -> assistant "Confirma o rechaza"
         assistant -> api "Ejecuta mediante endpoints existentes"
         workspaceStore -> frontend "Sirve resultados y entregables"
+        nativeRunner -> reports "Entrega casos y flujos guardados"
+        reports -> workspaceStore "Publica Word, PDF y libro"
+        optimizer -> planning "Aporta alternativas"
+        nativeRunner -> planning "Mide cada periodo del horizonte"
+        planning -> workspaceStore "Publica formatos y entregables"
+        twin -> modelGovernance "Registra candidatos"
+        assistant -> modelGovernance "Consulta el modelo en uso"
+        mcp -> assistant "Usa las lecturas del proyecto"
 
         local = deploymentEnvironment "Local" {
             workstation = deploymentNode "Estacion Windows" "Equipo local del operador" "Windows" {
@@ -134,11 +168,17 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     containerInstance workspaceStore
                     containerInstance episodeStore
                     containerInstance operationStore
+                    containerInstance security
+                    containerInstance reports
+                    containerInstance planning
+                    containerInstance modelGovernance
+                    containerInstance mcp
                 }
                 ui = deploymentNode "Frontend compilado" "frontend/dist" "Static files" {
                     containerInstance frontend
                 }
-                pf = infrastructureNode "PowerFactory 2024" "Proceso nativo exclusivo"
+                pf = infrastructureNode "PowerFactory 2024" "Proceso nativo exclusivo, con tools/pf_servidor.py"
+                sqlServer = infrastructureNode "SQL Server Express" "Restaura copias .bak de VNR-GIS"
                 ollama = infrastructureNode "Ollama/GPU opcional" "Inferencia local del asistente"
             }
         }
@@ -166,15 +206,16 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
         }
 
         dynamic conversor "PowerFactory" "Del DGS a la aceptacion nativa y los estudios" {
-            frontend -> api "1. Solicitar operacion"
-            api -> jobs "2. Encolar en powerfactory"
-            jobs -> nativeRunner "3. Lanzar proceso aislado"
-            nativeRunner -> oracle "4. Consultar preflight pandapower"
-            oracle -> nativeRunner "5. Informar avisos sin omitir DGS"
-            nativeRunner -> powerfactory "6. Importar/verificar/calibrar/estudiar"
-            powerfactory -> nativeRunner "7. Guardar, reabrir, releer y recalcular"
-            nativeRunner -> workspaceStore "8. Conservar informe y binding"
-            workspaceStore -> frontend "9. Presentar evidencia"
+            frontend -> security "1. Solicitar operacion"
+            security -> api "2. Comprobar origen y token"
+            api -> jobs "3. Encolar en powerfactory"
+            jobs -> nativeRunner "4. Lanzar proceso aislado"
+            nativeRunner -> oracle "5. Consultar preflight pandapower"
+            oracle -> nativeRunner "6. Informar avisos sin omitir DGS"
+            nativeRunner -> powerfactory "7. Importar/verificar/calibrar/estudiar"
+            powerfactory -> nativeRunner "8. Guardar, reabrir, releer y recalcular"
+            nativeRunner -> workspaceStore "9. Conservar informe y binding"
+            workspaceStore -> frontend "10. Presentar evidencia"
             autoLayout lr
         }
 

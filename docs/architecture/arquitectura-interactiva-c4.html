@@ -224,6 +224,10 @@
     <button class="btn btn-ghost" type="button" data-node-id="twin">Gemelo</button>
     <button class="btn btn-ghost" type="button" data-node-id="assistant">Asistente</button>
     <button class="btn btn-ghost" type="button" data-node-id="deliverables">Entregables</button>
+    <button class="btn btn-ghost" type="button" data-node-id="security">Seguridad</button>
+    <button class="btn btn-ghost" type="button" data-node-id="governance">Modelos</button>
+    <button class="btn btn-ghost" type="button" data-node-id="planning">Planeamiento</button>
+    <button class="btn btn-ghost" type="button" data-node-id="reports">Informes</button>
   </div>
 
   <details class="c4-sources">
@@ -264,7 +268,7 @@
         system: { label: 'ConverterSmartGrid', tech: 'Sistema local auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, acepta y documenta redes de distribucion.' },
         frontend: { label: 'Frontend web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Seleccion, seguimiento, confirmacion y descarga.' },
         api: { label: 'API y orquestacion', tech: 'FastAPI / Python 3.12', path: 'src/convertersmartgrid/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos.' },
-        jobs: { label: 'Colas', tech: 'engine | powerfactory | asistente', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril.' },
+        jobs: { label: 'Colas', tech: 'engine | PF | asistente | control', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril; control solo cancela.' },
         custody: { label: 'Custodia', tech: 'Snapshots + SHA-256', path: 'src/convertersmartgrid/web/source_runs.py', kind: 'store', detail: 'Fija una ejecucion fuente inmutable sin mezclar modalidades.' },
         engine: { label: 'Motor de conversion', tech: 'Python / FeederModel', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canonico.' },
         oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/convertersmartgrid/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
@@ -272,11 +276,16 @@
         powerfactory: { label: 'PowerFactory 2024', tech: 'API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa, activa Caso base, ejecuta flujo, guarda y produce evidencia de aceptacion.' },
         native: { label: 'Ejecutor nativo', tech: 'Plan JSON / informe JSON', path: 'src/convertersmartgrid/web/services.py', kind: 'native', detail: 'Aisla y serializa los procesos que controlan PowerFactory.' },
         twin: { label: 'Gemelo digital', tech: 'Radial / mallado / PINN-GNN / GRU', path: 'src/convertersmartgrid/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y conserva metricas.' },
-        optimizer: { label: 'PIDE y evolutivos', tech: 'GA / NSGA-II / DE', path: 'src/convertersmartgrid/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto.' },
-        assistant: { label: 'Asistente', tech: 'Reglas / Transformer / Ollama', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
+        optimizer: { label: 'PIDE y evolutivos', tech: 'Escalera / Optuna / NSGA-II', path: 'src/convertersmartgrid/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto; DIgSILENT confirma.' },
+        assistant: { label: 'Asistente', tech: 'Reglas / codificador / Ollama', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
         episodes: { label: 'Buffer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/digital_twin/buffer.py', kind: 'store', detail: 'Guarda evidencia y snapshots direccionados por contenido.' },
         workspace: { label: 'Workspace', tech: 'Filesystem', path: 'output/web', kind: 'store', detail: 'Conserva entradas, planes, resultados y descargas.' },
         deliverables: { label: 'Entregables', tech: 'DGS / PF / estudios / informes', path: 'docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf', kind: 'store', detail: 'Artefactos para revision, operacion y decision.' },
+        security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesion, politica de contenido, edicion y salidas a la red.' },
+        reports: { label: 'Informes', tech: 'Word / PDF / libro Excel', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardaron calibracion y obras.' },
+        planning: { label: 'Planeamiento', tech: 'Largo plazo y PIDE', path: 'src/convertersmartgrid/estudio_planeamiento.py', kind: 'engine', detail: 'Mercado, costos oficiales, formatos y entregables por modulo.' },
+        governance: { label: 'Gobierno de modelos', tech: 'Registro / puertas / GPU', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Candidatos, puertas, puntero en uso, guardia de GPU y ciclo de aprendizaje.' },
+        mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta maquina.' },
         browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a frontend y API.' },
         python: { label: 'Python 3.12', tech: 'API + motor + IA', path: 'pyproject.toml', kind: 'engine', detail: 'Proceso principal del conversor.' },
         ollama: { label: 'Ollama / GPU', tech: 'Opcional y local', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' }
@@ -293,9 +302,9 @@
         },
         containers: {
           title: 'Contenedores del sistema',
-          boundary: { x: 35, y: 42, w: 1130, h: 535, label: 'ConverterSmartGrid' },
-          nodes: [n('frontend',50,85,175,78), n('api',280,85,175,78), n('jobs',510,85,175,78), n('custody',740,85,175,78), n('workspace',970,85,175,78), n('engine',50,250,175,78), n('dgs',280,250,175,78), n('oracle',510,250,175,78), n('native',740,250,175,78), n('powerfactory',970,250,175,78), n('twin',50,415,175,78), n('episodes',280,415,175,78), n('optimizer',510,415,175,78), n('assistant',740,415,175,78), n('deliverables',970,415,175,78)],
-          edges: [e('frontend','api','REST + WebSocket'), e('api','jobs','Encola'), e('api','custody','Custodia'), e('jobs','engine','Carril engine'), e('engine','dgs','Escribe y valida'), e('dgs','workspace','Publica'), e('jobs','native','Carril PF'), e('native','oracle','Consulta opcional'), e('native','powerfactory','API nativa'), e('native','workspace','Informe + binding'), e('native','twin','Captura'), e('twin','episodes','Episodios'), e('twin','optimizer','Evalua'), e('optimizer','assistant','Propone'), e('assistant','api','API existente'), e('workspace','deliverables','Descarga')]
+          boundary: { x: 35, y: 18, w: 1130, h: 590, label: 'ConverterSmartGrid' },
+          nodes: [n('frontend',50,70,175,78), n('api',280,70,175,78), n('jobs',510,70,175,78), n('custody',740,70,175,78), n('workspace',970,70,175,78), n('engine',50,205,175,78), n('dgs',280,205,175,78), n('oracle',510,205,175,78), n('native',740,205,175,78), n('powerfactory',970,205,175,78), n('twin',50,340,175,78), n('episodes',280,340,175,78), n('optimizer',510,340,175,78), n('assistant',740,340,175,78), n('deliverables',970,340,175,78), n('security',50,500,175,78), n('governance',280,500,175,78), n('planning',510,500,175,78), n('mcp',740,500,175,78), n('reports',970,500,175,78)],
+          edges: [e('frontend','api','REST + WebSocket'), e('security','api','Filtra'), e('api','jobs','Encola'), e('api','custody','Custodia'), e('jobs','engine','Carril engine'), e('engine','dgs','Escribe y valida'), e('dgs','workspace','Publica'), e('jobs','native','Carril PF'), e('native','oracle','Consulta opcional'), e('native','powerfactory','API nativa'), e('native','workspace','Informe + binding'), e('native','twin','Captura'), e('twin','episodes','Episodios'), e('twin','optimizer','Evalua'), e('optimizer','assistant','Propone'), e('assistant','api','API existente'), e('workspace','deliverables','Descarga'), e('twin','governance','Registra'), e('governance','assistant','En uso'), e('optimizer','planning','Alternativas'), e('mcp','assistant','Lecturas'), e('native','reports','Casos'), e('reports','deliverables','Publica')]
         },
         conversion: {
           title: 'Flujo de datos a DGS',

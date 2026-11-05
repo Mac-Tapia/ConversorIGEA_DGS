@@ -56,6 +56,7 @@
     "tools/evaluar_evolutivos.py",
     "tools/fidelidad_seleccion.py",
     "tools/fijar_entorno.py",
+    "tools/generar_arquitectura.py",
     "tools/generar_contrato_api.py",
     "tools/linea_base_dgs.py",
     "tools/llm_destilar.py",

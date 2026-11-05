@@ -1,172 +1,288 @@
-# Arquitectura del conversor CYMDIST → DIgSILENT
+# Arquitectura de ConverterSmartGrid
 
-Estado a 2026-11-02. Describe el código **tal como está**, también lo que aún no funciona. El detalle de cada
-fichero está en `CODIGO_FUENTE.md`; los principios, en `docs/constitution.md`; el estado de cada spec, en
-`specs/README.md`, que se genera y no se copia aquí.
+Revisado a mano el 2026-11-04, sobre `main` en `c9c4d129` (versión `1.0.0rc1`). Describe el código **tal como está**, también lo que aún
+no funciona. **Todos los módulos, las tareas del asistente, los roles de su equipo y las cifras están en
+[`ARQUITECTURA_CATALOGO.md`](ARQUITECTURA_CATALOGO.md), que se genera solo en cada commit (spec 090).** Aquí queda el porqué. Lo que
+está en ramas sin integrar se cita aparte, en
+[Deudas y trabajo sin integrar](#deudas-y-trabajo-sin-integrar).
+
+Dónde está el resto: el detalle y la spec de cada fichero, en [`CODIGO_FUENTE.md`](../CODIGO_FUENTE.md); los principios, en
+[`constitution.md`](constitution.md); el estado de cada spec, en [`specs/README.md`](../specs/README.md), que se genera y no se
+copia aquí; las órdenes, en [`MANUAL_COMANDOS.md`](MANUAL_COMANDOS.md); el C4 navegable, en
+[`architecture/workspace.dsl`](architecture/workspace.dsl) y su página interactiva.
 
 ## Vista general
 
+ConverterSmartGrid lee la red de una distribuidora (TXT de CYMDIST, base Access o paquete VNR-GIS), la convierte en un `.dgs`
+y, sobre el proyecto importado en DIgSILENT PowerFactory, la verifica, la calibra, proyecta obras y cargas nuevas, corre estudios
+y escribe informes y entregables de planeamiento. Corre entero en la máquina del operador.
+
 El sistema tiene dos mitades que se comunican solo por ficheros:
 
-1. **El motor** (Python 3.12, sin DIgSILENT): lee la red de una distribuidora, la
-   reconstruye si viene incompleta, aplica las reglas comunes, comprueba que su flujo
-   converge (oráculo) y escribe un `.dgs` por alimentador o uno con la red unida.
-2. **Los guiones de PowerFactory** (`tools/*_pf.py`, con el intérprete de DIgSILENT):
-   importan el DGS, verifican el «Caso base», calibran a la máxima de cabecera, insertan
-   cargas nuevas y corren estudios sobre un proyecto existente.
+1. **El motor** (Python 3.12, sin DIgSILENT): lee, reconstruye si hace falta, aplica las reglas comunes, comprueba el flujo con su
+   oráculo y escribe un `.dgs` por alimentador o uno con la red unida. También calcula, con datos puros, todos los planes y
+   resultados que los guiones ejecutan o leen.
+2. **Los guiones de PowerFactory** (`tools/*_pf.py`, con el intérprete de DIgSILENT): importan, verifican, calibran, insertan
+   cargas, aplican obras y corren estudios sobre un proyecto existente.
 
-La web (FastAPI + React) y el CLI son dos presentaciones del mismo motor. La web lanza los
-guiones de PowerFactory como procesos aparte, con un plan JSON de entrada y un informe JSON
-de salida, en un carril propio y en serie.
+La web y el CLI son dos presentaciones del mismo motor. La web lanza los guiones como procesos aparte, con un plan JSON de
+entrada y un informe JSON de salida.
 
 ```text
- TXT (RED, CARGA, BD_Equipo) ─┐
- Base Access (.mdb) ──────────┼─► sources/ ─► contrato canónico ─► reconstrucción ─► reglas.py
- Paquete VNR-GIS (vnr_etl) ───┘   (adaptadores)  (source_contract)   (auditable)       (P5)
-                                                                                         │
-                                                                                         ▼
-                                    validate ◄─ dgs.py ◄─ oráculo (pandapower) ◄─ FeederModel
-                                       │        (perfil versionado de esquema)
-                                       ▼
-                                  out/*.dgs + batch_manifest.json
-                                       │
-           ────────────────────────────┼──────────── límite de proceso (plan/informe JSON)
-                                       ▼
-   tools/powerfactory_acceptance.py ─► «Caso base» verificado (015)
-   tools/casos_pf.py               ─► «Sin proyecto» (copia) ─► «Con proyecto» (copia)
-   tools/ajuste_cabecera_pf.py     ─► calibración en «Sin proyecto» (006, 014, 015)
-   tools/cargas_pf.py              ─► demandas y cargas nuevas en «Con proyecto» (004, 007, 014)
-   tools/estudios_pf.py, obras_pf.py, transferencia_pf.py ─► estudios y obras (011)
+ Operador ─► Navegador ─► web/seguridad ─► web/app (FastAPI) ─► web/services ─► web/jobs (4 carriles)
+                                                                                 │
+   ┌─────────────────────────────┬───────────────────────────────┬───────────────┴──────────┐
+   ▼ engine                      ▼ powerfactory                  ▼ asistente                ▼ control
+ motor de conversión           guiones *_pf.py                 interpreta, planifica,     solo cancela
+ sources ► reglas ► model      ─ pf_arnes (turno exclusivo)    espera confirmación y
+ ► oráculo ► dgs ► validate    ─ pf_servidor (conexión viva)   encola en los otros
+   │                             │                               │
+   ▼                             ▼                               ▼
+ out/*.dgs                     DIgSILENT PowerFactory 2024     Ollama local, modelos en GPU
+ batch_manifest.json             │
+                                 ▼
+                         informe JSON ─► vínculo ─► episodio del gemelo ─► informes y entregables
 ```
 
-## Capas de hecho
+## Procesos y despliegue
 
-Aún no hay paquetes por capa (spec 002), pero cada módulo de `src/` tiene su capa declarada en
-`[tool.convertersmartgrid.capas.modulos]` de `pyproject.toml`. `tools/arquitectura.py` lo comprueba sobre el código sin
-importarlo (capas, ciclos, accesos privados y drivers en el dominio), y `tests/test_capas.py` falla ante una violación
-nueva. La deuda conocida está en `docs/implementacion065/deuda_arquitectura.json` y no puede crecer: 97 excepciones sobre
-210 módulos. No detecta accesos privados sobre instancias. El reparto de partida:
+Todo es local, en Windows. La web solo atiende a esta máquina.
 
-| Capa (objetivo 002) | Hoy | Regla que ya se cumple |
+| Proceso | Qué corre | Cómo se comunica |
 | --- | --- | --- |
-| Dominio | `model.py`, `naming.py`, `reglas.py`, `geography.py`, `coordenadas.py`, `puentes.py`, `sed_potencia.py`, `trafomix.py`, `catalog*.py`, `reconstruction*.py`, `capacidades.py` | Sin FastAPI ni `powerfactory`. |
-| Lógica de PowerFactory sin DIgSILENT | `ajuste_cabecera.py`, `cargas_pf.py`, `demanda_medida.py`, `estudios_pf.py`, `obras_pf.py`, `transferencia_pf.py`, `economia.py` | Calculan planes y resultados con datos puros; se prueban sin DIgSILENT. Los guiones de `tools/` solo los ejecutan. |
-| Puertos / contratos | `source_contract.py`, `sources/base.py`, `schema.py` + `schemas/`, `native_action.py`, `powerfactory_binding.py` | Un único contrato para las tres fuentes y para toda acción nativa. |
-| Aplicación | `batch.py`, `combine.py`, `reconstruction_pipeline.py`, `oraculo.py`, `validate.py`, `inventory.py`, `perfil_empresa.py` | Una sola vía de conversión para CLI y web (001:RF-1, RF-2). |
-| Adaptadores de entrada | `dataset.py` (TXT, dos disposiciones), `access.py`, `sources/{txt,mdb,vnr,snapshot}.py`, `src/vnr_etl/` | Reconocen la entrada por contenido (`identify.py`), no por nombre. |
-| Adaptadores de salida | `dgs.py`, `export_tables.py`, `preview.py`, `powerfactory_env.py`, `powerfactory_metadata.py`, `carpeta_pf.py` | El DGS es idéntico byte a byte con 1 o N procesos (P1). |
-| Presentación | `cli.py`, `web/` (FastAPI), `frontend/` (React), `tools/` | La web no calcula: `web/services.py` llama al motor o lanza un guion. |
+| Web | `convertersmartgrid-web` (o `run_gui.bat`, o el acceso directo), `127.0.0.1:8765`; sirve `frontend/dist` | HTTP y WebSocket con token de sesión |
+| Hilos de carril | Uno por carril, dentro de la web | Colas de `web/jobs.py` |
+| Lote de conversión | Hasta 4 procesos de `batch.py` (tope medido) | Resultado por proceso; DGS idéntico con 1 o N |
+| Guion de DIgSILENT | `tools/*_pf.py` con el intérprete de PowerFactory | Plan e informe JSON, fichero de cancelación |
+| Servidor de DIgSILENT | `tools/pf_servidor.py`, se cierra a los 2 minutos sin órdenes | `tools/pf_cliente.py`; repone el estado si una orden falla |
+| Entrenamientos | `tools/digital_twin_*`, `tools/asistente_*`, con guardia de GPU | Informe JSON atómico |
+| Ollama | Modelo local, opcional | Solo direcciones de la máquina |
+| SQL Server Express | Restaura copias `.bak` de VNR-GIS | `connectors/sqlserver_vnr.py` |
+| MCP local | `tools/mcp_conversor.py`, opcional | stdio, solo lectura; ver [`MCP_CONVERSOR.md`](MCP_CONVERSOR.md) |
 
-`src/vnr_etl/` es un paquete aparte con su propia arquitectura en capas
-(`connectors`, `discovery`, `gis`, `models`, `validation`, `exporters`, `application`);
-su diseño está en `VNR-GIS.md`. Exporta al motor por `application/cymdist_bridge.py`,
-de modo que el DGS de VNR-GIS sale del mismo `dgs.py` que el de TXT y MDB.
+**Dónde queda cada dato:**
+
+| Lugar | Contenido |
+| --- | --- |
+| `output/web/<espacio>/` | Entradas, opciones, ejecuciones inmutables, DGS, informes y planes de un espacio |
+| `output/web/_asistente/` | Órdenes, señales, modelos, `model_registry`, índice, datasets y observación |
+| `output/web/_digital_twin/` | Episodios (JSON por huella, `episodios.sqlite3`), objetos y modelos del oráculo |
+| `CSG_DATOS_HOME` | Datos de un programa instalado; sin ella, la carpeta del usuario |
+| `CSG_RUNTIME_HOME`, `CSG_CACHE_HOME`, `CSG_TEMP_HOME` | Cachés y staging fuera del checkout (`runtime_paths.py`) |
+| `~/.convertersmartgrid/` | `tessdata` y las dependencias aparte `madrl_deps` y `motores_deps` |
+| `config/perfil_empresa.json`, `config/line_type_aliases.json` | Convenciones locales de la empresa, fuera de git |
+| `external/` | Solvers (`ipopt`, `llama`) y clones fijados de terceros (`llama_cpp`, `neuralforecast`, `peft`, `powerflownet`, `pyg`) |
+
+Los datos de una distribuidora nunca entran en git. Cada fuente se carga por su ruta.
+
+**Dependencias por archivo:** `requirements.txt` con `constraints-python312-win.txt` es el desarrollo; `requirements-nucleo.lock`
+es el núcleo de la entrega, con huellas; `requirements-complemento-ia.txt`, el complemento de IA de la entrega. Aparte y fuera del
+`.venv` común: `requirements-drivers.txt` (VNR-GIS), `requirements-motores.txt` (083), `requirements-madrl.txt` (074) y
+`requirements-mcp.txt` (077).
+
+## Capas
+
+Aún no hay paquetes por capa (spec 002), con sus T7 a T12 abiertas, pero cada módulo de `src/` tiene su capa declarada en
+`[tool.convertersmartgrid.capas.modulos]` de `pyproject.toml`. `tools/arquitectura.py` lo comprueba sobre el código sin importarlo
+(capas, ciclos, accesos privados y drivers en el dominio), y `tests/test_capas.py` falla ante una violación nueva. La deuda está en
+`docs/implementacion065/deuda_arquitectura.json`, no puede crecer y una excepción retirada también falla; cuántas quedan lo dice el
+catálogo. No detecta accesos privados sobre instancias.
+
+| Capa | Qué contiene | Regla |
+| --- | --- | --- |
+| Dominio | Modelo, nombres, perfil, contratos y cálculos sin dependencias | Sin FastAPI, `powerfactory` ni drivers |
+| Puertos | `sources/base.py`, `puertos.py` | Un único contrato para las fuentes y los módulos |
+| Aplicación | Lote, reglas, calibración, obras, estudios, PIDE, gobierno y asistente | Una sola vía de conversión para CLI y web (001:RF-1, RF-2) |
+| Adaptadores | Lectores, DGS, DIgSILENT, informes, gemelo y `vnr_etl` | Reconocen la entrada por contenido; DGS idéntico con 1 o N procesos (P1) |
+| Presentación | `cli.py`, `web/`, CLI de `vnr_etl` | La web no calcula: `web/services.py` llama al motor o lanza un guion. |
+
+`tools/` y `frontend/` quedan fuera de esa tabla: son presentación de hecho.
+
+**Módulos enchufables (002):** un paquete declara un objeto `Modulo` en el grupo de entry points `convertersmartgrid.modulos`, y
+`registro_modulos.py` comprueba su versión y sus métodos. Hoy van por esa vía `escritor-dgs` y los lectores `lector-txt`,
+`lector-mdb` y `lector-vnr`. `config/modulos_permitidos.json` limita los que se cargan.
+
+`src/vnr_etl/` es un paquete aparte con su propia arquitectura (`connectors`, `discovery`, `gis`, `models`, `validation`,
+`exporters`, `application`); su diseño está en [`VNR-GIS.md`](../VNR-GIS.md). Exporta al motor por `application/cymdist_bridge.py`,
+de modo que su DGS sale del mismo `dgs.py`. Lo integrará la 002 T8.
 
 ## Flujo de conversión
 
-1. **Lectura.** El adaptador de la fuente elegida devuelve un `CymdistDataset` (una sola
-   lectura para todos los alimentadores). `sources/snapshot.py` fija la huella de los
-   ficheros y `web/source_runs.py` los custodia sin mutarlos: cada carga es una ejecución
+1. **Lectura.** El adaptador de la fuente elegida devuelve un `CymdistDataset`, una sola lectura para todos los alimentadores.
+   `sources/snapshot.py` fija la huella de los ficheros y `web/source_runs.py` los custodia: cada carga es una ejecución
    inmutable y no se mezclan fuentes.
-2. **Selección.** Un alimentador, varios o todos, por NetworkID o nombre corto; un estudio
-   CYMDIST (`study.py`) puede filtrar la selección. Nada recorre una tabla entera por
-   alimentador (P2): los índices se construyen una vez por dataset.
-3. **Reconstrucción** (opcional, 001:RF-17 a RF-22). Si faltan nodos, tramos o parámetros
-   se trabaja sobre una copia: primero el valor original, luego catálogo exacto, de
-   fabricante y global; cada supuesto queda anotado. Nada bloquea salvo una red vacía.
-4. **Reglas** (`reglas.py`, P5): `preparar_dataset`, `aplicar_reglas`,
-   `auditar_completitud`. Las convenciones de empresa salen del perfil (P13).
-5. **Modelo** (`model.py`, modo estricto): no inventa tipos `DEFAULT`; los alias de tipos
-   de línea solo vienen de `config/line_type_aliases.json`.
-6. **Oráculo** (`oraculo.py`): flujo con pandapower antes de escribir. Si no converge busca la causa y la corrige
-   (057), y a DIgSILENT llega convergido; lo que no pueda corregir no se presenta como listo.
-7. **Escritura** (`dgs.py` + perfil `schemas/pf21_dgs_1_8_4.json`): tablas, FID,
-   cubículos, maniobras, capa gráfica y trazado GPS de cada línea (010).
-8. **Validación** (`validate.py`) y publicación atómica (P6): nunca queda un `.dgs` a
-   medias; un alimentador que falla no invalida a los demás; `batch_manifest.json` se
-   escribe siempre. `batch.py` reparte en procesos (tope medido: 4).
+2. **Selección.** Un alimentador, varios, todos o un sistema eléctrico (`estructura.py`). Un estudio CYMDIST (`study.py`) puede
+   filtrarla. Nada recorre una tabla entera por alimentador (P2): los índices se construyen una vez por dataset.
+3. **Reconstrucción** (001:RF-17 a RF-22). Si faltan nodos, tramos o parámetros se trabaja sobre una copia: primero el valor
+   original, luego catálogo exacto, de fabricante y global, y el catálogo crece con cada código nuevo (053). Cada supuesto queda
+   anotado. Nada bloquea salvo una red vacía.
+4. **Reglas** (`reglas.py`, P5): `preparar_dataset`, `aplicar_reglas`, `auditar_completitud`. Las convenciones de empresa salen del
+   perfil (P13). Las fases reales de tramos y SED se resuelven aquí (054, `fases_red.py`, `comprobacion_fases.py`).
+5. **Modelo** (`model.py`, modo estricto): no inventa tipos; los alias solo vienen de `config/line_type_aliases.json`.
+6. **Red unida** (`combine.py`, `enlaces.py`, 022): cuelga los alimentadores de sus SET con barra por tensión e interruptor de
+   cabecera, y deja la red radial con las aperturas que indica.
+7. **Escritura** (`dgs.py` con `schemas/pf21_dgs_1_8_4.json`): tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS.
+   `preflight_contract.py` fija el modelo efectivo junto al DGS.
+8. **Validación** (`validate.py`) y publicación atómica (P6): nunca queda un `.dgs` a medias; un alimentador que falla no invalida a
+   los demás; `batch_manifest.json` se escribe siempre.
+9. **Oráculo** (`oraculo.py`, 057, 082): flujo con pandapower sobre la misma red, en la conversión unida y como comprobación previa
+   al importar (`web/services.py`, con el modelo fijado al DGS). Si no converge por una demanda de relleno o mayor que su SED,
+   busca el factor con que converge; `reglas.py` aplica esa corrección y la anota. Es consultivo: sus avisos no omiten el DGS.
 
-## Flujo en PowerFactory: los tres casos de estudio
+## Flujo en PowerFactory
 
-El trabajo sobre un proyecto de DIgSILENT se ordena en tres casos (specs 011, 014, 015):
+### Los casos de estudio
 
 | Caso | Qué es | Quién lo cambia |
 | --- | --- | --- |
-| «Caso base» | La red física verificada frente al archivo original: GPS, trazado, conectividad, diagrama, capacidades, grupo y tensión de los transformadores. Su flujo se prueba al importar el DGS; si no converge se reduce la demanda, sin bloquear (015). | Nadie después de verificarlo. |
-| «Sin proyecto» | Copia del «Caso base». Aquí se calibra a la máxima de cabecera (006) y aquí hace el operador sus cambios manuales; si chocan, **gana lo manual** (014). Demanda y escala en su escenario, sin variaciones de la aplicación (015). | El ajuste y el operador. |
-| «Con proyecto» | Copia de «Sin proyecto» con su escenario. Solo aquí nacen las cargas nuevas, una variación por carga, sin duplicados (007, 014:RF-23 a RF-28). | La inserción de cargas nuevas y las obras (011). |
+| «Caso base» | La red física verificada frente al archivo original: GPS, trazado, conectividad, diagrama, capacidades, grupo y tensión de los transformadores. Se importa con los datos originales (032) y llega convergido (057); si no, `resolver_convergencia.py` dice su causa y corrige lo reconstruible. | Nadie después de verificarlo. |
+| «Sin proyecto» | Copia del «Caso base». Aquí se calibra (006, 015, 025) y aquí hace el operador sus cambios, y si chocan **gana lo manual** (014). | El ajuste y el operador. |
+| «Cargas nuevas» | Caso de diagnóstico: con las cargas nuevas y sin obras (025:RF-61, 037). Se mide y se presenta, pero no está entre los tres que decide `tres_casos`. | La inserción de cargas. |
+| «Con proyecto» | Copia de «Sin proyecto» con su escenario. Aquí nacen las cargas nuevas, una variación por carga, sin duplicados (007, 040), y las obras (011). | Cargas y obras. |
 
-Sobre «Sin proyecto» y «Con proyecto» corren los estudios con los módulos nativos de
-DIgSILENT (`estudios_pf.py`: flujo, cortocircuito, N-1, optimizadores…), las obras de
-mejora (`obras_pf.py`, una variación por obra) y la transferencia de carga entre dos
-alimentadores (`transferencia_pf.py`, sin dejar nada en el proyecto).
+Con el año de medición (025) y los del PIDE (030), cada caso se repite por año y no se mezclan. Las maniobras manuales del operador
+son intencionales: se avisa (`PROJECT_BINDING_NATIVE_MODIFIED`), nunca se bloquea.
 
-El flujo que usa un informe es el equilibrado si el desequilibrado no cuadra con la cabecera (063:RF-45). Las fases
-`plinir/s/t` de una carga son dato de la red, compartido entre casos, y `plini` es de cada escenario: en SM218, 292 de
-306 cargas no cuadran (+28 % en cabecera). Es una deuda abierta: el desequilibrado no vale hasta conciliarlas.
+**Vínculo del proyecto** (`powerfactory_binding.py`): relaciona ejecución fuente, DGS, inventario releído y proyecto nativo aceptado,
+con el estado del «Caso base» de cada alimentador. Lo único que bloquea la calibración es un «Caso base» sin verificar (015:RF-13).
 
-**Vínculo del proyecto** (`powerfactory_binding.py`): relaciona ejecución fuente, DGS,
-inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada
-alimentador. Una modificación manual posterior es un aviso
-(`PROJECT_BINDING_NATIVE_MODIFIED`), nunca un bloqueo; lo que sí bloquea la calibración
-es un «Caso base» sin verificar (015:RF-13).
+### Calibración
 
-## Web: trabajos y carriles
+1. **Escaneo** (`escaneo.py`, `tools/escanear_alimentador_pf.py`, 028): de quién es cada generador, banco y variación.
+2. **Objetivo** (`demanda_medida.py`, `cabecera_ancha.py`, `libros_por_anio.py`): la máxima de cabecera del alcance elegido:
+   hasta 3 alimentadores, una SET o un sistema con sus barras de 60 kV (028, 039). Con central térmica, por zonas (021).
+3. **Reparto** (`ajuste_cabecera.py`): fijas de la tabla en el instante; las escaladas por kVA con FP 0,98 y un escalar, en
+   probabilidad (035, 041).
+4. **Arranque con el oráculo** (`oraculo_calibracion.py`, 083): los factores iniciales, sin gastar flujos de DIgSILENT, que sigue
+   siendo la referencia.
+5. **Cuadre conjunto** (`tools/ajuste_cabecera_pf.py`): todos los alimentadores del proyecto en los mismos flujos, con bancos,
+   transformadores nuevos de las SED sobrecargadas (`trafos_sed.py`, 020) y la consigna de la fuente.
+6. **Valle** (`valle.py`, 073): su instante y duración salen de la medición; los bancos y proyectos se comprueban en máximos y en
+   valle. `comprobacion_flujo.py` contrasta lo que el flujo dijo con lo que pasó (081).
 
-- **Nada largo dentro de una petición** (P7). `web/jobs.py` encola todo lo que tarda; el
-  navegador sigue el progreso por WebSocket y puede cancelar.
-- **Tres carriles**, cada uno con un hilo: `engine` (motor en el proceso), `powerfactory` (guiones de DIgSILENT, en
-  serie, porque admite un solo proceso con el motor a la vez) y `asistente` (órdenes en lenguaje natural).
-- **Arnés de DIgSILENT** (019, 064): `pf_arnes.conectar` da el turno exclusivo a guiones y sondas; `tools/pf_servidor.py`
-  conserva la conexión y restituye el estado tras cada orden.
-- **Contrato de la API** (065): `tools/generar_contrato_api.py` genera `frontend/src/api/esquema.ts`, y `tests/test_contrato_api.py`
-  detecta divergencias con el front.
-- **Temporales** (065): `runtime_paths.py` lleva cachés y staging fuera del checkout, y `web/retencion.py` limpia a diario (062).
-- **Guiones de PowerFactory.** Se lanzan con el intérprete de DIgSILENT
-  (`powerfactory_env.py`), sin consola de entrada, con plan JSON y, si se cancelan,
-  un fichero de cancelación que el guion lee entre alimentadores (termina el que está
-  en curso y no empieza otro). Cada guion escribe su primera línea al conectar; si no
-  llega en `LIMITE_ARRANQUE_PF_S` se corta con sus hijos y se dice por qué (005:RF-21).
-  Antes de lanzar uno se cierran los guiones huérfanos de una sesión anterior.
-- **Espacio de trabajo** (`web/workspace.py`): entradas, opciones, salidas y obras sin
-  aplicar de una sesión; los ficheros de cada ejecución, inmutables (`source_runs.py`).
-- **Front** (`frontend/src`): React + TypeScript, cliente tipado en `api.ts`. La pestaña
-  «Cargas en DIgSILENT» sigue los pasos 1 · Proyecto, 2 · Alimentadores y calibración,
-  3 · Integración de nuevas y 4 · Obras y estudios (008, 011).
+El flujo que usa un informe es el equilibrado si el desequilibrado no cuadra con la cabecera (063:RF-45). Las fases `plinir/s/t` de
+una carga son dato de la red, compartido entre casos, y `plini` es de cada escenario.
+
+### Obras y cargas nuevas
+
+| Paso | Módulo | Qué hace |
+| --- | --- | --- |
+| Punto de conexión | `troncal.py`, `tools/cargas_pf.py` (016) | Camino más largo y punto más cercano; parte el tramo o usa la barra |
+| Escalera | `escalera_optima.py` (042, 063, 073) | `bancos`, `seccion`, `terna`, `regulador`, y sus combinaciones; sorteos con semilla sobre la curva de cabecera y costo anual |
+| Filtro del oráculo | `optimizacion_oraculo.py` (052) | Ordena candidatos con el flujo del gemelo |
+| Aplicación | `tools/obras_pf.py`, `obras_pf.py` (011, 016) | Una variación por obra; enlace y migración solo en «Con proyecto» |
+| Confirmación | `digital_twin/evolutivo.py:verificar_top_k`, `evaluacion_modelos.py` (044) | Relee tras reabrir y compara con el oráculo; lo que no pasa se avisa y no se acepta |
+| SET nueva | `set_nueva.py`, `sitio_set.py`, `vias.py` (042, 084) | Para lo que no cabe: potencia de diseño, módulo del CAPEX, Weber y sitio libre |
+| Ternas | `instalacion_ternas.py` (084) | Por ducto o en configuración, con la capacidad del fabricante |
+
+**Toda obra se confirma con los módulos nativos de DIgSILENT, que manda si discrepa.**
+
+### Estudios
+
+`tools/estudios_pf.py` corre un estudio en un caso con los módulos nativos: flujo, desequilibrado, contingencias, troncal, punto de
+apertura, perfil de tensión y balance de fases (011). Los de la 012 van por `tools/confiabilidad_pf.py` (`ComRel3`, `ComOpri`) y
+`tools/capacidad_pf.py` (`ComHostcap`, `ComPvcurves`, `ComCapo`), según la licencia y el libro de la empresa. La transferencia de
+carga (`tools/transferencia_pf.py`, 013) no deja nada en el proyecto. Los guiones DPL y Python del operador corren con `--guion`.
+
+### Arnés de DIgSILENT (019, 064)
+
+El motor admite un solo proceso a la vez. `pf_arnes.conectar` da el turno exclusivo, que es de la máquina y no de la sesión: un fichero creado
+en exclusiva que dice qué proceso lo tiene y se libera si su dueño murió. `tools/pf_servidor.py` conserva la conexión, y
+`pf_estado.py` fotografía el estado antes de una orden y lo repone si falla. Cada guion escribe su primera línea al conectar; si no
+llega en `LIMITE_ARRANQUE_PF_S` se corta con sus hijos (005:RF-21). Antes de lanzar uno se cierran los huérfanos de una sesión
+anterior. `estadistica_ordenes.py` registra cada orden para contrastar versiones (081).
+
+## Web
+
+- **Nada largo dentro de una petición** (P7). `web/jobs.py` encola; el navegador sigue el progreso por WebSocket y puede cancelar.
+- **Cuatro carriles**, cada uno con un hilo: `engine` (motor en el proceso),
+  `powerfactory` (guiones de DIgSILENT, en serie), `asistente` (solo
+  espera: sus pasos encolan en los otros dos) y `control` (solo cancela, para poder parar lo que corre con el asistente ocupado,
+  070:RF-33).
+- **Puerta** (`web/seguridad.py`, 086:RF-17 a RF-21): un solo middleware ASGI comprueba Host, Origin y token, también en el
+  WebSocket, y pone la política de contenido, de modo que una ruta nueva nace cerrada. En el navegador el token va en una cookie
+  `HttpOnly`; los programas locales lo mandan en cabecera (`sesion_web.py`). Ver [`SEGURIDAD_Y_PRIVACIDAD.md`](SEGURIDAD_Y_PRIVACIDAD.md).
+- **Contrato** (065): `tools/generar_contrato_api.py` genera `frontend/src/api/esquema.ts` desde `web/api_contract.py`, y
+  `tests/test_contrato_api.py` detecta divergencias.
+- **Espacio de trabajo** (`web/workspace.py`): entradas, opciones, salidas y obras sin aplicar de una sesión, con versiones y
+  migración; lo no disponible y lo dañado se dicen en `AvisosDatos.tsx`.
+- **Retención** (`web/retencion.py`, 062): cada 60 s comprueba si venció el plazo de 24 horas, cuya fecha persiste, y retira lo que
+  no tiene referencias y pasa de siete días. Mantenimiento y admisión de trabajos son excluyentes: un trabajo pendiente la aplaza sin
+  cancelarlo. Rechaza redirecciones, enlaces simbólicos y junctions; un enlace duro solo pierde la entrada de esa ejecución.
+- **Arranque y cierre** (`web/__main__.py`, `web/cierre.py`, `web/runtime.py`): con el puerto ocupado reutiliza, reemplaza o cambia;
+  registra cada cierre y avisa si el anterior cayó.
+
+**Mapa de la API** (rutas de `web/app.py`, casi todas bajo `/api/workspaces/{id}/`; cuántas tiene cada una, en el catálogo):
+
+| Familia | Para qué |
+| --- | --- |
+| Espacio (`inputs`, `inputs-auto`, `load`, `options`, `runs`, `no-disponibles`, `restaurar-copia`, `files`, `events`, `ws`) | Cargar y custodiar la fuente, y seguir los trabajos |
+| Conversión (`feeders`, `convert`, `diagnose`, `reconstruct`, `catalog`, `system`, `estructura`, `lote`, `outputs`, `outputs.zip`, `vnr`, `source-scope`) | Convertir y descargar |
+| `demanda` | Libros, máximas, clientes y curvas |
+| `pf`, `powerfactory`, `cargas`, `obras` | Proyectos, calibración, casos, estudios y obras |
+| `informes` | Informes, formularios y sus libros |
+| `pide` | PIDE y estudio de planeamiento |
+| `digital-twin`, `modelos` | Gemelo, pronóstico y modelos en uso |
+| `asistente`, `agente` | Órdenes, planes, revisión y monitor |
+| Generales (`jobs`, `sistema`, `health`) y la página | Trabajos, datos de la instalación y `frontend/dist` |
+
+**Interfaz** (`frontend/src`): pestañas Resultados, Cargas en DIgSILENT, Catálogo de parámetros, Sistema completo y Asistente.
+«Cargas en DIgSILENT» sigue los pasos 1 · Proyecto, 2 · Alimentadores y calibración, 3 · Integración de nuevas, 4 · Obras y estudios
+y 5 · PIDE. La web se prueba en el navegador real.
 
 ## Configuración por empresa
 
-`config/perfil_empresa.json` (local, fuera de git, puede heredar de `config/perfiles/`):
-CRS de origen, patrón de SED de medición, forma de los nombres de alimentador, escala del
-diagrama, carpeta de DIgSILENT. Sin perfil no se supone nada: el CRS se pide y ninguna SED
-se excluye por su nombre (P13). Alias de tipos de línea en
-`config/line_type_aliases.json`, también local.
+`config/perfil_empresa.json` (local, puede heredar de `config/perfiles/`): CRS de origen, patrón de SED de medición, forma de los
+nombres, escala del diagrama, carpeta de DIgSILENT, fichas, centrales y el plano de los libros. Su esquema está en
+`schemas/perfil_empresa_v1.schema.json`, y `perfil_esquema.py` lo valida sin bloquear. Sin perfil no se supone nada: el CRS se pide y
+ninguna SED se excluye por su nombre (P13). Ver [`PERFIL_EMPRESA.md`](PERFIL_EMPRESA.md).
+
+**Casos de prueba:** los nombres de empresas, clientes y proyectos de ejemplos, pruebas y documentos son casos de prueba del
+conversor, no valores por defecto (072:RF-20).
 
 ## Informes (017, 063, 066)
 
-El botón «Generar informe de factibilidad» prepara los tres casos, corre sus flujos y escribe el resultado sin pasar por
-otro paso: Word (`informe_docx.py`), PDF y, donde el perfil lo declare, el libro Excel (`libro_informe.py`).
+El botón «Generar informe de factibilidad» prepara los casos, corre sus flujos y escribe el resultado sin otro paso: Word
+(`informe_docx.py`), PDF e imágenes (`mapa_informe.py`) y, donde el perfil lo declare, el libro Excel (`libro_informe.py`). El informe
+se arma con lo que guardaron calibración y obras al correr desde la web, nunca con una ejecución aparte.
 
-- **Datos del solicitante:** de los PDF (`documentos_solicitud.py`). El formulario guardado es de una carga y se vacía al
-  elegir otra; un cliente que no corresponde a la carga se avisa y queda como hueco (063:RF-48, RF-49).
-- **Pérdidas reconocidas y precio:** del libro de la empresa (`libros_informe.py`). En Electro Dunas, columnas H y G de
-  `Perdidas_ELDU` y `Informe!G183`, las mismas que usa el informe modelo.
-- **Libro del informe:** el plano de celdas va en `config/perfiles/electro_dunas.json`; sin esa sección no hay libro (066:RF-2).
-  Excel aplica el plan por COM, porque openpyxl pierde imágenes y gráficos al guardar, y después se relee y se comprueba:
-  datos del modelo, errores de fórmula e importes contra el Word. En el equipo de desarrollo, `Excel.Application` y
-  `Word.Application` los puede responder WPS Office, aunque diga ser Microsoft.
+- **Datos del solicitante:** de los PDF (`documentos_solicitud.py`), con OCR si hace falta. El formulario guardado es de una carga y
+  se vacía al elegir otra; un cliente que no corresponde se avisa y queda como hueco (063:RF-48, RF-49).
+- **Pérdidas y precio:** del libro de la empresa (`libros_informe.py`).
+- **Libro del informe:** el plano de celdas va en el perfil; sin esa sección no hay libro (066:RF-2). Excel aplica el plan por COM,
+  porque openpyxl pierde imágenes y gráficos al guardar, y después se relee y se comprueba. En el equipo de desarrollo,
+  `Excel.Application` y `Word.Application` los puede responder WPS Office, aunque diga ser Microsoft.
 
-## Asistente y su equipo (026, 027, 047, 061, 065, 067)
+## Estudio de planeamiento: PIDE y largo plazo (024, 030, 072)
 
-Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escritura espera confirmación:
+Estado: **conectado a la web, sin aceptación real** (072 T3, T9 y T11 abiertas).
+
+| Entregable | Horizonte | Casos | Salidas |
+| --- | --- | --- | --- |
+| Largo plazo | 20 años | Años 04, 08, 12, 16, 20 | Mercado, densidad, diagnóstico, alternativas, plan de obras, F01-F07 |
+| PIDE | Años 04-07 | Alternativas con y sin proyecto | Fichas, costos, VAN, TIR, priorización, F08-F15 |
+
+- **Años** (`estudio_planeamiento.py`): el estudio declara su año de presentación, cada 4 años; el año 00 es el anterior. Ningún año
+  va fijo en el código.
+- **Flujo:** caso base → proyección de mercado (`proyeccion_mercado.py`) → cada caso por año (`tools/pide_pf.py`, 030) → obras
+  acumuladas → evaluación (`pide.py`, `pide_economia.py`) → entregables (`formatos_pide.py`, `informes_planeamiento.py`).
+- **Costos públicos** (`costos_fuentes.py`, `metrados.py`): el SICODI está leído y cruzado por código. Falta el adaptador de módulos
+  estándar de transmisión (T3). Cada costo lleva resolución, año y huella; no se mezclan ni llevan factores sin sustento.
+- **Modelos:** el oráculo aporta el flujo; los evolutivos, las alternativas (`afinar_bancos_pide`); DIgSILENT confirma. El asistente
+  orquesta los mismos pasos; los entregables históricos le sirven de corpus (`pide_dataset.py`, `ejemplos_pide.py`), nunca como verdad
+  eléctrica.
+
+## Asistente y su equipo (026, 027, 047, 061, 065, 067, 070, 076, 077)
+
+Una orden recorre esto. Solo el rol `operador` ejecuta, y toda escritura espera confirmación:
 
 ```text
  Asistente.tsx ─► POST /asistente ─► carril «asistente»
                                        │
-      interprete.py: Transformer (conf. ≥ 0,85) ─► Ollama (≥ 0,6) ─► «ninguno»
-                                       │           las reglas solo fijan ruta y periodo
+      interprete.py: Transformer (conf. ≥ 0,85) ─► Ollama (≥ 0,6) ─► «ninguno»: pregunta
+                                       │           las reglas solo fijan ruta, periodo y número
                                        ▼
-      plan.py + tareas.py ─► equipo.py: GobiernoEquipo.desde_plan ─► planes_guardados.py
+      plan.py + tareas.py ─► web/asistente_operacion.py ─► equipo.py ─► planes_guardados.py
                                        │
       consulta: responde · lectura: se ejecuta · escritura: botón ─► gobierno.confirmar
                                        ▼
@@ -175,110 +291,145 @@ Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escr
 
 | Pieza | Fichero | Estado |
 | --- | --- | --- |
-| Intérprete, plan, tareas, salida validada | `asistente/{interprete,plan,tareas,contratos_salida}.py` | conectado y probado |
+| Intérprete, plan, tareas, salida validada; un modelo calibrado trae su umbral en lugar del 0,85 | `asistente/{interprete,plan,tareas,contratos_salida}.py` | conectado y probado |
+| Requisitos y consultas de cada tarea | `web/asistente_{operacion,consultas}.py` | conectados; 070 T9 a T11 abiertas en la web real y DIgSILENT |
 | Gobierno y permisos por rol | `asistente/equipo.py`, `web/equipo_api.py` | conectado y probado; sin uso real registrado |
 | Ejecutor | `asistente/ejecutor.py` | conectado y probado; 026 T12 abierta en DIgSILENT |
 | Orquestador del proyecto entero | `asistente/orquestador.py` | conectado; probado con dobles. Un clic confirma la lista de etapas que el operador ve antes |
-| Planes guardados | `asistente/planes_guardados.py` | conectado y probado con reinicio simulado: siguen pidiendo confirmación y nunca se reanudan solos |
-| Monitor y vigilancia | `asistente/{observacion,vigilancia}.py` | conectados y probados |
-| RAG con citas | `asistente/indice.py` | conectado: BM25, y coseno si hay vectores. Sin reranker |
-| Corpus ampliado y lecturas del proyecto | `asistente/{corpus_proyecto,lectura_proyecto}.py`, `tools/mcp_conversor.py` | lecturas conectadas a `pregunta` y al MCP local, solo lectura: con LLM local, todo el árbol y las raíces configuradas salvo secretos, lo sellado y el examen humano; el MCP, restringido salvo `--datos-locales`. El corpus ampliado no se sirve hasta pasar su medición (077:RF-47); sus cifras y las de la 047 no son intercambiables |
-| Revisión por roles y evidencia | `asistente/revision_roles.py`, `asistente/evidencias_web.py` | conectadas y probadas con el transporte de Ollama simulado; sin revisión real registrada |
+| Planes guardados | `asistente/planes_guardados.py` | sobreviven a un reinicio: siguen pidiendo confirmación y nunca se reanudan solos |
+| Monitor y vigilancia | `asistente/{observacion,vigilancia}.py`, `MonitorAgente.tsx` | conectados y probados |
+| Conocimiento con citas | `asistente/{indice,reranker,evaluacion_rag}.py` | conectado: BM25 y vectores. Sin reranker adoptado por la evaluación sellada, queda ese orden. Las puertas de abstención medidas no se cumplen enteras (`cumple_todos: false` en `EVALUACION_ABSTENCION_047.json` y `_077.json`) |
+| Lecturas del proyecto | `asistente/{lectura_proyecto,corpus_proyecto}.py`, `tools/mcp_conversor.py` | conectadas a `pregunta` y al MCP, solo lectura: con LLM local, todo salvo secretos, lo sellado y el examen humano; el MCP, restringido salvo `--datos-locales`. El corpus ampliado no se sirve hasta pasar su medición (077:RF-47) |
+| Revisión por roles y evidencia | `asistente/{revision_roles,evidencias_web}.py` | conectadas y probadas con el transporte de Ollama simulado; sin revisión real registrada |
+| Mejoras e internet | `asistente/{mejoras,internet}.py` | mejoras en rama aparte, nunca fusiona ni sube; búsquedas filtradas y registradas; apagadas en la edición de producto |
 
-**Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no
-agentes separados, y su revisión es documental (`autoriza_ejecucion=False`). Exige evidencias en
-`observacion/evidencias` del espacio, que se custodian solas cuando un informe, un estudio, un PIDE o unas obras terminan
-bien, con el proyecto de su resultado y la huella de la fuente de su vínculo. Las tareas `obras_escalera` y
-`optimizar_con_proyecto` van por sus rutas; mientras el Transformer en uso no las aprenda, se reconocen por su frase
-literal. La optimización PNL de la spec 048 aún no tiene tarea.
+**Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no agentes
+separados, y su revisión es documental (`autoriza_ejecucion=False`). Exige evidencias en `observacion/evidencias` del espacio, que se
+custodian solas cuando un informe, un estudio, un PIDE o unas obras terminan bien.
 
-## Modelos (024, 043, 045, 046, 060)
+## Modelos (024, 026, 043, 045, 046, 060, 069, 075, 079, 085)
 
 Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_registry.py`) guarda candidatos y decisiones, y
-`asistente/modelos_en_uso.py` es lo único que lleva un candidato aprobado a ese puntero, salvo el camino antiguo por CLI sin
-`--integral`. Medido en el equipo de desarrollo el 2026-11-02:
+`asistente/modelos_en_uso.py` es lo único que lleva un candidato aprobado a ese puntero. Punteros leídos el 2026-11-04 en `output/web`:
 
 | Modelo | Fichero | Para qué | Estado |
 | --- | --- | --- | --- |
-| Transformer de órdenes | `asistente/transformer.py` | Texto a tarea y datos | en uso: `20261024-150042-37ce` (acierto 0,981). Los candidatos posteriores no pasaron sus puertas |
-| Transformer de informes | `asistente/clasificador.py` | Tipo y subtipo de documento | en uso: `20261024-150047-b3c4` (subtipo 0,987) |
-| LLM por Ollama | `asistente/ollama.py` | Órdenes y revisor | en uso: `llama3.1:8b` (75,9 % en 54 órdenes). `qwen3:8b` no aprobó sus puertas |
-| LLM alumno (QLoRA a GGUF) | `asistente/llm_destilacion.py`, `llm_runtime.py` | Modelo propio | solo por CLI, **sin entrenar y no activado** |
-| PINN/GNN del gemelo | `digital_twin/oraculo.py` | Grafo y cargas a V y θ, por conjunto de 3 | en uso: `20261028-114528-e6f5` (mae 0,002435). Filtra candidatos; DIgSILENT decide. Exige GPU también para predecir |
-| PowerFlowNet con PyG | `digital_twin/adaptador_pyg.py` | Arquitectura alternativa | solo código; nada la selecciona |
-| Flujo físico propio | `digital_twin/flujo.py` | Comprobación sin pesos | conectado y probado |
-| GRU | `digital_twin/temporal.py` | Serie a **reconstrucción un paso adelante**, no pronóstico | conectada: entrena en cada trabajo, sin pesos guardados. Solo por orden del asistente |
-| GRU candidata | `digital_twin/temporal_entrenamiento.py` | Candidato persistente | solo por CLI, no promovida |
-| Embeddings entrenables | `asistente/embeddings.py` | Encoder versionado | solo por CLI, **sin encoder entrenado** |
-| N-HiTS, TFT, PatchTST | `tools/reentrenar_modelos.py` | Pronóstico | **solo especificados**: devuelven `ERROR_ENTORNO` |
+| Intérprete de órdenes | `asistente/{codificador_ordenes,afinado_ordenes,validacion_cruzada}.py` | Texto a tarea y datos | **provisional:** `prov-8fd8a405a322c80c` (`codificador_afinado_v1` sobre `multilingual-e5-base`, umbral 0,95), en uso desde el 2026-11-04 por decisión del usuario. **No pasa las puertas** y sigue rechazado (085:RF-26 a RF-33) |
+| Transformer por caracteres | `asistente/transformer.py` | El anterior, y la carga de lo que esté en uso | `20261024-150042-37ce`, anterior en el puntero (acierto 0,981) en su prueba fija, sin fichero que lo respalde; 0,17 en la prueba sellada y deja pasar el 67 % de lo que no es una orden |
+| Clasificador de informes | `asistente/clasificador.py` | Tipo y subtipo de documento | en uso: `20261024-150047-b3c4` (subtipo 0,987) |
+| LLM por Ollama | `asistente/ollama.py` | Órdenes y revisor | en uso: `llama3.1:8b` (75,9 % en 54 órdenes, medido el 2026-10-24) |
+| LLM alumno (QLoRA a GGUF) | `asistente/{llm_destilacion,llm_runtime}.py` | Modelo propio | **no activado:** el último candidato del registro quedó en `ERROR_ENTORNO` |
+| Embeddings y reranker | `asistente/{embeddings,reranker}.py` | Recuperación | encoder solo por CLI; reranker en GPU, descargado tras cada respuesta |
+| PINN/GNN del gemelo | `digital_twin/oraculo.py` | Grafo y cargas a V y θ, conjunto de 3 | en uso: `20261028-114528-e6f5` (mae 0,002435). Filtra candidatos; DIgSILENT decide. Exige GPU también para predecir: sin ella, error dicho (`SinGPU`) |
+| PowerFlowNet con PyG | `digital_twin/adaptador_pyg.py` | Arquitectura alternativa | solo como referencia de `benchmark_fisico.py` |
+| Flujo físico propio | `digital_twin/{flujo,motores_flujo}.py` | Comprobación sin pesos | conectado. Z-bus por defecto; Anderson, Newton, power-grid-model y OpenDSS con sus dependencias aparte (083) |
+| GRU | `digital_twin/temporal.py` | Serie a reconstrucción un paso adelante, y multihorizonte para competir | conectada: entrena en cada trabajo |
+| Pronóstico multihorizonte | `digital_twin/{pronostico,temporal_entrenamiento,series_causales,evaluacion_temporal,adaptador_neuralforecast}.py` | Compite ingenuo, estacional semanal, GRU, N-HiTS, TFT y PatchTST | conectado por la tarea `pronostico`. Deja candidatos con `promovido: false`: ningún pronóstico se pone en uso solo |
 
-**Aprendizaje:** `tools/construir_dataset_entrenamiento.py` arma el dataset y dice qué falta (043). El último tiene 2 056
-registros, sin fugas entre particiones, y está **incompleto**: 5 órdenes humanas de 200. «Reentrenar» desde la web registra
-el candidato y lo pone en uso solo si el registro lo aprobó por sus puertas, incluida la comparación con el modelo en uso;
-si no, sigue el actual. El clasificador va por la misma vía, y sin informes reales en su prueba queda `BLOQUEADO_POR_DATOS`
-sin entrenarse. El ciclo conjunto de `training_coordinator.py` no ha corrido nunca completo (050 abierta). Entrenar exige
-CUDA: sin GPU se dice el error. El Transformer de órdenes en la web cede a Ollama y el plan dice el motivo y quién respondió.
+Ninguna de estas cifras se volvió a medir para este documento: las de los punteros son las que guardan sus ficheros.
 
-## Optimización (025, 042, 044, 048, 052)
+**Aprendizaje:** `tools/construir_dataset_entrenamiento.py` arma el dataset y dice qué falta (043). «Reentrenar» desde la web registra
+el candidato y lo pone en uso solo si el registro lo aprobó por sus puertas, incluida la comparación con el modelo en uso. Sin informes
+reales en su prueba, el clasificador queda `BLOQUEADO_POR_DATOS`. `tools/aprendizaje_continuo.py` lleva el ciclo conjunto sobre
+`training_coordinator.py` (050 abierta). Entrenar exige CUDA y una sola guardia de GPU para toda la máquina (071): sin GPU se dice el
+error. Sin 200 órdenes humanas, `asistente/ordenes_maestro.py` dice qué conjunto decide la puerta (085).
+
+### Contratos de aprendizaje corregidos (spec 060, 2026-11-01)
+
+Corrigen lo que la auditoría de alumnos encontró, con los lectores, el coordinador y el registro que ya existían; no se añadió otro
+servidor ni otro registro. La parada temprana y la calibración usan familias apartadas antes del ajuste, con sus identificadores
+persistidos. Un warm-start exige la genealogía de lo visto, y si falta o contamina las reservas se ajusta desde cero. El corpus lleva
+una copia verificada de su política. Las medianoches de la medición no se desplazan y cada error temporal dice su hoja y su fila. Los
+modelos heredados se consultan con su versión y una advertencia, sin promoverlos ni cargar Torch. Evidencia en
+[`CORRECCIONES_ALUMNOS_2026-11-01.md`](CORRECCIONES_ALUMNOS_2026-11-01.md).
+
+## Gemelo digital (024, 045)
+
+Cada acción nativa aceptada se captura (`digital_twin/integration.py`) como un episodio inmutable (`episode.py`, esquema v2 con los
+cuatro casos) en el búfer (`buffer.py`). Lo que falta, es de otro proyecto o cambió a mano va a cuarentena sin repetir la acción
+(`capture.py`). `contratos_fisicos.py` dice qué física representa el grafo y por qué rechaza una red, y `benchmark_fisico.py` comprueba
+el dominio antes de inferir. Los escenarios corren sobre copias de proyectos importados y se borran al terminar
+(`tools/escenarios_pf.py`).
+
+## Optimización (025, 042, 044, 048, 052, 074)
 
 | Técnica | Fichero | Dónde se usa | Estado |
 | --- | --- | --- | --- |
-| Escalera de obras: bancos, sección, combinación, terna y regulador | `escalera_optima.py` | Paso de obras de la web, evaluada en DIgSILENT | conectada y probada; es enumeración por variantes |
+| Escalera de obras | `escalera_optima.py` | Paso de obras, evaluada en DIgSILENT | conectada; enumeración por variantes |
 | Búsqueda bayesiana (Optuna TPE) | `optimizacion_oraculo.py` | Optimización de «Con proyecto» | conectada; probada con doble. 052 T4 abierta |
-| NSGA-II de Pareto, propio | `optimizacion_oraculo.py` | Igual | igual |
+| NSGA-II de Pareto, propio | `optimizacion_oraculo.py`, `digital_twin/evolutivo.py` | Igual | igual |
 | Markov y Shapley, propios | `optimizacion_oraculo.py` | Igual | igual |
 | GA y NSGA-II de bancos, propios | `digital_twin/evolutivo.py` | Propuestas del PIDE | conectados y probados |
-| Evolución diferencial, reconfiguración y consigna | `digital_twin/evolutivo.py` | Nadie fuera de pruebas | solo código |
-| **PNL (Pyomo e Ipopt)** | ninguno | Ninguno | **solo especificada** (048): las dependencias están instaladas y nada las usa |
-| **Optimización mixta y pymoo** | ninguno | Ninguno | **solo especificadas** (048) |
+| Evolución diferencial, reconfiguración y consigna | `digital_twin/evolutivo.py` | Solo `tools/evaluar_evolutivos.py` y pruebas | sin conectar a la web |
+| MADRL (GATv2, PPO) y control con pymoo | `madrl_obras.py`, `madrl_politica.py` | Solo `tools/madrl_*.py` | **piloto sin entrenar en redes reales:** la fidelidad no pasa (074 T5, T7, T8) |
+| **PNL (Pyomo e Ipopt)** | ninguno | Ninguno | **solo especificada** (048): Ipopt está en `external/solvers` y nada lo usa |
+| **Optimización mixta** | ninguno | Ninguno | **solo especificada** (048) |
 
-El oráculo solo ordena y filtra: **toda obra se confirma con los módulos nativos de DIgSILENT**, que manda si discrepa.
+El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 
 ## Pronóstico y evaluación (029, 044, 046)
 
-- **Crecimiento por alimentador** (`crecimiento.py`, 029): tasa aritmética desde la medición de cabecera; conectado.
-- **Series causales** (`digital_twin/series_causales.py`, 046): preparación; solo por CLI.
-- **Multihorizonte con cuantiles** (046): **solo especificado**, no hay código.
-- **Particiones y puertas** (`evaluacion_modelos.py`, 044): conectadas, también en la PINN. `verificar_top_k` exige la medición nativa completa. Desde la 044 T5 decide si se acepta lo aplicado en la 052, tras `obras_pf`: relee «Con proyecto» y «Sin proyecto» tras reabrir y lo compara con el oráculo. Lo que no pasa se avisa y no se acepta, sin parar la corrida. Probado con un doble; en DIgSILENT es de la 044 T4.
+- **Crecimiento por alimentador** (`crecimiento.py`, 029): tasa desde la medición de cabecera; conectado.
+- **Multihorizonte con cuantiles** (046): ver la tabla de modelos. Particiones por día y ventanas causales (`series_causales.py`),
+  política predeclarada, pinball y cobertura (`evaluacion_temporal.py`).
+- **Particiones y puertas** (`evaluacion_modelos.py`, 044): conectadas, también en la PINN. `verificar_top_k` exige la medición nativa
+  completa, y decide si se acepta lo aplicado en la 052. Probado con un doble; en DIgSILENT es de la 044 T4.
 
-## Deudas conocidas
+## Operación comercial y entrega (086)
 
-1. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`.
-2. PNL, optimización mixta y pronóstico multihorizonte están especificados y sin implementar.
-3. La partición de `web/services.py` y la migración de paquetes de la spec 002 siguen pendientes.
+- **Ediciones** (`edicion.py`): en la de producto, el servidor niega las rutas y tareas fuera de alcance (entrenar, gemelo, revisión por
+  roles, mejoras, `pregunta`); el front solo pregunta en `/api/health` qué enseñar. Las funciones en beta llevan marca y se pueden apagar.
+- **Salidas a la red** (`salidas_red.py`): cada una declarada con su interruptor, apagadas en producto. Una prueba recorre el código.
+- **Candidato:** `config/entrega.json` es el único fichero que dice qué entra. `tools/comprobar_entrega.py` lo comprueba,
+  `tools/construir_candidato.py` lo arma y `tools/instalar_candidato.py` instala, actualiza y vuelve atrás sin red. Ver
+  [`MANUAL_INSTALACION.md`](MANUAL_INSTALACION.md).
+- **Instalador:** `instalador/ConverterSmartGrid.iss`, por usuario y sin administrador. **Sin probar en una compilación real.**
+- **Soporte:** `web/doctor.py` (qué falta y cómo arreglarlo), `web/soporte.py` (paquete sin datos del cliente), `registro_rotativo.py`
+  y `web/copia_datos.py` con `tools/copia_datos.py`.
 
-## Retención diaria de ejecuciones (spec062)
+## Calidad: qué lo comprueba
 
-`web/retencion.py` comparte la raíz de WorkspaceStore y el control de admisión de
-JobManager. El lifespan inicia una tarea asíncrona con el trabajo de archivos en
-`asyncio.to_thread`; cada60 segundos comprueba si venció el plazo de24 horas,
-cuya fecha queda persistida. La tarea se detiene cooperativamente al apagar.
-El mantenimiento y la admisión de nuevos trabajos son excluyentes; cualquier
-trabajo pendiente aplaza la limpieza sin cancelarlo.
+| Comprobación | Dónde | Qué evita |
+| --- | --- | --- |
+| Inventario | `tests/test_inventario.py` (009) | Un fichero sin índice, una herramienta sin `--help`, una función sin uso, un RF sin prueba |
+| Trazabilidad de specs | `tools/estado_specs.py` (033) | `specs/README.md` y la tabla de `CLAUDE.md` distintos del estado real |
+| Capas | `tools/arquitectura.py`, `tests/test_capas.py` (065) | Violaciones nuevas y deuda que crece |
+| Contrato de la API | `tests/test_contrato_api.py` (065) | Front y API divergentes |
+| Regresiones | `docs/regresiones/`, `comprobacion_*.py` (081) | Que un fallo real se repita |
+| Línea base del DGS | `tools/linea_base_dgs.py`, una por fuente | Una reorganización que cambie el DGS |
+| Suite | `tools/suite_por_tandas.py`; solo vale con las variables `CSG_*` y ninguna omitida | Una suite que pasa sin probar lo real |
+| Aceptación nativa | `tools/powerfactory_acceptance.py`, `tools/accept_*.py`, `tools/sistema_web.py` | Lo que solo se ve en DIgSILENT real |
+| Candidato | `tools/verificar_candidato.py`, `tools/trazabilidad_candidato.py` | Entregar con evidencia de otra revisión |
 
-Las referencias de todos los espacios y sus estados en memoria protegen las
-ejecuciones utilizadas. Los árboles se validan antes de retirar y se rechazan
-redirecciones, enlaces simbólicos y junctions. Los enlaces duros solo pierden
-la entrada de una ejecución obsoleta: la fuente externa conserva su nombre.
-La respuesta del monitor incluye política y resumen; no se añade sondeo en la web.
+## Deudas y trabajo sin integrar
 
-## Estudio de planeamiento: PIDE y largo plazo (spec 072)
+**Deudas conocidas**
 
-Estado a 2026-11-02: **aprobada, sin implementar**. Hoy el código diagnostica por años (`tools/pide_pf.py`, spec 030) y da una
-propuesta parcial de obras; no genera los entregables. Lo calibrado hasta ahora es el caso base o año cero.
+1. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`: en SM218, 292 de 306 cargas no cuadran (+28 % en cabecera).
+2. Solo especificados, sin código: PNL y optimización mixta (048) y protecciones nativas (049).
+3. El intérprete de órdenes en uso no pasa sus puertas (085), y el dataset sigue sin sus 200 órdenes humanas.
+4. `web/services.py` sigue siendo un solo fichero enorme: su partición y la migración de paquetes siguen pendientes (002).
+5. El instalador no se ha compilado de verdad, y faltan las corridas de la 086 en máquina limpia.
+6. Quedan excepciones de capas; las reexportaciones de `web/sources/` las retira 002:RF-21.
 
-| Entregable | Horizonte | Casos | Salidas |
-| --- | --- | --- | --- |
-| Largo plazo | 20 años | Años 04, 08, 12, 16, 20 | Mercado, densidad, diagnóstico, alternativas, plan de obras, F01-F07 |
-| PIDE | Años 04-07 | Alternativas con y sin proyecto | Fichas, costos, VAN, TIR, priorización, F08-F15 |
+**En ramas, fuera de esta descripción** (estado anotado el 2026-11-04; comprobar antes de fiarse):
 
-- **Años:** el estudio declara su año de presentación, cada 4 años; el año 00 es el anterior. Con presentación 2027, año 00 = 2026.
-  Ningún año va fijo en el código.
-- **Flujo:** caso base → proyección de mercado (031/046) → cada caso por año (030) → obras acumuladas → evaluación → entregables.
-  El PIDE consume el largo plazo.
-- **Costos públicos de Osinergmin, Procesos Regulatorios:** SICODI para distribución, módulos estándar para transmisión y VNR
-  aprobado de cada empresa, cada uno con resolución, año y huella. No se mezclan ni llevan factores sin sustento.
-- **Modelos:** el pronóstico aporta la demanda; el oráculo, el flujo; los evolutivos, las alternativas; DIgSILENT confirma. El
-  asistente orquesta los mismos pasos y redacta; los entregables históricos le sirven de corpus, nunca como verdad eléctrica.
-- **Casos de prueba:** los nombres de empresas, clientes y proyectos de ejemplos, pruebas y documentos son casos de prueba del
-  conversor, no valores por defecto (072:RF-20).
+| Rama | Worktree | Qué trae |
+| --- | --- | --- |
+| `entrega/087-conjunto` | `.worktrees/entrega-087q` | Spec 087, sin commit: transferencia y traslado, confirmación conjunta, costos con cita |
+| `entrega/042-nivel-rebase` | `.worktrees/entrega-042e` | 042, sin medida en DIgSILENT; base de la 087 |
+| `fix/088-q-desde-fp` | `.worktrees/q-fp-088` | Spec 088, sin commit: Q de cabecera desde el FP |
+
+## Correcciones a versiones anteriores
+
+Lo que este documento decía el 2026-11-02 y dejó de ser cierto. Se conserva literal porque las preguntas de la 076 y los conjuntos de la
+077 citan estas frases: son contradicciones que anotaron, ya resueltas aquí, y sus filas siguen pendientes de revisar (090:RF-16).
+
+| Decía | Hoy |
+| --- | --- |
+| `97 excepciones sobre` 210 módulos | Bajaron; la cifra vigente está en el catálogo |
+| `**Tres carriles**` | Cuatro, con `control` |
+| `Estado a 2026-11-02: **aprobada, sin implementar**.`, del planeamiento | Conectado a la web, sin aceptación real |
+| `**Multihorizonte con cuantiles** (046): **solo especificado**` | Tiene código y va por la tarea `pronostico` |
+| `Sin reranker`, del RAG | `asistente/reranker.py` existe; actúa solo si su evaluación sellada lo adoptó |
+| N-HiTS, TFT, PatchTST | Solo especificados en la versión anterior; hoy, en `digital_twin/adaptador_neuralforecast.py` |

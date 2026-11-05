@@ -1,0 +1,23 @@
+#!/bin/sh
+# 090:RF-13: git calcula el árbol de la fusión antes de pre-merge-commit, así que lo que ese gancho añade no entra.
+# Aquí, recién hecha, se rehace la fusión con el catálogo, con sus mismos padres, autor y mensaje: aún no ha salido de
+# esta máquina. No vale «commit --amend»: durante este gancho sigue MERGE_HEAD y git lo rechaza.
+# Fast-forward y --squash no crean fusión: el primero ya trae su catálogo, el segundo pasa por commit.
+[ "$1" = "1" ] && exit 0
+git rev-parse -q --verify HEAD^2 >/dev/null || exit 0
+sh "$(git rev-parse --show-toplevel)/.githooks/regenerar.sh"
+git diff --cached --quiet -- docs/ARQUITECTURA_CATALOGO.md && exit 0
+
+aviso() {
+  echo "Aviso: no se pudo poner el catálogo en la fusión; python tools/generar_arquitectura.py --escribir" >&2
+  exit 0
+}
+arbol=$(git write-tree) || aviso
+padres=""
+for p in $(git rev-list --parents -n 1 HEAD | cut -d' ' -f2-); do padres="$padres -p $p"; done
+GIT_AUTHOR_NAME=$(git log -1 --format=%an) GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae) GIT_AUTHOR_DATE=$(git log -1 --format=%aI)
+export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
+# shellcheck disable=SC2086
+nuevo=$(git log -1 --format=%B | git commit-tree "$arbol" $padres) || aviso
+git update-ref -m "fusión: catálogo de la arquitectura (spec 090)" HEAD "$nuevo" || aviso
+exit 0

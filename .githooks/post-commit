@@ -1,0 +1,5 @@
+#!/bin/sh
+# 090:RF-12: en un commit con rutas explícitas el catálogo se añadió al índice temporal de ese commit.
+# El índice real se queda como HEAD: si no, parecería preparado un catálogo anterior.
+git reset -q -- docs/ARQUITECTURA_CATALOGO.md 2>/dev/null
+exit 0

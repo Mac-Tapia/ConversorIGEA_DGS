@@ -4,3 +4,6 @@
 
 # Copia exacta de Leaflet: su huella se comprueba, y core.autocrlf=true la cambiaria (086:RF-21).
 src/convertersmartgrid/recursos/** -text
+
+# 090:RF-13: el catalogo generado no para una fusion; post-merge lo regenera.
+docs/ARQUITECTURA_CATALOGO.md merge=union
