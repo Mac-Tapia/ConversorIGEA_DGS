@@ -98,8 +98,9 @@
 - [x] T23 Manuales, hoja de seguridad, `THIRD_PARTY_NOTICES`, SBOM, `pip-audit`; corregir README y `MANUAL_COMANDOS` (órdenes rotas en `:629,676`). (RF-44)
   Hecho cuando: los documentos existen sin nombres de empresa y sus órdenes responden; auditoría sin vulnerabilidades graves.
   Evidencia: `tests/test_instalacion_programa.py`; `pip-audit` del lock el 2026-11-04, sin avisos, tras subir Pillow, pypdf y certifi (`docs/regresiones/2026-11-04-versiones-con-vulnerabilidades-en-el-entorno.md`). Las licencias quedan como inventario para la asesoría (D7), sin conclusiones. La persona ajena es la T41.
-- [ ] T40 [DIgSILENT] Compilar `instalador/ConverterSmartGrid.iss` con Inno Setup, y en una máquina virtual limpia instalar, actualizar y volver atrás, con DIgSILENT importando con el Python embebido. Construir y probar el complemento de IA. (RF-36, RF-37, RF-38, RF-39)
-  Hecho cuando: el instalador compilado conserva los datos en esa máquina, un guion importa `powerfactory` con el Python del programa, y el complemento instala con huella y carga sus modelos.
+- [ ] T40 [DIgSILENT] Con el `setup.exe`, en este equipo y sin nada de desarrollo en el entorno: instalar, actualizar y volver atrás, y una importación real en DIgSILENT con el Python del programa. Construir y probar el complemento de IA. (RF-36, RF-37, RF-38, RF-39)
+  Hecho cuando: el instalador conserva los datos, una importación real termina con el Python del programa, y el complemento instala con huella y carga sus modelos.
+  Hecho (2026-11-04): compilado con Inno Setup 6.7.3 (129 MB, 17 s), instalado con `PATH` solo de System32 (158 s, 519 MB), doctor «listo para trabajar» en edición de producto, y `import powerfactory` con el Python del programa, sin abrir el motor. Falta lo demás: la sesión de la 042 ocupa DIgSILENT.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 
@@ -128,9 +129,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 
 - [ ] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
-- [ ] T32 [DIgSILENT] Instalación en un equipo limpio con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)
+- [ ] T32 [DIgSILENT] Instalación con el `setup.exe` en este equipo, con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)
   Hecho cuando: sin tocar el código, solo su perfil, sale un informe que un ingeniero da por bueno.
-- [ ] T33 [DIgSILENT] Ensayo de corte de luz a media calibración y a media importación. (RF-46)
+- [ ] T33 [DIgSILENT] Ensayo de corte a media calibración y a media importación, matando los procesos con las demás sesiones paradas. (RF-46)
   Hecho cuando: ningún espacio se pierde, el trabajo se ve interrumpido y se retoma sin trabajo repetido ni datos mezclados.
 - [ ] T34 Asesoría legal cerrada, repositorio de producto, licencia, y etiqueta `v1.0.0` con sus notas. (D3, D7)
   Hecho cuando: el usuario da la orden de publicar.

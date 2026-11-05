@@ -1,4 +1,4 @@
-; Instalador de ConverterSmartGrid (spec 086, RF-36, RF-38, RF-39). NO PROBADO en una compilación real: pendiente de T37.
+; Instalador de ConverterSmartGrid (spec 086, RF-36, RF-38, RF-39). Probado en una compilación real: compilado el 2026-11-04 (086 T40).
 ;
 ; Compilar, con el candidato ya armado por tools/construir_candidato.py:
 ;   ISCC.exe /DCandidato=C:\ruta\candidato /DVersion=1.0.0rc1 instalador\ConverterSmartGrid.iss
