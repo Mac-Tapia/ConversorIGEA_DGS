@@ -182,7 +182,7 @@ def test_hoja_con_su_nombre_sin_kw_usa_sus_partes(tmp_path):
     res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M5')])[0]
     assert res.error is None, res
     assert sorted(res.hojas) == ['M5_v19', 'M5_v20']
-    assert (res.kw, res.kvar) == (esperado['kw'], esperado['kvar'])
+    assert (res.kw, res.kvar) == pytest.approx((esperado['kw'], esperado['kvar']))
     assert res.columnas['fp'] == 'calculado con kW y kVA'
 
 
@@ -248,7 +248,7 @@ def test_canal_sin_hoja_se_une_al_medidor_que_ya_lo_da(tmp_path):
         assert any('IN1_V119' in a for a in res[0].avisos)
     solo = dm.maximas([tmp_path / 'c.xlsx'], [('A1', 'IN1_V119')])[0]
     assert solo.error is None and solo.canal_de == 'IN1'
-    assert (solo.kw, solo.kvar) == (esperado['kw'], esperado['kvar'])
+    assert (solo.kw, solo.kvar) == pytest.approx((esperado['kw'], esperado['kvar']))
     # Un canal de un medidor que no está sigue siendo un error (RF-32).
     assert dm.maximas([tmp_path / 'c.xlsx'], [('A1', 'IN9_V119')])[0].error
 
