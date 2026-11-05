@@ -1121,6 +1121,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
 | `costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público y nombra lo que no (spec 072). |
 | `madrl_entrenar.py` | Entrena el control MaskablePPO del piloto MADRL y lo compara con la escalera y NSGA-II; dependencias en `requirements-madrl.txt` (spec 074). |
+| `medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones: tiempo, recursos, obras, normas y contraste de hipótesis (spec 087). | |
 | `madrl_obras.py` | Mide la escalera, NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios (spec 074). |
 | `proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01 (spec 072). |
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |

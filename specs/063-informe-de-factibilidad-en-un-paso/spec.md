@@ -147,6 +147,7 @@ Obras para conectar
   ENTONCES EL SISTEMA elegirá la primera de esas por el orden de prioridad (RF-21, RF-22), avisará
   que los sorteos no la confirmaron y no pasará a otras obras ni a la SET nueva. (Usuario,
   2026-11-01: «si hay solución de la optimización, nada debe crearse ni ver otras obras».)
+  Acotada por 087:RF-49: solo si sus sorteos quedan cerca del criterio.
 
 - RF-34: CUANDO las cargas nuevas que se evalúan suman más que el umbral del perfil
   (`planificacion.set_nueva_desde_kw`; Electro Dunas, 10 000 kW), EL SISTEMA planteará como solución

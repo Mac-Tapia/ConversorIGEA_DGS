@@ -242,7 +242,8 @@ def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
     sin = eo.parametros({**PERFIL, 'escalera': {k: v for k, v in PERFIL['escalera'].items() if k != 'escala_capex'}})
     with pytest.raises(eo.EscaleraError, match='escala_capex'):
         eo.costos_de_alternativas(libro, sin)
-    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA)      # 042:RF-54
+    # 042:RF-54; 087:RF-37: y el km de alimentador nuevo, deducido del cambio de tensión, por confirmar.
+    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA) | {'nuevo_alimentador'}
 
 
 def test_sin_regulador_salvo_que_el_perfil_lo_pida():
@@ -788,10 +789,10 @@ def test_el_horizonte_con_la_tasa_del_alimentador_o_con_el_factor():
     """042:RF-73 — con tasa, 20, 10 y 5 años a interés compuesto; sin ella, un solo flujo con el factor."""
     p = _p_con_factor()
     h = eo.plan_de_horizonte('F1', 0.03, p)
-    assert h['anios'] == [20, 10, 5] and h['factores']['20']['F1'] == pytest.approx(1.03 ** 20)
+    assert h['anios'] == [30, 15, 7] and h['factores']['30']['F1'] == pytest.approx(1.03 ** 30)
     sin = eo.plan_de_horizonte('F1', None, p)
-    assert sin['anios'] == [20] and sin['factores']['20'] == {'F1': 1.25}
-    assert eo.plan_de_horizonte('F1', -0.01, p)['anios'] == [20]
+    assert sin['anios'] == [30] and sin['factores']['30'] == {'F1': 1.25}
+    assert eo.plan_de_horizonte('F1', -0.01, p)['anios'] == [30]
 
 
 @pytest.mark.parametrize('medida,bien', [
@@ -834,7 +835,7 @@ def test_el_horizonte_usa_la_tasa_de_largo_plazo_del_perfil():
     """042:RF-86 — la del perfil; sin ella, la de referencia. No la medida, que en un alimentador salía 16,5 %."""
     p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'crecimiento_demanda_anual': 0.0346}})
     assert p.tasa_largo_plazo == 0.0346 and P.tasa_largo_plazo == 0.03
-    assert eo.plan_de_horizonte('F1', p.tasa_largo_plazo, p)['factores']['20']['F1'] == pytest.approx(1.0346 ** 20)
+    assert eo.plan_de_horizonte('F1', p.tasa_largo_plazo, p)['factores']['30']['F1'] == pytest.approx(1.0346 ** 30)
 
 
 @pytest.mark.parametrize('fraccion,medidos,seguir', [(1.0, 50, False), (0.98, 50, False), (0.96, 50, True), (0.90, 50, True),
@@ -842,3 +843,12 @@ def test_el_horizonte_usa_la_tasa_de_largo_plazo_del_perfil():
 def test_los_sorteos_siguen_solo_si_la_etapa_queda_cerca_del_criterio(fraccion, medidos, seguir):
     """042:RF-87 — lejos del 95 %, los demás no cambiarían la decisión; con todos medidos no hay más."""
     assert eo.hace_falta_seguir(fraccion, medidos, 200, P) is seguir
+
+
+def test_la_definitiva_se_presenta_aunque_no_sea_de_las_tres_mas_baratas():
+    """042:RF-91, 042:RF-93 — a la vida útil del perfil; sustituye a la tercera, y la elegida no se toca."""
+    assert P.horizonte_anios == 30
+    defi = {'definitiva': True, 'aguanta_anios': 30, 'motivos': []}
+    d = eo.elegir([_opcion('a', ('seccion',), 100.0, 1.0), _opcion('b', ('terna',), 200.0), _opcion('c', ('nivel',), 300.0),
+                   {**_opcion('d', ('seccion', 'terna'), 900.0), 'horizonte': defi}], P)
+    assert [a['nombre'] for a in d['alternativas']] == ['a', 'b', 'd'] and d['elegida'] == 'a'

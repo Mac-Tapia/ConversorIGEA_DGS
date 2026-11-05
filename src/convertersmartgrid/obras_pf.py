@@ -1037,10 +1037,15 @@ def _migracion(p: _Plan) -> None:
     except TroncalError as exc:
         raise ObrasError(f'El nodo {o.nodo} no es del alimentador {o.alimentador}: {exc}.') from None
     origen, destino = estado.kv, o.kv_destino
-    if math.isclose(origen, destino):
-        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
     dentro = set(parte.barras)
-    for barra in parte.barras:
+    # 087:RF-32, RF-33: a un vecino de la misma tensión la parte solo cambia de alimentador, por el enlace que llega a
+    # ella: ni barras ni tipos cambian. Sin ese enlace no hay traslado que hacer. CHI201 a SC215 (Pisco, 2026-11-04):
+    # el enlace de 0,25 km no se probaba porque aquí se rechazaba toda migración a la misma tensión.
+    misma = math.isclose(origen, destino)
+    if misma and (p.destinos.get(o.alimentador) or '') not in dentro:
+        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV: sin un enlace que llegue a la parte '
+                         f'que pasa, no hay traslado.')
+    for barra in ([] if misma else parte.barras):
         kv = estado.barras.get(barra)
         if kv is not None and math.isclose(kv, origen):              # las de media (RF-55)
             p.elemento(barra, 'ElmTerm', f'uknom {origen:g} → {destino:g} kV')
@@ -1048,7 +1053,8 @@ def _migracion(p: _Plan) -> None:
     tramos = [n for n in parte.tramos if n in estado.tipo_tramo]
     trafos = sorted(tr for tr, barra in red.trafo_barra.items()
                     if barra in dentro and tr in estado.trafos)
-    _tipos_a_tension(p, tramos, trafos, origen, destino)
+    if not misma:
+        _tipos_a_tension(p, tramos, trafos, origen, destino)
     # Con el tramo de entrada cerrado la parte que pasa sigue unida a la que no (RF-58).
     p.elemento(parte.entrada, 'ElmLne' if parte.entrada in estado.tipo_tramo or not (o.salida or o.elevador_mva) else 'ElmCoup',
                'se abre (fuera de servicio): separa la parte que pasa de la que no pasa')

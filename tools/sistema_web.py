@@ -518,7 +518,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
 
 
 def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None,
-                 capex: str | None = None, rehacer_obras: bool = False) -> int:
+                 capex: str | None = None, rehacer_obras: bool = False, obra_integral: bool = False) -> int:
     """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-72).
 
     Pisco (2026-11-03): el usuario pidió que lo que falta se lance y cierre solo. Si ya corre un «Con proyecto»
@@ -534,7 +534,9 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
     if trabajo is None:
         print(f'«Con proyecto» de {proyecto}: se lanza para {", ".join(feeders)}', flush=True)
         trabajo = web.post('/pf/obras/con-proyecto', json={
-            'project': proyecto, 'feeders': feeders, 'escalera_primero': True,
+            'project': proyecto, 'feeders': feeders,
+            # 087:RF-54: a la obra integral sin repetir la escalera ya hecha (usuario, 2026-11-04, CHI201).
+            **({'directo_set_nueva': True} if obra_integral else {'escalera_primero': True}),
             **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {}),
             **({'rehacer_obras': True} if rehacer_obras else {})})
     else:
@@ -620,6 +622,8 @@ def main(argv=None) -> int:
     p.add_argument('--rehacer-obras', action='store_true',
                    help='Con --con-proyecto, retira las obras de esos alimentadores y las evalúa de nuevo (042:RF-60)')
     p.add_argument('--capex', help='Con --con-proyecto, el libro CAPEX: costea las obras y elige la SET nueva (042:RF-7)')
+    p.add_argument('--obra-integral', action='store_true',
+                   help='Con --con-proyecto, sin escalera: alimentador nuevo o SET nueva según la zona (087:RF-54)')
     args = p.parse_args(argv)
     _RESUMEN[:] = [args.resumen_json] if args.resumen_json else []
     try:
@@ -630,7 +634,7 @@ def main(argv=None) -> int:
     if args.con_proyecto and args.proyecto:
         try:
             return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex,
-                                rehacer_obras=args.rehacer_obras)
+                                rehacer_obras=args.rehacer_obras, obra_integral=args.obra_integral)
         except (RuntimeError, TimeoutError, requests.RequestException) as exc:
             print(f'ERROR: {exc}')
             return 2

@@ -51,10 +51,18 @@ def grupo_economico(escalones) -> int:
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
                'seccion': 'cambio_seccion', 'nivel': 'cambio_tension', 'sed_nivel': 'cambio_tension_sed',
-               'celda_nivel': 'celda', 'elevador_nivel': 'elevador'}
-#: 042:RF-54: en dólares y por confirmar, para la empresa cuyo libro y perfil no traen estos costos.
-COSTOS_NIVEL_DE_REFERENCIA = {'cambio_tension': 40000.0, 'cambio_tension_sed': 9000.0, 'celda': 80000.0,
+               'celda_nivel': 'celda', 'elevador_nivel': 'elevador',
+               # 087:RF-32, RF-33: el enlace de una transferencia o un traslado es red de media nueva, por km.
+               'transferencia': 'nuevo_alimentador', 'traslado': 'nuevo_alimentador'}
+#: 042:RF-54, 087:RF-37: en dólares y por confirmar, para la empresa cuyo libro y perfil no traen estos costos.
+#: La celda es la más parecida con costo público reciente: la celda GIS de 22,9 kV que fija Osinergmin en la
+#: Resolución 058-2026-OS/CD (USD 58 699,52). Ninguna resolución vigente da la Metal Clad de salida de alimentador.
+COSTOS_NIVEL_DE_REFERENCIA = {'cambio_tension': 40000.0, 'cambio_tension_sed': 9000.0, 'celda': 58699.52,
                               'elevador': 50000.0}
+#: 087:RF-37: de dónde sale cada costo de referencia, para citarlo en el informe.
+FUENTE_DE_REFERENCIA = {
+    'celda': 'Osinergmin, Resolución 058-2026-OS/CD, celda GIS 22,9 kV (USD 58 699,52), la más parecida; por confirmar',
+}
 #: 042:RF-61: potencias normalizadas del elevador dedicado, en MVA; por encima de la última, RF-62.
 MVA_ELEVADOR = (1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0)
 #: Alternativas que se cuentan por unidad, no por km.
@@ -108,8 +116,8 @@ class Parametros:
     migrar_a_kv: float = 22.9
     #: 042:RF-70, RF-71: margen del elevador y del regulador por el crecimiento que la corriente medida no cuenta.
     factor_sin_tasa: float = 1.0
-    #: 042:RF-73: los años a que una alternativa es definitiva.
-    horizonte_anios: int = 20
+    #: 042:RF-73, RF-91: los años a que una alternativa es definitiva: la vida útil.
+    horizonte_anios: int = 30
     #: 042:RF-86: el crecimiento con que se proyecta ese horizonte.
     tasa_largo_plazo: float = 0.03
     #: 042:RF-87: los sorteos de la primera etapa y las fracciones con que ya se decide.
@@ -181,7 +189,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
         factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
                                         (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
-        horizonte_anios=int((perfil.get('planificacion') or {}).get('horizonte_anios') or 20),
+        horizonte_anios=int(plan['vida_util_anios']),
         tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA),
         sorteos_etapa=int(50 if esc.get('sorteos_etapa') is None else esc['sorteos_etapa']),
         sorteos_decide_si=float(esc.get('sorteos_decide_si') or 0.98),
@@ -226,7 +234,14 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
             if alt == 'cambio_tension' and seccion.get('costo_unitario'):
                 out[alt] = {**seccion, 'origen': 'deducido del cambio de sección, por confirmar'}
             else:
-                out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt), 'origen': 'referencia, por confirmar'}
+                out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt),
+                            'origen': FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
+    # 087:RF-37: sin «nuevo alimentador» en el libro, el km de la terna, que es la misma red de media nueva.
+    if not (out.get('nuevo_alimentador') or {}).get('costo_unitario'):
+        for parecida in ('nueva_terna', 'cambio_seccion', 'cambio_tension'):
+            if (out.get(parecida) or {}).get('costo_unitario'):
+                out['nuevo_alimentador'] = {**out[parecida], 'origen': f'deducido de «{parecida}», por confirmar (087:RF-37)'}
+                break
     return out
 
 
@@ -695,6 +710,12 @@ def cumple(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequen
     if not con.get('converge'):
         return False, ['no converge']
     motivos = []
+    # 087:RF-42: ninguna obra deja una parte de la red separada o aislada (usuario, 2026-11-04: «no debe haber
+    # separaciones o aislados»); solo cuentan las que no lo estaban ya sin la obra.
+    if 'aisladas' in con and 'aisladas' in sin:
+        nuevas = sorted(set(con['aisladas']) - set(sin['aisladas']))
+        if nuevas:
+            motivos.append(f"{len(nuevas)} barra(s) de media quedan aisladas, sin servicio: {', '.join(nuevas[:5])}")
     lo, hi = p.tension_min_pu, p.tension_max_pu
     u_con, u_sin = con.get('u') or {}, sin.get('u') or {}
     for b in barras_cargas:
@@ -846,6 +867,19 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
     escogidas = orden[:MAX_ALTERNATIVAS]
     if elegida and not any(t['nombre'] == elegida for t in escogidas):
         escogidas = escogidas[:MAX_ALTERNATIVAS - 1] + [t for t in orden if t['nombre'] == elegida]
+
+    def _es_definitiva(t):
+        return (t.get('horizonte') or {}).get('definitiva') is True
+
+    if not any(_es_definitiva(t) for t in escogidas):                           # 042:RF-93
+        definitiva_barata = next((t for t in orden if _es_definitiva(t)), None)
+        if definitiva_barata is not None:
+            cabe = next((i for i in range(len(escogidas) - 1, -1, -1) if escogidas[i]['nombre'] != elegida), None)
+            if len(escogidas) < MAX_ALTERNATIVAS:
+                escogidas.append(definitiva_barata)
+            elif cabe is not None:
+                escogidas[cabe] = definitiva_barata
+            escogidas.sort(key=lambda t: (t['costo']['costo_anual'], t['nombre']))
     return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
              'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
              'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'), 'valle': t.get('valle'),
@@ -911,8 +945,13 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     # con la máxima y los sorteos daban 94,5 % por un defecto de la evaluación, y el flujo saltaba
     # a la SET nueva.
     # 073:RF-18: aquí no entra lo que no cumple en valle.
+    # 087:RF-49: solo con los sorteos cerca del criterio, como el 94,5 % de SM218. Pisco (2026-11-04): la sección de
+    # CHI201 cumplía con la máxima del instante coincidente y solo en el 60 % de los sorteos, porque su demanda propia
+    # llega a 2,9 veces ese punto; la regla la daba por solución y no se probaba nada más. Usuario: «acotar la regla».
     con_maxima = [t for t in tabla if t.get('maxima') and t.get('valle') is not False
-                  and (t.get('costo') or {}).get('costo_anual') is not None]
+                  and (t.get('costo') or {}).get('costo_anual') is not None
+                  and (t.get('fraccion') is None or t['fraccion'] >= p.sorteos_decide_no)
+                  and not t.get('error')]                                      # 087:RF-51: un error no es «sin sortear»
     if con_maxima:
         mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
                                                t['nombre']))

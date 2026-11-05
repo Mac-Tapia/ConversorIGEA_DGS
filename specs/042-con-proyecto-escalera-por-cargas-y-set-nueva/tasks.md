@@ -118,6 +118,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
 - [x] T56. Tope de variantes tras la primera que cumple. (RF-90)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
+- [x] T57. El alcance a la vida útil, parar con 3 y una definitiva, y presentarla siempre. (RF-91, RF-92, RF-93)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py tests/test_escalera_optima.py` en verde.
 - [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
       Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
 - [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)

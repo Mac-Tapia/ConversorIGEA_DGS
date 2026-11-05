@@ -1544,13 +1544,13 @@ def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
     monkeypatch.setattr(escalera_optima, 'definitiva', lambda _con, _p: next(respuestas))
     f = alims[0]
     antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
-    horizonte = {'anios': [20, 10], 'factores': {'20': {f: 1.8}, '10': {f: 1.3}}}
+    horizonte = {'tasa': 0.03}
     plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0, 'escalones': ['terna']}],
                  sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA, basta_una=True, alternativas=3, horizonte=horizonte)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
     (fila,) = informe['variantes']
-    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 10, 'motivos': ['no converge']}
+    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 15, 'motivos': ['no converge']}
     assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
 
 
@@ -1642,3 +1642,38 @@ def test_tras_la_primera_que_cumple_hay_un_tope_de_variantes(monkeypatch):
     assert codigo == 0, informe
     assert len(informe['variantes']) == 3 and any('042:RF-90' in a for a in informe['avisos'])
     assert escalera_optima.parametros(PERFIL_ESCALERA).variantes_tras_cumplir == 25
+
+
+def _plan_con_horizonte(alims, n, perfil=None):
+    variantes = [{'nombre': f'terna {i}', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0, 'escalones': [f'clase{i}']}
+                 for i in range(n)]
+    return _plan(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=perfil or PERFIL_ESCALERA, basta_una=True,
+                 alternativas=3, horizonte={'tasa': 0.03})
+
+
+def test_con_tres_alternativas_y_una_definitiva_para(monkeypatch):
+    """042:RF-92 — ya no prueba más; el alcance se mide a la vida útil del perfil."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(48))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (True, []))
+    informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 6))
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 3
+    assert informe['variantes'][0]['horizonte']['definitiva'] is True
+
+
+def test_con_tres_y_ninguna_definitiva_sigue_hasta_el_tope(monkeypatch):
+    """042:RF-92 — sigue buscando; al llegar al tope lo dice."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(49))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (False, ['no converge']))
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 4}}
+    informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 7, perfil))
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 5 and any('042:RF-92' in a for a in informe['avisos'])
