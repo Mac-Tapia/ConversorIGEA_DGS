@@ -197,6 +197,10 @@ class Obra:
     destino: str = ''
     """Barra, o «latitud, longitud», que indica el operador (016:RF-31)."""
     nodo: str = ''
+    #: 042:RF-51: la barra de la SET a la tensión de destino donde se crea la celda nueva.
+    salida: str = ''
+    #: 042:RF-61: los MVA del transformador elevador dedicado en la salida, si no hay barra de destino.
+    elevador_mva: float | None = None
     """Migración: desde dónde se pasa a la tensión de destino (016:RF-51)."""
     ramas: tuple[str, ...] = ()
     """SET nueva: ``ALIMENTADOR/NODO`` de cada rama que pasa a ella (042:RF-6)."""
@@ -462,6 +466,8 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
                              'solo uno de los dos.')
         return Obra(**comunes, hasta=hasta,
                     nodo='' if hasta else _texto(datos, 'nodo', 'el nodo desde el que se pasa a la tensión de destino'),
+                    salida=str(datos.get('salida') or '').strip(),
+                    elevador_mva=_decimal(datos, 'elevador_mva', 'los MVA del elevador'),
                     kv_destino=_numero(datos, 'kv_destino', 'la tensión de destino (kV)'))
     return Obra(**comunes, kv_destino=_numero(datos, 'kv_destino',
                                               'la tensión de destino (kV)'))
@@ -887,7 +893,9 @@ def _tension(p: _Plan) -> None:
     if red.cabecera_compartida_con:
         raise ObrasError(
             f'La barra de cabecera o la fuente de {o.alimentador} alimentan también a '
-            f'{", ".join(red.cabecera_compartida_con)}: no se migra.')
+            f'{", ".join(red.cabecera_compartida_con)}: no se migra desde ella. Pase la salida con una celda nueva en '
+            f'la barra de destino de la SET (042:RF-51), con un transformador elevador dedicado (042:RF-61) o a una '
+            f'SET nueva (042:RF-6).')
     origen, destino = estado.kv, o.kv_destino
     if math.isclose(origen, destino):
         raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
@@ -1029,10 +1037,15 @@ def _migracion(p: _Plan) -> None:
     except TroncalError as exc:
         raise ObrasError(f'El nodo {o.nodo} no es del alimentador {o.alimentador}: {exc}.') from None
     origen, destino = estado.kv, o.kv_destino
-    if math.isclose(origen, destino):
-        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
     dentro = set(parte.barras)
-    for barra in parte.barras:
+    # 087:RF-32, RF-33: a un vecino de la misma tensión la parte solo cambia de alimentador, por el enlace que llega a
+    # ella: ni barras ni tipos cambian. Sin ese enlace no hay traslado que hacer. CHI201 a SC215 (Pisco, 2026-11-04):
+    # el enlace de 0,25 km no se probaba porque aquí se rechazaba toda migración a la misma tensión.
+    misma = math.isclose(origen, destino)
+    if misma and (p.destinos.get(o.alimentador) or '') not in dentro:
+        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV: sin un enlace que llegue a la parte '
+                         f'que pasa, no hay traslado.')
+    for barra in ([] if misma else parte.barras):
         kv = estado.barras.get(barra)
         if kv is not None and math.isclose(kv, origen):              # las de media (RF-55)
             p.elemento(barra, 'ElmTerm', f'uknom {origen:g} → {destino:g} kV')
@@ -1040,10 +1053,22 @@ def _migracion(p: _Plan) -> None:
     tramos = [n for n in parte.tramos if n in estado.tipo_tramo]
     trafos = sorted(tr for tr, barra in red.trafo_barra.items()
                     if barra in dentro and tr in estado.trafos)
-    _tipos_a_tension(p, tramos, trafos, origen, destino)
+    if not misma:
+        _tipos_a_tension(p, tramos, trafos, origen, destino)
     # Con el tramo de entrada cerrado la parte que pasa sigue unida a la que no (RF-58).
-    p.elemento(parte.entrada, 'ElmLne',
+    p.elemento(parte.entrada, 'ElmLne' if parte.entrada in estado.tipo_tramo or not (o.salida or o.elevador_mva) else 'ElmCoup',
                'se abre (fuera de servicio): separa la parte que pasa de la que no pasa')
+    if o.elevador_mva:                                                  # 042:RF-61
+        p.elemento(f'Elevador {o.elevador_mva:g} MVA {origen:g}/{destino:g} kV → {o.nodo}', 'ElmTr2',
+                   f'nuevo: alimenta la parte que pasa desde {red.cabecera}')
+        p.extra['elevador_mva'] = o.elevador_mva
+    if o.salida or o.elevador_mva:
+        if o.salida:                                                    # 042:RF-51
+            p.elemento(f'Celda nueva {o.salida} → {o.nodo}', 'ElmCoup', f'nueva: alimenta la parte que pasa desde {o.salida}')
+            p.extra['salida'] = o.salida
+        for nombre, kv in sorted(red.condensadores.items()):
+            if red.banco_barra.get(nombre) in dentro and kv is not None and math.isclose(kv, origen):
+                p.elemento(nombre, 'ElmShnt', f'ushnm {origen:g} → {destino:g} kV')
     for nombre in sorted(
             t.nombre for t in red.topologia.tramos
             if t.cerrado and t.nombre != parte.entrada and t.nombre not in parte.tramos

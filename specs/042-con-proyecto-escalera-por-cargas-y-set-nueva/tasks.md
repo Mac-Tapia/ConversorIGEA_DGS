@@ -82,6 +82,56 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_042.py` en verde.
 - [x] T32. Tipos de la biblioteca por su nombre pedido y regulador en puntos óptimos. (RF-46, RF-47)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_042.py` en verde.
+- [x] T33. La obra de cada alimentador se aplica al terminarlo. (RF-48)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T34. El regulador solo por encima de 15 km. (RF-49)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T35. Escalón de 10 a 22,9 kV en la escalera, con su costo. (RF-50, RF-53, RF-54)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [x] T36. Celda nueva en la barra de 22,9 kV de la SET, o cambio con su fuente. (RF-51, RF-52)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_016.py` en verde.
+- [x] T40. Rehacer las obras de los alimentadores marcados. (RF-60)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T41. Elevador dedicado en cabecera compartida, con su costo y su límite. (RF-61, RF-62, RF-63)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_016.py` en verde.
+- [ ] T42. [DIgSILENT] Un alimentador de 10 kV sin barra de 22,9 kV en su SET converge con el elevador. (RF-61)
+      Hecho cuando: el flujo converge con el elevador sobre un proyecto de prueba, y su medida queda en la tarea.
+- [x] T43. Obra aparte para el déficit previo, con su costo. (RF-64, RF-65, RF-66)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py tests/test_valle.py` en verde.
+- [x] T45. Rótulos, nota del informe, valle y factor del elevador. (RF-67, RF-68, RF-69, RF-70)
+      Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_valle.py tests/test_escalera_optima.py` en verde.
+- [x] T46. El factor en el regulador, con una sola regla, y su valor en el informe. (RF-71, RF-72)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_set_nueva.py tests/test_informes_planeamiento.py` en verde.
+- [x] T47. Alcance de cada alternativa, definitiva a 20 años o temporal. (RF-73, RF-74, RF-75)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py tests/test_informes_planeamiento.py` en verde.
+- [x] T49. La web llega al flujo por alimentador y muestra sus alternativas. (RF-76, RF-77, RF-78)
+      Hecho cuando: `npm test` en `frontend` y `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T51. Fallos de la auditoría de la web: pantalla en blanco, resultados ocultos y campos que faltaban. (RF-79, RF-80, RF-81, RF-82, RF-83, RF-84)
+      Hecho cuando: `npx tsc --noEmit`, `npm test` y `pytest -q tests/test_set_nueva_web.py` en verde.
+- [x] T52. Tolerancia en valle sobre el máximo. (RF-85)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_valle.py` en verde.
+- [x] T53. El alcance con la tasa de largo plazo. (RF-86)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_valle.py` en verde.
+- [x] T54. Sorteos por etapas, con la referencia bajo demanda. (RF-87, RF-88)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py tests/test_escalera_optima.py` en verde.
+- [x] T55. Medida ligera en sorteos, valle y horizonte, con sus tiempos. (RF-89)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
+- [x] T56. Tope de variantes tras la primera que cumple. (RF-90)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
+- [x] T57. El alcance a la vida útil, parar con 3 y una definitiva, y presentarla siempre. (RF-91, RF-92, RF-93)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py tests/test_escalera_optima.py` en verde.
+- [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
+      Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
+- [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
+      Hecho cuando: la tabla de alternativas de Pisco trae su alcance medido, sin «sin medir».
+- [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
+      Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
+- [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
+      Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
+- [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_informe_factibilidad_un_paso.py` en verde.
+- [x] T39. Las alternativas en el informe de estudio, el plan y el PIDE. (RF-58)
+      Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_informe_alternativas.py` en verde.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

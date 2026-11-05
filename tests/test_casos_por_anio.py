@@ -550,9 +550,8 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     (_args, ev), = [x for x in planes if '--evaluar' in x[0]]
     assert len(ev['sorteos']) == 20 and ev['anio_casos'] == ANIO and ev['barras_cargas'] == ['F1_B4']
     motivos = {t['nombre']: t['motivo'] for t in f1['tabla']}
-    assert any(n.startswith('regulador') and 'sin costo' in m for n, m in motivos.items())   # 025:RF-44
     assert any(n.startswith('bancos') and 'no cumple con la máxima' in m for n, m in motivos.items())
-    assert any(n.startswith('terna') and 'no hace falta' in m for n, m in motivos.items())   # 063:RF-22
+    assert any(n.startswith('terna') and 'cuesta más' in m for n, m in motivos.items())   # 042:RF-56
 
 
 @pytest.mark.parametrize('bajas, espera, no_dice', [
@@ -607,7 +606,7 @@ def test_una_evaluacion_de_antes_sin_el_detalle_no_da_un_ok_falso(tmp_path, monk
 def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga(tmp_path, monkeypatch):
     """025:RF-44 — si DIgSILENT dice que la barra de la carga nueva no existe sin ella (un
     NODE_T_ de su variación) y la lectura no da barra existente en su tramo, no hay variante con
-    bancos; el regulador sigue en la escalera (025:RF-44)."""
+    bancos."""
     def evaluar(nombre):
         return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
 
@@ -618,7 +617,7 @@ def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga
     (_args, ev), = [x for x in planes if '--evaluar' in x[0]]
     nombres = [v['nombre'] for v in ev['variantes']]
     assert nombres and not any('bancos' in n for n in nombres)
-    assert any(n.startswith('regulador') for n in nombres)
+    assert not any(n.startswith('regulador') for n in nombres)      # 042:RF-49: esta red es corta
     assert any('no hay escalón de bancos' in a for a in r['alimentadores'][0]['avisos'])
 
 

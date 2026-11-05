@@ -138,7 +138,9 @@ def costos_por_alternativa(obras: Iterable[ObraCapex]) -> dict[str, dict[str, An
         unidades = sorted({o.unidad for o in lista if o.unidad})
         out[alt] = {'costo_unitario': median(o.costo_unitario for o in lista),
                     'unidad': unidades[0] if len(unidades) == 1 else '/'.join(unidades),
-                    'obras': len(lista), 'denominacion': lista[0].nombre}
+                    'obras': len(lista), 'denominacion': lista[0].nombre,
+                    # 087:RF-36: de qué filas del libro sale, para citarlas.
+                    'proyectos': [f'{o.nombre} ({o.zona}): {o.descripcion[:60]}' for o in lista]}
     return out
 
 

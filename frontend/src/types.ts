@@ -628,8 +628,21 @@ export interface EscaleraResultado {
     elegida: string | null;
     mas_cercana: string | null;
     aplicada: string[] | null;
+    /** 042:RF-82: tal como está, sin obra, ya cumple. */
+    ya_cumple?: boolean;
     tabla: EscaleraVariante[];
   }[];
+}
+
+/** 042:RF-77: lo de cada alimentador en el flujo por alimentador. */
+export interface ConProyectoAlimentador {
+  cargas: number;
+  kw: number;
+  cumple: boolean;
+  ya_cumple: boolean;
+  alternativas?: import('./alternativas').Alternativa[];
+  deficit_previo?: { barras: string[]; alternativas: import('./alternativas').Alternativa[] } | null;
+  sin_comparacion?: { barras: string[]; alternativas: import('./alternativas').Alternativa[] } | null;
 }
 
 /** Spec 042: escalera carga a carga y SET nueva para las que no caben (RF-12). */
@@ -637,10 +650,16 @@ export interface ConProyectoCarga { sed: string; alimentador: string; kw: number
 export interface ConProyectoResultado {
   escalera_por_cargas: {
     project: string; caben: number; orden: ConProyectoCarga[]; a_set_nueva: ConProyectoCarga[];
-    pruebas: { cargas: number; cabe: boolean }[]; escalera: EscaleraResultado | null;
+    /** 042:RF-78: solo el flujo por tandas; el flujo por alimentador trae ``por_alimentador``. */
+    pruebas?: { cargas: number; cabe: boolean }[]; escalera: EscaleraResultado | null;
+    por_alimentador?: Record<string, ConProyectoAlimentador>;
   };
   set_nueva: {
     avisos: string[];
+    /** 042:RF-83: con varias zonas, el diseño de cada una, y no al primer nivel. */
+    zonas?: (ConProyectoResultado['set_nueva'] & { zona: number; kw: number; solucion: string; cargas: string[] })[];
+    /** 042:RF-83: la variación que se creó, o por qué no. */
+    obra?: { variacion?: string; error?: string | null } | null;
     ramas?: { alimentador: string; nodo: string; entrada: string; destino: string[]; kw_existente: number; barras: number }[];
     diseno?: { kva_trasladado: number; kva_nuevas: number; kva_base: number; tasa_ponderada: number; anios: number;
       factor_crecimiento: number; factor_seguridad: number; kva_diseno: number };

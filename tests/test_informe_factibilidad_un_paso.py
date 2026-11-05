@@ -23,6 +23,14 @@ from convertersmartgrid.informes import (
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
+
+@pytest.fixture(autouse=True)
+def _conjunto_que_cumple(monkeypatch):
+    """087:RF-45: la confirmación conjunta tiene sus pruebas en test_obras_integrales; aquí, que cumple."""
+    from convertersmartgrid.web import services
+
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
+
 def test_anexo_de_obras_exige_operacion_nativa_persistida(tmp_path):
     """063:RF-36, RF-38: el anexo de aceptación no se fabrica desde un plan propuesto."""
     import json
@@ -439,6 +447,7 @@ def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
         vistos['a_set'] = len(a_set_nueva)
         return {'avisos': []}
     monkeypatch.setattr(services, 'set_nueva_proponer', set_nueva)
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)      # 087:RF-54
 
     class Ctx:
         def log(self, *_a, **_k):
@@ -508,7 +517,7 @@ def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
     assert 'escalera' in vistos
 
 
-def test_la_escalera_va_por_alimentador(monkeypatch):
+def test_la_escalera_va_por_alimentador(monkeypatch, tmp_path):
     """042:RF-24, 042:RF-29 — cada alimentador sube la escalera con sus cargas; el que no cumple pasa sus cargas a la obra siguiente."""
     from convertersmartgrid.web import services
 
@@ -527,6 +536,8 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
         return {'alimentadores': [{'feeder': feeders[0], 'elegida': 'bancos' if feeders == ['F1'] else None}]}
     monkeypatch.setattr(services, 'obras_escalera', escalera)
     monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
+    monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
 
     class Ctx:
         def log(self, *_a, **_k):
@@ -543,7 +554,7 @@ def test_la_escalera_va_por_alimentador(monkeypatch):
     assert r['por_alimentador']['F2']['cumple'] is False
 
 
-def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch):
+def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch, tmp_path):
     """042:RF-32 — Pisco: tras una caída, 6 de 14 cargas seguían apartadas y AL209 se medía sin ellas."""
     from convertersmartgrid.web import services
 
@@ -559,6 +570,7 @@ def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch):
         return {'alimentadores': [{'ya_cumple': True}]}
 
     monkeypatch.setattr(services, 'obras_escalera', escalera)
+    monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
 
     class Ctx:
         def log(self, *_a, **_k):
@@ -569,3 +581,142 @@ def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch):
 
     services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
     assert orden[0] == ('reponer', ('Carga_A', 'Carga_B')) and orden[1] == ('escalera', ('F1',))
+
+
+def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypatch):
+    """042:RF-48 — al elegir la obra de F1 se aplica ya; F2 se evalúa después, y el que no cumple no aplica nada."""
+    from convertersmartgrid.web import services
+
+    # 042 sin el oráculo de la 087 (087:RF-30): aquí se mira el orden de la escalera de siempre.
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
+
+    orden = []
+    aplicadas = [{'sed': f'S{f}', 'alimentador': f, 'kw': 10.0, 'variacion': f'Carga_{f}'} for f in ('F1', 'F2', 'F3')]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, solo=None, **k):
+        f = feeders[0]
+        orden.append(('aplica' if aplicar else 'evalua', f))
+        if aplicar:
+            return {'alimentadores': [{'alimentador': f, 'aplicada': [f'Obra_{f}']}]}
+        return {'alimentadores': [{'alimentador': f, 'elegida': None if f == 'F2' else f'obra de {f}'}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2', 'F3'])
+    # 087:RF-31: el que no cumple prueba además transferir o trasladar a un vecino antes de ir a la SET nueva.
+    assert orden == [('evalua', 'F1'), ('aplica', 'F1'), ('evalua', 'F2'), ('evalua', 'F2'), ('evalua', 'F3'),
+                     ('aplica', 'F3')]
+    assert [a['alimentador'] for a in r['escalera']['alimentadores']] == ['F1', 'F3']
+
+
+def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
+    """042:RF-60 — retira, repone y evalúa, en ese orden; sin pedirlo no se retira nada."""
+    from convertersmartgrid.web import services
+
+    # 042 sin el oráculo de la 087 (087:RF-30): aquí se mira el orden de la escalera de siempre.
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
+
+    orden = []
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: orden.append('reponer'))
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a: 'C')
+    monkeypatch.setattr(services, 'native_action_context', lambda *a: {})
+
+    def guion(ws, ctx, guion_py, plan, **k):
+        orden.append(k['nombre'])
+        return 0, {'retiradas': ['Obra_terna_F1']}, None
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+
+    def escalera(ws, ctx, project, feeders, **k):
+        orden.append('escalera')
+        return {'alimentadores': [{'ya_cumple': True}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    class Ws:
+        obras_aplicadas = [{'project': 'P', 'variacion': 'Obra_terna_F1'}, {'project': 'P', 'variacion': 'Obra_terna_F2'}]
+
+    ws = Ws()
+    services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'], rehacer_obras=True)
+    assert orden == ['retirar_obras', 'reponer', 'escalera']
+    assert [o['variacion'] for o in ws.obras_aplicadas] == ['Obra_terna_F2']
+    orden.clear()
+    services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'])
+    assert orden == ['reponer', 'escalera']
+
+
+def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
+    """042:RF-64 — con obra para la carga y sin ella: segunda escalera con las barras previas; ninguna obra si no las hay."""
+    from convertersmartgrid.web import services
+
+    baja = {'previo': [{'barra': 'B2', 'u': 0.94}, {'barra': 'B1', 'u': 0.93}], 'causado': [], 'sin_comparacion': [{'barra': 'B3', 'u': 0.945}]}
+    filas = {'F1': {'alimentador': 'F1', 'elegida': 'obra', 'bajo_limite': baja},
+             'F2': {'alimentador': 'F2', 'ya_cumple': True, 'bajo_limite': baja},
+             'F3': {'alimentador': 'F3', 'ya_cumple': True, 'bajo_limite': {'causado': [{'barra': 'B9', 'u': 0.9}]}}}
+    aplicadas = [{'sed': f, 'alimentador': f, 'kw': 10.0, 'variacion': f'Carga_{f}'} for f in filas]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    pedidas = {}
+
+    def escalera(ws, ctx, project, feeders, *, previas=None, **k):
+        f = feeders[0]
+        if previas:
+            pedidas[(f, k['etiqueta_previas'])] = (previas[f], k['aplicar'])
+            return {'alimentadores': [{'alimentador': f, 'alternativas': [{'numero': 1, 'nombre': 'x', 'costo_anual': 5.0}]}]}
+        return {'alimentadores': [filas[f]]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', list(filas))
+    assert pedidas == {(f, e): (b, False) for f in ('F1', 'F2')
+                       for e, b in (('déficit previo', ['B1', 'B2']), ('sin comparación', ['B3']))}   # 042:RF-68
+    assert r['por_alimentador']['F2']['deficit_previo']['alternativas'][0]['nombre'] == 'x'
+    assert r['por_alimentador']['F2']['sin_comparacion']['barras'] == ['B3']
+    assert r['por_alimentador']['F3']['deficit_previo'] is None
+
+
+def test_la_web_recibe_las_alternativas_de_cada_alimentador(monkeypatch):
+    """042:RF-76, 042:RF-77, 042:RF-78 — el resultado trae las alternativas por alimentador, y no trae pruebas por tandas."""
+    from convertersmartgrid.web import services
+
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 10.0, 'variacion': 'Carga_A'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    alternativas = [{'numero': 1, 'nombre': 'x', 'costo_anual': 5.0, 'elegida': False}]
+    monkeypatch.setattr(services, 'obras_escalera', lambda *a, **k: {
+        'alimentadores': [{'alimentador': 'F1', 'ya_cumple': True, 'alternativas': alternativas}]})
+
+    class Ctx:
+        def log(self, *_a, **_k):
+            pass
+
+        def check_cancel(self):
+            pass
+
+    r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
+    assert r['por_alimentador']['F1']['alternativas'] == alternativas and 'pruebas' not in r

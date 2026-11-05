@@ -352,3 +352,24 @@ def test_el_tipo_del_proyecto_biblioteca_se_encuentra_por_el_nombre_pedido():
     tipos = guion.leer_tipos(app, ['TypVoltreg'], otro, 'CSG_Biblioteca_tipos')
     assert [(t['nombre'], t['proyecto']) for t in tipos] == [('VR32_10kV_50A', 'CSG_Biblioteca_tipos')]
     assert guion.leer_tipos(app, ['TypVoltreg'], otro)[0]['proyecto'] == anterior
+
+
+def test_retirar_obras_solo_las_del_alimentador():
+    """042:RF-60 — sus variaciones de obra, con su número; ni las de carga ni las de un alimentador que se le parece."""
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf60', tools_en_path=True)
+    borradas, apagadas = [], []
+
+    def variacion(nombre):
+        return N(loc_name=nombre, Deactivate=lambda: apagadas.append(nombre), Delete=lambda: borradas.append(nombre))
+
+    v = [variacion(n) for n in ('Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1', 'Obra_terna_F11', 'Obra_terna_F2',
+                                'Carga_F1')]
+    caso = N(Activate=lambda: None)
+    app = N(GetActiveStudyCase=lambda: caso, GetProjectFolder=lambda _c: N(GetContents=lambda *_a: list(v)))
+    guion.activar_proyecto = lambda *_a: object()
+    guion.casos_del_proyecto = lambda *_a: {'con': caso}
+    informe, codigo = guion.retirar_obras(app, {'project': 'P', 'feeders': ['F1']})
+    assert codigo == 0 and borradas == apagadas == ['Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1']
+    assert informe['retiradas'] == borradas

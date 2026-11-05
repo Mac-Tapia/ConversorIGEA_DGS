@@ -16,13 +16,17 @@ Un defecto de aquella GUI se corrigió aquí en lugar de copiarse:
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
+import shutil
+import tempfile
 import sys
 import threading
 import time
 import uuid
 from datetime import datetime
 from pathlib import Path
+from collections.abc import Mapping, Sequence
 from typing import Any, Callable
 
 from ..edicion import MENSAJE_FUERA_DE_ALCANCE, es_edicion_producto, tarea_fuera_de_alcance
@@ -4976,7 +4980,8 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
     datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, articulos=metodologia['articulos'],
                               anios=informe.get('anios') or [], obras=propuesta['obras'], con_y_sin=con_y_sin,
                               empresa=perfil.get('empresa'), proyecto=project, metodo_proyeccion=formatos.get('metodo'),
-                              modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {})
+                              modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {},
+                              alternativas_escalera=alternativas_de_la_escalera(ws, project))    # 042:RF-58
     hechos, fallos = escribir_modulos(ws.out_dir, token, datos)
     avisos.extend(fallos)
     return hechos
@@ -5771,6 +5776,42 @@ def _guardar_valle_de_la_obra(ws: Workspace, project: str, alimentador: str, fil
     write_json_atomic(ruta, datos)
 
 
+def _tasa_del_alimentador(ws: Workspace, ctx: JobContext, project: str, f: str, avisos: list[str]) -> float | None:
+    """042:RF-73: la medida en la cabecera; lo que no se pueda leer se dice y no bloquea: se usa el factor."""
+    try:
+        return ((_crecimiento_de_la_cabecera(ws, ctx, project, [f], avisos, todos=True) or {}).get(f) or {}).get('tasa')
+    except (UserError, KeyError, TypeError, ValueError, OSError) as exc:
+        avisos.append(f'{f}: tasa de crecimiento sin leer: {exc}; el alcance se mide con el factor (042:RF-73).')
+        return None
+
+
+def _barras_de(fuera: dict | None, clase: str) -> list[str]:
+    """Las de esa clase de :func:`informes.clasificar_bajo_limite`, de la más baja a la menos (042:RF-64, RF-68)."""
+    return [str(x['barra']) for x in sorted((fuera or {}).get(clase) or [], key=lambda x: (x['u'], x['barra']))]
+
+
+def _ruta_alternativas_escalera(ws: Workspace) -> Path:
+    return ws.out_dir / 'alternativas_escalera.json'
+
+
+def _guardar_alternativas_escalera(ws: Workspace, project: str, alimentador: str, alternativas: list) -> None:
+    """Para el informe que se pida después: el informe se arma con lo guardado al correr (042:RF-58)."""
+    ruta = _ruta_alternativas_escalera(ws)
+    datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    datos.setdefault(project.strip(), {})[alimentador] = alternativas
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(ruta, datos)
+
+
+def alternativas_de_la_escalera(ws: Workspace, project: str | None, feeders=None) -> dict[str, list]:
+    """Las alternativas guardadas por alimentador, de todos o de ``feeders`` (042:RF-58)."""
+    ruta = _ruta_alternativas_escalera(ws)
+    if not project or not ruta.is_file():
+        return {}
+    guardadas = json.loads(ruta.read_text(encoding='utf-8')).get(project.strip()) or {}
+    return {f: a for f, a in guardadas.items() if feeders is None or f in feeders}
+
+
 def valle_de_la_obra(ws: Workspace, project: str | None, alimentador: str) -> dict | None:
     """Lo guardado por :func:`_guardar_valle_de_la_obra`, o ``None`` si esa obra no pasó por aquí."""
     ruta = _ruta_valle_de_obras(ws)
@@ -5796,12 +5837,108 @@ def _carga_para_escalera(barra: str, existen: set, datos: dict) -> dict:
     return {'barra': barra, 'existe': False, 'indice_troncal': indice, 'camino': camino}
 
 
+def _fichero_base(memo: dict | None, comun: dict) -> dict:
+    """087:RF-28: dónde guarda esta combinación de alimentadores y cargas apartadas sus sorteos base, durante el trabajo."""
+    carpeta = (memo or {}).get('dir_base')
+    if not carpeta:
+        return {}
+    clave = json.dumps([comun.get('feeders'), comun.get('apartar_cargas_de'), comun.get('apartar_variaciones'),
+                        comun.get('anio_casos')], sort_keys=True, default=str)
+    return {'base_sin_fichero': str(Path(carpeta) / (hashlib.sha256(clave.encode('utf-8')).hexdigest()[:24] + '.json'))}
+
+
+def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs: list, objetivo: Sequence[str],
+                         tipos, p) -> list:
+    """087:RF-48: de las variantes de la obra del déficit previo, solo las que el oráculo da por buenas y una tanda de las
+    más cercanas; las que no sabe calcular (el paso a 22,9 kV, RF-41), todas.
+
+    Pisco (2026-11-04): la de las 80 barras bajas de PA217 medía en DIgSILENT sus 55 variantes una a una, a 46 s cada
+    una, y las 22 primeras (bancos y regulador) se quedaban en 0,935 a 0,942 p.u. El grafo se lee de nuevo aquí: el de
+    la selección es de antes de aplicar la obra de la carga, y el déficit se mide con ella puesta.
+    """
+    from .. import optimizacion_oraculo as oo
+    from .jobs import JobCancelled
+
+    try:
+        rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+            **comun, 'feeders': [f], 'barras': {f: []}, 'tension_min_pu': p.tension_min_pu,
+            'cargabilidad_max_pct': p.cargabilidad_max_pct, 'migrar_a_kv': p.migrar_a_kv, 'nuevas': []},
+            nombre='oraculo_previo', args=('--oraculo-datos',))
+        if rc or not datos.get('grafo'):
+            raise RuntimeError('no se pudo leer el grafo de «Con proyecto»')
+        ora = oo.Oraculo(datos['grafo'], [], tipos={str(t.get('nombre')): t.get('datos') or {} for t in tipos})
+        lo = p.tension_min_pu - p.tolerancia_pu
+        evaluadas = []
+        for v in vs:
+            if not oo.modelable(v):
+                continue
+            m = ora.medir(v.obras, 0)
+            u = [m.u.get(str(b)) for b in objetivo] if m.converge else []
+            peor = min((x for x in u if x is not None), default=0.0)
+            evaluadas.append((v, bool(u) and all(x is not None and x >= lo for x in u), peor))
+    except JobCancelled:
+        raise
+    except Exception as exc:  # noqa: BLE001 - sin oráculo mide DIgSILENT, como en 087:RF-4
+        ctx.log(f'{f}, déficit previo: el oráculo no puede ({exc}): se miden en DIgSILENT las {len(vs)} variantes (087:RF-4).')
+        return vs
+    buenas = [v for v, ok, _u in evaluadas if ok]
+    cercanas = [v for v, _ok, _u in sorted((e for e in evaluadas if not e[1]), key=lambda e: -e[2])][:TANDA_DIGSILENT]
+    sin_oraculo = [v for v in vs if not oo.modelable(v)]
+    elegidas = {id(v) for v in buenas + cercanas + sin_oraculo}
+    filtradas = [v for v in vs if id(v) in elegidas]                     # en el orden de la escalera
+    ctx.log(f'{f}, déficit previo: el oráculo da {len(buenas)} de {len(evaluadas)} por buenas; DIgSILENT mide '
+            f'{len(filtradas)} de {len(vs)} (con {len(sin_oraculo)} que el oráculo no calcula) (087:RF-48).')
+    return filtradas
+
+
+def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, d: Mapping[str, Any],
+                           barras: Sequence[str], kv: float, tipos, p,
+                           objetivos: Mapping[str, Any] | None = None) -> tuple[list, list[str], list[str]]:
+    """087:RF-31 a RF-33: las variantes de transferir y trasladar de ``f`` y los vecinos que hay que medir con él.
+
+    Los nodos salen de la troncal y del camino de su carga mayor; los vecinos y su margen, de DIgSILENT
+    (``obras_pf.py --vecinos``), una sola lectura para los dos nodos.
+    """
+    from .. import obras_integrales as oi
+
+    avisos: list[str] = []
+    caminos = d.get('caminos') or {}
+    barra = next((b for b in barras if caminos.get(b)), None)
+    if barra is None:
+        return [], [], [f'{f}: sin el camino de su carga nueva no se sabe qué transferir ni trasladar (087:RF-32).']
+    troncal = {str(t.get('nombre')) for t in d.get('troncal') or []}
+    de = oi.nodos_de_traspaso(caminos[barra], troncal, barra, p)
+    nodos = list(dict.fromkeys(list(de['transferencia']) + ([de['traslado']] if de['traslado'] else [])))  # 087:RF-52
+    rc, leidos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {**comun, 'feeders': [f], 'nodos': {f: nodos}},
+                                 nombre='vecinos', args=('--vecinos',))
+    avisos += list(leidos.get('avisos') or [])
+    if rc or leidos.get('error'):
+        return [], [], avisos + [f"{f}: no se leyeron sus vecinos ({leidos.get('error') or rc}) (087:RF-32)."]
+    vecinos = (leidos.get('vecinos') or {}).get(f) or {}
+    if objetivos is not None:
+        # 087:RF-53: solo un vecino que opera, con demanda medida en su calibración. Pisco (2026-11-04): SC215 «ya no
+        # opera» (sin calibración, 1,000 p.u. y 0,3 % de carga) y, por tener todo el margen, era el único propuesto.
+        operan = {str(g) for g, o in objetivos.items() if float((o or {}).get('kw') or 0.0) > 0.0}
+        fuera = sorted({x['alimentador'] for filas in vecinos.values() for x in filas if x['alimentador'] not in operan})
+        vecinos = {n: [x for x in filas if x['alimentador'] in operan] for n, filas in vecinos.items()}
+        if fuera:
+            avisos.append(f"{f}: no se proponen como vecinos {', '.join(fuera)}: sin demanda medida en su calibración, no "
+                          'operan (087:RF-53).')
+    vs, av = oi.variantes(f, kv, caminos[barra], troncal, barra, vecinos, tipos, p)
+    vecinos = sorted({o['alimentador'] for v in vs for o in v.obras if o.get('clase') == 'enlace'})
+    if vs:
+        ctx.log(f"{f}: la escalera no basta; se prueban {len(vs)} variante(s) de transferencia y traslado con "
+                f"{', '.join(vecinos)} (087:RF-31).")
+    return vs, vecinos, avisos + av
+
+
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
                    capex: str | None = None, cargas_activas: list[str] | None = None,
                    aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
                    variantes_de: dict | None = None, solo_comun: bool = False,
-                   solo: dict | None = None) -> dict:
+                   solo: dict | None = None, por_alternativas: bool = False, previas: dict | None = None,
+                   etiqueta_previas: str = '', traspaso: bool = False, sin_oraculo: bool = False) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -5929,10 +6066,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
                  'apartar_variaciones': apartar_variaciones}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
+        objetivo_previo = bool(previas and previas.get(f))                       # 042:RF-64
+        if objetivo_previo:
+            de_f = [{'barra': b, 'alimentador': f} for b in previas[f]]
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
             **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu,
-            'cargabilidad_max_pct': p.cargabilidad_max_pct},
+            'cargabilidad_max_pct': p.cargabilidad_max_pct, 'migrar_a_kv': p.migrar_a_kv},
             nombre='escalera_datos', args=('--escalera-datos',))
         d = (datos.get('alimentadores') or {}).get(f)
         fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
@@ -5956,18 +6096,36 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # puede estar en el NODE_T_ que creó su variación).
         existen = set(d.get('existen') or ())
         cargas_f = [_carga_para_escalera(media.get(str(c['barra']), str(c['barra'])), existen, d)
-                    for c in de_f if c.get('barra')]
+                    for c in (de_f[:1] if objetivo_previo else de_f) if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
-                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'))
+                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'), sobrecargados=d.get('sobrecargados'),
+                              nivel=d.get('nivel'))
         fila['avisos'] += av
+        # 087:RF-31 a RF-33: la escalera no bastó; se prueba pasar la carga a un vecino con margen, midiéndolo también.
+        vecinos_f: list[str] = []
+        if sin_oraculo:
+            # 087:RF-41: solo las que el oráculo no supo juzgar (el paso a 22,9 kV): las demás ya las confirmó o descartó.
+            from .. import optimizacion_oraculo as oo
+
+            vs = [v for v in vs if not oo.modelable(v)]
+        if traspaso:
+            vs, vecinos_f, av_t = _variantes_de_traspaso(ws, ctx, comun, f, d, barras, float(kv or 0),
+                                                         lectura.get('tipos') or [], p, objetivos)
+            fila['avisos'] += av_t
         if variantes_de is not None and f in variantes_de:
             # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.
             vs = list(variantes_de[f])
         if solo and f in solo:
             # 042:RF-29: al aplicar, solo la obra que eligió la evaluación del alimentador; no se repiten sus variantes.
             vs = [v for v in vs if v.nombre == solo[f]] or vs
+        elif objetivo_previo and vs:
+            vs = _previas_con_oraculo(ws, ctx, comun, f, vs, barras, lectura.get('tipos') or [], p)    # 087:RF-48
         if not vs:
             fila['avisos'].append(f'{f}: ninguna variante que probar.')
+            if objetivo_previo:                                                  # 042:RF-66
+                fila['alternativas'] = [{'numero': 1, 'nombre': f'ninguna obra corrige; no hay variante que probar hasta {barras[0]}',
+                                         'escalones': [], 'inversion': None, 'costo_anual': None, 'fraccion': None, 'elegida': False}]
+                _guardar_alternativas_escalera(ws, project, f'{f} · {etiqueta_previas}', fila['alternativas'])
             resultado.append(fila)
             continue
         ctx.log(f"{f}: {len(vs)} variantes en el orden {', '.join(eo.ORDEN)}…")   # 063:RF-21
@@ -5982,10 +6140,21 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         por_kw = ((p.precio_perdidas_kwh or 0.0) * (perdidas.get(f) or 0.0) * eo.HORAS_ANIO
                   + 12 * (p.precio_perdidas_kw_mes or 0.0))
         plan_ev = {
-            **comun, 'feeders': [f], 'costo_por_kw_perdido': por_kw,
-            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
-            'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
-            'otro_proyecto': eo.BIBLIOTECA_TIPOS,
+            **comun, 'feeders': [f] + vecinos_f, 'costo_por_kw_perdido': por_kw,
+            **({'native_action_context': native_action_context(ws, project, [f] + vecinos_f, 'obras')} if vecinos_f else {}),
+            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
+                          for v in vs],
+            # 042:RF-59: la obra que esta corrida acaba de sortear no se vuelve a sortear al aplicarla.
+            'barras_cargas': barras, 'sorteos': [] if (solo and f in solo) or objetivo_previo else sorteos, 'parametros': perfil,
+            # 087:RF-44: se aplica la obra elegida; la evaluación con sorteos ya dijo que hace falta.
+            **({'aplicando_elegida': True} if solo and f in solo else {}),
+            'tipo_cambio': tipo_cambio,
+            **({'alternativas': eo.MAX_ALTERNATIVAS,                                      # 042:RF-55
+                'horizonte': eo.plan_de_horizonte(f, p.tasa_largo_plazo, p)}                  # 042:RF-73, RF-86
+               if por_alternativas else {}),
+            'otro_proyecto': eo.BIBLIOTECA_TIPOS, 'parada_bayesiana': True,               # 087:RF-8
+            'revision_codigo': revision_de_la_escalera(),                                 # 087:RF-50
+            **_fichero_base(memo, comun),                                                 # 087:RF-28
             'estado_con_proyecto': datos.get('variaciones_activas'), 'valle': valle,      # 073:RF-25
             **({'basta_una': True} if basta_una else {})}
         # 025:RF-73: sin el estado de «Con proyecto» no se sabe si es la misma red: se mide.
@@ -6024,12 +6193,29 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     e['sin_costo'] = str(exc)
             evaluadas.append(e)
         decision = eo.elegir(evaluadas, p)
+        fila['alternativas'] = decision.get('alternativas') or []                # 042:RF-58
+        if por_alternativas:
+            medida = _tasa_del_alimentador(ws, ctx, project, f, fila['avisos'])  # 042:RF-86: se dice, no se proyecta
+            fila['avisos'].append(f'{f}: el alcance se proyecta con {100 * p.tasa_largo_plazo:.2f} %/año de largo plazo'
+                                  + (f'; el crecimiento medido es {100 * medida:.2f} %/año' if medida is not None else '')
+                                  + ' (042:RF-86).')
+            for alt in fila['alternativas']:
+                alt['tasa_horizonte'] = p.tasa_largo_plazo
+        if objetivo_previo:                                                      # 042:RF-65, RF-66
+            cercana = next((t for t in decision['tabla'] if t['nombre'] == decision['mas_cercana']), None)
+            fila['alternativas'] = ([{**a, 'fraccion': None} for a in fila['alternativas']] or [{
+                'numero': 1, 'nombre': f"ninguna obra corrige; la más cercana: {decision['mas_cercana'] or 'ninguna'}"
+                + (f": {cercana['motivo']}" if cercana and cercana.get('motivo') else ''),
+                'escalones': [], 'inversion': None, 'costo_anual': None, 'fraccion': None, 'elegida': False}])
+            _guardar_alternativas_escalera(ws, project, f'{f} · {etiqueta_previas}', fila['alternativas'])
+        elif por_alternativas:
+            _guardar_alternativas_escalera(ws, project, f, fila['alternativas'])
         fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
-                    tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
+                    tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'certeza', 'motivos', 'motivo',
                                                   'factible', 'perdidas_kw', 'error', 'sin_sortear',
-                                                  'u_cargas', 'u_min_mt',                   # 063:RF-28
+                                                  'u_cargas', 'u_min_mt', 'carga_max_pct',  # 063:RF-28, 087:RF-22
                                                   'bajo_limite',                            # 086:RF-48
-                                                  'valle','valle_motivos', 'valle_u_max', 'valle_nodo',
+                                                  'valle', 'valle_motivos', 'valle_u_max', 'valle_nodo',
                                                   'valle_fecha', 'valle_sin_comprobar',
                                                   'valle_casos')}                           # 073:RF-30, RF-39
                            | {'valle_texto': frase_valle(t)}
@@ -6060,11 +6246,14 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                                            if t['nombre'] == decision['elegida']))
             ids = [obra_anadir(ws, o)['id'] for o in por_nombre[decision['elegida']].obras]
             ctx.log(f"{f}: se aplica «{decision['elegida']}» en «Con proyecto»…")
-            hecho = obras_ejecutar(ws, ctx, project, feeders, ids, eo.BIBLIOTECA_TIPOS, simular=False,
+            hecho = obras_ejecutar(ws, ctx, project, list(dict.fromkeys(list(feeders) + vecinos_f)), ids,
+                                   eo.BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos, apartar_cargas_de=comun['apartar_cargas_de'],
                                    apartar_variaciones=apartar_variaciones)
             hechas = (hecho.get('informe') or {}).get('obras') or []
             fila['aplicada'] = [o.get('variacion') for o in hechas]
+            fila['coordenadas'] = [u for o in hechas for u in o.get('ubicacion') or []]   # 087:RF-24, 042:RF-36
+            fila['instalaciones'] = [i for o in hechas for i in o.get('instalaciones') or []]
             # 025:RF-69: resuelto solo si su obra quedó activa en «Con proyecto <año>»; si no,
             # sus cargas siguen apartadas para los siguientes.
             if hechas and all(any(str(c).startswith('Con proyecto') for c in o.get('casos_activos') or [])
@@ -6104,6 +6293,20 @@ def _avisos_bajo_limite(alimentador: str, obra: str, fuera: dict | None, u_min: 
     return []
 
 
+def _retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], anio_casos: int | None) -> None:
+    """042:RF-60: lo elegido con reglas anteriores se quita de DIgSILENT y de lo aplicado, para evaluarlo de nuevo."""
+    _rc, informe, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos, 'feeders': list(feeders),
+        'native_action_context': native_action_context(ws, project, list(feeders), 'obras')},
+        nombre='retirar_obras', args=('--retirar-obras',))
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    retiradas = set(informe.get('retiradas') or ())
+    ws.obras_aplicadas = [o for o in ws.obras_aplicadas
+                          if not (o.get('project') == project.strip() and o.get('variacion') in retiradas)]
+    ctx.log(f"Obras retiradas para rehacerlas: {', '.join(sorted(retiradas)) or 'ninguna'} (042:RF-60).")
+
+
 def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                            anio_casos: int | None, variaciones: list[str]) -> None:
     """042:RF-32: una evaluación cortada no deja la escalera midiendo sin las cargas nuevas."""
@@ -6119,13 +6322,164 @@ def _reponer_cargas_nuevas(ws: Workspace, ctx: JobContext, project: str, feeders
         ctx.log(aviso)
 
 
+#: Variantes que DIgSILENT mide de cada vez, si el perfil no da ``escalera.confirmar_en_digsilent`` (087:RF-2).
+TANDA_DIGSILENT = 3
+
+
+def _ruta_de_medicion(nombre: str) -> Path:
+    """Los ficheros de medición, junto a la cola de DIgSILENT de esta máquina: locales, no salen de ella (constitución 9)."""
+    from .. import pf_arnes
+
+    return pf_arnes.ruta_cola().parent / nombre
+
+
+def _modelo_de_obras(ctx: JobContext):
+    """087:RF-18, RF-19: el clasificador, solo si ya supera al orden por costo en un sistema que no ha visto."""
+    from .. import modelo_obras as mo
+    from ..perfil_empresa import completar_planeamiento, datos_perfil
+
+    minimo = int((completar_planeamiento(datos_perfil())[0]['escalera']).get('modelo_min_sistemas') or 3)
+    try:
+        r = mo.entrenar(mo.leer(_ruta_de_medicion('variantes_medidas.jsonl')), minimo)
+    except Exception as exc:  # noqa: BLE001 - sin modelo se sigue por costo: el modelo solo ordena
+        ctx.log(f'Sin modelo de obras: {exc} (087:RF-19).')
+        return None
+    ctx.log(f"Modelo de obras {'en uso' if r['pasa'] else 'sin usar'}: {r['motivo']} (087:RF-19).")
+    return r['modelo']
+
+
+def _variantes_medidas(project: str, f: str, fila: dict, tanda: list, e: dict) -> list[dict]:
+    """087:RF-17: lo que se sabía de cada variante medida y si cumplió en DIgSILENT, sin nombres."""
+    from .. import modelo_obras as mo
+
+    por = {v.nombre: v for v in tanda}
+    predicho = {t['nombre']: t for t in e.get('tabla') or []}
+    elegida = fila.get('elegida')
+    elegida = elegida.get('nombre') if isinstance(elegida, dict) else elegida
+    return [mo.fila_medida(project, f'{project}/{f}', mo.rasgos_de(por[t['nombre']], predicho.get(t['nombre'])), t['nombre'] == elegida)
+            for t in fila.get('tabla') or [] if t.get('nombre') in por]
+
+
+def _plan_de_etapas(seleccion: dict) -> list[dict]:
+    """087:RF-14, RF-15, RF-29: cuándo construir la obra de cada alimentador, con su margen sin ella."""
+    from .. import planeamiento_etapas as pe
+    from ..perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA, completar_planeamiento, datos_perfil
+
+    plan = completar_planeamiento(datos_perfil())[0]['planificacion']
+    obras = []
+    for f, e in seleccion.items():
+        fila = next((t for t in e.get('tabla') or [] if t.get('cumple') and t.get('costo_anual') is not None), None)
+        if fila is not None:
+            obras.append({'alimentador': f, 'nombre': fila['nombre'], 'costo_anual': fila['costo_anual'], 'margen': e.get('margen')})
+    return pe.plan_por_etapas(obras, float(plan.get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA),
+                              int(plan.get('horizonte_anios') or 20), float(plan['tasa_regulada']))
+
+
+def _revision_del_codigo() -> str:
+    import subprocess
+
+    try:
+        return subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=Path(__file__).resolve().parent, capture_output=True,
+                              text=True, timeout=10, check=False).stdout.strip()
+    except OSError:
+        return ''
+
+
+def _registrar_corrida(ctx: JobContext, project: str, resultado: dict, t0: float, fecha: str) -> None:
+    """087:RF-21 a RF-23: la fila de esta corrida; si no se puede, se dice y el trabajo sigue valiendo."""
+    from .. import estadistica_ordenes as eo
+    from .. import medicion_obras as med
+    from .. import pf_arnes
+    from ..perfil_empresa import completar_planeamiento, datos_perfil
+
+    try:
+        import psutil
+
+        info = psutil.Process().memory_info()
+        memoria = round(float(getattr(info, 'peak_wset', info.rss)) / 2 ** 20, 1)
+    except (ImportError, OSError):
+        memoria = None
+    try:
+        perfil = completar_planeamiento(datos_perfil())[0]
+        lim, esc = perfil['estudios'], perfil['escalera']
+        escalera = resultado.get('escalera_por_cargas') or {}
+        med.anadir(_ruta_de_medicion(med.REGISTRO), med.fila_de_corrida(
+            sistema=project.strip(), revision=_revision_del_codigo(), metodo=str(escalera.get('metodo') or 'escalera'), estado='done',
+            fecha=fecha, resultado=resultado, tiempo_s=time.monotonic() - t0, oraculo=escalera.get('oraculo'), memoria_mb=memoria,
+            ordenes=[o for o in eo.leer(pf_arnes.ruta_cola()) if o['fecha'] >= fecha],
+            tension_min=float(lim['tension_min_pu']), tension_max=float(lim['tension_max_pu']),
+            carga_max=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),
+            secciones=tuple(esc.get('secciones_normalizadas') or ())))
+    except Exception as exc:  # noqa: BLE001 - medir no puede hacer fallar la corrida que mide
+        ctx.log(f'No se pudo registrar la medición: {exc} (087:RF-21).')
+
+
+#: 087:RF-47: rondas de rehacer obras tras una confirmación conjunta que no cumple; más no arreglan lo que dos no arreglaron.
+RONDAS_CONJUNTO = 2
+
+
+def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *, memo: dict,
+                       anio_casos: int | None = None, tipo_cambio: float | None = None,
+                       capex: str | None = None) -> dict[str, Any]:
+    """087:RF-45, RF-46: el sistema entero, con todas sus obras y todas sus cargas nuevas, en un solo flujo por instante.
+
+    La escalera elige cada obra con los demás alimentadores apartados (025:RF-69): así se sabe de quién es cada una. Pero
+    juntos pueden pesar donde se tocan (la SET, el transformador de 60 kV, el vecino que recibió una transferencia). Aquí
+    se mide todo a la vez, con la máxima, los sorteos y el valle, y se dice de qué alimentadores son los motivos.
+    """
+    from ..demanda_medida import clave_codigo
+
+    prep = obras_escalera(ws, ctx, project, feeders, anio_casos=anio_casos, tipo_cambio=tipo_cambio, capex=capex,
+                          memo=memo, solo_comun=True)
+    p, anio = prep['p'], prep['anio_casos']
+    cargas = _cargas_nuevas_aplicadas(ws, project)
+    con_cargas = [f for f in feeders if any(clave_codigo(c.get('alimentador')) == clave_codigo(f) for c in cargas)]
+    medidos = list(feeders)
+    comun = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio,
+             'native_action_context': native_action_context(ws, project, medidos, 'obras'),
+             'apartar_cargas_de': [], 'apartar_variaciones': []}
+    barras_de = {f: sorted({str(c['barra']) for c in cargas if c.get('barra')
+                            and clave_codigo(c.get('alimentador')) == clave_codigo(f)}) for f in con_cargas}
+    _rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        **comun, 'feeders': medidos, 'barras': barras_de, 'tension_min_pu': p.tension_min_pu,
+        'cargabilidad_max_pct': p.cargabilidad_max_pct, 'migrar_a_kv': p.migrar_a_kv},
+        nombre='conjunto_datos', args=('--escalera-datos',))
+    barras = []
+    for f, propias in barras_de.items():
+        media = ((datos.get('alimentadores') or {}).get(f) or {}).get('media') or {}
+        barras += [media.get(b, b) for b in propias]
+    plan = {**comun, 'feeders': medidos, 'variantes': [], 'barras_cargas': list(dict.fromkeys(barras)),
+            'sorteos': prep['sorteos'], 'parametros': prep['perfil'], 'tipo_cambio': tipo_cambio, 'valle': prep['valle'],
+            'parada_bayesiana': True, 'solo_confirmar': True, **_fichero_base(memo, {**comun, 'feeders': medidos})}
+    ctx.log(f'Confirmación conjunta: {len(medidos)} alimentadores, todas las obras y las {len(cargas)} cargas nuevas, '
+            'en un solo flujo por instante (087:RF-45).')
+    _rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='conjunto_evaluar', args=('--evaluar',))
+    if ev.get('error'):
+        raise UserError(f"Confirmación conjunta: {ev['error']}")
+    c = ev.get('conjunto') or {}
+    if c.get('cumple'):
+        ctx.log(f"Confirmación conjunta: el sistema entero cumple (sorteos "
+                f"{100 * float(c.get('fraccion') if c.get('fraccion') is not None else 1.0):.0f} %, valle "
+                f"{'bien' if c.get('valle') is not False else 'no'}, sin barras aisladas) (087:RF-45).")
+    else:
+        ctx.log('Confirmación conjunta: el sistema entero no cumple: ' + '; '.join((c.get('motivos') or [])[:5])
+                + (f"; {len(c['aisladas'])} barra(s) aisladas" if c.get('aisladas') else '') + ' (087:RF-46).')
+        for f, motivos in (c.get('por_alimentador') or {}).items():
+            ctx.log(f"  {f}: {'; '.join(motivos[:3])} (087:RF-46).")
+    return c
+
+
 def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                              anio_casos: int | None = None, tipo_cambio: float | None = None,
-                             capex: str | None = None, cargas: list[str] | None = None) -> dict:
+                             capex: str | None = None, cargas: list[str] | None = None,
+                             rehacer_obras: bool = False) -> dict:
     """042:RF-24: cada alimentador con sus cargas nuevas sube la escalera; los que no cumplen pasan sus cargas a la siguiente obra."""
-    from ..demanda_medida import clave_codigo
+    from .. import modelo_obras as mo
+    from .. import optimizacion_oraculo as oo
     from ..informes import queda_deficit
     from .. import set_nueva as sn
+    from ..demanda_medida import clave_codigo
+    from ..perfil_empresa import completar_planeamiento, datos_perfil
 
     marcados = {clave_codigo(f) for f in feeders}
     claves = {clave_codigo(n) for n in (cargas or [])}
@@ -6134,40 +6488,148 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                  and (not claves or clave_codigo(c.get('sed')) in claves)]
     if not aplicadas:
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    if rehacer_obras:
+        _retirar_obras(ws, ctx, project, feeders, anio_casos)
     _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     por_alim: dict[str, list[dict]] = {}
     for c in aplicadas:
         f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
         por_alim.setdefault(f, []).append(c)
-    cumplen, resto, por_feeder, memo, elegidas = [], [], {}, {}, {}
+    cumplen, resto, por_feeder, memo, elegidas = [], [], {}, {'dir_base': tempfile.mkdtemp(prefix='csg_base_')}, {}
+    escalera = None
+    # 087:RF-1: el oráculo (el PINN promovido o el flujo físico) ordena; DIgSILENT mide por tandas y es el que decide.
+    # 087:RF-30: sin oráculo, para poder comparar los dos métodos sobre el mismo sistema.
+    usar = (completar_planeamiento(datos_perfil())[0]['escalera']).get('usar_oraculo', True)
+    seleccion = _seleccion_por_oraculo(ws, ctx, project, feeders, aplicadas, opciones, memo) if usar else {}
+    de_oraculo = seleccion.get('alimentadores') or {}
+    modelo = _modelo_de_obras(ctx) if de_oraculo else None                            # 087:RF-18 a RF-20
+    medidas: list[dict] = []
     for f, cs in sorted(por_alim.items()):
-        ctx.check_cancel()
-        r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
-                           aplicar=False, basta_una=True, memo=memo, **opciones)
-        fila = next(iter(r.get('alimentadores') or []), {})
+        e_or = de_oraculo.get(f)
+        if e_or and modelo is not None:
+            e_or['orden'] = mo.ordenar(modelo, e_or['orden'], {t['nombre']: t for t in e_or.get('tabla') or []})
+        a_medir = oo.a_confirmar(e_or, seleccion.get('tanda') or 1) if e_or and e_or.get('orden') else []   # 087:RF-39
+        lista = oo.tandas(a_medir, seleccion['tanda']) if a_medir else [None]
+        comparacion: list[dict] = []
+        fila: dict = {}
+        tanda = None
+        for tanda in lista:
+            ctx.check_cancel()
+            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
+                               aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones,
+                               **({'variantes_de': {f: tanda}} if tanda else {}))
+            fila = next(iter(r.get('alimentadores') or []), {})
+            if e_or:
+                comparacion += _lo_predicho_y_lo_medido(fila, e_or)
+                medidas += _variantes_medidas(project, f, fila, tanda or [], e_or)    # 087:RF-17
+            if fila.get('elegida') or fila.get('ya_cumple'):
+                break                                                                 # 087:RF-3
+        else:
+            if a_medir and len(a_medir) < len(e_or['orden']):
+                ctx.log(f"{f}: ninguna de las {len(a_medir)} que el oráculo da por cumplidoras o más cercanas cumple en "
+                        f"DIgSILENT; las otras {len(e_or['orden']) - len(a_medir)} no se prueban: va a la obra integral "
+                        '(087:RF-40).')
         ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        traspaso = False
+        if not ok and e_or:
+            # 087:RF-41: el oráculo no modela el paso a 22,9 kV; DIgSILENT lo mide antes de transferir o trasladar.
+            ctx.check_cancel()
+            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+                               basta_una=True, memo=memo, por_alternativas=True, sin_oraculo=True, **opciones)
+            de_n = next(iter(r.get('alimentadores') or []), {})
+            if de_n.get('elegida'):
+                fila, ok, tanda = de_n, True, None
+        if not ok:
+            # 087:RF-31: antes del alimentador nuevo o la SET nueva, pasar la carga a un vecino con margen.
+            ctx.check_cancel()
+            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+                               basta_una=True, memo=memo, por_alternativas=True, traspaso=True, **opciones)
+            de_t = next(iter(r.get('alimentadores') or []), {})
+            if de_t.get('elegida'):
+                fila, ok, traspaso, tanda = de_t, True, True, None
+        for alt in fila.get('alternativas') or []:
+            ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
+                    + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')
         if fila.get('elegida') and not fila.get('ya_cumple'):
             e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
             elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
-        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok,
+            # 042:RF-48: enseguida: si DIgSILENT cae después, lo resuelto queda, y el siguiente se mide con esta obra.
+            ctx.check_cancel()
+            # La que halló la bayesiana no está en la lista de la escalera: se aplica la misma que se midió (087).
+            hallada = next((v for v in (tanda or ()) if v.nombre == elegidas[f]), None)
+            hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True,
+                                   basta_una=True, memo=memo, solo={f: elegidas[f]}, traspaso=traspaso, **opciones,
+                                   **({'variantes_de': {f: [hallada]}} if hallada is not None else {}))
+            for de_f in hecha.get('alimentadores') or []:
+                de_f['alternativas'] = fila.get('alternativas') or []            # 042:RF-58: las de la evaluación
+            if escalera is None:
+                escalera = hecha
+            else:
+                escalera['alimentadores'] = list(escalera.get('alimentadores') or []) + list(hecha.get('alimentadores') or [])
+        from ..informes import ETIQUETA_PREVIO, ETIQUETA_SIN_COMPARACION
+
+        aparte: dict[str, Any] = {'deficit_previo': None, 'sin_comparacion': None}
+        for clase, clave, etiqueta in (('previo', 'deficit_previo', ETIQUETA_PREVIO),         # 042:RF-64
+                                       ('sin_comparacion', 'sin_comparacion', ETIQUETA_SIN_COMPARACION)):   # 042:RF-68
+            barras_bajas = _barras_de(fila.get('bajo_limite'), clase) if ok else []
+            if not barras_bajas:
+                continue
+            ctx.check_cancel()
+            ctx.log(f"{f}: {len(barras_bajas)} barra(s) bajas, {etiqueta}; se evalúa su obra, aparte de la de la carga (042:RF-64).")
+            previo = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+                                    basta_una=True, memo=memo, por_alternativas=True, previas={f: barras_bajas},
+                                    etiqueta_previas=etiqueta, **opciones)
+            de_previo = next(iter(previo.get('alimentadores') or []), {})
+            aparte[clave] = {'barras': barras_bajas, 'alternativas': de_previo.get('alternativas') or []}
+            for alt in aparte[clave]['alternativas']:
+                ctx.log(f"{f}, {etiqueta}: alternativa {alt['numero']}: {alt['nombre']}"
+                        + (f", {alt['costo_anual']:,.0f} al año" if alt.get('costo_anual') is not None else '') + ' (042:RF-65).')
+        por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok, **aparte,
+                         'alternativas': fila.get('alternativas') or [],                     # 042:RF-77
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
+        if e_or:
+            por_feeder[f]['oraculo'] = {'comparacion': comparacion, 'bayesiana': e_or.get('bayesiana'), 'pareto': e_or.get('pareto'),
+                                        'perdidas_energia': e_or.get('perdidas_energia'), 'ya_cumple': e_or.get('ya_cumple'),
+                                        'margen': e_or.get('margen'), 'margen_con_obra': e_or.get('margen_con_obra')}
         # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
         resto_bajo = ' El alimentador sigue con barras bajo el límite: vea sus avisos.' if queda_deficit(fila.get('bajo_limite')) else ''
         ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
-                + (f'cumple con bancos, sección o terna (042:RF-24).{resto_bajo}' if ok else 'la escalera no basta: va al alimentador nuevo o a la SET nueva (042:RF-24).'))
+                + ((f'cumple transfiriendo o trasladando carga a un vecino (087:RF-31).{resto_bajo}' if traspaso else
+                    f'cumple con bancos, sección o terna (042:RF-24).{resto_bajo}') if ok else
+                   'ni la escalera ni transferir o trasladar a un vecino bastan: va al alimentador nuevo o a la SET nueva '
+                   '(042:RF-24, 087:RF-31).'))
         (cumplen if ok else resto).append(f)
-    escalera = None
-    con_obra = [f for f in cumplen if elegidas.get(f)]          # 042:RF-29: el que ya cumple no lleva obra
-    if con_obra:
-        activas = [c['variacion'] for f in con_obra for c in por_alim[f]]
-        escalera = obras_escalera(ws, ctx, project, con_obra, cargas_activas=activas, aplicar=True, basta_una=True,
-                                  memo=memo, solo={f: elegidas[f] for f in con_obra}, **opciones)
+    # 087:RF-45 a RF-47: todo el sistema junto; si no cumple, se rehace solo la obra del alimentador afectado, ahora con
+    # las cargas nuevas de los demás activas, y se confirma otra vez. Como mucho RONDAS_CONJUNTO: no se insiste.
+    conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, **opciones)
+    for ronda in range(1, RONDAS_CONJUNTO + 1):
+        afectados = [f for f in (conjunto.get('por_alimentador') or {}) if f in por_alim]
+        if conjunto.get('cumple') or not afectados:
+            break
+        for f in afectados:
+            ctx.check_cancel()
+            ctx.log(f'{f}: se rehace su obra con las cargas nuevas de los demás activas (087:RF-47, ronda {ronda}).')
+            _retirar_obras(ws, ctx, project, [f], opciones.get('anio_casos'))
+            hecha = obras_escalera(ws, ctx, project, [f], aplicar=True, basta_una=True, memo=memo,
+                                   por_alternativas=True, **opciones)
+            de_f = next(iter(hecha.get('alimentadores') or []), {})
+            por_feeder.setdefault(f, {})['conjunto'] = {'ronda': ronda, 'elegida': de_f.get('elegida'),
+                                                        'aplicada': de_f.get('aplicada')}
+            if escalera is not None:
+                escalera['alimentadores'] = [x for x in escalera.get('alimentadores') or [] if x.get('alimentador') != f]
+                escalera['alimentadores'].append(de_f)
+        conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, **opciones)
+    shutil.rmtree(memo['dir_base'], ignore_errors=True)                               # 087:RF-28
+    mo.anadir(_ruta_de_medicion('variantes_medidas.jsonl'), medidas)                  # 087:RF-17
     campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     orden = sn.orden_de_cargas(aplicadas)
     return {'project': project.strip(), 'orden': [{k: c.get(k) for k in campos} for c in orden],
             'caben': sum(len(por_alim[f]) for f in cumplen), 'por_alimentador': por_feeder, 'escalera': escalera,
-            'a_set_nueva': [{k: c.get(k) for k in campos} for f in resto for c in por_alim[f]]}
+            'a_set_nueva': [{k: c.get(k) for k in campos} for f in resto for c in por_alim[f]],
+            'metodo': 'oraculo' if de_oraculo else 'escalera', 'conjunto': conjunto,       # 087:RF-45
+            'oraculo': {k: seleccion.get(k) for k in ('flujos', 'oraculo_s')},
+            'etapas': _plan_de_etapas(de_oraculo)}                                    # 087:RF-14, RF-15
 
 
 def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
@@ -6246,23 +6708,12 @@ class _SinOraculo(Exception):
     """El oráculo no puede hacer la búsqueda: se hace en DIgSILENT (052:RF-8)."""
 
 
-def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                           orden: list[dict], opciones: dict, memo: dict) -> dict:
-    """La búsqueda de la 042 con el oráculo y la confirmación en DIgSILENT (spec 052).
-
-    Una lectura de «Con proyecto» (RF-1); el oráculo busca k y elige por alimentador, con la
-    escalera, la bayesiana, el frente, Markov y Shapley (RF-2 a RF-4, RF-11 a RF-16); DIgSILENT
-    confirma la elegida con k y que con k + 1 no cabe, y si discrepa manda él (RF-5, RF-6). Lo
-    predicho y lo medido van al informe y a un fichero (RF-7) con los tiempos (RF-10).
-    """
+def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], orden: list[dict], comun: dict) -> dict:
+    """El oráculo de «Con proyecto» y las variantes de cada alimentador, de una sola lectura (052:RF-1, 087:RF-1)."""
     from .. import escalera_optima as eo
     from .. import optimizacion_oraculo as oo
     from ..demanda_medida import clave_codigo
 
-    t0 = time.monotonic()
-    comun = obras_escalera(ws, ctx, project, feeders, memo=memo, solo_comun=True, **opciones)
-    if 'p' not in comun:
-        raise _SinOraculo('ningún alimentador marcado tiene cargas nuevas')
     p, perfil, lectura = comun['p'], comun['perfil'], comun['lectura']
     valle = comun.get('valle')
     ajustes = dict(perfil.get('escalera') or {})
@@ -6275,6 +6726,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': comun['anio_casos'],
             'native_action_context': native_action_context(ws, project, feeders, 'obras'),
             'feeders': list(feeders), 'barras': barras, 'tension_min_pu': p.tension_min_pu,
+            'cargabilidad_max_pct': p.cargabilidad_max_pct,                           # 087:RF-5
             'nuevas': [{k: c.get(k) for k in ('sed', 'variacion', 'barra', 'alimentador', 'kw', 'kvar')}
                        for c in orden]}
     rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='oraculo_datos', args=('--oraculo-datos',))
@@ -6323,8 +6775,12 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
     maximas = {f: float((comun['objetivos'].get(f) or {}).get('kw') or 0) for f in feeders}
     # El oráculo sortea como mucho ``escalera.sorteos_oraculo`` (50); DIgSILENT confirma con los suyos.
     n_sorteos = min(p.sorteos, int(ajustes.get('sorteos_oraculo') or 50))
-    markov = oo.sorteos_markov(sorted(instantes.items(), key=lambda x: x[0]), maximas, n_sorteos, p.semilla,
-                               int(ajustes.get('niveles_markov') or oo.NIVELES_MARKOV))
+    try:
+        markov = oo.sorteos_markov(sorted(instantes.items(), key=lambda x: x[0]), maximas, n_sorteos, p.semilla,
+                                   int(ajustes.get('niveles_markov') or oo.NIVELES_MARKOV))
+    except ValueError as exc:                                                     # 042:RF-42
+        ctx.log(f'Sin cadena de Markov ({exc}): el oráculo juzga solo la máxima (042:RF-42).')
+        markov = {'sorteos': [], 'transicion': [], 'estacionaria': [], 'niveles': 0}
     factores = [sum(x['factores'].values()) / len(x['factores']) for x in markov['sorteos']]
     alims = []
     kvar = comun['kvar']
@@ -6347,7 +6803,8 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
             ctx.log(f"{f}: {tope_valle['aviso']} (073:RF-19).")
         vs, av = eo.variantes(f, kv, d['troncal'], cargas_f, tipos_lista, p, banco_kvar=banco,
                               fuera_desde=d.get('fuera_desde'), modulos_valle=modulos_valle,
-                              evidencia=not (tope_valle or {}).get('por_tope'))
+                              evidencia=not (tope_valle or {}).get('por_tope'),
+                              sobrecargados=d.get('sobrecargados'))                   # 087:RF-5
         for aviso in av:
             ctx.log(aviso)
 
@@ -6374,6 +6831,66 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
     opciones_eleccion = {'evaluaciones_bayes': int(ajustes.get('evaluaciones_bayes') or oo.EVALUACIONES_BAYES),
                          'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),
                          'semilla': p.semilla, 'valle': valle}
+    return {'p': p, 'valle': valle, 'ora': ora, 'alims': alims, 'factores': factores, 'markov': markov,
+            'opciones_eleccion': opciones_eleccion, 'ajustes': ajustes}
+
+
+def _seleccion_por_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], aplicadas: list[dict],
+                           opciones: dict, memo: dict) -> dict:
+    """087:RF-1, RF-4: el orden de medir cada alimentador; vacío si el oráculo no puede, y entonces mide DIgSILENT todo."""
+    from .. import optimizacion_oraculo as oo
+    from .. import set_nueva as sn
+
+    from .jobs import JobCancelled
+
+    t0 = time.monotonic()
+    try:
+        comun = obras_escalera(ws, ctx, project, feeders, memo=memo, solo_comun=True, **opciones)
+        if 'p' not in comun:
+            raise _SinOraculo('ningún alimentador marcado tiene cargas nuevas')
+        prep = _preparar_oraculo(ws, ctx, project, feeders, sn.orden_de_cargas(aplicadas), comun)
+        alimentadores = oo.seleccion_por_alimentador(
+            prep['ora'], prep['alims'], prep['p'], prep['factores'], semilla=prep['p'].semilla, valle=prep['valle'],
+            markov=prep['markov'], evaluaciones_bayes=prep['opciones_eleccion']['evaluaciones_bayes'])
+    except JobCancelled:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 087:RF-4: sin oráculo se mide en DIgSILENT, nunca se queda sin obras
+        ctx.log(f'El oráculo no puede ({exc}): se miden las variantes en DIgSILENT (087:RF-4).')
+        return {}
+    ctx.log(f"Oráculo: {prep['ora'].evaluaciones} flujos en {time.monotonic() - t0:.0f} s; DIgSILENT confirma por tandas (087:RF-1).")
+    return {'alimentadores': alimentadores, 'tanda': int(prep['ajustes'].get('confirmar_en_digsilent') or TANDA_DIGSILENT),
+            'flujos': prep['ora'].evaluaciones, 'oraculo_s': round(time.monotonic() - t0, 1)}
+
+
+def _lo_predicho_y_lo_medido(fila: dict, e: dict) -> list[dict]:
+    """087:RF-6: por variante medida, lo que dijo el oráculo y lo que midió DIgSILENT, que es el que manda."""
+    predicho = {t['nombre']: t for t in e.get('tabla') or []}
+    return [{'variante': t.get('nombre'), 'oraculo_cumple': (predicho.get(t.get('nombre')) or {}).get('cumple'),
+             'oraculo_v_min': (predicho.get(t.get('nombre')) or {}).get('v_min'),
+             'digsilent_maxima': t.get('maxima'), 'digsilent_fraccion': t.get('fraccion'), 'certeza': t.get('certeza')}
+            for t in fila.get('tabla') or []]
+
+
+def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           orden: list[dict], opciones: dict, memo: dict) -> dict:
+    """La búsqueda de la 042 con el oráculo y la confirmación en DIgSILENT (spec 052).
+
+    Una lectura de «Con proyecto» (RF-1); el oráculo busca k y elige por alimentador, con la
+    escalera, la bayesiana, el frente, Markov y Shapley (RF-2 a RF-4, RF-11 a RF-16); DIgSILENT
+    confirma la elegida con k y que con k + 1 no cabe, y si discrepa manda él (RF-5, RF-6). Lo
+    predicho y lo medido van al informe y a un fichero (RF-7) con los tiempos (RF-10).
+    """
+    from .. import escalera_optima as eo
+    from .. import optimizacion_oraculo as oo
+    from ..demanda_medida import clave_codigo
+
+    t0 = time.monotonic()
+    comun = obras_escalera(ws, ctx, project, feeders, memo=memo, solo_comun=True, **opciones)
+    if 'p' not in comun:
+        raise _SinOraculo('ningún alimentador marcado tiene cargas nuevas')
+    prep = _preparar_oraculo(ws, ctx, project, feeders, orden, comun)
+    p, valle, ora, alims, factores, markov, opciones_eleccion = (
+        prep[x] for x in ('p', 'valle', 'ora', 'alims', 'factores', 'markov', 'opciones_eleccion'))
     t_oraculo = time.monotonic()
     k, pruebas = oo.buscar_k(ora, alims, p, factores, valle=valle)
     ctx.log(f'Oráculo: caben {k} de {len(orden)} ({len(pruebas)} pruebas, {ora.evaluaciones} flujos) (052:RF-4).')
@@ -6603,6 +7120,72 @@ def barra_del_tramo_partido(carga: dict, tramos: list[dict], media: dict) -> str
     return media.get(punta, punta)
 
 
+def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: Sequence[Mapping[str, Any]],
+                          datos: Mapping[str, Any], nuevas: Sequence[Mapping[str, Any]], hechas: Sequence[Mapping[str, Any]],
+                          nombre: str, avisos: list[str]) -> dict[str, Any]:
+    """087:RF-34, RF-36 a RF-38: lo que cuesta el alimentador expreso (celda y km del libro CAPEX, con sus filas) y su área.
+
+    Sin el largo medido en DIgSILENT (la obra diferida al plan completo, 042:RF-23), la recta de la cabecera al nodo por
+    el factor de las vías; sin el costo en el libro, el más parecido o la referencia, por confirmar (087:RF-37).
+    """
+    from .. import escalera_optima as eo
+    from .. import obras_integrales as oi
+    from ..perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA
+    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex
+    from ..set_nueva import distancia_m
+
+    costos_capex: dict = {}
+    if capex and capex.strip():
+        try:
+            obras_capex, _av = leer_capex(Path(capex.strip().strip('"')), (perfil.get('planificacion') or {}).get('capex') or {})
+            costos_capex = costos_por_alternativa(obras_capex)
+        except (EconomiaPideError, OSError) as exc:
+            avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia (087:RF-37).')
+    from ..perfil_empresa import completar_planeamiento
+
+    completo = completar_planeamiento(perfil)[0]
+    try:
+        costos = eo.costos_de_alternativas(costos_capex, eo.parametros(completo))
+    except (ValueError, eo.EscaleraError) as exc:
+        # 087:RF-37: nada queda sin costo: la referencia citada, por confirmar.
+        costos = {alt: {'costo_unitario': v, 'unidad': 'Und' if alt == 'celda' else 'km',
+                        'origen': eo.FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
+                  for alt, v in eo.COSTOS_NIVEL_DE_REFERENCIA.items()}
+        costos['nuevo_alimentador'] = {**costos['cambio_tension'], 'origen': 'referencia del cambio de tensión, por confirmar'}
+        avisos.append(f'Sin los costos del perfil o del libro ({exc}): el expreso se costea con la referencia (087:RF-37).')
+    gps: dict[str, Any] = {}
+    cabeceras: dict[str, str] = {}
+    for f, d in (datos.get('alimentadores') or {}).items():
+        cabeceras[f] = str(d.get('cabecera') or '')
+        for b in d.get('barras') or []:
+            gps[str(b['nombre'])] = b.get('gps')
+    medidos = [x for o in hechas for x in ((o.get('expreso') or {}).get('alimentadores_nuevos') or [])]
+    km, de_donde = 0.0, 'medido en DIgSILENT por las vías'
+    if medidos:
+        km = sum(float(x.get('largo_m') or 0.0) for x in medidos) / 1000.0
+    else:
+        de_donde = f'recta por {oi.FACTOR_RUTA:g}, hasta medirlo en DIgSILENT'
+        for r in ramas:
+            a, b = gps.get(cabeceras.get(str(r['alimentador']), '')), gps.get(str(r['nodo']))
+            if a and b:
+                km += distancia_m(tuple(a), tuple(b)) / 1000.0 * oi.FACTOR_RUTA
+    celdas = max(1, len({str(r['alimentador']) for r in ramas}))
+    km_u, celda_u = costos.get('nuevo_alimentador') or {}, costos.get('celda') or {}
+    inversion = None
+    if km_u.get('costo_unitario') and celda_u.get('costo_unitario'):
+        inversion = km * float(km_u['costo_unitario']) + celdas * float(celda_u['costo_unitario'])
+    costo = {'km': round(km, 3), 'km_de': de_donde, 'celdas': celdas, 'inversion': inversion,
+             'costo_km': km_u.get('costo_unitario'), 'costo_celda': celda_u.get('costo_unitario'),
+             # 087:RF-36: las filas del libro de donde sale, o de dónde sale la referencia.
+             'fuente_km': km_u.get('proyectos') or km_u.get('origen'), 'fuente_celda': celda_u.get('proyectos') or celda_u.get('origen')}
+    plan = perfil.get('planificacion') or {}
+    tasa = float(plan.get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA)
+    anios = int(plan.get('vida_util_anios') or 30)
+    existentes_kw = sum(float(r.get('kw_existente') or 0.0) for r in ramas)
+    area = oi.area_propuesta(nombre, nuevas, ramas, gps, existentes_kw, (1.0 + tasa) ** anios, anios)    # 087:RF-38
+    return {'costo': costo, 'area': area}
+
+
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                        a_set_nueva: list[dict], *, capex: str | None, alimentadores_nuevos: int,
                        anio_casos: int | None = None, nombre: str = '', oraculo: dict | None = None,
@@ -6721,8 +7304,9 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos)
             hechas_e += (hecho.get('informe') or {}).get('obras') or [hecho]
+        resumen = _expreso_costo_y_area(perfil, capex, ramas, datos, a_set_nueva, hechas_e, nombre or 'EXPRESO', avisos)
         return {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')} for r in ramas],
-                'avisos': avisos, 'obras': hechas_e}
+                'avisos': avisos, 'obras': hechas_e, **resumen}
     # 029:RF-6: la tasa del perfil, si la trae, vale para todos; si no, la medida de cada uno.
     tasa_perfil = (perfil.get('planificacion') or {}).get('crecimiento_demanda_anual')
     if tasa_perfil is not None:
@@ -6834,7 +7418,8 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
                            capex: str | None = None, alimentadores_nuevos: int = 4,
                            set_nueva_nombre: str = '', directo_set_nueva: bool = False,
-                           cargas: list[str] | None = None, escalera_primero: bool = False) -> dict:
+                           cargas: list[str] | None = None, escalera_primero: bool = False,
+                           rehacer_obras: bool = False) -> dict:
     """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042).
 
     Con ``directo_set_nueva``, sin escalera: muchas cargas que bancos y ternas no resuelven van a
@@ -6844,6 +7429,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     from ..escalera_optima import BIBLIOTECA_TIPOS
     from ..perfil_empresa import datos_perfil
 
+    t0_corrida, fecha_corrida = time.monotonic(), time.strftime('%Y-%m-%dT%H:%M:%S')
     marcados = {clave_codigo(f) for f in feeders}
     pedidas = {clave_codigo(n) for n in (cargas or [])}
     evaluadas = [c for c in _cargas_nuevas_aplicadas(ws, project)
@@ -6861,12 +7447,18 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         from .. import set_nueva as sn
 
         todas = sn.orden_de_cargas(evaluadas)
+        # 087:RF-54: como la escalera (042:RF-32), con las cargas nuevas puestas: una evaluación cortada antes pudo dejarlas
+        # apartadas, y la de CHI201 (Pisco, 2026-11-04) quedaba «sin camino cerrado desde la cabecera».
+        _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in todas if c.get('variacion')])
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
         campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
-        escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
+        # 042:RF-80: la misma forma que los otros dos flujos: la web busca el proyecto y lee el orden.
+        escalera = {'project': project.strip(), 'caben': 0, 'orden': [{k: c.get(k) for k in campos} for c in todas],
+                    'pruebas': [], 'escalera': None, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
     elif escalera_primero:                                              # 042:RF-24
         escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
-                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
+                                            tipo_cambio=tipo_cambio, capex=capex, cargas=cargas,
+                                            rehacer_obras=rehacer_obras)
     else:
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                           tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
@@ -6885,7 +7477,9 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     diferidas: list[dict] = []
     for n, zona in enumerate(zonas, 1):
         kw = sum(float(c.get('kw') or 0) for c in zona)
-        expreso = umbral_set is not None and len(zonas) > 1 and kw < float(umbral_set)
+        # 087:RF-54: una zona que no llega al umbral de la SET nueva va a un alimentador nuevo aunque sea la única. Pisco
+        # (2026-11-04): los 0,66 MW de CHI201, solos, iban a una SET nueva entera.
+        expreso = umbral_set is not None and kw < float(umbral_set)
         nombre_z = set_nueva_nombre if len(zonas) == 1 else f'{set_nueva_nombre or "SET NUEVA"} {n}'
         ctx.log(f"Zona {n}: {kw / 1000:.2f} MW ({', '.join(str(c.get('sed'))[:30] for c in zona)}): "
                 + ('alimentador expreso desde su SET (042:RF-22).' if expreso else f'SET nueva {nombre_z} (042:RF-22).'))
@@ -6910,10 +7504,29 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
                                anio_casos=anio_casos, en_conjunto=True)
         set_nueva['plan_completo'] = (hecho.get('informe') or {}).get('plan_completo')
         set_nueva['obras'] = (hecho.get('informe') or {}).get('obras')
-    return {'project': project.strip(), 'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
+    resultado = {'project': project.strip(), 'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
+    _registrar_corrida(ctx, project, resultado, t0_corrida, fecha_corrida)            # 087:RF-21
+    return resultado
 
 
 VIGENCIA_EVALUACION_S = 24 * 3600
+
+
+@functools.lru_cache(maxsize=1)
+def revision_de_la_escalera() -> str:
+    """087:RF-50: la huella del código que mide una variante: el guion, la planificación de las obras y el criterio.
+
+    Pisco (2026-11-04): corregido el traslado a la misma tensión, la web reutilizó la evaluación de CHI201 hecha con el
+    código anterior (025:RF-73), porque el plan era el mismo, y devolvió otra vez su error.
+    """
+    raiz = Path(__file__).resolve().parents[3]
+    h = hashlib.sha256()
+    for rel in ('tools/obras_pf.py', 'src/convertersmartgrid/obras_pf.py', 'src/convertersmartgrid/escalera_optima.py'):
+        try:
+            h.update((raiz / rel).read_bytes())
+        except OSError:
+            h.update(rel.encode('utf-8'))
+    return h.hexdigest()[:16]
 
 
 def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
@@ -6925,7 +7538,7 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
     reutilizó para PA217 una evaluación cancelada y medida con la obra de SI213 inactiva.)
     """
     def clave(p: dict) -> str:
-        return json.dumps({k: v for k, v in p.items() if k != 'native_action_context'},
+        return json.dumps({k: v for k, v in p.items() if k not in ('native_action_context', 'base_sin_fichero')},
                           sort_keys=True, ensure_ascii=False, default=str)
 
     buscada = clave(json.loads(json.dumps(plan, ensure_ascii=False, default=str)))
@@ -6939,8 +7552,9 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
             datos = json.loads(informe.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             continue
+        # 087:RF-50: una variante con error no se midió: no se reutiliza (CHI201, Pisco, 2026-11-04).
         if (isinstance(datos, dict) and datos.get('variantes') and not datos.get('error')
-                and not datos.get('cancelado')):
+                and not datos.get('cancelado') and not any(v.get('error') for v in datos['variantes'])):
             return datos
     return None
 
@@ -7917,7 +8531,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                                        'sed_cercana': _sed_cercana(b.get('gps'), geo_sin)}
                                       for b in sin['medidas'][alimentador].get('bancos') or ()),
                          fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)),
-                         avisos=tuple(avisos), corrida=(corrida or {}).get('token'))
+                         avisos=tuple(avisos), corrida=(corrida or {}).get('token'),
+                         alternativas_escalera=alternativas_de_la_escalera(ws, proyecto, [alimentador]))   # 042:RF-58
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
     _paso_informe(ctx, 2, 'documento')
     try:

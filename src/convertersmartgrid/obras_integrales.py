@@ -1,0 +1,189 @@
+"""Las obras de después de la escalera: transferir, trasladar, alimentador nuevo y SET nueva (spec 087, RF-31 a RF-38).
+
+Pisco, 2026-11-04: cuando bancos, sección, terna y regulador no bastaban, el alimentador iba directo a la SET nueva o al
+expreso, sin probar antes lo que hace un distribuidor: pasar la parte que no cabe al alimentador vecino que tiene margen
+(«debe integrar como obra nuevos alimentadores, transferencias de cargas, traslado de cargas, las nuevas celdas»).
+
+Transferir y trasladar son la misma obra física con dos alcances: un enlace del vecino a la red del que no cumple, y la
+parte de aguas abajo pasa a alimentarse por él (la migración de la 016, que abre su tramo de entrada y cierra el enlace,
+y cambia la tensión si el vecino tiene otra). La transferencia lleva la cola de la troncal desde donde sale de los
+límites; el traslado, solo la rama de la carga nueva. Los constructores son los de ``tools/obras_pf.py`` (enlace y
+migración, 016:RF-26 a RF-80); aquí solo se decide qué probar, con qué vecino y desde qué nodo.
+
+Puro: no habla con DIgSILENT. Los vecinos los lee ``obras_pf.py --vecinos`` y las variantes se miden con la escalera.
+"""
+from __future__ import annotations
+
+import math
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from .escalera_optima import Parametros, Variante, conductores_aptos, nodo_a_dos_tercios
+from .estudios_pf import CON_PROYECTO
+
+#: 087:RF-31: el orden de las obras integrales; se para en la primera que cumple en DIgSILENT.
+ORDEN = ('transferencia', 'traslado', 'expreso', 'set_nueva')
+#: Vecinos que se prueban como mucho (087:RF-39): el más cercano con margen y uno más, no todos.
+MAX_VECINOS = 2
+#: De la recta a las vías hasta que el constructor mide el trazado de verdad (016:RF-81): solo para costear antes.
+FACTOR_RUTA = 1.3
+#: Margen que debe conservar el vecino sobre los límites para recibir carga (087:RF-32).
+MARGEN_TENSION_PU = 0.01
+MARGEN_CARGA_PCT = 10.0
+
+
+def nodo_de_rama(camino: Sequence[Mapping[str, Any]], troncal: set[str], barra: str) -> str:
+    """087:RF-33: la primera barra de la rama de la carga, fuera de la troncal; la propia barra si cuelga de ella.
+
+    ``camino`` va de la cabecera a la carga, orientado (``desde`` → ``hasta``); la troncal, por nombres de tramo.
+    """
+    for t in camino:
+        if str(t.get('nombre')) not in troncal:
+            return str(t.get('hasta') or barra)
+    return barra
+
+
+def nodo_de_transferencia(camino: Sequence[Mapping[str, Any]], troncal: set[str], tension_min_pu: float) -> str | None:
+    """087:RF-32: la barra de la troncal donde la tensión sale del límite; sin ella, la de 2/3 de la troncal (042:RF-37).
+
+    Lo que se transfiere es todo lo de aguas abajo, así que solo vale una barra de la troncal: si sale de límites ya en
+    la rama, la transferencia sería el traslado y no se propone dos veces.
+    """
+    en_troncal = [t for t in camino if str(t.get('nombre')) in troncal]
+    for t in en_troncal:
+        hasta = str(t.get('hasta') or '')
+        u = (t.get('u') or {}).get(hasta)
+        if u is not None and float(u) < tension_min_pu and not hasta.startswith('NODE_T_'):
+            return hasta
+    return nodo_a_dos_tercios(en_troncal)
+
+
+def vecinos_con_margen(vecinos: Sequence[Mapping[str, Any]], p: Parametros, n: int = MAX_VECINOS) -> list[dict[str, Any]]:
+    """087:RF-32: los más cercanos que conservan margen de tensión y de carga, como mucho ``n``.
+
+    ``vecinos``: ``alimentador``, ``kv``, ``distancia_m`` (de su barra más cercana al nodo), ``u_min`` y
+    ``carga_max_pct`` con su flujo de «Con proyecto». Sin flujo (``u_min`` nulo) no se sabe su margen: no se propone.
+    """
+    buenos = [dict(v) for v in vecinos
+              if v.get('u_min') is not None and float(v['u_min']) >= p.tension_min_pu + MARGEN_TENSION_PU
+              and float(v.get('carga_max_pct') or 0.0) <= p.cargabilidad_max_pct - MARGEN_CARGA_PCT
+              and v.get('distancia_m') is not None]
+    return sorted(buenos, key=lambda v: (float(v['distancia_m']), str(v['alimentador'])))[:max(0, n)]
+
+
+def _tipo_del_enlace(tipos, kv: float, corriente_a: float | None) -> dict[str, Any] | None:
+    aptos = conductores_aptos(tipos, kv, corriente_a)
+    if not aptos:
+        return None
+    t = aptos[0]
+    return {'nombre': t['nombre'], 'clase': 'TypLne', 'origen': t.get('origen') or 'proyecto', 'proyecto': t.get('proyecto') or ''}
+
+
+def candidatos_de_transferencia(camino: Sequence[Mapping[str, Any]], troncal: set[str], tension_min_pu: float) -> list[str]:
+    """087:RF-52: las barras de la troncal, en el camino de la carga, desde las que se puede transferir la cola: desde la
+    que sale de límites (o la de 2/3) hasta el final de la troncal. Cuál se usa lo decide la distancia a cada vecino."""
+    en_troncal = [t for t in camino if str(t.get('nombre')) in troncal]
+    desde = nodo_de_transferencia(camino, troncal, tension_min_pu)
+    barras = [str(t.get('hasta') or '') for t in en_troncal]
+    if desde in barras:
+        barras = barras[barras.index(desde):]
+    return [b for b in barras if b and not b.startswith('NODE_T_')]
+
+
+def nodos_de_traspaso(camino: Sequence[Mapping[str, Any]], troncal: set[str], barra_carga: str,
+                      p: Parametros) -> dict[str, Any]:
+    """087:RF-32, RF-33, RF-52: de dónde se puede transferir (varias barras) y desde dónde se traslada (la rama)."""
+    traslado = nodo_de_rama(camino, troncal, barra_carga)
+    return {'transferencia': [b for b in candidatos_de_transferencia(camino, troncal, p.tension_min_pu) if b != traslado],
+            'traslado': traslado}
+
+
+def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], troncal: set[str], barra_carga: str,
+              vecinos: Mapping[str, Sequence[Mapping[str, Any]]], tipos, p: Parametros) -> tuple[list[Variante], list[str]]:
+    """087:RF-31 a RF-33: con cada vecino útil, la transferencia y después el traslado, en el orden de :data:`ORDEN`.
+
+    ``vecinos``: por nodo, los que da ``obras_pf.py --vecinos``.
+    """
+    avisos: list[str] = []
+    nodos = nodos_de_traspaso(camino, troncal, barra_carga, p)
+    corriente = {str(t.get('hasta')): t.get('corriente_a') for t in camino}
+    out: list[Variante] = []
+    # 087:RF-52: por cada vecino con margen, la transferencia desde la barra de la troncal más cercana a él. CHI201 (Pisco,
+    # 2026-11-04): con un único nodo fijo, la de 189 m a SC215 dejaba de proponerse en cuanto cambiaba la tensión leída.
+    por_vecino: dict[str, tuple[str, dict[str, Any]]] = {}
+    for nodo in nodos['transferencia']:
+        for v in vecinos_con_margen(vecinos.get(nodo) or (), p, n=len(vecinos.get(nodo) or ())):
+            actual = por_vecino.get(v['alimentador'])
+            if actual is None or float(v['distancia_m']) < float(actual[1]['distancia_m']):
+                por_vecino[v['alimentador']] = (nodo, v)
+    elegidos = sorted(por_vecino.values(), key=lambda x: float(x[1]['distancia_m']))[:MAX_VECINOS]
+    pedidos = [('transferencia', nodo, [v]) for nodo, v in elegidos]
+    if nodos['traslado']:
+        pedidos.append(('traslado', nodos['traslado'], vecinos_con_margen(vecinos.get(nodos['traslado']) or (), p)))
+    if not elegidos and nodos['transferencia']:
+        avisos.append(f'{alimentador}: ningún alimentador vecino de su troncal conserva margen de tensión y de carga '
+                      'para recibir su transferencia (087:RF-32).')
+    for clase, nodo, utiles in pedidos:
+        if not utiles:
+            avisos.append(f'{alimentador}: ningún alimentador vecino de {nodo} conserva margen de tensión y de carga '
+                          f'para recibir su {clase} (087:RF-32).')
+            continue
+        for v in utiles:
+            kv_v = float(v.get('kv') or kv)
+            tipo = _tipo_del_enlace(tipos, kv_v, corriente.get(nodo))
+            if tipo is None:
+                avisos.append(f"{alimentador}: ningún conductor de {kv_v:g} kV para el enlace con {v['alimentador']} "
+                              f'(087:RF-32).')
+                continue
+            km = float(v['distancia_m']) / 1000.0 * FACTOR_RUTA
+            otra = not math.isclose(kv_v, float(kv), rel_tol=1e-3)
+            texto = 'transferencia' if clase == 'transferencia' else 'traslado de la rama'
+            out.append(Variante(
+                f"{texto} desde {nodo} a {v['alimentador']}" + (f' ({kv_v:g} kV)' if otra else '')
+                + f' con enlace de {km:.2f} km',
+                (clase,),
+                [{'clase': 'enlace', 'alimentador': v['alimentador'], 'cede': alimentador, 'casos': [CON_PROYECTO],
+                  'destino': nodo, 'tipo': tipo},
+                 {'clase': 'migracion', 'alimentador': alimentador, 'casos': [CON_PROYECTO], 'nodo': nodo,
+                  'kv_destino': kv_v}],
+                {clase: km}))
+    return out, avisos
+
+
+def _centro(puntos: Sequence[tuple[float, float, float]]) -> tuple[float, float] | None:
+    if not puntos:
+        return None
+    peso = sum(w for _la, _lo, w in puntos)
+    if peso <= 0:
+        return (sum(la for la, _lo, _w in puntos) / len(puntos), sum(lo for _la, lo, _w in puntos) / len(puntos))
+    return (sum(la * w for la, _lo, w in puntos) / peso, sum(lo * w for _la, lo, w in puntos) / peso)
+
+
+def area_propuesta(nombre: str, nuevas: Sequence[Mapping[str, Any]], ramas: Sequence[Mapping[str, Any]],
+                   gps: Mapping[str, Sequence[float] | None], existentes_kw: float, factor_horizonte: float,
+                   anios: int) -> dict[str, Any]:
+    """087:RF-38: la zona del alimentador nuevo: su centro de carga, su demanda presente y a horizonte, su contorno y las
+    barras que pasarían a él.
+
+    ``nuevas``: las cargas nuevas de la zona (``kw``, ``lat``, ``lon`` o ``barra``); ``ramas``: las que pasan, con sus
+    ``barras``; ``gps``: coordenadas por barra. Solo crece la demanda registrada (042:RF-7).
+    """
+    puntos: list[tuple[float, float, float]] = []
+    for c in nuevas:
+        g = (c.get('lat'), c.get('lon')) if c.get('lat') is not None else tuple(gps.get(str(c.get('barra'))) or (None, None))
+        if g[0] is not None:
+            puntos.append((float(g[0]), float(g[1]), float(c.get('kw') or 0.0)))
+    barras = sorted({str(b) for r in ramas for b in r.get('barras') or ()})
+    contorno = [(float(gps[b][0]), float(gps[b][1])) for b in barras if gps.get(b)]
+    contorno += [(la, lo) for la, lo, _w in puntos]
+    nuevas_kw = sum(float(c.get('kw') or 0.0) for c in nuevas)
+    # El centro de carga pesa la demanda nueva; sin coordenadas de ninguna, el centro del contorno.
+    centro = _centro(puntos) if puntos else _centro([(la, lo, 0.0) for la, lo in contorno])
+    caja = None
+    if contorno:
+        las, los = [x[0] for x in contorno], [x[1] for x in contorno]
+        caja = {'lat_min': min(las), 'lat_max': max(las), 'lon_min': min(los), 'lon_max': max(los)}
+    return {'alimentador': nombre, 'centro': {'lat': centro[0], 'lon': centro[1]} if centro else None, 'contorno': caja,
+            'kw_presente': round(existentes_kw + nuevas_kw, 1),
+            'kw_horizonte': round(existentes_kw * float(factor_horizonte) + nuevas_kw, 1), 'anios': int(anios),
+            'barras': barras, 'cargas_nuevas': [str(c.get('sed') or c.get('barra') or '') for c in nuevas]}

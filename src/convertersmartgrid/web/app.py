@@ -321,6 +321,7 @@ class ObrasIn(BaseModel):
     tipo_cambio: float | None = Field(None, gt=0, le=100_000)
     # Spec 025, RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
     capex: str = Field('', max_length=1000)
+    rehacer_obras: bool = False                  # 042:RF-60
     # Spec 052, RF-19: el nombre de la SET nueva (p. ej. «SET COPARA»).
     set_nueva_nombre: str = Field('', max_length=40)
     # Sin escalera: todas las cargas nuevas a la SET nueva (usuario, 2026-11-01).
@@ -2120,7 +2121,7 @@ def create_app(
                           alimentadores_nuevos=body.alimentadores_nuevos,
                           set_nueva_nombre=body.set_nueva_nombre,
                           directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None,
-                          escalera_primero=body.escalera_primero),
+                          escalera_primero=body.escalera_primero, rehacer_obras=body.rehacer_obras),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

@@ -8,27 +8,27 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 227 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 232 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 91 |
-| Interfaz | `frontend/src/` | 43 |
-| Pruebas de la interfaz | `frontend/test/` | 7 |
-| Pruebas | `tests/` | 358 |
+| Herramientas y guiones | `tools/` | 92 |
+| Interfaz | `frontend/src/` | 45 |
+| Pruebas de la interfaz | `frontend/test/` | 8 |
+| Pruebas | `tests/` | 364 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 262 |
+| Specs | `specs/` | 264 |
 
-`web/services.py` tiene 10107 líneas y 301 funciones, pendiente de partir (002).
+`web/services.py` tiene 10722 líneas y 322 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 39 |
-| implementada | 25 |
+| implementada | 26 |
 | aprobada | 21 |
-| reservada | 5 |
+| reservada | 4 |
 
-90 specs con 2849 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+90 specs con 2949 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -36,11 +36,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 111 |
 | aplicacion | Apl | 96 |
+| dominio | Dom | 32 |
 | presentacion | Pre | 30 |
-| dominio | Dom | 28 |
 | puertos | Pue | 2 |
+| sin capa | — | 1 |
 
-267 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+272 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -762,6 +763,22 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/operacionSet.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/projectBinding.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+
+### Sin subsistema asignado
+
+Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `frontend/src/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
+| `frontend/src/components/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
+| `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
+| `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
+| `src/convertersmartgrid/obras_integrales.py` | — | 087 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), y el área del alimentador nuevo. |
+| `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
+| `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
+| `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 
 ### Configuración, dependencias y entrega
 

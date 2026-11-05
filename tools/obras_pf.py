@@ -55,8 +55,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import math
 import re
+import time
 import traceback
 from pathlib import Path
 from typing import Any, Callable
@@ -1110,6 +1112,75 @@ def construir_migracion_camino(ctx) -> None:
                               f'«Con proyecto» incluye esa baja, no es solo efecto de la migración.')
 
 
+def _celda_nueva(ctx, nodo, nombre_salida: str, kv: float) -> None:
+    """La salida nueva en la barra de la tensión de destino de la SET, y el alimentador sale por ella (042:RF-51).
+
+    Con la barra de 10 kV compartida, cambiar su tensión pasaría también a los demás alimentadores; por eso una celda
+    en la barra de 22,9 kV y no un cambio de la cabecera. El ``ElmFeeder`` conserva su nombre y queda en la celda nueva.
+    """
+    salida = next((b for b in ctx.app.GetCalcRelevantObjects('*.ElmTerm') if b.loc_name == nombre_salida), None)
+    if salida is None or nodo is None:
+        raise RuntimeError(f'sin la barra {nombre_salida} o sin el nodo para la celda nueva de {ctx.obra.alimentador}')
+    red = salida.GetParent()
+    celda = red.CreateObject('ElmCoup', nombre_libre(red, 'ElmCoup', nombre_pf(f'CELDA_{ctx.obra.alimentador}_{kv:g}kV')))
+    celda.aUsage, celda.on_off = 'cbk', 1
+    cubiculo = None
+    for barra, lado in ((salida, 0), (nodo, 1)):
+        c = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{celda.loc_name}_{lado}'))
+        c.obj_id, c.obj_bus = celda, lado
+        cubiculo = cubiculo or c
+    ctx.elm.obj_id = cubiculo
+    ctx.fila['salida_nueva'] = {'celda': celda.loc_name, 'barra': salida.loc_name, 'nodo': nodo.loc_name}
+
+
+#: IEC 60076-5, tabla 1, si el perfil no da la suya: hasta tantos MVA, tanta uk en %.
+UK_IEC_HASTA_MVA = ((0.63, 4.0), (1.25, 5.0), (2.5, 6.0), (6.3, 7.0), (25.0, 10.0))
+
+
+def _elevador_dedicado(ctx, cabecera, nodo, origen: float, destino: float) -> None:
+    """El transformador solo para esta salida, de la barra compartida al primer nodo (042:RF-61).
+
+    La barra sigue a su tensión para los demás alimentadores. El ``ElmFeeder`` sale por el lado de baja, en esa barra:
+    orientado desde ahí, sigue viendo aguas abajo lo que pasó de tensión, con su nombre.
+    """
+    if cabecera is None or nodo is None:
+        raise RuntimeError(f'sin cabecera o sin el nodo para el elevador de {ctx.obra.alimentador}')
+    mva = float(ctx.obra.elevador_mva)
+    cfg = (datos_perfil().get('planificacion') or {}).get('transformador_set') or {}
+    equip = ctx.app.GetProjectFolder('equip') or ctx.proyecto
+    tipo = equip.CreateObject('TypTr2', nombre_libre(equip, 'TypTr2', nombre_pf(f'TR_ELEVADOR_{mva:g}MVA_{origen:g}-{destino:g}kV')))
+    tipo.strn, tipo.utrn_h, tipo.utrn_l = mva, destino, origen
+    tipo.uktr = next((uk for hasta, uk in sorted(cfg.get('uk_pct_hasta_mva') or UK_IEC_HASTA_MVA) if mva <= float(hasta)),
+                     UK_IEC_HASTA_MVA[-1][1])
+    red = cabecera.GetParent()
+    tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', nombre_pf(f'TR_ELEVADOR_{ctx.obra.alimentador}')))
+    tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo, 1, 0, 0
+    alta = nodo.CreateObject('StaCubic', nombre_pf(f'Cub_{tr.loc_name}_alta'))
+    alta.obj_id, alta.obj_bus = tr, 0
+    baja = cabecera.CreateObject('StaCubic', nombre_pf(f'Cub_{tr.loc_name}_baja'))
+    baja.obj_id, baja.obj_bus = tr, 1
+    ctx.elm.obj_id = baja
+    ctx.fila['elevador'] = {'transformador': tr.loc_name, 'mva': mva, 'barra': cabecera.loc_name, 'nodo': nodo.loc_name}
+
+
+def barra_de_destino(app, cabecera, kv: float, radio_m: float = 500.0):
+    """La barra principal a ``kv`` de la misma SET: la más cercana a la cabecera, por GPS (042:RF-51).
+
+    Por posición y no por nombre: cada empresa llama a sus barras a su manera, y de la SET no hay otro dato común.
+    """
+    origen = gps_de(cabecera)
+    if not origen:
+        return None
+    mejor, mejor_m = None, radio_m
+    for barra in app.GetCalcRelevantObjects('*.ElmTerm'):
+        if (int(getattr(barra, 'iUsage', 1) or 0) == 0 and abs(float(getattr(barra, 'uknom', 0) or 0) - kv) < 0.05 * kv
+                and (punto := gps_de(barra))):
+            metros = 111320.0 * math.hypot(punto[0] - origen[0], (punto[1] - origen[1]) * math.cos(math.radians(origen[0])))
+            if metros <= mejor_m:
+                mejor, mejor_m = barra, metros
+    return mejor
+
+
 def construir_migracion(ctx) -> None:
     """Lo que queda aguas abajo del nodo, a la tensión de destino (016:RF-54 a RF-58).
 
@@ -1150,19 +1221,30 @@ def construir_migracion(ctx) -> None:
     anillo = [n for n, ln in lineas.items() if n not in set(parte.tramos)
               and len(_barras_de(ctx.app, ln)) == 2 and _barras_de(ctx.app, ln) <= dentro]
     nuevos = []
+    # 087:RF-32, RF-33: a un vecino de la misma tensión la parte solo cambia de alimentador: ni tipos ni tensiones.
+    misma = math.isclose(origen, destino, rel_tol=1e-3)
     for nombre in list(parte.tramos) + anillo:                                      # RF-56
         linea = lineas.get(nombre)
-        if linea is None:
+        if linea is None or misma:
             continue                                     # un seccionador: no tiene tensión
         linea.typ_id = _tipo_a_tension(ctx, linea, 'TypLne', 'uline', origen, destino)
         if nombre not in planificados:
             nuevos.append(nombre)
-    for trafo in ctx.elm.GetObjs('ElmTr2'):                                          # RF-54
+    for trafo in ([] if misma else ctx.elm.GetObjs('ElmTr2')):                       # RF-54
         alta = getattr(getattr(getattr(trafo, 'bushv', None), 'cterm', None), 'loc_name', None)
         if alta in dentro:
             trafo.typ_id = _tipo_a_tension(ctx, trafo, 'TypTr2', 'utrn_h', origen, destino)
     entrada = parte.entrada                                                          # RF-58
     acopladores = {c.loc_name: c for c in ctx.elm.GetObjs('ElmCoup')}
+    if o.salida or o.elevador_mva:
+        bancos = [s for s in ctx.elm.GetObjs('ElmShnt')
+                  if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+        if o.salida:
+            _celda_nueva(ctx, barras.get(o.nodo), o.salida, destino)                 # 042:RF-51
+        else:
+            _elevador_dedicado(ctx, cabecera, barras.get(o.nodo), origen, destino)   # 042:RF-61
+        for banco in bancos:
+            banco.ushnm = destino
     if entrada in lineas:
         lineas[entrada].outserv = 1
     elif entrada in acopladores:
@@ -1179,9 +1261,10 @@ def construir_migracion(ctx) -> None:
     for linea in (donde.GetContents('Enlace_*.ElmLne', 1) if donde else []):
         cubiculos = _cubiculos(ctx.app, linea)
         barras = [getattr(c, 'cterm', None) for c in cubiculos]
-        if int(getattr(linea, 'outserv', 0)) and any(b is not None and b.loc_name in dentro
-                                                     for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3)
-                        for b in barras):
+        abierto = any(int(getattr(sw, 'on_off', 1)) == 0 for cub in cubiculos for sw in (cub.GetContents('*.StaSwitch') or []))
+        # 087:RF-32: el de la misma tensión quedó en servicio con su seccionador abierto (016:RF-36): también se cierra.
+        if (int(getattr(linea, 'outserv', 0)) or abierto) and any(b is not None and b.loc_name in dentro
+                                                                   for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3) for b in barras):
             linea.outserv = 0
             # RF-80: la parte que pasa ya no cuelga de su alimentador (se abrió el tramo de
             # entrada) y sin el enlace cerrado quedaba sin servicio: 142 SED de IN111 en
@@ -1196,8 +1279,9 @@ def construir_migracion(ctx) -> None:
             fila['avisos'].append(f'El enlace {linea.loc_name} ya une barras de {destino:g} kV: '
                                   f'queda en servicio y cerrado ({cuales}); la parte que pasa '
                                   f'se alimenta por él.')
-    otros = [s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
-             if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+    otros = [] if o.salida or o.elevador_mva else [
+        s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
+        if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
     if otros:
         fila['avisos'].append(f'Los bancos y reguladores de la parte que pasa no se cambian: '
                               f'{", ".join(sorted(otros))}; revíselos a {destino:g} kV.')
@@ -1643,6 +1727,9 @@ def construir_expreso(ctx) -> None:
             c.obj_id, c.obj_bus = linea, lado
             if lado == 0:
                 salida = c
+        # 087:RF-35: la salida nueva es una celda: su interruptor en el cubículo de la barra de la SET.
+        interruptor = salida.CreateObject('StaSwitch', nombre_pf(f'CB_{linea.loc_name}'))
+        interruptor.aUsage, interruptor.on_off = 'cbk', 1
         inicio, fin = gps_de(cabecera), gps_de(barras[nodo])
         largo_m = 0.0
         if inicio and fin:
@@ -1652,8 +1739,12 @@ def construir_expreso(ctx) -> None:
         linea.dline = max(largo_m / 1000.0, 1e-3)
         nuevo = red.CreateObject('ElmFeeder', nombre_libre(red, 'ElmFeeder', nombre_pf(f'EXP_{alim}_{nodo}')))
         nuevo.obj_id, nuevo.iorient = salida, 0
+        # 087:RF-34: la salida, el trazado y la llegada, georreferenciados.
         hechos.append({'alimentador': alim, 'nodo': nodo, 'entrada': parte.entrada, 'linea': linea.loc_name,
-                       'feeder': nuevo.loc_name, 'largo_m': largo_m, 'desde': cabecera.loc_name})
+                       'feeder': nuevo.loc_name, 'largo_m': largo_m, 'desde': cabecera.loc_name,
+                       'celda': {'barra': cabecera.loc_name, 'interruptor': interruptor.loc_name},
+                       'salida_gps': list(inicio) if inicio else None, 'llegada_gps': list(fin) if fin else None,
+                       'trazado': [list(q) for q in ruta.puntos] if inicio and fin else []})
     ctx.fila['expreso'] = {'alimentadores_nuevos': hechos}
 
 
@@ -2195,6 +2286,38 @@ def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def es_obra_de(nombre: str, alimentador: str) -> bool:
+    """``Obra_<clase>_<alimentador>`` con su número si se repite; otro alimentador no entra por parecerse (042:RF-60)."""
+    return bool(re.fullmatch(rf'Obra_[A-Za-z_]+?_{re.escape(alimentador)}(_\d+)?', nombre))
+
+
+def retirar_obras(app, plan: dict) -> tuple[dict, int]:
+    """042:RF-60: borra las variaciones de obra de ``feeders``; las de carga y las de otros alimentadores no se tocan."""
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'retirar_obras', 'retiradas': [], 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    inicial = app.GetActiveStudyCase()
+    feeders = [str(f) for f in plan.get('feeders') or ()]
+    try:
+        casos['con'].Activate()
+        carpeta = app.GetProjectFolder('scheme')
+        for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []) or []:
+            if any(es_obra_de(v.loc_name, f) for f in feeders):
+                nombre = v.loc_name
+                v.Deactivate()                      # activa y grabando, DIgSILENT no la borra (2026-10-15)
+                v.Delete()
+                informe['retiradas'].append(nombre)
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
+
+
 #: Lo que une dos barras en serie sin ser una línea: el camino eléctrico pasa por ello (042:RF-44).
 EQUIPOS_EN_SERIE = ('ElmCoup', 'ElmVoltreg', 'ElmTr2', 'ElmZpu', 'ElmSind')
 
@@ -2369,7 +2492,19 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     sobrecargados.append({**por_nombre.get(ln.loc_name, {}), 'nombre': ln.loc_name, 'carga_pct': float(carga),
                                           'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
                                           'nlnum': int(getattr(ln, 'nlnum', 1) or 1)})
-            informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices,
+            nivel = None
+            if plan.get('migrar_a_kv') and cab is not None:                    # 042:RF-50 a RF-53
+                salida = barra_de_destino(app, cab, float(plan['migrar_a_kv']))
+                con_cabecera = [t for t in tramos_red if cab.loc_name in (t['desde'], t['hasta'])
+                                and t['nombre'] in {x.loc_name for x in list(elm.GetObjs('ElmLne')) + list(elm.GetObjs('ElmCoup'))}]
+                primero = (con_cabecera[0]['hasta'] if con_cabecera and con_cabecera[0]['desde'] == cab.loc_name
+                           else con_cabecera[0]['desde'] if con_cabecera else '')
+                nivel = {'salida': salida.loc_name if salida is not None else '', 'nodo': primero,
+                         'km': sum(float(getattr(ln, 'dline', 0) or 0) for ln in elm.GetObjs('ElmLne')),
+                         'seds': len(elm.GetObjs('ElmTr2')),
+                         'compartida': any(g != f and (c := cabecera_de(otro)) is not None and clave_pf(c) == clave_pf(cab)
+                                           for g, otro in alims.elm.items())}
+            informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
@@ -2493,11 +2628,35 @@ def _cargas_de(alims, feeder: str) -> list:
     return list(cargas.values())
 
 
-def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
+#: 042:RF-89: lo que tarda cada parte de las medidas ligeras, para saber dónde se va el tiempo.
+TIEMPOS = {'flujos': 0, 'flujo_s': 0.0, 'lectura_s': 0.0}
+#: 042:RF-89: las fases se miran una vez por caso: una obra de la escalera no las cambia.
+_MONOFASICOS: dict[str, bool] = {}
+
+
+def _monofasicos_del_caso(app) -> bool:
+    caso = getattr(app.GetActiveStudyCase(), 'loc_name', '')
+    if caso not in _MONOFASICOS:
+        from convertersmartgrid.dgs import red_con_monofasicos
+
+        _MONOFASICOS[caso] = red_con_monofasicos(app)
+    return _MONOFASICOS[caso]
+
+
+#: 087:RF-51: las obras que cambian qué alimenta a qué: tras borrarlas, un flujo para que el ElmFeeder lo vea.
+TOPOLOGIA = frozenset({'enlace', 'migracion', 'tension', 'expreso', 'set_nueva'})
+
+
+def medida_para_criterio(app, alims, feeders: list[str], *, ligera: bool = False) -> dict[str, Any]:
     """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
     y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
-    flujo = flujo_de_carga(app)
+    inicio = time.perf_counter()
+    flujo = flujo_de_carga(app, extremos=False, monofasicos=_monofasicos_del_caso(app)) if ligera else flujo_de_carga(app)
+    medio = time.perf_counter()
     out: dict[str, Any] = {'converge': bool(flujo['converged']), 'u': {}, 'carga': {}, 'perdidas_kw': None}
+    if ligera:
+        TIEMPOS['flujos'] += 1
+        TIEMPOS['flujo_s'] += medio - inicio
     if not out['converge']:
         return out
 
@@ -2535,19 +2694,46 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
                     out['carga'][e.loc_name] = float(e.GetAttribute('c:loading'))
                 except Exception:  # noqa: BLE001, S110
                     pass
+    if ligera:                                                                  # 042:RF-89: el criterio no usa pérdidas
+        TIEMPOS['lectura_s'] += time.perf_counter() - medio
+        return out
+    # 087:RF-42: las barras de media sin servicio de toda la red, no solo de estos alimentadores: una parte que una
+    # transferencia o un traslado deja colgando sale de su ElmFeeder y, sin resultado, no la veía el criterio.
+    # Solo con la máxima: escalar la demanda en los sorteos no cambia la topología.
+    relevantes = getattr(app, 'GetCalcRelevantObjects', None)
+    if relevantes is not None:
+        aisladas = []
+        for b in relevantes('*.ElmTerm') or []:
+            try:
+                if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and int(b.IsEnergized()) == 0:
+                    aisladas.append(b.loc_name)
+            except Exception:  # noqa: BLE001, S110 - sin el dato, no cuenta
+                pass
+        out['aisladas'] = sorted(aisladas)
     # 025:RF-70: lo que entra por la cabecera menos lo que consumen las cargas en el flujo; con
     # su potencia nominal, a 0,88 p.u. las pérdidas de SI213 salían −2044 kW (2026-10-24).
-    perdidas = []
+    # 087:RF-51: lo que entra por todas las cabeceras menos lo que consumen todas sus cargas, cada una una vez. Con una
+    # transferencia, la parte que pasa sigue en la lista de su alimentador de antes y en el ElmFeeder del que la recibe;
+    # por alimentador se contaba dos veces y las pérdidas salían negativas (CHI201 a SC215, Pisco, 2026-11-04).
+    entra, consumo, vistas = 0.0, 0.0, set()
     for f in feeders:
         elm = alims.elm.get(f)
         cab = leer_cabecera(elm) if elm is not None else None
         if cab is None or not cab.converge or cab.kw is None:
-            continue
-        consumo = [_resultado(c, 'm:Psum:bus1') for c in _cargas_de(alims, f)]      # 063:RF-39
-        if any(x is None for x in consumo):
-            continue
-        perdidas.append(cab.kw - 1000 * sum(consumo))
-    out['perdidas_kw'] = sum(perdidas) if perdidas else None
+            out['perdidas_kw'] = None
+            return out
+        entra += cab.kw
+        for c in _cargas_de(alims, f):                                           # 063:RF-39
+            clave = c.GetFullName() if hasattr(c, 'GetFullName') else id(c)
+            if clave in vistas:
+                continue
+            vistas.add(clave)
+            x = _resultado(c, 'm:Psum:bus1')
+            if x is None:
+                out['perdidas_kw'] = None
+                return out
+            consumo += x
+    out['perdidas_kw'] = entra - 1000 * consumo if feeders else None
     return out
 
 
@@ -2566,6 +2752,34 @@ def _apartar_cargas_de(app, feeders: list[str], variaciones=()) -> list:
     for v in apartadas:
         v.Deactivate()
     return apartadas
+
+
+def base_guardada(ruta: str | None, sorteos: int, valle: int) -> tuple[list, list] | None:
+    """087:RF-28: los sorteos base ya medidos en este trabajo; ``None`` si no están o no son de estos sorteos.
+
+    Con las etapas de 042:RF-87 puede haber solo los primeros: valen, y los que faltan se miden al necesitarlos.
+    """
+    if not ruta:
+        return None
+    try:
+        datos = json.loads(Path(ruta).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    if not datos.get('sorteos') or len(datos['sorteos']) > sorteos or len(datos.get('valle') or []) != valle:
+        return None
+    return datos['sorteos'], datos['valle']
+
+
+def guardar_base(ruta: str | None, sin_sorteos: list, sin_valle: list) -> None:
+    """Si no se puede escribir, se medirá otra vez: no es razón para fallar la evaluación."""
+    if not ruta:
+        return
+    try:
+        temporal = Path(f'{ruta}.tmp')
+        temporal.write_text(json.dumps({'sorteos': sin_sorteos, 'valle': sin_valle}), encoding='utf-8')
+        os.replace(temporal, ruta)
+    except OSError:
+        pass
 
 
 class _Sorteo:
@@ -2632,7 +2846,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import cumple, parametros
+    from convertersmartgrid.escalera_optima import (cumple, cumple_en_valle, definitiva, grupo_economico,
+                                                    hace_falta_seguir, parametros, plan_de_horizonte)
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -2678,20 +2893,39 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                                          'en los sorteos, las pérdidas y el criterio (063:RF-40).')
         sin_max = medida_para_criterio(app, alims, feeders)
         informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
-        sin_sorteos = []
-        with _Sorteo(app, alims, feeders, existentes) as s:
-            for i, sorteo in enumerate(sorteos):
-                if i % 10 == 0 and cancelado():
-                    informe['cancelado'] = True
-                    return informe, 2
-                s.escalar(sorteo['factores'])
-                sin_sorteos.append(medida_para_criterio(app, alims, feeders))
-        sin_valle = []
-        if puntos_valle:
+        # 087:RF-28: la referencia sin obra se mide una vez por trabajo y se guarda; 042:RF-87 y RF-88: solo
+        # la de los sorteos que van a usarse. Juntas: lo guardado puede ser solo la primera etapa.
+        base = base_guardada(plan.get('base_sin_fichero'), len(sorteos), len(puntos_valle))
+        sin_sorteos, sin_valle = (list(base[0]), list(base[1])) if base is not None else ([], [])
+        # 042:RF-87: en la primera etapa, y sin etapas (0) o con pocos sorteos, todos.
+        en_primera = len(sorteos) if not 0 < p.sorteos_etapa < len(sorteos) else p.sorteos_etapa
+
+        def referencia_hasta(n: int) -> bool:
+            """042:RF-88: la referencia sin obra de los sorteos que van a usarse; ``False`` si se cancela."""
+            if n <= len(sin_sorteos):
+                return True
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for i in range(len(sin_sorteos), n):
+                    if i % 10 == 0 and cancelado():
+                        informe['cancelado'] = True
+                        return False
+                    s.escalar(sorteos[i]['factores'])
+                    sin_sorteos.append(medida_para_criterio(app, alims, feeders, ligera=True))
+            if base is not None or puntos_valle_listos():
+                guardar_base(plan.get('base_sin_fichero'), sin_sorteos, sin_valle)
+            return True
+
+        def puntos_valle_listos() -> bool:
+            return len(sin_valle) == len(puntos_valle)
+
+        if puntos_valle and not puntos_valle_listos():
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for pt in puntos_valle:
                     s.escalar(pt['factores'], 0.0)
-                    sin_valle.append(medida_para_criterio(app, alims, feeders))
+                    sin_valle.append(medida_para_criterio(app, alims, feeders, ligera=True))
+        if not referencia_hasta(en_primera):
+            return informe, 2
+        guardar_base(plan.get('base_sin_fichero'), sin_sorteos, sin_valle)
 
         def medir_valle() -> dict[str, Any]:
             """Lo que está activo en cada punto de valle, sin las cargas nuevas y con ellas, en un
@@ -2702,8 +2936,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 for pt, sin_i in zip(puntos_valle, sin_valle):
                     for caso, factor_nuevas in casos_valle:
                         s.escalar(pt['factores'], factor_nuevas)
-                        con = medida_para_criterio(app, alims, feeders)
-                        bien, motivos = cumple(sin_i, con, barras if factor_nuevas else [], p)
+                        con = medida_para_criterio(app, alims, feeders, ligera=True)
+                        bien, motivos = cumple_en_valle(sin_i, con, barras if factor_nuevas else [], p)    # 042:RF-85
                         anotar_punto(fila, pt, caso, bien, motivos, con.get('u') or {})
             return fila
 
@@ -2729,6 +2963,12 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                             casos[rol].Activate()
                             var.Deactivate()
                         var.Delete()
+                # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
+                # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
+                # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
+                if creadas and any(o.get('clase') in TOPOLOGIA for o in v['obras']):
+                    casos['con'].Activate()
+                    flujo_de_carga(app)
 
         def bajas(con: dict[str, Any]) -> dict[str, Any]:
             """086:RF-48: de cada barra, solo las que quedan bajo el límite con la máxima; las dos medidas ya están
@@ -2736,36 +2976,125 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             return clasificar_bajo_limite(sin_max.get('u') or {}, con.get('u') or {}, barras, p.tension_min_pu, p.tolerancia_pu)
 
         fallidos: list[dict] = []        # 063:RF-28: qué sorteos fallan y por qué, de la última variante
+        certeza: dict = {}               # 087:RF-9: sorteos usados y probabilidad de cumplir, de la última variante
 
-        def sortear():
+        def sortear(desde=0, hasta=None, fallos_antes=0):
             """Fracción de sorteos que cumplen; deja de sortear en cuanto ya no puede llegar a la
             del perfil (RF-72). Anota en ``fallidos`` el instante, el factor y el motivo de cada
             sorteo que falla: en SM218 (2026-11-01) tres variantes se quedaban en el 94,5 % y no se
             sabía si era por la máxima o por el valle."""
+            # 087:RF-8: con la marca del plan se para también a favor, en cuanto la certeza lo permite; sigue
+            # contando lo de la etapa anterior (042:RF-87), para no empezar de cero la posterior.
+            from convertersmartgrid.seleccion_bayesiana import Seguimiento
+
+            hasta = len(sorteos) if hasta is None else hasta
+            seg = Seguimiento(len(sorteos), p.cumplimiento, bayesiana=bool(plan.get('parada_bayesiana')),
+                              cumplen=desde - fallos_antes, fallan=fallos_antes)
             admite = int((1 - p.cumplimiento) * len(sorteos) + 1e-9)
-            fallos = 0
-            fallidos.clear()
+            if not desde:
+                fallidos.clear()
             with _Sorteo(app, alims, feeders, existentes) as s:
-                for i, (sorteo, sin_i) in enumerate(zip(sorteos, sin_sorteos)):
+                for i, (sorteo, sin_i) in enumerate(zip(sorteos[desde:hasta], sin_sorteos[desde:hasta]), desde):
                     if i % 10 == 0 and cancelado():          # una variante puede llevar minutos
                         informe['cancelado'] = True
                         return None
                     s.escalar(sorteo['factores'])
-                    bien, motivos = cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)
+                    bien, motivos = cumple(sin_i, medida_para_criterio(app, alims, feeders, ligera=True), barras, p)
                     if not bien:
-                        fallos += 1
                         fallidos.append({'instante': sorteo.get('instante'), 'factores': sorteo.get('factores'),
                                          'motivos': list(motivos)[:3]})
-                    if fallos > admite:
+                    if seg.anota(bien):
                         break
-            return (len(sorteos) - fallos) / len(sorteos)
+            certeza.clear()
+            certeza.update(seg.resumen())                                    # 087:RF-9
+            if seg.bayesiana:
+                return seg.fraccion()
+            fallos = seg.fallan
+            if fallos > admite:
+                # En la primera etapa, sobre lo medido: con más fallos de los que caben no hay que seguir.
+                return (len(sorteos) - fallos) / len(sorteos) if hasta == len(sorteos) else seg.cumplen / seg.medidos
+            return (hasta - fallos) / hasta
+
+        def por_etapas(v=None):
+            """042:RF-87: la primera etapa y, si queda cerca del criterio, el resto; ``(fracción, error, medidos)``.
+            Con la parada bayesiana (087:RF-8), el resto solo si la posterior aún no ha decidido."""
+            medir = (lambda f: con_variante(v, f)) if v is not None else (lambda f: (f(), None))
+            n = len(sorteos)
+            fraccion, error = medir(lambda: sortear(0, en_primera))
+            decidida = bool(certeza.get('parada')) if plan.get('parada_bayesiana') else False
+            if error or fraccion is None or decidida or not hace_falta_seguir(fraccion, en_primera, n, p):
+                return fraccion, error, certeza.get('sorteos_usados') or en_primera
+            fallos = round((1 - fraccion) * en_primera)
+            casos['sin'].Activate()
+            listo = referencia_hasta(n)
+            casos['con'].Activate()
+            if not listo:
+                return None, None, en_primera
+            fraccion, error = medir(lambda: sortear(en_primera, n, fallos))
+            return fraccion, error, certeza.get('sorteos_usados') or n
+
+        def de_cada_alimentador() -> dict[str, set[str]]:
+            """Los nombres de barras y tramos de cada alimentador, para saber a quién culpar de un motivo."""
+            out: dict[str, set[str]] = {}
+            for f in feeders:
+                elm = alims.elm.get(f)
+                try:
+                    objs = list(elm.GetObjs('ElmTerm')) + list(elm.GetObjs('ElmLne')) if elm is not None else []
+                except Exception:  # noqa: BLE001 - sin el alimentador, sin nombres
+                    objs = []
+                out[f] = {o.loc_name for o in objs}
+            return out
+
+        def confirmar_conjunto(con: dict[str, Any]) -> dict[str, Any]:
+            """087:RF-45, RF-46: el sistema entero con todas sus obras y sus cargas nuevas, en un solo flujo por instante.
+
+            Pisco (2026-11-04, el usuario): «¿por qué DIgSILENT corre alimentador por alimentador y no todo el sistema?».
+            Cada escalón se elige con los otros apartados (025:RF-69); juntos pueden pesar en la SET o el vecino que
+            comparten. Aquí se mide todo junto y se dice de qué alimentadores son los motivos.
+            """
+            bien, motivos = cumple(sin_max, con, barras, p)
+            fila: dict[str, Any] = {'maxima': bien, 'motivos': list(motivos), 'fraccion': None, 'perdidas_kw': con.get('perdidas_kw'),
+                                    'aisladas': sorted(set(con.get('aisladas') or []) - set(sin_max.get('aisladas') or [])),
+                                    'bajo_limite': bajas(con)}
+            textos = list(motivos)
+            # Todos los motivos de cada alimentador, no solo los 5 primeros: con sus barras y tramos.
+            nombres = de_cada_alimentador()
+            por_alimentador: dict[str, list[str]] = {}
+            for f, propios in nombres.items():
+                sin_f = {**sin_max, 'u': {b: x for b, x in (sin_max.get('u') or {}).items() if b in propios},
+                         'carga': {e: x for e, x in (sin_max.get('carga') or {}).items() if e in propios}}
+                con_f = {**con, 'u': {b: x for b, x in (con.get('u') or {}).items() if b in propios},
+                         'carga': {e: x for e, x in (con.get('carga') or {}).items() if e in propios}}
+                ok_f, motivos_f = cumple(sin_f, con_f, [b for b in barras if b in propios], p)
+                if not ok_f:
+                    por_alimentador[f] = list(motivos_f)
+            if bien and sorteos:
+                fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas()
+                fila['error'] = error
+                fila['certeza'] = dict(certeza)
+                textos += [m for x in fallidos for m in x.get('motivos') or []]
+            if bien and puntos_valle:
+                fila.update(medir_valle())
+                textos += list(fila.get('valle_motivos') or [])
+            for f, propios in nombres.items():
+                if f not in por_alimentador and any(n in t for t in textos[len(motivos):] for n in propios if len(n) > 3):
+                    por_alimentador[f] = [t for t in textos[len(motivos):] if any(n in t for n in propios if len(n) > 3)][:5]
+            fila['cumple'] = bool(bien and (fila['fraccion'] is None or fila['fraccion'] >= p.cumplimiento)
+                                  and fila.get('valle') is not False)
+            fila['por_alimentador'] = por_alimentador
+            return fila
 
         # RF-74: con lo que ya tiene «Con proyecto» (una obra de una escalera anterior), si
         # cumple no se prueba ninguna variante.
         casos['con'].Activate()
         con_actual = medida_para_criterio(app, alims, feeders)
-        if cumple(sin_max, con_actual, barras, p)[0]:
-            fraccion = sortear() if sorteos else 1.0
+        if plan.get('solo_confirmar'):
+            informe['conjunto'] = confirmar_conjunto(con_actual)                 # 087:RF-45
+            return informe, 0
+        # 087:RF-44: al aplicar la obra ya elegida no hay sorteos (042:RF-59) y sin ellos «ya cumple» con la máxima
+        # salía al 100 %: CHI201 (Pisco, 2026-11-04) se dio por resuelto con su sección elegida y sin aplicarla.
+        if not plan.get('aplicando_elegida') and cumple(sin_max, con_actual, barras, p)[0]:
+            fraccion = por_etapas()[0] if sorteos else 1.0
             if fraccion is None:
                 return informe, 2
             if fraccion >= p.cumplimiento:
@@ -2779,9 +3108,32 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         # Fase 1: todas con la máxima (RF-52b); con eso ya se sabe su costo anual entero.
         variantes = list(plan.get('variantes') or [])
         filas = []
+        clases_que_cumplen: set = set()                                     # 042:RF-55
+        primera_que_cumple = None                                           # 042:RF-90
+        # 042:RF-91: los años los pone el perfil aquí: el plan solo trae la tasa.
+        horizonte = plan.get('horizonte')
+        if horizonte and feeders:
+            horizonte = plan_de_horizonte(feeders[0], horizonte.get('tasa'), p)
+        hay_definitiva = False
+
+        def alcance():
+            primeros: list[str] = []
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for anios in horizonte['anios']:
+                    s.escalar(horizonte['factores'][str(anios)])
+                    bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p)
+                    if bien:
+                        return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros}
+                    primeros = primeros or list(motivos)
+            return {'definitiva': False, 'aguanta_anios': 0, 'motivos': primeros}
+
         for v in variantes:
             if cancelado():
                 informe['cancelado'] = True
+                break
+            if primera_que_cumple is not None and len(filas) - primera_que_cumple >= p.variantes_tras_cumplir:
+                informe['avisos'].append(f'Se paró tras {p.variantes_tras_cumplir} variantes más desde la primera que '
+                                         f'cumple, con {len(clases_que_cumplen)} alternativa(s) (042:RF-90).')
                 break
             fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
                     'perdidas_kw': None, 'error': None, 'sin_sortear': None}
@@ -2804,7 +3156,9 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 fila['u_cargas'] = {b: u.get(b) for b in barras}
                 fila['u_min_mt'] = min(u.values()) if u else None
                 fila['bajo_limite'] = bajas(con_max)                                   # 086:RF-48
-                partes =[f'{b} a {x:.3f} p.u.' for b, x in fila['u_cargas'].items() if x is not None]
+                cargas_max = [float(c) for c in (con_max.get('carga') or {}).values() if c is not None]
+                fila['carga_max_pct'] = max(cargas_max) if cargas_max else None      # 087:RF-22
+                partes = [f'{b} a {x:.3f} p.u.' for b, x in fila['u_cargas'].items() if x is not None]
                 if fila['u_min_mt'] is not None:
                     partes.append(f"mínima de media {fila['u_min_mt']:.3f} p.u.")
                 mejora = f" ({'; '.join(partes)})" if partes else ''
@@ -2814,19 +3168,32 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,
             # si también cumple en los sorteos, no se prueba ninguna más (NA203 + NA205,
             # 2026-11-01: cada prueba recorría las 20 y las 40 variantes, unos 60 min).
-            if (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
+            if (plan.get('alternativas') and fila['maxima'] and v.get('costo_base') is not None
+                    and fila.get('valle') is not False):                                # 042:RF-55
+                clase = frozenset(v.get('escalones') or ())
+                primera_que_cumple = len(filas) if primera_que_cumple is None else primera_que_cumple
+                if clase not in clases_que_cumplen and horizonte:              # 042:RF-92
+                    fila['horizonte'], error = con_variante(v, alcance)
+                    fila['error'] = fila['error'] or error
+                    hay_definitiva = hay_definitiva or bool((fila['horizonte'] or {}).get('definitiva'))
+                    print(f"  {v['nombre']}: alcance {fila['horizonte']}", flush=True)
+                clases_que_cumplen.add(clase)
+                if len(clases_que_cumplen) >= int(plan['alternativas']) and (hay_definitiva or not horizonte):
+                    break
+            elif (plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None
                     and fila.get('valle') is not False):                                # 073:RF-18
                 if sorteos:
-                    fila['fraccion'], error = con_variante(v, sortear)
+                    fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas(v)         # 042:RF-88
                     fila['error'] = fila['error'] or error
                     fila['sorteos_fallidos'] = list(fallidos)
+                    fila['certeza'] = dict(certeza)
                 else:
                     fila['fraccion'] = 1.0
                 print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
                 if (fila['fraccion'] or 0) >= p.cumplimiento:
                     informe['basta_una'] = fila['nombre']
                     break
-        if informe.get('basta_una') or plan.get('basta_una'):
+        if informe.get('basta_una') or (plan.get('basta_una') and not plan.get('alternativas')):
             informe['variantes'] = [f for _v, f in filas]
             return informe, 0
         # Fase 2 (RF-71): de la más barata a la más cara, hasta la primera que cumple en los sorteos.
@@ -2837,7 +3204,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
 
         candidatas = sorted(((v, f) for v, f in filas if f['maxima'] and v.get('costo_base') is not None
                              and f.get('valle') is not False),
-                            key=lambda vf: (costo(*vf), vf[1]['nombre']))
+                            key=lambda vf: (grupo_economico(vf[0].get('escalones')), costo(*vf), vf[1]['nombre']))   # 042:RF-56
         for v, fila in filas:
             if fila['maxima'] and v.get('costo_base') is None:
                 fila['sin_sortear'] = 'sin costo: no se puede elegir, no se sortea'
@@ -2854,13 +3221,18 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if not sorteos:
                 fila['fraccion'] = 1.0
             else:
-                fila['fraccion'], error = con_variante(v, sortear)
+                fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas(v)             # 042:RF-88
                 fila['error'] = fila['error'] or error
                 fila['sorteos_fallidos'] = list(fallidos)                     # 063:RF-28
             print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
             if (fila['fraccion'] or 0) >= p.cumplimiento:
                 ganadora = fila['nombre']
+        informe['tiempos_medida'] = TIEMPOS                                     # 042:RF-89
+        if horizonte and not hay_definitiva and clases_que_cumplen:
+            informe['avisos'].append('Ninguna alternativa es definitiva a la vida útil dentro del tope de variantes (042:RF-92).')
         informe['variantes'] = [f for _v, f in filas]
+        print(f"  Tiempos de las medidas ligeras: {TIEMPOS['flujos']} flujos, {TIEMPOS['flujo_s']:.1f} s de flujo y "
+              f"{TIEMPOS['lectura_s']:.1f} s de lectura (042:RF-89).", flush=True)
     finally:
         if ajenas:
             casos['con'].Activate()
@@ -2967,6 +3339,62 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
+    """087:RF-32, RF-33: los alimentadores vecinos de cada nodo, con su margen en «Con proyecto <año>».
+
+    De cada otro ``ElmFeeder`` del proyecto: su barra de media más cercana al nodo, la distancia en recta, su tensión,
+    su tensión mínima y su carga máxima con el flujo de ahora. Solo los que quedan a menos de ``radio_km`` (15 si el
+    plan no lo da): uno más lejos no es una transferencia sino un alimentador nuevo. No cambia nada.
+    """
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'datos_vecinos', 'vecinos': {}, 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    radio_m = float(plan.get('radio_km') or 15.0) * 1000.0
+    inicial = app.GetActiveStudyCase()
+    try:
+        casos['con'].Activate()
+        flujo = flujo_de_carga(app)
+        if not flujo['converged']:
+            informe['avisos'].append('El flujo de «Con proyecto» no converge: sin margen de los vecinos (087:RF-32).')
+        todos = {f.loc_name: f for f in app.GetCalcRelevantObjects('*.ElmFeeder')}
+        # Una pasada por alimentador, no una por nodo: sus barras de media con GPS, tensión y resultado.
+        resumen: dict[str, dict[str, Any]] = {}
+        for nombre, elm in todos.items():
+            barras = [b for b in elm.GetObjs('ElmTerm') if float(getattr(b, 'uknom', 0) or 0) > 1.0]
+            u = [b.GetAttribute('m:u') for b in barras if flujo['converged'] and b.HasResults(0)]
+            carga = [ln.GetAttribute('c:loading') for ln in elm.GetObjs('ElmLne') if flujo['converged'] and ln.HasResults(0)]
+            cabecera = cabecera_de(elm)
+            resumen[nombre] = {'gps': [(b.loc_name, g) for b in barras for g in [gps_de(b)] if g],
+                               'kv': float(getattr(cabecera, 'uknom', 0) or 0) if cabecera is not None else None,
+                               'u_min': min(u) if u else None, 'carga_max_pct': max(carga) if carga else None}
+        for f, nodos in (plan.get('nodos') or {}).items():
+            propio = dict((resumen.get(f) or {}).get('gps', []))
+            for nodo in nodos:
+                punto = propio.get(nodo)
+                if punto is None:
+                    informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas: sin vecinos para ella (087:RF-32).')
+                    continue
+                filas = []
+                for nombre, r in resumen.items():
+                    if nombre == f or not r['gps']:
+                        continue
+                    barra, g = min(r['gps'], key=lambda par: distancia_m(tuple(punto), tuple(par[1])))
+                    d = distancia_m(tuple(punto), tuple(g))
+                    if d <= radio_m:
+                        filas.append({'alimentador': nombre, 'barra': barra, 'distancia_m': round(d, 1), 'kv': r['kv'],
+                                      'u_min': r['u_min'], 'carga_max_pct': r['carga_max_pct']})
+                informe['vecinos'].setdefault(f, {})[nodo] = sorted(filas, key=lambda x: x['distancia_m'])
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Obras de mejora de la spec 011 en DIgSILENT')
     p.add_argument('--plan', required=True, help='Plan JSON preparado por la web')
@@ -2980,6 +3408,8 @@ def main(argv=None) -> int:
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     p.add_argument('--evaluar', action='store_true',
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
+    p.add_argument('--retirar-obras', action='store_true',
+                   help='borra las variaciones de obra de los alimentadores del plan (042:RF-60)')
     p.add_argument('--reponer-cargas', action='store_true',
                    help='Activa en «Con proyecto» las cargas nuevas del plan que estén desactivadas (042:RF-32)')
     p.add_argument('--escalera-datos', action='store_true',
@@ -2988,6 +3418,8 @@ def main(argv=None) -> int:
                    help='Grafo de «Con proyecto» y nodo de cada carga nueva para el oráculo (052:RF-1)')
     p.add_argument('--set-nueva-datos', action='store_true',
                    help='Red y cargas de cada alimentador en «Con proyecto» para la SET nueva (042:RF-6)')
+    p.add_argument('--vecinos', action='store_true',
+                   help='Alimentadores vecinos de cada nodo y su margen, para transferir o trasladar (087:RF-32)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     # Crear tipos de catálogo no toca ninguna red convertida: no lleva contexto de acción.
@@ -3017,12 +3449,16 @@ def main(argv=None) -> int:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
         elif args.reponer_cargas:
             informe, codigo = reponer_cargas(app, plan)
+        elif args.retirar_obras:
+            informe, codigo = retirar_obras(app, plan)
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
         elif args.oraculo_datos:
             informe, codigo = datos_oraculo(app, plan)
         elif args.set_nueva_datos:
             informe, codigo = datos_set_nueva(app, plan)
+        elif args.vecinos:
+            informe, codigo = datos_vecinos(app, plan)
         elif args.bibliotecas:
             informe, codigo = bibliotecas(app, plan)
         else:

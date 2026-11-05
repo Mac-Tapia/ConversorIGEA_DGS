@@ -587,3 +587,53 @@ def test_migracion_hasta_que_falla_tras_escribir_borra_lo_escrito(monkeypatch):
     _activas(app, CON)
     assert {b.uknom for b in _elm(app, 'F1').GetObjs('ElmTerm')} == {10.0}
     assert {ln.typ_id.loc_name for ln in _elm(app, 'F1').GetObjs('ElmLne')} == {'AAAC_F1'}
+
+
+def test_paso_a_otra_tension_por_una_celda_nueva_en_la_barra_de_la_set():
+    """042:RF-51 — lo de aguas abajo pasa a 22,9 kV por una celda nueva; se abre la entrada y el alimentador sale por ella."""
+    app, alims = _calibrada(random.Random(81), n_min=2, cargas_min=3)
+    red = _barra(app, 'F1_B0').GetParent()
+    barra = red.CreateObject('ElmTerm', 'B_SET_22_9kV')
+    barra.uknom = 22.9
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[{**_migracion('F1', 'F1_B1'), 'salida': 'B_SET_22_9kV'}]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert fila['salida_nueva']['barra'] == 'B_SET_22_9kV' and fila['salida_nueva']['nodo'] == 'F1_B1'
+    _activas(app, CON)
+    assert _uknom(app, 'F1_B1') == 22.9 and _uknom(app, 'F1_B0') == 10.0
+    assert _linea(app, 'F1_L1').outserv == 1
+    assert _elm(app, 'F1').obj_id.cterm.loc_name == 'B_SET_22_9kV'
+    _activas(app, SIN)
+    assert _uknom(app, 'F1_B1') == 10.0
+
+
+def test_la_barra_de_destino_es_la_de_la_misma_set_por_posicion():
+    """042:RF-51 — la principal más cercana a la tensión pedida y dentro del radio; una lejana, o de paso, no cuenta."""
+    class Barra:
+        def __init__(self, nombre, kv, lat, uso=0):
+            self.loc_name, self.uknom, self.GPSlat, self.GPSlon, self.iUsage = nombre, kv, lat, -76.0, uso
+
+    cabecera = Barra('B10', 10.0, -13.0)
+    otras = [Barra('LEJOS', 22.9, -13.1), Barra('PASO', 22.9, -13.00001, 1), Barra('CERCA', 22.9, -13.0001), cabecera]
+
+    class App:
+        def GetCalcRelevantObjects(self, _q):
+            return otras
+
+    assert guion.barra_de_destino(App(), cabecera, 22.9).loc_name == 'CERCA'
+    assert guion.barra_de_destino(App(), cabecera, 33.0) is None
+
+
+def test_elevador_dedicado_en_la_salida_compartida():
+    """042:RF-61 — la barra sigue a 10 kV; lo de aguas abajo pasa a 22,9 kV por un transformador solo para esta salida."""
+    app, alims = _calibrada(random.Random(82), n_min=2, cargas_min=3)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[{**_migracion('F1', 'F1_B1'), 'elevador_mva': 3.0}]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert fila['elevador']['mva'] == 3.0 and fila['elevador']['nodo'] == 'F1_B1'
+    _activas(app, CON)
+    assert _uknom(app, 'F1_B1') == 22.9 and _uknom(app, 'F1_B0') == 10.0
+    assert _linea(app, 'F1_L1').outserv == 1
+    tipo = next(t for t in app.proyecto.GetContents('*.TypTr2', 1) if t.loc_name.startswith('TR_ELEVADOR_'))
+    assert (tipo.strn, tipo.utrn_h, tipo.utrn_l) == (3.0, 22.9, 10.0)
+    assert _elm(app, 'F1').obj_id.cterm.loc_name == fila['elevador']['barra']

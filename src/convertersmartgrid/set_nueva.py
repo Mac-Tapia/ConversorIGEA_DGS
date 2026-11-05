@@ -27,6 +27,14 @@ class SetNuevaError(ValueError):
     """Falta un dato para diseñar la SET nueva; el mensaje dice cuál (042:RF-8, P13)."""
 
 
+def margen_sin_tasa(sin_tasa: float | None, seguridad: float | None) -> float:
+    """086:RF-51, RF-53: el margen de lo que se dimensiona sin contar el crecimiento; sin dato, el de seguridad, o ninguno.
+
+    Sin exigir los demás datos de la SET: también la usa la escalera, para el regulador y el elevador.
+    """
+    return float(sin_tasa) if sin_tasa is not None else float(seguridad or 1.0)
+
+
 @dataclass(frozen=True)
 class Parametros:
     anios: int
@@ -45,7 +53,7 @@ class Parametros:
         """
         if self.anios > 0 and tasa_ponderada > 0:
             return self.factor_seguridad
-        return self.factor_seguridad if self.factor_seguridad_sin_tasa is None else self.factor_seguridad_sin_tasa
+        return margen_sin_tasa(self.factor_seguridad_sin_tasa, self.factor_seguridad)
 
 
 def parametros(perfil: Mapping[str, Any]) -> Parametros:

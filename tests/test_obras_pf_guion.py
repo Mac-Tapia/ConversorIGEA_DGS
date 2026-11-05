@@ -996,6 +996,7 @@ def test_migracion_con_la_cabecera_compartida_se_rechaza():
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion(f, 22.9)]))
     assert codigo == 2
     assert otro in informe['obras'][0]['error'] and 'no se migra' in informe['obras'][0]['error']
+    assert all(c in informe['obras'][0]['error'] for c in ('042:RF-51', '042:RF-61', '042:RF-6)'))   # 042:RF-63
     assert not any(n.startswith('Obra_') for n in _variaciones(app))
 
 
@@ -1147,7 +1148,7 @@ def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
     sin_u = {'RAMAL': 0.9452, 'PEOR': 0.9601, 'BIEN': 0.98}
     con_u = {'RAMAL': 0.9449, 'NUEVA_T': 0.9440, 'BIEN': 0.97, 'CARGA': 0.963}
 
-    def medida(app_, _alims, _feeders):
+    def medida(app_, _alims, _feeders, **_k):
         sin = app_.GetActiveStudyCase().loc_name.startswith('Sin')
         return {'converge': True, 'u': sin_u if sin else con_u, 'carga': {}, 'perdidas_kw': 1.0}
 
@@ -1211,7 +1212,7 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
     vistos = []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         assert float(carga.plini) == p0, 'el sorteo no escribe plini (063:RF-28)'
         vistos.append((getattr(app_.GetActiveScenario(), 'loc_name', ''), float(carga.scale0) / s0 * p0))
         return medir(app_, alims_, feeders)
@@ -1288,7 +1289,7 @@ def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatc
     vistas = []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         vistas.append({v.loc_name for v in app_.GetActiveNetworkVariations() or []})
         return medir(app_, alims_, feeders)
 
@@ -1381,7 +1382,7 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
         actual['v'] = sub['obras'][0]['tramos'][0]
         return {'obras': [{'variacion': None}]}, 0
 
-    def medir(app_, alims_, feeders):
+    def medir(app_, alims_, feeders, **_k):
         medidas['n'] += 1
         return {'converge': True, 'u': {}, 'carga': {}, 'perdidas_kw': 10.0}
 
@@ -1486,7 +1487,7 @@ def test_los_sorteos_y_el_criterio_cubren_todas_las_troncales(monkeypatch):
     escalas, vistas = [], []
     medir = guion.medida_para_criterio
 
-    def registrar(app_, alims_, feeders):
+    def registrar(app_, alims_, feeders, **k):
         escalas.append(round(float(carga.scale0) / s0, 6))
         m = medir(app_, alims_, feeders)
         vistas.append(barra.loc_name in m['u'])
@@ -1530,3 +1531,149 @@ def test_la_obra_inactiva_vuelve_a_cerrar_lo_que_abrio():
     assert guion.cerrar_lo_abierto(app, fila) == ['T1', 'A1']
     assert linea.outserv == 0 and acoplador.on_off == 1 and '042:RF-19' in fila['avisos'][0]
     assert guion.cerrar_lo_abierto(app, {}) == []
+
+
+def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
+    """042:RF-73, 042:RF-74 — baja del horizonte hasta el año que aguanta; no deja obra ni escenario temporal."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(43))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    respuestas = iter([(False, ['no converge']), (True, [])])
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _con, _p: next(respuestas))
+    f = alims[0]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    horizonte = {'tasa': 0.03}
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0, 'escalones': ['terna']}],
+                 sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA, basta_una=True, alternativas=3, horizonte=horizonte)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 15, 'motivos': ['no converge']}
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+
+
+@pytest.mark.parametrize('sigue,medidos', [(False, 10), (True, 12)])
+def test_los_sorteos_van_por_etapas(monkeypatch, sigue, medidos):
+    """042:RF-87, 042:RF-88 — con etapa de 10 de 12: si está claro, para ahí; si no, mide los otros 2 con su referencia."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(44))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'hace_falta_seguir', lambda _fr, m, n, _p: sigue and m < n)
+    flujos = []
+    real = guion.medida_para_criterio
+    monkeypatch.setattr(guion, 'medida_para_criterio', lambda *a, **k: (flujos.append(1), real(*a, **k))[1])
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'sorteos_etapa': 10}}
+    sorteos = [{'factores': {a: 0.9 for a in alims}} for _ in range(12)]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=sorteos, barras_cargas=[], parametros=perfil)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['sorteos_medidos'] == medidos and fila['fraccion'] is not None
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+    # La referencia y la variante, una vez por sorteo medido, más los flujos fijos de la evaluación.
+    assert len(flujos) >= 2 * medidos
+
+
+def test_sin_etapas_se_miden_todos(monkeypatch):
+    """042:RF-87 — el perfil lo apaga con 0."""
+    app, alims = _calibrada_con_escenario(random.Random(45))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'sorteos_etapa': 0}}
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=[{'factores': {a: 0.9 for a in alims}} for _ in range(7)], barras_cargas=[], parametros=perfil)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert informe['variantes'][0]['sorteos_medidos'] == 7
+
+
+def test_los_sorteos_leen_lo_del_criterio_y_nada_mas(monkeypatch):
+    """042:RF-89 — sin extremos de toda la red, y el informe dice cuánto tardaron."""
+    app, alims = _calibrada_con_escenario(random.Random(46))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    llamadas = []
+    real = guion.flujo_de_carga
+    monkeypatch.setattr(guion, 'flujo_de_carga', lambda a, **k: (llamadas.append(k), real(a, **k))[1])
+    antes = guion.TIEMPOS['flujos']
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0}],
+                 sorteos=[{'factores': {a: 0.9 for a in alims}} for _ in range(4)], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert sum(1 for k in llamadas if k.get('extremos') is False) >= 8                # referencia y variante, 4 de cada una
+    assert informe['tiempos_medida']['flujos'] >= antes + 8
+    assert informe['variantes'][0]['perdidas_kw'] is not None or informe['variantes'][0]['maxima'] is False
+
+
+def test_las_fases_se_miran_una_vez_por_caso(monkeypatch):
+    """042:RF-89 — recorrer la red en cada sorteo costaba más que el flujo."""
+    from types import SimpleNamespace as N
+
+    from convertersmartgrid import dgs
+
+    miradas = []
+    monkeypatch.setattr(dgs, 'red_con_monofasicos', lambda _a: (miradas.append(1), True)[1])
+    guion._MONOFASICOS.clear()
+    caso = {'c': 'Con proyecto'}
+    app = N(GetActiveStudyCase=lambda: N(loc_name=caso['c']))
+    assert guion._monofasicos_del_caso(app) and guion._monofasicos_del_caso(app) and len(miradas) == 1
+    caso['c'] = 'Sin proyecto'
+    assert guion._monofasicos_del_caso(app) and len(miradas) == 2
+
+
+def test_tras_la_primera_que_cumple_hay_un_tope_de_variantes(monkeypatch):
+    """042:RF-90 — con una alternativa y tope 2, para ahí y lo dice; las demás no se miden."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(47))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 2}}
+    variantes = [{'nombre': f'terna {i}', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0, 'escalones': ['terna']}
+                 for i in range(6)]
+    plan = _plan(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=perfil, basta_una=True, alternativas=3)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 3 and any('042:RF-90' in a for a in informe['avisos'])
+    assert escalera_optima.parametros(PERFIL_ESCALERA).variantes_tras_cumplir == 25
+
+
+def _plan_con_horizonte(alims, n, perfil=None):
+    variantes = [{'nombre': f'terna {i}', 'obras': [_obra_terna(alims[0], [CON])], 'costo_base': 1.0, 'escalones': [f'clase{i}']}
+                 for i in range(n)]
+    return _plan(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=perfil or PERFIL_ESCALERA, basta_una=True,
+                 alternativas=3, horizonte={'tasa': 0.03})
+
+
+def test_con_tres_alternativas_y_una_definitiva_para(monkeypatch):
+    """042:RF-92 — ya no prueba más; el alcance se mide a la vida útil del perfil."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(48))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (True, []))
+    informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 6))
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 3
+    assert informe['variantes'][0]['horizonte']['definitiva'] is True
+
+
+def test_con_tres_y_ninguna_definitiva_sigue_hasta_el_tope(monkeypatch):
+    """042:RF-92 — sigue buscando; al llegar al tope lo dice."""
+    from convertersmartgrid import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(49))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (False, ['no converge']))
+    perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 4}}
+    informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 7, perfil))
+    assert codigo == 0, informe
+    assert len(informe['variantes']) == 5 and any('042:RF-92' in a for a in informe['avisos'])

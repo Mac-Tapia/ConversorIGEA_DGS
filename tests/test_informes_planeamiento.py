@@ -186,3 +186,76 @@ def test_un_formato_largo_se_corta_y_lo_avisa(tmp_path):
     filas = {**datos.formatos['filas'], 'F03 Tensión MT': largas}
     texto = _modulo(tmp_path, 'diagnostico', formatos={**datos.formatos, 'filas': filas})
     assert f'Se muestran {TOPE_DE_FILAS} de {TOPE_DE_FILAS + 5} filas' in texto
+
+
+ALTERNATIVAS = {'F1': [{'numero': 2, 'nombre': 'terna', 'inversion': 900.0, 'costo_anual': 200.0, 'fraccion': None, 'elegida': False},
+                       {'numero': 1, 'nombre': 'sección', 'inversion': 500.0, 'costo_anual': 100.0, 'fraccion': 1.0, 'elegida': True}]}
+
+
+def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
+    """042:RF-58 — numeradas por costo anual, con cuál se aplica y lo que no se sorteó."""
+    from convertersmartgrid.informes import filas_alternativas_escalera
+
+    cabecera, filas = filas_alternativas_escalera(ALTERNATIVAS)
+    assert 'Costo anual US$' in cabecera
+    assert [(f[1], f[2], f[cabecera.index('Sorteos que cumplen')], f[-1]) for f in filas] == [('1', 'sección', '100 %', 'Sí'), ('2', 'terna', 'sin sortear', 'No')]
+
+
+def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
+    """042:RF-58 — en los dos módulos, y sin datos no se escribe la sección."""
+    from convertersmartgrid import informes_planeamiento as ip
+
+    class E:
+        def __init__(self):
+            self.titulos, self.tablas = [], []
+
+        def titulo(self, t):
+            self.titulos.append(t)
+
+        def parrafo(self, _t):
+            pass
+
+        def tabla(self, cabecera, filas, **_k):
+            self.tablas.append(filas)
+
+    e = E()
+    ip._alternativas_por_alimentador(e, _datos(alternativas_escalera=ALTERNATIVAS))
+    assert e.titulos == ['Alternativas de solución por alimentador'] and e.tablas[0][0][2] == 'sección'
+    e = E()
+    ip._alternativas_por_alimentador(e, _datos())
+    assert not e.titulos
+
+
+def test_el_informe_dice_que_la_obra_del_deficit_no_esta_en_los_flujos():
+    """042:RF-67, 042:RF-69 — con esas filas, la nota; sin ellas, ninguna; y cada fila dice su valle."""
+    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+
+    assert notas_alternativas_escalera(ALTERNATIVAS) == []
+    (nota,) = notas_alternativas_escalera({**ALTERNATIVAS, 'F1 · déficit previo': ALTERNATIVAS['F1'],
+                                           'F1 · sin comparación': ALTERNATIVAS['F1']})
+    assert 'no están en «Con proyecto» ni en sus flujos' in nota and 'sin sorteos' in nota
+    assert '«déficit previo» y «sin comparación»' in nota
+    cabecera, filas = filas_alternativas_escalera({'F1': [{'numero': 1, 'nombre': 'x', 'costo_anual': 1.0, 'valle': True}]})
+    assert filas[0][cabecera.index('En valle')] == 'cumple'
+
+
+def test_el_informe_dice_el_factor_del_dimensionado():
+    """042:RF-72 — se ve el factor usado; sin regulador ni elevador, no se menciona."""
+    from convertersmartgrid.informes import notas_alternativas_escalera
+
+    (nota,) = notas_alternativas_escalera({'F1': [{'nombre': 'regulador', 'factor': 1.25}, {'nombre': 'terna', 'factor': None}]})
+    assert 'factor de 1,25' in nota
+    assert notas_alternativas_escalera({'F1': [{'nombre': 'terna', 'factor': None}]}) == []
+
+
+def test_la_tabla_dice_el_alcance_de_cada_alternativa():
+    """042:RF-75 — definitiva, temporal con sus años, o sin medir; y la nota dice qué significa."""
+    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+
+    lista = {'F1': [{'numero': 1, 'nombre': 'a', 'costo_anual': 1.0, 'definitiva': False, 'aguanta_anios': 5},
+                    {'numero': 2, 'nombre': 'b', 'costo_anual': 2.0, 'definitiva': True, 'aguanta_anios': 20},
+                    {'numero': 3, 'nombre': 'c', 'costo_anual': 3.0}]}
+    cabecera, filas = filas_alternativas_escalera(lista)
+    i = cabecera.index('Alcance')
+    assert [f[i] for f in filas] == ['temporal, aguanta 5 años', 'definitiva, 20 años', 'sin medir']
+    assert any('Definitiva:' in n for n in notas_alternativas_escalera(lista))

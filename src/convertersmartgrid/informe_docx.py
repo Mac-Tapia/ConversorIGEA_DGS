@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .estudios_pf import Limites
+from .informes import filas_alternativas_escalera, notas_alternativas_escalera
 from .informes import (
     ETAPAS, NOMBRE_ETAPA, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado,
     Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, formato_pu, antecedentes_factibilidad,
@@ -64,6 +65,8 @@ class DatosEstudio:
     avisos: Sequence[str] = ()
     #: 086:RF-11: la corrida de estudios de donde salen sus flujos.
     corrida: str | None = None
+    #: 042:RF-58: hasta 3 alternativas por alimentador, de menor a mayor costo anual.
+    alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
 
 
 def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
@@ -904,6 +907,13 @@ def _alternativas(e: _Escritor, datos: DatosEstudio, evaluadas: list[Etapa], rec
         e.parrafo(resumen_alternativa(i, x, config.limites))
         _frase_de_valle(e, x.obras, x.valle)
 
+    if datos.alternativas_escalera:                                             # 042:RF-58
+        e.titulo('2.3.A ALTERNATIVAS DE SOLUCIÓN POR EVALUACIÓN ECONÓMICA')
+        e.parrafo('De menor a mayor costo anual; todas cumplen con la máxima en DIgSILENT:')
+        cabecera, filas_eco = filas_alternativas_escalera(datos.alternativas_escalera)
+        e.tabla(cabecera, filas_eco)
+        for nota in notas_alternativas_escalera(datos.alternativas_escalera):   # 042:RF-67
+            e.parrafo(nota)
     e.titulo(f'2.4 CUADRO COMPARATIVO DE LAS ALTERNATIVAS DEL ALIMENTADOR {lista}')     # RF-134
     filas = []
     for nombre, caso in [('Estado actual', datos.actual)] + [

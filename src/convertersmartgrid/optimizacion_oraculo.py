@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -34,6 +35,9 @@ from .valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
 KV_MEDIA_MIN = 1.0
+
+#: 087:RF-43: redes factorizadas que guarda el oráculo a la vez (unos 4 MB cada una con Pisco entero).
+MAX_SISTEMAS = 64
 
 #: Presupuestos por defecto, si el perfil no da los suyos (RF-11, RF-14, RF-15).
 EVALUACIONES_BAYES = 200
@@ -71,7 +75,7 @@ class Oraculo:
     exponente: float = 0.0
     pinn: Any = None                    # ``digital_twin.oraculo.OraculoPINN`` promovido (RF-17)
     evaluaciones: int = 0
-    _sistemas: dict = field(default_factory=dict, repr=False)
+    _sistemas: OrderedDict = field(default_factory=OrderedDict, repr=False)
 
     def __post_init__(self) -> None:
         nodos = {n: dict(d) for n, d in (self.grafo.get('nodos') or {}).items()}
@@ -127,10 +131,16 @@ class Oraculo:
                               str((o.get('tipo') or {}).get('nombre')),
                               tuple(sorted((o.get('capacidad_terna_a') or {}).items())))
                              for o in obras if o.get('clase') in ('terna', 'seccion')))
-        if clave not in self._sistemas:
+        if clave in self._sistemas:
+            self._sistemas.move_to_end(clave)
+        else:
             ramas = self._ramas_con(obras, avisos)
             m = muestra({**self.grafo, 'nodos': self._nodos, 'ramas': ramas})
             self._sistemas[clave] = (m, sistema_de(m), ramas)
+            # 087:RF-43: solo las más recientes. Pisco entero (2026-11-04): unos 4 MB por combinación y Optuna, Pareto y
+            # Shapley probaban cientos por alimentador; la web llegó a 6 GB y el trabajo cayó con MemoryError.
+            while len(self._sistemas) > MAX_SISTEMAS:
+                self._sistemas.popitem(last=False)
         return self._sistemas[clave]
 
     def activas(self, k: int, alimentador: str | None = None) -> list[Mapping[str, Any]]:
@@ -617,6 +627,104 @@ def buscar_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametr
         return True
 
     return cuantas_caben(len(oraculo.nuevas), cabe)
+
+
+def perdidas_de_energia_markov(oraculo: Oraculo, obras: Sequence[Mapping[str, Any]], k: int, markov: Mapping[str, Any],
+                               alimentador: str | None = None) -> dict[str, Any] | None:
+    """087:RF-13: la energía perdida al año: las pérdidas de cada nivel de la cadena de Markov, por su probabilidad estacionaria.
+
+    El factor de cada nivel es la media de sus sorteos; un nivel sin sorteos no cuenta, y las probabilidades se reparten entre el resto.
+    """
+    pi = list(markov.get('estacionaria') or [])
+    por_nivel: dict[int, list[float]] = {}
+    for x in markov.get('sorteos') or []:
+        fs = list((x.get('factores') or {}).values())
+        if fs:
+            por_nivel.setdefault(int(x.get('nivel') or 0), []).append(sum(fs) / len(fs))
+    total = sum(pi[i] for i in por_nivel if i < len(pi))
+    if not total:
+        return None
+    kw = 0.0
+    for i, fs in por_nivel.items():
+        if i >= len(pi):
+            continue
+        perdidas = oraculo.medir(obras, k, sum(fs) / len(fs), alimentador).perdidas_kw
+        if perdidas is None:
+            return None
+        kw += pi[i] / total * float(perdidas)
+    return {'perdidas_medias_kw': round(kw, 3), 'energia_kwh_anio': round(kw * 8760.0, 1), 'niveles': len(por_nivel)}
+
+
+def margen_de_demanda(oraculo: Oraculo, obras: Sequence[Mapping[str, Any]], k: int, p: Parametros, alimentador: str | None = None,
+                      *, hasta: float = 3.0, pasos: int = 12) -> float:
+    """087:RF-29: cuánto puede crecer la demanda existente (0,1 = 10 %) antes de incumplir; 0 si ya no cumple; por bisección."""
+    def bien(factor: float) -> bool:
+        m = oraculo.medir(obras, k, factor, alimentador)
+        return (m.converge and all(p.tension_min_pu <= u <= p.tension_max_pu for u in m.u.values())
+                and all(c <= p.cargabilidad_max_pct for c in m.carga.values()))
+
+    if not bien(1.0):
+        return 0.0
+    if bien(hasta):
+        return hasta - 1.0
+    bajo, alto = 1.0, hasta
+    for _ in range(int(pasos)):
+        medio = (bajo + alto) / 2
+        bajo, alto = (medio, alto) if bien(medio) else (bajo, medio)
+    return bajo - 1.0
+
+
+def seleccion_por_alimentador(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametros, factores: Sequence[float] = (),
+                              *, evaluaciones_bayes: int = EVALUACIONES_BAYES, semilla: int = 0,
+                              valle: Mapping[str, Any] | None = None,
+                              markov: Mapping[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+    """087:RF-1, RF-10, RF-11, RF-13: cada alimentador, con todas las cargas nuevas puestas: el orden en que DIgSILENT lo mide.
+
+    El que ya cumple en el oráculo no gasta búsqueda bayesiana ni frente: no le hace falta obra.
+    """
+    k = len(oraculo.nuevas)
+    out: dict[str, dict[str, Any]] = {}
+    for a in alimentadores:
+        if not oraculo.activas(k, a.nombre):
+            continue
+        ya = _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre, valle), p)
+        e = elegir_para_k(oraculo, [a], k, p, factores, evaluaciones_bayes=0 if ya else evaluaciones_bayes, permutaciones=0,
+                          semilla=semilla, pareto=not ya, valle=valle).get(a.nombre)
+        if e is None:
+            continue
+        e['ya_cumple'] = ya
+        primera = e['orden'][0] if e['orden'] and e['elegida'] else None
+        e['margen'] = round(margen_de_demanda(oraculo, [], k, p, a.nombre), 4)
+        e['margen_con_obra'] = round(margen_de_demanda(oraculo, primera.obras, k, p, a.nombre), 4) if primera is not None else None
+        e['perdidas_energia'] = (perdidas_de_energia_markov(oraculo, primera.obras, k, markov, a.nombre)
+                                 if primera is not None and markov else None)
+        out[a.nombre] = e
+    return out
+
+
+#: Las obras que el oráculo sabe calcular (``Oraculo._ramas_con`` y ``medir``): las demás solo las mide DIgSILENT.
+MODELADAS = frozenset({'terna', 'seccion', 'condensador', 'regulador'})
+
+
+def modelable(v: Variante) -> bool:
+    """087:RF-41: si el oráculo puede juzgar la variante. El paso a 22,9 kV (migración, tensión, elevador) no."""
+    return all(o.get('clase') in MODELADAS for o in v.obras)
+
+
+def a_confirmar(eleccion: Mapping[str, Any], tanda: int) -> list[Variante]:
+    """087:RF-39: lo que DIgSILENT confirma de un alimentador: las que el oráculo da por cumplidoras y una sola tanda
+    de las más cercanas, por si el oráculo se equivoca. El resto no se mide: si ninguna de estas cumple, no la va a
+    cumplir otra de menos (Pisco, 2026-11-04: AL209 medía en DIgSILENT sus 150 variantes, una por minuto, cuando la
+    primera que cumplía era la 12.ª y las de bancos se quedaban a 0,93 p.u.)."""
+    orden = list(eleccion.get('orden') or [])
+    buenas = sum(1 for t in eleccion.get('tabla') or [] if t.get('cumple') and t.get('costo_anual') is not None)
+    return orden[:buenas + max(1, int(tanda))]
+
+
+def tandas(orden: Sequence[Variante], n: int) -> list[list[Variante]]:
+    """087:RF-2, RF-3: las variantes de ``n`` en ``n``, en su orden."""
+    n = max(1, int(n))
+    return [list(orden[i:i + n]) for i in range(0, len(orden), n)]
 
 
 def _con_solo(oraculo: Oraculo, grupo: frozenset[str]) -> Oraculo:

@@ -3743,6 +3743,11 @@
             "title": "Project",
             "type": "string"
           },
+          "rehacer_obras": {
+            "default": false,
+            "title": "Rehacer Obras",
+            "type": "boolean"
+          },
           "set_nueva_nombre": {
             "default": "",
             "maxLength": 40,

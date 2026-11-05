@@ -988,6 +988,57 @@ def etapa_de_obras(obras: list[Mapping[str, Any]]) -> str | None:
     return max(claves, key=ETAPAS.index) if claves else None
 
 
+#: 042:RF-65, RF-68: las filas de la obra que no paga la carga, en la tabla de alternativas.
+ETIQUETA_PREVIO = 'déficit previo'
+ETIQUETA_SIN_COMPARACION = 'sin comparación'
+
+
+def notas_alternativas_escalera(por_alimentador) -> list[str]:
+    """Lo que hay que saber para leer esas filas: no son efecto de una obra aplicada (042:RF-67)."""
+    etiquetas = [e for e in (ETIQUETA_PREVIO, ETIQUETA_SIN_COMPARACION) if any(f.endswith(f'· {e}') for f in por_alimentador)]
+    notas = []
+    if etiquetas:
+        notas.append(f"Las filas «{'» y «'.join(etiquetas)}» son obras presentadas aparte: no están en «Con proyecto» ni en sus "
+                     'flujos, y sus cifras no son efecto de ninguna obra aplicada. Se midieron con la demanda máxima, sin sorteos.')
+    if any(a.get('definitiva') is not None for lista in por_alimentador.values() for a in lista):      # 042:RF-75
+        tasas = sorted({float(a['tasa_horizonte']) for lista in por_alimentador.values() for a in lista if a.get('tasa_horizonte')})
+        con_tasa = f" con {' y '.join(f'{100 * t:.2f}'.replace('.', ',') for t in tasas)} % al año de largo plazo" if tasas else ''
+        notas.append(f'Definitiva: con la demanda proyectada al horizonte de vida útil{con_tasa}, medida en DIgSILENT, el flujo converge, '
+                     'todas las barras quedan en límites y ningún tramo pasa del límite de planeamiento. Las cargas nuevas se '
+                     'mantienen en su potencia solicitada. El alcance no cambia el orden, que es por costo anual.')
+    factores = sorted({float(a['factor']) for lista in por_alimentador.values() for a in lista if a.get('factor')})
+    if factores:                                                                # 042:RF-72
+        cuales = ' y '.join(f'{x:g}'.replace('.', ',') for x in factores)
+        notas.append(f'Los reguladores y elevadores se dimensionaron con un factor de {cuales} sobre la corriente medida, '
+                     'por el crecimiento de la demanda que no se cuenta.')
+    return notas
+
+
+def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[list[str]]]:
+    """La tabla de hasta 3 alternativas por alimentador, de menor a mayor costo anual (042:RF-58)."""
+    def cifra(x):
+        return f'{float(x):,.0f}' if x is not None else ''
+
+    def sorteos(a):
+        return f"{100 * float(a['fraccion']):.0f} %" if a.get('fraccion') is not None else 'sin sortear'
+
+    def en_valle(a):
+        return 'cumple' if a.get('valle') is True else 'no comprobado'
+
+    def alcance(a):
+        if a.get('definitiva') is None:
+            return 'sin medir'
+        if a['definitiva']:
+            return f"definitiva, {a.get('aguanta_anios')} años"
+        return f"temporal, aguanta {a['aguanta_anios']} años" if a.get('aguanta_anios') else 'temporal'
+
+    filas = [[str(f), str(a.get('numero')), str(a.get('nombre')), cifra(a.get('inversion')), cifra(a.get('costo_anual')),
+              sorteos(a), en_valle(a), alcance(a), 'Sí' if a.get('elegida') else 'No']
+             for f, lista in sorted(por_alimentador.items())
+             for a in sorted(lista, key=lambda x: float(x.get('costo_anual') or 0.0))]
+    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'En valle', 'Alcance', 'Se aplica'), filas
+
+
 def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Las alternativas del informe con las obras activas de «Con proyecto» (RF-128, RF-129).
 

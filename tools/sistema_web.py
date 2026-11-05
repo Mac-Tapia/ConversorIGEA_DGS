@@ -518,7 +518,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
 
 
 def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None,
-                 capex: str | None = None) -> int:
+                 capex: str | None = None, rehacer_obras: bool = False, obra_integral: bool = False) -> int:
     """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-72).
 
     Pisco (2026-11-03): el usuario pidió que lo que falta se lance y cierre solo. Si ya corre un «Con proyecto»
@@ -534,8 +534,11 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
     if trabajo is None:
         print(f'«Con proyecto» de {proyecto}: se lanza para {", ".join(feeders)}', flush=True)
         trabajo = web.post('/pf/obras/con-proyecto', json={
-            'project': proyecto, 'feeders': feeders, 'escalera_primero': True,
-            **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {})})
+            'project': proyecto, 'feeders': feeders,
+            # 087:RF-54: a la obra integral sin repetir la escalera ya hecha (usuario, 2026-11-04, CHI201).
+            **({'directo_set_nueva': True} if obra_integral else {'escalera_primero': True}),
+            **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {}),
+            **({'rehacer_obras': True} if rehacer_obras else {})})
     else:
         print(f"«Con proyecto» de {proyecto}: se espera el trabajo {trabajo['id']} ya lanzado", flush=True)
     if trabajo.get('started_at'):
@@ -544,11 +547,22 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
     resultado = estado.get('result') or {}
     print(f"Trabajo {estado['id']}: {estado['status']}" + (f" — {estado.get('error')}" if estado.get('error') else ''),
           flush=True)
-    filas = ((resultado.get('escalera') or {}).get('alimentadores') or resultado.get('alimentadores') or [])
+    por_cargas = resultado.get('escalera_por_cargas') or {}
+    # El resultado anida la escalera en ``escalera_por_cargas``: sin esto, una corrida buena no listaba ninguna obra.
+    filas = ((por_cargas.get('escalera') or resultado.get('escalera') or {}).get('alimentadores')
+             or resultado.get('alimentadores') or [])
     for f in filas:
         e = f.get('elegida')
         print(f"  {f.get('alimentador')}: " + ('ya cumple' if f.get('ya_cumple') else
               f"obra {e.get('nombre') if isinstance(e, dict) else e}" if e else 'ninguna variante cumple'), flush=True)
+        for a in f.get('alternativas') or []:                                  # 042:RF-58
+            print(f"    alternativa {a['numero']}: {a['nombre']}: {a['costo_anual']:,.0f} al año"
+                  + (f", definitiva: {a['definitiva']}, aguanta {a.get('aguanta_anios')} años" if a.get('definitiva') is not None else '')
+                  + (', se aplica' if a['elegida'] else ''), flush=True)
+    for f, datos in (por_cargas.get('por_alimentador') or {}).items():          # 042:RF-65
+        for clave, rotulo in (('deficit_previo', 'déficit previo'), ('sin_comparacion', 'sin comparación')):
+            for a in (datos.get(clave) or {}).get('alternativas') or []:
+                print(f"  {f}, {rotulo}: alternativa {a['numero']}: {a['nombre']}", flush=True)
     for clave in ('zonas', 'expresos', 'set_nueva', 'aplicadas'):
         if resultado.get(clave):
             print(f'  {clave}: {json.dumps(resultado[clave], ensure_ascii=False, default=str)[:600]}', flush=True)
@@ -605,7 +619,11 @@ def main(argv=None) -> int:
                    help='Tras calibrar (o ya calibrado), «Con proyecto» de estos alimentadores y su estadística (042:RF-31)')
     p.add_argument('--proyecto', help='Con --con-proyecto, el proyecto de DIgSILENT ya calibrado: no se calibra de nuevo')
     p.add_argument('--tipo-cambio', type=float, help='Con --con-proyecto, moneda local por dólar')
+    p.add_argument('--rehacer-obras', action='store_true',
+                   help='Con --con-proyecto, retira las obras de esos alimentadores y las evalúa de nuevo (042:RF-60)')
     p.add_argument('--capex', help='Con --con-proyecto, el libro CAPEX: costea las obras y elige la SET nueva (042:RF-7)')
+    p.add_argument('--obra-integral', action='store_true',
+                   help='Con --con-proyecto, sin escalera: alimentador nuevo o SET nueva según la zona (087:RF-54)')
     args = p.parse_args(argv)
     _RESUMEN[:] = [args.resumen_json] if args.resumen_json else []
     try:
@@ -615,7 +633,8 @@ def main(argv=None) -> int:
     web = Web(args.url, args.espacio)
     if args.con_proyecto and args.proyecto:
         try:
-            return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex)
+            return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex,
+                                rehacer_obras=args.rehacer_obras, obra_integral=args.obra_integral)
         except (RuntimeError, TimeoutError, requests.RequestException) as exc:
             print(f'ERROR: {exc}')
             return 2

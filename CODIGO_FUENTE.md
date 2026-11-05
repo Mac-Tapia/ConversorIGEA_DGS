@@ -105,12 +105,16 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS; sobre la red unida entera, con una isla por barra de SET, su veredicto por SET y zonal y, si una no converge, su barra más débil y su transformador más cargado; si no converge por demanda de relleno o mayor que su SED, busca el factor por kVA con que converge. | 034, 022 (RF-28, RF-32, RF-33), 057 (RF-1, RF-3, RF-6), 082 |
 | `src/convertersmartgrid/digital_twin/motores_flujo.py` | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. | 083 |
 | `src/convertersmartgrid/oraculo_calibracion.py` | El oráculo antes de calibrar: los factores de arranque, sin gastar flujos de DIgSILENT. | 083 |
+| `src/convertersmartgrid/obras_integrales.py` | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), y el área del alimentador nuevo. | 087 (RF-31 a RF-38) |
 | `src/convertersmartgrid/optimizacion_oraculo.py` | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y reparto de Shapley; DIgSILENT confirma. | 052, 073 (RF-19, RF-21 a RF-23) |
 | `src/convertersmartgrid/pide.py` | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP, conductor, transformador, isla, sobretensión, pérdidas), año de incumplimiento, plan por etapas sin adelantar obras y formatos 01 a 15 en Excel. | 024 (RF-49 a RF-53, RF-60 a RF-63) |
 | `src/convertersmartgrid/estudio_planeamiento.py` | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. | 072 |
 | `src/convertersmartgrid/costos_fuentes.py` | Costos oficiales: contrato de fuente, lector del SICODI público y cruce por código, tensión, estructura y sector típico. | 072 |
 | `src/convertersmartgrid/formatos_pide.py` | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. | 072 |
 | `src/convertersmartgrid/informes_planeamiento.py` | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. | 072 |
+| `src/convertersmartgrid/medicion_obras.py` | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. | 087 |
+| `src/convertersmartgrid/modelo_obras.py` | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. | 087 |
+| `src/convertersmartgrid/planeamiento_etapas.py` | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. | 087 |
 | `src/convertersmartgrid/madrl_obras.py` | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. | 074 |
 | `src/convertersmartgrid/madrl_politica.py` | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. | 074 |
 | `src/convertersmartgrid/metrados.py` | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. | 072 |
@@ -148,6 +152,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/schemas/perfil_empresa_v1.schema.json` | Esquema del perfil de empresa: cada clave con su tipo, la función que afecta, qué se hace sin ella y si es de la empresa o de una norma. | 086 (RF-30) |
 | `src/convertersmartgrid/sed_potencia.py` | Lleva al tamaño normalizado las SED cuya carga supera su transformador; reconoce la demanda de relleno o fuera de escala y la lleva a kVA × factor con FP 0,98. | 034 (RF-32), 057 (RF-2, RF-3) |
 | `src/convertersmartgrid/cabecera_ancha.py` | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas mensuales por salida, escritas en el formato que lee la calibración: un libro por año con una hoja por código y el libro de medidores. | 051 |
+| `src/convertersmartgrid/seleccion_bayesiana.py` | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. | 087 |
 | `src/convertersmartgrid/set_nueva.py` | SET nueva para las cargas que la red existente no atiende: potencia de diseño a la vida útil con la tasa de la 029 y el factor de seguridad, módulo PIT del libro CAPEX que la cubre y ubicación de Weber con sorteos de crecimiento por zona. | 042 (RF-5, RF-7 a RF-9) |
 | `src/convertersmartgrid/studies.py` | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. | 034 (RF-26), 012 (RF-1), 056 (RF-4) |
 | `src/convertersmartgrid/study.py` | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. | 034 (RF-3) |
@@ -315,6 +320,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto; un enlace entre barras de distinta tensión no se cierra ni se calcula. | 011 (RF-104 a RF-129), 016 (RF-62, RF-63) |
 | `tools/costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. | 072 |
 | `tools/madrl_entrenar.py` | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. | 074 |
+| `tools/medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. | 087 |
 | `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
@@ -337,6 +343,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
 | `frontend/src/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/operacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
+| `frontend/src/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
+| `frontend/src/components/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
 | `frontend/src/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
 | `frontend/src/api.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |
 | `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021, 025 (RF-4, RF-24, RF-28), 037 (RF-1, RF-5), 039 (RF-1, RF-5), 041 (RF-6, RF-9), 061 (RF-2, RF-9) |

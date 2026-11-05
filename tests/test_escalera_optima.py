@@ -10,7 +10,8 @@ from convertersmartgrid import escalera_optima as eo
 SEMILLAS = (3, 17, 41, 88)
 PERFIL = {
     'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'semilla': 7, 'tolerancia_pu': 0.005,
-                 'tolerancia_carga_pct': 1.0, 'max_variantes': 400},
+                 'tolerancia_carga_pct': 1.0, 'max_variantes': 400,
+                 'regulador_min_km': 0},     # estas redes sorteadas son cortas; 042:RF-49 tiene sus pruebas
     'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
 }
@@ -241,7 +242,8 @@ def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
     sin = eo.parametros({**PERFIL, 'escalera': {k: v for k, v in PERFIL['escalera'].items() if k != 'escala_capex'}})
     with pytest.raises(eo.EscaleraError, match='escala_capex'):
         eo.costos_de_alternativas(libro, sin)
-    assert eo.costos_de_alternativas({}, sin) == {}
+    # 042:RF-54; 087:RF-37: y el km de alimentador nuevo, deducido del cambio de tensión, por confirmar.
+    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA) | {'nuevo_alimentador'}
 
 
 def test_sin_regulador_salvo_que_el_perfil_lo_pida():
@@ -337,8 +339,8 @@ def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
              dict(_evaluada('terna', True, 0.945, 300.0), escalones=('terna',)),
              dict(_evaluada('banco', False, None, 50.0), escalones=('bancos',))]
     r = eo.elegir(tabla, P)
-    assert r['elegida'] == 'banco+seccion' and r['sin_confirmar_sorteos'] is True
-    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
+    assert r['elegida'] == 'terna' and r['sin_confirmar_sorteos'] is True      # 042:RF-56: la de menor costo
+    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'terna')
     sin_maxima = eo.elegir([_evaluada('a', False, None, 10.0)], P)
     assert sin_maxima['elegida'] is None and 'sin_confirmar_sorteos' not in sin_maxima
 
@@ -593,7 +595,7 @@ def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
     """042:RF-47 — 85 A al 80 % piden 106 A: la unidad de 150 A; las variantes van sobre el camino de la carga."""
     from convertersmartgrid.perfil_empresa import completar_planeamiento
 
-    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500}})[0]
+    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500, 'regulador_min_km': 0}})[0]
     p = eo.parametros(perfil)
     camino = _camino_que_cae()
     vs, _a = eo.variantes('F', 22.9, [], [{'barra': 'B5', 'existe': False, 'camino': camino}], [], p, banco_kvar=None)
@@ -601,3 +603,252 @@ def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
     assert {v.obras[0]['tramo'] for v in solas} == {'L3', 'L4'}
     en_l3 = next(v for v in solas if v.obras[0]['tramo'] == 'L3')
     assert en_l3.nombre == 'regulador 150 A en L3' and en_l3.obras[0]['tipo']['proyecto'] == eo.BIBLIOTECA_TIPOS
+
+
+def _tramos_de(km_total, n=4):
+    return [{'nombre': f'T{i}', 'largo_m': km_total * 1000 / n, 'corriente_a': 100.0, 'desde': f'B{i}', 'hasta': f'B{i + 1}',
+             'tipo': 'X', 'inom_a': 300.0} for i in range(n)]
+
+
+@pytest.mark.parametrize('km,hay', [(9.0, False), (15.0, False), (15.5, True)])
+def test_el_regulador_solo_pasa_de_15_km(km, hay):
+    """042:RF-49 — el regulador es un caso extremo: en 15 km justos todavía no se plantea, y queda dicho."""
+    esc = {k: v for k, v in PERFIL['escalera'].items() if k != 'regulador_min_km'}
+    p = eo.parametros({**PERFIL, 'escalera': esc})
+    vs, avisos = eo.variantes('F1', 22.9, _tramos_de(km), [], [], p, banco_kvar=None, fuera_desde=1)
+    assert any('regulador' in v.escalones for v in vs) is hay
+    assert any('042:RF-49' in a for a in avisos) is not hay
+
+
+def test_el_largo_del_regulador_lo_da_el_perfil():
+    """042:RF-49 — otra empresa puede poner su propio largo."""
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'regulador_min_km': 5}})
+    vs, _ = eo.variantes('F1', 22.9, _tramos_de(9.0), [], [], p, banco_kvar=None, fuera_desde=1)
+    assert any('regulador' in v.escalones for v in vs)
+
+
+NIVEL = {'salida': 'B_22', 'nodo': 'N1', 'km': 12.0, 'seds': 40, 'compartida': True}
+
+
+def test_a_10_kv_el_paso_a_22_9_va_tras_los_bancos_y_antes_de_la_seccion():
+    """042:RF-50, 042:RF-51 — con celda nueva en la barra de la SET; va solo y sin refuerzo."""
+    vs, _ = eo.variantes('F1', 10.0, _tramos_de(5.0), [{'barra': 'B4', 'existe': True}], [], P, banco_kvar=300.0, nivel=NIVEL,
+                         sobrecargados=[{'nombre': 'T1', 'largo_m': 10.0, 'corriente_a': 300.0, 'tipo': 'X', 'nlnum': 1, 'carga_pct': 120.0}])
+    i = next(n for n, v in enumerate(vs) if 'nivel' in v.escalones)
+    assert len([v for v in vs if 'nivel' in v.escalones]) == 1 and vs[i].escalones == ('nivel',)
+    obra = vs[i].obras[0]
+    assert (obra['clase'], obra['nodo'], obra['salida'], obra['kv_destino']) == ('migracion', 'N1', 'B_22', 22.9)
+    assert len(vs[i].obras) == 1
+    assert all('bancos' in v.escalones or 'seccion' not in v.escalones or n > i for n, v in enumerate(vs) if n)
+    assert eo.rango(('bancos',)) < eo.rango(('nivel',)) < eo.rango(('seccion',)) < eo.rango(('regulador',))
+
+
+def test_a_22_9_kv_no_hay_paso_de_tension():
+    """042:RF-50 — solo el alimentador a la tensión que se pasa."""
+    vs, _ = eo.variantes('F1', 22.9, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=NIVEL)
+    assert not [v for v in vs if 'nivel' in v.escalones]
+
+
+def test_sin_barra_de_destino_con_su_fuente_o_a_la_set_nueva():
+    """042:RF-52, 042:RF-53 — sin cabecera compartida cambia con su fuente; compartida, lo dice y sigue la escalera."""
+    solo = {'salida': '', 'nodo': '', 'km': 3.0, 'seds': 5, 'compartida': False}
+    vs, _ = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=solo)
+    (v,) = [v for v in vs if 'nivel' in v.escalones]
+    assert v.obras[0]['clase'] == 'tension' and 'celda_nivel' not in v.cantidades
+    vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**solo, 'compartida': True})
+    assert not [v for v in vs if 'nivel' in v.escalones] and any('042:RF-53' in a for a in avisos)
+
+
+def test_el_paso_de_tension_se_costea_aunque_el_libro_no_lo_traiga():
+    """042:RF-54 — por km, SED y celda; del cambio de sección si lo hay, o de referencia, y marcado por confirmar."""
+    v = next(v for v in eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=NIVEL)[0]
+             if 'nivel' in v.escalones)
+    costos = eo.costos_de_alternativas({}, P)
+    assert 'por confirmar' in costos['cambio_tension']['origen'] and costos['celda']['unidad'] == 'Und'
+    inversion = eo.costo(v, costos, P, perdidas_kw=0.0, factor_perdidas=None)['inversion']
+    assert inversion == pytest.approx(12 * eo.COSTOS_NIVEL_DE_REFERENCIA['cambio_tension']
+                                      + 40 * eo.COSTOS_NIVEL_DE_REFERENCIA['cambio_tension_sed']
+                                      + eo.COSTOS_NIVEL_DE_REFERENCIA['celda'])
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'escala_capex': 1000}})
+    con_libro = eo.costos_de_alternativas({'cambio_seccion': {'costo_unitario': 50.0, 'unidad': 'km'}}, p)
+    assert con_libro['cambio_tension']['costo_unitario'] == 50000.0 and 'por confirmar' in con_libro['cambio_tension']['origen']
+
+
+def _opcion(nombre, escalones, anual, fraccion=None, maxima=True):
+    return {'nombre': nombre, 'escalones': escalones, 'maxima': maxima, 'fraccion': fraccion, 'motivos': [],
+            'costo': {'costo_anual': anual, 'inversion': anual * 10}}
+
+
+def test_hasta_3_alternativas_de_menor_a_mayor_costo_anual():
+    """042:RF-55, 042:RF-56, 042:RF-58 — una por clase de obra; se elige la más barata aunque la sección vaya antes."""
+    d = eo.elegir([_opcion('sección', ('seccion',), 900.0, 1.0), _opcion('sección mayor', ('seccion',), 950.0),
+                   _opcion('22,9 kV', ('nivel',), 700.0, 1.0), _opcion('terna', ('terna',), 1200.0),
+                   _opcion('sección + terna', ('seccion', 'terna'), 1500.0), _opcion('no', ('terna',), 10.0, maxima=False)], P)
+    assert d['elegida'] == '22,9 kV'
+    assert [(a['numero'], a['nombre']) for a in d['alternativas']] == [(1, '22,9 kV'), (2, 'sección'), (3, 'terna')]
+    assert [a['elegida'] for a in d['alternativas']] == [True, False, False]
+
+
+def test_los_bancos_que_bastan_y_el_regulador_al_final_aunque_cuesten_otra_cosa():
+    """042:RF-56 — bancos solos antes (063:RF-22), regulador solo si no hay otra (042:RF-49); la tabla sigue por costo."""
+    d = eo.elegir([_opcion('sección', ('seccion',), 100.0, 1.0), _opcion('bancos', ('bancos',), 200.0, 1.0)], P)
+    assert d['elegida'] == 'bancos' and [a['nombre'] for a in d['alternativas']] == ['sección', 'bancos']
+    d = eo.elegir([_opcion('regulador', ('regulador',), 50.0, 1.0), _opcion('terna', ('terna',), 900.0, 1.0)], P)
+    assert d['elegida'] == 'terna'
+    assert eo.elegir([_opcion('regulador', ('regulador',), 50.0, 1.0)], P)['elegida'] == 'regulador'
+
+
+def test_una_alternativa_que_los_sorteos_desmienten_no_se_presenta():
+    """042:RF-57 — sin sortear sí se presenta y lo dice; con sorteos por debajo del criterio, no."""
+    d = eo.elegir([_opcion('a', ('seccion',), 100.0, 0.5), _opcion('b', ('terna',), 200.0, 1.0), _opcion('c', ('nivel',), 300.0)], P)
+    assert [a['nombre'] for a in d['alternativas']] == ['b', 'c'] and d['alternativas'][1]['fraccion'] is None
+
+
+COMPARTIDA = {'salida': '', 'nodo': 'N1', 'km': 3.0, 'seds': 5, 'compartida': True}
+
+
+def test_cabecera_compartida_sin_barra_de_destino_lleva_elevador_dedicado():
+    """042:RF-61 — 100 A a 10 kV con 100 % de límite son 1,73 MVA: el de 2 MVA, costeado por MVA y por confirmar."""
+    vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel=COMPARTIDA)
+    (v,) = [v for v in vs if 'nivel' in v.escalones]
+    obra = v.obras[0]
+    assert (obra['clase'], obra['nodo'], obra['elevador_mva'], obra['kv_destino']) == ('migracion', 'N1', 2.0, 22.9)
+    assert not obra.get('salida') and not any('RF-62' in a for a in avisos)
+    costos = eo.costos_de_alternativas({}, P)
+    assert costos['elevador']['unidad'] == 'MVA' and 'por confirmar' in costos['elevador']['origen']
+    inversion = eo.costo(v, costos, P, perdidas_kw=0.0, factor_perdidas=None)['inversion']
+    assert inversion == pytest.approx(3 * 40000 + 5 * 9000 + 2 * 50000)
+
+
+def test_el_elevador_que_no_conviene_dice_su_motivo_y_sigue_a_la_set_nueva():
+    """042:RF-62 — más de 20 MVA, o sin primer nodo: lo dice con su motivo; hay variantes de los demás escalones."""
+    grande = [{**t, 'corriente_a': 2000.0} for t in _tramos_de(5.0)]
+    vs, avisos = eo.variantes('F1', 10.0, grande, [], [], P, banco_kvar=None, nivel=COMPARTIDA)
+    assert not [v for v in vs if 'nivel' in v.escalones]
+    assert any('pasaría de 20 MVA' in a and 'RF-62' in a for a in avisos)
+    _vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**COMPARTIDA, 'nodo': ''})
+    assert any('primer nodo' in a for a in avisos)
+
+
+def test_el_elevador_lleva_el_margen_de_lo_que_no_cuenta_el_crecimiento():
+    """042:RF-70 — 100 A a 10 kV son 1,73 MVA, por 1,25 son 2,17: el de 3 MVA, no el de 2."""
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'factor_seguridad_set': 1.0,
+                                                   'factor_seguridad_set_sin_tasa': 1.25}})
+    assert eo.mva_del_elevador(10.0, 100.0, p) == 3.0
+    assert eo.mva_del_elevador(10.0, 100.0, P) == 2.0
+
+
+def test_una_alternativa_dice_si_cumple_en_valle():
+    """042:RF-69 — la que no cumple en valle no se presenta; la que no se comprobó, sí, y lo dice."""
+    d = eo.elegir([{**_opcion('a', ('seccion',), 100.0, 1.0), 'valle': False}, {**_opcion('b', ('terna',), 200.0, 1.0), 'valle': True},
+                   _opcion('c', ('nivel',), 300.0, 1.0)], P)
+    assert [(a['nombre'], a['valle']) for a in d['alternativas']] == [('b', True), ('c', None)]
+
+
+def _p_con_factor():
+    return eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'factor_seguridad_set': 1.0,
+                                                      'factor_seguridad_set_sin_tasa': 1.25}})
+
+
+def test_el_regulador_lleva_el_mismo_margen():
+    """042:RF-71 — justo en la corriente de una unidad, sin factor basta esa; con 1,25 hace falta una mayor."""
+    unidad = eo.unidad_para_corriente(22.9, 1.0)
+    camino = [{**t, 'corriente_a': float(unidad.corriente_a)} for t in _camino_que_cae()]
+
+    def nombres(p):
+        return {v.nombre.split(' en ')[0] for v in eo._reguladores_en_caminos('F', 22.9, [camino], p, [])}
+
+    assert nombres(P) == {f'regulador {unidad.corriente_a:g} A'}
+    assert nombres(_p_con_factor()) and nombres(_p_con_factor()) != nombres(P)
+
+
+@pytest.mark.parametrize('planificacion,factor', [({}, 1.0), ({'factor_seguridad_set': 1.1}, 1.1),
+                                                  ({'factor_seguridad_set_sin_tasa': 1.25}, 1.25),
+                                                  ({'factor_seguridad_set': 1.0, 'factor_seguridad_set_sin_tasa': 1.25}, 1.25)])
+def test_el_factor_con_y_sin_el_dato_en_el_perfil(planificacion, factor):
+    """042:RF-71 — una sola regla: sirve con un perfil parcial, y la SET da el mismo resultado sin contar la tasa."""
+    from convertersmartgrid.set_nueva import Parametros, margen_sin_tasa
+
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], **planificacion}})
+    assert p.factor_sin_tasa == factor
+    assert margen_sin_tasa(planificacion.get('factor_seguridad_set_sin_tasa'), planificacion.get('factor_seguridad_set')) == factor
+    if planificacion.get('factor_seguridad_set'):
+        set_nueva = Parametros(5, planificacion['factor_seguridad_set'], {}, 1, planificacion.get('factor_seguridad_set_sin_tasa'))
+        assert set_nueva.factor_para(0.0) == factor
+
+
+def test_la_alternativa_dice_el_factor_si_lleva_regulador_o_elevador():
+    """042:RF-72 — con regulador o elevador, su factor; con las demás, ninguno."""
+    p = _p_con_factor()
+    d = eo.elegir([_opcion('terna', ('terna',), 100.0, 1.0), _opcion('regulador', ('regulador',), 200.0, 1.0),
+                   _opcion('paso con elevador dedicado', ('nivel',), 300.0, 1.0)], p)
+    assert {a['nombre']: a['factor'] for a in d['alternativas']} == {'terna': None, 'regulador': 1.25, 'paso con elevador dedicado': 1.25}
+
+
+def test_el_horizonte_con_la_tasa_del_alimentador_o_con_el_factor():
+    """042:RF-73 — con tasa, 20, 10 y 5 años a interés compuesto; sin ella, un solo flujo con el factor."""
+    p = _p_con_factor()
+    h = eo.plan_de_horizonte('F1', 0.03, p)
+    assert h['anios'] == [30, 15, 7] and h['factores']['30']['F1'] == pytest.approx(1.03 ** 30)
+    sin = eo.plan_de_horizonte('F1', None, p)
+    assert sin['anios'] == [30] and sin['factores']['30'] == {'F1': 1.25}
+    assert eo.plan_de_horizonte('F1', -0.01, p)['anios'] == [30]
+
+
+@pytest.mark.parametrize('medida,bien', [
+    ({'converge': False}, False),
+    ({'converge': True, 'u': {'A': 0.96}, 'carga': {'L': 50.0}}, True),
+    ({'converge': True, 'u': {'A': 0.94}, 'carga': {}}, False),
+    ({'converge': True, 'u': {'A': 1.06}, 'carga': {}}, False),
+    ({'converge': True, 'u': {'A': 0.96}, 'carga': {'L': 120.0}}, False),
+    ({'converge': True, 'u': {'SIN_TENSION': 0.0}, 'carga': {}}, True)])
+def test_definitiva_es_en_absoluto(medida, bien):
+    """042:RF-74 — todas las barras en límites y ningún tramo sobre el límite; una barra sin tensión no cuenta."""
+    assert eo.definitiva(medida, P)[0] is bien
+
+
+def test_el_alcance_no_cambia_ni_el_orden_ni_la_eleccion():
+    """042:RF-75 — la temporal más barata sigue primera y es la elegida; cada una dice su alcance."""
+    d = eo.elegir([{**_opcion('barata', ('seccion',), 100.0, 1.0), 'horizonte': {'definitiva': False, 'aguanta_anios': 5, 'motivos': ['x']}},
+                   {**_opcion('cara', ('terna',), 900.0, 1.0), 'horizonte': {'definitiva': True, 'aguanta_anios': 20, 'motivos': []}},
+                   _opcion('otra', ('nivel',), 950.0, 1.0)], P)
+    assert d['elegida'] == 'barata'
+    assert [(a['nombre'], a['definitiva'], a['aguanta_anios']) for a in d['alternativas']] == [
+        ('barata', False, 5), ('cara', True, 20), ('otra', None, None)]
+
+
+@pytest.mark.parametrize('sin,con,bien', [(1.049, 1.0503, True), (1.049, 1.0539, True), (1.049, 1.0545, False), (1.049, 1.057, False)])
+def test_en_valle_subir_por_milesimas_no_es_culpa_de_la_obra(sin, con, bien):
+    """042:RF-85 — con 0,005 p.u. de tolerancia, sobre el máximo; más que eso, sí."""
+    medida = {'converge': True, 'u': {'B': con}, 'carga': {}}
+    assert eo.cumple_en_valle({'u': {'B': sin}, 'carga': {}}, medida, [], P)[0] is bien
+    assert eo.cumple({'u': {'B': sin}, 'carga': {}}, medida, [], P)[0] is False      # con la máxima sigue estricto
+
+
+def test_en_valle_la_carga_nueva_sigue_estricta_y_por_abajo_tambien():
+    """042:RF-85 — no vale para la barra de una carga nueva ni para bajar del mínimo."""
+    assert eo.cumple_en_valle({'u': {'B': 1.049}, 'carga': {}}, {'converge': True, 'u': {'B': 1.051}, 'carga': {}}, ['B'], P)[0] is False
+    assert eo.cumple_en_valle({'u': {'B': 0.951}, 'carga': {}}, {'converge': True, 'u': {'B': 0.948}, 'carga': {}}, [], P)[0] is False
+
+
+def test_el_horizonte_usa_la_tasa_de_largo_plazo_del_perfil():
+    """042:RF-86 — la del perfil; sin ella, la de referencia. No la medida, que en un alimentador salía 16,5 %."""
+    p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], 'crecimiento_demanda_anual': 0.0346}})
+    assert p.tasa_largo_plazo == 0.0346 and P.tasa_largo_plazo == 0.03
+    assert eo.plan_de_horizonte('F1', p.tasa_largo_plazo, p)['factores']['30']['F1'] == pytest.approx(1.0346 ** 30)
+
+
+@pytest.mark.parametrize('fraccion,medidos,seguir', [(1.0, 50, False), (0.98, 50, False), (0.96, 50, True), (0.90, 50, True),
+                                                     (0.88, 50, False), (0.96, 200, False)])
+def test_los_sorteos_siguen_solo_si_la_etapa_queda_cerca_del_criterio(fraccion, medidos, seguir):
+    """042:RF-87 — lejos del 95 %, los demás no cambiarían la decisión; con todos medidos no hay más."""
+    assert eo.hace_falta_seguir(fraccion, medidos, 200, P) is seguir
+
+
+def test_la_definitiva_se_presenta_aunque_no_sea_de_las_tres_mas_baratas():
+    """042:RF-91, 042:RF-93 — a la vida útil del perfil; sustituye a la tercera, y la elegida no se toca."""
+    assert P.horizonte_anios == 30
+    defi = {'definitiva': True, 'aguanta_anios': 30, 'motivos': []}
+    d = eo.elegir([_opcion('a', ('seccion',), 100.0, 1.0), _opcion('b', ('terna',), 200.0), _opcion('c', ('nivel',), 300.0),
+                   {**_opcion('d', ('seccion', 'terna'), 900.0), 'horizonte': defi}], P)
+    assert [a['nombre'] for a in d['alternativas']] == ['a', 'b', 'd'] and d['elegida'] == 'a'
