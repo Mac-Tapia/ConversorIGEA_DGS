@@ -98,9 +98,11 @@ sys.meta_path.insert(0, SinFastapi())
 from convertersmartgrid.web.runtime import missing_dependencies
 print(json.dumps(missing_dependencies()))
 '''
+    # Importa de verdad cada dependencia: 3 s solo, 18 s tras las pruebas web y más de 60 s con la memoria justa (2026-11-05). Esta
+    # prueba mira que arranque sin FastAPI, no cuánto tarda: el límite solo debe cortar un cuelgue.
     resultado = subprocess.run([sys.executable, '-c', codigo], cwd=tmp_path,
         env={**os.environ, 'PYTHONPATH': str(fuente), 'PYTHONDONTWRITEBYTECODE': '1'},
-        capture_output=True, text=True, timeout=60)
+        capture_output=True, text=True, timeout=300)
     assert resultado.returncode == 0, resultado.stderr
     assert 'fastapi' in json.loads(resultado.stdout)
 
