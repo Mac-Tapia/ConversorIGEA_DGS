@@ -34,7 +34,7 @@ retirada.
 | [025](025-calibracion-por-anio/spec.md) | Calibración por año de medición | aprobada | 85 | 85 | T21 (DIgSILENT), T22 |
 | [026](026-asistente-ordenes/spec.md) | Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | 32 | 32 | T12 (DIgSILENT) |
 | [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 69 | 61 | T11, T22 (DIgSILENT), T14 (DIgSILENT), T26, T29 (DIgSILENT), T30 (DIgSILENT), T31 (DIgSILENT) |
-| [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | implementada | 39 | 39 | T6 (DIgSILENT), T11 (DIgSILENT), T15 (DIgSILENT) |
+| [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | implementada | 42 | 42 | T6 (DIgSILENT), T11 (DIgSILENT), T15 (DIgSILENT) |
 | [029](029-crecimiento-por-alimentador/spec.md) | Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida | 7 | 7 | — |
 | [030](030-pide-por-anios-en-digsilent/spec.md) | Los años del PIDE en casos y escenarios de DIgSILENT | cumplida | 15 | 15 | — |
 | [031](031-proyeccion-econometrica-de-la-demanda/spec.md) | Proyección econométrica de la demanda con variables exógenas | reservada | 0 | 0 | — |
@@ -45,7 +45,7 @@ retirada.
 | [036](036-auditoria-raiz-y-arranque-fiable/spec.md) | Auditoría de raíz y correcciones del arranque | cumplida | 3 | 3 | — |
 | [037](037-cargas-nuevas-en-estudios-web/spec.md) | Caso «Cargas nuevas» en los estudios de la web | implementada | 8 | 8 | T4 (DIgSILENT) |
 | [038](038-pertenencia-de-sed-y-notas-en-web/spec.md) | Pertenencia de las SED en la fuente y notas de actualización | cumplida | 8 | 8 | — |
-| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | implementada | 6 | 6 | T4 (DIgSILENT) |
+| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | implementada | 8 | 8 | T4 (DIgSILENT) |
 | [040](040-cargas-del-bloque-sin-duplicados-y-ampliaciones/spec.md) | Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida | 12 | 12 | — |
 | [041](041-reparto-probabilistico-de-las-escaladas/spec.md) | Reparto probabilístico de las SED escaladas | cumplida | 9 | 9 | — |
 | [042](042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md) | «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | 93 | 93 | T29 (DIgSILENT), T42 (DIgSILENT), T50 (DIgSILENT), T48 (DIgSILENT), T44 (DIgSILENT), T37 (DIgSILENT), T6 (DIgSILENT) |
@@ -97,3 +97,5 @@ retirada.
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 12 | 12 | — |
 | [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 88 | 88 | T5, T7 |
 | [090](090-arquitectura-generada/spec.md) | La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida | 16 | 16 | — |
+| [091](091-flujo-calibracion-a-estudio/spec.md) | Flujo de la calibración al estudio | reservada | 0 | 0 | — |
+| [092](092-caso-base-de-una-red-reconstruida/spec.md) | El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | 4 | 4 | T2 (DIgSILENT) |

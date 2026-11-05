@@ -710,25 +710,29 @@ def check_powerfactory_source_run(
             )
         reconstruction_verification = None
         reconstruction = metadata.get('reconstruction')
-        if reconstruction is not None and ws.loaded_run_id is None:
-            # El informe de la reconstrucción se valida con lo cargado (018:RF-12).
+        if reconstruction is not None and exigir_red_cargada and ws.loaded_run_id is None:
+            # 092:RF-4: importar un DGS de reconstrucción sigue pidiendo la red cargada.
             raise UserError(
                 f'SOURCE_RUN_MISMATCH: {feeder} sale de una reconstrucción y la red no está '
                 'cargada en esta sesión de la web. Pulse «Cargar / listar alimentadores».'
             )
         if reconstruction is not None:
+            # 092:RF-1: al leer un proyecto importado, el informe y el sidecar en disco bastan. Pisco (2026-11-05):
+            # cargar la red creaba otra ejecución, adoptar la del vínculo la invalidaba (018:RF-15) y la verificación
+            # pedía otra vez «Cargar / listar alimentadores», en un círculo que no se podía cumplir.
+            propia = ws.reconstruction_run_id is not None or ws.reconstruction_report_hash is not None
             report_path = ws.out_dir / str(reconstruction.get('report') or '')
             try:
                 reconstruction_verification = verify_reconstruction_contract(
                     metadata,
                     report_path,
-                    expected_hash=ws.reconstruction_report_hash,
+                    expected_hash=ws.reconstruction_report_hash if (exigir_red_cargada or propia) else None,
                 )
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 raise UserError(
                     f'POWERFACTORY_RECONSTRUCTION_MISMATCH: {feeder}: {exc}'
-                ) from exc
-            if (
+                ) from exc                                                        # 092:RF-2
+            if (exigir_red_cargada or propia) and (                                  # 092:RF-3
                 ws.reconstruction_run_id != snapshot.run_id
                 or ws.reconstruction_report_hash
                 != reconstruction_verification['report_sha256']

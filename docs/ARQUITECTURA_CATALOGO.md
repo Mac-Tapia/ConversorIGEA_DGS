@@ -15,20 +15,20 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de la interfaz | `frontend/test/` | 8 |
 | Pruebas | `tests/` | 366 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 268 |
+| Specs | `specs/` | 274 |
 
-`web/services.py` tiene 10784 líneas y 325 funciones, pendiente de partir (002).
+`web/services.py` tiene 10788 líneas y 325 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 40 |
-| implementada | 26 |
+| implementada | 27 |
 | aprobada | 22 |
-| reservada | 2 |
+| reservada | 3 |
 
-90 specs con 3054 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+92 specs con 3058 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -517,7 +517,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `__main__.py` | Pre | 001 | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`. |
 | `app.py` | Pre | 001, 004, 008, 011, 104, 017, 103, 021, 022, 025, 035, 039, 042, 061 | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura |
 | `api_contract.py` | Pre | 065, 002 | Modelos públicos Pydantic y contratos OpenAPI del frontend. |
-| `services.py` | Pre | 001, 004, 008, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061 | Las acciones de la interfaz, sin interfaz. |
+| `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061 | Las acciones de la interfaz, sin interfaz. |
 | `requisitos.py` | Pre | 002 | Lo que un servicio exige antes de trabajar y el error del operador. |
 | `jobs.py` | Pre | 001, 011, 061, 086 | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). |
 | `operaciones_lentas.py` | Pre | 065 | ZIP cancelable, cuotas y entrega de archivos por trabajo. |

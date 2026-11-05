@@ -634,6 +634,48 @@ def test_018_rf12_verificar_compara_con_el_manifiesto_sin_la_red_en_memoria(tmp_
         services.check_powerfactory_source_run(ws, ['IN111'])
 
 
+def test_092_reconstruccion_verificada_con_el_disco_sin_la_red_en_memoria(tmp_path, monkeypatch):
+    """092:RF-1 / 092:RF-2 / 092:RF-3 / 092:RF-4 — Pisco (2026-11-05): cargar la red creaba otra ejecución y adoptar la
+    del vínculo la invalidaba, y el «Caso base» de la red reconstruida pedía otra vez cargarla. Al leer un proyecto
+    importado basta su informe en disco; con el informe cambiado no se verifica; con una reconstrucción propia en la
+    sesión se exige que sea la suya; importar sigue pidiendo la red cargada."""
+    import json
+
+    from convertersmartgrid.powerfactory_metadata import reconstruction_report_sha256
+    from convertersmartgrid.web import services
+
+    raiz = tmp_path / 'web'
+    _espacio_origen_en_disco(raiz)
+    ws = _espacio_sin_fuente(raiz, None)
+    ws.root = raiz / 'origen'
+    ws.active_run_id = _RID
+    informe = {'source_run_id': _RID, 'counts': {'catalog_match': 0, 'engineering_assumption': 2},
+               'decisions': [{'d': 1}, {'d': 2}]}
+    informe['report_sha256'] = reconstruction_report_sha256(informe)
+    (ws.out_dir / 'reconstruction_report.json').write_text(json.dumps(informe), encoding='utf-8')
+    (ws.out_dir / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
+    sidecar = {'source_run_id': _RID, 'source_mode': 'txt', 'source_fingerprint': 'f' * 64, 'dgs_sha256': 'd' * 64,
+               'reconstruction': {'report': 'reconstruction_report.json', 'report_sha256': informe['report_sha256'],
+                                  'repairs': 2, 'catalog_matches': 0, 'assumptions': 2}}
+    monkeypatch.setattr('convertersmartgrid.feeder_metadata.read_feeder_metadata',
+                        lambda path, expected_dgs: sidecar)
+    assert ws.loaded_run_id is None and ws.reconstruction_run_id is None
+    evidencia = services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
+    assert evidencia['targets'][0]['reconstruction']['status'] == 'VERIFIED_BEFORE_MUTATION'
+    # RF-4: importar sigue pidiendo la red cargada.
+    with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
+        services.check_powerfactory_source_run(ws, ['IN111'])
+    # RF-3: una reconstrucción propia de la sesión que no es la del DGS no vale.
+    ws.reconstruction_run_id, ws.reconstruction_report_hash = 'otra', 'e' * 64
+    with pytest.raises(services.UserError, match='POWERFACTORY_RECONSTRUCTION_MISMATCH'):
+        services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
+    # RF-2: el informe cambiado en disco no se verifica.
+    ws.reconstruction_run_id = ws.reconstruction_report_hash = None
+    (ws.out_dir / 'reconstruction_report.json').write_text(json.dumps({**informe, 'decisions': []}), encoding='utf-8')
+    with pytest.raises(services.UserError, match='POWERFACTORY_RECONSTRUCTION_MISMATCH'):
+        services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
+
+
 def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
     """022:RF-52 — el rótulo de la red externa de una barra de SET junta a sus alimentadores
     («PI101 + PI102»); cada uno vale para el vínculo (sistema Pisco, 2026-10-18: PI101 y
