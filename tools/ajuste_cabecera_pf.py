@@ -1799,9 +1799,31 @@ def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
                     out['tramos_reasignados'] += 1
     finally:
         aviso = _devolver_grabacion(app, ajena)
+        if ajena is None:
+            _grabar_en_la_ultima_del_conversor(app)
     if aviso:
         out['aviso_grabacion'] = aviso
     return out
+
+
+def _grabar_en_la_ultima_del_conversor(app) -> None:
+    """083:RF-29: la grabación, en la última etapa del conversor, para que se apliquen todas.
+
+    Con una etapa grabando, DIgSILENT trabaja a su fecha y no aplica las posteriores. CA101 + CHN102 (2026-11-05,
+    medido con una sonda): con «Etapa_fichas» grabando, TR_SE20701 era de 50 kVA; con «Etapa_sed_ntp», de 2 × 630. La
+    recalibración dejaba grabando las fichas, medía sin los transformadores nuevos y las fijas caían a 0,52 p.u.
+    """
+    from cargas_pf import _misma
+
+    etapas = [s for v in (app.GetActiveNetworkVariations() or [])
+              if v.loc_name.startswith((PREFIJO_FICHAS, PREFIJO_SED_NTP))
+              for s in v.GetContents('*.IntSstage') or []]
+    graba = app.GetRecordingStage()
+    if not etapas or graba is None:
+        return
+    ultima = max(etapas, key=lambda s: int(getattr(s, 'tAcTime', 0) or 0))
+    if not _misma(graba, ultima) and int(getattr(graba, 'tAcTime', 0) or 0) < int(getattr(ultima, 'tAcTime', 0) or 0):
+        ultima.Activate(1)
 
 
 def _catalogo_en_con(app, sin, con, informes: list[dict]) -> None:

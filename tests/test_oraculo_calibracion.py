@@ -457,3 +457,31 @@ def test_las_fijas_que_pasan_de_la_medida_se_corrigen_hasta_el_tope():
     assert cambios[0]['sed'] == 'SA' and cambios[0]['antes_kw'] == 820.0 and cambios[0]['despues_kw'] < 800.0
     assert r.repartos['F'].a > 0
 
+
+
+def test_la_grabacion_vuelve_a_la_ultima_etapa_del_conversor():
+    """083:RF-29 — con las fichas grabando no se aplicaba la etapa posterior de los transformadores (CA101 + CHN102)."""
+    from types import SimpleNamespace
+
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_oraculo_guion_etapas', tools_en_path=True)
+    estado = {}
+
+    def etapa(t):
+        s = SimpleNamespace(tAcTime=t, loc_name=f'E{t}')
+        s.Activate = lambda _graba=1: estado.update(graba=s)
+        return s
+
+    fichas, sed, ajena = etapa(10), etapa(11), etapa(99)
+    variacion = lambda nombre, *ss: SimpleNamespace(loc_name=nombre, GetContents=lambda _p: list(ss))
+    activas = [variacion('Fichas_P', fichas), variacion('SED_NTP_P', sed), variacion('Obra_del_operador', ajena)]
+    app = SimpleNamespace(GetActiveNetworkVariations=lambda: activas, GetRecordingStage=lambda: estado.get('graba'))
+    estado['graba'] = fichas
+    guion._grabar_en_la_ultima_del_conversor(app)
+    assert estado['graba'] is sed, 'la de los transformadores, no la de una obra del operador'
+    guion._grabar_en_la_ultima_del_conversor(app)
+    assert estado['graba'] is sed
+    estado['graba'] = None
+    guion._grabar_en_la_ultima_del_conversor(app)
+    assert estado['graba'] is None, 'sin nada grabando no se pone a grabar'

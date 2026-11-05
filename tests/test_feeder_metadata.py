@@ -98,3 +98,11 @@ def test_assignment_rejects_class_outside_target_scope(class_name):
     )
     with pytest.raises(ValueError, match='clase'):
         validate_assignments([row])
+
+def test_barra_con_sigla_alternativa_lleva_el_nombre_del_dgs(monkeypatch):
+    """022:RF-90 — la barra de CN102 se llama CHN102 en el DGS, y los metadatos deben buscarla así."""
+    from convertersmartgrid import feeder_metadata, naming
+
+    monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {'CN': 'CHN'})
+    assert feeder_metadata._loc_name('NODE_2030_1192595_CN102') == 'NODE_2030_1192595_CHN102'
+    assert feeder_metadata._loc_name('NODE_2030_131_CA101') == 'NODE_2030_131_CA101'

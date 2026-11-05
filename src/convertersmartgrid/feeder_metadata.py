@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from .naming import nombre_canonico
 from .util import sha256_file, write_json_atomic
 from .util import esquema_vigente
 
@@ -29,7 +30,10 @@ class FeederAssignment:
 
 
 def _loc_name(value: str) -> str:
-    return str(value or '').replace(';', ',').replace('\r', ' ').replace('\n', ' ').strip()[:40]
+    # 022:RF-90: el mismo nombre que escribe el DGS. CA101 + CHN102 (2026-11-05): el DGS tenía la barra
+    # NODE_2030_1192595_CHN102, aquí se buscaba la del TXT, ..._CN102, y no se asignaba ningún alimentador.
+    texto = str(value or '').replace(';', ',').replace('\r', ' ').replace('\n', ' ').strip()
+    return nombre_canonico(texto)[:40]
 
 
 def validate_assignments(records: Iterable[FeederAssignment]) -> None:
