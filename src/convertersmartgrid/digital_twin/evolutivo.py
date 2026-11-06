@@ -180,11 +180,13 @@ def _hacinamiento(obj: np.ndarray, frente: list[int]) -> np.ndarray:
 def nsga2(objetivos: Callable[[np.ndarray], tuple[Sequence[float], float]], inferior: Sequence[float],
           superior: Sequence[float], *, enteros: bool = True, poblacion: int = 40, generaciones: int = 60,
           prob_cruce: float = 0.9, eta_cruce: float = 15.0, eta_mutacion: float = 20.0, semilla: int = 0,
-          iniciales: Sequence[Sequence[float]] = ()) -> FrentePareto:
+          iniciales: Sequence[Sequence[float]] = (), paciencia: int | None = None) -> FrentePareto:
     """Frente de Pareto de ``objetivos`` (todos a minimizar).
 
     ``objetivos(genoma)`` devuelve ``(valores, violacion)``: la violación es 0 si cumple las
     restricciones. Cruce SBX y mutación polinómica; con ``enteros``, redondeo al entero.
+    Con ``paciencia``, para tras esas generaciones sin ningún genoma nuevo: en un dominio
+    pequeño ya visto entero, seguir solo repite la ordenación por frentes (048, T2).
     """
     rng = np.random.default_rng(semilla)
     inf, sup = np.asarray(inferior, dtype=float), np.asarray(superior, dtype=float)
@@ -226,8 +228,9 @@ def nsga2(objetivos: Callable[[np.ndarray], tuple[Sequence[float], float]], infe
     pob = [ajustar(np.asarray(g, dtype=float)) for g in iniciales][:poblacion]
     while len(pob) < poblacion:
         pob.append(ajustar(inf + rng.random(n) * (sup - inf)))
-    gen = 0
+    gen, sin_nuevos = 0, 0
     for gen in range(1, generaciones + 1):
+        vistos_antes = len(memoria)
         ev = [evaluar(g) for g in pob]
         obj = np.array([e[0] for e in ev])
         vio = np.array([e[1] for e in ev])
@@ -259,6 +262,9 @@ def nsga2(objetivos: Callable[[np.ndarray], tuple[Sequence[float], float]], infe
             nueva.extend(fr[i] for i in np.argsort(-d, kind='stable')[:poblacion - len(nueva)])
             break
         pob = [union[i] for i in nueva]
+        sin_nuevos = sin_nuevos + 1 if len(memoria) == vistos_antes else 0
+        if paciencia is not None and sin_nuevos >= paciencia:
+            break
     ev = [evaluar(g) for g in pob]
     obj = np.array([e[0] for e in ev])
     vio = np.array([e[1] for e in ev])

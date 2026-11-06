@@ -227,6 +227,8 @@
     "adaptador_pyg.py",
     "evolutivo.py",
     "problema_optimizacion.py",
+    "adaptador_pymoo.py",
+    "benchmark_optimizacion.py",
     "temporal.py",
     "temporal_entrenamiento.py",
     "series_causales.py",

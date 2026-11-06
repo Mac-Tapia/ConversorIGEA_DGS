@@ -42,7 +42,8 @@ CRITERIO_REPARACION = ('discretas al entero más cercano (medio entero hacia arr
                        'categóricas por índice del catálogo; continuas recortadas a sus cotas')
 
 
-def _huella(valor: Any) -> str:
+def huella(valor: Any) -> str:
+    """SHA-256 del JSON canónico de ``valor`` (claves ordenadas, sin NaN)."""
     texto = json.dumps(valor, sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
     return hashlib.sha256(texto.encode('utf-8')).hexdigest()
 
@@ -190,7 +191,7 @@ class ContextoSintetico:
 def _clave_de_contexto(contexto: ContextoExperimento | ContextoSintetico) -> str:
     if isinstance(contexto, ContextoExperimento):
         return clave_contexto(contexto)
-    return _huella({'sintetico': {'dominio': contexto.dominio, 'descripcion': contexto.descripcion}})
+    return huella({'sintetico': {'dominio': contexto.dominio, 'descripcion': contexto.descripcion}})
 
 
 @dataclass(frozen=True)
@@ -260,7 +261,7 @@ class ProblemaOptimizacion:
 
 
 def huella_problema(problema: ProblemaOptimizacion) -> str:
-    return _huella(problema.declaracion())
+    return huella(problema.declaracion())
 
 
 # ------------------------------------------------------------------ dominio del vector
@@ -405,7 +406,7 @@ def clave_evaluacion(problema: ProblemaOptimizacion, vector: Mapping[str, Any], 
     if not isinstance(politica_hash, str) or not re.fullmatch(r'[0-9a-f]{64}', politica_hash):
         raise ValueError('politica_hash debe ser la huella SHA-256 de la política de evaluación')
     canonico = validar_vector(problema, vector)
-    return _huella({'contexto': _clave_de_contexto(problema.contexto), 'modelo_id': problema.modelo_id,
+    return huella({'contexto': _clave_de_contexto(problema.contexto), 'modelo_id': problema.modelo_id,
                     'politica': politica_hash, 'problema': huella_problema(problema),
                     # repr conserva la cifra exacta del real: 1.0 y 1.0+1e-12 no comparten evaluación.
                     'vector': {k: (repr(x) if isinstance(x, float) else x) for k, x in sorted(canonico.items())}})
@@ -421,6 +422,10 @@ class CacheEvaluaciones:
 
     def __len__(self) -> int:
         return len(self._guardadas)
+
+    def consultar(self, problema: ProblemaOptimizacion, vector: Mapping[str, Any], politica_hash: str) -> dict | None:
+        """Lo guardado con esa clave, sin evaluar ni contarlo; ``None`` si no se evaluó."""
+        return self._guardadas.get(clave_evaluacion(problema, vector, politica_hash))
 
     def evaluar(self, problema: ProblemaOptimizacion, vector: Mapping[str, Any], politica_hash: str) -> dict:
         clave = clave_evaluacion(problema, vector, politica_hash)
