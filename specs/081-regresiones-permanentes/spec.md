@@ -162,6 +162,10 @@ leída antes de importarlo.
 - RF-76: MIENTRAS DIgSILENT no haya entregado el usuario tras conectar, EL SISTEMA mantendrá la vigilancia de la conexión, de
   modo que un guion parado en esa llamada se termine en el mismo plazo que uno parado al conectar. En la misma prueba, la
   importación de PRUEBA_005 conectó y quedó 30 min en `GetCurrentUser` sin gastar CPU, ya fuera de la vigilancia de 019:RF-23.
+- RF-77: CUANDO «Sin proyecto» cambia las unidades en paralelo de un transformador respecto del «Caso base» y «Con proyecto» no,
+  EL SISTEMA las escribirá en el escenario de «Con proyecto», como los demás datos de operación de 014:RF-32. En PRUEBA_007
+  (2026-11-05), la calibración dejó SE20497 con 4 × 630 kVA en «Sin proyecto» y «Con proyecto» seguía con 1 × 630 kVA para
+  1 429 kW: no convergía ni sin cargas nuevas.
 
 ## Fuera de alcance
 

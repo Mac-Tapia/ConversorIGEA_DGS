@@ -307,7 +307,9 @@ OPERACION = {
     'ElmShnt': ('outserv', 'ncapa'),
     'ElmCoup': ('outserv', 'on_off'),
     'StaSwitch': ('on_off',),
-    'ElmTr2': ('outserv', 'nntap'),
+    # 081:RF-77: las unidades en paralelo son del escenario. PRUEBA_007 (2026-11-05): SE20497 con
+    # 4 × 630 kVA en «Sin proyecto» y 1 × 630 kVA en «Con proyecto», que no convergía ni sin cargas.
+    'ElmTr2': ('outserv', 'nntap', 'ntnum'),
     'ElmLne': ('outserv',),
     # La consigna de la fuente también: SM218 (2026-11-01), la recalibración dejó «Sin proyecto» a
     # 1,02 p.u. y «Con proyecto» seguía a 1,00; la escalera medía las obras dos puntos más abajo.

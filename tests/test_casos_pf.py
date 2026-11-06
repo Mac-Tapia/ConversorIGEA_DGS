@@ -605,6 +605,24 @@ def test_la_consigna_de_la_fuente_pasa_a_con_proyecto(monkeypatch):
     assert out['copiados'] == [{'objeto': 'External Grid SM218', 'dato': 'usetp', 'antes': 1.0, 'ahora': 1.02}]
 
 
+
+def test_081_rf77_las_unidades_en_paralelo_pasan_a_con_proyecto(monkeypatch):
+    """081:RF-77 — PRUEBA_007 (2026-11-05): la calibración dejó SE20497 con 4 × 630 kVA en «Sin
+    proyecto» (``ntnum`` es del escenario) y «Con proyecto» seguía con 1 × 630 kVA para 1 429 kW:
+    no convergía ni sin cargas nuevas, y cada carga «sola» salía sin converger."""
+    assert 'ntnum' in casos_pf.OPERACION['ElmTr2']
+    app = _App()
+    tr = _Obj('TR_SE20497')
+    R = 'P/Red/'
+    fotos = {'base': {R + 'TR': (tr, {'ntnum': 1})}, 'sin': {R + 'TR': (tr, {'ntnum': 4})},
+             'con': {R + 'TR': (tr, {'ntnum': 1})}}
+    monkeypatch.setattr(casos_pf, '_foto_operacion', lambda a: fotos[a.activo.rol])
+    monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: [])
+    out = casos_pf.sin_a_con_proyecto(app, app.casos)
+    assert tr.escrito == {'ntnum': 4}
+    assert out['copiados'] == [{'objeto': 'TR_SE20497', 'dato': 'ntnum', 'antes': 1, 'ahora': 4}]
+
+
 # --------------------------------------------------------------- 037:RF-8
 def _faltan_una_vez(monkeypatch, faltan):
     """La sincronía de 014:RF-34 dice que faltan objetos la primera vez y nada después."""

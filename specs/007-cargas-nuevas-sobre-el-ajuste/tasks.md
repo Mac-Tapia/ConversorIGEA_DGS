@@ -45,3 +45,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T12. Retro (033, 2026-10-29): RF-38 a RF-40, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-38 a RF-40)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_cargas_pf_guion_007.py`, `tests/test_caso_base_web.py` y `tests/test_casos_por_anio.py`).
+- [x] T13. Pérdidas por alimentador con `m:Psum:bus1` de cada carga, lo escrito solo sin resultado. (RF-41)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_guion_007.py -k rf41` en verde.

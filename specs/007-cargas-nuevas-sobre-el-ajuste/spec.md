@@ -184,6 +184,9 @@ Cambio del 2026-10-13: deshacer una aplicación
   tomará como base el último ajuste aplicado guardado en disco, con los informes por
   alimentador de esa aplicación. (CA101, 2026-10-15: la calibración seguía en «Sin
   proyecto» y la web pedía volver a calibrar para estudiar.)
+- RF-41: EL SISTEMA calculará las pérdidas de cada alimentador con lo que consumen sus cargas en el flujo y no con la potencia
+  escrita. En PRUEBA_007 (2026-11-05), TM105 daba −4 573 kW en «Sin proyecto»: sus escaladas consumen la escrita por su
+  factor de escala.
 
 ## Casos límite
 

@@ -53,5 +53,7 @@
 - [x] T26. El vigía de la conexión cubre también `GetCurrentUser`. (RF-76)
       Hecho cuando: `pytest -q tests/test_pf_arnes.py -k rf76` en verde.
       Hecho el 2026-11-05: `conectar` pide el usuario antes de anotar «fin».
+- [x] T27. `ntnum` entre los datos de operación que pasan de «Sin proyecto» a «Con proyecto». (RF-77)
+      Hecho cuando: `pytest -q tests/test_casos_pf.py -k rf77` en verde.
 - [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.

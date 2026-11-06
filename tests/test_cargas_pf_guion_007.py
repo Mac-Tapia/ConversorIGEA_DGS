@@ -562,3 +562,17 @@ def test_la_carga_en_el_mismo_punto_con_otro_nombre_se_reutiliza(guion):
     assert reuso['sed'] == 'OTRO' and reuso['variacion'] == var
     assert 'como N1' in reuso['motivo'] and '014:RF-30' in reuso['motivo']
     assert [c['sed'] for f in segundo['feeders'] for c in f['crearian']] == ['N3']
+
+
+def test_007_rf41_las_perdidas_restan_lo_que_consumen_las_cargas(guion):
+    """007:RF-41 — PRUEBA_007 (2026-11-05): TM105 daba −4 573 kW de pérdidas en «Sin proyecto»
+    porque restaba la ``plini`` escrita de las escaladas, que consumen ``plini × scale0``."""
+    app = _app()
+    for o in app.proyecto.GetContents('*.ElmLod', 1):
+        o.SetAttribute('scale0', 0.5)
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B1')]), simular=False)
+    assert rc == 0, informe
+    sin = informe['sin_proyecto']['feeders']['F1']
+    escrito = sum(o.plini for o in app.proyecto.GetContents('*.ElmLod', 1)
+                  if o.loc_name != 'N1' and 'F1' in o.loc_name) * 1000.0
+    assert 0 <= sin['perdidas_kw'] < sin['cabecera']['kw'] < escrito

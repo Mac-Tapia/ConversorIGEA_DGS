@@ -161,7 +161,8 @@ class Obj:
         return getattr(self, 'm_' + name[2:] if name.startswith('m:') else name)
 
     def HasResults(self):
-        return hasattr(self, 'm_u')
+        # Una carga tras el flujo también tiene resultados, aunque no tenga tensión (007:RF-41).
+        return hasattr(self, 'm_u') or hasattr(self, 'm_Psum:bus1')
 
     def HasAttribute(self, name):
         return hasattr(self, name)

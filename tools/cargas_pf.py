@@ -455,6 +455,18 @@ def potencia(obj) -> tuple[float, float]:
     return float(p or 0.0) * 1000.0, float(q or 0.0) * 1000.0
 
 
+def consumo_kw(obj) -> float:
+    """kW que consume la carga en el último flujo (``m:Psum:bus1``); sin resultado, lo escrito (007:RF-41)."""
+    try:
+        if obj.HasResults():
+            p = obj.GetAttribute('m:Psum:bus1')
+            if p is not None:
+                return float(p) * 1000.0
+    except Exception:  # noqa: BLE001, S110 - sin resultados: lo escrito
+        pass
+    return potencia(obj)[0]
+
+
 def medir_cabecera(app, elm):
     """Ejecuta el flujo y devuelve lo que entra por la cabecera del alimentador.
 
@@ -2219,7 +2231,9 @@ def medir_estado(app, alims: Alimentadores, feeders: list[str]) -> dict:
         else:
             medida = leer_cabecera(elm)
             if medida.converge:
-                kw_cargas = sum(potencia(o)[0] for o in elm.GetObjs('ElmLod')
+                # 007:RF-41: lo que consume cada carga en el flujo, no su plini escrita. PRUEBA_007
+                # (2026-11-05): TM105 daba −4 573 kW; sus escaladas consumen plini × scale0.
+                kw_cargas = sum(consumo_kw(o) for o in elm.GetObjs('ElmLod')
                                 if not getattr(o, 'outserv', 0))
                 fila.update(cabecera={'kw': medida.kw, 'kvar': medida.kvar},
                             perdidas_kw=medida.kw - kw_cargas)
