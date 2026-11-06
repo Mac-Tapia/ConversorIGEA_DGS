@@ -2461,10 +2461,19 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                 'crearian': [_crearian(r, nombre_de_carga(carpeta, r['fila']['sed'], feeder, stamp, usados))
                              for r in resueltas[feeder]],
             })
+        # 008:RF-21: simular no toca nada; las activas al terminar son las de antes. Sin esto la web
+        # decía «al terminar: ninguna» (PRUEBA_007, 2026-11-06), como la rama de abajo el 2026-10-13.
+        informe['variaciones_activas_fin'] = variaciones_activas(app)
         return informe, 0
 
     if not any(asignadas.values()) and not any(resueltas.values()):
-        informe['avisos'].append('Nada que aplicar: ninguna fila coincide en el proyecto.')
+        # 008:RF-21: con todas las filas ya en el proyecto, coinciden; no es que no coincida ninguna.
+        informe['avisos'].append(
+            f'Nada nuevo que aplicar: las {len(reutilizadas)} carga(s) del libro ya están en el proyecto y se '
+            'reutilizan (014:RF-24).' if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
+        # 008:RF-21: los alimentadores del proyecto, aunque no se cree nada; la web los nombra en la escalera
+        # de obras y decía «cambio de sección en , varias variantes» (PRUEBA_007, 2026-11-06).
+        informe['feeders'] = [{'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos]
         if reutilizadas:
             # 014:RF-24: todas las del libro ya existían; sus variaciones, activas en «Con
             # proyecto» igualmente.

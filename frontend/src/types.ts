@@ -1357,7 +1357,8 @@ export interface AjusteInforme {
   todo_escala?: boolean;
   totales_sin_perdidas?: { kw: number; kvar: number };
   /** Cada flujo del cuadre; ``a`` es el factor de escala (scale0) de las escaladas. */
-  historial?: { flujo: number; a?: number; converge: boolean; kw?: number | null }[];
+  /** Calibrados a la vez (021:RF-54), ``a`` es el de cada alimentador (008:RF-16). */
+  historial?: { flujo: number; a?: number | Record<string, number>; converge: boolean; kw?: number | null }[];
   remedios?: { remedio: string; cambios: string[] }[];
   diagnostico?: {
     barras_sin_tension: string[];

@@ -630,3 +630,28 @@ def test_081_rf78_cada_carga_se_mide_con_las_etapas_al_dia(guion, monkeypatch):
     for i in (1, 2):
         assert any(v == [f'Carga_N{i}_F1_{STAMP}'] for v in vistas), vistas
     assert all(c['delta'] is not None for c in informe['cargas'])
+
+
+def test_008_rf21_simular_dice_las_variaciones_que_quedan_activas(guion):
+    """008:RF-21 — PRUEBA_007 (2026-11-06): la simulación no toca nada, pero la web decía «al terminar:
+    ninguna» porque esa rama no daba las variaciones activas. Al terminar son las de antes."""
+    app = _app()
+    v = _ajuste(app)
+    v.Activate()
+    antes = guion.variaciones_activas(app)
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B1')]), simular=True)
+    assert rc == 0, informe
+    assert informe['variaciones_activas_fin'] == antes and antes
+
+
+def test_008_rf21_todo_reutilizado_lo_dice_y_nombra_sus_alimentadores(guion):
+    """008:RF-21 — PRUEBA_007 (2026-11-06): con todas las cargas ya en el proyecto, la web decía «ninguna fila
+    coincide» y «cambio de sección en , varias variantes». Dice que se reutilizan y da sus alimentadores."""
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]), simular=False)
+    assert rc == 0, primero
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]), simular=False)
+    assert rc == 0, segundo
+    assert any('ya están en el proyecto y se reutilizan' in a for a in segundo['avisos'])
+    assert not any('ninguna fila coincide' in a for a in segundo['avisos'])
+    assert [f['feeder'] for f in segundo['feeders']] == ['F1']

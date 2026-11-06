@@ -275,8 +275,12 @@ function InformeAjuste({ inf, report, cancelado, token }: {
   const o = inf.objetivo;
   // Spec 015, RF-44: el mismo factor (scale0) en todas las escaladas, el del último flujo que
   // convergió. Antes salía de después/antes, que con el reparto por kVA ya no es el factor.
-  const ultimoFlujo = [...(inf.historial ?? [])].reverse().find((h) => h.converge && h.a != null);
-  const factor = ultimoFlujo?.a ?? null;
+  // 008:RF-16: calibrados a la vez (021:RF-54), el historial trae el factor de cada alimentador; la web
+  // pintaba «[object Object]» (PRUEBA_007, 2026-11-06).
+  const factorDe = (a: number | Record<string, number> | null | undefined): number | null =>
+    a == null ? null : typeof a === 'number' ? a : (a[inf.feeder] ?? null);
+  const ultimoFlujo = [...(inf.historial ?? [])].reverse().find((h) => h.converge && factorDe(h.a) != null);
+  const factor = factorDe(ultimoFlujo?.a);
   // Spec 015, RF-49, RF-69: la validación física no pasó; el reparto queda grabado sin validar
   // (las de antes de la RF-69 se revertían).
   const revertida = inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida;

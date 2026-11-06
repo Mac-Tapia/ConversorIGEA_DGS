@@ -877,11 +877,17 @@ def test_sin_cuadrar_queda_el_ultimo_que_convergio(guion):
 def test_cancelar(guion):
     """006:RF-22 — cancelar termina el flujo en curso y deja el último reparto que convergió."""
     app = _app()
-    llamadas = []
+
+    # Tras el primer flujo, no a la segunda consulta: el reparto probabilístico también pregunta en cada
+    # muestra y, con un tope de tiempo (083:RF-25), hace menos con la máquina cargada; la cuenta de
+    # consultas dependía del tiempo y la prueba fallaba en la suite (2026-11-06).
+    desde = []
 
     def cancelado():
-        llamadas.append(1)
-        return len(llamadas) > 1
+        if not desde:
+            desde.append(app.ldf.ejecuciones)
+            return False
+        return app.ldf.ejecuciones > desde[0]
 
     informe, _rc = guion.ejecutar(app, _plan(tolerancia=0.001), cancelado=cancelado)
     assert informe['cancelado'] and informe['flujos'] == 1
