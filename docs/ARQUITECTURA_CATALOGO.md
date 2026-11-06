@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 237 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 238 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 93 |
+| Herramientas y guiones | `tools/` | 94 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 372 |
+| Pruebas | `tests/` | 374 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 274 |
 
@@ -35,12 +35,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 116 |
-| aplicacion | Apl | 97 |
+| aplicacion | Apl | 98 |
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
 
-277 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+278 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -500,6 +500,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `llm_runtime.py` | Apl | 047 | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback. |
 | `custodia_corpus.py` | Apl | 047, 065 | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. |
 | `reubicacion_corpus.py` | Apl | 047, 065 | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. |
+| `corpus_redaccion.py` | Apl | 072 | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro… |
 
 ### Asistente: conocimiento y RAG
 
@@ -655,6 +656,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `proyeccion_mercado.py` | — | 072 | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. |
 | `costos_cruce.py` | — | 072 | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. |
 | `construir_dataset_pide.py` | — | 024 | Construye el corpus PIDE universal de una empresa con `pide_dataset`. |
+| `corpus_redaccion_pide.py` | — | 072 | Revisión humana del corpus PIDE para redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras. |
 | `copia_datos.py` | — | 086 | Órdenes de copia, verificación, restauración, estado de la copia e identidad de la instalación. |
 
 ### Herramientas: modelos, asistente y MADRL

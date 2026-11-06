@@ -323,6 +323,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/transformador_set_pf.py` | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la barra más el Δ de cabecera de 4.2), un flujo por estado, con la carga restituida y comprobada; `--listar` da las cargas de barra con su transformador y los casos. | 017 (RF-65 a RF-68, RF-70) |
 | `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto; un enlace entre barras de distinta tensión no se cierra ni se calcula. | 011 (RF-104 a RF-129), 016 (RF-62, RF-63) |
 | `tools/costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. | 072 |
+| `tools/corpus_redaccion_pide.py` | Revisión humana del corpus PIDE para redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras. | 072 (RF-19) |
 | `tools/madrl_entrenar.py` | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. | 074 |
 | `tools/medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. | 087 |
 | `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
@@ -485,6 +486,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `src/convertersmartgrid/asistente/custodia_corpus.py` | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. | 047, 065 |
+| `src/convertersmartgrid/asistente/corpus_redaccion.py` | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro de solo añadir. | 072 (RF-19) |
 | `src/convertersmartgrid/asistente/reubicacion_corpus.py` | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. | 047, 065 |
 | `tools/reubicar_corpus_llm.py` | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. | 047, 065 |
 | `tools/copia_datos.py` | Órdenes de copia, verificación, restauración, estado de la copia e identidad de la instalación. | 086 (RF-7, RF-10, RF-47) |

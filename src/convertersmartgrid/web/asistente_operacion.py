@@ -11,6 +11,7 @@ desde aquí cerraría un ciclo entre los dos.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from ..asistente.sinteticos import normalizar
@@ -98,6 +99,53 @@ def _maxima_buscada(plan, extras: dict) -> None:
                            'volver a buscarlas (070:RF-24).')
     if re.search(r'\bcon bancos\b|\bcompleta\w* (los )?bancos\b', normalizar(plan.texto)):
         extras['completar_bancos'] = True
+
+
+#: Los libros del estudio que la orden puede nombrar, con el campo de la ruta ``/pide`` que los recibe.
+_LIBROS_DEL_PIDE = (('capex', re.compile(r'\bcapex\b', re.I), 'el libro CAPEX'),
+                    # Solo «formato 01»: «F1» es también el nombre de un alimentador en la misma orden.
+                    ('formato_01', re.compile(r'\bformato\s*(?:n\s*[°º.]?\s*)?0?1\b(?!\d)', re.I),
+                     'el Formato 01 del mercado'))
+
+
+def _libro_tras(texto: str, palabra: re.Pattern) -> str | None:
+    """La ruta que sigue a la palabra que nombra el libro: «con el capex D:/x.xlsx»."""
+    from ..asistente.interprete import ruta_de
+
+    m = palabra.search(texto)
+    return ruta_de(texto[m.end():]) if m else None
+
+
+def _pide(plan, extras: dict) -> None:
+    """El estudio de planeamiento, con lo mismo que pide la web antes de encolar (072:RF-1, RF-18).
+
+    Sin año de presentación, ``pide_ejecutar`` diagnostica pero no genera ningún módulo del plan ni del PIDE:
+    el asistente decía «hecho» sin entregables. Se dice antes de confirmar, y los libros que la orden nombra
+    van en el cuerpo de la ruta, igual que los manda el formulario de la web.
+    """
+    from ..perfil_empresa import datos_perfil
+
+    anio = str(plan.datos.get('periodo') or '')[:4]
+    if not anio.isdigit():
+        try:
+            del_perfil = (datos_perfil().get('planificacion') or {}).get('anio_presentacion')
+        except Exception:  # noqa: BLE001 - un perfil ilegible lo dice la ruta; aquí solo falta el año
+            del_perfil = None
+        if del_perfil is None:
+            plan.faltan.append('el año de presentación del estudio: dígalo en la orden («el pide de … para 2027») o '
+                               'en «planificacion.anio_presentacion» del perfil; sin él no hay módulos del plan ni del '
+                               'PIDE (072:RF-1).')
+        else:
+            plan.razonamiento.append(f'año de presentación: {del_perfil}, el del perfil de empresa (072:RF-1).')
+    for clave, palabra, nombre in _LIBROS_DEL_PIDE:
+        ruta = _libro_tras(plan.texto, palabra)
+        if ruta is None:
+            continue
+        if not Path(ruta).is_file():
+            plan.faltan.append(f'{nombre}: {ruta} no existe.')
+            continue
+        extras[clave] = ruta
+        plan.razonamiento.append(f'{nombre}: {ruta} (072:RF-18).')
 
 
 def _alimentadores_del_alcance(svc, ws, plan) -> tuple[str, list[str]]:
@@ -474,3 +522,5 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _obras(svc, ws, plan, extras)
     elif tarea == 'informe_factibilidad':
         _factibilidad(plan, extras)
+    elif tarea == 'pide':
+        _pide(plan, extras)

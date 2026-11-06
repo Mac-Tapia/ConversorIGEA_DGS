@@ -1126,6 +1126,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
 | `costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público y nombra lo que no (spec 072). |
+| `corpus_redaccion_pide.py` | Revisión humana del corpus PIDE que enseña a redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras (spec 072, RF-19). |
 | `madrl_entrenar.py` | Entrena el control MaskablePPO del piloto MADRL y lo compara con la escalera y NSGA-II; dependencias en `requirements-madrl.txt` (spec 074). |
 | `medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones: tiempo, recursos, obras, normas y contraste de hipótesis (spec 087). | |
 | `madrl_obras.py` | Mide la escalera, NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios (spec 074). |
