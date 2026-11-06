@@ -2844,6 +2844,10 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         for attr in ('InvCosts', 'OrigVal', 'ScrVal', 'AddCosts', 'LifeSpan'):
             etapa.SetAttribute(attr, eco[attr])
         creada['economia'] = eco
+    # 081:RF-78: activar la etapa de la carga lleva la hora del caso a su fecha, que queda por debajo de
+    # las etapas de la base. PRUEBA_007 (2026-11-06): cada carga se medía sin los trafos de SED_NTP_ y
+    # ninguna daba su diferencia con «Sin proyecto» (007:RF-33).
+    etapas_al_dia(app)
     with _con_escenario(escenario):
         con = medir_estado(app, alims, [feeder])            # RF-13: base + esta carga
         creada['con_proyecto'] = con

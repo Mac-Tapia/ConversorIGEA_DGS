@@ -62,5 +62,8 @@ def test_la_set_nueva_muestra_su_frase_del_valle():
     assert "'valle_texto': frase_valle(e)" in oraculo
     tipo = _bloque(TIPOS, 'export interface ConProyectoResultado {', '\n}')
     assert re.search(r'oraculo\?: \{[^}]*valle_texto\?: string \| null', tipo)
+    # La vista de la SET nueva vive en su componente desde que hay una por zona; «Con proyecto» la usa.
     con_proyecto = _bloque(CARGAS, 'function ConProyecto(', '\n}\n')
-    assert 's.oraculo?.valle_texto' in con_proyecto
+    vista = _bloque(CARGAS, 'function SetNuevaVista(', '\n}\n')
+    assert '<SetNuevaVista s={s} />' in con_proyecto
+    assert 's.oraculo?.valle_texto' in vista

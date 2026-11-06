@@ -598,3 +598,35 @@ def test_081_rf78_con_proyecto_adelanta_las_etapas_con_todo_encendido(guion, mon
     assert any(any(n.startswith('Carga_N1') for n in act) for act in en_con), llamadas
     # Y antes de medir la referencia y cada carga, sin ninguna carga nueva encendida todavía (007:RF-33).
     assert en_con and not any(n.startswith('Carga_') for n in en_con[0]), llamadas
+
+
+def test_081_rf78_crear_la_variacion_no_baja_la_hora_del_caso(guion):
+    """081:RF-78 — PRUEBA_007 (2026-11-06): la etapa de cada carga va al hueco libre bajo la hora del caso y
+    ``Activate(1)`` lleva la hora del caso a su fecha, por debajo de SED_NTP_: la carga se medía sin los
+    transformadores nuevos y ninguna daba su diferencia (007:RF-33). Tras crearla, la hora es la de antes."""
+    app = _app()
+    hora = int(app.caso.iStudyTime)
+    _variacion, etapa = guion.crear_variacion(app, 'Carga_X', 'x')
+    assert int(etapa.tAcTime) < hora
+    assert int(app.caso.iStudyTime) == hora
+
+
+def test_081_rf78_cada_carga_se_mide_con_las_etapas_al_dia(guion, monkeypatch):
+    """081:RF-78 — PRUEBA_007 (2026-11-06): las etapas de las cargas quedaron un millón de segundos por debajo
+    de SED_NTP_; al activar cada una, la hora del caso bajaba y la carga se medía sin los trafos nuevos. Antes
+    de medir cada carga se aplican las etapas de la base que hayan quedado detrás."""
+    vistas = []
+    original = guion.etapas_al_dia
+
+    def etapas(app):
+        vistas.append(sorted(v.loc_name for v in app.GetActiveNetworkVariations() or [] if v.loc_name.startswith('Carga_')))
+        return original(app)
+
+    monkeypatch.setattr(guion, 'etapas_al_dia', etapas)
+    app = _app()
+    nuevas = [_nueva(f'N{i}', barra=f'F1_B{i}', kw=80.0, kvar=30.0) for i in (1, 2)]
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=nuevas), simular=False)
+    assert rc == 0, informe
+    for i in (1, 2):
+        assert any(v == [f'Carga_N{i}_F1_{STAMP}'] for v in vistas), vistas
+    assert all(c['delta'] is not None for c in informe['cargas'])

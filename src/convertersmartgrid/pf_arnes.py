@@ -602,7 +602,9 @@ GUIONES_SERVIBLES = frozenset({
 #: son sondas que el operador lanza a mano.
 GUIONES_EN_SU_PROCESO = frozenset({
     'build_system_grid.py', 'convertir_grupos_mdb.py', 'prueba_representacion.py',
-    'run_one_study.py', 'check_pf_license.py', 'show_pf_diagram.py'})
+    'run_one_study.py', 'check_pf_license.py', 'show_pf_diagram.py',
+    # 081:RF-79: la aceptación nativa (importar, verificar el «Caso base») conecta ya por el arnés.
+    'powerfactory_acceptance.py'})
 
 _APP_COMPARTIDA: Any = None
 
