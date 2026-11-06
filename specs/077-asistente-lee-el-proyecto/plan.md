@@ -8,6 +8,7 @@
 - `src/convertersmartgrid/asistente/reranker.py`: `corpus_vigente`, los umbrales y la política de la medición del corpus ampliado. (RF-47, RF-48)
 - `src/convertersmartgrid/asistente/evaluacion_rag.py`: anclas por contenido en varias fuentes y formación de los conjuntos nuevos. (RF-43, RF-44, RF-49)
 - `src/convertersmartgrid/web/services.py`: `asistente_pregunta` elige corpus y gobierna las lecturas. (RF-26, RF-47)
+- `src/convertersmartgrid/asistente/interprete.py`: `pregunta_al_proyecto`, la regla de forma que lleva a `pregunta` lo que nombra un fichero o una ruta de la API, antes del Transformer y de Ollama; `plan.py` la nombra en el razonamiento. (RF-69 a RF-74)
 - `tools/mcp_conversor.py`: el servidor MCP por stdio, sin lógica propia. (RF-37 a RF-40)
 - `tools/asistente_indice_ampliado.py`: medir tamaños, BM25 con el reparto `corpus` y formar los conjuntos. (RF-14, RF-44, RF-50)
 - `tools/asistente_evaluar_rag.py`: `--corpus 077` en sus tres modos. (RF-46, RF-49)
@@ -31,6 +32,8 @@ Decisiones:
 - **`cliente_configurado` no lee ninguna dirección:** siempre usa `127.0.0.1`, y `ClienteOllama` rechaza otro servidor. `destino_llm` mira además si `ollama.json` declara otra dirección, porque alguien la quiso así, y si el modelo es de los `-cloud` de Ollama, que se sirven en local y se ejecutan fuera. Alternativa descartada: fiarse del anfitrión. (RF-57, RF-58)
 - **Lo leído bloquea por palabras con mayúscula o cifra.** Sobra bloqueo si un dato trae «Flujo», pero P9 falla por el lado seguro; bloquear también las minúsculas dejaría la búsqueda sin uso. (RF-59)
 - **`ordenes_fijas.py` y `prueba_sellada.py` quedan vedados** porque sus frases deciden una puerta de las órdenes, y `docs/asistente/*` salvo el OpenAPI porque mezcla los dos repartos de la 076. (RF-54)
+
+- **La regla de forma va antes del modelo y no usa su umbral.** El Transformer provisional no reconoce como pregunta una que nombra un fichero (2 % en el caso del skill, 2026-11-06), y RF-26 y RF-27 solo actúan dentro de `pregunta`. Alternativas descartadas: entrenar con esas frases, que pide turno de GPU y toca conjuntos protegidos, y bajar el umbral de `pregunta`, que desviaría también preguntas sin ruta. Para no capturar órdenes, la forma exige palabra interrogativa al principio o signos sin petición de acción al principio, y cede ante las frases literales de las tareas que se reconocen como pregunta («¿cuál es la máxima de …xlsx?»). (RF-69 a RF-73)
 
 Pruebas: rutas con `..`, enlaces, uniones, mayúsculas y nombres de NTFS, en un repositorio sintético; el MCP con un servidor real por stdio si el paquete está, y sin él; un doble de Ollama para las lecturas pedidas por el LLM. Sin datos reales.
 
