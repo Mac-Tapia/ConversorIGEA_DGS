@@ -23,8 +23,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 42 |
-| implementada | 29 |
+| cumplida | 43 |
+| implementada | 28 |
 | aprobada | 18 |
 | reservada | 3 |
 

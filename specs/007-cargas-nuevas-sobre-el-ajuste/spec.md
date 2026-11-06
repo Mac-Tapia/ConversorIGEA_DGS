@@ -1,6 +1,6 @@
 # Spec 007 — Cargas nuevas sobre el alimentador ajustado, una variación por carga
 
-Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
+Estado: cumplida (2026-11-06, T11 en DIgSILENT) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
 
 ## Contexto y objetivo
 

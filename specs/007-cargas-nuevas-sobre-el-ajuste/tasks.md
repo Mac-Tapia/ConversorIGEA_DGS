@@ -38,10 +38,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T10. Validación: cada RF citado por al menos una prueba y en verde; suite completa.
       (Todos)
       Hecho cuando: `grep -rnoE "007:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-37.
-- [ ] T11. [DIgSILENT] Prueba real en DIgSILENT con SI213, a cargo del usuario: base del ajuste
+- [x] T11. [DIgSILENT] Prueba real en DIgSILENT con SI213, a cargo del usuario: base del ajuste
       activa, una variación por carga, cada carga a su barra más cercana de SI213, solo
       la base activa al terminar, y los riesgos del plan.
       Hecho cuando: el usuario confirma en DIgSILENT la base del ajuste activa, una variación por carga y cada carga en su barra más cercana.
+      Hecho el 2026-11-06 por la web, por orden del usuario, con el proyecto de prueba `PRUEBA_007` (TM105 y PN103, en vez
+      de SI213, ya trabajado) y las 6 cargas de TM105 y PN103 del libro de planificación: base del ajuste aplicada (calibración
+      válida a la primera), una variación por carga, cada carga en el punto más cercano de la troncal de su alimentador (196 a
+      1 190 m; PN103 a 1 y 22 m), solo la base activa al terminar y, por carga, su diferencia con «Sin proyecto»: SU Predio
+      Herrajes +2 600 kW, +850 kW de pérdidas y −0,272 pu, la única que no cabe con las demás («basta quitar una»), y las otras
+      entre +376 y +1 815 kW. La prueba halló y corrigió 081:RF-75 a RF-79, 007:RF-41 y 083:RF-31.
 - [x] T12. Retro (033, 2026-10-29): RF-38 a RF-40, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-38 a RF-40)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_cargas_pf_guion_007.py`, `tests/test_caso_base_web.py` y `tests/test_casos_por_anio.py`).
