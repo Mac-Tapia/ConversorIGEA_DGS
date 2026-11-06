@@ -3482,7 +3482,14 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
                 if puesta:
                     sys.path.remove(carpeta)
         proyecto = app.GetActiveProject()
-        g = snap.grafo(app, proyecto, snap.clave_pf(proyecto), [feeder])
+        raiz = snap.clave_pf(proyecto)
+        g = snap.grafo(app, proyecto, raiz, [feeder])
+        # El largo de cada tramo, como en obras_pf.datos_oraculo: el grafo del gemelo no lo trae y sin él toda la red
+        # quedaba a 0 km (AL209, 2026-11-06), sin distancias en el perfil ni ramales largos.
+        largos = {snap._id(ln, raiz): float(getattr(ln, 'dline', 0.0) or 0.0) for ln in alims.objetos(feeder, 'ElmLne')}
+        for r in g.get('ramas') or []:
+            if r.get('id') in largos:
+                r['largo_km'] = largos[r['id']]
         barras = alims.objetos(feeder, 'ElmTerm')
         u = {b.loc_name: v for b in barras if b.HasResults() and (v := _num(b, 'm:u')) is not None and v > 0}
         puntos = perfil(g, u, list(u))
