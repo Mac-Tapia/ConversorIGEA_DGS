@@ -40,10 +40,20 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       `~/.convertersmartgrid/solvers/ipopt-3.14.20/`, fuera del repositorio; `adaptador_pnl.ejecutable_ipopt` lo encuentra por
       `CSG_IPOPT`, el `PATH` o esa carpeta. `pytest -q tests/test_adaptador_pnl.py`: 14 pasadas, la de Ipopt sin omitirse.
 
-- [ ] T4a. Aplicación de las obras elegidas en sus variaciones y comprobación de persistencia sin tocar el caso de
+- [x] T4a. Aplicación de las obras elegidas en sus variaciones y comprobación de persistencia sin tocar el caso de
       referencia, con el DIgSILENT simulado (`tests/fake_pf.py`). (RF-9)
       Hecho cuando: una prueba que cita 048:RF-9 pasa con el falso: las obras quedan en su variación, se releen y el
       caso de referencia no cambia. Partida de la T4 el 2026-11-06 (spec 033: el código se cierra con sus pruebas).
+      Hecho el 2026-11-06: `aplicar` de `tools/obras_pf.py` (la vía de siempre de las obras, sin otra) fotografía
+      antes de escribir el «Caso base», y «Sin proyecto» si ninguna obra es de allí (`leer_foto`, una pasada por clase
+      sobre toda la red: tipo, ternas, servicio, interruptores, escalones, tomas y demanda); al terminar reabre el
+      proyecto (desactivar y activar, como la lectura del gemelo, 024:RF-27), relee cada variación (`releer_obras`:
+      existe, cuánto graba, en qué casos está activa) y vuelve a fotografiar (`comprobar_persistencia`). El veredicto
+      y la foto son de `convertersmartgrid/obras_pf.py` (`foto_de_referencia`, `cambios_de_foto`,
+      `veredicto_persistencia`): sin persistir o con la referencia cambiada, `persistencia.ok` es falso, el informe
+      dice la obra o el elemento y el valor, y sale 2. Rama `feat/048-t4a`; `PYTHONPATH=src .venv/Scripts/python.exe
+      -m pytest -q -rs tests/test_obras_persistencia.py`: 13 passed, 0 omitidas. Las elegidas por
+      `verificar_candidatos` llegan a `aplicar` como obras del plan; esa conexión con la web no se tocó.
 - [ ] T4 [DIgSILENT]. Aplicación en variaciones y reapertura nativa. (RF-9)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_optimizacion_mixta_nativa.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
@@ -71,4 +81,15 @@ simulación que solo converge.
   `no_compatible` en Schaffer. El informe queda fuera del repositorio (es un producto de la etapa).
 - Limitaciones: problemas analíticos, no una red; el PNL real se probó con HiGHS (cuadrático convexo), Ipopt
   no está instalado (T3b); `web/services.py` no se tocó: la conexión a la web queda para quien la integre.
+
+### 2026-11-06 — T4a (rama `feat/048-t4a`, desde `main` fe3498ab)
+
+- Pruebas: `PYTHONPATH=src .venv/Scripts/python.exe -m pytest -q -rs tests/test_obras_persistencia.py`: 13 passed,
+  0 omitidas (antes de implementar, error de importación: faltaba `foto_de_referencia`). Con `test_obras_pf.py`,
+  `test_obras_pf_guion*.py`, `test_trazabilidad_specs.py`, `test_inventario.py`, `test_capas.py` y
+  `test_arquitectura_generada.py`: 379 passed. Los 39 ficheros de pruebas que tocan obras, escalera o MADRL:
+  1365 passed, 1 omitida (`test_valle.py`, sin `CSG_DEMANDA_DIR`) y 2 fallos ajenos a este cambio
+  (`test_pf_servidor.py`, por `tools/powerfactory_acceptance.py`; `test_valle_front.py`, por el frontend).
+- Limitaciones: el doble reabre el proyecto sin releer de una base; que DIgSILENT guarde las variaciones, que la foto
+  real no varíe entre dos lecturas de la misma red y el tiempo de la foto en un proyecto grande los mide la T4.
 

@@ -1,6 +1,6 @@
 # Spec 048 — Optimización mixta evolutiva y PNL
 
-Estado: aprobada · Fecha: 2026-10-31
+Estado: implementada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 
