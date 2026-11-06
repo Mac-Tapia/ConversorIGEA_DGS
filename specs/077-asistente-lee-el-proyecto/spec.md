@@ -1,6 +1,6 @@
 # Spec 077 — El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura
 
-Estado: aprobada · Fecha: 2026-11-02 · Origen: petición del usuario
+Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
