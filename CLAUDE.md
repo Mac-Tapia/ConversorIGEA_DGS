@@ -29,7 +29,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | Spec | Estado | Pendiente |
   | --- | --- | --- |
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
-  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T2, T3, T4, T6, T7, T8, T9, T10, T11, T12 |
+  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T8, T9, T11, T12 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | reservada |  |
   | 004 Cargas en un proyecto existente de DIgSILENT | cumplida |  |
   | 005 Carpeta de proyectos importados en DIgSILENT | implementada | falta T12 |
