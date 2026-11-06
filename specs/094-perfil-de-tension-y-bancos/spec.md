@@ -66,6 +66,10 @@ menos pérdidas (359 kW frente a 363 kW de la regla 2/7-4/7-6/7).
 - RF-17: EL SISTEMA calculará el camino de cada barra a la cabecera sin ciclos, también con ramas de largo cero
   (acopladores, transformadores). AL209 (2026-11-06): la calibración quedó en un bucle sin fin.
 
+- RF-18: SI la variante de bancos según el perfil cumple en DIgSILENT (máxima, sorteos y valle), ENTONCES EL SISTEMA la
+  elegirá aunque otra cueste menos, y dejará las de menor costo como alternativas del informe. Usuario, 2026-11-06,
+  AL209: entre 2 bancos (lo más barato que llega a 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), «los del perfil».
+
 ## Fuera de alcance
 
 Bancos automáticos o con escalones maniobrables. Reguladores y cambio de tomas de la SET: cuando los bancos no llegan

@@ -852,3 +852,15 @@ def test_la_definitiva_se_presenta_aunque_no_sea_de_las_tres_mas_baratas():
     d = eo.elegir([_opcion('a', ('seccion',), 100.0, 1.0), _opcion('b', ('terna',), 200.0), _opcion('c', ('nivel',), 300.0),
                    {**_opcion('d', ('seccion', 'terna'), 900.0), 'horizonte': defi}], P)
     assert [a['nombre'] for a in d['alternativas']] == ['a', 'b', 'd'] and d['elegida'] == 'a'
+
+
+def test_los_bancos_segun_el_perfil_mandan_si_cumplen():
+    """094:RF-18 — si la variante de bancos según el perfil cumple, es la elegida aunque otra cueste menos, y la más
+    barata queda como alternativa; si no cumple, manda la escalera de siempre (AL209, 2026-11-06)."""
+    perfil = {**_evaluada('bancos según perfil 4×450 kvar en A, B, C, D', True, 1.0, 4000), 'escalones': ('bancos',)}
+    dos = {**_evaluada('bancos 2×450 kvar', True, 1.0, 2000), 'escalones': ('bancos',)}
+    r = eo.elegir([dos, perfil], P)
+    assert r['elegida'] == perfil['nombre']
+    assert any(a['nombre'] == 'bancos 2×450 kvar' for a in r['alternativas'])
+    mal = {**perfil, 'maxima': False, 'motivos': ['no converge']}
+    assert eo.elegir([dos, mal], P)['elegida'] == 'bancos 2×450 kvar'

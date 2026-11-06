@@ -5957,7 +5957,7 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
               f"(094:RF-4, RF-8, RF-9).{aviso}")
     if not r['barras']:
         return None
-    return eo.Variante(f"bancos según perfil {len(r['barras'])}×{banco_kvar:g} kvar en {', '.join(r['barras'])}",
+    return eo.Variante(f"{eo.PREFIJO_PERFIL} {len(r['barras'])}×{banco_kvar:g} kvar en {', '.join(r['barras'])}",
                        ('bancos',), obras(r['barras']), {'bancos': float(len(r['barras']))})
 
 

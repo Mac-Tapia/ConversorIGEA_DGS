@@ -39,6 +39,10 @@ MAX_ALTERNATIVAS = 3
 ESCALERA = ('bancos', 'nivel', 'seccion', 'terna', 'regulador')
 
 
+#: 094:RF-18: el nombre con que empieza la variante de bancos ubicados según el perfil de tensión.
+PREFIJO_PERFIL = 'bancos según perfil'
+
+
 def rango(escalones) -> int:
     """El escalón más alto que usa una variante; sin escalones (sin obras), antes de todos (063:RF-22)."""
     return max((ESCALERA.index(e) for e in escalones if e in ESCALERA), default=-1)
@@ -859,6 +863,8 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
                 or (t.get('fraccion') is not None and t['fraccion'] < p.cumplimiento and t.get('nombre') != elegida)):
             continue
         clase = frozenset(t.get('escalones') or ())
+        if str(t.get('nombre') or '').startswith(PREFIJO_PERFIL):
+            clase = clase | {'perfil'}                    # 094:RF-18: la más barata de bancos sigue como alternativa
         actual = por_clase.get(clase)
         if (actual is None or (t.get('nombre') == elegida)
                 or (actual.get('nombre') != elegida and t['costo']['costo_anual'] < actual['costo']['costo_anual'])):
@@ -929,6 +935,12 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
         mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
                                               t['nombre']))
+        # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL209
+        # (2026-11-06): entre 2 bancos (lo más barato para 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), el usuario
+        # eligió los del perfil; la más barata queda como alternativa.
+        del_perfil = [t for t in factibles if str(t['nombre']).startswith(PREFIJO_PERFIL)]
+        if del_perfil:
+            mejor = min(del_perfil, key=lambda t: (t['costo']['costo_anual'], t['nombre']))
         for t in factibles:
             if t is mejor:
                 continue
