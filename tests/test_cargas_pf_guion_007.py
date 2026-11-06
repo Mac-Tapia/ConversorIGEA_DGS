@@ -576,3 +576,23 @@ def test_007_rf41_las_perdidas_restan_lo_que_consumen_las_cargas(guion):
     escrito = sum(o.plini for o in app.proyecto.GetContents('*.ElmLod', 1)
                   if o.loc_name != 'N1' and 'F1' in o.loc_name) * 1000.0
     assert 0 <= sin['perdidas_kw'] < sin['cabecera']['kw'] < escrito
+
+
+def test_081_rf78_con_proyecto_adelanta_las_etapas_con_todo_encendido(guion, monkeypatch):
+    """081:RF-78 — PRUEBA_007 (2026-11-06): la sincronía adelantaba las etapas antes de encender las
+    variaciones de «Con proyecto»; no encontraba ninguna y SE20497 seguía con 1 × 160 kVA. Con todas
+    las variaciones ya activas, antes del flujo de «Con proyecto», se adelantan las de la base."""
+    llamadas = []
+    original = guion.etapas_al_dia
+
+    def etapas(app):
+        caso = app.GetActiveStudyCase()
+        llamadas.append((caso.loc_name, sorted(v.loc_name for v in app.GetActiveNetworkVariations() or [])))
+        return original(app)
+
+    monkeypatch.setattr(guion, 'etapas_al_dia', etapas)
+    app = _app()
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B1')]), simular=False)
+    assert rc == 0, informe
+    en_con = [act for caso, act in llamadas if caso.startswith('Con proyecto')]
+    assert any(any(n.startswith('Carga_N1') for n in act) for act in en_con), llamadas

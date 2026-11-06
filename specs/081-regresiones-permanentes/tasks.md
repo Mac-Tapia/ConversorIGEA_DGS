@@ -56,6 +56,8 @@
 - [x] T27. `ntnum` entre los datos de operación que pasan de «Sin proyecto» a «Con proyecto». (RF-77)
       Hecho cuando: `pytest -q tests/test_casos_pf.py -k rf77` en verde.
 - [x] T28. `sin_a_con_proyecto` llama a `etapas_al_dia` con «Con proyecto» activo y lo dice en sus avisos. (RF-78)
-      Hecho cuando: `pytest -q tests/test_casos_pf.py -k rf78` en verde.
+      Hecho cuando: `pytest -q tests/test_casos_pf.py tests/test_cargas_pf_guion_007.py -k rf78` en verde.
+      Del 2026-11-06: en DIgSILENT la llamada de la sincronía llegaba antes de encender las variaciones de «Con proyecto» y no
+      adelantaba nada; se llama también en `tools/cargas_pf.py` con todo encendido, antes del flujo de «Con proyecto».
 - [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.

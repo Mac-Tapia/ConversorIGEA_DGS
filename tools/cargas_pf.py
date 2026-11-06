@@ -2650,6 +2650,13 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             casos['con'].Activate()
             for v in ([dem_var] if dem_var is not None else []) + previas_con + de_cargas:
                 v.Activate()
+            # 081:RF-78: con todo ya encendido, las etapas de la base (Fichas_, SED_NTP_) fechadas
+            # tras la hora de «Con proyecto» se adelantan. PRUEBA_007 (2026-11-06): sin esto seguía
+            # con SE20497 en 1 × 160 kVA para 1 429 kW y no convergía ni sin cargas nuevas.
+            adelantadas = etapas_al_dia(app)
+            if adelantadas:
+                informe['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(adelantadas)
+                                         + ' por su fecha: se adelantan a la hora del caso (081:RF-78).')
             # 014:RF-24: la variación de una carga que ya existía queda activa en «Con
             # proyecto», también si no se creó ninguna otra.
             if reutilizadas:
