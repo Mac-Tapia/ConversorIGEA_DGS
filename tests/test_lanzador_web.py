@@ -91,6 +91,9 @@ def uvicorn_falso(monkeypatch, tmp_path):
     """Sustituye uvicorn: anota en qué puerto arrancaría el servidor, sin arrancarlo."""
     arranques: list[dict] = []
     monkeypatch.setenv('CSG_REGISTRO_TRABAJOS', str(tmp_path / 'trabajos_web'))
+    # Arrancar registra el cierre del servidor en el módulo de la web; sin aislarlo quedaba
+    # puesto para el resto de la suite y test_seguridad_web recibía 202 en vez de 503.
+    monkeypatch.setattr(app_mod, '_cierre', [])
 
     class Servidor:
         def __init__(self, config):
