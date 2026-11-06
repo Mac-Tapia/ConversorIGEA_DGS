@@ -209,3 +209,40 @@ def test_factor_solo_con_sustento(libro):
                      {'transmision': t})
     assert r['total_por_moneda']['MT'] == pytest.approx(300.0 * 1.05)
     assert r['valorados'][0]['factor'] == 1.05
+
+
+def _base_por_hojas(tmp_path):
+    """Como la base real: una hoja por tipo de módulo, sin columna de unidad y con filtros encima."""
+    wb = Workbook()
+    for i, (titulo, filas) in enumerate((('Res LT', [('LT-060A', 'Línea 60 kV', 1000.0)]),
+                                         ('Res CEL', [('CE-060A', 'Celda 60 kV', 300.0)]))):
+        ws = wb.active if i == 0 else wb.create_sheet()
+        ws.title = titulo
+        ws.append(['Filtros', 'Tension'])
+        ws.append([])
+        ws.append(['CODIGO', 'Descripción', 'TOTAL GENERAL \n(USD)'])
+        for f in filas:
+            ws.append(list(f))
+    ruta = tmp_path / 'base.xlsx'
+    wb.save(ruta)
+    return ruta
+
+
+def test_base_por_hojas_con_la_unidad_declarada(tmp_path):
+    """072:RF-5, 072:RF-7 — la base de la resolución trae una hoja por tipo de módulo y no dice la unidad:
+    se leen las hojas declaradas, cada una con la unidad que se declara (km en las líneas), y sin
+    unidad declarada se rechaza en vez de suponerla."""
+    ruta = _base_por_hojas(tmp_path)
+    cols = {'codigo': 'CODIGO', 'nombre': 'Descripción', 'total': 'TOTAL GENERAL \n(USD)'}
+    t = _modulos(ruta, columnas=cols, hoja=['Res LT', 'Res CEL'], unidad={'Res LT': 'km', 'Res CEL': 'u'})
+    assert set(t.modulos()) == {'LT-060A', 'CE-060A'}
+    assert (t.buscar_modulo('LT-060A').unidad, t.buscar_modulo('CE-060A').unidad) == ('km', 'u')
+    r = valorar_obra([{'elemento': 'LT', 'ambito': 'transmision', 'codigo': 'LT-060A', 'cantidad': 2, 'unidad': 'km'},
+                      {'elemento': 'Celda', 'ambito': 'transmision', 'codigo': 'CE-060A', 'cantidad': 1}],
+                     {'transmision': t})
+    assert r['total_por_moneda'] == {'MT': 2300.0} and r['completa']
+    with pytest.raises(CostosError, match='unidad'):
+        _modulos(ruta, columnas=cols, hoja=['Res LT', 'Res CEL'], unidad={'Res LT': 'km'})
+    with pytest.raises(CostosError, match='unidad'):
+        _modulos(ruta, columnas=cols, hoja='Res LT')
+    assert _modulos(ruta, columnas=cols, hoja='Res LT', unidad='km').buscar_modulo('LT-060A').unidad == 'km'

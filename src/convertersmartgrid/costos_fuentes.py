@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import zipfile
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -178,41 +178,69 @@ _FILAS_CABECERA = 30
 
 
 def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], resolucion: str, anio: int,
-                             moneda: str, url: str, fecha_descarga: str, hoja: str | None = None,
-                             factor: float | None = None, sustento_factor: str | None = None) -> TablaCostos:
+                             moneda: str, url: str, fecha_descarga: str, hoja: str | Sequence[str] | None = None,
+                             unidad: str | Mapping[str, str] | None = None, factor: float | None = None,
+                             sustento_factor: str | None = None) -> TablaCostos:
     """Lee un libro de módulos estándar de transmisión (072:RF-5, RF-6, RF-9).
 
     ``columnas`` lleva el nombre de cada columna en el libro: `codigo`, `nombre`, `unidad` y
     `total`, y si la base distingue zona, `zona`. Se declaran porque la disposición es de cada
     resolución (la 8-2026 publicó un `.xlsm` y la 59-2026 lo reemplazó por otro): suponer una
     sería leer mal la siguiente sin avisar.
+
+    La base de la Res. 152-2026-OS/CD (`REST_MOD_INV_2025_PU.xlsm`) trae una hoja de resumen por tipo
+    de módulo (líneas, celdas, transformadores…) y ninguna columna de unidad: el costo de una línea es
+    por km y el de una celda por unidad. Por eso ``hoja`` admite varias hojas y ``unidad`` declara la
+    de todas o la de cada hoja en lugar de la columna; sin declararla de ninguna forma, se rechaza.
     """
     from openpyxl import load_workbook
 
-    faltan = [k for k in COLUMNAS_MODULOS if not str(columnas.get(k) or '').strip()]
+    faltan = [k for k in COLUMNAS_MODULOS if not str(columnas.get(k) or '').strip()
+              and not (k == 'unidad' and unidad)]
     if faltan:
         raise CostosError(f'los módulos de transmisión no declaran la columna de: {", ".join(faltan)}')
+    hojas = [hoja] if isinstance(hoja, str) or hoja is None else list(hoja)
+    if isinstance(unidad, Mapping):
+        sin_unidad = [str(h) for h in hojas if not str(unidad.get(h) or '').strip()]
+        if sin_unidad:
+            raise CostosError(f'sin unidad declarada para la hoja: {", ".join(sin_unidad)}')
     ruta = Path(ruta)
     huella = hashlib.sha256(ruta.read_bytes()).hexdigest()
     fuente = FuenteCostos('Módulos estándar de transmisión', 'transmision', resolucion, anio, moneda, url,
                           fecha_descarga, huella, factor, sustento_factor)
     wb = load_workbook(ruta, read_only=True, data_only=True)
     try:
-        if hoja is not None and hoja not in wb.sheetnames:
-            raise CostosError(f'{ruta.name} no trae la hoja «{hoja}»')
-        ws = wb[hoja] if hoja is not None else wb.worksheets[0]
-        filas = list(ws.iter_rows(values_only=True))
+        por_hoja = []
+        for h in hojas:
+            if h is not None and h not in wb.sheetnames:
+                raise CostosError(f'{ruta.name} no trae la hoja «{h}»')
+            ws = wb[h] if h is not None else wb.worksheets[0]
+            fija = unidad.get(h) if isinstance(unidad, Mapping) else unidad
+            por_hoja.append((ws.title, list(ws.iter_rows(values_only=True)), fija))
     finally:
         wb.close()
+    tabla: dict[tuple[str, str, str, str], Costo] = {}
+    con_zona = False
+    for titulo, filas, fija in por_hoja:
+        con_zona |= _modulos_de_hoja(ruta.name, titulo, filas, columnas, fija, fuente, tabla)
+    if not tabla:
+        raise CostosError(f'{ruta.name}: la hoja no trae ningún módulo bajo la cabecera')
+    return TablaCostos(fuente, tabla, con_zona)
+
+
+def _modulos_de_hoja(nombre: str, titulo: str, filas: list, columnas: Mapping[str, str], fija: str | None,
+                     fuente: FuenteCostos, tabla: dict) -> bool:
+    """Añade a ``tabla`` los módulos de una hoja y dice si la hoja distingue zona."""
     usadas = {k: str(v).strip() for k, v in columnas.items()
-              if k in COLUMNAS_MODULOS + _COLUMNAS_MODULOS_OPCIONALES and str(v or '').strip()}
+              if k in COLUMNAS_MODULOS + _COLUMNAS_MODULOS_OPCIONALES and str(v or '').strip()
+              and not (k == 'unidad' and fija)}
     buscadas = set(usadas.values())
     n_cab = next((n for n, f in enumerate(filas[:_FILAS_CABECERA])
                   if buscadas <= {str(c).strip() for c in f if c is not None}), None)
     if n_cab is None:
         vistas = {str(c).strip() for f in filas[:_FILAS_CABECERA] for c in f if c is not None}
         faltan = sorted(buscadas - vistas)
-        raise CostosError(f'{ruta.name}: ninguna fila trae las columnas declaradas; faltan: '
+        raise CostosError(f'{nombre}, hoja «{titulo}»: ninguna fila trae las columnas declaradas; faltan: '
                           f'{", ".join(faltan) or "todas en una misma fila"}')
     cab = [str(c).strip() if c is not None else '' for c in filas[n_cab]]
     i = {k: cab.index(v) for k, v in usadas.items()}
@@ -222,7 +250,6 @@ def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], r
         v = f[i[k]] if k in i and i[k] < len(f) else None
         return '' if v is None else str(v).strip()
 
-    tabla: dict[tuple[str, str, str, str], Costo] = {}
     for n, f in enumerate(filas[n_cab + 1:], n_cab + 2):
         codigo = celda(f, 'codigo')
         # Las filas sin código son títulos o subtotales del anexo, no módulos.
@@ -230,21 +257,19 @@ def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], r
             continue
         bruto = f[i['total']] if i['total'] < len(f) else None
         if bruto is None or str(bruto).strip() == '':
-            raise CostosError(f'{ruta.name}, fila {n}: módulo {codigo} sin total')
+            raise CostosError(f'{nombre}, fila {n}: módulo {codigo} sin total')
         try:
             total = float(bruto)
         except (TypeError, ValueError) as exc:
-            raise CostosError(f'{ruta.name}, fila {n}: costo no numérico de {codigo} ({exc})') from exc
+            raise CostosError(f'{nombre}, fila {n}: costo no numérico de {codigo} ({exc})') from exc
         clave = (codigo, '', '', celda(f, 'zona') if con_zona else '')
         if clave in tabla:
             # Dos costos para un mismo módulo: elegir uno sería suponer cuál es el oficial.
-            raise CostosError(f'{ruta.name}, fila {n}: módulo {codigo} repetido'
+            raise CostosError(f'{nombre}, fila {n}: módulo {codigo} repetido'
                               + (f' en la zona «{clave[3]}»' if con_zona else ''))
         tabla[clave] = Costo(codigo, '', '', clave[3], celda(f, 'nombre'), {'total': total}, fuente,
-                             celda(f, 'familia'), celda(f, 'unidad'))
-    if not tabla:
-        raise CostosError(f'{ruta.name}: la hoja no trae ningún módulo bajo la cabecera')
-    return TablaCostos(fuente, tabla, con_zona)
+                             celda(f, 'familia'), fija or celda(f, 'unidad'))
+    return con_zona
 
 
 def exigir_ambito(tabla: TablaCostos, ambito: str) -> None:

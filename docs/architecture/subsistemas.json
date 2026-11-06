@@ -299,7 +299,8 @@
     "llm_checkpoint.py",
     "llm_runtime.py",
     "custodia_corpus.py",
-    "reubicacion_corpus.py"
+    "reubicacion_corpus.py",
+    "corpus_redaccion.py"
    ]
   },
   {
@@ -460,6 +461,7 @@
     "proyeccion_mercado.py",
     "costos_cruce.py",
     "construir_dataset_pide.py",
+    "corpus_redaccion_pide.py",
     "copia_datos.py"
    ]
   },

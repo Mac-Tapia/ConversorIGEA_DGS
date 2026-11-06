@@ -55,11 +55,18 @@ def _obra(args, tabla_sicodi) -> int:
         if faltan:
             print('ERROR: los módulos piden ' + ', '.join('--' + n.replace('_', '-') for n in faltan))
             return 2
+        # La base real trae una hoja por tipo de módulo y no dice la unidad: ambas se declaran (072 T13).
+        unidad = args.modulos_unidad
+        if unidad and unidad.lstrip().startswith('{'):
+            unidad = json.loads(unidad)
+        hojas = args.modulos_hoja or None
         try:
             tablas['transmision'] = leer_modulos_transmision(
                 args.modulos, columnas=json.loads(args.modulos_columnas.read_text(encoding='utf-8')),
                 resolucion=args.modulos_resolucion, anio=args.modulos_anio, moneda=args.modulos_moneda,
-                url=args.modulos_url, fecha_descarga=args.modulos_fecha_descarga, hoja=args.modulos_hoja)
+                url=args.modulos_url, fecha_descarga=args.modulos_fecha_descarga,
+                hoja=hojas[0] if hojas and len(hojas) == 1 else hojas, unidad=unidad,
+                factor=args.modulos_factor, sustento_factor=args.modulos_sustento_factor)
         except CostosError as exc:
             print(f'ERROR: {exc}')
             return 2
@@ -85,7 +92,12 @@ def main(argv=None) -> int:
     p.add_argument('--modulos', type=Path, help='Libro de módulos estándar de transmisión (.xlsx o .xlsm)')
     p.add_argument('--modulos-columnas', type=Path,
                    help='JSON con el nombre de las columnas codigo, nombre, unidad, total y, si hay, zona')
-    p.add_argument('--modulos-hoja', help='Hoja del libro de módulos; por defecto la primera')
+    p.add_argument('--modulos-hoja', action='append',
+                   help='Hoja del libro de módulos; se repite para leer varias; por defecto la primera')
+    p.add_argument('--modulos-unidad',
+                   help='Unidad de los módulos si el libro no la trae: un texto, o un JSON {hoja: unidad}')
+    p.add_argument('--modulos-factor', type=float, help='Factor de la resolución sobre el costo (con su sustento)')
+    p.add_argument('--modulos-sustento-factor', help='Sustento del factor: artículo y resolución')
     p.add_argument('--modulos-resolucion', help='Resolución de Osinergmin de los módulos')
     p.add_argument('--modulos-anio', type=int, help='Año de los módulos')
     p.add_argument('--modulos-moneda', help='Moneda de los módulos; el libro no se supone')
