@@ -166,6 +166,10 @@ leída antes de importarlo.
   EL SISTEMA las escribirá en el escenario de «Con proyecto», como los demás datos de operación de 014:RF-32. En PRUEBA_007
   (2026-11-05), la calibración dejó SE20497 con 4 × 630 kVA en «Sin proyecto» y «Con proyecto» seguía con 1 × 630 kVA para
   1 429 kW: no convergía ni sin cargas nuevas.
+- RF-78: CUANDO se sincroniza «Con proyecto» con «Sin proyecto», EL SISTEMA adelantará a la hora de «Con proyecto» las etapas de
+  sus variaciones activas fechadas justo después de ella, para que vea los transformadores nuevos y las fichas de la base. Era la
+  causa de fondo del caso de RF-77: «Con proyecto» tenía su hora a las 15:01:13 y las etapas de `Fichas_` y `SED_NTP_` eran de
+  las 15:01:14 y 15:01:15; tenía SE20497 con 1 × 160 kVA y no convergía ni sin cargas nuevas.
 
 ## Fuera de alcance
 

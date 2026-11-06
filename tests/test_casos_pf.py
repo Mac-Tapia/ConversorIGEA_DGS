@@ -551,6 +551,13 @@ class _App:
     def GetActiveScenario(self):
         return self.escenario
 
+    # 081:RF-78: la sincronía mira las etapas de las variaciones activas; aquí no hay ninguna.
+    def GetActiveNetworkVariations(self):
+        return []
+
+    def GetProjectFolder(self, _nombre):
+        return None
+
 
 def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
     """014:RF-31, 014:RF-32, 014:RF-33, 014:RF-34 — PN107 (2026-10-16): un banco creado a
@@ -621,6 +628,23 @@ def test_081_rf77_las_unidades_en_paralelo_pasan_a_con_proyecto(monkeypatch):
     out = casos_pf.sin_a_con_proyecto(app, app.casos)
     assert tr.escrito == {'ntnum': 4}
     assert out['copiados'] == [{'objeto': 'TR_SE20497', 'dato': 'ntnum', 'antes': 1, 'ahora': 4}]
+
+
+
+def test_081_rf78_con_proyecto_ve_las_etapas_de_la_base(monkeypatch):
+    """081:RF-78 — PRUEBA_007 (2026-11-06): «Con proyecto» tenía su hora a las 15:01:13 y las etapas de
+    Fichas_ y SED_NTP_ eran de las 15:01:14 y 15:01:15: no veía ni los transformadores nuevos ni las
+    fichas, y no convergía. La sincronía adelanta las etapas con «Con proyecto» activo."""
+    app = _App()
+    vistos = []
+    monkeypatch.setattr(casos_pf, 'etapas_al_dia', lambda a: vistos.append(a.activo.rol) or ['SED_NTP_P'])
+    monkeypatch.setattr(casos_pf, '_foto_operacion', lambda a: {})
+    monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: [])
+    app.casos['sin'].Activate()
+    out = casos_pf.sin_a_con_proyecto(app, app.casos)
+    assert vistos == ['con']
+    assert out['etapas_adelantadas'] == ['SED_NTP_P']
+    assert any('081:RF-78' in a for a in out['avisos']) and app.activo is app.casos['sin']
 
 
 # --------------------------------------------------------------- 037:RF-8

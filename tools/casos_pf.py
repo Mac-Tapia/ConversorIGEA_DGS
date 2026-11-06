@@ -37,7 +37,7 @@ import json
 import traceback
 from pathlib import Path
 
-from cargas_pf import activar_proyecto, error_inesperado, nombre_pf
+from cargas_pf import activar_proyecto, error_inesperado, etapas_al_dia, nombre_pf
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.obras_pf import PREFIJO_VARIACION
 from convertersmartgrid.valle import nombre_caso_valle
@@ -351,12 +351,21 @@ def sin_a_con_proyecto(app, casos: dict) -> dict:
     proyecto» (una obra) y se avisa; lo que está en «Sin proyecto» y falta en «Con
     proyecto» se lista. Deja activo el caso que lo estaba.
     """
-    out = {'variaciones': [], 'copiados': [], 'conflictos': [], 'faltan': [], 'avisos': []}
+    out = {'variaciones': [], 'copiados': [], 'conflictos': [], 'faltan': [], 'avisos': [],
+           'etapas_adelantadas': []}
     if 'sin' not in casos or 'con' not in casos:
         return out
     previo = app.GetActiveStudyCase()
     try:
         out['variaciones'] = operador_a_con_proyecto(app, casos)
+        # 081:RF-78: las etapas de la base (Fichas_, SED_NTP_) fechadas después de la hora de «Con
+        # proyecto» no se aplican en él. PRUEBA_007 (2026-11-06): «Con proyecto» a las 15:01:13, las
+        # etapas a las :14 y :15; seguía con 1 × 160 kVA en SE20497 y no convergía ni sin cargas.
+        casos['con'].Activate()
+        out['etapas_adelantadas'] = etapas_al_dia(app)
+        if out['etapas_adelantadas']:
+            out['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(out['etapas_adelantadas'])
+                                 + ' por su fecha: se adelantan a la hora del caso (081:RF-78).')
         fotos = {}
         for rol in ('base', 'sin', 'con'):
             if rol in casos:
