@@ -170,6 +170,10 @@ leída antes de importarlo.
   sus variaciones activas fechadas justo después de ella, para que vea los transformadores nuevos y las fichas de la base. Era la
   causa de fondo del caso de RF-77: «Con proyecto» tenía su hora a las 15:01:13 y las etapas de `Fichas_` y `SED_NTP_` eran de
   las 15:01:14 y 15:01:15; tenía SE20497 con 1 × 160 kVA y no convergía ni sin cargas nuevas.
+- RF-79: CUANDO la aceptación nativa (importar, verificar el «Caso base») conecta con el motor de DIgSILENT de la máquina, EL
+  SISTEMA lo hará con la conexión del arnés y su vigía (019:RF-23), y no por su cuenta. En PRUEBA_007 (2026-11-06) la verificación
+  del «Caso base» quedó 10 min en `pf.GetApplication()` sin CPU (pila leída con py-spy), como la importación de la noche anterior.
+  Aclaración de RF-76: aquel cuelgue era este; la vigilancia de `GetCurrentUser` sigue siendo correcta.
 
 ## Fuera de alcance
 

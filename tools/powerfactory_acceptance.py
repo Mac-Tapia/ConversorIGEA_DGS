@@ -317,6 +317,18 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
         ) from exc
     exigir_fuera_de_pruebas(pf)                                            # 084:RF-22
 
+    # 081:RF-79: con el motor de la máquina se conecta por el arnés, con su turno y su vigía
+    # (019:RF-23). PRUEBA_007 (2026-11-06): la verificación del «Caso base» quedó 10 min en
+    # ``pf.GetApplication()`` sin CPU, fuera de toda vigilancia, y el carril de DIgSILENT parado.
+    if start_engine and command_line is None:
+        from convertersmartgrid.pf_arnes import PFNoDisponible as _NoConecta  # noqa: PLC0415
+        from convertersmartgrid.pf_arnes import conectar  # noqa: PLC0415
+
+        try:
+            return conectar('powerfactory_acceptance.py')
+        except _NoConecta as exc:
+            raise RuntimeError(str(exc)) from exc
+
     # 019:RF-1, RF-2, RF-4, RF-13: el turno del motor de la máquina. Engancharse a un
     # DIgSILENT abierto (sin arrancar el motor) es elección del operador: no se le avisa.
     import atexit  # noqa: PLC0415

@@ -614,3 +614,20 @@ def test_la_barra_renombrada_dentro_de_su_sed_sigue_siendo_interna():
     Obj('NODO_1', red, 'ElmTerm')
     inventario = mod.inventory_network(red)
     assert inventario['nodes_sed_internal'] == 2 and inventario['nodes'] == 1
+
+
+def test_081_rf79_la_aceptacion_conecta_por_el_arnes_con_su_vigia(monkeypatch):
+    """081:RF-79 — PRUEBA_007 (2026-11-06): la verificación del «Caso base» quedó 10 min en
+    ``pf.GetApplication()`` sin CPU (pila leída con py-spy). La aceptación conectaba por su cuenta,
+    fuera del vigía de 019:RF-23; con el motor de la máquina conecta ahora con ``pf_arnes.conectar``."""
+    from convertersmartgrid import pf_arnes
+
+    mod = _load_pf_mod()
+    pedidos = []
+    app = SimpleNamespace(GetCurrentUser=lambda: SimpleNamespace(loc_name='Operador'))
+    monkeypatch.setattr(pf_arnes, 'conectar', lambda guion, **kw: pedidos.append((guion, kw)) or app)
+    monkeypatch.setattr(pf_arnes, 'importar_api', lambda: SimpleNamespace(
+        GetApplication=lambda: (_ for _ in ()).throw(AssertionError('GetApplication sin vigía'))))
+    monkeypatch.setattr(pf_arnes, 'exigir_fuera_de_pruebas', lambda _pf: None)
+    assert mod.connect_powerfactory() is app
+    assert [g for g, _kw in pedidos] == ['powerfactory_acceptance.py']

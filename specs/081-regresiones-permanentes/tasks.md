@@ -59,5 +59,7 @@
       Hecho cuando: `pytest -q tests/test_casos_pf.py tests/test_cargas_pf_guion_007.py -k rf78` en verde.
       Del 2026-11-06: en DIgSILENT la llamada de la sincronía llegaba antes de encender las variaciones de «Con proyecto» y no
       adelantaba nada; se llama también en `tools/cargas_pf.py` con todo encendido, antes del flujo de «Con proyecto».
+- [x] T29. `connect_powerfactory` de la aceptación conecta con `pf_arnes.conectar` cuando arranca el motor. (RF-79)
+      Hecho cuando: `pytest -q tests/test_powerfactory_gate.py -k rf79` en verde.
 - [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.
