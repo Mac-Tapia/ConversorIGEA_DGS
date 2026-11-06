@@ -9,7 +9,9 @@ PowerFactory, para probarlo con redes sorteadas:
 - el nombre de la copia de un tipo, con el sufijo de tensión del conversor (RF-61);
 - cuándo dos tipos son el mismo, para reutilizar una copia o no (RF-62, RF-63);
 - el plan de la simulación: por obra, los elementos que cambiaría, los tipos que
-  copiaría y su variación, sin escribir nada (RF-69).
+  copiaría y su variación, sin escribir nada (RF-69);
+- la foto del caso de referencia y el veredicto de persistencia de las obras aplicadas,
+  releídas tras reabrir el proyecto (048:RF-9).
 
 La spec 016 añade la sección de toda la troncal (la del camino más largo, ``troncal.py``),
 el enlace entre dos alimentadores y la migración a otra tensión de lo que queda aguas
@@ -28,6 +30,8 @@ alimentador y la de destino la que da el operador.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 from dataclasses import asdict, dataclass, field
@@ -1264,3 +1268,97 @@ def diferencias_sin_proyecto(antes: Mapping[str, Any], despues: Mapping[str, Any
             if x is None or y is None or abs(x - y) > tolerancia:
                 out.append({'alimentador': feeder, 'medida': medida, 'antes': x, 'despues': y})
     return out
+
+
+# --------------------------------------------------------------------------- persistencia (048:RF-9)
+#: Cifras decimales de cada valor de la foto: lo que escribe una obra cambia mucho más que esto, y dos lecturas
+#: de la misma red no deben diferir por la coma flotante (0,1 + 0,2 no es 0,3).
+DECIMALES_FOTO = 6
+#: Cambios que el informe enumera de una foto; el total va aparte.
+MAX_CAMBIOS_FOTO = 20
+
+
+def valor_de_foto(valor: Any) -> Any:
+    """Un atributo leído de DIgSILENT, en forma comparable: un objeto por su nombre, un número redondeado."""
+    if valor is None or isinstance(valor, (bool, str, int)):
+        return valor
+    if isinstance(valor, float):
+        return round(valor, DECIMALES_FOTO) if math.isfinite(valor) else repr(valor)
+    nombre = getattr(valor, 'loc_name', None)
+    return str(nombre) if nombre is not None else repr(valor)
+
+
+def foto_de_referencia(filas: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """La foto del caso de referencia: de cada elemento, por su nombre completo, su clase y sus datos (048:RF-9).
+
+    Determinista: no depende del orden en que se leyeron. El ``sha256`` la resume; ``elementos`` dice qué
+    cambió cuando dos no coinciden.
+    """
+    elementos = {}
+    for f in filas:
+        datos = {str(k): valor_de_foto(v) for k, v in (f.get('datos') or {}).items()}
+        elementos[str(f['nombre'])] = {'clase': str(f.get('clase') or ''), **dict(sorted(datos.items()))}
+    elementos = dict(sorted(elementos.items()))
+    sello = hashlib.sha256(json.dumps(elementos, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()
+    return {'elementos': elementos, 'n': len(elementos), 'sha256': sello}
+
+
+def cambios_de_foto(antes: Mapping[str, Any], despues: Mapping[str, Any]) -> list[str]:
+    """Qué cambió entre dos fotos del mismo caso, elemento por elemento, con el valor de antes y el de después."""
+    if antes.get('sha256') == despues.get('sha256'):
+        return []
+    a, d = antes.get('elementos') or {}, despues.get('elementos') or {}
+    out = []
+    for nombre in sorted(set(a) | set(d)):
+        if nombre not in d:
+            out.append(f'{nombre}: ya no está')
+        elif nombre not in a:
+            out.append(f'{nombre}: es nuevo')
+        elif a[nombre] != d[nombre]:
+            out += [f'{nombre} {k}: {a[nombre].get(k)!r} → {d[nombre].get(k)!r}'
+                    for k in sorted(set(a[nombre]) | set(d[nombre])) if a[nombre].get(k) != d[nombre].get(k)]
+    return out
+
+
+def veredicto_persistencia(filas: Iterable[Mapping[str, Any]], relectura: Mapping[str, Mapping[str, Any]],
+                           referencias: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """Si las obras aplicadas persisten como se aplicaron y el caso de referencia no cambió (048:RF-9).
+
+    ``filas`` son las del informe de ``aplicar`` (``variacion``, ``casos_activos``, ``error``). ``relectura``, por
+    variación, lo leído al reabrir el proyecto: ``existe``, ``objetos`` (lo que graban sus etapas) y ``activa_en``
+    (los casos donde está activa). ``referencias``, por caso, sus fotos ``antes`` y ``despues``.
+
+    Una obra persiste si su variación sigue en el proyecto, graba algo y está activa exactamente donde quedó al
+    aplicarla, nunca en el «Caso base» (011:RF-58). La que no convergió quedó inactiva a propósito (011:RF-66):
+    persiste si sigue ahí, inactiva. Sin ninguna obra aplicada no hay nada que dar por persistido.
+    """
+    obras = []
+    for fila in filas:
+        nombre = fila.get('variacion')
+        if not nombre or fila.get('error'):
+            continue
+        leida = relectura.get(nombre) or {}
+        esperada = sorted(fila.get('casos_activos') or [])
+        activa = sorted(leida.get('activa_en') or [])
+        motivo = None
+        if not leida.get('existe'):
+            motivo = 'la variación no está en el proyecto al reabrirlo'
+        elif not int(leida.get('objetos') or 0):
+            motivo = 'la variación no graba ningún objeto'
+        elif CASO_BASE in activa:
+            motivo = 'la variación está activa en el «Caso base»'
+        elif activa != esperada:
+            motivo = (f'la variación está activa en {", ".join(activa) or "ningún caso"} y quedó activa en '
+                      f'{", ".join(esperada) or "ninguno"}')
+        obras.append({'variacion': nombre, 'existe': bool(leida.get('existe')),
+                      'objetos': int(leida.get('objetos') or 0), 'activa_en': list(leida.get('activa_en') or []),
+                      'esperada_en': list(fila.get('casos_activos') or []), 'ok': motivo is None, 'motivo': motivo})
+    refs = {}
+    for caso, fotos in referencias.items():
+        antes, despues = fotos.get('antes') or {}, fotos.get('despues') or {}
+        cambios = cambios_de_foto(antes, despues) if antes and despues else ['sin foto que comparar']
+        refs[caso] = {'antes': antes.get('sha256'), 'despues': despues.get('sha256'), 'elementos': antes.get('n'),
+                      'igual': not cambios, 'cambios': cambios[:MAX_CAMBIOS_FOTO], 'total_cambios': len(cambios)}
+    motivo = None if obras else 'ninguna obra quedó aplicada: no hay nada que dar por persistido'
+    ok = bool(obras) and all(o['ok'] for o in obras) and all(r['igual'] for r in refs.values())
+    return {'ok': ok, 'motivo': motivo, 'obras': obras, 'referencias': refs}

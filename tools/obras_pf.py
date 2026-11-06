@@ -38,6 +38,9 @@ escribir nada, RF-69). Las reglas comunes a todas (RF-57 a RF-60, RF-64 a RF-67)
 6. Vuelve a medir «Sin proyecto»: en los alimentadores sin obras activas allí, la
    cabecera y la tensión mínima tienen que ser las de antes. Si cambian, una obra tocó
    algo compartido, y el informe dice el alimentador y el valor.
+7. Reabre el proyecto y relee (048:RF-9): cada obra sigue en su variación, graba algo y está
+   activa solo donde quedó; el «Caso base», y «Sin proyecto» si ninguna obra es de allí,
+   tienen la misma foto que antes de aplicar. Sin eso, ``persistencia.ok`` es falso y sale 2.
 
     python tools/obras_pf.py --bibliotecas --plan plan.json --output-json informe.json
     python tools/obras_pf.py --plan plan.json --output-json informe.json [--simular]
@@ -85,8 +88,8 @@ from convertersmartgrid.vias import ruta_por_vias
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.obras_pf import (
     ATRIBUTOS_TIPO, BANDA_TENSION_PU, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
-    diferencias_sin_proyecto, mismos_datos, plan_simulacion, red_de_lectura, resolver_copia,
-    resumen_tipo, tipo_de_ficha, validar_obra,
+    diferencias_sin_proyecto, foto_de_referencia, mismos_datos, plan_simulacion, red_de_lectura, resolver_copia,
+    resumen_tipo, tipo_de_ficha, validar_obra, veredicto_persistencia,
 )
 from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
 from convertersmartgrid.naming import feeder_short_name
@@ -2089,6 +2092,105 @@ def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
             f"de {d['antes']} a {d['despues']}: una obra tocó algo compartido.")
 
 
+# =========================================================================== persistencia (048:RF-9)
+#: Lo que se fotografía de cada clase en el caso de referencia: lo que una obra escribe (tipo, ternas, servicio,
+#: estado de los interruptores, escalones, tomas, demanda). Sin flujo: dos flujos de la misma red no dan las mismas
+#: cifras al decimal, y la cabecera de los alimentadores sin obras ya la compara RF-64.
+ATRIBUTOS_FOTO = {
+    'ElmLne': ('typ_id', 'nlnum', 'outserv', 'dline'),
+    'ElmTr2': ('typ_id', 'outserv', 'nntap'),
+    'ElmShnt': ('outserv', 'ncapx', 'ncapa', 'qcapn'),
+    'ElmVoltreg': ('typ_id', 'outserv', 'usetp'),
+    'ElmTerm': ('outserv', 'uknom'),
+    'ElmCoup': ('on_off', 'outserv'),
+    'StaSwitch': ('on_off',),
+    'ElmLod': ('plini', 'qlini', 'scale0', 'outserv'),
+}
+
+
+def leer_foto(app, caso) -> dict:
+    """La foto del caso (048:RF-9): una pasada por clase sobre toda la red, nunca una por alimentador (P2).
+
+    Toda la red y no solo la de las obras: lo que una obra no debe tocar es justamente lo que no es suyo (un
+    tipo compartido, la carga de otro alimentador).
+    """
+    caso.Activate()
+    filas = []
+    for clase, atributos in ATRIBUTOS_FOTO.items():
+        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+            filas.append({'nombre': o.GetFullName(), 'clase': clase,
+                          'datos': {a: getattr(o, a, None) for a in atributos}})
+    return foto_de_referencia(filas)
+
+
+def roles_de_referencia(obras: list[Obra]) -> list[str]:
+    """Los casos que las obras no deben cambiar: el «Caso base» siempre (011:RF-58); «Sin proyecto» si ninguna es de allí."""
+    return ['base'] + ([] if any(NOMBRES['sin'] in o.casos for o in obras) else ['sin'])
+
+
+def releer_obras(app, filas: list[dict], casos: dict) -> dict[str, dict]:
+    """De cada variación de las obras, leída de nuevo del proyecto: si está, cuánto graba y en qué casos está activa.
+
+    Lo activo se lee una vez por caso, no una por obra.
+    """
+    carpeta = app.GetProjectFolder('scheme')
+    por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []) or []}
+    activas = {}
+    for rol in NOMBRES:
+        if rol in casos:
+            casos[rol].Activate()
+            activas[NOMBRES[rol]] = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+    out = {}
+    for fila in filas:
+        nombre = fila.get('variacion')
+        if not nombre:
+            continue
+        v = por_nombre.get(nombre)
+        out[nombre] = {'existe': v is not None, 'objetos': len(_grabados(v)) if v is not None else 0,
+                       'activa_en': [c for c, nombres in activas.items() if nombre in nombres]}
+    return out
+
+
+def comprobar_persistencia(app, plan: dict, filas: list[dict], fotos_antes: dict[str, dict],
+                           anio: int | None) -> dict:
+    """048:RF-9: reabre el proyecto y relee las obras y la foto de los casos de referencia.
+
+    Reabrir es desactivar y volver a activar el proyecto, como la lectura del gemelo (024:RF-27): lo que cuenta es
+    lo guardado en la base de DIgSILENT, no lo que el proceso tenía en memoria al escribirlo. Deja activo el caso
+    que DIgSILENT activa al reabrir, que es el último que tenía el proyecto (el del operador, que ``aplicar`` ya
+    devolvió).
+    """
+    proyecto = app.GetActiveProject()
+    if proyecto is not None:
+        proyecto.Deactivate()
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {'ok': False, 'reabierto': False, 'obras': [], 'referencias': {},
+                'error': 'el proyecto no se pudo volver a activar para releer las obras'}
+    casos = casos_del_proyecto(app, anio)
+    inicial = app.GetActiveStudyCase()
+    try:
+        relectura = releer_obras(app, filas, casos)
+        referencias = {NOMBRES[rol]: {'antes': foto, 'despues': leer_foto(app, casos[rol]) if rol in casos else None}
+                       for rol, foto in fotos_antes.items()}
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return {**veredicto_persistencia(filas, relectura, referencias), 'reabierto': True}
+
+
+def _avisos_de_persistencia(persistencia: dict, avisos: list[str]) -> None:
+    for o in persistencia.get('obras') or []:
+        if not o['ok']:
+            avisos.append(f"La obra {o['variacion']} no persiste como se aplicó: {o['motivo']} (048:RF-9).")
+    for caso, ref in (persistencia.get('referencias') or {}).items():
+        if not ref['igual']:
+            avisos.append(f"Las obras cambiaron «{caso}», que es la referencia: {'; '.join(ref['cambios'][:5])}"
+                          f"{' …' if ref['total_cambios'] > 5 else ''} (048:RF-9).")
+    if persistencia.get('error'):
+        avisos.append(f"No se pudo comprobar que las obras persisten: {persistencia['error']} (048:RF-9).")
+
+
 #: Elementos con sitio en la red, y los atributos con sus barras (042:RF-36).
 CLASES_CON_SITIO = ('ElmLne', 'ElmShnt', 'ElmVoltreg', 'ElmTerm', 'ElmTr2')
 
@@ -2171,6 +2273,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
                      | set(plan.get('feeders') or []))
     alims = Alimentadores(app, proyecto, feeders)
     inicial = app.GetActiveStudyCase()
+    evaluando = bool(plan.get('evaluando'))
     # 025:RF-69: la obra elegida por la escalera se comprueba con las cargas nuevas de los
     # alimentadores sin resolver apartadas, como se evaluó; vuelven al terminar.
     ajenas = []
@@ -2190,7 +2293,10 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             return informe, 2 if any(f['error'] for f in filas) else 0
         # 025:RF-49: al evaluar variantes de la escalera, sus obras se miden y se borran: ni
         # sincronizar, ni comprobar «Sin proyecto», que no tocan, ni dibujarlas.
-        evaluando = bool(plan.get('evaluando'))
+        if not evaluando:
+            # 048:RF-9: la foto de los casos de referencia antes de escribir nada, también de la sincronización.
+            fotos_antes = {rol: leer_foto(app, casos[rol]) for rol in roles_de_referencia(obras) if rol in casos}
+            casos['sin'].Activate()
         if 'con' in casos and not evaluando:                     # 014:RF-31 a RF-34
             informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
             informe['avisos'] += informe['sin_a_con']['avisos']
@@ -2242,10 +2348,18 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
 
+    if not evaluando:
+        try:
+            informe['persistencia'] = comprobar_persistencia(app, plan, informe['obras'], fotos_antes, anio)
+        except Exception as exc:  # noqa: BLE001 - releer no puede perder las obras ya aplicadas
+            informe['persistencia'] = {'ok': False, 'reabierto': False, 'obras': [], 'referencias': {},
+                                       'error': f'{type(exc).__name__}: {exc}'}
+        _avisos_de_persistencia(informe['persistencia'], informe['avisos'])
     fallos = any(f['error'] or not all(x['converge'] for x in f.get('flujo', {}).values())
                  for f in informe['obras'])
     diferencias = bool((informe['comprobacion'] or {}).get('diferencias'))
-    return informe, 2 if fallos or diferencias or informe['cancelado'] else 0
+    sin_persistir = not evaluando and not informe['persistencia']['ok']
+    return informe, 2 if fallos or diferencias or sin_persistir or informe['cancelado'] else 0
 
 
 # =========================================================================== escalera optimizada
