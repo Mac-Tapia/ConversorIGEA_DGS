@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from ..experimentos import ContextoExperimento
@@ -30,6 +31,29 @@ SOLVER = 'ipopt'
 TOP_K = 3
 #: Residuo máximo admitido en restricciones y cotas para dar por convergido el punto local.
 RESIDUO_MAX = 1e-6
+
+#: 048 T3b: carpeta donde se descomprime la distribución oficial de Ipopt (COIN-OR), fuera del repositorio.
+CARPETA_SOLVERS = Path.home() / '.convertersmartgrid' / 'solvers'
+
+
+def ejecutable_ipopt() -> str | None:
+    """La ruta de ``ipopt``: ``CSG_IPOPT``, el ``PATH`` o la versión más alta en :data:`CARPETA_SOLVERS`.
+
+    Ipopt no llega por pip: es un ejecutable. Sin esta búsqueda, la web (que no arranca con el ``PATH`` de
+    una consola) devolvía ERROR_ENTORNO aunque estuviera descomprimido en la máquina (2026-11-06).
+    """
+    import os
+    import shutil
+
+    propia = os.environ.get('CSG_IPOPT', '').strip().strip('"')
+    if propia and Path(propia).is_file():
+        return propia
+    en_path = shutil.which('ipopt')
+    if en_path:
+        return en_path
+    candidatos = sorted(CARPETA_SOLVERS.glob('ipopt-*/**/bin/ipopt.exe')) + sorted(
+        CARPETA_SOLVERS.glob('ipopt-*/**/bin/ipopt'))
+    return str(candidatos[-1]) if candidatos else None
 
 
 def _resultado(estado: str, motivo: str | None = None, **campos: Any) -> dict[str, Any]:
@@ -95,6 +119,8 @@ def resolver_continuo(problema: ProblemaOptimizacion, *, discretas_fijas: Mappin
     except ImportError as exc:
         return _resultado('ERROR_ENTORNO', f'Pyomo no está disponible: {exc}', **comunes)
     solver = SolverFactory(nombre_solver)
+    if solver is not None and nombre_solver == 'ipopt' and (ruta := ejecutable_ipopt()):
+        solver.config.executable = ruta                                  # 048 T3b
     if solver is None or not bool(solver.available()):
         return _resultado('ERROR_ENTORNO', f'el solucionador {nombre_solver} no está instalado o no tiene licencia',
                           **comunes)

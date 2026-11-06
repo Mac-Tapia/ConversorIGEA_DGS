@@ -186,3 +186,27 @@ def test_infactible_o_no_convergido_no_llega_a_digsilent():
     assert [e['alternativa']['id'] for e in r['excluidas']] == ['infactible', 'pnl_no_converge']
     assert all(e['motivo'] for e in r['excluidas'])
 
+
+
+def test_048_t3b_ipopt_real_resuelve_el_caso_diminuto():
+    """048:RF-4 — T3b: con Ipopt instalado (2026-11-06, COIN-OR 3.14.20), el tramo continuo da el óptimo
+    analítico como punto local. No se omite: si Ipopt no se encuentra, el fallo dice dónde ponerlo."""
+    ruta = pnl.ejecutable_ipopt()
+    assert ruta is not None, ('Ipopt no está instalado: defina CSG_IPOPT con la ruta de ipopt.exe o '
+                              'descomprímalo en ~/.convertersmartgrid/solvers/ipopt-<versión>/ (048 T3b)')
+    r = pnl.resolver_continuo(problema_conocido(), discretas_fijas={'k': 1}, opciones_solver={'solver': 'ipopt'})
+    u, w, f = analitico(1)
+    assert r['estado'] == 'LOCAL_CONVERGIDO', r
+    assert r['solver'] == 'ipopt' and r['optimo_global'] is False
+    assert r['continuas']['u'] == pytest.approx(u, abs=1e-5) and r['continuas']['w'] == pytest.approx(w, abs=1e-5)
+    assert r['objetivo_pnl'] == pytest.approx(f, abs=1e-6)
+
+
+def test_048_t3b_csg_ipopt_manda_sobre_la_carpeta(tmp_path, monkeypatch):
+    """048:RF-4 — la ruta de CSG_IPOPT manda; una que no existe no se toma."""
+    falso = tmp_path / 'ipopt.exe'
+    falso.write_bytes(b'')
+    monkeypatch.setenv('CSG_IPOPT', str(falso))
+    assert pnl.ejecutable_ipopt() == str(falso)
+    monkeypatch.setenv('CSG_IPOPT', str(tmp_path / 'no_existe.exe'))
+    assert pnl.ejecutable_ipopt() != str(tmp_path / 'no_existe.exe')

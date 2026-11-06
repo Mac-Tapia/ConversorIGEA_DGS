@@ -32,11 +32,18 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       resuelve con un solucionador real, HiGHS 1.15.1 (`pyomo.contrib.solver`, cuadrático convexo), sin dobles.
       Ipopt no está instalado en `.venv`: su vía devuelve ERROR_ENTORNO y su compatibilidad queda en T3b.
 
-- [ ] T3b. El tramo continuo con Ipopt instalado. (RF-4)
+- [x] T3b. El tramo continuo con Ipopt instalado. (RF-4)
       Hecho cuando: con Ipopt disponible para `pyomo.contrib.solver`, `tests/test_adaptador_pnl.py` resuelve también
       el caso diminuto con `{'solver': 'ipopt'}` (LOCAL_CONVERGIDO, óptimo analítico) y la prueba pasa sin omitirse.
-      Falta: instalar Ipopt (binario o `cyipopt`) en el entorno del proyecto, decisión del integrador.
+      Hecho el 2026-11-06, por orden del usuario («debe instalar todo lo que falta»): Ipopt 3.14.20 oficial de COIN-OR
+      (`Ipopt-3.14.20-win64-msvs2022-md.zip`, SHA-256 1fd1de97d3e8e48c298f6ccf5ac91cbfc417b42c61262c08d193fd14117e9098) en
+      `~/.convertersmartgrid/solvers/ipopt-3.14.20/`, fuera del repositorio; `adaptador_pnl.ejecutable_ipopt` lo encuentra por
+      `CSG_IPOPT`, el `PATH` o esa carpeta. `pytest -q tests/test_adaptador_pnl.py`: 14 pasadas, la de Ipopt sin omitirse.
 
+- [ ] T4a. Aplicación de las obras elegidas en sus variaciones y comprobación de persistencia sin tocar el caso de
+      referencia, con el DIgSILENT simulado (`tests/fake_pf.py`). (RF-9)
+      Hecho cuando: una prueba que cita 048:RF-9 pasa con el falso: las obras quedan en su variación, se releen y el
+      caso de referencia no cambia. Partida de la T4 el 2026-11-06 (spec 033: el código se cierra con sus pruebas).
 - [ ] T4 [DIgSILENT]. Aplicación en variaciones y reapertura nativa. (RF-9)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_optimizacion_mixta_nativa.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
