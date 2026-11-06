@@ -18,6 +18,8 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
 | COyM del perfil en la propuesta | RF-22 | `propuesta_pide(coym_pct_anual=)`, `formatos_pide._por_grupo`; lo pasa `web/services.py` |
 
 Fuentes públicas ubicadas el 2026-11-02, en Procesos Regulatorios de Osinergmin: SICODI y VNR al 31-12-2025 (Res. 184-2026-OS/CD);
-VNR de Electro Oriente, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD).
+VNR de Electro Oriente, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD; su base la sustituyó la Res. 181-2026-OS/CD, 2026-11-06): el
+adaptador `costos_fuentes.leer_modulos_transmision` pide sus columnas declaradas y `valorar_obra` separa los ámbitos (T3); el
+fichero real es T13.
 
 Coordinación: `pide_economia` y `escalera_optima` también los toca la 073; se avisa la zona antes de escribir.

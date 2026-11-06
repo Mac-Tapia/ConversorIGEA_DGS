@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from .costos_fuentes import TablaCostos, partir_codigo_vnr
+from .costos_fuentes import TablaCostos, exigir_ambito, partir_codigo_vnr
 
 
 def metrados_de_lineas(lineas: Iterable[Any]) -> dict[str, Any]:
@@ -42,6 +42,9 @@ def valorar_metrados(por_codigo: Mapping[str, Mapping[str, float]], tabla: Tabla
     Solo la familia de redes va por km: Osinergmin expresa esos costos en USD/km (informe de
     observaciones al VAD de Electro Oriente, 2023). Otra familia no se multiplica por un largo.
     """
+    # Los tramos de la red de distribución van con el SICODI; un módulo de transmisión que cruzara
+    # por código daría un costo de otro ámbito sin que nada lo dijera (072:RF-6).
+    exigir_ambito(tabla, 'distribucion')
     valorados, sin_costo = [], []
     for codigo_red, fila in por_codigo.items():
         codigo, tension = partir_codigo_vnr(codigo_red)
