@@ -333,3 +333,17 @@ def test_la_sigla_de_la_carga_nombra_la_carga_nueva():
     assert [f.descripcion for f in filas] == ['SU_CementoINKA-Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.',
                                               'Habilitación sin sigla']
     assert filas[0].para_pf()['descripcion'] == 'SU_CementoINKA-Pisco'
+
+
+def test_con_sigla_la_ampliacion_se_reconoce_por_la_descripcion():
+    """093:RF-4 — nombrada por su sigla, una fila sigue siendo ampliación si su descripción lleva el código de la SED
+    (040:RF-3). PE102 (2026-11-06): «CH_22 · …ViveroLosViñeros SE21146» se habría creado como SED nueva."""
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('cargas_pf.py', 'cargas_093_rf4', tools_en_path=True)
+    sed = {'sed': 'SE21146', 'carga': None, 'barra': None, 'gps': (-13.4580, -76.1486), 'kva': 100.0}
+    fila = {'sed': 'CH_22', 'descripcion': 'SU-233.27KW-ViveroLosViñeros SE21146', 'kw': 233.27, 'fp': 0.95,
+            'lat': -13.45806, 'lon': -76.14864}
+    r = guion.ampliacion_de(fila, [sed])
+    assert r is not None and r['sed'] == 'SE21146' and 'SE21146' in r['criterio']
+    assert guion.ampliacion_de({**fila, 'descripcion': 'SU-233.27KW-ViveroLosViñeros'}, [sed]) is None

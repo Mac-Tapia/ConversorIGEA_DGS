@@ -20,6 +20,9 @@ Cambia 004:RF-53 (spec cumplida, que no crece).
 - RF-3: EL SISTEMA conservará la descripción de la fila junto a la carga, para que el informe y los avisos digan
   de qué cliente se trata.
 
+- RF-4: EL SISTEMA reconocerá una ampliación (040:RF-3) también cuando el código de la SED esté en la descripción de
+  una fila nombrada por su sigla. PE102 (2026-11-06): con la sigla como nombre, la descripción dejó de mirarse.
+
 ## Fuera de alcance
 
 Renombrar las cargas nuevas ya creadas en proyectos de DIgSILENT con su descripción.

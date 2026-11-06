@@ -1071,7 +1071,8 @@ def ampliacion_de(fila: dict, existentes: list[dict], radio_m: float = AMPLIACIO
     """
     punto = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
     por_nombre = {s['sed'].upper(): s for s in existentes}
-    for palabra in _SEPARADOR.split(str(fila.get('sed') or '')):
+    # 093:RF-4: nombrada por su sigla, la SED de una ampliación también se busca en su descripción.
+    for palabra in _SEPARADOR.split(f"{fila.get('sed') or ''} {fila.get('descripcion') or ''}"):
         s = por_nombre.get(palabra.upper()) if palabra else None
         if s is not None:
             d = distancia_m(s['gps'], punto) if (s['gps'] and punto) else None
