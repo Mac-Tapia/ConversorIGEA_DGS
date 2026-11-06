@@ -121,7 +121,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 091 Flujo de la calibración al estudio | reservada |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | falta T2 |
   | 093 La sigla de la carga nombra la carga nueva y su variación | implementada | falta T2 |
-  | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | falta T1, T2, T3, T4, T5 |
+  | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | falta T4, T5 |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

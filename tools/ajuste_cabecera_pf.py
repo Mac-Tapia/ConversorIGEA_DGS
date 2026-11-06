@@ -2931,6 +2931,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 manuales=con_manual,
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
+            if not simular:
+                perfil_de_tension(app, alims, feeder, informe)                  # 094:RF-1, RF-10
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:
                 informe['resultado_carga_nativa'] = {
                     'status': 'APLICADO_Y_VALIDADO', 'bloquea': False,
@@ -3448,6 +3450,60 @@ def oraculo_para_muestras(oraculo, repartos: dict) -> Any:
     except Exception as exc:  # noqa: BLE001 - el oráculo acelera, no decide
         print(f'  oráculo: no se usa en las muestras ({type(exc).__name__}: {exc}).', flush=True)
         return None
+
+
+def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
+    """El perfil de tensión del alimentador al final de la calibración, con el último flujo (094:RF-1, RF-10, RF-11).
+
+    Va después del cuadre de P y de la recalibración de P y Q, con los bancos existentes en servicio: es el estado
+    que quedó calibrado. Lo usan los estudios para ubicar los bancos sin volver a leer DIgSILENT (RF-2). Si la Q no
+    quedó cuadrada, el perfil lo dice con su desvío (RF-11). Nada se bloquea por él: si no se puede, se avisa.
+    """
+    try:
+        import importlib.util
+        import sys
+
+        from convertersmartgrid.perfil_tension import camino_al_minimo, perfil
+
+        # El lector del grafo es un guion hermano. Cargado desde la suite, su carpeta no está en la ruta: se carga por
+        # su fichero, sin dejar la carpeta en la ruta ni su nombre registrado. Dejarla cambiaba el arranque del oráculo
+        # (083) de las calibraciones siguientes y, con él, cuántos flujos hacían (test_cancelar, 2026-11-06).
+        snap = sys.modules.get('digital_twin_snapshot_pf')
+        if snap is None:
+            ruta = Path(__file__).resolve().parent / 'digital_twin_snapshot_pf.py'
+            spec = importlib.util.spec_from_file_location('_csg_snapshot_del_perfil', ruta)
+            snap = importlib.util.module_from_spec(spec)
+            carpeta, puesta = str(ruta.parent), str(ruta.parent) not in sys.path
+            if puesta:
+                sys.path.insert(0, carpeta)
+            try:
+                spec.loader.exec_module(snap)
+            finally:
+                if puesta:
+                    sys.path.remove(carpeta)
+        proyecto = app.GetActiveProject()
+        g = snap.grafo(app, proyecto, snap.clave_pf(proyecto), [feeder])
+        barras = alims.objetos(feeder, 'ElmTerm')
+        u = {b.loc_name: v for b in barras if b.HasResults() and (v := _num(b, 'm:u')) is not None and v > 0}
+        puntos = perfil(g, u, list(u))
+        camino = camino_al_minimo(g, puntos)
+        datos = {'puntos': [{k: p[k] for k in ('barra', 'km', 'u')} for p in puntos],
+                 'camino': [p['barra'] for p in camino],
+                 'cabecera': {'medida': {k: (informe.get('objetivo') or {}).get(k) for k in ('kw', 'kvar')},
+                              'simulada': informe.get('cabecera')},
+                 'q_cuadrada': informe.get('status') != 'AVISO_KVAR', 'bancos_en_servicio': informe.get('bancos_en_servicio')}
+        if not datos['q_cuadrada']:                                               # RF-11
+            desvio = (informe.get('desvio') or {}).get('kvar')
+            datos['aviso'] = ('perfil con la Q de cabecera sin cuadrar (AVISO_KVAR'
+                              + (f', {desvio:+.1%}' if isinstance(desvio, (int, float)) else '') + '); las ubicaciones '
+                              'de bancos que salgan de él llevan ese aviso (094:RF-11)')
+        informe['perfil_tension'] = datos
+        if camino:
+            print(f'  perfil de tensión de {feeder}: {len(puntos)} barras de media; de {camino[0]["u"]:.4f} p.u. a '
+                  f'{camino[-1]["u"]:.4f} p.u. en {camino[-1]["km"]:.2f} km (094:RF-1).', flush=True)
+    except Exception as exc:  # noqa: BLE001 - el perfil informa, no decide la calibración
+        informe.setdefault('avisos', []).append(f'Perfil de tensión de {feeder} no calculado: {type(exc).__name__}: '
+                                                f'{exc} (094:RF-1).')
 
 
 def _arranque_del_oraculo(app, alims, preps: dict, repartos: dict, objetivos: dict, quietas, tolerancia: float,
@@ -4039,6 +4095,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                           else (p['fp_cargas'] or objetivo.fp)),               # 035:RF-12
             manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
+        perfil_de_tension(app, alims, feeder, inf)                                 # 094:RF-1, RF-10
         if res.cuadrado and not validacion['correcta']:
             valido = False
             inf['status'] = 'FALLO_VALIDACION_NATIVA'

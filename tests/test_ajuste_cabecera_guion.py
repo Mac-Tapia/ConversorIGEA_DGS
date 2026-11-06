@@ -2121,3 +2121,19 @@ def test_083_rf31_sin_el_plan_automatico_solo_se_propone(guion):
     informe, rc = guion.ejecutar(app, plan)
     assert rc == 0, informe
     assert _tr(app, 'TR_F1_S2').typ_id is viejo and informe['fijas_sobre_su_transformador']
+
+
+def test_la_calibracion_deja_el_perfil_de_tension_del_alimentador(guion):
+    """094:RF-1, 094:RF-10, 094:RF-11 — al final de la calibración, con el último flujo, el perfil de tensión de las
+    barras de media del alimentador, su camino a la más baja, la cabecera medida y simulada, y el aviso si la Q no
+    quedó cuadrada."""
+    app = _app(escenario=True)
+    informe, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, informe
+    perfil = informe.get('perfil_tension')
+    assert perfil is not None, informe.get('avisos')
+    assert perfil['puntos'] and all(0 < p['u'] for p in perfil['puntos'])
+    assert [p['km'] for p in perfil['puntos']] == sorted(p['km'] for p in perfil['puntos'])
+    assert set(perfil['camino']) <= {p['barra'] for p in perfil['puntos']}
+    assert perfil['cabecera']['medida']['kw'] == 300.0 and perfil['cabecera']['simulada']
+    assert informe['status'] == 'AVISO_KVAR' and not perfil['q_cuadrada'] and '094:RF-11' in perfil['aviso']

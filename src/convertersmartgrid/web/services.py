@@ -5886,6 +5886,79 @@ def _fichero_base(memo: dict | None, comun: dict) -> dict:
     return {'base_sin_fichero': str(Path(carpeta) / (hashlib.sha256(clave.encode('utf-8')).hexdigest()[:24] + '.json'))}
 
 
+def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str, Any], f: str, k: int,
+                         barras_media: Sequence[str], banco_kvar: float | None, p, *, project: str = '',
+                         valle: Mapping[str, Any] | None = None, etiqueta: str = ''):
+    """094:RF-4, RF-6 a RF-9, RF-11, RF-12: los bancos de ``f`` ubicados según su perfil de tensión, uno más cada vez
+    hasta el objetivo, como una variante más que DIgSILENT mide y confirma (RF-7).
+
+    El perfil es el de «Con proyecto» que da el oráculo leído de DIgSILENT, con cargas y obras: ahí no se cuadra nada
+    (RF-12). AL209 (2026-11-06): la búsqueda amontonaba los bancos en el extremo; con el perfil, por caída igual, la
+    misma tensión mínima con menos pérdidas.
+    """
+    from .. import escalera_optima as eo
+    from .. import perfil_tension as pt
+    from ..perfil_empresa import completar_planeamiento, datos_perfil
+
+    media = [b for b in barras_media if b in ora.nodo_de]
+    if not banco_kvar or not media:
+        return None
+    ajustes = completar_planeamiento(datos_perfil())[0].get('escalera') or {}
+    objetivo = float(ajustes.get('tension_objetivo_pu') or 1.0)
+    mejora = float(ajustes.get('mejora_minima_pu') or 0.001)
+    separacion = float(ajustes.get('separacion_bancos_km') or 0.5)
+
+    def obras(barras):
+        return [{'clase': 'condensador', 'alimentador': f, 'casos': [eo.CON_PROYECTO], 'barra': b,
+                 'q_kvar': float(banco_kvar), 'escalones': 1} for b in barras]
+
+    def medir(barras):
+        m = ora.medir(obras(barras), k, 1.0, f)
+        us = [m.u[b] for b in media if b in m.u]
+        return (min(us) if m.converge and us else 0.0), (m.perdidas_kw if m.converge and m.perdidas_kw is not None
+                                                          else float('inf'))
+
+    def en_valle(barras):
+        vmax = 0.0
+        for punto in (valle or {}).get('puntos') or []:
+            for nuevas in (0.0, 1.0):
+                m = ora.medir(obras(barras), k, float(punto['factor_p']), f, factor_q=punto.get('factor_q'),
+                              factor_nuevas=nuevas)
+                if not m.converge:
+                    return False, float('nan')
+                vmax = max([vmax] + [m.u[b] for b in media if b in m.u])
+        return vmax <= p.tension_max_pu, vmax
+
+    base = ora.medir([], k, 1.0, f)
+    puntos = pt.perfil(grafo, base.u, media)
+    camino = pt.camino_al_minimo(grafo, puntos)
+    if not camino:
+        return None
+    r = pt.bancos_hasta_objetivo(camino, medir, objetivo=objetivo, mejora_minima=mejora, valle=en_valle,
+                                 separacion_km=separacion)
+    motivo = {'objetivo': f'llega al objetivo de {objetivo:.3f} p.u.',
+              'sin_mejora': f'un banco más sube menos de {mejora:g} p.u.', 'valle': 'un banco más pasa el valle',
+              'separacion': 'no caben más con la separación mínima', 'tope': 'tope de bancos',
+              'sin_ubicacion': 'sin ubicación en el perfil'}.get(r['motivo'], r['motivo'])
+    aviso = ''
+    try:                                                                            # RF-11
+        guardado = ajuste_aplicado_en_disco(ws, project) if project else None
+        for inf in ((guardado or {}).get('informes') or [(guardado or {}).get('informe') or {}]):
+            if (inf or {}).get('feeder') in (f, None) and ((inf or {}).get('perfil_tension') or {}).get('aviso'):
+                aviso = ' ' + inf['perfil_tension']['aviso']
+    except Exception:  # noqa: BLE001 - el aviso informa, no decide
+        aviso = ''
+    ctx.log(f"{f}{etiqueta}: perfil de tensión de {camino[0]['u']:.4f} a {camino[-1]['u']:.4f} p.u. en "
+            f"{camino[-1]['km']:.2f} km; bancos según el perfil: {len(r['barras'])} × {banco_kvar:g} kvar"
+            + (f" ({r['regla']}) en {', '.join(r['barras'])}" if r['barras'] else '')
+            + f"; tensión mínima {r['v_min']:.4f} p.u. (sin bancos {r['v_min_sin_bancos']:.4f}); se para porque {motivo} "
+              f"(094:RF-4, RF-8, RF-9).{aviso}")
+    if not r['barras']:
+        return None
+    return eo.Variante(f"bancos según perfil {len(r['barras'])}×{banco_kvar:g} kvar en {', '.join(r['barras'])}",
+                       ('bancos',), obras(r['barras']), {'bancos': float(len(r['barras']))})
+
+
 def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs: list, objetivo: Sequence[str],
                          tipos, p) -> list:
     """087:RF-48: de las variantes de la obra del déficit previo, solo las que el oráculo da por buenas y una tanda de las
@@ -5906,6 +5979,14 @@ def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs
         if rc or not datos.get('grafo'):
             raise RuntimeError('no se pudo leer el grafo de «Con proyecto»')
         ora = oo.Oraculo(datos['grafo'], [], tipos={str(t.get('nombre')): t.get('datos') or {} for t in tipos})
+        # 094:RF-4: los bancos del déficit según el perfil, con el módulo de las variantes de bancos de la escalera.
+        modulo = next((o['q_kvar'] / max(int(o.get('escalones') or 1), 1) for v in vs for o in v.obras
+                       if o.get('clase') == 'condensador' and o.get('q_kvar')), None)
+        por_perfil = _variante_por_perfil(ws, ctx, ora, datos['grafo'], f, 0,
+                                          ((datos.get('alimentadores') or {}).get(f) or {}).get('barras_media') or [],
+                                          modulo, p, project=str(comun.get('project') or ''), etiqueta=', déficit previo')
+        if por_perfil is not None:
+            vs = [por_perfil] + list(vs)
         lo = p.tension_min_pu - p.tolerancia_pu
         evaluadas = []
         for v in vs:
@@ -6857,6 +6938,11 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                               sobrecargados=d.get('sobrecargados'))                   # 087:RF-5
         for aviso in av:
             ctx.log(aviso)
+        # 094:RF-4, RF-5: los bancos según el perfil de cada alimentador, como una variante más que DIgSILENT confirma.
+        por_perfil = _variante_por_perfil(ws, ctx, ora, datos['grafo'], f, len(nuevas), d.get('barras_media') or [],
+                                          banco, p, project=project, valle=valle)
+        if por_perfil is not None:
+            vs = [por_perfil] + list(vs)
 
         def costo(v, perdidas_kw, f=f):
             try:

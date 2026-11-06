@@ -145,6 +145,7 @@
     "troncal.py",
     "escalera_optima.py",
     "optimizacion_oraculo.py",
+    "perfil_tension.py",
     "catalogo_reguladores.py",
     "instalacion_ternas.py",
     "set_nueva.py",

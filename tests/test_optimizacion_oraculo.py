@@ -542,3 +542,38 @@ def test_la_busqueda_del_oraculo_ve_todo_el_alimentador_y_lo_dice(monkeypatch):
     (a,) = r['alims']
     assert a.espacio.barras == ['B', 'A', 'C', 'D']
     assert any('bancos candidatos en 4 de 4 barras de media' in x and '087:RF-55' in x for x in registro)
+
+
+def test_con_proyecto_propone_los_bancos_segun_el_perfil(monkeypatch):
+    """094:RF-4, 094:RF-8, 094:RF-12 — «Con proyecto» con el oráculo: entre las variantes que confirma DIgSILENT va la de
+    bancos ubicados según el perfil de tensión de «Con proyecto», y el registro dice el perfil, dónde y por qué para."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.web import services
+
+    g = _grafo_con_ramal()
+    nueva = {'sed': 'X1', 'variacion': 'Carga_X1', 'nodo': _id('B', 'ElmTerm'), 'p_mw': 1.1, 'q_mvar': 0.22,
+             'barra': 'B', 'alimentador': 'F1', 'kw': 1100.0}
+    datos = {'grafo': g, 'nuevas': [nueva],
+             'alimentadores': {'F1': {'troncal': [{'nombre': 'T1', 'largo_m': 2000.0, 'corriente_a': 60.0},
+                                                  {'nombre': 'T2', 'largo_m': 2000.0, 'corriente_a': 60.0}],
+                                      'indices': {'B': 1}, 'existen': ['B'], 'media': {}, 'fuera_desde': None,
+                                      'barras_media': ['A', 'B', 'C', 'D']}}}
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, datos, None))
+    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
+    monkeypatch.setattr(services, 'carpeta_de', lambda ws, project: 'X')
+    monkeypatch.setattr(services, '_pinn_promovido', lambda: None)
+    curva = [(t, 900.0 if t % 2 else 1000.0) for t in range(12)]
+    comun = {'p': _p(), 'perfil': {}, 'anio_casos': None, 'objetivos': {'F1': {'kw': 1000.0}},
+             'curvas': {'F1': curva}, 'sorteos': [], 'perdidas': {'F1': None}, 'costos': {},
+             'kvar': {10.0: 150.0}, 'valle': None,
+             'lectura': {'tipos': [], 'alimentadores': {'F1': {'kv': 10.0}}}}
+    registro = []
+    r = services._preparar_oraculo(SimpleNamespace(), SimpleNamespace(log=registro.append, check_cancel=lambda: None),
+                                   'P', ['F1'], [nueva], comun)
+    (a,) = r['alims']
+    por_perfil = [v for v in a.variantes if v.nombre.startswith('bancos según perfil')]
+    assert len(por_perfil) == 1 and all(o['clase'] == 'condensador' and o['q_kvar'] == 150.0 for o in por_perfil[0].obras)
+    assert {o['barra'] for o in por_perfil[0].obras} <= {'A', 'B'}          # en el camino a la barra más baja
+    linea = next(x for x in registro if 'perfil de tensión' in x)
+    assert '094:RF-4' in linea and 'se para porque' in linea
