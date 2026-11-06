@@ -6,6 +6,10 @@ a 22,9 kV (`G`), y el mismo código cuesta distinto en madera que en concreto. S
 datos no hay costo: se nombra el hueco, porque un costo supuesto se confunde con uno oficial. Por
 eso tampoco hay factores por defecto: el informe de Electro Oriente aplicó 1,8 sobre mercado y la
 carpeta de su cálculo estaba vacía.
+
+Las obras de transmisión se valoran con los módulos estándar de inversión (Res. 152-2026-OS/CD,
+cuya base sustituyó la Res. 181-2026-OS/CD), por el mismo contrato y nunca con el SICODI: un
+elemento de una obra lleva el ámbito de su fuente y solo esa lo valora (072:RF-6).
 """
 from __future__ import annotations
 
@@ -65,6 +69,7 @@ class Costo:
     componentes: Mapping[str, float | None]
     fuente: FuenteCostos
     familia: str = ''
+    unidad: str = ''
 
     @property
     def total(self) -> float:
@@ -78,6 +83,8 @@ class TablaCostos:
 
     fuente: FuenteCostos
     filas: dict[tuple[str, str, str, str], Costo] = field(default_factory=dict)
+    #: Si la fuente distingue zona (módulos de transmisión): entonces el elemento la declara.
+    con_zona: bool = False
 
     def __post_init__(self):
         self.codigos = {k[0] for k in self.filas}
@@ -107,6 +114,22 @@ class TablaCostos:
         if codigo not in self.codigos:
             return f'código {codigo} no está en {self.fuente.nombre}'
         return f'{codigo}{tension} sin estructura «{estructura}» en {sector}'
+
+    def modulos(self) -> set[str]:
+        """Los códigos de módulo de la fuente."""
+        return set(self.codigos)
+
+    def buscar_modulo(self, codigo: str, zona: str = '') -> Costo | None:
+        """El módulo exacto con su zona, o ``None``: su código ya dice tensión y configuración."""
+        return self.filas.get((codigo, '', '', zona if self.con_zona else ''))
+
+    def motivo_sin_modulo(self, codigo: str, zona: str) -> str:
+        """Por qué un elemento de transmisión no tiene costo, para nombrar el hueco (072:RF-7)."""
+        if self.con_zona and not zona:
+            return f'{codigo}: la fuente {self.fuente.nombre} distingue zona y el elemento no la declara'
+        if codigo not in self.codigos:
+            return f'módulo {codigo} no está en {self.fuente.nombre} ({self.fuente.resolucion})'
+        return f'módulo {codigo} no está en la zona «{zona}» de {self.fuente.nombre}'
 
 
 def leer_sicodi(ruta: Path | str, *, resolucion: str, anio: int, moneda: str, url: str, fecha_descarga: str,
@@ -145,6 +168,144 @@ def leer_sicodi(ruta: Path | str, *, resolucion: str, anio: int, moneda: str, ur
         filas[clave] = Costo(clave[0], clave[1], clave[2], clave[3], v[i['NOMBRE']], componentes, fuente,
                              v[i['FAMILIA']])
     return TablaCostos(fuente, filas)
+
+
+#: Lo que un libro de módulos debe declarar, con el nombre de su columna en esa resolución.
+COLUMNAS_MODULOS = ('codigo', 'nombre', 'unidad', 'total')
+_COLUMNAS_MODULOS_OPCIONALES = ('zona', 'familia')
+#: Cuántas filas se miran para hallar la cabecera: los anexos llevan títulos encima.
+_FILAS_CABECERA = 30
+
+
+def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], resolucion: str, anio: int,
+                             moneda: str, url: str, fecha_descarga: str, hoja: str | None = None,
+                             factor: float | None = None, sustento_factor: str | None = None) -> TablaCostos:
+    """Lee un libro de módulos estándar de transmisión (072:RF-5, RF-6, RF-9).
+
+    ``columnas`` lleva el nombre de cada columna en el libro: `codigo`, `nombre`, `unidad` y
+    `total`, y si la base distingue zona, `zona`. Se declaran porque la disposición es de cada
+    resolución (la 8-2026 publicó un `.xlsm` y la 59-2026 lo reemplazó por otro): suponer una
+    sería leer mal la siguiente sin avisar.
+    """
+    from openpyxl import load_workbook
+
+    faltan = [k for k in COLUMNAS_MODULOS if not str(columnas.get(k) or '').strip()]
+    if faltan:
+        raise CostosError(f'los módulos de transmisión no declaran la columna de: {", ".join(faltan)}')
+    ruta = Path(ruta)
+    huella = hashlib.sha256(ruta.read_bytes()).hexdigest()
+    fuente = FuenteCostos('Módulos estándar de transmisión', 'transmision', resolucion, anio, moneda, url,
+                          fecha_descarga, huella, factor, sustento_factor)
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    try:
+        if hoja is not None and hoja not in wb.sheetnames:
+            raise CostosError(f'{ruta.name} no trae la hoja «{hoja}»')
+        ws = wb[hoja] if hoja is not None else wb.worksheets[0]
+        filas = list(ws.iter_rows(values_only=True))
+    finally:
+        wb.close()
+    usadas = {k: str(v).strip() for k, v in columnas.items()
+              if k in COLUMNAS_MODULOS + _COLUMNAS_MODULOS_OPCIONALES and str(v or '').strip()}
+    buscadas = set(usadas.values())
+    n_cab = next((n for n, f in enumerate(filas[:_FILAS_CABECERA])
+                  if buscadas <= {str(c).strip() for c in f if c is not None}), None)
+    if n_cab is None:
+        vistas = {str(c).strip() for f in filas[:_FILAS_CABECERA] for c in f if c is not None}
+        faltan = sorted(buscadas - vistas)
+        raise CostosError(f'{ruta.name}: ninguna fila trae las columnas declaradas; faltan: '
+                          f'{", ".join(faltan) or "todas en una misma fila"}')
+    cab = [str(c).strip() if c is not None else '' for c in filas[n_cab]]
+    i = {k: cab.index(v) for k, v in usadas.items()}
+    con_zona = 'zona' in i
+
+    def celda(f, k):
+        v = f[i[k]] if k in i and i[k] < len(f) else None
+        return '' if v is None else str(v).strip()
+
+    tabla: dict[tuple[str, str, str, str], Costo] = {}
+    for n, f in enumerate(filas[n_cab + 1:], n_cab + 2):
+        codigo = celda(f, 'codigo')
+        # Las filas sin código son títulos o subtotales del anexo, no módulos.
+        if not codigo:
+            continue
+        bruto = f[i['total']] if i['total'] < len(f) else None
+        if bruto is None or str(bruto).strip() == '':
+            raise CostosError(f'{ruta.name}, fila {n}: módulo {codigo} sin total')
+        try:
+            total = float(bruto)
+        except (TypeError, ValueError) as exc:
+            raise CostosError(f'{ruta.name}, fila {n}: costo no numérico de {codigo} ({exc})') from exc
+        clave = (codigo, '', '', celda(f, 'zona') if con_zona else '')
+        if clave in tabla:
+            # Dos costos para un mismo módulo: elegir uno sería suponer cuál es el oficial.
+            raise CostosError(f'{ruta.name}, fila {n}: módulo {codigo} repetido'
+                              + (f' en la zona «{clave[3]}»' if con_zona else ''))
+        tabla[clave] = Costo(codigo, '', '', clave[3], celda(f, 'nombre'), {'total': total}, fuente,
+                             celda(f, 'familia'), celda(f, 'unidad'))
+    if not tabla:
+        raise CostosError(f'{ruta.name}: la hoja no trae ningún módulo bajo la cabecera')
+    return TablaCostos(fuente, tabla, con_zona)
+
+
+def exigir_ambito(tabla: TablaCostos, ambito: str) -> None:
+    """Una fuente solo valora su ámbito: el SICODI no es de transmisión ni los módulos de distribución (072:RF-6)."""
+    if tabla.fuente.ambito != ambito:
+        raise CostosError(f'{tabla.fuente.nombre} es de ámbito «{tabla.fuente.ambito}», no de «{ambito}»')
+
+
+def _costo_del_elemento(e: Mapping, tabla: TablaCostos) -> tuple[Costo | None, str]:
+    codigo_red = str(e.get('codigo') or '').strip()
+    if tabla.fuente.ambito == 'distribucion':
+        codigo, tension = partir_codigo_vnr(codigo_red)
+        sector, estructura = str(e.get('sector') or ''), str(e.get('estructura') or '')
+        costo = tabla.buscar(codigo, tension, estructura, sector)
+        return costo, ('' if costo else tabla.motivo_sin_costo(codigo, tension, estructura, sector))
+    zona = str(e.get('zona') or '').strip()
+    costo = tabla.buscar_modulo(codigo_red, zona)
+    return costo, ('' if costo else tabla.motivo_sin_modulo(codigo_red, zona))
+
+
+def valorar_obra(elementos: Iterable[Mapping], tablas: Mapping[str, TablaCostos]) -> dict:
+    """Metrado × costo de cada elemento de una obra, con la fuente de su ámbito (072:RF-6, RF-7, RF-15).
+
+    Cada elemento declara `elemento`, `ambito` (`distribucion` o `transmision`), `codigo` y
+    `cantidad`; los de distribución, además, `sector` y `estructura`; los de transmisión, `zona`
+    si la fuente la distingue, y `unidad` para comprobar la del módulo. Lo que no cruza queda
+    nombrado y fuera del total (072:RF-16). Los totales van por moneda: sumar dos monedas
+    exigiría un tipo de cambio, que sería un factor no declarado (072:RF-8).
+    """
+    for ambito, tabla in tablas.items():
+        exigir_ambito(tabla, ambito)
+    valorados, sin_costo = [], []
+    for e in elementos:
+        nombre, ambito = str(e.get('elemento') or e.get('codigo') or ''), str(e.get('ambito') or '')
+        tabla = tablas.get(ambito)
+        cantidad = e.get('cantidad')
+        if tabla is None:
+            motivo = (f'sin fuente de costos de {ambito}' if ambito in ('distribucion', 'transmision')
+                      else f'ámbito «{ambito}» no es distribucion ni transmision')
+        elif cantidad is None or float(cantidad) <= 0:
+            motivo = f'{e.get("codigo")}: sin metrado no hay costo supuesto'
+        else:
+            costo, motivo = _costo_del_elemento(e, tabla)
+            unidad = str(e.get('unidad') or '').strip()
+            if costo is not None and unidad and costo.unidad and unidad.lower() != costo.unidad.lower():
+                # Un metrado en m contra un costo por km daría mil veces el costo: no se convierte solo.
+                motivo = (f'{e.get("codigo")}: la unidad del metrado «{unidad}» no es la del módulo '
+                          f'«{costo.unidad}»; no se convierte')
+            elif costo is not None:
+                valorados.append({'elemento': nombre, 'ambito': ambito, 'codigo': e.get('codigo'),
+                                  'cantidad': float(cantidad), 'unidad': costo.unidad,
+                                  'costo_unitario': costo.total, 'costo': float(cantidad) * costo.total,
+                                  'moneda': tabla.fuente.moneda, 'fuente': tabla.fuente.resolucion,
+                                  'factor': tabla.fuente.factor, 'nombre': costo.nombre})
+                continue
+        sin_costo.append({'elemento': nombre, 'ambito': ambito, 'codigo': e.get('codigo'), 'motivo': motivo})
+    total_por_moneda: dict[str, float] = {}
+    for x in valorados:
+        total_por_moneda[x['moneda']] = total_por_moneda.get(x['moneda'], 0.0) + x['costo']
+    return {'fuentes': {a: asdict(t.fuente) for a, t in tablas.items()}, 'total_por_moneda': total_por_moneda,
+            'completa': not sin_costo, 'valorados': valorados, 'sin_costo': sin_costo}
 
 
 def partir_codigo_vnr(codigo: str) -> tuple[str, str]:

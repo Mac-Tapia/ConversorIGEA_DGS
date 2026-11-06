@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 91 |
 | Interfaz | `frontend/src/` | 43 |
 | Pruebas de la interfaz | `frontend/test/` | 7 |
-| Pruebas | `tests/` | 358 |
+| Pruebas | `tests/` | 359 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 262 |
 
@@ -390,7 +390,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pide_dataset.py` | Ada | 024 | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. |
 | `estudio_planeamiento.py` | Dom | 072 | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. |
 | `proyeccion_mercado.py` | Apl | 072 | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. |
-| `costos_fuentes.py` | Apl | 072 | Costos oficiales: contrato de fuente, lector del SICODI público y cruce por código, tensión, estructura y sector típico. |
+| `costos_fuentes.py` | Apl | 072 | Costos oficiales: contrato de fuente, lectores del SICODI público y de los módulos estándar de transmisión, cruce por código, tensión, estructura y… |
 | `metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
 | `formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
 | `informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |

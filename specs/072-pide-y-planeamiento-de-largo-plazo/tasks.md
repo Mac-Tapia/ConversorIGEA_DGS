@@ -7,8 +7,17 @@
       Medido el 2026-11-02, SICODI de la Res. 184-2026-OS/CD contra los 25 códigos de línea que lista el inventario de una red de ELOR:
       22 con costo y 94,7 % de sus tramos. Los otros 3 terminan en `H`, tensión que el SICODI no trae, y quedan como hueco nombrado.
       Falta declarar la moneda (el TXT no la dice) y el sector típico de cada sistema.
-- [ ] T3 Adaptador de módulos estándar de transmisión. (RF-5, RF-6)
+- [x] T3 Adaptador de módulos estándar de transmisión. (RF-5, RF-6)
       Hecho cuando: el fichero de la resolución está ubicado y una obra de transmisión se valora con él.
+      Hecho el 2026-11-06: el adaptador; el fichero real pasa a T13. `costos_fuentes.leer_modulos_transmision` lee un libro de
+      módulos por el mismo contrato que el SICODI (ámbito `transmision`, resolución, año, moneda, URL, fecha y huella), con las
+      columnas declaradas porque cada resolución cambia la disposición; `valorar_obra` valora cada elemento con la fuente de su
+      ámbito, nombra lo que no cruza (sin módulo, sin zona, sin metrado, otra unidad) y suma por moneda sin convertir; y
+      `valorar_metrados` rechaza una fuente que no sea de distribución. Evidencia: `pytest -q tests/test_modulos_transmision.py
+      tests/test_estudio_y_costos.py`, 37 aprobadas con los tres `CSG_*` de los TXT, sin omitidas. Ubicado el 2026-11-06: la base
+      la aprobó la Res. 152-2026-OS/CD y la sustituyó la Res. 181-2026-OS/CD (vigente desde el 26-07-2026, factor de Amazonía 1,0869
+      con su sustento en el art. 2), publicada en `https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx` como carpeta
+      «Base de Datos de los Módulos Estándares de Transmisión»; esa página solo enlaza los PDF, y la carpeta no se descargó.
 - [x] T4 Metrados desde la red. (RF-15)
       Hecho cuando: los metrados de un alimentador real cuadran con sus longitudes.
 - [x] T5 Proyección de mercado y prueba contra lo ocurrido. (RF-10, RF-11)
@@ -42,3 +51,7 @@
       Hecho cuando: `pytest -q tests/test_formatos_pide.py -k coym` en verde.
 - [ ] T11 Aceptación real de los dos entregables.
       Hecho cuando: el usuario los revisa en una empresa.
+- [ ] T13 Base real de módulos estándar de transmisión y una obra valorada con ella. (RF-5, RF-6, RF-9)
+      Hecho cuando: la carpeta de la Res. 181-2026-OS/CD (que sustituye la base de la 152-2026-OS/CD) está descargada fuera de git
+      con su URL, fecha y huella, sus columnas declaradas a `leer_modulos_transmision`, y una obra de transmisión de una red real
+      queda valorada con `valorar_obra`, con sus huecos nombrados.
