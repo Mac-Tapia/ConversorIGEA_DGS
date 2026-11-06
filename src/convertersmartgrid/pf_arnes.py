@@ -497,6 +497,9 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
                     continue
                 soltar_turno(ruta)
                 raise PFNoDisponible(f'no se pudo conectar a DIgSILENT: {exc}') from exc
+        # 081:RF-76: dentro de lo vigilado. 2026-11-05 (005 T12): la importación de PRUEBA_005
+        # conectó y se quedó 30 min aquí sin gastar CPU; el vigía ya había leído «fin».
+        usuario = getattr(app.GetCurrentUser(), 'loc_name', '?')
     finally:
         _anotar(marca, 'fin')
         if proc_vigia is not None:
@@ -505,7 +508,6 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
                 marca.unlink(missing_ok=True)
             except Exception:  # noqa: BLE001, S110 - si sigue vivo, aún tiene que ver el «fin»
                 pass
-    usuario = getattr(app.GetCurrentUser(), 'loc_name', '?')
     # RF-20: quien corta una orden distingue un servidor que conecta de uno que atiende.
     marcar_turno(ruta, conectado=True)
     # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo

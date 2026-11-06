@@ -151,6 +151,18 @@ corregido, decía «Reconvierta para llevarlo al DGS». 032:RF-2 (cumplida) hace
 - RF-70: CUANDO el operador sube el catálogo corregido, EL SISTEMA dirá que sus fichas se aplicarán al calibrar «Sin proyecto» y que
   el DGS del «Caso base» conserva los parámetros de la entrada, con una sola frase que dan el Registro y la pantalla.
 
+Relectura de proyectos anterior a la importación
+
+En la prueba real de la 005 T12 (2026-11-05), el operador leyó los proyectos de DIgSILENT y luego reimportó PRUEBA_005; la
+verificación del «Caso base» falló con `PROJECT_BINDING_PROJECT_MISMATCH` porque comparaba el proyecto nuevo con la lista
+leída antes de importarlo.
+
+- RF-75: SI la última relectura de proyectos del espacio es anterior a la aceptación del vínculo, ENTONCES EL SISTEMA no tomará la
+  ausencia del proyecto en esa lista como otro proyecto, y lo comprobará como si no hubiera relectura.
+- RF-76: MIENTRAS DIgSILENT no haya entregado el usuario tras conectar, EL SISTEMA mantendrá la vigilancia de la conexión, de
+  modo que un guion parado en esa llamada se termine en el mismo plazo que uno parado al conectar. En la misma prueba, la
+  importación de PRUEBA_005 conectó y quedó 30 min en `GetCurrentUser` sin gastar CPU, ya fuera de la vigilancia de 019:RF-23.
+
 ## Fuera de alcance
 
 - Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).

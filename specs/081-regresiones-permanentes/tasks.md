@@ -46,5 +46,12 @@
   Hecho cuando: cada proyecto queda en la carpeta de su empresa, el aviso del supuesto se ve y las lecturas lo encuentran; ningún proyecto existente se ha movido. Falta el campo en el front: hoy solo por `PUT /api/workspaces/<id>/options`.
 - [x] T23. Registro de cada orden, estadística descriptiva, contraste de versiones y fallos repetidos. (RF-71, RF-72, RF-73, RF-74)
       Hecho cuando: `pytest -q tests/test_estadistica_ordenes.py` en verde.
+- [x] T25. Una relectura anterior a la importación no rechaza el proyecto recién importado. (RF-75)
+      Hecho cuando: `pytest -q tests/test_powerfactory_binding.py -k rf75` en verde.
+      Hecho el 2026-11-05: `require_project_binding` compara `accepted_at` con el `native_reread_at` más reciente;
+      sin fecha de relectura se compara como antes.
+- [x] T26. El vigía de la conexión cubre también `GetCurrentUser`. (RF-76)
+      Hecho cuando: `pytest -q tests/test_pf_arnes.py -k rf76` en verde.
+      Hecho el 2026-11-05: `conectar` pide el usuario antes de anotar «fin».
 - [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.

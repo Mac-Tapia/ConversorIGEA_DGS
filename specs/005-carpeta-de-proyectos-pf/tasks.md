@@ -45,10 +45,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T11. Validación: cada RF citado por al menos una prueba y en verde; suite completa
       con las variables `CSG_*`. (Todos)
       Hecho cuando: `grep -rnoE "005:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-20.
-- [ ] T12. [DIgSILENT] Prueba manual en DIgSILENT (la hace el usuario): importar dos DGS, uno con
+- [x] T12. [DIgSILENT] Prueba manual en DIgSILENT (la hace el usuario): importar dos DGS, uno con
       nombre repetido, crear una subcarpeta y leer los proyectos. (RF-5 a RF-17)
       Hecho cuando: el usuario lo confirma, y la lista de caracteres no admitidos queda
       comprobada.
+      Hecho el 2026-11-05 por la web (espacio de prueba 35ff5dab8b2b46a6), por orden del usuario, con el proyecto de prueba
+      `PRUEBA_005` (SL141 y SL142), borrado al terminar: tres importaciones en `sistemaeletricoELD`, con el flujo convergido y la
+      calibración válida; la primera movida a una subcarpeta nueva se lee como `PRUEBA_005_SUB/<sello>_CSG_TXT_PRUEBA_005` con sus
+      dos alimentadores (RF-11, RF-12, RF-17); una nueva importación no la borra ni la mueve (RF-8, RF-22 solo en su carpeta) y sí
+      borra la versión anterior de la raíz (RF-22). Caracteres: DIgSILENT rechaza `" * : ? \ |`, todos en `NO_ADMITIDOS`; acepta
+      `. / < >`, que la lista también veta (`.` separa nombre y clase en `GetContents`, `/` es el separador de la RF-12). La prueba
+      halló dos fallos, ya corregidos con su prueba en la 081 (RF-75: relectura anterior a la importación; RF-76: vigía en
+      `GetCurrentUser`); con ellos el «Caso base» de la reimportación sale VERIFICADO.
 - [x] T13. PowerFactory que no responde al leer los proyectos (2026-10-14): `pf_proyectos.py`
       escribe su primera línea tras `GetCurrentUser`; `run_process` acepta
       `limite_arranque_s` y cierra la entrada estándar del guion; `services.pf_projects`

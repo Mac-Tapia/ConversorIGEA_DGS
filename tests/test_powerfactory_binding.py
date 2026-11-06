@@ -707,3 +707,30 @@ def test_caso_base_de_un_alimentador_del_rotulo_de_su_barra(tmp_path):
                        'caso_base': {'IN111': verificado, 'IN111 + PI101': verificado}}))
     assert caso_base_verificado(ws, 'Oct/IN111', ['IN111', 'PI101']) == {}
     assert caso_base_verificado(ws, 'Oct/IN111', ['PI102']) == {'PI102': ['sin verificar']}
+
+
+def test_081_rf75_relectura_anterior_a_la_importacion_no_cuenta_como_otro_proyecto(tmp_path):
+    """081:RF-75 — la relectura guardada es de antes de importar: no puede conocer el proyecto nuevo.
+
+    Caso real del 2026-11-05 (005 T12): el operador leyó los proyectos, reimportó PRUEBA_005 y el
+    «Caso base» falló con PROJECT_BINDING_PROJECT_MISMATCH porque la lista era de antes.
+    """
+    from convertersmartgrid.powerfactory_binding import record_project_binding, require_project_binding
+
+    ws = _workspace(tmp_path)
+    ws.pf_inventory['projects'][0]['native_reread_at'] = 1_796_999_000.0       # antes de importar
+    record_project_binding(ws, _binding(project='Oct/NUEVO', accepted_at=1_797_000_000.0))
+    assert require_project_binding(ws, 'Oct/NUEVO', ['IN111']).project == 'Oct/NUEVO'
+
+
+def test_081_rf75_relectura_posterior_sin_el_proyecto_sigue_fallando(tmp_path):
+    """081:RF-75 — si la lista se leyó después de importar y el proyecto no está, ya no existe."""
+    from convertersmartgrid.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    ws = _workspace(tmp_path)
+    ws.pf_inventory['projects'][0]['native_reread_at'] = 1_797_000_500.0       # después de importar
+    record_project_binding(ws, _binding(project='Oct/NUEVO', accepted_at=1_797_000_000.0))
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_PROJECT_MISMATCH'):
+        require_project_binding(ws, 'Oct/NUEVO', ['IN111'])

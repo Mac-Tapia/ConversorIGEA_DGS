@@ -537,6 +537,12 @@ def require_project_binding(
         )
 
     projects, current = _current_project(ws, project)
+    # 081:RF-75: una relectura anterior a la importación no puede conocer el proyecto nuevo.
+    # 2026-11-05 (005 T12): tras leer los proyectos y reimportar PRUEBA_005, el «Caso base» falló
+    # con este código. Sin fecha de relectura (listas antiguas) se compara como siempre.
+    leida = max((float(p.get('native_reread_at') or 0) for p in projects), default=0.0)
+    if current is None and leida and binding.accepted_at > leida:
+        projects = []
     if projects and current is None:
         raise ProjectBindingError(
             'PROJECT_BINDING_PROJECT_MISMATCH',

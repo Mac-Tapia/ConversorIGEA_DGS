@@ -32,7 +32,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T8, T9, T11, T12 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | reservada |  |
   | 004 Cargas en un proyecto existente de DIgSILENT | cumplida |  |
-  | 005 Carpeta de proyectos importados en DIgSILENT | implementada | falta T12 |
+  | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
   | 006 Ajuste de las demandas a la máxima de cabecera | cumplida |  |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | implementada | falta T11 |
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | implementada | falta T7 |

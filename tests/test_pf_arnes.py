@@ -447,3 +447,27 @@ def test_borrar_el_turno_tolera_que_otro_lo_este_leyendo(tmp_path, monkeypatch):
     assert ruta.exists()
     pf_arnes._borrar_turno(ruta)
     pf_arnes._borrar_turno(ruta)        # ya no existe: tampoco falla
+
+
+def test_081_rf76_el_vigia_cubre_tambien_el_usuario_de_digsilent(turno):
+    """081:RF-76 — «fin» solo cuando DIgSILENT entregó el usuario, no al volver GetApplicationExt.
+
+    2026-11-05 (005 T12): la importación de PRUEBA_005 conectó y se quedó 30 min en
+    GetCurrentUser sin gastar CPU; el vigía ya había leído «fin» y no la terminó.
+    """
+    marcas = []
+
+    def vigia(plazo, marca, ruta):
+        marcas.append(marca)
+        return None
+
+    def usuario():
+        marcas.append(marcas[0].read_text(encoding='utf-8'))
+        return SimpleNamespace(loc_name='Operador')
+
+    modulo = SimpleNamespace(GetApplicationExt=lambda: SimpleNamespace(GetCurrentUser=usuario))
+    pf_arnes.conectar('a.py', modulo=modulo, aviso=lambda m: None, abierto=lambda: [], vigia=vigia)
+    marca, durante = marcas[0], marcas[1]
+    assert durante != 'fin'
+    assert marca.read_text(encoding='utf-8') == 'fin'
+    pf_arnes.soltar_turno()
