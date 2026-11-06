@@ -229,6 +229,7 @@
     "problema_optimizacion.py",
     "adaptador_pymoo.py",
     "benchmark_optimizacion.py",
+    "adaptador_pnl.py",
     "temporal.py",
     "temporal_entrenamiento.py",
     "series_causales.py",

@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 230 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 231 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 91 |
 | Interfaz | `frontend/src/` | 43 |
 | Pruebas de la interfaz | `frontend/test/` | 7 |
-| Pruebas | `tests/` | 360 |
+| Pruebas | `tests/` | 361 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 262 |
 
@@ -34,13 +34,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 114 |
+| adaptadores | Ada | 115 |
 | aplicacion | Apl | 96 |
 | presentacion | Pre | 30 |
 | dominio | Dom | 28 |
 | puertos | Pue | 2 |
 
-270 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+271 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -432,6 +432,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `problema_optimizacion.py` | Ada | 048 | Contrato común de una búsqueda de obras y consignas: variables tipadas con unidad, origen y coste trazable, restricciones, objetivos, contexto y… |
 | `adaptador_pymoo.py` | Ada | 048 | GA, NSGA-II y DE de pymoo, opcionales, como candidatos del benchmark de la 048: genes reparados por la regla común y presupuesto cortado por el… |
 | `benchmark_optimizacion.py` | Ada | 048 | Benchmark de los optimizadores vigentes y los de pymoo: al menos veinte semillas comunes, presupuesto en evaluaciones reales (caché aparte),… |
+| `adaptador_pnl.py` | Ada | 048 | Tramo continuo con Pyomo y un solucionador PNL (Ipopt por omisión, HiGHS para cuadráticos) con las discretas fijas: punto local continuo, nunca… |
 | `temporal.py` | Ada | 024, 046, 060 | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), GRU multihorizonte para competir en el pronóstico, métricas, desviaciones… |
 | `temporal_entrenamiento.py` | Ada | 043, 046, 060 | Lectura de series mediante lectores existentes, ajuste causal GRU, objetivos de cabecera y clientes, competición de pronósticos con ganador por… |
 | `series_causales.py` | Ada | 046 | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. |
