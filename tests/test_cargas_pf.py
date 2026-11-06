@@ -317,3 +317,19 @@ def test_la_fila_cercana_que_no_cabe_en_la_sed_es_sed_nueva():
     assert guion.ampliacion_de(chica, [sed])['sed'] == 'SE1'
     por_nombre = {'sed': 'AMPLIACION SE1', 'kw': 1600.0, 'lat': -13.8625, 'lon': -76.1321}
     assert guion.ampliacion_de(por_nombre, [sed])['sed'] == 'SE1'
+
+
+def test_la_sigla_de_la_carga_nombra_la_carga_nueva():
+    """093:RF-1, 093:RF-2, 093:RF-3 — con «SIGLAS DE CARGA», la carga se llama por su sigla y guarda su descripción;
+    la fila sin sigla sigue con su descripción. AL209 (2026-11-06): PI_11 y PI_15 eran dos clientes de cemento."""
+    header = ['N°', 'EXP', 'SIGLAS DE CARGA', 'UNIDAD DE NEGOCIO', 'DESCRIPCION', 'DEM PROY \n(KW)', 'TRONCAL', 'BARRA']
+    filas, errores = leer_hoja_nuevas(header, [
+        [None, None, 'PI_15', 'Pisco', 'SU_CementoINKA-Pisco', 5000, 'F1', 'B1'],
+        [32, 'EXP-1', 'PI_11', 'Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.', 2100, 'F1', 'B2'],
+        [33, 'EXP-2', None, 'Pisco', 'Habilitación sin sigla', 300, 'F1', 'B3'],
+    ], 'ClientesNuevos')
+    assert errores == []
+    assert [f.sed for f in filas] == ['PI_15', 'PI_11', 'Habilitación sin sigla']
+    assert [f.descripcion for f in filas] == ['SU_CementoINKA-Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.',
+                                              'Habilitación sin sigla']
+    assert filas[0].para_pf()['descripcion'] == 'SU_CementoINKA-Pisco'

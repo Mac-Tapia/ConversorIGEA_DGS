@@ -99,3 +99,4 @@ retirada.
 | [090](090-arquitectura-generada/spec.md) | La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida | 16 | 16 | — |
 | [091](091-flujo-calibracion-a-estudio/spec.md) | Flujo de la calibración al estudio | reservada | 0 | 0 | — |
 | [092](092-caso-base-de-una-red-reconstruida/spec.md) | El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | 4 | 4 | T2 (DIgSILENT) |
+| [093](093-siglas-de-carga-como-nombre/spec.md) | La sigla de la carga nombra la carga nueva y su variación | implementada | 3 | 3 | T2 (DIgSILENT) |

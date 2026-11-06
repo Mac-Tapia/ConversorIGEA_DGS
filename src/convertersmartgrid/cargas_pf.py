@@ -51,6 +51,9 @@ NUEVA_ALIASES = {
     # por su descripción; el alimentador va como «TRONCAL».
     'descripcion': 'nombre', 'nombre': 'nombre', 'proyecto': 'nombre', 'cliente': 'nombre',
     'troncal': 'alimentador',
+    # 093:RF-1: la sigla con que la distribuidora identifica la carga (PI_15) la nombra; con la
+    # descripción, AL209 (2026-11-06) confundía dos clientes de cemento.
+    'siglasdecarga': 'sigla', 'siglas': 'sigla', 'sigla': 'sigla', 'siglasdelacarga': 'sigla',
     # 030:RF-10: año de ingreso, calendario (2030) o del PIDE (4); con o sin ñ.
     'añodeingreso': 'anio_ingreso', 'añoingreso': 'anio_ingreso', 'anodeingreso': 'anio_ingreso',
     'anoingreso': 'anio_ingreso', 'aniodeingreso': 'anio_ingreso', 'anioingreso': 'anio_ingreso',
@@ -132,6 +135,8 @@ class CargaNueva:
     """030:RF-10: año calendario (≥ 1900) o año del PIDE en que entra; ``None``, el año 00."""
     etapas: tuple[tuple[int, float], ...] = ()
     """030:RF-13: (año, kW que entra ese año) de una carga fraccionada; suman ``kw``."""
+    descripcion: str = ''
+    """093:RF-3: el cliente según el libro, cuando la carga se nombra por su sigla."""
 
     def para_pf(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -295,7 +300,7 @@ def leer_hoja_nuevas(
         texto = {k: ('' if v is None else str(v)).strip() for k, v in cell.items()}
         # RF-53: sin SED, la carga se nombra por su descripción y, sin ella, por su fila;
         # una fila sin nombre ni demanda es un resto de la hoja y se salta.
-        sed = texto.get('SED') or texto.get('nombre', '')
+        sed = texto.get('SED') or texto.get('sigla') or texto.get('nombre', '')        # 093:RF-1, RF-2
         if not sed:
             if not any(texto.get(c) for c in ('Kw', 'Kvar', '(kVA)')):
                 continue
@@ -378,6 +383,7 @@ def leer_hoja_nuevas(
             kva_instalado=float(kva_instalado), kw=kw, kvar=kvar, fp=fp,
             tipo_linea=texto.get('tipo_linea', ''), tension_bt_kv=numeros.get('tension_bt_kv'),
             anio_ingreso=int(ingreso) if ingreso is not None else None, etapas=tuple(etapas),
+            descripcion=texto.get('nombre', ''),                                     # 093:RF-3
         ))
     if pendientes_xy:
         gps = a_wgs84([(x, y) for _i, x, y in pendientes_xy], source_crs)

@@ -120,6 +120,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
   | 091 Flujo de la calibración al estudio | reservada |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | falta T2 |
+  | 093 La sigla de la carga nombra la carga nueva y su variación | implementada | falta T2 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
