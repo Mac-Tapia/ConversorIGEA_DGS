@@ -493,6 +493,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
         'completar_bancos': bancos, 'tension_fuente_pu': tension_pu,
+        # 083:RF-31: sin la opción de simular antes, el guion cambia los transformadores en la misma pasada.
+        'transformadores_automaticos': not transformadores,
         'centrales': del_perfil, 'criterio_fijas': criterio_fijas,             # 039:RF-1
         'criterio_por_alimentador': por_alimentador})                          # 039:RF-8
     for aviso in plan.get('avisos', []):

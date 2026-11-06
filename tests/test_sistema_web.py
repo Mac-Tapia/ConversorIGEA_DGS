@@ -548,3 +548,20 @@ def test_con_proyecto_no_adopta_un_trabajo_terminado_y_pasa_el_capex(herramienta
     herramienta._RESUMEN[:] = []
     assert herramienta.con_proyecto(Web(), 'P', ['F1'], capex='libro.xlsx') == 0
     assert Web.lanzado['capex'] == 'libro.xlsx'
+
+
+def test_083_rf31_el_plan_pide_los_transformadores_en_la_misma_pasada(herramienta):
+    """083:RF-31 — sin ``--transformadores`` (que simula antes), el plan pide que el guion cambie en la misma
+    pasada las fijas sobre su transformador; ya no hace falta un intento fallido para cambiarlas."""
+    web = WebFalsa(informes=[VALIDO])
+    enviados = []
+    original = web.post
+
+    def post(ruta, **kw):
+        if ruta == '/demanda/ajuste/plan':
+            enviados.append(kw['json'])
+        return original(ruta, **kw)
+
+    web.post = post
+    assert _correr(herramienta, web) == 0
+    assert enviados and enviados[0]['transformadores_automaticos'] is True

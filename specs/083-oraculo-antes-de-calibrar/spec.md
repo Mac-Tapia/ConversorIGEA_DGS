@@ -78,6 +78,10 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
   frente a 4 289 kW medidos en cabecera. Usuario: «deben entrar todos, analizar las mediciones y corregirlas».
 - RF-15: EL SISTEMA comparará la Q escrita con el margen que deja la precisión de DIgSILENT en el modo P y cos φ (10⁻⁵ de la P), porque con
   un factor de potencia casi 1 un cos φ de precisión simple no reproduce una Q pequeña, y eso no es un fallo del reparto.
+- RF-31: CUANDO la calibración se pide en modo automático y en DIgSILENT hay SED fijas sobre su transformador con ficha propuesta,
+  EL SISTEMA pondrá esos transformadores en la misma pasada, antes de calibrar, en vez de calibrar en falso y repetir (cambia
+  RF-8, que queda como respaldo). En PRUEBA_007 (2026-11-06), SE20497 pedía 1 429 kW en 160 kVA: cada calibración fallaba
+  la primera vez y se repetía entera. Usuario: «debe buscar la solución, no seguir intentando».
 
 ## Fuera de alcance
 

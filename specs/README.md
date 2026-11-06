@@ -89,7 +89,7 @@ retirada.
 | [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida | 52 | 52 | — |
 | [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | 79 | 79 | T22 (DIgSILENT), T20 (DIgSILENT), T10 (DIgSILENT), T11 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT), T16 (DIgSILENT), T24 (DIgSILENT) |
 | [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | cumplida | 15 | 15 | — |
-| [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | implementada | 30 | 30 | T3 (DIgSILENT) |
+| [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | implementada | 31 | 31 | T3 (DIgSILENT) |
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | implementada | 30 | 30 | T8 (DIgSILENT), T9 (DIgSILENT) |
 | [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | 33 | 25 | T6 |
 | [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 53 | 49 | T1, T5, T39, T38, T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T24 (DIgSILENT), T25 (DIgSILENT), T26 (DIgSILENT), T27 (DIgSILENT), T28 (DIgSILENT), T29, T30 (DIgSILENT), T31, T32 (DIgSILENT), T33 (DIgSILENT), T34 |

@@ -281,6 +281,8 @@ class AjusteIn(BaseModel):
     tension_fuente_pu: float | None = Field(None, ge=0.9, le=1.1)
     # Spec 021, RF-64: poner los bancos que falten para el kVAR medido y recalibrar.
     completar_bancos: bool = False
+    # 083:RF-31: las fijas sobre su transformador con ficha propuesta se cambian en la misma pasada.
+    transformadores_automaticos: bool = False
     # 039:RF-1: el mismo criterio de las fijas que se eligió en la tabla cruzada.
     criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
     # 039:RF-8: el de cada alimentador marcado en la tabla cruzada.
@@ -1743,6 +1745,7 @@ def create_app(
                                     centrales={a: c.model_dump() for a, c in body.centrales.items()},
                                     tension_fuente_pu=body.tension_fuente_pu,
                                     completar_bancos=body.completar_bancos,
+                                    transformadores_automaticos=body.transformadores_automaticos,
                                     barras=job.result.get('barras'),
                                     criterio_fijas=body.criterio_fijas,
                                     criterio_por_alimentador=body.criterio_por_alimentador)

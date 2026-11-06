@@ -2087,3 +2087,31 @@ def test_variaciones_del_catalogo_en_sin_y_con_proyecto_y_no_en_el_caso_base(gui
     (var,) = _variaciones(app, 'Fichas_')
     assert casos.es_del_catalogo(var) and not casos.es_del_operador(var)
     assert any('032:RF-27' in a for a in informe['avisos'])
+
+
+def test_083_rf31_transformadores_de_la_ficha_en_la_misma_pasada(guion):
+    """083:RF-31 — PRUEBA_007 (2026-11-06): cada calibración fallaba la primera vez por una fija sobre su
+    transformador (SE20497, 1 429 kW en 160 kVA) y se repetía entera tras cambiarlo (083:RF-8). Con el plan
+    automático, la misma pasada pone el transformador de la ficha antes de calibrar y ya no sale sobrecargada."""
+    app = _app(n=3)
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)),
+            'transformadores_sed': _fichas_plan(), 'transformadores_automaticos': True}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    assert _tr(app, 'TR_F1_S2').typ_id.loc_name == 'TR_400kVA_NTP370400_10-380V_DYN11'
+    hechos = informe['transformadores_implementados']['cambios']
+    assert [h['sed'] for h in hechos] == ['F1_S2']
+    assert not informe.get('fijas_sobre_su_transformador')
+    assert any('083:RF-31' in a for a in informe['avisos'])
+
+
+def test_083_rf31_sin_el_plan_automatico_solo_se_propone(guion):
+    """083:RF-31 — sin ``transformadores_automaticos`` todo sigue como en la 020: se propone y no se cambia."""
+    app = _app(n=3)
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)), 'transformadores_sed': _fichas_plan()}
+    informe, rc = guion.ejecutar(app, plan)
+    assert rc == 0, informe
+    assert _tr(app, 'TR_F1_S2').typ_id is viejo and informe['fijas_sobre_su_transformador']

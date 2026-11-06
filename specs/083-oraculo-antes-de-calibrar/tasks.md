@@ -30,3 +30,5 @@
       Hecho cuando: `pytest -q tests/test_oraculo_calibracion.py` en verde.
 - [ ] T3 [DIgSILENT] Pisco: flujos y minutos con el arranque del oráculo. (RF-1, RF-5, RF-20, RF-21, RF-22)
       Hecho cuando: el informe de la calibración por la web da su modelo, evaluaciones y factores.
+- [x] T16 El plan automático pone los transformadores de la ficha en la misma pasada; `sistema_web` lo pide sin `--transformadores`. (RF-31)
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_sistema_web.py -k rf31` en verde.

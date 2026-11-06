@@ -2509,6 +2509,30 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                         'fichas de transformadores (calibracion.transformadores_sed)'})
     if sobre:
         proponer_transformadores(sobre, cargas, fichas, motivo_fichas)
+    if (sobre and plan.get('transformadores_automaticos') and not simular
+            and not plan.get('transformadores')):
+        # 083:RF-31: los transformadores de la ficha en esta misma pasada, antes de calibrar. PRUEBA_007
+        # (2026-11-06): con SE20497 (1 429 kW en 160 kVA) la calibración fallaba siempre la primera vez
+        # y se repetía entera tras cambiarlo (083:RF-8).
+        cambios = [{'sed': x['sed'], 'transformador': x['transformadores'][0]['transformador'],
+                    'propuesta': x['propuesta']} for x in sobre
+                   if (x.get('propuesta') or {}).get('kva') and len(x.get('transformadores') or []) == 1]
+        if cambios:
+            hecho = implementar_transformadores(app, cargas, cambios, plan.get('project') or '')
+            informe['transformadores_implementados'] = hecho
+            if hecho.get('error'):
+                return {**informe, 'error': hecho['error']}, 2
+            informe['avisos'].extend(hecho.get('avisos') or [])
+            if hecho['cambios']:
+                informe['avisos'].append(
+                    f"{len(hecho['cambios'])} transformador(es) de la ficha puestos antes de calibrar, en la misma "
+                    'pasada: ' + ', '.join(h['sed'] for h in hecho['cambios']) + ' (083:RF-31).')
+                kva, kva_origen = kva_por_sed(cargas, plan.get('kva_entrada') or {})
+                comun.update(kva=kva, kva_origen=kva_origen)
+                sobre = fijas_sobre_su_transformador(fijas, kva)
+                if sobre:
+                    proponer_transformadores(sobre, cargas, fichas, motivo_fichas)
+    if sobre:
         informe['fijas_sobre_su_transformador'] = sobre
         informe['avisos'].append(
             f'{len(sobre)} SED fija(s) con más demanda que su potencia instalada; revise el '

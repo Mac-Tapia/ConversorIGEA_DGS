@@ -3696,6 +3696,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 centrales: dict[str, dict] | None = None,
                 tension_fuente_pu: float | None = None,
                 completar_bancos: bool = False,
+                transformadores_automaticos: bool = False,
                 barras: list[dict] | None = None,
                 criterio_fijas: str | None = None,
                 criterio_por_alimentador: dict[str, str] | None = None) -> dict:
@@ -3941,6 +3942,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'tension_fuente_pu': tension_fuente_pu,
             # 021:RF-64, RF-65: poner los bancos que falten, con el tamaño de su tensión.
             'completar_bancos': completar_bancos,
+            # 083:RF-31: el guion pone los transformadores de la ficha antes de calibrar, sin repetir.
+            'transformadores_automaticos': transformadores_automaticos,
             'bancos_kvar_por_tension': {str(k): v for k, v in (por_tension or {}).items()},
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
