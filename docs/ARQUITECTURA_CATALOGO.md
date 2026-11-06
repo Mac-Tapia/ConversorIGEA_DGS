@@ -15,7 +15,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de la interfaz | `frontend/test/` | 8 |
 | Pruebas | `tests/` | 374 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 277 |
+| Specs | `specs/` | 283 |
 
 `web/services.py` tiene 10802 líneas y 325 funciones, pendiente de partir (002).
 
@@ -24,11 +24,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 43 |
-| implementada | 29 |
-| aprobada | 18 |
+| implementada | 30 |
+| aprobada | 19 |
 | reservada | 3 |
 
-93 specs con 3077 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+95 specs con 3092 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -337,7 +337,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
 | `cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
-| `ajuste_cabecera.py` | Dom | 006, 021, 035, 041 | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. |
+| `ajuste_cabecera.py` | Dom | 006, 021, 035, 041, 095 | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. |
 | `oraculo_calibracion.py` | Ada | 083 | El oráculo antes de calibrar: los factores de arranque, sin gastar flujos de DIgSILENT. |
 | `crecimiento.py` | Apl | 029 | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año,… |
 | `valle.py` | Apl | 073 | El valle de un alcance desde la medición: limpieza de lo dudoso con su motivo, energía de sus medidores, inicio y duración por búsqueda exacta, por… |

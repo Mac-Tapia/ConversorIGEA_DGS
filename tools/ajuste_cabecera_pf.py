@@ -554,9 +554,10 @@ def preparar_probabilistico(plan: dict, rep):
     prob = probabilistico_de_fijas(rep, n=n, semilla=semilla)
     perfil = cfg.get('perfil') or {}
     if prob is None and perfil:
-        prob = Probabilistico(dispersion=float(perfil['dispersion']),
-                              pendiente=max(0.0, float(perfil['pendiente'])), n=n,
-                              semilla=semilla, fuente='perfil de empresa')
+        # 095:RF-3: del perfil solo la dispersión; la utilización esperada es la misma para toda escalada.
+        pend = float(perfil.get('pendiente') or 0.0)
+        prob = Probabilistico(dispersion=float(perfil['dispersion']), pendiente=0.0, n=n, semilla=semilla,
+                              fuente='perfil de empresa' + (f' (pendiente {pend:g} ignorada, 095:RF-3)' if pend else ''))
     if prob is None:
         return None, (f'Reparto probabilístico no hecho: menos de {MINIMO_FIJAS_PROBABILISTICO} '
                       'fijas con kVA para estimar la dispersión y sin '

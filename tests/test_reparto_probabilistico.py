@@ -25,23 +25,29 @@ def _reparto(n_fijas=6, n_esc=8, pendiente_real=0.3):
     return reparto_inicial(objetivo, fijas, cargas, kva, fp=0.98)
 
 
-def test_dispersion_y_pendiente_salen_de_las_fijas():
-    """041:RF-2, 041:RF-3 — de la utilización de las fijas frente a su kVA: la pendiente con la
-    potencia y, de lo que queda, la dispersión; con menos de cinco fijas, nada."""
+def test_la_dispersion_sale_de_las_fijas_y_la_pendiente_es_cero():
+    """041:RF-3, 095:RF-1, 095:RF-2 — de las fijas solo la dispersión de su utilización alrededor de su media; la
+    pendiente con la potencia es 0 (AL209, 2026-11-06: con 0,306 las SED de 5 kVA quedaban al 2 % de su kVA); con
+    menos de cinco fijas, nada."""
+    import math
     prob = probabilistico_de_fijas(_reparto(pendiente_real=0.3), n=50, semilla=7)
-    assert prob.pendiente == pytest.approx(0.3, abs=1e-9) and prob.dispersion == pytest.approx(0.0, abs=1e-9)
+    rep = _reparto(pendiente_real=0.3)
+    logs = [math.log(p / rep.kva[s]) for s, (p, _q) in rep.fijas.items()]
+    media = sum(logs) / len(logs)
+    esperado = math.sqrt(sum((x - media) ** 2 for x in logs) / (len(logs) - 1))
+    assert prob.pendiente == 0.0 and prob.dispersion == pytest.approx(esperado, rel=1e-9) and prob.dispersion > 0
     assert prob.n == 50 and prob.semilla == 7 and prob.fuente.startswith('fijas')
     assert probabilistico_de_fijas(_reparto(n_fijas=4)) is None
-    # La pendiente no baja de cero: a más potencia, nunca menos probabilidad de ir cargada.
-    assert probabilistico_de_fijas(_reparto(pendiente_real=-0.5)).pendiente == 0.0
 
 
 def test_el_perfil_solo_si_lo_dice_y_bien_escrito():
-    """041:RF-3 — sin la sección del perfil, nada; con ella, sus números; mal escrita, error."""
+    """041:RF-3, 095:RF-3 — sin la sección del perfil, nada; con ella, su dispersión y la pendiente en 0, con el
+    aviso de que se ignora; mal escrita, error."""
     assert probabilistico_del_perfil({'calibracion': {}}) is None
     prob = probabilistico_del_perfil({'calibracion': {'reparto_probabilistico': {
         'dispersion': 0.35, 'pendiente': 0.2, 'n': 80}}}, semilla=3)
-    assert (prob.dispersion, prob.pendiente, prob.n, prob.semilla) == (0.35, 0.2, 80, 3)
+    assert (prob.dispersion, prob.pendiente, prob.n, prob.semilla) == (0.35, 0.0, 80, 3)
+    assert '095:RF-3' in prob.fuente
     with pytest.raises(AjusteError):
         probabilistico_del_perfil({'calibracion': {'reparto_probabilistico': {'dispersion': -1}}})
 
@@ -121,7 +127,9 @@ def test_el_guion_escribe_el_p50_y_reproduce_con_la_semilla(guion):
     informe, rc = guion.ejecutar(_app(), _plan_prob())
     assert rc == 0, informe
     prob = informe['probabilistico']
-    assert prob['fuente'] == 'perfil de empresa' and prob['muestras'] == 12 and prob['escrito'] == 'P50'
+    # 095:RF-3: la pendiente del perfil se ignora y se dice.
+    assert prob['fuente'].startswith('perfil de empresa') and '095:RF-3' in prob['fuente']
+    assert prob['muestras'] == 12 and prob['escrito'] == 'P50'
     assert prob['validas'] == 12 and prob['semilla'] == 99
     kvas = [x['kva'] for x in prob['sed']]
     assert kvas == sorted(kvas, reverse=True)
@@ -167,3 +175,19 @@ def test_el_plan_guarda_las_medidas_de_31_y_las_da_al_alimentador(tmp_path):
     assert services.sed_medidas_de(ws, 'P', ['se1', 'SE2']) == [
         {'sed': 'SE1', 'hoja': 'A1', 'kw': 10.0, 'kvar': 2.0}]
     assert services.sed_medidas_de(ws, 'OTRO', ['SE1']) == []
+
+
+def test_con_pendiente_cero_cada_escalada_espera_la_misma_utilizacion_de_su_kva():
+    """095:RF-1, 095:RF-2 — con los parámetros que salen de las fijas, la utilización media (kW/kVA) de cada escalada
+    es la misma: su P esperada es proporcional a su potencia instalada, y cada muestra conserva el total."""
+    rep = _reparto(n_esc=8)
+    prob = probabilistico_de_fijas(rep, n=1, semilla=3)
+    azar = random.Random(3)
+    util = {s: 0.0 for s in rep.base}
+    n = 3000
+    for _ in range(n):
+        m = muestra_de_reparto(rep, prob, azar)
+        for s, (p, _q) in m.base.items():
+            util[s] += p / rep.kva[s] / n
+    media = sum(util.values()) / len(util)
+    assert all(abs(u / media - 1) < 0.08 for u in util.values()), util

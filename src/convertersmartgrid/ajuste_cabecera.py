@@ -1200,13 +1200,12 @@ def probabilistico_de_fijas(rep: Reparto, *, n: int = N_PROBABILISTICO, semilla:
             pares.append((math.log(k), math.log(p / k)))
     if len(pares) < max(3, minimo):
         return None
-    mx = sum(x for x, _ in pares) / len(pares)
+    # 095:RF-1, RF-2: de las fijas solo la dispersión de su utilización alrededor de su media, sin pendiente con
+    # la potencia. AL209 (2026-11-06): con la pendiente de 0,306 las SED de 5 kVA quedaban al 2 % de su kVA frente
+    # al 10 % de media; el usuario pidió escaladas proporcionales a su potencia instalada.
     my = sum(y for _, y in pares) / len(pares)
-    sxx = sum((x - mx) ** 2 for x, _ in pares)
-    pendiente = sum((x - mx) * (y - my) for x, y in pares) / sxx if sxx > 0 else 0.0
-    residuos = [y - my - pendiente * (x - mx) for x, y in pares]
-    dispersion = math.sqrt(sum(r * r for r in residuos) / (len(pares) - 2))
-    return Probabilistico(dispersion=dispersion, pendiente=max(0.0, pendiente), n=n,
+    dispersion = math.sqrt(sum((y - my) ** 2 for _, y in pares) / (len(pares) - 1))
+    return Probabilistico(dispersion=dispersion, pendiente=0.0, n=n,
                           semilla=semilla, fuente=f'fijas ({len(pares)})')
 
 
@@ -1221,9 +1220,10 @@ def probabilistico_del_perfil(datos: Mapping[str, Any] | None, *, n: int | None 
     if disp is None or disp < 0 or pend is None:
         raise AjusteError('calibracion.reparto_probabilistico necesita «dispersion» (≥ 0) y '
                           '«pendiente» numéricas (041:RF-3).')
-    return Probabilistico(dispersion=disp, pendiente=max(0.0, pend),
-                          n=int(n or numero(sec.get('n')) or N_PROBABILISTICO),
-                          semilla=semilla, fuente='perfil de empresa')
+    # 095:RF-3: del perfil solo la dispersión; su pendiente se ignora y se dice.
+    return Probabilistico(dispersion=disp, pendiente=0.0,
+                          n=int(n or numero(sec.get('n')) or N_PROBABILISTICO), semilla=semilla,
+                          fuente='perfil de empresa' + (f' (pendiente {pend:g} ignorada, 095:RF-3)' if pend else ''))
 
 
 def muestra_de_reparto(rep: Reparto, prob: Probabilistico, azar) -> Reparto:
