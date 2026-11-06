@@ -130,15 +130,19 @@ def _hv_2d(p: np.ndarray, r: np.ndarray) -> float:
 
 
 def _no_dominados(filas: list[dict[str, Any]], nombres: list[str]) -> list[dict[str, Any]]:
-    puntos = [np.array([f['objetivos'][n] for n in nombres]) for f in filas]
-    frente, vistos = [], set()
-    for i, a in enumerate(puntos):
-        if any(np.all(b <= a) and np.any(b < a) for j, b in enumerate(puntos) if j != i):
-            continue
-        clave = tuple(sorted(filas[i]['vector'].items()))
-        if clave not in vistos:
-            vistos.add(clave)
-            frente.append(filas[i])
+    """Las filas no dominadas, sin vectores repetidos, ordenadas por sus objetivos.
+
+    Vectorizado por fila: con el par por par en Python, juntar los frentes de treinta semillas
+    (miles de puntos) tardaba minutos en el benchmark real de la etapa «evolutivos».
+    """
+    unicas = list({tuple(sorted(f['vector'].items())): f for f in filas}.values())
+    if not unicas:
+        return []
+    puntos = np.array([[f['objetivos'][n] for n in nombres] for f in unicas], dtype=float)
+    dominada = np.zeros(len(unicas), dtype=bool)
+    for i in range(len(unicas)):
+        dominada[i] = bool(np.any(np.all(puntos <= puntos[i], axis=1) & np.any(puntos < puntos[i], axis=1)))
+    frente = [f for f, d in zip(unicas, dominada, strict=True) if not d]
     return sorted(frente, key=lambda f: tuple(f['objetivos'][n] for n in nombres))
 
 

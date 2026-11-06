@@ -39,7 +39,13 @@ from ..experimentos import ContextoExperimento
 from .episode import Caso, Clase
 from .evaluacion import Limites, evaluar
 from .oraculo import S_BASE, Muestra, escalar_nodo, muestra, sistema_de
-from .problema_optimizacion import ContextoSintetico, Objetivo, ProblemaOptimizacion, Restriccion, Variable
+from .problema_optimizacion import (
+    ContextoSintetico,
+    Objetivo,
+    ProblemaOptimizacion,
+    Restriccion,
+    Variable,
+)
 
 #: Aptitud de una solución que incumple: siempre peor que cualquiera que cumple (regla de
 #: factibilidad de Deb); entre las que incumplen, gana la que menos se aparta.

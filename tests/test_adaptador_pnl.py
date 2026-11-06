@@ -15,9 +15,10 @@ import pytest
 pytest.importorskip('pyomo')
 pytest.importorskip('highspy')
 
+from test_verificacion_top_k_completa import LIMITES, contexto_de, medida_nativa
+
 from convertersmartgrid.digital_twin import adaptador_pnl as pnl
 from convertersmartgrid.digital_twin import problema_optimizacion as po
-from test_verificacion_top_k_completa import LIMITES, contexto_de, medida_nativa
 
 C_MODULO = 0.001
 LIMITE_SUMA = 1.9

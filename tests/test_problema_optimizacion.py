@@ -15,6 +15,7 @@ import pytest
 pytest.importorskip('scipy')
 
 from apoyo import contrato_fisico
+
 from convertersmartgrid.digital_twin import evolutivo as ev
 from convertersmartgrid.digital_twin import oraculo as orc
 from convertersmartgrid.digital_twin import problema_optimizacion as po
