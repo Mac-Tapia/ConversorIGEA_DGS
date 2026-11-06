@@ -596,3 +596,5 @@ def test_081_rf78_con_proyecto_adelanta_las_etapas_con_todo_encendido(guion, mon
     assert rc == 0, informe
     en_con = [act for caso, act in llamadas if caso.startswith('Con proyecto')]
     assert any(any(n.startswith('Carga_N1') for n in act) for act in en_con), llamadas
+    # Y antes de medir la referencia y cada carga, sin ninguna carga nueva encendida todavía (007:RF-33).
+    assert en_con and not any(n.startswith('Carga_') for n in en_con[0]), llamadas

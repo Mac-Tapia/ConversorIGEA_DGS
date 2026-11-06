@@ -2563,6 +2563,12 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             previas_con = c011.clasificar(todas, list(alims.elegidos), [], None)['cargas']
             for v in previas_con:
                 v.Deactivate()
+            # 081:RF-78: antes de medir la referencia y cada carga. PRUEBA_007 (2026-11-06): medidas aquí
+            # con las etapas de la base aún sin aplicar, ninguna carga daba su diferencia (007:RF-33).
+            adelantadas = etapas_al_dia(app)
+            if adelantadas:
+                informe['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(adelantadas)
+                                         + ' por su fecha: se adelantan antes de medir las cargas (081:RF-78).')
         esc_con = next((e for c, e in apagados if casos and c is casos['con']), None)
         if con_cargas and not informe['cancelado']:
             with _con_escenario(esc_con):
