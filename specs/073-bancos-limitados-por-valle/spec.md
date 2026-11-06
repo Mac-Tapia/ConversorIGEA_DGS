@@ -1,6 +1,6 @@
 # Spec 073 — El número de bancos lo define la tensión en las ventanas de valle
 
-Estado: aprobada · Fecha: 2026-11-02 · Origen: orden del usuario
+Estado: implementada · Fecha: 2026-11-02 · Origen: orden del usuario
 
 ## Contexto y objetivo
 
