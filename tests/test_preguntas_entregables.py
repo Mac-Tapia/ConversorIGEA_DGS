@@ -23,8 +23,11 @@ RAIZ = PE.RAIZ
 #: 081:RF-70 (2026-11-03): catalogo_parametros-003, -004 y operacion_web-031, y los dos hechos del catálogo, revisados
 #: porque el aviso «Reconvierta…» que citaban se corrigió; lo sellado no cambia.
 #: 042:RF-33 (2026-11-04): set_nueva-002 revisada, porque sin libro CAPEX la SET ya se crea igual; lo sellado no cambia.
-HUELLA_CONJUNTO = '40dfc35456f7cedc6de03df4839d442d115b03def486a99a75fd31de696f44b4'
-HUELLA_SELLADO = 'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e'
+#: 072 T3 (2026-11-06): planeamiento_pide-015, sellada, citaba «- [ ] T3» y la tarea se cerró con el adaptador; el ancla
+#: pasa a «T3 Adaptador…», que está en la misma línea de la revisión fijada y en el árbol, y la respuesta se corrige por
+#: el campo de revisión (lo que falta es la base real, T13). Es la primera vez que cambia lo sellado: el ancla es contenido.
+HUELLA_CONJUNTO = '995a804fea89091d1230a5cd8ea33680d300d1e3327598767ee9c041184140b2'
+HUELLA_SELLADO = '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 
 #: sha256('076:' + texto normalizado)[:16] de nombres de clientes y obras que solo salen en los casos de prueba.
