@@ -11,7 +11,7 @@ Cuándo: un conductor tiene parámetros que no corresponden a su ficha, o una fi
    inventa parámetros: si no hay ficha, la pide.
 3. Subir el libro corregido: `POST /api/workspaces/<espacio>/catalog/apply`
    (`src/convertersmartgrid/web/app.py:2349` («/api/workspaces/{wid}/catalog/apply»)). Solo cuentan las filas marcadas
-   (`src/convertersmartgrid/web/services.py:4628` («def apply_catalog»)).
+   (`src/convertersmartgrid/web/services.py:4675` («def apply_catalog»)).
 4. Calibrar «Sin proyecto»: las fichas entran ahí, no en el DGS, que conserva los parámetros de la entrada; reconvertir
    no las lleva al DGS (`src/convertersmartgrid/web/services.py:4642` («AVISO_CATALOGO_APLICADO»), 032:RF-2, 032:RF-14).
 5. Para deshacerlo, `DELETE /api/workspaces/<espacio>/catalog` (`src/convertersmartgrid/web/app.py:2362`

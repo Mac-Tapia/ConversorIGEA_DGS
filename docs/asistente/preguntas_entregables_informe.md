@@ -2,8 +2,8 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 443. Huella del contenido: `40dfc35456f7cedc6de03df4839d442d115b03def486a99a75fd31de696f44b4`.
-Huella de lo sellado: `f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e`.
+Filas: 443. Huella del contenido: `995a804fea89091d1230a5cd8ea33680d300d1e3327598767ee9c041184140b2`.
+Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -81,7 +81,7 @@ Filas: 22; con respuesta 19, sin respuesta 3. Fuentes: aprobada 21, cumplida 1.
 
 Huecos encontrados:
 
-- El adaptador de módulos estándar de transmisión no está (072 T3).
+- El adaptador de módulos estándar de transmisión está (072 T3), pero falta la base real de la resolución y una obra valorada con ella (072 T13).
 - La evaluación con y sin proyecto solo mide pérdidas.
 - La aceptación real con el usuario está pendiente (072 T11).
 
