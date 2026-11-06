@@ -197,6 +197,11 @@ def test_lectura_unica_del_grafo_y_de_las_cargas_nuevas_con_el_doble():
     assert nueva['nodo'] in informe['grafo']['nodos'] and nueva['p_mw'] > 0
     assert any('largo_km' in r for r in informe['grafo']['ramas'])
     assert _activas(app, CON) == antes
+    # 087:RF-55: las barras de media de todo el alimentador, leídas sin las cargas nuevas.
+    terminales = {b.loc_name: b for b in app.GetCalcRelevantObjects('*.ElmTerm')}
+    media = informe['alimentadores'][f]['barras_media']
+    assert len(media) > 1 and carga['barra'] in media
+    assert all(float(getattr(terminales[b], 'uknom', 0) or 0) >= 1.0 for b in media if b in terminales)
 
 
 def _dos_cargas():
@@ -472,3 +477,68 @@ def test_set_nueva_comprobada_con_el_oraculo_y_con_su_nombre():
                          'destino': '-14.8, -74.9', 'ramas': ['NA203/N1'], 'mva': 25, 'kv_alta': 60,
                          'nombre_set': 'SET COPARA'})
     assert obra.nombre_set == 'SET COPARA'
+
+
+def _grafo_con_ramal():
+    """La troncal S–A–B con la carga nueva en B, un ramal S–C–D colgado de la fuente y la barra de baja X bajo B."""
+    g = _grafo(r=2.5, x=1.875, nueva_mw=1.1)
+    for nombre, kv, p in (('C', 10.0, 0.4), ('D', 10.0, 0.3), ('X', 0.4, 0.05)):
+        g['nodos'][_id(nombre, 'ElmTerm')] = {'kv': kv, 'p_mw': p, 'q_mvar': p * 0.3, 'fuente': False}
+    for nombre, desde, hasta in (('T3', 'S', 'C'), ('T4', 'C', 'D'), ('TX', 'B', 'X')):
+        g['ramas'].append({'id': _id(nombre, 'ElmLne'), 'desde': _id(desde, 'ElmTerm'), 'hasta': _id(hasta, 'ElmTerm'),
+                           'r_ohm': 0.5 if nombre == 'TX' else 2.0, 'x_ohm': 0.4 if nombre == 'TX' else 1.5,
+                           'inom_ka': 0.2, 'largo_km': 1.0, 'cerrada': True})
+    return g
+
+
+def test_los_bancos_se_buscan_en_todas_las_barras_de_media_del_alimentador():
+    """087:RF-55 — si caben, entran todas las barras de media que existen, y la de la carga primero; la de baja
+    y la que el grafo no tiene, no."""
+    nueva = {**NUEVA, 'p_mw': 1.1, 'q_mvar': 0.22, 'alimentador': 'F1', 'barra': 'B'}
+    ora = oo.Oraculo(_grafo_con_ramal(), [nueva], tipos=TIPOS)
+    r = oo.barras_candidatas(ora, 'F1', 1, ['B'], ['A', 'B', 'C', 'D', 'X', 'NO_EXISTE'], 150.0, maximo=30)
+    assert r['barras'] == ['B', 'A', 'C', 'D'] and r['descartadas'] == 0
+
+
+def test_si_no_caben_quedan_las_que_mas_suben_la_tension_de_la_carga():
+    """087:RF-56 — con sitio para dos, quedan la de la carga y la de su troncal (A), no las del ramal que cuelga
+    de la fuente: un banco allí no sube B; el orden es el mismo en cada corrida."""
+    nueva = {**NUEVA, 'p_mw': 1.1, 'q_mvar': 0.22, 'alimentador': 'F1', 'barra': 'B'}
+    ora = oo.Oraculo(_grafo_con_ramal(), [nueva], tipos=TIPOS)
+    r = oo.barras_candidatas(ora, 'F1', 1, ['B'], ['D', 'C', 'A', 'B'], 150.0, maximo=2)
+    assert r['barras'] == ['B', 'A'] and r['media'] == 4 and r['descartadas'] == 2
+    assert oo.barras_candidatas(ora, 'F1', 1, ['B'], ['D', 'C', 'A'], 150.0, maximo=2) == r
+    sin_banco = oo.barras_candidatas(ora, 'F1', 1, ['B'], ['D', 'C', 'A'], None, maximo=2)
+    assert sin_banco['barras'] == ['B']
+
+
+def test_la_busqueda_del_oraculo_ve_todo_el_alimentador_y_lo_dice(monkeypatch):
+    """087:RF-55, 087:RF-57 — «Con proyecto» con el oráculo: el espacio de la bayesiana y del NSGA-II lleva las
+    barras de media de todo el alimentador, y el registro dice cuántas y cuáles."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.web import services
+
+    g = _grafo_con_ramal()
+    nueva = {'sed': 'X1', 'variacion': 'Carga_X1', 'nodo': _id('B', 'ElmTerm'), 'p_mw': 1.1, 'q_mvar': 0.22,
+             'barra': 'B', 'alimentador': 'F1', 'kw': 1100.0}
+    datos = {'grafo': g, 'nuevas': [nueva],
+             'alimentadores': {'F1': {'troncal': [{'nombre': 'T1', 'largo_m': 2000.0, 'corriente_a': 60.0},
+                                                  {'nombre': 'T2', 'largo_m': 2000.0, 'corriente_a': 60.0}],
+                                      'indices': {'B': 1}, 'existen': ['B'], 'media': {}, 'fuera_desde': None,
+                                      'barras_media': ['A', 'B', 'C', 'D']}}}
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, datos, None))
+    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
+    monkeypatch.setattr(services, 'carpeta_de', lambda ws, project: 'X')
+    monkeypatch.setattr(services, '_pinn_promovido', lambda: None)
+    curva = [(t, 900.0 if t % 2 else 1000.0) for t in range(12)]
+    comun = {'p': _p(), 'perfil': {}, 'anio_casos': None, 'objetivos': {'F1': {'kw': 1000.0}},
+             'curvas': {'F1': curva}, 'sorteos': [], 'perdidas': {'F1': None}, 'costos': {},
+             'kvar': {10.0: 150.0}, 'valle': None,
+             'lectura': {'tipos': [], 'alimentadores': {'F1': {'kv': 10.0}}}}
+    registro = []
+    ctx = SimpleNamespace(log=registro.append, check_cancel=lambda: None)
+    r = services._preparar_oraculo(SimpleNamespace(), ctx, 'P', ['F1'], [nueva], comun)
+    (a,) = r['alims']
+    assert a.espacio.barras == ['B', 'A', 'C', 'D']
+    assert any('bancos candidatos en 4 de 4 barras de media' in x and '087:RF-55' in x for x in registro)

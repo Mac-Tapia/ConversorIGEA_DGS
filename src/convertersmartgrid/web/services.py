@@ -6834,6 +6834,17 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         cargas_f = [_carga_para_escalera(c['barra'], existen, d) for c in de_f]
         # 063:RF-25: el banco de una carga en un NODE_T_ va en la barra existente de su tramo.
         con_banco = sorted({x['barra'] for x in cargas_f if x['existe']})
+        # 087:RF-55 a RF-57: la bayesiana y el NSGA-II prueban bancos en todo el alimentador, no solo en la barra de
+        # la carga (AL209, 2026-11-06); el valle y la escalera de siempre siguen con la de la carga.
+        en_todo = con_banco
+        if banco and d.get('barras_media'):
+            cand = oo.barras_candidatas(ora, f, len(nuevas), con_banco, d['barras_media'], banco,
+                                        int(ajustes.get('candidatas_banco') or oo.CANDIDATAS_BANCO))
+            en_todo = cand['barras']
+            ctx.log(f"{f}: bancos candidatos en {len(en_todo)} de {cand['media']} barras de media del alimentador"
+                    + (f" (las que más suben la tensión de sus cargas con el oráculo; {cand['descartadas']} fuera)"
+                       if cand['descartadas'] else '') + ': ' + ', '.join(en_todo[:40])
+                    + (' …' if len(en_todo) > 40 else '') + ' (087:RF-55 a RF-57).')
         # 073:RF-19: cuántos módulos prueba la escalera lo dice el valle, no una cifra.
         tope_valle = oo.modulos_en_valle(ora, con_banco, banco, valle, p, k=len(nuevas), alimentador=f,
                                          tope=p.modulos_max) if banco else None
@@ -6861,7 +6872,7 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             tramos = list(por_camino.values())
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
         aptos = eo.conductores_aptos(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
-        espacio = oo.Espacio(f, con_banco, banco,
+        espacio = oo.Espacio(f, en_todo, banco,
                              modulos_valle if modulos_valle is not None
                              else p.modulos_max if p.modulos_max is not None else eo.MODULOS_SIN_VALLE, tramos,
                              [{'nombre': t['nombre'], 'origen': t.get('origen') or 'proyecto',

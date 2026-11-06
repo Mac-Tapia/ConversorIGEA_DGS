@@ -93,7 +93,7 @@ retirada.
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | implementada | 30 | 30 | T8 (DIgSILENT), T9 (DIgSILENT) |
 | [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | 33 | 25 | T6 |
 | [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 53 | 49 | T1, T5, T39, T38, T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T24 (DIgSILENT), T25 (DIgSILENT), T26 (DIgSILENT), T27 (DIgSILENT), T28 (DIgSILENT), T29, T30 (DIgSILENT), T31, T32 (DIgSILENT), T33 (DIgSILENT), T34 |
-| [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | 54 | 54 | T27 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT) |
+| [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | 57 | 57 | T27 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT) |
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 12 | 12 | — |
 | [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 88 | 88 | T5, T7 |
 | [090](090-arquitectura-generada/spec.md) | La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida | 16 | 16 | — |

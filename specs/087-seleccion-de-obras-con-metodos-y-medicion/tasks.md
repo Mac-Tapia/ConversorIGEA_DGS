@@ -56,6 +56,9 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
 - [x] T34. Zona pequeña sola a alimentador nuevo, y obra integral directa. (RF-54)
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
+- [x] T35. Bancos candidatos en todas las barras de media del alimentador, filtradas por el oráculo. (RF-55, RF-56, RF-57)
+      Hecho cuando: `pytest -q tests/test_optimizacion_oraculo.py tests/test_seleccion_por_oraculo.py tests/test_obras_pf_guion.py` en verde.
+      Hecho el 2026-11-06: 145 aprobadas. Falta verlo en DIgSILENT con AL209 y Cemento Inka (T13 cubre la medida).
 - [x] T17. Transferencia y traslado como escalones de la escalera, reutilizando `construir_enlace` y `construir_migracion`. (RF-31, RF-32, RF-33)
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
 - [x] T18. Alimentador nuevo con su celda en DIgSILENT, a partir de `construir_expreso`. (RF-34, RF-35)

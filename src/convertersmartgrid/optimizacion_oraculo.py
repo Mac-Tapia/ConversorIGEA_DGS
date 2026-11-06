@@ -43,6 +43,9 @@ MAX_SISTEMAS = 64
 EVALUACIONES_BAYES = 200
 NIVELES_MARKOV = 5
 PERMUTACIONES_SHAPLEY = 50
+#: 087:RF-56: barras de banco que pasan a la búsqueda, si el perfil no da ``escalera.candidatas_banco``. Las mismas
+#: 30 que usa el PIDE (``afinar_bancos_pide``): con más, Optuna no llega a explorar en sus 200 evaluaciones.
+CANDIDATAS_BANCO = 30
 
 
 @dataclass
@@ -467,6 +470,38 @@ class Espacio:
             nombre.append(f'sección {tipo} en {len(tramos)} tramo(s)')
         escalones = tuple(e for e in ('bancos', 'terna', 'seccion') if e in cantidades)
         return Variante(' + '.join(nombre) or 'sin obras', escalones, obras, cantidades)
+
+
+def barras_candidatas(oraculo: Oraculo, alimentador: str, k: int, base: Sequence[str], media: Sequence[str],
+                      banco_kvar: float | None, maximo: int = CANDIDATAS_BANCO) -> dict[str, Any]:
+    """Las barras de media del alimentador donde la búsqueda prueba bancos (087:RF-55, RF-56).
+
+    AL209 (2026-11-06): la bayesiana y el NSGA-II solo veían la barra de la carga nueva; el usuario pidió la
+    ubicación óptima en todo el alimentador. ``base`` (la barra de banco de cada carga) va siempre; de ``media``
+    (las de media que existen sin las cargas nuevas), si no caben todas, las que más suben con un módulo la
+    tensión de las barras de sus cargas y, a igualdad, más bajan las pérdidas. Una barra que el grafo no tiene o
+    de baja tensión no entra: el banco no se podría medir.
+    """
+    # Con el flujo físico, en milisegundos, como la bayesiana: el PINN juzga solo las candidatas (052:RF-17).
+    oraculo = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
+    oraculo.pinn = None
+    base = [b for b in dict.fromkeys(str(x) for x in base)]
+    validas =[b for b in dict.fromkeys(str(x) for x in media)
+               if b not in base and b in oraculo.nodo_de
+               and float(oraculo._nodos[oraculo.nodo_de[b]].get('kv') or 0.0) >= KV_MEDIA_MIN]
+    libres = max(int(maximo) - len(base), 0)
+    elegidas = validas
+    if len(validas) > libres:
+        barras = oraculo.barras_de(k, alimentador)
+
+        def puntaje(b: str) -> tuple:
+            m = oraculo.medir([{'clase': 'condensador', 'barra': b, 'q_kvar': float(banco_kvar or 0.0)}],
+                              k, 1.0, alimentador)
+            us = [m.u[x] for x in barras if x in m.u]
+            return (-(min(us) if m.converge and us else -1.0),
+                    m.perdidas_kw if m.converge and m.perdidas_kw is not None else math.inf, b)
+        elegidas = [b for *_s, b in sorted(puntaje(b) for b in validas)[:libres]] if banco_kvar else []
+    return {'barras': base + elegidas, 'media': len(validas) + len(base), 'descartadas': len(validas) - len(elegidas)}
 
 
 def buscar_combinacion(espacio: Espacio, valorar: Callable[[Variante], tuple[float | None, bool, dict]],

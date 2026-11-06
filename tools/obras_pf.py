@@ -2476,6 +2476,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     posiciones: dict[str, list[list]] = {}            # y su posición GPS
     existen: dict[str, list[str]] = {}                # barras pedidas que no crea ninguna carga
     sin_cargas_de: dict[str, set[str]] = {}
+    media_de: dict[str, list[str]] = {}               # barras de media del alimentador (087:RF-55)
     ajenas: list = []
     try:
         casos['con'].Activate()
@@ -2501,6 +2502,9 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 posiciones[f] = [[red.barras[b].gps for b in ext if b in red.barras and red.barras[b].gps]
                                  for ext in extremos[f]]
                 sin_cargas = sin_cargas_de[f] = {b.loc_name for b in elm.GetObjs('ElmTerm')}
+                # 087:RF-55: donde la búsqueda puede poner bancos, en todo el alimentador y sin las cargas nuevas.
+                media_de[f] = sorted(b.loc_name for b in elm.GetObjs('ElmTerm')
+                                     if float(getattr(b, 'uknom', 0) or 0) >= 1.0)
                 existen[f] = [b for b in (plan.get('barras') or {}).get(f, []) if b in sin_cargas]
         finally:
             for v in apartadas:
@@ -2620,7 +2624,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                            for g, otro in alims.elm.items())}
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
-                                           'existen': existen.get(f, []),
+                                           'existen': existen.get(f, []), 'barras_media': media_de.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
     finally:
         if ajenas:
