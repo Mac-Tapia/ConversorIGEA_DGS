@@ -1,6 +1,6 @@
 # Spec 067 — Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web
 
-Estado: aprobada
+Estado: implementada
 
 Rama de trabajo: `asistente/nucleo`.
 Cita: 026 (asistente), 027 (agente en producción), 043 (gobierno de modelos), 047 (revisión por

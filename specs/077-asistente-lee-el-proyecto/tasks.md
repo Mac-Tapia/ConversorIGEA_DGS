@@ -20,3 +20,11 @@
       Hecho cuando: las tres respuestas se ven en el navegador con su cita o su rechazo.
 
 T6, 2026-11-03: medido una vez sobre el conjunto sellado (`docs/EVALUACION_ABSTENCION_077.json`, 15 673 vectores, 78 con respuesta y 50 sin ella). Reranker con puerta: MRR@10 0,316, recall@10 0,406, abstención 0,98, 33 de 78 preguntas con respuesta abstenidas. `cumple_todos` es falso: el índice ampliado no se sirve y sigue el de la 047. Se mide, no se ajusta.
+
+T7, 2026-11-06: sigue abierta. En la web real (espacio de prueba `1985f689071b42ee`) las tres preguntas no llegan a
+`pregunta` y no hay cita ni rechazo que ver: «¿cómo se prueba la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?»
+sale sin tarea (simular_calibracion 2 %), «¿cómo se usa la ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?»
+sin tarea (pregunta 45 %, Ollama sin respuesta válida) y «¿qué hay en el fichero ../../Windows/win.ini?» sin tarea (episodios
+32 %). El Transformer provisional `prov-8fd8a405a322c80c` no reconoce como pregunta una que nombra un fichero o una ruta, y
+RF-26 y RF-27 solo actúan dentro de `pregunta`; la pregunta de control «¿cómo se calibra una barra sin medidor?» sí responde
+con cita. El arreglo toca el intérprete, fuera del alcance de esta spec. Capturas en `output/evidencia_web_067_077/077_T7_*.png`.
