@@ -58,16 +58,18 @@ def test_camino_a_la_barra_mas_baja_y_reglas_de_ubicacion():
     distancia y uno por tramo; ningún par a menos de la separación mínima."""
     rng = random.Random(SEMILLA)
     g, u, n = _red(rng)
-    camino = pt.camino_al_minimo(g, pt.perfil(g, u))
-    assert camino[-1]['u'] == min(p['u'] for p in camino) and camino[0]['km'] < camino[-1]['km']
-    largo = camino[-1]['km']
+    todos = pt.ejes(g, pt.perfil(g, u), ramal_largo_km=0.5)
+    camino = todos[0]                                                  # la troncal: el camino más largo
+    assert camino[-1]['km'] == max(p['km'] for p in pt.perfil(g, u)) and camino[0]['km'] < camino[-1]['km']
+    assert all(e[0]['barra'] in {p['barra'] for p in camino} or e[0]['barra'].startswith('R') for e in todos[1:])
+    largo = camino[-1]['km'] - camino[0]['km']
     for regla in pt.REGLAS:
         barras = pt.ubicaciones(camino, 3, regla, separacion_km=0.0)
         assert len(barras) == len(set(barras)) <= 3 and all(b in {p['barra'] for p in camino} for b in barras)
     dos = pt.ubicaciones(camino, 3, 'dos_n_mas_uno', separacion_km=0.0)
     km = {p['barra']: p['km'] for p in camino}
     for i, b in enumerate(dos, start=1):
-        assert abs(km[b] - largo * 2 * i / 7) <= max(r.get('largo_km') or 0 for r in g['ramas'])
+        assert abs(km[b] - camino[0]['km'] - largo * 2 * i / 7) <= max(r.get('largo_km') or 0 for r in g['ramas'])
     sep = pt.ubicaciones(camino, 5, 'caida_igual', separacion_km=largo / 3)
     assert all(abs(km[a] - km[b]) >= largo / 3 - 1e-9 for i, a in enumerate(sep) for b in sep[i + 1:])
 
@@ -80,10 +82,31 @@ def test_bancos_hasta_el_objetivo_o_hasta_que_no_mejora_o_el_valle():
     def medir(barras):          # cada banco sube 0,01 p.u. hasta un techo de 0,95 + 0,03
         return min(0.90 + 0.01 * len(barras), 0.93), 100.0 - len(barras)
 
-    r = pt.bancos_hasta_objetivo(camino, medir, objetivo=0.92, mejora_minima=0.001, valle=lambda b: (True, 1.0))
+    r = pt.bancos_hasta_objetivo([camino], medir, objetivo=0.92, mejora_minima=0.001, valle=lambda b: (True, 1.0))
     assert len(r['barras']) == 2 and r['motivo'] == 'objetivo' and r['v_min'] == pytest.approx(0.92)
-    r = pt.bancos_hasta_objetivo(camino, medir, objetivo=1.0, mejora_minima=0.001, valle=lambda b: (True, 1.0))
+    r = pt.bancos_hasta_objetivo([camino], medir, objetivo=1.0, mejora_minima=0.001, valle=lambda b: (True, 1.0))
     assert r['motivo'] == 'sin_mejora' and r['v_min'] == pytest.approx(0.93) and len(r['barras']) == 3
-    r = pt.bancos_hasta_objetivo(camino, medir, objetivo=1.0, mejora_minima=0.001,
+    r = pt.bancos_hasta_objetivo([camino], medir, objetivo=1.0, mejora_minima=0.001,
                                  valle=lambda b: (len(b) < 2, 1.06 if len(b) >= 2 else 1.0))
     assert r['motivo'] == 'valle' and len(r['barras']) == 1 and r['valle_max'] == pytest.approx(1.0)
+
+
+def test_ramas_de_largo_cero_no_cuelgan_el_camino():
+    """094:RF-4 — transformadores y acopladores sin largo (0 km) dejan nodos a la misma distancia; el camino a la barra
+    más baja termina igual. AL209 (2026-11-06): la calibración quedó en un bucle sin fin al buscar el camino."""
+    import threading
+    nodos = {_id('S'): {'kv': 22.9, 'fuente': True}, _id('A'): {'kv': 22.9}, _id('A2'): {'kv': 22.9},
+             _id('B'): {'kv': 22.9}, _id('B_BT'): {'kv': 0.38}}
+    # El acoplador va antes que la línea que llega desde la fuente: así lo leía DIgSILENT en AL209.
+    ramas = [{'id': 'C1', 'desde': _id('A'), 'hasta': _id('A2')},                       # acoplador, 0 km
+             {'id': 'L1', 'desde': _id('S'), 'hasta': _id('A'), 'largo_km': 1.0},
+             {'id': 'L2', 'desde': _id('A2'), 'hasta': _id('B'), 'largo_km': 2.0},
+             {'id': 'T1', 'desde': _id('B'), 'hasta': _id('B_BT')}]
+    g = {'nodos': nodos, 'ramas': ramas}
+    u = {'A': 0.99, 'A2': 0.99, 'B': 0.97, 'B_BT': 0.95}
+    salida = {}
+    hilo = threading.Thread(target=lambda: salida.setdefault('c', pt.ejes(g, pt.perfil(g, u), ramal_largo_km=0.5)[0]), daemon=True)
+    hilo.start()
+    hilo.join(5)
+    assert not hilo.is_alive(), 'el árbol no termina con ramas de largo cero'
+    assert [p['barra'] for p in salida['c']][-1] == 'B'

@@ -10,5 +10,11 @@ Lee: `specs/094-perfil-de-tension-y-bancos/spec.md` y `plan.md`.
       Hecho cuando: `pytest -q tests/test_optimizacion_oraculo.py tests/test_seleccion_por_oraculo.py` en verde.
 - [ ] T4. El perfil en la web y en el informe del estudio. (RF-3)
       Hecho cuando: `npm --prefix frontend run build` sin errores, la web probada en el navegador y `pytest -q tests/test_informe_web.py` en verde.
+- [x] T8. Bancos solo en la troncal y en las troncales de los ramales largos; camino sin ciclos. (RF-16, RF-17)
+      Hecho cuando: `pytest -q tests/test_perfil_tension.py tests/test_optimizacion_oraculo.py tests/test_ajuste_cabecera_guion.py` en verde.
+- [ ] T6. El perfil completo antes y después de cada propuesta, con su comparación. (RF-13, RF-14)
+      Hecho cuando: `pytest -q tests/test_perfil_tension.py tests/test_optimizacion_oraculo.py` en verde.
+- [ ] T7. El gráfico de perfil de tensión de DIgSILENT en «Sin proyecto» y «Con proyecto». (RF-15)
+      Hecho cuando: una prueba con el doble de DIgSILENT crea el gráfico del alimentador en cada caso.
 - [ ] T5. [DIgSILENT] AL209 recalibrado desde la web, con su perfil y los bancos propuestos desde él. (Todos)
       Hecho cuando: la recalibración guarda el perfil y «Con proyecto» aplica los bancos del perfil, confirmados en DIgSILENT.

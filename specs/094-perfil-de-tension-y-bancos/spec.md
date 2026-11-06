@@ -49,6 +49,23 @@ menos pérdidas (359 kW frente a 363 kW de la regla 2/7-4/7-6/7).
   calibración, en «Sin proyecto» (RF-10). Usuario, 2026-11-06: «en Con proyecto y obras ya no se hacen los cuadres;
   los resultados en la cabecera son reales, resultado de la ejecución en DIgSILENT».
 
+- RF-13: EL SISTEMA juzgará cada propuesta de bancos con el perfil completo del alimentador, todas sus barras de media
+  y no solo el camino a la más baja, y guardará el perfil completo antes y después de la propuesta.
+- RF-14: EL SISTEMA dirá, por propuesta, si el perfil mejora: tensión mínima, barras bajo el límite, tensión máxima
+  y pérdidas antes y después, y en el valle.
+- RF-15: EL SISTEMA dejará en el proyecto de DIgSILENT el gráfico de perfil de tensión del alimentador (el de la
+  herramienta de perfil de tensión de DIgSILENT, por alimentador) en «Sin proyecto» y en «Con proyecto», para que el
+  operador compruebe con el flujo nativo lo que dice el informe. Usuario, 2026-11-06: «para plantear debe ver todo el
+  perfil de tensión del alimentador y ver también si propone todo el perfil para ver si mejora; además, en DIgSILENT
+  existe una herramienta para graficar el perfil de tensión, ahí se podría ver o comprobar».
+
+- RF-16: EL SISTEMA ubicará los bancos solo sobre la troncal del alimentador (el camino más largo desde la cabecera,
+  016) y sobre la troncal de cada ramal largo (el que mide desde su derivación al menos `escalera.ramal_largo_km`; 2 km
+  si el perfil no lo da); cada banco más irá al eje donde más suba la tensión mínima de todo el alimentador. Usuario,
+  2026-11-06: «el camino debe ser solo por la troncal y troncales de las ramas largas».
+- RF-17: EL SISTEMA calculará el camino de cada barra a la cabecera sin ciclos, también con ramas de largo cero
+  (acopladores, transformadores). AL209 (2026-11-06): la calibración quedó en un bucle sin fin.
+
 ## Fuera de alcance
 
 Bancos automáticos o con escalones maniobrables. Reguladores y cambio de tomas de la SET: cuando los bancos no llegan

@@ -3463,7 +3463,7 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
         import importlib.util
         import sys
 
-        from convertersmartgrid.perfil_tension import camino_al_minimo, perfil
+        from convertersmartgrid.perfil_tension import RAMAL_LARGO_KM, ejes, perfil
 
         # El lector del grafo es un guion hermano. Cargado desde la suite, su carpeta no está en la ruta: se carga por
         # su fichero, sin dejar la carpeta en la ruta ni su nombre registrado. Dejarla cambiaba el arranque del oráculo
@@ -3486,9 +3486,11 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
         barras = alims.objetos(feeder, 'ElmTerm')
         u = {b.loc_name: v for b in barras if b.HasResults() and (v := _num(b, 'm:u')) is not None and v > 0}
         puntos = perfil(g, u, list(u))
-        camino = camino_al_minimo(g, puntos)
+        todos = ejes(g, puntos, ramal_largo_km=RAMAL_LARGO_KM)                  # RF-16
+        camino = todos[0] if todos else []
         datos = {'puntos': [{k: p[k] for k in ('barra', 'km', 'u')} for p in puntos],
-                 'camino': [p['barra'] for p in camino],
+                 'troncal': [p['barra'] for p in camino],
+                 'ramales_largos': [[p['barra'] for p in e] for e in todos[1:]],
                  'cabecera': {'medida': {k: (informe.get('objetivo') or {}).get(k) for k in ('kw', 'kvar')},
                               'simulada': informe.get('cabecera')},
                  'q_cuadrada': informe.get('status') != 'AVISO_KVAR', 'bancos_en_servicio': informe.get('bancos_en_servicio')}

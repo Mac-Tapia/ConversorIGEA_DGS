@@ -5931,10 +5931,12 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
 
     base = ora.medir([], k, 1.0, f)
     puntos = pt.perfil(grafo, base.u, media)
-    camino = pt.camino_al_minimo(grafo, puntos)
-    if not camino:
+    ramal_largo = float(ajustes.get('ramal_largo_km') or pt.RAMAL_LARGO_KM)
+    ejes = pt.ejes(grafo, puntos, ramal_largo_km=ramal_largo)                     # RF-16
+    if not ejes:
         return None
-    r = pt.bancos_hasta_objetivo(camino, medir, objetivo=objetivo, mejora_minima=mejora, valle=en_valle,
+    camino = ejes[0]
+    r = pt.bancos_hasta_objetivo(ejes, medir, objetivo=objetivo, mejora_minima=mejora, valle=en_valle,
                                  separacion_km=separacion)
     motivo = {'objetivo': f'llega al objetivo de {objetivo:.3f} p.u.',
               'sin_mejora': f'un banco más sube menos de {mejora:g} p.u.', 'valle': 'un banco más pasa el valle',
@@ -5948,8 +5950,8 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
                 aviso = ' ' + inf['perfil_tension']['aviso']
     except Exception:  # noqa: BLE001 - el aviso informa, no decide
         aviso = ''
-    ctx.log(f"{f}{etiqueta}: perfil de tensión de {camino[0]['u']:.4f} a {camino[-1]['u']:.4f} p.u. en "
-            f"{camino[-1]['km']:.2f} km; bancos según el perfil: {len(r['barras'])} × {banco_kvar:g} kvar"
+    ctx.log(f"{f}{etiqueta}: perfil de tensión de la troncal de {camino[0]['u']:.4f} a {camino[-1]['u']:.4f} p.u. en "
+            f"{camino[-1]['km']:.2f} km, con {len(ejes) - 1} ramal(es) de más de {ramal_largo:g} km; bancos según el perfil: {len(r['barras'])} × {banco_kvar:g} kvar"
             + (f" ({r['regla']}) en {', '.join(r['barras'])}" if r['barras'] else '')
             + f"; tensión mínima {r['v_min']:.4f} p.u. (sin bancos {r['v_min_sin_bancos']:.4f}); se para porque {motivo} "
               f"(094:RF-4, RF-8, RF-9).{aviso}")

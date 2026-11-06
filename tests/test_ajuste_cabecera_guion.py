@@ -2134,6 +2134,6 @@ def test_la_calibracion_deja_el_perfil_de_tension_del_alimentador(guion):
     assert perfil is not None, informe.get('avisos')
     assert perfil['puntos'] and all(0 < p['u'] for p in perfil['puntos'])
     assert [p['km'] for p in perfil['puntos']] == sorted(p['km'] for p in perfil['puntos'])
-    assert set(perfil['camino']) <= {p['barra'] for p in perfil['puntos']}
+    assert perfil['troncal'] and set(perfil['troncal']) <= {p['barra'] for p in perfil['puntos']}
     assert perfil['cabecera']['medida']['kw'] == 300.0 and perfil['cabecera']['simulada']
     assert informe['status'] == 'AVISO_KVAR' and not perfil['q_cuadrada'] and '094:RF-11' in perfil['aviso']
