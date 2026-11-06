@@ -112,6 +112,36 @@ def _por_frase_literal(texto: str, transformer: Any) -> str | None:
     return None
 
 
+#: 077:RF-70: con qué empieza una pregunta; es la lista de ``_PREGUNTA`` y las demás interrogativas.
+_INTERROGATIVA = re.compile(r'^\W*(?:y\s+)?(como|que|por que|porque|cual|cuales|cuando|donde|quien|quienes|'
+                            r'cuant[oa]s?|explica|explicame)\b')
+#: 077:RF-70: con signos y sin interrogativa, solo cuenta si empieza por un verbo de consulta, nunca por una
+#: petición («¿puedes convertir …?», «¿convierte …?»): una lista de lo que pregunta yerra por el lado de no desviar.
+_CONSULTA = re.compile(r'^\W*(?:y\s+)?(hay|existe|existen|es|son|esta|estan|sirve|sirven|tiene|tienen|se)\b')
+#: 077:RF-71: una ruta con separador que acaba en extensión; «kV/km», «y/o» o una fecha no la tienen.
+_FICHERO = re.compile(r'(?:[\w.\-{}~]+[\\/])+[\w\-][\w.\-]*\.[A-Za-z][A-Za-z0-9]{0,5}(?![\w\\/])')
+_SKILL = re.compile(r'\bskill\.md\b', re.IGNORECASE)
+_SUBE = re.compile(r'\.\.[\\/]')
+_API = re.compile(r'(?<![\w.\-])/api/[\w{}\-]')
+_URL = re.compile(r'\w+://\S+')
+
+
+def pregunta_al_proyecto(texto: str) -> bool:
+    """Si la orden es una pregunta que nombra un fichero del árbol o una ruta de la API (077:RF-69 a RF-73).
+
+    En la web real, el 2026-11-06, el Transformer provisional mandó «¿cómo se prueba la web según
+    .claude/skills/…/SKILL.md?» a ``simular_calibracion`` (2 %) y «¿qué hay en ../../Windows/win.ini?» a ``episodios``:
+    la lectura y el rechazo de RF-26 y RF-27 solo actúan dentro de ``pregunta``. Es forma, no modelo."""
+    t = normalizar(texto)
+    if not (_INTERROGATIVA.search(t) or (('?' in t or '¿' in t) and _CONSULTA.search(t))):
+        return False
+    # 077:RF-72: «¿cuál es la máxima de D:/…/libro.xlsx?» es una orden que se pide preguntando.
+    if any(re.search(f, t) for tarea in TAREAS.values() if tarea.literal_en_pregunta for f in tarea.frases_literales):
+        return False
+    sin_url = _URL.sub(' ', texto)                       # una dirección web no es un fichero del árbol
+    return any(p.search(sin_url) for p in (_FICHERO, _SKILL, _SUBE, _API))
+
+
 def charla_cerca(modelo: Any, texto: str, confianza: float | None = None) -> bool:
     """Si el modelo tiene «ninguna» entre sus primeras opciones; el que no tiene esa clase no opina (075:RF-41).
 
@@ -132,6 +162,10 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 contexto: Sequence[str] = (), umbrales: Mapping[str, float] | None = None) -> Interpretacion:
     """La tarea y los datos de la orden, con quién la entendió (RF-7)."""
     texto = texto.strip()
+    if pregunta_al_proyecto(texto):
+        # 077:RF-69, RF-74: antes que ningún modelo y sin su umbral; sin trozo `texto`, la pregunta es el mensaje entero (069:RF-30).
+        return Interpretacion(texto, 'pregunta', 1.0, 'forma', {}, [],
+                              ['forma de pregunta: nombra un fichero del árbol o una ruta de la API'])
     consultados = []
     previa = None
     if transformer is not None:

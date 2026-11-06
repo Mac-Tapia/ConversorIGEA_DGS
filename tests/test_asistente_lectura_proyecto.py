@@ -320,3 +320,119 @@ def test_catalogo_de_ordenes_sin_tareas_nuevas():
 
     assert not set(lp.HERRAMIENTAS) & set(TAREAS)
     assert selladas()                                       # con su huella: lanza si el catálogo cambió
+
+
+# ------------------------------------------------------------------ la pregunta llega a `pregunta` (2026-11-06)
+
+class _Modelo:
+    """El Transformer provisional con lo que respondió en la web real; cuenta si se le consulta."""
+
+    def __init__(self, tarea, confianza, datos=None):
+        self.r = {'tarea': tarea, 'confianza': confianza, 'datos': datos or {}, 'alternativas': [('estado', 0.01)],
+                  'version': 'prov-8fd8a405a322c80c'}
+        self.llamadas = 0
+
+    def predecir(self, _texto):
+        self.llamadas += 1
+        return self.r
+
+
+class _Ollama:
+    modelo = 'llama3.1:8b'
+
+    def __init__(self):
+        self.llamadas = 0
+
+    def interpretar(self, *_a, **_k):
+        self.llamadas += 1
+        return None                                        # en la web no dio respuesta válida
+
+
+CASOS_REALES = (
+    ('¿cómo se prueba la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?', 'simular_calibracion', 0.02),
+    ('¿cómo se usa la ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?', 'pregunta', 0.45),
+    ('¿qué hay en el fichero ../../Windows/win.ini?', 'episodios', 0.32),
+)
+
+
+@pytest.mark.parametrize('texto, tarea, confianza', CASOS_REALES)
+def test_pregunta_con_fichero_o_api_llega_a_pregunta(texto, tarea, confianza):
+    """077:RF-69 / 077:RF-74 — los tres casos de la web del 2026-11-06 van a `pregunta` sin consultar a ningún modelo,
+    lo dicen en lo consultado y en el plan, y no marcan `texto`: la pregunta es el mensaje entero."""
+    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.asistente.plan import resolver
+
+    modelo, ollama = _Modelo(tarea, confianza), _Ollama()
+    i = interpretar(texto, transformer=modelo, ollama=ollama)
+    assert (i.tarea, i.confianza, i.modelo) == ('pregunta', 1.0, 'forma')
+    assert modelo.llamadas == 0 and ollama.llamadas == 0
+    assert 'texto' not in i.datos and any('forma de pregunta' in c for c in i.consultados)
+    plan = resolver(i, {})
+    assert plan.tarea == 'pregunta' and plan.listo and plan.datos['texto'] == texto
+    assert any('la forma de la pregunta' in r for r in plan.razonamiento)
+
+
+def test_la_ruta_que_sale_del_repositorio_se_rechaza_dentro_de_pregunta(tmp_path):
+    """077:RF-69 / 077:RF-27 — «../../Windows/win.ini» ya llega a `pregunta`, y allí se rechaza sin leer nada."""
+    from convertersmartgrid.asistente.interprete import interpretar
+
+    texto = CASOS_REALES[2][0]
+    assert interpretar(texto, transformer=_Modelo('episodios', 0.32)).tarea == 'pregunta'
+    r = lp.nombradas_en(_repo(tmp_path), texto)
+    assert r == {'pedidas': [], 'rechazadas': ['../../Windows/win.ini']}
+
+
+@pytest.mark.parametrize('texto', [
+    'como se usa GET /api/jobs/{job_id}',
+    'que dice docs\\GUIA.md',
+    'donde esta src/pkg/barra.py',
+    'por qué falla ..\\fuera\\algo',
+    'cual es el skill de SKILL.md del backend',
+    '¿hay algo en tools/estado_specs.py?',
+    'explícame specs/077-asistente-lee-el-proyecto/spec.md',
+])
+def test_formas_de_pregunta_con_ruta(texto):
+    """077:RF-70 / 077:RF-71 — palabra interrogativa con o sin signos, o signos sin petición de acción; ruta con
+    separador y extensión, `SKILL.md`, `..` o `/api/…`."""
+    from convertersmartgrid.asistente.interprete import pregunta_al_proyecto
+
+    assert pregunta_al_proyecto(texto), texto
+
+
+@pytest.mark.parametrize('texto', [
+    'convierte input/RED_030826.txt con su carga',          # orden de acción con ruta: sin forma de pregunta
+    'calibra PA217 con D:/demanda/libro.xlsx',
+    '¿puedes convertir data/RED.txt?',                     # con signos, pero es una petición de acción
+    '¿convierte input/RED.txt?',
+    '¿cómo se calibra una barra sin medidor?',             # la pregunta de control: sin ruta
+    'que es la caida en kV/km y/o el 12/10/2026',          # forma de ruta sin extensión
+    '¿cuál es la máxima de D:/demanda/libro.xlsx?',        # 077:RF-72: frase literal de una tarea que admite pregunta
+    'lee docs/GUIA.md',
+])
+def test_no_desvia_ordenes_ni_preguntas_sin_ruta(texto):
+    """077:RF-72 / 077:RF-73 — ni órdenes de acción, ni preguntas sin fichero, ni las tareas que se piden preguntando."""
+    from convertersmartgrid.asistente.interprete import pregunta_al_proyecto
+
+    assert not pregunta_al_proyecto(texto), texto
+
+
+@pytest.mark.parametrize('texto, tarea', [
+    ('convierte input/RED_030826.txt con su carga', 'convertir'),
+    ('calibra PA217 con D:/demanda/libro.xlsx', 'calibrar'),
+])
+def test_ordenes_de_accion_las_decide_el_modelo(texto, tarea):
+    """077:RF-73 — una orden de acción con ruta la sigue decidiendo el Transformer."""
+    from convertersmartgrid.asistente.interprete import interpretar
+
+    modelo = _Modelo(tarea, 0.97)
+    i = interpretar(texto, transformer=modelo, ollama=_Ollama())
+    assert (i.tarea, i.modelo, modelo.llamadas) == (tarea, 'transformer', 1)
+
+
+def test_pregunta_de_control_la_decide_el_modelo():
+    """077:RF-73 — «¿cómo se calibra una barra sin medidor?» no tiene ruta: llega a `pregunta` por el Transformer, como en la web."""
+    from convertersmartgrid.asistente.interprete import interpretar
+
+    modelo = _Modelo('pregunta', 0.97)
+    i = interpretar('¿cómo se calibra una barra sin medidor?', transformer=modelo)
+    assert (i.tarea, i.modelo, modelo.llamadas) == ('pregunta', 'transformer', 1)

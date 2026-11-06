@@ -112,6 +112,22 @@ los archivos del proyecto, incluso del local». Lo de abajo cambia para el LLM l
 - RF-67: EL SISTEMA cortará toda búsqueda en un tope declarado de tiempo y de resultados, y dirá que cortó.
 - RF-68: EL SISTEMA leerá un rango de un fichero grande sin cargarlo entero en memoria.
 
+### Una pregunta que nombra un fichero o una ruta de la API llega a `pregunta` (prueba en la web, 2026-11-06)
+
+En la web real (077 T7) tres preguntas no llegaron a `pregunta`, y RF-26 y RF-27 solo actúan dentro de ella: «¿cómo se prueba
+la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?» salió como `simular_calibracion` al 2 %, «¿cómo se usa la
+ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?» quedó en `pregunta` al 45 %, bajo el umbral, sin respuesta
+válida de Ollama, y «¿qué hay en el fichero ../../Windows/win.ini?» salió como `episodios` al 32 %, cuando debía rechazarse
+dentro de `pregunta`. La pregunta de control «¿cómo se calibra una barra sin medidor?» sí llegó al 97 %. Es una regla de forma,
+no un ajuste del modelo: no se entrena nada.
+
+- RF-69: CUANDO una orden tenga forma de pregunta y nombre un fichero del árbol o una ruta de la API, EL SISTEMA la llevará a la tarea `pregunta` antes de consultar al Transformer y a Ollama, sea cual sea su confianza.
+- RF-70: EL SISTEMA dará a una orden forma de pregunta si empieza por una palabra interrogativa, con o sin «¿», o si lleva «¿» o «?» y empieza por un verbo de consulta («hay», «existe», «es», «sirve», «tiene», «se»), nunca por una petición de acción.
+- RF-71: EL SISTEMA tendrá por nombrado un fichero cuando la orden traiga una ruta con «/» o «\» que acabe en extensión, un `SKILL.md` o un `../` (también `..\`), y una ruta de la API cuando traiga `/api/…`, con o sin verbo HTTP.
+- RF-72: SI la orden coincide con una frase literal de una tarea que se reconoce también como pregunta, ENTONCES EL SISTEMA no aplicará RF-69.
+- RF-73: EL SISTEMA no aplicará RF-69 a una orden sin forma de pregunta ni a una pregunta que no nombre un fichero ni una ruta de la API.
+- RF-74: CUANDO RF-69 decida la tarea, EL SISTEMA lo dirá en lo consultado y en el razonamiento del plan, y no marcará ningún trozo como `texto` (069:RF-30).
+
 ## Requisitos no funcionales
 
 - Python 3.12; la dependencia `mcp` es opcional y queda fuera de `requirements.txt`.
@@ -122,6 +138,8 @@ los archivos del proyecto, incluso del local». Lo de abajo cambia para el LLM l
 
 - Entrenar o ajustar ningún modelo, y bajar la puerta de abstención.
 - Cambiar `interprete.py`, `codificador_ordenes.py`, `validacion_cruzada.py`, `valle.py`, `escalera_optima.py` o `digital_twin/`.
+  Aclaración del 2026-11-06: `interprete.py` cambia solo por la regla de forma de RF-69 a RF-74; ningún modelo, umbral ni
+  conjunto de entrenamiento cambia por ella.
 - Tocar `docs/EVALUACION_*_047.json`, sus conjuntos o sus umbrales.
 - Duplicar `consultar_datos`: lo que ya responde esa orden se sigue pidiendo por ella.
 - MCP por HTTP, recursos o herramientas de escritura.

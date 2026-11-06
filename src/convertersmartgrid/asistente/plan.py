@@ -173,7 +173,9 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
                            '(084:RF-25).')
         return plan
     quien = ('el Transformer propio' if interp.modelo == 'transformer' else
-             'la frase literal del catálogo' if interp.modelo == 'catalogo' else f'el modelo local {interp.modelo}')
+             'la frase literal del catálogo' if interp.modelo == 'catalogo' else
+             'la forma de la pregunta, que nombra un fichero o una ruta de la API (077:RF-74)' if interp.modelo == 'forma'
+             else f'el modelo local {interp.modelo}')
     plan.razonamiento.append(f'Entendí «{tarea.descripcion}» con {quien} (confianza {interp.confianza:.0%})'
                              + (f': {interp.razon}' if interp.razon else '.'))
     for d in tarea.datos:
