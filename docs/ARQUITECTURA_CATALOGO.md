@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 233 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 237 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 93 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 368 |
+| Pruebas | `tests/` | 371 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 274 |
 
@@ -34,13 +34,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 112 |
+| adaptadores | Ada | 116 |
 | aplicacion | Apl | 97 |
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
 
-273 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+277 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -428,7 +428,11 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `motores_flujo.py` | Ada | 083 | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. |
 | `benchmark_fisico.py` | Ada | 045 | Ablaciones del gemelo sobre las mismas particiones (física pura, red sin término físico, híbrido y PowerFlowNet) y comprobación de dominio antes de… |
 | `adaptador_pyg.py` | Ada | 045 | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. |
-| `evolutivo.py` | Ada | 024, 044 | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla. |
+| `evolutivo.py` | Ada | 024, 044, 048 | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla. |
+| `problema_optimizacion.py` | Ada | 048 | Contrato común de una búsqueda de obras y consignas: variables tipadas con unidad, origen y coste trazable, restricciones, objetivos, contexto y… |
+| `adaptador_pymoo.py` | Ada | 048 | GA, NSGA-II y DE de pymoo, opcionales, como candidatos del benchmark de la 048: genes reparados por la regla común y presupuesto cortado por el… |
+| `benchmark_optimizacion.py` | Ada | 048 | Benchmark de los optimizadores vigentes y los de pymoo: al menos veinte semillas comunes, presupuesto en evaluaciones reales (caché aparte),… |
+| `adaptador_pnl.py` | Ada | 048 | Tramo continuo con Pyomo y un solucionador PNL (Ipopt por omisión, HiGHS para cuadráticos) con las discretas fijas: punto local continuo, nunca… |
 | `temporal.py` | Ada | 024, 046, 060 | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), GRU multihorizonte para competir en el pronóstico, métricas, desviaciones… |
 | `temporal_entrenamiento.py` | Ada | 043, 046, 060 | Lectura de series mediante lectores existentes, ajuste causal GRU, objetivos de cabecera y clientes, competición de pronósticos con ganador por… |
 | `series_causales.py` | Ada | 046 | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. |
@@ -678,7 +682,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `construir_dataset_entrenamiento.py` | — | 043 | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. |
 | `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
-| `evaluar_evolutivos.py` | — | 043, 048 | Benchmark analítico calculado de GA, NSGA-II y DE con al menos 30 semillas, separado de aceptación eléctrica. |
+| `evaluar_evolutivos.py` | — | 043, 048 | Benchmark analítico calculado de GA, NSGA-II y DE (y los de pymoo si está) con al menos 30 semillas, el mismo presupuesto de evaluaciones reales y la… |
 | `reubicar_corpus_llm.py` | — | 047, 065 | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. |
 | `preparar_modelos_ia.py` | — | 043 | Descarga explícita y auditoría de pesos fijados, sin activación. |
 | `preparar_upstream_ia.py` | — | 043 | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. |

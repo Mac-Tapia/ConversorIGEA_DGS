@@ -75,7 +75,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3, T4 |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
-  | 048 Optimización mixta evolutiva y PNL | aprobada | ver sus tareas |
+  | 048 Optimización mixta evolutiva y PNL | aprobada | falta T3b, T4 |
   | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
   | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b |
   | 051 Medición de cabecera en libro ancho: una columna por alimentador | implementada | falta T3 |
