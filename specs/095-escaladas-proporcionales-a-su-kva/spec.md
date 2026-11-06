@@ -1,6 +1,6 @@
 # Spec 095 — Escaladas proporcionales a su potencia instalada
 
-Estado: implementada · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209: «los escalados deben hacer el probabilístico
+Estado: cumplida · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209: «los escalados deben hacer el probabilístico
 según su potencia instalada; ningún SED debe estar sin carga» y, preguntado, «proporcional a su kVA».
 
 ## Contexto y objetivo
