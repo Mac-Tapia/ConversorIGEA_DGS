@@ -18,12 +18,24 @@
       Hecho cuando: `docs/EVALUACION_ABSTENCION_077.json` existe; la lanza el usuario. Se mide, no se ajusta.
 - [x] T10 Regla de forma: una pregunta que nombra un fichero del árbol o una ruta de la API va a `pregunta` antes del modelo, sin capturar órdenes de acción ni preguntas sin ruta. (RF-69, RF-70, RF-71, RF-72, RF-73, RF-74)
       Hecho cuando: `tests/test_asistente_lectura_proyecto.py` pasa con los tres casos reales del 2026-11-06, la pregunta de control y dos órdenes de acción, y pasan `tests/test_asistente_interprete.py` y `tests/test_interprete_codificador.py`.
-- [ ] T7 Comprobación en la web real, tras reiniciarla: una pregunta por un skill, por una ruta de la API y por un fichero rechazado.
+- [x] T7 Comprobación en la web real, tras reiniciarla: una pregunta por un skill, por una ruta de la API y por un fichero rechazado.
       Hecho cuando: las tres respuestas se ven en el navegador con su cita o su rechazo.
+      Hecho el 2026-11-06: en la web del 8765 reiniciada con `main` 5c4697f4 o posterior (regla de forma de la T10), espacio de
+      prueba `1985f689071b42ee`, las tres llegan a `pregunta` con «(forma, 100 %)» y el razonamiento «nombra un fichero o una
+      ruta de la API (077:RF-74)». «¿cómo se prueba la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?» responde
+      con la lectura directa del skill como primera cita (`.claude/skills/convertersmartgrid-frontend/SKILL.md:1`);
+      «¿cómo se usa la ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?» responde que se envía un POST con cuerpo
+      JSON `AgenteProyectoListaIn` (campos formulario, periodo, reiniciar, ruta, ruta_cargas, sistema; obligatorios periodo y
+      sistema) con cita `docs/asistente/openapi.json:6732`; «¿qué hay en el fichero ../../Windows/win.ini?» dice «No se lee
+      ../../Windows/win.ini: queda fuera de lo que el asistente puede consultar» sin nada de su contenido (RF-27). La pregunta de
+      control «¿cómo se calibra una barra sin medidor?» sigue por el Transformer al 97 %, sin la regla de forma (RF-73), con cita
+      de 022:RF-42 (`specs/022-red-unida-por-zonal-y-set/spec.md:158`). Capturas en
+      `output/evidencia_web_067_077/077_T7_tras_arreglo_{0_pregunta_de_control_con_cita,1_skill_con_cita,2_ruta_api_con_cita,3_fichero_fuera_rechazado}.png`.
+      Límite visto: la cita del skill es su cabecera (línea 1), no la sección de pruebas; la recuperación no se ajusta aquí (T6).
 
 T6, 2026-11-03: medido una vez sobre el conjunto sellado (`docs/EVALUACION_ABSTENCION_077.json`, 15 673 vectores, 78 con respuesta y 50 sin ella). Reranker con puerta: MRR@10 0,316, recall@10 0,406, abstención 0,98, 33 de 78 preguntas con respuesta abstenidas. `cumple_todos` es falso: el índice ampliado no se sirve y sigue el de la 047. Se mide, no se ajusta.
 
-T7, 2026-11-06: sigue abierta. En la web real (espacio de prueba `1985f689071b42ee`) las tres preguntas no llegan a
+T7, 2026-11-06 (antes del arreglo de la T10): en la web real (espacio de prueba `1985f689071b42ee`) las tres preguntas no llegan a
 `pregunta` y no hay cita ni rechazo que ver: «¿cómo se prueba la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?»
 sale sin tarea (simular_calibracion 2 %), «¿cómo se usa la ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?»
 sin tarea (pregunta 45 %, Ollama sin respuesta válida) y «¿qué hay en el fichero ../../Windows/win.ini?» sin tarea (episodios
