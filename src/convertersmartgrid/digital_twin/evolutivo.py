@@ -17,6 +17,11 @@ reconfiguración radial por maniobras (``reconfigurar``) y consigna de cabecera
 Nada se escribe en DIgSILENT: cada propuesta sale con ``confirmar_en_pf`` y se confirma allí
 antes de aceptarse (principio 1, RF-35, RF-46).
 
+``problema_bancos`` y ``problema_maniobras`` formulan los mismos problemas con el contrato de
+``problema_optimizacion`` (spec 048, T1): variables con su unidad, la norma como restricción y
+la demanda atendida frente a la del estado actual, para que el benchmark de la 048 compare
+algoritmos sobre la red sin que una isla pase por mejora.
+
 Todo es determinista con la semilla: misma red, mismos parámetros y misma semilla, misma
 propuesta.
 """
@@ -34,6 +39,7 @@ from ..experimentos import ContextoExperimento
 from .episode import Caso, Clase
 from .evaluacion import Limites, evaluar
 from .oraculo import S_BASE, Muestra, escalar_nodo, muestra, sistema_de
+from .problema_optimizacion import ContextoSintetico, Objetivo, ProblemaOptimizacion, Restriccion, Variable
 
 #: Aptitud de una solución que incumple: siempre peor que cualquiera que cumple (regla de
 #: factibilidad de Deb); entre las que incumplen, gana la que menos se aparta.
@@ -425,6 +431,98 @@ def optimizar_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kva
                        'nsga2': {'evaluaciones': frente.evaluaciones, 'generaciones': frente.generaciones,
                                  'soluciones': len(frente.soluciones)}},
         'confirmar_en_pf': True}
+
+
+def _demanda_kw(m: Muestra) -> tuple[float, float]:
+    """Demanda activa de la red (kW) y la parte que llega a una fuente en este estado."""
+    p_kw = np.real(m.s_carga) * S_BASE * 1000.0
+    carga = p_kw > 0
+    alimentado = m.alimentado if m.alimentado is not None else np.ones(len(p_kw), dtype=bool)
+    return float(np.sum(p_kw[carga])), float(np.sum(p_kw[carga & alimentado]))
+
+
+def problema_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kvar_modulo: float,
+                    tension_min_pu: float, tension_max_pu: float,
+                    contexto: ContextoExperimento | ContextoSintetico, modelo_id: str, modulos_max: int = 3,
+                    costo_modulo: float | None = None, origen_costo: str | None = None,
+                    factor_carga: float = 1.0, exponente: float = 0.0) -> ProblemaOptimizacion:
+    """Los bancos de ``optimizar_bancos`` como problema declarado (048:RF-1, RF-2).
+
+    Una variable entera por barra candidata (módulos de ``kvar_modulo``), la banda de tensión
+    como restricción y la inversión con el coste del perfil (sin él, sin valor: 048, T1).
+    """
+    m = muestra(grafo)
+    sis = sistema_de(m)
+    pos = {n: i for i, n in enumerate(m.ids)}
+    nodos = [c for c in dict.fromkeys(candidatos) if c in pos and not m.fuente[pos[c]]]
+    if not nodos:
+        raise ValueError('ninguna barra candidata está en el grafo')
+    idx = np.array([pos[c] for c in nodos])
+    medir = _energizadas(m)
+    s_base = m.s_carga * factor_carga
+    q_modulo = kvar_modulo / 1000.0 / S_BASE
+    referencia_kw, atendida_kw = (x * factor_carga for x in _demanda_kw(m))
+
+    def evaluador(vector: Mapping[str, Any]) -> dict[str, Any]:
+        genoma = np.array([vector[n] for n in nodos], dtype=float)
+        s = s_base.copy()
+        s[idx] -= 1j * genoma * q_modulo
+        sol = sis.resolver(s, exponente=exponente)
+        if not sol.convergio:
+            return {'convergio': False}
+        return {'convergio': True, 'objetivos': {'perdidas_kw': sol.perdidas_pu * S_BASE * 1000.0},
+                'violaciones': {'tension_pu': violacion_tension(sol.v, medir, tension_min_pu, tension_max_pu)},
+                # Los bancos no cambian la topología: la red atiende lo mismo que en su estado actual.
+                'demanda_referencia_kw': referencia_kw, 'demanda_atendida_kw': atendida_kw,
+                'referencia': {'estado': 'red actual sin bancos nuevos', 'factor_carga': factor_carga}}
+
+    variables = tuple(Variable(n, 'entera', f'módulos de {kvar_modulo:g} kvar', inferior=0, superior=modulos_max,
+                               origen='barras candidatas del diagnóstico y módulo de banco del perfil',
+                               coste=costo_modulo, origen_coste=origen_costo if costo_modulo is not None else None)
+                      for n in nodos)
+    return ProblemaOptimizacion(
+        nombre='bancos_de_condensadores', variables=variables,
+        restricciones=(Restriccion('tension_pu', 'p.u.', f'banda {tension_min_pu}–{tension_max_pu} p.u. de la norma'),),
+        objetivos=(Objetivo('inversion', 'coste del perfil', origen='coste'), Objetivo('perdidas_kw', 'kW')),
+        contexto=contexto, modelo_id=modelo_id, evaluador=evaluador)
+
+
+def problema_maniobras(grafo: Mapping[str, Any], *, maniobras: Sequence[str], tension_min_pu: float,
+                       tension_max_pu: float, contexto: ContextoExperimento | ContextoSintetico, modelo_id: str,
+                       exponente: float = 0.0) -> ProblemaOptimizacion:
+    """La reconfiguración de ``reconfigurar`` como problema declarado (048:RF-1, RF-2).
+
+    Una variable binaria por maniobra (1 cerrada). La referencia de demanda es la del estado
+    actual de la red: abrir una maniobra que deja carga sin fuente pierde menos solo porque deja
+    de alimentarla, y ``evaluar_vector`` lo declara no factible. Los lazos nuevos son violación.
+    """
+    ramas = {str(r.get('id')) for r in grafo.get('ramas') or []}
+    maniobras = [x for x in dict.fromkeys(maniobras) if x in ramas]
+    if not maniobras:
+        raise ValueError('ninguna maniobra está en el grafo')
+    referencia_kw = _demanda_kw(muestra(grafo))[1]
+    lazos_fijos = _lazos(muestra(_grafo_con_estados(grafo, dict.fromkeys(maniobras, False))))
+
+    def evaluador(vector: Mapping[str, Any]) -> dict[str, Any]:
+        m = muestra(_grafo_con_estados(grafo, {x: bool(vector[x]) for x in maniobras}))
+        _total, atendida_kw = _demanda_kw(m)
+        sol = sistema_de(m).resolver(m.s_carga, exponente=exponente)
+        if not sol.convergio:
+            return {'convergio': False, 'demanda_referencia_kw': referencia_kw, 'demanda_atendida_kw': atendida_kw}
+        medir = _energizadas(m)
+        return {'convergio': True, 'objetivos': {'perdidas_kw': sol.perdidas_pu * S_BASE * 1000.0},
+                'violaciones': {'tension_pu': violacion_tension(sol.v, medir, tension_min_pu, tension_max_pu),
+                                'lazos': float(max(_lazos(m) - lazos_fijos, 0))},
+                'demanda_referencia_kw': referencia_kw, 'demanda_atendida_kw': atendida_kw,
+                'referencia': {'estado': 'maniobras en su estado actual'}}
+
+    return ProblemaOptimizacion(
+        nombre='reconfiguracion_por_maniobras',
+        variables=tuple(Variable(x, 'binaria', 'estado (1 cerrada, 0 abierta)', origen='maniobras del grafo del gemelo')
+                        for x in maniobras),
+        restricciones=(Restriccion('tension_pu', 'p.u.', f'banda {tension_min_pu}–{tension_max_pu} p.u. de la norma'),
+                       Restriccion('lazos', 'lazos', 'red radial: ningún lazo además de los fijos')),
+        objetivos=(Objetivo('perdidas_kw', 'kW'),), contexto=contexto, modelo_id=modelo_id, evaluador=evaluador)
 
 
 def _grafo_con_estados(grafo: Mapping[str, Any], cerradas: Mapping[str, bool]) -> dict:

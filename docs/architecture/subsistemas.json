@@ -226,6 +226,7 @@
     "benchmark_fisico.py",
     "adaptador_pyg.py",
     "evolutivo.py",
+    "problema_optimizacion.py",
     "temporal.py",
     "temporal_entrenamiento.py",
     "series_causales.py",
