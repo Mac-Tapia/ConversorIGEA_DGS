@@ -1095,6 +1095,9 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
           {s.ubicacion_final ? (s.ubicacion_final.cumple ? ' · tensiones dentro de los límites'
             : ' · ningún punto probado deja todas las tensiones dentro de los límites') : ''}</p>
       )}
+      {/* 073:RF-30, RF-40: la SET nueva también se comprueba en valle; la frase es la del servidor, que sin
+          valle medido dice «no comprobado en valle» (RF-31). */}
+      {s.oraculo?.valle_texto && <p className="small">En valle, con la SET nueva: {s.oraculo.valle_texto}</p>}
       {(s.ramas ?? []).length > 0 && (
         <div className="table-wrap table-short">
           <table className="table">

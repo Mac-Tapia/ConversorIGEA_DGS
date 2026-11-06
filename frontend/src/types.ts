@@ -669,6 +669,8 @@ export interface ConProyectoResultado {
       utm: { crs: string; este: number; norte: number } | null };
     ubicacion_final?: { lat: number; lon: number; cumple: boolean; intentos: unknown[];
       utm: { crs: string; este: number; norte: number } | null };
+    /** 052:RF-18, 073:RF-30, RF-40: el veredicto del oráculo con la SET nueva y su frase del valle. */
+    oraculo?: { cumple: boolean; motivos: string[]; valle_texto?: string | null };
   };
 }
 
