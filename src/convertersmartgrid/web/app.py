@@ -1701,6 +1701,18 @@ def create_app(
     def lote_simular(wid: str, token: str) -> dict:
         return _cargas_job(wid, token, True)
 
+    @app.post('/api/workspaces/{wid}/lote/{token}/deshacer', status_code=202, response_model=JobRespuesta,
+              response_model_exclude_unset=True)
+    def lote_deshacer(wid: str, token: str) -> dict:
+        """007:RF-38: borra lo que creó la aplicación de ese plan, como trabajo del carril de DIgSILENT."""
+        ws = ws_or_404(wid)
+        if token not in ws.cargas_planes:
+            raise HTTPException(404, 'El plan ya no existe: vuelva a prepararlo.')
+        services.informe_de_aplicacion(ws, token)                                  # antes de encolar
+        plan = services.cargas_plan_de(ws, token)
+        return submit(ws, 'cargas_deshacer', f"Deshacer cargas · {plan['project']}",
+                      lambda ctx: services.cargas_deshacer(ws, ctx, token), lane='powerfactory')
+
     @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def lote_apply(wid: str, token: str) -> dict:
         return _cargas_job(wid, token, False)

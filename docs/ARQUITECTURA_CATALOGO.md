@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 289 |
 
-`web/services.py` tiene 11141 líneas y 340 funciones, pendiente de partir (002).
+`web/services.py` tiene 11178 líneas y 342 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -49,7 +49,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-140 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+141 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -59,10 +59,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
 | `digital-twin` | espacio | 7 |
+| `lote` | espacio | 4 |
 | `asistente` | general | 4 |
 | `catalog` | espacio | 3 |
 | `inputs` | espacio | 3 |
-| `lote` | espacio | 3 |
 | `obras` | espacio | 3 |
 | `jobs` | general | 3 |
 | `sistema` | general | 3 |

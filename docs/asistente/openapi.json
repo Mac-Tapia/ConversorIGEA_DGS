@@ -10788,6 +10788,55 @@
         "summary": "Lote Apply"
       }
     },
+    "/api/workspaces/{wid}/lote/{token}/deshacer": {
+      "post": {
+        "description": "007:RF-38: borra lo que creó la aplicación de ese plan, como trabajo del carril de DIgSILENT.",
+        "operationId": "lote_deshacer_api_workspaces__wid__lote__token__deshacer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lote Deshacer"
+      }
+    },
     "/api/workspaces/{wid}/lote/{token}/simular": {
       "post": {
         "operationId": "lote_simular_api_workspaces__wid__lote__token__simular_post",

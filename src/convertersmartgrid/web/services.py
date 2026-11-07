@@ -2203,6 +2203,43 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     return resultado
 
 
+def informe_de_aplicacion(ws: Workspace, token: str) -> Path:
+    """El informe de la aplicación del plan ``token``; sin él no hay nada que deshacer (007:RF-38)."""
+    cargas_plan_de(ws, token)
+    informe = ws.out_dir / f'cargas_pf_aplicacion_{token}.json'
+    if not informe.is_file():
+        raise UserError('Ese plan no se ha aplicado: no hay nada que deshacer.')
+    return informe
+
+
+def cargas_deshacer(ws: Workspace, ctx: JobContext, token: str) -> dict:
+    """Deshace la aplicación del plan con su informe, por ``tools/cargas_pf.py --deshacer`` (007:RF-38).
+
+    Pisco de prueba (2026-11-07): unas cargas aplicadas sin el FP del perfil (la web sin reiniciar) entraron con Q = 0 y
+    volver a aplicarlas las reutilizaba sin cambiarlas; el guion sabía deshacer y la web no lo ofrecía.
+    """
+    plan = cargas_plan_de(ws, token)
+    aplicado = informe_de_aplicacion(ws, token)
+    pf_dir, interpreter = _require_pf()
+    report = ws.out_dir / f'cargas_pf_deshacer_{token}.json'
+    report.unlink(missing_ok=True)
+    ctx.log(f"Deshacer en {plan['project']} lo que creó la aplicación {aplicado.name} (007:RF-38)")
+    rc = ctx.run_process([str(interpreter), str(_script('cargas_pf.py')), '--plan', plan['path'],
+                          '--output-json', str(report), '--deshacer', str(aplicado)],
+                         env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
+    if rc == 3:
+        raise sin_conexion_digsilent()
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    if not informe:
+        raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    return {'returncode': rc, 'report': report.name, 'project': plan['project'], 'informe': informe}
+
+
 # ---------------------------------------------------------------------------
 # Demanda medida (spec 004, RF-22 a RF-39)
 # ---------------------------------------------------------------------------

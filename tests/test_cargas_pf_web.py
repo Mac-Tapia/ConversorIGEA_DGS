@@ -34,9 +34,14 @@ GUION_FALSO = textwrap.dedent('''
     from pathlib import Path
     p = argparse.ArgumentParser()
     p.add_argument('--plan'); p.add_argument('--output-json')
-    p.add_argument('--simular', action='store_true'); p.add_argument('--cancel-file')
+    p.add_argument('--simular', action='store_true'); p.add_argument('--cancel-file'); p.add_argument('--deshacer')
     a = p.parse_args()
     plan = json.loads(Path(a.plan).read_text(encoding='utf-8'))
+    if a.deshacer:
+        aplicado = json.loads(Path(a.deshacer).read_text(encoding='utf-8'))
+        Path(a.output_json).write_text(json.dumps({'project': plan['project'], 'modo': 'deshacer',
+                                                   'de': aplicado['modo'], 'variaciones': []}), encoding='utf-8')
+        sys.exit(0)
     informe = {'project': plan['project'], 'modo': 'simular' if a.simular else 'aplicar',
                'feeders': [], 'cancelado': False, 'avisos': [],
                'recibido': {'demandas': len(plan['demandas']), 'nuevas': len(plan['nuevas']),
@@ -420,3 +425,16 @@ def test_la_base_es_la_calibracion_sin_variacion(client):
     base = r.json()['base']
     assert base['variaciones'] == [] and base['feeders'] == ['F1']
     assert [x['feeder'] for x in base['excluidos']] == ['F2']
+
+
+def test_deshacer_una_aplicacion_desde_la_web(client):
+    """007:RF-38 — la web deshace la aplicación de un plan con su informe, como trabajo de DIgSILENT; sin aplicar, lo dice.
+    Pisco de prueba (2026-11-07): las cargas aplicadas con la web sin reiniciar entraron con Q = 0 y no había cómo quitarlas."""
+    wid = _wid(client)
+    token = _plan(client, wid, feeders=['F1'], demandas=DEMANDAS).json()['token']
+    r = client.post(f'/api/workspaces/{wid}/lote/{token}/deshacer')
+    assert r.status_code == 400 and 'no se ha aplicado' in r.json()['detail']
+    assert esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/apply').json())['status'] == 'done'
+    estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/deshacer').json())
+    assert estado['status'] == 'done', estado
+    assert estado['result']['informe']['modo'] == 'deshacer' and estado['result']['informe']['de'] == 'aplicar'
