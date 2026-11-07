@@ -49,7 +49,9 @@ from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS
 from convertersmartgrid.sesion_web import cabeceras_locales
 from convertersmartgrid.util import nombre_seguro
 
-TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
+# 086:RF-9: un trabajo que cortó un reinicio de la web queda «interrumpido»; sin él aquí, el cliente lo esperaba para siempre
+# (PE102 de prueba, 2026-11-07: «Esperando Optimizar Con proyecto» de un Pisco ya cortado).
+TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
 NECESARIOS = ('medidores', 'cabecera')
 

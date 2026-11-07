@@ -597,3 +597,8 @@ def test_aplica_las_cargas_nuevas_del_libro_antes_de_con_proyecto(herramienta, t
                                                            'ajuste_job_id': 'disco:abc123'}
     assert 'create_file' in plan[2]['files'] and aplicar[1] == '/lote/T1/apply'
     assert '2 cargas nuevas de AL209, PA217 (de 3 del libro)' in capsys.readouterr().out
+
+
+def test_un_trabajo_interrumpido_cuenta_como_terminado(herramienta):
+    """086:RF-9 — tras un reinicio de la web el trabajo cortado queda «interrumpido»: el cliente no lo espera para siempre."""
+    assert 'interrumpido' in herramienta.TERMINADOS
