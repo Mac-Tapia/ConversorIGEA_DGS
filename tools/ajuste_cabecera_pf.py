@@ -2716,6 +2716,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     informe['tipo_ajuste'] = {'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
                               'cuadra': 'P_Y_Q' if con_q else 'P'}
     informe['criterio_fijas'] = plan.get('criterio_fijas')                      # 039:RF-6
+    informe['fijas_a_su_maxima'] = plan.get('fijas_a_su_maxima') or []          # 039:RF-18
     # Idempotencia nativa: antes de escribir una carga se demuestra si el estado efectivo
     # ya contiene el mismo reparto y cuadre.
     medida_previa = medir_cabecera(app, elm)
@@ -3831,6 +3832,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
                 'cuadra': 'P_Y_Q' if f in con_q else 'P'}
         informes[f]['criterio_fijas'] = p['plan'].get('criterio_fijas')         # 039:RF-6
+        informes[f]['fijas_a_su_maxima'] = p['plan'].get('fijas_a_su_maxima') or []   # 039:RF-18
     # Un factor por alimentador, o por zona si tiene central (RF-55).
     repartos, objetivos, quietas = {}, {}, set()
     for f, p in preps.items():

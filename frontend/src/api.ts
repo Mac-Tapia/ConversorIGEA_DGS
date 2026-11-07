@@ -142,7 +142,7 @@ export const api = {
     request<{ zonal: string; demanda_dir: string; grupo?: string; alimentadores?: string[]; del_sistema?: string[] }>(`${ws(id)}/demanda/recalibrar?project=${encodeURIComponent(project)}`),
   // 028:RF-40: ``solo``, los alimentadores del sistema que se recalibran; vacío, todos.
   recalibrar: (id: string, body: { project: string; periodo: string; zonal?: string; demanda_dir?: string; transformadores?: boolean;
-    criterio_fijas?: CriterioFijas; solo?: string[]; maximo_mes?: string[] }) =>
+    criterio_fijas?: CriterioFijas; solo?: string[]; maximo_mes?: string[]; a_su_maxima?: string[] }) =>
     request<Job>(`${ws(id)}/demanda/recalibrar`, json('POST', body)),
   // Spec 028, RF-9: escanear alimentadores en DIgSILENT antes de recalibrar.
   pfEscanear: (id: string, project: string, feeders: string[], anio: number | null = null) =>
@@ -294,15 +294,20 @@ export const api = {
   // 039:RF-1: el criterio de todas las fijas; por defecto, coincidente.
   demandaClientes: (id: string, alimentadores: string[], periodo?: string,
     maximas?: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }>,
-    criterio: CriterioFijas = 'coincidente', criterioPorAlimentador: Record<string, CriterioFijas> = {}) =>
+    criterio: CriterioFijas = 'coincidente', criterioPorAlimentador: Record<string, CriterioFijas> = {},
+    aSuMaxima?: string[]) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
       json('POST', { alimentadores, criterio, criterio_por_alimentador: criterioPorAlimentador,
-        ...(periodo ? { periodo } : {}), ...(maximas ? { maximas } : {}) })),
+        ...(periodo ? { periodo } : {}), ...(maximas ? { maximas } : {}),
+        ...(aSuMaxima ? { a_su_maxima: aSuMaxima } : {}) })),
+  // 039:RF-13, RF-15: la selección «a su máxima» de la tabla cruzada, guardada en el espacio.
+  demandaASuMaxima: (id: string, codigos: string[]) =>
+    request<{ a_su_maxima: string[] }>(`${ws(id)}/demanda/clientes/a-su-maxima`, json('PUT', { codigos })),
   // 039:RF-5: los dos criterios frente a la cabecera y a la red simulada, como trabajo.
   demandaCompararFijas: (id: string, body: { project: string; alimentadores: string[]; periodo?: string;
     maximas: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }> }) =>
     request<Job>(`${ws(id)}/demanda/clientes/comparar`, json('POST', body)),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas> }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas>; a_su_maxima?: string[] }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

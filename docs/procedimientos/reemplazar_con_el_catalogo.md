@@ -4,17 +4,17 @@ Cuándo: un conductor tiene parámetros que no corresponden a su ficha, o una fi
 «ficha» con los datos del fabricante.
 
 1. Generar el catálogo y su auditoría: `POST /api/workspaces/<espacio>/catalog/build`
-   (`src/convertersmartgrid/web/app.py:2488` («/api/workspaces/{wid}/catalog/build»)), un trabajo de
-   `build_catalog` (`src/convertersmartgrid/web/services.py:4625` («def build_catalog»)). El fichero es
+   (`src/convertersmartgrid/web/app.py:2518` («/api/workspaces/{wid}/catalog/build»)), un trabajo de
+   `build_catalog` (`src/convertersmartgrid/web/services.py:4838` («def build_catalog»)). El fichero es
    `catalogo_parametros.xlsx` (`src/convertersmartgrid/catalog.py:58` («CATALOG_FILENAME = 'catalogo_parametros.xlsx'»)).
 2. **Lo hace el operador:** corregir en el libro las filas con su ficha y marcarlas «ficha» o «derivado». El asistente no
    inventa parámetros: si no hay ficha, la pide.
 3. Subir el libro corregido: `POST /api/workspaces/<espacio>/catalog/apply`
-   (`src/convertersmartgrid/web/app.py:2495` («/api/workspaces/{wid}/catalog/apply»)). Solo cuentan las filas marcadas
-   (`src/convertersmartgrid/web/services.py:4678` («def apply_catalog»)).
+   (`src/convertersmartgrid/web/app.py:2525` («/api/workspaces/{wid}/catalog/apply»)). Solo cuentan las filas marcadas
+   (`src/convertersmartgrid/web/services.py:4891` («def apply_catalog»)).
 4. Calibrar «Sin proyecto»: las fichas entran ahí, no en el DGS, que conserva los parámetros de la entrada; reconvertir
-   no las lleva al DGS (`src/convertersmartgrid/web/services.py:4674` («AVISO_CATALOGO_APLICADO»), 032:RF-2, 032:RF-14).
-5. Para deshacerlo, `DELETE /api/workspaces/<espacio>/catalog` (`src/convertersmartgrid/web/app.py:2508`
+   no las lleva al DGS (`src/convertersmartgrid/web/services.py:4887` («AVISO_CATALOGO_APLICADO»), 032:RF-2, 032:RF-14).
+5. Para deshacerlo, `DELETE /api/workspaces/<espacio>/catalog` (`src/convertersmartgrid/web/app.py:2538`
    («@app.delete('/api/workspaces/{wid}/catalog')»)).
 
 Al convertir, el «Caso base» queda como lo registró la distribuidora; las fichas se aplican después, en «Sin proyecto» y en sus

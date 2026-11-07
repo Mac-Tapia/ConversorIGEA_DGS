@@ -41,6 +41,42 @@ libro de clientes lo tiene y, si no, la POT del mes, sin que el operador lo elij
 - RF-8: EL SISTEMA llevará el criterio de cada alimentador a la tabla, al plan de la calibración y de la recalibración,
   y al informe (RF-6), y dirá en la tabla el criterio de cada fila.
 
+### Cliente a su máxima (usuario, 2026-11-07)
+
+Motivo, por calidad de producto: «en la tabla cruzada un cliente entra con su máxima de operación y a veces no
+coincide con la máxima de la cabecera». El valor coincidente de un cliente puede no representar su operación
+crítica, y para estudiar la tensión el operador quiere subir ese cliente, uno por uno, a su máxima P y Q, y verlo,
+cargarlo y recalibrar desde la web («no debería ser interno: debe tener un botón o selector manual»).
+
+- RF-9: EL SISTEMA mostrará en cada fila de fija de la tabla cruzada, con la máxima de cabecera buscada, sus dos
+  valores juntos: el coincidente (RF-3), con la fecha y hora del registro de la máxima de cabecera, y el de su máxima
+  del mes (RF-2), con la fecha y hora de su registro.
+- RF-10: EL SISTEMA mostrará en cada fila de fija la diferencia de P entre su máxima del mes y su valor coincidente,
+  en kW y en % del coincidente.
+- RF-11: EL SISTEMA dejará ordenar la tabla cruzada por esa diferencia y filtrarla por una diferencia mínima en %, y no
+  marcará ningún cliente por su cuenta: la decisión es del operador.
+- RF-12: EL SISTEMA tendrá en cada fila de fija una casilla «a su máxima»; el cliente marcado irá con la P y la Q de su
+  máxima del mes (RF-2) y los demás, con el criterio de su alimentador (RF-7).
+- RF-13: EL SISTEMA tendrá acciones para marcar y desmarcar cada cliente y para desmarcar todos a la vez.
+- RF-14: EL SISTEMA dirá en cada fila el criterio con que va y, en la del cliente marcado, sus kW y sus kvar de máxima
+  con la fecha y hora de su registro.
+- RF-15: EL SISTEMA guardará la selección en el espacio de trabajo y la volverá a cargar al reabrir la web.
+- RF-16: EL SISTEMA llevará la selección al plan de la calibración y de la recalibración; si la petición no trae una
+  selección, la guardada en el espacio.
+- RF-17: EL SISTEMA tendrá en el paso de la tabla cruzada un botón «Recalibrar con estos criterios» que lance la
+  recalibración del proyecto por la vía de 028:RF-21, con el criterio general, los alimentadores con «máximo del mes»
+  y los clientes a su máxima.
+- RF-18: EL SISTEMA listará en el informe de la calibración (RF-6) los clientes a su máxima, cada uno con su registro,
+  sus kW y sus kvar.
+- RF-19: EL SISTEMA tratará al cliente a su máxima como una fija más: su subida se descuenta de las escaladas y la
+  cabecera sigue cuadrando.
+- RF-20: SI el cliente marcado no tiene hoja de 15 minutos, o su POT no está en ella, ENTONCES EL SISTEMA lo dirá y lo
+  llevará con su POT y su EA/ERI del mes (004:RF-66), sin bloquear.
+- RF-21: SI el cliente marcado no tiene el registro del instante de la máxima, ENTONCES EL SISTEMA no bloqueará por él
+  (RF-4): va a su máxima.
+- RF-22: EL SISTEMA reconocerá al cliente marcado por su código del libro de clientes, para cualquier fuente y
+  distribuidora, sin nombres ni códigos fijos.
+
 ## Relación con otras specs
 
 - Con «coincidente», RF-4 cambia 035:RF-19 y 004:RF-67: un libro de otro mes, o una hoja sin el
@@ -52,10 +88,13 @@ libro de clientes lo tiene y, si no, la POT del mes, sin que el operador lo elij
 ## Fuera de alcance
 
 - Cambiar los valores de las hojas o de la red: la comparación solo lee.
+- Marcar clientes «a su máxima» por una regla automática (RF-11): solo el operador los marca.
 - Alimentadores con central (021): su cabecera es por zonas; se comparan sus fijas, no la cabecera.
 
 ## Criterios de finalización
 
-- `grep -rnoE "039:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-6.
+- `grep -rnoE "039:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-22.
+- CA101_CHN102 recalibrado desde la web con un cliente a su máxima: su P y su Q de máxima en el informe y la cabecera
+  cuadrada.
 - NA203 desde la web: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar; «coincidente» con el periodo
   2026-09 da el registro de cada fija en el instante de su máxima de cabecera.

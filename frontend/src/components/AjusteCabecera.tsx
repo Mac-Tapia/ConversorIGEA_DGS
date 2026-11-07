@@ -29,12 +29,14 @@ export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibracion
 }
 
 export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente',
-  criterioPorAlimentador = {}, faltaCruce = false }: {
+  criterioPorAlimentador = {}, aSuMaxima, faltaCruce = false }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
   /** 039:RF-1: el criterio de las fijas elegido en la tabla cruzada (2.3). */
   criterioFijas?: CriterioFijas;
   /** 039:RF-8: el de los alimentadores marcados en el desplegable de 2.3. */
   criterioPorAlimentador?: Record<string, CriterioFijas>;
+  /** 039:RF-16: los clientes marcados «a su máxima» en 2.3; sin ellos, los guardados en el espacio. */
+  aSuMaxima?: string[];
   /** 091:RF-17: hay libros de clientes y su tabla cruzada aún no está a la vista. */
   faltaCruce?: boolean;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
@@ -108,7 +110,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
       centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
-      criterio_por_alimentador: criterioPorAlimentador,
+      criterio_por_alimentador: criterioPorAlimentador, ...(aSuMaxima ? { a_su_maxima: aSuMaxima } : {}),
     }));
     if (!p) return;
     setPlan(p);
@@ -359,6 +361,10 @@ function InformeAjuste({ inf, report, cancelado, token }: {
               {inf.tipo_ajuste && <tr><td>Tipo</td><td colSpan={2}>{inf.tipo_ajuste.tipo === 'RECALIBRACION'
                 ? `Recalibración n.º ${inf.tipo_ajuste.numero}` : 'Calibración'} · cuadra {inf.tipo_ajuste.cuadra === 'P_Y_Q'
                 ? 'P (kW) y Q (kvar)' : 'solo la P (kW)'}</td></tr>}
+              {(inf.fijas_a_su_maxima ?? []).length > 0 && <tr><td title="039:RF-18: subidos a su máxima del mes en la tabla cruzada; su subida se descuenta de las escaladas">
+                Clientes a su máxima</td><td colSpan={2}>{inf.fijas_a_su_maxima!.map((c) =>
+                  `${c.codigo}${c.nombre ? ` (${c.nombre})` : ''} en ${c.sed}: ${fmtNum(c.p_kw, 1)} kW y ${fmtNum(c.q_kvar, 1)} kvar`
+                  + (c.fecha ? `, registro ${c.fecha}` : ', POT y EA/ERI del mes')).join(' · ')}</td></tr>}
               {inf.cuadre_q && <tr><td title="035:RF-24, RF-28 a RF-30: con la medida coherente la Q se cuadra con la de las escaladas; si no, queda la de DIgSILENT con su FP de perfil">
                 Q con bancos ({(inf.bancos_en_servicio ?? []).length} en servicio, {fmtNum(inf.cuadre_q.bancos_kvar, 0)} kvar)</td>
                 <td className="num">{inf.cuadre_q.estado === 'CUADRADA' ? 'cuadrada'

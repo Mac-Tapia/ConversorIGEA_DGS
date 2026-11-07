@@ -499,6 +499,30 @@ def test_el_criterio_de_las_fijas_va_al_cruce_y_al_plan(herramienta, criterio):
     assert web.cuerpos['/demanda/ajuste/plan']['criterio_fijas'] == esperado
 
 
+@pytest.mark.parametrize('a_su_maxima', [None, [], ['11', '14']])
+def test_los_clientes_a_su_maxima_van_al_cruce_y_al_plan(herramienta, a_su_maxima):
+    """039:RF-16, 039:RF-17 — ``--a-su-maxima`` va al cruce y al plan; sin la opción no se manda y la web usa la
+    selección guardada en el espacio; vacía, ninguno."""
+    class Web(WebFalsa):
+        def __init__(self, **kw):
+            super().__init__(**kw)
+            self.cuerpos: dict[str, dict | None] = {}
+
+        def post(self, ruta, **kw):
+            self.cuerpos[ruta] = kw.get('json')
+            return super().post(ruta, **kw)
+
+    web = Web(informes=[VALIDO])
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'), periodo='2026-07',
+                              reconvertir=False, transformadores=False, tension_pu=None,
+                              bancos=True, libros=LIBROS, a_su_maxima=a_su_maxima) == 0
+    for ruta in ('/demanda/clientes/cruzar', '/demanda/ajuste/plan'):
+        if a_su_maxima is None:
+            assert 'a_su_maxima' not in web.cuerpos[ruta]
+        else:
+            assert web.cuerpos[ruta]['a_su_maxima'] == a_su_maxima
+
+
 def test_con_proyecto_espera_el_que_corre_o_lo_lanza(herramienta, capsys, tmp_path):
     """042:RF-31 — Pisco: se espera el «Con proyecto» ya lanzado; si no hay, se lanza; el resumen queda escrito."""
     class Web:

@@ -3156,6 +3156,54 @@ def criterio_de(alimentador: str, general: str, por_alimentador: dict[str, str] 
     return (por_alimentador or {}).get(str(alimentador).strip().upper(), general)
 
 
+#: 039:RF-12, RF-14: el criterio de la fila del cliente que el operador subió «a su máxima».
+CRITERIO_A_SU_MAXIMA = 'a_su_maxima'
+
+
+def clientes_a_su_maxima(ws: Workspace, explicitos: list[str] | None = None) -> set[str]:
+    """039:RF-16, RF-22: los códigos marcados, comparables (``clave_codigo``); sin lista, los del espacio."""
+    from ..demanda_medida import clave_codigo
+
+    codigos = ws.fijas_a_su_maxima if explicitos is None else explicitos
+    return {k for k in (clave_codigo(c) for c in codigos or []) if k}
+
+
+def guardar_a_su_maxima(ws: Workspace, codigos: list[str]) -> dict:
+    """039:RF-13, RF-15: la selección «a su máxima» queda en el espacio y vuelve al reabrir la web."""
+    limpios = list(dict.fromkeys(str(c).strip() for c in codigos or [] if str(c).strip()))
+    with ws.lock:
+        ws.fijas_a_su_maxima = limpios
+        ws.save()
+    return {'a_su_maxima': limpios}
+
+
+def _a_su_maxima(c, reg_max: dict, avisos: list[str]) -> None:
+    """039:RF-12, RF-20: el cliente marcado con el registro de su POT del mes (RF-2), sin kW del instante.
+
+    Sin hoja, o sin su POT en ella, no hay registro: va con su POT y su EA/ERI del mes (004:RF-66)
+    y se dice; no bloquea.
+    """
+    reg = reg_max.get(c.codigo)
+    if reg:
+        c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = reg[0], reg[1], None
+        return
+    c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = '', None, None
+    avisos.append(f'{c.codigo}: a su máxima sin el registro de su POT en una hoja de 15 minutos; va con su '
+                  'POT y su EA/ERI del mes (039:RF-20, 004:RF-66).')
+
+
+def _valor_fija(fila: dict, reg, en_el_instante: bool, obj, fp_min) -> dict | None:
+    """039:RF-9: la P y la Q de una fija con un registro, con la misma cuenta del ajuste."""
+    from ..ajuste_cabecera import derivacion_cliente
+
+    fecha, q, p = reg if reg else ('', None, None)
+    d = derivacion_cliente({**fila, 'fecha_registro': fecha, 'q_registro_kvar': q,
+                            'p_registro_kw': p if en_el_instante else None}, obj.tan_phi, obj.fp, fp_min)
+    if d is None:
+        return None
+    return {'p_kw': d['p_kw'], 'q_kvar': d['q_kvar'], 'fecha': d.get('fecha'), 'metodo': d['metodo']}
+
+
 def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
     """El motivo de 039:RF-4, con el periodo que daría la misma fecha."""
     if instante is None:
@@ -3169,7 +3217,8 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
                      *, periodo: str | None = None, instante: datetime | None = None,
                      maximas: dict[str, dict] | None = None,
                      criterio: str | None = None,
-                     criterio_por_alimentador: dict[str, str] | None = None) -> dict:
+                     criterio_por_alimentador: dict[str, str] | None = None,
+                     a_su_maxima: list[str] | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43).
 
@@ -3181,13 +3230,16 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     registro del instante de la máxima, y la que no lo tiene va en ``no_coincidentes``;
     «maximo_mes», el registro de su POT del mes. ``criterio_por_alimentador``: el de los
     alimentadores marcados en el desplegable (039:RF-7); sin máximas buscadas no hay por
-    alimentador y vale el general.
+    alimentador y vale el general. ``a_su_maxima``: los clientes que van con su máxima del mes
+    sea cual sea su criterio (039:RF-12); ``None``, los guardados en el espacio (RF-16).
     """
     criterio = _criterio_fijas(criterio)
+    marcados = clientes_a_su_maxima(ws, a_su_maxima)
     if maximas:
         return _clientes_en_sus_maximas(ws, alimentadores or list(maximas), maximas, periodo,
-                                        criterio, criterios_por_alimentador(criterio_por_alimentador))
-    from ..demanda_medida import (DemandaError, del_alimentador, leer_clientes,
+                                        criterio, criterios_por_alimentador(criterio_por_alimentador),
+                                        marcados)
+    from ..demanda_medida import (DemandaError, clave_codigo, del_alimentador, leer_clientes,
                                   leer_suministros, registros_de_maxima)
 
     alias = demanda_alias()
@@ -3216,22 +3268,39 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
             instante=instante if coincidente else None, solo_instante=coincidente)
     except DemandaError as exc:
         registro, avisos_r = {}, [str(exc)]
+    # 039:RF-12: los marcados, con el registro de su POT; con «máximo del mes» ya es ``registro``.
+    suyos_marcados = {c.codigo: c.pot for c in cruzados if clave_codigo(c.codigo) in marcados}
+    reg_max: dict = registro if not coincidente else {}
+    if suyos_marcados and coincidente:
+        try:
+            reg_max, _avisos = registros_de_maxima(libro, suyos_marcados)
+        except DemandaError as exc:
+            avisos_r = avisos_r + [str(exc)]
+    avisos_max: list[str] = []
     filas = []
     for c in cruzados:
-        if registro.get(c.codigo):
+        marcado = c.codigo in suyos_marcados
+        if marcado:
+            _a_su_maxima(c, reg_max, avisos_max)
+        elif registro.get(c.codigo):
             c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
         fila = c.to_dict()
+        fila['a_su_maxima'] = marcado
+        if marcado:
+            fila['criterio'] = CRITERIO_A_SU_MAXIMA                              # 039:RF-14
         # Sin instante (la tabla sin máxima buscada) no hay con qué coincidir: su POT.
-        if c.codigo in registro and registro[c.codigo] is None:
+        # 039:RF-21: el marcado va a su máxima y no bloquea por el registro del instante.
+        elif c.codigo in registro and registro[c.codigo] is None:
             fila['sin_coincidente'] = _sin_coincidente(c.codigo, instante)       # 039:RF-4
         filas.append(fila)
-    avisos_c = avisos_c + avisos_r
+    avisos_c = avisos_c + avisos_r + avisos_max
     return {
         'alimentadores': alimentadores,
         'libro': libro.name,
         'mes': mes,
         'criterio': criterio,
         'no_coincidentes': [f['sin_coincidente'] for f in filas if f.get('sin_coincidente')],
+        'avisos_a_su_maxima': avisos_max,                                        # 039:RF-20
         'cruzados': filas,
         'no_cruzados': [c.to_dict() for c in aparte],
         'avisos': avisos_s + avisos_c,
@@ -3245,7 +3314,8 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
 
 def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: dict[str, dict],
                              periodo: str | None, criterio: str = CRITERIO_COINCIDENTE,
-                             por_alimentador: dict[str, str] | None = None) -> dict:
+                             por_alimentador: dict[str, str] | None = None,
+                             marcados: set[str] | None = None) -> dict:
     """La tabla de clientes con lo que el ajuste escribirá (035:RF-1 a RF-3).
 
     Hasta el 2026-10-29 la tabla se cruzaba sin instante: la POT de cada cliente, cada una de
@@ -3254,6 +3324,11 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
     su fecha y hora, y cada cliente con :func:`derivacion_cliente`, la cuenta de ``fijas_de``.
     Los libros se abren una vez por mes y los registros una vez por instante: los
     alimentadores de una barra de 60 kV comparten el suyo (022:RF-84).
+
+    039:RF-9, RF-10: cada fija con sus dos valores, el coincidente y el de su máxima del mes, y la
+    diferencia de P entre ellos; los ``marcados`` (códigos de ``clave_codigo``) van con el de su
+    máxima (RF-12). Usuario, 2026-11-07: «un cliente entra con su máxima de operación y a veces no
+    coincide con la máxima de la cabecera», y para la calidad de producto se sube a su máxima.
     """
     from ..ajuste_cabecera import AjusteError, derivacion_cliente, objetivo_de
     from ..demanda_medida import (DemandaError, clave_codigo, del_alimentador,
@@ -3290,7 +3365,9 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         raise UserError(str(exc)) from exc
     avisos += avisos_s
     libros: dict[str | None, tuple] = {}
+    marcados = marcados or set()
     cruzados_out, aparte_out, de_otros, leidos, no_coincidentes = [], {}, 0, [], []
+    avisos_max: list[str] = []
     total_clientes = 0
     for (mes, instante, crit), feeders in sorted(grupos.items(), key=lambda g: (g[0][0] or '', str(g[0][1]), g[0][2])):
         coincidente = crit == CRITERIO_COINCIDENTE
@@ -3327,15 +3404,28 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         except DemandaError as exc:
             registro, avisos_r = {}, [str(exc)]
         avisos += avisos_r
+        # 039:RF-9: el registro del otro criterio, para ver los dos valores de cada fija juntos; sus
+        # avisos son los de ese criterio, que aquí no se usa.
+        pots = {c.codigo: c.pot for c in suyos}
+        try:
+            reg_max = registro if not coincidente else registros_de_maxima(libro, pots)[0]
+            reg_inst = (registro if coincidente else registros_de_maxima(
+                libro, pots, instante=instante, solo_instante=True)[0] if instante else {})
+        except DemandaError:
+            reg_max, reg_inst = (registro, {}) if not coincidente else ({}, registro)
         por_clave = {clave_codigo(f): f for f in feeders}
         for c in suyos:
-            if registro.get(c.codigo):
+            marcado = clave_codigo(c.codigo) in marcados
+            if marcado:
+                _a_su_maxima(c, reg_max, avisos_max)                               # 039:RF-12
+            elif registro.get(c.codigo):
                 c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
             fila = c.to_dict()
+            fila['a_su_maxima'] = marcado
             # 039:RF-4: con hoja y sin su registro del instante (o sin fecha de la máxima,
-            # sin nada con qué coincidir): no toma otro y lo dice.
-            if coincidente and (c.codigo in registro and registro[c.codigo] is None
-                                or instante is None and c.codigo in registro):
+            # sin nada con qué coincidir): no toma otro y lo dice. 039:RF-21: el marcado, no.
+            if coincidente and not marcado and (c.codigo in registro and registro[c.codigo] is None
+                                                or instante is None and c.codigo in registro):
                 fila['sin_coincidente'] = _sin_coincidente(c.codigo, instante)
                 no_coincidentes.append(fila['sin_coincidente'])
                 if instante is None:
@@ -3344,13 +3434,24 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
             obj = objetivos.get(f) if f else None
             fila['alimentador_maxima'] = f
             fila['instante_maxima'] = instante.isoformat(sep=' ') if instante else None
-            fila['criterio'] = crit                                                    # 039:RF-8
+            fila['criterio'] = CRITERIO_A_SU_MAXIMA if marcado else crit              # 039:RF-8, RF-14
+            fila['criterio_alimentador'] = crit        # con el que iría sin marcar, para desmarcarlo en la web
             if obj is not None:
                 d = derivacion_cliente(fila, obj.tan_phi, obj.fp, fp_min)
                 if d is not None:
                     fila.update(p_kw=d['p_kw'], q_kvar=d['q_kvar'], fp_escrito=d['fp'],
                                 metodo=d['metodo'], fecha_valores=d.get('fecha'),
                                 compensado=d.get('compensado'))
+                # 039:RF-9: sin la fecha de la máxima, o sin el registro de ese instante, no hay coincidente.
+                sin_inst = instante is None or (c.codigo in reg_inst and reg_inst[c.codigo] is None)
+                coinc = None if sin_inst else _valor_fija(fila, reg_inst.get(c.codigo), True, obj, fp_min)
+                maxi = _valor_fija(fila, reg_max.get(c.codigo), False, obj, fp_min)
+                fila['valores'] = {CRITERIO_COINCIDENTE: coinc, CRITERIO_MAXIMO_MES: maxi}
+                # 039:RF-10: cuánto sube su P de la coincidente a su máxima del mes.
+                if coinc is not None and maxi is not None:
+                    fila['diferencia_kw'] = maxi['p_kw'] - coinc['p_kw']
+                    fila['diferencia_pct'] = (100.0 * fila['diferencia_kw'] / abs(coinc['p_kw'])
+                                              if coinc['p_kw'] else None)
             cruzados_out.append(fila)
     cruzados_out.sort(key=lambda x: (str(x.get('alimentador_maxima') or ''), str(x.get('sed') or ''),
                                      str(x.get('codigo') or '')))
@@ -3365,9 +3466,12 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         # 039:RF-8: el de cada alimentador, el marcado o el general.
         'criterios': {f: c for (_mes, _inst, c), fs in grupos.items() for f in fs},
         'no_coincidentes': no_coincidentes,
+        # 039:RF-15, RF-20: los marcados de esta tabla, y los que van con su EA/ERI del mes.
+        'a_su_maxima': [f['codigo'] for f in cruzados_out if f.get('a_su_maxima')],
+        'avisos_a_su_maxima': avisos_max,
         'cruzados': cruzados_out,
         'no_cruzados': aparte_list,
-        'avisos': list(dict.fromkeys(avisos)),
+        'avisos': list(dict.fromkeys(avisos + avisos_max)),
         'totales': {'clientes': total_clientes, 'cruzados': len(cruzados_out),
                     'no_cruzados': len(aparte_list),
                     'por_actual': sum(c.get('cruzado_por') == 'actual' for c in cruzados_out),
@@ -3784,7 +3888,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 transformadores_automaticos: bool = False,
                 barras: list[dict] | None = None,
                 criterio_fijas: str | None = None,
-                criterio_por_alimentador: dict[str, str] | None = None) -> dict:
+                criterio_por_alimentador: dict[str, str] | None = None,
+                a_su_maxima: list[str] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -3793,6 +3898,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     plan por alimentador, el mismo JSON de la spec 006, y un solo token que los recorre.
     ``desconectados`` son los Nis que el operador desmarcó en la tabla del cruce (RF-26):
     van aparte en el plan, y el guion decide qué carga de SED se queda sin clientes.
+    ``a_su_maxima``: los clientes que van con su máxima del mes (039:RF-12, RF-16); ``None``, los
+    guardados en el espacio.
     """
     from dataclasses import replace
 
@@ -3802,7 +3909,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import (N_PROBABILISTICO, AjusteError, Objetivo, fijas_de, objetivo_de,
                                    probabilistico_del_perfil)
-    from ..demanda_medida import periodo_de_fecha
+    from ..demanda_medida import clave_codigo, periodo_de_fecha
     from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
@@ -3811,6 +3918,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     comprobar_que_se_calibra(project)                                          # 070:RF-61
     criterio_general = _criterio_fijas(criterio_fijas)                         # 039:RF-1
     por_alimentador = criterios_por_alimentador(criterio_por_alimentador)       # 039:RF-7
+    marcados = clientes_a_su_maxima(ws, a_su_maxima)                           # 039:RF-16
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
     anios_medidos = {int(str(f['fecha'])[:4]) for f in filas
@@ -3944,6 +4052,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         kva_entrada, implicados = _kva_reconstruido(ws, project, alimentador,
                                                     kva_entrada)                # 022:RF-63
         clientes: list[dict] = []
+        avisos_max: list[str] = []
         # 025:RF-11: sin libro del mes de su máxima, todas sus SED por kVA.
         if (hay_suministros(ws) and ws.demanda.get('clientes')
                 and client_period.status != 'NO_CLIENT_BOOK'):
@@ -3955,8 +4064,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 instante_obj = None
             cruce = demanda_clientes(
                 ws, sorted(implicados) or [alimentador], periodo=client_period.period,
-                instante=instante_obj, criterio=criterio_fijas,
+                instante=instante_obj, criterio=criterio_fijas, a_su_maxima=sorted(marcados),
             )
+            avisos_max = cruce.get('avisos_a_su_maxima') or []
             ambiguas = [c for c in cruce['no_cruzados'] if len(c.get('radiales_fuente') or []) > 1]
             if ambiguas:
                 raise UserError('ASIGNACION_SED_AMBIGUA: no se puede preparar el ajuste; '
@@ -3981,6 +4091,16 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             avisos.append(motivo + ' No se calibra.')
             continue
         fixed = fijas_de(clientes, objetivo, fp_min_fijas)
+        # 039:RF-18, RF-19: los clientes a su máxima, con lo que se escribe en su SED como fija; las
+        # escaladas llenan lo que falta hasta la cabecera, como con cualquier fija.
+        nombres = {str(c.get('codigo') or ''): c.get('nombre') for c in clientes}
+        fijas_max = [{'codigo': d['cliente'], 'nombre': nombres.get(d['cliente']), 'sed': item.sed,
+                      'p_kw': d['p_kw'], 'q_kvar': d['q_kvar'], 'fecha': d.get('fecha'), 'metodo': d['metodo']}
+                     for item in fixed.values() for d in item.derivaciones
+                     if clave_codigo(d['cliente']) in marcados]
+        for aviso in avisos_max:
+            if pre + aviso not in avisos:
+                avisos.append(pre + aviso)
         fixed_evidence = [{
             'sed': item.sed, 'p_kw': item.kw, 'q_kvar': item.kvar, 'fp': item.fp,
             'clientes': list(item.clientes), 'derivaciones': list(item.derivaciones),
@@ -4015,6 +4135,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'periodo': period_evidence,
             'client_evidence': client_period.to_dict(),
             'criterio_fijas': criterio_fijas,                                    # 039:RF-6
+            'fijas_a_su_maxima': fijas_max,                                      # 039:RF-18
             'fixed_load_evidence': fixed_evidence,
             'variacion': f'Ajuste_{alimentador}_{stamp}',
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
@@ -4078,6 +4199,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         ajustes.append({'feeder': alimentador, 'objetivo': plan['objetivo'],
                         'n_clientes': len(clientes), 'n_desconectados': len(apagados),
                         'n_sed_fijas': len(fixed_evidence),
+                        'fijas_a_su_maxima': fijas_max,                          # 039:RF-18
                         'n_sed_escaladas_estimadas': max(0, len(kva_entrada) - len(fixed_evidence)),
                         'n_kva_entrada': len(kva_entrada), 'periodo': period_evidence,
                         'client_evidence': client_period.to_dict()})
@@ -10891,7 +11013,8 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
                        transformadores: bool = False,
                        criterio_fijas: str | None = None,
                        solo: list[str] | None = None,
-                       maximo_mes: list[str] | None = None) -> dict:
+                       maximo_mes: list[str] | None = None,
+                       a_su_maxima: list[str] | None = None) -> dict:
     """Recalibra «Sin proyecto» del sistema sobre el proyecto ya importado: escaneo, máxima del
     periodo y calibración, sin reconvertir (028:RF-16, RF-21). Es ``tools/sistema_web.py`` sin
     ``--reconvertir``, el mismo recorrido del operador. ``solo``: los alimentadores del sistema
@@ -10923,6 +11046,9 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
     marcados = list(dict.fromkeys(str(a).strip().upper() for a in maximo_mes or [] if str(a).strip()))
     if marcados:
         cmd += ['--maximo-mes', *marcados]                                      # 039:RF-8
+    if a_su_maxima is not None:
+        # 039:RF-16, RF-17: la selección de la tabla; sin ella, el guion usa la guardada en el espacio.
+        cmd += ['--a-su-maxima', *dict.fromkeys(str(c).strip() for c in a_su_maxima if str(c).strip())]
     resumen = ws.out_dir / f'recalibrar_resumen_{ctx.job.id}.json'
     cmd += ['--resumen-json', str(resumen)]                                     # 081:RF-21
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
