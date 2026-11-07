@@ -55,7 +55,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 025 Calibración por año de medición | aprobada | falta T21, T22 |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | falta T12 |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T22, T14, T26, T29, T30, T31 |
-  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11, T15 |
+  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11 |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
   | 031 Proyección econométrica de la demanda con variables exógenas | reservada |  |

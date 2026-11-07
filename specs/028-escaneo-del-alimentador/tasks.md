@@ -72,8 +72,15 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho cuando: `pytest -q tests/test_escaneo.py -k recalibrar` en verde y la elección comprobada en el navegador real.
       Hecho el 2026-11-05: 19 pruebas de `test_escaneo.py` en verde; en el navegador, Pisco con AL209 y PA217 marcados
       lanzó «Recalibrar AL209 + PA217» con `--alimentadores` y la máxima con todo el sistema.
-- [ ] T15. [DIgSILENT] Pisco desde cero: instante con barras, balance de LT y centrales, y calibración válida. (RF-33, RF-34, RF-35, RF-36, RF-37, RF-38, RF-39)
+- [x] T15. [DIgSILENT] Pisco desde cero: instante con barras, balance de LT y centrales, y calibración válida. (RF-33, RF-34, RF-35, RF-36, RF-37, RF-38, RF-39)
       Hecho cuando: el proyecto calibrado por la web converge con ese instante en «Sin proyecto».
+      Hecho el 2026-11-07 (sesión 63935039): `tools/sistema_web.py --espacio 35ff5dab8b2b46a6 --zonal Pisco --periodo 2026-07`,
+      proyecto de prueba nuevo `20261107-043049_CSG_TXT_SISTEMA_PISCO` convertido e importado desde el TXT. Instante del
+      sistema 2026-07-14 18:30 por las barras de 60 kV (SET 31, 32 y 33); SEIN sin barra de 60 kV, por el balance de
+      L-6605 + L-6606 (4 135,6 kW, RF-34); centrales CT_PEDREG, CT_LUREN y CT_BH4 NA; 112 registros en maniobra fuera del
+      instante (RF-39); AL107, PI101 y SI114 sin medida positiva quedan con la demanda del archivo (RF-38). Calibración:
+      17 válidos y 0 con fallos, 2 flujos cada uno, desvío de −0,39 % a +0,94 %, validación nativa VALIDO; 5 sin medidor
+      (AL107, PA218, PI101, SC215, SI114) en los mismos flujos (022:RF-53).
 - [x] T14. Desplegable con la máxima de la cabecera de cada alimentador, y por defecto el instante común. (RF-32)
       Hecho cuando: `pytest -q tests/test_demanda_medida_web.py -k desplegable` en verde.
 - [x] T13. Selector de los tres tipos de análisis e instante común de las barras de 60 kV. (RF-27, RF-31)
