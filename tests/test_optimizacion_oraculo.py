@@ -545,7 +545,7 @@ def test_la_busqueda_del_oraculo_ve_todo_el_alimentador_y_lo_dice(monkeypatch):
 
 
 def test_con_proyecto_propone_los_bancos_segun_el_perfil(monkeypatch):
-    """094:RF-4, 094:RF-8, 094:RF-12 — «Con proyecto» con el oráculo: entre las variantes que confirma DIgSILENT va la de
+    """094:RF-4, 094:RF-7, 094:RF-8, 094:RF-12 — «Con proyecto» con el oráculo: entre las variantes que confirma DIgSILENT va la de
     bancos ubicados según el perfil de tensión de «Con proyecto», y el registro dice el perfil, dónde y por qué para."""
     from types import SimpleNamespace
 

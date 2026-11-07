@@ -713,3 +713,22 @@ def test_con_proyecto_se_copia_sin_las_cargas_nuevas_y_las_activa_despues(monkey
     assert vistas and all(not (x & nombres) for x in vistas), 'se copiaba con cargas nuevas activas'
     assert nombres <= set(_activas_en(app, _caso(app, 'Con proyecto'))[0])
     assert not (nombres & set(_activas_en(app, _caso(app, 'Sin proyecto'))[0]))
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_cada_caso_deja_el_grafico_de_perfil_de_sus_alimentadores(semilla):
+    """094:RF-15 — «Sin proyecto» y «Con proyecto» llevan la página «Perfil de tensión» con un VisPath por alimentador,
+    ligado a su ElmFeeder (sonda en DIgSILENT del 2026-11-06, 094 T10); repetir no duplica nada."""
+    app, plan, _v = _escenario_red(random.Random(semilla))
+    assert casos_pf.preparar_sin(app, plan)[1] == 0
+    assert casos_pf.preparar_con(app, plan)[1] == 0
+    casos_pf.preparar_con(app, plan)
+    for nombre in ('Sin proyecto', 'Con proyecto'):
+        (escritorio,) = _caso(app, nombre).GetContents('*.SetDesktop')
+        (pagina,) = [p for p in escritorio.GetContents('*.SetVipage') if p.loc_name == casos_pf.PAGINA_PERFIL]
+        graficos = {g.loc_name: g for g in pagina.GetContents('*.VisPath')}
+        assert sorted(graficos) == sorted(f'Perfil {f}' for f in plan['feeders']), semilla
+        for f in plan['feeders']:
+            (ligado,) = graficos[f'Perfil {f}'].feeder
+            assert ligado.loc_name == f and ligado.GetClassName() == 'ElmFeeder'
+            assert graficos[f'Perfil {f}'].iopt_x == 0

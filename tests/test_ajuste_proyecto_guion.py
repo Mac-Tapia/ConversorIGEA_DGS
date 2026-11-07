@@ -451,3 +451,15 @@ def test_bancos_que_faltan_con_la_variacion_de_las_fichas(guion):
     sin = next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Sin proyecto')
     sin.Activate()
     assert 'Fichas_P' in {v.loc_name for v in app.GetActiveNetworkVariations()}
+
+
+def test_cada_alimentador_del_sistema_deja_su_perfil(guion):
+    """094:RF-5 — en la calibración de un sistema, el perfil de tensión de cada alimentador, con sus barras y su banda."""
+    app = _app(escenario=True)
+    planes = [{**_de(_plan(), f, kw), 'banda_tension': [0.95, 1.05]} for f, kw in (('F1', 300.0), ('F2', 220.0))]
+    informes = guion.ejecutar_proyecto(app, planes)
+    for (inf, rc), f in zip(informes, ('F1', 'F2')):
+        assert rc == 0, inf
+        perfil = inf['perfil_tension']
+        assert perfil['puntos'] and all(p['barra'].startswith(f'{f}_') for p in perfil['puntos']), f
+        assert perfil['banda'] == [0.95, 1.05]

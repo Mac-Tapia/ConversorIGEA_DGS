@@ -728,6 +728,50 @@ def _de_carga_nueva(app) -> list:
             if es_de_carga_nueva(v)]
 
 
+#: 094:RF-15: la página con el perfil de tensión de cada alimentador, en cada caso.
+PAGINA_PERFIL = 'Perfil de tensión'
+
+
+def _uno(objetos, nombre: str):
+    return next((o for o in objetos if o.loc_name == nombre), None)
+
+
+def grafico_perfil(app, caso, feeders: list[str]) -> list[str]:
+    """Deja en ``caso`` (activo) la página «Perfil de tensión» con un VisPath por alimentador (094:RF-15).
+
+    Usuario, 2026-11-06: «en DIgSILENT existe una herramienta para graficar el perfil de tensión, ahí se podría ver o
+    comprobar». Sonda en el proyecto de prueba PRUEBA_007 (094 T10): en modo motor no hay tablero
+    (``GetGraphicsBoard`` da None) y ``GetOrInsertPlot`` no crea un VisPath; se crea con ``CreateObject`` en una
+    ``SetVipage`` del ``SetDesktop`` del caso y se liga por su atributo ``feeder``; ``iopt_x`` 0 es la distancia.
+    Repetir reutiliza la página y cada gráfico. Devuelve los gráficos que quedaron.
+    """
+    escritorio = _uno(caso.GetContents('*.SetDesktop'), 'Desktop') or next(iter(caso.GetContents('*.SetDesktop')), None)
+    if escritorio is None:
+        escritorio = caso.CreateObject('SetDesktop', 'Desktop')
+    pagina = _uno(escritorio.GetContents('*.SetVipage'), PAGINA_PERFIL) or escritorio.CreateObject('SetVipage', PAGINA_PERFIL)
+    elm = {f.loc_name: f for f in app.GetCalcRelevantObjects('*.ElmFeeder')}
+    hechos = []
+    for f in feeders:
+        if f not in elm:
+            continue
+        nombre = f'Perfil {f}'
+        grafico = _uno(pagina.GetContents('*.VisPath'), nombre) or pagina.CreateObject('VisPath', nombre)
+        grafico.SetAttribute('feeder', [elm[f]])
+        grafico.SetAttribute('iopt_x', 0)
+        hechos.append(nombre)
+    return hechos
+
+
+def _con_grafico_perfil(app, caso, plan: dict, informe: dict, rol: str) -> None:
+    """094:RF-15: el gráfico informa; si DIgSILENT no lo deja crear, se avisa y el caso sigue."""
+    try:
+        caso.Activate()
+        informe['casos'][rol]['graficos_perfil'] = grafico_perfil(app, caso, list(plan.get('feeders') or []))
+    except Exception as exc:  # noqa: BLE001 - el gráfico no decide el caso
+        informe['avisos'].append(f'Sin el gráfico de perfil de tensión en «{caso.loc_name}»: {type(exc).__name__}: '
+                                 f'{exc} (094:RF-15).')
+
+
 def preparar_sin(app, plan: dict) -> tuple[dict, int]:
     """«Sin proyecto» como copia del «Caso base» verificado (015:RF-16 a RF-18, RF-27).
 
@@ -789,6 +833,7 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
             'escenario': _escenario_propio(app, sin, 'sin', esc_base, anio),
             'variaciones': sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])),
             'estudiable': True}
+        _con_grafico_perfil(app, sin, plan, informe, 'sin')                    # 094:RF-15
     finally:
         if inicial is not None:
             inicial.Activate()
@@ -866,6 +911,7 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
             'nombre': con.loc_name, 'creado': 'con' not in casos, 'escenario': escenario_con,
             'variaciones': activas,
             'variaciones_operador_activadas': del_operador, 'estudiable': estudiable}
+        _con_grafico_perfil(app, con, plan, informe, 'con')                    # 094:RF-15
         if not estudiable:
             informe['avisos'].append('Ningún alimentador marcado tiene cargas nuevas ni obras: '
                                      '«Con proyecto» queda igual que «Sin proyecto» y no se estudia.')

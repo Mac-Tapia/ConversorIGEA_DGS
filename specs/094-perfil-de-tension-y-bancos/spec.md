@@ -1,6 +1,6 @@
 # Spec 094 — Perfil de tensión en la calibración y bancos ubicados según el perfil
 
-Estado: aprobada · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209 con Cemento Inka: «los perfiles de tensión se
+Estado: implementada (2026-11-06: falta T5 en DIgSILENT) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209 con Cemento Inka: «los perfiles de tensión se
 deben evaluar en la calibración y recalibración; en base de ese perfil se deben plantear las ubicaciones óptimas, viendo
 todo el alimentador, o los alimentadores si es por sistema».
 

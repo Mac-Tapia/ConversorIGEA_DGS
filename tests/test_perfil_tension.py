@@ -54,7 +54,7 @@ def test_perfil_por_distancia_electrica_solo_media():
 
 
 def test_camino_a_la_barra_mas_baja_y_reglas_de_ubicacion():
-    """094:RF-4, 094:RF-6 — sobre el camino de la cabecera a la barra más baja: por caída igual, por 2i/(2n+1) de la
+    """094:RF-4, 094:RF-6, 094:RF-16 — sobre el camino de la cabecera a la barra más baja: por caída igual, por 2i/(2n+1) de la
     distancia y uno por tramo; ningún par a menos de la separación mínima."""
     rng = random.Random(SEMILLA)
     g, u, n = _red(rng)
@@ -92,7 +92,7 @@ def test_bancos_hasta_el_objetivo_o_hasta_que_no_mejora_o_el_valle():
 
 
 def test_ramas_de_largo_cero_no_cuelgan_el_camino():
-    """094:RF-4 — transformadores y acopladores sin largo (0 km) dejan nodos a la misma distancia; el camino a la barra
+    """094:RF-4, 094:RF-17 — transformadores y acopladores sin largo (0 km) dejan nodos a la misma distancia; el camino a la barra
     más baja termina igual. AL209 (2026-11-06): la calibración quedó en un bucle sin fin al buscar el camino."""
     import threading
     nodos = {_id('S'): {'kv': 22.9, 'fuente': True}, _id('A'): {'kv': 22.9}, _id('A2'): {'kv': 22.9},
