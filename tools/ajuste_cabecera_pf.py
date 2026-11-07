@@ -2942,7 +2942,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
             if not simular:
-                perfil_de_tension(app, alims, feeder, informe)                  # 094:RF-1, RF-10
+                perfil_de_tension(app, alims, feeder, informe, plan.get('banda_tension'))   # 094:RF-1, RF-3, RF-10
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:
                 informe['resultado_carga_nativa'] = {
                     'status': 'APLICADO_Y_VALIDADO', 'bloquea': False,
@@ -3462,7 +3462,7 @@ def oraculo_para_muestras(oraculo, repartos: dict) -> Any:
         return None
 
 
-def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
+def perfil_de_tension(app, alims, feeder: str, informe: dict, banda=None) -> None:
     """El perfil de tensión del alimentador al final de la calibración, con el último flujo (094:RF-1, RF-10, RF-11).
 
     Va después del cuadre de P y de la recalibración de P y Q, con los bancos existentes en servicio: es el estado
@@ -3510,7 +3510,9 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict) -> None:
                  'ramales_largos': [[p['barra'] for p in e] for e in todos[1:]],
                  'cabecera': {'medida': {k: (informe.get('objetivo') or {}).get(k) for k in ('kw', 'kvar')},
                               'simulada': informe.get('cabecera')},
-                 'q_cuadrada': informe.get('status') != 'AVISO_KVAR', 'bancos_en_servicio': informe.get('bancos_en_servicio')}
+                 'q_cuadrada': informe.get('status') != 'AVISO_KVAR', 'bancos_en_servicio': informe.get('bancos_en_servicio'),
+                 # 094:RF-3: el límite con que lo muestran la web y el informe, el del perfil de la empresa.
+                 'banda': [float(x) for x in banda] if banda else None}
         if not datos['q_cuadrada']:                                               # RF-11
             desvio = (informe.get('desvio') or {}).get('kvar')
             datos['aviso'] = ('perfil con la Q de cabecera sin cuadrar (AVISO_KVAR'
@@ -4114,7 +4116,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                           else (p['fp_cargas'] or objetivo.fp)),               # 035:RF-12
             manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
-        perfil_de_tension(app, alims, feeder, inf)                                 # 094:RF-1, RF-10
+        perfil_de_tension(app, alims, feeder, inf, p['plan'].get('banda_tension'))   # 094:RF-1, RF-3, RF-10
         if res.cuadrado and not validacion['correcta']:
             valido = False
             inf['status'] = 'FALLO_VALIDACION_NATIVA'

@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 240 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 94 |
-| Interfaz | `frontend/src/` | 45 |
+| Interfaz | `frontend/src/` | 46 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
 | Pruebas | `tests/` | 376 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 286 |
 
-`web/services.py` tiene 10900 líneas y 326 funciones, pendiente de partir (002).
+`web/services.py` tiene 10902 líneas y 327 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -779,6 +779,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `frontend/src/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
+| `frontend/src/components/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
 | `frontend/src/components/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |

@@ -1228,7 +1228,19 @@ export interface ConductoresFicha {
   error?: string;
 }
 
+/** 094:RF-1 a RF-3: el perfil de tensión que deja la calibración, con la banda del perfil de la empresa. */
+export interface PerfilTension {
+  puntos: { barra: string; km: number; u: number }[];
+  troncal: string[];
+  ramales_largos: string[][];
+  banda?: [number, number] | null;
+  q_cuadrada?: boolean;
+  aviso?: string;
+}
+
 export interface AjusteInforme {
+  /** 094:RF-1 a RF-3. */
+  perfil_tension?: PerfilTension;
   project: string;
   feeder: string;
   status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE' | 'FALLO_VALIDACION_NATIVA';

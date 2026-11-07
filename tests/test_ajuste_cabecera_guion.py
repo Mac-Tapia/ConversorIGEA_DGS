@@ -2157,3 +2157,11 @@ def test_la_calibracion_deja_el_perfil_de_tension_del_alimentador(guion):
     assert perfil['troncal'] and set(perfil['troncal']) <= {p['barra'] for p in perfil['puntos']}
     assert perfil['cabecera']['medida']['kw'] == 300.0 and perfil['cabecera']['simulada']
     assert informe['status'] == 'AVISO_KVAR' and not perfil['q_cuadrada'] and '094:RF-11' in perfil['aviso']
+
+
+def test_el_perfil_lleva_la_banda_de_tension_del_perfil_de_la_empresa(guion):
+    """094:RF-3 — el perfil guardado lleva el límite con que se muestra, el del plan de la calibración."""
+    app = _app(escenario=True)
+    informe, rc = guion.ejecutar(app, {**_plan(), 'banda_tension': [0.95, 1.05]})
+    assert rc == 0, informe
+    assert informe['perfil_tension']['banda'] == [0.95, 1.05]

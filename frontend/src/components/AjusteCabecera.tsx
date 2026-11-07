@@ -6,6 +6,7 @@ import type {
   ConsumoDistinto, CriterioFijas, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada, WorkspaceState,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
+import { PerfilTension } from './PerfilTension';
 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
 
@@ -368,6 +369,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
           </table>
         </div>
       )}
+      {!simular && inf.perfil_tension && <PerfilTension perfil={inf.perfil_tension} feeder={inf.feeder} />}
       {validacion?.balance && <BalanceFisico b={validacion.balance} />}
       {inf.probabilistico && <RepartoProbabilistico p={inf.probabilistico} medidas={inf.sed_medidas ?? []} />}
       {(inf.fijas_compensadas ?? []).length > 0 && (

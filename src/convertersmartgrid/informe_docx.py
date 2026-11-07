@@ -10,6 +10,8 @@ de DIgSILENT ni el orden de evaluación de las obras: el Word va al destinatario
 """
 from __future__ import annotations
 
+import math
+
 from .runtime_paths import staging_publicacion
 
 import io
@@ -67,6 +69,8 @@ class DatosEstudio:
     corrida: str | None = None
     #: 042:RF-58: hasta 3 alternativas por alimentador, de menor a mayor costo anual.
     alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
+    #: 094:RF-3: el perfil de tensión que dejó la calibración (barras de media, troncal y banda del perfil).
+    perfil_tension: Mapping[str, Any] | None = None
 
 
 def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
@@ -638,6 +642,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
         _datos_fuente(e, datos.actual, 'Datos de la fuente en MD:')
         _bancos(e, datos.bancos, lista)
         _fijas(e, datos.fijas, lista)
+        _perfil_tension(e, datos.perfil_tension, lista)
         _analisis_tension(e, '2.2.1.1 ANÁLISIS DE CAÍDA DE TENSIÓN', datos.actual, actual_img.get('tension'),
                           'estado actual', config)
         _analisis_carga(e, '2.2.1.2 ANÁLISIS DE CARGABILIDAD', datos.actual, actual_img.get('cargabilidad'),
@@ -674,6 +679,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
         'recomendada': rec.etapa.clave if rec.etapa else None, 'cumplen': dict(rec.cumplen),
         'obras_propuestas': [x.clave for x in a_ejecutar], 'bancos': [dict(b) for b in datos.bancos],
         'fijas': [dict(f) for f in datos.fijas],
+        'perfil_tension': dict(datos.perfil_tension) if datos.perfil_tension else None,
         'imagenes': _rutas(datos.imagenes), 'huecos': e.huecos, **_de_la_plantilla(config, modelo),
     })
     return e.huecos
@@ -752,6 +758,43 @@ def _fijas(e: _Escritor, fijas: Sequence[Mapping[str, Any]], lista: str) -> None
                   f'hasta {_f(minimo, 2)}: ' + ', '.join(
                       f"{f.get('sed')} ({_f(f.get('fp_real'), 3)} → {_f(f.get('fp_corregido'), 3)})"
                       for f in compensados) + '.')
+
+
+#: Filas de la troncal en la tabla del perfil: más no se leen en una página.
+_FILAS_PERFIL = 15
+
+
+def _perfil_tension(e: _Escritor, perfil: Mapping[str, Any] | None, lista: str) -> None:
+    """El perfil de tensión de la calibración, con el límite del perfil de la empresa (094:RF-3).
+
+    AL209 (2026-11-06): el usuario pidió ver todo el perfil del alimentador para juzgar los bancos; el informe dice de
+    dónde a dónde va la troncal, cuál es la mínima y cuántas barras de media quedan bajo el límite.
+    """
+    puntos = [p for p in (perfil or {}).get('puntos') or [] if p.get('u') is not None]
+    if not puntos:
+        return
+    banda = (perfil or {}).get('banda') or None
+    por_barra = {str(p['barra']): p for p in puntos}
+    troncal = [por_barra[b] for b in (perfil or {}).get('troncal') or [] if b in por_barra]
+    minima = min(puntos, key=lambda p: float(p['u']))
+    texto = (f'Perfil de tensión del alimentador {lista} en el estado actual, tras la calibración: '
+             f'{len(puntos)} barras de media; la mínima es {_f(minima["u"], 4)} p.u. en {minima["barra"]}, a '
+             f'{_f(minima["km"], 2)} km de la cabecera.')
+    if troncal:
+        texto += (f' Por la troncal, de {_f(troncal[0]["u"], 4)} p.u. en la cabecera a {_f(troncal[-1]["u"], 4)} p.u. '
+                  f'a {_f(troncal[-1]["km"], 2)} km.')
+    if banda:
+        bajo = sum(1 for p in puntos if float(p['u']) < float(banda[0]))
+        texto += (f' Con el límite de {_f(banda[0], 2)} a {_f(banda[1], 2)} p.u. del perfil de la empresa, {bajo} de las '
+                  f'{len(puntos)} barras de media quedan por debajo.')
+    e.parrafo(texto)
+    if (perfil or {}).get('aviso'):
+        e.aviso(str(perfil['aviso']))
+    if troncal:
+        paso = max(1, math.ceil(len(troncal) / _FILAS_PERFIL))
+        filas = troncal[::paso] + ([troncal[-1]] if (len(troncal) - 1) % paso else [])
+        e.tabla(['Barra', 'Distancia a la cabecera (km)', 'Tensión (p.u.)'],
+                [[str(p['barra']), _f(p['km'], 2), _f(p['u'], 4)] for p in filas])
 
 
 def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], config: ConfigInforme,

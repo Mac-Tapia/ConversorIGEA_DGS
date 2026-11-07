@@ -1104,3 +1104,20 @@ def test_coincidente_con_el_registro_del_instante_va_al_plan(client):
     assert plan['criterio_fijas'] == 'coincidente'
     cliente = plan['clientes'][0]
     assert cliente['fecha_registro'] == '01/07/2026 01:45' and cliente['p_registro_kw'] == pytest.approx(2.0)
+
+
+def test_la_calibracion_guarda_su_perfil_de_tension_para_el_informe(tmp_path):
+    """094:RF-2, 094:RF-3 — el perfil de la calibración queda con ella en el espacio y el informe de estudio lo toma de
+    ahí, sin volver a leer DIgSILENT."""
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    perfil = {'puntos': [{'barra': 'N1', 'km': 0.0, 'u': 1.01}, {'barra': 'N2', 'km': 3.5, 'u': 0.97}],
+              'troncal': ['N1', 'N2'], 'ramales_largos': [], 'banda': [0.95, 1.05], 'q_cuadrada': True}
+    informe = {'cuadrado': True, 'escenario': 'Sin proyecto', 'escenarios': [{'escenario': 'Sin proyecto'}],
+               'sed': [{'sed': 'SE1', 'despues': {'kw': 50.0, 'kvar': 5.0}, 'derivaciones': []}], 'perfil_tension': perfil}
+    services._guardar_calibracion(ws, 'P', 'A1', informe)
+    assert ws.calibraciones['P']['A1']['perfil_tension'] == perfil
+    assert services._calibracion_del_estudio(ws, {'project': 'P'}, 'A1')['perfil_tension'] == perfil
+    assert services._calibracion_del_estudio(ws, {}, 'A1')['perfil_tension'] == perfil
+    assert services._calibracion_del_estudio(ws, {'project': 'OTRO'}, 'A1') == {}

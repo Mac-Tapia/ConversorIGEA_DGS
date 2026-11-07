@@ -4124,6 +4124,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
             'escenario': informe.get('escenario'), 'recorded_at': time.time(),
             'anio': anio_medicion, 'caso': informe.get('caso'), 'recalibracion': numero,
             'factor_escala': informe.get('factor_escala'),                  # 083:RF-9
+            'perfil_tension': informe.get('perfil_tension'),                # 094:RF-2, RF-3
             # 039:RF-5: la cabecera simulada y los bancos, para la Q de la red sin las cargas.
             'cabecera': {k: (informe.get('cabecera') or {}).get(k) for k in ('kw', 'kvar')},
             'bancos_kvar': (informe.get('cuadre_q') or {}).get('bancos_kvar')}
@@ -8523,18 +8524,18 @@ def _flujo_que_falta(project: str | None, alimentador: str) -> dict:
     return {'project': project, 'medidas': {alimentador: {'converge': False}}, '_fichero': None}
 
 
-def _fijas_de_la_calibracion(ws: Workspace, estudio: dict, alimentador: str) -> list[dict]:
-    """Los clientes fijos de la última calibración del alimentador (015:RF-65).
-
-    Del proyecto del estudio si lo dice; si no, de la única calibración de ese alimentador.
-    """
+def _calibracion_del_estudio(ws: Workspace, estudio: dict, alimentador: str) -> dict:
+    """La última calibración del alimentador: del proyecto del estudio si lo dice; si no, la única que haya."""
     proyecto = str(estudio.get('project') or '').strip()
     candidatas = ([ws.calibraciones.get(proyecto, {}).get(alimentador)] if proyecto else
                   [c.get(alimentador) for c in ws.calibraciones.values()])
     candidatas = [c for c in candidatas if c]
-    if len(candidatas) != 1:
-        return []
-    return list(candidatas[0].get('fijas') or [])
+    return candidatas[0] if len(candidatas) == 1 else {}
+
+
+def _fijas_de_la_calibracion(ws: Workspace, estudio: dict, alimentador: str) -> list[dict]:
+    """Los clientes fijos de la última calibración del alimentador (015:RF-65)."""
+    return list(_calibracion_del_estudio(ws, estudio, alimentador).get('fijas') or [])
 
 
 def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
@@ -8679,6 +8680,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                                        'sed_cercana': _sed_cercana(b.get('gps'), geo_sin)}
                                       for b in sin['medidas'][alimentador].get('bancos') or ()),
                          fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)),
+                         perfil_tension=_calibracion_del_estudio(ws, sin, alimentador).get('perfil_tension'),   # 094:RF-3
                          avisos=tuple(avisos), corrida=(corrida or {}).get('token'),
                          alternativas_escalera=alternativas_de_la_escalera(ws, proyecto, [alimentador]))   # 042:RF-58
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'

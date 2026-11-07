@@ -631,3 +631,23 @@ def test_factibilidad_con_obras_dice_cuales_y_donde(tmp_path):
     assert resumen['conclusion_conexion']['clave'] == 'con_obras'
     assert texto.count('450 kvar en el nodo N8904') == 2, 'en el estado proyectado y en las conclusiones'
     assert 'desde la barra NA hasta la barra NB' in texto and 'T1, T2' in texto
+
+
+def test_el_perfil_de_tension_de_la_calibracion_en_el_estado_actual(tmp_path):
+    """094:RF-3 — el perfil de la troncal con el límite del perfil de la empresa: de la cabecera al extremo, la mínima,
+    cuántas barras de media quedan bajo el límite y la troncal en una tabla."""
+    import random
+
+    rnd = random.Random(943)
+    n = rnd.randint(8, 40)
+    km = sorted(rnd.uniform(0.0, 25.0) for _ in range(n))
+    puntos = [{'barra': f'N{i}', 'km': k, 'u': 1.02 - 0.004 * k} for i, k in enumerate(km)]
+    troncal = [p['barra'] for p in puntos[::2]]
+    perfil = {'puntos': puntos, 'troncal': troncal, 'ramales_largos': [], 'banda': [0.95, 1.05], 'q_cuadrada': True}
+    destino = tmp_path / 'informe.docx'
+    escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path, perfil_tension=perfil))
+    texto = _texto(destino)
+    bajo = sum(1 for p in puntos if p['u'] < 0.95)
+    assert 'perfil de tensión' in texto.lower() and f'{bajo} de las {n} barras de media' in texto
+    assert ['Barra', 'Distancia a la cabecera (km)', 'Tensión (p.u.)'] in _filas(destino)
+    assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['perfil_tension']['troncal'] == troncal
