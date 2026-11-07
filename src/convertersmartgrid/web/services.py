@@ -18,6 +18,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import re
 import shutil
 import tempfile
 import sys
@@ -6380,6 +6381,21 @@ def _huella_de_la_medida(plan_ev: Mapping[str, Any]) -> str | None:
     return hashlib.sha256(datos.encode('utf-8')).hexdigest()
 
 
+def _huella_de_la_eleccion(plan_ev: Mapping[str, Any], costos: Mapping[str, Any]) -> str | None:
+    """098:RF-36: lo que hace que la elección de un alimentador siga valiendo: la red como se mide (sin la obra que se
+    compara), las barras de sus cargas nuevas, los sorteos, el valle, el horizonte, los parámetros y los costos unitarios.
+    Sin la huella de la red, ``None``: se mide de nuevo."""
+    import hashlib
+
+    if not plan_ev.get('huella_red'):
+        return None
+    claves = ('project', 'anio_casos', 'huella_red', 'barras_cargas', 'sorteos', 'parametros', 'valle', 'horizonte',
+              'alternativas', 'tipo_cambio')
+    datos = json.dumps({**{k: plan_ev.get(k) for k in claves}, 'costos': costos}, sort_keys=True, ensure_ascii=False,
+                       default=str)
+    return hashlib.sha256(datos.encode('utf-8')).hexdigest()
+
+
 def _clave_variante(huella: str, v: Mapping[str, Any]) -> str:
     return huella + '|' + json.dumps({'nombre': v.get('nombre'), 'obras': v.get('obras')}, sort_keys=True,
                                      ensure_ascii=False, default=str)
@@ -6447,7 +6463,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    variantes_de: dict | None = None, solo_comun: bool = False,
                    solo: dict | None = None, por_alternativas: bool = False, previas: dict | None = None,
                    etiqueta_previas: str = '', traspaso: bool = False, sin_oraculo: bool = False,
-                   con_enlaces: bool = True) -> dict:
+                   con_enlaces: bool = True, apartar_obras: dict | None = None,
+                   conservar: dict | None = None) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -6575,7 +6592,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         comun = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos,
                  'native_action_context': native_action_context(ws, project, [f], 'obras'),
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
-                 'apartar_variaciones': apartar_variaciones}
+                 'apartar_variaciones': apartar_variaciones,
+                 # 098:RF-36: la obra de la escalera que se compara, fuera de la medida y de vuelta al terminar.
+                 **({'apartar_obras': list(apartar_obras[f])} if apartar_obras and apartar_obras.get(f) else {})}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
         objetivo_previo = bool(previas and previas.get(f))                       # 042:RF-64
         if objetivo_previo:
@@ -6681,6 +6700,17 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'estado_con_proyecto': datos.get('variaciones_activas'), 'valle': valle,      # 073:RF-25
             'huella_red': datos.get('huella_red'),                                        # 098:RF-32
             **({'basta_una': True} if basta_una else {})}
+        fila['huella_eleccion'] = _huella_de_la_eleccion(plan_ev, costos)               # 098:RF-36
+        vieja = (conservar or {}).get(f)
+        if (vieja and fila['huella_eleccion'] and vieja.get('huella') == fila['huella_eleccion']
+                and vieja.get('regla') == eo.REGLA_DE_PLAZOS):
+            # Misma red sin ella, mismas cargas, sorteos y costos que cuando se eligió: sigue siendo la de corto plazo.
+            fila['conserva'] = vieja.get('nombre')
+            ctx.log(f"{f}: «{vieja.get('nombre')}» se eligió con esta misma red, cargas y costos: se conserva sin medir "
+                    'de nuevo (098:RF-36).')
+            resultado.append(fila)
+            resueltos.append(f)
+            continue
         # 025:RF-73: sin el estado de «Con proyecto» no se sabe si es la misma red: se mide.
         ev = _evaluacion_hecha(ws, plan_ev) if datos.get('variaciones_activas') is not None else None
         if ev is not None:
@@ -6795,10 +6825,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                                            if t['nombre'] == decision['elegida']))
             ids = [obra_anadir(ws, o)['id'] for o in por_nombre[decision['elegida']].obras]
             ctx.log(f"{f}: se aplica «{decision['elegida']}» en «Con proyecto»…")
+            elegida_t = next(t for t in decision['tabla'] if t['nombre'] == decision['elegida'])
             hecho = obras_ejecutar(ws, ctx, project, list(dict.fromkeys(list(feeders) + vecinos_f)), ids,
                                    eo.BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos, apartar_cargas_de=comun['apartar_cargas_de'],
-                                   apartar_variaciones=apartar_variaciones)
+                                   apartar_variaciones=apartar_variaciones,
+                                   # 098:RF-36: de la escalera, con lo que hace falta para compararla la próxima vez.
+                                   origen=ORIGEN_ESCALERA,
+                                   eleccion={'nombre': decision['elegida'], 'regla': eo.REGLA_DE_PLAZOS,
+                                             'costo_anual': (elegida_t.get('costo') or {}).get('costo_anual'),
+                                             'huella': fila.get('huella_eleccion')})
             hechas = (hecho.get('informe') or {}).get('obras') or []
             fila['aplicada'] = [o.get('variacion') for o in hechas]
             for o in hechas:                                                     # 098:RF-24
@@ -6851,68 +6887,144 @@ def _avisos_bajo_limite(alimentador: str, obra: str, fuera: dict | None, u_min: 
     return []
 
 
-def _obras_que_no_aguantan(ws: Workspace, project: str, feeders: list[str]) -> dict[str, dict]:
-    """098:RF-36: de cada alimentador, la obra aplicada en «Con proyecto» que no se eligió como la de corto plazo
-    (098:RF-37), con el motivo. CHN102 (2026-11-07): el paso a 22,9 kV (29,3 km, 50 SED), elegido cuando la sección y
-    la terna no tenían costo; con sus costos, «1×300 kvar + sección AA24003D en 15,77 km» es la más barata que cumple.
+#: 098:RF-36: de dónde viene una obra aplicada. Solo la de la escalera se compara y se retira sola.
+ORIGEN_ESCALERA = 'escalera'
+ORIGEN_OPERADOR = 'operador'
 
-    Una elegida sin la marca de la regla de los dos plazos se eligió con otros costos y otra regla: lo guardado de esa
-    corrida no sirve para comparar, y se mide de nuevo. Con la marca, la elegida ya es la de corto plazo y se queda."""
+
+def _es_obra_de(nombre: str, alimentador: str) -> bool:
+    """El nombre de variación ``Obra_<clase>_<alimentador>`` (con su número), como ``tools/obras_pf.es_obra_de``."""
+    return bool(re.fullmatch(rf'Obra_[A-Za-z_]+?_{re.escape(alimentador)}(_\d+)?', str(nombre)))
+
+
+def _registros_de(ws, project: str, f: str) -> list[dict]:
     from ..demanda_medida import clave_codigo
 
-    de = {clave_codigo(f): f for f in feeders}
-    aplicadas: dict[str, list[str]] = {}
-    for a in getattr(ws, 'obras_aplicadas', None) or []:
-        f = de.get(clave_codigo((a.get('obra') or {}).get('alimentador')))
-        if a.get('project') == project.strip() and f:
-            aplicadas.setdefault(f, []).append(str(a.get('variacion')))
-    if not aplicadas:
-        return {}
-    elegidas: dict[str, dict] = {}
-    for clave, alts in alternativas_de_la_escalera(ws, project).items():
-        f = de.get(clave_codigo(str(clave).split(' · ')[0]))
-        e = next((a for a in alts or [] if a.get('elegida')), None)
-        if f and e:
-            elegidas[f] = e
-    from ..escalera_optima import REGLA_DE_PLAZOS
+    return [a for a in getattr(ws, 'obras_aplicadas', None) or []
+            if a.get('project') == project.strip()
+            and (clave_codigo((a.get('obra') or {}).get('alimentador')) == clave_codigo(f)
+                 or _es_obra_de(a.get('variacion'), f))]
 
-    out = {}
-    for f, variaciones in aplicadas.items():
-        e = elegidas.get(f)
-        if e is None:
-            motivo = 'no hay registro de por qué se eligió'
-        elif e.get('regla') != REGLA_DE_PLAZOS:
-            motivo = ('se eligió con la regla anterior, sin el costo de la sección y la terna ni la de corto plazo '
-                      '(098:RF-35, RF-37)')
-        else:
+
+def _obras_a_comparar(ws, ctx: JobContext, project: str, feeders: list[str]) -> dict[str, dict]:
+    """098:RF-36: de cada alimentador, la obra que aplicó la escalera, para compararla con la de corto plazo (RF-37).
+
+    Solo las de origen «escalera». Lo que el operador hizo desde la pestaña de obras se respeta (040:RF-8, 014:RF-3: un
+    cambio manual es intencional, se avisa y nunca se borra); una aplicada antes de guardar su origen no se toca y se
+    dice cómo rehacerla. CHN102 (2026-11-07): el paso a 22,9 kV elegido cuando la sección y la terna no tenían costo.
+    """
+    out: dict[str, dict] = {}
+    for f in feeders:
+        registros = _registros_de(ws, project, f)
+        de_escalera = [a for a in registros if a.get('origen') == ORIGEN_ESCALERA]
+        sin_origen = [a for a in registros if not a.get('origen')]
+        if sin_origen:
+            ctx.log(f"{f}: {', '.join(str(a.get('variacion')) for a in sin_origen)} se aplicó sin guardar quién la eligió: "
+                    'no se compara ni se retira; si es de la escalera, «rehacer obras» la vuelve a elegir (098:RF-36).')
+        if not de_escalera:
             continue
-        out[f] = {'obra': (e or {}).get('nombre'), 'variaciones': variaciones, 'motivo': motivo}
+        eleccion = next((a.get('eleccion') for a in reversed(de_escalera) if a.get('eleccion')), None) or {}
+        out[f] = {'variaciones': [str(a['variacion']) for a in de_escalera],
+                  'obras': [a.get('obra') or {} for a in de_escalera],
+                  'operacion': [a['operacion'] for a in de_escalera if a.get('operacion')],
+                  'nombre': eleccion.get('nombre'), 'costo_anual': eleccion.get('costo_anual'),
+                  'huella': eleccion.get('huella'), 'regla': eleccion.get('regla'), 'eleccion': eleccion}
     return out
 
 
-def _comparar_y_cambiar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                        anio_casos: int | None) -> dict[str, dict]:
-    """098:RF-36: «comparar y cambiar» (usuario, 2026-11-07): la obra aplicada que no es la de corto plazo se retira,
-    con lo que abrió y el ajuste del flujo que activó (081:RF-81, 098:RF-34); la corrida mide de nuevo todas las
-    alternativas sin ella, aplica la de corto plazo y deja planteada la de largo plazo (098:RF-37); si vuelve a ganar la
-    misma, queda igual."""
-    malas = _obras_que_no_aguantan(ws, project, feeders)
-    for f, m in malas.items():
-        ctx.log(f"{f}: se retira «{m['obra'] or ', '.join(m['variaciones'])}», aplicada en «Con proyecto», porque "
-                f"{m['motivo']}; se miden de nuevo todas las alternativas sin ella (098:RF-36).")
-    if malas:
-        _retirar_obras(ws, ctx, project, sorted(malas), anio_casos)
-    return malas
+def _decidir_sustitucion(fila: Mapping[str, Any], vieja: Mapping[str, Any]) -> tuple[bool, str]:
+    """098:RF-36: si la de corto plazo medida sin la obra vieja la sustituye: solo si cumple y cuesta menos al año, o si
+    la vieja ya no cumple. Lo demás la conserva, con el porqué."""
+    if fila.get('conserva'):
+        return False, 'la red, las cargas y los costos son los de su elección: sigue siendo la de corto plazo'
+    if fila.get('ya_cumple'):
+        return False, ('sin ella «Con proyecto» ya cumple; se conserva: si sobra, «rehacer obras» la retira')
+    e = fila.get('elegida')
+    nueva = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
+    if not nueva:
+        return False, 'sin ella ninguna alternativa cumple'
+    if nueva == vieja.get('nombre'):
+        return False, 'vuelve a ser la de corto plazo'
+    tabla = {t.get('nombre'): t for t in fila.get('tabla') or []}
+    costo_nueva = (tabla.get(nueva) or {}).get('costo_anual')
+    fila_vieja = tabla.get(vieja.get('nombre')) if vieja.get('nombre') else None
+    if fila_vieja is not None and fila_vieja.get('factible') is False:
+        return True, f"«{vieja.get('nombre')}» ya no cumple: {fila_vieja.get('motivo') or 'no cumple'}"
+    costo_vieja = (fila_vieja or {}).get('costo_anual')
+    if costo_vieja is None:
+        costo_vieja = vieja.get('costo_anual')
+    if costo_nueva is None or costo_vieja is None:
+        return False, 'sin el costo de las dos no se puede decir que la nueva cueste menos'
+    if float(costo_nueva) < float(costo_vieja):
+        return True, f'«{nueva}» cumple y cuesta {float(costo_nueva):,.0f} al año frente a {float(costo_vieja):,.0f}'
+    return False, f'«{nueva}» no cuesta menos ({float(costo_nueva):,.0f} frente a {float(costo_vieja):,.0f} al año)'
 
 
-def _retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], anio_casos: int | None) -> None:
-    """042:RF-60: lo elegido con reglas anteriores se quita de DIgSILENT y de lo aplicado, para evaluarlo de nuevo."""
+class _NoQuedo(Exception):
+    """La de corto plazo no quedó activa en «Con proyecto»: se repone la vieja."""
+
+
+def _sustituir(ws, ctx: JobContext, project: str, f: str, vieja: dict, fila: Mapping[str, Any],
+               aplicar_nueva, anio_casos: int | None) -> dict:
+    """098:RF-36: «comparar y cambiar» sin quedarse sin obra. La de corto plazo ya se midió con la vieja fuera de la medida;
+    si la sustituye (:func:`_decidir_sustitucion`), se retira la vieja (por sus nombres exactos, con lo que hizo en la
+    operación) y se aplica la nueva; si algo falla después de retirar, la vieja se repone. Devuelve qué pasó."""
+    cambia, motivo = _decidir_sustitucion(fila, vieja)
+    nombre = vieja.get('nombre') or ', '.join(vieja.get('variaciones') or [])
+    if not cambia:
+        ctx.log(f'{f}: se conserva «{nombre}»: {motivo} (098:RF-36).')
+        return {'obra': nombre, 'sustituta': None, 'motivo': motivo, 'hecha': None}
+    ctx.log(f'{f}: «{nombre}» se sustituye: {motivo}; se retira y se aplica la de corto plazo (098:RF-36).')
+    _retirar_obras(ws, ctx, project, [f], anio_casos, variaciones=list(vieja.get('variaciones') or []))
+    try:
+        hecha = aplicar_nueva()
+        de_f = next(iter(hecha.get('alimentadores') or []), {})
+        if not de_f.get('aplicada') or any('025:RF-69' in str(a) for a in de_f.get('avisos') or []):
+            raise _NoQuedo(f"«{de_f.get('elegida') or fila.get('elegida')}» no quedó activa en «Con proyecto»")
+    except BaseException as exc:
+        ctx.log(f'{f}: {exc}; se repone «{nombre}» (098:RF-36).')
+        _reponer_obra(ws, ctx, project, f, vieja, anio_casos)
+        if isinstance(exc, _NoQuedo):
+            return {'obra': nombre, 'sustituta': None, 'motivo': str(exc), 'hecha': None, 'repuesta': True}
+        raise
+    e = fila.get('elegida')
+    nueva = str(e.get('nombre') if isinstance(e, dict) else e)
+    ctx.log(f'{f}: «{nombre}» sustituida por «{nueva}» (098:RF-36).')
+    return {'obra': nombre, 'sustituta': nueva, 'motivo': motivo, 'hecha': hecha}
+
+
+def _reponer_obra(ws, ctx: JobContext, project: str, f: str, vieja: Mapping[str, Any], anio_casos: int | None) -> None:
+    """098:RF-36: la obra retirada, otra vez aplicada como estaba, con su elección."""
+    from .. import escalera_optima as eo
+
+    ids = [obra_anadir(ws, dict(o))['id'] for o in vieja.get('obras') or [] if o]
+    if not ids:
+        ctx.log(f'{f}: no quedó lo necesario para reponer la obra retirada: revísela (098:RF-36).')
+        return
+    obras_ejecutar(ws, ctx, project, [f], ids, eo.BIBLIOTECA_TIPOS, simular=False, anio_casos=anio_casos,
+                   origen=ORIGEN_ESCALERA, eleccion=dict(vieja.get('eleccion') or {}) or None)
+
+
+def _retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], anio_casos: int | None,
+                   variaciones: list[str] | None = None, sin_origen: bool = False) -> None:
+    """042:RF-60: lo elegido con reglas anteriores se quita de DIgSILENT y de lo aplicado, para evaluarlo de nuevo.
+
+    098:RF-36: por los nombres exactos de sus variaciones: las que se piden o, sin pedirlas, las que aplicó la escalera
+    en ``feeders`` (y, con ``sin_origen``, las aplicadas antes de guardar su origen: «rehacer obras» lo pide el
+    operador). Las del operador no se tocan nunca."""
+    if variaciones is None:
+        variaciones = [str(a['variacion']) for f in feeders for a in _registros_de(ws, project, f)
+                       if a.get('origen') == ORIGEN_ESCALERA or (sin_origen and not a.get('origen'))]
+    variaciones = list(dict.fromkeys(variaciones))
+    if not variaciones:
+        ctx.log(f"{', '.join(feeders)}: ninguna obra de la escalera que retirar (098:RF-36).")
+        return
     # 098:RF-36: con lo que cada obra aplicada hizo en la operación, para deshacerlo con ella.
     operacion = [a['operacion'] for a in ws.obras_aplicadas or []
-                 if a.get('project') == project.strip() and a.get('operacion')]
+                 if a.get('project') == project.strip() and a.get('operacion') and a.get('variacion') in variaciones]
     _rc, informe, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
         'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos, 'feeders': list(feeders),
-        'operacion_de_obras': operacion,
+        'variaciones': variaciones, 'operacion_de_obras': operacion,
         'native_action_context': native_action_context(ws, project, list(feeders), 'obras')},
         nombre='retirar_obras', args=('--retirar-obras',))
     if informe.get('error'):
@@ -7117,7 +7229,7 @@ def _bajas_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
 
 
 def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], activas: list[str],
-                         memo: dict, opciones: dict) -> dict[str, dict]:
+                         memo: dict, opciones: dict, comparar: dict | None = None) -> dict[str, dict]:
     """098:RF-29: el alimentador del proyecto que viola límites en «Con proyecto» sin cargas nuevas sube su escalera.
 
     CA101 + CHN102 (2026-11-07): CHN102 quedó en 0,73 p.u. en la zona que recibió y solo se trabajó CA101, que tenía
@@ -7134,26 +7246,38 @@ def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: 
                 f"{barras[0]}): sube su escalera, primero transfiriendo (098:RF-29).")
         comun = {'cargas_activas': activas, 'basta_una': True, 'memo': memo, 'por_alternativas': True,
                  'previas': {f: barras}, 'etiqueta_previas': 'sin cargas nuevas, fuera de límites', **opciones}
+        vieja = (comparar or {}).get(f)
+        de_eval = {'apartar_obras': {f: vieja['variaciones']}, 'conservar': {f: vieja}} if vieja else {}   # 098:RF-36
         fila, traspaso = {}, False
         for con_traspaso in (True, False):
             ctx.check_cancel()
-            r = obras_escalera(ws, ctx, project, [f], aplicar=False, traspaso=con_traspaso, **comun)
+            r = obras_escalera(ws, ctx, project, [f], aplicar=False, traspaso=con_traspaso, **comun, **de_eval)
             fila = next(iter(r.get('alimentadores') or []), {})
-            if fila.get('elegida') or fila.get('ya_cumple'):
+            if fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva'):
                 traspaso = con_traspaso
                 break
-        escalera = None
-        if fila.get('elegida') and not fila.get('ya_cumple'):
+        escalera, sustitucion = None, None
+        if vieja:
+            e = fila.get('elegida')
+            elegida = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
+            sustitucion = _sustituir(ws, ctx, project, f, vieja, fila, lambda: obras_escalera(
+                ws, ctx, project, [f], aplicar=True, traspaso=traspaso, solo={f: elegida}, **comun),
+                opciones.get('anio_casos'))
+            escalera = sustitucion.get('hecha')
+        elif fila.get('elegida') and not fila.get('ya_cumple'):
             e = fila['elegida']
             elegida = str(e.get('nombre') if isinstance(e, dict) else e)
             ctx.check_cancel()
             escalera = obras_escalera(ws, ctx, project, [f], aplicar=True, traspaso=traspaso, solo={f: elegida}, **comun)
-        ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        ok = bool(fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva')
+                  or (sustitucion is not None and not sustitucion.get('sustituta')))
         ctx.log(f"{f}: " + (f"se corrige con «{fila.get('elegida')}» (098:RF-29)." if fila.get('elegida') else
                             'ninguna obra de su escalera lo corrige (098:RF-29).' if not ok else 'ya cumple (098:RF-29).'))
         out[f] = {'resumen': {'cargas': 0, 'kw': 0.0, 'cumple': ok, 'sin_cargas_nuevas': True, 'barras_bajas': barras,
                               'alternativas': fila.get('alternativas') or [], 'ya_cumple': bool(fila.get('ya_cumple')),
-                              'elegida': fila.get('elegida'), 'bajo_limite': fila.get('bajo_limite')},
+                              'elegida': fila.get('elegida'), 'bajo_limite': fila.get('bajo_limite'),
+                              **({'sustituida': {k: v for k, v in sustitucion.items() if k != 'hecha'}}
+                                 if sustitucion else {})},
                   'escalera': escalera}
     return out
 
@@ -7178,8 +7302,11 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     if not aplicadas:
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
     if rehacer_obras:
-        _retirar_obras(ws, ctx, project, feeders, anio_casos)
-    sustituidas = _comparar_y_cambiar(ws, ctx, project, [] if rehacer_obras else feeders, anio_casos)   # 098:RF-36
+        # 042:RF-60: lo pide el operador: las de la escalera y las aplicadas sin origen guardado; nunca las suyas.
+        _retirar_obras(ws, ctx, project, feeders, anio_casos, sin_origen=True)
+    # 098:RF-36: la obra que aplicó la escalera se mide fuera y se compara con la de corto plazo; cambia solo si la
+    # nueva cumple y cuesta menos, y si algo falla tras retirarla, se repone.
+    comparar = {} if rehacer_obras else _obras_a_comparar(ws, ctx, project, feeders)
     _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     por_alim: dict[str, list[dict]] = {}
@@ -7199,12 +7326,10 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     # transferencia primero. Arreglado el que recibió, el que cede vuelve a tener a quién transferir.
     sin_cargas = [f for f in feeders if f not in por_alim]
     if sin_cargas:
-        de_sin = _escalera_sin_cargas(ws, ctx, project, sin_cargas, [c['variacion'] for c in aplicadas], memo, opciones)
+        de_sin = _escalera_sin_cargas(ws, ctx, project, sin_cargas, [c['variacion'] for c in aplicadas], memo, opciones,
+                                      comparar)
         for f, r in de_sin.items():
             por_feeder[f] = r['resumen']
-            if f in sustituidas:                                                  # 098:RF-36
-                sustituidas[f]['sustituta'] = r['resumen'].get('elegida')
-                por_feeder[f]['sustituida'] = sustituidas[f]
             if r.get('escalera'):
                 if escalera is None:
                     escalera = r['escalera']
@@ -7220,23 +7345,25 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         comparacion: list[dict] = []
         fila: dict = {}
         tanda = None
+        vieja = comparar.get(f)
+        de_eval = {'apartar_obras': {f: vieja['variaciones']}, 'conservar': {f: vieja}} if vieja else {}   # 098:RF-36
         for tanda in lista:
             ctx.check_cancel()
             r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
-                               aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones,
+                               aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones, **de_eval,
                                **({'variantes_de': {f: tanda}} if tanda else {}))
             fila = next(iter(r.get('alimentadores') or []), {})
-            if e_or:
+            if e_or and not fila.get('conserva'):
                 comparacion += _lo_predicho_y_lo_medido(fila, e_or)
                 medidas += _variantes_medidas(project, f, fila, tanda or [], e_or)    # 087:RF-17
-            if fila.get('elegida') or fila.get('ya_cumple'):
+            if fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva'):
                 break                                                                 # 087:RF-3
         else:
             if a_medir and len(a_medir) < len(e_or['orden']):
                 ctx.log(f"{f}: ninguna de las {len(a_medir)} que el oráculo da por cumplidoras o más cercanas cumple en "
                         f"DIgSILENT; las otras {len(e_or['orden']) - len(a_medir)} no se prueban: va a la obra integral "
                         '(087:RF-40).')
-        ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        ok = bool(fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva'))
         traspaso = False
         # 098:RF-21: si el oráculo ya juzgó las transferencias por enlace existente (con bancos encima, 098:RF-25),
         # DIgSILENT ya confirmó las mejores: no se repiten aquí (098:RF-26).
@@ -7247,7 +7374,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             ctx.check_cancel()
             r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
                                basta_una=True, memo=memo, por_alternativas=True, traspaso=True, con_enlaces=con_enlaces,
-                               **opciones)
+                               **opciones, **de_eval)
             de_t = next(iter(r.get('alimentadores') or []), {})
             if de_t.get('elegida'):
                 fila, ok, traspaso, tanda = de_t, True, True, None
@@ -7255,14 +7382,35 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             # 087:RF-41: el oráculo no modela el paso a 22,9 kV; DIgSILENT lo mide, tras transferir y trasladar.
             ctx.check_cancel()
             r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
-                               basta_una=True, memo=memo, por_alternativas=True, sin_oraculo=True, **opciones)
+                               basta_una=True, memo=memo, por_alternativas=True, sin_oraculo=True, **opciones, **de_eval)
             de_n = next(iter(r.get('alimentadores') or []), {})
             if de_n.get('elegida'):
                 fila, ok, tanda = de_n, True, None
         for alt in fila.get('alternativas') or []:
             ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
                     + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')
-        if fila.get('elegida') and not fila.get('ya_cumple'):
+        sustitucion = None
+        if vieja:
+            # 098:RF-36: con la vieja medida fuera; se cambia solo si la nueva cumple y cuesta menos, y si falla, se repone.
+            e = fila.get('elegida')
+            nombre_n = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
+            hallada = next((v for v in (tanda or ()) if v.nombre == nombre_n), None)
+            sustitucion = _sustituir(ws, ctx, project, f, vieja, fila, lambda: obras_escalera(
+                ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True, basta_una=True,
+                memo=memo, solo={f: nombre_n}, traspaso=traspaso, con_enlaces=con_enlaces, **opciones,
+                **({'variantes_de': {f: [hallada]}} if hallada is not None else {})), anio_casos)
+            ok = ok or not sustitucion.get('sustituta')
+            hecha = sustitucion.get('hecha')
+            if hecha is not None:
+                elegidas[f] = sustitucion['sustituta']
+                for de_f in hecha.get('alimentadores') or []:
+                    de_f['alternativas'] = fila.get('alternativas') or []
+                if escalera is None:
+                    escalera = hecha
+                else:
+                    escalera['alimentadores'] = list(escalera.get('alimentadores') or []) + list(
+                        hecha.get('alimentadores') or [])
+        elif fila.get('elegida') and not fila.get('ya_cumple'):
             e = fila['elegida']                       # el nombre de la variante (escalera_optima.elegir)
             elegidas[f] = str(e.get('nombre') if isinstance(e, dict) else e)
             # 042:RF-48: enseguida: si DIgSILENT cae después, lo resuelto queda, y el siguiente se mide con esta obra.
@@ -7297,18 +7445,11 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             for alt in aparte[clave]['alternativas']:
                 ctx.log(f"{f}, {etiqueta}: alternativa {alt['numero']}: {alt['nombre']}"
                         + (f", {alt['costo_anual']:,.0f} al año" if alt.get('costo_anual') is not None else '') + ' (042:RF-65).')
-        if f in sustituidas:                                                      # 098:RF-36
-            nueva = fila.get('elegida')
-            sustituidas[f]['sustituta'] = str(nueva.get('nombre') if isinstance(nueva, dict) else nueva) if nueva else None
-            ctx.log(f"{f}: «{sustituidas[f]['obra']}» se sustituye por «{sustituidas[f]['sustituta']}» (098:RF-36)."
-                    if sustituidas[f]['sustituta'] and sustituidas[f]['sustituta'] != sustituidas[f]['obra'] else
-                    f"{f}: vuelve a ganar «{sustituidas[f]['obra']}»: queda igual (098:RF-36)."
-                    if sustituidas[f]['sustituta'] else f"{f}: ninguna alternativa la sustituye (098:RF-36).")
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok, **aparte,
                          'alternativas': fila.get('alternativas') or [],                     # 042:RF-77
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
-        if f in sustituidas:
-            por_feeder[f]['sustituida'] = sustituidas[f]
+        if sustitucion is not None:                                               # 098:RF-36
+            por_feeder[f]['sustituida'] = {k: v for k, v in sustitucion.items() if k != 'hecha'}
         if e_or:
             por_feeder[f]['oraculo'] = {'comparacion': comparacion, 'bayesiana': e_or.get('bayesiana'), 'pareto': e_or.get('pareto'),
                                         'perdidas_energia': e_or.get('perdidas_energia'), 'ya_cumple': e_or.get('ya_cumple'),
@@ -8322,7 +8463,8 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
 
 
 def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict,
-                            operacion: dict | None = None) -> None:
+                            operacion: dict | None = None, origen: str = ORIGEN_OPERADOR,
+                            eleccion: dict | None = None) -> None:
     """Una obra aplicada en DIgSILENT, con su proyecto y su variación (017:RF-35).
 
     Al aplicarse sale de ``ws.obras``; sin este registro el informe de estudio no veía
@@ -8334,16 +8476,22 @@ def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: d
     ws.obras_aplicadas.append({'project': project.strip(), 'variacion': variacion,
                                'obra': {k: v for k, v in obra.items() if k != 'id'},
                                'aplicada': time.time(),
-                               # 098:RF-36: lo que abrió, cerró y cambió en el flujo, para deshacerlo si se retira.
-                               **({'operacion': operacion} if operacion else {})})
+                               # 098:RF-36: lo que abrió, cerró y cambió en el flujo, para deshacerlo si se retira;
+                               # quién la eligió (solo la de la escalera se compara y se retira) y con qué datos.
+                               **({'operacion': operacion} if operacion else {}),
+                               'origen': origen, **({'eleccion': eleccion} if eleccion else {})})
 
 
 def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                    ids: list[str] | None, otro_proyecto: str, *, simular: bool,
                    anio_casos: int | None = None,
                    apartar_cargas_de: list[str] | None = None,
-                   apartar_variaciones: list[str] | None = None, en_conjunto: bool = False) -> dict:
+                   apartar_variaciones: list[str] | None = None, en_conjunto: bool = False,
+                   origen: str = ORIGEN_OPERADOR, eleccion: dict | None = None) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
+
+    098:RF-36: ``origen`` dice quién eligió las obras: la escalera, o el operador (o cualquier otro camino), cuyas obras
+    la escalera nunca retira.
 
     Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
     también la que no converge en un caso, que se conserva en el proyecto (RF-67). La que
@@ -8395,7 +8543,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     operacion = {k: fila[k] for k in ('abiertos', 'cerrados', 'valores', 'flujo_activado') if fila.get(k)}
                     registrar_obra_aplicada(ws, plan['project'], fila['variacion'],
                                             {**elegidas[n - 1], **hecho},
-                                            {**operacion, 'variacion': fila['variacion']} if operacion else None)
+                                            {**operacion, 'variacion': fila['variacion']} if operacion else None,
+                                            origen=origen, eleccion=eleccion)
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]
             ws.save()
         # 024:RF-1 / RF-32: las obras pasan a «Con proyecto» con su alternativa del PIDE.

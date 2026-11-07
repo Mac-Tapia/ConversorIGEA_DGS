@@ -1296,40 +1296,280 @@ def test_sin_horizonte_medido_no_es_lo_mismo_que_cero_anios():
     assert filas[1][j] == 'largo plazo, hace falta en el año 0' and filas[1][k] == '0.951'
 
 
-def test_la_obra_elegida_con_la_regla_anterior_se_retira_y_se_mide_de_nuevo(tmp_path, monkeypatch):
-    """098:RF-36 — CHN102 (2026-11-07): «cambio a 22.9 kV» quedó aplicado cuando la sección no tenía costo. La obra
-    aplicada cuya elección no lleva la marca de los dos plazos se retira (con lo que hizo en la operación) y se mide de
-    nuevo; la elegida ya con la regla de los dos plazos se queda, y las de alimentadores que no se piden, también."""
+class _Registro:
+    def __init__(self):
+        self.textos = []
+
+    def log(self, t):
+        self.textos.append(t)
+
+    def check_cancel(self):
+        pass
+
+
+def _ws_con_obras(tmp_path, registros):
     from types import SimpleNamespace
 
-    from convertersmartgrid import escalera_optima as eo
+    return SimpleNamespace(out_dir=tmp_path, obras_aplicadas=list(registros), obras=[], lock=__import__('threading').Lock(),
+                           save=lambda: None)
+
+
+def test_solo_se_compara_y_se_retira_lo_que_aplico_la_escalera(tmp_path, monkeypatch):
+    """098:RF-36 — 040:RF-8, 014:RF-3: lo que el operador aplicó desde la pestaña de obras no se compara ni se retira; lo
+    aplicado sin origen guardado se avisa y no se toca (salvo «rehacer obras», que lo pide el operador); lo de la
+    escalera va con los nombres exactos de sus variaciones."""
     from convertersmartgrid.web import services
 
-    ws = SimpleNamespace(out_dir=tmp_path, obras_aplicadas=[
-        {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}},
-        {'project': 'P', 'variacion': 'Obra_seccion_F2', 'obra': {'alimentador': 'F2'}},
-        {'project': 'P', 'variacion': 'Obra_seccion_F3', 'obra': {'alimentador': 'F3'}},
-        {'project': 'Q', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}}])
-    services._guardar_alternativas_escalera(ws, 'P', 'F1', [{'nombre': 'cambio a 22.9 kV', 'elegida': True}])
-    services._guardar_alternativas_escalera(ws, 'P', 'F2', [{'nombre': 'sección', 'elegida': True,
-                                                             'regla': eo.REGLA_DE_PLAZOS, 'plazo': 'corto plazo'}])
-    retiradas = []
-    monkeypatch.setattr(services, '_retirar_obras', lambda ws_, ctx, project, feeders, anio: retiradas.append(
-        (project, feeders)))
+    ws = _ws_con_obras(tmp_path, [
+        {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1', 'clase': 'nivel'},
+         'origen': 'escalera', 'eleccion': {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'huella': 'h'}},
+        {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'alimentador': 'F1'}, 'origen': 'operador'},
+        {'project': 'P', 'variacion': 'Obra_terna_F1', 'obra': {'alimentador': 'F1'}},
+        {'project': 'Q', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}, 'origen': 'escalera'}])
+    ctx = _Registro()
+    comparar = services._obras_a_comparar(ws, ctx, 'P', ['F1', 'F2'])
+    assert set(comparar) == {'F1'} and comparar['F1']['variaciones'] == ['Obra_tension_F1']
+    assert comparar['F1']['nombre'] == 'cambio a 22.9 kV' and comparar['F1']['costo_anual'] == 1200.0
+    assert any('Obra_terna_F1' in t and 'no se compara ni se retira' in t for t in ctx.textos)
+    planes = []
+    monkeypatch.setattr(services, 'carpeta_de', lambda *_a: '')
+    monkeypatch.setattr(services, 'native_action_context', lambda *_a: {})
+    monkeypatch.setattr(services, '_guion_pf', lambda ws_, ctx_, guion, plan, **k: (
+        planes.append(plan), (0, {'retiradas': list(plan['variaciones'])}, None))[1])
+    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026)
+    assert planes[-1]['variaciones'] == ['Obra_tension_F1']
+    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026, sin_origen=True)
+    assert planes[-1]['variaciones'] == ['Obra_terna_F1'], 'la del operador, nunca'
+    assert [a['variacion'] for a in ws.obras_aplicadas if a['project'] == 'P'] == ['Obra_seccion_F1']
+    n = len(planes)
+    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026)
+    assert len(planes) == n, 'sin obras de la escalera no se abre DIgSILENT'
 
-    class _C:
-        textos: list = []
 
-        def log(self, t):
-            self.textos.append(t)
+def test_retirar_obras_borra_solo_las_nombradas(monkeypatch):
+    """098:RF-36, 042:RF-60 — el guion real borra solo las variaciones nombradas de los alimentadores pedidos: la obra
+    del operador y una «Obra_x_F1» sin registro se quedan; sin nombres no borra nada."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario
 
-    ctx = _C()
-    malas = services._comparar_y_cambiar(ws, ctx, 'P', ['F1', 'F2'], 2026)
-    assert set(malas) == {'F1'} and malas['F1']['obra'] == 'cambio a 22.9 kV'
-    assert 'regla anterior' in malas['F1']['motivo']
-    assert retiradas == [('P', ['F1'])]
-    assert any('se retira «cambio a 22.9 kV»' in t and '098:RF-36' in t for t in ctx.textos)
-    assert services._comparar_y_cambiar(ws, ctx, 'P', [], 2026) == {}
+    obras = cargar_herramienta('obras_pf.py', 'obras_retirar_nombres_098', tools_en_path=True)
+    app, _alims = _calibrada_con_escenario(random.Random(41))
+    _caso(app, CON).Activate()
+    for nombre in ('Obra_tension_F1', 'Obra_seccion_F1', 'Obra_x_F1'):
+        fake_pf.variacion_del_operador(app, nombre, [])
+    plan = {'project': 'P', 'feeders': ['F1']}
+    informe, codigo = obras.retirar_obras(app, plan)
+    assert codigo == 0 and informe['retiradas'] == [] and any('nombres exactos' in a for a in informe['avisos'])
+    informe, codigo = obras.retirar_obras(app, {**plan, 'variaciones': ['Obra_tension_F1', 'Obra_terna_F2']})
+    assert codigo == 0 and informe['retiradas'] == ['Obra_tension_F1']
+    quedan = {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)}
+    assert {'Obra_seccion_F1', 'Obra_x_F1'} <= quedan and 'Obra_tension_F1' not in quedan
+    assert any('Obra_terna_F2' in a for a in informe['avisos'])
+
+
+def test_la_vieja_se_cambia_solo_si_la_nueva_cumple_y_cuesta_menos():
+    """098:RF-36 — se conserva si nada cambió, si sin ella ya cumple, si ninguna cumple, si vuelve a ganar o si la nueva no
+    cuesta menos; se cambia si cuesta menos o si la vieja ya no cumple."""
+    from convertersmartgrid.web import services
+
+    vieja = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'variaciones': ['Obra_tension_F1']}
+
+    def fila(elegida, tabla=(), **k):
+        return {'elegida': elegida, 'tabla': list(tabla), **k}
+    nueva = {'nombre': '1×300 kvar + sección', 'costo_anual': 700.0, 'factible': True}
+    d = services._decidir_sustitucion
+    assert not d(fila(None, conserva='cambio a 22.9 kV'), vieja)[0]
+    assert not d(fila(None, ya_cumple=True), vieja)[0]
+    assert not d(fila(None), vieja)[0]
+    assert not d(fila('cambio a 22.9 kV'), vieja)[0]
+    assert d(fila(nueva['nombre'], [nueva]), vieja)[0]
+    assert not d(fila(nueva['nombre'], [{**nueva, 'costo_anual': 1300.0}]), vieja)[0]
+    vieja_medida = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 500.0, 'factible': False, 'motivo': 'no cumple en valle'}
+    cambia, motivo = d(fila(nueva['nombre'], [nueva, vieja_medida]), vieja)
+    assert cambia and 'ya no cumple' in motivo
+    assert not d(fila(nueva['nombre'], [nueva]), {**vieja, 'costo_anual': None})[0]
+
+
+def test_si_la_nueva_no_queda_o_falla_se_repone_la_vieja(tmp_path, monkeypatch):
+    """098:RF-36 — atómico: la vieja se retira solo para aplicar la nueva; si la nueva no queda activa o la orden falla
+    después de retirar, la vieja se repone con su elección; si no la sustituye, no se retira nada."""
+    from convertersmartgrid.web import services
+
+    ws = _ws_con_obras(tmp_path, [])
+    hechos = []
+    monkeypatch.setattr(services, '_retirar_obras', lambda ws_, ctx, project, feeders, anio, variaciones=None, **k:
+                        hechos.append(('retira', tuple(variaciones or ()))))
+    monkeypatch.setattr(services, 'obras_ejecutar', lambda ws_, ctx, project, feeders, ids, otro, **k:
+                        hechos.append(('repone', len(ids), k.get('origen'), (k.get('eleccion') or {}).get('nombre'))))
+    vieja = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'variaciones': ['Obra_tension_F1'],
+             'obras': [{'clase': 'condensador', 'alimentador': 'F1', 'casos': ['Con proyecto'], 'barra': 'F1_B1',
+                        'q_kvar': 300.0, 'escalones': 1}],
+             'eleccion': {'nombre': 'cambio a 22.9 kV', 'regla': 'x'}}
+    fila = {'elegida': 'bancos', 'tabla': [{'nombre': 'bancos', 'costo_anual': 100.0, 'factible': True}]}
+    ctx = _Registro()
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila,
+                            lambda: {'alimentadores': [{'aplicada': [], 'avisos': ['… (025:RF-69).']}]}, 2026)
+    assert r['repuesta'] and hechos == [('retira', ('Obra_tension_F1',)), ('repone', 1, 'escalera', 'cambio a 22.9 kV')]
+    hechos.clear()
+
+    def falla():
+        raise RuntimeError('DIgSILENT se cayó')
+    with pytest.raises(RuntimeError):
+        services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, falla, 2026)
+    assert [h[0] for h in hechos] == ['retira', 'repone']
+    hechos.clear()
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, lambda: {'alimentadores': [{'aplicada': ['Obra_x']}]}, 2026)
+    assert r['sustituta'] == 'bancos' and hechos == [('retira', ('Obra_tension_F1',))]
+    hechos.clear()
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, {'elegida': None}, falla, 2026)
+    assert r['sustituta'] is None and hechos == [], 'sin una que cumpla, la vieja ni se retira'
+
+
+def test_la_obra_de_la_escalera_se_mide_fuera_y_se_conserva_si_nada_cambio(tmp_path, monkeypatch):
+    """098:RF-36 — la obra vieja va fuera de la lectura y de la medida (por su nombre); con la misma huella de elección
+    (red sin ella, cargas, sorteos y costos) se conserva sin abrir la evaluación; con otra, se mide."""
+    from test_casos_por_anio import ANIO, _escalera_falsa
+
+    def evaluar(nombre):
+        cumple = nombre.startswith('sección')
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None, 'perdidas_kw': 10.0,
+                'motivos': [], 'u_cargas': {'F1_B4': 0.96}}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    falso = services._guion_pf
+    monkeypatch.setattr(services, '_guion_pf', lambda ws_, ctx_, script, plan, *, nombre, args=(), **k: (
+        lambda r: (r[0], {**r[1], 'huella_red': 'h1'} if '--escalera-datos' in args else r[1], r[2]))(
+        falso(ws_, ctx_, script, plan, nombre=nombre, args=args, **k)))
+    from convertersmartgrid import escalera_optima as eo
+
+    r1 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False)
+    h = r1['alimentadores'][0]['huella_eleccion']
+    assert h
+    vieja = {'nombre': 'x', 'huella': h, 'regla': eo.REGLA_DE_PLAZOS, 'variaciones': ['Obra_tension_F1']}
+    n = len([1 for a, _p in planes if '--evaluar' in a])
+    r2 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False,
+                                 apartar_obras={'F1': ['Obra_tension_F1']}, conservar={'F1': vieja})
+    assert r2['alimentadores'][0]['conserva'] == 'x'
+    assert len([1 for a, _p in planes if '--evaluar' in a]) == n
+    datos = [p for a, p in planes if '--escalera-datos' in a][-1]
+    assert datos['apartar_obras'] == ['Obra_tension_F1']
+    r3 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False,
+                                 apartar_obras={'F1': ['Obra_tension_F1']}, conservar={'F1': {**vieja, 'huella': 'otra'}})
+    assert not r3['alimentadores'][0].get('conserva')
+    ev = [p for a, p in planes if '--evaluar' in a][-1]
+    assert ev['apartar_obras'] == ['Obra_tension_F1']
+
+
+def test_dos_reguladores_comparten_el_ajuste_de_tomas(tmp_path):
+    """098:RF-34 — al retirar una obra con regulador, el ajuste de tomas no se apaga mientras otra variación activa tenga
+    el suyo; se dice."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_dos_reguladores_098', tools_en_path=True)
+    app, _alims = _calibrada_con_escenario(random.Random(42))
+    casos = obras.casos_del_proyecto(app, None)
+    _caso(app, CON).Activate()
+    otra = fake_pf.variacion_del_operador(app, 'Obra_regulador_F2', [])
+    etapa = otra.GetContents('*.IntSstage')[0]
+    etapa.CreateObject('ElmVoltreg', 'Regulador_F2_L1')
+    app.ldf.iopt_at = 1
+    avisos: list[str] = []
+    valores = [{'clase': 'ComLdf', 'caso': CON, 'atributo': 'iopt_at', 'valor': 0}]
+    assert obras.restituir_valores(app, casos, valores, avisos) == 0
+    assert int(app.ldf.iopt_at) == 1 and any('Obra_regulador_F2' in a for a in avisos)
+    otra.Deactivate()
+    avisos.clear()
+    assert obras.restituir_valores(app, casos, valores, avisos) == 1 and int(app.ldf.iopt_at) == 0
+
+
+def test_la_huella_de_la_red_ve_el_contenido_el_tipo_y_la_operacion():
+    """098:RF-32 — con la misma red, la misma huella; cambia con lo que graba una etapa, con la sección del tipo (aunque
+    se llame igual) y con lo que se abre en el escenario; si no se puede leer, ``None``."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_huella_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(43))
+    _caso(app, CON).Activate()
+    red = obras.Alimentadores(app, app.proyecto, alims)
+    v = fake_pf.variacion_del_operador(app, 'Carga_Q_F1_1', [])
+    carga = v.GetContents('*.IntSstage')[0].CreateObject('ElmLod', 'Q')
+    carga.plini = 100.0
+    h0 = obras.huella_de_la_red(app, red, alims)
+    assert h0 and obras.huella_de_la_red(app, red, alims) == h0
+    carga.plini = 150.0
+    h1 = obras.huella_de_la_red(app, red, alims)
+    assert h1 != h0
+    linea = app.GetCalcRelevantObjects('*.ElmLne')[0]
+    linea.typ_id.sline = float(getattr(linea.typ_id, 'sline', 0.2) or 0.2) * 2
+    h2 = obras.huella_de_la_red(app, red, alims)
+    assert h2 != h1
+    tramo = next(iter(app.GetCalcRelevantObjects('*.ElmLne')), None)
+    tramo.outserv = 1
+    assert obras.huella_de_la_red(app, red, alims) != h2
+
+    class Rota:
+        def GetActiveNetworkVariations(self):
+            raise RuntimeError('sin caso activo')
+    assert obras.huella_de_la_red(Rota(), red, alims) is None
+
+
+def test_el_alcance_de_cada_una_que_cumple_aunque_sea_de_la_misma_clase(monkeypatch):
+    """098:RF-35 (H1) — dos variantes de la misma clase que cumplen llevan las dos su alcance: la de largo plazo es la más
+    barata que aguanta, y sin medirlas no se sabe cuál es."""
+    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_alcance_clase_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(44))
+    f = alims[0]
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', _terna)
+    variantes = [{'nombre': f'terna {i}', 'obras': [_obra_terna(f, [CON], (f'L{i}',))], 'costo_base': float(i),
+                  'escalones': ['terna']} for i in (1, 2)]
+    plan = _plan_obras(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA,
+                       alternativas=3, horizonte={'tasa': 0.03})
+    informe, codigo = obras.evaluar(app, plan)
+    assert codigo == 0, informe
+    filas = [v for v in informe['variantes'] if v.get('maxima')]
+    assert len(filas) == 2 and all(v.get('horizonte') for v in filas)
+    assert all(v['horizonte'].get('probados') for v in filas)
+
+
+def test_la_largo_plazo_parte_de_los_bancos_ampliados_y_dice_cuando_hace_falta():
+    """098:RF-37 — «2×300 kvar» contiene a «1×300 kvar» en la misma barra; la misma sección en más tramos contiene a la
+    de menos; el año en que hace falta es el intervalo entre horizontes probados, y con 0 años, antes del primero."""
+    from convertersmartgrid import escalera_optima as eo
+
+    b1 = {'clase': 'condensador', 'barra': 'B4', 'q_kvar': 300.0}
+    b2 = {**b1, 'q_kvar': 600.0}
+    s1 = {'clase': 'seccion', 'tipo': {'nombre': 'AA24003D'}, 'tramos': ['T1']}
+    s2 = {**s1, 'tramos': ['T1', 'T2']}
+    assert eo.contiene({'obras': [b2, s2]}, {'obras': [b1]}) and eo.contiene({'obras': [s2]}, {'obras': [s1]})
+    assert not eo.contiene({'obras': [b1]}, {'obras': [b2]})
+    assert not eo.contiene({'obras': [{**s2, 'tipo': {'nombre': 'AA12003D'}}]}, {'obras': [s1]})
+    assert eo.cuando_hace_falta({'aguanta_anios': 5, 'probados': [5, 10, 20]}) == (5, 10)
+    assert eo.cuando_hace_falta({'aguanta_anios': 0, 'probados': [5, 10, 20]}) == (0, 5)
+    assert eo.cuando_hace_falta(None) is None
+    assert 'cumple hoy pero no llega al primer horizonte probado (5 años)' in eo.frase_de_cuando((0, 5), 'bancos')
+    assert 'entre el año 5 y el 10' in eo.frase_de_cuando((5, 10), 'bancos')
+    p = eo.parametros(_perfil_eo())
+    corto = _fila_eo('1×300 kvar', ('bancos',), 100.0, {'definitiva': False, 'aguanta_anios': 5, 'probados': [5, 10, 20]},
+                     [b1])
+    largo = _fila_eo('2×300 kvar + sección', ('bancos', 'seccion'), 900.0, {'definitiva': True, 'aguanta_anios': 20},
+                     [b2, s2])
+    otra = _fila_eo('sección', ('seccion',), 800.0, {'definitiva': True, 'aguanta_anios': 20}, [s2])
+    d = eo.elegir([corto, largo, otra], p)
+    assert d['largo_plazo']['nombre'] == largo['nombre'] and d['largo_plazo']['hace_falta_entre'] == [5, 10]
+    assert 'entre el año 5 y el 10' in d['largo_plazo']['aviso']
+
+
+@pytest.mark.parametrize('valor', [0, -1, 'x'])
+def test_el_factor_de_la_terna_tiene_que_ser_positivo(valor):
+    """098:RF-35 — un factor de 0 o negativo dejaba la terna gratis: se rechaza con el nombre del dato."""
+    from convertersmartgrid import escalera_optima as eo
+
+    with pytest.raises(eo.EscaleraError, match='factor_terna_sin_capex'):
+        eo.parametros(_perfil_eo(factor_terna_sin_capex=valor))
 
 
 def test_la_obra_retirada_deshace_lo_que_abrio_y_el_ajuste_del_flujo(tmp_path, monkeypatch):
@@ -1357,7 +1597,8 @@ def test_la_obra_retirada_deshace_lo_que_abrio_y_el_ajuste_del_flujo(tmp_path, m
     assert int(app.ldf.iopt_at) == 1 and fila['valores'][0]['atributo'] == 'iopt_at'
     assert obras.leer_aperturas(tmp_path / 'aperturas.json') == [], 'la obra aplicada sale del registro (081:RF-81)'
     operacion = {k: fila[k] for k in ('abiertos', 'valores') if fila.get(k)} | {'variacion': fila['variacion']}
-    informe, codigo = obras.retirar_obras(app, {**plan, 'feeders': [f], 'operacion_de_obras': [operacion]})
+    informe, codigo = obras.retirar_obras(app, {**plan, 'feeders': [f], 'operacion_de_obras': [operacion],
+                                               'variaciones': [fila['variacion']]})
     assert codigo == 0, informe
     assert informe['retiradas'] == [fila['variacion']] and informe['operacion_restituida'] == [fila['variacion']]
     _caso(app, CON).Activate()

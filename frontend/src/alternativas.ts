@@ -15,6 +15,7 @@ export interface Alternativa {
   /** 098:RF-37: «corto plazo» se aplica; «largo plazo» se plantea, para el año en que hace falta. */
   plazo?: string | null;
   hace_falta_en_anio?: number | null;
+  hace_falta_entre?: [number, number | null] | null;
   elegida: boolean;
 }
 
@@ -29,6 +30,12 @@ export function alcanceDe(a: Alternativa): string {
 /** 098:RF-37: las mismas palabras que la columna «Plazo» del informe. */
 export function plazoDe(a: Alternativa): string {
   const p = a.plazo ?? '';
+  const entre = a.hace_falta_entre;
+  if (entre) {
+    const [desde, hasta] = entre;
+    if (!desde) return hasta ? `${p}, cumple hoy y hace falta antes del año ${hasta}` : `${p}, hace falta ya`;
+    return hasta ? `${p}, hace falta entre el año ${desde} y el ${hasta}` : `${p}, hace falta tras el año ${desde}`;
+  }
   return a.hace_falta_en_anio == null ? p : `${p}, hace falta en el año ${a.hace_falta_en_anio}`;
 }
 

@@ -511,7 +511,7 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F
     aplicadas = []
 
     def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None, apartar_cargas_de=None,
-                 apartar_variaciones=None):
+                 apartar_variaciones=None, **_k):
         aplicadas.append(([o['clase'] for o in ws_.obras if o['id'] in ids], otro, anio_casos))
         ejecutar.apartadas.append(list(apartar_cargas_de or []))
         return {'informe': {'obras': [{'variacion': 'Obra_x',

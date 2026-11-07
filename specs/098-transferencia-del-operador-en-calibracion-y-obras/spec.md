@@ -182,7 +182,8 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   línea de cada camino (terna o las secciones mayores aptas), con y sin bancos, y contará una vez cada tramo común,
   con el conductor mayor de los que pasan por él.
 - RF-32: EL SISTEMA reutilizará la medida de DIgSILENT de una variante solo cuando la huella de la medida sea la misma
-  (variaciones activas de «Con proyecto» con lo que graba cada una y la demanda de cada alimentador, cargas apartadas,
+  (variaciones activas de «Con proyecto» con lo que graba cada una, los tipos con su sección e impedancia, lo abierto
+  y fuera de servicio del escenario y la demanda de cada alimentador, cargas apartadas,
   barras, sorteos, valle y parámetros) y la medida guardada no sea sospechosa; en cualquier otro caso la volverá a
   medir, y dirá en el registro cuántas reutilizó, por qué era seguro y cuántas midió de nuevo y por qué. Las
   reutilizadas no se crean de nuevo en DIgSILENT, pero cuentan para parar la escalera (042:RF-90, 073:RF-18); si todas
@@ -192,20 +193,27 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 - RF-34: CUANDO una obra deja un regulador, EL SISTEMA activará el ajuste automático de tomas del flujo de cada caso de
   la obra (no el del caso activo), lo anotará en la fila y en el registro de disco antes de cambiarlo y lo devolverá a
   como estaba al borrar la variante evaluada, también si la creación se corta a mitad; mientras se mide, dejará fijas
-  las tomas automáticas de los demás transformadores (anotadas y devueltas), y aplicada, dirá cuáles regulan; SI con el
-  regulador nada cambia respecto de la misma variante sin él, ENTONCES la marcará «no aplicada» (RF-28).
+  las tomas automáticas de los demás transformadores de dos y tres devanados y de los reguladores ajenos (anotadas en
+  un lote y devueltas), y aplicada, dirá cuáles regulan; MIENTRAS quede activa otra variación con regulador, no apagará
+  el ajuste al retirar una obra, y lo dirá; SI con el regulador nada cambia respecto de la misma variante sin él,
+  ENTONCES la marcará «no aplicada» (RF-28).
 - RF-35: SI el libro CAPEX no trae el costo de la sección o de la terna, ENTONCES EL SISTEMA las costeará con el km
   del cambio de nivel, la terna por su factor del perfil (1,5 si no lo da), por confirmar; medirá el alcance
   (042:RF-92) de cada una que cumple, y dirá «no llega al horizonte más corto (N años)» de la que se midió en 0 años y
   «sin medir» de la que no se midió.
-- RF-36: CUANDO la escalera vuelve a correr sobre un alimentador cuya obra aplicada en «Con proyecto» no se eligió como
-  la de corto plazo (RF-37), EL SISTEMA la retirará con lo que abrió, cerró y cambió en el flujo, medirá de nuevo las
-  alternativas sin ella, aplicará la de corto plazo y dejará planteada la de largo plazo, y dirá qué retiró, por qué
-  y qué la sustituye.
+- RF-36: CUANDO la escalera vuelve a correr sobre un alimentador con una obra que ella misma aplicó en «Con proyecto»,
+  EL SISTEMA medirá las alternativas con esa obra fuera de la medida y, SI la red, las cargas, los sorteos y los costos
+  son los de su elección, ENTONCES la conservará sin medir; la sustituirá solo SI la de corto plazo (RF-37) cumple y
+  cuesta menos al año, o la vieja ya no cumple: retirará la vieja por los nombres exactos de sus variaciones, con lo
+  que abrió, cerró y cambió en el flujo, y aplicará la nueva; SI algo falla después de retirarla, ENTONCES la
+  repondrá. Nunca comparará ni retirará lo que aplicó el operador (040:RF-8, 014:RF-3) ni lo aplicado sin origen
+  guardado, que solo avisará. Dirá qué conservó o retiró, por qué y qué la sustituye.
 - RF-37: EL SISTEMA elegirá dos obras por alimentador: la de corto plazo, la más barata que cumple hoy (con la máxima,
   los sorteos y el valle) en el orden de la escalera (042:RF-56), que se aplica; y la de largo plazo, la más barata que
-  aguanta el horizonte del proyecto (042:RF-92), mejor la que contiene la de corto plazo, que se plantea para el año en
-  que la de corto plazo deja de aguantar y pasa al plan y al PIDE (072:RF-4); SI la de corto plazo aguanta el
+  aguanta el horizonte del proyecto (042:RF-92), mejor la que contiene la de corto plazo (los mismos bancos ampliados,
+  la misma sección en más tramos), que se plantea para el intervalo entre los horizontes probados en que la de corto
+  plazo deja de aguantar (antes del primero, si cumple hoy y no llega a él) y pasa al plan y al PIDE (072:RF-4); SI la
+  de corto plazo aguanta el
   horizonte, ENTONCES es también la de largo plazo y se dice; SI ninguna aguanta, ENTONCES se dice. El informe y la web
   dan las dos, con su costo, la mínima de media, los años que aguanta cada una y el año en que hace falta la de largo
   plazo.

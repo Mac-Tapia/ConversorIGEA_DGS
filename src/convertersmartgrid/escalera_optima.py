@@ -153,6 +153,20 @@ class Parametros:
         return (self.tension_min_pu + self.tension_max_pu) / 2
 
 
+def _factor_terna(valor) -> float:
+    """098:RF-35: el factor de la terna sin CAPEX; sin él, 1,5. Uno de 0 o negativo la dejaba gratis y ganaba siempre."""
+    if valor is None:
+        return FACTOR_TERNA_SIN_CAPEX
+    try:
+        factor = float(valor)
+    except (TypeError, ValueError):
+        factor = float('nan')
+    if not factor > 0:
+        raise EscaleraError(f'escalera.factor_terna_sin_capex es {valor!r}: tiene que ser un número mayor que 0 '
+                            '(098:RF-35)')
+    return factor
+
+
 def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> Parametros:
     """Los de la escalera, de ``escalera``, ``planificacion`` y ``estudios`` del perfil (RF-57).
 
@@ -200,7 +214,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
-        factor_terna_sin_capex=float(esc.get('factor_terna_sin_capex') or FACTOR_TERNA_SIN_CAPEX),
+        factor_terna_sin_capex=_factor_terna(esc.get('factor_terna_sin_capex')),
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
         ternas=dict(plan.get('ternas_subterraneas') or {}),
@@ -1212,6 +1226,7 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
              # 098:RF-37: corto plazo, la que se aplica; largo plazo, la definitiva que se plantea, y cuándo hace falta.
              'plazo': plazo(t), 'regla': REGLA_DE_PLAZOS,
              'hace_falta_en_anio': (largo or {}).get('hace_falta_en_anio') if t['nombre'] == largo_nombre else None,
+             'hace_falta_entre': (largo or {}).get('hace_falta_entre') if t['nombre'] == largo_nombre else None,
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
 
 
@@ -1227,8 +1242,51 @@ def _no_llega(t: Mapping[str, Any]) -> str:
             + (f": {'; '.join(h.get('motivos') or [])[:200]}" if h.get('motivos') else ''))
 
 
-def _claves_de_obras(t: Mapping[str, Any]) -> set[str]:
-    return {json.dumps(o, sort_keys=True, ensure_ascii=False, default=str) for o in t.get('obras') or []}
+def _contiene_obra(grande: Mapping[str, Any], chica: Mapping[str, Any]) -> bool:
+    """098:RF-37: ``grande`` incluye a ``chica``: el mismo banco en la misma barra con tantos o más kvar («2×300 kvar»
+    contiene a «1×300 kvar»), la misma sección (o la terna) en esos tramos y más, o la misma obra."""
+    clase = chica.get('clase')
+    if grande.get('clase') != clase:
+        return False
+    if clase == 'condensador':
+        return (grande.get('barra') == chica.get('barra')
+                and float(grande.get('q_kvar') or 0) >= float(chica.get('q_kvar') or 0))
+    if clase in ('seccion', 'terna'):
+        misma = clase == 'terna' or (grande.get('tipo') or {}).get('nombre') == (chica.get('tipo') or {}).get('nombre')
+        return misma and set(chica.get('tramos') or ()) <= set(grande.get('tramos') or ())
+    a, b = dict(grande), dict(chica)
+    return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
+
+
+def contiene(grande: Mapping[str, Any], chica: Mapping[str, Any]) -> bool:
+    """098:RF-37: cada obra de ``chica`` está, igual o ampliada, en ``grande``."""
+    obras_chica = list(chica.get('obras') or [])
+    return bool(obras_chica) and all(any(_contiene_obra(g, c) for g in grande.get('obras') or []) for c in obras_chica)
+
+
+def cuando_hace_falta(horizonte: Mapping[str, Any] | None) -> tuple[int, int | None] | None:
+    """098:RF-37: entre qué años de los horizontes probados deja de aguantar la de corto plazo: desde el último que
+    aguanta (0, hoy) hasta el siguiente probado, que ya no aguanta. ``None`` sin el alcance medido."""
+    h = horizonte or {}
+    if not h:
+        return None
+    desde = int(h.get('aguanta_anios') or 0)
+    probados = sorted(int(x) for x in h.get('probados') or () if x is not None)
+    if not probados and h.get('mas_corto'):
+        probados = [int(h['mas_corto'])]
+    hasta = next((x for x in probados if x > desde), None)
+    return desde, hasta
+
+
+def frase_de_cuando(entre: tuple[int, int | None] | None, corta: str) -> str:
+    if entre is None:
+        return ''
+    desde, hasta = entre
+    if desde == 0:
+        return (f"; «{corta}» cumple hoy pero no llega al primer horizonte probado"
+                + (f" ({hasta} años): hace falta antes del año {hasta}" if hasta else ''))
+    return (f"; hace falta entre el año {desde} y el {hasta}, cuando «{corta}» deja de aguantar" if hasta
+            else f"; hace falta tras el año {desde}, cuando «{corta}» deja de aguantar")
 
 
 def largo_plazo(factibles: Sequence[Mapping[str, Any]], corto: Mapping[str, Any]) -> dict[str, Any]:
@@ -1249,18 +1307,16 @@ def largo_plazo(factibles: Sequence[Mapping[str, Any]], corto: Mapping[str, Any]
         return {'nombre': None, 'aviso': ('ninguna de las que cumplen hoy aguanta el horizonte del proyecto'
                                           if medida else 'sin el horizonte medido no se plantea la de largo plazo')
                 + ' (098:RF-37).'}
-    obras_corto = _claves_de_obras(corto)
     def parte(t):
-        return bool(obras_corto) and obras_corto <= _claves_de_obras(t)
+        return contiene(t, corto)
     mejor = min(definitivas, key=lambda t: (not parte(t), t['costo']['costo_anual'], t['nombre']))
-    h = corto.get('horizonte') or {}
-    anio = int(h.get('aguanta_anios') or 0) if h else None
+    entre = cuando_hace_falta(corto.get('horizonte'))
     return {'nombre': mejor['nombre'], 'misma': False, 'parte_de_la_corta': parte(mejor),
             'costo_anual': mejor['costo']['costo_anual'], 'aguanta_anios': mejor['horizonte'].get('aguanta_anios'),
-            'hace_falta_en_anio': anio,
+            'hace_falta_en_anio': entre[0] if entre else None,
+            'hace_falta_entre': list(entre) if entre else None,
             'aviso': (f"Largo plazo: «{mejor['nombre']}», que aguanta el horizonte del proyecto"
-                      + (f"; hace falta en el año {anio}, cuando «{corto['nombre']}» deja de aguantar" if anio is not None
-                         else '')
+                      + frase_de_cuando(entre, corto['nombre'])
                       + ('' if parte(mejor) else f"; no parte de «{corto['nombre']}»: ninguna de las definitivas la "
                                                  'contiene, y una deshace parte de la otra')
                       + ' (098:RF-37).')}

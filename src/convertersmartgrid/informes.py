@@ -1049,6 +1049,12 @@ def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[
     def plazo(a):
         # 098:RF-37: la de corto plazo se aplica; la de largo plazo se plantea, con el año en que hace falta.
         p = a.get('plazo') or ''
+        entre = a.get('hace_falta_entre')
+        if entre:
+            desde, hasta = entre[0], (entre[1] if len(entre) > 1 else None)
+            if not desde:
+                return p + (f', cumple hoy y hace falta antes del año {hasta}' if hasta else ', hace falta ya')
+            return p + (f', hace falta entre el año {desde} y el {hasta}' if hasta else f', hace falta tras el año {desde}')
         return p + (f", hace falta en el año {a['hace_falta_en_anio']}" if a.get('hace_falta_en_anio') is not None else '')
 
     filas = [[str(f), str(a.get('numero')), str(a.get('nombre')), cifra(a.get('inversion')), cifra(a.get('costo_anual')),
