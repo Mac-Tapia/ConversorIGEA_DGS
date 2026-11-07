@@ -6,6 +6,8 @@ se comprueba en la fuente del front, como el resto de la suite, y de verdad en l
 from __future__ import annotations
 
 import os
+import re
+import time
 from pathlib import Path
 
 from convertersmartgrid import pf_arnes
@@ -19,6 +21,9 @@ SRC = RAIZ / 'frontend' / 'src'
 APP = (SRC / 'App.tsx').read_text(encoding='utf-8')
 PANEL = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
 DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+CATALOGO = (SRC / 'clientesCatalogo.ts').read_text(encoding='utf-8')
+API = (SRC / 'api.ts').read_text(encoding='utf-8')
 SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 
@@ -213,3 +218,80 @@ def test_hoja_entra_en_el_cruce_real():
     assert SERVICES.count('_cruzar_clientes_en_red(ws, clientes, suministros, libro)') == 2
     assert SERVICES.count("'por_hoja':") == 2
     assert "c.cruzado_por === 'hoja'" in DEMANDA and 'por su hoja' in DEMANDA
+
+
+# ------------------------------------------------------------------ máxima y cruce
+
+
+def _maxima_y_plan(tmp_path, monkeypatch, proyecto_maxima, proyecto_plan):
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.web.app import create_app
+
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setattr(services, 'demanda_cabecera', lambda *a, **k: {'resultados': [{'alimentador': 'F1'}]})
+    planes = []
+    monkeypatch.setattr(services, 'ajuste_plan', lambda *a, **k: planes.append(a[1]) or {'token': 'x'})
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        cuerpo = {'medidores': [{'alimentador': 'F1', 'medidor': 'M1'}]}
+        if proyecto_maxima is not None:
+            cuerpo['project'] = proyecto_maxima
+        job = c.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json=cuerpo).json()
+        for _ in range(200):
+            estado = c.get(f"/api/jobs/{job['id']}").json()
+            if estado['status'] in ('done', 'error'):
+                break
+            time.sleep(0.05)
+        r = c.post(f'/api/workspaces/{wid}/demanda/ajuste/plan', json={
+            'project': proyecto_plan, 'job_id': job['id'], 'medidor': '', 'medidores': ['M1']})
+    return estado, r, planes
+
+
+def test_maxima_recuerda_su_proyecto(tmp_path, monkeypatch):
+    """091:RF-14 / 091:RF-15 — una máxima de otro proyecto no vale para este plan."""
+    estado, r, planes = _maxima_y_plan(tmp_path, monkeypatch, 'PROY_A', 'PROY_B')
+    assert estado['result']['project'] == 'PROY_A'
+    assert r.status_code == 409 and not planes
+    assert 'PROY_A' in r.json()['detail'] and 'PROY_B' in r.json()['detail']
+
+
+def test_maxima_del_mismo_proyecto_o_sin_proyecto_pasa(tmp_path, monkeypatch):
+    """091:RF-15 — la del mismo proyecto sigue; una buscada sin decirlo (el asistente, 070) no se rechaza."""
+    assert _maxima_y_plan(tmp_path / 'a', monkeypatch, 'PROY_A', 'PROY_A')[1].status_code == 200
+    estado, r, _ = _maxima_y_plan(tmp_path / 'b', monkeypatch, None, 'PROY_A')
+    assert estado['result']['project'] is None and r.status_code == 200
+
+
+def test_maxima_solo_la_del_proyecto_y_el_ano():
+    """091:RF-16 — ofrecía la última del espacio: «Ajustar» activo en un proyecto recién importado."""
+    assert 'const ultimo = faltaAnio ? undefined : Object.values(jobs)' in DEMANDA
+    assert 'project === project' in DEMANDA
+    assert 'startsWith(anio)' in DEMANDA
+    assert 'project, periodo, instante' in DEMANDA
+    assert 'project: criterio.project' in API
+
+
+def test_cruce_a_la_vista_antes_de_ajustar():
+    """091:RF-17 — sin la tabla no se simula ni se ajusta, y se dice."""
+    assert 'faltaCruce' in AJUSTE
+    # Sin máxima por alimentador (nada que cruzar con ella) no se pide: «Ajustar» no se queda apagado para siempre.
+    assert 'faltaCruce={Boolean(hayMaximas &&' in DEMANDA
+    assert re.search(r"faltaCruce\s*\?\s*'[^']*[Cc]ruce", AJUSTE)
+
+
+def test_cruce_viejo_no_vale_con_otra_maxima():
+    """091:RF-18 — una máxima nueva borra el cruce mostrado."""
+    assert re.search(r"useEffect\(\(\) => \{\s*setCruce\(null\);\s*setDesconectados\(new Set\(\)\);\s*\}, \[ultimo\?\.id\]\)",
+                     DEMANDA)
+
+
+def test_cruce_con_el_ano_entero():
+    """091:RF-19 — con «Todo 2026» y máxima se puede cruzar (cambia 025:RF-10); un índice viejo sigue sin dejar."""
+    assert 'cruzaPorSuMes' in DEMANDA
+    assert '!(estadoClientes.listoParaCruzar || cruzaPorSuMes)' in DEMANDA
+    assert 'estadoClientes.porAnio' in DEMANDA
+    assert 'porAnio: true' in CATALOGO
+    # Solo la rama del año entero lo lleva: «Actualice el índice» no se salta con las máximas.
+    assert CATALOGO.count('porAnio: true') == 1
+    assert CATALOGO.index('porAnio: true') > CATALOGO.index('Actualice el índice')

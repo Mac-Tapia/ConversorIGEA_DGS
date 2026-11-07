@@ -11,6 +11,8 @@ export interface EstadoCatalogoClientes {
   /** Spec 013, RF-7: un libro por mes (el ganador de RF-5), en orden de calendario. */
   meses: MesClientes[];
   listoParaCruzar: boolean;
+  /** 091:RF-19: solo falta un mes porque se eligió el año entero: con las máximas se cruza por el mes de cada una. */
+  porAnio?: boolean;
   motivo: string;
 }
 
@@ -36,10 +38,10 @@ export function estadoCatalogoClientes(meta?: DemandaLibro, periodo = '', anio =
       motivo: 'Ningún libro de la carpeta tiene mes: actualice el índice o revise sus nombres.' };
   }
   if (/^\d{4}$/.test(periodo)) {
-    // Spec 025, RF-10: con el año entero, el ajuste cruza cada alimentador con el libro del
-    // mes de su propia máxima; aquí no hay un solo mes que cruzar.
-    return { ...base, listoParaCruzar: false,
-      motivo: `Con todo ${periodo}, el ajuste (2.4) cruza cada alimentador con los clientes del mes de su máxima; para ver aquí un cruce, elija un mes.` };
+    // Spec 025, RF-10: con el año entero, cada alimentador con el libro del mes de su propia
+    // máxima; no hay un solo mes que cruzar. 091:RF-19: con la máxima buscada se cruza aquí.
+    return { ...base, listoParaCruzar: false, porAnio: true,
+      motivo: `Con todo ${periodo}, cada alimentador se cruza con los clientes del mes de su máxima: busque antes la máxima (2.2), o elija un mes.` };
   }
   if (activos.length === 1) return { ...base, listoParaCruzar: true, motivo: '' };
   if (!meses.some((m) => m.mes === periodo)) {

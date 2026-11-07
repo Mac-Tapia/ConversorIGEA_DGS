@@ -10,8 +10,10 @@
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k hoja` en verde.
       Evidencia (2026-11-07): 7 pasadas; `tests/test_demanda_medida*.py` con ellas, 159 pasadas (los totales del
       cruce llevan `por_hoja`).
-- [ ] T4. La máxima de cada proyecto y el cruce antes de ajustar. (RF-14 a RF-19)
+- [x] T4. La máxima de cada proyecto y el cruce antes de ajustar. (RF-14 a RF-19)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "maxima or cruce"` en verde.
+      Evidencia (2026-11-07): 7 pasadas; con `test_contrato_api`, `test_libros_por_anio_*` y
+      `test_ajuste_cabecera_web`, 114 pasadas; contrato de la API regenerado; `tsc` sin errores.
 - [ ] T5. El estudio después de la recalibración, avisado y sin bloquear. (RF-20 a RF-23)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k estudio` en verde.
 - [ ] T6. Lo que se informa. (RF-24 a RF-32, RF-34)

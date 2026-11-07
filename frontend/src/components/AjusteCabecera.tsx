@@ -29,12 +29,14 @@ export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibracion
 }
 
 export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente',
-  criterioPorAlimentador = {} }: {
+  criterioPorAlimentador = {}, faltaCruce = false }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
   /** 039:RF-1: el criterio de las fijas elegido en la tabla cruzada (2.3). */
   criterioFijas?: CriterioFijas;
   /** 039:RF-8: el de los alimentadores marcados en el desplegable de 2.3. */
   criterioPorAlimentador?: Record<string, CriterioFijas>;
+  /** 091:RF-17: hay libros de clientes y su tabla cruzada aún no está a la vista. */
+  faltaCruce?: boolean;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
   centrales?: Record<string, CentralTermica>;
 }) {
@@ -92,6 +94,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   const informes = resultado ? (resultado.informes ?? [resultado.informe]) : [];
 
   const falta = !maxima ? 'Busque antes la máxima de cabecera.'
+    : faltaCruce ? 'Cruce los clientes en 2.3 y revise la tabla: el ajuste escribe lo que ella muestra.'
     : !grupos.length ? 'Ningún alimentador marcado tiene máxima: no hay objetivo.'
       : sinElegir.length ? `Elija el medidor de la cabecera de ${sinElegir.join(', ')}.`
         : !project ? 'Elija el proyecto de DIgSILENT en el paso 1.'

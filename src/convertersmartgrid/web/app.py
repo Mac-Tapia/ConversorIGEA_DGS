@@ -203,6 +203,8 @@ class DemandaMedidorIn(BaseModel):
 
 class DemandaMedidoresIn(BaseModel):
     medidores: list[DemandaMedidorIn] = Field(default_factory=list)
+    # 091:RF-14: para qué proyecto se busca; el plan no acepta la máxima de otro.
+    project: str | None = None
     # Spec 013, RF-11: la máxima del mes elegido (AAAA-MM); 025:RF-7, la del año (AAAA);
     # vacío, la de todo el registro (solo sin carpetas de año, 025:RF-9).
     periodo: str | None = Field(None, pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')
@@ -1728,13 +1730,14 @@ def create_app(
         if body.coincidente:                                                   # 070:RF-57
             services.comprobar_analisis_por_alimentadores(services.alimentadores_del_analisis(pares))
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
-                      lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
-                                                            instante=body.instante,
-                                                            por_barra=body.por_barra,
-                                                            centrales_tramo=body.centrales_tramo,
-                                                            coincidente=body.coincidente,
-                                                            centrales=body.centrales,
-                                                            sistema_60kv=body.sistema_60kv))
+                      lambda ctx: {**services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
+                                                               instante=body.instante,
+                                                               por_barra=body.por_barra,
+                                                               centrales_tramo=body.centrales_tramo,
+                                                               coincidente=body.coincidente,
+                                                               centrales=body.centrales,
+                                                               sistema_60kv=body.sistema_60kv),
+                                   'project': (body.project or '').strip() or None})   # 091:RF-14
 
     @app.get('/api/workspaces/{wid}/demanda/centrales')
     def demanda_centrales(wid: str) -> dict:
@@ -1813,6 +1816,11 @@ def create_app(
             raise HTTPException(404, 'No se encuentra la máxima buscada: vuelva a buscarla.')
         if not isinstance(job.result, dict):
             raise HTTPException(409, 'La máxima de cabecera todavía no ha terminado.')
+        # 091:RF-15: en un proyecto recién importado se ofrecía la última máxima del espacio, de otro proyecto.
+        de_otro = (job.result.get('project') or '').strip()
+        if de_otro and de_otro != body.project.strip():
+            raise HTTPException(409, f'Esa máxima se buscó para {de_otro}, no para {body.project.strip()}: búsquela '
+                                     'con este proyecto elegido.')
         return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
                                     body.medidor, body.tolerancia, body.medidores,
                                     body.desconectados, job_id=body.job_id,
