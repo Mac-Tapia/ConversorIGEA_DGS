@@ -2448,9 +2448,9 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     fp_cargas = plan.get('factor_potencia_cargas')
     fp_min_fijas = plan.get('factor_potencia_minimo_fijas')
     informe['factor_potencia_cargas'] = {
-        'fijas': ('EA/ERI del libro de clientes' if not fp_min_fijas else
-                  f'EA/ERI del libro de clientes; por debajo de {fp_min_fijas:.2f}, a '
-                  f'{fp_min_fijas:.2f} por su banco propio'),
+        # 091:RF-28: SE20066 (TM102) quedó en FP 0,15 con su registro, y el texto decía «a 0,98» (004:RF-66).
+        'fijas': ('su registro del instante de la máxima, con su FP; sin registro, el cociente EA/ERI del mes'
+                  + (f', llevado a {fp_min_fijas:.2f} por su banco propio si baja de ese mínimo' if fp_min_fijas else '')),
         'escaladas': fp_cargas or Objetivo(**plan['objetivo']).fp,
         'escaladas_origen': 'perfil de empresa' if fp_cargas else 'máxima de cabecera',
         # 015:RF-44: la P base de cada escalada, su potencia instalada por ese factor.
@@ -2921,6 +2921,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 informe['cuadre_q'], aviso_q = informe_de_la_q(
                     res.reparto, res.medida, objetivo, res.q_estado, informe['bancos'], res.q_extremo)
                 informe['status'] = 'OK' if res.q_estado == 'CUADRADA' else 'AVISO_KVAR'
+                informe['cuadrado_q'] = res.q_estado == 'CUADRADA'                 # 091:RF-24
                 if aviso_q:
                     informe['avisos'].append(aviso_q)
             revision = (revision_de_bancos(feeder, res.medida, objetivo, con_q, res.q_estado)
@@ -4096,6 +4097,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                                                            res.q_estado.get(feeder), inf['bancos'],
                                                            res.q_extremo.get(feeder))
                 inf['status'] = 'OK' if res.q_estado.get(feeder) == 'CUADRADA' else 'AVISO_KVAR'
+                inf['cuadrado_q'] = res.q_estado.get(feeder) == 'CUADRADA'         # 091:RF-24
                 if aviso_q:
                     inf['avisos'].append(aviso_q)
             revision = (revision_de_bancos(feeder, med, objetivo, con_q, res.q_estado.get(feeder))

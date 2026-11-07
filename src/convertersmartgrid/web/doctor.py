@@ -153,8 +153,16 @@ def _ia(buscar: Callable[[str], Any]) -> Comprobacion:
                         '' if hay else 'Es opcional: si quiere esos modelos, instale el complemento de IA según el manual de instalación.')
 
 
-def _tesseract(buscar: Callable[[str], str | None]) -> Comprobacion:
-    hay = buscar('tesseract') or os.environ.get('CSG_TESSERACT')
+def _tesseract_en_sus_rutas() -> str | None:
+    from ..documentos_solicitud import tesseract
+
+    return tesseract()
+
+
+def _tesseract(buscar: Callable[[str], str | None],
+               hallar: Callable[[], str | None] = _tesseract_en_sus_rutas) -> Comprobacion:
+    # 091:RF-32: instalado en Archivos de programa, fuera del PATH, leía los PDF y aquí decía que no.
+    hay = buscar('tesseract') or os.environ.get('CSG_TESSERACT') or hallar()
     return Comprobacion('tesseract', 'Tesseract OCR', bool(hay), False, 'Encontrado.' if hay else 'No se encuentra.',
                         'Leer un PDF escaneado del solicitante; un PDF con texto se lee sin él.',
                         '' if hay else 'Es opcional: instale Tesseract con el idioma español, en el PATH o con la variable CSG_TESSERACT.')

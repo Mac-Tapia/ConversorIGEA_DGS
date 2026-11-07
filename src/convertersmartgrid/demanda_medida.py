@@ -848,6 +848,14 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         return resultado
     v = mejor.valores
     resultado.fecha = _iso(mejor.fecha)
+    if instante is None:
+        # 091:RF-26: TM102 da 211 kW el 2026-02-04 y el 2026-08-16; cada fecha llevaría otro libro de clientes.
+        iguales = [r for r in registros if r is not mejor and r.valores.get('kw') == v['kw'] and en_periodo(r.fecha, periodo)
+                   and (r.valores.get('kva') is None or r.valores['kva'] >= 0)]
+        if iguales:
+            mas = f' y {len(iguales) - 1} registro(s) más' if len(iguales) > 1 else ''
+            resultado.avisos.append(f"El mismo máximo, {v['kw']:g} kW, también el {_iso(iguales[0].fecha)}{mas}: "
+                                    f'se toma el más antiguo, el {resultado.fecha}.')
     resultado.columnas.pop('fp', None)
     if mejor.fuente_fp:
         resultado.columnas['fp'] = mejor.fuente_fp
@@ -1518,7 +1526,7 @@ class ClienteImportante:
     ea: float | None = None
     eri: float | None = None
     pot: float | None = None
-    cruzado_por: str = ''           # 'actual' | 'anterior' | ''
+    cruzado_por: str = ''           # 'actual' | 'anterior' | 'hoja' (091:RF-9) | ''
     suministro_actual: str = ''
     suministro_anterior: str = ''
     sed: str = ''
@@ -1939,6 +1947,87 @@ def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante
     return out, avisos
 
 
+MOTIVO_SIN_SUMINISTRO = 'no está en el libro de suministros (ni como actual ni como anterior)'
+#: Hojas leídas: de cada libro, las celdas de su cabecera. Un plan cruza por alimentador (091:RF-13). La clave es
+#: la del libro de 042:RF-96 (ruta, tamaño y fecha): un libro cambiado se vuelve a leer.
+_INDICES_DE_HOJAS: dict[tuple[str, int, int], tuple[dict[str, tuple[str, ...]], dict[str, str]]] = {}
+_FILAS_DE_CABECERA = 6
+_LIBROS_EN_MEMORIA = 8
+
+
+def _celda_de_cabecera(celda: Any) -> str:
+    texto = str(celda).strip()
+    return texto[:-2] if texto.endswith('.0') else texto
+
+
+def _indice_de_hojas(path: Path | str) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
+    """Las celdas de la cabecera de cada hoja de cliente y, si lo hay, el índice de «maestro_lib»."""
+    p = Path(path)
+    dato = p.stat()
+    clave = (str(p.resolve()), dato.st_size, dato.st_mtime_ns)
+    if clave not in _INDICES_DE_HOJAS:
+        libro = abrir_libro(p)
+        hojas = {}
+        for hoja in libro.sheet_names:
+            if normalizar(hoja) in _HOJAS_NO_DE_CLIENTE:
+                continue
+            filas = libro.get_sheet_by_name(hoja).to_python(nrows=_FILAS_DE_CABECERA, skip_empty_area=False)
+            hojas[hoja] = tuple(t for f in filas for t in map(_celda_de_cabecera, f) if t)
+        pares, _ = _hojas_de_maestro(libro, p)
+        if len(_INDICES_DE_HOJAS) >= _LIBROS_EN_MEMORIA:
+            _INDICES_DE_HOJAS.clear()
+        _INDICES_DE_HOJAS[clave] = (hojas, {clave_codigo(c): h for c, h in pares})
+    return _INDICES_DE_HOJAS[clave]
+
+
+def cabeceras_de_hojas(path: Path | str) -> dict[str, tuple[str, ...]]:
+    """091:RF-13: la cabecera de cada hoja de cliente, leída una vez mientras el libro no cambie."""
+    return _indice_de_hojas(path)[0]
+
+
+def completar_desde_hojas(aparte: Sequence[ClienteImportante], path: Path | str,
+                          seds: Mapping[str, Iterable[str]],
+                          ) -> tuple[list[ClienteImportante], list[ClienteImportante]]:
+    """091:RF-9 a RF-12: la SED de quien no está en el libro de suministros, por lo que dice su hoja.
+
+    El libro de suministros es de una fecha y el de clientes, de otra: 65 clientes de febrero de 2026 no estaban en el
+    de septiembre y su SED se escalaba. Cada hoja nombra su SED; se reconoce por igualdad con las de la red cargada,
+    sin posición ni patrón, para que valga en cualquier empresa (P13). Sin red no hay con qué comparar.
+    """
+    candidatos = [c for c in aparte if c.motivo == MOTIVO_SIN_SUMINISTRO]
+    if not seds or not candidatos:
+        return [], list(aparte)
+    hojas, maestro = _indice_de_hojas(path)
+    conocidas = {str(s).strip().casefold(): s for s in seds}
+    hoja_de: dict[str, str] = dict(maestro)
+    if not maestro:                     # 083:RF-14: con «maestro_lib», el que no está no tiene hoja
+        for hoja, celdas in hojas.items():
+            for celda in celdas:
+                hoja_de.setdefault(clave_codigo(celda), hoja)
+    cruzados, resto = [], [c for c in aparte if c.motivo != MOTIVO_SIN_SUMINISTRO]
+    for c in candidatos:
+        hoja = hoja_de.get(clave_codigo(c.codigo))
+        if hoja is None:
+            c.motivo = f'{MOTIVO_SIN_SUMINISTRO}, y no tiene hoja en el libro de clientes'
+            resto.append(c)
+            continue
+        nombradas = sorted({conocidas[t.casefold()] for t in hojas.get(hoja, ()) if t.casefold() in conocidas})
+        if len(nombradas) != 1:
+            c.motivo = (f'{MOTIVO_SIN_SUMINISTRO}, y su hoja «{hoja}» ' + (
+                f'nombra varias SED de la red ({", ".join(nombradas)}): no se elige una'
+                if nombradas else 'no nombra ninguna SED de la red cargada'))
+            resto.append(c)
+            continue
+        c.sed = nombradas[0]
+        duenos = sorted(seds[c.sed])
+        c.radial = duenos[0] if len(duenos) == 1 else ''
+        c.cruzado_por, c.motivo = 'hoja', ''
+        c.nota_asignacion = (f'{c.sed}: de la hoja «{hoja}» del libro de clientes; '
+                             'el cliente no está en el libro de suministros.')
+        cruzados.append(c)
+    return cruzados, resto
+
+
 def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suministro],
            ) -> tuple[list[ClienteImportante], list[ClienteImportante]]:
     """Cada cliente con su suministro: por el código actual y, si no, por el anterior (RF-35).
@@ -1961,7 +2050,7 @@ def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suminist
         if s is None:
             s, via = por_anterior.get(clave), 'anterior'
         if s is None:
-            c.motivo = 'no está en el libro de suministros (ni como actual ni como anterior)'
+            c.motivo = MOTIVO_SIN_SUMINISTRO
             aparte.append(c)
             continue
         c.cruzado_por, c.suministro_actual, c.suministro_anterior = via, s.actual, s.anterior

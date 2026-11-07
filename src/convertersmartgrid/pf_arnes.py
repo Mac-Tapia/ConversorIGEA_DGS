@@ -332,6 +332,53 @@ def _abierto_a_mano() -> list[int]:
     return powerfactory_abierto()
 
 
+def ultima_causa(cola: Path | None = None) -> str | None:
+    """091:RF-2, RF-4: lo que dijo el último arranque del servidor; ``None`` si no dejó error.
+
+    Solo del último intento: una línea de ayer daba por causa algo que ya no pasa.
+    """
+    registro = (cola or ruta_cola()) / 'servidor.log'
+    try:
+        with open(registro, encoding='utf-8', errors='replace') as f:
+            lineas = f.readlines()[-200:]
+    except OSError:
+        return None
+    inicio = max((i for i, x in enumerate(lineas) if 'conectando con DIgSILENT' in x), default=None)
+    if inicio is None:
+        return None
+    errores = [x for x in lineas[inicio:] if 'ERROR:' in x]
+    return errores[-1].split('ERROR:', 1)[1].strip() if errores else None
+
+
+def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Path | None = None) -> str:
+    """091:RF-1 a RF-3: por qué una acción no pudo usar DIgSILENT, y qué hacer.
+
+    La web decía «Ábralo y reintente» y lo que hacía falta era cerrarlo (019:RF-13): TM102, 2026-11-05.
+    """
+    manuales = (abierto or _abierto_a_mano)()
+    if manuales:
+        return (f'DIgSILENT está abierto a mano (proceso {", ".join(map(str, manuales))}): ciérrelo y vuelva a '
+                'intentarlo; la acción necesita usarlo sola (019:RF-13).')
+    causa = ultima_causa(cola)
+    if causa:
+        return f'No se pudo usar DIgSILENT: {causa}'
+    return 'No se pudo conectar con DIgSILENT: compruebe su licencia; el detalle está en el Registro.'
+
+
+def barrer_marcas(ruta: Path, vivo: Callable[[int], bool] = pid_vivo) -> None:
+    """091:RF-6: las marcas de conexión de procesos muertos; un proceso cortado no borra la suya.
+
+    En la cola quedaban ``powerfactory.conexion_<pid>`` de hace días, de procesos ya cerrados.
+    """
+    for marca in ruta.parent.glob(f'{ruta.stem}.conexion_*'):
+        pid = marca.name.rsplit('_', 1)[-1]
+        if pid.isdigit() and not vivo(int(pid)):
+            try:
+                marca.unlink()
+            except OSError:
+                pass                        # otro la está retirando
+
+
 def carpeta_del_codigo(guion: str | Path | None = None) -> str:
     """La carpeta del guion que corre, para saber de qué worktree es un proceso (019:RF-27)."""
     return os.path.normcase(str(Path(guion or sys.argv[0]).resolve().parent))
@@ -479,6 +526,7 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
     atexit.register(_soltar_al_salir, ruta)                               # RF-19
     limite = reloj() + espera_s
     inicio = reloj()
+    barrer_marcas(ruta)                                                   # 091:RF-6
     marca = ruta.with_name(f'{ruta.stem}.conexion_{os.getpid()}')
     _anotar(marca, 'conectando')
     proc_vigia = (vigia or _lanzar_vigia)(plazo_conexion_s, marca, ruta)   # RF-23

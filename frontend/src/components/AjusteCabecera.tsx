@@ -14,7 +14,7 @@ const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '
  * Ajuste de las demandas de los alimentadores a su máxima de cabecera (spec 006, RF-23).
  *
  * Toma la máxima que se ve en la tabla de arriba y el proyecto del paso 1. Las SED con
- * clientes importantes llevan su P y Q; las demás conservan las del archivo original y
+ * clientes importantes llevan su P y Q; las demás se reparten por su potencia instalada y
  * suben con un mismo factor de escala hasta que la cabecera dé la máxima (spec 015,
  * RF-43, RF-44). Todo queda en el escenario de «Sin proyecto», sin variaciones. Con varios
  * alimentadores marcados se ajustan uno tras otro en un solo trabajo (spec 008, RF-12).
@@ -29,12 +29,14 @@ export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibracion
 }
 
 export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente',
-  criterioPorAlimentador = {} }: {
+  criterioPorAlimentador = {}, faltaCruce = false }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
   /** 039:RF-1: el criterio de las fijas elegido en la tabla cruzada (2.3). */
   criterioFijas?: CriterioFijas;
   /** 039:RF-8: el de los alimentadores marcados en el desplegable de 2.3. */
   criterioPorAlimentador?: Record<string, CriterioFijas>;
+  /** 091:RF-17: hay libros de clientes y su tabla cruzada aún no está a la vista. */
+  faltaCruce?: boolean;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
   centrales?: Record<string, CentralTermica>;
 }) {
@@ -86,12 +88,14 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
 
   const ultimo = Object.values(jobs)
     .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar'
-      || j.kind === 'ajuste_transformadores') && j.result)
+      || j.kind === 'ajuste_transformadores') && j.result
+      && (j.result as { project?: string }).project === project)   // 091:RF-23: el de otro proyecto no es este
     .pop();
   const resultado = (ultimo?.result ?? null) as AjusteResultado | null;
   const informes = resultado ? (resultado.informes ?? [resultado.informe]) : [];
 
   const falta = !maxima ? 'Busque antes la máxima de cabecera.'
+    : faltaCruce ? 'Cruce los clientes en 2.3 y revise la tabla: el ajuste escribe lo que ella muestra.'
     : !grupos.length ? 'Ningún alimentador marcado tiene máxima: no hay objetivo.'
       : sinElegir.length ? `Elija el medidor de la cabecera de ${sinElegir.join(', ')}.`
         : !project ? 'Elija el proyecto de DIgSILENT en el paso 1.'
@@ -118,8 +122,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     <div className="step-box">
       <h4>Ajustar a la máxima en DIgSILENT</h4>
       <p className="muted">Se calibra en «Sin proyecto», la copia del «Caso base» verificado. Las SED con clientes
-        importantes llevan su P y Q (fijas, factor de escala 1); las demás conservan la P y Q del archivo original y
-        suben todas con el mismo <strong>factor de escala</strong> de DIgSILENT hasta que la cabecera dé la máxima, con
+        importantes llevan su P y Q (fijas, factor de escala 1); las demás se reparten por su potencia instalada (kVA),
+        con el FP del perfil, y suben todas con el mismo <strong>factor de escala</strong> de DIgSILENT hasta que la cabecera dé la máxima, con
         las pérdidas del flujo. Queda en el escenario de «Sin proyecto», sin variaciones; el «Caso base» no cambia.</p>
       {grupos.some((g) => g.filas.length > 1) && (
         <div className="row">
@@ -285,6 +289,9 @@ function InformeAjuste({ inf, report, cancelado, token }: {
   // Spec 015, RF-49, RF-69: la validación física no pasó; el reparto queda grabado sin validar
   // (las de antes de la RF-69 se revertían).
   const revertida = inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida;
+  // 091:RF-25: una recalibración cuya Q no cuadró no es «cuadrado»: TM102, 115 kvar frente a −426 medidos.
+  const conQ = inf.tipo_ajuste?.cuadra === 'P_Y_Q';
+  const qCuadrada = inf.cuadrado_q ?? inf.cuadre_q?.estado === 'CUADRADA';
   const validacion = inf.validacion_posterior_nativa;
   const consumoDistinto = validacion?.fallos.find((f) => f.tipo === 'CONSUMO_DISTINTO_DE_LO_ESCRITO');
   const fallosEscritura = (inf.fallos ?? []).filter((x) => !x.detalle);
@@ -310,10 +317,12 @@ function InformeAjuste({ inf, report, cancelado, token }: {
         </p>
       )}
       {!simular && !revertida && (
-        <p className={inf.cuadrado ? 'alert alert-ok' : 'alert alert-error'}>
+        <p className={!inf.cuadrado ? 'alert alert-error' : conQ && !qCuadrada ? 'alert alert-warn' : 'alert alert-ok'}>
           {inf.cuadrado
-            ? <>Cuadrado de kW al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
-              {inf.status ? ` · ${inf.status}` : ''}. El kVAR es informativo.</>
+            ? <>{conQ && qCuadrada ? 'Cuadrados kW y kVAR' : 'Cuadrado de kW'} al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
+              {inf.status ? ` · ${inf.status}` : ''}.{' '}
+              {!conQ ? 'La Q se cuadra en la recalibración.'
+                : qCuadrada ? '' : 'La recalibración solo cuadró la P: la Q no llega a la medida; el motivo está en los avisos.'}</>
             : <>No cumple el {fmtNum((inf.tolerancia ?? 0) * 100, 1)} %: {inf.motivo}. El escenario queda con el último reparto
               que convergió.</>}
         </p>

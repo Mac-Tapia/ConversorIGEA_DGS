@@ -72,7 +72,9 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
             placeholder={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'
               ? `o ruta de la carpeta en el servidor${meta ? ' (reemplaza la actual)' : ''}`
               : `o ruta en el servidor${meta ? ' (reemplaza la actual)' : ''}`}
-            value={ruta} onChange={(e) => setRuta(e.target.value)} />
+            value={ruta} onChange={(e) => setRuta(e.target.value)}
+            // 091:RF-31: las rutas de las entradas se aplicaban con Intro; las de medición no.
+            onKeyDown={(e) => { if (e.key === 'Enter' && ruta.trim() && !engineBusy) void porRuta(); }} />
           <button className="btn btn-sm" disabled={!ruta.trim() || engineBusy} onClick={porRuta}>Usar ruta</button>
         </div>
       )}
@@ -278,7 +280,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   [ws.demanda?.cabecera?.anios, ws.demanda?.clientes?.anios]);
   const faltaAnio = anios.length > 0 && !periodo;
 
-  const ultimo = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
+  // 091:RF-16: la de este proyecto y este año: en uno recién importado se ofrecía la última del espacio.
+  const ultimo = faltaAnio ? undefined : Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result
+    && (j.result as { project?: string }).project === project
+    && (!anio || String(j.result.periodo ?? '').startsWith(anio))).pop();
   const cabecera = (ultimo?.result?.resultados ?? []) as MaximaCabecera[];
   // Mes de la máxima de cada alimentador: el ajuste (2.4) cruza con el libro de ese mes.
   const mesesMaxima = useMemo(() => {
@@ -302,6 +307,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setExternos(null);
     setCentrales({});
   }, [project, marcados]);
+  // 091:RF-18: la tabla escribe lo de su máxima; con otra máxima hay que volver a verla.
+  useEffect(() => {
+    setCruce(null);
+    setDesconectados(new Set());
+  }, [ultimo?.id]);
 
   useEffect(() => {
     if (!project) { setSistema(null); setTipoAnalisis('alimentadores'); return; }
@@ -383,7 +393,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // instante, el registro de esa fecha y hora en todos, para calibrar a la vez.
   const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,
+    startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,
       sistema_60kv: tipoAnalisis === 'sistema' && !instante,
       centrales_tramo: centralTramo, coincidente: !porBarra && !instante && feeders.length > 1,
       centrales: Object.fromEntries(feeders.filter((f) => centralCompleta(centrales[f])).map((f) => [f, {
@@ -444,6 +454,9 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     .filter((m) => !m.error && m.fecha && feeders.includes(m.alimentador))
     .map((m) => [m.alimentador, { fecha: m.fecha, kw: m.kw, kvar: m.kvar, fp: m.fp }]));
   const hayMaximas = Object.keys(maximas).length > 0;
+  // 091:RF-19 (cambia 025:RF-10): con el año entero, cada alimentador con el libro del mes de su máxima, a la
+  // vista en 2.3; antes solo lo hacía el ajuste por dentro y se calibraba sin ver la tabla.
+  const cruzaPorSuMes = /^\d{4}$/.test(periodo) && hayMaximas && Boolean(estadoClientes.porAnio || estadoClientes.listoParaCruzar);
   const cruzar = async () => {
     setCruzando(true);
     try {
@@ -755,18 +768,18 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       )}
       <div className="row">
         <button className="btn" disabled={!feeders.length || !haySuministros || !ws.demanda?.clientes
-          || !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={cruzar}>
+          || !(estadoClientes.listoParaCruzar || cruzaPorSuMes) || engineBusy || cruzando} onClick={cruzar}>
           {cruzando ? `Cruzando clientes de ${cuales}…` : `Cruzar clientes de ${cuales}`}
         </button>
         <button className="btn btn-ghost" disabled={!hayMaximas || !haySuministros || !ws.demanda?.clientes
-          || !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={comparar}
+          || !(estadoClientes.listoParaCruzar || cruzaPorSuMes) || engineBusy || cruzando} onClick={comparar}
           title={hayMaximas ? 'Las fijas con los dos criterios frente a la cabecera y a la Q de la red y de los bancos de la última calibración; no abre DIgSILENT (039:RF-5)'
             : 'Busque antes la máxima de cabecera (2.2)'}>
           Comparar los criterios de las fijas</button>
         {librosFaltan.length > 0 && (
           <small className="muted">Falta {librosFaltan.join(' y ')} (2.1): sin {librosFaltan.length > 1 ? 'ellos' : 'él'} todas
             las SED se escalan con el factor de escala.</small>)}
-        {ws.demanda?.clientes && estadoClientes.motivo && <small className="muted">{estadoClientes.motivo}</small>}
+        {ws.demanda?.clientes && estadoClientes.motivo && !cruzaPorSuMes && <small className="muted">{estadoClientes.motivo}</small>}
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
         desconectados={desconectados} conmutar={conmutar} />}
@@ -782,7 +795,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
       <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados}
         centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))}
-        criterioFijas={criterioFijas} criterioPorAlimentador={porAlimentador(maximoMes, feeders)} />
+        criterioFijas={criterioFijas} criterioPorAlimentador={porAlimentador(maximoMes, feeders)}
+        faltaCruce={Boolean(hayMaximas && haySuministros && ws.demanda?.clientes && !cruce?.maximas)} />
     </div>
   );
 }
@@ -839,7 +853,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       {' '}{fmtNum(fueraDelInstante.length)} cliente(s) sin hoja de 15 minutos van con su EA/ERI del mes con los dos
       criterios: por eso su «Registro» no coincide.</p>}
     <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
-      {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
+      {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»{t.por_hoja ? `, ${fmtNum(t.por_hoja)} por su hoja` : ''}); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
       {cruce.libro && <small className="muted"> Libro {cruce.libro}{cruce.mes ? ` (${nombreMes(cruce.mes)})` : ''}.</small>}</p>
     {ali && t.cruzados === 0 && t.de_otros > 0 && <p className="alert alert-warn">Ningún suministro tiene «{ali}» en la columna
@@ -866,7 +880,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
               aria-label={`Conectar ${c.codigo} en DIgSILENT`}
               title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
-            <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
+            <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'hoja' ? 'Su hoja' : c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}
               {c.radial_fuente && <small className="muted"> Según la fuente de red.</small>}
               {c.radial_libro && c.radial_libro !== c.radial && <small className="muted"> Libro: {c.radial_libro}.</small>}

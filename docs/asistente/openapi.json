@@ -1464,6 +1464,17 @@
             "title": "Por Barra",
             "type": "boolean"
           },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
           "sistema_60kv": {
             "default": false,
             "title": "Sistema 60Kv",

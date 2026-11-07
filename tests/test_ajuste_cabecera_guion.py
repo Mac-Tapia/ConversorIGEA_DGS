@@ -1327,7 +1327,9 @@ def test_escaladas_a_fp_del_perfil_y_fijas_con_su_ea_eri(guion):
 
     assert rc == 0, informe
     assert informe['factor_potencia_cargas'] == {
-        'fijas': 'EA/ERI del libro de clientes', 'escaladas': 0.98,
+        # 091:RF-28: el FP de la fija es el de su registro; el cociente EA/ERI, solo sin él.
+        'fijas': 'su registro del instante de la máxima, con su FP; sin registro, el cociente EA/ERI del mes',
+        'escaladas': 0.98,
         'escaladas_origen': 'perfil de empresa',
         'escaladas_reparto': 'potencia instalada (kVA) de cada SED'}
     for x in informe['sed']:

@@ -52,9 +52,10 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   } else if (job.kind === 'load' && r) {
     const t = r.totals;
     body = <>
-      <p>Alimentadores leídos: <b>{t.feeders}</b> · convertibles: <b>{t.convertible_feeders}</b> · stubs sin tramos: <b>{t.stub_feeders}</b></p>
+      {/* 091:RF-29: llamaba convertibles solo a los que tienen tramos, y se convierten todos. */}
+      <p>Alimentadores leídos: <b>{t.feeders}</b> · con tramos: <b>{t.convertible_feeders}</b> · sin tramos en la fuente: <b>{t.stub_feeders}</b></p>
       <p>Tramos / cargas / SW: {t.sections} / {t.customer_loads} / {t.switches}</p>
-      <p>Se generarán <b>{r.conversion.expected_dgs_files}</b> archivos .dgs independientes (uno por alimentador convertible).</p>
+      <p>Se generarán <b>{r.conversion.expected_dgs_files}</b> archivos .dgs independientes, uno por alimentador leído.</p>
       <p className={r.integrity.errors ? 'alert alert-warn' : ''}>Integridad: {r.integrity.errors} errores, {r.integrity.warnings} avisos.</p>
       {r.catalog_report?.critical && (
         <p className="alert alert-error">Solo el {Math.round(r.catalog_report.final_coverage * 100)} % de los tipos de línea está en el
@@ -97,9 +98,10 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
     body = r.returncode === 0
       ? <p>Terminado correctamente.{r.report ? ` Informe: ${r.report}.` : ''}</p>
       : r.returncode === 3
-        ? <p className="alert alert-error">No se pudo conectar con PowerFactory. Ábralo y reintente.</p>
-        : <p className="alert alert-warn">El proceso devolvió el código {r.returncode}. Causas frecuentes: PowerFactory no está abierto, u
-          otro proceso tiene tomado su motor (solo admite uno a la vez). Detalle en el Registro.</p>;
+        // 091:RF-3: pedía abrirlo, y lo que hace falta es cerrarlo: la web lo abre por su cuenta.
+        ? <p className="alert alert-error">No se pudo usar DIgSILENT: si está abierto a mano, ciérrelo y vuelva a intentarlo. El detalle está en el Registro.</p>
+        : <p className="alert alert-warn">El proceso devolvió el código {r.returncode}. Causa frecuente: DIgSILENT abierto a mano u
+          otro proceso con su motor (solo admite uno a la vez). Detalle en el Registro.</p>;
   } else if (job.kind === 'catalog' && r) {
     body = <><p>{r.summary}</p><p>Descargue <b>{r.file}</b> en «Catálogo de parámetros», complete las columnas de ficha y vuelva a subirlo.</p></>;
   }
@@ -128,6 +130,9 @@ export default function App() {
   const [summary, setSummary] = useState<Job | null>(null);
   const [logHeight, setLogHeight] = useState(readLogHeight);
   const drag = useRef<{ y: number; h: number } | null>(null);
+  // 091:RF-7: las pestañas ya abiertas siguen montadas, ocultas: el proyecto elegido vivía en la suya y se perdía.
+  const visitadas = useRef(new Set<string>());
+  const espacioVisto = useRef('');
 
   const onFinished = useCallback((job: Job) => {
     // Los trabajos cortos no merecen un diálogo; los largos sí.
@@ -199,6 +204,12 @@ export default function App() {
   // 086:RF-16: un asistente en beta apagado no se ofrece.
   const tabs = TABS.filter((t) => (w.state!.loaded || !t.entradas) && (t.id !== 'asistente' || betaActiva(health, 'asistente')));
   const actual = tabs.find((t) => t.id === tab) ?? tabs[0];
+  // 091:RF-8: en otro espacio solo se montan las que se abran en él.
+  if (espacioVisto.current !== w.state.id) {
+    espacioVisto.current = w.state.id;
+    visitadas.current.clear();
+  }
+  visitadas.current.add(actual.id);
   const caps = health.capabilities;
 
   return (
@@ -248,7 +259,12 @@ export default function App() {
                       onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</button>
                   ))}
                 </nav>
-                {actual.el}
+                {/* 091:RF-8: otro espacio las vuelve a montar, sin lo del anterior. */}
+                <div key={w.state.id}>
+                  {tabs.filter((t) => visitadas.current.has(t.id)).map((t) => (
+                    <div key={t.id} role="tabpanel" hidden={t.id !== actual.id}>{t.el}</div>
+                  ))}
+                </div>
               </section>
             </div>
           </div>

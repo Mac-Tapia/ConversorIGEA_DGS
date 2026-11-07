@@ -106,6 +106,16 @@ def powerfactory_status(refresh: bool = False) -> dict[str, Any]:
     return _PF_CACHE
 
 
+def sin_conexion_digsilent() -> UserError:
+    """091:RF-1 a RF-3: el error de una acción sin DIgSILENT, con su causa y lo que hay que hacer.
+
+    Las seis acciones pedían abrirlo, y con DIgSILENT abierto a mano había que cerrarlo (TM102, 2026-11-05).
+    """
+    from ..pf_arnes import causa_sin_conexion
+
+    return UserError(causa_sin_conexion())
+
+
 def _require_pf() -> tuple[Path | None, Path]:
     status = powerfactory_status()
     pf_dir = Path(status['api_dir']) if status['api_dir'] else None
@@ -1703,7 +1713,7 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
             'el Registro); si sigue igual, cierre la ventana de PowerFactory si está '
             'abierta o compruebe la licencia, y vuelva a leer los proyectos.')
     if rc == 3:
-        raise UserError('No se pudo conectar con PowerFactory. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     if rc != 0 or not out.is_file():
         raise UserError(f'No se pudieron leer los proyectos de PowerFactory (código {rc}).')
     result = json.loads(out.read_text(encoding='utf-8'))
@@ -2171,7 +2181,7 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
                          cancel_file=flag)
     flag.unlink(missing_ok=True)
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     try:
         informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
     except (OSError, ValueError):
@@ -2289,7 +2299,8 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
                 'libros': [], 'catalogo': [], 'vigente': False, 'avisos': []}
     else:
         if not path.is_file() or path.suffix.lower() not in EXTENSIONES:
-            raise UserError(f'{path.name}: el {DEMANDA_ETIQUETAS[tipo]} debe ser un libro '
+            # 091:RF-30: con un artículo fijo decía «el tabla de la estructura».
+            raise UserError(f'{path.name}: «{DEMANDA_ETIQUETAS[tipo]}» debe ser un libro '
                             + ', '.join(EXTENSIONES))
         meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
         if tipo == 'estructura':
@@ -3030,9 +3041,12 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
             'total': len(tramo), 'reducida': len(reducidos) < len(tramo), 'fuera_de_curva': 0}
 
 
-def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros):
-    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial."""
-    from ..demanda_medida import cruzar, reconciliar_radiales
+def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
+    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial.
+
+    091:RF-9: con ``libro``, el que no está en el libro de suministros se busca en su hoja.
+    """
+    from ..demanda_medida import DemandaError, completar_desde_hojas, cruzar, reconciliar_radiales
     from ..model import extract_sed_code
 
     cruzados, aparte = cruzar(clientes, suministros)
@@ -3057,6 +3071,12 @@ def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros):
                 # Dos NetworkID distintos con el mismo nombre corto siguen siendo ambiguos.
                 nombres[sed] = cortos if len(cortos) == len(owners) else owners
             ws._sed_owners_cache = (dataset, nombres)
+    if libro is not None:
+        try:
+            de_su_hoja, aparte = completar_desde_hojas(aparte, libro, nombres)   # 091:RF-9
+            cruzados = cruzados + de_su_hoja
+        except (DemandaError, OSError):
+            pass                        # el libro ya se leyó; sin sus hojas siguen aparte, con su motivo
     cruzados, ambiguos = reconciliar_radiales(cruzados, nombres)
     return cruzados, aparte + ambiguos
 
@@ -3130,7 +3150,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     mes = next((str(x.get('mes') or '') or None
                 for x in (ws.demanda.get('clientes') or {}).get('catalogo') or []
                 if x.get('activo') and x.get('nombre') == libro.name), None)
-    cruzados, aparte = _cruzar_clientes_en_red(ws, clientes, suministros)
+    cruzados, aparte = _cruzar_clientes_en_red(ws, clientes, suministros, libro)
     alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
     de_otros = 0
     if alimentadores:
@@ -3166,6 +3186,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
         'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
                     'por_actual': sum(c.cruzado_por == 'actual' for c in cruzados),
                     'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados),
+                    'por_hoja': sum(c.cruzado_por == 'hoja' for c in cruzados),            # 091:RF-10
                     'de_otros': de_otros},
     }
 
@@ -3239,7 +3260,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                 raise UserError(str(exc)) from exc
             avisos += avisos_c
             total_clientes += len(clientes)
-            libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros))
+            libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros, libro))
             leidos.append({'mes': mes, 'libro': libro.name})
         libro, (todos, aparte_mes) = libros[mes]
         suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders, corto=feeder_short_name)
@@ -3299,6 +3320,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                     'no_cruzados': len(aparte_list),
                     'por_actual': sum(c.get('cruzado_por') == 'actual' for c in cruzados_out),
                     'por_anterior': sum(c.get('cruzado_por') == 'anterior' for c in cruzados_out),
+                    'por_hoja': sum(c.get('cruzado_por') == 'hoja' for c in cruzados_out),  # 091:RF-10
                     'de_otros': de_otros},
     }
 
@@ -4170,7 +4192,7 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
                          cancel_file=flag)
     if rc == 3:
         flag.unlink(missing_ok=True)
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     informes = []
     # 025:RF-20: el año de los casos y de la medición, del plan que se ejecutó.
     try:
@@ -4560,7 +4582,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         ctx.log(f'[{index}/{len(jobs)}] Verificar el «Caso base» de {feeder} en {project}…')
         rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
         if rc == 3:
-            raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+            raise sin_conexion_digsilent()
         try:
             acceptance = json.loads(report.read_text(encoding='utf-8'))
         except (OSError, ValueError):
@@ -4616,7 +4638,7 @@ def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str
                           '--output-json', str(report)],
                          env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     try:
         informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
     except (OSError, ValueError):
@@ -4797,8 +4819,9 @@ def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
     else:
         rc = ctx.run_process(system_command(ws, action), cwd=str(project_root()))
     if rc != 0:
-        ctx.log(f'El proceso devolvió el código {rc}. Causas frecuentes: PowerFactory no '
-                'está abierto, u otro proceso tiene tomado su motor (solo admite uno).')
+        # 091:RF-3: pedía abrir PowerFactory, y la web lo abre sola si nadie lo tiene abierto a mano.
+        ctx.log(f'El proceso devolvió el código {rc}. Causa frecuente: DIgSILENT abierto a mano, u '
+                'otro proceso con su motor (solo admite uno).')
     return {'returncode': rc, 'action': action}
 
 
@@ -5593,7 +5616,7 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
     if flag is not None:
         flag.unlink(missing_ok=True)
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     if rc == TIEMPO_AGOTADO:
         return rc, {'no_terminado': True,
                     'error': f'no terminó en su límite de {limite_s:g} s'}, report
@@ -8098,6 +8121,28 @@ def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders:
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
+def faltan_recalibrar(ajuste: dict, pedidos: Sequence[str]) -> tuple[list[str], list[str]]:
+    """091:RF-20, RF-22: de los pedidos, los que solo tienen la calibración y los que no dicen su tipo."""
+    informes = ajuste.get('informes') or ([ajuste['informe']] if ajuste.get('informe') else [])
+    tipos = {i.get('feeder'): (i.get('tipo_ajuste') or {}).get('tipo') for i in informes if isinstance(i, dict)}
+    faltan = [f for f in pedidos if tipos.get(f) == 'CALIBRACION']
+    sin_tipo = [f for f in pedidos if f in tipos and not tipos[f]]
+    return faltan, sin_tipo
+
+
+def avisos_de_recalibracion(ajuste: dict, pedidos: Sequence[str]) -> list[str]:
+    """091:RF-20, RF-22: el orden es calibración, recalibración y estudio; lo que no lo sigue se avisa.
+
+    La calibración solo cuadra la P: estudiar sobre ella es estudiar una red sin la revisión de la Q (TM102,
+    2026-11-05). No se rechaza: nada bloquea salvo la red vacía, y el operador decide con el aviso a la vista.
+    """
+    faltan, sin_tipo = faltan_recalibrar(ajuste, pedidos)
+    avisos = [f'{f}: solo tiene la calibración; falta recalibrar (paso 2.4) antes de los estudios: se estudia '
+              'igual.' for f in faltan]
+    return avisos + [f'{f}: su ajuste es anterior a la spec 091 y no dice su tipo; no consta su recalibración.'
+                     for f in sin_tipo]
+
+
 def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: list[str],
                   ajuste: dict | None, limites: dict | None = None,
                   limite_s: float | None = None, opciones: dict | None = None) -> dict:
@@ -8137,6 +8182,7 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     avisos = [f"{a['feeder']}: su ajuste no cuadró ({a.get('motivo') or 'fuera de tolerancia'}); "
               'se estudia igual.' for a in base['ajustes']
               if a['feeder'] in estudiables and not a.get('cuadrado')]
+    avisos += avisos_de_recalibracion(ajuste, estudiables)                   # 091:RF-20, RF-22
     token = uuid.uuid4().hex[:12]
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': estudiables,
             'base': base, 'estudios': claves, 'limites': asdict(lim),
