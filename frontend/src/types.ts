@@ -173,6 +173,8 @@ export interface WorkspaceState {
   id: string;
   /** 035:RF-21: proyecto (o «proyecto@año») → alimentador → n.º de recalibración (0: la primera). */
   calibraciones?: Record<string, Record<string, { recalibracion: number; nombre?: string; caso?: string | null }>>;
+  /** 039:RF-15: los clientes fijos marcados «a su máxima», guardados en el espacio. */
+  fijas_a_su_maxima?: string[];
   created_at: number;
   options: Options;
   inputs: Record<string, InputMeta>;
@@ -888,8 +890,16 @@ export interface ClienteImportante {
   fecha_valores?: string | null;
   /** 039:RF-4: con «coincidente», la fija con hoja pero sin su registro del instante. */
   sin_coincidente?: string | null;
-  /** 039:RF-8: el criterio de su alimentador, el marcado en el desplegable o el general. */
-  criterio?: CriterioFijas;
+  /** 039:RF-8: el criterio de su alimentador, el marcado en el desplegable o el general; 039:RF-14, o «a su máxima». */
+  criterio?: CriterioFijas | 'a_su_maxima';
+  /** 039:RF-12: el operador lo subió a su máxima del mes; ``criterio_alimentador``, con el que iría sin marcar. */
+  a_su_maxima?: boolean;
+  criterio_alimentador?: CriterioFijas;
+  /** 039:RF-9: sus dos valores; ``null``, sin el registro de ese criterio. */
+  valores?: { coincidente: ValorFija | null; maximo_mes: ValorFija | null };
+  /** 039:RF-10: P de su máxima del mes menos la coincidente, en kW y en % de la coincidente. */
+  diferencia_kw?: number;
+  diferencia_pct?: number | null;
 }
 
 /** 039:RF-1: fijas coincidentes con la máxima de cabecera o en su máximo del mes. */
@@ -926,6 +936,9 @@ export interface ClientesCruce {
   /** 039:RF-8: el de cada alimentador. */
   criterios?: Record<string, CriterioFijas>;
   no_coincidentes?: string[];
+  /** 039:RF-15, RF-20: los marcados «a su máxima» de esta tabla y los que van con su EA/ERI del mes. */
+  a_su_maxima?: string[];
+  avisos_a_su_maxima?: string[];
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];
@@ -1259,6 +1272,9 @@ export interface AjusteInforme {
   bancos_en_servicio?: string[];
   /** 035:RF-22: la primera calibración cuadra solo P; la recalibración n.º k, P y Q. */
   tipo_ajuste?: { tipo: 'CALIBRACION' | 'RECALIBRACION'; numero: number; cuadra: 'P' | 'P_Y_Q' };
+  /** 039:RF-18: los clientes a su máxima, con su registro, sus kW y sus kvar. */
+  fijas_a_su_maxima?: { codigo: string; nombre?: string | null; sed: string; p_kw: number; q_kvar: number;
+    fecha?: string | null; metodo?: string }[];
   revision_bancos?: { motivo: string; cabecera_kvar: number; objetivo_kvar: number; diferencia_kvar: number; aviso: string };
   /** 035:RF-11, RF-28 a RF-30: cómo quedó la Q y si la medida de cabecera es coherente. */
   cuadre_q?: {

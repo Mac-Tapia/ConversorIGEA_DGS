@@ -68,7 +68,7 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
     # Los elegidos y, en el mismo trabajo, los medidores de cada central (spec 021, RF-25).
     assert 'const aBuscar = [...elegidos, ' in DEMANDA
     # 022:RF-88: con las centrales en el tramo de su alimentador.
-    assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,'
+    assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,'
             in DEMANDA) and 'centrales_tramo: centralTramo, coincidente: !porBarra' in DEMANDA
 
 

@@ -272,3 +272,20 @@ def test_el_informe_dice_el_criterio_de_las_fijas(guion, criterio):
     informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=5.0), 'criterio_fijas': criterio})
     assert rc == 0, informe
     assert informe['criterio_fijas'] == criterio
+
+
+def test_el_informe_lista_los_clientes_a_su_maxima_y_la_cabecera_cuadra(guion):
+    """039:RF-18, 039:RF-19 — el cliente a su máxima llega en ``clientes`` con el registro de su POT: su SED es una fija
+    con esa P, las escaladas llenan el resto hasta la cabecera, y el informe lo lista con su registro, kW y kvar."""
+    lista = [{'codigo': '11', 'nombre': 'Cliente', 'sed': 'F1_S2', 'p_kw': 40.0, 'q_kvar': 12.0,
+              'fecha': '01/03/2026 09:00', 'metodo': 'ERI_DEL_REGISTRO 01/03/2026 09:00'}]
+    plan = {**_plan(kw=300.0, kvar=90.0, clientes=[
+        {'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25, 'criterio': 'a_su_maxima',
+         'fecha_registro': '01/03/2026 09:00', 'q_registro_kvar': 12.0, 'p_registro_kw': None}]),
+        'fijas_a_su_maxima': lista}
+    informe, rc = guion.ejecutar(_app(), plan)
+    assert rc == 0, informe
+    assert informe['fijas_a_su_maxima'] == lista
+    fija = next(x for x in informe['sed'] if x['sed'] == 'F1_S2')
+    assert fija['despues']['kw'] == pytest.approx(40.0) and fija['despues']['kvar'] == pytest.approx(12.0)
+    assert informe['cuadrado'] and abs(informe['desvio']['kw']) <= 0.01

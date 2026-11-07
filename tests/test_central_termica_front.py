@@ -24,7 +24,7 @@ def test_campo_central_con_tres_medidores_y_su_nodo():
     for campo in ("'generacion', 'Generación'", "'llegada', 'Llegada (lado SET)'",
                   "'salida', 'Salida (lado carga)'", 'Barra de la central en DIgSILENT'):
         assert campo in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
     assert 'alimentador: alimentadorDeCentral(f), medidor' in DEMANDA
     assert 'nodo: string;' in TIPOS
 
@@ -103,7 +103,7 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
     # 025:RF-7: el mismo aviso dice también «todo el año» cuando el periodo es un año.
     assert 'La máxima se busca en {periodo.length === 4 ? `todo ${periodo}` : nombreMes(periodo)}' in DEMANDA
     assert "', el mes elegido en 2.3'" in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 
 
@@ -135,7 +135,7 @@ def test_maxima_del_periodo_junto_a_la_del_mes():
 def test_sin_periodo_no_se_cruzan_clientes():
     """013:RF-9 — sin un mes (o el año) elegido no se cruzan clientes: el botón espera a que
     el catálogo esté listo para cruzar con el periodo elegido."""
-    assert '|| !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={cruzar}>' in DEMANDA
+    assert '|| !(estadoClientes.listoParaCruzar || cruzaPorSuMes) || engineBusy || cruzando} onClick={cruzar}>' in DEMANDA
     assert 'Todo el registro (elija un mes para cruzar clientes)' in DEMANDA
 
 

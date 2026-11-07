@@ -236,6 +236,14 @@ class DemandaClientesIn(BaseModel):
     criterio: Literal['coincidente', 'maximo_mes'] = 'coincidente'
     # 039:RF-7: el criterio de los alimentadores marcados en el desplegable; los demás, ``criterio``.
     criterio_por_alimentador: dict[str, Literal['coincidente', 'maximo_mes']] = Field(default_factory=dict)
+    # 039:RF-12, RF-16: los clientes «a su máxima»; sin el campo, los guardados en el espacio.
+    a_su_maxima: list[str] | None = Field(default=None, max_length=20000)
+
+
+class ASuMaximaIn(BaseModel):
+    """039:RF-13, RF-15: los códigos de los clientes fijos que van a su máxima del mes."""
+
+    codigos: list[str] = Field(default_factory=list, max_length=20000)
 
 
 class CompararFijasIn(BaseModel):
@@ -290,6 +298,8 @@ class AjusteIn(BaseModel):
     criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
     # 039:RF-8: el de cada alimentador marcado en la tabla cruzada.
     criterio_por_alimentador: dict[str, Literal['coincidente', 'maximo_mes']] = Field(default_factory=dict)
+    # 039:RF-16: los clientes «a su máxima»; sin el campo, los guardados en el espacio.
+    a_su_maxima: list[str] | None = Field(default=None, max_length=20000)
 
 
 class VerificarIn(BaseModel):
@@ -649,6 +659,8 @@ class RecalibrarIn(BaseModel):
     solo: list[str] = Field(default_factory=list)
     # 039:RF-8: los que toman sus fijas con «máximo del mes»; los demás, ``criterio_fijas``.
     maximo_mes: list[str] = Field(default_factory=list)
+    # 039:RF-16, RF-17: los clientes «a su máxima»; sin el campo, los guardados en el espacio.
+    a_su_maxima: list[str] | None = Field(default=None, max_length=20000)
 
 
 class EscaneoIn(BaseModel):
@@ -1572,7 +1584,8 @@ def create_app(
                                                               zonal=body.zonal, demanda_dir=body.demanda_dir,
                                                               transformadores=body.transformadores,
                                                               criterio_fijas=body.criterio_fijas, solo=solo,
-                                                              maximo_mes=body.maximo_mes),
+                                                              maximo_mes=body.maximo_mes,
+                                                              a_su_maxima=body.a_su_maxima),
                       lane='asistente', relanzado_de=relanzado_de,
                       # 096:RF-5: con su petición se relanza solo si la web cae a medias.
                       reanudar={'tipo': 'recalibrar', 'datos': body.model_dump()})
@@ -1803,7 +1816,13 @@ def create_app(
                                          periodo=body.periodo if body else None,
                                          maximas=body.maximas if body else None,
                                          criterio=body.criterio if body else None,
-                                         criterio_por_alimentador=body.criterio_por_alimentador if body else None)
+                                         criterio_por_alimentador=body.criterio_por_alimentador if body else None,
+                                         a_su_maxima=body.a_su_maxima if body else None)
+
+    # 039:RF-13, RF-15: la selección «a su máxima» de la tabla cruzada, guardada en el espacio.
+    @app.put('/api/workspaces/{wid}/demanda/clientes/a-su-maxima')
+    def demanda_a_su_maxima(wid: str, body: ASuMaximaIn) -> dict:
+        return services.guardar_a_su_maxima(ws_or_404(wid), body.codigos)
 
     # 039:RF-5: las fijas con los dos criterios, frente a la cabecera y a la red simulada.
     @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
@@ -1840,7 +1859,8 @@ def create_app(
                                     transformadores_automaticos=body.transformadores_automaticos,
                                     barras=job.result.get('barras'),
                                     criterio_fijas=body.criterio_fijas,
-                                    criterio_por_alimentador=body.criterio_por_alimentador)
+                                    criterio_por_alimentador=body.criterio_por_alimentador,
+                                    a_su_maxima=body.a_su_maxima)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)

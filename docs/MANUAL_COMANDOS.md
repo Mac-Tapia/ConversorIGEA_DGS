@@ -876,6 +876,11 @@ del mes de cada una y el ERI × 4 de ese registro. Con «coincidente», una fija
 ese registro no toma otro: el plan no se prepara y dice el periodo de los clientes de esa fecha
 (spec 039, RF-1 a RF-4). La web compara los dos criterios sin abrir DIgSILENT (RF-5).
 
+Un cliente fijo se sube a su máxima del mes, uno por uno, con la casilla «A su máxima» de la tabla
+cruzada (2.3), que enseña en cada fila su valor coincidente, el de su máxima y la diferencia; la
+selección se guarda en el espacio y la usan el ajuste, «Recalibrar con estos criterios» y
+`sistema_web.py`. Con `--a-su-maxima COD …` se dan otros; vacía, ninguno (spec 039, RF-9 a RF-22).
+
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
 informe (`runs/<id>/salida/cargas_pf_aplicacion_<token>.json`): las variaciones de sus
 cargas nuevas, sus símbolos del diagrama y los tipos de transformador que creó y ya no

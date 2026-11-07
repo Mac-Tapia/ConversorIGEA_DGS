@@ -1,13 +1,13 @@
 # Reiniciar la web con su acceso directo
 
-Cuándo: después de cambiar el código de la web o el del conversor que la web usa (`CLAUDE.md:178`
+Cuándo: después de cambiar el código de la web o el del conversor que la web usa (`CLAUDE.md:186`
 («reiniciarla: parar»)). Los guiones de `tools/` no hacen falta: el servidor de DIgSILENT los vuelve a cargar en cada orden.
 
 1. Comprobar que no hay trabajos en curso en ningún espacio. Si hay uno que deba pararse, se cancela por la web con
-   `POST /api/jobs/<id>/cancel` (`src/convertersmartgrid/web/app.py:1347` («/api/jobs/{job_id}/cancel»)); parar un cliente no
-   para el trabajo (`CLAUDE.md:181` («POST /api/jobs/<id>/cancel»)).
+   `POST /api/jobs/<id>/cancel` (`src/convertersmartgrid/web/app.py:1399` («/api/jobs/{job_id}/cancel»)); parar un cliente no
+   para el trabajo (`CLAUDE.md:189` («POST /api/jobs/<id>/cancel»)).
 2. **Lo hace el operador:** parar el proceso que escucha en el puerto 8765 y abrir el acceso directo «ConverterSmartGrid» del
-   escritorio (`CLAUDE.md:179` («abrir el acceso directo»)). El asistente no cierra procesos ni abre accesos directos: se lo pide
+   escritorio (`CLAUDE.md:187` («abrir el acceso directo»)). El asistente no cierra procesos ni abre accesos directos: se lo pide
    al operador y espera.
 3. El acceso directo ejecuta `run_gui.bat`, que arranca `convertersmartgrid.web.runtime` (`run_gui.bat:17`
    («-m convertersmartgrid.web.runtime»)) y sirve la web en `http://127.0.0.1:8765/` (`run_gui.bat:5`

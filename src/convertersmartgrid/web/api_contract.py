@@ -450,6 +450,8 @@ class EspacioRespuesta(Respuesta):
     obras_aplicadas: list[ObraAplicadaRespuesta]
     calibraciones: dict[str, dict[str, CalibracionRespuesta]]
     demanda: dict[str, DemandaRespuesta]
+    # 039:RF-15: los clientes fijos que el operador subió «a su máxima» en la tabla cruzada.
+    fijas_a_su_maxima: list[str] = Field(default_factory=list)
     last_seq: int
     jobs: list[JobRespuesta] | None = None
     warning: str | None = None

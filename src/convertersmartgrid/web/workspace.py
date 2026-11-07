@@ -352,6 +352,9 @@ class Workspace:
     # 'libro'}, RF-20) y los módulos que DIgSILENT rechazó por licencia (RF-4).
     datos_empresa: dict[str, dict[str, Any]] = field(default_factory=dict)
     sin_licencia: list[str] = field(default_factory=list)
+    # 039:RF-15: códigos de los clientes fijos que el operador subió «a su máxima» en la tabla
+    # cruzada (calidad de producto: su valor coincidente no es su operación crítica).
+    fijas_a_su_maxima: list[str] = field(default_factory=list)
     # 086:RF-3: lo que apunta a un fichero que hoy no está. Fuera de ``inputs`` y compañía, porque
     # quien los lee da por hecho que el fichero existe; save() lo vuelve a escribir tal cual.
     no_disponibles: dict[str, Any] = field(default_factory=dict)
@@ -438,6 +441,7 @@ class Workspace:
             'informes': informes,
             'datos_empresa': {**(nd.get('datos_empresa') or {}), **self.datos_empresa},
             'sin_licencia': self.sin_licencia,
+            'fijas_a_su_maxima': self.fijas_a_su_maxima,                       # 039:RF-15
         }
         payload = {k: relativizar_rutas(v, self.root) if k in CAMPOS_CON_RUTAS else v
                    for k, v in payload.items()}
@@ -509,6 +513,7 @@ class Workspace:
         ws._apartar('datos_empresa', {p: d for p, d in empresa.items()
                                       if p not in ws.datos_empresa and d.get('path')})
         ws.sin_licencia = [str(m) for m in data.get('sin_licencia') or []]
+        ws.fijas_a_su_maxima = [str(c) for c in data.get('fijas_a_su_maxima') or [] if str(c).strip()]
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
@@ -794,6 +799,8 @@ class Workspace:
                               for clave, por_feeder in self.calibraciones.items()},
             'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
                         for tipo, meta in self.demanda.items()},
+            # 039:RF-15: la selección «a su máxima», para marcarla de nuevo al reabrir la web.
+            'fijas_a_su_maxima': self.fijas_a_su_maxima,
             'last_seq': self.events.last_seq,
         }
 

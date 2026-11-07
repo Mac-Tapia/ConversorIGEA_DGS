@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -148,6 +148,15 @@ function AlimentadoresMaximoMes({ alimentadores, marcados, cambiar, disabled }: 
   );
 }
 
+/** 039:RF-9, RF-12: la P y la Q con que va una fija según la selección «a su máxima» de ahora, que puede haber
+ * cambiado desde el cruce: marcada, la de su máxima del mes; desmarcada, la del criterio de su alimentador. */
+const valorQueVa = (c: ClienteImportante, marcada: boolean): ValorFija | null => {
+  if (marcada) return c.valores?.maximo_mes ?? (c.p_kw == null ? null : { p_kw: c.p_kw, q_kvar: c.q_kvar ?? null, fecha: c.fecha_valores, metodo: c.metodo });
+  if (c.a_su_maxima && c.valores) return c.valores[c.criterio_alimentador ?? 'coincidente'];
+  return c.p_kw == null ? null : { p_kw: c.p_kw, q_kvar: c.q_kvar ?? null, fecha: c.fecha_valores, metodo: c.metodo };
+};
+const kwKvar = (v: ValorFija | null | undefined) => (v ? `${fmtNum(v.p_kw, 1)} kW · ${v.q_kvar == null ? '—' : fmtNum(v.q_kvar, 1)} kvar` : '—');
+
 const porAlimentador = (marcados: string[], de: string[]): Record<string, CriterioFijas> =>
   Object.fromEntries(marcados.filter((a) => de.includes(a)).map((a) => [a, 'maximo_mes' as CriterioFijas]));
 
@@ -242,6 +251,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [criterioFijas, setCriterioFijas] = useState<CriterioFijas>('coincidente');
   // 039:RF-7: los alimentadores marcados con «máximo del mes».
   const [maximoMes, setMaximoMes] = useState<string[]>([]);
+  // 039:RF-12, RF-15: los clientes fijos subidos «a su máxima»; se guardan en el espacio y vuelven al reabrir la web.
+  const [aSuMaxima, setASuMaxima] = useState<string[]>(ws.fijas_a_su_maxima ?? []);
+  const firmaASuMaxima = (ws.fijas_a_su_maxima ?? []).join('|');
+  useEffect(() => { setASuMaxima(ws.fijas_a_su_maxima ?? []); }, [ws.id, firmaASuMaxima]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guardarASuMaxima = async (codigos: string[]) => {
+    const r = await run(() => api.demandaASuMaxima(ws.id, codigos));
+    if (r) setASuMaxima(r.a_su_maxima);
+  };
+  const conmutarMaxima = (codigo: string) => void guardarASuMaxima(
+    aSuMaxima.includes(codigo) ? aSuMaxima.filter((c) => c !== codigo) : [...aSuMaxima, codigo]);
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
@@ -461,7 +480,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruzando(true);
     try {
       const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined,
-        hayMaximas ? maximas : undefined, criterioFijas, porAlimentador(maximoMes, feeders)));
+        hayMaximas ? maximas : undefined, criterioFijas, porAlimentador(maximoMes, feeders), aSuMaxima));
       if (r) { setCruce(r); setDesconectados(new Set()); }
       // 004:RF-64: un fallo puede dejar el hueco de suministros sin libro y con su aviso.
       else await refresh().catch(() => undefined);
@@ -782,7 +801,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         {ws.demanda?.clientes && estadoClientes.motivo && !cruzaPorSuMes && <small className="muted">{estadoClientes.motivo}</small>}
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
-        desconectados={desconectados} conmutar={conmutar} />}
+        desconectados={desconectados} conmutar={conmutar} aSuMaxima={aSuMaxima} conmutarMaxima={conmutarMaxima}
+        desmarcarTodos={() => void guardarASuMaxima([])} bloqueado={engineBusy || cruzando} />}
+      {cruce && <RecalibrarConCriterios project={project} periodo={periodo} feeders={feeders} criterioFijas={criterioFijas}
+        maximoMes={maximoMes} aSuMaxima={aSuMaxima} />}
       {comparacion && <CompararFijas comparacion={comparacion} />}
 
       <div className="row">
@@ -795,26 +817,44 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
       <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados}
         centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))}
-        criterioFijas={criterioFijas} criterioPorAlimentador={porAlimentador(maximoMes, feeders)}
+        criterioFijas={criterioFijas} criterioPorAlimentador={porAlimentador(maximoMes, feeders)} aSuMaxima={aSuMaxima}
         faltaCruce={Boolean(hayMaximas && haySuministros && ws.demanda?.clientes && !cruce?.maximas)} />
     </div>
   );
 }
 
-function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: {
+function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmutar, aSuMaxima, conmutarMaxima,
+  desmarcarTodos, bloqueado }: {
   cruce: ClientesCruce; visibles: ClienteImportante[]; filtro: string; setFiltro: (v: string) => void;
   desconectados: Set<string>; conmutar: (codigo: string) => void;
+  /** 039:RF-12, RF-13: los clientes a su máxima y las acciones de marcar, desmarcar y desmarcar todos. */
+  aSuMaxima: string[]; conmutarMaxima: (codigo: string) => void; desmarcarTodos: () => void; bloqueado: boolean;
 }) {
   const t = cruce.totales;
   const ali = cruce.alimentadores.join(', ');
   const conMaxima = Boolean(cruce.maximas && Object.keys(cruce.maximas).length);
-  // 035:RF-2: lo que se escribe en las fijas, por SED, como lo suma el ajuste.
-  const porSed = conMaxima ? visibles.filter((c) => !desconectados.has(c.codigo) && c.p_kw != null)
+  const marcadas = useMemo(() => new Set(aSuMaxima), [aSuMaxima]);
+  // 039:RF-11: ordenar por la diferencia entre su máxima del mes y la coincidente, o quedarse con las que suben al
+  // menos un %. Nada se marca solo: el operador decide qué cliente sube (usuario, 2026-11-07, calidad de producto).
+  const [orden, setOrden] = useState<'sed' | 'kw' | 'pct'>('sed');
+  const [minPct, setMinPct] = useState('');
+  const umbral = minPct.trim() ? Number(minPct.replace(',', '.')) : null;
+  const visibles = useMemo(() => {
+    const dif = (c: ClienteImportante) => (orden === 'kw' ? c.diferencia_kw : c.diferencia_pct) ?? Number.NEGATIVE_INFINITY;
+    let xs = todas;
+    if (umbral != null && Number.isFinite(umbral)) xs = xs.filter((c) => c.diferencia_pct != null && c.diferencia_pct >= umbral);
+    if (orden !== 'sed') xs = [...xs].sort((a, b) => (dif(a) === dif(b) ? 0 : dif(b) > dif(a) ? 1 : -1));
+    return xs;
+  }, [todas, orden, umbral]);
+  // 035:RF-2: lo que se escribe en las fijas, por SED, como lo suma el ajuste; con la selección «a su máxima» de ahora.
+  const porSed = conMaxima ? visibles.filter((c) => !desconectados.has(c.codigo) && valorQueVa(c, marcadas.has(c.codigo)))
     .reduce<Record<string, { p: number; q: number }>>((m, c) => {
+      const v = valorQueVa(c, marcadas.has(c.codigo))!;
       const s = (m[c.sed] ??= { p: 0, q: 0 });
-      s.p += c.p_kw ?? 0; s.q += c.q_kvar ?? 0;
+      s.p += v.p_kw; s.q += v.q_kvar ?? 0;
       return m;
     }, {}) : {};
+  const cambiada = [...marcadas].sort().join('|') !== [...(cruce.a_su_maxima ?? [])].sort().join('|');
   // SM218, 2026-10-29: máxima el 23/10 y el último libro de clientes, el de septiembre (035:RF-17).
   // Sus hojas no llegan a esa fecha, así que cada cliente va con el registro de su POT, cada uno
   // de su día; la columna «Registro» no coincide con la máxima y hay que decir por qué.
@@ -823,7 +863,8 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
   const maximoMes = cruce.criterio === 'maximo_mes';
   const fueraDelInstante = conMaxima && !maximoMes
     ? cruce.cruzados.filter((c) => c.metodo && !c.metodo.startsWith('REGISTRO_DEL_INSTANTE') && !c.sin_coincidente) : [];
-  const sinCoincidente = cruce.no_coincidentes ?? [];
+  // 039:RF-21: la marcada «a su máxima» no espera el registro del instante.
+  const sinCoincidente = (cruce.no_coincidentes ?? []).filter((m) => !aSuMaxima.some((c) => m.startsWith(`${c}:`)));
   const sinRegistro = Object.entries(cruce.maximas ?? {})
     .filter(([f, fecha]) => fecha && fueraDelInstante.some((c) => c.alimentador_maxima === f))
     .map(([f, fecha]) => {
@@ -862,6 +903,27 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       <ul className="small">{cruce.avisos.slice(0, 100).map((a) => <li key={a}>{a}</li>)}</ul></details>}
     <input className="search" type="search" placeholder="Filtrar por Nis, SED o radial…" value={filtro}
       onChange={(e) => setFiltro(e.target.value)} />
+    {conMaxima && <div className="row" aria-label="Clientes a su máxima">
+      <label className="row small"><span>Ordenar por</span>
+        <select value={orden} onChange={(e) => setOrden(e.target.value as 'sed' | 'kw' | 'pct')}
+          aria-label="Ordenar la tabla cruzada">
+          <option value="sed">Alimentador y SED</option>
+          <option value="kw">Diferencia de su máxima (kW), de mayor a menor</option>
+          <option value="pct">Diferencia de su máxima (%), de mayor a menor</option>
+        </select></label>
+      <label className="row small" title="039:RF-11: solo las fijas cuya máxima del mes supera su valor coincidente en al menos ese %">
+        <span>Diferencia mínima (%)</span>
+        <input type="number" min={0} step={5} value={minPct} placeholder="todas" style={{ width: '6rem' }}
+          onChange={(e) => setMinPct(e.target.value)} aria-label="Diferencia mínima en %" /></label>
+      <small className="muted">A su máxima: {aSuMaxima.length ? `${fmtNum(aSuMaxima.length)} cliente(s)` : 'ninguno'}
+        {' '}(su P y su Q de máxima del mes; los demás, el criterio de su alimentador; 039:RF-12)</small>
+      <button className="btn btn-ghost btn-sm" disabled={!aSuMaxima.length || bloqueado} onClick={desmarcarTodos}>
+        Desmarcar todos «a su máxima»</button>
+    </div>}
+    {conMaxima && cambiada && <small className="alert alert-info">La selección «a su máxima» cambió desde el cruce: la P y la Q
+      de la tabla ya la siguen y el ajuste (2.4) la usa; cruce de nuevo para releer los avisos de sus hojas.</small>}
+    {(cruce.avisos_a_su_maxima ?? []).length > 0 && <ul className="alert alert-warn small">
+      {cruce.avisos_a_su_maxima!.map((a) => <li key={a}>{a}</li>)}</ul>}
     <div className="table-wrap table-short">
       <table className="table table-ajustada">
         <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
@@ -871,6 +933,11 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             <th className="num" title="035:RF-2: la P que el ajuste escribe en su SED, fija a escala 1">P (kW)</th>
             <th className="num" title="035:RF-2: la Q que el ajuste escribe en su SED, fija a escala 1">Q (kvar)</th>
             <th title="035:RF-3: de dónde salen su P y su Q">De</th>
+            <th title="039:RF-14: el criterio con que va: el de su alimentador o «a su máxima»">Criterio</th>
+            <th title="039:RF-9: su P y su Q en el registro de la fecha y hora de la máxima de cabecera">Coincidente</th>
+            <th title="039:RF-9: su POT máxima del mes y el ERI × 4 de ese mismo registro">Su máxima del mes</th>
+            <th className="num" title="039:RF-10: P de su máxima del mes menos la coincidente">Diferencia</th>
+            <th title="039:RF-12: subir este cliente a su máxima del mes (calidad de producto)">A su máxima</th>
           </> : <>
             <th title="004:RF-66: el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
             <th className="num" title="004:RF-66: ERI de ese registro × 4">kVAR en él</th>
@@ -888,13 +955,34 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             </td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
             {conMaxima ? <>
-              <td className="small">{c.fecha_valores || '—'}
-                {c.criterio && c.criterio !== cruce.criterio && <span className="muted"> ({criterioDe(c.criterio).texto})</span>}</td>
-              <td className="num strong">{c.p_kw == null ? '—' : fmtNum(c.p_kw, 2)}</td>
-              <td className="num strong">{c.q_kvar == null ? '—' : fmtNum(c.q_kvar, 2)}</td>
-              <td className="small">{c.sin_coincidente
-                ? <span className="badge err" title={c.sin_coincidente}>sin el registro de la máxima</span>
-                : ORIGEN_VALORES[(c.metodo ?? '').split(' ')[0]] ?? c.metodo ?? '—'}</td>
+              {(() => {
+                const marcada = marcadas.has(c.codigo);
+                const va = valorQueVa(c, marcada);
+                const criterio = c.criterio_alimentador ?? (c.criterio === 'a_su_maxima' ? cruce.criterio : c.criterio);
+                return <>
+                  <td className="small">{va?.fecha || '—'}</td>
+                  <td className="num strong">{va == null ? '—' : fmtNum(va.p_kw, 2)}</td>
+                  <td className="num strong">{va?.q_kvar == null ? '—' : fmtNum(va.q_kvar, 2)}</td>
+                  <td className="small">{c.sin_coincidente && !marcada
+                    ? <span className="badge err" title={c.sin_coincidente}>sin el registro de la máxima</span>
+                    : ORIGEN_VALORES[(va?.metodo ?? '').split(' ')[0]] ?? va?.metodo ?? '—'}</td>
+                  <td className="small">{marcada
+                    ? <strong title="039:RF-14">A su máxima: {kwKvar(c.valores?.maximo_mes ?? va)}{(c.valores?.maximo_mes ?? va)?.fecha
+                      ? ` (${(c.valores?.maximo_mes ?? va)!.fecha})` : ' (POT y EA/ERI del mes)'}</strong>
+                    : criterioDe(criterio as CriterioFijas | undefined).texto}</td>
+                  <td className="small">{c.valores?.coincidente ? <>{kwKvar(c.valores.coincidente)}
+                    {c.valores.coincidente.fecha && <span className="muted"> · {c.valores.coincidente.fecha}</span>}</>
+                    : <span className="muted">sin registro</span>}</td>
+                  <td className="small">{c.valores?.maximo_mes ? <>{kwKvar(c.valores.maximo_mes)}
+                    {c.valores.maximo_mes.fecha && <span className="muted"> · {c.valores.maximo_mes.fecha}</span>}</>
+                    : '—'}</td>
+                  <td className="num">{c.diferencia_kw == null ? '—' : <>{fmtNum(c.diferencia_kw, 1)} kW
+                    {c.diferencia_pct != null && <span className="muted"> ({fmtNum(c.diferencia_pct, 1)} %)</span>}</>}</td>
+                  <td><input type="checkbox" checked={marcada} disabled={bloqueado} onChange={() => conmutarMaxima(c.codigo)}
+                    aria-label={`Subir ${c.codigo} a su máxima del mes`}
+                    title="Marcado: va con la POT máxima de su hoja y el ERI × 4 de ese registro; su subida se descuenta de las escaladas (039:RF-12, RF-19)" /></td>
+                </>;
+              })()}
             </> : <>
               <td className="small">{c.fecha_registro || '— (ERI/EA del mes)'}</td>
               <td className="num">{c.q_registro_kvar == null ? '—' : fmtNum(c.q_registro_kvar, 2)}</td>
@@ -911,6 +999,41 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       </details>
     )}
   </>;
+}
+
+/** 039:RF-17: recalibrar desde 2.3 con los criterios de la tabla (el general, los alimentadores con «máximo del mes»
+ * y los clientes a su máxima), por la misma vía que «Recalibrar» (028:RF-21). */
+function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maximoMes, aSuMaxima }: {
+  project: string; periodo: string; feeders: string[]; criterioFijas: CriterioFijas; maximoMes: string[]; aSuMaxima: string[];
+}) {
+  const { ws, startJob, active } = useApp();
+  const [datos, setDatos] = useState<{ alimentadores?: string[]; del_sistema?: string[] } | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setDatos(null); setError('');
+    if (!project) return;
+    void api.recalibrarDatos(ws.id, project).then(setDatos).catch((e: Error) => setError(e.message));
+  }, [ws.id, project]);
+  const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
+  // 028:RF-40: en un sistema, solo los alimentadores de esta tabla; un proyecto de uno o de varios unidos, entero.
+  const delSistema = datos?.alimentadores?.length ? [] : datos?.del_sistema ?? [];
+  const solo = delSistema.length ? feeders.filter((f) => delSistema.includes(f)) : [];
+  const candidatos = solo.length ? solo : datos?.alimentadores?.length ? datos.alimentadores : delSistema;
+  const motivo = !project ? 'Elija el proyecto de DIgSILENT en el paso 1.' : error
+    || (!calibrado ? 'Se activa con la primera calibración del proyecto (2.4).'
+      : !/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo) ? 'Elija arriba el año o el mes de los clientes.' : '');
+  return (
+    <div className="row">
+      <button className="btn btn-pf" disabled={Boolean(motivo) || !datos || Boolean(active.asistente) || Boolean(active.powerfactory)}
+        title="Escanea el proyecto, busca la máxima del periodo y recalibra «Sin proyecto» con el criterio de las fijas, los alimentadores con su máximo del mes y los clientes a su máxima de esta tabla (039:RF-17, 028:RF-21)"
+        onClick={() => startJob(() => api.recalibrar(ws.id, {
+          project, periodo, criterio_fijas: criterioFijas, solo,
+          maximo_mes: maximoMes.filter((a) => candidatos.includes(a)), a_su_maxima: aSuMaxima }))}>
+        Recalibrar con estos criterios</button>
+      <small className="muted">{motivo || `${criterioDe(criterioFijas).texto}; ${aSuMaxima.length
+        ? `${fmtNum(aSuMaxima.length)} cliente(s) a su máxima` : 'ningún cliente a su máxima'}${solo.length ? `; solo ${solo.join(', ')}` : ''}.`}</small>
+    </div>
+  );
 }
 
 /** 039:RF-5: por alimentador, cada fija con los dos criterios, sus sumas, la cabecera medida en

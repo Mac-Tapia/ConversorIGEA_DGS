@@ -66,7 +66,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
   | 037 Caso «Cargas nuevas» en los estudios de la web | implementada | falta T4 |
   | 038 Pertenencia de las SED y notas en la web | cumplida | — |
-  | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T4 |
+  | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T8, T4 |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6, T29, T37, T42, T44, T48, T50 |

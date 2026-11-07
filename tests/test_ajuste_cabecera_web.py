@@ -1106,6 +1106,39 @@ def test_coincidente_con_el_registro_del_instante_va_al_plan(client):
     assert cliente['fecha_registro'] == '01/07/2026 01:45' and cliente['p_registro_kw'] == pytest.approx(2.0)
 
 
+def test_el_cliente_a_su_maxima_va_al_plan_y_no_bloquea_sin_el_instante(client):
+    """039:RF-12, 039:RF-16, 039:RF-18, 039:RF-19, 039:RF-21 — la hoja de 11 no trae el instante de la máxima: con
+    «coincidente» no se calibraría, pero marcado «a su máxima» va con su POT (5 kW) y el ERI × 4 de ese registro; su SED
+    es una fija con esa P (las escaladas ponen el resto hasta la cabecera) y el plan lo lista para el informe."""
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', _clientes_con_hoja('02/07/2026'))
+    r = _plan(client, wid, job, a_su_maxima=['11'])
+    assert r.status_code == 200, r.text
+    lista = r.json()['ajustes'][0]['fijas_a_su_maxima']
+    assert [(x['codigo'], x['sed'], x['fecha']) for x in lista] == [('11', 'E1', '02/07/2026 00:15')]
+    assert lista[0]['p_kw'] == pytest.approx(5.0) and lista[0]['q_kvar'] == pytest.approx(1.0)
+    trabajo = client.post(f"/api/workspaces/{wid}/demanda/ajuste/{r.json()['token']}/simular").json()
+    plan = esperar_trabajo(client, trabajo)['result']['informe']['recibido']
+    assert plan['criterio_fijas'] == 'coincidente' and plan['fijas_a_su_maxima'] == lista
+    cliente = plan['clientes'][0]
+    assert cliente['criterio'] == 'a_su_maxima' and cliente['p_registro_kw'] is None
+    assert cliente['fecha_registro'] == '02/07/2026 00:15' and not cliente.get('sin_coincidente')
+    assert plan['fixed_load_evidence'][0]['p_kw'] == pytest.approx(5.0)
+
+
+def test_el_plan_usa_la_seleccion_guardada_si_no_la_trae(client):
+    """039:RF-15, 039:RF-16 — sin ``a_su_maxima`` en la petición, el plan toma la selección guardada en el espacio;
+    con una lista vacía, ninguna."""
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', _clientes_con_hoja('01/07/2026'))
+    assert client.put(f'/api/workspaces/{wid}/demanda/clientes/a-su-maxima', json={'codigos': ['11']}).status_code == 200
+    con = _plan(client, wid, job).json()['ajustes'][0]['fijas_a_su_maxima']
+    assert len(con) == 1 and con[0]['p_kw'] == pytest.approx(5.0)
+    assert _plan(client, wid, job, a_su_maxima=[]).json()['ajustes'][0]['fijas_a_su_maxima'] == []
+
+
 def test_la_calibracion_guarda_su_perfil_de_tension_para_el_informe(tmp_path):
     """094:RF-2, 094:RF-3 — el perfil de la calibración queda con ella en el espacio y el informe de estudio lo toma de
     ahí, sin volver a leer DIgSILENT."""

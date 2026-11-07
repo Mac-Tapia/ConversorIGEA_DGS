@@ -1,6 +1,21 @@
 {
   "components": {
     "schemas": {
+      "ASuMaximaIn": {
+        "description": "039:RF-13, RF-15: los códigos de los clientes fijos que van a su máxima del mes.",
+        "properties": {
+          "codigos": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20000,
+            "title": "Codigos",
+            "type": "array"
+          }
+        },
+        "title": "ASuMaximaIn",
+        "type": "object"
+      },
       "AgenteProyectoIn": {
         "description": "067:RF-38: la orden trae la huella de la lista que el operador vio.",
         "properties": {
@@ -131,6 +146,21 @@
       "AjusteIn": {
         "description": "Ajuste a la máxima de cabecera (spec 006): el trabajo de la máxima que se ve.",
         "properties": {
+          "a_su_maxima": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Su Maxima"
+          },
           "centrales": {
             "additionalProperties": {
               "$ref": "#/components/schemas/CentralIn"
@@ -1304,6 +1334,21 @@
       "DemandaClientesIn": {
         "description": "Alimentadores de la máxima buscada: el cruce se queda con sus clientes (RF-43).",
         "properties": {
+          "a_su_maxima": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Su Maxima"
+          },
           "alimentadores": {
             "items": {
               "type": "string"
@@ -1983,6 +2028,13 @@
             },
             "title": "Demanda",
             "type": "object"
+          },
+          "fijas_a_su_maxima": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fijas A Su Maxima",
+            "type": "array"
           },
           "groups": {
             "items": {
@@ -4578,6 +4630,21 @@
       "RecalibrarIn": {
         "description": "028:RF-21, RF-24: recalibrar el sistema o los alimentadores del proyecto ya importado.",
         "properties": {
+          "a_su_maxima": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Su Maxima"
+          },
           "criterio_fijas": {
             "default": "coincidente",
             "enum": [
@@ -8506,6 +8573,57 @@
           }
         },
         "summary": "Demanda Centrales"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/clientes/a-su-maxima": {
+      "put": {
+        "operationId": "demanda_a_su_maxima_api_workspaces__wid__demanda_clientes_a_su_maxima_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ASuMaximaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Demanda A Su Maxima Api Workspaces  Wid  Demanda Clientes A Su Maxima Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda A Su Maxima"
       }
     },
     "/api/workspaces/{wid}/demanda/clientes/comparar": {

@@ -27,6 +27,22 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       en verde, `npm run build` sin errores y el desplegable comprobado en el navegador real.
       Hecho el 2026-11-05: 88 pruebas en verde, `npm run build` sin errores; en el navegador, el desplegable en 2.3 y en
       «Recalibrar» de Pisco.
+- [x] T6. Cliente a su máxima en el servidor: los dos valores y la diferencia en la tabla, la selección guardada en el
+      espacio (`PUT /demanda/clientes/a-su-maxima`), `a_su_maxima` en el cruce, en el plan del ajuste, en
+      `RecalibrarIn` y en `sistema_web.py --a-su-maxima`, y la lista en el informe del guion. (RF-9, RF-10, RF-12,
+      RF-14 a RF-16, RF-18 a RF-22)
+      Hecho cuando: `pytest -q tests/test_fijas_a_su_maxima.py tests/test_tabla_en_el_instante.py tests/test_ajuste_cabecera_web.py
+      tests/test_q_con_bancos.py tests/test_sistema_web.py` en verde.
+      Hecho el 2026-11-07: 11 pruebas nuevas, que fallan todas sin el cambio; 158 en verde con las de esos ficheros
+      y `tests/test_escaneo.py`.
+- [x] T7. Web: columnas de los dos valores y de la diferencia, orden y filtro por la diferencia, casilla «a su máxima»
+      con «Desmarcar todos», y el botón «Recalibrar con estos criterios» en 2.3. (RF-9 a RF-14, RF-17)
+      Hecho cuando: `npm run build` sin errores y `pytest -q tests/test_fijas_a_su_maxima.py` en verde.
+      Hecho el 2026-11-07: `npm ci && npm run build` y `tsc --noEmit` sin errores; la vista en el navegador real
+      queda con la prueba en DIgSILENT (T8).
+- [ ] T8. [DIgSILENT] CA101_CHN102 recalibrado desde la web con un cliente a su máxima. (RF-12, RF-17 a RF-19)
+      Hecho cuando: el informe de la calibración lista ese cliente con su registro, sus kW y sus kvar de máxima, la
+      cabecera cuadra dentro de la tolerancia y la tabla, vista en el navegador real, muestra sus dos valores.
 - [ ] T4. [DIgSILENT] NA203 recalibrado con los dos criterios desde la web. (Todos)
       Hecho cuando: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar de fijas y «coincidente» con
       2026-09 el registro de cada fija en el instante de su máxima de cabecera.

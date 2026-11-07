@@ -292,3 +292,69 @@ def test_una_calibracion_guardada_sin_cabecera_toma_la_red_de_su_informe_en_disc
     red = esperar_trabajo(client, r.json())['result']['alimentadores'][0]['red']
     assert red['red_y_bancos_kvar'] == pytest.approx(50.0 - 90.0) and red['bancos_kvar'] == pytest.approx(150.0)
     assert 'ajuste_cabecera_aplicacion_tok.json' in red['calibracion']
+
+
+def test_cada_fija_con_sus_dos_valores_y_la_diferencia_sin_marcar_ninguna(client):
+    """039:RF-9, 039:RF-10, 039:RF-11 — con la máxima buscada, cada fija enseña su valor coincidente (con la hora de
+    la máxima de cabecera) y el de su máxima del mes (con su fecha y hora), y la diferencia de P en kW y en %; la que
+    no tiene el registro del instante no tiene coincidente, la que no tiene hoja va con su EA/ERI en los dos, y nadie
+    queda marcado «a su máxima» por su cuenta."""
+    cruce = _dos_criterios(client)()
+    assert cruce['a_su_maxima'] == []
+    filas = {c['codigo']: c for c in cruce['cruzados']}
+    f11 = filas['11']
+    coinc = f11['valores']['coincidente']
+    assert coinc['fecha'] == '01/07/2026 00:30' and coinc['metodo'] == 'REGISTRO_DEL_INSTANTE'
+    assert coinc['p_kw'] == pytest.approx(48.0) and coinc['q_kvar'] == pytest.approx(4.8)
+    maxi = f11['valores']['maximo_mes']
+    assert maxi['fecha'] == '01/07/2026 02:15' and maxi['p_kw'] == pytest.approx(400.0)
+    assert maxi['q_kvar'] == pytest.approx(30.0)
+    assert f11['diferencia_kw'] == pytest.approx(352.0) and f11['diferencia_pct'] == pytest.approx(352.0 / 48.0 * 100)
+    assert f11['criterio'] == 'coincidente' and f11['a_su_maxima'] is False and f11['p_kw'] == pytest.approx(48.0)
+    assert filas['14']['valores']['coincidente'] is None and 'diferencia_kw' not in filas['14']
+    assert filas['14']['valores']['maximo_mes']['fecha'] == '02/07/2026 02:15'
+    f12 = filas['12']
+    assert f12['valores']['coincidente']['metodo'] == f12['valores']['maximo_mes']['metodo'] == 'ERI/EA'
+    assert f12['diferencia_kw'] == pytest.approx(0.0)
+
+
+def test_el_cliente_a_su_maxima_va_con_su_pot_y_no_bloquea(client):
+    """039:RF-12, 039:RF-14, 039:RF-20, 039:RF-21, 039:RF-22 — los marcados (por su código del libro, en cualquier
+    forma: «0011») van con la POT de su hoja y el ERI × 4 de ese registro, con el criterio «a_su_maxima» en su fila; el
+    que no tiene el registro del instante ya no bloquea, y el que no tiene hoja va con su EA/ERI del mes, dicho. El no
+    marcado sigue con el criterio de su alimentador."""
+    cruzar = _dos_criterios(client)
+    cruce = cruzar(a_su_maxima=['0011', '14', '12'])
+    filas = {c['codigo']: c for c in cruce['cruzados']}
+    for codigo, dia in (('11', '01/07/2026'), ('14', '02/07/2026')):
+        f = filas[codigo]
+        assert f['criterio'] == 'a_su_maxima' and f['a_su_maxima'] is True
+        assert f['fecha_valores'] == f'{dia} 02:15' and f['p_kw'] == pytest.approx(400.0)
+        assert f['q_kvar'] == pytest.approx(30.0) and not f.get('sin_coincidente')
+    assert cruce['no_coincidentes'] == []
+    assert filas['12']['metodo'] == 'ERI/EA' and filas['12']['criterio'] == 'a_su_maxima'
+    assert any(a.startswith('12:') and '039:RF-20' in a for a in cruce['avisos_a_su_maxima'])
+    assert sorted(cruce['a_su_maxima']) == ['11', '12', '14']
+    # Sin marcar 14, su falta del registro del instante vuelve a decirse (039:RF-4).
+    filas = {c['codigo']: c for c in cruzar(a_su_maxima=['11'])['cruzados']}
+    assert filas['14'].get('sin_coincidente') and filas['14']['criterio'] == 'coincidente'
+
+
+def test_la_seleccion_se_guarda_en_el_espacio_y_vale_sin_mandarla(client):
+    """039:RF-13, 039:RF-15, 039:RF-16 — marcar guarda la selección en el espacio, que vuelve al reabrirlo y en el
+    espacio que lee la web; el cruce sin selección usa la guardada, y una lista vacía no marca ninguno."""
+    from convertersmartgrid.web.workspace import Workspace
+
+    cruzar = _dos_criterios(client)
+    r = client.put(f'/api/workspaces/{cruzar.wid}/demanda/clientes/a-su-maxima', json={'codigos': [' 11 ', '11', '14']})
+    assert r.status_code == 200 and r.json() == {'a_su_maxima': ['11', '14']}
+    ws = client.app.state.store.get(cruzar.wid)
+    assert Workspace.load(ws.root).fijas_a_su_maxima == ['11', '14']
+    assert client.get(f'/api/workspaces/{cruzar.wid}').json()['fijas_a_su_maxima'] == ['11', '14']
+    filas = {c['codigo']: c for c in cruzar()['cruzados']}
+    assert filas['11']['a_su_maxima'] and filas['14']['a_su_maxima'] and not filas['12']['a_su_maxima']
+    assert not any(c['a_su_maxima'] for c in cruzar(a_su_maxima=[])['cruzados'])
+    # Desmarcar todos (039:RF-13).
+    assert client.put(f'/api/workspaces/{cruzar.wid}/demanda/clientes/a-su-maxima',
+                      json={'codigos': []}).json() == {'a_su_maxima': []}
+    assert Workspace.load(ws.root).fijas_a_su_maxima == []

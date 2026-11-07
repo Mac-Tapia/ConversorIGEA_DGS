@@ -14,7 +14,7 @@ Un flujo que no converge no se acepta: se busca la causa y se corrige.
 ## En DIgSILENT
 
 1. Si un flujo no converge, leer primero lo que informa DIgSILENT en el `historial` del informe, antes de tocar nada
-   (`CLAUDE.md:187` («que no converge dice lo que informa DIgSILENT»)). La cadena de un sistema lo muestra al terminar
+   (`CLAUDE.md:195` («que no converge dice lo que informa DIgSILENT»)). La cadena de un sistema lo muestra al terminar
    (`tools/sistema_web.py:153` («inf.get('historial')»)).
 2. Con ese mensaje se aísla la isla o la barra que lo causa y se corrige la causa, en su variación. No se aceptan atajos como
    bajar la demanda de todo el alimentador.
