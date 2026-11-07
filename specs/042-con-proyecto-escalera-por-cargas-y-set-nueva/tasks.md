@@ -140,3 +140,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py -k "sobrecargad or refuerzo"` en verde.
 - [x] T59. Las variantes se miden de menor a mayor costo cuando se buscan alternativas. (RF-95)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_web.py` en verde.
+- [x] T60. La POT de cada libro de clientes, guardada con su huella y reutilizada. (RF-96)
+      Hecho cuando: `pytest -q tests/test_crecimiento.py -k huella` en verde.

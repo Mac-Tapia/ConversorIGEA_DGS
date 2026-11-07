@@ -208,6 +208,10 @@ Informe y web
   iguales, para que las primeras que cumplen sean las más baratas y RF-92 pare antes. PE102
   (2026-11-06): se midieron 34 variantes en DIgSILENT; el usuario pidió «ordenar por costo y parar con
   las 3 más baratas que cumplen, más una definitiva».
+- RF-96: EL SISTEMA guardará la POT que da cada libro de clientes para la tasa de las fijas (RF-7) con la
+  huella del libro (ruta, tamaño y fecha de modificación), de los alias y del lector, y no volverá a leer
+  un libro cuya huella no cambió. PE102 (2026-11-06): cada corrida de «Con proyecto» releía los 21 libros
+  mensuales de clientes importantes, de 50 a 150 MB cada uno.
 
 ## Relación con otras specs
 

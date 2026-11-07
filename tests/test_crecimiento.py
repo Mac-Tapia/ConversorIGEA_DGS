@@ -101,3 +101,41 @@ def test_los_libros_de_clientes_se_leen_como_trabajo():
     assert cr.pot_de_los_libros([], None, progreso=lambda *a: vistos.append(a), log=vistos.append,
                                 cancelado=lambda: False) == {}
     assert cr.pot_de_los_libros([('2026-01', 'no_existe.xlsx')], None, cancelado=lambda: True) == {}
+
+
+def test_la_pot_de_cada_libro_se_guarda_con_su_huella(tmp_path, monkeypatch):
+    """042:RF-96 — un libro con la misma huella no se vuelve a leer; el que cambia, sí. PE102: cada «Con proyecto»
+    releía los 21 libros de clientes importantes."""
+    import os
+    from types import SimpleNamespace
+
+    from convertersmartgrid import demanda_medida as dm
+
+    rnd = random.Random(42096)
+    n = rnd.randint(3, 8)
+    libros = []
+    for i in range(n):
+        ruta = tmp_path / f'{i + 1:02d}26clientesImportantes.xlsx'
+        ruta.write_bytes(os.urandom(64))
+        libros.append((f'2026-{i + 1:02d}', str(ruta)))
+    pot = {ruta: rnd.uniform(10.0, 900.0) for _m, ruta in libros}
+    leidos = []
+
+    def leer(ruta, _alias):
+        leidos.append(ruta)
+        return [SimpleNamespace(codigo=f'C-{Path(ruta).stem}', pot=pot[str(ruta)])], []
+
+    from pathlib import Path
+
+    monkeypatch.setattr(dm, 'leer_clientes', leer)
+    cache = tmp_path / 'cache'
+    primero = cr.pot_de_los_libros(libros, {'pot': ('POT',)}, cache=cache)
+    assert len(leidos) == n
+    assert cr.pot_de_los_libros(libros, {'pot': ('POT',)}, cache=cache) == primero and len(leidos) == n
+    cambiado = Path(libros[rnd.randrange(n)][1])
+    cambiado.write_bytes(os.urandom(128))
+    cr.pot_de_los_libros(libros, {'pot': ('POT',)}, cache=cache)
+    assert leidos[n:] == [str(cambiado)]
+    # Otros alias son otra lectura: la huella los lleva.
+    cr.pot_de_los_libros(libros, {'pot': ('OTRA',)}, cache=cache)
+    assert len(leidos) == 2 * n + 1

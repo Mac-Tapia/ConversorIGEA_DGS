@@ -5198,7 +5198,7 @@ def _crecimiento_de_las_fijas(ws: Workspace, ctx: JobContext, project: str, feed
                 for f, cs in fijas.items()}
     ctx.log(f'Crecimiento desde las fijas registradas de {", ".join(feeders)} '
             f'({len(libros)} libros de clientes, 042:RF-7)…')
-    pot = ctx.en_proceso(pot_de_los_libros, libros, demanda_alias())
+    pot = ctx.en_proceso(pot_de_los_libros, libros, demanda_alias(), cache=str(ws.out_dir / 'cache' / 'pot_clientes'))  # 042:RF-96
     return tasa_de_las_fijas(pot, clientes)
 
 

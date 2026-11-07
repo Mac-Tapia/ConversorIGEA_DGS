@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | aprobada | 19 |
 | reservada | 3 |
 
-96 specs con 3110 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+96 specs con 3111 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

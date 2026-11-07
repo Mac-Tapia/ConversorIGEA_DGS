@@ -138,25 +138,64 @@ def tasa_de_las_fijas(pot_por_mes: Mapping[str, Mapping[str, float]],
     return out
 
 
+def _huella_del_libro(ruta: str, alias: Any) -> str | None:
+    """042:RF-96: la del libro (ruta, tamaño y fecha), la de los alias y la del lector; ``None`` si no se puede leer."""
+    import hashlib
+    import json
+
+    try:
+        st = Path(ruta).stat()
+        lector = (Path(__file__).with_name('demanda_medida.py')).read_bytes()
+    except OSError:
+        return None
+    datos = json.dumps({'ruta': str(Path(ruta).resolve()), 'tam': st.st_size, 'mtime': st.st_mtime_ns,
+                        'alias': alias}, sort_keys=True, default=str)
+    return hashlib.sha256(datos.encode('utf-8') + hashlib.sha256(lector).digest()).hexdigest()[:32]
+
+
 def pot_de_los_libros(libros: Sequence[tuple[str, str]], alias: Any, *, progreso: Callable = lambda *_a: None,
                       log: Callable = lambda _t: None,
-                      cancelado: Callable[[], bool] = lambda: False) -> dict[str, dict[str, float]]:
+                      cancelado: Callable[[], bool] = lambda: False,
+                      cache: str | Path | None = None) -> dict[str, dict[str, float]]:
     """``'AAAA-MM'`` → clave de cliente → POT (kW) de cada libro de clientes del catálogo (042:RF-7).
 
     De nivel superior: corre en el proceso del trabajo (029:RF-7). Un libro que no se lee no
-    cuenta: su mes queda fuera de los meses comunes.
+    cuenta: su mes queda fuera de los meses comunes. Con ``cache``, la POT de cada libro se guarda
+    con su huella y un libro sin cambios no se vuelve a leer (042:RF-96): en PE102 (2026-11-06) cada
+    «Con proyecto» releía los 21 libros de clientes importantes, de 50 a 150 MB cada uno.
     """
+    import json
+
     from .demanda_medida import DemandaError, clave_codigo, leer_clientes
 
+    carpeta = Path(cache) if cache else None
     out: dict[str, dict[str, float]] = {}
     for i, (mes, ruta) in enumerate(libros, 1):
         if cancelado():
             break
-        log(f'Crecimiento: libro de clientes de {mes} ({i}/{len(libros)})…')
         progreso(i, len(libros))
+        huella = _huella_del_libro(ruta, alias) if carpeta is not None else None
+        guardado = carpeta / f'pot_{huella}.json' if huella else None
+        if guardado is not None and guardado.is_file():
+            try:
+                out.setdefault(mes, {}).update(json.loads(guardado.read_text(encoding='utf-8')))
+                log(f'Crecimiento: libro de clientes de {mes} ({i}/{len(libros)}), ya leído (042:RF-96).')
+                continue
+            except (OSError, ValueError):
+                pass                                    # un guardado roto se vuelve a leer
+        log(f'Crecimiento: libro de clientes de {mes} ({i}/{len(libros)})…')
         try:
             clientes, _avisos = leer_clientes(ruta, alias)
         except (DemandaError, OSError):
             continue
-        out.setdefault(mes, {}).update({clave_codigo(c.codigo): float(c.pot) for c in clientes if c.pot})
+        pot = {clave_codigo(c.codigo): float(c.pot) for c in clientes if c.pot}
+        out.setdefault(mes, {}).update(pot)
+        if guardado is not None:
+            try:
+                carpeta.mkdir(parents=True, exist_ok=True)
+                temporal = guardado.with_suffix('.tmp')
+                temporal.write_text(json.dumps(pot, sort_keys=True), encoding='utf-8')
+                temporal.replace(guardado)
+            except OSError:
+                pass                                    # sin guardar se lee otra vez la próxima: no se bloquea
     return out
