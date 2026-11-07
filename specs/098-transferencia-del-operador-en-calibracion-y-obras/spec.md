@@ -182,17 +182,33 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   línea de cada camino (terna o las secciones mayores aptas), con y sin bancos, y contará una vez cada tramo común,
   con el conductor mayor de los que pasan por él.
 - RF-32: EL SISTEMA reutilizará la medida de DIgSILENT de una variante solo cuando la huella de la medida sea la misma
-  (variaciones activas de «Con proyecto», con sus cargas nuevas y obras, cargas apartadas, barras, sorteos, valle y
-  parámetros) y la medida guardada no sea sospechosa; en cualquier otro caso la volverá a medir, y dirá en el registro
-  cuántas reutilizó, por qué era seguro y cuántas midió de nuevo y por qué.
+  (variaciones activas de «Con proyecto» con lo que graba cada una y la demanda de cada alimentador, cargas apartadas,
+  barras, sorteos, valle y parámetros) y la medida guardada no sea sospechosa; en cualquier otro caso la volverá a
+  medir, y dirá en el registro cuántas reutilizó, por qué era seguro y cuántas midió de nuevo y por qué. Las
+  reutilizadas no se crean de nuevo en DIgSILENT, pero cuentan para parar la escalera (042:RF-90, 073:RF-18); si todas
+  son sabidas, no se abre DIgSILENT.
 - RF-33: EL SISTEMA propondrá para la caída, en las obras de varios caminos, solo las secciones mayores aptas para la
   corriente, no la menor que la lleva.
-- RF-34: CUANDO una obra deja un regulador, EL SISTEMA activará el ajuste automático de tomas del flujo del caso donde
-  se mide, lo anotará y lo devolverá a como estaba al borrar la variante evaluada; SI con el regulador nada cambia
-  respecto de la misma variante sin él, ENTONCES la marcará «no aplicada» (RF-28).
+- RF-34: CUANDO una obra deja un regulador, EL SISTEMA activará el ajuste automático de tomas del flujo de cada caso de
+  la obra (no el del caso activo), lo anotará en la fila y en el registro de disco antes de cambiarlo y lo devolverá a
+  como estaba al borrar la variante evaluada, también si la creación se corta a mitad; mientras se mide, dejará fijas
+  las tomas automáticas de los demás transformadores (anotadas y devueltas), y aplicada, dirá cuáles regulan; SI con el
+  regulador nada cambia respecto de la misma variante sin él, ENTONCES la marcará «no aplicada» (RF-28).
 - RF-35: SI el libro CAPEX no trae el costo de la sección o de la terna, ENTONCES EL SISTEMA las costeará con el km
-  del cambio de nivel, por confirmar; y entre las que cumplen, la que no aguanta ni un año (042:RF-92) irá detrás de
-  la que sí aguanta, con su costo y sus años en las alternativas.
+  del cambio de nivel, la terna por su factor del perfil (1,5 si no lo da), por confirmar; medirá el alcance
+  (042:RF-92) de cada una que cumple, y dirá «no llega al horizonte más corto (N años)» de la que se midió en 0 años y
+  «sin medir» de la que no se midió.
+- RF-36: CUANDO la escalera vuelve a correr sobre un alimentador cuya obra aplicada en «Con proyecto» no se eligió como
+  la de corto plazo (RF-37), EL SISTEMA la retirará con lo que abrió, cerró y cambió en el flujo, medirá de nuevo las
+  alternativas sin ella, aplicará la de corto plazo y dejará planteada la de largo plazo, y dirá qué retiró, por qué
+  y qué la sustituye.
+- RF-37: EL SISTEMA elegirá dos obras por alimentador: la de corto plazo, la más barata que cumple hoy (con la máxima,
+  los sorteos y el valle) en el orden de la escalera (042:RF-56), que se aplica; y la de largo plazo, la más barata que
+  aguanta el horizonte del proyecto (042:RF-92), mejor la que contiene la de corto plazo, que se plantea para el año en
+  que la de corto plazo deja de aguantar y pasa al plan y al PIDE (072:RF-4); SI la de corto plazo aguanta el
+  horizonte, ENTONCES es también la de largo plazo y se dice; SI ninguna aguanta, ENTONCES se dice. El informe y la web
+  dan las dos, con su costo, la mínima de media, los años que aguanta cada una y el año en que hace falta la de largo
+  plazo.
 
 ## Relación con otras specs
 
@@ -203,6 +219,9 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 - Amplía 042:RF-56: la transferencia cuenta con los bancos en el grupo económico (098:RF-23).
 - Cambia 042:RF-30 para varios caminos: la sección de un camino y la terna de otro sí se combinan (098:RF-31).
 - Amplía 025:RF-73 (evaluación reutilizada) a cada variante (098:RF-32) y 042:RF-54 a la sección y la terna (098:RF-35).
+- Cambia 042:RF-56 y 042:RF-93 en lo que se aplica y lo que se plantea: la de corto plazo se aplica y la definitiva
+  más barata es la de largo plazo, con el año en que hace falta (098:RF-37); amplía 042:RF-60 a la obra elegida con la
+  regla anterior (098:RF-36). El plan y el PIDE la leen de las alternativas (072:RF-4), sin calcularla de nuevo.
 - Amplía 081:RF-80 y RF-81: un interruptor de cubículo se anota con su nombre completo.
 - No cambia la 013 (transferencia como estudio entre dos alimentadores) ni 081:RF-83 y RF-84: lo del operador que no
   deja barras sin tensión se respeta en «Con proyecto».
@@ -216,6 +235,6 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-35.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-37.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

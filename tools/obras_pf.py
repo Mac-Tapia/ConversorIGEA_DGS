@@ -476,6 +476,8 @@ class Contexto:
         self.redes = dict(redes or {})
         """Las redes leídas de todos los alimentadores: el enlace necesita la del que cede."""
         self.plan = dict(plan or {})
+        self.casos: dict = {}
+        """098:RF-34: los casos de la obra por su papel; el flujo que la obra ajusta es el de cada uno."""
         self.tipos: dict = {}
         """``(clase, nombre del original)`` → tipo copiado o reutilizado en el proyecto."""
         self.copias: dict = {}
@@ -570,33 +572,135 @@ def _aviso_del_flujo(ctx, atributo: str, que: str) -> None:
             'estudios hasta que se active.')
 
 
+def _ldf_del_caso(app, caso):
+    """098:RF-34: el ``ComLdf`` de ``caso``, sin depender de cuál esté activo.
+
+    La obra se construye con activo el primero de sus casos (``_aplicar_una``), que puede ser «Sin proyecto»: activar el
+    ajuste en el flujo del caso activo no lo activaba en «Con proyecto», donde se mide. Las órdenes de cálculo cuelgan del
+    caso; si no se encuentra la suya, el del caso activo solo si ``caso`` es el activo.
+    """
+    if caso is not None and hasattr(caso, 'GetContents'):
+        propio = next(iter(caso.GetContents('*.ComLdf') or []), None)
+        if propio is not None:
+            return propio
+    activo = app.GetActiveStudyCase()
+    if caso is None or activo is caso or (activo is not None and _ruta_de(activo) == _ruta_de(caso)):
+        return app.GetFromStudyCase('ComLdf')
+    return None
+
+
+def anotar_valor(ctx, clase: str, obj, atributo: str, nuevo, caso=None) -> None:
+    """098:RF-34: como :func:`abrir`: anota el valor de ``atributo`` en la fila y en disco antes de cambiarlo, y lo cambia.
+
+    Si la orden muere tras cambiarlo, la siguiente lo restituye (081:RF-82); al borrar la variante evaluada, también.
+    """
+    caso = caso if caso is not None else ctx.app.GetActiveStudyCase()
+    e = {'clase': clase, 'nombre': getattr(obj, 'loc_name', '') or '', 'ruta': _ruta_de(obj), 'atributo': atributo,
+         'valor': getattr(obj, atributo, 0), 'caso': getattr(caso, 'loc_name', '') or '',
+         'caso_ruta': _ruta_de(caso) if caso is not None else ''}
+    ctx.fila.setdefault('valores', []).append(e)
+    if ctx.plan.get('project'):
+        ruta = fichero_aperturas(ctx.plan)
+        entradas = leer_aperturas(ruta)
+        entradas.append({**e, 'proyecto': ctx.plan['project'], 'variacion': ctx.fila.get('variacion') or '',
+                         'evaluando': bool(ctx.plan.get('evaluando')), 'fecha': time.strftime('%Y-%m-%dT%H:%M:%S'),
+                         'accion': 'valor'})
+        try:
+            escribir_aperturas(ruta, entradas)
+        except OSError as exc:
+            ctx.fila.setdefault('avisos', []).append(f'No se pudo anotar en disco el cambio de {e["nombre"]}.{atributo}: '
+                                                     f'{exc}; si la orden muere, no se restituirá solo (098:RF-34).')
+    setattr(obj, atributo, nuevo)
+
+
 def _activar_en_el_flujo(ctx, atributo: str, que: str) -> None:
-    """098:RF-34: el flujo del caso ajusta lo que la obra deja regulando; si no lo hacía, se activa y se anota.
+    """098:RF-34: el flujo de cada caso de la obra ajusta lo que la obra deja regulando; si no lo hacía, se activa y se anota.
 
     CHN102 (2026-11-07): con ``ComLdf.iopt_at = 0`` las variantes con «+ regulador 500 A» y «300 A» daban la misma
     tensión que sin él (0,956 frente a 0,956): el regulador se quedaba en su toma central. Al borrar la variante
     evaluada, el flujo vuelve a como estaba (como lo abierto, 081:RF-81); en la obra aplicada, se queda y se dice.
     """
-    ldf = ctx.app.GetFromStudyCase('ComLdf')
-    if ldf is None or getattr(ldf, atributo, 0):
+    casos = list((getattr(ctx, 'casos', None) or {}).values()) or [ctx.app.GetActiveStudyCase()]
+    activados = []
+    for caso in casos:
+        nombre = getattr(caso, 'loc_name', '') or ''
+        ldf = _ldf_del_caso(ctx.app, caso)
+        if ldf is None:
+            ctx.fila['avisos'].append(f'No se encontró el flujo de carga de «{nombre}»: la obra no regula allí hasta que se '
+                                      f'active su ajuste automático de {que} (ComLdf.{atributo}) (098:RF-34).')
+            continue
+        if getattr(ldf, atributo, 0):
+            continue
+        anotar_valor(ctx, 'ComLdf', ldf, atributo, 1, caso)
+        activados.append(nombre)
+        ctx.fila['avisos'].append(f'Se activa el ajuste automático de {que} del flujo de «{nombre}» (ComLdf.{atributo}): '
+                                  'sin él la obra no regula (098:RF-34).')
+    if activados and atributo == 'iopt_at':
+        _otras_tomas(ctx)
+
+
+def _otras_tomas(ctx) -> None:
+    """098:RF-34: con el ajuste de tomas activado por la obra, los transformadores con toma automática también regulan.
+
+    Midiendo, se dejan fijos (anotados): la variante tiene que cumplir por su obra, no porque se movieron otras tomas que
+    sin ella no se movían. Aplicada, se dice cuáles regulan ahora en «Con proyecto».
+    """
+    otras = [t for t in ctx.app.GetCalcRelevantObjects('*.ElmTr2') or [] if int(getattr(t, 'ntrcn', 0) or 0)]
+    if not otras:
         return
-    caso = getattr(ctx.app.GetActiveStudyCase(), 'loc_name', '') or ''
-    ctx.fila.setdefault('flujo_activado', []).append([caso, atributo, getattr(ldf, atributo, 0)])
-    setattr(ldf, atributo, 1)
-    ctx.fila['avisos'].append(f'Se activa el ajuste automático de {que} del flujo de «{caso}» (ComLdf.{atributo}): sin él la '
-                              'obra no regula (098:RF-34).')
+    nombres = sorted(str(t.loc_name) for t in otras)
+    lista = ', '.join(nombres[:10]) + (f' y {len(nombres) - 10} más' if len(nombres) > 10 else '')
+    if ctx.plan.get('evaluando'):
+        for t in otras:
+            anotar_valor(ctx, 'ElmTr2', t, 'ntrcn', 0)
+        ctx.fila['avisos'].append(f'Mientras se mide, {len(otras)} transformador(es) con toma automática quedan con la toma '
+                                  f'fija ({lista}): la variante no cumple gracias a ellos; al borrarla vuelven (098:RF-34).')
+    else:
+        ctx.fila['avisos'].append(f'Con el ajuste de tomas activo, también regulan {len(otras)} transformador(es) con toma '
+                                  f'automática: {lista} (098:RF-34).')
 
 
-def restituir_el_flujo(app, casos: dict, filas: list[dict]) -> None:
-    """098:RF-34: lo que :func:`_activar_en_el_flujo` cambió en el flujo de cada caso, como estaba."""
+def restituir_valores(app, casos: dict, valores: list[dict], avisos: list[str]) -> int:
+    """098:RF-34: lo que :func:`anotar_valor` cambió, como estaba, en el caso donde se cambió (por su nombre completo).
+
+    En orden inverso: si el mismo atributo se anotó dos veces, el primero es el original."""
+    por_ruta = {_ruta_de(c): c for c in casos.values()}
     por_nombre = {c.loc_name: c for c in casos.values()}
-    for f in filas:
-        for caso, atributo, valor in f.get('flujo_activado') or []:
-            if por_nombre.get(caso) is not None:
-                por_nombre[caso].Activate()
-            ldf = app.GetFromStudyCase('ComLdf')
-            if ldf is not None:
-                setattr(ldf, atributo, valor)
+    inicial = app.GetActiveStudyCase()
+    hechos = 0
+    try:
+        for e in reversed(valores):
+            caso = por_ruta.get(e.get('caso_ruta')) or por_nombre.get(e.get('caso'))
+            if caso is None and e.get('caso'):
+                avisos.append(f"No está el caso «{e['caso']}»: {e.get('clase')} {e.get('nombre')}.{e['atributo']} queda "
+                              'como lo dejó la obra (098:RF-34).')
+                continue
+            if caso is not None:
+                caso.Activate()
+            objs = ([_ldf_del_caso(app, caso)] if e.get('clase') == 'ComLdf'
+                    else _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')))
+            for o in objs:
+                if o is not None:
+                    setattr(o, e['atributo'], e['valor'])
+                    hechos += 1
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return hechos
+
+
+def restituir_el_flujo(app, casos: dict, filas: list[dict], plan: dict | None = None) -> list[str]:
+    """098:RF-34: lo que :func:`_activar_en_el_flujo` y :func:`_otras_tomas` cambiaron, como estaba; los avisos."""
+    valores = [e for f in filas for e in f.get('valores') or []]
+    # Las filas de antes de anotar en disco: ``[caso, atributo, valor]`` del flujo.
+    valores += [{'clase': 'ComLdf', 'caso': x[0], 'atributo': x[1], 'valor': x[2]}
+                for f in filas for x in f.get('flujo_activado') or []]
+    avisos: list[str] = []
+    if valores:
+        restituir_valores(app, casos, valores, avisos)
+        if plan is not None:
+            quitar_aperturas(plan, filas)
+    return avisos
 
 
 def _barra_con_tres_fases(ctx, barra):
@@ -2089,6 +2193,7 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
     try:
         ctx = Contexto(app, proyecto, obra, fila, red, alims.elm[obra.alimentador], alims=alims,
                        redes=redes, plan=plan)
+        ctx.casos = {r: casos[r] for r in (ROL_DE_CASO.get(c) for c in obra.casos) if r in casos}
         for t in fila['tipos']:                                            # RF-60
             copia, reutiliza, aviso = copiar_tipo(app, _fuente_de_tipo(app, t, plan),
                                                   t['nombre'], t['datos'])
@@ -2244,6 +2349,8 @@ def quitar_aperturas(plan: dict, filas: list[dict]) -> None:
         return
     propias = [{'caso': (e[2] if len(e) > 2 else ''), 'clase': e[0], 'nombre': e[1]}
                for f in filas for e in list(f.get('abiertos') or []) + list(f.get('cerrados') or [])]
+    propias += [{'caso': e.get('caso') or '', 'clase': e.get('clase'), 'nombre': e.get('nombre')}      # 098:RF-34
+                for f in filas for e in f.get('valores') or []]
     if not propias:
         return
     ruta = fichero_aperturas(plan)
@@ -2313,6 +2420,15 @@ def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[di
             for e in grupo:
                 if not e.get('evaluando') and e.get('variacion') and e['variacion'] in activas:
                     respetadas.append(e)
+                    continue
+                if e.get('accion') == 'valor':                                  # 098:RF-34
+                    objs = ([_ldf_del_caso(app, objeto_caso)] if e.get('clase') == 'ComLdf'
+                            else _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')))
+                    for obj in objs:
+                        if obj is not None:
+                            setattr(obj, e['atributo'], e.get('valor'))
+                            hechas += 1
+                    restituidas.append(e)
                     continue
                 for obj in _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')):
                     (_reabrir if e.get('accion') == 'cerrar' else _cerrar)(e['clase'], obj)       # 098:RF-21
@@ -2852,6 +2968,18 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
                 v.Deactivate()                      # activa y grabando, DIgSILENT no la borra (2026-10-15)
                 v.Delete()
                 informe['retiradas'].append(nombre)
+        # 098:RF-36: lo que la obra retirada abrió, cerró o cambió en el flujo es del escenario y del caso, no de su
+        # variación: sin esto, CHN102 se quedaba con el ajuste de tomas y lo abierto de la obra que ya no está.
+        filas = [f for f in plan.get('operacion_de_obras') or [] if f.get('variacion') in informe['retiradas']]
+        if filas:
+            restituir_lo_abierto(app, casos, filas, plan)
+            informe['avisos'] += restituir_el_flujo(app, casos, filas, plan)
+            for rol in ('sin', 'con'):
+                casos[rol].Activate()
+                escenario = app.GetActiveScenario() if hasattr(app, 'GetActiveScenario') else None
+                if escenario is not None:
+                    escenario.Save()
+            informe['operacion_restituida'] = sorted(f['variacion'] for f in filas)
     finally:
         if inicial is not None:
             inicial.Activate()
@@ -2948,6 +3076,43 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
     return {f: sorted(x, key=lambda e: (e['vecino'], e['enlace'])) for f, x in out.items()}
 
 
+#: 098:RF-32: lo que se compara de cada objeto que graban las variaciones activas.
+ATRIBUTOS_DE_HUELLA = ('outserv', 'on_off', 'plini', 'qlini', 'scale0', 'dline', 'nlnum', 'ncapa', 'ncapx', 'usetp',
+                       'ntrcn', 'nntap', 'qcapn', 'uknom')
+
+
+def huella_de_la_red(app, alims, feeders) -> str | None:
+    """098:RF-32: la huella de lo que se mide, con el contenido de las variaciones y no solo sus nombres.
+
+    Dos variaciones con el mismo nombre y otra potencia (una carga nueva con otros kW, una obra rehecha) daban la misma
+    huella con solo los nombres, y la escalera reutilizaba una medida de otra red. Lleva lo que graba cada etapa activa
+    (cada objeto, con :data:`ATRIBUTOS_DE_HUELLA` y su tipo) y la suma de la demanda de cada alimentador. Sin poder
+    leerla, ``None``: no se reutiliza nada."""
+    import hashlib
+
+    try:
+        partes = []
+        for v in sorted(app.GetActiveNetworkVariations() or [], key=lambda x: x.loc_name):
+            for etapa in v.GetContents('*.IntSstage') or []:
+                raiz = etapa.GetFullName()
+                for o in etapa.GetContents('*', 1) or []:
+                    tipo = getattr(o, 'typ_id', None)
+                    partes.append([v.loc_name, o.GetFullName().replace(raiz, '', 1),
+                                   {a: getattr(o, a) for a in ATRIBUTOS_DE_HUELLA if hasattr(o, a)},
+                                   getattr(tipo, 'loc_name', None) if tipo is not None else None])
+        for f in sorted(feeders):
+            elm = alims.elm.get(f)
+            cargas = list(elm.GetObjs('ElmLod')) if elm is not None else []
+            partes.append([f, round(sum(float(getattr(c, 'plini', 0) or 0) * float(getattr(c, 'scale0', 1) or 1)
+                                        for c in cargas if not int(getattr(c, 'outserv', 0) or 0)), 3),
+                           round(sum(float(getattr(c, 'qlini', 0) or 0) * float(getattr(c, 'scale0', 1) or 1)
+                                     for c in cargas if not int(getattr(c, 'outserv', 0) or 0)), 3), len(cargas)])
+    except (AttributeError, TypeError, ValueError, RuntimeError):
+        return None
+    datos = json.dumps(partes, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(datos.encode('utf-8')).hexdigest()
+
+
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     """Lo que necesita armar las variantes de la escalera, en «Con proyecto <año>» (025:RF-49,
     RF-60): la troncal de cada alimentador desde la cabecera, leída sin las cargas nuevas
@@ -2986,6 +3151,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
         # 025:RF-73: el estado de «Con proyecto» con el que se medirá; una evaluación anterior
         # solo se reutiliza si es el mismo.
         informe['variaciones_activas'] = sorted(v.loc_name for v in app.GetActiveNetworkVariations() or [])
+        informe['huella_red'] = huella_de_la_red(app, alims, feeders)                   # 098:RF-32
         ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []),
                                     plan.get('apartar_variaciones'))                  # RF-69, 042:RF-2
         apartadas = _apartar_cargas_nuevas(app)
@@ -3611,35 +3777,49 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         def con_variante(v, medir):
             """Crea las obras de ``v``, mide con ``medir()`` y las borra (RF-54); ``None`` y el
             error si no se pudieron crear."""
-            hecho, _rc = aplicar(app, {**plan, 'obras': v['obras'], 'evaluando': True})
-            creadas = [o['variacion'] for o in hecho.get('obras') or [] if o.get('variacion')]
-            errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
-                [hecho['error']] if hecho.get('error') else [])
-            # 098:RF-28: una obra que quedó inactiva en «Con proyecto» (su flujo no convergió, 011:RF-66) no se mide como
-            # si estuviera: CA101 (2026-11-07) dio «cambio a 22.9 kV» con las tensiones de sin obra y como «no cumple».
-            inactivas = [o for o in hecho.get('obras') or [] if o.get('variacion') and not o.get('error')
-                         and NOMBRES['con'] in (o.get('casos') or []) and NOMBRES['con'] not in (o.get('casos_activos') or [])]
-            if inactivas and not errores:
-                errores = [f"{NO_APLICADA}: {o['variacion']} quedó inactiva en «{NOMBRES['con']}»: "
-                           + '; '.join(a for a in o.get('avisos') or [] if 'no converge' in a)[:300] for o in inactivas]
+            # 098:RF-34: ``aplicar`` dentro del ``try``: si se corta a mitad, lo que alcanzó a cambiar (variaciones,
+            # aperturas, el flujo y las tomas) se deshace igual, con lo anotado en disco de esta variante.
+            hecho: dict = {}
             try:
+                hecho, _rc = aplicar(app, {**plan, 'obras': v['obras'], 'evaluando': True})
+                errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
+                    [hecho['error']] if hecho.get('error') else [])
+                # 098:RF-28: una obra que quedó inactiva en «Con proyecto» (su flujo no convergió, 011:RF-66) no se mide
+                # como si estuviera: CA101 (2026-11-07) dio «cambio a 22.9 kV» con las tensiones de sin obra.
+                inactivas = [o for o in hecho.get('obras') or [] if o.get('variacion') and not o.get('error')
+                             and NOMBRES['con'] in (o.get('casos') or [])
+                             and NOMBRES['con'] not in (o.get('casos_activos') or [])]
+                if inactivas and not errores:
+                    errores = [f"{NO_APLICADA}: {o['variacion']} quedó inactiva en «{NOMBRES['con']}»: "
+                               + '; '.join(a for a in o.get('avisos') or [] if 'no converge' in a)[:300] for o in inactivas]
                 if errores:
                     return None, '; '.join(errores)
                 casos['con'].Activate()
                 return medir(), None
             finally:
-                carpeta = app.GetProjectFolder('scheme')
-                por_nombre = {x.loc_name: x for x in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
-                for n in creadas:
-                    var = por_nombre.get(n)
-                    if var is not None:
-                        for rol in ('sin', 'con'):
-                            casos[rol].Activate()
-                            var.Deactivate()
-                        var.Delete()
-                # 081:RF-81: lo abierto es dato del escenario y sobrevive a la variación borrada (Pisco, 2026-11-07).
-                restituir_lo_abierto(app, casos, list(hecho.get('obras') or []), plan)
-                restituir_el_flujo(app, casos, list(hecho.get('obras') or []))                  # 098:RF-34
+                filas_v = list(hecho.get('obras') or [])
+                creadas = [o['variacion'] for o in filas_v if o.get('variacion')]
+                try:
+                    carpeta = app.GetProjectFolder('scheme')
+                    por_nombre = {x.loc_name: x for x in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+                    for n in creadas:
+                        var = por_nombre.get(n)
+                        if var is not None:
+                            for rol in ('sin', 'con'):
+                                casos[rol].Activate()
+                                var.Deactivate()
+                            var.Delete()
+                finally:
+                    # 081:RF-81: lo abierto es dato del escenario y sobrevive a la variación borrada (Pisco, 2026-11-07).
+                    restituir_lo_abierto(app, casos, filas_v, plan)
+                    informe['avisos'] += restituir_el_flujo(app, casos, filas_v, plan)           # 098:RF-34
+                    if not filas_v:
+                        # ``aplicar`` no llegó a devolver sus filas: lo anotado en disco de esta evaluación se restituye.
+                        restos = restituir_pendientes(app, plan, casos, {})
+                        if restos:
+                            informe['avisos'].append(
+                                f"«{v['nombre']}» se cortó al crearse: se restituye lo que anotó, "
+                                + ', '.join(sorted({str(e.get('nombre')) for e in restos})) + ' (098:RF-34).')
                 # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
                 # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
                 # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
@@ -3800,11 +3980,15 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     s.escalar(horizonte['factores'][str(anios)])
                     bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p)
                     if bien:
-                        return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros}
+                        return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros,
+                                'mas_corto': min(horizonte['anios'])}
                     primeros = primeros or list(motivos)
-            return {'definitiva': False, 'aguanta_anios': 0, 'motivos': primeros}
+            # 098:RF-35: 0 es medido y sin llegar ni al horizonte más corto; sin medir, la fila no lleva horizonte.
+            return {'definitiva': False, 'aguanta_anios': 0, 'motivos': primeros, 'mas_corto': min(horizonte['anios'])}
 
         medidas_sin_regulador: dict[str, tuple[str, dict]] = {}                       # 098:RF-34
+        # 098:RF-32: las ya medidas con la misma huella (la web las da): no se miden, pero cuentan para parar.
+        conocidas = {str(x.get('nombre')): x for x in plan.get('ya_medidas') or [] if x.get('nombre')}
         for v in variantes:
             if cancelado():
                 informe['cancelado'] = True
@@ -3813,6 +3997,24 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 informe['avisos'].append(f'Se paró tras {p.variantes_tras_cumplir} variantes más desde la primera que '
                                          f'cumple, con {len(clases_que_cumplen)} alternativa(s) (042:RF-90).')
                 break
+            if v['nombre'] in conocidas:
+                fila = {**conocidas[v['nombre']], 'reutilizada': True}
+                filas.append((v, fila))
+                print(f"  {v['nombre']}: ya medida con la misma red (098:RF-32)", flush=True)
+                cumple_aqui = bool(fila.get('maxima')) and v.get('costo_base') is not None and fila.get('valle') is not False
+                if plan.get('alternativas') and cumple_aqui:                            # 042:RF-55
+                    primera_que_cumple = len(filas) if primera_que_cumple is None else primera_que_cumple
+                    if horizonte and not fila.get('horizonte'):                     # 098:RF-37
+                        fila['horizonte'], error = con_variante(v, alcance)
+                        fila['error'] = fila['error'] or error
+                    hay_definitiva = hay_definitiva or bool((fila.get('horizonte') or {}).get('definitiva'))
+                    clases_que_cumplen.add(frozenset(v.get('escalones') or ()))
+                    if len(clases_que_cumplen) >= int(plan['alternativas']) and (hay_definitiva or not horizonte):
+                        break
+                elif plan.get('basta_una') and cumple_aqui and (fila.get('fraccion') or 0) >= p.cumplimiento:   # 073:RF-18
+                    informe['basta_una'] = fila['nombre']
+                    break
+                continue
             fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
                     'perdidas_kw': None, 'error': None, 'sin_sortear': None}
             def medir_todo():
@@ -3866,7 +4068,9 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     and fila.get('valle') is not False):                                # 042:RF-55
                 clase = frozenset(v.get('escalones') or ())
                 primera_que_cumple = len(filas) if primera_que_cumple is None else primera_que_cumple
-                if clase not in clases_que_cumplen and horizonte:              # 042:RF-92
+                # 098:RF-37: el alcance de cada una que cumple, no solo de la primera de su clase: la de largo plazo es
+                # la más barata que aguanta el horizonte, y sin medirlas no se sabe cuál es.
+                if horizonte:                                                  # 042:RF-92
                     fila['horizonte'], error = con_variante(v, alcance)
                     fila['error'] = fila['error'] or error
                     hay_definitiva = hay_definitiva or bool((fila['horizonte'] or {}).get('definitiva'))
@@ -3912,7 +4116,9 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             if ganadora is not None:
                 fila['sin_sortear'] = f"no se sortea: «{ganadora}» cuesta menos y ya cumple"
                 continue
-            if not sorteos:
+            if fila.get('reutilizada') and fila.get('fraccion') is not None:
+                pass                                       # 098:RF-32: sus sorteos ya se hicieron con la misma red
+            elif not sorteos:
                 fila['fraccion'] = 1.0
             else:
                 fila['fraccion'], error, fila['sorteos_medidos'] = por_etapas(v)             # 042:RF-88

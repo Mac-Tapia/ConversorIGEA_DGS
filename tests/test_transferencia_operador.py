@@ -1130,7 +1130,8 @@ def test_lo_medido_con_la_misma_red_se_reutiliza_y_lo_dudoso_se_mide():
         def log(self, t):
             self.textos.append(t)
 
-    plan = {'project': 'P', 'feeders': ['X'], 'estado_con_proyecto': ['Carga_A', 'Obra_tension_Y'], 'apartar_cargas_de': [],
+    plan = {'project': 'P', 'feeders': ['X'], 'estado_con_proyecto': ['Carga_A', 'Obra_tension_Y'], 'huella_red': 'h1',
+            'apartar_cargas_de': [],
             'apartar_variaciones': [], 'barras_cargas': ['A'], 'sorteos': [{'factores': {'X': 0.9}}], 'parametros': {},
             'variantes': [{'nombre': 'sec', 'obras': [{'clase': 'seccion'}]}, {'nombre': 'ter', 'obras': [{'clase': 'terna'}]},
                           {'nombre': 'mal', 'obras': [{'clase': 'condensador'}]}]}
@@ -1150,6 +1151,12 @@ def test_lo_medido_con_la_misma_red_se_reutiliza_y_lo_dudoso_se_mide():
     ctx = _C()
     ya, nuevas = services._medidas_ya_hechas(ctx, 'X', sin_estado, memo)
     assert ya == {} and len(nuevas) == 3 and any('no se puede comprobar' in t for t in ctx.textos)
+    # P1: las mismas variaciones por nombre con otro contenido (una carga nueva con otros kW) es otra red.
+    otro_contenido = {**plan, 'huella_red': 'h2'}
+    ya, nuevas = services._medidas_ya_hechas(_C(), 'X', otro_contenido, memo)
+    assert ya == {} and len(nuevas) == 3
+    ya, nuevas = services._medidas_ya_hechas(_C(), 'X', {**plan, 'huella_red': None}, memo)
+    assert ya == {} and len(nuevas) == 3
 
 
 def test_el_regulador_activa_el_ajuste_de_tomas_y_vuelve_al_borrar_la_variante(monkeypatch):
@@ -1204,24 +1211,342 @@ def test_el_regulador_activa_el_ajuste_de_tomas_y_vuelve_al_borrar_la_variante(m
     assert 'regulador no cambia' in (filas['terna + regulador'].get('no_aplicada') or ''), (filas['terna'].get('no_aplicada'), filas['terna'].get('error'), informe['avisos'][:3])
 
 
-def test_la_seccion_y_la_terna_tienen_costo_y_lo_que_no_aguanta_no_gana():
-    """098:RF-35 — CHN102 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ganaba la que
-    no aguanta ni un año. Ahora la sección y la terna se costean con el km del cambio de nivel, por confirmar, y entre
-    las que cumplen, la que no aguanta ni un año va detrás."""
+def _fila_eo(nombre, escalones, costo, horizonte=None, obras=()):
+    return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'escalones': escalones, 'valle': None,
+            'costo': {'costo_anual': costo, 'inversion': costo * 8}, 'horizonte': horizonte, 'motivos': [],
+            'obras': list(obras), 'u_min_mt': 0.951}
+
+
+def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
+    """098:RF-35 — CHN102 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ahora la
+    sección se costea con el km del cambio de nivel y la terna con ese km por su factor (1,5, del perfil si lo da)."""
     from convertersmartgrid import escalera_optima as eo
 
     p = eo.parametros(_perfil_eo())
     costos = eo.costos_de_alternativas({}, p)
-    assert costos['cambio_seccion']['costo_unitario'] == costos['cambio_tension']['costo_unitario']
-    assert '098:RF-35' in costos['nueva_terna']['origen']
+    nivel = costos['cambio_tension']['costo_unitario']
+    assert costos['cambio_seccion']['costo_unitario'] == nivel
+    assert costos['nueva_terna']['costo_unitario'] == pytest.approx(1.5 * nivel)
+    assert '098:RF-35' in costos['nueva_terna']['origen'] and 'por 1.5' in costos['nueva_terna']['origen']
+    p2 = eo.parametros(_perfil_eo(factor_terna_sin_capex=2.0))
+    assert eo.costos_de_alternativas({}, p2)['nueva_terna']['costo_unitario'] == pytest.approx(2.0 * nivel)
 
-    def fila(nombre, escalones, costo, horizonte=None):
-        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'escalones': escalones, 'valle': None,
-                'costo': {'costo_anual': costo, 'inversion': costo * 8}, 'horizonte': horizonte, 'motivos': []}
-    nivel = fila('cambio a 22.9 kV', ('nivel',), 1000.0, {'definitiva': False, 'aguanta_anios': 0,
-                                                            'motivos': ['NODE_X a 0.851 p.u.']})
-    seccion = fila('1×300 kvar + sección AA24003D', ('bancos', 'seccion'), 5000.0, {'definitiva': False, 'aguanta_anios': 5})
-    d = eo.elegir([nivel, seccion], p)
-    assert d['elegida'] == seccion['nombre']
-    assert 'no aguanta ni un año' in next(t for t in d['tabla'] if t['nombre'] == nivel['nombre'])['motivo']
-    assert {a['nombre']: a['aguanta_anios'] for a in d['alternativas']} == {nivel['nombre']: 0, seccion['nombre']: 5}
+
+def test_corto_plazo_la_mas_barata_que_cumple_hoy_y_largo_plazo_la_definitiva():
+    """098:RF-37 — usuario (2026-11-07): «las baratas deben ser de implementación inmediata; para largo plazo, la
+    definitiva con el horizonte del proyecto». Se aplica la de corto plazo (grupo y costo); se plantea la de largo
+    plazo (la más barata que aguanta el horizonte, mejor si contiene la corta) para el año en que la corta deja de
+    aguantar; las dos con su plazo en las alternativas."""
+    from convertersmartgrid import escalera_optima as eo
+
+    p = eo.parametros(_perfil_eo())
+    banco = {'clase': 'condensador', 'barra': 'B4', 'q_kvar': 300}
+    sec = {'clase': 'seccion', 'tramos': ['T1', 'T2']}
+    bancos = _fila_eo('1×300 kvar', ('bancos',), 500.0, {'definitiva': False, 'aguanta_anios': 3, 'mas_corto': 3},
+                      [banco])
+    nivel = _fila_eo('cambio a 22.9 kV', ('nivel',), 1200.0, {'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 3})
+    sola = _fila_eo('sección AA24003D', ('seccion',), 900.0, {'definitiva': True, 'aguanta_anios': 20}, [sec])
+    junta = _fila_eo('1×300 kvar + sección AA24003D', ('bancos', 'seccion'), 1000.0,
+                     {'definitiva': True, 'aguanta_anios': 20}, [banco, sec])
+    d = eo.elegir([nivel, sola, junta, bancos], p)
+    assert d['elegida'] == '1×300 kvar'
+    largo = d['largo_plazo']
+    # La sección sola es más barata, pero la que contiene los bancos ya puestos no deshace la corta.
+    assert largo['nombre'] == junta['nombre'] and largo['parte_de_la_corta'] and largo['hace_falta_en_anio'] == 3
+    plazos = {a['nombre']: a['plazo'] for a in d['alternativas']}
+    assert plazos['1×300 kvar'] == 'corto plazo' and plazos[junta['nombre']] == 'largo plazo'
+    assert all(a['regla'] == eo.REGLA_DE_PLAZOS for a in d['alternativas'])
+    assert next(a for a in d['alternativas'] if a['nombre'] == junta['nombre'])['hace_falta_en_anio'] == 3
+    motivo = next(t for t in d['tabla'] if t['nombre'] == junta['nombre'])['motivo']
+    assert 'largo plazo' in motivo
+    # Sin una definitiva que contenga la corta, la más barata de las definitivas, y se dice.
+    d = eo.elegir([nivel, sola, bancos], p)
+    assert d['largo_plazo']['nombre'] == sola['nombre'] and not d['largo_plazo']['parte_de_la_corta']
+    assert 'no parte de' in d['largo_plazo']['aviso']
+    # La corta que ya aguanta el horizonte es también la de largo plazo.
+    d = eo.elegir([nivel, sola], p)
+    assert d['elegida'] == sola['nombre'] and d['largo_plazo']['misma']
+    assert next(a for a in d['alternativas'] if a['nombre'] == sola['nombre'])['plazo'] == 'corto y largo plazo'
+    # CHN102: con la sección costeada, el 22,9 kV (más caro y sin llegar al horizonte) no es la de corto plazo.
+    assert eo.elegir([nivel, junta], p)['elegida'] == junta['nombre']
+
+
+def test_sin_horizonte_medido_no_es_lo_mismo_que_cero_anios():
+    """098:RF-35, 098:RF-37 — una candidata sin su alcance medido no se plantea como largo plazo ni se dice que no llega;
+    la medida en 0 años «no llega ni al horizonte más corto» y lo dice con sus años; el informe, igual."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.informes import filas_alternativas_escalera
+
+    p = eo.parametros(_perfil_eo())
+    sin_medir = _fila_eo('bancos', ('bancos',), 100.0, None)
+    cero = _fila_eo('sección', ('seccion',), 500.0, {'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 5,
+                                                     'motivos': ['NODE_X a 0.93 p.u.']})
+    d = eo.elegir([sin_medir, cero], p)
+    assert d['elegida'] == 'bancos' and d['largo_plazo']['nombre'] is None
+    assert 'sin el horizonte medido' in d['largo_plazo']['aviso']
+    d = eo.elegir([cero], p)
+    assert 'ninguna de las que cumplen hoy aguanta' in d['largo_plazo']['aviso']
+    assert 'no llega ni al horizonte más corto medido (5 años)' in eo._no_llega(cero)
+    cabecera, filas = filas_alternativas_escalera({'F': [
+        {'numero': 1, 'nombre': 'bancos', 'costo_anual': 1.0},
+        {'numero': 2, 'nombre': 'sección', 'costo_anual': 2.0, 'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 5,
+         'u_min_mt': 0.9512, 'plazo': 'largo plazo', 'hace_falta_en_anio': 0}]})
+    i, j, k = cabecera.index('Alcance'), cabecera.index('Plazo'), cabecera.index('Mínima de media p.u.')
+    assert [f[i] for f in filas] == ['sin medir', 'temporal, no llega al horizonte más corto (5 años)']
+    assert filas[1][j] == 'largo plazo, hace falta en el año 0' and filas[1][k] == '0.951'
+
+
+def test_la_obra_elegida_con_la_regla_anterior_se_retira_y_se_mide_de_nuevo(tmp_path, monkeypatch):
+    """098:RF-36 — CHN102 (2026-11-07): «cambio a 22.9 kV» quedó aplicado cuando la sección no tenía costo. La obra
+    aplicada cuya elección no lleva la marca de los dos plazos se retira (con lo que hizo en la operación) y se mide de
+    nuevo; la elegida ya con la regla de los dos plazos se queda, y las de alimentadores que no se piden, también."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.web import services
+
+    ws = SimpleNamespace(out_dir=tmp_path, obras_aplicadas=[
+        {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}},
+        {'project': 'P', 'variacion': 'Obra_seccion_F2', 'obra': {'alimentador': 'F2'}},
+        {'project': 'P', 'variacion': 'Obra_seccion_F3', 'obra': {'alimentador': 'F3'}},
+        {'project': 'Q', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}}])
+    services._guardar_alternativas_escalera(ws, 'P', 'F1', [{'nombre': 'cambio a 22.9 kV', 'elegida': True}])
+    services._guardar_alternativas_escalera(ws, 'P', 'F2', [{'nombre': 'sección', 'elegida': True,
+                                                             'regla': eo.REGLA_DE_PLAZOS, 'plazo': 'corto plazo'}])
+    retiradas = []
+    monkeypatch.setattr(services, '_retirar_obras', lambda ws_, ctx, project, feeders, anio: retiradas.append(
+        (project, feeders)))
+
+    class _C:
+        textos: list = []
+
+        def log(self, t):
+            self.textos.append(t)
+
+    ctx = _C()
+    malas = services._comparar_y_cambiar(ws, ctx, 'P', ['F1', 'F2'], 2026)
+    assert set(malas) == {'F1'} and malas['F1']['obra'] == 'cambio a 22.9 kV'
+    assert 'regla anterior' in malas['F1']['motivo']
+    assert retiradas == [('P', ['F1'])]
+    assert any('se retira «cambio a 22.9 kV»' in t and '098:RF-36' in t for t in ctx.textos)
+    assert services._comparar_y_cambiar(ws, ctx, 'P', [], 2026) == {}
+
+
+def test_la_obra_retirada_deshace_lo_que_abrio_y_el_ajuste_del_flujo(tmp_path, monkeypatch):
+    """098:RF-36, 098:RF-34 — la obra aplicada abre un tramo y activa el ajuste de tomas de «Con proyecto»; al retirarla,
+    su variación se borra y el tramo y el flujo vuelven a como estaban, con lo que guardó la web de la obra aplicada."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_retirar_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(36))
+    f = alims[0]
+    app.atributos_en_variacion = app.servicio_en_escenario = True   # la obra graba en su variación
+
+    def abre_y_regula(ctx):
+        _terna(ctx)
+        obras.abrir(ctx, 'ElmLne', ctx.objeto('ElmLne', f'{f}_L2'))
+        obras._activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', abre_y_regula)
+    app.ldf.iopt_at = 0
+    plan = _plan_obras(alims, obras=[_obra_terna(f, [CON])], aperturas_fichero=str(tmp_path / 'aperturas.json'))
+    informe, codigo = obras.aplicar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    _caso(app, CON).Activate()
+    assert int(app.ldf.iopt_at) == 1 and fila['valores'][0]['atributo'] == 'iopt_at'
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == [], 'la obra aplicada sale del registro (081:RF-81)'
+    operacion = {k: fila[k] for k in ('abiertos', 'valores') if fila.get(k)} | {'variacion': fila['variacion']}
+    informe, codigo = obras.retirar_obras(app, {**plan, 'feeders': [f], 'operacion_de_obras': [operacion]})
+    assert codigo == 0, informe
+    assert informe['retiradas'] == [fila['variacion']] and informe['operacion_restituida'] == [fila['variacion']]
+    _caso(app, CON).Activate()
+    assert int(app.ldf.iopt_at) == 0
+    tramo = obras._con_nombre(app, 'ElmLne', f'{f}_L2')[0]
+    assert int(getattr(tramo, 'outserv', 0) or 0) == 0
+
+
+def test_el_ajuste_del_flujo_va_al_caso_de_la_obra_y_deja_fijas_las_otras_tomas(tmp_path):
+    """098:RF-34 — la obra se construye con activo el primero de sus casos («Sin proyecto»): el ajuste de tomas se
+    activa en el flujo de cada caso de la obra, no en el activo; midiendo, los transformadores con toma automática
+    quedan fijos; todo anotado en disco y, al restituir, como estaba, con el caso por su nombre completo; si el caso ya
+    no está, se dice."""
+    from test_obras_pf_guion import _calibrada_con_escenario
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_flujo_098', tools_en_path=True)
+
+    app, _alims = _calibrada_con_escenario(random.Random(37))
+    casos = obras.casos_del_proyecto(app, None)
+    ldf_con = casos['con'].CreateObject('ComLdf', 'Flujo de «Con proyecto»')
+    ldf_con.iopt_at = 0
+    app.ldf.iopt_at = 0
+    trafo = app.GetCalcRelevantObjects('*.ElmTr2')[0]
+    trafo.ntrcn = 1
+    casos['sin'].Activate()
+    plan = {'project': 'P', 'aperturas_fichero': str(tmp_path / 'aperturas.json'), 'evaluando': True}
+    fila = {'variacion': 'Obra_regulador_F1', 'avisos': []}
+    ctx = obras.Contexto(app, app.proyecto, None, fila, None, None, plan=plan)
+    ctx.casos = {'con': casos['con']}
+    obras._activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
+    assert int(ldf_con.iopt_at) == 1 and int(app.ldf.iopt_at) == 0, 'el de «Con proyecto», no el del caso activo'
+    assert int(trafo.ntrcn) == 0 and any('toma fija' in a for a in fila['avisos'])
+    registro = obras.leer_aperturas(tmp_path / 'aperturas.json')
+    assert {(e['clase'], e['atributo'], e['valor'], e['accion']) for e in registro} == {
+        ('ComLdf', 'iopt_at', 0, 'valor'), ('ElmTr2', 'ntrcn', 1, 'valor')}
+    assert next(e for e in registro if e['clase'] == 'ComLdf')['caso_ruta'] == casos['con'].GetFullName()
+    avisos = obras.restituir_el_flujo(app, casos, [fila], plan)
+    assert avisos == [] and int(ldf_con.iopt_at) == 0 and int(trafo.ntrcn) == 1
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []
+    assert app.GetActiveStudyCase() is casos['sin'], 'vuelve al caso que estaba activo'
+    # Sin el caso donde se cambió, no se toca otro: se dice.
+    fila2 = {'valores': [{'clase': 'ComLdf', 'caso': 'Otro caso', 'caso_ruta': 'X', 'atributo': 'iopt_at', 'valor': 0}]}
+    assert any('No está el caso «Otro caso»' in a for a in obras.restituir_el_flujo(app, casos, [fila2]))
+    # Aplicada (sin evaluar), las otras tomas no se tocan: se dicen.
+    ldf_con.iopt_at = 0
+    fila3 = {'variacion': 'Obra_regulador_F1', 'avisos': []}
+    ctx3 = obras.Contexto(app, app.proyecto, None, fila3, None, None, plan={**plan, 'evaluando': False})
+    ctx3.casos = {'con': casos['con']}
+    obras._activar_en_el_flujo(ctx3, 'iopt_at', 'las tomas')
+    assert int(trafo.ntrcn) == 1 and any('también regulan' in a for a in fila3['avisos'])
+
+
+def test_si_la_evaluacion_se_corta_al_crear_la_obra_se_restituye_lo_anotado(tmp_path, monkeypatch):
+    """098:RF-34, 081:RF-81 — ``aplicar`` falla a mitad (tras abrir y activar el flujo): ``con_variante`` lo deshace
+    igual, con lo anotado en disco, antes de que el error suba."""
+    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_corte_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(38))
+    f = alims[0]
+    _actual_no_cumple(monkeypatch)
+
+    def abre_y_regula(ctx):
+        _terna(ctx)
+        obras.abrir(ctx, 'ElmLne', ctx.objeto('ElmLne', f'{f}_L2'))
+        obras._activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', abre_y_regula)
+    app.ldf.iopt_at = 0
+    real = obras.aplicar
+
+    def aplicar_que_se_corta(app_, plan_, **k):
+        if plan_.get('evaluando'):
+            real(app_, plan_, **k)
+            raise RuntimeError('la orden se cortó')
+        return real(app_, plan_, **k)
+    monkeypatch.setattr(obras, 'aplicar', aplicar_que_se_corta)
+    plan = _plan_obras(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                       sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA,
+                       aperturas_fichero=str(tmp_path / 'aperturas.json'))
+    with pytest.raises(RuntimeError, match='se cortó'):
+        obras.evaluar(app, plan)
+    _caso(app, CON).Activate()
+    assert int(app.ldf.iopt_at) == 0
+    assert int(getattr(obras._con_nombre(app, 'ElmLne', f'{f}_L2')[0], 'outserv', 0) or 0) == 0
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []
+
+
+def test_las_ya_medidas_no_se_miden_pero_cuentan_para_parar(monkeypatch):
+    """098:RF-32 (H4) — la web pasa la lista entera y las ya medidas: el guion no las crea de nuevo, pero la primera
+    que ya cumplía cuenta para parar (073:RF-18); sin esto se medía la siguiente."""
+    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_ya_medidas_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(39))
+    f = alims[0]
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', _terna)
+    creadas = []
+    real = obras.aplicar
+    monkeypatch.setattr(obras, 'aplicar', lambda app_, plan_, **k: (creadas.append(len(plan_.get('obras') or [])),
+                                                                    real(app_, plan_, **k))[1])
+    ya = {'nombre': 'a', 'maxima': True, 'fraccion': 1.0, 'motivos': [], 'u_cargas': {'X': 0.96}, 'error': None,
+          'perdidas_kw': 1.0}
+    plan = _plan_obras(alims, variantes=[{'nombre': 'a', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0},
+                                         {'nombre': 'b', 'obras': [_obra_terna(f, [CON], ('L2',))], 'costo_base': 2.0}],
+                       sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA, basta_una=True, ya_medidas=[ya])
+    informe, codigo = obras.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert informe['basta_una'] == 'a' and creadas == []
+    assert [v['nombre'] for v in informe['variantes']] == ['a'] and informe['variantes'][0]['reutilizada']
+
+
+def test_la_escalera_de_la_web_reutiliza_sin_abrir_digsilent_y_pasa_la_lista_entera(tmp_path, monkeypatch):
+    """098:RF-32 (H4, H6) — de punta a punta en ``obras_escalera`` con la misma huella: la segunda vez, sabido todo, no
+    se llama al guion de evaluar y las variantes salen en el orden del plan; con una sin saber, el guion recibe la
+    lista entera y las ya medidas."""
+    from test_casos_por_anio import ANIO, _escalera_falsa
+
+    def evaluar(nombre):
+        cumple = nombre.startswith('sección')
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None, 'perdidas_kw': 10.0,
+                'motivos': [] if cumple else ['no converge'], 'u_cargas': {'F1_B4': 0.96 if cumple else 0.93}}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    falso = services._guion_pf
+
+    def con_huella(ws_, ctx_, script, plan, *, nombre, args=(), **k):
+        rc, inf, rep = falso(ws_, ctx_, script, plan, nombre=nombre, args=args, **k)
+        return rc, ({**inf, 'huella_red': 'h1'} if '--escalera-datos' in args else inf), rep
+    monkeypatch.setattr(services, '_guion_pf', con_huella)
+    memo: dict = {}
+    r1 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, memo=memo)
+    evaluaciones = [p for a, p in planes if '--evaluar' in a]
+    assert len(evaluaciones) == 1 and 'ya_medidas' not in evaluaciones[0]
+    r2 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, memo=memo)
+    assert len([p for a, p in planes if '--evaluar' in a]) == 1, 'todo sabido: DIgSILENT no se abre'
+    assert [t['nombre'] for t in r2['alimentadores'][0]['tabla']] == [t['nombre'] for t in r1['alimentadores'][0]['tabla']]
+    assert r2['alimentadores'][0]['elegida'] == r1['alimentadores'][0]['elegida']
+    guardadas = memo['medidas_por_variante']
+    guardadas.pop(next(iter(guardadas)))
+    services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, memo=memo)
+    ultima = [p for a, p in planes if '--evaluar' in a][-1]
+    assert len(ultima['variantes']) == len(evaluaciones[0]['variantes'])
+    assert len(ultima['ya_medidas']) == len(evaluaciones[0]['variantes']) - 1
+
+
+def test_las_obras_de_varios_caminos_no_comparten_tramo_y_el_comun_lleva_el_mayor():
+    """098:RF-31, 042:RF-30 — en las de varios caminos, cada tramo va en una sola obra (ni sección y terna a la vez) y el
+    tramo común lleva la mayor capacidad de los caminos que pasan por él."""
+    from convertersmartgrid import escalera_optima as eo
+
+    comun = [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 80.0, 'inom_a': 110.0} for i in range(3)]
+    cola = comun + [{'nombre': f'C{i}', 'largo_m': 1500.0, 'corriente_a': 40.0, 'inom_a': 110.0} for i in range(3)]
+    rama = comun + [{'nombre': f'R{i}', 'largo_m': 1200.0, 'corriente_a': 50.0, 'inom_a': 110.0} for i in range(2)]
+    cargas = [{'barra': 'COLA', 'existe': True, 'camino': cola}, {'barra': 'RAMA', 'existe': True, 'camino': rama}]
+    tipos = [_tipo_eo('AA05003D', 50), _tipo_eo('AA12003D', 120), _tipo_eo('AA24003D', 240)]
+    vs, _av = eo.variantes('X', 10.0, comun, cargas, tipos, eo.parametros(_perfil_eo()), banco_kvar=300.0)
+    juntas = [v for v in vs if v.caminos]
+    assert juntas
+    for v in juntas:
+        de_linea = [o for o in v.obras if o['clase'] in ('seccion', 'terna')]
+        tramos = [t for o in de_linea for t in (o.get('tramos') or [])]
+        assert len(tramos) == len(set(tramos)), f'{v.nombre}: un tramo en dos obras'
+    # Terna en un camino y sección en el otro: el común va con la sección (240 mm², 528 A > 2 × 110 A de la terna).
+    mixtas = [v for v in juntas if {o['clase'] for o in v.obras} == {'seccion', 'terna'} and 'bancos' not in v.escalones]
+    assert mixtas
+    for v in mixtas:
+        sec = {t for o in v.obras if o['clase'] == 'seccion' for t in o['tramos']}
+        assert {'T0', 'T1', 'T2'} <= sec
+
+
+def test_la_terna_de_dos_ramas_separadas_se_construye_en_sus_tramos(monkeypatch):
+    """098:RF-31 (P5) — una terna de una obra de varios caminos lleva tramos que no son contiguos: el constructor real
+    suma el circuito en cada uno y no toca el de en medio."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario, _obra_terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_terna_ramas_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(40))
+    f = alims[0]
+    app.atributos_en_variacion = app.servicio_en_escenario = True   # la obra graba en su variación
+    plan = _plan_obras(alims, obras=[_obra_terna(f, [CON], ('L1', 'L3'))])
+    informe, codigo = obras.aplicar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert not fila.get('error'), fila
+    _caso(app, CON).Activate()
+    n = {t: int(getattr(obras._con_nombre(app, 'ElmLne', f'{f}_{t}')[0], 'nlnum', 1) or 1) for t in ('L1', 'L2', 'L3')}
+    assert n == {'L1': 2, 'L2': 1, 'L3': 2}

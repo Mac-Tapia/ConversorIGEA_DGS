@@ -29,10 +29,17 @@
       y `pytest -q tests/test_obras_pf_guion.py tests/test_optimizacion_oraculo.py` en verde.
 - [x] T10. Las obras de varios caminos juntas, la medida reutilizada solo si es segura, el regulador que regula, la
       sección y la terna con costo y lo que no aguanta, detrás. (RF-31 a RF-35)
-      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "caminos or misma_red or regulador_activa or aguanta"`
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "caminos or misma_red or regulador_activa or capex"`
       y `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py` en verde.
+- [x] T11. Lo de la revisión de b83dc156: el ajuste del flujo en el caso de la obra, anotado en disco y devuelto
+      aunque la creación se corte, con las otras tomas fijas mientras se mide; la huella con el contenido de la red; las
+      ya medidas que cuentan para parar sin abrir DIgSILENT; el alcance de cada una que cumple; la terna con su
+      factor; las dos elecciones, de corto y de largo plazo; y la obra elegida con la regla anterior, retirada con lo
+      que hizo y medida de nuevo. (RF-32, RF-34 a RF-37)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "plazo or horizonte or regla or retirada or flujo or corta or ya_medidas or reutiliza or caminos or ramas or capex"`
+      y `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py tests/test_obras_aperturas.py tests/test_informes_planeamiento.py` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
-      «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-35)
+      «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la
       lectura no veía las particiones ni el acoplador nuevo; de ahí la T7.
       Hecho cuando: la recalibración cuadra sin pérdidas negativas, su informe dice que la transferencia de CA101 a
@@ -42,4 +49,5 @@
       o con bancos) antes del paso a 22,9 kV, y el registro dice cuántas juzgó el oráculo y cuántas confirmó DIgSILENT;
       CHN102 lleva su escalera; el registro da el desvío del oráculo frente a DIgSILENT, y una variante sin aplicar
       sale como «no aplicada», no como «no cumple»; CA101 prueba y elige una obra que junta sus dos caminos, sin
-      volver a medir lo ya medido con la misma red, y CHN102 elige por costo entre lo que aguanta.
+      volver a medir lo ya medido con la misma red; CHN102 retira el paso a 22,9 kV elegido con la regla anterior y
+      aplica la de corto plazo, con la de largo plazo planteada y el año en que hace falta.

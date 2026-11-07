@@ -1582,7 +1582,7 @@ def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
     (fila,) = informe['variantes']
-    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 15, 'motivos': ['no converge']}
+    assert fila['horizonte'] == {'definitiva': False, 'aguanta_anios': 15, 'motivos': ['no converge'], 'mas_corto': 7}   # 098:RF-35
     assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
 
 
