@@ -50,9 +50,12 @@ def rango(escalones) -> int:
     """El escalón más alto que usa una variante; sin escalones (sin obras), antes de todos (063:RF-22)."""
     return max((ESCALERA.index(e) for e in escalones if e in ESCALERA), default=-1)
 def grupo_economico(escalones) -> int:
-    """042:RF-56: los bancos solos antes (063:RF-22), el regulador al final (RF-49); el resto compite por costo."""
+    """042:RF-56: los bancos solos antes (063:RF-22), el regulador al final (RF-49); el resto compite por costo.
+
+    098:RF-23: la transferencia va con los bancos, antes de la sección y la terna: abrir una maniobra y pasar la cola
+    a un vecino es lo más barato (CA101 y CHN102, 2026-11-07: el enlace ya existía)."""
     e = set(escalones or ())
-    return 0 if e and e <= {'bancos'} else 2 if 'regulador' in e else 1
+    return 0 if e and e - {'transferencia'} <= {'bancos'} else 2 if 'regulador' in e else 1
 
 
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).

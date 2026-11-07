@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 11368 líneas y 349 funciones, pendiente de partir (002).
+`web/services.py` tiene 11424 líneas y 349 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | reservada | 1 |
 | retirada | 1 |
 
-99 specs con 3210 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+99 specs con 3218 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -352,10 +352,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `obras_pf.py` | Apl | 011, 016, 042, 048 | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto». |
+| `obras_pf.py` | Apl | 011, 016, 042, 048, 098 | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto». |
 | `troncal.py` | Ada | 016 | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados… |
-| `escalera_optima.py` | Apl | 025, 073 | Escalera optimizada de obras: variantes en el orden bancos, regulador, terna y sección con sus combinaciones, criterio de «no empeorar» por sorteo,… |
-| `optimizacion_oraculo.py` | Apl | 052, 073 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
+| `escalera_optima.py` | Apl | 025, 073, 098 | Escalera optimizada de obras: variantes en el orden bancos, regulador, terna y sección con sus combinaciones, criterio de «no empeorar» por sorteo,… |
+| `optimizacion_oraculo.py` | Apl | 052, 073, 098 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
 | `perfil_tension.py` | Apl | 094 | Perfil de tensión de un alimentador (tensión de cada barra de media frente a su distancia eléctrica) y bancos ubicados según el perfil hasta la… |
 | `catalogo_reguladores.py` | Apl | 025 | Reguladores de tensión de catálogo (Eaton VR-32, 50 Hz): unidad por tensión del sistema y por corriente, y los datos de su `TypVoltreg`. |
 | `instalacion_ternas.py` | Apl | 084 | Dos o más ternas subterráneas: una por ducto, triangular o rectangular, y la capacidad del fabricante para esa configuración, de la tabla del perfil. |
@@ -613,7 +613,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `casos_pf.py` | — | 011, 014, 015, 016, 025, 037, 073 | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones. |
 | `ajuste_cabecera_pf.py` | — | 006, 008, 011, 014, 015, 020, 021, 022, 025, 032, 035, 039, 041, 094, 095, 091 | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto». |
 | `cargas_pf.py` | — | 004, 007, 008, 011, 016, 022, 035, 040, 054, 099 | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente. |
-| `obras_pf.py` | — | 011, 103, 016, 042, 048, 073 | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas. |
+| `obras_pf.py` | — | 011, 103, 016, 042, 048, 073, 098 | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas. |
 | `estudios_pf.py` | — | 011, 017, 130, 131, 135, 012, 037 | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores. |
 | `capacidad_pf.py` | — | 012 | Guion de DIgSILENT de la capacidad de alojamiento nodo a nodo y conjunta (`ComHostcap`), las curvas PV por alimentador con o sin contingencias… |
 | `confiabilidad_pf.py` | — | 012 | Guion de DIgSILENT: con `--aplicar-datos`, el libro de la empresa en la variación «Datos de confiabilidad» (modelos `Sto*` por clase y tipo, equipos… |

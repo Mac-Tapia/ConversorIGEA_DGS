@@ -102,8 +102,8 @@ class _Ctx:
         pass
 
 
-def test_tras_la_escalera_el_nivel_y_despues_transferir_y_trasladar(monkeypatch, tmp_path):
-    """087:RF-31, 087:RF-41 — oráculo sin obra; DIgSILENT mide el paso a 22,9 kV; no cumple; transferir o trasladar cumple y se aplica."""
+def test_tras_la_escalera_transferir_y_trasladar_antes_que_el_nivel(monkeypatch, tmp_path):
+    """087:RF-31, 098:RF-23 — oráculo sin obra; transferir o trasladar se mide antes que el paso a 22,9 kV, cumple y se aplica: el nivel ya no se mide."""
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
                         lambda ws, project: [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}])
@@ -123,7 +123,7 @@ def test_tras_la_escalera_el_nivel_y_despues_transferir_y_trasladar(monkeypatch,
     monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
     ctx = _Ctx()
     r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
-    assert llamadas == [('mide', 'oraculo'), ('mide', 'nivel'), ('mide', 'traspaso'), ('aplica', 'traspaso')]
+    assert llamadas == [('mide', 'oraculo'), ('mide', 'traspaso'), ('aplica', 'traspaso')]
     assert r['por_alimentador']['F1']['cumple'] and not r['a_set_nueva']
     assert any('087:RF-31' in t for t in ctx.textos)
 
