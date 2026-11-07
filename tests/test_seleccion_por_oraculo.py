@@ -97,9 +97,9 @@ def test_si_no_cumplen_va_a_la_obra_integral_sin_medir_las_demas(monkeypatch):
     r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
     medidas = [x['variantes'] for x in llamadas if not x['aplicar']]
     # Después, sin lista del oráculo, el paso a 22,9 kV (087:RF-41) y transferir o trasladar (087:RF-31).
-    assert medidas == [['v0', 'v1', 'v2'], ['v3', 'v4'], [], []]
+    assert medidas[:2] == [['v0', 'v1', 'v2'], ['v3', 'v4']] and not any(medidas[2:])  # 098:RF-45: cada escalón después
     assert not r['por_alimentador']['F1']['cumple'] and not any(x['aplicar'] for x in llamadas)
-    assert any('087:RF-40' in t and 'las otras 4 no se prueban' in t for t in ctx.textos)
+    assert not any('no se prueban' in t for t in ctx.textos)   # 098:RF-45: ya no se salta a la obra integral
 
 
 def test_lo_predicho_y_lo_medido_quedan_y_manda_digsilent(monkeypatch):

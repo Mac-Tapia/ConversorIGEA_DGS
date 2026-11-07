@@ -551,7 +551,7 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     assert len(ev['sorteos']) == 20 and ev['anio_casos'] == ANIO and ev['barras_cargas'] == ['F1_B4']
     motivos = {t['nombre']: t['motivo'] for t in f1['tabla']}
     assert any(n.startswith('bancos') and 'no cumple con la máxima' in m for n, m in motivos.items())
-    assert any(n.startswith('terna') and 'cuesta más' in m for n, m in motivos.items())   # 042:RF-56
+    assert any(n.startswith('terna') and ('cuesta más' in m or 'escalón anterior' in m) for n, m in motivos.items())   # 042:RF-56, 098:RF-45
 
 
 @pytest.mark.parametrize('bajas, espera, no_dice', [
