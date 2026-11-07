@@ -41,6 +41,15 @@ proyecto real (2026-10-12), con los nombres reales de sus variables de resultado
 variación y desactivarla los devuelve, como en DIgSILENT; y al activar otro caso se ven
 solo los de las variaciones activas en él (spec 011, T12: obras activas en un solo caso).
 
+Para la spec 049 (protecciones) imita lo que documenta la referencia de Python de PowerFactory
+2024: ``ComShc.GetFaultType`` (cap. 5.4.43), la traza de cortocircuito ``ComShctrace``
+(``ExecuteInitialStep``, ``GetDeviceTime``, ``GetTrippedDevices``…, cap. 5.4.44) y
+``ElmRelay.GetMaxFdetectCalcI`` (cap. 5.2.23). Cada relé o fusible (:class:`Proteccion`) lleva
+en ``tiempos`` y ``corrientes`` lo que vería en cada falla ``(barra, tipo)``; el primero que
+dispara despeja la falla y la traza termina, como en DIgSILENT. Los atributos con que se define
+la falla (``shcobj``, ``iopt_shc``, ``Rf``, ``Xf``, ``iopt_allbus``) no están en la referencia:
+el doble los tiene para que la prueba del guion siga el mismo camino que la sonda real (T4).
+
 Para el escenario de operación (spec 006, RF-27): con ``app.escenario_manda``, la
 potencia de una carga es dato de operación, como en DIgSILENT. Con un escenario activo
 se escribe en él y, si la guarda, se lee de él, no de la carga ni de su variación. SI213
@@ -1159,6 +1168,93 @@ class Guion(Obj):
         return getattr(self, 'rc', 0)
 
 
+class Cortocircuito(Orden):
+    """``ComShc``: el tipo de falla se relee con ``GetFaultType`` (referencia 5.4.43)."""
+
+    #: ``iopt_shc`` → código de ``GetFaultType`` de la referencia.
+    TIPOS = {'3psc': 0, 'spgf': 1, '2psc': 2, '2pgf': 3}
+
+    def __init__(self, app, nombre='ComShc', rc=0):
+        super().__init__(app, nombre, rc, 'ComShc')
+        for k, v in (('shcobj', None), ('iopt_shc', '3psc'), ('Rf', 0.0), ('Xf', 0.0), ('iopt_allbus', 2)):
+            object.__setattr__(self, k, v)
+
+    def GetFaultType(self):
+        return self.TIPOS.get(self.iopt_shc, -1)
+
+
+class Proteccion(Obj):
+    """``ElmRelay`` o ``RelFuse`` con lo que vería en cada falla ``(barra, iopt_shc)``."""
+
+    def __init__(self, app, clase, nombre, padre=None, **attrs):
+        super().__init__(app, clase, nombre, padre, **attrs)
+        object.__setattr__(self, 'tiempos', {})
+        object.__setattr__(self, 'corrientes', {})
+
+    def GetMaxFdetectCalcI(self, _tierra, _unidad):
+        falla = getattr(self._app, 'falla_en_curso', None)
+        i = self.corrientes.get(falla)
+        return [1, 0.0] if i is None else [0, float(i)]
+
+    def IsStarted(self):
+        return 1 if self.tiempos.get(getattr(self._app, 'falla_en_curso', None)) is not None else 0
+
+    def CheckRanges(self):
+        return 0
+
+    def CalculateMaxFaultCurrents(self):
+        return None
+
+
+class TrazaCortocircuito(Orden):
+    """``ComShctrace``: arranca con la falla del ``ComShc`` del caso y dispara al más rápido."""
+
+    def __init__(self, app, nombre='ComShctrace', rc=0):
+        super().__init__(app, nombre, rc, 'ComShctrace')
+        object.__setattr__(self, '_tiempos', {})
+        object.__setattr__(self, '_t', 0.0)
+        object.__setattr__(self, '_pasos', [])
+
+    def ExecuteInitialStep(self):
+        app = self._app
+        if self.rc:
+            return self.rc
+        shc = app.ordenes['ComShc']
+        falla = (getattr(shc.shcobj, 'loc_name', None), shc.iopt_shc)
+        object.__setattr__(app, 'falla_en_curso', falla)
+        dispositivos = [d for clase in ('ElmRelay', 'RelFuse') for d in app.proyecto.GetContents(f'*.{clase}', 1)]
+        tiempos = {d: d.tiempos[falla] for d in dispositivos if d.tiempos.get(falla) is not None}
+        object.__setattr__(self, '_tiempos', tiempos)
+        object.__setattr__(self, '_t', 0.0)
+        # El más rápido despeja la falla: después ya no hay más pasos.
+        object.__setattr__(self, '_pasos', [min(tiempos.values())] if tiempos else [])
+        app.trazas_049 = getattr(app, 'trazas_049', 0) + 1
+        return 0
+
+    def NextStepAvailable(self):
+        return 1 if self._pasos else 0
+
+    def ExecuteNextStep(self):
+        object.__setattr__(self, '_t', self._pasos.pop(0))
+        return 0
+
+    def GetCurrentTimeStep(self):
+        return self._t
+
+    def GetDeviceTime(self, dispositivo):
+        return self._tiempos.get(dispositivo)
+
+    def GetTrippedDevices(self):
+        return [d for d, t in self._tiempos.items() if self._t and t <= self._t]
+
+    def GetStartedDevices(self):
+        return [d for d, t in self._tiempos.items() if not (self._t and t <= self._t)]
+
+    def GetNonStartedDevices(self):
+        return [d for clase in ('ElmRelay', 'RelFuse') for d in self._app.proyecto.GetContents(f'*.{clase}', 1)
+                if d not in self._tiempos]
+
+
 _CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'IntSstage': Etapa, 'ComImport': Importacion,
            'IntCase': Caso, 'IntScenario': Escenario,
            'StaSwitch': Interruptor, 'ElmCoup': Interruptor,
@@ -1166,6 +1262,8 @@ _CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'IntSstage': Etapa, 'ComImpo
            'SetSelect': Seleccion, 'ComRel3': Fiabilidad, 'ComOpri': Reconectadores,
            'ComHostcap': Alojamiento, 'ComPvcurves': CurvasPV, 'ComCapo': Condensadores,
            'ComDpl': Guion, 'ComPython': Guion,
+           # Spec 049: protecciones.
+           'ElmRelay': Proteccion, 'RelFuse': Proteccion,
            # 042:RF-11: la SET nueva crea sus alimentadores con CreateObject, como DIgSILENT.
            'ElmFeeder': lambda app, _clase, nombre, padre: Alimentador(app, nombre, padre)}
 

@@ -28,9 +28,11 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+
+from .experimentos import ContextoExperimento, _publico, clave_contexto
 
 
 class ProteccionesError(ValueError):
@@ -282,3 +284,131 @@ def disponibilidad_protecciones(inventario: Mapping[str, Any], capacidades: Mapp
             'alcance': {'dispositivos': completos, 'incompletos': len(dispositivos) - len(completos),
                         'version': (capacidades or {}).get('version'), 'caso': (capacidades or {}).get('caso')},
             'criterios': criterios}
+
+
+# --------------------------------------------------------------------------- plan de fallas (RF-4, RF-8)
+#: Esquema del plan que lee ``tools/protecciones_pf.py``.
+ESQUEMA_PLAN = 'convertersmartgrid-protecciones-plan-v1'
+#: Tipos de falla: ``iopt_shc`` que se escribe y código que devuelve ``ComShc.GetFaultType``
+#: (referencia de Python 2024, 5.4.43), con el que el guion relee lo que quedó configurado.
+TIPOS_FALLA: dict[str, tuple[str, int]] = {'trifasica': ('3psc', 0), 'monofasica': ('spgf', 1),
+                                           'bifasica': ('2psc', 2), 'bifasica_tierra': ('2pgf', 3)}
+#: Las que circulan por tierra: piden secuencia cero y puesta a tierra reales.
+A_TIERRA = ('monofasica', 'bifasica_tierra')
+FASES = ('a', 'b', 'c')
+#: Clases de PowerFactory que aportan corriente de falla; una central como carga negativa no.
+GENERACION_PF = ('ElmXnet', 'ElmSym', 'ElmGenstat', 'ElmAsm', 'ElmPvsys')
+#: Prefijo de la variación de los ajustes propuestos (049:RF-8).
+VARIACION_AJUSTES = 'CSG049_ajustes'
+
+
+def _falla(f: Mapping[str, Any], ids: set[str], a_tierra_ok: bool) -> tuple[dict[str, Any] | None, list[str]]:
+    """Una falla del plan normalizada, o los motivos por los que no se puede plantear."""
+    nombre = str(f.get('id') or f.get('ubicacion') or '(sin nombre)')
+    errores = []
+    tipo = f.get('tipo')
+    if tipo not in TIPOS_FALLA:
+        errores.append(f'falla «{nombre}»: el tipo «{tipo}» no es ninguno de ' + ', '.join(TIPOS_FALLA))
+    if _vacio(f.get('ubicacion')):
+        errores.append(f'falla «{nombre}»: falta la barra donde ocurre')
+    fase = f.get('fase')
+    if tipo == 'monofasica' and fase not in FASES:
+        errores.append(f'falla «{nombre}»: una falla monofásica dice su fase (a, b o c), no «{fase}»')
+    if tipo in A_TIERRA and not a_tierra_ok:
+        errores.append(f'falla «{nombre}»: una falla a tierra pide la secuencia cero y la puesta a tierra '
+                       'reales de la fuente, y la fuente trae las de por defecto')
+    impedancia = {}
+    for k in ('r_ohm', 'x_ohm'):
+        v = f.get(k)
+        if not _numero_valido(v) or v < 0:
+            errores.append(f'falla «{nombre}»: {k} tiene que ser un número de ohmios ≥ 0, no {v!r} '
+                           '(una falla franca es 0)')
+        else:
+            impedancia[k] = float(v)
+    protegen = [str(x) for x in f.get('protegen') or ()]
+    errores += [f'falla «{nombre}»: «{x}» no es un dispositivo del inventario' for x in protegen if x not in ids]
+    if errores:
+        return None, errores
+    return {'id': nombre, 'tipo': tipo, 'iopt_shc': TIPOS_FALLA[tipo][0], 'codigo_tipo': TIPOS_FALLA[tipo][1],
+            'ubicacion': str(f['ubicacion']).strip(), 'fase': fase if tipo == 'monofasica' else None,
+            **impedancia, 'escenario': f.get('escenario') or None, 'protegen': protegen}, []
+
+
+def _aportes(generacion: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    """La generación del caso tal como está, con su estado (049:RF-4).
+
+    Una central que el modelo tiene como carga negativa no aporta corriente de falla: se
+    rechaza en vez de dejar que el cortocircuito salga menor de lo que es (Chincha tenía su
+    térmica como generador; una red de otra empresa puede no tenerla).
+    """
+    aportes, errores = [], []
+    for g in generacion:
+        nombre = str(g.get('nombre') or '')
+        if g.get('modelo') == 'carga_negativa':
+            errores.append(f'«{nombre}» es una central como carga negativa: no aporta corriente de falla; '
+                           'hace falta su modelo de generador (' + ', '.join(GENERACION_PF[1:3]) + ')')
+            continue
+        if g.get('clase') not in GENERACION_PF:
+            errores.append(f'«{nombre}» ({g.get("clase")}) no es una clase de generación de DIgSILENT')
+            continue
+        aportes.append({'nombre': nombre, 'clase': g['clase'], 'en_servicio': bool(g.get('en_servicio'))})
+    return sorted(aportes, key=lambda a: (a['clase'], a['nombre'])), errores
+
+
+def plan_protecciones(contexto: ContextoExperimento, inventario: Mapping[str, Any],
+                      fallas: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """El plan de fallas que ejecuta ``tools/protecciones_pf.py`` (049:RF-4, RF-8).
+
+    Lleva la identidad del caso vinculado (``ContextoExperimento``), cada falla con su barra,
+    tipo, fase e impedancia, la generación del caso con sus estados —sin sustituirla por
+    demanda— y los ajustes propuestos, que solo se escriben en una variación aparte. Rechaza,
+    con la lista entera, un dispositivo sin unidad o sin relación de TC, una falla mal planteada
+    o un ajuste sobre el «Caso base».
+    """
+    if not isinstance(contexto, ContextoExperimento):
+        raise ProteccionesError('el plan de protecciones pide el contexto del caso vinculado')
+    errores: list[str] = []
+    dispositivos = [dict(d) for d in inventario.get('dispositivos') or ()]
+    for d in dispositivos:
+        faltan, malos = validar_dispositivo(d)
+        errores += faltan + malos
+    ids = {str(d.get('id')) for d in dispositivos}
+    if not dispositivos:
+        errores.append('el plan no tiene dispositivos de protección')
+    planteadas = []
+    for f in fallas:
+        falla, e = _falla(f, ids, bool(inventario.get('impedancia_real')))
+        errores += e
+        if falla is not None:
+            planteadas.append(falla)
+    if not fallas:
+        errores.append('el plan no tiene ninguna falla')
+    if len({f['id'] for f in planteadas}) != len(planteadas):
+        errores.append('dos fallas tienen el mismo nombre')
+    aportes, e = _aportes(inventario.get('generacion') or ())
+    errores += e
+    ajustes = [dict(a) for a in inventario.get('ajustes') or ()]
+    if ajustes and contexto.case_role == 'caso_base':
+        errores.append('el «Caso base» es la referencia: los ajustes propuestos van a una variación de '
+                       '«Sin proyecto» o «Con proyecto»')
+    for a in ajustes:
+        if str(a.get('dispositivo')) not in ids:
+            errores.append(f'ajuste sobre «{a.get("dispositivo")}», que no es un dispositivo del inventario')
+        if _vacio(a.get('atributo')) or _vacio(a.get('unidad')):
+            errores.append(f'ajuste de «{a.get("dispositivo")}»: dice su atributo de DIgSILENT y su unidad')
+    atributos = ((inventario.get('capacidades') or {}).get('comandos') or {}).get('ComShc', {}).get('atributos') or {}
+    sin_comprobar = [a for a in ATRIBUTOS_COMSHC.values() if not atributos.get(a)]
+    if sin_comprobar:
+        errores.append('ComShc no tiene comprobados en DIgSILENT los atributos ' + ', '.join(sin_comprobar)
+                       + ': ejecute antes «Comprobar capacidades»')
+    if errores:
+        raise ProteccionesError('El estudio de protecciones no se puede plantear:\n' + '\n'.join(errores))
+    publico = _publico(contexto)
+    return {'schema': ESQUEMA_PLAN, 'contexto': publico, 'clave_contexto': clave_contexto(contexto),
+            'project': contexto.project, 'feeders': list(contexto.feeders), 'caso': contexto.case_id,
+            'rol': contexto.case_role, 'anio': contexto.year,
+            'fallas': sorted(planteadas, key=lambda f: f['id']),
+            'dispositivos': sorted(dispositivos, key=lambda d: str(d['id'])), 'aportes': aportes,
+            'atributos_comshc': dict(ATRIBUTOS_COMSHC),
+            'escritura': {'variacion': VARIACION_AJUSTES, 'solo_variacion': True,
+                          'ajustes': sorted(ajustes, key=lambda a: (str(a['dispositivo']), str(a['atributo'])))}}

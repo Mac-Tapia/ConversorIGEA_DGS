@@ -418,6 +418,7 @@
     "estudios_pf.py",
     "capacidad_pf.py",
     "confiabilidad_pf.py",
+    "protecciones_pf.py",
     "transferencia_pf.py",
     "transformador_set_pf.py",
     "set_nueva_operacion_pf.py",

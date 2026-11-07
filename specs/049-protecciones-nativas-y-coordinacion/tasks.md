@@ -8,7 +8,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_datos.py tests/test_estudios_pf.py tests/test_datos_empresa.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [ ] T2. Escenarios de falla y captura nativa. (RF-4, RF-8)
+- [x] T2. Escenarios de falla y captura nativa. (RF-4, RF-8)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_pf_guion.py tests/test_protecciones_datos.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
@@ -44,3 +44,22 @@ DIgSILENT ni GPU; sintéticas sorteadas.
 - Limitación: hoy ninguna fuente trae dispositivos ni impedancia real de cabecera, así que el resultado en
   cualquier proyecto es «bloqueado» con la lista; eso es lo esperado (RF-2), no un fallo.
 
+T2 (RF-4, RF-8), 2026-11-06, misma rama. Sin DIgSILENT: el guion se prueba contra `tests/fake_pf.py`,
+que imita lo documentado en la referencia de PF 2024 (`ComShc.GetFaultType`, `ComShctrace`,
+`ElmRelay.GetMaxFdetectCalcI`). Estas pruebas no cierran la evidencia nativa, que es la T4.
+
+- `protecciones.plan_protecciones(contexto, inventario, fallas)`: identidad del caso
+  (`ContextoExperimento` y su clave), fallas con barra, tipo, fase e impedancia, la generación del caso
+  con su estado (una central como carga negativa se rechaza) y los ajustes solo en la variación
+  `CSG049_ajustes`, nunca en el «Caso base».
+- `tools/protecciones_pf.py`: `--capacidades` (órdenes, métodos documentados, atributos de `ComShc` con
+  `HasAttribute`, licencia del cortocircuito ejecutándolo, dispositivos y generación) y la ejecución de
+  fallas con la traza (`GetDeviceTime` al arrancar, disparos y secuencia paso a paso), `ComShc` y el caso
+  restituidos, cada falla independiente y cancelable entre fallas.
+- Por confirmar en la T4 con DIgSILENT real: los atributos de `ComShc` con que se define la falla
+  (`shcobj`, `iopt_shc`, `Rf`, `Xf`, `iopt_allbus`) no están en la referencia; el guion no los escribe si el
+  modo de capacidades no los comprobó, y relee el tipo con `GetFaultType`. La fase de una falla monofásica
+  se lleva en el plan y el informe, pero no se escribe en `ComShc` hasta conocer su atributo.
+- `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_pf_guion.py tests/test_protecciones_datos.py`:
+  32 aprobadas, 0 omitidas. `tests/test_inventario.py` (con `--help` del guion nuevo) y
+  `tests/test_arquitectura_generada.py` en verde.
