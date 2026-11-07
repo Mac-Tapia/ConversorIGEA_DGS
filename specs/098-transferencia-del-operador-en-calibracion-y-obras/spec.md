@@ -115,11 +115,46 @@ alimenta la zona. El DGS del conversor no trae las maniobras abiertas (90 en est
 - RF-19: EL SISTEMA anotará cada elemento tocado por su nombre completo y lo restituirá por él, de modo que dos
   elementos de nombre parecido («Breaker/Switch» y «Breaker/Switch(1)») no se confundan.
 
+### Transferir por el enlace que ya existe, en la escalera (2026-11-07)
+
+«Con proyecto» de CA101_CHN102 (job 7fcaf05e4edb): la escalera de CA101 probó primero «cambio a 22.9 kV con su fuente
+(107 km, 156 SED)», que no cumple (mínima 0,807 p.u.), y fue a la obra integral. La búsqueda de vecinos salió vacía
+porque 12333, 11969 y NODE_T_SU_empresa_Danper_Trujillo_SAC no tenían coordenadas, y concluyó «ni transferir o trasladar
+a un vecino bastan» sin haber probado ninguna transferencia. El usuario: «¿ya probó la transferencia de carga antes de
+ir a la migración a 22,9 kV?», «ya existe el punto de enlace con CHN102», «una vez transferido, debería probar con
+bancos de nuevo», y que el oráculo decida y DIgSILENT confirme, sin cálculos de relleno.
+
+- RF-20: SI una barra desde la que se busca un vecino no tiene coordenadas, ENTONCES EL SISTEMA tomará las de la barra
+  con coordenadas más cercana por la red, y lo dirá; sin ninguna a su alcance, dirá que no hay vecinos para ella.
+- RF-21: EL SISTEMA propondrá, antes que ningún enlace nuevo, la transferencia por cada enlace que ya existe entre el
+  alimentador y un vecino del proyecto (un acoplador, un interruptor o un tramo, abierto o cerrado, que une una barra
+  de uno con una del otro): abrir una maniobra existente del alimentador y cerrar el enlace si está abierto, sin línea
+  nueva y sin más costo que el de las pérdidas, con las dos maniobras anotadas como en 081:RF-80.
+- RF-22: EL SISTEMA propondrá las maniobras del camino de la cabecera al enlace, de la más cercana al enlace hacia la
+  cabecera, y solo a un vecino con margen de tensión y de carga (087:RF-32).
+- RF-23: EL SISTEMA evaluará las transferencias, por enlace existente y por enlace nuevo (087:RF-31 a RF-33), siempre
+  desde una maniobra, junto con los bancos y antes del cambio de nivel de tensión, de la sección y de la terna, y
+  dentro de cada escalón mandará el costo (042:RF-95).
+- RF-24: CUANDO aplica una transferencia por enlace existente, EL SISTEMA dirá qué enlace usó, qué maniobra abrió, qué
+  SED pasaron y con cuántos kW, y la tensión mínima y la carga máxima de los dos alimentadores antes y después.
+- RF-25: SI una transferencia, sola, no deja en norma a los dos alimentadores, ENTONCES EL SISTEMA volverá a buscar la
+  escalera desde los bancos con esa topología (las variantes de bancos y la búsqueda bayesiana del alimentador,
+  087:RF-55, RF-56), y la combinación competirá por su costo total con las demás, medida con los dos alimentadores.
+- RF-26: EL SISTEMA juzgará en el oráculo cada maniobra candidata y descartará, con su motivo, la que no converge, la
+  que deja la red peor que sin obra y las que no están entre las mejores; solo las mejores y sus combinaciones irán a
+  DIgSILENT, y el registro dirá cuántas generó, cuántas descartó y por qué, cuántas combinó y cuántas confirmó
+  DIgSILENT; lo que el oráculo ya juzgó y DIgSILENT confirmó o descartó no se vuelve a medir en la etapa de
+  transferencias.
+- RF-27: EL SISTEMA buscará los enlaces y las maniobras con lo que dice la red, para cualquier número de alimentadores,
+  cualquier fuente y cualquier distribuidora, sin nombres de alimentador ni de barra.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
 - Amplía 028:RF-17 (tramos nuevos) y 028:RF-26 (cambios del operador): el escaneo dice cuáles son de una transferencia.
-- Amplía 087:RF-31 a RF-33 y RF-52: las barras candidatas, solo con maniobra.
+- Amplía 087:RF-31 a RF-33 y RF-52: las barras candidatas, solo con maniobra; y cambia 087:RF-41 en el orden: la
+  transferencia se mide antes que el paso a 22,9 kV (098:RF-23).
+- Amplía 042:RF-56: la transferencia cuenta con los bancos en el grupo económico (098:RF-23).
 - Amplía 081:RF-80 y RF-81: un interruptor de cubículo se anota con su nombre completo.
 - No cambia la 013 (transferencia como estudio entre dos alimentadores) ni 081:RF-83 y RF-84: lo del operador que no
   deja barras sin tensión se respeta en «Con proyecto».
@@ -133,6 +168,6 @@ alimenta la zona. El DGS del conversor no trae las maniobras abiertas (90 en est
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-27.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

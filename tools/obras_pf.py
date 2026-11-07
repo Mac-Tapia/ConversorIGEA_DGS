@@ -1761,7 +1761,58 @@ def construir_expreso(ctx) -> None:
     ctx.fila['expreso'] = {'alimentadores_nuevos': hechos}
 
 
-CONSTRUCTORES.update(set_nueva=construir_set_nueva, expreso=construir_expreso)
+def _estado_de(elm) -> dict:
+    """Tensión mínima de media y carga máxima de los tramos de un alimentador con el último flujo (098:RF-24)."""
+    us = [_resultado(b, 'm:u') for b in elm.GetObjs('ElmTerm') if float(getattr(b, 'uknom', 0) or 0) > 1.0]
+    cs = [_resultado(ln, 'c:loading') for ln in elm.GetObjs('ElmLne')]
+    us, cs = [u for u in us if u is not None], [c for c in cs if c is not None]
+    return {'u_min': round(min(us), 4) if us else None, 'carga_max_pct': round(max(cs), 1) if cs else None}
+
+
+def construir_maniobra(ctx) -> None:
+    """098:RF-21, RF-24: la transferencia por un enlace que ya existe, sin construir nada.
+
+    Se cierra el enlace si estaba abierto y se abre la maniobra, las dos anotadas (081:RF-80) para que la variante
+    evaluada se restituya; después dice qué SED pasaron, con cuántos kW, y la tensión mínima y la carga máxima de los dos
+    alimentadores antes y después. CA101 y CHN102 (2026-11-07): el enlace ya existía y no se probaba.
+    """
+    from cargas_pf import potencia
+
+    o, fila, app = ctx.obra, ctx.fila, ctx.app
+    maniobra = next(iter(_con_nombre(app, o.maniobra_clase, o.maniobra, o.maniobra_ruta or None)), None)
+    enlace = next(iter(_con_nombre(app, o.enlace_clase, o.enlace, o.enlace_ruta or None)), None)
+    if maniobra is None or enlace is None:
+        raise RuntimeError(f'no está {o.maniobra if maniobra is None else o.enlace} en el proyecto: la transferencia '
+                           'por el enlace existente no se puede hacer')
+    vecino = (ctx.alims.elm.get(o.vecino) if ctx.alims is not None else None)
+    if vecino is None:
+        raise RuntimeError(f'el alimentador {o.vecino} que recibe no está en el proyecto')
+    flujo_de_carga(app)
+    cargas = {c.loc_name: c for c in ctx.elm.GetObjs('ElmLod')}
+    antes = {o.alimentador: _estado_de(ctx.elm), o.vecino: _estado_de(vecino)}
+    cerrado = (not int(getattr(enlace, 'outserv', 0) or 0)
+               and (o.enlace_clase not in ('ElmCoup', 'StaSwitch') or int(getattr(enlace, 'on_off', 1) or 0)))
+    if not cerrado:
+        cerrar_anotado(ctx, o.enlace_clase, enlace)
+    abrir(ctx, o.maniobra_clase, maniobra)
+    flujo = flujo_de_carga(app)
+    del_vecino = {c.loc_name for c in vecino.GetObjs('ElmLod')}
+    pasan = sorted(n for n in cargas if n in del_vecino)
+    fila['transferencia'] = {
+        'enlace': o.enlace, 'enlace_cerrado_antes': bool(cerrado), 'maniobra': o.maniobra, 'vecino': o.vecino,
+        'sed': pasan, 'kw': round(sum(potencia(cargas[n])[0] for n in pasan), 1),
+        'antes': antes, 'despues': {o.alimentador: _estado_de(ctx.elm), o.vecino: _estado_de(vecino)},
+        'converge': bool(flujo.get('converged'))}
+    escenario = app.GetActiveScenario()
+    if escenario is not None and not ctx.plan.get('evaluando'):
+        escenario.Save()                     # 042:RF-19: abrir y cerrar son del escenario; la obra aplicada queda en él
+    fila.setdefault('avisos', []).append(
+        f"Transferencia de {o.alimentador} a {o.vecino} por {o.enlace}"
+        + ('' if cerrado else ' (se cierra)') + f', abriendo {o.maniobra}: pasan {len(pasan)} SED, '
+        f"{fila['transferencia']['kw']:,.1f} kW (098:RF-24).")
+
+
+CONSTRUCTORES.update(set_nueva=construir_set_nueva, expreso=construir_expreso, maniobra=construir_maniobra)
 CONSTRUCTORES.update(condensador=construir_condensador, reconectador=construir_reconectador,
                      regulador=construir_regulador, seccion=construir_seccion,
                      terna=construir_terna, tension=construir_tension, enlace=construir_enlace,
@@ -2059,9 +2110,17 @@ def cerrar_lo_abierto(app, fila: dict, plan: dict | None = None) -> list[str]:
         for obj in _con_nombre(app, clase, nombre, entrada[3] if len(entrada) > 3 else None):
             _cerrar(clase, obj)
             cerrados.append(nombre)
+    reabiertos = []
+    for entrada in fila.get('cerrados') or []:                                   # 098:RF-21
+        for obj in _con_nombre(app, entrada[0], entrada[1], entrada[3] if len(entrada) > 3 else None):
+            _reabrir(entrada[0], obj)
+            reabiertos.append(entrada[1])
     if cerrados:
         fila.setdefault('avisos', []).append('La obra quedó inactiva: se vuelven a cerrar ' + ', '.join(cerrados)
                                              + ', que había abierto (042:RF-19).')
+    if reabiertos:
+        fila.setdefault('avisos', []).append('La obra quedó inactiva: se vuelven a abrir ' + ', '.join(reabiertos)
+                                             + ', que había cerrado (098:RF-21).')
     if plan is not None:
         quitar_aperturas(plan, [fila])
     return cerrados
@@ -2088,6 +2147,36 @@ def _con_nombre(app, clase: str, nombre: str, ruta: str | None = None) -> list:
         vivos = [o for o in ((donde.GetContents(f'{nombre}.{clase}', 1) if donde is not None else None) or [])
                  if o.loc_name == nombre and o.GetClassName() == clase]
     return [o for o in vivos if o.GetFullName() == ruta] if ruta else vivos
+
+
+def _reabrir(clase: str, obj) -> None:
+    """098:RF-21: lo que una obra cerró (el enlace existente), otra vez abierto."""
+    if clase in ('ElmCoup', 'StaSwitch'):
+        obj.on_off = 0
+    else:
+        obj.outserv = 1
+
+
+def cerrar_anotado(ctx, clase: str, obj) -> None:
+    """098:RF-21: como :func:`abrir`, pero al revés: anota que se cierra, en la fila y en disco, y después cierra.
+
+    El enlace existente de una transferencia se cierra en «Con proyecto»; al borrar la variante evaluada o si la orden
+    muere, se vuelve a abrir (081:RF-81, RF-82). Por su nombre completo (098:RF-19)."""
+    caso = getattr(ctx.app.GetActiveStudyCase(), 'loc_name', '') or ''
+    completo = obj.GetFullName()
+    ctx.fila.setdefault('cerrados', []).append([clase, obj.loc_name, caso, completo])
+    if ctx.plan.get('project'):
+        ruta = fichero_aperturas(ctx.plan)
+        entradas = leer_aperturas(ruta)
+        entradas.append({'proyecto': ctx.plan['project'], 'caso': caso, 'clase': clase, 'nombre': obj.loc_name,
+                         'variacion': ctx.fila.get('variacion') or '', 'evaluando': bool(ctx.plan.get('evaluando')),
+                         'fecha': time.strftime('%Y-%m-%dT%H:%M:%S'), 'ruta': completo, 'accion': 'cerrar'})
+        try:
+            escribir_aperturas(ruta, entradas)
+        except OSError as exc:
+            ctx.fila.setdefault('avisos', []).append(f'No se pudo anotar en disco el cierre de {obj.loc_name}: {exc} '
+                                                     '(098:RF-21).')
+    _cerrar(clase, obj)
 
 
 def _cerrar(clase: str, obj) -> None:
@@ -2125,7 +2214,7 @@ def quitar_aperturas(plan: dict, filas: list[dict]) -> None:
     if not plan.get('project'):
         return
     propias = [{'caso': (e[2] if len(e) > 2 else ''), 'clase': e[0], 'nombre': e[1]}
-               for f in filas for e in (f.get('abiertos') or [])]
+               for f in filas for e in list(f.get('abiertos') or []) + list(f.get('cerrados') or [])]
     if not propias:
         return
     ruta = fichero_aperturas(plan)
@@ -2146,8 +2235,9 @@ def restituir_lo_abierto(app, casos: dict, filas: list[dict], plan: dict) -> lis
     Al borrar la variante se borra lo que grabó su variación, pero no lo que el escenario guardó al abrir."""
     por_caso: dict[str, list] = {}
     for f in filas:
-        for e in f.get('abiertos') or []:
-            por_caso.setdefault(e[2] if len(e) > 2 else '', []).append(e)
+        for accion in ('abiertos', 'cerrados'):                                  # 098:RF-21: también lo cerrado
+            for e in f.get(accion) or []:
+                por_caso.setdefault(e[2] if len(e) > 2 else '', []).append((accion, e))
     if not por_caso:
         return []
     por_nombre = {c.loc_name: c for c in casos.values()}
@@ -2155,9 +2245,9 @@ def restituir_lo_abierto(app, casos: dict, filas: list[dict], plan: dict) -> lis
     for caso, entradas in por_caso.items():
         if por_nombre.get(caso) is not None:
             por_nombre[caso].Activate()
-        for e in entradas:
+        for accion, e in entradas:
             for obj in _con_nombre(app, e[0], e[1], e[3] if len(e) > 3 else None):
-                _cerrar(e[0], obj)
+                (_reabrir if accion == 'cerrados' else _cerrar)(e[0], obj)
                 cerrados.append(e[1])
     quitar_aperturas(plan, filas)
     return cerrados
@@ -2196,7 +2286,7 @@ def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[di
                     respetadas.append(e)
                     continue
                 for obj in _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')):
-                    _cerrar(e['clase'], obj)
+                    (_reabrir if e.get('accion') == 'cerrar' else _cerrar)(e['clase'], obj)       # 098:RF-21
                     hechas += 1
                 restituidas.append(e)
             escenario = app.GetActiveScenario()
@@ -2570,7 +2660,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         return {**informe, 'error': f"el proyecto no tiene los casos «Caso base» y "
                                     f"«{nombre_caso('sin', anio)}»: prepare los casos primero"}, 2
 
-    feeders = sorted({o.alimentador for o in obras} | {o.cede for o in obras if o.cede}
+    feeders = sorted({o.alimentador for o in obras} | {o.cede for o in obras if o.cede} | {o.vecino for o in obras if o.vecino}
                      | set(plan.get('feeders') or []))
     evaluando = bool(plan.get('evaluando'))
     if not evaluando:
@@ -2743,6 +2833,14 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
 EQUIPOS_EN_SERIE = ('ElmCoup', 'ElmVoltreg', 'ElmTr2', 'ElmZpu', 'ElmSind')
 
 
+def _ruta_de(obj) -> str:
+    """098:RF-19: el nombre completo con que se encuentra de nuevo el mismo elemento; su nombre si no lo da."""
+    try:
+        return str(obj.GetFullName())
+    except AttributeError:
+        return str(getattr(obj, 'loc_name', ''))
+
+
 def puentes_de_la_red(app) -> list[dict]:
     """042:RF-44: los equipos en serie en servicio, como tramos de largo 0 que no llevan obra; un acoplador abierto no une nada."""
     out = []
@@ -2754,7 +2852,8 @@ def puentes_de_la_red(app) -> list[dict]:
             if len(barras) == 2:
                 out.append({'nombre': o.loc_name, 'desde': barras[0].loc_name, 'hasta': barras[1].loc_name, 'largo_m': 0.0, 'puente': True,
                             # 098:RF-11: un acoplador es una maniobra; un transformador o un regulador no se abren.
-                            'maniobra': {'nombre': o.loc_name, 'clase': 'ElmCoup'} if clase == 'ElmCoup' else None})
+                            'maniobra': ({'nombre': o.loc_name, 'clase': 'ElmCoup', 'ruta': _ruta_de(o)}
+                                         if clase == 'ElmCoup' else None)})
     return out
 
 
@@ -2763,8 +2862,57 @@ def maniobra_del_tramo(linea) -> dict | None:
     for lado in ('bus1', 'bus2'):
         cub = getattr(linea, lado, None)
         for sw in ((cub.GetContents('*.StaSwitch') if cub is not None else None) or []):
-            return {'nombre': sw.loc_name, 'clase': 'StaSwitch'}
+            # 098:RF-19: con su nombre completo: los de cubículo se llaman casi siempre igual («Switch»).
+            return {'nombre': sw.loc_name, 'clase': 'StaSwitch', 'ruta': _ruta_de(sw)}
     return None
+
+
+def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict) -> dict[str, list[dict]]:
+    """098:RF-21, RF-22, RF-27: por cada alimentador de ``feeders``, lo que ya une una barra suya con una de otro
+    alimentador del proyecto, abierto o cerrado.
+
+    Acopladores, tramos y equipos en serie, con sus interruptores, en una pasada por clase para todos (nada de recorrer
+    la red una vez por alimentador). De cada uno, su barra en el alimentador y las maniobras del camino eléctrico de la
+    cabecera hasta ella (los tramos con su interruptor y los acopladores, 098:RF-11), en orden; y el margen del vecino
+    con el flujo de ahora (087:RF-32). CA101 y CHN102 (2026-11-07): el enlace con CHN102 ya existía y la escalera no lo
+    veía.
+    """
+    from convertersmartgrid.escalera_optima import camino_electrico
+
+    pedidos = set(feeders)
+    out: dict[str, list[dict]] = {f: [] for f in feeders}
+    de_barra: dict[str, str] = {}
+    for g, elm in alims.elm.items():
+        cab_g = cabecera_de(elm)
+        for b in elm.GetObjs('ElmTerm'):
+            if cab_g is not None and b.loc_name == cab_g.loc_name:
+                continue                                  # la barra de la SET la comparten: no es un enlace
+            de_barra.setdefault(b.loc_name, g)
+    for clase in ('ElmCoup', 'ElmLne') + tuple(c for c in EQUIPOS_EN_SERIE if c not in ('ElmCoup',)):
+        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+            lados = [getattr(o, a, None) for a in (('bushv', 'buslv') if clase == 'ElmTr2' else ('bus1', 'bus2'))]
+            barras = [getattr(c, 'cterm', None) for c in lados]
+            if any(b is None for b in barras):
+                continue
+            duenos = [de_barra.get(b.loc_name) for b in barras]
+            if None in duenos or duenos[0] == duenos[1] or not pedidos & set(duenos):
+                continue
+            cerrado = (not int(getattr(o, 'outserv', 0) or 0)
+                       and not (clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1) or 0))
+                       and all(int(getattr(s, 'on_off', 1) or 0) for c in lados if c is not None
+                               for s in (c.GetContents('*.StaSwitch') or [])))
+            for lado, f in enumerate(duenos):
+                if f not in pedidos:
+                    continue
+                propia, vecino = barras[lado], duenos[1 - lado]
+                cab = cabecera_de(alims.elm[f])
+                camino = camino_electrico(tramos_red, cab.loc_name, propia.loc_name) if cab is not None else []
+                puntos = [{'rama': t['nombre'], 'barra': t.get('hasta'), 'maniobra': t['maniobra']} for t in camino
+                          if t.get('maniobra') and t['maniobra'].get('nombre') != o.loc_name]
+                out[f].append({'enlace': o.loc_name, 'clase': clase, 'ruta': o.GetFullName(), 'cerrado': bool(cerrado),
+                               'vecino': vecino, 'barra': propia.loc_name, 'puntos': puntos,
+                               **(margen.get(vecino) or {})})
+    return {f: sorted(x, key=lambda e: (e['vecino'], e['enlace'])) for f, x in out.items()}
 
 
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
@@ -2869,6 +3017,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                           if tipo is not None else None),
                                'maniobra': maniobra_del_tramo(ln)})                      # 098:RF-11
         tramos_red += puentes_de_la_red(app)                                  # 042:RF-44
+        margen = None                  # 098:RF-21: el de cada vecino, una vez para todos
         for f, troncal in troncales.items():
             elm = alims.elm[f]
             lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
@@ -2946,7 +3095,18 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                          'seds': len(elm.GetObjs('ElmTr2')),
                          'compartida': any(g != f and (c := cabecera_de(otro)) is not None and clave_pf(c) == clave_pf(cab)
                                            for g, otro in alims.elm.items())}
+            # 098:RF-21: los enlaces que ya existen con los vecinos, para transferir sin construir nada.
+            if margen is None:
+                margen = {}
+                for g, otro in alims.elm.items():
+                    us = [_resultado(b, 'm:u') for b in otro.GetObjs('ElmTerm') if flujo['converged']
+                          and float(getattr(b, 'uknom', 0) or 0) > 1.0]
+                    cs = [_resultado(ln, 'c:loading') for ln in otro.GetObjs('ElmLne') if flujo['converged']]
+                    us, cs = [u for u in us if u is not None], [c for c in cs if c is not None]
+                    margen[g] = {'u_min': min(us) if us else None, 'carga_max_pct': max(cs) if cs else None}
+                enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen)
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
+                                           'enlaces': enlaces.get(f, []),
                                            'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []), 'barras_media': media_de.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
@@ -3784,6 +3944,29 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def _gps_por_la_red(barra, con_gps: dict, max_barras: int = 500) -> tuple[Any, str | None]:
+    """098:RF-20: las coordenadas de la barra con GPS más cercana a ``barra`` por la red, en número de ramas, y su
+    nombre; ``(None, None)`` si no hay ninguna a ``max_barras`` barras. Solo lee."""
+    if barra is None:
+        return None, None
+    vistas, frente = {barra.loc_name}, [barra]
+    while frente and len(vistas) <= max_barras:
+        siguiente = []
+        for t in frente:
+            for e in t.GetConnectedElements() or []:
+                for c in ('bus1', 'bus2', 'bushv', 'buslv'):
+                    o = getattr(getattr(e, c, None), 'cterm', None)
+                    if o is None or o.loc_name in vistas:
+                        continue
+                    vistas.add(o.loc_name)
+                    g = con_gps.get(o.loc_name) or gps_de(o)
+                    if g:
+                        return g, o.loc_name
+                    siguiente.append(o)
+        frente = siguiente
+    return None, None
+
+
 def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
     """087:RF-32, RF-33: los alimentadores vecinos de cada nodo, con su margen en «Con proyecto <año>».
 
@@ -3819,11 +4002,20 @@ def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
                                'u_min': min(u) if u else None, 'carga_max_pct': max(carga) if carga else None}
         for f, nodos in (plan.get('nodos') or {}).items():
             propio = dict((resumen.get(f) or {}).get('gps', []))
+            barras_f = {b.loc_name: b for b in todos[f].GetObjs('ElmTerm')} if f in todos else {}
             for nodo in nodos:
                 punto = propio.get(nodo)
                 if punto is None:
-                    informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas: sin vecinos para ella (087:RF-32).')
-                    continue
+                    # 098:RF-20: sin GPS propio, el de la barra con GPS más cercana por la red. CA101 + CHN102
+                    # (2026-11-07): 12333, 11969 y la barra nueva de CH_10 no tenían coordenadas, la búsqueda de vecinos
+                    # salía vacía y la escalera daba la transferencia por imposible sin haberla probado.
+                    punto, desde = _gps_por_la_red(barras_f.get(nodo), propio)
+                    if punto is None:
+                        informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas ni las tiene ninguna barra '
+                                                 'cercana por la red: sin vecinos para ella (087:RF-32, 098:RF-20).')
+                        continue
+                    informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas: se toman las de {desde}, la '
+                                             'más cercana por la red (098:RF-20).')
                 filas = []
                 for nombre, r in resumen.items():
                     if nombre == f or not r['gps']:

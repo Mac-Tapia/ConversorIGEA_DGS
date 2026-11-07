@@ -6308,19 +6308,31 @@ def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs
 
 def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, d: Mapping[str, Any],
                            barras: Sequence[str], kv: float, tipos, p,
-                           objetivos: Mapping[str, Any] | None = None) -> tuple[list, list[str], list[str]]:
+                           objetivos: Mapping[str, Any] | None = None,
+                           con_enlaces: bool = True) -> tuple[list, list[str], list[str]]:
     """087:RF-31 a RF-33: las variantes de transferir y trasladar de ``f`` y los vecinos que hay que medir con él.
 
     Los nodos salen de la troncal y del camino de su carga mayor; los vecinos y su margen, de DIgSILENT
-    (``obras_pf.py --vecinos``), una sola lectura para los dos nodos.
+    (``obras_pf.py --vecinos``), una sola lectura para los dos nodos. 098:RF-21: con ``con_enlaces``, antes que ningún
+    enlace nuevo, las transferencias por los enlaces que ya existen; sin ``con_enlaces``, porque el oráculo ya las juzgó
+    y DIgSILENT las confirmó o descartó, no se repiten (098:RF-26).
     """
     from .. import obras_integrales as oi
 
     avisos: list[str] = []
+    por_enlace: list = []
+    if con_enlaces:
+        por_enlace, av_e = oi.variantes_por_enlace(f, d.get('enlaces') or [], p)
+        avisos += av_e
+        if por_enlace:
+            ctx.log(f'{f}: {len(por_enlace)} transferencia(s) por enlaces que ya existen, antes que un enlace nuevo '
+                    '(098:RF-21).')
     caminos = d.get('caminos') or {}
     barra = next((b for b in barras if caminos.get(b)), None)
     if barra is None:
-        return [], [], [f'{f}: sin el camino de su carga nueva no se sabe qué transferir ni trasladar (087:RF-32).']
+        vecinos_e = sorted({o['vecino'] for v in por_enlace for o in v.obras if o.get('vecino')})
+        return por_enlace, vecinos_e, avisos + [f'{f}: sin el camino de su carga nueva no se sabe qué transferir ni '
+                                                'trasladar con un enlace nuevo (087:RF-32).']
     troncal = {str(t.get('nombre')) for t in d.get('troncal') or []}
     de = oi.nodos_de_traspaso(caminos[barra], troncal, barra, p)
     nodos = list(dict.fromkeys(list(de['transferencia']) + ([de['traslado']] if de['traslado'] else [])))  # 087:RF-52
@@ -6328,7 +6340,8 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
                                  nombre='vecinos', args=('--vecinos',))
     avisos += list(leidos.get('avisos') or [])
     if rc or leidos.get('error'):
-        return [], [], avisos + [f"{f}: no se leyeron sus vecinos ({leidos.get('error') or rc}) (087:RF-32)."]
+        vecinos_e = sorted({o['vecino'] for v in por_enlace for o in v.obras if o.get('vecino')})
+        return por_enlace, vecinos_e, avisos + [f"{f}: no se leyeron sus vecinos ({leidos.get('error') or rc}) (087:RF-32)."]
     vecinos = (leidos.get('vecinos') or {}).get(f) or {}
     if objetivos is not None:
         # 087:RF-53: solo un vecino que opera, con demanda medida en su calibración. Pisco (2026-11-04): SC215 «ya no
@@ -6340,10 +6353,12 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
             avisos.append(f"{f}: no se proponen como vecinos {', '.join(fuera)}: sin demanda medida en su calibración, no "
                           'operan (087:RF-53).')
     vs, av = oi.variantes(f, kv, caminos[barra], troncal, barra, vecinos, tipos, p)
-    vecinos = sorted({o['alimentador'] for v in vs for o in v.obras if o.get('clase') == 'enlace'})
+    vs = por_enlace + vs                                                          # 098:RF-21: los existentes primero
+    vecinos = sorted({o['alimentador'] for v in vs for o in v.obras if o.get('clase') == 'enlace'}
+                     | {o['vecino'] for v in vs for o in v.obras if o.get('clase') == 'maniobra'})
     if vs:
-        ctx.log(f"{f}: la escalera no basta; se prueban {len(vs)} variante(s) de transferencia y traslado con "
-                f"{', '.join(vecinos)} (087:RF-31).")
+        ctx.log(f"{f}: se prueban {len(vs)} variante(s) de transferencia y traslado con "
+                f"{', '.join(vecinos)} (087:RF-31, 098:RF-21).")
     return vs, vecinos, avisos + av
 
 
@@ -6353,7 +6368,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                    aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
                    variantes_de: dict | None = None, solo_comun: bool = False,
                    solo: dict | None = None, por_alternativas: bool = False, previas: dict | None = None,
-                   etiqueta_previas: str = '', traspaso: bool = False, sin_oraculo: bool = False) -> dict:
+                   etiqueta_previas: str = '', traspaso: bool = False, sin_oraculo: bool = False,
+                   con_enlaces: bool = True) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -6525,7 +6541,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             vs = [v for v in vs if not oo.modelable(v)]
         if traspaso:
             vs, vecinos_f, av_t = _variantes_de_traspaso(ws, ctx, comun, f, d, barras, float(kv or 0),
-                                                         lectura.get('tipos') or [], p, objetivos)
+                                                         lectura.get('tipos') or [], p, objetivos, con_enlaces)
             fila['avisos'] += av_t
         if variantes_de is not None and f in variantes_de:
             # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.
@@ -6533,6 +6549,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         if solo and f in solo:
             # 042:RF-29: al aplicar, solo la obra que eligió la evaluación del alimentador; no se repiten sus variantes.
             vs = [v for v in vs if v.nombre == solo[f]] or vs
+        # 098:RF-25: una transferencia por enlace existente se mide con los dos alimentadores, el que cede y el que recibe.
+        de_enlace = [v for v in vs if any(o.get('clase') == 'maniobra' for o in v.obras)]
+        vecinos_f = list(dict.fromkeys(list(vecinos_f) + [o['vecino'] for v in de_enlace for o in v.obras
+                                                          if o.get('clase') == 'maniobra' and o.get('vecino')]))
+        if de_enlace and not aplicar:
+            ctx.log(f'{f}: DIgSILENT confirma {len(de_enlace)} transferencia(s) por enlace existente, con '
+                    f"{', '.join(vecinos_f)} (098:RF-26).")
         elif objetivo_previo and vs:
             vs = _previas_con_oraculo(ws, ctx, comun, f, vs, barras, lectura.get('tipos') or [], p)    # 087:RF-48
         if not vs:
@@ -6672,6 +6695,15 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                    apartar_variaciones=apartar_variaciones)
             hechas = (hecho.get('informe') or {}).get('obras') or []
             fila['aplicada'] = [o.get('variacion') for o in hechas]
+            for o in hechas:                                                     # 098:RF-24
+                t = o.get('transferencia')
+                if t:
+                    fila.setdefault('transferencias', []).append(t)
+                    ctx.log(f"{f}: transferencia a {t['vecino']} por {t['enlace']}, abriendo {t['maniobra']}: "
+                            f"{len(t['sed'])} SED, {t['kw']:,.1f} kW; " + '; '.join(
+                                f"{g} {(t['antes'].get(g) or {}).get('u_min')} → {(t['despues'].get(g) or {}).get('u_min')} p.u., "
+                                f"{(t['antes'].get(g) or {}).get('carga_max_pct')} → {(t['despues'].get(g) or {}).get('carga_max_pct')} %"
+                                for g in t['despues']) + ' (098:RF-24).')
             fila['coordenadas'] = [u for o in hechas for u in o.get('ubicacion') or []]   # 087:RF-24, 042:RF-36
             fila['instalaciones'] = [i for o in hechas for i in o.get('instalaciones') or []]
             # 025:RF-69: resuelto solo si su obra quedó activa en «Con proyecto <año>»; si no,
@@ -6952,22 +6984,27 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                         '(087:RF-40).')
         ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
         traspaso = False
+        # 098:RF-21: si el oráculo ya juzgó las transferencias por enlace existente (con bancos encima, 098:RF-25),
+        # DIgSILENT ya confirmó las mejores: no se repiten aquí (098:RF-26).
+        con_enlaces = not e_or
+        if not ok:
+            # 087:RF-31, 098:RF-23: pasar la carga a un vecino con margen, siempre desde una maniobra, es más barato que
+            # el cambio de nivel de tensión: va antes. CA101 + CHN102 (2026-11-07) probó los 107 km a 22,9 kV primero.
+            ctx.check_cancel()
+            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+                               basta_una=True, memo=memo, por_alternativas=True, traspaso=True, con_enlaces=con_enlaces,
+                               **opciones)
+            de_t = next(iter(r.get('alimentadores') or []), {})
+            if de_t.get('elegida'):
+                fila, ok, traspaso, tanda = de_t, True, True, None
         if not ok and e_or:
-            # 087:RF-41: el oráculo no modela el paso a 22,9 kV; DIgSILENT lo mide antes de transferir o trasladar.
+            # 087:RF-41: el oráculo no modela el paso a 22,9 kV; DIgSILENT lo mide, tras transferir y trasladar.
             ctx.check_cancel()
             r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
                                basta_una=True, memo=memo, por_alternativas=True, sin_oraculo=True, **opciones)
             de_n = next(iter(r.get('alimentadores') or []), {})
             if de_n.get('elegida'):
                 fila, ok, tanda = de_n, True, None
-        if not ok:
-            # 087:RF-31: antes del alimentador nuevo o la SET nueva, pasar la carga a un vecino con margen.
-            ctx.check_cancel()
-            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
-                               basta_una=True, memo=memo, por_alternativas=True, traspaso=True, **opciones)
-            de_t = next(iter(r.get('alimentadores') or []), {})
-            if de_t.get('elegida'):
-                fila, ok, traspaso, tanda = de_t, True, True, None
         for alt in fila.get('alternativas') or []:
             ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
                     + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')
@@ -6979,7 +7016,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             # La que halló la bayesiana no está en la lista de la escalera: se aplica la misma que se midió (087).
             hallada = next((v for v in (tanda or ()) if v.nombre == elegidas[f]), None)
             hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True,
-                                   basta_una=True, memo=memo, solo={f: elegidas[f]}, traspaso=traspaso, **opciones,
+                                   basta_una=True, memo=memo, solo={f: elegidas[f]}, traspaso=traspaso,
+                                   con_enlaces=con_enlaces, **opciones,
                                    **({'variantes_de': {f: [hallada]}} if hallada is not None else {}))
             for de_f in hecha.get('alimentadores') or []:
                 de_f['alternativas'] = fila.get('alternativas') or []            # 042:RF-58: las de la evaluación
@@ -7131,6 +7169,7 @@ class _SinOraculo(Exception):
 def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], orden: list[dict], comun: dict) -> dict:
     """El oráculo de «Con proyecto» y las variantes de cada alimentador, de una sola lectura (052:RF-1, 087:RF-1)."""
     from .. import escalera_optima as eo
+    from .. import obras_integrales as oi
     from .. import optimizacion_oraculo as oo
     from ..demanda_medida import clave_codigo
 
@@ -7243,6 +7282,9 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                                           banco, p, project=project, valle=valle)
         if por_perfil is not None:
             vs = [por_perfil] + list(vs)
+        por_enlace, av_e = oi.variantes_por_enlace(f, d.get('enlaces') or [], p)        # 098:RF-21
+        for aviso in av_e:
+            ctx.log(aviso)
 
         def costo(v, perdidas_kw, f=f):
             try:
@@ -7264,6 +7306,20 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                              [{'nombre': t['nombre'], 'origen': t.get('origen') or 'proyecto',
                                'proyecto': t.get('proyecto') or ''} for t in aptos], p.ternas,
                              eo.tipos_de_terna(tipos_lista, kv, p)) if (tramos or banco) else None   # 042:RF-98
+        if por_enlace:
+            # 098:RF-25, RF-26: el oráculo juzga cada maniobra con la máxima, descarta lo que no sirve y, sobre la
+            # topología de las mejores, vuelve a buscar desde los bancos; lo que sale compite por costo con lo demás.
+            extra, r_t = oo.transferencias_con_oraculo(
+                ora, oo.Alimentador(f, vs, costo, espacio), por_enlace, len(nuevas), p, valle=valle, semilla=p.semilla,
+                confirmar=int(ajustes.get('transferencias_a_confirmar') or oo.TRANSFERENCIAS_A_CONFIRMAR),
+                evaluaciones_bayes=int(ajustes.get('evaluaciones_transferencia') or oo.EVALUACIONES_CON_TRANSFERENCIA))
+            vs = list(vs) + extra
+            ctx.log(f"{f}: el oráculo genera {r_t['generadas']} transferencia(s) por enlace existente, descarta "
+                    f"{len(r_t['descartadas'])}"
+                    + (' (' + '; '.join(f"{x['nombre']}: {x['motivo']}" for x in r_t['descartadas'][:5]) + ')'
+                       if r_t['descartadas'] else '')
+                    + f", deja {len(r_t['pasan'])} y combina {r_t['combinadas']} con la escalera, en {r_t['flujos']} "
+                    'flujos (098:RF-25, RF-26).')
         alims.append(oo.Alimentador(f, vs, costo, espacio))
     opciones_eleccion = {'evaluaciones_bayes': int(ajustes.get('evaluaciones_bayes') or oo.EVALUACIONES_BAYES),
                          'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),

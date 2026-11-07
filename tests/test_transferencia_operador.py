@@ -630,3 +630,289 @@ def test_frente_a_la_fuente_puro():
     assert por['NUEVO'].en_fuente is False and por['NUEVO'].fuera_de_la_fuente
     assert frente == {'particiones': [{'rama': 'L1', 'clase': 'ElmLne', 'cadena': ['L1_a'], 'abierto': []}],
                       'nuevas': ['NUEVO']}
+
+
+# =========================================================================== 098:RF-20 a RF-27: transferir por el enlace que ya existe
+def test_una_barra_sin_gps_toma_las_de_la_mas_cercana_por_la_red():
+    """098:RF-20 — CA101 + CHN102 (2026-11-07): sin coordenadas en 12333, 11969 y la barra nueva, la búsqueda de vecinos
+    salía vacía; ahora toma las de la barra con GPS más cercana por la red, y sin ninguna dice que no hay."""
+    obras = cargar_herramienta('obras_pf.py', 'obras_gps_098', tools_en_path=True)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
+    for n in ('F1_B2', 'F1_B3'):
+        b = _obj(app, 'ElmTerm', n)
+        b.GPSlat, b.GPSlon = 0.0, 0.0
+    punto, desde = obras._gps_por_la_red(_obj(app, 'ElmTerm', 'F1_B3'), {})
+    assert desde in ('F1_B1', 'F1_B4') and punto == obras.gps_de(_obj(app, 'ElmTerm', desde))
+    for b in app.proyecto.GetContents('*.ElmTerm', 1):
+        b.GPSlat, b.GPSlon = 0.0, 0.0
+    assert obras._gps_por_la_red(_obj(app, 'ElmTerm', 'F1_B3'), {}) == (None, None)
+
+
+PREFIJO_098 = 'Red:\\P\\'
+
+
+def _gid(n, c):
+    return f'{c}:{PREFIJO_098}{n}.{c}'
+
+
+def _grafo_dos():
+    """X: S1–A1–A2–A3–A4, con la carga nueva en A4; Y: S2–B1–B2; el acoplador ENL, abierto, entre A3 y B2.
+
+    Con la nueva, A4 queda a 0,926 p.u.; abrir A2–A3 y cerrar ENL la sube a 0,936 (no basta); 900 kvar en A4, solos,
+    a 0,948 (no basta); la transferencia con esos 900 kvar, a 0,955 (cumple), y los 1 800 kvar solos también, más caros.
+    """
+    nodos = {_gid('S1', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0, 'q_mvar': 0, 'fuente': True, 'v_pu': 1.0},
+             _gid('S2', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0, 'q_mvar': 0, 'fuente': True, 'v_pu': 1.0}}
+    for n in ('A1', 'A2', 'A3', 'A4'):
+        nodos[_gid(n, 'ElmTerm')] = {'kv': 10.0, 'p_mw': 0.3, 'q_mvar': 0.1, 'fuente': False}
+    nodos[_gid('A4', 'ElmTerm')].update(p_mw=1.5, q_mvar=0.46)
+    for n in ('B1', 'B2'):
+        nodos[_gid(n, 'ElmTerm')] = {'kv': 10.0, 'p_mw': 0.2, 'q_mvar': 0.05, 'fuente': False}
+    ramas = [{'id': _gid(f'L{a}{b}', 'ElmLne'), 'desde': _gid(a, 'ElmTerm'), 'hasta': _gid(b, 'ElmTerm'),
+              'r_ohm': r, 'x_ohm': r * 0.8, 'inom_ka': 0.3, 'largo_km': 2.0, 'cerrada': True}
+             for a, b, r in (('S1', 'A1', 0.7), ('A1', 'A2', 0.7), ('A2', 'A3', 0.7), ('A3', 'A4', 0.7),
+                             ('S2', 'B1', 0.9), ('B1', 'B2', 0.9))]
+    ramas.append({'id': _gid('ENL', 'ElmCoup'), 'clase': 'ElmCoup', 'desde': _gid('A3', 'ElmTerm'),
+                  'hasta': _gid('B2', 'ElmTerm'), 'r_ohm': 0.01, 'x_ohm': 0.01, 'inom_ka': 0.5, 'cerrada': False})
+    return {'nodos': nodos, 'ramas': ramas}
+
+
+def _p_098():
+    from convertersmartgrid.escalera_optima import Parametros
+
+    return Parametros(cumplimiento=0.95, sorteos=4, semilla=7, tolerancia_pu=0.001, tolerancia_carga_pct=1.0,
+                      max_variantes=40, tasa=0.12, vida=20, tension_min_pu=0.95, tension_max_pu=1.05,
+                      cargabilidad_max_pct=100.0)
+
+
+def _enlace_x():
+    """Lo que da ``--escalera-datos``: el enlace ENL con Y y las maniobras de la cabecera hasta A3, en orden."""
+    return {'enlace': 'ENL', 'clase': 'ElmCoup', 'ruta': 'ENL.ElmCoup', 'cerrado': False, 'vecino': 'Y', 'barra': 'A3',
+            'u_min': 0.99, 'carga_max_pct': 30.0,
+            'puntos': [{'rama': r, 'barra': b, 'maniobra': {'clase': 'StaSwitch', 'nombre': f'SW_{r}', 'ruta': f'X\\{r}\\SW'}}
+                       for r, b in (('LS1A1', 'A1'), ('LA1A2', 'A2'), ('LA2A3', 'A3'))]}
+
+
+def _bancos_x():
+    from convertersmartgrid.escalera_optima import Variante
+
+    return [Variante(f'{n}×450 kvar en A4', ('bancos',), [{'clase': 'condensador', 'alimentador': 'X', 'barra': 'A4',
+                                                          'q_kvar': 450.0 * n, 'escalones': n}], {'bancos': n})
+            for n in (1, 2, 3, 4)]
+
+
+def _costo(v, perdidas_kw):
+    return 1000.0 * v.cantidades.get('bancos', 0) + 0.1 * (perdidas_kw or 0.0)
+
+
+def test_transferencias_por_el_enlace_de_la_mas_cercana_a_la_cabecera():
+    """098:RF-21, 098:RF-22 — sin línea nueva ni km: de la maniobra más cercana al enlace hacia la cabecera; abre la
+    maniobra y cierra el enlace; un vecino sin margen no recibe."""
+    from convertersmartgrid import obras_integrales as oi
+
+    vs, avisos = oi.variantes_por_enlace('X', [_enlace_x()], _p_098())
+    assert [v.obras[0]['maniobra'] for v in vs] == ['SW_LA2A3', 'SW_LA1A2', 'SW_LS1A1'] and not avisos
+    o = vs[0].obras[0]
+    assert (o['clase'], o['tramo'], o['enlace'], o['vecino'], o['enlace_cerrado']) == ('maniobra', 'LA2A3', 'ENL', 'Y', False)
+    assert all(v.cantidades == {} and v.escalones == ('transferencia',) for v in vs)
+    sin_margen, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.951}], _p_098())
+    assert sin_margen == [] and any('087:RF-32' in a for a in av)
+
+
+def test_la_transferencia_sola_no_basta_y_con_bancos_si(monkeypatch):
+    """098:RF-25, 098:RF-23, 098:RF-24 — el oráculo descarta la maniobra que no sirve, sobre la topología de la mejor
+    vuelve a probar los bancos y elige «transferencia + bancos», más barata que los bancos solos; su costo y su
+    tensión salen en la tabla."""
+    pytest.importorskip('scipy')
+    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid import optimizacion_oraculo as oo
+
+    p = _p_098()
+    nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X',
+             'barra': 'A4'}
+    ora = oo.Oraculo(_grafo_dos(), [nueva])
+    candidatas, _av = oi.variantes_por_enlace('X', [_enlace_x()], p)
+    a = oo.Alimentador('X', _bancos_x(), _costo, None)
+    extra, resumen = oo.transferencias_con_oraculo(ora, a, candidatas, 1, p, confirmar=1)
+    assert resumen['generadas'] == 3 and resumen['pasan'] == [candidatas[0].nombre]
+    assert len(resumen['descartadas']) == 2 and all(x['motivo'] for x in resumen['descartadas'])
+    assert resumen['combinadas'] == 4 and resumen['flujos'] == 2 * (1 + 3)       # sin obra y cada candidata, con su base
+    e = oo.elegir_para_k(ora, [oo.Alimentador('X', _bancos_x() + extra, _costo, None)], 1, p,
+                         evaluaciones_bayes=0, permutaciones=0, pareto=False)['X']
+    assert e['elegida'] == f"{candidatas[0].nombre} + 2×450 kvar en A4"
+    fila = next(t for t in e['tabla'] if t['nombre'] == e['elegida'])
+    solos = next(t for t in e['tabla'] if t['nombre'] == '4×450 kvar en A4')
+    assert fila['cumple'] and solos['cumple'] and fila['costo_anual'] < solos['costo_anual']
+    assert fila['v_min'] is not None and fila['v_min'] >= p.tension_min_pu - 0.05
+    sola = next(t for t in e['tabla'] if t['nombre'] == candidatas[0].nombre)
+    assert not sola['cumple']                                                     # sola no basta
+
+
+def test_el_oraculo_filtra_y_solo_las_mejores_van_a_digsilent():
+    """098:RF-26 — de una cadena de maniobras, el oráculo juzga cada una con un flujo; a DIgSILENT van solo las que
+    da por buenas y una tanda más (087:RF-39), no todas."""
+    pytest.importorskip('scipy')
+    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid import optimizacion_oraculo as oo
+
+    p = _p_098()
+    nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X',
+             'barra': 'A4'}
+    ora = oo.Oraculo(_grafo_dos(), [nueva])
+    candidatas, _av = oi.variantes_por_enlace('X', [_enlace_x()], p)
+    a = oo.Alimentador('X', _bancos_x(), _costo, None)
+    antes = ora.evaluaciones
+    extra, resumen = oo.transferencias_con_oraculo(ora, a, candidatas, 1, p, confirmar=2)
+    assert ora.evaluaciones - antes == 0                       # en el oráculo rápido, aparte
+    assert resumen['flujos'] == 2 * (1 + 3) and len(resumen['pasan']) == 2
+    todas = _bancos_x() + extra
+    e = oo.elegir_para_k(ora, [oo.Alimentador('X', todas, _costo, None)], 1, p,
+                         evaluaciones_bayes=0, permutaciones=0, pareto=False)['X']
+    a_digsilent = oo.a_confirmar(e, 1)
+    buenas = sum(1 for t in e['tabla'] if t['cumple'])
+    assert len(a_digsilent) == buenas + 1 < len(todas)
+    assert a_digsilent[0].nombre == e['elegida']
+
+
+def _red_con_enlace():
+    """Dos alimentadores del doble con un acoplador ENL, abierto, entre la última barra de cada uno, y un seccionador en
+    los dos últimos tramos de F1; los ``ElmFeeder`` siguen la topología de ahora."""
+    from test_obras_pf_guion import _calibrada_con_escenario
+
+    app, alims = _calibrada_con_escenario(random.Random(98))
+    n = len([b for b in _obj(app, 'ElmFeeder', 'F1').GetObjs('ElmTerm') if b.loc_name.startswith('F1_B')]) - 1
+    seccionadores = []
+    for i in (n - 1, n):
+        sw = _obj(app, 'ElmLne', f'F1_L{i}').bus1.CreateObject('StaSwitch', 'Switch')
+        sw.on_off = 1
+        seccionadores.append(sw)
+    enl = _rama(app, 'ElmCoup', 'ENL', _obj(app, 'ElmTerm', f'F1_B{n}'), _obj(app, 'ElmTerm', f'F2_B{n}'),
+                on_off=0, outserv=0)
+    app.topologia_viva = True
+    app.servicio_en_escenario = True             # abrir y cerrar es dato del escenario de «Con proyecto»
+    return app, alims, n, seccionadores, enl
+
+
+def test_la_lectura_da_el_enlace_existente_con_sus_maniobras():
+    """098:RF-21, 098:RF-22, 098:RF-27 — ``--escalera-datos`` da el enlace con el vecino, abierto, y las maniobras del camino de la
+    cabecera a su barra, en orden, con su nombre completo."""
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_enlace_098', tools_en_path=True)
+    app, alims, n, seccionadores, _enl = _red_con_enlace()
+    informe, codigo = obras.datos_escalera(app, _plan_obras(alims, barras={'F1': [f'F1_B{n}']}))
+    assert codigo == 0, informe
+    (e,) = [x for x in informe['alimentadores']['F1']['enlaces'] if x['enlace'] == 'ENL']
+    assert (e['vecino'], e['cerrado'], e['barra']) == ('F2', False, f'F1_B{n}')
+    assert [x['maniobra']['ruta'] for x in e['puntos']] == [s.GetFullName() for s in seccionadores]
+
+
+def test_la_obra_abre_la_maniobra_cierra_el_enlace_y_dice_que_pasa(tmp_path):
+    """098:RF-21, 098:RF-24, 098:RF-19 — sin línea nueva: se cierra el enlace y se abre el seccionador, los dos anotados;
+    el informe dice qué SED pasaron, con cuántos kW, y las tensiones y cargas antes y después; al quedar inactiva todo
+    vuelve a como estaba."""
+    from test_obras_pf_guion import CON
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_maniobra_098', tools_en_path=True)
+    app, alims, n, seccionadores, enl = _red_con_enlace()
+    obra = {'clase': 'maniobra', 'alimentador': 'F1', 'vecino': 'F2', 'casos': [CON], 'tramo': f'F1_L{n}',
+            'maniobra': 'Switch', 'maniobra_clase': 'StaSwitch', 'maniobra_ruta': seccionadores[1].GetFullName(),
+            'enlace': 'ENL', 'enlace_clase': 'ElmCoup', 'enlace_ruta': enl.GetFullName(), 'enlace_cerrado': False}
+    plan = _plan_obras(alims, obras=[obra], aperturas_fichero=str(tmp_path / 'aperturas.json'))
+    informe, codigo = obras.aplicar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    t = fila['transferencia']
+    assert t['sed'] == [f'F1_S{n}'] and t['kw'] > 0 and t['vecino'] == 'F2' and not t['enlace_cerrado_antes']
+    assert set(t['antes']) == set(t['despues']) == {'F1', 'F2'}
+    assert any('098:RF-24' in a for a in fila['avisos'])
+    _caso(app, CON).Activate()
+    assert (seccionadores[1].on_off, seccionadores[0].on_off, enl.on_off) == (0, 1, 1)
+    # La obra queda aplicada: su anotación sale del registro (081:RF-81) y la fila guarda qué abrió y qué cerró.
+    assert fila['abiertos'][0][3] == seccionadores[1].GetFullName() and fila['cerrados'][0][:2] == ['ElmCoup', 'ENL']
+    obras.cerrar_lo_abierto(app, fila, plan)
+    assert (seccionadores[1].on_off, enl.on_off) == (1, 0)
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []
+
+
+def test_la_orden_que_muere_reabre_el_enlace_que_cerro(tmp_path):
+    """098:RF-21, 081:RF-82 — lo que una obra cerró se vuelve a abrir al empezar la orden siguiente."""
+    from test_obras_pf_guion import CON
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_muere_098', tools_en_path=True)
+    app, alims, n, seccionadores, enl = _red_con_enlace()
+    obra = {'clase': 'maniobra', 'alimentador': 'F1', 'vecino': 'F2', 'casos': [CON], 'tramo': f'F1_L{n}',
+            'maniobra': 'Switch', 'maniobra_clase': 'StaSwitch', 'maniobra_ruta': seccionadores[1].GetFullName(),
+            'enlace': 'ENL', 'enlace_clase': 'ElmCoup', 'enlace_ruta': enl.GetFullName()}
+    plan = _plan_obras(alims, obras=[obra], aperturas_fichero=str(tmp_path / 'aperturas.json'), evaluando=True)
+    informe, codigo = obras.aplicar(app, plan)
+    assert codigo == 0, informe
+    casos = obras.casos_del_proyecto(app, None)
+    obras.restituir_pendientes(app, plan, casos, {})
+    _caso(app, CON).Activate()
+    assert (seccionadores[1].on_off, enl.on_off) == (1, 0)
+
+
+def test_transferir_se_prueba_antes_que_el_nivel(monkeypatch, tmp_path):
+    """098:RF-23, 098:RF-26 — con el oráculo, la transferencia (y la de un enlace nuevo) se mide antes del paso a 22,9 kV;
+    las del enlace existente ya las juzgó el oráculo y no se repiten; si no cumple, entonces el nivel."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.web import services
+
+    monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
+                        lambda ws, project: [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}])
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    v = eo.Variante('bancos', ('bancos',), [{'clase': 'condensador'}], {})
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {
+        'alimentadores': {'F1': {'orden': [v], 'tabla': [{'nombre': 'bancos', 'cumple': False}], 'ya_cumple': False}},
+        'tanda': 3})
+    llamadas = []
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, traspaso=False, sin_oraculo=False, con_enlaces=True, **k):
+        etapa = 'traspaso' if traspaso else 'nivel' if sin_oraculo else 'oraculo'
+        llamadas.append(('aplica' if aplicar else 'mide', etapa, con_enlaces))
+        return {'alimentadores': [{'alimentador': 'F1', 'elegida': 'nivel' if etapa == 'nivel' and not aplicar else None,
+                                   'tabla': []}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
+
+    class _C:
+        def __init__(self):
+            self.textos = []
+
+        def log(self, t):
+            self.textos.append(t)
+
+        def check_cancel(self):
+            pass
+
+    services.escalera_por_alimentador(object(), _C(), 'P', ['F1'])
+    assert [x[:2] for x in llamadas[:3]] == [('mide', 'oraculo'), ('mide', 'traspaso'), ('mide', 'nivel')]
+    assert llamadas[1][2] is False                       # el enlace existente ya lo juzgó el oráculo
+
+
+def test_al_evaluar_la_transferencia_se_mide_y_todo_vuelve(monkeypatch, tmp_path):
+    """098:RF-21, 098:RF-25 — la escalera mide la transferencia por el enlace existente con los dos alimentadores y,
+    al borrar la variante evaluada, el enlace vuelve a abrirse y el seccionador a cerrarse (081:RF-81)."""
+    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_evaluar_098', tools_en_path=True)
+    app, _alims, n, seccionadores, enl = _red_con_enlace()
+    _actual_no_cumple(monkeypatch)
+    obra = {'clase': 'maniobra', 'alimentador': 'F1', 'vecino': 'F2', 'casos': [CON], 'tramo': f'F1_L{n}',
+            'maniobra': 'Switch', 'maniobra_clase': 'StaSwitch', 'maniobra_ruta': seccionadores[1].GetFullName(),
+            'enlace': 'ENL', 'enlace_clase': 'ElmCoup', 'enlace_ruta': enl.GetFullName()}
+    plan = _plan_obras(['F1', 'F2'], variantes=[{'nombre': 'transferir', 'obras': [obra], 'costo_base': 0.0}],
+                       sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA,
+                       aperturas_fichero=str(tmp_path / 'aperturas.json'))
+    informe, codigo = obras.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert [v['nombre'] for v in informe['variantes']] == ['transferir']
+    _caso(app, CON).Activate()
+    assert (seccionadores[1].on_off, enl.on_off) == (1, 0)
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []

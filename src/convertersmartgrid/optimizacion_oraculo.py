@@ -21,7 +21,7 @@ import math
 import random
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 import numpy as np
@@ -99,6 +99,17 @@ class Oraculo:
         ramas = [dict(r) for r in self._ramas]
         for o in obras:
             clase = o.get('clase')
+            if clase == 'maniobra':
+                # 098:RF-21: la transferencia por un enlace que ya existe: se abre la rama de la maniobra y se cierra el
+                # enlace. Es solo topología: el mismo grafo con dos estados cambiados (como ``con_set_nueva``).
+                for nombre, cerrada in ((o.get('tramo'), False), (o.get('enlace'), True)):
+                    i = self.rama_de.get(str(nombre)) if nombre else None
+                    if i is None:
+                        if nombre:
+                            avisos.append(f'la rama {nombre} no está en el grafo')
+                        continue
+                    ramas[i]['cerrada'] = cerrada
+                continue
             if clase not in ('terna', 'seccion'):
                 continue
             for nombre in o.get('tramos') or []:
@@ -143,8 +154,9 @@ class Oraculo:
         clave = tuple(sorted((o.get('clase'), tuple(o.get('tramos') or ()),
                               str((o.get('tipo') or {}).get('nombre')),
                               tuple(sorted((o.get('capacidad_terna_a') or {}).items())),
-                              tuple(sorted((o.get('cambia_tipo') or {}).items())))                # 042:RF-104
-                             for o in obras if o.get('clase') in ('terna', 'seccion')))
+                              tuple(sorted((o.get('cambia_tipo') or {}).items())),                # 042:RF-104
+                              str(o.get('tramo') or ''), str(o.get('enlace') or ''))              # 098:RF-21
+                             for o in obras if o.get('clase') in ('terna', 'seccion', 'maniobra')))
         if clave in self._sistemas:
             self._sistemas.move_to_end(clave)
         else:
@@ -756,7 +768,7 @@ def seleccion_por_alimentador(oraculo: Oraculo, alimentadores: Sequence[Alimenta
 
 
 #: Las obras que el oráculo sabe calcular (``Oraculo._ramas_con`` y ``medir``): las demás solo las mide DIgSILENT.
-MODELADAS = frozenset({'terna', 'seccion', 'condensador', 'regulador'})
+MODELADAS = frozenset({'terna', 'seccion', 'condensador', 'regulador', 'maniobra'})   # 098:RF-21: la maniobra
 
 
 def modelable(v: Variante) -> bool:
@@ -863,3 +875,90 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
                                    for t in buenas + cercanas],
                          'bayesiana': resumen_bayes, 'pareto': frente, 'shapley': shapley}
     return out
+
+
+
+# =========================================================================== 098:RF-21 a RF-27: transferir por un enlace que ya existe
+#: Transferencias que el oráculo deja pasar a la combinación con la escalera y a DIgSILENT (098:RF-26).
+TRANSFERENCIAS_A_CONFIRMAR = 3
+#: Búsqueda bayesiana de bancos con la topología de cada transferencia: menos que la de la escalera, porque se repite
+#: por transferencia (098:RF-25).
+EVALUACIONES_CON_TRANSFERENCIA = 60
+
+
+@dataclass
+class EspacioConObra(Espacio):
+    """El espacio de la escalera con una obra fija delante: la transferencia, y bancos, sección o terna sobre ella."""
+    fija: Variante | None = None
+
+    def obras(self, bancos: Sequence[int], por_tramo: Sequence[str]) -> Variante:
+        v = super().obras(bancos, por_tramo)
+        if self.fija is None:
+            return v
+        obras = list(self.fija.obras) + list(v.obras)
+        cantidades = dict(self.fija.cantidades)
+        for k, x in v.cantidades.items():
+            cantidades[k] = cantidades.get(k, 0.0) + x
+        escalones = tuple(dict.fromkeys(tuple(self.fija.escalones) + tuple(v.escalones)))
+        nombre = self.fija.nombre + ('' if not v.obras else ' + ' + v.nombre)
+        return Variante(nombre, escalones, obras, cantidades)
+
+
+def transferencias_con_oraculo(oraculo: Oraculo, a: Alimentador, candidatas: Sequence[Variante], k: int, p: Parametros,
+                               *, valle: Mapping[str, Any] | None = None, confirmar: int = TRANSFERENCIAS_A_CONFIRMAR,
+                               evaluaciones_bayes: int = EVALUACIONES_CON_TRANSFERENCIA,
+                               semilla: int = 0) -> tuple[list[Variante], dict[str, Any]]:
+    """098:RF-25, RF-26: qué transferencias por enlace existente pasan a competir, y con qué obras encima.
+
+    Cada maniobra candidata se juzga en el oráculo con la máxima (flujo físico, en milisegundos): la que no converge
+    o deja la red peor que sin obra se descarta con su motivo. De las demás, las ``confirmar`` de tensión mínima más
+    alta pasan solas y, encima de su topología, se vuelve a buscar la escalera desde los bancos: las variantes de bancos
+    de la escalera con la transferencia delante y la bayesiana del espacio del alimentador (087:RF-55, RF-56). Lo que
+    sale compite por costo con lo demás en :func:`elegir_para_k`, con los sorteos, y DIgSILENT solo confirma lo
+    mejor (087:RF-39, RF-40). Usuario, 2026-11-07: «una vez transferido, debería probar con bancos de nuevo».
+    """
+    resumen: dict[str, Any] = {'generadas': len(candidatas), 'descartadas': [], 'pasan': [], 'combinadas': 0,
+                               'flujos': 0}
+    if not candidatas:
+        return [], resumen
+    rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
+    rapido.pinn = None
+    antes = rapido.evaluaciones
+    sin = rapido.evaluar([], k, p, (), a.nombre, valle)
+    juzgadas = []
+    for v in candidatas:
+        e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)
+        if e.get('v_min') is None:
+            resumen['descartadas'].append({'nombre': v.nombre, 'motivo': 'el flujo del oráculo no converge'})
+            continue
+        if (sin.get('v_min') is not None and e['v_min'] < sin['v_min'] - p.tolerancia_pu
+                and not _cumple_en(e, p)):
+            resumen['descartadas'].append({'nombre': v.nombre, 'motivo': f"la tensión mínima baja de {sin['v_min']:.3f} "
+                                           f"a {e['v_min']:.3f} p.u."})
+            continue
+        juzgadas.append((not _cumple_en(e, p), -float(e['v_min']), v.nombre, v, e))
+    juzgadas.sort(key=lambda t: t[:3])
+    pasan = [t[3] for t in juzgadas[:max(1, int(confirmar))]]
+    for t in juzgadas[max(1, int(confirmar)):]:
+        resumen['descartadas'].append({'nombre': t[2], 'motivo': f'el oráculo da otras {confirmar} mejores '
+                                                                 f'(tensión mínima {-t[1]:.3f} p.u.)'})
+    out = list(pasan)
+    resumen['pasan'] = [v.nombre for v in pasan]
+    bancos = [v for v in a.variantes if v.escalones and set(v.escalones) <= {'bancos'}]
+    for t in pasan:
+        for b in bancos:                       # la escalera de bancos, otra vez, sobre la topología transferida
+            out.append(Variante(f'{t.nombre} + {b.nombre}', tuple(dict.fromkeys(tuple(t.escalones) + tuple(b.escalones))),
+                                list(t.obras) + list(b.obras), {**t.cantidades, **b.cantidades}))
+            resumen['combinadas'] += 1
+        if a.espacio is not None and evaluaciones_bayes > 0:
+            espacio = EspacioConObra(**{f.name: getattr(a.espacio, f.name) for f in fields(Espacio)}, fija=t)
+
+            def valorar(v: Variante):
+                e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)
+                return a.costo(v, e.get('perdidas_kw')), _cumple_en(e, p), e
+            hallada = buscar_combinacion(espacio, valorar, evaluaciones=evaluaciones_bayes, semilla=semilla)
+            if hallada['variante'] is not None and hallada['variante'].obras != t.obras:
+                out.append(hallada['variante'])
+                resumen['combinadas'] += 1
+    resumen['flujos'] = rapido.evaluaciones - antes
+    return out, resumen

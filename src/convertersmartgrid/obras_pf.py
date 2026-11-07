@@ -51,10 +51,10 @@ BANDA_TENSION_PU = 0.01
 #: Casos en que se puede activar una obra; el «Caso base» nunca (RF-58).
 CASOS = (SIN_PROYECTO, CON_PROYECTO)
 CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension', 'enlace',
-          'migracion', 'consigna', 'set_nueva', 'expreso')
+          'migracion', 'consigna', 'set_nueva', 'expreso', 'maniobra')
 #: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
 #: proyecto» (016:RF-14, RF-25, RF-53). La consigna de cabecera también (019:RF-12).
-SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva', 'expreso')
+SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva', 'expreso', 'maniobra')
 #: Clase de tipo que pide cada obra (RF-89). El banco no tiene tipo; la migración copia los que
 #: ya usa el alimentador. La terna lo tiene opcional: el conductor de sus dos circuitos (042:RF-98).
 CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne', 'terna': 'TypLne',
@@ -217,6 +217,16 @@ class Obra:
     nombre_set: str = ''
     #: Terna subterránea: «ducto», «triangular» o «rectangular» (084:RF-12); sin ella, la del perfil.
     configuracion: str = ''
+    #: 098:RF-21: transferencia por un enlace que ya existe: el vecino que recibe, la maniobra que se abre (con su rama
+    #: del grafo en ``tramo``) y el enlace, que se cierra si estaba abierto. Con su nombre completo (098:RF-19).
+    vecino: str = ''
+    maniobra: str = ''
+    maniobra_clase: str = ''
+    maniobra_ruta: str = ''
+    enlace: str = ''
+    enlace_clase: str = ''
+    enlace_ruta: str = ''
+    enlace_cerrado: bool = False
     """SET nueva: transformadores iguales en paralelo; sin dato, uno (042:RF-14)."""
 
     def a_dict(self) -> dict[str, Any]:
@@ -399,7 +409,33 @@ def _validar_expreso(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
     return Obra(**comunes, ramas=ramas, tipo=_tipo_ref(datos.get('tipo'), 'expreso', requerido=False))
 
 
+#: 098:RF-21: lo que se puede abrir y por dónde se puede recibir sin construir nada.
+CLASES_MANIOBRA = ('StaSwitch', 'ElmCoup')
+CLASES_ENLACE = ('StaSwitch', 'ElmCoup', 'ElmLne')
+
+
+def _validar_maniobra(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
+    """098:RF-21: abrir una maniobra que ya existe para que la cola pase al vecino por un enlace que ya existe."""
+    vecino = _texto(datos, 'vecino', 'el alimentador vecino que recibe')
+    if vecino == comunes['alimentador']:
+        raise ObrasError(f'La transferencia pasa carga a otro alimentador: {vecino} cede y recibe.')
+    clase_m = str(datos.get('maniobra_clase') or '').strip()
+    clase_e = str(datos.get('enlace_clase') or '').strip()
+    if clase_m not in CLASES_MANIOBRA:
+        raise ObrasError(f'La maniobra que se abre es un {" o un ".join(CLASES_MANIOBRA)}: no {clase_m or "nada"!r}.')
+    if clase_e not in CLASES_ENLACE:
+        raise ObrasError(f'El enlace es un {", ".join(CLASES_ENLACE)}: no {clase_e or "nada"!r}.')
+    return Obra(**comunes, vecino=vecino, tramo=str(datos.get('tramo') or '').strip(),
+                barra=str(datos.get('barra') or '').strip(),
+                maniobra=_texto(datos, 'maniobra', 'la maniobra que se abre'), maniobra_clase=clase_m,
+                maniobra_ruta=str(datos.get('maniobra_ruta') or '').strip(),
+                enlace=_texto(datos, 'enlace', 'el enlace existente con el vecino'), enlace_clase=clase_e,
+                enlace_ruta=str(datos.get('enlace_ruta') or '').strip(),
+                enlace_cerrado=bool(datos.get('enlace_cerrado')))
+
+
 VALIDADORES: dict[str, Callable[[dict[str, Any], Mapping[str, Any]], Obra]] = {
+    'maniobra': _validar_maniobra,
     'consigna': _validar_consigna,
     'set_nueva': _validar_set_nueva,
     'expreso': _validar_expreso,
@@ -511,6 +547,8 @@ def base_variacion(obra: Obra) -> str:
     base = f'{PREFIJO_VARIACION}{obra.clase}_{feeder_short_name(obra.alimentador)}'
     if obra.clase == 'enlace':
         base += f'_{feeder_short_name(obra.cede)}'
+    if obra.clase == 'maniobra':
+        base += f'_{feeder_short_name(obra.vecino)}'
     return nombre_pf(base)
 
 
@@ -1188,7 +1226,17 @@ def _expreso(p: _Plan) -> None:
     p.extra['expreso'] = {'ramas': ramas, 'tipo': p.obra.tipo.nombre if p.obra.tipo else None}
 
 
-_PLANES = {'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
+def _maniobra(p: _Plan) -> None:
+    """098:RF-21, RF-24: qué se abre y qué se cierra; qué SED pasan lo mide el guion con la red de ahora."""
+    o = p.obra
+    if o.vecino not in p.redes:
+        raise ObrasError(f'El alimentador {o.vecino!r} que recibe no está en el proyecto leído.')
+    p.elemento(o.maniobra, o.maniobra_clase, f'se abre: lo de aguas abajo pasa a {o.vecino} por {o.enlace}')
+    p.elemento(o.enlace, o.enlace_clase, 'enlace existente: ya cerrado' if o.enlace_cerrado else 'se cierra: es el enlace existente')
+    p.extra['transferencia_existente'] = {'vecino': o.vecino, 'maniobra': o.maniobra, 'enlace': o.enlace}
+
+
+_PLANES = {'maniobra': _maniobra, 'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
            'seccion': _seccion, 'terna': _terna, 'tension': _tension, 'enlace': _enlace,
            'migracion': _migracion, 'consigna': _consigna, 'set_nueva': _set_nueva, 'expreso': _expreso}
 
@@ -1383,7 +1431,9 @@ def veredicto_persistencia(filas: Iterable[Mapping[str, Any]], relectura: Mappin
         motivo = None
         if not leida.get('existe'):
             motivo = 'la variación no está en el proyecto al reabrirlo'
-        elif not int(leida.get('objetos') or 0):
+        elif not int(leida.get('objetos') or 0) and fila.get('clase') != 'maniobra':
+            # 098:RF-21: la transferencia por un enlace existente solo abre y cierra: es dato de operación, que guarda
+            # el escenario de «Con proyecto» (042:RF-19), y su variación queda vacía a propósito.
             motivo = 'la variación no graba ningún objeto'
         elif CASO_BASE in activa:
             motivo = 'la variación está activa en el «Caso base»'

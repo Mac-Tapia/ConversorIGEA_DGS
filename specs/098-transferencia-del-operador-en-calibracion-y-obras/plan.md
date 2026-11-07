@@ -13,8 +13,22 @@
 | `src/convertersmartgrid/web/services.py` | `_dgs_aceptados`, `_red_de_la_fuente_del_plan` (tramos, abiertos y fecha de la importación) en el plan de la calibración y del escaneo | 14 |
 | `tests/fake_pf.py` | `App.topologia_viva`: el `ElmFeeder` sigue lo que está en servicio y cerrado desde su cubículo, sin entrar por la cabecera de otro | pruebas |
 | T7: `transferencia_operador.py` | `red_del_dgs` (barras de cada rama por sus `StaCubic`), `frente_a_la_fuente` (particiones por la cadena de ramas y barras nuevas; lo demás nuevo, enlace del operador); en `tools/transferencia_operador_pf.py`, `red_de_la_fuente` lee `dgs_fuente` y `_por_ruta` busca por nombre completo; la web pasa `dgs_fuente` y la fecha del sello | 14, 16 a 19 |
+| T8: `obras_integrales.variantes_por_enlace`; `optimizacion_oraculo` (la obra «maniobra» en el grafo, `EspacioConObra`, `transferencias_con_oraculo`); `obras_pf` (clase «maniobra»: validación, plan y persistencia en el escenario); `tools/obras_pf.py` (`enlaces_existentes` en `--escalera-datos`, `construir_maniobra`, `cerrar_anotado` y su restitución, `_gps_por_la_red`); `escalera_optima.grupo_economico`; `services` (`_preparar_oraculo`, `_variantes_de_traspaso`, `obras_escalera`, `escalera_por_alimentador`) | 20 a 27 |
 
 ## Decisiones
+
+- **La transferencia por enlace existente, como una variante más del oráculo (T8).** El oráculo ya juzga la
+  topología (`con_set_nueva` abre ramas): la maniobra es abrir una rama y cerrar el enlace en el mismo grafo. Así entra
+  en `elegir_para_k` con los sorteos y en `a_confirmar`, y DIgSILENT confirma solo las mejores (087:RF-39, RF-40).
+  Descartado: una etapa aparte que recorriera las maniobras una a una en DIgSILENT.
+- **Combinar con la escalera.** Sobre la topología de las mejores transferencias se repiten las variantes de bancos de
+  la escalera y la bayesiana del espacio del alimentador (`EspacioConObra`, la misma búsqueda con la transferencia
+  delante); compiten por costo. Las transferencias por enlace nuevo (087) no las calcula el oráculo: siguen midiéndose
+  en DIgSILENT, ahora antes del nivel.
+- **Grupo económico.** La transferencia va con los bancos (042:RF-56), antes que la sección y la terna.
+- **Cerrar con registro.** El enlace que se cierra se anota como lo que se abre (`cerrar_anotado`, con `accion:
+  cerrar`), y al restituir se vuelve a abrir. La obra solo toca el escenario: su variación queda vacía y la
+  comprobación de persistencia (048:RF-9) no la da por perdida.
 
 - **Comparar con el DGS rama por rama (T7).** Por solo los nombres de los tramos, la mitad nueva de una partición
   parecía un tramo nuevo que abrir y un acoplador nuevo no se veía. Con las barras de cada rama en el DGS, una partición

@@ -216,6 +216,52 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
     return out, avisos
 
 
+def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]], p: Parametros) -> tuple[list[Variante], list[str]]:
+    """098:RF-21, RF-22: transferir la cola por un enlace que ya existe, abriendo una maniobra que ya existe.
+
+    CA101 y CHN102 (2026-11-07): la escalera fue al paso a 22,9 kV de 107 km y a la obra integral sin probar la
+    transferencia por el enlace que ya unía los dos («ya existe el punto de enlace con CHN102»). ``enlaces``: los que
+    da ``obras_pf.py --escalera-datos``, cada uno con ``enlace``, ``clase``, ``cerrado``, ``vecino`` y ``puntos`` (las
+    maniobras del camino de la cabecera a su barra, en orden). Se proponen de la más cercana al enlace hacia la cabecera;
+    sin línea nueva, así que sin cantidades: el costo es el de las pérdidas. Un vecino sin margen de tensión o de carga
+    (087:RF-32), si se conoce, no recibe.
+    """
+    avisos: list[str] = []
+    out: list[Variante] = []
+    vistos: set[tuple[str, str]] = set()
+    for e in enlaces:
+        vecino = str(e.get('vecino') or '')
+        if not vecino or vecino == alimentador:
+            continue
+        if e.get('u_min') is not None and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p):
+            avisos.append(f"{alimentador}: {vecino} no conserva margen de tensión y de carga para recibir por "
+                          f"{e.get('enlace')} (087:RF-32, 098:RF-21).")
+            continue
+        puntos = [x for x in (e.get('puntos') or []) if (x.get('maniobra') or {}).get('nombre')]
+        if not puntos:
+            avisos.append(f"{alimentador}: ninguna maniobra en el camino hasta el enlace {e.get('enlace')} con {vecino}: "
+                          'no se transfiere por él (098:RF-13).')
+            continue
+        for x in reversed(puntos):                                  # 098:RF-22: de la más cercana al enlace
+            m = x['maniobra']
+            clave = (str(e.get('enlace')), str(m.get('ruta') or m['nombre']))
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+            out.append(Variante(
+                f"transferencia a {vecino} por {e.get('enlace')} abriendo {m['nombre']}"
+                + (f" en {x.get('rama')}" if x.get('rama') and x.get('rama') != m['nombre'] else ''),
+                ('transferencia',),
+                [{'clase': 'maniobra', 'alimentador': alimentador, 'vecino': vecino, 'casos': [CON_PROYECTO],
+                  'tramo': str(x.get('rama') or m['nombre']), 'barra': str(x.get('barra') or ''),
+                  'maniobra': str(m['nombre']), 'maniobra_clase': str(m.get('clase') or 'StaSwitch'),
+                  'maniobra_ruta': str(m.get('ruta') or ''), 'enlace': str(e.get('enlace')),
+                  'enlace_clase': str(e.get('clase') or 'ElmCoup'), 'enlace_ruta': str(e.get('ruta') or ''),
+                  'enlace_cerrado': bool(e.get('cerrado'))}],
+                {}))
+    return out, avisos
+
+
 def _centro(puntos: Sequence[tuple[float, float, float]]) -> tuple[float, float] | None:
     if not puntos:
         return None
