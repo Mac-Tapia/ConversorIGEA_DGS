@@ -39,7 +39,7 @@ def test_mismo_proyecto_y_mismos_alimentadores_marcados():
     """011:RF-42 — las tres partes reciben el proyecto y los alimentadores marcados en el
     paso 2; los estudios, también el ajuste que hace de base (RF-12)."""
     assert '<ObrasPF project={project} feeders={order} />' in CARGAS
-    assert '<EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} />' in CARGAS
+    assert '<EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}' in CARGAS  # 091:RF-21 añade faltaRecalibrar
     assert '<TransferenciaPF project={project} feeders={order} />' in CARGAS
 
 
