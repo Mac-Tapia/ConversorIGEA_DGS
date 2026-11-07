@@ -88,7 +88,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
 
   const ultimo = Object.values(jobs)
     .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar'
-      || j.kind === 'ajuste_transformadores') && j.result)
+      || j.kind === 'ajuste_transformadores') && j.result
+      && (j.result as { project?: string }).project === project)   // 091:RF-23: el de otro proyecto no es este
     .pop();
   const resultado = (ultimo?.result ?? null) as AjusteResultado | null;
   const informes = resultado ? (resultado.informes ?? [resultado.informe]) : [];

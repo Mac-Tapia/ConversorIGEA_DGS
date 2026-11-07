@@ -23,6 +23,8 @@ PANEL = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
 DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
 AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
 CATALOGO = (SRC / 'clientesCatalogo.ts').read_text(encoding='utf-8')
+ESTUDIOS = (SRC / 'components' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
+CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
 API = (SRC / 'api.ts').read_text(encoding='utf-8')
 SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
 
@@ -295,3 +297,64 @@ def test_cruce_con_el_ano_entero():
     # Solo la rama del año entero lo lleva: «Actualice el índice» no se salta con las máximas.
     assert CATALOGO.count('porAnio: true') == 1
     assert CATALOGO.index('porAnio: true') > CATALOGO.index('Actualice el índice')
+
+
+# ------------------------------------------------------------------ estudio tras la recalibración
+
+
+def _ajuste(*tipos):
+    return {'project': 'P', 'informes': [
+        {'feeder': f'F{i}', **({'tipo_ajuste': {'tipo': t, 'numero': 0}} if t else {})}
+        for i, t in enumerate(tipos)]}
+
+
+def test_estudio_solo_con_calibracion_avisa_sin_rechazar():
+    """091:RF-20 — dice qué alimentador y que falta recalibrar, y el plan sigue (Reconstruir, no bloquear)."""
+    faltan, sin_tipo = services.faltan_recalibrar(_ajuste('RECALIBRACION', 'CALIBRACION'), ['F0', 'F1'])
+    assert faltan == ['F1'] and not sin_tipo
+    avisos = services.avisos_de_recalibracion(_ajuste('RECALIBRACION', 'CALIBRACION'), ['F0', 'F1'])
+    assert len(avisos) == 1 and avisos[0].startswith('F1:') and 'recalibrar' in avisos[0]
+
+
+def test_estudio_con_recalibracion_pasa_sin_aviso():
+    """091:RF-20 — recalibrado, sin aviso; y solo cuenta lo pedido."""
+    assert services.avisos_de_recalibracion(_ajuste('RECALIBRACION', 'CALIBRACION'), ['F0']) == []
+
+
+def test_estudio_de_ajuste_sin_tipo_avisa():
+    """091:RF-22 — un ajuste de antes no se bloquea, y se dice."""
+    avisos = services.avisos_de_recalibracion(_ajuste(None), ['F0'])
+    assert len(avisos) == 1 and 'F0' in avisos[0] and 'recalibr' in avisos[0]
+
+
+def test_estudio_el_plan_lleva_el_aviso(tmp_path, monkeypatch):
+    """091:RF-20 — el plan real del estudio sale con el aviso, no con un error."""
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    ws = WorkspaceStore(tmp_path / 'web').create()
+    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
+    monkeypatch.setattr(services, '_libro_empresa', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_clases_de_la_entrada', lambda *a, **k: {})
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a, **k: 'Carpeta')
+    monkeypatch.setattr(services, 'base_del_ajuste', lambda ajuste, project: {
+        'feeders': ['F0', 'F1'], 'excluidos': [], 'ajustes': [{'feeder': 'F0', 'cuadrado': True},
+                                                             {'feeder': 'F1', 'cuadrado': True}]})
+    r = services.estudios_plan(ws, 'P', ['F0', 'F1'], ['flujo'], _ajuste('RECALIBRACION', 'CALIBRACION'))
+    assert r['feeders'] == ['F0', 'F1']
+    assert any(a.startswith('F1:') and 'recalibrar' in a for a in r['avisos'])
+
+
+def test_estudio_la_web_lo_anticipa_y_explica():
+    """091:RF-21 — avisado hasta la recalibración, con el botón activo."""
+    assert 'faltaRecalibrar' in ESTUDIOS and 'faltaRecalibrar={' in CARGAS
+    assert 'faltaRecalibrar.length > 0' in ESTUDIOS and 'recalibre en el paso 2.4' in ESTUDIOS
+    boton = re.search(r'<button className="btn btn-primary" disabled=\{([^}]*)\}', ESTUDIOS)
+    assert boton and 'faltaRecalibrar' not in boton.group(1)
+    assert 'avisos_de_recalibracion(ajuste, estudiables)' in SERVICES
+
+
+def test_estudio_y_ajuste_mostrados_son_del_proyecto():
+    """091:RF-23 — se veía el último informe de otro proyecto."""
+    assert '.project === project' in ESTUDIOS
+    assert re.search(r"ajuste_transformadores'\) && j\.result\s*&& \(j\.result as \{ project\?: string \}\)\.project === project",
+                     AJUSTE)

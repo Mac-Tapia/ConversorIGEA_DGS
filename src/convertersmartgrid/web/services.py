@@ -8113,6 +8113,28 @@ def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders:
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
+def faltan_recalibrar(ajuste: dict, pedidos: Sequence[str]) -> tuple[list[str], list[str]]:
+    """091:RF-20, RF-22: de los pedidos, los que solo tienen la calibración y los que no dicen su tipo."""
+    informes = ajuste.get('informes') or ([ajuste['informe']] if ajuste.get('informe') else [])
+    tipos = {i.get('feeder'): (i.get('tipo_ajuste') or {}).get('tipo') for i in informes if isinstance(i, dict)}
+    faltan = [f for f in pedidos if tipos.get(f) == 'CALIBRACION']
+    sin_tipo = [f for f in pedidos if f in tipos and not tipos[f]]
+    return faltan, sin_tipo
+
+
+def avisos_de_recalibracion(ajuste: dict, pedidos: Sequence[str]) -> list[str]:
+    """091:RF-20, RF-22: el orden es calibración, recalibración y estudio; lo que no lo sigue se avisa.
+
+    La calibración solo cuadra la P: estudiar sobre ella es estudiar una red sin la revisión de la Q (TM102,
+    2026-11-05). No se rechaza: nada bloquea salvo la red vacía, y el operador decide con el aviso a la vista.
+    """
+    faltan, sin_tipo = faltan_recalibrar(ajuste, pedidos)
+    avisos = [f'{f}: solo tiene la calibración; falta recalibrar (paso 2.4) antes de los estudios: se estudia '
+              'igual.' for f in faltan]
+    return avisos + [f'{f}: su ajuste es anterior a la spec 091 y no dice su tipo; no consta su recalibración.'
+                     for f in sin_tipo]
+
+
 def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: list[str],
                   ajuste: dict | None, limites: dict | None = None,
                   limite_s: float | None = None, opciones: dict | None = None) -> dict:
@@ -8152,6 +8174,7 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     avisos = [f"{a['feeder']}: su ajuste no cuadró ({a.get('motivo') or 'fuera de tolerancia'}); "
               'se estudia igual.' for a in base['ajustes']
               if a['feeder'] in estudiables and not a.get('cuadrado')]
+    avisos += avisos_de_recalibracion(ajuste, estudiables)                   # 091:RF-20, RF-22
     token = uuid.uuid4().hex[:12]
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': estudiables,
             'base': base, 'estudios': claves, 'limites': asdict(lim),

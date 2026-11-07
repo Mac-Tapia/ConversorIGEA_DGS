@@ -661,7 +661,9 @@ export function CargasTab() {
             <h4>4.1 · Obras de mejora</h4>
             <ObrasPF project={project} feeders={order} />
             <h4>4.2 · Estudios</h4>
-            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} />
+            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}
+              faltaRecalibrar={informesBase.filter((i) => !i.error && !i.no_empezado && order.includes(i.feeder)
+                && i.tipo_ajuste?.tipo === 'CALIBRACION').map((i) => i.feeder)} />
             <h4>4.3 · Transferencia de carga</h4>
             <TransferenciaPF project={project} feeders={order} />
             {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}

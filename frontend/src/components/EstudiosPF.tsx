@@ -21,8 +21,10 @@ const LIMITES: [keyof Limites, string][] = [
  * en «Cargas nuevas» y «Con proyecto» (037:RF-3), con su límite de tiempo (RF-39). Los
  * estudios sin datos se listan con lo que les falta, sin poder elegirlos (RF-24).
  */
-export function EstudiosPF({ project, feeders, ajusteJobId }: {
+export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = [] }: {
   project: string; feeders: string[]; ajusteJobId: string | null;
+  /** 091:RF-21: el orden es calibración, recalibración y estudio; se avisa, sin apagar el botón. */
+  faltaRecalibrar?: string[];
 }) {
   const { ws, run, startJob, active, jobs, health } = useApp();
   const [catalogo, setCatalogo] = useState<EstudiosCatalogo | null>(null);
@@ -48,7 +50,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId }: {
   }, [run, ws.id, project]);
   useEffect(cargar, [cargar]);
 
-  const ultima = Object.values(jobs).filter((j) => j.kind === 'estudios' && j.result).pop();
+  const ultima = Object.values(jobs).filter((j) => j.kind === 'estudios' && j.result
+    && (j.result as { project?: string }).project === project).pop();   // 091:RF-23
   const resultado = (ultima?.result ?? null) as EstudiosResultado | null;
 
   const preparar = async () => {
@@ -86,6 +89,9 @@ export function EstudiosPF({ project, feeders, ajusteJobId }: {
         Lo que proponen los optimizadores se informa, no se aplica.</p>
       {!ajusteJobId && <p className="alert alert-warn">No hay ningún ajuste a la máxima aplicado en este proyecto: primero
         hay que calibrar (paso 2).</p>}
+      {ajusteJobId && faltaRecalibrar.length > 0 && <p className="alert alert-warn">{faltaRecalibrar.join(', ')}: solo
+        tiene la calibración. El orden es calibración, recalibración y estudio: recalibre en el paso 2.4. Puede preparar
+        los estudios igual; el plan lo anota.</p>}
       <div className="chips">
         {catalogo.ofrecidos.map((e) => (
           <button key={e.clave} type="button" className={`chip ${elegidos.includes(e.clave) ? 'on' : ''}`}

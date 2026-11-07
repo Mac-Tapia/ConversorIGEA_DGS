@@ -14,8 +14,10 @@
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "maxima or cruce"` en verde.
       Evidencia (2026-11-07): 7 pasadas; con `test_contrato_api`, `test_libros_por_anio_*` y
       `test_ajuste_cabecera_web`, 114 pasadas; contrato de la API regenerado; `tsc` sin errores.
-- [ ] T5. El estudio después de la recalibración, avisado y sin bloquear. (RF-20 a RF-23)
+- [x] T5. El estudio después de la recalibración, avisado y sin bloquear. (RF-20 a RF-23)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k estudio` en verde.
+      Evidencia (2026-11-07): 29 pasadas (el nombre del fichero lleva «estudio»: corren todas); con
+      `tests/test_estudios_pf_web.py`, 24 pasadas; `tsc` sin errores.
 - [ ] T6. Lo que se informa. (RF-24 a RF-32, RF-34)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "informa or texto or empate or doctor or foto"` en verde.
 - [ ] T7. [DIgSILENT] Calibración, recalibración y estudio por la web con TM102 de los TXT originales, y el mensaje con DIgSILENT abierto. (RF-1, RF-7, RF-16, RF-17, RF-19, RF-21, RF-24, RF-25)
