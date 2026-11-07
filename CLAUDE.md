@@ -159,6 +159,8 @@ Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
 pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
 
+Las pruebas nativas de las T4 (044, 045, 048, 049) no conectan con DIgSILENT desde pytest (084:RF-21): `tools/aceptacion_nativa.py` hace la corrida real y deja la evidencia con sus huellas, y las pruebas la releen con `CSG_EVIDENCIA_NATIVA=<carpeta>` (fuera de git, con datos de la distribuidora; la de 2026-11-07 está en `D:/converter/evidencia_nativa/20261107_PE10_t4c`). Sin ella se omiten y la suite no se da por buena.
+
 La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON`, un intérprete aparte con `requirements-mcp.txt`: el paquete es
 opcional y no se instala en `.venv`. Sin ella, esa prueba se omite y la suite no se da por buena.
 
