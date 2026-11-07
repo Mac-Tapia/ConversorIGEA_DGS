@@ -85,5 +85,8 @@
       enlace) y una obra de una red real.
 - [ ] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
       por la de corto plazo del estudio de «Con proyecto» (098:RF-37), con el año en que esta vuelve a fallar
-      (098:RF-39, RF-40) como punto de partida. Pendiente: falta su RF en esta spec; no se implementa aún.
+      (098:RF-39, RF-40) como punto de partida. Usuario (2026-11-07): el PIDE se integra como flujo propio, para
+      cualquier alimentador y empresa; cubre los años siguientes a los 4 del corto plazo; parte de copias de los casos
+      del estudio con su obra de corto plazo ya puesta, y calibra cada año con las proyecciones de demanda de la spec
+      de pronóstico (089). Antes, el año 0 a 4 bien hecho (098). Pendiente: falta su RF en esta spec; no se implementa aún.
       Hecho cuando: el RF esté escrito aquí y su prueba, con fake_pf, dé la obra de cada año encima de la anterior.
