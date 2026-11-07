@@ -1629,7 +1629,10 @@ def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int)
     if fichas is None:
         return None, motivo or 'el perfil de empresa no trae fichas de transformadores'
     if fila.get('kva_deducido'):
-        demanda = math.hypot(float(fila['kw'] or 0.0), float(fila['kvar'] or 0.0))
+        # Aclaración de 004:RF-68: DIgSILENT mide la cargabilidad por corriente; elegidos al 80 % a la
+        # nominal, en PE102 quedaron al 83,5 % y al 81,3 % con la baja a 0,96 p.u. Se cuenta a la mínima.
+        u_min = float((plan or {}).get('tension_min_pu') or 1.0)
+        demanda = math.hypot(float(fila['kw'] or 0.0), float(fila['kvar'] or 0.0)) / max(u_min, 0.5)
         p = proponer(demanda, mt, fichas['tablas'], float(fichas['umbral_carga_pct']))
         return (p, '') if p['kva'] is not None else (None, p['motivo'])
     tabla = tabla_para(fichas['tablas'], mt)

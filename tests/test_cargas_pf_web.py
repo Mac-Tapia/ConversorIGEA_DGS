@@ -285,7 +285,7 @@ def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatc
 
     fichas = {'umbral_carga_pct': 80, 'tablas': []}
     monkeypatch.setattr(perfil_empresa, 'datos_perfil',
-                        lambda: {'calibracion': {'transformadores_sed': fichas}})
+                        lambda *a, **k: {'calibracion': {'transformadores_sed': fichas}})
     wid = _wid(client)
     r = _plan(client, wid, demandas=DEMANDAS)
     assert r.status_code == 200, r.text

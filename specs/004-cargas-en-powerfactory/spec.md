@@ -294,6 +294,11 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   tipo los Po, Pc, Io y uk de la ficha, con el nombre de los tipos de ficha (020:RF-21), en
   vez de copiar otro tipo del alimentador y escalar sus pérdidas; sin ficha para esa
   potencia, o con menos de tres fases, se hace como antes y se avisa.
+- Aclaración de RF-68 (2026-11-06): la máxima del umbral se cuenta con la corriente a la tensión
+  mínima de los estudios del perfil (`estudios.tension_min_pu`, la más baja de las normas de sus
+  alimentadores), porque DIgSILENT mide la cargabilidad por corriente. En PE102 los transformadores
+  elegidos al 80 % a tensión nominal quedaron al 83,5 % (PTAR, 4 × 630) y al 81,3 % (vivero, 315)
+  con la baja a 0,96 p.u.; sin ese límite en el perfil, se cuenta a la nominal y se avisa.
 
 ## Requisitos no funcionales
 

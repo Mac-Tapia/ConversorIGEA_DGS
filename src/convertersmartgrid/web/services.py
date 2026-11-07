@@ -2091,9 +2091,14 @@ def cargas_plan(
         plan['native_action_context'] = action_context
         # 040:RF-5: las fichas del perfil para proponer el transformador de la SED de una
         # ampliación, las mismas que la calibración (020:RF-31).
-        from ..perfil_empresa import datos_perfil
+        from ..digital_twin.integration import limites_combinados, normas_de
+        from ..perfil_empresa import datos_perfil, estructura_empresa
 
         plan['transformadores_sed'] = (datos_perfil().get('calibracion') or {}).get('transformadores_sed')
+        # Aclaración de 004:RF-68: el transformador de una carga nueva, a la tensión mínima de sus normas.
+        limites = limites_combinados(datos_perfil(), normas_de(estructura_empresa(), feeders))
+        if limites is not None:
+            plan['tension_min_pu'] = limites.tension_min_pu
         # 025:RF-36, RF-37: en los casos del año de la calibración base.
         plan['anio_casos'] = (base or {}).get('anio_casos')
         # 015:RF-17: «Sin» y «Con proyecto» solo se crean con el «Caso base» verificado.

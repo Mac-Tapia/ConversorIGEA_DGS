@@ -109,3 +109,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       transformadores con ficha y la máxima ≤ 80 % en «Con proyecto». (RF-68, RF-69)
       Hecho cuando: el estudio 4.2 de «Con proyecto» no tiene ningún transformador de carga
       nueva por encima del 80 %.
+- [x] T21. La demanda del transformador de una carga nueva, a la tensión mínima de los estudios. (RF-68)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py -k ficha` en verde.

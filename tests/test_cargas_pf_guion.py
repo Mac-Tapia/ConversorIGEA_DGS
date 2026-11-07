@@ -591,3 +591,24 @@ def test_kva_del_libro_con_su_ficha_y_sin_fichas_como_antes(guion):
         _nueva('N1', barra='F1_B1', kva_deducido=True)]), simular=False)
     creada = informe['feeders'][0]['creadas'][0]
     assert rc == 0 and creada['transformador'] is None and 'RF-69' not in (creada['aviso'] or '')
+
+
+def test_el_transformador_de_ficha_cuenta_la_corriente_a_la_tension_minima(guion):
+    """004:RF-68 — aclaración: el umbral, con la corriente a la tensión mínima del perfil. PE102: el vivero, elegido al
+    80 % a la nominal, quedó al 81,3 % en DIgSILENT con la baja a 0,96 p.u."""
+    rnd = random.Random(SEMILLA + 68)
+    u_min = rnd.choice([0.94, 0.95])
+    kw = rnd.uniform(0.8 * 315 * u_min + 1.0, 0.8 * 315 - 1.0)   # cabe en 315 a la nominal, no a u_min
+    kw_grande = rnd.uniform(1100.0, 1450.0)
+    plan = _plan(['F1'], nuevas=[
+        _nueva('N1', barra='F1_B1', kw=kw, kvar=0.0, kva_instalado=315.0, kva_deducido=True),
+        _nueva('N2', barra='F1_B2', kw=kw_grande, kvar=0.0, kva_instalado=1600.0, kva_deducido=True)])
+    plan['transformadores_sed'] = _fichas_del_perfil()
+    plan['tension_min_pu'] = u_min
+    informe, rc = guion.ejecutar(app := fake_pf.proyecto(), plan, simular=False)
+    assert rc == 0, f'semilla {SEMILLA}: {informe}'
+    _ver_cargas(app)
+    por_sed = {c['sed']: c for c in informe['feeders'][0]['creadas']}
+    assert _tr_de(app, 'N1').typ_id.strn == 0.63, SEMILLA
+    assert _tr_de(app, 'N2').ntnum == math.ceil(kw_grande / u_min / (0.8 * 630)), SEMILLA
+    assert all(c['transformador']['carga_pct_prevista'] <= 80.0 for c in por_sed.values())
