@@ -51,6 +51,46 @@ TOPE_LISTA = 100
 #: ``nomic-embed-text`` distingue consulta y documento por el prefijo de la tarea (su ficha).
 PREFIJO_CONSULTA = 'search_query: '
 PREFIJO_DOCUMENTO = 'search_document: '
+#: 097:RF-3: los prefijos de consulta y de documento de cada modelo, de su ficha. nomic: «search_query/search_document»;
+#: BGE-M3 recupera sin instrucción; multilingual-e5: «query/passage». Un modelo sin ficha, sin prefijos.
+FICHAS_EMBEDDINGS = {
+    'nomic-embed-text': (PREFIJO_CONSULTA, PREFIJO_DOCUMENTO),
+    'bge-m3': ('', ''),
+    'jeffh/intfloat-multilingual-e5-base': ('query: ', 'passage: '),
+    'jeffh/intfloat-multilingual-e5-large': ('query: ', 'passage: '),
+}
+#: 097:RF-4: para medir otro modelo sin tocar el que se sirve; sin ella, el de la 047.
+VARIABLE_MODELO = 'CSG_ASISTENTE_MODELO_VECTORES'
+
+
+def modelo_vectores() -> str:
+    """El modelo de los vectores del índice (097:RF-1): el elegido para medir o el en uso."""
+    return os.environ.get(VARIABLE_MODELO, '').strip() or MODELO_EMBEDDINGS
+
+
+def prefijos(modelo: str | None = None) -> tuple[str, str]:
+    """(consulta, documento) del modelo según su ficha (097:RF-3); la etiqueta «:latest» no cuenta."""
+    nombre = str(modelo or modelo_vectores())
+    return FICHAS_EMBEDDINGS.get(nombre, FICHAS_EMBEDDINGS.get(nombre.split(':')[0], ('', '')))
+
+
+def elegir_modelo_vectores(medidas: dict[str, dict[str, float]]) -> str | None:
+    """097:RF-4: con la medida de calibración de cada candidato, el de mayor MRR@10 y, a igualdad, mayor Recall@10.
+
+    Un candidato sin las dos cifras (no instalado, sin vectores) no compite. Se elige con la calibración y se sella después
+    solo el elegido: medir varios en el sellado sería elegir con la prueba.
+    """
+    validos = {m: v for m, v in medidas.items()
+               if isinstance(v.get('mrr@10'), (int, float)) and isinstance(v.get('recall@10'), (int, float))}
+    if not validos:
+        return None
+    return max(sorted(validos), key=lambda m: (round(validos[m]['mrr@10'], 6), round(validos[m]['recall@10'], 6)))
+
+
+def _vectores_de(ollama: Any, textos: list[str]):
+    """Los vectores con el modelo en uso; se nombra solo si no es el de siempre (los dobles antiguos no lo admiten)."""
+    m = modelo_vectores()
+    return ollama.embeddings(textos) if m == MODELO_EMBEDDINGS else ollama.embeddings(textos, modelo=m)
 _LARGO_EMBEDDING = 2000
 #: Códigos de red o de equipo: letras seguidas de cifras (SE50106, TM106).
 _CODIGO = re.compile(r'\b[A-Za-z]{1,8}\d{2,}[A-Za-z0-9]*\b')
@@ -391,8 +431,9 @@ def _leer_vectores(corpus: str = CORPUS_047) -> tuple[Any, dict[str, int]]:
     except (ImportError, OSError, ValueError, EOFError):
         return None, {}
     claves = meta.get('claves') if isinstance(meta, dict) else None
-    if (not isinstance(claves, list) or meta.get('modelo') != MODELO_EMBEDDINGS
-            or meta.get('prefijo') != PREFIJO_DOCUMENTO or matriz.ndim != 2 or matriz.shape[0] != len(claves)):
+    # 097:RF-1, RF-2: los de otro modelo o prefijo no se mezclan: valen como no tenerlos y se recalculan.
+    if (not isinstance(claves, list) or meta.get('modelo') != modelo_vectores()
+            or meta.get('prefijo') != prefijos()[1] or matriz.ndim != 2 or matriz.shape[0] != len(claves)):
         return None, {}
     return matriz, {c: i for i, c in enumerate(claves)}
 
@@ -409,7 +450,7 @@ def _guardar_vectores(por_clave: dict[str, Any], corpus: str = CORPUS_047) -> No
             np.save(f, matriz, allow_pickle=False)
 
     def meta(temporal: Path) -> None:
-        temporal.write_text(json.dumps({'modelo': MODELO_EMBEDDINGS, 'prefijo': PREFIJO_DOCUMENTO,
+        temporal.write_text(json.dumps({'modelo': modelo_vectores(), 'prefijo': prefijos()[1],
                                         'claves': claves}), encoding='utf-8')
 
     _escribir(_carpeta(corpus) / 'vectores.npy', npy)
@@ -460,7 +501,7 @@ def cargar_o_construir(repo: Path, corpus: str = CORPUS_047) -> Indice:
 def vectores_pendientes(repo: Path, ollama: Any, corpus: str = CORPUS_047) -> bool:
     """¿Hay vectores por calcular y quién los calcule (047:RF-22)? No calcula ninguno."""
     modelos = ollama.modelos()
-    if not modelos or not any(str(m).split(':')[0] == MODELO_EMBEDDINGS for m in modelos):
+    if not modelos or not any(str(m).split(':')[0] == modelo_vectores().split(':')[0] for m in modelos):
         return False
     return cargar_o_construir(repo, corpus).cobertura < 1.0
 
@@ -493,7 +534,7 @@ def calcular_vectores(repo: Path, ollama: Any, *, progreso: Callable[[int, int],
                 estado = 'cedido'
                 break
             parte = faltan[i:i + lote]
-            emb = ollama.embeddings([PREFIJO_DOCUMENTO + t[:_LARGO_EMBEDDING] for _, t in parte])
+            emb = _vectores_de(ollama, [prefijos()[1] + t[:_LARGO_EMBEDDING] for _, t in parte])
             if not emb or len(emb) != len(parte):
                 estado = 'fallo'
                 break
@@ -586,7 +627,7 @@ def recuperar(indice: Indice, consulta: str, k: int = 6, *, vector: Sequence[flo
 
 
 def _nombre_metodo(m: str) -> str:
-    return {'bm25': 'BM25', 'vectores': f'vectores ({MODELO_EMBEDDINGS})', 'lectura': 'lectura directa'}.get(m, m)
+    return {'bm25': 'BM25', 'vectores': f'vectores ({modelo_vectores()})', 'lectura': 'lectura directa'}.get(m, m)
 
 
 def _recuperacion(metodos: Sequence[str], avisos: Sequence[str], motivo_sin_vectores: str | None) -> str:
@@ -688,7 +729,7 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
     elif ollama is None:
         motivo = 'Ollama no responde'
     else:
-        emb = ollama.embeddings([PREFIJO_CONSULTA + pregunta])
+        emb = _vectores_de(ollama, [prefijos()[0] + pregunta])
         vector = emb[0] if emb else None
         if indice.cosenos(vector) is None:
             vector, motivo = None, 'Ollama no dio un vector válido de la consulta'

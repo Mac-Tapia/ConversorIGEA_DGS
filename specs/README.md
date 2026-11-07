@@ -103,3 +103,4 @@ retirada.
 | [094](094-perfil-de-tension-y-bancos/spec.md) | Perfil de tensión en la calibración y bancos ubicados según el perfil | implementada | 18 | 18 | T5 (DIgSILENT) |
 | [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 3 | 3 | — |
 | [096](096-retomar-tras-suspender-el-equipo/spec.md) | Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | 7 | 7 | T3 (DIgSILENT) |
+| [097](097-vectores-multilingues-del-rag/spec.md) | Vectores multilingües para la búsqueda del asistente | aprobada | 7 | 4 | T3 |

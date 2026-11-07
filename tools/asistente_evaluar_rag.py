@@ -88,7 +88,7 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
 
         def vector_de(pregunta: str):
             if pregunta not in memo:
-                emb = ollama.embeddings([indice.PREFIJO_CONSULTA + pregunta])
+                emb = indice._vectores_de(ollama, [indice.prefijos()[0] + pregunta])
                 memo[pregunta] = emb[0] if emb else None
             return memo[pregunta]
 
@@ -105,7 +105,7 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
             puntuar.liberar()
         else:
             informe = evaluacion_rag.medir_sellado(i, conjunto, vector_de, puntuar, modelo, umbrales)
-    escribir_informe(salida, informe)
+    escribir_informe(salida, {**informe, 'modelo_vectores': indice.modelo_vectores()})        # 097:RF-1
     resumen = informe if args.calibrar else {
         'cumple_todos': informe['cumple_todos'], 'puerta': informe['puerta'],
         'metodos': {n: {k: m.get(k) for k in ('mrr@10', 'recall@10', 'abstention_accuracy', 'abstencion_por_tipo',
@@ -142,11 +142,28 @@ def main(argv=None) -> int:
     p.add_argument('--calibrar', action='store_true', help='Fija los umbrales de abstención con su conjunto de calibración.')
     p.add_argument('--sellado', action='store_true', help='Mide la abstención calibrada en el conjunto sellado, una sola vez.')
     p.add_argument('--corpus', choices=('047', '077'), default='047', help='El corpus del índice; cada uno con sus conjuntos.')
+    p.add_argument('--modelo-vectores', help='Modelo de Ollama para los vectores (097:RF-4); por defecto, el en uso.')
+    p.add_argument('--comparar', nargs='+', type=Path,
+                   help='Informes de cada modelo de vectores (sin sellar): dice cuál se elige (097:RF-4).')
     args = p.parse_args(argv)
     import os
 
+    if args.comparar:
+        from convertersmartgrid.asistente import indice as _indice
+
+        medidas = {}
+        for ruta in args.comparar:
+            inf = json.loads(ruta.read_text(encoding='utf-8'))
+            metodo = (inf.get('metodos') or {}).get('hibrido') or {}
+            medidas[inf.get('modelo_vectores') or ruta.stem] = {k: metodo.get(k) for k in ('mrr@10', 'recall@10')}
+        print(json.dumps({'medidas': medidas, 'elegido': _indice.elegir_modelo_vectores(medidas)}, ensure_ascii=False,
+                         indent=1))
+        return 0
     if args.datos:
         os.environ['CSG_ASISTENTE_DATA'] = str(args.datos)
+    if args.modelo_vectores:
+        # 097:RF-4: los vectores de otro modelo se miden en la carpeta propia de --datos, sin tocar los que se sirven.
+        os.environ['CSG_ASISTENTE_MODELO_VECTORES'] = args.modelo_vectores
     from convertersmartgrid.asistente import evaluacion_rag, indice
 
     if args.corpus == indice.CORPUS_AMPLIADO and args.solo_conjunto:
@@ -170,7 +187,7 @@ def main(argv=None) -> int:
         p.error('--salida es obligatoria al medir')
     with turno_gpu('rag'):
         ollama = ClienteOllama(tiempo_max_s=120.0)
-        if not any(str(m).startswith(indice.MODELO_EMBEDDINGS) for m in ollama.modelos() or ()):
+        if not any(str(m).startswith(indice.modelo_vectores().split(':')[0]) for m in ollama.modelos() or ()):
             print('Ollama no responde con su modelo de embeddings: no se puede medir el híbrido.', file=sys.stderr)
             return 2
         hecho = indice.calcular_vectores(REPO, ollama, progreso=lambda n, t: print(f'vectores {n}/{t}', flush=True))
@@ -181,14 +198,14 @@ def main(argv=None) -> int:
         i = indice.cargar_o_construir(REPO)
 
         def vector_de(pregunta: str) -> list[float] | None:
-            emb = ollama.embeddings([indice.PREFIJO_CONSULTA + pregunta])
+            emb = indice._vectores_de(ollama, [indice.prefijos()[0] + pregunta])
             return emb[0] if emb else None
 
         modelos = args.modelos if args.modelos is not None else list(reranker.MODELOS)
         revisiones = {m: reranker.ficha_modelo(m)['revision'] for m in modelos}
         informe = evaluacion_rag.evaluar(i, conjunto, vector_de,
                                          {m: reranker.PuntuadorPerezoso(m, revisiones[m]) for m in modelos}, revisiones)
-    escribir_informe(args.salida, informe)
+    escribir_informe(args.salida, {**informe, 'modelo_vectores': indice.modelo_vectores()})   # 097:RF-1
     print(json.dumps(_resumen(informe), ensure_ascii=False, indent=1))
     return 0
 
