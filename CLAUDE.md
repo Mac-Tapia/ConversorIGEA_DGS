@@ -31,7 +31,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
   | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T8, T9, T11, T12 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | reservada |  |
-  | 004 Cargas en un proyecto existente de DIgSILENT | cumplida |  |
+  | 004 Cargas en un proyecto existente de DIgSILENT | implementada | falta T20 |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
   | 006 Ajuste de las demandas a la máxima de cabecera | cumplida |  |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
@@ -69,7 +69,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T4 |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
-  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6 |
+  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6, T29, T37, T42, T44, T48, T50 |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | implementada | falta T4 |
   | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3, T4 |
@@ -92,7 +92,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
-  | 065 Cierre verificable de la auditoría integral | aprobada | falta T13 |
+  | 065 Cierre verificable de la auditoría integral | aprobada | falta T12, T13 |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | implementada | falta T9 |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | falta T7 |
@@ -108,7 +108,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | falta T7 |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
-  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22 |
+  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22, T24 |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
