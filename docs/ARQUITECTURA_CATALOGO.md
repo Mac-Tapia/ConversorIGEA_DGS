@@ -13,9 +13,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 97 |
 | Interfaz | `frontend/src/` | 46 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 389 |
+| Pruebas | `tests/` | 390 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 292 |
+| Specs | `specs/` | 295 |
 
 `web/services.py` tiene 11230 líneas y 345 funciones, pendiente de partir (002).
 
@@ -24,12 +24,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 50 |
-| implementada | 30 |
+| implementada | 31 |
 | aprobada | 16 |
 | reservada | 1 |
 | retirada | 1 |
 
-98 specs con 3188 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+99 specs con 3194 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -338,7 +338,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
-| `cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
+| `cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093, 099 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
 | `ajuste_cabecera.py` | Dom | 006, 021, 035, 041, 095 | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. |
 | `oraculo_calibracion.py` | Ada | 083 | El oráculo antes de calibrar: los factores de arranque, sin gastar flujos de DIgSILENT. |
 | `crecimiento.py` | Apl | 029 | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año,… |
@@ -612,7 +612,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `powerfactory_acceptance.py` | — | 034, 010, 015, 054, 078 | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. |
 | `casos_pf.py` | — | 011, 014, 015, 016, 025, 037, 073 | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones. |
 | `ajuste_cabecera_pf.py` | — | 006, 008, 011, 014, 015, 020, 021, 022, 025, 032, 035, 039, 041, 094, 095, 091 | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto». |
-| `cargas_pf.py` | — | 004, 007, 008, 011, 016, 022, 035, 040, 054 | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente. |
+| `cargas_pf.py` | — | 004, 007, 008, 011, 016, 022, 035, 040, 054, 099 | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente. |
 | `obras_pf.py` | — | 011, 103, 016, 042, 048, 073 | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas. |
 | `estudios_pf.py` | — | 011, 017, 130, 131, 135, 012, 037 | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores. |
 | `capacidad_pf.py` | — | 012 | Guion de DIgSILENT de la capacidad de alojamiento nodo a nodo y conjunta (`ComHostcap`), las curvas PV por alimentador con o sin contingencias… |

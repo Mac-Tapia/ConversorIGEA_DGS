@@ -1272,8 +1272,24 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     indice = (ya or {}).get('indice') or {}
     sed_de = sed_existentes(alims, ya)                   # 040:RF-3, una vez por trabajo
     vistas: dict[str, list[tuple[tuple[float, float], str]]] = {}   # 040:RF-1
+    # 099:RF-1 a RF-4: el mismo cliente dos veces en el mismo alimentador del libro, por su nombre o por su punto:
+    # cuenta la última fila. CH_20 y CH_23 (Tierra Larga, CA101) estaban a 2,6 km y se creaban las dos.
+    from convertersmartgrid.cargas_pf import duplicadas_por_cliente
+    superadas = duplicadas_por_cliente(nuevas, MISMO_PUNTO_M)
     for fila in nuevas:
         sed = fila['sed']
+        if sed in superadas:
+            vigente = superadas[sed]
+            suyo = str(fila.get('alimentador') or '').strip()
+            dup = {'sed': sed, 'alimentador': suyo or None, 'duplicada_de': vigente,
+                   'motivo': f'el mismo cliente que {vigente}, posterior en el libro: cuenta {vigente} (099:RF-1)'}
+            entrada = next(iter(entradas_del_indice(indice, list(alims.elegidos), nombre_pf(sed))), None)
+            if entrada and entrada['variaciones']:
+                dup['eliminar'] = sorted(entrada['variaciones'])          # 040:RF-6, 099:RF-5
+            no_creadas.append(dup)
+            avisos.append(f'{sed}: el mismo cliente que {vigente} en el libro ({suyo or "sin alimentador"}); '
+                          f'cuenta {vigente}, la última fila, y {sed} no se crea (099:RF-1).')
+            continue
         candidatos = list(alims.elegidos)
         suyo = str(fila.get('alimentador') or '').strip()
         if suyo:

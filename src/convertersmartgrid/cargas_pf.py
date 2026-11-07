@@ -417,6 +417,92 @@ def leer_hoja_nuevas(
     return [f for f in filas if f is not None], errores
 
 
+#: 099:RF-2: palabras que no distinguen a un cliente: el tipo de solicitud, la razón social y los conectores.
+#: Son del castellano de cualquier libro de solicitudes, no de una empresa.
+PALABRAS_GENERICAS = frozenset({
+    'su', 'suministro', 'sac', 'saa', 'sa', 'srl', 'eirl', 'sociedad', 'anonima', 'cerrada', 'empresa', 'cliente',
+    'de', 'del', 'el', 'la', 'los', 'las', 'y', 'e', 'en', 'a', 'al', 'para', 'con', 'por',
+    'distrito', 'provincia', 'departamento', 'region', 'sector', 'nuevo', 'nueva', 'ampliacion', 'carga'})
+
+
+def palabras_del_cliente(nombre: str) -> frozenset[str]:
+    """099:RF-2: lo que distingue a un cliente en su nombre: sin tildes ni signos, sin la potencia
+    («1770KW», «1,39 MW») ni números, y sin :data:`PALABRAS_GENERICAS`."""
+    import unicodedata
+
+    plano = unicodedata.normalize('NFKD', nombre or '').encode('ascii', 'ignore').decode().lower()
+    plano = re.sub(r'\d+(?:[.,]\d+)?\s*(?:kw|kva|mw|mva|kv)\b', ' ', plano)
+    palabras = [p for p in re.split(r'[^a-z0-9]+', plano) if p and not p.isdigit()]
+    return frozenset(p for p in palabras if p not in PALABRAS_GENERICAS and len(p) > 1)
+
+
+def _con_compuestas(nombre: str) -> frozenset[str]:
+    """Las palabras y las parejas seguidas escritas juntas: «Tierra Larga» también es «tierralarga»."""
+    import unicodedata
+
+    plano = unicodedata.normalize('NFKD', nombre or '').encode('ascii', 'ignore').decode().lower()
+    plano = re.sub(r'\d+(?:[.,]\d+)?\s*(?:kw|kva|mw|mva|kv)\b', ' ', plano)
+    seguidas = [p for p in re.split(r'[^a-z0-9]+', plano) if p and not p.isdigit()]
+    return frozenset(seguidas) | frozenset(a + b for a, b in zip(seguidas, seguidas[1:]))
+
+
+def mismo_cliente(a: str, b: str) -> bool:
+    """099:RF-1, RF-2: dos nombres del libro son el mismo cliente si todo lo que distingue al más corto
+    está en el otro, contando las palabras que uno escribe juntas y el otro separadas.
+
+    Chincha (2026-11-07): «SU-1770KW-Tierra Larga - Distrito el Camen- Provincia de chincha» (CH_20) y
+    «SU-1390KW-TierraLarga-Chincha» (CH_23) son la misma solicitud con otra potencia; a 2,6 km una de
+    otra, 040:RF-1 (1 m) no las unía y se creaban las dos.
+    """
+    pa, pb = palabras_del_cliente(a), palabras_del_cliente(b)
+    if not pa or not pb:
+        return False
+    if pa == pb:
+        return True
+    corto, largo, nombre_largo = (pa, pb, b) if len(pa) <= len(pb) else (pb, pa, a)
+    # 099:RF-2: una sola palabra distintiva no basta. Usuario (2026-11-07): «PREDIO SUBLOTE N°01-FUNDO YANACA»
+    # y «YANACA» (NA205) son clientes distintos: un sublote es otra solicitud.
+    if len(corto) < 2:
+        return False
+    return corto <= (largo | _con_compuestas(nombre_largo))
+
+
+def _mismo_punto(a: dict, b: dict, radio_m: float) -> bool:
+    if a.get('lat') is None or b.get('lat') is None or a.get('lon') is None or b.get('lon') is None:
+        return False
+    la1, lo1, la2, lo2 = map(math.radians, (float(a['lat']), float(a['lon']), float(b['lat']), float(b['lon'])))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371000.0 * math.asin(math.sqrt(h)) <= radio_m
+
+
+def duplicadas_por_cliente(filas: Sequence[dict], radio_m: float = 1.0) -> dict[str, str]:
+    """099:RF-1, RF-3, RF-4: de cada fila que repite el cliente de otra posterior del mismo alimentador del libro,
+    por el nombre (:func:`mismo_cliente`) o por el mismo punto (040:RF-1, a ``radio_m`` o menos), la fila que
+    queda. Cuenta la última del libro: es la versión vigente de la solicitud (usuario, 2026-11-07: «considera
+    uno solo de Tierra Larga, la CH_23; la otra es duplicado», y «la última del libro» también para el mismo
+    punto, que cambia 040:RF-1). Una pasada por alimentador, con las filas de ese alimentador nada más."""
+    por_alimentador: dict[str, list[dict]] = {}
+    for fila in filas:
+        por_alimentador.setdefault(str(fila.get('alimentador') or '').strip().upper(), []).append(fila)
+    queda: dict[str, str] = {}
+    for grupo in por_alimentador.values():
+        for i, fila in enumerate(grupo):
+            nombre = fila.get('descripcion') or fila.get('sed') or ''
+            for posterior in reversed(grupo[i + 1:]):
+                if posterior['sed'] != fila['sed'] and (_mismo_punto(fila, posterior, radio_m) or mismo_cliente(
+                        nombre, posterior.get('descripcion') or posterior.get('sed') or '')):
+                    queda[fila['sed']] = posterior['sed']
+                    break
+    # La que queda es la última de su cadena (CH_a → CH_b → CH_c: todas van a CH_c).
+    for sed in list(queda):
+        destino, vistos = queda[sed], {sed}
+        while destino in queda and destino not in vistos:
+            vistos.add(destino)
+            destino = queda[destino]
+        queda[sed] = destino
+    return queda
+
+
 def a_wgs84(puntos: Sequence[tuple[float, float]], source_crs: str) -> list[tuple[float, float] | None]:
     """(x, y) en ``source_crs`` → (lat, lon). ``None`` si un punto no se puede pasar."""
     from .geography import make_transformer

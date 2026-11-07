@@ -64,9 +64,9 @@ def _variacion_con(app, nombre, objetos):
 
 # =========================================================================== RF-1, RF-2
 def test_fila_duplicada_en_el_mismo_alimentador_no_se_crea(guion):
-    """040:RF-1, 040:RF-2, 040:RF-9 — dos filas de F1 en el mismo punto son la misma carga: se
-    crea la primera y la otra se informa como duplicada; la del mismo punto en F2 no es
-    duplicada y va a F2, como dice el libro."""
+    """040:RF-1, 040:RF-2, 040:RF-9, 099:RF-4 — dos filas de F1 en el mismo punto son la misma carga: se
+    crea la última del libro (099:RF-4 cambia «la primera» de 040:RF-1) y la otra se informa como duplicada;
+    la del mismo punto en F2 no es duplicada y va a F2, como dice el libro."""
     app = _app()
     p = _punto(app, 'F1_B2', 0.0005)                    # unos 55 m: lejos de toda SED
     nuevas = [_nueva('N1', alimentador='F1', **p), _nueva('N1B', alimentador='F1', **p),
@@ -76,10 +76,10 @@ def test_fila_duplicada_en_el_mismo_alimentador_no_se_crea(guion):
 
     assert rc == 0, informe
     crearian = {c['sed']: f['feeder'] for f in informe['feeders'] for c in f['crearian']}
-    assert crearian == {'N1': 'F1', 'N1C': 'F2'}
+    assert crearian == {'N1B': 'F1', 'N1C': 'F2'}
     (dup,) = informe['duplicadas']
-    assert dup['sed'] == 'N1B' and dup['duplicada_de'] == 'N1' and '040:RF-1' in dup['motivo']
-    assert any('N1B' in a and '040:RF-1' in a for a in informe['avisos'])
+    assert dup['sed'] == 'N1' and dup['duplicada_de'] == 'N1B' and '099:RF-1' in dup['motivo']
+    assert any(a.startswith('N1:') and '099:RF-1' in a for a in informe['avisos'])
 
 
 # =========================================================================== RF-3
@@ -153,7 +153,8 @@ def test_se_eliminan_la_duplicada_y_la_ampliacion_creada_como_sed(guion):
     del operador no se toca. Al simular solo se listan."""
     app = _app()
     p = _punto(app, 'F1_B3', 0.0005)
-    dup = _variacion_con(app, 'Carga_N1B_F1_20261001_000000', [('ElmSubstat', 'N1B'), ('ElmLod', 'N1B')])
+    # 099:RF-4: con el mismo punto cuenta la última fila (N1B); la variación de la anterior (N1) se elimina.
+    dup = _variacion_con(app, 'Carga_N1_F1_20261001_000000', [('ElmSubstat', 'N1'), ('ElmLod', 'N1')])
     vieja = _variacion_con(app, 'Carga_AMP_F1_20261001_000000', [('ElmSubstat', 'AMP'), ('ElmLod', 'AMP')])
     obra = _variacion_con(app, 'Obra_operador', [('ElmLod', 'N1B')])
     nuevas = [_nueva('N1', alimentador='F1', **p), _nueva('N1B', alimentador='F1', **p),
@@ -171,7 +172,7 @@ def test_se_eliminan_la_duplicada_y_la_ampliacion_creada_como_sed(guion):
     quedan = set(_variaciones(app))
     assert dup.loc_name not in quedan and vieja.loc_name not in quedan
     assert obra.loc_name in quedan
-    assert {c['sed'] for c in informe['cargas']} == {'N1', 'AMP'}
+    assert {c['sed'] for c in informe['cargas']} == {'N1B', 'AMP'}
     for caso in app.carpetas['study'].GetContents('*.IntCase'):
         assert dup not in caso._estado.variaciones and vieja not in caso._estado.variaciones
     assert any(dup.loc_name in a and '040:RF-6' in a for a in informe['avisos'])
