@@ -1,6 +1,6 @@
 # Spec 044 — Evaluación causal y verificación completa
 
-Estado: implementada · Fecha: 2026-10-31
+Estado: cumplida · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

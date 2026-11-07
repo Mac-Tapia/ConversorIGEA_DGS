@@ -10,10 +10,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 242 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 95 |
+| Herramientas y guiones | `tools/` | 96 |
 | Interfaz | `frontend/src/` | 46 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 380 |
+| Pruebas | `tests/` | 384 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 286 |
 
@@ -23,8 +23,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 43 |
-| implementada | 33 |
+| cumplida | 44 |
+| implementada | 32 |
 | aprobada | 17 |
 | reservada | 3 |
 
@@ -650,6 +650,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `informe_casos_guardados.py` | — | 063 | Reproduce la evaluación Word con tres casos y sus seis flujos guardados por la web. |
 | `accept_three_sources.py` | — | 001, 004, 006, 011 | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. |
 | `accept_digital_twin_in111_ta225.py` | — | 024 | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado`, comprobaciones y episodio en el… |
+| `aceptacion_nativa.py` | — | 044, 045, 048, 049 | Evidencia nativa de las T4: obra aplicada por la web, relecturas en procesos nuevos de `digital_twin_snapshot_pf.py`, retiro, capacidades de… |
 | `aceptar_dominio.py` | — | 065 | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. |
 | `apply_catalog_to_model.py` | — | 034, 032 | Corrige las características eléctricas del modelo con el catálogo de fichas. |
 | `build_input_catalog.py` | — | 034 | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. |

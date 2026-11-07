@@ -43,7 +43,16 @@ código y no debió ejecutarse.
   - `pytest tests_ml/test_benchmark_pinn_cuda.py`, con el entorno opcional de PyG;
   - la ablación con los episodios reales, `python tools/digital_twin_entrenar.py --ablaciones CONTRATO --output-json INFORME`.
     Necesita antes los episodios con grafo versión 3, que salen de DIgSILENT.
-- **T4, abierta.** `[DIgSILENT]`, sin ejecutar. `tests/test_gemelo_fisico_nativo.py` todavía no existe; RF-11 sin prueba.
+- **T4, abierta, medida el 2026-11-07** (rama `worktree-agent-a578852c96aa94605` sobre `7e81450c`, DIgSILENT 24.0.2, sin GPU).
+  `tests/test_gemelo_fisico_nativo.py` (045:RF-11) con `CSG_EVIDENCIA_NATIVA=D:/converter/evidencia_nativa/20261107_PE10_t4c`:
+  3 passed, 0 omitidas. Proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10` (CA101 + PE104); cada caso releído en un
+  proceso nuevo de `digital_twin_snapshot_pf.py` tras reabrir, y contrastado con el flujo mallado del gemelo (CPU) en 1 065 barras:
+  «Caso base» error medio 0,0048 p.u. y máximo 0,125; «Sin proyecto» 0,0066 y 0,129; «Con proyecto» con el banco de la obra
+  0,0067 y 0,129. Los tres, fuera de dominio para uso predictivo: DIgSILENT calcula desequilibrado (`iopt_net=1`) y la física es
+  equilibrada; el máximo supera la tolerancia de 0,01 p.u. Inventario: 12 bancos y 0 centrales en «Caso base» y «Sin proyecto»
+  antes y después; «Con proyecto» con 13, el nuevo es solo el declarado. Sigue abierta porque se piden los cuatro papeles y el
+  proyecto no tiene «Cargas nuevas» (DIgSILENT: «el proyecto no tiene el caso Cargas nuevas»): hace falta un proyecto de prueba
+  con el libro de cargas nuevas (spec 037). NA203–NA205 no se tocaron.
 
 Limitaciones de lo cerrado:
 

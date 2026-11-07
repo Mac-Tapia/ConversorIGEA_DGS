@@ -19,6 +19,16 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [ ] T4 [DIgSILENT]. Validación y persistencia de protecciones en PowerFactory. (RF-9)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_nativas.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
+      Abierta el 2026-11-07, con la lista de bloqueo guardada. `tools/aceptacion_nativa.py protecciones` (por la web,
+      `/pf/protecciones/capacidades` con `ejecutar_ordenes`) en `20261106-233549_CSG_TXT_8fc733e4_01_PE10`: DIgSILENT 24.0.2;
+      `ComShc` existe y se ejecuta (licencia), con `GetFaultType`, `ExecuteRXSweep` y los atributos `shcobj`, `iopt_shc`, `Rf`,
+      `Xf` e `iopt_allbus` (lo que la T2 dejó por confirmar); `ComShctrace` existe; 0 `ElmRelay`, 0 `RelFuse`, 0 `StaCt`;
+      generación: las dos redes externas. Bloqueo: dispositivos con curva, ajustes y poder de corte (la fuente trae 4 filas
+      DEFAULT con poder de corte 0); Scc e impedancia real de cabecera; `protecciones.cti_s`, `factor_sensibilidad` y
+      `margen_poder_corte` del perfil. Evidencia `D:/converter/evidencia_nativa/20261107_PE10_t4c/` (manifiesto
+      `e582c7c3a660f79b…`); `pytest -q -rs tests/test_protecciones_nativas.py`: 2 passed, 0 omitidas, sin cerrar la tarea.
+      Siguiente acción (dueño: quien traiga el libro «Protecciones» de la empresa): con fichas reales, aplicar ajustes en
+      `CSG049_ajustes`, reabrir y repetir las fallas.
 
 ## Evidencia de ejecución
 

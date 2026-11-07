@@ -17,6 +17,31 @@ from types import ModuleType
 TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
 
+#: Carpeta que deja ``tools/aceptacion_nativa.py`` con lecturas e informes de DIgSILENT real (044, 045, 048 y
+#: 049, T4). Las pruebas no se conectan a DIgSILENT (084:RF-21): releen esa evidencia, comprueban sus huellas
+#: y vuelven a calcular los veredictos. Sin la variable se omiten, como las de los TXT reales con ``CSG_*``.
+VARIABLE_EVIDENCIA_NATIVA = 'CSG_EVIDENCIA_NATIVA'
+
+
+def evidencia_nativa(etapa: str):
+    """(guion, carpeta, manifiesto, veredictos) de la evidencia nativa; se omite sin ella."""
+    import json
+
+    import pytest
+
+    ruta = os.environ.get(VARIABLE_EVIDENCIA_NATIVA, '').strip()
+    if not ruta:
+        pytest.skip(f'Defina {VARIABLE_EVIDENCIA_NATIVA} con la carpeta de tools/aceptacion_nativa.py')
+    guion = cargar_herramienta('aceptacion_nativa.py', 'aceptacion_nativa_evidencia', tools_en_path=True)
+    carpeta = Path(ruta)
+    manifiesto = json.loads((carpeta / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    assert manifiesto.get('schema') == guion.ESQUEMA
+    assert guion.comprobar_huellas(carpeta, manifiesto) == [], 'la evidencia cambió desde que se escribió'
+    assert manifiesto.get(etapa), f'la evidencia no tiene la etapa «{etapa}»'
+    perfil = manifiesto.get('perfil')
+    return guion, carpeta, manifiesto, guion.veredictos(carpeta, manifiesto, Path(perfil) if perfil else None)
+
+
 def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: str) -> dict:
     """Contexto mínimo pero firmado para planes unitarios que llegan al ``main``."""
     from convertersmartgrid.native_action import build_native_action_context

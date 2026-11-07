@@ -454,6 +454,7 @@
     "informe_casos_guardados.py",
     "accept_three_sources.py",
     "accept_digital_twin_in111_ta225.py",
+    "aceptacion_nativa.py",
     "aceptar_dominio.py",
     "apply_catalog_to_model.py",
     "build_input_catalog.py",
