@@ -213,3 +213,32 @@ def test_veredicto_sin_obras_aplicadas_no_inventa_persistencia():
     filas = [{'variacion': '', 'casos_activos': [], 'error': 'no se pudo crear la obra: x'}]
     v = veredicto_persistencia(filas, {}, _referencia())
     assert v['obras'] == [] and v['ok'] is False and 'ninguna obra' in v['motivo']
+
+
+def test_veredicto_activa_sin_etapa_en_vigor_no_persiste():
+    """048:RF-9, 081:RF-78 — activa en su caso pero con todas sus etapas después de la hora del caso: DIgSILENT no la
+    aplica y no avisa. PE10 (2026-11-07): la obra salía «persistida» con el «Con proyecto» sin sus etapas aplicadas."""
+    filas = [{'variacion': 'Obra_terna_F1', 'casos_activos': [CON], 'error': ''}]
+    leida = {'Obra_terna_F1': {'existe': True, 'objetos': 2, 'activa_en': [CON], 'sin_vigor_en': [CON]}}
+    v = veredicto_persistencia(filas, leida, _referencia())
+    assert not v['ok'] and 'en vigor' in v['obras'][0]['motivo']
+
+
+def test_la_relectura_ve_la_etapa_posterior_a_la_hora_del_caso(monkeypatch):
+    """048:RF-9, 081:RF-78 — con el guion: una etapa fechada después de la hora de «Con proyecto» deja la obra sin
+    vigor y la persistencia lo dice."""
+    app, alims = _calibrada(random.Random(53))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    original = guion.releer_obras
+
+    def con_etapa_tarde(a, filas, casos):
+        for v in a.carpetas['scheme'].GetContents('*.IntScheme'):
+            if v.loc_name.startswith('Obra_terna'):
+                for s in v.GetContents('*.IntSstage'):
+                    s.tAcTime = 4_000_000_000              # años después de cualquier hora de caso
+        return original(a, filas, casos)
+
+    monkeypatch.setattr(guion, 'releer_obras', con_etapa_tarde)
+    informe, _codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [CON])]))
+    (o,) = informe['persistencia']['obras']
+    assert o['ok'] is False and 'en vigor' in o['motivo'] and informe['persistencia']['ok'] is False

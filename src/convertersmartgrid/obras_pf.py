@@ -1347,6 +1347,11 @@ def veredicto_persistencia(filas: Iterable[Mapping[str, Any]], relectura: Mappin
             motivo = 'la variación no graba ningún objeto'
         elif CASO_BASE in activa:
             motivo = 'la variación está activa en el «Caso base»'
+        elif sorted(set(esperada) & set(leida.get('sin_vigor_en') or [])):
+            # 081:RF-78: activa pero con sus etapas después de la hora del caso: DIgSILENT no la aplica ni avisa. PE10
+            # (2026-11-07): la obra salía persistida mientras «Con proyecto» no aplicaba las etapas de la base.
+            motivo = ('la variación está activa en ' + ', '.join(sorted(set(esperada) & set(leida['sin_vigor_en'])))
+                      + ', pero ninguna de sus etapas está en vigor a la hora del caso: DIgSILENT no la aplica')
         elif activa != esperada:
             motivo = (f'la variación está activa en {", ".join(activa) or "ningún caso"} y quedó activa en '
                       f'{", ".join(esperada) or "ninguno"}')

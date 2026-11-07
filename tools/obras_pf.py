@@ -2135,11 +2135,16 @@ def releer_obras(app, filas: list[dict], casos: dict) -> dict[str, dict]:
     """
     carpeta = app.GetProjectFolder('scheme')
     por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []) or []}
-    activas = {}
+    activas, sin_vigor = {}, {}
     for rol in NOMBRES:
         if rol in casos:
             casos[rol].Activate()
-            activas[NOMBRES[rol]] = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+            hora = int(getattr(casos[rol], 'iStudyTime', 0) or 0)
+            vivas = list(app.GetActiveNetworkVariations() or [])
+            activas[NOMBRES[rol]] = {v.loc_name for v in vivas}
+            # 081:RF-78: una etapa posterior a la hora del caso no se aplica aunque su variación esté activa.
+            sin_vigor[NOMBRES[rol]] = {v.loc_name for v in vivas if (etapas := v.GetContents('*.IntSstage') or [])
+                                       and all(int(getattr(s, 'tAcTime', 0) or 0) > hora for s in etapas)}
     out = {}
     for fila in filas:
         nombre = fila.get('variacion')
@@ -2147,7 +2152,8 @@ def releer_obras(app, filas: list[dict], casos: dict) -> dict[str, dict]:
             continue
         v = por_nombre.get(nombre)
         out[nombre] = {'existe': v is not None, 'objetos': len(_grabados(v)) if v is not None else 0,
-                       'activa_en': [c for c, nombres in activas.items() if nombre in nombres]}
+                       'activa_en': [c for c, nombres in activas.items() if nombre in nombres],
+                       'sin_vigor_en': [c for c, nombres in sin_vigor.items() if nombre in nombres]}
     return out
 
 
