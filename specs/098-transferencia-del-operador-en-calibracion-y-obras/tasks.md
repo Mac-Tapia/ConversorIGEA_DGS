@@ -45,6 +45,13 @@
       que hace falta la de largo plazo y los bancos ampliados, y el factor de la terna positivo. (RF-32, RF-34 a RF-37)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "escalera or nombradas or cuesta_menos or repone or conserva or reguladores or huella or alcance or ampliados or factor"`
       y `pytest -q tests/test_obras_pf_guion_042.py tests/test_informe_factibilidad_un_paso.py tests/test_obras_integrales.py` en verde.
+- [x] T13. Lo de la tercera revisión de 9ff6f3f1: la sustitución sin borrar antes de tiempo (la vieja medida como una
+      variante más, la nueva primero, la vieja borrada al final o vuelta activa, el diario en disco y la recuperación),
+      la vieja que no cumple que no resuelve, la evidencia de la escalera para lo aplicado sin origen, el ajuste de
+      tomas original por caso, la huella del paso de evaluar con la revisión y las pérdidas, la huella de la red de los
+      alimentadores en estudio y las rondas de conjunto con la misma sustitución. (RF-34, RF-36)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "sustitu or falla or incompleto or cortada or apartada or dudosa or ultima_obra or escalera or cuesta_menos"`
+      y `pytest -q tests/test_obras_integrales.py tests/test_informe_factibilidad_un_paso.py tests/test_obras_pf_guion_042.py` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la
@@ -56,6 +63,7 @@
       o con bancos) antes del paso a 22,9 kV, y el registro dice cuántas juzgó el oráculo y cuántas confirmó DIgSILENT;
       CHN102 lleva su escalera; el registro da el desvío del oráculo frente a DIgSILENT, y una variante sin aplicar
       sale como «no aplicada», no como «no cumple»; CA101 prueba y elige una obra que junta sus dos caminos, sin
-      volver a medir lo ya medido con la misma red; el paso a 22,9 kV de CHN102 se aplicó antes de guardar su origen:
-      se avisa y, con «rehacer obras», se elige de nuevo la de corto plazo, con la de largo plazo planteada y el
+      volver a medir lo ya medido con la misma red; el paso a 22,9 kV de CHN102 (aplicado antes de guardar su origen,
+      con su elección guardada en el espacio 2131c6bc8b924e63) se mide como la vieja y se cambia por la de corto plazo
+      solo si cuesta menos, primero la nueva y después borrada la vieja, con la de largo plazo planteada y el
       intervalo en que hace falta.

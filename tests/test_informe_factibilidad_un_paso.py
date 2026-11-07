@@ -652,7 +652,9 @@ def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
             pass
 
     class Ws:
-        obras_aplicadas = [{'project': 'P', 'variacion': 'Obra_terna_F1'}, {'project': 'P', 'variacion': 'Obra_terna_F2'}]
+        # 098:RF-36: «rehacer obras» retira solo lo que aplicó la escalera.
+        obras_aplicadas = [{'project': 'P', 'variacion': 'Obra_terna_F1', 'origen': 'escalera'},
+                           {'project': 'P', 'variacion': 'Obra_terna_F2', 'origen': 'escalera'}]
 
     ws = Ws()
     services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'], rehacer_obras=True)

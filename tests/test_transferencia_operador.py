@@ -1315,35 +1315,37 @@ def _ws_con_obras(tmp_path, registros):
 
 
 def test_solo_se_compara_y_se_retira_lo_que_aplico_la_escalera(tmp_path, monkeypatch):
-    """098:RF-36 — 040:RF-8, 014:RF-3: lo que el operador aplicó desde la pestaña de obras no se compara ni se retira; lo
-    aplicado sin origen guardado se avisa y no se toca (salvo «rehacer obras», que lo pide el operador); lo de la
-    escalera va con los nombres exactos de sus variaciones."""
+    """098:RF-36 — 040:RF-8, 014:RF-3: lo que el operador aplicó no se compara ni se retira; lo aplicado sin origen se
+    compara (y «rehacer obras» lo retira) solo si la escalera guardó su elección con el mismo escalón (M1: CHN102,
+    «Obra_tension_CHN102» y la elegida «cambio a 22.9 kV…» con escalón «nivel»); sin esa evidencia, se avisa y no se toca."""
     from convertersmartgrid.web import services
 
     ws = _ws_con_obras(tmp_path, [
-        {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1', 'clase': 'nivel'},
-         'origen': 'escalera', 'eleccion': {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'huella': 'h'}},
-        {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'alimentador': 'F1'}, 'origen': 'operador'},
-        {'project': 'P', 'variacion': 'Obra_terna_F1', 'obra': {'alimentador': 'F1'}},
-        {'project': 'Q', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'}, 'origen': 'escalera'}])
+        {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1', 'clase': 'tension'}},
+        {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'alimentador': 'F1', 'clase': 'seccion'},
+         'origen': 'operador'},
+        {'project': 'P', 'variacion': 'Obra_terna_F2', 'obra': {'alimentador': 'F2', 'clase': 'terna'}},
+        {'project': 'P', 'variacion': 'Obra_condensador_F3', 'obra': {'alimentador': 'F3', 'clase': 'condensador'},
+         'origen': 'escalera', 'eleccion': {'nombre': 'bancos 1×300 kvar', 'huella': 'h', 'regla': 'r',
+                                             'escalones': ['bancos'], 'cantidades': {'bancos': 1.0}}}])
+    services._guardar_alternativas_escalera(ws, 'P', 'F1 · sin cargas nuevas, fuera de límites', [
+        {'nombre': 'cambio a 22.9 kV con su fuente (29.30 km, 50 SED)', 'escalones': ['nivel'], 'elegida': True}])
+    services._guardar_alternativas_escalera(ws, 'P', 'F2', [{'nombre': 'bancos', 'escalones': ['bancos'], 'elegida': True}])
     ctx = _Registro()
-    comparar = services._obras_a_comparar(ws, ctx, 'P', ['F1', 'F2'])
-    assert set(comparar) == {'F1'} and comparar['F1']['variaciones'] == ['Obra_tension_F1']
-    assert comparar['F1']['nombre'] == 'cambio a 22.9 kV' and comparar['F1']['costo_anual'] == 1200.0
-    assert any('Obra_terna_F1' in t and 'no se compara ni se retira' in t for t in ctx.textos)
+    comparar = services._obras_a_comparar(ws, ctx, 'P', ['F1', 'F2', 'F3'])
+    assert set(comparar) == {'F1', 'F3'}
+    assert comparar['F1']['variaciones'] == ['Obra_tension_F1'] and comparar['F1']['nombre'].startswith('cambio a 22.9 kV')
+    assert comparar['F3']['cantidades'] == {'bancos': 1.0} and comparar['F3']['escalones'] == ['bancos']
+    assert any('Obra_terna_F2' in t and 'no se compara ni se retira' in t for t in ctx.textos)
     planes = []
     monkeypatch.setattr(services, 'carpeta_de', lambda *_a: '')
     monkeypatch.setattr(services, 'native_action_context', lambda *_a: {})
     monkeypatch.setattr(services, '_guion_pf', lambda ws_, ctx_, guion, plan, **k: (
         planes.append(plan), (0, {'retiradas': list(plan['variaciones'])}, None))[1])
-    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026)
-    assert planes[-1]['variaciones'] == ['Obra_tension_F1']
-    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026, sin_origen=True)
-    assert planes[-1]['variaciones'] == ['Obra_terna_F1'], 'la del operador, nunca'
-    assert [a['variacion'] for a in ws.obras_aplicadas if a['project'] == 'P'] == ['Obra_seccion_F1']
-    n = len(planes)
-    services._retirar_obras(ws, ctx, 'P', ['F1'], 2026)
-    assert len(planes) == n, 'sin obras de la escalera no se abre DIgSILENT'
+    services._retirar_obras(ws, ctx, 'P', ['F1', 'F2'], 2026, sin_origen=True)
+    assert planes[-1]['variaciones'] == ['Obra_tension_F1'], 'sin evidencia (F2) ni del operador, nunca'
+    assert any('Obra_terna_F2 no se retira' in t for t in ctx.textos)
+    assert {a['variacion'] for a in ws.obras_aplicadas} == {'Obra_seccion_F1', 'Obra_terna_F2', 'Obra_condensador_F3'}
 
 
 def test_retirar_obras_borra_solo_las_nombradas(monkeypatch):
@@ -1367,72 +1369,208 @@ def test_retirar_obras_borra_solo_las_nombradas(monkeypatch):
 
 
 def test_la_vieja_se_cambia_solo_si_la_nueva_cumple_y_cuesta_menos():
-    """098:RF-36 — se conserva si nada cambió, si sin ella ya cumple, si ninguna cumple, si vuelve a ganar o si la nueva no
-    cuesta menos; se cambia si cuesta menos o si la vieja ya no cumple."""
+    """098:RF-36 — con la fila de la vieja medida en esta corrida: se conserva si nada cambió, si sin ella ya cumple (y se
+    dice que sobra), si su medida es dudosa, si ninguna cumple, si vuelve a ganar o si la nueva no cuesta menos; se
+    cambia si cuesta menos o si la vieja ya no cumple. ``ok`` solo si lo que queda cumple (M2)."""
     from convertersmartgrid.web import services
 
-    vieja = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'variaciones': ['Obra_tension_F1']}
-
-    def fila(elegida, tabla=(), **k):
-        return {'elegida': elegida, 'tabla': list(tabla), **k}
+    vieja = {'nombre': 'cambio a 22.9 kV', 'variaciones': ['Obra_tension_F1']}
+    cumple = {'factible': True, 'costo_anual': 1200.0, 'dudosa': None}
     nueva = {'nombre': '1×300 kvar + sección', 'costo_anual': 700.0, 'factible': True}
+
+    def fila(elegida, v=cumple, tabla=(nueva,), **k):
+        return {'elegida': elegida, 'tabla': list(tabla), 'vieja': v, **k}
     d = services._decidir_sustitucion
-    assert not d(fila(None, conserva='cambio a 22.9 kV'), vieja)[0]
-    assert not d(fila(None, ya_cumple=True), vieja)[0]
-    assert not d(fila(None), vieja)[0]
-    assert not d(fila('cambio a 22.9 kV'), vieja)[0]
-    assert d(fila(nueva['nombre'], [nueva]), vieja)[0]
-    assert not d(fila(nueva['nombre'], [{**nueva, 'costo_anual': 1300.0}]), vieja)[0]
-    vieja_medida = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 500.0, 'factible': False, 'motivo': 'no cumple en valle'}
-    cambia, motivo = d(fila(nueva['nombre'], [nueva, vieja_medida]), vieja)
-    assert cambia and 'ya no cumple' in motivo
-    assert not d(fila(nueva['nombre'], [nueva]), {**vieja, 'costo_anual': None})[0]
+    assert d(fila(None, conserva='x'), vieja)[::2] == (False, True)
+    cambia, motivo, ok = d(fila(None, ya_cumple=True), vieja)
+    assert not cambia and ok and 'sobra' in motivo
+    cambia, motivo, ok = d(fila(nueva['nombre'], {'dudosa': 'su medida tuvo un error'}), vieja)
+    assert not cambia and 'dudosa' in motivo and ok
+    assert d(fila(None), vieja)[::2] == (False, True)
+    no_cumple = {'factible': False, 'motivo': 'no cumple con la máxima', 'costo_anual': 500.0, 'dudosa': None}
+    cambia, motivo, ok = d(fila(None, no_cumple), vieja)
+    assert not cambia and not ok and 'tampoco' in motivo, 'la vieja que no cumple no resuelve: sigue la obra integral'
+    assert d(fila('cambio a 22.9 kV'), vieja)[0] is False
+    assert d(fila(nueva['nombre']), vieja)[0] is True
+    assert d(fila(nueva['nombre'], tabla=({**nueva, 'costo_anual': 1300.0},)), vieja)[0] is False
+    cambia, motivo, ok = d(fila(nueva['nombre'], no_cumple), vieja)
+    assert cambia and ok and 'ya no cumple' in motivo
 
 
-def test_si_la_nueva_no_queda_o_falla_se_repone_la_vieja(tmp_path, monkeypatch):
-    """098:RF-36 — atómico: la vieja se retira solo para aplicar la nueva; si la nueva no queda activa o la orden falla
-    después de retirar, la vieja se repone con su elección; si no la sustituye, no se retira nada."""
+def test_sustituir_aplica_la_nueva_y_si_no_queda_la_vieja_sigue(tmp_path):
+    """098:RF-36 — el servicio no borra nada: pide al guion la sustitución con la vieja; si la nueva no queda, la vieja
+    sigue, activa, y no se recrea; si queda, la sustituye. Sin cambio, ni se llama."""
     from convertersmartgrid.web import services
 
     ws = _ws_con_obras(tmp_path, [])
-    hechos = []
-    monkeypatch.setattr(services, '_retirar_obras', lambda ws_, ctx, project, feeders, anio, variaciones=None, **k:
-                        hechos.append(('retira', tuple(variaciones or ()))))
-    monkeypatch.setattr(services, 'obras_ejecutar', lambda ws_, ctx, project, feeders, ids, otro, **k:
-                        hechos.append(('repone', len(ids), k.get('origen'), (k.get('eleccion') or {}).get('nombre'))))
-    vieja = {'nombre': 'cambio a 22.9 kV', 'costo_anual': 1200.0, 'variaciones': ['Obra_tension_F1'],
-             'obras': [{'clase': 'condensador', 'alimentador': 'F1', 'casos': ['Con proyecto'], 'barra': 'F1_B1',
-                        'q_kvar': 300.0, 'escalones': 1}],
-             'eleccion': {'nombre': 'cambio a 22.9 kV', 'regla': 'x'}}
-    fila = {'elegida': 'bancos', 'tabla': [{'nombre': 'bancos', 'costo_anual': 100.0, 'factible': True}]}
-    ctx = _Registro()
-    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila,
-                            lambda: {'alimentadores': [{'aplicada': [], 'avisos': ['… (025:RF-69).']}]}, 2026)
-    assert r['repuesta'] and hechos == [('retira', ('Obra_tension_F1',)), ('repone', 1, 'escalera', 'cambio a 22.9 kV')]
-    hechos.clear()
+    vieja = {'nombre': 'cambio a 22.9 kV', 'variaciones': ['Obra_tension_F1'], 'operacion': [{'variacion': 'Obra_tension_F1',
+                                                                                             'abiertos': []}]}
+    fila = {'elegida': 'bancos', 'tabla': [{'nombre': 'bancos', 'costo_anual': 100.0, 'factible': True}],
+            'vieja': {'factible': True, 'costo_anual': 1200.0, 'dudosa': None}}
+    pedidas = []
 
-    def falla():
-        raise RuntimeError('DIgSILENT se cayó')
-    with pytest.raises(RuntimeError):
-        services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, falla, 2026)
-    assert [h[0] for h in hechos] == ['retira', 'repone']
-    hechos.clear()
-    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, lambda: {'alimentadores': [{'aplicada': ['Obra_x']}]}, 2026)
-    assert r['sustituta'] == 'bancos' and hechos == [('retira', ('Obra_tension_F1',))]
-    hechos.clear()
-    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, {'elegida': None}, falla, 2026)
-    assert r['sustituta'] is None and hechos == [], 'sin una que cumpla, la vieja ni se retira'
+    def aplicar(hecha):
+        def nueva(sust):
+            pedidas.append(sust)
+            return {'alimentadores': [{'sustitucion': hecha}]}
+        return nueva
+    ctx = _Registro()
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, aplicar({'hecha': False, 'motivo': 'no converge'}), 2026)
+    assert r['repuesta'] and r['ok'] and r['sustituta'] is None
+    assert pedidas[-1] == {'variaciones': ['Obra_tension_F1'], 'operacion': vieja['operacion'], 'alimentador': 'F1'}
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, fila, aplicar({'hecha': True, 'retiradas': ['Obra_tension_F1']}), 2026)
+    assert r['sustituta'] == 'bancos' and r['ok']
+    n = len(pedidas)
+    r = services._sustituir(ws, ctx, 'P', 'F1', vieja, {**fila, 'elegida': None}, aplicar({'hecha': True}), 2026)
+    assert len(pedidas) == n and r['sustituta'] is None
+
+
+def _con_obra_vieja(obras, tmp_path, semilla):
+    """Un proyecto del doble con la obra vieja de la escalera aplicada en «Con proyecto» (una terna en L1)."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario, _obra_terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    app, alims = _calibrada_con_escenario(random.Random(semilla))
+    app.atributos_en_variacion = app.servicio_en_escenario = True
+    f = alims[0]
+    plan = _plan_obras(alims, obras=[_obra_terna(f, [CON])], aperturas_fichero=str(tmp_path / 'aperturas.json'))
+    informe, _codigo = obras.aplicar(app, plan)
+    (fila,) = informe['obras']
+    assert fila['variacion'] and not fila['error'], fila
+    return app, alims, f, fila['variacion'], plan
+
+
+def _activa(app, nombre):
+    from test_obras_pf_guion import CON
+
+    _caso(app, CON).Activate()
+    return nombre in {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+
+
+def _existe(app, nombre):
+    return nombre in {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)}
+
+
+def test_el_guion_sustituye_primero_la_nueva_y_despues_borra_la_vieja(tmp_path):
+    """098:RF-36 — con la guion real: la nueva queda activa y la vieja se borra entera; el diario sale del registro."""
+    from test_obras_pf_guion import CON, _obra_terna
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_sustituir_098', tools_en_path=True)
+    app, alims, f, vieja, plan = _con_obra_vieja(obras, tmp_path, 51)
+    informe, codigo = obras.sustituir(app, {**plan, 'obras': [_obra_terna(f, [CON], ('L2',))],
+                                            'sustituir': {'variaciones': [vieja], 'operacion': [], 'alimentador': f}})
+    assert informe['sustitucion']['hecha'] and informe['sustitucion']['retiradas'] == [vieja], informe.get('avisos')
+    (nueva,) = [o['variacion'] for o in informe['obras']]
+    assert not _existe(app, vieja) and _activa(app, nueva)
+    assert not [e for e in obras.leer_aperturas(tmp_path / 'aperturas.json') if e.get('accion') == 'sustitucion']
+
+
+@pytest.mark.parametrize('como', ['no_queda', 'parcial', 'excepcion'])
+def test_si_la_nueva_falla_se_deshace_y_la_vieja_sigue_activa_y_entera(tmp_path, monkeypatch, como):
+    """098:RF-36 — la nueva no queda (su constructor falla), queda a medias (la segunda de dos falla) o la orden se corta
+    con una excepción: lo creado de la nueva se borra y la vieja, que nunca se borró, vuelve a estar activa."""
+    from test_obras_pf_guion import CON, _obra_terna, _terna
+
+    obras = cargar_herramienta('obras_pf.py', f'obras_sustituir_falla_{como}', tools_en_path=True)
+    app, alims, f, vieja, plan = _con_obra_vieja(obras, tmp_path, 52)
+    antes = {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)}
+    llamadas = []
+
+    def terna(ctx):
+        llamadas.append(1)
+        if como == 'no_queda' or (como == 'parcial' and len(llamadas) == 2):
+            raise RuntimeError('DIgSILENT no la deja crear')
+        _terna(ctx)
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', terna)
+    nuevas = [_obra_terna(f, [CON], ('L2',))] + ([_obra_terna(f, [CON], ('L3',))] if como == 'parcial' else [])
+    plan_s = {**plan, 'obras': nuevas, 'sustituir': {'variaciones': [vieja], 'operacion': [], 'alimentador': f}}
+    if como == 'excepcion':
+        real = obras.aplicar
+
+        def se_corta(app_, plan_, **k):
+            real(app_, plan_, **k)
+            raise KeyboardInterrupt('cancelada')
+        monkeypatch.setattr(obras, 'aplicar', se_corta)
+        with pytest.raises(KeyboardInterrupt):
+            obras.sustituir(app, plan_s)
+    else:
+        informe, codigo = obras.sustituir(app, plan_s)
+        assert codigo == 2 and not informe['sustitucion']['hecha']
+        assert all(o['error'].startswith('deshecha') for o in informe['obras'])
+    assert _existe(app, vieja) and _activa(app, vieja), 'la vieja sigue, activa'
+    assert {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)} == antes, 'nada de la nueva queda'
+    assert not [e for e in obras.leer_aperturas(tmp_path / 'aperturas.json') if e.get('accion') == 'sustitucion']
+
+
+def test_el_retiro_incompleto_de_la_vieja_se_dice(tmp_path):
+    """098:RF-36 (M4c) — si una variación de la vieja no se deja borrar, la nueva queda, la que no se borró sigue
+    desactivada y el informe la nombra, con código de error."""
+    from test_obras_pf_guion import CON, _obra_terna
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_sustituir_incompleto_098', tools_en_path=True)
+    app, alims, f, vieja, plan = _con_obra_vieja(obras, tmp_path, 53)
+    var = next(v for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1) if v.loc_name == vieja)
+    object.__setattr__(var, 'Delete', lambda *_a: 1)
+    informe, codigo = obras.sustituir(app, {**plan, 'obras': [_obra_terna(f, [CON], ('L2',))],
+                                            'sustituir': {'variaciones': [vieja], 'operacion': [], 'alimentador': f}})
+    assert codigo == 2 and informe['sustitucion']['sin_borrar'] == [vieja]
+    assert any(vieja in a and 'no se borró entera' in a for a in informe['avisos'])
+    assert _existe(app, vieja) and not _activa(app, vieja)
+
+
+@pytest.mark.parametrize('paso', ['operacion_deshecha', 'nueva_verificada'])
+def test_la_sustitucion_cortada_se_completa_o_se_deshace_al_empezar_la_siguiente(tmp_path, paso):
+    """098:RF-36 (M4d) — el proceso murió a mitad: con la nueva sin comprobar, la siguiente orden la borra y la vieja
+    vuelve a estar activa; con la nueva ya comprobada, borra la vieja."""
+    from test_obras_pf_guion import CON, _obra_terna
+
+    obras = cargar_herramienta('obras_pf.py', f'obras_sustitucion_cortada_{paso}', tools_en_path=True)
+    app, alims, f, vieja, plan = _con_obra_vieja(obras, tmp_path, 54)
+    antes = sorted(v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1))
+    casos = obras.casos_del_proyecto(app, None)
+    # Lo que hizo la orden antes de morir: vieja apartada, nueva creada, el diario en su paso.
+    _caso(app, CON).Activate()
+    next(v for v in app.GetActiveNetworkVariations() if v.loc_name == vieja).Deactivate()
+    hecho, _rc = obras.aplicar(app, {**plan, 'obras': [_obra_terna(f, [CON], ('L2',))]})
+    nueva = hecho['obras'][0]['variacion']
+    obras._diario(plan, {'accion': 'sustitucion', 'id': 'x1', 'proyecto': 'P', 'caso': CON, 'paso': paso,
+                         'viejas': [vieja], 'antes': antes, 'operacion': [], 'apartadas': [vieja]})
+    informe = {'avisos': []}
+    obras.restituir_pendientes(app, plan, casos, informe)
+    if paso == 'nueva_verificada':
+        assert not _existe(app, vieja) and _activa(app, nueva)
+    else:
+        assert _existe(app, vieja) and _activa(app, vieja) and not _existe(app, nueva)
+    assert any('098:RF-36' in a for a in informe['avisos'])
+    assert not [e for e in obras.leer_aperturas(tmp_path / 'aperturas.json') if e.get('accion') == 'sustitucion']
+
+
+def test_la_medida_cortada_con_la_vieja_apartada_la_devuelve(tmp_path):
+    """098:RF-36 (M4d) — la evaluación anota la obra que aparta; si muere con ella fuera, la siguiente orden la activa."""
+    from test_obras_pf_guion import CON
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_apartada_098', tools_en_path=True)
+    app, alims, f, vieja, plan = _con_obra_vieja(obras, tmp_path, 55)
+    casos = obras.casos_del_proyecto(app, None)
+    obras.anotar_apartadas(plan, casos['con'], [vieja])
+    _caso(app, CON).Activate()
+    next(v for v in app.GetActiveNetworkVariations() if v.loc_name == vieja).Deactivate()
+    informe = {'avisos': []}
+    obras.restituir_pendientes(app, plan, casos, informe)
+    assert _activa(app, vieja) and any(vieja in a for a in informe['avisos'])
+    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []
 
 
 def test_la_obra_de_la_escalera_se_mide_fuera_y_se_conserva_si_nada_cambio(tmp_path, monkeypatch):
-    """098:RF-36 — la obra vieja va fuera de la lectura y de la medida (por su nombre); con la misma huella de elección
-    (red sin ella, cargas, sorteos y costos) se conserva sin abrir la evaluación; con otra, se mide."""
+    """098:RF-36 (M6) — la vieja va fuera de la lectura y de la medida (por su nombre) y se mide como una variante más;
+    la huella que se guarda al aplicar es la del paso de evaluar de la elegida: con ella, la siguiente corrida conserva
+    sin medir; con otra, mide. La vieja que no cumple sale con su fila (M2)."""
     from test_casos_por_anio import ANIO, _escalera_falsa
 
     def evaluar(nombre):
         cumple = nombre.startswith('sección')
         return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None, 'perdidas_kw': 10.0,
-                'motivos': [], 'u_cargas': {'F1_B4': 0.96}}
+                'motivos': [] if cumple else ['no converge'], 'u_cargas': {'F1_B4': 0.96 if cumple else 0.93}}
 
     services, ws, ctx, planes, _aplicadas, _apartadas = _escalera_falsa(
         tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
@@ -1440,24 +1578,59 @@ def test_la_obra_de_la_escalera_se_mide_fuera_y_se_conserva_si_nada_cambio(tmp_p
     monkeypatch.setattr(services, '_guion_pf', lambda ws_, ctx_, script, plan, *, nombre, args=(), **k: (
         lambda r: (r[0], {**r[1], 'huella_red': 'h1'} if '--escalera-datos' in args else r[1], r[2]))(
         falso(ws_, ctx_, script, plan, nombre=nombre, args=args, **k)))
+    elecciones = []
+    ejecutar = services.obras_ejecutar
+    monkeypatch.setattr(services, 'obras_ejecutar', lambda *a, **k: (elecciones.append(k.get('eleccion')),
+                                                                     ejecutar(*a, **k))[1])
     from convertersmartgrid import escalera_optima as eo
 
-    r1 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False)
-    h = r1['alimentadores'][0]['huella_eleccion']
-    assert h
-    vieja = {'nombre': 'x', 'huella': h, 'regla': eo.REGLA_DE_PLAZOS, 'variaciones': ['Obra_tension_F1']}
+    r1 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, por_alternativas=True)
+    f1 = r1['alimentadores'][0]
+    services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=True, solo={'F1': f1['elegida']},
+                            huellas={'F1': f1['huella_eleccion']})
+    guardada = elecciones[-1]
+    assert guardada['huella'] == f1['huella_eleccion'] and guardada['regla'] == eo.REGLA_DE_PLAZOS
+    assert guardada['cantidades'] and guardada['escalones']
+    vieja = {'nombre': guardada['nombre'], 'huella': guardada['huella'], 'regla': guardada['regla'],
+             'variaciones': ['Obra_seccion_F1'], 'obras': [{'clase': 'seccion'}], 'cantidades': guardada['cantidades'],
+             'escalones': guardada['escalones']}
     n = len([1 for a, _p in planes if '--evaluar' in a])
-    r2 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False,
-                                 apartar_obras={'F1': ['Obra_tension_F1']}, conservar={'F1': vieja})
-    assert r2['alimentadores'][0]['conserva'] == 'x'
-    assert len([1 for a, _p in planes if '--evaluar' in a]) == n
-    datos = [p for a, p in planes if '--escalera-datos' in a][-1]
-    assert datos['apartar_obras'] == ['Obra_tension_F1']
-    r3 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False,
-                                 apartar_obras={'F1': ['Obra_tension_F1']}, conservar={'F1': {**vieja, 'huella': 'otra'}})
-    assert not r3['alimentadores'][0].get('conserva')
-    ev = [p for a, p in planes if '--evaluar' in a][-1]
-    assert ev['apartar_obras'] == ['Obra_tension_F1']
+    r2 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, por_alternativas=True,
+                                 apartar_obras={'F1': ['Obra_seccion_F1']}, conservar={'F1': vieja})
+    assert r2['alimentadores'][0]['conserva'] == guardada['nombre']
+    assert len([1 for a, _p in planes if '--evaluar' in a]) == n, 'conservada sin medir'
+    assert [p for a, p in planes if '--escalera-datos' in a][-1]['apartar_obras'] == ['Obra_seccion_F1']
+    r3 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, por_alternativas=True,
+                                 apartar_obras={'F1': ['Obra_seccion_F1']},
+                                 conservar={'F1': {**vieja, 'nombre': 'bancos viejos', 'huella': 'otra'}})
+    f3 = r3['alimentadores'][0]
+    assert not f3.get('conserva') and f3['vieja']['factible'] is False and not f3['vieja']['dudosa']
+    medidas = [p for a, p in planes if '--evaluar' in a]
+    assert all(p['apartar_obras'] == ['Obra_seccion_F1'] for p in medidas[n:])
+    assert any(v['nombre'] == 'obra aplicada: bancos viejos' for p in medidas[n:] for v in p['variantes'])
+
+
+def test_la_vieja_dudosa_no_se_sustituye(tmp_path, monkeypatch):
+    """098:RF-36 — si la medida de la vieja sale con error, no se sustituye por ello: se conserva y se dice."""
+    from test_casos_por_anio import ANIO, _escalera_falsa
+
+    def evaluar(nombre):
+        if nombre.startswith('obra aplicada'):
+            return {'nombre': nombre, 'maxima': False, 'error': 'DIgSILENT no la dejó crear', 'u_cargas': {}}
+        cumple = nombre.startswith('sección')
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None, 'perdidas_kw': 10.0,
+                'motivos': [], 'u_cargas': {'F1_B4': 0.96}}
+
+    services, ws, ctx, _planes, _aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    vieja = {'nombre': 'bancos viejos', 'variaciones': ['Obra_condensador_F1'], 'obras': [{'clase': 'condensador'}],
+             'cantidades': {'bancos': 1.0}, 'escalones': ['bancos']}
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, conservar={'F1': vieja},
+                                apartar_obras={'F1': vieja['variaciones']})
+    f1 = r['alimentadores'][0]
+    assert f1['vieja']['dudosa'] == 'su medida tuvo un error'
+    cambia, motivo, _ok = services._decidir_sustitucion(f1, vieja)
+    assert not cambia and 'dudosa' in motivo
 
 
 def test_dos_reguladores_comparten_el_ajuste_de_tomas(tmp_path):
@@ -1480,6 +1653,33 @@ def test_dos_reguladores_comparten_el_ajuste_de_tomas(tmp_path):
     otra.Deactivate()
     avisos.clear()
     assert obras.restituir_valores(app, casos, valores, avisos) == 1 and int(app.ldf.iopt_at) == 0
+
+
+def test_el_ajuste_de_tomas_vuelve_al_retirar_la_ultima_obra_con_regulador(tmp_path):
+    """098:RF-34 (M5) — el ajuste de tomas de antes de la primera obra con regulador se guarda por proyecto y caso; al
+    retirar la primera, sigue (la otra lo necesita) y se dice; al retirar la segunda, que lo encontró ya activo y no
+    anotó nada, vuelve a como estaba."""
+    from test_obras_pf_guion import CON, _calibrada_con_escenario
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_segundo_retiro_098', tools_en_path=True)
+    app, _alims = _calibrada_con_escenario(random.Random(45))
+    casos = obras.casos_del_proyecto(app, None)
+    _caso(app, CON).Activate()
+    plan = {'project': 'P', 'feeders': ['F1'], 'aperturas_fichero': str(tmp_path / 'aperturas.json')}
+    app.ldf.iopt_at = 0
+    ctx = obras.Contexto(app, app.proyecto, None, {'variacion': 'Obra_regulador_F1', 'avisos': []}, None, None, plan=plan)
+    ctx.casos = {'con': casos['con']}
+    obras._activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
+    assert int(app.ldf.iopt_at) == 1
+    for nombre in ('Obra_regulador_F1', 'Obra_regulador_F1_2'):
+        v = fake_pf.variacion_del_operador(app, nombre, [])
+        v.GetContents('*.IntSstage')[0].CreateObject('ElmVoltreg', f'Regulador_{nombre}')
+    informe, _c = obras.retirar_obras(app, {**plan, 'variaciones': ['Obra_regulador_F1']})
+    assert informe['retiradas'] == ['Obra_regulador_F1'] and int(app.ldf.iopt_at) == 1
+    assert any('Obra_regulador_F1_2' in a and 'sigue activo' in a for a in informe['avisos'])
+    informe, _c = obras.retirar_obras(app, {**plan, 'variaciones': ['Obra_regulador_F1_2']})
+    assert informe['retiradas'] == ['Obra_regulador_F1_2'] and int(app.ldf.iopt_at) == 0
+    assert not [e for e in obras.leer_aperturas(tmp_path / 'aperturas.json') if e.get('accion') == 'original']
 
 
 def test_la_huella_de_la_red_ve_el_contenido_el_tipo_y_la_operacion():
@@ -1595,7 +1795,9 @@ def test_la_obra_retirada_deshace_lo_que_abrio_y_el_ajuste_del_flujo(tmp_path, m
     (fila,) = informe['obras']
     _caso(app, CON).Activate()
     assert int(app.ldf.iopt_at) == 1 and fila['valores'][0]['atributo'] == 'iopt_at'
-    assert obras.leer_aperturas(tmp_path / 'aperturas.json') == [], 'la obra aplicada sale del registro (081:RF-81)'
+    registro = obras.leer_aperturas(tmp_path / 'aperturas.json')
+    # La obra aplicada sale del registro (081:RF-81); queda el ajuste del flujo de antes de ella (098:RF-34).
+    assert [(e['accion'], e['atributo'], e['valor']) for e in registro] == [('original', 'iopt_at', 0)]
     operacion = {k: fila[k] for k in ('abiertos', 'valores') if fila.get(k)} | {'variacion': fila['variacion']}
     informe, codigo = obras.retirar_obras(app, {**plan, 'feeders': [f], 'operacion_de_obras': [operacion],
                                                'variaciones': [fila['variacion']]})
