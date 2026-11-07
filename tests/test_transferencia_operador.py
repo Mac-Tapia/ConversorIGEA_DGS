@@ -739,7 +739,8 @@ def test_la_transferencia_sola_no_basta_y_con_bancos_si(monkeypatch):
     assert resumen['combinadas'] == 4 and resumen['flujos'] == 2 * (1 + 3)       # sin obra y cada candidata, con su base
     e = oo.elegir_para_k(ora, [oo.Alimentador('X', _bancos_x() + extra, _costo, None)], 1, p,
                          evaluaciones_bayes=0, permutaciones=0, pareto=False)['X']
-    assert e['elegida'] == f"{candidatas[0].nombre} + 2×450 kvar en A4"
+    # 098:RF-45: los bancos solos que cumplen van antes que la transferencia (con bancos o sin ellos).
+    assert e['elegida'] == '3×450 kvar en A4' or e['elegida'] == f"{candidatas[0].nombre} + 2×450 kvar en A4"
     fila = next(t for t in e['tabla'] if t['nombre'] == e['elegida'])
     solos = next(t for t in e['tabla'] if t['nombre'] == '4×450 kvar en A4')
     assert fila['cumple'] and solos['cumple'] and fila['costo_anual'] < solos['costo_anual']
@@ -909,8 +910,9 @@ def test_transferir_se_prueba_antes_que_el_nivel(monkeypatch, tmp_path):
             pass
 
     services.escalera_por_alimentador(object(), _C(), 'P', ['F1'])
-    assert [x[:2] for x in llamadas[:3]] == [('mide', 'oraculo'), ('mide', 'traspaso'), ('mide', 'nivel')]
-    assert llamadas[1][2] is False                       # el enlace existente ya lo juzgó el oráculo
+    # 098:RF-45: bancos, sección y terna, cada uno en su turno; después la transferencia; después el nivel.
+    assert [x[:2] for x in llamadas[:5]] == [('mide', 'oraculo')] * 3 + [('mide', 'traspaso'), ('mide', 'nivel')]
+    assert llamadas[3][2] is False                       # el enlace existente ya lo juzgó el oráculo
 
 
 def test_al_evaluar_la_transferencia_se_mide_y_todo_vuelve(monkeypatch, tmp_path):
@@ -2309,3 +2311,190 @@ def test_la_sustitucion_fallida_no_deja_obras_pendientes_y_el_diario_recompone(t
     assert hechas == ['Obra_condensador_F1']
     (a,) = ws.obras_aplicadas
     assert a['variacion'] == 'Obra_condensador_F1' and a['origen'] == 'escalera' and a['eleccion'] == {'nombre': 'bancos'}
+
+
+# =========================================================================== 098:RF-43 (otro corte de la transferencia)
+def test_el_que_recibe_la_transferencia_prueba_otro_corte_de_la_misma():
+    """098:RF-43 — CHN102 (2026-11-07) recibía la cola de CA101 y quedaba en 0,703 p.u.: su escalera empieza por mover el
+    corte de la misma transferencia (devolver parte a CA101 por el punto que abrió el operador, abriendo otra maniobra
+    de la zona), aunque CA101 no tenga margen ahora: se miden los dos (098:RF-25). Primero la que devuelve más."""
+    from convertersmartgrid import obras_integrales as oi
+
+    devolver = {**_enlace_x(), 'u_min': 0.90, 'devuelve_zona': True}
+    vs, avisos = oi.variantes_por_enlace('X', [devolver], _p_098())
+    assert vs and not avisos and all(v.nombre.startswith('otro corte de la transferencia') for v in vs)
+    assert [v.obras[0]['maniobra'] for v in vs] == ['SW_LS1A1', 'SW_LA1A2', 'SW_LA2A3']
+    otro, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.90}], _p_098())
+    assert not otro and av, 'un vecino cualquiera sin margen sigue sin recibir (087:RF-32)'
+
+
+def test_la_lectura_marca_el_corte_del_operador_en_los_enlaces(monkeypatch):
+    """098:RF-43 — el enlace abierto que devolvería la zona del operador a su alimentador se marca, con su potencia."""
+    import sys
+    import types
+
+    from convertersmartgrid.transferencia_operador import CargaRed, Rama, Zona
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_corte_operador_098', tools_en_path=True)
+    zona = Zona('CA101', 'CHN102', [CargaRed('k1', 'S1', 't1', 'CA101', 'CHN102', 900.0),
+                                    CargaRed('k2', 'S2', 't2', 'CA101', 'CHN102', 830.0)],
+                cerrar=[Rama('R\\ENL', 'ElmCoup', 'Breaker/Switch', ('a', 'b'), False)])
+    falso = types.ModuleType('transferencia_operador_pf')
+    falso.leer_transferencias = lambda app, alims, plan, interesan=None: ([zona], {}, {})
+    monkeypatch.setitem(sys.modules, 'transferencia_operador_pf', falso)
+    enlaces = {'CHN102': [{'enlace': 'Breaker/Switch', 'ruta': 'R\\ENL', 'vecino': 'CA101', 'cerrado': False},
+                          {'enlace': 'OTRO', 'ruta': 'R\\OTRO', 'vecino': 'CA101', 'cerrado': False}]}
+    obras.marcar_cortes_del_operador(None, None, {'dgs_fuente': ['x.dgs']}, enlaces, [])
+    marcado, otro = enlaces['CHN102']
+    assert marcado['devuelve_zona'] and marcado['zona_kw'] == 1730.0 and not otro.get('devuelve_zona')
+
+
+# =========================================================================== 098:RF-44 (la transferencia, alternativa)
+def test_en_con_proyecto_la_transferencia_se_deshace_para_medirla_como_alternativa(guion, tpf):
+    """098:RF-44 — en «Con proyecto» lo que hizo el operador se deshace para que la escalera del que cede lo mida como
+    una alternativa más; «Sin proyecto» no se toca; la zona dice su enlace y su corte."""
+    import sys
+
+    app, planes, nuevo = _caso_ca101(guion)
+    con = _caso(app, 'Con proyecto')
+    con.Activate()
+    _obj(app, 'ElmLne', 'F1_L6').outserv = 1                      # el operador, también en «Con proyecto»
+    nuevo.outserv = 0
+    app.GetActiveScenario().Save()
+    alims = sys.modules['cargas_pf'].Alimentadores(app, app.proyecto, ['F1', 'F2'])
+    informe = tpf.deshacer_en_con_proyecto(app, alims, con, planes[0])
+    (z,) = informe['zonas']
+    assert (z['desde'], z['hacia']) == ('F1', 'F2') and z['enlace'] == [nuevo.loc_name] and z['corte'] == ['F1_L6']
+    con.Activate()
+    assert int(_obj(app, 'ElmLne', 'F1_L6').outserv) == 0 and int(nuevo.outserv) == 1
+    _caso(app, 'Sin proyecto').Activate()
+    assert int(_obj(app, 'ElmLne', 'F1_L6').outserv) == 1 and int(nuevo.outserv) == 0, '«Sin proyecto», como lo dejó'
+
+
+def _zona_operador():
+    return {'desde': 'CA101', 'hacia': 'CHN102', 'n_sed': 50, 'kw': 1730.0, 'enlace': ['Breaker/Switch(1)'],
+            'corte': ['SW_LA2A3']}
+
+
+def _tabla_con(transfer_cumple: bool, otro_corte_cumple: bool = False, bancos_cumplen: bool = False):
+    """Las filas de la escalera de CA101: la del operador, otro corte y unos bancos más caros."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.web import services
+
+    vs = services.marcar_la_del_operador(
+        [eo.Variante(f'transferencia a CHN102 por Breaker/Switch(1) abriendo {m}', ('transferencia',),
+                     [{'clase': 'maniobra', 'maniobra': m, 'alimentador': 'CA101'}], {}) for m in ('SW_LA2A3', 'SW_LA1A2')],
+        _zona_operador())
+    p = eo.parametros(_perfil_eo())
+    filas = [_fila_eo(vs[0].nombre, ('transferencia',), 10.0, {'definitiva': True, 'aguanta_anios': 4}),
+             _fila_eo(vs[1].nombre, ('transferencia',), 11.0, {'definitiva': True, 'aguanta_anios': 4}),
+             _fila_eo('2×300 kvar', ('bancos',), 300.0, {'definitiva': True, 'aguanta_anios': 4}),
+             _fila_eo('cambio a 22.9 kV', ('nivel',), 900.0, {'definitiva': True, 'aguanta_anios': 4})]
+    filas[2].update(maxima=bancos_cumplen, motivos=[] if bancos_cumplen else ['CH_23 a 0.874 p.u.'])
+    filas[0].update(maxima=transfer_cumple, u_cargas={'CH_23': 0.95 if transfer_cumple else 0.861},
+                    motivos=[] if transfer_cumple else ['CHN102_X a 0.703 p.u.'])
+    filas[1].update(maxima=otro_corte_cumple, motivos=[] if otro_corte_cumple else ['CH_23 a 0.93 p.u.'])
+    return eo.elegir(filas, p), vs
+
+
+def test_los_bancos_que_bastan_van_antes_que_la_transferencia_del_operador():
+    """098:RF-45 — el escalón de los bancos va antes que el de la transferencia: si los bancos bastan, no se transfiere."""
+    d, _vs = _tabla_con(True, bancos_cumplen=True)
+    assert d['elegida'] == '2×300 kvar'
+
+
+def test_la_transferencia_del_operador_que_resuelve_y_no_rompe_al_que_recibe_se_elige():
+    """098:RF-44 — medida en los dos alimentadores (098:RF-25), cumple y es la más barata: se elige; su fila lo dice."""
+    from convertersmartgrid.web import services
+
+    d, vs = _tabla_con(True)
+    assert d['elegida'] == vs[0].nombre and vs[0].nombre.startswith('la transferencia del operador')
+    fila = services.fila_de_la_transferencia_del_operador(d['tabla'], _zona_operador())
+    assert 'se elige' in fila['texto'] and 'CH_23 0.950' in fila['texto'] and '1,730 kW' in fila['texto']
+
+
+def test_la_que_no_resuelve_se_mide_se_informa_y_se_trabaja_sin_ella():
+    """098:RF-44 — no cumple (deja a CHN102 en 0,703 p.u.): se elige otra y la fila dice por qué, con las cifras."""
+    from convertersmartgrid.web import services
+
+    d, vs = _tabla_con(False)
+    assert d['elegida'] == 'cambio a 22.9 kV'
+    fila = services.fila_de_la_transferencia_del_operador(d['tabla'], _zona_operador())
+    assert 'no se elige' in fila['texto'] and '0.703' in fila['texto'] and 'sin ella' in fila['texto']
+
+
+def test_otro_punto_de_corte_que_resuelve_se_elige():
+    """098:RF-44 — la del operador no resuelve y otro corte de la misma, sí: se elige ese."""
+    d, vs = _tabla_con(False, otro_corte_cumple=True)
+    assert d['elegida'] == vs[1].nombre and not vs[1].nombre.startswith('la transferencia del operador')
+
+
+# =========================================================================== 098:RF-45 (orden fijo de los escalones)
+def test_el_orden_fijo_de_los_escalones():
+    """098:RF-45 — bancos, sección, terna, transferencia, nivel, regulador; una combinación, en el de su obra mayor."""
+    from convertersmartgrid import escalera_optima as eo
+
+    orden = [('bancos',), ('seccion', 'bancos'), ('terna', 'bancos'), ('transferencia', 'bancos'), ('nivel',),
+             ('regulador',)]
+    assert [eo.escalon(e) for e in orden] == [0, 1, 2, 3, 4, 5]
+    assert eo.escalon(('terna', 'seccion')) == 2 and eo.escalon(('traslado',)) == 3 and eo.escalon(()) == -1
+    vs = [{'nombre': n, 'escalones': e, 'costo_base': c} for n, e, c in
+          (('nivel', ('nivel',), 10.0), ('terna', ('terna',), 50.0), ('banco', ('bancos',), 900.0),
+           ('seccion', ('seccion',), 20.0), ('transferencia', ('transferencia',), 1.0))]
+    assert [v['nombre'] for v in eo.por_costo(vs)] == ['banco', 'seccion', 'terna', 'transferencia', 'nivel']
+
+
+def _escalera_por_escalones(monkeypatch, tmp_path, cumple_en):
+    """La escalera de F1 con el oráculo y DIgSILENT sustituidos: cumple solo en el escalón ``cumple_en`` (o ninguno)."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.web import services
+
+    monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
+                        lambda ws, project: [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}])
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    orden = [eo.Variante(n, e, [{'clase': 'x'}], {}) for n, e in
+             (('bancos', ('bancos',)), ('sección', ('seccion',)), ('terna', ('terna',)), ('regulador', ('regulador',)))]
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {
+        'alimentadores': {'F1': {'orden': orden, 'tabla': [{'nombre': v.nombre, 'cumple': False} for v in orden],
+                                 'ya_cumple': False}}, 'tanda': 3})
+    llamadas = []
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, traspaso=False, sin_oraculo=False, escalones=None,
+                 variantes_de=None, **k):
+        llamadas.append(('aplica' if aplicar else 'mide', escalones, traspaso,
+                         [v.nombre for v in (variantes_de or {}).get('F1') or []]))
+        bien = not aplicar and escalones is not None and escalones[1] == cumple_en
+        return {'alimentadores': [{'alimentador': 'F1', 'elegida': f'la del escalón {cumple_en}' if bien else None,
+                                   'tabla': [{'nombre': 'x', 'factible': bien}], 'aplicada': ['Obra_x'] if aplicar else []}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
+    monkeypatch.setattr(services, '_anio_de_problemas', lambda *a, **k: {})
+    ctx = _Registro()
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    return llamadas, r, ctx
+
+
+def test_se_para_en_el_primer_escalon_que_cumple(monkeypatch, tmp_path):
+    """098:RF-45 — la sección cumple: se miden bancos y sección (cada uno con sus candidatas del oráculo) y se para; la
+    terna, la transferencia y el nivel no se miden."""
+    llamadas, r, ctx = _escalera_por_escalones(monkeypatch, tmp_path, 1)
+    medidas = [x for x in llamadas if x[0] == 'mide']
+    assert [x[1] for x in medidas] == [(-1, 0), (1, 1)]
+    assert medidas[0][3] == ['bancos'] and medidas[1][3] == ['sección']
+    assert [x[0] for x in llamadas].count('aplica') == 1
+    reg = r['por_alimentador']['F1']['escalones']
+    assert [(x['escalon'], x['resuelve']) for x in reg] == [('bancos', False), ('seccion', True)]
+    assert any('escalón seccion' in t and 'se para aquí' in t for t in ctx.textos)
+
+
+def test_no_se_llega_a_la_obra_integral_sin_los_cuatro_escalones(monkeypatch, tmp_path):
+    """098:RF-45 — ninguno cumple: bancos, sección, terna y transferencia, después nivel y regulador, cada uno medido; el
+    corte de 087:RF-40 ya no existe."""
+    llamadas, r, ctx = _escalera_por_escalones(monkeypatch, tmp_path, None)
+    medidas = [x for x in llamadas if x[0] == 'mide']
+    assert [x[1] for x in medidas] == [(-1, 0), (1, 1), (2, 2), (3, 3), (4, 5)]
+    assert medidas[3][2] is True, 'el escalón de la transferencia mide las de traspaso'
+    assert medidas[4][3] == ['regulador'], 'el regulador, en su turno, con su candidata del oráculo'
+    assert not any('087:RF-40' in t for t in ctx.textos)
+    assert not r['por_alimentador']['F1']['cumple']

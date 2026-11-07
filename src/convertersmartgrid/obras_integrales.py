@@ -233,7 +233,10 @@ def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]],
         vecino = str(e.get('vecino') or '')
         if not vecino or vecino == alimentador:
             continue
-        if e.get('u_min') is not None and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p):
+        # 098:RF-43: devolver parte de la zona del operador a su alimentador se mide con los dos (098:RF-25), aunque el que
+        # la recibe de vuelta no tenga margen ahora: es mover el corte de la misma transferencia.
+        if (e.get('u_min') is not None and not e.get('devuelve_zona')
+                and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p)):
             avisos.append(f"{alimentador}: {vecino} no conserva margen de tensión y de carga para recibir por "
                           f"{e.get('enlace')} (087:RF-32, 098:RF-21).")
             continue
@@ -242,14 +245,17 @@ def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]],
             avisos.append(f"{alimentador}: ninguna maniobra en el camino hasta el enlace {e.get('enlace')} con {vecino}: "
                           'no se transfiere por él (098:RF-13).')
             continue
-        for x in reversed(puntos):                                  # 098:RF-22: de la más cercana al enlace
+        # 098:RF-22: de la más cercana al enlace; 098:RF-43: al mover el corte de la zona del operador, de la más lejana,
+        # la que devuelve más carga y deja pasar menos.
+        for x in (puntos if e.get('devuelve_zona') else reversed(puntos)):
             m = x['maniobra']
             clave = (str(e.get('enlace')), str(m.get('ruta') or m['nombre']))
             if clave in vistos:
                 continue
             vistos.add(clave)
             out.append(Variante(
-                f"transferencia a {vecino} por {e.get('enlace')} abriendo {m['nombre']}"
+                (f"otro corte de la transferencia: devolver a {vecino} por {e.get('enlace')} abriendo {m['nombre']}"
+                 if e.get('devuelve_zona') else f"transferencia a {vecino} por {e.get('enlace')} abriendo {m['nombre']}")
                 + (f" en {x.get('rama')}" if x.get('rama') and x.get('rama') != m['nombre'] else ''),
                 ('transferencia',),
                 [{'clase': 'maniobra', 'alimentador': alimentador, 'vecino': vecino, 'casos': [CON_PROYECTO],

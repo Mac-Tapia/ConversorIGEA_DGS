@@ -429,11 +429,43 @@ def aviso_de_la_medida(plan: dict) -> str | None:
     return None
 
 
+def deshacer_en_con_proyecto(app, alims, caso, plan: dict) -> dict:
+    """098:RF-44: en «Con proyecto», la transferencia del operador es una alternativa más de la escalera del que cede, no
+    un dato: se deshace allí (lo que el operador abrió, cerrado; lo que cerró, abierto) para medir sin ella, y la
+    escalera la vuelve a proponer, con los otros puntos de corte, por el enlace que queda abierto (RF-21, RF-22). En
+    «Sin proyecto», nunca: el cambio del operador se respeta (098:RF-10 lo cambia solo para «Con proyecto»).
+    Devuelve las zonas deshechas, con el enlace (lo que cerró el operador) y el corte (lo que abrió)."""
+    caso.Activate()
+    _flujo(app)
+    zonas, objetos, _frente = leer_transferencias(app, alims, plan)
+    hechas = []
+    for z in zonas:
+        if z.motivo:
+            continue
+        acciones = []
+        for r in z.abrir:
+            acciones += _abrir(objetos[r.clave], r.clase)
+        for r in z.cerrar:
+            acciones += _cerrar(objetos[r.clave], r.clase)
+        for obj, atributo, nuevo in acciones:
+            setattr(obj, atributo, nuevo)
+        hechas.append({**z.resumen(), 'enlace': [r.nombre for r in z.abrir], 'corte': [r.nombre for r in z.cerrar]})
+    if hechas:
+        escenario = app.GetActiveScenario()
+        if escenario is not None:
+            escenario.Save()
+        _flujo(app)
+        _reiniciar(alims)
+    return {'zonas': hechas}
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Transferencias de carga del operador entre los alimentadores de un '
-                                            'proyecto de DIgSILENT, solo lectura (spec 098)')
+                                            'proyecto de DIgSILENT, solo lectura salvo con --deshacer-en-con (spec 098)')
     p.add_argument('--plan', required=True)
     p.add_argument('--output-json', required=True)
+    p.add_argument('--deshacer-en-con', action='store_true',
+                   help='Deshace en «Con proyecto» la transferencia del operador, para la escalera (098:RF-44)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
@@ -452,6 +484,14 @@ def main(argv=None) -> int:
         if proyecto is None:
             informe, codigo = {'error': f"no existe el proyecto {plan['project']!r}"}, 2
         else:
+            if args.deshacer_en_con:                                                    # 098:RF-44
+                con = caso_del_sistema(app, 'con', anio_del_plan(plan))
+                alims = Alimentadores(app, proyecto, plan.get('feeders') or [])
+                informe = ({'error': 'falta «Con proyecto»'} if con is None
+                           else {'project': plan['project'], **deshacer_en_con_proyecto(app, alims, con, plan)})
+                Path(args.output_json).write_text(json.dumps(informe, indent=2, ensure_ascii=False) + '\n',
+                                                  encoding='utf-8')
+                return 0 if 'error' not in informe else 2
             caso = caso_del_sistema(app, 'sin', anio_del_plan(plan))
             if caso is not None:
                 caso.Activate()

@@ -47,16 +47,33 @@ ESCALERA = ('bancos', 'nivel', 'seccion', 'terna', 'regulador')
 PREFIJO_PERFIL = 'bancos según perfil'
 
 
-def rango(escalones) -> int:
-    """El escalón más alto que usa una variante; sin escalones (sin obras), antes de todos (063:RF-22)."""
-    return max((ESCALERA.index(e) for e in escalones if e in ESCALERA), default=-1)
-def grupo_economico(escalones) -> int:
-    """042:RF-56: los bancos solos antes (063:RF-22), el regulador al final (RF-49); el resto compite por costo.
+#: 098:RF-45: el orden fijo de los escalones. Usuario (2026-11-07): «se evalúa con bancos, después con cambio de
+#: sección de cables, después nueva terna, después transferencia de carga; nada debería saltar». Después, lo que ya
+#: existía: el cambio de nivel (22,9 kV) y el regulador; la obra integral, al final, fuera de la escalera.
+ESCALONES = ('bancos', 'seccion', 'terna', 'transferencia', 'nivel', 'regulador')
+#: Los nombres de escalón que van en uno de :data:`ESCALONES`.
+ESCALON_DE = {'traslado': 'transferencia', 'sed_nivel': 'nivel', 'celda_nivel': 'nivel', 'elevador_nivel': 'nivel'}
+#: 098:RF-45: el escalón de la transferencia y el primero de lo que va después de ella.
+ESCALON_TRANSFERENCIA = ESCALONES.index('transferencia')
+ESCALON_NIVEL = ESCALONES.index('nivel')
 
-    098:RF-23: la transferencia va con los bancos, antes de la sección y la terna: abrir una maniobra y pasar la cola
-    a un vecino es lo más barato (CA101 y CHN102, 2026-11-07: el enlace ya existía)."""
-    e = set(escalones or ())
-    return 0 if e and e - {'transferencia'} <= {'bancos'} else 2 if 'regulador' in e else 1
+
+def escalon(escalones) -> int:
+    """098:RF-45: el escalón de una variante: el de su obra mayor («sección + bancos», en el de la sección; «terna +
+    bancos», en el de la terna; la de varios caminos, en el de su obra de línea); sin obras, antes de todos."""
+    vistos = [ESCALONES.index(ESCALON_DE.get(e, e)) for e in escalones or () if ESCALON_DE.get(e, e) in ESCALONES]
+    return max(vistos, default=-1)
+
+
+def rango(escalones) -> int:
+    """El escalón de una variante para ordenarla (063:RF-22), con el orden de 098:RF-45."""
+    return escalon(escalones)
+
+
+def grupo_economico(escalones) -> int:
+    """042:RF-56 con el orden de 098:RF-45: se elige en el primer escalón que tiene alguna que cumple, y dentro de él la
+    más barata; un escalón posterior no gana por costo (antes, la transferencia iba con los bancos, 098:RF-23)."""
+    return escalon(escalones)
 
 
 #: 098:RF-35: factor de la terna sobre el km del cambio de nivel sin libro CAPEX, si el perfil no da otro. Por confirmar.
@@ -857,7 +874,9 @@ def por_costo(variantes: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]
     PE102 (2026-11-06): en el orden de la escalera se midieron 34 variantes en DIgSILENT antes de reunir las 3
     alternativas; medidas de la más barata a la más cara, las primeras que cumplen ya son las que se presentan.
     """
-    return [v for _, v in sorted(enumerate(variantes), key=lambda iv: (iv[1].get('costo_base') is None,
+    # 098:RF-45: por escalón primero, y dentro de cada uno de la más barata a la más cara: ninguno se salta.
+    return [v for _, v in sorted(enumerate(variantes), key=lambda iv: (escalon(iv[1].get('escalones')),
+                                                                       iv[1].get('costo_base') is None,
                                                                        float(iv[1].get('costo_base') or 0.0), iv[0]))]
 
 

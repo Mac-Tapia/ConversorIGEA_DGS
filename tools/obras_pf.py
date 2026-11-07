@@ -3668,6 +3668,28 @@ def maniobra_del_tramo(linea) -> dict | None:
 MAX_BAJAS = 10
 
 
+def marcar_cortes_del_operador(app, alims, plan: dict, enlaces: dict, avisos: list[str]) -> None:
+    """098:RF-43: el enlace abierto por donde la zona transferida por el operador volvería a su alimentador es otro punto
+    de corte de la misma transferencia: se marca (``devuelve_zona``) para probar a pasar por él menos carga, abriendo
+    otra maniobra de la zona, aunque el que la recibe de vuelta aún no tenga margen: se miden los dos (098:RF-25).
+    CHN102 (2026-11-07) recibía la cola de CA101 (unos 1 730 kW) y quedaba en 0,703 p.u.; CA101, sin ella, en 0,986."""
+    if not (plan.get('dgs_fuente') or plan.get('tramos_dgs')) or not any(enlaces.values()):
+        return
+    try:
+        from transferencia_operador_pf import leer_transferencias
+
+        zonas, _objs, _frente = leer_transferencias(app, alims, plan, interesan=list(enlaces))
+    except Exception as exc:  # noqa: BLE001 - sin la lectura de la transferencia, los enlaces siguen como están
+        avisos.append(f'No se pudo leer la transferencia del operador para mover su corte: {exc} (098:RF-43).')
+        return
+    for z in zonas:
+        cortes = {r.clave for r in z.cerrar} | {r.nombre for r in z.cerrar}
+        for e in enlaces.get(z.hacia) or []:
+            if e.get('vecino') == z.desde and not e.get('cerrado') and (e.get('ruta') in cortes or e.get('enlace') in cortes):
+                e['devuelve_zona'] = True
+                e['zona_kw'] = round(sum(float(c.p_kw or 0.0) for c in z.cargas), 1)
+
+
 #: 098:RF-42: lo que une dos tensiones distintas: un transformador; un acoplador o un tramo, no.
 UNEN_TENSIONES = ('ElmTr2', 'ElmTr3')
 
@@ -3681,7 +3703,7 @@ def tensiones_distintas(barras) -> tuple[float, float] | None:
 
 
 def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict,
-                       descartados: list | None = None) -> dict[str, list[dict]]:
+                       descartados: list | None = None, extra=()) -> dict[str, list[dict]]:
     """098:RF-21, RF-22, RF-27: por cada alimentador de ``feeders``, lo que ya une una barra suya con una de otro
     alimentador del proyecto, abierto o cerrado.
 
@@ -3703,7 +3725,12 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
                 continue                                  # la barra de la SET la comparten: no es un enlace
             de_barra.setdefault(b.loc_name, g)
     for clase in ('ElmCoup', 'ElmLne') + tuple(c for c in EQUIPOS_EN_SERIE if c not in ('ElmCoup',)):
-        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+        # 098:RF-44: el enlace del operador deshecho en «Con proyecto» puede estar fuera de servicio, y
+        # ``GetCalcRelevantObjects`` no lo da: va aparte, por su nombre.
+        vistos_e = {_ruta_de(o) for o in app.GetCalcRelevantObjects(f'*.{clase}') or []}
+        for o in list(app.GetCalcRelevantObjects(f'*.{clase}') or []) + [x for x in extra
+                                                                         if x.GetClassName() == clase
+                                                                         and _ruta_de(x) not in vistos_e]:
             lados = [getattr(o, a, None) for a in (('bushv', 'buslv') if clase == 'ElmTr2' else ('bus1', 'bus2'))]
             barras = [getattr(c, 'cterm', None) for c in lados]
             if any(b is None for b in barras):
@@ -4009,7 +4036,10 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     us, cs = [u for u in us if u is not None], [c for c in cs if c is not None]
                     margen[g] = {'u_min': min(us) if us else None, 'carga_max_pct': max(cs) if cs else None}
                 descartados: list = []
-                enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen, descartados)
+                del_operador = [o for n in plan.get('enlaces_del_operador') or () for c in ('ElmLne', 'ElmCoup')
+                                for o in _con_nombre(app, c, str(n))]                          # 098:RF-44
+                enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen, descartados, del_operador)
+                marcar_cortes_del_operador(app, alims, plan, enlaces, informe['avisos'])           # 098:RF-43
                 for d_ in descartados:                                                    # 098:RF-42
                     informe['avisos'].append(
                         f"El enlace {d_['enlace']} entre {' y '.join(d_['alimentadores'])} une {d_['kv'][0]:g} kV con "
