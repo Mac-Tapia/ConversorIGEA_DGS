@@ -175,6 +175,31 @@ leída antes de importarlo.
   del «Caso base» quedó 10 min en `pf.GetApplication()` sin CPU (pila leída con py-spy), como la importación de la noche anterior.
   Aclaración de RF-76: aquel cuelgue era este; la vigilancia de `GetCurrentUser` sigue siendo correcta.
 
+Tramos que una variante cortada deja abiertos en «Con proyecto»
+
+En Pisco de prueba (`20261107-043049_CSG_TXT_SISTEMA_PISCO`, 2026-11-07) la web se reinició mientras la escalera medía una
+transferencia de rama (087:RF-31). El escenario de «Con proyecto» se quedó con `SEC_1091_1055499` y `SEC_1091_957116` fuera de
+servicio, en servicio en «Sin proyecto» y sin ninguna variación que lo explicase: 724 barras de media sin tensión, la
+confirmación conjunta (087:RF-45) dio «740 barras aisladas» y RF-47 rehízo obras sobre una red rota. Abrir es dato de operación:
+con el escenario activo, DIgSILENT lo guarda en él y no en la etapa de la variación (042:RF-19), y borrar la variante no lo
+deshace. La migración a la misma tensión, además, abría su entrada sin anotarla.
+
+- RF-80: CUANDO una obra abre un tramo, un acoplador o una llave que ya existían, EL SISTEMA anotará antes de abrirlo, en la fila
+  de la obra y en un registro en disco por proyecto que sobrevive a la orden, el elemento, su caso y la variación de la obra.
+- RF-81: CUANDO se borra la variante evaluada de la escalera (025:RF-54) o una obra queda inactiva, EL SISTEMA volverá a cerrar en
+  su caso lo que abrió, también lo que está fuera de servicio, y lo sacará del registro.
+- RF-82: SI al empezar una orden de obras el registro trae aperturas de una orden que no terminó, ENTONCES EL SISTEMA las cerrará
+  en su caso, guardará su escenario y lo dirá en el informe con su lista, salvo las de una obra aplicada cuya variación sigue
+  activa en ese caso; de una evaluación, avisará también de la variación que quedó en el proyecto.
+- RF-83: CUANDO empieza la escalera de «Con proyecto», EL SISTEMA buscará los tramos, transformadores, acopladores y llaves fuera
+  de servicio o abiertos en «Con proyecto» y en servicio o cerrados en «Sin proyecto»; los que no graba, ni en ellos ni en sus
+  barras, ninguna variación activa de «Con proyecto» y que figuran en el registro o dejan sin tensión barras que en «Sin
+  proyecto» la tienen, los devolverá al estado de «Sin proyecto» en el escenario de «Con proyecto» y el informe los listará.
+- RF-84: SI uno de los de RF-83 no lo explica ninguna variación, no figura en el registro y no deja ninguna barra sin tensión,
+  ENTONCES EL SISTEMA no lo tocará, porque puede ser un cambio del operador, y lo avisará con su lista.
+- RF-85: SI «Con proyecto» no tiene escenario de operación, ENTONCES EL SISTEMA no restituirá nada de RF-83, porque escribir el
+  servicio cambiaría la red de todos los casos, y lo avisará con su lista.
+
 ## Fuera de alcance
 
 - Cambiar `CASO_BASE_CALIBRABLE` para impedir calibrar: el flujo no bloquea (RF-30).

@@ -64,3 +64,19 @@ Lo nuevo con las fases de su barra (RF-64 a RF-69, T19):
 - Descartado: dejar el elemento trifásico en la barra de menos fases con solo el aviso. Es el fallo de origen: DIgSILENT no calcula nada.
 - RF-70: `web/services.py::AVISO_CATALOGO_APLICADO`, que devuelve `apply_catalog` y escriben el Registro (`web/app.py`) y el aviso de
   `Modules.tsx`. Descartado: corregir solo las dos frases, que ya se habían separado una vez del código.
+
+Lo que una variante cortada deja abierto (RF-80 a RF-85, T30):
+
+- `tools/obras_pf.py::abrir` es la única vía para abrir en una obra: anota `[clase, nombre, caso]` en `fila['abiertos']` y en el
+  registro de disco (`convertersmartgrid/obras_pf.py::fichero_aperturas`, uno por proyecto y carpeta en
+  `~/.convertersmartgrid/aperturas_pf` o `CSG_APERTURAS_DIR`; el plan puede dar `aperturas_fichero`), y después abre.
+- `restituir_lo_abierto` en el `finally` de `evaluar.con_variante`, tras borrar la variación; `cerrar_lo_abierto` busca también en
+  los datos de red, porque `GetCalcRelevantObjects` no da lo fuera de servicio. `aplicar` saca del registro lo de las obras que quedan.
+- `restituir_pendientes` al empezar `aplicar`, `evaluar` y `datos_escalera` (y con ella `datos_oraculo`): cierra, guarda el escenario
+  (`IntScenario.Save`, referencia de Python de PF 2024, 5.6.38) y avisa.
+- `comprobar_servicio_con_proyecto` en `datos_escalera`: una pasada por clase en cada caso (P2), lo grabado por las variaciones
+  activas (`_grabados`) como explicación, y `ElmTerm.IsEnergized` tras un flujo en los dos casos para saber si corta.
+- Descartado: dejar la apertura en la etapa de la variación con el escenario inactivo. El escenario guarda el servicio de todos los
+  elementos y manda sobre la red al volver a activarlo (`IntScenario.Save`: «all operational attributes for all active network
+  elements»), así que la variación no lo explicaría; y la referencia no documenta un modo de grabar datos de operación en la etapa
+  con un escenario activo. Descartado también restituir todo lo que no explique una variación: borraría cambios del operador.
