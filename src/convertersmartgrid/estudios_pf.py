@@ -18,7 +18,6 @@ Los límites no tienen valores de una empresa (constitución P13): sin perfil se
 
 from __future__ import annotations
 
-import csv
 import json
 import math
 from dataclasses import dataclass, replace
@@ -26,6 +25,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .studies import ESTUDIOS, Estudio
+from .util import escribir_csv  # noqa: F401 (049: lo comparte con protecciones sin importarse entre ellos)
 
 #: Los estudios de esta iteración (usuario, 2026-10-11), en el orden del catálogo.
 ESTUDIOS_011 = tuple(e.clave for e in ESTUDIOS if e.clave in {
@@ -304,27 +304,3 @@ def filas_violaciones(resultados: Iterable[Mapping[str, Any]], limites: Limites)
     return _ordenadas(filas, 'tipo', 'elemento')
 
 
-def _texto(v: Any) -> str:
-    if v is None:
-        return ''
-    if isinstance(v, bool):
-        return 'sí' if v else 'no'
-    if isinstance(v, float):
-        return f'{v:.4f}'
-    return str(v)
-
-
-def escribir_csv(filas: Iterable[Mapping[str, Any]], columnas: tuple[str, ...], destino: Path) -> Path:
-    """CSV con «;» y BOM, como las plantillas de cargas: Excel en español lo abre bien.
-
-    Los decimales van con cuatro cifras fijas: así dos ejecuciones con las mismas medidas
-    dan el mismo fichero byte a byte.
-    """
-    destino = Path(destino)
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    with destino.open('w', encoding='utf-8-sig', newline='') as fh:
-        w = csv.writer(fh, delimiter=';')
-        w.writerow(columnas)
-        for f in filas:
-            w.writerow([_texto(f.get(c)) for c in columnas])
-    return destino

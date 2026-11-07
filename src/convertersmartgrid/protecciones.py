@@ -33,7 +33,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .experimentos import ContextoExperimento, _publico, clave_contexto
+from .experimentos import ContextoExperimento, clave_contexto, como_datos
 
 
 class ProteccionesError(ValueError):
@@ -404,7 +404,7 @@ def plan_protecciones(contexto: ContextoExperimento, inventario: Mapping[str, An
                        + ': ejecute antes «Comprobar capacidades»')
     if errores:
         raise ProteccionesError('El estudio de protecciones no se puede plantear:\n' + '\n'.join(errores))
-    publico = _publico(contexto)
+    publico = como_datos(contexto)
     return {'schema': ESQUEMA_PLAN, 'contexto': publico, 'clave_contexto': clave_contexto(contexto),
             'project': contexto.project, 'feeders': list(contexto.feeders), 'caso': contexto.case_id,
             'rol': contexto.case_role, 'anio': contexto.year,
@@ -537,7 +537,7 @@ COLUMNAS_VIOLACIONES = ('tipo', 'falla', 'dispositivo', 'valor', 'limite', 'deta
 
 def escribir_reporte(evaluacion: Mapping[str, Any], carpeta: Path, nombre: str) -> dict[str, str]:
     """El JSON y los CSV del estudio, iguales byte a byte para la misma evaluación (049:RF-7)."""
-    from .estudios_pf import escribir_csv
+    from .util import escribir_csv
 
     carpeta = Path(carpeta)
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -579,7 +579,7 @@ ROLES_DE_CASO = {'Caso base': 'caso_base', 'Sin proyecto': 'sin_proyecto', 'Con 
 
 
 def _sha(valor: Any) -> str:
-    texto = json.dumps(_publico(valor), sort_keys=True, ensure_ascii=False, separators=(',', ':'), default=str)
+    texto = json.dumps(como_datos(valor), sort_keys=True, ensure_ascii=False, separators=(',', ':'), default=str)
     return hashlib.sha256(texto.encode('utf-8')).hexdigest()
 
 

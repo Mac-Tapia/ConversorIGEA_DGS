@@ -21,6 +21,11 @@ def _publico(valor: Any) -> Any:
     return valor
 
 
+def como_datos(valor: Any) -> Any:
+    """El contexto o cualquier dataclass anidada como diccionarios y listas, para huellas y JSON (049:RF-4)."""
+    return _publico(valor)
+
+
 def _huella(valor: Any) -> str:
     contenido = json.dumps(_publico(valor), sort_keys=True, ensure_ascii=False,
                            separators=(',', ':'), allow_nan=False)

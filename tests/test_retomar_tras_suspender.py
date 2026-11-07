@@ -89,6 +89,8 @@ def test_al_arrancar_se_relanza_una_vez_el_ultimo_interrumpido(tmp_path, monkeyp
     from convertersmartgrid.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    # Otra prueba que arranca ``__main__`` deja la variable puesta; aquí se relanza a mano.
+    monkeypatch.delenv('CSG_WEB_RELANZAR', raising=False)
     raiz = tmp_path / 'web'
     with TestClient(create_app(raiz)) as c:
         wid = c.post('/api/workspaces').json()['id']

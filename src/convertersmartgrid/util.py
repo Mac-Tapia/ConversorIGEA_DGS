@@ -6,6 +6,7 @@ fichero en cuatro, la escritura atómica de JSON en tres con formatos que ya div
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import importlib
 import json
@@ -13,6 +14,7 @@ import math
 import os
 from pathlib import Path
 from types import ModuleType
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 
@@ -139,3 +141,29 @@ def esquema_vigente(valor: object) -> object:
     if isinstance(valor, str) and valor.startswith(PREFIJO_ESQUEMA_ANTERIOR):
         return 'convertersmartgrid-' + valor[len(PREFIJO_ESQUEMA_ANTERIOR):]
     return valor
+
+
+def _texto_csv(v: Any) -> str:
+    if v is None:
+        return ''
+    if isinstance(v, bool):
+        return 'sí' if v else 'no'
+    if isinstance(v, float):
+        return f'{v:.4f}'
+    return str(v)
+
+
+def escribir_csv(filas: Iterable[Mapping[str, Any]], columnas: tuple[str, ...], destino: Path) -> Path:
+    """CSV con «;» y BOM, como las plantillas de cargas: Excel en español lo abre bien.
+
+    Los decimales van con cuatro cifras fijas: así dos ejecuciones con las mismas medidas
+    dan el mismo fichero byte a byte.
+    """
+    destino = Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with destino.open('w', encoding='utf-8-sig', newline='') as fh:
+        w = csv.writer(fh, delimiter=';')
+        w.writerow(columnas)
+        for f in filas:
+            w.writerow([_texto_csv(f.get(c)) for c in columnas])
+    return destino

@@ -36,11 +36,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 116 |
-| aplicacion | Apl | 99 |
+| aplicacion | Apl | 100 |
 | dominio | Dom | 32 |
-| presentacion | Pre | 30 |
+| presentacion | Pre | 31 |
 | puertos | Pue | 2 |
-| sin capa | — | 2 |
 
 281 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
@@ -372,7 +371,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
-| `protecciones.py` | — | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
+| `protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
 ### Motor: informes
@@ -545,7 +544,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
-| `suspension.py` | — | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
+| `suspension.py` | Pre | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
 | `sources/vnr.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources.vnr`. |
