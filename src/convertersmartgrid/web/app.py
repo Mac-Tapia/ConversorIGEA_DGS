@@ -1706,10 +1706,8 @@ def create_app(
     def lote_deshacer(wid: str, token: str) -> dict:
         """007:RF-38: borra lo que creó la aplicación de ese plan, como trabajo del carril de DIgSILENT."""
         ws = ws_or_404(wid)
-        if token not in ws.cargas_planes:
-            raise HTTPException(404, 'El plan ya no existe: vuelva a prepararlo.')
         services.informe_de_aplicacion(ws, token)                                  # antes de encolar
-        plan = services.cargas_plan_de(ws, token)
+        plan = services.plan_para_deshacer(ws, token)
         return submit(ws, 'cargas_deshacer', f"Deshacer cargas · {plan['project']}",
                       lambda ctx: services.cargas_deshacer(ws, ctx, token), lane='powerfactory')
 

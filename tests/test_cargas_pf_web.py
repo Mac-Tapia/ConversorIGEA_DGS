@@ -438,3 +438,13 @@ def test_deshacer_una_aplicacion_desde_la_web(client):
     estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/deshacer').json())
     assert estado['status'] == 'done', estado
     assert estado['result']['informe']['modo'] == 'deshacer' and estado['result']['informe']['de'] == 'aplicar'
+
+
+def test_deshacer_tambien_tras_reiniciar_la_web(client):
+    """007:RF-38 — con el plan ya fuera de la memoria (la web se reinició), se deshace con su fichero y su informe."""
+    wid = _wid(client)
+    token = _plan(client, wid, feeders=['F1'], demandas=DEMANDAS).json()['token']
+    assert esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/apply').json())['status'] == 'done'
+    client.app.state.store.get(wid).cargas_planes.pop(token)                 # como tras un reinicio
+    estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/deshacer').json())
+    assert estado['status'] == 'done' and estado['result']['informe']['modo'] == 'deshacer'

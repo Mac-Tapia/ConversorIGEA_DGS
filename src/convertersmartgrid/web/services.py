@@ -2203,11 +2203,26 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     return resultado
 
 
+def plan_para_deshacer(ws: Workspace, token: str) -> dict:
+    """El plan ``token``, también tras reiniciar la web: los planes viven en memoria y su fichero queda (007:RF-38).
+
+    Pisco de prueba (2026-11-07): tras reiniciar la web para cargar el código nuevo, el plan de las cargas aplicadas con
+    Q = 0 ya no estaba en memoria y no había cómo deshacerlas.
+    """
+    if token in ws.cargas_planes:
+        return cargas_plan_de(ws, token)
+    ruta = ws.plans_dir / f'cargas_pf_{nombre_seguro(token)}.json'
+    if not ruta.is_file():
+        raise UserError('El plan ya no existe: vuelva a prepararlo.')
+    return {'path': str(ruta), 'project': json.loads(ruta.read_text(encoding='utf-8')).get('project')}
+
+
 def informe_de_aplicacion(ws: Workspace, token: str) -> Path:
     """El informe de la aplicación del plan ``token``; sin él no hay nada que deshacer (007:RF-38)."""
-    cargas_plan_de(ws, token)
-    informe = ws.out_dir / f'cargas_pf_aplicacion_{token}.json'
-    if not informe.is_file():
+    plan_para_deshacer(ws, token)
+    informe = next((r for r in [ws.out_dir / f'cargas_pf_aplicacion_{token}.json',
+                                *sorted(ws.root.glob(f'runs/*/salida/cargas_pf_aplicacion_{token}.json'))] if r.is_file()), None)
+    if informe is None:
         raise UserError('Ese plan no se ha aplicado: no hay nada que deshacer.')
     return informe
 
@@ -2218,7 +2233,7 @@ def cargas_deshacer(ws: Workspace, ctx: JobContext, token: str) -> dict:
     Pisco de prueba (2026-11-07): unas cargas aplicadas sin el FP del perfil (la web sin reiniciar) entraron con Q = 0 y
     volver a aplicarlas las reutilizaba sin cambiarlas; el guion sabía deshacer y la web no lo ofrecía.
     """
-    plan = cargas_plan_de(ws, token)
+    plan = plan_para_deshacer(ws, token)
     aplicado = informe_de_aplicacion(ws, token)
     pf_dir, interpreter = _require_pf()
     report = ws.out_dir / f'cargas_pf_deshacer_{token}.json'
