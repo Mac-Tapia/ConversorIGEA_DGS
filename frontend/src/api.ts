@@ -1,6 +1,6 @@
 import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
-  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios,
+  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
 
@@ -353,6 +353,13 @@ export const api = {
   datosEmpresaPlantillaUrl: (id: string) => `${ws(id)}/pf/datos-empresa/plantilla`,
   datosEmpresaAplicar: (id: string, body: { project: string; feeders: string[] }) =>
     request<Job>(`${ws(id)}/pf/datos-empresa/aplicar`, json('POST', body)),
+  // Spec 049: disponibilidad, capacidades de la versión conectada y fallas de las protecciones.
+  protecciones: (id: string, project: string) =>
+    request<ProteccionesEstado>(`${ws(id)}/pf/protecciones?project=${enc(project)}`),
+  proteccionesCapacidades: (id: string, body: { project: string; feeders: string[]; ejecutar_ordenes: boolean }) =>
+    request<Job>(`${ws(id)}/pf/protecciones/capacidades`, json('POST', body)),
+  proteccionesEjecutar: (id: string, body: { project: string; feeders: string[]; caso: string; periodo: string;
+    fallas: FallaProteccion[] }) => request<Job>(`${ws(id)}/pf/protecciones/ejecutar`, json('POST', body)),
   estudiosEjecutar: (id: string, token: string) =>
     request<Job>(`${ws(id)}/pf/estudios/${enc(token)}/ejecutar`, { method: 'POST' }),
   guiones: (id: string, project: string) => request<Job>(`${ws(id)}/pf/guiones`, json('POST', { project })),

@@ -12,7 +12,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_pf_guion.py tests/test_protecciones_datos.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
-- [ ] T3. Coordinación, reporte y web. (RF-5, RF-6, RF-7, RF-10)
+- [x] T3. Coordinación, reporte y web. (RF-5, RF-6, RF-7, RF-10)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_coordinacion.py tests/test_protecciones_web.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
 
@@ -63,3 +63,27 @@ que imita lo documentado en la referencia de PF 2024 (`ComShc.GetFaultType`, `Co
 - `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_pf_guion.py tests/test_protecciones_datos.py`:
   32 aprobadas, 0 omitidas. `tests/test_inventario.py` (con `--help` del guion nuevo) y
   `tests/test_arquitectura_generada.py` en verde.
+
+T3 (RF-5 a RF-7, RF-10), 2026-11-06, misma rama. Sin DIgSILENT: la web se prueba con un guion falso.
+
+- `protecciones.evaluar_coordinacion(resultados, inventario, perfil)`: por pareja primaria-respaldo
+  (`respalda_a`) y falla, `t_respaldo − t_primaria ≥ protecciones.cti_s`; sensibilidad con el arranque en
+  amperios primarios (relación del TC) frente a `factor_sensibilidad`; poder de corte frente a la mayor
+  corriente vista por `margen_poder_corte`. Estados `cumple`, `no_cumple`, `parcial` (una falla o un
+  criterio sin evaluar) y `bloqueado` (ninguna falla evaluada). `escribir_reporte` (JSON y tres CSV, iguales
+  byte a byte) y `comparar_casos` (solo «Sin proyecto» con «Con proyecto» del mismo proyecto, alimentadores,
+  fuente, año, periodo y perfil).
+- Web: `GET /api/workspaces/{wid}/pf/protecciones` (disponibilidad con lo que falta, capacidades,
+  evaluaciones, comparación y el aviso de que un flujo convergente no es selectividad),
+  `POST …/protecciones/capacidades` y `POST …/protecciones/ejecutar` (trabajos del carril de DIgSILENT; con el
+  estudio bloqueado, 400 con la lista y nada encolado). Apartado «Protecciones» en `EstudiosPF.tsx`.
+- `.venv/Scripts/python.exe -m pytest -q tests/test_protecciones_coordinacion.py tests/test_protecciones_web.py`:
+  25 aprobadas, 0 omitidas. `npx tsc --noEmit -p .` y `npm run build` en `frontend/` sin errores; contrato de la
+  API regenerado (`tools/generar_contrato_api.py`).
+- RF-9 queda para la T4: el guion marca los ajustes escritos como `persistencia: sin_verificar` y
+  `test_ajuste_no_toca_base` comprueba que no se dan por persistidos sin reabrir y releer; esa prueba no
+  acredita la persistencia.
+- Pendiente fuera del código: revisar el apartado en el navegador real con datos completos e incompletos
+  (no se reinició la web del 8765) y la T4 con DIgSILENT real. Las curvas tiempo-corriente gráficas no se
+  dibujan: `ComProtgraphic` solo refresca páginas de PF y ninguna fuente trae curvas; el reporte da los
+  tiempos y márgenes en tabla.

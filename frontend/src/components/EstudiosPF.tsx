@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
-import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, Limites, OpcionesEstudios, PropuestaRed } from '../types';
+import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, FallaProteccion, Limites, OpcionesEstudios, PropuestaRed,
+  ProteccionesEstado, ProteccionesEvaluacion } from '../types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
 import { betaActiva } from '../edicion';
 import { GuionesPF } from './GuionesPF';
@@ -124,6 +125,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId }: {
       {resultado && <ResultadoEstudios r={resultado} cancelado={ultima?.status === 'cancelled'} />}
       {/* RF-27 a RF-30: los guiones del operador, en la misma parte de los estudios. */}
       <GuionesPF project={project} />
+      {/* Spec 049: las protecciones, con lo que les falta; nunca se juzgan por el flujo (RF-10). */}
+      <ProteccionesPF project={project} feeders={feeders} />
 
       {plan && (
         <Modal title={`Estudios en ${plan.project}`} onClose={() => setPlan(null)} actions={<>
@@ -273,6 +276,99 @@ function Propuestas({ propuestas }: { propuestas: PropuestaRed[] }) {
           </tr>
         ))}</tbody>
       </table>
+    </div>
+  );
+}
+
+const ESTADO_PROTECCIONES: Record<ProteccionesEvaluacion['estado'], [string, string]> = {
+  cumple: ['ok', 'cumple los criterios del perfil'],
+  no_cumple: ['err', 'no cumple'],
+  parcial: ['warn', 'parcial: hay fallas o criterios sin evaluar'],
+  bloqueado: ['err', 'bloqueado: ninguna falla evaluada'],
+};
+const TIPOS_FALLA: [FallaProteccion['tipo'], string][] = [
+  ['trifasica', 'Trifásica'], ['bifasica', 'Bifásica'], ['monofasica', 'Monofásica'], ['bifasica_tierra', 'Bifásica a tierra'],
+];
+
+/**
+ * Protecciones (spec 049): disponibilidad con la lista concreta de lo que falta (RF-2), las
+ * capacidades de la versión conectada (RF-1) y, si todo está, las fallas y su coordinación
+ * (RF-5 a RF-7). Un flujo convergente no es selectividad: se dice siempre (RF-10).
+ */
+function ProteccionesPF({ project, feeders }: { project: string; feeders: string[] }) {
+  const { ws, run, startJob, active, jobs } = useApp();
+  const [estado, setEstado] = useState<ProteccionesEstado | null>(null);
+  const [licencia, setLicencia] = useState(false);
+  const [barras, setBarras] = useState('');
+  const [tipo, setTipo] = useState<FallaProteccion['tipo']>('trifasica');
+  const [periodo, setPeriodo] = useState('');
+  const pfBusy = Boolean(active.powerfactory);
+  // Se vuelve a leer al terminar cada trabajo de protecciones del espacio.
+  const hechos = Object.values(jobs).filter((j) => j.kind.startsWith('protecciones_') && j.status === 'done').length;
+
+  useEffect(() => {
+    if (!project) return;
+    void run(() => api.protecciones(ws.id, project)).then((e) => { if (e) setEstado(e); });
+  }, [run, ws.id, project, hechos]);
+
+  if (!project || !estado) return null;
+  const d = estado.disponibilidad;
+  const comprobar = () => startJob(() => api.proteccionesCapacidades(ws.id, { project, feeders, ejecutar_ordenes: licencia }));
+  const fallas: FallaProteccion[] = barras.split(/[,;\s]+/).map((b) => b.trim()).filter(Boolean)
+    .map((b) => ({ id: `${b}_${tipo}`, tipo, ubicacion: b, fase: tipo === 'monofasica' ? 'a' : null, r_ohm: 0, x_ohm: 0 }));
+  const ejecutar = () => startJob(() => api.proteccionesEjecutar(ws.id, {
+    project, feeders, caso: estado.capacidades?.caso ?? '', periodo, fallas }));
+  return (
+    <details className="card" open={!d.disponible}>
+      <summary><strong>Protecciones</strong>{' '}
+        <span className={`badge ${d.disponible ? 'ok' : 'err'}`}>{d.disponible ? 'disponible' : 'bloqueado'}</span></summary>
+      <p className="alert alert-warn">{estado.aviso}</p>
+      {!d.disponible && <>
+        {d.faltan.length > 0 && <><p className="small"><strong>Faltan datos:</strong></p>
+          <ul className="small">{d.faltan.map((f) => <li key={f}>{f}</li>)}</ul></>}
+        {d.bloqueos.length > 0 && <><p className="small"><strong>DIgSILENT no lo ha comprobado:</strong></p>
+          <ul className="small">{d.bloqueos.map((b) => <li key={b}>{b}</li>)}</ul></>}
+      </>}
+      {estado.capacidades
+        ? <p className="small muted">Comprobado en DIgSILENT {estado.capacidades.version ?? '(versión desconocida)'},
+          caso «{estado.capacidades.caso}»{estado.capacidades.comprobado ? `, ${estado.capacidades.comprobado}` : ''}:{' '}
+          {Object.entries(estado.capacidades.dispositivos).map(([c, n]) => `${n} ${c}`).join(', ')}.</p>
+        : <p className="small muted">Las capacidades de la versión conectada aún no se han comprobado.</p>}
+      <div className="row">
+        <label className="check"><input type="checkbox" checked={licencia} onChange={(e) => setLicencia(e.target.checked)} />
+          {' '}Ejecutar el cortocircuito para comprobar la licencia</label>
+        <button className="btn" disabled={pfBusy} onClick={comprobar}>Comprobar capacidades</button>
+      </div>
+      {d.disponible && <div className="form-grid">
+        <label className="field"><span>Barras con falla</span>
+          <input value={barras} onChange={(e) => setBarras(e.target.value)} placeholder="separadas por comas" /></label>
+        <label className="field"><span>Tipo de falla</span>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value as FallaProteccion['tipo'])}>
+            {TIPOS_FALLA.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+        <label className="field"><span>Mes de análisis (AAAA-MM)</span>
+          <input value={periodo} onChange={(e) => setPeriodo(e.target.value)} /></label>
+        <button className="btn btn-primary" disabled={pfBusy || !fallas.length || !/^\d{4}-\d{2}$/.test(periodo)}
+          onClick={ejecutar}>Estudiar {fallas.length} falla(s)</button>
+      </div>}
+      {Object.entries(estado.evaluaciones).map(([rol, e]) => <EvaluacionProtecciones key={rol} rol={rol} e={e} />)}
+      {estado.comparacion?.error && <p className="small muted">Sin comparación entre casos: {estado.comparacion.error}.</p>}
+    </details>
+  );
+}
+
+function EvaluacionProtecciones({ rol, e }: { rol: string; e: ProteccionesEvaluacion }) {
+  const [clase, texto] = ESTADO_PROTECCIONES[e.estado];
+  return (
+    <div>
+      <h4>{e.caso ?? rol} <span className={`badge ${clase}`}>{texto}</span></h4>
+      <p className="small">{e.cobertura.evaluadas} de {e.cobertura.fallas} falla(s) evaluadas en DIgSILENT;
+        {' '}{e.violaciones.length} criterio(s) incumplido(s); {e.no_evaluados.length} sin evaluar.</p>
+      {e.violaciones.length > 0 && <ul className="small">{e.violaciones.map((v, i) => (
+        <li key={i}><strong>{v.tipo}</strong> {v.dispositivo}{v.falla ? ` en ${v.falla}` : ''}
+          {v.valor != null && v.limite != null ? `: ${v.valor.toFixed(3)} frente a ${v.limite.toFixed(3)}` : ''}
+          {v.detalle ? ` (${v.detalle})` : ''}</li>))}</ul>}
+      {e.no_evaluados.length > 0 && <details><summary className="small muted">Sin evaluar ({e.no_evaluados.length})</summary>
+        <ul className="small">{e.no_evaluados.map((n, i) => <li key={i}>{n.que}: {n.razon}</li>)}</ul></details>}
     </div>
   );
 }

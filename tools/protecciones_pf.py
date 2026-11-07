@@ -214,6 +214,10 @@ def ejecutar(app, plan: dict, cancelar=lambda: False) -> tuple[dict, int]:
 
                 variacion, _etapa = crear_variacion(app, plan['escritura']['variacion'], 'ajustes')
                 informe['variacion'] = variacion.loc_name
+                # 049:RF-9: escribir no es aceptar. Se aceptan tras guardar, reabrir y releer en
+                # DIgSILENT (T4); hasta entonces el informe no los da por persistidos.
+                informe['persistencia'] = {'estado': 'sin_verificar',
+                                           'motivo': 'falta guardar, reabrir el proyecto y releer los ajustes'}
                 for a in ajustes:
                     dispositivos[a['dispositivo']].SetAttribute(a['atributo'], a['valor'])
             for falla in plan['fallas']:

@@ -201,8 +201,9 @@ def test_fallas_capturan_tiempos_y_secuencia(semilla):
 
 
 def test_ajuste_no_toca_base():
-    """049:RF-8 — los ajustes propuestos van solo a una variación nueva, que queda desactivada
-    hasta validarlos; sobre el «Caso base» no se plantean."""
+    """049:RF-8, 049:RF-9 — los ajustes propuestos van solo a una variación nueva, que queda
+    desactivada hasta validarlos; sobre el «Caso base» no se plantean, y el informe no los da por
+    persistidos sin reabrir y releer en DIgSILENT (eso lo cierra la T4, con el motor real)."""
     rng = random.Random(12)
     app, feeders, dispositivos, fallas = _red(rng)
     ajustes = [{'dispositivo': dispositivos[0]['id'], 'atributo': 'Tpset', 'valor': 0.2, 'unidad': 's'}]
@@ -222,6 +223,9 @@ def test_ajuste_no_toca_base():
     assert variacion not in app.variaciones_activas
     rele = next(o for o in app.proyecto.GetContents('*.ElmRelay', 1) if o.loc_name == ajustes[0]['dispositivo'])
     assert getattr(rele, 'Tpset', None) is None                # fuera de la variación, como estaba
+    assert informe['persistencia']['estado'] == 'sin_verificar'
+    sin_ajustes, _ = guion.ejecutar(app, pr.plan_protecciones(_contexto(feeders), dict(inventario, ajustes=[]), fallas))
+    assert 'persistencia' not in sin_ajustes and 'variacion' not in sin_ajustes
 
 
 def test_main_sin_contexto_nativo_no_abre_digsilent(tmp_path):

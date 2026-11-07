@@ -66,6 +66,17 @@ _DEL_LIBRO = {'Tasa de falla (λ) y tiempo de reparación por tipo de elemento',
               'Coste de la energía (moneda/kWh) y tasa de actualización'}
 
 
+def inventario_de_protecciones(libro, estudio: Estudio | None = None, tablas_fuente=None) -> dict[str, Any]:
+    """Las entradas de las protecciones (049:RF-2): el libro, las filas de la fuente y si la
+    impedancia de cortocircuito de la cabecera es real según el catálogo de su fuente."""
+    from .protecciones import inventario_protecciones
+
+    estudio = estudio or next(x for x in ESTUDIOS if x.clave == 'protecciones')
+    impedancia = next((x for x in estudio.entradas if x.nombre.startswith('Potencia e impedancia')), None)
+    return inventario_protecciones(libro, tablas_fuente=tablas_fuente,
+                                   impedancia_real=impedancia is not None and not impedancia.bloquea)
+
+
 def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[str], str]:
     """049:RF-1, RF-2: la lista concreta de lo que falta a las protecciones, no «faltan curvas».
 
@@ -74,10 +85,9 @@ def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[s
     capacidades de ``tools/protecciones_pf.py``; CTI y márgenes, del perfil. Disponible no lo
     pone entre los de 4.2 Estudios: tiene su propio apartado, con sus fallas y su coordinación.
     """
-    from .protecciones import ProteccionesError, disponibilidad_protecciones, inventario_protecciones
+    from .protecciones import ProteccionesError, disponibilidad_protecciones
 
-    impedancia = next((x for x in e.entradas if x.nombre.startswith('Potencia e impedancia')), None)
-    inventario = inventario_protecciones(libro, impedancia_real=impedancia is not None and not impedancia.bloquea)
+    inventario = inventario_de_protecciones(libro, e)
     try:
         d = disponibilidad_protecciones(inventario, capacidades or {}, perfil or {})
     except ProteccionesError as exc:

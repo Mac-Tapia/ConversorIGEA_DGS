@@ -380,6 +380,38 @@ class DatosEmpresaAplicarIn(BaseModel):
     feeders: list[str] = Field(default_factory=list, max_length=2000)
 
 
+class ProteccionesCapacidadesIn(BaseModel):
+    """Inventario de la versión conectada para las protecciones (spec 049, RF-1)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    #: Ejecutar ``ComShc`` para saber si la licencia lo cubre (049:RF-1).
+    ejecutar_ordenes: bool = False
+
+
+class FallaIn(BaseModel):
+    """Una falla del estudio de protecciones (049:RF-4): barra, tipo, fase e impedancia."""
+
+    id: str = Field(min_length=1, max_length=120)
+    tipo: Literal['trifasica', 'bifasica', 'monofasica', 'bifasica_tierra']
+    ubicacion: str = Field(min_length=1, max_length=200)
+    fase: Literal['a', 'b', 'c'] | None = None
+    r_ohm: float = Field(ge=0)
+    x_ohm: float = Field(ge=0)
+    escenario: str | None = None
+    protegen: list[str] = Field(default_factory=list, max_length=500)
+
+
+class ProteccionesFallasIn(BaseModel):
+    """Las fallas del estudio de protecciones en un caso (spec 049, RF-4 a RF-8)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    caso: str = Field(min_length=1)
+    periodo: str = Field(pattern=r'^\d{4}-\d{2}$')
+    fallas: list[FallaIn] = Field(min_length=1, max_length=2000)
+
+
 class InformeEstudioIn(BaseModel):
     """Formulario del informe de estudio (spec 017): todo dato del cliente y del encabezado
     sale de aquí; del modelo de la empresa solo se toma la forma."""
@@ -2156,6 +2188,28 @@ def create_app(
     def estudios_catalogo_proyecto(wid: str, project: str = '') -> dict:
         """012:RF-19, RF-4: los estudios según el libro del proyecto y la licencia."""
         return services.estudios_catalogo(ws_or_404(wid), project)
+
+    @app.get('/api/workspaces/{wid}/pf/protecciones')
+    def protecciones_estado(wid: str, project: str = '') -> dict:
+        """049:RF-1, RF-2, RF-7, RF-10: disponibilidad con lo que falta y resultados, sin juzgar por el flujo."""
+        return services.protecciones_estado(ws_or_404(wid), project)
+
+    @app.post('/api/workspaces/{wid}/pf/protecciones/capacidades', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def protecciones_capacidades(wid: str, body: ProteccionesCapacidadesIn) -> dict:
+        """049:RF-1: qué órdenes, métodos, licencia y dispositivos tiene la versión conectada."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'protecciones_capacidades', f'Capacidades de protecciones · {body.project.strip()}',
+                      lambda ctx: services.protecciones_capacidades(ws, ctx, body.project, body.feeders,
+                                                                    body.ejecutar_ordenes), lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/protecciones/ejecutar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def protecciones_ejecutar(wid: str, body: ProteccionesFallasIn) -> dict:
+        """049:RF-2, RF-4 a RF-8: el plan se valida aquí; bloqueado, se dice qué falta y no se encola."""
+        ws = ws_or_404(wid)
+        plan = services.protecciones_preparar(ws, body.project, body.feeders, body.caso, body.periodo,
+                                              [f.model_dump() for f in body.fallas])
+        return submit(ws, 'protecciones_fallas', f"Protecciones · {plan['caso']} · {plan['project']}",
+                      lambda ctx: services.protecciones_ejecutar(ws, ctx, plan), lane='powerfactory')
 
     @app.get('/api/workspaces/{wid}/pf/datos-empresa')
     def datos_empresa_estado(wid: str, project: str = '') -> dict:

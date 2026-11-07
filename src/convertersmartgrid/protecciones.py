@@ -26,6 +26,7 @@ bloqueada y se dice (constitución P13).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from collections.abc import Iterable, Mapping, Sequence
@@ -412,3 +413,198 @@ def plan_protecciones(contexto: ContextoExperimento, inventario: Mapping[str, An
             'atributos_comshc': dict(ATRIBUTOS_COMSHC),
             'escritura': {'variacion': VARIACION_AJUSTES, 'solo_variacion': True,
                           'ajustes': sorted(ajustes, key=lambda a: (str(a['dispositivo']), str(a['atributo'])))}}
+
+
+# --------------------------------------------------------------------------- coordinación (RF-5 a RF-7)
+#: Estados del estudio publicado: ``parcial`` y ``bloqueado`` nunca se leen como aprobado (RF-7).
+CUMPLE, NO_CUMPLE, PARCIAL, BLOQUEADO = 'cumple', 'no_cumple', 'parcial', 'bloqueado'
+#: Aviso que acompaña a todo resultado en la web (049:RF-10).
+AVISO_SELECTIVIDAD = ('Que el flujo de potencia converja no dice nada de la selectividad: la coordinación sale de '
+                      'los tiempos de cada falla en DIgSILENT, comparados con los criterios del perfil.')
+
+
+def arranque_primario_a(d: Mapping[str, Any]) -> float | None:
+    """El arranque en amperios primarios, con la relación del TC si va en secundarios o en p.u."""
+    arranque, unidad = d.get('arranque'), d.get('unidad_arranque')
+    if not _numero_valido(arranque):
+        return None
+    if unidad == 'A':
+        return float(arranque)
+    prim, sec = d.get('ct_primario_a'), d.get('ct_secundario_a')
+    if not (_numero_valido(prim) and _numero_valido(sec)) or sec <= 0:
+        return None
+    return float(arranque) * prim / sec if unidad == 'A sec' else float(arranque) * prim if unidad == 'pu' else None
+
+
+def _parejas(dispositivos: Iterable[Mapping[str, Any]]) -> list[tuple[str, str]]:
+    """``(primaria, respaldo)`` según ``respalda_a`` de cada dispositivo."""
+    return sorted({(str(p), str(d['id'])) for d in dispositivos for p in d.get('respalda_a') or ()})
+
+
+def evaluar_coordinacion(resultados: Sequence[Mapping[str, Any]], inventario: Mapping[str, Any],
+                         perfil: Mapping[str, Any]) -> dict[str, Any]:
+    """Coordinación, sensibilidad y poder de corte sobre los tiempos de DIgSILENT (049:RF-5 a RF-7).
+
+    ``resultados`` son las fallas del informe de ``tools/protecciones_pf.py``. Para cada pareja
+    primaria-respaldo y cada falla en que opera la primaria, ``t_respaldo − t_primaria`` tiene que
+    llegar al CTI del perfil. Cada dispositivo que debe despejar una falla (``protegen``) tiene que
+    verla con al menos el factor de sensibilidad por encima de su arranque, y su poder de corte
+    tiene que superar la mayor corriente que vio por el margen del perfil. Lo que no se pudo juzgar
+    —una falla no evaluada, un criterio que el perfil no da, una corriente que DIgSILENT no dio—
+    va a ``no_evaluados`` con su razón, y entonces el estudio es ``parcial``, nunca ``cumple``.
+    """
+    criterios, _sin = criterios_de_perfil(perfil)
+    dispositivos = {str(d['id']): d for d in inventario.get('dispositivos') or ()}
+    parejas = _parejas(dispositivos.values())
+    violaciones, no_evaluados, margenes, tiempos, fallas = [], [], [], [], []
+    for clave, que in CRITERIOS.items():
+        if clave not in criterios:
+            no_evaluados.append({'que': f'todas las fallas: {que}', 'razon': f'el perfil no da protecciones.{clave}'})
+    corriente_max: dict[str, float] = {}
+    for r in sorted(resultados, key=lambda r: str(r.get('id'))):
+        falla = str(r.get('id'))
+        fallas.append({'id': falla, 'tipo': r.get('tipo'), 'ubicacion': r.get('ubicacion'), 'estado': r.get('estado'),
+                       'motivo': r.get('motivo')})
+        if r.get('estado') != 'evaluada':
+            no_evaluados.append({'que': f'falla {falla}', 'razon': r.get('motivo') or 'DIgSILENT no la evaluó'})
+            continue
+        vistos = {str(d['id']): d for d in r.get('dispositivos') or ()}
+        for ident, d in sorted(vistos.items()):
+            tiempos.append({'falla': falla, 'dispositivo': ident, 'tiempo_s': d.get('tiempo_s'),
+                            'corriente_a': d.get('corriente_a'), 'estado': d.get('estado')})
+            if _numero_valido(d.get('corriente_a')):
+                corriente_max[ident] = max(corriente_max.get(ident, 0.0), float(d['corriente_a']))
+        protegen = [str(x) for x in r.get('protegen') or ()]
+        if not protegen:
+            no_evaluados.append({'que': f'falla {falla}: sensibilidad',
+                                 'razon': 'la falla no dice qué dispositivos deben despejarla'})
+        for ident in protegen:
+            d = vistos.get(ident) or {}
+            if d.get('tiempo_s') is None:
+                violaciones.append({'tipo': 'no_opera', 'falla': falla, 'dispositivo': ident,
+                                    'detalle': 'debe despejar la falla y no arrancó'})
+                continue
+            arranque = arranque_primario_a(dispositivos.get(ident) or {})
+            corriente = d.get('corriente_a')
+            if 'factor_sensibilidad' not in criterios:
+                continue
+            if arranque is None or not _numero_valido(corriente):
+                no_evaluados.append({'que': f'falla {falla}: sensibilidad de {ident}',
+                                     'razon': 'DIgSILENT no dio la corriente que ve' if arranque is not None
+                                     else 'su arranque no se puede llevar a amperios primarios'})
+            elif corriente / arranque < criterios['factor_sensibilidad']:
+                violaciones.append({'tipo': 'sensibilidad', 'falla': falla, 'dispositivo': ident,
+                                    'valor': corriente / arranque, 'limite': criterios['factor_sensibilidad']})
+        for primaria, respaldo in parejas:
+            tp = (vistos.get(primaria) or {}).get('tiempo_s')
+            if tp is None or (protegen and primaria not in protegen):
+                continue
+            tr = (vistos.get(respaldo) or {}).get('tiempo_s')
+            if tr is None:
+                violaciones.append({'tipo': 'sin_respaldo', 'falla': falla, 'dispositivo': respaldo,
+                                    'detalle': f'no respalda a {primaria} en esta falla'})
+                continue
+            margen = tr - tp
+            margenes.append({'falla': falla, 'primaria': primaria, 'respaldo': respaldo, 't_primaria_s': tp,
+                             't_respaldo_s': tr, 'margen_s': margen, 'cti_s': criterios.get('cti_s')})
+            if 'cti_s' in criterios and margen < criterios['cti_s']:
+                violaciones.append({'tipo': 'cti', 'falla': falla, 'dispositivo': respaldo, 'valor': margen,
+                                    'limite': criterios['cti_s'], 'detalle': f'respaldo de {primaria}'})
+    if 'margen_poder_corte' in criterios:
+        for ident, d in sorted(dispositivos.items()):
+            pc = d.get('poder_corte_ka')
+            if ident not in corriente_max:
+                no_evaluados.append({'que': f'poder de corte de {ident}',
+                                     'razon': 'ninguna falla evaluada dio la corriente que ve'})
+            elif not _numero_valido(pc) or pc <= 0:
+                no_evaluados.append({'que': f'poder de corte de {ident}', 'razon': 'sin poder de corte de ficha'})
+            elif pc * 1000.0 < corriente_max[ident] * criterios['margen_poder_corte']:
+                violaciones.append({'tipo': 'poder_corte', 'falla': '', 'dispositivo': ident,
+                                    'valor': corriente_max[ident] / 1000.0, 'limite': pc / criterios['margen_poder_corte']})
+    evaluadas = sum(1 for f in fallas if f['estado'] == 'evaluada')
+    estado = (NO_CUMPLE if violaciones else BLOQUEADO if not evaluadas else PARCIAL if no_evaluados else CUMPLE)
+    clave_orden = (lambda v: (v['tipo'], str(v.get('falla')), v['dispositivo']))
+    return {'estado': estado, 'criterios': criterios, 'dispositivos': sorted(dispositivos), 'fallas': fallas,
+            'cobertura': {'fallas': len(fallas), 'evaluadas': evaluadas}, 'tiempos': tiempos, 'margenes': margenes,
+            'violaciones': sorted(violaciones, key=clave_orden), 'no_evaluados': no_evaluados,
+            'aviso': AVISO_SELECTIVIDAD}
+
+
+COLUMNAS_TIEMPOS = ('falla', 'dispositivo', 'tiempo_s', 'corriente_a', 'estado')
+COLUMNAS_MARGENES = ('falla', 'primaria', 'respaldo', 't_primaria_s', 't_respaldo_s', 'margen_s', 'cti_s')
+COLUMNAS_VIOLACIONES = ('tipo', 'falla', 'dispositivo', 'valor', 'limite', 'detalle')
+
+
+def escribir_reporte(evaluacion: Mapping[str, Any], carpeta: Path, nombre: str) -> dict[str, str]:
+    """El JSON y los CSV del estudio, iguales byte a byte para la misma evaluación (049:RF-7)."""
+    from .estudios_pf import escribir_csv
+
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    rutas = {'json': carpeta / f'{nombre}.json'}
+    rutas['json'].write_text(json.dumps(evaluacion, indent=2, ensure_ascii=False, sort_keys=True) + '\n',
+                             encoding='utf-8')
+    for clave, columnas in (('tiempos', COLUMNAS_TIEMPOS), ('margenes', COLUMNAS_MARGENES),
+                            ('violaciones', COLUMNAS_VIOLACIONES)):
+        rutas[clave] = escribir_csv(evaluacion.get(clave) or [], columnas, carpeta / f'{nombre}_{clave}.csv')
+    return {k: str(v) for k, v in rutas.items()}
+
+
+#: Campos del contexto que tienen que coincidir para comparar «Sin proyecto» con «Con proyecto».
+_COMPATIBLES = ('project', 'feeders', 'source_fingerprint', 'source_mode', 'year', 'period', 'profile_hash')
+
+
+def comparar_casos(sin: Mapping[str, Any], con: Mapping[str, Any]) -> dict[str, Any]:
+    """Violaciones que aparecen o desaparecen con el proyecto, solo entre contextos compatibles.
+
+    Dos evaluaciones de otra fuente, otro año u otro perfil no se comparan: la diferencia no sería
+    del proyecto. Cada evaluación lleva el ``contexto`` de su plan.
+    """
+    a, b = sin.get('contexto') or {}, con.get('contexto') or {}
+    distintos = [k for k in _COMPATIBLES if a.get(k) != b.get(k)]
+    if distintos or a.get('case_role') != 'sin_proyecto' or b.get('case_role') != 'con_proyecto':
+        raise ProteccionesError('no se comparan: ' + (('difieren ' + ', '.join(distintos)) if distintos
+                                                      else 'hace falta una de «Sin proyecto» y otra de «Con proyecto»'))
+
+    def claves(e):
+        return {(v['tipo'], str(v.get('falla')), v['dispositivo']) for v in e.get('violaciones') or ()}
+
+    antes, despues = claves(sin), claves(con)
+    return {'nuevas': sorted(despues - antes), 'resueltas': sorted(antes - despues),
+            'estado_sin': sin.get('estado'), 'estado_con': con.get('estado')}
+
+
+#: Rol del caso por el nombre de los casos de estudio del conversor (spec 011, 025, 037).
+ROLES_DE_CASO = {'Caso base': 'caso_base', 'Sin proyecto': 'sin_proyecto', 'Con proyecto': 'con_proyecto'}
+
+
+def _sha(valor: Any) -> str:
+    texto = json.dumps(_publico(valor), sort_keys=True, ensure_ascii=False, separators=(',', ':'), default=str)
+    return hashlib.sha256(texto.encode('utf-8')).hexdigest()
+
+
+def contexto_de_capacidades(firmado: Mapping[str, Any], capacidades: Mapping[str, Any], caso: str, periodo: str,
+                            perfil: Mapping[str, Any], dispositivos: Iterable[Mapping[str, Any]]) -> ContextoExperimento:
+    """La identidad del caso que se estudia, con lo que DIgSILENT dejó leer en el inventario.
+
+    Proyecto, alimentadores y fuente salen del contexto nativo firmado de la acción; la topología
+    de protecciones y la generación, del inventario de capacidades; los controles, de los ajustes
+    de los dispositivos. Así una evaluación de otro caso, otro año u otro perfil no se compara con
+    esta (``comparar_casos``).
+    """
+    rol = ROLES_DE_CASO.get(caso) or ('cargas_nuevas' if caso.startswith('Cargas nuevas') else None)
+    if rol is None:
+        raise ProteccionesError(f'«{caso}» no es un caso de estudio del conversor')
+    anio = next((int(p) for p in caso.split() if p.isdigit() and len(p) == 4), None)
+    fuente = firmado.get('source') or {}
+    try:
+        return ContextoExperimento(
+            source_run_id=fuente.get('source_run_id'), source_mode=fuente.get('source_mode'),
+            source_fingerprint=fuente.get('source_fingerprint'), project=str(firmado.get('project') or ''),
+            feeders=tuple(firmado.get('feeders') or ()), case_id=caso, case_role=rol, year=anio,
+            period=str(periodo or ''), criterio_fijas='no_aplica', profile_hash=_sha(perfil),
+            topology_hash=_sha(capacidades.get('clases') or {}),
+            controls_hash=_sha(sorted((dict(d) for d in dispositivos), key=lambda d: str(d.get('id')))),
+            scenario_hash=_sha(capacidades.get('generacion') or []))
+    except (TypeError, ValueError) as exc:
+        raise ProteccionesError(f'el caso «{caso}» no tiene identidad completa: {exc}') from exc

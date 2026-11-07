@@ -76,7 +76,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | implementada | falta T4 |
-  | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
+  | 049 Protecciones nativas y coordinación | implementada | falta T4 |
   | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b |
   | 051 Medición de cabecera en libro ancho: una columna por alimentador | implementada | falta T3 |
   | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | implementada | falta T4 |

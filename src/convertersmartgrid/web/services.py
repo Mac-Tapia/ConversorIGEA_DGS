@@ -7793,10 +7793,161 @@ def estudios_catalogo(ws: Workspace | None = None, project: str = '') -> dict:
         limites, error = None, str(exc)
     libro = _libro_empresa(ws, project) if ws is not None else None
     sin_lic = list(ws.sin_licencia) if ws is not None else []
+    # 049:RF-2: las protecciones dicen lo que falta con lo que comprobó DIgSILENT y el perfil.
+    capacidades = _capacidades_protecciones(ws, project) if ws is not None else None
+    no_ofrecidos = estudios_no_ofrecidos(libro, sin_lic, capacidades=capacidades, perfil=_perfil_protecciones()[0])
     return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre} for e in estudios_ofrecidos(libro, sin_lic)],
-            'no_ofrecidos': estudios_no_ofrecidos(libro, sin_lic), 'limites': limites,
+            'no_ofrecidos': no_ofrecidos, 'limites': limites,
             'error_limites': error, 'limite_s': LIMITE_ESTUDIO_S,
             'datos_empresa': datos_empresa_estado(ws, project) if ws is not None else None}
+
+
+# ------------------------------------------------------------------ protecciones (049)
+def _carpeta_protecciones(ws: Workspace, project: str) -> Path:
+    """Lo que el estudio de protecciones guarda de un proyecto: capacidades y evaluaciones."""
+    return ws.out_dir / 'protecciones' / nombre_seguro(project.strip(), defecto='PROYECTO')
+
+
+def _leer_json_o_none(ruta: Path) -> dict | None:
+    try:
+        return json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else None
+    except (OSError, ValueError):
+        return None
+
+
+def _capacidades_protecciones(ws: Workspace, project: str) -> dict | None:
+    """El último inventario de capacidades del proyecto (049:RF-1), o ``None`` si no se comprobó."""
+    return _leer_json_o_none(_carpeta_protecciones(ws, project) / 'capacidades.json') if project.strip() else None
+
+
+def _perfil_protecciones() -> tuple[dict, str | None]:
+    """El perfil activo y el error si no se puede leer: sin perfil, ningún criterio (P13)."""
+    from ..perfil_empresa import PerfilError, datos_perfil
+
+    try:
+        return datos_perfil(), None
+    except PerfilError as exc:
+        return {}, str(exc)
+
+
+def _inventario_protecciones(ws: Workspace, project: str) -> dict:
+    from ..estudios_pf import inventario_de_protecciones
+
+    tablas = getattr(ws.dataset, 'equipment_tables', None) if ws.dataset is not None else None
+    return inventario_de_protecciones(_libro_empresa(ws, project), tablas_fuente=tablas)
+
+
+def protecciones_estado(ws: Workspace, project: str) -> dict:
+    """Disponibilidad, capacidades y resultados del estudio de protecciones (049:RF-1, RF-2, RF-7, RF-10).
+
+    Lo que se publica nunca es «el flujo converge»: la disponibilidad dice qué falta, y una
+    evaluación dice qué fallas se evaluaron, cuáles no y qué criterios no se cumplen.
+    """
+    from ..protecciones import (AVISO_SELECTIVIDAD, ProteccionesError, comparar_casos,
+                                disponibilidad_protecciones)
+
+    project = project.strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    perfil, error_perfil = _perfil_protecciones()
+    capacidades = _capacidades_protecciones(ws, project)
+    try:
+        disponibilidad = disponibilidad_protecciones(_inventario_protecciones(ws, project), capacidades or {}, perfil)
+    except ProteccionesError as exc:
+        disponibilidad = {'disponible': False, 'faltan': [str(exc)], 'bloqueos': [], 'alcance': {}, 'criterios': {}}
+    if error_perfil:
+        disponibilidad['faltan'].append(f'el perfil de empresa no se puede leer: {error_perfil}')
+        disponibilidad['disponible'] = False
+    carpeta = _carpeta_protecciones(ws, project)
+    evaluaciones = {}
+    for ruta in sorted(carpeta.glob('evaluacion_*.json')) if carpeta.is_dir() else ():
+        e = _leer_json_o_none(ruta)
+        if e is not None:
+            evaluaciones[ruta.stem.removeprefix('evaluacion_')] = e
+    comparacion = None
+    if 'sin_proyecto' in evaluaciones and 'con_proyecto' in evaluaciones:
+        try:
+            comparacion = comparar_casos(evaluaciones['sin_proyecto'], evaluaciones['con_proyecto'])
+        except ProteccionesError as exc:
+            comparacion = {'error': str(exc)}
+    resumen = None
+    if capacidades:
+        resumen = {k: capacidades.get(k) for k in ('version', 'caso', 'comprobado', 'avisos')}
+        resumen['dispositivos'] = {c: v.get('cuantos', 0) for c, v in (capacidades.get('clases') or {}).items()}
+    return {'project': project, 'disponibilidad': disponibilidad, 'capacidades': resumen,
+            'evaluaciones': evaluaciones, 'comparacion': comparacion, 'aviso': AVISO_SELECTIVIDAD}
+
+
+def protecciones_capacidades(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                             ejecutar_ordenes: bool) -> dict:
+    """El inventario de la versión conectada (049:RF-1), como trabajo del carril de DIgSILENT."""
+    project = project.strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    firmado = native_action_context(ws, project, feeders, 'protecciones')
+    plan = {'project': project, 'folder': carpeta_de(ws, project), 'feeders': firmado['feeders'],
+            'ejecutar_ordenes': bool(ejecutar_ordenes), 'native_action_context': firmado}
+    ctx.log(f'Capacidades de protecciones en {project}')
+    rc, informe, report = _guion_pf(ws, ctx, 'protecciones_pf.py', plan, nombre='protecciones_capacidades',
+                                    args=('--capacidades',), cancelable=False)
+    if rc == 0 and not informe.get('error'):
+        informe['comprobado'] = datetime.now().isoformat(timespec='seconds')
+        carpeta = _carpeta_protecciones(ws, project)
+        carpeta.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(carpeta / 'capacidades.json', informe)
+    return {'returncode': rc, 'report': report.name, 'informe': informe}
+
+
+def protecciones_preparar(ws: Workspace, project: str, feeders: list[str], caso: str, periodo: str,
+                          fallas: list[dict]) -> dict:
+    """El plan de fallas, validado sin DIgSILENT (049:RF-2, RF-4, RF-8).
+
+    Con el estudio bloqueado se dice la lista de lo que falta y no se encola nada: un trabajo
+    que solo puede fallar no aporta, y la web tiene que enseñar el motivo (049:RF-10).
+    """
+    from ..protecciones import ProteccionesError, contexto_de_capacidades, plan_protecciones
+
+    estado = protecciones_estado(ws, project)
+    d = estado['disponibilidad']
+    if not d['disponible']:
+        raise UserError('El estudio de protecciones está bloqueado. Falta: ' + '; '.join(d['faltan'] + d['bloqueos']))
+    capacidades = _capacidades_protecciones(ws, project) or {}
+    if caso != capacidades.get('caso'):
+        raise UserError(f'Las capacidades se comprobaron en «{capacidades.get("caso")}», no en «{caso}»: '
+                        'compruébelas en el caso que va a estudiar.')
+    inventario = _inventario_protecciones(ws, project)
+    firmado = native_action_context(ws, project.strip(), feeders, 'protecciones')
+    perfil, _error = _perfil_protecciones()
+    try:
+        contexto = contexto_de_capacidades(firmado, capacidades, caso, periodo, perfil, inventario['dispositivos'])
+        plan = plan_protecciones(contexto, {**inventario, 'generacion': capacidades.get('generacion') or [],
+                                            'capacidades': capacidades}, fallas)
+    except ProteccionesError as exc:
+        raise UserError(str(exc)) from exc
+    return {**plan, 'folder': carpeta_de(ws, project), 'native_action_context': firmado}
+
+
+def protecciones_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
+    """Las fallas en DIgSILENT y su evaluación con los criterios del perfil (049:RF-4 a RF-7)."""
+    from ..protecciones import ProteccionesError, escribir_reporte, evaluar_coordinacion
+
+    ctx.log(f"Protecciones: {len(plan['fallas'])} falla(s) en «{plan['caso']}» de {plan['project']}")
+    rc, informe, report = _guion_pf(ws, ctx, 'protecciones_pf.py', plan, nombre='protecciones_fallas')
+    if rc != 0 or informe.get('error'):
+        return {'returncode': rc, 'report': report.name, 'informe': informe, 'evaluacion': None}
+    perfil, _error = _perfil_protecciones()
+    try:
+        evaluacion = evaluar_coordinacion(informe.get('fallas') or [], {'dispositivos': plan['dispositivos']}, perfil)
+    except ProteccionesError as exc:
+        raise UserError(str(exc)) from exc
+    evaluacion = {**evaluacion, 'contexto': plan['contexto'], 'clave_contexto': plan['clave_contexto'],
+                  'caso': plan['caso'], 'cancelado': bool(informe.get('cancelado'))}
+    carpeta = _carpeta_protecciones(ws, plan['project'])
+    carpeta.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(carpeta / f"evaluacion_{plan['rol']}.json", evaluacion)
+    rutas = escribir_reporte(evaluacion, carpeta, f"protecciones_{plan['rol']}")
+    return {'returncode': rc, 'report': report.name, 'informe': informe, 'evaluacion': evaluacion,
+            'ficheros': {k: Path(v).name for k, v in rutas.items()}}
 
 
 # ------------------------------------------------------------------ libro de la empresa (012)

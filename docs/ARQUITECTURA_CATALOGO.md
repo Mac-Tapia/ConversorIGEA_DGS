@@ -13,19 +13,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 95 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 377 |
+| Pruebas | `tests/` | 379 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 283 |
 
-`web/services.py` tiene 10890 líneas y 326 funciones, pendiente de partir (002).
+`web/services.py` tiene 11041 líneas y 335 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 44 |
-| implementada | 29 |
-| aprobada | 19 |
+| implementada | 30 |
+| aprobada | 18 |
 | reservada | 3 |
 
 95 specs con 3098 RF. El detalle, en [`specs/README.md`](../specs/README.md).
@@ -49,12 +49,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-137 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+140 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 24 |
-| `pf` | espacio | 17 |
+| `pf` | espacio | 20 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
@@ -746,7 +746,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/components/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
 | `src/components/CurvaCabecera.tsx` | — | 006, 021 | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. |
 | `src/components/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
-| `src/components/EstudiosPF.tsx` | — | 011, 012, 037 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
+| `src/components/EstudiosPF.tsx` | — | 011, 012, 037, 049 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
 | `src/components/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
 | `src/components/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
 | `src/components/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
