@@ -839,7 +839,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       {' '}{fmtNum(fueraDelInstante.length)} cliente(s) sin hoja de 15 minutos van con su EA/ERI del mes con los dos
       criterios: por eso su «Registro» no coincide.</p>}
     <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
-      {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
+      {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»{t.por_hoja ? `, ${fmtNum(t.por_hoja)} por su hoja` : ''}); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
       {cruce.libro && <small className="muted"> Libro {cruce.libro}{cruce.mes ? ` (${nombreMes(cruce.mes)})` : ''}.</small>}</p>
     {ali && t.cruzados === 0 && t.de_otros > 0 && <p className="alert alert-warn">Ningún suministro tiene «{ali}» en la columna
@@ -866,7 +866,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
               aria-label={`Conectar ${c.codigo} en DIgSILENT`}
               title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
-            <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
+            <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'hoja' ? 'Su hoja' : c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}
               {c.radial_fuente && <small className="muted"> Según la fuente de red.</small>}
               {c.radial_libro && c.radial_libro !== c.radial && <small className="muted"> Libro: {c.radial_libro}.</small>}

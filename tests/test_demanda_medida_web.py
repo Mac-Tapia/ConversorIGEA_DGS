@@ -425,7 +425,7 @@ def test_cruce_de_clientes(client):
     assert [(c['codigo'], c['cruzado_por'], c['sed']) for c in body['cruzados']] == [('11', 'anterior', 'E1')]
     assert {c['codigo'] for c in body['no_cruzados']} == {'9012', '777'}
     assert body['totales'] == {'clientes': 3, 'cruzados': 1, 'no_cruzados': 2,
-                               'por_actual': 0, 'por_anterior': 1, 'de_otros': 0}
+                               'por_actual': 0, 'por_anterior': 1, 'por_hoja': 0, 'de_otros': 0}  # 091:RF-10
 
 
 def test_lista_de_alimentadores(client):

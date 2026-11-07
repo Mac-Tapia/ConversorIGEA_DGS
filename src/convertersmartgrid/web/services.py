@@ -3034,9 +3034,12 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
             'total': len(tramo), 'reducida': len(reducidos) < len(tramo), 'fuera_de_curva': 0}
 
 
-def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros):
-    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial."""
-    from ..demanda_medida import cruzar, reconciliar_radiales
+def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
+    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial.
+
+    091:RF-9: con ``libro``, el que no está en el libro de suministros se busca en su hoja.
+    """
+    from ..demanda_medida import DemandaError, completar_desde_hojas, cruzar, reconciliar_radiales
     from ..model import extract_sed_code
 
     cruzados, aparte = cruzar(clientes, suministros)
@@ -3061,6 +3064,12 @@ def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros):
                 # Dos NetworkID distintos con el mismo nombre corto siguen siendo ambiguos.
                 nombres[sed] = cortos if len(cortos) == len(owners) else owners
             ws._sed_owners_cache = (dataset, nombres)
+    if libro is not None:
+        try:
+            de_su_hoja, aparte = completar_desde_hojas(aparte, libro, nombres)   # 091:RF-9
+            cruzados = cruzados + de_su_hoja
+        except (DemandaError, OSError):
+            pass                        # el libro ya se leyó; sin sus hojas siguen aparte, con su motivo
     cruzados, ambiguos = reconciliar_radiales(cruzados, nombres)
     return cruzados, aparte + ambiguos
 
@@ -3134,7 +3143,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     mes = next((str(x.get('mes') or '') or None
                 for x in (ws.demanda.get('clientes') or {}).get('catalogo') or []
                 if x.get('activo') and x.get('nombre') == libro.name), None)
-    cruzados, aparte = _cruzar_clientes_en_red(ws, clientes, suministros)
+    cruzados, aparte = _cruzar_clientes_en_red(ws, clientes, suministros, libro)
     alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
     de_otros = 0
     if alimentadores:
@@ -3170,6 +3179,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
         'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
                     'por_actual': sum(c.cruzado_por == 'actual' for c in cruzados),
                     'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados),
+                    'por_hoja': sum(c.cruzado_por == 'hoja' for c in cruzados),            # 091:RF-10
                     'de_otros': de_otros},
     }
 
@@ -3243,7 +3253,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                 raise UserError(str(exc)) from exc
             avisos += avisos_c
             total_clientes += len(clientes)
-            libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros))
+            libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros, libro))
             leidos.append({'mes': mes, 'libro': libro.name})
         libro, (todos, aparte_mes) = libros[mes]
         suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders, corto=feeder_short_name)
@@ -3303,6 +3313,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                     'no_cruzados': len(aparte_list),
                     'por_actual': sum(c.get('cruzado_por') == 'actual' for c in cruzados_out),
                     'por_anterior': sum(c.get('cruzado_por') == 'anterior' for c in cruzados_out),
+                    'por_hoja': sum(c.get('cruzado_por') == 'hoja' for c in cruzados_out),  # 091:RF-10
                     'de_otros': de_otros},
     }
 

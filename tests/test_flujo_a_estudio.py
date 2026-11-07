@@ -5,15 +5,20 @@ se comprueba en la fuente del front, como el resto de la suite, y de verdad en l
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from convertersmartgrid import pf_arnes
+from convertersmartgrid.demanda_medida import (
+    MOTIVO_SIN_SUMINISTRO, ClienteImportante, cabeceras_de_hojas, completar_desde_hojas,
+)
 from convertersmartgrid.web import services
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP = (SRC / 'App.tsx').read_text(encoding='utf-8')
 PANEL = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
 SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 
@@ -117,3 +122,94 @@ def test_pestanas_visitadas_siguen_montadas():
 def test_pestanas_de_otro_espacio_empiezan_de_cero():
     """091:RF-8 — la clave del espacio las vuelve a montar."""
     assert 'key={w.state.id}' in APP
+
+
+# ------------------------------------------------------------------ clientes por su hoja
+
+
+def _cliente(codigo: str) -> ClienteImportante:
+    c = ClienteImportante(codigo=codigo, fila=2, ea=1.0, eri=1.0, pot=1.0)
+    c.motivo = MOTIVO_SIN_SUMINISTRO
+    return c
+
+
+def _libro(ruta: Path, hojas: dict[str, list[list[object]]]) -> Path:
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for nombre, filas in hojas.items():
+        ws = wb.create_sheet(nombre)
+        for fila in filas:
+            ws.append(fila)
+    wb.save(ruta)
+    return ruta
+
+
+def test_hoja_da_la_sed_de_la_red(tmp_path):
+    """091:RF-9 / 091:RF-10 — sin depender de su posición ni de un patrón de empresa."""
+    libro = _libro(tmp_path / 'clientes.xlsx', {
+        'resumen': [['Nis', 'EA'], ['381000358', 3.0]],
+        'Hayduk2': [['', 'Gen', 381000358.0, 'TM102'], ['', 'Pesquera', 'SE20066'], ['dia', 'hora']],
+    })
+    cruzados, aparte = completar_desde_hojas([_cliente('381000358')], libro, {'SE20066': {'TM102'}, 'OTRA': {'X'}})
+    assert not aparte
+    assert cruzados[0].sed == 'SE20066' and cruzados[0].cruzado_por == 'hoja'
+    assert cruzados[0].radial == 'TM102'
+    assert 'hoja «Hayduk2»' in cruzados[0].nota_asignacion and 'suministros' in cruzados[0].nota_asignacion
+
+
+def test_hoja_con_dos_sed_queda_aparte(tmp_path):
+    """091:RF-11 — no se elige entre dos SED."""
+    libro = _libro(tmp_path / 'c.xlsx', {'Dos': [['7001'], ['SED1', 'SED2']]})
+    cruzados, aparte = completar_desde_hojas([_cliente('7001')], libro, {'SED1': {'A'}, 'SED2': {'B'}})
+    assert not cruzados and 'SED1, SED2' in aparte[0].motivo
+
+
+def test_hoja_que_falta_o_no_nombra_sed_lo_dice(tmp_path):
+    """091:RF-12 — dice cuál de las dos cosas falta."""
+    libro = _libro(tmp_path / 'c.xlsx', {'Sin': [['7001'], ['nada de la red']]})
+    cruzados, aparte = completar_desde_hojas([_cliente('7001'), _cliente('7002')], libro, {'SED1': {'A'}})
+    assert not cruzados
+    por = {c.codigo: c.motivo for c in aparte}
+    assert 'no nombra ninguna SED' in por['7001'] and 'Sin' in por['7001']
+    assert 'no tiene hoja' in por['7002']
+
+
+def test_hoja_no_toca_a_los_que_estan_aparte_por_otra_causa(tmp_path):
+    """091:RF-9 — el que cruza sin SED en el libro de suministros sigue con su motivo."""
+    libro = _libro(tmp_path / 'c.xlsx', {'H': [['7001'], ['SED1']]})
+    c = _cliente('7001')
+    c.motivo = 'cruza por el código actual pero el suministro no tiene SED'
+    cruzados, aparte = completar_desde_hojas([c], libro, {'SED1': {'A'}})
+    assert not cruzados and aparte[0].motivo.startswith('cruza por')
+
+
+def test_hoja_sin_red_cargada_no_cambia_nada(tmp_path):
+    """091:RF-12 — sin red no hay con qué comparar: siguen aparte, sin abrir el libro."""
+    cruzados, aparte = completar_desde_hojas([_cliente('7001')], tmp_path / 'no_existe.xlsx', {})
+    assert not cruzados and aparte[0].motivo == MOTIVO_SIN_SUMINISTRO
+
+
+def test_hoja_se_lee_una_vez_mientras_el_libro_no_cambia(tmp_path, monkeypatch):
+    """091:RF-13 — el plan cruza por alimentador; un libro real trae cientos de hojas."""
+    from convertersmartgrid import demanda_medida
+
+    libro = _libro(tmp_path / 'c.xlsx', {'H': [['7001'], ['SED1']]})
+    aperturas = []
+    original = demanda_medida.abrir_libro
+    monkeypatch.setattr(demanda_medida, 'abrir_libro', lambda p: (aperturas.append(p), original(p))[1])
+    assert cabeceras_de_hojas(libro) == cabeceras_de_hojas(libro)
+    assert len(aperturas) == 1
+    _libro(libro, {'H': [['7001'], ['SED2'], ['y', 'mas', 'contenido']]})
+    os.utime(libro, (2_000_000_000, 2_000_000_000))
+    assert 'SED2' in str(cabeceras_de_hojas(libro))
+    assert len(aperturas) == 2
+
+
+def test_hoja_entra_en_el_cruce_real():
+    """091:RF-9 / 091:RF-10 — el cruce de la web la usa antes de reconciliar, y la fila dice de dónde sale."""
+    assert 'completar_desde_hojas(aparte, libro, nombres)' in SERVICES
+    assert SERVICES.count('_cruzar_clientes_en_red(ws, clientes, suministros, libro)') == 2
+    assert SERVICES.count("'por_hoja':") == 2
+    assert "c.cruzado_por === 'hoja'" in DEMANDA and 'por su hoja' in DEMANDA

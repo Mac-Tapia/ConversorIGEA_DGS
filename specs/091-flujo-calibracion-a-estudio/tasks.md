@@ -6,8 +6,10 @@
 - [x] T2. Las pestañas visitadas siguen montadas y otro espacio las reinicia. (RF-7, RF-8)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k pestanas` en verde.
       Evidencia (2026-11-07): 2 pasadas; `npx tsc --noEmit -p frontend` sin errores. En el navegador, T7.
-- [ ] T3. Clientes cruzados por su hoja. (RF-9 a RF-13)
+- [x] T3. Clientes cruzados por su hoja. (RF-9 a RF-13)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k hoja` en verde.
+      Evidencia (2026-11-07): 7 pasadas; `tests/test_demanda_medida*.py` con ellas, 159 pasadas (los totales del
+      cruce llevan `por_hoja`).
 - [ ] T4. La máxima de cada proyecto y el cruce antes de ajustar. (RF-14 a RF-19)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "maxima or cruce"` en verde.
 - [ ] T5. El estudio después de la recalibración, avisado y sin bloquear. (RF-20 a RF-23)

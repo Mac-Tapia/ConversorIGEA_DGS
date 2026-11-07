@@ -851,7 +851,8 @@ export interface ClienteImportante {
   ea: number | null;
   eri: number | null;
   pot: number | null;
-  cruzado_por: '' | 'actual' | 'anterior';
+  /** 091:RF-10: 'hoja', la SED salió de su hoja: no está en el libro de suministros. */
+  cruzado_por: '' | 'actual' | 'anterior' | 'hoja';
   suministro_actual: string;
   suministro_anterior: string;
   sed: string;
@@ -919,7 +920,7 @@ export interface ClientesCruce {
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];
-  totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number; de_otros: number };
+  totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number; por_hoja?: number; de_otros: number };
 }
 
 // ------------------------------------------------------------ informes (spec 017, paso 4.4)
