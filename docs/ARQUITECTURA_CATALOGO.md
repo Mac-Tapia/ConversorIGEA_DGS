@@ -8,24 +8,24 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 240 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 242 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 94 |
+| Herramientas y guiones | `tools/` | 95 |
 | Interfaz | `frontend/src/` | 46 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 376 |
+| Pruebas | `tests/` | 380 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 286 |
 
-`web/services.py` tiene 10937 líneas y 328 funciones, pendiente de partir (002).
+`web/services.py` tiene 11088 líneas y 337 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 43 |
-| implementada | 32 |
-| aprobada | 18 |
+| implementada | 33 |
+| aprobada | 17 |
 | reservada | 3 |
 
 96 specs con 3111 RF. El detalle, en [`specs/README.md`](../specs/README.md).
@@ -39,9 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
-| sin capa | — | 1 |
+| sin capa | — | 2 |
 
-280 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+281 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -49,12 +49,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-137 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+140 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 24 |
-| `pf` | espacio | 17 |
+| `pf` | espacio | 20 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
@@ -299,6 +299,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `schema.py` | Ada | 034, 054 | Perfiles de esquema DGS versionados. |
 | `schemas/pf21_dgs_1_8_4.json` | — | 034 | Perfil DGS genérico de PowerFactory. |
 | `schemas/perfil_empresa_v1.schema.json` | — | 086 | Esquema del perfil de empresa: cada clave con su tipo, la función que afecta, qué se hace sin ella y si es de la empresa o de una norma. |
+| `schemas/protecciones_v1.schema.json` | — | 049 | Contrato del dispositivo de protección (campos obligatorios, clases con su clase de PowerFactory, unidades admitidas y campos que pide cada unidad o… |
 | `schemas/asistente_orden_v1.schema.json` | — | 047 | Contrato base de salida estructurada para el intérprete local. |
 | `schemas/revision_propuesta_v1.schema.json` | — | 047 | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. |
 | `schemas/digital_twin_episode_v1.schema.json` | — | 024 | Esquema JSON publicado del episodio del gemelo digital, igual al contrato de `digital_twin/episode.py`. |
@@ -367,9 +368,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `estudios_pf.py` | Apl | 011, 012 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
+| `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
-| `datos_empresa.py` | Apl | 012 | Libro de la empresa de la confiabilidad y la capacidad: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `protecciones.py` | — | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
 ### Motor: informes
@@ -614,6 +616,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_pf.py` | — | 011, 017, 130, 131, 135, 012, 037 | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores. |
 | `capacidad_pf.py` | — | 012 | Guion de DIgSILENT de la capacidad de alojamiento nodo a nodo y conjunta (`ComHostcap`), las curvas PV por alimentador con o sin contingencias… |
 | `confiabilidad_pf.py` | — | 012 | Guion de DIgSILENT: con `--aplicar-datos`, el libro de la empresa en la variación «Datos de confiabilidad» (modelos `Sto*` por clase y tipo, equipos… |
+| `protecciones_pf.py` | — | 049 | Guion de DIgSILENT de las protecciones: con `--capacidades`, el inventario de la versión conectada (órdenes `ComShc`, `ComShctrace` y… |
 | `transferencia_pf.py` | — | 011, 104, 129, 016 | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del… |
 | `transformador_set_pf.py` | — | 017 | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la… |
 | `set_nueva_operacion_pf.py` | — | 063 | Diagnóstico físico de conexiones y tipos de una SET existente. |
@@ -744,7 +747,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/components/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
 | `src/components/CurvaCabecera.tsx` | — | 006, 021 | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. |
 | `src/components/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
-| `src/components/EstudiosPF.tsx` | — | 011, 012, 037 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
+| `src/components/EstudiosPF.tsx` | — | 011, 012, 037, 049 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
 | `src/components/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
 | `src/components/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
 | `src/components/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |

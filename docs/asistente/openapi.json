@@ -2398,6 +2398,87 @@
         "title": "EstudiosIn",
         "type": "object"
       },
+      "FallaIn": {
+        "description": "Una falla del estudio de protecciones (049:RF-4): barra, tipo, fase e impedancia.",
+        "properties": {
+          "escenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escenario"
+          },
+          "fase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "a",
+                  "b",
+                  "c"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fase"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "protegen": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Protegen",
+            "type": "array"
+          },
+          "r_ohm": {
+            "minimum": 0.0,
+            "title": "R Ohm",
+            "type": "number"
+          },
+          "tipo": {
+            "enum": [
+              "trifasica",
+              "bifasica",
+              "monofasica",
+              "bifasica_tierra"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          },
+          "ubicacion": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Ubicacion",
+            "type": "string"
+          },
+          "x_ohm": {
+            "minimum": 0.0,
+            "title": "X Ohm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "ubicacion",
+          "r_ohm",
+          "x_ohm"
+        ],
+        "title": "FallaIn",
+        "type": "object"
+      },
       "FeedersIn": {
         "properties": {
           "feeders": {
@@ -4356,6 +4437,77 @@
           "label"
         ],
         "title": "ProgresoRespuesta",
+        "type": "object"
+      },
+      "ProteccionesCapacidadesIn": {
+        "description": "Inventario de la versión conectada para las protecciones (spec 049, RF-1).",
+        "properties": {
+          "ejecutar_ordenes": {
+            "default": false,
+            "title": "Ejecutar Ordenes",
+            "type": "boolean"
+          },
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Feeders",
+            "type": "array"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "ProteccionesCapacidadesIn",
+        "type": "object"
+      },
+      "ProteccionesFallasIn": {
+        "description": "Las fallas del estudio de protecciones en un caso (spec 049, RF-4 a RF-8).",
+        "properties": {
+          "caso": {
+            "minLength": 1,
+            "title": "Caso",
+            "type": "string"
+          },
+          "fallas": {
+            "items": {
+              "$ref": "#/components/schemas/FallaIn"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Fallas",
+            "type": "array"
+          },
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Feeders",
+            "type": "array"
+          },
+          "periodo": {
+            "pattern": "^\\d{4}-\\d{2}$",
+            "title": "Periodo",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "caso",
+          "periodo",
+          "fallas"
+        ],
+        "title": "ProteccionesFallasIn",
         "type": "object"
       },
       "PublicationIn": {
@@ -11818,6 +11970,158 @@
           }
         },
         "summary": "Obras Simular"
+      }
+    },
+    "/api/workspaces/{wid}/pf/protecciones": {
+      "get": {
+        "description": "049:RF-1, RF-2, RF-7, RF-10: disponibilidad con lo que falta y resultados, sin juzgar por el flujo.",
+        "operationId": "protecciones_estado_api_workspaces__wid__pf_protecciones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Protecciones Estado Api Workspaces  Wid  Pf Protecciones Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Protecciones Estado"
+      }
+    },
+    "/api/workspaces/{wid}/pf/protecciones/capacidades": {
+      "post": {
+        "description": "049:RF-1: qué órdenes, métodos, licencia y dispositivos tiene la versión conectada.",
+        "operationId": "protecciones_capacidades_api_workspaces__wid__pf_protecciones_capacidades_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProteccionesCapacidadesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Protecciones Capacidades"
+      }
+    },
+    "/api/workspaces/{wid}/pf/protecciones/ejecutar": {
+      "post": {
+        "description": "049:RF-2, RF-4 a RF-8: el plan se valida aquí; bloqueado, se dice qué falta y no se encola.",
+        "operationId": "protecciones_ejecutar_api_workspaces__wid__pf_protecciones_ejecutar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProteccionesFallasIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Protecciones Ejecutar"
       }
     },
     "/api/workspaces/{wid}/pf/transferencia": {

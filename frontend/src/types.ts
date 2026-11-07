@@ -1582,6 +1582,45 @@ export interface EstudiosCatalogo {
   datos_empresa?: DatosEmpresa | null;
 }
 
+/** Spec 049: lo que falta al estudio de protecciones y lo que no comprobó DIgSILENT (RF-1, RF-2). */
+export interface ProteccionesDisponibilidad {
+  disponible: boolean;
+  faltan: string[];
+  bloqueos: string[];
+  alcance: { dispositivos?: string[]; incompletos?: number; version?: string | null; caso?: string | null };
+  criterios: Record<string, number>;
+}
+
+/** Spec 049: una evaluación publicada; «parcial» y «bloqueado» nunca son aprobado (RF-7). */
+export interface ProteccionesEvaluacion {
+  estado: 'cumple' | 'no_cumple' | 'parcial' | 'bloqueado';
+  caso?: string;
+  criterios: Record<string, number>;
+  cobertura: { fallas: number; evaluadas: number };
+  fallas: { id: string; tipo: string; ubicacion: string; estado: string; motivo?: string | null }[];
+  margenes: { falla: string; primaria: string; respaldo: string; t_primaria_s: number; t_respaldo_s: number;
+    margen_s: number; cti_s: number | null }[];
+  violaciones: { tipo: string; falla: string; dispositivo: string; valor?: number; limite?: number; detalle?: string }[];
+  no_evaluados: { que: string; razon: string }[];
+  aviso: string;
+}
+
+/** Spec 049: el estado del estudio de protecciones de un proyecto (RF-10). */
+export interface ProteccionesEstado {
+  project: string;
+  disponibilidad: ProteccionesDisponibilidad;
+  capacidades: { version: string | null; caso: string | null; comprobado?: string | null; avisos?: string[];
+    dispositivos: Record<string, number> } | null;
+  evaluaciones: Record<string, ProteccionesEvaluacion>;
+  comparacion: { nuevas?: string[][]; resueltas?: string[][]; error?: string } | null;
+  aviso: string;
+}
+
+export interface FallaProteccion {
+  id: string; tipo: 'trifasica' | 'bifasica' | 'monofasica' | 'bifasica_tierra'; ubicacion: string;
+  fase?: 'a' | 'b' | 'c' | null; r_ohm: number; x_ohm: number; protegen?: string[];
+}
+
 /** Spec 012: el libro de la empresa guardado con el proyecto (RF-6, RF-20). */
 export interface DatosEmpresa {
   nombre: string;

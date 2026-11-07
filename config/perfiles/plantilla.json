@@ -10,6 +10,7 @@
   "carpeta_proyectos_pf": null,
   "estructura": null,
   "estudios": {"tension_min_pu": null, "tension_max_pu": null, "cargabilidad_max_pct": null},
+  "protecciones": {"cti_s": null, "factor_sensibilidad": null, "margen_poder_corte": null},
   "calibracion": {"factor_potencia_cargas": null, "factor_potencia_minimo_fijas": null, "factor_potencia_minimo_escaladas": null,
                   "bancos_kvar_por_tension": null, "transformadores_sed": null},
   "informes": {"moneda": null, "modelo_estudio": null, "modelo_factibilidad": null, "bandas_tension_pct": null, "bandas_cargabilidad_pct": null,

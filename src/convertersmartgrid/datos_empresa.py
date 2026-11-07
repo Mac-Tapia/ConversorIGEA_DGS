@@ -92,6 +92,33 @@ HOJAS = (
         Columna('valor', 'Valor', '-'),
         Columna('unidad', 'Unidad', '-', numero=False),
     )),
+    # 049:RF-3: los ajustes de protección, con el contrato de ``protecciones``. Ninguna fuente
+    # los trae (el TXT solo la fila DEFAULT con poder de corte 0); salen de la ficha del
+    # fabricante y de los ajustes de la empresa. Solo el identificador es obligatorio al leer:
+    # lo demás que falte lo nombra la disponibilidad del estudio (049:RF-2), dispositivo por
+    # dispositivo, en vez de rechazar el libro entero y dejar sin datos a la confiabilidad.
+    # Arranque y dial llevan su unidad en la columna siguiente: un relé con arranque en
+    # amperios secundarios y otro en primarios caben en la misma hoja sin confundirse.
+    Hoja('protecciones', 'Protecciones', (
+        Columna('id', 'Identificador', '-', numero=False),
+        Columna('cubiculo', 'Cubículo', '-', obligatoria=False, numero=False),
+        Columna('clase', 'Clase', '-', obligatoria=False, numero=False),
+        Columna('fabricante', 'Fabricante', '-', obligatoria=False, numero=False),
+        Columna('modelo', 'Modelo', '-', obligatoria=False, numero=False),
+        Columna('curva', 'Curva', '-', obligatoria=False, numero=False),
+        Columna('arranque', 'Arranque', '-', obligatoria=False),
+        Columna('unidad_arranque', 'Unidad del arranque', '-', obligatoria=False, numero=False),
+        Columna('dial', 'Dial o retardo', '-', obligatoria=False),
+        Columna('unidad_dial', 'Unidad del dial', '-', obligatoria=False, numero=False),
+        Columna('ct_primario_a', 'TC primario', 'A', obligatoria=False),
+        Columna('ct_secundario_a', 'TC secundario', 'A', obligatoria=False),
+        Columna('vt_primario_kv', 'TT primario', 'kV', obligatoria=False),
+        Columna('vt_secundario_v', 'TT secundario', 'V', obligatoria=False),
+        Columna('direccion', 'Dirección', '-', obligatoria=False, numero=False),
+        Columna('poder_corte_ka', 'Poder de corte', 'kA', obligatoria=False),
+        Columna('fuente', 'Fuente documental', '-', obligatoria=False, numero=False),
+        Columna('respalda_a', 'Respalda a', '-', obligatoria=False, numero=False),
+    )),
 )
 POR_CLAVE = {h.clave: h for h in HOJAS}
 
@@ -145,6 +172,8 @@ class Libro:
     tasa_descuento: float | None = None        # fracción anual (0,12 = 12 %)
     hojas_que_faltan: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+    #: 049:RF-3: un dict por dispositivo con el contrato de ``protecciones`` y su ``origen``.
+    protecciones: list[dict[str, Any]] = field(default_factory=list)
 
     def a_dict(self) -> dict[str, Any]:
         """Lo que viaja en el plan del guion y se guarda con el proyecto."""
@@ -157,6 +186,7 @@ class Libro:
             'coste_energia_kwh': self.coste_energia_kwh, 'moneda': self.moneda,
             'tasa_descuento': self.tasa_descuento,
             'hojas_que_faltan': list(self.hojas_que_faltan), 'avisos': list(self.avisos),
+            'protecciones': [dict(d) for d in self.protecciones],
         }
 
     @classmethod
@@ -171,7 +201,9 @@ class Libro:
             coste_energia_kwh=d.get('coste_energia_kwh'), moneda=str(d.get('moneda') or ''),
             tasa_descuento=d.get('tasa_descuento'),
             hojas_que_faltan=list(d.get('hojas_que_faltan') or ()),
-            avisos=list(d.get('avisos') or ()))
+            avisos=list(d.get('avisos') or ()),
+            # Los libros guardados antes de la spec 049 no traen la hoja: sin dispositivos.
+            protecciones=[dict(x) for x in d.get('protecciones') or ()])
 
 
 # --------------------------------------------------------------------------- utilidades
@@ -391,6 +423,47 @@ def _costes(filas, libro: Libro, errores: list[str]) -> None:
         errores.append(f"Hoja «{hoja}»: falta la fila «{COSTES['descuento']}».")
 
 
+def _clase_proteccion(texto: Any) -> str | None:
+    """La clase de la hoja «Protecciones» por su nombre: «Relé» = «rele»."""
+    from .protecciones import CLASES as CLASES_PROTECCION
+
+    por_nombre = {_norm(v): k for k, v in CLASES_PROTECCION.items()} | {k: k for k in CLASES_PROTECCION}
+    return por_nombre.get(_norm(texto))
+
+
+def _protecciones(filas, libro: Libro, errores: list[str]) -> None:
+    """Los dispositivos de la hoja con el contrato de ``protecciones`` (049:RF-3).
+
+    Conserva fabricante, modelo, unidades y procedencia (libro, hoja y fila). Un valor que el
+    contrato no admite (una unidad ajena) es error del libro, con hoja y fila: guardado, el
+    tiempo saldría en otra magnitud. Lo que falte lo dice después la disponibilidad.
+    """
+    from .protecciones import validar_dispositivo
+
+    hoja = POR_CLAVE['protecciones'].titulo
+    for n, d in filas:
+        disp = {k: v for k, v in d.items() if v is not None}
+        if 'clase' in disp:
+            clase = _clase_proteccion(disp['clase'])
+            if clase is None:
+                errores.append(f'Hoja «{hoja}», fila {n}, columna «Clase»: «{disp["clase"]}» no es fusible, '
+                               'reconectador ni relé.')
+                continue
+            disp['clase'] = clase
+        for clave in ('id', 'cubiculo', 'fabricante', 'modelo', 'curva', 'unidad_arranque', 'unidad_dial',
+                      'direccion', 'fuente'):
+            if clave in disp:
+                disp[clave] = str(disp[clave]).strip()
+        if 'direccion' in disp and _norm(disp['direccion']) == 'atras':
+            disp['direccion'] = 'atras'
+        if 'respalda_a' in disp:
+            disp['respalda_a'] = [x.strip() for x in str(disp['respalda_a']).split(';') if x.strip()]
+        _faltan, malos = validar_dispositivo(disp)
+        errores += [f'Hoja «{hoja}», fila {n}: {m}.' for m in malos]
+        if not malos:
+            libro.protecciones.append({**disp, 'origen': f'{libro.nombre}, hoja «{hoja}», fila {n}'})
+
+
 def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
     """Lee y valida el libro entero; con cualquier error, ``DatosEmpresaError`` con todos."""
     from openpyxl import load_workbook
@@ -426,6 +499,8 @@ def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
         _costes(leidas['costes'], libro, errores)
     if 'bancos' in leidas:
         _bancos(leidas['bancos'], libro, errores, libro.tasa_descuento)
+    if 'protecciones' in leidas:
+        _protecciones(leidas['protecciones'], libro, errores)
     if errores:
         raise DatosEmpresaError(errores)
     for titulo in libro.hojas_que_faltan:
@@ -456,6 +531,7 @@ def plantilla(destino: Path | str) -> Path:
         'telemandados': [],
         'bancos': [[None, None, 'trifásico']],
         'costes': [[COSTES['energia'], None, None], [COSTES['descuento'], None, '%']],
+        'protecciones': [],
     }
     for hoja in HOJAS:
         ws = wb.create_sheet(hoja.titulo)
@@ -479,4 +555,5 @@ def resumen(libro: Libro) -> dict[str, Any]:
             'tipos': sorted(libro.tasas_por_tipo), 'telemandados': len(libro.telemandados),
             'bancos': [asdict(b) for b in libro.bancos], 'coste_energia_kwh': libro.coste_energia_kwh,
             'moneda': libro.moneda, 'tasa_descuento': libro.tasa_descuento,
-            'hojas_que_faltan': list(libro.hojas_que_faltan), 'avisos': list(libro.avisos)}
+            'hojas_que_faltan': list(libro.hojas_que_faltan), 'avisos': list(libro.avisos),
+            'protecciones': len(libro.protecciones)}

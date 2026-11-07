@@ -836,10 +836,18 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\estudios_pf.py --plan plan.json --output-json informe.json
 > python tools\estudios_pf.py --guion --plan plan.json --output-json informe.json
 > python tools\confiabilidad_pf.py --aplicar-datos --plan plan.json --output-json informe.json
+> python tools\protecciones_pf.py --capacidades --plan plan.json --output-json informe.json
+> python tools\protecciones_pf.py --plan plan.json --output-json informe.json [--cancel-file cancelar.flag]
 > python tools\obras_pf.py --bibliotecas --plan plan.json --output-json informe.json
 > python tools\obras_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
 > python tools\transferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
 ```
+
+`protecciones_pf.py` (spec 049) con `--capacidades` solo inventaría la versión conectada: órdenes
+`ComShc`, `ComShctrace` y `ComProtgraphic` con sus métodos, atributos de `ComShc`, relés, fusibles, TC,
+TT y la generación del caso; sin él, corre las fallas del plan con la traza de cortocircuito y deja los
+ajustes propuestos en una variación desactivada. No da por coordinada la red: eso lo dice la web con los
+criterios del perfil.
 
 Un solo proceso a la vez tiene el motor de DIgSILENT en la máquina (spec 019): si otro lo
 tiene, el guion espera hasta 10 minutos diciendo quién, y con DIgSILENT abierto a mano

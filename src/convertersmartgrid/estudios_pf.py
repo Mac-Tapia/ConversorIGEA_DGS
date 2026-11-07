@@ -66,12 +66,44 @@ _DEL_LIBRO = {'Tasa de falla (λ) y tiempo de reparación por tipo de elemento',
               'Coste de la energía (moneda/kWh) y tasa de actualización'}
 
 
-def _que_le_falta(e: Estudio, libro, sin_licencia) -> tuple[list[str], str]:
+def inventario_de_protecciones(libro, estudio: Estudio | None = None, tablas_fuente=None) -> dict[str, Any]:
+    """Las entradas de las protecciones (049:RF-2): el libro, las filas de la fuente y si la
+    impedancia de cortocircuito de la cabecera es real según el catálogo de su fuente."""
+    from .protecciones import inventario_protecciones
+
+    estudio = estudio or next(x for x in ESTUDIOS if x.clave == 'protecciones')
+    impedancia = next((x for x in estudio.entradas if x.nombre.startswith('Potencia e impedancia')), None)
+    return inventario_protecciones(libro, tablas_fuente=tablas_fuente,
+                                   impedancia_real=impedancia is not None and not impedancia.bloquea)
+
+
+def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[str], str]:
+    """049:RF-1, RF-2: la lista concreta de lo que falta a las protecciones, no «faltan curvas».
+
+    Los dispositivos salen del libro de la empresa; la impedancia de la cabecera, del catálogo
+    (por defecto en las tres fuentes); la versión y la licencia, de lo que comprobó el modo de
+    capacidades de ``tools/protecciones_pf.py``; CTI y márgenes, del perfil. Disponible no lo
+    pone entre los de 4.2 Estudios: tiene su propio apartado, con sus fallas y su coordinación.
+    """
+    from .protecciones import ProteccionesError, disponibilidad_protecciones
+
+    inventario = inventario_de_protecciones(libro, e)
+    try:
+        d = disponibilidad_protecciones(inventario, capacidades or {}, perfil or {})
+    except ProteccionesError as exc:
+        return [str(exc)], f'faltan datos: {exc}'
+    falta = d['faltan'] + d['bloqueos']
+    return falta, ('faltan datos: ' + '; '.join(falta)) if falta else 'se ejecuta desde el apartado «Protecciones»'
+
+
+def _que_le_falta(e: Estudio, libro, sin_licencia, capacidades=None, perfil=None) -> tuple[list[str], str]:
     """Lo que impide ofrecer un estudio y el motivo para el operador (011:RF-24, 012:RF-4, RF-19)."""
     from .datos_empresa import que_falta
 
     if e.clase_pf in set(sin_licencia or ()):
         return [], f'no disponible: la licencia de DIgSILENT no incluye el módulo {e.clase_pf}'
+    if e.clave == 'protecciones':
+        return _faltan_protecciones(e, libro, capacidades, perfil)
     if e.clave in ESTUDIOS_012:
         falta = [x.nombre for x in e.bloqueantes if x.nombre not in _DEL_LIBRO] + que_falta(libro, e.clave)
     elif e.clave in ESTUDIOS_011:
@@ -92,18 +124,19 @@ def estudios_ofrecidos(libro=None, sin_licencia=()) -> tuple[Estudio, ...]:
                  and not _que_le_falta(e, libro, sin_licencia)[1])
 
 
-def estudios_no_ofrecidos(libro=None, sin_licencia=()) -> list[dict[str, Any]]:
+def estudios_no_ofrecidos(libro=None, sin_licencia=(), *, capacidades=None, perfil=None) -> list[dict[str, Any]]:
     """Los demás del catálogo con lo que les falta (011:RF-24, 012:RF-4, RF-19).
 
     Un estudio defendible que no está en la iteración (el flujo óptimo) no tiene dato
-    faltante: se dice que queda fuera, en vez de inventarle uno.
+    faltante: se dice que queda fuera, en vez de inventarle uno. ``capacidades`` y ``perfil``
+    son los de las protecciones (049:RF-1, RF-2): lo que comprobó DIgSILENT y los criterios.
     """
     ofrecidos = {e.clave for e in estudios_ofrecidos(libro, sin_licencia)}
     out = []
     for e in ESTUDIOS:
         if e.clave in ofrecidos:
             continue
-        falta, motivo = _que_le_falta(e, libro, sin_licencia)
+        falta, motivo = _que_le_falta(e, libro, sin_licencia, capacidades, perfil)
         out.append({'clave': e.clave, 'nombre': e.nombre, 'falta': falta, 'motivo': motivo,
                     'modulo': e.clase_pf})
     return out
