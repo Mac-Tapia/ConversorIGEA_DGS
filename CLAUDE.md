@@ -95,24 +95,24 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 065 Cierre verificable de la auditoría integral | aprobada | falta T12, T13 |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | implementada | falta T9 |
-  | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | falta T7 |
+  | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | implementada | falta T9, T10, T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | implementada | falta T8, T12 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
-  | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | falta T6 |
+  | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida |  |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
-  | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | falta T7 |
+  | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22, T24 |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
-  | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | falta T6 |
+  | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | falta T12, T13, T14, T27 |
   | 088 Q negativa desde el factor de potencia | cumplida |  |

@@ -1,6 +1,6 @@
 # Spec 068 — Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo
 
-Estado: aprobada
+Estado: cumplida (2026-11-07, campaña integral en la GPU)
 
 Rama de trabajo: `asistente/maestro`.
 Cita: 026 (asistente), 027 (agente en producción: RF-19, RF-33, RF-34, RF-65 a RF-67), 047 (destilación:

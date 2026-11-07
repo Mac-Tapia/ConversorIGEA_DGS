@@ -54,7 +54,7 @@ def test_leer_valida_y_cuenta_los_rechazos(tmp_path):
 
 
 def test_reparto_aparta_el_cuarto_de_familias_por_tarea_y_no_depende_del_orden():
-    """085:RF-6 a RF-9, RF-12 — 25 % hacia arriba por tarea, por huella; con una familia, sin examen."""
+    """085:RF-6 a RF-9, 085:RF-12 — 25 % hacia arriba por tarea, por huella; con una familia, sin examen."""
     filas = [_orden(p, 'flujo') for p in FLUJO] + [_orden('convierte [[alimentadores:ZX901]]', 'convertir'),
                                                    _orden('gracias, ya quedo', 'ninguna')]
     examen, entrenar, estado = om.repartir(filas)
@@ -86,7 +86,7 @@ def corpus():
 
 
 def test_corpus_examen_en_prueba_y_nada_del_examen_entrena(corpus):
-    """085:RF-10, RF-11, RF-12, RF-14, RF-5 — el examen con su conjunto; el resto, con erratas, solo entrena."""
+    """085:RF-10, 085:RF-11, 085:RF-12, 085:RF-14, 085:RF-5 — el examen con su conjunto; el resto, con erratas, solo entrena."""
     _sin, _ms, con, meta, _m = corpus
     examen = [r for r in con if r.get('conjunto') == om.CONJUNTO]
     assert examen and all(r['particion'] == 'prueba' and r['quality'] != 'gold_human' for r in examen)
@@ -114,7 +114,7 @@ def test_corpus_deja_iguales_seleccion_calibracion_y_selladas(corpus):
 
 
 def test_corpus_descarta_lo_que_coincide_con_lo_que_mide_y_es_determinista(corpus, tmp_path):
-    """085:RF-13, RF-16 — una orden igual a una de selección se descarta y se cuenta; mismo corpus, mismas entradas."""
+    """085:RF-13, 085:RF-16 — una orden igual a una de selección se descarta y se cuenta; mismo corpus, mismas entradas."""
     sin, _ms, con, meta, maestro = corpus
     sel = next(r for r in sin if r['particion'] == 'seleccion')
     choque = {**_orden('x', sel['tarea']), 'texto': sel['texto'], 'datos': sel['datos']}
@@ -131,7 +131,7 @@ def _medida(acierto, f1, n):
 
 
 def test_puerta_decide_el_maestro_sin_200_humanas_y_lo_dice():
-    """085:RF-19, RF-20, RF-22, RF-23, RF-24 — sin 200 humanas decide el examen del maestro; la humana se da y no decide."""
+    """085:RF-19, 085:RF-20, 085:RF-22, 085:RF-23, 085:RF-24 — sin 200 humanas decide el examen del maestro; la humana se da y no decide."""
     sint = _medida(1., 1., 10)
     d = di.decidir_promocion(sint, _medida(.5, .5, 43), {}, None, maestro=_medida(.99, .97, 144), humanas_distintas=43)
     assert d['puerta_ordenes']['conjunto'] == 'maestro' and d['puerta_ordenes']['denominador'] == 144
@@ -152,7 +152,7 @@ def test_puerta_con_200_humanas_deciden_ellas():
 
 
 def test_puerta_tres_cifras_separadas():
-    """085:RF-17, RF-18 — humanas, maestro y sintéticas, cada una con su denominador."""
+    """085:RF-17, 085:RF-18 — humanas, maestro y sintéticas, cada una con su denominador."""
     t = di.tres_cifras(_medida(.7, .8, 43), _medida(.9, .9, 144), _medida(.8, .7, 300))
     assert {k: v['ejemplos'] for k, v in t.items()} == {'humanas': 43, 'maestro': 144, 'sinteticas': 300}
     assert di.tres_cifras(None, None, None) == {'humanas': None, 'maestro': None, 'sinteticas': None}

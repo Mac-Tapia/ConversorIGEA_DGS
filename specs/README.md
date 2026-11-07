@@ -74,24 +74,24 @@ retirada.
 | [065](065-cierre-de-auditoria-integral/spec.md) | Cierre verificable de la auditoría integral | aprobada | 26 | 26 | T12 (DIgSILENT), T13 |
 | [066](066-libro-de-cada-informe/spec.md) | Cada informe con su libro Excel, según el perfil de la empresa | cumplida | 13 | 13 | — |
 | [067](067-asistente-operativo/spec.md) | Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | implementada | 40 | 40 | T9 (DIgSILENT) |
-| [068](068-dataset-real-del-maestro/spec.md) | Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | 42 | 42 | T7 |
+| [068](068-dataset-real-del-maestro/spec.md) | Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida | 42 | 42 | — |
 | [069](069-interprete-con-codificador-preentrenado/spec.md) | Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | 32 | 32 | T7 |
 | [070](070-asistente-de-punta-a-punta/spec.md) | El asistente opera el conversor de punta a punta | implementada | 77 | 77 | T9 (DIgSILENT), T10 (DIgSILENT), T11 (DIgSILENT) |
 | [071](071-puertas-de-los-modelos/spec.md) | Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | 8 | 8 | T5 |
 | [072](072-pide-y-planeamiento-de-largo-plazo/spec.md) | PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | 22 | 22 | T9b, T11, T13 |
 | [073](073-bancos-limitados-por-valle/spec.md) | El número de bancos lo define la tensión en las ventanas de valle | implementada | 41 | 41 | T8 (DIgSILENT), T12 (DIgSILENT) |
 | [074](074-piloto-madrl-en-obras/spec.md) | Piloto MADRL en obras: medir antes de aprender | aprobada | 12 | 11 | T5, T7, T8 |
-| [075](075-validacion-cruzada-de-las-ordenes/spec.md) | Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | implementada | 46 | 46 | T6 (DIgSILENT) |
+| [075](075-validacion-cruzada-de-las-ordenes/spec.md) | Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida | 46 | 46 | — |
 | [076](076-preguntas-de-metodologia-por-entregable/spec.md) | Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida | 34 | 34 | — |
 | [077](077-asistente-lee-el-proyecto/spec.md) | El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | 74 | 74 | — |
 | [078](078-senales-de-convergencia/spec.md) | Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | 35 | 35 | T6 (DIgSILENT), T7 (DIgSILENT) |
-| [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | 64 | 64 | T7 (DIgSILENT) |
+| [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida | 64 | 64 | — |
 | [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida | 52 | 52 | — |
 | [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | 79 | 79 | T22 (DIgSILENT), T20 (DIgSILENT), T10 (DIgSILENT), T11 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT), T16 (DIgSILENT), T24 (DIgSILENT) |
 | [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | cumplida | 15 | 15 | — |
 | [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | implementada | 31 | 31 | T3 (DIgSILENT) |
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | implementada | 30 | 30 | T8 (DIgSILENT), T9 (DIgSILENT) |
-| [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | aprobada | 33 | 25 | T6 |
+| [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida | 33 | 33 | — |
 | [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 53 | 49 | T1, T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T24 (DIgSILENT), T25 (DIgSILENT), T26 (DIgSILENT), T27 (DIgSILENT), T28 (DIgSILENT), T29, T30 (DIgSILENT), T31, T32 (DIgSILENT), T33 (DIgSILENT), T34 |
 | [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | 57 | 57 | T27 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT) |
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 12 | 12 | — |

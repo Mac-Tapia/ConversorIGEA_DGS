@@ -1,6 +1,6 @@
 # Spec 079 — Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas
 
-Estado: implementada
+Estado: cumplida (2026-11-07, campaña integral en la GPU)
 
 Rama de trabajo: `asistente/079`.
 Cita: 027 (RF-19, RF-38), 047 (RF-1, RF-11), 069 (RF-1, RF-2, RF-4 a RF-9, RF-13, RF-17 a RF-27), 070 (RF-69 a RF-77), 075 (RF-10 a RF-22, RF-37 a RF-46), 077 (lectura local, sellados).

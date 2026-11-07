@@ -1,6 +1,6 @@
 # Spec 085 — Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes
 
-Estado: aprobada · Fecha: 2026-11-03 · Origen: orden del usuario
+Estado: cumplida (2026-11-07, campaña integral en la GPU) · Fecha: 2026-11-03 · Origen: orden del usuario
 
 Cita: 027 (RF-18, RF-19), 047 (RF-8, RF-9, RF-11), 068 (RF-26, RF-27, RF-30), 069 (RF-10), 075 (RF-1 a RF-5, RF-21), 079 (RF-45, RF-48).
 

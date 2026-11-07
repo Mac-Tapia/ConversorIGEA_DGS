@@ -1,6 +1,6 @@
 # Spec 075 — Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla
 
-Estado: implementada
+Estado: cumplida (2026-11-07, campaña integral en la GPU)
 
 Rama de trabajo: `asistente/075`.
 Cita: 027 (RF-19, RF-38), 047 (RF-11), 068 (RF-30, RF-41), 069 (RF-2, RF-6, RF-11, RF-15 a RF-22, RF-26), 070 (RF-69 a RF-73, RF-75, RF-76).
