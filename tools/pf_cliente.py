@@ -110,8 +110,9 @@ def asegurar_servidor(cola: Path, espera_s: float = pf_arnes.ESPERA_S, *,
                 print(f'ERROR: {exc}', flush=True)
                 return False
         elif proceso is not None and proceso.poll() is not None:
-            print(f'ERROR: el proceso de DIgSILENT terminó al arrancar (código '
-                  f'{proceso.returncode}); ver {cola / "servidor.log"}.', flush=True)
+            # 091:RF-4: decía «código ?», porque el servidor no es hijo de este proceso; la causa está en su registro.
+            causa = pf_arnes.ultima_causa(cola) or f'sin causa en {cola / "servidor.log"}'
+            print(f'ERROR: el proceso de DIgSILENT terminó al arrancar: {causa}', flush=True)
             return False
         elif (dueno is not None and not libre
               and (ultimo_aviso is None or reloj() - ultimo_aviso >= pf_arnes.AVISO_S)):

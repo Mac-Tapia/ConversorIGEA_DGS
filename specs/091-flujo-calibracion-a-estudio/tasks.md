@@ -1,7 +1,8 @@
 # Tareas — Spec 091
 
-- [ ] T1. Mensajes de DIgSILENT, causa en el Registro y marcas huérfanas. (RF-1 a RF-6)
+- [x] T1. Mensajes de DIgSILENT, causa en el Registro y marcas huérfanas. (RF-1 a RF-6)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "digsilent or marcas or causa"` en verde.
+      Evidencia (2026-11-07): 8 pasadas; `tests/test_pf_arnes*.py` con ellas, 36 pasadas.
 - [ ] T2. Las pestañas visitadas siguen montadas y otro espacio las reinicia. (RF-7, RF-8)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k pestanas` en verde.
 - [ ] T3. Clientes cruzados por su hoja. (RF-9 a RF-13)

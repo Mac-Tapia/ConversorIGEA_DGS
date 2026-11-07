@@ -207,7 +207,8 @@ export function FeedersPanel() {
       {!joinedGroup && withDgs.length < selected.length && (
         <p className="alert alert-warn">{selected.length - withDgs.length} seleccionado(s) no tienen DGS y se omitirán.</p>
       )}
-      <p className="muted">Requisito: PowerFactory instalado y, preferiblemente, abierto en el servidor.</p>
+      {/* 091:RF-5: pedía tenerlo abierto, y abierto a mano el arnés no puede usarlo (019:RF-13). */}
+      <p className="muted">Requisito: DIgSILENT instalado y cerrado: la web lo abre por su cuenta, y no puede usarlo si está abierto a mano.</p>
     </>);
     if (ok) await startJob(() => api.powerfactoryFlow(ws.id, selected));
   };

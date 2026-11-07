@@ -97,9 +97,10 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
     body = r.returncode === 0
       ? <p>Terminado correctamente.{r.report ? ` Informe: ${r.report}.` : ''}</p>
       : r.returncode === 3
-        ? <p className="alert alert-error">No se pudo conectar con PowerFactory. Ábralo y reintente.</p>
-        : <p className="alert alert-warn">El proceso devolvió el código {r.returncode}. Causas frecuentes: PowerFactory no está abierto, u
-          otro proceso tiene tomado su motor (solo admite uno a la vez). Detalle en el Registro.</p>;
+        // 091:RF-3: pedía abrirlo, y lo que hace falta es cerrarlo: la web lo abre por su cuenta.
+        ? <p className="alert alert-error">No se pudo usar DIgSILENT: si está abierto a mano, ciérrelo y vuelva a intentarlo. El detalle está en el Registro.</p>
+        : <p className="alert alert-warn">El proceso devolvió el código {r.returncode}. Causa frecuente: DIgSILENT abierto a mano u
+          otro proceso con su motor (solo admite uno a la vez). Detalle en el Registro.</p>;
   } else if (job.kind === 'catalog' && r) {
     body = <><p>{r.summary}</p><p>Descargue <b>{r.file}</b> en «Catálogo de parámetros», complete las columnas de ficha y vuelva a subirlo.</p></>;
   }

@@ -527,7 +527,7 @@ Configura `PF_PYTHON`/`PYTHONPATH` solo y ejecuta la puerta con
 | Código | Significado | Qué hacer |
 | --- | --- | --- |
 | `0` | Importado y aceptado | — |
-| `3` | **API de PowerFactory no disponible** | Abra PowerFactory, o revise `PF_PYTHON` / `PYTHONPATH` |
+| `3` | **API de PowerFactory no disponible** | Cierre DIgSILENT si está abierto a mano, o revise `PF_PYTHON` / `PYTHONPATH` |
 | otro | Fallo de importación, convergencia o estudios | Lea el `_powerfactory_acceptance.txt` |
 
 ### 5.5 Advertencia sobre `--fix-until-converge`

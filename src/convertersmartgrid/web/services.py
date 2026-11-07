@@ -106,6 +106,16 @@ def powerfactory_status(refresh: bool = False) -> dict[str, Any]:
     return _PF_CACHE
 
 
+def sin_conexion_digsilent() -> UserError:
+    """091:RF-1 a RF-3: el error de una acción sin DIgSILENT, con su causa y lo que hay que hacer.
+
+    Las seis acciones pedían abrirlo, y con DIgSILENT abierto a mano había que cerrarlo (TM102, 2026-11-05).
+    """
+    from ..pf_arnes import causa_sin_conexion
+
+    return UserError(causa_sin_conexion())
+
+
 def _require_pf() -> tuple[Path | None, Path]:
     status = powerfactory_status()
     pf_dir = Path(status['api_dir']) if status['api_dir'] else None
@@ -1703,7 +1713,7 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
             'el Registro); si sigue igual, cierre la ventana de PowerFactory si está '
             'abierta o compruebe la licencia, y vuelva a leer los proyectos.')
     if rc == 3:
-        raise UserError('No se pudo conectar con PowerFactory. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     if rc != 0 or not out.is_file():
         raise UserError(f'No se pudieron leer los proyectos de PowerFactory (código {rc}).')
     result = json.loads(out.read_text(encoding='utf-8'))
@@ -2165,7 +2175,7 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
                          cancel_file=flag)
     flag.unlink(missing_ok=True)
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     try:
         informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
     except (OSError, ValueError):
@@ -4164,7 +4174,7 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
                          cancel_file=flag)
     if rc == 3:
         flag.unlink(missing_ok=True)
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     informes = []
     # 025:RF-20: el año de los casos y de la medición, del plan que se ejecutó.
     try:
@@ -4554,7 +4564,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         ctx.log(f'[{index}/{len(jobs)}] Verificar el «Caso base» de {feeder} en {project}…')
         rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
         if rc == 3:
-            raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+            raise sin_conexion_digsilent()
         try:
             acceptance = json.loads(report.read_text(encoding='utf-8'))
         except (OSError, ValueError):
@@ -4610,7 +4620,7 @@ def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str
                           '--output-json', str(report)],
                          env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     try:
         informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
     except (OSError, ValueError):
@@ -4791,8 +4801,9 @@ def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
     else:
         rc = ctx.run_process(system_command(ws, action), cwd=str(project_root()))
     if rc != 0:
-        ctx.log(f'El proceso devolvió el código {rc}. Causas frecuentes: PowerFactory no '
-                'está abierto, u otro proceso tiene tomado su motor (solo admite uno).')
+        # 091:RF-3: pedía abrir PowerFactory, y la web lo abre sola si nadie lo tiene abierto a mano.
+        ctx.log(f'El proceso devolvió el código {rc}. Causa frecuente: DIgSILENT abierto a mano, u '
+                'otro proceso con su motor (solo admite uno).')
     return {'returncode': rc, 'action': action}
 
 
@@ -5587,7 +5598,7 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
     if flag is not None:
         flag.unlink(missing_ok=True)
     if rc == 3:
-        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        raise sin_conexion_digsilent()
     if rc == TIEMPO_AGOTADO:
         return rc, {'no_terminado': True,
                     'error': f'no terminó en su límite de {limite_s:g} s'}, report
