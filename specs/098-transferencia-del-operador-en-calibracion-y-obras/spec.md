@@ -148,6 +148,26 @@ bancos de nuevo», y que el oráculo decida y DIgSILENT confirme, sin cálculos 
 - RF-27: EL SISTEMA buscará los enlaces y las maniobras con lo que dice la red, para cualquier número de alimentadores,
   cualquier fuente y cualquier distribuidora, sin nombres de alimentador ni de barra.
 
+### Lo que dejó ver la T6 de «Con proyecto» (2026-11-07, job 11469a95f83e)
+
+La sonda de solo lectura del 2026-11-07 dio: las barras en T de las cargas nuevas de CA101 (Danper y Buganvilla) cuelgan
+de la segunda troncal de CA101, que sale de la misma barra de cabecera por otro cubículo y queda fuera de su
+`ElmFeeder` (305 barras, 75 cargas; 063:RF-39); el conversor sí las cuenta en CA101 (`ElmCompleto`) y midió sus
+tensiones. El paso a 22,9 kV dio las tensiones de sin obra al 1e-8 porque su flujo no convergía, la obra quedaba
+inactiva (011:RF-66) y se medía sin ella; se presentaba como «no cumple». CHN102, sin cargas nuevas, quedó en 0,73 p.u.
+en la zona que recibió y no se trató. Y el oráculo, equilibrado, daba 0,888 p.u. en 12431 y 0,817 en 12020, donde
+DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
+
+- RF-28: SI una variante queda inactiva en el caso donde se mide, o con ella no cambia ninguna tensión ni corriente
+  respecto de sin obra, ENTONCES EL SISTEMA la marcará «no aplicada» con su causa, no la contará como «no cumple» y lo
+  dirá en el registro.
+- RF-29: CUANDO un alimentador marcado del proyecto sin cargas nuevas tiene barras de media bajo el límite en «Con
+  proyecto», EL SISTEMA le hará su escalera con esas barras como objetivo, antes que a los demás, empezando por la
+  transferencia (de vuelta o por un enlace existente) y siguiendo desde los bancos, y aplicará la obra que lo corrija.
+- RF-30: DONDE el grafo del oráculo trae la tensión que midió DIgSILENT en la misma lectura, EL SISTEMA llevará la
+  caída de cada barra del oráculo a la medida, conservará esa proporción para cada obra que mida y dirá en el
+  registro el desvío medio y el máximo antes de corregir.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
@@ -168,6 +188,6 @@ bancos de nuevo», y que el oráculo decida y DIgSILENT confirme, sin cálculos 
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-27.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-30.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

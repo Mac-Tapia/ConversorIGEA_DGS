@@ -14,8 +14,16 @@
 | `tests/fake_pf.py` | `App.topologia_viva`: el `ElmFeeder` sigue lo que está en servicio y cerrado desde su cubículo, sin entrar por la cabecera de otro | pruebas |
 | T7: `transferencia_operador.py` | `red_del_dgs` (barras de cada rama por sus `StaCubic`), `frente_a_la_fuente` (particiones por la cadena de ramas y barras nuevas; lo demás nuevo, enlace del operador); en `tools/transferencia_operador_pf.py`, `red_de_la_fuente` lee `dgs_fuente` y `_por_ruta` busca por nombre completo; la web pasa `dgs_fuente` y la fecha del sello | 14, 16 a 19 |
 | T8: `obras_integrales.variantes_por_enlace`; `optimizacion_oraculo` (la obra «maniobra» en el grafo, `EspacioConObra`, `transferencias_con_oraculo`); `obras_pf` (clase «maniobra»: validación, plan y persistencia en el escenario); `tools/obras_pf.py` (`enlaces_existentes` en `--escalera-datos`, `construir_maniobra`, `cerrar_anotado` y su restitución, `_gps_por_la_red`); `escalera_optima.grupo_economico`; `services` (`_preparar_oraculo`, `_variantes_de_traspaso`, `obras_escalera`, `escalera_por_alimentador`) | 20 a 27 |
+| T9: `tools/obras_pf.py` (`sin_cambio`, «no aplicada» en `evaluar`, `bajas` en `--escalera-datos`); `tools/digital_twin_snapshot_pf.py` (`u_medida`); `optimizacion_oraculo.Oraculo` (corrección por barra); `services` (`_bajas_sin_cargas`, `_escalera_sin_cargas`, el desvío y la tabla); `tests/fake_pf.py` (una obra activa alivia la caída de su alimentador) | 28 a 30 |
 
 ## Decisiones
+
+- **Corregir el oráculo con DIgSILENT, barra por barra (T9).** El grafo se lee con el flujo hecho; la caída de cada
+  barra se escala a la medida. Descartado: resolver el flujo desequilibrado en el oráculo, que pide las fases de cada
+  carga y su conexión, que el grafo no trae. La corrección conserva el orden de las obras y corrige el sesgo donde está.
+- **Lo que no se aplicó no se mide.** Una obra inactiva en «Con proyecto» o sin efecto alguno se marca «no aplicada»;
+  el doble de pruebas alivia la caída del alimentador con una obra activa, para que esa comprobación no dé por no
+  aplicadas las obras de las pruebas de siempre.
 
 - **La transferencia por enlace existente, como una variante más del oráculo (T8).** El oráculo ya juzga la
   topología (`con_set_nueva` abre ramas): la maniobra es abrir una rama y cerrar el enlace en el mismo grafo. Así entra

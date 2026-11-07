@@ -916,3 +916,126 @@ def test_al_evaluar_la_transferencia_se_mide_y_todo_vuelve(monkeypatch, tmp_path
     _caso(app, CON).Activate()
     assert (seccionadores[1].on_off, enl.on_off) == (1, 0)
     assert obras.leer_aperturas(tmp_path / 'aperturas.json') == []
+
+
+# =========================================================================== 098:RF-28 a RF-30 (T6 de «Con proyecto», 2026-11-07)
+def test_la_variante_que_no_queda_aplicada_no_se_cuenta_como_no_cumple(monkeypatch):
+    """098:RF-28 — CA101 (job 11469a95f83e): «cambio a 22.9 kV» dio las tensiones de sin obra: su flujo no convergía,
+    la obra quedaba inactiva y se medía sin ella. Ahora se marca «no aplicada» con su causa."""
+    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_no_aplicada_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(28))
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', _terna)
+    _actual_no_cumple(monkeypatch)
+    f = alims[0]
+    antes = app.ldf.Execute
+
+    def no_converge_con_la_obra():
+        if any(str(v.loc_name).startswith('Obra_') for v in app.variaciones_activas):
+            app.ldf_valido = False
+            return 1
+        return antes()
+
+    app.ldf.Execute = no_converge_con_la_obra
+    plan = _plan_obras(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                       sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = obras.evaluar(app, plan)
+    assert codigo == 0, informe
+    (fila,) = informe['variantes']
+    assert fila['no_aplicada'].startswith('no aplicada') and 'inactiva' in fila['no_aplicada']
+    assert not fila['maxima'] and fila['error'] == fila['no_aplicada'] and 'u_cargas' not in fila
+
+
+def test_sin_cambio_alguno_es_no_aplicada():
+    """098:RF-28 — la comprobación permanente: mismas tensiones y cargas que sin obra."""
+    obras = cargar_herramienta('obras_pf.py', 'obras_sin_cambio_098', tools_en_path=True)
+    a = {'converge': True, 'u': {'B1': 0.95, 'B2': 0.93}, 'carga': {'L1': 50.0}}
+    assert obras.sin_cambio(a, {**a})
+    assert not obras.sin_cambio(a, {**a, 'u': {'B1': 0.95, 'B2': 0.9301}})
+    assert not obras.sin_cambio(a, {**a, 'carga': {'L1': 49.0}})
+    assert not obras.sin_cambio(a, {'converge': False})
+
+
+def test_la_lectura_da_las_barras_bajas_de_cada_alimentador():
+    """098:RF-29 — ``--escalera-datos`` dice qué barras de media quedan bajo el límite, de la más baja a la menos."""
+    from test_obras_pf_guion import _calibrada_con_escenario
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_bajas_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(29))
+    informe, codigo = obras.datos_escalera(app, _plan_obras(alims, barras={alims[1]: []}, tension_min_pu=0.9999))
+    assert codigo == 0, informe
+    bajas = informe['alimentadores'][alims[1]]['bajas']
+    assert bajas and [b['u'] for b in bajas] == sorted(b['u'] for b in bajas) and all(b['u'] < 0.9999 for b in bajas)
+
+
+def test_el_alimentador_sin_cargas_que_viola_limites_lleva_su_escalera(monkeypatch, tmp_path):
+    """098:RF-29 — CHN102 (2026-11-07) en 0,73 p.u. sin cargas nuevas no se trataba: ahora, antes que los demás, sube su
+    escalera con sus barras bajas, primero transfiriendo y después desde los bancos, y lo elegido se aplica."""
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.web import services
+
+    monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
+                        lambda ws, project: [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'}])
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
+    monkeypatch.setattr(services, '_bajas_sin_cargas', lambda ws, ctx, project, feeders, opciones: {'F2': ['F2_B3', 'F2_B2']})
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
+    llamadas = []
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, traspaso=False, previas=None, cargas_activas=None, **k):
+        f = feeders[0]
+        llamadas.append((f, 'aplica' if aplicar else 'mide', 'traspaso' if traspaso else 'escalera', bool(previas)))
+        elegida = 'bancos 2×300 kvar' if f == 'F2' and not traspaso else 'bancos' if f == 'F1' else None
+        return {'alimentadores': [{'alimentador': f, 'elegida': elegida, 'tabla': []}]}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    class _C:
+        def __init__(self):
+            self.textos = []
+
+        def log(self, t):
+            self.textos.append(t)
+
+        def check_cancel(self):
+            pass
+
+    ctx = _C()
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1', 'F2'])
+    de_f2 = [x for x in llamadas if x[0] == 'F2']
+    assert de_f2 == [('F2', 'mide', 'traspaso', True), ('F2', 'mide', 'escalera', True), ('F2', 'aplica', 'escalera', True)]
+    assert llamadas.index(de_f2[0]) < next(i for i, x in enumerate(llamadas) if x[0] == 'F1')
+    f2 = r['por_alimentador']['F2']
+    assert f2['sin_cargas_nuevas'] and f2['cumple'] and f2['barras_bajas'] == ['F2_B3', 'F2_B2']
+    assert any('098:RF-29' in t for t in ctx.textos)
+    assert eo is not None
+
+
+def test_el_oraculo_se_corrige_con_lo_que_midio_digsilent():
+    """098:RF-30 — CA101 + CHN102: el oráculo equilibrado daba 0,888 donde DIgSILENT medía 0,829. Con la tensión de
+    DIgSILENT en el grafo, cada barra se lleva a lo medido y una obra mueve la caída en la misma proporción."""
+    pytest.importorskip('scipy')
+    from convertersmartgrid import optimizacion_oraculo as oo
+
+    nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X', 'barra': 'A4'}
+    crudo = oo.Oraculo(_grafo_dos(), [nueva])
+    sin = crudo.medir([], 1)
+    g = _grafo_dos()
+    medido = {}
+    for n, d in g['nodos'].items():
+        corto = n.rsplit('\\', 1)[-1].rsplit('.', 1)[0]
+        if corto in sin.u and not d.get('fuente'):
+            medido[corto] = d['u_medida'] = 1.0 - 1.5 * (1.0 - sin.u[corto])      # DIgSILENT: 50 % más caída
+    ora = oo.Oraculo(g, [nueva])
+    con = ora.medir([], 1)
+    assert all(con.u[b] == pytest.approx(medido[b], abs=1e-9) for b in medido)
+    assert ora.desvio['barras'] == len(medido) and ora.desvio['max_pu'] > 0
+    banco = [{'clase': 'condensador', 'barra': 'A4', 'q_kvar': 900.0}]
+    sube_crudo = crudo.medir(banco, 1).u['A4'] - sin.u['A4']
+    sube = ora.medir(banco, 1).u['A4'] - con.u['A4']
+    assert sube == pytest.approx(1.5 * sube_crudo, rel=1e-6)
+    assert ora.medir([], 1).v_min == pytest.approx(min(medido.values()), abs=1e-9)

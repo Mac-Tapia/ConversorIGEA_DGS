@@ -818,6 +818,19 @@ def _flujos_por_rama(alim, raiz, cargas, gens):
                 object.__setattr__(tr, 'm_Qsum:bushv', c.qlini * c.scale0)
 
 
+def _tocado_por_obras(app, alim) -> bool:
+    """Si lo graba o lo crea una variación de obras activa («Obra_…») en el alimentador."""
+    tocados = set()
+    for v in app.variaciones_activas:
+        if str(v.loc_name).startswith('Obra_'):
+            for etapa in v.GetContents('*.IntSstage'):
+                tocados |= set(etapa._deltas) | {id(o) for o in etapa._creados}
+    if not tocados:
+        return False
+    return any(id(o) in tocados for clase in ('ElmLne', 'ElmTerm', 'ElmShnt', 'ElmTr2', 'ElmCoup', 'ElmLod')
+               for o in alim.GetObjs(clase))
+
+
 class FlujoConPerdidas(Orden):
     """``ComLdf`` que calcula la cabecera de cada alimentador (spec 006).
 
@@ -899,8 +912,11 @@ class FlujoConPerdidas(Orden):
             rama, lado = cub.obj_id, cub.obj_bus + 1
             object.__setattr__(rama, f'm_Psum:bus{lado}', p + self.rp * s2)
             object.__setattr__(rama, f'm_Qsum:bus{lado}', q + self.rq * s2 - self.cables)
+            # 098:RF-28: una obra activa en el alimentador cambia su red: aquí, la caída un 2 % menor. Sin esto, en el doble
+            # ninguna obra cambiaba ninguna tensión y la escalera no distinguía una obra medida de una sin aplicar.
+            alivio = 0.98 if _tocado_por_obras(app, alim) else 1.0
             for i, b in enumerate(alim.GetObjs('ElmTerm')):
-                object.__setattr__(b, 'm_u', 1.0 - 0.01 * i * p)
+                object.__setattr__(b, 'm_u', 1.0 - 0.01 * i * p * alivio)
             for tr in alim.GetObjs('ElmTr2'):
                 carga = next((c for c in cargas if c.loc_name == tr.loc_name.removeprefix('TR_')), None)
                 s = math.hypot(carga.plini, carga.qlini) if carga else 0.0

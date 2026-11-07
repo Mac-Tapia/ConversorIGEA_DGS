@@ -92,6 +92,38 @@ class Oraculo:
         self.nodo_de = {nombre_corto(n): n for n in nodos}
         self.rama_de = {nombre_corto(str(r.get('id'))): i for i, r in enumerate(self._ramas)}
         self._lineas = {str(r.get('id')) for r in self._ramas if r.get('clase', 'ElmLne') == 'ElmLne'}
+        self.correccion: dict[str, float] = {}
+        self.desvio: dict[str, Any] | None = None
+        self._corregir_con_lo_medido()
+
+    def _corregir_con_lo_medido(self) -> None:
+        """098:RF-30: la caída de cada barra, llevada a la que midió DIgSILENT en la misma lectura.
+
+        CA101 + CHN102 (2026-11-07): el oráculo, equilibrado, daba 0,888 p.u. en 12431 y 0,817 en 12020 donde
+        DIgSILENT (flujo desequilibrado, ``iopt_net=1``) medía 0,829 y 0,730, y daba por cercanas variantes que
+        DIgSILENT dejaba muy lejos. El grafo se lee con todas las cargas nuevas activas y con el flujo hecho: por barra,
+        ``k = (1 − u_medida) / (1 − u_oráculo)``, acotado, y cada medida después da ``1 − k·(1 − u)``. Sin
+        ``u_medida`` (otras lecturas) no cambia nada.
+        """
+        medidas = {nombre_corto(n): float(d['u_medida']) for n, d in self._nodos.items()
+                   if d.get('u_medida') is not None and float(d.get('kv') or 0.0) >= KV_MEDIA_MIN}
+        if not medidas:
+            return
+        base = self.medir([], len(self.nuevas))
+        if not base.converge:
+            return
+        k, desvios = {}, []
+        for b, um in medidas.items():
+            uo = base.u.get(b)
+            if uo is None:
+                continue
+            desvios.append(uo - um)
+            if 1.0 - uo > 1e-4:
+                k[b] = min(max((1.0 - um) / (1.0 - uo), CORRECCION_MIN), CORRECCION_MAX)
+        self.correccion = k
+        self.desvio = {'barras': len(desvios),
+                       'medio_pu': round(sum(desvios) / len(desvios), 4) if desvios else None,
+                       'max_pu': round(max(desvios, key=abs), 4) if desvios else None}
 
     # ------------------------------------------------------------------ el grafo de una variante
     def _ramas_con(self, obras: Sequence[Mapping[str, Any]], avisos: list[str]) -> list[dict]:
@@ -217,6 +249,12 @@ class Oraculo:
         # transformador al 104 % y por una barra de baja ya fuera de límites.
         media = np.array([float(self._nodos[n].get('kv') or 0.0) >= KV_MEDIA_MIN for n in m.ids])
         energ = m.alimentado & ~m.fuente & media
+        if self.correccion:                                                   # 098:RF-30
+            v = v.copy()
+            for i, n in enumerate(m.ids):
+                f = self.correccion.get(nombre_corto(n))
+                if f is not None:
+                    v[i] = 1.0 - f * (1.0 - v[i])
         u = {nombre_corto(n): float(v[i]) for i, n in enumerate(m.ids) if m.alimentado[i] and media[i]}
         carga = {}
         if len(m.z):
@@ -283,7 +321,10 @@ class Oraculo:
                             'r_ohm': float(r.get('r_ohm_km') or 0.0) * d,
                             'x_ohm': float(r.get('x_ohm_km') or 0.0) * d,
                             'inom_ka': float(r.get('inom_ka') or 0.0), 'cerrada': True})
-        return Oraculo({'nodos': nodos, 'ramas': ramas_g}, self.nuevas, self.tipos, self.exponente)
+        nuevo = Oraculo({'nodos': nodos, 'ramas': ramas_g}, self.nuevas, self.tipos, self.exponente)
+        # 098:RF-30: la corrección es de la red leída; con la SET nueva se conserva la de cada barra, no se recalcula.
+        nuevo.correccion, nuevo.desvio = dict(self.correccion), self.desvio
+        return nuevo
 
     # ------------------------------------------------------------------ criterio con k cargas
     def barras_de(self, k: int, alimentador: str | None = None) -> list[str]:
@@ -879,6 +920,8 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
 
 
 # =========================================================================== 098:RF-21 a RF-27: transferir por un enlace que ya existe
+#: 098:RF-30: cuánto puede corregir el oráculo la caída de una barra con lo medido en DIgSILENT.
+CORRECCION_MIN, CORRECCION_MAX = 0.5, 3.0
 #: Transferencias que el oráculo deja pasar a la combinación con la escalera y a DIgSILENT (098:RF-26).
 TRANSFERENCIAS_A_CONFIRMAR = 3
 #: Búsqueda bayesiana de bancos con la topología de cada transferencia: menos que la de la escalera, porque se repite

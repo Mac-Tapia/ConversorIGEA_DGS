@@ -1173,9 +1173,16 @@ def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
     sin_u = {'RAMAL': 0.9452, 'PEOR': 0.9601, 'BIEN': 0.98}
     con_u = {'RAMAL': 0.9449, 'NUEVA_T': 0.9440, 'BIEN': 0.97, 'CARGA': 0.963}
 
+    vistas = []
+
     def medida(app_, _alims, _feeders, **_k):
         sin = app_.GetActiveStudyCase().loc_name.startswith('Sin')
-        return {'converge': True, 'u': sin_u if sin else con_u, 'carga': {}, 'perdidas_kw': 1.0}
+        vistas.append(sin)
+        # «Con proyecto» sin la obra (la primera medida de él) deja la carga algo más baja: con la obra cambia algo,
+        # o la evaluación la daría por no aplicada (098:RF-28).
+        primera_con = not sin and vistas.count(False) == 1
+        return {'converge': True, 'u': sin_u if sin else {**con_u, 'CARGA': 0.9625} if primera_con else con_u,
+                'carga': {}, 'perdidas_kw': 1.0}
 
     monkeypatch.setattr(guion, 'medida_para_criterio', medida)
     plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],

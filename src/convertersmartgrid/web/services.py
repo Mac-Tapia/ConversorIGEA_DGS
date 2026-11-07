@@ -6418,6 +6418,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                      if c.get('variacion') and c['variacion'] not in activas)
         cargas = [c for c in cargas if c.get('variacion') in activas]
     con_cargas = [f for f in feeders if any(clave_codigo(c.get('alimentador')) == clave_codigo(f) for c in cargas)]
+    # 098:RF-29: el que viola límites sin cargas nuevas sube la escalera con sus barras bajas.
+    con_cargas += [f for f in feeders if previas and previas.get(f) and f not in con_cargas]
     if not con_cargas:
         if cargas_activas is not None:
             return {'project': project.strip(), 'anio_casos': anio_casos, 'alimentadores': [], 'avisos': []}
@@ -6658,6 +6660,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                                   'factible', 'perdidas_kw', 'error', 'sin_sortear',
                                                   'u_cargas', 'u_min_mt', 'carga_max_pct',  # 063:RF-28, 087:RF-22
                                                   'bajo_limite',                            # 086:RF-48
+                                                  'no_aplicada',                            # 098:RF-28
                                                   'valle', 'valle_motivos', 'valle_u_max', 'valle_nodo',
                                                   'valle_fecha', 'valle_sin_comprobar',
                                                   'valle_casos')}                           # 073:RF-30, RF-39
@@ -6668,6 +6671,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                               'ubicacion': [eo.ubicacion(o) for o in getattr(
                                   por_nombre.get(t.get('nombre')), 'obras', [])]}
                            for t in decision['tabla']])
+        for t in fila['tabla']:                                                  # 098:RF-28
+            if t.get('no_aplicada'):
+                fila['avisos'].append(f"{f}: «{t['nombre']}»: {t['no_aplicada']}; no se cuenta como «no cumple» (098:RF-28).")
+                ctx.log(f"{f}: «{t['nombre']}»: {t['no_aplicada']} (098:RF-28).")
         if decision.get('aviso_valle'):                                          # 073:RF-20
             fila['avisos'].append(f"{f}: {decision['aviso_valle']}")
         if decision.get('sin_comprobar_valle'):                                  # 073:RF-24
@@ -6921,6 +6928,74 @@ def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: li
     return c
 
 
+def _bajas_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], opciones: dict) -> dict[str, list]:
+    """098:RF-29: de cada alimentador marcado sin cargas nuevas, sus barras de media bajo el límite en «Con proyecto»."""
+    from .. import escalera_optima as eo
+    from ..perfil_empresa import PerfilError, completar_planeamiento, datos_perfil
+
+    try:
+        perfil, _sup = completar_planeamiento(datos_perfil(), opciones.get('tipo_cambio'))
+        p = eo.parametros(perfil, opciones.get('tipo_cambio'))
+    except (eo.EscaleraError, PerfilError) as exc:
+        raise UserError(str(exc)) from exc
+    out: dict[str, list] = {}
+    for f in feeders:
+        ctx.check_cancel()
+        plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': opciones.get('anio_casos'),
+                'native_action_context': native_action_context(ws, project, [f], 'obras'), 'feeders': [f],
+                'barras': {f: []}, 'tension_min_pu': p.tension_min_pu, 'cargabilidad_max_pct': p.cargabilidad_max_pct,
+                'apartar_cargas_de': [], 'apartar_variaciones': []}
+        rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='escalera_datos', args=('--escalera-datos',))
+        d = (datos.get('alimentadores') or {}).get(f) or {}
+        if rc or datos.get('error'):
+            ctx.log(f"{f}: no se pudo leer si viola límites ({datos.get('error') or rc}) (098:RF-29).")
+            continue
+        out[f] = [b['barra'] for b in d.get('bajas') or []]
+    return out
+
+
+def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], activas: list[str],
+                         memo: dict, opciones: dict) -> dict[str, dict]:
+    """098:RF-29: el alimentador del proyecto que viola límites en «Con proyecto» sin cargas nuevas sube su escalera.
+
+    CA101 + CHN102 (2026-11-07): CHN102 quedó en 0,73 p.u. en la zona que recibió y solo se trabajó CA101, que tenía
+    las cargas nuevas. «Obras solo si hay problemas»: aquí los hay. Primero la transferencia (de vuelta o por un enlace
+    que ya existe, 098:RF-21), después la escalera de siempre desde los bancos, con sus barras bajas como objetivo
+    (042:RF-64) y todas las cargas nuevas del proyecto activas. Lo que se elige se aplica.
+    """
+    out: dict[str, dict] = {}
+    for f, barras in _bajas_sin_cargas(ws, ctx, project, feeders, opciones).items():
+        if not barras:
+            ctx.log(f'{f}: sin cargas nuevas y dentro de límites en «Con proyecto»: no lleva obras (098:RF-29).')
+            continue
+        ctx.log(f"{f}: sin cargas nuevas, con {len(barras)} barra(s) bajo el límite en «Con proyecto» (la más baja "
+                f"{barras[0]}): sube su escalera, primero transfiriendo (098:RF-29).")
+        comun = {'cargas_activas': activas, 'basta_una': True, 'memo': memo, 'por_alternativas': True,
+                 'previas': {f: barras}, 'etiqueta_previas': 'sin cargas nuevas, fuera de límites', **opciones}
+        fila, traspaso = {}, False
+        for con_traspaso in (True, False):
+            ctx.check_cancel()
+            r = obras_escalera(ws, ctx, project, [f], aplicar=False, traspaso=con_traspaso, **comun)
+            fila = next(iter(r.get('alimentadores') or []), {})
+            if fila.get('elegida') or fila.get('ya_cumple'):
+                traspaso = con_traspaso
+                break
+        escalera = None
+        if fila.get('elegida') and not fila.get('ya_cumple'):
+            e = fila['elegida']
+            elegida = str(e.get('nombre') if isinstance(e, dict) else e)
+            ctx.check_cancel()
+            escalera = obras_escalera(ws, ctx, project, [f], aplicar=True, traspaso=traspaso, solo={f: elegida}, **comun)
+        ok = bool(fila.get('elegida') or fila.get('ya_cumple'))
+        ctx.log(f"{f}: " + (f"se corrige con «{fila.get('elegida')}» (098:RF-29)." if fila.get('elegida') else
+                            'ninguna obra de su escalera lo corrige (098:RF-29).' if not ok else 'ya cumple (098:RF-29).'))
+        out[f] = {'resumen': {'cargas': 0, 'kw': 0.0, 'cumple': ok, 'sin_cargas_nuevas': True, 'barras_bajas': barras,
+                              'alternativas': fila.get('alternativas') or [], 'ya_cumple': bool(fila.get('ya_cumple')),
+                              'elegida': fila.get('elegida'), 'bajo_limite': fila.get('bajo_limite')},
+                  'escalera': escalera}
+    return out
+
+
 def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                              anio_casos: int | None = None, tipo_cambio: float | None = None,
                              capex: str | None = None, cargas: list[str] | None = None,
@@ -6957,6 +7032,19 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     de_oraculo = seleccion.get('alimentadores') or {}
     modelo = _modelo_de_obras(ctx) if de_oraculo else None                            # 087:RF-18 a RF-20
     medidas: list[dict] = []
+    # 098:RF-29: antes, los marcados sin cargas nuevas que violan límites en «Con proyecto»: su escalera, con la
+    # transferencia primero. Arreglado el que recibió, el que cede vuelve a tener a quién transferir.
+    sin_cargas = [f for f in feeders if f not in por_alim]
+    if sin_cargas:
+        de_sin = _escalera_sin_cargas(ws, ctx, project, sin_cargas, [c['variacion'] for c in aplicadas], memo, opciones)
+        for f, r in de_sin.items():
+            por_feeder[f] = r['resumen']
+            if r.get('escalera'):
+                if escalera is None:
+                    escalera = r['escalera']
+                else:
+                    escalera['alimentadores'] = list(escalera.get('alimentadores') or []) + list(
+                        r['escalera'].get('alimentadores') or [])
     for f, cs in sorted(por_alim.items()):
         e_or = de_oraculo.get(f)
         if e_or and modelo is not None:
@@ -7226,6 +7314,10 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                      tipos={str(t.get('nombre')): t.get('datos') or {} for t in tipos_lista}, pinn=pinn)
     if not ora.medir([], 0).converge:
         raise _SinOraculo('el flujo del oráculo no converge sin obras')
+    if ora.desvio:                                                                     # 098:RF-30
+        ctx.log(f"Oráculo frente a DIgSILENT en {ora.desvio['barras']} barras de media: desvío medio "
+                f"{ora.desvio['medio_pu']:+.4f} p.u., máximo {ora.desvio['max_pu']:+.4f} p.u.; cada barra se corrige "
+                'con lo medido (098:RF-30).')
     # RF-14: los sorteos por la cadena de Markov de la curva de cabecera del año.
     instantes: dict = {}
     for f, curva in (comun.get('curvas') or {}).items():
