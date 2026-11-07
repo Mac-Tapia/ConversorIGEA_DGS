@@ -78,6 +78,22 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 | 0.5 `raiz_componente` en un worktree | sin cambio a propósito: un worktree no debe escribir en los datos del clon principal; para compartirlos está `CSG_WEB_DATA` | — |
 | 0.6 Archivar worktrees | pendiente de la decisión del usuario | — |
 
+## 1.6 Avance de la fase 1 (2026-11-06 noche)
+
+| Punto | Resultado | Commit |
+| --- | --- | --- |
+| 086 T5, T38, T39 | ya estaban en `main` (042:RF-61, RF-62, RF-64, RF-70, RF-71); su medida en DIgSILENT es la 042 T42 y T44 | 68d03109 |
+| 094 T4 | perfil en la web (SVG con el límite) y en el informe de estudio; guardado con la calibración | 2fab76c7 |
+| 094 T6 | perfil completo antes y después de cada propuesta, con su comparación | 816cefe3 |
+| 094 T7 | espera la sonda T10 [DIgSILENT]: la referencia de PF 2024 no dice cómo se liga el `VisPath` al alimentador | — |
+| 049 T1–T3 | en curso en un worktree aparte; los datos de protecciones no existen en ninguna fuente, así que el resultado honesto es «bloqueado, con lo que falta» | — |
+| 072 T13 | sin cambios: la carpeta de la Res. 181-2026-OS/CD no está publicada (lo comprobó otra sesión el mismo día) | — |
+| 027 T26 | espera a que la cuenta de Codex admita un modelo, y a la GPU | — |
+| Fase 2 | campaña integral lanzada en la GPU (`output/asistente_integral_20261106.json`) | — |
+
+Con 0,8 GB de memoria libre (procesos del editor y de otras sesiones), DIgSILENT no se abre en paralelo con el
+entrenamiento: la fase 3 empieza al terminar la fase 2.
+
 ## 2. Plan de cierre
 
 Reglas: una tarjeta o trabajo pesado a la vez (DIgSILENT, GPU, suite), integrar cada una antes de la
