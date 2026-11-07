@@ -87,8 +87,9 @@ from convertersmartgrid import sitio_set
 from convertersmartgrid.vias import ruta_por_vias
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.obras_pf import (
-    ATRIBUTOS_TIPO, BANDA_TENSION_PU, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
-    diferencias_sin_proyecto, foto_de_referencia, mismos_datos, plan_simulacion, red_de_lectura, resolver_copia,
+    ATRIBUTOS_TIPO, BANDA_TENSION_PU, ESTADO_SERVICIO, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
+    clasificar_restos, diferencias_sin_proyecto, escribir_aperturas, fichero_aperturas, foto_de_referencia,
+    fuera_de_servicio, leer_aperturas, mismos_datos, misma_apertura, plan_simulacion, red_de_lectura, resolver_copia,
     resumen_tipo, tipo_de_ficha, validar_obra, veredicto_persistencia,
 )
 from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
@@ -1093,13 +1094,11 @@ def construir_migracion_camino(ctx) -> None:
         if donde in dentro and math.isclose(float(getattr(banco, 'ushnm', 0) or 0), origen):
             banco.ushnm = destino
     for ramal in camino.ramales:
-        # 042:RF-19: anotado antes de abrirlo, para volver a cerrarlo si la obra no llega a quedar.
+        # 042:RF-19, 081:RF-80: anotado antes de abrirlo, para volver a cerrarlo si la obra no llega a quedar.
         if ramal in lineas:
-            fila.setdefault('abiertos', []).append(['ElmLne', ramal])
-            lineas[ramal].outserv = 1
+            abrir(ctx, 'ElmLne', lineas[ramal])
         else:
-            fila.setdefault('abiertos', []).append(['ElmCoup', ramal])
-            acopladores[ramal].on_off = 0
+            abrir(ctx, 'ElmCoup', acopladores[ramal])
     a_medias = ([b.loc_name for b in a_cambiar if not math.isclose(float(b.uknom), destino)]
                 + [n for n in camino.ramales if (n in lineas and not int(lineas[n].outserv))
                    or (n in acopladores and int(acopladores[n].on_off))])
@@ -1252,10 +1251,12 @@ def construir_migracion(ctx) -> None:
             _elevador_dedicado(ctx, cabecera, barras.get(o.nodo), origen, destino)   # 042:RF-61
         for banco in bancos:
             banco.ushnm = destino
+    # 081:RF-80: la transferencia y el traslado (087:RF-31) abrían la entrada sin anotarla: al cortarse la escalera en
+    # Pisco (2026-11-07), nada la volvió a cerrar y «Con proyecto» quedó con 724 barras de media sin tensión.
     if entrada in lineas:
-        lineas[entrada].outserv = 1
+        abrir(ctx, 'ElmLne', lineas[entrada])
     elif entrada in acopladores:
-        acopladores[entrada].on_off = 0
+        abrir(ctx, 'ElmCoup', acopladores[entrada])
     if nuevos:
         fila['avisos'].append(f'La parte que pasa tiene tramos que no estaban en la simulación '
                               f'(los que partió un enlace o cierran un anillo): '
@@ -1576,11 +1577,9 @@ def construir_set_nueva(ctx) -> None:
         lineas_f = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
         acopladores = {c.loc_name: c for c in elm.GetObjs('ElmCoup')}
         if parte.entrada in lineas_f:
-            lineas_f[parte.entrada].outserv = 1
-            ctx.fila.setdefault('abiertos', []).append(['ElmLne', parte.entrada])     # 042:RF-19
+            abrir(ctx, 'ElmLne', lineas_f[parte.entrada])                               # 042:RF-19, 081:RF-80
         elif parte.entrada in acopladores:
-            acopladores[parte.entrada].on_off = 0
-            ctx.fila.setdefault('abiertos', []).append(['ElmCoup', parte.entrada])
+            abrir(ctx, 'ElmCoup', acopladores[parte.entrada])
         tipo = (ctx.tipo('TypLne', o.tipo.nombre) if o.tipo is not None else
                 getattr(lineas_f.get((rama_red.troncal or ('',))[0]), 'typ_id', None))
         if tipo is None:
@@ -1717,11 +1716,9 @@ def construir_expreso(ctx) -> None:
         lineas_f = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
         acopladores = {c.loc_name: c for c in elm.GetObjs('ElmCoup')}
         if parte.entrada in lineas_f:
-            lineas_f[parte.entrada].outserv = 1
-            ctx.fila.setdefault('abiertos', []).append(['ElmLne', parte.entrada])     # 042:RF-19
+            abrir(ctx, 'ElmLne', lineas_f[parte.entrada])                               # 042:RF-19, 081:RF-80
         elif parte.entrada in acopladores:
-            acopladores[parte.entrada].on_off = 0
-            ctx.fila.setdefault('abiertos', []).append(['ElmCoup', parte.entrada])
+            abrir(ctx, 'ElmCoup', acopladores[parte.entrada])
         tipo = (ctx.tipo('TypLne', ctx.obra.tipo.nombre) if ctx.obra.tipo is not None else
                 getattr(lineas_f.get((rama_red.troncal or ('',))[0]), 'typ_id', None))
         if tipo is None:
@@ -1949,10 +1946,10 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
     if conjunto:
         return                    # 042:RF-23: el flujo es del plan completo, después de crearlas todas
     for rol in roles:                                                     # RF-66
-        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol)
+        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol, plan=plan)
 
 
-def flujo_del_plan(app, proyecto, casos, filas: list[dict]) -> dict:
+def flujo_del_plan(app, proyecto, casos, filas: list[dict], plan: dict | None = None) -> dict:
     """042:RF-23: un solo flujo de «Con proyecto» con todas las obras del plan; si no converge, se apagan todas."""
     con = [f for f in filas if f.get('variacion') and not f.get('error')]
     if not con or 'con' not in casos:
@@ -1970,7 +1967,7 @@ def flujo_del_plan(app, proyecto, casos, filas: list[dict]) -> dict:
                        con[0]['alimentador'], {}, {})
     for f in con:
         _variacion(app, f['variacion']).Deactivate()
-        cerrar_lo_abierto(app, f)                                             # 042:RF-19
+        cerrar_lo_abierto(app, f, plan)                                       # 042:RF-19
         f['flujo'][nombre]['diagnostico'] = diag
         f['avisos'].append(f'Con el plan completo ({len(con)} obras), el flujo de «{nombre}» no converge: '
                            'quedan inactivas y se conservan en el proyecto (042:RF-23).')
@@ -2017,13 +2014,14 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         # (una Obra_migracion_IN111 inactiva con 1457 objetos, 2026-10-15).
         variacion.Deactivate()
         variacion.Delete()
-        cerrar_lo_abierto(app, fila)                                          # 042:RF-19
+        cerrar_lo_abierto(app, fila, plan)                                    # 042:RF-19
         fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
         return
 
 
 
-def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, rol: str) -> None:
+def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, rol: str,
+                       plan: dict | None = None) -> None:
     """El flujo del caso con la obra activa; si no converge, la obra queda inactiva allí."""
     nombre = NOMBRES[rol]
     casos[rol].Activate()
@@ -2036,28 +2034,307 @@ def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, 
     fila['flujo'][nombre]['diagnostico'] = diagnostico(
         Alimentadores(app, proyecto, [obra.alimentador]), obra.alimentador, {}, {})
     variacion.Deactivate()
-    cerrar_lo_abierto(app, fila)                                              # 042:RF-19
+    cerrar_lo_abierto(app, fila, plan)                                        # 042:RF-19
     fila['avisos'].append(f'Con la obra, el flujo de «{nombre}» no converge: queda inactiva '
                           'en ese caso y se conserva en el proyecto.')
 
 
-def cerrar_lo_abierto(app, fila: dict) -> list[str]:
-    """042:RF-19: abrir es dato del escenario; con la obra inactiva, lo abierto se vuelve a cerrar en el caso activo."""
+def cerrar_lo_abierto(app, fila: dict, plan: dict | None = None) -> list[str]:
+    """042:RF-19: abrir es dato del escenario; con la obra inactiva, lo abierto se vuelve a cerrar en el caso activo.
+
+    081:RF-81: también lo que quedó fuera de servicio, que ``GetCalcRelevantObjects`` no devuelve; y sale del registro.
+    """
     cerrados = []
-    for clase, nombre in fila.get('abiertos') or []:
-        for obj in app.GetCalcRelevantObjects(f'{nombre}.{clase}') or []:
-            if clase == 'ElmCoup':
-                obj.on_off = 1
-            else:
-                obj.outserv = 0
+    for entrada in fila.get('abiertos') or []:
+        clase, nombre = entrada[0], entrada[1]
+        for obj in _con_nombre(app, clase, nombre):
+            _cerrar(clase, obj)
             cerrados.append(nombre)
     if cerrados:
         fila.setdefault('avisos', []).append('La obra quedó inactiva: se vuelven a cerrar ' + ', '.join(cerrados)
                                              + ', que había abierto (042:RF-19).')
+    if plan is not None:
+        quitar_aperturas(plan, [fila])
     return cerrados
 
 
-def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe) -> None:
+# =========================================================================== aperturas (081:RF-80 a RF-85)
+# Abrir un tramo o una llave es dato de operación: con el escenario del caso activo, DIgSILENT lo guarda en el escenario y
+# no en la etapa de la variación que graba (042:RF-19; referencia de Python de PF 2024, IntScenario: «Saves the current
+# active value of all operational attributes», y el escenario manda sobre la red). Borrar la variación de una variante no
+# lo deshace. Pisco (2026-11-07): la escalera se cortó mientras medía una transferencia (087:RF-31) y «Con proyecto» se
+# quedó con SEC_1091_1055499 y SEC_1091_957116 fuera de servicio, 724 barras de media sin tensión y la confirmación
+# conjunta rehaciendo obras sobre una red rota. Por eso cada apertura se anota antes de hacerla, en la fila y en disco, y
+# se restituye al borrar la variante o al empezar la orden siguiente.
+
+def _con_nombre(app, clase: str, nombre: str) -> list:
+    """Los elementos con ese nombre, también fuera de servicio: ``GetCalcRelevantObjects`` no devuelve esos (RF-81)."""
+    # Por el nombre también aquí: el doble filtra el patrón solo por la clase.
+    vivos = [o for o in (app.GetCalcRelevantObjects(f'{nombre}.{clase}') or []) if getattr(o, 'loc_name', nombre) == nombre]
+    if vivos or not hasattr(app, 'GetProjectFolder'):
+        return vivos
+    donde = app.GetProjectFolder('netdat') or app.GetActiveProject()
+    return [o for o in ((donde.GetContents(f'{nombre}.{clase}', 1) if donde is not None else None) or [])
+            if o.loc_name == nombre and o.GetClassName() == clase]
+
+
+def _cerrar(clase: str, obj) -> None:
+    if clase in ('ElmCoup', 'StaSwitch'):
+        obj.on_off = 1
+    if clase != 'StaSwitch':
+        obj.outserv = 0
+
+
+def abrir(ctx, clase: str, obj) -> None:
+    """081:RF-80: anota la apertura en la fila y en el registro de disco, y después abre."""
+    caso = getattr(ctx.app.GetActiveStudyCase(), 'loc_name', '') or ''
+    ctx.fila.setdefault('abiertos', []).append([clase, obj.loc_name, caso])                 # 042:RF-19
+    if ctx.plan.get('project'):
+        ruta = fichero_aperturas(ctx.plan)
+        entradas = leer_aperturas(ruta)
+        entradas.append({'proyecto': ctx.plan['project'], 'caso': caso, 'clase': clase, 'nombre': obj.loc_name,
+                         'variacion': ctx.fila.get('variacion') or '', 'evaluando': bool(ctx.plan.get('evaluando')),
+                         'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')})
+        try:
+            escribir_aperturas(ruta, entradas)
+        except OSError as exc:
+            ctx.fila.setdefault('avisos', []).append(f'No se pudo anotar en disco la apertura de {obj.loc_name}: {exc}; '
+                                                     'si la orden muere, no se restituirá sola (081:RF-80).')
+    if clase in ('ElmCoup', 'StaSwitch'):
+        obj.on_off = 0
+    else:
+        obj.outserv = 1
+
+
+def quitar_aperturas(plan: dict, filas: list[dict]) -> None:
+    """Saca del registro las aperturas de ``filas``: ya restituidas, o de una obra que queda aplicada (RF-81)."""
+    if not plan.get('project'):
+        return
+    propias = [{'caso': (e[2] if len(e) > 2 else ''), 'clase': e[0], 'nombre': e[1]}
+               for f in filas for e in (f.get('abiertos') or [])]
+    if not propias:
+        return
+    ruta = fichero_aperturas(plan)
+    entradas = leer_aperturas(ruta)
+    # Sin la variación en la comparación: al fallar una obra, su fila pierde el nombre de la variación (``_grabar_una``).
+    quedan = [e for e in entradas if not any(misma_apertura({**e, 'variacion': None}, {**p, 'variacion': None})
+                                             for p in propias)]
+    if len(quedan) != len(entradas):
+        try:
+            escribir_aperturas(ruta, quedan)
+        except OSError:
+            pass
+
+
+def restituir_lo_abierto(app, casos: dict, filas: list[dict], plan: dict) -> list[str]:
+    """081:RF-81: lo que abrieron las obras de una variante, otra vez cerrado en el caso donde se abrió.
+
+    Al borrar la variante se borra lo que grabó su variación, pero no lo que el escenario guardó al abrir."""
+    por_caso: dict[str, list] = {}
+    for f in filas:
+        for e in f.get('abiertos') or []:
+            por_caso.setdefault(e[2] if len(e) > 2 else '', []).append(e)
+    if not por_caso:
+        return []
+    por_nombre = {c.loc_name: c for c in casos.values()}
+    cerrados = []
+    for caso, entradas in por_caso.items():
+        if por_nombre.get(caso) is not None:
+            por_nombre[caso].Activate()
+        for e in entradas:
+            for obj in _con_nombre(app, e[0], e[1]):
+                _cerrar(e[0], obj)
+                cerrados.append(e[1])
+    quitar_aperturas(plan, filas)
+    return cerrados
+
+
+def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[dict]:
+    """081:RF-82: al empezar una orden, lo que dejó abierto una orden de obras que no terminó, otra vez cerrado.
+
+    Lo de una obra aplicada (no evaluada) cuya variación sigue activa en su caso es la obra: se respeta. Lo restituido se
+    guarda en el escenario del caso y el informe lo dice con su lista."""
+    if not plan.get('project'):
+        return []
+    ruta = fichero_aperturas(plan)
+    entradas = [e for e in leer_aperturas(ruta) if e.get('proyecto') in (None, plan['project'])]
+    if not entradas:
+        return []
+    por_nombre = {c.loc_name: c for c in casos.values()}
+    carpeta = app.GetProjectFolder('scheme')
+    existen = {v.loc_name for v in ((carpeta.GetContents('*.IntScheme', 1) if carpeta else None) or [])}
+    inicial = app.GetActiveStudyCase()
+    restituidas: list[dict] = []
+    respetadas: list[dict] = []
+    quedan: list[dict] = []
+    try:
+        for caso in dict.fromkeys(e.get('caso') or '' for e in entradas):
+            objeto_caso = por_nombre.get(caso)
+            grupo = [e for e in entradas if (e.get('caso') or '') == caso]
+            if objeto_caso is None:
+                quedan += grupo          # de otro año o de un caso que no se ha abierto: espera a su orden
+                continue
+            objeto_caso.Activate()
+            activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+            hechas = 0
+            for e in grupo:
+                if not e.get('evaluando') and e.get('variacion') and e['variacion'] in activas:
+                    respetadas.append(e)
+                    continue
+                for obj in _con_nombre(app, e['clase'], e['nombre']):
+                    _cerrar(e['clase'], obj)
+                    hechas += 1
+                restituidas.append(e)
+            escenario = app.GetActiveScenario()
+            if hechas and escenario is not None:
+                escenario.Save()
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    try:
+        escribir_aperturas(ruta, quedan)
+    except OSError:
+        pass
+    if restituidas:
+        nombres = ', '.join(sorted({f"{e['nombre']} en «{e.get('caso')}»" for e in restituidas}))
+        informe.setdefault('avisos', []).append(
+            f'Una orden de obras anterior no terminó y dejó abierto {nombres}: se vuelve a cerrar, como estaba (081:RF-82).')
+        sueltas = sorted({e['variacion'] for e in restituidas if e.get('evaluando') and e.get('variacion') in existen})
+        if sueltas:
+            informe['avisos'].append('Quedan en el proyecto las variaciones de la evaluación cortada: '
+                                     + ', '.join(sueltas) + '; retírelas con las obras del alimentador (042:RF-60).')
+    informe['aperturas_restituidas'] = [{k: e.get(k) for k in ('caso', 'clase', 'nombre', 'variacion')} for e in restituidas]
+    return restituidas
+
+
+def _barras_de_elemento(clase: str, obj) -> list:
+    """Las barras que une un elemento de :data:`ESTADO_SERVICIO`; de una llave, las de su cubículo y su elemento."""
+    if clase == 'StaSwitch':
+        cub = obj.GetParent()
+        barras = [getattr(cub, 'cterm', None)]
+        elem = getattr(cub, 'obj_id', None)
+        if elem is not None:
+            barras += [getattr(getattr(elem, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv')]
+        return [b for b in barras if b is not None]
+    return [b for b in (getattr(getattr(obj, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv'))
+            if b is not None]
+
+
+def _estado_servicio(app) -> dict[str, tuple]:
+    """Por nombre completo, de cada elemento que corta un camino: ``(clase, objeto, fuera, valores)``. Una pasada por
+    clase sobre los datos de red, que traen también lo fuera de servicio (P2: nunca una por alimentador)."""
+    donde = app.GetProjectFolder('netdat') or app.GetActiveProject()
+    out = {}
+    for clase, atributos in ESTADO_SERVICIO.items():
+        for o in ((donde.GetContents(f'*.{clase}', 1) if donde is not None else None) or []):
+            valores = {a: getattr(o, a, None) for a in atributos}
+            out[o.GetFullName()] = (clase, o, fuera_de_servicio(clase, valores), valores)
+    return out
+
+
+def _sin_tension(app) -> set[str] | None:
+    """Las barras sin tensión tras un flujo (``ElmTerm.IsEnergized`` a 0); ``None`` si DIgSILENT no lo sabe."""
+    flujo_de_carga(app)
+    out, sabe = set(), False
+    for b in app.GetCalcRelevantObjects('*.ElmTerm') or []:
+        try:
+            estado = int(b.IsEnergized())
+        except Exception:  # noqa: BLE001 - sin el dato, no cuenta
+            continue
+        if estado in (0, 1):
+            sabe = True
+        if estado == 0:
+            out.add(b.loc_name)
+    return out if sabe else None
+
+
+def comprobar_servicio_con_proyecto(app, plan: dict, casos: dict, informe: dict) -> dict:
+    """081:RF-83 a RF-85: lo que está fuera de servicio o abierto en «Con proyecto» y en servicio en «Sin proyecto», sin
+    variación activa que lo explique, vuelve a como está en «Sin proyecto» si es un resto; si puede ser del operador, se
+    avisa sin tocarlo.
+
+    Explica una diferencia la variación activa de «Con proyecto» (de obra o de carga nueva) que graba el elemento o una
+    de sus barras. Es un resto lo anotado en el registro de aperturas y lo que deja sin tensión barras que en «Sin
+    proyecto» la tienen.
+    """
+    resultado: dict[str, Any] = {'restituidos': [], 'respetados': [], 'explicados': []}
+    if 'sin' not in casos or 'con' not in casos:
+        return resultado
+    inicial = app.GetActiveStudyCase()
+    try:
+        casos['sin'].Activate()
+        sin = _estado_servicio(app)
+        casos['con'].Activate()
+        con = _estado_servicio(app)
+        candidatos = [{'clave': k, 'nombre': f'{v[1].loc_name} ({v[0]})', 'clase': v[0], 'objeto': v[1]}
+                      for k, v in con.items() if v[2] and k in sin and not sin[k][2]]
+        if not candidatos:
+            return resultado
+        grabados = set()
+        for v in app.GetActiveNetworkVariations() or []:
+            grabados |= {r.rsplit('\\', 1)[-1] for r in _grabados(v)}
+        explicados = {c['clave'] for c in candidatos
+                      if f"{c['objeto'].loc_name}.{c['clase']}" in grabados
+                      or any(f'{b.loc_name}.ElmTerm' in grabados for b in _barras_de_elemento(c['clase'], c['objeto']))}
+        anotadas = {(e.get('clase'), e.get('nombre')) for e in leer_aperturas(fichero_aperturas(plan))
+                    if plan.get('project') and e.get('caso') in (None, '', casos['con'].loc_name)}
+        anotados = {c['clave'] for c in candidatos if (c['clase'], c['objeto'].loc_name) in anotadas}
+        dudosos = [c for c in candidatos if c['clave'] not in explicados and c['clave'] not in anotados]
+        cortan: set[str] = set()
+        if dudosos:
+            muertas_con = _sin_tension(app)
+            casos['sin'].Activate()
+            muertas_sin = _sin_tension(app)
+            casos['con'].Activate()
+            if muertas_con is not None and muertas_sin is not None:
+                nuevas = muertas_con - muertas_sin
+                cortan = {c['clave'] for c in dudosos
+                          if any(b.loc_name in nuevas for b in _barras_de_elemento(c['clase'], c['objeto']))}
+        clasificado = clasificar_restos(candidatos, explicados=explicados, cortan=cortan, anotados=anotados)
+        resultado['explicados'] = clasificado['explicados']
+        resultado['respetados'] = clasificado['respetar']
+        a_restituir = [c for c in candidatos if c['clave'] not in explicados and c['clave'] in anotados | cortan]
+        nombre_con = casos['con'].loc_name
+        if a_restituir:
+            escenario = app.GetActiveScenario()
+            if escenario is None:
+                # RF-85: sin escenario, escribir el servicio cambiaría la red de todos los casos, no solo «Con proyecto».
+                resultado['sin_escenario'] = sorted(c['nombre'] for c in a_restituir)
+                informe.setdefault('avisos', []).append(
+                    f'«{nombre_con}» no tiene escenario de operación: no se restituyen '
+                    + ', '.join(resultado['sin_escenario']) + ', fuera de servicio o abiertos sin variación que lo '
+                    'explique (081:RF-85).')
+            else:
+                for c in a_restituir:
+                    for a, v in sin[c['clave']][3].items():          # los valores leídos en «Sin proyecto»
+                        if v is not None:
+                            setattr(c['objeto'], a, v)
+                    resultado['restituidos'].append(c['nombre'])
+                escenario.Save()
+                informe.setdefault('avisos', []).append(
+                    f'«{nombre_con}» tenía fuera de servicio o abiertos, sin ninguna variación que lo explique, '
+                    + ', '.join(resultado['restituidos']) + f', que en «{casos["sin"].loc_name}» están en servicio: '
+                    'se vuelven a poner como allí en el escenario de «' + nombre_con + '» (081:RF-83).')
+                restantes = [e for e in leer_aperturas(fichero_aperturas(plan))
+                             if (e.get('clase'), e.get('nombre')) not in {(c['clase'], c['objeto'].loc_name)
+                                                                          for c in a_restituir}]
+                try:
+                    escribir_aperturas(fichero_aperturas(plan), restantes)
+                except OSError:
+                    pass
+        if resultado['respetados']:
+            informe.setdefault('avisos', []).append(
+                f'«{nombre_con}» tiene fuera de servicio o abiertos ' + ', '.join(resultado['respetados'])
+                + f', en servicio en «{casos["sin"].loc_name}», sin variación que lo explique; no dejan barras sin tensión '
+                'y pueden ser un cambio del operador: no se tocan (081:RF-84).')
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    informe['servicio_con_proyecto'] = resultado
+    return resultado
+
+
+def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe, plan: dict | None = None) -> None:
     """«Con proyecto» como copia de «Sin proyecto» con sus obras ya hechas (016:RF-11, RF-12).
 
     Usuario, 2026-10-14: «lo que se modifica en Sin proyecto debe pasar a Con proyecto y la
@@ -2078,7 +2355,7 @@ def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe) -> None:
         casos['con'].Activate()
         if variacion.loc_name not in {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
             variacion.Activate()
-        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, 'con')
+        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, 'con', plan=plan)
 
 
 def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
@@ -2281,9 +2558,11 @@ def aplicar(app, plan: dict, *, simular: bool = False,
 
     feeders = sorted({o.alimentador for o in obras} | {o.cede for o in obras if o.cede}
                      | set(plan.get('feeders') or []))
+    evaluando = bool(plan.get('evaluando'))
+    if not evaluando:
+        restituir_pendientes(app, plan, casos, informe)                           # 081:RF-82
     alims = Alimentadores(app, proyecto, feeders)
     inicial = app.GetActiveStudyCase()
-    evaluando = bool(plan.get('evaluando'))
     # 025:RF-69: la obra elegida por la escalera se comprueba con las cargas nuevas de los
     # alimentadores sin resolver apartadas, como se evaluó; vuelven al terminar.
     ajenas = []
@@ -2329,16 +2608,20 @@ def aplicar(app, plan: dict, *, simular: bool = False,
                 informe['cancelado'] = True
                 break
             if 'con' not in casos and NOMBRES['sin'] not in obra.casos:
-                _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
+                _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe, plan)
             if not fila['error']:
                 _aplicar_una(app, plan, proyecto, casos, alims, obra, fila, redes[obra.alimentador],
                              redes, conjunto=bool(plan.get('en_conjunto')))
             hechas.append((i, (obra, fila)))
         if plan.get('en_conjunto') and not informe['cancelado']:
-            informe['plan_completo'] = flujo_del_plan(app, proyecto, casos, [f for _, (_, f) in hechas])
+            informe['plan_completo'] = flujo_del_plan(app, proyecto, casos, [f for _, (_, f) in hechas], plan)
         if 'con' not in casos and not informe['cancelado']:
-            _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
+            _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe, plan)
         informe['obras'] = [fila for _, (_, fila) in sorted(hechas, key=lambda h: h[0])]
+        if not evaluando:
+            # 081:RF-81: lo que abrieron las obras que quedan aplicadas es parte de ellas: sale del registro. Lo de una
+            # variante evaluada lo restituye ``evaluar`` al borrarla.
+            quitar_aperturas(plan, informe['obras'])
         if antes['converged']:
             _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe)
         if 'con' in casos and not evaluando and any(f.get('variacion') for f in informe['obras']):
@@ -2489,6 +2772,10 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     media_de: dict[str, list[str]] = {}               # barras de media del alimentador (087:RF-55)
     ajenas: list = []
     try:
+        # 081:RF-82, RF-83: antes de leer la escalera, «Con proyecto» sin restos de una orden cortada. Pisco (2026-11-07):
+        # leída con dos tramos abiertos de una transferencia a medias, toda la escalera se rehízo sobre una red rota.
+        restituir_pendientes(app, plan, casos, informe)
+        comprobar_servicio_con_proyecto(app, plan, casos, informe)
         casos['con'].Activate()
         # 025:RF-73: el estado de «Con proyecto» con el que se medirá; una evaluación anterior
         # solo se reutiliza si es el mismo.
@@ -2993,6 +3280,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     if 'sin' not in casos or 'con' not in casos:
         return {**informe, 'error': f"faltan «{nombre_caso('sin', anio)}» o «{nombre_caso('con', anio)}»"}, 2
     feeders = list(plan.get('feeders') or [])
+    restituir_pendientes(app, plan, casos, informe)                               # 081:RF-82
     alims = Alimentadores(app, proyecto, feeders)
     barras = list(plan.get('barras_cargas') or [])
     sorteos = list(plan.get('sorteos') or [])
@@ -3091,6 +3379,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                             casos[rol].Activate()
                             var.Deactivate()
                         var.Delete()
+                # 081:RF-81: lo abierto es dato del escenario y sobrevive a la variación borrada (Pisco, 2026-11-07).
+                restituir_lo_abierto(app, casos, list(hecho.get('obras') or []), plan)
                 # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
                 # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
                 # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.

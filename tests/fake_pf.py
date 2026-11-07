@@ -79,6 +79,17 @@ class Obj:
 
     def __setattr__(self, name, value):
         app = self._app
+        if (app is not None and name in _DATOS_DE_SERVICIO and getattr(app, 'servicio_en_escenario', False)
+                and app.escenario is not None and _es_de_red(self)):
+            # 081:RF-80: abrir y poner fuera de servicio es dato de operación; con el escenario activo va a él, no a la
+            # etapa que graba, y borrar la variación no lo deshace (Pisco, 2026-11-07).
+            app.escrituras.append((self, name, value, app.grabando, app.escenario))
+            app._servicio_red.setdefault((id(self), name), (self, getattr(self, name, None)))
+            app.escenario._servicio[(id(self), name)] = (self, value)
+            object.__setattr__(self, name, value)
+            return
+        if app is not None and name in _DATOS_DE_SERVICIO and (id(self), name) in getattr(app, '_servicio_red', {}):
+            app._servicio_red[(id(self), name)] = (self, value)          # escrito sin escenario: es de la red
         if app is not None and name != 'loc_name':
             app.escrituras.append((self, name, value, app.grabando, app.escenario))
             etapa = app.grabando
@@ -176,6 +187,12 @@ class Obj:
     def HasAttribute(self, name):
         return hasattr(self, name)
 
+    def IsEnergized(self):
+        """De una barra: 1 si un camino en servicio la une a la cabecera de algún alimentador (081:RF-83)."""
+        if self._clase != 'ElmTerm' or self._app is None:
+            return -1
+        return int(id(self) in self._app.energizadas())
+
     # ----------------------------------------------------------- spec 006
     def GetConnectedElements(self, *_a):
         """De una barra: lo conectado a sus cubículos."""
@@ -256,6 +273,8 @@ class Importacion(Obj):
 
 #: Lo que de una carga guarda el escenario de operación con ``app.escenario_manda``.
 _DATOS_DE_OPERACION = ('_p', '_q', '_cos', '_s')
+#: Con ``app.servicio_en_escenario``, el servicio y el estado de las llaves son del escenario activo (081:RF-80).
+_DATOS_DE_SERVICIO = frozenset({'outserv', 'on_off'})
 
 
 class Carga(Obj):
@@ -493,6 +512,7 @@ class Caso(Obj):
             if v not in antes:
                 for obj, nombre, _previo, nuevo in v.__dict__.get('_cambios', []):
                     object.__setattr__(obj, nombre, nuevo)
+        app.aplicar_servicio()
         return 0
 
     def Deactivate(self, *_a):
@@ -623,12 +643,14 @@ class Escenario(Obj):
     def __init__(self, app, clase, nombre, padre=None, **attrs):
         super().__init__(app, clase, nombre, padre, **attrs)
         object.__setattr__(self, '_datos', {})
+        object.__setattr__(self, '_servicio', {})
         object.__setattr__(self, 'guardados', 0)
 
     def _copia(self, padre, nombre):
         # Una copia del escenario lleva sus propios datos: cambiar uno no toca el otro.
         nuevo = super()._copia(padre, nombre)
         object.__setattr__(nuevo, '_datos', {k: dict(v) for k, v in self._datos.items()})
+        object.__setattr__(nuevo, '_servicio', dict(self._servicio))
         object.__setattr__(nuevo, 'guardados', 0)
         return nuevo
 
@@ -643,10 +665,12 @@ class Escenario(Obj):
 
     def Deactivate(self, *_a):
         self._app.escenario = None
+        self._app.aplicar_servicio()
         return 0
 
     def Activate(self, *_a):
         self._app.escenario = self
+        self._app.aplicar_servicio()
         return 0
 
 
@@ -1290,6 +1314,10 @@ class App:
         self.atributos_en_variacion = False
         # spec 006, RF-27: el escenario activo manda sobre la potencia de las cargas.
         self.escenario_manda = False
+        # 081:RF-80: con ``servicio_en_escenario``, ``outserv`` y ``on_off`` escritos con un escenario activo son de él,
+        # como en DIgSILENT; ``_servicio_red`` guarda el valor de la red de lo que algún escenario cambió.
+        self.servicio_en_escenario = False
+        self._servicio_red = {}
         self.rel_ejecuciones = 0
         self.alojamiento = {}
         self.pv_factor = 2.7
@@ -1354,6 +1382,45 @@ class App:
 
     def GetActiveScenario(self):
         return self.escenario
+
+    def aplicar_servicio(self) -> None:
+        """081:RF-80: al cambiar de caso o de escenario, el servicio que guarda el activo, o el de la red si no lo guarda."""
+        if not self._servicio_red:
+            return
+        propio = self.escenario._servicio if self.escenario is not None else {}
+        for clave, (obj, de_red) in self._servicio_red.items():
+            valor = propio[clave][1] if clave in propio else de_red
+            object.__setattr__(obj, clave[1], valor)
+
+    def energizadas(self) -> set[int]:
+        """081:RF-83: las barras a las que llega un camino en servicio desde la cabecera de algún alimentador."""
+        prj = self.proyecto
+        if prj is None:
+            return set()
+
+        def abierto(cub) -> bool:
+            return cub is None or any(int(getattr(s, 'on_off', 1)) == 0 for s in cub.GetContents('*.StaSwitch'))
+
+        vecinos: dict[int, list] = {}
+        for clase, lados in (('ElmLne', ('bus1', 'bus2')), ('ElmCoup', ('bus1', 'bus2')), ('ElmTr2', ('bushv', 'buslv'))):
+            for o in prj.GetContents(f'*.{clase}', 1):
+                if int(getattr(o, 'outserv', 0) or 0) or (clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1))):
+                    continue
+                cubs = [getattr(o, a, None) for a in lados]
+                if any(abierto(c) for c in cubs):
+                    continue
+                a, b = (c.cterm for c in cubs)
+                vecinos.setdefault(id(a), []).append(b)
+                vecinos.setdefault(id(b), []).append(a)
+        pendientes = [a.obj_id.cterm for a in prj.GetContents('*.ElmFeeder', 1)
+                      if getattr(getattr(a, 'obj_id', None), 'cterm', None) is not None]
+        vistas = {id(b) for b in pendientes}
+        while pendientes:
+            for otra in vecinos.get(id(pendientes.pop()), []):
+                if id(otra) not in vistas:
+                    vistas.add(id(otra))
+                    pendientes.append(otra)
+        return vistas
 
     def GetRecordingStage(self):
         return self.grabando

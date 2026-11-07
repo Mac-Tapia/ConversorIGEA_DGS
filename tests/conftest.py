@@ -67,6 +67,10 @@ def _sin_gemelo_de_la_maquina(monkeypatch, tmp_path):
 
     monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / '_digital_twin'))
     monkeypatch.setenv(VARIABLE_CAPTURA, '0')
+    # 081:RF-80: el registro de aperturas de las obras, de cada prueba y no el de la máquina.
+    from convertersmartgrid.obras_pf import VARIABLE_APERTURAS
+
+    monkeypatch.setenv(VARIABLE_APERTURAS, str(tmp_path / '_aperturas_pf'))
 
 
 @pytest.fixture(scope='session')

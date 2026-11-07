@@ -108,7 +108,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
-  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22, T24 |
+  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22, T24, T31 |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |

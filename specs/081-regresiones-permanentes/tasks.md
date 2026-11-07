@@ -63,3 +63,15 @@
       Hecho cuando: `pytest -q tests/test_powerfactory_gate.py -k rf79` en verde.
 - [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.
+- [x] T30. Lo que una obra abre se anota antes, se cierra al borrar la variante y se restituye al empezar la orden siguiente;
+      comprobación de «Con proyecto» contra «Sin proyecto» al leer la escalera. (RF-80, RF-81, RF-82, RF-83, RF-84, RF-85)
+      Hecho cuando: `pytest -q tests/test_obras_aperturas.py` en verde.
+      Hecho el 2026-11-07: `tools/obras_pf.py::abrir` (todas las aperturas de las obras, también la entrada de la migración,
+      que no se anotaba), `restituir_lo_abierto` en el `finally` de la variante evaluada, `restituir_pendientes` al empezar
+      `aplicar`, `evaluar` y `datos_escalera`, y `comprobar_servicio_con_proyecto` en `datos_escalera`. El doble
+      (`fake_pf`, `servicio_en_escenario`) guarda `outserv` y `on_off` en el escenario activo y da `ElmTerm.IsEnergized`.
+- [ ] T31 [DIgSILENT] Una escalera de «Con proyecto» con transferencia (087:RF-31) cortada a mitad en un proyecto de prueba
+      nuevo, y la orden siguiente por la web. (RF-80, RF-82, RF-83)
+      Hecho cuando: tras parar el trabajo mientras mide la transferencia, la lectura siguiente de la escalera dice qué cerró
+      (081:RF-82 o RF-83), «Con proyecto» queda con 0 barras de media sin tensión, como «Sin proyecto», y el registro de
+      aperturas queda vacío.

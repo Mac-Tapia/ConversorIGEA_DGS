@@ -1407,3 +1407,97 @@ def veredicto_persistencia(filas: Iterable[Mapping[str, Any]], relectura: Mappin
     motivo = None if obras else 'ninguna obra quedó aplicada: no hay nada que dar por persistido'
     ok = bool(obras) and all(o['ok'] for o in obras) and all(r['igual'] for r in refs.values())
     return {'ok': ok, 'motivo': motivo, 'obras': obras, 'referencias': refs}
+
+
+# =========================================================================== aperturas (081:RF-80 a RF-85)
+#: De cada clase que corta un camino, lo que dice si está fuera de servicio o abierta (081:RF-83).
+ESTADO_SERVICIO: dict[str, tuple[str, ...]] = {
+    'ElmLne': ('outserv',),
+    'ElmTr2': ('outserv',),
+    'ElmCoup': ('on_off', 'outserv'),
+    'StaSwitch': ('on_off',),
+}
+
+#: Carpeta del registro de aperturas si el plan no da su fichero. Fuera de la carpeta del trabajo, que cambia en cada
+#: orden: la orden siguiente tiene que encontrarlo también tras reiniciar la web (081:RF-82).
+VARIABLE_APERTURAS = 'CSG_APERTURAS_DIR'
+
+
+def fuera_de_servicio(clase: str, datos: Mapping[str, Any]) -> bool:
+    """081:RF-83: un tramo o un transformador con ``outserv``, o un acoplador o una llave con ``on_off`` a 0."""
+    if int(datos.get('outserv') or 0):
+        return True
+    return 'on_off' in ESTADO_SERVICIO.get(clase, ()) and datos.get('on_off') is not None and not int(datos['on_off'])
+
+
+def fichero_aperturas(plan: Mapping[str, Any]):
+    """El registro de lo que las obras abren en este proyecto (081:RF-80): el del plan o uno por proyecto y carpeta."""
+    import os
+    from pathlib import Path
+
+    if plan.get('aperturas_fichero'):
+        return Path(str(plan['aperturas_fichero']))
+    carpeta = Path(os.environ.get(VARIABLE_APERTURAS) or (Path.home() / '.convertersmartgrid' / 'aperturas_pf'))
+    clave = hashlib.sha256(f"{plan.get('folder') or ''}|{plan.get('project') or ''}".encode('utf-8')).hexdigest()[:16]
+    legible = re.sub(r'[^A-Za-z0-9_-]+', '_', str(plan.get('project') or 'proyecto'))[:60]
+    return carpeta / f'{legible}_{clave}.json'
+
+
+def leer_aperturas(ruta) -> list[dict[str, Any]]:
+    """Las aperturas anotadas y aún sin restituir (081:RF-82)."""
+    from pathlib import Path
+
+    ruta = Path(ruta)
+    if not ruta.exists():
+        return []
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return []
+    return [e for e in ((datos.get('aperturas') if isinstance(datos, dict) else None) or []) if isinstance(e, dict)]
+
+
+def escribir_aperturas(ruta, entradas: Sequence[Mapping[str, Any]]) -> None:
+    """Escribe el registro de una vez (``os.replace``); sin entradas lo borra: no queda nada que restituir."""
+    import os
+    from pathlib import Path
+
+    ruta = Path(ruta)
+    if not entradas:
+        try:
+            ruta.unlink()
+        except FileNotFoundError:
+            pass
+        return
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    temporal = ruta.with_suffix(ruta.suffix + '.tmp')
+    temporal.write_text(json.dumps({'aperturas': list(entradas)}, ensure_ascii=False, indent=1), encoding='utf-8')
+    os.replace(temporal, ruta)
+
+
+def misma_apertura(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    """Dos anotaciones de la misma apertura: mismo caso, elemento y variación de la obra."""
+    return all(a.get(k) == b.get(k) for k in ('caso', 'clase', 'nombre', 'variacion'))
+
+
+def clasificar_restos(candidatos: Sequence[Mapping[str, Any]], *, explicados: set[str], cortan: set[str],
+                      anotados: set[str]) -> dict[str, list[str]]:
+    """081:RF-83, RF-84: de lo fuera de servicio o abierto en «Con proyecto» y en servicio en «Sin proyecto», qué se restituye.
+
+    ``candidatos`` lleva ``clave`` y ``nombre`` de cada uno. Lo que explica una variación activa (``explicados``) no se
+    toca: es una obra o una carga nueva. De lo demás se restituye lo anotado en el registro de aperturas (``anotados``) y lo
+    que deja sin tensión barras que en «Sin proyecto» la tienen (``cortan``). Pisco (2026-11-07): una escalera cortada a
+    mitad dejó abiertos SEC_1091_1055499 y SEC_1091_957116 sin variación que los explicase, y 724 barras de media sin
+    tensión. Lo que no corta nada ni está anotado puede ser un cambio del operador: se respeta y se avisa (los cambios
+    manuales en DIgSILENT son intencionales).
+    """
+    out: dict[str, list[str]] = {'explicados': [], 'restituir': [], 'respetar': []}
+    for c in candidatos:
+        clave = str(c['clave'])
+        if clave in explicados:
+            out['explicados'].append(str(c['nombre']))
+        elif clave in anotados or clave in cortan:
+            out['restituir'].append(str(c['nombre']))
+        else:
+            out['respetar'].append(str(c['nombre']))
+    return {k: sorted(v) for k, v in out.items()}
