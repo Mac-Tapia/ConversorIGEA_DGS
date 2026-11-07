@@ -644,6 +644,8 @@ GUIONES_SERVIBLES = frozenset({
     'set_nueva_operacion_pf.py',
     # 064:T7: la aceptación de la restitución tiene que pasar por ``atender``.
     'restitucion_pf.py',
+    # 098: la lectura suelta de las transferencias del operador.
+    'transferencia_operador_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 #: Guiones que conectan con :func:`conectar` (064:RF-1) pero corren en su propio proceso:
 #: los cuatro primeros importan DGS y crean proyectos, como la aceptación; los dos últimos

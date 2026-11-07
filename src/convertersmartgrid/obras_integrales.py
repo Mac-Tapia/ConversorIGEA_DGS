@@ -79,23 +79,85 @@ def _tipo_del_enlace(tipos, kv: float, corriente_a: float | None) -> dict[str, A
     return {'nombre': t['nombre'], 'clase': 'TypLne', 'origen': t.get('origen') or 'proyecto', 'proyecto': t.get('proyecto') or ''}
 
 
+def con_maniobras(camino: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """098:RF-11: los tramos del camino (sin los equipos en serie, 042:RF-44) con la maniobra que abre cada uno.
+
+    ``maniobra`` (un interruptor o seccionador en un cubículo del tramo) ya viene de la lectura; un acoplador del camino
+    pasa al tramo que lo sigue como ``maniobra_previa``: abrirlo separa desde la barra de inicio de ese tramo.
+    """
+    out: list[dict[str, Any]] = []
+    previa = None
+    for t in camino:
+        if t.get('puente'):
+            previa = t.get('maniobra') or None
+            continue
+        fila = dict(t)
+        if previa is not None:
+            fila['maniobra_previa'] = previa
+        out.append(fila)
+        previa = None
+    return out
+
+
+def _puntos_con_maniobra(camino: Sequence[Mapping[str, Any]], troncal: set[str]) -> list[tuple[str, Any]]:
+    """Las barras de la troncal, en orden, con la maniobra que la separa de aguas arriba (o ``None``)."""
+    out: list[tuple[str, Any]] = []
+    for t in camino:
+        if str(t.get('nombre')) not in troncal:
+            continue
+        if t.get('maniobra_previa') and t.get('desde'):
+            out.append((str(t['desde']), t['maniobra_previa']))
+        out.append((str(t.get('hasta') or ''), t.get('maniobra') or None))
+    return out
+
+
 def candidatos_de_transferencia(camino: Sequence[Mapping[str, Any]], troncal: set[str], tension_min_pu: float) -> list[str]:
     """087:RF-52: las barras de la troncal, en el camino de la carga, desde las que se puede transferir la cola: desde la
-    que sale de límites (o la de 2/3) hasta el final de la troncal. Cuál se usa lo decide la distancia a cada vecino."""
-    en_troncal = [t for t in camino if str(t.get('nombre')) in troncal]
+    que sale de límites (o la de 2/3) hasta el final de la troncal. Cuál se usa lo decide la distancia a cada vecino.
+
+    098:RF-11: solo donde ya hay una maniobra que abrir. CA101 (2026-11-07): el operador transfiere en un punto con
+    seccionador; una transferencia propuesta en una barra sin él obligaba a cortar el tramo en campo.
+    """
+    return [b for b, m in _desde_el_nodo(camino, troncal, tension_min_pu) if m is not None]
+
+
+def _desde_el_nodo(camino, troncal, tension_min_pu) -> list[tuple[str, Any]]:
+    puntos = _puntos_con_maniobra(camino, troncal)
     desde = nodo_de_transferencia(camino, troncal, tension_min_pu)
-    barras = [str(t.get('hasta') or '') for t in en_troncal]
+    barras = [b for b, _m in puntos]
     if desde in barras:
-        barras = barras[barras.index(desde):]
-    return [b for b in barras if b and not b.startswith('NODE_T_')]
+        puntos = puntos[barras.index(desde):]
+    return [(b, m) for b, m in puntos if b and not b.startswith('NODE_T_')]
+
+
+def nodo_de_traslado(camino: Sequence[Mapping[str, Any]], troncal: set[str], barra: str) -> str | None:
+    """098:RF-11: el traslado sale de la primera barra de la rama con maniobra; la propia barra si cuelga de la troncal.
+
+    Sin ninguna maniobra en la rama no se traslada (098:RF-13)."""
+    rama = [t for t in camino if str(t.get('nombre')) not in troncal]
+    if not rama:
+        return nodo_de_rama(camino, troncal, barra)
+    for t in rama:
+        if t.get('maniobra_previa') and t.get('desde'):
+            return str(t['desde'])
+        if t.get('maniobra'):
+            return str(t.get('hasta') or barra)
+    return None
 
 
 def nodos_de_traspaso(camino: Sequence[Mapping[str, Any]], troncal: set[str], barra_carga: str,
                       p: Parametros) -> dict[str, Any]:
-    """087:RF-32, RF-33, RF-52: de dónde se puede transferir (varias barras) y desde dónde se traslada (la rama)."""
-    traslado = nodo_de_rama(camino, troncal, barra_carga)
-    return {'transferencia': [b for b in candidatos_de_transferencia(camino, troncal, p.tension_min_pu) if b != traslado],
-            'traslado': traslado}
+    """087:RF-32, RF-33, RF-52: de dónde se puede transferir (varias barras) y desde dónde se traslada (la rama).
+
+    098:RF-11, RF-13: solo desde barras con una maniobra; ``sin_maniobra`` dice si había barras candidatas y ninguna la
+    tenía, para avisarlo."""
+    traslado = nodo_de_traslado(camino, troncal, barra_carga)
+    puntos = _desde_el_nodo(camino, troncal, p.tension_min_pu)
+    con = [b for b, m in puntos if m is not None and b != traslado]
+    rama = any(str(t.get('nombre')) not in troncal for t in camino)
+    return {'transferencia': con, 'traslado': traslado,
+            'sin_maniobra': {'transferencia': bool(puntos) and not [b for b, m in puntos if m is not None],
+                             'traslado': rama and traslado is None}}
 
 
 def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], troncal: set[str], barra_carga: str,
@@ -106,6 +168,10 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
     """
     avisos: list[str] = []
     nodos = nodos_de_traspaso(camino, troncal, barra_carga, p)
+    for clase, falta in nodos['sin_maniobra'].items():
+        if falta:
+            avisos.append(f'{alimentador}: ninguna barra de su {"troncal" if clase == "transferencia" else "rama"} desde '
+                          f'la que hacer la {clase} tiene un interruptor o seccionador que abrir: no se propone (098:RF-13).')
     corriente = {str(t.get('hasta')): t.get('corriente_a') for t in camino}
     out: list[Variante] = []
     # 087:RF-52: por cada vecino con margen, la transferencia desde la barra de la troncal más cercana a él. CHI201 (Pisco,

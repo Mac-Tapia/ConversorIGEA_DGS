@@ -8,28 +8,28 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 242 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 243 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
-| Herramientas y guiones | `tools/` | 96 |
+| Herramientas y guiones | `tools/` | 97 |
 | Interfaz | `frontend/src/` | 46 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 388 |
+| Pruebas | `tests/` | 389 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 289 |
+| Specs | `specs/` | 292 |
 
-`web/services.py` tiene 11193 líneas y 343 funciones, pendiente de partir (002).
+`web/services.py` tiene 11225 líneas y 345 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 50 |
-| implementada | 29 |
+| implementada | 30 |
 | aprobada | 16 |
 | reservada | 1 |
 | retirada | 1 |
 
-97 specs con 3169 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+98 specs con 3184 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -37,11 +37,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 116 |
 | aplicacion | Apl | 100 |
-| dominio | Dom | 32 |
+| dominio | Dom | 33 |
 | presentacion | Pre | 31 |
 | puertos | Pue | 2 |
 
-281 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+282 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -344,6 +344,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `crecimiento.py` | Apl | 029 | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año,… |
 | `valle.py` | Apl | 073 | El valle de un alcance desde la medición: limpieza de lo dudoso con su motivo, energía de sus medidores, inicio y duración por búsqueda exacta, por… |
 | `escaneo.py` | Apl | 028 | Reglas del escaneo de un alimentador antes de recalibrar: de quién es cada generador, banco y variación por los prefijos del conversor, resumen y… |
+| `transferencia_operador.py` | Dom | 098 | Transferencias de carga del operador: qué SED están transferidas, qué zona forman, qué abrir y qué cerrar para calibrar con la red de la fuente, y lo… |
 | `trafos_sed.py` | Apl | 020 | Transformador nuevo para una SED fija sobrecargada: la menor potencia de la tabla de fichas del perfil (por tensión primaria) con la máxima en el… |
 | `economia.py` | Dom | 004 | Datos de la evaluación técnico-económica (`ComTececo`). |
 
@@ -623,7 +624,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pide_pf.py` | — | 024, 029, 030 | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión… |
 | `escenarios_pf.py` | — | 024 | Guion de DIgSILENT: escenarios del gemelo en una copia del proyecto (desactivado antes de copiar), demanda escalada y tramos abiertos, resultados y… |
 | `digital_twin_snapshot_pf.py` | — | 024 | Guion de DIgSILENT de solo lectura: reabre el proyecto, activa el caso, ejecuta el flujo y devuelve tensiones, cargabilidad, cabeceras, pérdidas,… |
-| `escanear_alimentador_pf.py` | — | 028 | Escaneo de solo lectura de alimentadores en DIgSILENT: generadores con su barra, bancos, variaciones y cargas cambiadas a mano. |
+| `escanear_alimentador_pf.py` | — | 028, 098 | Escaneo de solo lectura de alimentadores en DIgSILENT: generadores con su barra, bancos, variaciones y cargas cambiadas a mano. |
+| `transferencia_operador_pf.py` | — | 098 | Transferencias de carga del operador en DIgSILENT: leerlas, desactivarlas mientras se calibra con registro en disco y restituirlas con su evidencia. |
 | `verificar_pf.py` | — | 008 | Guion de DIgSILENT: convergencia del proyecto con lo activo. |
 | `hojas_diagrama_pf.py` | — | 022 | Hoja de cada diagrama de un proyecto de DIgSILENT frente a sus gráficos y conectores, de solo lectura. |
 | `pf_proyectos.py` | — | 005 | Proyectos de la carpeta de importación de DIgSILENT y sus alimentadores. |
@@ -788,7 +790,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
-| `src/convertersmartgrid/obras_integrales.py` | Apl | 087 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), y el área del alimentador nuevo. |
+| `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
 | `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
 | `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |

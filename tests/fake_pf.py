@@ -600,7 +600,58 @@ class Alimentador(Obj):
         return nuevo
 
     def GetObjs(self, clase):
+        if getattr(self._app, 'topologia_viva', False) and getattr(self, 'obj_id', None) is not None:
+            return [o for o in self._alcanzados() if o._clase == clase and o.en_red]
         return [o for o in self._objs + self._nuevos() if o._clase == clase and o.en_red]
+
+    def _alcanzados(self) -> list:
+        """098: con ``app.topologia_viva``, lo que alimenta de verdad, como el ``ElmFeeder`` de DIgSILENT.
+
+        Desde su cubículo de cabecera, por lo que está en servicio y sin un interruptor abierto, sin entrar por la
+        cabecera de otro alimentador. Así una transferencia hecha a mano (un tramo nuevo y un punto abierto) pasa las
+        SED de un alimentador a otro, como en CA101 y CHN102 (2026-11-07).
+        """
+        app, cub0 = self._app, self.obj_id
+        prj = app.proyecto
+        otras = {id(getattr(a, 'obj_id', None)) for a in prj.GetContents('*.ElmFeeder', 1) if a is not self}
+        cubs_de: dict[int, list] = {}
+        for c in prj.GetContents('*.StaCubic', 1):
+            if getattr(c, 'obj_id', None) is not None:
+                cubs_de.setdefault(id(c.obj_id), []).append(c)
+
+        def conduce(o) -> bool:
+            if int(getattr(o, 'outserv', 0) or 0):
+                return False
+            if o._clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1)):
+                return False
+            return all(int(getattr(sw, 'on_off', 1)) for c in cubs_de.get(id(o), [])
+                       for sw in c.GetContents('*.StaSwitch'))
+
+        vistos = {id(cub0.cterm)}
+        out = [cub0.cterm]
+        pendientes = [(cub0.cterm, [cub0])]
+        while pendientes:
+            barra, cubs = pendientes.pop()
+            for cub in cubs if cubs is not None else barra.GetContents('*.StaCubic'):
+                if id(cub) in otras:
+                    continue
+                o = getattr(cub, 'obj_id', None)
+                if o is None or id(o) in vistos:
+                    continue
+                extremos = [c for c in cubs_de.get(id(o), []) if c is not cub]
+                if extremos and not conduce(o):
+                    continue
+                vistos.add(id(o))
+                out.append(o)
+                if isinstance(o._padre, Obj) and o._padre._clase == 'ElmSubstat' and id(o._padre) not in vistos:
+                    vistos.add(id(o._padre))
+                    out.append(o._padre)
+                for c in extremos:
+                    if id(c.cterm) not in vistos:
+                        vistos.add(id(c.cterm))
+                        out.append(c.cterm)
+                        pendientes.append((c.cterm, None))
+        return out
 
     def _nuevos(self) -> list:
         """Lo creado después de montar la red y conectado a sus barras por cubículos."""
@@ -1318,6 +1369,8 @@ class App:
         # como en DIgSILENT; ``_servicio_red`` guarda el valor de la red de lo que algún escenario cambió.
         self.servicio_en_escenario = False
         self._servicio_red = {}
+        # 098: los ``ElmFeeder`` siguen la topología de ahora (tramos, acopladores e interruptores), no la del montaje.
+        self.topologia_viva = False
         self.rel_ejecuciones = 0
         self.alojamiento = {}
         self.pv_factor = 2.7

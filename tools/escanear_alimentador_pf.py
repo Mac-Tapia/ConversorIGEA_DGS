@@ -9,8 +9,9 @@ central y los bancos de NA205; con esto la web los ve y la calibración usa su b
     python tools/escanear_alimentador_pf.py --plan plan.json --output-json escaneo.json
 
 El plan: ``project``, ``folder``, ``feeders``, ``anio_casos`` (opcional),
-``ultima_calibracion`` por alimentador (opcional, 014:RF-10) y ``tramos_dgs``, los tramos del
-DGS aceptado, para decir cuáles son nuevos (RF-17).
+``ultima_calibracion`` por alimentador (opcional, 014:RF-10), ``tramos_dgs``, los tramos del
+DGS aceptado, para decir cuáles son nuevos (RF-17), y ``abiertos_dgs``, lo que ese DGS deja
+abierto, para reconocer las transferencias del operador (098:RF-9, RF-14).
 
 Códigos de salida: 0 bien, 1 error inesperado, 2 proyecto que no existe, 3 API de
 PowerFactory no disponible.
@@ -188,7 +189,41 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                                                                                  de_objeto)}
         except Exception as exc:  # noqa: BLE001 - un alimentador no tumba el escaneo (RF-8)
             informe['alimentadores'][f] = {'error': f'{type(exc).__name__}: {exc}'}
+    _transferencias(app, alims, plan, informe)
     return informe, 0
+
+
+def _transferencias(app, alims, plan: dict, informe: dict) -> None:
+    """098:RF-9: lo que está en un alimentador porque el operador se lo transfirió desde otro.
+
+    CA101 y CHN102 (2026-11-07): con la parte transferida pasaron EBC_1, EBC_2 y EBC_3 a CHN102; sin decirlo, parecían
+    bancos que el operador había puesto en CHN102, y los tramos nuevos de la transferencia, una ampliación suya.
+    """
+    from transferencia_operador_pf import equipos_de_las_zonas, leer_transferencias
+
+    from convertersmartgrid.transferencia_operador import texto_de_zona
+
+    try:
+        zonas, _objs = leer_transferencias(app, alims, plan, interesan=informe['feeders'])
+    except Exception as exc:  # noqa: BLE001 - el escaneo sigue sin ellas (RF-8)
+        informe['avisos'].append(f'transferencias del operador: {type(exc).__name__}: {exc}')
+        return
+    filas = []
+    for z, equipos in zip(zonas, equipos_de_las_zonas(app, zonas)):
+        filas.append({**z.resumen(), **equipos})
+        informe['avisos'].append(texto_de_zona(z))
+        destino = informe['alimentadores'].get(z.hacia) or {}
+        for b in destino.get('bancos') or []:
+            if b.get('banco') in equipos['bancos']:
+                b['transferido_desde'] = z.desde
+        for g in destino.get('generadores') or []:
+            if g.get('generador') in equipos['generadores']:
+                g['transferido_desde'] = z.desde
+        abiertos = {r.nombre for r in z.abrir}
+        for t in destino.get('tramos_nuevos') or []:
+            if t.get('tramo') in abiertos:
+                t['transferencia'] = {'desde': z.desde, 'hacia': z.hacia}
+    informe['transferencias'] = filas
 
 
 def main(argv=None) -> int:

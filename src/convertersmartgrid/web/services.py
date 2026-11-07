@@ -3861,6 +3861,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     sin_verificar = caso_base_verificado(ws, project, requested_feeders)
     # 032:RF-14: las fichas de los conductores, una vez para todo el proyecto.
     fichas_conductores = fichas_conductores_de(ws)
+    red_fuente = None                       # 098:RF-14: se lee una vez, con el primer plan
     for fila in filas:
         alim_fila = str(fila.get('alimentador') or '').strip()
         if alim_fila in sin_verificar:
@@ -4063,6 +4064,10 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         # n.º k y cuadra P y Q; la primera (0) solo la P.
         previa = (ws.calibraciones.get(clave_calibracion(project, anio_casos)) or {}).get(alimentador)
         plan['recalibracion'] = 0 if not previa else int(previa.get('recalibracion') or 0) + 1
+        # 098:RF-14: para reconocer la transferencia que hizo el operador y calibrar con la red de la fuente.
+        if red_fuente is None:
+            red_fuente = _red_de_la_fuente_del_plan(ws, project.strip())
+        plan.update(red_fuente)
         if central:
             plan['central'] = central
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
@@ -5682,22 +5687,49 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
 
 
 # ------------------------------------------------------------------ escaneo (spec 028)
-def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
-    """Los tramos del DGS con que se aceptó el proyecto (028:RF-17): el de la ejecución fuente
-    cuya huella es la del vínculo. Sin vínculo o sin el fichero, ninguno (no se dice «nuevo»)."""
+def _dgs_aceptado(ws: Workspace, project: str) -> Path | None:
+    """El DGS con que se aceptó el proyecto: el de la ejecución fuente cuya huella es la del vínculo (028:RF-17)."""
     import hashlib
-
-    from ..escaneo import tramos_del_dgs
 
     vinculo = ws.pf_project_bindings.get(project) or {}
     huellas = set((vinculo.get('dgs_sha256') or {}).values())
     carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
     if not huellas or not carpeta.is_dir():
-        return set()
+        return None
     for ruta in sorted(carpeta.glob('*.dgs')):
         if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas:
-            return tramos_del_dgs(ruta)
-    return set()
+            return ruta
+    return None
+
+
+def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
+    """Los tramos del DGS con que se aceptó el proyecto (028:RF-17). Sin vínculo o sin el fichero, ninguno (no se dice
+    «nuevo»)."""
+    from ..escaneo import tramos_del_dgs
+
+    ruta = _dgs_aceptado(ws, project)
+    return tramos_del_dgs(ruta) if ruta is not None else set()
+
+
+def _red_de_la_fuente_del_plan(ws: Workspace, project: str) -> dict[str, Any]:
+    """098:RF-14: lo que el guion necesita para reconocer una transferencia del operador frente a la fuente.
+
+    Los tramos del DGS aceptado, lo que ese DGS deja abierto (un enlace normalmente abierto no es el punto que abrió el
+    operador) y la fecha de la importación (la transferencia es de después: 098:RF-4). Sin DGS, nada: el guion no
+    llama «nuevo» a ningún tramo y no toca la red."""
+    from ..dgs import DGS_ENCODING
+    from ..escaneo import tramos_del_dgs
+    from ..transferencia_operador import maniobras_abiertas_del_dgs
+
+    ruta = _dgs_aceptado(ws, project)
+    if ruta is None:
+        return {}
+    with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
+        abiertos = maniobras_abiertas_del_dgs(f)
+    vinculo = ws.pf_project_bindings.get(project) or {}
+    aceptado = float(vinculo.get('accepted_at') or 0.0)
+    return {'tramos_dgs': sorted(tramos_del_dgs(ruta)), 'abiertos_dgs': abiertos,
+            'fecha_importacion': time.strftime('%Y-%m-%d', time.localtime(aceptado)) if aceptado else None}
 
 
 def _escanear_sin_bloquear(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
@@ -5721,7 +5753,7 @@ def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': list(feeders),
             'anio_casos': anio,
             'ultima_calibracion': ws.calibraciones.get(clave_calibracion(project.strip(), anio)) or {},
-            'tramos_dgs': sorted(_tramos_del_dgs_aceptado(ws, project.strip()))}       # RF-17
+            'tramos_dgs': [], **_red_de_la_fuente_del_plan(ws, project.strip())}       # 028:RF-17, 098:RF-14
     _rc, informe, _report = _guion_pf(ws, ctx, 'escanear_alimentador_pf.py', plan, nombre='escaneo',
                                       cancelable=False)
     if informe.get('error'):
