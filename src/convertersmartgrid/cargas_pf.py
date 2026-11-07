@@ -137,6 +137,9 @@ class CargaNueva:
     """030:RF-13: (año, kW que entra ese año) de una carga fraccionada; suman ``kw``."""
     descripcion: str = ''
     """093:RF-3: el cliente según el libro, cuando la carga se nombra por su sigla."""
+    kva_deducido: bool = False
+    """004:RF-68: el libro no da kVA_instalado; con fichas en el perfil, el guion elige el
+    transformador por la regla de 020:RF-6 y RF-7, no por la serie R10 al 100 %."""
 
     def para_pf(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -369,18 +372,21 @@ def leer_hoja_nuevas(
                            f'total es {kw:g} kW (030:RF-14)')
             continue
         kva_instalado = numeros.get('kVA_instalado')
-        if not kva_instalado:
+        kva_deducido = not kva_instalado
+        if kva_deducido:
             # RF-52: un libro de planificación da la demanda, no el transformador; se toma
             # el normalizado que la cubre y se anota, en vez de rechazar la carga.
             kva_instalado = kva_normalizado(math.hypot(kw, kvar))
             avisos.append(f'{donde}: sin kVA_instalado; se toma {kva_instalado:g} kVA, el '
-                          f'normalizado que cubre {math.hypot(kw, kvar):.1f} kVA de demanda (RF-52)')
+                          f'normalizado que cubre {math.hypot(kw, kvar):.1f} kVA de demanda (RF-52); '
+                          'con fichas en el perfil, el transformador sale de ellas al crear la '
+                          'carga (004:RF-68)')
         if lat is None and tiene_xy:
             pendientes_xy.append((len(filas), x, y))
         filas.append(CargaNueva(
             sed=sed, hoja=hoja, alimentador=texto.get('alimentador', ''),
             barra=texto.get('barra', ''), lat=lat, lon=lon,
-            kva_instalado=float(kva_instalado), kw=kw, kvar=kvar, fp=fp,
+            kva_instalado=float(kva_instalado), kva_deducido=kva_deducido, kw=kw, kvar=kvar, fp=fp,
             tipo_linea=texto.get('tipo_linea', ''), tension_bt_kv=numeros.get('tension_bt_kv'),
             anio_ingreso=int(ingreso) if ingreso is not None else None, etapas=tuple(etapas),
             descripcion=texto.get('nombre', ''),                                     # 093:RF-3

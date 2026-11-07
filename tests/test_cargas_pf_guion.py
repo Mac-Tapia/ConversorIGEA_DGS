@@ -535,3 +535,59 @@ def test_error_inesperado_deja_informe(guion, tmp_path, monkeypatch):
     informe = json.loads(salida.read_text(encoding='utf-8'))
     assert rc == 1 and informe['modo'] == 'simular'
     assert informe['error'] == 'error inesperado del guion: RuntimeError: la etapa de Cargas_F1 no quedó grabando'
+
+
+# =================================================== transformador de ficha (004:RF-68, RF-69)
+def _fichas_del_perfil():
+    """Una tabla de fichas como la de ``calibracion.transformadores_sed`` del perfil."""
+    return {'umbral_carga_pct': 80, 'tablas': [{
+        'norma': 'tabla de prueba', 'codigo': 'FICHA', 'kv_min': 0, 'kv_max': 17.5,
+        'fichas': {'160': [460, 2350, 2.6, 4], '250': [650, 3250, 2.4, 4],
+                   '315': [837, 4533, 2.19, 4], '630': [1411, 8136, 1.15, 4]}}]}
+
+
+def _tr_de(app, sed):
+    return next(t for t in app.proyecto.GetContents('*.ElmTr2', 1) if t.loc_name == f'TR_{sed}')
+
+
+def test_sin_kva_en_el_libro_el_transformador_sale_de_la_ficha_al_umbral(guion):
+    """004:RF-68 / 004:RF-69 — sin kVA en el libro, la menor potencia de la ficha con la máxima
+    en el umbral del perfil, con Po, Pc, Io y uk de la ficha; por encima de la mayor, unidades
+    en paralelo. PE102: 245,5 kVA en 250 kVA quedaban al 102,9 %."""
+    rnd = random.Random(SEMILLA)
+    kw_chica = rnd.uniform(201.0, 240.0)            # 0,8 × 250 < kVA ≤ 0,8 × 315
+    kw_grande = rnd.uniform(1100.0, 1450.0)         # más de 0,8 × 630: unidades en paralelo
+    plan = _plan(['F1'], nuevas=[
+        _nueva('N1', barra='F1_B1', kw=kw_chica, kvar=0.0, kva_instalado=250.0, kva_deducido=True),
+        _nueva('N2', barra='F1_B2', kw=kw_grande, kvar=0.0, kva_instalado=1600.0, kva_deducido=True)])
+    plan['transformadores_sed'] = _fichas_del_perfil()
+    informe, rc = guion.ejecutar(app := fake_pf.proyecto(), plan, simular=False)
+    assert rc == 0, f'semilla {SEMILLA}: {informe}'
+    _ver_cargas(app)
+    por_sed = {c['sed']: c for c in informe['feeders'][0]['creadas']}
+    n1, n2 = _tr_de(app, 'N1'), _tr_de(app, 'N2')
+    assert (n1.typ_id.strn, n1.ntnum) == (0.315, 1), SEMILLA
+    assert (n1.typ_id.pfe, n1.typ_id.pcutr, n1.typ_id.curmg, n1.typ_id.uktr) == (0.837, 4.533, 2.19, 4)
+    unidades = math.ceil(kw_grande / (0.8 * 630))
+    assert (n2.typ_id.strn, n2.ntnum) == (0.63, unidades), SEMILLA
+    assert por_sed['N1']['transformador']['kva'] == 315 and por_sed['N1']['kva_instalado'] == 315
+    assert por_sed['N2']['kva_instalado'] == 630 * unidades
+    assert all(c['transformador']['carga_pct_prevista'] <= 80.0 for c in por_sed.values())
+
+
+def test_kva_del_libro_con_su_ficha_y_sin_fichas_como_antes(guion):
+    """004:RF-69 — el kVA del libro manda y lleva su ficha si la tabla la tiene; sin ella, el
+    tipo se hace como antes y se avisa; sin fichas en el perfil, sin aviso nuevo."""
+    plan = _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B1', kva_instalado=160.0),
+                                 _nueva('N2', barra='F1_B2', kva_instalado=200.0)])
+    plan['transformadores_sed'] = _fichas_del_perfil()
+    informe, rc = guion.ejecutar(app := fake_pf.proyecto(), plan, simular=False)
+    assert rc == 0, informe
+    _ver_cargas(app)
+    por_sed = {c['sed']: c for c in informe['feeders'][0]['creadas']}
+    assert (_tr_de(app, 'N1').typ_id.strn, _tr_de(app, 'N1').typ_id.pcutr) == (0.16, 2.35)
+    assert por_sed['N2']['transformador'] is None and 'RF-69' in por_sed['N2']['aviso']
+    informe, rc = guion.ejecutar(fake_pf.proyecto(), _plan(['F1'], nuevas=[
+        _nueva('N1', barra='F1_B1', kva_deducido=True)]), simular=False)
+    creada = informe['feeders'][0]['creadas'][0]
+    assert rc == 0 and creada['transformador'] is None and 'RF-69' not in (creada['aviso'] or '')

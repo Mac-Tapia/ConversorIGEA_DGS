@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: cumplida (2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: implementada (2026-11-06: falta T20 en DIgSILENT, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -279,6 +279,21 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   de su POT del mes: sumar la POT de cada cliente, cada una de un día, dio en NA203 9 261 kW de
   fijas frente a 7 876 medidos y Nasca dejó de cuadrar (DIgSILENT, 2026-10-28). Sin ese
   registro, RF-66.
+- Aclaración de RF-52 (2026-11-06): la serie R10 que cubre la demanda al 100 % solo vale sin
+  fichas de transformadores en el perfil. En PE102 dejó el transformador del Vivero Los Viñeros
+  (233 kW, 245,5 kVA) en 250 kVA, al 102,9 % en DIgSILENT, y el informe de estudio concluyó «se
+  requieren obras adicionales» por un transformador del cliente; con fichas manda RF-68.
+- RF-68: SI una carga nueva no trae kVA_instalado y el perfil trae fichas de transformadores
+  (`calibracion.transformadores_sed`), ENTONCES EL SISTEMA le pondrá, al crearla en DIgSILENT,
+  el transformador de la misma regla que las SED sobrecargadas (020:RF-6, RF-7): la menor
+  potencia de la tabla de su tensión primaria con la máxima en el umbral del perfil o por
+  debajo y, por encima de la mayor de la tabla, unidades iguales en paralelo; y lo dirá en el
+  informe de la carga con su potencia, sus unidades y su carga prevista.
+- RF-69: CUANDO el conversor cree el tipo del transformador de una carga nueva y la tabla de
+  fichas del perfil para su tensión primaria tenga esa potencia, EL SISTEMA escribirá en el
+  tipo los Po, Pc, Io y uk de la ficha, con el nombre de los tipos de ficha (020:RF-21), en
+  vez de copiar otro tipo del alimentador y escalar sus pérdidas; sin ficha para esa
+  potencia, o con menos de tres fases, se hace como antes y se avisa.
 
 ## Requisitos no funcionales
 

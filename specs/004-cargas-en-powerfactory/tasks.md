@@ -101,3 +101,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
 - [x] T18. Retro (033, 2026-10-29): RF-42, RF-43, RF-46 a RF-53, RF-56, RF-57, RF-67, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-42, RF-43, RF-46 a RF-53, RF-56, RF-57, RF-67)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_demanda_medida*.py`, `tests/test_cargas_pf*.py`, `tests/test_cargas_tres_pasos_front.py` y `tests/test_central_termica_front.py`).
+- [x] T19. Transformador de ficha para las cargas nuevas: `CargaNueva.kva_deducido`,
+      `transformador_de_ficha` en `tools/cargas_pf.py` con `trafos_sed.proponer` y el tipo con la
+      ficha del perfil, `ntnum` con las unidades. (RF-68, RF-69)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_guion.py` en verde.
+- [ ] T20. [DIgSILENT] PE102 con las cargas CH_13 y CH_22 aplicadas de nuevo por la web: sus
+      transformadores con ficha y la máxima ≤ 80 % en «Con proyecto». (RF-68, RF-69)
+      Hecho cuando: el estudio 4.2 de «Con proyecto» no tiene ningún transformador de carga
+      nueva por encima del 80 %.

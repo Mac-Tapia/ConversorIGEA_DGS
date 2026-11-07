@@ -347,3 +347,12 @@ def test_con_sigla_la_ampliacion_se_reconoce_por_la_descripcion():
     r = guion.ampliacion_de(fila, [sed])
     assert r is not None and r['sed'] == 'SE21146' and 'SE21146' in r['criterio']
     assert guion.ampliacion_de({**fila, 'descripcion': 'SU-233.27KW-ViveroLosViñeros'}, [sed]) is None
+
+
+def test_kva_deducido_marcado_para_que_el_guion_use_la_ficha():
+    """004:RF-68 — sin kVA_instalado la carga queda marcada; con él, no."""
+    filas, errores = leer_hoja_nuevas(['SED', 'Kw', 'kVA_instalado', 'barra', 'alimentador'],
+                                      [['N1', 233.27, None, 'B1', 'A'], ['N2', 100, 160, 'B1', 'A']], 'A')
+    assert errores == []
+    assert [f.kva_deducido for f in filas] == [True, False]
+    assert filas[0].para_pf()['kva_deducido'] is True

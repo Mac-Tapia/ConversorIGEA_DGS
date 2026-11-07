@@ -1606,7 +1606,72 @@ def transformador_de_la_ampliacion(plan: dict, r: dict, creada: dict) -> dict:
     return out
 
 
-def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
+def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int) -> tuple[dict | None, str]:
+    """El transformador de una carga nueva con la ficha del perfil (004:RF-68, RF-69).
+
+    En PE102 (2026-11-06) el Vivero Los Viñeros pedía 245,5 kVA y, sin kVA en el libro, la
+    serie R10 al 100 % le dio 250 kVA: DIgSILENT lo midió al 102,9 % y el informe pidió «obras
+    adicionales» por un transformador del cliente. Con fichas manda la regla de las SED
+    sobrecargadas (020:RF-6, RF-7): la menor potencia con la máxima en el umbral del perfil.
+    Con el kVA del libro, su ficha si la tabla la tiene. Devuelve la propuesta (o ``None``) y
+    el motivo de no tenerla.
+    """
+    from convertersmartgrid.trafos_sed import proponer, tabla_para
+
+    if fases < 3:
+        return None, 'las fichas del perfil son de transformadores trifásicos'
+    try:
+        import ajuste_cabecera_pf as ajuste
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ajuste_cabecera_pf as ajuste
+    fichas, motivo = ajuste.fichas_del_plan(plan or {})
+    if fichas is None:
+        return None, motivo or 'el perfil de empresa no trae fichas de transformadores'
+    if fila.get('kva_deducido'):
+        demanda = math.hypot(float(fila['kw'] or 0.0), float(fila['kvar'] or 0.0))
+        p = proponer(demanda, mt, fichas['tablas'], float(fichas['umbral_carga_pct']))
+        return (p, '') if p['kva'] is not None else (None, p['motivo'])
+    tabla = tabla_para(fichas['tablas'], mt)
+    kva = float(fila['kva_instalado'])
+    clave = int(kva) if kva.is_integer() else kva
+    if tabla is None or clave not in tabla['fichas']:
+        return None, f'las fichas del perfil no tienen {kva:g} kVA a {mt:g} kV'
+    po, pc, io, uk = tabla['fichas'][clave]
+    demanda = math.hypot(float(fila['kw'] or 0.0), float(fila['kvar'] or 0.0))
+    return ({'kva': clave, 'unidades': 1, 'po_w': po, 'pc_w': pc, 'io_pct': io, 'uk_pct': uk,
+             'norma': tabla['norma'], 'codigo': tabla['codigo'],
+             'carga_pct_prevista': 100.0 * demanda / kva}, '')
+
+
+def _tipo_de_ficha(typ_folder, p: dict, mt: float, bt: float, frecuencia: float):
+    """El tipo trifásico con la ficha (004:RF-69), con el nombre de 020:RF-21; uno que ya
+    exista con ese nombre se reutiliza solo si tiene la misma ficha (020:RF-22)."""
+    from convertersmartgrid.trafos_sed import nombre_tipo
+
+    try:
+        import ajuste_cabecera_pf as ajuste
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ajuste_cabecera_pf as ajuste
+    nombre = nombre_tipo(p['kva'], p.get('codigo') or '', mt, bt * 1000.0, 'DYN5')
+    valores = {a: p[k] * f for a, (k, f) in ajuste.FICHA_EN_TIPO.items()}
+    for t in typ_folder.GetContents('*.TypTr2'):
+        if t.loc_name.startswith(nombre) and all(
+                math.isclose(float(getattr(t, a, 0) or 0.0), v, rel_tol=1e-4, abs_tol=1e-6)
+                for a, v in valores.items()):
+            return t, False
+    t = typ_folder.CreateObject('TypTr2', nombre_libre(typ_folder, 'TypTr2', nombre))
+    t.nt2ph, t.utrn_h, t.utrn_l = 3, mt, bt
+    if frecuencia:
+        t.frnom = frecuencia
+    t.tr2cn_h, t.tr2cn_l, t.nt2ag = 'D', 'YN', 5
+    for a, v in valores.items():
+        setattr(t, a, v)
+    return t, True
+
+
+def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r, plan=None) -> dict:
     """Crea la carga resuelta en la etapa que graba. Devuelve lo creado (RF-14).
 
     Si la carga va dentro de un tramo de la troncal, primero lo parte en esta misma
@@ -1648,17 +1713,28 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
             cub = term.CreateObject('StaCubic', nombre_pf(f'Cub{extremo}_LNE_{sed}'))
             cub.obj_id, cub.obj_bus = linea, lado
         enganche = nueva_barra
+    # 004:RF-68, RF-69: con fichas en el perfil, el transformador y su tipo salen de ellas.
+    ficha, sin_ficha = transformador_de_ficha(plan, fila, mt, fases)
+    unidades = int(ficha['unidades']) if ficha else 1
+    kva_tr = float(ficha['kva']) if ficha else float(fila['kva_instalado'])
     sub = contenedor.CreateObject('ElmSubstat', nombre_pf(sed))
-    sub.sShort, sub.sType = 'T', f"{fila['kva_instalado']:g} kVA"
+    sub.sShort, sub.sType = 'T', (f'{unidades} × {kva_tr:g} kVA' if unidades > 1 else f'{kva_tr:g} kVA')
     b_mt = sub.CreateObject('ElmTerm', nombre_pf(sed))
     b_mt.uknom, b_mt.iUsage = mt, 0
     b_bt = sub.CreateObject('ElmTerm', nombre_pf(f'{sed}_BT'))
     b_bt.uknom, b_bt.iUsage = bt, 0
     poner_fases(fases, b_mt, b_bt)                                       # 081:RF-65; 054:RF-4: BT 1PH
-    tipo_tr, tipo_nuevo, aviso = _tipo_trafo(alims, feeder, typ_folder, float(fila['kva_instalado']),
-                                             mt, bt, r['frecuencia_hz'], fases)
+    if ficha:
+        tipo_tr, tipo_nuevo = _tipo_de_ficha(typ_folder, ficha, mt, bt, r['frecuencia_hz'])
+        aviso = ''
+    else:
+        tipo_tr, tipo_nuevo, aviso = _tipo_trafo(alims, feeder, typ_folder, kva_tr,
+                                                 mt, bt, r['frecuencia_hz'], fases)
+        if (plan or {}).get('transformadores_sed') is not None:
+            aviso = '; '.join(x for x in (aviso, f'{sed}: transformador sin ficha, {sin_ficha} '
+                                                 '(004:RF-69)') if x)
     tr = sub.CreateObject('ElmTr2', nombre_pf(f'TR_{sed}'))
-    tr.typ_id, tr.ntnum, tr.outserv = tipo_tr, 1, 0
+    tr.typ_id, tr.ntnum, tr.outserv = tipo_tr, unidades, 0
     for term, lado, nombre in ((b_mt, 0, 'Cub1_TR'), (b_bt, 1, 'Cub2_TR')):
         cub = term.CreateObject('StaCubic', nombre_pf(f'{nombre}_{sed}'))
         cub.obj_id, cub.obj_bus = tr, lado
@@ -1694,8 +1770,10 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         'distancia_m': r['distancia_m'], 'tipo_linea': getattr(tipo_linea, 'loc_name', None),
         'tipo_linea_nuevo': tipo_linea_nuevo, 'fases': fases,
         'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': mt, 'tension_bt_kv': bt,
-        'kva_instalado': fila['kva_instalado'], 'kw': fila['kw'], 'kvar': fila['kvar'],
+        'kva_instalado': kva_tr * unidades, 'kw': fila['kw'], 'kvar': fila['kvar'],
         'tipo_trafo': tipo_tr.loc_name, 'tipo_trafo_nuevo': tipo_nuevo,
+        'transformador': ({k: ficha[k] for k in ('kva', 'unidades', 'norma', 'carga_pct_prevista')}
+                          if ficha else None),                                   # 004:RF-68
         'aviso': aviso or None, 'error_relectura': error or None, 'dibujo': dibujo,
         'tramo_partido': partido, 'cable': con_cable(r['distancia_m']),
     }
@@ -2825,7 +2903,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
     variacion, etapa = crear_variacion(app, nombre, plan.get('stamp') or '')
     de_cargas.append(variacion)
     try:
-        creada = crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r)
+        creada = crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r, plan)
     except Exception as exc:  # noqa: BLE001 - sin la carga, su variación no sirve
         variacion.Deactivate()
         de_cargas.remove(variacion)
