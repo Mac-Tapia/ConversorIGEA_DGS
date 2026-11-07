@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 286 |
 
-`web/services.py` tiene 10890 líneas y 326 funciones, pendiente de partir (002).
+`web/services.py` tiene 10895 líneas y 326 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | aprobada | 19 |
 | reservada | 3 |
 
-96 specs con 3108 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+96 specs con 3110 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

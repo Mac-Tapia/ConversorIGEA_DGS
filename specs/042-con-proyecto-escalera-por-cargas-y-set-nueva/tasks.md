@@ -135,3 +135,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
+- [x] T58. El refuerzo de los tramos sobrecargados sigue la escalera: sección normalizada antes que terna
+      en los tramos aéreos. (RF-43, RF-94)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py -k "sobrecargad or refuerzo"` en verde.
+- [x] T59. Las variantes se miden de menor a mayor costo cuando se buscan alternativas. (RF-95)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_web.py` en verde.

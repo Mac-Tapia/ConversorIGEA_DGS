@@ -6261,11 +6261,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
 
         por_kw = ((p.precio_perdidas_kwh or 0.0) * (perdidas.get(f) or 0.0) * eo.HORAS_ANIO
                   + 12 * (p.precio_perdidas_kw_mes or 0.0))
+        a_medir = [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
+                   for v in vs]
+        if por_alternativas and not (variantes_de and f in variantes_de) and not (solo and f in solo) and not objetivo_previo:
+            # 042:RF-95: PE102 midió 34 variantes en el orden de la escalera; de la más barata a la más cara,
+            # las primeras 3 que cumplen ya son las alternativas y RF-92 para antes.
+            a_medir = eo.por_costo(a_medir)
         plan_ev = {
             **comun, 'feeders': [f] + vecinos_f, 'costo_por_kw_perdido': por_kw,
             **({'native_action_context': native_action_context(ws, project, [f] + vecinos_f, 'obras')} if vecinos_f else {}),
-            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
-                          for v in vs],
+            'variantes': a_medir,
             # 042:RF-59: la obra que esta corrida acaba de sortear no se vuelve a sortear al aplicarla.
             'barras_cargas': barras, 'sorteos': [] if (solo and f in solo) or objetivo_previo else sorteos, 'parametros': perfil,
             # 087:RF-44: se aplica la obra elegida; la evaluación con sorteos ya dijo que hace falta.

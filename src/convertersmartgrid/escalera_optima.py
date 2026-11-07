@@ -544,10 +544,44 @@ def _ternas_que_faltan(t: Mapping[str, Any], v: Variante, capacidades: Mapping[s
     return max(0, pedidas - ya)
 
 
-def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Parametros) -> Variante:
-    """La variante con las ternas que les faltan a los tramos sobrecargados, de cualquier ramal (042:RF-43)."""
-    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct)) for t in sobrecargados]
-    obras, km = [], 0.0
+def _seccion_que_basta(t: Mapping[str, Any], aptos: Sequence[Mapping[str, Any]], limite: float) -> Mapping[str, Any] | None:
+    """042:RF-94: el menor conductor aéreo normalizado que deja el tramo ``t`` bajo ``limite``; ``None`` si es cable o ninguno basta."""
+    if t.get('cable') or not t.get('inom_a'):
+        return None
+    actual, carga = float(t['inom_a']), float(t['carga_pct'])
+    for tipo in aptos:                                           # de menor a mayor capacidad
+        nueva = float((tipo.get('datos') or {}).get('sline') or 0.0) * 1000
+        if nueva > actual and carga * actual / nueva <= limite:
+            return tipo
+    return None
+
+
+def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Parametros,
+                  aptos: Sequence[Mapping[str, Any]] = ()) -> Variante:
+    """La variante con el refuerzo de los tramos sobrecargados, de cualquier ramal (042:RF-43).
+
+    042:RF-94: un tramo aéreo sin obra de la variante cambia primero de sección, a la menor normalizada que lo
+    deja bajo el límite; las ternas quedan para los cables y para lo que ninguna sección resuelve. PE102
+    (2026-11-06): todo refuerzo era una terna y el usuario la cambió por la sección AA120 en SEC_1091_314817.
+    """
+    por_tipo: dict[str, tuple[Mapping[str, Any], list]] = {}
+    con_terna = []
+    for t in sobrecargados:
+        tocado = any(t['nombre'] in o.get('tramos', ()) for o in v.obras if o.get('clase') in ('seccion', 'terna'))
+        tipo = None if tocado else _seccion_que_basta(t, aptos, p.cargabilidad_max_pct)
+        if tipo is None:
+            con_terna.append(t)
+        else:
+            por_tipo.setdefault(str(tipo['nombre']), (tipo, []))[1].append(t)
+    obras, km_seccion = [], 0.0
+    for tipo, tramos in por_tipo.values():
+        ref = {'nombre': tipo['nombre'], 'clase': 'TypLne', 'origen': tipo.get('origen') or 'proyecto',
+               'proyecto': tipo.get('proyecto') or ''}
+        obras.append({'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
+                      'tramos': [t['nombre'] for t in tramos], 'tipo': ref, 'nodos': _nodos(tramos)})
+        km_seccion += _km(tramos)
+    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct)) for t in con_terna]
+    km = 0.0
     for i in range(1, max((m for _, m in faltan), default=0) + 1):
         tramos = [t for t, m in faltan if m >= i]
         obras.append({'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO], 'tramos': [t['nombre'] for t in tramos],
@@ -555,10 +589,26 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
         km += _km(tramos)
     if not obras:
         return v
-    n = sum(1 for _, m in faltan if m)
-    nombre = f'refuerzo de {n} tramos sobrecargados ({km:.2f} km)'
-    return Variante(f'{v.nombre} + {nombre}' if v.nombre else nombre, tuple(dict.fromkeys(v.escalones + ('terna',))),
-                    v.obras + obras, {**v.cantidades, 'terna': float(v.cantidades.get('terna') or 0.0) + km}, v.solo_evidencia)
+    n = sum(len(ts) for _, ts in por_tipo.values()) + sum(1 for _, m in faltan if m)
+    nombre = f'refuerzo de {n} tramos sobrecargados ({km + km_seccion:.2f} km)'
+    escalones = v.escalones + (('seccion',) if por_tipo else ()) + (('terna',) if km or any(m for _, m in faltan) else ())
+    cantidades = dict(v.cantidades)
+    if km_seccion:
+        cantidades['seccion'] = float(cantidades.get('seccion') or 0.0) + km_seccion
+    if any(m for _, m in faltan):
+        cantidades['terna'] = float(cantidades.get('terna') or 0.0) + km
+    return Variante(f'{v.nombre} + {nombre}' if v.nombre else nombre, tuple(dict.fromkeys(escalones)),
+                    v.obras + obras, cantidades, v.solo_evidencia)
+
+
+def por_costo(variantes: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """042:RF-95: de menor a mayor ``costo_base``; las que no tienen costo, al final; entre iguales, el orden recibido.
+
+    PE102 (2026-11-06): en el orden de la escalera se midieron 34 variantes en DIgSILENT antes de reunir las 3
+    alternativas; medidas de la más barata a la más cara, las primeras que cumplen ya son las que se presentan.
+    """
+    return [v for _, v in sorted(enumerate(variantes), key=lambda iv: (iv[1].get('costo_base') is None,
+                                                                       float(iv[1].get('costo_base') or 0.0), iv[0]))]
 
 
 def mva_del_elevador(kv: float, corriente_a: float, p: Parametros) -> float | None:
@@ -691,10 +741,11 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     if sobrecargados:
         # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
         capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
-        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p)
+        aptos = conductores_aptos(normalizados(tipos, p.secciones), kv, None)            # 042:RF-94
+        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p, aptos)
         # 042:RF-50: a 22,9 kV la corriente baja a menos de la mitad: el paso de tensión no lleva refuerzo.
         todas = [solo] + [v if v.solo_evidencia or 'nivel' in v.escalones
-                          else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p) for v in todas]
+                          else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p, aptos) for v in todas]
         avisos.append(f"{alimentador}: {len(sobrecargados)} tramos pasan de {p.cargabilidad_max_pct:g} % con las cargas nuevas; "
                       'cada variante los refuerza (042:RF-43).')
     if len(todas) > p.max_variantes:

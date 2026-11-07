@@ -196,6 +196,19 @@ Informe y web
   fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
   quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.
 
+- Aclaración de RF-43 (2026-11-06): el refuerzo de un tramo aéreo sobrecargado sigue la escalera de
+  RF-94; las ternas de RF-43 quedan para los cables y para los tramos que ninguna sección resuelve.
+- RF-94: SI un tramo aéreo pasa del límite de carga con las cargas nuevas y la variante no le pone obra,
+  ENTONCES EL SISTEMA lo reforzará con el menor conductor de `escalera.secciones_normalizadas` de su
+  tensión que lo deja bajo el límite, y solo con ternas si ninguno basta. PE102 (2026-11-06): el refuerzo
+  de cada variante era siempre una terna, y el usuario corrigió la obra del vivero a un cambio de sección
+  de SEC_1091_314817 (AA070 a AA120, de 136,2 % a 93,6 %), dentro del escalón de sección hasta 240 mm².
+- RF-95: CUANDO la escalera busca alternativas (RF-55), EL SISTEMA medirá las variantes de menor a mayor
+  costo anual sin pérdidas, con las que no tienen costo al final y en el orden de la escalera entre
+  iguales, para que las primeras que cumplen sean las más baratas y RF-92 pare antes. PE102
+  (2026-11-06): se midieron 34 variantes en DIgSILENT; el usuario pidió «ordenar por costo y parar con
+  las 3 más baratas que cumplen, más una definitiva».
+
 ## Relación con otras specs
 
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a

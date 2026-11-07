@@ -864,3 +864,52 @@ def test_los_bancos_segun_el_perfil_mandan_si_cumplen():
     assert any(a['nombre'] == 'bancos 2×450 kvar' for a in r['alternativas'])
     mal = {**perfil, 'maxima': False, 'motivos': ['no converge']}
     assert eo.elegir([dos, mal], P)['elegida'] == 'bancos 2×450 kvar'
+
+
+def test_el_refuerzo_de_un_tramo_aereo_es_primero_la_seccion():
+    """042:RF-94, 042:RF-43 — PE102: el tramo aéreo al 136 % se cambia de sección; el cable y lo que ninguna sección
+    resuelve van con terna."""
+    import random
+
+    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.perfil_empresa import completar_planeamiento
+
+    rng = random.Random(42094)
+    kv = rng.choice([10.0, 13.2, 22.9])
+    perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 100, 'max_variantes': 500}})[0]
+    p = eo.parametros(perfil)
+    tipos = _tipos(kv)                                       # 150, 300, 450 y 700 A, aéreos
+    troncal = [{'nombre': f'L{i}', 'largo_m': 1000.0, 'corriente_a': 50.0, 'inom_a': 700.0} for i in range(3)]
+    cargas = [{'barra': 'B2', 'existe': True, 'indice_troncal': 2}]
+    largo = rng.uniform(100.0, 900.0)
+    aereo = {'nombre': 'A1', 'largo_m': largo, 'carga_pct': 136.2, 'nlnum': 1, 'inom_a': 200.0, 'cable': False}
+    cable = {'nombre': 'C1', 'largo_m': 50.0, 'carga_pct': 130.0, 'nlnum': 1, 'inom_a': 200.0, 'cable': True}
+    imposible = {'nombre': 'X1', 'largo_m': 80.0, 'carga_pct': 500.0, 'nlnum': 1, 'inom_a': 200.0, 'cable': False}
+    vs, _a = eo.variantes('F', kv, troncal, cargas, tipos, p, banco_kvar=450.0, sobrecargados=[aereo, cable, imposible])
+    solo = vs[0]
+    assert solo.nombre.startswith('refuerzo de 3 tramos sobrecargados')
+    secciones = [o for o in solo.obras if o['clase'] == 'seccion']
+    # 200 A × 1,362 = 272 A: el menor que lo deja bajo el 100 % es el de 300 A, no el de 450 ni el de 700.
+    assert [(o['tipo']['nombre'], o['tramos']) for o in secciones] == [(tipos[1]['nombre'], ['A1'])]
+    ternas = [t for o in solo.obras if o['clase'] == 'terna' for t in o['tramos']]
+    assert 'A1' not in ternas and 'C1' in ternas and 'X1' in ternas
+    assert abs(solo.cantidades['seccion'] - largo / 1000) < 1e-9 and 'seccion' in solo.escalones
+    # Si la variante ya le pone obra al tramo, se completa con ternas como hasta ahora (RF-43).
+    con_terna = eo.Variante('t', ('terna',), [{'clase': 'terna', 'tramos': ['A1']}], {})
+    reforzada = eo._con_refuerzo(con_terna, 'F', [aereo], {}, p, eo.conductores_aptos(tipos, kv, None))
+    assert not [o for o in reforzada.obras if o['clase'] == 'seccion']
+
+
+def test_las_alternativas_se_miden_de_la_mas_barata_a_la_mas_cara():
+    """042:RF-95 — de menor a mayor costo; sin costo al final y, entre iguales, el orden de la escalera."""
+    import random
+
+    from convertersmartgrid import escalera_optima as eo
+
+    rng = random.Random(42095)
+    costos = [rng.choice([None, 100.0, 250.0, 900.0, 40.0]) for _ in range(rng.randint(8, 20))]
+    vs = [{'nombre': f'v{i}', 'costo_base': c} for i, c in enumerate(costos)]
+    orden = eo.por_costo(vs)
+    assert sorted(v['nombre'] for v in orden) == sorted(v['nombre'] for v in vs)
+    claves = [(v['costo_base'] is None, v['costo_base'] or 0.0, int(v['nombre'][1:])) for v in orden]
+    assert claves == sorted(claves)
