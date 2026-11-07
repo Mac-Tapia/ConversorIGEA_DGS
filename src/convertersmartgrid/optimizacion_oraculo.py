@@ -710,6 +710,51 @@ def modulos_en_valle(oraculo: Oraculo, barras: Sequence[str], banco_kvar: float,
     return out
 
 
+#: 098:RF-41: tope de seguridad de módulos por barra, si el perfil no da ``escalera.modulos_max``.
+MODULOS_MAX_DE_SEGURIDAD = 12
+
+
+def modulos_por_mejora(oraculo: Oraculo, barras: Sequence[str], banco_kvar: float, valle: Mapping[str, Any] | None,
+                       p: Parametros, *, k: int = 0, alimentador: str | None = None,
+                       tope: int | None = None) -> dict[str, Any]:
+    """098:RF-41: cuántos módulos de banco en cada barra tiene sentido probar: se sube de uno en uno mientras el oráculo
+    corregido (RF-30) ve que mejora la barra peor del alimentador con la máxima y, si hay valle, el valle no pasa del
+    límite. Dice hasta cuántos y por qué se paró. CA101 (2026-11-07): con la transferencia, 1×300 kvar dejaba la cola en
+    0,874 p.u. y 2×300 kvar con refuerzo en 0,922; la escalera no probaba un tercero."""
+    tope = int(tope) if tope is not None else MODULOS_MAX_DE_SEGURIDAD
+    out: dict[str, Any] = {'modulos': 0, 'motivo': '', 'tabla': []}
+    if not banco_kvar or not barras:
+        out['motivo'] = 'sin banco o sin barras'
+        return out
+    puntos = (valle or {}).get('puntos') or []
+    rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
+    rapido.pinn = None
+    barras = [b for b in barras if b in rapido.nodo_de]
+    if not barras:
+        out['motivo'] = 'las barras del banco no están en el grafo'
+        return out
+
+    def obras(n: int) -> list[dict]:
+        return [{'clase': 'condensador', 'barra': b, 'q_kvar': float(banco_kvar) * n} for b in barras]
+
+    previa = rapido.medir([], k, 1.0, alimentador).v_min
+    n = 0
+    while n < tope:
+        n += 1
+        if puntos and rapido.en_valle(obras(n), k, p, valle, alimentador).get('valle') is False:
+            out['motivo'] = f'con {n} módulos el valle pasa del límite'
+            return out
+        v = rapido.medir(obras(n), k, 1.0, alimentador).v_min
+        out['tabla'].append({'modulos': n, 'v_min': None if v is None else round(float(v), 4)})
+        if v is None or previa is None or v <= previa + 1e-4:
+            out['motivo'] = f'con {n} módulos la barra peor ya no mejora'
+            return out
+        previa = v
+        out['modulos'] = n
+    out['motivo'] = f'tope de {tope} módulos'
+    return out
+
+
 def buscar_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametros,
              factores: Sequence[float] = (), *, valle: Mapping[str, Any] | None = None) -> tuple[int, list[dict[str, Any]]]:
     """El mayor k de cargas que caben con obra en cada alimentador, con el oráculo (RF-4).

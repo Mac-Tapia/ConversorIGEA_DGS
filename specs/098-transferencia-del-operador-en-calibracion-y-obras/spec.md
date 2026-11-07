@@ -218,20 +218,32 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   deshace, y lo aplicado del espacio se pondrá al día con él. Nunca
   comparará ni retirará lo que aplicó el operador (040:RF-8, 014:RF-3) ni lo aplicado sin origen ni evidencia, que solo
   avisará; SI sin la vieja «Con proyecto» ya cumple, ENTONCES la conservará y dirá que sobra.
-- RF-37: EL SISTEMA elegirá dos obras por alimentador: la de corto plazo, la más barata que cumple hoy (con la máxima,
-  los sorteos y el valle) en el orden de la escalera (042:RF-56), que se aplica; y la de largo plazo, la más barata que
-  aguanta el horizonte del proyecto (042:RF-92), mejor la que contiene la de corto plazo (los mismos bancos ampliados,
-  la misma sección en más tramos), que se plantea para el intervalo entre los horizontes probados en que la de corto
-  plazo deja de aguantar (antes del primero, si cumple hoy y no llega a él) y pasa al plan y al PIDE (072:RF-4); SI la
-  de corto plazo aguanta el
-  horizonte, ENTONCES es también la de largo plazo y se dice; SI ninguna aguanta, ENTONCES se dice. El informe y la web
-  dan las dos, con su costo, la mínima de media, los años que aguanta cada una y el año en que hace falta la de largo
-  plazo.
-
+- RF-37: EL SISTEMA aplicará en el estudio de «Con proyecto» solo la alternativa de corto plazo: la más barata, en el
+  orden de la escalera (042:RF-56), que cumple desde el año 0 del análisis hasta el año del periodo de corto plazo (el
+  del perfil, `escalera.periodo_corto_plazo_anios` o `planificacion.periodo_corto_plazo_anios`, o el primer año del
+  PIDE, `planificacion.anios_horizonte`; sin él, 4, el periodo del PIDE), con la máxima, los sorteos y el valle de hoy
+  y la demanda proyectada de ese año; SI ninguna llega a ese año, ENTONCES elegirá la más barata que cumple hoy y lo
+  dirá. No planteará en este estudio la obra de los años siguientes (usuario, 2026-11-07: «en estos estudios solo haz
+  el año cero»).
 - RF-38: CUANDO una obra de la escalera nombra la mitad «(n)» que dejó una carga nueva al partir un tramo, y esa mitad no
   existe en la red sobre la que se graba la obra (las cargas nuevas apartadas), EL SISTEMA tomará el tramo entero, una
   sola vez, y no dará la obra por ajena al alimentador. CA101 (2026-11-07): «El tramo 'SEC_1091_1081392(1)' no es del
   alimentador CA101» en toda terna o sección de varios caminos, que salía «no cumple» sin medirse.
+
+- RF-39: EL SISTEMA buscará en qué año el alimentador, con la alternativa de corto plazo puesta, vuelve a salir de
+  límites con la demanda proyectada (las cargas nuevas, constantes, 030:RF-9): el oráculo corregido (RF-30) busca el
+  primer año que falla desde el siguiente al del periodo hasta el horizonte, y DIgSILENT lo confirma solo en ese año y
+  en el anterior; SI no hay oráculo o DIgSILENT no lo confirma, ENTONCES DIgSILENT lo buscará por bisección.
+- RF-40: EL SISTEMA dará en el informe y en la web, por alimentador, el año en que vuelve a tener problemas, con la
+  barra y su tensión, y que la alternativa de ese año se plantea en el PIDE partiendo de la de corto plazo; no buscará
+  ni medirá en este estudio ninguna obra de ese año.
+- RF-41: CUANDO a una variante le falta tensión, EL SISTEMA probará más módulos de banco (3, 4, …, del tamaño del
+  perfil), solos y con las obras de línea de varios caminos, mientras el oráculo corregido vea que mejora la barra peor
+  y el valle no pase del límite, y dirá hasta cuántos módulos probó y por qué se paró. CA101 (2026-11-07), con su
+  transferencia: 1×300 kvar dejaba la cola en 0,874 p.u. y 2×300 kvar con refuerzo en 0,922; no se probaba un tercero.
+- RF-42: EL SISTEMA no propondrá una transferencia por un enlace que une barras de tensiones distintas sin un
+  transformador, y lo dirá. CA101 y CHN102 (2026-11-07): tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con
+  22,9 kV.
 
 ## Relación con otras specs
 
@@ -242,9 +254,13 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 - Amplía 042:RF-56: la transferencia cuenta con los bancos en el grupo económico (098:RF-23).
 - Cambia 042:RF-30 para varios caminos: la sección de un camino y la terna de otro sí se combinan (098:RF-31).
 - Amplía 025:RF-73 (evaluación reutilizada) a cada variante (098:RF-32) y 042:RF-54 a la sección y la terna (098:RF-35).
-- Cambia 042:RF-56 y 042:RF-93 en lo que se aplica y lo que se plantea: la de corto plazo se aplica y la definitiva
-  más barata es la de largo plazo, con el año en que hace falta (098:RF-37); amplía 042:RF-60 a la obra elegida con la
-  regla anterior (098:RF-36). El plan y el PIDE la leen de las alternativas (072:RF-4), sin calcularla de nuevo.
+- Cambia 042:RF-56 y 042:RF-75 en lo que se aplica: la de corto plazo, que llega al año del periodo (098:RF-37);
+  amplía 042:RF-60 a la obra elegida con la regla anterior (098:RF-36). El año en que vuelve a fallar va con las
+  alternativas que leen el plan y el PIDE (072:RF-4).
+- Al PIDE (072, 030), no a este estudio: plantear en cada año del PIDE, según lo que pida y la normativa de
+  planeamiento, la obra encima de las anteriores, empezando por la de corto plazo de aquí. El enganche: el año en que
+  vuelve a fallar (`vuelve_a_fallar` de la elegida guardada) y `escalera_optima.largo_plazo` y `contiene`, que quedan para
+  esa ruta. Queda anotado como pendiente en la 072 (T14).
 - Amplía 081:RF-80 y RF-81: un interruptor de cubículo se anota con su nombre completo.
 - No cambia la 013 (transferencia como estudio entre dos alimentadores) ni 081:RF-83 y RF-84: lo del operador que no
   deja barras sin tensión se respeta en «Con proyecto».
@@ -258,6 +274,6 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-37.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-42.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

@@ -807,6 +807,24 @@ def test_la_lectura_da_el_enlace_existente_con_sus_maniobras():
     assert [x['maniobra']['ruta'] for x in e['puntos']] == [s.GetFullName() for s in seccionadores]
 
 
+def test_un_enlace_entre_tensiones_distintas_no_se_propone():
+    """098:RF-42 — tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: la lectura lo descarta y lo
+    dice; con la misma tensión, el enlace sigue."""
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_enlace_tensiones_098', tools_en_path=True)
+    app, alims, n, _seccionadores, _enl = _red_con_enlace()
+    _obj(app, 'ElmTerm', f'F2_B{n}').uknom = 22.9
+    _obj(app, 'ElmTerm', f'F1_B{n}').uknom = 10.0
+    informe, codigo = obras.datos_escalera(app, _plan_obras(alims, barras={'F1': [f'F1_B{n}']}))
+    assert codigo == 0, informe
+    assert not [x for x in informe['alimentadores']['F1']['enlaces'] if x['enlace'] == 'ENL']
+    assert any('ENL' in a and '22.9 kV' in a and '098:RF-42' in a for a in informe['avisos'])
+    _obj(app, 'ElmTerm', f'F2_B{n}').uknom = 10.0
+    informe, _c = obras.datos_escalera(app, _plan_obras(alims, barras={'F1': [f'F1_B{n}']}))
+    assert [x for x in informe['alimentadores']['F1']['enlaces'] if x['enlace'] == 'ENL']
+
+
 def test_la_obra_abre_la_maniobra_cierra_el_enlace_y_dice_que_pasa(tmp_path):
     """098:RF-21, 098:RF-24, 098:RF-19 — sin línea nueva: se cierra el enlace y se abre el seccionador, los dos anotados;
     el informe dice qué SED pasaron, con cuántos kW, y las tensiones y cargas antes y después; al quedar inactiva todo
@@ -1232,68 +1250,114 @@ def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
     assert eo.costos_de_alternativas({}, p2)['nueva_terna']['costo_unitario'] == pytest.approx(2.0 * nivel)
 
 
-def test_corto_plazo_la_mas_barata_que_cumple_hoy_y_largo_plazo_la_definitiva():
-    """098:RF-37 — usuario (2026-11-07): «las baratas deben ser de implementación inmediata; para largo plazo, la
-    definitiva con el horizonte del proyecto». Se aplica la de corto plazo (grupo y costo); se plantea la de largo
-    plazo (la más barata que aguanta el horizonte, mejor si contiene la corta) para el año en que la corta deja de
-    aguantar; las dos con su plazo en las alternativas."""
+def test_la_de_corto_plazo_tiene_que_llegar_al_anio_del_periodo():
+    """098:RF-37 — usuario (2026-11-07): «el corto plazo debe ser solo para 4 años, considerando como año 0 el del
+    análisis». Una que cumple hoy y no llega al año 4 no es la de corto plazo; la más barata que llega, sí. CA101: la
+    terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7."""
     from convertersmartgrid import escalera_optima as eo
 
     p = eo.parametros(_perfil_eo())
-    banco = {'clase': 'condensador', 'barra': 'B4', 'q_kvar': 300}
-    sec = {'clase': 'seccion', 'tramos': ['T1', 'T2']}
-    bancos = _fila_eo('1×300 kvar', ('bancos',), 500.0, {'definitiva': False, 'aguanta_anios': 3, 'mas_corto': 3},
-                      [banco])
-    nivel = _fila_eo('cambio a 22.9 kV', ('nivel',), 1200.0, {'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 3})
-    sola = _fila_eo('sección AA24003D', ('seccion',), 900.0, {'definitiva': True, 'aguanta_anios': 20}, [sec])
-    junta = _fila_eo('1×300 kvar + sección AA24003D', ('bancos', 'seccion'), 1000.0,
-                     {'definitiva': True, 'aguanta_anios': 20}, [banco, sec])
-    d = eo.elegir([nivel, sola, junta, bancos], p)
-    assert d['elegida'] == '1×300 kvar'
-    largo = d['largo_plazo']
-    # La sección sola es más barata, pero la que contiene los bancos ya puestos no deshace la corta.
-    assert largo['nombre'] == junta['nombre'] and largo['parte_de_la_corta'] and largo['hace_falta_en_anio'] == 3
-    plazos = {a['nombre']: a['plazo'] for a in d['alternativas']}
-    assert plazos['1×300 kvar'] == 'corto plazo' and plazos[junta['nombre']] == 'largo plazo'
-    assert all(a['regla'] == eo.REGLA_DE_PLAZOS for a in d['alternativas'])
-    assert next(a for a in d['alternativas'] if a['nombre'] == junta['nombre'])['hace_falta_en_anio'] == 3
-    motivo = next(t for t in d['tabla'] if t['nombre'] == junta['nombre'])['motivo']
-    assert 'largo plazo' in motivo
-    # Sin una definitiva que contenga la corta, la más barata de las definitivas, y se dice.
-    d = eo.elegir([nivel, sola, bancos], p)
-    assert d['largo_plazo']['nombre'] == sola['nombre'] and not d['largo_plazo']['parte_de_la_corta']
-    assert 'no parte de' in d['largo_plazo']['aviso']
-    # La corta que ya aguanta el horizonte es también la de largo plazo.
-    d = eo.elegir([nivel, sola], p)
-    assert d['elegida'] == sola['nombre'] and d['largo_plazo']['misma']
-    assert next(a for a in d['alternativas'] if a['nombre'] == sola['nombre'])['plazo'] == 'corto y largo plazo'
-    # CHN102: con la sección costeada, el 22,9 kV (más caro y sin llegar al horizonte) no es la de corto plazo.
-    assert eo.elegir([nivel, junta], p)['elegida'] == junta['nombre']
+    terna = _fila_eo('terna en 62 tramos + 240 mm² en 9 tramos en 3 caminos', ('terna', 'seccion'), 500.0,
+                     {'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 4,
+                      'motivos': ['S_U__HHUU_BUGANVILLA a 0.938 p.u.']})
+    bancos = _fila_eo('3×300 kvar + terna en 62 tramos', ('bancos', 'terna'), 800.0,
+                      {'definitiva': True, 'aguanta_anios': 4})
+    d = eo.elegir([terna, bancos], p)
+    assert d['elegida'] == bancos['nombre']
+    motivo = next(t for t in d['tabla'] if t['nombre'] == terna['nombre'])['motivo']
+    assert 'no llega al año del periodo' in motivo and 'BUGANVILLA' in motivo
+    # Si ninguna llega, la más barata que cumple hoy, y se dice.
+    d = eo.elegir([terna], p)
+    assert d['elegida'] == terna['nombre'] and '098:RF-37' in d['aviso_periodo']
+    # Sin medirlo (sin tasa), la de siempre.
+    assert eo.elegir([{**terna, 'horizonte': None}, {**bancos, 'horizonte': None}], p)['elegida'] == terna['nombre']
 
 
-def test_sin_horizonte_medido_no_es_lo_mismo_que_cero_anios():
-    """098:RF-35, 098:RF-37 — una candidata sin su alcance medido no se plantea como largo plazo ni se dice que no llega;
-    la medida en 0 años «no llega ni al horizonte más corto» y lo dice con sus años; el informe, igual."""
+def test_el_periodo_de_corto_plazo_sale_del_perfil():
+    """098:RF-37 — del perfil (la clave del corto plazo, o el primer año del PIDE); si no, 4; y es el año que se mide."""
     from convertersmartgrid import escalera_optima as eo
+
+    assert eo.periodo_de_corto_plazo({}) == 4
+    assert eo.periodo_de_corto_plazo({'planificacion': {'anios_horizonte': [5, 10, 15]}}) == 5
+    assert eo.periodo_de_corto_plazo({'escalera': {'periodo_corto_plazo_anios': 3},
+                                      'planificacion': {'anios_horizonte': [5]}}) == 3
+    p = eo.parametros({**_perfil_eo(), 'planificacion': {**_perfil_eo()['planificacion'], 'anios_horizonte': [5, 10]}})
+    h = eo.plan_de_corto_plazo('F1', 0.03, p)
+    assert h['anios'] == [5] and h['periodo'] == 5 and h['factores']['5']['F1'] == pytest.approx(1.03 ** 5)
+
+
+def test_el_anio_en_que_vuelve_a_fallar_lo_busca_el_oraculo_y_lo_confirma_digsilent(tmp_path, monkeypatch):
+    """098:RF-39, RF-40 — el oráculo busca el primer año que falla desde el siguiente al periodo; DIgSILENT mide solo
+    ese año y el anterior; si no lo confirma, lo busca DIgSILENT. Va al informe con el año, la barra y la tensión, y no
+    se busca ninguna obra de ese año."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.web import services
+
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: _perfil_eo())
+    monkeypatch.setattr(services, 'carpeta_de', lambda *_a: '')
+    monkeypatch.setattr(services, 'native_action_context', lambda *_a: {})
+    falla_desde = 9
+
+    class Ora:
+        nuevas = [{}, {}]
+        evaluaciones = 0
+
+        def medir(self, obras, k, factor, alimentador):
+            self.evaluaciones += 1
+            anio = round(__import__('math').log(factor) / __import__('math').log(1.03))
+            u = 0.96 if anio < falla_desde else 0.94
+            return SimpleNamespace(para_criterio=lambda: {'converge': True, 'u': {'COLA': u}, 'carga': {}})
+    planes = []
+
+    def guion(ws_, ctx_, script, plan, **k):
+        planes.append(plan)
+        anios = list(plan.get('anios') or [])
+        vistos = {str(a): {'cumple': a < falla_desde,
+                           'motivos': [] if a < falla_desde else ['COLA a 0.940 p.u.']} for a in anios}
+        return 0, {'anios': vistos, 'medidos': len(vistos)}, None
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    ws = _ws_con_obras(tmp_path, [])
+    services._guardar_alternativas_escalera(ws, 'P', 'F1', [{'nombre': 'bancos', 'elegida': True}])
+    memo = {'oraculo_prep': {'ora': Ora()}}
+    r = services._anio_de_problemas(ws, _Registro(), 'P', 'F1', [{'clase': 'condensador'}], memo, {}, 'bancos')
+    assert r['anio'] == falla_desde and r['barra'] == 'COLA' and r['u'] == pytest.approx(0.94)
+    assert [p_.get('anios') for p_ in planes] == [[falla_desde - 1, falla_desde]], 'DIgSILENT, solo esos dos años'
+    assert not any('variantes' in p_ for p_ in planes), 'ninguna obra futura se busca ni se mide'
+    guardada = services.alternativas_de_la_escalera(ws, 'P')['F1'][0]
+    assert guardada['vuelve_a_fallar']['anio'] == falla_desde
     from convertersmartgrid.informes import filas_alternativas_escalera
+    cabecera, filas = filas_alternativas_escalera({'F1': [{**guardada, 'numero': 1, 'costo_anual': 1.0,
+                                                           'plazo': 'corto plazo'}]})
+    texto = filas[0][cabecera.index('Plazo')]
+    assert f'vuelve a tener problemas en el año {falla_desde}' in texto and 'COLA a 0.940' in texto and 'PIDE' in texto
+    # Si DIgSILENT no lo confirma, lo busca él.
+    falla_desde_digsilent = 12
 
-    p = eo.parametros(_perfil_eo())
-    sin_medir = _fila_eo('bancos', ('bancos',), 100.0, None)
-    cero = _fila_eo('sección', ('seccion',), 500.0, {'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 5,
-                                                     'motivos': ['NODE_X a 0.93 p.u.']})
-    d = eo.elegir([sin_medir, cero], p)
-    assert d['elegida'] == 'bancos' and d['largo_plazo']['nombre'] is None
-    assert 'sin el horizonte medido' in d['largo_plazo']['aviso']
-    d = eo.elegir([cero], p)
-    assert 'ninguna de las que cumplen hoy aguanta' in d['largo_plazo']['aviso']
-    assert 'no llega ni al horizonte más corto medido (5 años)' in eo._no_llega(cero)
-    cabecera, filas = filas_alternativas_escalera({'F': [
-        {'numero': 1, 'nombre': 'bancos', 'costo_anual': 1.0},
-        {'numero': 2, 'nombre': 'sección', 'costo_anual': 2.0, 'definitiva': False, 'aguanta_anios': 0, 'mas_corto': 5,
-         'u_min_mt': 0.9512, 'plazo': 'largo plazo', 'hace_falta_en_anio': 0}]})
-    i, j, k = cabecera.index('Alcance'), cabecera.index('Plazo'), cabecera.index('Mínima de media p.u.')
-    assert [f[i] for f in filas] == ['sin medir', 'temporal, no llega al horizonte más corto (5 años)']
-    assert filas[1][j] == 'largo plazo, hace falta en el año 0' and filas[1][k] == '0.951'
+    def guion2(ws_, ctx_, script, plan, **k):
+        planes.append(plan)
+        if plan.get('buscar'):
+            return 0, {'anios': {str(falla_desde_digsilent): {'cumple': False, 'motivos': ['COLA a 0.930 p.u.']}},
+                       'primer_anio': falla_desde_digsilent, 'medidos': 4}, None
+        return 0, {'anios': {str(a): {'cumple': True, 'motivos': []} for a in plan.get('anios') or []}, 'medidos': 2}, None
+    monkeypatch.setattr(services, '_guion_pf', guion2)
+    r = services._anio_de_problemas(ws, _Registro(), 'P', 'F1', [{'clase': 'condensador'}], {'oraculo_prep': {'ora': Ora()}},
+                                    {}, 'bancos')
+    assert r['anio'] == falla_desde_digsilent and planes[-1]['desde'] == 5 and planes[-1]['buscar'] == 30
+
+
+def test_el_guion_busca_el_primer_anio_que_falla_por_biseccion(tmp_path, monkeypatch):
+    """098:RF-39 — sin oráculo, DIgSILENT por bisección desde el año siguiente al periodo: pocos flujos."""
+    from convertersmartgrid import escalera_optima as eo
+
+    vistos = []
+
+    def cumple(anio):
+        vistos.append(anio)
+        return anio < 11
+    assert eo.primer_anio_que_falla(cumple, 5, 30) == 11 and len(vistos) <= 6
+    assert eo.primer_anio_que_falla(lambda a: True, 5, 30) is None
 
 
 class _Registro:
@@ -1763,32 +1827,23 @@ def test_el_alcance_de_cada_una_que_cumple_aunque_sea_de_la_misma_clase(monkeypa
     assert all(v['horizonte'].get('probados') for v in filas)
 
 
-def test_la_largo_plazo_parte_de_los_bancos_ampliados_y_dice_cuando_hace_falta():
-    """098:RF-37 — «2×300 kvar» contiene a «1×300 kvar» en la misma barra; la misma sección en más tramos contiene a la
-    de menos; el año en que hace falta es el intervalo entre horizontes probados, y con 0 años, antes del primero."""
+def test_la_largo_plazo_queda_para_el_pide_partiendo_de_la_de_corto_plazo():
+    """098:RF-37 — en el estudio no se plantea la obra de los años futuros; :func:`largo_plazo` queda para la ruta del
+    PIDE: «2×300 kvar» contiene a «1×300 kvar» y la definitiva parte de la de corto plazo."""
     from convertersmartgrid import escalera_optima as eo
 
     b1 = {'clase': 'condensador', 'barra': 'B4', 'q_kvar': 300.0}
     b2 = {**b1, 'q_kvar': 600.0}
     s1 = {'clase': 'seccion', 'tipo': {'nombre': 'AA24003D'}, 'tramos': ['T1']}
     s2 = {**s1, 'tramos': ['T1', 'T2']}
-    assert eo.contiene({'obras': [b2, s2]}, {'obras': [b1]}) and eo.contiene({'obras': [s2]}, {'obras': [s1]})
-    assert not eo.contiene({'obras': [b1]}, {'obras': [b2]})
-    assert not eo.contiene({'obras': [{**s2, 'tipo': {'nombre': 'AA12003D'}}]}, {'obras': [s1]})
-    assert eo.cuando_hace_falta({'aguanta_anios': 5, 'probados': [5, 10, 20]}) == (5, 10)
-    assert eo.cuando_hace_falta({'aguanta_anios': 0, 'probados': [5, 10, 20]}) == (0, 5)
-    assert eo.cuando_hace_falta(None) is None
-    assert 'cumple hoy pero no llega al primer horizonte probado (5 años)' in eo.frase_de_cuando((0, 5), 'bancos')
-    assert 'entre el año 5 y el 10' in eo.frase_de_cuando((5, 10), 'bancos')
-    p = eo.parametros(_perfil_eo())
-    corto = _fila_eo('1×300 kvar', ('bancos',), 100.0, {'definitiva': False, 'aguanta_anios': 5, 'probados': [5, 10, 20]},
-                     [b1])
-    largo = _fila_eo('2×300 kvar + sección', ('bancos', 'seccion'), 900.0, {'definitiva': True, 'aguanta_anios': 20},
-                     [b2, s2])
-    otra = _fila_eo('sección', ('seccion',), 800.0, {'definitiva': True, 'aguanta_anios': 20}, [s2])
-    d = eo.elegir([corto, largo, otra], p)
-    assert d['largo_plazo']['nombre'] == largo['nombre'] and d['largo_plazo']['hace_falta_entre'] == [5, 10]
-    assert 'entre el año 5 y el 10' in d['largo_plazo']['aviso']
+    assert eo.contiene({'obras': [b2, s2]}, {'obras': [b1]}) and not eo.contiene({'obras': [b1]}, {'obras': [b2]})
+    corto = _fila_eo('1×300 kvar', ('bancos',), 100.0, {'definitiva': True, 'aguanta_anios': 4, 'probados': [4]}, [b1])
+    otra = _fila_eo('2×300 kvar + sección', ('bancos', 'seccion'), 900.0, {'definitiva': True, 'aguanta_anios': 4},
+                    [b2, s2])
+    d = eo.elegir([corto, otra], eo.parametros(_perfil_eo()))
+    assert d['elegida'] == corto['nombre'] and 'largo_plazo' not in d
+    assert all(a['plazo'] in ('corto plazo', None) for a in d['alternativas'])
+    assert eo.largo_plazo([corto, otra], corto)['misma'], 'la ruta del PIDE la sigue teniendo'
 
 
 @pytest.mark.parametrize('valor', [0, -1, 'x'])

@@ -1047,8 +1047,15 @@ def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[
         return f"{float(a['u_min_mt']):.3f}" if a.get('u_min_mt') is not None else ''
 
     def plazo(a):
-        # 098:RF-37: la de corto plazo se aplica; la de largo plazo se plantea, con el año en que hace falta.
+        # 098:RF-37, RF-40: la de corto plazo se aplica; el año en que vuelve a fallar, y su obra la plantea el PIDE.
         p = a.get('plazo') or ''
+        v = a.get('vuelve_a_fallar') or {}
+        if v.get('anio'):
+            return (p + f", vuelve a tener problemas en el año {v['anio']}"
+                    + (f" ({v['barra']} a {float(v['u']):.3f} p.u.)" if v.get('barra') and v.get('u') is not None else '')
+                    + '; la alternativa de ese año se plantea en el PIDE partiendo de esta')
+        if v and v.get('horizonte'):
+            return p + f", cumple hasta el horizonte de {v['horizonte']} años"
         entre = a.get('hace_falta_entre')
         if entre:
             desde, hasta = entre[0], (entre[1] if len(entre) > 1 else None)

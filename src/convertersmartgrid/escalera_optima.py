@@ -135,6 +135,8 @@ class Parametros:
     horizonte_anios: int = 30
     #: 042:RF-86: el crecimiento con que se proyecta ese horizonte.
     tasa_largo_plazo: float = 0.03
+    #: 098:RF-37: los años que tiene que aguantar la de corto plazo, desde el año 0 del análisis (el periodo del PIDE).
+    periodo_corto_plazo: int = 4
     #: 042:RF-87: los sorteos de la primera etapa y las fracciones con que ya se decide.
     sorteos_etapa: int = 50
     sorteos_decide_si: float = 0.98
@@ -226,6 +228,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
                                         (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
         horizonte_anios=int(plan['vida_util_anios']),
         tasa_largo_plazo=float((perfil.get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA),
+        periodo_corto_plazo=periodo_de_corto_plazo(perfil),
         sorteos_etapa=int(50 if esc.get('sorteos_etapa') is None else esc['sorteos_etapa']),
         sorteos_decide_si=float(esc.get('sorteos_decide_si') or 0.98),
         sorteos_decide_no=float(esc.get('sorteos_decide_no') or 0.90),
@@ -617,7 +620,6 @@ def _variante_terna(alim, tramos, p: Parametros, de_terna, avisos) -> Variante:
 #: caminos como mucho, y los escalones de bancos con que se combinan.
 OPCIONES_POR_CAMINO = 2
 MAX_CAMINOS = 3
-CAMINOS_BANCOS = 2
 
 
 def _opciones_de_camino(kv, tramos, tipos) -> list[tuple[str, Any]]:
@@ -993,7 +995,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     varios += [Variante(f'{b.nombre} + {v.nombre}', b.escalones + v.escalones, b.obras + v.obras,
                         {**b.cantidades, **{k: x + b.cantidades.get(k, 0.0) for k, x in v.cantidades.items()}},
                         caminos=v.caminos)
-               for b in por_escalon['bancos'][:CAMINOS_BANCOS] for v in list(varios)]
+               for b in por_escalon['bancos'] for v in list(varios)]        # 098:RF-41: todos los módulos probados
     vistas: set[str] = set()
     todas = [v for v in solas + dobles + varios + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
     if sobrecargados:
@@ -1144,6 +1146,33 @@ def costo(v: Variante, costos_alternativa: Mapping[str, Mapping[str, Any]], p: P
     return {**out, 'inversion': ci, 'avisos': avisos}
 
 
+#: 098:RF-37: el periodo de la de corto plazo si el perfil no lo da: el del PIDE (RM 428-2017-MEM/DM, art. 7.2: se
+#: presenta cada 4 años; ``config/pide_universal_2017.json``, ``ciclo_anios``).
+PERIODO_CORTO_PLAZO_DE_REFERENCIA = 4
+
+
+def periodo_de_corto_plazo(perfil: Mapping[str, Any]) -> int:
+    """098:RF-37: los años que aguanta la de corto plazo: ``escalera.periodo_corto_plazo_anios`` o
+    ``planificacion.periodo_corto_plazo_anios``; si no, el primer año del horizonte del PIDE
+    (``planificacion.anios_horizonte``); si no, 4. Usuario, 2026-11-07: «el corto plazo debe ser solo para 4 años,
+    considerando como año 0 el del análisis»."""
+    esc, plan = dict(perfil.get('escalera') or {}), dict(perfil.get('planificacion') or {})
+    for valor in (esc.get('periodo_corto_plazo_anios'), plan.get('periodo_corto_plazo_anios')):
+        if valor is not None and int(valor) > 0:
+            return int(valor)
+    anios = [int(a) for a in plan.get('anios_horizonte') or [] if a is not None and int(a) > 0]
+    return min(anios) if anios else PERIODO_CORTO_PLAZO_DE_REFERENCIA
+
+
+def plan_de_corto_plazo(alimentador: str, tasa: float | None, p: Parametros) -> dict[str, Any]:
+    """098:RF-37: el año que tiene que aguantar la de corto plazo (el periodo) y su factor; con ``periodo``, para que el
+    guion lo distinga del horizonte de vida útil (042:RF-73)."""
+    a = int(p.periodo_corto_plazo)
+    if tasa is None or tasa <= 0:
+        return {'anios': [a], 'factores': {str(a): {alimentador: p.factor_sin_tasa}}, 'tasa': None, 'periodo': a}
+    return {'anios': [a], 'factores': {str(a): {alimentador: (1.0 + tasa) ** a}}, 'tasa': tasa, 'periodo': a}
+
+
 def plan_de_horizonte(alimentador: str, tasa: float | None, p: Parametros) -> dict[str, Any]:
     """042:RF-73, RF-74: los años que se miden y el factor de cada uno, del horizonte hacia abajo.
 
@@ -1234,14 +1263,6 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
 REGLA_DE_PLAZOS = '098:corto_y_largo_plazo'
 
 
-def _no_llega(t: Mapping[str, Any]) -> str:
-    """098:RF-35: lo que dice ``aguanta_anios = 0``: no llega ni al horizonte más corto que se midió (042:RF-92)."""
-    h = t.get('horizonte') or {}
-    corto = h.get('mas_corto')
-    return ('no llega ni al horizonte más corto medido' + (f' ({corto} años)' if corto else '')
-            + (f": {'; '.join(h.get('motivos') or [])[:200]}" if h.get('motivos') else ''))
-
-
 def _contiene_obra(grande: Mapping[str, Any], chica: Mapping[str, Any]) -> bool:
     """098:RF-37: ``grande`` incluye a ``chica``: el mismo banco en la misma barra con tantos o más kvar («2×300 kvar»
     contiene a «1×300 kvar»), la misma sección (o la terna) en esos tramos y más, o la misma obra."""
@@ -1289,8 +1310,23 @@ def frase_de_cuando(entre: tuple[int, int | None] | None, corta: str) -> str:
             else f"; hace falta tras el año {desde}, cuando «{corta}» deja de aguantar")
 
 
+def primer_anio_que_falla(cumple_en, desde: int, hasta: int) -> int | None:
+    """098:RF-39: por bisección, el primer año de ``desde`` a ``hasta`` en que ``cumple_en(año)`` es falso, con la demanda
+    que solo crece (si cumple en un año, cumple en los anteriores); ``None`` si cumple en ``hasta``."""
+    if cumple_en(hasta):
+        return None
+    bajo, alto = desde - 1, hasta
+    while alto - bajo > 1:
+        medio = (bajo + alto) // 2
+        if cumple_en(medio):
+            bajo = medio
+        else:
+            alto = medio
+    return alto
+
+
 def largo_plazo(factibles: Sequence[Mapping[str, Any]], corto: Mapping[str, Any]) -> dict[str, Any]:
-    """098:RF-37: la definitiva, la más barata entre las que cumplen hoy y aguantan el horizonte del proyecto (042:RF-92).
+    """098:RF-37, para la ruta del PIDE (072): la definitiva, la más barata entre las que cumplen hoy y aguantan el horizonte del proyecto (042:RF-92).
 
     Parte de la de corto plazo cuando puede (sus obras dentro de las suyas, para que una no deshaga la otra: la sección
     ya cambiada cuenta para la terna) y, si no, se dice. Hace falta cuando la de corto plazo deja de aguantar: en el año
@@ -1362,26 +1398,41 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     if factibles:
         # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
-        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'], t['nombre']))
+        # 098:RF-37: la de corto plazo tiene que aguantar del año 0 al del periodo (4): entre las que se midieron, solo
+        # las que llegan. CA101 (2026-11-07): la terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7.
+        llegan = [t for t in factibles if (t.get('horizonte') or {}).get('definitiva')]
+        medidas = [t for t in factibles if t.get('horizonte')]
+        aviso_periodo = None
+        if medidas and not llegan:
+            aviso_periodo = ('ninguna de las que cumplen hoy llega al año del periodo de corto plazo: se elige la más '
+                             'barata que cumple hoy (098:RF-37)')
+        base = llegan or factibles
+        for t in factibles:
+            if llegan and t not in llegan:
+                h = t.get('horizonte') or {}
+                t['motivo'] = ('cumple hoy y no llega al año del periodo de corto plazo'
+                               + (f": {'; '.join(h.get('motivos') or [])[:200]}" if h.get('motivos') else '')
+                               + ' (098:RF-37)' if h else 'sin medir si llega al año del periodo (098:RF-37)')
+        mejor = min(base, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'], t['nombre']))
         # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL209
         # (2026-11-06): entre 2 bancos (lo más barato para 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), el usuario
         # eligió los del perfil; la más barata queda como alternativa.
-        del_perfil = [t for t in factibles if str(t['nombre']).startswith(PREFIJO_PERFIL)]
+        del_perfil = [t for t in base if str(t['nombre']).startswith(PREFIJO_PERFIL)]
         if del_perfil:
             mejor = min(del_perfil, key=lambda t: (t['costo']['costo_anual'], t['nombre']))
-        largo = largo_plazo(factibles, mejor)
-        for t in factibles:
+        # 098:RF-37: en el estudio solo la de corto plazo; la de cada año futuro la plantea el PIDE (:func:`largo_plazo`
+        # queda para esa ruta). Usuario, 2026-11-07: «en estos estudios solo haz el año cero».
+        for t in base:
             if t is mejor:
                 continue
-            if t['nombre'] == largo.get('nombre'):
-                t['motivo'] = 'la de largo plazo: aguanta el horizonte del proyecto (098:RF-37)'
-            elif grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
+            if grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
                 t['motivo'] = f"no hace falta: «{mejor['nombre']}» ya cumple en un escalón anterior"
             else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
                                f"{mejor['costo']['costo_anual']:,.0f}")
         return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla),
-                'largo_plazo': largo, 'alternativas': alternativas(tabla, mejor['nombre'], p, largo)}
+                **({'aviso_periodo': aviso_periodo} if aviso_periodo else {}),
+                'alternativas': alternativas(tabla, mejor['nombre'], p)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
     # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía

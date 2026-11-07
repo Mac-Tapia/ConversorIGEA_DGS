@@ -809,12 +809,13 @@ def test_definitiva_es_en_absoluto(medida, bien):
     assert eo.definitiva(medida, P)[0] is bien
 
 
-def test_el_alcance_no_cambia_ni_el_orden_ni_la_eleccion():
-    """042:RF-75 — la temporal más barata sigue primera y es la elegida; cada una dice su alcance."""
+def test_el_alcance_no_cambia_el_orden_y_la_de_corto_plazo_llega_al_periodo():
+    """042:RF-75 — el orden sigue por costo y cada una dice su alcance; 098:RF-37 cambia la elección: la temporal que no
+    llega al año del periodo de corto plazo ya no es la elegida."""
     d = eo.elegir([{**_opcion('barata', ('seccion',), 100.0, 1.0), 'horizonte': {'definitiva': False, 'aguanta_anios': 5, 'motivos': ['x']}},
                    {**_opcion('cara', ('terna',), 900.0, 1.0), 'horizonte': {'definitiva': True, 'aguanta_anios': 20, 'motivos': []}},
                    _opcion('otra', ('nivel',), 950.0, 1.0)], P)
-    assert d['elegida'] == 'barata'
+    assert d['elegida'] == 'cara'
     assert [(a['nombre'], a['definitiva'], a['aguanta_anios']) for a in d['alternativas']] == [
         ('barata', False, 5), ('cara', True, 20), ('otra', None, None)]
 

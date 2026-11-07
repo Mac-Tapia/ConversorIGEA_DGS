@@ -83,3 +83,7 @@
       costa con 8 km de LT 60 kV AAAC 240) se valora en 2 360 890,48 USD con seis elementos, y quedan nombrados el terreno, que no
       tiene módulo, y un metrado en m frente a un módulo por km. Faltan la carpeta de la 181 (pedirla a la GRT o esperar a que se
       enlace) y una obra de una red real.
+- [ ] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
+      por la de corto plazo del estudio de «Con proyecto» (098:RF-37), con el año en que esta vuelve a fallar
+      (098:RF-39, RF-40) como punto de partida. Pendiente: falta su RF en esta spec; no se implementa aún.
+      Hecho cuando: el RF esté escrito aquí y su prueba, con fake_pf, dé la obra de cada año encima de la anterior.
