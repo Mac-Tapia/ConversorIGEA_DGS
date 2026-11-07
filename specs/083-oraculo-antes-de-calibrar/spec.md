@@ -1,6 +1,6 @@
 # Spec 083 — El oráculo antes de calibrar y recalibrar
 
-Estado: implementada · Fecha: 2026-11-03 · Origen: petición del usuario
+Estado: cumplida (2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
 
 ## Contexto y objetivo
 

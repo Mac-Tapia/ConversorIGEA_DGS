@@ -28,7 +28,10 @@
       Hecho cuando: `pytest -q tests/test_oraculo_calibracion.py` en verde.
 - [x] T15 Las fijas que con sus pérdidas pasan de la medida se corrigen hasta un tope. (RF-30)
       Hecho cuando: `pytest -q tests/test_oraculo_calibracion.py` en verde.
-- [ ] T3 [DIgSILENT] Pisco: flujos y minutos con el arranque del oráculo. (RF-1, RF-5, RF-20, RF-21, RF-22)
+- [x] T3 [DIgSILENT] Pisco: flujos y minutos con el arranque del oráculo. (RF-1, RF-5, RF-20, RF-21, RF-22)
       Hecho cuando: el informe de la calibración por la web da su modelo, evaluaciones y factores.
+      Hecho el 2026-11-07, Pisco de prueba `20261107-043049_CSG_TXT_SISTEMA_PISCO` calibrado por la web (`tools/sistema_web.py --zonal Pisco`):
+      el informe (`ajuste_cabecera_aplicacion_51c34bba6725_*.json`) trae `oraculo_arranque` con modelo físico (zbus), 3 evaluaciones en
+      1,02 s, cuadrado y un factor por alimentador; después, 2 flujos de DIgSILENT por alimentador y 17 válidos.
 - [x] T16 El plan automático pone los transformadores de la ficha en la misma pasada; `sistema_web` lo pide sin `--transformadores`. (RF-31)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_sistema_web.py -k rf31` en verde.

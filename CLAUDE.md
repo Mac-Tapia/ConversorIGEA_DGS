@@ -110,7 +110,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T20, T22, T24 |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
-  | 083 El oráculo antes de calibrar y recalibrar | implementada | falta T3 |
+  | 083 El oráculo antes de calibrar y recalibrar | cumplida |  |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
@@ -120,7 +120,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
   | 091 De la calibración al estudio, en su orden y sin avisos que engañen | implementada | falta T7 |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | falta T2 |
-  | 093 La sigla de la carga nombra la carga nueva y su variación | implementada | falta T2 |
+  | 093 La sigla de la carga nombra la carga nueva y su variación | cumplida |  |
   | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | implementada | falta T5 |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
   | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | falta T3 |

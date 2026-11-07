@@ -1,6 +1,6 @@
 # Spec 093 — La sigla de la carga nombra la carga nueva y su variación
 
-Estado: implementada · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209: «en las cargas y sus variaciones solo
+Estado: cumplida (2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209: «en las cargas y sus variaciones solo
 debe poner con la columna de SIGLAS DE CARGA».
 
 ## Contexto y objetivo
