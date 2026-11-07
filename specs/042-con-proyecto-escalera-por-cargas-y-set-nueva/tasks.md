@@ -151,3 +151,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_optimizacion_oraculo.py -k conductor_terna` en verde.
 - [x] T64. De 3 a 6 alternativas, del perfil, con la clave en el esquema y la guía. (RF-105, RF-106)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_perfil_empresa.py -k alternativas` en verde.
+- [x] T65. [DIgSILENT] La regla de conductores en una escalera real. (RF-97, RF-98, RF-102)
+      Hecho cuando: en «Con proyecto» de un proyecto de prueba, las ternas van en el conductor del perfil y ninguna variante
+      junta sección y terna en el mismo tramo.
+      Hecho el 2026-11-07 en `20261107-043049_CSG_TXT_SISTEMA_PISCO` (AL209 y PA217 con sus 11 cargas nuevas del libro, FP del
+      perfil): 37 variantes medidas en DIgSILENT (`escalera_evaluar_*.json` del espacio 35ff5dab8b2b46a6); las 18 ternas en
+      `AA12003D_22_9kV_FICHA` y `N212003D_22_9kV_FICHA`; secciones de un circuito solo con normalizadas (AA05003D, AA12003D);
+      0 variantes con sección y terna a la vez. Ninguna cumplía con la máxima (AL209 recibe 19,38 MW); la corrida se cortó por
+      decisión del usuario antes de la obra integral, que no es parte de esta tarea.
