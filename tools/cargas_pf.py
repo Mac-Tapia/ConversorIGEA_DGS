@@ -971,6 +971,24 @@ def entradas_del_indice(indice: dict, candidatos: list[str], nombre: str) -> lis
             if f in candidatos and d.get('recortado') and nombre.startswith(n)]
 
 
+def creadas_de_la_fila(fila: dict, candidatos: list[str], indice: dict) -> tuple[list[dict], str]:
+    """Las cargas nuevas ya creadas para la fila: por su nombre (014:RF-27) o, si no, en su mismo punto (014:RF-30).
+
+    099:RF-5: también para borrar la de una fila repetida. CH_20 (CA101, 2026-11-07) se creó el 2026-11-05 con su
+    descripción, «Carga_SU-1770KW-Ti_CA101_…», y por la sigla no se hallaba: quedó activa y con CH_23 el flujo no
+    convergía."""
+    halladas = entradas_del_indice(indice, candidatos, nombre_pf(fila['sed']))
+    criterio = 'ya existe'
+    if not halladas and fila.get('lat') is not None:
+        punto = (float(fila['lat']), float(fila['lon']))
+        halladas = [d for (f, _n), d in sorted(indice.items(), key=lambda x: x[0])
+                    if f in candidatos and _en_el_punto(d['carga'], punto)]
+        if halladas:
+            otros = ', '.join(sorted({SUFIJO_PF.sub('', d['carga'].loc_name) for d in halladas}))
+            criterio = f'ya existe en el mismo punto, como {otros} (014:RF-30),'
+    return halladas, criterio
+
+
 def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict | None):
     """La carga del libro ya existe: ``(no_creada, avisos)``, o ``None`` si hay que crearla.
 
@@ -984,15 +1002,7 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
     nombre = nombre_pf(sed)
     indice = (ya or {}).get('indice') or {}
     en_red = (ya or {}).get('red')
-    halladas = entradas_del_indice(indice, candidatos, nombre)
-    criterio = 'ya existe'
-    if not halladas and fila.get('lat') is not None:
-        punto = (float(fila['lat']), float(fila['lon']))
-        halladas = [d for (f, _n), d in sorted(indice.items(), key=lambda x: x[0])
-                    if f in candidatos and _en_el_punto(d['carga'], punto)]
-        if halladas:
-            otros = ', '.join(sorted({SUFIJO_PF.sub('', d['carga'].loc_name) for d in halladas}))
-            criterio = f'ya existe en el mismo punto, como {otros} (014:RF-30),'
+    halladas, criterio = creadas_de_la_fila(fila, candidatos, indice)
     variaciones = sorted({v for d in halladas for v in d['variaciones']})
     if variaciones:
         conserva, sobran = variaciones[0], variaciones[1:]
@@ -1235,7 +1245,7 @@ def tipo_de_linea_con_fases(proyecto, typ_folder, tipo, n: int):
 
 
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None,
-                    minima_m: float | None = None):
+                    minima_m: float | None = None, repetidas: list[dict] | None = None):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
 
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
@@ -1276,16 +1286,20 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     # cuenta la última fila. CH_20 y CH_23 (Tierra Larga, CA101) estaban a 2,6 km y se creaban las dos.
     from convertersmartgrid.cargas_pf import duplicadas_por_cliente
     superadas = duplicadas_por_cliente(nuevas, MISMO_PUNTO_M)
-    for fila in nuevas:
+    # 099:RF-8: las repetidas que la web ya quitó del plan no llegan como filas; solo se borra lo que se creó para ellas.
+    previas = [r for r in repetidas or [] if r.get('sed') not in {f['sed'] for f in nuevas}]
+    superadas.update({r['sed']: r.get('cuenta') or '' for r in previas})
+    for fila in previas + list(nuevas):
         sed = fila['sed']
         if sed in superadas:
             vigente = superadas[sed]
             suyo = str(fila.get('alimentador') or '').strip()
             dup = {'sed': sed, 'alimentador': suyo or None, 'duplicada_de': vigente,
                    'motivo': f'el mismo cliente que {vigente}, posterior en el libro: cuenta {vigente} (099:RF-1)'}
-            entrada = next(iter(entradas_del_indice(indice, list(alims.elegidos), nombre_pf(sed))), None)
-            if entrada and entrada['variaciones']:
-                dup['eliminar'] = sorted(entrada['variaciones'])          # 040:RF-6, 099:RF-5
+            halladas, _criterio = creadas_de_la_fila(fila, list(alims.elegidos), indice)
+            variaciones = sorted({v for d in halladas for v in d['variaciones']})
+            if variaciones:
+                dup['eliminar'] = variaciones                              # 040:RF-6, 099:RF-5
             no_creadas.append(dup)
             avisos.append(f'{sed}: el mismo cliente que {vigente} en el libro ({suyo or "sin alimentador"}); '
                           f'cuenta {vigente}, la última fila, y {sed} no se crea (099:RF-1).')
@@ -2510,7 +2524,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos, alims),
           'red': nombres_en_red(app, alims, casos['con']) if casos else None}
     resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya,
-                                                    minima_m=plan.get('minima_m'))
+                                                    minima_m=plan.get('minima_m'),
+                                                    repetidas=plan.get('repetidas_del_libro'))
     informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
     por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
                                               if app.GetProjectFolder('scheme') else [])}

@@ -2105,6 +2105,16 @@ def cargas_plan(
             carpeta=carpeta_de(ws, project), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
+        # 099:RF-8: lo repetido no va a DIgSILENT; de las repetidas solo viaja
+        # lo necesario para borrar la variación que se les creó antes. Usuario (2026-11-07): «no debe ir a
+        # DIgSILENT lo duplicado; eso debe bloquearse al momento de cargarlo».
+        repetidas = repetidas_del_libro(plan['nuevas'], feeders)
+        apartadas = {r['sed'] for r in repetidas}
+        plan['repetidas_del_libro'] = [{**f, 'cuenta': next(r['cuenta'] for r in repetidas if r['sed'] == f['sed'])}
+                                       for f in plan['nuevas'] if f['sed'] in apartadas]
+        plan['nuevas'] = [f for f in plan['nuevas'] if f['sed'] not in apartadas]
+        plan['repetidas'] = repetidas
+        plan['aplicable'] = bool(plan['demandas'] or plan['nuevas'] or plan['repetidas_del_libro'])
         # 040:RF-5: las fichas del perfil para proponer el transformador de la SED de una
         # ampliación, las mismas que la calibración (020:RF-31).
         from ..digital_twin.integration import limites_combinados, normas_de
@@ -2142,7 +2152,7 @@ def cargas_plan(
         'variacion_demandas': plan['variacion_demandas'],
         'native_action_context': action_context,
         # 099:RF-7: las filas repetidas de los alimentadores marcados, al cargar el libro y antes de aplicar.
-        'repetidas': repetidas_del_libro(plan['nuevas'], plan['feeders']),
+        'repetidas': plan['repetidas'],
     }
     with ws.lock:
         ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],

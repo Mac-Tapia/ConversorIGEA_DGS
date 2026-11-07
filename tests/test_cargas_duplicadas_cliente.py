@@ -100,6 +100,31 @@ def test_la_web_ensena_las_repetidas_de_los_alimentadores_marcados():
                                                                           'mismo cliente')
     assert {x['motivo'] for x in cp.repetidas_del_libro(filas)} == {'mismo cliente', 'mismo punto'}
     fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
-    assert "'repetidas': repetidas_del_libro(plan['nuevas'], plan['feeders'])" in fuente
+    assert "repetidas = repetidas_del_libro(plan['nuevas'], feeders)" in fuente and "'repetidas': plan['repetidas']" in fuente
     web = (Path(__file__).resolve().parents[1] / 'frontend/src/components/CargasTab.tsx').read_text(encoding='utf-8')
     assert 'plan.repetidas' in web and 'Cuenta' in web
+
+
+def test_lo_repetido_no_llega_a_digsilent_y_su_variacion_se_borra_por_el_punto(guion):
+    """099:RF-8, 099:RF-5 — la fila repetida no va en ``nuevas`` del plan; el guion solo borra la variación que se le
+    creó antes, hallada por su punto aunque se llame por la descripción (CH_20 como «Carga_SU-1770KW-Ti_…»)."""
+    app = _app()
+    p20 = _punto(app, 'F1_B2', 0.0005)
+    vieja = _variacion_con(app, 'Carga_SU-1770KW-Ti_F1_20261105_131302',
+                           [('ElmSubstat', 'SU-1770KW-Tierra_Larga'), ('ElmLod', 'SU-1770KW-Tierra_Larga')])
+    (etapa,) = vieja.GetContents('*.IntSstage')
+    (carga,) = etapa.GetContents('*.ElmLod', 1)
+    carga.GPSlat, carga.GPSlon = p20['lat'], p20['lon']
+    ch20 = _nueva('CH_20', alimentador='F1', descripcion=TIERRA_1770, **p20)
+    ch23 = _nueva('CH_23', alimentador='F1', descripcion=TIERRA_1390, **_punto(app, 'F1_B4', 0.0005))
+    plan = _plan(['F1'], nuevas=[ch23])
+    plan['repetidas_del_libro'] = [{**ch20, 'cuenta': 'CH_23'}]
+
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+
+    assert rc == 0, informe
+    assert {c['sed'] for c in informe['cargas']} == {'CH_23'}
+    assert [x['variacion'] for x in informe['eliminadas']] == [vieja.loc_name]
+    assert vieja.loc_name not in _variaciones(app)
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    assert "plan['nuevas'] = [f for f in plan['nuevas'] if f['sed'] not in apartadas" in fuente

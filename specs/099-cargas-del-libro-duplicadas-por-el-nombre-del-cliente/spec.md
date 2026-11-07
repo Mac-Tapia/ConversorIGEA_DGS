@@ -39,6 +39,13 @@ Operador que aplica las cargas nuevas en bloque desde la web («Cargas en DIgSIL
   cuenta, sus kW y si es por el mismo cliente o por el mismo punto (usuario, 2026-11-07: «en la web se debe informar al
   momento de cargar cuáles se repiten de ese alimentador o sistema que está trabajando»).
 
+- RF-8: EL SISTEMA quitará del plan, al cargar el libro, las filas repetidas (RF-1, RF-4) de los alimentadores
+  marcados: no llegarán a DIgSILENT. De una repetida solo viajará lo necesario para borrar la variación de
+  carga nueva que se le creó antes (RF-5), que se buscará por su nombre o, si no, por su mismo punto (014:RF-30).
+  Usuario, 2026-11-07: «no debe ir a DIgSILENT lo duplicado; eso debe bloquearse al momento de cargarlo; no se debe
+  hacer trabajo doble ni gastar recursos». CH_20 se había creado el 2026-11-05 con su descripción y, buscada solo por
+  su sigla, su variación quedaba activa y con CH_23 el flujo de «Cargas nuevas» no convergía.
+
 ## Relación con otras specs
 
 - Amplía 040:RF-1 (mismo punto) con el nombre del cliente y cambia cuál de las dos cuenta (RF-4).
@@ -47,4 +54,4 @@ Operador que aplica las cargas nuevas en bloque desde la web («Cargas en DIgSIL
 ## Criterios de aceptación
 
 - En el libro real, solo CH_20 → CH_23 (CA101), NA_28 → NA_36 (NA203) y NA_19 → NA_35 (NA205); YANACA no sale.
-- `grep -rnoE "099:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.
+- `grep -rnoE "099:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.
