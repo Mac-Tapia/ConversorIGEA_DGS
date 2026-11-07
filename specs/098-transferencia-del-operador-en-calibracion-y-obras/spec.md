@@ -73,8 +73,8 @@ bancos o generadores en la parte que pasa. CA101_CHN102 es el caso que lo motiva
 
 ### «Con proyecto» y las obras
 
-- RF-10: EL SISTEMA conservará en «Con proyecto» la transferencia del operador en su mismo punto, sin revertirla ni
-  medirla como si no existiera, y las obras de la escalera (042, 087) se evaluarán con ella.
+- RF-10: EL SISTEMA dejará la transferencia del operador como la hizo en «Sin proyecto» y, al terminar la calibración,
+  en «Con proyecto»; en las obras, «Con proyecto» la trata como una alternativa más de la escalera (RF-44).
 - RF-11: EL SISTEMA propondrá una transferencia o un traslado de la escalera (087:RF-31 a RF-33, RF-52) solo desde una
   barra donde ya hay un interruptor o seccionador en un cubículo del tramo que entra a ella, o un acoplador en el
   camino que la separa de aguas arriba.
@@ -245,6 +245,29 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   transformador, y lo dirá. CA101 y CHN102 (2026-11-07): tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con
   22,9 kV.
 
+- RF-43: CUANDO el alimentador que recibe una transferencia del operador queda fuera de límites en «Con proyecto»,
+  EL SISTEMA probará primero otro punto de corte de la misma transferencia (devolver parte de la zona al que la cedió
+  por el punto que abrió el operador, abriendo otra maniobra de la zona, de la que más devuelve a la que menos), aunque
+  el que la recibe de vuelta no tenga margen ahora, midiendo los dos (RF-25); después, bancos y obras de línea, en la
+  misma tensión mientras haya alternativa más barata.
+- RF-44: EL SISTEMA tratará en «Con proyecto» la transferencia del operador como una alternativa más de la escalera
+  del alimentador que cede: la deshará allí (nunca en «Sin proyecto») para medir sin ella, la propondrá con su mismo
+  corte («la transferencia del operador») y con los otros cortes por su enlace (RF-21, RF-22), juzgará cada una en
+  los dos alimentadores (RF-25) y del año 0 al del periodo (RF-37), y competirá por costo con las demás; SI no se
+  elige, ENTONCES la escalera seguirá sin ella; el que la recibe se trabaja después del que cede, y el informe da una
+  fila propia con sus cifras, con ella y sin ella, y si se eligió. Usuario (2026-11-07): «para obras se propone la
+  transferencia de carga y se analiza si da solución a la mala calidad de producto en la cola de CA101».
+
+- RF-45: EL SISTEMA evaluará en «Con proyecto» los escalones en orden fijo, cada uno entero antes del siguiente:
+  bancos; cambio de sección; terna nueva; transferencia de carga (la del operador, otros cortes y enlaces); después, el
+  cambio de nivel y el regulador; y la obra integral solo con todos evaluados. Una combinación va en el escalón de su
+  obra mayor (la de varios caminos, en el de su obra de línea). En cada escalón el oráculo ordena y filtra, DIgSILENT
+  confirma las mejores, y SI alguna cumple (del año 0 al del periodo, en los dos alimentadores si hay transferencia)
+  ENTONCES se para ahí y elige la más barata de ese escalón; si no, pasa al siguiente. Dirá por escalón cuántas dio el
+  oráculo, cuántas descartó, cuántas midió DIgSILENT y cuántas cumplen. Cambia 098:RF-23 y 087:RF-40 (ya no se va a la
+  obra integral porque no cumplan las primeras del oráculo). Usuario (2026-11-07): «se evalúa con bancos, después con
+  cambio de sección de cables, después nueva terna, después transferencia de carga; nada debería saltar».
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
@@ -274,6 +297,6 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-42.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-45.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

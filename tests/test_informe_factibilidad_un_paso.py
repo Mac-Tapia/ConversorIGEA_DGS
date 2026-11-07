@@ -613,7 +613,8 @@ def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypat
 
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2', 'F3'])
     # 087:RF-31: el que no cumple prueba además transferir o trasladar a un vecino antes de ir a la SET nueva.
-    assert orden == [('evalua', 'F1'), ('aplica', 'F1'), ('evalua', 'F2'), ('evalua', 'F2'), ('evalua', 'F3'),
+    # 098:RF-45: F2, que no cumple, evalúa sus cinco escalones (bancos, sección, terna, transferencia, nivel y regulador).
+    assert orden == [('evalua', 'F1'), ('aplica', 'F1')] + [('evalua', 'F2')] * 5 + [('evalua', 'F3'),
                      ('aplica', 'F3')]
     assert [a['alimentador'] for a in r['escalera']['alimentadores']] == ['F1', 'F3']
 
@@ -658,11 +659,11 @@ def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
 
     ws = Ws()
     services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'], rehacer_obras=True)
-    assert orden == ['retirar_obras', 'reponer', 'escalera']
+    assert [x for x in orden if x != 'anio_problemas'] == ['retirar_obras', 'reponer', 'escalera']   # 098:RF-39 aparte
     assert [o['variacion'] for o in ws.obras_aplicadas] == ['Obra_terna_F2']
     orden.clear()
     services.escalera_por_alimentador(ws, Ctx(), 'P', ['F1'])
-    assert orden == ['reponer', 'escalera']
+    assert [x for x in orden if x != 'anio_problemas'] == ['reponer', 'escalera']
 
 
 def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
