@@ -29,10 +29,10 @@ def tpf(guion):
     return guion.transferencia_pf
 
 
-def _red(feeders=('F1', 'F2'), n=6, kw=None):
+def _red(feeders=('F1', 'F2'), n=6, kw=None, kva=None):
     """Red con sus SED etiquetadas por su alimentador, como las deja el DGS (``p:alimentador``)."""
     app = fake_pf.proyecto(alimentadores=feeders, cargas_por_alim=n, bt=True, flujo=True, escenario=True,
-                           kva=lambda f, i: 3000.0)
+                           kva=kva or (lambda f, i: 3000.0))
     app.ldf.rp, app.ldf.rq = 0.002, 0.004
     kw = kw or {}
     for c in app.proyecto.GetContents('*.ElmLod', 1):
@@ -356,7 +356,7 @@ def test_el_escaneo_dice_lo_que_paso_con_la_transferencia(guion):
 
 
 def test_la_web_lleva_al_plan_la_red_de_la_fuente(tmp_path):
-    """098:RF-14 — tramos, abiertos del DGS aceptado y fecha de la importación; sin DGS, nada."""
+    """098:RF-14 — rutas, tramos y abiertos del DGS aceptado, y la fecha de la importación por el sello; sin DGS, nada."""
     import hashlib
     import time as _time
     from types import SimpleNamespace
@@ -368,12 +368,17 @@ def test_la_web_lleva_al_plan_la_red_de_la_fuente(tmp_path):
     dgs = salida / 'F1.dgs'
     dgs.write_text('$$ElmLne;FID(a:40);OP(a:1);loc_name(a:40);outserv(i)\n  1;C;L1;0\n  2;C;L2;1\n'
                    '$$ElmCoup;FID(a:40);OP(a:1);loc_name(a:40);on_off(i)\n  3;C;ENLACE;0\n', encoding='cp1252')
-    cuando = _time.mktime((2026, 11, 5, 12, 47, 11, 0, 0, -1))
-    ws = SimpleNamespace(root=tmp_path, pf_project_bindings={'P': {
-        'source_run_id': 'r1', 'dgs_sha256': {'F1': hashlib.sha256(dgs.read_bytes()).hexdigest()}, 'accepted_at': cuando}})
-    red = services._red_de_la_fuente_del_plan(ws, 'P')
-    assert red == {'tramos_dgs': ['L1', 'L2'], 'abiertos_dgs': {'ElmCoup': ['ENLACE'], 'ElmLne': ['L2']},
-                   'fecha_importacion': '2026-11-05'}
+    # Verificado otra vez el 2026-11-07: ``accepted_at`` cambia; la fecha es la del sello de la importación.
+    verificado = _time.mktime((2026, 11, 7, 9, 0, 0, 0, 0, -1))
+    vinculo = {'source_run_id': 'r1', 'dgs_sha256': {'F1': hashlib.sha256(dgs.read_bytes()).hexdigest()},
+               'accepted_at': verificado}
+    ws = SimpleNamespace(root=tmp_path, pf_project_bindings={'20261105-124711_CSG_TXT_X_Y': vinculo, 'SIN_SELLO': vinculo})
+    red = services._red_de_la_fuente_del_plan(ws, '20261105-124711_CSG_TXT_X_Y')
+    assert red == {'dgs_fuente': [str(dgs)], 'tramos_dgs': ['L1', 'L2'],
+                   'abiertos_dgs': {'ElmCoup': ['ENLACE'], 'ElmLne': ['L2']}, 'fecha_importacion': '2026-11-05'}
+    import os
+    os.utime(dgs, (_time.mktime((2026, 11, 4, 8, 0, 0, 0, 0, -1)),) * 2)
+    assert services._red_de_la_fuente_del_plan(ws, 'SIN_SELLO')['fecha_importacion'] == '2026-11-04'   # la del DGS
     assert services._red_de_la_fuente_del_plan(ws, 'OTRO') == {}
 
 
@@ -447,3 +452,181 @@ def test_la_migracion_abre_el_seccionador_del_tramo_y_se_restituye_solo_ese():
     assert entrada[:2] == ['StaSwitch', 'Switch'] and entrada[3] == seccionadores[0].GetFullName()
     assert obras.cerrar_lo_abierto(app, {'abiertos': [entrada], 'avisos': []}) == ['Switch']
     assert seccionadores[0].on_off == 1 and seccionadores[1].on_off == 1
+
+
+# =========================================================================== la configuración real de CA101 y CHN102
+def _dgs_de(app, ruta):
+    """El DGS «aceptado» de la red tal como está, con sus cubículos: lo que la web pasa en ``dgs_fuente`` (098:RF-16).
+
+    Como el del conversor, sin maniobras abiertas."""
+    fid = {}
+
+    def f(o):
+        return fid.setdefault(id(o), str(len(fid) + 1))
+
+    filas = ['$$General;ID(a:40);Descr(a:40);Val(a:40)', '  1;Version;6.0',
+             '$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p)']
+    filas += [f'  {f(t)};C;{t.loc_name};1' for t in app.proyecto.GetContents('*.ElmTerm', 1)]
+    for clase in ('ElmLne', 'ElmCoup', 'ElmTr2'):
+        filas.append(f'$${clase};FID(a:40);OP(a:1);loc_name(a:40);fold_id(p)')
+        filas += [f'  {f(o)};C;{o.loc_name};1' for o in app.proyecto.GetContents(f'*.{clase}', 1)]
+    filas.append('$$StaCubic;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);obj_bus(i);obj_id(p)')
+    for c in app.proyecto.GetContents('*.StaCubic', 1):
+        o = getattr(c, 'obj_id', None)
+        if o is not None and o._clase in ('ElmLne', 'ElmCoup', 'ElmTr2'):
+            lado = getattr(c, 'obj_bus', None)
+            if lado is None:
+                lado = 0 if getattr(o, 'bushv', None) is c else 1
+            filas.append(f'  {f(c)};C;{c.loc_name};{f(c.cterm)};{lado};{f(o)}')
+    ruta.write_text('\n'.join(filas) + '\n', encoding='cp1252')
+    return ruta
+
+
+def _barra_nueva(app, nombre):
+    red = app.proyecto.GetContents('*.ElmNet', 1)[0]
+    b = red.CreateObject('ElmTerm', nombre)
+    b.uknom = 10.0
+    return b
+
+
+def _mover_extremo(app, elemento, lado, barra):
+    """Lo que hace ``SplitLine``: el cubículo de un extremo pasa a otra barra."""
+    viejo = getattr(elemento, f'bus{lado + 1}')
+    viejo.Delete()
+    cub = barra.CreateObject('StaCubic', f'c{lado}_{elemento.loc_name}')
+    cub.obj_id, cub.obj_bus = elemento, lado
+    object.__setattr__(elemento, f'bus{lado + 1}', cub)
+
+
+def _rama(app, clase, nombre, a, b, **attrs):
+    red = app.proyecto.GetContents('*.ElmNet', 1)[0]
+    o = red.CreateObject(clase, nombre)
+    for k, v in attrs.items():
+        setattr(o, k, v)
+    for lado, barra in ((0, a), (1, b)):
+        cub = barra.CreateObject('StaCubic', f'c{lado}_{nombre}')
+        cub.obj_id, cub.obj_bus = o, lado
+        object.__setattr__(o, f'bus{lado + 1}', cub)
+    return o
+
+
+def _caso_ca101_real(guion, tmp_path):
+    """Como en DIgSILENT el 2026-11-07 (sondas de solo lectura de la sesión de T6):
+
+    1. ``X_L3`` partido: va de ``X_B3`` a «Terminal» y la mitad nueva ``X_L3_a`` de «Terminal» a ``X_B2``, con un banco
+       en «Terminal». Sin cambio de topología: no hay que abrir nada.
+    2. ``X_L5`` partido: de ``X_B4`` a «Terminal(2)»; el acoplador nuevo «Breaker/Switch», ABIERTO, a «Terminal(3)»; y la
+       línea nueva ``X_L5_c`` a ``X_B5``. Es el punto que separa la zona de X.
+    3. El acoplador nuevo «Breaker/Switch(1)», CERRADO, entre ``Y_B6`` y ``X_B6``, dos barras del DGS que el DGS no une
+       (la conversión quita las maniobras abiertas): por él Y alimenta la zona.
+    """
+    # Las escaladas se reparten por kVA (095): la zona, con transformadores menores, lleva una parte como la de CA101.
+    app = _red(kw={'F1': 1.1, 'F1_S5': 0.3, 'F1_S6': 0.3, 'F2': 0.455},
+               kva=lambda f, i: 600.0 if (f, i) in (('F1', 5), ('F1', 6)) else 3000.0)
+    objetivos = {'F1': 6600.0, 'F2': 2728.0}
+    dgs = _dgs_de(app, tmp_path / 'aceptado.dgs')
+    planes = _planes(objetivos, set())
+    for p in planes:
+        p.update(dgs_fuente=[str(dgs)], tramos_dgs=[], abiertos_dgs={})
+    primera = guion.ejecutar_proyecto(app, planes)
+    assert all(rc == 0 for _i, rc in primera), primera
+    import sys
+
+    informe, rc = sys.modules['casos_pf'].preparar_con(
+        app, {'project': 'P', 'feeders': ['F1', 'F2'], 'caso_base_sin_verificar': {}})
+    assert rc == 0, informe
+    _caso(app, 'Sin proyecto').Activate()
+    tipo = _obj(app, 'ElmLne', 'F1_L1').typ_id
+    terminal = _barra_nueva(app, 'Terminal')
+    _mover_extremo(app, _obj(app, 'ElmLne', 'F1_L3'), 0, terminal)
+    a = _rama(app, 'ElmLne', 'F1_L3_a', terminal, _obj(app, 'ElmTerm', 'F1_B2'), typ_id=tipo, nlnum=1, outserv=0, dline=0.5)
+    _banco(app, 'Terminal', 'EBC_2')
+    t2, t3 = _barra_nueva(app, 'Terminal(2)'), _barra_nueva(app, 'Terminal(3)')
+    _mover_extremo(app, _obj(app, 'ElmLne', 'F1_L5'), 1, t2)
+    abierto = _rama(app, 'ElmCoup', 'Breaker/Switch', t2, t3, on_off=0, outserv=0)
+    c = _rama(app, 'ElmLne', 'F1_L5_c', t3, _obj(app, 'ElmTerm', 'F1_B5'), typ_id=tipo, nlnum=1, outserv=0, dline=0.5)
+    enlace = _rama(app, 'ElmCoup', 'Breaker/Switch(1)', _obj(app, 'ElmTerm', 'F2_B6'), _obj(app, 'ElmTerm', 'F1_B6'),
+                   on_off=1, outserv=0)
+    app.GetActiveScenario().Save()
+    en_f2 = {x.loc_name for x in _obj(app, 'ElmFeeder', 'F2').GetObjs('ElmLod')}
+    assert {'F1_S5', 'F1_S6'} <= en_f2 and 'F1_S4' not in en_f2
+    _caso(app, 'Caso base').Activate()
+    return app, planes, {'a': a, 'abierto': abierto, 'c': c, 'enlace': enlace}
+
+
+def _como_lo_dejo(app, el):
+    _caso(app, 'Sin proyecto').Activate()
+    return (int(el['abierto'].on_off), int(el['enlace'].on_off), int(el['a'].outserv), int(el['c'].outserv))
+
+
+def test_la_configuracion_real_da_perdidas_negativas_sin_la_098(guion, tpf, tmp_path, monkeypatch):
+    """098:RF-3, 098:RF-17 — el control: con la transferencia de CA101 y CHN102 puesta, pérdidas negativas en X."""
+    app, planes, _el = _caso_ca101_real(guion, tmp_path)
+    monkeypatch.setattr(tpf.RedDeLaFuente, 'preparar', lambda self, *a, **k: None)
+    (x, _rc), _ = guion.ejecutar_proyecto(app, planes)
+    assert not x['cuadrado'] and 'pérdidas activas negativas en F1' in (x['motivo'] or '')
+
+
+def test_dos_particiones_y_dos_acopladores_nuevos_como_en_ca101(guion, tmp_path):
+    """098:RF-16, 098:RF-17, 098:RF-18, 098:RF-19, 098:RF-3, 098:RF-5 — frente al DGS aceptado: las dos particiones son
+    la red de la fuente, el acoplador abierto dentro de una es el punto del operador (se cierra) y el nuevo cerrado entre
+    barras del DGS es su enlace (se abre). Se cuadra sin pérdidas negativas y todo vuelve a como lo dejó."""
+    app, planes, el = _caso_ca101_real(guion, tmp_path)
+    antes = _como_lo_dejo(app, el)
+    assert antes == (0, 1, 0, 0)
+    _caso(app, 'Caso base').Activate()
+    (x, rcx), (y, rcy) = guion.ejecutar_proyecto(app, planes)
+    assert (rcx, rcy) == (0, 0), (x.get('motivo'), y.get('motivo'))
+    assert x['perdidas']['kw'] > 0 and y['perdidas']['kw'] > 0
+    t = x['transferencias_del_operador']
+    (z,) = t['zonas']
+    assert (z['desde'], z['hacia'], z['sed'], z['motivo']) == ('F1', 'F2', ['F1_S5', 'F1_S6'], None)
+    assert z['abrir'] == [{'clase': 'ElmCoup', 'nombre': 'Breaker/Switch(1)'}]
+    assert z['cerrar'] == [{'clase': 'ElmCoup', 'nombre': 'Breaker/Switch'}] and not z['supuesto']
+    particiones = {p['rama']: p for p in t['frente_a_la_fuente']['particiones']}
+    assert set(particiones) == {'F1_L3', 'F1_L5'} and particiones['F1_L5']['abierto'] == ['Breaker/Switch']
+    assert t['frente_a_la_fuente']['nuevas'] == ['Breaker/Switch(1)']
+    assert {c['nombre'] for c in t['cambios']} == {'Breaker/Switch', 'Breaker/Switch(1)'}
+    assert t['restituida'] and all(e['ok'] for e in t['evidencia'])
+    assert _como_lo_dejo(app, el) == antes
+    _caso(app, 'Con proyecto').Activate()
+    assert int(el['abierto'].on_off) == 0 and int(el['enlace'].on_off) == 1
+
+
+def test_el_registro_distingue_acopladores_de_nombre_parecido(guion, tpf, tmp_path):
+    """098:RF-19, 098:RF-5 — si la orden muere con la transferencia desactivada, la siguiente restituye cada acoplador por
+    su nombre completo: «Breaker/Switch» y «Breaker/Switch(1)» no se confunden."""
+    app, planes, el = _caso_ca101_real(guion, tmp_path)
+    _caso(app, 'Sin proyecto').Activate()
+    red = tpf.RedDeLaFuente(app, planes[0])
+    red.preparar(guion.Alimentadores(app, app.proyecto, ['F1', 'F2']), _caso(app, 'Sin proyecto'), ['F1', 'F2'])
+    assert (int(el['abierto'].on_off), int(el['enlace'].on_off)) == (1, 0)
+    rutas = {e['nombre']: e['ruta'] for e in tpf._leer(tpf.fichero(planes[0]))}
+    assert rutas == {'Breaker/Switch': el['abierto'].GetFullName(), 'Breaker/Switch(1)': el['enlace'].GetFullName()}
+    _caso(app, 'Caso base').Activate()
+    (x, rc), _ = guion.ejecutar_proyecto(app, planes)
+    assert rc == 0, x.get('motivo')
+    assert _como_lo_dejo(app, el) == (0, 1, 0, 0)
+    assert not tpf.fichero(planes[0]).exists()
+
+
+def test_frente_a_la_fuente_puro():
+    """098:RF-16, 098:RF-17, 098:RF-18 — la partición con todo cerrado es de la fuente; un elemento nuevo fuera de ella
+    no lo es; el DGS se lee por sus cubículos."""
+    dgs = ['$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40)', '  1;C;A', '  2;C;B', '  3;C;C',
+           '$$ElmLne;FID(a:40);OP(a:1);loc_name(a:40)', '  10;C;L1',
+           '$$StaCubic;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);obj_bus(i);obj_id(p)', '  20;C;c0;1;0;10',
+           '  21;C;c1;2;1;10']
+    fuente = to.red_del_dgs(dgs)
+    assert fuente.ramas == {('ElmLne', 'L1'): ('A', 'B')} and fuente.barras == {'A', 'B', 'C'}
+
+    def r(nombre, clase, a, b, cerrada=True):
+        return to.Rama(nombre, clase, nombre, (a, b), cerrada, barras=(a, b))
+
+    ramas, frente = to.frente_a_la_fuente([r('L1', 'ElmLne', 'A', 'T'), r('L1_a', 'ElmLne', 'T', 'B'),
+                                           r('NUEVO', 'ElmCoup', 'B', 'C')], fuente)
+    por = {x.nombre: x for x in ramas}
+    assert por['L1'].en_fuente and por['L1_a'].en_fuente and not por['L1_a'].fuera_de_la_fuente
+    assert por['NUEVO'].en_fuente is False and por['NUEVO'].fuera_de_la_fuente
+    assert frente == {'particiones': [{'rama': 'L1', 'clase': 'ElmLne', 'cadena': ['L1_a'], 'abierto': []}],
+                      'nuevas': ['NUEVO']}

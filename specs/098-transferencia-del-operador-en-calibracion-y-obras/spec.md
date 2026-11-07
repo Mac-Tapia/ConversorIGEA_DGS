@@ -90,6 +90,30 @@ bancos o generadores en la parte que pasa. CA101_CHN102 es el caso que lo motiva
 - RF-15: EL SISTEMA reconocerá y desactivará las transferencias solo con lo que dicen los datos (etiquetas, topología,
   DGS aceptado), sin nombres de alimentador, de barra ni de empresa, y sin valores por defecto de una empresa
   (constitución P13).
+- Aclaración de RF-14 (T6 en DIgSILENT, 2026-11-07): el plan lleva también las rutas del DGS aceptado, y la fecha es la
+  del sello del nombre del proyecto (la de la importación) o, sin sello, la del DGS; no la de la aceptación del vínculo,
+  que cambia al volver a verificarlo (salía 2026-11-07 por una aceptación del 2026-11-05).
+
+### La red de la fuente, rama por rama (T6 en DIgSILENT, 2026-11-07)
+
+La primera prueba real siguió con las pérdidas negativas: el informe dio dos zonas sin tocar («unida_en_la_fuente» y
+«sin_punto»). Las sondas de solo lectura mostraron lo que hizo el operador: partió SEC_1091_1082263 con una mitad nueva
+(SEC_1091_1082263_a) y una barra nueva con dos bancos, sin cambio de topología; partió SEC_1091_1082269 con un acoplador
+nuevo ABIERTO («Breaker/Switch») y una línea nueva (SEC_1091_1082269_c), el punto que separa la zona de CA101; y creó un
+acoplador nuevo CERRADO («Breaker/Switch(1)») entre dos barras del DGS que el DGS no une, el enlace por el que CHN102
+alimenta la zona. El DGS del conversor no trae las maniobras abiertas (90 en este), así que `abiertos_dgs` venía vacío.
+
+- RF-16: DONDE el plan trae el DGS aceptado, EL SISTEMA comparará cada rama de la red (tramos, acopladores,
+  transformadores y equipos en serie, con los interruptores de sus cubículos) por clase, nombre y las dos barras que
+  une con las del DGS, sin depender de que el DGS traiga lo abierto.
+- RF-17: EL SISTEMA tratará como la rama de la fuente una rama del DGS cuyas barras cambiaron junto con la cadena de
+  ramas y barras nuevas que vuelve a unir sus barras originales (una partición); SI toda la cadena está cerrada,
+  ENTONCES no se tocará, y SI tiene un elemento abierto, ENTONCES ese es el punto que abrió el operador y se cerrará
+  mientras se calibra.
+- RF-18: EL SISTEMA tratará como enlace del operador una rama que no está en el DGS ni forma parte de una partición y
+  que une la zona con otro alimentador, y la abrirá mientras se calibra.
+- RF-19: EL SISTEMA anotará cada elemento tocado por su nombre completo y lo restituirá por él, de modo que dos
+  elementos de nombre parecido («Breaker/Switch» y «Breaker/Switch(1)») no se confundan.
 
 ## Relación con otras specs
 
@@ -109,6 +133,6 @@ bancos o generadores en la parte que pasa. CA101_CHN102 es el caso que lo motiva
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-15.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

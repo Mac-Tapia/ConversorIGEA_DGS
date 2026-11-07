@@ -10,10 +10,17 @@
 | `tools/escanear_alimentador_pf.py` | `_transferencias`: zonas con bancos y generadores; marca bancos, generadores y tramos nuevos del que recibe | 9 |
 | `src/convertersmartgrid/obras_integrales.py` | `con_maniobras` (el acoplador del camino pasa al tramo siguiente como `maniobra_previa`); `candidatos_de_transferencia` y `nodo_de_traslado` solo con maniobra; `nodos_de_traspaso` dice `sin_maniobra`; `variantes` lo avisa | 11, 13 |
 | `tools/obras_pf.py` | `maniobra_del_tramo` y la de los acopladores en `tramos_red`; los caminos con `con_maniobras`; `construir_migracion` abre el `StaSwitch` del tramo de entrada con `abrir`; `abrir` y `_con_nombre` llevan el nombre completo del interruptor | 11, 12 |
-| `src/convertersmartgrid/web/services.py` | `_dgs_aceptado`, `_red_de_la_fuente_del_plan` (tramos, abiertos y fecha de la importación) en el plan de la calibración y del escaneo | 14 |
+| `src/convertersmartgrid/web/services.py` | `_dgs_aceptados`, `_red_de_la_fuente_del_plan` (tramos, abiertos y fecha de la importación) en el plan de la calibración y del escaneo | 14 |
 | `tests/fake_pf.py` | `App.topologia_viva`: el `ElmFeeder` sigue lo que está en servicio y cerrado desde su cubículo, sin entrar por la cabecera de otro | pruebas |
+| T7: `transferencia_operador.py` | `red_del_dgs` (barras de cada rama por sus `StaCubic`), `frente_a_la_fuente` (particiones por la cadena de ramas y barras nuevas; lo demás nuevo, enlace del operador); en `tools/transferencia_operador_pf.py`, `red_de_la_fuente` lee `dgs_fuente` y `_por_ruta` busca por nombre completo; la web pasa `dgs_fuente` y la fecha del sello | 14, 16 a 19 |
 
 ## Decisiones
+
+- **Comparar con el DGS rama por rama (T7).** Por solo los nombres de los tramos, la mitad nueva de una partición
+  parecía un tramo nuevo que abrir y un acoplador nuevo no se veía. Con las barras de cada rama en el DGS, una partición
+  (la rama del DGS con otras barras más la cadena nueva que vuelve a unir las originales) es la rama de la fuente, y lo
+  abierto en ella es el punto del operador. La cadena solo avanza por barras nuevas: un acoplador nuevo entre barras
+  del DGS no se confunde con una partición. Descartado: depender de `abiertos_dgs`, que el DGS del conversor no trae.
 
 - **Desactivar la transferencia, no corregir la medida.** Primero se pensó sumar a X y restar a Y lo transferido en
   cada flujo; el usuario (2026-11-07) pidió calibrar con los alimentadores completos. Así las pérdidas negativas

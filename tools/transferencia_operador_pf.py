@@ -94,13 +94,33 @@ def _topologia(alims, alimentadores) -> tuple[dict[str, set[str]], dict[str, str
     return barras, de_carga, cabeceras
 
 
-def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, dict]:
-    """098:RF-1, RF-2: las zonas transferidas por el operador entre alimentadores del proyecto, y los objetos.
+def red_de_la_fuente(plan: dict):
+    """098:RF-16: la red del DGS aceptado (``dgs_fuente``, las rutas que pone la web), o ``None`` sin él."""
+    from convertersmartgrid.dgs import DGS_ENCODING
+    from convertersmartgrid.transferencia_operador import red_del_dgs
+
+    rutas = [Path(r) for r in plan.get('dgs_fuente') or [] if r and Path(r).is_file()]
+    if not rutas:
+        return None
+    fuente = None
+    for ruta in rutas:
+        with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
+            fuente = red_del_dgs(f, fuente)
+    return fuente
+
+
+def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, dict, dict]:
+    """098:RF-1, RF-2: las zonas transferidas por el operador entre alimentadores del proyecto, los objetos y lo que
+    se vio frente al DGS aceptado (particiones y ramas nuevas, 098:RF-16 a RF-18).
 
     Una pasada por las cargas y, solo si hay alguna transferida, una por cada clase de rama: un proyecto sin
-    transferencias no lee nada más. ``interesan``: solo las zonas que salen de o llegan a esos alimentadores.
+    transferencias no lee nada más. ``interesan``: solo las zonas que salen de o llegan a esos alimentadores. Con el
+    DGS aceptado (``dgs_fuente``) se comparan todas las ramas por clase, nombre y barras; sin él, solo los nombres de
+    los tramos (``tramos_dgs``) y lo abierto que diga el plan (``abiertos_dgs``).
     """
     from cargas_pf import potencia
+
+    from convertersmartgrid.transferencia_operador import frente_a_la_fuente
 
     alimentadores = sorted(alims.elm)
     barras, de_carga, cabeceras = _topologia(alims, alimentadores)
@@ -114,11 +134,11 @@ def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, d
         cargas.append(CargaRed(k, o.loc_name, _clave(term), _etiqueta(o), de_carga.get(k), p, q))
         objetos[k] = o
     if not transferidas(cargas, alimentadores):
-        return [], objetos
+        return [], objetos, {}
     de_dgs = set(plan.get('tramos_dgs') or []) or None
     abiertos = plan.get('abiertos_dgs')
     abiertos = {k: set(v) for k, v in abiertos.items()} if isinstance(abiertos, dict) else None
-    ramas = []
+    ramas, interruptores = [], {}
     for clase in CLASES_RAMA:
         for o in _todos(app, clase):
             cubs = _cubiculos(o, clase)
@@ -142,12 +162,22 @@ def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, d
             k = _clave(o)
             objetos[k] = o
             ramas.append(Rama(k, clase, o.loc_name, (_clave(extremos[0]), _clave(extremos[1])), bool(cerrada),
-                              en_fuente, en_fuente_cerrada))
+                              en_fuente, en_fuente_cerrada, (extremos[0].loc_name, extremos[1].loc_name)))
+            if sws:
+                interruptores[k] = [s.loc_name for s in sws]
+    frente: dict = {}
+    fuente = red_de_la_fuente(plan)
+    if fuente is not None:
+        ramas, frente = frente_a_la_fuente(ramas, fuente)
+        abiertos_sw = fuente.abiertos.get('StaSwitch', set())
+        # Un tramo con un interruptor que el DGS deja abierto estaba abierto en la fuente.
+        ramas = [r if not (set(interruptores.get(r.clave, ())) & abiertos_sw) else
+                 Rama(r.clave, r.clase, r.nombre, r.extremos, r.cerrada, r.en_fuente, False, r.barras) for r in ramas]
     zonas = zonas_transferidas(cargas, ramas, barras, cabeceras)
     if interesan is not None:
         interesan = set(interesan)
         zonas = [z for z in zonas if z.desde in interesan or z.hacia in interesan]
-    return zonas, objetos
+    return zonas, objetos, frente
 
 
 def equipos_de_las_zonas(app, zonas) -> list[dict[str, list[str]]]:
@@ -192,16 +222,16 @@ def _escribir(ruta: Path, entradas: list[dict]) -> None:
 
 def _por_ruta(app, clase: str, nombre: str, ruta: str):
     """El objeto anotado, por su nombre completo; también fuera de servicio (081:RF-81)."""
-    candidatos = list(app.GetCalcRelevantObjects(f'{nombre}.{clase}') or [])
     donde = app.GetProjectFolder('netdat') if hasattr(app, 'GetProjectFolder') else None
-    if donde is not None:
-        candidatos += list(donde.GetContents(f'{nombre}.{clase}', 1) or [])
-    if not candidatos:
-        # El doble filtra el patrón solo por la clase; en DIgSILENT da lo mismo.
-        candidatos = [o for o in (app.GetCalcRelevantObjects(f'*.{clase}') or []) if o.loc_name == nombre]
-    for o in candidatos:
-        if o.GetClassName() == clase and _clave(o) == ruta:
-            return o
+    for patron in (f'{nombre}.{clase}', f'*.{clase}'):
+        # Por el nombre y, si no sale, por todos los de la clase: un nombre con «/» («Breaker/Switch(1)», CA101,
+        # 2026-11-07) no sirve de patrón, y dos acopladores se llaman casi igual. Se elige por el nombre completo.
+        candidatos = list(app.GetCalcRelevantObjects(patron) or [])
+        if donde is not None:
+            candidatos += list(donde.GetContents(patron, 1) or [])
+        for o in candidatos:
+            if o.loc_name == nombre and o.GetClassName() == clase and _clave(o) == ruta:
+                return o
     return None
 
 
@@ -224,6 +254,7 @@ class RedDeLaFuente:
         self.deshecha = False                  # desactivada y vuelta a poner antes de calibrar (098:RF-8)
         self.inicial = None
         self.pendientes: list[dict] = []
+        self.frente: dict = {}
 
     # ------------------------------------------------------------------- al empezar
     def restituir_pendientes(self, casos: dict) -> None:
@@ -263,7 +294,7 @@ class RedDeLaFuente:
         """Desactiva cada zona transferida que sale de o llega a ``calibrados`` y comprueba que volvió a su alimentador."""
         self.caso = caso
         _flujo(self.app)
-        self.zonas, objetos = leer_transferencias(self.app, alims, self.plan, interesan=calibrados)
+        self.zonas, objetos, self.frente = leer_transferencias(self.app, alims, self.plan, interesan=calibrados)
         if not self.zonas:
             return
         hacer = [z for z in self.zonas if not z.motivo]
@@ -347,7 +378,7 @@ class RedDeLaFuente:
         if not self.zonas and not self.pendientes and not self.avisos:
             return None
         hecho = bool(self.cambios) and self.restituida and all(e['ok'] for e in self.evidencia)
-        return {'zonas': [z.resumen() for z in self.zonas],
+        return {'zonas': [z.resumen() for z in self.zonas], 'frente_a_la_fuente': self.frente,
                 'desactivada_mientras_se_calibra': bool(self.cambios) and not self.deshecha,
                 'cambios': [{k: c[k] for k in ('caso', 'clase', 'nombre', 'atributo', 'valor', 'nuevo')}
                             for c in self.cambios],
@@ -426,9 +457,9 @@ def main(argv=None) -> int:
                 caso.Activate()
             _flujo(app)
             alims = Alimentadores(app, proyecto, plan.get('feeders') or [])
-            zonas, _objs = leer_transferencias(app, alims, plan)
-            informe = {'project': plan['project'], 'zonas': [{**z.resumen(), **e}
-                                                             for z, e in zip(zonas, equipos_de_las_zonas(app, zonas))]}
+            zonas, _objs, frente = leer_transferencias(app, alims, plan)
+            informe = {'project': plan['project'], 'frente_a_la_fuente': frente,
+                       'zonas': [{**z.resumen(), **e} for z, e in zip(zonas, equipos_de_las_zonas(app, zonas))]}
             codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito (008:RF-17)
         informe, codigo = {'error': repr(exc), 'traza': traceback.format_exc()}, 1
