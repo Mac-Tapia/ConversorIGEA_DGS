@@ -1019,13 +1019,17 @@ def transferencias_con_oraculo(oraculo: Oraculo, a: Alimentador, candidatas: Seq
         if e.get('v_min') is None:
             resumen['descartadas'].append({'nombre': v.nombre, 'motivo': 'el flujo del oráculo no converge'})
             continue
-        if (sin.get('v_min') is not None and e['v_min'] < sin['v_min'] - p.tolerancia_pu
+        # 098:RF-47: la transferencia del operador se mide siempre en DIgSILENT: el usuario pide que se evalúe y que el
+        # informe diga si resuelve (098:RF-44), aunque el oráculo vea que la red baja.
+        del_operador = v.nombre.startswith('la transferencia del operador')
+        if (not del_operador and sin.get('v_min') is not None and e['v_min'] < sin['v_min'] - p.tolerancia_pu
                 and not _cumple_en(e, p)):
             resumen['descartadas'].append({'nombre': v.nombre, 'motivo': f"la tensión mínima baja de {sin['v_min']:.3f} "
                                            f"a {e['v_min']:.3f} p.u."})
             continue
-        juzgadas.append((not _cumple_en(e, p), -float(e['v_min']), v.nombre, v, e))
-    juzgadas.sort(key=lambda t: t[:3])
+        juzgadas.append((not del_operador, not _cumple_en(e, p), -float(e['v_min']), v.nombre, v, e))
+    juzgadas.sort(key=lambda t: t[:4])
+    juzgadas = [t[1:] for t in juzgadas]
     pasan = [t[3] for t in juzgadas[:max(1, int(confirmar))]]
     for t in juzgadas[max(1, int(confirmar)):]:
         resumen['descartadas'].append({'nombre': t[2], 'motivo': f'el oráculo da otras {confirmar} mejores '

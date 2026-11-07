@@ -235,11 +235,13 @@ def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]],
             continue
         # 098:RF-43: devolver parte de la zona del operador a su alimentador se mide con los dos (098:RF-25), aunque el que
         # la recibe de vuelta no tenga margen ahora: es mover el corte de la misma transferencia.
+        # 098:RF-47: un enlace que ya existe solo cuesta la maniobra, y la medida de DIgSILENT juzga los dos alimentadores
+        # (098:RF-25): no se descarta antes por el margen del que recibe. CA101 + CHN102 (2026-11-07): «CHN102 no conserva
+        # margen» dejó el escalón de transferencia sin medir nada, y la transferencia del operador no se evaluó.
         if (e.get('u_min') is not None and not e.get('devuelve_zona')
                 and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p)):
-            avisos.append(f"{alimentador}: {vecino} no conserva margen de tensión y de carga para recibir por "
-                          f"{e.get('enlace')} (087:RF-32, 098:RF-21).")
-            continue
+            avisos.append(f"{alimentador}: {vecino} tiene poco margen de tensión o de carga para recibir por "
+                          f"{e.get('enlace')}: se mide igual, con los dos alimentadores (087:RF-32, 098:RF-47).")
         puntos = [x for x in (e.get('puntos') or []) if (x.get('maniobra') or {}).get('nombre')]
         if not puntos:
             avisos.append(f"{alimentador}: ninguna maniobra en el camino hasta el enlace {e.get('enlace')} con {vecino}: "

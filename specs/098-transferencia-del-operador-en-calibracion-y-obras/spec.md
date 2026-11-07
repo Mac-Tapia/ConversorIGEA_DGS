@@ -272,6 +272,11 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   alternativa más barata, de cualquier escalón. Sin obra que haga falta, ninguna. Usuario, 2026-11-07: «el coste es lo
   que manda». Cambia RF-45 en lo de parar en el primer escalón que cumple.
 
+- RF-47: EL SISTEMA medirá en DIgSILENT la transferencia del operador y la transferencia por un enlace que ya existe
+  aunque el que recibe tenga poco margen o el oráculo vea que la red baja: el margen solo se avisa, y la medida de los
+  dos alimentadores decide. CA101 + CHN102 (2026-11-07): «CHN102 no conserva margen» dejó el escalón de transferencia
+  sin medir nada y la transferencia del operador sin evaluar.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.

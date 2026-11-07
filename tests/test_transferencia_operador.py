@@ -707,7 +707,7 @@ def _costo(v, perdidas_kw):
 
 def test_transferencias_por_el_enlace_de_la_mas_cercana_a_la_cabecera():
     """098:RF-21, 098:RF-22 — sin línea nueva ni km: de la maniobra más cercana al enlace hacia la cabecera; abre la
-    maniobra y cierra el enlace; un vecino sin margen no recibe."""
+    maniobra y cierra el enlace; un vecino con poco margen se mide igual y se avisa (098:RF-47)."""
     from convertersmartgrid import obras_integrales as oi
 
     vs, avisos = oi.variantes_por_enlace('X', [_enlace_x()], _p_098())
@@ -716,7 +716,7 @@ def test_transferencias_por_el_enlace_de_la_mas_cercana_a_la_cabecera():
     assert (o['clase'], o['tramo'], o['enlace'], o['vecino'], o['enlace_cerrado']) == ('maniobra', 'LA2A3', 'ENL', 'Y', False)
     assert all(v.cantidades == {} and v.escalones == ('transferencia',) for v in vs)
     sin_margen, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.951}], _p_098())
-    assert sin_margen == [] and any('087:RF-32' in a for a in av)
+    assert sin_margen and any('087:RF-32' in a and '098:RF-47' in a for a in av)   # el enlace existente se mide siempre
 
 
 def test_la_transferencia_sola_no_basta_y_con_bancos_si(monkeypatch):
@@ -2325,7 +2325,7 @@ def test_el_que_recibe_la_transferencia_prueba_otro_corte_de_la_misma():
     assert vs and not avisos and all(v.nombre.startswith('otro corte de la transferencia') for v in vs)
     assert [v.obras[0]['maniobra'] for v in vs] == ['SW_LS1A1', 'SW_LA1A2', 'SW_LA2A3']
     otro, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.90}], _p_098())
-    assert not otro and av, 'un vecino cualquiera sin margen sigue sin recibir (087:RF-32)'
+    assert otro and any('098:RF-47' in a for a in av), 'el enlace existente se mide aunque el vecino tenga poco margen'
 
 
 def test_la_lectura_marca_el_corte_del_operador_en_los_enlaces(monkeypatch):
@@ -2499,3 +2499,12 @@ def test_no_se_llega_a_la_obra_integral_sin_los_cuatro_escalones(monkeypatch, tm
     assert medidas[4][3] == ['regulador'], 'el regulador, en su turno, con su candidata del oráculo'
     assert not any('087:RF-40' in t for t in ctx.textos)
     assert not r['por_alimentador']['F1']['cumple']
+
+
+def test_la_transferencia_del_operador_siempre_va_a_digsilent():
+    """098:RF-47 — aunque el oráculo vea que la red baja con ella, la transferencia del operador pasa a DIgSILENT."""
+    import inspect
+
+    from convertersmartgrid import optimizacion_oraculo as oo
+    fuente = inspect.getsource(oo.transferencias_con_oraculo)
+    assert "startswith('la transferencia del operador')" in fuente and 'not del_operador and' in fuente
