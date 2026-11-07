@@ -1322,3 +1322,36 @@ def test_la_evaluacion_proyecta_con_la_tasa_de_largo_plazo_y_dice_la_medida(tmp_
     (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
     assert ev['horizonte']['tasa'] < 0.1
     assert any('042:RF-86' in a and '16.50' in a for a in r['alimentadores'][0]['avisos'])
+
+
+def test_los_bancos_suben_mientras_mejora_la_barra_peor_y_el_valle_lo_admite():
+    """098:RF-41 — se prueban 3, 4… módulos mientras el oráculo vea que la barra peor mejora y el valle no pase del
+    límite; se dice hasta cuántos y por qué se paró. Antes, solo los dos primeros."""
+    ora = oo.Oraculo(_grafo(nueva_mw=0.0), [], tipos=TIPOS)
+    sin_tope = oo.modulos_por_mejora(ora, ['B'], 150.0, None, _p(tension_max_pu=5.0))
+    assert sin_tope['modulos'] > 2 and sin_tope['motivo']
+    vmins = [t['v_min'] for t in sin_tope['tabla']]
+    assert all(b > a for a, b in zip(vmins, vmins[1:sin_tope['modulos']]))
+    con_tope = oo.modulos_por_mejora(ora, ['B'], 150.0, None, _p(tension_max_pu=5.0), tope=3)
+    assert con_tope['modulos'] == 3 and 'tope' in con_tope['motivo']
+    valle = oo.modulos_por_mejora(ora, ['B'], 450.0, _puntos(1.0), _p(tension_max_pu=1.0, tolerancia_pu=0.0))
+    assert 'valle' in valle['motivo'] and valle['modulos'] < sin_tope['modulos']
+    assert oo.modulos_por_mejora(ora, ['NO_ESTA'], 150.0, None, _p())['modulos'] == 0
+
+
+def test_las_obras_de_varios_caminos_se_combinan_con_todos_los_modulos():
+    """098:RF-41 — las de varios caminos van con cada número de módulos de banco que se prueba, no solo con dos."""
+    comun = [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 80.0, 'inom_a': 110.0} for i in range(3)]
+    cola = comun + [{'nombre': f'C{i}', 'largo_m': 1500.0, 'corriente_a': 40.0, 'inom_a': 110.0} for i in range(3)]
+    rama = comun + [{'nombre': f'R{i}', 'largo_m': 1200.0, 'corriente_a': 50.0, 'inom_a': 110.0} for i in range(2)]
+    cargas = [{'barra': 'COLA', 'existe': True, 'camino': cola}, {'barra': 'RAMA', 'existe': True, 'camino': rama}]
+    tipos = [{'nombre': f'AA{m:03d}03D_10kV_FICHA', 'clase': 'TypLne', 'origen': 'proyecto',
+              'datos': {'uline': 10.0, 'sline': m * 2.2 / 1000, 'cohl_': 1, 'rline': 30.0 / m, 'xline': 0.4}}
+             for m in (120, 240)]
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'max_variantes': 2000, 'secciones_normalizadas': ['AA12003D', 'AA24003D']},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    vs, _av = eo.variantes('X', 10.0, comun, cargas, tipos, eo.parametros(perfil), banco_kvar=300.0, modulos_valle=4)
+    con_bancos = {v.nombre.split(' + ')[0] for v in vs if v.caminos and 'bancos' in v.escalones}
+    assert {'bancos 3×300 kvar', 'bancos 4×300 kvar'} <= con_bancos, con_bancos

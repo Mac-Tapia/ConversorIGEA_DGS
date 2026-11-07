@@ -3576,6 +3576,56 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+# =========================================================================== año en que vuelve a fallar (098:RF-39, RF-40)
+def anio_de_problemas(app, plan: dict) -> tuple[dict, int]:
+    """098:RF-39, RF-40: con la obra de corto plazo puesta en «Con proyecto», si el alimentador cumple con la demanda
+    de los años ``anios`` (por ``(1 + tasa)^año``, las cargas nuevas constantes, 030:RF-9) y por qué no. Con ``buscar``,
+    el primer año que falla hasta el horizonte, por bisección. Se mide en un escenario temporal (025:RF-51): la red del
+    caso queda como estaba."""
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'anio_problemas', 'anios': {}, 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    casos = casos_del_proyecto(app, anio_del_plan(plan))
+    if 'con' not in casos:
+        return {**informe, 'error': 'falta «Con proyecto»'}, 2
+    from convertersmartgrid.escalera_optima import definitiva, parametros, primer_anio_que_falla
+
+    feeders = [str(f) for f in plan.get('feeders') or ()]
+    p = parametros(plan.get('parametros') or {}, plan.get('tipo_cambio'))
+    tasa = float(plan.get('tasa') or 0.0)
+    alims = Alimentadores(app, proyecto, feeders)
+    inicial = app.GetActiveStudyCase()
+    try:
+        # Las existentes, las de «Sin proyecto» (063:RF-39): las cargas nuevas no crecen (030:RF-9).
+        if 'sin' in casos:
+            casos['sin'].Activate()
+        flujo_de_carga(app)
+        existentes = {c.loc_name for f in feeders for c in _cargas_de(alims, f)}
+        casos['con'].Activate()
+        flujo_de_carga(app)
+
+        def medir(anio: int) -> bool:
+            if str(anio) in informe['anios']:
+                return informe['anios'][str(anio)]['cumple']
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                s.escalar({f: (1.0 + tasa) ** int(anio) for f in feeders})
+                bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p)
+            informe['anios'][str(anio)] = {'cumple': bool(bien), 'motivos': list(motivos)}
+            print(f"  año {anio}: {'cumple' if bien else 'no cumple: ' + '; '.join(motivos)}", flush=True)
+            return bool(bien)
+
+        for anio in plan.get('anios') or []:
+            medir(int(anio))
+        if plan.get('buscar'):
+            informe['primer_anio'] = primer_anio_que_falla(medir, int(plan.get('desde') or 1), int(plan['buscar']))
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    informe['medidos'] = len(informe['anios'])
+    return informe, 0
+
+
 #: Lo que une dos barras en serie sin ser una línea: el camino eléctrico pasa por ello (042:RF-44).
 EQUIPOS_EN_SERIE = ('ElmCoup', 'ElmVoltreg', 'ElmTr2', 'ElmZpu', 'ElmSind')
 
@@ -3618,7 +3668,20 @@ def maniobra_del_tramo(linea) -> dict | None:
 MAX_BAJAS = 10
 
 
-def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict) -> dict[str, list[dict]]:
+#: 098:RF-42: lo que une dos tensiones distintas: un transformador; un acoplador o un tramo, no.
+UNEN_TENSIONES = ('ElmTr2', 'ElmTr3')
+
+
+def tensiones_distintas(barras) -> tuple[float, float] | None:
+    """098:RF-42: las tensiones nominales de dos barras si difieren más de un 2 %; ``None`` si son la misma o falta."""
+    kv = [float(getattr(b, 'uknom', 0) or 0) for b in barras]
+    if len(kv) != 2 or min(kv) <= 0:
+        return None
+    return (kv[0], kv[1]) if abs(kv[0] - kv[1]) > 0.02 * max(kv) else None
+
+
+def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict,
+                       descartados: list | None = None) -> dict[str, list[dict]]:
     """098:RF-21, RF-22, RF-27: por cada alimentador de ``feeders``, lo que ya une una barra suya con una de otro
     alimentador del proyecto, abierto o cerrado.
 
@@ -3647,6 +3710,13 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
                 continue
             duenos = [de_barra.get(b.loc_name) for b in barras]
             if None in duenos or duenos[0] == duenos[1] or not pedidos & set(duenos):
+                continue
+            # 098:RF-42: tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: cerrarlo no es posible.
+            distintas = tensiones_distintas(barras) if clase not in UNEN_TENSIONES else None
+            if distintas:
+                if descartados is not None:
+                    descartados.append({'enlace': o.loc_name, 'clase': clase, 'kv': list(distintas),
+                                        'alimentadores': list(duenos)})
                 continue
             cerrado = (not int(getattr(o, 'outserv', 0) or 0)
                        and not (clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1) or 0))
@@ -3938,7 +4008,12 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     cs = [_resultado(ln, 'c:loading') for ln in otro.GetObjs('ElmLne') if flujo['converged']]
                     us, cs = [u for u in us if u is not None], [c for c in cs if c is not None]
                     margen[g] = {'u_min': min(us) if us else None, 'carga_max_pct': max(cs) if cs else None}
-                enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen)
+                descartados: list = []
+                enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen, descartados)
+                for d_ in descartados:                                                    # 098:RF-42
+                    informe['avisos'].append(
+                        f"El enlace {d_['enlace']} entre {' y '.join(d_['alimentadores'])} une {d_['kv'][0]:g} kV con "
+                        f"{d_['kv'][1]:g} kV sin transformador: no se propone transferir por él (098:RF-42).")
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'enlaces': enlaces.get(f, []),
                                            'bajas': [{'barra': n, 'u': round(u, 4)} for u, n in bajas[:MAX_BAJAS]],
@@ -4309,7 +4384,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
     from convertersmartgrid.escalera_optima import (cumple, cumple_en_valle, definitiva, grupo_economico,
-                                                    hace_falta_seguir, parametros, plan_de_horizonte)
+                                                    hace_falta_seguir, parametros, plan_de_corto_plazo,
+                                                    plan_de_horizonte)
     from convertersmartgrid.informes import clasificar_bajo_limite
     from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
@@ -4612,7 +4688,9 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         # 042:RF-91: los años los pone el perfil aquí: el plan solo trae la tasa.
         horizonte = plan.get('horizonte')
         if horizonte and feeders:
-            horizonte = plan_de_horizonte(feeders[0], horizonte.get('tasa'), p)
+            # 098:RF-37: con ``periodo``, el año que tiene que aguantar la de corto plazo; si no, la vida útil (042).
+            horizonte = (plan_de_corto_plazo if horizonte.get('periodo') else plan_de_horizonte)(
+                feeders[0], horizonte.get('tasa'), p)
         hay_definitiva = False
 
         def alcance():
@@ -4984,6 +5062,8 @@ def main(argv=None) -> int:
                    help='borra las variaciones de obra de los alimentadores del plan (042:RF-60)')
     p.add_argument('--reponer-cargas', action='store_true',
                    help='Activa en «Con proyecto» las cargas nuevas del plan que estén desactivadas (042:RF-32)')
+    p.add_argument('--anio-problemas', action='store_true',
+                   help='En qué año el alimentador, con la obra de corto plazo, vuelve a salir de límites (098:RF-39)')
     p.add_argument('--escalera-datos', action='store_true',
                    help='Troncal, corrientes y tramo de cada carga nueva para la escalera (025:RF-49)')
     p.add_argument('--oraculo-datos', action='store_true',
@@ -5023,6 +5103,8 @@ def main(argv=None) -> int:
             informe, codigo = reponer_cargas(app, plan)
         elif args.retirar_obras:
             informe, codigo = retirar_obras(app, plan)
+        elif args.anio_problemas:
+            informe, codigo = anio_de_problemas(app, plan)                           # 098:RF-39
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
         elif args.oraculo_datos:

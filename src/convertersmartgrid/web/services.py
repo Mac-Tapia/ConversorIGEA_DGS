@@ -6741,7 +6741,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             **({'aplicando_elegida': True} if solo and f in solo else {}),
             'tipo_cambio': tipo_cambio,
             **({'alternativas': p.alternativas,                                       # 042:RF-55, RF-105
-                'horizonte': eo.plan_de_horizonte(f, p.tasa_largo_plazo, p)}                  # 042:RF-73, RF-86
+                # 098:RF-37: la de corto plazo aguanta del año 0 al del periodo (4); el resto lo plantea el PIDE.
+                'horizonte': eo.plan_de_corto_plazo(f, p.tasa_largo_plazo, p)}                # 042:RF-73, RF-86
                if por_alternativas else {}),
             'otro_proyecto': eo.BIBLIOTECA_TIPOS, 'parada_bayesiana': True,               # 087:RF-8
             'revision_codigo': revision_de_la_escalera(),                                 # 087:RF-50
@@ -6853,13 +6854,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             if t.get('no_aplicada'):
                 fila['avisos'].append(f"{f}: «{t['nombre']}»: {t['no_aplicada']}; no se cuenta como «no cumple» (098:RF-28).")
                 ctx.log(f"{f}: «{t['nombre']}»: {t['no_aplicada']} (098:RF-28).")
+        if decision.get('aviso_periodo'):                                        # 098:RF-37
+            fila['avisos'].append(f"{f}: {decision['aviso_periodo']}")
         if decision['elegida']:                                                  # 098:RF-37
             fila['corto_plazo'] = decision['elegida']
-            fila['largo_plazo'] = decision.get('largo_plazo')
-            largo = decision.get('largo_plazo') or {}
-            ctx.log(f"{f}: corto plazo «{decision['elegida']}», se aplica; " + (largo.get('aviso') or 'sin largo plazo'))
-            if largo.get('aviso'):
-                fila['avisos'].append(f"{f}: {largo['aviso']}")
+            fila['obras_elegida'] = [dict(o) for o in por_nombre[decision['elegida']].obras]   # 098:RF-39
         if decision.get('aviso_valle'):                                          # 073:RF-20
             fila['avisos'].append(f"{f}: {decision['aviso_valle']}")
         if decision.get('sin_comprobar_valle'):                                  # 073:RF-24
@@ -7645,6 +7644,17 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             for alt in aparte[clave]['alternativas']:
                 ctx.log(f"{f}, {etiqueta}: alternativa {alt['numero']}: {alt['nombre']}"
                         + (f", {alt['costo_anual']:,.0f} al año" if alt.get('costo_anual') is not None else '') + ' (042:RF-65).')
+        if ok and not fila.get('conserva'):
+            # 098:RF-39, RF-40: con la de corto plazo puesta, el año en que vuelve a salir de límites; su obra no se busca.
+            # 098:RF-40: un fallo al buscarlo no deja sin la obra de hoy: se dice.
+            corto = (fila.get('obras_elegida') if fila.get('elegida') and not fila.get('ya_cumple')
+                     else (vieja or {}).get('obras') or [])
+            aparte['vuelve_a_fallar'] = _anio_de_problemas(ws, ctx, project, f, corto, memo, opciones,
+                                                           fila.get('elegida') or (vieja or {}).get('nombre'))
+            probados = ((memo or {}).get('oraculo_prep') or {}).get('bancos_probados', {}).get(f)
+            if probados:                                                                   # 098:RF-41
+                aparte['bancos_probados'] = probados
+                _anotar_en_la_elegida(ws, project, f, fila.get('elegida'), 'bancos_probados', probados)
         por_feeder[f] = {'cargas': len(cs), 'kw': round(sum(float(c.get('kw') or 0) for c in cs), 1), 'cumple': ok, **aparte,
                          'alternativas': fila.get('alternativas') or [],                     # 042:RF-77
                          'ya_cumple': bool(fila.get('ya_cumple')), 'bajo_limite': fila.get('bajo_limite')}
@@ -7787,6 +7797,7 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     ajustes = dict(perfil.get('escalera') or {})
     de = {clave_codigo(f): f for f in feeders}
     barras: dict[str, list[str]] = {f: [] for f in feeders}
+    bancos_probados: dict[str, dict] = {}                                              # 098:RF-41
     for c in orden:
         f = de.get(clave_codigo(c.get('alimentador')))
         if f and c.get('barra') and str(c['barra']) not in barras[f]:
@@ -7884,6 +7895,14 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         modulos_valle = tope_valle['modulos'] if tope_valle else None
         if tope_valle and tope_valle.get('aviso'):
             ctx.log(f"{f}: {tope_valle['aviso']} (073:RF-19).")
+        # 098:RF-41: y mientras el oráculo vea que la barra peor mejora; se dice hasta cuántos y por qué se paró.
+        mejora = oo.modulos_por_mejora(ora, con_banco, banco, valle, p, k=len(nuevas), alimentador=f,
+                                       tope=p.modulos_max) if banco else None
+        if mejora:
+            modulos_valle = mejora['modulos'] if modulos_valle is None else min(int(modulos_valle), mejora['modulos'])
+            ctx.log(f"{f}: bancos de {banco:g} kvar probados hasta {modulos_valle} módulos por barra: "
+                    f"{mejora['motivo']} (098:RF-41).")
+            bancos_probados[f] = {'modulos': modulos_valle, 'motivo': mejora['motivo'], 'kvar': banco}
         vs, av = eo.variantes(f, kv, d['troncal'], cargas_f, tipos_lista, p, banco_kvar=banco,
                               fuera_desde=d.get('fuera_desde'), modulos_valle=modulos_valle,
                               evidencia=not (tope_valle or {}).get('por_tope'),
@@ -7938,6 +7957,7 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                          'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),
                          'semilla': p.semilla, 'valle': valle}
     return {'p': p, 'valle': valle, 'ora': ora, 'alims': alims, 'factores': factores, 'markov': markov,
+            'bancos_probados': bancos_probados,
             'opciones_eleccion': opciones_eleccion, 'ajustes': ajustes}
 
 
@@ -7964,6 +7984,7 @@ def _seleccion_por_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
         ctx.log(f'El oráculo no puede ({exc}): se miden las variantes en DIgSILENT (087:RF-4).')
         return {}
     ctx.log(f"Oráculo: {prep['ora'].evaluaciones} flujos en {time.monotonic() - t0:.0f} s; DIgSILENT confirma por tandas (087:RF-1).")
+    memo['oraculo_prep'] = prep                                                         # 098:RF-39
     return {'alimentadores': alimentadores, 'tanda': int(prep['ajustes'].get('confirmar_en_digsilent') or TANDA_DIGSILENT),
             'flujos': prep['ora'].evaluaciones, 'oraculo_s': round(time.monotonic() - t0, 1)}
 
@@ -8665,6 +8686,129 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
                 and not datos.get('cancelado') and not any(v.get('error') for v in datos['variantes'])):
             return datos
     return None
+
+
+def _motivo_en_barra(motivos) -> tuple[str | None, float | None]:
+    import re as _re
+
+    for m in motivos or []:
+        hallado = _re.match(r'^(.*) a ([0-9.]+) p\.u\.$', str(m))
+        if hallado:
+            return hallado.group(1), float(hallado.group(2))
+    return None, None
+
+
+def _anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_corto, memo: dict | None, opciones: dict,
+                       nombre: str | None) -> dict:
+    """098:RF-39, RF-40: en qué año el alimentador, con la obra de corto plazo puesta, vuelve a salir de límites con la
+    demanda proyectada (``(1 + tasa)^año``; las cargas nuevas, constantes, 030:RF-9).
+
+    El oráculo corregido con lo medido (RF-30) lo busca año a año hasta el horizonte; DIgSILENT lo confirma solo en ese
+    año y en el anterior. Sin oráculo, o si DIgSILENT no lo confirma, DIgSILENT lo busca por bisección. La obra de ese
+    año no se busca aquí: la plantea el PIDE partiendo de la de corto plazo (072). CA101 (2026-11-07): «terna en 62
+    tramos + 240 mm² en 9 tramos en 3 caminos» cumplía hoy y fallaba en el año 7 de los tres que se probaban."""
+    try:
+        return _buscar_anio_de_problemas(ws, ctx, project, f, obras_corto, memo, opciones, nombre)
+    except UserError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - la obra de hoy queda; el dato del informe falta y se dice
+        ctx.log(f'{f}: no se pudo buscar el año en que vuelve a fallar: {exc} (098:RF-40).')
+        return {'obra': nombre, 'anio': None, 'aviso': f'sin el año en que vuelve a fallar: {exc}'}
+
+
+def _buscar_anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_corto, memo: dict | None,
+                              opciones: dict, nombre: str | None) -> dict:
+    from .. import escalera_optima as eo
+    from ..perfil_empresa import completar_planeamiento, datos_perfil
+
+    perfil = completar_planeamiento(datos_perfil(), opciones.get('tipo_cambio'))[0]
+    p = eo.parametros(perfil, opciones.get('tipo_cambio'))
+    tasa, horizonte = p.tasa_largo_plazo, int(p.horizonte_anios)
+    out: dict[str, Any] = {'obra': nombre, 'horizonte': horizonte, 'tasa': tasa, 'anio': None, 'oraculo': None}
+    desde = int(p.periodo_corto_plazo) + 1            # 098:RF-37: hasta el periodo ya se midió que aguanta
+    if not tasa or tasa <= 0:
+        out['aviso'] = 'sin tasa de crecimiento no hay año en que vuelva a fallar'
+        return out
+    prep = (memo or {}).get('oraculo_prep') or {}
+    ora = prep.get('ora')
+    candidato, por_oraculo = None, False
+    if ora is not None and obras_corto is not None:
+        try:
+            k = len(ora.nuevas)
+            antes = ora.evaluaciones
+
+            def cumple_oraculo(anio: int) -> bool:
+                m = ora.medir(list(obras_corto), k, (1.0 + tasa) ** anio, f)
+                return eo.definitiva(m.para_criterio(), p)[0]
+            candidato = eo.primer_anio_que_falla(cumple_oraculo, desde, horizonte)
+            por_oraculo = True
+            out['oraculo'] = {'anio': candidato, 'flujos': ora.evaluaciones - antes}
+        except Exception as exc:  # noqa: BLE001 - sin oráculo busca DIgSILENT
+            ctx.log(f'{f}: el oráculo no puede buscar el año ({exc}): lo busca DIgSILENT (098:RF-39).')
+    base = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': opciones.get('anio_casos'),
+            'feeders': [f], 'tasa': tasa, 'parametros': perfil, 'tipo_cambio': opciones.get('tipo_cambio'),
+            'native_action_context': native_action_context(ws, project, [f], 'obras')}
+
+    def digsilent(**k) -> dict:
+        _rc, inf, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {**base, **k}, nombre='anio_problemas',
+                                   args=('--anio-problemas',))
+        if inf.get('error'):
+            raise UserError(inf['error'])
+        return inf
+
+    medidos = 0
+    if por_oraculo:
+        anios = [candidato - 1, candidato] if candidato else [horizonte]
+        inf = digsilent(anios=[a for a in anios if a >= desde - 1])
+        medidos += int(inf.get('medidos') or 0)
+        vistos = inf.get('anios') or {}
+        confirma = (all(vistos.get(str(a), {}).get('cumple') for a in anios if a >= desde - 1 and a != candidato)
+                    and (candidato is None or vistos.get(str(candidato), {}).get('cumple') is False))
+        if confirma:
+            out['anio'] = candidato
+            out['motivos'] = (vistos.get(str(candidato)) or {}).get('motivos') or []
+        else:
+            ctx.log(f"{f}: el oráculo daba el año {candidato or f'más allá de {horizonte}'} y DIgSILENT no lo confirma: "
+                    'lo busca DIgSILENT (098:RF-39).')
+            por_oraculo = False
+    if not por_oraculo:
+        inf = digsilent(buscar=horizonte, desde=desde)
+        medidos += int(inf.get('medidos') or 0)
+        out['anio'] = inf.get('primer_anio')
+        out['motivos'] = ((inf.get('anios') or {}).get(str(out['anio'])) or {}).get('motivos') or []
+    out['medidos_digsilent'] = medidos
+    out['barra'], out['u'] = _motivo_en_barra(out.get('motivos'))
+    out['aviso'] = (f"con «{nombre or 'lo que tiene'}», vuelve a tener problemas en el año {out['anio']}"
+                    + (f" ({out['barra']} a {out['u']:.3f} p.u.)" if out['barra'] else
+                       f" ({'; '.join(out['motivos'][:2])})" if out.get('motivos') else '')
+                    + '; la alternativa para ese año se plantea en el PIDE partiendo de la de corto plazo'
+                    if out['anio'] else f"con «{nombre or 'lo que tiene'}», cumple hasta el horizonte de {horizonte} años")
+    ctx.log(f"{f}: {out['aviso']} (DIgSILENT midió {medidos} año(s); 098:RF-40).")
+    _anotar_en_la_elegida(ws, project, f, nombre, 'vuelve_a_fallar',
+                          {k: out.get(k) for k in ('anio', 'barra', 'u', 'horizonte')})
+    return out
+
+
+def _anotar_en_la_elegida(ws, project: str, f: str, nombre: str | None, clave: str, dato) -> None:
+    """098:RF-40, RF-41: un dato de la elegida guardada (el año en que vuelve a fallar, los bancos probados), para el
+    informe y la web (042:RF-58)."""
+    from ..demanda_medida import clave_codigo
+
+    try:
+        ruta = _ruta_alternativas_escalera(ws)
+        datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    except (AttributeError, OSError, ValueError):
+        return
+    cambio = False
+    for llave, alts in (datos.get(project.strip()) or {}).items():
+        if clave_codigo(str(llave).split(' · ')[0]) != clave_codigo(f) or ' · ' in str(llave):
+            continue
+        for a in alts or []:
+            if a.get('elegida') and (nombre is None or a.get('nombre') == nombre):
+                a[clave] = dato
+                cambio = True
+    if cambio:
+        write_json_atomic(ruta, datos)
 
 
 def _recomponer_por_diario(ws, project: str, informe: Mapping[str, Any]) -> list[str]:

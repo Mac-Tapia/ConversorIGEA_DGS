@@ -60,6 +60,12 @@
       y `pytest -q tests/test_casos_por_anio.py tests/test_seis_reglas.py` en verde.
 - [x] T15. La mitad «(n)» de un tramo partido por una carga nueva es el tramo entero al grabar la obra. (RF-38)
       Hecho cuando: `pytest -q tests/test_obras_pf.py -k mitad` en verde.
+- [x] T16. Solo el año 0 en este estudio: la de corto plazo llega al año del periodo (4, o el del perfil), el año
+      en que vuelve a fallar con el oráculo y confirmado en DIgSILENT en ese año y el anterior, en el informe y la web,
+      sin ninguna obra futura; más módulos de banco mientras mejoran, y ningún enlace entre tensiones distintas.
+      (RF-37, RF-39 a RF-42)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "periodo or vuelve_a_fallar or biseccion or tensiones_distintas or pide"`
+      y `pytest -q tests/test_valle.py -k "bancos_suben or todos_los_modulos" tests/test_escalera_optima.py` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la

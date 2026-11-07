@@ -16,6 +16,8 @@ export interface Alternativa {
   plazo?: string | null;
   hace_falta_en_anio?: number | null;
   hace_falta_entre?: [number, number | null] | null;
+  /** 098:RF-40: con la de corto plazo, el año en que vuelve a salir de límites; su obra la plantea el PIDE. */
+  vuelve_a_fallar?: { anio?: number | null; barra?: string | null; u?: number | null; horizonte?: number | null } | null;
   elegida: boolean;
 }
 
@@ -30,6 +32,12 @@ export function alcanceDe(a: Alternativa): string {
 /** 098:RF-37: las mismas palabras que la columna «Plazo» del informe. */
 export function plazoDe(a: Alternativa): string {
   const p = a.plazo ?? '';
+  const v = a.vuelve_a_fallar;
+  if (v?.anio) {
+    const donde = v.barra && v.u != null ? ` (${v.barra} a ${v.u.toFixed(3)} p.u.)` : '';
+    return `${p}, vuelve a tener problemas en el año ${v.anio}${donde}; la alternativa de ese año se plantea en el PIDE partiendo de esta`;
+  }
+  if (v?.horizonte) return `${p}, cumple hasta el horizonte de ${v.horizonte} años`;
   const entre = a.hace_falta_entre;
   if (entre) {
     const [desde, hasta] = entre;

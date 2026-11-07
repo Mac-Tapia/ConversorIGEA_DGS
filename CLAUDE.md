@@ -99,7 +99,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | implementada | falta T9, T10, T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
-  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13 |
+  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | implementada | falta T8, T12 |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
