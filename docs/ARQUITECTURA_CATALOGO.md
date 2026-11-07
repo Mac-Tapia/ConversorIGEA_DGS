@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 239 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 241 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 94 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 375 |
+| Pruebas | `tests/` | 376 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 283 |
 
@@ -39,8 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
+| sin capa | — | 1 |
 
-279 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+280 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -298,6 +299,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `schema.py` | Ada | 034, 054 | Perfiles de esquema DGS versionados. |
 | `schemas/pf21_dgs_1_8_4.json` | — | 034 | Perfil DGS genérico de PowerFactory. |
 | `schemas/perfil_empresa_v1.schema.json` | — | 086 | Esquema del perfil de empresa: cada clave con su tipo, la función que afecta, qué se hace sin ella y si es de la empresa o de una norma. |
+| `schemas/protecciones_v1.schema.json` | — | 049 | Contrato del dispositivo de protección (campos obligatorios, clases con su clase de PowerFactory, unidades admitidas y campos que pide cada unidad o… |
 | `schemas/asistente_orden_v1.schema.json` | — | 047 | Contrato base de salida estructurada para el intérprete local. |
 | `schemas/revision_propuesta_v1.schema.json` | — | 047 | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. |
 | `schemas/digital_twin_episode_v1.schema.json` | — | 024 | Esquema JSON publicado del episodio del gemelo digital, igual al contrato de `digital_twin/episode.py`. |
@@ -366,9 +368,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `estudios_pf.py` | Apl | 011, 012 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
+| `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
-| `datos_empresa.py` | Apl | 012 | Libro de la empresa de la confiabilidad y la capacidad: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `protecciones.py` | — | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
 ### Motor: informes

@@ -226,7 +226,7 @@ def _entradas(fuente: str | None) -> dict[str, Entrada]:
         'protecciones': Entrada(
             'Curvas tiempo-corriente de fusibles, reconectadores y relés', AUSENTE,
             p['protecciones'] + ' Salen de la ficha del fabricante y de los ajustes de la '
-            'empresa.',
+            'empresa, en la hoja «Protecciones» de su libro (spec 049).',
             'No se puede verificar selectividad ni proponer los proyectos de mejora de calidad '
             'que el TdR del VAD nombra uno por uno.',
         ),

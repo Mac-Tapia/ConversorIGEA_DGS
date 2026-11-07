@@ -87,6 +87,7 @@
     "schema.py",
     "schemas/pf21_dgs_1_8_4.json",
     "schemas/perfil_empresa_v1.schema.json",
+    "schemas/protecciones_v1.schema.json",
     "schemas/asistente_orden_v1.schema.json",
     "schemas/revision_propuesta_v1.schema.json",
     "schemas/digital_twin_episode_v1.schema.json",
@@ -162,6 +163,7 @@
     "estudios_pf.py",
     "estudios_red_pf.py",
     "datos_empresa.py",
+    "protecciones.py",
     "transferencia_pf.py"
    ]
   },

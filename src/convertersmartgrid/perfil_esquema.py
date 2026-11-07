@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .informes import ConfigInforme, InformeError
+from .protecciones import ProteccionesError, criterios_de_perfil
 from .perfil_empresa import (PerfilEmpresa, PerfilError, bancos_kvar_por_tension, centrales_termicas, datos_perfil,
                              factor_potencia_cargas, moneda_informes, transformadores_sed)
 
@@ -131,13 +132,14 @@ def _reglas_de_dominio(datos: dict[str, Any], r: Resultado) -> None:
         lambda: transformadores_sed(datos),
         lambda: centrales_termicas(datos),
         lambda: ConfigInforme.de_perfil(datos, Path('.')),
+        lambda: criterios_de_perfil(datos),                                   # 049:RF-5, RF-6
         *[(lambda c=c: factor_potencia_cargas(datos, c))
           for c in ('factor_potencia_cargas', 'factor_potencia_minimo_fijas', 'factor_potencia_minimo_escaladas')],
     ]
     for comprobar in comprobaciones:
         try:
             comprobar()
-        except (PerfilError, InformeError, AttributeError, TypeError, ValueError) as exc:
+        except (PerfilError, InformeError, ProteccionesError, AttributeError, TypeError, ValueError) as exc:
             texto = str(exc)
             # Lo que el esquema ya dijo no se repite con otras palabras.
             if not any(e.split(':')[0] in texto for e in r.errores):

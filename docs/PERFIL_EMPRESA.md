@@ -61,6 +61,18 @@ es de 60 Hz y las normas de referencia son las peruanas.
 
 Los informes los piden porque concluyen con ellos ante el regulador.
 
+### Protecciones
+
+| Clave | Origen | Función afectada | Si falta |
+| --- | --- | --- | --- |
+| `protecciones.cti_s` | empresa | Intervalo de coordinación entre primaria y respaldo, en segundos | La coordinación no se evalúa y lo dice |
+| `protecciones.factor_sensibilidad` | empresa | Corriente de falla mínima entre el arranque de cada dispositivo | La sensibilidad no se evalúa y lo dice |
+| `protecciones.margen_poder_corte` | empresa | Poder de corte mínimo entre la corriente de falla máxima | El poder de corte no se evalúa y lo dice |
+
+Ninguno tiene valor de referencia (spec 049): un CTI supuesto aprobaría o rechazaría parejas
+que la empresa no ha juzgado. Los ajustes de cada dispositivo van en la hoja «Protecciones» del
+libro de la empresa.
+
 ### Calibración
 
 | Clave | Origen | Función afectada | Si falta |

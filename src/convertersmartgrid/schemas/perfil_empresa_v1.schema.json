@@ -29,6 +29,14 @@
         "cargabilidad_max_pct": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Juzgar la cargabilidad en estudios e informes", "x-si-falta": "Los estudios usan el 100 % de referencia; los informes lo piden en la web.", "x-origen": "norma"}
       }
     },
+    "protecciones": {
+      "type": ["object", "null"],
+      "properties": {
+        "cti_s": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Intervalo de coordinación entre primaria y respaldo (049:RF-5)", "x-si-falta": "La coordinación de protecciones no se evalúa y lo dice.", "x-origen": "empresa"},
+        "factor_sensibilidad": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Corriente de falla mínima entre arranque de cada dispositivo (049:RF-6)", "x-si-falta": "La sensibilidad no se evalúa y lo dice.", "x-origen": "empresa"},
+        "margen_poder_corte": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Poder de corte mínimo entre corriente de falla máxima (049:RF-6)", "x-si-falta": "El poder de corte no se evalúa y lo dice.", "x-origen": "empresa"}
+      }
+    },
     "calibracion": {
       "type": ["object", "null"],
       "properties": {

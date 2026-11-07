@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dispositivo de protección y disponibilidad del estudio de coordinación (049:RF-1 a RF-3)",
+  "description": "Contrato de los ajustes que entran al estudio. Ninguna fuente lo trae hoy (el TXT solo la fila DEFAULT con poder de corte 0): sale de la ficha del fabricante y de los ajustes de la empresa. x-requiere dice qué campos pasan a ser obligatorios según el valor de otro.",
+  "$defs": {
+    "dispositivo": {
+      "type": "object",
+      "required": ["id", "cubiculo", "clase", "fabricante", "modelo", "curva", "arranque", "unidad_arranque", "poder_corte_ka", "fuente"],
+      "properties": {
+        "id": {"type": "string", "description": "Nombre del dispositivo en el proyecto de DIgSILENT (loc_name); estable entre ejecuciones."},
+        "cubiculo": {"type": "string", "description": "Cubículo (StaCubic) donde está instalado."},
+        "clase": {"enum": ["fusible", "reconectador", "rele"], "x-titulos": {"fusible": "Fusible", "reconectador": "Reconectador", "rele": "Relé"}, "x-clase-pf": {"fusible": "RelFuse", "reconectador": "ElmRelay", "rele": "ElmRelay"}},
+        "fabricante": {"type": "string"},
+        "modelo": {"type": "string"},
+        "curva": {"type": "string", "description": "Curva tiempo-corriente de la ficha (IEC NI, IEEE VI, fusible K/T…)."},
+        "arranque": {"type": "number", "exclusiveMinimum": 0, "description": "Corriente de arranque (pickup) o corriente nominal del fusible."},
+        "unidad_arranque": {"enum": ["A", "A sec", "pu"], "description": "A primarios; A secundarios o múltiplo de la corriente nominal del TC, que piden la relación del TC.", "x-requiere": {"A sec": ["ct_primario_a", "ct_secundario_a"], "pu": ["ct_primario_a", "ct_secundario_a"]}},
+        "dial": {"type": "number", "minimum": 0, "description": "Dial de tiempo o retardo; obligatorio en relés y reconectadores."},
+        "unidad_dial": {"enum": ["s", "dial"], "description": "s: retardo definido; dial: multiplicador de la curva (adimensional)."},
+        "ct_primario_a": {"type": "number", "exclusiveMinimum": 0},
+        "ct_secundario_a": {"type": "number", "exclusiveMinimum": 0},
+        "vt_primario_kv": {"type": "number", "exclusiveMinimum": 0},
+        "vt_secundario_v": {"type": "number", "exclusiveMinimum": 0},
+        "direccion": {"enum": ["no direccional", "adelante", "atras"], "x-requiere": {"adelante": ["vt_primario_kv", "vt_secundario_v"], "atras": ["vt_primario_kv", "vt_secundario_v"]}},
+        "poder_corte_ka": {"type": "number", "exclusiveMinimum": 0, "description": "Capacidad de interrupción del dispositivo o de su interruptor; cero es la fila por defecto, no una ficha."},
+        "fuente": {"type": "string", "description": "Documento de donde sale (ficha, protocolo de ajustes, oficio)."},
+        "respalda_a": {"type": "array", "items": {"type": "string"}, "description": "Dispositivos a los que este respalda: las parejas primaria-respaldo de la coordinación."},
+        "origen": {"type": "string", "description": "Libro, hoja y fila de donde se importó (049:RF-3)."}
+      },
+      "x-con-dial": ["reconectador", "rele"]
+    },
+    "disponibilidad": {
+      "type": "object",
+      "required": ["disponible", "faltan", "bloqueos", "alcance", "criterios"],
+      "properties": {
+        "disponible": {"type": "boolean"},
+        "faltan": {"type": "array", "items": {"type": "string"}, "description": "Datos ausentes, uno por uno (049:RF-2)."},
+        "bloqueos": {"type": "array", "items": {"type": "string"}, "description": "Funciones, licencia o modelos que la versión conectada no comprobó (049:RF-1)."},
+        "alcance": {"type": "object"},
+        "criterios": {"type": "object", "description": "CTI y márgenes del perfil de empresa; los que no da no están."}
+      }
+    }
+  }
+}
