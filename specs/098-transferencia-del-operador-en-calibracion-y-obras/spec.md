@@ -245,13 +245,6 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   transformador, y lo dirá. CA101 y CHN102 (2026-11-07): tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con
   22,9 kV.
 
-- RF-43: EL SISTEMA evaluará la escalera de «Con proyecto» por escalones, en este orden: bancos, cambio de sección,
-  terna nueva, transferencia de carga y, después, el regulador, el paso de nivel de tensión y la obra integral. Una
-  combinación irá en el escalón de su obra mayor. En cada escalón el oráculo ordenará y filtrará sus candidatas y
-  DIgSILENT confirmará las mejores; solo SI ninguna de ese escalón cumple, ENTONCES pasará al siguiente, y se parará en
-  el primero que cumpla. Usuario, 2026-11-07: «se evalúa con bancos, después con cambio de sección, después nueva
-  terna, transferencia de carga; nada debería saltar». Cambia 087:RF-40, que tras 3 candidatas iba a la obra integral.
-
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
