@@ -321,7 +321,7 @@ def test_el_oraculo_usa_la_capacidad_de_la_configuracion():
     assert t1['inom_ka'] == pytest.approx(0.82) and t1['r_ohm'] == pytest.approx(0.5)
     assert t2['inom_ka'] == pytest.approx(1.0)
     troncal = [{'nombre': 'T1', 'tipo': 'CABLE240', 'cable': True, 'largo_m': 100.0, 'km': 0.1}]
-    (v,) = eo._escalon_terna('F', troncal, [{'camino': troncal}], TABLA)
+    (v,) = eo._escalon_terna('F', troncal, [{'camino': troncal}], SimpleNamespace(ternas=TABLA))  # 042:RF-98: recibe los parámetros
     assert v.obras[0]['capacidad_terna_a'] == {'T1': 410.0}
     espacio = oo.Espacio('F', [], None, 0, troncal, (), TABLA)
     assert espacio.obras([], ['terna']).obras[0]['capacidad_terna_a'] == {'T1': 410.0}

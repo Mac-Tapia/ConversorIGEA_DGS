@@ -646,6 +646,8 @@ GUIONES_SERVIBLES = frozenset({
     'restitucion_pf.py',
     # 098: la lectura suelta de las transferencias del operador.
     'transferencia_operador_pf.py',
+    # 049: la web lo lanza con ``_guion_pf`` como los demás; fuera de la lista, cada orden cerraba el servidor.
+    'protecciones_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 #: Guiones que conectan con :func:`conectar` (064:RF-1) pero corren en su propio proceso:
 #: los cuatro primeros importan DGS y crean proyectos, como la aceptación; los dos últimos
