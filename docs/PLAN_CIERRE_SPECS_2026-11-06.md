@@ -45,8 +45,7 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 5. **Rama `feat/093-retomar-tras-suspender` (68f5592d) sin fundir y con un número tomado**: crea
    `specs/093-retomar-tras-suspender-el-equipo`, pero la 093 ya es «La sigla de la carga…». Hay que
    renumerarla (096) y fundirla, o descartarla.
-6. **085:RF-7 a RF-9 (parada bayesiana de los sorteos)** solo están en `entrega/042-doble-terna` y
-   `entrega/087-seleccion`; ninguna prueba de `main` los cita.
+6. ~~085:RF-7 a RF-9 (parada bayesiana)~~: revisado en la fase 0, ya está en `main` como 087:RF-7 a RF-9.
 
 ### 1.4 Defectos conocidos sin spec ni arreglo
 
@@ -61,6 +60,23 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 | `factor_escala` 0,290 frente a 0,884 en el historial de PN103 (por verificar) | 006 |
 | `test_cancelar` depende del orden de las pruebas | 067 |
 | Un worktree no ve `output/web` del clon principal (`raiz_componente`) | 086 |
+
+## 1.5 Avance de la fase 0 (2026-11-06, sesión 63935039)
+
+| Punto | Resultado | Commit |
+| --- | --- | --- |
+| 0.1 Cambios de PE102 (004 RF-68/69, 024 RF-12) | confirmados; la 004 pasa a «implementada» | 4ac024b1, 1df549d4 |
+| 0.2 README y tabla de `CLAUDE.md` | al día; `test_trazabilidad_specs` en verde | cf3c727f |
+| 0.3 Rama `feat/093-retomar-tras-suspender` | integrada como spec 096; contrato de la API regenerado (faltaba `transformadores_automaticos`) | bf7452ee |
+| 0.4 Parada bayesiana | ya estaba en `main` como 087:RF-7 a RF-9 (la «085» de las ramas era otra colisión de número); sin cambios | — |
+| 0.5 Refuerzo de tramos por escalera (042:RF-94) y variantes por costo (042:RF-95) | hecho | 2332bc2c |
+| 0.5 Transformador de carga nueva a la tensión mínima (aclaración de 004:RF-68) | hecho; la 004 T20 sigue pendiente en DIgSILENT | b7abd331 |
+| 0.5 Aviso «4 × 630 → 4 × 630» | la SED que ya tiene la propuesta queda en «sin_cambio» (020:RF-24) | 4e9139d4 |
+| 0.5 Libros de clientes releídos (042:RF-96) | la POT de cada libro se guarda con su huella | 29b41e62 |
+| 0.5 `test_cancelar` según el orden | ya arreglado por otra sesión el 2026-11-06 (cuenta flujos, no consultas) | — |
+| 0.5 `factor_escala` de PN103 | verificado, no es un fallo: 0,290 es el factor del reparto determinista, con el que arranca la recalibración (083:RF-9); 0,884 es el del P50 probabilístico sobre su propia base | — |
+| 0.5 `raiz_componente` en un worktree | sin cambio a propósito: un worktree no debe escribir en los datos del clon principal; para compartirlos está `CSG_WEB_DATA` | — |
+| 0.6 Archivar worktrees | pendiente de la decisión del usuario | — |
 
 ## 2. Plan de cierre
 
