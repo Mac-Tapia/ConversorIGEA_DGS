@@ -123,6 +123,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 093 La sigla de la carga nombra la carga nueva y su variación | implementada | falta T2 |
   | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | falta T4, T6, T7, T5 |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
+  | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | falta T3 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

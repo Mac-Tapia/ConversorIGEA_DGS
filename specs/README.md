@@ -102,3 +102,4 @@ retirada.
 | [093](093-siglas-de-carga-como-nombre/spec.md) | La sigla de la carga nombra la carga nueva y su variación | implementada | 4 | 4 | T2 (DIgSILENT) |
 | [094](094-perfil-de-tension-y-bancos/spec.md) | Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | 18 | 9 | T4, T6, T7, T5 (DIgSILENT) |
 | [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 3 | 3 | — |
+| [096](096-retomar-tras-suspender-el-equipo/spec.md) | Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | 7 | 7 | T3 (DIgSILENT) |

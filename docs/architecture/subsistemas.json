@@ -343,6 +343,7 @@
     "soporte.py",
     "copia_datos.py",
     "retencion.py",
+    "suspension.py",
     "cierre.py",
     "sources/__init__.py",
     "sources/vnr.py"

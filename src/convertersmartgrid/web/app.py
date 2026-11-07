@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import sys
@@ -694,6 +695,9 @@ def create_app(
         vigilante = arrancar_vigilancia(jobs) if os.environ.get('CSG_ASISTENTE_VIGILANCIA') == '1' else None
         if vigilante is not None:                                              # 081:RF-42, RF-43
             _sin_tumbar_la_web(anotar_arranque, huella)
+        if os.environ.get('CSG_WEB_RELANZAR') == '1':
+            # 096:RF-5: como la vigilancia, solo el servidor real; las pruebas lo piden ellas.
+            await asyncio.to_thread(_app.state.relanzar_interrumpidos)
         detener_retencion = asyncio.Event()
         tarea_retencion = asyncio.create_task(retencion.vigilar(detener_retencion))
         try:
@@ -752,7 +756,8 @@ def create_app(
     # clics seguidos (o dos pestañas) pasaban los dos la comprobación y encolaban dos veces.
     encolando = threading.Lock()
 
-    def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine') -> dict:
+    def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine',
+               reanudar: dict | None = None, relanzado_de: str | None = None) -> dict:
         with encolando:
             # 047:RF-24: los vectores del índice ceden ante cualquier orden, no la rechazan.
             busy = [j for j in jobs.active(ws.id) if j.lane == lane and j.kind != 'asistente_indice']
@@ -760,7 +765,8 @@ def create_app(
                 raise HTTPException(409, f'Ya hay un trabajo en curso en este espacio: «{busy[0].title}». '
                                          'Espere a que termine o cancélelo.')
             try:
-                return jobs.submit(ws.id, kind, title, fn, lane=lane).public()
+                return jobs.submit(ws.id, kind, title, fn, lane=lane, reanudar=reanudar,
+                                   relanzado_de=relanzado_de).public()
             except OSError as exc:
                 raise HTTPException(503,str(exc)) from exc
 
@@ -1521,6 +1527,9 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def recalibrar(wid: str, body: RecalibrarIn) -> dict:
+        return _lanzar_recalibrar(wid, body)
+
+    def _lanzar_recalibrar(wid: str, body: RecalibrarIn, relanzado_de: str | None = None) -> dict:
         ws = ws_or_404(wid)
         base = services.recalibrar_datos(ws, body.project)          # 028:RF-23, antes de encolar
         solo = services.comprobar_solo_del_sistema(base, body.solo)  # 028:RF-42, también antes
@@ -1530,7 +1539,40 @@ def create_app(
                                                               transformadores=body.transformadores,
                                                               criterio_fijas=body.criterio_fijas, solo=solo,
                                                               maximo_mes=body.maximo_mes),
-                      lane='asistente')
+                      lane='asistente', relanzado_de=relanzado_de,
+                      # 096:RF-5: con su petición se relanza solo si la web cae a medias.
+                      reanudar={'tipo': 'recalibrar', 'datos': body.model_dump()})
+
+    def _guion_vivo(wid: str) -> bool:
+        """096:RF-6: el ``sistema_web.py`` de la ejecución anterior de la web, para este espacio, sigue vivo."""
+        try:
+            import psutil
+        except ImportError:
+            return False
+        for proc in psutil.process_iter(['cmdline']):
+            try:
+                cmd = proc.info.get('cmdline') or []
+            except Exception:  # noqa: BLE001 - un proceso que desaparece al mirarlo
+                continue
+            if any(str(c).endswith('sistema_web.py') for c in cmd) and wid in cmd:
+                return True
+        return False
+
+    def relanzar_interrumpidos() -> list[dict]:
+        """096:RF-5 a RF-7: al arrancar, el último trabajo interrumpido de cada espacio, otra vez, solo y una vez."""
+        lanzados = []
+        for viejo in jobs.reanudables():
+            tipo, datos = (viejo.reanudar or {}).get('tipo'), (viejo.reanudar or {}).get('datos') or {}
+            if tipo != 'recalibrar' or store.get(viejo.workspace_id) is None or _guion_vivo(viejo.workspace_id):
+                continue
+            jobs.marcar_relanzado(viejo)
+            try:
+                lanzados.append(_lanzar_recalibrar(viejo.workspace_id, RecalibrarIn(**datos), relanzado_de=viejo.id))
+            except Exception as exc:  # noqa: BLE001 - un relanzamiento que no se admite no impide arrancar
+                logging.getLogger(__name__).warning('No se relanzó %s: %s', viejo.id, exc)
+        return lanzados
+
+    app.state.relanzar_interrumpidos = relanzar_interrumpidos
 
     @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
     def pf_escaneo_guardado(wid: str) -> dict:

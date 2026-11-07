@@ -59,6 +59,8 @@ FINISHED = (*CON_RESULTADO, FAILED, CANCELLED, INTERRUMPIDO)
 LIMITE_REGISTRO_BYTES = 50 * 2**20
 #: Cada cuánto se sincroniza el registro y el avance: un corte de luz pierde a lo sumo esto.
 INTERVALO_DIARIO_S = 2.0
+#: 096:RF-2: menos que esto suspendido no cuenta (un parpadeo del reloj no es una suspensión).
+SUSPENSION_MINIMA_S = 5.0
 #: Interrumpidos que se conservan: el resto ya no se recuerda, y su registro pesa.
 MAX_INTERRUMPIDOS = 50
 
@@ -173,6 +175,11 @@ class Job:
     # Ver ``JobContext.sin_retorno``: a partir de ahí, cancelar no hace nada.
     irrevocable: bool = field(default=False, repr=False)
     gate: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # 096:RF-5: la petición con que se puede repetir tras caer la web ({'tipo': ..., 'datos': ...}), o None.
+    reanudar: dict | None = None
+    # 096:RF-6, RF-7: el interrumpido del que viene, y si este ya se relanzó.
+    relanzado_de: str | None = None
+    relanzado: bool = False
 
     def public(self) -> dict:
         return {
@@ -540,6 +547,7 @@ class DiarioTrabajos:
                 'lane': job.lane, 'status': job.status, 'progress': job.progress, 'error': job.error,
                 'created_at': job.created_at, 'started_at': job.started_at, 'finished_at': job.finished_at,
                 'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
+                'reanudar': job.reanudar, 'relanzado': job.relanzado,                   # 096:RF-5, RF-6
             })
         except (OSError, ValueError) as exc:
             logging.getLogger(__name__).warning('Diario de trabajos sin anotar %s: %s', job.id, exc)
@@ -612,7 +620,9 @@ class DiarioTrabajos:
                           fn=lambda _ctx: None, id=str(datos['id']), status=str(datos['status']),
                           progress=datos.get('progress'), error=datos.get('error'),
                           created_at=float(datos['created_at']), started_at=datos.get('started_at'),
-                          finished_at=datos.get('finished_at'))
+                          finished_at=datos.get('finished_at'),
+                          reanudar=datos.get('reanudar') if isinstance(datos.get('reanudar'), dict) else None,
+                          relanzado=bool(datos.get('relanzado')))
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 logging.getLogger(__name__).warning('Diario de trabajos ilegible, %s: %s', ruta.name, exc)
                 continue
@@ -658,6 +668,22 @@ class JobManager:
         """El registro guardado de un trabajo, también de uno interrumpido en otra ejecución."""
         return self._diario.registro(job_id, ultimas) if self._diario is not None else None
 
+    def reanudables(self) -> list[Job]:
+        """096:RF-5, RF-6: por espacio, el último interrumpido que se puede repetir y aún no se relanzó."""
+        ultimos: dict[str, Job] = {}
+        for job in sorted(self.list(), key=lambda j: j.created_at):
+            if job.status == INTERRUMPIDO:
+                ultimos[job.workspace_id] = job
+            elif job.status not in FINISHED:
+                ultimos.pop(job.workspace_id, None)
+        return [j for j in ultimos.values() if j.reanudar and not j.relanzado]
+
+    def marcar_relanzado(self, job: Job) -> None:
+        """096:RF-6: un interrumpido se relanza una sola vez, también tras otro reinicio."""
+        job.relanzado = True
+        if self._diario is not None:
+            self._diario.anotar(job)
+
     def mantenimiento_si_libre(self, fn: Callable[[], Any]) -> Any:
         """062:RF-3: comprobar inactividad y limpiar excluye nuevas admisiones."""
         with self._admision:
@@ -689,19 +715,23 @@ class JobManager:
     def submit(
         self, workspace_id: str, kind: str, title: str,
         fn: Callable[[JobContext], Any], *, lane: str = 'engine',
+        reanudar: dict | None = None, relanzado_de: str | None = None,
     ) -> Job:
         with self._admision:
-            return self._admitir(workspace_id, kind, title, fn, lane=lane)
+            return self._admitir(workspace_id, kind, title, fn, lane=lane, reanudar=reanudar,
+                                 relanzado_de=relanzado_de)
 
     def _admitir(
         self, workspace_id: str, kind: str, title: str,
         fn: Callable[[JobContext], Any], *, lane: str,
+        reanudar: dict | None = None, relanzado_de: str | None = None,
     ) -> Job:
         if lane not in LANES:
             raise ValueError(f'carril desconocido: {lane}')
         if self._closing:
             raise RuntimeError('el servidor se está cerrando')
-        job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn)
+        job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn,
+                  reanudar=reanudar, relanzado_de=relanzado_de)
         with self._lock:
             self._jobs[job.id] = job
             self._ensure_worker(lane)
@@ -792,17 +822,33 @@ class JobManager:
             self._diario.anotar(job)
         self._emit(job.workspace_id, 'job', job.public())
         ctx = JobContext(job, self._emit, self._diario)
-        try:
-            job.result = job.fn(ctx)
-        except JobCancelled:
-            ctx.log(f'--- {job.title}: cancelado ---')
-            self._finish(job, CANCELLED)
-            return
-        except Exception as exc:  # noqa: BLE001 - borde: el trabajo informa, no tumba el hilo
-            job.error = str(exc) or exc.__class__.__name__
-            ctx.log(traceback.format_exc())
-            self._finish(job, FAILED)
-            return
+        if job.relanzado_de:
+            ctx.log(f'Se relanza solo el trabajo {job.relanzado_de}, interrumpido al caer la web (096:RF-5, RF-7).')
+        from .suspension import sin_suspender, suspendido_s
+
+        repetido = False
+        while True:
+            dormido_antes = suspendido_s()
+            try:
+                with sin_suspender():                                                   # 096:RF-1
+                    job.result = job.fn(ctx)
+                break
+            except JobCancelled:
+                ctx.log(f'--- {job.title}: cancelado ---')
+                self._finish(job, CANCELLED)
+                return
+            except Exception as exc:  # noqa: BLE001 - borde: el trabajo informa, no tumba el hilo
+                ctx.log(traceback.format_exc())
+                dormido = suspendido_s() - dormido_antes
+                # 096:RF-2 a RF-4: tras una suspensión, una vez; nunca cancelado ni sin suspensión.
+                if not repetido and dormido >= SUSPENSION_MINIMA_S and not job.cancel.is_set():
+                    repetido = True
+                    ctx.log(f'El equipo estuvo suspendido {dormido / 60:.1f} min durante «{job.title}» y falló: '
+                            f'se repite una vez, solo (096:RF-2). Error: {str(exc) or exc.__class__.__name__}')
+                    continue
+                job.error = str(exc) or exc.__class__.__name__
+                self._finish(job, FAILED)
+                return
         # Un lote cancelado devuelve igual su manifiesto: se conserva como resultado.
         self._finish(job, CANCELLED if job.cancel.is_set() else _estado_del_resultado(job.result))
 

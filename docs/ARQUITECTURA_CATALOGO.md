@@ -8,14 +8,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 239 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 240 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 94 |
 | Interfaz | `frontend/src/` | 45 |
 | Pruebas de la interfaz | `frontend/test/` | 8 |
-| Pruebas | `tests/` | 375 |
+| Pruebas | `tests/` | 376 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 283 |
+| Specs | `specs/` | 286 |
 
 `web/services.py` tiene 10890 líneas y 326 funciones, pendiente de partir (002).
 
@@ -24,11 +24,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 43 |
-| implementada | 30 |
+| implementada | 31 |
 | aprobada | 19 |
 | reservada | 3 |
 
-95 specs con 3101 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+96 specs con 3108 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -39,8 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 32 |
 | presentacion | Pre | 30 |
 | puertos | Pue | 2 |
+| sin capa | — | 1 |
 
-279 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+280 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -541,6 +542,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
+| `suspension.py` | — | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
 | `sources/vnr.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources.vnr`. |

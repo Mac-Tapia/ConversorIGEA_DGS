@@ -480,6 +480,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/observacion.py` | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. | 061 (RF-1, RF-2, RF-3, RF-7, RF-8, RF-9) |
 | `frontend/src/components/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
 | `tools/asistente_observar.py` | Incorpora y verifica informes locales del aprendizaje sin activar modelos. | 061 (RF-8) |
+| `src/convertersmartgrid/web/suspension.py` | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. | 096 (RF-1, RF-2) |
 | `src/convertersmartgrid/web/retencion.py` | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. | 062 (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8), 065 (RF-13) |
 
 ## Cierre de auditoría integral — spec 065

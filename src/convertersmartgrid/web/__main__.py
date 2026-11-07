@@ -403,6 +403,8 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault(VARIABLE_REGISTRO, carpeta_registro())       # RF-34
     # 026:RF-22: la vigilancia del asistente corre en el servidor real, no en las pruebas.
     os.environ.setdefault('CSG_ASISTENTE_VIGILANCIA', '1')
+    # 096:RF-5: tras caer la web, el último trabajo interrumpido de cada espacio se relanza solo.
+    os.environ.setdefault('CSG_WEB_RELANZAR', '1')
     if not es_edicion_producto():                              # 086:RF-16: el índice RAG no se entrega
         os.environ.setdefault('CSG_ASISTENTE_VECTORES', '1')   # 047:RF-22
 

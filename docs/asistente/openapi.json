@@ -211,6 +211,11 @@
             "minimum": 0.001,
             "title": "Tolerancia",
             "type": "number"
+          },
+          "transformadores_automaticos": {
+            "default": false,
+            "title": "Transformadores Automaticos",
+            "type": "boolean"
           }
         },
         "required": [
