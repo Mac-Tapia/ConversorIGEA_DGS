@@ -69,8 +69,8 @@ def test_digsilent_mide_primero_una_tanda_y_para_si_cumple(monkeypatch):
     llamadas = _con_seleccion(monkeypatch, _seleccion(7), 'v1')
     r = services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])
     medidas = [x for x in llamadas if not x['aplicar']]
-    assert [x['variantes'] for x in medidas] == [['v0', 'v1', 'v2']]
-    assert r['por_alimentador']['F1']['cumple']
+    assert [x['variantes'] for x in medidas][0] == ['v0', 'v1', 'v2'] and not any(x['variantes'] for x in medidas[1:])
+    assert r['por_alimentador']['F1']['cumple']   # 098:RF-46: los demás escalones se evalúan; no traen candidatas
 
 
 def test_si_la_tanda_no_cumple_mide_la_siguiente_y_aplica_la_medida(monkeypatch):
@@ -78,7 +78,7 @@ def test_si_la_tanda_no_cumple_mide_la_siguiente_y_aplica_la_medida(monkeypatch)
     llamadas = _con_seleccion(monkeypatch, _seleccion(7), 'v4')
     services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])
     medidas = [x['variantes'] for x in llamadas if not x['aplicar']]
-    assert medidas == [['v0', 'v1', 'v2'], ['v3', 'v4', 'v5']]
+    assert medidas[:2] == [['v0', 'v1', 'v2'], ['v3', 'v4', 'v5']] and not any(medidas[2:])   # 098:RF-46
     aplicada = next(x for x in llamadas if x['aplicar'])
     assert aplicada['variantes'] == ['v4'] and aplicada['solo'] == {'F1': 'v4'}
 

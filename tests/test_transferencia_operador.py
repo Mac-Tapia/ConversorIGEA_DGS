@@ -2475,17 +2475,18 @@ def _escalera_por_escalones(monkeypatch, tmp_path, cumple_en):
     return llamadas, r, ctx
 
 
-def test_se_para_en_el_primer_escalon_que_cumple(monkeypatch, tmp_path):
-    """098:RF-45 — la sección cumple: se miden bancos y sección (cada uno con sus candidatas del oráculo) y se para; la
-    terna, la transferencia y el nivel no se miden."""
+def test_se_evaluan_todos_los_escalones_y_gana_la_mas_barata(monkeypatch, tmp_path):
+    """098:RF-45, 098:RF-46 — la sección cumple: aun así se miden todos los escalones, cada uno con sus candidatas del
+    oráculo (nada se salta), y se aplica una sola, la más barata de las que cumplen («el coste es lo que manda»)."""
     llamadas, r, ctx = _escalera_por_escalones(monkeypatch, tmp_path, 1)
     medidas = [x for x in llamadas if x[0] == 'mide']
-    assert [x[1] for x in medidas] == [(-1, 0), (1, 1)]
+    assert [x[1] for x in medidas][:2] == [(-1, 0), (1, 1)] and len(medidas) == 5
     assert medidas[0][3] == ['bancos'] and medidas[1][3] == ['sección']
     assert [x[0] for x in llamadas].count('aplica') == 1
     reg = r['por_alimentador']['F1']['escalones']
-    assert [(x['escalon'], x['resuelve']) for x in reg] == [('bancos', False), ('seccion', True)]
-    assert any('escalón seccion' in t and 'se para aquí' in t for t in ctx.textos)
+    assert [(x['escalon'], x['resuelve']) for x in reg][:2] == [('bancos', False), ('seccion', True)]
+    assert any('escalón seccion' in t and 'candidata por coste' in t for t in ctx.textos)
+    assert any('098:RF-46' in t and 'la más barata' in t for t in ctx.textos)
 
 
 def test_no_se_llega_a_la_obra_integral_sin_los_cuatro_escalones(monkeypatch, tmp_path):

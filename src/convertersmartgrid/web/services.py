@@ -7695,29 +7695,51 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                                                       f"{reg.get('descartadas', 0)} (ni cumplen ni son de las más cercanas); "
                                                       if orden else '')
                     + f"DIgSILENT midió {reg['confirmadas']} y cumplen {reg['cumplen']}"
-                    + ('; se para aquí' if reg['resuelve'] else '; se pasa al siguiente escalón') + ' (098:RF-45).')
+                    + ('; cumple: candidata por coste' if reg['resuelve'] else '; ninguna cumple') + ' (098:RF-45).')
             registro_escalones.append(reg)
             return fila_e
 
-        # 098:RF-45: bancos, sección y terna, cada uno entero antes del siguiente; después la transferencia; después el
-        # nivel y el regulador. Nada se salta, y la obra integral solo llega con todos evaluados.
+        # 098:RF-45: bancos, sección y terna, cada uno entero; después la transferencia; después el nivel y el regulador.
+        # Nada se salta, y la obra integral solo llega con todos evaluados. 098:RF-46: usuario (2026-11-07), «el coste
+        # es lo que manda»: se evalúan todos los escalones y se elige la más barata de las que cumplen, de cualquiera.
+        def costo_de(x: Mapping[str, Any]) -> float:
+            if x.get('ya_cumple'):
+                return 0.0
+            e = x.get('elegida')
+            nombre_e = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
+            fila_t = next((t for t in x.get('tabla') or [] if t.get('nombre') == nombre_e), {})
+            if x.get('conserva') or (x.get('vieja') or {}).get('factible'):
+                fila_t = x.get('vieja') or fila_t
+            c = fila_t.get('costo_anual')
+            return float(c) if isinstance(c, (int, float)) else float('inf')
+
+        candidatas: list[tuple[float, int, dict, bool, Any]] = []
         for i in range(0, eo.ESCALON_TRANSFERENCIA):
-            fila = evaluar_escalon(-1 if i == 0 else i, i)
-            if resuelto(fila):
-                break
-        ok = resuelto(fila)
-        if not ok:
+            de_i = evaluar_escalon(-1 if i == 0 else i, i)
+            if de_i.get('ya_cumple'):
+                candidatas.append((0.0, len(candidatas), de_i, False, tanda))
+                break                                                   # sin obra: nada puede costar menos
+            if resuelto(de_i):
+                candidatas.append((costo_de(de_i), len(candidatas), de_i, False, tanda))
+            fila = fila or de_i
+        if not any(c[2].get('ya_cumple') for c in candidatas):
             # 087:RF-31: la transferencia de carga, siempre desde una maniobra (098:RF-11), y la del operador (098:RF-44).
             de_t = evaluar_escalon(eo.ESCALON_TRANSFERENCIA, eo.ESCALON_TRANSFERENCIA, traspaso=True,
                                    con_enlaces=con_enlaces)
             if resuelto(de_t):
-                fila, ok, traspaso, tanda = de_t, True, True, None
-        if not ok:
+                candidatas.append((costo_de(de_t), len(candidatas), de_t, True, None))
             # 087:RF-41: el cambio de nivel y el regulador; el oráculo no modela el paso a 22,9 kV y DIgSILENT lo mide.
             de_n = evaluar_escalon(eo.ESCALON_NIVEL, len(eo.ESCALONES) - 1,
                                    **({'sin_oraculo': True} if e_or else {}))
             if resuelto(de_n):
-                fila, ok, tanda = de_n, True, None
+                candidatas.append((costo_de(de_n), len(candidatas), de_n, False, None))
+        ok = bool(candidatas)
+        if candidatas:
+            costo_g, _i, fila, traspaso, tanda = min(candidatas, key=lambda c: (c[0], c[1]))
+            e_g = fila.get('elegida')
+            ctx.log(f"{f}: entre {len(candidatas)} escalón(es) que cumplen se elige la más barata: "
+                    f"{(e_g.get('nombre') if isinstance(e_g, dict) else e_g) or 'sin obra'}"
+                    + (f', {costo_g:,.0f} al año' if costo_g not in (0.0, float('inf')) else '') + ' (098:RF-46).')
         for alt in fila.get('alternativas') or []:
             ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
                     + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')

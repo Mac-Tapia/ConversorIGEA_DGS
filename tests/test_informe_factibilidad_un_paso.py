@@ -614,8 +614,9 @@ def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypat
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2', 'F3'])
     # 087:RF-31: el que no cumple prueba además transferir o trasladar a un vecino antes de ir a la SET nueva.
     # 098:RF-45: F2, que no cumple, evalúa sus cinco escalones (bancos, sección, terna, transferencia, nivel y regulador).
-    assert orden == [('evalua', 'F1'), ('aplica', 'F1')] + [('evalua', 'F2')] * 5 + [('evalua', 'F3'),
-                     ('aplica', 'F3')]
+    # 098:RF-46: cada uno evalúa todos sus escalones y aplica la más barata que cumple antes del siguiente.
+    assert orden == [('evalua', 'F1')] * 5 + [('aplica', 'F1')] + [('evalua', 'F2')] * 5 + [('evalua', 'F3')] * 5 + [
+        ('aplica', 'F3')]
     assert [a['alimentador'] for a in r['escalera']['alimentadores']] == ['F1', 'F3']
 
 

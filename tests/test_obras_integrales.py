@@ -123,7 +123,7 @@ def test_tras_la_escalera_transferir_y_trasladar_antes_que_el_nivel(monkeypatch,
     monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
     ctx = _Ctx()
     r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
-    assert llamadas == [('mide', 'oraculo')] * 3 + [('mide', 'traspaso'), ('aplica', 'traspaso')]   # 098:RF-45
+    assert llamadas == [('mide', 'oraculo')] * 3 + [('mide', 'traspaso'), ('mide', 'nivel'), ('aplica', 'traspaso')]   # 098:RF-45, RF-46
     assert r['por_alimentador']['F1']['cumple'] and not r['a_set_nueva']
     assert any('087:RF-31' in t for t in ctx.textos)
 

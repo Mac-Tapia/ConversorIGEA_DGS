@@ -75,6 +75,8 @@
       regulador; la obra integral al final), con su registro por escalón y sin el corte de 087:RF-40. (RF-45)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "escalon or orden_fijo"` y
       `pytest -q tests/test_escalera_optima.py tests/test_obras_integrales.py` en verde.
+- [x] T19. Todos los escalones evaluados y la más barata que cumple. (RF-46)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k barata` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la

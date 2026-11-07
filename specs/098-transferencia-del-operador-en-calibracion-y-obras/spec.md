@@ -268,6 +268,10 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   obra integral porque no cumplan las primeras del oráculo). Usuario (2026-11-07): «se evalúa con bancos, después con
   cambio de sección de cables, después nueva terna, después transferencia de carga; nada debería saltar».
 
+- RF-46: EL SISTEMA evaluará todos los escalones de RF-45 (nada se salta) y elegirá, entre los que cumplen, la
+  alternativa más barata, de cualquier escalón. Sin obra que haga falta, ninguna. Usuario, 2026-11-07: «el coste es lo
+  que manda». Cambia RF-45 en lo de parar en el primer escalón que cumple.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
