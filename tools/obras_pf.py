@@ -2867,6 +2867,10 @@ def maniobra_del_tramo(linea) -> dict | None:
     return None
 
 
+#: 098:RF-29: barras bajo el límite que da la lectura por alimentador, de la más baja a la menos.
+MAX_BAJAS = 10
+
+
 def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict) -> dict[str, list[dict]]:
     """098:RF-21, RF-22, RF-27: por cada alimentador de ``feeders``, lo que ya une una barra suya con una de otro
     alimentador del proyecto, abierto o cerrado.
@@ -3022,6 +3026,11 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             elm = alims.elm[f]
             lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
             barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
+            # 098:RF-29: las barras de media del alimentador bajo el límite con «Con proyecto» como está (todas las cargas):
+            # un alimentador sin cargas nuevas que viola límites también lleva su escalera. CHN102 (2026-11-07) quedó
+            # en 0,73 p.u. en la zona que recibió y la escalera solo trabajó CA101.
+            bajas = sorted((u, n) for n, b in barras.items() if float(getattr(b, 'uknom', 0) or 0) > 1.0
+                           and flujo['converged'] and vmin and (u := _resultado(b, 'm:u')) is not None and u < vmin)
             corriente, fuera = None, None
             for i, (t, ext) in enumerate(zip(troncal, extremos[f])):
                 ln = lineas.get(t['nombre'])
@@ -3107,6 +3116,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 enlaces = enlaces_existentes(app, alims, list(troncales), tramos_red, margen)
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'enlaces': enlaces.get(f, []),
+                                           'bajas': [{'barra': n, 'u': round(u, 4)} for u, n in bajas[:MAX_BAJAS]],
                                            'banco_en': banco_en, 'caminos': caminos, 'sobrecargados': sobrecargados,
                                            'existen': existen.get(f, []), 'barras_media': media_de.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
@@ -3438,6 +3448,22 @@ class _Sorteo:
         return False
 
 
+#: 098:RF-28: lo que dice la evaluación de una variante que no quedó aplicada donde se mide.
+NO_APLICADA = 'no aplicada'
+
+
+def sin_cambio(antes: dict, despues: dict, tol_u: float = 1e-6, tol_carga: float = 1e-4) -> bool:
+    """098:RF-28: si dos medidas convergidas dan las mismas tensiones y cargas, barra por barra y tramo por tramo."""
+    if not (antes.get('converge') and despues.get('converge')):
+        return False
+    ua, ud = antes.get('u') or {}, despues.get('u') or {}
+    ca, cd = antes.get('carga') or {}, despues.get('carga') or {}
+    if not ud or set(ua) != set(ud) or set(ca) != set(cd):
+        return False
+    return (all(abs(float(ua[b] or 0) - float(ud[b] or 0)) <= tol_u for b in ud)
+            and all(abs(float(ca[e] or 0) - float(cd[e] or 0)) <= tol_carga for e in cd))
+
+
 def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     """Cada variante de la escalera en «Con proyecto <año>»: con la máxima y, si cumple, en los
     sorteos; sin dejar ninguna obra ni el escenario temporal (025:RF-50 a RF-52b, RF-44b).
@@ -3551,6 +3577,13 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             creadas = [o['variacion'] for o in hecho.get('obras') or [] if o.get('variacion')]
             errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
                 [hecho['error']] if hecho.get('error') else [])
+            # 098:RF-28: una obra que quedó inactiva en «Con proyecto» (su flujo no convergió, 011:RF-66) no se mide como
+            # si estuviera: CA101 (2026-11-07) dio «cambio a 22.9 kV» con las tensiones de sin obra y como «no cumple».
+            inactivas = [o for o in hecho.get('obras') or [] if o.get('variacion') and not o.get('error')
+                         and NOMBRES['con'] in (o.get('casos') or []) and NOMBRES['con'] not in (o.get('casos_activos') or [])]
+            if inactivas and not errores:
+                errores = [f"{NO_APLICADA}: {o['variacion']} quedó inactiva en «{NOMBRES['con']}»: "
+                           + '; '.join(a for a in o.get('avisos') or [] if 'no converge' in a)[:300] for o in inactivas]
             try:
                 if errores:
                     return None, '; '.join(errores)
@@ -3749,6 +3782,13 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
 
             medido, fila['error'] = con_variante(v, medir_todo)
             con_max, en_valle = medido if medido is not None else (None, None)
+            if fila['error'] and fila['error'].startswith(NO_APLICADA):
+                fila['no_aplicada'] = fila['error']                                     # 098:RF-28
+            elif con_max is not None and sin_cambio(con_actual, con_max):
+                # 098:RF-28: ni una tensión ni una corriente cambió: la variante no se aplicó donde se mide.
+                fila['no_aplicada'] = fila['error'] = (f'{NO_APLICADA}: con ella no cambia ninguna tensión ni corriente '
+                                                       f"de «{NOMBRES['con']}» respecto de sin obra")
+                con_max, en_valle = None, None
             fila.update(en_valle or {})
             mejora = ''
             if con_max is not None:
@@ -3767,7 +3807,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 if fila['u_min_mt'] is not None:
                     partes.append(f"mínima de media {fila['u_min_mt']:.3f} p.u.")
                 mejora = f" ({'; '.join(partes)})" if partes else ''
-            print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}{mejora}", flush=True)
+            print(f"  {v['nombre']}: " + (fila['no_aplicada'] if fila.get('no_aplicada') else
+                                          f"máxima {'cumple' if fila['maxima'] else 'no cumple'}{mejora}"), flush=True)
             filas.append((v, fila))
             # 042:RF-2: para saber si las cargas caben basta una variante con costo que cumpla;
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,

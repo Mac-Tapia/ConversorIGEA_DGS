@@ -291,7 +291,10 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
     for b in app.GetCalcRelevantObjects('*.ElmTerm'):
         nodos[_id(b, raiz)] = {'kv': _num(b, 'uknom'), 'p_mw': 0.0, 'q_mvar': 0.0, 'fuente': False,
                                'carga_p_mw': 0.0, 'carga_q_mvar': 0.0, 'gen_p_mw': 0.0, 'gen_q_mvar': 0.0,
-                               'banco_q_mvar': 0.0, 'carga_p_efectiva_mw': None, 'carga_q_efectiva_mvar': None}
+                               'banco_q_mvar': 0.0, 'carga_p_efectiva_mw': None, 'carga_q_efectiva_mvar': None,
+                               # 098:RF-30: la tensión del último flujo de DIgSILENT (la que mide la escalera), para
+                               # que el oráculo se corrija con ella; ``None`` si se lee sin flujo.
+                               'u_medida': _medido(b, 'm:u')}
     medida_p: dict[str, list] = {}
     medida_q: dict[str, list] = {}
     for c in app.GetCalcRelevantObjects('*.ElmLod'):

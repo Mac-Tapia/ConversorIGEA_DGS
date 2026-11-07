@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 11424 líneas y 349 funciones, pendiente de partir (002).
+`web/services.py` tiene 11516 líneas y 351 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | reservada | 1 |
 | retirada | 1 |
 
-99 specs con 3218 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+99 specs con 3221 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -623,7 +623,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `set_nueva_operacion_pf.py` | — | 063 | Diagnóstico físico de conexiones y tipos de una SET existente. |
 | `pide_pf.py` | — | 024, 029, 030 | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión… |
 | `escenarios_pf.py` | — | 024 | Guion de DIgSILENT: escenarios del gemelo en una copia del proyecto (desactivado antes de copiar), demanda escalada y tramos abiertos, resultados y… |
-| `digital_twin_snapshot_pf.py` | — | 024 | Guion de DIgSILENT de solo lectura: reabre el proyecto, activa el caso, ejecuta el flujo y devuelve tensiones, cargabilidad, cabeceras, pérdidas,… |
+| `digital_twin_snapshot_pf.py` | — | 024, 098 | Guion de DIgSILENT de solo lectura: reabre el proyecto, activa el caso, ejecuta el flujo y devuelve tensiones, cargabilidad, cabeceras, pérdidas,… |
 | `escanear_alimentador_pf.py` | — | 028, 098 | Escaneo de solo lectura de alimentadores en DIgSILENT: generadores con su barra, bancos, variaciones y cargas cambiadas a mano. |
 | `transferencia_operador_pf.py` | — | 098 | Transferencias de carga del operador en DIgSILENT: leerlas, desactivarlas mientras se calibra con registro en disco y restituirlas con su evidencia. |
 | `verificar_pf.py` | — | 008 | Guion de DIgSILENT: convergencia del proyecto con lo activo. |

@@ -858,6 +858,8 @@ def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_c
 
     def medir(_app, _alims, _feeders, **_k):
         u = u_valle if estado['valle'] and estado['obra'] == 'condensador' else 1.0
+        # Sin obra, una milésima menos: con la obra cambia algo, o la evaluación la daría por no aplicada (098:RF-28).
+        u = u - 0.001 if estado['obra'] is None else u
         return {'converge': True, 'u': {barra: u}, 'carga': {}, 'perdidas_kw': 10.0}
 
     class Sorteo:
