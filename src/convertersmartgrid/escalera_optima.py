@@ -14,6 +14,7 @@ Puro: arma las variantes, juzga cada flujo, sortea, costea y elige. Medir en DIg
 from __future__ import annotations
 
 import itertools
+import json
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -58,6 +59,8 @@ def grupo_economico(escalones) -> int:
     return 0 if e and e - {'transferencia'} <= {'bancos'} else 2 if 'regulador' in e else 1
 
 
+#: 098:RF-35: factor de la terna sobre el km del cambio de nivel sin libro CAPEX, si el perfil no da otro. Por confirmar.
+FACTOR_TERNA_SIN_CAPEX = 1.5
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
                'seccion': 'cambio_seccion', 'nivel': 'cambio_tension', 'sed_nivel': 'cambio_tension_sed',
@@ -107,6 +110,8 @@ class Parametros:
     coym_pct_anual: float | None = None
     moneda: str = ''
     costos_unitarios: dict = field(default_factory=dict)       # alternativa → costo en ``moneda``
+    #: 098:RF-35: sin libro CAPEX, cuánto más cuesta por km tender una terna que cambiar el conductor (perfil).
+    factor_terna_sin_capex: float = 1.5
     escala_capex: float | None = None                          # ``moneda`` por unidad del libro CAPEX
     #: 025:RF-44: el regulador entra en la escalera, al final del orden (aclaración de 063:RF-26);
     #: un perfil puede quitarlo con ``escalera.con_regulador: false``.
@@ -146,6 +151,20 @@ class Parametros:
     def consigna_regulador_pu(self) -> float:
         """El centro de la banda de tensión del perfil: sin un valor propio de la empresa."""
         return (self.tension_min_pu + self.tension_max_pu) / 2
+
+
+def _factor_terna(valor) -> float:
+    """098:RF-35: el factor de la terna sin CAPEX; sin él, 1,5. Uno de 0 o negativo la dejaba gratis y ganaba siempre."""
+    if valor is None:
+        return FACTOR_TERNA_SIN_CAPEX
+    try:
+        factor = float(valor)
+    except (TypeError, ValueError):
+        factor = float('nan')
+    if not factor > 0:
+        raise EscaleraError(f'escalera.factor_terna_sin_capex es {valor!r}: tiene que ser un número mayor que 0 '
+                            '(098:RF-35)')
+    return factor
 
 
 def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> Parametros:
@@ -195,6 +214,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
+        factor_terna_sin_capex=_factor_terna(esc.get('factor_terna_sin_capex')),
         escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)),
         modulos_max=None if esc.get('modulos_max') is None else int(esc['modulos_max']),
         ternas=dict(plan.get('ternas_subterraneas') or {}),
@@ -278,6 +298,19 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
             else:
                 out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt),
                             'origen': FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
+    # 098:RF-35: sin libro CAPEX, el cambio de nivel tenía costo de referencia y la sección y la terna ninguno: CHN102
+    # (2026-11-07) eligió el paso a 22,9 kV (29,3 km y 50 SED, que no aguanta ni un año) porque era la única que
+    # cumplía con costo, por delante de «1×300 kvar + sección 240 mm²» (15,77 km), que también cumplía. El km de red de
+    # media del cambio de nivel es el tope de lo que cuesta cambiar el conductor o tender otra terna: se usa, por
+    # confirmar, para que compitan con el mismo rasero.
+    # La terna, con su factor (``escalera.factor_terna_sin_capex``, 1,5 si el perfil no lo da): con el mismo precio por
+    # km que la sección, ganaba casi siempre por sus pérdidas aunque tender un circuito más cueste más.
+    for alt, factor in (('cambio_seccion', 1.0), ('nueva_terna', p.factor_terna_sin_capex)):
+        if not (out.get(alt) or {}).get('costo_unitario') and (out.get('cambio_tension') or {}).get('costo_unitario'):
+            out[alt] = {**out['cambio_tension'], 'unidad': 'km',
+                        'costo_unitario': float(out['cambio_tension']['costo_unitario']) * factor,
+                        'origen': ('deducido del km del cambio de nivel' + (f' por {factor:g}' if factor != 1 else '')
+                                   + ', por confirmar (098:RF-35)')}
     # 087:RF-37: sin «nuevo alimentador» en el libro, el km de la terna, que es la misma red de media nueva.
     if not (out.get('nuevo_alimentador') or {}).get('costo_unitario'):
         for parecida in ('nueva_terna', 'cambio_seccion', 'cambio_tension'):
@@ -299,6 +332,8 @@ class Variante:
     solo_evidencia: bool = False
     #: 094:RF-13, RF-14: en los bancos según el perfil, el perfil completo antes y después de la propuesta.
     perfil: dict[str, Any] | None = None
+    #: 098:RF-31: en cuántos caminos de cargas va su obra de línea, si junta varios; 0, la de siempre (un camino).
+    caminos: int = 0
 
 
 def _troncal_hasta(troncal: Sequence[Mapping[str, Any]], i: int) -> list[Mapping[str, Any]]:
@@ -576,6 +611,70 @@ def _variante_terna(alim, tramos, p: Parametros, de_terna, avisos) -> Variante:
         nombre += ' en ' + ' y '.join(str(obra[k]['nombre']) for k in ('tipo', 'tipo_cable') if obra.get(k))
     # 042:RF-103: el conductor existente que cambia cuesta como un cambio de sección de esos tramos.
     return Variante(nombre, ('terna',), [obra], {'terna': _km(tramos), **({'seccion': km_cambia} if km_cambia else {})})
+
+
+#: 098:RF-31: obras de línea por camino que se combinan entre caminos (la terna y las dos secciones mayores), los
+#: caminos como mucho, y los escalones de bancos con que se combinan.
+OPCIONES_POR_CAMINO = 2
+MAX_CAMINOS = 3
+CAMINOS_BANCOS = 2
+
+
+def _opciones_de_camino(kv, tramos, tipos) -> list[tuple[str, Any]]:
+    """Por camino: la terna y las secciones mayores que llevan su corriente (la de 50 mm² no arregla una caída)."""
+    corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
+    aptos = conductores_aptos(tipos, kv, max(corrientes) if corrientes else None)
+    return [('terna', None)] + [('seccion', t) for t in aptos[-OPCIONES_POR_CAMINO:]]
+
+
+def _por_varios_caminos(alim, kv, caminos, tipos, p: Parametros, de_terna, avisos) -> list[Variante]:
+    """098:RF-31: la mejor obra de línea de cada camino a la vez: CA101 (2026-11-07) tenía la cola de CH_23 y la rama
+    de CH_10 y CH_18 fuera de límites, y ninguna variante juntaba la obra de las dos.
+
+    Cada tramo queda una vez: el de la troncal común lleva el conductor mayor de los caminos que pasan por él (una
+    terna duplica su corriente, una sección la cambia a la del conductor nuevo).
+    """
+    if len(caminos) < 2:
+        return []
+    usados = sorted(caminos, key=lambda c: -_km(c))[:MAX_CAMINOS]
+    if len(caminos) > MAX_CAMINOS and avisos is not None:
+        avisos.append(f'{alim}: {len(caminos)} caminos con cargas; las obras de varios caminos juntan los {MAX_CAMINOS} más '
+                      'largos (098:RF-31).')
+    out = []
+    for eleccion in itertools.product(*(_opciones_de_camino(kv, c, tipos) for c in usados)):
+        por_tramo: dict[str, tuple[float, str, Any, Mapping[str, Any]]] = {}
+        for (clase, tipo), tramos in zip(eleccion, usados, strict=True):
+            for t in tramos:
+                inom = float(t.get('inom_a') or 0.0)
+                fuerza = 2 * inom if clase == 'terna' else float(tipo['datos']['sline']) * 1000
+                if clase == 'seccion' and inom and fuerza <= inom:
+                    continue                                   # ya es de esa sección o mayor (063:RF-30)
+                actual = por_tramo.get(t['nombre'])
+                if actual is None or fuerza > actual[0]:
+                    por_tramo[t['nombre']] = (fuerza, clase, tipo, t)
+        if not por_tramo:
+            continue
+        obras, cantidades, partes = [], {}, []
+        ternas = [x[3] for x in por_tramo.values() if x[1] == 'terna']
+        if ternas:
+            v = _variante_terna(alim, ternas, p, de_terna, avisos)
+            obras += v.obras
+            for k, x in v.cantidades.items():
+                cantidades[k] = cantidades.get(k, 0.0) + x
+            partes.append(f'terna en {len(ternas)} tramos ({_km(ternas):.2f} km)')
+        por_tipo: dict[str, list] = {}
+        for _f, clase, tipo, t in por_tramo.values():
+            if clase == 'seccion':
+                por_tipo.setdefault(tipo['nombre'], [tipo, []])[1].append(t)
+        for nombre, (tipo, tramos) in sorted(por_tipo.items()):
+            obras.append({'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
+                          'tramos': [t['nombre'] for t in tramos], 'tipo': _ref_de(tipo), 'nodos': _nodos(tramos)})
+            cantidades['seccion'] = cantidades.get('seccion', 0.0) + _km(tramos)
+            partes.append(f'sección {nombre} en {len(tramos)} tramos ({_km(tramos):.2f} km)')
+        escalones = tuple(e for e, c in (('terna', 'terna'), ('seccion', 'seccion')) if any(o['clase'] == c for o in obras))
+        out.append(Variante(f"{' + '.join(partes)} en {len(usados)} caminos", escalones, obras, cantidades,
+                            caminos=len(usados)))
+    return out
 
 
 def _escalon_terna(alim, troncal, cargas, p: Parametros, de_terna=None, avisos=None) -> list[Variante]:
@@ -888,8 +987,15 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                 mayores.append(Variante(' + '.join(v.nombre for v in partes), sum((v.escalones for v in partes), ()),
                                         [o for v in partes for o in v.obras],
                                         {c: n for v in partes for c, n in v.cantidades.items()}))
+    # 098:RF-31: con cargas en dos o más caminos, la obra de línea de cada camino junta, con y sin bancos; delante, para
+    # que el tope de variantes no las deje fuera.
+    varios = _por_varios_caminos(alimentador, kv, caminos, normalizados(tipos, p.secciones), p, de_terna, avisos)
+    varios += [Variante(f'{b.nombre} + {v.nombre}', b.escalones + v.escalones, b.obras + v.obras,
+                        {**b.cantidades, **{k: x + b.cantidades.get(k, 0.0) for k, x in v.cantidades.items()}},
+                        caminos=v.caminos)
+               for b in por_escalon['bancos'][:CAMINOS_BANCOS] for v in list(varios)]
     vistas: set[str] = set()
-    todas = [v for v in solas + dobles + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
+    todas = [v for v in solas + dobles + varios + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
     if sobrecargados:
         # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
         capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
@@ -1060,12 +1166,15 @@ def definitiva(con: Mapping[str, Any], p: Parametros) -> tuple[bool, list[str]]:
     return not motivos, motivos[:3]
 
 
-def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Parametros) -> list[dict[str, Any]]:
+def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Parametros,
+                 largo: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
     """Hasta ``escalera.alternativas`` soluciones de obras distintas, de menor a mayor costo anual (042:RF-55, RF-58, RF-105).
 
     De cada clase de obra, la más barata que cumple con la máxima; la que los sorteos desmienten no es una solución,
-    salvo que sea la elegida (063:RF-33). La elegida siempre está, aunque por costo quedase fuera.
+    salvo que sea la elegida (063:RF-33). La elegida siempre está, aunque por costo quedase fuera, y la de largo plazo
+    también (098:RF-37), cada una con su plazo.
     """
+    largo_nombre = (largo or {}).get('nombre')
     por_clase: dict[frozenset, Mapping[str, Any]] = {}
     for t in tabla:
         if (not t.get('maxima') or t.get('valle') is False or (t.get('costo') or {}).get('costo_anual') is None
@@ -1094,25 +1203,136 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
                 escogidas.append(definitiva_barata)
             elif cabe is not None:
                 escogidas[cabe] = definitiva_barata
-            escogidas.sort(key=lambda t: (t['costo']['costo_anual'], t['nombre']))
+    if largo_nombre and not any(t['nombre'] == largo_nombre for t in escogidas):          # 098:RF-37
+        escogidas += [t for t in tabla if t.get('nombre') == largo_nombre]
+    escogidas.sort(key=lambda t: (t['costo']['costo_anual'], t['nombre']))
+
+    def plazo(t):
+        if t['nombre'] == elegida and t['nombre'] == largo_nombre:
+            return 'corto y largo plazo'
+        return 'corto plazo' if t['nombre'] == elegida else 'largo plazo' if t['nombre'] == largo_nombre else None
+
     return [{'numero': i, 'nombre': t['nombre'], 'escalones': list(t.get('escalones') or ()),
              'inversion': t['costo'].get('inversion'), 'costo_anual': t['costo']['costo_anual'],
              'perdidas_kw': t.get('perdidas_kw'), 'fraccion': t.get('fraccion'), 'valle': t.get('valle'),
+             'u_min_mt': t.get('u_min_mt'), 'u_cargas': t.get('u_cargas'),
              # 042:RF-75: sin medir, ninguna de las dos claves dice nada.
              'definitiva': (t.get('horizonte') or {}).get('definitiva'),
              'aguanta_anios': (t.get('horizonte') or {}).get('aguanta_anios'),
+             'mas_corto': (t.get('horizonte') or {}).get('mas_corto'),
              'motivos_horizonte': (t.get('horizonte') or {}).get('motivos') or [],
              # 042:RF-72: solo donde se dimensionó con él.
              'factor': p.factor_sin_tasa if 'regulador' in (t.get('escalones') or ()) or 'elevador' in t['nombre'] else None,
+             # 098:RF-37: corto plazo, la que se aplica; largo plazo, la definitiva que se plantea, y cuándo hace falta.
+             'plazo': plazo(t), 'regla': REGLA_DE_PLAZOS,
+             'hace_falta_en_anio': (largo or {}).get('hace_falta_en_anio') if t['nombre'] == largo_nombre else None,
+             'hace_falta_entre': (largo or {}).get('hace_falta_entre') if t['nombre'] == largo_nombre else None,
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
+
+
+#: 098:RF-36: marca de las alternativas elegidas con la regla de los dos plazos; sin ella, de una corrida anterior.
+REGLA_DE_PLAZOS = '098:corto_y_largo_plazo'
+
+
+def _no_llega(t: Mapping[str, Any]) -> str:
+    """098:RF-35: lo que dice ``aguanta_anios = 0``: no llega ni al horizonte más corto que se midió (042:RF-92)."""
+    h = t.get('horizonte') or {}
+    corto = h.get('mas_corto')
+    return ('no llega ni al horizonte más corto medido' + (f' ({corto} años)' if corto else '')
+            + (f": {'; '.join(h.get('motivos') or [])[:200]}" if h.get('motivos') else ''))
+
+
+def _contiene_obra(grande: Mapping[str, Any], chica: Mapping[str, Any]) -> bool:
+    """098:RF-37: ``grande`` incluye a ``chica``: el mismo banco en la misma barra con tantos o más kvar («2×300 kvar»
+    contiene a «1×300 kvar»), la misma sección (o la terna) en esos tramos y más, o la misma obra."""
+    clase = chica.get('clase')
+    if grande.get('clase') != clase:
+        return False
+    if clase == 'condensador':
+        return (grande.get('barra') == chica.get('barra')
+                and float(grande.get('q_kvar') or 0) >= float(chica.get('q_kvar') or 0))
+    if clase in ('seccion', 'terna'):
+        misma = clase == 'terna' or (grande.get('tipo') or {}).get('nombre') == (chica.get('tipo') or {}).get('nombre')
+        return misma and set(chica.get('tramos') or ()) <= set(grande.get('tramos') or ())
+    a, b = dict(grande), dict(chica)
+    return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
+
+
+def contiene(grande: Mapping[str, Any], chica: Mapping[str, Any]) -> bool:
+    """098:RF-37: cada obra de ``chica`` está, igual o ampliada, en ``grande``."""
+    obras_chica = list(chica.get('obras') or [])
+    return bool(obras_chica) and all(any(_contiene_obra(g, c) for g in grande.get('obras') or []) for c in obras_chica)
+
+
+def cuando_hace_falta(horizonte: Mapping[str, Any] | None) -> tuple[int, int | None] | None:
+    """098:RF-37: entre qué años de los horizontes probados deja de aguantar la de corto plazo: desde el último que
+    aguanta (0, hoy) hasta el siguiente probado, que ya no aguanta. ``None`` sin el alcance medido."""
+    h = horizonte or {}
+    if not h:
+        return None
+    desde = int(h.get('aguanta_anios') or 0)
+    probados = sorted(int(x) for x in h.get('probados') or () if x is not None)
+    if not probados and h.get('mas_corto'):
+        probados = [int(h['mas_corto'])]
+    hasta = next((x for x in probados if x > desde), None)
+    return desde, hasta
+
+
+def frase_de_cuando(entre: tuple[int, int | None] | None, corta: str) -> str:
+    if entre is None:
+        return ''
+    desde, hasta = entre
+    if desde == 0:
+        return (f"; «{corta}» cumple hoy pero no llega al primer horizonte probado"
+                + (f" ({hasta} años): hace falta antes del año {hasta}" if hasta else ''))
+    return (f"; hace falta entre el año {desde} y el {hasta}, cuando «{corta}» deja de aguantar" if hasta
+            else f"; hace falta tras el año {desde}, cuando «{corta}» deja de aguantar")
+
+
+def largo_plazo(factibles: Sequence[Mapping[str, Any]], corto: Mapping[str, Any]) -> dict[str, Any]:
+    """098:RF-37: la definitiva, la más barata entre las que cumplen hoy y aguantan el horizonte del proyecto (042:RF-92).
+
+    Parte de la de corto plazo cuando puede (sus obras dentro de las suyas, para que una no deshaga la otra: la sección
+    ya cambiada cuenta para la terna) y, si no, se dice. Hace falta cuando la de corto plazo deja de aguantar: en el año
+    que dio su alcance (0 si no llega ni al horizonte más corto). Si la de corto plazo aguanta el horizonte, es también
+    la de largo plazo.
+    """
+    if (corto.get('horizonte') or {}).get('definitiva'):
+        return {'nombre': corto['nombre'], 'misma': True, 'parte_de_la_corta': True, 'hace_falta_en_anio': None,
+                'costo_anual': corto['costo']['costo_anual'], 'aguanta_anios': corto['horizonte'].get('aguanta_anios'),
+                'aviso': f"«{corto['nombre']}» aguanta el horizonte del proyecto: es la de corto y la de largo plazo (098:RF-37)."}
+    definitivas = [t for t in factibles if (t.get('horizonte') or {}).get('definitiva')]
+    if not definitivas:
+        medida = bool(corto.get('horizonte'))
+        return {'nombre': None, 'aviso': ('ninguna de las que cumplen hoy aguanta el horizonte del proyecto'
+                                          if medida else 'sin el horizonte medido no se plantea la de largo plazo')
+                + ' (098:RF-37).'}
+    def parte(t):
+        return contiene(t, corto)
+    mejor = min(definitivas, key=lambda t: (not parte(t), t['costo']['costo_anual'], t['nombre']))
+    entre = cuando_hace_falta(corto.get('horizonte'))
+    return {'nombre': mejor['nombre'], 'misma': False, 'parte_de_la_corta': parte(mejor),
+            'costo_anual': mejor['costo']['costo_anual'], 'aguanta_anios': mejor['horizonte'].get('aguanta_anios'),
+            'hace_falta_en_anio': entre[0] if entre else None,
+            'hace_falta_entre': list(entre) if entre else None,
+            'aviso': (f"Largo plazo: «{mejor['nombre']}», que aguanta el horizonte del proyecto"
+                      + frase_de_cuando(entre, corto['nombre'])
+                      + ('' if parte(mejor) else f"; no parte de «{corto['nombre']}»: ninguna de las definitivas la "
+                                                 'contiene, y una deshace parte de la otra')
+                      + ' (098:RF-37).')}
 
 
 def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, Any]:
     """La de menor costo anual entre las que cumplen con la máxima y en la fracción de sorteos
     del perfil (RF-52b, RF-53); si ninguna, la que más se acerca, sin aplicarla (RF-56).
 
+    098:RF-37: dos elecciones. La de corto plazo, la que se aplica: la más barata que cumple hoy, en el orden de la
+    escalera (grupo económico y costo). La de largo plazo, que se plantea: la más barata que aguanta el horizonte del
+    proyecto (:func:`largo_plazo`). Usuario, 2026-11-07: «las baratas deben ser de implementación inmediata; para
+    largo plazo, la definitiva con el horizonte del proyecto».
+
     Cada evaluada: ``nombre``, ``maxima`` (cumple con la máxima), ``fraccion`` (de sorteos que
-    cumplen; ``None`` sin sortear), ``costo`` (de :func:`costo`) y ``motivos``.
+    cumplen; ``None`` sin sortear), ``costo`` (de :func:`costo`), ``motivos`` y, si se midió, ``horizonte`` y ``obras``.
     """
     tabla = []
     for e in evaluadas:
@@ -1142,24 +1362,26 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     if factibles:
         # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
-        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
-                                              t['nombre']))
+        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'], t['nombre']))
         # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL209
         # (2026-11-06): entre 2 bancos (lo más barato para 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), el usuario
         # eligió los del perfil; la más barata queda como alternativa.
         del_perfil = [t for t in factibles if str(t['nombre']).startswith(PREFIJO_PERFIL)]
         if del_perfil:
             mejor = min(del_perfil, key=lambda t: (t['costo']['costo_anual'], t['nombre']))
+        largo = largo_plazo(factibles, mejor)
         for t in factibles:
             if t is mejor:
                 continue
-            if grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
+            if t['nombre'] == largo.get('nombre'):
+                t['motivo'] = 'la de largo plazo: aguanta el horizonte del proyecto (098:RF-37)'
+            elif grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
                 t['motivo'] = f"no hace falta: «{mejor['nombre']}» ya cumple en un escalón anterior"
             else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
                                f"{mejor['costo']['costo_anual']:,.0f}")
         return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla),
-                'alternativas': alternativas(tabla, mejor['nombre'], p)}
+                'largo_plazo': largo, 'alternativas': alternativas(tabla, mejor['nombre'], p, largo)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
     # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
@@ -1174,8 +1396,7 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                   and (t.get('fraccion') is None or t['fraccion'] >= p.sorteos_decide_no)
                   and not t.get('error')]                                      # 087:RF-51: un error no es «sin sortear»
     if con_maxima:
-        mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
-                                               t['nombre']))
+        mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'], t['nombre']))
         mejor['motivo'] = (f"cumple con la máxima en DIgSILENT; los sorteos dieron "
                            f"{100 * (mejor.get('fraccion') or 0):.1f} % (pide {100 * p.cumplimiento:.0f} %): "
                            'se elige y hay que revisar los sorteos (063:RF-33)')

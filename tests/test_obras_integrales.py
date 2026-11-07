@@ -385,10 +385,10 @@ def test_si_el_conjunto_no_cumple_se_rehace_solo_el_afectado_y_no_se_insiste(mon
     monkeypatch.setattr(services, 'confirmar_conjunto',
                         lambda *a, **k: {'cumple': False, 'por_alimentador': {'F2': ['F2X pasa al 120 %'], 'VECINO': ['x']}})
     r = services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1', 'F2'])
-    tras = hechos[hechos.index(('retira', 'F2')):]                  # lo del bucle principal va antes
-    rehechos = [h for h in tras if h[:2] in (('retira', 'F2'), ('aplica', 'F2'))]
-    assert rehechos == [('retira', 'F2'), ('aplica', 'F2', True)] * services.RONDAS_CONJUNTO
-    assert ('retira', 'F1') not in hechos and not r['conjunto']['cumple']
+    # 098:RF-36: la ronda no retira antes: aplica la nueva con la vieja apartada y la borra solo si la nueva queda.
+    assert hechos.count(('aplica', 'F2', True)) == services.RONDAS_CONJUNTO
+    assert not [h for h in hechos if h[0] == 'retira'] and ('aplica', 'F1', True) not in hechos
+    assert not r['conjunto']['cumple']
     assert r['por_alimentador']['F2']['conjunto']['ronda'] == services.RONDAS_CONJUNTO
 
 

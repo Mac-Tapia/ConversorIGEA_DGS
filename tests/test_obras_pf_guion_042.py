@@ -370,6 +370,8 @@ def test_retirar_obras_solo_las_del_alimentador():
     app = N(GetActiveStudyCase=lambda: caso, GetProjectFolder=lambda _c: N(GetContents=lambda *_a: list(v)))
     guion.activar_proyecto = lambda *_a: object()
     guion.casos_del_proyecto = lambda *_a: {'con': caso}
-    informe, codigo = guion.retirar_obras(app, {'project': 'P', 'feeders': ['F1']})
+    # 098:RF-36: por sus nombres exactos; uno de otro alimentador que se le parece no entra aunque se nombre.
+    informe, codigo = guion.retirar_obras(app, {'project': 'P', 'feeders': ['F1'], 'variaciones': [
+        'Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1', 'Obra_terna_F11', 'Carga_F1']})
     assert codigo == 0 and borradas == apagadas == ['Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1']
     assert informe['retiradas'] == borradas

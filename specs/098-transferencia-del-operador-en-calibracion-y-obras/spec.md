@@ -168,6 +168,66 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
   caída de cada barra del oráculo a la medida, conservará esa proporción para cada obra que mida y dirá en el
   registro el desvío medio y el máximo antes de corregir.
 
+### Segunda corrida de «Con proyecto» (2026-11-07, job 3ded64ef7a44)
+
+CHN102 subió su escalera y CA101 no se resolvió: tiene dos caminos con cargas en problemas (la cola de CH_23 hasta
+SEC_1091_1080932 y la rama de CH_10 y CH_18 hasta SEC_1091_1081392) y ninguna variante juntaba la obra de los dos; cada
+una arreglaba su camino (0,991 en la cola y 0,917 en Buganvilla, o 0,922 en la cola y 0,962 en Buganvilla). Sin libro
+CAPEX, la sección y la terna no tenían costo: el oráculo no podía dar ninguna por buena ni la bayesiana encontrarla, la
+primera pasada mandó a DIgSILENT una sección de 50 mm², y CHN102 eligió el paso a 22,9 kV (29,3 km, 50 SED, que no
+aguanta ni un año) porque era la única con costo de referencia. Los reguladores no cambiaban nada (`ComLdf.iopt_at =
+0`) y contaban como «cumple». La ronda 087:RF-47 volvió a medir variantes ya medidas con la misma red.
+
+- RF-31: CUANDO un alimentador tiene cargas en dos o más caminos, EL SISTEMA armará variantes que juntan la obra de
+  línea de cada camino (terna o las secciones mayores aptas), con y sin bancos, y contará una vez cada tramo común,
+  con el conductor mayor de los que pasan por él.
+- RF-32: EL SISTEMA reutilizará la medida de DIgSILENT de una variante solo cuando la huella de la medida sea la misma
+  (variaciones activas de «Con proyecto» con lo que graba cada una, los tipos con su sección e impedancia, lo abierto
+  y fuera de servicio del escenario y la demanda de cada alimentador, cargas apartadas,
+  barras, sorteos, valle y parámetros) y la medida guardada no sea sospechosa; en cualquier otro caso la volverá a
+  medir, y dirá en el registro cuántas reutilizó, por qué era seguro y cuántas midió de nuevo y por qué. Las
+  reutilizadas no se crean de nuevo en DIgSILENT, pero cuentan para parar la escalera (042:RF-90, 073:RF-18); si todas
+  son sabidas, no se abre DIgSILENT.
+- RF-33: EL SISTEMA propondrá para la caída, en las obras de varios caminos, solo las secciones mayores aptas para la
+  corriente, no la menor que la lleva.
+- RF-34: CUANDO una obra deja un regulador, EL SISTEMA activará el ajuste automático de tomas del flujo de cada caso de
+  la obra (no el del caso activo), lo anotará en la fila y en el registro de disco antes de cambiarlo y lo devolverá a
+  como estaba al borrar la variante evaluada, también si la creación se corta a mitad; mientras se mide, dejará fijas
+  las tomas automáticas de los demás transformadores de dos y tres devanados y de los reguladores ajenos (anotadas en
+  un lote y devueltas), y aplicada, dirá cuáles regulan; guardará el valor del ajuste de antes de la primera obra con
+  regulador, por proyecto y caso (en una obra de antes de guardarlo, el que anotó la obra), y lo devolverá al
+  retirar la última; MIENTRAS quede activa otra variación con
+  regulador, no apagará el ajuste, y lo dirá; SI con el regulador nada cambia respecto de la misma variante sin él,
+  ENTONCES la marcará «no aplicada» (RF-28).
+- RF-35: SI el libro CAPEX no trae el costo de la sección o de la terna, ENTONCES EL SISTEMA las costeará con el km
+  del cambio de nivel, la terna por su factor del perfil (1,5 si no lo da), por confirmar; medirá el alcance
+  (042:RF-92) de cada una que cumple, y dirá «no llega al horizonte más corto (N años)» de la que se midió en 0 años y
+  «sin medir» de la que no se midió.
+- RF-36: CUANDO la escalera vuelve a correr sobre un alimentador con una obra que ella misma aplicó en «Con proyecto»
+  (o aplicada sin origen guardado que es la misma obra, por el nombre de su variación o por su contenido, que la
+  elegida que la escalera aplicó), EL SISTEMA medirá las alternativas y la pila de esa obra, como una variante más con
+  el costo de toda la pila, con la red sin ella y sin lo que hizo en la operación (deshecho y devuelto); SI
+  la red, las cargas, los sorteos, los costos y la revisión son los de su elección, ENTONCES la conservará sin medir. La
+  sustituirá solo SI la de corto plazo (RF-37) cumple y cuesta menos al año, o la vieja medida ya no cumple; con la
+  medida de la vieja dudosa, la conservará y lo dirá; la vieja que se queda resuelve el alimentador solo si su medida
+  cumple. Para sustituir, aplicará primero la nueva con la vieja desactivada y su operación deshecha, comprobará que
+  la nueva queda activa y converge, y desde ahí solo irá hacia delante: borrará la vieja por los nombres exactos de sus
+  variaciones, y lo que no se deje borrar quedará desactivado y se dirá; SI algo falla antes, ENTONCES borrará lo creado
+  de la nueva (por los nombres que anotó al crearlo) con su operación y la vieja volverá activa, con su operación, sin
+  recrearla; cada paso, con la operación de las dos, irá a un diario en disco que la orden siguiente completa o
+  deshace, y lo aplicado del espacio se pondrá al día con él. Nunca
+  comparará ni retirará lo que aplicó el operador (040:RF-8, 014:RF-3) ni lo aplicado sin origen ni evidencia, que solo
+  avisará; SI sin la vieja «Con proyecto» ya cumple, ENTONCES la conservará y dirá que sobra.
+- RF-37: EL SISTEMA elegirá dos obras por alimentador: la de corto plazo, la más barata que cumple hoy (con la máxima,
+  los sorteos y el valle) en el orden de la escalera (042:RF-56), que se aplica; y la de largo plazo, la más barata que
+  aguanta el horizonte del proyecto (042:RF-92), mejor la que contiene la de corto plazo (los mismos bancos ampliados,
+  la misma sección en más tramos), que se plantea para el intervalo entre los horizontes probados en que la de corto
+  plazo deja de aguantar (antes del primero, si cumple hoy y no llega a él) y pasa al plan y al PIDE (072:RF-4); SI la
+  de corto plazo aguanta el
+  horizonte, ENTONCES es también la de largo plazo y se dice; SI ninguna aguanta, ENTONCES se dice. El informe y la web
+  dan las dos, con su costo, la mínima de media, los años que aguanta cada una y el año en que hace falta la de largo
+  plazo.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
@@ -175,6 +235,11 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 - Amplía 087:RF-31 a RF-33 y RF-52: las barras candidatas, solo con maniobra; y cambia 087:RF-41 en el orden: la
   transferencia se mide antes que el paso a 22,9 kV (098:RF-23).
 - Amplía 042:RF-56: la transferencia cuenta con los bancos en el grupo económico (098:RF-23).
+- Cambia 042:RF-30 para varios caminos: la sección de un camino y la terna de otro sí se combinan (098:RF-31).
+- Amplía 025:RF-73 (evaluación reutilizada) a cada variante (098:RF-32) y 042:RF-54 a la sección y la terna (098:RF-35).
+- Cambia 042:RF-56 y 042:RF-93 en lo que se aplica y lo que se plantea: la de corto plazo se aplica y la definitiva
+  más barata es la de largo plazo, con el año en que hace falta (098:RF-37); amplía 042:RF-60 a la obra elegida con la
+  regla anterior (098:RF-36). El plan y el PIDE la leen de las alternativas (072:RF-4), sin calcularla de nuevo.
 - Amplía 081:RF-80 y RF-81: un interruptor de cubículo se anota con su nombre completo.
 - No cambia la 013 (transferencia como estudio entre dos alimentadores) ni 081:RF-83 y RF-84: lo del operador que no
   deja barras sin tensión se respeta en «Con proyecto».
@@ -188,6 +253,6 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-30.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-37.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

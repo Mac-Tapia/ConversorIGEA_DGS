@@ -1011,7 +1011,9 @@ def notas_alternativas_escalera(por_alimentador) -> list[str]:
         con_tasa = f" con {' y '.join(f'{100 * t:.2f}'.replace('.', ',') for t in tasas)} % al año de largo plazo" if tasas else ''
         notas.append(f'Definitiva: con la demanda proyectada al horizonte de vida útil{con_tasa}, medida en DIgSILENT, el flujo converge, '
                      'todas las barras quedan en límites y ningún tramo pasa del límite de planeamiento. Las cargas nuevas se '
-                     'mantienen en su potencia solicitada. El alcance no cambia el orden, que es por costo anual.')
+                     'mantienen en su potencia solicitada. De corto plazo, la más barata que cumple hoy, que se aplica; '
+                     'de largo plazo, la más barata que aguanta el horizonte, que se plantea para el año en que la de corto '
+                     'plazo deja de aguantar (098:RF-37).')
     factores = sorted({float(a['factor']) for lista in por_alimentador.values() for a in lista if a.get('factor')})
     if factores:                                                                # 042:RF-72
         cuales = ' y '.join(f'{x:g}'.replace('.', ',') for x in factores)
@@ -1036,13 +1038,31 @@ def filas_alternativas_escalera(por_alimentador) -> tuple[tuple[str, ...], list[
             return 'sin medir'
         if a['definitiva']:
             return f"definitiva, {a.get('aguanta_anios')} años"
-        return f"temporal, aguanta {a['aguanta_anios']} años" if a.get('aguanta_anios') else 'temporal'
+        if a.get('aguanta_anios'):
+            return f"temporal, aguanta {a['aguanta_anios']} años"
+        # 098:RF-35: 0 años es que no llega ni al horizonte más corto que se midió, no que dure cero años.
+        return 'temporal, no llega al horizonte más corto' + (f" ({a['mas_corto']} años)" if a.get('mas_corto') else '')
+
+    def tension(a):
+        return f"{float(a['u_min_mt']):.3f}" if a.get('u_min_mt') is not None else ''
+
+    def plazo(a):
+        # 098:RF-37: la de corto plazo se aplica; la de largo plazo se plantea, con el año en que hace falta.
+        p = a.get('plazo') or ''
+        entre = a.get('hace_falta_entre')
+        if entre:
+            desde, hasta = entre[0], (entre[1] if len(entre) > 1 else None)
+            if not desde:
+                return p + (f', cumple hoy y hace falta antes del año {hasta}' if hasta else ', hace falta ya')
+            return p + (f', hace falta entre el año {desde} y el {hasta}' if hasta else f', hace falta tras el año {desde}')
+        return p + (f", hace falta en el año {a['hace_falta_en_anio']}" if a.get('hace_falta_en_anio') is not None else '')
 
     filas = [[str(f), str(a.get('numero')), str(a.get('nombre')), cifra(a.get('inversion')), cifra(a.get('costo_anual')),
-              sorteos(a), en_valle(a), alcance(a), 'Sí' if a.get('elegida') else 'No']
+              sorteos(a), en_valle(a), tension(a), alcance(a), plazo(a), 'Sí' if a.get('elegida') else 'No']
              for f, lista in sorted(por_alimentador.items())
              for a in sorted(lista, key=lambda x: float(x.get('costo_anual') or 0.0))]
-    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'En valle', 'Alcance', 'Se aplica'), filas
+    return ('Alimentador', 'Alternativa', 'Obras', 'Inversión US$', 'Costo anual US$', 'Sorteos que cumplen', 'En valle',
+            'Mínima de media p.u.', 'Alcance', 'Plazo', 'Se aplica'), filas
 
 
 def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, Any]]:

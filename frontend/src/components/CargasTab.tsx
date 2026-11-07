@@ -1,4 +1,4 @@
-import { alcanceDe, porCosto, sorteosDe, valleDe, type Alternativa } from '../alternativas';
+import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe, type Alternativa } from '../alternativas';
 import { useEffect, useRef, useState } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
@@ -1173,13 +1173,15 @@ function TablaAlternativas({ lista, moneda }: { lista: Alternativa[]; moneda: st
     <div className="table-wrap table-short">
       <table className="table">
         <thead><tr><th className="num">N.º</th><th>Obras</th><th className="num">Inversión</th>
-          <th className="num">Costo anual</th><th>Sorteos</th><th>En valle</th><th>Alcance</th><th>Se aplica</th></tr></thead>
+          <th className="num">Costo anual</th><th>Sorteos</th><th>En valle</th><th className="num">Mínima de media p.u.</th>
+          <th>Alcance</th><th>Plazo</th><th>Se aplica</th></tr></thead>
         <tbody>{porCosto(lista).map((x) => (
           <tr key={x.nombre} className={x.elegida ? 'strong' : ''}>
             <td className="num">{x.numero}</td>
             <td>{x.nombre}{x.factor ? <div className="muted small">dimensionada con factor {fmtNum(x.factor, 2)}</div> : null}</td>
             <td className="num">{dinero(x.inversion)}</td><td className="num">{dinero(x.costo_anual)}</td>
-            <td>{sorteosDe(x)}</td><td>{valleDe(x)}</td><td>{alcanceDe(x)}</td><td>{x.elegida ? 'Sí' : 'No'}</td>
+            <td>{sorteosDe(x)}</td><td>{valleDe(x)}</td><td className="num">{tensionDe(x)}</td><td>{alcanceDe(x)}</td>
+            <td>{plazoDe(x)}</td><td>{x.elegida ? 'Sí' : 'No'}</td>
           </tr>))}</tbody>
       </table>
     </div>

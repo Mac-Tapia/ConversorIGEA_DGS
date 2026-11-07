@@ -9,6 +9,13 @@ export interface Alternativa {
   definitiva?: boolean | null;
   aguanta_anios?: number | null;
   factor?: number | null;
+  /** 098:RF-35: el horizonte más corto que se midió; 0 años es que no llega ni a él. */
+  mas_corto?: number | null;
+  u_min_mt?: number | null;
+  /** 098:RF-37: «corto plazo» se aplica; «largo plazo» se plantea, para el año en que hace falta. */
+  plazo?: string | null;
+  hace_falta_en_anio?: number | null;
+  hace_falta_entre?: [number, number | null] | null;
   elegida: boolean;
 }
 
@@ -16,7 +23,24 @@ export interface Alternativa {
 export function alcanceDe(a: Alternativa): string {
   if (a.definitiva == null) return 'sin medir';
   if (a.definitiva) return `definitiva, ${a.aguanta_anios} años`;
-  return a.aguanta_anios ? `temporal, aguanta ${a.aguanta_anios} años` : 'temporal';
+  if (a.aguanta_anios) return `temporal, aguanta ${a.aguanta_anios} años`;
+  return 'temporal, no llega al horizonte más corto' + (a.mas_corto ? ` (${a.mas_corto} años)` : '');
+}
+
+/** 098:RF-37: las mismas palabras que la columna «Plazo» del informe. */
+export function plazoDe(a: Alternativa): string {
+  const p = a.plazo ?? '';
+  const entre = a.hace_falta_entre;
+  if (entre) {
+    const [desde, hasta] = entre;
+    if (!desde) return hasta ? `${p}, cumple hoy y hace falta antes del año ${hasta}` : `${p}, hace falta ya`;
+    return hasta ? `${p}, hace falta entre el año ${desde} y el ${hasta}` : `${p}, hace falta tras el año ${desde}`;
+  }
+  return a.hace_falta_en_anio == null ? p : `${p}, hace falta en el año ${a.hace_falta_en_anio}`;
+}
+
+export function tensionDe(a: Alternativa): string {
+  return a.u_min_mt == null ? '' : a.u_min_mt.toFixed(3);
 }
 
 export function sorteosDe(a: Alternativa): string {

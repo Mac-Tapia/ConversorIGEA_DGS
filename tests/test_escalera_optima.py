@@ -43,7 +43,7 @@ def test_variantes_en_el_orden_de_la_escalera_y_combinadas(semilla):
     cargas = [{'barra': 'B_EXISTE', 'existe': True, 'indice_troncal': len(troncal) - 1},
               {'barra': 'NODE_T_X', 'existe': False, 'indice_troncal': len(troncal) // 2}]
     vs, avisos = eo.variantes('F1', kv, troncal, cargas, _tipos(kv), P_REG, banco_kvar=450)
-    solas = [v for v in vs if len(v.escalones) == 1]
+    solas = [v for v in vs if len(v.escalones) == 1 and not v.caminos]       # 098:RF-31: las de varios caminos, aparte
     orden = [v.escalones[0] for v in solas]
     assert orden == sorted(orden, key=eo.ORDEN.index) and set(orden) == set(eo.ORDEN)
     assert sum(e == 'terna' for e in orden) == 2 and sum(e == 'bancos' for e in orden) == 2
@@ -243,7 +243,9 @@ def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
     with pytest.raises(eo.EscaleraError, match='escala_capex'):
         eo.costos_de_alternativas(libro, sin)
     # 042:RF-54; 087:RF-37: y el km de alimentador nuevo, deducido del cambio de tensión, por confirmar.
-    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA) | {'nuevo_alimentador'}
+    # 098:RF-35: y la sección y la terna, del km del cambio de nivel, por confirmar.
+    assert set(eo.costos_de_alternativas({}, sin)) == set(eo.COSTOS_NIVEL_DE_REFERENCIA) | {'nuevo_alimentador', 'cambio_seccion',
+                                                                                           'nueva_terna'}
 
 
 def test_sin_regulador_salvo_que_el_perfil_lo_pida():
@@ -421,13 +423,13 @@ def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
               'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
               'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
     vs, _av = eo.variantes('F', 22.9, troncal, cargas, [tipo], eo.parametros(perfil), banco_kvar=None)
-    dobles = [v for v in vs if set(v.escalones) == {'seccion', 'terna'}]
+    dobles = [v for v in vs if set(v.escalones) == {'seccion', 'terna'} and not v.caminos]   # 098:RF-31: aparte
     assert dobles
     for v in dobles:
         sec = next(o for o in v.obras if o['clase'] == 'seccion')
         ter = next(o for o in v.obras if o['clase'] == 'terna')
         assert set(sec['tramos']) <= set(ter['tramos'])
-    solas = [v for v in vs if len(v.escalones) == 1]
+    solas = [v for v in vs if len(v.escalones) == 1 and not v.caminos]
     assert vs.index(dobles[0]) == len(solas), 'la doble terna va primero entre las combinaciones'
 
 
@@ -491,7 +493,7 @@ def test_las_obras_se_integran_de_tres_y_de_cuatro_sin_repetir():
     vs, _a = eo.variantes('F', 22.9, troncal, cargas, [tipo], eo.parametros(perfil), banco_kvar=450.0)
     assert len({v.nombre for v in vs}) == len(vs)
     assert [v for v in vs if set(v.escalones) == set(eo.ORDEN)]
-    for v in vs:
+    for v in (x for x in vs if not x.caminos):     # 098:RF-31: las de varios caminos juntan obras de caminos distintos
         sec = [o for o in v.obras if o['clase'] == 'seccion']
         ter = [o for o in v.obras if o['clase'] == 'terna']
         if sec and ter:

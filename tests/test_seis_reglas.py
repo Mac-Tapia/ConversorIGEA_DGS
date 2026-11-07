@@ -478,6 +478,8 @@ BORRADOS = {
         'tools/escenarios_pf.py::ejecutar', 'tools/estudios_pf.py::_optimizador', 'tools/estudios_pf.py::_contingencias',
         'tools/estudios_pf.py::_estudio_de_red', 'tools/obras_pf.py::_grabar_una', 'tools/obras_pf.py::_Sorteo.__exit__',
         'tools/obras_pf.py::crear_tipos_regulador', 'tools/obras_pf.py::evaluar.con_variante',
+        # 098:RF-36: lo creado por la obra nueva de una sustitución que no queda, por sus nombres del diario.
+        'tools/obras_pf.py::_borrar_creadas',
         'tools/powerfactory_acceptance.py::import_dgs_file', 'tools/run_one_study.py::main',
         'tools/set_nueva_operacion_pf.py::ejecutar', 'tools/transferencia_pf.py::_con_comtransfer',
         'tools/transferencia_pf.py::_en_un_caso'},
@@ -487,7 +489,9 @@ BORRADOS = {
         'tools/ajuste_cabecera_pf.py::_limpiar_etapa_de_la_central', 'tools/casos_pf.py::_escenario_renovado',
         'tools/confiabilidad_pf.py::escribir_modelos', 'tools/confiabilidad_pf.py::aplicar_datos',
         'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca',
-        'tools/obras_pf.py::retirar_obras'},
+        'tools/obras_pf.py::retirar_obras',
+        # 098:RF-36: las variaciones de obra por su nombre exacto: la vieja tras comprobar la nueva, o la nueva al deshacer.
+        'tools/obras_pf.py::_borrar_variaciones'},
     # Con su guarda: la de esta spec, o la de la copia de prueba (064).
     'con_guarda': {'src/convertersmartgrid/pf_arnes.py::borrar_en_su_proyecto', 'tools/restitucion_pf.py::borrar'},
 }
