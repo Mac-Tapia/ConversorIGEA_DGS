@@ -2293,7 +2293,8 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
                 'libros': [], 'catalogo': [], 'vigente': False, 'avisos': []}
     else:
         if not path.is_file() or path.suffix.lower() not in EXTENSIONES:
-            raise UserError(f'{path.name}: el {DEMANDA_ETIQUETAS[tipo]} debe ser un libro '
+            # 091:RF-30: con un artículo fijo decía «el tabla de la estructura».
+            raise UserError(f'{path.name}: «{DEMANDA_ETIQUETAS[tipo]}» debe ser un libro '
                             + ', '.join(EXTENSIONES))
         meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
         if tipo == 'estructura':

@@ -17,15 +17,15 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 286 |
 
-`web/services.py` tiene 11133 líneas y 340 funciones, pendiente de partir (002).
+`web/services.py` tiene 11134 líneas y 340 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 48 |
-| implementada | 30 |
-| aprobada | 16 |
+| implementada | 31 |
+| aprobada | 15 |
 | reservada | 2 |
 
 96 specs con 3145 RF. El detalle, en [`specs/README.md`](../specs/README.md).
@@ -320,7 +320,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `pf_arnes.py` | Ada | 019, 064 | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. |
+| `pf_arnes.py` | Ada | 019, 064, 091 | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. |
 | `pf_estado.py` | Ada | 064 | Foto del estado de DIgSILENT antes de una orden del servidor (caso, hora, escenario, variaciones) y su restitución si la orden falla. |
 | `powerfactory_env.py` | Ada | 034 | Dónde está la API de PowerFactory y qué intérprete la carga. |
 | `powerfactory_metadata.py` | Ada | 034, 078 | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. |
@@ -334,7 +334,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089 | Máxima de cabecera por medidor y clientes importantes con su SED. |
+| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089, 091 | Máxima de cabecera por medidor y clientes importantes con su SED. |
 | `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
@@ -524,9 +524,9 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `__init__.py` | Pre | 001 | Paquete de la interfaz web. |
 | `__main__.py` | Pre | 001 | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`. |
-| `app.py` | Pre | 001, 004, 008, 011, 104, 017, 103, 021, 022, 025, 035, 039, 042, 061 | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura |
+| `app.py` | Pre | 001, 004, 008, 011, 104, 017, 103, 021, 022, 025, 035, 039, 042, 061, 091 | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura |
 | `api_contract.py` | Pre | 065, 002 | Modelos públicos Pydantic y contratos OpenAPI del frontend. |
-| `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061 | Las acciones de la interfaz, sin interfaz. |
+| `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061, 091 | Las acciones de la interfaz, sin interfaz. |
 | `requisitos.py` | Pre | 002 | Lo que un servicio exige antes de trabajar y el error del operador. |
 | `jobs.py` | Pre | 001, 011, 061, 086 | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). |
 | `operaciones_lentas.py` | Pre | 065 | ZIP cancelable, cuotas y entrega de archivos por trabajo. |
@@ -540,7 +540,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `equipo_api.py` | Pre | 065 | API del equipo LLM: permisos por plan y revisiones locales en cola. |
 | `seguridad.py` | Pre | 086 | La puerta de la web, en un middleware ASGI: Host, Origin, token de la sesión (también en el WebSocket) y política de contenido. |
 | `runtime.py` | Pre | 001, 036, 065 | Comprobación del entorno que hace el lanzador de Windows y huella del código. |
-| `doctor.py` | Pre | 086 | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. |
+| `doctor.py` | Pre | 086, 091 | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. |
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
@@ -610,7 +610,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `powerfactory_acceptance.py` | — | 034, 010, 015, 054, 078 | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. |
 | `casos_pf.py` | — | 011, 014, 015, 016, 025, 037, 073 | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones. |
-| `ajuste_cabecera_pf.py` | — | 006, 008, 011, 014, 015, 020, 021, 022, 025, 032, 035, 039, 041, 094, 095 | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto». |
+| `ajuste_cabecera_pf.py` | — | 006, 008, 011, 014, 015, 020, 021, 022, 025, 032, 035, 039, 041, 094, 095, 091 | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto». |
 | `cargas_pf.py` | — | 004, 007, 008, 011, 016, 022, 035, 040, 054 | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente. |
 | `obras_pf.py` | — | 011, 103, 016, 042, 048, 073 | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas. |
 | `estudios_pf.py` | — | 011, 017, 130, 131, 135, 012, 037 | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores. |
@@ -636,7 +636,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `prueba_representacion.py` | — | 034 | Red, cargas y SED del TXT en una hoja de PowerFactory. |
 | `run_powerfactory_gate.bat` | — | 034 | Lanza `powerfactory_acceptance.py` con el intérprete de PowerFactory. |
 | `pf_servidor.py` | — | 019, 064 | Proceso que mantiene DIgSILENT abierto y atiende las órdenes de los guiones. |
-| `pf_cliente.py` | — | 019 | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. |
+| `pf_cliente.py` | — | 019, 091 | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. |
 | `restitucion_pf.py` | — | 064 | Órdenes de aceptación de la restitución del servidor: copiar, alterar y fallar, leer y borrar una copia `PRUEBA064_*`. |
 | `aceptar_restitucion_pf.py` | — | 064 | Aceptación nativa de la restitución por el camino de la web y el servidor, con evidencia en JSON. |
 | `estadistica_ordenes.py` | — | 081 | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. |
@@ -723,7 +723,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `src/main.tsx` | — | 001 | Arranque de React. |
-| `src/App.tsx` | — | 001, 008, 061 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
+| `src/App.tsx` | — | 001, 008, 061, 091 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
 | `src/context.tsx` | — | 001 | Contexto común de la aplicación. |
 | `src/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 | `src/api.ts` | — | 001, 011, 021, 022, 025, 039, 061 | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra |
@@ -733,22 +733,22 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/edicion.ts` | — | 086 | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. |
 | `src/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
 | `src/projectBinding.ts` | — | 005, 018, 034 | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. |
-| `src/clientesCatalogo.ts` | — | 004, 008, 025 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
+| `src/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `src/operacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `src/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `src/asistenteAceptacion.ts` | — | 047 | Contrato web de propuestas, observaciones humanas y aceptación del agente. |
 | `src/equipoAsistente.ts` | — | 065 | Cliente tipado de permisos, acciones y revisiones del equipo. |
 | `src/components/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
 | `src/components/OptionsPanel.tsx` | — | 001 | Opciones de conversión. |
-| `src/components/FeedersPanel.tsx` | — | 001, 022 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
+| `src/components/FeedersPanel.tsx` | — | 001, 022, 091 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
 | `src/components/ReconstructionPanel.tsx` | — | 001 | Diagnóstico y reconstrucción. |
 | `src/components/Modules.tsx` | — | 001 | Pestañas de resultados, catálogo y sistema completo. |
-| `src/components/CargasTab.tsx` | — | 004, 005, 008, 011, 016, 042 | Pestaña «Cargas en DIgSILENT» en cuatro pasos. |
-| `src/components/DemandaMedida.tsx` | — | 004, 008, 013, 021, 022, 025, 035, 038, 039 | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y… |
-| `src/components/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
+| `src/components/CargasTab.tsx` | — | 004, 005, 008, 011, 016, 042, 091 | Pestaña «Cargas en DIgSILENT» en cuatro pasos. |
+| `src/components/DemandaMedida.tsx` | — | 004, 008, 013, 021, 022, 025, 035, 038, 039, 091 | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y… |
+| `src/components/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041, 091 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
 | `src/components/CurvaCabecera.tsx` | — | 006, 021 | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. |
 | `src/components/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
-| `src/components/EstudiosPF.tsx` | — | 011, 012, 037, 049 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
+| `src/components/EstudiosPF.tsx` | — | 011, 012, 037, 049, 091 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
 | `src/components/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
 | `src/components/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
 | `src/components/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |

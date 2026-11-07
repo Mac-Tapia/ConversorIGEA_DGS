@@ -18,7 +18,10 @@
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k estudio` en verde.
       Evidencia (2026-11-07): 29 pasadas (el nombre del fichero lleva «estudio»: corren todas); con
       `tests/test_estudios_pf_web.py`, 24 pasadas; `tsc` sin errores.
-- [ ] T6. Lo que se informa. (RF-24 a RF-32, RF-34)
+- [x] T6. Lo que se informa. (RF-24 a RF-32, RF-34)
       Hecho cuando: `pytest -q tests/test_flujo_a_estudio.py -k "informa or texto or empate or doctor or foto"` en verde.
+      Evidencia (2026-11-07): `tests/test_flujo_a_estudio.py` entero, 40 pasadas; con `test_ajuste_cabecera_guion`,
+      `test_q_con_bancos`, `test_ajuste_cabecera_web` y `test_digital_twin_integration`, 227 pasadas. RF-34 ya estaba
+      en `digital_twin/integration.py`: su prueba lo comprueba con una lectura bloqueada.
 - [ ] T7. [DIgSILENT] Calibración, recalibración y estudio por la web con TM102 de los TXT originales, y el mensaje con DIgSILENT abierto. (RF-1, RF-7, RF-16, RF-17, RF-19, RF-21, RF-24, RF-25)
       Hecho cuando: el recorrido en el navegador deja el ajuste apagado y explicado hasta que le toca, el estudio con su aviso hasta la recalibración, y sus cifras constan en esta tarea.

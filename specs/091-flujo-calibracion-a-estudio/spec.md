@@ -1,6 +1,6 @@
 # Spec 091 — De la calibración al estudio, en su orden y sin avisos que engañen
 
-Estado: aprobada · Fecha: 2026-11-05 · Origen: orden del usuario · Integrada en main: 2026-11-07
+Estado: implementada · Fecha: 2026-11-05 · Origen: orden del usuario · Integrada en main: 2026-11-07
 
 Sustituye a la reserva del número 091 (rama `fix/091-flujo-calibracion`). Al integrarla, el integrador de `main`
 cambió tres cosas según las reglas del proyecto («Reconstruir, no bloquear» y «Cada fallo, una comprobación»): el

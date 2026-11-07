@@ -118,7 +118,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 088 Q negativa desde el factor de potencia | cumplida |  |
   | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T5, T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
-  | 091 De la calibración al estudio, en su orden y sin avisos que engañen | aprobada | falta T1, T2, T3, T4, T5, T6, T7 |
+  | 091 De la calibración al estudio, en su orden y sin avisos que engañen | implementada | falta T7 |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | falta T2 |
   | 093 La sigla de la carga nombra la carga nueva y su variación | implementada | falta T2 |
   | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | implementada | falta T5 |

@@ -72,7 +72,9 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
             placeholder={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'
               ? `o ruta de la carpeta en el servidor${meta ? ' (reemplaza la actual)' : ''}`
               : `o ruta en el servidor${meta ? ' (reemplaza la actual)' : ''}`}
-            value={ruta} onChange={(e) => setRuta(e.target.value)} />
+            value={ruta} onChange={(e) => setRuta(e.target.value)}
+            // 091:RF-31: las rutas de las entradas se aplicaban con Intro; las de medición no.
+            onKeyDown={(e) => { if (e.key === 'Enter' && ruta.trim() && !engineBusy) void porRuta(); }} />
           <button className="btn btn-sm" disabled={!ruta.trim() || engineBusy} onClick={porRuta}>Usar ruta</button>
         </div>
       )}

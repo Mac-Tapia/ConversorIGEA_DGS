@@ -848,6 +848,14 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         return resultado
     v = mejor.valores
     resultado.fecha = _iso(mejor.fecha)
+    if instante is None:
+        # 091:RF-26: TM102 da 211 kW el 2026-02-04 y el 2026-08-16; cada fecha llevaría otro libro de clientes.
+        iguales = [r for r in registros if r is not mejor and r.valores.get('kw') == v['kw'] and en_periodo(r.fecha, periodo)
+                   and (r.valores.get('kva') is None or r.valores['kva'] >= 0)]
+        if iguales:
+            mas = f' y {len(iguales) - 1} registro(s) más' if len(iguales) > 1 else ''
+            resultado.avisos.append(f"El mismo máximo, {v['kw']:g} kW, también el {_iso(iguales[0].fecha)}{mas}: "
+                                    f'se toma el más antiguo, el {resultado.fecha}.')
     resultado.columnas.pop('fp', None)
     if mejor.fuente_fp:
         resultado.columnas['fp'] = mejor.fuente_fp

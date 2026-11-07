@@ -52,9 +52,10 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   } else if (job.kind === 'load' && r) {
     const t = r.totals;
     body = <>
-      <p>Alimentadores leídos: <b>{t.feeders}</b> · convertibles: <b>{t.convertible_feeders}</b> · stubs sin tramos: <b>{t.stub_feeders}</b></p>
+      {/* 091:RF-29: llamaba convertibles solo a los que tienen tramos, y se convierten todos. */}
+      <p>Alimentadores leídos: <b>{t.feeders}</b> · con tramos: <b>{t.convertible_feeders}</b> · sin tramos en la fuente: <b>{t.stub_feeders}</b></p>
       <p>Tramos / cargas / SW: {t.sections} / {t.customer_loads} / {t.switches}</p>
-      <p>Se generarán <b>{r.conversion.expected_dgs_files}</b> archivos .dgs independientes (uno por alimentador convertible).</p>
+      <p>Se generarán <b>{r.conversion.expected_dgs_files}</b> archivos .dgs independientes, uno por alimentador leído.</p>
       <p className={r.integrity.errors ? 'alert alert-warn' : ''}>Integridad: {r.integrity.errors} errores, {r.integrity.warnings} avisos.</p>
       {r.catalog_report?.critical && (
         <p className="alert alert-error">Solo el {Math.round(r.catalog_report.final_coverage * 100)} % de los tipos de línea está en el

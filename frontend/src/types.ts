@@ -1332,6 +1332,8 @@ export interface AjusteInforme {
   objetivo?: { kw: number; kvar: number; medidor: string; fecha: string | null };
   tolerancia?: number;
   cuadrado?: boolean;
+  /** 091:RF-24: en una recalibración, si la Q quedó cuadrada. */
+  cuadrado_q?: boolean;
   motivo?: string | null;
   cancelado?: boolean;
   flujos?: number;

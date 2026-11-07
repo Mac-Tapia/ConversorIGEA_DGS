@@ -8,13 +8,18 @@ from __future__ import annotations
 import os
 import re
 import time
+from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 from convertersmartgrid import pf_arnes
 from convertersmartgrid.demanda_medida import (
-    MOTIVO_SIN_SUMINISTRO, ClienteImportante, cabeceras_de_hojas, completar_desde_hojas,
+    MOTIVO_SIN_SUMINISTRO, ClienteImportante, MaximaCabecera, Registro, cabeceras_de_hojas, completar_desde_hojas,
+    maxima_de_registros,
 )
 from convertersmartgrid.web import services
+from convertersmartgrid.web.requisitos import UserError
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
@@ -78,11 +83,10 @@ def test_digsilent_el_error_lleva_la_causa(monkeypatch):
 
 def test_causa_en_el_registro_del_cliente(tmp_path, monkeypatch, capsys):
     """091:RF-4 — el Registro dice la causa, no «código ?»."""
-    import sys
+    from apoyo import cargar_herramienta
 
-    sys.path.insert(0, str(RAIZ / 'tools'))
-    import pf_cliente
-
+    # Sin dejar tools/ en sys.path: con él delante, el guion del ajuste de otras pruebas no cancelaba.
+    pf_cliente = cargar_herramienta('pf_cliente.py', 'pf_cliente_091', tools_en_path=True)
     (tmp_path / 'servidor.log').write_text(
         'X Proceso 2: conectando con DIgSILENT.\nX ERROR: DIgSILENT está abierto a mano (proceso 7): ciérrelo\n',
         encoding='utf-8')
@@ -358,3 +362,118 @@ def test_estudio_y_ajuste_mostrados_son_del_proyecto():
     assert '.project === project' in ESTUDIOS
     assert re.search(r"ajuste_transformadores'\) && j\.result\s*&& \(j\.result as \{ project\?: string \}\)\.project === project",
                      AJUSTE)
+
+
+# ------------------------------------------------------------------ lo que se informa
+
+
+@pytest.fixture(scope='module')
+def guion():
+    from apoyo import cargar_herramienta
+
+    return cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_cabecera_pf_091', tools_en_path=True)
+
+
+def test_informa_si_la_q_cuadro_en_el_informe(guion):
+    """091:RF-24 — la recalibración dice si su Q quedó cuadrada; con la medida incoherente, que no."""
+    from test_ajuste_cabecera_guion import _app, _plan
+
+    informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=5.0), 'recalibracion': 1})
+    assert rc == 0, informe
+    assert informe['cuadre_q']['estado'] == 'CUADRADA' and informe['cuadrado_q'] is True
+    informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=-60.0), 'recalibracion': 1})
+    assert rc == 0, informe
+    assert informe['cuadre_q']['estado'] != 'CUADRADA' and informe['cuadrado_q'] is False
+    # El cierre por proyecto (varios alimentadores a la vez) lo dice igual.
+    fuente = (RAIZ / 'tools' / 'ajuste_cabecera_pf.py').read_text(encoding='utf-8')
+    assert "inf['cuadrado_q'] = res.q_estado.get(feeder) == 'CUADRADA'" in fuente
+
+
+def test_informa_en_pantalla_cuando_la_q_no_cuadro():
+    """091:RF-25 — no llama informativo al kVAR de una recalibración."""
+    assert 'qCuadrada' in AJUSTE and 'solo cuadró la P' in AJUSTE
+    assert 'El kVAR es informativo' not in AJUSTE
+
+
+def test_empate_de_la_maxima_se_avisa():
+    """091:RF-26 — TM102 da 211 kW el 2026-02-04 y el 2026-08-16."""
+    def reg(fecha, kw):
+        return Registro(fecha=fecha, valores={'kw': kw, 'kva': kw * 2, 'kvar': 1.0})
+
+    registros = [reg(datetime(2026, 2, 4, 20, 30), 211.0), reg(datetime(2026, 8, 16, 18, 0), 211.0),
+                 reg(datetime(2026, 3, 1), 100.0)]
+    r = maxima_de_registros(registros, MaximaCabecera(medidor='M', alimentador='F'), '2026')
+    assert r.fecha.startswith('2026-02-04')
+    aviso = next(a for a in r.avisos if '2026-08-16' in a)
+    assert '211' in aviso and '2026-02-04' in aviso
+
+
+def test_empate_sin_empate_no_avisa():
+    """091:RF-26 — con una sola máxima no hay aviso, y un empate fuera del periodo no cuenta."""
+    r = maxima_de_registros([Registro(fecha=datetime(2026, 2, 4), valores={'kw': 5.0, 'kva': 6.0, 'kvar': 1.0}),
+                             Registro(fecha=datetime(2026, 2, 5), valores={'kw': 4.0, 'kva': 6.0, 'kvar': 1.0}),
+                             Registro(fecha=datetime(2025, 2, 5), valores={'kw': 5.0, 'kva': 6.0, 'kvar': 1.0})],
+                            MaximaCabecera(medidor='M', alimentador='F'), '2026')
+    assert not any('mismo' in a for a in r.avisos)
+
+
+def test_texto_del_reparto_de_las_escaladas():
+    """091:RF-27 — por potencia instalada; el texto decía que conservan las del archivo."""
+    assert 'conservan' not in AJUSTE
+    assert 'potencia instalada' in AJUSTE
+
+
+def test_texto_del_fp_de_las_fijas():
+    """091:RF-28 — FP 0,15 con el registro del instante, no «a 0,98»."""
+    fuente = (RAIZ / 'tools' / 'ajuste_cabecera_pf.py').read_text(encoding='utf-8')
+    assert 'su registro del instante' in fuente
+    assert 'cociente EA/ERI del mes' in fuente
+
+
+def test_texto_del_resumen_de_la_carga():
+    """091:RF-29 — no llama convertibles a los que no tienen tramos."""
+    assert 'uno por alimentador convertible' not in APP and 'convertibles: <b>' not in APP
+    assert 'sin tramos en la fuente' in APP and 'stub_feeders' in APP
+
+
+def test_texto_del_rechazo_de_un_libro(tmp_path):
+    """091:RF-30 — decía «el tabla de la estructura»."""
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    assert 'el {DEMANDA_ETIQUETAS[tipo]} debe ser' not in SERVICES
+    ws = WorkspaceStore(tmp_path / 'web').create()
+    texto = tmp_path / 'estructura.txt'
+    texto.write_text('x', encoding='utf-8')
+    with pytest.raises(UserError, match=re.escape(f"«{services.DEMANDA_ETIQUETAS['estructura']}» debe ser un libro")):
+        services.demanda_asignar(ws, 'estructura', texto, 'path')
+
+
+def test_texto_intro_aplica_la_ruta():
+    """091:RF-31 — las de arriba lo hacían; las de medición no."""
+    assert re.search(r"onKeyDown=\{\(e\) => \{ if \(e\.key === 'Enter' && ruta\.trim\(\) && !engineBusy\) void porRuta\(\); \}\}",
+                     DEMANDA)
+
+
+def test_doctor_halla_tesseract_en_sus_rutas():
+    """091:RF-32 — instalado en Archivos de programa y el diagnóstico decía que no."""
+    from convertersmartgrid.web.doctor import _tesseract
+
+    assert _tesseract(lambda n: None, hallar=lambda: 'C:/x/tesseract.exe').ok
+    assert not _tesseract(lambda n: None, hallar=lambda: None).ok
+
+
+def test_foto_bloqueada_dice_su_motivo(tmp_path):
+    """091:RF-34 — la lectura bloqueada (código 2) llega al Registro de la acción, con su motivo."""
+    from test_digital_twin_integration import PERFIL, _plan as plan_del_gemelo
+
+    from convertersmartgrid.digital_twin import integration
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.episode import Caso
+
+    avisos = []
+    out = integration.capturar_accion(
+        plan_del_gemelo(), {'status': 'OK', 'converged': True}, caso=Caso.CON_PROYECTO, rutas={}, base=tmp_path,
+        leer=lambda _p: {'status': 'BLOQUEADO_DATOS', 'error': 'sin periodo de la medición'}, perfil=PERFIL,
+        estructura=None, bufer=BuferEpisodios(tmp_path / 'twin'), log=avisos.append)
+    assert out['clase'] == 'quarantine'
+    assert any(integration.AVISO_CUARENTENA in a and 'sin periodo de la medición' in a for a in avisos)
