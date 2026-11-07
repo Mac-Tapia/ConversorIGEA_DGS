@@ -451,3 +451,16 @@ def test_descripcion_de_la_terna_y_del_enlace():
     texto = describir_obra(enlace)
     for parte in ('3,63 km', 'AA12003D_22_9kV', '15232', 'ENLACE_C_IN111', 'TA225', 'IN111', 'vía'):
         assert parte in texto, (parte, texto)
+
+
+def test_la_terna_con_conductor_del_perfil_lo_nombra_en_el_informe():
+    """042:RF-98 — la terna que deja los dos circuitos en el conductor del perfil lo dice en el informe; sin él, como antes."""
+    from convertersmartgrid.informes import describir_obra, obra_para_informe
+
+    con = obra_para_informe({'clase': 'terna', 'alimentador': 'F1', 'tramos': ['S1'],
+                             'tipo': {'nombre': 'AA12003D_FICHA', 'clase': 'TypLne'},
+                             'tipo_cable': {'nombre': 'N212003D_FICHA', 'clase': 'TypLne'}})
+    texto = describir_obra(con)
+    assert 'AA12003D_FICHA' in texto and 'los dos circuitos' in texto
+    sin = describir_obra(obra_para_informe({'clase': 'terna', 'alimentador': 'F1', 'tramos': ['S1']}))
+    assert 'circuitos' not in sin and 'terna más' in sin

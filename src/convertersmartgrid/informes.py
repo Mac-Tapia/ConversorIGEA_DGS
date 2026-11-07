@@ -918,6 +918,9 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
         tramos = list(obra.get('tramos') or [])
         donde = f'los tramos {", ".join(tramos)}' if tramos else 'toda la troncal'
         texto = f'Tender una terna más en {donde} del alimentador {obra.get("alimentador", "")}.'
+        if obra.get('conductores'):                                                       # 042:RF-98
+            texto = (texto[:-1] + f' con conductor {" (aéreo) y ".join(obra["conductores"])}'
+                     + (' (cable)' if len(obra['conductores']) > 1 else '') + ': los dos circuitos quedan en ese conductor.')
         # 084:RF-17: la configuración y la capacidad para ella, por tipo de cable y sin citar la norma.
         return ' '.join([texto, *dict.fromkeys(describir_ternas(i) for i in obra.get('instalaciones') or [])])
     if tipo == 'enlace':
@@ -963,8 +966,11 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
         return {'descripcion': f"Llevar la tensión de la barra de cabecera a "
                                f"{numero(float(obra.get('consigna_pu') or 0), 2)} p.u."}
     if clase == 'terna':                                                   # RF-127
+        # 042:RF-98: con el conductor del perfil, los dos circuitos quedan en él y el informe lo nombra.
+        conductores = [n for n in ((obra.get('tipo') or {}).get('nombre'), (obra.get('tipo_cable') or {}).get('nombre')) if n]
         return {'tipo': 'terna', 'tramos': list(obra.get('tramos') or []),
                 'alimentador': obra.get('alimentador', ''),
+                **({'conductores': conductores} if conductores else {}),
                 **({'instalaciones': list(obra['instalaciones'])} if obra.get('instalaciones') else {})}
     if clase == 'enlace':
         # El largo, los extremos y el trazado son los de la obra aplicada (017:RF-35).
