@@ -213,6 +213,39 @@ Informe y web
   un libro cuya huella no cambió. PE102 (2026-11-06): cada corrida de «Con proyecto» releía los 21 libros
   mensuales de clientes importantes, de 50 a 150 MB cada uno.
 
+Decisión del usuario (2026-11-07), tras corregir en PE102 una terna por el cambio de sección AA070 →
+AA120 de SEC_1091_314817: «siempre debes seguir el flujo del proyecto en selección de alternativas; la
+nueva terna debe ser en 120 mm², ambas ternas; solo una terna debe ser 240 mm²; de 3 a 6 [alternativas]
+según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94, RF-95), el oráculo
+(052, 087) y la confirmación en DIgSILENT: no hay un camino aparte.
+
+- RF-97: EL SISTEMA propondrá el cambio de sección de un solo circuito (RF-27, RF-94) solo con los
+  conductores de `escalera.secciones_normalizadas` de la tensión del alimentador, sin pasar del mayor de
+  ellos, también en la búsqueda del oráculo (087:RF-11).
+- RF-98: DONDE el perfil da `escalera.conductor_terna` (el código del conductor aéreo y el del cable de la
+  terna), CUANDO la escalera añade una terna a un tramo cuyo conductor lleva menos corriente que el de la
+  terna, EL SISTEMA cambiará el conductor existente al de la terna y añadirá la terna de ese mismo tipo.
+- RF-99: SI el tramo ya tiene un conductor de igual o mayor corriente que el de `escalera.conductor_terna`,
+  o no se sabe la del suyo, ENTONCES EL SISTEMA añadirá la terna de su mismo tipo y lo dirá en un aviso.
+- RF-100: SI el perfil no da `escalera.conductor_terna`, o no da el conductor de la clase del tramo (aéreo o
+  cable), o ese conductor no está en la biblioteca que lee la escalera, ENTONCES EL SISTEMA
+  añadirá la terna del mismo tipo del tramo, como antes, y lo dirá en un aviso.
+- RF-101: SI una obra de terna guardada no trae tipo, ENTONCES EL SISTEMA la abrirá y la aplicará igual que
+  antes de RF-98, con una terna más del mismo tipo del tramo.
+- RF-102: DONDE el perfil da `escalera.conductor_terna`, EL SISTEMA no propondrá una variante con un cambio
+  de sección y una terna sobre el mismo tramo: el doble circuito es el de RF-98, y el conductor de 240 mm²
+  va solo en un circuito.
+- RF-103: EL SISTEMA costeará la terna de RF-98 con los km de la terna nueva más el cambio de sección de los
+  tramos cuyo conductor cambia.
+- RF-104: EL SISTEMA medirá en el oráculo la terna de RF-98 como dos circuitos del conductor de la terna en
+  los tramos cuyo conductor cambia.
+- RF-105: EL SISTEMA presentará por alimentador tantas alternativas como diga `escalera.alternativas`, de
+  3 a 6, y 3 si el perfil no lo da.
+- Aclaración de RF-55, RF-92 y RF-93 (2026-11-07): «3 alternativas» se lee como las de RF-105; la
+  definitiva de RF-93 sustituye a la última de ellas.
+- RF-106: SI `escalera.alternativas` no es un entero de 3 a 6, ENTONCES EL SISTEMA rechazará el perfil con
+  un error que nombre la clave.
+
 ## Relación con otras specs
 
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a

@@ -55,9 +55,9 @@ CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tensi
 #: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
 #: proyecto» (016:RF-14, RF-25, RF-53). La consigna de cabecera también (019:RF-12).
 SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva', 'expreso')
-#: Clase de tipo que pide cada obra (RF-89). Banco y terna no tienen tipo; la migración
-#: copia los que ya usa el alimentador.
-CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne',
+#: Clase de tipo que pide cada obra (RF-89). El banco no tiene tipo; la migración copia los que
+#: ya usa el alimentador. La terna lo tiene opcional: el conductor de sus dos circuitos (042:RF-98).
+CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne', 'terna': 'TypLne',
                  'enlace': 'TypLne', 'set_nueva': 'TypLne', 'expreso': 'TypLne'}
 #: De dónde puede venir un tipo (RF-89 a RF-91).
 ORIGENES = ('proyecto', 'global', 'otro')
@@ -452,7 +452,10 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
         if configuracion and configuracion not in CONFIGURACIONES:
             raise ObrasError(f'La configuración de las ternas es una de {", ".join(CONFIGURACIONES)}: '
                              f'no {configuracion!r} (084:RF-13).')
-        return Obra(**comunes, tramos=_lista(datos.get('tramos')), configuracion=configuracion)
+        # 042:RF-98, RF-101: el conductor de los dos circuitos, aéreo y de cable; sin él, como antes.
+        return Obra(**comunes, tramos=_lista(datos.get('tramos')), configuracion=configuracion,
+                    tipo=_tipo_ref(datos.get('tipo'), clase, requerido=False),
+                    tipo_cable=_tipo_ref(datos.get('tipo_cable'), clase, requerido=False))
     if clase == 'enlace':
         cede = _texto(datos, 'cede', 'el alimentador que cede')
         if cede == comunes['alimentador']:
@@ -858,10 +861,47 @@ def _seccion(p: _Plan) -> None:
         p.estado.tipo_tramo[tramo] = tipo
 
 
+def _conductor_de_terna(p: _Plan, tramo: str) -> str:
+    """El tipo con que quedan los dos circuitos del tramo, o ``''`` si la terna es de su mismo tipo (042:RF-98 a RF-100).
+
+    Usuario (2026-11-07), tras PE102: «la nueva terna debe ser en 120 mm², ambas ternas; solo una terna debe ser
+    240 mm²». El conductor más delgado que el de la obra pasa a él; el de igual o más corriente añade la terna de
+    su tipo, y se dice. Es la regla de ``escalera_optima.obra_terna``, aquí con los tipos leídos de DIgSILENT.
+    """
+    o, red = p.obra, p.red
+    if o.tipo is None and o.tipo_cable is None:
+        return ''                                                   # 042:RF-101: la obra guardada, como antes
+    cable = bool(getattr(red.tramos.get(tramo), 'cable', False))
+    ref = o.tipo_cable if cable else o.tipo
+    if ref is None:
+        p.avisos.append(f"La terna no trae el conductor {'de cable' if cable else 'aéreo'}: la de {tramo} se añade "
+                        'de su mismo tipo (042:RF-100).')
+        return ''
+    try:
+        nueva = float(p.traer(ref).datos.get('sline') or 0.0)
+    except ObrasError as exc:
+        p.avisos.append(f'{exc} La terna de {tramo} se añade de su mismo tipo (042:RF-100).')
+        return ''
+    antes = p.estado.tipo_tramo[tramo]
+    actual = next((t for t in p.proyecto.values() if t.clase == 'TypLne' and t.nombre.lower() == antes.lower()), None)
+    sline = actual.datos.get('sline') if actual is not None else None
+    if not isinstance(sline, (int, float)) or not nueva or float(sline) >= nueva:
+        p.avisos.append(f'{tramo} ya tiene {antes}, de igual o más corriente que {ref.nombre} o sin dato de ella: la '
+                        'terna se añade de su mismo tipo (042:RF-99).')
+        return ''
+    return _a_tension(p, ref)
+
+
 def _terna(p: _Plan) -> None:
     for tramo in p.tramos():
         n = p.estado.nlnum[tramo]
-        p.elemento(tramo, 'ElmLne', f'nlnum {n} → {n + 1}')
+        nuevo = _conductor_de_terna(p, tramo)
+        if nuevo:
+            antes = p.estado.tipo_tramo[tramo]
+            p.elemento(tramo, 'ElmLne', f'typ_id {antes} → {nuevo}, nlnum {n} → {n + 1}', nuevo)
+            p.estado.tipo_tramo[tramo] = nuevo
+        else:
+            p.elemento(tramo, 'ElmLne', f'nlnum {n} → {n + 1}')
         p.estado.nlnum[tramo] = n + 1
 
 

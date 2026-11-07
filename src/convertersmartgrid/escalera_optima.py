@@ -33,8 +33,11 @@ from .set_nueva import margen_sin_tasa
 ORDEN = ('bancos', 'seccion', 'terna', 'regulador')
 
 
-#: 042:RF-55: alternativas de solución que se presentan por alimentador.
+#: 042:RF-55, RF-105: alternativas de solución que se presentan por alimentador si el perfil no da
+#: ``escalera.alternativas``; el usuario (2026-11-07) admite de 3 a 6, y se le recomendaron 3 más la definitiva.
 MAX_ALTERNATIVAS = 3
+#: 042:RF-106: el rango que admite ``escalera.alternativas``.
+ALTERNATIVAS_ADMITIDAS = (3, 6)
 #: 042:RF-50: el paso a 22,9 kV no se combina: va solo, tras los bancos y antes de la sección.
 ESCALERA = ('bancos', 'nivel', 'seccion', 'terna', 'regulador')
 
@@ -130,6 +133,11 @@ class Parametros:
     sorteos_decide_no: float = 0.90
     #: 042:RF-90: las que se prueban tras la primera que cumple, buscando otras alternativas.
     variantes_tras_cumplir: int = 25
+    #: 042:RF-105: las alternativas que se presentan por alimentador, de 3 a 6.
+    alternativas: int = MAX_ALTERNATIVAS
+    #: 042:RF-98: ``escalera.conductor_terna`` del perfil, el código del conductor ``aereo`` y el del ``cable``
+    #: con que quedan los dos circuitos de una terna; vacío, la terna es del mismo tipo del tramo (RF-100).
+    conductor_terna: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -198,7 +206,34 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         sorteos_etapa=int(50 if esc.get('sorteos_etapa') is None else esc['sorteos_etapa']),
         sorteos_decide_si=float(esc.get('sorteos_decide_si') or 0.98),
         sorteos_decide_no=float(esc.get('sorteos_decide_no') or 0.90),
-        variantes_tras_cumplir=int(esc.get('variantes_tras_cumplir') or 25))
+        variantes_tras_cumplir=int(esc.get('variantes_tras_cumplir') or 25),
+        alternativas=alternativas_del_perfil(esc), conductor_terna=conductor_terna_del_perfil(esc))
+
+
+def alternativas_del_perfil(esc: Mapping[str, Any]) -> int:
+    """042:RF-105, RF-106: ``escalera.alternativas``, un entero de 3 a 6; sin la clave, 3."""
+    valor = esc.get('alternativas')
+    if valor is None:
+        return MAX_ALTERNATIVAS
+    bajo, alto = ALTERNATIVAS_ADMITIDAS
+    if isinstance(valor, bool) or not isinstance(valor, int) or not bajo <= valor <= alto:
+        raise EscaleraError(f'escalera.alternativas es un entero de {bajo} a {alto}, no {valor!r} (042:RF-106)')
+    return valor
+
+
+def conductor_terna_del_perfil(esc: Mapping[str, Any]) -> dict[str, str]:
+    """042:RF-98: ``escalera.conductor_terna`` = ``{"aereo": código, "cable": código}``; cada uno, opcional.
+
+    Es un código de la empresa, como los de ``secciones_normalizadas``: no se fija en el código (P13).
+    """
+    valor = esc.get('conductor_terna')
+    if valor is None:
+        return {}
+    if (not isinstance(valor, Mapping) or set(valor) - {'aereo', 'cable'}
+            or not all(v is None or (isinstance(v, str) and v.strip()) for v in valor.values())):
+        raise EscaleraError('escalera.conductor_terna es {"aereo": código, "cable": código}, con el código del '
+                            f'conductor de la terna, no {valor!r} (042:RF-98)')
+    return {k: str(v).strip() for k, v in valor.items() if v}
 
 
 def _opcional(x) -> float | None:
@@ -457,15 +492,106 @@ def _caminos(troncal, cargas) -> list[list[Mapping[str, Any]]]:
     return out
 
 
-def _escalon_terna(alim, troncal, cargas, ternas=None) -> list[Variante]:
-    out = []
-    for tramos in _caminos(troncal, cargas):                               # 063:RF-32
-        out.append(Variante(f"terna hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)", ('terna',),
-                            [{'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO],
-                              'tramos': [t['nombre'] for t in tramos], 'nodos': _nodos(tramos),
-                              **capacidad_de_tramos(tramos, ternas)}],
-                            {'terna': _km(tramos)}))
+def _ref_de(tipo: Mapping[str, Any]) -> dict[str, Any]:
+    """La referencia de un tipo de línea leído, como la pide una obra (``obras_pf.TipoRef``)."""
+    return {'nombre': tipo['nombre'], 'clase': 'TypLne', 'origen': tipo.get('origen') or 'proyecto',
+            'proyecto': tipo.get('proyecto') or ''}
+
+
+def _amperios(tipo: Mapping[str, Any] | None) -> float:
+    return float(((tipo or {}).get('datos') or {}).get('sline') or 0.0) * 1000
+
+
+def tipos_de_terna(tipos: Sequence[Mapping[str, Any]], kv: float, p: Parametros) -> dict[str, Mapping[str, Any]] | None:
+    """042:RF-98, RF-100: el tipo de la biblioteca de cada código de ``escalera.conductor_terna``; ``None`` sin la clave.
+
+    De los de ese código, el de la tensión más cercana a la del alimentador (el de ficha, si lo hay, RF-27): la
+    simulación lo copia a la tensión del alimentador si hace falta (011:RF-79). Uno que no está no se supone.
+    """
+    if not p.conductor_terna:
+        return None
+    out: dict[str, Mapping[str, Any]] = {}
+    for clase, codigo in p.conductor_terna.items():
+        lineas = [t for t in tipos if t.get('clase', 'TypLne') == 'TypLne' and _amperios(t) > 0]
+        hallados = normalizados(lineas, (codigo,))
+        if hallados:
+            out[clase] = min(hallados, key=lambda t: (abs(float((t.get('datos') or {}).get('uline') or 0.0) - kv),
+                                                      str(t['nombre'])))
     return out
+
+
+def obra_terna(alim: str, tramos: Sequence[Mapping[str, Any]], ternas: Mapping[str, Any] | None,
+               de_terna: Mapping[str, Mapping[str, Any]] | None, avisos: list[str] | None = None) -> tuple[dict[str, Any], float]:
+    """Una terna más en ``tramos``: la obra y los km de los tramos cuyo conductor cambia (042:RF-98 a RF-100, RF-103).
+
+    Usuario (2026-11-07), tras PE102: «la nueva terna debe ser en 120 mm², ambas ternas». Con el conductor del perfil,
+    el tramo más delgado pasa a él y la terna nueva es del mismo tipo; el que ya lleva igual o más corriente añade la
+    terna de su tipo. ``ternas``: ``planificacion.ternas_subterraneas`` (084:RF-16). ``cambia_tipo`` es lo que el oráculo mide (RF-104); en DIgSILENT lo decide la simulación con los
+    tipos leídos (``obras_pf._terna``), con la misma regla.
+    """
+    avisos = avisos if avisos is not None else []
+    obra: dict[str, Any] = {'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO],
+                            'tramos': [t['nombre'] for t in tramos], 'nodos': _nodos(tramos)}
+
+    def avisar(texto: str) -> None:
+        if texto not in avisos:
+            avisos.append(texto)
+
+    if de_terna is None:
+        avisar(f'{alim}: el perfil no da escalera.conductor_terna: la terna se añade del mismo tipo de cada tramo '
+               '(042:RF-100).')
+        return {**obra, **capacidad_de_tramos(tramos, ternas)}, 0.0
+    for clave, clase in (('tipo', 'aereo'), ('tipo_cable', 'cable')):
+        if de_terna.get(clase) is not None:
+            obra[clave] = _ref_de(de_terna[clase])
+    cambia: dict[str, str] = {}
+    for t in tramos:
+        clase = 'cable' if t.get('cable') else 'aereo'
+        tipo = de_terna.get(clase)
+        if tipo is None:
+            avisar(f"{alim}: sin el conductor {clase} de escalera.conductor_terna en la biblioteca, la terna de "
+                   f"{t['nombre']} se añade de su mismo tipo (042:RF-100).")
+        elif not t.get('inom_a'):
+            continue                       # sin su conductor leído, lo decide la simulación con el de DIgSILENT (RF-99)
+        elif float(t['inom_a']) < _amperios(tipo):
+            cambia[str(t['nombre'])] = str(tipo['nombre'])
+        else:
+            # 042:RF-99: «solo una terna debe ser 240 mm²»: un tramo que ya es de 240 añade la de su tipo, y se dice.
+            avisar(f"{alim}: {t['nombre']} ya lleva igual o más corriente que {tipo['nombre']}: la terna se añade de "
+                   'su mismo tipo (042:RF-99).')
+    # 084:RF-16: la capacidad del fabricante es la del conductor con que queda el cable, no la del que tenía.
+    obra.update(capacidad_de_tramos([{**t, 'tipo': cambia.get(str(t['nombre']), t.get('tipo'))} for t in tramos], ternas))
+    if cambia:
+        obra['cambia_tipo'] = cambia
+    return obra, _km([t for t in tramos if str(t['nombre']) in cambia])
+
+
+def _variante_terna(alim, tramos, p: Parametros, de_terna, avisos) -> Variante:
+    obra, km_cambia = obra_terna(alim, tramos, p.ternas, de_terna, avisos)
+    nombre = f"terna hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)"
+    if de_terna and (obra.get('tipo') or obra.get('tipo_cable')):
+        nombre += ' en ' + ' y '.join(str(obra[k]['nombre']) for k in ('tipo', 'tipo_cable') if obra.get(k))
+    # 042:RF-103: el conductor existente que cambia cuesta como un cambio de sección de esos tramos.
+    return Variante(nombre, ('terna',), [obra], {'terna': _km(tramos), **({'seccion': km_cambia} if km_cambia else {})})
+
+
+def _escalon_terna(alim, troncal, cargas, p: Parametros, de_terna=None, avisos=None) -> list[Variante]:
+    return [_variante_terna(alim, tramos, p, de_terna, avisos) for tramos in _caminos(troncal, cargas)]  # 063:RF-32
+
+
+def secciones_aptas(tipos, kv: float, corriente_a: float | None, p: Parametros) -> list[Mapping[str, Any]]:
+    """042:RF-97: los conductores de un solo circuito que se prueban: los normalizados del perfil, hasta el mayor.
+
+    PE102 (2026-11-07): el escalón de sección llega hasta 240 mm² en Electro Dunas porque es el mayor de su lista;
+    la búsqueda del oráculo (087) tomaba todos los de la tensión y podía proponer uno que la empresa no instala.
+    """
+    return conductores_aptos(normalizados(tipos, p.secciones), kv, corriente_a)
+
+
+def doble_con_seccion(v: Variante) -> bool:
+    """042:RF-102: una sección y una terna sobre el mismo tramo, el doble circuito del conductor nuevo."""
+    seccion = {t for o in v.obras if o.get('clase') == 'seccion' for t in o.get('tramos') or ()}
+    return any(t in seccion for o in v.obras if o.get('clase') == 'terna' for t in o.get('tramos') or ())
 
 
 def normalizados(tipos, secciones: Sequence[str]) -> list[Mapping[str, Any]]:
@@ -533,15 +659,25 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
     return out
 
 
-def _ternas_que_faltan(t: Mapping[str, Any], v: Variante, capacidades: Mapping[str, float], limite: float) -> int:
-    """Cuántas ternas más necesita el tramo ``t`` con la variante ``v`` para quedar bajo ``limite`` (042:RF-43)."""
+def _ternas_que_faltan(t: Mapping[str, Any], v: Variante, capacidades: Mapping[str, float], limite: float,
+                       de_terna: Mapping[str, Mapping[str, Any]] | None = None) -> int:
+    """Cuántas ternas más necesita el tramo ``t`` con la variante ``v`` para quedar bajo ``limite`` (042:RF-43).
+
+    042:RF-98: con el conductor de la terna del perfil, el tramo más delgado pasa a él, y las ternas se cuentan con
+    su corriente; aun así se pone una, porque es la obra de un cable o de lo que ninguna sección resuelve (RF-94).
+    """
     k = max(1, int(t.get('nlnum') or 1))
     carga = float(t['carga_pct'])
     for o in v.obras:
         nueva = capacidades.get(str((o.get('tipo') or {}).get('nombre')))
         if o.get('clase') == 'seccion' and t['nombre'] in o.get('tramos', ()) and nueva and t.get('inom_a'):
             carga *= float(t['inom_a']) / float(nueva)
-    pedidas = math.ceil(k * carga / limite - 1e-9) - k
+    minimo = 0
+    nuevo = (de_terna or {}).get('cable' if t.get('cable') else 'aereo')
+    if nuevo is not None and t.get('inom_a') and float(t['inom_a']) < _amperios(nuevo):
+        minimo = 1 if carga > limite else 0
+        carga *= float(t['inom_a']) / _amperios(nuevo)
+    pedidas = max(minimo, math.ceil(k * carga / limite - 1e-9) - k)
     ya = sum(1 for o in v.obras if o.get('clase') == 'terna' and t['nombre'] in o.get('tramos', ()))
     return max(0, pedidas - ya)
 
@@ -559,7 +695,8 @@ def _seccion_que_basta(t: Mapping[str, Any], aptos: Sequence[Mapping[str, Any]],
 
 
 def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Parametros,
-                  aptos: Sequence[Mapping[str, Any]] = ()) -> Variante:
+                  aptos: Sequence[Mapping[str, Any]] = (), de_terna: Mapping[str, Mapping[str, Any]] | None = None,
+                  avisos: list[str] | None = None) -> Variante:
     """La variante con el refuerzo de los tramos sobrecargados, de cualquier ramal (042:RF-43).
 
     042:RF-94: un tramo aéreo sin obra de la variante cambia primero de sección, a la menor normalizada que lo
@@ -582,17 +719,24 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
         obras.append({'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
                       'tramos': [t['nombre'] for t in tramos], 'tipo': ref, 'nodos': _nodos(tramos)})
         km_seccion += _km(tramos)
-    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct)) for t in con_terna]
-    km = 0.0
+    faltan = [(t, _ternas_que_faltan(t, v, capacidades, p.cargabilidad_max_pct, de_terna)) for t in con_terna]
+    km, km_por_tipo = 0.0, km_seccion
+    # 042:RF-98: el conductor cambia una vez: en la primera terna del tramo, la de la variante si ya la tenía.
+    con_tipo_nuevo = {t for o in v.obras if o.get('clase') == 'terna' for t in o.get('tramos') or ()}
     for i in range(1, max((m for _, m in faltan), default=0) + 1):
         tramos = [t for t, m in faltan if m >= i]
-        obras.append({'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO], 'tramos': [t['nombre'] for t in tramos],
-                      'nodos': _nodos(tramos), **capacidad_de_tramos(tramos, p.ternas)})
+        obra, _km_cambia = obra_terna(alim, tramos, p.ternas, de_terna, avisos)
+        cambia = {n: tipo for n, tipo in (obra.pop('cambia_tipo', None) or {}).items() if n not in con_tipo_nuevo}
+        if cambia:
+            obra['cambia_tipo'] = cambia
+            km_seccion += _km([t for t in tramos if str(t['nombre']) in cambia])         # 042:RF-103
+        con_tipo_nuevo |= {str(t['nombre']) for t in tramos}
+        obras.append(obra)
         km += _km(tramos)
     if not obras:
         return v
     n = sum(len(ts) for _, ts in por_tipo.values()) + sum(1 for _, m in faltan if m)
-    nombre = f'refuerzo de {n} tramos sobrecargados ({km + km_seccion:.2f} km)'
+    nombre = f'refuerzo de {n} tramos sobrecargados ({km + km_por_tipo:.2f} km)'
     escalones = v.escalones + (('seccion',) if por_tipo else ()) + (('terna',) if km or any(m for _, m in faltan) else ())
     cantidades = dict(v.cantidades)
     if km_seccion:
@@ -679,12 +823,13 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     if p.con_regulador and not extremo:
         avisos.append(f'{alimentador}: camino de {largo_km:.1f} km, sin regulador: es para más de '
                       f'{p.regulador_min_km:g} km (042:RF-49).')
+    de_terna = tipos_de_terna(tipos, kv, p)                                          # 042:RF-98
     por_escalon = {
         'bancos': _escalon_bancos(alimentador, barras, banco_kvar, modulos),
         # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
         'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos, caminos)
                       if p.con_regulador and extremo else []),
-        'terna': _escalon_terna(alimentador, troncal, cargas, p.ternas),
+        'terna': _escalon_terna(alimentador, troncal, cargas, p, de_terna, avisos),
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, normalizados(tipos, p.secciones), avisos),
     }
     solas = [v for e in ORDEN for v in por_escalon[e]]
@@ -716,7 +861,9 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
             solas[len(por_escalon['bancos']):len(por_escalon['bancos'])] = en_nodo
     if por_escalon['regulador'] and largo_km >= p.linea_larga_km:
         # 042:RF-35: en línea larga, el regulador no puede quedar detrás del tope; también con la doble terna más larga.
-        mas_largas = sorted(dobles, key=lambda v: -float(v.cantidades.get('terna') or 0.0))[:3]
+        # 042:RF-102: con el conductor de la terna del perfil, el doble circuito es la terna misma.
+        circuitos = por_escalon['terna'] if p.conductor_terna else dobles
+        mas_largas = sorted(circuitos, key=lambda v: -float(v.cantidades.get('terna') or 0.0))[:3]
         triples = [Variante(f'{d.nombre} + {r.nombre}', d.escalones + r.escalones, d.obras + r.obras,
                             {**d.cantidades, **r.cantidades}) for d in mas_largas for r in por_escalon['regulador']]
         combinadas = (triples + [v for v in combinadas if 'regulador' in v.escalones]
@@ -743,13 +890,19 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
     if sobrecargados:
         # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
         capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
-        aptos = conductores_aptos(normalizados(tipos, p.secciones), kv, None)            # 042:RF-94
-        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p, aptos)
+        aptos = secciones_aptas(tipos, kv, None, p)                                    # 042:RF-94, RF-97
+        solo = _con_refuerzo(Variante('', (), [], {}), alimentador, sobrecargados, capacidades, p, aptos,
+                             de_terna, avisos)
         # 042:RF-50: a 22,9 kV la corriente baja a menos de la mitad: el paso de tensión no lleva refuerzo.
         todas = [solo] + [v if v.solo_evidencia or 'nivel' in v.escalones
-                          else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p, aptos) for v in todas]
+                          else _con_refuerzo(v, alimentador, sobrecargados, capacidades, p, aptos, de_terna, avisos)
+                          for v in todas]
         avisos.append(f"{alimentador}: {len(sobrecargados)} tramos pasan de {p.cargabilidad_max_pct:g} % con las cargas nuevas; "
                       'cada variante los refuerza (042:RF-43).')
+    if p.conductor_terna:
+        # 042:RF-102: «solo una terna debe ser 240 mm²»: una sección y una terna en el mismo tramo darían dos
+        # circuitos del conductor de la sección; los dos circuitos son los del conductor de la terna (RF-98).
+        todas = [v for v in todas if not doble_con_seccion(v)]
     if len(todas) > p.max_variantes:
         avisos.append(f'{alimentador}: {len(todas)} variantes; se prueban las {p.max_variantes} primeras '
                       'en el orden de la escalera (escalera.max_variantes del perfil).')
@@ -905,7 +1058,7 @@ def definitiva(con: Mapping[str, Any], p: Parametros) -> tuple[bool, list[str]]:
 
 
 def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Parametros) -> list[dict[str, Any]]:
-    """Hasta 3 soluciones de obras distintas, numeradas de menor a mayor costo anual (042:RF-55, RF-58).
+    """Hasta ``escalera.alternativas`` soluciones de obras distintas, de menor a mayor costo anual (042:RF-55, RF-58, RF-105).
 
     De cada clase de obra, la más barata que cumple con la máxima; la que los sorteos desmienten no es una solución,
     salvo que sea la elegida (063:RF-33). La elegida siempre está, aunque por costo quedase fuera.
@@ -923,9 +1076,9 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
                 or (actual.get('nombre') != elegida and t['costo']['costo_anual'] < actual['costo']['costo_anual'])):
             por_clase[clase] = t
     orden = sorted(por_clase.values(), key=lambda t: (t['costo']['costo_anual'], t['nombre']))
-    escogidas = orden[:MAX_ALTERNATIVAS]
+    escogidas = orden[:p.alternativas]
     if elegida and not any(t['nombre'] == elegida for t in escogidas):
-        escogidas = escogidas[:MAX_ALTERNATIVAS - 1] + [t for t in orden if t['nombre'] == elegida]
+        escogidas = escogidas[:p.alternativas - 1] + [t for t in orden if t['nombre'] == elegida]
 
     def _es_definitiva(t):
         return (t.get('horizonte') or {}).get('definitiva') is True
@@ -934,7 +1087,7 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
         definitiva_barata = next((t for t in orden if _es_definitiva(t)), None)
         if definitiva_barata is not None:
             cabe = next((i for i in range(len(escogidas) - 1, -1, -1) if escogidas[i]['nombre'] != elegida), None)
-            if len(escogidas) < MAX_ALTERNATIVAS:
+            if len(escogidas) < p.alternativas:
                 escogidas.append(definitiva_barata)
             elif cabe is not None:
                 escogidas[cabe] = definitiva_barata

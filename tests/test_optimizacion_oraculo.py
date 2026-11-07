@@ -129,6 +129,30 @@ def _espacio():
                       secciones=[{'nombre': 'AA120', 'origen': 'proyecto', 'proyecto': ''}])
 
 
+def test_conductor_terna_en_el_oraculo_son_dos_circuitos_del_conductor_nuevo():
+    """042:RF-104, 042:RF-98 — la terna que cambia el conductor se mide como dos circuitos de AA120 en T1 (la mitad
+    de su impedancia por km y el doble de su corriente); T2 sigue siendo su conductor en paralelo. La búsqueda del
+    oráculo arma la misma terna que la escalera, con el cambio costeado como sección (RF-103)."""
+    g = _grafo()
+    ora = oo.Oraculo(g, [NUEVA], tipos=TIPOS)
+    b = _id('B', 'ElmTerm')
+    obra = {'clase': 'terna', 'tramos': ['T1', 'T2'], 'cambia_tipo': {'T1': 'AA120'}}
+    ramas = ora._ramas_con([obra], [])
+    assert ramas[0]['r_ohm'] == pytest.approx(0.3 * 2.0 / 2) and ramas[0]['inom_ka'] == pytest.approx(0.8)
+    assert ramas[1]['r_ohm'] == pytest.approx(1.0) and ramas[1]['inom_ka'] == pytest.approx(0.4)
+    a_mano = _grafo(r=1.0, x=0.75)
+    a_mano['ramas'][0].update(r_ohm=0.3, x_ohm=0.35)
+    assert ora.medir([obra], 1).u['B'] == pytest.approx(_exacto(a_mano, b), abs=1e-9)
+    assert ora.medir([obra], 1).u['B'] != ora.medir([{'clase': 'terna', 'tramos': ['T1', 'T2']}], 1).u['B']
+    de_terna = {'aereo': {'nombre': 'AA120', 'clase': 'TypLne', 'datos': {**TIPOS['AA120'], 'uline': 10.0}}}
+    esp = oo.Espacio('F1', [], None, 0, [{'nombre': 'T1', 'largo_m': 2000.0, 'inom_a': 200.0},
+                                            {'nombre': 'T2', 'largo_m': 2000.0, 'inom_a': 500.0}], de_terna=de_terna)
+    v = esp.obras([], ['terna', 'terna'])
+    (terna,) = v.obras
+    assert terna['cambia_tipo'] == {'T1': 'AA120'} and terna['tipo']['nombre'] == 'AA120'
+    assert v.cantidades == {'terna': 4.0, 'seccion': 2.0} and v.escalones == ('terna',)
+
+
 def test_busqueda_bayesiana_da_la_combinacion_mas_barata_que_cumple():
     """052:RF-11, 052:RF-12, 052:RF-16 — con un oráculo real, la búsqueda bayesiana halla la obra
     más barata que deja B en límites, y dice cuántas evaluaciones usó."""

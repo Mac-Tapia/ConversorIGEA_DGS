@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .escalera_optima import EscaleraError, alternativas_del_perfil, conductor_terna_del_perfil
 from .informes import ConfigInforme, InformeError
 from .protecciones import ProteccionesError, criterios_de_perfil
 from .perfil_empresa import (PerfilEmpresa, PerfilError, bancos_kvar_por_tension, centrales_termicas, datos_perfil,
@@ -124,6 +125,12 @@ def _valor(datos: Mapping[str, Any], ruta: str) -> Any:
 
 def _reglas_de_dominio(datos: dict[str, Any], r: Resultado) -> None:
     """Las mismas reglas que al usar el perfil: nada de una segunda versión de ellas."""
+    escalera = datos.get('escalera') if isinstance(datos.get('escalera'), Mapping) else {}
+    for regla in (alternativas_del_perfil, conductor_terna_del_perfil):               # 042:RF-98, RF-106
+        try:
+            regla(escalera)
+        except EscaleraError as exc:
+            r.errores.append(str(exc))
     comprobaciones = [
         lambda: PerfilEmpresa(**{k: datos[k] for k in ('crs_origen', 'patron_sed_medicion', 'escala_diagrama',
                                                        'forma_alimentador', 'patron_libro_clientes') if k in datos}),

@@ -15,6 +15,7 @@
                   "bancos_kvar_por_tension": null, "transformadores_sed": null},
   "informes": {"moneda": null, "modelo_estudio": null, "modelo_factibilidad": null, "bandas_tension_pct": null, "bandas_cargabilidad_pct": null,
                "norma": null, "regulador": null},
-  "escalera": {"moneda": null, "secciones_normalizadas": null, "costos_unitarios": null},
+  "escalera": {"moneda": null, "secciones_normalizadas": null, "costos_unitarios": null, "conductor_terna": null,
+               "alternativas": null},
   "planificacion": {"tasa_regulada": null, "vida_util_anios": null}
 }

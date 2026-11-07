@@ -6317,7 +6317,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             # 087:RF-44: se aplica la obra elegida; la evaluación con sorteos ya dijo que hace falta.
             **({'aplicando_elegida': True} if solo and f in solo else {}),
             'tipo_cambio': tipo_cambio,
-            **({'alternativas': eo.MAX_ALTERNATIVAS,                                      # 042:RF-55
+            **({'alternativas': p.alternativas,                                       # 042:RF-55, RF-105
                 'horizonte': eo.plan_de_horizonte(f, p.tasa_largo_plazo, p)}                  # 042:RF-73, RF-86
                if por_alternativas else {}),
             'otro_proyecto': eo.BIBLIOTECA_TIPOS, 'parada_bayesiana': True,               # 087:RF-8
@@ -7005,12 +7005,13 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         if por_camino:
             tramos = list(por_camino.values())
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
-        aptos = eo.conductores_aptos(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
+        aptos = eo.secciones_aptas(tipos_lista, kv, max(corrientes) if corrientes else None, p)   # 063:RF-27, 042:RF-97
         espacio = oo.Espacio(f, en_todo, banco,
                              modulos_valle if modulos_valle is not None
                              else p.modulos_max if p.modulos_max is not None else eo.MODULOS_SIN_VALLE, tramos,
                              [{'nombre': t['nombre'], 'origen': t.get('origen') or 'proyecto',
-                               'proyecto': t.get('proyecto') or ''} for t in aptos], p.ternas) if (tramos or banco) else None
+                               'proyecto': t.get('proyecto') or ''} for t in aptos], p.ternas,
+                             eo.tipos_de_terna(tipos_lista, kv, p)) if (tramos or banco) else None   # 042:RF-98
         alims.append(oo.Alimentador(f, vs, costo, espacio))
     opciones_eleccion = {'evaluaciones_bayes': int(ajustes.get('evaluaciones_bayes') or oo.EVALUACIONES_BAYES),
                          'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),
