@@ -550,8 +550,11 @@ def aplicar_cargas_nuevas(web: Web, proyecto: str, feeders: list[str], libro: Pa
     if not plan.get('applicable'):
         print(f'{proyecto}: el plan de cargas no es aplicable; no se aplica nada.', flush=True)
         return 1
-    print(f"{proyecto}: {plan.get('n_nuevas', len(plan.get('nuevas') or []))} cargas nuevas de {', '.join(feeders)}; se aplican",
-          flush=True)
+    # 007:RF-29: el guion solo crea las de los alimentadores marcados; el libro trae las de todos (107 en Pisco).
+    marcados = {str(f).strip().upper() for f in feeders}
+    suyas = [n for n in plan.get('nuevas') or [] if str(n.get('alimentador') or '').strip().upper() in marcados]
+    print(f"{proyecto}: {len(suyas)} cargas nuevas de {', '.join(feeders)} (de {plan.get('n_nuevas', len(suyas))} del libro); "
+          'se aplican', flush=True)
     estado = web.esperar(web.post(f"/lote/{plan['token']}/apply"), limite_s=6 * 3600)
     print(f"Cargas nuevas: {estado['status']}" + (f" — {estado.get('error')}" if estado.get('error') else ''), flush=True)
     return 0 if estado['status'] == 'done' else 1

@@ -582,7 +582,8 @@ def test_aplica_las_cargas_nuevas_del_libro_antes_de_con_proyecto(herramienta, t
         def post(self, ruta, **kw):
             llamadas.append(('POST', ruta, kw))
             if ruta == '/lote/plan':
-                return {'token': 'T1', 'nuevas': [{'sed': 'PI_3'}, {'sed': 'PI_4'}], 'n_nuevas': 2, 'row_errors': [],
+                return {'token': 'T1', 'nuevas': [{'sed': 'PI_3', 'alimentador': 'AL209'}, {'sed': 'PI_4', 'alimentador': 'AL209'},
+                                                  {'sed': 'X', 'alimentador': 'NA205'}], 'n_nuevas': 3, 'row_errors': [],
                         'avisos': [], 'applicable': True}
             return {'id': 'J1', 'title': 'Aplicar cargas'}
 
@@ -595,4 +596,4 @@ def test_aplica_las_cargas_nuevas_del_libro_antes_de_con_proyecto(herramienta, t
     assert plan[1] == '/lote/plan' and plan[2]['data'] == {'project': 'P', 'feeders': ['AL209', 'PA217'],
                                                            'ajuste_job_id': 'disco:abc123'}
     assert 'create_file' in plan[2]['files'] and aplicar[1] == '/lote/T1/apply'
-    assert '2 cargas nuevas' in capsys.readouterr().out
+    assert '2 cargas nuevas de AL209, PA217 (de 3 del libro)' in capsys.readouterr().out
