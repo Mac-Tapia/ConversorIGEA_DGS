@@ -134,6 +134,7 @@
     "crecimiento.py",
     "valle.py",
     "escaneo.py",
+    "transferencia_operador.py",
     "trafos_sed.py",
     "economia.py"
    ]
@@ -427,6 +428,7 @@
     "escenarios_pf.py",
     "digital_twin_snapshot_pf.py",
     "escanear_alimentador_pf.py",
+    "transferencia_operador_pf.py",
     "verificar_pf.py",
     "hojas_diagrama_pf.py",
     "pf_proyectos.py",

@@ -1254,7 +1254,16 @@ def construir_migracion(ctx) -> None:
     # 081:RF-80: la transferencia y el traslado (087:RF-31) abrían la entrada sin anotarla: al cortarse la escalera en
     # Pisco (2026-11-07), nada la volvió a cerrar y «Con proyecto» quedó con 724 barras de media sin tensión.
     if entrada in lineas:
-        abrir(ctx, 'ElmLne', lineas[entrada])
+        # 098:RF-12: se abre la maniobra que ya tiene el tramo, como hace el operador (CA101 a CHN102, 2026-11-07);
+        # solo un tramo sin ella (una migración pedida a mano, 016) sale de servicio, y se dice.
+        cub = next((c for c in (getattr(lineas[entrada], 'bus1', None), getattr(lineas[entrada], 'bus2', None))
+                    if c is not None and (c.GetContents('*.StaSwitch') or [])), None)
+        if cub is not None:
+            abrir(ctx, 'StaSwitch', (cub.GetContents('*.StaSwitch') or [])[0])
+        else:
+            abrir(ctx, 'ElmLne', lineas[entrada])
+            fila['avisos'].append(f'{entrada} no tiene interruptor ni seccionador: sale de servicio para separar la parte '
+                                  'que pasa (098:RF-12).')
     elif entrada in acopladores:
         abrir(ctx, 'ElmCoup', acopladores[entrada])
     if nuevos:
@@ -2047,7 +2056,7 @@ def cerrar_lo_abierto(app, fila: dict, plan: dict | None = None) -> list[str]:
     cerrados = []
     for entrada in fila.get('abiertos') or []:
         clase, nombre = entrada[0], entrada[1]
-        for obj in _con_nombre(app, clase, nombre):
+        for obj in _con_nombre(app, clase, nombre, entrada[3] if len(entrada) > 3 else None):
             _cerrar(clase, obj)
             cerrados.append(nombre)
     if cerrados:
@@ -2067,15 +2076,18 @@ def cerrar_lo_abierto(app, fila: dict, plan: dict | None = None) -> list[str]:
 # conjunta rehaciendo obras sobre una red rota. Por eso cada apertura se anota antes de hacerla, en la fila y en disco, y
 # se restituye al borrar la variante o al empezar la orden siguiente.
 
-def _con_nombre(app, clase: str, nombre: str) -> list:
-    """Los elementos con ese nombre, también fuera de servicio: ``GetCalcRelevantObjects`` no devuelve esos (RF-81)."""
+def _con_nombre(app, clase: str, nombre: str, ruta: str | None = None) -> list:
+    """Los elementos con ese nombre, también fuera de servicio: ``GetCalcRelevantObjects`` no devuelve esos (RF-81).
+
+    098:RF-12: con ``ruta`` (el nombre completo), solo ese. Un interruptor de cubículo no tiene nombre único («Switch»
+    en cada tramo que parte ``SplitLine``): sin ella se habrían cerrado todos los del mismo nombre."""
     # Por el nombre también aquí: el doble filtra el patrón solo por la clase.
     vivos = [o for o in (app.GetCalcRelevantObjects(f'{nombre}.{clase}') or []) if getattr(o, 'loc_name', nombre) == nombre]
-    if vivos or not hasattr(app, 'GetProjectFolder'):
-        return vivos
-    donde = app.GetProjectFolder('netdat') or app.GetActiveProject()
-    return [o for o in ((donde.GetContents(f'{nombre}.{clase}', 1) if donde is not None else None) or [])
-            if o.loc_name == nombre and o.GetClassName() == clase]
+    if not vivos and hasattr(app, 'GetProjectFolder'):
+        donde = app.GetProjectFolder('netdat') or app.GetActiveProject()
+        vivos = [o for o in ((donde.GetContents(f'{nombre}.{clase}', 1) if donde is not None else None) or [])
+                 if o.loc_name == nombre and o.GetClassName() == clase]
+    return [o for o in vivos if o.GetFullName() == ruta] if ruta else vivos
 
 
 def _cerrar(clase: str, obj) -> None:
@@ -2088,13 +2100,15 @@ def _cerrar(clase: str, obj) -> None:
 def abrir(ctx, clase: str, obj) -> None:
     """081:RF-80: anota la apertura en la fila y en el registro de disco, y después abre."""
     caso = getattr(ctx.app.GetActiveStudyCase(), 'loc_name', '') or ''
-    ctx.fila.setdefault('abiertos', []).append([clase, obj.loc_name, caso])                 # 042:RF-19
+    # 098:RF-12: un interruptor de cubículo va con su nombre completo; su nombre no es único.
+    completo = obj.GetFullName() if clase == 'StaSwitch' else None
+    ctx.fila.setdefault('abiertos', []).append([clase, obj.loc_name, caso] + ([completo] if completo else []))  # 042:RF-19
     if ctx.plan.get('project'):
         ruta = fichero_aperturas(ctx.plan)
         entradas = leer_aperturas(ruta)
         entradas.append({'proyecto': ctx.plan['project'], 'caso': caso, 'clase': clase, 'nombre': obj.loc_name,
                          'variacion': ctx.fila.get('variacion') or '', 'evaluando': bool(ctx.plan.get('evaluando')),
-                         'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')})
+                         'fecha': time.strftime('%Y-%m-%dT%H:%M:%S'), **({'ruta': completo} if completo else {})})
         try:
             escribir_aperturas(ruta, entradas)
         except OSError as exc:
@@ -2142,7 +2156,7 @@ def restituir_lo_abierto(app, casos: dict, filas: list[dict], plan: dict) -> lis
         if por_nombre.get(caso) is not None:
             por_nombre[caso].Activate()
         for e in entradas:
-            for obj in _con_nombre(app, e[0], e[1]):
+            for obj in _con_nombre(app, e[0], e[1], e[3] if len(e) > 3 else None):
                 _cerrar(e[0], obj)
                 cerrados.append(e[1])
     quitar_aperturas(plan, filas)
@@ -2181,7 +2195,7 @@ def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[di
                 if not e.get('evaluando') and e.get('variacion') and e['variacion'] in activas:
                     respetadas.append(e)
                     continue
-                for obj in _con_nombre(app, e['clase'], e['nombre']):
+                for obj in _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')):
                     _cerrar(e['clase'], obj)
                     hechas += 1
                 restituidas.append(e)
@@ -2738,8 +2752,19 @@ def puentes_de_la_red(app) -> list[dict]:
                 continue
             barras = [t for t in (getattr(getattr(o, a, None), 'cterm', None) for a in ('bus1', 'bus2', 'bushv', 'buslv')) if t is not None]
             if len(barras) == 2:
-                out.append({'nombre': o.loc_name, 'desde': barras[0].loc_name, 'hasta': barras[1].loc_name, 'largo_m': 0.0, 'puente': True})
+                out.append({'nombre': o.loc_name, 'desde': barras[0].loc_name, 'hasta': barras[1].loc_name, 'largo_m': 0.0, 'puente': True,
+                            # 098:RF-11: un acoplador es una maniobra; un transformador o un regulador no se abren.
+                            'maniobra': {'nombre': o.loc_name, 'clase': 'ElmCoup'} if clase == 'ElmCoup' else None})
     return out
+
+
+def maniobra_del_tramo(linea) -> dict | None:
+    """098:RF-11: el interruptor o seccionador de un cubículo del tramo, el de su ``bus1`` primero; ``None`` sin él."""
+    for lado in ('bus1', 'bus2'):
+        cub = getattr(linea, lado, None)
+        for sw in ((cub.GetContents('*.StaSwitch') if cub is not None else None) or []):
+            return {'nombre': sw.loc_name, 'clase': 'StaSwitch'}
+    return None
 
 
 def datos_escalera(app, plan: dict) -> tuple[dict, int]:
@@ -2823,7 +2848,8 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                    if media.get(b, b) != b and media[b] in sin_cargas_de.get(f, set())]))
         # 063:RF-32: el camino eléctrico de la cabecera a cada carga, con todas las cargas y el
         # flujo que convergió; sobre él van sección y terna, y el banco en su barra de aguas arriba.
-        from convertersmartgrid.escalera_optima import camino_electrico, solo_lineas
+        from convertersmartgrid.escalera_optima import camino_electrico
+        from convertersmartgrid.obras_integrales import con_maniobras
         tramos_red = []
         for ln in app.GetCalcRelevantObjects('*.ElmLne') or []:
             a = getattr(getattr(ln, 'bus1', None), 'cterm', None)
@@ -2840,7 +2866,8 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                'tipo': tipo.loc_name if tipo is not None else None,
                                'cable': bool(es_cable(ln)),                # 084:RF-16
                                'inom_a': (float(getattr(tipo, 'sline', 0) or 0) * 1000
-                                          if tipo is not None else None)})
+                                          if tipo is not None else None),
+                               'maniobra': maniobra_del_tramo(ln)})                      # 098:RF-11
         tramos_red += puentes_de_la_red(app)                                  # 042:RF-44
         for f, troncal in troncales.items():
             elm = alims.elm[f]
@@ -2890,7 +2917,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             cab = cabecera_de(elm)
             caminos = {}
             for nombre in dict.fromkeys(media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])):
-                c = solo_lineas(camino_electrico(tramos_red, cab.loc_name, nombre)) if cab is not None else []
+                c = con_maniobras(camino_electrico(tramos_red, cab.loc_name, nombre)) if cab is not None else []  # 098:RF-11
                 if c:
                     caminos[nombre] = c
                     if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:

@@ -67,6 +67,7 @@ from cargas_pf import (
 from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
 from casos_pf import anio_del_plan, nombre_caso
 from casos_pf import caso as caso_del_sistema
+import transferencia_operador_pf as transferencia_pf
 
 from convertersmartgrid.comprobacion_flujo import huella_de_caso
 from convertersmartgrid.native_action import native_action_block_report
@@ -2199,6 +2200,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
                               + _por_sed(res.abajo, abajo, kva_origen, antes, fijas))
         # 015:RF-49: lo que no consume lo escrito no se guarda (como en el del proyecto).
         if res.arriba is not None and res.abajo is not None and not (res.cuadrado and invalida):
+            _devolver_la_transferencia()                                     # 098:RF-6
             escenario.Save()
             informe['escenarios'] = [{'escenario': escenario.loc_name,
                                       'cargas': len(cargas) - len(con_manual), 'fallos': []}]
@@ -3009,6 +3011,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             if informe['resultado_transformadores']['status'] != 'VALIDO':
                 informe['avisos'].append(informe['resultado_transformadores']['aviso'])
         if res.reparto is not None:
+            _devolver_la_transferencia()                                     # 098:RF-6
             escenario.Save()
             informe['escenarios'] = [{'escenario': escenario.loc_name,
                                       'cargas': len(res.reparto.demandas) - len(con_manual),
@@ -3066,19 +3069,102 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     """
     bancos = any(p.get('completar_bancos') for p in planes)            # 021:RF-64
     barra = any(p.get('barra_set') for p in planes)                     # 022:RF-41b
-    if simular or (len(planes) == 1 and not bancos and not barra):
+    if simular:
         return [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
-    estado = {'apartadas': []}
+    # 098:RF-3: la transferencia del operador, desactivada mientras se calibra; vuelve a estar en el ``finally``,
+    # también si algo revienta o se cancela (098:RF-5). Igual con uno, con todos los del proyecto (021:RF-54) y por SET.
+    global _RED_DE_LA_FUENTE
+    red = _red_de_la_fuente(app, planes)
+    _RED_DE_LA_FUENTE = red
     try:
-        if bancos:
-            resultados = _con_bancos_que_faltan(app, planes, cancelado=cancelado, estado=estado)
+        if len(planes) == 1 and not bancos and not barra:
+            resultados = [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
         else:
-            resultados = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
+            estado = {'apartadas': []}
+            try:
+                if bancos:
+                    resultados = _con_bancos_que_faltan(app, planes, cancelado=cancelado, estado=estado)
+                else:
+                    resultados = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
+            finally:
+                _devolver_cargas_nuevas(app, estado)
+            if resultados:
+                _huella_despues(app, estado, resultados[0][0])                  # 086:RF-14
     finally:
-        _devolver_cargas_nuevas(app, estado)
-    if resultados:
-        _huella_despues(app, estado, resultados[0][0])                  # 086:RF-14
+        _RED_DE_LA_FUENTE = None
+        if red is not None:
+            red.restituir()
+            if red.inicial is not None and app.GetActiveStudyCase() is not red.inicial:
+                red.inicial.Activate()
+    if red is not None:
+        _anotar_la_transferencia(red, planes, resultados)                  # 098:RF-7
     return resultados
+
+
+#: La transferencia del operador desactivada durante la calibración en curso (098:RF-3), o ``None``.
+_RED_DE_LA_FUENTE = None
+
+
+def _red_de_la_fuente(app, planes: list[dict]):
+    """098:RF-3, RF-5: en el caso donde se calibra, lo pendiente de una orden anterior restituido y la transferencia del
+    operador desactivada. ``None`` sin proyecto ni «Sin proyecto»: la primera calibración lo crea desde el «Caso base»,
+    y lo que el operador haga después aún no está."""
+    plan = planes[0]
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return None
+    anio = anio_del_plan(plan)
+    sin = caso_del_sistema(app, 'sin', anio)
+    if sin is None:
+        return None
+    red = transferencia_pf.RedDeLaFuente(app, {**plan, 'tramos_dgs': next((p['tramos_dgs'] for p in planes if p.get('tramos_dgs')), None),
+                              'abiertos_dgs': next((p['abiertos_dgs'] for p in planes
+                                                    if p.get('abiertos_dgs') is not None), None)})
+    red.inicial = app.GetActiveStudyCase()
+    try:
+        red.restituir_pendientes(casos_del_proyecto(app, anio))
+        sin.Activate()
+        alims = Alimentadores(app, proyecto, [p['feeder'] for p in planes])
+        red.preparar(alims, sin, [p['feeder'] for p in planes])
+    except Exception as exc:  # noqa: BLE001 - reconocer la transferencia no impide calibrar (098:RF-8)
+        red.restituir()
+        red.deshecha = True
+        red.avisos.append((None, f'No se pudo desactivar la transferencia del operador ({type(exc).__name__}: {exc}); '
+                                 'se calibra con la red como está (098:RF-8).'))
+    return red
+
+
+def _devolver_la_transferencia() -> None:
+    """098:RF-6: antes de guardar la calibración, otra vez la red del operador. El escenario y lo que pasa a «Con
+    proyecto» (014:RF-31) la llevan: con la transferencia desactivada, la copia a «Con proyecto» la habría cortado."""
+    if _RED_DE_LA_FUENTE is not None:
+        _RED_DE_LA_FUENTE.restituir()
+
+
+def _anotar_la_transferencia(red, planes: list[dict], resultados) -> None:
+    """098:RF-7, RF-4: en el informe de cada alimentador, lo que se desactivó, que se restituyó y su evidencia."""
+    datos = red.informe()
+    if datos is None:
+        return
+    for plan, (inf, _rc) in zip(planes, resultados):
+        f = plan.get('feeder')
+        propias = [z for z in datos['zonas'] if f in (z['desde'], z['hacia'])]
+        generales = [texto for afecta, texto in red.avisos if afecta is None]
+        if not propias and not generales:
+            continue
+        inf['transferencias_del_operador'] = {**datos, 'zonas': propias}
+        inf.setdefault('avisos', [])
+        inf['avisos'] += [texto for afecta, texto in red.avisos if afecta is None or f in afecta]
+        if datos['desactivada_mientras_se_calibra'] and any(not z['motivo'] for z in propias):
+            inf['avisos'].append('La transferencia del operador vuelve a estar como la dejó en «'
+                                 + (getattr(red.caso, 'loc_name', '') or '') + '»'
+                                 + (': comprobado elemento por elemento' if datos['restituida']
+                                    else ': NO se pudo comprobar, revise ' + ', '.join(
+                                        e['nombre'] for e in datos['evidencia'] if not e['ok']))
+                                 + ' (098:RF-5).')
+            aviso = transferencia_pf.aviso_de_la_medida(plan)
+            if aviso:
+                inf['avisos'].append(aviso)
 
 
 def _deficit(inf: dict, plan: dict) -> tuple[float | None, float | None]:
@@ -3911,6 +3997,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                                      + ', '.join(invalidos) + ', pero el reparto que cuadró queda '
                                      'grabado: cada SED no fija con su parte (015:RF-69).')
         if res.repartos is not None and not solo_medir:
+            _devolver_la_transferencia()                                     # 098:RF-6
             escenario.Save()
             guardado = res.cuadrado
             for f, p in preps.items():

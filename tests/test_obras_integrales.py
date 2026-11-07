@@ -17,10 +17,12 @@ P = eo.parametros(PERFIL)
 TIPOS = [{'nombre': f'AA{s}_{kv:g}', 'clase': 'TypLne', 'datos': {'uline': kv, 'sline': s / 1000 * 3, 'cohl_': 1}}
          for kv in (10.0, 22.9) for s in (50, 120, 240)]
 TRONCAL = {'T1', 'T2', 'T3'}
-CAMINO = [{'nombre': 'T1', 'desde': 'CAB', 'hasta': 'B1', 'largo_m': 1000, 'u': {'B1': 0.99}, 'corriente_a': 100},
-          {'nombre': 'T2', 'desde': 'B1', 'hasta': 'B2', 'largo_m': 1000, 'u': {'B2': 0.96}, 'corriente_a': 90},
-          {'nombre': 'T3', 'desde': 'B2', 'hasta': 'B3', 'largo_m': 1000, 'u': {'B3': 0.94}, 'corriente_a': 80},
-          {'nombre': 'R1', 'desde': 'B3', 'hasta': 'R1B', 'largo_m': 500, 'u': {'R1B': 0.93}, 'corriente_a': 40},
+# 098:RF-11: cada tramo con su seccionador, para que haya dónde transferir y trasladar.
+SW = {'clase': 'StaSwitch', 'nombre': 'SW'}
+CAMINO = [{'nombre': 'T1', 'desde': 'CAB', 'hasta': 'B1', 'largo_m': 1000, 'u': {'B1': 0.99}, 'corriente_a': 100, 'maniobra': SW},
+          {'nombre': 'T2', 'desde': 'B1', 'hasta': 'B2', 'largo_m': 1000, 'u': {'B2': 0.96}, 'corriente_a': 90, 'maniobra': SW},
+          {'nombre': 'T3', 'desde': 'B2', 'hasta': 'B3', 'largo_m': 1000, 'u': {'B3': 0.94}, 'corriente_a': 80, 'maniobra': SW},
+          {'nombre': 'R1', 'desde': 'B3', 'hasta': 'R1B', 'largo_m': 500, 'u': {'R1B': 0.93}, 'corriente_a': 40, 'maniobra': SW},
           {'nombre': 'R2', 'desde': 'R1B', 'hasta': 'CARGA', 'largo_m': 500, 'u': {'CARGA': 0.92}, 'corriente_a': 40}]
 
 
@@ -429,8 +431,9 @@ def test_el_deficit_previo_pasa_por_el_oraculo(monkeypatch):
 def test_la_transferencia_sale_de_la_barra_mas_cercana_a_cada_vecino():
     """087:RF-52 — de varias barras de la troncal, la del enlace más corto con cada vecino."""
     camino = [{'nombre': f'T{i}', 'desde': f'B{i - 1}', 'hasta': f'B{i}', 'largo_m': 1000, 'u': {f'B{i}': 0.94},
-               'corriente_a': 50} for i in range(1, 5)] + [
-              {'nombre': 'R1', 'desde': 'B4', 'hasta': 'RAMA', 'largo_m': 500, 'u': {'RAMA': 0.93}, 'corriente_a': 20}]
+               'corriente_a': 50, 'maniobra': SW} for i in range(1, 5)] + [
+              {'nombre': 'R1', 'desde': 'B4', 'hasta': 'RAMA', 'largo_m': 500, 'u': {'RAMA': 0.93}, 'corriente_a': 20,
+               'maniobra': SW}]
     troncal = {'T1', 'T2', 'T3', 'T4'}
     assert oi.candidatos_de_transferencia(camino, troncal, 0.95) == ['B1', 'B2', 'B3', 'B4']
     vecinos = {'B1': [_vecino('V', 3000)], 'B2': [_vecino('V', 190)], 'B3': [_vecino('V', 900), _vecino('W', 400)],
@@ -443,8 +446,10 @@ def test_la_transferencia_sale_de_la_barra_mas_cercana_a_cada_vecino():
 
 def test_solo_reciben_carga_los_vecinos_que_operan(monkeypatch):
     """087:RF-53 — un vecino sin demanda medida en su calibración (SC215 ya no opera) no se propone, y se dice."""
-    camino = [{'nombre': 'T1', 'desde': 'CAB', 'hasta': 'B1', 'largo_m': 1000, 'u': {'B1': 0.94}, 'corriente_a': 50},
-              {'nombre': 'R1', 'desde': 'B1', 'hasta': 'RAMA', 'largo_m': 500, 'u': {'RAMA': 0.93}, 'corriente_a': 20}]
+    camino = [{'nombre': 'T1', 'desde': 'CAB', 'hasta': 'B1', 'largo_m': 1000, 'u': {'B1': 0.94}, 'corriente_a': 50,
+               'maniobra': SW},
+              {'nombre': 'R1', 'desde': 'B1', 'hasta': 'RAMA', 'largo_m': 500, 'u': {'RAMA': 0.93}, 'corriente_a': 20,
+               'maniobra': SW}]
     d = {'caminos': {'RAMA': camino}, 'troncal': [{'nombre': 'T1'}]}
     leidos = {'vecinos': {'F1': {'B1': [_vecino('SC215', 190), _vecino('PA108', 900)], 'RAMA': [_vecino('SC215', 300)]}}}
     monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, leidos, None))
