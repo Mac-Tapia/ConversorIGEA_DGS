@@ -239,3 +239,28 @@ def bancos_hasta_objetivo(ejes_: Sequence[Sequence[Mapping[str, Any]]], medir: C
             return mejor
     mejor['motivo'] = 'tope'
     return mejor
+
+
+def _resumen(u: Mapping[str, float], limite_min: float, limite_max: float, perdidas_kw: float | None) -> dict[str, Any]:
+    barra_min = min(u, key=u.get) if u else None
+    return {'u': dict(u), 'v_min': u[barra_min] if barra_min else None, 'barra_min': barra_min,
+            'v_max': max(u.values()) if u else None,
+            'bajo_limite': sum(1 for x in u.values() if x < limite_min),
+            'sobre_limite': sum(1 for x in u.values() if x > limite_max), 'perdidas_kw': perdidas_kw}
+
+
+def comparar(antes: Mapping[str, float], despues: Mapping[str, float], *, limite_min: float, limite_max: float,
+             perdidas_antes: float | None, perdidas_despues: float | None,
+             valle_antes: float | None = None, valle_despues: float | None = None) -> dict[str, Any]:
+    """El perfil completo del alimentador antes y después de una propuesta de bancos (094:RF-13, RF-14).
+
+    Todas las barras de media, no solo el camino a la más baja. Mejora si sube la mínima sin dejar más barras bajo el
+    límite ni por encima del máximo. AL209 (2026-11-06): el usuario pidió «ver todo el perfil de tensión del
+    alimentador y ver también si propone todo el perfil para ver si mejora».
+    """
+    a = _resumen(antes, limite_min, limite_max, perdidas_antes)
+    d = _resumen(despues, limite_min, limite_max, perdidas_despues)
+    mejora = (a['v_min'] is not None and d['v_min'] is not None and d['v_min'] > a['v_min']
+              and d['bajo_limite'] <= a['bajo_limite'] and d['sobre_limite'] <= a['sobre_limite'])
+    return {'antes': a, 'despues': d, 'mejora': bool(mejora),
+            'valle': {'antes': valle_antes, 'despues': valle_despues}}

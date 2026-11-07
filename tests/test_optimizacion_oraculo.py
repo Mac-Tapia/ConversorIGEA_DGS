@@ -577,3 +577,8 @@ def test_con_proyecto_propone_los_bancos_segun_el_perfil(monkeypatch):
     assert {o['barra'] for o in por_perfil[0].obras} <= {'A', 'B'}          # en el camino a la barra más baja
     linea = next(x for x in registro if 'perfil de tensión' in x)
     assert '094:RF-4' in linea and 'se para porque' in linea
+    # 094:RF-13, RF-14: la propuesta lleva el perfil completo antes y después, y el registro dice si mejora.
+    comparacion = por_perfil[0].perfil
+    assert set(comparacion['antes']['u']) == set(comparacion['despues']['u']) == {'A', 'B', 'C', 'D'}
+    assert comparacion['despues']['v_min'] >= comparacion['antes']['v_min']
+    assert any('094:RF-13, RF-14' in x and 'mínima' in x for x in registro)

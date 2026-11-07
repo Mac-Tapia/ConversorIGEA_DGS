@@ -259,6 +259,8 @@ class Variante:
     cantidades: dict[str, float] = field(default_factory=dict)       # escalón → unidades o km
     #: 073:RF-20: un módulo más de los que admite el valle: se mide para dejar constancia, sin combinar.
     solo_evidencia: bool = False
+    #: 094:RF-13, RF-14: en los bancos según el perfil, el perfil completo antes y después de la propuesta.
+    perfil: dict[str, Any] | None = None
 
 
 def _troncal_hasta(troncal: Sequence[Mapping[str, Any]], i: int) -> list[Mapping[str, Any]]:

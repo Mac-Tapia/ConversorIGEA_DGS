@@ -110,3 +110,40 @@ def test_ramas_de_largo_cero_no_cuelgan_el_camino():
     hilo.join(5)
     assert not hilo.is_alive(), 'el árbol no termina con ramas de largo cero'
     assert [p['barra'] for p in salida['c']][-1] == 'B'
+
+
+def test_la_comparacion_del_perfil_antes_y_despues_de_una_propuesta():
+    """094:RF-13, 094:RF-14 — el perfil completo antes y después, con su mínima, su máxima, las barras fuera de límite y
+    las pérdidas, también en el valle; mejora solo si sube la mínima sin dejar más barras fuera."""
+    import random
+
+    rnd = random.Random(94013)
+    barras = [f'N{i}' for i in range(rnd.randint(6, 30))]
+    antes = {b: rnd.uniform(0.92, 1.0) for b in barras}
+    despues = {b: min(1.04, u + rnd.uniform(0.005, 0.03)) for b, u in antes.items()}
+    c = pt.comparar(antes, despues, limite_min=0.95, limite_max=1.05, perdidas_antes=120.0, perdidas_despues=110.0,
+                    valle_antes=1.01, valle_despues=1.03)
+    assert c['antes']['u'] == antes and c['despues']['u'] == despues
+    assert c['antes']['v_min'] == min(antes.values()) and c['despues']['v_max'] == max(despues.values())
+    assert c['antes']['bajo_limite'] == sum(1 for u in antes.values() if u < 0.95)
+    assert c['despues']['bajo_limite'] <= c['antes']['bajo_limite'] and c['mejora']
+    assert c['valle'] == {'antes': 1.01, 'despues': 1.03}
+    peor = {b: (1.06 if b == barras[0] else u) for b, u in despues.items()}
+    assert not pt.comparar(antes, peor, limite_min=0.95, limite_max=1.05, perdidas_antes=120.0,
+                           perdidas_despues=110.0)['mejora']
+
+
+def test_el_perfil_de_la_propuesta_queda_en_el_espacio(tmp_path):
+    """094:RF-13 — el perfil antes y después queda guardado por proyecto y alimentador; un fichero roto no tumba nada."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.web import services
+
+    ws = SimpleNamespace(out_dir=tmp_path / 'salida')
+    c = pt.comparar({'A': 0.94}, {'A': 0.97}, limite_min=0.95, limite_max=1.05, perdidas_antes=1.0, perdidas_despues=0.9)
+    services._guardar_perfil_de_propuesta(ws, 'P', 'F1', c)
+    import json
+
+    assert json.loads((ws.out_dir / 'perfil_propuestas.json').read_text(encoding='utf-8'))['P']['F1']['mejora'] is True
+    (ws.out_dir / 'perfil_propuestas.json').write_text('{roto', encoding='utf-8')
+    services._guardar_perfil_de_propuesta(ws, 'P', 'F1', c)          # se avisa en el registro de la web, sin error

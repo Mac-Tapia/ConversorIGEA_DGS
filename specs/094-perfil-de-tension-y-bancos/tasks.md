@@ -14,7 +14,7 @@ Lee: `specs/094-perfil-de-tension-y-bancos/spec.md` y `plan.md`.
       Hecho cuando: `pytest -q tests/test_perfil_tension.py tests/test_optimizacion_oraculo.py tests/test_ajuste_cabecera_guion.py` en verde.
 - [x] T9. La variante de bancos según el perfil manda si cumple en DIgSILENT. (RF-18)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
-- [ ] T6. El perfil completo antes y después de cada propuesta, con su comparación. (RF-13, RF-14)
+- [x] T6. El perfil completo antes y después de cada propuesta, con su comparación. (RF-13, RF-14)
       Hecho cuando: `pytest -q tests/test_perfil_tension.py tests/test_optimizacion_oraculo.py` en verde.
 - [ ] T7. El gráfico de perfil de tensión de DIgSILENT en «Sin proyecto» y «Con proyecto». (RF-15)
       Hecho cuando: una prueba con el doble de DIgSILENT crea el gráfico del alimentador en cada caso.

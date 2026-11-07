@@ -5963,8 +5963,43 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
               f"(094:RF-4, RF-8, RF-9).{aviso}")
     if not r['barras']:
         return None
+    # 094:RF-13, RF-14: el perfil completo del alimentador antes y después de la propuesta, y si mejora.
+    con = ora.medir(obras(r['barras']), k, 1.0, f)
+    comparacion = pt.comparar(
+        {b: base.u[b] for b in media if b in base.u}, {b: con.u[b] for b in media if b in con.u},
+        limite_min=p.tension_min_pu, limite_max=p.tension_max_pu, perdidas_antes=base.perdidas_kw,
+        perdidas_despues=con.perdidas_kw, valle_antes=en_valle([])[1] if valle else None,
+        valle_despues=en_valle(r['barras'])[1] if valle else None)
+    a_, d_ = comparacion['antes'], comparacion['despues']
+
+    def kw(x):
+        return '—' if x is None else f'{x:,.1f} kW'
+    ctx.log(f"{f}{etiqueta}: perfil con los bancos según el perfil, {'mejora' if comparacion['mejora'] else 'no mejora'}: "
+            f"mínima {a_['v_min']:.4f} → {d_['v_min']:.4f} p.u., máxima {a_['v_max']:.4f} → {d_['v_max']:.4f} p.u., "
+            f"barras bajo el límite {a_['bajo_limite']} → {d_['bajo_limite']} de {len(d_['u'])}, pérdidas "
+            f"{kw(a_['perdidas_kw'])} → {kw(d_['perdidas_kw'])}"
+            + (f", valle {comparacion['valle']['antes']:.4f} → {comparacion['valle']['despues']:.4f} p.u."
+               if valle and comparacion['valle']['antes'] is not None else '') + ' (094:RF-13, RF-14).')
+    _guardar_perfil_de_propuesta(ws, project, f + etiqueta, comparacion)
     return eo.Variante(f"{eo.PREFIJO_PERFIL} {len(r['barras'])}×{banco_kvar:g} kvar en {', '.join(r['barras'])}",
-                       ('bancos',), obras(r['barras']), {'bancos': float(len(r['barras']))})
+                       ('bancos',), obras(r['barras']), {'bancos': float(len(r['barras']))}, perfil=comparacion)
+
+
+def _guardar_perfil_de_propuesta(ws: Workspace, project: str, clave: str, comparacion: dict) -> None:
+    """094:RF-13: el perfil antes y después de la propuesta queda en el espacio, para el informe y la web."""
+    carpeta = getattr(ws, 'out_dir', None)
+    if carpeta is None or not project:
+        return
+    ruta = Path(carpeta) / 'perfil_propuestas.json'
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+        datos.setdefault(project.strip(), {})[clave] = comparacion
+        Path(carpeta).mkdir(parents=True, exist_ok=True)
+        write_json_atomic(ruta, datos)
+    except (OSError, ValueError) as exc:
+        import logging
+
+        logging.getLogger(__name__).warning('perfil de la propuesta sin guardar: %s', exc)
 
 
 def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs: list, objetivo: Sequence[str],

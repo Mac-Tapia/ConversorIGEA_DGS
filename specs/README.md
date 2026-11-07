@@ -100,6 +100,6 @@ retirada.
 | [091](091-flujo-calibracion-a-estudio/spec.md) | Flujo de la calibración al estudio | reservada | 0 | 0 | — |
 | [092](092-caso-base-de-una-red-reconstruida/spec.md) | El «Caso base» de una red reconstruida se verifica con lo que hay en disco | implementada | 4 | 4 | T2 (DIgSILENT) |
 | [093](093-siglas-de-carga-como-nombre/spec.md) | La sigla de la carga nombra la carga nueva y su variación | implementada | 4 | 4 | T2 (DIgSILENT) |
-| [094](094-perfil-de-tension-y-bancos/spec.md) | Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | 18 | 11 | T6, T7, T10 (DIgSILENT), T5 (DIgSILENT) |
+| [094](094-perfil-de-tension-y-bancos/spec.md) | Perfil de tensión en la calibración y bancos ubicados según el perfil | aprobada | 18 | 13 | T7, T10 (DIgSILENT), T5 (DIgSILENT) |
 | [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 3 | 3 | — |
 | [096](096-retomar-tras-suspender-el-equipo/spec.md) | Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | 7 | 7 | T3 (DIgSILENT) |
