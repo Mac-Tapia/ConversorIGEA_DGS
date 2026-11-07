@@ -6,6 +6,7 @@ Caso real (CA101, 2026-11-07): «SU-1770KW-Tierra Larga - Distrito el Camen- Pro
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -85,3 +86,20 @@ def test_la_anterior_no_se_crea_y_su_variacion_se_elimina(guion):
     assert [x['variacion'] for x in informe['eliminadas']] == [vieja.loc_name]
     assert vieja.loc_name not in _variaciones(app) and obra.loc_name in _variaciones(app)
     assert any(a.startswith('CH_20:') and 'CH_23' in a for a in informe['avisos'])
+
+
+def test_la_web_ensena_las_repetidas_de_los_alimentadores_marcados():
+    """099:RF-7 — al cargar el libro, el plan dice cada fila repetida de los alimentadores marcados, la que cuenta y por
+    qué; las de un alimentador no marcado no salen."""
+    filas = [{'sed': 'CH_20', 'descripcion': TIERRA_1770, 'alimentador': 'CA9', 'kw': 1770.0},
+             {'sed': 'CH_23', 'descripcion': TIERRA_1390, 'alimentador': 'CA9', 'kw': 1390.0},
+             {'sed': 'P1', 'descripcion': 'Alfa', 'alimentador': 'XX', 'lat': -13.5, 'lon': -76.0},
+             {'sed': 'P2', 'descripcion': 'Beta', 'alimentador': 'XX', 'lat': -13.5, 'lon': -76.0}]
+    (r,) = cp.repetidas_del_libro(filas, ['ca9 '])
+    assert (r['sed'], r['cuenta'], r['kw'], r['cuenta_kw'], r['motivo']) == ('CH_20', 'CH_23', 1770.0, 1390.0,
+                                                                          'mismo cliente')
+    assert {x['motivo'] for x in cp.repetidas_del_libro(filas)} == {'mismo cliente', 'mismo punto'}
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    assert "'repetidas': repetidas_del_libro(plan['nuevas'], plan['feeders'])" in fuente
+    web = (Path(__file__).resolve().parents[1] / 'frontend/src/components/CargasTab.tsx').read_text(encoding='utf-8')
+    assert 'plan.repetidas' in web and 'Cuenta' in web

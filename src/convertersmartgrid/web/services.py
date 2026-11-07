@@ -2069,7 +2069,7 @@ def cargas_plan(
     """
     from dataclasses import asdict
 
-    from ..cargas_pf import Lectura, armar_plan, leer_demandas, leer_hoja_nuevas, leer_nuevas
+    from ..cargas_pf import Lectura, armar_plan, leer_demandas, leer_hoja_nuevas, leer_nuevas, repetidas_del_libro
     from ..loads import LoadTemplateError
 
     if not project.strip():
@@ -2141,6 +2141,8 @@ def cargas_plan(
         'calibradas_cambiadas': plan['calibradas_cambiadas'],
         'variacion_demandas': plan['variacion_demandas'],
         'native_action_context': action_context,
+        # 099:RF-7: las filas repetidas de los alimentadores marcados, al cargar el libro y antes de aplicar.
+        'repetidas': repetidas_del_libro(plan['nuevas'], plan['feeders']),
     }
     with ws.lock:
         ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],

@@ -34,6 +34,10 @@ Operador que aplica las cargas nuevas en bloque desde la web («Cargas en DIgSIL
   la desactivará y la eliminará como 040:RF-6, solo si es una variación de carga nueva (040:RF-8), y lo dirá en el informe.
 - RF-6: EL SISTEMA no usará nombres de clientes, de alimentadores ni de empresas en el código: las palabras que no
   distinguen a un cliente son del castellano de cualquier libro de solicitudes.
+- RF-7: CUANDO el operador carga el libro de cargas nuevas en la web, EL SISTEMA mostrará en el plan, antes de simular
+  o aplicar, cada fila repetida de los alimentadores o del sistema que se trabaja: la que no se crea, sus kW, la que
+  cuenta, sus kW y si es por el mismo cliente o por el mismo punto (usuario, 2026-11-07: «en la web se debe informar al
+  momento de cargar cuáles se repiten de ese alimentador o sistema que está trabajando»).
 
 ## Relación con otras specs
 
@@ -43,4 +47,4 @@ Operador que aplica las cargas nuevas en bloque desde la web («Cargas en DIgSIL
 ## Criterios de aceptación
 
 - En el libro real, solo CH_20 → CH_23 (CA101), NA_28 → NA_36 (NA203) y NA_19 → NA_35 (NA205); YANACA no sale.
-- `grep -rnoE "099:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-6.
+- `grep -rnoE "099:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.

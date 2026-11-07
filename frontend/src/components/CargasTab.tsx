@@ -710,6 +710,27 @@ export function CargasTab() {
           {plan.omitidas_por_el_operador.length > 0 && (
             <p className="muted">Marcadas «omitir» en el libro: {lista(plan.omitidas_por_el_operador)}</p>
           )}
+          {(plan.repetidas ?? []).length > 0 && (
+            <div className="alert alert-warn">
+              <strong>{plan.repetidas!.length} fila(s) repetida(s) en el libro de {plan.feeders.join(', ')}: no se crean;
+                cuenta la última fila del mismo cliente (099).</strong>
+              <div className="table-wrap table-short">
+                <table>
+                  <thead><tr><th>Alimentador</th><th>No se crea</th><th>kW</th><th>Cuenta</th><th>kW</th><th>Por</th></tr></thead>
+                  <tbody>{plan.repetidas!.map((r) => (
+                    <tr key={r.sed}>
+                      <td>{r.alimentador}</td>
+                      <td><span className="mono">{r.sed}</span> {r.descripcion}</td>
+                      <td>{r.kw != null ? fmtNum(r.kw) : '—'}</td>
+                      <td><span className="mono">{r.cuenta}</span> {r.cuenta_descripcion}</td>
+                      <td>{r.cuenta_kw != null ? fmtNum(r.cuenta_kw) : '—'}</td>
+                      <td>{r.motivo}</td>
+                    </tr>))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {plan.sin_datos.length > 0 && <p className="muted">Sin demanda en el libro: {lista(plan.sin_datos)}</p>}
           {plan.nuevas.length > 0 && (
             <div className="table-wrap table-short">

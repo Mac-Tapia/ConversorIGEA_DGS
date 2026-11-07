@@ -8,6 +8,9 @@
   no cuenta va a `no_creadas` con `duplicada_de` y, si ya tiene variación, `eliminar` (RF-1, RF-5). El camino de
   040:RF-1 queda como respaldo y ya no se alcanza con filas del mismo punto, que resuelve RF-4.
 
+- `cargas_pf.repetidas_del_libro` y `services.cargas_plan` (`repetidas` en el resumen del plan); en la web,
+  `CargasTab.tsx` las enseña en una tabla junto a las filas con error (RF-7).
+
 ## Decisiones
 
 - La última fila del libro, no la de más potencia: es la versión vigente de la solicitud y es la que pidió el usuario

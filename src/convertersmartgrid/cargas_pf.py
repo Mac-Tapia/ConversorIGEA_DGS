@@ -503,6 +503,27 @@ def duplicadas_por_cliente(filas: Sequence[dict], radio_m: float = 1.0) -> dict[
     return queda
 
 
+def repetidas_del_libro(filas: Sequence[dict], feeders: Sequence[str] = (), radio_m: float = 1.0) -> list[dict]:
+    """099:RF-7: lo que la web enseña al cargar el libro, antes de aplicar: cada fila repetida de los alimentadores
+    que se trabajan (todos, sin ``feeders``), la fila que cuenta y por qué (el mismo cliente o el mismo punto).
+
+    Usuario (2026-11-07): «en la web se debe informar al momento de cargar cuáles se repiten de ese alimentador o
+    sistema que está trabajando»; hasta entonces solo lo decía el informe de DIgSILENT, después de aplicar."""
+    marcados = {str(f).strip().upper() for f in feeders if str(f).strip()}
+    por_sed = {f['sed']: f for f in filas}
+    out = []
+    for sed, vigente in duplicadas_por_cliente(filas, radio_m).items():
+        fila, cuenta = por_sed[sed], por_sed[vigente]
+        alimentador = str(fila.get('alimentador') or '').strip()
+        if marcados and alimentador.upper() not in marcados:
+            continue
+        out.append({'sed': sed, 'descripcion': fila.get('descripcion') or '', 'kw': fila.get('kw'),
+                    'alimentador': alimentador, 'cuenta': vigente, 'cuenta_descripcion': cuenta.get('descripcion') or '',
+                    'cuenta_kw': cuenta.get('kw'),
+                    'motivo': 'mismo punto' if _mismo_punto(fila, cuenta, radio_m) else 'mismo cliente'})
+    return out
+
+
 def a_wgs84(puntos: Sequence[tuple[float, float]], source_crs: str) -> list[tuple[float, float] | None]:
     """(x, y) en ``source_crs`` → (lat, lon). ``None`` si un punto no se puede pasar."""
     from .geography import make_transformer

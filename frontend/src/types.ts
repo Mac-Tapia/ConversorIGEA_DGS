@@ -461,6 +461,15 @@ export interface CargasPlan {
   avisos: string[];
   calibradas_cambiadas: CalibradaCambiada[];
   variacion_demandas: string;
+  /** Spec 099, RF-7: filas repetidas del libro en los alimentadores marcados y la que cuenta. */
+  repetidas?: FilaRepetida[];
+}
+
+/** Spec 099, RF-7: una fila del libro que repite el cliente (o el punto) de otra posterior. */
+export interface FilaRepetida {
+  sed: string; descripcion: string; kw: number | null; alimentador: string;
+  cuenta: string; cuenta_descripcion: string; cuenta_kw: number | null;
+  motivo: 'mismo cliente' | 'mismo punto';
 }
 
 /** Spec 007, RF-1: las variaciones del ajuste aplicado, una por alimentador. */
