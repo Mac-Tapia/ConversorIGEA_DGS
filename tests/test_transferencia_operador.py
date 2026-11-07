@@ -2509,3 +2509,14 @@ def test_la_transferencia_del_operador_siempre_va_a_digsilent():
     fuente = inspect.getsource(oo.transferencias_con_oraculo)
     assert "startswith('la transferencia del operador')" in fuente and 'not del_operador and' in fuente
     assert "o.get('clase') == 'maniobra'" in fuente      # y toda transferencia por un enlace existente
+
+
+def test_el_espacio_con_obras_de_la_escalera_se_abre_en_la_web():
+    """098:RF-36 — el registro de una obra aplicada lleva su operación, su origen y su elección, y la respuesta de la web
+    los admite: sin ellos, GET del espacio daba 500 (CA101 + CHN102, 2026-11-07)."""
+    from convertersmartgrid.web.api_contract import ObraAplicadaRespuesta
+    fila = {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'clase': 'seccion', 'alimentador': 'F1', 'casos': ['Con proyecto']},
+            'aplicada': 1.0, 'operacion': {'abiertos': []}, 'origen': 'escalera',
+            'eleccion': {'nombre': 'sección', 'regla': '098:corto_y_largo_plazo', 'costo_anual': 1.0}}
+    r = ObraAplicadaRespuesta.model_validate(fila)
+    assert r.origen == 'escalera' and r.eleccion['regla'] == '098:corto_y_largo_plazo'

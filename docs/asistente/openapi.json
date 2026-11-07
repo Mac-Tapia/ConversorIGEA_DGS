@@ -3537,8 +3537,43 @@
             "title": "Aplicada",
             "type": "number"
           },
+          "eleccion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eleccion"
+          },
           "obra": {
             "$ref": "#/components/schemas/ObraRespuesta"
+          },
+          "operacion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operacion"
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen"
           },
           "project": {
             "title": "Project",

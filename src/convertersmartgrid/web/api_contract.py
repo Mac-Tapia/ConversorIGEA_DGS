@@ -365,6 +365,11 @@ class ObraAplicadaRespuesta(Respuesta):
     variacion: str
     obra: ObraRespuesta
     aplicada: float
+    # 098:RF-36: lo que hizo en la operación, quién la eligió y con qué datos. Sin estos campos, abrir un espacio con
+    # una obra de la escalera daba 500 (CA101 + CHN102, 2026-11-07).
+    operacion: dict[str, Any] | None = None
+    origen: str | None = None
+    eleccion: dict[str, Any] | None = None
 
 
 class CalibracionRespuesta(Respuesta):
