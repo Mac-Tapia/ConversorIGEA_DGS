@@ -13,17 +13,20 @@
 - [x] T4 Aclarar `factor_seguridad_set` en `config/perfiles/electro_dunas.json:64` (1,0 frente a un comentario de 1,25) y corregir lo que confirme el usuario. (RF-45, RF-51)
   Hecho cuando: el perfil coincide con su comentario.
   Evidencia: `tests/test_set_nueva.py::test_el_factor_de_la_set_depende_de_si_se_cuenta_la_tasa`; 1,25 sin tasa y 1,0 con ella, como decidió el usuario.
-- [ ] T5 Cabecera compartida: proponer solución en vez de quedarse sin obra (decidido por el usuario, 2026-11-04). La implementa la sesión de la 042 en `entrega/042-nivel`, sobre 042:RF-53.
+- [x] T5 Cabecera compartida: proponer solución en vez de quedarse sin obra (decidido por el usuario, 2026-11-04). La implementa la sesión de la 042 en `entrega/042-nivel`, sobre 042:RF-53.
   Hecho cuando: el caso produce una solución con su aviso y prueba, medida en DIgSILENT.
+  Evidencia (2026-11-06): en `main` como elevador dedicado, 042:RF-61 y RF-62 (`tests/test_escalera_optima.py`, `tests/test_obras_pf_guion_016.py`); la medida en DIgSILENT es la 042 T42.
 
 - [x] T37 El informe separa lo que causa la carga del déficit que ya existía. (RF-48, RF-49, RF-50) (`v1/deficit`)
   Hecho cuando: con una barra baja que no empeora, el informe la lista como déficit previo con su tensión y barra, y nunca dice «en norma» sin ese matiz.
   Evidencia: pruebas con dobles, sin DIgSILENT, en `tests/test_deficit_previo.py`, `tests/test_informe_docx.py`, `tests/test_informe_corrida.py`, `tests/test_casos_por_anio.py` y `tests/test_obras_pf_guion.py`. La confirmación en DIgSILENT queda en las corridas de la F6, y verlo en el navegador real, sin hacer.
 
-- [ ] T39 El factor 1,25 en el elevador y en el regulador, cuando no cuentan la tasa de crecimiento. Lo implementa la sesión de la 042 en su rama. (RF-53)
+- [x] T39 El factor 1,25 en el elevador y en el regulador, cuando no cuentan la tasa de crecimiento. Lo implementa la sesión de la 042 en su rama. (RF-53)
   Hecho cuando: prueba de cada uno con y sin dato en el perfil; el dimensionado se ve en el informe.
-- [ ] T38 Obra para el déficit previo, con su costo aparte, con o sin obra para la carga. La implementa la sesión de la 042 en su rama. (RF-52)
+  Evidencia (2026-11-06): 042:RF-70 y RF-71 en `tests/test_escalera_optima.py` (con y sin factor, y con perfil parcial); la potencia y la corriente elegidas van en el nombre de la variante que lleva el informe.
+- [x] T38 Obra para el déficit previo, con su costo aparte, con o sin obra para la carga. La implementa la sesión de la 042 en su rama. (RF-52)
   Hecho cuando: «ya cumple» no se queda sin obra si hay una barra previa baja; prueba con doble y medida en DIgSILENT sobre SI112; el informe separa los dos costos.
+  Evidencia (2026-11-06): 042:RF-64 y RF-65 con dobles (`tests/test_informe_factibilidad_un_paso.py`, `tests/test_valle.py`); la medida sobre SI112 es la 042 T44 [DIgSILENT].
 
 ## F1 Datos que no se pierden (`v1/datos`)
 
