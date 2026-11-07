@@ -31,7 +31,7 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 - RF-14: EL SISTEMA construirá el dataset de entrenamiento con una orden propia, en una carpeta nueva, sin pisar el anterior.
 - RF-15: CUANDO se construya el dataset, EL SISTEMA dirá si está completo, y qué falta, midiendo solo datos reales revisados frente a los umbrales de la spec 027.
 
-- RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
+- RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales; con el archivo publicado y verificado, sus fragmentos se eliminarán. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
 
 Python 3.12; datos locales; entrenamiento CUDA exclusivo sin fallback silencioso a
 CPU; trabajo nativo en carril único y tareas largas cancelables. Preservar entrada,

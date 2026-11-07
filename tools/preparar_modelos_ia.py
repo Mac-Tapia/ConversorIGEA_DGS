@@ -83,9 +83,9 @@ def verificar_archivo(ruta, ficha):
 def descargar_por_partes(url, destino, ficha, *, tamano_parte=32 * 1024 * 1024):
     """Reanuda fragmentos pequenos y publica solo tras verificar el SHA-256 completo."""
     destino = Path(destino)
-    if destino.exists():
-        return verificar_archivo(destino, ficha)
     partes = destino.parent / ('.csg-' + ficha['sha256'] + '-partes')
+    if destino.exists():
+        return _publicado(destino, ficha, partes)
     partes.mkdir(parents=True, exist_ok=True)
     total = (ficha['size'] + tamano_parte - 1) // tamano_parte
     import requests
@@ -142,8 +142,21 @@ def descargar_por_partes(url, destino, ficha, *, tamano_parte=32 * 1024 * 1024):
     if not verificar_archivo(ensamblado, ficha):
         return False
     if destino.exists():
-        return verificar_archivo(destino, ficha)
+        return _publicado(destino, ficha, partes)
     os.replace(ensamblado, destino)
+    return _publicado(destino, ficha, partes, verificado=True)
+
+
+def _publicado(destino, ficha, partes, verificado=False):
+    """Con el blob publicado y verificado, los fragmentos sobran (043:RF-12).
+
+    Se quedaban para siempre: el 2026-11-06 había 8,6 GB de fragmentos `.csg-`/`.igea-…-partes`
+    junto a sus blobs ya completos en las cachés de C:. Si la verificación falla se conservan,
+    porque son la descarga parcial que el siguiente intento reanuda.
+    """
+    if not (verificado or verificar_archivo(destino, ficha)):
+        return False
+    shutil.rmtree(partes, ignore_errors=True)
     return True
 
 

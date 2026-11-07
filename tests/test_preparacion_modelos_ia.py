@@ -85,6 +85,22 @@ def test_descarga_no_reemplaza_etiqueta_existente(monkeypatch, digest):
     assert r['ok'] == (digest == 'a' * 64)
 
 
+def test_blob_ya_publicado_retira_sus_fragmentos(tmp_path):
+    """043:RF-12: un blob completo y verificado no convive con sus fragmentos; uno corrupto los conserva."""
+    m = _modulo()
+    contenido = b'pesos' * 40
+    ficha = {'size': len(contenido), 'sha256': hashlib.sha256(contenido).hexdigest()}
+    destino = tmp_path / ficha['sha256']
+    partes = tmp_path / f".csg-{ficha['sha256']}-partes"
+    partes.mkdir(); (partes / '00000.part').write_bytes(contenido)
+    destino.write_bytes(contenido[:-1] + b'X')
+    assert not m.descargar_por_partes('http://127.0.0.1:9/no-se-usa', destino, ficha)
+    assert partes.is_dir()
+    destino.write_bytes(contenido)
+    assert m.descargar_por_partes('http://127.0.0.1:9/no-se-usa', destino, ficha)
+    assert not partes.exists() and destino.read_bytes() == contenido
+
+
 @pytest.mark.parametrize('fallo_transitorio', [False, True])
 def test_transferencia_por_partes_y_hash_con_http_real(tmp_path, fallo_transitorio):
     """043:RF-12: completar rangos reales y verificar el artefacto antes de publicarlo."""
@@ -111,5 +127,7 @@ def test_transferencia_por_partes_y_hash_con_http_real(tmp_path, fallo_transitor
         ficha = {'size': len(contenido), 'sha256': hashlib.sha256(contenido).hexdigest()}
         assert m.descargar_por_partes(f'http://127.0.0.1:{servidor.server_port}/modelo', destino, ficha, tamano_parte=32)
         assert destino.read_bytes() == contenido
+        # Publicado y verificado, no queda ninguna copia en fragmentos junto al blob.
+        assert not list(tmp_path.glob('.csg-*-partes'))
     finally:
         servidor.shutdown(); servidor.server_close(); hilo.join()
