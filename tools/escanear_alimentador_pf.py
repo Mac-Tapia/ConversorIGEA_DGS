@@ -204,7 +204,7 @@ def _transferencias(app, alims, plan: dict, informe: dict) -> None:
     from convertersmartgrid.transferencia_operador import texto_de_zona
 
     try:
-        zonas, _objs = leer_transferencias(app, alims, plan, interesan=informe['feeders'])
+        zonas, _objs, frente = leer_transferencias(app, alims, plan, interesan=informe['feeders'])
     except Exception as exc:  # noqa: BLE001 - el escaneo sigue sin ellas (RF-8)
         informe['avisos'].append(f'transferencias del operador: {type(exc).__name__}: {exc}')
         return
@@ -224,6 +224,8 @@ def _transferencias(app, alims, plan: dict, informe: dict) -> None:
             if t.get('tramo') in abiertos:
                 t['transferencia'] = {'desde': z.desde, 'hacia': z.hacia}
     informe['transferencias'] = filas
+    if frente:
+        informe['frente_a_la_fuente'] = frente                   # 098:RF-17, RF-18: particiones y ramas nuevas
 
 
 def main(argv=None) -> int:

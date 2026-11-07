@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 #: Por qué una zona transferida no se puede devolver a su alimentador mientras se calibra (098:RF-8).
 MOTIVO_MEZCLA = 'mezcla'
@@ -41,6 +41,8 @@ class Rama:
     cerrada: bool
     en_fuente: bool | None = None
     cerrada_en_fuente: bool | None = None
+    #: Los nombres de sus dos barras, para compararlas con las del DGS (098:RF-16); ``extremos`` son las claves.
+    barras: tuple[str, str] | None = None
 
     @property
     def fuera_de_la_fuente(self) -> bool:
@@ -165,6 +167,11 @@ def zonas_transferidas(cargas: Sequence[CargaRed], ramas: Sequence[Rama], topolo
     for f, barras in barras_f.items():
         if f not in fuentes:                  # sin cabecera conocida: todo lo que alimenta
             fuentes[f] = {comp.raiz(t) for t in barras if t not in fuera}
+    # También lo que tiene SED propias del alimentador que no pasaron a otro: la segunda troncal de un medidor con dos
+    # salidas queda fuera del ``ElmFeeder`` (CA101, 2026-10-15, 063:RF-39) y sigue siendo suya.
+    for c in cargas:
+        if c.etiqueta in barras_f and c.alimentador in (c.etiqueta, None) and c.terminal not in fuera:
+            fuentes.setdefault(c.etiqueta, set()).add(comp.raiz(c.terminal))
     # Grafos entre componentes: por lo que no es de la fuente (lo que une la zona a quien la alimenta) y por lo
     # abierto que en la fuente estaba cerrado, o no se sabe (lo que la unía al suyo).
     union: dict[str, list[tuple[str, Rama]]] = {}
@@ -197,7 +204,8 @@ def zonas_transferidas(cargas: Sequence[CargaRed], ramas: Sequence[Rama], topolo
         lista = sorted(lista, key=lambda c: c.nombre)
         desde = {c.etiqueta for c in lista}
         hacia = {c.alimentador for c in lista}
-        zona = Zona(desde=min(desde), hacia=min(hacia), cargas=lista, terminales=barras_de[raiz])
+        zona = Zona(desde=min(str(x) for x in desde), hacia=min(str(x) for x in hacia), cargas=lista,
+                    terminales=barras_de[raiz])
         if len(desde) > 1 or len(hacia) > 1:
             zona.motivo = MOTIVO_MEZCLA
         elif raiz in propias:
@@ -310,3 +318,142 @@ def maniobras_abiertas_del_dgs(lineas: Iterable[str]) -> dict[str, list[str]]:
         if fila.get('on_off', '1').strip() == '0' or fila.get('outserv', '0').strip() == '1':
             out.setdefault(tabla, set()).add(nombre)
     return {k: sorted(v) for k, v in sorted(out.items())}
+
+
+# =========================================================================== la red de la fuente (098:RF-16 a RF-19)
+#: Lo que une dos barras en el DGS y en DIgSILENT: tramos, acopladores, transformadores y equipos en serie.
+CLASES_DE_RAMA = ('ElmLne', 'ElmCoup', 'ElmTr2', 'ElmZpu', 'ElmVoltreg', 'ElmSind')
+
+
+@dataclass
+class RedFuente:
+    """Lo que dice el DGS aceptado: sus barras, cada rama con las dos barras que une, y lo que deja abierto."""
+
+    barras: set[str] = field(default_factory=set)
+    ramas: dict[tuple[str, str], tuple[str, str]] = field(default_factory=dict)
+    abiertos: dict[str, set[str]] = field(default_factory=dict)
+
+
+def red_del_dgs(lineas: Iterable[str], fuente: RedFuente | None = None) -> RedFuente:
+    """098:RF-16: la red del DGS aceptado, con las barras de cada rama por sus cubículos (``StaCubic``).
+
+    Cada tabla se lee por su cabecera. El DGS del conversor no trae las maniobras abiertas (se quitan al convertir: 90
+    en el de CA101 y CHN102), así que dos barras que el DGS no une no se unían en la fuente.
+    """
+    fuente = fuente or RedFuente()
+    nombres: dict[str, tuple[str, str]] = {}
+    cubiculos: list[tuple[str, int, str]] = []
+    tabla, campos = None, []
+    for linea in lineas:
+        if linea.startswith('$$'):
+            partes = linea.strip()[2:].split(';')
+            tabla, campos = partes[0], [x.split('(')[0].replace(':MATRIX', '') for x in partes[1:]]
+            continue
+        if tabla is None or not linea.strip() or linea.startswith('*'):
+            continue
+        fila = dict(zip(campos, linea.strip().split(';')))
+        fid = fila.get('FID') or fila.get('ID')
+        if tabla == 'StaCubic':
+            try:
+                cubiculos.append((fila.get('fold_id', ''), int(fila.get('obj_bus') or 0), fila.get('obj_id', '')))
+            except ValueError:
+                continue
+            continue
+        nombre = fila.get('loc_name')
+        if not fid or not nombre:
+            continue
+        nombres[fid] = (tabla, nombre)
+        if tabla == 'ElmTerm':
+            fuente.barras.add(nombre)
+        if fila.get('on_off', '1').strip() == '0' or fila.get('outserv', '0').strip() == '1':
+            fuente.abiertos.setdefault(tabla, set()).add(nombre)
+    lados: dict[str, list[tuple[int, str]]] = {}
+    for barra, lado, elemento in cubiculos:
+        if barra in nombres and nombres[barra][0] == 'ElmTerm' and elemento in nombres:
+            lados.setdefault(elemento, []).append((lado, nombres[barra][1]))
+    for elemento, extremos in lados.items():
+        clase, nombre = nombres[elemento]
+        if clase in CLASES_DE_RAMA and len(extremos) == 2:
+            a, b = (n for _l, n in sorted(extremos))
+            fuente.ramas[(clase, nombre)] = (a, b)
+    return fuente
+
+
+def frente_a_la_fuente(ramas: Sequence[Rama], fuente: RedFuente) -> tuple[list[Rama], dict]:
+    """098:RF-16 a RF-18: cada rama de ahora frente al DGS aceptado, con ``en_fuente`` y ``cerrada_en_fuente``.
+
+    - La rama del DGS con las mismas barras es de la fuente; cerrada salvo que el DGS la deje abierta.
+    - Una partición (``SplitLine`` o una barra insertada): la rama del DGS con otras barras y la cadena de ramas y barras
+      nuevas que vuelve a unir sus barras originales equivalen a la rama de la fuente, cerrada. Si en la cadena hay algo
+      abierto, es el punto que abrió el operador: SEC_1091_1082269 de CA101 (2026-11-07) quedó partida en dos con un
+      acoplador nuevo abierto en medio.
+    - Lo demás que no está en el DGS no es de la fuente: un acoplador nuevo cerrado entre dos barras del DGS que el DGS
+      no une es un enlace del operador («Breaker/Switch(1)», por donde CHN102 alimentaba la zona).
+    Devuelve las ramas reclasificadas y un resumen con las particiones y lo nuevo.
+    """
+    por_barra: dict[str, list[Rama]] = {}
+    nuevas = [r for r in ramas if r.barras and (r.clase, r.nombre) not in fuente.ramas]
+    for r in nuevas:
+        for b in r.barras or ():
+            por_barra.setdefault(b, []).append(r)
+    de_particion: dict[str, str] = {}             # clave de la rama → nombre de la rama del DGS que reconstruye
+    particiones = []
+    for r in ramas:
+        original = fuente.ramas.get((r.clase, r.nombre))
+        if original is None or not r.barras or set(r.barras) == set(original):
+            continue
+        faltan = set(original) - set(r.barras)
+        inicios = [b for b in r.barras if b not in original]
+        cadena = _cadena(inicios, faltan, por_barra, fuente.barras)
+        if cadena is not None:
+            de_particion[r.clave] = r.nombre
+            for x in cadena:
+                de_particion[x.clave] = r.nombre
+            particiones.append({'rama': r.nombre, 'clase': r.clase, 'cadena': [x.nombre for x in cadena],
+                                'abierto': [x.nombre for x in [r, *cadena] if not x.cerrada]})
+    out = []
+    for r in ramas:
+        if not r.barras:
+            out.append(r)
+            continue
+        clave = (r.clase, r.nombre)
+        if r.clave in de_particion:
+            out.append(replace(r, en_fuente=True, cerrada_en_fuente=True))
+        elif clave in fuente.ramas:
+            abierta = r.nombre in fuente.abiertos.get(r.clase, set())
+            out.append(replace(r, en_fuente=True, cerrada_en_fuente=not abierta))
+        else:
+            out.append(replace(r, en_fuente=False, cerrada_en_fuente=None))
+    resumen = {'particiones': particiones,
+               'nuevas': sorted(r.nombre for r in nuevas if r.clave not in de_particion)}
+    return out, resumen
+
+
+def _cadena(inicios: Sequence[str], faltan: set[str], por_barra: Mapping[str, list[Rama]],
+            barras_dgs: set[str]) -> list[Rama] | None:
+    """Las ramas nuevas que, por barras nuevas, van de cada barra nueva de la rama partida a una barra original suya."""
+    if not inicios or not faltan:
+        return None
+    cadena: list[Rama] = []
+    for inicio in inicios:
+        previo: dict[str, tuple[str, Rama] | None] = {inicio: None}
+        cola, fin = deque([inicio]), None
+        while cola and fin is None:
+            n = cola.popleft()
+            for r in sorted(por_barra.get(n, []), key=lambda x: (x.nombre, x.clase)):
+                otra = r.barras[1] if r.barras[0] == n else r.barras[0]
+                if otra in previo:
+                    continue
+                if otra in faltan:
+                    previo[otra], fin = (n, r), otra
+                    break
+                if otra not in barras_dgs:          # solo por barras nuevas: la cadena no se sale de la partición
+                    previo[otra] = (n, r)
+                    cola.append(otra)
+        if fin is None:
+            return None
+        while previo[fin] is not None:
+            fin, r = previo[fin]
+            if r not in cadena:
+                cadena.append(r)
+    return cadena

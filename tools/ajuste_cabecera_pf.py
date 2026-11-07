@@ -3117,9 +3117,8 @@ def _red_de_la_fuente(app, planes: list[dict]):
     sin = caso_del_sistema(app, 'sin', anio)
     if sin is None:
         return None
-    red = transferencia_pf.RedDeLaFuente(app, {**plan, 'tramos_dgs': next((p['tramos_dgs'] for p in planes if p.get('tramos_dgs')), None),
-                              'abiertos_dgs': next((p['abiertos_dgs'] for p in planes
-                                                    if p.get('abiertos_dgs') is not None), None)})
+    red = transferencia_pf.RedDeLaFuente(app, {**plan, **{k: next((p[k] for p in planes if p.get(k)), None)
+                                                          for k in ('tramos_dgs', 'abiertos_dgs', 'dgs_fuente')}})
     red.inicial = app.GetActiveStudyCase()
     try:
         red.restituir_pendientes(casos_del_proyecto(app, anio))

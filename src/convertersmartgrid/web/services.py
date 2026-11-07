@@ -5687,19 +5687,16 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
 
 
 # ------------------------------------------------------------------ escaneo (spec 028)
-def _dgs_aceptado(ws: Workspace, project: str) -> Path | None:
-    """El DGS con que se aceptó el proyecto: el de la ejecución fuente cuya huella es la del vínculo (028:RF-17)."""
+def _dgs_aceptados(ws: Workspace, project: str) -> list[Path]:
+    """Los DGS con que se aceptó el proyecto: los de la ejecución fuente cuya huella es la del vínculo (028:RF-17)."""
     import hashlib
 
     vinculo = ws.pf_project_bindings.get(project) or {}
     huellas = set((vinculo.get('dgs_sha256') or {}).values())
     carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
     if not huellas or not carpeta.is_dir():
-        return None
-    for ruta in sorted(carpeta.glob('*.dgs')):
-        if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas:
-            return ruta
-    return None
+        return []
+    return [ruta for ruta in sorted(carpeta.glob('*.dgs')) if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas]
 
 
 def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
@@ -5707,29 +5704,37 @@ def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
     «nuevo»)."""
     from ..escaneo import tramos_del_dgs
 
-    ruta = _dgs_aceptado(ws, project)
-    return tramos_del_dgs(ruta) if ruta is not None else set()
+    return {t for ruta in _dgs_aceptados(ws, project) for t in tramos_del_dgs(ruta)}
 
 
 def _red_de_la_fuente_del_plan(ws: Workspace, project: str) -> dict[str, Any]:
     """098:RF-14: lo que el guion necesita para reconocer una transferencia del operador frente a la fuente.
 
-    Los tramos del DGS aceptado, lo que ese DGS deja abierto (un enlace normalmente abierto no es el punto que abrió el
-    operador) y la fecha de la importación (la transferencia es de después: 098:RF-4). Sin DGS, nada: el guion no
-    llama «nuevo» a ningún tramo y no toca la red."""
+    Las rutas del DGS aceptado (el guion compara con él cada rama por clase, nombre y barras: 098:RF-16), sus tramos y
+    lo que deja abierto, y la fecha de la importación (la transferencia es de después: 098:RF-4). Sin DGS, nada: el
+    guion no llama «nuevo» a ningún tramo y no toca la red.
+
+    La fecha es la del sello del nombre del proyecto, el de la importación (``20261105-124711_CSG_…``), o la del DGS
+    si no lo tiene. No ``accepted_at``: cambia al volver a verificar el vínculo (CA101_CHN102 daba 2026-11-07 por una
+    aceptación del 2026-11-05)."""
+    from ..carpeta_pf import SELLO
     from ..dgs import DGS_ENCODING
     from ..escaneo import tramos_del_dgs
     from ..transferencia_operador import maniobras_abiertas_del_dgs
 
-    ruta = _dgs_aceptado(ws, project)
-    if ruta is None:
+    rutas = _dgs_aceptados(ws, project)
+    if not rutas:
         return {}
-    with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
-        abiertos = maniobras_abiertas_del_dgs(f)
-    vinculo = ws.pf_project_bindings.get(project) or {}
-    aceptado = float(vinculo.get('accepted_at') or 0.0)
-    return {'tramos_dgs': sorted(tramos_del_dgs(ruta)), 'abiertos_dgs': abiertos,
-            'fecha_importacion': time.strftime('%Y-%m-%d', time.localtime(aceptado)) if aceptado else None}
+    abiertos: dict[str, list[str]] = {}
+    for ruta in rutas:
+        with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
+            for clase, nombres in maniobras_abiertas_del_dgs(f).items():
+                abiertos[clase] = sorted(set(abiertos.get(clase, [])) | set(nombres))
+    sello = SELLO.match(project)
+    fecha = (f'{sello.group(1)[:4]}-{sello.group(1)[4:6]}-{sello.group(1)[6:8]}' if sello
+             else time.strftime('%Y-%m-%d', time.localtime(min(r.stat().st_mtime for r in rutas))))
+    return {'dgs_fuente': [str(r) for r in rutas], 'tramos_dgs': sorted({t for r in rutas for t in tramos_del_dgs(r)}),
+            'abiertos_dgs': abiertos, 'fecha_importacion': fecha}
 
 
 def _escanear_sin_bloquear(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
