@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | reservada | 1 |
 | retirada | 1 |
 
-99 specs con 3228 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+99 specs con 3229 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

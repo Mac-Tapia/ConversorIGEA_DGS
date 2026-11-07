@@ -228,6 +228,11 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   dan las dos, con su costo, la mínima de media, los años que aguanta cada una y el año en que hace falta la de largo
   plazo.
 
+- RF-38: CUANDO una obra de la escalera nombra la mitad «(n)» que dejó una carga nueva al partir un tramo, y esa mitad no
+  existe en la red sobre la que se graba la obra (las cargas nuevas apartadas), EL SISTEMA tomará el tramo entero, una
+  sola vez, y no dará la obra por ajena al alimentador. CA101 (2026-11-07): «El tramo 'SEC_1091_1081392(1)' no es del
+  alimentador CA101» en toda terna o sección de varios caminos, que salía «no cumple» sin medirse.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.

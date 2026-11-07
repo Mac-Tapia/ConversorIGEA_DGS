@@ -140,6 +140,10 @@ class Tramo:
     largo_m: float = 0.0
 
 
+#: La mitad que deja ``SplitLine`` al conectar una carga nueva en un tramo: «SEC_1091_1081392(1)».
+MITAD_PARTIDA = re.compile(r'\(\d+\)$')
+
+
 @dataclass(frozen=True)
 class RedAlimentador:
     """Lo que el guion lee de un alimentador en el proyecto."""
@@ -685,6 +689,13 @@ class _Plan:
     # Lo que se lee
     def tramo(self, nombre: str) -> str:
         if nombre not in self.estado.tipo_tramo:
+            # La obra se lee y se graba con las cargas nuevas apartadas (DIgSILENT no graba con tres o más etapas
+            # activas); el camino de la escalera se calcula con ellas, y la que se conectó partiendo un tramo dejó
+            # su mitad «(1)». Apartada la carga, esa mitad es el tramo entero. CA101 (2026-11-07): toda terna o
+            # sección por «SEC_1091_1081392(1)» fallaba con «no es del alimentador» y salía «no cumple».
+            entero = MITAD_PARTIDA.sub('', nombre)
+            if entero != nombre and entero in self.estado.tipo_tramo:
+                return entero
             raise ObrasError(f'El tramo {nombre!r} no es del alimentador {self.red.alimentador}.')
         return nombre
 
@@ -692,12 +703,12 @@ class _Plan:
         """Los que indica el operador o, si no indica ninguno, la troncal (RF-78, RF-80);
         con una SED de destino, el camino de la cabecera a ella (017:RF-41)."""
         if self.obra.hasta:
-            return [self.tramo(t) for t in self.camino_hasta()]
+            return list(dict.fromkeys(self.tramo(t) for t in self.camino_hasta()))
         pedidos = list(self.obra.tramos) or list(self.red.troncal)
         if not pedidos:
             raise ObrasError(f'No se leyó la troncal del alimentador {self.red.alimentador}: '
                              f'indique los tramos.')
-        return [self.tramo(t) for t in pedidos]
+        return list(dict.fromkeys(self.tramo(t) for t in pedidos))
 
     def camino_hasta(self) -> tuple[str, ...]:
         """La troncal de la cabecera a la SED o barra ``hasta`` de la obra (017:RF-41, RF-42b).

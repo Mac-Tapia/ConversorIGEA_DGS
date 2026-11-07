@@ -417,3 +417,21 @@ def test_conductor_terna_una_obra_guardada_sin_tipo_se_abre_igual():
                                   'cambio': f'nlnum {red.tramos[n].nlnum} → {red.tramos[n].nlnum + 1}'}
                                  for n in ('L0', 'L1')]
     assert not fila['avisos']
+
+
+@pytest.mark.parametrize("semilla", SEMILLAS)
+def test_la_mitad_partida_por_una_carga_nueva_es_su_tramo_entero(semilla):
+    """098:RF-38 — con las cargas nuevas apartadas al grabar, la mitad «(1)» que dejó una carga al partir un tramo no
+    existe: la obra la toma como el tramo entero, una vez. CA101 (2026-11-07): «SEC_1091_1081392(1) no es del
+    alimentador» y toda terna por ahí salía «no cumple» sin medirse."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 22.9])
+    tipos, red = _red_terna(rng, kv)
+    entero = rng.choice(sorted(red.tramos))
+    datos = {'clase': 'terna', 'alimentador': 'A1', 'casos': [CON_PROYECTO],
+             'tramos': [entero, f'{entero}(1)'], 'tipo': {'nombre': 'AX120', 'clase': 'TypLne'}}
+    (fila,) = op.plan_simulacion([op.validar_obra(datos)], {'A1': red}, tipos.values())
+    assert not fila['error'], fila
+    assert [e['elemento'] for e in fila['elementos']] == [entero]
+    (otra,) = op.plan_simulacion([op.validar_obra({**datos, 'tramos': ['NO_EXISTE(1)']})], {'A1': red}, tipos.values())
+    assert 'no es del alimentador' in otra['error']
