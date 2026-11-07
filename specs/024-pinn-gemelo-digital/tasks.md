@@ -114,3 +114,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T18. Retro (033, 2026-10-29): RF-47b, RF-47c, RF-58b a RF-58d, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-47b, RF-47c, RF-58b a RF-58d)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_pide_economia.py` y `tests/test_pide_web.py`).
+- [x] T19. El nombre del escenario de operación que traen los estudios no rompe el episodio: va en
+      `accion.escenario_operacion` (`digital_twin/capture.py`). (RF-12)
+      Hecho cuando: `pytest -q tests/test_digital_twin_capture.py` en verde.

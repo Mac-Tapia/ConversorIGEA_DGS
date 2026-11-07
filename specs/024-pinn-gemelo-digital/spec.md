@@ -317,6 +317,11 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
   PowerFactory una matriz configurable de escenarios alrededor de episodios aceptados.
 - RF-12: EL SISTEMA separará entrenamiento, validación y prueba por familia topológica y tiempo,
   evitando que variantes de la misma maniobra aparezcan en particiones distintas.
+- Aclaración de RF-12 (2026-11-06): la variante de la acción (`accion.escenario`, con la que se
+  agrupa la familia) es un diccionario; si el informe del guion trae en `escenario` el nombre del
+  escenario de operación de DIgSILENT (los estudios de 4.2, 011:RF-49), el episodio lo guarda en
+  `accion.escenario_operacion` y no lo trata como variante. Antes `dict('Con proyecto')` fallaba y
+  todos los episodios de los estudios de PE102 iban a cuarentena.
 - RF-13: EL SISTEMA entrenará únicamente con una consulta inmutable del búfer y publicará esa
   consulta junto con la versión del modelo.
 - RF-14: EL SISTEMA podrá usar `rejected` y `converged_with_violations` para clasificación,

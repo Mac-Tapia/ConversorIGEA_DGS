@@ -157,3 +157,16 @@ def test_misma_evidencia_misma_huella():
     otra = copy.deepcopy(otra)
     otra['flujo']['perdidas']['valores']['total'] = 21.0
     assert _construir(lectura=otra).episode_id != _construir().episode_id
+
+
+@pytest.mark.parametrize('escenario,esperado', [
+    ('Con proyecto', {'escenario_operacion': 'Con proyecto'}),
+    ({'factor_carga': 1.2, 'tramos_abiertos': ['L1']},
+     {'escenario': {'factor_carga': 1.2, 'tramos_abiertos': ['L1']}}),
+    (None, {}), ('', {})])
+def test_el_nombre_del_escenario_de_un_estudio_no_es_una_variante(escenario, esperado):
+    """024:RF-12 — la variante va en ``accion.escenario``; el nombre del escenario de operación
+    que trae un estudio de 4.2 (011:RF-49), en ``accion.escenario_operacion``. PE102,
+    2026-11-06: ``dict('Con proyecto')`` mandaba cada episodio a cuarentena."""
+    e = _construir(resultado={'status': 'OK', 'converged': True, 'escenario': escenario})
+    assert {k: v for k, v in e.accion.items() if k.startswith('escenario')} == esperado

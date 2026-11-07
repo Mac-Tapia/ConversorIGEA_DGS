@@ -76,6 +76,15 @@ def _bloqueos_de_lectura(lectura: Mapping[str, Any] | None, contexto: Mapping[st
     return bloqueos
 
 
+def _escenario_de(valor: Any) -> dict[str, Any]:
+    """La variante de la acción, o el nombre del escenario de operación que trae un estudio (024:RF-12)."""
+    if isinstance(valor, Mapping):
+        return {'escenario': dict(valor)} if valor else {}
+    if isinstance(valor, str) and valor.strip():
+        return {'escenario_operacion': valor.strip()}
+    return {}
+
+
 def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
                        lectura: Mapping[str, Any] | None, artefactos: Sequence[Artefacto], *,
                        caso: Caso, limites: Limites | None, referencia: Mapping[str, Any] | None,
@@ -122,8 +131,11 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
         },
         'accion': {'tipo': contexto['action'], 'aplicada': aplicada,
                    'context_sha256': contexto['context_sha256'],
-                   # La variante simulada (T10): su familia decide la partición (RF-12).
-                   **({'escenario': dict(resultado['escenario'])} if resultado.get('escenario') else {})},
+                   # La variante simulada (T10): su familia decide la partición (RF-12). Los
+                   # estudios de 4.2 traen en «escenario» el nombre del escenario de operación
+                   # (011:RF-49): con PE102 (2026-11-06) dict('Con proyecto') mandaba a cuarentena
+                   # cada episodio. El nombre va aparte y no es una variante.
+                   **_escenario_de(resultado.get('escenario'))},
         'topologia': dict(lectura.get('topologia') or {}),
         'flujo': dict(flujo) if flujo else _flujo_ausente(
             bloqueos[0] if bloqueos else 'la lectura no trae resultados del flujo'),
