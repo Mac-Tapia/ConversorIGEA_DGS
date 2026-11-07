@@ -428,3 +428,22 @@ def test_centrales_del_perfil_validadas():
         'A1': {'generacion': 'G', 'llegada': 'L', 'salida': 'S', 'nodo': 'N1'}}
     with pytest.raises(PerfilError, match='salida'):
         centrales_termicas({'centrales_termicas': {'A1': {'generacion': 'G', 'llegada': 'L'}}})
+
+
+@pytest.mark.parametrize('escalera, error', [
+    ({'alternativas': 7}, 'escalera.alternativas'), ({'alternativas': 2}, 'escalera.alternativas'),
+    ({'alternativas': 4.5}, 'escalera.alternativas'), ({'conductor_terna': {'aereo': ''}}, 'escalera.conductor_terna'),
+    ({'conductor_terna': {'subterraneo': 'X'}}, 'escalera.conductor_terna'), ({'alternativas': 5}, None),
+    ({'conductor_terna': {'cable': 'CX120'}}, None)])
+def test_alternativas_y_conductor_terna_se_validan_en_el_perfil(escalera, error):
+    """042:RF-106, 042:RF-98 — `validar-perfil` rechaza las alternativas fuera de 3 a 6 y un conductor de terna mal
+    escrito, con la clave; el perfil de Electro Dunas da los dos y la plantilla los deja en blanco."""
+    from convertersmartgrid.perfil_esquema import validar_perfil
+
+    errores = validar_perfil({'escalera': escalera}).errores
+    assert (any(error in e for e in errores) if error else not errores), errores
+    ed = json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.json').read_text(encoding='utf-8'))['escalera']
+    assert 3 <= ed['alternativas'] <= 6 and set(ed['conductor_terna']) == {'aereo', 'cable'}
+    assert set(ed['conductor_terna'].values()) <= set(ed['secciones_normalizadas'])
+    plantilla = json.loads((RAIZ / 'config' / 'perfiles' / 'plantilla.json').read_text(encoding='utf-8'))['escalera']
+    assert plantilla['alternativas'] is None and plantilla['conductor_terna'] is None

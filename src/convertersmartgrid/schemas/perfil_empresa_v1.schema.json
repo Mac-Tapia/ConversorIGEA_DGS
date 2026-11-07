@@ -72,7 +72,9 @@
       "properties": {
         "moneda": {"type": ["string", "null"], "x-funcion": "Moneda de trabajo del costo de las obras", "x-si-falta": "El costo se muestra sin rótulo de moneda.", "x-origen": "empresa"},
         "secciones_normalizadas": {"type": ["array", "null"], "x-funcion": "Conductores de refuerzo de la escalera de obras", "x-si-falta": "Se usan conductores de ficha universal, con aviso.", "x-origen": "empresa"},
-        "costos_unitarios": {"type": ["object", "null"], "x-funcion": "Costo de bancos y reguladores", "x-si-falta": "Esas variantes se evalúan sin elegirse por costo.", "x-origen": "empresa"}
+        "costos_unitarios": {"type": ["object", "null"], "x-funcion": "Costo de bancos y reguladores", "x-si-falta": "Esas variantes se evalúan sin elegirse por costo.", "x-origen": "empresa"},
+        "conductor_terna": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Conductor aéreo y de cable de los dos circuitos de una terna nueva", "x-si-falta": "La terna se añade del mismo tipo del tramo, con aviso.", "x-origen": "empresa"},
+        "alternativas": {"type": ["number", "null"], "x-opcional": true, "x-funcion": "Alternativas de obras por alimentador, de 3 a 6", "x-si-falta": "Se presentan 3.", "x-origen": "empresa"}
       }
     },
     "planificacion": {

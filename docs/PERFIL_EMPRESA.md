@@ -112,6 +112,8 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | `escalera.moneda` | empresa | Moneda del costo de las obras | Sin rótulo de moneda |
 | `escalera.secciones_normalizadas` | empresa | Conductores de refuerzo | Ficha universal, con aviso |
 | `escalera.costos_unitarios` | empresa | Costo de bancos y reguladores | Esas variantes se evalúan sin elegirse por costo |
+| `escalera.conductor_terna` | empresa | Conductor de los dos circuitos de una terna nueva: `{"aereo": código, "cable": código}`, códigos como los de `secciones_normalizadas`. El tramo más delgado pasa a él y la terna es del mismo; el de igual o más corriente añade la de su tipo (042:RF-98, RF-99) | La terna se añade del mismo tipo del tramo, con aviso |
+| `escalera.alternativas` | empresa | Alternativas de obras por alimentador, un entero de 3 a 6; otro valor es un error (042:RF-105, RF-106) | Se presentan 3 |
 | `planificacion.tasa_regulada` | norma | Evaluación económica | 12 % de referencia, con aviso |
 | `planificacion.vida_util_anios` | norma | Evaluación económica y SET nueva | 30 años de referencia, con aviso |
 | `planificacion.factor_seguridad_set_sin_tasa` | norma | SET nueva sin tasa de crecimiento | 1,25 de referencia, con aviso; con tasa se usa `factor_seguridad_set` |

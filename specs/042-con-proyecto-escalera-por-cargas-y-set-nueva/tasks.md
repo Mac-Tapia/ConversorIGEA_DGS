@@ -142,3 +142,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_web.py` en verde.
 - [x] T60. La POT de cada libro de clientes, guardada con su huella y reutilizada. (RF-96)
       Hecho cuando: `pytest -q tests/test_crecimiento.py -k huella` en verde.
+- [x] T61. Sección de un circuito hasta la mayor normalizada, también en la búsqueda del oráculo. (RF-97)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py -k normalizada` en verde.
+- [x] T62. La terna con el conductor del perfil en los dos circuitos, su aviso y su costo; sin él, como antes.
+      (RF-98, RF-99, RF-100, RF-101, RF-102, RF-103)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf.py tests/test_obras_pf_guion.py -k conductor_terna` en verde.
+- [x] T63. El oráculo mide la terna de dos circuitos del conductor del perfil. (RF-104)
+      Hecho cuando: `pytest -q tests/test_optimizacion_oraculo.py -k conductor_terna` en verde.
+- [x] T64. De 3 a 6 alternativas, del perfil, con la clave en el esquema y la guía. (RF-105, RF-106)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_perfil_empresa.py -k alternativas` en verde.

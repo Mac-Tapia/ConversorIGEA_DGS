@@ -701,13 +701,17 @@ def construir_seccion(ctx) -> None:
 
 
 def construir_terna(ctx) -> None:
-    """Una terna más en cada tramo de la fila, con el mismo tipo (RF-80).
+    """Una terna más en cada tramo de la fila, con el mismo tipo (RF-80) o con el de la obra (042:RF-98).
 
     Se suma a lo que el tramo tiene en el caso donde se crea la obra, que ya incluye las
     obras anteriores activas allí (dos obras sobre el mismo tramo se suman, casos límite).
+    Si la simulación decidió que el conductor cambia, la fila trae su tipo: el tramo pasa a él
+    antes de sumar la terna, para que los dos circuitos sean iguales (usuario, 2026-11-07).
     """
     for e in ctx.fila['elementos']:
         linea = ctx.objeto('ElmLne', e['elemento'])
+        if e.get('tipo'):
+            linea.typ_id = ctx.tipo('TypLne', e['tipo'])
         linea.nlnum = int(getattr(linea, 'nlnum', 1) or 1) + 1
         _instalar_ternas(ctx.fila, linea, getattr(ctx.obra, 'configuracion', ''))
 

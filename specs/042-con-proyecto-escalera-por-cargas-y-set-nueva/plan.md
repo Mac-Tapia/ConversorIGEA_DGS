@@ -9,6 +9,8 @@ Estado: aprobado (2026-10-31)
 | Carga a carga: orden de mayor a menor potencia y búsqueda de cuántas caben con la escalera de la 025, apartando las demás (025:RF-69 por carga) | `src/convertersmartgrid/web/services.py` (`optimizar_con_proyecto`), `tools/obras_pf.py` (`cargas_apartadas` en el plan de la escalera) | RF-1 a RF-4 |
 | Obra «SET nueva»: red externa, barra de alta, transformador del módulo, barra de media, una línea por rama hasta su punto de corte y el tramo de corte abierto, en variaciones propias de «Con proyecto»; comprobación de tensiones y acercamiento a las barras que caen | `tools/obras_pf.py` (`construir_set_nueva`), `src/convertersmartgrid/obras_pf.py` (tipo de obra) | RF-6, RF-10, RF-11 |
 | Informe por carga y de la SET; botón en el paso de obras | `src/convertersmartgrid/web/services.py`, `src/convertersmartgrid/web/app.py`, `frontend/src/components/EstudiosPF.tsx` | RF-12, RF-13 |
+| Sección de un circuito y terna con el conductor del perfil (2026-11-07): `secciones_aptas`, `tipos_de_terna`, `obra_terna` y `doble_con_seccion` en la escalera; la misma terna en la búsqueda del oráculo (`Espacio.de_terna`) y su impedancia con `cambia_tipo`; la obra `terna` con `tipo` y `tipo_cable` opcionales, y la simulación y el guion que cambian el conductor antes de sumar la terna | `src/convertersmartgrid/escalera_optima.py`, `src/convertersmartgrid/optimizacion_oraculo.py`, `src/convertersmartgrid/obras_pf.py`, `tools/obras_pf.py`, `src/convertersmartgrid/web/services.py` | RF-97 a RF-104 |
+| `escalera.alternativas` (3 a 6) y `escalera.conductor_terna` en el perfil, el esquema y la guía | `src/convertersmartgrid/escalera_optima.py` (`parametros`), `src/convertersmartgrid/perfil_esquema.py`, `config/perfiles/`, `docs/PERFIL_EMPRESA.md` | RF-105, RF-106 |
 
 Decisiones:
 
@@ -23,6 +25,13 @@ Decisiones:
 - La SET nueva es una red externa en su barra de alta (usuario): no se modela la línea de 60 kV.
 - Las ramas que pasan son, en cada alimentador, el menor subárbol que contiene a las cargas de
   RF-3 sin incluir la cabecera; se corta en el tramo que lo une a lo que se queda (`troncal.aguas_abajo`).
+- RF-98: el conductor de la terna es un código del perfil, no un tipo fijo (P13); la escalera busca en la
+  biblioteca leída el de ese código, el de la tensión más cercana, y la simulación lo copia a la del
+  alimentador. Quién cambia lo decide la simulación con los tipos de DIgSILENT (la misma regla que la
+  escalera usa con `inom_a`); `cambia_tipo` de la obra es solo lo que mide el oráculo. Descartado que la
+  escalera mande la lista de tramos que cambian: una terna escrita a mano no la tendría.
+- RF-102: con el conductor de la terna, sección más terna en el mismo tramo es redundante (≤ 120) o el
+  doble circuito de 240 que el usuario no admite; se quitan esas variantes en vez de rehacerlas.
 
 Pruebas: `tests/test_set_nueva.py` con redes y cargas sorteadas (`CSG_SCALE_SEED`); el libro de
 módulos sintético con `openpyxl`; la obra con el doble `tests/fake_pf.py`; NA203 + NA205 en

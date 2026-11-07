@@ -913,3 +913,158 @@ def test_las_alternativas_se_miden_de_la_mas_barata_a_la_mas_cara():
     assert sorted(v['nombre'] for v in orden) == sorted(v['nombre'] for v in vs)
     claves = [(v['costo_base'] is None, v['costo_base'] or 0.0, int(v['nombre'][1:])) for v in orden]
     assert claves == sorted(claves)
+
+
+# --------------------------------------------------------------------------- 042:RF-97 a RF-106
+#: Conductores de una empresa ficticia (P13): tres aéreos normalizados, uno mayor sin normalizar y un cable.
+CODIGOS = {'AX050': (150, 1), 'AX120': (300, 1), 'AX240': (450, 1), 'AX300': (700, 1), 'CX120': (320, 0)}
+
+
+def _biblioteca_terna(kv):
+    return [{'nombre': f'{c}_{kv:g}kV', 'clase': 'TypLne', 'origen': 'proyecto',
+             'datos': {'uline': kv, 'sline': a / 1000, 'cohl_': cohl, 'rline': 30.0 / a, 'xline': 0.4}}
+            for c, (a, cohl) in CODIGOS.items()]
+
+
+def _p_terna(**escalera):
+    esc = {**PERFIL['escalera'], 'secciones_normalizadas': ['AX050', 'AX120', 'AX240', 'CX120'], **escalera}
+    return eo.parametros({**PERFIL, 'escalera': esc})
+
+
+def _troncal_mixta(rng, n=None):
+    """Tramos aéreos de 150 A (pasan a 120), de 450 A (ya mayores) y cables de 150 A, sorteados."""
+    n = n or rng.randint(4, 10)
+    out = []
+    for i in range(n):
+        cable = rng.random() < 0.3
+        inom = 150.0 if cable or rng.random() < 0.6 else 450.0
+        out.append({'nombre': f'T{i}', 'largo_m': rng.uniform(100, 900), 'corriente_a': 120.0, 'inom_a': inom,
+                    'cable': cable, 'tipo': 'CX070' if cable else f'AX{int(inom)}'})
+    return out
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_la_seccion_de_un_circuito_no_pasa_de_la_mayor_normalizada(semilla):
+    """042:RF-97 — la sección llega al mayor normalizado (aquí AX240), nunca al AX300 de la biblioteca, también en el
+    refuerzo de un tramo que ninguna sección resuelve y en los aptos que recibe la búsqueda del oráculo."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 13.2, 22.9])
+    p = _p_terna()
+    tipos = _biblioteca_terna(kv)
+    troncal = _troncal(rng, corriente=rng.uniform(100, 400))
+    for t in troncal:
+        t['inom_a'] = 150.0
+    cargas = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    imposible = {'nombre': 'X1', 'largo_m': 80.0, 'carga_pct': 900.0, 'nlnum': 1, 'inom_a': 150.0, 'cable': False}
+    vs, _av = eo.variantes('F', kv, troncal, cargas, tipos, p, banco_kvar=None, sobrecargados=[imposible])
+    usados = {o['tipo']['nombre'] for v in vs for o in v.obras if o['clase'] == 'seccion'}
+    assert usados and not any(n.startswith(('AX300', 'CX')) for n in usados)
+    assert any(n.startswith('AX240') for n in usados)
+    aptos = [t['nombre'] for t in eo.secciones_aptas(tipos, kv, None, p)]
+    assert aptos == [f'AX050_{kv:g}kV', f'AX120_{kv:g}kV', f'AX240_{kv:g}kV']
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_conductor_terna_deja_los_dos_circuitos_en_el_del_perfil(semilla):
+    """042:RF-98, 042:RF-99, 042:RF-103 — el tramo más delgado pasa al conductor del perfil (aéreo o cable) y la
+    terna es del mismo; el que ya lleva más corriente añade la de su tipo, con aviso; el cambio se costea como
+    sección de esos tramos (PE102, 2026-11-07: «la nueva terna debe ser en 120 mm², ambas ternas»)."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 22.9])
+    p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})
+    troncal = _troncal_mixta(rng)
+    cargas = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    vs, av = eo.variantes('F', kv, troncal, cargas, _biblioteca_terna(kv), p, banco_kvar=None)
+    (terna,) = [v for v in vs if v.escalones == ('terna',)]
+    (obra,) = terna.obras
+    assert obra['tipo']['nombre'] == f'AX120_{kv:g}kV' and obra['tipo_cable']['nombre'] == f'CX120_{kv:g}kV'
+    esperado = {t['nombre']: (f'CX120_{kv:g}kV' if t['cable'] else f'AX120_{kv:g}kV')
+                for t in troncal if t['inom_a'] < (320 if t['cable'] else 300)}
+    assert obra.get('cambia_tipo', {}) == esperado
+    km = sum(t['largo_m'] for t in troncal if t['nombre'] in esperado) / 1000
+    assert abs(terna.cantidades.get('seccion', 0.0) - km) < 1e-9
+    assert abs(terna.cantidades['terna'] - sum(t['largo_m'] for t in troncal) / 1000) < 1e-9
+    for nombre in (t['nombre'] for t in troncal if t['nombre'] not in esperado):
+        assert any(nombre in a and '042:RF-99' in a for a in av)
+    capex = {'nueva_terna': {'costo_unitario': 100.0, 'unidad': 'km'},
+             'cambio_seccion': {'costo_unitario': 40.0, 'unidad': 'km'}}
+    c = eo.costo(terna, capex, p, perdidas_kw=None, factor_perdidas=None)
+    assert abs(c['inversion'] - (100.0 * terna.cantidades['terna'] + 40.0 * km)) < 1e-6
+
+
+def test_conductor_terna_sin_la_clave_o_sin_el_tipo_la_terna_es_como_antes():
+    """042:RF-100 — sin `escalera.conductor_terna`, o sin el conductor de cable en la biblioteca, la terna es la de
+    siempre en esos tramos, y se dice."""
+    rng = random.Random(42100)
+    kv = 22.9
+    troncal = _troncal_mixta(rng, 6)
+    troncal[0].update(cable=True, inom_a=150.0)
+    cargas = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    vs, av = eo.variantes('F', kv, troncal, cargas, _biblioteca_terna(kv), _p_terna(), banco_kvar=None)
+    (obra,) = next(v for v in vs if v.escalones == ('terna',)).obras
+    assert not {'tipo', 'tipo_cable', 'cambia_tipo'} & set(obra)
+    assert any('escalera.conductor_terna' in a and '042:RF-100' in a for a in av)
+    sin_cable = [t for t in _biblioteca_terna(kv) if not t['nombre'].startswith('CX')]
+    p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})
+    vs, av = eo.variantes('F', kv, troncal, cargas, sin_cable, p, banco_kvar=None)
+    (obra,) = next(v for v in vs if v.escalones == ('terna',)).obras
+    assert 'tipo_cable' not in obra and troncal[0]['nombre'] not in obra.get('cambia_tipo', {})
+    assert any(troncal[0]['nombre'] in a and '042:RF-100' in a for a in av)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_conductor_terna_sin_doble_circuito_de_la_seccion(semilla):
+    """042:RF-102 — con el conductor de la terna, ninguna variante pone sección y terna en el mismo tramo (el 240 va
+    solo en un circuito), tampoco el refuerzo de los tramos sobrecargados; sin la clave, la doble terna de RF-30 sigue."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 22.9])
+    troncal = _troncal_mixta(rng)
+    for t in troncal:
+        t.update(cable=False, inom_a=150.0)
+    cargas = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    tipos = _biblioteca_terna(kv)
+    sobre = [{**troncal[0], 'carga_pct': rng.uniform(150, 400), 'nlnum': 1}]
+    p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})
+    vs, _av = eo.variantes('F', kv, troncal, cargas, tipos, p, banco_kvar=450.0, sobrecargados=sobre)
+    assert vs and not any(eo.doble_con_seccion(v) for v in vs)
+    assert any('terna' in v.escalones for v in vs) and any('seccion' in v.escalones for v in vs)
+    vs, _av = eo.variantes('F', kv, troncal, cargas, tipos, _p_terna(), banco_kvar=450.0)
+    assert any(eo.doble_con_seccion(v) for v in vs)
+
+
+def test_conductor_terna_en_el_refuerzo_de_un_cable_cambia_y_suma_una():
+    """042:RF-98, 042:RF-43 — un cable sobrecargado de 150 A recibe la terna del cable del perfil aunque el cambio de
+    conductor bastara, porque un cable no cambia de sección solo (RF-94); el conductor cambia una vez."""
+    p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})
+    de_terna = eo.tipos_de_terna(_biblioteca_terna(10.0), 10.0, p)
+    cable = {'nombre': 'C1', 'largo_m': 50.0, 'carga_pct': 180.0, 'nlnum': 1, 'inom_a': 150.0, 'cable': True,
+             'tipo': 'CX070'}
+    v = eo._con_refuerzo(eo.Variante('', (), [], {}), 'F', [cable], {}, p, (), de_terna)
+    ternas = [o for o in v.obras if o['clase'] == 'terna']
+    assert len(ternas) == 1 and ternas[0]['cambia_tipo'] == {'C1': 'CX120_10kV'}
+    v = eo._con_refuerzo(eo.Variante('', (), [], {}), 'F', [{**cable, 'carga_pct': 500.0}], {}, p, (), de_terna)
+    ternas = [o for o in v.obras if o['clase'] == 'terna']
+    assert len(ternas) == 2 and [bool(o.get('cambia_tipo')) for o in ternas] == [True, False]
+
+
+@pytest.mark.parametrize('valor, n', [(None, 3), (3, 3), (4, 4), (6, 6)])
+def test_alternativas_del_perfil_de_3_a_6(valor, n):
+    """042:RF-105 — `escalera.alternativas` dice cuántas se presentan; sin ella, 3, y la definitiva sustituye a la última."""
+    p = _p_terna(**({} if valor is None else {'alternativas': valor}))
+    assert p.alternativas == n
+    rng = random.Random(42105 + n)
+    clases = [('bancos',), ('seccion',), ('terna',), ('nivel',), ('seccion', 'terna'), ('regulador',), ('bancos', 'terna')]
+    opciones = [_opcion(f'o{i}', c, rng.uniform(100, 1000), 1.0) for i, c in enumerate(clases)]
+    d = eo.elegir(opciones, p)
+    assert len(d['alternativas']) == n
+    cara = max(opciones, key=lambda o: o['costo']['costo_anual'])
+    defi = {**cara, 'horizonte': {'definitiva': True, 'aguanta_anios': 30, 'motivos': []}}
+    d = eo.elegir([o for o in opciones if o is not cara] + [defi], p)
+    assert len(d['alternativas']) == n and any(a['nombre'] == defi['nombre'] for a in d['alternativas'])
+
+
+@pytest.mark.parametrize('valor', [2, 7, 0, 3.5, '4', True])
+def test_alternativas_fuera_de_3_a_6_se_rechazan(valor):
+    """042:RF-106 — un valor que no es un entero de 3 a 6 es un error que nombra la clave."""
+    with pytest.raises(eo.EscaleraError, match='escalera.alternativas'):
+        _p_terna(alternativas=valor)

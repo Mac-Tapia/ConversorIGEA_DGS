@@ -844,6 +844,31 @@ def test_terna_y_seccion_en_el_mismo_tramo_se_suman():
     assert linea.typ_id.loc_name == 'AAAC_240' and linea.nlnum == 3
 
 
+@pytest.mark.parametrize('semilla, delgado', [(s, i % 2 == 0) for i, s in enumerate(SEMILLAS)])
+def test_conductor_terna_cambia_el_tramo_y_suma_la_terna_en_digsilent(semilla, delgado):
+    """042:RF-98, 042:RF-99 — en el proyecto, el tramo de conductor más delgado que el de la obra pasa a él y suma la
+    terna; el de igual o más corriente suma la de su tipo; solo en el caso de la obra."""
+    rng = random.Random(semilla)
+    app, alims = _calibrada(rng)
+    _con_troncal(app)
+    f = rng.choice(alims)
+    for t in app.carpetas['equip'].GetContents('*.TypLne'):
+        t.sline, t.cohl_ = (0.15 if delgado else 0.45), 1
+    _tipo(app.carpetas['equip'], 'TypLne', 'AX120', uline=10.0, sline=0.3, cohl_=1, rline=0.25, xline=0.4)
+    tramo = f'{f}_L1'
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[
+        {'clase': 'terna', 'alimentador': f, 'casos': [CON], 'tramos': [tramo],
+         'tipo': {'nombre': 'AX120', 'clase': 'TypLne'}}]))
+    assert codigo == 0, informe
+    _activas(app, CON)
+    linea = _linea(app, tramo)
+    assert linea.nlnum == 2 and linea.typ_id.loc_name == ('AX120' if delgado else f'AAAC_{f}')
+    assert delgado or any('042:RF-99' in a for a in informe['obras'][0]['avisos'])
+    _activas(app, SIN)
+    linea = _linea(app, tramo)
+    assert int(getattr(linea, 'nlnum', 1)) == 1 and linea.typ_id.loc_name == f'AAAC_{f}'
+
+
 def test_terna_sin_troncal_ni_tramos_se_rechaza():
     """011:RF-80 — sin troncal calculada ni tramos indicados no hay dónde sumar la terna: se
     rechaza pidiéndolos. Desde la 016 la troncal sale de la red; falta si el ``ElmFeeder``

@@ -360,3 +360,60 @@ def test_consigna_de_cabecera_dentro_del_perfil_y_solo_con_proyecto():
     with pytest.raises(op.ObrasError, match='solo en «Con proyecto»'):
         op.validar_obra({'clase': 'consigna', 'alimentador': 'A1',
                          'casos': [SIN_PROYECTO, CON_PROYECTO], 'consigna_pu': 1.02})
+
+
+# --------------------------------------------------------------------------- 042:RF-98 a RF-101
+def _red_terna(rng, kv):
+    """Tramos aéreos delgados y gruesos y cables, con los tipos de una empresa ficticia (P13)."""
+    tipos = {n: op.Tipo(n, 'TypLne', {'uline': kv, 'sline': a / 1000, 'cohl_': c})
+             for n, a, c in (('AX050', 150, 1), ('AX120', 300, 1), ('AX240', 450, 1), ('CX070', 200, 0), ('CX120', 320, 0))}
+    tramos = {}
+    for i in range(rng.randint(4, 9)):
+        cable = rng.random() < 0.3
+        tipo = rng.choice(['CX070', 'CX120'] if cable else ['AX050', 'AX120', 'AX240'])
+        tramos[f'L{i}'] = op.Tramo(f'L{i}', tipo, rng.randint(1, 2), cable, rng.uniform(100, 900))
+    red = op.RedAlimentador(alimentador='A1', kv=kv, barras={'N0': kv}, tramos=tramos, troncal=tuple(sorted(tramos)))
+    return tipos, red
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_conductor_terna_en_la_simulacion(semilla):
+    """042:RF-98, 042:RF-99, 042:RF-100 — con el conductor de la obra, el tramo más delgado pasa a él y suma la terna;
+    el de igual o más corriente suma la de su tipo, con aviso; sin conductor de cable, el cable es como antes."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 22.9])
+    tipos, red = _red_terna(rng, kv)
+    con_cable = rng.random() < 0.5
+    datos = {'clase': 'terna', 'alimentador': 'A1', 'casos': [CON_PROYECTO],
+             'tipo': {'nombre': 'AX120', 'clase': 'TypLne'},
+             **({'tipo_cable': {'nombre': 'CX120', 'clase': 'TypLne'}} if con_cable else {})}
+    obra = op.validar_obra(datos)
+    assert op.validar_obra(obra.a_dict()) == obra
+    (fila,) = op.plan_simulacion([obra], {'A1': red}, tipos.values())
+    assert not fila['error'], fila
+    por_tramo = {e['elemento']: e for e in fila['elementos']}
+    assert set(por_tramo) == set(red.tramos)
+    for nombre, t in red.tramos.items():
+        e = por_tramo[nombre]
+        assert e['cambio'].endswith(f'nlnum {t.nlnum} → {t.nlnum + 1}')
+        nuevo = ('CX120' if con_cable else None) if t.cable else 'AX120'
+        cambia = nuevo is not None and tipos[t.tipo].datos['sline'] < tipos[nuevo].datos['sline']
+        assert e.get('tipo') == (nuevo if cambia else None), (nombre, t, e)
+        if not cambia and nuevo is not None:
+            assert any(nombre in a and '042:RF-99' in a for a in fila['avisos'])
+        if t.cable and not con_cable:
+            assert any(nombre in a and '042:RF-100' in a for a in fila['avisos'])
+
+
+def test_conductor_terna_una_obra_guardada_sin_tipo_se_abre_igual():
+    """042:RF-101 — la terna guardada antes de RF-98, sin tipo, se valida y simula igual: una terna más, sin avisos."""
+    rng = random.Random(42101)
+    tipos, red = _red_terna(rng, 22.9)
+    guardada = {'clase': 'terna', 'alimentador': 'A1', 'casos': [CON_PROYECTO], 'tramos': ['L0', 'L1']}
+    obra = op.validar_obra(guardada)
+    assert obra.tipo is None and obra.tipo_cable is None and obra.a_dict() == guardada
+    (fila,) = op.plan_simulacion([obra], {'A1': red}, tipos.values())
+    assert fila['elementos'] == [{'elemento': n, 'clase': 'ElmLne',
+                                  'cambio': f'nlnum {red.tramos[n].nlnum} → {red.tramos[n].nlnum + 1}'}
+                                 for n in ('L0', 'L1')]
+    assert not fila['avisos']

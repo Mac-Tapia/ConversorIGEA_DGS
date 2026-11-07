@@ -28,9 +28,8 @@ import numpy as np
 
 from .digital_twin.evolutivo import nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
-from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
+from .escalera_optima import Parametros, Variante, cumple, obra_terna, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
-from .instalacion_ternas import capacidad_de_tramos
 from .valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
@@ -109,9 +108,20 @@ class Oraculo:
                     continue
                 r = ramas[i]
                 if clase == 'terna':                       # un circuito igual en paralelo
-                    r['r_ohm'] = float(r.get('r_ohm') or 0.0) / 2
-                    r['x_ohm'] = float(r.get('x_ohm') or 0.0) / 2
-                    r['inom_ka'] = float(r.get('inom_ka') or 0.0) * 2
+                    # 042:RF-104: con el conductor de la terna del perfil, los dos circuitos son de ese conductor.
+                    nombre_nuevo = (o.get('cambia_tipo') or {}).get(str(nombre))
+                    nuevo, largo = self.tipos.get(str(nombre_nuevo)), r.get('largo_km')
+                    if nombre_nuevo and nuevo and largo is not None and nuevo.get('sline'):
+                        r['r_ohm'] = float(nuevo.get('rline') or 0.0) * float(largo) / 2
+                        r['x_ohm'] = float(nuevo.get('xline') or 0.0) * float(largo) / 2
+                        r['inom_ka'] = float(nuevo['sline']) * 2
+                    else:
+                        if nombre_nuevo:
+                            avisos.append(f'sin datos de {nombre_nuevo} o del largo de {nombre}: la terna se mide '
+                                          'con su conductor actual')
+                        r['r_ohm'] = float(r.get('r_ohm') or 0.0) / 2
+                        r['x_ohm'] = float(r.get('x_ohm') or 0.0) / 2
+                        r['inom_ka'] = float(r.get('inom_ka') or 0.0) * 2
                     # 084:RF-16: con la capacidad del fabricante para esa configuración, no el doble del tipo.
                     capacidad = (o.get('capacidad_terna_a') or {}).get(str(nombre))
                     if capacidad:
@@ -132,7 +142,8 @@ class Oraculo:
         """La red factorizada de las obras que cambian impedancia, una vez por combinación."""
         clave = tuple(sorted((o.get('clase'), tuple(o.get('tramos') or ()),
                               str((o.get('tipo') or {}).get('nombre')),
-                              tuple(sorted((o.get('capacidad_terna_a') or {}).items())))
+                              tuple(sorted((o.get('capacidad_terna_a') or {}).items())),
+                              tuple(sorted((o.get('cambia_tipo') or {}).items())))                # 042:RF-104
                              for o in obras if o.get('clase') in ('terna', 'seccion')))
         if clave in self._sistemas:
             self._sistemas.move_to_end(clave)
@@ -433,6 +444,8 @@ class Espacio:
     tramos: Sequence[Mapping[str, Any]]          # troncal: ``nombre`` y ``largo_m``
     secciones: Sequence[Mapping[str, Any]] = ()  # tipos aptos (``nombre``, ``origen``, ``proyecto``)
     ternas: Mapping[str, Any] | None = None      # 084:RF-16: ``planificacion.ternas_subterraneas``
+    #: 042:RF-98: ``escalera_optima.tipos_de_terna``; ``None`` si el perfil no da ``escalera.conductor_terna``.
+    de_terna: Mapping[str, Mapping[str, Any]] | None = None
 
     def opciones_tramo(self) -> list[str]:
         return ['nada', 'terna', *[f"seccion:{s['nombre']}" for s in self.secciones]]
@@ -450,9 +463,12 @@ class Espacio:
                 nombre.append(f'{int(n)}×{self.banco_kvar:g} kvar en {b}')
         ternas = [t for t, o in zip(self.tramos, por_tramo, strict=True) if o == 'terna']
         if ternas:
-            obras.append({'clase': 'terna', 'alimentador': self.alimentador, 'casos': [CON_PROYECTO],
-                          'tramos': [t['nombre'] for t in ternas], **capacidad_de_tramos(ternas, self.ternas)})
+            # 042:RF-98, RF-103: la misma terna que la escalera, con el conductor del perfil en los dos circuitos.
+            obra, km_cambia = obra_terna(self.alimentador, ternas, self.ternas, self.de_terna)
+            obras.append(obra)
             cantidades['terna'] = sum(float(t.get('largo_m') or 0.0) for t in ternas) / 1000
+            if km_cambia:
+                cantidades['seccion'] = km_cambia
             nombre.append(f'terna en {len(ternas)} tramo(s)')
         por_tipo: dict[str, list] = {}
         for t, o in zip(self.tramos, por_tramo, strict=True):
@@ -468,7 +484,9 @@ class Espacio:
             cantidades['seccion'] = cantidades.get('seccion', 0.0) + sum(
                 float(t.get('largo_m') or 0.0) for t in tramos) / 1000
             nombre.append(f'sección {tipo} en {len(tramos)} tramo(s)')
-        escalones = tuple(e for e in ('bancos', 'terna', 'seccion') if e in cantidades)
+        # 042:RF-103: el conductor que cambia con la terna se costea como sección, pero la obra sigue siendo una terna.
+        clases = {o['clase'] for o in obras}
+        escalones = tuple(e for e, c in (('bancos', 'condensador'), ('terna', 'terna'), ('seccion', 'seccion')) if c in clases)
         return Variante(' + '.join(nombre) or 'sin obras', escalones, obras, cantidades)
 
 
