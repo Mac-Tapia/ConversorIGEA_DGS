@@ -6635,7 +6635,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
                  'apartar_variaciones': apartar_variaciones,
                  # 098:RF-36: la obra de la escalera que se compara, fuera de la medida y de vuelta al terminar.
-                 **({'apartar_obras': list(apartar_obras[f])} if apartar_obras and apartar_obras.get(f) else {})}
+                 **({'apartar_obras': list(apartar_obras[f]),
+                     # 098:RF-36 (H): sin lo que abrió, cerró o activó en el flujo, deshecho y devuelto con la medida.
+                     'operacion_apartadas': list(((conservar or {}).get(f) or (sustituir or {}).get(f) or {})
+                                                 .get('operacion') or [])}
+                    if apartar_obras and apartar_obras.get(f) else {})}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
         objetivo_previo = bool(previas and previas.get(f))                       # 042:RF-64
         if objetivo_previo:
@@ -6645,6 +6649,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu,
             'cargabilidad_max_pct': p.cargabilidad_max_pct, 'migrar_a_kv': p.migrar_a_kv},
             nombre='escalera_datos', args=('--escalera-datos',))
+        if datos.get('especiales_recuperadas') and hasattr(ws, 'obras_aplicadas'):             # 098:RF-36
+            with ws.lock:
+                _recomponer_por_diario(ws, project, datos)
+                ws.save()
         d = (datos.get('alimentadores') or {}).get(f)
         fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
                                 'elegida': None, 'mas_cercana': None, 'tabla': [], 'aplicada': None}
@@ -6895,6 +6903,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 if not fila['sustitucion'].get('hecha'):
                     fila['aplicada'] = []
                     hechas = []
+            if fila['aplicada']:
+                _marcar_aplicada(ws, project, f, decision['elegida'], [str(x) for x in fila['aplicada'] if x],
+                                 list(v_e.obras))
             for o in hechas:                                                     # 098:RF-24
                 t = o.get('transferencia')
                 if t:
@@ -6980,14 +6991,74 @@ def _elegidas_guardadas(ws, project: str, f: str) -> list[dict]:
             for a in alts or [] if a.get('elegida')]
 
 
+def _misma_obra(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    """098:RF-36: dos obras iguales por su contenido: la misma clase y alimentador, y la misma barra y kvar, o los mismos
+    tramos y tipo, o lo demás igual."""
+    if not a or not b or a.get('clase') != b.get('clase') or str(a.get('alimentador')) != str(b.get('alimentador')):
+        return False
+    if a.get('clase') == 'condensador':
+        return a.get('barra') == b.get('barra') and float(a.get('q_kvar') or 0) == float(b.get('q_kvar') or 0)
+    if a.get('clase') in ('seccion', 'terna'):
+        return (set(a.get('tramos') or ()) == set(b.get('tramos') or ())
+                and (a.get('tipo') or {}).get('nombre') == (b.get('tipo') or {}).get('nombre'))
+    claves = (set(a) | set(b)) - {'id'}
+    return all(a.get(k) == b.get(k) for k in claves)
+
+
+def _marcar_aplicada(ws, project: str, f: str, nombre: str, variaciones: list[str], obras: list[dict]) -> None:
+    """098:RF-36 (M1): la elegida guardada de ``f`` lleva lo que se aplicó (variaciones y obras): solo eso es evidencia de
+    que una obra es de la escalera; una elegida de una evaluación que no aplicó nada no lo es."""
+    from ..demanda_medida import clave_codigo
+
+    ruta = _ruta_alternativas_escalera(ws)
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    except (OSError, ValueError):
+        return
+    cambio = False
+    for clave, alts in (datos.get(project.strip()) or {}).items():
+        if clave_codigo(str(clave).split(' · ')[0]) != clave_codigo(f):
+            continue
+        for a in alts or []:
+            if a.get('elegida') and a.get('nombre') == nombre:
+                a['aplicada'] = list(variaciones)
+                a['obras'] = [dict(o) for o in obras]
+                cambio = True
+    if cambio:
+        write_json_atomic(ruta, datos)
+
+
 def _evidencia_de_escalera(ws, project: str, f: str, registro: Mapping[str, Any]) -> dict | None:
-    """098:RF-36 (M1): la elegida que guardó la escalera para ``f`` y que deja la clase de obra del registro sin origen;
-    ``None`` sin ella. CHN102 (2026-11-07): «cambio a 22.9 kV con su fuente (29.30 km, 50 SED)» elegida con escalón
-    «nivel» y la obra aplicada «Obra_tension_CHN102», de antes de guardar el origen."""
-    escalon = ESCALON_DE_CLASE.get(str((registro.get('obra') or {}).get('clase')))
+    """098:RF-36 (M1): la elegida que la escalera aplicó y que es la obra del registro sin origen, por el nombre de su
+    variación o por su contenido; ``None`` sin ella (una elegida de una evaluación que no aplicó nada no cuenta).
+
+    De antes de guardarlo en la elegida, vale el plan con que la escalera aplicó su elegida (``aplicando_elegida``), con
+    la variante del mismo nombre que la elegida guardada y una obra igual a la del registro. CHN102 (2026-11-07):
+    «Obra_tension_CHN102» y «cambio a 22.9 kV con su fuente (29.30 km, 50 SED)» en ``escalera_evaluar_9665744fe586``."""
+    obra = registro.get('obra') or {}
+    escalon = ESCALON_DE_CLASE.get(str(obra.get('clase')))
     if not escalon:
         return None
-    return next((a for a in reversed(_elegidas_guardadas(ws, project, f)) if escalon in (a.get('escalones') or ())), None)
+    elegidas = [a for a in _elegidas_guardadas(ws, project, f) if escalon in (a.get('escalones') or ())]
+    for a in reversed(elegidas):
+        if a.get('aplicada') and (registro.get('variacion') in a['aplicada']
+                                  or any(_misma_obra(o, obra) for o in a.get('obras') or [])):
+            return a
+    nombres = {a.get('nombre'): a for a in elegidas}
+    plans_dir = getattr(ws, 'plans_dir', None)
+    if not nombres or plans_dir is None:
+        return None
+    for ruta in sorted(Path(plans_dir).glob('escalera_evaluar_*.json'), reverse=True):
+        try:
+            plan = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if not plan.get('aplicando_elegida') or plan.get('project') != project.strip():
+            continue
+        for v in plan.get('variantes') or []:
+            if v.get('nombre') in nombres and any(_misma_obra(o, obra) for o in v.get('obras') or []):
+                return nombres[v['nombre']]
+    return None
 
 
 def _obras_a_comparar(ws, ctx: JobContext, project: str, feeders: list[str]) -> dict[str, dict]:
@@ -8596,6 +8667,27 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
     return None
 
 
+def _recomponer_por_diario(ws, project: str, informe: Mapping[str, Any]) -> list[str]:
+    """098:RF-36: una sustitución que el proceso dejó con la nueva comprobada y que la orden siguiente completó en
+    DIgSILENT: lo aplicado del espacio se pone al día con su diario (fuera la vieja, dentro la nueva con su elección)."""
+    hechas = []
+    for e in informe.get('especiales_recuperadas') or []:
+        if e.get('accion') != 'sustitucion' or e.get('paso') != 'nueva_verificada':
+            continue
+        if e.get('proyecto') and e['proyecto'] != project.strip():
+            continue
+        fuera = set(e.get('viejas') or ())
+        ws.obras_aplicadas = [o for o in ws.obras_aplicadas or []
+                              if not (o.get('project') == project.strip() and o.get('variacion') in fuera)]
+        for n in e.get('nuevas') or []:
+            if n.get('variacion') and not any(o.get('variacion') == n['variacion'] and o.get('project') == project.strip()
+                                              for o in ws.obras_aplicadas):
+                registrar_obra_aplicada(ws, project, n['variacion'], dict(n.get('obra') or {}), origen=ORIGEN_ESCALERA,
+                                        eleccion=e.get('eleccion'))
+                hechas.append(n['variacion'])
+    return hechas
+
+
 def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict,
                             operacion: dict | None = None, origen: str = ORIGEN_OPERADOR,
                             eleccion: dict | None = None) -> None:
@@ -8651,7 +8743,7 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     if en_conjunto:
         plan['en_conjunto'] = True                                      # 042:RF-23
     if sustituir and not simular:
-        plan['sustituir'] = dict(sustituir)                             # 098:RF-36
+        plan['sustituir'] = {**dict(sustituir), 'eleccion': eleccion, 'origen': origen}          # 098:RF-36
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     # 098:RF-36: la sustitución no se corta a mitad: su diario en disco la completa o la deshace si el proceso muere.
@@ -8689,6 +8781,11 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 fuera = set(sust.get('retiradas') or ())
                 ws.obras_aplicadas = [o for o in ws.obras_aplicadas
                                       if not (o.get('project') == plan['project'] and o.get('variacion') in fuera)]
+            elif plan.get('sustituir'):
+                # La nueva se deshizo: sus obras no se quedan pendientes en el espacio como si fueran del operador.
+                ids = {o['id'] for o in elegidas}
+                ws.obras = [o for o in ws.obras if o['id'] not in ids]
+            _recomponer_por_diario(ws, plan['project'], informe)
             ws.save()
         # 024:RF-1 / RF-32: las obras pasan a «Con proyecto» con su alternativa del PIDE.
         from ..digital_twin.integration import obras_pide

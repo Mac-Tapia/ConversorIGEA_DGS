@@ -823,3 +823,26 @@ def test_volver_a_calibrar_el_anio_reutiliza_sus_casos():
     antes = _nombres(app)
     assert ajuste_pf.ejecutar(app, plan)[1] == 0
     assert _nombres(app) == antes
+
+
+def test_la_sustitucion_con_casos_del_anio_queda(tmp_path, monkeypatch):
+    """098:RF-36 (A) — con ``anio_casos``, la fila dice «Con proyecto» y el caso se llama «Con proyecto <año>»: la nueva
+    se da por buena igual, y la vieja se borra; antes se deshacía siempre (CA101_CHN102 tiene casos de año)."""
+    from test_obras_pf_guion import _calibrada, _obra_terna, _plan as _plan_obras, _terna
+    from test_obras_pf_guion import guion as obras_guion
+
+    app, alims = _calibrada(random.Random(7))
+    monkeypatch.setitem(obras_guion.CONSTRUCTORES, 'terna', _terna)
+    assert casos_pf.preparar_sin(app, {'project': 'P', 'feeders': alims, 'anio_casos': ANIO,
+                                       'caso_base_sin_verificar': {}})[1] == 0
+    plan = {**_plan_obras(alims, obras=[_obra_terna(alims[0], ['Sin proyecto', 'Con proyecto'])],
+                          aperturas_fichero=str(tmp_path / 'aperturas.json')), 'anio_casos': ANIO}
+    informe, rc = obras_guion.aplicar(app, plan)
+    assert rc == 0, informe
+    vieja = informe['obras'][0]['variacion']
+    hecho, rc = obras_guion.sustituir(app, {**plan, 'obras': [_obra_terna(alims[0], ['Con proyecto'], ('L2',))],
+                                            'sustituir': {'variaciones': [vieja], 'operacion': [], 'alimentador': alims[0]}})
+    assert hecho['sustitucion']['hecha'], hecho['sustitucion']
+    (nueva,) = hecho['sustitucion']['nuevas']
+    assert nueva in _activas_por_nombre(app, f'Con proyecto {ANIO}')
+    assert vieja not in {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)}

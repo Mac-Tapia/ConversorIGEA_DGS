@@ -195,7 +195,8 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   como estaba al borrar la variante evaluada, también si la creación se corta a mitad; mientras se mide, dejará fijas
   las tomas automáticas de los demás transformadores de dos y tres devanados y de los reguladores ajenos (anotadas en
   un lote y devueltas), y aplicada, dirá cuáles regulan; guardará el valor del ajuste de antes de la primera obra con
-  regulador, por proyecto y caso, y lo devolverá al retirar la última; MIENTRAS quede activa otra variación con
+  regulador, por proyecto y caso (en una obra de antes de guardarlo, el que anotó la obra), y lo devolverá al
+  retirar la última; MIENTRAS quede activa otra variación con
   regulador, no apagará el ajuste, y lo dirá; SI con el regulador nada cambia respecto de la misma variante sin él,
   ENTONCES la marcará «no aplicada» (RF-28).
 - RF-35: SI el libro CAPEX no trae el costo de la sección o de la terna, ENTONCES EL SISTEMA las costeará con el km
@@ -203,15 +204,18 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   (042:RF-92) de cada una que cumple, y dirá «no llega al horizonte más corto (N años)» de la que se midió en 0 años y
   «sin medir» de la que no se midió.
 - RF-36: CUANDO la escalera vuelve a correr sobre un alimentador con una obra que ella misma aplicó en «Con proyecto»
-  (o aplicada sin origen guardado de la que la escalera guardó su elección con el mismo escalón), EL SISTEMA medirá
-  las alternativas y la pila de esa obra, como una variante más con el costo de toda la pila, con la red sin ella; SI
+  (o aplicada sin origen guardado que es la misma obra, por el nombre de su variación o por su contenido, que la
+  elegida que la escalera aplicó), EL SISTEMA medirá las alternativas y la pila de esa obra, como una variante más con
+  el costo de toda la pila, con la red sin ella y sin lo que hizo en la operación (deshecho y devuelto); SI
   la red, las cargas, los sorteos, los costos y la revisión son los de su elección, ENTONCES la conservará sin medir. La
   sustituirá solo SI la de corto plazo (RF-37) cumple y cuesta menos al año, o la vieja medida ya no cumple; con la
   medida de la vieja dudosa, la conservará y lo dirá; la vieja que se queda resuelve el alimentador solo si su medida
   cumple. Para sustituir, aplicará primero la nueva con la vieja desactivada y su operación deshecha, comprobará que
-  la nueva queda activa y converge, y solo entonces borrará la vieja por los nombres exactos de sus variaciones y
-  comprobará que no queda ninguna; SI algo falla, ENTONCES borrará lo creado de la nueva y la vieja volverá activa,
-  con su operación, sin recrearla; cada paso irá a un diario en disco que la orden siguiente completa o deshace. Nunca
+  la nueva queda activa y converge, y desde ahí solo irá hacia delante: borrará la vieja por los nombres exactos de sus
+  variaciones, y lo que no se deje borrar quedará desactivado y se dirá; SI algo falla antes, ENTONCES borrará lo creado
+  de la nueva (por los nombres que anotó al crearlo) con su operación y la vieja volverá activa, con su operación, sin
+  recrearla; cada paso, con la operación de las dos, irá a un diario en disco que la orden siguiente completa o
+  deshace, y lo aplicado del espacio se pondrá al día con él. Nunca
   comparará ni retirará lo que aplicó el operador (040:RF-8, 014:RF-3) ni lo aplicado sin origen ni evidencia, que solo
   avisará; SI sin la vieja «Con proyecto» ya cumple, ENTONCES la conservará y dirá que sobra.
 - RF-37: EL SISTEMA elegirá dos obras por alimentador: la de corto plazo, la más barata que cumple hoy (con la máxima,

@@ -52,6 +52,12 @@
       alimentadores en estudio y las rondas de conjunto con la misma sustitución. (RF-34, RF-36)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "sustitu or falla or incompleto or cortada or apartada or dudosa or ultima_obra or escalera or cuesta_menos"`
       y `pytest -q tests/test_obras_integrales.py tests/test_informe_factibilidad_un_paso.py tests/test_obras_pf_guion_042.py` en verde.
+- [x] T14. Lo de la cuarta revisión de 0c5b29f6: la nueva comprobada con los casos de año, la evidencia por la misma
+      obra aplicada, solo hacia delante tras comprobar la nueva, la operación guardada en el escenario y en el diario,
+      el borrado con guarda y por nombres anotados, el ajuste de tomas de las obras antiguas, lo especial de la corrida
+      que no es resto, la vieja medida sin su operación y los menores. (RF-34, RF-36)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "delante or escenario or corta_dentro or nueva_creada or borran or antigua or especial or sin_su_operacion or reactiva or pendientes or no_aplicada_no_es"`
+      y `pytest -q tests/test_casos_por_anio.py tests/test_seis_reglas.py` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la

@@ -2313,6 +2313,7 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
         return
     fila['variacion'] = variacion.loc_name
+    _anotar_creada(plan, variacion.loc_name)                                          # 098:RF-36
     try:
         ctx = Contexto(app, proyecto, obra, fila, red, alims.elm[obra.alimentador], alims=alims,
                        redes=redes, plan=plan)
@@ -2522,7 +2523,8 @@ def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[di
     ruta = fichero_aperturas(plan)
     todas = [e for e in leer_aperturas(ruta) if e.get('proyecto') in (None, plan['project'])]
     especiales = [e for e in todas if e.get('accion') in ACCIONES_ESPECIALES]
-    recuperadas = _recuperar_especiales(app, plan, casos, especiales, informe)            # 098:RF-36
+    recuperadas = ([] if plan.get('solo_aperturas')
+                   else _recuperar_especiales(app, plan, casos, especiales, informe))      # 098:RF-36
     entradas = [e for e in todas if e.get('accion') not in ACCIONES_ESPECIALES]
     if not entradas:
         return recuperadas
@@ -2598,26 +2600,84 @@ def _diario(plan: dict, entrada: dict) -> None:
 
 
 def _quitar_diario(plan: dict, accion: str, ident: str) -> None:
-    ruta = fichero_aperturas(plan)
-    entradas = leer_aperturas(ruta)
-    quedan = [e for e in entradas if not (e.get('accion') == accion and e.get('id') == ident)]
-    if len(quedan) != len(entradas):
-        escribir_aperturas(ruta, quedan)
+    """Saca la entrada del diario; un fallo de disco no deshace nada: se queda y la siguiente orden la mira (098:RF-36)."""
+    try:
+        ruta = fichero_aperturas(plan)
+        entradas = leer_aperturas(ruta)
+        quedan = [e for e in entradas if not (e.get('accion') == accion and e.get('id') == ident)]
+        if len(quedan) != len(entradas):
+            escribir_aperturas(ruta, quedan)
+    except OSError:
+        pass
 
 
-def anotar_apartadas(plan: dict, caso, nombres: list[str]) -> str | None:
-    """098:RF-36: la obra que se aparta de la medida por su nombre, anotada antes: si la orden muere con ella apartada,
-    la siguiente la vuelve a activar (:func:`restituir_pendientes`)."""
+def _leer_diario(plan: dict, accion: str, ident: str) -> dict | None:
+    try:
+        return next((e for e in leer_aperturas(fichero_aperturas(plan))
+                     if e.get('accion') == accion and e.get('id') == ident), None)
+    except OSError:
+        return None
+
+
+def _anotar_creada(plan: dict, nombre: str) -> None:
+    """098:RF-36: el nombre exacto de cada variación que crea la obra nueva de una sustitución, en su diario, en cuanto se
+    crea: si algo falla, se borra esa y ninguna otra (una ``Obra_*`` que el operador cree entre medias no se toca)."""
+    ident = plan.get('sustitucion_en_curso')
+    if not ident or not plan.get('project'):
+        return
+    try:
+        entrada = _leer_diario(plan, 'sustitucion', ident)
+        if entrada is not None:
+            entrada['creadas'] = list(dict.fromkeys(list(entrada.get('creadas') or []) + [nombre]))
+            _diario(plan, entrada)
+    except OSError:
+        pass
+
+
+def anotar_apartadas(plan: dict, caso, nombres: list[str], operacion=None) -> str | None:
+    """098:RF-36: la obra que se aparta de la medida por su nombre, anotada antes, con su operación: si la orden muere con
+    ella apartada, la siguiente la vuelve a activar y le devuelve su operación (:func:`restituir_pendientes`)."""
     if not nombres or not plan.get('project'):
         return None
     ident = f'{time.time_ns():x}'
     try:
         _diario(plan, {'accion': 'apartada', 'id': ident, 'proyecto': plan['project'],
                        'caso': getattr(caso, 'loc_name', '') or '', 'variaciones': list(nombres),
+                       'operacion': list(operacion or []), 'operacion_deshecha': False,
                        'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')})
     except OSError:
         return None
     return ident
+
+
+def apartar_obras_con_su_operacion(app, plan: dict, casos: dict, ident: str | None, avisos: list[str]) -> set[str]:
+    """098:RF-36 (H): medir «sin ella» una obra con operación (una maniobra, una transferencia, un regulador) es medirla
+    también sin lo que abrió, cerró o activó en el flujo: se deshace, anotado en su diario, y vuelve al terminar."""
+    operacion = list(plan.get('operacion_apartadas') or [])
+    if not operacion or not ident:
+        return set()
+    entrada = _leer_diario(plan, 'apartada', ident)
+    if entrada is not None:
+        entrada['operacion_deshecha'] = True
+        _diario(plan, entrada)
+    return deshacer_operacion(app, plan, casos, operacion, avisos)
+
+
+def devolver_apartadas(app, plan: dict, casos: dict, ident: str | None, ajenas: list) -> None:
+    """098:RF-36: lo apartado, otra vez activo, y la operación de la obra apartada, otra vez como la dejó."""
+    try:
+        if ajenas:
+            casos['con'].Activate()
+            for v in ajenas:
+                v.Activate()
+    finally:
+        try:
+            entrada = _leer_diario(plan, 'apartada', ident) if ident else None
+            if entrada is not None and entrada.get('operacion_deshecha'):
+                _guardar_escenarios(app, casos, rehacer_operacion(app, plan, casos, entrada.get('operacion') or []))
+        finally:
+            if ident:
+                _quitar_diario(plan, 'apartada', ident)
 
 
 def _reactivar(app, caso, nombres) -> list[str]:
@@ -2634,28 +2694,69 @@ def _reactivar(app, caso, nombres) -> list[str]:
     return hechas
 
 
-def _borrar_variaciones(app, casos: dict, nombres) -> tuple[list[str], list[str]]:
-    """Las variaciones nombradas, desactivadas en cada caso y borradas; las que siguen después, aparte (098:RF-36)."""
+def _de_obra(nombre: str, feeders) -> bool:
+    """098:RF-36: solo se borra una variación de obra de los alimentadores de la orden, nunca otra cosa."""
+    return str(nombre).startswith('Obra_') and any(es_obra_de(str(nombre), f) for f in feeders or ())
+
+
+def _borrar_variaciones(app, casos: dict, nombres, feeders) -> tuple[list[str], list[str]]:
+    """098:RF-36: la obra vieja retirada por sus nombres exactos, una a una (si una no se deja borrar, las demás sí), con
+    un reintento; las que siguen, desactivadas en cada caso. Devuelve las borradas y las que quedan."""
+    pedidas = [n for n in nombres or () if _de_obra(n, feeders)]
+    for _intento in range(2):
+        esquemas = _esquemas(app)
+        for n in pedidas:
+            v = esquemas.get(n)
+            if v is None:
+                continue
+            try:
+                for rol in ('sin', 'con'):
+                    if rol in casos:
+                        casos[rol].Activate()
+                        v.Deactivate()
+                v.Delete()
+            except Exception:  # noqa: BLE001 - una que no se borra no impide las demás; se dice al final
+                continue
+        if not set(pedidas) & set(_esquemas(app)):
+            break
+    quedan = sorted(set(pedidas) & set(_esquemas(app)))
+    return [n for n in pedidas if n not in quedan], quedan
+
+
+def _borrar_creadas(app, casos: dict, nombres, feeders) -> list[str]:
+    """098:RF-36: lo creado por la obra nueva de una sustitución que no queda, por sus nombres exactos del diario: es
+    temporal de esta orden. Devuelve las que no se dejaron desactivar o borrar."""
     esquemas = _esquemas(app)
-    borradas = []
-    for n in nombres or ():
+    quedan = []
+    nombres = [n for n in nombres or () if _de_obra(n, feeders)]
+    for n in nombres:
         v = esquemas.get(n)
         if v is None:
             continue
-        for rol in ('sin', 'con'):
-            if rol in casos:
-                casos[rol].Activate()
-                v.Deactivate()
-        v.Delete()
-        borradas.append(n)
-    quedan = sorted(set(nombres or ()) & set(_esquemas(app)))
-    return [n for n in borradas if n not in quedan], quedan
+        try:
+            for rol in ('sin', 'con'):
+                if rol in casos:
+                    casos[rol].Activate()
+                    v.Deactivate()
+            v.Delete()
+        except Exception:  # noqa: BLE001 - se dice y la vieja no se reactiva encima
+            quedan.append(n)
+    return sorted(set(quedan) | (set(nombres or ()) & set(_esquemas(app))))
+
+
+def _hay_original(plan: dict, caso_nombre: str) -> bool:
+    try:
+        return any(e.get('accion') == 'original' and e.get('proyecto') == plan.get('project')
+                   and e.get('caso') == caso_nombre for e in leer_aperturas(fichero_aperturas(plan)))
+    except OSError:
+        return False
 
 
 def deshacer_operacion(app, plan: dict, casos: dict, filas: list[dict], avisos: list[str]) -> set[str]:
     """098:RF-34, RF-36: lo que hicieron en la operación las obras de ``filas`` (lo abierto, lo cerrado, las tomas), como
-    estaba; el ajuste de tomas del flujo, como antes de la primera obra con regulador si ya no queda ninguna. Devuelve
-    los casos donde algo cambió."""
+    estaba; el ajuste de tomas del flujo, como antes de la primera obra con regulador si ya no queda ninguna (con su
+    valor guardado; en las obras de antes de guardarlo, con el de la obra, con la misma guarda). Devuelve los casos
+    donde algo cambió."""
     cambiados: set[str] = set()
     for f in filas:
         for accion in ('abiertos', 'cerrados'):
@@ -2664,7 +2765,8 @@ def deshacer_operacion(app, plan: dict, casos: dict, filas: list[dict], avisos: 
                 if restituir_lo_abierto(app, casos, [{accion: [e]}], plan):
                     cambiados.add(caso)
     valores = [e for f in filas for e in f.get('valores') or []
-               if not (e.get('clase') == 'ComLdf' and e.get('atributo') == 'iopt_at')]
+               if not (e.get('clase') == 'ComLdf' and e.get('atributo') == 'iopt_at'
+                       and _hay_original(plan, e.get('caso') or ''))]
     for e in valores:
         if restituir_valores(app, casos, [e], avisos):
             cambiados.add(e.get('caso') or '')
@@ -2673,9 +2775,9 @@ def deshacer_operacion(app, plan: dict, casos: dict, filas: list[dict], avisos: 
     return cambiados
 
 
-def rehacer_operacion(app, casos: dict, filas: list[dict]) -> set[str]:
+def rehacer_operacion(app, plan: dict, casos: dict, filas: list[dict]) -> set[str]:
     """098:RF-36: la operación de las obras de ``filas`` otra vez como la dejaron: lo abierto, abierto; lo cerrado,
-    cerrado; los valores, el que pusieron (el ajuste de tomas, activo)."""
+    cerrado; los valores, el que pusieron (el ajuste de tomas, activo, con su valor de antes guardado otra vez)."""
     por_nombre = {c.loc_name: c for c in casos.values()}
     cambiados: set[str] = set()
     for f in filas:
@@ -2697,9 +2799,12 @@ def rehacer_operacion(app, casos: dict, filas: list[dict]) -> set[str]:
             objs = ([_ldf_del_caso(app, caso)] if e.get('clase') == 'ComLdf'
                     else _con_nombre(app, e['clase'], e['nombre'], e.get('ruta')))
             for o in objs:
-                if o is not None:
-                    setattr(o, e['atributo'], nuevo)
-                    cambiados.add(e.get('caso') or '')
+                if o is None or getattr(o, e['atributo'], None) == nuevo:
+                    continue
+                if e.get('clase') == 'ComLdf' and caso is not None:
+                    _guardar_original(plan, caso, e['atributo'], getattr(o, e['atributo'], 0))          # 098:RF-34
+                setattr(o, e['atributo'], nuevo)
+                cambiados.add(e.get('caso') or '')
     return cambiados
 
 
@@ -2715,32 +2820,40 @@ def _guardar_escenarios(app, casos: dict, nombres: set[str]) -> None:
                 escenario.Save()
 
 
-def deshacer_sustitucion(app, plan: dict, casos: dict, creadas, viejas, operacion, filas_nuevas,
-                         operacion_deshecha: bool, avisos: list[str]) -> None:
-    """098:RF-36: la nueva, fuera (lo que creó y lo que hizo en la operación); la vieja, otra vez activa con su operación.
-    La vieja no se recrea: nunca se borró. Cada paso en su ``try``, para que uno que falle no impida los demás."""
+def deshacer_sustitucion(app, plan: dict, casos: dict, creadas, viejas, operacion, operacion_nueva,
+                         operacion_deshecha: bool, avisos: list[str], feeders) -> None:
+    """098:RF-36: la nueva, fuera (lo que hizo en la operación y lo que creó, por sus nombres); la vieja, otra vez activa
+    con su operación. La vieja no se recrea: nunca se borró. Si lo nuevo no se deja quitar, la vieja no se reactiva
+    encima: se dice. Cada paso en su ``try``."""
     cambiados: set[str] = set()
+    quedan: list[str] = []
     try:
-        cambiados |= deshacer_operacion(app, plan, casos, list(filas_nuevas or []), avisos)
+        cambiados |= deshacer_operacion(app, plan, casos, list(operacion_nueva or []), avisos)
     finally:
         try:
-            _borrar_variaciones(app, casos, creadas)
+            quedan = _borrar_creadas(app, casos, creadas, feeders)
         finally:
             try:
-                _reactivar(app, casos.get('con'), viejas)
+                if quedan:
+                    avisos.append('No se pudo quitar lo creado de la obra nueva (' + ', '.join(quedan) + '): la vieja '
+                                  'no se reactiva encima; revise «Con proyecto» (098:RF-36).')
+                else:
+                    _reactivar(app, casos.get('con'), viejas)
             finally:
                 try:
-                    if operacion_deshecha:
-                        cambiados |= rehacer_operacion(app, casos, list(operacion or []))
+                    if operacion_deshecha and not quedan:
+                        cambiados |= rehacer_operacion(app, plan, casos, list(operacion or []))
                 finally:
-                    _guardar_escenarios(app, casos, cambiados | ({casos['con'].loc_name} if 'con' in casos else set()))
+                    _guardar_escenarios(app, casos, cambiados)
 
 
 class _Deshacer(Exception):
     """La obra nueva de una sustitución no quedó como debía: se deshace (098:RF-36)."""
 
 
-def _por_que_no_queda(hecho: dict, caso_con: str) -> str | None:
+def _por_que_no_queda(hecho: dict, casos_con: set[str]) -> str | None:
+    """098:RF-36: por qué la obra nueva no quedó. ``casos_activos`` dice el papel («Con proyecto»), no el nombre del caso
+    del año («Con proyecto 2026»): se aceptan los dos."""
     if hecho.get('error'):
         return str(hecho['error'])
     filas = hecho.get('obras') or []
@@ -2751,20 +2864,27 @@ def _por_que_no_queda(hecho: dict, caso_con: str) -> str | None:
             return f"{f.get('variacion') or f.get('clase')}: {f['error']}"
         if not f.get('variacion'):
             return f"{f.get('clase')}: no se creó su variación"
-        if caso_con not in (f.get('casos_activos') or []):
-            return f"{f['variacion']} no quedó activa en «{caso_con}»"
+        if not casos_con & set(f.get('casos_activos') or []):
+            return f"{f['variacion']} no quedó activa en «{sorted(casos_con)[0]}»"
         if not all(x.get('converge') for x in (f.get('flujo') or {}).values()):
             return f"con {f['variacion']} el flujo no converge"
     return None
 
 
+def _operacion_de(filas) -> list[dict]:
+    return [{'variacion': f.get('variacion'), **{k: f[k] for k in ('abiertos', 'cerrados', 'valores') if f.get(k)}}
+            for f in filas or [] if any(f.get(k) for k in ('abiertos', 'cerrados', 'valores'))]
+
+
 def sustituir(app, plan: dict) -> tuple[dict, int]:
     """098:RF-36: la obra nueva en lugar de la vieja de la escalera, sin quedarse nunca sin obra.
 
-    Con la vieja desactivada por su nombre en «Con proyecto» y su operación deshecha, se aplica la nueva; si queda
-    activa y su flujo converge, se borra la vieja y se comprueba que no queda ninguna; si algo falla (también una
-    excepción o la orden cortada), se borra lo creado de la nueva y la vieja vuelve, activa y con su operación. Cada paso
-    va al registro de disco: si el proceso muere, :func:`restituir_pendientes` completa o deshace.
+    Con la vieja desactivada por su nombre en «Con proyecto» y su operación deshecha (guardada en el escenario), se
+    aplica la nueva; si queda activa y su flujo converge, desde ahí solo se va hacia delante: se borra la vieja (con un
+    reintento) y lo que no se deje borrar queda desactivado y se dice. Si algo falla antes (también una excepción o la
+    orden cortada), se borra lo creado de la nueva (por sus nombres exactos, anotados al crearse) con su operación, y la
+    vieja vuelve, activa y con su operación. Cada paso va al registro de disco: si el proceso muere,
+    :func:`restituir_pendientes` completa o deshace.
     """
     s = dict(plan.get('sustituir') or {})
     viejas = [str(x) for x in s.get('variaciones') or []]
@@ -2778,62 +2898,95 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
     casos = casos_del_proyecto(app, anio_del_plan(plan))
     if 'con' not in casos:
         return {**base, 'error': 'falta «Con proyecto»'}, 2
-    antes = sorted(_esquemas(app))
+    feeders = sorted({str(f) for f in plan.get('feeders') or ()} | {str(o.get('alimentador')) for o in plan.get('obras') or []}
+                     | ({str(s['alimentador'])} if s.get('alimentador') else set()))
     ident = f'{time.time_ns():x}'
     entrada = {'accion': 'sustitucion', 'id': ident, 'proyecto': plan['project'], 'caso': casos['con'].loc_name,
-               'paso': 'inicio', 'viejas': viejas, 'antes': antes, 'operacion': operacion, 'apartadas': [],
+               'paso': 'inicio', 'viejas': viejas, 'operacion': operacion, 'apartadas': [], 'creadas': [],
+               'feeders': feeders, 'obras': list(plan.get('obras') or []), 'eleccion': s.get('eleccion'),
                'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')}
     _diario(plan, entrada)
+    plan_en_curso = {**plan, 'sustituir': None, 'sustitucion_en_curso': ident}
     inicial = app.GetActiveStudyCase()
     hecho: dict = {}
     apartadas: list[str] = []
     deshecha = False
     try:
-        casos['con'].Activate()
-        activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
-        esquemas = _esquemas(app)
-        apartadas = [n for n in viejas if n in activas]
-        entrada.update(paso='vieja_apartada', apartadas=apartadas)
-        _diario(plan, entrada)
-        for n in apartadas:
-            esquemas[n].Deactivate()
-        entrada['paso'] = 'operacion_deshecha'
-        _diario(plan, entrada)
-        deshecha = True
-        deshacer_operacion(app, plan, casos, operacion, base['avisos'])
-        hecho, _rc = aplicar(app, {**plan, 'sustituir': None, 'sustitucion_en_curso': ident})
-        entrada.update(paso='nueva_creada', creadas=sorted(set(_esquemas(app)) - set(antes)))
-        _diario(plan, entrada)
-        motivo = _por_que_no_queda(hecho, casos['con'].loc_name)
-        if motivo:
-            raise _Deshacer(motivo)
-        entrada['paso'] = 'nueva_verificada'
-        _diario(plan, entrada)
-        borradas, sin_borrar = _borrar_variaciones(app, casos, viejas)
-        hecho['sustitucion'] = {'hecha': True, 'retiradas': borradas, 'sin_borrar': sin_borrar}
+        try:
+            casos['con'].Activate()
+            activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+            esquemas = _esquemas(app)
+            apartadas = [n for n in viejas if n in activas]
+            entrada.update(paso='vieja_apartada', apartadas=apartadas)
+            _diario(plan, entrada)
+            for n in apartadas:
+                esquemas[n].Deactivate()
+            entrada['paso'] = 'operacion_deshecha'
+            _diario(plan, entrada)
+            deshecha = True
+            _guardar_escenarios(app, casos, deshacer_operacion(app, plan, casos, operacion, base['avisos']))
+            hecho, _rc = aplicar(app, plan_en_curso)
+            entrada = _leer_diario(plan, 'sustitucion', ident) or entrada
+            creadas = [f['variacion'] for f in hecho.get('obras') or [] if f.get('variacion')]
+            entrada.update(paso='nueva_creada', creadas=list(dict.fromkeys(list(entrada.get('creadas') or []) + creadas)),
+                           operacion_nueva=_operacion_de(hecho.get('obras')),
+                           nuevas=[{'variacion': f['variacion'], 'obra': (plan.get('obras') or [])[int(f['obra']) - 1]}
+                                   for f in hecho.get('obras') or []
+                                   if f.get('variacion') and 1 <= int(f.get('obra') or 0) <= len(plan.get('obras') or [])])
+            _diario(plan, entrada)
+            motivo = _por_que_no_queda(hecho, {NOMBRES['con'], casos['con'].loc_name})
+            if motivo:
+                raise _Deshacer(motivo)
+            entrada['paso'] = 'nueva_verificada'
+            _diario(plan, entrada)
+        except BaseException as exc:
+            leida = _leer_diario(plan, 'sustitucion', ident) or entrada
+            creadas = list(dict.fromkeys(list(leida.get('creadas') or [])
+                                         + [f['variacion'] for f in (hecho or {}).get('obras') or [] if f.get('variacion')]))
+            try:
+                deshacer_sustitucion(app, plan, casos, creadas, apartadas, operacion, _operacion_de((hecho or {}).get('obras')),
+                                     deshecha, base['avisos'], feeders)
+            finally:
+                try:
+                    # Lo que la nueva anotó al abrir y no llegó a quitar del registro, como estaba (081:RF-82).
+                    restituir_pendientes(app, plan_en_curso, casos, {'avisos': base['avisos']})
+                finally:
+                    _quitar_diario(plan, 'sustitucion', ident)
+            informe = {**base, **(hecho or {})}
+            motivo = str(exc) or type(exc).__name__
+            for f in informe.get('obras') or []:
+                f['error'] = f'deshecha: {motivo}'
+            informe['sustitucion'] = {'hecha': False, 'motivo': motivo, 'deshechas': creadas}
+            informe['avisos'] = list(informe.get('avisos') or []) + base['avisos'] + [
+                f'La obra nueva no queda ({motivo}): se deshace lo creado y vuelve la vieja, activa (098:RF-36).']
+            if isinstance(exc, _Deshacer):
+                return informe, 2
+            raise
+        # Desde aquí, hacia delante: la nueva está comprobada; nunca se deshace.
+        sin_borrar: list[str] = []
+        borradas: list[str] = []
+        try:
+            borradas, sin_borrar = _borrar_variaciones(app, casos, viejas, feeders)
+        except Exception as exc:  # noqa: BLE001 - la nueva se queda; lo que no se borró se dice
+            sin_borrar = sorted(set(viejas) & set(_esquemas(app)))
+            base['avisos'].append(f'Al borrar la obra vieja: {exc} (098:RF-36).')
+        if sin_borrar:
+            try:
+                casos['con'].Activate()
+                for n in sin_borrar:
+                    v = _esquemas(app).get(n)
+                    if v is not None:
+                        v.Deactivate()
+            except Exception:  # noqa: BLE001
+                pass
+        hecho['sustitucion'] = {'hecha': True, 'retiradas': borradas, 'sin_borrar': sin_borrar,
+                                'nuevas': [f['variacion'] for f in hecho.get('obras') or [] if f.get('variacion')]}
         hecho['avisos'] = list(hecho.get('avisos') or []) + base['avisos']
         if sin_borrar:
             hecho['avisos'].append('La obra vieja no se borró entera: quedan ' + ', '.join(sin_borrar)
                                    + ', desactivadas en «Con proyecto»; retírelas a mano (098:RF-36).')
         _quitar_diario(plan, 'sustitucion', ident)
         return hecho, 0 if not sin_borrar else 2
-    except BaseException as exc:
-        creadas = sorted(set(_esquemas(app)) - set(antes))
-        try:
-            deshacer_sustitucion(app, plan, casos, creadas, apartadas, operacion, (hecho or {}).get('obras'), deshecha,
-                                 base['avisos'])
-        finally:
-            _quitar_diario(plan, 'sustitucion', ident)
-        informe = {**base, **(hecho or {})}
-        motivo = str(exc) or type(exc).__name__
-        for f in informe.get('obras') or []:
-            f['error'] = f'deshecha: {motivo}'
-        informe['sustitucion'] = {'hecha': False, 'motivo': motivo, 'deshechas': creadas}
-        informe['avisos'] = list(informe.get('avisos') or []) + base['avisos'] + [
-            f'La obra nueva no queda ({motivo}): se deshace lo creado y vuelve la vieja, activa (098:RF-36).']
-        if isinstance(exc, _Deshacer):
-            return informe, 2
-        raise
     finally:
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
@@ -2841,34 +2994,41 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
 
 def _recuperar_especiales(app, plan: dict, casos: dict, especiales: list[dict], informe: dict) -> list[dict]:
     """098:RF-36: lo que dejó a medias una orden que murió: la sustitución se completa si la nueva ya quedó comprobada y
-    se deshace si no; la obra apartada de la medida vuelve a estar activa."""
+    se deshace si no; la obra apartada de la medida vuelve a estar activa, con su operación. Lo de la orden en curso no
+    se toca (``sustitucion_en_curso``, ``diarios_en_curso``)."""
     hechas = []
-    en_curso = plan.get('sustitucion_en_curso')
+    en_curso = {plan.get('sustitucion_en_curso')} | set(plan.get('diarios_en_curso') or ())
     for e in especiales:
-        if e.get('accion') == 'sustitucion' and e.get('id') != en_curso:
-            avisos = informe.setdefault('avisos', [])
+        if e.get('id') in en_curso:
+            continue
+        avisos = informe.setdefault('avisos', [])
+        if e.get('accion') == 'sustitucion':
+            feeders = e.get('feeders') or []
             if e.get('paso') == 'nueva_verificada':
-                borradas, quedan = _borrar_variaciones(app, casos, e.get('viejas') or [])
+                borradas, quedan = _borrar_variaciones(app, casos, e.get('viejas') or [], feeders)
                 avisos.append('Una sustitución quedó a medias con la obra nueva ya comprobada: se borra la vieja, '
                               + ', '.join(borradas or quedan) + ' (098:RF-36).')
             else:
-                creadas = sorted(n for n in set(_esquemas(app)) - set(e.get('antes') or []) if n.startswith('Obra_'))
-                deshacer_sustitucion(app, plan, casos, creadas, e.get('apartadas') or [], e.get('operacion') or [], None,
-                                     e.get('paso') in ('operacion_deshecha', 'nueva_creada'), avisos)
-                avisos.append('Una sustitución quedó a medias: se deshace la obra nueva (' + (', '.join(creadas) or 'nada')
-                              + ') y la vieja vuelve, activa (098:RF-36).')
+                deshacer_sustitucion(app, plan, casos, e.get('creadas') or [], e.get('apartadas') or [],
+                                     e.get('operacion') or [], e.get('operacion_nueva') or [],
+                                     e.get('paso') in ('operacion_deshecha', 'nueva_creada'), avisos, feeders)
+                avisos.append('Una sustitución quedó a medias: se deshace la obra nueva ('
+                              + (', '.join(e.get('creadas') or []) or 'nada') + ') y la vieja vuelve, activa (098:RF-36).')
             _quitar_diario(plan, 'sustitucion', e['id'])
             hechas.append(e)
         elif e.get('accion') == 'apartada':
             por_nombre = {c.loc_name: c for c in casos.values()}
             vueltas = _reactivar(app, por_nombre.get(e.get('caso')), e.get('variaciones') or [])
+            if e.get('operacion_deshecha'):
+                _guardar_escenarios(app, casos, rehacer_operacion(app, plan, casos, e.get('operacion') or []))
             if vueltas:
-                informe.setdefault('avisos', []).append('Una medida que se cortó dejó apartada ' + ', '.join(vueltas)
-                                                        + ': vuelve a estar activa (098:RF-36).')
+                avisos.append('Una medida que se cortó dejó apartada ' + ', '.join(vueltas)
+                              + ': vuelve a estar activa (098:RF-36).')
             _quitar_diario(plan, 'apartada', e['id'])
             hechas.append(e)
     if hechas:
-        informe['especiales_recuperadas'] = [{k: e.get(k) for k in ('accion', 'paso', 'viejas', 'variaciones')}
+        informe['especiales_recuperadas'] = [{k: e.get(k) for k in ('accion', 'paso', 'viejas', 'variaciones', 'nuevas',
+                                                                    'eleccion', 'proyecto')}
                                              for e in hechas]
     return hechas
 
@@ -3617,9 +3777,11 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
         # 025:RF-73: el estado de «Con proyecto» con el que se medirá; una evaluación anterior
         # solo se reutiliza si es el mismo.
         informe['variaciones_activas'] = sorted(v.loc_name for v in app.GetActiveNetworkVariations() or [])
-        diario_apartadas = anotar_apartadas(plan, casos['con'], list(plan.get('apartar_obras') or []))   # 098:RF-36
+        diario_apartadas = anotar_apartadas(plan, casos['con'], list(plan.get('apartar_obras') or []),
+                                            plan.get('operacion_apartadas'))                       # 098:RF-36
         ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []),
                                     plan.get('apartar_variaciones'), plan.get('apartar_obras'))   # RF-69, 042:RF-2
+        apartar_obras_con_su_operacion(app, plan, casos, diario_apartadas, informe['avisos'])
         # 098:RF-32: la red tal como se mide, sin lo apartado (también la obra que se compara, 098:RF-36).
         informe['huella_red'] = huella_de_la_red(app, alims, feeders)
         apartadas = _apartar_cargas_nuevas(app)
@@ -3784,12 +3946,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                            'existen': existen.get(f, []), 'barras_media': media_de.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
     finally:
-        if ajenas:
-            casos['con'].Activate()
-            for v in ajenas:
-                v.Activate()
-        if diario_apartadas:
-            _quitar_diario(plan, 'apartada', diario_apartadas)
+        devolver_apartadas(app, plan, casos, diario_apartadas, ajenas)                     # 098:RF-36
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, 0
@@ -4186,9 +4343,11 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     diario_apartadas = None
     try:
         # 098:RF-36: dentro del ``try``: lo apartado vuelve aunque falle a mitad; la obra apartada, anotada en disco.
-        diario_apartadas = anotar_apartadas(plan, casos['con'], list(plan.get('apartar_obras') or []))
+        diario_apartadas = anotar_apartadas(plan, casos['con'], list(plan.get('apartar_obras') or []),
+                                            plan.get('operacion_apartadas'))
         ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []),
                                     plan.get('apartar_variaciones'), plan.get('apartar_obras'))   # RF-69, 098:RF-36
+        apartar_obras_con_su_operacion(app, plan, casos, diario_apartadas, informe['avisos'])
         # «Sin proyecto» con la máxima y con cada sorteo, una sola vez (RF-50).
         casos['sin'].Activate()
         existentes = {c.loc_name for f in feeders for c in _cargas_de(alims, f)}   # 063:RF-39
@@ -4297,7 +4456,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         finally:
                             if not filas_v:
                                 # ``aplicar`` no llegó a devolver sus filas: lo anotado en disco de esta evaluación.
-                                restos = restituir_pendientes(app, plan, casos, {})
+                                # 098:RF-36: lo apartado y la sustitución de esta corrida no son restos.
+                                restos = restituir_pendientes(app, {**plan, 'solo_aperturas': True}, casos, {})
                                 if restos:
                                     informe['avisos'].append(
                                         f"«{v['nombre']}» se cortó al crearse: se restituye lo que anotó, "
@@ -4617,12 +4777,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         print(f"  Tiempos de las medidas ligeras: {TIEMPOS['flujos']} flujos, {TIEMPOS['flujo_s']:.1f} s de flujo y "
               f"{TIEMPOS['lectura_s']:.1f} s de lectura (042:RF-89).", flush=True)
     finally:
-        if ajenas:
-            casos['con'].Activate()
-            for v in ajenas:
-                v.Activate()
-        if diario_apartadas:
-            _quitar_diario(plan, 'apartada', diario_apartadas)
+        devolver_apartadas(app, plan, casos, diario_apartadas, ajenas)                     # 098:RF-36
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, 0
