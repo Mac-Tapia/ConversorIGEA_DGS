@@ -48,7 +48,9 @@ def main(argv=None) -> int:
         if not any(i == modelo or i.startswith(modelo + ':') for i in instalados):
             medidas[modelo] = {'instalado': False}
             continue
-        cliente = ClienteOllama(modelo=modelo, tiempo_max_s=args.tiempo_max)
+        # El intérprete pide JSON corto: sin razonamiento previo. qwen3:8b razonaba antes de cada orden y el 2026-11-07
+        # dejó 48 de 144 sin respuesta, con 11 s de mediana: se medía el razonamiento, no el intérprete.
+        cliente = ClienteOllama(modelo=modelo, tiempo_max_s=args.tiempo_max, pensar=False)
         aciertos, tiempos, sin_respuesta = 0, [], 0
         for e in ordenes:
             inicio = time.monotonic()
@@ -67,7 +69,8 @@ def main(argv=None) -> int:
     elegido = max(validos, key=lambda m: (validos[m]['acierto'], -validos[m]['segundos_mediana'])) if validos else None
     resultado = {'elegido': elegido, 'medidas': medidas, 'tiempo_max_s': args.tiempo_max}
     if elegido:
-        almacen.guardar_json('ollama', {'modelo': elegido, 'medidas': medidas, 'fecha': almacen.ahora()})
+        # Con lo que se midió: sin razonar, como lo usa la web.
+        almacen.guardar_json('ollama', {'modelo': elegido, 'pensar': False, 'medidas': medidas, 'fecha': almacen.ahora()})
     salida.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding='utf-8')
     print(f'Elegido: {elegido or "ninguno"}')
     return 0
