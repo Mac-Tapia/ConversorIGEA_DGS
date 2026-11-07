@@ -6362,6 +6362,81 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
     return vs, vecinos, avisos + av
 
 
+def _huella_de_la_medida(plan_ev: Mapping[str, Any]) -> str | None:
+    """098:RF-32: lo que hace que dos medidas de una variante sean la misma: la red y las variaciones activas de «Con
+    proyecto» (cargas nuevas y obras aplicadas), las cargas apartadas, las barras, los sorteos, el valle y los
+    parámetros. Sin el estado de «Con proyecto» no se puede comprobar: ``None``."""
+    import hashlib
+
+    if plan_ev.get('estado_con_proyecto') is None:
+        return None
+    claves = ('project', 'anio_casos', 'feeders', 'estado_con_proyecto', 'apartar_cargas_de', 'apartar_variaciones',
+              'barras_cargas', 'sorteos', 'parametros', 'valle', 'horizonte', 'alternativas', 'basta_una',
+              'aplicando_elegida', 'costo_por_kw_perdido')
+    datos = json.dumps({k: plan_ev.get(k) for k in claves}, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(datos.encode('utf-8')).hexdigest()
+
+
+def _clave_variante(huella: str, v: Mapping[str, Any]) -> str:
+    return huella + '|' + json.dumps({'nombre': v.get('nombre'), 'obras': v.get('obras')}, sort_keys=True,
+                                     ensure_ascii=False, default=str)
+
+
+def _medida_segura(x: Mapping[str, Any]) -> str | None:
+    """098:RF-32: por qué una medida guardada no se reutiliza (sospechosa o incompleta), o ``None`` si se puede."""
+    if x.get('error') or x.get('no_aplicada'):
+        return 'su medida tuvo un error o no se aplicó'
+    if x.get('maxima') and x.get('fraccion') is None:
+        return 'cumple con la máxima y faltan sus sorteos'
+    if not x.get('u_cargas'):
+        return 'sin la tensión de sus cargas'
+    return None
+
+
+def _medidas_ya_hechas(ctx: JobContext, f: str, plan_ev: dict, memo: dict | None) -> tuple[dict, list]:
+    """098:RF-32: las variantes del plan ya medidas con la misma huella, y las que hay que medir.
+
+    La sección de 50 mm² de CA101 se midió dos veces con la misma red (2026-11-07, 0,901/0,866/0,897/0,846 las dos).
+    Usuario: se vuelve a medir «si es necesario y no está seguro»: con otra huella (otra ronda con otras cargas u
+    obras activas, 087:RF-47), sin huella comprobable o con un resultado sospechoso."""
+    variantes = list(plan_ev.get('variantes') or [])
+    huella = _huella_de_la_medida(plan_ev)
+    guardadas = (memo or {}).get('medidas_por_variante') or {}
+    if huella is None or not guardadas:
+        if huella is None and variantes:
+            ctx.log(f'{f}: sin el estado de «Con proyecto» no se puede comprobar que la red sea la misma: se miden las '
+                    f'{len(variantes)} variantes (098:RF-32).')
+        return {}, variantes
+    ya, nuevas, dudas = {}, [], []
+    for v in variantes:
+        x = guardadas.get(_clave_variante(huella, v))
+        motivo = _medida_segura(x) if x is not None else None
+        if x is not None and motivo is None:
+            ya[v['nombre']] = x
+        else:
+            nuevas.append(v)
+            if motivo:
+                dudas.append(f"{v['nombre']}: {motivo}")
+    if ya or dudas:
+        ctx.log(f'{f}: {len(ya)} variante(s) reutilizadas, medidas con la misma red, cargas, obras, instante y sorteos; '
+                f'{len(nuevas)} se miden en DIgSILENT' + (' (de nuevo: ' + '; '.join(dudas[:5]) + ')' if dudas else '')
+                + ' (098:RF-32).')
+    return ya, nuevas
+
+
+def _guardar_medidas(plan_ev: Mapping[str, Any], ev: Mapping[str, Any], memo: dict | None) -> None:
+    """098:RF-32: lo medido, por variante y por huella, para el resto del trabajo."""
+    huella = _huella_de_la_medida(plan_ev)
+    if memo is None or huella is None:
+        return
+    por_nombre = {v['nombre']: v for v in plan_ev.get('variantes') or []}
+    guardadas = memo.setdefault('medidas_por_variante', {})
+    for x in ev.get('variantes') or []:
+        v = por_nombre.get(x.get('nombre'))
+        if v is not None:
+            guardadas[_clave_variante(huella, v)] = dict(x)
+
+
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
                    capex: str | None = None, cargas_activas: list[str] | None = None,
@@ -6607,8 +6682,19 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         if ev is not None:
             ctx.log(f'{f}: se reutiliza su evaluación ya terminada con los mismos datos (025:RF-73).')
         else:
-            rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan_ev, nombre='escalera_evaluar',
-                                     args=('--evaluar',))
+            # 098:RF-32: lo ya medido con la misma red, las mismas cargas, obras, instante y sorteos, no se repite.
+            ya, plan_ev['variantes'] = _medidas_ya_hechas(ctx, f, plan_ev, memo)
+            if plan_ev['variantes'] or not ya:
+                rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan_ev, nombre='escalera_evaluar',
+                                         args=('--evaluar',))
+            else:
+                ev = {'variantes': []}
+            if not ev.get('error'):
+                _guardar_medidas(plan_ev, ev, memo)
+                if ya and not ev.get('ya_cumple'):
+                    orden = [x['nombre'] for x in a_medir]
+                    ev['variantes'] = sorted(list(ya.values()) + list(ev.get('variantes') or []),
+                                             key=lambda x: orden.index(x['nombre']) if x['nombre'] in orden else len(orden))
         if ev.get('error'):
             raise UserError(ev['error'])
         if ev.get('ya_cumple'):                                                  # 025:RF-74

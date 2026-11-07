@@ -570,6 +570,35 @@ def _aviso_del_flujo(ctx, atributo: str, que: str) -> None:
             'estudios hasta que se active.')
 
 
+def _activar_en_el_flujo(ctx, atributo: str, que: str) -> None:
+    """098:RF-34: el flujo del caso ajusta lo que la obra deja regulando; si no lo hacía, se activa y se anota.
+
+    CHN102 (2026-11-07): con ``ComLdf.iopt_at = 0`` las variantes con «+ regulador 500 A» y «300 A» daban la misma
+    tensión que sin él (0,956 frente a 0,956): el regulador se quedaba en su toma central. Al borrar la variante
+    evaluada, el flujo vuelve a como estaba (como lo abierto, 081:RF-81); en la obra aplicada, se queda y se dice.
+    """
+    ldf = ctx.app.GetFromStudyCase('ComLdf')
+    if ldf is None or getattr(ldf, atributo, 0):
+        return
+    caso = getattr(ctx.app.GetActiveStudyCase(), 'loc_name', '') or ''
+    ctx.fila.setdefault('flujo_activado', []).append([caso, atributo, getattr(ldf, atributo, 0)])
+    setattr(ldf, atributo, 1)
+    ctx.fila['avisos'].append(f'Se activa el ajuste automático de {que} del flujo de «{caso}» (ComLdf.{atributo}): sin él la '
+                              'obra no regula (098:RF-34).')
+
+
+def restituir_el_flujo(app, casos: dict, filas: list[dict]) -> None:
+    """098:RF-34: lo que :func:`_activar_en_el_flujo` cambió en el flujo de cada caso, como estaba."""
+    por_nombre = {c.loc_name: c for c in casos.values()}
+    for f in filas:
+        for caso, atributo, valor in f.get('flujo_activado') or []:
+            if por_nombre.get(caso) is not None:
+                por_nombre[caso].Activate()
+            ldf = app.GetFromStudyCase('ComLdf')
+            if ldf is not None:
+                setattr(ldf, atributo, valor)
+
+
 def _barra_con_tres_fases(ctx, barra):
     """La barra de un banco trifásico nuevo: la pedida o la compatible más cercana (081:RF-8).
 
@@ -687,7 +716,7 @@ def construir_regulador(ctx) -> None:
     regulador.usp_low = o.consigna_pu - BANDA_TENSION_PU
     regulador.usp_up = o.consigna_pu + BANDA_TENSION_PU
     regulador.ntrcn, regulador.i_cont, regulador.nntap1 = 1, 0, 0
-    _aviso_del_flujo(ctx, 'iopt_at', 'las tomas')
+    _activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
 
 
 def construir_seccion(ctx) -> None:
@@ -3452,6 +3481,15 @@ class _Sorteo:
 NO_APLICADA = 'no aplicada'
 
 
+def _clave_obras(obras) -> str:
+    return json.dumps(sorted(json.dumps(o, sort_keys=True, ensure_ascii=False) for o in obras), ensure_ascii=False)
+
+
+def _sin_regulador(v: dict) -> str:
+    """098:RF-34: la clave de las obras de la variante sin sus reguladores."""
+    return _clave_obras([o for o in v.get('obras') or [] if o.get('clase') != 'regulador'])
+
+
 def sin_cambio(antes: dict, despues: dict, tol_u: float = 1e-6, tol_carga: float = 1e-4) -> bool:
     """098:RF-28: si dos medidas convergidas dan las mismas tensiones y cargas, barra por barra y tramo por tramo."""
     if not (antes.get('converge') and despues.get('converge')):
@@ -3601,6 +3639,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         var.Delete()
                 # 081:RF-81: lo abierto es dato del escenario y sobrevive a la variación borrada (Pisco, 2026-11-07).
                 restituir_lo_abierto(app, casos, list(hecho.get('obras') or []), plan)
+                restituir_el_flujo(app, casos, list(hecho.get('obras') or []))                  # 098:RF-34
                 # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
                 # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
                 # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
@@ -3765,6 +3804,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     primeros = primeros or list(motivos)
             return {'definitiva': False, 'aguanta_anios': 0, 'motivos': primeros}
 
+        medidas_sin_regulador: dict[str, tuple[str, dict]] = {}                       # 098:RF-34
         for v in variantes:
             if cancelado():
                 informe['cancelado'] = True
@@ -3784,11 +3824,19 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             con_max, en_valle = medido if medido is not None else (None, None)
             if fila['error'] and fila['error'].startswith(NO_APLICADA):
                 fila['no_aplicada'] = fila['error']                                     # 098:RF-28
+            elif con_max is not None and (base := medidas_sin_regulador.get(_sin_regulador(v))) is not None \
+                    and _sin_regulador(v) != _clave_obras(v['obras']) and sin_cambio(base[1], con_max):
+                # 098:RF-34: el regulador no cambia nada: sin él la variante es otra que ya se midió.
+                fila['no_aplicada'] = fila['error'] = (f'{NO_APLICADA}: el regulador no cambia ninguna tensión ni corriente '
+                                                       f'respecto de «{base[0]}»')
+                con_max, en_valle = None, None
             elif con_max is not None and sin_cambio(con_actual, con_max):
                 # 098:RF-28: ni una tensión ni una corriente cambió: la variante no se aplicó donde se mide.
                 fila['no_aplicada'] = fila['error'] = (f'{NO_APLICADA}: con ella no cambia ninguna tensión ni corriente '
                                                        f"de «{NOMBRES['con']}» respecto de sin obra")
                 con_max, en_valle = None, None
+            if con_max is not None:
+                medidas_sin_regulador.setdefault(_clave_obras(v['obras']), (v['nombre'], con_max))
             fila.update(en_valle or {})
             mejora = ''
             if con_max is not None:

@@ -922,7 +922,14 @@ def test_al_evaluar_la_transferencia_se_mide_y_todo_vuelve(monkeypatch, tmp_path
 def test_la_variante_que_no_queda_aplicada_no_se_cuenta_como_no_cumple(monkeypatch):
     """098:RF-28 — CA101 (job 11469a95f83e): «cambio a 22.9 kV» dio las tensiones de sin obra: su flujo no convergía,
     la obra quedaba inactiva y se medía sin ella. Ahora se marca «no aplicada» con su causa."""
-    from test_obras_pf_guion import CON, PERFIL_ESCALERA, _actual_no_cumple, _calibrada_con_escenario, _obra_terna, _terna
+    from test_obras_pf_guion import (
+        CON,
+        PERFIL_ESCALERA,
+        _actual_no_cumple,
+        _calibrada_con_escenario,
+        _obra_terna,
+        _terna,
+    )
     from test_obras_pf_guion import _plan as _plan_obras
 
     obras = cargar_herramienta('obras_pf.py', 'obras_no_aplicada_098', tools_en_path=True)
@@ -1039,3 +1046,182 @@ def test_el_oraculo_se_corrige_con_lo_que_midio_digsilent():
     sube = ora.medir(banco, 1).u['A4'] - con.u['A4']
     assert sube == pytest.approx(1.5 * sube_crudo, rel=1e-6)
     assert ora.medir([], 1).v_min == pytest.approx(min(medido.values()), abs=1e-9)
+
+
+# =========================================================================== 098:RF-31 a RF-35 (T6 de «Con proyecto», segunda corrida)
+def _perfil_eo(**esc):
+    return {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                         'max_variantes': 400, 'secciones_normalizadas': ['AA05003D', 'AA12003D', 'AA24003D'], **esc},
+            'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+            'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+
+
+def _tipo_eo(codigo, mm2):
+    return {'nombre': f'{codigo}_10kV_FICHA', 'clase': 'TypLne', 'origen': 'proyecto',
+            'datos': {'uline': 10.0, 'sline': mm2 * 2.2 / 1000, 'cohl_': 1, 'rline': 30.0 / mm2, 'xline': 0.4}}
+
+
+def test_las_obras_de_linea_de_dos_caminos_van_juntas():
+    """098:RF-31 — CA101 (2026-11-07): la cola de CH_23 y la rama de CH_10 y CH_18, cada una con su camino; ahora hay
+    variantes que juntan la obra de línea de los dos, con y sin bancos, y el tramo común va una vez, con el conductor
+    mayor; la de 50 mm² no se propone para la caída (098:RF-33)."""
+    from convertersmartgrid import escalera_optima as eo
+
+    comun = [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 80.0, 'inom_a': 110.0} for i in range(3)]
+    cola = comun + [{'nombre': f'C{i}', 'largo_m': 1500.0, 'corriente_a': 40.0, 'inom_a': 110.0} for i in range(3)]
+    rama = comun + [{'nombre': f'R{i}', 'largo_m': 1200.0, 'corriente_a': 50.0, 'inom_a': 110.0} for i in range(2)]
+    cargas = [{'barra': 'COLA', 'existe': True, 'camino': cola}, {'barra': 'RAMA', 'existe': True, 'camino': rama}]
+    tipos = [_tipo_eo('AA05003D', 50), _tipo_eo('AA12003D', 120), _tipo_eo('AA24003D', 240)]
+    vs, _av = eo.variantes('X', 10.0, comun, cargas, tipos, eo.parametros(_perfil_eo()), banco_kvar=300.0)
+    juntas = [v for v in vs if v.caminos == 2]
+    assert juntas and all(v.nombre.endswith('en 2 caminos') for v in juntas)
+    ambas = next(v for v in juntas if not v.escalones.count('bancos') and {o['clase'] for o in v.obras} == {'seccion'}
+                 and len(v.obras) == 1 and v.obras[0]['tipo']['nombre'].startswith('AA24003D'))
+    tramos = ambas.obras[0]['tramos']
+    assert sorted(tramos) == sorted({t['nombre'] for t in cola + rama}) and len(tramos) == len(set(tramos))
+    assert ambas.cantidades['seccion'] == pytest.approx((3 * 1000 + 3 * 1500 + 2 * 1200) / 1000)
+    mixta = next(v for v in juntas if {o['clase'] for o in v.obras} == {'seccion', 'terna'} and 'bancos' not in v.escalones)
+    assert mixta
+    assert any('bancos' in v.escalones for v in juntas)
+    assert not any('AA05003D' in str(o.get('tipo')) for v in juntas for o in v.obras)
+
+
+def test_con_el_oraculo_gana_la_combinacion_de_los_dos_caminos():
+    """098:RF-31, 098:RF-33 — con dos ramas bajo el límite, ninguna obra de un solo camino cumple y la que junta los
+    dos sí: el oráculo la elige y solo esa (y las cercanas de una tanda) va a DIgSILENT."""
+    pytest.importorskip('scipy')
+    from convertersmartgrid import optimizacion_oraculo as oo
+    from convertersmartgrid.escalera_optima import Variante
+
+    nodos = {_gid('S', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0, 'q_mvar': 0, 'fuente': True, 'v_pu': 1.0},
+             _gid('M', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0.2, 'q_mvar': 0.05, 'fuente': False},
+             _gid('A', 'ElmTerm'): {'kv': 10.0, 'p_mw': 1.3, 'q_mvar': 0.3, 'fuente': False},
+             _gid('B', 'ElmTerm'): {'kv': 10.0, 'p_mw': 1.3, 'q_mvar': 0.3, 'fuente': False}}
+    # Sin obra, A y B a 0,937 p.u.; la sección de una rama arregla solo la suya; la de las dos, las dos.
+    ramas = [{'id': _gid(n, 'ElmLne'), 'desde': _gid(a, 'ElmTerm'), 'hasta': _gid(b, 'ElmTerm'), 'r_ohm': r,
+              'x_ohm': r * 0.75, 'inom_ka': 0.3, 'largo_km': 3.0, 'cerrada': True}
+             for n, a, b, r in (('LSM', 'S', 'M', 0.4), ('LMA', 'M', 'A', 3.0), ('LMB', 'M', 'B', 3.0))]
+    p = _p_098()
+    nuevas = [{'variacion': 'NA', 'nodo': _gid('A', 'ElmTerm'), 'p_mw': 1.0, 'q_mvar': 0.2, 'alimentador': 'X', 'barra': 'A'},
+              {'variacion': 'NB', 'nodo': _gid('B', 'ElmTerm'), 'p_mw': 1.0, 'q_mvar': 0.2, 'alimentador': 'X', 'barra': 'B'}]
+    ora = oo.Oraculo({'nodos': nodos, 'ramas': ramas}, nuevas, tipos={'G': {'rline': 0.12, 'xline': 0.3, 'sline': 0.5}})
+
+    def sec(tramos):
+        return {'clase': 'seccion', 'tramos': tramos, 'tipo': {'nombre': 'G'}}
+    vs = [Variante('sección en la rama A', ('seccion',), [sec(['LMA'])], {'seccion': 3.0}),
+          Variante('sección en la rama B', ('seccion',), [sec(['LMB'])], {'seccion': 3.0}),
+          Variante('sección en 2 caminos', ('seccion',), [sec(['LMA', 'LMB'])], {'seccion': 6.0}, caminos=2)]
+    a = oo.Alimentador('X', vs, lambda v, perd: 1000.0 * v.cantidades.get('seccion', 0), None)
+    e = oo.elegir_para_k(ora, [a], 2, p, evaluaciones_bayes=0, permutaciones=0, pareto=False)['X']
+    assert e['elegida'] == 'sección en 2 caminos'
+    assert [t['cumple'] for t in e['tabla'] if t['nombre'] != e['elegida']] == [False, False]
+    assert oo.a_confirmar(e, 1)[0].nombre == 'sección en 2 caminos'
+
+
+def test_lo_medido_con_la_misma_red_se_reutiliza_y_lo_dudoso_se_mide():
+    """098:RF-32 — con la misma huella se reutiliza y se dice; con otra (otra ronda, otras cargas activas), sin
+    huella comprobable o con un resultado sospechoso, se vuelve a medir."""
+    from convertersmartgrid.web import services
+
+    class _C:
+        def __init__(self):
+            self.textos = []
+
+        def log(self, t):
+            self.textos.append(t)
+
+    plan = {'project': 'P', 'feeders': ['X'], 'estado_con_proyecto': ['Carga_A', 'Obra_tension_Y'], 'apartar_cargas_de': [],
+            'apartar_variaciones': [], 'barras_cargas': ['A'], 'sorteos': [{'factores': {'X': 0.9}}], 'parametros': {},
+            'variantes': [{'nombre': 'sec', 'obras': [{'clase': 'seccion'}]}, {'nombre': 'ter', 'obras': [{'clase': 'terna'}]},
+                          {'nombre': 'mal', 'obras': [{'clase': 'condensador'}]}]}
+    memo = {}
+    ev = {'variantes': [{'nombre': 'sec', 'maxima': False, 'u_cargas': {'A': 0.93}},
+                        {'nombre': 'ter', 'maxima': True, 'fraccion': 1.0, 'u_cargas': {'A': 0.96}},
+                        {'nombre': 'mal', 'maxima': False, 'no_aplicada': 'no aplicada: …', 'error': 'no aplicada: …'}]}
+    services._guardar_medidas(plan, ev, memo)
+    ctx = _C()
+    ya, nuevas = services._medidas_ya_hechas(ctx, 'X', dict(plan), memo)
+    assert set(ya) == {'sec', 'ter'} and [v['nombre'] for v in nuevas] == ['mal']
+    assert any('reutilizadas' in t and 'de nuevo' in t and '098:RF-32' in t for t in ctx.textos)
+    otra_ronda = {**plan, 'estado_con_proyecto': ['Carga_A', 'Carga_B', 'Obra_tension_Y']}
+    ya, nuevas = services._medidas_ya_hechas(_C(), 'X', otra_ronda, memo)
+    assert ya == {} and len(nuevas) == 3
+    sin_estado = {**plan, 'estado_con_proyecto': None}
+    ctx = _C()
+    ya, nuevas = services._medidas_ya_hechas(ctx, 'X', sin_estado, memo)
+    assert ya == {} and len(nuevas) == 3 and any('no se puede comprobar' in t for t in ctx.textos)
+
+
+def test_el_regulador_activa_el_ajuste_de_tomas_y_vuelve_al_borrar_la_variante(monkeypatch):
+    """098:RF-34 — CHN102 (2026-11-07): con ``iopt_at = 0`` el regulador no cambiaba nada. La obra activa el ajuste de
+    tomas del flujo del caso, lo anota y, al borrar la variante evaluada, el flujo vuelve a como estaba; y una variante
+    con regulador igual a la misma sin él es «no aplicada»."""
+    from test_obras_pf_guion import (
+        CON,
+        PERFIL_ESCALERA,
+        _actual_no_cumple,
+        _calibrada_con_escenario,
+        _obra_terna,
+        _terna,
+    )
+    from test_obras_pf_guion import _plan as _plan_obras
+
+    obras = cargar_herramienta('obras_pf.py', 'obras_regulador_098', tools_en_path=True)
+    app, alims = _calibrada_con_escenario(random.Random(34))
+    f = alims[0]
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'terna', _terna)
+
+    def regulador(ctx):
+        obras._activar_en_el_flujo(ctx, 'iopt_at', 'las tomas')
+        _terna(ctx)                       # la red del doble cambia con cualquier obra activa: aquí, la misma que la terna
+    monkeypatch.setitem(obras.CONSTRUCTORES, 'regulador', regulador)
+    _actual_no_cumple(monkeypatch)
+    app.ldf.iopt_at = 0
+    reg = {'clase': 'regulador', 'alimentador': f, 'casos': [CON], 'tramo': f'{f}_L1', 'consigna_pu': 1.0,
+           'rango_pct': 10.0, 'pasos': 16, 'tipo': {'nombre': 'VR', 'clase': 'TypVoltreg'}}
+    vistos = []
+    medir = obras.medida_para_criterio
+
+    def registrar(app_, alims_, feeders, **k):
+        vistos.append(int(getattr(app.ldf, 'iopt_at', 0)))
+        return medir(app_, alims_, feeders, **k)
+
+    monkeypatch.setattr(obras, 'medida_para_criterio', registrar)
+    from convertersmartgrid import obras_pf as op
+
+    def plan_regulador(pl):           # sin tipo de regulador en el doble: se planifica como la terna de su tramo
+        pl.elemento(pl.obra.tramo, 'ElmLne', 'regulador al principio del tramo')
+    monkeypatch.setitem(op._PLANES, 'regulador', plan_regulador)
+    plan = _plan_obras(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0},
+                                         {'nombre': 'terna + regulador', 'obras': [_obra_terna(f, [CON]), reg],
+                                          'costo_base': 2.0}],
+                       sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = obras.evaluar(app, plan)
+    assert codigo == 0, informe
+    filas = {v['nombre']: v for v in informe['variantes']}
+    assert 1 in vistos, 'con el regulador se midió con el ajuste de tomas'
+    assert int(app.ldf.iopt_at) == 0, 'al borrar la variante, el flujo vuelve a como estaba'
+    assert 'regulador no cambia' in (filas['terna + regulador'].get('no_aplicada') or ''), (filas['terna'].get('no_aplicada'), filas['terna'].get('error'), informe['avisos'][:3])
+
+
+def test_la_seccion_y_la_terna_tienen_costo_y_lo_que_no_aguanta_no_gana():
+    """098:RF-35 — CHN102 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ganaba la que
+    no aguanta ni un año. Ahora la sección y la terna se costean con el km del cambio de nivel, por confirmar, y entre
+    las que cumplen, la que no aguanta ni un año va detrás."""
+    from convertersmartgrid import escalera_optima as eo
+
+    p = eo.parametros(_perfil_eo())
+    costos = eo.costos_de_alternativas({}, p)
+    assert costos['cambio_seccion']['costo_unitario'] == costos['cambio_tension']['costo_unitario']
+    assert '098:RF-35' in costos['nueva_terna']['origen']
+
+    def fila(nombre, escalones, costo, horizonte=None):
+        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'escalones': escalones, 'valle': None,
+                'costo': {'costo_anual': costo, 'inversion': costo * 8}, 'horizonte': horizonte, 'motivos': []}
+    nivel = fila('cambio a 22.9 kV', ('nivel',), 1000.0, {'definitiva': False, 'aguanta_anios': 0,
+                                                            'motivos': ['NODE_X a 0.851 p.u.']})
+    seccion = fila('1×300 kvar + sección AA24003D', ('bancos', 'seccion'), 5000.0, {'definitiva': False, 'aguanta_anios': 5})
+    d = eo.elegir([nivel, seccion], p)
+    assert d['elegida'] == seccion['nombre']
+    assert 'no aguanta ni un año' in next(t for t in d['tabla'] if t['nombre'] == nivel['nombre'])['motivo']
+    assert {a['nombre']: a['aguanta_anios'] for a in d['alternativas']} == {nivel['nombre']: 0, seccion['nombre']: 5}

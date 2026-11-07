@@ -27,8 +27,12 @@
       límites y el oráculo corregido con lo medido por DIgSILENT. (RF-28, RF-29, RF-30)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "aplicada or cambio or bajas or sin_cargas or corrige"`
       y `pytest -q tests/test_obras_pf_guion.py tests/test_optimizacion_oraculo.py` en verde.
+- [x] T10. Las obras de varios caminos juntas, la medida reutilizada solo si es segura, el regulador que regula, la
+      sección y la terna con costo y lo que no aguanta, detrás. (RF-31 a RF-35)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "caminos or misma_red or regulador_activa or aguanta"`
+      y `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
-      «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-30)
+      «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-35)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la
       lectura no veía las particiones ni el acoplador nuevo; de ahí la T7.
       Hecho cuando: la recalibración cuadra sin pérdidas negativas, su informe dice que la transferencia de CA101 a
@@ -37,4 +41,5 @@
       maniobra; en «Con proyecto», la escalera de CA101 prueba la transferencia por el enlace existente con CHN102 (sola
       o con bancos) antes del paso a 22,9 kV, y el registro dice cuántas juzgó el oráculo y cuántas confirmó DIgSILENT;
       CHN102 lleva su escalera; el registro da el desvío del oráculo frente a DIgSILENT, y una variante sin aplicar
-      sale como «no aplicada», no como «no cumple».
+      sale como «no aplicada», no como «no cumple»; CA101 prueba y elige una obra que junta sus dos caminos, sin
+      volver a medir lo ya medido con la misma red, y CHN102 elige por costo entre lo que aguanta.

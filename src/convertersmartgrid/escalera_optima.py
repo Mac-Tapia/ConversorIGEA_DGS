@@ -278,6 +278,15 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
             else:
                 out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt),
                             'origen': FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
+    # 098:RF-35: sin libro CAPEX, el cambio de nivel tenía costo de referencia y la sección y la terna ninguno: CHN102
+    # (2026-11-07) eligió el paso a 22,9 kV (29,3 km y 50 SED, que no aguanta ni un año) porque era la única que
+    # cumplía con costo, por delante de «1×300 kvar + sección 240 mm²» (15,77 km), que también cumplía. El km de red de
+    # media del cambio de nivel es el tope de lo que cuesta cambiar el conductor o tender otra terna: se usa, por
+    # confirmar, para que compitan con el mismo rasero.
+    for alt in ('cambio_seccion', 'nueva_terna'):
+        if not (out.get(alt) or {}).get('costo_unitario') and (out.get('cambio_tension') or {}).get('costo_unitario'):
+            out[alt] = {**out['cambio_tension'], 'unidad': 'km',
+                        'origen': 'deducido del km del cambio de nivel, por confirmar (098:RF-35)'}
     # 087:RF-37: sin «nuevo alimentador» en el libro, el km de la terna, que es la misma red de media nueva.
     if not (out.get('nuevo_alimentador') or {}).get('costo_unitario'):
         for parecida in ('nueva_terna', 'cambio_seccion', 'cambio_tension'):
@@ -299,6 +308,8 @@ class Variante:
     solo_evidencia: bool = False
     #: 094:RF-13, RF-14: en los bancos según el perfil, el perfil completo antes y después de la propuesta.
     perfil: dict[str, Any] | None = None
+    #: 098:RF-31: en cuántos caminos de cargas va su obra de línea, si junta varios; 0, la de siempre (un camino).
+    caminos: int = 0
 
 
 def _troncal_hasta(troncal: Sequence[Mapping[str, Any]], i: int) -> list[Mapping[str, Any]]:
@@ -576,6 +587,67 @@ def _variante_terna(alim, tramos, p: Parametros, de_terna, avisos) -> Variante:
         nombre += ' en ' + ' y '.join(str(obra[k]['nombre']) for k in ('tipo', 'tipo_cable') if obra.get(k))
     # 042:RF-103: el conductor existente que cambia cuesta como un cambio de sección de esos tramos.
     return Variante(nombre, ('terna',), [obra], {'terna': _km(tramos), **({'seccion': km_cambia} if km_cambia else {})})
+
+
+#: 098:RF-31: obras de línea por camino que se combinan entre caminos (la terna y las dos secciones mayores), los
+#: caminos como mucho, y los escalones de bancos con que se combinan.
+OPCIONES_POR_CAMINO = 2
+MAX_CAMINOS = 3
+CAMINOS_BANCOS = 2
+
+
+def _opciones_de_camino(kv, tramos, tipos) -> list[tuple[str, Any]]:
+    """Por camino: la terna y las secciones mayores que llevan su corriente (la de 50 mm² no arregla una caída)."""
+    corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
+    aptos = conductores_aptos(tipos, kv, max(corrientes) if corrientes else None)
+    return [('terna', None)] + [('seccion', t) for t in aptos[-OPCIONES_POR_CAMINO:]]
+
+
+def _por_varios_caminos(alim, kv, caminos, tipos, p: Parametros, de_terna, avisos) -> list[Variante]:
+    """098:RF-31: la mejor obra de línea de cada camino a la vez: CA101 (2026-11-07) tenía la cola de CH_23 y la rama
+    de CH_10 y CH_18 fuera de límites, y ninguna variante juntaba la obra de las dos.
+
+    Cada tramo queda una vez: el de la troncal común lleva el conductor mayor de los caminos que pasan por él (una
+    terna duplica su corriente, una sección la cambia a la del conductor nuevo).
+    """
+    if len(caminos) < 2:
+        return []
+    usados = sorted(caminos, key=lambda c: -_km(c))[:MAX_CAMINOS]
+    out = []
+    for eleccion in itertools.product(*(_opciones_de_camino(kv, c, tipos) for c in usados)):
+        por_tramo: dict[str, tuple[float, str, Any, Mapping[str, Any]]] = {}
+        for (clase, tipo), tramos in zip(eleccion, usados, strict=True):
+            for t in tramos:
+                inom = float(t.get('inom_a') or 0.0)
+                fuerza = 2 * inom if clase == 'terna' else float(tipo['datos']['sline']) * 1000
+                if clase == 'seccion' and inom and fuerza <= inom:
+                    continue                                   # ya es de esa sección o mayor (063:RF-30)
+                actual = por_tramo.get(t['nombre'])
+                if actual is None or fuerza > actual[0]:
+                    por_tramo[t['nombre']] = (fuerza, clase, tipo, t)
+        if not por_tramo:
+            continue
+        obras, cantidades, partes = [], {}, []
+        ternas = [x[3] for x in por_tramo.values() if x[1] == 'terna']
+        if ternas:
+            v = _variante_terna(alim, ternas, p, de_terna, avisos)
+            obras += v.obras
+            for k, x in v.cantidades.items():
+                cantidades[k] = cantidades.get(k, 0.0) + x
+            partes.append(f'terna en {len(ternas)} tramos ({_km(ternas):.2f} km)')
+        por_tipo: dict[str, list] = {}
+        for _f, clase, tipo, t in por_tramo.values():
+            if clase == 'seccion':
+                por_tipo.setdefault(tipo['nombre'], [tipo, []])[1].append(t)
+        for nombre, (tipo, tramos) in sorted(por_tipo.items()):
+            obras.append({'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
+                          'tramos': [t['nombre'] for t in tramos], 'tipo': _ref_de(tipo), 'nodos': _nodos(tramos)})
+            cantidades['seccion'] = cantidades.get('seccion', 0.0) + _km(tramos)
+            partes.append(f'sección {nombre} en {len(tramos)} tramos ({_km(tramos):.2f} km)')
+        escalones = tuple(e for e, c in (('terna', 'terna'), ('seccion', 'seccion')) if any(o['clase'] == c for o in obras))
+        out.append(Variante(f"{' + '.join(partes)} en {len(usados)} caminos", escalones, obras, cantidades,
+                            caminos=len(usados)))
+    return out
 
 
 def _escalon_terna(alim, troncal, cargas, p: Parametros, de_terna=None, avisos=None) -> list[Variante]:
@@ -888,8 +960,15 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                 mayores.append(Variante(' + '.join(v.nombre for v in partes), sum((v.escalones for v in partes), ()),
                                         [o for v in partes for o in v.obras],
                                         {c: n for v in partes for c, n in v.cantidades.items()}))
+    # 098:RF-31: con cargas en dos o más caminos, la obra de línea de cada camino junta, con y sin bancos; delante, para
+    # que el tope de variantes no las deje fuera.
+    varios = _por_varios_caminos(alimentador, kv, caminos, normalizados(tipos, p.secciones), p, de_terna, avisos)
+    varios += [Variante(f'{b.nombre} + {v.nombre}', b.escalones + v.escalones, b.obras + v.obras,
+                        {**b.cantidades, **{k: x + b.cantidades.get(k, 0.0) for k, x in v.cantidades.items()}},
+                        caminos=v.caminos)
+               for b in por_escalon['bancos'][:CAMINOS_BANCOS] for v in list(varios)]
     vistas: set[str] = set()
-    todas = [v for v in solas + dobles + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
+    todas = [v for v in solas + dobles + varios + combinadas + mayores if not (v.nombre in vistas or vistas.add(v.nombre))]
     if sobrecargados:
         # 042:RF-43: sin esto, un tramo sobrecargado de otro ramal hacía fallar todas las variantes.
         capacidades = {str(t['nombre']): float((t.get('datos') or {}).get('sline') or 0.0) * 1000 for t in tipos}
@@ -1107,6 +1186,12 @@ def alternativas(tabla: Sequence[Mapping[str, Any]], elegida: str | None, p: Par
              'elegida': t['nombre'] == elegida} for i, t in enumerate(escogidas, 1)]
 
 
+def no_aguanta(t: Mapping[str, Any]) -> int:
+    """098:RF-35: 1 si su alcance se midió y no aguanta ni un año (042:RF-92); sin medir, 0."""
+    h = t.get('horizonte') or {}
+    return int(bool(h) and not h.get('definitiva') and int(h.get('aguanta_anios') or 0) == 0)
+
+
 def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, Any]:
     """La de menor costo anual entre las que cumplen con la máxima y en la fracción de sorteos
     del perfil (RF-52b, RF-53); si ninguna, la que más se acerca, sin aplicarla (RF-56).
@@ -1142,7 +1227,7 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     if factibles:
         # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
-        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
+        mejor = min(factibles, key=lambda t: (grupo_economico(t.get('escalones')), no_aguanta(t), t['costo']['costo_anual'],
                                               t['nombre']))
         # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL209
         # (2026-11-06): entre 2 bancos (lo más barato para 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), el usuario
@@ -1153,7 +1238,10 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
         for t in factibles:
             if t is mejor:
                 continue
-            if grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
+            if no_aguanta(t) and not no_aguanta(mejor):
+                t['motivo'] = (f"no aguanta ni un año ({'; '.join((t.get('horizonte') or {}).get('motivos') or [])[:200]}): "
+                               f"«{mejor['nombre']}» sí (098:RF-35)")
+            elif grupo_economico(t.get('escalones')) > grupo_economico(mejor.get('escalones')):
                 t['motivo'] = f"no hace falta: «{mejor['nombre']}» ya cumple en un escalón anterior"
             else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
@@ -1174,7 +1262,7 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                   and (t.get('fraccion') is None or t['fraccion'] >= p.sorteos_decide_no)
                   and not t.get('error')]                                      # 087:RF-51: un error no es «sin sortear»
     if con_maxima:
-        mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'],
+        mejor = min(con_maxima, key=lambda t: (grupo_economico(t.get('escalones')), no_aguanta(t), t['costo']['costo_anual'],
                                                t['nombre']))
         mejor['motivo'] = (f"cumple con la máxima en DIgSILENT; los sorteos dieron "
                            f"{100 * (mejor.get('fraccion') or 0):.1f} % (pide {100 * p.cumplimiento:.0f} %): "

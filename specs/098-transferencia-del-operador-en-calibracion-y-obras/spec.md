@@ -168,6 +168,32 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
   caída de cada barra del oráculo a la medida, conservará esa proporción para cada obra que mida y dirá en el
   registro el desvío medio y el máximo antes de corregir.
 
+### Segunda corrida de «Con proyecto» (2026-11-07, job 3ded64ef7a44)
+
+CHN102 subió su escalera y CA101 no se resolvió: tiene dos caminos con cargas en problemas (la cola de CH_23 hasta
+SEC_1091_1080932 y la rama de CH_10 y CH_18 hasta SEC_1091_1081392) y ninguna variante juntaba la obra de los dos; cada
+una arreglaba su camino (0,991 en la cola y 0,917 en Buganvilla, o 0,922 en la cola y 0,962 en Buganvilla). Sin libro
+CAPEX, la sección y la terna no tenían costo: el oráculo no podía dar ninguna por buena ni la bayesiana encontrarla, la
+primera pasada mandó a DIgSILENT una sección de 50 mm², y CHN102 eligió el paso a 22,9 kV (29,3 km, 50 SED, que no
+aguanta ni un año) porque era la única con costo de referencia. Los reguladores no cambiaban nada (`ComLdf.iopt_at =
+0`) y contaban como «cumple». La ronda 087:RF-47 volvió a medir variantes ya medidas con la misma red.
+
+- RF-31: CUANDO un alimentador tiene cargas en dos o más caminos, EL SISTEMA armará variantes que juntan la obra de
+  línea de cada camino (terna o las secciones mayores aptas), con y sin bancos, y contará una vez cada tramo común,
+  con el conductor mayor de los que pasan por él.
+- RF-32: EL SISTEMA reutilizará la medida de DIgSILENT de una variante solo cuando la huella de la medida sea la misma
+  (variaciones activas de «Con proyecto», con sus cargas nuevas y obras, cargas apartadas, barras, sorteos, valle y
+  parámetros) y la medida guardada no sea sospechosa; en cualquier otro caso la volverá a medir, y dirá en el registro
+  cuántas reutilizó, por qué era seguro y cuántas midió de nuevo y por qué.
+- RF-33: EL SISTEMA propondrá para la caída, en las obras de varios caminos, solo las secciones mayores aptas para la
+  corriente, no la menor que la lleva.
+- RF-34: CUANDO una obra deja un regulador, EL SISTEMA activará el ajuste automático de tomas del flujo del caso donde
+  se mide, lo anotará y lo devolverá a como estaba al borrar la variante evaluada; SI con el regulador nada cambia
+  respecto de la misma variante sin él, ENTONCES la marcará «no aplicada» (RF-28).
+- RF-35: SI el libro CAPEX no trae el costo de la sección o de la terna, ENTONCES EL SISTEMA las costeará con el km
+  del cambio de nivel, por confirmar; y entre las que cumplen, la que no aguanta ni un año (042:RF-92) irá detrás de
+  la que sí aguanta, con su costo y sus años en las alternativas.
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.
@@ -175,6 +201,8 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 - Amplía 087:RF-31 a RF-33 y RF-52: las barras candidatas, solo con maniobra; y cambia 087:RF-41 en el orden: la
   transferencia se mide antes que el paso a 22,9 kV (098:RF-23).
 - Amplía 042:RF-56: la transferencia cuenta con los bancos en el grupo económico (098:RF-23).
+- Cambia 042:RF-30 para varios caminos: la sección de un camino y la terna de otro sí se combinan (098:RF-31).
+- Amplía 025:RF-73 (evaluación reutilizada) a cada variante (098:RF-32) y 042:RF-54 a la sección y la terna (098:RF-35).
 - Amplía 081:RF-80 y RF-81: un interruptor de cubículo se anota con su nombre completo.
 - No cambia la 013 (transferencia como estudio entre dos alimentadores) ni 081:RF-83 y RF-84: lo del operador que no
   deja barras sin tensión se respeta en «Con proyecto».
@@ -188,6 +216,6 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 
 ## Criterios de finalización
 
-- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-30.
+- `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-35.
 - Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.
