@@ -111,3 +111,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       nueva por encima del 80 %.
 - [x] T21. La demanda del transformador de una carga nueva, a la tensión mínima de los estudios. (RF-68)
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py -k ficha` en verde.
+- [x] T22. El FP del perfil para las cargas nuevas que solo traen kW, con su aviso. (RF-70)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py -k fp_del_perfil` en verde.

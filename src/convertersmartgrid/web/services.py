@@ -2070,11 +2070,17 @@ def cargas_plan(
     base = base_del_ajuste(ajuste, project) if ajuste is not None else None
     try:
         demandas = leer_demandas(demandas_file) if demandas_file is not None else None
-        nuevas = leer_nuevas(nuevas_file, source_crs=crs) if nuevas_file is not None else None
+        # 004:RF-70: el FP del perfil para las cargas nuevas que solo traen kW; sin perfil, ninguno.
+        from ..perfil_empresa import datos_perfil as _datos_perfil
+
+        fp_perfil = (_datos_perfil().get('calibracion') or {}).get('factor_potencia_cargas')
+        fp_perfil = float(fp_perfil) if isinstance(fp_perfil, (int, float)) else None
+        nuevas = (leer_nuevas(nuevas_file, source_crs=crs, fp_por_defecto=fp_perfil)
+                  if nuevas_file is not None else None)
         if nueva:
             nuevas = nuevas or Lectura()
             filas, errores = leer_hoja_nuevas(list(nueva), [list(nueva.values())], 'formulario',
-                                              source_crs=crs, avisos=nuevas.avisos)
+                                              source_crs=crs, avisos=nuevas.avisos, fp_por_defecto=fp_perfil)
             # Spec 008, RF-24: primero la carga sola y después las del libro, el orden
             # del trabajo; con la misma SED en los dos, se crea la del formulario.
             nuevas.filas = filas + nuevas.filas

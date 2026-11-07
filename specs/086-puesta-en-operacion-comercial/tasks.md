@@ -2,8 +2,9 @@
 
 ## F0 Decidir e integrar
 
-- [ ] T1 Registrar las decisiones D1 a D7 del usuario, con fecha, en `spec.md`.
+- [x] T1 Registrar las decisiones D1 a D7 del usuario, con fecha, en `spec.md`.
   Hecho cuando: D1 a D5 están respondidas; D6 y D7 tienen responsable.
+  Hecho el 2026-11-07: D1 a D5 según la recomendación; D6, el usuario da los datos; D7 no se considera, cada usuario con sus licencias.
 - [x] T2 Integrar `feat/decisiones-usuario`, `entrega/042-doble-terna`, `entrega/083-calibracion` y lo que falte de `fix/acopladores-con-fases`, con una ventana acordada con las otras sesiones. (RF-45)
   Hecho cuando: `git cherry` no da trabajo pendiente en ellas, y suite completa con las nueve variables y `CSG_MCP_PYTHON`, sin omitidas ni fallos, sobre esa revisión.
   Evidencia: suite sobre ab8efa9c, 6 753 aprobadas, 0 omitidas, 0 caídas y 2 fallos de pruebas que leían un texto ya cambiado; corregidos en c7c04175 y c79013c2, que solo tocan esas pruebas, y pasan aparte. La suite limpia de cierre es la T31. `entrega/083-calibracion` queda sustituida por la 042; `fix/*`, ya presentes; 042:RF-48 y la 087 esperan prueba en DIgSILENT.
@@ -136,7 +137,7 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
   Hecho cuando: sin tocar el código, solo su perfil, sale un informe que un ingeniero da por bueno.
 - [ ] T33 [DIgSILENT] Ensayo de corte a media calibración y a media importación, matando los procesos con las demás sesiones paradas. (RF-46)
   Hecho cuando: ningún espacio se pierde, el trabajo se ve interrumpido y se retoma sin trabajo repetido ni datos mezclados.
-- [ ] T34 Asesoría legal cerrada, repositorio de producto, licencia, y etiqueta `v1.0.0` con sus notas. (D3, D7)
+- [ ] T34 Repositorio de producto, licencia y etiqueta `v1.0.0` con sus notas; la asesoría legal no se considera (D7, 2026-11-07): cada usuario con sus licencias. (D3, D7)
   Hecho cuando: el usuario da la orden de publicar.
 
 ## Después de la 1.0

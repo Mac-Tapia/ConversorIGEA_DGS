@@ -299,6 +299,10 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   alimentadores), porque DIgSILENT mide la cargabilidad por corriente. En PE102 los transformadores
   elegidos al 80 % a tensión nominal quedaron al 83,5 % (PTAR, 4 × 630) y al 81,3 % (vivero, 315)
   con la baja a 0,96 p.u.; sin ese límite en el perfil, se cuenta a la nominal y se avisa.
+- RF-70: SI una carga nueva trae kW y no trae kVAR ni FP, ENTONCES EL SISTEMA le dará el FP del perfil de la empresa
+  (`calibracion.factor_potencia_cargas`) y lo dirá en un aviso con la Q que resulta; sin ese FP en el perfil, la Q queda en
+  cero y también se avisa. Usuario (2026-11-07): con Q = 0 las tensiones de una carga nueva salían optimistas; ningún FP
+  se supone sin perfil (constitución, P13).
 
 ## Requisitos no funcionales
 

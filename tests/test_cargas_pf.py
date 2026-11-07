@@ -118,10 +118,11 @@ def test_kva_instalado_deducido_es_el_normalizado_que_cubre_la_demanda(kva, espe
     avisos: list[str] = []
     filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra', 'alimentador'], [['N1', kva, 'B1', 'A']], 'A',
                                   avisos=avisos)
-    assert filas[0].kva_instalado == esperado and 'RF-52' in avisos[0]
+    del_kva = next(a for a in avisos if 'RF-52' in a)          # 004:RF-70 añade antes el del FP
+    assert filas[0].kva_instalado == esperado
     plan = armar_plan(project='P', feeders=['A'], demandas=None,
                       nuevas=type('L', (), {'filas': filas, 'errores': [], 'avisos': avisos})())
-    assert avisos[0] in plan['avisos']
+    assert del_kva in plan['avisos']
 
 
 def test_carga_nueva_sin_alimentador_se_rechaza_y_se_dice():
@@ -356,3 +357,23 @@ def test_kva_deducido_marcado_para_que_el_guion_use_la_ficha():
     assert errores == []
     assert [f.kva_deducido for f in filas] == [True, False]
     assert filas[0].para_pf()['kva_deducido'] is True
+
+
+def test_carga_nueva_solo_con_kw_toma_el_fp_del_perfil():
+    """004:RF-70 — kW sin kVAR ni FP: el FP del perfil, con su aviso; sin él, Q = 0 y también se avisa."""
+    import math
+    import random
+
+    from convertersmartgrid.cargas_pf import leer_hoja_nuevas
+
+    rnd = random.Random(470)
+    kw = rnd.uniform(50.0, 900.0)
+    cabecera = ['SED', 'alimentador', 'barra', 'Kw', 'kVA_instalado']
+    fila = [['N70', 'F1', 'B1', kw, 400.0]]
+    avisos = []
+    filas, errores = leer_hoja_nuevas(cabecera, fila, 'h', avisos=avisos, fp_por_defecto=0.98)
+    assert not errores and filas[0].kvar == pytest.approx(kw * math.sqrt(1 - 0.98 ** 2) / 0.98)
+    assert any('004:RF-70' in a and '0,98' in a for a in avisos)
+    avisos = []
+    filas, _e = leer_hoja_nuevas(cabecera, fila, 'h', avisos=avisos)
+    assert filas[0].kvar == 0.0 and any('004:RF-70' in a and 'sin FP' in a for a in avisos)

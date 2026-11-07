@@ -250,7 +250,7 @@ def leer_demandas(path: Path | str) -> Lectura:
     return lectura
 
 
-def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
+def leer_nuevas(path: Path | str, *, source_crs: str = '', fp_por_defecto: float | None = None) -> Lectura:
     """Cargas nuevas de todas las hojas, con su posición ya en WGS84.
 
     La posición puede venir como ``Lat``/``Lon`` o como ``CoordX``/``CoordY`` en el CRS
@@ -260,7 +260,8 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
     lectura = Lectura()
     for hoja, (header, body, fila_cabecera) in _hojas(path).items():
         filas, errores = leer_hoja_nuevas(header, body, hoja, source_crs=source_crs,
-                                          avisos=lectura.avisos, fila_cabecera=fila_cabecera)
+                                          avisos=lectura.avisos, fila_cabecera=fila_cabecera,
+                                          fp_por_defecto=fp_por_defecto)
         lectura.filas += filas
         lectura.errores += errores
     return lectura
@@ -268,7 +269,7 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
 
 def leer_hoja_nuevas(
     header: Sequence[Any], body: Sequence[Sequence[Any]], hoja: str, *, source_crs: str = '',
-    avisos: list[str] | None = None, fila_cabecera: int = 1,
+    avisos: list[str] | None = None, fila_cabecera: int = 1, fp_por_defecto: float | None = None,
 ) -> tuple[list[CargaNueva], list[str]]:
     """Filas de una hoja de cargas nuevas. Lo deducido se anota en ``avisos`` (RF-52, RF-53)."""
     avisos = [] if avisos is None else avisos
@@ -354,8 +355,19 @@ def leer_hoja_nuevas(
         if malo:
             errores.append(f'{donde}: {malo}')
             continue
+        fp_fila = numeros.get('FP')
+        if numeros.get('Kw') is not None and numeros.get('Kvar') is None and fp_fila is None:
+            # 004:RF-70: con Q = 0 la tensión de una carga nueva salía optimista; el FP sale del perfil de la empresa.
+            if fp_por_defecto is not None and 0 < fp_por_defecto <= 1:
+                fp_fila = float(fp_por_defecto)
+                q = numeros['Kw'] * math.sqrt(max(1.0 - fp_fila ** 2, 0.0)) / fp_fila
+                avisos.append(f'{donde}: sin kVAR ni FP; se toma el FP {fp_fila:.2f} del perfil de la empresa '
+                              f'({q:.1f} kvar)'.replace('.', ',') + ' (004:RF-70)')
+            else:
+                avisos.append(f'{donde}: sin kVAR ni FP y sin FP en el perfil de la empresa: la carga entra con Q = 0 '
+                              '(004:RF-70)')
         kw, kvar, _kva, fp, _derivada, sin_datos = resolve_power(
-            numeros.get('Kw'), numeros.get('Kvar'), numeros.get('(kVA)'), numeros.get('FP'))
+            numeros.get('Kw'), numeros.get('Kvar'), numeros.get('(kVA)'), fp_fila)
         conflicto = power_conflict(numeros.get('(kVA)'), numeros.get('FP'), kw, kvar)
         if conflicto:
             errores.append(f'{donde}: {conflicto}. Deje un solo par: Kw y Kvar, Kw y FP, o (kVA) y FP.')

@@ -41,6 +41,13 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - D6 Datos para las corridas: libro real de confiabilidad, fuente de «CA101 13», y qué hacer con PA217 en 025 T21 (es un proyecto vetado).
 - D7 Asesoría legal: licencia comercial, DIgSILENT, datos de Osinergmin y Electro Dunas, modelos. **No es decisión técnica**: la revisión solo
   señala qué mirar.
+- Decisiones del usuario del 2026-11-07 («de la B, haz todo según tu recomendación»): D1 **solo Perú** en la 1.0; D2 **puesto local
+  por licencia**; D3 se mantiene (público, MIT); D4 **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`; D5 los comentarios
+  con casos reales se **neutralizan solo en el paquete entregado**, por un paso al empaquetar, y en el repositorio siguen citando el
+  caso (`CLAUDE.md`); D6 el libro real de confiabilidad y la fuente de «CA101 13» los da el usuario (responsable: el usuario), y la
+  025 T21 usa el PA217 del proyecto de prueba de Pisco, no el trabajado. D7 **no se considera** en la venta ni en otro uso: quien use
+  el proyecto debe tener sus propias licencias (DIgSILENT, datos de las distribuidoras y de Osinergmin, modelos); el producto no las
+  incluye ni las concede.
 
 ## Requisitos
 
