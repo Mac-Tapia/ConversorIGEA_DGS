@@ -129,6 +129,9 @@ export default function App() {
   const [summary, setSummary] = useState<Job | null>(null);
   const [logHeight, setLogHeight] = useState(readLogHeight);
   const drag = useRef<{ y: number; h: number } | null>(null);
+  // 091:RF-7: las pestañas ya abiertas siguen montadas, ocultas: el proyecto elegido vivía en la suya y se perdía.
+  const visitadas = useRef(new Set<string>());
+  const espacioVisto = useRef('');
 
   const onFinished = useCallback((job: Job) => {
     // Los trabajos cortos no merecen un diálogo; los largos sí.
@@ -200,6 +203,12 @@ export default function App() {
   // 086:RF-16: un asistente en beta apagado no se ofrece.
   const tabs = TABS.filter((t) => (w.state!.loaded || !t.entradas) && (t.id !== 'asistente' || betaActiva(health, 'asistente')));
   const actual = tabs.find((t) => t.id === tab) ?? tabs[0];
+  // 091:RF-8: en otro espacio solo se montan las que se abran en él.
+  if (espacioVisto.current !== w.state.id) {
+    espacioVisto.current = w.state.id;
+    visitadas.current.clear();
+  }
+  visitadas.current.add(actual.id);
   const caps = health.capabilities;
 
   return (
@@ -249,7 +258,12 @@ export default function App() {
                       onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</button>
                   ))}
                 </nav>
-                {actual.el}
+                {/* 091:RF-8: otro espacio las vuelve a montar, sin lo del anterior. */}
+                <div key={w.state.id}>
+                  {tabs.filter((t) => visitadas.current.has(t.id)).map((t) => (
+                    <div key={t.id} role="tabpanel" hidden={t.id !== actual.id}>{t.el}</div>
+                  ))}
+                </div>
               </section>
             </div>
           </div>

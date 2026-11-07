@@ -102,3 +102,18 @@ def test_marcas_se_barren_al_tomar_el_turno():
     """091:RF-6 — el barrido va antes de dejar la marca propia."""
     fuente = Path(pf_arnes.__file__).read_text(encoding='utf-8')
     assert fuente.index('barrer_marcas(ruta)') < fuente.index("marca = ruta.with_name(f'{ruta.stem}.conexion_")
+
+
+# ------------------------------------------------------------------ pestañas
+
+
+def test_pestanas_visitadas_siguen_montadas():
+    """091:RF-7 — se ocultan, no se desmontan: el proyecto vivía en la pestaña y se perdía."""
+    assert '{actual.el}' not in APP
+    assert 'hidden={t.id !== actual.id}' in APP
+    assert 'visitadas.current.add(actual.id)' in APP
+
+
+def test_pestanas_de_otro_espacio_empiezan_de_cero():
+    """091:RF-8 — la clave del espacio las vuelve a montar."""
+    assert 'key={w.state.id}' in APP
