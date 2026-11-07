@@ -544,9 +544,18 @@ def crear_con_proyecto(app, sin, anio: int | None = None):
     marcado y con su escenario, copia del de «Sin proyecto». Con ``anio``, el de ese año,
     copia de su «Sin proyecto <año>» (025:RF-16).
     """
+    previo = app.GetActiveStudyCase()
     con = app.GetProjectFolder('study').AddCopy(sin, nombre_caso('con', anio))
     _marcar(con, _clave('con', anio))
     _escenario_propio(app, con, 'con', _escenario_de(app, sin), anio)
+    # La copia tiene que ver las etapas que ve «Sin proyecto». Con CA101 + PE104 (2026-11-07) quedó en
+    # 1793026149 y las etapas de la base en …150 (fichas, 707 tramos) y …151 (7 SED NTP): «activas» pero sin
+    # aplicar, CA101 entero sin tensión (687 barras) y la obra inactiva (044 y 048, T4). Subir la hora del
+    # caso no se mantiene (081:RF-78); se adelantan las etapas, como hace ``sin_a_con_proyecto``.
+    con.Activate()
+    etapas_al_dia(app)
+    if previo is not None and previo is not con:
+        previo.Activate()
     return con
 
 

@@ -81,6 +81,24 @@ def test_lee_sin_escribir_y_con_reapertura(guion):
     assert 'ausente' in lectura['flujo']['confiabilidad']
 
 
+def test_perdidas_de_un_alimentador_en_proyecto_de_varios(guion):
+    """044:RF-9 — leer un alimentador de un proyecto de varios da sus pérdidas, no las de todo el proyecto.
+
+    Con CA101 + PE104 y el plan de solo CA101 (2026-11-07) las pérdidas salían −4 690 kW: se restaban de su
+    cabecera las cargas de los dos alimentadores, y la aceptación nativa rechazaba la medición por negativa.
+    """
+    from estudios_pf import medida
+
+    feeders = _alimentadores()
+    app = _app(feeders)
+    lectura, rc = guion.ejecutar(app, _plan(feeders[:1]))
+    assert rc == 0, f'semilla {SEMILLA}: {lectura}'
+    elm = next(f for f in app.GetActiveProject().GetContents('*.ElmFeeder', 1) if f.loc_name == feeders[0])
+    esperado = medida(elm, None)['perdidas_kw']
+    assert lectura['flujo']['perdidas']['valores']['total'] == pytest.approx(esperado)
+    assert esperado >= 0
+
+
 def test_la_lectura_trae_el_grafo_y_el_episodio_entrena(guion):
     """027:RF-1 — la lectura tras una acción trae el grafo eléctrico con los mismos
     identificadores que las tensiones, y el episodio que se arma con ella es entrenable:

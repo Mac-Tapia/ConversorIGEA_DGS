@@ -70,8 +70,15 @@ def contexto_del_plan(plan: dict) -> dict:
 def _version(app) -> str | None:
     try:
         return str(app.GetVersion())
-    except Exception:  # noqa: BLE001 - la versión es opcional en el episodio
-        return None
+    except Exception:  # noqa: BLE001, S110 - la versión es opcional; se busca en el módulo
+        pass
+    # PF 2024 no tiene ``GetVersion`` en la aplicación: todas las lecturas del 2026-11-07 (CA101 + PE104)
+    # salían sin versión, aunque el módulo dice «24.0.2» (lo que lee ``protecciones_pf.py``).
+    # El módulo ya lo importó ``pf_arnes.conectar``; con el doble de las pruebas no está y no hay versión.
+    import sys
+
+    version = getattr(sys.modules.get('powerfactory'), '__version__', None)
+    return str(version) if version else None
 
 
 def _estados(app, nombres: set[str]) -> dict[str, dict]:
@@ -413,9 +420,12 @@ def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:
                 carga[grupo][identidad_nativa(clase, clave_pf(o), raiz)] = pct
     cabeceras, fps, perdidas = {}, {}, 0.0
     elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
+    # Toda la red calculable solo cuando el proyecto es de un alimentador, como ``estudios_pf.medidas``:
+    # contar por los del plan sumaba las cargas de todos. En CA101 + PE104 (2026-11-07, lectura de solo
+    # CA101) la cabecera era 4 655 kW y las pérdidas −4 690 kW, y la aceptación nativa las rechazaba (044 T4).
     for feeder in feeders:
         elm = elms.get(feeder)
-        m = medida(elm, app if len(feeders) == 1 else None) if elm is not None else {}
+        m = medida(elm, app if len(elms) == 1 else None) if elm is not None else {}
         cabeceras[feeder] = m.get('cabecera_kw')
         kw, kvar = m.get('cabecera_kw'), m.get('cabecera_kvar')
         # El FP de cabecera dice si una caída es de compensación reactiva (RF-50).

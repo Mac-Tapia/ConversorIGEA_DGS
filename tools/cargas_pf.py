@@ -2061,6 +2061,11 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     etapa = next((s for s in variacion.GetContents('*.IntSstage') if s.loc_name == nombre_etapa), None)
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         etapa.Activate(1)
+    if caso is not None and int(getattr(caso, 'iStudyTime', 0) or 0) < hora:
+        # Volver a subir la hora no se mantiene (081:RF-78): CA101 + PE104 (2026-11-07), la obra nueva quedó
+        # en …149, «Con proyecto» bajó a esa hora y dejó sin aplicar las etapas de fichas (…150) y de SED NTP
+        # (…151): 687 barras sin tensión y la obra inactiva (044 y 048, T4). Se adelantan esas etapas.
+        etapas_al_dia(app)
     otras = []
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         # Con otras etapas activas de la misma fecha PF puede no dejar grabando ninguna, ni

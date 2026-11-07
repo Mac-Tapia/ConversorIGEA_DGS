@@ -48,6 +48,24 @@ def _escenario_red(rng, *, escenario=False, cargas=True, anteriores=False):
     return app, plan, {'cargas': cargas_v, 'viejos': viejos}
 
 
+def test_con_proyecto_nuevo_ve_las_etapas_de_sin_proyecto(monkeypatch):
+    """014:RF-18 — la copia «Con proyecto» recién creada adelanta las etapas que su hora no vería.
+
+    En DIgSILENT (CA101 + PE104, 2026-11-07) «Con proyecto» quedó un segundo antes de las etapas de fichas y de
+    SED NTP: «activas» pero sin aplicar, 687 barras sin tensión y la obra inactiva (044 y 048, T4). Subir la
+    hora no se mantiene (081:RF-78): se llama a ``etapas_al_dia`` con la copia activa, y se deja activo el caso
+    que lo estaba.
+    """
+    app = fake_pf.proyecto(alimentadores=('AL101',), cargas_por_alim=1)
+    sin = app.carpetas['study'].CreateObject('IntCase', 'Sin proyecto')
+    sin.Activate()
+    vistos = []
+    monkeypatch.setattr(casos_pf, 'etapas_al_dia', lambda a: vistos.append(a.GetActiveStudyCase().loc_name) or [])
+    con = casos_pf.crear_con_proyecto(app, sin)
+    assert vistos == [con.loc_name]
+    assert app.GetActiveStudyCase() is sin
+
+
 @pytest.fixture(autouse=True)
 def _sin_activar_proyecto(monkeypatch):
     """El doble ya tiene el proyecto activo: no hay carpeta de usuario que recorrer."""
