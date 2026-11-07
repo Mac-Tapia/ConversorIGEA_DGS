@@ -932,7 +932,7 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
     equip = app.GetProjectFolder('equip')
     tipos = {t.loc_name: t for t in (equip.GetContents('*.TypTr2', 1) if equip else [])}
     por_clave = {clave_codigo(s): o for s, o in cargas.items()}
-    hechos, omitidas = [], []
+    hechos, omitidas, sin_cambio = [], [], []
     for c in cambios:
         sed, p = c['sed'], c.get('propuesta') or {}
         carga = cargas.get(sed) or por_clave.get(clave_codigo(sed))
@@ -950,6 +950,13 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
         nombre = nombre_tipo(p['kva'], p.get('codigo') or '', info['kv_at'], info['v_bt'],
                              info['grupo'])
         nuevo = tipos.get(nombre)
+        if (nuevo is not None and actual is nuevo
+                and max(1, int(_num(tr, 'ntnum') or 1)) == int(p['unidades'])):
+            # 020:RF-24: al recalibrar se vuelven a mandar los ya marcados; si la SED ya los tiene no es un
+            # cambio. Pisco y PE102 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA».
+            sin_cambio.append({'sed': sed, 'transformador': tr.loc_name, 'tipo': nombre,
+                               'kva': p['kva'], 'unidades': int(p['unidades'])})
+            continue
         if nuevo is not None:
             # 020:RF-21, RF-22: el tipo propio de un cambio anterior vale si tiene la ficha.
             distinto = next(((a, _num(nuevo, a), p[k] * f) for a, (k, f) in FICHA_EN_TIPO.items()
@@ -974,7 +981,7 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
         hechos.append({'sed': sed, 'transformador': tr.loc_name, 'antes': antes,
                        'despues': {'tipo': nombre, 'kva': p['kva'], 'unidades': int(p['unidades']),
                                    'norma': p.get('norma')}})
-    return {'cambios': hechos, 'omitidas': omitidas,
+    return {'cambios': hechos, 'omitidas': omitidas, 'sin_cambio': sin_cambio,
             'variacion': getattr(variacion, 'loc_name', None)}
 
 
@@ -2402,6 +2409,9 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             return {**informe, 'error': hecho['error']}, 2
         for o in hecho['omitidas']:
             informe['avisos'].append(f"{o['sed']}: transformador no cambiado: {o['motivo']}.")
+        for o in hecho.get('sin_cambio') or []:                                 # 020:RF-24
+            informe['avisos'].append(f"{o['sed']}: ya tiene {o['unidades']} × {o['kva']:g} kVA ({o['tipo']}); "
+                                     'no se cambia.')
         informe['avisos'].extend(hecho.get('avisos') or [])                 # 032:RF-12
         if hecho['cambios']:
             informe['avisos'].append(

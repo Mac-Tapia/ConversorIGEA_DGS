@@ -1652,6 +1652,26 @@ def test_implementar_unidades_en_paralelo(guion):
     assert guion.kva_en_pf(_carga(app, 'F1_S2')) == pytest.approx(5 * 630)
 
 
+def test_un_transformador_que_ya_tiene_la_propuesta_no_se_anuncia_como_cambio(guion):
+    """020:RF-24 — al recalibrar se vuelven a mandar los transformadores ya marcados: la SED que ya tiene ese tipo y esas
+    unidades no es un cambio. Pisco y PE102 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA»."""
+    app = _app(n=3)
+    clientes = [{**_sobrecargada(app)[0], 'pot': 2000.0}]
+    plan = _con_propuesta(guion, app, clientes, kw=2300.0)
+    primero, rc = guion.ejecutar(app, plan)
+    assert rc == 0 and len(primero['transformadores_implementados']['cambios']) == 1, primero
+    tipo = _tr(app, 'TR_F1_S2').typ_id
+
+    segundo, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, segundo
+    hecho = segundo['transformadores_implementados']
+    assert hecho['cambios'] == [] and _tr(app, 'TR_F1_S2').typ_id is tipo
+    assert [x['sed'] for x in hecho['sin_cambio']] == ['F1_S2']
+    assert not any('→' in a and '020:RF-24' in a for a in segundo['avisos'])
+    assert any('ya tiene' in a and 'F1_S2' in a for a in segundo['avisos'])
+
+
 def test_solo_cambian_las_sed_marcadas(guion):
     """020:RF-18 — la SED que el operador desmarcó no se toca."""
     app = _app(n=3)
