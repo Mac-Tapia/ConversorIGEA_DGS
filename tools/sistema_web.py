@@ -530,6 +530,33 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     return 0 if validos and not fallidos else 1
 
 
+def aplicar_cargas_nuevas(web: Web, proyecto: str, feeders: list[str], libro: Path) -> int:
+    """El paso 3 de la web con el libro de cargas nuevas, solo en esos alimentadores (007:RF-40, 042:RF-31).
+
+    Pisco de prueba (2026-11-07): «Con proyecto» respondió «Ningún alimentador marcado tiene cargas nuevas aplicadas»
+    porque el proyecto recién calibrado aún no las tenía. La base es el último ajuste guardado del proyecto, como en la web.
+    """
+    ajuste = (web.get('/demanda/ajuste/ultimo', params={'project': proyecto}) or {}).get('ajuste') or {}
+    if not ajuste.get('id'):
+        print(f'{proyecto}: sin ajuste guardado: calibre antes de aplicar cargas nuevas.', flush=True)
+        return 1
+    with Path(libro).open('rb') as fh:
+        plan = web.post('/lote/plan', data={'project': proyecto, 'feeders': list(feeders), 'ajuste_job_id': ajuste['id']},
+                        files={'create_file': (Path(libro).name, fh)})
+    for aviso in plan.get('avisos') or []:
+        print(f'  aviso: {aviso}', flush=True)
+    for error in plan.get('row_errors') or []:
+        print(f'  error del libro: {error}', flush=True)
+    if not plan.get('applicable'):
+        print(f'{proyecto}: el plan de cargas no es aplicable; no se aplica nada.', flush=True)
+        return 1
+    print(f"{proyecto}: {plan.get('n_nuevas', len(plan.get('nuevas') or []))} cargas nuevas de {', '.join(feeders)}; se aplican",
+          flush=True)
+    estado = web.esperar(web.post(f"/lote/{plan['token']}/apply"), limite_s=6 * 3600)
+    print(f"Cargas nuevas: {estado['status']}" + (f" — {estado.get('error')}" if estado.get('error') else ''), flush=True)
+    return 0 if estado['status'] == 'done' else 1
+
+
 def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: float | None = None,
                  capex: str | None = None, rehacer_obras: bool = False, obra_integral: bool = False) -> int:
     """042:RF-31: «Con proyecto» del sistema ya calibrado, sin nadie mirando, y su estadística (081:RF-72).
@@ -638,6 +665,8 @@ def main(argv=None) -> int:
     p.add_argument('--rehacer-obras', action='store_true',
                    help='Con --con-proyecto, retira las obras de esos alimentadores y las evalúa de nuevo (042:RF-60)')
     p.add_argument('--capex', help='Con --con-proyecto, el libro CAPEX: costea las obras y elige la SET nueva (042:RF-7)')
+    p.add_argument('--cargas-nuevas', type=Path,
+                   help='Con --con-proyecto, el libro de cargas nuevas: se aplican antes en esos alimentadores (042:RF-31)')
     p.add_argument('--obra-integral', action='store_true',
                    help='Con --con-proyecto, sin escalera: alimentador nuevo o SET nueva según la zona (087:RF-54)')
     args = p.parse_args(argv)
@@ -649,6 +678,8 @@ def main(argv=None) -> int:
     web = Web(args.url, args.espacio)
     if args.con_proyecto and args.proyecto:
         try:
+            if args.cargas_nuevas and aplicar_cargas_nuevas(web, args.proyecto, args.con_proyecto, args.cargas_nuevas):
+                return 1
             return con_proyecto(web, args.proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex,
                                 rehacer_obras=args.rehacer_obras, obra_integral=args.obra_integral)
         except (RuntimeError, TimeoutError, requests.RequestException) as exc:

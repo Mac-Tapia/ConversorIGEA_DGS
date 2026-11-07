@@ -565,3 +565,34 @@ def test_083_rf31_el_plan_pide_los_transformadores_en_la_misma_pasada(herramient
     web.post = post
     assert _correr(herramienta, web) == 0
     assert enviados and enviados[0]['transformadores_automaticos'] is True
+
+
+def test_aplica_las_cargas_nuevas_del_libro_antes_de_con_proyecto(herramienta, tmp_path, capsys):
+    """007:RF-40, 042:RF-31 — con `--cargas-nuevas`, el plan con el libro sobre el último ajuste del proyecto y solo sus
+    alimentadores, aplicado por la web como el paso 3. Pisco de prueba (2026-11-07): «Con proyecto» no tenía cargas."""
+    libro = tmp_path / 'nuevas.xlsx'
+    libro.write_bytes(b'xlsx')
+    llamadas = []
+
+    class Web:
+        def get(self, ruta, **kw):
+            llamadas.append(('GET', ruta, kw))
+            return {'ajuste': {'id': 'disco:abc123'}}
+
+        def post(self, ruta, **kw):
+            llamadas.append(('POST', ruta, kw))
+            if ruta == '/lote/plan':
+                return {'token': 'T1', 'nuevas': [{'sed': 'PI_3'}, {'sed': 'PI_4'}], 'n_nuevas': 2, 'row_errors': [],
+                        'avisos': [], 'applicable': True}
+            return {'id': 'J1', 'title': 'Aplicar cargas'}
+
+        def esperar(self, trabajo, limite_s=0):
+            return {'id': trabajo['id'], 'status': 'done', 'result': {}}
+
+    assert herramienta.aplicar_cargas_nuevas(Web(), 'P', ['AL209', 'PA217'], libro) == 0
+    get, plan, aplicar = llamadas
+    assert get[1] == '/demanda/ajuste/ultimo' and get[2]['params'] == {'project': 'P'}
+    assert plan[1] == '/lote/plan' and plan[2]['data'] == {'project': 'P', 'feeders': ['AL209', 'PA217'],
+                                                           'ajuste_job_id': 'disco:abc123'}
+    assert 'create_file' in plan[2]['files'] and aplicar[1] == '/lote/T1/apply'
+    assert '2 cargas nuevas' in capsys.readouterr().out
