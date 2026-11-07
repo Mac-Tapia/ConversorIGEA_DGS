@@ -66,6 +66,8 @@
       (RF-37, RF-39 a RF-42)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k "periodo or vuelve_a_fallar or biseccion or tensiones_distintas or pide"`
       y `pytest -q tests/test_valle.py -k "bancos_suben or todos_los_modulos" tests/test_escalera_optima.py` en verde.
+- [x] T17. La escalera por escalones en orden, sin saltar a la obra integral. (RF-43)
+      Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k escalones` en verde.
 - [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la

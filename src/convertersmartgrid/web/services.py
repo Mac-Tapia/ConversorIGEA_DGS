@@ -7477,6 +7477,27 @@ def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: 
     return out
 
 
+#: 098:RF-43: el orden de la escalera del usuario (2026-11-07): bancos, sección, terna y, después, la transferencia de
+#: carga; tras ella, el regulador (y lo que no sea de línea). Una combinación va en el escalón de su obra mayor.
+ESCALONES_ANTES_DE_TRANSFERIR = ('bancos', 'seccion', 'terna')
+ESCALONES_TRAS_TRANSFERIR = ('regulador', 'otras')
+_RANGO_ESCALON = {'bancos': 0, 'seccion': 1, 'terna': 2, 'regulador': 3}
+
+
+def _escalon_de(variante) -> str:
+    """098:RF-43: el escalón de una variante: el de su obra mayor (``sección + bancos`` es de la sección)."""
+    suyos = [e for e in (getattr(variante, 'escalones', None) or ()) if e in _RANGO_ESCALON]
+    return max(suyos, key=_RANGO_ESCALON.__getitem__) if suyos else 'otras'
+
+
+def _por_escalon(orden) -> dict[str, list]:
+    """098:RF-43: las variantes del oráculo agrupadas por escalón, cada grupo en el orden en que las dejó el oráculo."""
+    grupos: dict[str, list] = {}
+    for v in orden:
+        grupos.setdefault(_escalon_de(v), []).append(v)
+    return grupos
+
+
 def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                              anio_casos: int | None = None, tipo_cambio: float | None = None,
                              capex: str | None = None, cargas: list[str] | None = None,
@@ -7535,32 +7556,56 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         e_or = de_oraculo.get(f)
         if e_or and modelo is not None:
             e_or['orden'] = mo.ordenar(modelo, e_or['orden'], {t['nombre']: t for t in e_or.get('tabla') or []})
-        a_medir = oo.a_confirmar(e_or, seleccion.get('tanda') or 1) if e_or and e_or.get('orden') else []   # 087:RF-39
-        lista = oo.tandas(a_medir, seleccion['tanda']) if a_medir else [None]
         comparacion: list[dict] = []
         fila: dict = {}
         tanda = None
         vieja = comparar.get(f)
         de_eval = {'apartar_obras': {f: vieja['variaciones']}, 'conservar': {f: vieja}} if vieja else {}   # 098:RF-36
-        for tanda in lista:
-            ctx.check_cancel()
-            r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
-                               aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones, **de_eval,
-                               **({'variantes_de': {f: tanda}} if tanda else {}))
-            fila = next(iter(r.get('alimentadores') or []), {})
-            if e_or and not fila.get('conserva'):
-                comparacion += _lo_predicho_y_lo_medido(fila, e_or)
-                medidas += _variantes_medidas(project, f, fila, tanda or [], e_or)    # 087:RF-17
-            if fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva'):
-                break                                                                 # 087:RF-3
-        else:
-            if a_medir and len(a_medir) < len(e_or['orden']):
-                ctx.log(f"{f}: ninguna de las {len(a_medir)} que el oráculo da por cumplidoras o más cercanas cumple en "
-                        f"DIgSILENT; las otras {len(e_or['orden']) - len(a_medir)} no se prueban: va a la obra integral "
-                        '(087:RF-40).')
-        # 098:RF-36 (M2): la obra vieja que se queda resuelve el alimentador solo si su fila medida cumple.
-        ok = bool(fila.get('elegida') or fila.get('ya_cumple') or fila.get('conserva')
-                  or (fila.get('vieja') or {}).get('factible'))
+
+        def _medir_escalon(grupo: list | None) -> dict:
+            """098:RF-43: DIgSILENT confirma, por tandas, lo que el oráculo da por mejor dentro de un solo escalón."""
+            nonlocal comparacion, medidas, tanda
+            sub = {**e_or, 'orden': grupo, 'tabla': [t for t in e_or.get('tabla') or []
+                                                     if t.get('nombre') in {v.nombre for v in grupo}]} if grupo else None
+            a_medir = oo.a_confirmar(sub, seleccion.get('tanda') or 1) if sub else []                     # 087:RF-39
+            hecho: dict = {}
+            for tanda in (oo.tandas(a_medir, seleccion['tanda']) if a_medir else [None]):
+                ctx.check_cancel()
+                r = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
+                                   aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones, **de_eval,
+                                   **({'variantes_de': {f: tanda}} if tanda else {}))
+                hecho = next(iter(r.get('alimentadores') or []), {})
+                if e_or and not hecho.get('conserva'):
+                    comparacion += _lo_predicho_y_lo_medido(hecho, e_or)
+                    medidas += _variantes_medidas(project, f, hecho, tanda or [], e_or)        # 087:RF-17
+                if hecho.get('elegida') or hecho.get('ya_cumple') or hecho.get('conserva'):
+                    break                                                                     # 087:RF-3
+            return hecho
+
+        def _resuelto(hecho: dict) -> bool:
+            # 098:RF-36 (M2): la obra vieja que se queda resuelve el alimentador solo si su fila medida cumple.
+            return bool(hecho.get('elegida') or hecho.get('ya_cumple') or hecho.get('conserva')
+                        or (hecho.get('vieja') or {}).get('factible'))
+
+        # 098:RF-43: usuario (2026-11-07), «se evalúa con bancos, después con cambio de sección, después nueva terna,
+        # después transferencia de carga; nada debería saltar». Cada escalón se evalúa entero (el oráculo filtra y
+        # DIgSILENT confirma dentro de él) y solo se pasa al siguiente si ninguna de ese escalón cumple. Antes, las 3
+        # mejores de todos juntos y, si no cumplían, se dejaban las demás sin medir y se iba a la obra integral (087:RF-40).
+        grupos = _por_escalon(e_or['orden']) if e_or and e_or.get('orden') else {}
+        ok = False
+        for nombre_esc in ESCALONES_ANTES_DE_TRANSFERIR:
+            if nombre_esc not in grupos:
+                continue
+            ctx.log(f"{f}: escalón «{nombre_esc}»: {len(grupos[nombre_esc])} variante(s) del oráculo (098:RF-43).")
+            fila = _medir_escalon(grupos[nombre_esc])
+            ok = _resuelto(fila)
+            ctx.log(f"{f}: escalón «{nombre_esc}»: " + ('cumple, se para aquí' if ok else 'ninguna cumple, sigue')
+                    + ' (098:RF-43).')
+            if ok:
+                break
+        if not grupos:
+            fila = _medir_escalon(None)
+            ok = _resuelto(fila)
         traspaso = False
         # 098:RF-21: si el oráculo ya juzgó las transferencias por enlace existente (con bancos encima, 098:RF-25),
         # DIgSILENT ya confirmó las mejores: no se repiten aquí (098:RF-26).
@@ -7575,6 +7620,16 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             de_t = next(iter(r.get('alimentadores') or []), {})
             if de_t.get('elegida'):
                 fila, ok, traspaso, tanda = de_t, True, True, None
+        for nombre_esc in ESCALONES_TRAS_TRANSFERIR:
+            # 098:RF-43: el regulador y lo demás que el oráculo modela, después de la transferencia de carga.
+            if ok or nombre_esc not in grupos:
+                continue
+            ctx.log(f"{f}: escalón «{nombre_esc}»: {len(grupos[nombre_esc])} variante(s) del oráculo (098:RF-43).")
+            de_r = _medir_escalon(grupos[nombre_esc])
+            if _resuelto(de_r):
+                fila, ok = de_r, True
+            ctx.log(f"{f}: escalón «{nombre_esc}»: " + ('cumple, se para aquí' if ok else 'ninguna cumple, sigue')
+                    + ' (098:RF-43).')
         if not ok and e_or:
             # 087:RF-41: el oráculo no modela el paso a 22,9 kV; DIgSILENT lo mide, tras transferir y trasladar.
             ctx.check_cancel()

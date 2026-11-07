@@ -91,7 +91,8 @@ def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
 
 
 def test_si_no_cumplen_va_a_la_obra_integral_sin_medir_las_demas(monkeypatch):
-    """087:RF-40 — ninguna de las de RF-39 cumple: no se insiste con las otras, el alimentador va a la obra integral."""
+    """087:RF-40, 098:RF-43 — ninguna de las de RF-39 de su escalón cumple: se dice por escalón y se sigue al siguiente
+    (la transferencia y el paso de nivel); ya no se anuncia «las otras N no se prueban: va a la obra integral»."""
     llamadas = _con_seleccion(monkeypatch, _seleccion(9, buenas=2), 'v8')
     ctx = _Ctx()
     r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
@@ -99,7 +100,8 @@ def test_si_no_cumplen_va_a_la_obra_integral_sin_medir_las_demas(monkeypatch):
     # Después, sin lista del oráculo, el paso a 22,9 kV (087:RF-41) y transferir o trasladar (087:RF-31).
     assert medidas == [['v0', 'v1', 'v2'], ['v3', 'v4'], [], []]
     assert not r['por_alimentador']['F1']['cumple'] and not any(x['aplicar'] for x in llamadas)
-    assert any('087:RF-40' in t and 'las otras 4 no se prueban' in t for t in ctx.textos)
+    assert any('098:RF-43' in t and 'ninguna cumple, sigue' in t for t in ctx.textos)
+    assert not any('no se prueban' in t for t in ctx.textos)
 
 
 def test_lo_predicho_y_lo_medido_quedan_y_manda_digsilent(monkeypatch):

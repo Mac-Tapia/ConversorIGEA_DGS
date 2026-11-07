@@ -2309,3 +2309,24 @@ def test_la_sustitucion_fallida_no_deja_obras_pendientes_y_el_diario_recompone(t
     assert hechas == ['Obra_condensador_F1']
     (a,) = ws.obras_aplicadas
     assert a['variacion'] == 'Obra_condensador_F1' and a['origen'] == 'escalera' and a['eleccion'] == {'nombre': 'bancos'}
+
+
+def test_la_escalera_va_por_escalones_en_orden_sin_saltar():
+    """098:RF-43 — bancos, sección, terna y, tras la transferencia, el regulador: cada variante en el escalón de su obra
+    mayor, y los grupos en el orden en que las dejó el oráculo."""
+    import inspect
+    from types import SimpleNamespace as V
+
+    from convertersmartgrid.web import services
+    orden = [V(nombre='t+b', escalones=('bancos', 'terna')), V(nombre='b', escalones=('bancos',)),
+             V(nombre='s+b', escalones=('bancos', 'seccion')), V(nombre='r', escalones=('seccion', 'regulador')),
+             V(nombre='s', escalones=('seccion',)), V(nombre='n', escalones=('nivel',))]
+    g = services._por_escalon(orden)
+    assert {k: [v.nombre for v in vs] for k, vs in g.items()} == {
+        'terna': ['t+b'], 'bancos': ['b'], 'seccion': ['s+b', 's'], 'regulador': ['r'], 'otras': ['n']}
+    assert services.ESCALONES_ANTES_DE_TRANSFERIR == ('bancos', 'seccion', 'terna')
+    assert services.ESCALONES_TRAS_TRANSFERIR[0] == 'regulador'
+    fuente = inspect.getsource(services.escalera_por_alimentador)
+    assert 'no se prueban: va a la obra integral' not in fuente
+    assert fuente.index('ESCALONES_ANTES_DE_TRANSFERIR') < fuente.index('traspaso=True') < fuente.index(
+        'ESCALONES_TRAS_TRANSFERIR')
