@@ -1021,7 +1021,10 @@ def transferencias_con_oraculo(oraculo: Oraculo, a: Alimentador, candidatas: Seq
             continue
         # 098:RF-47: la transferencia del operador se mide siempre en DIgSILENT: el usuario pide que se evalúe y que el
         # informe diga si resuelve (098:RF-44), aunque el oráculo vea que la red baja.
-        del_operador = v.nombre.startswith('la transferencia del operador')
+        # También toda transferencia por un enlace que ya existe (obra «maniobra»): CA101 + CHN102 (2026-11-07), las dos
+        # por «Breaker/Switch(1)», el mismo corte del operador entre ellas, se descartaban por bajar de 0,803 a 0,793.
+        del_operador = (v.nombre.startswith('la transferencia del operador')
+                        or any(o.get('clase') == 'maniobra' for o in v.obras))
         if (not del_operador and sin.get('v_min') is not None and e['v_min'] < sin['v_min'] - p.tolerancia_pu
                 and not _cumple_en(e, p)):
             resumen['descartadas'].append({'nombre': v.nombre, 'motivo': f"la tensión mínima baja de {sin['v_min']:.3f} "

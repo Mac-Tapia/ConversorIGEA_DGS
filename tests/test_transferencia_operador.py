@@ -2508,3 +2508,4 @@ def test_la_transferencia_del_operador_siempre_va_a_digsilent():
     from convertersmartgrid import optimizacion_oraculo as oo
     fuente = inspect.getsource(oo.transferencias_con_oraculo)
     assert "startswith('la transferencia del operador')" in fuente and 'not del_operador and' in fuente
+    assert "o.get('clase') == 'maniobra'" in fuente      # y toda transferencia por un enlace existente
