@@ -41,12 +41,6 @@ Name: "escritorio"; Description: "Crear un acceso directo en el escritorio"
 ; El candidato se deja en una carpeta temporal del programa, y se borra al terminar.
 Source: "{#Candidato}\*"; DestDir: "{app}\_entrega"; Flags: recursesubdirs createallsubdirs ignoreversion deleteafterinstall
 
-[Run]
-Filename: "{app}\_entrega\terceros\python\python.exe"; \
-  Parameters: """{app}\_entrega\instalador\instalar_candidato.py"" instalar --candidato ""{app}\_entrega"" --destino ""{app}"""; \
-  StatusMsg: "Comprobando las huellas e instalando..."; Flags: runhidden waituntilterminated; \
-  AfterInstall: ComprobarInstalacion
-
 [Icons]
 Name: "{autoprograms}\ConverterSmartGrid"; Filename: "{app}\ConverterSmartGrid.cmd"
 Name: "{autodesktop}\ConverterSmartGrid"; Filename: "{app}\ConverterSmartGrid.cmd"; Tasks: escritorio
@@ -65,10 +59,49 @@ Type: files; Name: "{app}\volver_atras.cmd"
 Type: files; Name: "{app}\copia_datos.cmd"
 
 [Code]
+var
+  FalloInstalacion: Boolean;
+
 procedure ComprobarInstalacion;
+var
+  CodigoProceso: Integer;
+  VersionActiva: AnsiString;
 begin
-  { La salida de [Run] no se ve. Si falla, instalar_candidato.py retira la versión nueva: en una actualización,
-    actual.txt seguiría ahí y el asistente diría que todo fue bien. }
-  if not FileExists(ExpandConstant('{app}\versiones\{#Version}\python\python.exe')) then
-    MsgBox('No se pudo terminar la instalacion. Lo que hubiera instalado sigue igual.', mbError, MB_OK);
+  { RF-39: una carpeta anterior no salva un proceso fallido. El guion Python
+    conserva el puntero anterior si falla; el contenedor debe devolver error. }
+  FalloInstalacion := True;
+  CodigoProceso := -1;
+  WizardForm.StatusLabel.Caption := 'Comprobando las huellas e instalando...';
+  if Exec(ExpandConstant('{app}\_entrega\terceros\python\python.exe'),
+      ExpandConstant('"{app}\_entrega\instalador\instalar_candidato.py" instalar --candidato "{app}\_entrega" --destino "{app}"'),
+      '', SW_HIDE, ewWaitUntilTerminated, CodigoProceso) then
+  begin
+    Log(Format('Resultado de instalar_candidato.py: %d', [CodigoProceso]));
+    if (CodigoProceso = 0) and
+        FileExists(ExpandConstant('{app}\versiones\{#Version}\python\python.exe')) and
+        LoadStringFromFile(ExpandConstant('{app}\actual.txt'), VersionActiva) then
+      FalloInstalacion := Trim(String(VersionActiva)) <> '{#Version}';
+  end
+  else
+    Log(Format('No se pudo iniciar instalar_candidato.py: %d', [CodigoProceso]));
+  if FalloInstalacion then
+  begin
+    Log('No se pudo terminar la instalacion. Se conserva el programa anterior.');
+    if not WizardSilent then
+      MsgBox('No se pudo terminar la instalacion. Lo que hubiera instalado sigue igual.', mbError, MB_OK);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    ComprobarInstalacion;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  if FalloInstalacion then
+    Result := 1
+  else
+    Result := 0;
 end;

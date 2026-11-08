@@ -236,7 +236,7 @@
       "evidence": []
     },
     "P22": {
-      "state": "nucleo_setup_qa_instalado_complemento_constructor_verificado_aceptacion_pendiente",
+      "state": "complemento_instalado_reabierto_wrapper_corregido_rebuild_y_aceptacion_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -255,7 +255,18 @@
         "p22_instaladores_2d6555b0/compilacion.json",
         "p22_ensayo_setup_2d6555b0/resultado.json",
         "p22_complemento_rojo.log",
-        "p22_complemento_verde2.log"
+        "p22_complemento_verde2.log",
+        "p22_paquete_ia_e7678964/manifiesto_candidato.json",
+        "p22_ensayo_complemento_e7678964/resultado.json",
+        "p22_ensayo_complemento_e7678964/reapertura_modelos.json",
+        "p22_doctor_lanzadores_20261108/resultado.json",
+        "p22_wrapper_rojo_20261108/resultado.json",
+        "p22_wrapper_verde_20261108/resultado.json",
+        "p22_wrapper_cierre.xml",
+        "p22_safepath_rojo.log",
+        "p22_instalacion_final.xml",
+        "p22_limpieza_miniensayos_20261108/resultado.json",
+        "p22_instaladores_2d6555b0/NO_PUBLICAR.json"
       ]
     },
     "P23": {

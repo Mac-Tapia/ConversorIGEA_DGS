@@ -129,3 +129,16 @@ lock por SHA-256, inventario, avisos y manifiesto verificable sin incluir pesos 
 dependencias de entrenamiento. Construirlo no activa modelos ni modifica la
 instalación. La aceptación exige instalarlo con el Python entregado y reabrir los
 modelos; la descarga o el inventario no cierran T40.
+
+El contenedor Inno debe esperar al instalador Python y propagar su fallo mediante
+GetCustomSetupExitCode, además de comprobar el puntero de versión y el intérprete
+instalado. Una carpeta preexistente no acredita éxito. El ensayo nativo inyecta
+retorno7 y comprueba retorno no cero, incluso con esa carpeta; un caso positivo
+comprueba retorno0 con versión correcta. El modo silencioso registra el fallo sin
+un diálogo que deje bloqueada la automatización.
+
+Los hijos Python del instalador usan también PYTHONSAFEPATH, como los lanzadores
+entregados, para que pip/doctor no importen módulos desde su directorio de trabajo.
+Se mantiene el PYTHONPATH explícito de la rueda de pip o de PowerFactory. La prueba
+inyecta un json.py en cwd y exige que no se ejecute; doctor no se modifica para
+ocultar una ruta ajena.

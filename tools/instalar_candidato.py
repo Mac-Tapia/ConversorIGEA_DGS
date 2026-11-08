@@ -119,7 +119,7 @@ def _entorno_limpio(python: Path) -> dict[str, str]:
     PYTHONPATH, que es como un guion encuentra la API de DIgSILENT.
     """
     entorno = {k: v for k, v in os.environ.items() if k not in ('PYTHONPATH', 'VIRTUAL_ENV', 'PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL')}
-    entorno.update(PYTHONHOME=str(python.parent), PYTHONNOUSERSITE='1', PIP_NO_INDEX='1', PIP_CONFIG_FILE=os.devnull,
+    entorno.update(PYTHONHOME=str(python.parent), PYTHONNOUSERSITE='1', PYTHONSAFEPATH='1', PIP_NO_INDEX='1', PIP_CONFIG_FILE=os.devnull,
                    PIP_DISABLE_PIP_VERSION_CHECK='1', PYTHONUTF8='1', PIP_NO_INPUT='1')
     return entorno
 

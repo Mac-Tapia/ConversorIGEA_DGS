@@ -1123,6 +1123,21 @@ def test_el_guion_del_instalador_no_sale_a_internet():
     assert borra and all('{app}' in l for l in borra), 'desinstalar no toca la carpeta de datos'
 
 
+def test_subprocesos_del_instalador_no_importan_modulos_del_directorio_actual(tmp_path, monkeypatch):
+    """086:RF-39 — pip y doctor tampoco importan un json.py ajeno desde su directorio de trabajo."""
+    monkeypatch.delenv('PYTHONSAFEPATH', raising=False)
+    witness = tmp_path / 'importado.txt'
+    (tmp_path / 'json.py').write_text(
+        'from pathlib import Path\nPath(__file__).with_name("importado.txt").write_text("ejecutado")\n'
+        'raise RuntimeError("modulo del directorio actual")\n', encoding='utf-8')
+    python = Path(sys._base_executable)
+    result = subprocess.run([str(python),'-B','-c','import json;print(json.dumps({"ok":True}))'],
+        cwd=tmp_path, env=IC._entorno_limpio(python), capture_output=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {'ok':True}
+    assert not witness.exists()
+
+
 def test_avisos_del_front_con_textos_y_huellas_del_lock(tmp_path):
     """086:RF-39 — el candidato conserva el texto íntegro de cada dependencia compilada."""
     front = tmp_path / 'frontend'
