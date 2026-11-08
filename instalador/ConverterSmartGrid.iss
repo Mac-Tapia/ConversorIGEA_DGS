@@ -14,14 +14,32 @@
   #error Falta /DVersion=version del manifiesto del candidato
 #endif
 
+; /DEnsayoQA conserva la instalación de producto, incluidos sus accesos.
+; La receta de QA fija también /DIR y CSG_DATOS_HOME al espacio de ensayo.
+#ifdef EnsayoQA
+#define IdentidadApp "{{A377620D-88D7-4C7E-8358-202611080003}"
+#define NombreApp "ConverterSmartGrid - QA aislada"
+#define DirectorioApp "D:\converter\auditorias\csg_qa_1108"
+#define NombreAcceso "ConverterSmartGrid QA"
+#else
+#define IdentidadApp "{{6F0B1C52-8A3E-4C57-9B0E-6F4C2D7A1E86}"
+#define NombreApp "ConverterSmartGrid"
+#define DirectorioApp "{localappdata}\Programs\ConverterSmartGrid"
+#define NombreAcceso "ConverterSmartGrid"
+#endif
+
 [Setup]
-AppId={{6F0B1C52-8A3E-4C57-9B0E-6F4C2D7A1E86}
-AppName=ConverterSmartGrid
+AppId={#IdentidadApp}
+AppName={#NombreApp}
 AppVersion={#Version}
-DefaultDirName={localappdata}\Programs\ConverterSmartGrid
+DefaultDirName={#DirectorioApp}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+#ifdef EnsayoQA
+OutputBaseFilename=ConverterSmartGrid-{#Version}-qa-setup
+#else
 OutputBaseFilename=ConverterSmartGrid-{#Version}-setup
+#endif
 OutputDir={#SourcePath}\salida
 Compression=lzma2/normal
 SolidCompression=yes
@@ -29,7 +47,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ; Actualizar deja la versión anterior instalada para poder volver: no se cierra nada por sorpresa.
 CloseApplications=no
-UninstallDisplayName=ConverterSmartGrid
+UninstallDisplayName={#NombreApp}
 
 [Languages]
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -42,9 +60,9 @@ Name: "escritorio"; Description: "Crear un acceso directo en el escritorio"
 Source: "{#Candidato}\*"; DestDir: "{app}\_entrega"; Flags: recursesubdirs createallsubdirs ignoreversion deleteafterinstall
 
 [Icons]
-Name: "{autoprograms}\ConverterSmartGrid"; Filename: "{app}\ConverterSmartGrid.cmd"
-Name: "{autodesktop}\ConverterSmartGrid"; Filename: "{app}\ConverterSmartGrid.cmd"; Tasks: escritorio
-Name: "{autoprograms}\ConverterSmartGrid - diagnostico"; Filename: "{cmd}"; Parameters: "/k ""{app}\csg.cmd"" doctor"
+Name: "{autoprograms}\{#NombreAcceso}"; Filename: "{app}\ConverterSmartGrid.cmd"
+Name: "{autodesktop}\{#NombreAcceso}"; Filename: "{app}\ConverterSmartGrid.cmd"; Tasks: escritorio
+Name: "{autoprograms}\{#NombreAcceso} - diagnostico"; Filename: "{cmd}"; Parameters: "/k ""{app}\csg.cmd"" doctor"
 
 [UninstallDelete]
 ; Solo el programa. La carpeta de datos (%LOCALAPPDATA%\ConverterSmartGrid\datos) es del operador y se queda.

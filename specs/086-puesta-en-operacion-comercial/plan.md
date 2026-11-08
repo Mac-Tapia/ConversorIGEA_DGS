@@ -188,3 +188,13 @@ otro destino entregado mantiene PYTHONHOME junto al ejecutable y PYTHONSAFEPATH=
 no se retira la protección frente al registro de Windows ni al directorio actual.
 Comprobación real sobre ambos layouts Python3.12.16, con json.py hostil en cwd,
 termina0 sin ejecutarlo. La instalación final integrada sigue siendo otra puerta.
+
+Preflight comercial P25 (2026-11-08, RF-38/39): `/DEnsayoQA` en el mismo `.iss`
+separa AppId, directorio por defecto, nombres de accesos y nombre de setup de la
+instalación de producto. Cambiar únicamente AppId, como hacía la receta anterior,
+no protege los accesos de Inicio/escritorio. La variante QA conserva las mismas
+verificaciones del instalador Python; la receta fija además la raíz de datos de
+QA. El preflight y la validación ISCC con salida deshabilitada no instalan ni
+cierran T31/T32/T40/T41. Los enlaces existentes se inventarían por destino y SHA;
+cualquier restitución exige contrastarlos y coordinarla con el integrador. Evidencia
+externa: `p25_comercial_20261108` bajo la implementación del diagnóstico 20261107.
