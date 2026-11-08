@@ -52,20 +52,27 @@ def _ejecutar_en(raiz: Path, dependencias: Path) -> tuple[int, int, str]:
     for prueba in _pruebas_ligeras():
         shutil.copy2(prueba, destino / 'test' / prueba.name)
     shutil.copy2(FRONT / 'package.json', destino / 'package.json')
+    shutil.copy2(FRONT / 'tsconfig.json', destino / 'tsconfig.json')
+    (destino / 'scripts').mkdir()
+    shutil.copy2(FRONT / 'scripts' / 'fronteras.mjs', destino / 'scripts' / 'fronteras.mjs')
     enlace = destino / 'node_modules'
     _enlazar(enlace, dependencias)
     try:
         r = subprocess.run(['node', '--test', *(f'test/{p.name}' for p in _pruebas_ligeras())],
-                           cwd=destino, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=240,
-                           env={k: v for k, v in os.environ.items() if k != 'NODE_TEST_CONTEXT'})
+                           cwd=destino, capture_output=True, timeout=240,
+                           env={**{k: v for k, v in os.environ.items() if k != 'NODE_TEST_CONTEXT'},
+                                'CSG_P23_TEMP': str(raiz / 'fixtures_fronteras')})
     finally:
         # Se retira el enlace, nunca lo enlazado: las dependencias pueden ser las del checkout primario.
         if os.name == 'nt':
             os.rmdir(enlace)
         else:
             enlace.unlink()
-    aprobadas = re.search(r'^(?:# |ℹ )pass (\d+)', r.stdout, re.M)
-    return r.returncode, int(aprobadas.group(1)) if aprobadas else 0, r.stdout + r.stderr
+    (raiz / 'node.stdout.log').write_bytes(r.stdout)
+    (raiz / 'node.stderr.log').write_bytes(r.stderr)
+    stdout, stderr = r.stdout.decode('utf-8', errors='replace'), r.stderr.decode('utf-8', errors='replace')
+    aprobadas = re.search(r'^(?:# |ℹ )pass (\d+)', stdout, re.M)
+    return r.returncode, int(aprobadas.group(1)) if aprobadas else 0, stdout + stderr
 
 
 def test_las_pruebas_del_frontend_dan_lo_mismo_con_y_sin_espacios(tmp_path):
