@@ -12,12 +12,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import threading
 from types import SimpleNamespace
 
 import pytest
 
-from apoyo import TOOLS, cargar_herramienta
+from apoyo import TOOLS, cargar_herramienta, espacio_txt_custodiado
 from convertersmartgrid.powerfactory_binding import (
     PowerFactoryProjectBinding, caso_base_verificado, fusionar_caso_base,
 )
@@ -25,7 +24,6 @@ from convertersmartgrid.powerfactory_metadata import classify_convergence, estad
 from convertersmartgrid.util import sha256_file
 from convertersmartgrid.web import services
 from convertersmartgrid.web.workspace import Workspace
-from synthetic_export import ExportSpec, write_export
 
 tool = cargar_herramienta('powerfactory_acceptance.py', 'pfa_078')
 RAIZ = TOOLS.parent
@@ -318,16 +316,7 @@ def test_caso_base_el_gemelo_solo_con_verificado(tmp_path, monkeypatch):
 
 def _importar(tmp_path, monkeypatch, flujo, rc=0):
     """Una importación por la web con el informe que dejaría el guion, sin DIgSILENT."""
-    red, loads, equipment = write_export(
-        ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=7801), tmp_path / 'fuente')
-    ws = Workspace(id='senales', root=tmp_path / 'espacio')
-    ws.options.update(input_mode='txt', include_geography=False, workers=1)
-    for slot, path in (('red', red), ('loads', loads), ('equipment', equipment)):
-        ws.set_input(slot, path, origin='prueba_sintetica')
-    carga_ctx = SimpleNamespace(log=lambda *_: None, check_cancel=lambda: None,
-                               progress=lambda *_: None, cancel=threading.Event())
-    services.load_dataset(ws, carga_ctx)
-    services.convert(ws, carga_ctx, ws.dataset.feeder_ids(), all_feeders=False)
+    ws = espacio_txt_custodiado(tmp_path / 'espacio')
     snapshot = ws.active_run()
     man = json.loads((ws.out_dir / 'batch_manifest.json').read_text(encoding='utf-8'))
     target = man['feeders'][0]['feeder']

@@ -11,12 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid import batch
+from apoyo import espacio_txt_custodiado
 from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
 from convertersmartgrid.util import sha256_file
 from convertersmartgrid.web import services
-from convertersmartgrid.web.workspace import Workspace
-from synthetic_export import ExportSpec, load_export
 
 
 @pytest.mark.parametrize('modo', ['rc3_sin', 'rc0_sin', 'roto', 'hash', 'source', 'feeder', 'ruta',
@@ -24,21 +22,12 @@ from synthetic_export import ExportSpec, load_export
                                  'relectura_invalida', 'actual', 'flujo_fallido'])
 def test_informe_actual_o_nada_de_mutacion(tmp_path, monkeypatch, modo):
     """065:RF-6, 065:RF-7 — el proceso real de borde no habilita evidencia histórica/ajena."""
-    ds = load_export(ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=6536),
-                     tmp_path / 'fuente')
-    ws = Workspace(id='fresh', root=tmp_path / 'espacio')
-    ws.active_run_id = ws.loaded_run_id = 'run-current'
-    ws.loaded_source_mode = 'txt'
-    ws.loaded_source_fingerprint = 'f' * 64
-    ws.dataset = ds
-    ws.active_run = lambda: SimpleNamespace(run_id='run-current', mode='txt', fingerprint='f' * 64)
-    man = batch.convert_selection(ds, ds.feeder_ids(), ws.out_dir, include_geography=False, workers=1)
+    ws = espacio_txt_custodiado(tmp_path / 'espacio', seed=6536)
+    snapshot = ws.active_run()
+    man = json.loads((ws.out_dir / 'batch_manifest.json').read_text(encoding='utf-8'))
     target = man['feeders'][0]['feeder']
     dgs = ws.out_dir / f'{target}.dgs'
     metadata_path = dgs.with_name(f'{target}_feeder_metadata.json')
-    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
-    metadata.update(source_run_id='run-current', source_mode='txt', source_fingerprint='f' * 64)
-    metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
     ws.conversions['red'] = {'feeder': target, 'capacitor_reread': {'original': True}}
     anterior = ws.out_dir / f'{target}_powerfactory_acceptance.json'
     anterior.write_text(json.dumps({'import': {'project_path': 'PROYECTO_ANTERIOR'},
@@ -66,8 +55,8 @@ def test_informe_actual_o_nada_de_mutacion(tmp_path, monkeypatch, modo):
         runtime_ok = modo != 'flujo_fallido'
         binding = PowerFactoryProjectBinding(
             project='PROYECTO_ACTUAL' if modo != 'project' else 'PROYECTO_AJENO', folder='PRUEBA',
-            source_run_id='run-current' if modo != 'binding_source' else 'run-ajeno',
-            source_mode='txt', source_fingerprint='f' * 64,
+            source_run_id=snapshot.run_id if modo != 'binding_source' else 'run-ajeno',
+            source_mode=snapshot.mode, source_fingerprint=snapshot.fingerprint,
             feeders=(target,), dgs_sha256={target: sha256_file(fijado) if modo != 'binding_dgs' else 'b' * 64},
             native_inventory_sha256='a' * 64,
             native_reread={'status': 'VERIFICADO_PERSISTENCIA' if runtime_ok else 'CASO_BASE_NO_VERIFICADO'},
@@ -77,8 +66,8 @@ def test_informe_actual_o_nada_de_mutacion(tmp_path, monkeypatch, modo):
                 'import': {'ok': True, 'dgs': str(fijado), 'project_path': 'PROYECTO_ACTUAL',
                            'project_folder': 'PRUEBA'},
                 'source_verification': {'status': 'VERIFIED_BEFORE_MUTATION',
-                                        'source_run_id': 'run-current', 'source_mode': 'txt',
-                                        'source_fingerprint': 'f' * 64, 'dgs_sha256': sha256_file(fijado),
+                                        'source_run_id': snapshot.run_id, 'source_mode': snapshot.mode,
+                                        'source_fingerprint': snapshot.fingerprint, 'dgs_sha256': sha256_file(fijado),
                                         'metadata_file': metadata_path.name, 'feeders': [target]},
                 'project_binding': binding, 'capacitor_reread': {'actual': True}}
         if modo == 'hash':
@@ -125,3 +114,14 @@ def test_informe_actual_o_nada_de_mutacion(tmp_path, monkeypatch, modo):
         assert sha256_file(anterior) == hash_anterior
         assert resultado['ok'] == 0 and resultado['failed'] == 1
         assert any('INFORME' in linea for linea in resultado['lines'])
+        motivo = {
+            'hash': 'fuente/hash', 'source': 'fuente/hash',
+            'feeder': 'no identifica el alimentador', 'ruta': 'otra ruta DGS',
+            'project': 'otro proyecto, fuente o DGS',
+            'binding_source': 'otro proyecto, fuente o DGS',
+            'binding_dgs': 'otro proyecto, fuente o DGS',
+            'binding_modificado': 'PROJECT_BINDING_RECORD_MISMATCH',
+            'relectura_invalida': 'formato requerido',
+        }.get(modo)
+        if motivo:
+            assert any(motivo in linea for linea in resultado['lines']), resultado['lines']

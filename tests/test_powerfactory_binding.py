@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from apoyo import espacio_txt_custodiado
+from convertersmartgrid.util import sha256_file
 
 
 class _Obj:
@@ -520,31 +522,24 @@ def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_p
     services.comprobar_dgs_vinculados(ws, {}, ['IN111'])
 
 
-_RID = '20261014T205152-71b14f2416a0'
-
-
-def _espacio_origen_en_disco(raiz, *, huella='f' * 64):
+def _espacio_origen_en_disco(raiz, *, seed=7801):
     """Espacio que aceptó el proyecto: su ejecución en disco, calibración y DGS unido."""
-    import json
-
-    run = raiz / 'origen' / 'runs' / _RID
-    (run / 'salida').mkdir(parents=True)
+    ws = espacio_txt_custodiado(raiz / 'origen', seed=seed, feeder_name='IN111')
+    snapshot = ws.active_run()
+    run = snapshot.root
     (raiz / 'medidores.xlsx').write_bytes(b'')
-    (run / 'salida' / 'IN111.dgs').write_text('dgs', encoding='utf-8')
-    (run / 'source_manifest.json').write_text(json.dumps({
-        'version': 1, 'run_id': _RID, 'mode': 'txt', 'created_at': 1.0,
-        'fingerprint': huella, 'files': [],
-    }), encoding='utf-8')
-    (raiz / 'origen' / 'workspace.json').write_text(json.dumps({
-        'id': 'origen',
-        'pf_project_bindings': {'Oct/IN111': {'source_run_id': _RID}},
-        'calibraciones': {'Oct/IN111': {'IN111': {'kw': 1.0}}},
-        'demanda': {'medidores': {'path': str(raiz / 'medidores.xlsx'), 'name': 'medidores.xlsx'},
-                    'perdido': {'path': str(raiz / 'no_existe.xlsx'), 'name': 'no_existe.xlsx'}},
-        'groups': {'IN111_X': {'name': 'IN111_X', 'status': 'ok',
-                               'dgs': str(run / 'salida' / 'IN111_X.dgs')}},
-    }), encoding='utf-8')
-    return run
+    dgs = run / 'salida' / 'IN111.dgs'
+    (run / 'salida' / 'IN111_X.dgs').write_bytes(dgs.read_bytes())
+    ws.pf_project_bindings['Oct/IN111'] = _binding(
+        source_run_id=snapshot.run_id, source_fingerprint=snapshot.fingerprint,
+        dgs_sha256={'IN111': sha256_file(dgs)}).as_dict()
+    ws.calibraciones = {'Oct/IN111': {'IN111': {'kw': 1.0}}}
+    ws.demanda = {'medidores': {'path': str(raiz / 'medidores.xlsx'), 'name': 'medidores.xlsx'},
+                  'perdido': {'path': str(raiz / 'no_existe.xlsx'), 'name': 'no_existe.xlsx'}}
+    ws.groups = {'IN111_X': {'name': 'IN111_X', 'status': 'ok',
+                            'dgs': str(run / 'salida' / 'IN111_X.dgs')}}
+    ws.save()
+    return ws
 
 
 def _espacio_sin_fuente(raiz, registro):
@@ -564,9 +559,11 @@ def test_018_rf9_rf10_espacio_nuevo_usa_la_ejecucion_con_la_que_se_acepto(tmp_pa
 
     raiz = tmp_path / 'web'
     registro = raiz / 'vinculos_pf.json'
-    origen = _espacio_origen_en_disco(raiz)
+    origen = _espacio_origen_en_disco(raiz).active_run()
     # El vínculo se graba desde fuera de la raíz: el espacio que trabajó el proyecto es «origen».
-    record_project_binding(_espacio(tmp_path, 'fuera', registro), _binding(source_run_id=_RID))
+    record_project_binding(_espacio(tmp_path, 'fuera', registro), _binding(
+        source_run_id=origen.run_id, source_fingerprint=origen.fingerprint,
+        dgs_sha256={'IN111': sha256_file(origen.root / 'salida' / 'IN111.dgs')}))
     ws = _espacio_sin_fuente(raiz, registro)
 
     antes = services.estado_vinculos(ws, [dict(p) for p in ws.pf_inventory['projects']])[0]
@@ -576,13 +573,14 @@ def test_018_rf9_rf10_espacio_nuevo_usa_la_ejecucion_con_la_que_se_acepto(tmp_pa
     inventario = services.adoptar_fuente_del_vinculo(ws, 'Oct/IN111')
     despues = inventario['projects'][0]
     assert despues['binding_blocked_code'] is None
-    assert ws.active_run_id == _RID
-    assert (ws.root / 'runs' / _RID / 'salida' / 'IN111.dgs').read_text(encoding='utf-8') == 'dgs'
-    assert (origen / 'salida' / 'IN111.dgs').is_file()
+    assert ws.active_run_id == origen.run_id
+    assert (ws.root / 'runs' / origen.run_id / 'salida' / 'IN111.dgs').read_bytes() == (
+        origen.root / 'salida' / 'IN111.dgs').read_bytes()
+    assert (origen.root / 'salida' / 'IN111.dgs').is_file()
     assert ws.calibraciones['Oct/IN111'] == {'IN111': {'kw': 1.0}}
     assert list(ws.demanda) == ['medidores']
-    assert ws.groups['IN111_X']['dgs'] == str(ws.root / 'runs' / _RID / 'salida' / 'IN111_X.dgs')
-    assert not (ws.root / 'runs' / f'{_RID}.copia').exists()
+    assert ws.groups['IN111_X']['dgs'] == str(ws.root / 'runs' / origen.run_id / 'salida' / 'IN111_X.dgs')
+    assert not (ws.root / 'runs' / f'{origen.run_id}.copia').exists()
     # Repetirlo no falla, y el contexto sigue saliendo del espacio que trabajó el proyecto
     # aunque la ejecución ya sea la propia.
     ws.demanda = {}
@@ -599,8 +597,14 @@ def test_018_rf10_ejecucion_con_otra_huella_no_se_usa(tmp_path):
 
     raiz = tmp_path / 'web'
     registro = raiz / 'vinculos_pf.json'
-    _espacio_origen_en_disco(raiz, huella='e' * 64)
-    record_project_binding(_espacio(raiz, 'aceptó', registro), _binding(source_run_id=_RID))
+    from convertersmartgrid.web.source_runs import verify_source_files
+
+    origen = _espacio_origen_en_disco(raiz, seed=7802).active_run()
+    referencia = espacio_txt_custodiado(tmp_path / 'referencia', feeder_name='IN111').active_run()
+    verify_source_files(origen)
+    assert origen.fingerprint != referencia.fingerprint
+    record_project_binding(_espacio(raiz, 'aceptó', registro), _binding(
+        source_run_id=origen.run_id, source_fingerprint=referencia.fingerprint))
     ws = _espacio_sin_fuente(raiz, registro)
 
     estado = services.estado_vinculos(ws, [dict(p) for p in ws.pf_inventory['projects']])[0]
@@ -617,19 +621,13 @@ def test_018_rf12_verificar_compara_con_el_manifiesto_sin_la_red_en_memoria(tmp_
     from convertersmartgrid.web import services
 
     raiz = tmp_path / 'web'
-    _espacio_origen_en_disco(raiz)
-    ws = _espacio_sin_fuente(raiz, None)
-    ws.root = raiz / 'origen'
-    ws.active_run_id = _RID
+    from convertersmartgrid.web.workspace import Workspace
+
+    origen = _espacio_origen_en_disco(raiz).active_run()
+    ws = Workspace.load(raiz / 'origen')
     dgs = ws.out_dir / 'IN111.dgs'
-    (ws.out_dir / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
-    monkeypatch.setattr(
-        'convertersmartgrid.feeder_metadata.read_feeder_metadata',
-        lambda path, expected_dgs: {'source_run_id': _RID, 'source_mode': 'txt',
-                                    'source_fingerprint': 'f' * 64, 'dgs_sha256': 'd' * 64},
-    )
     evidencia = services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
-    assert evidencia['source_run_id'] == _RID and evidencia['targets'][0]['dgs'] == dgs.name
+    assert evidencia['source_run_id'] == origen.run_id and evidencia['targets'][0]['dgs'] == dgs.name
     with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
         services.check_powerfactory_source_run(ws, ['IN111'])
 
@@ -645,20 +643,19 @@ def test_092_reconstruccion_verificada_con_el_disco_sin_la_red_en_memoria(tmp_pa
     from convertersmartgrid.web import services
 
     raiz = tmp_path / 'web'
-    _espacio_origen_en_disco(raiz)
-    ws = _espacio_sin_fuente(raiz, None)
-    ws.root = raiz / 'origen'
-    ws.active_run_id = _RID
-    informe = {'source_run_id': _RID, 'counts': {'catalog_match': 0, 'engineering_assumption': 2},
+    from convertersmartgrid.web.workspace import Workspace
+
+    origen = _espacio_origen_en_disco(raiz).active_run()
+    ws = Workspace.load(raiz / 'origen')
+    informe = {'source_run_id': origen.run_id, 'counts': {'catalog_match': 0, 'engineering_assumption': 2},
                'decisions': [{'d': 1}, {'d': 2}]}
     informe['report_sha256'] = reconstruction_report_sha256(informe)
     (ws.out_dir / 'reconstruction_report.json').write_text(json.dumps(informe), encoding='utf-8')
-    (ws.out_dir / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
-    sidecar = {'source_run_id': _RID, 'source_mode': 'txt', 'source_fingerprint': 'f' * 64, 'dgs_sha256': 'd' * 64,
-               'reconstruction': {'report': 'reconstruction_report.json', 'report_sha256': informe['report_sha256'],
-                                  'repairs': 2, 'catalog_matches': 0, 'assumptions': 2}}
-    monkeypatch.setattr('convertersmartgrid.feeder_metadata.read_feeder_metadata',
-                        lambda path, expected_dgs: sidecar)
+    metadata_path = ws.out_dir / 'IN111_feeder_metadata.json'
+    sidecar = json.loads(metadata_path.read_text(encoding='utf-8'))
+    sidecar['reconstruction'] = {'report': 'reconstruction_report.json', 'report_sha256': informe['report_sha256'],
+                                  'repairs': 2, 'catalog_matches': 0, 'assumptions': 2}
+    metadata_path.write_text(json.dumps(sidecar), encoding='utf-8')
     assert ws.loaded_run_id is None and ws.reconstruction_run_id is None
     evidencia = services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
     assert evidencia['targets'][0]['reconstruction']['status'] == 'VERIFIED_BEFORE_MUTATION'

@@ -49,6 +49,38 @@ def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: 
     return build_native_action_context({'project': project}, project, feeders, action)
 
 
+def espacio_txt_custodiado(raiz: Path, *, seed: int = 7801,
+                          feeder_name: str | None = None):
+    """Carga/convierte TXT sintéticos por la vía canónica, sin motor nativo.
+
+    La identidad, selección, recibo y sidecars son los del productor de la web.
+    ``feeder_name`` solo renombra el identificador generado antes de custodiarlo,
+    para las pruebas que necesitan un rótulo concreto; no cambia sus parámetros.
+    """
+    from types import SimpleNamespace
+    import threading
+
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
+    from synthetic_export import ExportSpec, write_export
+
+    spec = ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=seed)
+    paths = write_export(spec, raiz / 'entrada_sintetica')
+    if feeder_name is not None:
+        for path in paths:
+            path.write_text(path.read_text(encoding='utf-8').replace(spec.network_id(1), feeder_name),
+                            encoding='utf-8')
+    ws = Workspace(id=raiz.name, root=raiz)
+    ws.options.update(input_mode='txt', include_geography=False, workers=1)
+    for slot, path in zip(('red', 'loads', 'equipment'), paths, strict=True):
+        ws.set_input(slot, path, origin='prueba_sintetica')
+    ctx = SimpleNamespace(log=lambda *_: None, check_cancel=lambda: None,
+                          progress=lambda *_: None, cancel=threading.Event())
+    services.load_dataset(ws, ctx)
+    services.convert(ws, ctx, ws.dataset.feeder_ids(), all_feeders=False)
+    return ws
+
+
 def vincular_proyecto(client, wid: str, project: str, feeders, *,
                       sin_verificar: tuple[str, ...] = ()) -> None:
     """Registra en un workspace de prueba el proyecto releído para su fuente activa.

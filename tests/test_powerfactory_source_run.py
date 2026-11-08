@@ -5,48 +5,27 @@ Spec 034: 034:RF-21.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from types import SimpleNamespace
 
 import pytest
+from apoyo import espacio_txt_custodiado
 
 
-def _ws(tmp_path, *, metadata_run: str = 'run-active'):
-    from convertersmartgrid.web.workspace import Workspace
-
-    ws = Workspace(id='pf-source', root=tmp_path)
-    ws.active_run_id = 'run-active'
-    ws.loaded_run_id = 'run-active'
-    ws.loaded_source_mode = 'txt'
-    ws.loaded_source_fingerprint = 'f' * 64
-    ws.dataset = SimpleNamespace()
-    ws.out_dir.mkdir(parents=True)
-    dgs = ws.out_dir / 'IN111.dgs'
-    dgs.write_bytes(b'DGS-IN111')
-    metadata = {
-        'schema_version': 'convertersmartgrid-feeder-metadata-v1',
-        'dgs_file': dgs.name,
-        'dgs_sha256': hashlib.sha256(dgs.read_bytes()).hexdigest(),
-        'assignments': [{'class_name': 'ElmXnet', 'dgs_fid': 'X', 'loc_name': 'External Grid IN111',
-                         'feeder': 'IN111', 'network_id': 'NET_IN111', 'terminal': 'N1',
-                         'substation': '', 'section_id': '', 'node_id': 'N1'}],
-        'source_run_id': metadata_run,
-        'source_mode': 'txt',
-        'source_fingerprint': 'f' * 64,
-    }
-    (ws.out_dir / 'IN111_feeder_metadata.json').write_text(json.dumps(metadata), encoding='utf-8')
-    snapshot = SimpleNamespace(
-        run_id='run-active', mode='txt', fingerprint='f' * 64,
-    )
-    ws.active_run = lambda: snapshot
+def _ws(tmp_path, *, metadata_run: str | None = None):
+    ws = espacio_txt_custodiado(tmp_path, feeder_name='IN111')
+    if metadata_run is not None:
+        path = ws.out_dir / 'IN111_feeder_metadata.json'
+        metadata = json.loads(path.read_text(encoding='utf-8'))
+        metadata['source_run_id'] = metadata_run
+        path.write_text(json.dumps(metadata), encoding='utf-8')
     return ws
 
 
 def test_same_name_historical_dgs_is_rejected(tmp_path):
     from convertersmartgrid.web.services import UserError, check_powerfactory_source_run
 
-    ws = _ws(tmp_path, metadata_run='run-historical')
+    ws = _ws(tmp_path, metadata_run='20000101T000000-abcdef123456')
     with pytest.raises(UserError, match=r'POWERFACTORY_SOURCE_RUN_MISMATCH.*IN111'):
         check_powerfactory_source_run(ws, ['IN111'])
 
@@ -56,7 +35,7 @@ def test_exact_active_source_run_is_accepted(tmp_path):
 
     ws = _ws(tmp_path)
     evidence = check_powerfactory_source_run(ws, ['IN111'])
-    assert evidence['source_run_id'] == 'run-active'
+    assert evidence['source_run_id'] == ws.active_run_id
     assert evidence['source_mode'] == 'txt'
     assert evidence['targets'][0]['dgs_sha256']
 
@@ -67,7 +46,7 @@ def test_reconstructed_dgs_requires_the_active_untampered_report(tmp_path):
 
     ws = _ws(tmp_path)
     report = {
-        'source_run_id': 'run-active',
+        'source_run_id': ws.active_run_id,
         'selection': ['IN111'],
         'decisions': [{'level': 'catalog_match'}],
         'counts': {'catalog_match': 1},
@@ -86,7 +65,7 @@ def test_reconstructed_dgs_requires_the_active_untampered_report(tmp_path):
         'assumptions': 0,
     }
     metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
-    ws.reconstruction_run_id = 'run-active'
+    ws.reconstruction_run_id = ws.active_run_id
     ws.reconstruction_report_hash = digest
 
     evidence = check_powerfactory_source_run(ws, ['IN111'])
@@ -121,8 +100,8 @@ def test_acceptance_source_contract_runs_before_powerfactory_connect(tmp_path, m
     monkeypatch.setattr(module, 'connect_powerfactory', connect)
     rc = module.main([
         '--import-dgs', str(dgs), '--feeder-metadata', str(metadata),
-        '--source-run-id', 'otra-ejecucion', '--source-mode', 'txt',
-        '--source-fingerprint', 'f' * 64,
+        '--source-run-id', '20000101T000000-abcdef123456', '--source-mode', 'txt',
+        '--source-fingerprint', ws.loaded_source_fingerprint,
     ])
     assert rc == 4
     assert connected is False
