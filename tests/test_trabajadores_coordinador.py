@@ -158,7 +158,7 @@ def test_puertas_dataset_no_aprueban_sin_evidencia(cambio):
 
 
 @pytest.mark.parametrize('solo', ['ordenes', 'informes'])
-@pytest.mark.parametrize('quality,smoke_ok', [('gold_human',True),('silver_deterministic',True),('gold_human',False)])
+@pytest.mark.parametrize('quality,smoke_ok', [('gold_human',True),('silver_deterministic',True),('gold_human',False),('gold_native',True)])
 def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, solo, quality, smoke_ok):
     """050:RF-4 / RF-5: candidato íntegro y reabierto, nunca activación individual."""
     from contextlib import nullcontext
@@ -172,6 +172,10 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
                    'tarea': 'convertir', 'datos': [],
                    'resultado': {'tipo_informe': 'estudio', 'subtipo': 'refuerzo'}}]
               for p in ('train', 'validation', 'test')}
+    if solo=='ordenes':
+        for p,rows in partes.items():
+            rows.append({'texto':f'Informe de red {p}','quality':'gold_human','tipo':'informe',
+                         'tarea':'clasificar_informe','datos':[]})
     monkeypatch.setattr(trabajadores_ml, 'leer_dataset_v2', lambda _: (partes, {'sha256': 'a'*64}))
     monkeypatch.setattr(trabajadores_ml, 'turno_gpu', lambda _: nullcontext())
     monkeypatch.setattr(training_coordinator, 'exigir_memoria_ml', lambda *a, **kw: None)
@@ -179,6 +183,7 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
     class Red:
         def state_dict(self): return {}
     def entrenar(*args):
+        assert len(args[0])==1, 'Las descripciones de informes no son órdenes del operador'
         cfg = args[-1]
         return SimpleNamespace(cfg=cfg, red=Red(), simbolos=['a'], tareas=sorted(transformer.TAREAS),
             subtipos=['refuerzo'], temperatura=1.,
@@ -206,15 +211,38 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
     result = worker.entrenar_dataset(tmp_path/'dataset', tmp_path/'salida', solo=solo,
         semillas=(11,23), epocas=1, registro=registry, reabrir=reabrir)
     assert result['candidate_id'] and result['modelo_registro'] == family
-    aprobado = quality == 'gold_human' and smoke_ok
+    # Este fixture de una tarea no acredita el examen completo de órdenes.
+    aprobado = solo == 'informes' and quality in {'gold_human','gold_native'} and smoke_ok
     assert result['gates']['approved'] is aprobado
     assert result['candidato_aprobado'] is aprobado and result['publicacion_pendiente'] is aprobado
     assert result['status'] == ('PROMOVIDO' if aprobado else 'RECHAZADO')
     assert result['promovido'] is False and len(reopen) == 1
     detail = registry.detalle(family, result['candidate_id'])
+    if solo=='ordenes' and quality=='gold_native':
+        assert detail['metrics']['reales'] is None, 'Un episodio eléctrico no es una orden humana'
     assert detail['smoke_reload']['ok'] is smoke_ok
     assert set(detail['artifacts']) == {'modelo.json', 'pesos.pt', 'readback.json'}
     assert pointer.read_bytes() == b'puntero-previo-intacto'
+
+
+def test_dataset_no_aprueba_ordenes_solo_por_promedios():
+    """050:RF-7 / 069:RF-17: también rigen cobertura, referencia y rechazo reservados."""
+    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    metricas={'acierto_tarea':.99,'f1_datos':.99,'ejemplos':4}
+    gates=puertas_dataset('ordenes',metricas,metricas,None,{'ok':True})
+    assert gates['approved'] is False
+    assert any('familia' in f or 'rechazo' in f for f in gates['fallos'])
+
+
+def test_dataset_aprueba_puertas_comunes_solo_con_examen_completo():
+    """050:RF-7: contrato de aprobación, sin afirmar medidas reales de ningún modelo."""
+    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    from convertersmartgrid.asistente.tareas import TAREAS
+    metricas={'acierto_tarea':.99,'f1_datos':.99,'ejemplos':4}
+    familias={t:dict(metricas) for t in TAREAS}
+    gates=puertas_dataset('ordenes',metricas,metricas,metricas,{'ok':True},
+        familias=familias,referencia=familias,rechazo={'ejemplos':100,'rechazada':1.,'se_cuela':0.})
+    assert gates['approved'] is True and not gates['fallos']
 
 
 def test_runner_lenguaje_envia_registro_comun(tmp_path, monkeypatch):

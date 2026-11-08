@@ -7,7 +7,8 @@ import uuid
 
 
 def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
-                    en_uso: dict | None, reapertura: dict) -> dict:
+                    en_uso: dict | None, reapertura: dict, *, familias=None,
+                    referencia=None,rechazo=None) -> dict:
     """Puertas de las arquitecturas existentes sobre prueba reservada y ejemplos reales."""
     from .transformer import Puertas
 
@@ -32,7 +33,15 @@ def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
                 fallos.append(f'retroceso o comparación inválida frente al modelo en uso: {clave}')
     if reapertura.get('ok') is not True:
         fallos.append('falló la reapertura en un proceso nuevo')
-    return {'approved': not fallos, 'fallos': fallos, 'umbrales': limites, 'umbrales_reales': limites_reales}
+    comun=None
+    if solo=='ordenes':
+        from .destilacion_integral import decidir_promocion
+        comun=decidir_promocion(prueba,reales or {},familias or {},referencia,rechazo)
+        fallos.extend(comun.get('fallos') or [])
+        if comun['gates']['approved'] is not True and not comun.get('fallos'):
+            fallos.append('evaluación común de órdenes sin aprobación')
+    return {'approved': not fallos, 'fallos': fallos, 'umbrales': limites,
+            'umbrales_reales': limites_reales,'evaluacion_comun':comun}
 
 
 def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int,...],epocas: int,
@@ -49,6 +58,7 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
         for p,filas in partes.items():
             ejemplos=[]
             for r in filas:
+                if r.get('tipo')=='informe':continue
                 if r.get('quality') not in admitidas or r.get('tarea') not in TAREAS:continue
                 spans=[]
                 for dato in r.get('datos') or []:
@@ -60,7 +70,7 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
                     spans.append((a,a+len(valor),tipo))
                 ejemplo=Ejemplo(r['texto'],r['tarea'],spans)
                 ejemplos.append(ejemplo)
-                if p=='test' and r.get('quality') in {'gold_human','gold_native'}:reales.append(ejemplo)
+                if p=='test' and r.get('quality')=='gold_human':reales.append(ejemplo)
             vistas[p]=ejemplos
     else:
         from . import clasificador as modulo
@@ -95,6 +105,15 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
         prueba_real=modulo.evaluar(modelo,reales) if reales else None
         actual=modulo.cargar()
         en_uso=modulo.evaluar(actual,vistas['test']) if actual is not None else None
+        familias=referencia=rechazo=None
+        if solo=='ordenes':
+            por_tarea={t:[e for e in vistas['test'] if e.tarea==t] for t in {e.tarea for e in vistas['test']}}
+            familias={t:modulo.evaluar(modelo,es) for t,es in sorted(por_tarea.items())}
+            referencia={t:modulo.evaluar(actual,es) for t,es in sorted(por_tarea.items())} if actual is not None else None
+            from .destilacion_integral import medir_rechazo
+            negativos=[r['texto'] for r in partes['test'] if r.get('tarea')=='ninguna'
+                       and r.get('tipo')!='informe' and r.get('quality') in admitidas]
+            rechazo=medir_rechazo(modelo,negativos) if negativos else None
         carpeta=destino/('candidato_'+uuid.uuid4().hex);carpeta.mkdir(parents=True)
         modulo.modulo_torch().save({k:v.detach().cpu() for k,v in modelo.red.state_dict().items()},carpeta/'pesos.pt')
         meta={'cfg':asdict(modelo.cfg),'simbolos':modelo.simbolos,'semilla':semilla,'familia':solo,
@@ -117,15 +136,18 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
             reabrir=lambda c:reabrir_en_subproceso([sys.executable,str(herramienta),'verificar',
                 '--familia',familia,'--modelo',str(c)],env=entorno_hijo_gpu())
         smoke=reabrir(carpeta)
-        gates=puertas_dataset(solo,prueba,prueba_real,en_uso,smoke)
+        gates=puertas_dataset(solo,prueba,prueba_real,en_uso,smoke,
+            familias=familias,referencia=referencia,rechazo=rechazo)
         from ..model_registry import RegistroModelo
         from . import almacen
         registro=registro or RegistroModelo(almacen.raiz()/'model_registry')
         aprobado=gates['approved']
         c=registro.registrar_candidato(familia,
             model_manifest={'algorithm':'transformer_'+solo,'cfg':asdict(modelo.cfg),'training_completed':True},
-            dataset_manifest=manifest,metrics={'seleccion':candidatos,'prueba':prueba,'reales':prueba_real,'en_uso':en_uso},
-            decision={'status':'PROMOVIDO' if aprobado else 'RECHAZADO','gates':gates},smoke_reload=smoke,
+            dataset_manifest=manifest,metrics={'seleccion':candidatos,'prueba':prueba,'reales':prueba_real,'en_uso':en_uso,
+                                             'familias':familias,'referencia':referencia,'rechazo':rechazo},
+            decision={'status':'PROMOVIDO' if aprobado else 'RECHAZADO','gates':gates,
+                      'alcance':'asistido','confirmacion_obligatoria':True},smoke_reload=smoke,
             artifacts=[carpeta/n for n in ('modelo.json','pesos.pt','readback.json')])
     return {'status':c['status'],'training_completed':True,'entrenado':True,'promovido':False,
         'candidate_id':c['candidate_id'],'modelo_registro':familia,

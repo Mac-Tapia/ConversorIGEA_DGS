@@ -2,6 +2,54 @@
 import json
 
 
+def test_informes_del_operador_entran_en_dataset_con_sus_etiquetas(tmp_path):
+    """043:RF-3 / 050:RF-2: informes confirmados y maestro no tienen la misma calidad."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import construir_dataset
+    assistant=tmp_path/'assistant';assistant.mkdir()
+    filas=[{'texto':'Informe confirmado de refuerzo', 'tipo':'estudio','subtipo':'refuerzo',
+            'origen':'corregido','fecha':'2026-11-07T10:00:00-05:00'},
+           {'texto':'Informe anotado por maestro', 'tipo':'factibilidad','subtipo':'carga nueva','origen':'maestro'},
+           {'texto':'Informe creado por software', 'tipo':'estudio','subtipo':'refuerzo','origen':'generado'}]
+    source=assistant/'informes.jsonl'
+    source.write_text(''.join(json.dumps(f)+'\n' for f in filas),encoding='utf-8')
+    original=source.read_bytes()
+    dataset=construir_dataset(assistant,tmp_path/'twin')
+    assert len(dataset.registros)==3
+    rows={r.texto:r for r in dataset.registros}
+    humana=rows[filas[0]['texto']]
+    assert humana.tipo=='informe' and humana.quality=='gold_human'
+    assert humana.verification=='operator_corrected'
+    assert humana.resultado=={'tipo_informe':'estudio','subtipo':'refuerzo'}
+    assert rows[filas[1]['texto']].quality=='quarantine'
+    assert rows[filas[2]['texto']].quality=='context'
+    assert source.read_bytes()==original
+
+
+def test_informe_invalido_no_se_hace_oro_y_textos_equivalentes_se_agrupan():
+    """043:RF-4: corregir la etiqueta no separa copias del mismo informe entre particiones."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_informe,particionar_dataset
+    base={'texto':'Informe de red', 'tipo':'estudio','subtipo':'refuerzo','origen':'confirmado'}
+    uno=normalizar_informe(base)
+    otro=normalizar_informe({**base,'texto':'INFORME  DE RED','subtipo':'tensión'})
+    assert uno.group_id==otro.group_id
+    parts=particionar_dataset([uno,otro])
+    assert len([k for k,v in parts.items() if v])==1
+    assert normalizar_informe({**base,'tipo':'desconocido'}).quality=='quarantine'
+    assert normalizar_informe({**base,'texto':' '}).quality=='quarantine'
+
+
+def test_informes_con_etiquetas_humanas_contradictorias_se_conservan_en_cuarentena(tmp_path):
+    """050:RF-9: no resolver por el orden del JSONL una contradicción de la prueba."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import construir_dataset
+    root=tmp_path/'assistant';root.mkdir()
+    filas=[{'texto':'Informe de red','tipo':'estudio','subtipo':s,'origen':'corregido'}
+           for s in ['refuerzo','tensión']]
+    (root/'informes.jsonl').write_text(''.join(json.dumps(f)+'\n' for f in filas),encoding='utf-8')
+    built=construir_dataset(root,tmp_path/'twin')
+    assert len(built.registros)==2
+    assert all(r.quality=='quarantine' and 'contradictorias' in r.motivo for r in built.registros)
+
+
 def _episode(*, accepted=True):
     return {
         'episode_id': 'e' * 64,

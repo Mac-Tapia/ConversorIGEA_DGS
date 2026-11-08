@@ -46,8 +46,13 @@
       ]
     },
     "P08": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "si213_importado_calibrado_cargas_y_pn107_pendientes",
+      "evidence": [
+        "p08_fuentes_access.json",
+        "p08_corrida_estado.json",
+        "p08_si213_calibracion.log",
+        "p08_si213_resumen.json"
+      ]
     },
     "P09": {
       "state": "pendiente",
@@ -79,8 +84,10 @@
       "evidence": []
     },
     "P14": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "dataset_real_preparado_informes_sin_revision_humana",
+      "evidence": [
+        "p14_preparacion_dataset_real.json"
+      ]
     },
     "P15": {
       "state": "pendiente",
@@ -123,7 +130,11 @@
         "p19_lenguaje_runner_red.log",
         "p19_lenguaje_integracion.log",
         "p19_lenguaje_final.xml",
-        "p19_lenguaje_catalogo.xml"
+        "p19_lenguaje_catalogo.xml",
+        "p19_productor_informes_red.log",
+        "p19_informes_contradiccion_red.log",
+        "p19_puertas_comunes_red.log",
+        "p19_productores_cierre.xml"
       ]
     },
     "P20": {

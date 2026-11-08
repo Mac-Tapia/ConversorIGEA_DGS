@@ -59,10 +59,17 @@ permanece bloqueado y reintentable antes de entrenar; no sella como hecho el cic
 
 El ajuste de lenguaje sobre dataset v2 registra ahora candidatos aislados y reabre
 sus pesos en un proceso nuevo, usando el mismo contrato del consumidor. Selecciona
-solo con validation; test queda reservado para evaluación, con medida separada de
-gold_human/gold_native. Exige las puertas de órdenes (tarea, F1 y reales) o de
+solo con validation; test queda reservado para evaluación. Las órdenes humanas se
+miden solo con gold_human: un episodio gold_native no cuenta como una orden del
+operador. Informes y órdenes tienen vistas separadas. Exige las puertas de órdenes (tarea, F1 y reales) o de
 subtipo de informes, y no retroceder frente al modelo en uso sobre la misma prueba.
 Sin prueba real, medida válida o recarga correcta se conserva un candidato rechazado.
+En órdenes reutiliza además decidir_promocion del protocolo integral: cobertura
+de todas las tareas, referencia por tarea y rechazo de mensajes reservados; los
+promedios no sustituyen esas puertas. El constructor incorpora informes.jsonl:
+confirmados/corregidos son humanos; generados son contexto y maestro queda en
+cuarentena. Etiquetas humanas contradictorias del mismo texto se conservan en
+cuarentena con motivo, sin elegir según el orden de llegada.
 El runner pasa el registro común explícitamente; `PROMOVIDO` en la decisión del
 registro acredita puertas, mientras `promovido=false` y `publicacion_pendiente`
 conservan la activación para el conjunto. Falta ejecutar el entrenamiento y su

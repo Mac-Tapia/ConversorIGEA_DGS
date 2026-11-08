@@ -142,6 +142,28 @@ def normalizar_orden(fila: dict[str, Any]) -> RegistroEntrenamiento:
         motivo='' if quality == 'gold_human' else 'orden sin confirmación/corrección válida')
 
 
+def normalizar_informe(fila: dict[str, Any]) -> RegistroEntrenamiento:
+    """043:RF-3: las etiquetas del maestro o del generador no son humanas."""
+    from .clasificador import TIPOS_INFORME
+
+    texto=str(fila.get('texto') or '')
+    tipo=str(fila.get('tipo') or '')
+    subtipo=str(fila.get('subtipo') or '').strip()
+    origen=str(fila.get('origen') or '')
+    valido=bool(texto.strip() and tipo in TIPOS_INFORME and subtipo)
+    humana=valido and origen in {'confirmado','corregido'}
+    quality='gold_human' if humana else ('context' if valido and origen=='generado' else 'quarantine')
+    verificacion=('operator_corrected' if origen=='corregido' else 'operator_confirmed') if humana else ''
+    return _crear(group_basis={'tipo':'informe','texto':texto_canonico(str(_limpiar(texto)))},
+        tipo='informe',quality=quality,tarea='clasificar_informe',texto=texto,sistema='',
+        sets=(),alimentadores=(),mensajes=({'role':'user','content':texto},),datos=(),
+        resultado={'tipo_informe':tipo,'subtipo':subtipo},
+        provenance={'fecha':fila.get('fecha'),'origen':origen},evidence_hashes=(),
+        license='internal',verification=verificacion,
+        motivo='' if humana else ('informe generado: etiqueta de contexto' if quality=='context'
+                                   else 'informe sin etiquetas válidas confirmadas/corregidas por el operador'))
+
+
 def normalizar_episodio(payload: dict[str, Any]) -> RegistroEntrenamiento:
     nativo = payload.get('nativo') or {}
     topologia = payload.get('topologia') or {}
@@ -406,6 +428,19 @@ def construir_dataset(
         for linea in ejemplos.read_text(encoding='utf-8').splitlines():
             if linea.strip():
                 registros.append(normalizar_orden(json.loads(linea)))
+    informes=Path(raiz_asistente)/'informes.jsonl'
+    if informes.is_file():
+        filas=[normalizar_informe(json.loads(l)) for l in informes.read_text(encoding='utf-8').splitlines() if l.strip()]
+        etiquetas: dict[str,set[str]]={}
+        for r in filas:
+            if r.quality=='gold_human':
+                etiquetas.setdefault(texto_canonico(r.texto),set()).add(json.dumps(r.resultado,sort_keys=True))
+        for r in filas:
+            if r.quality=='gold_human' and len(etiquetas[texto_canonico(r.texto)])>1:
+                campos=r.as_dict();campos.pop('record_id');campos.pop('group_id')
+                campos.update(quality='quarantine',verification='',motivo='etiquetas humanas contradictorias del mismo informe')
+                r=_crear(group_basis={'tipo':'informe','texto':texto_canonico(r.texto)},**campos)
+            registros.append(r)
     objetos = Path(raiz_gemelo) / 'objetos'
     if objetos.is_dir():
         for ruta in sorted(objetos.rglob('*.json')):
