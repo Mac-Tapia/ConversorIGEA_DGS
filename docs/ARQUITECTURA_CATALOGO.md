@@ -41,7 +41,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-303 módulos y 22 excepciones en la deuda de `tools/arquitectura.py`.
+303 módulos y 20 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
