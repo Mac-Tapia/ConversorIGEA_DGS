@@ -56,6 +56,8 @@ def main(argv=None):
     p.add_argument('--seeds',type=int,default=30)
     p.add_argument('--presupuesto',type=int,default=300,help='evaluaciones reales por ejecución, iguales para todos')
     p.add_argument('--report',type=Path,required=True)
+    p.add_argument('--instantanea',type=Path,help='050: casos físicos declarados de una captura verificada; sin aceptación nativa')
+    p.add_argument('--registro',type=Path,help='Registro común del ciclo; conserva evaluación rechazada, sin activar')
     args=p.parse_args(argv)
     from convertersmartgrid.trabajadores_ml import escribir_informe,fallo
     if args.report.exists():print('Informe existente conservado');return 2
@@ -70,7 +72,16 @@ def main(argv=None):
             if hechas[0]%1000==0:print(f'benchmark: {hechas[0]} evaluaciones',flush=True)
             return False
 
-        comparacion=comparar_optimizadores(problemas_analiticos(),semillas=tuple(range(args.seeds)),
+        instantanea = None
+        if args.instantanea:
+            from convertersmartgrid.aprendizaje_continuo import verificar_instantanea
+            from convertersmartgrid.digital_twin.evolutivo import casos_aprendizaje
+            instantanea = verificar_instantanea(args.instantanea)
+            casos = casos_aprendizaje(instantanea)
+            problemas = [c['problema'] for c in casos]
+        else:
+            problemas = problemas_analiticos()
+        comparacion=comparar_optimizadores(problemas,semillas=tuple(range(args.seeds)),
                                            presupuesto=args.presupuesto,cancelado=avance)
         if comparacion['estado']!='completo':raise RuntimeError(f"benchmark {comparacion['estado']}")
         errores=[f"{pr['nombre']}/{n}: {e['error']}" for pr in comparacion['problemas']
@@ -84,6 +95,25 @@ def main(argv=None):
             'metodo':comparacion['metodo'],'algoritmos':comparacion['metodo']['algoritmos'],'resumen':resumen,
             'comparacion':comparacion,'avisos':comparacion['avisos'],'duracion_s':time.monotonic()-inicio,
             'gates':{'approved':False},'escrituras_nativas':0}
+        if instantanea is not None:
+            if not args.registro:
+                raise ValueError('el ciclo evolutivo exige --registro explícito')
+            from convertersmartgrid.model_registry import RegistroModelo
+            resultado.update(dominio='episodios_nativos_evaluados_con_flujo_mallado',
+                reason='evaluación de configuraciones sobre captura; faltan contraste nativo independiente y retención',
+                snapshot_id=instantanea['snapshot_id'])
+            registro = RegistroModelo(args.registro)
+            candidato = registro.registrar_candidato('evolutivos',
+                model_manifest={'tipo': 'configuracion_optimizadores_sin_ajuste_de_pesos',
+                    'codigo': instantanea['versiones']['codigo'], 'metodo': comparacion['metodo']},
+                dataset_manifest={'snapshot_id': instantanea['snapshot_id'],
+                    'archivos': instantanea['archivos'], 'casos': [c['muestra'].record_id for c in casos]},
+                metrics=resultado, decision={'status': 'RECHAZADO', 'gates': {'approved': False},
+                    'reason': resultado['reason']}, smoke_reload={'ok': False,
+                    'motivo': 'sin reapertura de modelo entrenado ni aceptación nativa'})
+            resultado.update(candidate_id=candidato['candidate_id'], modelo_registro='evolutivos')
+            registro.detalle('evolutivos', candidato['candidate_id'])
+            verificar_instantanea(args.instantanea)
         codigo=0
     except Exception as exc:resultado=fallo(exc);codigo=2
     escribir_informe(args.report,resultado)

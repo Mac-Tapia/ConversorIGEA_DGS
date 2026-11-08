@@ -52,6 +52,69 @@ from .problema_optimizacion import (
 INFACTIBLE = 1e9
 
 
+def casos_aprendizaje(instantanea: dict) -> list[dict]:
+    """050:RF-2/3, 048:RF-1: problemas declarados sobre episodios custodiados, sin aceptar propuestas."""
+    import json
+    import re
+    from dataclasses import replace
+    from ..aprendizaje_continuo import (CicloBloqueado, ESQUEMA_PROCEDENCIA,
+        crear_observacion_id, muestra_de_registro, ruta_de)
+    from ..experimentos import clave_contexto
+    from .episode import leer_episodio
+    from .oraculo import por_que_no_ensena
+
+    datos = json.loads(ruta_de(instantanea, 'evolutivos_casos').read_text(encoding='utf-8'))
+    procedencia = json.loads(ruta_de(instantanea, 'procedencia').read_text(encoding='utf-8'))
+    if datos.get('schema') != 'convertersmartgrid-optimization-learning-cases-v1' or not datos.get('casos'):
+        raise CicloBloqueado('evolutivos: manifiesto de casos vacío o inválido')
+    if procedencia.get('schema') != ESQUEMA_PROCEDENCIA:
+        raise CicloBloqueado('evolutivos: procedencia inválida')
+    preparados, vistos = [], set()
+    for caso in datos['casos']:
+        if set(caso) != {'record_id', 'episode_id', 'contexto_043', 'problema', 'particion', 'parametros', 'normalizacion'}:
+            raise CicloBloqueado('evolutivos: campos del caso incompletos o desconocidos')
+        eid, rid = caso['episode_id'], caso['record_id']
+        if (not isinstance(eid, str) or not re.fullmatch(r'[0-9a-f]{64}', eid)
+                or not isinstance(rid, str) or not rid or rid in vistos):
+            raise CicloBloqueado('evolutivos: identidad de caso/episodio inválida o duplicada')
+        vistos.add(rid)
+        ruta = ruta_de(instantanea, 'twin') / 'objetos' / eid[:2] / f'{eid}.json'
+        e = leer_episodio(json.loads(ruta.read_text(encoding='utf-8')))
+        contexto = ContextoExperimento(**caso['contexto_043'])
+        fisico = e.contexto_fisico or {}
+        if (e.episode_id != eid or e.clase not in (Clase.ACCEPTED, Clase.COUNTERFACTUAL)
+                or not e.nativo.get('reopen_verified') or por_que_no_ensena(e)
+                or clave_contexto(contexto) not in instantanea.get('contextos', {}).values()
+                or contexto.project != e.nativo['project'] or tuple(contexto.feeders) != tuple(e.nativo['feeders'])
+                or any(getattr(contexto, k) != e.fuente.get(k) for k in ('source_run_id', 'source_mode', 'source_fingerprint'))
+                or contexto.case_id != fisico.get('case_id') or contexto.case_role != e.caso.value
+                or any(getattr(contexto, k) != fisico.get(k) for k in ('topology_hash', 'controls_hash', 'scenario_hash'))):
+            raise CicloBloqueado('evolutivos: episodio sin contexto físico 043 coincidente y reabierto')
+        parametros = caso['parametros']
+        comun = {'tension_min_pu', 'tension_max_pu', 'exponente'}
+        extras = {'maniobras'} if caso['problema'] == 'maniobras' else {
+            'candidatos', 'kvar_modulo', 'modulos_max', 'costo_modulo', 'origen_costo', 'factor_carga'}
+        if (caso['problema'] not in ('bancos', 'maniobras') or not isinstance(parametros, dict)
+                or set(parametros) - comun - extras
+                or not 0 < parametros.get('tension_min_pu', 0) < parametros.get('tension_max_pu', 0)
+                or not math.isfinite(parametros['tension_max_pu'])):
+            raise CicloBloqueado('evolutivos: parámetros del problema ausentes o inválidos')
+        factory = problema_maniobras if caso['problema'] == 'maniobras' else problema_bancos
+        problema = factory(e.topologia['grafo'], contexto=contexto,
+            modelo_id=f'flujo_mallado:{instantanea["versiones"]["codigo"]}', **parametros)
+        problema = replace(problema, nombre=rid, normalizacion=caso['normalizacion'])
+        m = muestra_de_registro(instantanea, procedencia['referencias'], 'evolutivos_casos',
+            rid, caso, familia='evolutivos', particion=caso['particion'],
+            origen='simulado_nativo', etiqueta='motor_nativo')
+        if m.contexto != clave_contexto(contexto):
+            raise CicloBloqueado('evolutivos: referencia de observación de otro contexto')
+        ref = procedencia['referencias']['evolutivos_casos'][rid]
+        if m.observacion_id != crear_observacion_id(m.contexto, ref['fuente_hash'], e.episode_id, e.creado):
+            raise CicloBloqueado('evolutivos: referencia distinta de la observación fuente del episodio')
+        preparados.append({'problema': problema, 'muestra': m})
+    return preparados
+
+
 @dataclass
 class Resultado:
     mejor: np.ndarray

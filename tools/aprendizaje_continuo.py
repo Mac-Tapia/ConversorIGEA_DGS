@@ -46,9 +46,11 @@ def _versiones() -> dict[str, str]:
 def _contexto(texto: str):
     ruta = Path(texto)
     if ruta.is_file():
-        from convertersmartgrid.aprendizaje_continuo import ESQUEMA_CONTEXTO_CICLO
+        from convertersmartgrid.aprendizaje_continuo import (
+            ESQUEMA_CONTEXTO_CICLO, ESQUEMA_CONTEXTO_DOCUMENTAL, ESQUEMA_CONTEXTO_MIXTO)
         dato = json.loads(ruta.read_text(encoding='utf-8'))
-        if isinstance(dato, dict) and dato.get('schema') == ESQUEMA_CONTEXTO_CICLO:
+        if isinstance(dato, dict) and dato.get('schema') in (
+                ESQUEMA_CONTEXTO_CICLO, ESQUEMA_CONTEXTO_DOCUMENTAL, ESQUEMA_CONTEXTO_MIXTO):
             return dato
         from convertersmartgrid.experimentos import cargar_experimento
         return cargar_experimento(ruta).contexto
@@ -57,7 +59,12 @@ def _contexto(texto: str):
 
 def _etapas(instantanea: dict, familias: list[str], args, run_dir: Path) -> list:
     """Las etapas de ``reentrenar_modelos``, con las rutas de la instantánea congelada."""
-    from convertersmartgrid.aprendizaje_continuo import ruta_de
+    from convertersmartgrid.aprendizaje_continuo import preparar_fuentes, ruta_de
+    preparar_fuentes(instantanea, familias, parametros={
+        'zona_horaria': getattr(args, 'zona_horaria', None),
+        'cadencia_min': getattr(args, 'cadencia_min', None),
+        'horizontes': getattr(args, 'horizontes', None)},
+        destino=run_dir.parent / 'preparacion.json')
     spec = importlib.util.spec_from_file_location('reentrenar_modelos', REPO / 'tools' / 'reentrenar_modelos.py')
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -70,6 +77,7 @@ def _etapas(instantanea: dict, familias: list[str], args, run_dir: Path) -> list
         zona_horaria=args.zona_horaria, codigos_temporales=None, hojas_temporales=[],
         temporal_desde=None, temporal_hasta=None, ablaciones=False, config=None,
         embedding_model=args.embedding_model, qlora_model=None, qlora_revision=None,
+        instantanea=Path(instantanea['ruta']),
         ciclo_comun=True, publicar_individual=False, clase_temporal='cabecera',
         cadencia_temporal=getattr(args, 'cadencia_min', None),
         horizontes_temporales=getattr(args, 'horizontes', None), pares_temporales=[], clientes_temporales=[])
@@ -97,6 +105,13 @@ def main(argv=None) -> int:
     e.add_argument('--cadencia-min', type=int, help='Cadencia declarada de las medidas para la etapa GRU')
     e.add_argument('--horizontes', help='Horizontes temporales en pasos, fijados antes del ciclo')
     e.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
+    e.add_argument('--cancelar-archivo', type=Path, help='Solicitud cooperativa del trabajo de la cola')
+    e.add_argument('--solo-preparar', action='store_true', help='Preflight CPU por familia; no crea trabajadores ni toma GPU')
+    programado = sub.add_parser('plan', help='Ejecuta solo el plan declarativo explícito de la vigilancia')
+    programado.add_argument('--archivo', type=Path, required=True)
+    programado.add_argument('--plan-hash', required=True, help='SHA-256 del plan aprobado al encolarlo')
+    programado.add_argument('--cancelar-archivo', type=Path)
+    programado.add_argument('--solo-preparar', action='store_true', help='Solo preflight CPU del plan')
     sub.add_parser('estado', help='Fases del aprendizaje con versiones y motivos (050:RF-10)')
     k = sub.add_parser('cancelar', help='Cancela un ciclo en curso')
     k.add_argument('--clave', required=True)
@@ -104,6 +119,31 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     from convertersmartgrid import aprendizaje_continuo as ac
+    if args.accion == 'plan':
+        # Antes de leer fuentes o tomar GPU: run_process ya puede cancelar cooperativamente.
+        print('Preparando el ciclo conjunto desde su plan explícito.', flush=True)
+        try:
+            plan = ac.cargar_plan_ciclo(args.archivo)
+            if plan['plan_hash'] != args.plan_hash:
+                raise ac.CicloBloqueado('el plan cambió después de encolarlo; requiere una solicitud nueva')
+            orden = ['--raiz', plan['raiz'], 'ciclo', '--contexto', plan['contexto'],
+                '--familias', ','.join(plan['familias']), '--politica-hash', plan['politica_hash'],
+                '--tiempo-s', str(plan['tiempo_s']), '--memoria-gib', str(plan['memoria_gib'])]
+            for nombre, ruta in plan['fuentes'].items():
+                orden += ['--fuente', f'{nombre}={ruta}']
+            for nombre, valor in plan['parametros'].items():
+                orden += ['--' + nombre.replace('_', '-'), str(valor)]
+            if not plan['usa_gpu']:
+                orden += ['--sin-gpu']
+            if args.cancelar_archivo:
+                orden += ['--cancelar-archivo', str(args.cancelar_archivo)]
+            if args.solo_preparar:
+                orden += ['--solo-preparar']
+        except (OSError, ValueError) as exc:
+            ac.registrar_bloqueo(_raiz_defecto(), 'cola', [str(exc)])
+            print(json.dumps({'ok': False, 'estado': 'bloqueado', 'motivo': str(exc)}, ensure_ascii=False))
+            return 2
+        return main(orden)
     raiz = args.raiz or _raiz_defecto()
     try:
         if args.accion in ('congelar', 'ciclo'):
@@ -123,6 +163,14 @@ def main(argv=None) -> int:
                 from convertersmartgrid.training_coordinator import _memoria_sistema
                 familias = [f.strip() for f in args.familias.split(',') if f.strip()]
                 clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
+                preparado = ac.preflight_ciclo(inst, familias, parametros={
+                    'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,
+                    'horizontes': args.horizontes}, destino=raiz / 'preflight' / f'{clave}.json')
+                if args.solo_preparar:
+                    print(json.dumps(preparado, ensure_ascii=False, indent=2))
+                    return 0 if preparado['estado'] == 'preparado' else 2
+                if preparado['estado'] != 'preparado':
+                    raise ac.CicloBloqueado('; '.join(preparado['motivos']))
                 etapas = _etapas(inst, familias, args, raiz / 'ciclos' / clave / 'etapas')
                 faltan = sorted(set(familias) - {e.name for e in etapas})
                 if faltan:
@@ -132,14 +180,16 @@ def main(argv=None) -> int:
                 salida = ac.ejecutar_ciclo(
                     raiz, inst, etapas, politica_hash=args.politica_hash, registro=registro,
                     presupuesto=ac.Presupuesto(args.tiempo_s, args.memoria_gib, not args.sin_gpu),
-                    memoria_libre_gib=lambda: _memoria_sistema()['fisica_gib'])
+                    memoria_libre_gib=lambda: _memoria_sistema()['fisica_gib'],
+                    cancelado=lambda: bool(args.cancelar_archivo and args.cancelar_archivo.exists()))
         elif args.accion == 'estado':
             salida = ac.estado_aprendizaje(raiz)
         elif args.accion == 'cancelar':
             salida = {'solicitada': ac.cancelar_ciclo(raiz, args.clave)}
         else:
             salida = {'ok': True, 'conjunto': ac.revertir_conjunto(raiz)}
-    except ac.CicloBloqueado as exc:
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        ac.registrar_bloqueo(raiz, 'preparacion', [str(exc)])
         print(json.dumps({'ok': False, 'estado': 'bloqueado', 'motivo': str(exc)}, ensure_ascii=False))
         return 2
     print(json.dumps(salida, ensure_ascii=False, indent=2, default=str))

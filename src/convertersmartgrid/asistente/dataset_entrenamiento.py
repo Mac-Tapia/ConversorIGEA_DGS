@@ -570,3 +570,57 @@ def escribir_particiones(
                             encoding='utf-8')
         os.replace(temporal, raiz / 'manifest.json')
     return base
+
+
+def muestras_aprendizaje(instantanea: dict, referencias: dict, familias: list[str]) -> list:
+    """050:RF-2/3: conserva las partes y calidades v2 que consumirán los trabajadores."""
+    from ..aprendizaje_continuo import CicloBloqueado, muestra_de_registro, ruta_de
+    from ..trabajadores_ml import leer_dataset_v2
+
+    partes, _ = leer_dataset_v2(ruta_de(instantanea, 'dataset'))
+    nombres = {'train': 'entrenamiento', 'validation': 'seleccion', 'test': 'prueba'}
+    muestras = []
+    for parte, filas in partes.items():
+        for fila in filas:
+            elegidas = [f for f in familias if (f == 'transformer' and fila.get('tipo') == 'orden'
+                or f == 'clasificador' and fila.get('tipo') == 'informe')]
+            if not elegidas:
+                continue
+            calidad = fila.get('quality')
+            if calidad == 'quarantine':
+                raise CicloBloqueado(f'{fila["record_id"]}: registro en cuarentena dentro de una partición v2')
+            etiqueta = {'gold_human': 'operador', 'gold_native': 'motor_nativo',
+                        'silver_deterministic': 'maestro', 'silver_teacher_verified': 'maestro',
+                        'silver_maestro_texto_real': 'maestro', 'context': 'maestro'}.get(calidad)
+            if etiqueta is None:
+                raise CicloBloqueado(f'{fila["record_id"]}: calidad v2 desconocida')
+            origen = ('observado' if calidad == 'gold_human' else
+                      'simulado_nativo' if calidad == 'gold_native' else 'redactado')
+            for familia in elegidas:
+                muestras.append(muestra_de_registro(instantanea, referencias, 'dataset',
+                    fila['record_id'], fila, familia=familia, particion=nombres[parte],
+                    origen=origen, etiqueta=etiqueta))
+    if 'embeddings' in familias:
+        from .embeddings import cargar_dataset_recuperacion, construir_preguntas_extractivas
+        from .indice import Fragmento
+        dataset = ruta_de(instantanea, 'dataset')
+        for entrenamiento, nombre, particion in ((True, 'retrieval_train', 'entrenamiento'),
+                                                  (False, 'retrieval_test', 'prueba')):
+            # El lector verifica grupos, textos, reservas y fuentes de los pares consumidos.
+            _, pares = cargar_dataset_recuperacion(dataset, entrenamiento=entrenamiento)
+            ruta = dataset / f'{nombre}.jsonl'
+            if ruta.is_file():
+                consultas = [json.loads(l) for l in ruta.read_text(encoding='utf-8').splitlines() if l.strip()]
+            else:
+                fragmentos = [Fragmento(i, f'{(r.get("provenance") or {}).get("source_url") or "documento_local"}#{r["record_id"]}', r['texto'])
+                    for i, r in enumerate(partes['train']) if r.get('quality') == 'context']
+                consultas = construir_preguntas_extractivas(fragmentos)
+            if len(consultas) != len(pares):
+                raise CicloBloqueado('embeddings: consultas distintas de las consumidas')
+            for r in consultas:
+                humana = r.get('verification') in ('operator_confirmed', 'operator_corrected')
+                muestras.append(muestra_de_registro(instantanea, referencias, 'dataset',
+                    f'{nombre}:{_hash(r)}', r, familia='embeddings', particion=particion,
+                    origen='observado' if humana else 'redactado',
+                    etiqueta='operador' if humana else 'maestro'))
+    return muestras

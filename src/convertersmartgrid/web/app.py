@@ -85,44 +85,61 @@ def _suite_viva(fila) -> bool:
     return bool(fila.get('pid')) and dueno_vivo(fila)
 
 
+_cola_aprendizaje_lock = threading.Lock()
+
+
+def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
+    """050:RF-4/8: un trabajo común por plan vivo; autoentrenar requiere permiso explícito."""
+    from .. import aprendizaje_continuo as ac
+    from ..asistente import almacen
+    from ..powerfactory_env import tools_dir
+    if es_edicion_producto() or os.environ.get('CSG_AUTOENTRENAMIENTO') != '1':
+        return None
+    ruta = os.environ.get('CSG_APRENDIZAJE_PLAN', '').strip()
+    try:
+        if not ruta:
+            raise ac.CicloBloqueado('Falta CSG_APRENDIZAJE_PLAN: el ciclo conjunto no tiene plan autorizado.')
+        plan = ac.cargar_plan_ciclo(ruta)
+    except (OSError, ValueError) as exc:
+        ac.registrar_bloqueo(almacen.raiz() / 'aprendizaje', 'cola', [str(exc)], disparadores=motivos)
+        return False
+    kind = f'aprendizaje:{plan["plan_hash"]}'
+    def ejecutar(ctx):
+        ctx.check_cancel()
+        cancelacion = Path(plan['raiz']) / 'solicitudes' / ctx.job.id / 'cancelar'
+        ctx.log('Ciclo conjunto de aprendizaje: ' + '; '.join(motivos))
+        codigo = ctx.run_process([sys.executable, str(tools_dir() / 'aprendizaje_continuo.py'),
+            'plan', '--archivo', str(Path(ruta).resolve()), '--plan-hash', plan['plan_hash'],
+            '--cancelar-archivo', str(cancelacion)], cwd=str(project_root()),
+            cancel_file=cancelacion)
+        ctx.check_cancel()
+        if codigo != 0:
+            raise ValueError(f'Ciclo conjunto bloqueado o fallido (código {codigo}); revise sus fases y motivos.')
+        return ac.estado_aprendizaje(plan['raiz'])
+    with _cola_aprendizaje_lock:
+        for trabajo in jobs.list():
+            if trabajo.kind == kind and trabajo.status not in FINISHED:
+                return trabajo
+        return jobs.submit(plan['workspace_id'], kind, 'Ciclo conjunto de aprendizaje', ejecutar, lane='engine')
+
+
 def arrancar_vigilancia(jobs: JobManager):
     """La vigilancia del asistente mientras la web está abierta (026:RF-22 a RF-25)."""
-    import subprocess
-
-    from ..asistente import almacen
     from ..asistente.vigilancia import Vigilante
-    from ..powerfactory_env import tools_dir
 
     def reintentar(job_id: str) -> None:
         j = jobs.get(job_id)
         if j is not None:
             jobs.submit(j.workspace_id, j.kind, f'{j.title} (reintento)', j.fn, lane=j.lane)
 
-    def lanzar(herramienta: str, gemelo: bool) -> None:
-        if es_edicion_producto():                                              # 086:RF-15
-            return
-        # En su propio proceso, como desde la web (024): un fallo de la GPU no tumba el servidor.
-        salida = almacen.raiz() / f'vigilancia_{herramienta}.json'
-        salida.parent.mkdir(parents=True, exist_ok=True)
-        proceso = subprocess.Popen(
-            [sys.executable, str(tools_dir() / f'{herramienta}.py'), '--output-json', str(salida)],
-            cwd=str(project_root()), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-        )
-        threading.Thread(
-            target=_cerrar_entrenamiento_vigilado,
-            args=(proceso, gemelo, herramienta),
-            name=f'csg-{herramienta}',
-            daemon=True,
-        ).start()
-
     v = Vigilante(listar_trabajos=lambda: [j.public() for j in jobs.list()], reintentar=reintentar,
-                  entrenar_gemelo=lambda: lanzar('digital_twin_entrenar', True),
-                  entrenar_asistente=lambda: lanzar('asistente_entrenar', False),
+                  entrenar_gemelo=lambda: None, entrenar_asistente=lambda: None,
                   # 071:RF-6: hasta que haya un solo pipeline por modelo, no lanza entrenamientos
                   # ni anuncia que reentrena, salvo que se pida.
                   contar_nuevos=(services.asistente_nuevos if os.environ.get('CSG_AUTOENTRENAMIENTO') == '1'
                                  else (lambda: (0, 0))),
-                  repo=project_root(), proceso_vivo=_suite_viva)
+                  repo=project_root(), proceso_vivo=_suite_viva,
+                  ciclo=lambda motivos: encolar_ciclo_aprendizaje(jobs, motivos))
     v.arrancar()
     return v
 

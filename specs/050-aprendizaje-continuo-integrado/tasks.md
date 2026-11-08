@@ -35,6 +35,18 @@
 
 ## Evidencia y límites actuales
 
+2026-11-08, P19 paralelo: productores y contraste obligatorios conectados antes de
+construir etapas (dataset v2, consultas de embeddings, ventanas GRU, objetos PINN,
+corpus generativo sellado y casos evolutivos declarados). Contexto documental separado
+y con digests custodiados; contextos043 intactos. Vigilancia usa un plan declarativo
+con hash y una solicitud común en JobManager, cancelación cooperativa y autoentrenamiento
+apagado por defecto. Ausencia de plan no consume los avisos ni dispara modelos sueltos.
+No se cierra T1b–T5b: el preflight de metadatos locales confirma faltantes de contexto,
+procedencia050 y consultas reservadas; las nueve etiquetas humanas de informes conservan
+7 train/0 validation/2 test y las 45 órdenes humanas 33/5/7. Sin reentrenar, copiar pesos/datasets,
+GPU ni PowerFactory. El informe externo de entrega P19 identifica revisión, comandos,
+pruebas enfocadas y pendientes; no representa aceptación científica/nativa ni producción.
+
 2026-11-01: inspeccionados búfer/captura, oráculo, series, vigilancia, registro y
 coordinador. Existen piezas de aprendizaje; no hay evidencia de aceptación de un
 ciclo sincronizado integral. En 047 T7 se auditó el corpus real, pero el primer

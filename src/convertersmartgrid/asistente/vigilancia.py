@@ -97,11 +97,11 @@ def revisar_modelos(*, episodios_nuevos: int, ordenes_nuevas: int, minimo_episod
     avisos = []
     if episodios_nuevos >= minimo_episodios:
         avisos.append(Aviso(f'gemelo:{episodios_nuevos}', 'info',
-                            f'{episodios_nuevos} episodios nuevos del gemelo: se reentrena la PINN.',
+                            f'{episodios_nuevos} episodios nuevos del gemelo: requieren preparar un ciclo de aprendizaje.',
                             'entrenar_gemelo'))
     if ordenes_nuevas >= minimo_ordenes:
         avisos.append(Aviso(f'asistente:{ordenes_nuevas}', 'info',
-                            f'{ordenes_nuevas} órdenes nuevas confirmadas o corregidas: se reentrena el asistente.',
+                            f'{ordenes_nuevas} órdenes nuevas confirmadas o corregidas: requieren preparar un ciclo de aprendizaje.',
                             'entrenar_asistente'))
     return avisos
 
@@ -347,7 +347,12 @@ class Vigilante:
             almacen.anotar('avisos', asdict(a))
             nuevos.append(a)
         if motivos_ciclo:
-            self.ciclo(motivos_ciclo)
+            admitida = self.ciclo(motivos_ciclo)
+            if admitida is False:
+                # Sin plan o con datos incompletos, arreglar la causa debe permitir
+                # solicitar de nuevo el mismo lote; no se marca como atendido.
+                self.vistos.difference_update(a.clave for a in nuevos
+                    if a.accion in ('entrenar_gemelo', 'entrenar_asistente'))
         if producto:
             return nuevos
         fecha = fecha or datetime.now().astimezone()

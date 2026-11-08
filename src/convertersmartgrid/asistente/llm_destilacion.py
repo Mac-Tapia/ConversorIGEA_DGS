@@ -20,6 +20,20 @@ from ..runtime_paths import raiz_programa
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
 
 
+def muestras_aprendizaje(instantanea: dict, referencias: dict) -> list:
+    """050:RF-2/3: lee las partes selladas del alumno; maestro conserva su procedencia."""
+    from ..aprendizaje_continuo import muestra_de_registro, ruta_de
+    dataset = ruta_de(instantanea, 'llm_dataset')
+    resultado = []
+    for parte in PARTICIONES:
+        registros, _ = leer_particion_real(dataset, parte)
+        for r in registros:
+            resultado.append(muestra_de_registro(instantanea, referencias, 'llm_dataset',
+                r['record_id'], r, familia='qlora', particion=parte,
+                origen='redactado', etiqueta='maestro'))
+    return resultado
+
+
 def parte_contexto(fuente: str, alimentador: str, semilla: int = 0) -> str:
     n = int(huella({'fuente': fuente, 'alimentador': alimentador, 'semilla': semilla})[:8], 16) % 100
     return PARTICIONES[0 if n < 70 else 1 if n < 80 else 2 if n < 90 else 3]

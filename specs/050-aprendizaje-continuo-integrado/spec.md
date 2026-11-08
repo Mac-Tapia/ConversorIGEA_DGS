@@ -30,6 +30,18 @@ Los datasets de lenguaje, series y grafos tienen representaciones distintas;
 comparten identidad y procedencia, no objetivos ni etiquetas intercambiables.
 Los permisos y las condiciones de implementación nativa siguen sus specs vigentes.
 
+Aclaraciones de RF-1/RF-2/RF-3/RF-8 (P19, 2026-11-08): el corpus documental
+tiene identidad propia por nombre y huellas, separada de los proyectos físicos 043.
+Una referencia a una observación declara contexto, fuente congelada, registro fuente,
+instante con zona y huella del contenido representado; ninguna familia inventa esos
+datos ni infiere aceptación eléctrica del contexto documental. La preparación relee
+las particiones que consume cada trabajador y bloquea discrepancias antes del ajuste.
+Una fuente sin productor verificable conserva un bloqueo; no se presenta como vista válida.
+
+Aclaraciones de RF-4/RF-10 (P19, 2026-11-08): la vigilancia encola un único ciclo
+con plan explícito, idempotencia y cancelación cooperativa entre etapas. El permiso
+de autoentrenar permanece apagado por defecto; carecer de plan registra bloqueo.
+
 ## Fuera de alcance
 
 No prometer inteligencia general, progreso ilimitado ni que todo ajuste mejore.
@@ -44,7 +56,7 @@ familias obligatorias deben ejecutarse y evaluarse, sin omisiones encubiertas.
 
 ## Fundamento científico
 
-- Maestría de [Witossek, DLR/Leipzig, 2025](https://elib.dlr.de/220552/):
+- Maestría de [Konstantin Witosek, DLR/Leipzig, 2025](https://elib.dlr.de/220552/):
   destilación de LLM y evaluación de su utilidad en tareas del dominio.
 - Doctorado de [Mirzadeh, WSU, 2022](https://doi.org/10.7273/000004632):
   el aprendizaje secuencial puede perder conocimientos anteriores; exige evaluar retención.
@@ -54,3 +66,10 @@ familias obligatorias deben ejecutarse y evaluarse, sin omisiones encubiertas.
   revisión del aprendizaje continuo, deriva y olvido catastrófico.
 
 Las referencias sustentan la metodología; no prueban resultados del conversor.
+
+Consulta web primaria P19 (2026-11-08): la tesis de maestría respalda evaluar el
+alumno con fuentes del dominio; el [doctorado de Mirzadeh](https://rex.libraries.wsu.edu/esploro/outputs/doctoral/Alleviating-Catastrophic-Forgetting-in-Continual-Learning/99900898638301842)
+respalda medir el olvido antes de sustituir modelos; el artículo de Nature Machine
+Intelligence respalda explicitar contextos y escenarios de aprendizaje incremental.
+Estas fuentes justifican procedencia, reserva y retención como método; no certifican
+las puertas, el software ni aceptación eléctrica de esta implementación.

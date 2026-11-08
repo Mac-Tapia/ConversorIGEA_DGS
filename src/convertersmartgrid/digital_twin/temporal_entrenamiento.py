@@ -11,6 +11,53 @@ from ..pronostico_demanda import objetivos_de_cabecera, objetivos_de_clientes, s
 from ..runtime_paths import raiz_programa
 
 
+def muestras_de_ventanas(instantanea: dict, referencias: dict, conjunto, ventanas: dict, *,
+                        contexto_pasos: int, horizonte_max: int) -> list:
+    """050:RF-2/3: cada emisión tiene la partición que consumirá la competición real."""
+    from ..aprendizaje_continuo import muestra_de_registro
+    resultado = []
+    for parte, objetivos in ventanas['partes'].items():
+        for nombre, emisiones in objetivos.items():
+            for emision in emisiones:
+                e = int(emision)
+                instante = conjunto.instantes[e].isoformat()
+                registro = f'{nombre}|{instante}'
+                contenido = {'objetivo': nombre, 'instante': instante,
+                    'contexto': conjunto.valores[nombre][e - contexto_pasos + 1:e + 1].tolist(),
+                    'objetivos': conjunto.valores[nombre][e + 1:e + horizonte_max + 1].tolist()}
+                resultado.append(muestra_de_registro(instantanea, referencias, 'cabeceras',
+                    registro, contenido, familia='gru', particion=parte,
+                    origen='observado', etiqueta='medicion'))
+    return resultado
+
+
+def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: str,
+                         cadencia_min: int, horizontes) -> list:
+    """050:RF-2/8: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
+    from ..aprendizaje_continuo import CicloBloqueado, ruta_de
+    from .evaluacion_temporal import POLITICA_TEMPORAL
+    from .pronostico import construir_conjunto
+    from .series_causales import horizontes_validos
+    if not zona_horaria or not cadencia_min or not horizontes:
+        raise CicloBloqueado('gru: declare zona_horaria, cadencia y horizontes antes de preparar')
+    if isinstance(horizontes, str):
+        horizontes = tuple(int(v) for v in horizontes.split(','))
+    H = max(horizontes_validos(cadencia_min, horizontes))
+    objetivos, apartados = objetivos_de_cabecera([ruta_de(instantanea, 'cabeceras')])
+    conjunto = construir_conjunto(objetivos, cadencia_min=cadencia_min, zona_horaria=zona_horaria)
+    if apartados or conjunto.apartados:
+        raise CicloBloqueado('gru: objetivos apartados; revise la medición antes del ciclo')
+    contexto = 7 * 1440 // cadencia_min
+    if 60 % cadencia_min:
+        raise CicloBloqueado('gru: el paso horario debe ser múltiplo de la cadencia')
+    ventanas = conjunto.ventanas_comunes(POLITICA_TEMPORAL, contexto_pasos=contexto,
+        horizonte_max=H, paso=60 // cadencia_min)
+    if any(not len(ms) for p in ventanas['partes'].values() for ms in p.values()):
+        raise CicloBloqueado('gru: una partición carece de ventanas completas')
+    return muestras_de_ventanas(instantanea, referencias, conjunto, ventanas,
+        contexto_pasos=contexto, horizonte_max=H)
+
+
 def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] = (),
                      hojas: tuple[str,...] = (), desde: str | None = None,
                      hasta: str | None = None) -> tuple[dict,dict]:

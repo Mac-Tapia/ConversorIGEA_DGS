@@ -345,3 +345,46 @@ def entrenar_recuperador(pares: Sequence[ParContraste], destino: Path | str, *,
             'gates':{'approved':False},'reason':'candidato conservado; requiere evaluacion reservada y recarga'}
     escribir_informe(raiz/'decision.json',decision)
     return decision
+
+
+def cargar_dataset_recuperacion(dataset: Path, *, entrenamiento: bool):
+    """047/050: un lector para los pares de preparación y del trabajador; reserva comprobada."""
+    from convertersmartgrid.asistente.indice import Fragmento
+    from convertersmartgrid.asistente.embeddings import construir_dataset_contrastivo,construir_preguntas_extractivas
+    from convertersmartgrid.trabajadores_ml import sha_archivo
+    if not dataset.is_dir():raise ValueError('no existe el dataset de recuperacion')
+    manifest=json.loads((dataset/'manifest.json').read_text(encoding='utf-8'))
+    fragmentos=[];train_frags=[];grupos={};textos={};fuentes=set()
+    for parte in ('train','validation','test'):
+        archivo=dataset/(parte+'.jsonl')
+        if sha_archivo(archivo)!=manifest['partitions'][parte]['sha256']:raise ValueError('particion de recuperacion alterada')
+        for linea in archivo.read_text(encoding='utf-8').splitlines():
+            r=json.loads(linea)
+            for tabla,clave in ((grupos,r['group_id']),(textos,r['texto'].casefold().strip())):
+                if clave in tabla and tabla[clave]!=parte:raise ValueError('fuga entre particiones de recuperacion')
+                tabla[clave]=parte
+            if r.get('quality')!='context':continue
+            origen=(r.get('provenance') or {}).get('source_url') or 'documento_local'
+            fuente=f'{origen}#{r["record_id"]}'
+            if fuente in fuentes:raise ValueError('fuente de fragmento duplicada')
+            fuentes.add(fuente)
+            frag=Fragmento(len(fragmentos),fuente,r['texto'])
+            if parte=='train':train_frags.append(frag)
+            if not entrenamiento or parte=='train':fragmentos.append(frag)
+    consultas=dataset/('retrieval_train.jsonl' if entrenamiento else 'retrieval_test.jsonl')
+    if consultas.is_file():preguntas=[json.loads(l) for l in consultas.read_text(encoding='utf-8').splitlines() if l.strip()]
+    elif entrenamiento:preguntas=construir_preguntas_extractivas(fragmentos)
+    else:raise ValueError('falta retrieval_test.jsonl con consultas reservadas verificadas')
+    if not entrenamiento:
+        from convertersmartgrid.evaluacion_modelos import texto_canonico
+        if any(p.get('independent_evaluation') is not True for p in preguntas):
+            raise ValueError('evaluacion independiente requiere declaracion explicita de reserva')
+        entrenamiento_path=dataset/'retrieval_train.jsonl'
+        usadas=([json.loads(l) for l in entrenamiento_path.read_text(encoding='utf-8').splitlines() if l.strip()]
+                if entrenamiento_path.is_file() else construir_preguntas_extractivas(train_frags))
+        textos_train={texto_canonico(p['pregunta']) for p in usadas}
+        if any(texto_canonico(p['pregunta']) in textos_train for p in preguntas):
+            raise ValueError('consulta de entrenamiento repetida como prueba independiente')
+    pares=construir_dataset_contrastivo(fragmentos,preguntas)
+    if not pares or len(pares)!=len(preguntas):raise ValueError('consultas ausentes, no confirmadas o sin fuente existente')
+    return fragmentos,pares

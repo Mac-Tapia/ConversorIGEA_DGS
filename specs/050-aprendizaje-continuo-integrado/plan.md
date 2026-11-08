@@ -25,6 +25,49 @@ compartan datos, contextos o versiones compatibles.
 
 ## Secuencia de implementación
 
+### Conexión de productores y cola P19 (2026-11-08)
+
+La fuente congelada `procedencia` es un JSON con esquema
+`convertersmartgrid-learning-provenance-v1` y `referencias[fuente][record_id]`.
+Cada referencia contiene `contexto`, `fuente_hash`, `registro_id`, `instante` y
+`contenido_hash`. Se verifica el contenido real leído por el productor y que la
+fuente de la observación esté custodiada en la captura. La identidad de observación
+usa la referencia original, sin familia/etiqueta/partición. Los registros legacy
+sin referencia no reciben fechas, identidades ni verdades físicas inventadas.
+Dataset v2, episodios y ventanas temporales emiten Muestra usando sus lectores y
+particiones vigentes. Preparación obligatoria en CLI, también al reanudar: las
+particiones distintas bloquean antes de GPU. El corpus generativo reutiliza
+`leer_particion_real`; embeddings comparte el lector real de consultas con su
+trabajador y conserva maestro/humano por separado. `evolutivos_casos` declara
+episodio, contexto043 completo, problema bancos/maniobras, partición, parámetros
+y normalización. El trabajador usa las factories existentes sobre ese grafo y
+registra una configuración/evaluación RECHAZADA, sin afirmar ajuste de pesos ni
+reapertura de un modelo entrenado. Su flujo mallado no sustituye contraste nativo.
+Sin esos datos concretos, cada adaptador deja un bloqueo visible.
+
+El contexto documental tiene esquema y huella independientes; el agregado conserva
+por separado los mapas físicos y documentales. Una muestra física exige pertenecer
+al mapa físico. No se modifica ContextoExperimento043.
+
+`CSG_AUTOENTRENAMIENTO=1` requiere además `CSG_APRENDIZAJE_PLAN`. El plan tipado
+declara espacio, fuentes, contexto, familias, política y presupuesto; no contiene
+código ejecutable. El callback común usa JobManager.submit en engine y deduplica
+solicitudes vivas. La cancelación de JobContext llega al ciclo mediante un marcador
+propio, comprobado entre etapas. No mata procesos ni toma una licencia nativa.
+La ausencia de plan/datos se registra como bloqueo, sin caer a entrenamiento individual.
+El callback devuelve False cuando no se admite la solicitud: vigilancia permite
+reintentar ese mismo lote tras corregir el plan. Los avisos piden preparar un ciclo;
+no anuncian un entrenamiento que aún no empezó. `--solo-preparar` genera diagnóstico
+CPU de cada familia y contraste de las particiones comunes, sin crear trabajadores.
+
+El plan JSON usa esquema `convertersmartgrid-learning-plan-v1` y declara exactamente
+`workspace_id`, `raiz`, `contexto`, `fuentes`, `familias`, `politica_hash`, `tiempo_s`,
+`memoria_gib`, `usa_gpu`, `parametros`, además de `schema`. Rutas relativas se resuelven
+contra su carpeta. Las únicas opciones de parámetros son semillas, zona_horaria,
+cadencia_min, horizontes y embedding_model. No admite comandos. La orden revisable es
+`python tools/aprendizaje_continuo.py plan --archivo <plan.json> --plan-hash <sha256> --solo-preparar`.
+Quitar `--solo-preparar` ejecuta entrenamiento solo después de las puertas y presupuesto.
+
 ### Contratos de integración concretados el 2026-11-07
 
 RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto

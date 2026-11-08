@@ -10,7 +10,7 @@ lo ejecuta con el ``TrainingCoordinator`` existente y publica un conjunto compat
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -34,6 +34,11 @@ ESQUEMA_CICLO = 'convertersmartgrid-learning-cycle-v1'
 ESQUEMA_CONJUNTO_V1 = 'convertersmartgrid-model-ensemble-v1'
 ESQUEMA_CONJUNTO = 'convertersmartgrid-model-ensemble-v2'
 ESQUEMA_CONTEXTO_CICLO = 'convertersmartgrid-learning-context-v1'
+ESQUEMA_CONTEXTO_DOCUMENTAL = 'convertersmartgrid-documentary-context-v1'
+ESQUEMA_CONTEXTO_MIXTO = 'convertersmartgrid-learning-context-v2'
+ESQUEMA_INSTANTANEA_MIXTA = 'convertersmartgrid-learning-snapshot-v3'
+ESQUEMA_PROCEDENCIA = 'convertersmartgrid-learning-provenance-v1'
+ESQUEMA_PLAN = 'convertersmartgrid-learning-plan-v1'
 
 #: 050:RF-2: de dónde sale una muestra. Un dato redactado por el maestro no se vuelve humano.
 ORIGENES = ('observado', 'simulado_nativo', 'redactado')
@@ -53,6 +58,46 @@ _HEX = re.compile(r'[0-9a-f]{64}')
 
 class CicloBloqueado(ValueError):
     """050:RF-8: el ciclo no puede seguir; el conjunto aceptado no cambia."""
+
+
+def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
+    """050:RF-4/8: un plan declarativo explícito; ningún presupuesto ni comando implícitos."""
+    ruta = Path(ruta).resolve()
+    contenido = ruta.read_bytes()
+    plan = json.loads(contenido)
+    campos = {'schema', 'workspace_id', 'raiz', 'contexto', 'fuentes', 'familias',
+              'politica_hash', 'tiempo_s', 'memoria_gib', 'usa_gpu', 'parametros'}
+    if not isinstance(plan, dict) or set(plan) != campos or plan.get('schema') != ESQUEMA_PLAN:
+        raise CicloBloqueado('campos del plan ausentes, desconocidos o esquema inválido')
+    if any(not isinstance(plan[k], str) or not plan[k].strip()
+           for k in ('workspace_id', 'raiz', 'contexto')):
+        raise CicloBloqueado('plan sin espacio, raíz o contexto explícitos')
+    familias = plan['familias']
+    if (not isinstance(familias, list) or not familias or any(not isinstance(f, str) for f in familias)
+            or len(set(familias)) != len(familias) or set(familias) - set(ORDEN_MODELOS)):
+        raise CicloBloqueado('familias del plan inválidas')
+    if not isinstance(plan['politica_hash'], str) or not _HEX.fullmatch(plan['politica_hash']):
+        raise CicloBloqueado('política del plan sin SHA-256')
+    if (type(plan['usa_gpu']) is not bool or type(plan['tiempo_s']) not in (int, float)
+            or type(plan['memoria_gib']) not in (int, float)):
+        raise CicloBloqueado('presupuesto del plan inválido')
+    Presupuesto(plan['tiempo_s'], plan['memoria_gib'], plan['usa_gpu'])
+    fuentes = plan['fuentes']
+    if not isinstance(fuentes, dict) or not fuentes or any(
+            not isinstance(k, str) or not re.fullmatch(r'[a-z][a-z0-9_]*', k)
+            or not isinstance(v, str) or not v.strip() for k, v in fuentes.items()):
+        raise CicloBloqueado('fuentes del plan inválidas')
+    parametros = plan['parametros']
+    if (not isinstance(parametros, dict) or set(parametros) - {
+            'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model'}
+            or any(not isinstance(v, (str, int)) or isinstance(v, bool) for v in parametros.values())):
+        raise CicloBloqueado('parámetros del plan inválidos')
+    def absoluta(texto):
+        return str((ruta.parent / texto).resolve())
+    return {**plan, 'raiz': absoluta(plan['raiz']),
+            'contexto': plan['contexto'] if _HEX.fullmatch(plan['contexto']) else absoluta(plan['contexto']),
+            'fuentes': {k: absoluta(v) for k, v in fuentes.items()},
+            'plan_hash': hashlib.sha256(contenido).hexdigest()}
 
 
 def _canonico(valor: Any) -> bytes:
@@ -108,9 +153,22 @@ def huellas_de(ruta: Path | str) -> dict[str, str]:
     return {rel: _sha(p) for rel, p in _ficheros(Path(ruta))}
 
 
-def crear_contexto_ciclo(proyectos: Mapping[str, str]) -> dict[str, Any]:
+def crear_contexto_documental(corpus: Mapping[str, str]) -> dict[str, Any]:
+    """050:RF-1/3: identidad del corpus; no declara proyecto ni verdad eléctrica."""
+    if not isinstance(corpus, Mapping) or not corpus:
+        raise CicloBloqueado('contexto documental sin corpus')
+    for nombre, sha in corpus.items():
+        if not isinstance(nombre, str) or not nombre.strip() or nombre != nombre.strip():
+            raise CicloBloqueado('identidad documental vacía o ambigua')
+        if not isinstance(sha, str) or not _HEX.fullmatch(sha):
+            raise CicloBloqueado(f'{nombre}: huella documental inválida')
+    cuerpo = {'schema': ESQUEMA_CONTEXTO_DOCUMENTAL, 'corpus': dict(sorted(corpus.items()))}
+    return {**cuerpo, 'contexto_hash': _huella(cuerpo)}
+
+
+def crear_contexto_ciclo(proyectos: Mapping[str, str], *, documentos: Mapping[str, str] | None = None) -> dict[str, Any]:
     """050:RF-1: contexto agregado sin sustituir las identidades 043 individuales."""
-    if not isinstance(proyectos, Mapping) or not proyectos:
+    if not isinstance(proyectos, Mapping) or (not proyectos and not documentos):
         raise CicloBloqueado('contexto de ciclo sin proyectos')
     for proyecto, huella in proyectos.items():
         if not isinstance(proyecto, str) or not proyecto.strip() or proyecto != proyecto.strip():
@@ -118,6 +176,9 @@ def crear_contexto_ciclo(proyectos: Mapping[str, str]) -> dict[str, Any]:
         if not isinstance(huella, str) or not _HEX.fullmatch(huella):
             raise CicloBloqueado(f'{proyecto}: contexto 043 sin SHA-256')
     cuerpo = {'schema': ESQUEMA_CONTEXTO_CICLO, 'proyectos': dict(sorted(proyectos.items()))}
+    if documentos is not None:
+        crear_contexto_documental(documentos)  # Valida nombres y SHA sin atribuir significado físico.
+        cuerpo.update(schema=ESQUEMA_CONTEXTO_MIXTO, documentos=dict(sorted(documentos.items())))
     return {**cuerpo, 'contexto_hash': _huella(cuerpo)}
 
 
@@ -125,10 +186,13 @@ def _contexto_hash(contexto: ContextoExperimento | Mapping[str, Any] | str) -> s
     if isinstance(contexto, ContextoExperimento):
         return clave_contexto(contexto)
     if isinstance(contexto, Mapping):
-        reconstruido = crear_contexto_ciclo(contexto.get('proyectos'))
-        if (contexto.get('schema') != ESQUEMA_CONTEXTO_CICLO
+        if contexto.get('schema') == ESQUEMA_CONTEXTO_DOCUMENTAL:
+            reconstruido = crear_contexto_documental(contexto.get('corpus'))
+        else:
+            reconstruido = crear_contexto_ciclo(contexto.get('proyectos'), documentos=contexto.get('documentos'))
+        if (contexto.get('schema') != reconstruido['schema']
                 or reconstruido['contexto_hash'] != contexto.get('contexto_hash')):
-            raise CicloBloqueado('manifiesto del contexto de ciclo modificado')
+            raise CicloBloqueado('manifiesto del contexto documental o de ciclo modificado')
         return reconstruido['contexto_hash']
     if not isinstance(contexto, str) or not _HEX.fullmatch(contexto):
         raise CicloBloqueado('contexto 043 ausente o sin huella SHA-256')
@@ -200,10 +264,16 @@ def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | 
                 continue
             if not antes[nombre] and nombre in obligatorias:
                 motivos.append(f'{nombre}: fuente obligatoria vacía')
+    if not motivos and isinstance(contexto, Mapping) and contexto.get('schema') == ESQUEMA_CONTEXTO_DOCUMENTAL:
+        custodiadas = {h for archivos in antes.values() for h in archivos.values()}
+        if set(contexto['corpus'].values()) - custodiadas:
+            motivos.append('contexto documental sin custodia de todos los digests del corpus declarado')
     if motivos:
         registrar_bloqueo(raiz, 'instantanea', motivos)
         raise CicloBloqueado('; '.join(motivos))
     esquema = ESQUEMA_INSTANTANEA_MULTIPROYECTO if isinstance(contexto, Mapping) else ESQUEMA_INSTANTANEA
+    if isinstance(contexto, Mapping) and contexto['schema'] != ESQUEMA_CONTEXTO_CICLO:
+        esquema = ESQUEMA_INSTANTANEA_MIXTA
     identidad = _huella({'schema': esquema, 'contexto_hash': ctx,
                          'versiones': dict(versiones), 'archivos': antes})
     final = raiz / 'instantaneas' / identidad
@@ -215,7 +285,12 @@ def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | 
                   'tipos': {n: 'fichero' if Path(r).is_file() else 'carpeta'
                             for n, r in fuentes.items() if r is not None}}
     if isinstance(contexto, Mapping):
-        manifiesto['contextos'] = dict(contexto['proyectos'])
+        manifiesto['contextos'] = dict(contexto.get('proyectos', {}))
+        if contexto['schema'] == ESQUEMA_CONTEXTO_DOCUMENTAL:
+            manifiesto['contexto_documental'] = dict(contexto)
+            manifiesto['contextos_documentales'] = {'documental': ctx}
+        elif contexto['schema'] == ESQUEMA_CONTEXTO_MIXTO:
+            manifiesto['contextos_documentales'] = dict(contexto['documentos'])
     final.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(final) as tmp:
         tmp.mkdir()
@@ -246,11 +321,24 @@ def verificar_instantanea(carpeta: Path | str) -> dict[str, Any]:
     carpeta = Path(carpeta)
     manifiesto = _leer(carpeta / 'manifiesto.json')
     esquema = manifiesto.get('schema')
-    if esquema not in (ESQUEMA_INSTANTANEA, ESQUEMA_INSTANTANEA_MULTIPROYECTO):
+    if esquema not in (ESQUEMA_INSTANTANEA, ESQUEMA_INSTANTANEA_MULTIPROYECTO, ESQUEMA_INSTANTANEA_MIXTA):
         raise CicloBloqueado('instantánea de otro esquema')
-    if esquema == ESQUEMA_INSTANTANEA_MULTIPROYECTO and 'contextos' not in manifiesto:
+    if esquema in (ESQUEMA_INSTANTANEA_MULTIPROYECTO, ESQUEMA_INSTANTANEA_MIXTA) and 'contextos' not in manifiesto:
         raise CicloBloqueado('instantánea de varios proyectos sin mapa de contextos')
-    if 'contextos' in manifiesto:
+    if esquema == ESQUEMA_INSTANTANEA_MIXTA:
+        if 'contextos_documentales' not in manifiesto:
+            raise CicloBloqueado('instantánea sin contextos documentales')
+        if 'contexto_documental' in manifiesto:
+            doc = manifiesto['contexto_documental']
+            if (_contexto_hash(doc) != manifiesto.get('contexto_hash')
+                    or manifiesto['contextos'] or manifiesto['contextos_documentales'] != {'documental': doc['contexto_hash']}):
+                raise CicloBloqueado('contexto documental de la instantánea modificado')
+            custodiadas = {h for archivos in manifiesto['archivos'].values() for h in archivos.values()}
+            if set(doc['corpus'].values()) - custodiadas:
+                raise CicloBloqueado('contexto documental sin custodia de todos los digests del corpus declarado')
+        elif crear_contexto_ciclo(manifiesto['contextos'], documentos=manifiesto['contextos_documentales'])['contexto_hash'] != manifiesto.get('contexto_hash'):
+            raise CicloBloqueado('contexto documental/físico de la instantánea modificado')
+    elif 'contextos' in manifiesto:
         agregado = crear_contexto_ciclo(manifiesto['contextos'])
         if agregado['contexto_hash'] != manifiesto.get('contexto_hash'):
             raise CicloBloqueado('mapa de contextos de la instantánea modificado')
@@ -276,6 +364,109 @@ def ruta_de(instantanea: Mapping[str, Any], nombre: str) -> Path:
 
 
 # --------------------------------------------------------------------------- T2: vistas por familia
+
+def muestra_de_registro(instantanea: Mapping[str, Any], referencias: Mapping[str, Any],
+                       fuente: str, registro: str, contenido: Any, *, familia: str,
+                       particion: str, origen: str, etiqueta: str) -> Muestra:
+    """050:RF-2/3: enlaza el registro leído con su observación fuente, sin inferencias."""
+    tabla = referencias.get(fuente) if isinstance(referencias, Mapping) else None
+    if not isinstance(tabla, Mapping):
+        raise CicloBloqueado(f'{fuente}/{registro}: tabla de referencias ausente o inválida')
+    referencia = tabla.get(registro)
+    if not isinstance(referencia, Mapping):
+        raise CicloBloqueado(f'{fuente}/{registro}: falta referencia de procedencia')
+    if referencia.get('contenido_hash') != _huella(contenido):
+        raise CicloBloqueado(f'{fuente}/{registro}: contenido distinto de la referencia')
+    contexto = referencia.get('contexto')
+    fisicos = list(instantanea.get('contextos', {}).values())
+    if not fisicos and 'contextos' not in instantanea:
+        fisicos = [instantanea['contexto_hash']]
+    documentales = list(instantanea.get('contextos_documentales', {}).values())
+    if familia in FAMILIAS_FISICAS and contexto not in fisicos:
+        raise CicloBloqueado(f'{fuente}/{registro}: falta contexto físico 043')
+    if contexto not in [*fisicos, *documentales]:
+        raise CicloBloqueado(f'{fuente}/{registro}: contexto no declarado')
+    hashes = {h for archivos in instantanea['archivos'].values() for h in archivos.values()}
+    if referencia.get('fuente_hash') not in hashes:
+        raise CicloBloqueado(f'{fuente}/{registro}: fuente de observación sin custodia en la instantánea')
+    identidad = crear_observacion_id(contexto, referencia.get('fuente_hash'),
+        referencia.get('registro_id'), referencia.get('instante'))
+    return Muestra(identidad, familia, instantanea['snapshot_id'], origen, etiqueta,
+                   particion, contexto, registro)
+
+
+def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
+                     parametros: Mapping[str, Any] | None = None,
+                     destino: Path | str | None = None) -> dict[str, Any]:
+    """050:RF-2/8: ejecuta productores reales antes de construir cualquier trabajador."""
+    instantanea = verificar_instantanea(instantanea['ruta'])
+    familias = tuple(familias)
+    if not familias or len(set(familias)) != len(familias) or set(familias) - set(ORDEN_MODELOS):
+        raise CicloBloqueado('familias vacías, duplicadas o desconocidas')
+    procedencia = _leer(ruta_de(instantanea, 'procedencia'))
+    if (procedencia.get('schema') != ESQUEMA_PROCEDENCIA
+            or not isinstance(procedencia.get('referencias'), dict)):
+        raise CicloBloqueado('manifiesto de procedencia inválido')
+    referencias = procedencia['referencias']
+    muestras = []
+    if 'evolutivos' in familias:
+        from .digital_twin.evolutivo import casos_aprendizaje
+        muestras.extend(c['muestra'] for c in casos_aprendizaje(instantanea))
+    lenguaje = set(familias) & {'transformer', 'clasificador', 'embeddings'}
+    if lenguaje:
+        from .asistente.dataset_entrenamiento import muestras_aprendizaje
+        muestras.extend(muestras_aprendizaje(instantanea, referencias, sorted(lenguaje)))
+    if 'pinn' in familias:
+        from .digital_twin.buffer import muestras_aprendizaje
+        muestras.extend(muestras_aprendizaje(instantanea, referencias))
+    if 'gru' in familias:
+        from .digital_twin.temporal_entrenamiento import muestras_aprendizaje
+        muestras.extend(muestras_aprendizaje(instantanea, referencias, **dict(parametros or {})))
+    if 'qlora' in familias:
+        from .asistente.llm_destilacion import muestras_aprendizaje
+        muestras.extend(muestras_aprendizaje(instantanea, referencias))
+    resultado = preparar_vistas(instantanea, muestras)
+    if destino is not None:
+        _escribir(Path(destino), {**resultado, 'vistas': {f: {p: [asdict(m) for m in ms]
+            for p, ms in partes.items()} for f, partes in resultado['vistas'].items()}})
+    faltan = sorted(set(familias) - resultado['vistas'].keys())
+    if faltan or resultado['cuarentena']:
+        raise CicloBloqueado(f'preparación incompleta: familias sin muestras={faltan}; '
+                            f'cuarentena={len(resultado["cuarentena"])}')
+    return resultado
+
+
+def preflight_ciclo(instantanea: Mapping[str, Any], familias: Sequence[str], *,
+                    parametros: Mapping[str, Any] | None = None,
+                    destino: Path | str | None = None) -> dict[str, Any]:
+    """050:RF-8/10: diagnóstico CPU por familia y contraste conjunto, sin crear trabajadores."""
+    instantanea = verificar_instantanea(instantanea['ruta'])
+    por_familia, muestras, motivos = {}, [], []
+    if not familias or len(set(familias)) != len(familias):
+        raise CicloBloqueado('preflight sin familias únicas')
+    for familia in familias:
+        try:
+            r = preparar_fuentes(instantanea, [familia], parametros=parametros)
+            por_familia[familia] = {'estado': 'preparado', 'resumen': r['resumen'][familia],
+                'particiones_hash': r['particiones_hash'], 'motivos': []}
+            muestras += [m for partes in r['vistas'].values() for ms in partes.values() for m in ms]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            motivo = f'{familia}: {exc}'
+            por_familia[familia] = {'estado': 'bloqueado', 'motivos': [motivo]}
+            motivos.append(motivo)
+    particiones_hash = None
+    if not motivos:
+        try:
+            particiones_hash = preparar_vistas(instantanea, muestras)['particiones_hash']
+        except CicloBloqueado as exc:
+            motivos.append(f'conjunto: {exc}')
+    resultado = {'schema': 'convertersmartgrid-learning-preflight-v1',
+        'snapshot_id': instantanea['snapshot_id'], 'estado': 'bloqueado' if motivos else 'preparado',
+        'por_familia': por_familia, 'motivos': motivos, 'particiones_hash': particiones_hash,
+        'entrenamiento_ejecutado': False, 'aceptacion_cientifica': False}
+    if destino is not None:
+        _escribir(Path(destino), resultado)
+    return resultado
 
 @dataclass(frozen=True)
 class Muestra:
@@ -333,8 +524,13 @@ def preparar_vistas(instantanea: Mapping[str, Any], muestras: Iterable[Muestra],
     duplicadas = 0
 
     def validar_contexto(m):
-        if 'contextos' in instantanea and m.contexto not in instantanea['contextos'].values():
+        permitidos = [*instantanea.get('contextos', {}).values(),
+                      *instantanea.get('contextos_documentales', {}).values()]
+        if 'contextos' in instantanea and m.contexto not in permitidos:
             raise CicloBloqueado(f'{m.observacion_id}: contexto no declarado en el ciclo')
+        if (m.familia in FAMILIAS_FISICAS and 'contextos' in instantanea
+                and m.contexto not in instantanea['contextos'].values()):
+            raise CicloBloqueado(f'{m.observacion_id}: falta contexto físico 043')
 
     def repetida(m, *, historica=False):
         clave = (m.familia, m.record_id)
@@ -488,7 +684,8 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
                    operador_ocupado: Callable[[], bool] = lambda: False,
                    memoria_libre_gib: Callable[[], float] | None = None,
                    reloj: Callable[[], float] = time.monotonic,
-                   liberar_ollama: Callable[[], Any] = lambda: None) -> dict[str, Any]:
+                   liberar_ollama: Callable[[], Any] = lambda: None,
+                   cancelado: Callable[[], bool] = lambda: False) -> dict[str, Any]:
     """050:RF-4 — exclusión por ciclo antes del preflight, también para etapas sin GPU."""
     instantanea = verificar_instantanea(instantanea['ruta'])
     etapas = tuple(etapas)
@@ -503,7 +700,7 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
         return _ejecutar_ciclo_en_exclusion(raiz, instantanea, etapas, politica_hash=politica_hash,
             presupuesto=presupuesto, registro=registro, propietario_token=token,
             operador_ocupado=operador_ocupado, memoria_libre_gib=memoria_libre_gib,
-            reloj=reloj, liberar_ollama=liberar_ollama)
+            reloj=reloj, liberar_ollama=liberar_ollama, cancelado=cancelado)
     finally:
         _retirar_marca_propia(carpeta / 'en_curso', token)
         guardia.close()
@@ -515,7 +712,8 @@ def _ejecutar_ciclo_en_exclusion(raiz: Path | str, instantanea: Mapping[str, Any
                    operador_ocupado: Callable[[], bool] = lambda: False,
                    memoria_libre_gib: Callable[[], float] | None = None,
                    reloj: Callable[[], float] = time.monotonic,
-                   liberar_ollama: Callable[[], Any] = lambda: None) -> dict[str, Any]:
+                   liberar_ollama: Callable[[], Any] = lambda: None,
+                   cancelado: Callable[[], bool] = lambda: False) -> dict[str, Any]:
     """050:RF-4, RF-5, RF-8: un solo ciclo por instantánea, presupuestado, cancelable y sin promociones sueltas.
 
     Reutiliza el ``TrainingCoordinator`` (orden, guardia GPU, reanudación). Las etapas reciben ya
@@ -556,6 +754,8 @@ def _ejecutar_ciclo_en_exclusion(raiz: Path | str, instantanea: Mapping[str, Any
         return fila
 
     carpeta.mkdir(parents=True, exist_ok=True)
+    if cancelado():
+        return cerrar('cancelado', ['cancelado por el trabajo de la cola antes de entrenar'])
     if operador_ocupado():
         # La prioridad es del operador: el ciclo espera, no se registra como hecho ni como fallido.
         return {**base, 'estado': 'pospuesto', 'motivos': ['el operador tiene trabajos en la cola']}
@@ -578,7 +778,7 @@ def _ejecutar_ciclo_en_exclusion(raiz: Path | str, instantanea: Mapping[str, Any
 
     def vigilada(etapa: TrainingStage) -> TrainingStage:
         def run():
-            if cancelar.exists():
+            if cancelar.exists() or cancelado():
                 raise ValueError('cancelado por el operador')
             if reloj() - inicio > presupuesto.tiempo_s:
                 raise ValueError(f'presupuesto de tiempo agotado ({presupuesto.tiempo_s} s)')
@@ -593,7 +793,7 @@ def _ejecutar_ciclo_en_exclusion(raiz: Path | str, instantanea: Mapping[str, Any
     despues = _activos(registro, familias)
     sueltas = sorted(n for n in despues if despues[n] != antes.get(n))
     etapas_inf = informe.get('stages') or []
-    if cancelar.exists():
+    if cancelar.exists() or cancelado():
         return cerrar('cancelado', ['cancelado por el operador'], etapas=etapas_inf)
     motivos = []
     try:

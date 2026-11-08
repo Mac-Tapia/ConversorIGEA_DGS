@@ -192,6 +192,9 @@ def _etapas(args, run_dir: Path):
         reporte = run_dir / 'evolutivos.json'
         cmd = [py, str(REPO / 'tools' / 'evaluar_evolutivos.py'), '--seeds', '30',
                '--report', str(reporte)]
+        if getattr(args, 'ciclo_comun', False):
+            cmd += ['--instantanea', str(args.instantanea), '--registro',
+                    str(getattr(args, 'registro', None) or almacen.raiz() / 'model_registry')]
         return _subproceso(cmd, reporte, 'evolutivos')
 
     def embeddings():
