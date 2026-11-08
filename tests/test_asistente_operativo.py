@@ -582,7 +582,11 @@ def test_uso_reentrenar_aplica_la_decision_del_registro(entorno, monkeypatch, es
     assert informe['informes']['status'] == 'BLOQUEADO_POR_DATOS' and informe['informes']['entrenado'] is False
 
 
-def test_uso_clasificador_con_informes_reales_va_por_el_registro(entorno, monkeypatch):
+@pytest.mark.parametrize('rechazado', [
+    {'acierto_tipo':1.,'acierto_subtipo':.5,'ejemplos':9},
+    {'acierto_tipo':.2,'acierto_subtipo':.99,'ejemplos':9},
+])
+def test_uso_clasificador_con_informes_reales_va_por_el_registro(entorno, monkeypatch, rechazado):
     """067:RF-26 — con prueba real se entrena, se registra y se pone en uso por la misma vía."""
     from convertersmartgrid.asistente import clasificador as cl
     from convertersmartgrid.model_registry import RegistroModelo
@@ -608,10 +612,29 @@ def test_uso_clasificador_con_informes_reales_va_por_el_registro(entorno, monkey
     registro = RegistroModelo(almacen.raiz() / 'model_registry')
     r = cl.entrenar_gobernado(registro, entorno / 'candidato', reabrir=lambda _c: {'ok': True})
     assert r['status'] == 'PROMOVIDO' and r['promovido'] is True and en_uso('informes') != 'heredado'
-    monkeypatch.setattr(cl, 'evaluar', lambda *_a: {'acierto_tipo': 1.0, 'acierto_subtipo': 0.5, 'ejemplos': 9})
+    monkeypatch.setattr(cl, 'evaluar', lambda *_a: rechazado)
     antes = en_uso('informes')
     r = cl.entrenar_gobernado(registro, entorno / 'candidato2', reabrir=lambda _c: {'ok': True})
     assert r['status'] == 'RECHAZADO' and r['promovido'] is False and en_uso('informes') == antes
+
+
+def test_clasificador_heredado_no_activa_un_tipo_incorrecto(monkeypatch):
+    """026:RF-16: la compatibilidad heredada conserva también la puerta del primer nivel."""
+    from types import SimpleNamespace
+    from convertersmartgrid.asistente import clasificador as cl
+    muestra=('texto de entrenamiento','estudio','refuerzo de red')
+    monkeypatch.setattr(cl,'reales',lambda:([muestra],[('texto reservado','estudio','refuerzo de red')]))
+    monkeypatch.setattr(cl,'subtipos_del_perfil',lambda:['refuerzo de red'])
+    monkeypatch.setattr(cl,'generar',lambda *a,**k:[muestra])
+    monkeypatch.setattr(cl,'entrenar',lambda *a,**k:SimpleNamespace(
+        red=None,cfg=cl.Configuracion(epocas=1),simbolos={},subtipos=['refuerzo de red'],version=''))
+    monkeypatch.setattr(cl,'evaluar',lambda *a:{'acierto_tipo':.2,'acierto_subtipo':.99,'ejemplos':1})
+    monkeypatch.setattr(cl,'cargar',lambda:None)
+    monkeypatch.setattr(cl,'guardar_pesos',lambda *a:'candidato-de-contrato')
+    activaciones=[]
+    monkeypatch.setattr(cl,'promover',lambda *a:activaciones.append(a))
+    result=cl.entrenar_y_promover()
+    assert result['promovido'] is False and not activaciones
 
 
 def test_uso_descripcion_de_reentrenar_dice_la_verdad():

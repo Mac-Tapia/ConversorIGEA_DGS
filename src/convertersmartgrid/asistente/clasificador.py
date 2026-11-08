@@ -12,6 +12,7 @@ corrección del operador (RF-15), y se promueve con las mismas puertas.
 from __future__ import annotations
 
 import json
+import math
 import random
 import re
 from collections.abc import Callable, Sequence
@@ -40,6 +41,7 @@ from .transformer import (
 )
 
 TIPOS_INFORME = ('estudio', 'factibilidad')
+METRICAS_INFORME = ('acierto_tipo', 'acierto_subtipo')
 SEMILLA_PRUEBA = 7919
 
 #: Una carga nueva puede ser una factibilidad o un estudio eléctrico; cada tipo con sus frases.
@@ -241,9 +243,25 @@ def _sin_textos_de_prueba(datos: Sequence[tuple[str, str, str]], prueba: Sequenc
     return limpio, len(datos) - len(limpio)
 
 
+def _fallos_de_metricas(metricas: dict, actual: dict | None, minimo: float) -> list[str]:
+    """026:RF-16: acertar el subtipo no compensa un tipo de informe incorrecto."""
+    fallos=[]
+    for clave in METRICAS_INFORME:
+        valor=metricas.get(clave)
+        valido=type(valor) in (int,float) and math.isfinite(valor) and 0<=valor<=1
+        if not valido or valor<minimo:
+            fallos.append(f'{clave} ausente, inválido o bajo {minimo}')
+        if actual is not None:
+            previo=actual.get(clave)
+            comparable=type(previo) in (int,float) and math.isfinite(previo) and 0<=previo<=1
+            if not comparable or not valido or valor<previo-1e-9:
+                fallos.append(f'acierta menos que el clasificador en uso o falta comparación: {clave}')
+    return fallos
+
+
 def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: float = 0.9,
                         log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
-    """Entrena con sintéticos y reales; promueve si acierta el subtipo y no peor que el en uso."""
+    """Entrena con sintéticos y reales; exige el umbral y no retroceder en ambos niveles."""
     cfg = cfg or Configuracion(epocas=12)
     ent, prueba_real = reales()
     subtipos = subtipos_del_perfil()
@@ -254,11 +272,7 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
     m = evaluar(candidato, prueba)
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
-    fallos = []
-    if m['acierto_subtipo'] < minimo_subtipo:
-        fallos.append(f"acierto de subtipo {m['acierto_subtipo']:.3f} bajo {minimo_subtipo}")
-    if del_actual and m['acierto_subtipo'] < del_actual['acierto_subtipo'] - 1e-9:
-        fallos.append('acierta menos que el clasificador en uso')
+    fallos = _fallos_de_metricas(m,del_actual,minimo_subtipo)
     version = guardar_pesos(candidato.red, {'metricas': m, 'cfg': asdict(candidato.cfg), 'simbolos': candidato.simbolos,
                                             'subtipos': subtipos, 'tipos': list(TIPOS_INFORME)}, 'informes')
     candidato.version = version
@@ -327,11 +341,7 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
     m = evaluar(candidato, prueba)
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
-    fallos = []
-    if m['acierto_subtipo'] < minimo_subtipo:
-        fallos.append(f"acierto de subtipo {m['acierto_subtipo']:.3f} bajo {minimo_subtipo}")
-    if del_actual and m['acierto_subtipo'] < del_actual['acierto_subtipo'] - 1e-9:
-        fallos.append('acierta menos que el clasificador en uso')
+    fallos = _fallos_de_metricas(m,del_actual,minimo_subtipo)
     final = Path(destino) / 'clasificador'
     guardar_candidato(candidato, final)
     if reabrir is None:

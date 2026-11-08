@@ -46,7 +46,7 @@
       ]
     },
     "P08": {
-      "state": "si213_cargas_reapertura_verificadas_pn107_importado_calibrado",
+      "state": "si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial",
       "evidence": [
         "p08_fuentes_access.json",
         "p08_corrida_estado.json",
@@ -56,7 +56,10 @@
         "p08_si213_cierre_persistencia/resultado.json",
         "p08_cargas_si213.json",
         "p08_pn107_estado.json",
-        "p08_pn107_calibracion.log"
+        "p08_pn107_calibracion.log",
+        "p08_pn107_aceptacion_parcial.json",
+        "p08_pn107_cierre_persistencia/resultado.json",
+        "p08_cargas_pn107.json"
       ]
     },
     "P09": {
@@ -89,14 +92,19 @@
       "evidence": []
     },
     "P14": {
-      "state": "r1_r5_confirmados_por_usuario_falta_validacion_de_informes",
+      "state": "cinco_etiquetas_humanas_y_curriculo_congelados_puertas_dos_niveles_verificadas",
       "evidence": [
         "p14_preparacion_dataset_real.json",
         "p14_preparacion_dataset_spans_real.json",
         "revision_etiquetas_informes/REVISION_ETIQUETAS.md",
         "revision_etiquetas_informes/confirmacion_usuario_20261107.json",
         "p14_informes_confirmados_preparacion.json",
-        "p14_revision_humana_final.xml"
+        "p14_revision_humana_final.xml",
+        "p14_puerta_tipo_red.log",
+        "p14_seleccion_tipo_red.log",
+        "p14_clasificador_legado_red.log",
+        "p14_dos_niveles_final.xml",
+        "p14_clasificador_curriculo_preparacion.json"
       ]
     },
     "P15": {

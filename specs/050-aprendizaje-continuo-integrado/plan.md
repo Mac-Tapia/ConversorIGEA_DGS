@@ -62,7 +62,10 @@ sus pesos en un proceso nuevo, usando el mismo contrato del consumidor. Seleccio
 solo con validation; test queda reservado para evaluación. Las órdenes humanas se
 miden solo con gold_human: un episodio gold_native no cuenta como una orden del
 operador. Informes y órdenes tienen vistas separadas. Exige las puertas de órdenes (tarea, F1 y reales) o de
-subtipo de informes, y no retroceder frente al modelo en uso sobre la misma prueba.
+ambos niveles de informes (tipo y subtipo, 0,90 en cada uno), y no retroceder frente
+al modelo en uso sobre la misma prueba. El clasificador elige semilla por el menor
+acierto de sus dos niveles en validation, antes de abrir test. Las rutas heredada,
+gobernada y v2 comparten METRICAS_INFORME; ninguna ignora un tipo incorrecto.
 Sin prueba real, medida válida o recarga correcta se conserva un candidato rechazado.
 En órdenes reutiliza además decidir_promocion del protocolo integral: cobertura
 de todas las tareas, referencia por tarea y rechazo de mensajes reservados; los

@@ -11,10 +11,11 @@ def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
                     referencia=None,rechazo=None) -> dict:
     """Puertas de las arquitecturas existentes sobre prueba reservada y ejemplos reales."""
     from .transformer import Puertas
+    from .clasificador import METRICAS_INFORME
 
     puertas = Puertas()
     limites = ({'acierto_tarea': puertas.acierto_tarea, 'f1_datos': puertas.f1_datos}
-               if solo == 'ordenes' else {'acierto_subtipo': .9})
+               if solo == 'ordenes' else dict.fromkeys(METRICAS_INFORME,.9))
     limites_reales = ({'acierto_tarea': puertas.acierto_real, 'f1_datos': puertas.f1_real}
                       if solo == 'ordenes' else limites)
     fallos = []
@@ -97,7 +98,8 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
                 subtipos=sorted({s for _,_,s in vistas['train']})
                 modelo=modulo.entrenar(vistas['train'],subtipos,cfg)
             metricas=modulo.evaluar(modelo,vistas['validation'])
-            score=metricas['acierto_tarea' if solo=='ordenes' else 'acierto_subtipo']
+            score=(metricas['acierto_tarea'] if solo=='ordenes' else
+                   min(metricas[k] for k in modulo.METRICAS_INFORME))
             candidatos.append({'semilla':semilla,'seleccion':metricas})
             if mejor is None or score>mejor[0]:mejor=(score,semilla,modelo)
         _,semilla,modelo=mejor
@@ -117,6 +119,8 @@ def entrenar_dataset(dataset: Path,destino: Path,*,solo: str,semillas: tuple[int
         carpeta=destino/('candidato_'+uuid.uuid4().hex);carpeta.mkdir(parents=True)
         modulo.modulo_torch().save({k:v.detach().cpu() for k,v in modelo.red.state_dict().items()},carpeta/'pesos.pt')
         meta={'cfg':asdict(modelo.cfg),'simbolos':modelo.simbolos,'semilla':semilla,'familia':solo,
+              'criterio_seleccion':'acierto_tarea' if solo=='ordenes' else 'min(acierto_tipo, acierto_subtipo)',
+              'particion_seleccion':'validation','particion_prueba':'test',
               'dataset_manifest':manifest,'seleccion':candidatos,'prueba':prueba,'prueba_real':prueba_real,
               'en_uso':en_uso,
               'pesos_sha256':sha_archivo(carpeta/'pesos.pt')}

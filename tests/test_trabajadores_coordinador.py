@@ -190,9 +190,14 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
             predecir=lambda _: {'tarea':'convertir', 'datos':[], 'confianza':.99},
             clasificar=lambda _: {'tipo':'estudio','subtipo':'refuerzo','confianza_subtipo':.99})
     monkeypatch.setattr(modulo, 'entrenar', entrenar)
-    monkeypatch.setattr(modulo, 'evaluar', lambda modelo, datos: {
-        'acierto_tarea':.99, 'f1_datos':.99, 'acierto_tipo':.99, 'acierto_subtipo':.99,
-        'ejemplos':len(datos)})
+    def evaluar(modelo,datos):
+        metrics={'acierto_tarea':.99, 'f1_datos':.99, 'acierto_tipo':.99,
+                 'acierto_subtipo':.99,'ejemplos':len(datos)}
+        if solo=='informes' and quality=='gold_human' and smoke_ok and datos[0][0].startswith('validation'):
+            metrics.update(acierto_tipo=.6 if modelo.cfg.semilla==11 else .99,
+                           acierto_subtipo=1. if modelo.cfg.semilla==11 else .99)
+        return metrics
+    monkeypatch.setattr(modulo, 'evaluar', evaluar)
     monkeypatch.setattr(modulo, 'modulo_torch', lambda: SimpleNamespace(
         save=lambda pesos, ruta: ruta.write_bytes(b'pesos-de-contrato-no-red-real')))
     registry = RegistroModelo(tmp_path/'registro')
@@ -217,6 +222,9 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
     assert result['candidato_aprobado'] is aprobado and result['publicacion_pendiente'] is aprobado
     assert result['status'] == ('PROMOVIDO' if aprobado else 'RECHAZADO')
     assert result['promovido'] is False and len(reopen) == 1
+    if solo=='informes' and quality=='gold_human' and smoke_ok:
+        saved=json.loads((Path(result['candidate_dir'])/'modelo.json').read_text(encoding='utf-8'))
+        assert saved['semilla']==23, 'La selección debe considerar los dos niveles en validation'
     detail = registry.detalle(family, result['candidate_id'])
     if solo=='ordenes' and quality=='gold_native':
         assert detail['metrics']['reales'] is None, 'Un episodio eléctrico no es una orden humana'
@@ -243,6 +251,15 @@ def test_dataset_aprueba_puertas_comunes_solo_con_examen_completo():
     gates=puertas_dataset('ordenes',metricas,metricas,metricas,{'ok':True},
         familias=familias,referencia=familias,rechazo={'ejemplos':100,'rechazada':1.,'se_cuela':0.})
     assert gates['approved'] is True and not gates['fallos']
+
+
+@pytest.mark.parametrize('tipo', [0.,None,float('nan')])
+def test_clasificador_no_aprueba_subtipo_si_falla_el_tipo(tipo):
+    """026:RF-14 / 026:RF-16 / 050:RF-7: ambos niveles deciden qué informe se genera."""
+    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    metricas={'acierto_tipo':tipo,'acierto_subtipo':.99,'ejemplos':4}
+    result=puertas_dataset('informes',metricas,metricas,None,{'ok':True})
+    assert result['approved'] is False and any('acierto_tipo' in f for f in result['fallos'])
 
 
 def test_runner_lenguaje_envia_registro_comun(tmp_path, monkeypatch):
