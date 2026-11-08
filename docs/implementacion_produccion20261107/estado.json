@@ -38,7 +38,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "g2_c6ec_rechazado_8209_pass_36_fail_9_skip_fuentes_intactas_correctivos_integrados_327_enfocadas_nueva_suite_pendiente",
+      "state": "g2_rechazado_correctivos_conocidos_integrados_comprobaciones_enfocadas_correctas_nueva_suite_completa_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -72,7 +72,11 @@
         "p23_referencias_tests_20261108/HANDOFF.md",
         "p25_gate_final_20261108/ejecuciones/20261108T162153Z_3cd3f8c9be0a4d248f2db03cd12ac2d3/registro.json",
         "p25_g2_integracion_correctivos_20261108/junit.xml",
-        "p25_g2_binding_fixtures_20261108/HANDOFF.md"
+        "p25_g2_binding_fixtures_20261108/HANDOFF.md",
+        "p25_cancelacion_integrada_20261108/junit.xml",
+        "p25_pid_integrado_20261108/junit.xml",
+        "revision_p25_mcp_integrador_20261108/review.json",
+        "p25_estatica_postg2_20261108/junit.xml"
       ]
     },
     "P04": {
@@ -387,7 +391,7 @@
       ]
     },
     "P25": {
-      "state": "candidato1c_retirado_g2_rechazado_correctivos_integrados_reconstruccion_qa_nativa_y_puerta_final_pendientes",
+      "state": "correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final",
       "evidence": [
         "p25_comercial_20261108/HANDOFF.md",
         "p25_comercial_20261108/FASE2.ps1",
@@ -612,6 +616,63 @@
     "shared_module_changes_require_owner_assignment": true,
     "commercial_integrator": "/root cierre",
     "implementation_not_yet_integrated": true,
-    "record": ".agents/coordination/ACTIVE.md"
-  }
+    "record": ".agents/coordination/ACTIVE.md",
+    "generated_catalog_in_owner_worktree_authorized": true,
+    "root_owns_pyproject_layer_registration": true,
+    "unclassified_new_modules": 7,
+    "test_files_without_rf": 5,
+    "provisional_review_important": 2,
+    "provisional_review": "revision_harness_integral_20261108/REVIEW_PROVISIONAL.md",
+    "awaiting_corrected_commit_and_handoff": true,
+    "scientific_improvement_demonstrated": false
+  },
+  "post_g2_checks": [
+    {
+      "scope": "fuentes_y_parametros_procedencia_artefactos_pdf_ruff_frontend_rutas",
+      "revision": "0e4f6bc8992e86688c4ef20a1464a6bf10e4ec37",
+      "pass": 327,
+      "skip": 0,
+      "explicitly_deselected_native": 1,
+      "evidence": "p25_g2_integracion_correctivos_20261108/junit.xml"
+    },
+    {
+      "scope": "mcp_stdio_real_utf8_warning_hilo_como_error",
+      "revision": "5d6ecda1c623f506cc91a868a917298ceffc9d2f",
+      "pass": 10,
+      "skip": 0,
+      "evidence": "revision_p25_mcp_integrador_20261108/junit.xml"
+    },
+    {
+      "scope": "ajuste_individual_conjunto_y_guion_cancelacion",
+      "revision": "56bec9f090e24362b6577be3155ded87f93ef270",
+      "pass": 147,
+      "skip": 0,
+      "evidence": "p25_cancelacion_integrada_20261108/junit.xml"
+    },
+    {
+      "scope": "pid_padre_redirector_y_hoja_real",
+      "revision": "c7e7216ca500e1ad6a05613d4933e7f7f4b00d8c",
+      "pass": 10,
+      "skip": 0,
+      "deselected": 103,
+      "evidence": "p25_pid_integrado_20261108/junit.xml"
+    },
+    {
+      "scope": "arquitectura_documentacion_trazabilidad_entrega_y_f821",
+      "revision": "c7e7216ca500e1ad6a05613d4933e7f7f4b00d8c",
+      "pass": 297,
+      "skip": 0,
+      "duration_seconds": 118.68,
+      "evidence": "p25_estatica_postg2_20261108/junit.xml"
+    }
+  ],
+  "release_sequence": [
+    "Entrega corregida y revision del arnes aprobado HARNESS; altas de capas por integrador",
+    "Comprobaciones enfocadas y freeze final de fuente y frontend",
+    "Un candidato de validacion QA y complemento portable238 desde autoridad255 original",
+    "Instalacion real y ensayo update/rollback/avance conservando datos e identidad",
+    "Uso instalado y evidencia nativa autentica con Python entregado",
+    "G3 completo estricto sobre fuente congelada y evidencia nueva",
+    "Promocion comercial solo si se satisfacen sus puertas; aceptaciones cientificas separadas"
+  ]
 }
