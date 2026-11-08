@@ -80,7 +80,7 @@ libro de la empresa.
 | `calibracion.factor_potencia_cargas` | empresa | FP de las SED escaladas | Se conserva el de la fuente |
 | `calibracion.factor_potencia_minimo_fijas` | empresa | Mínimo de los clientes fijos | Su FP medido |
 | `calibracion.factor_potencia_minimo_escaladas` | empresa | Cuánto puede bajar para cuadrar la reactiva de cabecera | No baja |
-| `calibracion.bancos_kvar_por_tension` | empresa | Tamaño de banco por tensión, `{"kV": kvar}` | Tamaño de referencia en «Con proyecto», con aviso |
+| `calibracion.bancos_kvar_por_tension` | empresa | Tamaño de banco por tensión, `{"kV": kvar}` | Se omite solo la alternativa de bancos y se avisa; no se toma el tamaño de una muestra |
 | `calibracion.transformadores_sed` | norma | Fichas de los transformadores nuevos de SED | Se avisa de la sobrecarga sin proponer transformador |
 | `calibracion.reparto_probabilistico` | empresa | Reparto probabilístico de las SED escaladas | Reparto determinista |
 
@@ -111,6 +111,8 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | --- | --- | --- | --- |
 | `escalera.moneda` | empresa | Moneda del costo de las obras | Sin rótulo de moneda |
 | `escalera.secciones_normalizadas` | empresa | Conductores de refuerzo | Ficha universal, con aviso |
+| `escalera.migrar_desde_kv` | empresa | Tensión de origen elegida para una migración | Sin el par completo se omite solo el cambio de nivel, con motivo |
+| `escalera.migrar_a_kv` | empresa | Tensión de destino elegida; finita, positiva y distinta de la de origen | No se completa con una tensión de muestra; un valor explícito inválido se rechaza antes de operar |
 | `escalera.costos_unitarios` | empresa | Costo de bancos y reguladores | Esas variantes se evalúan sin elegirse por costo |
 | `escalera.conductor_terna` | empresa | Conductor de los dos circuitos de una terna nueva: `{"aereo": código, "cable": código}`, códigos como los de `secciones_normalizadas`. El tramo más delgado pasa a él y la terna es del mismo; el de igual o más corriente añade la de su tipo (042:RF-98, RF-99) | La terna se añade del mismo tipo del tramo, con aviso |
 | `escalera.alternativas` | empresa | Alternativas de obras por alimentador, un entero de 3 a 6; otro valor es un error (042:RF-105, RF-106) | Se presentan 3 |

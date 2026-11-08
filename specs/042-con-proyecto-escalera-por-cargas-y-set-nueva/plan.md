@@ -36,3 +36,7 @@ Decisiones:
 Pruebas: `tests/test_set_nueva.py` con redes y cargas sorteadas (`CSG_SCALE_SEED`); el libro de
 módulos sintético con `openpyxl`; la obra con el doble `tests/fake_pf.py`; NA203 + NA205 en
 DIgSILENT desde la web.
+
+### Aclaración universal U02 — 2026-11-08
+
+El usuario confirmó que empresas, alimentadores y rutas de ejemplos son muestras. RF-39/RF-50 se aplican con capacidades y par de tensiones elegidos, nunca con valores físicos suplentes de las muestras. Ausencia: omitir solo la alternativa no respaldada con aviso; valor explícito inválido: rechazar antes de operar. Se conservan otros cálculos, costos, tasas y criterios. Pruebas puras y de servicio en tests/test_universalidad_obras.py; registro081 docs/regresiones/2026-11-08-obras-sin-capacidades-de-muestra.md. La validación de dominio nativo sigue separada; no se cierran tareas por estos unitarios.

@@ -6972,7 +6972,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     from ..valle import frase_valle
     from ..pide_economia import EconomiaPideError, costos_por_alternativa
     from ..adaptadores.entrada.capex import leer_capex_con_procedencia
-    from ..perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA, PerfilError, bancos_kvar_por_tension,
+    from ..perfil_empresa import (SECCIONES_DE_REFERENCIA, PerfilError, bancos_kvar_por_tension,
                                   completar_planeamiento, datos_perfil)
 
     # 025:RF-57, RF-67, RF-68: antes de tocar DIgSILENT, el perfil y el tipo de cambio que
@@ -6980,8 +6980,12 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     try:
         perfil, supuestos = completar_planeamiento(datos_perfil(), tipo_cambio)       # 042:RF-39
         p = eo.parametros(perfil, tipo_cambio)
+        kvar = bancos_kvar_por_tension(perfil)
     except (eo.EscaleraError, PerfilError) as exc:
         raise UserError(str(exc)) from exc
+    if kvar is None:
+        supuestos.append('Se omiten las alternativas de bancos: falta '
+                         'calibracion.bancos_kvar_por_tension del perfil o entrada real (042:RF-39).')
     base = ajuste_aplicado_en_disco(ws, project)
     if not base:
         raise UserError('El proyecto no tiene calibración: calibre antes de la escalera (paso 2).')
@@ -7013,7 +7017,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     contexto_capex = {'moneda': p.moneda, 'escala_aplicada': p.escala_capex, 'tipo_cambio': tipo_cambio}
     identidad_capex = json.dumps({'ruta': str(Path(capex.strip().strip('"')).resolve()) if capex and capex.strip() else None,
                                  'config': config_capex, 'contexto': contexto_capex}, sort_keys=True, ensure_ascii=False)
-    clave_memo = ('comun', anio_casos, tuple(feeders), identidad_capex)
+    # La ausencia actual tampoco puede heredar módulos de otra elección guardada en memo.
+    clave_memo = ('comun', anio_casos, tuple(feeders), identidad_capex,
+                  tuple(sorted(kvar.items())) if kvar is not None else None,
+                  p.migrar_desde_kv, p.migrar_a_kv)
     if memo is not None and clave_memo in memo:
         anio_curva, curvas, sorteos, perdidas, costos, avisos, kvar, lectura, valle, procedencia_capex = memo[clave_memo]
         avisos = list(avisos)
@@ -7049,10 +7056,6 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         else:
             avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
         costos = eo.costos_de_alternativas(costos_capex, p)
-        try:
-            kvar = bancos_kvar_por_tension(perfil) or dict(BANCOS_KVAR_DE_REFERENCIA)      # 042:RF-39
-        except PerfilError:
-            kvar = dict(BANCOS_KVAR_DE_REFERENCIA)
         # 042:RF-30, RF-34, RF-40: lo que falta se crea, a la tensión de cada alimentador y para cualquier empresa.
         lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS,
                                     secciones_nuevas=list(p.secciones or SECCIONES_DE_REFERENCIA),

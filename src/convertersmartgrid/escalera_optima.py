@@ -144,8 +144,8 @@ class Parametros:
     #: 042:RF-49: el regulador es un caso extremo: por debajo de este largo no se plantea.
     regulador_min_km: float = 15.0
     #: 042:RF-50: la tensión que se pasa y a cuál.
-    migrar_desde_kv: float = 10.0
-    migrar_a_kv: float = 22.9
+    migrar_desde_kv: float | None = None
+    migrar_a_kv: float | None = None
     #: 042:RF-70, RF-71: margen del elevador y del regulador por el crecimiento que la corriente medida no cuenta.
     factor_sin_tasa: float = 1.0
     #: 042:RF-73, RF-91: los años a que una alternativa es definitiva: la vida útil.
@@ -186,6 +186,28 @@ def _factor_terna(valor) -> float:
     return factor
 
 
+def _tensiones_migracion(esc: Mapping[str, Any]) -> tuple[float | None, float | None]:
+    """042:RF-50: sin par elegido no hay destino; un dato inválido nunca se sustituye."""
+    valores = []
+    for clave in ('migrar_desde_kv', 'migrar_a_kv'):
+        valor = esc.get(clave)
+        if valor is None:
+            valores.append(None)
+            continue
+        try:
+            tension = float(valor)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise EscaleraError(f'escalera.{clave} debe ser una tensión finita positiva en kV.') from exc
+        if isinstance(valor, bool) or not math.isfinite(tension) or tension <= 0:
+            raise EscaleraError(f'escalera.{clave} debe ser una tensión finita positiva en kV.')
+        valores.append(tension)
+    if None in valores:
+        return None, None
+    if valores[0] == valores[1]:
+        raise EscaleraError('escalera.migrar_desde_kv y migrar_a_kv deben ser distintas.')
+    return valores[0], valores[1]
+
+
 def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> Parametros:
     """Los de la escalera, de ``escalera``, ``planificacion`` y ``estudios`` del perfil (RF-57).
 
@@ -193,6 +215,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
     trabajo, el que escribe el operador en la web (RF-67); no sale del perfil.
     """
     esc = dict(perfil.get('escalera') or {})
+    migrar_desde, migrar_a = _tensiones_migracion(esc)
     plan = dict(perfil.get('planificacion') or {})
     lim = dict(perfil.get('estudios') or {})
     pedidos = {'escalera.cumplimiento': esc.get('cumplimiento'), 'escalera.sorteos': esc.get('sorteos'),
@@ -240,7 +263,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         secciones=tuple(str(x) for x in esc.get('secciones_normalizadas') or ()),
         linea_larga_km=float(esc.get('linea_larga_km') or 10.0),
         regulador_min_km=float(15.0 if esc.get('regulador_min_km') is None else esc['regulador_min_km']),
-        migrar_desde_kv=float(esc.get('migrar_desde_kv') or 10.0), migrar_a_kv=float(esc.get('migrar_a_kv') or 22.9),
+        migrar_desde_kv=migrar_desde, migrar_a_kv=migrar_a,
         factor_sin_tasa=margen_sin_tasa((perfil.get('planificacion') or {}).get('factor_seguridad_set_sin_tasa'),
                                         (perfil.get('planificacion') or {}).get('factor_seguridad_set')),
         horizonte_anios=int(plan['vida_util_anios']),
@@ -889,6 +912,10 @@ def mva_del_elevador(kv: float, corriente_a: float, p: Parametros) -> float | No
 def _escalon_nivel(alim: str, kv: float, datos: Mapping[str, Any] | None, p: Parametros, avisos: list[str],
                    corriente_a: float = 0.0) -> list[Variante]:
     """042:RF-50 a RF-53: el alimentador entero a la tensión de destino, por una celda nueva o con su fuente."""
+    if p.migrar_desde_kv is None or p.migrar_a_kv is None:
+        avisos.append(f'{alim}: se omite el cambio de nivel: faltan escalera.migrar_desde_kv '
+                      'y/o migrar_a_kv del perfil o entrada real (042:RF-50).')
+        return []
     if not datos or abs(kv - p.migrar_desde_kv) > 0.05 * p.migrar_desde_kv:
         return []
     km, seds = float(datos.get('km') or 0.0), float(datos.get('seds') or 0.0)

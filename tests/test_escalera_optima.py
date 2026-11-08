@@ -11,6 +11,7 @@ SEMILLAS = (3, 17, 41, 88)
 PERFIL = {
     'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'semilla': 7, 'tolerancia_pu': 0.005,
                  'tolerancia_carga_pct': 1.0, 'max_variantes': 400,
+                 'migrar_desde_kv': 10.0, 'migrar_a_kv': 22.9,
                  'regulador_min_km': 0},     # estas redes sorteadas son cortas; 042:RF-49 tiene sus pruebas
     'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},

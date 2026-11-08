@@ -159,3 +159,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `AA12003D_22_9kV_FICHA` y `N212003D_22_9kV_FICHA`; secciones de un circuito solo con normalizadas (AA05003D, AA12003D);
       0 variantes con sección y terna a la vez. Ninguna cumplía con la máxima (AL209 recibe 19,38 MW); la corrida se cortó por
       decisión del usuario antes de la obra integral, que no es parte de esta tarea.
+
+Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente de propuestas sin capacidades/tensiones elegidas; ver tests/test_universalidad_obras.py y docs/regresiones/2026-11-08-obras-sin-capacidades-de-muestra.md. Conserva los pendientes nativos anteriores; ninguna casilla se cierra con esta corrección.

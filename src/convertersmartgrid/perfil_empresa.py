@@ -22,6 +22,7 @@ usuario lo elija (RF-32), y sin patrón no se excluye ninguna SED por su nombre 
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -235,7 +236,7 @@ PLANEAMIENTO_DE_REFERENCIA: dict[str, dict[str, Any]] = {
                       # Sin libro no hay hoja que leer: la SET se dimensiona con su transformador normalizado (042:RF-33).
                       'modulos_pit': {'hoja': '', 'fila_cabecera_contiene': '', 'columnas': {}}},
 }
-#: Tamaño de módulo de banco de referencia por tensión; se toma el de la tensión más cercana (042:RF-39).
+#: Muestra histórica para fixtures explícitos; nunca suple el perfil del usuario (042:RF-39).
 BANCOS_KVAR_DE_REFERENCIA = {10.0: 300.0, 22.9: 450.0}
 #: Conductores de refuerzo si la empresa no da su lista: AAAC de ficha universal (042:RF-40).
 SECCIONES_DE_REFERENCIA = ('AA05003D', 'AA12003D', 'AA24003D')
@@ -283,10 +284,15 @@ def bancos_kvar_por_tension(datos: dict[str, Any]) -> dict[float, float] | None:
             tension = float(str(kv).replace(',', '.'))
         except ValueError as exc:
             raise PerfilError(f'calibracion.bancos_kvar_por_tension: {kv!r} no es una tensión en kV.') from exc
-        if tension <= 0 or not _positivo(kvar):
+        try:
+            capacidad = float(kvar) if _positivo(kvar) else None
+        except OverflowError:
+            capacidad = None
+        if (not math.isfinite(tension) or tension <= 0 or capacidad is None
+                or not math.isfinite(capacidad)):
             raise PerfilError(f'calibracion.bancos_kvar_por_tension: {kv!r} → {kvar!r} tiene que '
-                              'ser positivo.')
-        out[tension] = float(kvar)
+                              'ser finito y positivo.')
+        out[tension] = capacidad
     return out
 
 
