@@ -119,6 +119,8 @@ def test_hash_incluye_cambios_relevantes_y_excluye_runtime(candidato):
     'constraints-python312-win.txt', 'instalador/ConverterSmartGrid.iss',
     'frontend/licencias/react-19.3.0-LICENSE.txt', 'LICENSE',
     'output/linea_base_001.json', 'output/linea_base_001_mdb.json',
+    'tests_ml/test_validacion_cuda.py', 'docs/MODELOS_IA_LOCK.json',
+    'docs/UPSTREAM_IA_LOCK.json',
 ])
 def test_cambiar_entrada_de_entrega_o_referencia_invalida_huella(candidato, relativo):
     """065:RF-1/24 — cambiar dependencias, instalación o referencias invalida el candidato observado."""

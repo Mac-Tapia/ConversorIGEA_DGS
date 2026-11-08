@@ -31,7 +31,7 @@ except ModuleNotFoundError:
 FORMATO = 'trazabilidad-candidato-v1'
 # Selección explícita y versionada: excluye modelos, dist y runtime; las dos referencias
 # de regresión se observan expresamente, sin incluir las demás salidas empresariales.
-DIRECTORIOS = ('src', 'tools', 'tests', 'frontend/src', 'frontend/test', 'frontend/scripts',
+DIRECTORIOS = ('src', 'tools', 'tests', 'tests_ml', 'frontend/src', 'frontend/test', 'frontend/scripts',
                'frontend/licencias', 'instalador', 'specs', 'config', '.github/workflows',
                '.claude/skills', '.agents/coordination')
 EXTENSIONES = {'.py', '.ts', '.tsx', '.js', '.mjs', '.json', '.toml', '.yaml', '.yml',
@@ -42,7 +42,7 @@ FIJOS = ('CODIGO_FUENTE.md', 'CLAUDE.md', 'README.md', 'LICENSE', 'pyproject.tom
          'frontend/package.json', 'frontend/package-lock.json', 'frontend/vite.config.ts',
          'frontend/tsconfig.json', 'frontend/index.html', 'frontend/.npmrc',
          'output/linea_base_001.json', 'output/linea_base_001_mdb.json')
-PATRONES_FIJOS = ('requirements*.txt', 'requirements*.lock', 'constraints*.txt')
+PATRONES_FIJOS = ('requirements*.txt', 'requirements*.lock', 'constraints*.txt', 'docs/*_LOCK.json')
 EXCLUIDOS = {'__pycache__', '.pytest_cache', 'node_modules', '.git', 'dist', 'output'}
 
 

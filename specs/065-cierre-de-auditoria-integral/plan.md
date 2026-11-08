@@ -51,3 +51,7 @@ siguen fuera de esa selección. Una regresión por mutación reproduce diez omis
 con la selección anterior; ambos módulos de trazabilidad/verificador pasan 81
 pruebas en el entorno integral Python3.12.16. Es comprobación enfocada, sin cerrar
 M10 ni sustituir el instalador, la suite completa o la aceptación del dominio.
+
+La misma selección incluye `tests_ml/` y los catálogos `docs/*_LOCK.json`, que
+consume la edición completa. Se reprodujeron otras tres omisiones por mutación;
+trazabilidad, verificador y entrega integral pasan 110 pruebas enfocadas.
