@@ -97,25 +97,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho el 2026-10-28: `ejecutor.revisar_tras_error` da el error al modelo; con la misma tarea y
       datos (fallo pasajero) se reintenta una vez, con otros vuelve al operador con la propuesta
       para confirmar (RF-19); cada decisión queda en el registro `reintentos`.
-- [ ] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
-      Hecho cuando: el modelo ajustado pasa RF-18 con el conjunto real, o la tarea se cierra
-      con la medida de que no hace falta.
-      Cerrada el 2026-10-28 con la medida: el Transformer en uso (20261024-150042-37ce) acierta 1,0
-      la tarea y 1,0 el F1 de los datos en las 5 órdenes reales (1 en la prueba fija), sobre las
-      puertas de RF-18; LoRA/QLoRA no hace falta. Con 5 órdenes la medida es débil: se repite al
-      llegar a las 200 (RF-19), y los pares de preferencia de T15 quedan para un DPO si entonces
-      no pasa.
-      Reabierta el 2026-10-28: con las 200 órdenes fijas (T27) el asistente no pasa RF-18 (0,854 y
-      0,851); toca mejorar el modelo (búsqueda de hiperparámetros, más capacidad o ajuste fino).
-      Medido el mismo día en la GPU: 40 épocas y 250 frases por tarea, 0,902 y 0,851; 192 dimensiones,
-      6 capas, 0,927 y 0,841. La tarea mejora con capacidad; el F1 de los datos no (el marcado de
-      trozos por carácter es el cuello de botella). Sigue: búsqueda de hiperparámetros con Optuna
-      sobre las fijas de entrenamiento y, si no llega, cabeza de datos con CRF o ajuste fino.
-      Revisado el 2026-11-03 (rama `feat/027-047t8`): sigue abierta. Ningún intérprete pasa aún RF-18
-      (069 T7, 079 T7 y 085 T6 abiertas, las tres con su medida en la GPU), y `decidir_ajuste` de 047 T4
-      (`tests/test_asistente_ajuste_condicionado.py`, 19 aprobadas) decide **bloqueada**: 3 órdenes humanas
-      de 200 no acreditan el incumplimiento real que RF-21 exige. El QLoRA es 047 T7 (falló por memoria el
-      2026-11-01). No hay medida de que no haga falta ni modelo ajustado que pase: no se cierra.
+- T11. Retirada el 2026-11-08 por orden del usuario, sin hacer: condicional; la cubren 047 T4 y T7. Era: (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
 - [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
       Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
@@ -193,14 +175,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (`tests/test_ejemplos_pide.py`, 4 aprobadas, 027:RF-49). Lo que falta es producirlos de un sistema
       real, y F03, F04 y F06 salen de flujos y de estudios de confiabilidad en DIgSILENT: por eso pasa a
       `[DIgSILENT]` (regla de la 033: una tarea que mezcla código y DIgSILENT cierra el código con sus pruebas).
-- [ ] T14. [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
-      familias de prueba y asistente con RF-18. (RF-28)
-      Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
-      de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
-      sus informes (RF-43).
-      Revisado el 2026-11-03: sigue abierta. El código de RF-43 es de la 070 (implementada; faltan sus T9 a
-      T11 en DIgSILENT y en el navegador) y las puertas del asistente no se cumplen (T11). Sin informe de los
-      cuatro sistemas en DIgSILENT.
+- T14. Retirada el 2026-11-08 por orden del usuario, sin hacer: superada: la 086 la da por innecesaria y la cubre el recorrido de la 070. Era: [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
 - [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
@@ -232,22 +207,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       acierta 0,982 frente a 0,983 sin destilar en la prueba fija de 541, así que se queda sin
       destilar (RF-60) y el modelo en uso (0,987) sigue. Con 11 órdenes frente a 4070 sintéticas la
       destilación aún no aporta: hará falta con las 200 órdenes reales de RF-17.
-- [ ] T26. Claude y Codex como maestros de la destilación: etiquetas de Claude en
-      `etiquetas_maestro`, Codex por su CLI con los nombres de la red enmascarados y anotado, y
-      `tools/asistente_entrenar.py --destilar --maestro claude|codex|ollama`. (RF-56, RF-63, RF-64)
-      Hecho cuando: pruebas en verde (enmascarado y restitución, etiquetas de archivo) y una
-      corrida real con las etiquetas de Claude y otra con Codex.
-      Avance del 2026-10-28: `MaestroArchivo`, `MaestroCodex` (con `enmascarar` y `reponer`) y
-      `--maestro claude|codex|ollama`, `--modelo-codex`; 9 pruebas en verde. Claude etiquetó las 13
-      órdenes sin confirmar (5 votos cada una) y, con él de maestro, el alumno acierta 0,985 frente a
-      0,980 sin destilar (se usa el destilado); no se promueve porque el modelo en uso acierta 0,987.
-      Codex, pendiente: su cuenta de ChatGPT rechaza el modelo configurado (`gpt-5.6-sol`) y también
-      gpt-5.5, gpt-5 y gpt-5-codex; falta configurar un modelo que la cuenta admita.
-      Revisado el 2026-11-03: sigue abierta, solo por la corrida con Codex por su CLI. Las 200 propuestas
-      que Codex redactó como maestro de sesión (047 T6, origen `propuesta_maestro_codex_20261031_v1`) no son
-      esa corrida: no pasan por `MaestroCodex` ni por el enmascarado de RF-63. De
-      `tests/test_asistente_destilacion.py` aprueban 5 sin GPU; las 2 que entrenan exigen CUDA (`SinGPU`),
-      que esta revisión ocultó.
+- T26. Retirada el 2026-11-08 por orden del usuario, sin hacer: pedía a Codex como maestro y ya no está activo; el maestro es Claude (068 y 085). Era: Claude y Codex como maestros de la destilación: etiquetas de Claude en
 - [x] T27. Conjunto fijo de 200 órdenes del maestro en el entrenamiento y en la prueba fija, con
       su huella en el registro del modelo. (RF-65 a RF-67)
       Hecho cuando: pruebas en verde (200, todas las tareas, reparto 160/40, no cambian RF-19) y
@@ -266,12 +226,9 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       el gemelo se aparta 0,0024 p.u. en sus 10 episodios de prueba y queda promovido
       (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN111–TA225 daba 0,31 p.u.
       en Chincha.
-- [ ] T29. [DIgSILENT] Corrida de los escenarios por hipercubo latino en copias del proyecto de Nasca (sigue a T3). (RF-4)
-      Hecho cuando: el resultado de T3 medido en DIgSILENT desde la web.
-- [ ] T30. [DIgSILENT] Propuesta de bancos con el top-k verificada en DIgSILENT con Chincha (sigue a T8). (RF-14 a RF-16)
-      Hecho cuando: el resultado de T8 medido en DIgSILENT desde la web.
-- [ ] T31. [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)
-      Hecho cuando: el resultado de T24 medido en DIgSILENT desde la web.
+- T29. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Corrida de los escenarios por hipercubo latino en copias del proyecto de Nasca (sigue a T3). (RF-4)
+- T30. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Propuesta de bancos con el top-k verificada en DIgSILENT con Chincha (sigue a T8). (RF-14 a RF-16)
+- T31. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)
 
 Revisión del 2026-11-03 de T29, T30 y T31: siguen abiertas. Ninguna spec posterior las midió en DIgSILENT:
 `docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en

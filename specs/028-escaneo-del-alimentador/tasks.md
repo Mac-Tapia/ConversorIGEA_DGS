@@ -18,12 +18,7 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho cuando: pruebas con `fake_pf` en verde.
 - [x] T5. `tools/sistema_web.py` escanea antes de calibrar. (RF-15)
       Hecho cuando: prueba de `sistema_web` en verde.
-- [ ] T6. [DIgSILENT] Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
-      usuario y recalibrar.
-      Hecho cuando: el escaneo nombra el generador de NA205 y su barra, y la calibración lo usa.
-      Pendiente (usuario, 2026-10-28: «no puedo modificar el DIgSILENT a mano, deja pendiente de
-      central térmica a mano»): la central de NA205 no está aún en el proyecto. El escaneo en
-      DIgSILENT ya corre (Nasca: 8 bancos de calibración en NA205 y 7 en NA203, ningún generador).
+- T6. Retirada el 2026-11-08 por orden del usuario, sin hacer: dependía de una central puesta a mano que el proyecto no tiene; sin ella no hay nada real que escanear. Era: [DIgSILENT] Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
 - [x] T7. Recalibrar sin bloqueos: escaneo automático al simular y aplicar, tramos nuevos frente al
       DGS aceptado, generador del operador sin central y central sin barra que no detiene.
       (RF-16 a RF-20)

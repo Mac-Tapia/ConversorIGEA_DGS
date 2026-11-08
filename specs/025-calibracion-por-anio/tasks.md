@@ -170,13 +170,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       variantes, `--evaluar`, costo con el CAPEX por ruta y el perfil, elección y solo la elegida
       aplicada); la escalera antigua (`obras_pf.escalera_de_obras`) retirada; tabla de variantes en el
       informe de cargas con su costo y por qué no.
-- [ ] T21. [DIgSILENT] DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
-      con la obra elegida en DIgSILENT nativo y «Sin proyecto 2025» calibrado igual que antes.
-      Hecho cuando: los dos con su variante elegida o con la más cercana dicha (RF-56).
-- [ ] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
-      Hecho cuando: `grep -rnoE "025:RF-[0-9]+[a-z]?" tests | sort -u` lista RF-44 a RF-60 y la suite con las siete variables pasa sin omitidas.
-      Avance del 2026-11-03: el grep lista RF-44 a RF-60, y los 12 ficheros de pruebas que los citan pasan sin datos reales. Falta
-      solo la suite completa con las variables `CSG_*` de `CLAUDE.md` y `-rs`, sin omitidas: `python -m pytest -q -rs`.
+- T21. Retirada el 2026-11-08 por orden del usuario, sin hacer: PA217 está vetado (086, «No hacen falta para la 1.0»). Era: [DIgSILENT] DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
+- T22. Retirada el 2026-11-08 por orden del usuario, sin hacer: duplicada de 086 T31. Era: Validación de RF-44 a RF-60 y suite completa sin omitidas.
 - [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_web.py
       tests/test_cargas_pf_guion_016.py tests/test_cargas_tres_pasos_front.py` en verde.

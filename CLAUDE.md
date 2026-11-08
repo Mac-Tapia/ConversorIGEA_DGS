@@ -40,7 +40,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | implementada | falta T19 |
   | 012 Confiabilidad y capacidad de la red calibrada | implementada | falta T13 |
-  | 013 Mes de análisis y transferencia entre dos alimentadores | implementada | falta T7 |
+  | 013 Mes de análisis y transferencia entre dos alimentadores | implementada |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
   | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida |  |
@@ -52,10 +52,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
-  | 025 Calibración por año de medición | aprobada | falta T21, T22 |
+  | 025 Calibración por año de medición | aprobada |  |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | falta T12 |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T22, T14, T26, T29, T30, T31 |
-  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11 |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T22 |
+  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T11 |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
   | 031 Proyección econométrica de la demanda con variables exógenas | reservada |  |
@@ -85,14 +85,14 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | implementada | falta T2 |
   | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | implementada | falta T3 |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
-  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |
+  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T7 |
   | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
   | 060 Correcciones verificables del aprendizaje | cumplida |  |
   | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
-  | 065 Cierre verificable de la auditoría integral | aprobada | falta T12, T13, T17 |
+  | 065 Cierre verificable de la auditoría integral | aprobada |  |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | implementada | falta T9 |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
