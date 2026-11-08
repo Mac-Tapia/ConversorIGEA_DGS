@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .base import AdapterUnavailable, LayerInfo, VNRSourceAdapter
+from .base import AdapterUnavailable, LayerInfo, SourceProbe, VNRSourceAdapter
 
 
 # -------------------------------------------------------------------------- SQLite
@@ -25,6 +25,30 @@ class SQLiteAdapter(VNRSourceAdapter):
     read_only: bool = True
 
     family = 'DATABASE_SQLITE'
+
+    def probe(self, source) -> SourceProbe:
+        """Inspecciona el esquema sin crear la fuente ni abrirla con permiso de escritura."""
+        import sqlite3
+
+        try:
+            path = Path(self.path or source)
+            if not path.is_file():
+                return SourceProbe(family=self.family, ok=False,
+                                   reason=f'No existe un archivo SQLite en {path}.')
+            # probe siempre es de lectura, incluso si otro uso del adaptador habilitó
+            # escritura. as_uri escapa #/%: no deben seleccionar otro archivo por URI.
+            with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as conn:
+                layers = [name for (name,) in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
+                    "AND name NOT GLOB 'sqlite_*' ORDER BY name"
+                ).fetchall()]
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            return SourceProbe(family=self.family, ok=False,
+                               reason=f'No se puede inspeccionar SQLite: {exc}')
+        if not layers:
+            return SourceProbe(family=self.family, ok=False,
+                               reason='SQLite no contiene tablas ni vistas de usuario.')
+        return SourceProbe(family=self.family, ok=True, layers=layers)
 
     def _conn(self):
         import sqlite3

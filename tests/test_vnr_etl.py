@@ -59,6 +59,170 @@ from convertersmartgrid.adaptadores.entrada.vnr.topology.graph import validate_t
 from convertersmartgrid.adaptadores.entrada.vnr.validation import run_gates
 
 
+def _sqlite_de_probe(path):
+    import sqlite3
+
+    conn = sqlite3.connect(path)
+    try:
+        conn.executescript('''
+            CREATE TABLE tramos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT);
+            INSERT INTO tramos(nombre) VALUES ('T1');
+            CREATE TABLE fuentes (id TEXT);
+            CREATE TABLE sqlitex_lecturas (id TEXT);
+            CREATE VIEW vista_red AS SELECT nombre FROM tramos;
+        ''')
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize('extension', ['.sqlite', '.db'])
+def test_sqlite_probe_real_inventaria_y_conserva_bytes_y_mtime(tmp_path, extension):
+    """034:RF-4, 034:RF-5: inspección del esquema real sin escribir en la fuente."""
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import probe_source
+
+    path = tmp_path / ('red # medición%' + extension)
+    _sqlite_de_probe(path)
+    antes = (sha256_of(path), path.stat().st_mtime_ns)
+    report = probe_source(str(path))
+    assert report == {'family': 'DATABASE_SQLITE', 'ok': True, 'reason': '',
+                      'layers': ['fuentes', 'sqlitex_lecturas', 'tramos', 'vista_red']}
+    assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+    # En Windows un handle SQLite aún abierto impediría retirar la fuente de prueba.
+    path.rename(path.with_name('cerrada' + extension))
+
+
+@pytest.mark.parametrize('extension', ['.sqlite', '.db'])
+@pytest.mark.parametrize('modo', ['ausente', 'carpeta', 'corrupta', 'vacia'])
+def test_sqlite_probe_rechazo_estructurado_sin_crear_ni_modificar(tmp_path, extension, modo):
+    """034:RF-5: no hay éxito ficticio ni creación de la base que se inspecciona."""
+    import sqlite3
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import probe_source
+
+    path = tmp_path / (modo + extension)
+    if modo == 'carpeta':
+        path.mkdir()
+    elif modo == 'corrupta':
+        path.write_bytes(b'no es una base SQLite')
+    elif modo == 'vacia':
+        sqlite3.connect(path).close()
+    antes = (sha256_of(path), path.stat().st_mtime_ns) if path.is_file() else None
+    existia = path.exists()
+    report = probe_source(str(path))
+    assert report['family'] == 'DATABASE_SQLITE'
+    assert report['ok'] is False and report['reason'] and report['layers'] == []
+    assert path.exists() == existia
+    if antes:
+        assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+
+
+def test_sqlite_probe_abre_solo_lectura_aunque_el_adaptador_permita_escribir(tmp_path, monkeypatch):
+    """034:RF-5: se comprueba la restricción con un intento de escritura real."""
+    import sqlite3
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    path = tmp_path / 'red.sqlite'
+    _sqlite_de_probe(path)
+    antes = (sha256_of(path), path.stat().st_mtime_ns)
+    conectar = sqlite3.connect
+    intentos = []
+
+    def conexion_comprobada(*args, **kwargs):
+        conn = conectar(*args, **kwargs)
+        try:
+            with pytest.raises(sqlite3.OperationalError, match='readonly'):
+                conn.execute('CREATE TABLE no_debe_crearse (id INTEGER)')
+        except BaseException:
+            conn.close()
+            raise
+        intentos.append(True)
+        return conn
+
+    monkeypatch.setattr(sqlite3, 'connect', conexion_comprobada)
+    report = SQLiteAdapter(path=str(path), read_only=False).probe(str(path))
+    assert report.ok is True and intentos == [True]
+    assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+
+
+@pytest.mark.parametrize('modulo', ['vnr_etl', 'convertersmartgrid.adaptadores.entrada.vnr'])
+@pytest.mark.parametrize('modo', ['valida', 'ausente', 'corrupta', 'vacia'])
+def test_sqlite_probe_cli_real_codigo_y_json(tmp_path, modulo, modo):
+    """002:RF-22; 034:RF-5: CLI positivo/negativo real conserva fuente y reporte."""
+    import subprocess
+    import sys
+
+    path = tmp_path / 'red.sqlite'
+    valida = modo == 'valida'
+    if valida:
+        _sqlite_de_probe(path)
+    elif modo == 'corrupta':
+        path.write_bytes(b'no es SQLite')
+    elif modo == 'vacia':
+        import sqlite3
+        sqlite3.connect(path).close()
+    antes = (sha256_of(path), path.stat().st_mtime_ns) if path.exists() else None
+    destino = tmp_path / 'probe.json'
+    env = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src')}
+    r = subprocess.run([sys.executable, '-B', '-m', modulo, 'probe', str(path), '--output', str(destino)],
+                       cwd=tmp_path, env=env, capture_output=True, text=True, timeout=30)
+    assert r.returncode == (0 if valida else 1), r.stdout + r.stderr
+    report = json.loads(r.stdout)
+    assert report['ok'] is valida and json.loads(destino.read_text(encoding='utf-8')) == report
+    assert r.stderr == ''
+    if valida:
+        assert report['layers'] == ['fuentes', 'sqlitex_lecturas', 'tramos', 'vista_red']
+    else:
+        assert report['reason'] and report['layers'] == []
+    if antes:
+        assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+    else:
+        assert not path.exists()
+
+
+@pytest.mark.parametrize('modo', ['existente', 'ausente', 'hardlink'])
+def test_sqlite_probe_cli_no_sobrescribe_fuente_con_su_informe(tmp_path, modo):
+    """034:RF-5: --output tampoco puede destruir o crear la propia fuente."""
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
+
+    path = tmp_path / 'red.sqlite'
+    if modo != 'ausente':
+        _sqlite_de_probe(path)
+    destino = tmp_path / 'alias.json' if modo == 'hardlink' else path
+    if modo == 'hardlink':
+        os.link(path, destino)
+    antes = (sha256_of(path), path.stat().st_mtime_ns) if path.exists() else None
+    with pytest.raises(SystemExit, match='fuente'):
+        main(['probe', str(path), '--output', str(destino)])
+    if antes:
+        assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+    else:
+        assert not path.exists()
+
+
+@pytest.mark.parametrize('extension', ['.csv', '.geojson'])
+def test_cli_probe_respeta_rechazo_de_otro_adaptador(tmp_path, capsys, extension):
+    """034:RF-5: un SourceProbe(ok=False) jamás es éxito del comando."""
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
+
+    path = tmp_path / ('ausente' + extension)
+    assert main(['probe', str(path)]) == 1
+    assert json.loads(capsys.readouterr().out)['ok'] is False
+    assert not path.exists()
+
+
+def test_sqlite_probe_informe_no_escribible_dice_error_y_conserva_fuente(tmp_path, capsys):
+    """034:RF-5: fallar al guardar el informe tampoco se anuncia como éxito."""
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
+
+    path = tmp_path / 'red.sqlite'
+    _sqlite_de_probe(path)
+    antes = (sha256_of(path), path.stat().st_mtime_ns)
+    with pytest.raises(SystemExit, match='Probe:'):
+        main(['probe', str(path), '--output', str(tmp_path)])
+    assert capsys.readouterr().out == ''
+    assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+
+
 # --------------------------------------------------------------------------- modelo
 def _model_base() -> CanonicalModel:
     model = CanonicalModel()

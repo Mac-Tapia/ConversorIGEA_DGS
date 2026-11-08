@@ -200,13 +200,19 @@ def main(argv=None) -> int:
         from .pipeline import probe_source
 
         try:
+            if args.output:
+                destino, fuente = Path(args.output), Path(args.source)
+                if (destino.resolve() == fuente.resolve()
+                        or (destino.exists() and fuente.exists() and destino.samefile(fuente))):
+                    raise ValueError('El informe de probe no puede sobrescribir la fuente.')
             report = probe_source(args.source)
+            texto = json.dumps(report, ensure_ascii=False, indent=2)
+            if args.output:
+                Path(args.output).write_text(texto, encoding='utf-8')
         except (OSError, ValueError) as exc:
             raise SystemExit(f'Probe: {exc}') from exc
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        if args.output:
-            Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-        return 0
+        print(texto)
+        return 0 if report['ok'] else 1
 
     if args.command in ('inventory', 'companies', 'periods'):
         from .pipeline import discover_layers, list_companies, list_periods
