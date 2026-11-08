@@ -3,14 +3,19 @@
 Spec 065 RF-21; diagnóstico de la puerta G2 sobre
 `c6ec7fb8e4b6499128d01e829d5716f4e8d53ccf`.
 
-## Síntoma y causa
+## Síntoma
 
-`test_control_sellado_no_certifica_fisica` falla aislada porque la fixture
-`caso` crea un manifiesto sin `version`. El lector canónico exige el entero
+`test_control_sellado_no_certifica_fisica` falla aislada con
+`listo_diagnostico=False` y el bloqueo «Manifiesto de otra ejecución o versión
+no admitida.».
+
+## Causa
+
+La fixture `caso` crea un manifiesto sin `version`. El lector canónico exige el entero
 `1` y lo rechaza correctamente. El rechazo del esquema también hacía pasar
 varias negativas sin alcanzar la manipulación que pretendían comprobar.
 
-## Corrección y regresión
+## Comprobación permanente
 
 Solo cambia la fixture de `tests/test_aceptar_dominio.py`: declara `version: 1`.
 Las negativas de fuente modificada, replay con otro run, vínculo alterado y
@@ -19,6 +24,11 @@ parten de una fixture válida y retiran o alteran la versión: ausente,
 booleano, futura y texto siguen bloqueados. La preaceptación continúa sin
 aceptación eléctrica y sin operaciones nativas. No cambia código de producto,
 firmas, sellos, umbrales ni reglas físicas.
+
+## Prueba
+
+- `tests/test_aceptar_dominio.py::test_control_sellado_no_certifica_fisica`
+- `tests/test_aceptar_dominio.py::test_version_de_manifiesto_no_admitida_bloquea`
 
 El caso original produjo un fallo aislado. Con las aserciones reforzadas y
 antes de corregir la fixture, el módulo produjo 9 fallos y 8 pases; después,
