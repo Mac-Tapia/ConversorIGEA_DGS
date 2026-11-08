@@ -41,7 +41,6 @@ Auditoría externa: `implementacion/p25_conciliacion_tareas_20261108/HANDOFF.md`
 | P23.5 | api/shared/features/app sin duplicación ni fachadas, linter AST JS/TS y negativas reales; npm test/lint/types/build y renders preservan superficies. T11 visual sigue abierta. |
 | P26.3 | D3/D7 respetados: usuario aporta licencias, no certificación legal ficticia ni permiso de publicar inferido de pruebas. |
 | P25.7 | Checkpoint con production_ready_core, scientific_acceptance por ocho familias de modelos, operational_acceptance y project_complete separados, todos False hasta su evidencia del candidato final. Se mantiene rechazo e incertidumbre; no equivalen a aceptacion. |
-
 | P03.4 | Edición completa exige seis recibos runtime explícitos y rechaza contrato/replay/faltantes/alteraciones; no reemplaza campañas por tests_ml. |
 | P03.5 | Resultado materializa identidades/declaraciones y fallos posteriores, enlaza datos/modelos y mantiene estados de aceptación separados. |
 
