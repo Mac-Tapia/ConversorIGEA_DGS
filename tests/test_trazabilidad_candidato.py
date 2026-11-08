@@ -113,6 +113,28 @@ def test_hash_incluye_cambios_relevantes_y_excluye_runtime(candidato):
     assert tc.hash_candidato(candidato)[0] != antes[0]
 
 
+@pytest.mark.parametrize('relativo', [
+    'requirements-nucleo.lock', 'requirements-complemento-ia.txt',
+    'requirements-mcp.txt', 'requirements-motores.txt', 'requirements-madrl.txt',
+    'constraints-python312-win.txt', 'instalador/ConverterSmartGrid.iss',
+    'frontend/licencias/react-19.3.0-LICENSE.txt', 'LICENSE',
+    'output/linea_base_001.json', 'output/linea_base_001_mdb.json',
+])
+def test_cambiar_entrada_de_entrega_o_referencia_invalida_huella(candidato, relativo):
+    """065:RF-1/24 — cambiar dependencias, instalación o referencias invalida el candidato observado."""
+    tc = herramienta()
+    ruta = candidato / relativo
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_bytes(b'entrada anterior\n')
+    antes, _ = tc.hash_candidato(candidato)
+    ruta.write_bytes(b'entrada diferente\n')
+    despues, archivos = tc.hash_candidato(candidato)
+    assert antes != despues, f'Una entrada de la entrega cambia sin invalidar su evidencia: {relativo}'
+    assert relativo in archivos
+    ruta.unlink()
+    assert tc.hash_candidato(candidato)[0] != despues
+
+
 def junit(raiz, estados=('pass',)):
     ruta = raiz.parent / 'resultados.xml'
     nombres = ['TestMotor.test_funciona', 'test_vacia', 'test_omitida', 'test_xfail']

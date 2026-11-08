@@ -11,7 +11,7 @@
       "evidence": []
     },
     "P01": {
-      "state": "runtime316_compilado_instalado_compatibilidad_tecnica_verificada_entorno_integral316_en_migracion",
+      "state": "runtime316_y_entorno_integral255_verificados_importaciones24_y_nf4_cuda_auditoria_con_tres_exclusiones",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
@@ -23,7 +23,11 @@
         "p01_python316_20261108.json",
         "p22_runtime_api_f56ef508/resultado.json",
         "p01_venv316_20261108/creacion.json",
-        "p01_venv316_20261108/runtime.json"
+        "p01_venv316_20261108/runtime.json",
+        "p01_venv316_20261108/integral_exit.json",
+        "p01_venv316_20261108/verificacion_integral/resultado.json",
+        "p01_venv316_20261108/auditoria_integral.json",
+        "cierre_copias_20261108/junction316.json"
       ]
     },
     "P02": {
@@ -31,7 +35,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "mcp9_y_conversiones_referencia561_verificadas_puerta_final_completa_pendiente",
+      "state": "huella_de_entrega_corregida81_pruebas_enfocadas_puerta_completa_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -53,7 +57,9 @@
         "p03_mcp_f56ef508/20261108T110752Z_37b8cc74dbad4e97ba234704d120b28e/registro.json",
         "p03_referencias_independientes_56172510.json",
         "p03_lineas_base_561_f56_guardia/20261108T113345Z_eaa99d59c1844457a04055f2b523960e/registro.json",
-        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json"
+        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json",
+        "p03_huella_rojo.xml",
+        "p03_huella_verde.xml"
       ]
     },
     "P04": {
@@ -326,5 +332,38 @@
     "012:T13",
     "049:T4"
   ],
-  "worktree_identity_evidence": "Manifiestos externos de cada ejecución: root, revisión y huellas."
+  "worktree_identity_evidence": "Manifiestos externos de cada ejecución: root, revisión y huellas.",
+  "parallel_work": {
+    "authorized_by_user": true,
+    "base_commit": "0bce6da002cbe8252b2a5620c1c3e7a6f9c0de04",
+    "integrator": "/root",
+    "tasks": {
+      "P19": {
+        "owner": "/root/p19_cierre",
+        "branch": "codex/p19-paralelo-20261108",
+        "state": "en_curso"
+      },
+      "P21": {
+        "owner": "/root/p21_cierre",
+        "branch": "codex/p21-paralelo-20261108",
+        "state": "en_curso"
+      },
+      "P22": {
+        "owner": "/root/p22_paquete_completo",
+        "branch": "codex/p22-paralelo-20261108",
+        "state": "en_curso"
+      }
+    }
+  },
+  "own_cleanup": {
+    "authorization": "Eliminar duplicados propios obsoletos sin nuevos respaldos por orden expresa del usuario",
+    "state": "artefactos_y_temporales_retirados_entornos_en_retirada",
+    "evidence": [
+      "cierre_copias_20261108/servidor8796_cierre_v2.json",
+      "cierre_copias_20261108/eliminacion_obsoletos.json",
+      "cierre_copias_20261108/eliminacion_temporales.json"
+    ],
+    "new_backups_created": false,
+    "production_acceptance": false
+  }
 }

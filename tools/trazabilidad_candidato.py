@@ -29,16 +29,20 @@ except ModuleNotFoundError:
     _spec.loader.exec_module(ES)
 
 FORMATO = 'trazabilidad-candidato-v1'
-# Selección explícita y versionada: excluye datos empresariales, modelos, dist y runtime.
+# Selección explícita y versionada: excluye modelos, dist y runtime; las dos referencias
+# de regresión se observan expresamente, sin incluir las demás salidas empresariales.
 DIRECTORIOS = ('src', 'tools', 'tests', 'frontend/src', 'frontend/test', 'frontend/scripts',
-               'specs', 'config', '.github/workflows', '.claude/skills', '.agents/coordination')
+               'frontend/licencias', 'instalador', 'specs', 'config', '.github/workflows',
+               '.claude/skills', '.agents/coordination')
 EXTENSIONES = {'.py', '.ts', '.tsx', '.js', '.mjs', '.json', '.toml', '.yaml', '.yml',
-               '.md', '.txt', '.bat', '.ps1', '.css', '.html', '.ini', '.cfg'}
-FIJOS = ('CODIGO_FUENTE.md', 'CLAUDE.md', 'README.md', 'pyproject.toml', 'run_gui.bat',
+               '.md', '.txt', '.bat', '.ps1', '.css', '.html', '.ini', '.cfg', '.iss', '.lock'}
+FIJOS = ('CODIGO_FUENTE.md', 'CLAUDE.md', 'README.md', 'LICENSE', 'pyproject.toml', 'run_gui.bat',
          'requirements.txt', 'requirements-drivers.txt', 'constraints-python312-win.txt',
          'docs/constitution.md', 'docs/implementacion065/deuda_arquitectura.json',
          'frontend/package.json', 'frontend/package-lock.json', 'frontend/vite.config.ts',
-         'frontend/tsconfig.json', 'frontend/index.html', 'frontend/.npmrc')
+         'frontend/tsconfig.json', 'frontend/index.html', 'frontend/.npmrc',
+         'output/linea_base_001.json', 'output/linea_base_001_mdb.json')
+PATRONES_FIJOS = ('requirements*.txt', 'requirements*.lock', 'constraints*.txt')
 EXCLUIDOS = {'__pycache__', '.pytest_cache', 'node_modules', '.git', 'dist', 'output'}
 
 
@@ -55,6 +59,8 @@ def hash_candidato(raiz: Path) -> tuple[str, dict[str, str]]:
     """
     raiz = Path(raiz).resolve()
     rutas = {raiz / r for r in FIJOS if (raiz / r).is_file()}
+    for patron in PATRONES_FIJOS:
+        rutas.update(p for p in raiz.glob(patron) if p.is_file())
     for directorio in DIRECTORIOS:
         rutas.update(p for p in (raiz / directorio).rglob('*') if p.is_file()
                      and p.suffix.lower() in EXTENSIONES

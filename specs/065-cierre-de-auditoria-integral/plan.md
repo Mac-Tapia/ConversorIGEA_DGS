@@ -42,3 +42,12 @@ generadas se marcan para reconfigurarlas sin desplazar los datos de la ejecució
 los overrides manuales. Los avisos del puerto ocupado también conservan esa salida
 binaria. Verificaciones enfocadas en `test_verificar_candidato`, `test_runtime_paths`
 y `test_lanzador_web`; la regresión completa sigue siendo una puerta independiente.
+
+Cobertura de la huella (2026-11-08, RF-1/20/24): se observan los requisitos y locks
+de todas las capacidades declaradas en la raíz, el instalador, las licencias
+entregadas y las dos referencias de comparación TXT/MDB. Cambiar o retirar
+cualquiera invalida la observación anterior. Las demás salidas, modelos y cachés
+siguen fuera de esa selección. Una regresión por mutación reproduce diez omisiones
+con la selección anterior; ambos módulos de trazabilidad/verificador pasan 81
+pruebas en el entorno integral Python3.12.16. Es comprobación enfocada, sin cerrar
+M10 ni sustituir el instalador, la suite completa o la aceptación del dominio.
