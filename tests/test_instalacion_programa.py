@@ -1068,6 +1068,36 @@ def test_inventario_de_terceros(tmp_path):
     assert 'a 1.0' in avisos and 'Texto de la licencia' in avisos and 'no es una opinión legal' in avisos
 
 
+def test_complemento_separado_con_huellas_y_rechazo_de_alteracion(tmp_path, monkeypatch):
+    """086:RF-37, 086:RF-39 — paquete separado verificable; una rueda alterada se rechaza."""
+    source = tmp_path / 'fuente'
+    source.mkdir()
+    (source / 'requirements-complemento-ia.txt').write_text('torch==1.0\n', encoding='utf-8')
+    (source / 'requirements-nucleo.lock').write_text('pip==1.0 \\\n --hash=sha256:base\n', encoding='utf-8')
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    wheel = _rueda_de_terceros(cache, 'torch', **{'License-Expression':'BSD-3-Clause'})
+    def descargar(*args):
+        destino = Path(args[args.index('-d') + 1])
+        shutil.copyfile(wheel, destino / wheel.name)
+    monkeypatch.setattr(CC, '_pip', descargar)
+    salida = tmp_path / 'complemento'
+    manifest = CC.construir_complemento_ia(source, salida, cache=cache, version='1.0.0rc3')
+    assert manifest['tipo'] == 'complemento-ia' and manifest['pesos_del_proyecto_incluidos'] is False
+    assert '--hash=sha256:' in (salida / 'instalacion.lock').read_text(encoding='utf-8')
+    assert 'Texto de la licencia' in (salida / 'THIRD_PARTY_NOTICES.txt').read_text(encoding='utf-8')
+    assert 'sin pruebas ni torch' not in (salida / 'instalacion.lock').read_text(encoding='utf-8')
+    assert IC.verificar_candidato(salida)['version'] == '1.0.0rc3'
+    (salida / 'wheels' / wheel.name).write_bytes(b'alterado')
+    with pytest.raises(IC.ErrorInstalacion, match='alterado'):
+        IC.verificar_candidato(salida)
+    witness = salida / 'conservar.txt'
+    witness.write_text('original', encoding='utf-8')
+    with pytest.raises(CE.EntregaError, match='vacía'):
+        CC.construir_complemento_ia(source, salida, cache=cache, version='1.0.0rc3')
+    assert witness.read_text(encoding='utf-8') == 'original'
+
+
 def test_python_embebido_solo_el_312(tmp_path):
     """086:RF-36 — con otro, la API de DIgSILENT no carga y no se ve hasta la primera importación."""
     with pytest.raises(CE.EntregaError, match='3.12'):

@@ -136,7 +136,28 @@ Use rutas cortas: la de construir se suma a la de cada fichero. El candidato rec
 
 El núcleo no trae `torch`: pesa gigas y nada de lo que se vende en la 1.0 lo necesita. Su lista está en
 `requirements-complemento-ia.txt`. Solo hace falta para los modelos locales del asistente de órdenes, que está en beta; se instala con
-salida a internet y con su propia decisión de licencias. La versión 1.0 no entrega pesos entrenados.
+salida a internet, o desde un paquete offline con su `instalacion.lock` y la carpeta `wheels`.
+La versión 1.0 no entrega pesos entrenados.
+
+Para preparar ese paquete con CPython 3.12 de 64 bits en Windows, descargue previamente las ruedas
+de la lista y sus dependencias a una caché separada y ejecute:
+
+```powershell
+python tools/construir_candidato.py complemento-ia --salida D:/entregas/ia --ruedas-cache D:/cache-ia --version 1.0.0rc3
+```
+
+La construcción usa esa caché sin red y respeta las versiones del núcleo. Incluye inventario,
+avisos y huellas, y rechaza una salida que ya contenga otro paquete. Pruebe primero sobre una copia
+separada de la instalación. Con el programa cerrado, desde la carpeta del complemento y usando
+el Python entregado en esa copia:
+
+```powershell
+python.exe -m pip install --no-index --require-hashes --find-links wheels -r instalacion.lock
+python.exe -m pip check
+```
+
+La instalación de dependencias no activa modelos. Compruebe su carga y las capacidades con `doctor`
+antes de usar esa copia; el paquete del núcleo sigue disponible para volver atrás.
 
 ## Si algo falla
 

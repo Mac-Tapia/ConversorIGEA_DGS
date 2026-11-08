@@ -236,7 +236,7 @@
       "evidence": []
     },
     "P22": {
-      "state": "licencias_integras_verificadas_construccion_real_pendiente",
+      "state": "nucleo_setup_qa_instalado_complemento_constructor_verificado_aceptacion_pendiente",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -249,7 +249,13 @@
         "p22_rueda_licencias_rojo.log",
         "p22_herramientas_oficiales/procedencia.json",
         "p03_p22_integracion.xml",
-        "p03_p22_catalogo.xml"
+        "p03_p22_catalogo.xml",
+        "p22_licencias_checkout_autocrlf/resultado.json",
+        "p22_candidato_2d6555b0/manifiesto_candidato.json",
+        "p22_instaladores_2d6555b0/compilacion.json",
+        "p22_ensayo_setup_2d6555b0/resultado.json",
+        "p22_complemento_rojo.log",
+        "p22_complemento_verde2.log"
       ]
     },
     "P23": {

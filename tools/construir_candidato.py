@@ -143,14 +143,15 @@ def _nombre_y_version(rueda: str) -> tuple[str, str]:
     return partes[0].replace('_', '-').lower(), partes[1]
 
 
-def escribir_lock(ruedas: Path, destino: Path) -> list[tuple[str, str, str]]:
+def escribir_lock(ruedas: Path, destino: Path, *, complemento: bool = False) -> list[tuple[str, str, str]]:
     filas = sorted((*_nombre_y_version(r.name), _sha256(r)) for r in ruedas.glob('*.whl'))
     nombres = [f[0] for f in filas]
     repetidos = sorted({n for n in nombres if nombres.count(n) > 1})
     if repetidos:
         raise CE.EntregaError(f'En {ruedas} hay más de una versión de {", ".join(repetidos)}: un lock no puede llevar las dos.')
     cuerpo = ''.join(f'{n}=={v} \\\n    --hash=sha256:{h}\n' for n, v, h in filas)
-    destino.write_text('# Generado por tools/construir_candidato.py lock. El núcleo de la entrega (086:RF-37, RF-39), sin pruebas ni torch.\n'
+    titulo = 'Complemento de IA separado' if complemento else 'El núcleo de la entrega, sin pruebas ni torch'
+    destino.write_text(f'# Generado por tools/construir_candidato.py. {titulo} (086:RF-37, RF-39).\n'
                        '# CPython 3.12, Windows AMD64. Cada rueda con su huella: otra rueda con el mismo nombre no se instala.\n' + cuerpo,
                        encoding='utf-8', newline='\n')
     return filas
@@ -339,6 +340,56 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     return salida_manifiesto, CE.comprobar(raiz, manifiesto, terminos, candidato=salida)
 
 
+def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: str) -> dict[str, Any]:
+    """086:RF-37/39 — cierre offline de inferencia, independiente del núcleo y sin pesos propios."""
+    if sys.platform != 'win32' or sys.version_info[:2] != (3, 12) or sys.maxsize <= 2**32:
+        raise CE.EntregaError('El complemento requiere construir con CPython3.12 Windows64.')
+    if salida.exists() and any(salida.iterdir()):
+        raise CE.EntregaError(f'La carpeta {salida} no está vacía: no se pisa otro paquete.')
+    if not cache.is_dir():
+        raise CE.EntregaError('Falta la caché explícita de ruedas del complemento.')
+    limites = []
+    for linea in (raiz / LOCK.name).read_text(encoding='utf-8').splitlines():
+        fijada = re.match(r'^([A-Za-z0-9_.-]+)==([^\s]+)', linea)
+        if fijada:
+            limites.append('=='.join(fijada.groups()))
+    salida.mkdir(parents=True, exist_ok=True)
+    ruedas = salida / 'wheels'
+    ruedas.mkdir()
+    shutil.copyfile(raiz / COMPLEMENTO_IA.name, salida / 'requisitos-declarados.txt')
+    (salida / 'limites-nucleo.txt').write_text('\n'.join(limites) + '\n', encoding='utf-8')
+    _pip('download', '--only-binary', ':all:', '--no-index', '--find-links', str(cache),
+         '-c', str(salida / 'limites-nucleo.txt'), '-r', str(salida / 'requisitos-declarados.txt'), '-d', str(ruedas))
+    filas = escribir_lock(ruedas, salida / 'instalacion.lock', complemento=True)
+    if not filas or not any(n == 'torch' for n, _, _ in filas):
+        raise CE.EntregaError('El complemento no contiene torch; construcción incompleta.')
+    componentes, textos = [], {}
+    for rueda in sorted(ruedas.glob('*.whl')):
+        meta, licencias = leer_metadatos_de_rueda(rueda)
+        componentes.append({**meta, 'sha256': _sha256(rueda), 'origen': 'python'})
+        textos[f'{meta["name"]} {meta["version"]}'] = licencias
+    revision = _revision(raiz)
+    inventario = sbom(componentes, version, revision)
+    inventario['metadata']['component']['name'] = 'convertersmartgrid-complemento-ia'
+    (salida / 'sbom.cdx.json').write_text(json.dumps(inventario, ensure_ascii=False, indent=2), encoding='utf-8')
+    (salida / 'THIRD_PARTY_NOTICES.txt').write_text(_avisos(componentes, textos), encoding='utf-8')
+    (salida / 'LEEME.txt').write_text(
+        f'Complemento de IA para ConverterSmartGrid {version}, CPython3.12 Windows64.\n'
+        'No incluye ni activa pesos de modelos del proyecto; no contiene herramientas de entrenamiento.\n'
+        'Con el programa cerrado, pruebe primero sobre una copia separada de la instalación.\n'
+        'Use su Python entregado, desde esta carpeta, para instalar sin red y con huellas:\n'
+        'python.exe -m pip install --no-index --require-hashes --find-links wheels -r instalacion.lock\n'
+        'python.exe -m pip check\n'
+        'La construcción no acredita carga de modelos, GPU ni aceptación científica.\n', encoding='utf-8')
+    archivos = [{'ruta': rel, 'sha256': _sha256(r), 'bytes': r.stat().st_size} for r, rel in CE._recorrer(salida)]
+    resultado = {'tipo': 'complemento-ia', 'version': version, 'revision': revision, 'python': '3.12',
+                 'plataforma': 'win_amd64', 'pesos_del_proyecto_incluidos': False, 'modelos_activados': False,
+                 'core_lock_sha256': _sha256(raiz / LOCK.name), 'ficheros': archivos,
+                 'bytes_total': sum(f['bytes'] for f in archivos)}
+    (salida / 'manifiesto_candidato.json').write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding='utf-8')
+    return resultado
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     orden = parser.add_subparsers(dest='orden', required=True)
@@ -354,8 +405,17 @@ def main(argv: list[str] | None = None) -> int:
     p_cand.add_argument('--ruedas-cache', type=Path, help='Carpeta con las ruedas ya descargadas; sin ella, del índice.')
     p_cand.add_argument('--version', help='Otra versión, para ensayar una actualización.')
     p_cand.add_argument('--lista-local', type=Path, help='Lista de términos fuera de git; si no, CSG_TERMINOS_PROHIBIDOS.')
+    p_ia = orden.add_parser('complemento-ia', help='Paquete de inferencia separado, offline, con lock y avisos.')
+    p_ia.add_argument('--salida', type=Path, required=True)
+    p_ia.add_argument('--ruedas-cache', type=Path, required=True)
+    p_ia.add_argument('--version', required=True, help='Versión del núcleo compatible.')
     args = parser.parse_args(argv)
     try:
+        if args.orden == 'complemento-ia':
+            resultado = construir_complemento_ia(RAIZ, args.salida, cache=args.ruedas_cache, version=args.version)
+            print(json.dumps({k: resultado[k] for k in ('tipo', 'version', 'revision', 'bytes_total')}
+                             | {'ficheros': len(resultado['ficheros'])}, ensure_ascii=False, indent=2))
+            return 0
         manifiesto = CE.leer_manifiesto(RAIZ / 'config' / 'entrega.json')
         if args.orden == 'rueda':
             rueda, cuenta = construir_rueda(RAIZ, args.salida, manifiesto, CE.cargar_terminos(RAIZ, manifiesto), version=args.version)

@@ -122,3 +122,10 @@ rechaza versiones, huellas o textos ausentes y copia los avisos íntegros tanto 
 rueda como al candidato. Incluye transitivas de producción; las herramientas de
 desarrollo siguen fuera del inventario entregado. Esto no cierra instalación,
 actualización/reversión ni corridas nativas de T40/T32.
+
+Complemento separado (RF-37/39): el constructor resuelve solo ruedas de inferencia
+desde una caché explícita, respetando las versiones del núcleo. Produce su propio
+lock por SHA-256, inventario, avisos y manifiesto verificable sin incluir pesos ni
+dependencias de entrenamiento. Construirlo no activa modelos ni modifica la
+instalación. La aceptación exige instalarlo con el Python entregado y reabrir los
+modelos; la descarga o el inventario no cierran T40.

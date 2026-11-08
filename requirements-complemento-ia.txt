@@ -6,8 +6,9 @@
 # Instalación, con el Python del programa y salida a internet. Con GPU NVIDIA, torch desde el índice de su CUDA:
 #   python -m pip install -r requirements-complemento-ia.txt
 #
-# Lista declarada, sin construir ni fijar con huella todavía: torch con sus librerías CUDA pesa varios GB, y redistribuir CUDA es una
-# de las preguntas para la asesoría legal (086, D7). Quedan fuera las de entrenar (peft, bitsandbytes, optuna, PINN y GRU), que no se
+# Para generar el paquete offline con versiones y huellas: tools/construir_candidato.py complemento-ia --help.
+# El lock de instalación se genera a partir de sus ruedas; esta lista es la entrada declarada. Quedan fuera las de entrenar
+# (peft, bitsandbytes, optuna, PINN y GRU), que no se
 # entregan en la 1.0. Versiones: las de `pyproject.toml`, extra `ml`.
 torch>=2.4
 transformers==5.20.2
