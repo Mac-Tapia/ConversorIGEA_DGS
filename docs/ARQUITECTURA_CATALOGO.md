@@ -8,30 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 302 |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 296 |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 303 |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 304 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 98 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 403 |
-| Pruebas | `tests/` | 401 |
+| Pruebas | `tests/` | 406 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 12670 líneas y 383 funciones, pendiente de partir (002).
-| Pruebas | `tests/` | 404 |
-| Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 295 |
-
-`web/services.py` tiene 12629 líneas y 382 funciones, pendiente de partir (002).
-| Pruebas | `tests/` | 405 |
-| Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 295 |
-
-`web/services.py` tiene 12630 líneas y 382 funciones, pendiente de partir (002).
+`web/services.py` tiene 12703 líneas y 383 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -55,9 +41,6 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | presentacion | Pre | 32 |
 | puertos | Pue | 3 |
 
-292 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
-286 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
-293 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
 294 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos

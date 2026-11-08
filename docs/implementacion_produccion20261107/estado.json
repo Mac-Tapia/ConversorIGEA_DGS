@@ -11,7 +11,7 @@
       "evidence": []
     },
     "P01": {
-      "state": "runtime316_y_entorno_integral255_verificados_importaciones24_y_nf4_cuda_auditoria_con_tres_exclusiones",
+      "state": "runtime316_y_255_dependencias_verificadas_metadata_editable_propia_256_sin_cambiar_dependencias",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
@@ -27,7 +27,8 @@
         "p01_venv316_20261108/integral_exit.json",
         "p01_venv316_20261108/verificacion_integral/resultado.json",
         "p01_venv316_20261108/auditoria_integral.json",
-        "cierre_copias_20261108/junction316.json"
+        "cierre_copias_20261108/junction316.json",
+        "p01_metadata_editable_20261108/resultado.json"
       ]
     },
     "P02": {
@@ -35,7 +36,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "huella_de_entrega_y_ml_corregida110_pruebas_enfocadas_puerta_completa_pendiente",
+      "state": "puertas_lint_huellas_y_metadata_corregidas_regresion_previa341_sin_omisiones_suite_completa_final_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -62,16 +63,27 @@
         "p03_huella_verde.xml",
         "p03_huella_ml_red.xml",
         "p03_huella_ml_green.xml",
-        "p03_traza316.xml"
+        "p03_traza316.xml",
+        "p03_puerta_lint_20261108/verde.log",
+        "integracion_comercial_previa_20261108/resultado2.xml"
       ]
     },
     "P04": {
-      "state": "en_curso",
-      "evidence": []
+      "state": "procedencia_capex_integrada_revision_independiente_sin_hallazgos_dos_carreras_fuentes_en_correccion",
+      "evidence": [
+        "obras_definidas_capex_20261108/INDICE.md",
+        "p04_procedencia_capex_20261108/HANDOFF.md",
+        "revision_p04_capex_20261108/REVIEW.md",
+        "revision_p04_correctivo_20261108/REVIEW.md"
+      ]
     },
     "P05": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "sonda_pf316_real_reabierta_ensayo30kvar_invalido_sin_obra_aplicada_no_aceptacion_electrica",
+      "evidence": [
+        "p05_native_preparacion_20261108/sonda_sin_proyecto.json",
+        "p05_native_preparacion_20261108/relectura_final_sin_proyecto.json",
+        "p05_aceptacion_nativa_rc6_20261108/NO_USAR_PARA_ACEPTACION.json"
+      ]
     },
     "P06": {
       "state": "pendiente_por_datos_usuario",
@@ -169,8 +181,12 @@
       "evidence": []
     },
     "P17": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "pide_anual_cpu_web_integrado_revision_correctiva_regresion197_y_conjunta341_aceptacion_real_pendiente",
+      "evidence": [
+        "revision_p17_correctivo_20261108/REVIEW.md",
+        "integracion_p17_20261108/indices_corregidos.xml",
+        "integracion_comercial_previa_20261108/resultado2.xml"
+      ]
     },
     "P18": {
       "state": "pendiente",
@@ -267,7 +283,7 @@
       ]
     },
     "P22": {
-      "state": "integridad_constructor_integral919_y_pythonhome_corregidos_paquete238_instalacion_final_pendientes",
+      "state": "paquete_integral_rc6_238_ruedas_construido_verificacion_independiente_completa_instalacion_final_pendiente",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -321,12 +337,18 @@
         "p22_home_controles.xml",
         "p22_pythonhome_dos_layouts.json",
         "correccion_revision_p22_20261108/HANDOFF.md",
-        "correccion_revision_p22_20261108/resultado_real.json"
+        "correccion_revision_p22_20261108/resultado_real.json",
+        "p22_construccion_integral_rc6_20261108/HANDOFF.md",
+        "p22_construccion_integral_rc6_20261108/verificacion_integrador.json"
       ]
     },
     "P23": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "vnr_frontend_u0_u1_integrados_34_deudas_originales_preservadas_regresion_combinada_previa_verificada",
+      "evidence": [
+        "revision_p23_u0_20261108/REVISION.md",
+        "integracion_frontend_20261108",
+        "integracion_comercial_previa_20261108/resultado2.xml"
+      ]
     },
     "P24": {
       "state": "menciones_normalizadas_renombrado_fisico_y_relectura_pendientes",
@@ -335,8 +357,11 @@
       ]
     },
     "P25": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "qa_separado_instalador_preparado_pendiente_freeze_final_correccion_enlaces_y_ensayo_instalado",
+      "evidence": [
+        "p25_comercial_20261108/HANDOFF.md",
+        "p25_comercial_20261108/FASE2.ps1"
+      ]
     },
     "P26": {
       "state": "pendiente",
@@ -371,19 +396,42 @@
       "P17": {
         "owner": "/root/p19_cierre",
         "branch": "codex/p17-integridad-20261108",
-        "state": "corrigiendo_revision_independiente",
+        "state": "integrado_revision_y_regresion_enfocada",
         "worktree_reused": true
       },
       "P23_VNR": {
         "owner": "/root/p21_cierre",
         "branch": "codex/p23-vnr-20261108",
-        "state": "ead7a1fa_en_revision_y_correccion_sqlite_probe",
+        "state": "integrado_revision_y_regresion_enfocada",
         "worktree_reused": true
       },
       "P23_frontend": {
         "owner": "/root/p22_paquete_completo",
         "branch": "codex/p23-frontend-20261108",
-        "state": "ebd7dd81_en_revision_y_correccion_lint_js",
+        "state": "integrado_revision_y_regresion_enfocada",
+        "worktree_reused": true
+      },
+      "P04_fuentes": {
+        "owner": "/root/p22_paquete_completo",
+        "branch": "codex/p04-fuentes-20261108",
+        "state": "corrigiendo_dos_important_publicacion_y_snapshot",
+        "worktree_reused": true
+      },
+      "P04_revision": {
+        "owner": "/root/p19_cierre",
+        "branch": "codex/p25-comercial-20261108",
+        "state": "revision_independiente_dos_important_abiertos",
+        "worktree_reused": true
+      },
+      "P04_CAPEX": {
+        "owner": "/root/p21_cierre",
+        "branch": "codex/p04-procedencia-capex-20261108",
+        "state": "integrado_revision_independiente_sin_hallazgos",
+        "worktree_reused": true
+      },
+      "P25_instalacion": {
+        "owner": "/root/p21_cierre",
+        "state": "revision_receta_y_aislamiento_enlaces_externa_sin_instalar",
         "worktree_reused": true
       }
     }
