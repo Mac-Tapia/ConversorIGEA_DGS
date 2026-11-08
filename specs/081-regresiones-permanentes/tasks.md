@@ -96,3 +96,11 @@ abarca solo procesos Python propios (audit-hook heredado), conversión de TXT si
 No hubo importación/calibración/informe nativo, flujo real sin fase, deriva de Caso base nativa ni corte de
 escalera con transferencia: T10/T11/T12/T13/T14/T31 permanecen abiertas, al igual que 086:T33/T36 y 096:T3.
 Evidencias y limitaciones: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/paralelo_p21_20261108/HANDOFF.md`.
+
+Corrección de revisión P21 I1–I3: `tests/test_integridad_trabajos.py` incorpora los
+fallos reproducidos de cancelación/snapshot, protección de identidades y cadenas antes
+de retención, y admisión frente a shutdown. Incluye fallos de escritura sin afirmación
+de durabilidad, joins fuera del cerrojo y resultado completo de 8 MiB sin truncamiento.
+Los recibos/cortes son de procesos propios y los datos son de contrato; no cierran
+T10/T11/T12/T13/T14/T31, 086:T33/T36 ni 096:T3. La corrección conserva fuente y alcance
+de la revisión previa. Resultados y corte exacto: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p21_20261108/HANDOFF.md`.

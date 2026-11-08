@@ -62,7 +62,7 @@ LIMITE_REGISTRO_BYTES = 50 * 2**20
 INTERVALO_DIARIO_S = 2.0
 #: 096:RF-2: menos que esto suspendido no cuenta (un parpadeo del reloj no es una suspensión).
 SUSPENSION_MINIMA_S = 5.0
-#: Interrumpidos y recibos de sus sucesores: el resto ya no se recuerda, y su registro pesa.
+#: Últimos del residuo seguro; las identidades y cadenas protegidas quedan fuera de esta cap.
 MAX_INTERRUMPIDOS = 50
 
 
@@ -183,6 +183,8 @@ class Job:
     relanzado: bool = False
     # 096:RF-6: el servidor puede morir antes que su trabajador; el PID solo se reutiliza.
     proceso: dict | None = None
+    # 096:RF-4/6: una instantánea vieja no puede publicarse después de cancelar o finalizar.
+    diario_gate: Any = field(default_factory=threading.RLock, repr=False, compare=False)
 
     def public(self) -> dict:
         return {
@@ -596,21 +598,24 @@ class DiarioTrabajos:
     def anotar(self, job: Job) -> bool:
         from ..util import write_json_atomic
 
-        try:
-            write_json_atomic(self._ruta(job.id, 'json'), {
-                'id': job.id, 'kind': job.kind, 'title': job.title, 'workspace_id': job.workspace_id,
-                'lane': job.lane, 'status': job.status, 'progress': job.progress, 'error': job.error,
-                'result': job.result,
-                'created_at': job.created_at, 'started_at': job.started_at, 'finished_at': job.finished_at,
-                'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
-                'reanudar': job.reanudar, 'relanzado': job.relanzado,                   # 096:RF-5, RF-6
-                'relanzado_de': job.relanzado_de, 'cancel_requested': job.cancel.is_set(),
-                'proceso': job.proceso,
-            })
-            return True
-        except (OSError, ValueError) as exc:
-            logging.getLogger(__name__).warning('Diario de trabajos sin anotar %s: %s', job.id, exc)
-            return False
+        # El cerrojo cubre la lectura de TODOS los campos y su publicación durable.
+        # Bloquear solo replace permitía que un avance restaurara cancel_requested=False.
+        with job.diario_gate:
+            try:
+                write_json_atomic(self._ruta(job.id, 'json'), {
+                    'id': job.id, 'kind': job.kind, 'title': job.title, 'workspace_id': job.workspace_id,
+                    'lane': job.lane, 'status': job.status, 'progress': job.progress, 'error': job.error,
+                    'result': job.result,
+                    'created_at': job.created_at, 'started_at': job.started_at, 'finished_at': job.finished_at,
+                    'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
+                    'reanudar': job.reanudar, 'relanzado': job.relanzado,
+                    'relanzado_de': job.relanzado_de, 'cancel_requested': job.cancel.is_set(),
+                    'proceso': job.proceso,
+                })
+                return True
+            except (OSError, ValueError) as exc:
+                logging.getLogger(__name__).warning('Diario de trabajos sin anotar %s: %s', job.id, exc)
+                return False
 
     def avance(self, job: Job) -> None:
         ahora = time.monotonic()
@@ -647,15 +652,16 @@ class DiarioTrabajos:
 
     def terminar(self, job: Job) -> None:
         """096:RF-6: conservar el recibo final de un sucesor; el registro largo ya no hace falta."""
-        if not job.relanzado_de:
-            self.olvidar(job.id)
-            return
-        if self.anotar(job):
-            try:
-                self._cerrar_registro(job.id)
-                self._ruta(job.id, 'log').unlink(missing_ok=True)
-            except OSError as exc:
-                logging.getLogger(__name__).warning('Registro final de %s sin retirar: %s', job.id, exc)
+        with job.diario_gate:
+            if not job.relanzado_de:
+                self.olvidar(job.id)
+                return
+            if self.anotar(job):
+                try:
+                    self._cerrar_registro(job.id)
+                    self._ruta(job.id, 'log').unlink(missing_ok=True)
+                except OSError as exc:
+                    logging.getLogger(__name__).warning('Registro final de %s sin retirar: %s', job.id, exc)
 
     def olvidar(self, job_id: str) -> None:
         """El trabajo terminó: Windows no deja borrar un fichero abierto, primero se cierra."""
@@ -687,6 +693,8 @@ class DiarioTrabajos:
         if not self.carpeta.is_dir():
             return []
         trabajos: list[Job] = []
+        leidos: dict[str, Job] = {}
+        servidores_vivos: set[str] = set()
         for ruta in sorted(self.carpeta.glob('*.json')):
             try:
                 datos = json.loads(ruta.read_text(encoding='utf-8'))
@@ -704,12 +712,14 @@ class DiarioTrabajos:
                 continue
             if datos.get('cancel_requested'):
                 job.cancel.set()
+            leidos[job.id] = job
             if job.lane not in LANES:
                 job.lane = 'engine'  # de una versión con otros carriles: se ve igual
             if job.status not in FINISHED:
                 pid, inicio = datos.get('pid'), datos.get('inicio_proceso')
                 if type(pid) is int and (_inicio_de_proceso(pid) == inicio if inicio is not None
                                          else pid == self._mi_pid):
+                    servidores_vivos.add(job.id)
                     continue
                 registro = self._ruta(job.id, 'log')
                 job.finished_at = registro.stat().st_mtime if registro.is_file() else ruta.stat().st_mtime
@@ -722,9 +732,36 @@ class DiarioTrabajos:
                 self.anotar(job)
             trabajos.append(job)
         trabajos.sort(key=lambda j: j.created_at)
-        for viejo in trabajos[:-MAX_INTERRUMPIDOS]:
-            self.olvidar(viejo.id)
-        return trabajos[-MAX_INTERRUMPIDOS:]
+        ancestros_con_sucesor = {j.relanzado_de for j in leidos.values() if j.relanzado_de}
+        for job in trabajos:
+            if job.id in ancestros_con_sucesor:
+                # El sucesor puede pertenecer a un servidor vivo y no aparecer en list().
+                # Derivar su exclusión no reescribe el recibo ni se adjudica ese trabajo.
+                job.relanzado = True
+        enlaces = {identidad: set() for identidad in leidos}
+        for j in leidos.values():
+            if j.relanzado_de in enlaces:
+                enlaces[j.id].add(j.relanzado_de)
+                enlaces[j.relanzado_de].add(j.id)
+
+        def cadena(semillas: set[str]) -> set[str]:
+            conservar, pendientes = set(semillas), list(semillas)
+            while pendientes:
+                for relacionado in enlaces[pendientes.pop()] - conservar:
+                    conservar.add(relacionado)
+                    pendientes.append(relacionado)
+            return conservar
+
+        protegidos = cadena(servidores_vivos | {j.id for j in trabajos
+            if (j.status == INTERRUMPIDO or j.status not in FINISHED) and _proceso_pendiente(j.proceso)})
+        residuo = [j for j in trabajos if j.id not in protegidos]
+        conservar = cadena(protegidos | {j.id for j in residuo[-MAX_INTERRUMPIDOS:]})
+        # La cap es para el residuo seguro: un reloj atrasado o un hijo vivo no autorizan
+        # romper una cadena que impide duplicar, ni borrar su log para cumplir una cifra.
+        for viejo in trabajos:
+            if viejo.id not in conservar:
+                self.olvidar(viejo.id)
+        return [j for j in trabajos if j.id in conservar]
 
 
 class JobManager:
@@ -770,9 +807,12 @@ class JobManager:
 
     def marcar_relanzado(self, job: Job) -> None:
         """096:RF-6: un interrumpido se relanza una sola vez, también tras otro reinicio."""
-        job.relanzado = True
-        if self._diario is not None:
-            self._diario.anotar(job)
+        with job.diario_gate:
+            anterior = job.relanzado
+            job.relanzado = True
+            if self._diario is not None and not self._diario.anotar(job):
+                job.relanzado = anterior
+                raise OSError('No se pudo guardar el relanzado durable; la recuperación requiere revisión.')
 
     def mantenimiento_si_libre(self, fn: Callable[[], Any]) -> Any:
         """062:RF-3: comprobar inactividad y limpiar excluye nuevas admisiones."""
@@ -822,6 +862,8 @@ class JobManager:
             raise RuntimeError('el servidor se está cerrando')
         job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn,
                   reanudar=reanudar, relanzado_de=relanzado_de)
+        if relanzado_de and self._diario is not None and not self._diario.anotar(job):
+            raise OSError('No se pudo guardar el recibo durable del sucesor; no se admite ni ejecuta.')
         with self._lock:
             self._jobs[job.id] = job
             self._ensure_worker(lane)
@@ -833,9 +875,11 @@ class JobManager:
             # ni permite ejecutar un trabajo cuya admisión no se pudo observar.
             with self._lock:
                 self._jobs.pop(job.id,None)
+            if relanzado_de and self._diario is not None:
+                self._diario.olvidar(job.id)  # Aún no entró en la cola ni pudo ejecutar efectos.
             self._anotar()
             raise
-        if self._diario is not None:
+        if self._diario is not None and not relanzado_de:
             self._diario.anotar(job)
         self._queues[lane].put(job)
         return job
@@ -861,8 +905,8 @@ class JobManager:
             if job.irrevocable:
                 return job
             job.cancel.set()
-            if self._diario is not None:
-                self._diario.anotar(job)
+            if self._diario is not None and not self._diario.anotar(job):
+                raise OSError('No se pudo guardar la cancelación durable; sigue pedida en memoria y requiere revisión.')
         if job.status == QUEUED:
             # Aún no empezó: se da por cancelado ya; el hilo lo saltará al sacarlo.
             self._finish(job, CANCELLED)
@@ -877,15 +921,26 @@ class JobManager:
         mitad de un alimentador dejaba ficheros truncados indistinguibles de válidos.
         El motor, al ver la cancelación, descarta el alimentador en curso entero.
         """
-        self._closing = True
-        for job in list(self._jobs.values()):
+        # Toda admisión que pasó la guardia termina antes de cerrar; las posteriores
+        # se rechazan. No esperar a workers bajo _admision: pueden encolar otros pasos.
+        with self._admision:
+            self._closing = True
+            trabajos = self.list()
+            hilos = tuple(self._threads.values())
+        errores = []
+        for job in trabajos:
             if job.status not in FINISHED:
-                self.cancel(job.id)
+                try:
+                    self.cancel(job.id)
+                except Exception as exc:  # el cierre debe liberar el resto aunque falle persistir o notificar
+                    errores.append(f'{job.id}: {exc}')
         for lane in LANES:
             self._queues[lane].put(None)
         deadline = time.time() + timeout_s
-        for thread in self._threads.values():
+        for thread in hilos:
             thread.join(timeout=max(0.0, deadline - time.time()))
+        if errores:
+            raise OSError('El cierre terminó con cancelaciones sin confirmar: ' + '; '.join(errores))
 
     # -------------------------------------------------------------- interno
     def _ensure_worker(self, lane: str) -> None:

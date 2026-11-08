@@ -19,3 +19,14 @@ Revisión adicional P21: ensayos reales cortan entre crear el hijo y confirmar s
 terminar un sucesor DONE/FAILED antes de marcar el ancestro. La reserva previa bloquea un lanzamiento
 incierto; el recibo final del sucesor excluye el ancestro sin reemitir efectos al leerlo. Se comprueban
 también PID muerto sin fecha, identidad residual terminal, creación fallida y diario sin espacio.
+
+Corrección de revisión P21 I1–I3, 2026-11-08, sin cerrar T3: snapshot/publicación y
+retirada serializados por trabajo; cancelación y marcado fallidos no se anuncian durables;
+sucesor sin recibo no se admite. Retención protege identidades pendientes y cadenas causales
+antes de cap/borrados, incluido un reloj atrasado; 50 se aplica al residuo seguro y puede
+superarse por protección explícita. Admisión/cierre comparten frontera, con cancelaciones
+y joins fuera del cerrojo; un fallo de notificación se informa tras liberar los carriles.
+`tests/test_integridad_trabajos.py` conserva los rojos y pruebas de caída real propia,
+intercalaciones, 51 recibos, referencia causal y resultado completo de 8 MiB. No se cerró
+ningún criterio nativo/humano/global. Evidencia externa y revisión exacta:
+`D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p21_20261108/HANDOFF.md`.

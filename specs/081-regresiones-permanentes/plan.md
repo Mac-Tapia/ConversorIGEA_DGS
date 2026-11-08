@@ -83,3 +83,9 @@ Lo que una variante cortada deja abierto (RF-80 a RF-85, T30):
   elementos y manda sobre la red al volver a activarlo (`IntScenario.Save`: «all operational attributes for all active network
   elements»), así que la variación no lo explicaría; y la referencia no documenta un modo de grabar datos de operación en la etapa
   con un escenario activo. Descartado también restituir todo lo que no explique una variación: borraría cambios del operador.
+
+Corrección transversal P21 I1–I3 (096:RF-4 a RF-7): los nuevos ensayos permanentes
+intercalan escrituras reales del diario con cancelación/terminales, protegen identidades
+y cadenas causales al podar y cierran la frontera de admisión antes de centinelas.
+La evidencia de `tests/test_integridad_trabajos.py` es de procesos/archivos propios;
+no cierra noche completa ni criterios eléctricos/nativos de esta spec.
