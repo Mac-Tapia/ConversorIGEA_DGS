@@ -296,6 +296,160 @@ def test_veredictos_recalculan_conservacion_sin_confiar_en_resumen(guion, tmp_pa
     assert v['048']['persiste'] is v['048']['cerrable'] is (not mutada)
 
 
+def _custodia_sintetica(guion, carpeta):
+    import json
+    carpeta.mkdir(exist_ok=True)
+    (carpeta / 'testigo.txt').write_text('captura original\n', encoding='utf-8')
+    manifiesto = {'schema': guion.ESQUEMA, 'proyecto': 'P', 'alimentador': 'F', 'espacio': 'E',
+                  'commit': 'a' * 40, 'escrito': '2026-01-01T00:00:00+00:00',
+                  'sha256': guion.huellas(carpeta)}
+    (carpeta / guion.MANIFIESTO).write_text(json.dumps(manifiesto), encoding='utf-8')
+    return manifiesto
+
+
+def _argv_custodia(carpeta, etapa='veredictos'):
+    return ['--espacio', 'E', '--proyecto', 'P', '--alimentador', 'F',
+            '--planes', str(carpeta), '--evidencia', str(carpeta), etapa]
+
+
+@pytest.mark.parametrize('defecto', ['cambiado', 'ausente', 'extra', 'sin_huellas', 'vacio',
+                                    'schema', 'ruta', 'hash', 'json', 'lista'])
+def test_veredictos_rechazan_custodia_danada_sin_recertificar(
+        guion, tmp_path, monkeypatch, defecto, capsys):
+    """044:RF-9; 081:RF-47 — alterar una evidencia no la vuelve nueva al recalcular."""
+    import json
+    m = _custodia_sintetica(guion, tmp_path)
+    ruta = tmp_path / guion.MANIFIESTO
+    if defecto == 'cambiado': (tmp_path / 'testigo.txt').write_text('otra captura', encoding='utf-8')
+    elif defecto == 'ausente': (tmp_path / 'testigo.txt').unlink()
+    elif defecto == 'extra': (tmp_path / 'no_custodiado.json').write_text('{}', encoding='utf-8')
+    elif defecto == 'sin_huellas': m.pop('sha256')
+    elif defecto == 'vacio': m['sha256'] = {}
+    elif defecto == 'schema': m['schema'] = 'otro'
+    elif defecto == 'ruta': m['sha256'] = {'../fuera.txt': 'a' * 64}
+    elif defecto == 'hash': m['sha256']['testigo.txt'] = 'sin-huella'
+    if defecto not in ('cambiado', 'ausente', 'extra'):
+        ruta.write_text('{no-json' if defecto == 'json' else json.dumps([] if defecto == 'lista' else m),
+                        encoding='utf-8')
+    antes = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+    calls = []
+    monkeypatch.setattr(guion, 'veredictos', lambda *a: calls.append(a) or {})
+    rc = guion.main(_argv_custodia(tmp_path))
+    assert rc == 2 and calls == []
+    mensaje = capsys.readouterr().out.lower()
+    assert 'custodia' in mensaje
+    motivo = {'cambiado': 'testigo.txt', 'ausente': 'testigo.txt', 'extra': 'sin custodia',
+              'sin_huellas': 'faltan huellas', 'vacio': 'faltan huellas', 'schema': 'esquema',
+              'ruta': 'ruta no válida', 'hash': 'huella no válida', 'json': 'expecting',
+              'lista': 'esquema'}[defecto]
+    assert motivo in mensaje
+    assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == antes
+
+
+def test_recalcular_con_otra_revision_conserva_procedencia_de_captura(guion, tmp_path, monkeypatch):
+    """044:RF-9; 081:RF-47 — revisión del cálculo y captura son procedencias diferentes."""
+    import json
+    inicial = _custodia_sintetica(guion, tmp_path)
+    monkeypatch.setattr(guion, '_commit', lambda: 'b' * 40)
+    assert guion.main(_argv_custodia(tmp_path)) == 0
+    despues = json.loads((tmp_path / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    for clave in ('commit', 'escrito', 'sha256'):
+        assert despues[clave] == inicial[clave]
+    assert despues['revision_veredictos']['commit'] == 'b' * 40
+    assert despues['revision_veredictos']['manifiesto_origen_sha256']
+    assert guion.comprobar_huellas(tmp_path, despues) == []
+
+
+def test_veredictos_sin_manifiesto_no_inventan_primera_captura(guion, tmp_path):
+    """044:RF-9 — el recalculador requiere una captura anterior custodiada."""
+    assert guion.main(_argv_custodia(tmp_path)) == 2
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_captura_previa_danada_bloquea_otra_etapa(guion, tmp_path, monkeypatch):
+    """044:RF-9 — no se llama al productor ni se sella de nuevo una custodia corrupta."""
+    _custodia_sintetica(guion, tmp_path)
+    (tmp_path / 'testigo.txt').write_text('cambiado', encoding='utf-8')
+    antes = (tmp_path / guion.MANIFIESTO).read_bytes()
+    calls = []
+    monkeypatch.setattr(guion, 'etapa_protecciones', lambda *a: calls.append(a) or {})
+    assert guion.main(_argv_custodia(tmp_path, 'protecciones')) == 2
+    assert calls == [] and (tmp_path / guion.MANIFIESTO).read_bytes() == antes
+
+
+def test_primera_captura_y_etapa_posterior_preservan_origen(guion, tmp_path, monkeypatch):
+    """044:RF-9 — primera captura legítima y nueva etapa conservan cada procedencia."""
+    import json
+    def etapa(_args, carpeta):
+        (carpeta / 'protecciones_capacidades.json').write_text('{}', encoding='utf-8')
+        return {'trabajo': 'done'}
+    monkeypatch.setattr(guion, 'etapa_protecciones', etapa)
+    monkeypatch.setattr(guion, 'veredictos', lambda *a: {})
+    monkeypatch.setattr(guion, '_commit', lambda: 'a' * 40)
+    assert guion.main(_argv_custodia(tmp_path, 'protecciones')) == 0
+    primera = json.loads((tmp_path / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    monkeypatch.setattr(guion, '_commit', lambda: 'b' * 40)
+    # El productor de la segunda etapa es sintético; no abre ningún motor.
+    def obras(_args, carpeta):
+        (carpeta / 'obras.json').write_text('{}', encoding='utf-8')
+        return {'obra': {}}
+    monkeypatch.setattr(guion, 'etapa_obras', obras)
+    args = _argv_custodia(tmp_path, 'obras') + ['--barra', 'B', '--q-kvar', '300']
+    assert guion.main(args) == 0
+    segunda = json.loads((tmp_path / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    assert segunda['commit'] == primera['commit'] == 'a' * 40
+    assert segunda['escrito'] == primera['escrito']
+    assert segunda['capturas']['protecciones']['commit'] == 'a' * 40
+    assert segunda['capturas']['obras']['commit'] == 'b' * 40
+    assert guion.comprobar_huellas(tmp_path, segunda) == []
+
+
+def test_primera_captura_no_sella_ficheros_previos_sin_custodia(guion, tmp_path, monkeypatch):
+    """044:RF-9 — una carpeta antigua sin manifiesto no es una primera captura vacía."""
+    previo = tmp_path / 'lectura_previa.json'
+    previo.write_text('{}', encoding='utf-8')
+    calls = []
+    monkeypatch.setattr(guion, 'etapa_protecciones', lambda *a: calls.append(a) or {})
+    assert guion.main(_argv_custodia(tmp_path, 'protecciones')) == 2
+    assert calls == [] and list(tmp_path.iterdir()) == [previo]
+
+
+def test_revision_no_publica_si_la_lectura_cambia_durante_el_calculo(guion, tmp_path, monkeypatch):
+    """044:RF-9 — la validación inicial no autoriza un cálculo sobre bytes sustituidos."""
+    _custodia_sintetica(guion, tmp_path)
+    antes = (tmp_path / guion.MANIFIESTO).read_bytes()
+    def calcular(*_):
+        (tmp_path / 'testigo.txt').write_text('cambiado en el cálculo', encoding='utf-8')
+        return {}
+    monkeypatch.setattr(guion, 'veredictos', calcular)
+    assert guion.main(_argv_custodia(tmp_path)) == 2
+    assert (tmp_path / guion.MANIFIESTO).read_bytes() == antes
+
+
+def test_fallo_publicacion_conserva_manifiesto_y_no_deja_temporal(guion, tmp_path, monkeypatch):
+    """044:RF-9; 081:RF-47 — un error de disco no destruye la custodia anterior."""
+    _custodia_sintetica(guion, tmp_path)
+    antes = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+    def fallar(*_):
+        raise OSError('disco de prueba no disponible')
+    monkeypatch.setattr(guion.os, 'replace', fallar)
+    assert guion.main(_argv_custodia(tmp_path)) == 2
+    assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == antes
+
+
+def test_captura_existente_no_se_sobrescribe(guion, tmp_path, monkeypatch):
+    """044:RF-9 — repetir una captura requiere carpeta nueva, no reemplazar sus pruebas."""
+    import json
+    m = _custodia_sintetica(guion, tmp_path)
+    m['protecciones'] = {'trabajo': 'done'}
+    (tmp_path / guion.MANIFIESTO).write_text(json.dumps(m), encoding='utf-8')
+    antes = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+    calls = []
+    monkeypatch.setattr(guion, 'etapa_protecciones', lambda *a: calls.append(a) or {})
+    assert guion.main(_argv_custodia(tmp_path, 'protecciones')) == 2
+    assert calls == [] and {p.name: p.read_bytes() for p in tmp_path.iterdir()} == antes
+
+
 def test_top_k_nativo_reabre_y_relee():
     """044:RF-9 — con DIgSILENT real: tras una sesión nueva se releen los controles (la variación activa y el
     banco en su barra) y los resultados (tensión mínima y pérdidas no negativas), y la decisión de

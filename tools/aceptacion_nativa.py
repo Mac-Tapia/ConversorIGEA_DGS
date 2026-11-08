@@ -29,6 +29,7 @@ import math
 import os
 import subprocess
 import sys
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -583,10 +584,45 @@ def huellas(carpeta: Path) -> dict[str, str]:
     return {p.name: sha256_de(p) for p in sorted(carpeta.iterdir()) if p.is_file() and p.name != MANIFIESTO}
 
 
-def comprobar_huellas(carpeta: Path, manifiesto: dict) -> list[str]:
-    """Los ficheros que no están o que cambiaron desde que se escribió la evidencia."""
-    return [n for n, h in (manifiesto.get('sha256') or {}).items()
-            if not (carpeta / n).is_file() or sha256_de(carpeta / n) != h]
+def comprobar_huellas(carpeta: Path, manifiesto: dict, *, permitir_nuevos: bool = False) -> list[str]:
+    """Custodia completa; un inventario ausente no acredita una captura vacía."""
+    if not isinstance(manifiesto, dict) or manifiesto.get('schema') != ESQUEMA:
+        return ['manifiesto: esquema no válido']
+    hashes = manifiesto.get('sha256')
+    if not isinstance(hashes, dict) or not hashes:
+        return ['manifiesto: faltan huellas de captura']
+    errores = []
+    for nombre, digest in hashes.items():
+        if (not isinstance(nombre, str) or not nombre or nombre in ('.', '..', MANIFIESTO)
+                or any(c in nombre for c in '/\\:')):
+            errores.append(f'ruta no válida: {nombre}')
+            continue
+        ruta = carpeta / nombre
+        if (not isinstance(digest, str) or len(digest) != 64
+                or any(c not in '0123456789abcdef' for c in digest)):
+            errores.append(f'huella no válida: {nombre}')
+        elif ruta.is_symlink() or not ruta.is_file() or sha256_de(ruta) != digest:
+            errores.append(nombre)
+    if not permitir_nuevos:
+        presentes = {p.name for p in carpeta.iterdir() if p.is_file() and p.name != MANIFIESTO}
+        errores.extend(f'sin custodia: {n}' for n in sorted(presentes - set(hashes)))
+    return errores
+
+
+def _guardar_manifiesto(ruta: Path, manifiesto: dict) -> None:
+    """Un error de escritura no trunca el manifiesto de captura anterior."""
+    temporal = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=ruta.parent,
+                                         prefix='.custodia-', suffix='.tmp', delete=False) as salida:
+            temporal = Path(salida.name)
+            salida.write(json.dumps(manifiesto, indent=2, ensure_ascii=False) + '\n')
+            salida.flush()
+            os.fsync(salida.fileno())
+        os.replace(temporal, ruta)
+    finally:
+        if temporal is not None and temporal.exists():
+            temporal.unlink()
 
 
 def main(argv=None) -> int:
@@ -611,8 +647,30 @@ def main(argv=None) -> int:
     carpeta = args.evidencia
     carpeta.mkdir(parents=True, exist_ok=True)
     ruta = carpeta / MANIFIESTO
-    manifiesto = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {
+    anterior = None
+    original = None
+    try:
+        if ruta.exists():
+            original = ruta.read_bytes()
+            anterior = json.loads(original)
+            fallos = comprobar_huellas(carpeta, anterior)
+            if fallos:
+                raise ValueError('; '.join(fallos))
+            for clave in ('proyecto', 'alimentador', 'espacio'):
+                if clave in anterior and anterior[clave] != getattr(args, clave):
+                    raise ValueError(f'{clave} distinto de la captura')
+            if args.etapa != 'veredictos' and args.etapa in anterior:
+                raise ValueError('etapa ya capturada: utilice otra carpeta para una nueva captura')
+        elif args.etapa == 'veredictos':
+            raise ValueError('falta el manifiesto de captura')
+        elif any(carpeta.iterdir()):
+            raise ValueError('hay ficheros previos sin manifiesto: use una carpeta vacía para la primera captura')
+    except (OSError, ValueError, TypeError) as exc:
+        print(f'ERROR de custodia: {exc}', flush=True)
+        return 2
+    manifiesto = json.loads(original) if original is not None else {
         'schema': ESQUEMA, 'proyecto': args.proyecto, 'alimentador': args.alimentador, 'espacio': args.espacio}
+    revision = {'commit': _commit(), 'escrito': datetime.now(UTC).isoformat(timespec='seconds')}
     try:
         if args.etapa == 'obras':
             manifiesto['obras'] = {**etapa_obras(args, carpeta), 'inicio': datetime.now(UTC).isoformat(timespec='seconds')}
@@ -629,17 +687,32 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001 - la evidencia parcial se guarda con el motivo
         manifiesto.setdefault('errores', []).append(f'{args.etapa}: {type(exc).__name__}: {exc}')
         print(f'ERROR: {exc}', flush=True)
-    if args.perfil:
-        manifiesto['perfil'] = str(args.perfil)
-    manifiesto['commit'] = _commit()
-    manifiesto['escrito'] = datetime.now(UTC).isoformat(timespec='seconds')
-    manifiesto['sha256'] = huellas(carpeta)
+    if args.etapa != 'veredictos':
+        if args.perfil:
+            manifiesto['perfil'] = str(args.perfil)
+        if anterior is None:
+            manifiesto.update(revision)
+        manifiesto.setdefault('capturas', {})[args.etapa] = dict(revision)
+        manifiesto['sha256'] = huellas(carpeta)
     try:
         manifiesto['veredictos'] = json.loads(json.dumps(veredictos(carpeta, manifiesto, args.perfil), default=str))
     except Exception as exc:  # noqa: BLE001 - el 2026-11-07 un fallo aquí perdió el registro de las lecturas
         manifiesto['veredictos'] = {}
         manifiesto.setdefault('errores', []).append(f'veredictos: {type(exc).__name__}: {exc}')
-    ruta.write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    try:
+        # También comprobar después del cálculo: no publicar si un lector o escritor
+        # cambió los bytes que acabamos de evaluar, ni pisar otro manifiesto.
+        if anterior is not None:
+            fallos = comprobar_huellas(carpeta, anterior, permitir_nuevos=args.etapa != 'veredictos')
+            if fallos or ruta.read_bytes() != original:
+                raise ValueError('; '.join(fallos) or 'el manifiesto cambió durante la revisión')
+        if args.etapa == 'veredictos':
+            manifiesto['revision_veredictos'] = {
+                **revision, 'manifiesto_origen_sha256': hashlib.sha256(original).hexdigest()}
+        _guardar_manifiesto(ruta, manifiesto)
+    except (OSError, ValueError) as exc:
+        print(f'ERROR de custodia: {exc}', flush=True)
+        return 2
     for spec, v in manifiesto['veredictos'].items():
         print(f"{spec}: cerrable={v.get('cerrable')}", flush=True)
     return 2 if manifiesto.get('errores') else 0
