@@ -44,6 +44,7 @@ from estudios_pf import _num
 from convertersmartgrid.digital_twin.native_snapshot import identidad_nativa
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.pide import PideError, diagnosticar, leer_json_con_huella, leer_proyeccion_anual
+from convertersmartgrid.comprobacion_flujo import comprobar_tras_flujo, texto_tras_flujo, UMBRAL_PU, UMBRAL_MW
 
 
 #: Los casos de cada año del PIDE, con su papel y su nombre (030:RF-1).
@@ -98,6 +99,21 @@ def cargas_nuevas_del_proyecto(app, pedidas: list | None = None) -> dict[str, li
     return out
 
 
+def _exigir_destino_anual(copia, origen, carpeta, nombre, clase):
+    """072:RF-23/28: AddCopy no autoriza escribir sin identificar su destino nuevo."""
+    if (copia is None or copia.GetClassName() != clase
+            or clave_pf(copia) == clave_pf(origen)
+            or clave_pf(copia.GetParent()) != clave_pf(carpeta) or copia.loc_name != nombre):
+        raise PideError(f'no se creó una copia anual independiente de {clase}')
+
+
+def _comprobar_copia_activa(app, caso, escenario):
+    actual, esc_actual = app.GetActiveStudyCase(), app.GetActiveScenario()
+    if (actual is None or clave_pf(actual) != clave_pf(caso) or escenario is None
+            or esc_actual is None or clave_pf(esc_actual) != clave_pf(escenario)):
+        raise PideError('el caso y escenario activos no son la copia anual identificada')
+
+
 def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None = None,
                    nuevas: dict[str, list] | None = None, *, estudio_id: str | None = None) -> dict:
     """«PIDE/Año NN» en casos y en escenarios, con un caso y un escenario por papel; la demanda de
@@ -122,25 +138,45 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
         origen = origenes.get(rol)
         if origen is None:
             continue
-        esc_origen = _escenario_de(app, origen)
+        esc_origen = None if estudio_id else _escenario_de(app, origen)
         rc_origen = origen.Activate()           # el de una corrida anterior no puede estar activo
         if estudio_id and (rc_origen != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(origen)):
             raise PideError('no se reabrió el origen de la copia anual')
+        if estudio_id:
+            esc_origen = app.GetActiveScenario()
+            if esc_origen is None:
+                raise PideError('el origen anual no tiene escenario identificado')
         for x in casos.GetContents('*.IntCase'):
             if x.loc_name == nombre:
+                if estudio_id:
+                    raise PideError('la copia anual ya existe; no se sobrescribe')
                 x.Delete()                      # RF-5: se renueva, sin duplicar
         for x in escenarios.GetContents('*.IntScenario'):
             if x.loc_name == nombre:
+                if estudio_id:
+                    raise PideError('el escenario anual ya existe; no se sobrescribe')
                 x.Delete()
         caso = casos.AddCopy(origen, nombre)
+        if estudio_id:
+            _exigir_destino_anual(caso, origen, casos, nombre, 'IntCase')
+        rc_caso = caso.Activate()
+        if estudio_id and (rc_caso != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(caso)):
+            raise PideError('no se activó la nueva copia anual')
         _marcar(caso, f'pide_{anio:02d}_{rol}')                              # RF-8
-        caso.Activate()
         actual = app.GetActiveScenario()
         if actual is not None:
-            actual.Deactivate(0)
+            rc_esc = actual.Deactivate(0)
+            if estudio_id and (rc_esc != 0 or app.GetActiveScenario() is not None):
+                raise PideError('no se apartó el escenario antes de crear la copia anual')
         esc = escenarios.AddCopy(esc_origen, nombre) if esc_origen is not None \
             else escenarios.CreateObject('IntScenario', nombre)
-        esc.Activate()
+        if estudio_id:
+            _exigir_destino_anual(esc, esc_origen, escenarios, nombre, 'IntScenario')
+        rc_esc = esc.Activate()
+        if estudio_id:
+            if rc_esc != 0:
+                raise PideError('no se activó el nuevo escenario anual')
+            _comprobar_copia_activa(app, caso, esc)
         for elm in app.GetActiveProject().GetContents('*.ElmFeeder', 1):
             f = factor_de(elm)
             if f is None:
@@ -161,39 +197,157 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
                 c.outserv = 0 if f > 0 else 1
                 if f > 0:
                     c.scale0 = b * f
+        if estudio_id:
+            _comprobar_copia_activa(app, caso, esc)
         if esc.Save() != 0:
             raise PideError(f'no se guardó el escenario {clave_pf(esc)}')
         ruta = '/'.join(['PIDE', *([estudio_id] if estudio_id else []), etiqueta, nombre])
         out[rol] = {'caso': ruta, 'escenario': ruta, 'objeto': caso}
+        if estudio_id:
+            out[rol]['objeto_escenario'] = esc
     return out
 
 
+def _inventario_anual(app, proyecto, plan, cargas):
+    """El alcance se relee: una maniobra puede trasladar cargas entre los alimentadores elegidos."""
+    alims = Alimentadores(app, proyecto, plan['feeders'])
+    inventario = {c: {} for c in ('ElmTerm', 'ElmLne', 'ElmTr2', 'ElmTr3', 'ElmLod')}
+    raiz = clave_pf(proyecto) + '\\'
+    for nombre in plan['feeders']:
+        for clase, objetos in inventario.items():
+            for obj in alims.elm[nombre].GetObjs(clase):
+                key = clave_pf(obj)
+                if not key.startswith(raiz):
+                    raise PideError(f'objeto ajeno al proyecto en el alcance anual: {key}')
+                objetos[key] = obj
+    if not inventario['ElmTerm'] or set(inventario['ElmLod']) != set(cargas):
+        faltan = sorted(set(cargas) - set(inventario['ElmLod']))
+        nuevas = sorted(set(inventario['ElmLod']) - set(cargas))
+        raise PideError(f'cambió la cobertura física anual: cargas ausentes {faltan}, no previstas {nuevas}')
+    # Un ElmFeeder puede omitir la BT de una carga que sí enumera. Su terminal
+    # conectado también pertenece al alcance; no desaparece por esa omisión.
+    for carga, _nombre in cargas.values():
+        barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+        if barra is not None:
+            key = clave_pf(barra)
+            if not key.startswith(raiz):
+                raise PideError(f'conexión ajena al proyecto de una carga anual: {key}')
+            inventario['ElmTerm'][key] = barra
+    return inventario
+
+
+def _comprobar_demanda_anual(cargas, filas, representacion):
+    for key, (carga, _nombre) in cargas.items():
+        if any(_num(carga, a) is None for a in ('plini', 'qlini', 'scale0')):
+            raise PideError(f'la demanda nativa anual no es finita o está incompleta: {key}')
+        if int(getattr(carga, 'outserv', 0) or 0):
+            raise PideError(f'carga anual retirada de servicio: {key}')
+        if representacion is not None and any(getattr(carga, a, None) != v for a, v in representacion[key].items()):
+            raise PideError(f'cambió la representación física de la carga anual: {key}')
+        if filas is None:
+            continue
+        fila = filas[key]
+        if carga.scale0 != 1.0 or error_relectura(carga, fila['p_kw'] / 1000.0, fila['q_kvar'] / 1000.0):
+            raise PideError(f'la obra o el flujo cambiaron la demanda anual aceptada: {key}')
+        if int(getattr(carga, 'i_sym', 0) or 0) == 1:
+            foto = foto_carga(carga)
+            if any(not math.isclose(float(foto[f'{attr}{f}']), fila['fases'][f][campo] / 1000.0,
+                       abs_tol=1e-9, rel_tol=1e-6)
+                   for f in 'rst' for attr, campo in (('plini', 'p_kw'), ('qlini', 'q_kvar'))):
+                raise PideError(f'la obra o el flujo cambiaron las fases anuales aceptadas: {key}')
+
+
+def _servicio_anual(inventario, cargas, limites):
+    """Lectura nativa por identidad; el dictamen BT/consumo sigue siendo el común de 081."""
+    barras = [{'nombre': key, 'uknom_kv': _num(b, 'uknom'), 'u_pu': _num(b, 'm:u')}
+              for key, b in inventario['ElmTerm'].items() if not getattr(b, 'outserv', 0)]
+    demandas, problemas = [], []
+    for key, (carga, _nombre) in cargas.items():
+        barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+        if barra is None or clave_pf(barra) not in inventario['ElmTerm']:
+            raise PideError(f'falta la conexión física de la carga anual: {key}')
+        p, q = _num(carga, 'm:Psum:bus1'), _num(carga, 'm:Qsum:bus1')
+        if p is None or q is None:
+            raise PideError(f'falta lectura de consumo P/Q de la carga anual: {key}')
+        por_fase = int(getattr(carga, 'i_sym', 0) or 0) == 1
+        programada = (sum(float(getattr(carga, f'plini{f}')) for f in 'rst') if por_fase else float(carga.plini)) * float(carga.scale0)
+        reactiva = (sum(float(getattr(carga, f'qlini{f}')) for f in 'rst') if por_fase else float(carga.qlini)) * float(carga.scale0)
+        if por_fase:
+            for fase, nativa in zip('rst', 'ABC'):
+                if max(abs(float(getattr(carga, f'{a}{fase}'))) for a in ('plini', 'qlini')) <= UMBRAL_MW:
+                    continue  # una fase declarada sin demanda no inventa una fase física activa
+                u = _num(barra, f'm:u:{nativa}')
+                if u is None:
+                    raise PideError(f'falta tensión de la fase {nativa} requerida por {key}')
+                if not limites['tension_min_pu'] <= u <= limites['tension_max_pu'] or u <= UMBRAL_PU:
+                    problemas.append({'causa': 'fase_no_servida_o_fuera_de_banda', 'elemento': key,
+                                      'fase': nativa, 'valor': u})
+        demandas.append({'nombre': key, 'barra': clave_pf(barra), 'programada_mw': programada,
+                         'consumo_mw': p, 'en_servicio': True})
+        if ((_num(barra, 'm:u') or 0) <= UMBRAL_PU
+                or (abs(reactiva) > UMBRAL_MW and abs(q) < UMBRAL_MW)):
+            problemas.append({'causa': 'carga_no_servida', 'elemento': key})
+    tras = comprobar_tras_flujo(barras, demandas)
+    if not tras['limpio']:
+        problemas.append({'causa': 'servicio_incompleto', 'evidencia': texto_tras_flujo(tras)})
+    return problemas
+
+
 def _medida_anual(app, proyecto, plan: dict, barras: dict, *, por_fase: bool = False,
-                  demanda_absoluta: bool = True) -> dict:
+                  demanda_absoluta: bool = True, cargas=None, filas=None, representacion=None) -> dict:
     """072:RF-25 — converger y cumplir son resultados distintos de una relectura."""
     ldf = app.GetFromStudyCase('ComLdf')
     if demanda_absoluta:
         ldf.scLoadFac = 100.0
     if demanda_absoluta and ldf.scLoadFac != 100.0:
         raise PideError('no se fijó el flujo al 100 % de las demandas anuales absolutas')
+    if not cargas:
+        raise PideError('falta el inventario de cargas del estudio anual')
+    _comprobar_demanda_anual(cargas, filas, representacion)
     flujo = flujo_de_carga(app, monofasicos=True if por_fase else None)
     if not flujo['converged']:
         return {'converge': False, 'cumple': False, 'problemas': [{'causa': 'no_converge'}]}
     lectura = {'flujo': resultados(app, proyecto, clave_pf(proyecto), plan['feeders']),
                'topologia': {'barras': barras}}
-    valores = lectura['flujo']['tensiones']['valores']
-    if not valores or any(v is None or not math.isfinite(v) for v in valores.values()):
+    inventario = _inventario_anual(app, proyecto, plan, cargas)
+    _comprobar_demanda_anual(cargas, filas, representacion)
+    lectura['topologia']['barras'] = {identidad_nativa('ElmTerm', key, clave_pf(proyecto)):
+        {'nombre': b.loc_name, 'kv': _num(b, 'uknom')} for key, b in inventario['ElmTerm'].items()}
+    tensiones, capacidad = lectura['flujo'].get('tensiones') or {}, lectura['flujo'].get('cargabilidad') or {}
+    if tensiones.get('unidad') != 'p.u.' or capacidad.get('unidad') != '%':
+        raise PideError('unidades de tensión/cargabilidad anual no verificadas')
+    valores, sin_tension = tensiones.get('valores') or {}, set(tensiones.get('sin_tension') or [])
+    esperadas = {identidad_nativa('ElmTerm', key, clave_pf(proyecto))
+                 for key, b in inventario['ElmTerm'].items() if not getattr(b, 'outserv', 0)}
+    if not esperadas or esperadas - (set(valores) | sin_tension):
+        raise PideError('faltan tensiones para cubrir el inventario físico anual')
+    valores = {key: valores[key] if key in valores else 0.0 for key in esperadas}
+    if any(type(v) not in (int, float) or not math.isfinite(v) for v in valores.values()):
         raise PideError('faltan tensiones finitas para aceptar el año')
-    cargas = (lectura['flujo'].get('cargabilidad') or {}).get('valores') or {}
-    if any(v is None or not math.isfinite(v) for grupo in cargas.values() if isinstance(grupo, dict) for v in grupo.values()):
-        raise PideError('faltan cargabilidades finitas para aceptar el año')
+    grupos = capacidad.get('valores') or {}
+    medidas = {'lineas': {}, 'transformadores': {}}
+    for clase, grupo in (('ElmLne', 'lineas'), ('ElmTr2', 'transformadores'), ('ElmTr3', 'transformadores')):
+        for key, obj in inventario[clase].items():
+            if getattr(obj, 'outserv', 0):
+                continue
+            ident = identidad_nativa(clase, key, clave_pf(proyecto))
+            # El lector común actualmente cubre Tr2; Tr3 exige su lectura nativa,
+            # nunca se omite por no existir una entrada en ese lector.
+            valor = _num(obj, 'c:loading') if clase == 'ElmTr3' else (grupos.get(grupo) or {}).get(ident)
+            if type(valor) not in (int, float) or not math.isfinite(valor):
+                raise PideError(f'falta cargabilidad finita del inventario anual: {key}')
+            medidas[grupo][ident] = valor
+    lectura['flujo']['tensiones'] = {**tensiones, 'valores': valores, 'sin_tension': sorted(esperadas & sin_tension)}
+    lectura['flujo']['cargabilidad'] = {**capacidad, 'valores': medidas}
     problemas = diagnosticar(lectura, **plan['limites'])
-    return {'converge': True, 'cumple': not problemas, 'problemas': [p.__dict__ for p in problemas],
+    problemas = [p.__dict__ for p in problemas] + _servicio_anual(inventario, cargas, plan['limites'])
+    return {'converge': True, 'cumple': not problemas, 'problemas': problemas,
             'vm_min': min(valores.values()),
             'perdidas_kw': ((lectura['flujo'].get('perdidas') or {}).get('valores') or {}).get('total')}
 
 
-def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, variaciones_demanda) -> None:
+def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, variaciones_demanda,
+                      *, escenario_esperado=None) -> None:
     """072:RF-24/27 — P/Q por fase quedan en una variación propia, nunca en la red global.
 
     Los totales equilibrados usan el escritor común. Las fases explícitas se
@@ -202,6 +356,7 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
     """
     if caso.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(caso):
         raise PideError('no se activó la copia anual')
+    _comprobar_copia_activa(app, caso, escenario_esperado)
     for v in list(app.GetActiveNetworkVariations() or []):
         if clave_pf(v) in variaciones_demanda and v.Deactivate() != 0:
             raise PideError('no se apartó la demanda por fases del año anterior')
@@ -210,6 +365,7 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
         variacion, _etapa = crear_variacion(app, f'PIDE_demanda_{estudio}_{anio}_{rol}', f'{estudio}_{anio}_{rol}')
         variaciones_demanda.add(clave_pf(variacion))
     for key, fila in filas.items():
+        _comprobar_copia_activa(app, caso, escenario_esperado)
         carga = cargas[key][0]
         carga.scale0 = 1.0
         if int(getattr(carga, 'i_sym', 0) or 0) == 1:
@@ -222,12 +378,14 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
         if error:
             raise PideError(error)
     escenario = app.GetActiveScenario()
-    if escenario is None or escenario.Save() != 0:
+    _comprobar_copia_activa(app, caso, escenario_esperado)
+    if escenario.Save() != 0:
         raise PideError(f'no se guardó el escenario anual {anio}')
     if origen.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(origen):
         raise PideError('no se reabrió el origen antes de releer la copia anual')
     if caso.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(caso):
         raise PideError('no se reabrió la copia anual')
+    _comprobar_copia_activa(app, caso, escenario_esperado)
     for key, fila in filas.items():
         carga = cargas[key][0]
         if error_relectura(carga, fila['p_kw'] / 1000.0, fila['q_kvar'] / 1000.0) or carga.scale0 != 1.0:
@@ -410,6 +568,8 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
                 if int(getattr(carga, 'i_sym', 0) or 0) == 0 and modo in ('PC', 'SC', 'QC') and int(getattr(carga, 'pf_recap', 0) or 0) != int(fila['q_kvar'] < 0):
                     raise PideError(f'falta representación de Q con su signo en el escenario de {key}')
         variaciones = {clave_pf(v): v for v in app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)}
+        representacion = {key: {a: getattr(c, a, None) for a in ('i_sym', 'phtech', 'mode_inp')}
+                          for key, (c, _f) in cargas.items()}
         obras = {}
         declaradas = set()
         for obra in plan.get('obras_por_anio') or []:
@@ -428,7 +588,8 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
         opciones_corto = {k: getattr(ldf_corto, k, None) for k in ('scLoadFac', 'iopt_net')}
         try:
             informe['corto_plazo'] = _medida_anual(app, proyecto, plan, barras,
-                por_fase=any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values()), demanda_absoluta=False)
+                por_fase=any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values()),
+                demanda_absoluta=False, cargas=cargas, representacion=representacion)
         finally:
             for k, v in opciones_corto.items():
                 if v is not None and getattr(ldf_corto, k, None) != v:
@@ -445,9 +606,12 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
             for rol in ('sin', 'con'):
                 comprobar_cancelacion()
                 caso = casos[rol]['objeto']
-                _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, variaciones_demanda)
+                _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, variaciones_demanda,
+                                  escenario_esperado=casos[rol]['objeto_escenario'])
+            comprobar_cancelacion()
             por_fase = any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values())
-            antes = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase)
+            antes = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
+                                   cargas=cargas, filas=filas, representacion=representacion)
             fila_anual = {'anio': anio, 'anio_calendario': datos['anio_base'] + anio, 'antes': antes,
                           'casos': {r: c['caso'] for r, c in casos.items()}, 'obras_aplicadas': []}
             informe['anios'].append(fila_anual)
@@ -458,6 +622,7 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
                 if not obras.get(anio):
                     raise PideError(f'año {anio}: falta una obra física para los incumplimientos medidos')
                 for identidad in obras[anio]:
+                    comprobar_cancelacion()
                     if identidad not in acumuladas:
                         if variaciones[identidad].Activate() != 0:
                             raise PideError(f'no se activó la obra {identidad}')
@@ -466,7 +631,9 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
                 if not (acumuladas | set(obras[anio])).issubset(activas):
                     raise PideError('la relectura no conserva las obras acumuladas')
                 acumuladas |= set(obras[anio])
-            fila_anual['despues'] = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase)
+            comprobar_cancelacion()
+            fila_anual['despues'] = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
+                cargas=cargas, filas=filas, representacion=representacion)
             fila_anual['obras_acumuladas'] = sorted(acumuladas)
             if not fila_anual['despues']['cumple']:
                 raise PideError(f'año {anio}: las obras declaradas no resuelven el incumplimiento')

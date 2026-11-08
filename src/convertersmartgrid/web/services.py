@@ -5097,6 +5097,8 @@ def _estudio_del_plan(ws: Workspace, plan_pide: dict[str, Any], avisos: list[str
 def pide_custodiar_fuentes(ws: Workspace, perfil: bytes, evaluacion: bytes, corto_plazo: bytes) -> dict:
     """072:RF-24, 072:RF-28: custodia tres originales; nunca abre referencias subidas."""
     import hashlib
+    import logging
+    from ..runtime_paths import staging_publicacion
 
     try:
         originales = {'original_perfil': perfil, 'evaluacion': evaluacion, 'corto_plazo': corto_plazo}
@@ -5117,23 +5119,47 @@ def pide_custodiar_fuentes(ws: Workspace, perfil: bytes, evaluacion: bytes, cort
     except (ValueError, TypeError, AttributeError) as exc:
         raise UserError(f'Fuentes PIDE: {exc}') from exc
     carpeta = ws.plans_dir / 'pide_fuentes' / uuid.uuid4().hex
-    carpeta.mkdir(parents=True, exist_ok=False)
-    referencias = {}
-    for nombre, contenido in originales.items():
-        ruta = carpeta / f'{nombre}.json'
-        ruta.write_bytes(contenido)
-        referencias[nombre] = {'ruta': str(ruta), 'sha256': hashlib.sha256(contenido).hexdigest()}
-    # Solo cambia la ubicación de la evaluación. Los dos perfiles conservan su
-    # propia huella; subir archivos no modifica ni concede aceptación científica.
-    proyeccion['evaluacion'] = referencias['evaluacion']
-    contenido = (json.dumps(proyeccion, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-    ruta = carpeta / 'perfil.json'
-    ruta.write_bytes(contenido)
-    referencia = {'ruta': str(ruta), 'sha256': hashlib.sha256(contenido).hexdigest()}
-    fuentes = {f'{k}_sha256': v['sha256'] for k, v in referencias.items()}
-    fuentes.update(perfil_sha256=referencia['sha256'],
-                   transformacion='Reserialización JSON UTF-8; solo cambia la referencia de evaluación a la copia custodiada del mismo SHA-256.')
-    (carpeta / 'procedencia.json').write_text(json.dumps(fuentes, ensure_ascii=False, indent=2), encoding='utf-8')
+    publicado = False
+    try:
+        carpeta.parent.mkdir(parents=True, exist_ok=True)
+        with staging_publicacion(carpeta) as stage:
+            creado = False
+            try:
+                stage.mkdir()
+                creado = True
+                referencias = {}
+                for nombre, contenido in originales.items():
+                    (stage / f'{nombre}.json').write_bytes(contenido)
+                    referencias[nombre] = {'ruta': str(carpeta / f'{nombre}.json'),
+                                           'sha256': hashlib.sha256(contenido).hexdigest()}
+                # Las referencias ya apuntan al destino final; el conjunto solo
+                # se hace visible tras originales, derivado y procedencia.
+                proyeccion['evaluacion'] = referencias['evaluacion']
+                contenido = (json.dumps(proyeccion, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+                (stage / 'perfil.json').write_bytes(contenido)
+                referencia = {'ruta': str(carpeta / 'perfil.json'), 'sha256': hashlib.sha256(contenido).hexdigest()}
+                fuentes = {f'{k}_sha256': v['sha256'] for k, v in referencias.items()}
+                fuentes.update(perfil_sha256=referencia['sha256'],
+                    transformacion='Reserialización JSON UTF-8; solo cambia la referencia de evaluación a la copia custodiada del mismo SHA-256.')
+                (stage / 'procedencia.json').write_text(json.dumps(fuentes, ensure_ascii=False, indent=2), encoding='utf-8')
+                stage.rename(carpeta)
+                publicado = True
+            except OSError:
+                # Si el disco falla también al cerrar owner.json, el contexto
+                # no alcanza su limpieza. Retirar solo estos cinco ficheros
+                # propios antes de salir evita abandonar copias del operador.
+                if (creado and stage.is_dir() and not stage.is_symlink() and not stage.is_junction()
+                        and stage.resolve().parent == stage.parent.resolve()):
+                    for nombre in (*originales, 'perfil', 'procedencia'):
+                        (stage / f'{nombre}.json').unlink(missing_ok=True)
+                    stage.rmdir()
+                raise
+    except OSError as exc:
+        if not publicado:
+            raise UserError(f'Fuentes PIDE: no se pudo publicar la custodia completa: {exc}') from exc
+        # Un fallo del recibo temporal posterior a rename no revoca la custodia
+        # íntegra ya publicada ni debe dejar su token sin entregar al operador.
+        logging.getLogger(__name__).warning('Custodia PIDE publicada; recibo temporal sin cerrar: %s', exc)
     return {'corto_plazo': {k: corto[k] for k in ('caso', 'escenario', 'anio', 'anio_base', 'variaciones')}
             | {'evidencia': referencias['corto_plazo']}, 'proyeccion_anual': referencia, 'fuentes': fuentes}
 

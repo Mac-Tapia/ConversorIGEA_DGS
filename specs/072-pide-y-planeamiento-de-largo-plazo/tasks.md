@@ -137,3 +137,13 @@
       muestra obras, fuentes y restitución anual. T14/T13/T11/T9b siguen abiertas.
       Evidencia externa: `paralelo_p17_web_20261108/HANDOFF.md`. Sin PowerFactory,
       GPU, aceptación científica ni revisión visual en navegador.
+
+Nota de corrección P17 (2026-11-08), sin cerrar criterios originales: se corrigieron
+los Important I1/I2/I3 y los Minor M1/M2 de la revisión independiente de RF-23 a
+RF-28. Guardias de destino/activación antes de escribir o Save; inventario y servicio
+P/Q/fases conservados tras obras; cobertura finita por elemento; custodia preparada
+y publicada como conjunto; cancelación antes de cada flujo/obra. Las regresiones
+están en `tests/test_pide_integridad.py` y conservan las negativas y positivas anuales
+existentes. Evidencia externa: `correccion_revision_p17_20261108/HANDOFF.md`, con
+revisión exacta y resultados enfocados. T14/T13/T11/T9b siguen abiertas; esta nota no
+otorga aprobación humana ni aceptación nativa, eléctrica o científica.

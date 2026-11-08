@@ -74,3 +74,44 @@ La interfaz muestra fuentes, bloqueos, años, obras acumuladas y restitución;
 no concede aceptación científica mediante un control. Las pruebas son API real
 sin motor y render React, contrato generado, typecheck y build. La verificación
 visual y la corrida nativa permanecen pendientes.
+
+## Corrección de integridad de P17 tras revisión independiente (2026-11-08)
+
+Sin ampliar la API ni cambiar RF-23 a RF-28: `tools/pide_pf.py` comprueba el
+destino nuevo de AddCopy (clase, carpeta e identidad distinta del origen), los
+retornos de activación/desactivación y el caso/escenario activos antes de escribir
+o guardar. El escenario esperado acompaña internamente a cada copia; una
+activación aparentemente correcta no permite escribir contra el original. El
+finally del consumidor sigue restituyendo ambos contextos aunque falle crear.
+
+El inventario de medición se relee con `Alimentadores`, incluyendo el terminal
+conectado de cada carga. Se exige cobertura de las mismas cargas del alcance,
+P/Q/fases/modos y escala del perfil; una maniobra dentro del alcance puede cambiar
+su ruta si mantiene el servicio. Tensión y cargabilidad requieren unidad y medida
+finita de cada elemento esperado; una clase vacía solo es válida si el inventario
+no contiene esa clase. La lectura se limita al alcance elegido y admite Tr3 por su
+atributo nativo, sin omitirlos por el lector histórico de Tr2. El dictamen de BT y
+consumo reutiliza `comprobacion_flujo`; se añaden las guardias de conexión, consumo
+P/Q disponible y tensión de cada fase con demanda explícita. Una falta de servicio
+real es incumplimiento; un dato desconocido bloquea, sin convertirlo en cero válido.
+
+La custodia anual usa `runtime_paths.staging_publicacion`: prepara los tres JSON,
+perfil derivado y procedencia en privado, con referencias al destino final; publica
+el directorio completo por rename. Un fallo de escritura/publicación no devuelve
+un token utilizable ni afecta custodias anteriores. La cancelación se consulta
+también después de preparar demanda y antes de cada obra/flujo posterior.
+Si falla también el recibo de cierre de staging, se retiran solo los cinco JSON
+propios antes de salir del intento fallido. Si rename ya publicó el conjunto
+íntegro, un fallo posterior de ese recibo se registra y se entrega el token válido,
+sin anunciar que no existe una publicación que sí terminó. Una obstrucción física
+que impida retirar un fichero sigue siendo error de E/S y conservación administrada,
+no una garantía de borrado ante un sistema de archivos inaccesible.
+
+Regresiones CPU en `tests/test_pide_integridad.py`: escenarios originales de 50 kW
+sin escritura/Save anual ante fallo/alias/proyecto ajeno; retirada de servicio,
+cambio de demanda/representación y consumo ausente; mapas parciales/unidad y fase
+sin tensión; custodia IO/rename fallidos y API 422; cancelación sin flujo adicional.
+Positivas: ruta alternativa que mantiene servicio y grupo vacío de transformadores
+cuando no existen. El doble anual declara medidas sintéticas de línea/BT/fases que
+antes omitía: estas fixtures no acreditan resultados ni persistencia de PowerFactory.
+T14/T13/T11/T9b y la aceptación científica/nativa permanecen abiertas.

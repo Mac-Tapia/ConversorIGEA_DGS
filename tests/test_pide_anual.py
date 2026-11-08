@@ -35,7 +35,17 @@ def anual(tmp_path, monkeypatch):
     source.Activate()
     load = app.proyecto.GetContents('*.ElmLod', 1)[0]
     load.mode_inp = 'PQ'
+    object.__setattr__(load, 'outserv', 0)
     object.__setattr__(load, 'GetAttributeUnit', lambda a: {'plini': 'MW', 'qlini': 'Mvar'}[a])
+    # El doble calcula el trafo; declarar también la medida de cada línea evita
+    # confundir su falta de implementación con cobertura nativa acreditada.
+    for line in app.proyecto.GetContents('*.ElmLne', 1):
+        object.__setattr__(line, 'c:loading', 10.0)
+    for bar in app.proyecto.GetContents('*.ElmTerm', 1):
+        if bar.uknom < 1:
+            object.__setattr__(bar, 'm_u', 1.0)
+            for fase in 'ABC':
+                object.__setattr__(bar, f'm_u:{fase}', 1.0)
     transformer = app.proyecto.GetContents('*.ElmTr2', 1)[0]
     types = []
     for name, rating in [('Corto', 0.15), ('Anual_A', 0.30), ('Anual_B', 0.60)]:
