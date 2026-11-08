@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: implementada (2026-11-06: falta T20 en DIgSILENT, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: cumplida (2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 

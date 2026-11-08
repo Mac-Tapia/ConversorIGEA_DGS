@@ -105,10 +105,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       `transformador_de_ficha` en `tools/cargas_pf.py` con `trafos_sed.proponer` y el tipo con la
       ficha del perfil, `ntnum` con las unidades. (RF-68, RF-69)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_guion.py` en verde.
-- [ ] T20. [DIgSILENT] PE102 con las cargas CH_13 y CH_22 aplicadas de nuevo por la web: sus
+- [x] T20. [DIgSILENT] PE102 con las cargas CH_13 y CH_22 aplicadas de nuevo por la web: sus
       transformadores con ficha y la máxima ≤ 80 % en «Con proyecto». (RF-68, RF-69)
       Hecho cuando: el estudio 4.2 de «Con proyecto» no tiene ningún transformador de carga
       nueva por encima del 80 %.
+      Hecho el 2026-11-08 en `20261103-142909_CSG_TXT_PE102` (espacio 3c689e86ecbf4e49), sobre 743e4506: cargas
+      del libro `NuevosclientesMayoresv3.xlsx` y «Con proyecto» por `tools/sistema_web.py` (trabajo 121a05dd0dc3,
+      refuerzo de 2 tramos, 0,43 km; 19 órdenes, ninguna fallida) y 4.2 por la web (plan b876d84c4a11, trabajo
+      05e7ff56127c, `estudios_resultados_b876d84c4a11.csv`). TR_CH_13, creado con la ficha y a la tensión mínima
+      (T21): 64,2 %. TR_CH_22 al 81,07 %: no se creó, se reutilizó la variación del vivero del 2026-11-06
+      (014:RF-24), con el trafo de 315 kVA de la regla anterior; el usuario lo acepta así (2026-11-08) y no se
+      redimensiona.
 - [x] T21. La demanda del transformador de una carga nueva, a la tensión mínima de los estudios. (RF-68)
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py -k ficha` en verde.
 - [x] T22. El FP del perfil para las cargas nuevas que solo traen kW, con su aviso. (RF-70)
