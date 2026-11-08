@@ -1,6 +1,6 @@
 # Spec 013 — Mes de análisis y transferencia entre dos alimentadores
 
-Estado: implementada (2026-10-29: T5, T6 y T8 cerradas; falta la prueba en DIgSILENT, T7) · antes aprobada (2026-10-29, revisión 033: las decisiones se cerraron el 2026-10-13 y RF-1 a RF-6, RF-8, RF-11 y RF-12 ya estaban implementados) · era borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
+Estado: cumplida (2026-11-08: T7 retirada por orden del usuario, que la da por hecha; el caso pasó a CA101 + CHN102) (2026-10-29: T5, T6 y T8 cerradas; falta la prueba en DIgSILENT, T7) · antes aprobada (2026-10-29, revisión 033: las decisiones se cerraron el 2026-10-13 y RF-1 a RF-6, RF-8, RF-11 y RF-12 ya estaban implementados) · era borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
 
 ## Contexto y objetivo
 

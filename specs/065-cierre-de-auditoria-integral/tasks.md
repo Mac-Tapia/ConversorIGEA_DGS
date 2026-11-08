@@ -34,7 +34,8 @@
   Hecho cuando: capacidades, permisos, roles, decisiones y concurrencia tienen pruebas positivas y negativas.
   Evidencia (2026-11-03): `pytest -q tests/test_asistente_equipo.py tests/test_asistente_equipo_web.py tests/test_asistente_web.py`.
 - T12. Retirada el 2026-11-08 por orden del usuario, sin hacer: pasó a ser el conjunto R1 a R5 de la 086. Era: [DIgSILENT] Aceptaciones del plan por proyecto y caso. (RF-21)
-- T13. Retirada el 2026-11-08 por orden del usuario, sin hacer: duplicada de 086 T31. Era: Regresión, instalación y arranque final del candidato. (RF-24)
+- [ ] T13 Regresión, instalación y arranque final del candidato. (RF-24)
+  Hecho cuando: evidencia integrada conserva resultados y pendientes sin omisiones ocultas.
 - [x] T14 Un hilo de cálculo por proceso en el reparto. (RF-25)
   Hecho cuando: `pytest -q tests/test_batch_hilos.py` y `pytest -q tests/test_linea_base_001.py -k cuatro_procesos` en verde.
 - [x] T15 Los espacios guardados se abren con el contrato de la API. (RF-26)
