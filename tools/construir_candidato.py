@@ -35,7 +35,7 @@ import tomllib
 import zipfile
 from collections import deque
 from collections.abc import Iterable
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -192,6 +192,62 @@ def traer_ruedas(raiz: Path, destino: Path, lock: Path, cache: Path | None) -> N
 
 
 # --------------------------------------------------------------------------- inventario de terceros
+def _licencias_suplementarias(archivo: Path) -> tuple[list[dict[str, Any]], dict[str, Path]]:
+    """086:RF-39/44: una sola validación de destinos Windows, recibos y textos para leer y copiar."""
+    from packaging.utils import canonicalize_name
+
+    try:
+        packages = json.loads(archivo.read_text(encoding='utf-8'))['packages']
+        if not isinstance(packages, list):
+            raise ValueError('inventario de licencias sin lista de paquetes')
+        base = archivo.parent.resolve()
+        nombres, destinos, textos = set(), {}, {}
+        for package in packages:
+            if (not isinstance(package, dict) or any(not isinstance(package.get(k), str) or not package[k].strip()
+                    for k in ('name', 'version', 'license', 'wheel_sha256'))
+                    or not re.fullmatch('[0-9a-f]{64}', package['wheel_sha256'])
+                    or package['license'] == 'desconocida' or not isinstance(package.get('texts'), list)
+                    or not package['texts']):
+                raise ValueError('metadatos de licencia incompletos')
+            nombre = canonicalize_name(package['name'])
+            if nombre in nombres:
+                raise ValueError('licencias suplementarias duplicadas')
+            nombres.add(nombre)
+            for entry in package['texts']:
+                raw = entry['path']
+                if not isinstance(raw, str) or not raw:
+                    raise ValueError('ruta de licencia vacía')
+                relativa = PureWindowsPath(raw)
+                partes = raw.replace('\\', '/').split('/')
+                if (relativa.drive or relativa.root or any(p in ('', '.', '..') or p.endswith(('.', ' '))
+                        or re.search(r'[<>:"|?*\x00-\x1f]', p) or PureWindowsPath(p).is_reserved() for p in partes)
+                        or partes[0].casefold() == 'manifest.json'):
+                    raise ValueError(f'ruta de licencia Windows inválida: {raw}')
+                clave = '/'.join(partes).casefold()
+                digest = entry['sha256']
+                if (not isinstance(digest, str) or not re.fullmatch('[0-9a-f]{64}', digest)
+                        or not isinstance(entry.get('source_sha256'), str)
+                        or not re.fullmatch('[0-9a-f]{64}', entry['source_sha256'])
+                        or not isinstance(entry.get('source_url'), str) or not entry['source_url'].startswith('https://')):
+                    raise ValueError(f'huella o procedencia de licencia inválida: {raw}')
+                if clave in destinos and destinos[clave] != (raw, digest):
+                    raise ValueError(f'colisión Windows de licencias: {raw}')
+                if any(clave.startswith(k + '/') or k.startswith(clave + '/') for k in destinos):
+                    raise ValueError(f'colisión archivo/carpeta de licencia: {raw}')
+                destinos[clave] = (raw, digest)
+                ruta = base.joinpath(*partes).resolve()
+                if not ruta.is_relative_to(base) or not ruta.is_file():
+                    raise ValueError(f'ruta de licencia fuera del inventario o sin fichero: {raw}')
+                # Varias ruedas pueden compartir exactamente el mismo texto; no se duplica ni se renombra.
+                if raw not in textos:
+                    if _sha256(ruta) != digest or not ruta.read_text(encoding='utf-8').strip():
+                        raise ValueError(f'huella de licencia distinta o texto vacío: {raw}')
+                    textos[raw] = ruta
+        return packages, textos
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CE.EntregaError(f'Licencias suplementarias incompletas o alteradas: {exc}') from exc
+
+
 def leer_metadatos_de_rueda(rueda: Path, *, licencias: Path | None = None) -> tuple[dict[str, Any], list[tuple[str, str]]]:
     """Nombre, versión, licencia y los textos de licencia que trae la propia rueda."""
     with zipfile.ZipFile(rueda) as z:
@@ -206,7 +262,7 @@ def leer_metadatos_de_rueda(rueda: Path, *, licencias: Path | None = None) -> tu
                   if '.dist-info/' in n and re.search(r'(^|/)(?:[^/]*[-_.])?(licen[cs]e|copying|notice)[^/]*$', n, re.I) and not n.endswith('/')]
     if licencias is not None:
         try:
-            packages = json.loads(licencias.read_text(encoding='utf-8'))['packages']
+            packages, fuentes = _licencias_suplementarias(licencias)
             matching = [p for p in packages if p['name'].lower().replace('_', '-') == m['Name'].lower().replace('_', '-')]
             if len(matching) > 1:
                 raise ValueError('licencias suplementarias duplicadas')
@@ -217,17 +273,7 @@ def leer_metadatos_de_rueda(rueda: Path, *, licencias: Path | None = None) -> tu
                 if not package['license'].strip() or package['license'] == 'desconocida' or not package['texts']:
                     raise ValueError('identificador o textos de licencia ausentes')
                 for entry in package['texts']:
-                    path = (licencias.parent / entry['path']).resolve()
-                    relative = Path(entry['path'])
-                    if relative.is_absolute() or '..' in relative.parts or relative.as_posix() == 'manifest.json':
-                        raise ValueError('ruta relativa de licencia inválida')
-                    if not path.is_relative_to(licencias.parent.resolve()) or not entry['source_url'].startswith('https://'):
-                        raise ValueError('ruta o procedencia de licencia inválida')
-                    if not re.fullmatch('[0-9a-f]{64}', entry['source_sha256']) or _sha256(path) != entry['sha256']:
-                        raise ValueError('huella de licencia distinta o ausente')
-                    text = path.read_text(encoding='utf-8')
-                    if not text.strip():
-                        raise ValueError('licencia vacía')
+                    text = fuentes[entry['path']].read_text(encoding='utf-8')
                     textos.append((f'suplementaria/{entry["path"]}', text))
                 if licencia == 'desconocida':
                     licencia = package['license']
@@ -377,6 +423,48 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     return salida_manifiesto, CE.comprobar(raiz, manifiesto, terminos, candidato=salida)
 
 
+def _leer_lock_nucleo(ruta: Path) -> dict[str, tuple[str, set[str]]]:
+    """086:RF-39: la autoridad es el lock previo, incluidos todos sus SHA256 permitidos."""
+    from packaging.markers import default_environment
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
+    env = {**default_environment(), 'extra': ''}
+    try:
+        texto = '\n'.join(l.split('#', 1)[0].rstrip() for l in ruta.read_text(encoding='utf-8').splitlines())
+        filas = re.sub(r'\\\s*\n', ' ', texto).splitlines()
+        core = {}
+        for linea in filas:
+            if not linea.strip():
+                continue
+            patron = r'--hash=sha256:([0-9a-fA-F]{64})(?=\s|$)'
+            hashes = {h.lower() for h in re.findall(patron, linea)}
+            req = Requirement(re.sub(patron, '', linea).strip())
+            if req.marker and not req.marker.evaluate(env):
+                continue
+            specs = list(req.specifier)
+            nombre = canonicalize_name(req.name)
+            if (req.url or req.extras or len(specs) != 1 or specs[0].operator != '=='
+                    or '*' in specs[0].version or not hashes or nombre in core):
+                raise ValueError(f'requisito sin versión/huellas SHA256 únicas: {linea}')
+            core[nombre] = (specs[0].version, hashes)
+        if not core:
+            raise ValueError('lock sin requisitos activos')
+        return core
+    except (OSError, ValueError) as exc:
+        raise CE.EntregaError(f'Lock del núcleo incompatible o incompleto: {exc}') from exc
+
+
+def _comprobar_rueda_nucleo(nombre: str, version: str, digest: str,
+                            core: dict[str, tuple[str, set[str]]]) -> None:
+    if nombre in core:
+        pin, hashes = core[nombre]
+        if version != pin:
+            raise CE.EntregaError(f'Versión incompatible con el núcleo de {nombre}: {version}, esperada {pin}.')
+        if digest not in hashes:
+            raise CE.EntregaError(f'Huella del núcleo incompatible para {nombre}=={version}; no se autoriza otro binario.')
+
+
 def seleccionar_capacidades_integrales(raiz: Path, caches: Iterable[Path], versiones: Path,
                                       procedencias: Path, *, licencias: Path | None = None) -> tuple[list[Path], dict[str, Any]]:
     """086:RF-37/39 — cierre fijado al entorno probado; no resuelve ni consulta URLs remotas.
@@ -423,8 +511,7 @@ def seleccionar_capacidades_integrales(raiz: Path, caches: Iterable[Path], versi
         if name in pins:
             raise CE.EntregaError(f'Versión capturada duplicada: {name}')
         pins[name] = pin
-    core = dict(re.findall(r'^([\w.-]+)==([^\s]+)', (raiz / LOCK.name).read_text(encoding='utf-8'), re.M))
-    core = {canonicalize_name(n): v for n, v in core.items()}
+    core = _leer_lock_nucleo(raiz / LOCK.name)
     inventory = {}
     tags = set(sys_tags())
     for cache in caches:
@@ -445,7 +532,7 @@ def seleccionar_capacidades_integrales(raiz: Path, caches: Iterable[Path], versi
         if name not in pins:
             raise CE.EntregaError(f'Falta versión capturada para {name}.')
         pin = pins[name]
-        if pin not in req.specifier or (name in core and core[name] != pin):
+        if pin not in req.specifier or (name in core and core[name][0] != pin):
             raise CE.EntregaError(f'Versión incompatible de {name}: {pin}, requisito {req}, núcleo {core.get(name)}.')
         source_url = req.url or urls.get(name)
         if req.url and name in urls and req.url != urls[name]:
@@ -484,21 +571,26 @@ def seleccionar_capacidades_integrales(raiz: Path, caches: Iterable[Path], versi
             if metadata.get('Requires-Python') and env['python_full_version'] not in SpecifierSet(metadata['Requires-Python']):
                 raise CE.EntregaError(f'Python incompatible para {name}: {metadata["Requires-Python"]}')
             hashes[name] = _sha256(wheel)
+            _comprobar_rueda_nucleo(name, pin, hashes[name], core)
             if name in used_origins and hashes[name] != used_origins[name]['sha256']:
                 raise CE.EntregaError(f'Huella de procedencia incompatible para {name}.')
             selected[name] = (wheel, metadata)
         elif name in used_origins and hashes[name] != used_origins[name]['sha256']:
             raise CE.EntregaError(f'Huella de procedencia incompatible para {name}.')
-        extras = set(req.extras) | {''}
+        solicitados = {canonicalize_name(e) for e in req.extras}
+        declarados = {canonicalize_name(e) for e in selected[name][1].get_all('Provides-Extra') or []}
+        if faltan := solicitados - declarados:
+            raise CE.EntregaError(f'Extra no declarado de {name}=={pin}: {", ".join(sorted(faltan))}.')
+        extras = solicitados | {''}
         unseen = extras - extras_seen.get(name, set())
         if not unseen:
             continue
         extras_seen.setdefault(name, set()).update(unseen)
         for dependency in selected[name][1].get_all('Requires-Dist') or []:
             child = Requirement(dependency)
-            if child.url:
-                raise CE.EntregaError(f'Dependencia con URL remota no admitida: {name}: {dependency}')
             if not child.marker or any(child.marker.evaluate({**env, 'extra': extra}) for extra in unseen):
+                if child.url:
+                    raise CE.EntregaError(f'Dependencia con URL remota no admitida: {name}: {dependency}')
                 child.marker = None
                 queue.append(child)
     resolved_roots = []
@@ -535,25 +627,17 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
         if versiones is None or procedencias is None:
             raise CE.EntregaError('Las capacidades integrales requieren versiones capturadas y procedencias explícitas.')
         seleccion, cobertura = seleccionar_capacidades_integrales(raiz, [cache, *caches_adicionales], versiones, procedencias, licencias=licencias)
-    limites = []
-    for linea in (raiz / LOCK.name).read_text(encoding='utf-8').splitlines():
-        fijada = re.match(r'^([A-Za-z0-9_.-]+)==([^\s]+)', linea)
-        if fijada:
-            limites.append('=='.join(fijada.groups()))
+    core = _leer_lock_nucleo(raiz / LOCK.name)
+    limites = [f'{nombre}=={pin}' for nombre, (pin, _hashes) in core.items()]
+    _, textos_suplementarios = _licencias_suplementarias(licencias) if licencias else ([], {})
     salida.mkdir(parents=True, exist_ok=True)
     if licencias:
         # Se conserva el mismo recibo y sus textos para poder releer la procedencia
         # sin el checkout ni la carpeta desde la que se construyó el complemento.
-        license_rows = json.loads(licencias.read_text(encoding='utf-8'))['packages']
-        for package in license_rows:
-            for entry in package['texts']:
-                path = (licencias.parent / entry['path']).resolve()
-                relative = Path(entry['path'])
-                if relative.is_absolute() or '..' in relative.parts or relative.as_posix() == 'manifest.json' or not path.is_relative_to(licencias.parent.resolve()):
-                    raise CE.EntregaError('Ruta de licencia fuera del inventario.')
-                target = salida / 'licencias' / entry['path']
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(path, target)
+        for relativa, path in textos_suplementarios.items():
+            target = salida / 'licencias' / relativa
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, target)
         (salida / 'licencias').mkdir(exist_ok=True)
         shutil.copyfile(licencias, salida / 'licencias' / 'manifest.json')
     ruedas = salida / 'wheels'
@@ -572,6 +656,8 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
         _pip('download', '--only-binary', ':all:', '--no-index', '--find-links', str(cache),
              '-c', str(salida / 'limites-nucleo.txt'), '-r', str(salida / 'requisitos-declarados.txt'), '-d', str(ruedas))
     filas = escribir_lock(ruedas, salida / 'instalacion.lock', complemento=True)
+    for nombre, pin, digest in filas:
+        _comprobar_rueda_nucleo(nombre, pin, digest, core)
     if not filas or not any(n == 'torch' for n, _, _ in filas):
         raise CE.EntregaError('El complemento no contiene torch; construcción incompleta.')
     if cobertura:
@@ -583,7 +669,7 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
     componentes, textos = [], {}
     origenes = {o['name'].lower().replace('_', '-'): o for o in cobertura['procedencias']} if cobertura else {}
     for rueda in sorted(ruedas.glob('*.whl')):
-        meta, textos_licencia = leer_metadatos_de_rueda(rueda, licencias=licencias)
+        meta, textos_licencia = leer_metadatos_de_rueda(rueda, licencias=salida / 'licencias/manifest.json' if licencias else None)
         origin = origenes.get(meta['name'].lower().replace('_', '-'))
         componentes.append({**meta, 'sha256': _sha256(rueda), 'origen': 'git' if origin and origin.get('commit_id') else 'python',
             **({'sin_purl': True, 'source_url': origin['url'], 'commit_id': origin.get('commit_id')} if origin else {})})

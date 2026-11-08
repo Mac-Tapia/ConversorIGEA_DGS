@@ -142,6 +142,16 @@ versión y huella de la rueda, URL/huella del origen y ruta/huella de cada texto
 Conserva estos recibos y textos en el complemento, sin modificar la rueda ni
 deducir permisos de una etiqueta automática. Sin ese material el cierre falla.
 
+Corrección de revisión P22 (RF-37/39/44): los componentes compartidos con el núcleo deben pertenecer
+al conjunto SHA256 permitido por su lock, también con varias huellas legítimas. No basta igualar versiones
+ni generar un hash nuevo desde el binario recibido. Los extras activos de raíces y transitivas se contrastan
+con `Provides-Extra`, normalizados según PEP 685; un warning de pip con retorno 0 no prueba esa capacidad.
+Las rutas de suplementos se validan una sola vez con las mismas reglas para lectura y copia: sin alias Windows,
+ADS, escapes ni colisiones con el manifiesto o entre destinos. La entrega relee sus textos desde la copia
+antes de publicar el manifiesto. Una URL transitiva inactiva por marker no forma parte del cierre;
+una activa sigue prohibida y no se abre ninguna conexión. Las pruebas incluyen NTFS real y la selección
+de las 238 ruedas canónicas sin copiarlas ni instalarlas. Los defectos corregidos no cierran T40/T32/T41.
+
 Complemento separado (RF-37/39): el constructor resuelve solo ruedas de inferencia
 desde una caché explícita, respetando las versiones del núcleo. Produce su propio
 lock por SHA-256, inventario, avisos y manifiesto verificable sin incluir pesos ni

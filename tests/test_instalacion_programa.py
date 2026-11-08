@@ -1094,7 +1094,7 @@ def test_complemento_separado_con_huellas_y_rechazo_de_alteracion(tmp_path, monk
     source = tmp_path / 'fuente'
     source.mkdir()
     (source / 'requirements-complemento-ia.txt').write_text('torch==1.0\n', encoding='utf-8')
-    (source / 'requirements-nucleo.lock').write_text('pip==1.0 \\\n --hash=sha256:base\n', encoding='utf-8')
+    (source / 'requirements-nucleo.lock').write_text('pip==1.0 ' + chr(92) + '\n --hash=sha256:' + 'a' * 64 + '\n', encoding='utf-8')
     cache = tmp_path / 'cache'
     cache.mkdir()
     wheel = _rueda_de_terceros(cache, 'torch', **{'License-Expression':'BSD-3-Clause'})

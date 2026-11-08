@@ -113,6 +113,14 @@
   resolver las ruedas pequeñas sin red ni instalación. El paquete de inferencia
   previo no representa las capacidades integrales. Sigue pendiente ensayar la
   entrega final congelada y su instalación/relectura nativa; no se cierra T40.
+  Corrección de revisión P22 (2026-11-08): una rueda compartida debe tener SHA autorizado por
+  el lock previo del núcleo (también en inferencia y con varios hashes permitidos); los extras activos
+  se validan contra Provides-Extra según PEP 685. Una sola validación de textos/rutas bloquea alias
+  Windows/ADS/colisiones y se relee la copia de la entrega antes de publicarla. La selección real
+  sigue siendo de 238 ruedas y pip dry-run coincide exactamente, con 57 hashes compartidos autorizados,
+  sin copiar ruedas ni instalar. Pruebas/negativas: `tests/test_complemento_integral.py`; evidencia externa
+  `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p22_20261108/`.
+  No se construyó todavía el paquete final integrado ni se acreditan DLL/GPU, modelos o instalación nativa.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 
