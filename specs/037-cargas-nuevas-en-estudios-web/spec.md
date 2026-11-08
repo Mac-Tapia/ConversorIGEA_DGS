@@ -1,6 +1,6 @@
 # Spec 037 — Caso «Cargas nuevas» en los estudios de la web
 
-Estado: implementada · Fecha: 2026-10-29 · Origen: petición del usuario sobre «Preparar los estudios».
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-29 · Origen: petición del usuario sobre «Preparar los estudios».
 
 ## Contexto y objetivo
 

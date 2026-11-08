@@ -30,6 +30,7 @@ Lee: `specs/094-perfil-de-tension-y-bancos/spec.md` y `plan.md`.
       'VisPath', 1)` da None y en un `GrpPage` falla («method call failed»); `CreateObject('VisPath', nombre)` en una
       `SetVipage` sí lo crea. Se liga con `feeder = [ElmFeeder]` (lista vacía al crear; leído de vuelta, TM105.ElmFeeder);
       `iopt_x` es 0 (distancia). Las páginas de la sonda se borraron; el proyecto quedó con su única página PRUEBA_007.
-- [ ] T5. [DIgSILENT] AL209 recalibrado desde la web, con su perfil y los bancos propuestos desde él. (Todos)
+- [x] T5. [DIgSILENT] AL209 recalibrado desde la web, con su perfil y los bancos propuestos desde él. (Todos)
       Hecho cuando: la recalibración guarda el perfil, la web lo dibuja en el navegador real con su límite y «Con proyecto»
       aplica los bancos del perfil, confirmados en DIgSILENT.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

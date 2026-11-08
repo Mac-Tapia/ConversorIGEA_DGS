@@ -38,13 +38,13 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
-  | 011 Estudios y obras de mejora sobre la red calibrada | implementada | falta T19 |
-  | 012 Confiabilidad y capacidad de la red calibrada | implementada | falta T13 |
+  | 011 Estudios y obras de mejora sobre la red calibrada | cumplida |  |
+  | 012 Confiabilidad y capacidad de la red calibrada | cumplida |  |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
   | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida |  |
-  | 017 Informes de estudio eléctrico y de factibilidad de suministro | implementada | falta T13, T14, T19 |
+  | 017 Informes de estudio eléctrico y de factibilidad de suministro | cumplida |  |
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |
   | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida |  |
@@ -53,9 +53,9 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | aprobada | falta T22 |
-  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | falta T12 |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T22, T14, T26 |
-  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T11 |
+  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida |  |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26 |
+  | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
   | 031 Proyección econométrica de la demanda con variables exógenas | reservada |  |
@@ -64,28 +64,28 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
   | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida |  |
   | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
-  | 037 Caso «Cargas nuevas» en los estudios de la web | implementada | falta T4 |
+  | 037 Caso «Cargas nuevas» en los estudios de la web | cumplida |  |
   | 038 Pertenencia de las SED y notas en la web | cumplida | — |
-  | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T8, T4 |
+  | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida |  |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
-  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6, T29, T37, T42, T44, T48, T50 |
+  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | cumplida |  |
-  | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3, T4 |
+  | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3 |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
-  | 048 Optimización mixta evolutiva y PNL | implementada | falta T4 |
-  | 049 Protecciones nativas y coordinación | implementada | falta T4 |
+  | 048 Optimización mixta evolutiva y PNL | cumplida |  |
+  | 049 Protecciones nativas y coordinación | cumplida |  |
   | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b |
-  | 051 Medición de cabecera en libro ancho: una columna por alimentador | implementada | falta T3 |
-  | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | implementada | falta T4 |
+  | 051 Medición de cabecera en libro ancho: una columna por alimentador | cumplida |  |
+  | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | cumplida |  |
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
   | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | cumplida |  |
-  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | implementada | falta T2 |
-  | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | implementada | falta T3 |
+  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | cumplida |  |
+  | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | cumplida |  |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
-  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |
+  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6 |
   | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
   | 060 Correcciones verificables del aprendizaje | cumplida |  |
   | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
@@ -94,39 +94,40 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
   | 065 Cierre verificable de la auditoría integral | aprobada | falta T13 |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
-  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | implementada | falta T9 |
+  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida |  |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
-  | 070 El asistente opera el conversor de punta a punta | implementada | falta T9, T10, T11 |
+  | 070 El asistente opera el conversor de punta a punta | implementada | falta T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14 |
-  | 073 El número de bancos lo define la tensión en las ventanas de valle | implementada | falta T8, T12 |
+  | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida |  |
-  | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | implementada | falta T6, T7 |
+  | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
-  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16, T22, T24, T31 |
+  | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | cumplida |  |
-  | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
+  | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
-  | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | implementada | falta T12, T13, T14, T27 |
+  | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
   | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T5, T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
-  | 091 De la calibración al estudio, en su orden y sin avisos que engañen | implementada | falta T7 |
+  | 091 De la calibración al estudio, en su orden y sin avisos que engañen | cumplida |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida |  |
   | 093 La sigla de la carga nombra la carga nueva y su variación | cumplida |  |
-  | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | implementada | falta T5 |
+  | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | cumplida |  |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
-  | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | falta T3 |
+  | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | cumplida |  |
   | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T3 |
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
+  | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

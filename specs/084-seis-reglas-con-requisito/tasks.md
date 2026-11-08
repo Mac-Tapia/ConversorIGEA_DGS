@@ -14,7 +14,9 @@
   Hecho cuando: `pytest -q tests/test_seis_reglas.py -k "borrar or borra or borrado or deshacer"` en verde.
 - [x] T7 Orden de las alternativas, trecho y plano. (RF-28, RF-29, RF-30)
   Hecho cuando: `pytest -q tests/test_seis_reglas.py -k "bancos_y_despues or trecho"` en verde.
-- [ ] T8 [DIgSILENT] La SET nueva con `planificacion.sitio_set`, en un proyecto de prueba ya importado de quien tenga el turno, sin datos inventados.
+- [x] T8 [DIgSILENT] La SET nueva con `planificacion.sitio_set`, en un proyecto de prueba ya importado de quien tenga el turno, sin datos inventados.
   Hecho cuando: los intentos quedan fuera del trazado y el flujo equilibrado y el desequilibrado corren en el punto final y dejan `iopt_net` como estaba.
-- [ ] T9 [DIgSILENT] Una terna más en un tramo de cable con la tabla del fabricante, sobre una copia de un proyecto importado.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T9 [DIgSILENT] Una terna más en un tramo de cable con la tabla del fabricante, sobre una copia de un proyecto importado.
   Hecho cuando: `fline` queda en la variación, sale al desactivarla, y `c:loading` usa esa capacidad.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

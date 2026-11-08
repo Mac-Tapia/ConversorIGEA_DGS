@@ -53,7 +53,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_asistente_internet.py` en verde.
       Hecho el 2026-10-24: probado contra GitHub y arXiv reales (8 repositorios y 5 artículos);
       «busca en github caída de tensión en IN111» se bloquea sin salir de la máquina.
-- [ ] T12. [DIgSILENT] Aceptación: una orden real de cada tarea de RF-11 desde la consola, en DIgSILENT;
+- [x] T12. [DIgSILENT] Aceptación: una orden real de cada tarea de RF-11 desde la consola, en DIgSILENT;
       validación RF por RF; suite completa con las siete variables y ninguna omitida.
       (Todos)
       Hecho cuando: `grep -rnoE "026:RF-[0-9]+" tests | sort -u` lista los 32 RF y la suite pasa.
@@ -64,3 +64,4 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       confirmar en DIgSILENT las tareas que lo usan (sistema completo, cargas, obras, estudios,
       transferencia, PIDE e informes): el 2026-10-24 otra sesión tenía DIgSILENT ocupado y el espacio
       no tenía entradas.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

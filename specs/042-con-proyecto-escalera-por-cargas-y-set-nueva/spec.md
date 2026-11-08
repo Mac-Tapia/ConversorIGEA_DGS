@@ -1,6 +1,6 @@
 # Spec 042 — «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben
 
-Estado: implementada · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras revisar
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras revisar
 NA203 + NA205 en DIgSILENT («para con proyecto debe usar la optimización, de proponer nuevas obras
 por variaciones por cierta cantidad de cargas nuevas hasta donde se puede hacer las mejoras de
 infraestructura física existente, y si ya no se puede se proponen nuevas para lo que ya no están

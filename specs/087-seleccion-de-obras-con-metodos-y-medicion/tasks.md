@@ -40,8 +40,9 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
 - [x] T26. Confirmación conjunta del sistema y obra rehecha solo donde falla. (RF-45, RF-46, RF-47)
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
-- [ ] T27. [DIgSILENT] Pisco entero confirmado junto, con su resultado anotado. (RF-45)
+- [x] T27. [DIgSILENT] Pisco entero confirmado junto, con su resultado anotado. (RF-45)
       Hecho cuando: la confirmación conjunta de Pisco queda en el informe del trabajo.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T28. El déficit previo también pasa por el oráculo. (RF-48)
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
 - [x] T29. La regla de la máxima solo cerca del criterio de los sorteos. (RF-49)
@@ -67,9 +68,12 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
 - [x] T20. Área propuesta de cada alimentador nuevo. (RF-38)
       Hecho cuando: `pytest -q tests/test_obras_integrales.py` en verde.
-- [ ] T12. [DIgSILENT] Escalera de referencia en Pisco, con su fila de medición. (RF-21, RF-22, RF-23)
+- [x] T12. [DIgSILENT] Escalera de referencia en Pisco, con su fila de medición. (RF-21, RF-22, RF-23)
       Hecho cuando: hay fila con método escalera y su resultado por alimentador.
-- [ ] T13. [DIgSILENT] Pisco con el oráculo, sobre el mismo estado, y contraste con T12. (RF-1, RF-25)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T13. [DIgSILENT] Pisco con el oráculo, sobre el mismo estado, y contraste con T12. (RF-1, RF-25)
       Hecho cuando: `tools/medir_mejora.py` da las diferencias de tiempo, obras y normas.
-- [ ] T14. [DIgSILENT] Un sistema de otra empresa con el método nuevo. (RF-1, RF-24)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T14. [DIgSILENT] Un sistema de otra empresa con el método nuevo. (RF-1, RF-24)
       Hecho cuando: cada alimentador con cargas nuevas termina con obra medida o «ya cumple».
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

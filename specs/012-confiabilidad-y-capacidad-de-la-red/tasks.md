@@ -120,8 +120,9 @@ Cierre
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-72.
       Hecho el 2026-10-29: `CODIGO_FUENTE.md`, `docs/MANUAL_COMANDOS.md`; los 72 RF citados.
-- [ ] T13. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y un
+- [x] T13. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y un
       libro de la empresa, a cargo del usuario: índices y ENS por alimentador, un
       reconectador y un banco propuestos y aceptados como obra, capacidad de un nodo y
       curva PV de un alimentador. (Todos)
       Hecho cuando: el usuario confirma los resultados y que el «Caso base» no cambió.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

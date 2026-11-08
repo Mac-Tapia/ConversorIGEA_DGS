@@ -59,9 +59,10 @@ cuando el usuario ponga a mano la central de NA205.
       nombra la variación del operador.
       Hecho el 2026-10-28: suite del escaneo en verde; en DIgSILENT el escaneo de CA101 nombró
       «Prueba_operador_032» como del operador (vacía: sin tramos que listar).
-- [ ] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
+- [x] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
       recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
       Hecho cuando: los dos proyectos válidos tras recalibrar y con su informe.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T16. «Recalibrar» de la web con la elección de los alimentadores del sistema: la ruta los valida y los pasa a
       `sistema_web.py --alimentadores`; el front los lista para marcar. (RF-40, RF-41, RF-42)
       Hecho cuando: `pytest -q tests/test_escaneo.py -k recalibrar` en verde y la elección comprobada en el navegador real.

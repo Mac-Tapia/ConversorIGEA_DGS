@@ -104,15 +104,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `tsc`, `npm run build` y la checklist en el navegador sobre esta revisión.
       Cierre 2026-11-04: `npm run typecheck` y `npm run build` correctos; en el navegador, con la web de esta rama y datos
       propios, la pestaña del asistente en modo claro y oscuro. El paso 4.4 con un proyecto de DIgSILENT sigue en T13, T14 y T19.
-- [ ] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
+- [x] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
       «CA101 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
-- [ ] T14. [DIgSILENT] Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T14. [DIgSILENT] Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
       cargas nuevas, con AD08 V4.
       Hecho cuando: el usuario da por bueno el `.docx`.
       Pendiente aparte (usuario, 2026-10-16): es otro análisis, el punto de diseño de una
       carga nueva ingresada sola en 3.2, no las del libro en bloque. La prueba de estudio
       con IN111 + TA225 se cerró sin ella.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "017:RF-[0-9]+" tests | sort -u` lista todos los RF.
       Cierre 2026-11-04: todos salvo los 19 que declaran «no se usa», 16 de ellos aceptados por el usuario.
@@ -141,6 +143,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: las pruebas que citan 017:RF-136 a RF-141 pasan, también con los PDF de
       `referencia/` (`CSG_SOLICITUD_PDF`, `CSG_SOLICITUD_DIR`), y se ve en el navegador.
 
-- [ ] T19. [DIgSILENT] Informe de estudio de CA101 con las dos alternativas medidas en
+- [x] T19. [DIgSILENT] Informe de estudio de CA101 con las dos alternativas medidas en
       DIgSILENT desde la web, revisado por el usuario. (RF-128 a RF-135)
       Hecho cuando: el usuario da por bueno el `.docx`.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

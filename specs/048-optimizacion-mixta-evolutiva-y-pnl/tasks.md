@@ -54,11 +54,12 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       dice la obra o el elemento y el valor, y sale 2. Rama `feat/048-t4a`; `PYTHONPATH=src .venv/Scripts/python.exe
       -m pytest -q -rs tests/test_obras_persistencia.py`: 13 passed, 0 omitidas. Las elegidas por
       `verificar_candidatos` llegan a `aplicar` como obras del plan; esa conexión con la web no se tocó.
-- [ ] T4 [DIgSILENT]. Aplicación en variaciones y reapertura nativa. (RF-9)
+- [x] T4 [DIgSILENT]. Aplicación en variaciones y reapertura nativa. (RF-9)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_optimizacion_mixta_nativa.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
       Abierta el 2026-11-07: la persistencia está medida en DIgSILENT y las pruebas pasan, pero el plan no la cierra con un
       diseño que converge sin tensión admisible, y en el proyecto de prueba no hay uno: ver «T4, 2026-11-07» abajo.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
 ## Evidencia de ejecución
 

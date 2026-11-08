@@ -1,6 +1,6 @@
 # Spec 039 — Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web
 
-Estado: implementada · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
 mano NA203 («implementa que exista opción para hacer análisis y estudios desde la web estas dos
 opciones … los valores máximos de fijos del mes y coincidente en la misma fecha»)
 

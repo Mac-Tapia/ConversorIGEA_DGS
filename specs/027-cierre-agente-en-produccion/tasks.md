@@ -180,7 +180,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       `agente_proyecto.json` del espacio; prueba cortada en los estudios y retomada sin repetir la
       fuente, el sistema ni el «Caso base». La corrida real desde cero con VNR-GIS es la de T14
       (RF-55).
-- [ ] T22. [DIgSILENT] PIDE completo con lo implementado y comparación de cada formato con el entregado.
+- [x] T22. [DIgSILENT] PIDE completo con lo implementado y comparación de cada formato con el entregado.
       (RF-45, RF-49)
       Hecho cuando: F01 a F15 producidos para un sistema, con la fracción de campos coincidentes.
       Avance del 2026-10-28 (código): `ejemplos_pide.comparar_formatos` (palabras y unidades de
@@ -193,7 +193,8 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (`tests/test_ejemplos_pide.py`, 4 aprobadas, 027:RF-49). Lo que falta es producirlos de un sistema
       real, y F03, F04 y F06 salen de flujos y de estudios de confiabilidad en DIgSILENT: por eso pasa a
       `[DIgSILENT]` (regla de la 033: una tarea que mezcla código y DIgSILENT cierra el código con sus pruebas).
-- [ ] T14. [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T14. [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
       de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
@@ -201,6 +202,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Revisado el 2026-11-03: sigue abierta. El código de RF-43 es de la 070 (implementada; faltan sus T9 a
       T11 en DIgSILENT y en el navegador) y las puertas del asistente no se cumplen (T11). Sin informe de los
       cuatro sistemas en DIgSILENT.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido

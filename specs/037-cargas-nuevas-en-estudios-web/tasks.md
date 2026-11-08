@@ -9,9 +9,10 @@
 - [x] T5. «Con proyecto» sin obras renovado desde la recalibración de «Sin proyecto» (RF-8).
       Hecho cuando: `pytest -q tests/test_casos_pf.py` en verde, con el caso viejo renombrado y sin marca,
       y uno con obras conservado.
-- [ ] T4. [DIgSILENT] Estudios de un proyecto real con cargas nuevas.
+- [x] T4. [DIgSILENT] Estudios de un proyecto real con cargas nuevas.
   Hecho cuando: el trabajo web y una relectura nativa acreditan los tres casos del año,
   sus escenarios, cargas activas y exclusiones, con los informes conservados.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
 ## Evidencia del 2026-10-29
 

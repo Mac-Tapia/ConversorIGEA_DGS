@@ -1,6 +1,6 @@
 # Spec 051 — Medición de cabecera en libro ancho: una columna por alimentador
 
-Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al llevar a
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al llevar a
 DIgSILENT la copia VNR-GIS de Electro Oriente («si existe medición de cabeceras, está en la misma
 carpeta de donde sacaste el VNR-GIS; debes trabajarlo aparte sin mezclarlo con Electro Dunas, es
 para ver que el conversor es universal y funcional»).

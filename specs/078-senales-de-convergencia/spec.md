@@ -1,6 +1,6 @@
 # Spec 078 — Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido
 
-Estado: implementada · Fecha: 2026-11-02 · Origen: hallazgos de otra sesión tras importar un sistema real, comprobados en el código
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-02 · Origen: hallazgos de otra sesión tras importar un sistema real, comprobados en el código
 
 Cita: 015 (RF-8, RF-10, RF-13, RF-14, RF-38 a RF-40), 032 (RF-26), 057 (RF-5, RF-6), 026 (RF-6), 069 (RF-13), 070 (RF-72).
 

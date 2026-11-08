@@ -1,6 +1,6 @@
 # Spec 052 — Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT
 
-Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al ver que la
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al ver que la
 optimización de NA203 + NA205 tardaba unas 3 horas («esto debes modificar, no debería demorar
 tanto»; «antes, siempre las convergencias deben pasar por el oráculo, después lanzarlo en
 DIgSILENT en cualquier caso»; «igual debes hacer la optimización junto con el oráculo; la

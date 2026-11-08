@@ -1,6 +1,6 @@
 # Spec 096 — Tras suspender el equipo, la web vuelve sola al último trabajo pendiente
 
-Estado: implementada · Fecha: 2026-11-05 · Origen: usuario, 2026-11-05, Pisco, con la recalibración de AL209 y PA217 en
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-05 · Origen: usuario, 2026-11-05, Pisco, con la recalibración de AL209 y PA217 en
 curso: «¿si lo suspendo, mi equipo seguiría corriendo?», y después «implementa que cada vez que se suspende regrese al
 último trabajo pendiente», «solo y sin preguntar».
 

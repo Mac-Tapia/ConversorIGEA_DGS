@@ -121,11 +121,12 @@ Cierre
       `CSG_*`. (Todos)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-129.
-- [ ] T19. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y
+- [x] T19. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y
       una obra de cada clase, a cargo del usuario; la migración de tensión, con un
       alimentador que comparte tipos con otro. (Todos)
       Hecho cuando: el usuario confirma los tres casos, las obras, que «Sin proyecto» no
       cambió y los resultados de los estudios.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T20. Retro (033, 2026-10-29): RF-73b, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-73b)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_obras_pf_guion.py`).

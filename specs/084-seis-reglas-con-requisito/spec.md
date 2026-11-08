@@ -1,6 +1,6 @@
 # Spec 084 — Seis reglas del operador pasan de notas a requisitos con prueba
 
-Estado: implementada · Fecha: 2026-11-03 · Origen: aprobación del usuario del 2026-11-02 («ok a todo»)
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-03 · Origen: aprobación del usuario del 2026-11-02 («ok a todo»)
 
 Cita: 016 (RF-81 a RF-87), 017 (RF-128 a RF-135), 042 (RF-9, RF-10), 054 (RF-7), 063 (RF-21, RF-22), 064 (RF-1), 073 (RF-17, RF-19, RF-39, RF-40), 081.
 

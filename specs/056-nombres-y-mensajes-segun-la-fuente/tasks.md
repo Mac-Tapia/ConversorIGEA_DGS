@@ -22,5 +22,6 @@
       Hecho el 2026-11-03: `<sello>_CSG_<TXT|MDB|VNR>_<red>`, con la fuente leída de la cabecera del DGS; un DGS sin ella da el
       nombre de antes y ningún guion reconoce proyectos por su nombre. Un VNR-GIS sintético convertido de punta a punta no
       deja IGEA, CYMDIST, TXT, BD_Equipo ni RED export en ninguna salida. `pytest -q tests/test_palabras_de_la_fuente.py`.
-- [ ] T3. [DIgSILENT] NJA202 importado por la web sin esas palabras. (Todos)
+- [x] T3. [DIgSILENT] NJA202 importado por la web sin esas palabras. (Todos)
       Hecho cuando: se cumple su criterio de finalización.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

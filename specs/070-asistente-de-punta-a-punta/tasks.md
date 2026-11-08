@@ -16,10 +16,12 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k via` en verde.
 - [x] T8 Currículo y prueba sellada nueva. (RF-67 a RF-76)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k curriculo` en verde.
-- [ ] T9 [DIgSILENT] Un alimentador y una SET de punta a punta y una carga nueva, desde la consola, en proyectos de prueba de la sesión.
+- [x] T9 [DIgSILENT] Un alimentador y una SET de punta a punta y una carga nueva, desde la consola, en proyectos de prueba de la sesión.
   Hecho cuando: los informes de la calibración y de la factibilidad salen de órdenes escritas, con su evidencia.
-- [ ] T10 [DIgSILENT] Las etapas, los faltantes y las consultas se leen en la consola de la web real, en el navegador.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T10 [DIgSILENT] Las etapas, los faltantes y las consultas se leen en la consola de la web real, en el navegador.
   Hecho cuando: hay capturas de un plan de etapas, de un plan con faltantes y de una consulta.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [ ] T11 [DIgSILENT] Un candidato entrenado pasa las puertas en la prueba nueva; lo lanza el integrador.
   Hecho cuando: el registro deja un candidato PROMOVIDO medido con esa prueba.
 - [x] T12 Un solo modelo del catálogo a la caché de la web. (RF-77)

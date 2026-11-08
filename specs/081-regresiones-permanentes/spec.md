@@ -1,6 +1,6 @@
 # Spec 081 — Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua
 
-Estado: implementada · Fecha: 2026-11-03 · Origen: fallos reales de la importación de un sistema, y orden del usuario
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-03 · Origen: fallos reales de la importación de un sistema, y orden del usuario
 
 Cita: 015 (RF-38 a RF-40), 054 (RF-3, RF-9, RF-10), 057, 078 (RF-1 a RF-17), 026 (RF-25), 001 (RF-29, RF-31).
 

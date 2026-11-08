@@ -10,7 +10,9 @@
   Hecho cuando: `pytest -q tests/test_senales_de_convergencia.py -k "interfaz or informe"` en verde y `npm run typecheck` sin errores.
 - [x] T5 Grupos al importar y dudas del plan. (RF-29 a RF-35)
   Hecho cuando: `pytest -q tests/test_plan_grupos_al_importar.py` en verde.
-- [ ] T6 [DIgSILENT] Un proyecto importado cuyo flujo no calcula y otro bueno, por la web.
+- [x] T6 [DIgSILENT] Un proyecto importado cuyo flujo no calcula y otro bueno, por la web.
   Hecho cuando: el primero sale `IMPORTADO_SIN_CONVERGENCIA` con su `return_code` y `NO_CONVERGE`; el segundo, `OK`, `VERIFICADO` y `CONVERGED_*`.
-- [ ] T7 [DIgSILENT] Vuelve a verificar el primero y la orden «importa <grupo> en digsilent» en el navegador.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T7 [DIgSILENT] Vuelve a verificar el primero y la orden «importa <grupo> en digsilent» en el navegador.
   Hecho cuando: sigue `NO_CONVERGE` con el flujo registrado; la tabla lo muestra; la orden propone el grupo sin pedir alimentadores.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

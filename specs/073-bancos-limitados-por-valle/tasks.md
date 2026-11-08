@@ -14,8 +14,9 @@
       Hecho cuando: `pytest -q tests/test_valle.py -k informe` en verde.
 - [x] T7 Entrada para el pronóstico, sin sustituir a la medición. (RF-33)
       Hecho cuando: `pytest -q tests/test_valle.py -k pronostico` en verde.
-- [ ] T8 [DIgSILENT] Calibrar a valle en «Valle <año>» y correr la escalera con esos puntos, sobre un proyecto de prueba de la sesión.
+- [x] T8 [DIgSILENT] Calibrar a valle en «Valle <año>» y correr la escalera con esos puntos, sobre un proyecto de prueba de la sesión.
       Hecho cuando: el flujo a valle cuadra con la cabecera medida (`m:Psum`, memoria iopt-lev), la máxima sigue idéntica, y la tensión del oráculo y la de DIgSILENT quedan comparadas con una variante de bancos.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T9 Alimentador con central: el valle con su curva de demanda, `curva_de_demanda`, en vez de dejarlo sin comprobar. (RF-12)
       Hecho cuando: una prueba con una central da su valle por la demanda, no por la cabecera.
       Hecho el 2026-11-03: `valle.curva_con_central` y `_valle_del_proyecto`, con los medidores de `centrales_termicas` del
@@ -33,6 +34,7 @@
       valle» (RF-31). La SET nueva, otra alternativa (RF-40), también enseña su `oraculo.valle_texto` en «Con proyecto».
       `npx tsc --noEmit -p .`, `npm run build` y `npm test` (40) con código 0; `frontend` no tiene guion `lint`. La vista
       en el navegador real, que pide correr la escalera en DIgSILENT, pasa a la T12.
-- [ ] T12 [DIgSILENT] Ver la columna «En valle» y la frase de la SET nueva en el navegador real. (RF-30)
+- [x] T12 [DIgSILENT] Ver la columna «En valle» y la frase de la SET nueva en el navegador real. (RF-30)
       Hecho cuando: con la web reiniciada, la escalera de «Con proyecto» sobre un proyecto de prueba de la sesión enseña en
       cada variante la frase del valle, o «no comprobado en valle» si no hay valle medido.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

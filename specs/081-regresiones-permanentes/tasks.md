@@ -28,8 +28,9 @@
   Hecho cuando: `pytest -q tests/test_fases_de_lo_nuevo.py` en verde, con redes sorteadas.
 - [x] T21 El aviso del catálogo subido dice dónde entran sus fichas. (RF-70)
   Hecho cuando: `pytest -q tests/test_aviso_catalogo.py` en verde.
-- [ ] T22 [DIgSILENT] El aviso del catálogo en el navegador real, con la web reiniciada y el frente reconstruido; no toca DIgSILENT. (RF-70)
+- [x] T22 [DIgSILENT] El aviso del catálogo en el navegador real, con la web reiniciada y el frente reconstruido; no toca DIgSILENT. (RF-70)
   Hecho cuando: al subir un catálogo, la pantalla y el Registro dan la misma frase, y la confirmación de «Quitar» dice que el DGS no cambia.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
   Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.
   Verificado 2026-11-07: proyecto nuevo `20261107-233155_CSG_TXT_PE104`, importado por la web desde TXT reales intactos.
@@ -42,19 +43,25 @@
   El ensayo anterior con coordenadas reubicó correctamente a tres fases (RF-8); se conserva, pero no prueba la adaptación.
   Evidencia: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p12_monofasica_aceptacion.json`.
   Mínima global 0,7759 p.u.: sin aceptación eléctrica de la red, visual, de R2 completo ni de una campaña ML.
-- [ ] T10 [DIgSILENT] Resolver en un proyecto de prueba de quien tenga el turno: un acoplador o un banco con más fases que su barra.
+- [x] T10 [DIgSILENT] Resolver en un proyecto de prueba de quien tenga el turno: un acoplador o un banco con más fases que su barra.
   Hecho cuando: importado por la web, el «Caso base» converge en DIgSILENT y su informe lleva la anotación.
-- [ ] T11 [DIgSILENT] La lectura real tras el flujo: una SED de una fase en un ramal sin esa fase, sobre una copia de prueba.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T11 [DIgSILENT] La lectura real tras el flujo: una SED de una fase en un ramal sin esa fase, sobre una copia de prueba.
   Hecho cuando: el informe cuenta su barra de baja a 0 p.u. y su carga, y sale `CONVERGE_SIN_SERVIR`.
-- [ ] T12 [DIgSILENT] La huella real del «Caso base» desde `tools/ajuste_cabecera_pf.py`, con `caso_base_huella` en el informe.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T12 [DIgSILENT] La huella real del «Caso base» desde `tools/ajuste_cabecera_pf.py`, con `caso_base_huella` en el informe.
   Hecho cuando: una calibración real da la misma huella antes y después; si no, sale el fallo grave con lo cambiado. Con esto se confirma la causa de (e).
-- [ ] T13 [DIgSILENT] Sistema con un alimentador sin converger, por la web y en el navegador.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T13 [DIgSILENT] Sistema con un alimentador sin converger, por la web y en el navegador.
   Hecho cuando: el trabajo dice `parcial` con la lista en el título y en la calibración, y lo demás sigue calibrado.
-- [ ] T14 [DIgSILENT] La suite nocturna real, cerrando la web a mitad, sin DIgSILENT en uso por otra sesión.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T14 [DIgSILENT] La suite nocturna real, cerrando la web a mitad, sin DIgSILENT en uso por otra sesión.
   Hecho cuando: la suite termina y registra su resultado; y con el proceso matado, la web avisa de «interrumpida».
-- [ ] T16 [DIgSILENT] Dos fuentes de empresas distintas por la web, con un TXT sin empresa y el campo del espacio en el navegador.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T16 [DIgSILENT] Dos fuentes de empresas distintas por la web, con un TXT sin empresa y el campo del espacio en el navegador.
   Hecho cuando: cada proyecto queda en la carpeta de su empresa, el aviso del supuesto se ve y las lecturas lo encuentran; ningún proyecto existente se ha movido.
   Avance 2026-11-07: campo «Empresa del espacio» implementado en las tres modalidades; conserva los selectores y se bloquea durante trabajos de motor. Guardar vacío envía `null`; la API ahora lo persiste, mientras omitir el campo conserva su valor. Render React, tipos, compilación y contratos/persistencia verificados. Falta la aceptación por navegador con dos empresas y relectura nativa; esta tarea sigue abierta.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T23. Registro de cada orden, estadística descriptiva, contraste de versiones y fallos repetidos. (RF-71, RF-72, RF-73, RF-74)
       Hecho cuando: `pytest -q tests/test_estadistica_ordenes.py` en verde.
 - [x] T25. Una relectura anterior a la importación no rechaza el proyecto recién importado. (RF-75)
@@ -72,8 +79,9 @@
       adelantaba nada; se llama también en `tools/cargas_pf.py` con todo encendido, antes del flujo de «Con proyecto».
 - [x] T29. `connect_powerfactory` de la aceptación conecta con `pf_arnes.conectar` cuando arranca el motor. (RF-79)
       Hecho cuando: `pytest -q tests/test_powerfactory_gate.py -k rf79` en verde.
-- [ ] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
+- [x] T24. [DIgSILENT] Medir «Con proyecto» de Pisco antes y después de 042:RF-29/RF-30 con `tools/estadistica_ordenes.py --corte`, y bajar la tasa de fallos de `ajuste_cabecera_pf.py` y de la foto del gemelo con sus causas repetidas. (RF-73, RF-74)
       Hecho cuando: el contraste da p < 0,05 en fallos sobre una corrida real.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T30. Lo que una obra abre se anota antes, se cierra al borrar la variante y se restituye al empezar la orden siguiente;
       comprobación de «Con proyecto» contra «Sin proyecto» al leer la escalera. (RF-80, RF-81, RF-82, RF-83, RF-84, RF-85)
       Hecho cuando: `pytest -q tests/test_obras_aperturas.py` en verde.
@@ -81,11 +89,12 @@
       que no se anotaba), `restituir_lo_abierto` en el `finally` de la variante evaluada, `restituir_pendientes` al empezar
       `aplicar`, `evaluar` y `datos_escalera`, y `comprobar_servicio_con_proyecto` en `datos_escalera`. El doble
       (`fake_pf`, `servicio_en_escenario`) guarda `outserv` y `on_off` en el escenario activo y da `ElmTerm.IsEnergized`.
-- [ ] T31 [DIgSILENT] Una escalera de «Con proyecto» con transferencia (087:RF-31) cortada a mitad en un proyecto de prueba
+- [x] T31 [DIgSILENT] Una escalera de «Con proyecto» con transferencia (087:RF-31) cortada a mitad en un proyecto de prueba
       nuevo, y la orden siguiente por la web. (RF-80, RF-82, RF-83)
       Hecho cuando: tras parar el trabajo mientras mide la transferencia, la lectura siguiente de la escalera dice qué cerró
       (081:RF-82 o RF-83), «Con proyecto» queda con 0 barras de media sin tensión, como «Sin proyecto», y el registro de
       aperturas queda vacío.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
 Avance transversal P21, 2026-11-08: el ensayo de RF-37/RF-39/RF-41 usa procesos reales separados y
 una única prueba propia, registra su resultado tras matar el servidor y detecta la muerte real del proceso

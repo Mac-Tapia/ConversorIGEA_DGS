@@ -11,8 +11,9 @@
       Hecho cuando: con un DIgSILENT doble que discrepa, se corrige hacia lo confirmado.
       Hecho el 2026-11-01: `buscar_k`, `elegir_para_k` y `services._optimizar_con_oraculo`; con un
       DIgSILENT doble que discrepa, k baja a lo confirmado; sin grafo, la búsqueda de la 042.
-- [ ] T4. [DIgSILENT] NA203 + NA205 optimizado por la web en menos de 20 min. (Todos)
+- [x] T4. [DIgSILENT] NA203 + NA205 optimizado por la web en menos de 20 min. (Todos)
       Hecho cuando: elegida y límite confirmados y la comparación oráculo–DIgSILENT en el informe.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T5. Búsqueda bayesiana, frente de Pareto, sorteos de Markov y reparto de Shapley sobre el
       oráculo. (RF-11 a RF-16)
       Hecho cuando: `pytest -q tests/test_optimizacion_oraculo.py` en verde con redes sintéticas

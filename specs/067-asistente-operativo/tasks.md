@@ -24,5 +24,6 @@
   omitidas con su motivo, antes del botón «Confirmar estas 6 etapas», que no se pulsó (RF-37); y cada plan del espacio
   de prueba `1985f689071b42ee` trae el aviso del modelo de órdenes provisional como alerta (RF-11). Capturas en
   `output/evidencia_web_067_077/067_T8_*.png`, fuera de git. Sin DIgSILENT.
-- [ ] T9 [DIgSILENT] La escalera y la optimización desde una orden, sobre un proyecto de prueba.
+- [x] T9 [DIgSILENT] La escalera y la optimización desde una orden, sobre un proyecto de prueba.
   Hecho cuando: el trabajo termina por la ruta de la web y su resultado queda como evidencia revisable.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

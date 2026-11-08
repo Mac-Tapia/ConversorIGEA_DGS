@@ -1,6 +1,6 @@
 # Spec 017 — Informes de estudio eléctrico y de factibilidad de suministro
 
-Estado: implementada (2026-10-15, «continúa con el flujo hasta cerrar los dos informes») · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 («para
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-15, «continúa con el flujo hasta cerrar los dos informes») · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 («para
 cerrar el proyecto, el resultado se plasma en un informe de cada análisis: uno de punto
 de diseño y factibilidad de suministro y otro de análisis de estudios eléctricos»)
 

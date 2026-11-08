@@ -12,5 +12,6 @@
       Hecho cuando: la suite completa con las nueve variables pasa con `-rs` sin omitidas.
 - [ ] T6. Carpeta principal `ConverterSmartGrid`, `.venv`, acceso directo y espacios. (RF-6)
       Hecho cuando: la web abre desde el acceso directo nuevo con los espacios de antes.
-- [ ] T7. [DIgSILENT] Un alimentador importado por la web con el nombre nuevo. (RF-4, RF-5)
+- [x] T7. [DIgSILENT] Un alimentador importado por la web con el nombre nuevo. (RF-4, RF-5)
       Hecho cuando: se cumple su criterio de finalización.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

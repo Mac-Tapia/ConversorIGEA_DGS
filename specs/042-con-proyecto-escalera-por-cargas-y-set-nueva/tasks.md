@@ -74,8 +74,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
 - [x] T28. «Con proyecto» de cualquier empresa siempre propone obras. (RF-39, RF-40, RF-41, RF-42)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_set_nueva.py` en verde.
-- [ ] T29. [DIgSILENT] «Con proyecto» de un sistema de otra empresa y otra tensión, sin perfil, desde la web. (RF-39, RF-40)
+- [x] T29. [DIgSILENT] «Con proyecto» de un sistema de otra empresa y otra tensión, sin perfil, desde la web. (RF-39, RF-40)
       Hecho cuando: cada alimentador con cargas nuevas termina con obra medida o «ya cumple».
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T30. Cada variante refuerza los tramos sobrecargados de cualquier ramal. (RF-43)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
 - [x] T31. El camino eléctrico pasa por acopladores y equipos en serie. (RF-44, RF-45)
@@ -94,8 +95,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T41. Elevador dedicado en cabecera compartida, con su costo y su límite. (RF-61, RF-62, RF-63)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion_016.py` en verde.
-- [ ] T42. [DIgSILENT] Un alimentador de 10 kV sin barra de 22,9 kV en su SET converge con el elevador. (RF-61)
+- [x] T42. [DIgSILENT] Un alimentador de 10 kV sin barra de 22,9 kV en su SET converge con el elevador. (RF-61)
       Hecho cuando: el flujo converge con el elevador sobre un proyecto de prueba, y su medida queda en la tarea.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T43. Obra aparte para el déficit previo, con su costo. (RF-64, RF-65, RF-66)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py tests/test_valle.py` en verde.
 - [x] T45. Rótulos, nota del informe, valle y factor del elevador. (RF-67, RF-68, RF-69, RF-70)
@@ -120,21 +122,26 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_obras_pf_guion.py` en verde.
 - [x] T57. El alcance a la vida útil, parar con 3 y una definitiva, y presentarla siempre. (RF-91, RF-92, RF-93)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion.py tests/test_escalera_optima.py` en verde.
-- [ ] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
+- [x] T50. [DIgSILENT] En el navegador, una corrida por alimentador real se lanza y su tabla se lee. (RF-76, RF-77)
       Hecho cuando: captura del navegador con la tabla de Pisco, sin errores de consola.
-- [ ] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
       Hecho cuando: la tabla de alternativas de Pisco trae su alcance medido, sin «sin medir».
-- [ ] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
       Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
-- [ ] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
       Hecho cuando: el flujo de «Con proyecto» converge con la celda nueva y sus cargas en límites.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T38. Hasta 3 alternativas, elegida por costo anual y sin repetir sorteos. (RF-55, RF-56, RF-57, RF-59)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T39. Las alternativas en el informe de estudio, el plan y el PIDE. (RF-58)
       Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_informe_alternativas.py` en verde.
-- [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
+- [x] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T58. El refuerzo de los tramos sobrecargados sigue la escalera: sección normalizada antes que terna
       en los tramos aéreos. (RF-43, RF-94)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py -k "sobrecargad or refuerzo"` en verde.

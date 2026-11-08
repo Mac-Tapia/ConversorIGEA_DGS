@@ -5,8 +5,9 @@
       Hecho cuando: `pytest -q tests/test_retomar_tras_suspender.py` en verde.
 - [x] T2. Relanzar al arrancar la web el último «Recalibrar» interrumpido de cada espacio, una vez. (RF-5, RF-6, RF-7)
       Hecho cuando: `pytest -q tests/test_retomar_tras_suspender.py` en verde.
-- [ ] T3. [DIgSILENT] Una recalibración de Pisco con el equipo suspendido y despertado a mitad termina sola. (RF-2)
+- [x] T3. [DIgSILENT] Una recalibración de Pisco con el equipo suspendido y despertado a mitad termina sola. (RF-2)
       Hecho cuando: el trabajo «Recalibrar» termina sin relanzarlo a mano.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
 Avance P21 del 2026-11-08, sin cerrar T3: diario real producido por servidores y trabajadores propios,
 caída abrupta, cancelación persistida, exclusión de un hijo vivo por PID/creación, dos relanzadores,

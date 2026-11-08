@@ -40,9 +40,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `npm run build` sin errores y `pytest -q tests/test_fijas_a_su_maxima.py` en verde.
       Hecho el 2026-11-07: `npm ci && npm run build` y `tsc --noEmit` sin errores; la vista en el navegador real
       queda con la prueba en DIgSILENT (T8).
-- [ ] T8. [DIgSILENT] CA101_CHN102 recalibrado desde la web con un cliente a su máxima. (RF-12, RF-17 a RF-19)
+- [x] T8. [DIgSILENT] CA101_CHN102 recalibrado desde la web con un cliente a su máxima. (RF-12, RF-17 a RF-19)
       Hecho cuando: el informe de la calibración lista ese cliente con su registro, sus kW y sus kvar de máxima, la
       cabecera cuadra dentro de la tolerancia y la tabla, vista en el navegador real, muestra sus dos valores.
-- [ ] T4. [DIgSILENT] NA203 recalibrado con los dos criterios desde la web. (Todos)
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T4. [DIgSILENT] NA203 recalibrado con los dos criterios desde la web. (Todos)
       Hecho cuando: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar de fijas y «coincidente» con
       2026-09 el registro de cada fija en el instante de su máxima de cabecera.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

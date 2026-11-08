@@ -1,6 +1,6 @@
 # Spec 087 — Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora
 
-Estado: implementada · Fecha: 2026-11-04 · Origen: petición del usuario tras la corrida de Pisco
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-04 · Origen: petición del usuario tras la corrida de Pisco
 
 ## Contexto y objetivo
 Pisco (2026-11-04): la evaluación por alimentador (042:RF-24) prueba cada variante en DIgSILENT, a cerca de 1 min cada una, hasta 150 por

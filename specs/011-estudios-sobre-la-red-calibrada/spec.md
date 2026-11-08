@@ -1,6 +1,6 @@
 # Spec 011 — Estudios y obras de mejora sobre la red calibrada
 
-Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
 se deben hacer cuando se hizo la calibración en las cabeceras y la actualización de cargas por
 SED, como fijas y escaladas»)
 

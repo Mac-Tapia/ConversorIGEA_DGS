@@ -16,9 +16,10 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_benchmark_pinn.py tests/test_digital_twin_oraculo.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
 
-- [ ] T4 [DIgSILENT]. Contraste del gemelo con la red nativa. (RF-11)
+- [x] T4 [DIgSILENT]. Contraste del gemelo con la red nativa. (RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_gemelo_fisico_nativo.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
+      Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
 ## Evidencia de ejecución
 
