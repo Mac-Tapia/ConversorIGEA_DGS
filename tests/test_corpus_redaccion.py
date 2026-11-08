@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -106,22 +108,33 @@ def test_sin_cifras():
     assert sin_cifras('3.1 CRITERIOS') == '‹n› CRITERIOS'
 
 
-def test_herramienta_registra_y_exporta(corpus, tmp_path):
+@pytest.mark.parametrize('fuera_del_checkout', [False, True])
+def test_herramienta_registra_y_exporta(corpus, tmp_path, fuera_del_checkout):
     """072:RF-19 — la herramienta lista lo pendiente, registra decisiones humanas y exporta lo aprobado."""
     carpeta, _frags = corpus
     decisiones = tmp_path / 'decisiones.json'
     decisiones.write_text(json.dumps([{'record_id': 'r1', 'aprobado': True, 'uso': 'redaccion', 'nota': 'n'}]),
                           encoding='utf-8')
     herramienta = RAIZ / 'tools' / 'corpus_redaccion_pide.py'
+    entorno = {k: v for k, v in os.environ.items() if k != 'PYTHONPATH'}
+    if fuera_del_checkout:
+        # Simula la disposición entregada: el guion tiene paquete disponible,
+        # pero no existe src junto a él. No se crea otro entorno ni se instala.
+        destino = tmp_path / 'programa' / 'tools' / herramienta.name
+        destino.parent.mkdir(parents=True)
+        shutil.copyfile(herramienta, destino)
+        herramienta = destino
+        entorno['PYTHONPATH'] = str(RAIZ / 'src')
+        assert not (destino.parents[1] / 'src').exists()
     base = [sys.executable, str(herramienta), '--dataset', str(carpeta)]
     r = subprocess.run(base + ['--decisiones', str(decisiones), '--revisor', 'ing. revisor'],
-                       capture_output=True, text=True, encoding='utf-8')
+                       capture_output=True, text=True, encoding='utf-8', env=entorno)
     assert r.returncode == 0, r.stdout + r.stderr
     salida = tmp_path / 'ejemplos.jsonl'
-    r = subprocess.run(base + ['--exportar', str(salida)], capture_output=True, text=True, encoding='utf-8')
+    r = subprocess.run(base + ['--exportar', str(salida)], capture_output=True, text=True, encoding='utf-8', env=entorno)
     assert r.returncode == 0, r.stdout + r.stderr
     filas = [json.loads(x) for x in salida.read_text(encoding='utf-8').splitlines()]
     assert [f['record_id'] for f in filas] == ['r1'] and 'Aprobados: 1' in r.stdout
     sin_revisor = subprocess.run(base + ['--decisiones', str(decisiones)], capture_output=True, text=True,
-                                 encoding='utf-8')
+                                 encoding='utf-8', env=entorno)
     assert sin_revisor.returncode == 2 and 'revisor' in sin_revisor.stdout

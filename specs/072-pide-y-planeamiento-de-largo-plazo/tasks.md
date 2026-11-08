@@ -60,12 +60,19 @@
       y un modelo entrenado con lo exportado pasa sus puertas (070, 071) sin bajar la prueba sellada.
       Falta: la revisión, que es de una persona (`tools/corpus_redaccion_pide.py --dataset <corpus> --pendientes 20`, luego
       `--decisiones <json> --revisor "<nombre>"`), y el entrenamiento en GPU, en pausa por orden del usuario.
+      Relectura P17 (2026-11-08): corpus existente de 12 255 fragmentos elegibles;
+      cero revisados y cero aprobados; el registro de revisión no existe. Preparada
+      selección revisable de 19 documentos DOCX distintos, con fragmentos y
+      procedencia, y plantilla de decisiones sin completar. No se creó ninguna
+      revisión humana ni se entrenó; evidencia externa `paralelo_p17_20261108/revision_humana`.
 - [x] T10 Etiqueta de casos de prueba. (RF-20)
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
 - [x] T12 El COyM del perfil en la propuesta del PIDE y en F10 a F12. (RF-22)
       Hecho cuando: `pytest -q tests/test_formatos_pide.py -k coym` en verde.
 - [ ] T11 Aceptación real de los dos entregables.
       Hecho cuando: el usuario los revisa en una empresa.
+      P17 prepara una comparación de cabeceras declaradas con los ejemplos
+      custodiados, sin filas reales ni aprobación: esto no cierra 027 T22 ni T11.
 - [ ] T13 Base real de módulos estándar de transmisión y una obra valorada con ella. (RF-5, RF-6, RF-9)
       Hecho cuando: la carpeta de la Res. 181-2026-OS/CD (que sustituye la base de la 152-2026-OS/CD) está descargada fuera de git
       con su URL, fecha y huella, sus columnas declaradas a `leer_modulos_transmision`, y una obra de transmisión de una red real
@@ -83,10 +90,38 @@
       costa con 8 km de LT 60 kV AAAC 240) se valora en 2 360 890,48 USD con seis elementos, y quedan nombrados el terreno, que no
       tiene módulo, y un metrado en m frente a un módulo por km. Faltan la carpeta de la 181 (pedirla a la GRT o esperar a que se
       enlace) y una obra de una red real.
+      Revalidación primaria P17 (2026-11-08): capturados índice GRT 2026 y PDF de
+      la 181 con fecha/URL/SHA; el índice solo enlaza sus PDF, sin carpeta de datos
+      actualizada. HEAD de la RAR anterior sigue declarando 506 718 534 bytes y
+      fecha 26-07-2026; no se volvió a descargar ni se declaró como base de la 181.
+      La moneda y las unidades del archivo actualizado no están acreditadas.
+      Evidencia externa `paralelo_p17_20261108/fuentes_oficiales/captura_fuentes.json`.
 - [ ] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
       por la de corto plazo del estudio de «Con proyecto» (098:RF-37), con el año en que esta vuelve a fallar
       (098:RF-39, RF-40) como punto de partida. Usuario (2026-11-07): el PIDE se integra como flujo propio, para
       cualquier alimentador y empresa; cubre los años siguientes a los 4 del corto plazo; parte de copias de los casos
       del estudio con su obra de corto plazo ya puesta, y calibra cada año con las proyecciones de demanda de la spec
-      de pronóstico (089). Antes, el año 0 a 4 bien hecho (098). Pendiente: falta su RF en esta spec; no se implementa aún.
-      Hecho cuando: el RF esté escrito aquí y su prueba, con fake_pf, dé la obra de cada año encima de la anterior.
+      de pronóstico (089). Antes, el año 0 a 4 bien hecho (098).
+      Contrato autorizado en P17 el 2026-11-08: RF-23 a RF-28. La 089 actual no produce
+      proyección anual aceptada: sin ella se bloquea, sin extrapolar sus 28 días.
+      Hecho cuando: el modo anual, con proyección aceptada y obras físicas, dé la obra
+      de cada año encima de la anterior y su restitución se relea; repetir con datos
+      y caso nativo autorizado y conectar el flujo del operador antes de cerrarla.
+- [x] T15 Contrato anual y continuación en copias con pruebas CPU. (RF-23 a RF-28)
+      Hecho cuando: `pytest -q tests/test_pide_anual.py` compruebe acumulación,
+      proyección P/Q trazable, negativas y restitución, sin abrir motor.
+      Esta tarea de implementación no sustituye la corrida nativa de T14 ni la
+      revisión humana de los entregables de T11.
+      Implementado en P17 (2026-11-08): demanda absoluta P/Q equilibrada o por
+      fases explícitas, por identidad de carga y con archivo/evaluación anual
+      aceptada; copias desde el corto plazo y el año previo; obras físicas solo
+      cuando el diagnóstico lo exige; relectura y restitución de cargas,
+      escenario, obras, referencias físicas, modo/factor de flujo, etapa/hora.
+      Pruebas enfocadas: `test_pide_anual`, `test_pide_pf`, `test_pide`,
+      `test_pide_economia`, `test_formatos_pide`, `test_modulos_transmision`:
+      95 aprobadas en 3,89 s, sin motor ni GPU. T14 sigue abierta por la demanda
+      anual real aceptada, la conexión con el operador y el ensayo nativo.
+      Verificación ampliada final: 109 aprobadas en 4,66 s con corpus y ejemplos;
+      el CLI del corpus funciona desde checkout y sin `src` adyacente con paquete
+      disponible. Corregidos bootstrap y UTF-8 de su salida; las pruebas de
+      registro/exportación usan corpus temporal, no el registro real.

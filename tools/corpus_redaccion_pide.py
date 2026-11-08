@@ -15,7 +15,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+_SRC = Path(__file__).resolve().parents[1] / 'src'
+if _SRC.is_dir():
+    sys.path.insert(0, str(_SRC))
 
 
 def _fragmentos(dataset: Path) -> list[dict]:
@@ -25,6 +30,10 @@ def _fragmentos(dataset: Path) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    # La salida se consume también desde subprocesos: la página de códigos de
+    # Windows no debe convertir «redacción» en bytes incompatibles con UTF-8.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     p = argparse.ArgumentParser(description='Revisión humana del corpus PIDE para redactar y dar formato (072:RF-19).')
     p.add_argument('--dataset', type=Path, required=True, help='Carpeta del corpus con fragments.jsonl')
     p.add_argument('--registro', type=Path, help='Registro de revisión; por defecto revision_redaccion.jsonl del corpus')

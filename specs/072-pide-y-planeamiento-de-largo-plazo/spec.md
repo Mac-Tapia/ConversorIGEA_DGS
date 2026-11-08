@@ -53,6 +53,21 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-11: DONDE haya entregables históricos con datos, EL SISTEMA medirá el pronóstico contra lo ocurrido, sin mirar el futuro.
 - RF-12: EL SISTEMA trasladará cada caso de estudio a cada año (030) y acumulará en cada año las obras de los anteriores.
 
+### Continuación anual del corto plazo
+
+Orden del usuario del 2026-11-07, ejecutada en P17 (2026-11-08): el PIDE es un
+flujo propio, universal, después de los cuatro años del corto plazo (098:RF-37,
+RF-39, RF-40). La 089 vigente excluye la proyección a años: una curva de 28 días
+no acredita un horizonte anual y no se extrapola silenciosamente.
+
+- RF-23: CUANDO se continúe el corto plazo, EL SISTEMA partirá de una copia del caso y escenario identificados por sus rutas completas, con las obras de corto plazo declaradas comprobadas activas.
+- RF-24: EL SISTEMA usará en cada año únicamente una proyección anual aceptada con archivo y huella, modelo y evaluación identificados, cobertura del horizonte y P/Q por identidad completa de carga, sin sustituirla por una tasa cuando falte.
+- RF-25: CUANDO un año incumpla los límites del perfil, EL SISTEMA comprobará las obras físicas declaradas para ese año y releerá el flujo después de aplicarlas; sin obra o sin solución lo dejará bloqueado.
+- RF-26: EL SISTEMA copiará el estado con las obras del año anterior antes de evaluar el siguiente y registrará el primer año en que vuelven los problemas y las obras acumuladas.
+- RF-27: CUANDO termine o falle el flujo anual, EL SISTEMA restituirá proyecto, caso, escenario y demandas originales, y no informará éxito si la relectura no lo confirma.
+- RF-28: SI faltan identidad, proyección aceptada, unidad, datos físicos o conservación verificable, ENTONCES EL SISTEMA nombrará el faltante y no sobrescribirá estudios existentes ni inventará magnitudes o cumplimiento.
+- Aclaración de RF-24: una carga desequilibrada exige P/Q explícitas de sus fases r/s/t, con suma coherente con el total y unidades verificadas; su representación anual conserva la conexión y el modo físicos originales.
+
 ### Entregables
 
 - RF-13: EL SISTEMA generará el informe de largo plazo con mercado, diagnóstico, alternativas, técnico-económico, plan de obras

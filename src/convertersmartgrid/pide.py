@@ -14,6 +14,9 @@ from __future__ import annotations
 from .runtime_paths import staging_publicacion
 
 import math
+import hashlib
+import json
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,6 +65,75 @@ ALTERNATIVAS_POR_CAUSA = {
 
 class PideError(ValueError):
     """Falta un dato que la norma pide y el perfil no da: se dice cuál, no se supone."""
+
+
+def leer_json_con_huella(referencia: Mapping[str, Any], nombre: str) -> dict:
+    """072:RF-24/28 — lee el mismo artefacto que se aceptó, nunca un JSON cambiado."""
+    try:
+        ruta = Path(referencia['ruta'])
+        raw = ruta.read_bytes()
+        if not re.fullmatch('[0-9a-f]{64}', referencia['sha256']) or hashlib.sha256(raw).hexdigest() != referencia['sha256']:
+            raise PideError(f'{nombre}: la huella no coincide con el archivo')
+        resultado = json.loads(raw)
+        if not isinstance(resultado, dict):
+            raise PideError(f'{nombre}: se espera un objeto JSON')
+        return resultado
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        raise PideError(f'{nombre}: {exc}') from exc
+
+
+def leer_proyeccion_anual(plan: Mapping[str, Any]) -> dict:
+    """072:RF-24 — materialización anual aceptada, sin extrapolar el horizonte de 089.
+
+    La evaluación externa identifica modelo, dataset y horizonte anual. Este
+    consumidor comprueba su identidad; no decide ni inventa la aceptación científica.
+    P/Q son demandas absolutas por carga, en kW/kvar, para su escenario anual.
+    """
+    try:
+        corto, fin = plan['corto_plazo']['anio'], plan['anio_fin']
+        if type(corto) is not int or type(fin) is not int or corto < 4 or fin <= corto:
+            raise PideError('el horizonte anual debe continuar el corto plazo desde el año cuatro o posterior')
+        datos = leer_json_con_huella(plan['proyeccion_anual'], 'proyección anual')
+        evaluacion = leer_json_con_huella(datos['evaluacion'], 'evaluación anual')
+        if evaluacion.get('estado') != 'aceptado' or evaluacion.get('uso') != 'planeamiento_anual':
+            raise PideError('falta una evaluación aceptada para planeamiento anual')
+        if datos['proyecto'] != plan['project'] or not isinstance(datos['modelo'], str) or not datos['modelo'].strip():
+            raise PideError('la proyección no identifica este proyecto y modelo')
+        if evaluacion.get('modelo') != datos['modelo'] or evaluacion.get('dataset_sha256') != datos['dataset_sha256']:
+            raise PideError('modelo o dataset distinto del evaluado')
+        if not re.fullmatch('[0-9a-f]{64}', datos['dataset_sha256']):
+            raise PideError('falta la huella del dataset de la proyección')
+        if type(evaluacion.get('horizonte_anios')) is not int or evaluacion['horizonte_anios'] < fin:
+            raise PideError('la evaluación no cubre el horizonte anual solicitado')
+        if type(datos.get('anio_base')) is not int or datos['anio_base'] < 1:
+            raise PideError('falta el año base calendario de la proyección')
+        if datos['anio_base'] != plan['corto_plazo']['anio_base'] or evaluacion.get('anio_base') != datos['anio_base']:
+            raise PideError('el año base no coincide con el corto plazo y la evaluación anual')
+        por_anio = {a: {} for a in range(corto + 1, fin + 1)}
+        for fila in datos['filas']:
+            anio, carga = fila['anio'], fila['carga']
+            if type(anio) is not int or anio not in por_anio or not str(carga).strip() or carga in por_anio[anio]:
+                raise PideError('año, identidad de carga o fila anual duplicada no válidos')
+            if fila['alimentador'] not in plan['feeders'] or fila['clase'] not in ('cliente', 'escaladas') or not str(fila['objetivo']).strip():
+                raise PideError('la fila anual no identifica alimentador, clase y objetivo de 089/031')
+            if any(type(fila[k]) not in (int, float) or not math.isfinite(fila[k]) for k in ('p_kw', 'q_kvar')) or fila['p_kw'] < 0:
+                raise PideError(f'demanda anual no finita o negativa en {carga}')
+            if 'fases' in fila:
+                fases = fila['fases']
+                if not isinstance(fases, dict) or set(fases) != set('rst'):
+                    raise PideError(f'falta P/Q explícita de cada fase r/s/t en {carga}')
+                if any(type(fases[f][k]) not in (int, float) or not math.isfinite(fases[f][k])
+                       or (k == 'p_kw' and fases[f][k] < 0) for f in 'rst' for k in ('p_kw', 'q_kvar')):
+                    raise PideError(f'demanda por fase no finita o negativa en {carga}')
+                if any(not math.isclose(sum(fases[f][k] for f in 'rst'), fila[k], abs_tol=1e-6, rel_tol=1e-6)
+                       for k in ('p_kw', 'q_kvar')):
+                    raise PideError(f'la suma por fase no coincide con P/Q total en {carga}')
+            por_anio[anio][carga] = dict(fila)
+        if any(not filas for filas in por_anio.values()):
+            raise PideError('falta demanda para algún año del horizonte')
+        return {**datos, 'por_anio': por_anio}
+    except (KeyError, TypeError) as exc:
+        raise PideError(f'falta un dato del contrato anual: {exc}') from exc
 
 
 # ------------------------------------------------------------------ mercado (art. 7)
