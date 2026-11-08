@@ -123,8 +123,13 @@ def _entorno_limpio(python: Path) -> dict[str, str]:
     en un equipo con otro 3.12 cargaba de allí sus DLL. Un ``._pth`` lo impediría sin variable, pero también le quitaría
     PYTHONPATH, que es como un guion encuentra la API de DIgSILENT.
     """
+    # El ejecutable base que nos ejecuta puede proceder de PCbuild/amd64: su Lib
+    # está en la raíz de fuentes, no junto al exe. Esa base ya está identificada
+    # por este intérprete; los demás destinos mantienen su aislamiento local.
+    base_actual = Path(getattr(sys, '_base_executable', sys.executable)).resolve()
+    casa_python = Path(sys.base_prefix) if python.resolve() == base_actual else python.parent
     entorno = {k: v for k, v in os.environ.items() if k not in ('PYTHONPATH', 'VIRTUAL_ENV', 'PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL')}
-    entorno.update(PYTHONHOME=str(python.parent), PYTHONNOUSERSITE='1', PYTHONSAFEPATH='1', PIP_NO_INDEX='1', PIP_CONFIG_FILE=os.devnull,
+    entorno.update(PYTHONHOME=str(casa_python), PYTHONNOUSERSITE='1', PYTHONSAFEPATH='1', PIP_NO_INDEX='1', PIP_CONFIG_FILE=os.devnull,
                    PIP_DISABLE_PIP_VERSION_CHECK='1', PYTHONUTF8='1', PIP_NO_INPUT='1')
     return entorno
 

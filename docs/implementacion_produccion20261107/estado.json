@@ -262,7 +262,7 @@
       "evidence": []
     },
     "P22": {
-      "state": "rc5_setup_update_rollback_reapertura_y_ia_cuda_verificados_aceptacion_final_y_nuevo_corte_pendientes",
+      "state": "constructor_integral238_integrado_240f4ef9_helper_pythonhome_corregido_paquete_instalacion_final_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -309,7 +309,12 @@
         "p22_zip_complemento_f56ef508.json",
         "p22_ensayo_complemento_f56ef508/resultado.json",
         "p22_validacion_complemento_f56ef508.json",
-        "p22_runtime_api_f56ef508/stdout.json"
+        "p22_runtime_api_f56ef508/stdout.json",
+        "paralelo_p22_20261108/HANDOFF.md",
+        "paralelo_p22_20261108/pip_dry_run.json",
+        "p22_integrado_f706.xml",
+        "p22_home_controles.xml",
+        "p22_pythonhome_dos_layouts.json"
       ]
     },
     "P23": {
@@ -344,17 +349,17 @@
       "P19": {
         "owner": "/root/p19_cierre",
         "branch": "codex/p19-paralelo-20261108",
-        "state": "en_curso"
+        "state": "entregado_b673_daa0_6669_pendiente_integracion"
       },
       "P21": {
         "owner": "/root/p21_cierre",
         "branch": "codex/p21-paralelo-20261108",
-        "state": "en_curso"
+        "state": "entregado_6b798_c1bb_revision_independiente_en_curso"
       },
       "P22": {
         "owner": "/root/p22_paquete_completo",
         "branch": "codex/p22-paralelo-20261108",
-        "state": "entregado_para_revision_f70649d8"
+        "state": "integrado_240f4ef9_revision_independiente_en_curso"
       },
       "P17": {
         "owner": "/root/p22_paquete_completo",

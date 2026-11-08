@@ -170,3 +170,11 @@ lector de la versión actual antes de cambiar el puntero al programa anterior.
 Se preparan y verifican todos los destinos antes de cambiarlos, con recuperación
 de los originales si falla un cambio intermedio. Se rechazan solapamientos
 ambiguos y se conservan datos posteriores apartados, sin seguir enlaces.
+
+Intérprete compilado (RF-36/39): cuando el helper ejecuta el mismo binario base
+del intérprete que lo ejecuta, usa su `sys.base_prefix` ya identificado para
+PYTHONHOME. Un build PCbuild/amd64 tiene Lib en la raíz de fuentes. Para cualquier
+otro destino entregado mantiene PYTHONHOME junto al ejecutable y PYTHONSAFEPATH=1;
+no se retira la protección frente al registro de Windows ni al directorio actual.
+Comprobación real sobre ambos layouts Python3.12.16, con json.py hostil en cwd,
+termina0 sin ejecutarlo. La instalación final integrada sigue siendo otra puerta.
