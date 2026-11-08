@@ -69,12 +69,15 @@
       ]
     },
     "P04": {
-      "state": "procedencia_capex_integrada_revision_independiente_sin_hallazgos_dos_carreras_fuentes_en_correccion",
+      "state": "fuentes_captura_unica_y_publicacion_integradas_capex_con_procedencia_revision_cruzada_sin_hallazgos_92_pruebas_combinadas",
       "evidence": [
         "obras_definidas_capex_20261108/INDICE.md",
         "p04_procedencia_capex_20261108/HANDOFF.md",
         "revision_p04_capex_20261108/REVIEW.md",
-        "revision_p04_correctivo_20261108/REVIEW.md"
+        "revision_p04_correctivo_20261108/REVIEW.md",
+        "correccion_p04_publicacion_20261108/HANDOFF.md",
+        "revision_p04_publicacion_20261108/REVIEW.md",
+        "p25_fuentes_capex_integracion_20261108/resultado.xml"
       ]
     },
     "P05": {
@@ -127,7 +130,7 @@
       "evidence": []
     },
     "P11": {
-      "state": "campo_empresa_implementado_aceptacion_nativa_y_visual_pendiente",
+      "state": "campo_empresa_implementado_frontend93_y_compilacion_correctos_control_chrome_bloqueado_por_url_sin_aceptacion_visual",
       "evidence": [
         "p11_frontend_red.log",
         "p11_frontend_final.log",
@@ -136,7 +139,8 @@
         "p11_api_red.log",
         "p11_backend_green.xml",
         "p11_campo_empresa_api.json",
-        "p11_reinicio_preservacion_despues.json"
+        "p11_reinicio_preservacion_despues.json",
+        "p25_frontend_final_20261108/manifest.json"
       ]
     },
     "P12": {
@@ -357,10 +361,14 @@
       ]
     },
     "P25": {
-      "state": "qa_separado_instalador_preparado_pendiente_freeze_final_correccion_enlaces_y_ensayo_instalado",
+      "state": "qa_aislado_y_rechazo_instalacion_conserva_versiones_109_pruebas_sin_omisiones_listo_para_construir_candidato_congelado",
       "evidence": [
         "p25_comercial_20261108/HANDOFF.md",
-        "p25_comercial_20261108/FASE2.ps1"
+        "p25_comercial_20261108/FASE2.ps1",
+        "p25_instalador_integrado_20261108/resultado.xml",
+        "p25_integracion_estatica_20261108/resultado.xml",
+        "p25_revision_instalacion_20261108",
+        "p25_comercial_20261108/R5_PREPARACION.md"
       ]
     },
     "P26": {
@@ -414,13 +422,13 @@
       "P04_fuentes": {
         "owner": "/root/p22_paquete_completo",
         "branch": "codex/p04-fuentes-20261108",
-        "state": "corrigiendo_dos_important_publicacion_y_snapshot",
+        "state": "integrado_revision_independiente_0_hallazgos_y_regresion_combinada92",
         "worktree_reused": true
       },
       "P04_revision": {
         "owner": "/root/p19_cierre",
         "branch": "codex/p25-comercial-20261108",
-        "state": "revision_independiente_dos_important_abiertos",
+        "state": "revision_independiente_completada_sin_hallazgos_6_repros_y_controles",
         "worktree_reused": true
       },
       "P04_CAPEX": {
@@ -431,8 +439,14 @@
       },
       "P25_instalacion": {
         "owner": "/root/p21_cierre",
-        "state": "revision_receta_y_aislamiento_enlaces_externa_sin_instalar",
+        "state": "correctivo_producto_integrado_109_pruebas_y_preparacion_instalacion_externa",
         "worktree_reused": true
+      },
+      "P25_construccion": {
+        "owner": "/root/p19_cierre",
+        "state": "listo_esperando_sha_final_y_turno",
+        "worktree_reused": true,
+        "writes": "artefactos_externos; fuentes congeladas solo lectura"
       }
     }
   },

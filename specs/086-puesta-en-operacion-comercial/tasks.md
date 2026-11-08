@@ -121,6 +121,16 @@
   sin copiar ruedas ni instalar. Pruebas/negativas: `tests/test_complemento_integral.py`; evidencia externa
   `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p22_20261108/`.
   No se construyó todavía el paquete final integrado ni se acreditan DLL/GPU, modelos o instalación nativa.
+  Avance de cierre (2026-11-08): complemento integral rc6 construido una sola vez,
+  238 ruedas y ZIP SHA256 0cdd6d9f2ddcadd38e6d64c778eb5ea6ef444b1cfa9d2457b066bc7a446be3ca,
+  carpeta/ZIP verificados independientemente. P04 captura única/publicación y
+  procedencia CAPEX integradas con revisión cruzada; 92 pruebas combinadas correctas.
+  QA tiene AppId/ruta/accesos propios. El rechazo de una versión ya existente
+  conserva ahora su carpeta: 109 pruebas de instalación/QA correctas sin omitidas.
+  Esto prepara el núcleo/setup congelado y su ensayo real; no cierra T40,
+  no acredita modelos, importación nativa final ni la red físicamente cortada.
+  Evidencias externas: p25_fuentes_capex_integracion_20261108,
+  p25_instalador_integrado_20261108 y p22_construccion_integral_rc6_20261108.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 
