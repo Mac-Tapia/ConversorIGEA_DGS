@@ -66,11 +66,17 @@ No se fija una fecha de fin sin medir disponibilidad. P00 debe registrar duraci�
 ## Procedimiento común por unidad de implementación
 
 - [ ] Releer RF, criterios originales de la matriz y consumidores actuales; confirmar dueño y base.
+  Conciliación 2026-11-08 (COMUN.1, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 - [ ] Para cambios de comportamiento, añadir primero una regresión que represente el fallo y conservar su salida roja. Para una aceptación ya implementada, ejecutar el caso real sin fabricar un cambio de código.
+  Conciliación 2026-11-08 (COMUN.2, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 - [ ] Aplicar cambio mínimo e integrar productores/consumidores; mantener compatibilidad prevista.
+  Conciliación 2026-11-08 (COMUN.3, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 - [ ] Ejecutar pruebas indicadas y negativas del Review Focus. El resultado debe tener salida 0, cero fallos/errores/skips requeridos y artefactos completos; un timeout no pasa.
+  Conciliación 2026-11-08 (COMUN.4, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 - [ ] Revisar diff propio, ejecutar puertas apropiadas y registrar evidencia. Commit de rutas propias cuando esté autorizado; no incluir el diff ajeno por conveniencia.
+  Conciliación 2026-11-08 (COMUN.5, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 - [ ] Marcar la tarea original solo si cumple su criterio completo; actualizar matriz, Estado y documentación con la revisión exacta. Resultado rechazado/bloqueado conserva esa condición.
+  Conciliación 2026-11-08 (COMUN.6, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 
 Cada paquete se descompone en subunidades revisables; no se funde como un bloque indivisible. P19 sigue T1b→T2b→T3b→T4b→T5b. P23 sigue capas de abajo arriba y luego cada movimiento frontend. R1–R5 se revisan por proyecto/caso. La matriz conserva todas las tareas originales para que una tanda no cierre tareas que no ejecutó.
 
@@ -84,10 +90,15 @@ Cada paquete se descompone en subunidades revisables; no se funde como un bloque
 **Tareas abiertas que administra:** actividad transversal necesaria para el cierre de hallazgos.
 
 - [ ] **Paso 1.** Identificar dueño y propósito del diff preexistente de services.py; decidir su incorporación con evidencia, sin atribuir autoría por apariencia.
+  Conciliación 2026-11-08 (P00.1, parcial): verificado Pendiente: Differences originales preservadas y registro P00 verificado; falta enlazar recibo externo exacto de autoría/decisión del diff preexistente en esta tabla. No inferirla por apariencia. Responsable: Integrador /root; P00.
 - [ ] **Paso 2.** Registrar HEAD, rama, worktrees, estado Git y hashes de fuentes/perfiles/modelos; guardar manifiesto y copia verificable fuera del checkout.
-- [ ] **Paso 3.** Inventariar rutas, pestañas, botones y campos existentes de la web; conservar esa línea base en todo el plan.
-- [ ] **Paso 4.** Asignar responsable y worktree por paquete; un integrador incorpora cambios y cada archivo compartido tiene un único escritor.
+  Conciliación 2026-11-08 (P00.2, parcial): verificado Pendiente: Existen registros/hash/fotos y originales conservados; cláusula de copia verificable completa requiere recibo específico. No hacer copia nueva para satisfacer inventario. Responsable: Integrador /root; P00.
+- [x] **Paso 3.** Inventariar rutas, pestañas, botones y campos existentes de la web; conservar esa línea base en todo el plan.
+  Cierre local 2026-11-08 (P00.3): Inventario de superficies y mapa ruta→destino; 470 declaraciones y 3160 aperturas JSX conservadas y cinco renders idénticos. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 4.** Asignar responsable y worktree por paquete; un integrador incorpora cambios y cada archivo compartido tiene un único escritor.
+  Cierre local 2026-11-08 (P00.4): Dueños/rutas/worktrees explícitos en entregas P04/P17/P19/P22/P23 y un integrador. No se crean worktrees en esta auditoría. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 5.** Leer D1–D7 actuales de 086. Mantener decisiones resueltas, incluido D7: cada usuario aporta sus licencias. Identificar operador y tercero de T41.
+  Conciliación 2026-11-08 (P00.5, parcial): verificado Pendiente: D1–D7 leídos y D7 resuelto; operador/tercero de T41 aún no identificado en los recibos consultados. Responsable: Integrador /root; P00.
 
 **Verificación enfocada prevista:**
 
@@ -109,11 +120,16 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** actividad transversal necesaria para el cierre de hallazgos.
 
-- [ ] **Paso 1.** Comparar installed/constraints/lock con candidato.versiones_de_seguridad. Base auditada: Pillow 12.3.0 frente a 13.0.0; pypdf 6.21.2 frente a 6.21.4; certifi 2026.7.22 frente a 2026.10.18. Consultar avisos actuales antes de fijar versiones definitivas.
-- [ ] **Paso 2.** Añadir a test_fijar_entorno la negativa test_entorno_bajo_minimo_de_seguridad_no_es_apto: un paquete bajo el mínimo impide declarar entorno apto aunque pip check pase. Guardar el fallo antes del arreglo.
-- [ ] **Paso 3.** Preparar entorno candidato externo CPython 3.12 con dependencias y ruedas verificadas; no reinstalar Torch ni modificar el .venv de las sesiones activas.
-- [ ] **Paso 4.** Corregir constraints/locks que permitan regresar a versiones antiguas; conservar hashes, procedencia y separación del complemento IA.
+- [x] **Paso 1.** Comparar installed/constraints/lock con candidato.versiones_de_seguridad. Base auditada: Pillow 12.3.0 frente a 13.0.0; pypdf 6.21.2 frente a 6.21.4; certifi 2026.7.22 frente a 2026.10.18. Consultar avisos actuales antes de fijar versiones definitivas.
+  Cierre local 2026-11-08 (P01.1): Comparación de mínimos aplicada y avisos consultados. 255 dependencias: cero vulnerabilidades conocidas entre consultadas; Pyomo/Torch/PyG NO auditadas por PyPI, identificadas sin fingir certificación. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 2.** Añadir a test_fijar_entorno la negativa test_entorno_bajo_minimo_de_seguridad_no_es_apto: un paquete bajo el mínimo impide declarar entorno apto aunque pip check pase. Guardar el fallo antes del arreglo.
+  Cierre local 2026-11-08 (P01.2): Negativa nombrada de mínimos con cinco fallos reales antes de interfaz; 21/21 CPU posteriores. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 3.** Preparar entorno candidato externo CPython 3.12 con dependencias y ruedas verificadas; no reinstalar Torch ni modificar el .venv de las sesiones activas.
+  Cierre local 2026-11-08 (P01.3): Entorno externo via316 CPython3.12.16, 255 versiones preservadas, importaciones y runtime verificados; entornos de sesiones no reinstalados. Después solo metadata propia y dos devtools autorizadas, sin alterar255. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 4.** Corregir constraints/locks que permitan regresar a versiones antiguas; conservar hashes, procedencia y separación del complemento IA.
+  Cierre local 2026-11-08 (P01.4): Constraints mínimos corregidos, locks por SHA y separación núcleo/complementos; lectura de procedencias Git y selector offline238. No se exige reconstrucción final en este paso. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 5.** Ejecutar pip check, escaneo actual de Python y pruebas de instalación/capacidades con el intérprete candidato; ensayar reversión antes de cambiar el lanzador compartido.
+  Conciliación 2026-11-08 (P01.5, parcial): runtime316_255_dependencias_y_metadata_256_intactas_mas_reportlab_y_ruff_dev_258_pipcheck_correcto Pendiente: pipcheck/auditoría/instalación y capacidades verificadas, junction316 autorizado; no aparece ensayo explícito de reversión de ese lanzador antes del cambio. No equiparar rollback rc5 con rollback del enlace de entorno. Responsable: Integrador /root; P01.
 
 **Verificación enfocada prevista:**
 
@@ -138,9 +154,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Interfaz/decisión:** Conservar alcanceDe(a: Alternativa): string y el contrato JSON actual.
 
 - [ ] **Paso 1.** Reproducir node --test frontend/test/alternativas.test.mjs y conservar la diferencia: temporal frente a temporal, no llega al horizonte más corto.
-- [ ] **Paso 2.** Contrastar 042:RF-77, ampliación 098 y filas del informe. Conservar la distinción entre sin medir, horizonte insuficiente, temporal y definitiva.
-- [ ] **Paso 3.** Cubrir en alcanceDe definitiva=true, años positivos, cero, nulo y mas_corto presente/ausente. Si el comportamiento actual cumple el RF, actualizar la expectativa obsoleta; no quitar el aviso para poner verde la prueba.
+  Conciliación 2026-11-08 (P02.1, parcial): verificado Pendiente: Progreso09 registra reproducción del fallo y la diferencia, y npm43verde conservado; no se localizó log rojo propio. Falta enlazar el recibo original si se exige salida roja, sin repetir ni inventarlo. Responsable: Integrador /root; P02.
+- [x] **Paso 2.** Contrastar 042:RF-77, ampliación 098 y filas del informe. Conservar la distinción entre sin medir, horizonte insuficiente, temporal y definitiva.
+  Cierre local 2026-11-08 (P02.2): RF042/098 contrastados y semántica temporal conservada; rechazo de expectativa obsoleta documentado en progreso09. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 3.** Cubrir en alcanceDe definitiva=true, años positivos, cero, nulo y mas_corto presente/ausente. Si el comportamiento actual cumple el RF, actualizar la expectativa obsoleta; no quitar el aviso para poner verde la prueba.
+  Cierre local 2026-11-08 (P02.3): Cobertura de definitiva/años/nulos/horizonte y expectativa corregida sin ocultar avisos; npm test histórico43/43 y regresiones frontend posteriores. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 4.** Ejecutar npm test y npm run typecheck completos; verificar el mismo significado en tabla real y Word/Excel durante P13.
+  Conciliación 2026-11-08 (P02.4, parcial): verificado Pendiente: npm test/types completos sí; falta significado contrastado en tabla real y Word/Excel durante P13. Conjunción mantiene el paso abierto. Responsable: Integrador /root; P02.
 
 **Verificación enfocada prevista:**
 
@@ -164,12 +184,18 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Interfaz/decisión:** Firmas propuestas; no existen aún. Mantener compatible tools/verificar_candidato.py. Nuevos archivos enumerados en esta tarea.
 
-- [ ] **Paso 1.** Crear tools/verificar_entrega_integral.py y tests/test_verificar_entrega_integral.py. Vincularlos a 065:RF-24 y 086:RF-46 en sus planes activos e inventario; reutilizar el runner Python existente.
-- [ ] **Paso 2.** Escribir primero negativas: frontend fallido, JUnit ausente, timeout, skip/xfail requerido, datos sin huella, candidato modificado y módulo exigido sin dependencia impiden aceptación.
-- [ ] **Paso 3.** Implementar plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path) -> list[dict] y evaluar_entrega(resultados: list[dict], obligatorias: set[str]) -> dict. Comprobación: id, comando como lista, cwd, artefacto, ámbito y obligatoriedad.
+- [x] **Paso 1.** Crear tools/verificar_entrega_integral.py y tests/test_verificar_entrega_integral.py. Vincularlos a 065:RF-24 y 086:RF-46 en sus planes activos e inventario; reutilizar el runner Python existente.
+  Cierre local 2026-11-08 (P03.1): Herramienta y tests vinculados RF065/086 e inventario. Implementación c8ad04d2 y puerta frontend_lint posterior; módulo28 incluido en297CPU. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 2.** Escribir primero negativas: frontend fallido, JUnit ausente, timeout, skip/xfail requerido, datos sin huella, candidato modificado y módulo exigido sin dependencia impiden aceptación.
+  Cierre local 2026-11-08 (P03.2): Negativas por frontend/JUnit/timeout/omisión/huella/candidato/dependencia, preservación de rechazos. 28 pruebas reales del módulo. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 3.** Implementar plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path) -> list[dict] y evaluar_entrega(resultados: list[dict], obligatorias: set[str]) -> dict. Comprobación: id, comando como lista, cwd, artefacto, ámbito y obligatoriedad.
+  Cierre local 2026-11-08 (P03.3): Firmas plan_comprobaciones/evaluar_entrega presentes y contratos de comprobación cubiertos por módulo28. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 4.** CLI nueva propuesta: --root, --python, --output-dir y --edicion nucleo|completa. Backend tests/, frontend test/typecheck/build y auditorías son puertas separadas; completa incorpora tests_ml y campañas requeridas. No cambiar el significado de flags históricos en silencio.
+  Conciliación 2026-11-08 (P03.4, parcial): g2_rechazado_correctivos_conocidos_integrados_comprobaciones_enfocadas_correctas_nueva_suite_completa_pendiente Pendiente: CLI y ámbitos backend/frontend/ML implementados; plan_comprobaciones09 añade tests_ml en completa, sin puerta separada de campaña siete familias/HARNESS. Falta comprobar integración de campañas requeridas sobre corte posterior; no cierra esta conjunción por el módulo28. Responsable: Integrador /root; P03.
 - [ ] **Paso 5.** Consolidar en resultado_entrega.json revisión, datos, modelos, salida y estados de implementación/pruebas/aceptación. Núcleo aceptado y proyecto completo son campos diferentes.
-- [ ] **Paso 6.** Probar el orquestador con procesos mínimos reales aislados, incluidos fallos, antes de ejecutar el gate verdadero de P25.
+  Conciliación 2026-11-08 (P03.5, parcial): g2_rechazado_correctivos_conocidos_integrados_comprobaciones_enfocadas_correctas_nueva_suite_completa_pendiente Pendiente: resultado_entrega09 consolida revisión, hashes de candidato y resultados; enlaza registro backend para datos. No materializa estado de implementación ni identidad/modelos y aceptación por familia en el resumen único pedido. Estados production_ready_core/project_complete separados sí; conservar parcial hasta completar o conciliar contrato aprobado. Responsable: Integrador /root; P03.
+- [x] **Paso 6.** Probar el orquestador con procesos mínimos reales aislados, incluidos fallos, antes de ejecutar el gate verdadero de P25.
+  Cierre local 2026-11-08 (P03.6): Procesos mínimos reales aislados, propagación de errores/timeout/artifactos y pruebas28 sin omitidas antes de gate. G2 rechazado no se oculta. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 
 **Crear:** `tools/verificar_entrega_integral.py` y `tests/test_verificar_entrega_integral.py`; sus nombres e interfaz son propuestas de este plan.
 
@@ -195,11 +221,16 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Interfaz/decisión:** Produce source_run_id/source_fingerprint por modalidad y baseline de superficies web.
 
-- [ ] **Paso 1.** Preparar manifiestos separados TXT/MDB/VNR con empresa, periodo, CRS, hashes y selección; no completar una modalidad con datos de otra.
-- [ ] **Paso 2.** Verificar negativas de fuente ausente, pertenencia a otro sistema, catálogo incompatible y reconstrucción con supuestos. El inventario sigue visible; preparación ambigua bloquea conversión.
+- [x] **Paso 1.** Preparar manifiestos separados TXT/MDB/VNR con empresa, periodo, CRS, hashes y selección; no completar una modalidad con datos de otra.
+  Cierre local 2026-11-08 (P04.1): Nueve fuentes en manifiestos separados TXT/MDB/VNR, selección y autoridad; empresa/periodo/CRS desconocidos explícitos. No se copian originales ni se confiere aceptación cruzada. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 2.** Verificar negativas de fuente ausente, pertenencia a otro sistema, catálogo incompatible y reconstrucción con supuestos. El inventario sigue visible; preparación ambigua bloquea conversión.
+  Cierre local 2026-11-08 (P04.2): Ausencia/cambio de huella/otro sistema/catálogo/supuestos bloquean preparación conservando inventario. Correcciones posteriores cierran carreras reales sin reducir guardas. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 3.** Probar layouts reducido/completo, uno/varios/todos, red unida y DGS byte a byte con workers=1/4, usando las referencias de entrada correspondientes.
-- [ ] **Paso 4.** Si cambió la huella de entrada/catálogo, bloquear la comparación de entrega y explicar la diferencia; nunca regenerar la línea base automáticamente.
-- [ ] **Paso 5.** Conservar inventario de UI de P00 y comprobar que ningún botón, ruta, campo o pestaña existente desaparece. Añadir una guarda solo si la existente no demuestra esa conservación.
+  Conciliación 2026-11-08 (P04.3, parcial): fuentes_y_capex_integrados_reinicio_sin_carga_corregido_revision_cruzada_sin_hallazgos Pendiente: Falta corrida completa de layouts reducido/completo, selecciones uno/varios/todos/red unida y DGS byte a byte workers1/4 sobre las fuentes correspondientes. Conservación CPU no la sustituye. Responsable: Integrador /root; P04.
+- [x] **Paso 4.** Si cambió la huella de entrada/catálogo, bloquear la comparación de entrega y explicar la diferencia; nunca regenerar la línea base automáticamente.
+  Cierre local 2026-11-08 (P04.4): Entrada y catálogo enlazados a bytes efectivamente leídos, guardia común y caché por contenido. Publicación breve validada y fuente/catálogo alterados bloquean; baseline nunca autoregenerada. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 5.** Conservar inventario de UI de P00 y comprobar que ningún botón, ruta, campo o pestaña existente desaparece. Añadir una guarda solo si la existente no demuestra esa conservación.
+  Cierre local 2026-11-08 (P04.5): Mapas antes/después, aserciones conservadas, AST/React y todos los controles preservados; sin retirar rutas/campos. Este paso es conservación de superficies, no revisión visual del navegador. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 
 **Verificación enfocada prevista:**
 
@@ -224,10 +255,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Interfaz/decisión:** Consume ContextoExperimento y manifiestos de fuente. Produce predicción/contraste/veredicto por caso.
 
 - [ ] **Paso 1.** Releer casos tras reapertura: iopt_net, fases, transformadores, controles, bancos, centrales y perfil. La evidencia PE10 de otro commit se conserva como antecedente.
+  Conciliación 2026-11-08 (P05.1, parcial): preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico Pendiente: Falta ejecución física real exigida en el paso: dominios, ablaciones/PyG, variantes/retirada o episodios. Arnés preflight/conservación y pruebasCPU terminados no son medida nativa. Responsable: Integrador /root; P05.
 - [ ] **Paso 2.** Fijar la negativa física equilibrada frente a flujo desequilibrado: fuera_de_dominio y top-k no autorizado. Comparar tensiones, pérdidas e inventario con tolerancias definidas antes del test.
+  Conciliación 2026-11-08 (P05.2, parcial): preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico Pendiente: Falta ejecución física real exigida en el paso: dominios, ablaciones/PyG, variantes/retirada o episodios. Arnés preflight/conservación y pruebasCPU terminados no son medida nativa. Responsable: Integrador /root; P05.
 - [ ] **Paso 3.** Ejecutar ablaciones/candidato PyG de 045 T3. Si hace falta dominio físico nuevo, completar sus RF y plan antes de implementarlo; no ajustar tolerancias mirando el test.
+  Conciliación 2026-11-08 (P05.3, parcial): preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico Pendiente: Falta ejecución física real exigida en el paso: dominios, ablaciones/PyG, variantes/retirada o episodios. Arnés preflight/conservación y pruebasCPU terminados no son medida nativa. Responsable: Integrador /root; P05.
 - [ ] **Paso 4.** Aplicar/retirar variantes de 048 en copias nuevas; verificar variaciones, persistencia, Caso base y Sin proyecto tras reabrir.
+  Conciliación 2026-11-08 (P05.4, parcial): preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico Pendiente: Falta ejecución física real exigida en el paso: dominios, ablaciones/PyG, variantes/retirada o episodios. Arnés preflight/conservación y pruebasCPU terminados no son medida nativa. Responsable: Integrador /root; P05.
 - [ ] **Paso 5.** Completar hipercubo latino, top-k y episodios 30/10/10 por sistema de 027 T29–T31 con semillas/contextos/curva; conservar candidatos rechazados.
+  Conciliación 2026-11-08 (P05.5, parcial): preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico Pendiente: Falta ejecución física real exigida en el paso: dominios, ablaciones/PyG, variantes/retirada o episodios. Arnés preflight/conservación y pruebasCPU terminados no son medida nativa. Responsable: Integrador /root; P05.
 
 **Verificación enfocada prevista:**
 
@@ -250,9 +286,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 049:T4.
 
 - [ ] **Paso 1.** Inventariar y obtener curvas, ajustes, poder de corte, potencia/impedancia real de cortocircuito, CTI, sensibilidad y márgenes; identificar custodio de cada faltante.
+  Conciliación 2026-11-08 (P06.1, diferida): pendiente_por_datos_usuario Pendiente: Protecciones/confiabilidad diferidas por usuario012T13/049T4; no requerimiento global de catálogos de una empresa ni datos ficticios. Mantener bloqueos físicos. Responsable: Integrador /root; P06.
 - [ ] **Paso 2.** Validar unidades/procedencia; DEFAULT y ceros de plantilla no son fichas. Conservar pruebas negativas por cada dato ausente.
+  Conciliación 2026-11-08 (P06.2, diferida): pendiente_por_datos_usuario Pendiente: Protecciones/confiabilidad diferidas por usuario012T13/049T4; no requerimiento global de catálogos de una empresa ni datos ficticios. Mantener bloqueos físicos. Responsable: Integrador /root; P06.
 - [ ] **Paso 3.** Completar lectura de fichas y escenarios de falla según 049, manteniendo el bloqueo hasta disponer de datos suficientes.
+  Conciliación 2026-11-08 (P06.3, diferida): pendiente_por_datos_usuario Pendiente: Protecciones/confiabilidad diferidas por usuario012T13/049T4; no requerimiento global de catálogos de una empresa ni datos ficticios. Mantener bloqueos físicos. Responsable: Integrador /root; P06.
 - [ ] **Paso 4.** Ejecutar coordinación nativa, persistir ajustes, reabrir y releer. Entregar reporte al ingeniero, con fallos de coordinación y capacidad de corte visibles.
+  Conciliación 2026-11-08 (P06.4, diferida): pendiente_por_datos_usuario Pendiente: Protecciones/confiabilidad diferidas por usuario012T13/049T4; no requerimiento global de catálogos de una empresa ni datos ficticios. Mantener bloqueos físicos. Responsable: Integrador /root; P06.
 
 **Verificación enfocada prevista:**
 
@@ -275,10 +315,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 008:T7, 011:T19, 012:T13, 013:T7, 028:T11, 037:T4, 086:T24.
 
 - [ ] **Paso 1.** Crear espacio/proyecto de prueba nuevo CA101+PE104 por la web con TXT custodiados; registrar comando, espacio y selección.
+  Conciliación 2026-11-08 (P07.1, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 - [ ] **Paso 2.** Convertir/importar/calibrar/recalibrar; cabecera al mismo instante, tolerancia R1 de 086 del 1 %, pertenencia de cargas y lecturas m:Psum.
+  Conciliación 2026-11-08 (P07.2, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 - [ ] **Paso 3.** Aplicar carga nueva, obras, transferencia y estudios; confiabilidad usa libros reales exigidos por 012.
+  Conciliación 2026-11-08 (P07.3, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 - [ ] **Paso 4.** Verificar idempotencia, invariantes de Caso base/Sin proyecto y restitución de estado. Conservar resultados parciales y motivos.
+  Conciliación 2026-11-08 (P07.4, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 - [ ] **Paso 5.** Entregar resultados a P13 para informe y P05 para física; registrar cierre específico de cada tarea 008/011/012/013/028/037 y 086 T24.
+  Conciliación 2026-11-08 (P07.5, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 
 **Verificación enfocada prevista:**
 
@@ -301,9 +346,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 016:T18, 081:T20, 086:T25.
 
 - [ ] **Paso 1.** Verificar driver Access y bases de red/equipos declaradas; sus funciones y hashes son independientes del TXT.
+  Conciliación 2026-11-08 (P08.1, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Cláusula completa todavía sin recibo de ejecución/aceptación final; mantener abierta y revisar su criterio íntegro. Responsable: Integrador /root; P08.
 - [ ] **Paso 2.** Importar SI213 y PN107 de prueba por web; aplicar cargas con/sin cable según distancia real al nodo.
+  Conciliación 2026-11-08 (P08.2, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Ensayos SI213/PN107 y cargas PN107 con/sin cable acreditados; el texto incluye ambos importados por web y cobertura conjunta, falta prueba íntegra de esa conjunción. Responsable: Integrador /root; P08.
 - [ ] **Paso 3.** Probar ramal monofásico, fase servida, barra de baja y aviso cuantificado; no confundir convergencia con servicio de la carga.
+  Conciliación 2026-11-08 (P08.3, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: 081T20 cerrado con ensayo mono TXT PE104. No atribuirlo al MDB del paqueteP08: ramal/fase/BT/aviso correctos en muestraTXT, falta ensayoMDB si se conserva esa modalidad como parte del paso. Responsable: Integrador /root; P08.
 - [ ] **Paso 4.** Repetir aplicación, reabrir y comprobar variación por carga, idempotencia y caso base activo al terminar.
+  Conciliación 2026-11-08 (P08.4, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Idempotencia/reapertura medidas para PN107 y monoTXT; falta cobertura completa de las dos entradasMDB y base activa de cada una. Responsable: Integrador /root; P08.
 
 **Verificación enfocada prevista:**
 
@@ -326,10 +375,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 042:T50, 042:T48, 042:T44, 042:T37, 071:T5, 081:T24, 084:T8, 084:T9, 086:T26, 087:T27, 087:T12, 087:T13, 092:T2.
 
 - [ ] **Paso 1.** Importar Pisco nuevo, calibrar sistema y SET con periodo común; verificar huella del caso base y lista de alimentadores sin medidor.
+  Conciliación 2026-11-08 (P09.1, parcial): preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real Pendiente: R3 preparado; faltan mediciones nativas del sistema/SET/métodos/migración/valle/contraste en contexto común y sus cláusulas específicas. Responsable: Integrador /root; P09.
 - [ ] **Paso 2.** Medir referencia y método con oráculo sobre mismo estado, casos, revisión y semillas; registrar tiempos y obra elegida para 071 T5 y 087 T12/T13.
+  Conciliación 2026-11-08 (P09.2, parcial): preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real Pendiente: R3 preparado; faltan mediciones nativas del sistema/SET/métodos/migración/valle/contraste en contexto común y sus cláusulas específicas. Responsable: Integrador /root; P09.
 - [ ] **Paso 3.** Medir migración 10→22,9 kV, obras de déficit previo y alcance por alimentador. Separar máxima, valle, costos de déficit y costos de la carga.
+  Conciliación 2026-11-08 (P09.3, parcial): preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real Pendiente: R3 preparado; faltan mediciones nativas del sistema/SET/métodos/migración/valle/contraste en contexto común y sus cláusulas específicas. Responsable: Integrador /root; P09.
 - [ ] **Paso 4.** Validar SET fuera del trazado, iopt_net restituido y fline/c:loading del tramo con ficha del fabricante para la terna.
+  Conciliación 2026-11-08 (P09.4, parcial): preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real Pendiente: R3 preparado; faltan mediciones nativas del sistema/SET/métodos/migración/valle/contraste en contexto común y sus cláusulas específicas. Responsable: Integrador /root; P09.
 - [ ] **Paso 5.** Confirmar sistema completo y tabla de Pisco. Para 081 T24 fijar población/contraste antes del análisis; informar efecto, muestra y p. Si no cumple p<0,05, no cerrar ni recortar la muestra a posteriori.
+  Conciliación 2026-11-08 (P09.5, parcial): preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real Pendiente: R3 preparado; faltan mediciones nativas del sistema/SET/métodos/migración/valle/contraste en contexto común y sus cláusulas específicas. Responsable: Integrador /root; P09.
 
 **Verificación enfocada prevista:**
 
@@ -352,10 +406,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 028:T6, 039:T4, 042:T6, 052:T4, 073:T8, 086:T27.
 
 - [ ] **Paso 1.** Crear NA203+NA205 de prueba; registrar central/maniobras antes del escaneo sin deducir pertenencia por nombre.
+  Conciliación 2026-11-08 (P10.1, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 - [ ] **Paso 2.** Recalibrar coincidente y máximo del mes con libros y periodo de cada tarea; cifras históricas solo se comparan si las huellas corresponden.
+  Conciliación 2026-11-08 (P10.2, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 - [ ] **Paso 3.** Ejecutar destinos por carga y obras de Con proyecto. Medir 052 T4: menos de 20 minutos en hardware y condiciones documentados.
+  Conciliación 2026-11-08 (P10.3, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 - [ ] **Paso 4.** Construir Valle <año> con medición real, m:Psum y máxima inalterada; comparar variante de bancos con el oráculo.
+  Conciliación 2026-11-08 (P10.4, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 - [ ] **Paso 5.** Reabrir, releer centrales, casos, variaciones y ubicación final de SET; guardar evidencia propia de cada criterio.
+  Conciliación 2026-11-08 (P10.5, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 
 **Verificación enfocada prevista:**
 
@@ -378,10 +437,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 042:T29, 051:T3, 055:T2, 056:T3, 058:T7, 081:T16, 086:T28, 087:T14.
 
 - [ ] **Paso 1.** Custodiar paquete oficial y perfil propio: moneda, periodo, CRS, sistemas/SET y carpeta provenientes de la empresa real de prueba.
+  Conciliación 2026-11-08 (P11.1, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoELOR retirado como requisito global. Responsable: Integrador /root; P11.
 - [ ] **Paso 2.** Convertir/importar NJA202 y R205 solo si pertenecen al paquete; no equiparar R205/0205 por parecido.
-- [ ] **Paso 3.** Completar campo de empresa faltante de 081 T16 en frontend, con contrato y negativa de empresa no declarada; conservar opciones previas.
+  Conciliación 2026-11-08 (P11.2, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoELOR retirado como requisito global. Responsable: Integrador /root; P11.
+- [x] **Paso 3.** Completar campo de empresa faltante de 081 T16 en frontend, con contrato y negativa de empresa no declarada; conservar opciones previas.
+  Cierre local 2026-11-08 (P11.3): Campo empresa para tres modalidades, null/omisión y persistencia, bloqueo durante motor y render; selectores originales conservados. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 4.** Calibrar/estudiar en la tensión real; cada carga nueva con solución medida o ya cumple. Verificar vocabulario/carpeta sin mover proyectos existentes.
+  Conciliación 2026-11-08 (P11.4, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoELOR retirado como requisito global. Responsable: Integrador /root; P11.
 - [ ] **Paso 5.** Medir 087 T14 en segundo dominio; conservar evidencia R5 para instalarla en P22.
+  Conciliación 2026-11-08 (P11.5, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoELOR retirado como requisito global. Responsable: Integrador /root; P11.
 
 **Verificación enfocada prevista:**
 
@@ -404,12 +468,19 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 004:T20, 025:T21, 039:T8, 042:T42, 091:T7, 094:T5, 098:T6, 099:T3.
 
 - [ ] **Paso 1.** Crear copias nuevas de PE102, PA217/TM105, TM102, AL209 y CA101+CHN102; proteger proyectos originales y trabajo manual del operador.
+  Conciliación 2026-11-08 (P12.1, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 2.** Las copias son ensayo. Si el criterio original exige un proyecto nominal concreto (098/099), no cerrar con una copia distinta: coordinar la ejecución autorizada sobre ese proyecto o aprobar antes la aclaración del criterio, conservando trazabilidad entre original y copia.
+  Conciliación 2026-11-08 (P12.2, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 3.** 004 T20: dimensionado de transformadores CH_13/CH_22; 025 T21: calibración por año; 042 T42: elevador de 10 kV donde no hay barra de 22,9 kV.
+  Conciliación 2026-11-08 (P12.3, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 4.** 039 T8/091 T7: máximo de cliente, secuencia calibración→recalibración→estudio y mensajes fieles con DIgSILENT abierto.
+  Conciliación 2026-11-08 (P12.4, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 5.** 094 T5: perfiles antes/después y bancos propuestos desde el perfil, con comparación y límites.
+  Conciliación 2026-11-08 (P12.5, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 6.** 098 T6: transferencia del operador, alternativa seleccionada, retorno a base y no reaplicación de una deshecha.
+  Conciliación 2026-11-08 (P12.6, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 7.** 099 T3: identidad única del cliente; CH_23 creada y CH_20 descartada según libro. Retirar duplicada solo en copia de prueba con inventario antes/después.
+  Conciliación 2026-11-08 (P12.7, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 
 **Verificación enfocada prevista:**
 
@@ -432,10 +503,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 017:T13, 017:T14, 017:T19, 073:T12, 081:T22, 086:T29.
 
 - [ ] **Paso 1.** Generar Word/Excel de 017 T13/T14/T19 desde corridas verificadas, con job_id/fuente/caso; no heredar resultados de un intento fallido sin aviso.
+  Conciliación 2026-11-08 (P13.1, parcial): muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa Pendiente: Generación y comparación CPU implementadas; falta informes de corridas verificadas y revisión humana/visual enWord/Excel/navegador según la cláusula. Responsable: Integrador /root; P13.
 - [ ] **Paso 2.** Comparar cifras del JSON, Word y Excel; revisar unidades, moneda, alcance y separación de déficit previo/carga.
+  Conciliación 2026-11-08 (P13.2, parcial): muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa Pendiente: Generación y comparación CPU implementadas; falta informes de corridas verificadas y revisión humana/visual enWord/Excel/navegador según la cláusula. Responsable: Integrador /root; P13.
 - [ ] **Paso 3.** Renderizar y revisar visualmente tablas, figuras y paginación; el ingeniero registra aceptación o correcciones.
+  Conciliación 2026-11-08 (P13.3, parcial): muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa Pendiente: Generación y comparación CPU implementadas; falta informes de corridas verificadas y revisión humana/visual enWord/Excel/navegador según la cláusula. Responsable: Integrador /root; P13.
 - [ ] **Paso 4.** Comprobar navegador real claro/oscuro y pantalla estrecha, tabla Pisco, En valle y aviso/retirada de catálogo de 081 T22.
+  Conciliación 2026-11-08 (P13.4, parcial): muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa Pendiente: Generación y comparación CPU implementadas; falta informes de corridas verificadas y revisión humana/visual enWord/Excel/navegador según la cláusula. Responsable: Integrador /root; P13.
 - [ ] **Paso 5.** Conservar toda la UI de P00; texto y decisión del backend deben coincidir, incluido el alcance temporal de P02.
+  Conciliación 2026-11-08 (P13.5, parcial): muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa Pendiente: Generación y comparación CPU implementadas; falta informes de corridas verificadas y revisión humana/visual enWord/Excel/navegador según la cláusula. Responsable: Integrador /root; P13.
 
 **Verificación enfocada prevista:**
 
@@ -457,12 +533,18 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 027:T11, 027:T26, 043:T9, 047:T4, 047:T8, 047:T7, 069:T7, 070:T11.
 
-- [ ] **Paso 1.** Releer decisiones y campaña concurrente antes de repetir entrenamientos; respetar el provisional ya autorizado y distinguirlo de un aprobado.
+- [x] **Paso 1.** Releer decisiones y campaña concurrente antes de repetir entrenamientos; respetar el provisional ya autorizado y distinguirlo de un aprobado.
+  Cierre local 2026-11-08 (P14.1): Se revisaron decisiones y campaña previa; modelos rechazados/provisionales siguen así, ningún entrenamiento repetido ni promoción de auditoría. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 2.** Congelar dataset humano/maestro, particiones, puertas, semillas y presupuesto; prueba sellada apartada de selección y ajuste.
+  Conciliación 2026-11-08 (P14.2, parcial): nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados Pendiente: Falta campaña real/candidato aceptado/reapertura CUDA/maestroCodex o datos sellados según el paso. Modelos previos siguenRECHAZADOS; no repetir entrenamiento sin turno. Responsable: Integrador /root; P14.
 - [ ] **Paso 3.** Completar maestros 027 T26 con redacción de nombres; si la cuenta no permite el servicio, registrar bloqueo. No enviar datos reales a terceros.
+  Conciliación 2026-11-08 (P14.3, parcial): nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados Pendiente: Falta campaña real/candidato aceptado/reapertura CUDA/maestroCodex o datos sellados según el paso. Modelos previos siguenRECHAZADOS; no repetir entrenamiento sin turno. Responsable: Integrador /root; P14.
 - [ ] **Paso 4.** Ejecutar integral/validación cruzada con guardia existente y memoria suficiente. La campaña concurrente anotó mínimo 10 GiB libres: verificar configuración y disponibilidad actuales antes de lanzarla.
+  Conciliación 2026-11-08 (P14.4, parcial): nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados Pendiente: Falta campaña real/candidato aceptado/reapertura CUDA/maestroCodex o datos sellados según el paso. Modelos previos siguenRECHAZADOS; no repetir entrenamiento sin turno. Responsable: Integrador /root; P14.
 - [ ] **Paso 5.** Completar 047 T4/T8 y QLoRA de T7 cuando corresponda a 027 T11: pérdida solo de respuesta, comparación de checkpoints, exportación y reapertura exactas.
+  Conciliación 2026-11-08 (P14.5, parcial): nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados Pendiente: Falta campaña real/candidato aceptado/reapertura CUDA/maestroCodex o datos sellados según el paso. Modelos previos siguenRECHAZADOS; no repetir entrenamiento sin turno. Responsable: Integrador /root; P14.
 - [ ] **Paso 6.** Reabrir cada familia en CUDA (043 T9); medir candidato de 070 T11 y 069 T7 con prueba nueva. Registrar PROMOVIDO/RECHAZADO/BLOQUEADO_POR_DATOS/ERROR_ENTORNO sin promover para cerrar casillas.
+  Conciliación 2026-11-08 (P14.6, parcial): nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados Pendiente: Falta campaña real/candidato aceptado/reapertura CUDA/maestroCodex o datos sellados según el paso. Modelos previos siguenRECHAZADOS; no repetir entrenamiento sin turno. Responsable: Integrador /root; P14.
 
 **Verificación enfocada prevista:**
 
@@ -485,9 +567,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 097:T3.
 
 - [ ] **Paso 1.** Congelar corpus/consultas humanas de 047/077 y particiones de calibración/prueba antes de comparar candidatos.
+  Conciliación 2026-11-08 (P15.1, parcial): pendiente Pendiente: Corpus/RAG implementado, falta comparación/calibración/prueba real de embeddings, elegido sellado y relectura de índice. Responsable: Integrador /root; P15.
 - [ ] **Paso 2.** Comparar los embeddings de 097, incluido bge-m3 y referencia aplicable, sobre los mismos documentos/preguntas.
+  Conciliación 2026-11-08 (P15.2, parcial): pendiente Pendiente: Corpus/RAG implementado, falta comparación/calibración/prueba real de embeddings, elegido sellado y relectura de índice. Responsable: Integrador /root; P15.
 - [ ] **Paso 3.** Medir recuperación, reranking, latencia y memoria; calibrar solo sobre selección y sellar una vez al elegido.
+  Conciliación 2026-11-08 (P15.3, parcial): pendiente Pendiente: Corpus/RAG implementado, falta comparación/calibración/prueba real de embeddings, elegido sellado y relectura de índice. Responsable: Integrador /root; P15.
 - [ ] **Paso 4.** Reabrir índice publicado, comprobar versión/fuentes y respuesta en español desde la web.
+  Conciliación 2026-11-08 (P15.4, parcial): pendiente Pendiente: Corpus/RAG implementado, falta comparación/calibración/prueba real de embeddings, elegido sellado y relectura de índice. Responsable: Integrador /root; P15.
 
 **Verificación enfocada prevista:**
 
@@ -510,10 +596,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 089:T5, 089:T7.
 
 - [ ] **Paso 1.** Custodiar cabecera, equivalencias, clientes, suministros y exógenas con disponibilidad temporal; fijar limpieza/cortes antes de evaluar.
+  Conciliación 2026-11-08 (P16.1, parcial): pendiente Pendiente: No cadenaForecastreal acreditada en117JSON/26workspaceauditados; preparación/limpieza/modelos/backtest/selección/perfiles anuales siguen sin campaña real. Gemelo unpaso no espronóstico. Responsable: Integrador /root; P16.
 - [ ] **Paso 2.** Persistir dataset con huella; probar que apoyo e imputaciones no usan datos posteriores al corte.
+  Conciliación 2026-11-08 (P16.2, parcial): pendiente Pendiente: No cadenaForecastreal acreditada en117JSON/26workspaceauditados; preparación/limpieza/modelos/backtest/selección/perfiles anuales siguen sin campaña real. Gemelo unpaso no espronóstico. Responsable: Integrador /root; P16.
 - [ ] **Paso 3.** Enumerar clase cabecera/cliente/escaladas × kW/kVAR × horizontes y modelos exigidos por 089; ningún alias de GRU sustituye a otro algoritmo.
+  Conciliación 2026-11-08 (P16.3, parcial): pendiente Pendiente: No cadenaForecastreal acreditada en117JSON/26workspaceauditados; preparación/limpieza/modelos/backtest/selección/perfiles anuales siguen sin campaña real. Gemelo unpaso no espronóstico. Responsable: Integrador /root; P16.
 - [ ] **Paso 4.** Ejecutar backtest real 2026 y corrida larga con orígenes, semillas y referencias comparables; guardar error, cobertura y latencia por objetivo.
+  Conciliación 2026-11-08 (P16.4, parcial): pendiente Pendiente: No cadenaForecastreal acreditada en117JSON/26workspaceauditados; preparación/limpieza/modelos/backtest/selección/perfiles anuales siguen sin campaña real. Gemelo unpaso no espronóstico. Responsable: Integrador /root; P16.
 - [ ] **Paso 5.** Seleccionar/reabrir con política causal y emitir perfiles por año a P17; falta de cobertura queda como objetivo bloqueado.
+  Conciliación 2026-11-08 (P16.5, parcial): pendiente Pendiente: No cadenaForecastreal acreditada en117JSON/26workspaceauditados; preparación/limpieza/modelos/backtest/selección/perfiles anuales siguen sin campaña real. Gemelo unpaso no espronóstico. Responsable: Integrador /root; P16.
 
 **Verificación enfocada prevista:**
 
@@ -535,12 +626,18 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 027:T22, 072:T9b, 072:T11, 072:T13, 072:T14.
 
-- [ ] **Paso 1.** Antes de T14, redactar RF EARS faltantes en spec 072 activa: flujo PIDE propio universal, copias con obra de corto plazo, años siguientes a cuatro, demanda 089, obras acumulativas y restitución. Asignar números libres tras releer el documento y obtener la aprobación requerida para los RF nuevos.
+- [x] **Paso 1.** Antes de T14, redactar RF EARS faltantes en spec 072 activa: flujo PIDE propio universal, copias con obra de corto plazo, años siguientes a cuatro, demanda 089, obras acumulativas y restitución. Asignar números libres tras releer el documento y obtener la aprobación requerida para los RF nuevos.
+  Cierre local 2026-11-08 (P17.1): RF EARS añadidos a072 antes del controlador anual, números libres y plan/tareas; orden expresa del integrador autorizó trabajo técnico. T15/T16 CPU/web ya cerradas, T14 conserva aceptación. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 2.** Completar revisión humana del corpus T9b y usar solo lo aprobado para entrenar; conservar fuente/faltantes en redacción.
+  Conciliación 2026-11-08 (P17.2, bloqueada): consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada Pendiente: Corpus y revisión preparadas,0aprobaciones humanas acreditadas; no entrenar fuente no revisada. Responsable: Integrador /root; P17.
 - [ ] **Paso 3.** Obtener base oficial exigida por T13 con URL, fecha, hash, moneda/unidad; verificar disponibilidad actual con el custodio. No sustituir otra resolución sin decisión metodológica expresa.
+  Conciliación 2026-11-08 (P17.3, bloqueada): consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada Pendiente: Base oficial exacta181-2026 con moneda/unidad y descarga original no acreditada. Captura índicePDF o resolución distinta no bastan; no convertir dato de empresa en requisito universal. Responsable: Integrador /root; P17.
 - [ ] **Paso 4.** En cada año, partir del caso previo y sus obras, aplicar proyección de P16, medir cuándo vuelve a fallar y la obra necesaria de ese año.
+  Conciliación 2026-11-08 (P17.4, parcial): consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada Pendiente: Controlador anual universal/acumulativo y P/Qfase implementados y probados CPU; falta proyección anual aceptada+medición real por año. No extrapolar28d a20años. Responsable: Integrador /root; P17.
 - [ ] **Paso 5.** Valorar obras reales; terreno/unidad/precio faltante se declara. Comparar formatos con los entregados de 027 T22.
+  Conciliación 2026-11-08 (P17.5, parcial): consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada Pendiente: Recibo CAPEX enlaza SHA/config/unidades/obra e informe, no inventa precios. Falta valorar obras reales y compararF01-F15 del sistema correspondiente. Responsable: Integrador /root; P17.
 - [ ] **Paso 6.** Presentar los dos entregables de 072 T11 al usuario/ingeniero; faltas de archivos oficiales o revisión mantienen bloqueo explícito.
+  Conciliación 2026-11-08 (P17.6, parcial): consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada Pendiente: Dos entregables/plantillas de revisión disponibles; falta recepción/revisión humana de T11 y faltantes oficiales explícitos. Responsable: Integrador /root; P17.
 
 **Verificación enfocada prevista:**
 
@@ -563,9 +660,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 074:T5, 074:T7, 074:T8.
 
 - [ ] **Paso 1.** Recapturar redes reales y confirmar ntnum/fases/controles; al menos una red problemática debe superar fidelidad antes de entrenar.
+  Conciliación 2026-11-08 (P18.1, parcial): pendiente Pendiente: Piloto implementadoCPU; falta red real con fidelidad admitida, entrenamiento y evaluación fuera de muestra/confirmación nativa. Responsable: Integrador /root; P18.
 - [ ] **Paso 2.** Fijar particiones por alimentador, referencia, semillas y presupuesto. No mezclar topologías ni ajustar con redes de prueba.
+  Conciliación 2026-11-08 (P18.2, parcial): pendiente Pendiente: Piloto implementadoCPU; falta red real con fidelidad admitida, entrenamiento y evaluación fuera de muestra/confirmación nativa. Responsable: Integrador /root; P18.
 - [ ] **Paso 3.** Entrenar con controles reales, conservar curva/modelo; una prueba CPU sintética no acredita entrenamiento real.
+  Conciliación 2026-11-08 (P18.3, bloqueada): pendiente Pendiente: Piloto implementadoCPU; falta red real con fidelidad admitida, entrenamiento y evaluación fuera de muestra/confirmación nativa. Responsable: Integrador /root; P18.
 - [ ] **Paso 4.** Evaluar alimentadores no vistos y confirmar obras en DIgSILENT, con reapertura y persistencia. Rechazo de política conserva su estado y límites.
+  Conciliación 2026-11-08 (P18.4, parcial): pendiente Pendiente: Piloto implementadoCPU; falta red real con fidelidad admitida, entrenamiento y evaluación fuera de muestra/confirmación nativa. Responsable: Integrador /root; P18.
 
 **Verificación enfocada prevista:**
 
@@ -589,12 +690,18 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Interfaz/decisión:** Reusar Muestra(observacion_id, familia, snapshot_id, origen, etiqueta, particion, contexto, record_id), ejecutar_ciclo, publicar_conjunto, revertir_conjunto y version_del_conjunto. Revisar todos los llamadores al extender firmas.
 
-- [ ] **Paso 1.** T1b: fijar contexto de ciclo sin fingir un único proyecto. Propuesta: mapa ordenado proyecto→contexto_hash y huella agregada; mantener ContextoExperimento individual de 043. Aclarar esta decisión en spec/plan 050 antes de código.
-- [ ] **Paso 2.** T2b: contrato propuesto crear_observacion_id(contexto_hash: str, fuente_hash: str, registro_id: str, instante: str) -> str en aprendizaje_continuo.py; usarlo en todos los productores de Muestra sin incluir familia en la identidad. Fijar pruebas de observación común, duplicación, partición cruzada y fuga.
-- [ ] **Paso 3.** T3b: añadir publicar_individual: bool = True a entradas de entrenamiento PINN/temporal; coordinador pasa False. Las etapas registran candidatos sin cambiar punteros. Conectar Vigilante.ciclo a ejecutar_ciclo mediante cola cancelable.
-- [ ] **Paso 4.** T4b: publicar_conjunto después de puertas individuales/conjuntas/retención. Con conjunto configurado, consumidores resuelven version_del_conjunto; si está corrupto bloquean. Compatibilidad heredada solo cuando no hay conjunto configurado.
-- [ ] **Paso 5.** T5b: API y vista web de las siete fases reutilizando estado_aprendizaje y contratos de jobs; regenerar tipos y mantener controles existentes.
+- [x] **Paso 1.** T1b: fijar contexto de ciclo sin fingir un único proyecto. Propuesta: mapa ordenado proyecto→contexto_hash y huella agregada; mantener ContextoExperimento individual de 043. Aclarar esta decisión en spec/plan 050 antes de código.
+  Cierre local 2026-11-08 (P19.1): Contexto multiproyecto con mapa ordenado y huella común implementado manteniendo043 individual; especificación/plan050 aclaran el contrato. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 2.** T2b: contrato propuesto crear_observacion_id(contexto_hash: str, fuente_hash: str, registro_id: str, instante: str) -> str en aprendizaje_continuo.py; usarlo en todos los productores de Muestra sin incluir familia en la identidad. Fijar pruebas de observación común, duplicación, partición cruzada y fuga.
+  Cierre local 2026-11-08 (P19.2): Identidad de observación común y productores reales vía puerto; no incluye familia, se prueban duplicación/particiones/fuga. Nota de tarea050T2b que aún dice falta observacion_id es obsoleta. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 3.** T3b: añadir publicar_individual: bool = True a entradas de entrenamiento PINN/temporal; coordinador pasa False. Las etapas registran candidatos sin cambiar punteros. Conectar Vigilante.ciclo a ejecutar_ciclo mediante cola cancelable.
+  Cierre local 2026-11-08 (P19.3): Coordinador inhibe publicación individual; vigilancia y cola cancelable inyectan productor real, candidato no mueve punteros por etapa. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 4.** T4b: publicar_conjunto después de puertas individuales/conjuntas/retención. Con conjunto configurado, consumidores resuelven version_del_conjunto; si está corrupto bloquean. Compatibilidad heredada solo cuando no hay conjunto configurado.
+  Cierre local 2026-11-08 (P19.4): Publicación de conjunto tras puertas y consumidores desde conjunto activo; corrupto falla cerrado, compatibilidad solo sin conjunto. Rollback y retención cubiertos. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
+- [x] **Paso 5.** T5b: API y vista web de las siete fases reutilizando estado_aprendizaje y contratos de jobs; regenerar tipos y mantener controles existentes.
+  Cierre local 2026-11-08 (P19.5): API y vista de etapas conectadas a jobs y contratos/tipos, controles/cancelación preservados. La campaña real y browser quedan en T5b/P19.6. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 6.** Ejecutar primero integración mínima con archivos/modelos ligeros auténticos; luego dos capturas reales y ciclo completo: deduplicación, cancelación, cuarentena, no autorrecompensa, publicación atómica y reversión por relectura.
+  Conciliación 2026-11-08 (P19.6, parcial): productores_cola_contextos_integrados_606_regresiones_conjuntas_campana_real_pendiente Pendiente: Integración ligera probada, 606CPU combinadas; faltan dos capturas reales y ciclo completo siete familias con publicación/reversión por relectura. No cerrar por mocks ni etapas aisladas. Responsable: Integrador /root; P19.
 
 **Verificación enfocada prevista:**
 
@@ -617,10 +724,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 026:T12, 027:T14, 067:T9, 070:T9, 070:T10, 078:T6, 078:T7, 086:T30.
 
 - [ ] **Paso 1.** Ejecutar una orden real de cada tarea RF-11 de 026 en proyectos de prueba: interpretación, plan, confirmación y resultado.
+  Conciliación 2026-11-08 (P20.1, parcial): pendiente Pendiente: Interpretación/planes/cola disponibles; falta orden real que complete la cláusula desde web/CLI con motor/confirmación y resultados. Responsable: Integrador /root; P20.
 - [ ] **Paso 2.** Completar alimentador, SET y carga nueva desde consola; informes/escalera salen de órdenes, no de atajos de API.
+  Conciliación 2026-11-08 (P20.2, parcial): pendiente Pendiente: Interpretación/planes/cola disponibles; falta orden real que complete la cláusula desde web/CLI con motor/confirmación y resultados. Responsable: Integrador /root; P20.
 - [ ] **Paso 3.** Ver en navegador etapas, faltantes y consultas; sin datos no se inventa éxito.
+  Conciliación 2026-11-08 (P20.3, parcial): pendiente Pendiente: Interpretación/planes/cola disponibles; falta orden real que complete la cláusula desde web/CLI con motor/confirmación y resultados. Responsable: Integrador /root; P20.
 - [ ] **Paso 4.** Proyecto bueno y otro no convergido: registrar IMPORTADO_SIN_CONVERGENCIA, NO_CONVERGE y return_code; repetir verificación y ordenar importar grupo ya convertido sin pedir alimentadores.
+  Conciliación 2026-11-08 (P20.4, parcial): pendiente Pendiente: Interpretación/planes/cola disponibles; falta orden real que complete la cláusula desde web/CLI con motor/confirmación y resultados. Responsable: Integrador /root; P20.
 - [ ] **Paso 5.** Cerrar 027 T14 solo cuando sus criterios multisistema/gemelo/asistente estén medidos. Aplicar 086 T30 según beta vigente, sin llamar aprobado al provisional.
+  Conciliación 2026-11-08 (P20.5, parcial): pendiente Pendiente: Interpretación/planes/cola disponibles; falta orden real que complete la cláusula desde web/CLI con motor/confirmación y resultados. Responsable: Integrador /root; P20.
 
 **Verificación enfocada prevista:**
 
@@ -643,11 +755,17 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 081:T10, 081:T11, 081:T12, 081:T13, 081:T14, 081:T31, 086:T36, 086:T33, 096:T3.
 
 - [ ] **Paso 1.** Preparar copias, PID/espacio/raíz de procesos propios y ventana sin trabajos ajenos; no terminar procesos ni desconectar sesiones de otros.
+  Conciliación 2026-11-08 (P21.1, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 - [ ] **Paso 2.** Ensayar acoplador/banco incompatible, SED sin fase servida y sistema parcial; comprobar CONVERGE_SIN_SERVIR y continuidad del resto.
+  Conciliación 2026-11-08 (P21.2, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 - [ ] **Paso 3.** Medir huella real de Caso base antes/después; deriva conserva diferencias y bloquea, no reescribe baseline.
+  Conciliación 2026-11-08 (P21.3, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 - [ ] **Paso 4.** Cortar escalera con transferencia, importación y calibración propias; verificar retirada de aperturas propias, estado interrumpido, siguiente orden y reanudación idempotente.
+  Conciliación 2026-11-08 (P21.4, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 - [ ] **Paso 5.** Suspender/despertar a mitad de recalibración propia (096 T3); suite nocturna separada sobrevive a cierre de su web y registra interrupción si termina su proceso.
+  Conciliación 2026-11-08 (P21.5, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 - [ ] **Paso 6.** Ensayar red realmente cortada en equipo/entorno de prueba, importar/calibrar/informe y avisos de cada salida apagada. Restaurar servicio tras la prueba.
+  Conciliación 2026-11-08 (P21.6, parcial): recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes Pendiente: Diario/cancelación/recuperación y guardas probadasCPU; falta corte/suspensión/red o recorrido físico real específico del paso, conservando procesos ajenos. Responsable: Integrador /root; P21.
 
 **Verificación enfocada prevista:**
 
@@ -670,11 +788,17 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 086:T40, 086:T41, 086:T32.
 
 - [ ] **Paso 1.** Construir wheel/candidato desde revisión elegida, Python embebido 3.12 y ruedas con huella; neutralizar comentarios D5 y comprobar con --candidato.
+  Conciliación 2026-11-08 (P22.1, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: Núcleo rc5f56 construido y verificado, candidato1c retirado; revisión final nueva aún no congelada/construida. El paso pide candidato elegido vigente, no basta histórico. Responsable: Integrador /root; P22.
 - [ ] **Paso 2.** Generar SBOM/avisos y auditorías actuales de núcleo/complemento; no inferir licencias por lista automática.
+  Conciliación 2026-11-08 (P22.2, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: SBOM/textos íntegros y licencias verificadas por rueda,238previas y procedencia portable corregida. Falta regenerar/auditar artefacto final con freeze nuevo; tres no auditados PyPI explícitos. Responsable: Integrador /root; P22.
 - [ ] **Paso 3.** Instalar setup.exe sin Node ni herramientas de desarrollo en entorno; convertir desde la web instalada y ejecutar importación nativa con el Python entregado.
+  Conciliación 2026-11-08 (P22.3, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: Instalación rc5 y web histórica acreditadas; falta setup final sin devtools y importación nativa con su Python, no solo import powerfactory.pyd. Responsable: Integrador /root; P22.
 - [ ] **Paso 4.** Actualizar y revertir conservando hashes de datos/espacios/modelos; candidato alterado se rechaza antes de tocar la instalación válida.
+  Conciliación 2026-11-08 (P22.4, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: Update/rollback rc5 histórico conservado y109CPU instalador, correcto rechazo de destino preexistente; falta repetición sobre artefacto final y datosQA exactos. Responsable: Integrador /root; P22.
 - [ ] **Paso 5.** Construir/instalar complemento IA y reabrir modelos; su ausencia no rompe núcleo. Ejecutar otra empresa hasta Word/Excel y revisión del ingeniero.
+  Conciliación 2026-11-08 (P22.5, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: Paquete238previo construido,45inferencia histórico instalado y dos modelos reabiertos; no es instalación de238portable final ni recorrido de otro dominio hasta Word/Excel aprobado. Responsable: Integrador /root; P22.
 - [ ] **Paso 6.** Una persona ajena instala y convierte solo con manual; registrar dificultades y corregir manuales antes de repetir.
+  Conciliación 2026-11-08 (P22.6, parcial): 238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes Pendiente: Harness/receta y manual preparados; falta persona ajena que instale y convierta sin ayuda. Responsable: Integrador /root; P22.
 
 **Verificación enfocada prevista:**
 
@@ -696,13 +820,20 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 002:T7, 002:T8, 002:T9, 002:T11, 002:T12.
 
-- [ ] **Paso 1.** Congelar grafo capa/módulo, consumidores dinámicos/entry points y 37 excepciones; dueño y lista exacta de archivos por movimiento.
+- [x] **Paso 1.** Congelar grafo capa/módulo, consumidores dinámicos/entry points y 37 excepciones; dueño y lista exacta de archivos por movimiento.
+  Cierre local 2026-11-08 (P23.1): U0 capturó75 violaciones como37históricas+38nuevas, clasificación/AST y17extracciones comparadas; U1 retiró3históricas y conservó34, sin relajación de guardas. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 2.** T7: mover dominio→puertos→aplicación→adaptadores→presentación, con reexportaciones temporales y pruebas/DGS en cada bloque.
-- [ ] **Paso 3.** T8: mover vnr_etl a convertersmartgrid.adaptadores.entrada.vnr conservando comando vnr-etl y contratos de entrada.
+  Conciliación 2026-11-08 (P23.2, parcial): fronteras34_deudas_preservadas_y_todas_referencias_python_frontend_migradas_076_historico_intacto_revisiones_cruzadas Pendiente: U0/U1 terminados como subunidades; quedan34deudas y movimientos pendientes; no existeDGS real por cada bloque final. Responsable: Integrador /root; P23.
+- [x] **Paso 3.** T8: mover vnr_etl a convertersmartgrid.adaptadores.entrada.vnr conservando comando vnr-etl y contratos de entrada.
+  Cierre local 2026-11-08 (P23.3): VNR movido al adaptador canónico; fachada CLI única preserva vnr-etl/python-m y contratos. Borrado posterior de pyc obsoletos por root no modifica guardia. T8 superior sigue pendiente RF20. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 4.** T9: actualizar todos los consumidores/scripts/tests/entry points antes de retirar reexportaciones; recorrer imports dinámicos.
-- [ ] **Paso 5.** T11: frontend api/shared/features/app con regla de fronteras. package.json actual carece de lint: añadir script/dependencias adecuados, preservar todas las superficies UI y ejecutar lint/typecheck/build.
+  Conciliación 2026-11-08 (P23.4, parcial): fronteras34_deudas_preservadas_y_todas_referencias_python_frontend_migradas_076_historico_intacto_revisiones_cruzadas Pendiente: Consumos/imports/entrypoints VNR migrados y corpus076histórico preservado; fachadas restantes web.sources/web.sources.vnr no retiradas. La compatibilidad pública no se elimina para poner verde. Responsable: Integrador /root; P23.
+- [x] **Paso 5.** T11: frontend api/shared/features/app con regla de fronteras. package.json actual carece de lint: añadir script/dependencias adecuados, preservar todas las superficies UI y ejecutar lint/typecheck/build.
+  Cierre local 2026-11-08 (P23.5): api/shared/features/app sin duplicación ni fachadas, linter AST JS/TS y negativas reales; npm test/lint/types/build y renders preservan superficies. T11 visual sigue abierta. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 6.** T12: actualizar índices/tipos/arquitectura, reducir deuda a cero exigido por spec, comparar DGS sin regeneración automática.
+  Conciliación 2026-11-08 (P23.6, parcial): fronteras34_deudas_preservadas_y_todas_referencias_python_frontend_migradas_076_historico_intacto_revisiones_cruzadas Pendiente: Índices/tipos/catálogo regenerados y corregidos; criterio exige deuda cero y DGS comparado,34deudas pendientes. Responsable: Integrador /root; P23.
 - [ ] **Paso 7.** Planificar revalidación nativa tras los movimientos: cadena por cada fuente y módulos nativos afectados; evidencia previa al refactor no valida automáticamente el final.
+  Conciliación 2026-11-08 (P23.7, parcial): fronteras34_deudas_preservadas_y_todas_referencias_python_frontend_migradas_076_historico_intacto_revisiones_cruzadas Pendiente: Plan general de revalidación nativa preparado; falta mapa explícito cerrado de cadena por cada fuente/módulo afectado a revisión final. No transferir automáticamente evidencias anteriores. Responsable: Integrador /root; P23.
 
 **Verificación enfocada prevista:**
 
@@ -725,10 +856,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 058:T6, 086:T9.
 
 - [ ] **Paso 1.** Ensayar 086 T9 completo en copia: freeze, worktrees/junctions/acceso directo, espacios y vínculos PF; fijar identidad con copia_datos.py antes de mover.
+  Conciliación 2026-11-08 (P24.1, parcial): menciones_normalizadas_renombrado_fisico_y_relectura_pendientes Pendiente: Ruta física no renombrada; foto/identidad/plan no equivalen a ensayo de renombrado-reparación-reapertura-CUDA-rollback. Responsable: Integrador /root; P24.
 - [ ] **Paso 2.** Verificar rutas absolutas resueltas y ausencia de procesos activos en ellas; renombrar solo en ventana acordada, sin forzar ni borrar destinos.
+  Conciliación 2026-11-08 (P24.2, parcial): menciones_normalizadas_renombrado_fisico_y_relectura_pendientes Pendiente: Ruta física no renombrada; foto/identidad/plan no equivalen a ensayo de renombrado-reparación-reapertura-CUDA-rollback. Responsable: Integrador /root; P24.
 - [ ] **Paso 3.** Reparar worktrees/junctions/entry points; preservar .venv/Torch según T9, sin rehacer modelos ni perder versiones.
+  Conciliación 2026-11-08 (P24.3, parcial): menciones_normalizadas_renombrado_fisico_y_relectura_pendientes Pendiente: Ruta física no renombrada; foto/identidad/plan no equivalen a ensayo de renombrado-reparación-reapertura-CUDA-rollback. Responsable: Integrador /root; P24.
 - [ ] **Paso 4.** Antes de guardar por la web, comparar espacios/rutas expandidas y vínculo PF con la foto; probar CUDA en el entorno correspondiente.
+  Conciliación 2026-11-08 (P24.4, parcial): menciones_normalizadas_renombrado_fisico_y_relectura_pendientes Pendiente: Ruta física no renombrada; foto/identidad/plan no equivalen a ensayo de renombrado-reparación-reapertura-CUDA-rollback. Responsable: Integrador /root; P24.
 - [ ] **Paso 5.** Ejecutar rollback del ensayo. Tras cambio real autorizado, validar rutas definitivas en P25; archivar worktrees solo con su autorización concreta.
+  Conciliación 2026-11-08 (P24.5, parcial): menciones_normalizadas_renombrado_fisico_y_relectura_pendientes Pendiente: Ruta física no renombrada; foto/identidad/plan no equivalen a ensayo de renombrado-reparación-reapertura-CUDA-rollback. Responsable: Integrador /root; P24.
 
 **Verificación enfocada prevista:**
 
@@ -751,12 +887,19 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 025:T22, 058:T5, 065:T12, 065:T13, 086:T31.
 
 - [ ] **Paso 1.** Congelar revisión/manifiesto final tras arquitectura/rutas. Verificar fuentes, modelos y entorno; ninguna referencia se regenera para ocultar diferencias.
+  Conciliación 2026-11-08 (P25.1, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: 09f6f3f3 es corte de esta auditoría, no freeze definitivo tras integraciónHARNESS; candidato1c rechazado retirado. Responsable: Integrador /root; P25.
 - [ ] **Paso 2.** Preparar nueve entradas CSG, CSG_MCP_PYTHON, CSG_EVIDENCIA_NATIVA y artefactos tests_ml del alcance completo; validar existencia/huellas antes de arrancar.
+  Conciliación 2026-11-08 (P25.2, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: Nueve entradas, MCP y evidencia preparados/verificados enG2; artefactosML/campañas completos no presentes y nuevaautoridadfinal pendiente. Responsable: Integrador /root; P25.
 - [ ] **Paso 3.** Ejecutar verificar_candidato.py --ejecutar --suite-completa --hash-datos hacia evidencia externa: cero fallos/errores/skips/xfail y cero deriva.
+  Conciliación 2026-11-08 (P25.3, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: G2estricto rechazado8209pass/36fail/9skip; correctivos enfocados no equivalen a nueva suite completa. Responsable: Integrador /root; P25.
 - [ ] **Paso 4.** Frontend test/typecheck/build aislado, auditorías, tests_ml reales y campañas requeridas se consolidan con P03. Ausencia de dependencia requerida bloquea completa.
+  Conciliación 2026-11-08 (P25.4, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: Frontend/auditorías enfocados verdes; faltan campañas/MLreales requeridas y consolidación finalP03. Responsable: Integrador /root; P25.
 - [ ] **Paso 5.** Revalidar nativamente escenarios afectados de la revisión final; no sumar corridas de commits distintos sin trazabilidad de impacto y reejecución necesaria.
+  Conciliación 2026-11-08 (P25.5, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: Aceptaciones locales016/081 conservadas; falta revalidación nativa de escenarios afectados de la revisiónfinal. Responsable: Integrador /root; P25.
 - [ ] **Paso 6.** Generar matriz RF→archivo→prueba→ejecución→dominio y revisar semántica; confrontar los 115 pendientes y actualizar Estado/índice solo con cierres reales.
-- [ ] **Paso 7.** Separar production_ready_core, scientific_acceptance por familia, operational_acceptance y project_complete. Si faltan datos o calidad exigida, conservar false en la condición correspondiente.
+  Conciliación 2026-11-08 (P25.6, parcial): correctivos_g2_integrados_harness_nuevo_en_revision_antes_freeze_qa_nativa_y_gate_final Pendiente: Matriz automática/catálogo y esta tabla114 con criterio íntegro; aún falta contraste semántico humano y aplicar/corroborar todos los estados combinados. T17cerrado no implica tarea global completa. Responsable: Integrador /root; P25.
+- [x] **Paso 7.** Separar production_ready_core, scientific_acceptance por familia, operational_acceptance y project_complete. Si faltan datos o calidad exigida, conservar false en la condición correspondiente.
+  Cierre local 2026-11-08 (P25.7): Checkpoint con production_ready_core, scientific_acceptance por ocho familias de modelos, operational_acceptance y project_complete separados, todos False hasta su evidencia del candidato final. Se mantiene rechazo e incertidumbre; no equivalen a aceptacion. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 
 **Verificación enfocada prevista:**
 
@@ -779,10 +922,15 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 086:T34.
 
 - [ ] **Paso 1.** Preparar versión única/notas, hashes, SBOM, manuales, respaldo y procedimiento de actualización/reversión según alcance realmente aceptado.
+  Conciliación 2026-11-08 (P26.1, parcial): pendiente Pendiente: Notas/manuales/recetas/SBOM preparados, pero versión final con todos los hashes no construida; no hay acta globalP25aceptada. Responsable: Integrador /root; P26.
 - [ ] **Paso 2.** Comprobar que repositorio/paquete no incorporan entradas, perfiles privados, tokens, pesos ajenos o evidencia confidencial.
-- [ ] **Paso 3.** Respetar D3/D7 actuales; no imponer asesoría legal descartada ni suponer permisos de publicación por acabar pruebas.
+  Conciliación 2026-11-08 (P26.2, parcial): pendiente Pendiente: Selección/config/locks sin datos/modelos de empresa y procedencias exportadas corregidas; falta inspección de bytes del paquete final. Rutas absolutas de auditoría solo externas. Responsable: Integrador /root; P26.
+- [x] **Paso 3.** Respetar D3/D7 actuales; no imponer asesoría legal descartada ni suponer permisos de publicación por acabar pruebas.
+  Cierre local 2026-11-08 (P26.3): D3/D7 respetados: usuario aporta licencias, no certificación legal ficticia ni permiso de publicar inferido de pruebas. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
 - [ ] **Paso 4.** Presentar artefacto concreto y acta P25; etiqueta v1.0.0/push/publicación solo con orden explícita del usuario.
+  Conciliación 2026-11-08 (P26.4, bloqueada): pendiente Pendiente: Sin artefacto final/actaP25aceptada ni orden explícita de publicar; no autoriza etiqueta/push. Responsable: Integrador /root; P26.
 - [ ] **Paso 5.** Verificar versión y hash descargables e instalación de control después de publicar; entregar responsable de soporte.
+  Conciliación 2026-11-08 (P26.5, bloqueada): pendiente Pendiente: No publicado; no existen hash descargable/instalación postpublicación ni soporte atribuido. Responsable: Integrador /root; P26.
 
 **Verificación enfocada prevista:**
 
@@ -931,5 +1079,6 @@ Consulta web: 7 de noviembre de 2026. Estas fuentes justifican el método; no ce
 - [x] Verificados paths existentes, dependencias sin ciclos y cobertura sin tareas huérfanas.
 - [x] Separadas firmas actuales de interfaces propuestas; descrita compatibilidad de consumidores.
 - [ ] Implementación, campañas, aceptación nativa/científica/operativa y publicación: **no ejecutadas por este pedido de planificación**.
+  Conciliación 2026-11-08 (REVISION.FINAL, parcial): Aplicado en unidades entregadas; no es una casilla global terminada para paquetes/campañas sin ejecutar. Pendiente: Procedimiento transversal: conservar comprobación por cada unidad pendiente; no marcar como ejecutado el resto del plan. Responsable: Integrador /root; cada responsable de unidad.
 
 La siguiente unidad ejecutable es P00 y luego P01/P02, respetando archivos y turnos. No se necesita volver a diagnosticar todo antes de empezar: refrescar identidad/cambios y ejecutar la tarea concreta con su prueba.

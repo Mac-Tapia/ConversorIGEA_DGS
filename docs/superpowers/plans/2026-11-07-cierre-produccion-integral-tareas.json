@@ -24,7 +24,11 @@
       ],
       "acceptance": "Corte reproducible y dueños registrados; cambios ajenos conservados. Produce candidato_id y manifiesto de fuentes. No cerrar por un tablero sin evidencia.",
       "interface": "",
-      "open_tasks": []
+      "open_tasks": [],
+      "completed_steps": [
+        3,
+        4
+      ]
     },
     {
       "id": "P01",
@@ -56,7 +60,13 @@
       ],
       "acceptance": "Versiones coherentes con política y auditoría sin vulnerabilidades graves no resueltas; ejecutable y dependencias registrados. pip check verde no acredita seguridad.",
       "interface": "",
-      "open_tasks": []
+      "open_tasks": [],
+      "completed_steps": [
+        1,
+        2,
+        3,
+        4
+      ]
     },
     {
       "id": "P02",
@@ -82,7 +92,11 @@
       ],
       "acceptance": "Frontend sin fallos/omitidas y alcance coherente con el informe. No fijar el número de pruebas como contrato.",
       "interface": "Conservar alcanceDe(a: Alternativa): string y el contrato JSON actual.",
-      "open_tasks": []
+      "open_tasks": [],
+      "completed_steps": [
+        2,
+        3
+      ]
     },
     {
       "id": "P03",
@@ -112,7 +126,13 @@
       ],
       "acceptance": "Ningún pase parcial o proceso incompleto produce entrega aceptada; la edición completa no salta módulos sin dependencias.",
       "interface": "Firmas propuestas; no existen aún. Mantener compatible tools/verificar_candidato.py. Nuevos archivos enumerados en esta tarea.",
-      "open_tasks": []
+      "open_tasks": [],
+      "completed_steps": [
+        1,
+        2,
+        3,
+        6
+      ]
     },
     {
       "id": "P04",
@@ -145,7 +165,13 @@
       ],
       "acceptance": "Cada modalidad mantiene contrato, procedencia, determinismo y baseline. La conservación de interfaz es criterio de todos los paquetes.",
       "interface": "Produce source_run_id/source_fingerprint por modalidad y baseline de superficies web.",
-      "open_tasks": []
+      "open_tasks": [],
+      "completed_steps": [
+        1,
+        2,
+        4,
+        5
+      ]
     },
     {
       "id": "P05",
@@ -184,7 +210,8 @@
         "045:T3",
         "045:T4",
         "048:T4"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P06",
@@ -217,7 +244,8 @@
       "interface": "",
       "open_tasks": [
         "049:T4"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P07",
@@ -256,7 +284,8 @@
         "028:T11",
         "037:T4",
         "086:T24"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P08",
@@ -288,7 +317,8 @@
         "016:T18",
         "081:T20",
         "086:T25"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P09",
@@ -336,7 +366,8 @@
         "087:T12",
         "087:T13",
         "092:T2"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P10",
@@ -373,7 +404,8 @@
         "052:T4",
         "073:T8",
         "086:T27"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P11",
@@ -412,6 +444,9 @@
         "081:T16",
         "086:T28",
         "087:T14"
+      ],
+      "completed_steps": [
+        3
       ]
     },
     {
@@ -456,7 +491,8 @@
         "094:T5",
         "098:T6",
         "099:T3"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P13",
@@ -495,7 +531,8 @@
         "073:T12",
         "081:T22",
         "086:T29"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P14",
@@ -542,6 +579,9 @@
         "047:T7",
         "069:T7",
         "070:T11"
+      ],
+      "completed_steps": [
+        1
       ]
     },
     {
@@ -572,7 +612,8 @@
       "interface": "",
       "open_tasks": [
         "097:T3"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P16",
@@ -608,7 +649,8 @@
       "open_tasks": [
         "089:T5",
         "089:T7"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P17",
@@ -651,6 +693,9 @@
         "072:T11",
         "072:T13",
         "072:T14"
+      ],
+      "completed_steps": [
+        1
       ]
     },
     {
@@ -683,7 +728,8 @@
         "074:T5",
         "074:T7",
         "074:T8"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P19",
@@ -732,6 +778,13 @@
         "050:T3b",
         "050:T4b",
         "050:T5b"
+      ],
+      "completed_steps": [
+        1,
+        2,
+        3,
+        4,
+        5
       ]
     },
     {
@@ -774,7 +827,8 @@
         "078:T6",
         "078:T7",
         "086:T30"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P21",
@@ -820,7 +874,8 @@
         "086:T36",
         "086:T33",
         "096:T3"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P22",
@@ -859,7 +914,8 @@
         "086:T40",
         "086:T41",
         "086:T32"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P23",
@@ -904,6 +960,11 @@
         "002:T9",
         "002:T11",
         "002:T12"
+      ],
+      "completed_steps": [
+        1,
+        3,
+        5
       ]
     },
     {
@@ -938,7 +999,8 @@
       "open_tasks": [
         "058:T6",
         "086:T9"
-      ]
+      ],
+      "completed_steps": []
     },
     {
       "id": "P25",
@@ -1000,6 +1062,9 @@
         "065:T12",
         "065:T13",
         "086:T31"
+      ],
+      "completed_steps": [
+        7
       ]
     },
     {
@@ -1031,6 +1096,9 @@
       "interface": "",
       "open_tasks": [
         "086:T34"
+      ],
+      "completed_steps": [
+        3
       ]
     }
   ],
@@ -3075,5 +3143,15 @@
   "planned_new_files": [
     "tools/verificar_entrega_integral.py",
     "tests/test_verificar_entrega_integral.py"
-  ]
+  ],
+  "conciliacion": {
+    "source_revision": "09f6f3f3686819c230dbec0816d56b5f7ad75df2",
+    "audit_manifest_sha256": "59f9940c9b347f78c2ed95ade3279d1b1e8734bd11950e691b5cd920380396d1",
+    "new_steps_closed": 29,
+    "previous_checked": 7,
+    "checked_after": 36,
+    "open_after": 120,
+    "spec_tasks_open_after_T17": 113,
+    "source": "docs/implementacion_produccion20261107/conciliacion_tareas_20261108.md"
+  }
 }

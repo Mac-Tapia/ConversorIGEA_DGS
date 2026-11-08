@@ -7,7 +7,7 @@
   "project_complete": false,
   "packages": {
     "P00": {
-      "state": "verificado",
+      "state": "contexto_y_duenos_comprobados_con_identificacion_tercero_y_diff_ajeno_aun_parciales",
       "evidence": []
     },
     "P01": {
@@ -38,7 +38,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "g2_rechazado_correctivos_conocidos_integrados_comprobaciones_enfocadas_correctas_nueva_suite_completa_pendiente",
+      "state": "correctivos_y_harness_integrados_428_y20_subcasos_065T17_cerrada_g3_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -615,16 +615,28 @@
     ],
     "shared_module_changes_require_owner_assignment": true,
     "commercial_integrator": "/root cierre",
-    "implementation_not_yet_integrated": true,
+    "implementation_not_yet_integrated": false,
     "record": ".agents/coordination/ACTIVE.md",
     "generated_catalog_in_owner_worktree_authorized": true,
     "root_owns_pyproject_layer_registration": true,
-    "unclassified_new_modules": 7,
-    "test_files_without_rf": 5,
-    "provisional_review_important": 2,
+    "unclassified_new_modules": 0,
+    "test_files_without_rf": 0,
+    "provisional_review_important": 0,
     "provisional_review": "revision_harness_integral_20261108/REVIEW_PROVISIONAL.md",
-    "awaiting_corrected_commit_and_handoff": true,
-    "scientific_improvement_demonstrated": false
+    "awaiting_corrected_commit_and_handoff": false,
+    "scientific_improvement_demonstrated": false,
+    "source_delivery": "9e609f2c31621930e9ef01b6afef327d8cbbf8f3",
+    "metadata_delivery": "3de431093981ba850e29fb840a5e90085adaa503",
+    "reference_fix": "eef5ee1ef70dc71af44d7f5dbc97e30c60358ae8",
+    "combined_validation": {
+      "revision": "c2444612ffc0dbb4c230b281d64498233b32e6cd",
+      "passed": 428,
+      "subtests_passed": 20,
+      "skipped": 0,
+      "native_deselected": 1,
+      "evidence": "p26_harness_integracion_20261108/combinada.xml"
+    },
+    "automatic_job_adoption": "asignada_al_owner_en_rutas_concretas; implementacion_operativa_pendiente"
   },
   "post_g2_checks": [
     {
@@ -674,5 +686,88 @@
     "Uso instalado y evidencia nativa autentica con Python entregado",
     "G3 completo estricto sobre fuente congelada y evidencia nueva",
     "Promocion comercial solo si se satisfacen sus puertas; aceptaciones cientificas separadas"
-  ]
+  ],
+  "scientific_acceptance": false,
+  "scientific_acceptance_by_family": {
+    "transformer": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "clasificador": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "gru": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "pinn": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "evolutivos": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "embeddings": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "qlora": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    },
+    "madrl": {
+      "accepted": false,
+      "scope": "campana_final_del_proyecto",
+      "state": "sin_cierre_de_aceptacion_acreditado"
+    }
+  },
+  "operational_acceptance": false,
+  "operational_acceptance_scope": "instalacion_y_uso_del_candidato_final; no heredar aceptacion de versiones previas",
+  "operational_acceptance_checks": {
+    "instalacion_final": false,
+    "update_rollback_final": false,
+    "ejecucion_nativa_instalada": false,
+    "revision_visual": false,
+    "prueba_por_tercero": false
+  },
+  "task_reconciliation": {
+    "original_main_open": 115,
+    "original_tasks_closed": [
+      "016:T18",
+      "081:T20"
+    ],
+    "new_tasks_added": [
+      "065:T17"
+    ],
+    "new_tasks_closed": [
+      "065:T17"
+    ],
+    "spec_tasks_open": 113,
+    "plan_steps_open_before": 149,
+    "plan_steps_closed_now": 29,
+    "plan_steps_open_after": 120,
+    "plan_steps_closed_total": 36,
+    "original_audit_manifest_sha256": "59f9940c9b347f78c2ed95ade3279d1b1e8734bd11950e691b5cd920380396d1",
+    "audit": "p25_conciliacion_tareas_20261108/HANDOFF.md"
+  },
+  "resource_preflight": {
+    "memory_guard": "apto",
+    "requested_gib": 12,
+    "minimum_commit_gib": 12,
+    "free_physical_gib": 1.6976432800292969,
+    "free_commit_gib": 20.255741119384766,
+    "prior_physical_ram_block_retracted": true,
+    "gpu_foreign_pid_observed": 58588,
+    "gpu_turn_granted": false,
+    "evidence": "p26_harness_integracion_20261108/sonda_memoria_12gib.json"
+  }
 }
