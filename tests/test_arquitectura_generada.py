@@ -150,6 +150,17 @@ def test_etapas_y_familias_iguales_al_codigo(texto):
     assert '### Etapas de una carga nueva' in texto and '`transformer`' in texto and 'confianza 0.85' in texto
 
 
+def test_orden_de_familias_se_lee_del_contrato_puro():
+    """090:RF-7/12; 002:RF-3: el catálogo usa el dueño canónico, sin importar el producto."""
+    fuente = FuenteCon({
+        GA.S + 'contratos_aprendizaje.py': 'ORDEN_MODELOS = ("familia_contrato",)\n',
+        GA.S + 'training_coordinator.py': 'ORDEN_MODELOS = ("familia_obsoleta",)\n',
+    })
+    documento = GA.documento(fuente)
+    assert 'Orden de entrenamiento: `familia_contrato`.' in documento
+    assert 'familia_obsoleta' not in documento
+
+
 # ---------------------------------------------------------------------- ganchos de punta a punta
 def _git(repo, *args, env=None, check=True):
     return subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, encoding='utf-8', env=env, check=check)

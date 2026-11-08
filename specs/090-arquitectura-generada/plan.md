@@ -15,6 +15,12 @@
 - **Un gancho que falla no bloquea** (P: nada bloquea a las otras sesiones por un documento). Lo detiene la suite.
 - **`post-commit` deja el índice como `HEAD`.** En un commit con rutas explícitas el gancho añade al índice temporal, y el real quedaría con el catálogo anterior.
 - **`git ls-files -c`, no el disco.** Un fichero sin versionar de otra sesión no debe entrar en el catálogo de este commit.
+- **U0 002/050 (2026-11-08).** El orden de familias se lee con AST desde su dueño
+  `contratos_aprendizaje.py`; `training_coordinator.py` lo importa, sin duplicar el
+  literal. `FUENTES` conserva ese proveedor también en la prueba de hooks aislada.
+  Cambiar de proveedor no cambia el orden, no importa el producto ni convierte un
+  fallo de generación en un éxito; se prueba que una constante obsoleta en el
+  coordinador no sustituye al contrato canónico.
 
 ## Pruebas
 
