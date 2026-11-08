@@ -142,3 +142,12 @@ entregados, para que pip/doctor no importen módulos desde su directorio de trab
 Se mantiene el PYTHONPATH explícito de la rueda de pip o de PowerFactory. La prueba
 inyecta un json.py en cwd y exige que no se ejecute; doctor no se modifica para
 ocultar una ruta ajena.
+
+Copia completa de rutas explícitas (RF-38/47): se incluyen las raíces de asistente
+y gemelo y el archivo de perfil configurados fuera de web/config. Un manifiesto v2
+distingue archivos, directorios y la configuración que se restaura por archivo;
+el lector nuevo conserva compatibilidad con copias v1. La reversión emplea el
+lector de la versión actual antes de cambiar el puntero al programa anterior.
+Se preparan y verifican todos los destinos antes de cambiarlos, con recuperación
+de los originales si falla un cambio intermedio. Se rechazan solapamientos
+ambiguos y se conservan datos posteriores apartados, sin seguir enlaces.

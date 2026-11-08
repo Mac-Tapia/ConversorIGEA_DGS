@@ -272,7 +272,8 @@ def volver(destino: Path, *, restaurar: bool = True, puerto: int = 8765, forzar:
     apuntes = json.loads(_leer(destino / ULTIMA_COPIA) or '{}')
     restaurado = None
     if restaurar and apuntes.get('copia') and apuntes.get('desde') == anterior:
-        python = _python_de(destino, anterior)
+        # La copia la creó la versión actual: la anterior puede no entender su formato.
+        python = _python_de(destino, actual)
         programa = python.parent / HERRAMIENTA_COPIA
         r = subprocess.run([str(python), str(programa), 'restaurar', '--copia', apuntes['copia'], '--puerto', str(puerto),
                             *(['--forzar'] if forzar else [])],

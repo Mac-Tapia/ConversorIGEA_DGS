@@ -335,6 +335,27 @@ def test_volver_cambia_el_puntero_y_restaura_la_copia(tmp_path, instalador_sin_m
     assert IC.estado(destino)['anterior'] == '1.1'
 
 
+def test_volver_usa_el_lector_actual_para_su_formato_de_copia(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-38 — la versión anterior puede desconocer el formato que guardó la actual."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato(tmp_path, '1.1'), destino)
+    calls = []
+    class Result:
+        stdout = '{}'
+        stderr = 'La versión anterior desconoce el formato nuevo'
+        returncode = 0
+    def restore(command, **_kwargs):
+        calls.append(command)
+        result = Result()
+        result.returncode = 0 if Path(command[0]) == IC._python_de(destino, '1.1') else 1
+        return result
+    monkeypatch.setattr(IC.subprocess, 'run', restore)
+    result = IC.volver(destino)
+    assert result['version'] == '1.0'
+    assert calls and Path(calls[0][0]) == IC._python_de(destino, '1.1')
+
+
 def test_volver_sin_version_anterior(tmp_path, instalador_sin_motor):
     """086:RF-38 — con una sola versión no hay a qué volver, y lo dice."""
     destino = tmp_path / 'app'

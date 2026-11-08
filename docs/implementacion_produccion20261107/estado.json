@@ -2,7 +2,7 @@
   "plan": "docs/superpowers/plans/2026-11-07-cierre-produccion-integral.md",
   "base": "5617251012f39193297e19b299d8a179a8fe1f61",
   "worktree": ".",
-  "branch": "codex/cierre-produccion-20261107",
+  "branch": "codex/cierre-produccion-086-20261108",
   "production_ready_core": false,
   "project_complete": false,
   "packages": {
@@ -11,7 +11,7 @@
       "evidence": []
     },
     "P01": {
-      "state": "dependencias_integrales_instaladas_uso_cuda_verificado_auditoria_parcial",
+      "state": "dependencias_instaladas_interprete_3_12_16_en_preparacion_auditoria_parcial",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
@@ -236,7 +236,7 @@
       "evidence": []
     },
     "P22": {
-      "state": "complemento_instalado_reabierto_wrapper_corregido_rebuild_y_aceptacion_pendientes",
+      "state": "copia_v2_corregida_datos_reales_verificados_paquete_final_y_update_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -266,7 +266,13 @@
         "p22_safepath_rojo.log",
         "p22_instalacion_final.xml",
         "p22_limpieza_miniensayos_20261108/resultado.json",
-        "p22_instaladores_2d6555b0/NO_PUBLICAR.json"
+        "p22_instaladores_2d6555b0/NO_PUBLICAR.json",
+        "p22_copia_raices_rojo_v2_20261108/resultado.json",
+        "p22_copia_v2_final.xml",
+        "p22_copia_v2_final_corregida.xml",
+        "p22_copia_v2_datos_reales_verificacion_v2/resultado.json",
+        "p22_correccion_trazabilidad_git_v2_20261108/resultado.json",
+        "p22_instaladores_c9767f69/NO_PUBLICAR.json"
       ]
     },
     "P23": {

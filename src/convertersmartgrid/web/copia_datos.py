@@ -18,6 +18,7 @@ import os
 import re
 import time
 import uuid
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -28,9 +29,9 @@ from ..util import publicar_duradero, sha256_file, sincronizar_carpeta, write_js
 from .jobs import INTERRUMPIDO
 from .retencion import PESOS, RUN_EN_TEXTO, es_valioso
 from .source_runs import valid_run_id
-from .workspace import CAMPOS_CON_RUTAS, data_root, expandir_rutas
+from .workspace import CAMPOS_CON_RUTAS, data_root, expandir_rutas, raiz_componente
 
-VERSION_MANIFIESTO = 1
+VERSION_MANIFIESTO = 2
 MANIFIESTO = 'manifiesto.json'
 #: Antigüedad de la última copia a partir de la cual se avisa; se cambia con ``CSG_COPIA_MAX_DIAS``.
 DIAS_MAXIMOS = 7.0
@@ -57,7 +58,53 @@ def raices_de_datos(checkout: Path | None = None) -> dict[str, Path]:
     entrada = raiz_local(programa) / 'input'
     if es_programa_instalado(programa) and entrada.is_dir():
         raices['input'] = entrada
+    for nombre, componente, variable in (('asistente', '_asistente', 'CSG_ASISTENTE_DATA'),
+                                         ('gemelo', '_digital_twin', 'CSG_TWIN_DATA')):
+        ruta = raiz_componente(componente, variable)
+        if not any(ruta.resolve().is_relative_to(base.resolve()) for n, base in raices.items() if n != 'config'):
+            raices[nombre] = ruta
+    from ..perfil_empresa import ruta_perfil_activo
+
+    perfil = ruta_perfil_activo()
+    # La ruta declarada sigue siendo destino de restauración si se perdió el archivo.
+    raices['perfil_empresa'] = perfil
     return raices
+
+
+def _planificar_raices(raices: dict[str, Path]) -> tuple[dict[str, Path], dict[str, str], dict[str, list[Path]]]:
+    """086:RF-38/47 — raíces sin enlaces ni directorios ambiguos; archivos cubiertos se consolidan."""
+    origenes, tipos = {}, {}
+    for nombre, valor in raices.items():
+        ruta = Path(valor)
+        if not nombre or nombre in ('.', '..') or Path(nombre).name != nombre:
+            raise CopiaNoValida('Nombre de raíz de copia no válido.')
+        if _es_redireccion(ruta):
+            raise CopiaNoValida(f'La raíz es un enlace; indique su ruta física: {ruta}')
+        if nombre == 'perfil_empresa' and ruta.exists() and not ruta.is_file():
+            raise CopiaNoValida('El perfil de empresa debe ser un archivo.')
+        if ruta.is_file() or ruta.is_dir():
+            origenes[nombre] = ruta.resolve()
+            tipos[nombre] = 'archivo' if ruta.is_file() else ('configuracion' if nombre == 'config' else 'directorio')
+    completos = {n: p for n, p in origenes.items() if tipos[n] == 'directorio'}
+    for i, (nombre, ruta) in enumerate(completos.items()):
+        for otra, base in list(completos.items())[i + 1:]:
+            if ruta.is_relative_to(base) or base.is_relative_to(ruta):
+                raise CopiaNoValida(f'Directorios de copia solapados: {nombre} y {otra}.')
+    extras: dict[str, list[Path]] = {n: [] for n in origenes}
+    for nombre, ruta in list(origenes.items()):
+        if tipos[nombre] == 'archivo':
+            cubre = next((n for n, base in origenes.items() if n != nombre and tipos[n] != 'archivo'
+                          and ruta.is_relative_to(base)), None)
+            if cubre is not None:
+                extras[cubre].append(ruta)
+                del origenes[nombre], tipos[nombre]
+        elif tipos[nombre] == 'configuracion':
+            cubre = next((n for n, base in completos.items() if ruta.is_relative_to(base)), None)
+            if cubre is not None:
+                extras[cubre].extend(ruta / f for f in FICHEROS_CONFIG if (ruta / f).is_file())
+                extras[cubre].extend(extras[nombre])
+                del origenes[nombre], tipos[nombre]
+    return origenes, tipos, extras
 
 
 def _es_redireccion(ruta: Path) -> bool:
@@ -133,6 +180,9 @@ def _ficheros_de_espacio(espacio: Path, ahora: float, omitidos: list[dict]):
 
 
 def _ficheros_de_raiz(nombre: str, raiz: Path, ahora: float, sin_modelos: bool, omitidos: list[dict]):
+    if raiz.is_file():
+        yield raiz
+        return
     if nombre == 'config':
         for fichero in FICHEROS_CONFIG:
             if (raiz / fichero).is_file():
@@ -148,7 +198,7 @@ def _ficheros_de_raiz(nombre: str, raiz: Path, ahora: float, sin_modelos: bool, 
             yield from _ficheros_de_espacio(hijo, ahora, omitidos)
         else:
             for fichero in _recorrer(hijo, omitidos):
-                if sin_modelos and hijo.name in _MODELOS and fichero.suffix.lower() in PESOS:
+                if sin_modelos and (hijo.name in _MODELOS or nombre in ('asistente', 'gemelo')) and fichero.suffix.lower() in PESOS:
                     omitidos.append({'ruta': str(fichero), 'motivo': 'pesos: pedido sin modelos'})
                 else:
                     yield fichero
@@ -214,7 +264,7 @@ def crear_copia(destino: Path, *, raices: dict[str, Path] | None = None, sin_mod
                 ahora: float | None = None) -> dict[str, Any]:
     """Crea ``<destino>/csg-copia-<fecha>-<id>`` y devuelve su manifiesto."""
     momento = time.time() if ahora is None else ahora
-    origenes = {n: Path(r) for n, r in (raices or raices_de_datos()).items() if Path(r).is_dir()}
+    origenes, tipos, extras = _planificar_raices(raices if raices is not None else raices_de_datos())
     destino = Path(destino).resolve()
     for nombre, raiz in origenes.items():
         if nombre != 'config' and destino.is_relative_to(raiz.resolve()):
@@ -225,23 +275,33 @@ def crear_copia(destino: Path, *, raices: dict[str, Path] | None = None, sin_mod
     parcial.mkdir(parents=True)
     ficheros, omitidos, errores, externas = [], [], [], []
     for nombre, raiz in origenes.items():
-        for fichero in _ficheros_de_raiz(nombre, raiz, momento, sin_modelos, omitidos):
-            relativa = fichero.relative_to(raiz).as_posix()
+        vistos = set()
+        for fichero in chain(_ficheros_de_raiz(nombre, raiz, momento, sin_modelos, omitidos), extras.get(nombre, [])):
+            if fichero in vistos:
+                continue
+            vistos.add(fichero)
+            if sin_modelos and nombre in ('asistente', 'gemelo') and fichero.suffix.lower() in PESOS:
+                omitidos.append({'ruta': str(fichero), 'motivo': 'pesos: pedido sin modelos'})
+                continue
+            relativa = fichero.name if tipos[nombre] == 'archivo' else fichero.relative_to(raiz).as_posix()
             try:
                 tamano, huella = _copiar_con_huella(fichero, parcial / 'archivos' / nombre / relativa)
             except FileNotFoundError:
-                omitidos.append({'ruta': str(fichero), 'motivo': 'desapareció durante la copia'})
+                registro = (errores if tipos[nombre] in ('archivo', 'configuracion')
+                            or fichero in extras.get(nombre, []) else omitidos)
+                registro.append({'ruta': str(fichero), 'motivo': 'desapareció durante la copia'})
                 continue
             except OSError as exc:
                 errores.append({'ruta': str(fichero), 'motivo': str(exc)})
                 continue
             ficheros.append({'raiz': nombre, 'ruta': relativa, 'bytes': tamano, 'sha256': huella})
-        if nombre != 'config':
+        if tipos[nombre] == 'directorio':
             externas.extend(_rutas_externas(raiz))
     identidad = rutas_runtime().identidad
     manifiesto = {
         'version': VERSION_MANIFIESTO, 'creada': momento, 'instalacion': identidad,
         'raices': {n: str(r) for n, r in origenes.items()},
+        'tipos_raiz': tipos,
         'ficheros': ficheros, 'bytes_total': sum(f['bytes'] for f in ficheros),
         'omitidos': omitidos, 'errores': errores, 'rutas_externas_sin_copiar': sorted(set(externas)),
     }
@@ -265,9 +325,35 @@ def _leer_manifiesto(copia: Path) -> dict[str, Any]:
         raise CopiaNoValida(f'Sin un manifiesto legible no hay copia: {exc}') from exc
     if not isinstance(datos, dict) or not isinstance(datos.get('ficheros'), list):
         raise CopiaNoValida('El manifiesto no tiene el contenido esperado.')
-    if datos.get('version') != VERSION_MANIFIESTO:
+    if type(datos.get('version')) is not int or datos.get('version') not in (1, VERSION_MANIFIESTO):
         raise CopiaNoValida(f"Manifiesto de la versión {datos.get('version')!r}; este programa lee la "
                             f'{VERSION_MANIFIESTO}. Actualice el programa antes de restaurar.')
+    raices = datos.get('raices')
+    if (not isinstance(raices, dict) or any(not isinstance(n, str) or not n or n in ('.', '..')
+            or Path(n).name != n or not isinstance(r, str) or not r for n, r in raices.items())):
+        raise CopiaNoValida('El manifiesto no identifica sus raíces.')
+    vistos = set()
+    for item in datos['ficheros']:
+        if (not isinstance(item, dict) or not isinstance(item.get('raiz'), str)
+                or item['raiz'] not in raices or not isinstance(item.get('ruta'), str) or not item['ruta']
+                or type(item.get('bytes')) is not int or item['bytes'] < 0
+                or not isinstance(item.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', item['sha256'])):
+            raise CopiaNoValida('Metadatos de archivo no válidos en el manifiesto.')
+        clave = (item['raiz'], Path(item['ruta']))
+        if clave in vistos:
+            raise CopiaNoValida('El manifiesto contiene archivos duplicados.')
+        vistos.add(clave)
+    tipos = ({n: 'configuracion' if n == 'config' else 'directorio' for n in raices}
+             if datos['version'] == 1 else datos.get('tipos_raiz'))
+    if (not isinstance(tipos, dict) or set(tipos) != set(raices)
+            or any(t not in ('archivo', 'directorio', 'configuracion') for t in tipos.values())):
+        raise CopiaNoValida('Tipos de raíz del manifiesto no válidos.')
+    for nombre, tipo in tipos.items():
+        if tipo == 'archivo':
+            items = [f for f in datos['ficheros'] if f.get('raiz') == nombre]
+            if len(items) != 1 or items[0].get('ruta') != Path(raices[nombre]).name:
+                raise CopiaNoValida('Una raíz de archivo debe identificar exactamente su fichero.')
+    datos['tipos_raiz'] = tipos
     return datos
 
 
@@ -278,11 +364,14 @@ def verificar_copia(copia: Path) -> dict[str, Any]:
     for item in manifiesto['ficheros']:
         relativa = Path(str(item['ruta']))
         # El manifiesto es una entrada: una ruta que sale de la copia no se sigue.
-        if relativa.is_absolute() or '..' in relativa.parts or str(item['raiz']) != Path(str(item['raiz'])).name:
+        if (relativa.is_absolute() or '..' in relativa.parts or str(item['raiz']) in ('', '.', '..')
+                or str(item['raiz']) != Path(str(item['raiz'])).name or item['raiz'] not in manifiesto['raices']):
             distintos.append(str(item['ruta']))
             continue
         ruta = Path(copia) / 'archivos' / str(item['raiz']) / relativa
-        if not ruta.is_file():
+        if not ruta.resolve().is_relative_to(Path(copia).resolve()) or _es_redireccion(ruta):
+            distintos.append(str(item['ruta']))
+        elif not ruta.is_file():
             faltan.append(str(item['ruta']))
         elif ruta.stat().st_size != item['bytes'] or sha256_file(ruta) != item['sha256']:
             distintos.append(str(item['ruta']))
@@ -298,50 +387,104 @@ def restaurar_copia(copia: Path, *, raices: dict[str, Path] | None = None) -> di
         raise CopiaNoValida(f"La copia no está sana y no se restaura: faltan {len(comprobado['faltan'])}, "
                             f"distintos {len(comprobado['distintos'])}, errores al crearla {len(comprobado['errores'])}.")
     manifiesto = _leer_manifiesto(copia)
-    destinos = raices or raices_de_datos()
-    sin_destino = sorted({str(i['raiz']) for i in manifiesto['ficheros']} - set(destinos))
+    solicitados = dict(raices if raices is not None else raices_de_datos())
+    destinos = {n: Path(r).resolve() for n, r in solicitados.items()}
+    sin_destino = sorted(set(manifiesto['raices']) - set(destinos))
     if sin_destino:
         raise CopiaNoValida(f'La copia trae raíces que aquí no existen: {sin_destino}')
-    sello = time.strftime('%Y%m%dT%H%M%S')
+    tipos = manifiesto['tipos_raiz']
+    completos = [destinos[n] for n in manifiesto['raices'] if tipos[n] == 'directorio']
+    for i, destino in enumerate(completos):
+        for otra in completos[i + 1:]:
+            if destino.is_relative_to(otra) or otra.is_relative_to(destino):
+                raise CopiaNoValida('Los directorios de restauración están solapados.')
+    for nombre in manifiesto['raices']:
+        destino = destinos[nombre]
+        original = Path(solicitados[nombre])
+        if _es_redireccion(original) or destino == Path(destino.anchor):
+            raise CopiaNoValida(f'Destino de restauración no permitido: {original}')
+        if destino.exists() and ((tipos[nombre] == 'archivo') != destino.is_file()):
+            raise CopiaNoValida(f'El tipo del destino no coincide con la copia: {destino}')
+        if tipos[nombre] == 'directorio' and (destino / '.git').exists():
+            raise CopiaNoValida('No se sustituye una raíz de código Git al restaurar datos.')
+    seleccionados = set()
+    for nombre in manifiesto['raices']:
+        objetivos = ([destinos[nombre]] if tipos[nombre] != 'configuracion' else
+                     [destinos[nombre] / item['ruta'] for item in manifiesto['ficheros'] if item['raiz'] == nombre])
+        for objetivo in objetivos:
+            if objetivo.resolve() in seleccionados:
+                raise CopiaNoValida(f'Destino de restauración duplicado: {objetivo}')
+            seleccionados.add(objetivo.resolve())
+    sello = time.strftime('%Y%m%dT%H%M%S') + '-' + uuid.uuid4().hex
     apartados: list[str] = []
     preparados: list[tuple[Path, Path]] = []
+    publicados: list[tuple[Path, Path | None]] = []
+    pendientes_originales: list[tuple[Path, Path]] = []
     try:
-        for nombre in sorted({str(i['raiz']) for i in manifiesto['ficheros']}):
-            destino = Path(destinos[nombre])
+        # Directorios completos primero; archivos y configuración se publican después.
+        for nombre in sorted(manifiesto['raices'], key=lambda n: (tipos[n] != 'directorio', n)):
+            destino = destinos[nombre]
             items = [i for i in manifiesto['ficheros'] if i['raiz'] == nombre]
-            if nombre == 'config':
-                # La carpeta también tiene ficheros de git: solo se sustituyen los suyos.
+            if tipos[nombre] != 'directorio':
                 for item in items:
-                    fichero = destino / item['ruta']
-                    if fichero.is_file():
-                        apartado = fichero.with_name(f'{fichero.name}.antes-restaurar-{sello}')
-                        fichero.replace(apartado)
-                        apartados.append(str(apartado))
-                    publicar_duradero(fichero, (copia / 'archivos' / nombre / item['ruta']).read_bytes())
+                    fichero = destino if tipos[nombre] == 'archivo' else destino / item['ruta']
+                    # Si el archivo está bajo otra raíz que se sustituirá, preparar fuera
+                    # de ella conserva el staging durante ese cambio de directorio.
+                    padre = min((d for d in completos if fichero.is_relative_to(d)),
+                                key=lambda d: len(d.parts), default=None)
+                    base = padre.parent if padre is not None else fichero.parent
+                    temporal = base / f'{fichero.name}.restaurando-{sello}-{len(preparados)}'
+                    _, huella = _copiar_con_huella(copia / 'archivos' / nombre / item['ruta'], temporal)
+                    if huella != item['sha256']:
+                        raise CopiaNoValida(f"{item['ruta']} cambió mientras se restauraba.")
+                    preparados.append((temporal, fichero))
                 continue
             temporal = destino.with_name(f'{destino.name}.restaurando-{sello}')
+            temporal.mkdir(parents=True, exist_ok=False)
             for item in items:
                 _, huella = _copiar_con_huella(copia / 'archivos' / nombre / item['ruta'], temporal / item['ruta'])
                 if huella != item['sha256']:
                     raise CopiaNoValida(f"{item['ruta']} cambió mientras se restauraba.")
             preparados.append((temporal, destino))
-        # Todo copiado antes de cambiar nada: un disco lleno no deja una mitad de cada cosa.
+        # Todo preparado antes de cambiar un original; una publicación fallida
+        # revierte los cambios ya hechos y conserva lo preparado para diagnóstico.
         for temporal, destino in preparados:
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            apartado = None
             if destino.exists():
                 apartado = destino.with_name(f'{destino.name}.antes-restaurar-{sello}')
                 destino.replace(apartado)
+                pendientes_originales.append((apartado, destino))
                 apartados.append(str(apartado))
             temporal.replace(destino)
+            publicados.append((destino, apartado))
+            if apartado is not None:
+                pendientes_originales.pop()
+            sincronizar_carpeta(destino.parent)
         if 'datos' in destinos:
             # Lo restaurado es de antes de crear la copia, y sin esto avisaría de que no hay ninguna.
             write_json_atomic(_registro_ultima(destinos['datos']), {
                 'creada': manifiesto.get('creada'), 'ruta': str(copia.resolve()),
                 'ficheros': comprobado['ficheros'], 'bytes': manifiesto.get('bytes_total'),
             })
-    except BaseException:
-        for temporal, _ in preparados:
-            if temporal.exists():
-                apartados.append(f'{temporal} (sin usar; se puede borrar)')
+    except BaseException as exc:
+        errores_reversion = []
+        for apartado, destino in reversed(pendientes_originales):
+            try:
+                apartado.replace(destino)
+            except OSError as error:
+                errores_reversion.append(f'{apartado} -> {destino}: {error}')
+        for destino, apartado in reversed(publicados):
+            try:
+                if destino.exists():
+                    destino.replace(destino.with_name(f'{destino.name}.restauracion-no-publicada-{sello}'))
+                if apartado is not None:
+                    apartado.replace(destino)
+            except OSError as error:
+                errores_reversion.append(f'{apartado} -> {destino}: {error}')
+        if errores_reversion:
+            raise CopiaNoValida('Falló la recuperación de originales; se conservan las rutas: '
+                                + '; '.join(errores_reversion)) from exc
         raise
     return {'restaurados': comprobado['ficheros'], 'apartados': apartados, 'creada': manifiesto.get('creada'),
             'rutas_externas_sin_copiar': manifiesto.get('rutas_externas_sin_copiar') or []}

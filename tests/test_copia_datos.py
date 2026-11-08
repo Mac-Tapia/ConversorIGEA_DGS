@@ -23,6 +23,9 @@ def _entorno(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
     monkeypatch.setenv('CSG_CACHE_HOME', str(tmp_path / 'cache'))
     monkeypatch.setenv('CSG_WEB_DATA', str(tmp_path / 'web'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'web/_asistente'))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'web/_digital_twin'))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'config/perfil_empresa.json'))
     monkeypatch.delenv('CSG_COPIA_MAX_DIAS', raising=False)
     yield
 
@@ -64,6 +67,195 @@ def _estado(raiz: Path) -> dict[str, str]:
     """Cada fichero con su huella: dos estados iguales son iguales byte a byte."""
     return {p.relative_to(raiz).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted(raiz.rglob('*')) if p.is_file() and p.name != 'ultima_copia.json'}
+
+
+def _configurar_raices_externas(tmp_path, monkeypatch):
+    from convertersmartgrid.web import copia_datos as copia
+    program = tmp_path / 'programa'
+    program.mkdir()
+    local = tmp_path / 'local'
+    monkeypatch.setattr(copia, 'raiz_local', lambda _p: local)
+    monkeypatch.setattr(copia, 'es_programa_instalado', lambda _p: True)
+    monkeypatch.setattr(copia, 'project_root', lambda: program)
+    assistant, twin = tmp_path / 'asistente_externo', tmp_path / 'gemelo_externo'
+    profile = tmp_path / 'configuracion_cliente/mi_perfil.json'
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(assistant))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(twin))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(profile))
+    critical = [tmp_path / 'web/dato.txt', assistant / 'modelo.pt', assistant / 'eventos.jsonl',
+                twin / 'pesos.pt', profile, local / 'config/line_type_aliases.json']
+    for index, path in enumerate(critical):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(('original_' + str(index)).encode())
+    return copia, critical
+
+
+def test_copia_y_restauracion_incluyen_raices_externas_y_perfil_archivo(tmp_path, monkeypatch):
+    """086:RF-38, 086:RF-47 — modelos y perfil en sus rutas explícitas sobreviven a la reversión."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    before = {str(p): p.read_bytes() for p in critical}
+    roots = copia.raices_de_datos()
+    manifest = copia.crear_copia(tmp_path / 'copias', raices=roots)
+    assert manifest['version'] == 2 and manifest['tipos_raiz']['perfil_empresa'] == 'archivo'
+    included = {str((Path(manifest['raices'][row['raiz']]) if manifest['tipos_raiz'][row['raiz']] == 'archivo'
+                     else Path(manifest['raices'][row['raiz']]) / row['ruta']).resolve()) for row in manifest['ficheros']}
+    assert set(before) <= included
+    for path in critical:
+        path.write_bytes(b'posterior a la copia')
+    result = copia.restaurar_copia(Path(manifest['ruta']), raices=roots)
+    assert {str(p): p.read_bytes() for p in critical} == before
+    assert result['apartados']
+    assert any(p.read_bytes() == b'posterior a la copia' for p in Path(critical[4].parent).glob('*.antes-restaurar-*'))
+
+
+def test_fallo_intermedio_de_restauracion_recupera_configuracion_y_datos(tmp_path, monkeypatch):
+    """086:RF-38 — un error al publicar la segunda raíz no deja la configuración de otra versión."""
+    from convertersmartgrid.web import copia_datos as copia
+    data, config = tmp_path / 'web', tmp_path / 'config'
+    data.mkdir(); config.mkdir()
+    file, profile = data / 'dato.txt', config / 'perfil_empresa.json'
+    file.write_bytes(b'antes'); profile.write_bytes(b'antes')
+    roots = {'datos': data, 'config': config}
+    backup = Path(copia.crear_copia(tmp_path / 'copias', raices=roots)['ruta'])
+    file.write_bytes(b'actual'); profile.write_bytes(b'actual')
+    replace = Path.replace
+    def fallar_publicacion(path, target):
+        if '.restaurando-' in path.name and Path(target) == data:
+            raise OSError('fallo de publicación inyectado')
+        return replace(path, target)
+    monkeypatch.setattr(Path, 'replace', fallar_publicacion)
+    with pytest.raises(OSError, match='inyectado'):
+        copia.restaurar_copia(backup, raices=roots)
+    assert file.read_bytes() == profile.read_bytes() == b'actual'
+
+
+def test_restauracion_automatica_recupera_un_perfil_externo_que_ya_no_existe(tmp_path, monkeypatch):
+    """086:RF-38 — perder el perfil no elimina su destino de la restauración automática."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    profile = critical[4]
+    expected = profile.read_bytes()
+    backup = Path(copia.crear_copia(tmp_path / 'copias')['ruta'])
+    profile.unlink()
+    copia.restaurar_copia(backup)
+    assert profile.read_bytes() == expected
+
+
+def test_perfil_personalizado_en_config_se_restaura_sin_tocar_otros_archivos(tmp_path, monkeypatch):
+    """086:RF-38 — la copia incluye un nombre de perfil propio y conserva el resto de configuración."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    config = tmp_path / 'local/config'
+    profile = config / 'perfil_personalizado.json'
+    critical[4].replace(profile)
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(profile))
+    expected = profile.read_bytes()
+    untouched = config / 'no_tocar.json'
+    untouched.write_bytes(b'no se debe restaurar desde otro archivo')
+    backup = Path(copia.crear_copia(tmp_path / 'copias')['ruta'])
+    profile.write_bytes(b'posterior')
+    copia.restaurar_copia(backup)
+    assert profile.read_bytes() == expected
+    assert untouched.read_bytes() == b'no se debe restaurar desde otro archivo'
+
+
+def test_manifiesto_v2_con_tipo_desconocido_se_rechaza_sin_cambiar_datos(tmp_path, monkeypatch):
+    """086:RF-38, 086:RF-47 — un formato no soportado no se interpreta como directorio."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    backup = Path(copia.crear_copia(tmp_path / 'copias')['ruta'])
+    manifest = backup / copia.MANIFIESTO
+    data = json.loads(manifest.read_text(encoding='utf-8'))
+    data['tipos_raiz']['perfil_empresa'] = 'desconocido'
+    manifest.write_text(json.dumps(data), encoding='utf-8')
+    before = {str(p):p.read_bytes() for p in critical}
+    with pytest.raises(copia.CopiaNoValida, match='Tipos'):
+        copia.restaurar_copia(backup)
+    assert {str(p):p.read_bytes() for p in critical} == before
+
+
+def test_perfil_que_desaparece_no_actualiza_el_registro_de_copia_valida(tmp_path, monkeypatch):
+    """086:RF-38, 086:RF-47 — perder un archivo configurado no se declara una copia completa."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    roots = copia.raices_de_datos()
+    register = copia._registro_ultima(roots['datos'])
+    register.parent.mkdir(parents=True)
+    register.write_bytes(b'{"ruta":"copia anterior"}')
+    copy = copia._copiar_con_huella
+    def desaparecer(source, target):
+        if Path(source) == critical[4]:
+            Path(source).unlink()
+            raise FileNotFoundError(str(source))
+        return copy(source, target)
+    monkeypatch.setattr(copia, '_copiar_con_huella', desaparecer)
+    result = copia.crear_copia(tmp_path / 'copias', raices=roots)
+    assert result['errores']
+    assert register.read_bytes() == b'{"ruta":"copia anterior"}'
+
+
+@pytest.mark.parametrize('case', ['fila', 'ruta', 'raiz', 'bytes', 'sha256'])
+def test_manifiesto_mal_formado_se_rechaza_con_error_controlado(tmp_path, case):
+    """086:RF-47 — tipos JSON inválidos no causan excepciones de implementación ni restauraciones."""
+    from convertersmartgrid.web import copia_datos as copia
+    source = tmp_path / 'web'; source.mkdir()
+    original = source / 'dato.txt'; original.write_bytes(b'original')
+    folder = Path(copia.crear_copia(tmp_path / 'copias', raices={'datos':source})['ruta'])
+    path = folder / copia.MANIFIESTO
+    manifest = json.loads(path.read_text(encoding='utf-8'))
+    if case == 'fila':
+        manifest['ficheros'] = [42]
+    else:
+        manifest['ficheros'][0][case] = {'ruta':[], 'raiz':[], 'bytes':'ocho', 'sha256':None}[case]
+    path.write_text(json.dumps(manifest), encoding='utf-8')
+    with pytest.raises(copia.CopiaNoValida):
+        copia.verificar_copia(folder)
+    assert original.read_bytes() == b'original'
+
+
+def test_dos_archivos_no_pueden_restaurarse_sobre_el_mismo_destino(tmp_path, monkeypatch):
+    """086:RF-38 — una colisión de destinos no pisa los originales ni sus apartados."""
+    copia, critical = _configurar_raices_externas(tmp_path, monkeypatch)
+    roots = copia.raices_de_datos()
+    folder = Path(copia.crear_copia(tmp_path / 'copias', raices=roots)['ruta'])
+    critical[5].write_bytes(b'alias actual')
+    roots['perfil_empresa'] = critical[5]
+    before = {str(p):p.read_bytes() for p in critical}
+    with pytest.raises(copia.CopiaNoValida, match='(?i)destino|solap'):
+        copia.restaurar_copia(folder, raices=roots)
+    assert {str(p):p.read_bytes() for p in critical} == before
+
+
+def test_lector_nuevo_conserva_restauracion_de_manifiesto_v1(tmp_path):
+    """086:RF-38 — actualizar el formato no invalida las copias previas del operador."""
+    from convertersmartgrid.web import copia_datos as copia
+    source = tmp_path / 'web'; source.mkdir()
+    (source / 'dato.txt').write_bytes(b'original')
+    manifest = copia.crear_copia(tmp_path / 'copias', raices={'datos':source})
+    folder = Path(manifest['ruta'])
+    legacy = json.loads((folder / copia.MANIFIESTO).read_text(encoding='utf-8'))
+    legacy['version'] = 1
+    legacy.pop('tipos_raiz', None)
+    (folder / copia.MANIFIESTO).write_text(json.dumps(legacy), encoding='utf-8')
+    target = tmp_path / 'restaurado'
+    copia.restaurar_copia(folder, raices={'datos':target})
+    assert (target / 'dato.txt').read_bytes() == b'original'
+
+
+def test_directorios_de_restauracion_solapados_se_rechazan_antes_de_escribir(tmp_path):
+    """086:RF-38 — raíces ambiguas no pueden producir movimientos que invaliden otra raíz."""
+    from convertersmartgrid.web import copia_datos as copia
+    data = tmp_path / 'web'; child = data / 'modelos'; child.mkdir(parents=True)
+    (child / 'pesos.pt').write_bytes(b'original')
+    output = tmp_path / 'copia'
+    with pytest.raises(ValueError, match='solap|superpuest'):
+        copia.crear_copia(output, raices={'datos':data,'asistente':child})
+    assert not output.exists() and (child / 'pesos.pt').read_bytes() == b'original'
+
+
+def test_sin_modelos_tambien_filtra_raices_externas_sin_perder_registros(tmp_path, monkeypatch):
+    """086:RF-47 — una raíz independiente no esquiva la elección de omitir pesos."""
+    copia, _ = _configurar_raices_externas(tmp_path, monkeypatch)
+    manifest = copia.crear_copia(tmp_path / 'copias', raices=copia.raices_de_datos(), sin_modelos=True)
+    assert any(r['raiz']=='asistente' and r['ruta']=='eventos.jsonl' for r in manifest['ficheros'])
+    assert not any(r['ruta'].endswith('.pt') for r in manifest['ficheros'])
+    assert any('pesos' in row['motivo'] for row in manifest['omitidos'])
 
 
 def test_la_copia_lleva_lo_valioso_y_no_lo_que_retiraria_la_limpieza(tmp_path):
@@ -224,7 +416,7 @@ def test_copia_tambien_la_raiz_heredada_y_la_configuracion_local(tmp_path):
     (config / 'de_git.json').write_text('{}', encoding='utf-8')
     raiz, _ = _crear_datos(tmp_path)
     raices = modulo.raices_de_datos(programa)
-    assert set(raices) == {'datos', 'heredada', 'config'} and raices['datos'] == raiz
+    assert set(raices) == {'datos', 'heredada', 'config', 'perfil_empresa'} and raices['datos'] == raiz
     m = modulo.crear_copia(tmp_path / 'copias', raices=raices)
     por_raiz = {f['raiz'] for f in m['ficheros']}
     assert por_raiz == {'datos', 'heredada', 'config'}
