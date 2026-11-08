@@ -16,6 +16,13 @@ Las pruebas y el lector 076 conservaron ubicaciones anteriores a la migración.
 Las corridas enfocadas no habían ejercitado todos esos lectores: algunos fallaban
 al coleccionar, otros solo al ejecutar la lectura dentro de una prueba.
 
+La corrida reveló además un warning de captura: el test de staging lanzaba un
+hijo Python con `-I`, que ignora las variables UTF-8 del padre y emitía cp1252 en
+Windows. `text=True` decodificaba como UTF-8 en el padre y el hilo lector fallaba
+aunque el hijo devolvía cero. El test ahora captura bytes, comprueba el retorno y
+la parte ASCII del mensaje semántico, y conserva stdout/stderr como diagnóstico.
+No cambia el idioma del runtime ni fuerza su encoding global.
+
 ## Comprobación permanente
 
 El primer correctivo cambia las rutas de los tests y de sus fixtures hacia los
@@ -41,6 +48,7 @@ API, caché entre revisiones y alteración del contenido vigente.
 - `tests/test_cargas_tres_pasos_front.py::test_la_pestana_se_ve_sin_entradas`
 - `tests/test_preguntas_entregables_migracion.py::test_cache_no_reutiliza_un_blob_fuera_del_sha_fijado`
 - `tests/test_preguntas_entregables_migracion.py::test_contenido_vigente_alterado_se_rechaza_aunque_el_historico_siga_valido`
+- `tests/test_web_runtime_front.py::test_validacion_staging_se_ejecuta_directa_sin_paquete_instalado`
 
 Evidencia: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p23_referencias_tests_20261108/`.
 La colección completa y las pruebas enfocadas son controles distintos; ninguno

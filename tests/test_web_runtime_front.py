@@ -148,6 +148,10 @@ def test_validacion_staging_se_ejecuta_directa_sin_paquete_instalado(tmp_path):
     staging.mkdir()
     (staging / 'index.html').write_text('<html>completo</html>')
     script = RAIZ / 'src/convertersmartgrid/web/runtime.py'
+    # -I ignora PYTHONUTF8/PYTHONIOENCODING: no inferir el encoding del hijo
+    # desde el padre. Capturar bytes también conserva el diagnóstico íntegro.
     resultado = subprocess.run([sys.executable, '-I', '-B', str(script), '--validate-dist', str(staging)],
-                              cwd=tmp_path, capture_output=True, text=True, timeout=15)
-    assert resultado.returncode == 0, resultado.stdout + resultado.stderr
+                              cwd=tmp_path, capture_output=True, timeout=15)
+    diagnostico = (resultado.stdout, resultado.stderr)
+    assert resultado.returncode == 0, diagnostico
+    assert b'contiene todos sus recursos locales' in resultado.stdout, diagnostico
