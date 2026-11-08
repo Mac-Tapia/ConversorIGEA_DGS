@@ -106,6 +106,10 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
     el que se aplica, para que un año nunca escale el de otro."""
     base = base if base is not None else {}
     nuevas = nuevas or {}
+    if estudio_id:
+        for origen in origenes.values():
+            if origen.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(origen):
+                raise PideError('no se activó el origen de la copia anual')
     etiqueta = f'Año {anio:02d}'
     raiz_casos = _carpeta(app.GetProjectFolder('study'), 'PIDE')
     raiz_escenarios = _carpeta(app.GetProjectFolder('scen', 1), 'PIDE')
@@ -119,7 +123,9 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
         if origen is None:
             continue
         esc_origen = _escenario_de(app, origen)
-        origen.Activate()                       # el de una corrida anterior no puede estar activo
+        rc_origen = origen.Activate()           # el de una corrida anterior no puede estar activo
+        if estudio_id and (rc_origen != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(origen)):
+            raise PideError('no se reabrió el origen de la copia anual')
         for x in casos.GetContents('*.IntCase'):
             if x.loc_name == nombre:
                 x.Delete()                      # RF-5: se renueva, sin duplicar
@@ -194,7 +200,7 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
     escriben literalmente, sin el reparto proporcional de la calibración.
     La variación de demanda del año anterior se sustituye, no cuenta como obra.
     """
-    if caso.Activate() != 0:
+    if caso.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(caso):
         raise PideError('no se activó la copia anual')
     for v in list(app.GetActiveNetworkVariations() or []):
         if clave_pf(v) in variaciones_demanda and v.Deactivate() != 0:
@@ -218,8 +224,9 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
     escenario = app.GetActiveScenario()
     if escenario is None or escenario.Save() != 0:
         raise PideError(f'no se guardó el escenario anual {anio}')
-    origen.Activate()
-    if caso.Activate() != 0:
+    if origen.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(origen):
+        raise PideError('no se reabrió el origen antes de releer la copia anual')
+    if caso.Activate() != 0 or clave_pf(app.GetActiveStudyCase()) != clave_pf(caso):
         raise PideError('no se reabrió la copia anual')
     for key, fila in filas.items():
         carga = cargas[key][0]
@@ -232,7 +239,84 @@ def _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, vari
                 raise PideError(f'la relectura anual no conserva las fases de {key}')
 
 
-def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
+class _PideCancelado(Exception):
+    """072:RF-27: salida cooperativa que conserva la restitución del finally."""
+
+
+def ejecutar_anual(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
+    """072:RF-27: conserva por separado el proyecto estudiado y el contexto inicial."""
+    inicial = (app.GetActiveProject(), app.GetActiveStudyCase(), app.GetActiveScenario())
+    variaciones = list(app.GetActiveNetworkVariations() or [])
+    etapa = app.GetRecordingStage()
+    hora = getattr(inicial[1], 'iStudyTime', None) if inicial[1] else None
+    informe = {'project': plan.get('project'), 'modo': 'anual', 'estado': 'bloqueado',
+               'anios': [], 'aceptacion_nativa': False, 'avisos': []}
+    codigo = 2
+    try:
+        leer_proyeccion_anual(plan)
+        if cancelado is not None and cancelado():
+            informe['estado'], codigo = 'cancelado', 0
+        else:
+            objetivo = activar_proyecto(app, plan['project'], plan.get('folder'))
+            if objetivo is None or app.GetActiveProject() is None or clave_pf(app.GetActiveProject()) != clave_pf(objetivo):
+                raise PideError('no se activó el proyecto anual solicitado')
+            # La captura interior ocurre DESPUÉS de activar el objetivo. Así no
+            # se usan fotos del proyecto A para certificar restaurar el B.
+            informe, codigo = _ejecutar_anual_en_activo(app, plan, cancelado=cancelado)
+    except Exception as exc:  # borde nativo: también restituye si falló activar el objetivo
+        informe['error'] = f'{type(exc).__name__}: {exc}'
+    finally:
+        diferencias = []
+        objetivo_restituido = informe.get('restitucion')
+        try:
+            proyecto, caso, escenario = inicial
+            if proyecto is not None and proyecto.Activate() != 0:
+                raise PideError('no se restituyó el proyecto inicial')
+            if caso is not None and caso.Activate() != 0:
+                raise PideError('no se restituyó el caso inicial')
+            elif caso is None and app.GetActiveStudyCase() is not None and app.GetActiveStudyCase().Deactivate() != 0:
+                raise PideError('no se desactivó el caso temporal')
+            if escenario is not None and escenario.Activate() != 0:
+                raise PideError('no se restituyó el escenario inicial')
+            elif escenario is None and app.GetActiveScenario() is not None and app.GetActiveScenario().Deactivate(0) != 0:
+                raise PideError('no se desactivó el escenario temporal')
+            for v in reversed(app.GetActiveNetworkVariations() or []):
+                if v.Deactivate() != 0:
+                    raise PideError('no se apartó una variación del contexto temporal')
+            for v in variaciones:
+                if v.Activate() != 0:
+                    raise PideError('no se restituyó una variación inicial')
+            if etapa is not None and etapa.Activate(1) != 0:
+                raise PideError('no se restituyó la etapa inicial')
+            if hora is not None:
+                caso.iStudyTime = hora
+                if caso.iStudyTime != hora:
+                    diferencias.append('hora inicial')
+            if proyecto is None and app.GetActiveProject() is not None and app.GetActiveProject().Deactivate() != 0:
+                raise PideError('no se desactivó el proyecto temporal')
+            for esperado, actual, nombre in zip(inicial,
+                    (app.GetActiveProject(), app.GetActiveStudyCase(), app.GetActiveScenario()),
+                    ('proyecto inicial', 'caso inicial', 'escenario inicial')):
+                if (clave_pf(esperado) if esperado else None) != (clave_pf(actual) if actual else None):
+                    diferencias.append(nombre)
+            if {clave_pf(v) for v in app.GetActiveNetworkVariations() or []} != {clave_pf(v) for v in variaciones}:
+                diferencias.append('variaciones iniciales')
+            actual = app.GetRecordingStage()
+            if (clave_pf(actual) if actual else None) != (clave_pf(etapa) if etapa else None):
+                diferencias.append('etapa inicial')
+        except Exception as exc:
+            diferencias.append(f'{type(exc).__name__}: {exc}')
+        if objetivo_restituido and not objetivo_restituido['ok']:
+            diferencias.extend(objetivo_restituido['diferencias'])
+        informe['restitucion'] = {'ok': not diferencias, 'diferencias': diferencias,
+                                  'objetivo': objetivo_restituido}
+        if diferencias:
+            informe['estado'], codigo = 'bloqueado_restitucion', 2
+            informe['error'] = 'no se pudo confirmar la restitución del objetivo y del contexto inicial'
+    return informe, codigo
+
+
+def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
     """072:RF-23 a RF-28 — continúa copias del corto plazo con demanda anual aceptada.
 
     Las variaciones son obras físicas preparadas por la vía de obras existente.
@@ -258,12 +342,16 @@ def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
     modo_flujo_inicial = getattr(ldf_inicial, 'iopt_net', None)
     fechas_etapas = []
     codigo = 2
+    def comprobar_cancelacion():
+        if cancelado is not None and cancelado():
+            raise _PideCancelado()
     try:
+        comprobar_cancelacion()
         datos = leer_proyeccion_anual(plan)
         estudio = str(plan.get('estudio_id') or '')
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,79}', estudio) or estudio in ('.', '..'):
             raise PideError('falta un identificador de estudio nuevo y válido')
-        proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+        proyecto = app.GetActiveProject()
         if proyecto is None:
             raise PideError('no existe el proyecto anual solicitado')
         fechas_etapas = [(s, getattr(s, 'tAcTime', None)) for s in app.GetProjectFolder('scheme').GetContents('*.IntSstage', 1)]
@@ -351,9 +439,11 @@ def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
             raise PideError('el caso de corto plazo no cumple actualmente; debe resolverse antes del PIDE anual')
         variaciones_demanda = set()
         for anio, filas in datos['por_anio'].items():
+            comprobar_cancelacion()
             origen = previo
             casos = casos_del_anio(app, {'sin': origen, 'con': origen}, anio, lambda _f: None, estudio_id=estudio)
             for rol in ('sin', 'con'):
+                comprobar_cancelacion()
                 caso = casos[rol]['objeto']
                 _demanda_del_anio(app, caso, origen, filas, cargas, estudio, anio, rol, variaciones_demanda)
             por_fase = any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values())
@@ -361,6 +451,7 @@ def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
             fila_anual = {'anio': anio, 'anio_calendario': datos['anio_base'] + anio, 'antes': antes,
                           'casos': {r: c['caso'] for r, c in casos.items()}, 'obras_aplicadas': []}
             informe['anios'].append(fila_anual)
+            comprobar_cancelacion()
             if not antes['cumple']:
                 if informe['primer_anio_incumplimiento'] is None:
                     informe['primer_anio_incumplimiento'] = anio
@@ -380,7 +471,11 @@ def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
             if not fila_anual['despues']['cumple']:
                 raise PideError(f'año {anio}: las obras declaradas no resuelven el incumplimiento')
             previo = casos['con']['objeto']
+            comprobar_cancelacion()
         informe['estado'], codigo = 'completo', 0
+    except _PideCancelado:
+        informe['estado'], codigo = 'cancelado', 0
+        informe['avisos'].append('Cancelación solicitada: no se inicia otra etapa; se restituyó el estado original si la relectura lo confirma.')
     except Exception as exc:  # borde nativo: conservar también los años ya medidos ante errores de la API
         informe['error'] = f'{type(exc).__name__}: {exc}'
         informe['estado'] = 'incompleto' if informe['anios'] else 'bloqueado'
@@ -462,10 +557,10 @@ def ejecutar_anual(app, plan: dict) -> tuple[dict, int]:
     return informe, codigo
 
 
-def ejecutar(app, plan: dict) -> tuple[dict, int]:
+def ejecutar(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
     """Diagnóstico de cada año con la demanda escalada. Devuelve (informe, código)."""
     if plan.get('modo') == 'anual':
-        return ejecutar_anual(app, plan)
+        return ejecutar_anual(app, plan, cancelado=cancelado)
     informe = {'project': plan['project'], 'case': plan.get('case'), 'anios': [], 'avisos': []}
     tasa = plan.get('tasa')
     if tasa is None:
@@ -702,9 +797,19 @@ def main(argv=None) -> int:
                                             'demanda escalada y el diagnóstico de la norma (spec 024)')
     p.add_argument('--plan', required=True)
     p.add_argument('--output-json', required=True)
+    p.add_argument('--cancel-file', help='PIDE anual: cancelar entre etapas y restituir antes de salir')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     salida = Path(args.output_json)
+    flag = Path(args.cancel_file) if args.cancel_file else None
+    if flag is not None:
+        print('PIDE: protocolo de cancelación cooperativa listo; la restitución precede a la salida.', flush=True)
+        if flag.exists():
+            salida.write_text(json.dumps({'project': plan.get('project'), 'modo': plan.get('modo'),
+                'estado': 'cancelado', 'anios': [], 'aceptacion_nativa': False,
+                'restitucion': {'ok': True, 'diferencias': [], 'sin_abrir_motor': True}},
+                ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            return 0
     blocked = native_action_block_report(plan, 'pide')
     if blocked:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -718,7 +823,7 @@ def main(argv=None) -> int:
         print(f'ERROR: {exc}')
         return 3
     try:
-        informe, codigo = ejecutar(app, plan)
+        informe, codigo = ejecutar(app, plan, cancelado=(lambda: flag.exists()) if flag else None)
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito (008:RF-17)
         informe, codigo = {'project': plan.get('project'), 'error': repr(exc),
                            'traza': traceback.format_exc()}, 1

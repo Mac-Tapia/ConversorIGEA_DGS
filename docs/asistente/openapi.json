@@ -874,6 +874,32 @@
         "title": "Body_lote_plan_api_workspaces__wid__lote_plan_post",
         "type": "object"
       },
+      "Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post": {
+        "properties": {
+          "corto_plazo": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Corto Plazo",
+            "type": "string"
+          },
+          "evaluacion": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Evaluacion",
+            "type": "string"
+          },
+          "perfil": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Perfil",
+            "type": "string"
+          }
+        },
+        "required": [
+          "perfil",
+          "evaluacion",
+          "corto_plazo"
+        ],
+        "title": "Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post",
+        "type": "object"
+      },
       "Body_upload_input_api_workspaces__wid__inputs__slot__post": {
         "properties": {
           "file": {
@@ -4528,6 +4554,222 @@
           "error"
         ],
         "title": "PerfilRespuesta",
+        "type": "object"
+      },
+      "PideAnualIn": {
+        "properties": {
+          "anio_fin": {
+            "minimum": 5.0,
+            "title": "Anio Fin",
+            "type": "integer"
+          },
+          "corto_plazo": {
+            "$ref": "#/components/schemas/PideCortoIn"
+          },
+          "estudio_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+            "title": "Estudio Id",
+            "type": "string"
+          },
+          "obras_por_anio": {
+            "items": {
+              "$ref": "#/components/schemas/PideObraAnualIn"
+            },
+            "title": "Obras Por Anio",
+            "type": "array"
+          },
+          "proyeccion_anual": {
+            "$ref": "#/components/schemas/PideFuenteIn"
+          }
+        },
+        "required": [
+          "estudio_id",
+          "anio_fin",
+          "corto_plazo",
+          "proyeccion_anual"
+        ],
+        "title": "PideAnualIn",
+        "type": "object"
+      },
+      "PideCortoIn": {
+        "properties": {
+          "anio": {
+            "minimum": 4.0,
+            "title": "Anio",
+            "type": "integer"
+          },
+          "anio_base": {
+            "minimum": 1.0,
+            "title": "Anio Base",
+            "type": "integer"
+          },
+          "caso": {
+            "title": "Caso",
+            "type": "string"
+          },
+          "escenario": {
+            "title": "Escenario",
+            "type": "string"
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/PideFuenteIn"
+          },
+          "variaciones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Variaciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "caso",
+          "escenario",
+          "anio",
+          "anio_base",
+          "variaciones",
+          "evidencia"
+        ],
+        "title": "PideCortoIn",
+        "type": "object"
+      },
+      "PideFuenteIn": {
+        "description": "072:RF-24: referencia a JSON custodiado, sin rutas arbitrarias.",
+        "properties": {
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruta",
+          "sha256"
+        ],
+        "title": "PideFuenteIn",
+        "type": "object"
+      },
+      "PideFuentesRespuesta": {
+        "properties": {
+          "corto_plazo": {
+            "$ref": "#/components/schemas/PideCortoIn"
+          },
+          "fuentes": {
+            "additionalProperties": true,
+            "title": "Fuentes",
+            "type": "object"
+          },
+          "proyeccion_anual": {
+            "$ref": "#/components/schemas/PideFuenteIn"
+          }
+        },
+        "required": [
+          "corto_plazo",
+          "proyeccion_anual",
+          "fuentes"
+        ],
+        "title": "PideFuentesRespuesta",
+        "type": "object"
+      },
+      "PideIn": {
+        "description": "072:RF-18: ambos flujos PIDE por el mismo endpoint, histórico por defecto.",
+        "properties": {
+          "anio_presentacion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anio Presentacion"
+          },
+          "anual": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PideAnualIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capex"
+          },
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeders",
+            "type": "array"
+          },
+          "formato_01": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formato 01"
+          },
+          "implementar": {
+            "default": true,
+            "title": "Implementar",
+            "type": "boolean"
+          },
+          "modo": {
+            "default": "historico",
+            "enum": [
+              "historico",
+              "anual"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "PideIn",
+        "type": "object"
+      },
+      "PideObraAnualIn": {
+        "properties": {
+          "anio": {
+            "minimum": 5.0,
+            "title": "Anio",
+            "type": "integer"
+          },
+          "variacion": {
+            "title": "Variacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "anio",
+          "variacion"
+        ],
+        "title": "PideObraAnualIn",
         "type": "object"
       },
       "ProblemaAuditoriaRespuesta": {
@@ -12568,7 +12810,6 @@
     },
     "/api/workspaces/{wid}/pide": {
       "post": {
-        "description": "Metodología del PIDE sobre el proyecto, con obras propias (spec 024, T13 y T14).",
         "operationId": "pide_ejecutar_api_workspaces__wid__pide_post",
         "parameters": [
           {
@@ -12585,9 +12826,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/PideIn"
               }
             }
           },
@@ -12670,6 +12909,56 @@
           }
         },
         "summary": "Pide Decision"
+      }
+    },
+    "/api/workspaces/{wid}/pide/fuentes": {
+      "post": {
+        "description": "072:RF-24: sube tres JSON sin abrir sus rutas anidadas.",
+        "operationId": "pide_fuentes_api_workspaces__wid__pide_fuentes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PideFuentesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pide Fuentes"
       }
     },
     "/api/workspaces/{wid}/powerfactory/adoptar-fuente": {

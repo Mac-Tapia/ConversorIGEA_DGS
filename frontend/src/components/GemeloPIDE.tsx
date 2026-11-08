@@ -3,7 +3,7 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import { esProducto } from '../edicion';
 import { AvisoBeta } from './MarcaBeta';
-import type { EpisodioResumen, ObraPIDE, PideResultado } from '../types';
+import type { EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud } from '../types';
 
 const RUBRO: Record<string, string> = {
   ampliacion_reforzamiento: 'Ampliación y reforzamiento', mejoramiento: 'Mejoramiento',
@@ -29,8 +29,10 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
   const [n, setN] = useState(20);
   const [episodios, setEpisodios] = useState<EpisodioResumen[]>([]);
   const pfBusy = Boolean(active.powerfactory);
-  const ultima = Object.values(jobs).filter((j) => j.kind === 'pide' && j.result).pop();
-  const r = (ultima?.result ?? null) as PideResultado | null;
+  const ultima = Object.values(jobs).filter((j) => j.kind === 'pide' && j.result &&
+    (j.result as { project?: string }).project === project).pop();
+  const r = (ultima?.result ?? null) as PideResultado | PideAnualResultado | null;
+  const [modo, setModo] = useState<'historico' | 'anual'>('historico');
   const aprendido = Object.values(jobs).filter((j) => j.kind === 'gemelo_aprender' && j.result).pop();
 
   const cargarEpisodios = async () => {
@@ -48,6 +50,13 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
     <div>
       <AvisoBeta clave="pide" />
       <h4>{producto ? 'Plan de inversiones (PIDE)' : '5.1 · Plan de inversiones (PIDE)'}</h4>
+      <label className="field"><span>Flujo de planeamiento</span>
+        <select value={modo} disabled={pfBusy} onChange={(e) => setModo(e.target.value as typeof modo)}>
+          <option value="historico">Diagnóstico y propuesta del horizonte</option>
+          <option value="anual">Continuación anual desde corto plazo aceptado</option>
+        </select></label>
+      {modo === 'anual' ? <FormularioPideAnual key={`${ws.id}:${project}:${feeders.join('|')}`} ws={ws.id}
+        project={project} feeders={feeders} busy={pfBusy} planificar={(body) => startJob(() => api.pide(ws.id, body))} /> : <>
       <p className="muted">Diagnóstico de «Sin proyecto» en DIgSILENT para cada año del horizonte, obras por rubro con su
         costo, evaluación (art. 14) y prioridad (art. 15). Los bancos y las ternas se simulan y, si funcionan, se aplican
         solos en «Con proyecto», cada uno en su variación para poder deshacerlo.</p>
@@ -69,7 +78,9 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
           Planificar
         </button>
       </div>
-      {r && <ResultadoPIDE r={r} ws={ws.id} decidir={decidir} />}
+      </>}
+      {r && ('modo' in r && r.modo === 'anual'
+        ? <VistaPideAnual r={r} ws={ws.id} /> : <ResultadoPIDE r={r as PideResultado} ws={ws.id} decidir={decidir} />)}
 
       {!producto && <>
       <h4>5.2 · Gemelo digital</h4>
@@ -146,4 +157,120 @@ function ResultadoPIDE({ r, ws, decidir }: { r: PideResultado; ws: string;
         </details>)}
     </div>
   );
+}
+
+/** 072:RF-25, 072:RF-28: obras físicas explícitas, ninguna inferida por su nombre. */
+export function cuerpoPideAnual(project: string, feeders: string[], fuentes: PideFuentes,
+  estudio: string, fin: number, texto: string): PideSolicitud {
+  if (!project || !feeders.length) throw new Error('Elija proyecto y alimentadores.');
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/.test(estudio)) throw new Error('Indique un identificador de estudio nuevo.');
+  if (!Number.isInteger(fin) || fin <= fuentes.corto_plazo.anio) throw new Error('El año final debe continuar el corto plazo.');
+  const obras = texto.split(/\r?\n/).filter((x) => x.trim()).map((linea) => {
+    const partes = linea.split('|');
+    const anio = Number(partes[0]?.trim()); const variacion = partes[1]?.trim() ?? '';
+    if (partes.length !== 2 || !Number.isInteger(anio) || anio <= fuentes.corto_plazo.anio || anio > fin ||
+      !/[\\/]/.test(variacion) || !variacion.endsWith('.IntScheme')) {
+      throw new Error('Cada obra requiere año relativo e identidad completa de variación física, separados por |.');
+    }
+    return { anio, variacion };
+  });
+  if (new Set(obras.map((o) => o.variacion)).size !== obras.length) throw new Error('Una obra física no puede repetirse.');
+  return { project, feeders, modo: 'anual', anual: { estudio_id: estudio, anio_fin: fin,
+    corto_plazo: fuentes.corto_plazo, proyeccion_anual: fuentes.proyeccion_anual, obras_por_anio: obras } };
+}
+
+/** 072:RF-18, 072:RF-24: archivos del operador; subir no es aceptar el modelo. */
+export function FormularioPideAnual({ ws, project, feeders, busy, planificar }: {
+  ws: string; project: string; feeders: string[]; busy: boolean;
+  planificar: (body: PideSolicitud) => Promise<unknown> }) {
+  const [perfil, setPerfil] = useState<File | null>(null);
+  const [evaluacion, setEvaluacion] = useState<File | null>(null);
+  const [corto, setCorto] = useState<File | null>(null);
+  const [fuentes, setFuentes] = useState<PideFuentes | null>(null);
+  const [estudio, setEstudio] = useState(''); const [fin, setFin] = useState('');
+  const [obras, setObras] = useState(''); const [error, setError] = useState('');
+  const [subiendo, setSubiendo] = useState(false);
+  const subir = async () => {
+    if (!perfil || !evaluacion || !corto) { setError('Seleccione los tres archivos JSON.'); return; }
+    setError(''); setSubiendo(true); setFuentes(null);
+    try { setFuentes(await api.pideFuentes(ws, perfil, evaluacion, corto)); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setSubiendo(false); }
+  };
+  const iniciar = async () => {
+    try {
+      if (!fuentes) throw new Error('Cargue las tres fuentes del estudio.');
+      const body = cuerpoPideAnual(project, feeders, fuentes, estudio.trim(), Number(fin), obras);
+      setError(''); await planificar(body);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  return <section>
+    <p className="muted">Continúa copias del corto plazo con demanda P/Q anual aceptada por carga y, cuando corresponde,
+      por fase. Cada obra se conserva en los años siguientes. Sin evaluación anual aceptada, datos físicos completos
+      u obra suficiente, el estudio se bloquea. No se extrapola el pronóstico de 28 días.</p>
+    <fieldset disabled={busy || subiendo}>
+      <legend>Fuentes del estudio anual</legend>
+      <div className="row">
+        <label className="field grow"><span>Perfil anual (JSON)</span><input type="file" accept=".json,application/json"
+          onChange={(e) => { setPerfil(e.target.files?.[0] ?? null); setFuentes(null); }} /></label>
+        <label className="field grow"><span>Evaluación del modelo (JSON)</span><input type="file" accept=".json,application/json"
+          onChange={(e) => { setEvaluacion(e.target.files?.[0] ?? null); setFuentes(null); }} /></label>
+        <label className="field grow"><span>Evidencia del corto plazo (JSON)</span><input type="file" accept=".json,application/json"
+          onChange={(e) => { setCorto(e.target.files?.[0] ?? null); setFuentes(null); }} /></label>
+        <button className="btn btn-ghost" disabled={!perfil || !evaluacion || !corto} onClick={() => void subir()}>Cargar fuentes</button>
+      </div>
+      <p className="small muted">La evaluación debe identificar modelo, dataset, año base y horizonte anual aceptado.
+        Subir estos archivos conserva su procedencia; no concede aceptación científica.</p>
+      {fuentes && <div className="alert"><p>Corto plazo: año {fuentes.corto_plazo.anio}, base {fuentes.corto_plazo.anio_base}.</p>
+        <p className="small">Caso: {fuentes.corto_plazo.caso}<br />Escenario: {fuentes.corto_plazo.escenario}</p>
+        <p className="small">Obras iniciales: {fuentes.corto_plazo.variaciones.join(' · ') || 'ninguna declarada'}</p>
+        <FuentesPide fuentes={fuentes.fuentes} /></div>}
+      <div className="row">
+        <label className="field grow"><span>Identificador del estudio (nuevo)</span><input value={estudio}
+          onChange={(e) => setEstudio(e.target.value)} placeholder="Identificador único, sin sobrescribir estudios" /></label>
+        <label className="field"><span>Año relativo final</span><input type="number" min={(fuentes?.corto_plazo.anio ?? 4) + 1}
+          value={fin} onChange={(e) => setFin(e.target.value)} /></label>
+      </div>
+      <label className="field"><span>Obras físicas por año</span><textarea value={obras} rows={4}
+        onChange={(e) => setObras(e.target.value)} placeholder="Una línea por obra: año relativo | identidad completa de variación física" /></label>
+      <p className="small muted">Use las variaciones físicas ya preparadas en el proyecto. Puede dejar la lista vacía para
+        diagnosticar; ante el primer incumplimiento sin obra suficiente, el estudio se detiene y lo informa.</p>
+      <button className="btn btn-pf" disabled={!project || !fuentes} onClick={() => void iniciar()}>Continuar año a año</button>
+      <p className="small muted">Cancelar en el Registro termina la etapa en curso y restituye el estado original;
+        conserva el informe y las copias parciales. La restitución se confirma por relectura.</p>
+    </fieldset>
+    {error && <p role="alert" className="alert alert-err">{error}</p>}
+  </section>;
+}
+
+function FuentesPide({ fuentes }: { fuentes: Record<string, unknown> }) {
+  return <details><summary>Fuentes y huellas</summary><dl className="small">
+    {Object.entries(fuentes).map(([k, v]) => <div key={k}><dt>{k.replaceAll('_', ' ')}</dt><dd>{String(v)}</dd></div>)}
+  </dl></details>;
+}
+
+/** 072:RF-26, 072:RF-27: conserva resultado parcial y separa las aceptaciones. */
+export function VistaPideAnual({ r, ws }: { r: PideAnualResultado; ws: string }) {
+  const medida = (m?: PideAnualResultado['anios'][number]['antes']) => m
+    ? `${m.converge ? 'Converge' : 'No converge'} · ${m.cumple ? 'Cumple' : 'Incumple'} · ${m.problemas.length} problema(s)`
+    : 'Sin medir';
+  return <section className="alert">
+    <h4>Resultado anual: {r.estado.replaceAll('_', ' ')}</h4>
+    <p className="small">Proyecto: {r.project} · Alimentadores: {r.feeders.join(' · ')}</p>
+    {r.error && <p role="alert" className="alert alert-err">{r.error}</p>}
+    {(r.avisos ?? []).map((a, i) => <p key={i} className="alert alert-warn">{a}</p>)}
+    <p>Aceptación nativa pendiente. La ejecución y la convergencia no acreditan aceptación eléctrica o científica.</p>
+    <p>Restitución: <strong>{r.restitucion?.ok ? 'Confirmada por relectura' : 'Sin confirmar'}</strong>
+      {r.restitucion?.diferencias.length ? ` · ${r.restitucion.diferencias.join(' · ')}` : ''}</p>
+    {r.primer_anio_incumplimiento != null && <p>Primer incumplimiento: año relativo {r.primer_anio_incumplimiento}.</p>}
+    <div className="table-wrap"><table className="table"><thead><tr><th>Año</th><th>Antes de obras</th><th>Después</th><th>Obras y casos</th></tr></thead>
+      <tbody>{r.anios.map((a) => <tr key={a.anio}><td>{a.anio_calendario} (año {a.anio})</td>
+        <td>{medida(a.antes)}</td><td>{medida(a.despues)}</td><td className="small">
+          <p>Aplicadas: {a.obras_aplicadas.join(' · ') || 'ninguna'}</p>
+          <p>Acumuladas: {a.obras_acumuladas?.join(' · ') || 'sin relectura'}</p>
+          {Object.entries(a.casos).map(([rol, caso]) => <p key={rol}>{rol}: {caso}</p>)}</td></tr>)}</tbody></table></div>
+    <FuentesPide fuentes={r.fuentes} />
+    {r.report && <a className="btn btn-ghost btn-sm" href={api.fileUrl(ws, r.report)} target="_blank" rel="noreferrer">Informe anual JSON</a>}
+    <p className="small muted">Pendientes: revisión humana de entregables y costos de la fuente oficial exigida cuando no estén acreditados.</p>
+  </section>;
 }

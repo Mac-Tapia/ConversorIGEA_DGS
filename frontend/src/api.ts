@@ -373,9 +373,13 @@ export const api = {
     confirmado: boolean;
   }) => request<Job>(`${ws(id)}/pf/guiones/ejecutar`, json('POST', body)),
   // Spec 024: PIDE, gemelo digital y decisiones del operador.
-  pide: (id: string, body: { project: string; feeders: string[]; capex: string | null;
-    anio_presentacion: number | null; formato_01: string | null; implementar: boolean }) =>
+  pide: (id: string, body: import('./types').PideSolicitud) =>
     request<Job>(`${ws(id)}/pide`, json('POST', body)),
+  pideFuentes: (id: string, perfil: File, evaluacion: File, corto: File) => {
+    const body = new FormData();
+    body.append('perfil', perfil); body.append('evaluacion', evaluacion); body.append('corto_plazo', corto);
+    return request<import('./types').PideFuentes>(`${ws(id)}/pide/fuentes`, { method: 'POST', body });
+  },
   pideDecision: (id: string, body: { project: string; codigo: string; decision: string; comentario?: string }) =>
     request<Record<string, unknown>>(`${ws(id)}/pide/decision`, json('POST', body)),
   gemeloAprender: (id: string, body: { project: string; feeders: string[]; n: number }) =>

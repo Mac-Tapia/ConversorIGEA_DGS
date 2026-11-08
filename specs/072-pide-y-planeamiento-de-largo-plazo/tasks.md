@@ -125,3 +125,15 @@
       el CLI del corpus funciona desde checkout y sin `src` adyacente con paquete
       disponible. Corregidos bootstrap y UTF-8 de su salida; las pruebas de
       registro/exportación usan corpus temporal, no el registro real.
+- [x] T16 Conexión web anual de RF-18 y RF-23 a RF-28. Conservar el flujo histórico,
+      custodiar los tres JSON y rechazar rutas/huellas/identidades inválidas antes
+      de encolar. Usar el mismo controlador anual en el carril PowerFactory con
+      cancelación cooperativa y reporte de restitución. Mostrar fuentes, bloqueos
+      y obras por año en React. Hecho cuando pasen API, render, contrato generado,
+      typecheck y build CPU; no cierra T14, T13, T11 ni T9b.
+      Implementado y probado en P17 web (2026-11-08): DTO generado, custodia de
+      originales/derivado con hashes, rechazo previo a la cola, controlador CLI
+      único y cancelación cooperativa. Panel React conserva el flujo histórico;
+      muestra obras, fuentes y restitución anual. T14/T13/T11/T9b siguen abiertas.
+      Evidencia externa: `paralelo_p17_web_20261108/HANDOFF.md`. Sin PowerFactory,
+      GPU, aceptación científica ni revisión visual en navegador.

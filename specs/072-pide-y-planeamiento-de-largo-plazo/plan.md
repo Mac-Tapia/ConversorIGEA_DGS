@@ -58,3 +58,19 @@ T13 se comprueba contra la carpeta exacta de la Res. 181-2026-OS/CD: se custodia
 capturas y respuestas primarias actuales. La base antigua de la 152 se conserva
 como antecedente y no se renombra como la 181. T9b y T11 mantienen su revisión
 humana pendiente; P17 prepara un paquete de revisión con huecos y procedencia.
+
+## Conexión anual web P17 (2026-11-08)
+
+La ruta PIDE conserva el diagnóstico histórico por defecto y añade `modo=anual`
+con DTO explícito. La carga de tres JSON (perfil anual, evaluación y evidencia de
+corto plazo) conserva sus bytes y huellas en custodia del espacio; un perfil
+derivado únicamente sustituye la referencia de evaluación por la custodiada y
+registra esa transformación. Ninguna ruta anidada del cliente se abre.
+Antes de encolar se verifican identidad completa, huellas, aceptación documental,
+cobertura anual P/Q y obras físicas explícitas. El trabajo vuelve a verificarlas
+antes del mismo `tools/pide_pf.py`, en el carril PowerFactory. Cancelar transmite
+el protocolo cooperativo antes de conectar y siempre pasa por restitución.
+La interfaz muestra fuentes, bloqueos, años, obras acumuladas y restitución;
+no concede aceptación científica mediante un control. Las pruebas son API real
+sin motor y render React, contrato generado, typecheck y build. La verificación
+visual y la corrida nativa permanecen pendientes.

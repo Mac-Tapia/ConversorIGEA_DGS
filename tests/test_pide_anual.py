@@ -264,3 +264,113 @@ def test_aceptacion_documental_no_cubre_corto_plazo_que_ya_incumple(anual):
     assert rc != 0 and 'corto plazo' in report['error']
     assert report['anios'] == [] and app.creados == before
     assert report['restitucion']['ok'] and load.plini == 1.0
+
+
+def test_reapertura_no_acepta_activacion_fallida_del_origen(anual, monkeypatch):
+    """072:RF-27: attrs en memoria no sustituyen salir y reabrir el caso."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    escribir = tool._demanda_del_anio
+    def demanda(*args, **kwargs):
+        original = source.Activate
+        calls = 0
+        def activate(*a):
+            nonlocal calls
+            calls += 1
+            return 1 if calls == 1 else original(*a)
+        monkeypatch.setattr(source, 'Activate', activate)
+        return escribir(*args, **kwargs)
+    monkeypatch.setattr(tool, '_demanda_del_anio', demanda)
+    report, rc = tool.ejecutar(app, plan)
+    assert rc != 0 and report['estado'] != 'completo'
+    assert 'origen' in report['error'] and report['restitucion']['ok']
+
+
+def test_cancelacion_entre_etapas_restituye_y_no_inicia_otro_anio(anual):
+    """072:RF-27: cancelar conserva el parcial y siempre pasa por finally."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    before = (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+    calls = 0
+    def cancelar():
+        nonlocal calls
+        calls += 1
+        return calls >= 5
+    report, rc = tool.ejecutar(app, plan, cancelado=cancelar)
+    assert rc == 0 and report['estado'] == 'cancelado', report
+    assert len(report['anios']) < 3 and report['restitucion']['ok']
+    assert app.GetActiveStudyCase() is source
+    assert before == (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+
+
+def test_proyecto_distinto_restituye_objetivo_y_contexto_inicial(anual, monkeypatch):
+    """072:RF-27: fotos de A no certifican conservar el proyecto B estudiado."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    target = app.proyecto
+    initial = fake_pf.Obj(app, 'IntPrj', 'Otro', app.usuario)
+    initial_case = fake_pf.Caso(app, 'IntCase', 'Caso operador', initial)
+    original_case = source
+    original_target_activate = target.Activate
+    def target_activate(*a):
+        rc = original_target_activate(*a)
+        if app.GetActiveStudyCase() is initial_case:
+            source.Activate()
+        return rc
+    monkeypatch.setattr(target, 'Activate', target_activate)
+    monkeypatch.setattr(tool, 'activar_proyecto', lambda a, *args: target if target.Activate() == 0 else None)
+    from types import SimpleNamespace
+    app.ldf.scLoadFac = 80.0
+    get_order = app.GetFromStudyCase
+    order_a = SimpleNamespace(scLoadFac=65.0, iopt_net=0)
+    monkeypatch.setattr(app, 'GetFromStudyCase', lambda k: order_a if app.GetActiveProject() is initial and k == 'ComLdf' else get_order(k))
+    before = (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id), app.ldf.scLoadFac)
+    initial.Activate(); initial_case.Activate()
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0 and report['restitucion']['ok'], report
+    assert app.GetActiveProject() is initial and app.GetActiveStudyCase() is initial_case
+    # Reabrir B después de la restitución no debe mostrar demanda anual residual.
+    target.Activate(); original_case.Activate()
+    assert before == (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id), app.ldf.scLoadFac)
+    assert order_a.scLoadFac == 65.0
+
+
+def test_cli_cancel_file_responde_antes_de_conectar(tmp_path):
+    """072:RF-27: protocolo real por subprocess, sin importar/abrir la API nativa."""
+    import os
+    import subprocess
+    import sys
+    root = Path(__file__).resolve().parents[1]
+    plan = tmp_path / 'plan.json'; plan.write_text(json.dumps({'project':'P','modo':'anual'}))
+    flag = tmp_path / 'cancelar.flag'; flag.write_text('cancelar')
+    output = tmp_path / 'informe.json'
+    env = dict(os.environ, PYTHONPATH=str(root / 'src'), PYTHONIOENCODING='utf-8')
+    result = subprocess.run([sys.executable,'-B',str(root/'tools/pide_pf.py'),'--plan',str(plan),
+        '--output-json',str(output),'--cancel-file',str(flag)],env=env,cwd=tmp_path,
+        capture_output=True,text=True,encoding='utf-8',timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert 'protocolo de cancelación cooperativa listo' in result.stdout
+    report=json.loads(output.read_bytes())
+    assert report['estado']=='cancelado' and report['restitucion']['sin_abrir_motor']
+    assert report['aceptacion_nativa'] is False
+
+
+def test_activar_copia_sin_cambiar_identidad_no_es_reapertura(anual, monkeypatch):
+    """072:RF-27, 072:RF-28: retorno cero sin caso activo correcto no autoriza escribir."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    crear = tool.casos_del_anio
+    def copias(*a, **kw):
+        result = crear(*a, **kw)
+        monkeypatch.setattr(result['sin']['objeto'], 'Activate', lambda: 0)
+        return result
+    monkeypatch.setattr(tool,'casos_del_anio',copias)
+    report, rc = tool.ejecutar(app,plan)
+    assert rc != 0 and report['estado'] != 'completo'
+    assert 'copia anual' in report['error'] and report['restitucion']['ok']
+
+
+def test_no_copia_corto_plazo_cuya_activacion_falla(anual, monkeypatch):
+    """072:RF-23, 072:RF-28: la copia anual no usa un escenario ajeno al origen."""
+    tool,app,plan,projection,source,*_=anual
+    monkeypatch.setattr(source,'Activate',lambda:1)
+    before=list(app.creados)
+    with pytest.raises(PideError,match='origen'):
+        tool.casos_del_anio(app,{'sin':source,'con':source},5,lambda f:None,estudio_id='copia_fallida')
+    assert app.creados==before

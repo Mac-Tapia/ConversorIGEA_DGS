@@ -15,10 +15,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de la interfaz | `frontend/test/` | 9 |
 | Pruebas | `tests/` | 396 |
 | Pruebas | `tests/` | 394 |
+| Pruebas de la interfaz | `frontend/test/` | 10 |
+| Pruebas | `tests/` | 395 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 12437 líneas y 379 funciones, pendiente de partir (002).
+`web/services.py` tiene 12571 líneas y 382 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -50,7 +52,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-144 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+145 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -65,6 +67,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `catalog` | espacio | 3 |
 | `inputs` | espacio | 3 |
 | `obras` | espacio | 3 |
+| `pide` | espacio | 3 |
 | `jobs` | general | 3 |
 | `sistema` | general | 3 |
 | `(raíz)` | espacio | 2 |
@@ -72,7 +75,6 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `convert` | espacio | 2 |
 | `feeders` | espacio | 2 |
 | `outputs` | espacio | 2 |
-| `pide` | espacio | 2 |
 | `runs` | espacio | 2 |
 | `source-scope` | espacio | 2 |
 | `vnr` | espacio | 2 |
@@ -791,6 +793,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/components/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
 | `frontend/src/components/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |

@@ -2,6 +2,19 @@
 // Los contratos de las otras operaciones siguen pendientes de la tarea 002 T10.
 import type { components } from './api/esquema';
 
+export type PideSolicitud = components['schemas']['PideIn'];
+export type PideFuentes = components['schemas']['PideFuentesRespuesta'];
+export interface PideAnualResultado {
+  modo: 'anual'; project: string; feeders: string[]; estado: string; report: string;
+  error?: string; avisos?: string[]; aceptacion_nativa: false; fuentes: Record<string, string>;
+  primer_anio_incumplimiento?: number | null;
+  restitucion?: { ok: boolean; diferencias: string[]; sin_abrir_motor?: boolean };
+  anios: { anio: number; anio_calendario: number; casos: Record<string, string>;
+    obras_aplicadas: string[]; obras_acumuladas?: string[];
+    antes: { converge: boolean; cumple: boolean; vm_min?: number | null; problemas: unknown[] };
+    despues?: { converge: boolean; cumple: boolean; vm_min?: number | null; problemas: unknown[] } }[];
+}
+
 export type EstadoAprendizaje = components['schemas']['EstadoAprendizajeRespuesta'];
 export type CancelacionAprendizaje = components['schemas']['CancelacionAprendizajeRespuesta'];
 

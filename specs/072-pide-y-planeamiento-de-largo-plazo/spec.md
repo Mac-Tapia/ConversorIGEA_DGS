@@ -66,6 +66,19 @@ no acredita un horizonte anual y no se extrapola silenciosamente.
 - RF-26: EL SISTEMA copiará el estado con las obras del año anterior antes de evaluar el siguiente y registrará el primer año en que vuelven los problemas y las obras acumuladas.
 - RF-27: CUANDO termine o falle el flujo anual, EL SISTEMA restituirá proyecto, caso, escenario y demandas originales, y no informará éxito si la relectura no lo confirma.
 - RF-28: SI faltan identidad, proyección aceptada, unidad, datos físicos o conservación verificable, ENTONCES EL SISTEMA nombrará el faltante y no sobrescribirá estudios existentes ni inventará magnitudes o cumplimiento.
+
+Contrato web de RF-18 y RF-23 a RF-28 (P17, 2026-11-08): el modo histórico
+conserva sus entradas y comportamiento por defecto. El modo anual recibe tres
+JSON del operador: perfil, evaluación y aceptación del corto plazo. Se conservan
+los originales y sus SHA-256; un derivado del perfil cambia únicamente la ruta
+de evaluación por la custodiada con la misma huella. Ninguna referencia anidada
+subida se abre como ruta del servidor ni permite leer otro espacio. La petición
+comprueba las fuentes e identidades antes de encolar, y el trabajo las relee
+antes del controlador CLI común. El carril PowerFactory comunica cancelación
+entre etapas y conserva el informe parcial con restitución verificada, también
+si el proyecto objetivo difiere del inicialmente activo. La interfaz muestra
+fuentes, faltantes, obras acumuladas y aceptación nativa pendiente; subir un
+archivo no concede aceptación científica ni reemplaza una revisión humana.
 - Aclaración de RF-24: una carga desequilibrada exige P/Q explícitas de sus fases r/s/t, con suma coherente con el total y unidades verificadas; su representación anual conserva la conexión y el modo físicos originales.
 
 ### Entregables

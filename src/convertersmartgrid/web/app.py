@@ -215,6 +215,52 @@ class ServerPathIn(BaseModel):
     path: str
 
 
+class PideFuenteIn(BaseModel):
+    """072:RF-24: referencia a JSON custodiado, sin rutas arbitrarias."""
+    ruta: str
+    sha256: str = Field(pattern='^[0-9a-f]{64}$')
+
+
+class PideCortoIn(BaseModel):
+    caso: str
+    escenario: str
+    anio: int = Field(ge=4, strict=True)
+    anio_base: int = Field(ge=1, strict=True)
+    variaciones: list[str]
+    evidencia: PideFuenteIn
+
+
+class PideObraAnualIn(BaseModel):
+    anio: int = Field(ge=5, strict=True)
+    variacion: str
+
+
+class PideAnualIn(BaseModel):
+    estudio_id: str = Field(pattern='^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')
+    anio_fin: int = Field(ge=5, strict=True)
+    corto_plazo: PideCortoIn
+    proyeccion_anual: PideFuenteIn
+    obras_por_anio: list[PideObraAnualIn] = Field(default_factory=list)
+
+
+class PideIn(BaseModel):
+    """072:RF-18: ambos flujos PIDE por el mismo endpoint, histórico por defecto."""
+    project: str
+    feeders: list[str] = Field(default_factory=list)
+    modo: Literal['historico', 'anual'] = 'historico'
+    anual: PideAnualIn | None = None
+    capex: str | None = None
+    implementar: bool = True
+    anio_presentacion: int | None = None
+    formato_01: str | None = None
+
+
+class PideFuentesRespuesta(BaseModel):
+    corto_plazo: PideCortoIn
+    proyeccion_anual: PideFuenteIn
+    fuentes: dict[str, Any]
+
+
 # Libros de la demanda medida (spec 004, RF-39).
 DemandaTipo = Literal['medidores', 'cabecera', 'suministros', 'clientes', 'estructura']
 
@@ -1984,24 +2030,40 @@ def create_app(
         return job.result
 
     # ------------------------------------------------------------ obras y estudios (spec 011)
-    @app.post('/api/workspaces/{wid}/pide', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
-    def pide_ejecutar(wid: str, body: dict[str, Any]) -> dict:
-        """Metodología del PIDE sobre el proyecto, con obras propias (spec 024, T13 y T14)."""
+    @app.post('/api/workspaces/{wid}/pide/fuentes', response_model=PideFuentesRespuesta)
+    def pide_fuentes(wid: str, perfil: UploadFile = File(...), evaluacion: UploadFile = File(...),
+                     corto_plazo: UploadFile = File(...)) -> dict:
+        """072:RF-24: sube tres JSON sin abrir sus rutas anidadas."""
         ws = ws_or_404(wid)
-        project = str(body.get('project') or '').strip()
+        try:
+            fuentes = services.pide_custodiar_fuentes(ws, perfil.file.read(20 * 1024 * 1024 + 1),
+                evaluacion.file.read(20 * 1024 * 1024 + 1), corto_plazo.file.read(20 * 1024 * 1024 + 1))
+            return PideFuentesRespuesta.model_validate(fuentes).model_dump()
+        except (UserError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post('/api/workspaces/{wid}/pide', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def pide_ejecutar(wid: str, body: PideIn) -> dict:
+        ws = ws_or_404(wid)
+        project = body.project.strip()
         if not project:
             raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
-        feeders = [str(f) for f in body.get('feeders') or []]
-        try:
-            anio = int(body['anio_presentacion']) if body.get('anio_presentacion') else None
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(422, 'El año de presentación tiene que ser un número.') from exc
+        feeders = body.feeders
+        if body.modo == 'anual':
+            if body.anual is None:
+                raise HTTPException(422, 'PIDE anual: suba las fuentes e identifique el corto plazo y las obras.')
+            try:
+                plan = services.pide_preparar_anual(ws, project, feeders, body.anual.model_dump())
+            except UserError as exc:
+                raise HTTPException(422, str(exc)) from exc
+            return submit(ws, 'pide', f'PIDE anual · {project}',
+                          lambda ctx: services.pide_anual_ejecutar(ws, ctx, plan), lane='powerfactory')
+        if body.anual is not None:
+            raise HTTPException(422, 'Seleccione el modo anual para usar sus fuentes y obras.')
         return submit(ws, 'pide', f'PIDE · {project}',
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
-                                                         capex=body.get('capex'),
-                                                         implementar=bool(body.get('implementar', True)),
-                                                         anio_presentacion=anio,
-                                                         formato_01=body.get('formato_01')),
+                          capex=body.capex, implementar=body.implementar,
+                          anio_presentacion=body.anio_presentacion, formato_01=body.formato_01),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

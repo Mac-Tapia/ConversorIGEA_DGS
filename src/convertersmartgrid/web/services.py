@@ -5094,6 +5094,140 @@ def _estudio_del_plan(ws: Workspace, plan_pide: dict[str, Any], avisos: list[str
     return estudio
 
 
+def pide_custodiar_fuentes(ws: Workspace, perfil: bytes, evaluacion: bytes, corto_plazo: bytes) -> dict:
+    """072:RF-24, 072:RF-28: custodia tres originales; nunca abre referencias subidas."""
+    import hashlib
+
+    try:
+        originales = {'original_perfil': perfil, 'evaluacion': evaluacion, 'corto_plazo': corto_plazo}
+        datos = {}
+        for nombre, contenido in originales.items():
+            if not contenido or len(contenido) > 20 * 1024 * 1024:
+                raise ValueError(f'{nombre}: JSON vacío o mayor de 20 MiB')
+            datos[nombre] = json.loads(contenido)
+            if not isinstance(datos[nombre], dict):
+                raise ValueError(f'{nombre}: se espera un objeto JSON')
+        proyeccion = datos['original_perfil']
+        if (proyeccion.get('evaluacion') or {}).get('sha256') != hashlib.sha256(evaluacion).hexdigest():
+            raise ValueError('la evaluación subida no coincide con la huella del perfil')
+        corto = datos['corto_plazo']
+        if corto.get('estado') != 'aceptado' or any(k not in corto for k in
+                ('caso', 'escenario', 'anio', 'anio_base', 'variaciones')):
+            raise ValueError('falta la evidencia aceptada e identificada del corto plazo')
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise UserError(f'Fuentes PIDE: {exc}') from exc
+    carpeta = ws.plans_dir / 'pide_fuentes' / uuid.uuid4().hex
+    carpeta.mkdir(parents=True, exist_ok=False)
+    referencias = {}
+    for nombre, contenido in originales.items():
+        ruta = carpeta / f'{nombre}.json'
+        ruta.write_bytes(contenido)
+        referencias[nombre] = {'ruta': str(ruta), 'sha256': hashlib.sha256(contenido).hexdigest()}
+    # Solo cambia la ubicación de la evaluación. Los dos perfiles conservan su
+    # propia huella; subir archivos no modifica ni concede aceptación científica.
+    proyeccion['evaluacion'] = referencias['evaluacion']
+    contenido = (json.dumps(proyeccion, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    ruta = carpeta / 'perfil.json'
+    ruta.write_bytes(contenido)
+    referencia = {'ruta': str(ruta), 'sha256': hashlib.sha256(contenido).hexdigest()}
+    fuentes = {f'{k}_sha256': v['sha256'] for k, v in referencias.items()}
+    fuentes.update(perfil_sha256=referencia['sha256'],
+                   transformacion='Reserialización JSON UTF-8; solo cambia la referencia de evaluación a la copia custodiada del mismo SHA-256.')
+    (carpeta / 'procedencia.json').write_text(json.dumps(fuentes, ensure_ascii=False, indent=2), encoding='utf-8')
+    return {'corto_plazo': {k: corto[k] for k in ('caso', 'escenario', 'anio', 'anio_base', 'variaciones')}
+            | {'evidencia': referencias['corto_plazo']}, 'proyeccion_anual': referencia, 'fuentes': fuentes}
+
+
+def pide_preparar_anual(ws: Workspace, project: str, feeders: list[str], anual: dict) -> dict:
+    """072:RF-23, 072:RF-24, 072:RF-28: preflight CPU antes de la cola y del motor."""
+    import hashlib
+    import re
+
+    from ..digital_twin.integration import limites_combinados, normas_de
+    from ..perfil_empresa import datos_perfil, estructura_empresa
+    from ..pide import PideError, leer_json_con_huella, leer_proyeccion_anual
+
+    try:
+        if not project.strip() or not feeders or len(set(feeders)) != len(feeders):
+            raise PideError('elija proyecto y alimentadores únicos')
+        raiz = (ws.plans_dir / 'pide_fuentes').resolve()
+        if not raiz.is_relative_to(ws.root.resolve()):
+            raise PideError('la custodia no pertenece al espacio')
+        def leer(ref, nombre, archivo):
+            ruta = Path(ref['ruta']).resolve()
+            if not ruta.is_relative_to(raiz) or ruta.name != archivo or ruta.parent.parent != raiz:
+                raise PideError(f'{nombre}: suba el archivo a la custodia de este espacio')
+            return leer_json_con_huella(ref, nombre), ruta
+        corto = anual['corto_plazo']
+        evidencia, ruta_corto = leer(corto['evidencia'], 'corto plazo', 'corto_plazo.json')
+        perfil, ruta_perfil = leer(anual['proyeccion_anual'], 'perfil anual', 'perfil.json')
+        _evaluacion, ruta_evaluacion = leer(perfil['evaluacion'], 'evaluación anual', 'evaluacion.json')
+        if not (ruta_corto.parent == ruta_perfil.parent == ruta_evaluacion.parent):
+            raise PideError('las tres fuentes deben pertenecer a una misma carga custodiada')
+        fuentes = json.loads((ruta_perfil.parent / 'procedencia.json').read_bytes())
+        for nombre in ('original_perfil', 'evaluacion', 'corto_plazo', 'perfil'):
+            if hashlib.sha256((ruta_perfil.parent / f'{nombre}.json').read_bytes()).hexdigest() != fuentes[f'{nombre}_sha256']:
+                raise PideError(f'{nombre}: cambió la fuente custodiada')
+        if evidencia.get('estado') != 'aceptado' or any(evidencia.get(k) != corto.get(k) for k in
+                ('caso', 'escenario', 'anio', 'anio_base', 'variaciones')):
+            raise PideError('el corto plazo no coincide con su evidencia aceptada')
+        def identidad(valor, sufijo):
+            return isinstance(valor, str) and ('\\' in valor or '/' in valor) and valor.endswith(sufijo)
+        if not identidad(corto['caso'], '.IntCase') or not identidad(corto['escenario'], '.IntScenario'):
+            raise PideError('el corto plazo requiere identidad completa de caso y escenario')
+        if len(set(corto['variaciones'])) != len(corto['variaciones']) or any(
+                not identidad(v, '.IntScheme') for v in corto['variaciones']):
+            raise PideError('las obras de corto plazo requieren identidades físicas completas y únicas')
+        if not re.fullmatch('[A-Za-z0-9][A-Za-z0-9_.-]{0,79}', anual['estudio_id']):
+            raise PideError('falta un identificador de estudio nuevo válido')
+        fin = anual['anio_fin']
+        if type(fin) is not int or fin - corto['anio'] > len(perfil.get('filas') or []):
+            raise PideError('faltan filas para el horizonte anual solicitado')
+        plan = {'project': project.strip(), 'feeders': list(feeders), 'modo': 'anual', **anual}
+        datos = leer_proyeccion_anual(plan)
+        if any(not identidad(k, '.ElmLod') for filas in datos['por_anio'].values() for k in filas):
+            raise PideError('las cargas requieren identidad física completa')
+        obras = plan.get('obras_por_anio') or []
+        ids = [o['variacion'] for o in obras]
+        if len(set(ids)) != len(ids) or any(not identidad(v, '.IntScheme') for v in ids):
+            raise PideError('las obras anuales requieren identidades físicas completas y únicas')
+        if any(o['anio'] not in datos['por_anio'] or o['variacion'] in corto['variaciones'] for o in obras):
+            raise PideError('obra anual fuera del horizonte o ya incluida en el corto plazo')
+        contexto = native_action_context(ws, project.strip(), feeders, 'pide')
+        limites = limites_combinados(datos_perfil(), normas_de(estructura_empresa(), feeders))
+        if limites is None:
+            raise PideError('faltan límites de la norma de estos alimentadores en el perfil de empresa')
+        plan.update(folder=carpeta_de(ws, project), native_action_context=contexto, fuentes=fuentes,
+            limites={k: getattr(limites, k) for k in ('tension_min_pu', 'tension_max_pu',
+                    'cargabilidad_max_pct', 'transformador_max_pct')})
+        return plan
+    except (PideError, OSError, ValueError, KeyError, TypeError) as exc:
+        raise UserError(f'PIDE anual bloqueado: {exc}') from exc
+
+
+def pide_anual_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
+    """072:RF-18, 072:RF-27: mismo controlador CLI, cancelación cooperativa y reporte íntegro."""
+    ctx.check_cancel()
+    anual = {k: plan[k] for k in ('estudio_id', 'anio_fin', 'corto_plazo', 'proyeccion_anual', 'obras_por_anio')}
+    plan = pide_preparar_anual(ws, plan['project'], plan['feeders'], anual)
+    ctx.check_cancel()
+    ctx.log('PIDE anual: fuentes verificadas; cancelar termina la etapa y restituye el estado original.')
+    rc, informe, report = _guion_pf(ws, ctx, 'pide_pf.py', plan, nombre='pide_anual', cancelable=True)
+    informe.setdefault('estado', 'bloqueado')
+    informe.setdefault('anios', [])
+    informe.setdefault('restitucion', {'ok': False, 'diferencias': ['sin informe de relectura']})
+    if informe['estado'] == 'completo' and not informe['restitucion'].get('ok'):
+        informe['estado'] = 'bloqueado_restitucion'
+        informe['error'] = 'El controlador no confirmó la restitución por relectura.'
+    informe.update(project=plan['project'], feeders=plan['feeders'], modo='anual',
+                   report=report.name, fuentes=plan['fuentes'], aceptacion_nativa=False)
+    if rc or informe.get('estado') != 'completo':
+        informe['estado_trabajo'] = 'parcial'
+    # El resultado no desaparece al bloquearse o cancelar: conserva años,
+    # motivo y restitución; JobManager mantiene el estado de cancelación.
+    return informe
+
+
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                   capex: str | None = None, implementar: bool = True, anio_presentacion: int | None = None,
                   formato_01: str | None = None) -> dict:
