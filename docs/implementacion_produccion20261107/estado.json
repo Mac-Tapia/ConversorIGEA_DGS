@@ -36,7 +36,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "puertas_lint_huellas_y_metadata_corregidas_regresion_previa341_sin_omisiones_suite_completa_final_pendiente",
+      "state": "puerta1c_rechazada11_errores_coleccion_fuentes_intactas_rutas_corregidas8254_colectadas_y281_enfocadas_siguiente_suite_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -65,7 +65,9 @@
         "p03_huella_ml_green.xml",
         "p03_traza316.xml",
         "p03_puerta_lint_20261108/verde.log",
-        "integracion_comercial_previa_20261108/resultado2.xml"
+        "integracion_comercial_previa_20261108/resultado2.xml",
+        "p25_gate_final_20261108/ejecuciones/20261108T155935Z_b5e1244f6a7b4ddcb10fdc3f8aeccc43/registro.json",
+        "p23_referencias_tests_20261108/HANDOFF.md"
       ]
     },
     "P04": {
@@ -122,15 +124,19 @@
       ]
     },
     "P09": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "preparacion_r3_sin_proyecto_propio_importado_set_requiere_cobertura_real",
+      "evidence": [
+        "p25_r3_r4_preparacion_20261108/HANDOFF.md"
+      ]
     },
     "P10": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente",
+      "evidence": [
+        "p25_r3_r4_preparacion_20261108/HANDOFF.md"
+      ]
     },
     "P11": {
-      "state": "campo_empresa_implementado_frontend93_y_compilacion_correctos_control_chrome_bloqueado_por_url_sin_aceptacion_visual",
+      "state": "campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url",
       "evidence": [
         "p11_frontend_red.log",
         "p11_frontend_final.log",
@@ -140,7 +146,8 @@
         "p11_backend_green.xml",
         "p11_campo_empresa_api.json",
         "p11_reinicio_preservacion_despues.json",
-        "p25_frontend_final_20261108/manifest.json"
+        "p25_frontend_final_20261108/manifest.json",
+        "p25_frontend_final_20261108/freeze_readback.json"
       ]
     },
     "P12": {
@@ -152,8 +159,11 @@
       ]
     },
     "P13": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "r5_fuentes_reales_localizadas_sin_alias_r205_dos_catalogos_parametros_no_identificados_rutas_solicitadas",
+      "evidence": [
+        "p25_comercial_20261108/R5_PREPARACION.md",
+        "p25_r5_parametros_diagnostico_20261108/HANDOFF.md"
+      ]
     },
     "P14": {
       "state": "nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados",
@@ -347,11 +357,14 @@
       ]
     },
     "P23": {
-      "state": "vnr_frontend_u0_u1_integrados_34_deudas_originales_preservadas_regresion_combinada_previa_verificada",
+      "state": "fronteras34_deudas_preservadas_y_todas_referencias_python_frontend_migradas_076_historico_intacto_revisiones_cruzadas",
       "evidence": [
         "revision_p23_u0_20261108/REVISION.md",
         "integracion_frontend_20261108",
-        "integracion_comercial_previa_20261108/resultado2.xml"
+        "integracion_comercial_previa_20261108/resultado2.xml",
+        "revision_p25_rutas_pruebas_20261108/REVIEW.md",
+        "revision_p25_076_20261108/REVIEW.md",
+        "p23_referencias_tests_20261108/HANDOFF.md"
       ]
     },
     "P24": {
@@ -361,14 +374,18 @@
       ]
     },
     "P25": {
-      "state": "qa_aislado_y_rechazo_instalacion_conserva_versiones_109_pruebas_sin_omisiones_listo_para_construir_candidato_congelado",
+      "state": "nucleo1c_compilado_no_instalado_y_retirado_por_gate_rechazado_esperando_suite_nueva_antes_reconstruir",
       "evidence": [
         "p25_comercial_20261108/HANDOFF.md",
         "p25_comercial_20261108/FASE2.ps1",
         "p25_instalador_integrado_20261108/resultado.xml",
         "p25_integracion_estatica_20261108/resultado.xml",
         "p25_revision_instalacion_20261108",
-        "p25_comercial_20261108/R5_PREPARACION.md"
+        "p25_comercial_20261108/R5_PREPARACION.md",
+        "p25_comercial_20261108/NO_PUBLICAR_1c150695.json",
+        "p25_comercial_20261108/retiro_1c150695_ejecutado.json",
+        "p25_comercial_20261108/retiro_1c150695_verificacion.json",
+        "p25_revision_cruzada_20261108/REVIEW.md"
       ]
     },
     "P26": {
@@ -444,9 +461,14 @@
       },
       "P25_construccion": {
         "owner": "/root/p19_cierre",
-        "state": "listo_esperando_sha_final_y_turno",
+        "state": "intento1c_retirado_sin_instalacion_esperando_suite_previa_nuevo_build",
         "worktree_reused": true,
         "writes": "artefactos_externos; fuentes congeladas solo lectura"
+      },
+      "P23_frontend_tests": {
+        "owner": "/root/p22_paquete_completo",
+        "state": "2f089_c873_1960_integrados_revision_cruzada_rutas_y076_sin_hallazgos",
+        "worktree_reused": true
       }
     }
   },
@@ -466,6 +488,27 @@
     "production_acceptance": false,
     "files_removed": 176999,
     "internal_links_removed": 4702,
-    "bytes_removed": 15431619694
-  }
+    "bytes_removed": 15431619694,
+    "additional_batches": [
+      {
+        "evidence": "p25_comercial_20261108/retiro_1c150695_verificacion.json",
+        "files_removed": 112,
+        "bytes_removed": 557407367,
+        "manifest_moved_not_copied": true,
+        "new_backups_created": false
+      }
+    ]
+  },
+  "external_inputs_requested": [
+    {
+      "scope": "R5_Electro_Oriente",
+      "state": "pregunta_asincrona_pendiente",
+      "items": [
+        "paramVNRGISELOR_22_APR compatible con ELOR2022",
+        "VNRGISGART compatible",
+        "ConfigBD o manifiesto de esas entregas"
+      ],
+      "evidence": "p25_r5_parametros_diagnostico_20261108/HANDOFF.md"
+    }
+  ]
 }
