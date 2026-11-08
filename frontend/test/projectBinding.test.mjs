@@ -2,8 +2,62 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const entry = fileURLToPath(new URL('../src/projectBinding.ts', import.meta.url));
+let renderPanel;
+
+async function panelDeEntrada() {
+  if (renderPanel) return renderPanel;
+  const salida = await build({
+    stdin: {
+      contents: `
+        import { createElement } from 'react';
+        import { renderToStaticMarkup } from 'react-dom/server';
+        import { Ctx } from './src/context';
+        import { InputsPanel } from './src/components/InputsPanel';
+        export function render(mode, company, active = {}) {
+          const value = {
+            ws: { id: 'empresa-prueba', options: { input_mode: mode, empresa_espacio: company }, inputs: {}, missing_inputs: [] },
+            health: { slots: { aliases: { grupo: 'aux', etiqueta: 'Equivalencias', obligatorio: false } }, capabilities: { access: true } },
+            active, jobs: {}, run: async fn => fn(), setWs: () => {}, startJob: async () => undefined,
+          };
+          return renderToStaticMarkup(createElement(Ctx.Provider, { value }, createElement(InputsPanel)));
+        }`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)), loader: 'tsx',
+    },
+    bundle: true, write: false, format: 'cjs', platform: 'node', packages: 'external', jsx: 'automatic',
+  });
+  const modulo = { exports: {} };
+  new Function('require', 'module', 'exports', salida.outputFiles[0].text)(
+    createRequire(import.meta.url), modulo, modulo.exports,
+  );
+  renderPanel = modulo.exports.render;
+  return renderPanel;
+}
+
+for (const mode of ['txt', 'mdb', 'vnr']) {
+  test(`081:RF-51 el panel ${mode} conserva y muestra la empresa del espacio`, async () => {
+    const render = await panelDeEntrada();
+    const html = render(mode, 'Distribuidora de prueba');
+    assert.match(html, /Empresa del espacio/);
+    assert.match(html, /<input[^>]*name="empresa_espacio"[^>]*value="Distribuidora de prueba"/);
+    assert.match(html, /Guardar empresa/);
+    assert.match(html, /Tres TXT de CYMDIST/);
+    assert.match(html, /Base Access/);
+    assert.match(html, /VNR-GIS/);
+  });
+}
+
+for (const lane of ['engine', 'powerfactory']) {
+  test(`081:RF-51 la empresa no cambia mientras trabaja ${lane}`, async () => {
+    const render = await panelDeEntrada();
+    const html = render('txt', null, { [lane]: { id: 'trabajo' } });
+    const input = html.match(/<input[^>]*name="empresa_espacio"[^>]*>/)?.[0];
+    assert.ok(input, 'falta el campo de empresa del espacio');
+    assert.match(input, /disabled/);
+  });
+}
 
 async function cargar() {
   const salida = await build({

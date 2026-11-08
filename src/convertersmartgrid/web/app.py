@@ -1038,7 +1038,7 @@ def create_app(
         changes = {
             key: value
             for key, value in body.model_dump(exclude_unset=True).items()
-            if value is not None or key == 'hoja'
+            if value is not None or key in ('hoja', 'empresa_espacio')
         }
         for key in ('source_crs', 'target_crs'):
             if key in changes:

@@ -235,8 +235,8 @@ function compilar(destino, raiz) {
 for (const nombre of ['sin-espacios', 'con espacios y ñ']) {
   test(`065:RF-9 — pruebas existentes funcionan ${nombre}`, () => conCarpeta(nombre, raiz => {
     const destino = preparar(raiz);
-    cpSync(join(frontend, 'src', 'clientesCatalogo.ts'), join(destino, 'src', 'clientesCatalogo.ts'));
-    cpSync(join(frontend, 'src', 'projectBinding.ts'), join(destino, 'src', 'projectBinding.ts'));
+    // 081:RF-51: el render de Entrada consume sus componentes reales y su contexto.
+    cpSync(join(frontend, 'src'), join(destino, 'src'), { recursive: true });
     mkdirSync(join(destino, 'test'));
     for (const archivo of ['clientesCatalogo.test.mjs', 'projectBinding.test.mjs']) {
       cpSync(join(frontend, 'test', archivo), join(destino, 'test', archivo));

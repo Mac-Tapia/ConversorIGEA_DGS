@@ -113,6 +113,54 @@ function VnrDiscovery() {
   );
 }
 
+function EmpresaEspacio() {
+  const { ws, setWs, run, active } = useApp();
+  const toast = useToast();
+  const [empresa, setEmpresa] = useState(ws.options.empresa_espacio ?? '');
+  const [guardando, setGuardando] = useState(false);
+  const montada = useRef(true);
+  const bloqueada = Boolean(active.engine || active.powerfactory) || guardando;
+  const modificada = empresa.trim() !== (ws.options.empresa_espacio ?? '');
+
+  useEffect(() => {
+    setEmpresa(ws.options.empresa_espacio ?? '');
+  }, [ws.options.empresa_espacio]);
+  useEffect(() => {
+    montada.current = true;
+    return () => { montada.current = false; };
+  }, []);
+
+  const guardar = async () => {
+    if (bloqueada || !modificada) return;
+    setGuardando(true);
+    try {
+      const actualizado = await run(() => api.setOptions(ws.id, { empresa_espacio: empresa.trim() || null }));
+      if (actualizado && montada.current) {
+        setWs(actualizado);
+        toast('ok', 'Empresa del espacio guardada');
+      }
+    } finally {
+      if (montada.current) setGuardando(false);
+    }
+  };
+
+  return (
+    <form className="form-grid" onSubmit={(event) => { event.preventDefault(); void guardar(); }}>
+      <label className="field">
+        <span>Empresa del espacio</span>
+        <input name="empresa_espacio" value={empresa} disabled={bloqueada}
+          placeholder="Nombre de la empresa" onChange={(event) => setEmpresa(event.target.value)} />
+      </label>
+      <button type="submit" className="btn btn-sm" disabled={bloqueada || !modificada}>
+        {guardando ? 'Guardando…' : 'Guardar empresa'}
+      </button>
+      <p className="muted small span-2">
+        Se utiliza cuando la fuente no indica empresa. Si lo deja vacío, se informará el supuesto usado.
+      </p>
+    </form>
+  );
+}
+
 function Slot({ slot }: { slot: string }) {
   const { ws, setWs, health, run, active } = useApp();
   const toast = useToast();
@@ -263,6 +311,8 @@ export function InputsPanel() {
             disabled={Boolean(active.engine)} onClick={() => setMode('vnr')}>VNR-GIS</button>
         </div>
       </header>
+
+      <EmpresaEspacio key={ws.id} />
 
       {mode === 'txt' && (
         <FileDrop onFiles={auto} multiple accept=".txt" disabled={Boolean(active.engine)}>

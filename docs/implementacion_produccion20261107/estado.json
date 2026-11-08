@@ -51,8 +51,8 @@
       "evidence": []
     },
     "P11": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "campo_empresa_implementado_aceptacion_nativa_y_visual_pendiente",
+      "evidence": ["p11_frontend_red.log", "p11_frontend_final.log", "p11_typecheck.log", "p11_build.log", "p11_api_red.log", "p11_backend_green.xml"]
     },
     "P12": {
       "state": "pendiente",

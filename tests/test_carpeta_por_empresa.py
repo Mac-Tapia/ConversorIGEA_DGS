@@ -131,6 +131,28 @@ def test_lo_ya_importado_se_lee_de_su_vinculo(perfil):
     assert services.carpeta_de(ws, 'SIN_VINCULO') == 'Empresa Nueva' == services.carpeta_de(ws)
 
 
+def test_el_espacio_retira_empresa_explicita_sin_borrar_otras_opciones(tmp_path, perfil):
+    """081:RF-51, 081:RF-53 — null explícito retira la empresa; omitirla la conserva."""
+    from fastapi.testclient import TestClient
+    from convertersmartgrid.web.app import create_app
+    perfil({})
+    with TestClient(create_app(tmp_path)) as cliente:
+        wid = cliente.post('/api/workspaces').json()['id']
+        base = f'/api/workspaces/{wid}'
+        r = cliente.put(base + '/options', json={'empresa_espacio': _nombre(), 'workers': 1})
+        assert r.status_code == 200
+        nombre = r.json()['options']['empresa_espacio']
+        r = cliente.put(base + '/options', json={'export_tsv': True})
+        assert r.json()['options']['empresa_espacio'] == nombre
+        r = cliente.put(base + '/options', json={'empresa_espacio': None})
+        assert r.status_code == 200 and r.json()['options']['empresa_espacio'] is None
+        leido = cliente.get(base).json()['options']
+        assert leido['empresa_espacio'] is None and leido['workers'] == 1 and leido['export_tsv'] is True
+        ws = cliente.app.state.store.get(wid)
+        assert json.loads((ws.root / 'workspace.json').read_text(encoding='utf-8'))['options']['empresa_espacio'] is None
+        assert services.destino_carpeta(ws).supuesto is True
+
+
 def test_vinculo_ilegible_no_bloquea(perfil, monkeypatch):
     """081:RF-54, 081:RF-53 — si el registro no se puede leer, la de la regla."""
     perfil({'codigo_empresa': 'PROPIA'})

@@ -27,6 +27,7 @@ Decisiones:
 - Carpeta: `empresa_ajena` no cambia, porque decide las convenciones del perfil (055:RF-6). La carpeta tiene su propia regla, en un solo sitio, porque
   ahí un dato ausente sí mezcla. Se reutiliza `asegurar_carpeta` (005:RF-5), que crea sin mover nada.
 - `source_company` no vale de empresa del espacio: es lo elegido dentro de un paquete VNR-GIS y se borra al cambiarlo. Empresa y fuente son dos cosas (P13).
+- El panel de entradas guarda `empresa_espacio` por separado en TXT, MDB y VNR. El nombre declarado por la fuente conserva prioridad. Guardar vacío retira el dato con `null`; un PUT que omite el campo lo conserva. El control se bloquea durante un trabajo del motor o DIgSILENT. No mueve proyectos existentes ni sustituye su vínculo al cambiar el nombre.
 - La comprobación mira el modelo común y no cada fuente (P13). Descartado leer el DGS: el `.dgs` ya está fijado por su hash al importar,
   y se corrige antes, en `aplicar_reglas`, por donde pasa toda conversión (P5).
 - Lo que llega a cada nodo se calcula aquí, de solo lectura, aunque la rama de fases traiga `fases_red.py`. Una guarda no reutiliza al

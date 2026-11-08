@@ -43,7 +43,8 @@
 - [ ] T14 [DIgSILENT] La suite nocturna real, cerrando la web a mitad, sin DIgSILENT en uso por otra sesión.
   Hecho cuando: la suite termina y registra su resultado; y con el proceso matado, la web avisa de «interrumpida».
 - [ ] T16 [DIgSILENT] Dos fuentes de empresas distintas por la web, con un TXT sin empresa y el campo del espacio en el navegador.
-  Hecho cuando: cada proyecto queda en la carpeta de su empresa, el aviso del supuesto se ve y las lecturas lo encuentran; ningún proyecto existente se ha movido. Falta el campo en el front: hoy solo por `PUT /api/workspaces/<id>/options`.
+  Hecho cuando: cada proyecto queda en la carpeta de su empresa, el aviso del supuesto se ve y las lecturas lo encuentran; ningún proyecto existente se ha movido.
+  Avance 2026-11-07: campo «Empresa del espacio» implementado en las tres modalidades; conserva los selectores y se bloquea durante trabajos de motor. Guardar vacío envía `null`; la API ahora lo persiste, mientras omitir el campo conserva su valor. Render React, tipos, compilación y contratos/persistencia verificados. Falta la aceptación por navegador con dos empresas y relectura nativa; esta tarea sigue abierta.
 - [x] T23. Registro de cada orden, estadística descriptiva, contraste de versiones y fallos repetidos. (RF-71, RF-72, RF-73, RF-74)
       Hecho cuando: `pytest -q tests/test_estadistica_ordenes.py` en verde.
 - [x] T25. Una relectura anterior a la importación no rechaza el proyecto recién importado. (RF-75)
