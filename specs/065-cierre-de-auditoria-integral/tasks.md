@@ -44,5 +44,6 @@
 - [x] T16 El cierre de dependencias rechaza versiones bajo la política de seguridad de la entrega. (RF-15, RF-24)
   Hecho cuando: `tests/test_fijar_entorno.py` prueba negativos y positivos, un entorno candidato cumple los mínimos y su auditoría actual queda documentada.
   Evidencia (2026-11-07): 26 pruebas de fijación sin omitidas; núcleo instalado offline desde 58 ruedas con hashes en entorno externo; constraints regenerados idénticos; pip check correcto y pip-audit actual de 58 dependencias sin vulnerabilidades conocidas. Evidencia externa `implementacion/p01_audit.json` del diagnóstico de producción.
-- [ ] T17 Puerta integral que conserva los ámbitos de backend, frontend y ML y sus fallos reales. (RF-24)
+- [x] T17 Puerta integral que conserva los ámbitos de backend, frontend y ML y sus fallos reales. (RF-24)
   Hecho cuando: `tests/test_verificar_entrega_integral.py` sin omitidas; las regresiones reales conservan sus registros y ninguna sustituye aceptación de dominio.
+  Evidencia (2026-11-08): en c7e7216ca500e1ad6a05613d4933e7f7f4b00d8c, el módulo aporta 28 casos dentro de 297 aprobados, sin fallos, errores ni omitidos, en 118,68 s. Recibo externo `implementacion/p25_estatica_postg2_20261108/junit.xml`, SHA-256 b7a4279872298b754a0a3797a1d74a4cae4e76e97c44012b6757593bc78d835d. Las puertas mantienen backend/frontend/ML y propagan fallos. G2 c6ec permanece RECHAZADO con registros, XML e inventarios antes/después conservados; este cierre local no cierra T12/T13, G3, 086:T31 ni aceptación nativa/científica.
