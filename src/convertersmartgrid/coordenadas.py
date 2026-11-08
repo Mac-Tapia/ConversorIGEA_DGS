@@ -241,3 +241,17 @@ def _prolongar(comp, ancla, vecinos, conocidos, trazado=None) -> None:
                 conocidos[v] = (px + m * math.cos(a), py + m * math.sin(a))
             angulo[v] = a
             cola.append(v)
+
+
+def geo_to_meters(point, origin_lat: float, origin_lon: float) -> tuple[float, float]:
+    """Metros locales equirrectangulares alrededor de un origen: conserva la proporción X/Y.
+
+    ``point`` es cualquier objeto con ``lat`` y ``lon`` (``GeoPoint`` del DGS, el punto de la
+    troncal). Vive aquí, en el dominio, y no en el escritor DGS: la troncal (spec 016) es un
+    recorrido puro de la red y lo importaba de ``dgs`` solo por esta cuenta (002:RF-2).
+    """
+    meters_per_deg_lat = 110540.0
+    meters_per_deg_lon = 111320.0 * math.cos(math.radians(origin_lat))
+    x = (point.lon - origin_lon) * meters_per_deg_lon
+    y = (point.lat - origin_lat) * meters_per_deg_lat
+    return x, y

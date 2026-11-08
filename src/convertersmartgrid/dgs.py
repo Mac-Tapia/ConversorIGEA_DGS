@@ -13,6 +13,7 @@ from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
 from .naming import siglas_canonicas, nombre_canonico, nombre_con_tension, sufijo_tension
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
+from .coordenadas import geo_to_meters
 
 
 @dataclass(frozen=True)
@@ -566,15 +567,6 @@ def _diagram_symbol_layout(
         sed_size=REF_SED_SIZE,
         median_segment=REF_LOAD_RADIUS,
     )
-
-
-def geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tuple[float, float]:
-    """Local equirectangular meters — preserves X/Y aspect ratio."""
-    meters_per_deg_lat = 110540.0
-    meters_per_deg_lon = 111320.0 * math.cos(math.radians(origin_lat))
-    x = (point.lon - origin_lon) * meters_per_deg_lon
-    y = (point.lat - origin_lat) * meters_per_deg_lat
-    return x, y
 
 
 # Calibrated from referencia NA205 (Ica / Nazca GPS ≈ -14.9°, -75.0°):
