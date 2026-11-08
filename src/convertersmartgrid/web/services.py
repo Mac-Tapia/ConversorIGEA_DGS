@@ -25,7 +25,8 @@ import sys
 import threading
 import time
 import uuid
-from copy import deepcopy
+from copy import copy, deepcopy
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from collections.abc import Mapping, Sequence
@@ -436,6 +437,7 @@ def _stamp_source_manifest(
     snapshot,
     reconstruction: dict[str, Any] | None = None,
     catalog_sha256: str | None = None,
+    read_receipt: dict | None = None,
 ) -> None:
     """Liga el manifiesto y la metadata DGS a la ejecución que los produjo."""
     source = {
@@ -444,7 +446,7 @@ def _stamp_source_manifest(
         'source_fingerprint': snapshot.fingerprint,
     }
     manifest.update(source)
-    manifest['source_read_receipt'] = ws.loaded_source_receipt
+    manifest['source_read_receipt'] = read_receipt
     manifest['catalog_sha256'] = catalog_sha256
     if reconstruction is not None:
         manifest['reconstruction'] = reconstruction
@@ -463,7 +465,7 @@ def _stamp_source_manifest(
         if reconstruction is not None:
             metadata['reconstruction'] = reconstruction
         write_json_atomic(path, metadata)
-    write_json_atomic(ws.out_dir / 'batch_manifest.json', manifest)
+    write_json_atomic(snapshot.root / 'salida' / 'batch_manifest.json', manifest)
 
 
 def check_convert_options(ws: Workspace) -> None:
@@ -506,6 +508,64 @@ def check_selection_readiness(
         raise UserError(str(exc)) from exc
 
 
+@dataclass(frozen=True)
+class _FuenteDeConversion:
+    """034:RF-20: una captura del dataset; validaciones nuevas nunca la sustituyen."""
+    owner: Workspace
+    view: Workspace
+    snapshot: Any
+    dataset: Any
+    selection_json: str
+    receipt_json: str | None
+    catalog_identity: tuple
+
+    def validate(self) -> None:
+        """Invocar bajo owner.lock: solo coteja estado actual, no adquiere otro dataset."""
+        current = self.owner.active_run()
+        if (current is None or current.run_id != self.snapshot.run_id
+                or current.mode != self.snapshot.mode or current.fingerprint != self.snapshot.fingerprint
+                or self.owner.dataset is not self.dataset
+                or self.owner.loaded_run_id != self.snapshot.run_id
+                or json.dumps(self.owner.source_selection_token(), sort_keys=True) != self.selection_json
+                or json.dumps(self.owner.loaded_source_receipt, sort_keys=True) != self.receipt_json):
+            raise UserError('SOURCE_SELECTION_CHANGED: otra selección o carga sustituyó la captura; '
+                            'no se publica el resultado anterior como vigente.')
+        if (self.owner.catalog_file, self.owner.catalog_sha256) != self.catalog_identity:
+            raise UserError('CATALOG_SELECTION_CHANGED: cambió el catálogo de la captura.')
+
+    def receipt(self) -> dict | None:
+        return json.loads(self.receipt_json) if self.receipt_json is not None else None
+
+    def publish(self, action) -> None:
+        """Solo publicación breve; el lector/conversor largo ya terminó fuera del lock."""
+        with self.owner.lock:
+            self.validate()
+            action()
+            for name in ('reconstructed_dataset', 'reconstruction_report', 'reconstruction_report_hash',
+                         'reconstruction_run_id', 'reconstruction_selection', 'feeder_readiness'):
+                setattr(self.owner, name, getattr(self.view, name))
+
+
+def _capturar_fuente_de_conversion(owner: Workspace) -> _FuenteDeConversion:
+    with owner.lock:
+        snapshot = require_active_source_run(owner)
+        if owner.loaded_source_receipt is None:
+            raise UserError('SOURCE_READ_RECEIPT_MISSING: vuelva a cargar la fuente para '
+                            'vincular el dataset con sus bytes efectivamente leídos.')
+        view = copy(owner)  # dataset grande compartido por referencia, nunca copiado.
+        view.options = deepcopy(owner.options)
+        view.feeder_readiness = deepcopy(owner.feeder_readiness)
+        view.plans = dict(owner.plans)
+        view.conversions = dict(owner.conversions)
+        view.groups = dict(owner.groups)
+        view.no_disponibles = deepcopy(owner.no_disponibles)
+        view.lock = threading.RLock()
+        return _FuenteDeConversion(owner, view, snapshot, owner.dataset,
+            json.dumps(owner.source_selection_token(), sort_keys=True),
+            json.dumps(owner.loaded_source_receipt, sort_keys=True),
+            (owner.catalog_file, owner.catalog_sha256))
+
+
 def _con_custodia_de_conversion(function):
     """034:RF-20: las dos conversiones retienen las mismas guardas hasta terminar."""
     @functools.wraps(function)
@@ -513,14 +573,27 @@ def _con_custodia_de_conversion(function):
         from contextlib import ExitStack
         from ..adaptadores.fuentes_estables import abrir_fuente_estable
         from .source_runs import SourceIntegrityError, guarded_source_run
-        snapshot = require_active_source_run(ws)
+        source = _capturar_fuente_de_conversion(ws)
         try:
             with ExitStack() as held:
-                held.enter_context(guarded_source_run(snapshot))
-                if ws.catalog_file:
-                    held.enter_context(abrir_fuente_estable(ws.catalog_file))
-                ws.catalog_corrections()
-                return function(ws, *args, **kwargs)
+                reading = held.enter_context(guarded_source_run(source.snapshot))
+                if source.receipt() != reading.read_receipt:
+                    raise UserError('SOURCE_READ_RECEIPT_MISMATCH: el dataset no corresponde '
+                                    'a los bytes retenidos por esta guarda.')
+                with ws.lock:
+                    source.validate()
+                if source.catalog_identity[0]:
+                    held.enter_context(abrir_fuente_estable(source.catalog_identity[0]))
+                ws.catalog_corrections()  # Puede fijar la primera baseline, fuera del lock largo.
+                with ws.lock:
+                    if ws.catalog_file != source.catalog_identity[0]:
+                        raise UserError('CATALOG_SELECTION_CHANGED: cambió la ruta del catálogo.')
+                    source = replace(source, catalog_identity=(ws.catalog_file, ws.catalog_sha256))
+                    source.validate()
+                    source.view.catalog_sha256 = ws.catalog_sha256
+                    source.view._corrections_cache = ws._corrections_cache
+                kwargs['_source'] = source
+                return function(source.view, *args, **kwargs)
         except SourceIntegrityError as exc:
             raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
         except ValueError as exc:
@@ -529,7 +602,8 @@ def _con_custodia_de_conversion(function):
 
 
 @_con_custodia_de_conversion
-def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool) -> dict:
+def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool,
+            *, _source: _FuenteDeConversion | None = None) -> dict:
     from ..batch import convert_selection, load_aliases
     from .reconstruction_service import (
         matching_reconstruction,
@@ -538,7 +612,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws)
+    snapshot = _source.snapshot
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')
@@ -590,7 +664,6 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 
     from ..reglas import catalogo_de_fuente
 
-    require_active_source_run(ws)
     output_dir = snapshot.root / 'salida'
     manifest = convert_selection(
         dataset, None if all_feeders else selected, output_dir,
@@ -617,11 +690,11 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         # resolución difusa/DEFAULT del camino literal.
         catalogo=None if use_reconstruction else catalogo_de_fuente((ws.inventory or {}).get('provenance')),
     )
-    require_active_source_run(ws)
-    if (ws.catalog_file, ws.catalog_sha256) != catalog_identity:
-        raise UserError('CATALOG_SELECTION_CHANGED: cambió el catálogo durante la conversión.')
-    _stamp_source_manifest(ws, manifest, snapshot, reconstruction, catalog_identity[1])
-    ws.record_conversions(manifest)
+    def publish():
+        _stamp_source_manifest(ws, manifest, snapshot, reconstruction, catalog_identity[1], _source.receipt())
+        _source.validate()  # También ante callbacks reentrantes durante el sellado.
+        _source.owner.record_conversions(manifest)
+    _source.publish(publish)
 
     summary = manifest['summary']
     ctx.log(f"Solicitados: {summary['requested']} · OK: {summary['ok']} · "
@@ -1624,6 +1697,7 @@ def convert_group(
     estructura=None,
     tipo: str = 'unida',
     reconstruir: dict | None = None,
+    _source: _FuenteDeConversion | None = None,
 ) -> dict:
     import time
 
@@ -1637,7 +1711,7 @@ def convert_group(
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws)
+    snapshot = _source.snapshot
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=False)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')
@@ -1660,7 +1734,6 @@ def convert_group(
 
     corrections = ws.catalog_corrections()
     catalog_identity = (ws.catalog_file, ws.catalog_sha256)
-    require_active_source_run(ws)
     output_dir = snapshot.root / 'salida'
     man = convertir_grupo(
         dataset, selected, output_dir, name=nombre,
@@ -1681,10 +1754,7 @@ def convert_group(
         on_progress=on_progress, cancel=ctx.cancel, estructura=estructura,
         reconstruir=reconstruir,                                       # 022:RF-61
     )
-    require_active_source_run(ws)
-    if (ws.catalog_file, ws.catalog_sha256) != catalog_identity:
-        raise UserError('CATALOG_SELECTION_CHANGED: cambió el catálogo durante la conversión.')
-    man['source_read_receipt'] = ws.loaded_source_receipt
+    man['source_read_receipt'] = _source.receipt()
     man['catalog_sha256'] = catalog_identity[1]
     for linea in _informe_por_set(man.get('estructura')):            # 022:RF-25, RF-34
         ctx.log(linea)
@@ -1696,14 +1766,6 @@ def convert_group(
     man.update(source)
     if reconstruction is not None:
         man['reconstruction'] = reconstruction
-    metadata_path = man.get('feeder_metadata')
-    if metadata_path and Path(metadata_path).is_file():
-        metadata = json.loads(Path(metadata_path).read_text(encoding='utf-8'))
-        metadata.update(source)
-        if reconstruction is not None:
-            metadata['reconstruction'] = reconstruction
-        write_json_atomic(Path(metadata_path), metadata)
-    write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
     ctx.log(man.get('entrada') or '')
     _log_conductores_deducidos(ctx, man)
     if man.get('union'):
@@ -1723,18 +1785,29 @@ def convert_group(
                 f"completitud: {'OK' if not man['completitud']['fallos'] else man['completitud']['fallos']}")
     else:
         ctx.log(f"BLOQUEADO_DATOS {nombre}: {man.get('error')}")
-    with ws.lock:
-        ws.groups[nombre] = {k: man.get(k) for k in (
+    def publish():
+        metadata_path = man.get('feeder_metadata')
+        if metadata_path and Path(metadata_path).is_file():
+            metadata = json.loads(Path(metadata_path).read_text(encoding='utf-8'))
+            metadata.update(source)
+            if reconstruction is not None:
+                metadata['reconstruction'] = reconstruction
+            write_json_atomic(Path(metadata_path), metadata)
+        write_json_atomic(output_dir / f'{nombre}_manifest.json', man)
+        _source.validate()
+        owner = _source.owner
+        owner.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
             'hoja', 'ties', 'completitud', 'source_run_id', 'source_mode',
             'source_fingerprint', 'reconstruction')}
-        ws.groups[nombre]['preview_html'] = _rel(ws, man.get('preview_html'))
-        ws.groups[nombre]['xlsx'] = _rel(ws, man.get('xlsx'))
-        ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
-        ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
+        owner.groups[nombre]['preview_html'] = _rel(ws, man.get('preview_html'))
+        owner.groups[nombre]['xlsx'] = _rel(ws, man.get('xlsx'))
+        owner.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
+        owner.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
         # 022:RF-49, RF-51: «sistema» (por sistema eléctrico) o «unida» (dos o más).
-        ws.groups[nombre]['tipo'] = tipo
-        ws.save()
+        owner.groups[nombre]['tipo'] = tipo
+        owner.save()
+    _source.publish(publish)
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,
             'feeder_metadata': f'{nombre}_feeder_metadata.json' if man['status'] == 'ok' else None,

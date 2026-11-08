@@ -56,16 +56,30 @@ def _dataset() -> CymdistDataset:
     )
 
 
-def _workspace(tmp_path):
+def _workspace(tmp_path, ws=None):
     from convertersmartgrid.web.readiness import assess_feeder_readiness
     from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.web.source_runs import create_source_run, guarded_source_run
 
+    tmp_path.mkdir(parents=True, exist_ok=True)
     dataset = _dataset()
-    ws = Workspace(id='abcd1234', root=tmp_path / 'abcd1234')
+    if ws is None:
+        ws = Workspace(id='abcd1234', root=tmp_path / 'abcd1234')
+    ws.options['input_mode'] = 'txt'
+    # El modelo sigue siendo el doble topológico de este módulo; su custodia es real
+    # y pequeña. No se presenta como aceptación de un lector ni de física nativa.
+    for slot in ('red', 'loads', 'equipment'):
+        path = tmp_path / f'{slot}-fixture.txt'
+        path.write_text(f'fixture topologico de reconstruccion: {slot}\n', encoding='utf-8')
+        ws.set_input(slot, path, origin='server')
+    snapshot = create_source_run(ws)
     ws.dataset = dataset
-    ws.active_run_id = ws.loaded_run_id = '20261005T120000-aaaaaaaaaaaa'
+    ws.loaded_run_id = snapshot.run_id
     ws.loaded_source_mode = 'txt'
-    ws.loaded_source_fingerprint = 'f' * 64
+    ws.loaded_source_fingerprint = snapshot.fingerprint
+    ws.loaded_selection_token = snapshot.selection_token
+    with guarded_source_run(snapshot) as held:
+        ws.loaded_source_receipt = held.read_receipt
     ws.inventory = {
         'feeders': [
             {'feeder': 'F-A', 'network_id': 'F-A', 'sections': 1},
@@ -76,12 +90,6 @@ def _workspace(tmp_path):
         feeder: assess_feeder_readiness(dataset, feeder, {'source_mode': 'txt'}).as_dict()
         for feeder in dataset.feeder_ids()
     }
-    snapshot = SimpleNamespace(
-        run_id=ws.active_run_id, mode='txt', fingerprint='f' * 64,
-        files={'red': SimpleNamespace(sha256='1' * 64, name='red.txt')},
-        path_for=lambda _slot: '',
-    )
-    ws.active_run = lambda: snapshot
     return ws
 
 
@@ -119,7 +127,7 @@ def test_reconstruction_is_atomic_keeps_original_and_persists_report(tmp_path):
     assert any(row['ID'] == 'UNKNOWN-50' for row in ws.reconstructed_dataset.equipment_tables['LINE'])
     assert response['feeders'][0]['readiness'] == 'READY_RECONSTRUCTED'
     assert response['assumptions'] >= 1
-    assert response['source_sha256'] == {'red': '1' * 64}
+    assert response['source_sha256'] == {slot: item.sha256 for slot, item in ws.active_run().files.items()}
     report = ws.out_dir / 'reconstruction_report.json'
     assert report.is_file()
     assert json.loads(report.read_text(encoding='utf-8'))['report_sha256'] == response['report_sha256']
@@ -148,12 +156,7 @@ def _client_con_dataset(tmp_path, monkeypatch):
     client.__enter__()
     created = client.post('/api/workspaces').json()
     ws = client.app.state.store.get(created['id'])
-    prepared = _workspace(tmp_path / 'prepared')
-    for name in (
-        'dataset', 'active_run_id', 'loaded_run_id', 'loaded_source_mode',
-        'loaded_source_fingerprint', 'inventory', 'feeder_readiness', 'active_run',
-    ):
-        setattr(ws, name, getattr(prepared, name))
+    _workspace(tmp_path / 'prepared', ws)
     return client, ws
 
 

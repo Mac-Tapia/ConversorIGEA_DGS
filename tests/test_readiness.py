@@ -106,6 +106,9 @@ def test_conversion_preflight_runs_before_converter_writes(tmp_path, monkeypatch
     ws.loaded_source_mode = snapshot.mode
     ws.loaded_source_fingerprint = snapshot.fingerprint
     ws.loaded_selection_token = snapshot.selection_token
+    from convertersmartgrid.web.source_runs import guarded_source_run
+    with guarded_source_run(snapshot) as reading:
+        ws.loaded_source_receipt = reading.read_receipt
     called = False
 
     def forbidden(*_args, **_kwargs):

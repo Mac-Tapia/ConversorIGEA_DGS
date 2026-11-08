@@ -337,3 +337,147 @@ def test_lector_real_no_puede_consumir_ABA_y_recibo_coincide_con_dgs_control(tmp
     assert ws.loaded_source_fingerprint == control.loaded_source_fingerprint
     assert ws.loaded_source_receipt['files']['loads']['sha256'] == ws.active_run().files['loads'].sha256
     assert hashlib.sha256(actual).hexdigest()
+
+
+@pytest.mark.parametrize('group', [False, True])
+def test_cambio_de_run_al_adquirir_guarda_no_convierte_otro_dataset(tmp_path, monkeypatch, group):
+    """034:RF-20 — la guarda y el cuerpo consumen una captura única, aunque termine otra carga."""
+    from contextlib import contextmanager
+    from convertersmartgrid.web import services, source_runs
+
+    ws, _ = _txt_workspace(tmp_path, feeders=1)
+    services.load_dataset(ws, _ctx())
+    old = ws.active_run()
+    guard = source_runs.guarded_source_run
+    changed = []
+    @contextmanager
+    def interleave(snapshot):
+        with guard(snapshot) as held:
+            if snapshot.run_id == old.run_id and not changed:
+                changed.append(True)
+                services.load_dataset(ws, _ctx())
+                new = ws.active_run()
+                path = new.files['loads'].path
+                before = path.read_bytes()
+                path.write_bytes(before.replace(b'12.5', b'22.5'))
+            yield held
+    monkeypatch.setattr(source_runs, 'guarded_source_run', interleave)
+    with pytest.raises(services.UserError, match='SOURCE_SELECTION_CHANGED|SOURCE_RUN_MISMATCH'):
+        if group:
+            services.convert_group(ws, _ctx(), [services.feeder_rows(ws)[0]['feeder']], 'NO_PUBLICAR')
+        else:
+            services.convert(ws, _ctx(), None, True)
+    assert ws.active_run_id != old.run_id
+    assert not list(ws.out_dir.glob('*.dgs'))
+    assert not list(ws.out_dir.glob('*manifest.json'))
+
+
+@pytest.mark.parametrize('group', [False, True])
+def test_cambio_justo_antes_publicar_no_escribe_en_run_nuevo_ni_repuebla_estado(tmp_path, monkeypatch, group):
+    """034:RF-20 — el commit de publicación valida y actualiza bajo una exclusión breve."""
+    from convertersmartgrid.web import services, source_runs
+
+    ws, _ = _txt_workspace(tmp_path, feeders=1)
+    mdb = tmp_path / 'existencia.mdb'
+    mdb.write_bytes(b'solo existencia, no se abre Access')
+    ws.set_input('mdb', mdb, origin='server')
+    ws.options['input_mode'] = 'txt'
+    services.load_dataset(ws, _ctx())
+    old = ws.active_run()
+    # Frontera equivalente al último require de c144; no sustituye escritor/lector.
+    real = services._stamp_source_manifest if not group else services._informe_por_set
+    changed = []
+    def boundary(*args, **kwargs):
+        if not changed:
+            with ws.lock:
+                ws.invalidate(); ws.options['input_mode'] = 'mdb'; ws.save()
+            changed.append(source_runs.create_source_run(ws))
+        return real(*args, **kwargs)
+    monkeypatch.setattr(services, '_stamp_source_manifest' if not group else '_informe_por_set', boundary)
+    with pytest.raises(services.UserError, match='SOURCE_SELECTION_CHANGED|SOURCE_RUN_MISMATCH'):
+        if group:
+            services.convert_group(ws, _ctx(), [services.feeder_rows(ws)[0]['feeder']], 'NO_DESVIAR')
+        else:
+            services.convert(ws, _ctx(), None, True)
+    new = ws.active_run()
+    assert new.mode == 'mdb' and new.run_id != old.run_id
+    assert ws.dataset is None and not ws.conversions and not ws.groups
+    assert not list((new.root / 'salida').glob('*'))
+    assert list((old.root / 'salida').glob('*.dgs'))
+
+
+def test_publicacion_breve_excluye_cambio_concurrente_y_conserva_recibo_capturado(tmp_path, monkeypatch):
+    """034:RF-20 — otra petición espera solo al commit, sin desviar identidad ni destino."""
+    import json
+    import threading
+    from convertersmartgrid.web import services, source_runs
+
+    ws, _ = _txt_workspace(tmp_path, feeders=1)
+    mdb = tmp_path / 'existencia.mdb'
+    mdb.write_bytes(b'solo existencia')
+    ws.set_input('mdb', mdb, origin='server')
+    ws.options['input_mode'] = 'txt'
+    services.load_dataset(ws, _ctx())
+    old = ws.active_run()
+    receipt = json.loads(json.dumps(ws.loaded_source_receipt))
+    attempted, done = threading.Event(), threading.Event()
+    actors, errors = [], []
+    real = services._stamp_source_manifest
+
+    def change():
+        try:
+            attempted.set()
+            with ws.lock:
+                ws.invalidate(); ws.options['input_mode'] = 'mdb'; ws.save()
+            source_runs.create_source_run(ws)
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            done.set()
+
+    def boundary(*args, **kwargs):
+        actor = threading.Thread(target=change)
+        actors.append(actor); actor.start()
+        assert attempted.wait(5)
+        assert not done.wait(.1), 'la transición concurrente no esperó al commit de publicación'
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(services, '_stamp_source_manifest', boundary)
+    result = services.convert(ws, _ctx(), None, True)
+    for actor in actors:
+        actor.join(10)
+        assert not actor.is_alive()
+    assert not errors and done.is_set()
+    assert result['summary']['ok'] == 1
+    new = ws.active_run()
+    assert new.mode == 'mdb' and new.run_id != old.run_id and ws.dataset is None
+    assert not list((new.root / 'salida').glob('*'))
+    manifest = json.loads((old.root / 'salida' / 'batch_manifest.json').read_text(encoding='utf-8'))
+    assert manifest['source_run_id'] == old.run_id
+    assert manifest['source_read_receipt'] == receipt
+
+
+def test_conversion_larga_no_retiene_lock_http_y_aborta_commit_de_seleccion_obsoleta(tmp_path, monkeypatch):
+    """065:RF-18; 034:RF-20 — el cerrojo breve no cubre el cálculo DGS."""
+    import threading
+    from convertersmartgrid.web import services
+    from convertersmartgrid import batch
+
+    ws, _ = _txt_workspace(tmp_path, feeders=1)
+    services.load_dataset(ws, _ctx())
+    original = batch.convert_selection
+    completed = threading.Event()
+    def converter(*args, **kwargs):
+        def option_request():
+            with ws.lock:
+                ws.invalidate(); ws.options['input_mode'] = 'mdb'; ws.save()
+            completed.set()
+        actor = threading.Thread(target=option_request)
+        actor.start(); actor.join(5)
+        assert not actor.is_alive(), 'la conversión larga bloqueó una petición de opciones'
+        assert completed.is_set()
+        return original(*args, **kwargs)
+    monkeypatch.setattr(batch, 'convert_selection', converter)
+    with pytest.raises(services.UserError, match='SOURCE_SELECTION_CHANGED'):
+        services.convert(ws, _ctx(), None, True)
+    assert completed.is_set() and ws.dataset is None and not ws.conversions
