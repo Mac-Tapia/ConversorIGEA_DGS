@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .dataset import CymdistDataset
+from .dominio.dataset import CymdistDataset
 
 
 class EvidenceLevel(str, Enum):
@@ -161,9 +161,13 @@ class ReconstructionResult:
 
 
 def _copy_dataset(dataset: CymdistDataset) -> CymdistDataset:
-    """Copy only declared canonical fields, excluding cached derived indexes."""
+    """Copy only declared canonical fields, excluding cached derived indexes.
 
-    return CymdistDataset(**{
+    La copia conserva la clase de la entrada: la del lector (``convertersmartgrid.dataset``)
+    sigue siendo la del lector, con su ``from_files`` y su ruta de pickle (002:RF-1).
+    """
+
+    return type(dataset)(**{
         item.name: deepcopy(getattr(dataset, item.name))
         for item in fields(CymdistDataset)
     })

@@ -21,7 +21,7 @@ PowerFactory. La ejecución vive en ``tools/base_scenario.py``.
 
 from __future__ import annotations
 
-from .dataset import TABLAS_TIPOS_LINEA
+from .dominio.dataset import TABLAS_TIPOS_LINEA
 
 from dataclasses import dataclass, field
 from typing import Any, Iterable

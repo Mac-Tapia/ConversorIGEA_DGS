@@ -24,7 +24,7 @@ Con el catálogo anterior de la misma empresa, la cobertura pasó del 0 % al 99,
 
 from __future__ import annotations
 
-from .dataset import TABLAS_TIPOS_LINEA
+from .dominio.dataset import TABLAS_TIPOS_LINEA
 
 from dataclasses import dataclass, field
 from pathlib import Path

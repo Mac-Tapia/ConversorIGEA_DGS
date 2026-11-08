@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from typing import Any
 from pathlib import Path
 
-from .dataset import CymdistDataset
+from .dominio.dataset import CymdistDataset
 from .dgs import write_dgs
 from .export_tables import write_dgs_tsv, write_dgs_xlsx
 from .geography import (

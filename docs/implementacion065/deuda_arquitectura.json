@@ -9,10 +9,8 @@
     "capa|convertersmartgrid.asistente.ejemplos_pide|convertersmartgrid.pide_dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.asistente.embeddings|convertersmartgrid.trabajadores_ml": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.asistente.entrenamiento_dataset|convertersmartgrid.trabajadores_ml": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.asistente.llm_destilacion|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.asistente.transformer|convertersmartgrid.digital_twin.auditoria": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.asistente.transformer|convertersmartgrid.digital_twin.oraculo": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.batch|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.batch|convertersmartgrid.dgs": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.batch|convertersmartgrid.export_tables": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.batch|convertersmartgrid.feeder_metadata": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
@@ -22,21 +20,15 @@
     "capa|convertersmartgrid.batch|convertersmartgrid.validate": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.cargas_pf|convertersmartgrid.geography": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.cargas_pf|convertersmartgrid.loads": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.catalog_merge|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.digital_twin.buffer|convertersmartgrid.web.workspace": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.escaneo|convertersmartgrid.dgs": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.estudios_pf|convertersmartgrid.carpeta_pf": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.inventory|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.model|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.naming|convertersmartgrid.estructura": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.obras_pf|convertersmartgrid.troncal": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.optimizacion_oraculo|convertersmartgrid.digital_twin.evolutivo": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.optimizacion_oraculo|convertersmartgrid.digital_twin.oraculo": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.perfil_empresa|convertersmartgrid.estructura": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.reconstruction|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.reglas|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
     "capa|convertersmartgrid.reglas|convertersmartgrid.oraculo": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.set_nueva|convertersmartgrid.troncal": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad.",
-    "capa|convertersmartgrid.studies|convertersmartgrid.dataset": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad."
+    "capa|convertersmartgrid.set_nueva|convertersmartgrid.troncal": "002 T7: separar el caso de uso del adaptador por un puerto; migración pendiente, no conformidad."
   }
 }

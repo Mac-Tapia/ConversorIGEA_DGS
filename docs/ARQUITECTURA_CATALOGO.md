@@ -8,7 +8,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 312 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 313 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 99 |
 | Interfaz | `frontend/src/` | 49 |
@@ -37,11 +37,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 125 |
 | aplicacion | Apl | 103 |
-| dominio | Dom | 38 |
+| dominio | Dom | 39 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-302 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
+303 módulos y 26 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -246,6 +246,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `sources/snapshot.py` | Dom | 001 | Qué ficheros forman una lectura y su huella. |
 | `source_contract.py` | Dom | 001, 004, 006 | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. |
 | `dataset.py` | Ada | 034 | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. |
+| `dominio/dataset.py` | Dom | 002 | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector. |
 | `access.py` | Ada | 034, 001 | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. |
 | `identify.py` | Ada | 034, 059 | Reconoce cada TXT por su contenido, no por su nombre, y a qué fuente (TXT, Access o VNR-GIS) pertenece un fichero. |
 | `study.py` | Ada | 034 | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. |

@@ -117,7 +117,10 @@ def main(argv=None):
             if custodiar(copia,localizador='workspace registrado')['sha256']!=original['sha256']:
                 raise ValueError('el workspace cambio durante la copia de custodia')
             copias.append(copia);originales.append(original)
-        contextos,manifest=extraer_referencia(red=args.red,cargas=args.cargas,equipos=args.equipos,
+        # 002:RF-1: el caso de uso recibe el dataset ya leído; el lector de los TXT es un adaptador.
+        from convertersmartgrid.dataset import CymdistDataset
+        dataset=CymdistDataset.from_files(args.red,args.cargas,args.equipos)
+        contextos,manifest=extraer_referencia(dataset=dataset,red=args.red,cargas=args.cargas,equipos=args.equipos,
             estructura_pdf=args.estructura_pdf,mediciones=args.mediciones,nuevos_clientes=args.nuevos_clientes,
             workspaces=copias)
         manifest['workspaces_originales']=originales

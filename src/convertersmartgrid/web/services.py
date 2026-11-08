@@ -620,7 +620,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         for network_id in network_ids
     )
     if not ready_without_reconstruction:
-        from ..dataset import CymdistDataset
+        from ..dominio.dataset import CymdistDataset
 
         # Keep the preflight fail-closed for adapter/test doubles that did not
         # provide a canonical dataset. Real TXT/MDB/VNR loads always do.

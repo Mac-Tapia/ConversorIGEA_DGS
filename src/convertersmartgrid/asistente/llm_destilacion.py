@@ -14,6 +14,7 @@ from .contratos_salida import validar_orden
 from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
 # El corpus del ajuste generativo se selló con estas tareas; el catálogo nuevo no lo cambia (070, limitaciones).
 from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS, sistema_alumno
+from ..dominio.dataset import CymdistDataset
 from ..evaluacion_modelos import huella, texto_canonico
 from ..runtime_paths import raiz_programa
 
@@ -139,10 +140,13 @@ def _respuesta_de_spans(registro: dict) -> str:
     return json.dumps(respuesta, ensure_ascii=False, separators=(',', ':'))
 
 
-def extraer_referencia(*, red: Path, cargas: Path, equipos: Path, estructura_pdf: Path,
+def extraer_referencia(*, dataset: CymdistDataset, red: Path, cargas: Path, equipos: Path, estructura_pdf: Path,
                       mediciones: Path, nuevos_clientes: Path, workspaces: list[Path]) -> tuple[list[dict], dict]:
-    """Lee registros reales; el PDF no reemplaza la pertenencia del TXT."""
-    from ..dataset import CymdistDataset
+    """Lee registros reales; el PDF no reemplaza la pertenencia del TXT.
+
+    ``dataset`` es el de esos mismos TXT, ya leído por quien llama: el lector de CYMDIST es un
+    adaptador de entrada y este caso de uso no lo importa (002:RF-1).
+    """
     from ..model import extract_sed_code
     from ..naming import feeder_short_name
     from ..sources.snapshot import snapshot_from_paths
@@ -152,7 +156,6 @@ def extraer_referencia(*, red: Path, cargas: Path, equipos: Path, estructura_pdf
 
     archivos = {'red': Path(red), 'loads': Path(cargas), 'equipment': Path(equipos)}
     snapshot = snapshot_from_paths('txt', archivos, Path(red).parent, origin='dataset-llm')
-    dataset = CymdistDataset.from_files(red, cargas, equipos)
     fuentes = {k: custodiar(v, localizador='archivo completo') for k, v in archivos.items()}
     fuentes['estructura'] = custodiar(estructura_pdf, localizador='paginas del inventario')
     fuentes['mediciones'] = custodiar(mediciones, localizador='celdas de fechas de medicion')

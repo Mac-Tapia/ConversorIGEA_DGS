@@ -30,6 +30,7 @@
     "sources/snapshot.py",
     "source_contract.py",
     "dataset.py",
+    "dominio/dataset.py",
     "access.py",
     "identify.py",
     "study.py",
