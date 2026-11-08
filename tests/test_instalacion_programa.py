@@ -319,6 +319,39 @@ def test_actualizar_copia_los_datos_y_deja_a_que_volver(tmp_path, instalador_sin
     assert IC.estado(destino)['versiones'] == ['1.1', '1.2'], 'una versión pesa cientos de MB: solo la actual y a la que volver'
 
 
+def test_rechazar_version_preexistente_conserva_arbol_y_punteros(tmp_path, monkeypatch):
+    """086:RF-38/39: rechazar rc6 retenida tras rollback no autoriza a borrarla."""
+    destino = tmp_path / 'app'
+    retenida = destino / 'versiones' / '1.0.0rc6'
+    retenida.mkdir(parents=True)
+    (retenida / 'testigo.bin').write_bytes(b'version retenida propia; conservar')
+    anterior = destino / 'versiones' / '1.0.0rc5'
+    anterior.mkdir()
+    (anterior / 'testigo.bin').write_bytes(b'base de rollback propia')
+    for nombre, contenido in (('actual.txt', '1.0.0rc5'), ('anterior.txt', '1.0.0rc6'),
+                               ('ultima_copia.json', '{"copia":"propia"}'), ('csg.cmd', 'lanzador previo')):
+        (destino / nombre).write_text(contenido, encoding='utf-8')
+    antes = {p.relative_to(destino).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+             for p in destino.rglob('*') if p.is_file()}
+    monkeypatch.setattr(IC, '_web_escuchando', lambda *a: False)
+    with pytest.raises(IC.ErrorInstalacion, match='ya está'):
+        IC.instalar(_candidato(tmp_path, '1.0.0rc6'), destino)
+    despues = {p.relative_to(destino).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+               for p in destino.rglob('*') if p.is_file()}
+    assert despues == antes, 'el rechazo no debe retirar la versión preexistente ni cambiar punteros'
+
+
+def test_preparar_version_fallida_retira_solo_su_propia_creacion(tmp_path):
+    """086:RF-38/39: el preparador limpia su reserva exclusiva al fallar, sin pip ni entorno nuevo."""
+    candidato = _candidato(tmp_path, '1.0.0rc6')
+    (candidato / 'terceros' / 'python').mkdir()
+    (candidato / 'terceros' / 'python' / 'testigo.txt').write_text('fixture propia', encoding='utf-8')
+    destino = tmp_path / 'app'
+    with pytest.raises(IC.ErrorInstalacion, match='pip'):
+        IC._preparar_version(candidato, destino, {'version': '1.0.0rc6'})
+    assert not (destino / 'versiones' / '1.0.0rc6').exists()
+
+
 @pytest.mark.parametrize('paso', ['_doctor', '_copiar_datos'])
 def test_si_la_version_nueva_falla_sigue_la_anterior(tmp_path, instalador_sin_motor, monkeypatch, paso):
     """086:RF-38 — ni el doctor ni la copia pueden dejar el puntero en una versión a medias."""

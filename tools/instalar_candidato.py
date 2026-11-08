@@ -161,28 +161,36 @@ def _preparar_version(candidato: Path, destino: Path, manifiesto: dict) -> Path:
     """Copia el Python del candidato e instala con huella y sin red: el lock exige que coincida cada rueda."""
     version = manifiesto['version']
     carpeta = destino / 'versiones' / version
-    if carpeta.exists():
-        raise ErrorInstalacion(f'La versión {version} ya está en {carpeta}: no se pisa. Use «volver» o desinstale antes.')
-    carpeta.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(candidato / 'terceros' / 'python', carpeta / 'python')
-    python = carpeta / 'python' / 'python.exe'
-    pips = sorted((candidato / 'terceros' / 'wheels').glob('pip-*.whl'))
-    if not pips:
-        raise ErrorInstalacion('El candidato no trae pip para instalar sus ruedas.')
-    orden = [str(python), '-m', 'pip', 'install', '--no-index', '--require-hashes', '--no-cache-dir',
-             '--no-warn-script-location', '--find-links', str(candidato / 'terceros' / 'wheels'),
-             '--find-links', str(candidato / 'programa'), '-r', str(candidato / 'terceros' / 'instalacion.lock')]
-    # pip corre desde su rueda, por PYTHONPATH: con «rueda/pip» como guion, en Windows se niega a instalarse a sí mismo.
-    r = subprocess.run(orden, env={**_entorno_limpio(python), 'PYTHONPATH': str(pips[0])}, capture_output=True, text=True,
-                       encoding='utf-8', errors='replace', check=False)
-    if r.returncode:
-        raise ErrorInstalacion(f'pip no pudo instalar con las huellas del candidato:\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}')
-    larga = max((str(f) for f in carpeta.rglob('*.pyd')), key=len, default='')
-    if len(larga) > LONGITUD_MAXIMA_RUTA:
-        # Sale en la última línea de un error que solo dice «nombre demasiado largo» al importar geopandas.
-        raise ErrorInstalacion(f'La carpeta de instalación es demasiado larga: alguna ruta llega a {len(larga)} caracteres, y Windows no carga '
-                               f'una librería de más de {LONGITUD_MAXIMA_RUTA}. Elija una carpeta más corta.')
-    return python
+    # La reserva exclusiva fija la propiedad: un rechazo por carpeta preexistente
+    # nunca autoriza a retirarla (rc6 retenida tras volver a rc5).
+    try:
+        carpeta.mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise ErrorInstalacion(f'La versión {version} ya está en {carpeta}: no se pisa. Use «volver» o desinstale antes.') from exc
+    try:
+        shutil.copytree(candidato / 'terceros' / 'python', carpeta / 'python')
+        python = carpeta / 'python' / 'python.exe'
+        pips = sorted((candidato / 'terceros' / 'wheels').glob('pip-*.whl'))
+        if not pips:
+            raise ErrorInstalacion('El candidato no trae pip para instalar sus ruedas.')
+        orden = [str(python), '-m', 'pip', 'install', '--no-index', '--require-hashes', '--no-cache-dir',
+                 '--no-warn-script-location', '--find-links', str(candidato / 'terceros' / 'wheels'),
+                 '--find-links', str(candidato / 'programa'), '-r', str(candidato / 'terceros' / 'instalacion.lock')]
+        # pip corre desde su rueda, por PYTHONPATH: con «rueda/pip» como guion, en Windows se niega a instalarse a sí mismo.
+        r = subprocess.run(orden, env={**_entorno_limpio(python), 'PYTHONPATH': str(pips[0])}, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', check=False)
+        if r.returncode:
+            raise ErrorInstalacion(f'pip no pudo instalar con las huellas del candidato:\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}')
+        larga = max((str(f) for f in carpeta.rglob('*.pyd')), key=len, default='')
+        if len(larga) > LONGITUD_MAXIMA_RUTA:
+            # Sale en la última línea de un error que solo dice «nombre demasiado largo» al importar geopandas.
+            raise ErrorInstalacion(f'La carpeta de instalación es demasiado larga: alguna ruta llega a {len(larga)} caracteres, y Windows no carga '
+                                   f'una librería de más de {LONGITUD_MAXIMA_RUTA}. Elija una carpeta más corta.')
+        return python
+    except BaseException:
+        # Solo se limpia la carpeta cuya reserva exclusiva obtuvo esta llamada.
+        shutil.rmtree(carpeta, ignore_errors=True)
+        raise
 
 
 def _doctor(python: Path) -> dict:
@@ -248,14 +256,18 @@ def instalar(candidato: Path, destino: Path, *, puerto: int = 8765, forzar: bool
     destino.mkdir(parents=True, exist_ok=True)
     carpeta = destino / 'versiones' / version
     copia = None
+    preparada = False
     try:
         python = _preparar_version(candidato, destino, manifiesto)
+        preparada = True
         informe = _doctor(python)
         if actual:
             copia = _copiar_datos(python, carpeta)
     except (ErrorInstalacion, OSError, ValueError):
-        # Sin tocar el puntero: la versión de antes sigue siendo la que abre el acceso directo.
-        shutil.rmtree(carpeta, ignore_errors=True)
+        # El preparador limpia sus fallos. Solo una preparación devuelta con éxito
+        # nos pertenece para retirar tras un fallo del doctor o de la copia.
+        if preparada:
+            shutil.rmtree(carpeta, ignore_errors=True)
         raise
     _escribir_lanzadores(destino)
     if copia is not None:
