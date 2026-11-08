@@ -1,4 +1,4 @@
-"""076 RF-4/19: fuentes fijadas y vigencia actual conservan autoridades distintas."""
+"""076:RF-4, 076:RF-19: fuentes fijadas y vigencia actual conservan autoridades distintas."""
 from pathlib import Path
 
 import pytest
