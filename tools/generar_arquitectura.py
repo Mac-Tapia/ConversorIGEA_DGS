@@ -30,7 +30,7 @@ S = 'src/convertersmartgrid/'
 #: Lo que el generador necesita leer, también para copiarlo a un repositorio de prueba.
 FUENTES = ('pyproject.toml', 'CODIGO_FUENTE.md', MAPA, 'docs/implementacion065/deuda_arquitectura.json',
            S + 'asistente/tareas.py', S + 'asistente/equipo.py', S + 'asistente/revision_roles.py',
-           S + 'asistente/orquestador.py', S + 'asistente/interprete.py', S + 'asistente/modelos_en_uso.py',
+           S + 'asistente/orquestador.py', S + 'asistente/interprete.py', S + 'asistente/transformer.py',
            S + 'training_coordinator.py', S + 'edicion.py', S + 'web/jobs.py', S + 'web/app.py', S + 'web/services.py',
            'src/vnr_etl/web/app.py')
 _RUTA = re.compile(r'@(?:router|app)\.(?:get|post|put|patch|delete|websocket)\(\s*f?[\'"]([^\'"]+)')
@@ -323,7 +323,7 @@ def _asistente(fuente: Fuente) -> list[str]:
 
     salida += ['', '### Etapas del proyecto entero', '', *tabla_etapas('ETAPAS')]
     salida += ['', '### Etapas de una carga nueva', '', *tabla_etapas('ETAPAS_CARGA')]
-    familias = constante(fuente.leer(S + 'asistente/modelos_en_uso.py'), 'FAMILIAS')
+    familias = constante(fuente.leer(S + 'asistente/transformer.py'), 'FAMILIAS_MODELOS')
     orden = constante(fuente.leer(S + 'training_coordinator.py'), 'ORDEN_MODELOS')
     salida += ['', '### Familias de modelos', '', 'Orden de entrenamiento: ' + ', '.join(f'`{m}`' for m in orden) + '.', '',
                'Con puntero en uso gobernado por `asistente/modelos_en_uso.py`: ' + ', '.join(f'`{k}` ({v})' for k, v in sorted(familias.items())) + '.',
