@@ -1,6 +1,6 @@
 # Spec 092 — El «Caso base» de una red reconstruida se verifica con lo que hay en disco
 
-Estado: implementada · Fecha: 2026-11-05 · Origen: usuario, 2026-11-05, Pisco: «debe revisar el porqué; si ya está
+Estado: cumplida (2026-11-08: T2 verificada en DIgSILENT con Pisco) · Fecha: 2026-11-05 · Origen: usuario, 2026-11-05, Pisco: «debe revisar el porqué; si ya está
 hecho, si tiene un antecedente, debe corregir; no puede obviar lo que dice; ve al fondo».
 
 ## Contexto y objetivo
