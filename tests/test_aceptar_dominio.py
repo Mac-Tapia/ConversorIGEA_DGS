@@ -19,7 +19,7 @@ def caso(tmp_path):
     entrada = source / 'red.txt'
     entrada.write_text('fuente reservada de prueba', encoding='utf-8')
     snapshot = snapshot_from_paths('txt', {'red': entrada}, source, origin='prueba')
-    manifest = {'run_id': run, 'mode': 'txt', 'created_at': 0,
+    manifest = {'version': 1, 'run_id': run, 'mode': 'txt', 'created_at': 0,
                 'fingerprint': snapshot.fingerprint,
                 'files': [x.to_dict(source) for x in snapshot.files.values()]}
     (source / 'source_manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
@@ -55,7 +55,9 @@ def test_control_sellado_no_certifica_fisica(caso):
 def test_fuente_modificada_impide_replay(caso):
     """065:RF-21: cambiar bytes conservando manifiesto impide continuar."""
     caso[2].write_text('datos cambiados', encoding='utf-8')
-    assert ejecutar(caso)['listo_diagnostico'] is False
+    resultado = ejecutar(caso)
+    assert resultado['listo_diagnostico'] is False
+    assert 'huella de fuente modificada' in resultado['bloqueos']
 
 
 def test_run_igual_huella_no_es_replay_exacto(caso):
@@ -68,7 +70,9 @@ def test_run_igual_huella_no_es_replay_exacto(caso):
     d = json.loads(p.read_text()); d['run_id'] = nuevo; p.write_text(json.dumps(d))
     ws['active_run_id'] = nuevo
     (root / 'workspace.json').write_text(json.dumps(ws), encoding='utf-8')
-    assert ejecutar(caso)['listo_diagnostico'] is False
+    resultado = ejecutar(caso)
+    assert resultado['listo_diagnostico'] is False
+    assert any('replay exige source_run_id exacto' in b for b in resultado['bloqueos'])
 
 
 def test_vinculo_alterado_impide_replay(caso):
@@ -76,7 +80,9 @@ def test_vinculo_alterado_impide_replay(caso):
     root, ws, _, _ = caso
     ws['pf_project_bindings']['Proyecto']['folder'] = 'Otra'
     (root / 'workspace.json').write_text(json.dumps(ws), encoding='utf-8')
-    assert ejecutar(caso)['listo_diagnostico'] is False
+    resultado = ejecutar(caso)
+    assert resultado['listo_diagnostico'] is False
+    assert any('PROJECT_BINDING_RECORD_MISMATCH' in b for b in resultado['bloqueos'])
 
 
 def test_artefacto_ausente_impide_replay(caso):
@@ -106,7 +112,28 @@ def test_slot_repetido_es_fuente_ambigua(caso):
     p = root / 'runs' / ws['active_run_id'] / 'source_manifest.json'
     d = json.loads(p.read_text()); d['files'].append(dict(d['files'][0]))
     p.write_text(json.dumps(d), encoding='utf-8')
-    assert ejecutar(caso)['listo_diagnostico'] is False
+    resultado = ejecutar(caso)
+    assert resultado['listo_diagnostico'] is False
+    assert 'Entrada duplicada o de otra fuente en el manifiesto.' in resultado['bloqueos']
+
+
+@pytest.mark.parametrize('version', [None, True, 2, '1'])
+def test_version_de_manifiesto_no_admitida_bloquea(caso, version):
+    """065:RF-21: ausencia, booleano, versión futura o texto no habilitan replay."""
+    assert ejecutar(caso)['listo_diagnostico'] is True
+    root, ws, _, _ = caso
+    p = root / 'runs' / ws['active_run_id'] / 'source_manifest.json'
+    d = json.loads(p.read_text(encoding='utf-8'))
+    if version is None:
+        d.pop('version')
+    else:
+        d['version'] = version
+    p.write_text(json.dumps(d), encoding='utf-8')
+    resultado = ejecutar(caso)
+    assert resultado['listo_diagnostico'] is False
+    assert 'Manifiesto de otra ejecución o versión no admitida.' in resultado['bloqueos']
+    assert resultado['aceptacion_electrica'] is False
+    assert resultado['operaciones_nativas'] == 0
 
 
 def test_registro_compartido_tiene_precedencia(caso):
