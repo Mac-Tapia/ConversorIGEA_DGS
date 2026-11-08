@@ -15,7 +15,6 @@ import json
 import os
 from pathlib import Path
 import sys
-import tempfile
 import traceback
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -69,11 +68,11 @@ def main(argv=None) -> int:
                          'lectura_ordenes_maestro': dict(lectura_maestro)}
         elif args.accion == 'entrenar':
             from convertersmartgrid.asistente.codificador_ordenes import Configuracion
-            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
             semillas = tuple(int(s) for s in args.semillas.split(',') if s.strip())
-            ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+            ruta = ruta_guardia_gpu()
             with BloqueoGPU(ruta, 'destilacion-integral'):
                 resultado = entrenar_destilacion(args.dataset, args.destino,
                     cfg=Configuracion(epocas=args.epocas), semillas=semillas, registro=args.registro)
@@ -86,8 +85,8 @@ def main(argv=None) -> int:
         else:
             from convertersmartgrid.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
             from convertersmartgrid.asistente.ollama import ClienteOllama
-            from convertersmartgrid.training_coordinator import BloqueoGPU
-            ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            ruta = ruta_guardia_gpu()
             with BloqueoGPU(ruta, 'ensayo-agente-integral'):
                 cliente = ClienteOllama(modelo=args.ollama, tiempo_max_s=60.) if args.ollama else None
                 try:

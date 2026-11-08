@@ -14,7 +14,6 @@ import json
 import os
 from pathlib import Path
 import sys
-import tempfile
 
 RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ / 'src') not in sys.path:
@@ -51,7 +50,7 @@ def main(argv=None):
         from convertersmartgrid.asistente.destilacion_integral import leer_corpus
         from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
         from convertersmartgrid.asistente.ollama import ClienteOllama
-        from convertersmartgrid.training_coordinator import BloqueoGPU
+        from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
         from convertersmartgrid.evaluacion_modelos import huella, texto_canonico
         if args.accion == 'preparar':
             filas, meta = generar_propuestas()
@@ -70,7 +69,7 @@ def main(argv=None):
         else:
             from convertersmartgrid.training_coordinator import exigir_memoria_ml
             exigir_memoria_ml(4., minimo_commit_gib=6.)
-            ruta_lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+            ruta_lock = ruta_guardia_gpu()
             with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
                 if args.accion == 'seleccionar':
                     datos, fuente = leer_corpus(args.dataset)

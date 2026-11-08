@@ -144,6 +144,28 @@ reconstrucción histórica a un paso de 024/046. Falta la campaña conjunta real
 
 ## Pruebas requeridas antes del cierre
 
+RF-4/RF-10, exclusión y propietario (2026-11-08): la guardia OS por clave de ciclo
+se adquiere antes de leer el diario y ejecutar el preflight, también con etapas CPU.
+Reutiliza la misma operación de bloqueo de archivo que la GPU; su archivo permanece
+y cerrar el descriptor o morir el proceso libera el turno. La marca nueva contiene
+PID, fecha real de creación y token propio; solo se retira la marca del mismo
+arranque. Los PID heredados siguen leyéndose de forma conservadora. Una identidad
+con fecha distinta se trata como interrumpida; una marca ilegible se conserva y
+bloquea, sin anunciar entrenamiento activo. La consulta no reescribe el diario.
+La exclusión se prueba con dos clientes concurrentes antes de escribir la marca,
+un proceso real que termina sin finally, recuperación y conservación de sus datos.
+Esto no acredita la campaña conjunta ni la calidad de sus modelos.
+
+La ruta GPU por defecto se resuelve en un único sitio, fuera del TEMP particular
+del trabajo: conserva el nombre histórico en Temp estándar del perfil Windows
+(y /tmp en POSIX). CSG_ML_GPU_LOCK explícito sigue teniendo prioridad y los hijos
+reciben su ruta absoluta para que cambiar de directorio o temporal no cree otro
+turno. El coordinador, trabajadores y todos los lanzadores usan esa resolución.
+Dos procesos reales con TEMP distintos deben competir por la misma guardia;
+la prueba usa un perfil local aislado y no ejecuta CUDA. Una versión anterior que
+personalice TEMP necesita la misma ruta explícita si comparte el recurso durante
+la transición.
+
 Contrato: `tests/test_aprendizaje_continuo.py`, con citas `050:RF-n`.
 Integración real: `tests_ml/test_aprendizaje_continuo_real.py` y evidencia local de
 los trabajadores; no usar mocks ni skips para acreditar operaciones de modelos.

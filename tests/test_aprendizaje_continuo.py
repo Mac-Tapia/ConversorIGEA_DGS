@@ -288,6 +288,120 @@ def test_ciclo_unico_idempotente(tmp_path):
     assert llamadas == ['transformer', 'pinn'] and set(a['candidatos']) == {'pinn', 'transformer'}
 
 
+def test_ciclo_cpu_excluye_otro_arranque_durante_su_preflight(tmp_path):
+    """050:RF-4 — dos clientes concurrentes no ejecutan dos veces la misma captura CPU."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    inst, reg, llamadas = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg'), []
+    etapas = [_etapa('pinn', _candidato(reg, 'pinn'), llamadas)]
+    entered, release = Event(), Event()
+
+    def preflight():
+        entered.set()
+        assert release.wait(10), 'el segundo cliente no devolvió el control'
+        return False
+
+    def iniciar(**kwargs):
+        return ac.ejecutar_ciclo(tmp_path / 'ap', inst, etapas, politica_hash=CTX,
+                                presupuesto=PRES, registro=reg, **kwargs)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(iniciar, operador_ocupado=preflight)
+        try:
+            assert entered.wait(10)
+            second = iniciar()
+        finally:
+            release.set()
+        completed = first.result(timeout=15)
+    assert second['estado'] == 'en_curso' and second['repetido']
+    assert completed['estado'] == 'terminado'
+    assert llamadas == ['pinn']
+
+
+def test_ciclo_guarda_fecha_del_proceso_y_token_en_su_marca(tmp_path):
+    """050:RF-4/10 — un PID reutilizado no identifica al dueño del entrenamiento anterior."""
+    import os
+    import psutil
+
+    inst, reg = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg')
+    cid = _candidato(reg, 'pinn')
+    key = ac.clave_ciclo(inst['snapshot_id'], ['pinn'], CTX)
+    marker = tmp_path / 'ap/ciclos' / key / 'en_curso'
+
+    def run():
+        owner = json.loads(marker.read_text(encoding='utf-8'))
+        assert isinstance(owner, dict)
+        assert owner['pid'] == os.getpid() and owner['creado'] == psutil.Process().create_time()
+        assert len(owner['token']) == 32
+        return {'status': 'PROMOVIDO', 'candidate_id': cid, 'training_completed': True}
+
+    result = ac.ejecutar_ciclo(tmp_path / 'ap', inst, [TrainingStage('pinn', run, uses_gpu=False)],
+                              politica_hash=CTX, presupuesto=PRES, registro=reg)
+    assert result['estado'] == 'terminado', result
+    assert not marker.exists()
+
+
+def test_estado_interrumpido_si_el_pid_corresponde_a_otro_inicio(tmp_path):
+    """050:RF-4/10 — la consulta distingue un PID vivo de la identidad que dejó el diario."""
+    import os
+    import psutil
+
+    folder = tmp_path / 'ciclos' / ('a' * 64); folder.mkdir(parents=True)
+    diary = folder / 'ciclo.json'
+    diary.write_text(json.dumps({'clave':'a'*64, 'snapshot_id':'b'*64, 'estado':'en_curso',
+                                 'inicio':'2026-11-08T05:00:00Z', 'motivos':[]}), encoding='utf-8')
+    marker = folder / 'en_curso'
+    marker.write_text(json.dumps({'schema':'convertersmartgrid-cycle-owner-v1', 'pid':os.getpid(),
+                                  'creado':psutil.Process().create_time()-60, 'token':'f'*32}), encoding='utf-8')
+    original = {p:p.read_bytes() for p in (diary,marker)}
+    state = ac.estado_aprendizaje(tmp_path)
+    assert state['ultimo_ciclo']['estado'] == 'interrumpido'
+    assert state['ultimo_ciclo']['estado_registrado'] == 'en_curso'
+    assert {p:p.read_bytes() for p in original} == original
+
+
+def test_marcador_ilegible_bloquea_sin_anunciar_ciclo_en_marcha(tmp_path):
+    """050:RF-4/10 — un dueño ilegible se conserva y no se presenta como trabajo ejecutándose."""
+    inst, reg, calls = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg'), []
+    stages = [_etapa('pinn', _candidato(reg,'pinn'), calls)]
+    key = ac.clave_ciclo(inst['snapshot_id'], ['pinn'], CTX)
+    marker = tmp_path/'ap/ciclos'/key/'en_curso';marker.parent.mkdir(parents=True)
+    marker.write_bytes(b'{ilegible')
+    result = ac.ejecutar_ciclo(tmp_path/'ap',inst,stages,politica_hash=CTX,presupuesto=PRES,registro=reg)
+    assert result['estado']=='bloqueado' and result['motivos']
+    assert marker.read_bytes()==b'{ilegible' and calls==[]
+
+
+def test_ciclo_reanuda_despues_de_muerte_real_del_proceso(tmp_path):
+    """050:RF-4/10 — morir sin finally libera la guardia OS y conserva el diario para reanudar."""
+    import subprocess
+    import sys
+
+    inst, reg, calls = _instantanea(tmp_path), RegistroModelo(tmp_path/'reg'), []
+    cid = _candidato(reg,'pinn');root=tmp_path/'ap'
+    script = '''import sys,os
+sys.path.insert(0,sys.argv[1])
+from convertersmartgrid import aprendizaje_continuo as ac
+from convertersmartgrid.model_registry import RegistroModelo
+from convertersmartgrid.training_coordinator import TrainingStage
+inst=ac.verificar_instantanea(sys.argv[3])
+ac.ejecutar_ciclo(sys.argv[2],inst,[TrainingStage('pinn',lambda:os._exit(73),uses_gpu=False)],
+    politica_hash=sys.argv[5],presupuesto=ac.Presupuesto(tiempo_s=3600,memoria_gib=1,usa_gpu=False),
+    registro=RegistroModelo(sys.argv[4]))
+'''
+    child = subprocess.run([sys.executable,'-B','-c',script,str(RAIZ/'src'),str(root),str(inst['ruta']),
+                            str(tmp_path/'reg'),CTX],capture_output=True,timeout=20)
+    assert child.returncode==73,child.stderr.decode('utf-8','replace')
+    key=ac.clave_ciclo(inst['snapshot_id'],['pinn'],CTX);marker=root/'ciclos'/key/'en_curso'
+    abandoned=marker.read_bytes()
+    assert ac.estado_aprendizaje(root)['ultimo_ciclo']['estado']=='interrumpido'
+    assert marker.read_bytes()==abandoned
+    result=ac.ejecutar_ciclo(root,inst,[_etapa('pinn',cid,calls)],politica_hash=CTX,presupuesto=PRES,registro=reg)
+    assert result['estado']=='terminado' and calls==['pinn']
+    assert not marker.exists() and (marker.parent/'en_curso.guard').is_file()
+
+
 def test_ciclo_no_da_por_inmutable_una_copia_modificada_por_trabajador(tmp_path):
     """050:RF-1, 050:RF-8 — también se verifica la instantánea al terminar las etapas."""
     inst, reg = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg')

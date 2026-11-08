@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import tempfile
 
 
 def escribir_informe(ruta: Path, datos: dict) -> None:
@@ -63,11 +62,13 @@ def entorno_hijo_gpu() -> dict[str, str]:
     Con la guardia tomada aquí, un hijo sin el token la encuentra ocupada; es el caso de la
     reapertura en otro proceso de un candidato de pronóstico (046:RF-7).
     """
+    from .training_coordinator import proceso_vivo, ruta_guardia_gpu
     entorno = dict(os.environ)
-    ruta = Path(entorno.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+    ruta = ruta_guardia_gpu(entorno).resolve()
+    entorno['CSG_ML_GPU_LOCK'] = str(ruta)
     if ruta.is_file():
         dueno = json.loads(ruta.read_text(encoding='utf-8'))
-        if dueno.get('pid') == os.getpid():
+        if dueno.get('pid') == os.getpid() and proceso_vivo(dueno['pid'], creado=dueno.get('creado')):
             entorno['CSG_GPU_PARENT_TOKEN'] = dueno['token']
     return entorno
 
@@ -75,8 +76,8 @@ def entorno_hijo_gpu() -> dict[str, str]:
 @contextmanager
 def turno_gpu(nombre: str):
     """Un hijo hereda solo la guardia demostrablemente conservada por su padre."""
-    from .training_coordinator import BloqueoGPU,proceso_vivo
-    ruta=Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock'))
+    from .training_coordinator import BloqueoGPU,proceso_vivo,ruta_guardia_gpu
+    ruta=ruta_guardia_gpu()
     token=os.environ.get('CSG_GPU_PARENT_TOKEN')
     if token:
         estado=json.loads(ruta.read_text(encoding='utf-8'))
@@ -84,7 +85,8 @@ def turno_gpu(nombre: str):
         # El redirector python.exe del venv Windows puede interponerse entre padre e hijo.
         ancestros={p.pid for p in psutil.Process().parents()}
         padre=estado.get('pid',0)
-        if (padre not in ancestros or estado.get('token')!=token or not proceso_vivo(padre)):
+        if (padre not in ancestros or estado.get('token')!=token
+                or not proceso_vivo(padre, creado=estado.get('creado'))):
             raise RuntimeError('guardia GPU heredada no corresponde al padre vivo')
         yield
     else:

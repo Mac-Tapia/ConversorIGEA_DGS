@@ -20,12 +20,13 @@ from pathlib import Path
 import re
 import shutil
 import time
+import uuid
 from typing import Any
 
 from .experimentos import ContextoExperimento, clave_contexto
 from .model_registry import EstadoModelo, RegistroModelo
 from .runtime_paths import staging_publicacion
-from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage, pid_vivo
+from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage, abrir_guardia_exclusiva, pid_vivo
 
 ESQUEMA_INSTANTANEA = 'convertersmartgrid-learning-snapshot-v1'
 ESQUEMA_INSTANTANEA_MULTIPROYECTO = 'convertersmartgrid-learning-snapshot-v2'
@@ -452,8 +453,65 @@ def _activos(registro: RegistroModelo, familias: Iterable[str]) -> dict[str, str
     return salida
 
 
+def _leer_propietario(marca: Path) -> dict[str, Any]:
+    """050:RF-4/10 — conserva lectura de PID heredado y valida la identidad del formato nuevo."""
+    texto = marca.read_text(encoding='utf-8').strip()
+    if texto.isdecimal() and int(texto) > 0:
+        return {'pid': int(texto)}
+    datos = json.loads(texto)
+    if (not isinstance(datos, dict) or datos.get('schema') != 'convertersmartgrid-cycle-owner-v1'
+            or type(datos.get('pid')) is not int or datos['pid'] <= 0
+            or type(datos.get('creado')) not in (int, float) or not math.isfinite(datos['creado'])
+            or datos['creado'] <= 0 or not isinstance(datos.get('token'), str)
+            or not re.fullmatch(r'[0-9a-f]{32}', datos['token'])):
+        raise ValueError('El marcador no identifica un propietario válido.')
+    return datos
+
+
+def _propietario_activo(propietario: Mapping[str, Any]) -> bool:
+    """050:RF-4 — un marcador heredado sigue siendo conservador si su PID está vivo."""
+    identidad = {'creado': propietario['creado']} if 'creado' in propietario else {}
+    return pid_vivo(propietario['pid'], **identidad)
+
+
+def _retirar_marca_propia(marca: Path, token: str) -> None:
+    """050:RF-4 — salir o fallar no retira un marcador que pertenezca a otro arranque."""
+    try:
+        if _leer_propietario(marca).get('token') == token:
+            marca.unlink()
+    except (OSError, ValueError):
+        pass
+
+
 def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Sequence[TrainingStage], *,
                    politica_hash: str, presupuesto: Presupuesto, registro: RegistroModelo,
+                   operador_ocupado: Callable[[], bool] = lambda: False,
+                   memoria_libre_gib: Callable[[], float] | None = None,
+                   reloj: Callable[[], float] = time.monotonic,
+                   liberar_ollama: Callable[[], Any] = lambda: None) -> dict[str, Any]:
+    """050:RF-4 — exclusión por ciclo antes del preflight, también para etapas sin GPU."""
+    instantanea = verificar_instantanea(instantanea['ruta'])
+    etapas = tuple(etapas)
+    clave = clave_ciclo(instantanea['snapshot_id'], [e.name for e in etapas], politica_hash)
+    carpeta = Path(raiz) / 'ciclos' / clave
+    try:
+        guardia = abrir_guardia_exclusiva(carpeta / 'en_curso.guard')
+    except BlockingIOError:
+        return {'clave': clave, 'estado': 'en_curso', 'repetido': True}
+    token = uuid.uuid4().hex
+    try:
+        return _ejecutar_ciclo_en_exclusion(raiz, instantanea, etapas, politica_hash=politica_hash,
+            presupuesto=presupuesto, registro=registro, propietario_token=token,
+            operador_ocupado=operador_ocupado, memoria_libre_gib=memoria_libre_gib,
+            reloj=reloj, liberar_ollama=liberar_ollama)
+    finally:
+        _retirar_marca_propia(carpeta / 'en_curso', token)
+        guardia.close()
+
+
+def _ejecutar_ciclo_en_exclusion(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Sequence[TrainingStage], *,
+                   politica_hash: str, presupuesto: Presupuesto, registro: RegistroModelo,
+                   propietario_token: str,
                    operador_ocupado: Callable[[], bool] = lambda: False,
                    memoria_libre_gib: Callable[[], float] | None = None,
                    reloj: Callable[[], float] = time.monotonic,
@@ -465,7 +523,6 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     cuenta el modelo en uso, porque el conjunto se publica entero o no se publica.
     """
     raiz = Path(raiz)
-    instantanea = verificar_instantanea(instantanea['ruta'])
     familias = [e.name for e in etapas]
     clave = clave_ciclo(instantanea['snapshot_id'], familias, politica_hash)
     carpeta = raiz / 'ciclos' / clave
@@ -478,10 +535,11 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     marca = carpeta / 'en_curso'
     if marca.exists():
         try:
-            pid = int(marca.read_text(encoding='utf-8').strip() or 0)
+            propietario = _leer_propietario(marca)
         except (OSError, ValueError):
-            pid = -1
-        if pid < 0 or pid_vivo(pid):
+            return {'clave': clave, 'estado': 'bloqueado', 'repetido': True,
+                    'motivos': ['El marcador del proceso no es legible o válido; se conserva.']}
+        if _propietario_activo(propietario):
             return {'clave': clave, 'estado': 'en_curso', 'repetido': True}
         # El proceso murió a mitad: se retoma con la reanudación del coordinador, no se empieza otro.
         marca.unlink(missing_ok=True)
@@ -492,7 +550,7 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     def cerrar(estado: str, motivos: Sequence[str], **extra) -> dict[str, Any]:
         fila = {**base, 'estado': estado, 'motivos': list(motivos), 'fin': _ahora(), **extra}
         _escribir(ruta, fila)
-        (carpeta / 'en_curso').unlink(missing_ok=True)
+        _retirar_marca_propia(carpeta / 'en_curso', propietario_token)
         if estado == 'bloqueado':
             registrar_bloqueo(raiz, 'ciclo', motivos, clave=clave)
         return fila
@@ -508,7 +566,9 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
                       reintentable=True)
     if not presupuesto.usa_gpu and any(e.uses_gpu for e in etapas):
         return cerrar('bloqueado', ['el presupuesto no admite GPU y hay etapas que la piden'])
-    (carpeta / 'en_curso').write_text(str(os.getpid()), encoding='utf-8')
+    import psutil
+    _escribir(carpeta / 'en_curso', {'schema': 'convertersmartgrid-cycle-owner-v1',
+        'pid': os.getpid(), 'creado': psutil.Process().create_time(), 'token': propietario_token})
     # 050:RF-4/10: publicar antes de trabajar; el operador debe poder consultar la
     # identidad real y pedir cancelación mientras se ejecuta cualquier etapa.
     _escribir(ruta, {**base, 'estado': 'en_curso', 'motivos': []})
@@ -850,15 +910,13 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
             if ciclo['estado'] == 'en_curso':
                 estado_proceso, motivo_proceso = 'en_curso', ''
                 try:
-                    pid = int((ruta.parent / 'en_curso').read_text(encoding='utf-8').strip())
-                    if pid <= 0:
-                        raise ValueError('PID no positivo')
+                    propietario = _leer_propietario(ruta.parent / 'en_curso')
                 except FileNotFoundError:
                     estado_proceso, motivo_proceso = 'interrumpido', 'No consta un proceso activo; falta reanudar el ciclo.'
                 except (OSError, ValueError):
                     estado_proceso, motivo_proceso = 'bloqueado', 'El marcador del proceso no es legible o válido.'
                 else:
-                    if not pid_vivo(pid):
+                    if not _propietario_activo(propietario):
                         estado_proceso, motivo_proceso = 'interrumpido', 'El proceso ya no está activo; falta reanudar el ciclo.'
                 if estado_proceso != 'en_curso':
                     # El diario es historia: la consulta deriva el estado sin reescribirlo.

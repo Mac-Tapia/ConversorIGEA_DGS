@@ -32,9 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 
@@ -113,7 +111,7 @@ def main(argv=None) -> int:
                 raise ValueError('épocas positivas obligatorias')
             from convertersmartgrid.asistente import almacen, clasificador, transformer
             from convertersmartgrid.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
-            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             destino = salida.parent / (salida.stem + '_integral')
             vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
                      else almacen.leer_json('vocabulario') or {})
@@ -129,7 +127,7 @@ def main(argv=None) -> int:
             # 075:RF-28: una confirmada igual a una fija de prueba no entrena, como la plata (027:RF-66).
             from convertersmartgrid.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
             fijas_de_prueba = [e.texto for e in repartir_fijas(generar_fijas(vocab))[1]] if args.validacion_cruzada else []
-            lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+            lock = ruta_guardia_gpu()
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
                     cfg=codificador_ordenes.Configuracion(

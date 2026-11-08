@@ -11,7 +11,7 @@
       "evidence": []
     },
     "P01": {
-      "state": "dependencias_instaladas_interprete_3_12_16_en_preparacion_auditoria_parcial",
+      "state": "runtime316_compilado_instalado_compatibilidad_tecnica_verificada_entorno_integral316_en_migracion",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
@@ -19,7 +19,11 @@
         "p01_entorno_integral_20261108/instalacion_dependencias.json",
         "p01_entorno_integral_20261108/comprobacion_uso/resultado.json",
         "p01_entorno_integral_20261108/comprobacion_corregida.json",
-        "p01_entorno_integral_20261108/auditoria_instalada.json"
+        "p01_entorno_integral_20261108/auditoria_instalada.json",
+        "p01_python316_20261108.json",
+        "p22_runtime_api_f56ef508/resultado.json",
+        "p01_venv316_20261108/creacion.json",
+        "p01_venv316_20261108/runtime.json"
       ]
     },
     "P02": {
@@ -27,7 +31,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "fallos_verificador_y_codificacion_corregidos_regresion_final_pendiente",
+      "state": "mcp9_y_conversiones_referencia561_verificadas_puerta_final_completa_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -45,7 +49,11 @@
         "p03_pid_rojo.log",
         "p03_pid_verde.xml",
         "p03_p22_integracion.xml",
-        "p03_p22_catalogo.xml"
+        "p03_p22_catalogo.xml",
+        "p03_mcp_f56ef508/20261108T110752Z_37b8cc74dbad4e97ba234704d120b28e/registro.json",
+        "p03_referencias_independientes_56172510.json",
+        "p03_lineas_base_561_f56_guardia/20261108T113345Z_eaa99d59c1844457a04055f2b523960e/registro.json",
+        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json"
       ]
     },
     "P04": {
@@ -160,7 +168,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "interrupcion_y_cancelacion_web_cli_verificadas_ciclo_real_pendiente",
+      "state": "guardias_os_ciclo_pid_y_gpu_compartida_corregidas_productores_y_campana_real_pendientes",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -224,7 +232,16 @@
         "p19_p22_cierre.xml",
         "p19_interrumpido_front_final.log",
         "p19_interrumpido_typecheck.log",
-        "p19_interrumpido_build.log"
+        "p19_interrumpido_build.log",
+        "p19_guardia_proceso_rojo.xml",
+        "p19_guardia_proceso_verde.xml",
+        "p19_guardia_negativas_rojo.xml",
+        "p19_gpu_tmp_rojo.xml",
+        "p19_gpu_tmp_verde.xml",
+        "p19_guardia_integracion_v2.xml",
+        "p19_guardia_final.xml",
+        "p19_puerta_torch_ia.xml",
+        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json"
       ]
     },
     "P20": {
@@ -236,7 +253,7 @@
       "evidence": []
     },
     "P22": {
-      "state": "copia_v2_corregida_datos_reales_verificados_paquete_final_y_update_pendientes",
+      "state": "rc5_setup_update_rollback_reapertura_y_ia_cuda_verificados_aceptacion_final_y_nuevo_corte_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -272,7 +289,18 @@
         "p22_copia_v2_final_corregida.xml",
         "p22_copia_v2_datos_reales_verificacion_v2/resultado.json",
         "p22_correccion_trazabilidad_git_v2_20261108/resultado.json",
-        "p22_instaladores_c9767f69/NO_PUBLICAR.json"
+        "p22_instaladores_c9767f69/NO_PUBLICAR.json",
+        "p22_candidato_f56ef508/manifiesto_candidato.json",
+        "p22_instaladores_f56ef508/compilacion.json",
+        "p22_update_f56ef508/resultado.json",
+        "p22_web_despues_update_v2_f56ef508/resultado.json",
+        "p22_rollback_f56ef508/resultado.json",
+        "p22_web_despues_rollback_v2_f56ef508/resultado.json",
+        "p22_restablecer_rc5_f56ef508/resultado.json",
+        "p22_zip_complemento_f56ef508.json",
+        "p22_ensayo_complemento_f56ef508/resultado.json",
+        "p22_validacion_complemento_f56ef508.json",
+        "p22_runtime_api_f56ef508/stdout.json"
       ]
     },
     "P23": {

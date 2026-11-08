@@ -52,6 +52,68 @@ def test_dos_procesos_reales_no_adquieren_el_mismo_lock(tmp_path):
     assert proc.returncode == 0 and not lock.exists()
 
 
+def test_pid_reutilizado_no_conserva_bloqueo_ni_se_termina_el_proceso(tmp_path):
+    """043:RF-6 — fecha distinta permite recuperar el lock sin señalar al proceso real ajeno."""
+    import psutil
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+
+    script = 'import os,json,psutil,sys;print(json.dumps({"pid":os.getpid(),"creado":psutil.Process().create_time()}),flush=True);sys.stdin.readline()'
+    process = subprocess.Popen([sys.executable,'-B','-c',script],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,text=True)
+    lock = tmp_path / 'gpu.lock'
+    try:
+        owner = json.loads(process.stdout.readline())
+        lock.write_text(json.dumps({'pid':owner['pid'], 'creado':owner['creado']-60, 'model':'anterior'}),encoding='utf-8')
+        with BloqueoGPU(lock,'nuevo'):
+            current = json.loads(lock.read_text(encoding='utf-8'))
+            assert current['pid'] == os.getpid()
+            assert current['creado'] == psutil.Process().create_time()
+            assert process.poll() is None
+        assert process.poll() is None
+    finally:
+        process.communicate('\n',timeout=10)
+    assert process.returncode == 0
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='El aislamiento de TEMP corresponde al puesto Windows.')
+def test_temporales_distintos_no_habilitan_dos_guardias_gpu(tmp_path):
+    """043:RF-6 — dos procesos Windows con TEMP propios compiten por el mismo turno por defecto."""
+    env = {k:v for k,v in os.environ.items() if k!='CSG_ML_GPU_LOCK'}
+    local = tmp_path/'local';local.mkdir();env['LOCALAPPDATA']=str(local)
+    one, two = tmp_path/'tmp1',tmp_path/'tmp2';one.mkdir();two.mkdir()
+    def isolated(folder):return {**env,**{k:str(folder) for k in ('TEMP','TMP','TMPDIR')}}
+    script = '''import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from convertersmartgrid.training_coordinator import BloqueoGPU,TrainingCoordinator
+lock=TrainingCoordinator([],Path(sys.argv[2])).gpu_lock
+with BloqueoGPU(lock,'ensayo sin CUDA'):
+    print('LOCKED',flush=True)
+    sys.stdin.readline()
+'''
+    src=Path(__file__).resolve().parents[1]/'src'
+    child=subprocess.Popen([sys.executable,'-B','-c',script,str(src),str(tmp_path/'run1')],
+                           env=isolated(one),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    try:
+        assert child.stdout.readline().strip()=='LOCKED'
+        other=subprocess.run([sys.executable,'-B','-c',script,str(src),str(tmp_path/'run2')],
+                             env=isolated(two),input='\n',capture_output=True,text=True,timeout=15)
+        assert other.returncode!=0 and 'ocupada' in other.stderr and 'LOCKED' not in other.stdout
+        assert child.poll() is None
+    finally:
+        child.communicate('\n',timeout=10)
+    assert child.returncode==0
+
+
+def test_lanzadores_no_duplican_la_ruta_del_turno_gpu():
+    """043:RF-6 — todos resuelven el turno común; un fallback por TEMP rompe la exclusión."""
+    root=Path(__file__).resolve().parents[1]
+    paths=['src/convertersmartgrid/trabajadores_ml.py','tools/aceptar_agente.py',
+           'tools/asistente_entrenar.py','tools/asistente_destilar.py','tools/reentrenar_modelos.py']
+    duplicated=[p for p in paths if 'convertersmartgrid-gpu.lock' in (root/p).read_text(encoding='utf-8')]
+    assert duplicated==[],duplicated
+
+
 def test_orden_reanudacion_y_liberacion_entre_fases(tmp_path):
     from convertersmartgrid.training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage
 
@@ -161,6 +223,15 @@ def test_token_inventado_no_hereda_la_guardia(tmp_path, monkeypatch):
         assert ocupado.returncode != 0 and 'ocupada' in ocupado.stderr and 'ENTRO' not in ocupado.stdout
         falso = hijo({**sin_token, 'CSG_GPU_PARENT_TOKEN': 'inventado'})
         assert falso.returncode != 0 and 'no corresponde' in falso.stderr and 'ENTRO' not in falso.stdout
+        owner = json.loads(lock.read_text(encoding='utf-8'))
+        original = lock.read_bytes()
+        try:
+            lock.write_text(json.dumps({**owner,'creado':owner['creado']-60}),encoding='utf-8')
+            inicio_ajeno = hijo({**sin_token,'CSG_GPU_PARENT_TOKEN':owner['token']})
+            assert inicio_ajeno.returncode != 0 and 'no corresponde' in inicio_ajeno.stderr
+            assert 'ENTRO' not in inicio_ajeno.stdout
+        finally:
+            lock.write_bytes(original)
 
 
 #: Lo que entrena de verdad: una llamada a cualquiera de ellos fuera del turno pelea por la misma GPU.

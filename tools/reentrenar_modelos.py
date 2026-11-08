@@ -10,7 +10,6 @@ import sys
 import uuid
 import os
 import shutil
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -57,11 +56,8 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     if reporte.exists():
         # Un proceso que termina sin escribir no puede heredar el éxito anterior.
         reporte.rename(reporte.with_name(f'{reporte.stem}.previous.{uuid.uuid4().hex}.json'))
-    env=os.environ.copy();env.pop('CSG_GPU_PARENT_TOKEN',None)
-    lock=Path(env.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock'))
-    if lock.is_file():
-        dueno=_leer(lock)
-        if dueno.get('pid')==os.getpid():env['CSG_GPU_PARENT_TOKEN']=dueno['token']
+    from convertersmartgrid.trabajadores_ml import entorno_hijo_gpu
+    env=entorno_hijo_gpu()
     p = subprocess.run(comando, cwd=cwd, capture_output=True, text=True, check=False,env=env,
                        encoding='utf-8',errors='replace')
     log.write_text((p.stdout or '') + ('\n[stderr]\n' + p.stderr if p.stderr else ''), encoding='utf-8')

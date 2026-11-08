@@ -5,13 +5,13 @@ from .runtime_paths import staging_publicacion
 
 import json
 import hashlib
+import math
 import os
-import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .model_registry import EstadoModelo
 
@@ -62,9 +62,21 @@ def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> 
     return estado
 
 
-def proceso_vivo(pid: int) -> bool:
+def proceso_vivo(pid: int, *, creado: float | None = None) -> bool:
+    """043:RF-6 — consulta sin señales; una fecha registrada distingue reutilización de PID."""
     if pid <= 0:
         return False
+    if creado is not None:
+        # Metadatos dudosos o un proceso inaccesible no autorizan recuperar su recurso.
+        if type(creado) not in (int, float) or not math.isfinite(creado) or creado <= 0:
+            return True
+        import psutil
+        try:
+            return psutil.Process(pid).create_time() == creado
+        except psutil.NoSuchProcess:
+            return False
+        except psutil.AccessDenied:
+            return True
     if os.name == 'nt':
         # En Windows `os.kill(pid, 0)` puede terminar el proceso; OpenProcess consulta
         # existencia/permisos sin enviar señal alguna.
@@ -92,17 +104,31 @@ def proceso_vivo(pid: int) -> bool:
 #: Lectura pública para otros módulos de aplicación (050: marca de un ciclo en curso).
 pid_vivo = proceso_vivo
 
-class BloqueoGPU:
-    def __init__(self, ruta: Path | str, model: str):
-        self.ruta, self.model = Path(ruta), model
-        self.token = uuid.uuid4().hex
-        self._guardia = None
 
-    def __enter__(self):
-        self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        # 043:RF-6: la guardia OS permanece en disco; cerrar el descriptor libera
-        # el bloqueo incluso al morir el proceso. Nunca se borra su inode.
-        guardia = self.ruta.with_name(self.ruta.name + '.guard').open('a+b')
+def ruta_guardia_gpu(environ: Mapping[str, str] | None = None) -> Path:
+    """043:RF-6 — un mismo recurso físico no cambia de turno al aislar TEMP por ejecución."""
+    env = os.environ if environ is None else environ
+    if env.get('CSG_ML_GPU_LOCK'):
+        return Path(env['CSG_ML_GPU_LOCK'])
+    if os.name == 'nt':
+        # Nombre histórico en el temporal estándar del usuario, sin los TEMP/TMP del trabajo.
+        local = Path(env.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local')
+        base = local / 'Temp'
+    else:
+        base = Path('/tmp')
+    return base / 'convertersmartgrid-gpu.lock'
+
+
+def abrir_guardia_exclusiva(ruta: Path | str):
+    """043:RF-6 y 050:RF-4 — devuelve el archivo bloqueado; cerrarlo libera la guardia OS.
+
+    El inode permanece: borrar el archivo de guardia permitiría bloquear dos archivos
+    distintos con el mismo nombre. El bloqueo se libera también al morir el proceso.
+    """
+    ruta = Path(ruta)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    guardia = ruta.open('a+b')
+    try:
         if guardia.seek(0, os.SEEK_END) == 0:
             guardia.write(b'1')
             guardia.flush()
@@ -114,8 +140,26 @@ class BloqueoGPU:
             else:
                 import fcntl
                 fcntl.flock(guardia.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            guardia.close()
+        except OSError as exc:
+            raise BlockingIOError('Otro proceso conserva la guardia del recurso.') from exc
+        return guardia
+    except BaseException:
+        guardia.close()
+        raise
+
+
+class BloqueoGPU:
+    def __init__(self, ruta: Path | str, model: str):
+        self.ruta, self.model = Path(ruta), model
+        self.token = uuid.uuid4().hex
+        self._guardia = None
+
+    def __enter__(self):
+        # 043:RF-6: la guardia OS permanece en disco; cerrar el descriptor libera
+        # el bloqueo incluso al morir el proceso. Nunca se borra su inode.
+        try:
+            guardia = abrir_guardia_exclusiva(self.ruta.with_name(self.ruta.name + '.guard'))
+        except BlockingIOError:
             raise RuntimeError('GPU ocupada: otro proceso conserva la guardia') from None
         self._guardia = guardia
         try:
@@ -136,7 +180,7 @@ class BloqueoGPU:
                     raise RuntimeError('GPU ocupada: lock ilegible; se conserva fail-closed') from None
                 if not isinstance(previo, dict) or type(previo.get('pid')) is not int or previo['pid'] <= 0:
                     raise RuntimeError('GPU ocupada: lock sin propietario válido; se conserva')
-                if proceso_vivo(previo['pid']):
+                if proceso_vivo(previo['pid'], creado=previo.get('creado')):
                     raise RuntimeError(f'GPU ocupada por PID {previo.get("pid")} ({previo.get("model")})')
                 try:
                     self.ruta.unlink()
@@ -144,9 +188,11 @@ class BloqueoGPU:
                     pass
                 continue
             else:
-                payload = {'pid': os.getpid(), 'model': self.model, 'token': self.token,
-                           'started_at': datetime.now(timezone.utc).isoformat()}
                 with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    import psutil
+                    payload = {'pid': os.getpid(), 'creado': psutil.Process().create_time(),
+                               'model': self.model, 'token': self.token,
+                               'started_at': datetime.now(timezone.utc).isoformat()}
                     json.dump(payload, f)
                 return self
         raise RuntimeError('GPU ocupada: no se pudo adquirir el lock')
@@ -193,8 +239,7 @@ class TrainingCoordinator:
         self.config_hash = config_hash or hashlib.sha256(json.dumps(
             [(s.name, s.uses_gpu) for s in self.stages]).encode()).hexdigest()
         # 043:RF-6: el recurso compartido es la GPU, no el directorio de cada corrida.
-        self.gpu_lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or
-                             str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
+        self.gpu_lock = ruta_guardia_gpu()
         self.liberar_ollama, self.liberar_cuda = liberar_ollama, liberar_cuda
 
     def _escribir(self, ruta: Path, payload: dict[str, Any]) -> None:
