@@ -93,6 +93,12 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
 
 ## Riesgos
 
+- RF-23: `pf_proyectos.leer` usa ruta nativa completa, verifica la activación y
+  restituye el proyecto previo en `finally`. La comprobación del retorno no sustituye
+  la relectura de identidad. Las regresiones cubren wrappers distintos, retorno 0 sin
+  activación, retorno 1 confirmado y restitución fallida. La corrida nativa se repite
+  antes de aceptar CA101/PE104; no basta el doble de PowerFactory.
+
 - `Move` sobre un proyecto recién importado puede fallar si DIgSILENT lo deja activo o
   bloqueado tras `ComImport`; se detecta en la prueba manual y el error nombra la carpeta.
 - La estructura de carpetas `netdat` puede variar en proyectos hechos a mano: RF-18 lo cubre.

@@ -1,6 +1,6 @@
 # Spec 005 — Carpeta de proyectos importados en DIgSILENT
 
-Estado: cumplida (2026-11-05, T12 en DIgSILENT) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
+Estado: implementada (2026-11-07, revalidación RF-23/T15 pendiente) · cumplida previa (2026-11-05, T12 en DIgSILENT) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
 
 ## Contexto y objetivo
 
@@ -94,6 +94,13 @@ PowerFactory que no responde (añadido el 2026-10-14)
   obsoletas), salvo el que esté activo, y lo dirá. Solo cuentan los del sello del conversor: los hechos a
   mano, los respaldos y los de otra carpeta no se tocan. Usuario (2026-11-03): «los duplicados en cualquier
   [caso] debe ser eliminado el de la versión obsoleta»; en Pisco quedaban cinco `…_CSG_SISTEMA_PISCO`.
+- RF-23: CUANDO relee los proyectos, EL SISTEMA comparará su identidad nativa por la ruta
+  completa, aunque la API entregue otro wrapper Python. No volverá a activar el proyecto
+  ya activo. Después de activar verificará esa identidad antes de calcular su huella;
+  un retorno 0 o 1 sin identidad confirmada no acredita la relectura. Restituirá el
+  proyecto previo y comprobará la restitución, incluso ante un fallo de lectura.
+  Hallado el 2026-11-07: CA101/PE104 se importaba y convergía, pero el plan de calibración
+  se bloqueaba al confundir otro wrapper del proyecto activo con otro proyecto.
 
 ## Requisitos no funcionales
 

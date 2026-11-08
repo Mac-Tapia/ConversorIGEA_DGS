@@ -41,6 +41,37 @@ from convertersmartgrid.carpeta_pf import (  # noqa: E402
 from convertersmartgrid.powerfactory_binding import native_inventory_evidence  # noqa: E402
 
 
+def _misma_identidad(a, b):
+    if a is None or b is None:
+        return a is None and b is None
+    ruta = a.GetFullName()
+    return bool(ruta) and ruta == b.GetFullName()
+
+
+def _activar_verificado(app, proyecto):
+    # 005:RF-23: dos wrappers pueden representar el mismo objeto nativo.
+    if _misma_identidad(app.GetActiveProject(), proyecto):
+        return
+    rc = proyecto.Activate()
+    if rc not in (None, 0, 1) or not _misma_identidad(app.GetActiveProject(), proyecto):
+        raise RuntimeError(f'Activate devolvió {rc}; no se confirmó {proyecto.GetFullName()}')
+
+
+def _restituir(app, anterior):
+    if _misma_identidad(app.GetActiveProject(), anterior):
+        return
+    try:
+        if anterior is None:
+            activo = app.GetActiveProject()
+            rc = activo.Deactivate() if activo is not None else 0
+            if rc not in (None, 0) or app.GetActiveProject() is not None:
+                raise RuntimeError(f'Deactivate devolvió {rc}')
+        else:
+            _activar_verificado(app, anterior)
+    except Exception as exc:
+        raise RuntimeError(f'No se pudo restituir el proyecto activo previo: {exc}') from exc
+
+
 def leer(app, carpeta: str) -> dict:
     """``{'folder', 'exists', 'aviso', 'projects': [{name, path, feeders}]}``."""
     destino = buscar_carpeta(app.GetCurrentUser(), carpeta)
@@ -50,40 +81,35 @@ def leer(app, carpeta: str) -> dict:
                           'importar el primer DGS.')}
     proyectos = []
     anterior = app.GetActiveProject()
-    for ruta, prj in proyectos_de(destino):
-        try:
-            feeders, nota = alimentadores_de(prj)
-        except Exception as exc:          # un proyecto dañado no tumba la lista
-            print(f'  {ruta}: no se pudo leer ({exc})')
-            feeders, nota = [], None
-        if nota:
-            print(f'  AVISO {nota}')
-        native_hash = None
-        native_manifest = None
-        native_reread_at = None
-        native_warning = None
-        try:
-            if app.GetActiveProject() is not prj:
-                rc = prj.Activate()
-                if rc not in (None, 0):
-                    raise RuntimeError(f'Activate devolvió {rc}')
-            native_hash, native_manifest = native_inventory_evidence(app, feeders)
-            native_reread_at = time.time()
-        except Exception as exc:
-            native_warning = f'No se pudo releer la identidad nativa: {exc}'
-        proyectos.append({
-            'name': prj.loc_name, 'path': ruta, 'feeders': feeders,
-            'native_inventory_sha256': native_hash,
-            'native_inventory_manifest': native_manifest,
-            'native_reread_at': native_reread_at,
-            'native_warning': native_warning,
-        })
-        print(f'  {ruta}: {len(feeders)} alimentador(es)')
-    active = app.GetActiveProject()
-    if active is not None and active is not anterior:
-        active.Deactivate()
-    if anterior is not None and app.GetActiveProject() is not anterior:
-        anterior.Activate()
+    try:
+        for ruta, prj in proyectos_de(destino):
+            try:
+                feeders, nota = alimentadores_de(prj)
+            except Exception as exc:          # un proyecto dañado no tumba la lista
+                print(f'  {ruta}: no se pudo leer ({exc})')
+                feeders, nota = [], None
+            if nota:
+                print(f'  AVISO {nota}')
+            native_hash = None
+            native_manifest = None
+            native_reread_at = None
+            native_warning = None
+            try:
+                _activar_verificado(app, prj)
+                native_hash, native_manifest = native_inventory_evidence(app, feeders)
+                native_reread_at = time.time()
+            except Exception as exc:
+                native_warning = f'No se pudo releer la identidad nativa: {exc}'
+            proyectos.append({
+                'name': prj.loc_name, 'path': ruta, 'feeders': feeders,
+                'native_inventory_sha256': native_hash,
+                'native_inventory_manifest': native_manifest,
+                'native_reread_at': native_reread_at,
+                'native_warning': native_warning,
+            })
+            print(f'  {ruta}: {len(feeders)} alimentador(es)')
+    finally:
+        _restituir(app, anterior)
     return {'folder': carpeta, 'exists': True, 'aviso': None, 'projects': proyectos}
 
 

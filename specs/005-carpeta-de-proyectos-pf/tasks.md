@@ -64,3 +64,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
 - [x] T14. Al importar, se eliminan las versiones anteriores del mismo proyecto. (RF-22)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
+- [ ] T15. [DIgSILENT] Verificar identidad por ruta y restitución durante la relectura. (RF-23)
+      Hecho cuando: regresiones de `tests/test_carpeta_pf.py` y
+      `tests/test_powerfactory_binding.py` en verde, y la relectura nativa de
+      CA101/PE104 produce huella sin aviso y permite continuar el plan de calibración.

@@ -541,6 +541,71 @@ def test_leer_sin_carpeta():
     assert "'Red'" in datos['aviso'] and 'primer DGS' in datos['aviso']
 
 
+def test_leer_proyecto_activo_con_otro_wrapper(monkeypatch):
+    """005:RF-23 — la identidad nativa no es la identidad del wrapper Python."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    prj = _proyecto(app, carpeta, 'SI213')
+    prj.Activate()
+
+    class Wrapper:
+        def __getattr__(self, nombre):
+            return getattr(prj, nombre)
+
+    monkeypatch.setattr(app, 'GetActiveProject', lambda: Wrapper())
+    activaciones = []
+    monkeypatch.setattr(prj, 'Activate', lambda: activaciones.append(True) or 1)
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert datos['projects'][0]['native_warning'] is None
+    assert datos['projects'][0]['native_inventory_sha256']
+    assert activaciones == []
+
+
+@pytest.mark.parametrize('retorno', [None, 0, 1])
+def test_leer_exige_relectura_de_proyecto_activado(monkeypatch, retorno):
+    """005:RF-23 — ni el cero sustituye comprobar la ruta activa."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    prj = _proyecto(app, carpeta, 'SI213')
+    monkeypatch.setattr(prj, 'Activate', lambda: retorno)
+    mod = _mod_proyectos()
+    inventarios = []
+    monkeypatch.setattr(mod, 'native_inventory_evidence', lambda *_: inventarios.append(True) or ('hash', []))
+    datos = mod.leer(app, 'Red')
+    assert datos['projects'][0]['native_inventory_sha256'] is None
+    assert datos['projects'][0]['native_warning']
+    assert inventarios == []
+
+
+def test_leer_retorno_uno_con_identidad_confirmada(monkeypatch):
+    """005:RF-23 — retorno 1 solo se acepta con identidad activa confirmada."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    prj = _proyecto(app, carpeta, 'SI213')
+
+    def activar():
+        app.activo = prj
+        return 1
+
+    monkeypatch.setattr(prj, 'Activate', activar)
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert datos['projects'][0]['native_warning'] is None
+    assert datos['projects'][0]['native_inventory_sha256']
+    assert app.GetActiveProject() is None
+
+
+def test_leer_no_oculta_restitucion_fallida(monkeypatch):
+    """005:RF-23 — la lectura falla si no puede restituir el proyecto previo."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _proyecto(app, carpeta, 'SI213')
+    previo = _proyecto(app, app.usuario, 'Anterior')
+    previo.Activate()
+    monkeypatch.setattr(previo, 'Activate', lambda: 0)
+    with pytest.raises(RuntimeError, match='restituir'):
+        _mod_proyectos().leer(app, 'Red')
+
+
 def test_leer_carpeta_vacia_sin_aviso():
     """005:RF-14 — una carpeta que existe y está vacía no es «carpeta inexistente»."""
     app = _app()

@@ -35,8 +35,8 @@
       "evidence": []
     },
     "P07": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "en_curso_fallo_nativo_corregido_relectura_verificada",
+      "evidence": ["p07_corrida.log", "p07_binding_red.log", "p07_binding_green.xml", "p07_relectura_resultado.json"]
     },
     "P08": {
       "state": "pendiente",
@@ -95,8 +95,8 @@
       "evidence": []
     },
     "P22": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "pruebas_enfocadas_verificadas_instalacion_completa_pendiente",
+      "evidence": ["instalacion_verde.log", "instalacion_verde.xml"]
     },
     "P23": {
       "state": "pendiente",
