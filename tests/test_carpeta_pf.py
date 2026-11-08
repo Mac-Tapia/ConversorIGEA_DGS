@@ -882,13 +882,21 @@ def test_guion_de_pf_huerfano_se_reconoce_y_el_de_consola_no():
     assert [p['pid'] for p in huerfanos] == [20]
 
 
-def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path):
+def _exigir_pids_finalizados(pids):
+    """005:RF-21 — cada PID propio debe estar ausente; una consulta fallida no lo confirma."""
+    import psutil
+
+    vivos = [pid for pid in pids if psutil.pid_exists(pid)]
+    assert not vivos, f'Siguen vivos PID propios: {vivos}'
+
+
+def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path, monkeypatch):
     """005:RF-21 — al agotar el arranque se termina el árbol, no solo el lanzador.
 
     Con ``.venv\\Scripts\\python.exe`` el Python real es hijo del lanzador y seguía vivo,
     con PowerFactory, tras ``terminate``.
     """
-    from convertersmartgrid.powerfactory_env import procesos
+    from convertersmartgrid import powerfactory_env as pf_env
     from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     ctx, _registro = _contexto_real()
@@ -899,11 +907,50 @@ def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path):
              'time.sleep(120)')
     rc = ctx.run_process([sys.executable, '-c', padre], limite_arranque_s=3)
     assert rc == TIEMPO_AGOTADO
-    lista = procesos()
-    if not lista:
-        pytest.skip('no se pueden listar los procesos en este equipo')
-    vivos = {p['pid'] for p in lista}
-    assert not {int(x) for x in pids.read_text().split()} & vivos
+    propios = tuple(int(x) for x in pids.read_text().split())
+    assert len(propios) == len(set(propios)) == 2 and all(pid > 0 for pid in propios)
+    # Solo después del cierre real: no reemplazar la enumeración usada para terminar el árbol.
+    monkeypatch.setattr(pf_env, 'procesos', lambda: [])
+    assert pf_env.procesos() == []
+    _exigir_pids_finalizados(propios)
+
+
+def test_comprobar_pids_rechaza_un_hijo_propio_vivo_sin_cim(monkeypatch):
+    """005:RF-21 — un CIM vacío no puede aprobar como muerto al hijo propio aún vivo."""
+    import psutil
+    from convertersmartgrid import powerfactory_env as pf_env
+
+    # Python base evita terminar solo el lanzador del venv y dejar un hijo huérfano.
+    hijo = subprocess.Popen([sys._base_executable, '-I', '-c', 'import time; time.sleep(120)'])
+    try:
+        assert psutil.pid_exists(hijo.pid)
+        monkeypatch.setattr(pf_env, 'procesos', lambda: [])
+        try:
+            with pytest.raises(AssertionError, match=str(hijo.pid)):
+                _exigir_pids_finalizados([hijo.pid])
+        except pytest.skip.Exception:
+            pytest.fail('CIM vacío omitió comprobar el PID propio vivo')
+    finally:
+        hijo.terminate()
+        hijo.wait(timeout=10)
+
+
+def test_comprobar_pids_no_trata_access_denied_como_muerto(monkeypatch):
+    """005:RF-21 — una consulta por PID inaccesible falla, nunca confirma muerte."""
+    import os
+    import psutil
+    from convertersmartgrid import powerfactory_env as pf_env
+
+    def inaccesible(pid):
+        raise psutil.AccessDenied(pid=pid)
+
+    monkeypatch.setattr(pf_env, 'procesos', lambda: [])
+    monkeypatch.setattr(psutil, 'pid_exists', inaccesible)
+    try:
+        with pytest.raises(psutil.AccessDenied):
+            _exigir_pids_finalizados([os.getpid()])
+    except pytest.skip.Exception:
+        pytest.fail('CIM vacío omitió comprobar el PID inaccesible')
 
 
 def _contexto_pf(monkeypatch, limite_s: float):
