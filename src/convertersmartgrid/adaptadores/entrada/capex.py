@@ -20,8 +20,11 @@ def leer_capex_con_procedencia(
     misma selección de hoja/columnas. La escala/moneda son las declaradas por el cálculo;
     este adaptador no convierte valores ni acredita vigencia/aprobación presupuestal.
     """
-    configuracion = deepcopy(dict(config))
-    unidades = deepcopy(dict(contexto_unidades))
+    # Solo las opciones consumidas por el lector y el cálculo: un perfil también
+    # puede contener contactos u otros metadatos que no pertenecen a este recibo.
+    configuracion = deepcopy({k: config[k] for k in ('hoja', 'fila_cabecera_contiene', 'columnas') if k in config})
+    unidades = deepcopy({k: contexto_unidades[k] for k in ('moneda', 'escala_aplicada', 'escala_capex', 'tipo_cambio')
+                         if k in contexto_unidades})
     with abrir_fuente_estable(ruta) as fuente:
         obras, avisos = pide_economia.leer_capex(fuente.stream, configuracion)
         recibo = {
@@ -33,5 +36,8 @@ def leer_capex_con_procedencia(
             'lector': {'read_only': True, 'data_only': True},
             'unidades': sorted({o.unidad for o in obras if o.unidad}),
             'contexto_unidades': unidades,
+            'unidades_no_declaradas': [k for k in ('moneda', 'escala_aplicada')
+                                      if unidades.get(k) in (None, '') and
+                                      not (k == 'escala_aplicada' and unidades.get('escala_capex') is not None)],
         }
     return obras, avisos, recibo

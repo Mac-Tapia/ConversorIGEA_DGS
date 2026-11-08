@@ -8,6 +8,14 @@ El avance/rojos y límites quedan en `p04_procedencia_capex_20261108/HANDOFF.md`
 externo. No se atribuye vigencia por carpeta, ni se sella una obra histórica sin
 enlace; T14/T13/T11/T9b y la aceptación nativa siguen abiertas.
 
+Verificación CPU posterior con la API P22 real: 95 pruebas enfocadas aprobadas,
+incluidos hijos propios que intentan escribir/reemplazar durante la lectura,
+configuración mutable, fuentes distintas, planes/JSON, documento real y espacio
+persistido releídos. El contraste contra la base conserva fórmulas, costos,
+avisos y decisiones sintéticas; no modifica ni valida elecciones empresariales
+reales. El campo opcional no atribuye procedencia a registros históricos. No hay
+ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
+
 - [x] T1 Estudio de planeamiento: año de presentación, año 00 y años calculados. (RF-1, RF-2, RF-3)
       Hecho cuando: prueba con dos años de presentación distintos, sin ningún año en el código.
 - [x] T2 Contrato de costos y adaptador SICODI, con cruce por código, tensión, estructura y sector típico. (RF-5, RF-7, RF-8, RF-9)

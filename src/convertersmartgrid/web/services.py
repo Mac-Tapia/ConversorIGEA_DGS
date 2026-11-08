@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from collections.abc import Mapping, Sequence
@@ -5767,8 +5768,8 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     if not ids:
         return []
     ctx.log(f'PIDE: simulando {len(ids)} obra(s) propia(s) antes de aplicarlas (RF-46)…')
-    eleccion = {'procedencia_capex': procedencia_capex} if procedencia_capex else None
-    sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True, eleccion=eleccion)
+    metadata = {'eleccion': {'procedencia_capex': procedencia_capex}} if procedencia_capex else {}
+    sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True, **metadata)
     filas = (sim.get('informe') or {}).get('obras') or []
     lista = list(ids)
     buenas = [lista[int(f['obra']) - 1] for f in filas
@@ -5781,7 +5782,7 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     if not buenas:
         return []
     ctx.log(f'PIDE: aplicando {len(buenas)} obra(s) en «Con proyecto» (RF-47)…')
-    hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False, eleccion=eleccion)
+    hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False, **metadata)
     out = []
     for f in (hecho.get('informe') or {}).get('obras') or []:
         n = int(f.get('obra') or 0)
@@ -6935,7 +6936,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     # 042: la bisección de cuántas cargas caben llama a la escalera varias veces en el mismo
     # trabajo; la curva, los sorteos, el CAPEX y los tipos no cambian entre llamadas y se leen
     # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA203 + NA205).
-    config_capex = (perfil.get('planificacion') or {}).get('capex') or {}
+    config_capex = deepcopy((perfil.get('planificacion') or {}).get('capex') or {})
     contexto_capex = {'moneda': p.moneda, 'escala_aplicada': p.escala_capex, 'tipo_cambio': tipo_cambio}
     identidad_capex = json.dumps({'ruta': str(Path(capex.strip().strip('"')).resolve()) if capex and capex.strip() else None,
                                  'config': config_capex, 'contexto': contexto_capex}, sort_keys=True, ensure_ascii=False)

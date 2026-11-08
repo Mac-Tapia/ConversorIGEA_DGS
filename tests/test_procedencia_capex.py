@@ -49,7 +49,7 @@ def test_recibo_de_los_bytes_leidos_conserva_obras_costos_y_original(tmp_path):
     assert identidad(ruta) == antes
 
 
-def test_lector_recibe_descriptor_protegido_y_bloquea_escritor_y_reemplazo_hijos(tmp_path, monkeypatch):
+def test_lector_recibe_descriptor_protegido_y_bloquea_escritor_y_reemplazo_hijos(tmp_path, monkeypatch, request):
     """072:RF-28: el hash identifica lo parseado; hijos propios no pueden mutar entre ambos."""
     ruta = _capex(tmp_path)
     antes = identidad(ruta)
@@ -82,6 +82,10 @@ else:
     assert obras and len(intentos) == 2 and all(i['bloqueado'] for i in intentos)
     assert recibo['fuente']['sha256'] == antes[0] and identidad(ruta) == antes
     assert sorted(p.name for p in tmp_path.iterdir()) == ['capex.xlsx']
+    request.node.user_properties.extend([
+        ('procesos_propios', json.dumps(intentos)), ('sha256_original', antes[0]),
+        ('mtime_ns_original', str(antes[1])), ('fuente_intacta', str(identidad(ruta) == antes)),
+    ])
     with ruta.open('r+b'):
         pass  # La guarda se liberó, sin escribir el original.
 
@@ -125,6 +129,28 @@ def test_dos_rutas_no_comparten_procedencia_ni_configuracion(tmp_path):
     assert oa != ob and ra['fuente']['sha256'] != rb['fuente']['sha256']
     assert ra['fuente']['ruta'] != rb['fuente']['ruta']
     assert rb['contexto_unidades']['moneda'] is None
+
+
+def test_config_y_unidades_se_fijan_antes_de_abrir_y_no_guardan_metadatos_ajenos(tmp_path, monkeypatch):
+    """024:RF-56; 072:RF-28: ni ABA de mapping ni datos personales ajenos al cálculo."""
+    from contextlib import contextmanager
+    ruta = _capex(tmp_path)
+    config = {**deepcopy(CONFIG), 'contacto_privado': 'Persona no pertinente'}
+    contexto = {'moneda': 'USD', 'escala_aplicada': 1000, 'operador': 'Persona no pertinente'}
+    mod = adaptador()
+    abrir = mod.abrir_fuente_estable
+    @contextmanager
+    def durante_apertura(ruta):
+        with abrir(ruta) as lectura:
+            config['hoja'] = 'Otra'
+            contexto['moneda'] = 'cambiado durante apertura'
+            yield lectura
+    monkeypatch.setattr(mod, 'abrir_fuente_estable', durante_apertura)
+    obras, _, recibo = mod.leer_capex_con_procedencia(ruta, config, contexto_unidades=contexto)
+    assert obras and recibo['hoja'] == CONFIG['hoja']
+    assert recibo['contexto_unidades']['moneda'] == 'USD'
+    assert 'Persona' not in json.dumps(recibo)
+    assert 'contacto_privado' not in recibo['config'] and 'operador' not in recibo['contexto_unidades']
 
 
 @pytest.mark.parametrize('guion', ['pide_pf.py', 'obras_pf.py'])
