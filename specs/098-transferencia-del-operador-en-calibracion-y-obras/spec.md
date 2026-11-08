@@ -1,6 +1,6 @@
 # Spec 098 — La transferencia de carga del operador, en la calibración y en las obras
 
-Estado: implementada · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, proyecto `20261105-124711_CSG_TXT_CA101_CHN102`:
+Estado: cumplida (2026-11-08: T6 en DIgSILENT con CA101 + CHN102) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, proyecto `20261105-124711_CSG_TXT_CA101_CHN102`:
 «para la recalibración y la calibración se debe desactivar la transferencia y hacerla con sus alimentadores completos»,
 y «todo esto debe servir para cualquier estudio parecido, no solo para el proyecto CA101_CHN102».
 

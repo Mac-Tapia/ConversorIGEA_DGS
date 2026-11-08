@@ -83,7 +83,7 @@
       Hecho cuando: `pytest -q tests/test_casos_pf.py -k deshecha` en verde.
 - [x] T22. El crecimiento una vez por corrida, y el lector de libros que cae no tumba el trabajo. (RF-49)
       Hecho cuando: `pytest -q tests/test_transferencia_operador.py -k lector` en verde.
-- [ ] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
+- [x] T6. [DIgSILENT] Recalibrar por la web el proyecto `20261105-124711_CSG_TXT_CA101_CHN102` (mes 2026-07) y correr
       «Con proyecto». (RF-3, RF-5, RF-7, RF-10, RF-11, RF-17, RF-18, RF-21 a RF-26, RF-28 a RF-37)
       Primera corrida (2026-11-07, main 0b130251 + 4d9c230f): siguió con -1 271,2 kW; dos zonas sin tocar porque la
       lectura no veía las particiones ni el acoplador nuevo; de ahí la T7.
@@ -98,3 +98,11 @@
       con su elección guardada en el espacio 2131c6bc8b924e63) se mide como la vieja y se cambia por la de corto plazo
       solo si cuesta menos, primero la nueva y después borrada la vieja, con la de largo plazo planteada y el
       intervalo en que hace falta.
+      Hecho el 2026-11-08 sobre 8f96cabb, espacio 2131c6bc8b924e63. Recalibración de 2026-07 válida: CA101 +0,22 %, CHN102
+      +0,40 %, pérdidas positivas (108 kW en CHN102); la transferencia CA101 → CHN102 (18 SED, 1 916 kW) se desactivó y quedó
+      `restituida: true`, comprobada elemento por elemento. «Con proyecto» (trabajo 9afb9f6de352, 31 órdenes de `obras_pf.py`
+      sin fallos): la escalera de CA101 probó la transferencia por el enlace con CHN102 antes del cambio de nivel, con el recuento
+      de oráculo y DIgSILENT por escalón; desvío del oráculo +0,016 p.u. de media; `Obra_maniobra_CA101_CHN102` sale «no aplicada»;
+      obra de 1 banco + sección en 3 caminos; confirmación conjunta en la segunda vuelta (98 % de los sorteos, valle bien).
+      El usuario acepta cerrar así (2026-11-08) con dos salvedades: el paso a 22,9 kV de CHN102 no se ejercitó, porque CHN102 queda
+      dentro de límites sin obra; y la transferencia del operador no se eligió en «Con proyecto», que RF-44 trata como alternativa.

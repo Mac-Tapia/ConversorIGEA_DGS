@@ -125,7 +125,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
   | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | implementada | falta T3 |
   | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T3 |
-  | 098 La transferencia de carga del operador, en la calibración y en las obras | implementada | falta T6 |
+  | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
