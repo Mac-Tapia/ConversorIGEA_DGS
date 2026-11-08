@@ -58,6 +58,7 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', required=True)
     p.add_argument('--vocabulario', type=Path, help='Nombres reales del espacio (JSON)')
     p.add_argument('--dataset-v2',type=Path,help='Particiones train/validation/test trazables; no usa datos legacy')
+    p.add_argument('--registro',type=Path,help='Registro de candidatos de dataset v2; conserva los modelos activos')
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
     p.add_argument('--destilar', action='store_true',
                    help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
@@ -95,8 +96,10 @@ def main(argv=None) -> int:
             if args.integral or args.destilar or args.evaluar or args.solo is None:
                 raise ValueError('--dataset-v2 requiere --solo y no combina modos legacy')
             from convertersmartgrid.asistente.entrenamiento_dataset import entrenar_dataset
+            from convertersmartgrid.model_registry import RegistroModelo
             resultado=entrenar_dataset(args.dataset_v2,salida.parent,solo=args.solo,
-                semillas=semillas_de(args.semillas),epocas=args.epocas)
+                semillas=semillas_de(args.semillas),epocas=args.epocas,
+                registro=RegistroModelo(args.registro) if args.registro else None)
             codigo=0
         except Exception as exc:resultado=fallo(exc);codigo=2
         escribir_informe(salida,resultado)

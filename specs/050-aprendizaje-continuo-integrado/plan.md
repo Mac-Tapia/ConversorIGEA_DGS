@@ -57,9 +57,16 @@ Semillas, zona horaria, cadencia, horizontes y modelo de embeddings entran en la
 identidad de la captura mediante `parametros_ciclo`. Un preflight sin memoria
 permanece bloqueado y reintentable antes de entrenar; no sella como hecho el ciclo.
 
-La inspección confirma además que el ajuste de lenguaje sobre dataset v2 conserva
-pesos pero no registra ni reabre aún el candidato. Esa brecha sigue pendiente:
-no se sustituye su evaluación funcional por declarar una etapa aprobada.
+El ajuste de lenguaje sobre dataset v2 registra ahora candidatos aislados y reabre
+sus pesos en un proceso nuevo, usando el mismo contrato del consumidor. Selecciona
+solo con validation; test queda reservado para evaluación, con medida separada de
+gold_human/gold_native. Exige las puertas de órdenes (tarea, F1 y reales) o de
+subtipo de informes, y no retroceder frente al modelo en uso sobre la misma prueba.
+Sin prueba real, medida válida o recarga correcta se conserva un candidato rechazado.
+El runner pasa el registro común explícitamente; `PROMOVIDO` en la decisión del
+registro acredita puertas, mientras `promovido=false` y `publicacion_pendiente`
+conservan la activación para el conjunto. Falta ejecutar el entrenamiento y su
+evaluación funcional con datos reales; las pruebas de contrato no los acreditan.
 
 RF-7: los nuevos conjuntos usan esquema v2 y su identidad cubre miembros,
 instantánea, ciclo, retención y evaluación conjunta. Los v1 conservan su lectura

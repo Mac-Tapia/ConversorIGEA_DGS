@@ -138,3 +138,94 @@ def test_memoria_insuficiente_es_error_de_entorno():
     from convertersmartgrid.training_coordinator import MemoriaMLInsuficiente
     from convertersmartgrid.trabajadores_ml import fallo
     assert fallo(MemoriaMLInsuficiente('contrato'))['status']=='ERROR_ENTORNO'
+
+
+@pytest.mark.parametrize('cambio', ['bajo', 'nan', 'sin_reales', 'retroceso', 'sin_reapertura'])
+def test_puertas_dataset_no_aprueban_sin_evidencia(cambio):
+    """050:RF-5 / 043:RF-5: pesos guardados no acreditan calidad ni recarga."""
+    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    prueba = {'acierto_tarea': .99, 'f1_datos': .99, 'ejemplos': 4}
+    reales = dict(prueba)
+    actual = None
+    smoke = {'ok': True}
+    if cambio == 'bajo': prueba['f1_datos'] = .2
+    if cambio == 'nan': prueba['acierto_tarea'] = float('nan')
+    if cambio == 'sin_reales': reales = None
+    if cambio == 'retroceso': actual = {**prueba, 'f1_datos': .999}
+    if cambio == 'sin_reapertura': smoke = {'ok': False}
+    gates = puertas_dataset('ordenes', prueba, reales, actual, smoke)
+    assert gates['approved'] is False and gates['fallos']
+
+
+@pytest.mark.parametrize('solo', ['ordenes', 'informes'])
+@pytest.mark.parametrize('quality,smoke_ok', [('gold_human',True),('silver_deterministic',True),('gold_human',False)])
+def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, solo, quality, smoke_ok):
+    """050:RF-4 / RF-5: candidato íntegro y reabierto, nunca activación individual."""
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    from convertersmartgrid import trabajadores_ml, training_coordinator
+    from convertersmartgrid.asistente import entrenamiento_dataset as worker
+    from convertersmartgrid.asistente import transformer, clasificador
+    from convertersmartgrid.model_registry import RegistroModelo
+    modulo = transformer if solo == 'ordenes' else clasificador
+    partes = {p: [{'texto': f'{p} convierte la red', 'quality': quality,
+                   'tarea': 'convertir', 'datos': [],
+                   'resultado': {'tipo_informe': 'estudio', 'subtipo': 'refuerzo'}}]
+              for p in ('train', 'validation', 'test')}
+    monkeypatch.setattr(trabajadores_ml, 'leer_dataset_v2', lambda _: (partes, {'sha256': 'a'*64}))
+    monkeypatch.setattr(trabajadores_ml, 'turno_gpu', lambda _: nullcontext())
+    monkeypatch.setattr(training_coordinator, 'exigir_memoria_ml', lambda *a, **kw: None)
+    monkeypatch.setattr(modulo, 'cargar', lambda: None)
+    class Red:
+        def state_dict(self): return {}
+    def entrenar(*args):
+        cfg = args[-1]
+        return SimpleNamespace(cfg=cfg, red=Red(), simbolos=['a'], tareas=sorted(transformer.TAREAS),
+            subtipos=['refuerzo'], temperatura=1.,
+            predecir=lambda _: {'tarea':'convertir', 'datos':[], 'confianza':.99},
+            clasificar=lambda _: {'tipo':'estudio','subtipo':'refuerzo','confianza_subtipo':.99})
+    monkeypatch.setattr(modulo, 'entrenar', entrenar)
+    monkeypatch.setattr(modulo, 'evaluar', lambda modelo, datos: {
+        'acierto_tarea':.99, 'f1_datos':.99, 'acierto_tipo':.99, 'acierto_subtipo':.99,
+        'ejemplos':len(datos)})
+    monkeypatch.setattr(modulo, 'modulo_torch', lambda: SimpleNamespace(
+        save=lambda pesos, ruta: ruta.write_bytes(b'pesos-de-contrato-no-red-real')))
+    registry = RegistroModelo(tmp_path/'registro')
+    family = 'transformer' if solo == 'ordenes' else 'clasificador'
+    pointer = registry.raiz/family/'current.json'
+    pointer.parent.mkdir(parents=True)
+    pointer.write_bytes(b'puntero-previo-intacto')
+    monkeypatch.setattr(registry, 'promover', lambda *a: pytest.fail('No debe activar individualmente'))
+    reopen = []
+    def reabrir(carpeta):
+        reopen.append(carpeta)
+        saved = json.loads((carpeta/'readback.json').read_text(encoding='utf-8'))
+        assert saved['textos'] == [partes['test'][0]['texto']]
+        assert saved['predicciones']
+        return {'ok':smoke_ok, 'proceso_nuevo':True}
+    result = worker.entrenar_dataset(tmp_path/'dataset', tmp_path/'salida', solo=solo,
+        semillas=(11,23), epocas=1, registro=registry, reabrir=reabrir)
+    assert result['candidate_id'] and result['modelo_registro'] == family
+    aprobado = quality == 'gold_human' and smoke_ok
+    assert result['gates']['approved'] is aprobado
+    assert result['candidato_aprobado'] is aprobado and result['publicacion_pendiente'] is aprobado
+    assert result['status'] == ('PROMOVIDO' if aprobado else 'RECHAZADO')
+    assert result['promovido'] is False and len(reopen) == 1
+    detail = registry.detalle(family, result['candidate_id'])
+    assert detail['smoke_reload']['ok'] is smoke_ok
+    assert set(detail['artifacts']) == {'modelo.json', 'pesos.pt', 'readback.json'}
+    assert pointer.read_bytes() == b'puntero-previo-intacto'
+
+
+def test_runner_lenguaje_envia_registro_comun(tmp_path, monkeypatch):
+    """050:RF-4: el ciclo puede resolver el candidato del trabajador en su propio registro."""
+    from types import SimpleNamespace
+    from tools import reentrenar_modelos as runner
+    vistos=[]
+    monkeypatch.setattr(runner, '_subproceso', lambda cmd, *a: vistos.append(cmd) or {})
+    args=SimpleNamespace(dataset=tmp_path/'dataset', vocabulario=None, semillas='11',
+                         registro=tmp_path/'registro')
+    workers=runner._etapas(args,tmp_path/'corrida')
+    next(e for e in workers if e.name == 'transformer').run()
+    assert '--registro' in vistos[0]
+    assert vistos[0][vistos[0].index('--registro')+1] == str(args.registro)

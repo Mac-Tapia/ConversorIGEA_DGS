@@ -36,7 +36,14 @@
     },
     "P07": {
       "state": "calibracion_y_reapertura_verificadas_r1_parcial",
-      "evidence": ["p07_corrida.log", "p07_binding_red.log", "p07_binding_green.xml", "p07_relectura_resultado.json", "p07_calibracion_resultado.json", "p07_reapertura/resultado.json"]
+      "evidence": [
+        "p07_corrida.log",
+        "p07_binding_red.log",
+        "p07_binding_green.xml",
+        "p07_relectura_resultado.json",
+        "p07_calibracion_resultado.json",
+        "p07_reapertura/resultado.json"
+      ]
     },
     "P08": {
       "state": "pendiente",
@@ -52,7 +59,16 @@
     },
     "P11": {
       "state": "campo_empresa_implementado_aceptacion_nativa_y_visual_pendiente",
-      "evidence": ["p11_frontend_red.log", "p11_frontend_final.log", "p11_typecheck.log", "p11_build.log", "p11_api_red.log", "p11_backend_green.xml"]
+      "evidence": [
+        "p11_frontend_red.log",
+        "p11_frontend_final.log",
+        "p11_typecheck.log",
+        "p11_build.log",
+        "p11_api_red.log",
+        "p11_backend_green.xml",
+        "p11_campo_empresa_api.json",
+        "p11_reinicio_preservacion_despues.json"
+      ]
     },
     "P12": {
       "state": "pendiente",
@@ -83,8 +99,32 @@
       "evidence": []
     },
     "P19": {
-      "state": "en_curso_contratos_trabajadores_conjunto_y_consumidores_lenguaje_pinn_verificados",
-      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml", "p19_trabajadores_red.log", "p19_revision_trabajadores_red.log", "p19_custodia_red.log", "p19_trabajadores_final.xml", "p19_conjunto_red.log", "p19_rollback_red.log", "p19_evaluacion_red.log", "p19_conjunto_final.xml", "p19_consumidores_red.log", "p19_consumidores_green.log", "p19_pinn_cache_red.log", "p19_punteros_red.log", "p19_provisional_conjunto_red.log", "p19_consumidores_cierre.xml"]
+      "state": "en_curso_trabajador_lenguaje_registrado_aceptacion_real_pendiente",
+      "evidence": [
+        "p19_baseline.xml",
+        "p19_red.log",
+        "p19_red_revision.log",
+        "p19_green_final.xml",
+        "p19_trabajadores_red.log",
+        "p19_revision_trabajadores_red.log",
+        "p19_custodia_red.log",
+        "p19_trabajadores_final.xml",
+        "p19_conjunto_red.log",
+        "p19_rollback_red.log",
+        "p19_evaluacion_red.log",
+        "p19_conjunto_final.xml",
+        "p19_consumidores_red.log",
+        "p19_consumidores_green.log",
+        "p19_pinn_cache_red.log",
+        "p19_punteros_red.log",
+        "p19_provisional_conjunto_red.log",
+        "p19_consumidores_cierre.xml",
+        "p19_lenguaje_red.log",
+        "p19_lenguaje_runner_red.log",
+        "p19_lenguaje_integracion.log",
+        "p19_lenguaje_final.xml",
+        "p19_lenguaje_catalogo.xml"
+      ]
     },
     "P20": {
       "state": "pendiente",
@@ -96,7 +136,10 @@
     },
     "P22": {
       "state": "pruebas_enfocadas_verificadas_instalacion_completa_pendiente",
-      "evidence": ["instalacion_verde.log", "instalacion_verde.xml"]
+      "evidence": [
+        "instalacion_verde.log",
+        "instalacion_verde.xml"
+      ]
     },
     "P23": {
       "state": "pendiente",

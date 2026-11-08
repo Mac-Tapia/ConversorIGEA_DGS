@@ -133,6 +133,7 @@ def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
 
 
 def _etapas(args, run_dir: Path):
+    from convertersmartgrid.asistente import almacen
     from convertersmartgrid.training_coordinator import TrainingStage
 
     py = sys.executable
@@ -143,7 +144,8 @@ def _etapas(args, run_dir: Path):
     def asistente(nombre: str, solo: str):
         reporte = run_dir / f'{nombre}.json'
         cmd = [py, str(REPO / 'tools' / 'asistente_entrenar.py'), '--output-json', str(reporte),
-               '--solo', solo, '--dataset-v2', str(dataset), '--semillas', semillas]
+               '--solo', solo, '--dataset-v2', str(dataset), '--semillas', semillas,
+               '--registro', str(getattr(args,'registro',None) or almacen.raiz()/'model_registry')]
         if vocab:
             cmd += ['--vocabulario', str(vocab)]
         return lambda: _subproceso(cmd, reporte, nombre)
