@@ -30,6 +30,7 @@ Operador que pregunta al asistente desde la web; el integrador que mide en la GP
 - RF-6: SI el elegido no pasa la puerta, ENTONCES EL SISTEMA seguirá con el modelo en uso y el informe dirá qué métrica lo
   impidió.
 - RF-7: DONDE el corpus ampliado (077) pase su puerta con el modelo elegido, EL SISTEMA lo servirá en lugar del 047.
+- RF-8: SI una pregunta del conjunto de cualquiera de los dos corpus perdió su ancla porque su fuente cambió de sitio, ENTONCES EL SISTEMA medirá sin esa fila, como 077:RF-49, sin editar el conjunto ni cambiar su sello.
 
 ## Requisitos no funcionales
 

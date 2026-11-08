@@ -72,3 +72,13 @@ def test_la_herramienta_compara_los_informes_de_cada_modelo(tmp_path, capsys):
     assert herramienta.main(['--comparar', *rutas]) == 0
     salida = json.loads(capsys.readouterr().out)
     assert salida['elegido'] == 'bge-m3' and set(salida['medidas']) == {'nomic-embed-text', 'bge-m3'}
+
+
+def test_las_anclas_perdidas_no_paran_ninguno_de_los_dos_corpus():
+    """097:RF-8 — el apartado de filas sin ancla (077:RF-49) vale para el corpus 047, no solo para el 077."""
+    from pathlib import Path
+
+    fuente = (Path(__file__).resolve().parents[1] / 'tools' / 'asistente_evaluar_rag.py').read_text(encoding='utf-8')
+    assert 'evaluacion_rag.sin_anclas_perdidas(conjunto, i.frags)' in fuente
+    antes = fuente.split('evaluacion_rag.sin_anclas_perdidas(conjunto, i.frags)')[0].rstrip().splitlines()
+    assert antes[-2].strip() == 'try:' and 'if ampliado' not in antes[-3]

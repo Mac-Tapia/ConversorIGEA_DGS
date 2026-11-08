@@ -78,12 +78,12 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
             print('Sin todos los vectores no se calibra ni se mide.', file=sys.stderr)
             return 2
         i = indice.cargar_o_construir(REPO, args.corpus)
-        if ampliado:
-            try:
-                conjunto = evaluacion_rag.sin_anclas_perdidas(conjunto, i.frags)      # 077:RF-49
-            except ValueError as exc:
-                print(str(exc), file=sys.stderr)
-                return 2
+        # 097:RF-8: en los dos corpus. El de la 047 (2026-11-08) se negaba a calibrar porque src/vnr_etl pasó a adaptadores.
+        try:
+            conjunto = evaluacion_rag.sin_anclas_perdidas(conjunto, i.frags)      # 077:RF-49
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
         memo = {}
 
         def vector_de(pregunta: str):
