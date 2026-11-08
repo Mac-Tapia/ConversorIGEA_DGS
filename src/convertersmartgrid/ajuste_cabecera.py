@@ -23,7 +23,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from .demanda_medida import clave_codigo, numero
+from .dominio.numeros_medidos import clave_codigo, numero
 
 
 class AjusteError(ValueError):

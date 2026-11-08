@@ -106,9 +106,9 @@ SIN_PERFIL = PerfilEmpresa()
 
 
 def _raiz() -> Path:
-    from .powerfactory_env import project_root
+    from .runtime_paths import raiz_programa
 
-    return project_root()
+    return raiz_programa()
 
 
 #: Variable de entorno con otra ruta del perfil activo. Las pruebas la apuntan a un

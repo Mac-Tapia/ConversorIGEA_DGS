@@ -39,8 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-from .powerfactory_env import project_root
-from .runtime_paths import raiz_local
+from .runtime_paths import raiz_local, raiz_programa as project_root
 
 #: Marcador de tipo para los tramos puente mientras se construye el modelo. Se funden
 #: antes de escribir y ningún DGS lo lleva (lo comprueba la auditoría).

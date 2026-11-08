@@ -88,6 +88,36 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
 
 ## Riesgos
 
+### U1: extracción pura y raíces canónicas (2026-11-08)
+
+Desde `245410d5f9993695caa20f15f326463114c93e4b`, U1 retira únicamente estas tres
+dependencias medidas, sin cambiar ninguna clasificación existente:
+
+- `ajuste_cabecera → demanda_medida`: los cuerpos de `clave_codigo` y `numero` se
+  trasladan a `dominio/numeros_medidos.py`, con AST idéntico. El módulo de medición
+  conserva imports de compatibilidad y el ajuste consume el dominio directamente.
+- `perfil_empresa → powerfactory_env`: `_raiz` conserva su API y obtiene la raíz de
+  `runtime_paths.raiz_programa`, que ya era el único cuerpo llamado por project_root.
+- `reglas → powerfactory_env`: importa el mismo getter canónico; conserva el alias
+  público `project_root` para sus consumidores, sin otro wrapper.
+
+El paquete nuevo contiene solo normalización pura (math/re/tipos), sin mover
+lectores, configuración, archivos o acceso al motor al dominio. Las 37 excepciones
+de la base se reducen a 34 porque desaparecen esas tres aristas del AST real; el
+resto conserva claves/justificaciones y la guarda no cambia. Las clasificaciones
+anteriores quedan intactas y se añaden solo los dos módulos nuevos de dominio.
+
+La caracterización conserva números/booleanos/no finitos/fechas, configuración de
+desarrollo y programa instalado con datos locales, perfiles por empresa, catálogos
+propios y sus SHA/mtime. Los imports anteriores y los pickles de referencia a las
+dos funciones siguen resolviéndose al único objeto canónico. La compatibilidad de
+demanda_medida queda identificada para T9; U1 no declara acabada esa retirada ni T7/T12.
+
+Evidencia externa: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p23_u1_dominio_20261108/HANDOFF.md`.
+Se ejecutan pruebas CPU ligeras y comparación AST antes/después. La comparación DGS
+real y la revalidación nativa serán del integrador cuando las fuentes estén estables;
+no se regeneran baselines ni se cierran casillas por estos unitarios.
+
 ### Bloque VNR de T8 (2026-11-08, P23)
 
 Los 50 módulos de `src/vnr_etl/` se mueven, sin otra implementación, a

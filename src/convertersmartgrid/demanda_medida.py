@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
 from .libros_por_anio import EXTENSIONES, DemandaError
+from .dominio.numeros_medidos import clave_codigo, numero
 
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
 FILAS_DATOS_MINIMAS = 2      # una hoja de medición con menos no es un medidor
@@ -89,39 +90,6 @@ def normalizar(texto: Any) -> str:
     t = unicodedata.normalize('NFKD', '' if texto is None else str(texto))
     t = ''.join(c for c in t if not unicodedata.combining(c)).casefold()
     return ' '.join(re.sub(r'[_\-.]+', ' ', t).split())
-
-
-def clave_codigo(valor: Any) -> str:
-    """Código comparable entre libros: ``1234.0``, ``'1234'`` y ``' 001234'`` son el mismo.
-
-    El mismo suministro llega como número en un libro y como texto en otro; y un medidor
-    se escribe ``X-AB12`` en uno y ``x ab12`` en otro.
-    """
-    if valor is None or isinstance(valor, bool):
-        return ''
-    if isinstance(valor, float):
-        if not math.isfinite(valor):
-            return ''
-        if valor.is_integer():
-            valor = int(valor)
-    texto = re.sub(r'[\s_\-.]+', '', str(valor).strip()).casefold()
-    if texto.isdigit():
-        texto = texto.lstrip('0') or '0'
-    return texto
-
-
-def numero(valor: Any) -> float | None:
-    """Número finito, o ``None`` si la celda está vacía o no es un número (RF-31)."""
-    if valor is None or isinstance(valor, bool):
-        return None
-    if isinstance(valor, (int, float)):
-        return float(valor) if math.isfinite(valor) else None
-    texto = str(valor).strip().replace(',', '.')
-    try:
-        v = float(texto)
-    except ValueError:
-        return None
-    return v if math.isfinite(v) else None
 
 
 def fp_decimal(valor: float | None) -> float | None:
