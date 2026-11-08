@@ -70,6 +70,10 @@ promedios no sustituyen esas puertas. El constructor incorpora informes.jsonl:
 confirmados/corregidos son humanos; generados son contexto y maestro queda en
 cuarentena. Etiquetas humanas contradictorias del mismo texto se conservan en
 cuarentena con motivo, sin elegir según el orden de llegada.
+El adaptador de órdenes traduce también las anotaciones históricas
+`[inicio,fin,tipo]` a pares literales sin reinterpretar la etiqueta. Conserva una
+huella de las anotaciones originales. Un rango, tipo o valor inválido deja la
+orden en cuarentena; no se borra el dato y se presenta como ausencia de entidades.
 El runner pasa el registro común explícitamente; `PROMOVIDO` en la decisión del
 registro acredita puertas, mientras `promovido=false` y `publicacion_pendiente`
 conservan la activación para el conjunto. Falta ejecutar el entrenamiento y su

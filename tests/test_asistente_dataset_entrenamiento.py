@@ -81,6 +81,28 @@ def test_confirmed_order_is_human_gold_and_private_path_is_removed():
     assert len(record.record_id) == 64 and len(record.group_id) == 64
 
 
+def test_orden_historica_con_posiciones_se_traduce_sin_cambiar_la_etiqueta():
+    """043:RF-3: almacen usa [inicio,fin,tipo], no [tipo,valor]."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    texto='convierte CA101 con catálogo'
+    inicio=texto.index('CA101')
+    r=normalizar_orden({'texto':texto,'tarea':'convertir','origen':'confirmado',
+                       'datos':[[inicio,inicio+5,'alimentadores']]})
+    assert r.quality=='gold_human'
+    assert r.datos == (('alimentadores','CA101'),)
+    assert r.alimentadores==('CA101',)
+
+
+def test_anotaciones_invalidas_no_desaparecen_como_ordenes_sin_entidades():
+    """043:RF-3: no convertir un dato perdido en una etiqueta de ausencia."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    base={'texto':'convierte CA101','tarea':'convertir','origen':'confirmado'}
+    for datos in ([[0,999,'alimentadores']],[['desconocido','CA101']],
+                  [['alimentadores','OTRA']],[[3]],[[True,8,'alimentadores']]):
+        r=normalizar_orden({**base,'datos':datos})
+        assert r.quality=='quarantine' and r.motivo
+
+
 def test_native_gold_requires_accepted_converged_evidence():
     from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
 

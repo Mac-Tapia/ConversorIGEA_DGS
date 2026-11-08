@@ -118,18 +118,36 @@ def crear_registro(*, group_basis: Any | None = None, **campos: Any) -> Registro
 
 
 def normalizar_orden(fila: dict[str, Any]) -> RegistroEntrenamiento:
-    datos = tuple((str(d[0]), str(d[1])) for d in fila.get('datos') or ()
-                  if isinstance(d, (list, tuple)) and len(d) >= 2)
+    from .tareas import TAREAS,TIPOS_DATO
+
+    texto_crudo=str(fila.get('texto') or '')
+    crudos=fila.get('datos',[])
+    crudos=[] if crudos is None else crudos
+    anotaciones_validas=isinstance(crudos,(list,tuple))
+    pares=[]
+    for d in crudos if anotaciones_validas else ():
+        if not isinstance(d,(list,tuple)):
+            anotaciones_validas=False;continue
+        if len(d)==3 and type(d[0]) is int and type(d[1]) is int and 0<=d[0]<d[1]<=len(texto_crudo):
+            tipo,valor=d[2],texto_crudo[d[0]:d[1]]
+        elif len(d)==2:
+            tipo,valor=d
+        else:
+            anotaciones_validas=False;continue
+        if not isinstance(tipo,str) or tipo not in TIPOS_DATO or not isinstance(valor,str) or not valor or valor not in texto_crudo:
+            anotaciones_validas=False;continue
+        pares.append((tipo,str(_limpiar(valor))))
+    datos=tuple(pares)
     alimentadores = tuple(sorted({valor for clave, valor in datos
                                   if clave == 'alimentadores' and valor}))
     confirmada = fila.get('origen') in {'confirmado', 'corregido'}
-    valida = bool(str(fila.get('tarea') or '').strip() and str(fila.get('texto') or '').strip())
+    valida = bool(fila.get('tarea') in (*TAREAS,'ninguna') and texto_crudo.strip() and anotaciones_validas)
     quality = 'gold_human' if confirmada and valida else 'quarantine'
     texto = str(_limpiar(str(fila.get('texto') or '')))
     tarea = str(fila.get('tarea') or '')
     verification = 'operator_corrected' if fila.get('origen') == 'corregido' else (
         'operator_confirmed' if quality == 'gold_human' else '')
-    provenance = {'fecha': fila.get('fecha'), 'origen': fila.get('origen')}
+    provenance = {'fecha': fila.get('fecha'), 'origen': fila.get('origen'),'anotaciones_hash':_hash(crudos)}
     for clave in ('operador', 'challenge_id', 'plan_id'):
         if fila.get(clave):
             provenance[clave] = fila[clave]
@@ -139,7 +157,8 @@ def normalizar_orden(fila: dict[str, Any]) -> RegistroEntrenamiento:
         alimentadores=alimentadores, mensajes=({'role': 'user', 'content': texto},),
         datos=datos, resultado={}, provenance=provenance, evidence_hashes=(),
         license='internal', verification=verification,
-        motivo='' if quality == 'gold_human' else 'orden sin confirmación/corrección válida')
+        motivo='' if quality == 'gold_human' else ('anotaciones de entidades inválidas o no literales'
+            if not anotaciones_validas else 'orden sin confirmación/corrección o tarea válida'))
 
 
 def normalizar_informe(fila: dict[str, Any]) -> RegistroEntrenamiento:
