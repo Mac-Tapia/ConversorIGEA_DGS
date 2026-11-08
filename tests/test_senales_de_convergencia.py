@@ -12,12 +12,12 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
 from types import SimpleNamespace
 
 import pytest
 
 from apoyo import TOOLS, cargar_herramienta
-from convertersmartgrid import batch
 from convertersmartgrid.powerfactory_binding import (
     PowerFactoryProjectBinding, caso_base_verificado, fusionar_caso_base,
 )
@@ -25,7 +25,7 @@ from convertersmartgrid.powerfactory_metadata import classify_convergence, estad
 from convertersmartgrid.util import sha256_file
 from convertersmartgrid.web import services
 from convertersmartgrid.web.workspace import Workspace
-from synthetic_export import ExportSpec, load_export
+from synthetic_export import ExportSpec, write_export
 
 tool = cargar_herramienta('powerfactory_acceptance.py', 'pfa_078')
 RAIZ = TOOLS.parent
@@ -318,19 +318,20 @@ def test_caso_base_el_gemelo_solo_con_verificado(tmp_path, monkeypatch):
 
 def _importar(tmp_path, monkeypatch, flujo, rc=0):
     """Una importación por la web con el informe que dejaría el guion, sin DIgSILENT."""
-    ds = load_export(ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=7801), tmp_path / 'fuente')
+    red, loads, equipment = write_export(
+        ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=7801), tmp_path / 'fuente')
     ws = Workspace(id='senales', root=tmp_path / 'espacio')
-    ws.active_run_id = ws.loaded_run_id = 'run'
-    ws.loaded_source_mode = 'txt'
-    ws.loaded_source_fingerprint = 'f' * 64
-    ws.dataset = ds
-    ws.active_run = lambda: SimpleNamespace(run_id='run', mode='txt', fingerprint='f' * 64)
-    man = batch.convert_selection(ds, ds.feeder_ids(), ws.out_dir, include_geography=False, workers=1)
+    ws.options.update(input_mode='txt', include_geography=False, workers=1)
+    for slot, path in (('red', red), ('loads', loads), ('equipment', equipment)):
+        ws.set_input(slot, path, origin='prueba_sintetica')
+    carga_ctx = SimpleNamespace(log=lambda *_: None, check_cancel=lambda: None,
+                               progress=lambda *_: None, cancel=threading.Event())
+    services.load_dataset(ws, carga_ctx)
+    services.convert(ws, carga_ctx, ws.dataset.feeder_ids(), all_feeders=False)
+    snapshot = ws.active_run()
+    man = json.loads((ws.out_dir / 'batch_manifest.json').read_text(encoding='utf-8'))
     target = man['feeders'][0]['feeder']
     meta = ws.out_dir / f'{target}_feeder_metadata.json'
-    datos = json.loads(meta.read_text(encoding='utf-8'))
-    datos.update(source_run_id='run', source_mode='txt', source_fingerprint='f' * 64)
-    meta.write_text(json.dumps(datos), encoding='utf-8')
     guion = tmp_path / 'borde.py'
     guion.write_text('import json,os,sys\nfrom pathlib import Path\n'
                      'Path(sys.argv[sys.argv.index("--output-json")+1]).write_text(os.environ["INFORME"],encoding="utf-8")\n'
@@ -346,13 +347,15 @@ def _importar(tmp_path, monkeypatch, flujo, rc=0):
     def ejecutar(cmd, **kw):
         fijado = Path(cmd[cmd.index('--import-dgs') + 1])
         binding = PowerFactoryProjectBinding(
-            project='P', folder='F', source_run_id='run', source_mode='txt', source_fingerprint='f' * 64,
+            project='P', folder='F', source_run_id=snapshot.run_id, source_mode=snapshot.mode,
+            source_fingerprint=snapshot.fingerprint,
             feeders=(target,), dgs_sha256={target: sha256_file(fijado)}, native_inventory_sha256='a' * 64,
             native_reread={'status': 'x'}).as_dict()
         informe = {**copy.deepcopy(flujo), 'feeder': target, 'powerfactory_runtime_pass': rc == 0,
                    'import': {'ok': True, 'dgs': str(fijado), 'project_path': 'P', 'project_folder': 'F'},
-                   'source_verification': {'status': 'VERIFIED_BEFORE_MUTATION', 'source_run_id': 'run', 'source_mode': 'txt',
-                                           'source_fingerprint': 'f' * 64, 'dgs_sha256': sha256_file(fijado),
+                   'source_verification': {'status': 'VERIFIED_BEFORE_MUTATION', 'source_run_id': snapshot.run_id,
+                                           'source_mode': snapshot.mode, 'source_fingerprint': snapshot.fingerprint,
+                                           'dgs_sha256': sha256_file(fijado),
                                            'metadata_file': meta.name, 'feeders': [target]},
                    'project_binding': binding}
         kw['env'].update(INFORME=json.dumps(informe), RC=str(rc))
@@ -369,6 +372,48 @@ def test_importacion_buena_dice_ok(tmp_path, monkeypatch):
     assert (r['ok'], r['failed'], r['sin_aceptar']) == (1, 0, 0)
     assert r['lines'][0].startswith(f'OK {target}') and 'return_code 0' in r['lines'][0]
     assert r['reports'][0]['flujo']['estado'] == 'converge'
+
+
+def test_fixture_importacion_custodia_la_fuente_convertida(tmp_path, monkeypatch):
+    """081:RF-16: el doble nativo consume DGS de una carga/selección custodiada real."""
+    r, ws, target, _logs = _importar(tmp_path, monkeypatch, {'load_flow': BUENO['load_flow']})
+    snapshot = ws.active_run()
+    assert r['ok'] == 1
+    assert snapshot.mode == ws.options['input_mode'] == ws.loaded_source_mode == 'txt'
+    assert snapshot.selection_token == ws.source_selection_token() == ws.loaded_selection_token
+    assert snapshot.run_id == ws.loaded_run_id
+    assert ws.loaded_source_receipt is not None and len(snapshot.files) == 3
+    manifest = json.loads((ws.out_dir / 'batch_manifest.json').read_text(encoding='utf-8'))
+    assert manifest['source_read_receipt'] == ws.loaded_source_receipt
+    metadata = json.loads((ws.out_dir / f'{target}_feeder_metadata.json').read_text(encoding='utf-8'))
+    binding = ws.pf_project_bindings['P']
+    for key, expected in (('source_run_id', snapshot.run_id), ('source_mode', snapshot.mode),
+                          ('source_fingerprint', snapshot.fingerprint)):
+        assert manifest[key] == metadata[key] == binding[key] == expected
+
+
+@pytest.mark.parametrize(('mutation', 'reason'), [
+    ('mode', 'SOURCE_SELECTION_CHANGED'),
+    ('generation', 'SOURCE_SELECTION_CHANGED'),
+    ('sidecar', 'POWERFACTORY_SOURCE_RUN_MISMATCH'),
+])
+def test_fixture_importacion_cambiada_bloquea_antes_del_guion(tmp_path, monkeypatch, mutation, reason):
+    """081:RF-16: la fixture válida no necesita eludir las guardas para probar importación."""
+    _r, ws, target, _logs = _importar(tmp_path, monkeypatch, {'load_flow': BUENO['load_flow']})
+    if mutation == 'mode':
+        ws.options['input_mode'] = 'mdb'
+    elif mutation == 'generation':
+        ws.source_generation += 1
+    else:
+        path = ws.out_dir / f'{target}_feeder_metadata.json'
+        metadata = json.loads(path.read_text(encoding='utf-8'))
+        metadata['source_fingerprint'] = '0' * 64
+        path.write_text(json.dumps(metadata), encoding='utf-8')
+    ctx = SimpleNamespace(job=SimpleNamespace(id='negative'), log=lambda *_: None,
+                          progress=lambda *_: None, check_cancel=lambda: None,
+                          run_process=lambda *_a, **_k: pytest.fail('no debe ejecutar el guion'))
+    with pytest.raises(services.UserError, match=reason):
+        services.powerfactory_flow(ws, ctx, [target])
 
 
 def test_importacion_que_no_calcula_no_dice_ok(tmp_path, monkeypatch):
