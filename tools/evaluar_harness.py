@@ -1,4 +1,7 @@
-"""Entrada aislada del harness; no carga motores ni altera modelos activos."""
+"""Entrada de consola del arnés de evaluación: no carga motores ni altera los modelos activos.
+
+    python tools/evaluar_harness.py {sellar,replay,ordenes,importar,verificar} --help
+"""
 import sys
 from pathlib import Path
 

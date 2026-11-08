@@ -33,11 +33,6 @@ def desde_ordenes(informe: dict) -> dict:
             'source_hash': huella(informe), 'modo': 'replay', 'promocion_permitida': False}
 
 
-def evaluar_temporal(real, predicciones, *, politica) -> dict:
-    from ..digital_twin.evaluacion_temporal import evaluar_pronosticos
-    return evaluar_pronosticos(real, predicciones, politica=politica)
-
-
 def evaluar_electrico(metricas: dict, *, politica) -> dict:
     from ..evaluacion_modelos import evaluar_candidato
     r = evaluar_candidato(metricas, politica)
