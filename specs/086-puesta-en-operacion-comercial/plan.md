@@ -205,6 +205,11 @@ URL de origen, commit, nombre/SHA de rueda y SHA del recibo original. Su campo
 `receipt` es un descriptor `{kind: external-file, sha256: ...}`; no lleva rutas,
 nombres de usuario, cachés o campos privados del proceso constructor. El SHA
 identifica los bytes del recibo externo original, no los de ese descriptor.
+Se conserva también el indicador booleano de verificación del índice oficial
+cuando estaba declarado. Un commit declarado debe ser SHA40 incluso para CUDA;
+no se copian objetos o rutas en campos conocidos. Toda URL de requisito declarado,
+también inactivo, debe ser una fuente Git HTTPS con commit completo antes de
+publicarse; las fuentes locales se rechazan, no se borran silenciosamente.
 
 El JSON de procedencias de entrada permanece externo e intacto, con sus rutas
 de auditoría y su SHA en `procedencias_sha256`. Cuando declara `receipt` y

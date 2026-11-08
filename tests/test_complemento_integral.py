@@ -137,6 +137,54 @@ def test_recibo_de_procedencia_mutado_no_publica_paquete(sources, tmp_path, muta
     assert not (output / 'manifiesto_candidato.json').exists()
 
 
+@pytest.mark.parametrize('commit', [{'builder_path': r'C:\Users\PRIVATE_USER\cache'}, r'C:\Users\PRIVATE_USER\commit'])
+def test_commit_cuda_declarado_no_admite_objeto_ni_ruta_privada(sources, tmp_path, commit):
+    """086:RF-39/44: un origen CUDA no presta commit_id arbitrario al descriptor o al SBOM."""
+    source, cache, freeze, provenance = sources
+    (cache / 'torch-1.0-py3-none-any.whl').unlink()
+    wheel = _wheel(cache, 'torch', version='1.0+cu126')
+    freeze.write_text(freeze.read_text(encoding='utf-8').replace('torch==1.0\n', 'torch==1.0+cu126\n'), encoding='utf-8')
+    origins = json.loads(provenance.read_text(encoding='utf-8'))
+    origins.append({'name': 'torch', 'version': '1.0+cu126', 'wheel': wheel.name,
+        'url': f'https://download-r2.pytorch.org/whl/cu126/{wheel.name}', 'commit_id': commit,
+        'sha256': hashlib.sha256(wheel.read_bytes()).hexdigest()})
+    provenance.write_text(json.dumps(origins), encoding='utf-8')
+    output = tmp_path / 'output'
+    with pytest.raises(CC.CE.EntregaError, match='commit'):
+        CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+            capacidades='integrales', versiones=freeze, procedencias=provenance)
+    assert not output.exists()
+
+
+@pytest.mark.parametrize('url', ['file:///C:/Users/PRIVATE_USER/private.whl', 'file:///home/PRIVATE_USER/private.whl'])
+def test_requisito_declarado_inactivo_no_publica_fuente_local(sources, tmp_path, url):
+    """086:RF-39/44: un marker ajeno a Windows no autoriza filtrar rutas en grupos/README."""
+    source, cache, freeze, provenance = sources
+    requirements = source / 'requirements-drivers.txt'
+    requirements.write_text(requirements.read_text(encoding='utf-8')+
+        f"irrelevant @ {url} ; sys_platform == 'linux'\n", encoding='utf-8')
+    output = tmp_path / 'output'
+    with pytest.raises(CC.CE.EntregaError, match='[Ff]uente|URL|declarad'):
+        CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+            capacidades='integrales', versiones=freeze, procedencias=provenance)
+    assert not output.exists()
+
+
+def test_requisito_git_publico_fijado_inactivo_conserva_su_declaracion(sources, tmp_path):
+    """086:RF-37/39: validar la fuente exportada no elimina un requisito legítimo inactivo."""
+    source, cache, freeze, provenance = sources
+    declaration = "irrelevant @ git+https://example.org/public.git@"+'b'*40+" ; sys_platform == 'linux'"
+    requirements = source / 'requirements-drivers.txt'
+    requirements.write_text(requirements.read_text(encoding='utf-8')+declaration+'\n', encoding='utf-8')
+    output = tmp_path / 'output'
+    CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+        capacidades='integrales', versiones=freeze, procedencias=provenance)
+    published = json.loads((output / 'cobertura.json').read_text(encoding='utf-8'))
+    assert declaration in published['grupos']['drivers']
+    assert declaration in (output / 'requisitos-declarados.txt').read_text(encoding='utf-8')
+    assert not any(row['name']=='irrelevant' for row in published['ruedas'])
+
+
 @pytest.mark.parametrize('capacidades', ['integrales', 'inferencia'])
 def test_no_acepta_rueda_del_nucleo_con_hash_distinto(sources, tmp_path, monkeypatch, capacidades):
     """086:RF-39 — mismo nombre/versión no autoriza otro binario después de fijar el núcleo."""
@@ -346,7 +394,7 @@ def test_integral_cierra_extras_y_grupos_sin_herramientas_de_desarrollo(sources,
         IC.verificar_candidato(output)
 
 
-def test_torch_cuda_del_cdn_del_indice_oficial(sources):
+def test_torch_cuda_del_cdn_del_indice_oficial(sources, tmp_path):
     """086:RF-39 — el índice oficial de PyTorch enlaza también su CDN download-r2."""
     source, cache, freeze, provenance = sources
     (cache / 'torch-1.0-py3-none-any.whl').unlink()
@@ -355,11 +403,18 @@ def test_torch_cuda_del_cdn_del_indice_oficial(sources):
     origins = json.loads(provenance.read_text(encoding='utf-8'))
     origins.append({'name': 'torch', 'version': '1.0+cu126', 'wheel': wheel.name,
         'url': f'https://download-r2.pytorch.org/whl/cu126/{wheel.name}',
-        'sha256': hashlib.sha256(wheel.read_bytes()).hexdigest()})
+        'sha256': hashlib.sha256(wheel.read_bytes()).hexdigest(), 'official_index_hash_verified': True})
     provenance.write_text(json.dumps(origins), encoding='utf-8')
     selected, coverage = CC.seleccionar_capacidades_integrales(source, [cache], freeze, provenance)
     assert wheel.resolve() in selected
     assert len(coverage['procedencias']) == 2
+    output = tmp_path / 'cuda_provenance_export'
+    CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+        capacidades='integrales', versiones=freeze, procedencias=provenance)
+    published = json.loads((output / 'cobertura.json').read_text(encoding='utf-8'))
+    torch_origin = next(origin for origin in published['procedencias'] if origin['name'] == 'torch')
+    assert torch_origin['official_index_hash_verified'] is True
+    assert torch_origin['url'] == origins[-1]['url'] and torch_origin['sha256'] == origins[-1]['sha256']
 
 
 def test_metadatos_con_licencia_utf8(tmp_path):

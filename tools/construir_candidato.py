@@ -617,6 +617,13 @@ def _procedencia_publicada(origen: dict[str, Any], base_recibos: Path) -> dict[s
     """
     publica = {key: origen[key] for key in
                ('name', 'version', 'url', 'commit_id', 'wheel', 'sha256', 'receipt_sha256') if key in origen}
+    if 'commit_id' in origen and (not isinstance(origen['commit_id'], str)
+                                  or not re.fullmatch(r'[0-9a-f]{40}', origen['commit_id'])):
+        raise CE.EntregaError('El commit de procedencia declarado no es un SHA40 válido.')
+    if 'official_index_hash_verified' in origen:
+        if type(origen['official_index_hash_verified']) is not bool:
+            raise CE.EntregaError('Indicador de procedencia del índice oficial no booleano.')
+        publica['official_index_hash_verified'] = origen['official_index_hash_verified']
     if 'receipt' in origen or 'receipt_sha256' in origen:
         raw, expected = origen.get('receipt'), origen.get('receipt_sha256')
         if (not isinstance(raw, str) or not raw.strip() or not isinstance(expected, str)
@@ -653,6 +660,14 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
         if versiones is None or procedencias is None:
             raise CE.EntregaError('Las capacidades integrales requieren versiones capturadas y procedencias explícitas.')
         seleccion, cobertura = seleccionar_capacidades_integrales(raiz, [cache, *caches_adicionales], versiones, procedencias, licencias=licencias)
+        from packaging.requirements import Requirement
+        # También se publican las raíces inactivas en grupos/requisitos-declarados:
+        # sus URLs deben ser fuentes públicas fijadas, aunque no entren al cierre Win.
+        for declarations in cobertura['grupos'].values():
+            for declaration in declarations:
+                url = Requirement(declaration).url
+                if url and not re.fullmatch(r'git\+https://[^@\s\\]+@[0-9a-f]{40}', url):
+                    raise CE.EntregaError('Fuente URL declarada no publicable: requiere Git HTTPS y commit completo.')
     cobertura_publicada = ({**cobertura, 'procedencias': [
         _procedencia_publicada(origin, procedencias.parent) for origin in cobertura['procedencias']]}
         if cobertura else None)
