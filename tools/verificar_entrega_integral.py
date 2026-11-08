@@ -3,12 +3,16 @@
 Sin --ejecutar prepara el plan, sin lanzar pruebas, red ni motores. Consolida
 backend, frontend y, en edición completa, ML. Un pase técnico no acredita por sí
 solo aceptación eléctrica, científica, operativa ni autorización de publicación.
+Completa exige --campana FAMILIA RUTA SHA256 para cada familia canónica; leer
+esos recibos no ejecuta entrenamientos ni transforma un replay en campaña real.
 Los resultados y temporales se conservan fuera de todos los checkouts.
 """
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
 import importlib.util
 import json
 import os
@@ -33,7 +37,7 @@ def _herramienta(nombre: str):
     return modulo
 
 
-def plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path) -> list[dict]:
+def plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path, *, campanas=()) -> list[dict]:
     """065:RF-24 — el alcance completo añade ML; nunca reemplaza la regresión del núcleo."""
     if edicion not in ('nucleo', 'completa'):
         raise ValueError('Edición de validación desconocida')
@@ -64,7 +68,116 @@ def plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path)
     if edicion == 'completa':
         agregar('ml', 'pytest', [python, '-B', '-m', 'pytest', '-q', '-rs', 'tests_ml',
             '--basetemp', evidencia/'ml_tmp', '--junitxml', evidencia/'ml.xml'], artifact=str(evidencia/'ml.xml'))
+        agregar('campanas', 'campanas', [], recibos=list(campanas))
     return filas
+
+
+def admitir_campanas(referencias) -> dict:
+    """065:RF-24 — verifica recibos explícitos; nunca ejecuta proveedores o promueve modelos."""
+    from convertersmartgrid.adaptadores.fuentes_estables import abrir_fuente_estable
+    from convertersmartgrid.evaluacion_harness.contratos import MINIMAS
+    from convertersmartgrid.evaluacion_harness.ejecucion import validar_integridad
+    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe
+
+    errores, familias, vistos = [], [], set()
+    for familia, nombre, esperado in referencias:
+        fila = {'familia': familia, 'ruta': str(Path(nombre).resolve()), 'sha256': esperado,
+                'state': 'bloqueada', 'errors': [], 'aceptacion_cientifica': False,
+                'aceptacion_electrica': False, 'aceptacion_operativa': False}
+        familias.append(fila)
+        try:
+            if familia not in MINIMAS or familia in vistos:
+                raise ValueError('familia desconocida o duplicada')
+            vistos.add(familia)
+            if not isinstance(esperado, str) or not re.fullmatch('[0-9a-f]{64}', esperado):
+                raise ValueError('SHA256 explícito inválido')
+            with abrir_fuente_estable(nombre) as fuente:
+                if fuente.sha256 != esperado:
+                    raise ValueError('SHA256 del recibo distinto del declarado')
+                fila['integridad_antes'] = fuente.sha256
+                informe = leer_informe(fuente.path)
+                validar_integridad(informe)
+                cfg = informe['configuracion']
+                if cfg['familia'] != familia:
+                    raise ValueError('familia del recibo distinta de la declarada')
+                # bool es subclase de int: False no debe sustituir un conteo cero.
+                if any(type(informe.get(k)) is not int for k in ('programados', 'completados', 'fallidos')):
+                    raise ValueError('conteos de campaña deben ser enteros, no booleanos')
+                operaciones = []
+                for suite in cfg['suites']:
+                    s = informe['suites'][suite['id']]
+                    if (type(s.get('programados')) is not int or s['programados'] <= 0
+                            or any(type(s.get(k)) is not bool for k in ('completa', 'aprobada', 'evidencia_real'))):
+                        raise ValueError('conteo o estado de operación inválido')
+                    operaciones.append({'id': suite['id'], 'tipo': suite['tipo'],
+                        'obligatoria': suite['obligatoria'], 'programados': s['programados'],
+                        'completa': s['completa'], 'aprobada_declarada': s['aprobada'],
+                        'evidencia_real_declarada': s['evidencia_real'],
+                        'implementacion': 'declarada_no_verificada_semanticamente',
+                        'aceptacion_cientifica': False, 'aceptacion_operativa': False,
+                        'aceptacion_electrica': False})
+                fila.update(modo=informe['modo'], revision_captura=cfg['revision'], run_id=cfg['run_id'],
+                    config_hash=informe['config_hash'], sello_informe=informe['sello_informe'],
+                    datos={'dataset_hash': cfg['dataset_hash'], 'custodia': cfg['custodia']},
+                    modelos=cfg['modelos'], operaciones=operaciones,
+                    estados_modelos={rol: {'registro': 'no_consultado', 'artefactos_verificados': False,
+                        'promovido_declarado': informe.get('modelo_promovido') if rol == 'candidato' else None,
+                        'aceptacion_cientifica': False, 'aceptacion_operativa': False}
+                        for rol in cfg['modelos']},
+                    estado_declarado=informe['estado'], modelo_promovido_declarado=informe.get('modelo_promovido'),
+                    mejora_demostrada_declarada=informe['mejora_demostrada'],
+                    artefactos='identidades_declaradas_en_recibo_no_cargas_de_pesos',
+                    implementacion='declarada_no_verificada_semanticamente')
+                fuente.stream.seek(0)
+                fila['integridad_despues'] = hashlib.file_digest(fuente.stream, 'sha256').hexdigest()
+                if fila['integridad_despues'] != esperado:
+                    raise ValueError('recibo cambió durante la validación')
+                if informe['modo'] != 'runtime':
+                    raise ValueError('campaña ejecutada exige runtime; contract/replay son diagnóstico')
+                if (informe['estado'] != 'COMPLETA' or informe['programados'] <= 0
+                        or informe['completados'] != informe['programados'] or informe['fallidos'] != 0
+                        or any(f['estado'] != 'ok' or f['salida'].get('clase_evidencia') != 'real'
+                               for f in informe['casos'])
+                        or any(not s['completa'] or not s['evidencia_real_declarada'] for s in operaciones)):
+                    raise ValueError('campaña u operaciones sin cobertura runtime completa')
+                fila['state'] = 'aprobada'
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            fila['errors'].append(str(exc))
+            errores.append(f'campanas:{familia}:{exc}')
+    for familia in sorted(set(MINIMAS) - vistos):
+        errores.append('campanas:recibo_ausente:' + familia)
+        familias.append({'familia': familia, 'state': 'ausente', 'errors': ['recibo_ausente'],
+                         'aceptacion_cientifica': False, 'aceptacion_electrica': False,
+                         'aceptacion_operativa': False})
+    return {'state': 'bloqueada' if errores else 'aprobada', 'errors': errores,
+            'familias': familias, 'familias_obligatorias': sorted(MINIMAS),
+            'aceptacion_cientifica': False, 'aceptacion_electrica': False, 'aceptacion_operativa': False}
+
+
+def resumir_estados(registro: dict) -> dict:
+    """Identidades declaradas y pruebas son niveles distintos de aceptación del dominio."""
+    campanas = deepcopy(registro.get('campanas_antes') or registro.get('campanas_despues') or {'familias': []})
+    posteriores = {f['familia']: f for f in registro.get('campanas_despues', {}).get('familias', [])}
+    for familia in campanas['familias']:
+        if familia['familia'] in posteriores:
+            final = posteriores[familia['familia']]
+            familia['state'], familia['errors'] = final['state'], final['errors']
+            familia['validacion_posterior'] = {k: final.get(k) for k in
+                ('state', 'errors', 'integridad_antes', 'integridad_despues')}
+        familia['origen_identidades'] = ('recibo_leido_antes_de_las_puertas'
+                                         if 'revision_captura' in familia else 'sin_identidades_verificadas')
+    return {'implementacion': {'revision_validacion': registro['revision'],
+                'candidate_hash': registro['candidate_before'], 'estado': 'codigo_identificado_no_aceptacion_semantica'},
+            'pruebas': {r['id']: {'estado': r['state'], 'counts': r.get('counts'),
+                                  'registro': r.get('registro'), 'stdout': r.get('stdout'),
+                                  'artefactos_datos': r.get('artefactos_datos')}
+                        for r in registro['results']},
+            'datos': {f['familia']: f.get('datos') for f in campanas['familias']},
+            'datos_backend': next((r.get('artefactos_datos') for r in registro['results']
+                                   if r['id'] == 'backend'), None),
+            'modelos': {f['familia']: f.get('modelos') for f in campanas['familias']},
+            'salida': registro.get('output_dir'), 'familias': campanas['familias'], 'aceptacion_cientifica': False,
+            'aceptacion_electrica': False, 'aceptacion_operativa': False}
 
 
 def evaluar_entrega(resultados: list[dict], obligatorias: set[str]) -> dict:
@@ -126,7 +239,15 @@ def _validar_resultado(c: dict, stdout: Path) -> dict:
         counts = (r.get('results') or {}).get('counts', {})
         if not counts.get('pass') or any(counts.get(k, 1) for k in ('fail', 'error', 'skip', 'xfail')):
             raise ValueError('Backend sin resultados completos')
-        return {'counts': counts, 'registro': str(registros[0])}
+        datos = {}
+        for nombre in ('data_inputs_before.json', 'data_inputs_after.json'):
+            ruta = registros[0].parent / nombre
+            if not ruta.is_file():
+                raise ValueError('Backend sin inventario de datos: ' + nombre)
+            with ruta.open('rb') as stream:
+                digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+            datos[nombre] = {'path': str(ruta), 'sha256': digest}
+        return {'counts': counts, 'registro': str(registros[0]), 'artefactos_datos': datos}
     if kind == 'frontend_build':
         if str(RAIZ/'src') not in sys.path:
             sys.path.insert(0, str(RAIZ/'src'))
@@ -165,6 +286,15 @@ def ejecutar_comprobacion(c: dict, evidencia: Path, env: dict | None = None) -> 
          'returncode': None, 'errors': [], 'stdout': str(stdout), 'stderr': str(stderr)}
     inicio = time.monotonic()
     try:
+        if c['kind'] == 'campanas':
+            campanas = admitir_campanas(c.get('recibos', ()))
+            r['campanas'] = campanas
+            r['errors'].extend(campanas['errors'])
+            stdout.write_text(json.dumps(campanas, ensure_ascii=False, indent=2), encoding='utf-8')
+            stderr.write_text('', encoding='utf-8')
+            r.update(state='rechazada' if r['errors'] else 'aprobada', seconds=time.monotonic()-inicio)
+            (destino/'resultado.json').write_text(json.dumps(r, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+            return r
         timeout = float(c['timeout_s'])
         if timeout <= 0 or not c['command'] or not isinstance(c['command'], list):
             raise ValueError('Comando o presupuesto de tiempo inválido')
@@ -216,6 +346,8 @@ def main(argv=None) -> int:
     parser.add_argument('--python', type=Path, default=Path(sys.executable))
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--edicion', choices=('nucleo', 'completa'), default='completa')
+    parser.add_argument('--campana', nargs=3, action='append', default=[], metavar=('FAMILIA', 'RUTA', 'SHA256'),
+                        help='SHA256 de los bytes del archivo (no su sello interno); completa exige todas las familias de MINIMAS en runtime')
     parser.add_argument('--ejecutar', action='store_true', help='Ejecutar las puertas; sin esto solo prepara')
     args = parser.parse_args(argv)
     registro, destino = None, None
@@ -231,12 +363,18 @@ def main(argv=None) -> int:
         antes, _inputs = trace.hash_candidato(raiz)
         destino = base/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_') + uuid.uuid4().hex)
         destino.mkdir(parents=True, exist_ok=False)
-        plan = plan_comprobaciones(raiz, args.python, args.edicion, destino)
+        plan = plan_comprobaciones(raiz, args.python, args.edicion, destino, campanas=args.campana)
         registro = {'format': 'verificacion-entrega-integral-v1', 'root': str(raiz), 'revision': revision,
+                    'output_dir': str(destino),
                     'candidate_before': antes, 'candidate_after': None, 'edition': args.edicion,
                     'state': 'preparado', 'plan': plan, 'results': [],
                     **evaluar_entrega([], {c['id'] for c in plan})}
+        if args.edicion == 'completa' or args.campana:
+            registro['campanas_antes'] = admitir_campanas(args.campana)
+        registro['estados'] = resumir_estados(registro)
         (destino/'resultado_entrega.json').write_text(json.dumps(registro, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+        if args.edicion == 'completa' and registro['campanas_antes']['errors']:
+            raise ValueError('campanas: faltan recibos runtime íntegros; consulte campanas_antes')
         if args.ejecutar:
             env = runner._entorno(destino, {})
             env.update(PYTHONPATH=str(raiz/'src'), CSG_AUTOENTRENAMIENTO='0')
@@ -250,6 +388,11 @@ def main(argv=None) -> int:
             (destino/'runtime.json').write_text(json.dumps(runtime, ensure_ascii=False, indent=2), encoding='utf-8')
             registro['results'] = ejecutar_plan(plan, destino, env)
             registro.update(evaluar_entrega(registro['results'], {c['id'] for c in plan}))
+        if args.edicion == 'completa' or args.campana:
+            registro['campanas_despues'] = admitir_campanas(args.campana)
+            if registro['campanas_despues']['errors']:
+                registro['errors'].extend(registro['campanas_despues']['errors'])
+                registro['technical_checks_passed'] = False
         despues, _inputs = trace.hash_candidato(raiz)
         registro['candidate_after'] = despues
         if despues != antes:
@@ -257,9 +400,12 @@ def main(argv=None) -> int:
             registro['technical_checks_passed'] = False
         if args.ejecutar:
             registro['state'] = 'regresion_integral_aprobada' if registro['technical_checks_passed'] else 'rechazado'
+        elif registro['errors'] and registro.get('campanas_despues', {}).get('errors'):
+            registro['state'] = 'rechazado'
+        registro['estados'] = resumir_estados(registro)
         (destino/'resultado_entrega.json').write_text(json.dumps(registro, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
         print(f'{registro["state"]}; aceptación de dominio pendiente; evidencia: {destino}')
-        return 0 if not args.ejecutar or registro['technical_checks_passed'] else 1
+        return 0 if registro['state'] == 'preparado' or registro['technical_checks_passed'] else 1
     except (OSError, ValueError, TypeError, KeyError) as exc:
         if registro is not None:
             registro.update(state='rechazado', technical_checks_passed=False)

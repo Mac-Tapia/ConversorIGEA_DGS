@@ -27,8 +27,8 @@ def test_planes_separan_frontend_y_ml_sin_omitirlos(tmp_path):
     base = {p['id'] for p in core}
     assert {'backend', 'frontend_tests', 'frontend_lint', 'frontend_types', 'frontend_build',
             'python_check', 'python_audit', 'frontend_audit'} <= base
-    assert {p['id'] for p in full} == base | {'ml'}
-    assert all(isinstance(p['command'], list) and p['command'] for p in full)
+    assert {p['id'] for p in full} == base | {'ml', 'campanas'}
+    assert all(isinstance(p['command'], list) and p['command'] for p in full if p['kind'] != 'campanas')
     assert '--suite-completa' in next(p['command'] for p in full if p['id']=='backend')
     assert '--hash-datos' in next(p['command'] for p in full if p['id']=='backend')
     with pytest.raises(ValueError):
@@ -160,3 +160,206 @@ def test_auditoria_npm_incompleta_o_con_avisos_no_acredita_entrega(tmp_path,dato
     r=herramienta().ejecutar_comprobacion(comprobacion(tmp_path,kind='npm_audit',
         codigo=f'print({json.dumps(dato)!r})'),tmp_path/'e')
     assert (r['state']=='aprobada') == (dato=={'metadata':{'dependencies':{'total':1},'vulnerabilities':{'total':0}}})
+
+
+def _recibos_campanas(tmp_path, *, modo='runtime'):
+    """Dobles CPU del contrato del lector; metadata runtime no es campaña científica."""
+    import hashlib
+    from test_harness_contratos import configuracion
+    from convertersmartgrid.evaluacion_harness.contratos import MINIMAS, huella, sellar
+    from convertersmartgrid.evaluacion_harness.ejecucion import ejecutar
+    from convertersmartgrid.evaluacion_harness.publicacion import publicar
+
+    refs = []
+    for familia in MINIMAS:
+        cfg = configuracion(familia)
+        cfg['run_id'] = 'contrato-validador-' + familia
+        for modelo in cfg['modelos'].values():
+            modelo['artifacts'] = {'peso_sintetico.bin': '1' * 64}
+        for suite in cfg['suites']:
+            if suite['tipo'] == 'recuperacion':
+                suite['parametros']['k'] = 1
+                suite['puertas'] = {'recall@k': {'minimo': 0}}
+                for caso in suite['casos']:
+                    caso['esperado'] = {'documentos': ['D'], 'completo': True}
+            elif suite['tipo'] == 'entidades':
+                suite['puertas'] = {'precision': {'minimo': 0}}
+                for caso in suite['casos']:
+                    caso['esperado'] = {'entidades': [['dato', 'valor']]}
+        cfg = sellar(cfg)
+        def proveedor(modelo, suite, entrada):
+            return {'prediccion': {'tarea': 'a', 'entidades': [['dato', 'valor']], 'documentos': ['D']},
+                    'modelo_digest': modelo['digest'], 'config_hash': modelo['config_hash'],
+                    'artifacts_hash': huella(modelo['artifacts']),
+                    'backend': 'doble_sintetico_validador', 'dispositivo': 'cpu', 'clase_evidencia': 'real'}
+        evaluadores = {s['tipo']: lambda *_: {'metricas': {'acierto': 1.}, 'aprobado': True,
+                                             'clase_evidencia': 'real'} for s in cfg['suites']}
+        informe = ejecutar(cfg, proveedor, modo=modo, evaluadores=evaluadores)
+        ruta = tmp_path / (familia + '.json')
+        publicar(ruta, informe)
+        refs.append((familia, str(ruta), hashlib.sha256(ruta.read_bytes()).hexdigest()))
+    return refs
+
+
+def _alterar_recibo(ref, cambiar):
+    import hashlib
+    from convertersmartgrid.evaluacion_harness.contratos import huella
+    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe, publicar
+    familia, nombre, _ = ref
+    ruta = Path(nombre)
+    dato = leer_informe(ruta)
+    cambiar(dato)
+    dato['sello_informe'] = huella({k: v for k, v in dato.items() if k != 'sello_informe'})
+    publicar(ruta, dato)
+    return familia, nombre, hashlib.sha256(ruta.read_bytes()).hexdigest()
+
+
+def test_completa_sin_recibos_no_aprueba_solo_por_tests_ml(tmp_path):
+    """065:RF-24 — la campaña es puerta propia; tests_ml no sustituye sus recibos."""
+    h = herramienta()
+    plan = h.plan_comprobaciones(tmp_path, Path(sys.executable), 'completa', tmp_path/'e')
+    campanas = next(p for p in plan if p['id'] == 'campanas')
+    r = h.ejecutar_comprobacion(campanas, tmp_path/'e')
+    assert r['state'] == 'rechazada' and 'campanas' in ' '.join(r['errors'])
+    aprobadas = [{'id': p['id'], 'state': 'aprobada'} for p in plan if p['id'] != 'campanas']
+    entrega = h.evaluar_entrega(aprobadas + [r], {p['id'] for p in plan})
+    assert not entrega['technical_checks_passed']
+
+
+def test_recibos_integros_resumen_origen_modelos_y_operaciones_sin_certificar(tmp_path):
+    """065:RF-24 — positivo sintético del contrato, sin ejecución ML ni aceptación real."""
+    h = herramienta()
+    refs = _recibos_campanas(tmp_path)
+    r = h.admitir_campanas(refs)
+    assert r['state'] == 'aprobada' and r['errors'] == []
+    assert len(r['familias']) == 6
+    for familia in r['familias']:
+        assert familia['revision_captura'] == 'a' * 40
+        assert familia['datos']['dataset_hash'] and familia['datos']['custodia']['sha256']
+        assert familia['modelos']['candidato']['id'] == 'nuevo'
+        assert familia['modelos']['referencia']['artifacts']['peso_sintetico.bin'] == '1' * 64
+        assert familia['estados_modelos']['candidato']['registro'] == 'no_consultado'
+        assert familia['estados_modelos']['referencia']['artefactos_verificados'] is False
+        assert familia['operaciones'] and familia['integridad_antes'] == familia['integridad_despues']
+        assert familia['aceptacion_cientifica'] is familia['aceptacion_electrica'] is False
+        assert familia['aceptacion_operativa'] is False
+
+
+@pytest.mark.parametrize('defecto', ['faltante', 'sha', 'alterado', 'incompleto', 'conteo_bool',
+                                    'etapa_ausente', 'familia', 'promovido_solo'])
+def test_recibos_faltantes_alterados_o_incompletos_bloquean(tmp_path, defecto):
+    """065:RF-24 — ni resellar un resumen ni PROMOVIDO sustituyen cobertura real declarada."""
+    h = herramienta()
+    refs = _recibos_campanas(tmp_path)
+    if defecto == 'faltante': refs.pop()
+    elif defecto == 'sha': refs[0] = (*refs[0][:2], '0' * 64)
+    elif defecto == 'alterado': Path(refs[0][1]).write_text('{}', encoding='utf-8')
+    elif defecto == 'familia': refs[0] = ('optimizador', *refs[0][1:])
+    elif defecto == 'promovido_solo':
+        Path(refs[0][1]).write_text('{"status":"PROMOVIDO"}', encoding='utf-8')
+        import hashlib
+        refs[0] = (*refs[0][:2], hashlib.sha256(Path(refs[0][1]).read_bytes()).hexdigest())
+    else:
+        def cambiar(r):
+            if defecto == 'incompleto': r['estado'] = 'INCOMPLETA'
+            elif defecto == 'conteo_bool': r['fallidos'] = False
+            elif defecto == 'etapa_ausente': r['suites'].pop(next(iter(r['suites'])))
+        refs[0] = _alterar_recibo(refs[0], cambiar)
+    r = h.admitir_campanas(refs)
+    assert r['state'] == 'bloqueada' and r['errors']
+
+
+@pytest.mark.parametrize('modo', ['contract', 'replay'])
+def test_recibo_contract_o_replay_es_diagnostico_no_campana_ejecutada(tmp_path, modo):
+    """065:RF-24 — conservar diagnóstico no lo convierte en ejecución runtime."""
+    r = herramienta().admitir_campanas(_recibos_campanas(tmp_path, modo=modo))
+    assert r['state'] == 'bloqueada' and len(r['familias']) == 6
+    assert all(f['modo'] == modo for f in r['familias'])
+    assert all('runtime' in f['errors'][0] for f in r['familias'])
+
+
+def test_recibo_no_puede_cambiar_mientras_se_valida(tmp_path, monkeypatch):
+    """065:RF-24 — la guarda canónica conserva el descriptor durante la validación."""
+    from convertersmartgrid.evaluacion_harness import ejecucion
+    refs = _recibos_campanas(tmp_path)
+    ruta = Path(refs[0][1])
+    antes = ruta.read_bytes()
+    validar = ejecucion.validar_integridad
+    def mutar(r):
+        validar(r)
+        if r['configuracion']['familia'] == refs[0][0]:
+            ruta.write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(ejecucion, 'validar_integridad', mutar)
+    r = herramienta().admitir_campanas(refs)
+    assert r['state'] == 'bloqueada' and r['errors']
+    assert ruta.read_bytes() == antes
+
+
+@pytest.mark.parametrize('cambiar', [False, True])
+def test_cli_materializa_estados_y_revalida_recibos_tras_las_puertas(tmp_path, monkeypatch, cambiar):
+    """065:RF-24 — contrato CPU de consolidación; ningún pase simulado certifica entrega real."""
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    h = herramienta()
+    root = tmp_path/'candidato'
+    (root/'tests').mkdir(parents=True)
+    (root/'frontend').mkdir()
+    (root/'frontend/package.json').write_text('{}', encoding='utf-8')
+    recibos = tmp_path/'recibos'; recibos.mkdir()
+    refs = _recibos_campanas(recibos)
+    trace = SimpleNamespace(validar_salida=lambda p, _: p.resolve(), revision=lambda _: 'c' * 40,
+                            hash_candidato=lambda _: ('d' * 64, {}))
+    runner = SimpleNamespace(_git_local=nullcontext, _entorno=lambda *_: {},
+                              _runtime=lambda *_: {'packages': {}})
+    herramientas = {'trazabilidad_candidato': trace, 'verificar_candidato': runner,
+                    'fijar_entorno': SimpleNamespace(leer_minimos_seguridad=lambda _: {})}
+    monkeypatch.setattr(h, '_herramienta', herramientas.__getitem__)
+    ejecutar = h.ejecutar_comprobacion
+    modificado = []
+    def puerta(c, evidencia, env):
+        if c['kind'] == 'campanas': return ejecutar(c, evidencia, env)
+        if cambiar and not modificado:
+            Path(refs[0][1]).write_text('{}', encoding='utf-8')
+            modificado.append(True)
+        return {'id': c['id'], 'state': 'aprobada', 'counts': {'contrato_sintetico': 1}}
+    monkeypatch.setattr(h, 'ejecutar_comprobacion', puerta)
+    out = tmp_path/'salida'
+    argv = ['--root', str(root), '--output-dir', str(out), '--edicion', 'completa', '--ejecutar']
+    for ref in refs: argv += ['--campana', *ref]
+    assert h.main(argv) == int(cambiar)
+    registros = list(out.glob('*/resultado_entrega.json'))
+    assert len(registros) == 1
+    r = json.loads(registros[0].read_text(encoding='utf-8'))
+    assert r['technical_checks_passed'] is (not cambiar)
+    assert r['revision'] == 'c' * 40
+    assert r['estados']['familias'][0]['revision_captura'] == 'a' * 40
+    assert r['estados']['modelos'] and r['estados']['datos']
+    assert r['estados']['pruebas']['ml']['estado'] == 'aprobada'
+    assert r['production_ready_core'] is r['project_complete'] is False
+    assert r['estados']['aceptacion_cientifica'] is r['estados']['aceptacion_operativa'] is False
+    assert r['campanas_antes']['state'] == 'aprobada'
+    assert r['campanas_despues']['state'] == ('bloqueada' if cambiar else 'aprobada')
+
+
+@pytest.mark.parametrize('faltante', [False, True])
+def test_backend_enlaza_inventarios_de_datos_por_sha_sin_recopiar_fuentes(tmp_path, faltante):
+    """065:RF-24 — el resumen enlaza los recibos de datos de la propia corrida."""
+    d = tmp_path/'backend'/'intento'; d.mkdir(parents=True)
+    r = {'state': 'regresion_aprobada', 'scope': 'suite_completa', 'data_hash_mode': 'sha256',
+         'missing_inputs': [], 'source_hash_before': 'a' * 64, 'source_hash_after': 'a' * 64,
+         'returncode': 0, 'errors': [],
+         'results': {'counts': {'pass': 1, 'fail': 0, 'error': 0, 'skip': 0, 'xfail': 0}}}
+    (d/'registro.json').write_text(json.dumps(r), encoding='utf-8')
+    for name in ('data_inputs_before.json', 'data_inputs_after.json'):
+        if not faltante or name != 'data_inputs_after.json':
+            (d/name).write_text('{"contrato_sintetico":true}', encoding='utf-8')
+    c = {'kind': 'backend', 'artifact': str(d.parent)}
+    if faltante:
+        with pytest.raises(ValueError, match='inventario'):
+            herramienta()._validar_resultado(c, tmp_path/'stdout')
+    else:
+        import hashlib
+        datos = herramienta()._validar_resultado(c, tmp_path/'stdout')['artefactos_datos']
+        assert len(datos) == 2
+        for ref in datos.values():
+            assert hashlib.sha256(Path(ref['path']).read_bytes()).hexdigest() == ref['sha256']
