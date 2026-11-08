@@ -169,3 +169,12 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 ## Después de la 1.0
 
 002 T7 a T12; 043 T9; 045 T3; 047 T4, T7, T8; 048; 049 (cortocircuito y protecciones, lo primero que pedirá un cliente); 050 T1b a T5b; 068 T7, 069 T7, 085 T6 (campaña de GPU); 071 T5; 072 T3, T9, T11; 074; 027 T11, T26.
+## Nota correctiva: procedencia portable (2026-11-08)
+
+RF-39/RF-44: el constructor publica identidad/SHA de recibos externos, preserva
+su JSON original y verifica sus bytes si se declara un recibo. Solo el descriptor
+exportado omite rutas privadas; URL/commit/versión/SHA de rueda no cambian.
+Pruebas permanentes en `tests/test_complemento_integral.py`: traslado entre dos
+raíces privadas con entorno/cwd distintos y rechazo de mutaciones del recibo.
+No se cambian estados de aceptación ni se da por reconstruido/instalado el
+complemento de 238 ruedas o el programa final con este correctivo CPU.

@@ -1,6 +1,7 @@
 """086:RF-37/39/44: capacidades opcionales offline, con cierre y procedencia."""
 import hashlib
 import json
+import os
 import shutil
 import zipfile
 from pathlib import Path
@@ -63,6 +64,77 @@ def _suplemento(tmp_path, cache, filename='LICENSE.txt'):
         'license': 'MIT', 'texts': [{'path': filename, 'sha256': digest,
             'source_url': 'https://example.org/v1/LICENSE', 'source_sha256': digest}]}]}), encoding='utf-8')
     return manifest
+
+
+@pytest.mark.parametrize('relative_receipt', [False, True])
+def test_procedencia_exportada_es_portatil_y_conserva_autoridad_real(sources, tmp_path, monkeypatch, relative_receipt):
+    """086:RF-39/44: dos raíces privadas distintas no viajan dentro del paquete."""
+    original_source, original_cache, original_freeze, original_provenance = sources
+    exported = []
+    for label in ('private_user_alpha', 'private_user_beta'):
+        private = tmp_path / label
+        private.mkdir()
+        source, cache = private / 'source', private / 'cache'
+        shutil.copytree(original_source, source)
+        shutil.copytree(original_cache, cache)
+        freeze = private / 'freeze.txt'
+        freeze.write_bytes(original_freeze.read_bytes())
+        receipt = private / 'private_receipt.json'
+        receipt.write_text('{"origin":"authorized"}\n', encoding='utf-8')
+        receipt_digest = hashlib.sha256(receipt.read_bytes()).hexdigest()
+        origins = json.loads(original_provenance.read_text(encoding='utf-8'))
+        origins[0].update(receipt=receipt.name if relative_receipt else str(receipt),
+                          receipt_sha256=receipt_digest, source_cache=str(cache), username=label)
+        provenance = private / 'origins.json'
+        provenance.write_text(json.dumps(origins), encoding='utf-8')
+        original_receipt = receipt.read_bytes()
+        original_provenance_bytes = provenance.read_bytes()
+        cwd = private / 'different_working_directory'
+        cwd.mkdir()
+        monkeypatch.chdir(cwd)
+        monkeypatch.setenv('USERNAME', label)
+        monkeypatch.setenv('CSG_CACHE_HOME', str(private / 'different_environment_cache'))
+        output = tmp_path / ('delivery_' + label)
+        CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+            capacidades='integrales', versiones=freeze, procedencias=provenance)
+        coverage = json.loads((output / 'cobertura.json').read_text(encoding='utf-8'))
+        public = coverage['procedencias'][0]
+        for field in ('name', 'version', 'url', 'commit_id', 'wheel', 'sha256', 'receipt_sha256'):
+            assert public[field] == origins[0][field]
+        assert public['receipt'] == {'kind': 'external-file', 'sha256': receipt_digest}
+        assert coverage['procedencias_sha256'] == hashlib.sha256(original_provenance_bytes).hexdigest()
+        texts = '\n'.join(path.read_text(encoding='utf-8') for path in output.rglob('*')
+                          if path.is_file() and path.suffix != '.whl')
+        assert label not in texts and str(private) not in texts and 'source_cache' not in texts
+        assert receipt.read_bytes() == original_receipt and provenance.read_bytes() == original_provenance_bytes
+        assert IC.verificar_candidato(output)['capacidades'] == 'integrales'
+        exported.append(public)
+    assert exported[0] == exported[1]
+
+
+@pytest.mark.parametrize('mutation', ['content_same_stat', 'digest', 'missing'])
+def test_recibo_de_procedencia_mutado_no_publica_paquete(sources, tmp_path, mutation):
+    """086:RF-39/44: el SHA publicado sigue siendo el del recibo externo efectivamente leído."""
+    source, cache, freeze, provenance = sources
+    receipt = tmp_path / 'origin.json'
+    receipt.write_text('{"origin":"ok"}\n', encoding='utf-8')
+    stat = receipt.stat()
+    origins = json.loads(provenance.read_text(encoding='utf-8'))
+    origins[0].update(receipt=str(receipt), receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest())
+    if mutation == 'content_same_stat':
+        receipt.write_text('{"origin":"no"}\n', encoding='utf-8')
+        os.utime(receipt, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        assert receipt.stat().st_size == stat.st_size and receipt.stat().st_mtime_ns == stat.st_mtime_ns
+    elif mutation == 'digest':
+        origins[0]['receipt_sha256'] = 'b' * 64
+    else:
+        receipt.unlink()
+    provenance.write_text(json.dumps(origins), encoding='utf-8')
+    output = tmp_path / 'output'
+    with pytest.raises(CC.CE.EntregaError, match='[Rr]ecibo|[Pp]rocedencia'):
+        CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
+            capacidades='integrales', versiones=freeze, procedencias=provenance)
+    assert not (output / 'manifiesto_candidato.json').exists()
 
 
 @pytest.mark.parametrize('capacidades', ['integrales', 'inferencia'])

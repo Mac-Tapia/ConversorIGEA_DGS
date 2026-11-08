@@ -609,6 +609,32 @@ def seleccionar_capacidades_integrales(raiz: Path, caches: Iterable[Path], versi
     return [selected[n][0] for n in sorted(selected)], coverage
 
 
+def _procedencia_publicada(origen: dict[str, Any], base_recibos: Path) -> dict[str, Any]:
+    """086:RF-39/44: publica identidad verificable, sin rutas privadas del constructor.
+
+    El SHA del recibo identifica sus bytes originales, no este descriptor. El JSON
+    de procedencias de entrada conserva la ruta externa y su propia huella.
+    """
+    publica = {key: origen[key] for key in
+               ('name', 'version', 'url', 'commit_id', 'wheel', 'sha256', 'receipt_sha256') if key in origen}
+    if 'receipt' in origen or 'receipt_sha256' in origen:
+        raw, expected = origen.get('receipt'), origen.get('receipt_sha256')
+        if (not isinstance(raw, str) or not raw.strip() or not isinstance(expected, str)
+                or not re.fullmatch(r'[0-9a-f]{64}', expected)):
+            raise CE.EntregaError('Recibo de procedencia incompleto o sin huella SHA256 válida.')
+        path = Path(raw)
+        if not path.is_absolute():
+            path = base_recibos / path
+        try:
+            actual = _sha256(path)
+        except OSError as exc:
+            raise CE.EntregaError('No se puede leer el recibo de procedencia autorizado.') from exc
+        if actual != expected:
+            raise CE.EntregaError('Recibo de procedencia alterado: su huella no coincide con la autorizada.')
+        publica['receipt'] = {'kind': 'external-file', 'sha256': actual}
+    return publica
+
+
 def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: str,
                             capacidades: str = 'inferencia', versiones: Path | None = None,
                             procedencias: Path | None = None, caches_adicionales: Iterable[Path] = (),
@@ -627,6 +653,9 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
         if versiones is None or procedencias is None:
             raise CE.EntregaError('Las capacidades integrales requieren versiones capturadas y procedencias explícitas.')
         seleccion, cobertura = seleccionar_capacidades_integrales(raiz, [cache, *caches_adicionales], versiones, procedencias, licencias=licencias)
+    cobertura_publicada = ({**cobertura, 'procedencias': [
+        _procedencia_publicada(origin, procedencias.parent) for origin in cobertura['procedencias']]}
+        if cobertura else None)
     core = _leer_lock_nucleo(raiz / LOCK.name)
     limites = [f'{nombre}=={pin}' for nombre, (pin, _hashes) in core.items()]
     _, textos_suplementarios = _licencias_suplementarias(licencias) if licencias else ([], {})
@@ -645,7 +674,7 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
     if cobertura:
         (salida / 'requisitos-declarados.txt').write_text('\n'.join(r for values in cobertura['grupos'].values() for r in values) + '\n', encoding='utf-8')
         (salida / 'requisitos-resueltos.txt').write_text('\n'.join(cobertura['raices_resueltas']) + '\n', encoding='utf-8')
-        (salida / 'cobertura.json').write_text(json.dumps(cobertura, ensure_ascii=False, indent=2), encoding='utf-8')
+        (salida / 'cobertura.json').write_text(json.dumps(cobertura_publicada, ensure_ascii=False, indent=2), encoding='utf-8')
     else:
         shutil.copyfile(raiz / COMPLEMENTO_IA.name, salida / 'requisitos-declarados.txt')
     (salida / 'limites-nucleo.txt').write_text('\n'.join(limites) + '\n', encoding='utf-8')

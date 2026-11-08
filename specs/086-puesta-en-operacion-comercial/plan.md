@@ -198,3 +198,29 @@ QA. El preflight y la validación ISCC con salida deshabilitada no instalan ni
 cierran T31/T32/T40/T41. Los enlaces existentes se inventarían por destino y SHA;
 cualquier restitución exige contrastarlos y coordinarla con el integrador. Evidencia
 externa: `p25_comercial_20261108` bajo la implementación del diagnóstico 20261107.
+## Correctivo de procedencia portable (2026-11-08, RF-39/RF-44)
+
+La procedencia publicada en el complemento integral conserva nombre, versión,
+URL de origen, commit, nombre/SHA de rueda y SHA del recibo original. Su campo
+`receipt` es un descriptor `{kind: external-file, sha256: ...}`; no lleva rutas,
+nombres de usuario, cachés o campos privados del proceso constructor. El SHA
+identifica los bytes del recibo externo original, no los de ese descriptor.
+
+El JSON de procedencias de entrada permanece externo e intacto, con sus rutas
+de auditoría y su SHA en `procedencias_sha256`. Cuando declara `receipt` y
+`receipt_sha256`, el constructor relee y verifica ese archivo antes de crear
+la salida; una ruta relativa se interpreta respecto del JSON, no del cwd.
+Declarar solo una de esas claves o una huella inválida falla cerrado. Las
+procedencias anteriores sin recibo declarado mantienen su autoridad explícita
+de URL/commit/rueda y no reciben una huella de recibo inventada.
+
+La proyección se aplica únicamente al exportar `cobertura.json`. La selección,
+los recibos externos, licencias, resolución de dependencias, locks y hashes de
+ruedas conservan su validación y autoridad. No se modifica el complemento de
+238 ruedas ya existente: necesita nuevo freeze/turno del integrador para su
+construcción posterior.
+
+Verificar con dos raíces privadas, usuarios/entornos/cwd distintos y recibos
+absolutos/relativos; ninguna ruta privada viaja en el paquete pequeño de prueba.
+Rechazar recibo ausente, SHA distinto y contenido alterado con igual tamaño/mtime.
+Esto no acredita instalación, GPU, modelos, aprobación legal ni producción.
