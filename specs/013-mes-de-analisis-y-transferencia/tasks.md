@@ -43,7 +43,7 @@ abiertas, lo que falta. Una tarea cada vez, pruebas primero.
       transferidas» y «Cobertura temporal». Pruebas: `tests/test_transferencia_pf.py`,
       `tests/test_transferencia_pf_guion.py`, `tests/test_estudios_pf_web.py`,
       `tests/test_obras_estudios_front.py`.
-- [ ] T7. [DIgSILENT] Transferencia entre CA101 y PE104 en el mismo instante desde la web,
+- [ ] T7. [DIgSILENT] Transferencia entre CA101 y CHN102 en el mismo instante desde la web (el usuario la cambió de CA101 y PE104 el 2026-11-08),
       con el descargable releído. (RF-22 a RF-29)
       Hecho cuando: el usuario confirma la transferencia, las SED transferidas y el instante.
 - [x] T8. Validación: cada RF citado por al menos una prueba y en verde. (RF-1 a RF-32)

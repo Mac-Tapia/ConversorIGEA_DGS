@@ -138,7 +138,7 @@
 
 Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de prueba nuevos. `D=D:/BaseDatosElectroDunas/referencia_retirada_20261102`.
 
-- [ ] T24 [DIgSILENT] R1, CA101 + PE104, TXT: `--red CA101 PE104 --grupo PRUEBA_CA101_PE104 --demanda-dir $D --periodo 2026-07 --reconvertir`, luego en el navegador calibración, cargas, obras, transferencia e informes. (RF-45)
+- [ ] T24 [DIgSILENT] R1, CA101 + CHN102, TXT (el usuario la cambió de CA101 + PE104 el 2026-11-08), sobre el proyecto `20261105-124711_CSG_TXT_CA101_CHN102`, sin reconvertir: `--red CA101 CHN102 --grupo CA101_CHN102 --demanda-dir $D --periodo 2026-07`, luego en el navegador calibración, cargas, obras, transferencia e informes. (RF-45)
   Cierra: 008 T7, 011 T19, 013 T7, 017 T13, 017 T19, 028 T11, 037 T4, 058 T7, 078 T6, 084 T9, 081 T22; 012 T13 si hay libro real. Hecho cuando: cabecera dentro del 1 %, `VALIDO`, `m:Psum`; «Sin proyecto» intacto; Word y Excel revisados por el usuario.
 - [ ] T25 [DIgSILENT] R2, SI213 y PN107, MDB, uno por vez, con cargas por el navegador. (RF-45)
   Cierra: 007 T11, 016 T18, 028 T11, 081 T20. Hecho cuando: variación por carga, barra más cercana, base activa al terminar.
