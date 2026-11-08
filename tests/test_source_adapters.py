@@ -247,3 +247,93 @@ def test_carga_verifica_custodia_persistida_antes_del_lector(tmp_path, monkeypat
     assert ws.dataset is None
     assert not ws.out_dir.exists()
     assert all(path.is_file() for path in originals)
+
+
+@pytest.mark.parametrize('moment', ['copy', 'reader'])
+def test_carga_obsoleta_no_reactiva_run_ni_publica_dataset_al_cambiar_modalidad(tmp_path, monkeypatch, moment):
+    """034:RF-20 — un PUT de modalidad durante el trabajo conserva la decisión nueva."""
+    from convertersmartgrid import sources
+    from convertersmartgrid.web import services, source_runs
+
+    ws, _ = _txt_workspace(tmp_path, feeders=1)
+    mdb = tmp_path / 'solo-existencia.mdb'
+    mdb.write_bytes(b'fixture de existencia; no es Access aceptado')
+    ws.set_input('mdb', mdb, origin='server')
+    ws.options['input_mode'] = 'txt'
+    changed = []
+
+    def change_mode():
+        if not changed:
+            with ws.lock:
+                ws.invalidate()
+                ws.options.update(input_mode='mdb')
+                ws.save()
+            changed.append(True)
+
+    if moment == 'copy':
+        real = source_runs._sha256_copy
+        def copying(*args):
+            value = real(*args)
+            change_mode()
+            return value
+        monkeypatch.setattr(source_runs, '_sha256_copy', copying)
+    else:
+        factory = sources.adapter_for
+        def adapter(*args, **kwargs):
+            real = factory(*args, **kwargs)
+            class Reader:
+                def load(self, *args, **kwargs):
+                    value = real.load(*args, **kwargs)
+                    change_mode()
+                    return value
+            return Reader()
+        monkeypatch.setattr(sources, 'adapter_for', adapter)
+    with pytest.raises(ValueError, match='SOURCE_SELECTION_CHANGED'):
+        services.load_dataset(ws, _ctx())
+    assert ws.options['input_mode'] == 'mdb'
+    assert ws.dataset is None and ws.loaded_run_id is None
+    assert ws.active_run_id is None
+    assert list((ws.root / 'runs').glob('*/source_manifest.json'))
+
+
+def test_lector_real_no_puede_consumir_ABA_y_recibo_coincide_con_dgs_control(tmp_path, monkeypatch):
+    """034:RF-20 — SHA y lector usan fuente excluida de escritores, no hash antes/después."""
+    import hashlib
+    from convertersmartgrid import sources
+    from convertersmartgrid.web import services
+
+    ws, _ = _txt_workspace(tmp_path / 'protected', feeders=1)
+    factory = sources.adapter_for
+    rejected = []
+    def adapter(*args, **kwargs):
+        real = factory(*args, **kwargs)
+        class Reader:
+            def load(self, snapshot, **kwargs):
+                path = snapshot.files['loads'].path
+                before = path.read_bytes()
+                altered = before.replace(b'12.5', b'22.5')
+                assert altered != before
+                try:
+                    path.write_bytes(altered)
+                except OSError:
+                    rejected.append(True)
+                try:
+                    return real.load(snapshot, **kwargs)
+                finally:
+                    if not rejected:
+                        path.write_bytes(before)
+        return Reader()
+    with monkeypatch.context() as patch:
+        patch.setattr(sources, 'adapter_for', adapter)
+        services.load_dataset(ws, _ctx())
+    assert rejected == [True]
+    assert {r['Value1'] for r in ws.dataset.customer_loads.values()} == {'12.5'}
+    result = services.convert(ws, _ctx(), None, True)
+    control, _ = _txt_workspace(tmp_path / 'control', feeders=1)
+    services.load_dataset(control, _ctx())
+    services.convert(control, _ctx(), None, True)
+    actual = next(ws.out_dir.glob('*.dgs')).read_bytes()
+    assert actual == next(control.out_dir.glob('*.dgs')).read_bytes()
+    assert ws.loaded_source_fingerprint == control.loaded_source_fingerprint
+    assert ws.loaded_source_receipt['files']['loads']['sha256'] == ws.active_run().files['loads'].sha256
+    assert hashlib.sha256(actual).hexdigest()

@@ -105,6 +105,7 @@ def test_conversion_preflight_runs_before_converter_writes(tmp_path, monkeypatch
     ws.loaded_run_id = snapshot.run_id
     ws.loaded_source_mode = snapshot.mode
     ws.loaded_source_fingerprint = snapshot.fingerprint
+    ws.loaded_selection_token = snapshot.selection_token
     called = False
 
     def forbidden(*_args, **_kwargs):

@@ -246,12 +246,12 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
     from ..batch import load_aliases
     from ..sources import adapter_for
-    from .source_runs import create_source_run, load_source_run
+    from .source_runs import SourceIntegrityError, create_source_run, guarded_source_run, load_source_run
 
     ctx.log('--- Carga e inventario de alimentadores ---')
     snapshot = create_source_run(ws)
     try:
-        snapshot = load_source_run(ws, snapshot.run_id, verify_files=True)
+        snapshot = load_source_run(ws, snapshot.run_id)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     mode = snapshot.mode
@@ -261,12 +261,18 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         if ws.input_path(slot):
             ctx.log(f'{slot}: {Path(ws.input_path(slot)).name}')
 
-    aliases = load_aliases(snapshot.path_for('aliases') or None)
-    loaded = adapter_for(
-        mode,
-        company=ws.options.get('source_company'),
-        period=ws.options.get('source_period'),
-    ).load(snapshot, aliases=aliases)
+    try:
+        with guarded_source_run(snapshot) as reading:
+            captured = (snapshot.selection_token or {}).get('options') or {}
+            aliases = load_aliases(snapshot.path_for('aliases') or None)
+            loaded = adapter_for(
+                mode,
+                company=captured.get('source_company'),
+                period=captured.get('source_period'),
+            ).load(reading, aliases=aliases)
+            read_receipt = reading.read_receipt
+    except SourceIntegrityError as exc:
+        raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     dataset, catalog_report = loaded.dataset, loaded.catalog_report
     from ..source_contract import audit_source
 
@@ -304,10 +310,16 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     if reconstruidos:
         ctx.log(f'{reconstruidos} alimentador(es) con conductores sin impedancia en la fuente: '
                 'reconstruidos con el catálogo de fichas al cargar (CONDUCTOR_RECONSTRUIDO).')
-    ws.out_dir.mkdir(parents=True, exist_ok=True)
-    audit_path = ws.out_dir / 'universal_source_audit.json'
+    with ws.lock:
+        if (ws.active_run_id != snapshot.run_id
+                or ws.source_selection_token() != snapshot.selection_token):
+            raise UserError('SOURCE_SELECTION_CHANGED: las entradas cambiaron durante la lectura; '
+                            'no se publica el dataset anterior.')
+    output_dir = snapshot.root / 'salida'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = output_dir / 'universal_source_audit.json'
     write_json_atomic(audit_path, source_audit_dict)
-    inv_path = write_inventory(inventory, ws.out_dir / 'dataset_inventory.json')
+    inv_path = write_inventory(inventory, output_dir / 'dataset_inventory.json')
     ctx.log(format_inventory_report(inventory))
     ctx.log(f'Inventario JSON: {inv_path.name}')
     ctx.log(f'Auditoria universal: {source_audit.status} ({audit_path.name})')
@@ -315,10 +327,15 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     import time
 
     with ws.lock:
+        if (ws.active_run_id != snapshot.run_id
+                or ws.source_selection_token() != snapshot.selection_token):
+            raise UserError('SOURCE_SELECTION_CHANGED: las entradas cambiaron antes de publicar el dataset.')
         ws.dataset = dataset
         ws.loaded_run_id = snapshot.run_id
         ws.loaded_source_mode = snapshot.mode
         ws.loaded_source_fingerprint = snapshot.fingerprint
+        ws.loaded_selection_token = snapshot.selection_token
+        ws.loaded_source_receipt = read_receipt
         ws.inventory = inventory
         ws.source_audit = source_audit_dict
         ws.feeder_readiness = readiness
@@ -417,6 +434,7 @@ def _stamp_source_manifest(
     manifest: dict,
     snapshot,
     reconstruction: dict[str, Any] | None = None,
+    catalog_sha256: str | None = None,
 ) -> None:
     """Liga el manifiesto y la metadata DGS a la ejecución que los produjo."""
     source = {
@@ -425,6 +443,8 @@ def _stamp_source_manifest(
         'source_fingerprint': snapshot.fingerprint,
     }
     manifest.update(source)
+    manifest['source_read_receipt'] = ws.loaded_source_receipt
+    manifest['catalog_sha256'] = catalog_sha256
     if reconstruction is not None:
         manifest['reconstruction'] = reconstruction
     for item in manifest.get('feeders') or []:
@@ -485,6 +505,29 @@ def check_selection_readiness(
         raise UserError(str(exc)) from exc
 
 
+def _con_custodia_de_conversion(function):
+    """034:RF-20: las dos conversiones retienen las mismas guardas hasta terminar."""
+    @functools.wraps(function)
+    def ejecutar(ws, *args, **kwargs):
+        from contextlib import ExitStack
+        from ..adaptadores.fuentes_estables import abrir_fuente_estable
+        from .source_runs import SourceIntegrityError, guarded_source_run
+        snapshot = require_active_source_run(ws)
+        try:
+            with ExitStack() as held:
+                held.enter_context(guarded_source_run(snapshot))
+                if ws.catalog_file:
+                    held.enter_context(abrir_fuente_estable(ws.catalog_file))
+                ws.catalog_corrections()
+                return function(ws, *args, **kwargs)
+        except SourceIntegrityError as exc:
+            raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+    return ejecutar
+
+
+@_con_custodia_de_conversion
 def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool) -> dict:
     from ..batch import convert_selection, load_aliases
     from .reconstruction_service import (
@@ -494,7 +537,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws, verify_files=True)
+    snapshot = require_active_source_run(ws)
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')
@@ -514,9 +557,10 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
     use_reconstruction = matching_reconstruction(ws, network_ids)
     dataset = ws.reconstructed_dataset if use_reconstruction else ws.dataset
     reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
-    opts = ws.options
+    opts = dict(ws.options)
     aliases = load_aliases(snapshot.path_for('aliases') or None)
     corrections = ws.catalog_corrections()
+    catalog_identity = (ws.catalog_file, ws.catalog_sha256)
     if all_feeders:
         ctx.log(f"Alcance: todos ({len(ws.inventory['feeders']) if ws.inventory else '?'})")
     else:
@@ -545,8 +589,10 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 
     from ..reglas import catalogo_de_fuente
 
+    require_active_source_run(ws)
+    output_dir = snapshot.root / 'salida'
     manifest = convert_selection(
-        dataset, None if all_feeders else selected, ws.out_dir,
+        dataset, None if all_feeders else selected, output_dir,
         all_feeders=all_feeders,
         aliases=aliases,
         strict=bool(opts['strict']),
@@ -570,7 +616,10 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         # resolución difusa/DEFAULT del camino literal.
         catalogo=None if use_reconstruction else catalogo_de_fuente((ws.inventory or {}).get('provenance')),
     )
-    _stamp_source_manifest(ws, manifest, snapshot, reconstruction)
+    require_active_source_run(ws)
+    if (ws.catalog_file, ws.catalog_sha256) != catalog_identity:
+        raise UserError('CATALOG_SELECTION_CHANGED: cambió el catálogo durante la conversión.')
+    _stamp_source_manifest(ws, manifest, snapshot, reconstruction, catalog_identity[1])
     ws.record_conversions(manifest)
 
     summary = manifest['summary']
@@ -1563,6 +1612,7 @@ def group_name(nombre: str, feeders: list[str]) -> str:
     return nombre_seguro(base, maximo=60)
 
 
+@_con_custodia_de_conversion
 def convert_group(
     ws: Workspace,
     ctx: JobContext,
@@ -1586,7 +1636,7 @@ def convert_group(
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws, verify_files=True)
+    snapshot = require_active_source_run(ws)
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=False)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')
@@ -1599,7 +1649,7 @@ def convert_group(
     use_reconstruction = matching_reconstruction(ws, network_ids)
     dataset = ws.reconstructed_dataset if use_reconstruction else ws.dataset
     reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
-    opts = ws.options
+    opts = dict(ws.options)
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
 
     def on_progress(network_id: str, index: int, total: int) -> None:
@@ -1607,8 +1657,12 @@ def convert_group(
         ctx.progress(index, total, name)
         ctx.log(f'[{index}/{total}] {name}…')
 
+    corrections = ws.catalog_corrections()
+    catalog_identity = (ws.catalog_file, ws.catalog_sha256)
+    require_active_source_run(ws)
+    output_dir = snapshot.root / 'salida'
     man = convertir_grupo(
-        dataset, selected, ws.out_dir, name=nombre,
+        dataset, selected, output_dir, name=nombre,
         aliases=load_aliases(snapshot.path_for('aliases') or None),
         strict=bool(opts['strict']),
         # Las mismas opciones que un lote suelto: antes la red unida solo recibía
@@ -1620,12 +1674,17 @@ def convert_group(
         source_crs=crs_origen(ws),
         target_crs=opts['target_crs'] or 'EPSG:4326',
         perfil=perfil_de(ws),
-        catalog_corrections=ws.catalog_corrections() or None,
+        catalog_corrections=corrections or None,
         reglas=reglas_de(ws),
         catalogo=None if use_reconstruction else catalogo_de_fuente((ws.inventory or {}).get('provenance')),
         on_progress=on_progress, cancel=ctx.cancel, estructura=estructura,
         reconstruir=reconstruir,                                       # 022:RF-61
     )
+    require_active_source_run(ws)
+    if (ws.catalog_file, ws.catalog_sha256) != catalog_identity:
+        raise UserError('CATALOG_SELECTION_CHANGED: cambió el catálogo durante la conversión.')
+    man['source_read_receipt'] = ws.loaded_source_receipt
+    man['catalog_sha256'] = catalog_identity[1]
     for linea in _informe_por_set(man.get('estructura')):            # 022:RF-25, RF-34
         ctx.log(linea)
     source = {
@@ -4907,9 +4966,12 @@ AVISO_CATALOGO_APLICADO = ('Sus fichas se aplicarán al calibrar «Sin proyecto�
 
 def apply_catalog(ws: Workspace, upload: Path, preview_feeder: str | None) -> dict:
     from ..catalog import CatalogError, aplicar_correcciones, leer_catalogo
+    from ..adaptadores.fuentes_estables import abrir_fuente_estable
 
     try:
-        corrections = leer_catalogo(upload)
+        with abrir_fuente_estable(upload) as held:
+            corrections = leer_catalogo(held.path)
+            digest = held.sha256
     except CatalogError as exc:
         raise UserError(str(exc)) from exc
     if not corrections:
@@ -4920,10 +4982,15 @@ def apply_catalog(ws: Workspace, upload: Path, preview_feeder: str | None) -> di
         )
     dest = ws.root / 'catalogo_corregido.xlsx'
     upload.replace(dest)
-    with ws.lock:
-        ws.catalog_file = str(dest)
-        ws._corrections_cache = None
-        ws.save()
+    with abrir_fuente_estable(dest) as held:
+        if held.sha256 != digest:
+            raise UserError('CATALOG_CONTENT_CHANGED: cambió el catálogo mientras se aplicaba.')
+        with ws.lock:
+            ws.catalog_file = str(dest)
+            ws.catalog_sha256 = digest
+            ws.no_disponibles.pop('catalog_file', None)
+            ws._corrections_cache = None
+            ws.save()
     changes: list[dict] = []
     if preview_feeder and ws.dataset is not None:
         # Vista previa sobre un modelo desechable: el efecto real ocurre al calibrar «Sin proyecto».
@@ -4943,6 +5010,8 @@ def clear_catalog(ws: Workspace) -> None:
             except OSError:
                 pass
         ws.catalog_file = None
+        ws.catalog_sha256 = None
+        ws.no_disponibles.pop('catalog_file', None)
         ws._corrections_cache = None
         ws.save()
 

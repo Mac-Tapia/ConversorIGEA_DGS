@@ -55,6 +55,8 @@ class SourceSnapshot:
     fingerprint: str
     created_at: float
     files: dict[str, SourceFile]
+    selection_token: dict[str, Any] | None = None
+    read_receipt: dict[str, Any] | None = None
 
     def path_for(self, slot: str) -> str:
         item = self.files.get(slot)

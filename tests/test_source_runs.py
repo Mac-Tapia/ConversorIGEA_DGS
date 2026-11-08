@@ -185,17 +185,99 @@ def test_relectura_ligera_no_lee_bytes_y_preparacion_verifica_hashes(tmp_path, m
 
     ws, _ = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
-    real_open = Path.open
+    from contextlib import contextmanager
+    from convertersmartgrid.adaptadores import fuentes_estables
+    real_open = fuentes_estables.abrir_fuente_estable
     reads = []
 
-    def traced_open(path, *args, **kwargs):
+    @contextmanager
+    def traced_open(path):
         if path in [item.path for item in snapshot.files.values()]:
             reads.append(path)
-        return real_open(path, *args, **kwargs)
+        with real_open(path) as held:
+            yield held
 
-    monkeypatch.setattr(Path, 'open', traced_open)
+    monkeypatch.setattr(fuentes_estables, 'abrir_fuente_estable', traced_open)
     assert load_source_run(ws, snapshot.run_id).fingerprint == snapshot.fingerprint
     assert reads == []
     verified = load_source_run(ws, snapshot.run_id, verify_files=True)
     assert verified.fingerprint == snapshot.fingerprint
     assert set(reads) == {item.path for item in snapshot.files.values()}
+
+
+def test_catalogo_modificado_con_mismo_mtime_bloquea_sin_renovar_baseline(tmp_path):
+    """034:RF-20 — la ficha cacheada se vincula a contenido; no se rebaselina en silencio."""
+    from openpyxl import Workbook
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws, _ = _txt_workspace(tmp_path)
+    path = tmp_path / 'catalogo.xlsx'
+    def write(value):
+        book = Workbook()
+        sheet = book.active
+        sheet.title = 'conductores_aereos'
+        sheet.append(['codigo', 'estado', 'R1_ficha_ohm_km'])
+        sheet.append(['COND_TEST', 'ficha', value])
+        book.save(path)
+        book.close()
+    write(1.1)
+    ws.catalog_file = str(path)
+    assert ws.catalog_corrections()['COND_TEST'].r1_ohm_km == 1.1
+    before = getattr(ws, 'catalog_sha256', None)
+    stat = path.stat()
+    write(2.2)
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    with pytest.raises(ValueError, match='CATALOG_CONTENT_CHANGED'):
+        ws.catalog_corrections()
+    assert ws.catalog_sha256 == before
+    restored = Workspace.load(ws.root)
+    with pytest.raises(ValueError, match='CATALOG_CONTENT_CHANGED'):
+        restored.catalog_corrections()
+
+
+def test_reaplicar_catalogo_explicito_fija_nueva_huella_y_ficha(tmp_path):
+    """034:RF-20 — la decisión explícita sustituye la baseline, una consulta nunca lo hace."""
+    from openpyxl import Workbook
+    from convertersmartgrid.web import services
+
+    ws, _ = _txt_workspace(tmp_path)
+    digests = []
+    for index, value in enumerate((1.1, 2.2)):
+        path = tmp_path / f'aplicacion{index}.xlsx'
+        book = Workbook()
+        sheet = book.active
+        sheet.title = 'conductores_aereos'
+        sheet.append(['codigo', 'estado', 'R1_ficha_ohm_km'])
+        sheet.append(['COND_TEST', 'ficha', value])
+        book.save(path)
+        book.close()
+        services.apply_catalog(ws, path, None)
+        assert ws.catalog_corrections()['COND_TEST'].r1_ohm_km == value
+        digests.append(ws.catalog_sha256)
+    assert digests[0] != digests[1]
+
+
+def test_catalogo_baseline_ausente_tras_reabrir_no_se_convierte_en_catalogo_vacio(tmp_path):
+    """034:RF-20; 086:RF-3 — perder el fichero no es una decisión de retirar la ficha."""
+    from openpyxl import Workbook
+    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.web import services
+
+    ws, _ = _txt_workspace(tmp_path)
+    path = tmp_path / 'catalogo.xlsx'
+    book = Workbook()
+    sheet = book.active
+    sheet.title = 'conductores_aereos'
+    sheet.append(['codigo', 'estado', 'R1_ficha_ohm_km'])
+    sheet.append(['COND_TEST', 'ficha', 1.1])
+    book.save(path)
+    book.close()
+    ws.catalog_file = str(path)
+    ws.catalog_corrections()
+    path.unlink()
+    restored = Workspace.load(ws.root)
+    with pytest.raises(ValueError, match='CATALOG_CONTENT_UNAVAILABLE'):
+        restored.catalog_corrections()
+    services.clear_catalog(restored)
+    assert restored.catalog_corrections() is None
+    assert 'catalog_file' not in restored.no_disponibles

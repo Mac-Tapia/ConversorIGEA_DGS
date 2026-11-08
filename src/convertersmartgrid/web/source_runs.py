@@ -18,7 +18,8 @@ import re
 import shutil
 import time
 import uuid
-from dataclasses import dataclass
+from contextlib import contextmanager, ExitStack
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -40,6 +41,13 @@ class EspacioDeFuentes(Protocol):
     def save(self) -> None:
         ...
 
+    def source_selection_token(self) -> dict:
+        ...
+
+
+class SourceIntegrityError(ValueError):
+    """La custodia no puede demostrar los bytes que el consumidor va a leer."""
+
 
 _RUN_ID_RE = re.compile(r'^\d{8}T\d{6}-[a-f0-9]{12}$')
 
@@ -57,6 +65,7 @@ class SourceRunManifest:
     created_at: float
     fingerprint: str
     files: tuple[SourceFile, ...]
+    selection_token: dict | None = None
 
     def to_dict(self, run_root: Path) -> dict[str, Any]:
         return {
@@ -66,16 +75,19 @@ class SourceRunManifest:
             'created_at': self.created_at,
             'fingerprint': self.fingerprint,
             'files': [item.to_dict(run_root) for item in self.files],
+            'selection_token': self.selection_token,
         }
 
 
 def _sha256_copy(source: Path, target: Path) -> tuple[int, str]:
+    from ..adaptadores.fuentes_estables import abrir_fuente_estable
     digest = hashlib.sha256()
     size = 0
     target.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(target) as temporary:
         try:
-            with source.open('rb') as src, temporary.open('xb') as dst:
+            with abrir_fuente_estable(source) as held, temporary.open('xb') as dst:
+                src = held.stream
                 while chunk := src.read(1024 * 1024):
                     dst.write(chunk)
                     digest.update(chunk)
@@ -95,7 +107,10 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
 
 def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
     """Copia solo las entradas del modo activo y activa la instantánea resultante."""
-    raw_mode = str(ws.options.get('input_mode') or '')
+    with ws.lock:
+        selection = ws.source_selection_token()
+        inputs = selection['inputs']
+        raw_mode = str(selection['options'].get('input_mode') or '')
     if not raw_mode:
         # 059:RF-7: sin fuente no hay nada que convertir; se pide, no se supone una.
         raise ValueError('Cargue primero la fuente: los tres TXT de CYMDIST, una base Access '
@@ -109,7 +124,7 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
     copied: list[SourceFile] = []
     try:
         for slot in (*MODE_SLOTS[mode], *COMMON_SLOTS):
-            meta = ws.inputs.get(slot)
+            meta = inputs.get(slot)
             if not meta:
                 continue
             source = Path(meta['path'])
@@ -134,6 +149,7 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
             created_at=time.time(),
             fingerprint=fingerprint,
             files=tuple(copied),
+            selection_token=selection,
         )
         _atomic_json(run_root / 'source_manifest.json', manifest.to_dict(run_root))
     except BaseException:
@@ -147,8 +163,12 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
         fingerprint=fingerprint,
         created_at=manifest.created_at,
         files={item.slot: item for item in copied},
+        selection_token=selection,
     )
     with ws.lock:
+        if ws.source_selection_token() != selection:
+            raise ValueError('SOURCE_SELECTION_CHANGED: las entradas o su modalidad cambiaron '
+                             'durante la copia; la ejecución anterior solo queda como historial.')
         ws.active_run_id = run_id
         ws.save()
     return snapshot
@@ -210,6 +230,16 @@ def load_source_run(ws: EspacioDeFuentes, run_id: str, *, verify_files: bool = F
     expected = source_fingerprint(mode, list(files.values()))
     if payload.get('fingerprint') != expected:
         raise ValueError('La huella del manifiesto no coincide con las entradas custodiadas.')
+    selection = payload.get('selection_token')
+    if selection is not None and (
+            not isinstance(selection, dict) or set(selection) != {'generation', 'options', 'inputs'}
+            or type(selection.get('generation')) is not int or selection['generation'] < 0
+            or not isinstance(selection.get('options'), dict)
+            or set(selection['options']) != {'input_mode', 'source_company', 'source_period'}
+            or selection['options'].get('input_mode') != mode
+            or not isinstance(selection.get('inputs'), dict)
+            or not set(selection['inputs']) <= allowed):
+        raise ValueError('Token de selección de fuente inválido.')
     snapshot = SourceSnapshot(
         run_id=str(payload['run_id']),
         mode=mode,
@@ -217,6 +247,7 @@ def load_source_run(ws: EspacioDeFuentes, run_id: str, *, verify_files: bool = F
         fingerprint=str(payload['fingerprint']),
         created_at=float(created_at),
         files=files,
+        selection_token=selection,
     )
     if verify_files:
         verify_source_files(snapshot)
@@ -225,11 +256,25 @@ def load_source_run(ws: EspacioDeFuentes, run_id: str, *, verify_files: bool = F
 
 def verify_source_files(snapshot: SourceSnapshot) -> None:
     """034:RF-20: coteja bytes en preparación, conservando hashes e inventario previos."""
-    from ..util import sha256_file
+    with guarded_source_run(snapshot):
+        pass
 
-    for item in snapshot.files.values():
-        if not item.path.is_file():
-            raise ValueError(f'Original custodiado ausente: {item.slot}.')
-        # Ni tamaño ni mtime prueban identidad: una alteración puede conservar ambos.
-        if item.path.stat().st_size != item.size or sha256_file(item.path) != item.sha256:
-            raise ValueError(f'Cambió la huella del original custodiado: {item.slot}.')
+
+@contextmanager
+def guarded_source_run(snapshot: SourceSnapshot):
+    """034:RF-20: las guardas y sus recibos viven hasta terminar el lector/consumidor."""
+    from ..adaptadores.fuentes_estables import abrir_fuente_estable
+
+    receipt = {'run_id': snapshot.run_id, 'fingerprint': snapshot.fingerprint, 'files': {}}
+    with ExitStack() as stack:
+        for slot, item in sorted(snapshot.files.items()):
+            if not item.path.is_file():
+                raise SourceIntegrityError(f'Original custodiado ausente: {item.slot}.')
+            try:
+                held = stack.enter_context(abrir_fuente_estable(item.path))
+            except OSError as exc:
+                raise SourceIntegrityError(f'No se pudo retener el original custodiado {item.slot}: {exc}') from exc
+            if held.size != item.size or held.sha256 != item.sha256:
+                raise SourceIntegrityError(f'Cambió la huella del original custodiado: {item.slot}.')
+            receipt['files'][slot] = {'size': held.size, 'sha256': held.sha256}
+        yield replace(snapshot, read_receipt=receipt)

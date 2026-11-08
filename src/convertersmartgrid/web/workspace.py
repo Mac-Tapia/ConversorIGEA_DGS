@@ -396,7 +396,11 @@ class Workspace:
     pf_bibliotecas: dict[str, Any] = field(default_factory=dict)
     events: EventLog = field(default_factory=EventLog)
     lock: threading.RLock = field(default_factory=threading.RLock)
-    _corrections_cache: tuple[float, Any] | None = None
+    _corrections_cache: tuple[tuple[str, str], Any] | None = None
+    source_generation: int = 0
+    loaded_selection_token: dict | None = None
+    loaded_source_receipt: dict | None = None
+    catalog_sha256: str | None = None
 
     # -------------------------------------------------------------- carpetas
     @property
@@ -427,6 +431,8 @@ class Workspace:
             # Lo vigente manda sobre lo no disponible de la misma casilla: el operador ya eligió otro.
             'inputs': {**(nd.get('inputs') or {}), **self.inputs},
             'catalog_file': self.catalog_file or nd.get('catalog_file'),
+            'catalog_sha256': self.catalog_sha256,
+            'source_generation': self.source_generation,
             'groups': self.groups,
             'pf_projects': self.pf_projects,
             'pf_project_bindings': self.pf_project_bindings,
@@ -466,6 +472,8 @@ class Workspace:
         data, migrado = _migrar(root, crudo)
         data = {k: expandir_rutas(v, root) if k in CAMPOS_CON_RUTAS else v for k, v in data.items()}
         ws = cls(id=data['id'], root=root, created_at=data.get('created_at', time.time()))
+        ws.source_generation = int(data.get('source_generation') or 0)
+        ws.catalog_sha256 = data.get('catalog_sha256')
         options = dict(DEFAULT_OPTIONS)
         options.update({k: v for k, v in (data.get('options') or {}).items()
                         if k in DEFAULT_OPTIONS})
@@ -610,7 +618,10 @@ class Workspace:
     # -------------------------------------------------------------- entradas
     def invalidate(self) -> None:
         """Otra entrada = otro dataset. Lo leído deja de valer, y los planes también."""
+        self.source_generation += 1
         self.dataset = None
+        self.loaded_selection_token = None
+        self.loaded_source_receipt = None
         self._sed_owners_cache = None
         self.loaded_run_id = None
         self.loaded_source_mode = None
@@ -640,6 +651,18 @@ class Workspace:
             return load_source_run(self, self.active_run_id)
         except (OSError, ValueError, KeyError, TypeError):
             return None
+
+    def source_selection_token(self) -> dict:
+        """034:RF-20: selección vinculante, sin E/S; invocar bajo self.lock."""
+        from ..sources.snapshot import COMMON_SLOTS, MODE_SLOTS
+
+        mode = self.options.get('input_mode')
+        slots = (*MODE_SLOTS.get(mode, ()), *COMMON_SLOTS)
+        return json.loads(json.dumps({
+            'generation': self.source_generation,
+            'options': {key: self.options.get(key) for key in ('input_mode', 'source_company', 'source_period')},
+            'inputs': {slot: self.inputs[slot] for slot in slots if slot in self.inputs},
+        }, sort_keys=True))
 
     def set_input(self, slot: str, path: Path, *, origin: str, warning: str = '') -> dict:
         meta = {
@@ -717,20 +740,34 @@ class Workspace:
 
     # -------------------------------------------------------------- catálogo
     def catalog_corrections(self) -> dict | None:
-        """Correcciones del catálogo aplicado, leídas una vez por versión del fichero."""
-        if not self.catalog_file:
-            return None
-        path = Path(self.catalog_file)
-        if not path.is_file():
-            return None
-        mtime = path.stat().st_mtime
-        if self._corrections_cache and self._corrections_cache[0] == mtime:
-            return self._corrections_cache[1]
+        """Ficha identificada por sus bytes efectivos; un cambio exige recarga explícita."""
+        from ..adaptadores.fuentes_estables import abrir_fuente_estable
         from ..catalog import leer_catalogo
 
-        corrections = leer_catalogo(path)
-        self._corrections_cache = (mtime, corrections)
-        return corrections
+        with self.lock:
+            selected = self.catalog_file
+            expected = self.catalog_sha256
+        if not selected:
+            if expected is not None and self.no_disponibles.get('catalog_file'):
+                raise ValueError('CATALOG_CONTENT_UNAVAILABLE: no está disponible el catálogo '
+                                 'de la referencia; restáurelo o retírelo explícitamente.')
+            return None
+        with abrir_fuente_estable(selected) as held:
+            if expected is not None and held.sha256 != expected:
+                raise ValueError('CATALOG_CONTENT_CHANGED: cambió la huella del catálogo; '
+                                 'vuelva a aplicarlo explícitamente. El inventario se conserva.')
+            identity = (str(held.path), held.sha256)
+            with self.lock:
+                cached = self._corrections_cache
+            corrections = cached[1] if cached and cached[0] == identity else leer_catalogo(held.path)
+            with self.lock:
+                if self.catalog_file != selected or self.catalog_sha256 != expected:
+                    raise ValueError('CATALOG_SELECTION_CHANGED: cambió el catálogo durante su lectura.')
+                self._corrections_cache = (identity, corrections)
+                if expected is None:
+                    self.catalog_sha256 = held.sha256
+                    self.save()
+            return corrections
 
     # -------------------------------------------------------------- conversiones
     def record_conversions(self, manifest: dict) -> None:

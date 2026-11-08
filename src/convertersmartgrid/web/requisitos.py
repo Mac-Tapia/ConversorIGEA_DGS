@@ -19,6 +19,14 @@ def require_loaded(ws: Workspace) -> None:
 def require_active_source_run(ws: Workspace, *, verify_files: bool = False):
     """Impide usar un dataset o artefacto que pertenezca a otra ejecución."""
     snapshot = ws.active_run()
+    with ws.lock:
+        if snapshot is not None and (
+                snapshot.mode != ws.options.get('input_mode')
+                or (snapshot.selection_token is not None
+                    and (snapshot.selection_token != ws.source_selection_token()
+                         or snapshot.selection_token != ws.loaded_selection_token))):
+            raise UserError('SOURCE_SELECTION_CHANGED: la modalidad o las entradas seleccionadas '
+                            'no corresponden a la red cargada. Vuelva a cargar la fuente.')
     # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir
     # «las entradas cambiaron» (IN111 + TA225, 2026-10-14) mandaba a buscar un cambio
     # que no existía.
@@ -41,6 +49,7 @@ def require_active_source_run(ws: Workspace, *, verify_files: bool = False):
         from .source_runs import verify_source_files
         try:
             verify_source_files(snapshot)
+            ws.catalog_corrections()
         except (OSError, ValueError) as exc:
             raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     return snapshot
