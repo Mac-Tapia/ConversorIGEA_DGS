@@ -1,7 +1,7 @@
 {
   "plan": "docs/superpowers/plans/2026-11-07-cierre-produccion-integral.md",
   "base": "5617251012f39193297e19b299d8a179a8fe1f61",
-  "worktree": "D:\\converter\\ConversorIGEA_DGS\\.worktrees\\cierre-produccion-20261107",
+  "worktree": ".",
   "branch": "codex/cierre-produccion-20261107",
   "production_ready_core": false,
   "project_complete": false,
@@ -11,20 +11,29 @@
       "evidence": []
     },
     "P01": {
-      "state": "entorno_verificado",
-      "evidence": []
+      "state": "nucleo_verificado_ia_en_preparacion_aislada",
+      "evidence": [
+        "p01_core_audit_980e87df.json",
+        "p01_ml_diagnostico_resumen_980e87df.json",
+        "p01_entorno_integral_20261108/plan_dependencias.json"
+      ]
     },
     "P02": {
       "state": "verificado",
       "evidence": []
     },
     "P03": {
-      "state": "implementado_pruebas_enfocadas",
+      "state": "regresion_real_rechazada_intervenida_sin_cambios_de_fuentes",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
         "p03_aislamiento_red.xml",
-        "p03_aislamiento_cierre.xml"
+        "p03_aislamiento_cierre.xml",
+        "p03_regresion_completa_980e87df/20261108T052129Z_069be98cd7e149ec836659ee885c4bda/registro.json",
+        "p03_980e87df_analisis_junit.json",
+        "p03_intervencion_runtime_980e87df.json",
+        "p03_watchdog_runtime_980e87df.jsonl",
+        "p03_contrastes_runtime_v2_980/results.json"
       ]
     },
     "P04": {
@@ -139,7 +148,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "vista_y_cancelacion_api_cli_integradas_campana_automatica_y_navegador_pendientes",
+      "state": "interrupcion_y_cancelacion_web_cli_verificadas_ciclo_real_pendiente",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -194,7 +203,16 @@
         "p19_cancelacion_cierre.xml",
         "p19_cancelacion_front_final.log",
         "p19_cancelacion_typecheck.log",
-        "p19_cancelacion_build.log"
+        "p19_cancelacion_build.log",
+        "p19_interrupcion_control_980e87df/verificacion_lectura_corregida.json",
+        "p19_interrupcion_red.xml",
+        "p19_p22_red_incorporado.log",
+        "p19_interrumpido_front_red.log",
+        "p19_p22_green_enfocado.xml",
+        "p19_p22_cierre.xml",
+        "p19_interrumpido_front_final.log",
+        "p19_interrumpido_typecheck.log",
+        "p19_interrumpido_build.log"
       ]
     },
     "P20": {
@@ -206,10 +224,14 @@
       "evidence": []
     },
     "P22": {
-      "state": "pruebas_enfocadas_verificadas_instalacion_completa_pendiente",
+      "state": "lectores_avisos_corregidos_instalador_completo_pendiente",
       "evidence": [
         "instalacion_verde.log",
-        "instalacion_verde.xml"
+        "instalacion_verde.xml",
+        "p22_avisos_red.xml",
+        "p19_p22_cierre.xml",
+        "p22_inventario_nucleo_980e87df/verificacion.json",
+        "p22_licencias_front_980e87df/manifest.json"
       ]
     },
     "P23": {
@@ -217,8 +239,10 @@
       "evidence": []
     },
     "P24": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "menciones_normalizadas_renombrado_fisico_y_relectura_pendientes",
+      "evidence": [
+        "p24_menciones_normalizadas.log"
+      ]
     },
     "P25": {
       "state": "pendiente",
@@ -232,5 +256,6 @@
   "user_deferred": [
     "012:T13",
     "049:T4"
-  ]
+  ],
+  "worktree_identity_evidence": "Manifiestos externos de cada ejecución: root, revisión y huellas."
 }

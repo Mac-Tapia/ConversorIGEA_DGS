@@ -150,7 +150,7 @@ def descargar_por_partes(url, destino, ficha, *, tamano_parte=32 * 1024 * 1024):
 def _publicado(destino, ficha, partes, verificado=False):
     """Con el blob publicado y verificado, los fragmentos sobran (043:RF-12).
 
-    Se quedaban para siempre: el 2026-11-06 había 8,6 GB de fragmentos `.csg-`/`.igea-…-partes`
+    Se quedaban para siempre: el 2026-11-06 había 8,6 GB de fragmentos temporales de versiones antiguas y actuales
     junto a sus blobs ya completos en las cachés de C:. Si la verificación falla se conservan,
     porque son la descarga parcial que el siguiente intento reanuda.
     """

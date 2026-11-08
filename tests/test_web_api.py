@@ -55,9 +55,10 @@ def test_cancelacion_aprendizaje_web_valida_clave_y_ciclo_inexistente(tmp_path,m
 def test_cancelacion_aprendizaje_web_no_declara_etapa_terminada(tmp_path,monkeypatch):
     """050:RF-4/10 — pedir cancelar no equivale a haber parado; el diario original se conserva."""
     import json
+    import os
     raiz=tmp_path/'asistente';monkeypatch.setenv('CSG_ASISTENTE_DATA',str(raiz))
     clave='c'*64;p=raiz/'aprendizaje/ciclos'/clave;p.mkdir(parents=True)
-    (p/'en_curso').write_text('activo',encoding='utf-8')
+    (p/'en_curso').write_text(str(os.getpid()),encoding='utf-8')
     diario=json.dumps({'clave':clave,'snapshot_id':'d'*64,'estado':'en_curso'})
     (p/'ciclo.json').write_text(diario,encoding='utf-8')
     cliente=TestClient(create_app(tmp_path/'web'))

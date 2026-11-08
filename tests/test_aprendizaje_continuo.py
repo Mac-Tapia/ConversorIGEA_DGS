@@ -529,11 +529,15 @@ def test_estado_expone_bloqueos_ilegibles_y_conjunto_corrupto(tmp_path):
 
 def test_estado_no_oculta_diario_roto_al_haber_ciclo_con_fecha(tmp_path):
     """050:RF-8/10 — una entrada sin fecha por daño no desaparece tras ordenar las legibles."""
-    for nombre,contenido in [('legible',json.dumps({'snapshot_id':'a'*64,'clave':'b'*64,
+    import os
+    for nombre,contenido in [('b'*64,json.dumps({'snapshot_id':'a'*64,'clave':'b'*64,
             'inicio':'2026-11-07T12:00:00Z','estado':'en_curso'})),('ilegible','{roto')]:
         p=tmp_path/'ciclos'/nombre/'ciclo.json';p.parent.mkdir(parents=True)
         p.write_text(contenido,encoding='utf-8')
+        if nombre == 'b'*64:
+            (p.parent/'en_curso').write_text(str(os.getpid()),encoding='utf-8')
     e=ac.estado_aprendizaje(tmp_path)
+    assert e['ultimo_ciclo']['clave']=='b'*64 and e['ultimo_ciclo']['estado']=='en_curso'
     assert e['fases']['preparacion']['estado']=='bloqueado'
     assert any('diario' in str(b) and 'ilegible' in str(b) for b in e['bloqueos'])
 
@@ -849,3 +853,44 @@ def test_cli_recibe_cadencia_horizontes_y_versiona_parametros(tmp_path, capsys, 
         assert cli.main([*args, '--semillas', semillas]) == 2
         assert 'familias sin etapa' in json.loads(capsys.readouterr().out)['motivo']
     assert len(list((tmp_path / 'ap' / 'instantaneas').iterdir())) == 2
+
+
+@pytest.mark.parametrize(('marca', 'esperado'), [
+    (None, 'interrumpido'), ('no-es-un-pid', 'bloqueado'),
+    ('0', 'bloqueado'), ('123456', 'interrumpido'),
+])
+def test_estado_sin_propietario_activo_no_anuncia_entrenamiento(marca, esperado, tmp_path, monkeypatch):
+    """050:RF-8, 050:RF-10 — no se acredita actividad sin propietario vivo; diario inmutable."""
+    carpeta = tmp_path / 'ciclos' / ('a' * 64)
+    carpeta.mkdir(parents=True)
+    diario = carpeta / 'ciclo.json'
+    diario.write_text(json.dumps({'clave': 'a' * 64, 'snapshot_id': 'b' * 64,
+        'estado': 'en_curso', 'inicio': '2026-11-08T05:00:00Z', 'motivos': []}), encoding='utf-8')
+    if marca is not None:
+        (carpeta / 'en_curso').write_text(marca, encoding='utf-8')
+    monkeypatch.setattr(ac, 'pid_vivo', lambda _pid: False)
+    antes = diario.read_bytes()
+    estado = ac.estado_aprendizaje(tmp_path)
+    assert estado['ultimo_ciclo']['estado'] == esperado
+    assert estado['ultimo_ciclo']['estado_registrado'] == 'en_curso'
+    assert estado['ultimo_ciclo']['motivos']
+    assert estado['fases']['entrenamiento']['estado'] == esperado
+    assert estado['conjunto_activo'] is None
+    assert estado['fases']['aceptacion_nativa']['estado'] == 'pendiente'
+    assert diario.read_bytes() == antes
+
+
+def test_estado_con_propietario_actual_conserva_actividad(tmp_path):
+    """050:RF-10 — el proceso real actual sigue activo y no se reescribe su evidencia."""
+    import os
+    carpeta = tmp_path / 'ciclos' / ('a' * 64)
+    carpeta.mkdir(parents=True)
+    diario = carpeta / 'ciclo.json'
+    diario.write_text(json.dumps({'clave': 'a' * 64, 'snapshot_id': 'b' * 64,
+        'estado': 'en_curso', 'inicio': '2026-11-08T05:00:00Z', 'motivos': []}), encoding='utf-8')
+    (carpeta / 'en_curso').write_text(str(os.getpid()), encoding='utf-8')
+    antes = diario.read_bytes()
+    estado = ac.estado_aprendizaje(tmp_path)
+    assert estado['ultimo_ciclo']['estado'] == 'en_curso'
+    assert estado['fases']['entrenamiento']['estado'] == 'en_curso'
+    assert diario.read_bytes() == antes

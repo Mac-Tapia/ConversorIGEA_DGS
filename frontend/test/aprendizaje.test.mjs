@@ -86,3 +86,13 @@ test('050:RF-4/10 el pedido de cancelar conserva visible la etapa en curso', asy
   assert.ok(html.includes('la etapa en curso termina'));
   assert.ok(!html.includes('Cancelado'));
 });
+
+test('050:RF-8/10 el proceso terminado se muestra interrumpido y conserva su motivo', async () => {
+  const { pintar } = await cargar();
+  const html = pintar({ fases: { entrenamiento: { estado: 'interrumpido', motivo: 'El proceso ya no está activo' } },
+    ultimo_ciclo: { estado: 'interrumpido', estado_registrado: 'en_curso' },
+    conjunto_activo: null, bloqueos: [] });
+  assert.ok(html.includes('Interrumpido'));
+  assert.ok(html.includes('El proceso ya no está activo'));
+  assert.ok(!html.includes('Completado'));
+});

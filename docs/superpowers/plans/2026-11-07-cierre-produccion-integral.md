@@ -10,7 +10,7 @@
 
 **Spec:** `docs/constitution.md`; specs activas 002–099 enumeradas en la matriz adjunta, particularmente 065 y 086. El plan `docs/PLAN_CIERRE_SPECS_2026-11-06.md` conserva su historia; este documento precisa el trabajo pendiente según el corte verificado y no reescribe decisiones ya resueltas.
 
-**Corte verificado:** 7 de noviembre de 2026, America/Lima; `D:/converter/ConversorIGEA_DGS`, `main`, `5617251012f39193297e19b299d8a179a8fe1f61`, con diff preexistente en `src/convertersmartgrid/web/services.py` y `.agents/` sin seguimiento. 99 specs, 97 listas de tareas, 115 casillas abiertas en 47 specs. El inventario se releyó al preparar este plan.
+**Corte verificado:** 7 de noviembre de 2026, America/Lima; la raíz Git del proyecto, `main`, `5617251012f39193297e19b299d8a179a8fe1f61`, con diff preexistente en `src/convertersmartgrid/web/services.py` y `.agents/` sin seguimiento. 99 specs, 97 listas de tareas, 115 casillas abiertas en 47 specs. El inventario se releyó al preparar este plan.
 
 **Base de evidencia:** `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/`. El diagnóstico obtuvo 81 pases Python enfocados, frontend 42 pases/1 fallo, tipos/contrato correctos y npm audit sin avisos. Esos resultados describen el corte auditado; no se reejecutaron para redactar este plan ni sustituyen validación final.
 

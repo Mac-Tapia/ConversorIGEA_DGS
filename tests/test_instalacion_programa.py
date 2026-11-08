@@ -1082,3 +1082,33 @@ def test_el_guion_del_instalador_no_sale_a_internet():
     assert not re.search(r'https?://|DownloadTemporaryFile|pip install|npm', iss, flags=re.I)
     borra = [l for l in iss.splitlines() if l.startswith('Type:')]
     assert borra and all('{app}' in l for l in borra), 'desinstalar no toca la carpeta de datos'
+
+
+def test_avisos_incluyen_licencia_embebida_con_prefijo(tmp_path):
+    """086:RF-44 — MIT-LICENSE se recoge como LICENSE, sin perder el texto del titular."""
+    rueda = tmp_path / 'ejemplo-1.0-py3-none-any.whl'
+    nombre = 'ejemplo-1.0.dist-info/licenses/MIT-LICENSE'
+    texto = 'Copyright titular de prueba\nTexto de licencia del contrato.\n'
+    with zipfile.ZipFile(rueda, 'w') as z:
+        z.writestr('ejemplo-1.0.dist-info/METADATA',
+                   'Name: ejemplo\nVersion: 1.0\nLicense-Expression: MIT\n')
+        z.writestr(nombre, texto)
+    meta, textos = CC.leer_metadatos_de_rueda(rueda)
+    assert meta['license'] == 'MIT'
+    assert (nombre, texto) in textos
+
+
+def test_inventario_front_incluye_transitivas_de_ejecucion(tmp_path):
+    """086:RF-44 — una dependencia compilada transitiva no desaparece del inventario."""
+    front = tmp_path / 'frontend'
+    front.mkdir()
+    (front / 'package.json').write_text(json.dumps({'dependencies': {'react-dom': '19.3.0'}}), encoding='utf-8')
+    (front / 'package-lock.json').write_text(json.dumps({'packages': {
+        '': {'dependencies': {'react-dom': '19.3.0'}},
+        'node_modules/react-dom': {'version': '19.3.0', 'license': 'MIT', 'dependencies': {'scheduler': '0.28.0'}},
+        'node_modules/scheduler': {'version': '0.28.0', 'license': 'MIT'},
+        'node_modules/vite': {'version': '6.4.0', 'license': 'MIT', 'dev': True},
+    }}), encoding='utf-8')
+    componentes = CC._componentes_del_front(tmp_path)
+    assert {c['name'] for c in componentes} == {'react-dom', 'scheduler'}
+    assert all(c['license'] == 'MIT' and c['origen'] == 'front' for c in componentes)

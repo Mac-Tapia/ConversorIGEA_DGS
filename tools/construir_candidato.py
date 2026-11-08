@@ -193,7 +193,7 @@ def leer_metadatos_de_rueda(rueda: Path) -> tuple[dict[str, Any], list[tuple[str
         cabecera = (m.get('License') or '').strip().splitlines()
         licencia = m.get('License-Expression') or '; '.join(clasificadas) or (cabecera[0][:120] if cabecera else '') or 'desconocida'
         textos = [(n, z.read(n).decode('utf-8', 'replace')) for n in nombres
-                  if '.dist-info/' in n and re.search(r'(^|/)(licen[cs]e|copying|notice)[^/]*$', n, re.I) and not n.endswith('/')]
+                  if '.dist-info/' in n and re.search(r'(^|/)(?:[^/]*[-_.])?(licen[cs]e|copying|notice)[^/]*$', n, re.I) and not n.endswith('/')]
     return {'name': m['Name'], 'version': m['Version'], 'license': licencia, 'summary': m.get('Summary') or ''}, textos
 
 
@@ -215,11 +215,14 @@ def sbom(componentes: list[dict[str, Any]], version: str, revision: str) -> dict
 
 def _componentes_del_front(raiz: Path) -> list[dict[str, Any]]:
     """Solo lo que acaba en la compilación: las dependencias de ejecución del front, no sus herramientas."""
-    paquete = json.loads((raiz / 'frontend' / 'package.json').read_text(encoding='utf-8'))
     lock = json.loads((raiz / 'frontend' / 'package-lock.json').read_text(encoding='utf-8'))['packages']
     salida = []
-    for nombre in sorted(paquete.get('dependencies') or ()):
-        fila = lock.get(f'node_modules/{nombre}') or {}
+    # npm marca el árbol exclusivamente de desarrollo con dev=true. También se
+    # entregan transitivas y opcionales de producción (devOptional no significa dev).
+    for ruta, fila in sorted(lock.items()):
+        if not ruta.startswith('node_modules/') or fila.get('dev'):
+            continue
+        nombre = ruta.rsplit('node_modules/', 1)[-1]
         salida.append({'name': nombre, 'version': fila.get('version', '?'), 'license': fila.get('license') or 'desconocida', 'origen': 'front', 'sin_purl': True})
     return salida
 

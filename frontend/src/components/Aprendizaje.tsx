@@ -9,7 +9,7 @@ const FASES = [
 ] as const;
 const ESTADOS: Record<string, string> = { pendiente: 'Pendiente', hecho: 'Completado',
   en_curso: 'En curso', rechazado: 'Rechazado', bloqueado: 'Bloqueado',
-  anterior: 'Conjunto anterior', cancelado: 'Cancelado', ilegible: 'Ilegible' };
+  anterior: 'Conjunto anterior', cancelado: 'Cancelado', ilegible: 'Ilegible', interrumpido: 'Interrumpido' };
 
 /** 050:RF-10: solo representa las fases y motivos que constan en el diario. */
 export function VistaAprendizaje({ estado }: { estado: EstadoAprendizaje }) {

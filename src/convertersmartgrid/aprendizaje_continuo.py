@@ -847,6 +847,23 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
                     or not isinstance(motivos, list) or any(not isinstance(m, str) for m in motivos)
                     or not isinstance(candidatos, dict) or any(not isinstance(v, str) for v in candidatos.values())):
                 raise ValueError('etapas, motivos o candidatos del diario inválidos')
+            if ciclo['estado'] == 'en_curso':
+                estado_proceso, motivo_proceso = 'en_curso', ''
+                try:
+                    pid = int((ruta.parent / 'en_curso').read_text(encoding='utf-8').strip())
+                    if pid <= 0:
+                        raise ValueError('PID no positivo')
+                except FileNotFoundError:
+                    estado_proceso, motivo_proceso = 'interrumpido', 'No consta un proceso activo; falta reanudar el ciclo.'
+                except (OSError, ValueError):
+                    estado_proceso, motivo_proceso = 'bloqueado', 'El marcador del proceso no es legible o válido.'
+                else:
+                    if not pid_vivo(pid):
+                        estado_proceso, motivo_proceso = 'interrumpido', 'El proceso ya no está activo; falta reanudar el ciclo.'
+                if estado_proceso != 'en_curso':
+                    # El diario es historia: la consulta deriva el estado sin reescribirlo.
+                    ciclo = {**ciclo, 'estado_registrado': ciclo['estado'], 'estado': estado_proceso,
+                             'motivos': [*motivos, motivo_proceso]}
             if (ruta.parent / 'cancelar').is_file():
                 ciclo = {**ciclo, 'cancelacion_solicitada': True}
             ciclos.append(ciclo)
