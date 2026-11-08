@@ -99,6 +99,11 @@ def verificar_candidato(candidato: Path) -> dict:
     """RF-39: antes de tocar nada, cada fichero contra su huella. Devuelve el manifiesto."""
     manifiesto = leer_manifiesto(candidato)
     malos = []
+    if manifiesto.get('tipo') == 'complemento-ia':
+        declaradas = {f['ruta'] for f in manifiesto['ficheros'] if f['ruta'].endswith('.whl')}
+        presentes = {p.relative_to(candidato).as_posix() for p in candidato.rglob('*.whl')}
+        if presentes != declaradas:
+            raise ErrorInstalacion('El complemento contiene ruedas extra o no declaradas, o faltan ruedas.')
     for fichero in manifiesto['ficheros']:
         ruta = candidato / fichero['ruta']
         if not ruta.is_file():

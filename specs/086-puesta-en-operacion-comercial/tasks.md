@@ -105,6 +105,14 @@
 - [ ] T40 [DIgSILENT] Con el `setup.exe`, en este equipo y sin nada de desarrollo en el entorno: instalar, actualizar y volver atrás, y una importación real en DIgSILENT con el Python del programa. Construir y probar el complemento de IA. (RF-36, RF-37, RF-38, RF-39)
   Hecho cuando: el instalador conserva los datos, una importación real termina con el Python del programa, y el complemento instala con huella y carga sus modelos.
   Hecho (2026-11-04): compilado con Inno Setup 6.7.3 (129 MB, 17 s), instalado con `PATH` solo de System32 (158 s, 519 MB), doctor «listo para trabajar» en edición de producto, y `import powerfactory` con el Python del programa, sin abrir el motor. Falta lo demás: la sesión de la 042 ocupa DIgSILENT.
+  Avance parcial (2026-11-08, P01/P22): `tests/test_complemento_integral.py`
+  cubre cierre offline de todos los extras de ejecución y requisitos opcionales,
+  conservando núcleo separado y excluyendo herramientas de desarrollo ajenas al
+  cierre. Verifica huellas/procedencias, ABI, Python, licencias, restricciones,
+  markers/extras, rechazo de URLs transitivas y ruedas extra. pip vuelve a
+  resolver las ruedas pequeñas sin red ni instalación. El paquete de inferencia
+  previo no representa las capacidades integrales. Sigue pendiente ensayar la
+  entrega final congelada y su instalación/relectura nativa; no se cierra T40.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 

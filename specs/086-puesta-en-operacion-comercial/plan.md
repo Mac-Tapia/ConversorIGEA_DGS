@@ -123,6 +123,25 @@ rueda como al candidato. Incluye transitivas de producción; las herramientas de
 desarrollo siguen fuera del inventario entregado. Esto no cierra instalación,
 actualización/reversión ni corridas nativas de T40/T32.
 
+Ampliación autorizada P01/P22 (2026-11-08, RF-37/39/44): el mismo constructor
+`complemento-ia` admite `--capacidades integrales`, además de inferencia. Toma
+todos los extras declarados salvo `dev` y los cuatro requisitos de motores,
+MADRL, MCP y drivers; calcula el cierre con los markers/extras de las ruedas,
+fijado al freeze del entorno probado. No transforma paquetes instalados en
+ruedas. Acepta varias caches existentes para evitar otra copia intermedia.
+Exige procedencia URL/commit/huella para Git y URL/huella para CUDA; verifica
+ABI, Python, restricciones, coincidencia con el núcleo y licencias incluidas.
+Una segunda puerta usa pip offline con `--dry-run --ignore-installed
+--require-hashes` y los extras originales resueltos, sin instalar ni activar
+modelos. El manifiesto distingue capacidades de inferencia e integrales y
+mantiene `proyecto_completo=false`: cobertura de dependencias no cierra T40,
+T32/T41 ni demuestra aceptación científica o eléctrica.
+Cuando una rueda omite los avisos del titular, `--licencias-suplementarias`
+acepta únicamente un inventario de textos del origen versionado, ligado a la
+versión y huella de la rueda, URL/huella del origen y ruta/huella de cada texto.
+Conserva estos recibos y textos en el complemento, sin modificar la rueda ni
+deducir permisos de una etiqueta automática. Sin ese material el cierre falla.
+
 Complemento separado (RF-37/39): el constructor resuelve solo ruedas de inferencia
 desde una caché explícita, respetando las versiones del núcleo. Produce su propio
 lock por SHA-256, inventario, avisos y manifiesto verificable sin incluir pesos ni
