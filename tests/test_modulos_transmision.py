@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from convertersmartgrid.costos_fuentes import (CostosError, leer_modulos_transmision, leer_sicodi,
                                                valorar_obra)
@@ -226,6 +226,102 @@ def _base_por_hojas(tmp_path):
     ruta = tmp_path / 'base.xlsx'
     wb.save(ruta)
     return ruta
+
+
+def test_unidades_por_codigo_no_pueden_contradecir_declaracion_fija(tmp_path):
+    """072:RF-5, 072:RF-7 — fragmento auténtico RR181, no un costo inventado.
+
+    REST_MOD_INV_2025_RR.xlsm SHA7bddb201...f712505, I-114 Res Mod TL:
+    PHD-COU=1113.0655325190469 USD; I-104 Val TL B43 dice costo por METRO.
+    Sus 50m nominales no autorizan etiquetar el precio como km ni convertirlo.
+    """
+    ruta = _libro(tmp_path/'fragmento181.xlsx',
+        [('PHD-COU', 'PERFORACIÓN HORIZONTAL DIRIGIDA', 1113.0655325190469)],
+        cabecera=('CODIGO', 'Descripción', 'TOTAL GENERAL \n(USD)'), hoja='I-114 Res Mod TL')
+    cols = {'codigo': 'CODIGO', 'nombre': 'Descripción', 'total': 'TOTAL GENERAL \n(USD)'}
+    # Sin columna, la declaración del operador se conserva como tal; no la
+    # certifica ni la infiere el lector. Una segunda declaración contradictoria sí falla.
+    assert _modulos(ruta, columnas=cols, hoja='I-114 Res Mod TL',
+                    unidad='km').buscar_modulo('PHD-COU').unidad == 'km'
+    for unidad in ('km', {'I-114 Res Mod TL': 'km'}):
+        with pytest.raises(CostosError, match='unidad'):
+            _modulos(ruta, columnas=cols, hoja='I-114 Res Mod TL', unidad=unidad,
+                     unidades_por_codigo={'PHD-COU': 'm'})
+
+
+def test_unidad_por_codigo_autentico_conserva_precio_y_archivo(tmp_path):
+    """072:RF-5, 072:RF-8, 072:RF-9 — la unidad no introduce un factor de precio."""
+    ruta = _libro(tmp_path/'fragmento181.xlsx',
+        [('PHD-COU', 'PERFORACIÓN HORIZONTAL DIRIGIDA', 1113.0655325190469)],
+        cabecera=('CODIGO', 'Descripción', 'TOTAL GENERAL \n(USD)'))
+    cols = {'codigo': 'CODIGO', 'nombre': 'Descripción', 'total': 'TOTAL GENERAL \n(USD)'}
+    antes, mtime = ruta.read_bytes(), ruta.stat().st_mtime_ns
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    try:
+        precio_guardado = wb.active['C4'].value
+    finally:
+        wb.close()
+    tabla = _modulos(ruta, columnas=cols, unidades_por_codigo={'PHD-COU': 'm'})
+    assert tabla.buscar_modulo('PHD-COU').unidad == 'm'
+    assert tabla.buscar_modulo('PHD-COU').total == precio_guardado
+    assert tabla.fuente.factor is None
+    assert tabla.fuente.huella == hashlib.sha256(antes).hexdigest()
+    assert ruta.read_bytes() == antes and ruta.stat().st_mtime_ns == mtime
+    with pytest.raises(CostosError, match='PHD-COU'):
+        _modulos(ruta, columnas=cols, unidades_por_codigo={'OTRO': 'km'})
+
+
+def test_declaracion_no_sobrescribe_unidad_autentica_de_columna(libro):
+    """072:RF-7 — ni fija ni mapa por código pueden contradecir la fuente."""
+    for declaracion in ({'unidad': 'km'},
+                        {'unidades_por_codigo': {'LT-A1': 'km', 'CE-B1': 'km', 'TP-C1': 'u'}}):
+        with pytest.raises(CostosError, match='unidad'):
+            _modulos(libro, **declaracion)
+
+
+def test_modulo_sin_unidad_en_fila_no_se_inventa(tmp_path):
+    """072:RF-7, 072:RF-16 — declarar el nombre de columna no rellena celdas vacías."""
+    ruta = _libro(tmp_path/'sin_unidad.xlsx', [('PHD-COU', 'PHD', '', 1113.0655325190469)])
+    with pytest.raises(CostosError, match='unidad'):
+        _modulos(ruta)
+
+
+def test_mapa_por_codigo_exige_cobertura_y_declaraciones_compatibles(libro, tmp_path):
+    """072:RF-7 — si se proporciona el mapa, un código ausente no hereda otro."""
+    with pytest.raises(CostosError, match='CE-B1'):
+        _modulos(libro, unidades_por_codigo={'LT-A1': 'km'})
+    for mapa in ({'LT-A1': ''}, {'LT-A1': True}, ['km']):
+        with pytest.raises(CostosError, match='unidades_por_codigo'):
+            _modulos(libro, unidades_por_codigo=mapa)
+    ruta = _libro(tmp_path/'compatible.xlsx', [('PHD-COU', 'PHD', 'm', 1113.0655325190469)])
+    for fija in ('m', {'Resumen': 'm'}):
+        tabla = _modulos(ruta, hoja='Resumen', unidad=fija, unidades_por_codigo={'PHD-COU': 'm'})
+        assert tabla.buscar_modulo('PHD-COU').unidad == 'm'
+
+
+def test_cli_pasa_mapa_por_codigo_sin_inferir_unidades(tmp_path, capsys):
+    """072:RF-5, 072:RF-9 — opción aditiva, mismas fuentes/precios de la fixture."""
+    ruta = _base_por_hojas(tmp_path)
+    columnas = tmp_path/'columnas.json'
+    columnas.write_text(json.dumps({'codigo': 'CODIGO', 'nombre': 'Descripción',
+                                   'total': 'TOTAL GENERAL \n(USD)'}), encoding='utf-8')
+    unidades = tmp_path/'unidades_por_codigo.json'
+    unidades.write_text(json.dumps({'LT-060A': 'km', 'CE-060A': 'u'}), encoding='utf-8')
+    obra = tmp_path/'obra_sintetica.json'
+    obra.write_text(json.dumps([{'elemento': 'LT de prueba', 'ambito': 'transmision',
+                                'codigo': 'LT-060A', 'cantidad': 2, 'unidad': 'km'}]), encoding='utf-8')
+    salida = tmp_path/'valoracion_sintetica.json'
+    args = ['--obra', str(obra), '--modulos', str(ruta), '--modulos-columnas', str(columnas),
+            '--modulos-hoja', 'Res LT', '--modulos-hoja', 'Res CEL',
+            '--modulos-unidades-por-codigo', str(unidades), '--modulos-resolucion', 'R-T',
+            '--modulos-anio', '2030', '--modulos-moneda', 'MT', '--modulos-url', 'https://t',
+            '--modulos-fecha-descarga', 'F', '--salida', str(salida)]
+    assert _herramienta().main(args) == 0
+    r = json.loads(salida.read_text(encoding='utf-8'))
+    assert r['total_por_moneda'] == {'MT': 2000.0}
+    assert r['fuentes']['transmision']['huella'] == hashlib.sha256(ruta.read_bytes()).hexdigest()
+    assert r['fuentes']['transmision']['resolucion'] == 'R-T'
+    assert capsys.readouterr().out
 
 
 def test_base_por_hojas_con_la_unidad_declarada(tmp_path):

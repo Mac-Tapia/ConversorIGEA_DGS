@@ -180,7 +180,8 @@ _FILAS_CABECERA = 30
 def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], resolucion: str, anio: int,
                              moneda: str, url: str, fecha_descarga: str, hoja: str | Sequence[str] | None = None,
                              unidad: str | Mapping[str, str] | None = None, factor: float | None = None,
-                             sustento_factor: str | None = None) -> TablaCostos:
+                             sustento_factor: str | None = None,
+                             unidades_por_codigo: Mapping[str, str] | None = None) -> TablaCostos:
     """Lee un libro de módulos estándar de transmisión (072:RF-5, RF-6, RF-9).
 
     ``columnas`` lleva el nombre de cada columna en el libro: `codigo`, `nombre`, `unidad` y
@@ -189,14 +190,16 @@ def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], r
     sería leer mal la siguiente sin avisar.
 
     La base de la Res. 152-2026-OS/CD (`REST_MOD_INV_2025_PU.xlsm`) trae una hoja de resumen por tipo
-    de módulo (líneas, celdas, transformadores…) y ninguna columna de unidad: el costo de una línea es
-    por km y el de una celda por unidad. Por eso ``hoja`` admite varias hojas y ``unidad`` declara la
-    de todas o la de cada hoja en lugar de la columna; sin declararla de ninguna forma, se rechaza.
+    de módulo y ninguna columna de unidad. ``unidad`` conserva la declaración explícita del operador,
+    global o por hoja; no certifica que una hoja sea homogénea. En tablas mixtas se declara
+    ``unidades_por_codigo``, con cobertura de todos los códigos leídos. Las declaraciones no pueden
+    contradecir una unidad no vacía de la columna auténtica ni contradecirse entre sí.
+    No se infieren unidades por prefijo ni se convierten precios, longitudes o cantidades.
     """
     from openpyxl import load_workbook
 
     faltan = [k for k in COLUMNAS_MODULOS if not str(columnas.get(k) or '').strip()
-              and not (k == 'unidad' and unidad)]
+              and not (k == 'unidad' and (unidad or unidades_por_codigo is not None))]
     if faltan:
         raise CostosError(f'los módulos de transmisión no declaran la columna de: {", ".join(faltan)}')
     hojas = [hoja] if isinstance(hoja, str) or hoja is None else list(hoja)
@@ -204,6 +207,10 @@ def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], r
         sin_unidad = [str(h) for h in hojas if not str(unidad.get(h) or '').strip()]
         if sin_unidad:
             raise CostosError(f'sin unidad declarada para la hoja: {", ".join(sin_unidad)}')
+    if unidades_por_codigo is not None and (not isinstance(unidades_por_codigo, Mapping) or any(
+            not isinstance(c, str) or not c.strip() or not isinstance(u, str) or not u.strip()
+            for c, u in unidades_por_codigo.items())):
+        raise CostosError('unidades_por_codigo debe declarar códigos y unidades de texto no vacíos')
     ruta = Path(ruta)
     huella = hashlib.sha256(ruta.read_bytes()).hexdigest()
     fuente = FuenteCostos('Módulos estándar de transmisión', 'transmision', resolucion, anio, moneda, url,
@@ -222,19 +229,23 @@ def leer_modulos_transmision(ruta: Path | str, *, columnas: Mapping[str, str], r
     tabla: dict[tuple[str, str, str, str], Costo] = {}
     con_zona = False
     for titulo, filas, fija in por_hoja:
-        con_zona |= _modulos_de_hoja(ruta.name, titulo, filas, columnas, fija, fuente, tabla)
+        con_zona |= _modulos_de_hoja(ruta.name, titulo, filas, columnas, fija, fuente, tabla,
+                                    unidades_por_codigo=unidades_por_codigo)
     if not tabla:
         raise CostosError(f'{ruta.name}: la hoja no trae ningún módulo bajo la cabecera')
     return TablaCostos(fuente, tabla, con_zona)
 
 
 def _modulos_de_hoja(nombre: str, titulo: str, filas: list, columnas: Mapping[str, str], fija: str | None,
-                     fuente: FuenteCostos, tabla: dict) -> bool:
+                     fuente: FuenteCostos, tabla: dict, *,
+                     unidades_por_codigo: Mapping[str, str] | None = None) -> bool:
     """Añade a ``tabla`` los módulos de una hoja y dice si la hoja distingue zona."""
     usadas = {k: str(v).strip() for k, v in columnas.items()
-              if k in COLUMNAS_MODULOS + _COLUMNAS_MODULOS_OPCIONALES and str(v or '').strip()
-              and not (k == 'unidad' and fija)}
-    buscadas = set(usadas.values())
+              if k in COLUMNAS_MODULOS + _COLUMNAS_MODULOS_OPCIONALES and str(v or '').strip()}
+    # Un fallback explícito permite que falte esa columna, pero nunca oculta
+    # la columna si existe: su unidad debe contrastarse, no sobrescribirse.
+    buscadas = {v for k, v in usadas.items()
+                if k != 'unidad' or not (fija or unidades_por_codigo is not None)}
     n_cab = next((n for n, f in enumerate(filas[:_FILAS_CABECERA])
                   if buscadas <= {str(c).strip() for c in f if c is not None}), None)
     if n_cab is None:
@@ -243,7 +254,7 @@ def _modulos_de_hoja(nombre: str, titulo: str, filas: list, columnas: Mapping[st
         raise CostosError(f'{nombre}, hoja «{titulo}»: ninguna fila trae las columnas declaradas; faltan: '
                           f'{", ".join(faltan) or "todas en una misma fila"}')
     cab = [str(c).strip() if c is not None else '' for c in filas[n_cab]]
-    i = {k: cab.index(v) for k, v in usadas.items()}
+    i = {k: cab.index(v) for k, v in usadas.items() if v in cab}
     con_zona = 'zona' in i
 
     def celda(f, k):
@@ -255,6 +266,21 @@ def _modulos_de_hoja(nombre: str, titulo: str, filas: list, columnas: Mapping[st
         # Las filas sin código son títulos o subtotales del anexo, no módulos.
         if not codigo:
             continue
+        if fija is not None and (not isinstance(fija, str) or not fija.strip()):
+            raise CostosError(f'{nombre}, fila {n}: unidad fija inválida de {codigo}')
+        declaraciones = [celda(f, 'unidad')]
+        if fija:
+            declaraciones.append(fija.strip())
+        if unidades_por_codigo is not None:
+            if codigo not in unidades_por_codigo:
+                raise CostosError(f'{nombre}, fila {n}: sin unidad por código para {codigo}')
+            declaraciones.append(unidades_por_codigo[codigo].strip())
+        conocidas = [u for u in declaraciones if u]
+        if not conocidas:
+            raise CostosError(f'{nombre}, fila {n}: módulo {codigo} sin unidad declarada')
+        if any(u.casefold() != conocidas[0].casefold() for u in conocidas[1:]):
+            raise CostosError(f'{nombre}, fila {n}: unidad contradictoria de {codigo}: '
+                              + ' / '.join(conocidas))
         bruto = f[i['total']] if i['total'] < len(f) else None
         if bruto is None or str(bruto).strip() == '':
             raise CostosError(f'{nombre}, fila {n}: módulo {codigo} sin total')
@@ -268,7 +294,7 @@ def _modulos_de_hoja(nombre: str, titulo: str, filas: list, columnas: Mapping[st
             raise CostosError(f'{nombre}, fila {n}: módulo {codigo} repetido'
                               + (f' en la zona «{clave[3]}»' if con_zona else ''))
         tabla[clave] = Costo(codigo, '', '', clave[3], celda(f, 'nombre'), {'total': total}, fuente,
-                             celda(f, 'familia'), fija or celda(f, 'unidad'))
+                             celda(f, 'familia'), conocidas[0])
     return con_zona
 
 

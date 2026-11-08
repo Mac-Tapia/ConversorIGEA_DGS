@@ -61,13 +61,16 @@ def _obra(args, tabla_sicodi) -> int:
             unidad = json.loads(unidad)
         hojas = args.modulos_hoja or None
         try:
+            unidades_por_codigo = (json.loads(args.modulos_unidades_por_codigo.read_text(encoding='utf-8'))
+                                   if args.modulos_unidades_por_codigo else None)
             tablas['transmision'] = leer_modulos_transmision(
                 args.modulos, columnas=json.loads(args.modulos_columnas.read_text(encoding='utf-8')),
                 resolucion=args.modulos_resolucion, anio=args.modulos_anio, moneda=args.modulos_moneda,
                 url=args.modulos_url, fecha_descarga=args.modulos_fecha_descarga,
                 hoja=hojas[0] if hojas and len(hojas) == 1 else hojas, unidad=unidad,
-                factor=args.modulos_factor, sustento_factor=args.modulos_sustento_factor)
-        except CostosError as exc:
+                factor=args.modulos_factor, sustento_factor=args.modulos_sustento_factor,
+                unidades_por_codigo=unidades_por_codigo)
+        except (CostosError, json.JSONDecodeError, OSError) as exc:
             print(f'ERROR: {exc}')
             return 2
     if not tablas:
@@ -96,6 +99,8 @@ def main(argv=None) -> int:
                    help='Hoja del libro de módulos; se repite para leer varias; por defecto la primera')
     p.add_argument('--modulos-unidad',
                    help='Unidad de los módulos si el libro no la trae: un texto, o un JSON {hoja: unidad}')
+    p.add_argument('--modulos-unidades-por-codigo', type=Path,
+                   help='JSON {codigo: unidad} para tablas mixtas; cubre cada código leído y no contradice otras unidades')
     p.add_argument('--modulos-factor', type=float, help='Factor de la resolución sobre el costo (con su sustento)')
     p.add_argument('--modulos-sustento-factor', help='Sustento del factor: artículo y resolución')
     p.add_argument('--modulos-resolucion', help='Resolución de Osinergmin de los módulos')
