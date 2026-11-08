@@ -208,6 +208,12 @@ Alternativa con extras de `pyproject.toml`:
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
+El extra `dev` incluye ReportLab para generar PDF sintéticos de las pruebas de
+lectura documental. No se necesita para leer los PDF del usuario ni se incluye
+en el núcleo de producción. Instale los extras en el entorno de desarrollo
+antes de la corrida: las pruebas de PDF no quedan verificadas si se omiten
+por falta de esa dependencia.
+
 Entradas de consola: `convertersmartgrid` (CLI) e `convertersmartgrid-web` (interfaz web). `run_gui.bat` nunca instala: si falta algo, lo dice (086:RF-39). `convertersmartgrid doctor` dice qué falta y qué función afecta. Tras actualizar el código, `pip install -e .` retira el antiguo `convertersmartgrid-gui` del entorno.
 
 ## Principio de arquitectura
