@@ -35,11 +35,6 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 122 |
-| aplicacion | Apl | 101 |
-| dominio | Dom | 36 |
-| presentacion | Pre | 32 |
-| sin capa | — | 8 |
 | adaptadores | Ada | 125 |
 | aplicacion | Apl | 103 |
 | dominio | Dom | 38 |
