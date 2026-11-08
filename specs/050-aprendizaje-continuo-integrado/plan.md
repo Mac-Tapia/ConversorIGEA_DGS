@@ -70,6 +70,18 @@ familia 043 y verifica sus artefactos; así GRU puede referenciar
 `pronostico_cabecera` sin fingir otro registro. No se publica un conjunto vacío.
 La reversión comprueba el manifiesto destino antes de cambiar el puntero vigente.
 
+Consumidores: lenguaje y PINN consultan el miembro del conjunto antes del puntero
+individual. La materialización común del registro verifica todos los artefactos,
+incluida una copia ya existente; no reescribe el puntero heredado ni mueve el
+original. PINN conserva una carpeta local identificada por el SHA-256 del candidato
+para que la carga y sus metadatos de herencia usen la misma identidad. Las acciones
+individuales de lenguaje/provisional/reversión y la promoción PINN se bloquean
+cuando hay conjunto activo: no pueden anunciar un cambio sobre un puntero ignorado.
+Sin conjunto configurado se conserva el comportamiento anterior, incluido el
+provisional autorizado por 085. El consumidor temporal y su contrato causal aún
+deben conectarse; no se intercambia un pronóstico multihorizonte por la reconstrucción
+histórica a un paso de 024/046.
+
 ### Ejecución
 
 1. Auditar fuentes, series, episodios y modelos reales disponibles. Congelar los

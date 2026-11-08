@@ -11,22 +11,18 @@ Esa decisión es suya, queda anotada con su motivo y sus cifras, y el candidato 
 """
 from __future__ import annotations
 
-import hashlib
-import os
-import shutil
 from pathlib import Path
 from typing import Any
 
 from ..model_registry import EstadoModelo, RegistroModelo
-from ..runtime_paths import staging_publicacion
 from . import almacen, transformer
 
 #: Familia del registro y carpeta de sus modelos en uso.
-FAMILIAS = {'transformer': 'ordenes', 'clasificador': 'informes'}
-_PREFIJO = 'reg-'
+FAMILIAS = transformer.FAMILIAS_MODELOS
+_PREFIJO = transformer.PREFIJO_REGISTRO
 #: Un prefijo propio: ``_candidato_de`` lleva los ``reg-`` a ``promover``, que rechazaría a uno de estos.
 _PREFIJO_PROVISIONAL = 'prov-'
-_LARGO = 16
+_LARGO = transformer.LARGO_VERSION_REGISTRO
 _ARTEFACTOS = ('pesos.pt', 'modelo.json')
 
 
@@ -35,7 +31,7 @@ def registro() -> RegistroModelo:
 
 
 def version_de(candidate_id: str) -> str:
-    return f'{_PREFIJO}{candidate_id[:_LARGO]}'
+    return transformer.version_de_registro(candidate_id)
 
 
 def _candidato_de(familia: str, version: str | None) -> str | None:
@@ -57,25 +53,14 @@ def _candidato_provisional_de(familia: str, version: str) -> str | None:
 
 def _copiar_artefactos(detalle: dict, carpeta: Path) -> None:
     """Una copia verificada y publicada de una vez: nunca queda una versión a medias a la que apuntar."""
-    if carpeta.is_dir():
-        return
-    carpeta.parent.mkdir(parents=True, exist_ok=True)
-    origen = Path(detalle['path']) / 'artifacts'
-    with staging_publicacion(carpeta) as temporal:
-        temporal.mkdir()
-        for nombre in _ARTEFACTOS:
-            if nombre not in detalle['artifacts']:
-                raise ValueError(f'integridad: el candidato no trae {nombre}')
-            shutil.copy2(origen / nombre, temporal / nombre)
-            with (temporal / nombre).open('rb') as f:
-                if hashlib.file_digest(f, 'sha256').hexdigest() != detalle['artifacts'][nombre]:
-                    raise ValueError(f'integridad: la copia de {nombre} no coincide')
-        os.replace(temporal, carpeta)
+    transformer.materializar_candidato(detalle, carpeta)
 
 
 def activar(familia: str, candidate_id: str) -> str:
     """Pone en uso un candidato aprobado; el anterior queda en el puntero y en disco (067:RF-20 a RF-22)."""
     nombre, reg = FAMILIAS[familia], registro()
+    from ..aprendizaje_continuo import exigir_sin_conjunto
+    exigir_sin_conjunto(registro=reg)
     detalle = reg.detalle(familia, candidate_id)                                     # RF-21: compara huellas
     if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
             or (detalle['decision'].get('gates') or {}).get('approved') is not True
@@ -123,6 +108,8 @@ def poner_provisional(familia: str, candidate_id: str, *, decidido_por: str, mot
 
     La decisión se anota antes de mover el puntero: lo contrario dejaría un rato un modelo sin aprobar en uso y sin motivo."""
     nombre, reg = FAMILIAS[familia], registro()
+    from ..aprendizaje_continuo import exigir_sin_conjunto
+    exigir_sin_conjunto(registro=reg)
     version = version_provisional(candidate_id)
     if transformer.version_promovida(nombre) == version:
         # Repetirla haría de este modelo su propio anterior, y «volver» ya no volvería a ningún sitio.
@@ -185,6 +172,8 @@ def aplicar_decision(familia: str, candidato: dict[str, Any]) -> dict[str, Any]:
 
 def volver_al_anterior(familia: str) -> str | None:
     """Vuelve al modelo anterior con el puntero y el registro de acuerdo (067:RF-23)."""
+    from ..aprendizaje_continuo import exigir_sin_conjunto
+    exigir_sin_conjunto(registro=registro())
     version = transformer.volver_al_anterior(FAMILIAS[familia])
     if version is None:
         return None

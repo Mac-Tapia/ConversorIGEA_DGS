@@ -867,11 +867,28 @@ def cargar(bufer: BuferEpisodios, version: str | None = None) -> OraculoPINN | N
     """El modelo promovido (o la versión pedida), o ``None`` si no hay."""
     raiz = _raiz_modelos(bufer)
     if version is None:
+        from ..aprendizaje_continuo import miembro_en_uso
+        miembro = miembro_en_uso('pinn')
+        if miembro is not None:
+            from ..model_registry import materializar_artefactos
+            carpeta = raiz / miembro['candidate_id']
+            materializar_artefactos(miembro['detalle'], carpeta)
+            modelo = _abrir_carpeta(carpeta)
+            modelo.version = miembro['candidate_id']
+            modelo.carpeta_modelo = carpeta
+            modelo.candidate_id = miembro['candidate_id']
+            modelo.conjunto_id = miembro['conjunto_id']
+            return modelo
         puntero = raiz / 'promovido.json'
         if not puntero.is_file():
             return None
         version = json.loads(puntero.read_text(encoding='utf-8'))['version']
     return _abrir_carpeta(raiz / version)
+
+
+def _metadatos_en_uso(bufer: BuferEpisodios, modelo: OraculoPINN) -> dict:
+    carpeta = getattr(modelo, 'carpeta_modelo', _raiz_modelos(bufer) / modelo.version)
+    return json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
 
 
 def _abrir_carpeta(carpeta: Path) -> OraculoPINN:
@@ -972,6 +989,8 @@ def guardar_y_reabrir(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict, s
 
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
     """Pasa a ser el modelo en uso; el historial guarda cada cambio (RF-42)."""
+    from ..aprendizaje_continuo import exigir_sin_conjunto
+    exigir_sin_conjunto()
     raiz = _raiz_modelos(bufer)
     anterior = None
     if (raiz / 'promovido.json').is_file():
@@ -1387,7 +1406,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         (cfg.ocultas, cfg.pasos, cfg.fisica, cfg.arquitectura)
     previas = previas_familias = None
     if actual is not None:
-        anterior = json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+        anterior = _metadatos_en_uso(bufer, actual)
         # También conserva el linaje acumulado: no basta mirar la última época.
         previas = anterior.get('ajuste_acumulado_ids')
         previas_familias = anterior.get('ajuste_acumulado_familias')
@@ -1499,7 +1518,7 @@ def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str
     actual = cargar(bufer) if muestras else None
     fisica = ModeloMallado(exponente=actual.cfg.exponente_carga if actual else 0.0)
     filas = []
-    meta = (json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+    meta = (_metadatos_en_uso(bufer, actual)
             if actual is not None else {})
     guardadas = meta.get('particiones_ids')
     if guardadas:
@@ -1545,7 +1564,7 @@ def deriva_por_familia(bufer: BuferEpisodios, *, minimo: int = 10, fraccion: flo
     actual = cargar(bufer)
     vistos: set[str] = set()
     if actual is not None:
-        meta = json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+        meta = _metadatos_en_uso(bufer, actual)
         vistos = set(meta.get('episodios') or [])
     familias: dict[str, dict[str, int]] = {}
     for m, i in zip(muestras, ids, strict=True):

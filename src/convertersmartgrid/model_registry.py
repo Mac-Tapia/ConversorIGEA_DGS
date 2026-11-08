@@ -59,6 +59,35 @@ def _sha_archivo(ruta: Path) -> str:
         return hashlib.file_digest(contenido, 'sha256').hexdigest()
 
 
+def materializar_artefactos(detalle: dict[str, Any], destino: Path) -> None:
+    """050:RF-7: caché verificada por contenido, publicada de una vez sin mover el original."""
+    esperados = detalle.get('artifacts') or {}
+    if not esperados:
+        raise ValueError('integridad: candidato sin artefactos')
+    for nombre, huella in esperados.items():
+        if (not isinstance(nombre, str) or Path(nombre).name != nombre or '/' in nombre or '\\' in nombre
+                or not isinstance(huella, str) or not re.fullmatch(r'[0-9a-f]{64}', huella)):
+            raise ValueError('integridad: nombre o huella de artefacto no válido')
+
+    def verificar(carpeta: Path):
+        for nombre, esperado in esperados.items():
+            ruta = carpeta / nombre
+            if not ruta.is_file() or _sha_archivo(ruta) != esperado:
+                raise ValueError(f'integridad: la copia de {nombre} no coincide')
+
+    destino = Path(destino)
+    if destino.is_dir():
+        verificar(destino)
+        return
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with staging_publicacion(destino) as temporal:
+        temporal.mkdir()
+        for nombre in esperados:
+            shutil.copy2(Path(detalle['path']) / 'artifacts' / nombre, temporal / nombre)
+        verificar(temporal)
+        os.replace(temporal, destino)
+
+
 class RegistroModelo:
     def __init__(self, raiz: Path | str):
         self.raiz = Path(raiz)

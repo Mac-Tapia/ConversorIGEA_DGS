@@ -796,6 +796,26 @@ def miembro_del_conjunto(raiz: Path | str, familia: str, *, registro: RegistroMo
             'modelo_registro': nombre, 'detalle': detalle}
 
 
+def _registro_comun(registro: RegistroModelo | None) -> RegistroModelo:
+    if registro is None:
+        from .asistente import almacen
+        registro = RegistroModelo(almacen.raiz() / 'model_registry')
+    return registro
+
+
+def miembro_en_uso(familia: str, *, registro: RegistroModelo | None = None) -> dict | None:
+    """050:RF-7: ubicación común del registro y conjunto para los consumidores de la aplicación."""
+    registro = _registro_comun(registro)
+    return miembro_del_conjunto(registro.raiz.parent / 'aprendizaje', familia, registro=registro)
+
+
+def exigir_sin_conjunto(*, registro: RegistroModelo | None = None) -> None:
+    """050:RF-7: una operación individual no puede declarar activación sobre un puntero ignorado."""
+    registro = _registro_comun(registro)
+    if conjunto_activo(registro.raiz.parent / 'aprendizaje') is not None:
+        raise CicloBloqueado('Hay un conjunto activo: la publicación y reversión deben hacerse sobre el conjunto completo.')
+
+
 # --------------------------------------------------------------------------- T5: estado visible
 
 def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:

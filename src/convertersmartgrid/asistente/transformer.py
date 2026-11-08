@@ -32,6 +32,9 @@ from .tareas import TAREAS
 PAD, DESCONOCIDO, INICIO = 0, 1, 2
 #: Semilla del conjunto de prueba fijo: el mismo para el candidato y el modelo en uso (RF-20).
 SEMILLA_PRUEBA = 9973
+FAMILIAS_MODELOS = {'transformer': 'ordenes', 'clasificador': 'informes'}
+PREFIJO_REGISTRO = 'reg-'
+LARGO_VERSION_REGISTRO = 16
 
 
 @dataclass
@@ -278,7 +281,35 @@ def volver_al_anterior(nombre: str = 'ordenes') -> str | None:
     return anterior
 
 
+def version_de_registro(candidate_id: str) -> str:
+    return f'{PREFIJO_REGISTRO}{candidate_id[:LARGO_VERSION_REGISTRO]}'
+
+
+def materializar_candidato(detalle: dict, carpeta: Path) -> None:
+    """050:RF-7: copia verificada y atómica, también cuando ya existe una versión local."""
+    if not {'pesos.pt', 'modelo.json'}.issubset(detalle['artifacts']):
+        raise ValueError('integridad: el candidato no trae pesos.pt y modelo.json')
+    from ..model_registry import materializar_artefactos
+    materializar_artefactos(detalle, carpeta)
+
+
+def _version_conjunto(nombre: str) -> str | None:
+    from ..aprendizaje_continuo import miembro_en_uso
+    familia = next((f for f, n in FAMILIAS_MODELOS.items() if n == nombre), None)
+    if familia is None:
+        return None
+    miembro = miembro_en_uso(familia)
+    if miembro is None:
+        return None
+    version = version_de_registro(miembro['candidate_id'])
+    materializar_candidato(miembro['detalle'], raiz_modelos(nombre) / version)
+    return version
+
+
 def version_promovida(nombre: str = 'ordenes') -> str | None:
+    conjunta = _version_conjunto(nombre)
+    if conjunta is not None:
+        return conjunta
     puntero = raiz_modelos(nombre) / 'promovido.json'
     return json.loads(puntero.read_text(encoding='utf-8'))['version'] if puntero.is_file() else None
 
