@@ -1,0 +1,74 @@
+{
+  "task_id": "HARNESS-20261108",
+  "date": "2026-11-08",
+  "timezone": "America/Lima",
+  "branch": "codex/harness-integral-20261108",
+  "base_revision": "5617251012f39193297e19b299d8a179a8fe1f61",
+  "python_stdlib": "3.12.10",
+  "source_modules": 8,
+  "test_modules": 6,
+  "checks": {
+    "unittest": {
+      "passed": 42,
+      "failed": 0,
+      "scope": "stdlib, own tests; providers are contract doubles"
+    },
+    "focused_regression": {
+      "passed": 127,
+      "subtests_passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "log": "D:\\converter\\ConversorIGEA_DGS\\.worktrees\\harness-integral-20261108\\output\\harness_integral_20261108\\regresion_final.txt",
+      "sha256": "f325e65cd3fcee9d3dabda1e93d04fc8397ac470099e52c46deb03317286c246",
+      "command": ".venv/Scripts/python.exe -I -B -c import pytest; pytest.main(-q tests/test_model_registry.py tests/test_training_coordinator.py tests/test_evaluacion_modelos.py tests/test_aceptacion_agente.py tests/test_trazabilidad_specs.py::test_cada_fichero_de_pruebas_cita_una_spec tests/test_harness_*.py) with worktree src/tests inserted explicitly"
+    },
+    "ruff": {
+      "ok": true,
+      "command": ".venv/Scripts/ruff.exe check src/convertersmartgrid/evaluacion_harness tools/evaluar_harness.py tests/test_harness_*.py",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "compile_in_memory": {
+      "ok": true,
+      "files": 15,
+      "bytecode_written": false
+    },
+    "cli_help_exit_code": 0
+  },
+  "review": {
+    "agent": "/root/revisar_implementacion_harness",
+    "important_findings_open": 0,
+    "scope": "new surfaces; runtime tests use temporary registry and doubles",
+    "production_provisional_review": "I1 scalar ambiguity corrected; I2 test citations corrected; layer classification reserved for integrator"
+  },
+  "source_sha256": {
+    "src/convertersmartgrid/evaluacion_harness/__init__.py": "9f0e413c562b429e35c5733b7f397dc015213045bc93843872d2103917149bea",
+    "src/convertersmartgrid/evaluacion_harness/adaptadores.py": "6b1ff6ba23f95adf3863fb60ac0a9afa0ccf81c5ba475afca5a967650b83a09a",
+    "src/convertersmartgrid/evaluacion_harness/cli.py": "63db62e910df43cc682b5b04085826759ffe723335600071e8f124bfc3bfa097",
+    "src/convertersmartgrid/evaluacion_harness/contratos.py": "01130a071f179021fe18ab075338e08da43d735f4330b55146e0879f778114fe",
+    "src/convertersmartgrid/evaluacion_harness/ejecucion.py": "9ac1ef00b6d93cfd092c3f7235869506e046584d44e330f8b9f3bb93b395d5f2",
+    "src/convertersmartgrid/evaluacion_harness/integracion.py": "26b1b1efdec8f5984408deaab31a31221652a0965cee123da2ec62bc085eb3f7",
+    "src/convertersmartgrid/evaluacion_harness/metricas.py": "17d4bcee3aca1f4560ef7b31c718250dafac85a88b2332b3eea0084e4fcac791",
+    "src/convertersmartgrid/evaluacion_harness/publicacion.py": "efdbd07bd4fdf4a07fbbacd9fd2ac51d284dfd983b4ac8726afe41a54348b4de",
+    "tests/test_harness_adaptadores.py": "b261624c9ef312764311d7c72629f8dbd8511d0ea9dbdfac21138407500f31ff",
+    "tests/test_harness_cli.py": "029d456c1cea0d1c03ff7687d36ea263a71093ae70fd39d2564558618f11a50f",
+    "tests/test_harness_contratos.py": "46a984348c0081d177c1ce7363ac733bfbb1014d334d74dfc8c129fe16939e0c",
+    "tests/test_harness_ejecucion.py": "2540de268e1cea60cfee7a873f7e354cc263c6bd180e103f13dd6ccf79e20b2e",
+    "tests/test_harness_integracion.py": "b84a484d9e9f5f9d03c591290d79f98d5a3be797b98e3c6f3a79e430621f1335",
+    "tests/test_harness_metricas.py": "7ee761059325992037093b3d2031c960b6a40573223488444a9196442e4c74d5",
+    "tools/evaluar_harness.py": "e6b335dc7ed3f6d7beed506f6daab47c1ac608fdcac254c539dd87acff172c17"
+  },
+  "shared_product_modules_modified": [],
+  "gpu_used": false,
+  "powerfactory_used": false,
+  "model_training_executed": false,
+  "user_model_promoted": false,
+  "precision_recall_gain_demonstrated": false,
+  "electrical_acceptance": false,
+  "scientific_acceptance": false,
+  "pending": [
+    "consumer adoption of TrainingStage in reserved jobs",
+    "integrator layer/inventory entries and combined-cut validation",
+    "full product suite",
+    "real independent model campaigns with resource turn and sealed data/policy"
+  ]
+}

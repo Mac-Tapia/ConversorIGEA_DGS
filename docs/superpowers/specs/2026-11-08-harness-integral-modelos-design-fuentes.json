@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "task_id": "HARNESS-20261108",
+  "consultation_date": "2026-11-08",
+  "timezone": "America/Lima",
+  "project": "D:/converter/ConversorIGEA_DGS",
+  "inspected_revision": "5617251012f39193297e19b299d8a179a8fe1f61",
+  "status": "design_inventory_not_installed",
+  "verification": "GitHub REST API: repository, default-branch commit and license at that commit; decoded license bytes hashed with SHA-256",
+  "repositories": [
+    {
+      "id": "lm_evaluation_harness",
+      "url": "https://github.com/EleutherAI/lm-evaluation-harness",
+      "commit": "d6de81643928d653435c431bae19945d41d32520",
+      "commit_date": "2026-09-14T10:51:05Z",
+      "license": "MIT",
+      "license_path": "LICENSE.md",
+      "license_sha256": "a806e42547620dffbc2ec0333322c8b3523b4af11e059be14ef81aa5b1ae021f",
+      "proposed_use": "Optional language-model and adapter benchmark"
+    },
+    {
+      "id": "promptfoo",
+      "url": "https://github.com/promptfoo/promptfoo",
+      "commit": "2a6fdf9b2e1600ffa2a204e70e9fea7cb0c14cff",
+      "commit_date": "2026-11-07T19:12:54Z",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "license_sha256": "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44",
+      "proposed_use": "Optional local prompt and action regression suites"
+    },
+    {
+      "id": "ragas",
+      "url": "https://github.com/vibrantlabsai/ragas",
+      "commit": "298b68274234c060deacab3cf5fb52aa3a20e885",
+      "commit_date": "2026-02-24T07:47:18Z",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "664b930830f291c2936ab30bcd6ef9ca6c9c7384cc475ae0c526156a27d5a6c6",
+      "proposed_use": "Optional calibrated auxiliary RAG judging, never sole promotion authority"
+    }
+  ],
+  "electrical_upstream_inventory": "docs/UPSTREAM_IA_LOCK.json",
+  "downloaded_repositories": false,
+  "installed_dependencies": false,
+  "trained_models": false,
+  "precision_recall_improvement_demonstrated": false,
+  "electrical_acceptance": false
+}
