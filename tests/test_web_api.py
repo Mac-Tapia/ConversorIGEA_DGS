@@ -133,6 +133,9 @@ def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
     jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
     assert [job[0] for job in jobs] == ['RED_UNIDA']
     assert missing == []
+    # 022:RF-52, 092 T2 (Pisco, 2026-11-08): los rótulos del vínculo traen el de la barra de SET.
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL101 + AL102', 'AL102'])
+    assert [job[0] for job in jobs] == ['RED_UNIDA'] and missing == []
 
     ws.groups['RED_UNIDA'] = {
         'name': 'RED_UNIDA', 'feeders': ['AL101', 'AL102', 'AL103'],

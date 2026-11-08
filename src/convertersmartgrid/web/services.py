@@ -740,10 +740,14 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 
 def powerfactory_targets(ws: Workspace, feeders: list[str]) -> list[str]:
     """Usa un DGS unido vigente cuando coincide con toda la selección."""
-    if len(feeders) < 2:
-        return list(feeders)
+    from ..powerfactory_binding import alimentadores_de_rotulos
 
-    selected = set(feeders)
+    # Pisco (092 T2, 2026-11-08): el «Caso base» pide los rótulos del vínculo, con los de barra de
+    # SET («AL104 + AL105 + …»), y el grupo guarda los alimentadores sueltos: nunca coincidía y se
+    # pedía un DGS por rótulo. Se compara con los alimentadores de los rótulos (022:RF-52).
+    selected = alimentadores_de_rotulos(feeders)
+    if len(selected) < 2:
+        return list(feeders)
     latest_conversion = max(
         (float(item.get('converted_at') or 0)
          for item in ws.conversions.values()

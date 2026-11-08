@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 12787 líneas y 384 funciones, pendiente de partir (002).
+`web/services.py` tiene 12791 líneas y 384 funciones, pendiente de partir (002).
 
 ### Specs
 
