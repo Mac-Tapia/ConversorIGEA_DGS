@@ -78,6 +78,62 @@ def test_contexto_sin_huella_bloquea(tmp_path):
         ac.congelar_instantanea(_fuentes(tmp_path), tmp_path / 'ap', contexto='sin-huella', versiones=VERSIONES)
 
 
+def test_contexto_de_ciclo_conserva_proyectos_y_es_invariante_al_orden(tmp_path):
+    """050:RF-1 — varios proyectos conservan sus contextos individuales."""
+    otro = hashlib.sha256(b'otro-contexto').hexdigest()
+    a = ac.crear_contexto_ciclo({'carpeta/P1': CTX, 'carpeta/P2': otro})
+    b = ac.crear_contexto_ciclo({'carpeta/P2': otro, 'carpeta/P1': CTX})
+    assert a == b
+    inst = ac.congelar_instantanea(_fuentes(tmp_path), tmp_path / 'ap', contexto=a, versiones=VERSIONES)
+    assert inst['contexto_hash'] == a['contexto_hash']
+    assert inst['contextos'] == a['proyectos']
+    ruta = Path(inst['ruta']) / 'manifiesto.json'
+    dato = json.loads(ruta.read_text(encoding='utf-8'))
+    dato['contextos']['carpeta/P2'] = CTX
+    ruta.write_text(json.dumps(dato), encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado, match='contexto'):
+        ac.verificar_instantanea(inst['ruta'])
+
+
+def test_contexto_de_ciclo_no_se_puede_retirar_del_manifiesto(tmp_path):
+    """050:RF-1 — quitar el mapa no convierte una captura múltiple en una heredada."""
+    inst = ac.congelar_instantanea(_fuentes(tmp_path), tmp_path / 'ap',
+        contexto=ac.crear_contexto_ciclo({'P1': CTX}), versiones=VERSIONES)
+    ruta = Path(inst['ruta']) / 'manifiesto.json'
+    dato = json.loads(ruta.read_text(encoding='utf-8'))
+    del dato['contextos']
+    ruta.write_text(json.dumps(dato), encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado, match='contexto'):
+        ac.verificar_instantanea(inst['ruta'])
+
+
+@pytest.mark.parametrize('proyectos', [{}, {'': CTX}, {' P1': CTX}, {'P1': 'incompleta'}])
+def test_contexto_de_ciclo_rechaza_identidad_incompleta(proyectos):
+    """050:RF-1, 050:RF-8 — no se inventan identidades de proyecto ni huellas."""
+    with pytest.raises(ac.CicloBloqueado):
+        ac.crear_contexto_ciclo(proyectos)
+
+
+def test_observacion_comun_sin_familia_y_con_fecha_canonica():
+    """050:RF-2 — la misma observación tiene identidad común entre familias."""
+    fuente = hashlib.sha256(b'fuente-medida').hexdigest()
+    a = ac.crear_observacion_id(CTX, fuente, 'fila/17', '2026-07-20T11:15:00-05:00')
+    b = ac.crear_observacion_id(CTX, fuente, 'fila/17', '2026-07-20T16:15:00+00:00')
+    assert a == b and len(a) == 64
+    assert a != ac.crear_observacion_id(CTX, fuente, 'fila/18', '2026-07-20T16:15:00Z')
+    assert a != ac.crear_observacion_id(fuente, fuente, 'fila/17', '2026-07-20T16:15:00Z')
+
+
+@pytest.mark.parametrize('campo,valor', [('contexto_hash', ''), ('fuente_hash', 'x'),
+    ('registro_id', ' '), ('instante', '2026-07-20T11:15:00'), ('instante', 'desconocido')])
+def test_observacion_sin_procedencia_no_recibe_identidad(campo, valor):
+    """050:RF-2, 050:RF-8 — no se presume zona horaria ni procedencia."""
+    datos = dict(contexto_hash=CTX, fuente_hash=CTX, registro_id='fila/17', instante='2026-07-20T16:15:00Z')
+    datos[campo] = valor
+    with pytest.raises(ac.CicloBloqueado):
+        ac.crear_observacion_id(**datos)
+
+
 def test_cambio_de_la_fuente_durante_la_copia_bloquea(tmp_path, monkeypatch):
     """050:RF-1, 050:RF-8: un dato que llega a mitad de la copia no se mezcla con la instantánea."""
     fuentes = _fuentes(tmp_path)
@@ -123,6 +179,50 @@ def test_muestra_de_otra_instantanea_no_entra(tmp_path):
     ajena = ac.Muestra('o1', 'pinn', hashlib.sha256(b'otra').hexdigest(), 'observado', 'medicion', 'entrenamiento')
     with pytest.raises(ac.CicloBloqueado, match='otra instantánea'):
         ac.preparar_vistas(inst, [ajena])
+
+
+def test_duplicado_identico_no_aumenta_peso_y_colision_bloquea(tmp_path):
+    """050:RF-2, 050:RF-9 — un duplicado no es una observación nueva."""
+    from dataclasses import replace
+    inst = _instantanea(tmp_path)
+    m = _m(inst, 'o1', 'transformer', etiqueta='operador')
+    vistas = ac.preparar_vistas(inst, [m, m])
+    assert vistas['resumen']['transformer']['entrenamiento'] == 1
+    assert vistas['duplicadas'] == 1
+    with pytest.raises(ac.CicloBloqueado, match='colisión'):
+        ac.preparar_vistas(inst, [m, replace(m, etiqueta='maestro')])
+
+
+def test_replay_se_deduplica_y_completa_otra_familia(tmp_path):
+    """050:RF-2, 050:RF-6 — replay válido de otra familia conserva la observación común."""
+    inst = _instantanea(tmp_path)
+    viejo = hashlib.sha256(b'vieja').hexdigest()
+    h = ac.Muestra('o1', 'pinn', viejo, 'observado', 'medicion', 'entrenamiento')
+    vistas = ac.preparar_vistas(inst, [_m(inst, 'o1', 'transformer', etiqueta='operador')], historicas=[h, h])
+    assert vistas['resumen']['pinn'] == {'entrenamiento': 1}
+    assert vistas['replay'] == 1 and vistas['duplicadas'] == 1
+
+
+def test_replay_no_oculta_colision_de_registro(tmp_path):
+    """050:RF-6, 050:RF-9 — una etiqueta contradictoria no se oculta como repetida."""
+    from dataclasses import replace
+    inst = _instantanea(tmp_path)
+    m = _m(inst, 'o1', 'transformer', etiqueta='operador')
+    vieja = replace(m, snapshot_id=hashlib.sha256(b'vieja').hexdigest())
+    assert ac.preparar_vistas(inst, [m], historicas=[vieja])['replay'] == 0
+    with pytest.raises(ac.CicloBloqueado, match='colisión'):
+        ac.preparar_vistas(inst, [m], historicas=[replace(vieja, etiqueta='maestro')])
+
+
+def test_muestra_de_contexto_no_declarado_en_ciclo_bloquea(tmp_path):
+    """050:RF-1, 050:RF-2 — cada muestra declara un contexto miembro del ciclo."""
+    from dataclasses import replace
+    inst = ac.congelar_instantanea(_fuentes(tmp_path), tmp_path / 'ap',
+        contexto=ac.crear_contexto_ciclo({'P1': CTX}), versiones=VERSIONES)
+    m = replace(_m(inst, 'o1', 'pinn'), contexto=CTX)
+    assert ac.preparar_vistas(inst, [m])['resumen']['pinn'] == {'entrenamiento': 1}
+    with pytest.raises(ac.CicloBloqueado, match='contexto'):
+        ac.preparar_vistas(inst, [replace(m, contexto='')])
 
 
 @pytest.mark.parametrize('etiqueta, origen', [('llm', 'observado'), ('prediccion', 'simulado_nativo'),
@@ -430,3 +530,16 @@ def test_cli_estado_y_congelar(tmp_path, capsys):
     assert rc == 2 and json.loads(capsys.readouterr().out)['estado'] == 'bloqueado'
     assert cli.main(['--raiz', str(tmp_path / 'ap'), 'estado']) == 0
     assert set(json.loads(capsys.readouterr().out)['fases']) == set(ac.FASES)
+
+
+def test_cli_congela_contexto_de_varios_proyectos(tmp_path, capsys):
+    """050:RF-1 — el CLI consume el manifiesto de contexto agregado comprobado."""
+    spec = importlib.util.spec_from_file_location('aprendizaje_cli_multi', RAIZ / 'tools' / 'aprendizaje_continuo.py')
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    archivo = tmp_path / 'contexto.json'
+    archivo.write_text(json.dumps(ac.crear_contexto_ciclo({'P1': CTX})), encoding='utf-8')
+    f = _fuentes(tmp_path)
+    assert cli.main(['--raiz', str(tmp_path / 'ap'), 'congelar', '--fuente',
+        f"dataset={f['dataset']}", '--contexto', str(archivo)]) == 0
+    assert json.loads(capsys.readouterr().out)['ok']

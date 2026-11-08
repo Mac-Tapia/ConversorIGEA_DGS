@@ -83,8 +83,8 @@
       "evidence": []
     },
     "P19": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "en_curso_contratos_contexto_observacion_deduplicacion_verificados",
+      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml"]
     },
     "P20": {
       "state": "pendiente",

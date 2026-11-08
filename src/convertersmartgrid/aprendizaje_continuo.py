@@ -10,7 +10,7 @@ lo ejecuta con el ``TrainingCoordinator`` existente y publica un conjunto compat
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -28,8 +28,10 @@ from .runtime_paths import staging_publicacion
 from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage, pid_vivo
 
 ESQUEMA_INSTANTANEA = 'convertersmartgrid-learning-snapshot-v1'
+ESQUEMA_INSTANTANEA_MULTIPROYECTO = 'convertersmartgrid-learning-snapshot-v2'
 ESQUEMA_CICLO = 'convertersmartgrid-learning-cycle-v1'
 ESQUEMA_CONJUNTO = 'convertersmartgrid-model-ensemble-v1'
+ESQUEMA_CONTEXTO_CICLO = 'convertersmartgrid-learning-context-v1'
 
 #: 050:RF-2: de dónde sale una muestra. Un dato redactado por el maestro no se vuelve humano.
 ORIGENES = ('observado', 'simulado_nativo', 'redactado')
@@ -104,12 +106,51 @@ def huellas_de(ruta: Path | str) -> dict[str, str]:
     return {rel: _sha(p) for rel, p in _ficheros(Path(ruta))}
 
 
-def _contexto_hash(contexto: ContextoExperimento | str) -> str:
+def crear_contexto_ciclo(proyectos: Mapping[str, str]) -> dict[str, Any]:
+    """050:RF-1: contexto agregado sin sustituir las identidades 043 individuales."""
+    if not isinstance(proyectos, Mapping) or not proyectos:
+        raise CicloBloqueado('contexto de ciclo sin proyectos')
+    for proyecto, huella in proyectos.items():
+        if not isinstance(proyecto, str) or not proyecto.strip() or proyecto != proyecto.strip():
+            raise CicloBloqueado('identidad de proyecto vacía o ambigua en el contexto')
+        if not isinstance(huella, str) or not _HEX.fullmatch(huella):
+            raise CicloBloqueado(f'{proyecto}: contexto 043 sin SHA-256')
+    cuerpo = {'schema': ESQUEMA_CONTEXTO_CICLO, 'proyectos': dict(sorted(proyectos.items()))}
+    return {**cuerpo, 'contexto_hash': _huella(cuerpo)}
+
+
+def _contexto_hash(contexto: ContextoExperimento | Mapping[str, Any] | str) -> str:
     if isinstance(contexto, ContextoExperimento):
         return clave_contexto(contexto)
+    if isinstance(contexto, Mapping):
+        reconstruido = crear_contexto_ciclo(contexto.get('proyectos'))
+        if (contexto.get('schema') != ESQUEMA_CONTEXTO_CICLO
+                or reconstruido['contexto_hash'] != contexto.get('contexto_hash')):
+            raise CicloBloqueado('manifiesto del contexto de ciclo modificado')
+        return reconstruido['contexto_hash']
     if not isinstance(contexto, str) or not _HEX.fullmatch(contexto):
         raise CicloBloqueado('contexto 043 ausente o sin huella SHA-256')
     return contexto
+
+
+def crear_observacion_id(contexto_hash: str, fuente_hash: str, registro_id: str, instante: str) -> str:
+    """050:RF-2: la observación fuente conserva identidad entre familias y snapshots."""
+    for nombre, valor in (('contexto_hash', contexto_hash), ('fuente_hash', fuente_hash)):
+        if not isinstance(valor, str) or not _HEX.fullmatch(valor):
+            raise CicloBloqueado(f'{nombre}: falta SHA-256 de procedencia')
+    if not isinstance(registro_id, str) or not registro_id.strip():
+        raise CicloBloqueado('registro_id: falta identidad de la observación fuente')
+    try:
+        if not isinstance(instante, str):
+            raise ValueError('no es texto')
+        fecha = datetime.fromisoformat(instante)
+        if fecha.utcoffset() is None:
+            raise ValueError('sin zona horaria')
+        utc = fecha.astimezone(timezone.utc).isoformat(timespec='microseconds')
+    except (ValueError, OverflowError) as exc:
+        raise CicloBloqueado('instante: se exige fecha ISO-8601 con zona horaria explícita') from exc
+    return _huella({'schema': 'convertersmartgrid-observation-v1', 'contexto_hash': contexto_hash,
+                    'fuente_hash': fuente_hash, 'registro_id': registro_id, 'instante': utc})
 
 
 def registrar_bloqueo(raiz: Path | str, etapa: str, motivos: Sequence[str], **extra: Any) -> dict:
@@ -123,7 +164,7 @@ def registrar_bloqueo(raiz: Path | str, etapa: str, motivos: Sequence[str], **ex
 
 
 def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | str, *,
-                         contexto: ContextoExperimento | str, versiones: Mapping[str, str],
+                         contexto: ContextoExperimento | Mapping[str, Any] | str, versiones: Mapping[str, str],
                          obligatorias: Iterable[str] | None = None) -> dict[str, Any]:
     """050:RF-1, RF-2, RF-8: copia verificada de todo lo que el ciclo consume, antes de preparar nada.
 
@@ -160,16 +201,19 @@ def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | 
     if motivos:
         registrar_bloqueo(raiz, 'instantanea', motivos)
         raise CicloBloqueado('; '.join(motivos))
-    identidad = _huella({'schema': ESQUEMA_INSTANTANEA, 'contexto_hash': ctx,
+    esquema = ESQUEMA_INSTANTANEA_MULTIPROYECTO if isinstance(contexto, Mapping) else ESQUEMA_INSTANTANEA
+    identidad = _huella({'schema': esquema, 'contexto_hash': ctx,
                          'versiones': dict(versiones), 'archivos': antes})
     final = raiz / 'instantaneas' / identidad
     if final.is_dir():
         return verificar_instantanea(final)
-    manifiesto = {'schema': ESQUEMA_INSTANTANEA, 'snapshot_id': identidad, 'contexto_hash': ctx,
+    manifiesto = {'schema': esquema, 'snapshot_id': identidad, 'contexto_hash': ctx,
                   'versiones': dict(versiones), 'archivos': antes, 'creada': _ahora(),
                   'origenes': {n: str(Path(r).resolve()) for n, r in fuentes.items() if r is not None},
                   'tipos': {n: 'fichero' if Path(r).is_file() else 'carpeta'
                             for n, r in fuentes.items() if r is not None}}
+    if isinstance(contexto, Mapping):
+        manifiesto['contextos'] = dict(contexto['proyectos'])
     final.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(final) as tmp:
         tmp.mkdir()
@@ -199,9 +243,16 @@ def verificar_instantanea(carpeta: Path | str) -> dict[str, Any]:
     """Relee la instantánea; una copia tocada después no pasa por la congelada."""
     carpeta = Path(carpeta)
     manifiesto = _leer(carpeta / 'manifiesto.json')
-    if manifiesto.get('schema') != ESQUEMA_INSTANTANEA:
+    esquema = manifiesto.get('schema')
+    if esquema not in (ESQUEMA_INSTANTANEA, ESQUEMA_INSTANTANEA_MULTIPROYECTO):
         raise CicloBloqueado('instantánea de otro esquema')
-    esperado = _huella({'schema': ESQUEMA_INSTANTANEA, 'contexto_hash': manifiesto.get('contexto_hash'),
+    if esquema == ESQUEMA_INSTANTANEA_MULTIPROYECTO and 'contextos' not in manifiesto:
+        raise CicloBloqueado('instantánea de varios proyectos sin mapa de contextos')
+    if 'contextos' in manifiesto:
+        agregado = crear_contexto_ciclo(manifiesto['contextos'])
+        if agregado['contexto_hash'] != manifiesto.get('contexto_hash'):
+            raise CicloBloqueado('mapa de contextos de la instantánea modificado')
+    esperado = _huella({'schema': esquema, 'contexto_hash': manifiesto.get('contexto_hash'),
                         'versiones': manifiesto.get('versiones'), 'archivos': manifiesto.get('archivos')})
     if esperado != manifiesto.get('snapshot_id') or carpeta.name != esperado:
         raise CicloBloqueado('manifiesto de instantánea modificado')
@@ -276,13 +327,33 @@ def preparar_vistas(instantanea: Mapping[str, Any], muestras: Iterable[Muestra],
     if not isinstance(sid, str) or not instantanea.get('verificada'):
         raise CicloBloqueado('la preparación necesita una instantánea verificada')
     vistas: dict[str, dict[str, list[Muestra]]] = {}
-    cuarentena, particion_de = [], {}
+    cuarentena, particion_de, vistos = [], {}, {}
+    duplicadas = 0
+
+    def validar_contexto(m):
+        if 'contextos' in instantanea and m.contexto not in instantanea['contextos'].values():
+            raise CicloBloqueado(f'{m.observacion_id}: contexto no declarado en el ciclo')
+
+    def repetida(m, *, historica=False):
+        clave = (m.familia, m.record_id)
+        previa = vistos.get(clave)
+        comparable = replace(m, snapshot_id=previa.snapshot_id) if previa is not None and historica else m
+        if previa is not None and previa != comparable:
+            raise CicloBloqueado(f'{m.record_id}: colisión de identidad de registro')
+        if previa is None:
+            vistos[clave] = m
+        return previa is not None
+
     for m in muestras:
         if m.snapshot_id != sid:
             raise CicloBloqueado(f'{m.observacion_id}: muestra de otra instantánea')
+        validar_contexto(m)
         previa = particion_de.setdefault(m.observacion_id, m.particion)
         if previa != m.particion:
             raise CicloBloqueado(f'{m.observacion_id}: partición distinta entre familias (fuga)')
+        if repetida(m):
+            duplicadas += 1
+            continue
         motivo = _cuarentena(m)
         if motivo:
             cuarentena.append({'observacion_id': m.observacion_id, 'familia': m.familia, 'motivo': motivo})
@@ -290,17 +361,22 @@ def preparar_vistas(instantanea: Mapping[str, Any], muestras: Iterable[Muestra],
         vistas.setdefault(m.familia, {}).setdefault(m.particion, []).append(m)
     replay = 0
     for h in historicas:
-        if h.observacion_id in particion_de:
-            if particion_de[h.observacion_id] != 'entrenamiento' and h.particion == 'entrenamiento':
-                raise CicloBloqueado(f'{h.observacion_id}: el replay metería en entrenamiento una prueba vigente')
-            continue
+        if (h.observacion_id in particion_de and particion_de[h.observacion_id] != 'entrenamiento'
+                and h.particion == 'entrenamiento'):
+            raise CicloBloqueado(f'{h.observacion_id}: el replay metería en entrenamiento una prueba vigente')
         if h.particion != 'entrenamiento' or _cuarentena(h):
             continue
+        validar_contexto(h)
+        # Un registro vigente prevalece sobre su copia histórica de otra instantánea.
+        if repetida(h, historica=True):
+            duplicadas += 1
+            continue
+        particion_de[h.observacion_id] = h.particion
         vistas.setdefault(h.familia, {}).setdefault('entrenamiento', []).append(h)
         replay += 1
     resumen = {f: {p: len(v) for p, v in partes.items()} for f, partes in sorted(vistas.items())}
     return {'snapshot_id': sid, 'vistas': vistas, 'resumen': resumen, 'cuarentena': cuarentena,
-            'replay': replay, 'particiones_hash': _huella(sorted(particion_de.items()))}
+            'replay': replay, 'duplicadas': duplicadas, 'particiones_hash': _huella(sorted(particion_de.items()))}
 
 
 def validar_propuestas(propuestas: Iterable[Mapping[str, Any]]) -> dict[str, list[dict]]:

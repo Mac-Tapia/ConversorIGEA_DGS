@@ -46,6 +46,10 @@ def _versiones() -> dict[str, str]:
 def _contexto(texto: str):
     ruta = Path(texto)
     if ruta.is_file():
+        from convertersmartgrid.aprendizaje_continuo import ESQUEMA_CONTEXTO_CICLO
+        dato = json.loads(ruta.read_text(encoding='utf-8'))
+        if isinstance(dato, dict) and dato.get('schema') == ESQUEMA_CONTEXTO_CICLO:
+            return dato
         from convertersmartgrid.experimentos import cargar_experimento
         return cargar_experimento(ruta).contexto
     return texto
@@ -75,7 +79,7 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest='accion', required=True)
     c = sub.add_parser('congelar', help='Copia verificada de las fuentes del ciclo (050:RF-1)')
     c.add_argument('--fuente', action='append', default=[], help='nombre=ruta; repetible')
-    c.add_argument('--contexto', required=True, help='Huella SHA-256 del contexto 043 o ruta a un ExperimentoSpec')
+    c.add_argument('--contexto', required=True, help='Huella SHA-256 del contexto 043, ExperimentoSpec o manifiesto de varios proyectos')
     c.add_argument('--version', action='append', default=[], help='nombre=valor añadido a las versiones')
     e = sub.add_parser('ciclo', help='Congela y ejecuta un ciclo único (050:RF-4); entrena en GPU')
     e.add_argument('--fuente', action='append', default=[])

@@ -25,6 +25,28 @@ compartan datos, contextos o versiones compatibles.
 
 ## Secuencia de implementación
 
+### Contratos de integración concretados el 2026-11-07
+
+RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto
+a huella de su contexto 043. `ContextoExperimento` conserva su contrato individual.
+`crear_contexto_ciclo(proyectos)` devuelve un manifiesto con esquema, mapa y huella
+agregada; se conserva en la instantánea y se comprueba al releerla. No se inventa un
+proyecto único. Cada muestra conserva su contexto individual, que debe pertenecer
+al mapa declarado. Cambiar un miembro cambia la identidad de la instantánea.
+Las capturas de varios proyectos usan esquema de instantánea v2: quitar el mapa
+se detecta; las capturas v1 conservan su identidad y lectura originales.
+
+RF-2/T2b: `crear_observacion_id(contexto_hash, fuente_hash, registro_id, instante)`
+calcula la identidad sin familia, partición ni snapshot. El instante exige zona
+horaria explícita y se normaliza a UTC; no se presume la zona de la máquina.
+Los productores usan la misma referencia a la observación fuente, nunca el hash
+de su etiqueta o representación como sustituto. Una repetición idéntica de un
+registro no aumenta su peso. Una identidad de registro con contenido incompatible
+bloquea y se conserva para revisión; el replay no incorpora pruebas al entrenamiento.
+Estos contratos no cierran T1b/T2b sin la preparación sobre fuentes reales.
+
+### Ejecución
+
 1. Auditar fuentes, series, episodios y modelos reales disponibles. Congelar los
    archivos necesarios en el directorio del ciclo y registrar hash de contexto 043.
    Copiar datos, no punteros activos; verificar copia y detectar cambios de origen.
