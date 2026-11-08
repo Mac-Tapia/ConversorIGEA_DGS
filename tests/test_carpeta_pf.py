@@ -890,6 +890,16 @@ def _exigir_pids_finalizados(pids):
     assert not vivos, f'Siguen vivos PID propios: {vivos}'
 
 
+def _leer_pids_propios(pids, pid_hijo):
+    propios = tuple(int(x) for x in pids.read_text().split())
+    assert len(propios) == len(set(propios)) == 2 and all(pid > 0 for pid in propios)
+    handshake = pid_hijo.read_text().split()
+    assert len(handshake) == 1, 'Falta el PID del intérprete hijo real'
+    hoja = int(handshake[0])
+    assert hoja > 0 and hoja != propios[0], 'PID del hijo real no válido'
+    return (*propios, hoja)
+
+
 def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path, monkeypatch):
     """005:RF-21 — al agotar el arranque se termina el árbol, no solo el lanzador.
 
@@ -901,14 +911,17 @@ def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path, monkeypatch):
 
     ctx, _registro = _contexto_real()
     pids = tmp_path / 'pids.txt'
+    pid_hijo = tmp_path / 'pid_hijo_real.txt'
+    programa_hijo = ('import os,time; '
+                     f'open({str(pid_hijo)!r}, "w").write(str(os.getpid())); '
+                     'time.sleep(120)')
     padre = ('import os, subprocess, sys, time; '
-             'h = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"]); '
+             f'h = subprocess.Popen([sys.executable, "-c", {programa_hijo!r}]); '
              f'open({str(pids)!r}, "w").write(f"{{os.getpid()}} {{h.pid}}"); '
              'time.sleep(120)')
     rc = ctx.run_process([sys.executable, '-c', padre], limite_arranque_s=3)
     assert rc == TIEMPO_AGOTADO
-    propios = tuple(int(x) for x in pids.read_text().split())
-    assert len(propios) == len(set(propios)) == 2 and all(pid > 0 for pid in propios)
+    propios = _leer_pids_propios(pids, pid_hijo)
     # Solo después del cierre real: no reemplazar la enumeración usada para terminar el árbol.
     monkeypatch.setattr(pf_env, 'procesos', lambda: [])
     assert pf_env.procesos() == []
@@ -951,6 +964,74 @@ def test_comprobar_pids_no_trata_access_denied_como_muerto(monkeypatch):
             _exigir_pids_finalizados([os.getpid()])
     except pytest.skip.Exception:
         pytest.fail('CIM vacío omitió comprobar el PID inaccesible')
+
+
+@pytest.mark.parametrize('contenido', [None, '', 'no-pid', '0', '7'])
+def test_pid_hijo_real_ausente_o_invalido_no_confirma_cierre(tmp_path, contenido):
+    """005:RF-21 — sin handshake válido del hijo real no se acredita el cierre del árbol."""
+    pids, hijo = tmp_path / 'pids.txt', tmp_path / 'hijo.txt'
+    pids.write_text('7 11', encoding='utf-8')  # Solo esquema sintético, no consulta de esos PID.
+    if contenido is not None:
+        hijo.write_text(contenido, encoding='utf-8')
+    with pytest.raises((OSError, ValueError, AssertionError)):
+        _leer_pids_propios(pids, hijo)
+
+
+def test_pid_hijo_real_puede_coincidir_con_popen_sin_redirector(tmp_path):
+    """005:RF-21 — en POSIX la hoja puede ser el Popen, conservando ambos PID originales."""
+    pids, hijo = tmp_path / 'pids.txt', tmp_path / 'hijo.txt'
+    pids.write_text('7 11', encoding='utf-8')
+    hijo.write_text('11', encoding='utf-8')
+    assert _leer_pids_propios(pids, hijo) == (7, 11, 11)
+
+
+def test_redirector_muerto_no_oculta_hoja_propia_viva(tmp_path):
+    """005:RF-21 — el padre y envoltorio muertos no sustituyen la consulta del intérprete hoja."""
+    import psutil
+
+    pids, hijo = tmp_path / 'pids.txt', tmp_path / 'hijo.txt'
+    python = sys._base_executable
+    hoja = ("import os,time\n"
+            f"with open({str(hijo)!r}, 'w') as f: f.write(str(os.getpid()))\n"
+            "time.sleep(120)\n")
+    envoltorio = ("import subprocess,time\n"
+                  f"h = subprocess.Popen([{python!r}, '-I', '-c', {hoja!r}])\n"
+                  "time.sleep(120)\n")
+    programa = ("import os,subprocess\n"
+                f"h = subprocess.Popen([{python!r}, '-I', '-c', {envoltorio!r}])\n"
+                f"with open({str(pids)!r}, 'w') as f: f.write(f'{{os.getpid()}} {{h.pid}}')\n"
+                "h.wait()\n")
+    padre = subprocess.Popen([python, '-I', '-c', programa])
+    identidades = []
+    try:
+        raiz = psutil.Process(padre.pid)
+        fin = time.monotonic() + 10
+        while not (pids.is_file() and hijo.is_file() and hijo.read_text().strip()):
+            assert padre.poll() is None and time.monotonic() < fin, 'No llegó el handshake propio'
+            time.sleep(0.01)
+        originales = tuple(int(x) for x in pids.read_text().split())
+        pid_hoja = int(hijo.read_text())
+        procesos = {p.pid: p for p in raiz.children(recursive=True)}
+        assert originales[1] in procesos and pid_hoja in procesos
+        identidades = list(procesos.values())
+        # Todos son descendientes propios, con creación capturada antes de terminar el envoltorio.
+        procesos[originales[1]].terminate()
+        padre.wait(timeout=10)  # El padre espera/recolecta al envoltorio y sale.
+        assert not psutil.pid_exists(originales[0]) and not psutil.pid_exists(originales[1])
+        assert procesos[pid_hoja].is_running()
+        with pytest.raises(AssertionError, match=str(pid_hoja)):
+            _exigir_pids_finalizados(_leer_pids_propios(pids, hijo))
+    finally:
+        # Conservar las identidades de creación: nunca actuar sobre un PID reutilizado.
+        if padre.poll() is None:
+            if not identidades:
+                identidades = psutil.Process(padre.pid).children(recursive=True)
+            padre.terminate()
+            padre.wait(timeout=10)
+        for proceso in reversed(identidades):
+            if proceso.is_running():
+                proceso.terminate()
+                proceso.wait(timeout=10)
 
 
 def _contexto_pf(monkeypatch, limite_s: float):
