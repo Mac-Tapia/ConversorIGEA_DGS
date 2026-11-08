@@ -1,5 +1,13 @@
 # Tareas — Spec 072
 
+Nota P04 procedencia CAPEX (2026-11-08), sin cerrar criterios originales: el
+primer commit de preparación conserva RED funcional y depende de la guarda pública
+P22 `1221a8ac785a92b76859d9332bb91c351ffa643a`. Se probará el adaptador contra esa
+API real y luego la conexión de los tres consumidores y sus recibos persistidos.
+El avance/rojos y límites quedan en `p04_procedencia_capex_20261108/HANDOFF.md`
+externo. No se atribuye vigencia por carpeta, ni se sella una obra histórica sin
+enlace; T14/T13/T11/T9b y la aceptación nativa siguen abiertas.
+
 - [x] T1 Estudio de planeamiento: año de presentación, año 00 y años calculados. (RF-1, RF-2, RF-3)
       Hecho cuando: prueba con dos años de presentación distintos, sin ningún año en el código.
 - [x] T2 Contrato de costos y adaptador SICODI, con cruce por código, tensión, estructura y sector típico. (RF-5, RF-7, RF-8, RF-9)

@@ -50,6 +50,8 @@ class DatosPlaneamiento:
     rotulos_cabecera: Mapping[str, str] = field(default_factory=dict)
     #: 042:RF-58: hasta 3 alternativas por alimentador, de menor a mayor costo anual.
     alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
+    #: 072:RF-28: solo una lectura nueva vinculada; None no atribuye fuente a historia.
+    procedencia_capex: Mapping[str, Any] | None = None
 
 
 class _EscritorDeModulo(Escritor):
@@ -105,6 +107,15 @@ def _generalidades(e: Escritor, datos: DatosPlaneamiento) -> None:
     e.campo('Empresa: ', datos.empresa, 'nombre de la empresa («empresa» del perfil)')
     e.campo('Proyecto de DIgSILENT: ', datos.proyecto, 'proyecto del estudio')
     e.parrafo(f'Año de presentación: {est.anio_presentacion}. Año base (00): {est.anio_base}.')
+    if datos.procedencia_capex:
+        recibo = datos.procedencia_capex
+        fuente, unidades = recibo.get('fuente') or {}, recibo.get('contexto_unidades') or {}
+        e.parrafo(f"CAPEX: {Path(str(fuente.get('ruta') or '')).name}. SHA256: {fuente.get('sha256')}. "
+                  f"Hoja: {recibo.get('hoja')}. Moneda declarada: {unidades.get('moneda') or 'no declarada'}. "
+                  f"Escala aplicada: {unidades.get('escala_aplicada')}. Lectura UTC: {recibo.get('lectura_utc')}. "
+                  'La lectura no acredita vigencia ni aprobación presupuestal.')
+    else:
+        e.parrafo('Procedencia: sin lectura CAPEX vinculada a este informe; no se atribuye una fuente retrospectiva.')
 
 
 def _metodologia(e: Escritor, datos: DatosPlaneamiento, numeros: Sequence[int]) -> None:
@@ -304,7 +315,8 @@ def escribir_modulo(destino: Path, modulo: Modulo, datos: DatosPlaneamiento) -> 
     else:
         e.parrafo('Ninguno en sus formatos.')
     guardar_informe(e.d, destino, {'modulo': modulo.clave, 'entregable': modulo.entregable, 'estudio': datos.estudio.resumen(),
-                                   'huecos': huecos, 'por_llenar': e.huecos})
+                                   'huecos': huecos, 'por_llenar': e.huecos,
+                                   'procedencia_capex': datos.procedencia_capex})
     return e.huecos
 
 

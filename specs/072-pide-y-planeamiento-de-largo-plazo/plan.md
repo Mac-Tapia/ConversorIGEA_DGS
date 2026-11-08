@@ -116,6 +116,28 @@ cuando no existen. El doble anual declara medidas sintéticas de línea/BT/fases
 antes omitía: estas fixtures no acreditan resultados ni persistencia de PowerFactory.
 T14/T13/T11/T9b y la aceptación científica/nativa permanecen abiertas.
 
+## Procedencia de nuevas lecturas CAPEX (P04, 2026-11-08)
+
+El adaptador `adaptadores/entrada/capex.py` usa la guarda pública
+`adaptadores.fuentes_estables.abrir_fuente_estable` y entrega el mismo descriptor
+readonly protegido al lector canónico `pide_economia.leer_capex`. El SHA sale de ese
+descriptor; no se copia el libro ni se reabre una ruta entre huella y parsing. La
+configuración y contexto de unidades se fijan antes del lector. El retorno histórico
+de leer_capex y los cuerpos económicos quedan intactos.
+
+Los tres bloques económicos de services (PIDE, escalera y costo expreso) transportan
+el recibo junto con sus resultados. El memo conserva costos/recibo juntos y distingue
+ruta/configuración/contexto; reutilizar costos no sella retrospectivamente otra
+lectura. Los guiones pasan metadata a sus informes sin cambiar física o guardias.
+DatosPlaneamiento añade solo un campo opcional en su flujo documental actual.
+
+Pruebas CPU: controles con libros propios, escritor/reemplazo hijos durante lectura,
+fuentes distintas, snapshot de configuración mutable, error de hoja y conservación
+SHA/mtime; planes/resultados/JSON y documento real releídos. Comparación de valores
+y funciones económicas contra base. Sin PF ni recálculo de elecciones reales.
+Evidencia: `p04_procedencia_capex_20261108/HANDOFF.md` externo. No cierra
+T14/T13/T11/T9b ni aceptación nativa, científica o económica del presupuesto.
+
 ## Segundo contraste de integridad anual (2026-11-08)
 
 La revisión independiente reprodujo dos dictámenes inválidos: un terminal de la

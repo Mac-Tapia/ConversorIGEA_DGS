@@ -228,6 +228,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | `src/convertersmartgrid/adaptadores/__init__.py` | Adaptadores de fuentes y servicios externos. | 002 |
 | `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. | 034 (RF-20), 065 (RF-18) |
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Adaptadores de entrada. | 002 |
+| `src/convertersmartgrid/adaptadores/entrada/capex.py` | Recibo de la lectura CAPEX efectiva desde descriptor protegido; usa el único lector económico sin copiar el libro. | 072 (RF-28), 024 (RF-54 a RF-56) |
 | `src/vnr_etl.py` | Fachada de CLI para python -m vnr_etl y el launcher anterior. | 002 (RF-22; compatibilidad pendiente de T9) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/__init__.py` | Paquete del módulo VNR-GIS. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/__main__.py` | `python -m vnr_etl`. | 001 |

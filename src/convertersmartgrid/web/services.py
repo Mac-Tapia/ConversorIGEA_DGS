@@ -5345,9 +5345,9 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         EconomiaPideError,
         con_y_sin_de_las_aplicadas,
         costos_por_alternativa,
-        leer_capex,
         propuesta_pide,
     )
+    from ..adaptadores.entrada.capex import leer_capex_con_procedencia
 
     project = project.strip()
     if not project:
@@ -5398,19 +5398,24 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                         'cargabilidad_max_pct': limites.cargabilidad_max_pct,
                         'transformador_max_pct': limites.transformador_max_pct},
             'native_action_context': contexto}
+    costos: dict = {}
+    procedencia_capex = None
+    if capex:
+        try:
+            obras_capex, avisos_capex, procedencia_capex = leer_capex_con_procedencia(
+                Path(capex.strip().strip('"')), plan_pide.get('capex') or {},
+                contexto_unidades={'moneda': plan_pide.get('moneda'), 'escala_aplicada': 1,
+                                   'tipo_cambio': None})
+        except (EconomiaPideError, OSError, ValueError) as exc:
+            raise UserError(f'Libro CAPEX: {exc}') from exc
+        costos = costos_por_alternativa(obras_capex)
+        avisos += avisos_capex
+        plan['procedencia_capex'] = procedencia_capex
     ctx.log(f'PIDE de {project}: diagnóstico de los años {anios} en DIgSILENT…')
     _rc, informe, report = _guion_pf(ws, ctx, 'pide_pf.py', plan, nombre='pide', cancelable=False,
                                      limite_s=LIMITE_ESTUDIO_S)
     if informe.get('error'):
         raise UserError(informe['error'])
-    costos: dict = {}
-    if capex:
-        try:
-            obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')), plan_pide.get('capex') or {})
-        except (EconomiaPideError, OSError, ValueError) as exc:
-            raise UserError(f'Libro CAPEX: {exc}') from exc
-        costos = costos_por_alternativa(obras_capex)
-        avisos += avisos_capex
     propuesta = propuesta_pide(informe, plan_pide, costos=costos,
                                bancos_kvar=bancos_kvar_por_tension(perfil),
                                factor_carga=plan_pide.get('factor_carga'),
@@ -5419,10 +5424,14 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                coym_pct_anual=(perfil.get('escalera') or {}).get('coym_pct_anual'))
     avisos += propuesta['avisos']
     avisos += _pide_optimizar(project, propuesta['obras'], limites, perfil, plan_pide, costos, ctx)
+    propuesta['procedencia_capex'] = procedencia_capex
+    for obra in propuesta['obras']:
+        if procedencia_capex and obra.get('alternativa') in costos:
+            obra['procedencia_capex'] = procedencia_capex
     implementadas: list[dict] = []
     if implementar:
         implementadas = _pide_implementar(ws, ctx, project, feeders, propuesta['obras'],
-                                          set(plan_pide.get('anios_pide') or []))
+                                          set(plan_pide.get('anios_pide') or []), procedencia_capex=procedencia_capex)
     token = uuid.uuid4().hex[:8]
     # 072:RF-12: con las obras ya en el proyecto, cada año se mide con las suyas y las de antes.
     obras_por_anio = [{'variacion': o['variacion_autonoma'], 'anio': o['anio']}
@@ -5464,7 +5473,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
             'informes_planeamiento': informes_planeamiento,                      # 072:RF-13, RF-14
-            'comparacion_formatos': comparacion}
+            'comparacion_formatos': comparacion, 'procedencia_capex': procedencia_capex}
 
 
 def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, formatos: dict, informe: dict, propuesta: dict,
@@ -5480,6 +5489,7 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
                               anios=informe.get('anios') or [], obras=propuesta['obras'], con_y_sin=con_y_sin,
                               empresa=perfil.get('empresa'), proyecto=project, metodo_proyeccion=formatos.get('metodo'),
                               modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {},
+                              procedencia_capex=propuesta.get('procedencia_capex'),
                               alternativas_escalera=alternativas_de_la_escalera(ws, project))    # 042:RF-58
     hechos, fallos = escribir_modulos(ws.out_dir, token, datos)
     avisos.extend(fallos)
@@ -5738,7 +5748,7 @@ def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan
 
 
 def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                      obras: list[dict], anios_pide: set[int]) -> list[dict]:
+                      obras: list[dict], anios_pide: set[int], *, procedencia_capex: dict | None = None) -> list[dict]:
     """Simula las obras propias que se construyen solas y aplica las que funcionan (RF-46,
     RF-47). Lo que choca con un cambio manual lo dice ``obras_pf`` y queda sin aplicar
     (RF-47b); cada aplicada se informa con su variación para deshacerla (RF-47c)."""
@@ -5757,7 +5767,8 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     if not ids:
         return []
     ctx.log(f'PIDE: simulando {len(ids)} obra(s) propia(s) antes de aplicarlas (RF-46)…')
-    sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True)
+    eleccion = {'procedencia_capex': procedencia_capex} if procedencia_capex else None
+    sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True, eleccion=eleccion)
     filas = (sim.get('informe') or {}).get('obras') or []
     lista = list(ids)
     buenas = [lista[int(f['obra']) - 1] for f in filas
@@ -5770,7 +5781,7 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     if not buenas:
         return []
     ctx.log(f'PIDE: aplicando {len(buenas)} obra(s) en «Con proyecto» (RF-47)…')
-    hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False)
+    hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False, eleccion=eleccion)
     out = []
     for f in (hecho.get('informe') or {}).get('obras') or []:
         n = int(f.get('obra') or 0)
@@ -6885,7 +6896,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     from .. import escalera_optima as eo
     from ..informes import factor_de_carga, factor_de_perdidas
     from ..valle import frase_valle
-    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex
+    from ..pide_economia import EconomiaPideError, costos_por_alternativa
+    from ..adaptadores.entrada.capex import leer_capex_con_procedencia
     from ..perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA, PerfilError, bancos_kvar_por_tension,
                                   completar_planeamiento, datos_perfil)
 
@@ -6923,9 +6935,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     # 042: la bisección de cuántas cargas caben llama a la escalera varias veces en el mismo
     # trabajo; la curva, los sorteos, el CAPEX y los tipos no cambian entre llamadas y se leen
     # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA203 + NA205).
-    clave_memo = ('comun', anio_casos, tuple(feeders))
+    config_capex = (perfil.get('planificacion') or {}).get('capex') or {}
+    contexto_capex = {'moneda': p.moneda, 'escala_aplicada': p.escala_capex, 'tipo_cambio': tipo_cambio}
+    identidad_capex = json.dumps({'ruta': str(Path(capex.strip().strip('"')).resolve()) if capex and capex.strip() else None,
+                                 'config': config_capex, 'contexto': contexto_capex}, sort_keys=True, ensure_ascii=False)
+    clave_memo = ('comun', anio_casos, tuple(feeders), identidad_capex)
     if memo is not None and clave_memo in memo:
-        anio_curva, curvas, sorteos, perdidas, costos, avisos, kvar, lectura, valle = memo[clave_memo]
+        anio_curva, curvas, sorteos, perdidas, costos, avisos, kvar, lectura, valle, procedencia_capex = memo[clave_memo]
         avisos = list(avisos)
     else:
         anio_curva = anio_casos or datetime.now().year
@@ -6947,10 +6963,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 f'{len(sorteos)} sorteos de la curva de {anio_curva}, costo en {p.moneda or "la moneda del perfil"}.')
 
         costos_capex, avisos = {}, list(supuestos) + avisos_medida
+        procedencia_capex = None
         if capex and capex.strip():
             try:
-                obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')),
-                                                       (perfil.get('planificacion') or {}).get('capex') or {})
+                obras_capex, avisos_capex, procedencia_capex = leer_capex_con_procedencia(
+                    Path(capex.strip().strip('"')), config_capex, contexto_unidades=contexto_capex)
             except (EconomiaPideError, OSError) as exc:
                 raise UserError(f'Libro CAPEX: {exc}') from exc
             costos_capex = costos_por_alternativa(obras_capex)
@@ -6974,12 +6991,12 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             valle = {'avisos': [f'Valle sin comprobar: {exc} (042:RF-42).']}
         avisos += list(valle.get('avisos') or [])
         if memo is not None:
-            memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura, valle)
+            memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura, valle, procedencia_capex)
     if solo_comun:
         # 052: la misma preparación (perfil, curva, sorteos, CAPEX, bancos y tipos) para el oráculo.
         return {'p': p, 'perfil': perfil, 'anio_casos': anio_casos, 'objetivos': objetivos, 'curvas': curvas,
                 'sorteos': sorteos, 'perdidas': perdidas, 'costos': costos, 'kvar': kvar, 'lectura': lectura,
-                'avisos': list(avisos), 'valle': valle}
+                'avisos': list(avisos), 'valle': valle, 'procedencia_capex': procedencia_capex}
 
     resultado, resueltos = [], []
     for f in con_cargas:
@@ -6988,6 +7005,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # alimentador va con el suyo (Pisco, 2026-10-24: «BLOQUEADO_DATOS» con el de los dos).
         # 025:RF-69: activas solo sus cargas nuevas y las de los ya resueltos.
         comun = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos,
+                 **({'procedencia_capex': procedencia_capex} if procedencia_capex else {}),
                  'native_action_context': native_action_context(ws, project, [f], 'obras'),
                  'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
                  'apartar_variaciones': apartar_variaciones,
@@ -7189,6 +7207,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     + (f", {fila['vieja']['costo_anual']:,.0f} al año" if fila['vieja'].get('costo_anual') else '')
                     + (f"; dudosa: {fila['vieja']['dudosa']}" if fila['vieja'].get('dudosa') else '') + ' (098:RF-36).')
         fila['alternativas'] = decision.get('alternativas') or []                # 042:RF-58
+        for alternativa in fila['alternativas']:
+            alternativa['procedencia_capex'] = procedencia_capex
         if por_alternativas:
             medida = _tasa_del_alimentador(ws, ctx, project, f, fila['avisos'])  # 042:RF-86: se dice, no se proyecta
             fila['avisos'].append(f'{f}: el alcance se proyecta con {100 * p.tasa_largo_plazo:.2f} %/año de largo plazo'
@@ -7267,6 +7287,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                    # 098:RF-36: de la escalera, con lo que hace falta para compararla la próxima vez.
                                    origen=ORIGEN_ESCALERA,
                                    eleccion={'nombre': decision['elegida'], 'regla': eo.REGLA_DE_PLAZOS,
+                                             'procedencia_capex': procedencia_capex,
                                              'costo_anual': (elegida_t.get('costo') or {}).get('costo_anual'),
                                              'huella': huella, 'escalones': list(v_e.escalones),
                                              'cantidades': dict(v_e.cantidades)},
@@ -7310,6 +7331,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 break
         resultado.append(fila)
     return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
+            'procedencia_capex': procedencia_capex,
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado, 'valle': valle}   # 073:RF-36
 
 
@@ -8696,22 +8718,30 @@ def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: S
     from .. import escalera_optima as eo
     from .. import obras_integrales as oi
     from ..perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA
-    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex
+    from ..pide_economia import EconomiaPideError, costos_por_alternativa
+    from ..adaptadores.entrada.capex import leer_capex_con_procedencia
     from ..set_nueva import distancia_m
-
-    costos_capex: dict = {}
-    if capex and capex.strip():
-        try:
-            obras_capex, _av = leer_capex(Path(capex.strip().strip('"')), (perfil.get('planificacion') or {}).get('capex') or {})
-            costos_capex = costos_por_alternativa(obras_capex)
-        except (EconomiaPideError, OSError) as exc:
-            avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia (087:RF-37).')
     from ..perfil_empresa import completar_planeamiento
 
     completo = completar_planeamiento(perfil)[0]
+    costos_capex: dict = {}
+    procedencia_capex = None
+    if capex and capex.strip():
+        try:
+            obras_capex, _av, procedencia_capex = leer_capex_con_procedencia(
+                Path(capex.strip().strip('"')), (perfil.get('planificacion') or {}).get('capex') or {},
+                contexto_unidades={'moneda': (completo.get('escalera') or {}).get('moneda'),
+                                   'escala_aplicada': (completo.get('escalera') or {}).get('escala_capex'),
+                                   'tipo_cambio': None})
+            costos_capex = costos_por_alternativa(obras_capex)
+        except (EconomiaPideError, OSError) as exc:
+            avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia (087:RF-37).')
     try:
         costos = eo.costos_de_alternativas(costos_capex, eo.parametros(completo))
     except (ValueError, eo.EscaleraError) as exc:
+        if procedencia_capex:
+            procedencia_capex['contexto_unidades']['escala_aplicada'] = None
+            procedencia_capex['contexto_unidades']['uso_costos'] = 'referencia_por_error_del_perfil'
         # 087:RF-37: nada queda sin costo: la referencia citada, por confirmar.
         costos = {alt: {'costo_unitario': v, 'unidad': 'Und' if alt == 'celda' else 'km',
                         'origen': eo.FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
@@ -8748,7 +8778,7 @@ def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: S
     anios = int(plan.get('vida_util_anios') or 30)
     existentes_kw = sum(float(r.get('kw_existente') or 0.0) for r in ramas)
     area = oi.area_propuesta(nombre, nuevas, ramas, gps, existentes_kw, (1.0 + tasa) ** anios, anios)    # 087:RF-38
-    return {'costo': costo, 'area': area}
+    return {'costo': costo, 'area': area, 'procedencia_capex': procedencia_capex}
 
 
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
@@ -9319,6 +9349,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context,
             'anio_casos': anio_casos}                                   # 025:RF-41
+    if (eleccion or {}).get('procedencia_capex'):
+        plan['procedencia_capex'] = eleccion['procedencia_capex']
     if apartar_cargas_de:
         plan['apartar_cargas_de'] = list(apartar_cargas_de)            # 025:RF-69
     if apartar_variaciones:

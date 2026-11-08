@@ -82,45 +82,45 @@ def leer_capex(ruta: Path | str, config: Mapping[str, Any]) -> tuple[list[ObraCa
     salen de aquí (RF-56). Devuelve las obras y los avisos (RF-55): hoja o columna que no
     está y alternativas del PIDE sin ninguna obra en el libro.
     """
+    from contextlib import closing
     from openpyxl import load_workbook
 
     columnas = dict(config.get('columnas') or {})
     hoja_nombre = config.get('hoja')
-    libro = load_workbook(ruta, read_only=True, data_only=True)
-    if hoja_nombre not in libro.sheetnames:
-        raise EconomiaPideError(f'el libro no tiene la hoja «{hoja_nombre}» del perfil')
-    hoja = libro[hoja_nombre]
-    filas = hoja.iter_rows(values_only=True)
-    marca = _plano(config.get('fila_cabecera_contiene') or columnas.get('costo_unitario'))
-    indice: dict[str, int] = {}
-    for fila in filas:
-        planos = [_plano(v) for v in fila]
-        if marca in planos:
-            for clave, nombre in columnas.items():
-                if _plano(nombre) in planos:
-                    indice[clave] = planos.index(_plano(nombre))
-            break
-    faltan = [c for c in columnas if c not in indice]
-    if 'nombre' in faltan or 'costo_unitario' in faltan:
-        raise EconomiaPideError(f'no se encontraron las columnas {faltan} en «{hoja_nombre}»')
-    avisos = [f'columna «{columnas[c]}» del perfil no encontrada' for c in faltan]
+    with closing(load_workbook(ruta, read_only=True, data_only=True)) as libro:
+        if hoja_nombre not in libro.sheetnames:
+            raise EconomiaPideError(f'el libro no tiene la hoja «{hoja_nombre}» del perfil')
+        hoja = libro[hoja_nombre]
+        filas = hoja.iter_rows(values_only=True)
+        marca = _plano(config.get('fila_cabecera_contiene') or columnas.get('costo_unitario'))
+        indice: dict[str, int] = {}
+        for fila in filas:
+            planos = [_plano(v) for v in fila]
+            if marca in planos:
+                for clave, nombre in columnas.items():
+                    if _plano(nombre) in planos:
+                        indice[clave] = planos.index(_plano(nombre))
+                break
+        faltan = [c for c in columnas if c not in indice]
+        if 'nombre' in faltan or 'costo_unitario' in faltan:
+            raise EconomiaPideError(f'no se encontraron las columnas {faltan} en «{hoja_nombre}»')
+        avisos = [f'columna «{columnas[c]}» del perfil no encontrada' for c in faltan]
 
-    def celda(fila, clave):
-        i = indice.get(clave)
-        return fila[i] if i is not None and i < len(fila) else None
+        def celda(fila, clave):
+            i = indice.get(clave)
+            return fila[i] if i is not None and i < len(fila) else None
 
-    obras = []
-    for fila in filas:
-        nombre = celda(fila, 'nombre')
-        if not nombre or _plano(nombre) == _plano(columnas['nombre']):
-            continue
-        textos = [str(celda(fila, k) or '') for k in ('nombre', 'objetivo', 'descripcion')]
-        obras.append(ObraCapex(str(nombre).strip(), str(celda(fila, 'zona') or ''),
-                               str(celda(fila, 'objetivo') or ''), str(celda(fila, 'descripcion') or ''),
-                               str(celda(fila, 'unidad') or ''), finite_or_none(celda(fila, 'cantidad')),
-                               finite_or_none(celda(fila, 'costo_unitario')), finite_or_none(celda(fila, 'inversion')),
-                               alternativa_de(*textos)))
-    libro.close()
+        obras = []
+        for fila in filas:
+            nombre = celda(fila, 'nombre')
+            if not nombre or _plano(nombre) == _plano(columnas['nombre']):
+                continue
+            textos = [str(celda(fila, k) or '') for k in ('nombre', 'objetivo', 'descripcion')]
+            obras.append(ObraCapex(str(nombre).strip(), str(celda(fila, 'zona') or ''),
+                                   str(celda(fila, 'objetivo') or ''), str(celda(fila, 'descripcion') or ''),
+                                   str(celda(fila, 'unidad') or ''), finite_or_none(celda(fila, 'cantidad')),
+                                   finite_or_none(celda(fila, 'costo_unitario')), finite_or_none(celda(fila, 'inversion')),
+                                   alternativa_de(*textos)))
     sin = sorted(set(RUBRO_DE_ALTERNATIVA) - {o.alternativa for o in obras if o.alternativa})
     if sin:
         avisos.append(f'alternativas del PIDE sin obra en el libro CAPEX: {", ".join(sin)}')

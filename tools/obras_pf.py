@@ -5107,6 +5107,8 @@ def main(argv=None) -> int:
     # Crear tipos de catálogo no toca ninguna red convertida: no lleva contexto de acción.
     blocked = None if args.tipos_regulador else native_action_block_report(plan, ('obras', 'obras_bibliotecas'))
     if blocked:
+        if plan.get('procedencia_capex'):
+            blocked['procedencia_capex'] = plan['procedencia_capex']
         Path(args.output_json).write_text(
             json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
@@ -5152,6 +5154,8 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
         traceback.print_exc()
         informe, codigo = error_inesperado(plan, args.simular, exc), 1
+    if plan.get('procedencia_capex'):
+        informe['procedencia_capex'] = plan['procedencia_capex']
     Path(args.output_json).write_text(
         json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
     print(f'Informe: {args.output_json}')

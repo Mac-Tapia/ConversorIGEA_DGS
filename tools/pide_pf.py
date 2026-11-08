@@ -1005,11 +1005,14 @@ def main(argv=None) -> int:
         if flag.exists():
             salida.write_text(json.dumps({'project': plan.get('project'), 'modo': plan.get('modo'),
                 'estado': 'cancelado', 'anios': [], 'aceptacion_nativa': False,
+                **({'procedencia_capex': plan['procedencia_capex']} if plan.get('procedencia_capex') else {}),
                 'restitucion': {'ok': True, 'diferencias': [], 'sin_abrir_motor': True}},
                 ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
             return 0
     blocked = native_action_block_report(plan, 'pide')
     if blocked:
+        if plan.get('procedencia_capex'):
+            blocked['procedencia_capex'] = plan['procedencia_capex']
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
@@ -1025,6 +1028,8 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito (008:RF-17)
         informe, codigo = {'project': plan.get('project'), 'error': repr(exc),
                            'traza': traceback.format_exc()}, 1
+    if plan.get('procedencia_capex'):
+        informe['procedencia_capex'] = plan['procedencia_capex']
     salida.write_text(json.dumps(informe, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     print(f"PIDE de {plan.get('project')}: código {codigo}")
     return codigo

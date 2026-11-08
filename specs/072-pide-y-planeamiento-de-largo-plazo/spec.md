@@ -67,6 +67,12 @@ no acredita un horizonte anual y no se extrapola silenciosamente.
 - RF-27: CUANDO termine o falle el flujo anual, EL SISTEMA restituirá proyecto, caso, escenario y demandas originales, y no informará éxito si la relectura no lo confirma.
 - RF-28: SI faltan identidad, proyección aceptada, unidad, datos físicos o conservación verificable, ENTONCES EL SISTEMA nombrará el faltante y no sobrescribirá estudios existentes ni inventará magnitudes o cumplimiento.
 
+- Aclaración de RF-28 (P04, 2026-11-08): las nuevas lecturas CAPEX que alimenten cálculos conservarán
+  la identidad SHA256 de los bytes realmente leídos, su ruta, hoja, configuración, unidades, escala y moneda
+  declaradas y fecha de lectura en planes, resultados e informes persistidos. El recibo no acredita vigencia
+  ni aprobación presupuestal; un dato no declarado queda explícito y una obra histórica sin enlace no recibe
+  una procedencia retrospectiva. Se preservan costos, capacidades, ubicaciones, elecciones y fórmulas.
+
 Contrato web de RF-18 y RF-23 a RF-28 (P17, 2026-11-08): el modo histórico
 conserva sus entradas y comportamiento por defecto. El modo anual recibe tres
 JSON del operador: perfil, evaluación y aceptación del corto plazo. Se conservan
