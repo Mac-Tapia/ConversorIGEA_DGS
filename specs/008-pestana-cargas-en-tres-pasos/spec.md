@@ -1,6 +1,6 @@
 # Spec 008 — Pestaña «Cargas en DIgSILENT» en tres pasos
 
-Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI213, 2026-10-10
+Estado: cumplida (2026-11-08: T7 confirmada por el usuario en DIgSILENT con PRUEBA_007; revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI213, 2026-10-10
 
 ## Contexto y objetivo
 

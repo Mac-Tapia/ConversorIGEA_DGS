@@ -16,5 +16,8 @@
 - [x] T8. Numeral 3.2 en la página: nombre, kW, FP 0,98, UTM X/Y y «Conectar al NMT más cercano». (RF-25 a RF-28)
       Hecho cuando: `pytest -q tests/test_cargas_pf_web.py tests/test_cargas_tres_pasos_front.py`,
       `npx tsc --noEmit -p .` y `npm run build` correctos, y probado en el navegador.
-- [ ] T7. [DIgSILENT] Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
+- [x] T7. [DIgSILENT] Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
       Hecho cuando: el usuario confirma en DIgSILENT los tres pasos con un proyecto de dos alimentadores.
+      Hecho el 2026-11-08: el usuario confirma los tres pasos de `20261106-065905_CSG_TXT_PRUEBA_007` (TM105 +
+      PN103, espacio 35ff5dab8b2b46a6): calibración, cargas del libro (planes `cargas_pf_7f5a264873c2` y
+      anteriores) y carga del formulario (`cargas_pf_d331a8d5cd79`). El proyecto de prueba se borra al cerrar.

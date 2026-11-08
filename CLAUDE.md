@@ -35,7 +35,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
   | 006 Ajuste de las demandas a la máxima de cabecera | cumplida |  |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
-  | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | implementada | falta T7 |
+  | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | implementada | falta T19 |
