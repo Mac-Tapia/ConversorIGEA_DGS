@@ -11,7 +11,7 @@
       "evidence": []
     },
     "P01": {
-      "state": "runtime316_y_255_dependencias_verificadas_metadata_editable_propia_256_sin_cambiar_dependencias",
+      "state": "runtime316_255_dependencias_y_metadata_256_intactas_mas_reportlab_y_ruff_dev_258_pipcheck_correcto",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
@@ -28,7 +28,9 @@
         "p01_venv316_20261108/verificacion_integral/resultado.json",
         "p01_venv316_20261108/auditoria_integral.json",
         "cierre_copias_20261108/junction316.json",
-        "p01_metadata_editable_20261108/resultado.json"
+        "p01_metadata_editable_20261108/resultado.json",
+        "p25_dependencias_pruebas_20261108/verificacion_integrador_devtools.json",
+        "p25_dependencias_pruebas_20261108/pip_check_postinstalacion.log"
       ]
     },
     "P02": {
@@ -36,7 +38,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "puerta1c_rechazada11_errores_coleccion_fuentes_intactas_rutas_corregidas8254_colectadas_y281_enfocadas_siguiente_suite_pendiente",
+      "state": "g2_c6ec_rechazado_8209_pass_36_fail_9_skip_fuentes_intactas_correctivos_integrados_327_enfocadas_nueva_suite_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -67,11 +69,14 @@
         "p03_puerta_lint_20261108/verde.log",
         "integracion_comercial_previa_20261108/resultado2.xml",
         "p25_gate_final_20261108/ejecuciones/20261108T155935Z_b5e1244f6a7b4ddcb10fdc3f8aeccc43/registro.json",
-        "p23_referencias_tests_20261108/HANDOFF.md"
+        "p23_referencias_tests_20261108/HANDOFF.md",
+        "p25_gate_final_20261108/ejecuciones/20261108T162153Z_3cd3f8c9be0a4d248f2db03cd12ac2d3/registro.json",
+        "p25_g2_integracion_correctivos_20261108/junit.xml",
+        "p25_g2_binding_fixtures_20261108/HANDOFF.md"
       ]
     },
     "P04": {
-      "state": "fuentes_captura_unica_y_publicacion_integradas_capex_con_procedencia_revision_cruzada_sin_hallazgos_92_pruebas_combinadas",
+      "state": "fuentes_y_capex_integrados_reinicio_sin_carga_corregido_revision_cruzada_sin_hallazgos",
       "evidence": [
         "obras_definidas_capex_20261108/INDICE.md",
         "p04_procedencia_capex_20261108/HANDOFF.md",
@@ -79,15 +84,18 @@
         "revision_p04_correctivo_20261108/REVIEW.md",
         "correccion_p04_publicacion_20261108/HANDOFF.md",
         "revision_p04_publicacion_20261108/REVIEW.md",
-        "p25_fuentes_capex_integracion_20261108/resultado.xml"
+        "p25_fuentes_capex_integracion_20261108/resultado.xml",
+        "revision_p25_reinicio_6138_20261108/REVIEW.md"
       ]
     },
     "P05": {
-      "state": "sonda_pf316_real_reabierta_ensayo30kvar_invalido_sin_obra_aplicada_no_aceptacion_electrica",
+      "state": "preflight_y_conservacion_postretiro_integrados_revision_independiente_no_nuevo_ensayo_fisico",
       "evidence": [
         "p05_native_preparacion_20261108/sonda_sin_proyecto.json",
         "p05_native_preparacion_20261108/relectura_final_sin_proyecto.json",
-        "p05_aceptacion_nativa_rc6_20261108/NO_USAR_PARA_ACEPTACION.json"
+        "p05_aceptacion_nativa_rc6_20261108/NO_USAR_PARA_ACEPTACION.json",
+        "p25_nativo_universal_preparacion_20261108/correctivo_arnes/HANDOFF.md",
+        "revision_p25_arnes_20261108/REVIEW.md"
       ]
     },
     "P06": {
@@ -159,10 +167,11 @@
       ]
     },
     "P13": {
-      "state": "r5_fuentes_reales_localizadas_sin_alias_r205_dos_catalogos_parametros_no_identificados_rutas_solicitadas",
+      "state": "muestra_r5_inspeccionada_solicitud_catalogos_retirada_por_producto_universal_no_puerta_obligatoria_por_empresa",
       "evidence": [
         "p25_comercial_20261108/R5_PREPARACION.md",
-        "p25_r5_parametros_diagnostico_20261108/HANDOFF.md"
+        "p25_r5_parametros_diagnostico_20261108/HANDOFF.md",
+        "alcance_universal_usuario_20261108.json"
       ]
     },
     "P14": {
@@ -195,11 +204,13 @@
       "evidence": []
     },
     "P17": {
-      "state": "pide_anual_cpu_web_integrado_revision_correctiva_regresion197_y_conjunta341_aceptacion_real_pendiente",
+      "state": "consumidor_pide_anual_integrado_sin_cadena_acreditada_entrenamiento_ganador_prediccion_aplicada",
       "evidence": [
         "revision_p17_correctivo_20261108/REVIEW.md",
         "integracion_p17_20261108/indices_corregidos.xml",
-        "integracion_comercial_previa_20261108/resultado2.xml"
+        "integracion_comercial_previa_20261108/resultado2.xml",
+        "p25_pronosticos_pide_estado_real_20261108/ESTADO.md",
+        "p25_pronosticos_pide_estado_real_20261108/indice.json"
       ]
     },
     "P18": {
@@ -297,7 +308,7 @@
       ]
     },
     "P22": {
-      "state": "paquete_integral_rc6_238_ruedas_construido_verificacion_independiente_completa_instalacion_final_pendiente",
+      "state": "238_ruedas_previas_verificadas_correctivo_procedencia_portable_integrado_reconstruccion_e_instalacion_final_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -353,7 +364,9 @@
         "correccion_revision_p22_20261108/HANDOFF.md",
         "correccion_revision_p22_20261108/resultado_real.json",
         "p22_construccion_integral_rc6_20261108/HANDOFF.md",
-        "p22_construccion_integral_rc6_20261108/verificacion_integrador.json"
+        "p22_construccion_integral_rc6_20261108/verificacion_integrador.json",
+        "correccion_p22_portabilidad_20261108/HANDOFF.md",
+        "revision_p25_procedencia_portatil_20261108/REVIEW.md"
       ]
     },
     "P23": {
@@ -374,7 +387,7 @@
       ]
     },
     "P25": {
-      "state": "nucleo1c_compilado_no_instalado_y_retirado_por_gate_rechazado_esperando_suite_nueva_antes_reconstruir",
+      "state": "candidato1c_retirado_g2_rechazado_correctivos_integrados_reconstruccion_qa_nativa_y_puerta_final_pendientes",
       "evidence": [
         "p25_comercial_20261108/HANDOFF.md",
         "p25_comercial_20261108/FASE2.ps1",
@@ -385,7 +398,8 @@
         "p25_comercial_20261108/NO_PUBLICAR_1c150695.json",
         "p25_comercial_20261108/retiro_1c150695_ejecutado.json",
         "p25_comercial_20261108/retiro_1c150695_verificacion.json",
-        "p25_revision_cruzada_20261108/REVIEW.md"
+        "p25_revision_cruzada_20261108/REVIEW.md",
+        "p25_g2_integracion_correctivos_20261108/junit.xml"
       ]
     },
     "P26": {
@@ -496,19 +510,108 @@
         "bytes_removed": 557407367,
         "manifest_moved_not_copied": true,
         "new_backups_created": false
+      },
+      {
+        "evidence": "p25_retiro_cache_vnr_20261108/verificacion_integrador.json",
+        "files_removed": 32,
+        "bytes_removed": 242597,
+        "only_ignored_obsolete_pyc": true,
+        "new_backups_created": false
       }
     ]
   },
   "external_inputs_requested": [
     {
       "scope": "R5_Electro_Oriente",
-      "state": "pregunta_asincrona_pendiente",
+      "state": "solicitud_retirada_por_aclaracion_expresa_producto_universal",
       "items": [
         "paramVNRGISELOR_22_APR compatible con ELOR2022",
         "VNRGISGART compatible",
         "ConfigBD o manifiesto de esas entregas"
       ],
-      "evidence": "p25_r5_parametros_diagnostico_20261108/HANDOFF.md"
+      "evidence": "p25_r5_parametros_diagnostico_20261108/HANDOFF.md",
+      "required_for_release": false,
+      "superseded_by": "alcance_universal_usuario_20261108.json"
     }
-  ]
+  ],
+  "universal_product_contract": {
+    "authority": "aclaracion expresa del usuario",
+    "business_specific_release_inputs": false,
+    "sample_data_not_production_defaults": true,
+    "operator_selects_sources_profile_company_feeders": true,
+    "no_implicit_sample_bank_or_voltage_values": true,
+    "evidence": [
+      "alcance_universal_usuario_20261108.json",
+      "p25_universalidad_auditoria_20261108/HANDOFF.md",
+      "revision_p25_u02_integrador_20261108/REVIEW.md"
+    ]
+  },
+  "forecast_pide_chain": {
+    "status": "no_acreditada_en_raices_canonicas_consultadas",
+    "forecast_training_accepted": false,
+    "accepted_winner_located": false,
+    "forecast_predictions_used_by_pide_located": false,
+    "historical_pide_method": "CAGR",
+    "historical_cagr": 0.00943981356903556,
+    "historical_years": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20
+    ],
+    "historical_sample_artifacts": 6,
+    "short_horizon_days_is_not_annual_validation": true,
+    "scientific_acceptance": false,
+    "evidence": "p25_pronosticos_pide_estado_real_20261108/ESTADO.md"
+  },
+  "latest_full_gate": {
+    "revision": "c6ec7fb8e4b6499128d01e829d5716f4e8d53ccf",
+    "state": "rechazado",
+    "returncode": 1,
+    "counts": {
+      "pass": 8209,
+      "fail": 36,
+      "error": 0,
+      "skip": 9
+    },
+    "warnings": 384,
+    "source_hash_before": "c6138a31de86f5afe979630ddb71cd1bcf641e6a3d974b79c682b21c290e2c8f",
+    "source_hash_after": "c6138a31de86f5afe979630ddb71cd1bcf641e6a3d974b79c682b21c290e2c8f",
+    "source_and_data_inventories_equal": true,
+    "matrix_rf": 3226,
+    "matrix_structural_errors": 0,
+    "semantic_acceptance": false,
+    "evidence": "p25_gate_final_20261108/ejecuciones/20261108T162153Z_3cd3f8c9be0a4d248f2db03cd12ac2d3/registro.json"
+  },
+  "latest_focused_integration": {
+    "revision": "0e4f6bc8992e86688c4ef20a1464a6bf10e4ec37",
+    "pass": 327,
+    "fail": 0,
+    "error": 0,
+    "skip": 0,
+    "explicitly_deselected_native_cases": 1,
+    "duration_seconds": 133.09,
+    "full_gate": false,
+    "native_execution": false,
+    "evidence": "p25_g2_integracion_correctivos_20261108/junit.xml"
+  },
+  "harness_coordination": {
+    "approved_by_user": true,
+    "owner": "HARNESS-20261108",
+    "worktree": ".worktrees/harness-integral-20261108",
+    "branch": "codex/harness-integral-20261108",
+    "base": "5617251012f39193297e19b299d8a179a8fe1f61",
+    "new_surfaces": [
+      "src/convertersmartgrid/evaluacion_harness/",
+      "tools/evaluar_harness.py",
+      "tests/test_harness_*.py",
+      "docs/superpowers/specs/2026-11-08-harness-integral-modelos*"
+    ],
+    "shared_module_changes_require_owner_assignment": true,
+    "commercial_integrator": "/root cierre",
+    "implementation_not_yet_integrated": true,
+    "record": ".agents/coordination/ACTIVE.md"
+  }
 }
