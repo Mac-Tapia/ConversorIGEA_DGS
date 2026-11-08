@@ -76,6 +76,31 @@ def _sqlite_de_probe(path):
         conn.close()
 
 
+def test_probe_reporte_anterior_sobrevive_fallo_de_escritura(tmp_path, monkeypatch):
+    """034:RF-5; 086:RF-1: un error de disco no trunca el informe anterior ni la fuente."""
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
+
+    source = tmp_path/'red.sqlite'
+    _sqlite_de_probe(source)
+    output = tmp_path/'probe.json'
+    previous = b'{"anterior": true}\n'
+    output.write_bytes(previous)
+    source_before = sha256_of(source)
+    write_text = Path.write_text
+
+    def disco_falla(path, data, *args, **kwargs):
+        if isinstance(data, str) and '"DATABASE_SQLITE"' in data:
+            write_text(path, '{"family":', encoding='utf-8')
+            raise OSError('fallo de disco durante el informe')
+        return write_text(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'write_text', disco_falla)
+    with pytest.raises(SystemExit, match='fallo de disco'):
+        main(['probe', str(source), '--output', str(output)])
+    assert output.read_bytes() == previous
+    assert sha256_of(source) == source_before
+
+
 @pytest.mark.parametrize('extension', ['.sqlite', '.db'])
 def test_sqlite_probe_real_inventaria_y_conserva_bytes_y_mtime(tmp_path, extension):
     """034:RF-4, 034:RF-5: inspección del esquema real sin escribir en la fuente."""

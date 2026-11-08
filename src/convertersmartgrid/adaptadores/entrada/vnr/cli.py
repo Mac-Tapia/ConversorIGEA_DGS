@@ -208,7 +208,9 @@ def main(argv=None) -> int:
             report = probe_source(args.source)
             texto = json.dumps(report, ensure_ascii=False, indent=2)
             if args.output:
-                Path(args.output).write_text(texto, encoding='utf-8')
+                from convertersmartgrid.util import publicar_duradero
+
+                publicar_duradero(Path(args.output), texto)
         except (OSError, ValueError) as exc:
             raise SystemExit(f'Probe: {exc}') from exc
         print(texto)

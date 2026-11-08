@@ -41,3 +41,5 @@ de su módulo (033:RF-18) y `CODIGO_FUENTE.md` cambia «base» por «034» (033:
 | RF-31 | arquitectura C4 | `test_interactive_architecture.py` |
 | RF-32 | `sed_potencia.py` | `test_puentes.py` |
 | RF-33 | `tools/apply_catalog_to_model.py`, `tools/build_input_catalog.py`, `tools/compare_schema.py`, `tools/suggest_line_type_aliases.py`, `tools/build_system_grid.py`, `tools/prueba_representacion.py`, `tools/run_powerfactory_gate.bat` | `test_herramientas_base.py` |
+
+P23, 2026-11-08 (RF-5; 086:RF-1): probe SQLite inspecciona solo rollback estable bajo guarda Windows de lectura; WAL/diarios/escritor activo y plataformas sin guarda comprobada devuelven motivo, sin inventario ficticio ni copias. El CLI devuelve fallo cuando ok=false y evita sobrescribir la fuente, incluido hardlink. El informe se publica con el escritor duradero comun: una escritura parcial por fallo de disco conserva el informe anterior. Prueba adversa roja y34regresiones probe correctas; persistencia de fuente/auxiliares y exclusión se verificaron con hijos reales propios. No acredita conversionSQLite/PF ni aceptacion de produccion.
