@@ -115,3 +115,31 @@ Positivas: ruta alternativa que mantiene servicio y grupo vacío de transformado
 cuando no existen. El doble anual declara medidas sintéticas de línea/BT/fases que
 antes omitía: estas fixtures no acreditan resultados ni persistencia de PowerFactory.
 T14/T13/T11/T9b y la aceptación científica/nativa permanecen abiertas.
+
+## Segundo contraste de integridad anual (2026-11-08)
+
+La revisión independiente reprodujo dos dictámenes inválidos: un terminal de la
+carga fuera de servicio con resultados finitos antiguos, y una fase NaN del corto
+plazo sin filas de proyección aunque los agregados fuesen finitos. El primero daba
+completo en el ciclo CPU; el segundo podía iniciar flujo/copias antes de bloquear,
+sin demostrar que terminase completo. `_comprobar_demanda_anual` valida antes de
+modificar ComLdf o iniciar flujo P/Q, escala y las seis entradas por fase, sus
+unidades MW/Mvar y la finitud de la demanda efectiva. Las fases cero siguen siendo
+válidas. `_servicio_anual` añade incumplimiento por terminal conectado fuera de
+servicio aunque sus medidas almacenadas parezcan servir la carga.
+
+La misma revisión encontró una cancelación conocida tras la lectura interior que
+no impedía el flujo corto. Se consulta después de las lecturas y antes de esa
+medición. Todas las mediciones del ciclo reciben además el callback interno
+`comprobar_cancelacion`, invocado justo antes de flujo tras la validación nativa.
+La cancelación no interrumpe el motor ya iniciado y conserva el finally original.
+No cambian la API/JSON públicos, los umbrales, los originales ni los dobles globales.
+Pruebas negativas y control con demanda pequeña en r, Q cero y s/t cero en
+`tests/test_pide_integridad.py`; las maniobras legítimas y la restitución anteriores
+siguen verificándose. La falta de finitud inicial no se disimula con cero ni se
+convierte en una restitución válida si su readback no puede confirmarse.
+
+La evidencia CPU de `correccion_p17_segunda_revision_20261108` registra rojo/verde,
+revisión exacta y límites; no acredita PowerFactory real, aceptación eléctrica,
+ciencia ni T14/T13/T11/T9b. El fundamento académico del primer contraste se mantiene:
+perfil servido, cobertura y conservación son criterios distintos de convergencia.

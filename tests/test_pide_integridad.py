@@ -11,6 +11,147 @@ from test_pide_anual import anual, _json
 from test_pide_anual_web import raw, api, fuentes
 
 
+def _fases_corto(load):
+    """Datos explícitos del doble local: solo r demanda, s/t cero son legítimas."""
+    object.__setattr__(load, 'i_sym', 1)
+    for fase in 'rst':
+        object.__setattr__(load, f'plini{fase}', load.plini if fase == 'r' else 0.0)
+        object.__setattr__(load, f'qlini{fase}', load.qlini if fase == 'r' else 0.0)
+    object.__setattr__(load, 'GetAttributeUnit', lambda a: 'Mvar' if a.startswith('qlini') else 'MW')
+
+
+@pytest.mark.parametrize('recorrido', ['medida', 'anual'])
+def test_barra_retirada_no_se_acepta_con_resultados_finitos_almacenados(anual, monkeypatch, recorrido):
+    """072:RF-25/28: el estado físico del terminal prevalece sobre medidas antiguas válidas."""
+    tool, app, plan, _perfil, _origen, load, *_ = anual
+    object.__setattr__(load.bus1.cterm, 'outserv', 1)
+    copias = []
+    copiar = tool.casos_del_anio
+    def copia(*a, **kw):
+        copias.append(1)
+        return copiar(*a, **kw)
+    monkeypatch.setattr(tool, 'casos_del_anio', copia)
+    if recorrido == 'medida':
+        medida = tool._medida_anual(app, app.proyecto, plan, {}, cargas={tool.clave_pf(load): (load, 'Red_A')})
+        assert medida['converge'] and not medida['cumple'], medida
+        assert any(p['causa'] == 'conexion_fuera_de_servicio' for p in medida['problemas'])
+    else:
+        report, rc = tool.ejecutar(app, plan)
+        assert rc != 0 and report['estado'] != 'completo', report
+        assert not report['corto_plazo']['cumple'] and not report['anios'], report
+        assert report['restitucion']['ok'], report
+    assert not copias
+
+
+@pytest.mark.parametrize('atributo,valor', [
+    (a, v) for a in ('plini', 'qlini', 'scale0', 'plinir', 'plinis', 'plinit', 'qlinir', 'qlinis', 'qlinit')
+    for v in (float('nan'), float('inf'), None) if v is not None or a not in ('plini', 'qlini', 'scale0')])
+def test_corto_por_fases_rechaza_cada_entrada_no_finita_antes_del_flujo(anual, monkeypatch, atributo, valor):
+    """072:RF-24/28: sin filas anuales también se verifican las seis entradas por fase."""
+    tool, app, plan, _perfil, _origen, load, *_ = anual
+    _fases_corto(load)
+    if atributo in ('plini', 'qlini', 'scale0'):
+        setattr(load, atributo, valor)
+    else:
+        object.__setattr__(load, atributo, valor)
+    flujos = []
+    monkeypatch.setattr(tool, 'flujo_de_carga', lambda *_a, **_kw: flujos.append(1) or {'converged': True})
+    with pytest.raises(tool.PideError, match='demanda|fase'):
+        tool._medida_anual(app, app.proyecto, plan, {}, por_fase=True, demanda_absoluta=False,
+                          cargas={tool.clave_pf(load): (load, 'Red_A')})
+    assert not flujos
+
+
+@pytest.mark.parametrize('atributo', ['plini', 'qlini', 'plinir', 'plinis', 'plinit', 'qlinir', 'qlinis', 'qlinit'])
+def test_corto_sin_filas_verifica_unidad_de_cada_entrada(anual, monkeypatch, atributo):
+    """072:RF-24/28: un valor finito no autoriza interpretar kW como MW ni fases sin unidad."""
+    tool, app, plan, _perfil, _origen, load, *_ = anual
+    _fases_corto(load)
+    unidad = load.GetAttributeUnit
+    object.__setattr__(load, 'GetAttributeUnit', lambda a: '' if a == atributo else unidad(a))
+    flujos = []
+    monkeypatch.setattr(tool, 'flujo_de_carga', lambda *_a, **_kw: flujos.append(1) or {'converged': True})
+    with pytest.raises(tool.PideError, match='unidades'):
+        tool._medida_anual(app, app.proyecto, plan, {}, por_fase=True, demanda_absoluta=False,
+                          cargas={tool.clave_pf(load): (load, 'Red_A')})
+    assert not flujos
+
+
+@pytest.mark.parametrize('invalida', [True, False])
+def test_ciclo_valida_fases_del_corto_antes_de_copias_y_conserva_ceros(anual, tmp_path, monkeypatch, invalida):
+    """072:RF-24/25/27/28: proyección futura correcta no subsana un corto con fase NaN."""
+    tool, app, plan, perfil, _origen, load, *_ = anual
+    _fases_corto(load)
+    if invalida:
+        object.__setattr__(load, 'plinir', float('nan'))
+    for indice, fila in enumerate(perfil['filas'], 1):
+        # La fase r aislada debe caber físicamente en el trafo corto del doble;
+        # 200 kW en una fase incumplirían aunque sus ceros s/t sean legítimos.
+        fila['p_kw'], fila['q_kvar'] = 20.0 * indice, 0.0
+        fila['fases'] = {f: {'p_kw': fila['p_kw'] if f == 'r' else 0.0,
+                             'q_kvar': fila['q_kvar'] if f == 'r' else 0.0} for f in 'rst'}
+    plan['proyeccion_anual'] = _json(tmp_path / 'fases_segunda_revision.json', perfil)
+    flujos, copias, demandas = [], [], []
+    flujo, copiar, demanda = tool.flujo_de_carga, tool.casos_del_anio, tool._demanda_del_anio
+    def calcular(*a, **kw):
+        flujos.append(1)
+        return flujo(*a, **kw)
+    def copia(*a, **kw):
+        copias.append(1)
+        return copiar(*a, **kw)
+    def escribir(*a, **kw):
+        demandas.append(1)
+        return demanda(*a, **kw)
+    monkeypatch.setattr(tool, 'flujo_de_carga', calcular)
+    monkeypatch.setattr(tool, 'casos_del_anio', copia)
+    monkeypatch.setattr(tool, '_demanda_del_anio', escribir)
+    report, rc = tool.ejecutar(app, plan)
+    if invalida:
+        assert rc != 0 and report['estado'] != 'completo', report
+        assert not flujos and not copias and not demandas and not report['anios'], report
+        assert 'corto_plazo' not in report, report
+        assert math.isnan(load.plinir)  # se conserva el dato inválido, no se sustituye por cero
+    else:
+        assert rc == 0, report.get('error')
+        assert report['estado'] == 'completo' and report['restitucion']['ok'], report
+        assert report['corto_plazo']['cumple'] and len(report['anios']) == 3
+        assert load.plinis == 0 and load.plinit == 0 and load.qlinis == 0 and load.qlinit == 0
+
+
+@pytest.mark.parametrize('frontera', ['lectura', 'demanda'])
+def test_cancelacion_durante_lectura_interior_impide_el_flujo_corto(anual, monkeypatch, frontera):
+    """072:RF-27: una lectura terminada con cancelación no autoriza iniciar el motor."""
+    import threading
+    tool, app, plan, *_ = anual
+    evento = threading.Event()
+    leer = tool.leer_proyeccion_anual
+    lecturas, flujos = [], []
+    def lectura(*a, **kw):
+        resultado = leer(*a, **kw)
+        lecturas.append(1)
+        if len(lecturas) == 2 and frontera == 'lectura':
+            evento.set()
+        return resultado
+    comprobar = tool._comprobar_demanda_anual
+    def demanda(*a, **kw):
+        resultado = comprobar(*a, **kw)
+        if frontera == 'demanda':
+            evento.set()
+        return resultado
+    flujo = tool.flujo_de_carga
+    def calcular(*a, **kw):
+        flujos.append(evento.is_set())
+        return flujo(*a, **kw)
+    monkeypatch.setattr(tool, 'leer_proyeccion_anual', lectura)
+    monkeypatch.setattr(tool, '_comprobar_demanda_anual', demanda)
+    monkeypatch.setattr(tool, 'flujo_de_carga', calcular)
+    report, rc = tool.ejecutar(app, plan, cancelado=evento.is_set)
+    assert len(lecturas) == 2
+    assert not flujos, 'se inició el flujo con cancelación conocida'
+    assert rc == 0 and report['estado'] == 'cancelado' and report['restitucion']['ok'], report
+    assert not report['anios']
+
+
 @pytest.mark.parametrize('fallo', ['caso_rc', 'caso_falso', 'esc_rc', 'esc_falso',
     'copy_caso_none', 'copy_caso_origen', 'copy_esc_none', 'copy_esc_origen',
     'copy_caso_ajeno', 'copy_esc_ajeno', 'esc_deactivar', 'save'])
@@ -249,6 +390,7 @@ def test_grupo_de_transformadores_vacio_es_valido_solo_sin_esa_clase(anual):
     for linea in app.proyecto.GetContents('*.ElmLne', 1):
         object.__setattr__(linea, 'c:loading', 10.0)
     load = app.proyecto.GetContents('*.ElmLod', 1)[0]
+    object.__setattr__(load, 'GetAttributeUnit', lambda a: {'plini': 'MW', 'qlini': 'Mvar'}[a])
     assert not app.proyecto.GetContents('*.ElmTr2', 1)
     result = tool._medida_anual(app, app.proyecto, plan, {}, cargas={tool.clave_pf(load): (load, 'Red_A')})
     assert result['converge'] and result['cumple'], result

@@ -238,8 +238,25 @@ def _inventario_anual(app, proyecto, plan, cargas):
 
 def _comprobar_demanda_anual(cargas, filas, representacion):
     for key, (carga, _nombre) in cargas.items():
-        if any(_num(carga, a) is None for a in ('plini', 'qlini', 'scale0')):
+        por_fase = int(getattr(carga, 'i_sym', 0) or 0) == 1
+        unidades = {'plini': 'MW', 'qlini': 'Mvar'}
+        if por_fase:
+            unidades.update({f'{a}{f}': u for f in 'rst' for a, u in (('plini', 'MW'), ('qlini', 'Mvar'))})
+        entradas = {a: _num(carga, a) for a in (*unidades, 'scale0')}
+        # El corto plazo todavía no tiene filas de proyección: sus agregados
+        # finitos no acreditan las seis entradas por fase que consumirá el motor.
+        if any(v is None for v in entradas.values()):
             raise PideError(f'la demanda nativa anual no es finita o está incompleta: {key}')
+        try:
+            correctas = all(str(carga.GetAttributeUnit(a)) == u for a, u in unidades.items())
+        except Exception as exc:
+            raise PideError(f'unidades de demanda anual no verificadas: {key}') from exc
+        if not correctas:
+            raise PideError(f'unidades de demanda anual no verificadas: {key}')
+        for prefijo in ('plini', 'qlini'):
+            total = sum(entradas[f'{prefijo}{f}'] for f in 'rst') if por_fase else entradas[prefijo]
+            if not math.isfinite(total * entradas['scale0']):
+                raise PideError(f'la demanda efectiva anual por fase o escala no es finita: {key}')
         if int(getattr(carga, 'outserv', 0) or 0):
             raise PideError(f'carga anual retirada de servicio: {key}')
         if representacion is not None and any(getattr(carga, a, None) != v for a, v in representacion[key].items()):
@@ -266,6 +283,11 @@ def _servicio_anual(inventario, cargas, limites):
         barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
         if barra is None or clave_pf(barra) not in inventario['ElmTerm']:
             raise PideError(f'falta la conexión física de la carga anual: {key}')
+        if int(getattr(barra, 'outserv', 0) or 0):
+            # PF puede conservar m:u y consumo de un cálculo previo. Esas
+            # magnitudes no vuelven a poner en servicio el terminal retirado.
+            problemas.append({'causa': 'conexion_fuera_de_servicio', 'elemento': key,
+                              'barra': clave_pf(barra)})
         p, q = _num(carga, 'm:Psum:bus1'), _num(carga, 'm:Qsum:bus1')
         if p is None or q is None:
             raise PideError(f'falta lectura de consumo P/Q de la carga anual: {key}')
@@ -294,16 +316,19 @@ def _servicio_anual(inventario, cargas, limites):
 
 
 def _medida_anual(app, proyecto, plan: dict, barras: dict, *, por_fase: bool = False,
-                  demanda_absoluta: bool = True, cargas=None, filas=None, representacion=None) -> dict:
+                  demanda_absoluta: bool = True, cargas=None, filas=None, representacion=None,
+                  comprobar_cancelacion=None) -> dict:
     """072:RF-25 — converger y cumplir son resultados distintos de una relectura."""
+    if not cargas:
+        raise PideError('falta el inventario de cargas del estudio anual')
+    _comprobar_demanda_anual(cargas, filas, representacion)
     ldf = app.GetFromStudyCase('ComLdf')
     if demanda_absoluta:
         ldf.scLoadFac = 100.0
     if demanda_absoluta and ldf.scLoadFac != 100.0:
         raise PideError('no se fijó el flujo al 100 % de las demandas anuales absolutas')
-    if not cargas:
-        raise PideError('falta el inventario de cargas del estudio anual')
-    _comprobar_demanda_anual(cargas, filas, representacion)
+    if comprobar_cancelacion is not None:
+        comprobar_cancelacion()  # la lectura nativa previa puede haber tardado; aún no comenzó el motor
     flujo = flujo_de_carga(app, monofasicos=True if por_fase else None)
     if not flujo['converged']:
         return {'converge': False, 'cumple': False, 'problemas': [{'causa': 'no_converge'}]}
@@ -506,6 +531,7 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
     try:
         comprobar_cancelacion()
         datos = leer_proyeccion_anual(plan)
+        comprobar_cancelacion()
         estudio = str(plan.get('estudio_id') or '')
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,79}', estudio) or estudio in ('.', '..'):
             raise PideError('falta un identificador de estudio nuevo y válido')
@@ -521,6 +547,7 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
         evidencia = leer_json_con_huella(corto['evidencia'], 'aceptación del corto plazo')
         if evidencia.get('estado') != 'aceptado' or any(evidencia.get(k) != corto.get(k) for k in ('caso', 'escenario', 'anio', 'anio_base', 'variaciones')):
             raise PideError('la aceptación del corto plazo no corresponde al caso, escenario y obras solicitados')
+        comprobar_cancelacion()
         origenes = [c for c in app.GetProjectFolder('study').GetContents('*.IntCase', 1) if clave_pf(c) == corto['caso']]
         if len(origenes) != 1:
             raise PideError('el caso de corto plazo no tiene una identidad completa única')
@@ -587,9 +614,11 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
         ldf_corto = app.GetFromStudyCase('ComLdf')
         opciones_corto = {k: getattr(ldf_corto, k, None) for k in ('scLoadFac', 'iopt_net')}
         try:
+            comprobar_cancelacion()
             informe['corto_plazo'] = _medida_anual(app, proyecto, plan, barras,
                 por_fase=any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values()),
-                demanda_absoluta=False, cargas=cargas, representacion=representacion)
+                demanda_absoluta=False, cargas=cargas, representacion=representacion,
+                comprobar_cancelacion=comprobar_cancelacion)
         finally:
             for k, v in opciones_corto.items():
                 if v is not None and getattr(ldf_corto, k, None) != v:
@@ -611,7 +640,8 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
             comprobar_cancelacion()
             por_fase = any(int(getattr(c, 'i_sym', 0) or 0) == 1 for c, _f in cargas.values())
             antes = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
-                                   cargas=cargas, filas=filas, representacion=representacion)
+                cargas=cargas, filas=filas, representacion=representacion,
+                comprobar_cancelacion=comprobar_cancelacion)
             fila_anual = {'anio': anio, 'anio_calendario': datos['anio_base'] + anio, 'antes': antes,
                           'casos': {r: c['caso'] for r, c in casos.items()}, 'obras_aplicadas': []}
             informe['anios'].append(fila_anual)
@@ -633,7 +663,8 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
                 acumuladas |= set(obras[anio])
             comprobar_cancelacion()
             fila_anual['despues'] = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
-                cargas=cargas, filas=filas, representacion=representacion)
+                cargas=cargas, filas=filas, representacion=representacion,
+                comprobar_cancelacion=comprobar_cancelacion)
             fila_anual['obras_acumuladas'] = sorted(acumuladas)
             if not fila_anual['despues']['cumple']:
                 raise PideError(f'año {anio}: las obras declaradas no resuelven el incumplimiento')
