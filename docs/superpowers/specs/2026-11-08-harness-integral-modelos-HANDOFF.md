@@ -108,3 +108,34 @@ El diseño conserva las fuentes web verificadas: [maestría de König](https://p
 El anexo de fuentes fija commits/licencias de GitHub. Estas referencias justifican
 el protocolo comparativo y la separación de componentes, sin certificar nuestros
 resultados ni establecer límites normativos.
+
+## Cierre del corte corregido
+
+La entrega original conserva su evidencia histórica de 42 unittest y 127 pruebas
+enfocadas. Se incorporó posteriormente el correctivo P21 `eef5ee1e` mediante
+merge `ed089081`, sin escribir en la rama comercial: vincula referencia evaluada
+al manifiesto y artefactos íntegros del activo, verifica de nuevo al ejecutar y
+rechaza promoción por bootstrap sin referencia acreditada. Verificado en este
+corte: **49 unittest; 134 pruebas enfocadas y 20 subtests; cero fallos/omitidas;
+Ruff, compilación en memoria de 15 archivos y whitespace correctos**.
+El recibo `2026-11-08-harness-integral-modelos-cierre.json` fija comandos, revisión
+y hashes nuevos, separados del recibo original.
+
+T1–T6 y la revisión/entrega local están cerradas. Se observó el commit comercial
+`ab49a2b1` con las ocho capas y el inventario, además de las incorporaciones
+`00f9bf65`/`6f82933a`. El integrador aplica I3 una sola vez desde P21 y valida su
+combinación; no debe cherry-pickear otra vez el mismo correctivo desde este merge.
+Los commits documentales propios se pueden incorporar por separado.
+
+La campaña original sigue sin ejecución real: faltan consumidor operativo,
+datos/puertas sellados y turno exclusivo de producción. Se solicitó coordinación
+por el chat de la sesión integradora y el registro compartido. No se marca como
+completada una mejora de precisión/recall que todavía no se ha medido.
+
+El criterio de cierre con evidencia y retroalimentación se apoya en la
+[tesis de maestría de Eriksson y Mosaddegh](https://fileadmin.cs.lth.se/cs/Personal/Lars_Bendix/Teaching/Lund/Theses/EM21/EM21-report.pdf),
+la comparación de modelos eléctricos en el
+[doctorado de Viggiano](https://etheses.whiterose.ac.uk/id/eprint/33810/) y la
+[revisión de Shahin et al., IEEE Access](https://doi.org/10.1109/ACCESS.2017.2685629).
+Fuentes institucionales consultadas el 2026-11-08; fundamentan el método,
+sin sustituir la aceptación experimental de este producto.

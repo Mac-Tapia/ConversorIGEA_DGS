@@ -41,15 +41,16 @@
     "state": "INCORPORADA_PENDIENTE_REVALIDACION_CONJUNTA",
     "source_cherry_pick": "00f9bf65",
     "metadata_cherry_pick": "6f82933a",
-    "residue": "capas/inventario y consumidor operativo los mantiene el integrador; correccion I3 asignada a P21"
+    "residue": "correctivo I3 y validacion conjunta comercial; adopcion operativa con protocolo/turno",
+    "layers_and_inventory_observed_commit": "ab49a2b1"
   },
   "bridge": {
     "id": "T6",
-    "state": "PARCIAL_POR_HALLAZGO_POSTERIOR_I3",
-    "completed": "API conectada con registro/coordinador real en temporales; identidades/snapshot/recibos probados",
-    "residue": "referencia evaluada debe corresponder al detalle integro del modelo activo esperado, incluido bootstrap explicito",
-    "owner": "P21 cierre en worktree propio por cesion de root; no duplicar escrituras",
-    "closure": "aplicar/revisar su commit y revalidar combinacion"
+    "state": "CERRADO_LOCAL_VERIFICADO",
+    "correction_commit": "eef5ee1ef70dc71af44d7f5dbc97e30c60358ae8",
+    "source_commit": "ed08908109c9fffb872ac8512f0049c890b70889",
+    "evidence": "cierre.json:49stdlib,134enfocadas,20subtests; I3 referencia-activo y bootstrap comprobados",
+    "production_integration": "root mantiene la unica integracion comercial del correctivo"
   },
   "campaign": {
     "state": "BLOQUEADA_POR_TURNO_Y_PROTOCOLO",
@@ -79,5 +80,6 @@
     "closed": 28,
     "open": 1,
     "scope": "checklist local del harness, no las115tareas originales de main"
-  }
+  },
+  "source_hashes_reread_scope": "Historical original9e/3de snapshot; corrected-cut hashes are in cierre.json"
 }

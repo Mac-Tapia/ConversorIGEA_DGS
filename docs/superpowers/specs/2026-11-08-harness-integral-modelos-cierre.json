@@ -1,0 +1,93 @@
+{
+  "task_id": "HARNESS-20261108",
+  "source_commit": "ed08908109c9fffb872ac8512f0049c890b70889",
+  "correction_commit": "eef5ee1ef70dc71af44d7f5dbc97e30c60358ae8",
+  "scope": "Cierre local de implementacion, revision y entrega; no cierre de campana real",
+  "checks": {
+    "unittest": {
+      "passed": 49,
+      "failed": 0,
+      "seconds": 2.098,
+      "command": "py -3.12 -I -B -c \"import sys,unittest; sys.path[:0]=['src','tests']; r=unittest.TextTestRunner().run(unittest.defaultTestLoader.discover('tests',pattern='test_harness_*.py')); sys.exit(not r.wasSuccessful())\""
+    },
+    "focused_regression": {
+      "passed": 134,
+      "subtests_passed": 20,
+      "skipped": 0,
+      "failed": 0,
+      "seconds": 26.76,
+      "argv": [
+        "D:/converter/ConversorIGEA_DGS/.venv/Scripts/python.exe",
+        "-I",
+        "-B",
+        "-c",
+        "import sys,glob,pytest; sys.path[:0]=['src','tests']; paths=['tests/test_model_registry.py','tests/test_training_coordinator.py','tests/test_evaluacion_modelos.py','tests/test_aceptacion_agente.py','tests/test_trazabilidad_specs.py::test_cada_fichero_de_pruebas_cita_una_spec']+sorted(glob.glob('tests/test_harness_*.py')); sys.exit(pytest.main(['-q','--disable-warnings','--maxfail=3',*paths]))"
+      ]
+    },
+    "ruff": {
+      "ok": true,
+      "scope": "8 package modules, tool and 6 tests"
+    },
+    "compile_in_memory": {
+      "ok": true,
+      "files": 15,
+      "bytecode_written": false
+    },
+    "git_diff_check": true
+  },
+  "source_sha256": {
+    "src/convertersmartgrid/evaluacion_harness/__init__.py": "9f0e413c562b429e35c5733b7f397dc015213045bc93843872d2103917149bea",
+    "src/convertersmartgrid/evaluacion_harness/adaptadores.py": "6b1ff6ba23f95adf3863fb60ac0a9afa0ccf81c5ba475afca5a967650b83a09a",
+    "src/convertersmartgrid/evaluacion_harness/cli.py": "63db62e910df43cc682b5b04085826759ffe723335600071e8f124bfc3bfa097",
+    "src/convertersmartgrid/evaluacion_harness/contratos.py": "01130a071f179021fe18ab075338e08da43d735f4330b55146e0879f778114fe",
+    "src/convertersmartgrid/evaluacion_harness/ejecucion.py": "9ac1ef00b6d93cfd092c3f7235869506e046584d44e330f8b9f3bb93b395d5f2",
+    "src/convertersmartgrid/evaluacion_harness/integracion.py": "4e1b1355112473a4b2484630e263d47986ba43d4edc2d9d11b09f6e3711a1299",
+    "src/convertersmartgrid/evaluacion_harness/metricas.py": "17d4bcee3aca1f4560ef7b31c718250dafac85a88b2332b3eea0084e4fcac791",
+    "src/convertersmartgrid/evaluacion_harness/publicacion.py": "efdbd07bd4fdf4a07fbbacd9fd2ac51d284dfd983b4ac8726afe41a54348b4de",
+    "tests/test_harness_adaptadores.py": "b261624c9ef312764311d7c72629f8dbd8511d0ea9dbdfac21138407500f31ff",
+    "tests/test_harness_cli.py": "029d456c1cea0d1c03ff7687d36ea263a71093ae70fd39d2564558618f11a50f",
+    "tests/test_harness_contratos.py": "46a984348c0081d177c1ce7363ac733bfbb1014d334d74dfc8c129fe16939e0c",
+    "tests/test_harness_ejecucion.py": "2540de268e1cea60cfee7a873f7e354cc263c6bd180e103f13dd6ccf79e20b2e",
+    "tests/test_harness_integracion.py": "c7ddee9bb0f3e95a2f0052aaa6b00789635c17efb4bf7cae7add919264a48811",
+    "tests/test_harness_metricas.py": "7ee761059325992037093b3d2031c960b6a40573223488444a9196442e4c74d5",
+    "tools/evaluar_harness.py": "e6b335dc7ed3f6d7beed506f6daab47c1ac608fdcac254c539dd87acff172c17"
+  },
+  "local_implementation_closed": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7_review_and_delivery"
+  ],
+  "production_incorporation_observed": {
+    "original": [
+      "00f9bf65",
+      "6f82933a"
+    ],
+    "layers_and_inventory": "ab49a2b1",
+    "corrected_combination_not_yet_verified_by_owner": true
+  },
+  "native_execution": false,
+  "model_training_executed": false,
+  "precision_recall_gain_demonstrated": false,
+  "scientific_acceptance": false,
+  "remaining_campaign": {
+    "owner_execution": "HARNESS owner with production integrator",
+    "owner_admission": "root cierre comercial",
+    "needs": [
+      "operative producer adoption",
+      "sealed data, identities and policy",
+      "exclusive resource turn"
+    ],
+    "original_criterion_preserved": true
+  },
+  "methodology": {
+    "masters": "https://fileadmin.cs.lth.se/cs/Personal/Lars_Bendix/Teaching/Lund/Theses/EM21/EM21-report.pdf",
+    "phd": "https://etheses.whiterose.ac.uk/id/eprint/33810/",
+    "indexed_article": "https://doi.org/10.1109/ACCESS.2017.2685629",
+    "web_rechecked": "2026-11-08",
+    "limit": "Methodological justification only, does not certify this implementation or model gains"
+  }
+}
