@@ -86,7 +86,9 @@
     "P14": {
       "state": "dataset_real_preparado_informes_sin_revision_humana",
       "evidence": [
-        "p14_preparacion_dataset_real.json"
+        "p14_preparacion_dataset_real.json",
+        "p14_preparacion_dataset_spans_real.json",
+        "revision_etiquetas_informes/REVISION_ETIQUETAS.md"
       ]
     },
     "P15": {
@@ -106,7 +108,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "en_curso_trabajador_lenguaje_registrado_aceptacion_real_pendiente",
+      "state": "corrida_individual_lenguaje_real_rechazada_ciclo_integral_pendiente",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -134,7 +136,12 @@
         "p19_productor_informes_red.log",
         "p19_informes_contradiccion_red.log",
         "p19_puertas_comunes_red.log",
-        "p19_productores_cierre.xml"
+        "p19_productores_cierre.xml",
+        "p19_spans_reales_red.log",
+        "p19_spans_reales_green.xml",
+        "p14_preparacion_dataset_spans_real.json",
+        "p19_lenguaje_real_spans/decision.json",
+        "p19_lenguaje_real_verificacion.json"
       ]
     },
     "P20": {
