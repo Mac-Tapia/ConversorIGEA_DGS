@@ -25,14 +25,19 @@ def _hasta(condicion, segundos=15):
     raise AssertionError('el proceso propio no alcanzó el punto esperado')
 
 
-def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False):
+def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False, antes_anotar=False):
     """Diario producido por JobManager real; el servidor cae sin cerrar al trabajador."""
     guion = tmp_path / 'servidor_con_hijo.py'
     guion.write_text(textwrap.dedent(f'''
         import json, os, time
         from pathlib import Path
-        from convertersmartgrid.web.jobs import JobManager
+        from convertersmartgrid.web.jobs import JobManager, JobContext
         raiz = Path({str(tmp_path)!r})
+        if {antes_anotar!r}:
+            def sin_confirmar(self, pid):
+                (raiz / 'antes_anotar').touch()
+                time.sleep(60)
+            JobContext.anotar_proceso = sin_confirmar
         def trabajador(*, progreso, log, cancelado):
             (raiz / 'hijo.json').write_text(json.dumps({{'pid': os.getpid()}}))
             time.sleep(60)
@@ -60,6 +65,166 @@ def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False):
     proceso = subprocess.Popen([sys.executable, str(guion)], env=entorno,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     return proceso
+
+
+def test_identidad_incompleta_de_un_pid_real_muerto_no_bloquea():
+    """096:RF-6 — primero comprobar muerte: la ausencia de fecha no mantiene vivo un PID que ya no existe."""
+    import psutil
+    from convertersmartgrid.web.jobs import _proceso_pendiente
+
+    proceso = subprocess.Popen([sys.executable, '-c', 'pass'])
+    proceso.wait(10)
+    assert not psutil.pid_exists(proceso.pid)
+    assert not _proceso_pendiente({'pid': proceso.pid, 'inicio': None})
+
+
+@pytest.mark.parametrize('motor', [False, True], ids=['guion', 'motor'])
+def test_reserva_anterior_al_spawn_se_retira_si_creacion_falla(tmp_path, monkeypatch, motor):
+    """096:RF-6 — la reserva existe antes de crear el hijo y un error de creación no la deja bloqueando."""
+    import multiprocessing.process
+    from convertersmartgrid.web.jobs import DiarioTrabajos, Job, JobContext
+
+    diario = DiarioTrabajos(tmp_path / '_trabajos')
+    job = Job('k', 't', WID, 'engine', lambda ctx: None)
+    diario.anotar(job)
+    ctx = JobContext(job, lambda *a: None, diario)
+    def fallar(*args, **kwargs):
+        datos = json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())
+        assert (datos.get('proceso') or {}).get('estado') == 'lanzando'
+        raise OSError('creación propia denegada')
+    if motor:
+        monkeypatch.setattr(multiprocessing.process.BaseProcess, 'start', fallar)
+    else:
+        monkeypatch.setattr(subprocess, 'Popen', fallar)
+    with pytest.raises(OSError, match='creación propia denegada'):
+        if motor:
+            ctx.en_proceso(lambda **kw: None)
+        else:
+            ctx.run_process(['solo-ensayo'], env={})
+    assert job.proceso is None
+    assert json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())['proceso'] is None
+
+
+def test_no_crear_hijo_si_no_se_puede_persistir_reserva(tmp_path, monkeypatch):
+    """096:RF-6 / 086:RF-9 — un diario no durable no permite crear un trabajador sin recibo previo."""
+    from convertersmartgrid.web.jobs import DiarioTrabajos, Job, JobContext
+
+    diario = DiarioTrabajos(tmp_path / '_trabajos')
+    job = Job('k', 't', WID, 'engine', lambda ctx: None)
+    diario.anotar(job)
+    ctx = JobContext(job, lambda *a: None, diario)
+    def sin_disco(*a, **k):
+        raise OSError('sin disco propio')
+    monkeypatch.setattr('convertersmartgrid.util.write_json_atomic', sin_disco)
+    monkeypatch.setattr(subprocess, 'Popen', lambda *a, **k: pytest.fail('se creó un hijo sin reserva durable'))
+    with pytest.raises(OSError, match='reserva'):
+        ctx.run_process(['solo-ensayo'], env={})
+
+
+@pytest.mark.parametrize('motor', [False, True], ids=['guion', 'motor'])
+def test_caida_entre_crear_hijo_y_confirmar_identidad_no_autoriza_otro(tmp_path, motor):
+    """096:RF-6 — una reserva durable anterior al spawn evita repetir si el servidor muere antes del recibo."""
+    import psutil
+    from convertersmartgrid.web.jobs import JobManager
+
+    proceso = _servidor_con_hijo(tmp_path, motor=motor, antes_anotar=True)
+    hijo = None
+    try:
+        _hasta(lambda: (tmp_path / 'servidor.json').exists() and (tmp_path / 'antes_anotar').exists())
+        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+        hijo = psutil.Process(json.loads((tmp_path / 'hijo.json').read_text())['pid'])
+        psutil.Process(servidor['pid']).kill()
+        proceso.wait(10)
+        assert hijo.is_running()
+        jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
+        assert jobs.get(servidor['id']).status == 'interrumpido'
+        assert jobs.reanudables() == [], 'el hijo existe pero aún no se confirmó su identidad'
+        hijo.kill()
+        hijo.wait(10)
+        # Sin recibo no se puede identificar qué proceso terminó: queda para revisión explícita.
+        assert JobManager(lambda *a: None, diario=tmp_path / '_trabajos').reanudables() == []
+    finally:
+        if hijo is not None and hijo.is_running():
+            hijo.kill()
+            hijo.wait(10)
+        if proceso.poll() is None:
+            _matar_de_golpe(proceso)
+
+
+def test_trabajo_terminado_no_bloquea_otra_recuperacion(tmp_path):
+    """096:RF-6 — una identidad residual de un trabajo ya terminado no bloquea otro interrumpido."""
+    from convertersmartgrid.web.jobs import JobManager
+
+    proceso = _servidor_con_hijo(tmp_path, motor=True)
+    try:
+        _hasta(lambda: (tmp_path / 'servidor.json').exists())
+        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+    finally:
+        _matar_de_golpe(proceso)
+    jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
+    otro = jobs.submit(WID, 'k', 't', lambda ctx: ctx.anotar_proceso(os.getpid()))
+    _esperar(jobs, otro)
+    assert otro.status == 'done'
+    assert [j.id for j in jobs.reanudables()] == [servidor['id']]
+    jobs.shutdown(5)
+
+
+@pytest.mark.parametrize('fallar', [False, True], ids=['done', 'failed'])
+def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_path, fallar):
+    """096:RF-5 / 096:RF-6 — la muerte entre admitir sucesor y marcar el viejo no repite su efecto ya registrado."""
+    import psutil
+    from convertersmartgrid.web.jobs import JobManager
+
+    proceso = _servidor_con_hijo(tmp_path, motor=True)
+    try:
+        _hasta(lambda: (tmp_path / 'servidor.json').exists())
+        anterior = json.loads((tmp_path / 'servidor.json').read_text())['id']
+    finally:
+        _matar_de_golpe(proceso)
+    guion = tmp_path / 'sucesor.py'
+    guion.write_text(textwrap.dedent(f'''
+        import os,time,json,threading
+        from pathlib import Path
+        from convertersmartgrid.web.jobs import JobManager,FINISHED
+        raiz=Path({str(tmp_path)!r})
+        finalizado=threading.Event()
+        def emitir(w,k,d):
+            if k=='job' and d.get('status') in ('done','failed'): finalizado.set()
+        jobs=JobManager(emitir,diario=raiz/'_trabajos')
+        def efecto(ctx):
+            (raiz/'efecto.txt').write_text('una escritura')
+            if {fallar!r}: raise RuntimeError('fallo propio posterior al efecto')
+            return {{'ok':True}}
+        nuevo=jobs.submit({WID!r},'recalibrar','Sucesor propio',efecto,
+                          reanudar={{'tipo':'recalibrar','datos':{{'project':'propio','periodo':'2026'}}}},
+                          relanzado_de={anterior!r})
+        assert finalizado.wait(10)
+        # La llamada a marcar_relanzado del consumidor todavía no ha ocurrido.
+        (raiz/'sucesor_listo.json').write_text(json.dumps({{'pid':os.getpid(),'id':nuevo.id}}))
+        time.sleep(60)
+    '''), encoding='utf-8')
+    entorno = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src')}
+    segundo = subprocess.Popen([sys.executable, str(guion)], env=entorno,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        _hasta(lambda: (tmp_path / 'sucesor_listo.json').exists())
+        listo = json.loads((tmp_path / 'sucesor_listo.json').read_text())
+        psutil.Process(listo['pid']).kill()
+        segundo.wait(10)
+        observados = []
+        jobs = JobManager(lambda w, k, d: observados.append(d), diario=tmp_path / '_trabajos')
+        assert jobs.reanudables() == [], 'el ancestro reaparece aunque su sucesor ya terminó'
+        recuperado = jobs.get(listo['id'])
+        assert recuperado.status == ('failed' if fallar else 'done')
+        if fallar:
+            assert 'fallo propio posterior al efecto' in recuperado.error
+        else:
+            assert recuperado.result == {'ok': True}
+        assert not any(d.get('status') in ('done', 'failed') for d in observados), 'releer no repite efectos del emisor'
+        assert (tmp_path / 'efecto.txt').read_text() == 'una escritura'
+    finally:
+        if segundo.poll() is None:
+            _matar_de_golpe(segundo)
 
 
 @pytest.mark.parametrize('motor', [False, True], ids=['guion', 'motor'])

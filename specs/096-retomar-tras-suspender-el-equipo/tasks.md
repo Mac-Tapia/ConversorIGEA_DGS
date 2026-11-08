@@ -15,3 +15,7 @@ Pruebas: `tests/test_trabajos_interrumpidos.py` y `tests/test_retomar_tras_suspe
 Evidencia: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/paralelo_p21_20261108/`.
 El consumidor de calibración está sustituido en estas pruebas de recuperación. No hubo motor,
 licencia ni suspensión física; siguen pendientes la idempotencia nativa y el criterio íntegro T3.
+Revisión adicional P21: ensayos reales cortan entre crear el hijo y confirmar su identidad, y tras
+terminar un sucesor DONE/FAILED antes de marcar el ancestro. La reserva previa bloquea un lanzamiento
+incierto; el recibo final del sucesor excluye el ancestro sin reemitir efectos al leerlo. Se comprueban
+también PID muerto sin fecha, identidad residual terminal, creación fallida y diario sin espacio.

@@ -40,6 +40,18 @@ y espera la terminación de su monitor antes de cerrar la admisión. Tras un rec
 conserva el interrumpido recuperable y su motivo; no vuelve a intentar automáticamente en ese arranque,
 para evitar un bucle de errores. La comprobación manual permite reintentar una vez corregida la causa.
 
+La revisión del integrador añade tres comprobaciones de las ventanas de caída:
+
+- Una identidad sin fecha sigue bloqueando si su PID vive; si ya no existe el PID, se puede resolver.
+  Los trabajos terminales no bloquean la recuperación por una identidad residual.
+- Antes de `start`/`Popen` se guarda una reserva durable. Si no se puede guardar, no se crea el hijo.
+  Un fallo de creación retira la reserva; una muerte del servidor entre crear y confirmar conserva
+  la incertidumbre y exige revisión explícita, sin relanzar ni matar procesos ambiguos.
+- Se conserva el recibo JSON final de los sucesores, incluido su origen, estado y resultado/error,
+  retirando su log largo. La recuperación usa ese enlace para excluir ancestros aun si el servidor
+  cayó antes de marcarlos. Los recibos terminales se leen sin reemitir eventos que repetirían capturas
+  o custodia. Se conservan con el mismo límite de recibos del diario.
+
 `tests/test_trabajos_interrumpidos.py` produce diarios con servidores y trabajadores propios reales,
 mata el servidor sin cierre limpio, comprueba cancelación/identidad/concurrencia y mata después al hijo
 para verificar la recuperación del lifecycle y su cierre. La calibración nativa se sustituye solo en
