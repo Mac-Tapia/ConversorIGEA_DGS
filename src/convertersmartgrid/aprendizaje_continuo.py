@@ -153,6 +153,18 @@ def huellas_de(ruta: Path | str) -> dict[str, str]:
     return {rel: _sha(p) for rel, p in _ficheros(Path(ruta))}
 
 
+def validar_vista_twin(ruta: Path | str) -> None:
+    """050:RF-1/8: el ciclo forzado consume objetos; una raíz viva no es una vista de datos."""
+    ruta = Path(ruta)
+    if (not ruta.is_dir() or {p.name for p in ruta.iterdir()} != {'objetos'}
+            or not (ruta / 'objetos').is_dir()):
+        raise CicloBloqueado('twin: declare una vista con solo objetos/; no se copian ni se omiten '
+            'silenciosamente modelos, registros, SQLite/WAL u otros archivos de una raíz viva')
+    archivos = _ficheros(ruta / 'objetos')
+    if not archivos or any(p.suffix.lower() != '.json' for _, p in archivos):
+        raise CicloBloqueado('twin: la vista objetos/ exige episodios JSON; sin pesos ni otros binarios')
+
+
 def crear_contexto_documental(corpus: Mapping[str, str]) -> dict[str, Any]:
     """050:RF-1/3: identidad del corpus; no declara proyecto ni verdad eléctrica."""
     if not isinstance(corpus, Mapping) or not corpus:
@@ -258,6 +270,8 @@ def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | 
             if ruta is None:
                 continue
             try:
+                if nombre == 'twin':
+                    validar_vista_twin(ruta)
                 antes[nombre] = huellas_de(ruta)
             except CicloBloqueado as exc:
                 motivos.append(str(exc))
@@ -395,6 +409,33 @@ def muestra_de_registro(instantanea: Mapping[str, Any], referencias: Mapping[str
                    particion, contexto, registro)
 
 
+def referencia_pinn_ciclo(instantanea: Mapping[str, Any], *, registro: RegistroModelo | None = None) -> dict:
+    """050:RF-6/7/8: una vista sin pesos no convierte un previo ausente en primer modelo."""
+    registro = _registro_comun(registro)
+    miembro = miembro_del_conjunto(registro.raiz.parent / 'aprendizaje', 'pinn', registro=registro)
+    esperada = None
+    if 'referencia_pinn' in instantanea.get('archivos', {}):
+        esperada = _leer(ruta_de(instantanea, 'referencia_pinn'))
+        if (set(esperada) != {'schema', 'candidate_id', 'conjunto_id'}
+                or esperada['schema'] != 'convertersmartgrid-pinn-reference-v1'
+                or any(v is not None and (not isinstance(v, str) or not _HEX.fullmatch(v))
+                       for v in (esperada['candidate_id'], esperada['conjunto_id']))):
+            raise CicloBloqueado('PINN: referencia declarada inválida')
+    if miembro is None:
+        if registro.activo('pinn') is not None:
+            raise CicloBloqueado('PINN: modelo individual previo sin referencia conjunta compatible; no se ignora al usar la vista')
+        if esperada and (esperada['candidate_id'] is not None or esperada['conjunto_id'] is not None):
+            raise CicloBloqueado('PINN: referencia declarada ausente; no se degrada a primer modelo')
+        return {'estado': 'sin_modelo_previo', 'candidate_id': None, 'conjunto_id': None,
+                'retencion_acreditada': False}
+    if esperada is None:
+        raise CicloBloqueado('PINN: hay conjunto previo; falta sellar referencia_pinn en la captura')
+    if any(esperada[k] != miembro[k] for k in ('candidate_id', 'conjunto_id')):
+        raise CicloBloqueado('PINN: referencia declarada distinta del conjunto/modelo verificados')
+    return {'estado': 'referencia_verificada', 'candidate_id': miembro['candidate_id'],
+            'conjunto_id': miembro['conjunto_id'], 'retencion_acreditada': False}
+
+
 def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
                      parametros: Mapping[str, Any] | None = None,
                      destino: Path | str | None = None) -> dict[str, Any]:
@@ -408,7 +449,7 @@ def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
             or not isinstance(procedencia.get('referencias'), dict)):
         raise CicloBloqueado('manifiesto de procedencia inválido')
     referencias = procedencia['referencias']
-    muestras = []
+    muestras, referencia_pinn = [], None
     if 'evolutivos' in familias:
         from .digital_twin.evolutivo import casos_aprendizaje
         muestras.extend(c['muestra'] for c in casos_aprendizaje(instantanea))
@@ -418,6 +459,8 @@ def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
         muestras.extend(muestras_aprendizaje(instantanea, referencias, sorted(lenguaje)))
     if 'pinn' in familias:
         from .digital_twin.buffer import muestras_aprendizaje
+        validar_vista_twin(ruta_de(instantanea, 'twin'))
+        referencia_pinn = referencia_pinn_ciclo(instantanea)
         muestras.extend(muestras_aprendizaje(instantanea, referencias))
     if 'gru' in familias:
         from .digital_twin.temporal_entrenamiento import muestras_aprendizaje
@@ -426,6 +469,8 @@ def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
         from .asistente.llm_destilacion import muestras_aprendizaje
         muestras.extend(muestras_aprendizaje(instantanea, referencias))
     resultado = preparar_vistas(instantanea, muestras)
+    if referencia_pinn is not None:
+        resultado['referencia_pinn'] = referencia_pinn
     if destino is not None:
         _escribir(Path(destino), {**resultado, 'vistas': {f: {p: [asdict(m) for m in ms]
             for p, ms in partes.items()} for f, partes in resultado['vistas'].items()}})
@@ -449,6 +494,8 @@ def preflight_ciclo(instantanea: Mapping[str, Any], familias: Sequence[str], *,
             r = preparar_fuentes(instantanea, [familia], parametros=parametros)
             por_familia[familia] = {'estado': 'preparado', 'resumen': r['resumen'][familia],
                 'particiones_hash': r['particiones_hash'], 'motivos': []}
+            if 'referencia_pinn' in r:
+                por_familia[familia]['referencia_pinn'] = r['referencia_pinn']
             muestras += [m for partes in r['vistas'].values() for ms in partes.values() for m in ms]
         except (OSError, ValueError, KeyError, TypeError) as exc:
             motivo = f'{familia}: {exc}'

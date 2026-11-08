@@ -107,11 +107,12 @@ def orden_temporal(args, reporte: Path, algoritmo: str) -> list[str]:
 
 def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
     """050:RF-1: el trabajador puede escribir modelos e índice, nunca en la captura congelada."""
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado, huellas_de
+    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado, huellas_de, validar_vista_twin
     from convertersmartgrid.runtime_paths import staging_publicacion
 
     if not origen.is_dir():
         raise CicloBloqueado('falta el búfer congelado para la PINN')
+    validar_vista_twin(origen)
     if destino.resolve().is_relative_to(origen.resolve()):
         raise CicloBloqueado('la salida PINN no puede estar dentro de su fuente congelada')
     if destino.exists():
@@ -173,12 +174,17 @@ def _etapas(args, run_dir: Path):
         if getattr(args, 'ciclo_comun', False):
             if twin is None:
                 raise ValueError('falta el búfer congelado para la PINN')
+            from convertersmartgrid.aprendizaje_continuo import referencia_pinn_ciclo, verificar_instantanea
+            inst = verificar_instantanea(args.instantanea)
+            referencia_pinn_ciclo(inst)
             twin = _twin_de_trabajo(Path(twin), run_dir / 'pinn_twin')
         cmd = [py, str(REPO / 'tools' / 'digital_twin_entrenar.py'), '--forzar',
                '--raiz', str(twin), '--output-json', str(reporte)]
         if not getattr(args, 'publicar_individual', True):
             cmd += ['--sin-publicar']
         resultado = _subproceso(cmd, reporte, 'pinn')
+        if getattr(args, 'ciclo_comun', False):
+            resultado['referencia_pinn'] = referencia_pinn_ciclo(inst)
         if getattr(args, 'ablaciones', False) and getattr(args, 'config', None):
             # 045:RF-8: informa; no decide la promoción, que sigue siendo la del candidato de arriba.
             informe = run_dir / 'pinn_ablaciones.json'

@@ -5,6 +5,7 @@ from dataclasses import asdict
 import hashlib
 import importlib.util
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -119,8 +120,10 @@ def test_productor_buffer_lee_objetos_sin_tocar_indice_y_respeta_partes(tmp_path
     episodio = leer_episodio(payload)
     bufer = BuferEpisodios(tmp_path / 'twin')
     bufer.guardar(episodio)
+    vista = tmp_path / 'vista_twin'
+    shutil.copytree(bufer.raiz / 'objetos', vista / 'objetos')
     ctx = 'a' * 64
-    inst = ac.congelar_instantanea({'twin': bufer.raiz, 'fuente': fuente},
+    inst = ac.congelar_instantanea({'twin': vista, 'fuente': fuente},
         tmp_path / 'ac', contexto=ac.crear_contexto_ciclo({'P': ctx}), versiones={'codigo': 'x'})
     referencia = {'contexto': ctx, 'fuente_hash': sha, 'registro_id': episodio.episode_id,
         'instante': episodio.creado, 'contenido_hash': _hash(episodio_a_dict(episodio))}
@@ -248,6 +251,8 @@ def test_evolutivos_consume_caso_con_contexto_043_declarado(tmp_path):
     episodio = leer_episodio(p)
     bufer = BuferEpisodios(tmp_path / 'twin')
     bufer.guardar(episodio)
+    vista = tmp_path / 'vista_twin'
+    shutil.copytree(bufer.raiz / 'objetos', vista / 'objetos')
     contexto = ContextoExperimento('run-1', 'txt', sha, 'P', ('A1', 'A2'),
         'IntCase:Estudios\\sin_proyecto', 'sin_proyecto', None, 'no_aplica', 'no_aplica',
         'a' * 64, 'a' * 64, 'a' * 64, 'a' * 64)
@@ -264,7 +269,7 @@ def test_evolutivos_consume_caso_con_contexto_043_declarado(tmp_path):
     procedencia = tmp_path / 'procedencia.json'
     procedencia.write_text(json.dumps({'schema': ac.ESQUEMA_PROCEDENCIA,
         'referencias': {'evolutivos_casos': {'caso_maniobra1': ref}}}), encoding='utf-8')
-    inst = ac.congelar_instantanea({'twin': bufer.raiz, 'fuente': fuente,
+    inst = ac.congelar_instantanea({'twin': vista, 'fuente': fuente,
         'evolutivos_casos': casos, 'procedencia': procedencia}, tmp_path / 'ac',
         contexto=ac.crear_contexto_ciclo({'P': ctx}), versiones={'codigo': 'contrato'})
     preparados = casos_aprendizaje(inst)
@@ -308,3 +313,93 @@ def test_procedencia_malformada_deja_bloqueo_controlado(tmp_path):
         ac.muestra_de_registro(inst, {'dataset': []}, 'dataset', fila.record_id,
             asdict(fila), familia='transformer', particion='entrenamiento',
             origen='observado', etiqueta='operador')
+
+
+def test_congelar_rechaza_raiz_twin_viva_antes_de_copiar_pesos_o_sqlite(tmp_path):
+    """050:RF-1/8 — pedir una vista de datos, sin copiar pesos ni SQLite/WAL en caliente."""
+    from test_aprendizaje_continuo import _fuentes, CTX, VERSIONES
+    fuentes = _fuentes(tmp_path)
+    twin = fuentes['twin']
+    (twin / 'modelos').mkdir()
+    (twin / 'modelos' / 'fixture.pt').write_bytes(b'fixture, no pesos reales')
+    (twin / 'episodios.sqlite3').write_bytes(b'base viva de contrato')
+    (twin / 'episodios.sqlite3-wal').write_bytes(b'wal de contrato')
+    antes = ac.huellas_de(twin)
+    with pytest.raises(ac.CicloBloqueado, match='vista.*objetos'):
+        ac.congelar_instantanea(fuentes, tmp_path / 'ac', contexto=CTX, versiones=VERSIONES)
+    assert ac.huellas_de(twin) == antes
+    assert not (tmp_path / 'ac' / 'instantaneas').exists()
+    assert not list((tmp_path / 'ac').rglob('*.pt'))
+
+
+def test_copia_de_trabajo_rechaza_snapshot_legacy_con_modelos_sin_duplicarlos(tmp_path):
+    """050:RF-1/8 — un snapshot antiguo se puede verificar, pero no duplicar pesos para otro ciclo."""
+    from tools.reentrenar_modelos import _twin_de_trabajo
+    origen = tmp_path / 'twin_legacy'
+    (origen / 'objetos').mkdir(parents=True)
+    (origen / 'objetos' / 'episodio.json').write_text('{}', encoding='utf-8')
+    (origen / 'modelos').mkdir()
+    (origen / 'modelos' / 'fixture.pt').write_bytes(b'fixture, no pesos reales')
+    with pytest.raises(ac.CicloBloqueado, match='vista.*objetos'):
+        _twin_de_trabajo(origen, tmp_path / 'trabajo')
+    assert not (tmp_path / 'trabajo').exists()
+
+
+def test_verificar_snapshot_v1_previo_no_reinterpreta_sus_archivos(tmp_path):
+    """050:RF-1 — conserva lectura e identidad de capturas previas aunque hoy no se duplique su raíz."""
+    raiz = tmp_path / 'legacy'
+    archivos = {'twin': {'objetos/ep.json': hashlib.sha256(b'{}').hexdigest(),
+                         'modelos/fixture.pt': hashlib.sha256(b'fixture').hexdigest()}}
+    identidad = {'schema': ac.ESQUEMA_INSTANTANEA, 'contexto_hash': 'a' * 64,
+                 'versiones': {'codigo': 'legacy'}, 'archivos': archivos}
+    sid = _hash(identidad)
+    carpeta = raiz / sid
+    for rel, contenido in [('objetos/ep.json', b'{}'), ('modelos/fixture.pt', b'fixture')]:
+        f = carpeta / 'datos' / 'twin' / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(contenido)
+    (carpeta / 'manifiesto.json').write_text(json.dumps({**identidad, 'snapshot_id': sid,
+        'tipos': {'twin': 'carpeta'}}), encoding='utf-8')
+    assert ac.verificar_instantanea(carpeta)['snapshot_id'] == sid
+
+
+def test_referencia_pinn_ausente_no_se_convierte_en_mejora(tmp_path):
+    """050:RF-6/7/8 — primer candidato posible, pero un previo individual no se pierde por usar vista."""
+    from test_aprendizaje_continuo import _instantanea, _candidato
+    from convertersmartgrid.model_registry import RegistroModelo
+    inst = _instantanea(tmp_path)
+    reg = RegistroModelo(tmp_path / 'registro')
+    primera = ac.referencia_pinn_ciclo(inst, registro=reg)
+    assert primera['estado'] == 'sin_modelo_previo' and primera['retencion_acreditada'] is False
+    cid = _candidato(reg, 'pinn')
+    reg.promover('pinn', cid)
+    with pytest.raises(ac.CicloBloqueado, match='individual previo'):
+        ac.referencia_pinn_ciclo(inst, registro=reg)
+
+
+def test_referencia_pinn_declarada_exige_conjunto_e_identidad_exactos(tmp_path):
+    """050:RF-6/7/8 — una referencia sellada ausente o distinta bloquea, sin modelo inicial implícito."""
+    from test_aprendizaje_continuo import _ciclo_terminado, CTX
+    from convertersmartgrid.model_registry import RegistroModelo
+    reg = RegistroModelo(tmp_path / 'registro')
+    ciclo = _ciclo_terminado(tmp_path, reg)
+    publicado = ac.publicar_conjunto(tmp_path / 'aprendizaje', reg, ciclo,
+        retencion={f: {'retiene': True} for f in ('pinn', 'transformer')},
+        conjunta={'aprobado': True}, obligatorias=['pinn', 'transformer'])
+    conjunto = publicado['conjunto']
+    referencia = {'schema': 'convertersmartgrid-pinn-reference-v1',
+        'conjunto_id': conjunto['conjunto_id'], 'candidate_id': conjunto['miembros']['pinn']}
+    ruta = tmp_path / 'referencia.json'
+    ruta.write_text(json.dumps(referencia), encoding='utf-8')
+    inst = ac.congelar_instantanea({'referencia_pinn': ruta}, tmp_path / 'captura',
+        contexto=CTX, versiones={'codigo': 'x'})
+    assert ac.referencia_pinn_ciclo(inst, registro=reg)['candidate_id'] == referencia['candidate_id']
+    ruta.write_text(json.dumps({**referencia, 'candidate_id': 'f' * 64}), encoding='utf-8')
+    otra = ac.congelar_instantanea({'referencia_pinn': ruta}, tmp_path / 'captura',
+        contexto=CTX, versiones={'codigo': 'x'})
+    with pytest.raises(ac.CicloBloqueado, match='referencia.*distinta'):
+        ac.referencia_pinn_ciclo(otra, registro=reg)
+    with pytest.raises(ac.CicloBloqueado, match='referencia.*ausente'):
+        ac.referencia_pinn_ciclo(inst, registro=RegistroModelo(tmp_path / 'sin_modelo' / 'registro'))
+    with pytest.raises(ac.CicloBloqueado, match='integridad'):
+        ac.referencia_pinn_ciclo(inst, registro=RegistroModelo(tmp_path / 'otro_registro'))

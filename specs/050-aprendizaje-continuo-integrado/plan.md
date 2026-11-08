@@ -63,6 +63,21 @@ La admisión se pospone mientras haya trabajos del operador vivos en cualquier c
 la cola engine por sí sola no cubría el carril PowerFactory. Se vuelve a solicitar
 con los mismos datos después de liberarse, sin ejecutar un motor nativo en la prueba.
 
+Captura PINN: `twin` debe ser una vista de datos declarada con únicamente `objetos/`
+y episodios JSON. `--forzar` consume esos objetos; el índice SQLite se genera en su
+carpeta de trabajo. Una raíz viva con modelos, model_registry, SQLite/WAL, decisiones
+u otros extras se rechaza ANTES de copiar: no se excluyen silenciosamente. La misma
+guardia protege la copia de trabajo de snapshots previos; su verificación histórica
+conserva identidad y bytes. La referencia del modelo anterior es responsabilidad
+explícita del conjunto/plan de captura: no se presenta ausencia de pesos en la vista
+como prueba de retención ni aceptación de un primer modelo. No publicar sin T4b.
+Un primer candidato sin modelo previo conserva `retencion_acreditada=false`. Si hay
+conjunto previo, `referencia_pinn` debe sellar esquema `convertersmartgrid-pinn-reference-v1`,
+candidate_id y conjunto_id exactos; el lector verifica artefactos y compara esa
+referencia antes/después de la etapa. Una ausencia o cambio bloquea. Un modelo
+individual previo sin adaptación conjunta explícita también bloquea, sin presentarlo
+como un arranque desde cero. Verificar referencia no equivale a medir retención.
+
 El plan JSON usa esquema `convertersmartgrid-learning-plan-v1` y declara exactamente
 `workspace_id`, `raiz`, `contexto`, `fuentes`, `familias`, `politica_hash`, `tiempo_s`,
 `memoria_gib`, `usa_gpu`, `parametros`, además de `schema`. Rutas relativas se resuelven
