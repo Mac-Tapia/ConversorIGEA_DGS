@@ -50,7 +50,7 @@ def identidades(cfg):
             for rol, modelo in cfg['modelos'].items()}
 
 
-def runtime_doble(peso):
+def runtime_doble(peso, *, activo=False, defecto_referencia=None):
     """Simula evidencia real solo para probar la frontera de publicación en temporales."""
     cfg = preparar()
     for s in cfg['suites']:
@@ -65,6 +65,26 @@ def runtime_doble(peso):
         'suite_id': 'clasificacion', 'metrica': 'acierto', 'estimando': 'media_grupos',
         'margen': .1, 'semilla': 11, 'remuestras': 200, 'confianza': .95, 'min_grupos': 2}])
     cfg = vincular(cfg, peso)
+    if activo:
+        referencia = peso.parent / 'referencia.bin'
+        referencia.write_bytes(b'referencia sintetica del registro efimero')
+        sha = hashlib.sha256(referencia.read_bytes()).hexdigest()
+        cfg['modelos']['referencia']['artifacts'] = {referencia.name: sha}
+        manifest = deepcopy(cfg['modelos']['referencia'])
+        if defecto_referencia == 'digest':
+            manifest['digest'] = '1'*64
+        elif defecto_referencia == 'config_hash':
+            manifest['config_hash'] = '2'*64
+        elif defecto_referencia == 'artifacts':
+            cfg['modelos']['referencia']['artifacts'][referencia.name] = '0'*64
+        reg = RegistroModelo(peso.parent / 'registro')
+        previo = reg.registrar_candidato('llm', model_manifest=manifest,
+            dataset_manifest={}, metrics={},
+            decision={'status': 'PROMOVIDO', 'gates': {'approved': True}},
+            smoke_reload={'ok': True}, artifacts=[referencia])
+        reg.promover('llm', previo['candidate_id'])
+        cfg['integracion']['activo_esperado'] = reg.activo('llm')
+        cfg = sellar(cfg)
 
     def predict(modelo, suite, entrada):
         r = proveedor(modelo, suite, entrada)
@@ -81,6 +101,123 @@ def runtime_doble(peso):
 
 
 class IntegracionTest(unittest.TestCase):
+    def test_referencia_ajena_al_activo_no_registra_ni_activa(self):
+        """043:RF-7 — el comparador evaluado debe ser el activo íntegro sellado."""
+        for defecto in ('digest', 'config_hash', 'artifacts'):
+            with self.subTest(defecto=defecto), tempfile.TemporaryDirectory() as folder:
+                peso = Path(folder) / 'peso.bin'
+                peso.write_bytes(b'candidato sintetico')
+                cfg, informe = runtime_doble(peso, activo=True, defecto_referencia=defecto)
+                reg = RegistroModelo(peso.parent / 'registro')
+                anterior, ultimo = reg.activo('llm'), reg.ultimo('llm')
+                with self.assertRaisesRegex(ValueError, 'referencia'):
+                    registrar_resultado(informe, cfg, registro=reg, activar=True,
+                        revalidar=lambda cfg=cfg: identidades(cfg), **declaracion(cfg, peso))
+                self.assertEqual(reg.activo('llm'), anterior)
+                self.assertEqual(reg.ultimo('llm'), ultimo)
+
+    def test_etapa_con_referencia_ajena_rechaza_antes_del_proveedor(self):
+        """043:RF-7 — una etapa no mide contra otro modelo como si fuese el activo."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder) / 'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, _ = runtime_doble(peso, activo=True, defecto_referencia='digest')
+            with self.assertRaisesRegex(ValueError, 'referencia'):
+                crear_etapa(nombre='qlora', config=cfg, proveedor=proveedor,
+                    evaluadores=evaluadores(cfg), registro=RegistroModelo(peso.parent/'registro'),
+                    declaracion=declaracion(cfg, peso), informe_path=peso.parent/'informe.json',
+                    uses_gpu=False)
+            self.assertFalse((peso.parent/'informe.json').exists())
+
+    def test_bootstrap_sin_activo_conserva_diagnostico_sin_promocion(self):
+        """043:RF-7 — sin referencia activa no se infiere equivalencia ni aprobación."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder) / 'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, informe = runtime_doble(peso)
+            reg = RegistroModelo(peso.parent/'registro')
+            r = registrar_resultado(informe, cfg, registro=reg, activar=True,
+                revalidar=lambda: identidades(cfg), **declaracion(cfg, peso))
+            self.assertEqual(r['status'], 'RECHAZADO')
+            self.assertFalse(r['activado'])
+            self.assertIsNone(reg.activo('llm'))
+            self.assertTrue(any('referencia activa' in x for x in r['harness_bloqueos']))
+            self.assertEqual(reg.detalle('llm', r['candidate_id'])['metrics']['harness'], informe)
+
+    def test_artefacto_activo_corrupto_impide_registro(self):
+        """043:RF-7 — se verifica el archivo activo, no solo los manifiestos."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder)/'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, informe = runtime_doble(peso, activo=True)
+            reg = RegistroModelo(peso.parent/'registro')
+            anterior, ultimo = reg.activo('llm'), reg.ultimo('llm')
+            detalle = reg.detalle('llm', anterior['candidate_id'])
+            (Path(detalle['path'])/'artifacts/referencia.bin').write_bytes(b'alteracion propia')
+            with self.assertRaisesRegex(ValueError, 'artefacto'):
+                registrar_resultado(informe, cfg, registro=reg, activar=True,
+                    revalidar=lambda: identidades(cfg), **declaracion(cfg, peso))
+            self.assertEqual(reg.activo('llm'), anterior)
+            self.assertEqual(reg.ultimo('llm')['candidate_id'], ultimo['candidate_id'])
+
+    def test_activo_cambia_tras_crear_etapa_no_invoca_proveedor(self):
+        """043:RF-7 — revalidar antes de ejecutar una etapa previamente preparada."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder)/'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, _ = runtime_doble(peso, activo=True)
+            reg = RegistroModelo(peso.parent/'registro')
+            llamadas = []
+            etapa = crear_etapa(nombre='qlora', config=cfg,
+                proveedor=lambda *args: llamadas.append(args), evaluadores=evaluadores(cfg),
+                registro=reg, declaracion=declaracion(cfg, peso),
+                informe_path=peso.parent/'informe.json', uses_gpu=False)
+            reg.retirar_activo('llm')
+            with self.assertRaisesRegex(ValueError, 'activo cambió'):
+                etapa.run()
+            self.assertEqual(llamadas, [])
+            self.assertFalse((peso.parent/'informe.json').exists())
+
+    def test_relectura_del_activo_antes_de_activar_detecta_bytes_alterados(self):
+        """043:RF-7 — una alteración tras registrar tampoco cambia el puntero activo."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder)/'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, informe = runtime_doble(peso, activo=True)
+            reg = RegistroModelo(peso.parent/'registro')
+            anterior = reg.activo('llm')
+            detalle = reg.detalle('llm', anterior['candidate_id'])
+            llamadas = []
+
+            def revalidar():
+                llamadas.append(1)
+                if len(llamadas) == 2:
+                    (Path(detalle['path'])/'artifacts/referencia.bin').write_bytes(b'alteracion propia')
+                return identidades(cfg)
+
+            with self.assertRaisesRegex(ValueError, 'artefacto'):
+                registrar_resultado(informe, cfg, registro=reg, activar=True,
+                    revalidar=revalidar, **declaracion(cfg, peso))
+            self.assertEqual(len(llamadas), 2)
+            self.assertEqual(reg.activo('llm'), anterior)
+
+    def test_etapa_preserva_declaracion_de_recurso_sellada_sin_adquirir_gpu(self):
+        """043:RF-5 — el factory no rebaja uses_gpu ni ejecuta un proveedor."""
+        with tempfile.TemporaryDirectory() as folder:
+            peso = Path(folder)/'peso.bin'
+            peso.write_bytes(b'candidato sintetico')
+            cfg, _ = runtime_doble(peso, activo=True)
+            cfg['integracion']['uses_gpu'] = True
+            cfg = sellar(cfg)
+            kwargs = {'nombre': 'qlora', 'config': cfg, 'proveedor': proveedor,
+                'evaluadores': evaluadores(cfg), 'registro': RegistroModelo(peso.parent/'registro'),
+                'declaracion': declaracion(cfg, peso), 'informe_path': peso.parent/'informe.json'}
+            with self.assertRaisesRegex(ValueError, 'recursos'):
+                crear_etapa(**kwargs, uses_gpu=False)
+            etapa = crear_etapa(**kwargs, uses_gpu=True)
+            self.assertIs(etapa.uses_gpu, True)
+            self.assertFalse((peso.parent/'informe.json').exists())
+
     def test_decision_dominio_de_otra_evaluacion_no_promueve(self):
         with tempfile.TemporaryDirectory() as folder:
             peso = Path(folder)/'peso.bin'
@@ -108,7 +245,7 @@ class IntegracionTest(unittest.TestCase):
             base = Path(folder)
             peso = base/'peso.bin'
             peso.write_bytes(b'fixture publicado solo en registro temporal')
-            cfg, r = runtime_doble(peso)
+            cfg, r = runtime_doble(peso, activo=True)
             reg = RegistroModelo(base/'registro')
             m = declaracion(cfg, peso)
             identidad = lambda: identidades(cfg)
@@ -128,12 +265,13 @@ class IntegracionTest(unittest.TestCase):
             base = Path(folder)
             peso = base/'peso.bin'
             peso.write_bytes(b'fixture')
-            cfg, r = runtime_doble(peso)
+            cfg, r = runtime_doble(peso, activo=True)
             reg = RegistroModelo(base/'registro')
+            anterior = reg.activo('llm')
             with self.assertRaisesRegex(ValueError, 'cambió'):
                 registrar_resultado(r, cfg, registro=reg, activar=True,
                     revalidar=lambda: {'digest': '0'*64}, **declaracion(cfg, peso))
-            self.assertIsNone(reg.activo('llm'))
+            self.assertEqual(reg.activo('llm'), anterior)
 
     def test_contract_se_registra_rechazado_y_no_altera_activo(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -229,7 +367,7 @@ class IntegracionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             peso = Path(folder)/'peso.bin'
             peso.write_bytes(b'fixture')
-            cfg, r = runtime_doble(peso)
+            cfg, r = runtime_doble(peso, activo=True)
             estado = identidades(cfg)
             estado['referencia']['digest'] = '0'*64
             with self.assertRaisesRegex(ValueError, 'referencia'):

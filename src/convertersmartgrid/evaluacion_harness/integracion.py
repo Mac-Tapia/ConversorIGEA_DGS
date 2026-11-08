@@ -43,6 +43,18 @@ def _destino(config, registro, modelo, *, nombre=None, uses_gpu=None):
         raise ValueError('destino/familia/etapa/recursos distinto del vínculo sellado')
     if registro.activo(modelo) != vinculo['activo_esperado']:
         raise ValueError('el activo cambió respecto de la referencia sellada')
+    if vinculo['activo_esperado'] is not None:
+        # El puntero estable no demuestra que se evaluó ese modelo. Releer el
+        # candidato íntegro también verifica los bytes de sus artefactos.
+        detalle = registro.detalle(modelo, vinculo['activo_esperado']['candidate_id'])
+        referencia, manifest = config['modelos']['referencia'], detalle['model_manifest']
+        if (detalle['decision'].get('status') != 'PROMOVIDO'
+                or detalle['decision'].get('gates', {}).get('approved') is not True
+                or detalle['smoke_reload'].get('ok') is not True
+                or referencia['digest'] != manifest.get('digest')
+                or referencia['config_hash'] != manifest.get('config_hash')
+                or referencia.get('artifacts') != detalle['artifacts']):
+            raise ValueError('la referencia evaluada no corresponde al activo íntegro sellado')
     return vinculo
 
 
@@ -54,12 +66,14 @@ def registrar_resultado(informe: dict, config: dict, *, registro, modelo: str,
 
     El registro real verifica sus propios artefactos y conserva el activo anterior.
     No se promueve desde diagnósticos ni se modifica una decisión inmutable existente.
+    Sin activo acreditado solo registra rechazo/diagnóstico: el bootstrap requiere
+    un protocolo distinto de la comparación contra el activo.
     """
     validar(config)
     validar_integridad(informe)
     if type(activar) is not bool:
         raise ValueError('activar debe ser una decisión booleana explícita')
-    _destino(config, registro, modelo)
+    vinculo = _destino(config, registro, modelo)
     if informe['configuracion'] != config:
         raise ValueError('configuración distinta del informe')
     candidato = config['modelos']['candidato']
@@ -77,6 +91,10 @@ def registrar_resultado(informe: dict, config: dict, *, registro, modelo: str,
         if not p.is_file() or _sha(p) != esperados[p.name]:
             raise ValueError('artefacto modificado/ausente: '+str(p))
     bloqueos = []
+    if vinculo['activo_esperado'] is None:
+        # Un arranque sin activo necesita un protocolo de bootstrap distinto.
+        # Conservar diagnóstico/rechazo no autoriza a inventar equivalencia.
+        bloqueos.append('sin referencia activa acreditada: bootstrap no habilita promoción')
     try:
         validar_promocion(informe, config)
     except ValueError as exc:
@@ -172,6 +190,7 @@ def crear_etapa(*, nombre: str, config: dict, proveedor, evaluadores: dict,
     cfg, manifest = deepcopy(config), deepcopy(declaracion)
 
     def run():
+        _destino(cfg, registro, manifest['modelo'], nombre=nombre, uses_gpu=uses_gpu)
         informe = ejecutar(cfg, proveedor, modo=modo, evaluadores=evaluadores, cancelar=cancelar)
         publicar(Path(informe_path), informe)
         if informe['estado'] == 'CANCELADA':
