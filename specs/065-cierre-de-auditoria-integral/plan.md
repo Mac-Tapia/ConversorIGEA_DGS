@@ -32,3 +32,13 @@ Rutas y staging se acuerdan antes de cambiar consumidores. Los agentes escriben 
 superficies separadas; el integrador actualiza pyproject, índice y specs generadas.
 El motor nativo sigue serializado. Las tareas se cierran con resultados, no con número
 de citas ni con ausencia de error. Los estados parciales quedan visibles en el ledger.
+
+Corrección Windows (2026-11-08, RF-24): `verificar_candidato` admite `--trabajo-root`
+externo y crea una raíz corta propia automáticamente para la suite completa en Windows;
+la evidencia permanece en `--output-dir`. El registro enlaza ambas ubicaciones y conserva
+su propietario. La consulta de Python tiene plazo y termina solo su árbol propio, con
+identidad de creación; la salida binaria conserva bytes nativos no UTF-8. Las cachés
+generadas se marcan para reconfigurarlas sin desplazar los datos de la ejecución ni
+los overrides manuales. Los avisos del puerto ocupado también conservan esa salida
+binaria. Verificaciones enfocadas en `test_verificar_candidato`, `test_runtime_paths`
+y `test_lanzador_web`; la regresión completa sigue siendo una puerta independiente.

@@ -95,6 +95,9 @@ def preparar_arbol(raiz: Path, arbol: Path, manifiesto: dict, terminos: CE.Termi
             shutil.copyfile(ruta, destino)
     if dist != raiz / 'frontend' / 'dist':
         shutil.copytree(dist, arbol / PROGRAMA_EN_PAQUETE / 'frontend' / 'dist', dirs_exist_ok=True)
+    front = _componentes_del_front(raiz)
+    avisos = _avisos(front, _licencias_del_front(raiz, front))
+    (arbol / PROGRAMA_EN_PAQUETE / 'frontend' / 'dist' / 'THIRD_PARTY_NOTICES.txt').write_text(avisos, encoding='utf-8')
     shutil.copyfile(raiz / 'pyproject.toml', arbol / 'pyproject.toml')
     (arbol / 'README.md').write_text(_LEEME_RUEDA, encoding='utf-8')
     if version:
@@ -237,6 +240,36 @@ def _avisos(componentes: list[dict[str, Any]], textos: dict[str, list[tuple[str,
     return '\n'.join(partes) + '\n'
 
 
+def _licencias_del_front(raiz: Path, componentes: list[dict[str, Any]]) -> dict[str, list[tuple[str, str]]]:
+    """086:RF-39 — textos revisados del mismo tarball que fija npm; construcción sin red."""
+    carpeta = raiz / 'frontend' / 'licencias'
+    try:
+        manifest = json.loads((carpeta / 'manifest.json').read_text(encoding='utf-8'))
+        lock = json.loads((raiz / 'frontend' / 'package-lock.json').read_text(encoding='utf-8'))['packages']
+        paquetes = {(p['name'], p['version'], p['integrity']): p for p in manifest['packages']}
+        textos = {}
+        for c in componentes:
+            coincidencias = [p for ruta, p in lock.items()
+                            if ruta.startswith('node_modules/') and not p.get('dev')
+                            and ruta.rsplit('node_modules/', 1)[-1] == c['name'] and p['version'] == c['version']]
+            if not coincidencias:
+                raise ValueError(f'componente ausente del lock: {c["name"]}')
+            for fila in coincidencias:
+                p = paquetes[(c['name'], c['version'], fila['integrity'])]
+                ruta = (carpeta / p['license_file']).resolve()
+                if not ruta.is_relative_to(carpeta.resolve()):
+                    raise ValueError('licencia fuera de su carpeta')
+                if _sha256(ruta) != p['license_sha256']:
+                    raise ValueError(f'huella de licencia distinta: {c["name"]}')
+                texto = ruta.read_text(encoding='utf-8')
+                if not texto.strip():
+                    raise ValueError(f'licencia vacía: {c["name"]}')
+                textos[f'{c["name"]} {c["version"]}'] = [(p['license_file'], texto)]
+        return textos
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CE.EntregaError(f'Licencias del front incompletas o distintas del lock: {exc}') from exc
+
+
 # --------------------------------------------------------------------------- candidato
 def _revision(raiz: Path) -> str:
     r = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=raiz, capture_output=True, text=True, check=False)
@@ -290,7 +323,9 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     licencia_python = salida / 'terceros' / 'python' / 'LICENSE.txt'
     if licencia_python.is_file():
         textos[f'CPython {version_python}'] = [('LICENSE.txt', licencia_python.read_text(encoding='utf-8', errors='replace'))]
-    componentes += _componentes_del_front(raiz)
+    front = _componentes_del_front(raiz)
+    componentes += front
+    textos.update(_licencias_del_front(raiz, front))
     leaflet = raiz / 'src' / 'convertersmartgrid' / 'recursos' / 'leaflet' / 'LICENSE'
     componentes.append({'name': 'leaflet', 'version': 'en recursos/leaflet', 'license': 'BSD-2-Clause', 'origen': 'web', 'sin_purl': True})
     textos['leaflet'] = [('LICENSE', leaflet.read_text(encoding='utf-8'))]

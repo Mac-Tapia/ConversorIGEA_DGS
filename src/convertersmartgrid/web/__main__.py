@@ -38,11 +38,13 @@ def _salida(cmd: list[str]) -> str:
     import subprocess
 
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
+        r = subprocess.run(cmd, capture_output=True, timeout=5,
                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except (OSError, subprocess.SubprocessError):
         return ''
-    return r.stdout or ''
+    # netstat/PowerShell pueden emitir OEM aunque Python use UTF-8. Conservar los
+    # bytes no válidos escapados mantiene legibles puerto/PID sin perder la salida.
+    return r.stdout.decode('utf-8', errors='backslashreplace')
 
 
 def quien_escucha(port: int) -> tuple[int, str] | None:

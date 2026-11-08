@@ -11,11 +11,15 @@
       "evidence": []
     },
     "P01": {
-      "state": "nucleo_verificado_ia_en_preparacion_aislada",
+      "state": "dependencias_integrales_instaladas_uso_cuda_verificado_auditoria_parcial",
       "evidence": [
         "p01_core_audit_980e87df.json",
         "p01_ml_diagnostico_resumen_980e87df.json",
-        "p01_entorno_integral_20261108/plan_dependencias.json"
+        "p01_entorno_integral_20261108/plan_dependencias.json",
+        "p01_entorno_integral_20261108/instalacion_dependencias.json",
+        "p01_entorno_integral_20261108/comprobacion_uso/resultado.json",
+        "p01_entorno_integral_20261108/comprobacion_corregida.json",
+        "p01_entorno_integral_20261108/auditoria_instalada.json"
       ]
     },
     "P02": {
@@ -23,7 +27,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "regresion_real_rechazada_intervenida_sin_cambios_de_fuentes",
+      "state": "fallos_verificador_y_codificacion_corregidos_regresion_final_pendiente",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -33,7 +37,15 @@
         "p03_980e87df_analisis_junit.json",
         "p03_intervencion_runtime_980e87df.json",
         "p03_watchdog_runtime_980e87df.jsonl",
-        "p03_contrastes_runtime_v2_980/results.json"
+        "p03_contrastes_runtime_v2_980/results.json",
+        "p03_contrastes_runtime_v3_980/results.json",
+        "p03_rojo_verificador_bb67.log",
+        "p03_verde_verificador_bb67.log",
+        "p03_revalidacion_fallos_integral_20261108/junit.xml",
+        "p03_pid_rojo.log",
+        "p03_pid_verde.xml",
+        "p03_p22_integracion.xml",
+        "p03_p22_catalogo.xml"
       ]
     },
     "P04": {
@@ -224,14 +236,20 @@
       "evidence": []
     },
     "P22": {
-      "state": "lectores_avisos_corregidos_instalador_completo_pendiente",
+      "state": "licencias_integras_verificadas_construccion_real_pendiente",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
         "p22_avisos_red.xml",
         "p19_p22_cierre.xml",
         "p22_inventario_nucleo_980e87df/verificacion.json",
-        "p22_licencias_front_980e87df/manifest.json"
+        "p22_licencias_front_980e87df/manifest.json",
+        "p22_front_licencias_rojo.log",
+        "p22_front_licencias_verde2.log",
+        "p22_rueda_licencias_rojo.log",
+        "p22_herramientas_oficiales/procedencia.json",
+        "p03_p22_integracion.xml",
+        "p03_p22_catalogo.xml"
       ]
     },
     "P23": {

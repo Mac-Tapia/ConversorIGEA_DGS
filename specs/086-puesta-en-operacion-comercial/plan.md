@@ -115,3 +115,10 @@ disposiciones si se toca el lector. El navegador real para la web. Nada se da po
 - F5 puede obligar a mover ficheros que hoy se leen por ruta: se hace con la línea base en cada paso.
 - D7 puede cambiar qué se entrega (`mmarco`, datos de entrenamiento, redistribuir CUDA).
 - Sesiones que escriben en `main`: la ventana de F0 y F2 necesita su acuerdo.
+
+Corrección de empaquetado (2026-11-08, RF-36/39): `frontend/licencias` conserva textos
+extraídos de los tarballs cuya integridad coincide con el lock de npm. El constructor
+rechaza versiones, huellas o textos ausentes y copia los avisos íntegros tanto a la
+rueda como al candidato. Incluye transitivas de producción; las herramientas de
+desarrollo siguen fuera del inventario entregado. Esto no cierra instalación,
+actualización/reversión ni corridas nativas de T40/T32.

@@ -79,6 +79,15 @@ def _en_el_programa(fuera: Path, tmp_path: Path, codigo: str, **entorno) -> str:
 
 
 # --------------------------------------------------------------------------- RF-36: fuera del repositorio
+def test_rueda_conserva_textos_de_licencias_del_front(rueda):
+    """086:RF-39 — instalar solo la rueda también conserva los permisos del frontend compilado."""
+    with zipfile.ZipFile(rueda) as z:
+        texto = z.read('convertersmartgrid/_programa/frontend/dist/THIRD_PARTY_NOTICES.txt').decode('utf-8')
+    for paquete in ('react 19.3.0', 'react-dom 19.3.0', 'scheduler 0.28.0'):
+        assert paquete in texto
+    assert 'Permission is hereby granted, free of charge' in texto
+
+
 def test_fuera_del_repositorio_encuentra_lo_suyo(fuera, tmp_path):
     """086:RF-36 — el fallo real: instalado, `parents[2]` era site-packages y no había ni tools/ ni config/ ni el front."""
     salida = _en_el_programa(fuera, tmp_path, """
@@ -1082,6 +1091,37 @@ def test_el_guion_del_instalador_no_sale_a_internet():
     assert not re.search(r'https?://|DownloadTemporaryFile|pip install|npm', iss, flags=re.I)
     borra = [l for l in iss.splitlines() if l.startswith('Type:')]
     assert borra and all('{app}' in l for l in borra), 'desinstalar no toca la carpeta de datos'
+
+
+def test_avisos_del_front_con_textos_y_huellas_del_lock(tmp_path):
+    """086:RF-39 — el candidato conserva el texto íntegro de cada dependencia compilada."""
+    front = tmp_path / 'frontend'
+    licenses = front / 'licencias'
+    licenses.mkdir(parents=True)
+    texto = 'Permiso completo de ejemplo.\n'
+    (licenses / 'MIT.txt').write_text(texto, encoding='utf-8')
+    paquete = {'name':'ejemplo','version':'1.0.0','integrity':'sha512-origen',
+               'license_file':'MIT.txt','license_sha256':hashlib.sha256((licenses / 'MIT.txt').read_bytes()).hexdigest()}
+    (licenses / 'manifest.json').write_text(json.dumps({'packages':[paquete]}), encoding='utf-8')
+    (front / 'package-lock.json').write_text(json.dumps({'packages':{
+        'node_modules/ejemplo':{'version':'1.0.0','integrity':'sha512-origen','license':'MIT'}}}), encoding='utf-8')
+    componentes = CC._componentes_del_front(tmp_path)
+    textos = CC._licencias_del_front(tmp_path, componentes)
+    assert texto.strip() in CC._avisos(componentes, textos)
+    assert 'ejemplo 1.0.0' in textos
+    (licenses / 'MIT.txt').write_text('alterado', encoding='utf-8')
+    with pytest.raises(CE.EntregaError, match='huella|licencia'):
+        CC._licencias_del_front(tmp_path, componentes)
+
+
+def test_licencias_del_front_no_aceptan_un_lock_distinto(tmp_path):
+    """086:RF-39 — actualizar una dependencia obliga a revisar sus avisos, sin descargar en el build."""
+    shutil.copytree(RAIZ / 'frontend/licencias', tmp_path / 'frontend/licencias')
+    lock = json.loads((RAIZ / 'frontend/package-lock.json').read_text(encoding='utf-8'))
+    lock['packages']['node_modules/react']['version'] = '999.0.0'
+    (tmp_path / 'frontend/package-lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    with pytest.raises(CE.EntregaError, match='licencia|versión|lock'):
+        CC._licencias_del_front(tmp_path, CC._componentes_del_front(tmp_path))
 
 
 def test_avisos_incluyen_licencia_embebida_con_prefijo(tmp_path):

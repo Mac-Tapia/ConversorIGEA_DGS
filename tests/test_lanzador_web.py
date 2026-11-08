@@ -28,6 +28,20 @@ from convertersmartgrid.web import app as app_mod  # noqa: E402
 from convertersmartgrid.web.runtime import huella_del_codigo  # noqa: E402
 
 
+def test_salida_nativa_con_bytes_no_utf8_no_pierde_el_pid(tmp_path):
+    """001:RF-31 — netstat puede usar OEM aunque Python esté en UTF-8; el aviso conserva el PID."""
+    import subprocess
+    code = ('import sys,json;from convertersmartgrid.web.__main__ import _salida;'
+            'print(json.dumps(_salida([sys.executable,"-B","-c",'
+            '"import sys;sys.stdout.buffer.write(bytes([255])+b\\\" proceso 12345\\\")"])))')
+    env = {**os.environ, 'PYTHONPATH':str(ROOT / 'src')}
+    result = subprocess.run([sys.executable,'-X','utf8','-B','-c',code],cwd=tmp_path,env=env,
+                            capture_output=True,timeout=20)
+    assert result.returncode == 0, result.stderr
+    text = json.loads(result.stdout)
+    assert 'proceso 12345' in text and '\\xff' in text
+
+
 def _huella_actual() -> str:
     return huella_del_codigo(app_mod.frontend_dist())
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -57,9 +58,9 @@ def test_help_no_carga_motores_ni_crea_salida(tmp_path):
     """065:RF-24 — consultar ayuda no requiere backend, pytest ni conectores."""
     herramienta = Path(__file__).resolve().parents[1] / 'tools' / 'verificar_candidato.py'
     resultado = subprocess.run([sys.executable, '-I', '-S', '-B', str(herramienta), '--help'],
-                               cwd=tmp_path, capture_output=True, text=True)
+                               cwd=tmp_path, capture_output=True)
     assert resultado.returncode == 0, resultado.stderr
-    assert '--suite-completa' in resultado.stdout
+    assert b'--suite-completa' in resultado.stdout
     assert not list(tmp_path.iterdir())
 
 
@@ -83,6 +84,110 @@ def test_subproceso_no_escribe_en_almacen_heredado(tmp_path,monkeypatch,candidat
     assert [p.name for p in host.iterdir()]==['conservar.json']
     assert (host/'conservar.json').read_text(encoding='utf-8')=='original'
     assert fuente.read_text(encoding='utf-8')=='fuente original'
+
+
+@pytest.mark.parametrize('manual', [False, True])
+def test_caches_del_verificador_son_reconfigurables_sin_mover_sus_datos(tmp_path, monkeypatch, manual):
+    """065:RF-10, 065:RF-24 — caché automática reubicable; override manual y datos aislados se conservan."""
+    from convertersmartgrid.runtime_paths import configurar_entorno
+    root = tmp_path / 'checkout'
+    root.mkdir()
+    env = runner()._entorno(tmp_path / 'ejecucion', {})
+    for name, value in env.items():
+        if name.startswith('CSG_') or name in ('HF_HOME','TORCH_HOME','RUFF_CACHE_DIR','npm_config_cache',
+                'HF_HUB_CACHE','PYTHONPYCACHEPREFIX','TORCHINDUCTOR_CACHE_DIR','TRITON_CACHE_DIR'):
+            monkeypatch.setenv(name, value)
+    nueva = tmp_path / 'cache_nueva'
+    monkeypatch.setenv('CSG_CACHE_HOME', str(nueva))
+    custom = tmp_path / 'cache_manual'
+    custom.mkdir()
+    witness = custom / 'conservar.txt'
+    witness.write_text('original', encoding='utf-8')
+    if manual:
+        monkeypatch.setenv('TORCH_HOME', str(custom))
+    paths = configurar_entorno(root)
+    assert Path(os.environ['HF_HOME']).is_relative_to(paths.cache)
+    assert Path(os.environ['TORCH_HOME']) == (custom if manual else paths.cache / 'torch')
+    assert os.environ['CSG_RUNTIME_HOME'] == env['CSG_RUNTIME_HOME']
+    assert os.environ['CSG_WEB_DATA'] == env['CSG_WEB_DATA']
+    assert witness.read_text(encoding='utf-8') == 'original'
+
+
+def test_raiz_de_trabajo_corta_conserva_evidencia_larga(candidato_minimo, tmp_path, monkeypatch):
+    """065:RF-1, 065:RF-24 — evidencia larga y scratch propio corto sin escribir dentro de las fuentes."""
+    mod = runner()
+    for name in mod.ENTRADAS.values():
+        monkeypatch.delenv(name, raising=False)
+    salida = tmp_path / ('e' * 70) / ('f' * 70) / 'evidencia'
+    trabajo = tmp_path / 'trabajo'
+    assert mod.main(['--root',str(candidato_minimo),'--output-dir',str(salida),
+                     '--trabajo-root',str(trabajo)]) == 0
+    registro, = salida.glob('*/registro.json')
+    data = json.loads(registro.read_text(encoding='utf-8'))
+    work = Path(data['working_root'])
+    assert work.is_relative_to(trabajo) and not work.is_relative_to(salida)
+    assert (work / 'owner.json').is_file()
+    base = Path(data['command'][data['command'].index('--basetemp') + 1])
+    assert base.is_relative_to(work)
+    assert (work / 'runtime/data/asistente').is_dir()
+    assert not (candidato_minimo / 'runtime').exists()
+
+
+def test_raiz_de_trabajo_en_el_candidato_se_rechaza_sin_escribir(candidato_minimo, tmp_path):
+    """065:RF-24 — el scratch no puede apuntar a código ni datos fuente."""
+    salida = tmp_path / 'evidencia'
+    assert runner().main(['--root',str(candidato_minimo),'--output-dir',str(salida),
+        '--trabajo-root',str(candidato_minimo / 'scratch')]) == 1
+    assert not salida.exists() and not (candidato_minimo / 'scratch').exists()
+
+
+def test_consulta_runtime_acota_y_cierra_sus_hijos(tmp_path, monkeypatch):
+    """065:RF-24 — intérprete bloqueado real: plazo y cierre del lanzador con su árbol propio."""
+    import psutil
+    import time
+    mod = runner()
+    pidfile = tmp_path / 'hijo.txt'
+    code = ('import subprocess,sys,time;from pathlib import Path;'
+        'p=subprocess.Popen([sys.executable,"-B","-c","import time;time.sleep(60)"]);'
+        f'Path({str(pidfile)!r}).write_text(str(p.pid));time.sleep(60)')
+    started = []
+
+    def lanzar(_cmd, *, cwd, env):
+        process = subprocess.Popen([sys.executable,'-B','-c',code], cwd=cwd, env=env,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+        started.append(process)
+        return process
+
+    monkeypatch.setattr(mod, '_lanzar_consulta_runtime', lanzar)
+    before = time.monotonic()
+    with pytest.raises(ValueError, match='tiempo|plazo'):
+        mod._runtime(Path(sys.executable), tmp_path, mod._entorno(tmp_path / 'run', {}), tiempo_s=2)
+    assert time.monotonic() - before < 10
+    assert started[0].poll() is not None
+    assert pidfile.is_file(), 'la prueba debe haber creado el hijo real'
+    pid = int(pidfile.read_text())
+    try:
+        child = psutil.Process(pid)
+        assert not child.is_running() or child.status() == psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        pass
+
+
+def test_consulta_runtime_con_error_nativo_no_pierde_bytes(tmp_path, monkeypatch):
+    """065:RF-24 — stderr no UTF-8 no rompe hilos lectores ni se confunde con un runtime válido."""
+    mod = runner()
+
+    def lanzar(_cmd, *, cwd, env):
+        return subprocess.Popen([sys.executable,'-B','-c',
+            'import sys;sys.stderr.buffer.write(b"error nativo: \\xff");sys.exit(3)'],
+            cwd=cwd,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+            creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+
+    monkeypatch.setattr(mod, '_lanzar_consulta_runtime', lanzar)
+    with pytest.raises(ValueError, match='intérprete') as error:
+        mod._runtime(Path(sys.executable),tmp_path,mod._entorno(tmp_path/'run',{}),tiempo_s=5)
+    assert '\\xff' in str(error.value)
 
 
 @pytest.mark.parametrize('contenido,esperado', [

@@ -51,7 +51,9 @@ def _git_local():
 
 
 def _json(ruta: Path, valor) -> None:
-    ruta.write_text(json.dumps(valor, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    temporal = ruta.with_name(ruta.name + '.' + uuid.uuid4().hex + '.tmp')
+    temporal.write_text(json.dumps(valor, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    temporal.replace(ruta)
 
 
 def resumir_junit(ruta: Path) -> dict:
@@ -164,12 +166,12 @@ def _validar_entradas(args) -> tuple[dict, list]:
     return entradas, faltantes
 
 
-def _entorno(ejecucion: Path, entradas: dict) -> dict:
+def _entorno(ejecucion: Path, entradas: dict, *, raiz_trabajo: Path | None = None) -> dict:
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith(('GIT_', 'PYTEST_'))
            and k.upper() not in {'PYTHONPATH', 'PYTHONHOME', 'CSG_RUTAS_AUTOMATICAS'}}
     env.update({k: str(v) for k, v in entradas.items()})
     env.update(PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1',
-               MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1', PYTHONUTF8='1')
+               MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1', PYTHONUTF8='1', PYTHONIOENCODING='utf-8')
     # 065:RF-24: una ruta heredada de la web activa prevalece sobre runtime_home y haría
     # que las pruebas escribieran datos o modelos del operador. Las nueve entradas
     # explícitas se conservan; los destinos y cachés pertenecen a esta ejecución.
@@ -184,25 +186,74 @@ def _entorno(ejecucion: Path, entradas: dict) -> dict:
              'HF_HUB_CACHE': 'cache/huggingface/hub', 'XDG_CACHE_HOME': 'cache/xdg',
              'NUMBA_CACHE_DIR': 'cache/numba', 'MPLCONFIGDIR': 'cache/matplotlib',
              'CUDA_CACHE_PATH': 'cache/cuda', 'TORCH_EXTENSIONS_DIR': 'cache/torch_extensions'}
+    base = raiz_trabajo or ejecucion
+    automaticas = {}
     for variable, relativo in rutas.items():
-        ruta = ejecucion / relativo
+        ruta = base / relativo
         ruta.mkdir(parents=True, exist_ok=True)
         env[variable] = str(ruta)
+        if relativo.startswith('cache/'):
+            automaticas[variable] = str(ruta)
+    # Solo las cachés son reubicables: los destinos de datos continúan aislados.
+    env['CSG_RUTAS_AUTOMATICAS'] = json.dumps(automaticas)
     # El perfil es un fichero opcional, no un directorio ni el perfil real del puesto.
-    env['CSG_PERFIL_EMPRESA'] = str(ejecucion / 'runtime/data/perfil_empresa.json')
+    env['CSG_PERFIL_EMPRESA'] = str(base / 'runtime/data/perfil_empresa.json')
     return env
 
 
-def _runtime(python: Path, raiz: Path, env: dict) -> dict:
+def _lanzar_consulta_runtime(comando: list[str], *, cwd: Path, env: dict):
+    """065:RF-24 — tuberías binarias para conservar fallos nativos de otra codificación."""
+    return subprocess.Popen(comando, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+
+
+def _cerrar_consulta_runtime(proceso, propietario) -> None:
+    """065:RF-24 — termina exclusivamente el proceso lanzado y sus descendientes propios."""
+    import psutil
+    try:
+        hijos = propietario.children(recursive=True) if propietario is not None and propietario.is_running() else []
+    except psutil.NoSuchProcess:
+        hijos = []
+    # Los objetos psutil conservan la identidad de creación frente a reutilización de PID.
+    for hijo in reversed(hijos):
+        try:
+            if hijo.is_running():
+                hijo.kill()
+        except psutil.NoSuchProcess:
+            pass
+    if proceso.poll() is None:
+        proceso.kill()
+    proceso.wait(timeout=3)
+    _, vivos = psutil.wait_procs(hijos, timeout=2)
+    if vivos:
+        raise ValueError('No se pudo cerrar todo el árbol propio de la consulta del intérprete')
+
+
+def _runtime(python: Path, raiz: Path, env: dict, *, tiempo_s: float = 30) -> dict:
     codigo = ('import sys,platform,json,importlib.metadata as m; '
               'print(json.dumps({"executable":sys.executable,"version":sys.version,'
               '"version_info":list(sys.version_info[:3]),"platform":platform.platform(),'
               '"packages":{d.metadata["Name"]:d.version for d in m.distributions()}}))')
-    proceso = subprocess.run([str(python), '-B', '-c', codigo], cwd=raiz, env=env,
-                             capture_output=True, text=True, encoding='utf-8', check=False)
+    proceso = _lanzar_consulta_runtime([str(python), '-B', '-c', codigo], cwd=raiz, env=env)
+    import psutil
+    try:
+        propietario = psutil.Process(proceso.pid)
+    except psutil.NoSuchProcess:
+        propietario = None
+    try:
+        salida, error = proceso.communicate(timeout=tiempo_s)
+    except subprocess.TimeoutExpired as exc:
+        _cerrar_consulta_runtime(proceso, propietario)
+        proceso.communicate(timeout=3)
+        raise ValueError(f'La consulta del intérprete superó el plazo de {tiempo_s:g} segundos') from exc
     if proceso.returncode:
-        raise ValueError('No se pudo consultar el intérprete Python seleccionado')
-    informe = json.loads(proceso.stdout)
+        detalle = error.decode('utf-8', errors='backslashreplace')
+        raise ValueError(f'No se pudo consultar el intérprete Python seleccionado ({proceso.returncode}): {detalle}')
+    try:
+        informe = json.loads(salida)
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError('La consulta del intérprete no devolvió JSON válido') from exc
     if informe['version_info'][:2] != [3, 12]:
         raise ValueError('La regresión integrada requiere Python 3.12 exacto')
     return informe
@@ -213,6 +264,7 @@ def _parser():
     parser.add_argument('--root', type=Path, default=RAIZ, help='checkout candidato a leer')
     parser.add_argument('--output-dir', type=Path, required=True, help='raíz de evidencia externa; cada intento crea un UUID')
     parser.add_argument('--python', type=Path, default=Path(sys.executable), help='intérprete Python 3.12 con pytest instalado')
+    parser.add_argument('--trabajo-root', type=Path, help='raíz externa corta para temporales y cachés; la evidencia se conserva en output-dir')
     parser.add_argument('--ejecutar', action='store_true', help='ejecutar pytest; sin esta opción solo prepara')
     parser.add_argument('--suite-completa', action='store_true', help='exigir las nueve entradas y rechazar skip/xfail; sin selección parcial')
     parser.add_argument('--prueba', action='append', default=[], help='ruta/nodeid de pytest dentro del candidato; repetible para fase core')
@@ -241,21 +293,38 @@ def main(argv=None) -> int:
         with _git_local():
             destino = trazabilidad.validar_salida(args.output_dir, raiz)
             revision_id = trazabilidad.revision(raiz)
+            trabajo_padre = args.trabajo_root
+            if trabajo_padre is None and args.suite_completa and os.name == 'nt':
+                local = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData/Local')
+                trabajo_padre = local / 'ConverterSmartGrid/verificacion'
+            if trabajo_padre is not None:
+                trabajo_padre = trazabilidad.validar_salida(trabajo_padre, raiz)
         for variable, origen in entradas.items():
             if origen.is_dir() and destino.is_relative_to(origen):
                 raise ValueError(f'La salida no puede estar dentro de la fuente: {variable}')
+            if origen.is_dir() and trabajo_padre is not None and trabajo_padre.is_relative_to(origen):
+                raise ValueError(f'El trabajo no puede estar dentro de la fuente: {variable}')
         # Todas las validaciones anteriores ocurren antes de crear cualquier salida.
-        ejecucion = destino / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_') + uuid.uuid4().hex)
+        intento = uuid.uuid4().hex
+        ejecucion = destino / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_') + intento)
+        trabajo = trabajo_padre / ('csg-' + intento) if trabajo_padre is not None else ejecucion
+        if os.name == 'nt' and len(str(trabajo / 'tmp')) > 240:
+            raise ValueError('Ruta temporal demasiado larga para Windows; seleccione --trabajo-root con una ruta corta')
         ejecucion.mkdir(parents=True, exist_ok=False)
-        env = _entorno(ejecucion, entradas)
+        if trabajo != ejecucion:
+            trabajo.mkdir(parents=True, exist_ok=False)
+            _json(trabajo / 'owner.json', {'execution': str(ejecucion), 'root': str(raiz),
+                                          'revision': revision_id, 'id': intento})
+        env = _entorno(ejecucion, entradas, raiz_trabajo=trabajo)
         junit = ejecucion / 'junit.xml'
         comando = [str(args.python.resolve()), '-B', '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider',
-                   '--junitxml', str(junit), '--basetemp', str(ejecucion / ('pytest_' + uuid.uuid4().hex)), *pruebas]
+                   '--junitxml', str(junit), '--basetemp', str(trabajo / ('pytest_' + uuid.uuid4().hex)), *pruebas]
         antes, inputs_antes = trazabilidad.hash_candidato(raiz)
         datos_antes = inventariar_datos(entradas, args.hash_datos)
         _json(ejecucion / 'source_inputs_before.json', inputs_antes)
         _json(ejecucion / 'data_inputs_before.json', datos_antes)
         registro = {'format': 'verificacion-candidato-v1', 'root': str(raiz), 'revision': revision_id,
+                    'working_root': str(trabajo),
                     'state': 'preparado', 'scope': 'suite_completa' if args.suite_completa else 'regresion_parcial',
                     'command': comando, 'source_hash_before': antes, 'source_hash_after': None,
                     'missing_inputs': faltantes, 'data_hash_mode': 'sha256' if args.hash_datos else 'metadata_no_criptografica',
