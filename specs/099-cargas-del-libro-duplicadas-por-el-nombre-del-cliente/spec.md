@@ -1,6 +1,6 @@
 # Spec 099 — Cargas del libro duplicadas por el nombre del cliente
 
-Estado: implementada · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, estudio de CA101 + CHN102: «considera uno solo de
+Estado: cumplida (2026-11-08: T3 en DIgSILENT con CA101 + CHN102) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, estudio de CA101 + CHN102: «considera uno solo de
 Tierra Larga, la CH_23; la otra es duplicado; los duplicados no deben considerarse» y «debe hacer la comparativa con el
 nombre del cliente».
 
