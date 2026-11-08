@@ -22,6 +22,7 @@ from __future__ import annotations
 import itertools
 import json
 import logging
+import math
 import os
 import queue
 import subprocess
@@ -180,6 +181,8 @@ class Job:
     # 096:RF-6, RF-7: el interrumpido del que viene, y si este ya se relanzó.
     relanzado_de: str | None = None
     relanzado: bool = False
+    # 096:RF-6: el servidor puede morir antes que su trabajador; el PID solo se reutiliza.
+    proceso: dict | None = None
 
     def public(self) -> dict:
         return {
@@ -231,6 +234,12 @@ class JobContext:
         if self.job.cancel.is_set():
             raise JobCancelled()
 
+    def anotar_proceso(self, pid: int) -> None:
+        """096:RF-6: registrar inmediatamente el Popen propio para impedir un relanzamiento simultáneo."""
+        self.job.proceso = {'pid': pid, 'inicio': _inicio_de_proceso(pid)}
+        if self._diario is not None:
+            self._diario.anotar(self.job)
+
     def en_proceso(self, fn: Callable[..., Any], *args: Any, limite_mb: float | None = None,
                    **kwargs: Any) -> Any:
         """Ejecuta ``fn`` (de nivel superior, con argumentos que se puedan enviar) en un proceso
@@ -251,6 +260,7 @@ class JobContext:
         proc = ctx.Process(target=_en_hijo, args=(fn, args, kwargs, cola, cancelado), daemon=True,
                            name=f'csg-motor-{self.job.id}')
         proc.start()
+        self.anotar_proceso(proc.pid)
         try:
             import psutil
 
@@ -386,6 +396,7 @@ class JobContext:
             cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding='utf-8', errors='replace', env=full_env, cwd=cwd,
         )
+        self.anotar_proceso(proc.pid)
         primera_linea = threading.Event()
 
         def pump() -> None:
@@ -516,6 +527,27 @@ def _inicio_de_proceso(pid: int) -> float | None:
         return None
 
 
+def _proceso_pendiente(identidad: dict | None) -> bool:
+    """096:RF-6: un hijo vivo o de identidad ilegible bloquea repetir; nunca se le envían señales."""
+    if identidad is None:
+        return False
+    try:
+        import psutil
+    except ImportError:
+        return True
+    try:
+        pid, inicio = identidad['pid'], identidad['inicio']
+        if (type(pid) is not int or pid <= 0 or type(inicio) not in (int, float)
+                or not math.isfinite(inicio) or inicio <= 0):
+            return True
+        actual = psutil.Process(pid).create_time()
+        return actual == inicio
+    except psutil.NoSuchProcess:
+        return False
+    except (ImportError, OSError, psutil.AccessDenied, KeyError, TypeError):
+        return True
+
+
 class DiarioTrabajos:
     """Lo que sobrevive a un reinicio de los trabajos sin terminar (086:RF-9).
 
@@ -548,6 +580,8 @@ class DiarioTrabajos:
                 'created_at': job.created_at, 'started_at': job.started_at, 'finished_at': job.finished_at,
                 'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
                 'reanudar': job.reanudar, 'relanzado': job.relanzado,                   # 096:RF-5, RF-6
+                'relanzado_de': job.relanzado_de, 'cancel_requested': job.cancel.is_set(),
+                'proceso': job.proceso,
             })
         except (OSError, ValueError) as exc:
             logging.getLogger(__name__).warning('Diario de trabajos sin anotar %s: %s', job.id, exc)
@@ -622,10 +656,13 @@ class DiarioTrabajos:
                           created_at=float(datos['created_at']), started_at=datos.get('started_at'),
                           finished_at=datos.get('finished_at'),
                           reanudar=datos.get('reanudar') if isinstance(datos.get('reanudar'), dict) else None,
+                          relanzado_de=datos.get('relanzado_de'), proceso=datos.get('proceso'),
                           relanzado=bool(datos.get('relanzado')))
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 logging.getLogger(__name__).warning('Diario de trabajos ilegible, %s: %s', ruta.name, exc)
                 continue
+            if datos.get('cancel_requested'):
+                job.cancel.set()
             if job.lane not in LANES:
                 job.lane = 'engine'  # de una versión con otros carriles: se ve igual
             if job.status != INTERRUMPIDO:
@@ -671,12 +708,15 @@ class JobManager:
     def reanudables(self) -> list[Job]:
         """096:RF-5, RF-6: por espacio, el último interrumpido que se puede repetir y aún no se relanzó."""
         ultimos: dict[str, Job] = {}
-        for job in sorted(self.list(), key=lambda j: j.created_at):
+        todos = self.list()
+        bloqueados = {j.workspace_id for j in todos if _proceso_pendiente(j.proceso)}
+        for job in sorted(todos, key=lambda j: j.created_at):
             if job.status == INTERRUMPIDO:
                 ultimos[job.workspace_id] = job
             elif job.status not in FINISHED:
                 ultimos.pop(job.workspace_id, None)
-        return [j for j in ultimos.values() if j.reanudar and not j.relanzado]
+        return [j for j in ultimos.values() if j.reanudar and not j.relanzado and not j.cancel.is_set()
+                and j.workspace_id not in bloqueados]
 
     def marcar_relanzado(self, job: Job) -> None:
         """096:RF-6: un interrumpido se relanza una sola vez, también tras otro reinicio."""
@@ -771,6 +811,8 @@ class JobManager:
             if job.irrevocable:
                 return job
             job.cancel.set()
+            if self._diario is not None:
+                self._diario.anotar(job)
         if job.status == QUEUED:
             # Aún no empezó: se da por cancelado ya; el hilo lo saltará al sacarlo.
             self._finish(job, CANCELLED)

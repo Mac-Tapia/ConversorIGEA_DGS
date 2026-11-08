@@ -7,6 +7,7 @@ Origin ajeno aceptado. Cada puerta tiene aquí su prueba negativa, también en e
 from __future__ import annotations
 
 import hashlib
+import json
 import base64
 import logging
 import os
@@ -740,6 +741,83 @@ def test_hugging_face_apagado_desde_el_arranque(producto):
     entorno = {VARIABLE_EDICION: 'producto', SALIDAS['hugging_face'].variable: '1'}
     preparar_entorno_sin_red(entorno)
     assert 'HF_HUB_OFFLINE' not in entorno
+
+
+def test_politica_sin_red_prevalece_sobre_las_variables_heredadas(producto):
+    """086:RF-22 — heredar HF_HUB_OFFLINE=0 no debe reabrir una salida desactivada por la política."""
+    entorno = {SALIDAS['hugging_face'].variable: '0', 'HF_HUB_OFFLINE': '0', 'TRANSFORMERS_OFFLINE': '0'}
+    preparar_entorno_sin_red(entorno)
+    assert entorno['HF_HUB_OFFLINE'] == '1' and entorno['TRANSFORMERS_OFFLINE'] == '1'
+
+
+def test_conversion_y_reapertura_en_proceso_sin_sockets_externos(tmp_path):
+    """086:RF-22 / 086:RF-46 — denegación de red en el hijo y sus hijos; conversión real con TXT propios."""
+    aislamiento = tmp_path / 'aislamiento'
+    aislamiento.mkdir()
+    # sitecustomize se carga antes del producto y también en los trabajadores spawn.
+    (aislamiento / 'sitecustomize.py').write_text(
+        'import sys,os,json\n'
+        'def sin_red(evento,args):\n'
+        '    if evento not in ("socket.connect","socket.getaddrinfo"): return\n'
+        '    direccion=args[1] if evento=="socket.connect" else args[0]\n'
+        '    host=direccion[0] if isinstance(direccion,tuple) else direccion\n'
+        '    if host in ("127.0.0.1","::1","localhost",None): return\n'
+        '    with open(os.environ["P21_BLOQUEOS"],"a") as f: f.write(json.dumps({"pid":os.getpid(),"evento":evento})+"\\n")\n'
+        '    raise PermissionError("red externa denegada al proceso propio")\n'
+        'sys.addaudithook(sin_red)\n', encoding='utf-8')
+    guion = tmp_path / 'sin_red.py'
+    guion.write_text(
+        'import os,json,socket,hashlib\nfrom pathlib import Path\n'
+        'from fastapi.testclient import TestClient\n'
+        'from convertersmartgrid.salidas_red import SALIDAS,exigir_salida,SalidaApagada,preparar_entorno_sin_red\n'
+        'from convertersmartgrid import sesion_web\n'
+        'from convertersmartgrid.web.app import create_app\n'
+        'from convertersmartgrid.web.workspace import WorkspaceStore\n'
+        'from test_web_api import _loaded\n'
+        'from apoyo import esperar_trabajo\n'
+        'from synthetic_export import ExportSpec,write_export\n'
+        'if __name__=="__main__":\n'
+        '    try: socket.create_connection(("192.0.2.1",9),timeout=.1)\n'
+        '    except PermissionError: pass\n'
+        '    else: raise AssertionError("aislamiento inactivo")\n'
+        '    preparar_entorno_sin_red()\n'
+        '    avisos=[]\n'
+        '    for nombre in SALIDAS:\n'
+        '        try: exigir_salida(nombre)\n'
+        '        except SalidaApagada as e: avisos.append(str(e))\n'
+        '        else: raise AssertionError(nombre)\n'
+        f'    raiz=Path({str(tmp_path)!r})\n'
+        '    sesion_web.EXIGIR_SEGURIDAD=False\n'
+        '    entradas=write_export(ExportSpec(feeders=2,sections_per_feeder=3,seed=21),raiz/"entradas")\n'
+        '    with TestClient(create_app(raiz/"web")) as c:\n'
+        '        wid=_loaded(c,entradas)\n'
+        '        trabajo=c.post(f"/api/workspaces/{wid}/convert",json={"all":True}).json()\n'
+        '        final=esperar_trabajo(c,trabajo)\n'
+        '        assert final["status"]=="done",final\n'
+        '    ws=WorkspaceStore(raiz/"web").get(wid)\n'
+        '    archivos=list(ws.out_dir.rglob("*.dgs"))\n'
+        '    assert len(archivos)==2 and len(ws.conversions)==2\n'
+        '    hashes={str(p.relative_to(ws.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in archivos}\n'
+        '    with TestClient(create_app(raiz/"web")) as c:\n'
+        '        assert c.get(f"/api/workspaces/{wid}").status_code==200\n'
+        '    assert hashes=={str(p.relative_to(ws.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in archivos}\n'
+        '    (raiz/"resultado.json").write_text(json.dumps({"hashes":hashes,"avisos":avisos,"espacio":wid}))\n',
+        encoding='utf-8')
+    bloqueos = tmp_path / 'bloqueos.jsonl'
+    entorno = {**os.environ, **{s.variable: '0' for s in SALIDAS.values()},
+               'PYTHONPATH': os.pathsep.join(map(str, (aislamiento, RAIZ / 'src', RAIZ / 'tests'))),
+               'P21_BLOQUEOS': str(bloqueos), 'CSG_WEB_DATA': str(tmp_path / 'web'),
+               'CSG_RUNTIME_HOME': str(tmp_path / 'runtime'), 'CSG_CACHE_HOME': str(tmp_path / 'cache'),
+               'CSG_ASISTENTE_DATA': str(tmp_path / 'asistente'), 'CSG_TWIN_DATA': str(tmp_path / 'twin'),
+               'CSG_WEB_RELANZAR': '0', 'CSG_ASISTENTE_VIGILANCIA': '0', 'OPENBLAS_NUM_THREADS': '1'}
+    entorno.pop('PF_PYTHON', None)
+    resultado = subprocess.run([sys.executable, '-B', str(guion)], env=entorno, capture_output=True,
+                               text=True, encoding='utf-8', errors='replace', timeout=60, check=False)
+    assert resultado.returncode == 0, resultado.stdout + resultado.stderr
+    datos = json.loads((tmp_path / 'resultado.json').read_text())
+    assert len(datos['hashes']) == 2 and len(datos['avisos']) == len(SALIDAS)
+    # Solo la sonda deliberada intentó una conexión; el flujo no necesitó ninguna salida externa.
+    assert len(bloqueos.read_text().splitlines()) == 1
 
 
 def test_preparar_modelos_no_descarga_con_la_salida_apagada(producto, tmp_path, capsys):

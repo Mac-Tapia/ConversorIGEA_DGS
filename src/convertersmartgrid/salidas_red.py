@@ -93,5 +93,6 @@ def preparar_entorno_sin_red(environ: MutableMapping[str, str] | None = None) ->
     """
     env = os.environ if environ is None else environ
     if not salida_permitida('hugging_face', env):
-        env.setdefault('HF_HUB_OFFLINE', '1')
-        env.setdefault('TRANSFORMERS_OFFLINE', '1')
+        # 086:RF-22: una variable heredada con valor 0 no reabre la salida apagada.
+        env['HF_HUB_OFFLINE'] = '1'
+        env['TRANSFORMERS_OFFLINE'] = '1'

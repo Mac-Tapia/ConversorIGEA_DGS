@@ -86,3 +86,13 @@
       Hecho cuando: tras parar el trabajo mientras mide la transferencia, la lectura siguiente de la escalera dice qué cerró
       (081:RF-82 o RF-83), «Con proyecto» queda con 0 barras de media sin tensión, como «Sin proyecto», y el registro de
       aperturas queda vacío.
+
+Avance transversal P21, 2026-11-08: el ensayo de RF-37/RF-39/RF-41 usa procesos reales separados y
+una única prueba propia, registra su resultado tras matar el servidor y detecta la muerte real del proceso
+de tandas. `tests/test_suite_por_tandas.py` conserva esa reproducción; no es la noche completa de T14.
+Las pruebas de trabajos interrumpidos producen el diario mediante JobManager antes de matar el servidor,
+sin sembrarlo manualmente para acreditar la caída. El aislamiento de red de `tests/test_seguridad_web.py`
+abarca solo procesos Python propios (audit-hook heredado), conversión de TXT sintéticos y reapertura de dos DGS.
+No hubo importación/calibración/informe nativo, flujo real sin fase, deriva de Caso base nativa ni corte de
+escalera con transferencia: T10/T11/T12/T13/T14/T31 permanecen abiertas, al igual que 086:T33/T36 y 096:T3.
+Evidencias y limitaciones: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/paralelo_p21_20261108/HANDOFF.md`.

@@ -764,14 +764,22 @@ def create_app(
         vigilante = arrancar_vigilancia(jobs) if os.environ.get('CSG_ASISTENTE_VIGILANCIA') == '1' else None
         if vigilante is not None:                                              # 081:RF-42, RF-43
             _sin_tumbar_la_web(anotar_arranque, huella)
+        detener_reanudacion = asyncio.Event()
+        tarea_reanudacion = None
         if os.environ.get('CSG_WEB_RELANZAR') == '1':
             # 096:RF-5: como la vigilancia, solo el servidor real; las pruebas lo piden ellas.
-            await asyncio.to_thread(_app.state.relanzar_interrumpidos)
+            await asyncio.to_thread(_app.state.relanzar_interrumpidos, automatico=True)
+            tarea_reanudacion = asyncio.create_task(_app.state.vigilar_interrumpidos(detener_reanudacion))
+        _app.state.tarea_reanudacion = tarea_reanudacion
         detener_retencion = asyncio.Event()
         tarea_retencion = asyncio.create_task(retencion.vigilar(detener_retencion))
         try:
             yield
         finally:
+            # La recuperación acaba antes de cerrar admisión; no queda un hilo encolando tras shutdown.
+            detener_reanudacion.set()
+            if tarea_reanudacion is not None:
+                await tarea_reanudacion
             detener_retencion.set()
             await tarea_retencion
             if vigilante is not None:
@@ -1628,21 +1636,49 @@ def create_app(
                 return True
         return False
 
-    def relanzar_interrumpidos() -> list[dict]:
+    # 096:RF-6: dos comprobaciones concurrentes no admiten la misma recuperación dos veces.
+    turno_relanzamiento = threading.Lock()
+    intentados_automaticos: set[str] = set()
+    recuperaciones_interrumpidas: dict[str, dict] = {}
+
+    def relanzar_interrumpidos(*, automatico: bool = False) -> list[dict]:
         """096:RF-5 a RF-7: al arrancar, el último trabajo interrumpido de cada espacio, otra vez, solo y una vez."""
         lanzados = []
-        for viejo in jobs.reanudables():
-            tipo, datos = (viejo.reanudar or {}).get('tipo'), (viejo.reanudar or {}).get('datos') or {}
-            if tipo != 'recalibrar' or store.get(viejo.workspace_id) is None or _guion_vivo(viejo.workspace_id):
-                continue
-            jobs.marcar_relanzado(viejo)
-            try:
-                lanzados.append(_lanzar_recalibrar(viejo.workspace_id, RecalibrarIn(**datos), relanzado_de=viejo.id))
-            except Exception as exc:  # noqa: BLE001 - un relanzamiento que no se admite no impide arrancar
-                logging.getLogger(__name__).warning('No se relanzó %s: %s', viejo.id, exc)
+        with turno_relanzamiento:
+            for viejo in jobs.reanudables():
+                if automatico and viejo.id in intentados_automaticos:
+                    continue
+                tipo, datos = (viejo.reanudar or {}).get('tipo'), (viejo.reanudar or {}).get('datos') or {}
+                if tipo != 'recalibrar' or store.get(viejo.workspace_id) is None or _guion_vivo(viejo.workspace_id):
+                    continue
+                intentados_automaticos.add(viejo.id)
+                try:
+                    nuevo = _lanzar_recalibrar(viejo.workspace_id, RecalibrarIn(**datos), relanzado_de=viejo.id)
+                    lanzados.append(nuevo)
+                    # Antes de admitir, una ruta ausente consumía para siempre la recuperación.
+                    jobs.marcar_relanzado(viejo)
+                    recuperaciones_interrumpidas[viejo.id] = {'estado': 'relanzado', 'trabajo': nuevo['id']}
+                except Exception as exc:  # noqa: BLE001 - un relanzamiento que no se admite no impide arrancar
+                    recuperaciones_interrumpidas[viejo.id] = {'estado': 'requiere_revision', 'motivo': str(exc)}
+                    logging.getLogger(__name__).warning('No se relanzó %s: %s', viejo.id, exc)
+                    ws = store.get(viejo.workspace_id)
+                    if ws is not None:
+                        ws.events.append('log', {'job': viejo.id, 'text':
+                            f'El trabajo interrumpido sigue recuperable: {exc}. Revise la causa antes de reintentar.'})
         return lanzados
 
+    async def vigilar_interrumpidos(detener: asyncio.Event) -> None:
+        """096:RF-6: esperar al hijo del servidor anterior también después del arranque."""
+        while not detener.is_set():
+            try:
+                await asyncio.wait_for(detener.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
+                if not detener.is_set():
+                    await asyncio.to_thread(relanzar_interrumpidos, automatico=True)
+
     app.state.relanzar_interrumpidos = relanzar_interrumpidos
+    app.state.vigilar_interrumpidos = vigilar_interrumpidos
+    app.state.recuperaciones_interrumpidas = recuperaciones_interrumpidas
 
     @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
     def pf_escaneo_guardado(wid: str) -> dict:

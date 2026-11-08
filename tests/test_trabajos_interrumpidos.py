@@ -16,6 +16,243 @@ from fastapi.testclient import TestClient
 WID = 'ab' * 8
 
 
+def _hasta(condicion, segundos=15):
+    limite = time.monotonic() + segundos
+    while time.monotonic() < limite:
+        if condicion():
+            return
+        time.sleep(0.02)
+    raise AssertionError('el proceso propio no alcanzó el punto esperado')
+
+
+def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False):
+    """Diario producido por JobManager real; el servidor cae sin cerrar al trabajador."""
+    guion = tmp_path / 'servidor_con_hijo.py'
+    guion.write_text(textwrap.dedent(f'''
+        import json, os, time
+        from pathlib import Path
+        from convertersmartgrid.web.jobs import JobManager
+        raiz = Path({str(tmp_path)!r})
+        def trabajador(*, progreso, log, cancelado):
+            (raiz / 'hijo.json').write_text(json.dumps({{'pid': os.getpid()}}))
+            time.sleep(60)
+        if __name__ == '__main__':
+            j = JobManager(lambda *a: None, diario=raiz / '_trabajos')
+            def f(ctx):
+                if {motor!r}:
+                    return ctx.en_proceso(trabajador)
+                return ctx.run_process([{sys.executable!r}, '-c',
+                    'import json,os,time;from pathlib import Path;'
+                    + 'Path(' + repr(str(raiz / 'hijo.json')) + ').write_text(json.dumps({{"pid":os.getpid()}}));'
+                    + 'print("trabajador listo",flush=True);time.sleep(60)'])
+            job = j.submit({WID!r}, 'recalibrar', 'Recalibrar propio', f,
+                           reanudar={{'tipo': 'recalibrar', 'datos': {{'project': 'propio', 'periodo': '2026'}}}},
+                           relanzado_de='origen_propio')
+            while not (raiz / 'hijo.json').exists(): time.sleep(0.01)
+            if {cancelar!r}: j.cancel(job.id)
+            (raiz / 'servidor.json').write_text(json.dumps({{'id': job.id, 'pid': os.getpid()}}))
+            time.sleep(60)
+    '''), encoding='utf-8')
+    entorno = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src'),
+               'CSG_RUNTIME_HOME': str(tmp_path / 'runtime'), 'CSG_CACHE_HOME': str(tmp_path / 'cache')}
+    # Este ensayo no pide el motor ni inspecciona procesos PowerFactory del usuario.
+    entorno.pop('PF_PYTHON', None)
+    proceso = subprocess.Popen([sys.executable, str(guion)], env=entorno,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    return proceso
+
+
+@pytest.mark.parametrize('motor', [False, True], ids=['guion', 'motor'])
+def test_caida_real_no_relanzar_encima_de_un_trabajador_vivo(tmp_path, motor):
+    """096:RF-6 / 086:RF-9 — retirar la identidad del hijo permitiría duplicar una escritura en curso."""
+    import psutil
+    from convertersmartgrid.web.jobs import JobManager
+
+    proceso = _servidor_con_hijo(tmp_path, motor=motor)
+    hijo = None
+    try:
+        _hasta(lambda: (tmp_path / 'servidor.json').exists())
+        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+        hijo = psutil.Process(json.loads((tmp_path / 'hijo.json').read_text())['pid'])
+        # Matar solo el servidor real: en Windows el ejecutable venv puede ser un lanzador.
+        psutil.Process(servidor['pid']).kill()
+        proceso.wait(10)
+        assert hijo.is_running()
+        jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
+        job = jobs.get(servidor['id'])
+        assert job.status == 'interrumpido'
+        assert jobs.reanudables() == [], 'se iba a duplicar el trabajador que aún está vivo'
+        assert job.relanzado_de == 'origen_propio'
+        hijo.kill()
+        hijo.wait(10)
+        _hasta(lambda: bool(jobs.reanudables()))
+        assert [j.id for j in jobs.reanudables()] == [job.id]
+    finally:
+        if hijo is not None and hijo.is_running():
+            hijo.kill()
+            hijo.wait(10)
+        if proceso.poll() is None:
+            _matar_de_golpe(proceso)
+
+
+def test_cancelacion_persistida_impide_reanudar_tras_muerte_real(tmp_path):
+    """096:RF-4 / 086:RF-9 — olvidar cancel_requested reactivaría la orden cancelada tras caer la web."""
+    from convertersmartgrid.web.jobs import JobManager
+
+    proceso = _servidor_con_hijo(tmp_path, cancelar=True, motor=True)
+    try:
+        _hasta(lambda: (tmp_path / 'servidor.json').exists())
+        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+    finally:
+        _matar_de_golpe(proceso)
+    jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
+    job = jobs.get(servidor['id'])
+    assert job is not None and job.cancel.is_set()
+    assert jobs.reanudables() == []
+    # Otro arranque conserva la decisión del operador.
+    assert JobManager(lambda *a: None, diario=tmp_path / '_trabajos').get(job.id).cancel.is_set()
+
+
+@pytest.mark.parametrize('concurrente', [False, True], ids=['rechazo-prevalidacion', 'dos-relanzadores'])
+def test_relanzar_real_es_reintentable_y_exclusivo(tmp_path, monkeypatch, concurrente):
+    """096:RF-5 / 096:RF-6 — consumir antes de admitir pierde la orden; dos relanzadores la duplican."""
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.web.workspace import Workspace
+
+    raiz = tmp_path / 'web'
+    raiz.mkdir()
+    Workspace(id=WID, root=raiz / WID).save()
+    proceso = _servidor_con_hijo(raiz, motor=True)
+    try:
+        _hasta(lambda: (raiz / 'servidor.json').exists())
+    finally:
+        _matar_de_golpe(proceso)
+    llamadas, ejecuciones = [], []
+
+    def prevalidar(*_):
+        llamadas.append(1)
+        if not concurrente and len(llamadas) == 1:
+            raise ValueError('ruta temporalmente no disponible')
+        if concurrente:
+            # Asegura que el segundo relanzador entra durante la prevalidación del primero.
+            entrando.set()
+            assert seguir.wait(5)
+        return {'del_sistema': []}
+
+    monkeypatch.setattr(services, 'recalibrar_datos', prevalidar)
+    monkeypatch.setattr(services, 'recalibrar_sistema', lambda *a, **k: ejecuciones.append(1) or {'codigo': 0})
+    app = create_app(raiz)
+    if not concurrente:
+        assert app.state.relanzar_interrumpidos() == []
+        lanzados = app.state.relanzar_interrumpidos()
+        assert len(lanzados) == 1, 'un rechazo previo a la admisión consumió la recuperación'
+    else:
+        entrando, seguir = threading.Event(), threading.Event()
+        resultados = []
+        primero = threading.Thread(target=lambda: resultados.append(app.state.relanzar_interrumpidos()))
+        segundo = threading.Thread(target=lambda: resultados.append(app.state.relanzar_interrumpidos()))
+        primero.start()
+        assert entrando.wait(5)
+        segundo.start()
+        seguir.set()
+        primero.join(10)
+        segundo.join(10)
+        assert not primero.is_alive() and not segundo.is_alive()
+        assert sum(map(len, resultados)) == 1
+    _hasta(lambda: bool(ejecuciones))
+    assert ejecuciones == [1]
+    assert app.state.relanzar_interrumpidos() == []
+
+
+def test_identidad_ambigua_bloquea_y_pid_reutilizado_no_bloquea():
+    """096:RF-6 — una fecha ilegible no autoriza repetir ni enviar señales a ese PID."""
+    import psutil
+    from convertersmartgrid.web.jobs import _proceso_pendiente
+
+    inicio = psutil.Process(os.getpid()).create_time()
+    assert _proceso_pendiente({'pid': os.getpid(), 'inicio': inicio})
+    assert not _proceso_pendiente({'pid': os.getpid(), 'inicio': inicio - 100})
+    for identidad in ({'pid': os.getpid(), 'inicio': None}, {'pid': os.getpid(), 'inicio': 'ilegible'},
+                      {'pid': os.getpid()}, {'pid': -1, 'inicio': inicio}):
+        assert _proceso_pendiente(identidad)
+
+
+@pytest.mark.parametrize('rechazar', [False, True], ids=['esperar-hijo', 'sin-bucle-invalido'])
+def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_path, monkeypatch, rechazar):
+    """096:RF-5 / 096:RF-6 — comprobar solo al arrancar abandonaría el trabajo cuyo hijo aún vive."""
+    import psutil
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.web.workspace import Workspace
+
+    raiz = tmp_path / 'web'
+    raiz.mkdir()
+    Workspace(id=WID, root=raiz / WID).save()
+    proceso = _servidor_con_hijo(raiz, motor=True)
+    hijo = None
+    try:
+        _hasta(lambda: (raiz / 'servidor.json').exists())
+        servidor = json.loads((raiz / 'servidor.json').read_text())
+        hijo = psutil.Process(json.loads((raiz / 'hijo.json').read_text())['pid'])
+        psutil.Process(servidor['pid']).kill()
+        proceso.wait(10)
+        ejecuciones, intentos = [], []
+        def prevalidar(*_):
+            intentos.append(1)
+            if rechazar:
+                raise ValueError('requiere revisar ruta')
+            return {'del_sistema': []}
+        monkeypatch.setattr(services, 'recalibrar_datos', prevalidar)
+        monkeypatch.setattr(services, 'recalibrar_sistema', lambda *a, **k: ejecuciones.append(1) or {'codigo': 0})
+        monkeypatch.setenv('CSG_WEB_RELANZAR', '1')
+        app = create_app(raiz)
+        with TestClient(app):
+            assert intentos == [] and hijo.is_running()
+            hijo.kill()
+            hijo.wait(10)
+            _hasta(lambda: bool(intentos), segundos=6)
+            if rechazar:
+                assert ejecuciones == []
+                assert not app.state.jobs.get(servidor['id']).relanzado
+                assert 'ruta' in app.state.recuperaciones_interrumpidas[servidor['id']]['motivo']
+            else:
+                _hasta(lambda: bool(ejecuciones))
+                assert ejecuciones == [1]
+            # Varias vueltas del monitor no repiten una admisión ni una prevalidación inválida.
+            time.sleep(2.2)
+            assert intentos == [1]
+        assert app.state.tarea_reanudacion.done() and app.state.jobs._closing
+    finally:
+        if hijo is not None and hijo.is_running():
+            hijo.kill()
+            hijo.wait(10)
+        if proceso.poll() is None:
+            _matar_de_golpe(proceso)
+
+
+def test_un_emit_roto_no_pierde_cancelacion_persistida(tmp_path):
+    """096:RF-4 / 086:RF-9 — el fallo de notificación posterior a cancelar no borra la decisión."""
+    from convertersmartgrid.web.jobs import JobManager
+
+    iniciado, seguir = threading.Event(), threading.Event()
+    def emitir(_wid, _tipo, datos):
+        if datos.get('cancel_requested'):
+            raise OSError('navegador desconectado')
+    jobs = JobManager(emitir, diario=tmp_path / '_trabajos')
+    job = jobs.submit(WID, 'k', 't', lambda ctx: (iniciado.set(), seguir.wait(10)))
+    assert iniciado.wait(5)
+    try:
+        with pytest.raises(OSError, match='desconectado'):
+            jobs.cancel(job.id)
+        assert json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())['cancel_requested'] is True
+    finally:
+        seguir.set()
+        # El emisor fallido no debe escapar de la limpieza de este ensayo.
+        jobs._emit = lambda *a: None
+        jobs.shutdown(10)
+
+
 def _matar_de_golpe(proceso: subprocess.Popen) -> None:
     """Con sus hijos, y hasta que no quede ninguno: el Python de un venv en Windows es un lanzador,
     y matarlo solo deja vivo un momento al proceso real, que seguiría escribiendo."""

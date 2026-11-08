@@ -47,8 +47,10 @@ Decisiones:
 - Regresiones: una entrada por fallo, con cabeceras fijas para poder probarlas. La prueba resuelve `tests/x.py::test_y` con `ast`.
 
 Pruebas: `tests/test_comprobacion_fases.py`, `tests/test_comprobacion_flujo.py`, `tests/test_resolver_convergencia.py`,
-`tests/test_suite_por_tandas.py`, `tests/test_cierre_web.py`, `tests/test_regresiones.py`. Sintéticas, sin datos de la distribuidora; ninguna lanza
-una suite real ni DIgSILENT.
+`tests/test_suite_por_tandas.py`, `tests/test_cierre_web.py`, `tests/test_regresiones.py`. Sintéticas, sin datos de la distribuidora.
+P21 añade una suite real minúscula de una prueba propia en un repositorio temporal: verifica que el proceso
+separado sobrevive a matar su servidor y que su muerte abrupta se reconoce como interrumpida.
+No ejecuta la suite completa ni DIgSILENT y no cierra T14, que exige el ensayo nocturno completo.
 
 Punto de unión con `fix/acopladores-con-fases`: `Elemento`, `Barra`, `comprobar` y `ubicar_nuevo` de `comprobacion_fases.py`. `poner_bancos` y
 `resolver_nuevas` son de esa rama: llaman a `ubicar_nuevo` en vez de «no se crea».

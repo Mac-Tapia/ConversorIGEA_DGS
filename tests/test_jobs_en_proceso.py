@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import time
+import os
+import threading
 
 import pytest
 
@@ -29,6 +31,28 @@ def glotona(mb, *, progreso, log, cancelado):
 
 def falla(*, progreso, log, cancelado):
     raise ValueError('libro roto')
+
+
+def muere_sin_finalizar(*, progreso, log, cancelado):
+    os._exit(23)
+
+
+def test_muerte_real_del_trabajador_libera_carril_y_conserva_error(tmp_path):
+    """086:RF-9 / 027:RF-25 — la muerte sin finally del hijo falla solo su trabajo y deja atender el siguiente."""
+    manager = jobs.JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
+    listo = threading.Event()
+    fallido = manager.submit('propio', 'muere', 'Trabajador propio', lambda ctx: ctx.en_proceso(muere_sin_finalizar))
+    siguiente = manager.submit('propio', 'sigue', 'Siguiente propio', lambda ctx: listo.set() or {'ok': True})
+    try:
+        assert listo.wait(15)
+        limite = time.monotonic() + 5
+        while siguiente.status not in jobs.FINISHED and time.monotonic() < limite:
+            time.sleep(.01)
+        assert fallido.status == 'failed' and 'sin resultado (código 23)' in fallido.error
+        assert siguiente.status == 'done' and siguiente.result == {'ok': True}
+        assert manager.en_curso() == 0
+    finally:
+        manager.shutdown(5)
 
 
 @pytest.fixture()

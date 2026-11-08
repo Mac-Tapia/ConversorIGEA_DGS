@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import subprocess
+import json
+import os
+import sys
+import time
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -181,3 +186,85 @@ def test_el_lanzador_de_la_suite_responde_a_help(capsys):
     with pytest.raises(SystemExit) as e:
         h.main(['--help'])
     assert e.value.code == 0 and '--separar' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('cortar_suite', [False, True], ids=['sobrevive-web', 'interrupcion-real'])
+def test_suite_propia_separada_sobrevive_o_registra_su_muerte(tmp_path, cortar_suite):
+    """081:RF-37 / 081:RF-39 / 081:RF-41 — procesos reales; una prueba propia, sin suite completa ni motor."""
+    import psutil
+
+    (tmp_path / 'repo').mkdir()
+    repo = _repo(tmp_path / 'repo', 0)
+    test = repo / 'tests' / 'test_propio.py'
+    test.write_text(
+        "import time\nfrom pathlib import Path\n"
+        f"RAIZ=Path({str(tmp_path)!r})\n"
+        "def test_propio():\n"
+        "    (RAIZ/'tanda_lista').touch()\n"
+        "    limite=time.monotonic()+20\n"
+        "    while not (RAIZ/'seguir').exists() and time.monotonic()<limite: time.sleep(.02)\n"
+        "    assert (RAIZ/'seguir').exists()\n", encoding='utf-8')
+    herramienta = Path(__file__).resolve().parents[1] / 'tools' / 'suite_por_tandas.py'
+    corredor = tmp_path / 'corredor.py'
+    corredor.write_text(
+        'import runpy\nfrom pathlib import Path\n'
+        f'h=runpy.run_path({str(herramienta)!r},run_name="ensayo")\n'
+        f'h["correr"].__globals__["_REPO"]=Path({str(repo)!r})\n'
+        'raise SystemExit(h["correr"]())\n', encoding='utf-8')
+    intermedio = tmp_path / 'intermedio.py'
+    intermedio.write_text(
+        'import runpy,subprocess,sys\n'
+        f'h=runpy.run_path({str(herramienta)!r},run_name="ensayo")\n'
+        'def abrir(**kw):\n'
+        # Solo se dirige la suite al repositorio propio diminuto; los flags y el diario son los del producto.
+        f'    kw["args"]=[sys.executable,{str(corredor)!r}]\n'
+        '    return subprocess.Popen(**kw)\n'
+        'raise SystemExit(h["separar"](abrir=abrir))\n', encoding='utf-8')
+    servidor = tmp_path / 'web_propia.py'
+    servidor.write_text(
+        'import subprocess,sys,time,os,json\nfrom pathlib import Path\n'
+        f'subprocess.run([sys.executable,{str(intermedio)!r}],check=True)\n'
+        f'Path({str(tmp_path / "web_lista.json")!r}).write_text(json.dumps({{"pid":os.getpid()}}))\n'
+        'time.sleep(60)\n', encoding='utf-8')
+    proceso = subprocess.Popen([sys.executable, str(servidor)], stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, env=dict(os.environ))
+    suite = None
+    def hasta(condicion):
+        limite = time.monotonic() + 20
+        while time.monotonic() < limite:
+            if condicion(): return
+            time.sleep(.02)
+        raise AssertionError('el ensayo no alcanzó el punto esperado')
+    try:
+        hasta(lambda: (tmp_path / 'web_lista.json').exists() and (tmp_path / 'tanda_lista').exists())
+        fila = almacen.leer('suite')[-1]
+        suite = psutil.Process(fila['pid'])
+        assert fila['resumen'] == EMPEZADA and suite.is_running()
+        psutil.Process(json.loads((tmp_path / 'web_lista.json').read_text())['pid']).kill()
+        proceso.wait(10)
+        assert suite.is_running(), 'la suite se murió con su servidor'
+        if cortar_suite:
+            hijos = suite.children(recursive=True)
+            suite.kill()
+            suite.wait(10)
+            for hijo in hijos:
+                try: hijo.kill()
+                except psutil.NoSuchProcess: pass
+            psutil.wait_procs(hijos, timeout=10)
+            aviso = revisar_suite(almacen.leer('suite'), lambda f: psutil.pid_exists(f['pid']))
+            assert aviso is not None and 'interrumpió' in aviso.texto
+            assert almacen.leer('suite')[-1]['resumen'] == INTERRUMPIDA
+        else:
+            (tmp_path / 'seguir').touch()
+            suite.wait(20)
+            hasta(lambda: almacen.leer('suite')[-1]['resumen'] != EMPEZADA)
+            final = almacen.leer('suite')[-1]
+            assert final['codigo'] == 0 and final['tandas'] == '1/1' and '1 passed' in final['resumen']
+    finally:
+        (tmp_path / 'seguir').touch()
+        if suite is not None and suite.is_running():
+            suite.kill()
+            suite.wait(10)
+        if proceso.poll() is None:
+            proceso.kill()
+            proceso.wait(10)
