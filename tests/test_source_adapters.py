@@ -188,3 +188,62 @@ def test_conversion_unida_rechaza_source_run_mismatch(tmp_path):
 
     with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
         services.convert_group(ws, _ctx(), feeders, 'NO_MEZCLAR')
+
+
+@pytest.mark.parametrize('group', [False, True])
+@pytest.mark.parametrize('slot', ['red', 'equipment'])
+def test_conversion_revalida_bytes_custodiados_antes_del_dataset_cached_y_escritor(tmp_path, monkeypatch, group, slot):
+    """034:RF-20 — mismo tamaño/mtime no conserva identidad si cambiaron los bytes."""
+    import copy
+    import os
+    from convertersmartgrid.web import services
+
+    ws, originals = _txt_workspace(tmp_path, feeders=1)
+    services.load_dataset(ws, _ctx())
+    snapshot = ws.active_run()
+    path = snapshot.files[slot].path
+    manifest = snapshot.root / 'source_manifest.json'
+    baseline = manifest.read_bytes()
+    inventory = copy.deepcopy(ws.inventory)
+    stat = path.stat()
+    path.write_bytes(b'X' * stat.st_size)
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert (path.stat().st_size, path.stat().st_mtime_ns) == (stat.st_size, stat.st_mtime_ns)
+    called = []
+    monkeypatch.setattr('convertersmartgrid.batch.convert_selection', lambda *a, **k: called.append('individual'))
+    monkeypatch.setattr('convertersmartgrid.batch.convert_group', lambda *a, **k: called.append('unida'))
+    feeders = [row['feeder'] for row in services.feeder_rows(ws)]
+    with pytest.raises(services.UserError, match='SOURCE_RUN_INTEGRITY.*huella'):
+        if group:
+            services.convert_group(ws, _ctx(), feeders, 'NO_ESCRIBIR')
+        else:
+            services.convert(ws, _ctx(), feeders, False)
+    assert not called
+    assert not list(ws.out_dir.glob('*.dgs'))
+    assert ws.inventory == inventory
+    assert manifest.read_bytes() == baseline
+    assert all(path.is_file() for path in originals)
+
+
+def test_carga_verifica_custodia_persistida_antes_del_lector(tmp_path, monkeypatch):
+    """034:RF-20 — la carga valida la copia y su manifiesto antes de invocar adaptadores."""
+    from convertersmartgrid.web import services, source_runs
+
+    ws, originals = _txt_workspace(tmp_path, feeders=1)
+    create = source_runs.create_source_run
+    called = []
+
+    def capture_and_tamper(workspace):
+        snapshot = create(workspace)
+        path = snapshot.files['red'].path
+        path.write_bytes(b'X' * path.stat().st_size)
+        return snapshot
+
+    monkeypatch.setattr(source_runs, 'create_source_run', capture_and_tamper)
+    monkeypatch.setattr('convertersmartgrid.sources.adapter_for', lambda *a, **k: called.append('lector'))
+    with pytest.raises(services.UserError, match='SOURCE_RUN_INTEGRITY.*huella'):
+        services.load_dataset(ws, _ctx())
+    assert not called
+    assert ws.dataset is None
+    assert not ws.out_dir.exists()
+    assert all(path.is_file() for path in originals)

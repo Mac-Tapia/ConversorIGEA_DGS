@@ -115,7 +115,7 @@ def test_source_scope_api_exposes_options_and_selection_invalidates_run(tmp_path
 
 def test_inputs_panel_contains_scope_selectors_without_test_company_defaults():
     source = (
-        Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'InputsPanel.tsx'
+        Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'conversion' / 'InputsPanel.tsx'
     ).read_text(encoding='utf-8')
 
     assert 'sourceScope' in source

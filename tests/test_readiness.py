@@ -91,11 +91,20 @@ def test_conversion_preflight_runs_before_converter_writes(tmp_path, monkeypatch
 
     ws = _workspace(tmp_path, mode='vnr', blocked=True)
     ws.dataset = SimpleNamespace()
-    ws.loaded_source_fingerprint = 'fingerprint'
-    snapshot = SimpleNamespace(
-        run_id='run-1', mode='vnr', fingerprint='fingerprint', path_for=lambda _slot: None,
-    )
-    monkeypatch.setattr(ws, 'active_run', lambda: snapshot)
+    from convertersmartgrid.web.source_runs import create_source_run
+    source = tmp_path / 'entrada-de-contrato.zip'
+    source.write_bytes(b'fixture de custodia; no es una aceptacion VNR')
+    ws.set_input('vnr_package', source, origin='server')
+    ws.options['input_mode'] = 'vnr'
+    snapshot = create_source_run(ws)
+    # La prueba de preparación necesita custodia real; la física sigue siendo el doble.
+    ws.dataset = SimpleNamespace()
+    expected = _workspace(tmp_path / 'preparacion', mode='vnr', blocked=True)
+    ws.inventory = expected.inventory
+    ws.feeder_readiness = expected.feeder_readiness
+    ws.loaded_run_id = snapshot.run_id
+    ws.loaded_source_mode = snapshot.mode
+    ws.loaded_source_fingerprint = snapshot.fingerprint
     called = False
 
     def forbidden(*_args, **_kwargs):

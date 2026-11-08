@@ -16,7 +16,7 @@ def require_loaded(ws: Workspace) -> None:
         raise UserError('Primero cargue y liste los alimentadores (paso 2).')
 
 
-def require_active_source_run(ws: Workspace):
+def require_active_source_run(ws: Workspace, *, verify_files: bool = False):
     """Impide usar un dataset o artefacto que pertenezca a otra ejecución."""
     snapshot = ws.active_run()
     # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir
@@ -37,4 +37,10 @@ def require_active_source_run(ws: Workspace):
             'SOURCE_RUN_MISMATCH: las entradas cambiaron desde la carga. '
             'Pulse «Cargar / listar alimentadores» para crear una ejecución nueva.'
         )
+    if verify_files:
+        from .source_runs import verify_source_files
+        try:
+            verify_source_files(snapshot)
+        except (OSError, ValueError) as exc:
+            raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     return snapshot

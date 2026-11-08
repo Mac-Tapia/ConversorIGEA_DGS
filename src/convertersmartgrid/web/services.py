@@ -246,10 +246,14 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
     from ..batch import load_aliases
     from ..sources import adapter_for
-    from .source_runs import create_source_run
+    from .source_runs import create_source_run, load_source_run
 
     ctx.log('--- Carga e inventario de alimentadores ---')
     snapshot = create_source_run(ws)
+    try:
+        snapshot = load_source_run(ws, snapshot.run_id, verify_files=True)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     mode = snapshot.mode
     slots = ('mdb', 'equipment_mdb', 'study', 'aliases') if mode == 'mdb' else (
         'red', 'loads', 'equipment', 'equipment_extra', 'aliases')
@@ -490,7 +494,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws)
+    snapshot = require_active_source_run(ws, verify_files=True)
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')
@@ -1582,7 +1586,7 @@ def convert_group(
         resolve_selection,
     )
 
-    snapshot = require_active_source_run(ws)
+    snapshot = require_active_source_run(ws, verify_files=True)
     selected, network_ids = resolve_selection(ws, feeders, all_feeders=False)
     ready_without_reconstruction = all(
         (ws.feeder_readiness.get(network_id) or {}).get('status')

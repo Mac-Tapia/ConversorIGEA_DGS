@@ -12,6 +12,7 @@ from ..util import publicar_duradero
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -45,7 +46,7 @@ _RUN_ID_RE = re.compile(r'^\d{8}T\d{6}-[a-f0-9]{12}$')
 
 def valid_run_id(run_id: str) -> bool:
     """Solo acepta el identificador generado, nunca componentes de ruta."""
-    return bool(_RUN_ID_RE.fullmatch(run_id or ''))
+    return isinstance(run_id, str) and bool(_RUN_ID_RE.fullmatch(run_id))
 
 
 @dataclass(frozen=True)
@@ -153,18 +154,46 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
     return snapshot
 
 
-def load_source_run(ws: EspacioDeFuentes, run_id: str) -> SourceSnapshot:
+def load_source_run(ws: EspacioDeFuentes, run_id: str, *, verify_files: bool = False) -> SourceSnapshot:
+    """Relee la identidad; el trabajo de preparación verifica además todos los bytes.
+
+    Las consultas HTTP solo leen el manifiesto: una base de varios GB se verifica en
+    el trabajo en cola, nunca bloqueando la petición ni renovando su hash de referencia.
+    """
     if not valid_run_id(run_id):
         raise ValueError(f'Identificador de ejecución inválido: {run_id!r}.')
     run_root = ws.root / 'runs' / run_id
     manifest_path = run_root / 'source_manifest.json'
     payload = json.loads(manifest_path.read_text(encoding='utf-8'))
+    if (not isinstance(payload, dict) or type(payload.get('version')) is not int
+            or payload['version'] != 1 or payload.get('run_id') != run_id):
+        raise ValueError('Manifiesto de otra ejecución o versión no admitida.')
     mode = payload.get('mode')
-    if mode not in MODE_SLOTS:
+    if not isinstance(mode, str) or mode not in MODE_SLOTS:
         raise ValueError(f'Manifiesto con modo desconocido: {mode!r}.')
+    created_at = payload.get('created_at')
+    if (type(created_at) not in (int, float) or not math.isfinite(created_at)
+            or created_at < 0):
+        raise ValueError('Fecha de ejecución inválida en el manifiesto.')
     files: dict[str, SourceFile] = {}
-    for raw in payload.get('files') or []:
-        relative = Path(str(raw['path']))
+    rows = payload.get('files')
+    if not isinstance(rows, list) or not rows:
+        raise ValueError('Manifiesto sin archivos custodiados.')
+    allowed = {*MODE_SLOTS[mode], *COMMON_SLOTS}
+    for raw in rows:
+        if (not isinstance(raw, dict) or not isinstance(raw.get('slot'), str)
+                or raw['slot'] not in allowed
+                or raw['slot'] in files):
+            raise ValueError('Entrada duplicada o de otra fuente en el manifiesto.')
+        if (any(not isinstance(raw.get(key), str) or not raw[key] for key in ('path', 'name', 'sha256'))
+                or any(not isinstance(raw.get(key, ''), str) for key in ('origin', 'source_path'))):
+            raise ValueError('Tipos de metadatos custodiados inválidos.')
+        if (type(raw.get('size')) is not int or raw['size'] < 0
+                or not re.fullmatch(r'[0-9a-f]{64}', raw['sha256'])):
+            raise ValueError(f'Metadatos custodiados inválidos: {raw["slot"]}.')
+        relative = Path(raw['path'])
+        if relative.anchor or '..' in relative.parts or relative.name != raw['name']:
+            raise ValueError(f'Ruta no relativa a la ejecución: {relative}.')
         path = (run_root / relative).resolve()
         if run_root.resolve() not in path.parents:
             raise ValueError(f'Ruta fuera de la ejecución: {relative}.')
@@ -178,11 +207,29 @@ def load_source_run(ws: EspacioDeFuentes, run_id: str) -> SourceSnapshot:
             source_path=str(raw.get('source_path') or ''),
         )
         files[item.slot] = item
-    return SourceSnapshot(
+    expected = source_fingerprint(mode, list(files.values()))
+    if payload.get('fingerprint') != expected:
+        raise ValueError('La huella del manifiesto no coincide con las entradas custodiadas.')
+    snapshot = SourceSnapshot(
         run_id=str(payload['run_id']),
         mode=mode,
         root=run_root,
         fingerprint=str(payload['fingerprint']),
-        created_at=float(payload['created_at']),
+        created_at=float(created_at),
         files=files,
     )
+    if verify_files:
+        verify_source_files(snapshot)
+    return snapshot
+
+
+def verify_source_files(snapshot: SourceSnapshot) -> None:
+    """034:RF-20: coteja bytes en preparación, conservando hashes e inventario previos."""
+    from ..util import sha256_file
+
+    for item in snapshot.files.values():
+        if not item.path.is_file():
+            raise ValueError(f'Original custodiado ausente: {item.slot}.')
+        # Ni tamaño ni mtime prueban identidad: una alteración puede conservar ambos.
+        if item.path.stat().st_size != item.size or sha256_file(item.path) != item.sha256:
+            raise ValueError(f'Cambió la huella del original custodiado: {item.slot}.')
