@@ -912,7 +912,8 @@ def _reabrir_en_otro_proceso(carpeta: Path) -> dict[str, Any]:
 
 
 def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, Any], fallos: list[str], motivo: str, *,
-                       reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None) -> dict[str, Any]:
+                       reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None,
+                       publicar_individual: bool = True) -> dict[str, Any]:
     """043:RF-1, RF-5: reapertura en otro proceso, decisión en el registro común y, si se aprueba, puntero.
 
     La PINN se promovía con solo sus puertas: un fichero roto se habría puesto en uso y su decisión no
@@ -921,6 +922,8 @@ def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, 
     """
     from ..model_registry import EstadoModelo
 
+    if not publicar_individual and registro is None:
+        raise ValueError('el ciclo conjunto requiere un registro de candidatos')
     smoke: dict[str, Any] = {'ok': False, 'motivo': 'no se reabre: no pasó sus puertas'}
     if not fallos:
         smoke = (reabrir or _reabrir_en_otro_proceso)(carpeta)
@@ -947,9 +950,11 @@ def _decidir_promocion(bufer: BuferEpisodios, carpeta: Path, meta: Mapping[str, 
         except (OSError, ValueError) as exc:
             # Sin decisión anotada no hay promoción: un valor no finito cae aquí, no en el puntero.
             fallos.append(f'no se pudo anotar en el registro de modelos: {exc}')
-    if not fallos:
+    if not fallos and publicar_individual:
         promover(bufer, carpeta.name, motivo)
-    return {'promovido': not fallos, 'candidate_id': candidate_id, 'smoke_reload': smoke}
+    return {'promovido': not fallos and publicar_individual, 'candidato_aprobado': not fallos,
+            'publicacion_pendiente': not fallos and not publicar_individual,
+            'gates': {'approved': not fallos}, 'candidate_id': candidate_id, 'smoke_reload': smoke}
 
 
 def guardar_y_reabrir(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict, sonda: Muestra,
@@ -1312,7 +1317,8 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
 def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: Entrenamiento | None = None,
              puertas: Puertas | None = None, dorados: Sequence[str] = (),
              log: Callable[[str], None] = lambda _m: None, sistema: str | None = None,
-             reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None) -> dict[str, Any]:
+             reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None,
+             publicar_individual: bool = True) -> dict[str, Any]:
     """Entrena un candidato con una consulta fija del búfer, lo evalúa por particiones de
     familia y lo promueve si supera las puertas sin empeorar los dorados (RF-12, RF-13,
     RF-16, RF-17, RF-42). Si ya hay modelo, parte de sus pesos y repite el histórico entero
@@ -1470,8 +1476,11 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         (carpeta / 'readback.json').write_text(json.dumps(
             {'grafo': sonda, 'v': candidato.predecir(sonda)['v'].tolist()}, ensure_ascii=False, default=float), encoding='utf-8')
     decidido = _decidir_promocion(bufer, carpeta, {**meta, 'cfg': cfg.__dict__}, fallos,
-                                  f'mae {error:.4g}' if error is not None else '', reabrir=reabrir, registro=registro)
-    log(f"Gemelo: candidato {candidato.version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
+                                  f'mae {error:.4g}' if error is not None else '', reabrir=reabrir,
+                                  registro=registro, publicar_individual=publicar_individual)
+    estado = ('promovido' if decidido['promovido'] else 'aprobado; publicación conjunta pendiente'
+              if decidido['publicacion_pendiente'] else 'no promovido: ' + '; '.join(fallos))
+    log(f'Gemelo: candidato {candidato.version}: {estado}')
     return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta), **decidido,
             'modelo_registro': 'pinn', 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
             'evaluacion': meta['evaluacion'], 'conforme': meta['conforme'],
@@ -1560,7 +1569,8 @@ def deriva_por_familia(bufer: BuferEpisodios, *, minimo: int = 10, fraccion: flo
 
 
 def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
-                     log: Callable[[str], None] = lambda _m: None, registro=None) -> dict[str, Any]:
+                     log: Callable[[str], None] = lambda _m: None, registro=None,
+                     publicar_individual: bool = True) -> dict[str, Any]:
     """Reentrena solo cuando hay episodios nuevos que el modelo en uso no vio (RF-39), o
     antes si los nuevos muestran deriva (RF-43)."""
     _muestras_todas, ids = _muestras(bufer, Consulta())
@@ -1574,7 +1584,7 @@ def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
         return {'entrenado': False, 'motivo': 'sin episodios nuevos'}
     if len(nuevos) < minimo and not deriva(bufer, nuevos):
         return {'entrenado': False, 'motivo': f'{len(nuevos)} episodio(s) nuevo(s), se espera a {minimo}'}
-    return entrenar(bufer, log=log, registro=registro)
+    return entrenar(bufer, log=log, registro=registro, publicar_individual=publicar_individual)
 
 
 # ------------------------------------------------------------------ uso del oráculo

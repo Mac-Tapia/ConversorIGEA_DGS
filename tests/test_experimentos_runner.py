@@ -187,6 +187,33 @@ def test_pinn_aprobada_queda_en_el_registro_y_en_su_puntero(tmp_path):
     assert registro.activo('pinn') is None
 
 
+def test_pinn_del_ciclo_registra_sin_publicar_individual(tmp_path):
+    """050:RF-4, 050:RF-7 — el candidato aprobado no cambia el modelo en uso."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.model_registry import RegistroModelo
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    assert _puntero_pinn(bufer) == 'anterior'
+    registro = RegistroModelo(tmp_path / 'registro')
+    r = _decidir_promocion(bufer, carpeta, {}, [], 'ciclo común', registro=registro,
+        reabrir=lambda _c: {'ok': True}, publicar_individual=False)
+    assert r['promovido'] is False and r['candidato_aprobado'] is True
+    assert r['publicacion_pendiente'] is True and r['candidate_id']
+    assert registro.ultimo('pinn')['detalle']['decision']['gates']['approved'] is True
+    assert json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version'] == 'anterior'
+    assert registro.activo('pinn') is None
+    from tools.reentrenar_modelos import _estado
+    estado = _estado({**r, 'entrenado': True}, 'pinn')
+    assert estado['status'] == 'PROMOVIDO' and estado['publicacion_pendiente'] is True
+
+
+def test_pinn_del_ciclo_exige_registro(tmp_path):
+    """050:RF-7, 050:RF-8 — sin candidato registrado no se declara publicable."""
+    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    bufer, carpeta = _candidato_pinn(tmp_path)
+    with pytest.raises(ValueError, match='registro'):
+        _decidir_promocion(bufer, carpeta, {}, [], 'ciclo común', publicar_individual=False)
+
+
 @pytest.mark.parametrize('caso', ['puertas', 'sin_anotar'])
 def test_pinn_sin_puertas_o_sin_anotar_no_toca_el_puntero(tmp_path, caso):
     """043:RF-5 — con puertas falladas ni se reabre; sin decisión anotada tampoco hay promoción."""

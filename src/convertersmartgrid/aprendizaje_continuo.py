@@ -471,7 +471,8 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     ruta = carpeta / 'ciclo.json'
     if ruta.is_file():
         previo = _leer(ruta)
-        if previo.get('estado') in ('terminado', 'bloqueado', 'cancelado'):
+        if (previo.get('estado') in ('terminado', 'bloqueado', 'cancelado')
+                and not (previo.get('estado') == 'bloqueado' and previo.get('reintentable') is True)):
             return {**previo, 'repetido': True}
     marca = carpeta / 'en_curso'
     if marca.exists():
@@ -502,7 +503,8 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     if presupuesto.usa_licencia_nativa:
         return cerrar('bloqueado', ['el ciclo no toma la licencia nativa: la validación nativa va por el turno de 019'])
     if memoria_libre_gib is not None and memoria_libre_gib() < presupuesto.memoria_gib:
-        return cerrar('bloqueado', [f'memoria libre bajo el presupuesto de {presupuesto.memoria_gib} GiB'])
+        return cerrar('bloqueado', [f'memoria libre bajo el presupuesto de {presupuesto.memoria_gib} GiB'],
+                      reintentable=True)
     if not presupuesto.usa_gpu and any(e.uses_gpu for e in etapas):
         return cerrar('bloqueado', ['el presupuesto no admite GPU y hay etapas que la piden'])
     (carpeta / 'en_curso').write_text(str(os.getpid()), encoding='utf-8')
@@ -530,6 +532,10 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     if cancelar.exists():
         return cerrar('cancelado', ['cancelado por el operador'], etapas=etapas_inf)
     motivos = []
+    try:
+        verificar_instantanea(instantanea['ruta'])
+    except (OSError, ValueError) as exc:
+        motivos.append(f'instantánea alterada durante el ciclo: {exc}')
     if sueltas:
         motivos.append(f'promoción individual durante el ciclo: {sueltas}')
     sin_informe = [e['model'] for e in etapas_inf if e.get('status') in (

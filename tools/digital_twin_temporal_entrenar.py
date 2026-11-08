@@ -57,7 +57,8 @@ def _pronostico(args):
                 return comparar_pronosticos(objetivos,args.raiz,clase=args.clase,algoritmos=algoritmos,horizontes=horizontes,
                     cadencia_min=args.cadencia_min,zona_horaria=args.zona_horaria,semillas=semillas_de(args.semillas),
                     procedencia=procedencia,registro=registro,contexto_pasos=args.contexto_pasos,
-                    paso_emision_min=args.paso_emision_min,ajustes_modelo=ajustes,apartados_previos=apartados,log=print)
+                    paso_emision_min=args.paso_emision_min,ajustes_modelo=ajustes,apartados_previos=apartados,log=print,
+                    publicar_individual=not args.sin_publicar)
             if set(algoritmos)&set(NEURONALES):
                 # La guardia y el margen de memoria, solo si compite una red: las referencias no los piden.
                 from convertersmartgrid.training_coordinator import exigir_memoria_ml
@@ -81,6 +82,7 @@ def main(argv=None):
     p.add_argument('--raiz',type=Path)
     p.add_argument('--output-json',type=Path)
     p.add_argument('--inventario',action='store_true',help='Solo lista rango, cadencia y huecos de cada objetivo')
+    p.add_argument('--sin-publicar',action='store_true',help='Registrar sin activar: publicación conjunta del ciclo (050:RF-7)')
     p.add_argument('--comparar',help='Modelos que compiten, separados por coma: ingenuo, estacional_semanal, gru, nhits, tft, patchtst')
     p.add_argument('--clase',choices=('cabecera','cliente'),help='Objetivos: demanda de cabecera o clientes fijos; se deciden por separado')
     p.add_argument('--par',action='append',default=[],help='Cabecera: alimentador=medidor; se puede repetir. Sin ninguno, cada hoja con kW')

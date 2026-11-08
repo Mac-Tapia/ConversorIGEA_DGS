@@ -45,6 +45,22 @@ registro no aumenta su peso. Una identidad de registro con contenido incompatibl
 bloquea y se conserva para revisión; el replay no incorpora pruebas al entrenamiento.
 Estos contratos no cierran T1b/T2b sin la preparación sobre fuentes reales.
 
+RF-4/RF-7: `publicar_individual=False` en PINN y competición temporal registra el
+candidato y su aprobación individual sin cambiar punteros. Los CLI admiten
+`--sin-publicar`. El estado terminal de la decisión conserva el vocabulario 043;
+`promovido=False` y `publicacion_pendiente=True` distinguen la activación pendiente.
+El ciclo GRU usa la competición actual, con cadencia y horizontes declarados,
+sin repetir algoritmos. Sus modelos salen a una carpeta de ejecución; la PINN
+recibe una copia verificada del búfer para escribir índice/modelos sin alterar la
+instantánea. También se comprueba la instantánea al terminar las etapas.
+Semillas, zona horaria, cadencia, horizontes y modelo de embeddings entran en la
+identidad de la captura mediante `parametros_ciclo`. Un preflight sin memoria
+permanece bloqueado y reintentable antes de entrenar; no sella como hecho el ciclo.
+
+La inspección confirma además que el ajuste de lenguaje sobre dataset v2 conserva
+pesos pero no registra ni reabre aún el candidato. Esa brecha sigue pendiente:
+no se sustituye su evaluación funcional por declarar una etapa aprobada.
+
 ### Ejecución
 
 1. Auditar fuentes, series, episodios y modelos reales disponibles. Congelar los

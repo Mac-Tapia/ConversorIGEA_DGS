@@ -69,6 +69,7 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', help='Informe del entrenamiento; obligatorio salvo con --reabrir-candidato')
     p.add_argument('--raiz', type=Path, help='Búfer del gemelo (por defecto, el de la web)')
     p.add_argument('--forzar', action='store_true', help='Entrenar aunque no haya episodios nuevos')
+    p.add_argument('--sin-publicar', action='store_true', help='Registrar el candidato para un ciclo conjunto sin cambiar el modelo en uso (050:RF-7)')
     p.add_argument('--minimo', type=int, default=10, help='Episodios nuevos para reentrenar')
     p.add_argument('--evaluar', action='store_true',
                    help='No entrenar: comparar el modelo promovido y la física con DIgSILENT')
@@ -171,11 +172,14 @@ def main(argv=None) -> int:
                            destino=bufer.raiz / 'modelos' / 'busquedas', log=_log)
                 _log(f"Búsqueda: mejor ensayo {b['mejor']['numero']} con {b['mejor']['mae_validacion']:.3e} p.u. "
                      f"en validación; ensayos en {b.get('ruta')}")
-                r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log, registro=registro), 'busqueda': b}
+                r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log, registro=registro,
+                                        publicar_individual=not args.sin_publicar), 'busqueda': b}
             elif args.forzar or args.sistema:
-                r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema, registro=registro)
+                r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema, registro=registro,
+                                    publicar_individual=not args.sin_publicar)
             else:
-                r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log, registro=registro)
+                r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log, registro=registro,
+                                            publicar_individual=not args.sin_publicar)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         r, codigo = {'entrenado': False, 'error': repr(exc), 'traza': traceback.format_exc()}, 1

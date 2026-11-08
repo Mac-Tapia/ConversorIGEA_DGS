@@ -35,8 +35,8 @@
       "evidence": []
     },
     "P07": {
-      "state": "en_curso_fallo_nativo_corregido_relectura_verificada",
-      "evidence": ["p07_corrida.log", "p07_binding_red.log", "p07_binding_green.xml", "p07_relectura_resultado.json"]
+      "state": "calibracion_y_reapertura_verificadas_r1_parcial",
+      "evidence": ["p07_corrida.log", "p07_binding_red.log", "p07_binding_green.xml", "p07_relectura_resultado.json", "p07_calibracion_resultado.json", "p07_reapertura/resultado.json"]
     },
     "P08": {
       "state": "pendiente",
@@ -83,8 +83,8 @@
       "evidence": []
     },
     "P19": {
-      "state": "en_curso_contratos_contexto_observacion_deduplicacion_verificados",
-      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml"]
+      "state": "en_curso_contratos_y_aislamiento_trabajadores_verificados",
+      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml", "p19_trabajadores_red.log", "p19_revision_trabajadores_red.log", "p19_custodia_red.log", "p19_trabajadores_final.xml"]
     },
     "P20": {
       "state": "pendiente",

@@ -288,6 +288,32 @@ def test_ciclo_unico_idempotente(tmp_path):
     assert llamadas == ['transformer', 'pinn'] and set(a['candidatos']) == {'pinn', 'transformer'}
 
 
+def test_ciclo_no_da_por_inmutable_una_copia_modificada_por_trabajador(tmp_path):
+    """050:RF-1, 050:RF-8 — también se verifica la instantánea al terminar las etapas."""
+    inst, reg = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg')
+    cid = _candidato(reg, 'pinn')
+
+    def run():
+        ac.ruta_de(inst, 'dataset').write_text('alterado', encoding='utf-8')
+        return {'status': 'PROMOVIDO', 'candidate_id': cid, 'training_completed': True}
+
+    r = ac.ejecutar_ciclo(tmp_path / 'ap', inst, [TrainingStage('pinn', run, uses_gpu=False)],
+        politica_hash=CTX, presupuesto=PRES, registro=reg)
+    assert r['estado'] == 'bloqueado' and any('instantánea' in m for m in r['motivos'])
+
+
+def test_ciclo_reintenta_preflight_si_se_recupera_memoria(tmp_path):
+    """050:RF-4, 050:RF-8 — la falta temporal de memoria no sella el ciclo sin entrenar."""
+    inst, reg, llamadas = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg'), []
+    etapas = [_etapa('pinn', _candidato(reg, 'pinn'), llamadas)]
+    r = ac.ejecutar_ciclo(tmp_path / 'ap', inst, etapas, politica_hash=CTX, presupuesto=PRES,
+        registro=reg, memoria_libre_gib=lambda: 0.1)
+    assert r['estado'] == 'bloqueado' and llamadas == []
+    r = ac.ejecutar_ciclo(tmp_path / 'ap', inst, etapas, politica_hash=CTX, presupuesto=PRES,
+        registro=reg, memoria_libre_gib=lambda: 2)
+    assert r['estado'] == 'terminado' and llamadas == ['pinn']
+
+
 def test_operador_tiene_prioridad_y_presupuestos(tmp_path):
     """050:RF-4: con trabajos del operador el ciclo espera; sin memoria o con licencia nativa, se bloquea."""
     inst, reg = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg')
@@ -543,3 +569,62 @@ def test_cli_congela_contexto_de_varios_proyectos(tmp_path, capsys):
     assert cli.main(['--raiz', str(tmp_path / 'ap'), 'congelar', '--fuente',
         f"dataset={f['dataset']}", '--contexto', str(archivo)]) == 0
     assert json.loads(capsys.readouterr().out)['ok']
+
+
+def test_etapas_del_ciclo_aislan_salidas_y_no_publican(tmp_path, monkeypatch):
+    """050:RF-1, 050:RF-4, 050:RF-7 — comandos reales, sin arrancar modelos ni GPU."""
+    from types import SimpleNamespace
+    import subprocess
+    fuentes = _fuentes(tmp_path)
+    fuentes['cabeceras'] = tmp_path / 'cabecera.txt'
+    fuentes['cabeceras'].write_text('medición de contrato', encoding='utf-8')
+    inst = ac.congelar_instantanea(fuentes, tmp_path / 'ap', contexto=CTX, versiones=VERSIONES)
+    antes = ac.huellas_de(inst['ruta'])
+    spec = importlib.util.spec_from_file_location('aprendizaje_cli_etapas', RAIZ / 'tools' / 'aprendizaje_continuo.py')
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    comandos = []
+
+    def ejecutar(cmd, **_kw):
+        comandos.append(cmd)
+        destino = Path(cmd[cmd.index('--raiz') + 1])
+        assert not destino.is_relative_to(Path(inst['ruta']))
+        if 'digital_twin_entrenar.py' in cmd[1]:
+            assert ac.huellas_de(destino / 'objetos') == ac.huellas_de(ac.ruta_de(inst, 'twin') / 'objetos')
+        (destino / 'modelos').mkdir(parents=True, exist_ok=True)
+        (destino / 'modelos' / 'candidato.txt').write_text('salida', encoding='utf-8')
+        reporte = Path(cmd[cmd.index('--output-json') + 1])
+        reporte.write_text(json.dumps({'entrenado': True, 'promovido': False, 'candidato_aprobado': True,
+            'publicacion_pendiente': True, 'candidate_id': CTX, 'gates': {'approved': True}}), encoding='utf-8')
+        return subprocess.CompletedProcess(cmd, 0, '', '')
+
+    monkeypatch.setattr(subprocess, 'run', ejecutar)
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
+    args = SimpleNamespace(semillas='11', zona_horaria='America/Lima', embedding_model='modelo-fijado',
+        cadencia_min=15, horizontes='1,4,96')
+    etapas = cli._etapas(inst, ['gru', 'pinn'], args, tmp_path / 'ejecucion')
+    for e in etapas:
+        r = e.run()
+        assert r['status'] == 'PROMOVIDO' and r['publicacion_pendiente'] is True
+    assert ac.huellas_de(inst['ruta']) == antes
+    assert len(comandos) == 2 and all('--sin-publicar' in cmd for cmd in comandos)
+    gru = next(cmd for cmd in comandos if 'temporal' in cmd[1])
+    assert '--comparar' in gru and '--cadencia-min' in gru and '--horizontes' in gru
+    algoritmos = gru[gru.index('--comparar') + 1].split(',')
+    assert len(algoritmos) == len(set(algoritmos))
+
+
+def test_cli_recibe_cadencia_horizontes_y_versiona_parametros(tmp_path, capsys, monkeypatch):
+    """050:RF-1, 050:RF-4 — cambiar semillas no reutiliza el ciclo de otro ajuste."""
+    spec = importlib.util.spec_from_file_location('aprendizaje_cli_parametros', RAIZ / 'tools' / 'aprendizaje_continuo.py')
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    monkeypatch.setattr(cli, '_etapas', lambda *_: [])  # se detiene antes de ocupar recursos
+    fuentes = _fuentes(tmp_path)
+    args = ['--raiz', str(tmp_path / 'ap'), 'ciclo', '--fuente', f"dataset={fuentes['dataset']}",
+        '--contexto', CTX, '--familias', 'gru', '--politica-hash', CTX, '--tiempo-s', '10',
+        '--memoria-gib', '1', '--cadencia-min', '15', '--horizontes', '1,4,96']
+    for semillas in ('11', '23'):
+        assert cli.main([*args, '--semillas', semillas]) == 2
+        assert 'familias sin etapa' in json.loads(capsys.readouterr().out)['motivo']
+    assert len(list((tmp_path / 'ap' / 'instantaneas').iterdir())) == 2

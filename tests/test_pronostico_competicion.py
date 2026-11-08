@@ -99,6 +99,17 @@ def test_candidato_que_no_mejora_no_se_publica_y_sigue_el_activo(tmp_path):
     assert reg.ultimo('pronostico_cabecera')['candidate_id'] == malo['candidate_id']
 
 
+def test_pronostico_del_ciclo_registra_sin_publicar_individual(tmp_path):
+    """050:RF-4, 050:RF-7 — una puerta aprobada no adelanta la activación conjunta."""
+    reg = RegistroModelo(tmp_path / 'registro')
+    r = _comparar(tmp_path, objetivos(1, 84, ruido=.08, semilla_ruido=RUIDO),
+        registro=reg, publicar_individual=False)
+    assert r['gates']['approved'] is True
+    assert r['promovido'] is False and r['candidato_aprobado'] is True and r['publicacion_pendiente'] is True
+    assert r['candidate_id'] and reg.activo('pronostico_cabecera') is None
+    assert reg.ultimo('pronostico_cabecera')['candidate_id'] == r['candidate_id']
+
+
 def test_empate_con_el_activo_no_promueve(tmp_path):
     """046:RF-8 — repetir el mismo modelo empata con el activo: sin ventaja predeclarada no sube."""
     reg = RegistroModelo(tmp_path / 'registro')

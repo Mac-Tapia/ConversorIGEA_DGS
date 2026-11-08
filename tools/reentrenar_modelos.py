@@ -9,6 +9,7 @@ import subprocess
 import sys
 import uuid
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -32,6 +33,11 @@ def _estado(payload: dict, modelo: str) -> dict:
         return {'status': payload['status'], 'reason': payload.get('reason') or payload.get('error', '')}
     if payload.get('entrenado') is False:
         return {'status': 'BLOQUEADO_POR_DATOS', 'reason': payload.get('motivo') or payload.get('error', '')}
+    if (payload.get('candidato_aprobado') is True and payload.get('publicacion_pendiente') is True
+            and payload.get('promovido') is False and (payload.get('gates') or {}).get('approved') is True):
+        # La decisión 043 no es el puntero activo: la fase de activación conjunta sigue pendiente.
+        return {'status': 'PROMOVIDO', 'reason': 'puertas individuales aprobadas; publicación conjunta pendiente',
+                'publicacion_pendiente': True, 'promovido': False, 'result': payload}
     if payload.get('status')=='RECHAZADO':
         return {'status':'RECHAZADO','reason':payload.get('reason',''),'result':payload}
     if 'promovido' in payload:
@@ -90,8 +96,9 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
 
 def orden_temporal(args, reporte: Path, algoritmo: str) -> list[str]:
     """046:RF-13: el candidato compite con las referencias y la GRU; nunca se sustituye por GRU."""
+    algoritmos = ','.join(dict.fromkeys(('ingenuo', 'estacional_semanal', 'gru', algoritmo)))
     cmd = [sys.executable, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
-           '--comparar', f'ingenuo,estacional_semanal,gru,{algoritmo}', '--libro', str(args.cabeceras),
+           '--comparar', algoritmos, '--libro', str(args.cabeceras),
            '--clase', args.clase_temporal, '--raiz', str(args.twin), '--output-json', str(reporte),
            '--semillas', args.semillas, '--cadencia-min', str(args.cadencia_temporal),
            '--zona-horaria', str(args.zona_horaria)]
@@ -100,6 +107,29 @@ def orden_temporal(args, reporte: Path, algoritmo: str) -> list[str]:
     for cliente in args.clientes_temporales or ():
         cmd += ['--cliente', cliente]
     return cmd
+
+
+def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
+    """050:RF-1: el trabajador puede escribir modelos e índice, nunca en la captura congelada."""
+    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado, huellas_de
+    from convertersmartgrid.runtime_paths import staging_publicacion
+
+    if not origen.is_dir():
+        raise CicloBloqueado('falta el búfer congelado para la PINN')
+    if destino.resolve().is_relative_to(origen.resolve()):
+        raise CicloBloqueado('la salida PINN no puede estar dentro de su fuente congelada')
+    if destino.exists():
+        if huellas_de(destino / 'objetos') != huellas_de(origen / 'objetos'):
+            raise CicloBloqueado('los episodios de la copia de trabajo PINN cambiaron')
+        return destino
+    antes = huellas_de(origen)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with staging_publicacion(destino) as temporal:
+        shutil.copytree(origen, temporal)
+        if huellas_de(temporal) != antes or huellas_de(origen) != antes:
+            raise CicloBloqueado('la copia de trabajo PINN no coincide con la instantánea')
+        os.replace(temporal, destino)
+    return destino
 
 
 def _etapas(args, run_dir: Path):
@@ -122,6 +152,13 @@ def _etapas(args, run_dir: Path):
         if not args.cabeceras:
             raise ValueError('indique --cabeceras con al menos 30 días observados')
         reporte = run_dir / 'gru.json'
+        if getattr(args, 'ciclo_comun', False):
+            if not getattr(args, 'cadencia_temporal', None) or not getattr(args, 'horizontes_temporales', None):
+                raise ValueError('el ciclo GRU exige cadencia y horizontes declarados')
+            cmd = orden_temporal(args, reporte, 'gru')
+            cmd[cmd.index('--raiz') + 1] = str(run_dir / 'gru_modelos')
+            cmd += ['--horizontes', args.horizontes_temporales, '--sin-publicar']
+            return _subproceso(cmd, reporte, 'gru')
         cmd = [py, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
                '--cabeceras', str(args.cabeceras), '--raiz', str(args.twin),
                '--output-json', str(reporte), '--semillas', semillas]
@@ -134,8 +171,15 @@ def _etapas(args, run_dir: Path):
 
     def pinn():
         reporte = run_dir / 'pinn.json'
+        twin = args.twin
+        if getattr(args, 'ciclo_comun', False):
+            if twin is None:
+                raise ValueError('falta el búfer congelado para la PINN')
+            twin = _twin_de_trabajo(Path(twin), run_dir / 'pinn_twin')
         cmd = [py, str(REPO / 'tools' / 'digital_twin_entrenar.py'), '--forzar',
-               '--raiz', str(args.twin), '--output-json', str(reporte)]
+               '--raiz', str(twin), '--output-json', str(reporte)]
+        if not getattr(args, 'publicar_individual', True):
+            cmd += ['--sin-publicar']
         resultado = _subproceso(cmd, reporte, 'pinn')
         if getattr(args, 'ablaciones', False) and getattr(args, 'config', None):
             # 045:RF-8: informa; no decide la promoción, que sigue siendo la del candidato de arriba.

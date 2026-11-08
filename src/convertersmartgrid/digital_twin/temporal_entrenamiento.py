@@ -393,7 +393,8 @@ def _ventanas_de(ventanas: dict, nombre: str) -> dict:
 def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, horizontes, cadencia_min: int,
                          zona_horaria: str, semillas, procedencia: dict, registro, contexto_pasos: int | None = None,
                          paso_emision_min: int = 60, fabricas: dict | None = None, reabrir=None,
-                         ajustes_modelo: dict | None = None, apartados_previos=(), log=lambda _m: None) -> dict:
+                         ajustes_modelo: dict | None = None, apartados_previos=(), log=lambda _m: None,
+                         publicar_individual: bool = True) -> dict:
     """Compite cada modelo en las mismas ventanas y decide por objetivo (046:RF-5 a RF-8, RF-13 a RF-19).
 
     Las referencias siempre compiten y no piden GPU. Un modelo que no carga, o sin CUDA, queda
@@ -554,7 +555,7 @@ def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, ho
             metrics={a: m.get('prueba') for a, m in resumen.items() if m.get('status') == 'EVALUADO'},
             decision=decision, smoke_reload=smoke, artifacts=artefactos)
         candidate_id = hecho['candidate_id']
-        if gates['approved']:
+        if gates['approved'] and publicar_individual:
             registro.promover(modelo_registro, candidate_id)
             promovido = True
     elif neuronales:
@@ -563,6 +564,8 @@ def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, ho
     motivos = '; '.join(f"{a}: {modelos[a]['reason']}" for a in neuronales if modelos[a].get('status') == 'ERROR_ENTORNO')
     return {'status': status, 'reason': motivos or '; '.join(gates['fallos']), 'marca': 'pronostico', 'clase': clase,
             'training_completed': bool(evaluados), 'entrenado': bool(evaluados), 'evaluation_completed': True,
+            'candidato_aprobado': gates['approved'],
+            'publicacion_pendiente': gates['approved'] and not publicar_individual,
             'promovido': promovido, 'gates': gates, 'politica_hash': politica.hash, 'ganadores': ganadores,
             'modelos': resumen, 'horizontes': list(horizontes), 'apartados': apartados,
             'ventanas': {'huella': ventanas['huella'],

@@ -69,7 +69,10 @@ def _etapas(instantanea: dict, familias: list[str], args, run_dir: Path) -> list
         cabeceras=copia('cabeceras'), llm_dataset=copia('llm_dataset'), semillas=args.semillas,
         zona_horaria=args.zona_horaria, codigos_temporales=None, hojas_temporales=[],
         temporal_desde=None, temporal_hasta=None, ablaciones=False, config=None,
-        embedding_model=args.embedding_model, qlora_model=None, qlora_revision=None)
+        embedding_model=args.embedding_model, qlora_model=None, qlora_revision=None,
+        ciclo_comun=True, publicar_individual=False, clase_temporal='cabecera',
+        cadencia_temporal=getattr(args, 'cadencia_min', None),
+        horizontes_temporales=getattr(args, 'horizontes', None), pares_temporales=[], clientes_temporales=[])
     return [e for e in mod._etapas(ns, run_dir) if e.name in familias]
 
 
@@ -91,6 +94,8 @@ def main(argv=None) -> int:
     e.add_argument('--sin-gpu', action='store_true')
     e.add_argument('--semillas', default='11,23,37,53,71')
     e.add_argument('--zona-horaria')
+    e.add_argument('--cadencia-min', type=int, help='Cadencia declarada de las medidas para la etapa GRU')
+    e.add_argument('--horizontes', help='Horizontes temporales en pasos, fijados antes del ciclo')
     e.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
     sub.add_parser('estado', help='Fases del aprendizaje con versiones y motivos (050:RF-10)')
     k = sub.add_parser('cancelar', help='Cancela un ciclo en curso')
@@ -104,6 +109,11 @@ def main(argv=None) -> int:
         if args.accion in ('congelar', 'ciclo'):
             fuentes = {n: Path(r) for n, r in _pares(args.fuente, '--fuente').items()}
             versiones = {**_versiones(), **_pares(getattr(args, 'version', []), '--version')}
+            if args.accion == 'ciclo':
+                parametros = {k: getattr(args, k) for k in (
+                    'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model')}
+                versiones['parametros_ciclo'] = hashlib.sha256(json.dumps(
+                    parametros, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
             inst = ac.congelar_instantanea(fuentes, raiz, contexto=_contexto(args.contexto), versiones=versiones)
             if args.accion == 'congelar':
                 salida = {'ok': True, 'snapshot_id': inst['snapshot_id'], 'ruta': inst['ruta']}
