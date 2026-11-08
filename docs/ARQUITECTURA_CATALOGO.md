@@ -13,8 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 98 |
 | Interfaz | `frontend/src/` | 47 |
 | Pruebas de la interfaz | `frontend/test/` | 9 |
-| Pruebas | `tests/` | 393 |
-| Pruebas | `tests/` | 394 |
+| Pruebas | `tests/` | 396 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 

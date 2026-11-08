@@ -177,7 +177,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "guardias_os_ciclo_pid_y_gpu_compartida_corregidas_productores_y_campana_real_pendientes",
+      "state": "productores_cola_contextos_integrados_606_regresiones_conjuntas_campana_real_pendiente",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -250,7 +250,9 @@
         "p19_guardia_integracion_v2.xml",
         "p19_guardia_final.xml",
         "p19_puerta_torch_ia.xml",
-        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json"
+        "p19_trazabilidad_guardia/20261108T114306Z_23505fb3dd37474584428e3ad4840b08/registro.json",
+        "paralelo_p19_20261108/HANDOFF.md",
+        "integracion_p19_p21_20261108/resultado.xml"
       ]
     },
     "P20": {
@@ -258,11 +260,14 @@
       "evidence": []
     },
     "P21": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "recuperacion_integridad_diario_integradas_606_regresiones_conjuntas_suspension_fisica_y_sin_red_pendientes",
+      "evidence": [
+        "correccion_revision_p21_20261108/HANDOFF.md",
+        "integracion_p19_p21_20261108/resultado.xml"
+      ]
     },
     "P22": {
-      "state": "constructor_integral238_integrado_240f4ef9_helper_pythonhome_corregido_paquete_instalacion_final_pendientes",
+      "state": "integridad_constructor_integral919_y_pythonhome_corregidos_paquete238_instalacion_final_pendientes",
       "evidence": [
         "instalacion_verde.log",
         "instalacion_verde.xml",
@@ -314,7 +319,9 @@
         "paralelo_p22_20261108/pip_dry_run.json",
         "p22_integrado_f706.xml",
         "p22_home_controles.xml",
-        "p22_pythonhome_dos_layouts.json"
+        "p22_pythonhome_dos_layouts.json",
+        "correccion_revision_p22_20261108/HANDOFF.md",
+        "correccion_revision_p22_20261108/resultado_real.json"
       ]
     },
     "P23": {
@@ -349,22 +356,34 @@
       "P19": {
         "owner": "/root/p19_cierre",
         "branch": "codex/p19-paralelo-20261108",
-        "state": "entregado_b673_daa0_6669_pendiente_integracion"
+        "state": "integrado_revision_y_regresion_enfocada_combinada"
       },
       "P21": {
         "owner": "/root/p21_cierre",
-        "branch": "codex/p21-paralelo-20261108",
-        "state": "entregado_6b798_c1bb_revision_independiente_en_curso"
+        "branch": "codex/p21-integridad-20261108",
+        "state": "integrado_revision_y_regresion_enfocada_combinada"
       },
       "P22": {
         "owner": "/root/p22_paquete_completo",
-        "branch": "codex/p22-paralelo-20261108",
-        "state": "integrado_240f4ef9_revision_independiente_en_curso"
+        "branch": "codex/p22-integridad-20261108",
+        "state": "integrado_revision_y_regresion_enfocada_combinada"
       },
       "P17": {
+        "owner": "/root/p19_cierre",
+        "branch": "codex/p17-integridad-20261108",
+        "state": "corrigiendo_revision_independiente",
+        "worktree_reused": true
+      },
+      "P23_VNR": {
+        "owner": "/root/p21_cierre",
+        "branch": "codex/p23-vnr-20261108",
+        "state": "ead7a1fa_en_revision_y_correccion_sqlite_probe",
+        "worktree_reused": true
+      },
+      "P23_frontend": {
         "owner": "/root/p22_paquete_completo",
-        "branch": "codex/p17-paralelo-20261108",
-        "state": "en_curso",
+        "branch": "codex/p23-frontend-20261108",
+        "state": "ebd7dd81_en_revision_y_correccion_lint_js",
         "worktree_reused": true
       }
     }
@@ -377,12 +396,14 @@
       "cierre_copias_20261108/eliminacion_obsoletos.json",
       "cierre_copias_20261108/eliminacion_temporales.json",
       "cierre_copias_20261108/eliminacion_entornos.json",
-      "cierre_copias_20261108/verificacion_final.json"
+      "cierre_copias_20261108/verificacion_final.json",
+      "cierre_copias_20261108/eliminacion_agentes.json",
+      "cierre_copias_20261108/verificacion_total_tras_agentes.json"
     ],
     "new_backups_created": false,
     "production_acceptance": false,
-    "files_removed": 162415,
-    "internal_links_removed": 2767,
-    "bytes_removed": 15408086991
+    "files_removed": 176999,
+    "internal_links_removed": 4702,
+    "bytes_removed": 15431619694
   }
 }
