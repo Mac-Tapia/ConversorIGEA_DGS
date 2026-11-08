@@ -623,6 +623,32 @@ def test_aplica_las_cargas_nuevas_del_libro_antes_de_con_proyecto(herramienta, t
     assert '2 cargas nuevas de AL209, PA217 (de 3 del libro)' in capsys.readouterr().out
 
 
+def test_con_proyecto_sin_proyecto_sigue_tras_calibrar(herramienta, monkeypatch, tmp_path):
+    """042:RF-31 — `--con-proyecto` sin `--proyecto`: calibra y sigue con el proyecto recién calibrado, con sus cargas.
+    CA101 + CHN102 (098 T6, 2026-11-08): calibraba y terminaba sin «Con proyecto»."""
+    hechos = []
+
+    class Web:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, ruta, **kw):
+            return {'pf_projects': {'CA101_CHN102': 'P_CAL'}}
+
+    monkeypatch.setattr(herramienta, 'Web', Web)
+    monkeypatch.setattr(herramienta, 'libros_de_la_demanda', lambda d, dados: ({}, []))
+    monkeypatch.setattr(herramienta, 'correr', lambda *a, **k: hechos.append('calibra') or 0)
+    monkeypatch.setattr(herramienta, 'aplicar_cargas_nuevas', lambda web, p, f, libro: hechos.append(('cargas', p, f)) or 0)
+    monkeypatch.setattr(herramienta, 'con_proyecto', lambda web, p, f, **k: hechos.append(('con', p, f, k['rehacer_obras'])) or 0)
+    base = ['--espacio', 'E', '--red', 'CA101', 'CHN102', '--grupo', 'CA101_CHN102', '--demanda-dir', str(tmp_path),
+            '--con-proyecto', 'CA101', 'CHN102', '--rehacer-obras']
+    assert herramienta.main(base + ['--cargas-nuevas', str(tmp_path / 'n.xlsx')]) == 0
+    assert hechos == ['calibra', ('cargas', 'P_CAL', ['CA101', 'CHN102']), ('con', 'P_CAL', ['CA101', 'CHN102'], True)]
+    hechos.clear()
+    monkeypatch.setattr(herramienta, 'correr', lambda *a, **k: hechos.append('calibra') or 2)
+    assert herramienta.main(base) == 2 and hechos == ['calibra']
+
+
 def test_un_trabajo_interrumpido_cuenta_como_terminado(herramienta):
     """086:RF-9 — tras un reinicio de la web el trabajo cortado queda «interrumpido»: el cliente no lo espera para siempre."""
     assert 'interrumpido' in herramienta.TERMINADOS

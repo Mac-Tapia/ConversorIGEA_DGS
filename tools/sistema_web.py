@@ -241,6 +241,19 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> None:
         print(f"AVISO: «Caso base» sin verificar: {malos or estado.get('error')}; se sigue (015:RF-13).", flush=True)
 
 
+def nombre_del_grupo(zonal: str | None, *, red: list[str] | None = None, grupo: str | None = None,
+                     set_electrica: str | None = None) -> str:
+    """El nombre del proyecto unido en la web, el mismo que le da la conversión."""
+    if red:
+        # 028:RF-25: un alimentador con su código; varios, unidos con el nombre de la web.
+        return nombre_seguro((grupo or '').strip() or (red[0] if len(red) == 1 else
+                             '_'.join(red[:4]) + ('_ETC' if len(red) > 4 else '')), maximo=60)
+    if set_electrica:
+        # 070:RF-21: el mismo nombre que da ``sistema_seleccion`` a una SET sola (022:RF-82).
+        return grupo_de_set(zonal, set_electrica)
+    return f'SISTEMA_{zonal.upper()}'
+
+
 def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
@@ -282,15 +295,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         print('Cargando la fuente…', flush=True)
         if not _terminado(web.esperar(web.post('/load'))):
             return 2
-    if red:
-        # 028:RF-25: un alimentador con su código; varios, unidos con el nombre de la web.
-        grupo = nombre_seguro((grupo or '').strip() or (red[0] if len(red) == 1 else
-                              '_'.join(red[:4]) + ('_ETC' if len(red) > 4 else '')), maximo=60)
-    elif set_electrica:
-        # 070:RF-21: el mismo nombre que da ``sistema_seleccion`` a una SET sola (022:RF-82).
-        grupo = grupo_de_set(zonal, set_electrica)
-    else:
-        grupo = f'SISTEMA_{zonal.upper()}'
+    grupo = nombre_del_grupo(zonal, red=red, grupo=grupo, set_electrica=set_electrica)
     proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
     if red and (proyecto is None or reconvertir):
         unir = len(red) > 1
@@ -708,14 +713,27 @@ def main(argv=None) -> int:
         libros, avisos = libros_de_la_demanda(demanda_dir, dados)
         for aviso in avisos:
             print(f'  aviso: {aviso}', flush=True)
-        return correr(web, args.zonal, demanda_dir=demanda_dir,
-                      periodo=args.periodo, reconvertir=args.reconvertir,
-                      transformadores=args.transformadores, tension_pu=args.tension_pu,
-                      bancos=not args.sin_bancos, solo=args.alimentadores,
-                      reconstruir=args.reconstruir, libros=libros,
-                      red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas,
-                      maximo_mes=args.maximo_mes, a_su_maxima=args.a_su_maxima,
-                      set_electrica=args.set_electrica)
+        rc = correr(web, args.zonal, demanda_dir=demanda_dir,
+                    periodo=args.periodo, reconvertir=args.reconvertir,
+                    transformadores=args.transformadores, tension_pu=args.tension_pu,
+                    bancos=not args.sin_bancos, solo=args.alimentadores,
+                    reconstruir=args.reconstruir, libros=libros,
+                    red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas,
+                    maximo_mes=args.maximo_mes, a_su_maxima=args.a_su_maxima,
+                    set_electrica=args.set_electrica)
+        if rc or not args.con_proyecto:
+            return rc
+        # CA101 + CHN102 (098 T6, 2026-11-08): con --con-proyecto y sin --proyecto calibraba y terminaba sin
+        # «Con proyecto», aunque la ayuda dice «tras calibrar». Sigue con el proyecto recién calibrado (042:RF-31).
+        grupo = nombre_del_grupo(args.zonal, red=args.red, grupo=args.grupo, set_electrica=args.set_electrica)
+        proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
+        if not proyecto:
+            print(f'ERROR: no hay proyecto de DIgSILENT de {grupo} para «Con proyecto»')
+            return 2
+        if args.cargas_nuevas and aplicar_cargas_nuevas(web, proyecto, args.con_proyecto, args.cargas_nuevas):
+            return 1
+        return con_proyecto(web, proyecto, args.con_proyecto, tipo_cambio=args.tipo_cambio, capex=args.capex,
+                            rehacer_obras=args.rehacer_obras, obra_integral=args.obra_integral)
     except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2
