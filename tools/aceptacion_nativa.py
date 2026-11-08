@@ -706,9 +706,9 @@ def main(argv=None) -> int:
             fallos = comprobar_huellas(carpeta, anterior, permitir_nuevos=args.etapa != 'veredictos')
             if fallos or ruta.read_bytes() != original:
                 raise ValueError('; '.join(fallos) or 'el manifiesto cambió durante la revisión')
-        if args.etapa == 'veredictos':
-            manifiesto['revision_veredictos'] = {
-                **revision, 'manifiesto_origen_sha256': hashlib.sha256(original).hexdigest()}
+        manifiesto['revision_veredictos'] = dict(revision)
+        if original is not None:
+            manifiesto['revision_veredictos']['manifiesto_origen_sha256'] = hashlib.sha256(original).hexdigest()
         _guardar_manifiesto(ruta, manifiesto)
     except (OSError, ValueError) as exc:
         print(f'ERROR de custodia: {exc}', flush=True)

@@ -25,6 +25,8 @@ propia revisión de captura.
 
 El recálculo conserva commit, fecha y huellas de captura. Su revisión y fecha se
 registran separadamente, junto a la huella del manifiesto que se revisó. Antes de
+añadir una etapa posterior se conserva esa separación: cada cálculo registra su
+revisión actual, sin heredar la revisión de un cálculo anterior. Antes de
 publicar se verifica de nuevo la custodia y el manifiesto leído; la publicación
 atómica evita truncar la custodia anterior ante un fallo de escritura. Estos
 controles detectan alteraciones respecto del manifiesto disponible, no suplantan

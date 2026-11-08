@@ -388,6 +388,7 @@ def test_primera_captura_y_etapa_posterior_preservan_origen(guion, tmp_path, mon
     monkeypatch.setattr(guion, '_commit', lambda: 'a' * 40)
     assert guion.main(_argv_custodia(tmp_path, 'protecciones')) == 0
     primera = json.loads((tmp_path / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    assert guion.main(_argv_custodia(tmp_path)) == 0
     monkeypatch.setattr(guion, '_commit', lambda: 'b' * 40)
     # El productor de la segunda etapa es sintético; no abre ningún motor.
     def obras(_args, carpeta):
@@ -401,6 +402,7 @@ def test_primera_captura_y_etapa_posterior_preservan_origen(guion, tmp_path, mon
     assert segunda['escrito'] == primera['escrito']
     assert segunda['capturas']['protecciones']['commit'] == 'a' * 40
     assert segunda['capturas']['obras']['commit'] == 'b' * 40
+    assert segunda['revision_veredictos']['commit'] == 'b' * 40
     assert guion.comprobar_huellas(tmp_path, segunda) == []
 
 
