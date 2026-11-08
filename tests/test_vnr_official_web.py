@@ -237,7 +237,7 @@ def test_la_interfaz_no_fija_formatos_vnr_propios():
     """001:RF-26 — la web toma los formatos VNR del servidor, no de una lista suya."""
     from pathlib import Path
 
-    panel = (Path(__file__).resolve().parents[1] / 'frontend/src/components/InputsPanel.tsx'
+    panel = (Path(__file__).resolve().parents[1] / 'frontend/src/features/conversion/InputsPanel.tsx'
              ).read_text(encoding='utf-8')
     assert 'vnr_package:' not in panel
     assert "spec.extensiones?.join(',')" in panel

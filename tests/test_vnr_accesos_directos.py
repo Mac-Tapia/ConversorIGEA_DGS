@@ -1019,7 +1019,7 @@ def test_descargar_asigna_la_copia_y_no_el_comprimido(cliente, monkeypatch):
 
 def test_el_panel_elige_por_distribuidora_con_el_enlace_oficial():
     """080:RF-11, 080:RF-12, 080:RF-13, 080:RF-14, 080:RF-15, 080:RF-16, 080:RF-17 — los textos y acciones del panel; su comportamiento se prueba en el navegador (T4)."""
-    panel = (Path(__file__).resolve().parents[1] / 'frontend/src/components/InputsPanel.tsx'
+    panel = (Path(__file__).resolve().parents[1] / 'frontend/src/features/conversion/InputsPanel.tsx'
              ).read_text(encoding='utf-8')
     for texto in ('Distribuidora', 'Descargar y usar', 'Enlace oficial', 'Versiones anteriores',
                   'catalog?.portal', 'item.official_page', 'vigente', 'autoBuscada'):

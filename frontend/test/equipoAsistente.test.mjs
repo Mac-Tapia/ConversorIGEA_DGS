@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 async function cargar() {
-  const salida = await build({ entryPoints: [fileURLToPath(new URL('../src/equipoAsistente.ts', import.meta.url))],
+  const salida = await build({ entryPoints: [fileURLToPath(new URL('../src/features/asistente/estadoEquipoAsistente.ts', import.meta.url))],
     bundle: true, write: false, format: 'esm', platform: 'node' });
   return import(`data:text/javascript;base64,${Buffer.from(salida.outputFiles[0].contents).toString('base64')}`);
 }

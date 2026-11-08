@@ -86,8 +86,8 @@ def test_native_capacitor_mismatch_is_corrected_reread_and_nonblocking():
 
 
 def test_bank_panel_uses_server_totals_without_recalculating_power():
-    types = (ROOT / 'frontend/src/types.ts').read_text(encoding='utf-8')
-    panel = (ROOT / 'frontend/src/components/FeedersPanel.tsx').read_text(encoding='utf-8')
+    types = (ROOT / 'frontend/src/api/types.ts').read_text(encoding='utf-8')
+    panel = (ROOT / 'frontend/src/features/conversion/FeedersPanel.tsx').read_text(encoding='utf-8')
 
     assert 'capacitor_banks:' in types
     assert 'capacitor_reread:' in types

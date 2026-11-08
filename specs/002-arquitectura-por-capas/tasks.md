@@ -54,6 +54,16 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       Del 2026-11-03: lo cumplió la 065. Quedan 7 de 133 rutas de `/api` sin modelo de respuesta; salen como tipo abierto.
 - [ ] T11. `frontend/src` en `api/`, `shared/`, `features/` y `app/`, con la regla de fronteras. (RF-18, RF-19)
       Hecho cuando: `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` correctos.
+      Implementación P23 frontend (2026-11-08): movidos los 47 archivos originales
+      a api/shared/features/app, 49 finales por las extracciones compartidas;
+      cero fachadas y excepciones. Lint con TypeScript AST ya instalado y
+      negativas reales de imports, reexports, tipos, alias y dinámicos. API y
+      tipos no dependen de features. El HTML de cinco renders React antes/después
+      es idéntico; 470 declaraciones/sentencias y 3160 aperturas JSX conservadas.
+      Evidencia externa `paralelo_p23_frontend_20261108/HANDOFF.md`.
+      Los criterios automáticos se verifican con lint/test/typecheck/build;
+      T11 conserva pendiente la revisión visual en navegador pedida arriba,
+      que no está disponible. No equivale a cierre de T7/T8/T9/T12 ni de 002.
 - [ ] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
       línea base idéntica; `CODIGO_FUENTE.md` con las rutas nuevas.
       Hecho cuando: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37 y la línea base de la 001 sigue idéntica.

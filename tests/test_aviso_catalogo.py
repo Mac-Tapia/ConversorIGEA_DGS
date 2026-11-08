@@ -53,6 +53,6 @@ def test_subir_el_catalogo_registra_y_devuelve_el_aviso(client, monkeypatch):
 
 def test_la_pantalla_no_repite_un_aviso_propio():
     """081:RF-70 — el aviso de la pantalla sale de la respuesta: una sola frase que mantener."""
-    fuente = (RAIZ / 'frontend/src/components/Modules.tsx').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/conversion/Modules.tsx').read_text(encoding='utf-8')
     assert '${r.aviso}' in fuente and 'Reconvierta' not in fuente
     assert 'Las próximas conversiones volverán a usar' not in fuente

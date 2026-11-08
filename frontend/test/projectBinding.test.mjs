@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const entry = fileURLToPath(new URL('../src/projectBinding.ts', import.meta.url));
+const entry = fileURLToPath(new URL('../src/shared/projectBinding.ts', import.meta.url));
 let renderPanel;
 
 async function panelDeEntrada() {
@@ -14,8 +14,8 @@ async function panelDeEntrada() {
       contents: `
         import { createElement } from 'react';
         import { renderToStaticMarkup } from 'react-dom/server';
-        import { Ctx } from './src/context';
-        import { InputsPanel } from './src/components/InputsPanel';
+        import { Ctx } from './src/shared/context';
+        import { InputsPanel } from './src/features/conversion/InputsPanel';
         export function render(mode, company, active = {}) {
           const value = {
             ws: { id: 'empresa-prueba', options: { input_mode: mode, empresa_espacio: company }, inputs: {}, missing_inputs: [] },

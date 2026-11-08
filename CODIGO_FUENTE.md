@@ -349,48 +349,54 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
-| `frontend/src/main.tsx` | Arranque de React. | 001 |
-| `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2), 061 (RF-4), 091 |
-| `frontend/src/components/AcercaDe.tsx` | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. | 086 (RF-40, RF-43) |
-| `frontend/src/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
-| `frontend/src/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
-| `frontend/src/operacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
-| `frontend/src/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
-| `frontend/src/components/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
-| `frontend/src/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
-| `frontend/src/api.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |
-| `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021, 025 (RF-4, RF-24, RF-28), 037 (RF-1, RF-5), 039 (RF-1, RF-5), 041 (RF-6, RF-9), 061 (RF-2, RF-9) |
-| `frontend/src/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008, 025 (RF-10, RF-23), 091 |
-| `frontend/src/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005, 018 (RF-9 a RF-12), 034 (RF-21) |
-| `frontend/src/context.tsx` | Contexto común de la aplicación. | 001 |
-| `frontend/src/useWorkspace.ts` | Espacio de trabajo, Registro en vivo y trabajos por WebSocket; `?espacio=` y la clave anterior del navegador. | 001, 059 (RF-6) |
-| `frontend/src/styles.css` | Tokens y estilos, modo claro y oscuro; paleta de las series de la curva. | 001, 021 |
-| `frontend/src/components/InputsPanel.tsx` | Entrada de datos: TXT, MDB y VNR-GIS. | 001 (RF-26) |
-| `frontend/src/components/OptionsPanel.tsx` | Opciones de conversión. | 001 |
-| `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido | 001, 022 (RF-7), 091 |
-| `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
-| `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
-| `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73), 042, 091 |
-| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes con su nombre.; máxima por barra de SET | 004 (RF-57), 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52), 022 (RF-39, RF-41), 025 (RF-22, RF-23, RF-34, RF-35, RF-78), 035 (RF-1, RF-2), 038 (RF-2, RF-6, RF-7), 039 (RF-1, RF-4, RF-5), 091 |
-| `frontend/src/components/DatosEmpresaPF.tsx` | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). | 012 (RF-6, RF-7, RF-16, RF-20, RF-21) |
-| `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados; los de la 012 con sus opciones, su tabla y aceptar un reconectador o un banco como obra; el apartado de protecciones con lo que falta, sus capacidades, sus fallas y su evaluación, siempre con el aviso de que un flujo convergente no es selectividad. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68), 012 (RF-1, RF-19, RF-37, RF-40, RF-45, RF-53, RF-58), 037 (RF-1, RF-5), 049 (RF-10), 091 |
-| `frontend/src/components/Asistente.tsx` | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea, respuestas con cita, entregables y reentrenar. | 026 (RF-1, RF-7, RF-8, RF-12, RF-15), 043 (RF-8), 061 (RF-4) |
-| `frontend/src/components/Aprendizaje.tsx` | Consulta de las siete fases del ciclo común, versiones y bloqueos; distingue entrenamiento de publicación y validación nativa. | 050 (RF-8, RF-10) |
+| `frontend/src/app/main.tsx` | Arranque de React. | 001 |
+| `frontend/src/app/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2), 061 (RF-4), 091 |
+| `frontend/src/app/AcercaDe.tsx` | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. | 086 (RF-40, RF-43) |
+| `frontend/src/shared/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
+| `frontend/src/api/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
+| `frontend/src/features/powerfactory/formularioOperacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
+| `frontend/src/features/powerfactory/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
+| `frontend/src/shared/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
+| `frontend/src/features/powerfactory/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
+| `frontend/src/api/client.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |
+| `frontend/src/api/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021, 025 (RF-4, RF-24, RF-28), 037 (RF-1, RF-5), 039 (RF-1, RF-5), 041 (RF-6, RF-9), 061 (RF-2, RF-9) |
+| `frontend/src/features/powerfactory/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008, 025 (RF-10, RF-23), 091 |
+| `frontend/src/shared/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005, 018 (RF-9 a RF-12), 034 (RF-21) |
+| `frontend/src/shared/context.tsx` | Contexto común de la aplicación. | 001 |
+| `frontend/src/shared/useWorkspace.ts` | Espacio de trabajo, Registro en vivo y trabajos por WebSocket; `?espacio=` y la clave anterior del navegador. | 001, 059 (RF-6) |
+| `frontend/src/shared/styles.css` | Tokens y estilos, modo claro y oscuro; paleta de las series de la curva. | 001, 021 |
+| `frontend/src/features/conversion/InputsPanel.tsx` | Entrada de datos: TXT, MDB y VNR-GIS. | 001 (RF-26) |
+| `frontend/src/features/conversion/OptionsPanel.tsx` | Opciones de conversión. | 001 |
+| `frontend/src/features/conversion/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido | 001, 022 (RF-7), 091 |
+| `frontend/src/features/conversion/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
+| `frontend/src/features/conversion/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
+| `frontend/src/features/powerfactory/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73), 042, 091 |
+| `frontend/src/features/powerfactory/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes con su nombre.; máxima por barra de SET | 004 (RF-57), 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52), 022 (RF-39, RF-41), 025 (RF-22, RF-23, RF-34, RF-35, RF-78), 035 (RF-1, RF-2), 038 (RF-2, RF-6, RF-7), 039 (RF-1, RF-4, RF-5), 091 |
+| `frontend/src/features/powerfactory/DatosEmpresaPF.tsx` | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). | 012 (RF-6, RF-7, RF-16, RF-20, RF-21) |
+| `frontend/src/features/powerfactory/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados; los de la 012 con sus opciones, su tabla y aceptar un reconectador o un banco como obra; el apartado de protecciones con lo que falta, sus capacidades, sus fallas y su evaluación, siempre con el aviso de que un flujo convergente no es selectividad. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68), 012 (RF-1, RF-19, RF-37, RF-40, RF-45, RF-53, RF-58), 037 (RF-1, RF-5), 049 (RF-10), 091 |
+| `frontend/src/features/asistente/Asistente.tsx` | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea, respuestas con cita, entregables y reentrenar. | 026 (RF-1, RF-7, RF-8, RF-12, RF-15), 043 (RF-8), 061 (RF-4) |
+| `frontend/src/features/asistente/Aprendizaje.tsx` | Consulta de las siete fases del ciclo común, versiones y bloqueos; distingue entrenamiento de publicación y validación nativa. | 050 (RF-8, RF-10) |
 | `frontend/test/aprendizaje.test.mjs` | Contrato de consulta sin trabajos y representación de fases, rechazo, versiones y errores de lectura. | 050 (RF-8, RF-10) |
-| `frontend/src/components/GemeloPIDE.tsx` | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado y decisión del operador, formatos 01 a 15, aprendizaje activo del gemelo y episodios del proyecto. | 024 (RF-8, RF-45 a RF-48) |
-| `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
-| `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
-| `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
-| `frontend/src/components/AvisosDatos.tsx` | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. | 086 (RF-2, RF-3, RF-9, RF-47) |
-| `frontend/src/components/MarcaBeta.tsx` | La marca y el aviso de una función en beta; en desarrollo no se ven. | 086 (RF-16) |
-| `frontend/src/components/OperacionSet.tsx` | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. | 063 |
-| `frontend/src/components/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
-| `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red; tensión en la fuente; bancos que falten. | 006, 008, 020 (RF-62), 021, 025 (RF-24), 035 (RF-11, RF-16, RF-21, RF-22), 039 (RF-1), 035 (RF-30), 039 (RF-1), 041 (RF-6, RF-9), 091 |
-| `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
-| `frontend/src/components/PerfilTension.tsx` | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. | 094 (RF-3) |
-| `frontend/src/components/JobBar.tsx` | Barra de trabajos en curso. | 001 |
-| `frontend/src/components/LogPanel.tsx` | Registro. | 001 |
-| `frontend/src/components/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |
+| `frontend/src/features/powerfactory/GemeloPIDE.tsx` | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado y decisión del operador, formatos 01 a 15, aprendizaje activo del gemelo y episodios del proyecto. | 024 (RF-8, RF-45 a RF-48) |
+| `frontend/src/features/powerfactory/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
+| `frontend/src/features/powerfactory/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
+| `frontend/src/features/powerfactory/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
+| `frontend/src/app/AvisosDatos.tsx` | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. | 086 (RF-2, RF-3, RF-9, RF-47) |
+| `frontend/src/shared/MarcaBeta.tsx` | La marca y el aviso de una función en beta; en desarrollo no se ven. | 086 (RF-16) |
+| `frontend/src/features/powerfactory/OperacionSet.tsx` | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. | 063 |
+| `frontend/src/features/powerfactory/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
+| `frontend/src/features/powerfactory/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red; tensión en la fuente; bancos que falten. | 006, 008, 020 (RF-62), 021, 025 (RF-24), 035 (RF-11, RF-16, RF-21, RF-22), 039 (RF-1), 035 (RF-30), 039 (RF-1), 041 (RF-6, RF-9), 091 |
+| `frontend/src/features/powerfactory/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
+| `frontend/src/features/powerfactory/PerfilTension.tsx` | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. | 094 (RF-3) |
+| `frontend/src/app/JobBar.tsx` | Barra de trabajos en curso. | 001 |
+| `frontend/src/app/LogPanel.tsx` | Registro. | 001 |
+| `frontend/src/shared/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |
+| `frontend/src/shared/formato.ts` | Formateadores numéricos y tamaños compartidos, extraídos sin cambiar su cuerpo. | 002 (RF-18), 001 |
+| `frontend/src/shared/PfWarning.tsx` | Aviso de disponibilidad de PowerFactory común a conversión y operación. | 002 (RF-18, RF-19), 008 |
+| `frontend/scripts/fronteras.mjs` | Regla AST y resolución TypeScript de fronteras; rechaza dependencias entre features, hacia capas superiores, no resueltas u opacas. | 002 (RF-18, RF-19) |
+| `frontend/src/api/esquema.ts` | Contrato TypeScript generado reproduciblemente desde OpenAPI. | 002 (RF-16, RF-17) |
+| `frontend/src/api/asistenteAceptacion.ts` | Tipo de respuesta de evaluación y aceptación del asistente. | 047 (RF-16, RF-17), 002 (RF-18) |
+| `frontend/src/features/asistente/estadoEquipoAsistente.ts` | Estado y operaciones del equipo del asistente, sin dependencia de otros flujos. | 065, 047, 002 (RF-18) |
 
 ## Gobierno de modelos y preparación causal
 

@@ -8,8 +8,8 @@ async function cargar() {
   const salida = await build({ stdin: { contents: `
     import { createElement } from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
-    import { VistaAprendizaje } from './src/components/Aprendizaje';
-    export { api } from './src/api';
+    import { VistaAprendizaje } from './src/features/asistente/Aprendizaje';
+    export { api } from './src/api/client';
     export const pintar = (estado) => renderToStaticMarkup(createElement(VistaAprendizaje, { estado }));`,
     resolveDir: fileURLToPath(new URL('..', import.meta.url)), loader: 'tsx' },
     bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });

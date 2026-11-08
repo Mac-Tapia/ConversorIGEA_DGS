@@ -77,7 +77,14 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
   de desarrollo de npm) en `frontend/src/api/esquema.ts`; una prueba de Python regenera el
   esquema y lo compara (RF-16, RF-17). Exige que las respuestas de la API tengan modelos
   Pydantic, que hoy son `dict`: es la tarea más larga del front.
-- **Fronteras del front** con ESLint y `eslint-plugin-boundaries` (RF-19).
+- **Fronteras del front** con el AST y resolvedor de módulos de TypeScript ya fijado
+  en el lock, ejecutado por `npm run lint` (RF-18, RF-19). En P23 (2026-11-08)
+  se evita instalar ESLint y otro plugin para este contrato acotado: se verifican
+  imports, reexports, import types, import dinámico literal, require y aliases.
+  Las referencias opacas o no resueltas fallan cerrado. No sustituye lint general.
+  `api` depende solo de sí misma/paquetes; `shared` puede usar `api`; una feature
+  usa `api`, `shared` y su misma feature; `app` compone todos los flujos.
+  No se permiten importaciones entre features ni hacia app desde capas inferiores.
 
 ## Riesgos
 
@@ -97,3 +104,23 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
   CRS (RF-32), sin patrón (RF-33), manifiesto (RF-37).
 - `tests/test_contrato_api.py`: esquema OpenAPI frente a los tipos generados (RF-17).
 - Línea base de DGS antes y después de cada tarea (RF-20), con las tres variables `CSG_*`.
+
+
+## P23 frontend, movimiento autorizado del 2026-11-08
+
+Mapa previo y superficies JSX en `paralelo_p23_frontend_20261108/mapa_rutas.json`
+e `inventario_antes.json`, responsable `/root/p22_paquete_completo`, base
+`1c508a17`. Los tres flujos existentes son conversión (entradas, catálogo,
+reconstrucción/resultados/sistema), PowerFactory (operación y planeamiento) y
+asistente. App conserva la composición. Contexto/hook del espacio, edición,
+vínculo, UI y formato comunes no dependen de features. Se extraen únicamente
+`PfWarning` y los formateadores, sin cambiar sus cuerpos ni superficies.
+Los movimientos y consumidores se actualizan juntos; no quedan fachadas en las
+rutas antiguas. API/esquema.ts conserva su ruta canónica, por lo que el generador
+no cambia sin necesidad. Las citas de revisiones Git históricas no se reescriben.
+
+TDD: frontera inexistente → negativas AST/CLI verdes, incluyendo alias,
+reexports y rutas dinámicas. Se comparan cuerpos AST y superficies JSX antes y
+después; render React de empresa/proyecto/PIDE, npm test completo, lint,
+typecheck/build y contrato reproducible. Esto no acredita revisión visual ni
+aceptación nativa; el navegador no está disponible y no se abre otro mecanismo.

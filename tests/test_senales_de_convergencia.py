@@ -411,17 +411,17 @@ def test_interfaz_dice_cada_estado():
     """078:RF-25, 078:RF-26 — cada estado con su rótulo y su motivo; el vínculo viejo no sale «Verificado».
 
     Solo vigila el código fuente: verlo en el navegador es la T7."""
-    fuente = (RAIZ / 'frontend/src/components/CargasTab.tsx').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/powerfactory/CargasTab.tsx').read_text(encoding='utf-8')
     for texto in ("'NO_CONVERGE'", "'SIN_DATO_DE_FLUJO'", 'No converge', 'Sin dato de flujo', "comprobaciones?.flujo === false",
                   'e.flujo?.motivo'):
         assert texto in fuente, texto
-    tipos = (RAIZ / 'frontend/src/types.ts').read_text(encoding='utf-8')
+    tipos = (RAIZ / 'frontend/src/api/types.ts').read_text(encoding='utf-8')
     assert tipos.count("'NO_CONVERGE' | 'SIN_DATO_DE_FLUJO'") >= 2
 
 
 def test_interfaz_cuenta_los_sin_aceptar():
     """078:RF-27 — el resumen de la importación los nombra."""
-    assert 'r.sin_aceptar' in (RAIZ / 'frontend/src/App.tsx').read_text(encoding='utf-8')
+    assert 'r.sin_aceptar' in (RAIZ / 'frontend/src/app/App.tsx').read_text(encoding='utf-8')
 
 
 def test_informe_de_texto_con_la_lectura(tmp_path):

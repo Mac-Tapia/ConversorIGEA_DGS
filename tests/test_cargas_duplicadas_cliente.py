@@ -101,7 +101,7 @@ def test_la_web_ensena_las_repetidas_de_los_alimentadores_marcados():
     assert {x['motivo'] for x in cp.repetidas_del_libro(filas)} == {'mismo cliente', 'mismo punto'}
     fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert "repetidas = repetidas_del_libro(plan['nuevas'], feeders)" in fuente and "'repetidas': plan['repetidas']" in fuente
-    web = (Path(__file__).resolve().parents[1] / 'frontend/src/components/CargasTab.tsx').read_text(encoding='utf-8')
+    web = (Path(__file__).resolve().parents[1] / 'frontend/src/features/powerfactory/CargasTab.tsx').read_text(encoding='utf-8')
     assert 'plan.repetidas' in web and 'Cuenta' in web
 
 

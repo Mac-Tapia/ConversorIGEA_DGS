@@ -61,7 +61,7 @@ def test_caso_base_limpio_y_sin_servir():
     assert estado_caso_base(True, 'converge', limpio=False) == 'CONVERGE_SIN_SERVIR'
     assert estado_caso_base(True, 'converge') == 'VERIFICADO' and estado_caso_base(False, 'converge', limpio=False) == 'NO_VERIFICADO'
     assert 'CONVERGE_SIN_SERVIR' in CASO_BASE_CALIBRABLE and {'NO_CONVERGE', 'SIN_DATO_DE_FLUJO'} < set(CASO_BASE_CALIBRABLE)
-    fuente = (RAIZ / 'frontend/src/components/CargasTab.tsx').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/powerfactory/CargasTab.tsx').read_text(encoding='utf-8')
     assert "'CONVERGE_SIN_SERVIR', 'NO_CONVERGE', 'SIN_DATO_DE_FLUJO'];" in fuente and 'Converge sin servir todo' in fuente
 
 
@@ -146,7 +146,7 @@ def test_trabajo_termina_con_su_estado_y_su_resultado():
     # Los que esperan a un trabajo lo ven terminado: si no, esperaban horas.
     for fichero in ('tools/sistema_web.py', 'src/convertersmartgrid/asistente/ejecutor.py'):
         assert "'parcial', 'no_converge', 'failed', 'cancelled'" in (RAIZ / fichero).read_text(encoding='utf-8')
-    fuente = (RAIZ / 'frontend/src/useWorkspace.ts').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/shared/useWorkspace.ts').read_text(encoding='utf-8')
     assert "'done', 'parcial', 'no_converge', 'failed', 'cancelled'" in fuente
 
 
@@ -160,9 +160,9 @@ def test_trabajo_parcial_avisa_la_vigilancia():
 
 def test_trabajo_interfaz_lo_dice():
     """081:RF-24 — el título y la calibración. Solo vigila la fuente: verlo en el navegador es la T13."""
-    app = (RAIZ / 'frontend/src/App.tsx').read_text(encoding='utf-8')
+    app = (RAIZ / 'frontend/src/app/App.tsx').read_text(encoding='utf-8')
     assert "' — parcial'" in app and "' — no converge'" in app and 'r?.pendientes' in app
-    ajuste = (RAIZ / 'frontend/src/components/AjusteCabecera.tsx').read_text(encoding='utf-8')
+    ajuste = (RAIZ / 'frontend/src/features/powerfactory/AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert 'resultado?.pendientes' in ajuste and 'Calibración parcial' in ajuste and 'caso_base_cambio' in ajuste
 
 

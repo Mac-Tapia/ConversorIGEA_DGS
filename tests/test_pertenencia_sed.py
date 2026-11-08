@@ -130,7 +130,7 @@ def test_notas_del_libro_se_leen_y_exportan(tmp_path):
 
 def test_web_muestra_notas_y_aclara_alcance_de_planos():
     """038:RF-2, 038:RF-6, 038:RF-7 — nota visible; planos previos de la distribuidora fuera del alcance."""
-    root = Path(__file__).resolve().parents[1] / 'frontend/src/components'
+    root = Path(__file__).resolve().parents[1] / 'frontend/src/features/powerfactory'
     demanda = (root / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'nota_asignacion' in demanda and 'radial_libro' in demanda
     assert 'planos de la distribuidora previos a la exportación quedan fuera del alcance' in demanda

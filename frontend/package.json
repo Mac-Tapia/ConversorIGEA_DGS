@@ -13,7 +13,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
     "test": "node --test \"test/*.test.mjs\"",
-    "preview": "vite preview --configLoader runner"
+    "preview": "vite preview --configLoader runner",
+    "lint": "node scripts/fronteras.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

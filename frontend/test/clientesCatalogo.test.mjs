@@ -3,7 +3,7 @@ import test from 'node:test';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
-const entry = fileURLToPath(new URL('../src/clientesCatalogo.ts', import.meta.url));
+const entry = fileURLToPath(new URL('../src/features/powerfactory/clientesCatalogo.ts', import.meta.url));
 
 async function cargar() {
   const salida = await build({

@@ -8,9 +8,9 @@ async function cargar() {
   const salida = await build({ stdin: { contents: `
     import { createElement } from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
-    import { GemeloPIDE, VistaPideAnual, FormularioPideAnual, cuerpoPideAnual } from './src/components/GemeloPIDE';
-    import { Ctx } from './src/context';
-    export { api } from './src/api';
+    import { GemeloPIDE, VistaPideAnual, FormularioPideAnual, cuerpoPideAnual } from './src/features/powerfactory/GemeloPIDE';
+    import { Ctx } from './src/shared/context';
+    export { api } from './src/api/client';
     export const panel = (jobs = {}) => renderToStaticMarkup(createElement(Ctx.Provider, { value: {
       ws:{id:'W'}, jobs, active:{}, health:{edicion:{producto:true,beta:[]}},
       run: async (f) => f(), startJob: async (f) => f() } },

@@ -798,10 +798,10 @@ def test_pantalla_del_doctor_y_la_version_por_la_api(tmp_path, monkeypatch):
 
 def test_la_pantalla_muestra_lo_que_dice_el_doctor():
     """086:RF-40; 086:RF-43 — la versión de la cabecera abre las notas y el doctor."""
-    texto = (RAIZ / 'frontend/src/components/AcercaDe.tsx').read_text(encoding='utf-8')
+    texto = (RAIZ / 'frontend/src/app/AcercaDe.tsx').read_text(encoding='utf-8')
     for campo in ('c.afecta', 'c.arreglo', 'c.detalle', 'api.diagnostico', 'api.versionPrograma'):
         assert campo in texto, campo
-    assert '<AcercaDe version={health.version}' in (RAIZ / 'frontend/src/App.tsx').read_text(encoding='utf-8')
+    assert '<AcercaDe version={health.version}' in (RAIZ / 'frontend/src/app/App.tsx').read_text(encoding='utf-8')
 
 
 # --------------------------------------------------------------------------- RF-41: registro rotativo

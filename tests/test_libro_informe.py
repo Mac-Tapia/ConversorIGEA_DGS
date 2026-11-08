@@ -172,7 +172,7 @@ def test_estudio_toma_la_ultima_etapa(tmp_path):
 def test_web_ofrece_el_libro_junto_al_word():
     """066:RF-11 — el enlace y los avisos están en el resultado del informe."""
     raiz = Path(__file__).resolve().parents[1]
-    front = (raiz / 'frontend/src/components/InformesPF.tsx').read_text(encoding='utf-8')
+    front = (raiz / 'frontend/src/features/powerfactory/InformesPF.tsx').read_text(encoding='utf-8')
     assert 'Descargar libro' in front and 'Sin libro:' in front and 'Revise el libro:' in front
     servicios = (raiz / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert servicios.count('_libro_del_informe(ctx, destino,') == 2

@@ -277,7 +277,7 @@ def test_aviso_no_aparece_con_el_transformer_en_uso(api):
 
 def test_aviso_se_muestra_en_la_consola():
     """067:RF-11 — el plan de la consola enseña sus avisos como alerta."""
-    fuente = (RAIZ / 'frontend/src/components/Asistente.tsx').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/asistente/Asistente.tsx').read_text(encoding='utf-8')
     assert 'plan.avisos' in fuente and 'alert alert-warn' in fuente
 
 
@@ -407,8 +407,8 @@ def test_guardado_no_sale_de_su_carpeta_por_el_identificador(entorno):
 
 def test_guardado_en_la_consola():
     """067:RF-19 — la consola pide los planes guardados del espacio."""
-    fuente = (RAIZ / 'frontend/src/components/Asistente.tsx').read_text(encoding='utf-8')
-    assert 'asistentePlanes' in fuente and 'asistentePlanes' in (RAIZ / 'frontend/src/api.ts').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/asistente/Asistente.tsx').read_text(encoding='utf-8')
+    assert 'asistentePlanes' in fuente and 'asistentePlanes' in (RAIZ / 'frontend/src/api/client.ts').read_text(encoding='utf-8')
 
 
 # ------------------------------------------------------------------ modelos en uso
@@ -865,5 +865,5 @@ def test_lista_inventario_dice_la_verdad():
 
 def test_lista_en_la_consola():
     """067:RF-37 — la consola enseña la lista antes del botón y manda su huella."""
-    fuente = (RAIZ / 'frontend/src/components/Asistente.tsx').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'frontend/src/features/asistente/Asistente.tsx').read_text(encoding='utf-8')
     assert 'agenteProyectoLista' in fuente and 'confirmacion: lista.confirmacion' in fuente

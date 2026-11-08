@@ -218,4 +218,4 @@ def test_se_dice_en_la_estructura_y_al_importar():
     fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert "perfil_no_aplicado['carpeta_destino'] = asdict(destino)" in fuente and "'carpeta': asdict(destino)," in fuente
     assert 'ctx.log(destino.aviso)' in fuente
-    assert 'estructura?.carpeta_destino?.aviso' in (RAIZ / 'frontend/src/components/FeedersPanel.tsx').read_text(encoding='utf-8')
+    assert 'estructura?.carpeta_destino?.aviso' in (RAIZ / 'frontend/src/features/conversion/FeedersPanel.tsx').read_text(encoding='utf-8')
