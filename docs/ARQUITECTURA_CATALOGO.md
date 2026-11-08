@@ -11,16 +11,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 295 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 98 |
-| Interfaz | `frontend/src/` | 47 |
-| Pruebas de la interfaz | `frontend/test/` | 9 |
-| Pruebas | `tests/` | 396 |
-| Pruebas | `tests/` | 394 |
-| Pruebas de la interfaz | `frontend/test/` | 10 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 395 |
-| Pruebas | `tests/` | 396 |
-| Pruebas | `tests/` | 394 |
+| Pruebas | `tests/` | 400 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
@@ -56,8 +49,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-145 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
-144 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+145 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |

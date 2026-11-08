@@ -25,7 +25,7 @@ def test_planes_separan_frontend_y_ml_sin_omitirlos(tmp_path):
     core = h.plan_comprobaciones(tmp_path, Path(sys.executable), 'nucleo', tmp_path/'e')
     full = h.plan_comprobaciones(tmp_path, Path(sys.executable), 'completa', tmp_path/'e')
     base = {p['id'] for p in core}
-    assert {'backend', 'frontend_tests', 'frontend_types', 'frontend_build',
+    assert {'backend', 'frontend_tests', 'frontend_lint', 'frontend_types', 'frontend_build',
             'python_check', 'python_audit', 'frontend_audit'} <= base
     assert {p['id'] for p in full} == base | {'ml'}
     assert all(isinstance(p['command'], list) and p['command'] for p in full)
@@ -33,6 +33,30 @@ def test_planes_separan_frontend_y_ml_sin_omitirlos(tmp_path):
     assert '--hash-datos' in next(p['command'] for p in full if p['id']=='backend')
     with pytest.raises(ValueError):
         h.plan_comprobaciones(tmp_path, Path(sys.executable), 'parcial', tmp_path/'e')
+
+
+@pytest.mark.parametrize('ilicita', [False, True])
+def test_lint_real_es_puerta_de_entrega_y_rechaza_cruces(tmp_path, ilicita):
+    """002:RF-19; 065:RF-24 — el lint real bloquea la entrega por un cruce entre features."""
+    h = herramienta()
+    root = Path(__file__).resolve().parents[1]
+    fixture = tmp_path/'frontend'
+    (fixture/'src/features/uno').mkdir(parents=True)
+    (fixture/'src/features/dos').mkdir()
+    (fixture/'tsconfig.json').write_text('{"compilerOptions":{"moduleResolution":"bundler"}}', encoding='utf-8')
+    (fixture/'src/features/dos/panel.ts').write_text('export const valor=1;', encoding='utf-8')
+    texto = "import {valor} from '../dos/panel'; export const resultado=valor;" if ilicita else 'export const resultado=1;'
+    (fixture/'src/features/uno/panel.ts').write_text(texto, encoding='utf-8')
+    plan = h.plan_comprobaciones(root, Path(sys.executable), 'nucleo', tmp_path/'e')
+    lint = next(p for p in plan if p['id']=='frontend_lint')
+    lint['command'] += ['--raiz', str(fixture)]
+    resultado = h.ejecutar_comprobacion(lint, tmp_path/'e')
+    assert resultado['returncode'] == int(ilicita)
+    assert resultado['state'] == ('rechazada' if ilicita else 'aprobada')
+    entrega = h.evaluar_entrega([resultado], {'frontend_lint'})
+    assert entrega['technical_checks_passed'] is (not ilicita)
+    if ilicita:
+        assert 'otro feature' in Path(resultado['stderr']).read_text(encoding='utf-8')
 
 
 @pytest.mark.parametrize('caso', ['fallo', 'ausente', 'duplicado', 'no_ejecutado'])

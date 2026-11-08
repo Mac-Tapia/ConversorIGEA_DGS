@@ -55,3 +55,10 @@ M10 ni sustituir el instalador, la suite completa o la aceptación del dominio.
 La misma selección incluye `tests_ml/` y los catálogos `docs/*_LOCK.json`, que
 consume la edición completa. Se reprodujeron otras tres omisiones por mutación;
 trazabilidad, verificador y entrega integral pasan 110 pruebas enfocadas.
+
+Integración P23 (2026-11-08, RF-24 y 002:RF-19): las dos ediciones ejecutan
+también el lint de fronteras del frontend. Un cruce real entre features debe
+rechazar la comprobación y la entrega, aunque tipos y compilación sean correctos.
+La prueba invoca el linter real mediante el mismo comando del plan; conserva
+un caso positivo y el stderr/código 1 de la violación. No sustituye la revisión
+visual ni la regresión backend completa.

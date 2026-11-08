@@ -52,6 +52,7 @@ def plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path)
         '--output-dir', evidencia/'backend_regresion', '--python', python, '--ejecutar',
         '--suite-completa', '--hash-datos'], artifact=str(evidencia/'backend_regresion'))
     agregar('frontend_tests', 'tap', [node, '--test', '--test-reporter=tap', 'test/*.test.mjs'], cwd=frontend)
+    agregar('frontend_lint', 'command', [node, frontend/'scripts/fronteras.mjs'], cwd=frontend)
     agregar('frontend_types', 'command', [node, frontend/'node_modules/typescript/bin/tsc',
         '--noEmit', '--incremental', 'false', '-p', frontend/'tsconfig.json'], cwd=frontend)
     agregar('frontend_build', 'frontend_build', [node, frontend/'scripts/build.mjs'],
