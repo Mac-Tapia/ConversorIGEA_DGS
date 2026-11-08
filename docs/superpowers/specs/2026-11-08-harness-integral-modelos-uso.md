@@ -16,7 +16,7 @@ aceptación de esta implementación.
 
 Se implementaron el núcleo de métricas, configuración sellada, ejecución pareada,
 validación de integridad, guarda runtime, adaptadores y CLI. La revisión
-independiente ejecutó y confirmó 31 pruebas stdlib con Python 3.12, sin hallazgos
+independiente ejecutó y confirmó 42 pruebas stdlib con Python 3.12, sin hallazgos
 Critical/Important pendientes en las superficies nuevas. Incluyen una prueba CLI
 en proceso hijo y restauración del informe previo ante fallo de relectura.
 Las pruebas con proveedores/evaluadores dobles, incluso las que simulan metadata

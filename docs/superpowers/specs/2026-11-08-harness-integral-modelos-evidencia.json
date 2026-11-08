@@ -20,7 +20,14 @@
       "skipped": 0,
       "log": "D:\\converter\\ConversorIGEA_DGS\\.worktrees\\harness-integral-20261108\\output\\harness_integral_20261108\\regresion_final.txt",
       "sha256": "f325e65cd3fcee9d3dabda1e93d04fc8397ac470099e52c46deb03317286c246",
-      "command": ".venv/Scripts/python.exe -I -B -c import pytest; pytest.main(-q tests/test_model_registry.py tests/test_training_coordinator.py tests/test_evaluacion_modelos.py tests/test_aceptacion_agente.py tests/test_trazabilidad_specs.py::test_cada_fichero_de_pruebas_cita_una_spec tests/test_harness_*.py) with worktree src/tests inserted explicitly"
+      "command": "See argv: exact exec arguments, PYTHONDONTWRITEBYTECODE=1, cwd=worktree",
+      "argv": [
+        "D:/converter/ConversorIGEA_DGS/.venv/Scripts/python.exe",
+        "-I",
+        "-B",
+        "-c",
+        "import sys,glob,pytest; sys.path[:0]=['src','tests']; paths=['tests/test_model_registry.py','tests/test_training_coordinator.py','tests/test_evaluacion_modelos.py','tests/test_aceptacion_agente.py','tests/test_trazabilidad_specs.py::test_cada_fichero_de_pruebas_cita_una_spec']+sorted(glob.glob('tests/test_harness_*.py')); sys.exit(pytest.main(['-q','--disable-warnings','--maxfail=3',*paths]))"
+      ]
     },
     "ruff": {
       "ok": true,
@@ -70,5 +77,6 @@
     "integrator layer/inventory entries and combined-cut validation",
     "full product suite",
     "real independent model campaigns with resource turn and sealed data/policy"
-  ]
+  ],
+  "source_commit": "9e609f2c31621930e9ef01b6afef327d8cbbf8f3"
 }
