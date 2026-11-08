@@ -41,3 +41,8 @@
   Hecho cuando: `pytest -q tests/test_batch_hilos.py` y `pytest -q tests/test_linea_base_001.py -k cuatro_procesos` en verde.
 - [x] T15 Los espacios guardados se abren con el contrato de la API. (RF-26)
   Hecho cuando: `pytest -q tests/test_contrato_api.py tests/test_libros_por_anio_web.py` en verde y todos los `workspace.json` reales validan contra `EspacioRespuesta`.
+- [x] T16 El cierre de dependencias rechaza versiones bajo la política de seguridad de la entrega. (RF-15, RF-24)
+  Hecho cuando: `tests/test_fijar_entorno.py` prueba negativos y positivos, un entorno candidato cumple los mínimos y su auditoría actual queda documentada.
+  Evidencia (2026-11-07): 26 pruebas de fijación sin omitidas; núcleo instalado offline desde 58 ruedas con hashes en entorno externo; constraints regenerados idénticos; pip check correcto y pip-audit actual de 58 dependencias sin vulnerabilidades conocidas. Evidencia externa `implementacion/p01_audit.json` del diagnóstico de producción.
+- [ ] T17 Puerta integral que conserva los ámbitos de backend, frontend y ML y sus fallos reales. (RF-24)
+  Hecho cuando: `tests/test_verificar_entrega_integral.py` sin omitidas; las regresiones reales conservan sus registros y ninguna sustituye aceptación de dominio.

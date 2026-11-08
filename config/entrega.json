@@ -72,6 +72,7 @@
     "tools/trazabilidad_candidato.py",
     "tools/validar_totalidad_vnr.py",
     "tools/verificar_candidato.py",
+    "tools/verificar_entrega_integral.py",
     "tools/verify_architecture_links.py"
   ],
   "_comentario_candidato": "086:RF-36 a RF-39. La forma del paquete armado por tools/construir_candidato.py. Lo de «terceros» no lleva términos que buscar, pero cada fichero va con su huella en el manifiesto; dentro de la rueda propia, cada fichero se comprueba por la lista de arriba.",
@@ -79,7 +80,7 @@
     "raices": ["manifiesto_candidato.json", "programa/*.whl", "instalador/*", "documentos/*", "terceros/*"],
     "terceros": ["terceros/*"],
     "rueda_propia": "programa/convertersmartgrid-*.whl",
-    "_comentario_seguridad": "Versiones más nuevas que constraints-python312-win.txt, por pip-audit del 2026-11-04 (Pillow con escrituras fuera del búfer; pypdf con bucles infinitos sobre un PDF del solicitante; certifi con una raíz retirada). El entorno de desarrollo aún no las usa: al integrar, regenerar constraints y quitar de aquí lo que ya coincida.",
+    "_comentario_seguridad": "Mínimos de seguridad por pip-audit del 2026-11-04. El lock y constraints ya incluyen las correcciones de Pillow, pypdf y certifi. fijar_entorno impide volver a congelar versiones inferiores; la auditoría actual sigue siendo una puerta independiente de cada candidato.",
     "versiones_de_seguridad": {"pillow": "13.0.0", "pypdf": "6.21.4", "certifi": "2026.10.18"},
     "fuera_del_nucleo": ["torch", "torchvision", "torchaudio", "transformers", "sentence-transformers", "tokenizers", "accelerate", "peft", "bitsandbytes", "safetensors", "huggingface-hub", "torch-geometric", "neuralforecast", "optuna", "pytest", "httpx2", "httpcore2", "pluggy", "iniconfig"]
   },

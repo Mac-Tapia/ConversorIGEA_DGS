@@ -98,3 +98,47 @@ def test_destino_ajeno_no_se_publica_como_windows312(version, plataforma, maquin
     """065:RF-15 — un lock de Windows CPython AMD64 no certifica otros destinos."""
     with pytest.raises(ValueError):
         herramienta().comprobar_destino(version, plataforma, maquina)
+
+
+@pytest.mark.parametrize("nombre,instalada,minima", [
+    ("pillow", "12.3.0", "13.0.0"),
+    ("pypdf", "6.21.2", "6.21.4"),
+    ("certifi", "2026.7.22", "2026.10.18"),
+])
+def test_entorno_bajo_minimo_de_seguridad_no_es_apto(tmp_path, nombre, instalada, minima):
+    """065:RF-15/24; 086:RF-44 — compatibilidad no sustituye la política de seguridad."""
+    m = herramienta()
+    with pytest.raises(ValueError, match="seguridad"):
+        m.resolver_cierre([nombre], inventario(tmp_path, {nombre: (instalada, [], None)}),
+                         minimos_seguridad={nombre: minima})
+
+
+@pytest.mark.parametrize("instalada", ["13.0.0", "13.0.1"])
+def test_minimo_de_seguridad_permite_version_igual_o_superior(tmp_path, instalada):
+    """065:RF-15; 086:RF-44 — el mínimo no es un pin oculto ni exige extras ajenos."""
+    m = herramienta()
+    assert m.resolver_cierre(
+        ["pillow"], inventario(tmp_path, {"pillow": (instalada, [], None)}),
+        minimos_seguridad={"Pillow": "13.0.0", "extra-no-solicitado": "1.0"},
+    ) == {"pillow": instalada}
+
+
+def test_constraints_no_regresan_bajo_politica_de_seguridad():
+    """065:RF-15; 086:RF-44 — instalar desarrollo no debe deshacer la corrección del núcleo."""
+    import re
+    from packaging.version import Version
+
+    raiz = Path(__file__).parents[1]
+    minimos = herramienta().leer_minimos_seguridad(raiz/'config/entrega.json')
+    fijadas = dict(re.findall(r'^([a-z0-9._-]+)==(\S+)',
+                   (raiz/'constraints-python312-win.txt').read_text(encoding='utf-8'), re.M))
+    assert all(n in fijadas and Version(fijadas[n]) >= Version(v) for n,v in minimos.items())
+
+
+@pytest.mark.parametrize('dato', ['{}', '[]', '{"candidato":{"versiones_de_seguridad":{}}}',
+    '{"candidato":{"versiones_de_seguridad":{"pillow":null}}}'])
+def test_politica_incompleta_no_se_omite(tmp_path, dato):
+    """065:RF-15/24 — la ausencia o corrupción de política no equivale a no tener mínimos."""
+    p = tmp_path/'entrega.json';p.write_text(dato,encoding='utf-8')
+    with pytest.raises(ValueError, match='seguridad'):
+        herramienta().leer_minimos_seguridad(p)

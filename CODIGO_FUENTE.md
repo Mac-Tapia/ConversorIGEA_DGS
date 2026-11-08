@@ -501,6 +501,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/copia_datos.py` | Órdenes de copia, verificación, restauración, estado de la copia e identidad de la instalación. | 086 (RF-7, RF-10, RF-47) |
 | `tools/aceptar_dominio.py` | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. | 065 (RF-21) |
 | `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 (RF-1, RF-20, RF-21, RF-24) |
+| `tools/verificar_entrega_integral.py` | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. | 065 (RF-24), 086 (RF-46) |
 | `frontend/src/api/esquema.ts` | Tipos generados desde OpenAPI; no se editan a mano. | 065 (RF-17), 002 |
 | `frontend/src/components/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 (RF-18, RF-19) |
 | `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 (RF-22) |

@@ -1,5 +1,15 @@
 # Plan — Spec 065
 
+Ejecución de producción del 2026-11-07, P01: `tools/fijar_entorno.py` aplica los mínimos
+de `config/entrega.json` antes de emitir constraints; los mínimos se comprueban contra
+el cierre solicitado, sin exigir extras ajenos. Las versiones corregidas se conservan
+en el lock del candidato y la auditoría CVE sigue siendo una puerta independiente.
+
+P03: `tools/verificar_entrega_integral.py` consume el runner existente para `tests/`
+y añade frontend test/typecheck/build, auditorías y `tests_ml` en edición completa.
+Las pruebas usan procesos reales, TAP/JUnit y negativos de omisión/timeout. La salida
+mantiene aceptación eléctrica, científica y operativa pendientes hasta sus evidencias.
+
 La orden del usuario autoriza implementar el plan integral sin pausas entre fases.
 Contrato: spec.md, constitución y specs enlazadas. Base inicial: f5c9c89d;
 worktree propio codex/mejoras-auditoria-integral. Evidencias voluminosas fuera del código.

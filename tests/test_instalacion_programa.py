@@ -438,7 +438,9 @@ def test_el_lock_sigue_las_versiones_fijadas(manifiesto):
     fijadas = dict(re.findall(r'^([a-z0-9._-]+)==(\S+)', (RAIZ / 'constraints-python312-win.txt').read_text(encoding='utf-8'), flags=re.M))
     lock = dict(re.findall(r'^([a-z0-9._-]+)==(\S+) ', (RAIZ / 'requirements-nucleo.lock').read_text(encoding='utf-8'), flags=re.M))
     distintas = {n: v for n, v in lock.items() if n in fijadas and fijadas[n] != v}
-    assert distintas == manifiesto['candidato']['versiones_de_seguridad']
+    seguridad = manifiesto['candidato']['versiones_de_seguridad']
+    assert distintas == {n: v for n, v in seguridad.items() if fijadas.get(n) != v}
+    assert all(lock.get(n) == v for n, v in seguridad.items())
 
 
 def test_limites_con_seguridad():
@@ -620,6 +622,10 @@ def _doctor(tmp_path, importer=None, drivers=None, pf=None, **kw):
 @pytest.fixture()
 def _sin_entorno_frontend(monkeypatch, tmp_path):
     monkeypatch.delenv('CSG_WEB_FRONTEND', raising=False)
+    monkeypatch.delenv('CSG_TESSERACT', raising=False)
+    # 091:RF-32: el buscador también mira Program Files; la simulación sin OCR
+    # debe aislar esa vía, además del PATH que ya inyecta _doctor.
+    monkeypatch.setattr('convertersmartgrid.documentos_solicitud.tesseract', lambda: None)
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'sin_perfil.json'))
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'rt'))
 

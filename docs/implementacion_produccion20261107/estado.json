@@ -1,0 +1,122 @@
+{
+  "plan": "docs/superpowers/plans/2026-11-07-cierre-produccion-integral.md",
+  "base": "5617251012f39193297e19b299d8a179a8fe1f61",
+  "worktree": "D:\\converter\\ConversorIGEA_DGS\\.worktrees\\cierre-produccion-20261107",
+  "branch": "codex/cierre-produccion-20261107",
+  "production_ready_core": false,
+  "project_complete": false,
+  "packages": {
+    "P00": {
+      "state": "verificado",
+      "evidence": []
+    },
+    "P01": {
+      "state": "entorno_verificado",
+      "evidence": []
+    },
+    "P02": {
+      "state": "verificado",
+      "evidence": []
+    },
+    "P03": {
+      "state": "implementado_pruebas_enfocadas",
+      "evidence": []
+    },
+    "P04": {
+      "state": "en_curso",
+      "evidence": []
+    },
+    "P05": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P06": {
+      "state": "pendiente_por_datos_usuario",
+      "evidence": []
+    },
+    "P07": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P08": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P09": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P10": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P11": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P12": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P13": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P14": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P15": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P16": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P17": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P18": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P19": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P20": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P21": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P22": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P23": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P24": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P25": {
+      "state": "pendiente",
+      "evidence": []
+    },
+    "P26": {
+      "state": "pendiente",
+      "evidence": []
+    }
+  },
+  "user_deferred": [
+    "012:T13",
+    "049:T4"
+  ]
+}

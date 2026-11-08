@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from collections.abc import Mapping
 from importlib import metadata
+import json
 import platform
 from pathlib import Path
 import re
@@ -71,7 +73,8 @@ def leer_requisitos(ruta: Path, visitados: frozenset[Path] = frozenset()) -> lis
     return requisitos
 
 
-def resolver_cierre(requisitos: list[str], inventario: dict | None = None) -> dict[str, str]:
+def resolver_cierre(requisitos: list[str], inventario: dict | None = None, *,
+                    minimos_seguridad: Mapping[str, str] | None = None) -> dict[str, str]:
     """Recorre Requires-Dist hasta un punto fijo, incluidos extras transitivos."""
     instalado = inventario is None
     inventario = {} if instalado else {canonicalize_name(n): d for n, d in inventario.items()}
@@ -115,7 +118,26 @@ def resolver_cierre(requisitos: list[str], inventario: dict | None = None) -> di
         activados.setdefault(nombre, set()).update(nuevos)
         cierre[nombre] = str(version)
         pendientes.extend((dep, frozenset(activados[nombre])) for dep in distribucion.requires or [])
+    for nombre, minimo in (minimos_seguridad or {}).items():
+        nombre = canonicalize_name(nombre)
+        if nombre in cierre and Version(cierre[nombre]) < Version(minimo):
+            raise ValueError(f"Mínimo de seguridad incumplido: {nombre}=={cierre[nombre]}, requerido >= {minimo}")
     return dict(sorted(cierre.items()))
+
+
+def leer_minimos_seguridad(ruta: Path) -> dict[str, str]:
+    """065:RF-15/24 — no volver a congelar el entorno que el candidato ya corrigió."""
+    dato = json.loads(ruta.read_text(encoding="utf-8-sig"))
+    candidato = dato.get("candidato") if isinstance(dato, dict) else None
+    minimos = candidato.get("versiones_de_seguridad") if isinstance(candidato, dict) else None
+    if not isinstance(minimos, dict) or not minimos:
+        raise ValueError("Falta la política de mínimos de seguridad de la entrega")
+    for nombre, version in minimos.items():
+        if not isinstance(nombre, str) or not nombre.strip() or not isinstance(version, str):
+            raise ValueError("Política de mínimos de seguridad inválida")
+        if not Version(version).release or Version(version).local:
+            raise ValueError("Versión de seguridad no reproducible")
+    return minimos
 
 
 def texto_constraints(cierre: dict[str, str], version_python: str) -> str:
@@ -140,7 +162,9 @@ def main() -> int:
         comprobar_destino(platform.python_version(), sys.platform, platform.machine())
         if platform.python_implementation() != "CPython":
             raise ValueError("Este cierre requiere CPython")
-        texto = texto_constraints(resolver_cierre(leer_requisitos(args.requirements)), platform.python_version())
+        politica = leer_minimos_seguridad(args.requirements.resolve().parent / "config" / "entrega.json")
+        cierre = resolver_cierre(leer_requisitos(args.requirements), minimos_seguridad=politica)
+        texto = texto_constraints(cierre, platform.python_version())
         if args.salida:
             args.salida.write_text(texto, encoding="utf-8", newline="\n")
         else:

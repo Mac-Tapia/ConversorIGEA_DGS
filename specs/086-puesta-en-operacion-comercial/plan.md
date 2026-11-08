@@ -1,5 +1,10 @@
 # Plan — Spec 086
 
+P03 del cierre de producción (2026-11-07): `tools/verificar_entrega_integral.py`
+consolida las puertas de 065:RF-24, frontend y ML sin equiparar una regresión
+aprobada con RF-46. Los ensayos nativos, de instalación, interrupción y tercero
+conservan su evidencia y aceptación independientes; no se certifican por el runner.
+
 Lee: `docs/constitution.md`, 058, 062, 065, 081. Las revisiones que lo fundamentan son de `f50146e8` y solo leyeron código: cada hallazgo se
 reproduce antes de corregirlo. Las licencias son señales para una asesoría, no conclusiones.
 

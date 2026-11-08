@@ -13,11 +13,14 @@ async function cargar() {
   return import(`data:text/javascript;base64,${codigo}`);
 }
 
-test('042:RF-77: el alcance con las mismas palabras que el informe', async () => {
+test('042:RF-77; 098:RF-37: el alcance con las mismas palabras que el informe', async () => {
   const { alcanceDe } = await cargar();
   assert.equal(alcanceDe({ definitiva: true, aguanta_anios: 20 }), 'definitiva, 20 años');
   assert.equal(alcanceDe({ definitiva: false, aguanta_anios: 5 }), 'temporal, aguanta 5 años');
-  assert.equal(alcanceDe({ definitiva: false, aguanta_anios: 0 }), 'temporal');
+  assert.equal(alcanceDe({ definitiva: false, aguanta_anios: 0 }), 'temporal, no llega al horizonte más corto');
+  assert.equal(alcanceDe({ definitiva: false, aguanta_anios: 0, mas_corto: 4 }), 'temporal, no llega al horizonte más corto (4 años)');
+  assert.equal(alcanceDe({ definitiva: false, aguanta_anios: null }), 'temporal, no llega al horizonte más corto');
+  assert.equal(alcanceDe({ definitiva: null }), 'sin medir');
   assert.equal(alcanceDe({}), 'sin medir');
 });
 

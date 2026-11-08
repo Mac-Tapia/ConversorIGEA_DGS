@@ -25,6 +25,7 @@ con recuperación por diario; no se promete que los lectores vean una transició
 .venv/Scripts/python.exe -B tools/fijar_entorno.py --requirements requirements.txt
 .venv/Scripts/python.exe -B tools/trazabilidad_candidato.py --output-dir <evidencia_externa> --comprobar
 .venv/Scripts/python.exe -B tools/verificar_candidato.py --output-dir <evidencia_externa>
+.venv/Scripts/python.exe -B tools/verificar_entrega_integral.py --output-dir <evidencia_externa> --edicion completa
 ```
 
 `arquitectura.py` rechaza módulos sin clasificar, violaciones nuevas y excepciones
@@ -33,6 +34,15 @@ obsoletas; las 97 excepciones iniciales son deuda pendiente, no conformidad inte
 `fijar_entorno.py` imprime las versiones del cierre principal; `--salida` publica una
 propuesta que debe revisarse. El lock comprobado es de versiones para CPython3.12/Windows;
 no es un lock de hashes de wheels ni una auditoría de vulnerabilidades Python.
+
+`verificar_entrega_integral.py` prepara las puertas de backend, frontend (pruebas,
+tipos y build), auditorías y ML. `--ejecutar` las corre en serie con el intérprete de
+`--python`; `--edicion nucleo` declara el alcance sin ML y `completa` lo exige.
+Conserva stdout/stderr, rechaza skips/xfail, timeouts y resultados incompletos y deja
+lo no ejecutado como tal. Hace falta tener instaladas las herramientas de prueba y
+`pip-audit` en ese intérprete. Su pase técnico mantiene la aceptación eléctrica,
+científica y operativa pendiente: no equivale a una publicación ni a una licencia
+verificada. Los temporales y el informe quedan en la raíz externa indicada.
 
 `verificar_candidato.py` prepara por defecto; `--ejecutar --suite-completa` exige las
 nueve variables reales documentadas en CLAUDE.md y rechaza fallos y omisiones. Cada
