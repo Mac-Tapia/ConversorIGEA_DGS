@@ -637,11 +637,18 @@ def cuadrar(
         progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
             f'{m.kw:,.1f} kW / {m.kvar:,.1f} kVAR en la cabecera'
             if m.converge and m.kw is not None and m.kvar is not None else 'no converge'))
-        if m.converge and m.kw is not None:
+        medido = m.converge and m.kw is not None
+        if medido:
+            res.reparto, res.medida = actual, m
+        # 006:RF-22: la solicitud puede llegar durante el flujo que ya cumple.
+        # Primero se conserva lo medido; no se acepta ni se inicia otro ajuste.
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        if medido:
             # ``mitades`` no vuelve a cero aquí: tras un medio camino que converge, la
             # secante vuelve a saltar al objetivo, y si allí no converge se repetía sin
             # llegar nunca a los remedios del flujo de carga.
-            res.reparto, res.medida = actual, m
             q_lista = (not con_q or res.q_estado is not None
                        or cuadrado_kvar(m.kvar, objetivo, tolerancia_q))
             if cuadrado_kw(m, objetivo, tolerancia) and q_lista:
@@ -1011,6 +1018,11 @@ def cuadrar_conjunto(
             else 'no converge'))
         if medido:
             res.repartos, res.medida = dict(actual), m
+        # 021:RF-58: un flujo final común válido también puede recibirse cancelado.
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        if medido:
             q_listas = {k: k in res.q_estado or cuadrado_kvar(m.kvar.get(k), objetivos[k], tolerancia_q)
                         for k in con_q}
             if all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]

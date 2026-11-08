@@ -384,6 +384,29 @@ def test_cancelar_deja_el_ultimo_que_convergio():
     assert res.cancelado and res.flujos == 1 and res.reparto is not None
 
 
+@pytest.mark.parametrize('con_q', [False, True])
+def test_cancelar_durante_el_flujo_que_cuadra_conserva_su_reparto(con_q):
+    """006:RF-22 — un flujo ya en objetivo no puede ocultar la cancelación recibida durante él."""
+    objetivo, _, reparto = _caso()
+    solicitud, escritos, remedios = [], [], []
+    medida = Medida(True, objetivo.kw, objetivo.kvar)
+
+    def flujo(actual):
+        escritos.append(actual)
+        solicitud.append(True)
+        return medida
+
+    resultado = cuadrar(reparto, objetivo, flujo, con_q=con_q, max_flujos=1,
+                        cancelado=lambda: bool(solicitud),
+                        remedio=lambda *args: remedios.append(args) or [])
+
+    assert resultado.cancelado and not resultado.cuadrado
+    assert resultado.flujos == len(escritos) == 1
+    assert resultado.reparto is escritos[0] and resultado.medida is medida
+    assert resultado.historial[-1]['kw'] == objetivo.kw
+    assert 'cancelado' in resultado.motivo and remedios == resultado.remedios == []
+
+
 def test_ningun_remedio_hace_las_cargas_dependientes_de_la_tension():
     """015:RF-42 — las cargas son PQ: la escalera de remedios no activa ``iopt_pq``."""
     assert all('iopt_pq' not in ajustes for _nombre, ajustes in ESCALERA)
@@ -638,6 +661,31 @@ def test_cuadre_conjunto_cancelado_y_quietas():
     assert res.repartos['A1'].a == repartos['A1'].a
     with pytest.raises(AjusteError):
         cuadrar_conjunto(repartos, objetivos, RedDeVariosAlimentadores().medir, quietas={'A0', 'A1'})
+
+
+@pytest.mark.parametrize('con_q', [False, True])
+def test_cancelar_durante_flujo_conjunto_que_cuadra_conserva_todos(con_q):
+    """021:RF-58 — todos cumplen, pero cancelar durante el flujo conserva el reparto sin seguir."""
+    repartos, objetivos = _proyecto(2)
+    solicitud, escritos, remedios = [], [], []
+    medida = MedidaConjunta(True, kw={k: o.kw for k, o in objetivos.items()},
+                           kvar={k: o.kvar for k, o in objetivos.items()})
+
+    def flujo(actual):
+        escritos.append(dict(actual))
+        solicitud.append(True)
+        return medida
+
+    resultado = cuadrar_conjunto(repartos, objetivos, flujo, max_flujos=1,
+                                con_q=tuple(objetivos) if con_q else (),
+                                cancelado=lambda: bool(solicitud),
+                                remedio=lambda *args: remedios.append(args) or [])
+
+    assert resultado.cancelado and not resultado.cuadrado
+    assert resultado.flujos == len(escritos) == 1
+    assert all(resultado.repartos[k] is escritos[0][k] for k in repartos)
+    assert resultado.medida is medida and resultado.historial[-1]['kw'] == medida.kw
+    assert 'cancelado' in resultado.motivo and remedios == resultado.remedios == []
 
 
 def test_cuadre_conjunto_perdidas_negativas():
