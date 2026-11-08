@@ -35,6 +35,17 @@
 
 ## Evidencia y límites actuales
 
+2026-11-08, U0 de 002/050: la guarda AST real reproduce 38 violaciones nuevas
+(4 de capa, 32 aristas cíclicas y 2 accesos privados) antes de separar contratos,
+lector de conjunto y productores inyectados. Después quedan exactamente las 37
+excepciones históricas, con su fichero de deuda y las clasificaciones anteriores
+intactos. CLI ciclo, etapas y plan usado por vigilancia componen productores reales;
+pruebas CPU enfocadas: 250 aprobadas, 0 omitidas, evidencia externa
+`p23_u0_arq_20261108/final1.xml`. La comparación AST contra 36fa2a7 conserva los
+cuerpos extraídos salvo nombres de helpers y las guardias del coordinador.
+Esto corrige la regresión de fronteras; no cierra 002 T7/T9/T12 ni 050 T1b–T5b,
+no ejecuta la campaña y no acredita aceptación física/científica.
+
 2026-11-08, P19 paralelo: productores y contraste obligatorios conectados antes de
 construir etapas (dataset v2, consultas de embeddings, ventanas GRU, objetos PINN,
 corpus generativo sellado y casos evolutivos declarados). Contexto documental separado

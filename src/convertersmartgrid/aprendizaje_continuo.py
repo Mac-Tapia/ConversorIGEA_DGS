@@ -23,41 +23,51 @@ import time
 import uuid
 from typing import Any
 
+from .contratos_aprendizaje import (
+    ESQUEMA_INSTANTANEA,
+    ESQUEMA_INSTANTANEA_MULTIPROYECTO,
+    ESQUEMA_CICLO,
+    ESQUEMA_CONJUNTO_V1,
+    ESQUEMA_CONJUNTO,
+    ESQUEMA_CONTEXTO_CICLO,
+    ESQUEMA_CONTEXTO_DOCUMENTAL,
+    ESQUEMA_CONTEXTO_MIXTO,
+    ESQUEMA_INSTANTANEA_MIXTA,
+    ESQUEMA_PROCEDENCIA,
+    ESQUEMA_PLAN,
+    ORIGENES,
+    ETIQUETAS_FISICAS,
+    ETIQUETAS,
+    FAMILIAS_FISICAS,
+    FASES,
+    APORTES,
+    HEX_SHA256 as _HEX,
+    CicloBloqueado,
+    Muestra,
+    contenido_canonico as _canonico,
+    huella as _huella,
+    crear_observacion_id,
+    ruta_de,
+    muestra_de_registro
+)
+from .conjuntos_aprendizaje import (
+    leer_objeto_json as _leer,
+    leer_puntero as _puntero,
+    conjunto_por_id as _conjunto_por_id,
+    conjunto_activo,
+    detalle_de_familia as _detalle_de_familia,
+    version_del_conjunto,
+    miembro_del_conjunto,
+    registro_comun as _registro_comun,
+    miembro_en_uso,
+    exigir_sin_conjunto
+)
+
 from .experimentos import ContextoExperimento, clave_contexto
 from .model_registry import EstadoModelo, RegistroModelo
 from .runtime_paths import staging_publicacion
 from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage, abrir_guardia_exclusiva, pid_vivo
-
-ESQUEMA_INSTANTANEA = 'convertersmartgrid-learning-snapshot-v1'
-ESQUEMA_INSTANTANEA_MULTIPROYECTO = 'convertersmartgrid-learning-snapshot-v2'
-ESQUEMA_CICLO = 'convertersmartgrid-learning-cycle-v1'
-ESQUEMA_CONJUNTO_V1 = 'convertersmartgrid-model-ensemble-v1'
-ESQUEMA_CONJUNTO = 'convertersmartgrid-model-ensemble-v2'
-ESQUEMA_CONTEXTO_CICLO = 'convertersmartgrid-learning-context-v1'
-ESQUEMA_CONTEXTO_DOCUMENTAL = 'convertersmartgrid-documentary-context-v1'
-ESQUEMA_CONTEXTO_MIXTO = 'convertersmartgrid-learning-context-v2'
-ESQUEMA_INSTANTANEA_MIXTA = 'convertersmartgrid-learning-snapshot-v3'
-ESQUEMA_PROCEDENCIA = 'convertersmartgrid-learning-provenance-v1'
-ESQUEMA_PLAN = 'convertersmartgrid-learning-plan-v1'
-
-#: 050:RF-2: de dónde sale una muestra. Un dato redactado por el maestro no se vuelve humano.
-ORIGENES = ('observado', 'simulado_nativo', 'redactado')
-#: Quién puso la etiqueta. Solo las dos primeras son verdad eléctrica (050:RF-3).
-ETIQUETAS_FISICAS = ('medicion', 'motor_nativo')
-ETIQUETAS = ETIQUETAS_FISICAS + ('operador', 'maestro', 'prediccion', 'llm')
-#: Familias cuya etiqueta es una magnitud eléctrica o una serie medida: sin fuente nativa no aprenden.
-FAMILIAS_FISICAS = frozenset({'gru', 'pinn'})
-#: 050:RF-10: lo que la web o el CLI muestran, en el orden en que ocurre.
-FASES = ('preparacion', 'entrenamiento', 'seleccion', 'evaluacion', 'publicacion', 'activacion',
-         'aceptacion_nativa')
-#: 050:RF-5: lo que cada propuesta conjunta debe decir de dónde sacó.
-APORTES = ('interpretacion', 'pronostico', 'estimacion_fisica', 'alternativas', 'evidencia',
-           'validacion_nativa')
-_HEX = re.compile(r'[0-9a-f]{64}')
-
-
-class CicloBloqueado(ValueError):
-    """050:RF-8: el ciclo no puede seguir; el conjunto aceptado no cambia."""
+from .puertos_muestras import ProductoresMuestras
 
 
 def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
@@ -100,15 +110,6 @@ def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
             'plan_hash': hashlib.sha256(contenido).hexdigest()}
 
 
-def _canonico(valor: Any) -> bytes:
-    return json.dumps(valor, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
-                      allow_nan=False, default=str).encode('utf-8')
-
-
-def _huella(valor: Any) -> str:
-    return hashlib.sha256(_canonico(valor)).hexdigest()
-
-
 def _sha(ruta: Path) -> str:
     with ruta.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
@@ -123,13 +124,6 @@ def _escribir(ruta: Path, payload: Mapping[str, Any]) -> None:
     with staging_publicacion(ruta) as tmp:
         tmp.write_bytes(_canonico(payload))
         os.replace(tmp, ruta)
-
-
-def _leer(ruta: Path) -> dict[str, Any]:
-    dato = json.loads(ruta.read_text(encoding='utf-8'))
-    if not isinstance(dato, dict):
-        raise ValueError(f'{ruta.name}: no es un objeto')
-    return dato
 
 
 # --------------------------------------------------------------------------- T1: instantánea
@@ -209,26 +203,6 @@ def _contexto_hash(contexto: ContextoExperimento | Mapping[str, Any] | str) -> s
     if not isinstance(contexto, str) or not _HEX.fullmatch(contexto):
         raise CicloBloqueado('contexto 043 ausente o sin huella SHA-256')
     return contexto
-
-
-def crear_observacion_id(contexto_hash: str, fuente_hash: str, registro_id: str, instante: str) -> str:
-    """050:RF-2: la observación fuente conserva identidad entre familias y snapshots."""
-    for nombre, valor in (('contexto_hash', contexto_hash), ('fuente_hash', fuente_hash)):
-        if not isinstance(valor, str) or not _HEX.fullmatch(valor):
-            raise CicloBloqueado(f'{nombre}: falta SHA-256 de procedencia')
-    if not isinstance(registro_id, str) or not registro_id.strip():
-        raise CicloBloqueado('registro_id: falta identidad de la observación fuente')
-    try:
-        if not isinstance(instante, str):
-            raise ValueError('no es texto')
-        fecha = datetime.fromisoformat(instante)
-        if fecha.utcoffset() is None:
-            raise ValueError('sin zona horaria')
-        utc = fecha.astimezone(timezone.utc).isoformat(timespec='microseconds')
-    except (ValueError, OverflowError) as exc:
-        raise CicloBloqueado('instante: se exige fecha ISO-8601 con zona horaria explícita') from exc
-    return _huella({'schema': 'convertersmartgrid-observation-v1', 'contexto_hash': contexto_hash,
-                    'fuente_hash': fuente_hash, 'registro_id': registro_id, 'instante': utc})
 
 
 def registrar_bloqueo(raiz: Path | str, etapa: str, motivos: Sequence[str], **extra: Any) -> dict:
@@ -366,47 +340,7 @@ def verificar_instantanea(carpeta: Path | str) -> dict[str, Any]:
     return {**manifiesto, 'ruta': str(carpeta), 'verificada': True}
 
 
-def ruta_de(instantanea: Mapping[str, Any], nombre: str) -> Path:
-    """La copia congelada de una fuente, que es lo que las etapas leen (nunca el origen vivo)."""
-    if nombre not in instantanea.get('archivos', {}):
-        raise CicloBloqueado(f'{nombre}: no está en la instantánea')
-    base = Path(instantanea['ruta']) / 'datos' / nombre
-    # Una fuente de un fichero se entrega como fichero; una carpeta, como carpeta.
-    if instantanea.get('tipos', {}).get(nombre) == 'fichero':
-        return base / next(iter(instantanea['archivos'][nombre]))
-    return base
-
-
 # --------------------------------------------------------------------------- T2: vistas por familia
-
-def muestra_de_registro(instantanea: Mapping[str, Any], referencias: Mapping[str, Any],
-                       fuente: str, registro: str, contenido: Any, *, familia: str,
-                       particion: str, origen: str, etiqueta: str) -> Muestra:
-    """050:RF-2/3: enlaza el registro leído con su observación fuente, sin inferencias."""
-    tabla = referencias.get(fuente) if isinstance(referencias, Mapping) else None
-    if not isinstance(tabla, Mapping):
-        raise CicloBloqueado(f'{fuente}/{registro}: tabla de referencias ausente o inválida')
-    referencia = tabla.get(registro)
-    if not isinstance(referencia, Mapping):
-        raise CicloBloqueado(f'{fuente}/{registro}: falta referencia de procedencia')
-    if referencia.get('contenido_hash') != _huella(contenido):
-        raise CicloBloqueado(f'{fuente}/{registro}: contenido distinto de la referencia')
-    contexto = referencia.get('contexto')
-    fisicos = list(instantanea.get('contextos', {}).values())
-    if not fisicos and 'contextos' not in instantanea:
-        fisicos = [instantanea['contexto_hash']]
-    documentales = list(instantanea.get('contextos_documentales', {}).values())
-    if familia in FAMILIAS_FISICAS and contexto not in fisicos:
-        raise CicloBloqueado(f'{fuente}/{registro}: falta contexto físico 043')
-    if contexto not in [*fisicos, *documentales]:
-        raise CicloBloqueado(f'{fuente}/{registro}: contexto no declarado')
-    hashes = {h for archivos in instantanea['archivos'].values() for h in archivos.values()}
-    if referencia.get('fuente_hash') not in hashes:
-        raise CicloBloqueado(f'{fuente}/{registro}: fuente de observación sin custodia en la instantánea')
-    identidad = crear_observacion_id(contexto, referencia.get('fuente_hash'),
-        referencia.get('registro_id'), referencia.get('instante'))
-    return Muestra(identidad, familia, instantanea['snapshot_id'], origen, etiqueta,
-                   particion, contexto, registro)
 
 
 def referencia_pinn_ciclo(instantanea: Mapping[str, Any], *, registro: RegistroModelo | None = None) -> dict:
@@ -438,12 +372,15 @@ def referencia_pinn_ciclo(instantanea: Mapping[str, Any], *, registro: RegistroM
 
 def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
                      parametros: Mapping[str, Any] | None = None,
-                     destino: Path | str | None = None) -> dict[str, Any]:
+                     destino: Path | str | None = None,
+                     productores: ProductoresMuestras | None = None) -> dict[str, Any]:
     """050:RF-2/8: ejecuta productores reales antes de construir cualquier trabajador."""
     instantanea = verificar_instantanea(instantanea['ruta'])
     familias = tuple(familias)
     if not familias or len(set(familias)) != len(familias) or set(familias) - set(ORDEN_MODELOS):
         raise CicloBloqueado('familias vacías, duplicadas o desconocidas')
+    if productores is None:
+        raise CicloBloqueado('falta el puerto de productores; componga ProductoresReales en la entrada del ciclo')
     procedencia = _leer(ruta_de(instantanea, 'procedencia'))
     if (procedencia.get('schema') != ESQUEMA_PROCEDENCIA
             or not isinstance(procedencia.get('referencias'), dict)):
@@ -451,23 +388,18 @@ def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
     referencias = procedencia['referencias']
     muestras, referencia_pinn = [], None
     if 'evolutivos' in familias:
-        from .digital_twin.evolutivo import casos_aprendizaje
-        muestras.extend(c['muestra'] for c in casos_aprendizaje(instantanea))
+        muestras.extend(productores.evolutivos(instantanea))
     lenguaje = set(familias) & {'transformer', 'clasificador', 'embeddings'}
     if lenguaje:
-        from .asistente.dataset_entrenamiento import muestras_aprendizaje
-        muestras.extend(muestras_aprendizaje(instantanea, referencias, sorted(lenguaje)))
+        muestras.extend(productores.lenguaje(instantanea, referencias, sorted(lenguaje)))
     if 'pinn' in familias:
-        from .digital_twin.buffer import muestras_aprendizaje
         validar_vista_twin(ruta_de(instantanea, 'twin'))
         referencia_pinn = referencia_pinn_ciclo(instantanea)
-        muestras.extend(muestras_aprendizaje(instantanea, referencias))
+        muestras.extend(productores.pinn(instantanea, referencias))
     if 'gru' in familias:
-        from .digital_twin.temporal_entrenamiento import muestras_aprendizaje
-        muestras.extend(muestras_aprendizaje(instantanea, referencias, **dict(parametros or {})))
+        muestras.extend(productores.gru(instantanea, referencias, dict(parametros or {})))
     if 'qlora' in familias:
-        from .asistente.llm_destilacion import muestras_aprendizaje
-        muestras.extend(muestras_aprendizaje(instantanea, referencias))
+        muestras.extend(productores.qlora(instantanea, referencias))
     resultado = preparar_vistas(instantanea, muestras)
     if referencia_pinn is not None:
         resultado['referencia_pinn'] = referencia_pinn
@@ -483,7 +415,8 @@ def preparar_fuentes(instantanea: Mapping[str, Any], familias: Sequence[str], *,
 
 def preflight_ciclo(instantanea: Mapping[str, Any], familias: Sequence[str], *,
                     parametros: Mapping[str, Any] | None = None,
-                    destino: Path | str | None = None) -> dict[str, Any]:
+                    destino: Path | str | None = None,
+                    productores: ProductoresMuestras | None = None) -> dict[str, Any]:
     """050:RF-8/10: diagnóstico CPU por familia y contraste conjunto, sin crear trabajadores."""
     instantanea = verificar_instantanea(instantanea['ruta'])
     por_familia, muestras, motivos = {}, [], []
@@ -491,7 +424,7 @@ def preflight_ciclo(instantanea: Mapping[str, Any], familias: Sequence[str], *,
         raise CicloBloqueado('preflight sin familias únicas')
     for familia in familias:
         try:
-            r = preparar_fuentes(instantanea, [familia], parametros=parametros)
+            r = preparar_fuentes(instantanea, [familia], parametros=parametros, productores=productores)
             por_familia[familia] = {'estado': 'preparado', 'resumen': r['resumen'][familia],
                 'particiones_hash': r['particiones_hash'], 'motivos': []}
             if 'referencia_pinn' in r:
@@ -514,33 +447,6 @@ def preflight_ciclo(instantanea: Mapping[str, Any], familias: Sequence[str], *,
     if destino is not None:
         _escribir(Path(destino), resultado)
     return resultado
-
-@dataclass(frozen=True)
-class Muestra:
-    """050:RF-2: una muestra de una familia, atada a la instantánea y a su observación."""
-
-    observacion_id: str
-    familia: str
-    snapshot_id: str
-    origen: str
-    etiqueta: str
-    particion: str
-    contexto: str = ''
-    record_id: str = ''
-
-    def __post_init__(self):
-        if self.familia not in ORDEN_MODELOS:
-            raise ValueError(f'familia desconocida: {self.familia}')
-        if self.origen not in ORIGENES:
-            raise ValueError(f'origen desconocido: {self.origen}')
-        if self.etiqueta not in ETIQUETAS:
-            raise ValueError(f'etiqueta desconocida: {self.etiqueta}')
-        if self.particion not in ('entrenamiento', 'seleccion', 'calibracion', 'prueba'):
-            raise ValueError(f'partición desconocida: {self.particion}')
-        if not self.observacion_id or not _HEX.fullmatch(self.snapshot_id):
-            raise ValueError('muestra sin observación o sin instantánea')
-        if not self.record_id:
-            object.__setattr__(self, 'record_id', _huella([self.familia, self.observacion_id, self.particion]))
 
 
 def _cuarentena(m: Muestra) -> str | None:
@@ -960,55 +866,6 @@ def evaluar_conjunto(candidato: Mapping[str, float], vigente: Mapping[str, float
     return {'aprobado': not fallos, 'fallos': fallos, 'mejoras': mejoras}
 
 
-def _puntero(raiz: Path, nombre: str) -> dict[str, Any] | None:
-    ruta = raiz / 'conjuntos' / nombre
-    return _leer(ruta) if ruta.is_file() else None
-
-
-def _conjunto_por_id(raiz: Path, identidad: str) -> dict[str, Any]:
-    if not isinstance(identidad, str) or not _HEX.fullmatch(identidad):
-        raise CicloBloqueado('identidad del conjunto no válida')
-    try:
-        dato = _leer(raiz / 'conjuntos' / f'{identidad}.json')
-        esquema = dato.get('schema')
-        if esquema not in (ESQUEMA_CONJUNTO, ESQUEMA_CONJUNTO_V1) or dato.get('conjunto_id') != identidad:
-            raise CicloBloqueado('esquema o identidad del conjunto no coincide')
-        campos = ('miembros', 'snapshot_id', 'ciclo')
-        if esquema == ESQUEMA_CONJUNTO:
-            campos = ('schema', *campos, 'retencion', 'conjunta')
-        if _huella({k: dato[k] for k in campos}) != identidad:
-            raise CicloBloqueado('conjunto activo modificado')
-        miembros = dato['miembros']
-        if (not isinstance(miembros, dict) or not miembros or any(
-                f not in ORDEN_MODELOS or not isinstance(cid, str) or not _HEX.fullmatch(cid)
-                for f, cid in miembros.items())):
-            raise CicloBloqueado('conjunto sin miembros válidos')
-        return dato
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        raise CicloBloqueado(f'no se pudo verificar el conjunto: {exc}') from exc
-
-
-def conjunto_activo(raiz: Path | str) -> dict[str, Any] | None:
-    """El conjunto en uso, releído y con su contenido verificado."""
-    raiz = Path(raiz)
-    try:
-        puntero = _puntero(raiz, 'activo.json')
-        return None if puntero is None else _conjunto_por_id(raiz, puntero['conjunto_id'])
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        raise CicloBloqueado(f'conjunto activo ilegible: {exc}') from exc
-
-
-def _detalle_de_familia(registro: RegistroModelo, familia: str, candidato: str) -> tuple[str, dict]:
-    """Resuelve por identidad exacta dentro de los registros declarados de la familia 043."""
-    from .model_registry import registros_de
-    if familia not in ORDEN_MODELOS or not isinstance(candidato, str) or not _HEX.fullmatch(candidato):
-        raise CicloBloqueado('familia o identidad de candidato no válida')
-    nombres = [n for n in registros_de(familia) if (registro.raiz / n / 'candidates' / candidato).is_dir()]
-    if len(nombres) != 1:
-        raise CicloBloqueado(f'{familia}: candidato inexistente o ambiguo en sus registros declarados')
-    return nombres[0], registro.detalle(nombres[0], candidato)
-
-
 def publicar_conjunto(raiz: Path | str, registro: RegistroModelo, ciclo: Mapping[str, Any], *,
                       retencion: Mapping[str, Mapping[str, Any]], conjunta: Mapping[str, Any],
                       obligatorias: Iterable[str]) -> dict[str, Any]:
@@ -1080,56 +937,6 @@ def revertir_conjunto(raiz: Path | str) -> dict[str, Any]:
     if leido is None or leido['conjunto_id'] != anterior['conjunto_id']:
         raise CicloBloqueado('la relectura no devuelve el conjunto anterior')
     return leido
-
-
-def version_del_conjunto(raiz: Path | str, familia: str) -> str | None:
-    """La versión que un consumidor usa de una familia: la del conjunto activo, no la última suelta."""
-    activo = conjunto_activo(raiz)
-    if activo is None:
-        return None
-    if familia not in activo['miembros']:
-        raise CicloBloqueado(f'{familia}: no pertenece al conjunto activo; no se usa un puntero individual')
-    return activo['miembros'][familia]
-
-
-def miembro_del_conjunto(raiz: Path | str, familia: str, *, registro: RegistroModelo) -> dict | None:
-    """050:RF-7: referencia coherente y artefactos verificados en una sola relectura del conjunto."""
-    activo = conjunto_activo(raiz)
-    if activo is None:
-        return None
-    if familia not in activo['miembros']:
-        raise CicloBloqueado(f'{familia}: no pertenece al conjunto activo')
-    cid = activo['miembros'][familia]
-    try:
-        nombre, detalle = _detalle_de_familia(registro, familia, cid)
-        if ((detalle['decision'].get('gates') or {}).get('approved') is not True
-                or detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
-                or detalle['smoke_reload'].get('ok') is not True):
-            raise CicloBloqueado('candidato sin aprobación individual o reapertura')
-    except (OSError, ValueError) as exc:
-        raise CicloBloqueado(f'{familia}: integridad del miembro: {exc}') from exc
-    return {'conjunto_id': activo['conjunto_id'], 'familia': familia, 'candidate_id': cid,
-            'modelo_registro': nombre, 'detalle': detalle}
-
-
-def _registro_comun(registro: RegistroModelo | None) -> RegistroModelo:
-    if registro is None:
-        from .asistente import almacen
-        registro = RegistroModelo(almacen.raiz() / 'model_registry')
-    return registro
-
-
-def miembro_en_uso(familia: str, *, registro: RegistroModelo | None = None) -> dict | None:
-    """050:RF-7: ubicación común del registro y conjunto para los consumidores de la aplicación."""
-    registro = _registro_comun(registro)
-    return miembro_del_conjunto(registro.raiz.parent / 'aprendizaje', familia, registro=registro)
-
-
-def exigir_sin_conjunto(*, registro: RegistroModelo | None = None) -> None:
-    """050:RF-7: una operación individual no puede declarar activación sobre un puntero ignorado."""
-    registro = _registro_comun(registro)
-    if conjunto_activo(registro.raiz.parent / 'aprendizaje') is not None:
-        raise CicloBloqueado('Hay un conjunto activo: la publicación y reversión deben hacerse sobre el conjunto completo.')
 
 
 # --------------------------------------------------------------------------- T5: estado visible

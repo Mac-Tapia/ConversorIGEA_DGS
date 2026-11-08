@@ -22,7 +22,7 @@ PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
 
 def muestras_aprendizaje(instantanea: dict, referencias: dict) -> list:
     """050:RF-2/3: lee las partes selladas del alumno; maestro conserva su procedencia."""
-    from ..aprendizaje_continuo import muestra_de_registro, ruta_de
+    from ..contratos_aprendizaje import muestra_de_registro, ruta_de
     dataset = ruta_de(instantanea, 'llm_dataset')
     resultado = []
     for parte in PARTICIONES:

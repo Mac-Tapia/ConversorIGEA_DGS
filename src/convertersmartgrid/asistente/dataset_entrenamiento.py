@@ -163,7 +163,7 @@ def normalizar_orden(fila: dict[str, Any]) -> RegistroEntrenamiento:
 
 def normalizar_informe(fila: dict[str, Any]) -> RegistroEntrenamiento:
     """043:RF-3: las etiquetas del maestro o del generador no son humanas."""
-    from .clasificador import TIPOS_INFORME
+    from ..contratos_aprendizaje import TIPOS_INFORME
 
     texto=str(fila.get('texto') or '')
     tipo=str(fila.get('tipo') or '')
@@ -572,12 +572,11 @@ def escribir_particiones(
     return base
 
 
-def muestras_aprendizaje(instantanea: dict, referencias: dict, familias: list[str]) -> list:
+def muestras_aprendizaje(instantanea: dict, referencias: dict, familias: list[str], *, leer_dataset) -> list:
     """050:RF-2/3: conserva las partes y calidades v2 que consumirán los trabajadores."""
-    from ..aprendizaje_continuo import CicloBloqueado, muestra_de_registro, ruta_de
-    from ..trabajadores_ml import leer_dataset_v2
+    from ..contratos_aprendizaje import CicloBloqueado, muestra_de_registro, ruta_de
 
-    partes, _ = leer_dataset_v2(ruta_de(instantanea, 'dataset'))
+    partes, _ = leer_dataset(ruta_de(instantanea, 'dataset'))
     nombres = {'train': 'entrenamiento', 'validation': 'seleccion', 'test': 'prueba'}
     muestras = []
     for parte, filas in partes.items():

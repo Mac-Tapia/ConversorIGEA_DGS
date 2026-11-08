@@ -13,6 +13,11 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
+| `src/convertersmartgrid/contratos_aprendizaje.py` | Identidad, procedencia y tipos puros de muestras y familias; sin productores, registro ni E/S. | 050, 002 |
+| `src/convertersmartgrid/conjuntos_aprendizaje.py` | Lectura verificada del conjunto activo para inferencia, separada de la preparación. | 050, 002 |
+| `src/convertersmartgrid/puertos_muestras.py` | Puerto de productores inyectado en la preparación del ciclo. | 050, 002 |
+| `src/convertersmartgrid/productores_aprendizaje.py` | Composición real y diferida por familia, con lectores/validadores existentes. | 050, 002 |
+| `src/convertersmartgrid/digital_twin/productor_pinn.py` | Vista PINN congelada, con particiones comunes; sin inicializar SQLite. | 050, 002 |
 | `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión. | 034 (RF-1) |
 | `src/convertersmartgrid/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | 034, 001 |
 | `src/convertersmartgrid/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66), 035 (RF-2 a RF-9), 035 (RF-28 a RF-30), 041 (RF-1 a RF-7), 095 |

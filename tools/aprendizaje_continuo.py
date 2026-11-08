@@ -60,11 +60,12 @@ def _contexto(texto: str):
 def _etapas(instantanea: dict, familias: list[str], args, run_dir: Path) -> list:
     """Las etapas de ``reentrenar_modelos``, con las rutas de la instantánea congelada."""
     from convertersmartgrid.aprendizaje_continuo import preparar_fuentes, ruta_de
+    from convertersmartgrid.productores_aprendizaje import ProductoresReales
     preparar_fuentes(instantanea, familias, parametros={
         'zona_horaria': getattr(args, 'zona_horaria', None),
         'cadencia_min': getattr(args, 'cadencia_min', None),
         'horizontes': getattr(args, 'horizontes', None)},
-        destino=run_dir.parent / 'preparacion.json')
+        destino=run_dir.parent / 'preparacion.json', productores=ProductoresReales())
     spec = importlib.util.spec_from_file_location('reentrenar_modelos', REPO / 'tools' / 'reentrenar_modelos.py')
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -162,10 +163,12 @@ def main(argv=None) -> int:
                 from convertersmartgrid.model_registry import RegistroModelo
                 from convertersmartgrid.training_coordinator import _memoria_sistema
                 familias = [f.strip() for f in args.familias.split(',') if f.strip()]
+                from convertersmartgrid.productores_aprendizaje import ProductoresReales
                 clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
                 preparado = ac.preflight_ciclo(inst, familias, parametros={
                     'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,
-                    'horizontes': args.horizontes}, destino=raiz / 'preflight' / f'{clave}.json')
+                    'horizontes': args.horizontes}, destino=raiz / 'preflight' / f'{clave}.json',
+                    productores=ProductoresReales())
                 if args.solo_preparar:
                     print(json.dumps(preparado, ensure_ascii=False, indent=2))
                     return 0 if preparado['estado'] == 'preparado' else 2

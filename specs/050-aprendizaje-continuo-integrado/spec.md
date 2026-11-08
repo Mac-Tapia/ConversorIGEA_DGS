@@ -73,3 +73,22 @@ respalda medir el olvido antes de sustituir modelos; el artículo de Nature Mach
 Intelligence respalda explicitar contextos y escenarios de aprendizaje incremental.
 Estas fuentes justifican procedencia, reserva y retención como método; no certifican
 las puertas, el software ni aceptación eléctrica de esta implementación.
+
+## Fronteras de implementación 002/050 (U0, 2026-11-08)
+
+RF-2/3 conservan un único contrato puro de muestra, procedencia y etiquetas, compartido
+por productores y consumidores. RF-7 conserva un lector verificado del conjunto que
+no importa preparación ni entrenamiento. RF-4/8 requieren composición explícita de
+los productores reales en las entradas CLI y plan de vigilancia; su ausencia en una
+llamada Python directa bloquea con motivo explícito. No se cambian las fuentes,
+particiones, puertas, planes ni la API web. La corrección no añade excepciones a la
+política de capas de 002 y no acredita las tareas reales T1b–T5b.
+
+Fundamento de la separación consultado en web: la [maestría de Avilés Redondo,
+UPM, 2025](https://oa.upm.es/90309/) estudia una migración de capas a puertos y
+adaptadores; el [doctorado de Uzun, Wageningen, 2021](https://doi.org/10.18174/544468)
+contrasta código y vistas arquitectónicas para detectar divergencias. El artículo
+[Murphy y Notkin, IEEE Computer, 1997](https://www.cs.ubc.ca/~murphy/papers/rm/rm-case-study.pdf)
+sustenta comparar un modelo intencionado con dependencias extraídas del código y
+refinarlo iterativamente. Se aplican como método de separación y comprobación; no
+certifican pureza semántica, conservación científica ni aceptación nativa del producto.

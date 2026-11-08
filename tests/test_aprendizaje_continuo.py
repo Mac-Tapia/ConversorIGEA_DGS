@@ -943,7 +943,10 @@ def test_etapas_del_ciclo_aislan_salidas_y_no_publican(tmp_path, monkeypatch):
         cadencia_min=15, horizontes='1,4,96')
     # Esta prueba aísla comandos/salidas. El preflight real y su rechazo de este
     # fixture incompleto se comprueban en test_aprendizaje_productores.py.
-    monkeypatch.setattr(ac, 'preparar_fuentes', lambda *_a, **_kw: {'estado': 'preparado'})
+    def preparar(*_a, **kw):
+        assert kw.get('productores') is not None, 'falta composición de productores reales en CLI'
+        return {'estado': 'preparado'}
+    monkeypatch.setattr(ac, 'preparar_fuentes', preparar)
     etapas = cli._etapas(inst, ['gru', 'pinn'], args, tmp_path / 'ejecucion')
     for e in etapas:
         r = e.run()
@@ -962,7 +965,10 @@ def test_cli_recibe_cadencia_horizontes_y_versiona_parametros(tmp_path, capsys, 
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
     monkeypatch.setattr(cli, '_etapas', lambda *_: [])  # se detiene antes de ocupar recursos
-    monkeypatch.setattr(ac, 'preflight_ciclo', lambda *_a, **_kw: {'estado': 'preparado'})
+    def preflight(*_a, **kw):
+        assert kw.get('productores') is not None, 'falta composición de productores reales en CLI'
+        return {'estado': 'preparado'}
+    monkeypatch.setattr(ac, 'preflight_ciclo', preflight)
     fuentes = _fuentes(tmp_path)
     args = ['--raiz', str(tmp_path / 'ap'), 'ciclo', '--fuente', f"dataset={fuentes['dataset']}",
         '--contexto', CTX, '--familias', 'gru', '--politica-hash', CTX, '--tiempo-s', '10',

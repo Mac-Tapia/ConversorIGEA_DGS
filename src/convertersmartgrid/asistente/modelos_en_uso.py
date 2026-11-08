@@ -59,7 +59,7 @@ def _copiar_artefactos(detalle: dict, carpeta: Path) -> None:
 def activar(familia: str, candidate_id: str) -> str:
     """Pone en uso un candidato aprobado; el anterior queda en el puntero y en disco (067:RF-20 a RF-22)."""
     nombre, reg = FAMILIAS[familia], registro()
-    from ..aprendizaje_continuo import exigir_sin_conjunto
+    from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=reg)
     detalle = reg.detalle(familia, candidate_id)                                     # RF-21: compara huellas
     if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
@@ -108,7 +108,7 @@ def poner_provisional(familia: str, candidate_id: str, *, decidido_por: str, mot
 
     La decisión se anota antes de mover el puntero: lo contrario dejaría un rato un modelo sin aprobar en uso y sin motivo."""
     nombre, reg = FAMILIAS[familia], registro()
-    from ..aprendizaje_continuo import exigir_sin_conjunto
+    from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=reg)
     version = version_provisional(candidate_id)
     if transformer.version_promovida(nombre) == version:
@@ -172,7 +172,7 @@ def aplicar_decision(familia: str, candidato: dict[str, Any]) -> dict[str, Any]:
 
 def volver_al_anterior(familia: str) -> str | None:
     """Vuelve al modelo anterior con el puntero y el registro de acuerdo (067:RF-23)."""
-    from ..aprendizaje_continuo import exigir_sin_conjunto
+    from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=registro())
     version = transformer.volver_al_anterior(FAMILIAS[familia])
     if version is None:

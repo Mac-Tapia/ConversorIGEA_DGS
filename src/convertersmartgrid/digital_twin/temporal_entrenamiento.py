@@ -14,7 +14,7 @@ from ..runtime_paths import raiz_programa
 def muestras_de_ventanas(instantanea: dict, referencias: dict, conjunto, ventanas: dict, *,
                         contexto_pasos: int, horizonte_max: int) -> list:
     """050:RF-2/3: cada emisión tiene la partición que consumirá la competición real."""
-    from ..aprendizaje_continuo import muestra_de_registro
+    from ..contratos_aprendizaje import muestra_de_registro
     resultado = []
     for parte, objetivos in ventanas['partes'].items():
         for nombre, emisiones in objetivos.items():
@@ -34,7 +34,7 @@ def muestras_de_ventanas(instantanea: dict, referencias: dict, conjunto, ventana
 def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: str,
                          cadencia_min: int, horizontes) -> list:
     """050:RF-2/8: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
-    from ..aprendizaje_continuo import CicloBloqueado, ruta_de
+    from ..contratos_aprendizaje import CicloBloqueado, ruta_de
     from .evaluacion_temporal import POLITICA_TEMPORAL
     from .pronostico import construir_conjunto
     from .series_causales import horizontes_validos
@@ -383,7 +383,8 @@ def _decidir_objetivo(nombre, horizontes, modelos, politica, referencias):
 
 def _detalle_temporal_en_uso(registro, nombre_registro: str) -> dict | None:
     """050:RF-7: el conjunto decide el activo; no se mezclan clases de pronóstico."""
-    from ..aprendizaje_continuo import CicloBloqueado, miembro_en_uso
+    from ..contratos_aprendizaje import CicloBloqueado
+    from ..conjuntos_aprendizaje import miembro_en_uso
 
     miembro = miembro_en_uso('gru', registro=registro)
     if miembro is not None:
@@ -477,7 +478,7 @@ def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, ho
     if clase not in CLASES:
         raise ValueError(f'clase desconocida: {clase}')
     if publicar_individual:
-        from ..aprendizaje_continuo import exigir_sin_conjunto
+        from ..conjuntos_aprendizaje import exigir_sin_conjunto
         exigir_sin_conjunto(registro=registro)
     otros = [o.nombre for o in objetivos if o.clase != clase]
     if otros:

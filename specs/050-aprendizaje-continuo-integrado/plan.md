@@ -237,3 +237,31 @@ Casos de rechazo: fuente/contexto distintos; cambios durante preparación; prueb
 reciclada como entrenamiento; etiqueta eléctrica inventada; adaptador ausente;
 etapa que termina sin informe; regresión histórica; promoción individual antes del
 conjunto; reinicio o cancelación entre publicación y readback.
+
+## U0: fronteras antes de la migración 002 (2026-11-08)
+
+La integración de productores introdujo 38 violaciones no registradas: 4 cruces de
+capa, 32 aristas de ciclo y 2 accesos privados. La guarda real test_capas lo reproduce;
+no se amplía su lista de 37 excepciones históricas ni se oculta un import calculándolo.
+
+Se extraen los contratos puros (Muestra, CicloBloqueado, familias, esquemas e identidad)
+a contratos_aprendizaje, con un único dueño. TrainingCoordinator solo importa desde
+allí el orden de familias; sus guardias OS/PID/GPU no cambian. Los consumidores ML
+leen el conjunto mediante conjuntos_aprendizaje, que conserva verificación de
+punteros/candidatos/artefactos, sin depender del módulo que prepara los productores.
+
+La aplicación recibe ProductoresMuestras; ProductoresReales compone por imports
+literales los mismos productores y lector v2. El CLI, las etapas y la entrada de plan
+usada por vigilancia inyectan esa composición, sin cambiar planes, presupuesto,
+autoentrenamiento apagado por defecto, cola ni puertas. Las llamadas Python directas
+a preparar_fuentes/preflight_ciclo deben aportar el puerto explícito. La vista PINN
+sale del búfer a un productor independiente y usa muestras_y_particiones del oráculo:
+hay una sola regla de partición y SQLite no se inicializa al leer la captura.
+
+Las pruebas caracterizan las dos entradas operativas, la identidad observacional,
+contratos de etiquetas/particiones/contexto y lectura independiente del conjunto en
+otro proceso; se comprueba también resolución de la clase Muestra de pickles previos.
+Las reexportaciones puntuales de tipos/lectores públicos en aprendizaje_continuo
+mantienen consumidores existentes; su retirada física pertenece a 002 T9, no se
+declara terminada aquí. No se cierran 002 T7/T9/T12 ni 050 T1b–T5b por el AST o las
+pruebas CPU; las aceptaciones nativas/científicas y campañas siguen pendientes.

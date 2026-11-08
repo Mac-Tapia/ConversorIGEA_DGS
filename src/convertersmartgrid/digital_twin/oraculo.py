@@ -867,7 +867,7 @@ def cargar(bufer: BuferEpisodios, version: str | None = None) -> OraculoPINN | N
     """El modelo promovido (o la versión pedida), o ``None`` si no hay."""
     raiz = _raiz_modelos(bufer)
     if version is None:
-        from ..aprendizaje_continuo import miembro_en_uso
+        from ..conjuntos_aprendizaje import miembro_en_uso
         miembro = miembro_en_uso('pinn')
         if miembro is not None:
             from ..model_registry import materializar_artefactos
@@ -989,7 +989,7 @@ def guardar_y_reabrir(oraculo: OraculoPINN, bufer: BuferEpisodios, meta: dict, s
 
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
     """Pasa a ser el modelo en uso; el historial guarda cada cambio (RF-42)."""
-    from ..aprendizaje_continuo import exigir_sin_conjunto
+    from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto()
     raiz = _raiz_modelos(bufer)
     anterior = None
@@ -1135,6 +1135,12 @@ def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
         return [f"{len(grupos['prueba'])} episodios de prueba de otra red, menos de "
                 f'{MIN_EPISODIOS_PRUEBA} (027:RF-3)']
     return []
+
+
+def muestras_y_particiones(bufer: BuferEpisodios, consulta: Consulta):
+    """050:RF-2: API común al entrenamiento y a su productor congelado, sin copiar repartos."""
+    muestras, ids = _muestras(bufer, consulta)
+    return muestras, ids, separar_calibracion(_grupos(muestras, ids, None))
 
 
 def separar_calibracion(grupos: Mapping[str, Sequence[Muestra]]) -> dict[str, list[Muestra]]:

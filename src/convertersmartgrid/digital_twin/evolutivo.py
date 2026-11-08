@@ -57,7 +57,7 @@ def casos_aprendizaje(instantanea: dict) -> list[dict]:
     import json
     import re
     from dataclasses import replace
-    from ..aprendizaje_continuo import (CicloBloqueado, ESQUEMA_PROCEDENCIA,
+    from ..contratos_aprendizaje import (CicloBloqueado, ESQUEMA_PROCEDENCIA,
         crear_observacion_id, muestra_de_registro, ruta_de)
     from ..experimentos import clave_contexto
     from .episode import leer_episodio

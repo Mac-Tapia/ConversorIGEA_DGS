@@ -124,6 +124,11 @@ source-roots = ["src"]
 deuda = "docs/implementacion065/deuda_arquitectura.json"
 
 [tool.convertersmartgrid.capas.modulos]
+"convertersmartgrid.contratos_aprendizaje" = "dominio"
+"convertersmartgrid.conjuntos_aprendizaje" = "aplicacion"
+"convertersmartgrid.puertos_muestras" = "puertos"
+"convertersmartgrid.productores_aprendizaje" = "adaptadores"
+"convertersmartgrid.digital_twin.productor_pinn" = "adaptadores"
 "convertersmartgrid" = "dominio"
 "convertersmartgrid.access" = "adaptadores"
 "convertersmartgrid.ajuste_cabecera" = "dominio"

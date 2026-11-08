@@ -12,6 +12,8 @@ from types import SimpleNamespace
 import pytest
 
 from convertersmartgrid import aprendizaje_continuo as ac
+from convertersmartgrid.productores_aprendizaje import ProductoresReales
+from convertersmartgrid.trabajadores_ml import leer_dataset_v2
 from convertersmartgrid.asistente.dataset_entrenamiento import (
     escribir_particiones, normalizar_orden,
 )
@@ -61,7 +63,7 @@ def test_contexto_documental_se_conserva_sin_proyecto_fisico(tmp_path):
 def test_productor_dataset_conserva_partes_y_observacion_entre_familias(tmp_path):
     """050:RF-2 — el productor lee el dataset real; una segunda representación conserva identidad."""
     inst, fila, referencia = _captura(tmp_path)
-    resultado = ac.preparar_fuentes(inst, ['transformer'])
+    resultado = ac.preparar_fuentes(inst, ['transformer'], productores=ProductoresReales())
     uno = resultado['vistas']['transformer']['entrenamiento'][0]
     otro = ac.muestra_de_registro(inst, {'dataset': {fila.record_id: referencia}},
         'dataset', fila.record_id, asdict(fila), familia='clasificador',
@@ -96,7 +98,7 @@ def test_productor_ausente_bloquea_antes_de_construir_etapas(tmp_path):
     """050:RF-8 — no construir trabajadores con vistas omitidas o sin productor."""
     inst, _, _ = _captura(tmp_path)
     with pytest.raises(ac.CicloBloqueado, match='evolutivos'):
-        ac.preparar_fuentes(inst, ['evolutivos'])
+        ac.preparar_fuentes(inst, ['evolutivos'], productores=ProductoresReales())
     spec = importlib.util.spec_from_file_location('p19_cli',
         Path(__file__).resolve().parents[1] / 'tools' / 'aprendizaje_continuo.py')
     cli = importlib.util.module_from_spec(spec)
@@ -109,7 +111,8 @@ def test_productor_buffer_lee_objetos_sin_tocar_indice_y_respeta_partes(tmp_path
     """050:RF-2/3 — episodios validados, identidad fuente y particiones del oráculo, sin entrenar."""
     from test_digital_twin_episode import _payload
     from test_gemelo_contratos_v2 import _grafo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios, muestras_aprendizaje
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.productor_pinn import muestras_aprendizaje
     from convertersmartgrid.digital_twin.episode import leer_episodio, episodio_a_dict
 
     fuente = tmp_path / 'fuente.txt'
@@ -217,7 +220,7 @@ def test_embeddings_emite_consultas_consumidas_con_reserva_independiente(tmp_pat
             'fuente_hash': hashlib.sha256((dataset / f'{nombre}.jsonl').read_bytes()).hexdigest(),
             'registro_id': nombre + ':1', 'instante': '2026-11-08T00:00:00Z',
             'contenido_hash': _hash(r)}
-    muestras = muestras_aprendizaje(nueva, {'dataset': refs}, ['embeddings'])
+    muestras = muestras_aprendizaje(nueva, {'dataset': refs}, ['embeddings'], leer_dataset=leer_dataset_v2)
     assert [(m.particion, m.origen, m.etiqueta) for m in muestras] == [
         ('entrenamiento', 'redactado', 'maestro'), ('prueba', 'observado', 'operador')]
 
@@ -225,7 +228,8 @@ def test_embeddings_emite_consultas_consumidas_con_reserva_independiente(tmp_pat
 def test_preflight_informa_todas_las_familias_sin_ocultar_faltantes(tmp_path):
     """050:RF-8/10 — cada familia expone su bloqueo; ninguna falta se interpreta como preparada."""
     inst, _, _ = _captura(tmp_path)
-    r = ac.preflight_ciclo(inst, ['transformer', 'clasificador', 'gru', 'pinn', 'embeddings', 'qlora', 'evolutivos'])
+    r = ac.preflight_ciclo(inst, ['transformer', 'clasificador', 'gru', 'pinn', 'embeddings', 'qlora', 'evolutivos'],
+                           productores=ProductoresReales())
     assert r['estado'] == 'bloqueado'
     assert r['por_familia']['transformer']['estado'] == 'preparado'
     assert len(r['por_familia']) == 7
@@ -277,7 +281,7 @@ def test_evolutivos_consume_caso_con_contexto_043_declarado(tmp_path):
     assert problema.contexto == contexto
     assert problema.modelo_id == 'flujo_mallado:contrato'
     assert preparados[0]['muestra'].etiqueta == 'motor_nativo'
-    assert ac.preparar_fuentes(inst, ['evolutivos'])['resumen'] == {'evolutivos': {'entrenamiento': 1}}
+    assert ac.preparar_fuentes(inst, ['evolutivos'], productores=ProductoresReales())['resumen'] == {'evolutivos': {'entrenamiento': 1}}
     evaluacion = evaluar_vector(problema, {'L1': 1})
     assert evaluacion['convergio'] is True and 'perdidas_kw' in evaluacion['objetivos']
     assert ac.verificar_instantanea(inst['ruta'])['verificada']

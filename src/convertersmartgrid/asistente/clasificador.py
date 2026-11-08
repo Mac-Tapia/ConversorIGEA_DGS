@@ -40,7 +40,7 @@ from .transformer import (
     version_promovida,
 )
 
-TIPOS_INFORME = ('estudio', 'factibilidad')
+from ..contratos_aprendizaje import TIPOS_INFORME
 METRICAS_INFORME = ('acierto_tipo', 'acierto_subtipo')
 SEMILLA_PRUEBA = 7919
 

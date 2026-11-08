@@ -16,7 +16,7 @@ from typing import Any, Callable, Mapping, Sequence
 from .model_registry import EstadoModelo
 
 
-ORDEN_MODELOS = ('transformer', 'clasificador', 'gru', 'pinn', 'evolutivos', 'embeddings', 'qlora')
+from .contratos_aprendizaje import ORDEN_MODELOS
 
 
 def _memoria_sistema() -> dict[str, float | None]:

@@ -294,7 +294,7 @@ def materializar_candidato(detalle: dict, carpeta: Path) -> None:
 
 
 def _version_conjunto(nombre: str) -> str | None:
-    from ..aprendizaje_continuo import miembro_en_uso
+    from ..conjuntos_aprendizaje import miembro_en_uso
     familia = next((f for f, n in FAMILIAS_MODELOS.items() if n == nombre), None)
     if familia is None:
         return None
