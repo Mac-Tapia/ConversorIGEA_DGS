@@ -388,12 +388,15 @@ def etapa_obras(args, carpeta: Path) -> dict:
         plan_obras = plan_firmado(args.planes, args.proyecto, feeders, 'obras_aplicacion')
         plan_ret = {k: plan_obras[k] for k in ('project', 'folder', 'feeders', 'native_action_context', 'anio_casos')
                     if plan_obras.get(k) is not None}
+        plan_ret['variaciones'] = [variacion]
         (carpeta / 'plan_retirar.json').write_text(json.dumps(plan_ret, indent=2, ensure_ascii=False) + '\n',
                                                    encoding='utf-8')
         print('Retirar la obra en un proceso nuevo…', flush=True)
         rc, pid = _correr([str(OBRAS), '--retirar-obras', '--plan', str(carpeta / 'plan_retirar.json'),
                            '--output-json', str(carpeta / 'obras_retirar.json')], carpeta / 'obras_retirar.log')
-        retiro = {'rc': rc, 'pid': pid, 'ruta': 'obras_retirar.json'}
+        informe_retiro = cargar(carpeta, 'obras_retirar.json') if (carpeta / 'obras_retirar.json').is_file() else {}
+        retiro = {'rc': rc, 'pid': pid, 'ruta': 'obras_retirar.json', 'pedidas': [variacion],
+                  'ok': rc == 0 and informe_retiro.get('retiradas') == [variacion]}
         lecturas['retirada/con_proyecto'] = leer(base_lectura, 'con_proyecto', [], carpeta, 'retirada')
     return {'obra': {**obra, 'variacion': variacion}, 'trabajo': trabajo.get('status'), 'lecturas': {
         k: {kk: vv for kk, vv in v.items() if kk != 'lectura'} for k, v in lecturas.items()}, 'retiro': retiro,
@@ -515,6 +518,8 @@ def main(argv=None) -> int:
         if args.etapa == 'obras':
             manifiesto['obras'] = {**etapa_obras(args, carpeta), 'inicio': datetime.now(UTC).isoformat(timespec='seconds')}
             manifiesto['obras']['obra'].update(barra=args.barra, q_kvar=args.q_kvar)
+            if manifiesto['obras'].get('retiro') and not manifiesto['obras']['retiro'].get('ok'):
+                manifiesto.setdefault('errores', []).append('obras: retiro de la variación del ensayo no confirmado')
         elif args.etapa == 'protecciones':
             manifiesto['protecciones'] = etapa_protecciones(args, carpeta)
     except Exception as exc:  # noqa: BLE001 - la evidencia parcial se guarda con el motivo

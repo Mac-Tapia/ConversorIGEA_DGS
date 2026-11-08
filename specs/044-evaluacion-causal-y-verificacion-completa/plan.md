@@ -150,3 +150,5 @@ de informe; mantener abiertas las condiciones sin evidencia. El estado se escrib
 solo en spec.md y se refleja mediante `tools/estado_specs.py --escribir`. Validar
 trazabilidad además de las pruebas de cada tarea; no cerrar otras specs por arrastre.
 
+
+2026-11-08, RF-9 y098:RF-36: el arnes de aceptacion nativa nombra exactamente la variacion de banco creada al pedir su retiro. El escritor dejo de aceptar retiro por patron; omitir variaciones devolvia0 sin retirar nada. Regresion con retirar_obras real sobre dobleCPU conserva una obra previa del mismo alimentador y retira solo la del ensayo; una respuesta sin retiro confirmado queda como error y conserva el informe completo. Cinco pruebas enfocadas correctas, una prueba nativa no seleccionada; el ensayo fisico/reapertura sigue siendo evidencia separada.

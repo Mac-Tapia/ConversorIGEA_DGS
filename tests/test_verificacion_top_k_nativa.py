@@ -55,6 +55,70 @@ def test_la_obra_que_no_esta_tras_reabrir_no_se_confirma(guion):
     assert any('existentes' in m for m in guion.obra_presente(sin, otro, 'B2', 300.0)['motivos'])
 
 
+@pytest.mark.parametrize('no_retiro', [False, True])
+def test_ensayo_retira_solo_la_variacion_que_acaba_de_crear(guion, tmp_path, monkeypatch, no_retiro):
+    """044:RF-9; 098:RF-36 — el arnés pide retiro exacto al escritor real y conserva las demás obras."""
+    import json
+    import random
+    from types import SimpleNamespace
+    from test_obras_pf_guion import _calibrada_con_escenario, guion as obras
+
+    app, feeders = _calibrada_con_escenario(random.Random(3))
+    feeder = feeders[0]
+    scheme = app.GetProjectFolder('scheme')
+    own = f'Obra_condensador_{feeder}'
+    previous = f'{own}_2'
+    scheme.CreateObject('IntScheme', previous)
+    base = {'project': 'P', 'feeders': [feeder]}
+    monkeypatch.setattr(guion, '_web', lambda *a: object())
+    monkeypatch.setattr(guion, 'plan_firmado', lambda *a: dict(base))
+    monkeypatch.setattr(obras, 'restituir_flujo_original', lambda *a: 0)
+
+    def leer(_base, rol, _esperadas, carpeta, etiqueta):
+        (carpeta/f'plan_{etiqueta}_{rol}.json').write_text('{}', encoding='utf-8')
+        return {'ruta': f'{etiqueta}_{rol}.json', 'rc': 0, 'pid': 1, 'lectura': {}}
+
+    def correr(cmd, _log):
+        assert cmd[0] == str(guion.OBRAS)
+        plan = json.loads(Path(cmd[cmd.index('--plan')+1]).read_text(encoding='utf-8'))
+        if '--retirar-obras' in cmd:
+            if no_retiro:
+                plan = {**plan, 'variaciones': ['variacion_ya_no_encontrada']}
+            result, rc = obras.retirar_obras(app, plan)
+        else:
+            scheme.CreateObject('IntScheme', own)
+            result, rc = {'obras': [{'variacion': own}]}, 0
+        Path(cmd[cmd.index('--output-json')+1]).write_text(json.dumps(result), encoding='utf-8')
+        return rc, 1
+
+    from pathlib import Path
+    monkeypatch.setattr(guion, 'leer', leer)
+    monkeypatch.setattr(guion, '_correr', correr)
+    args = SimpleNamespace(url='http://127.0.0.1:1', espacio='sintetico', alimentador=feeder,
+        proyecto='P', planes=tmp_path, barra='B', q_kvar=30, guion_local=True)
+    result = guion.etapa_obras(args, tmp_path)
+    remaining = {v.loc_name for v in scheme.GetContents('*.IntScheme', 1)}
+    assert (own in remaining) is no_retiro
+    assert previous in remaining
+    assert result['retiro']['ok'] is (not no_retiro)
+    assert json.loads((tmp_path/result['retiro']['ruta']).read_text(encoding='utf-8'))['retiradas'] == ([] if no_retiro else [own])
+
+
+def test_retiro_no_confirmado_conserva_evidencia_y_falla_el_arnes(guion, tmp_path, monkeypatch):
+    """044:RF-9; 098:RF-36 — un exit cero sin el retiro pedido no completa el ensayo."""
+    import json
+    monkeypatch.setattr(guion, 'etapa_obras', lambda *a: {'obra': {}, 'retiro': {'rc': 0, 'ok': False}})
+    monkeypatch.setattr(guion, 'veredictos', lambda *a: {})
+    evidence = tmp_path/'evidencia'
+    rc = guion.main(['--espacio', 'sintetico', '--proyecto', 'P', '--alimentador', 'F',
+        '--planes', str(tmp_path), '--evidencia', str(evidence), 'obras',
+        '--barra', 'B', '--q-kvar', '30', '--guion-local'])
+    report = json.loads((evidence/guion.MANIFIESTO).read_text(encoding='utf-8'))
+    assert rc == 2
+    assert report['obras']['retiro']['ok'] is False
+    assert any('retiro' in error for error in report['errores'])
+
+
 def test_top_k_nativo_reabre_y_relee():
     """044:RF-9 — con DIgSILENT real: tras una sesión nueva se releen los controles (la variación activa y el
     banco en su barra) y los resultados (tensión mínima y pérdidas no negativas), y la decisión de
