@@ -36,6 +36,54 @@ CORPUS_MAESTRO = RAIZ / 'docs' / 'PREGUNTAS_MAESTRO_076.md'
 HOJA = RAIZ / 'output' / 'preguntas_entregables_revision.xlsx'
 #: Todas las líneas citadas son de esta revisión: el árbol se mueve y la cita no (076:RF-4).
 REVISION = '10fd3e1d29822d326be088e38c5a90f438e76d5e'
+# Renombres de la migración 002 ebd7dd81; solo cambia la ruta vigente, nunca el ancla ni su Git histórico.
+_RENOMBRES_FRONTEND = {'frontend/src/App.tsx': 'frontend/src/app/App.tsx',
+ 'frontend/src/alternativas.ts': 'frontend/src/features/powerfactory/alternativas.ts',
+ 'frontend/src/api.ts': 'frontend/src/api/client.ts',
+ 'frontend/src/asistenteAceptacion.ts': 'frontend/src/api/asistenteAceptacion.ts',
+ 'frontend/src/clientesCatalogo.ts': 'frontend/src/features/powerfactory/clientesCatalogo.ts',
+ 'frontend/src/components/AcercaDe.tsx': 'frontend/src/app/AcercaDe.tsx',
+ 'frontend/src/components/AjusteCabecera.tsx': 'frontend/src/features/powerfactory/AjusteCabecera.tsx',
+ 'frontend/src/components/Aprendizaje.tsx': 'frontend/src/features/asistente/Aprendizaje.tsx',
+ 'frontend/src/components/Asistente.tsx': 'frontend/src/features/asistente/Asistente.tsx',
+ 'frontend/src/components/AvisosDatos.tsx': 'frontend/src/app/AvisosDatos.tsx',
+ 'frontend/src/components/CargasTab.tsx': 'frontend/src/features/powerfactory/CargasTab.tsx',
+ 'frontend/src/components/CurvaCabecera.tsx': 'frontend/src/features/powerfactory/CurvaCabecera.tsx',
+ 'frontend/src/components/DatosEmpresaPF.tsx': 'frontend/src/features/powerfactory/DatosEmpresaPF.tsx',
+ 'frontend/src/components/DemandaMedida.tsx': 'frontend/src/features/powerfactory/DemandaMedida.tsx',
+ 'frontend/src/components/DescargaZip.tsx': 'frontend/src/features/conversion/DescargaZip.tsx',
+ 'frontend/src/components/EquipoAsistente.tsx': 'frontend/src/features/asistente/EquipoAsistente.tsx',
+ 'frontend/src/components/EstudiosPF.tsx': 'frontend/src/features/powerfactory/EstudiosPF.tsx',
+ 'frontend/src/components/FeedersPanel.tsx': 'frontend/src/features/conversion/FeedersPanel.tsx',
+ 'frontend/src/components/GemeloPIDE.tsx': 'frontend/src/features/powerfactory/GemeloPIDE.tsx',
+ 'frontend/src/components/GuionesPF.tsx': 'frontend/src/features/powerfactory/GuionesPF.tsx',
+ 'frontend/src/components/InformesPF.tsx': 'frontend/src/features/powerfactory/InformesPF.tsx',
+ 'frontend/src/components/InputsPanel.tsx': 'frontend/src/features/conversion/InputsPanel.tsx',
+ 'frontend/src/components/JobBar.tsx': 'frontend/src/app/JobBar.tsx',
+ 'frontend/src/components/LogPanel.tsx': 'frontend/src/app/LogPanel.tsx',
+ 'frontend/src/components/MarcaBeta.tsx': 'frontend/src/shared/MarcaBeta.tsx',
+ 'frontend/src/components/Modules.tsx': 'frontend/src/features/conversion/Modules.tsx',
+ 'frontend/src/components/MonitorAgente.tsx': 'frontend/src/features/asistente/MonitorAgente.tsx',
+ 'frontend/src/components/ObrasPF.tsx': 'frontend/src/features/powerfactory/ObrasPF.tsx',
+ 'frontend/src/components/OperacionSet.tsx': 'frontend/src/features/powerfactory/OperacionSet.tsx',
+ 'frontend/src/components/OptionsPanel.tsx': 'frontend/src/features/conversion/OptionsPanel.tsx',
+ 'frontend/src/components/PerfilTension.tsx': 'frontend/src/features/powerfactory/PerfilTension.tsx',
+ 'frontend/src/components/ReconstructionPanel.tsx': 'frontend/src/features/conversion/ReconstructionPanel.tsx',
+ 'frontend/src/components/SinPantallaEnBlanco.tsx': 'frontend/src/shared/SinPantallaEnBlanco.tsx',
+ 'frontend/src/components/TransferenciaPF.tsx': 'frontend/src/features/powerfactory/TransferenciaPF.tsx',
+ 'frontend/src/components/ui.tsx': 'frontend/src/shared/ui.tsx',
+ 'frontend/src/context.tsx': 'frontend/src/shared/context.tsx',
+ 'frontend/src/edicion.ts': 'frontend/src/shared/edicion.ts',
+ 'frontend/src/equipoAsistente.ts': 'frontend/src/features/asistente/estadoEquipoAsistente.ts',
+ 'frontend/src/main.tsx': 'frontend/src/app/main.tsx',
+ 'frontend/src/operacionSet.ts': 'frontend/src/features/powerfactory/formularioOperacionSet.ts',
+ 'frontend/src/projectBinding.ts': 'frontend/src/shared/projectBinding.ts',
+ 'frontend/src/reconexion.ts': 'frontend/src/api/reconexion.ts',
+ 'frontend/src/solicitudLeida.ts': 'frontend/src/features/powerfactory/solicitudLeida.ts',
+ 'frontend/src/styles.css': 'frontend/src/shared/styles.css',
+ 'frontend/src/types.ts': 'frontend/src/api/types.ts',
+ 'frontend/src/useWorkspace.ts': 'frontend/src/shared/useWorkspace.ts'}
+
 SAL_REPARTO = '076-reparto'
 FRACCION_SELLADO = 0.25
 #: Campos del operador: revisar no cambia lo sellado (076:RF-9).
@@ -113,15 +161,23 @@ def repartir(filas: Sequence[Mapping[str, Any]]) -> dict[str, str]:
 
 
 # ----------------------------------------------------------------------- comprobaciones
-_CACHE: dict[str, list[str] | None] = {}
+_CACHE: dict[tuple[str, str], list[str] | None] = {}
 
 
 def _en_revision(fichero: str) -> list[str] | None:
     """Las líneas del fichero en la revisión fijada, o `None` si allí no estaba."""
-    if fichero not in _CACHE:
+    if not re.fullmatch(r'[0-9a-f]{40}', REVISION):
+        return None  # Nunca un ref móvil como HEAD ni una expresión Git aportada desde fuera.
+    clave = (REVISION, fichero)
+    if clave not in _CACHE:
         r = subprocess.run(['git', 'show', f'{REVISION}:{fichero}'], cwd=RAIZ, capture_output=True, check=False)
-        _CACHE[fichero] = r.stdout.decode('utf-8', 'replace').splitlines() if r.returncode == 0 else None
-    return _CACHE[fichero]
+        _CACHE[clave] = r.stdout.decode('utf-8', 'replace').splitlines() if r.returncode == 0 else None
+    return _CACHE[clave]
+
+
+def _ruta_actual(fichero: str) -> Path:
+    """076:RF-4: conserva la cita histórica; coteja su ancla literal en la ruta vigente."""
+    return RAIZ / _RENOMBRES_FRONTEND.get(fichero, fichero)
 
 
 def _rf_definido(rf: str) -> bool:
@@ -152,7 +208,7 @@ def errores_de_fuentes(filas: Iterable[Mapping[str, Any]]) -> list[str]:
                 errores.append(f'{donde} fuera del fichero')
             elif s['ancla'] not in lineas[s['linea'] - 1]:
                 errores.append(f'{donde} no contiene «{s["ancla"]}»')
-            actual = RAIZ / s['fichero']
+            actual = _ruta_actual(s['fichero'])
             if not actual.is_file():
                 errores.append(f'{donde} ya no existe')
             elif s['ancla'] not in actual.read_text(encoding='utf-8', errors='replace'):
@@ -279,19 +335,25 @@ def _rutas_de_la_api() -> set[str]:
 
 
 def _funciones_de_api() -> set[str]:
-    return set(re.findall(r'^  (\w+): ?\(', (RAIZ / 'frontend' / 'src' / 'api.ts').read_text(encoding='utf-8'), re.M))
+    return set(re.findall(r'^  (\w+): ?\(', (RAIZ / 'frontend/src/api/client.ts').read_text(encoding='utf-8'), re.M))
 
 
 def errores_de_hechos(hechos: Iterable[Mapping[str, Any]]) -> list[str]:
-    """Ruta en `web/app.py`, función en `api.ts` y citada en el componente: no se supone un botón por su nombre (076:RF-19)."""
-    rutas, funciones, errores = _rutas_de_la_api(), _funciones_de_api(), []
+    """076:RF-4/19: cita Git fijada y ancla conservada; ruta/cliente/componente vigentes."""
+    hechos = list(hechos)
+    rutas, funciones = _rutas_de_la_api(), _funciones_de_api()
+    errores = errores_de_fuentes(hechos)
     for h in hechos:
         if h.get('ruta') and h['ruta'] not in rutas:
             errores.append(f"{h['id']}: la ruta {h['ruta']} no está en web/app.py")
         if h.get('api'):
             if h['api'] not in funciones:
-                errores.append(f"{h['id']}: api.{h['api']} no está en api.ts")
-            elif h['api'] not in (RAIZ / h['fuentes'][0]['fichero']).read_text(encoding='utf-8'):
+                errores.append(f"{h['id']}: api.{h['api']} no está en api/client.ts")
+            elif not h.get('fuentes'):
+                continue  # errores_de_fuentes ya registra que no hay cita; nunca inventar una.
+            elif not _ruta_actual(h['fuentes'][0]['fichero']).is_file():
+                continue  # La ausencia vigente también está registrada arriba.
+            elif h['api'] not in _ruta_actual(h['fuentes'][0]['fichero']).read_text(encoding='utf-8'):
                 errores.append(f"{h['id']}: {h['fuentes'][0]['fichero']} no llama a api.{h['api']}")
         if h.get('clase') not in ('boton', 'casilla'):
             errores.append(f"{h['id']}: clase {h.get('clase')}")
