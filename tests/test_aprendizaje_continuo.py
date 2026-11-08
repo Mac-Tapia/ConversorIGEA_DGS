@@ -481,6 +481,116 @@ def test_publicacion_conjunta_y_reversion_por_relectura(tmp_path):
     assert reg.activo('pinn') is None
 
 
+def test_conjunto_resuelve_alias_de_registro_temporal(tmp_path):
+    """050:RF-7 — GRU registra pronóstico por clase, sin fingir un registro llamado gru."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    inst = _instantanea(tmp_path)
+    cid = _candidato(reg, 'pronostico_cabecera')
+    c = ac.ejecutar_ciclo(ap, inst, [_etapa('gru', cid, [])], politica_hash=CTX, presupuesto=PRES, registro=reg)
+    p = ac.publicar_conjunto(ap, reg, c, retencion={'gru': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=['gru'])
+    assert p['publicado'], p
+    m = ac.miembro_del_conjunto(ap, 'gru', registro=reg)
+    assert m['candidate_id'] == cid and m['modelo_registro'] == 'pronostico_cabecera'
+    assert m['conjunto_id'] == p['conjunto']['conjunto_id']
+
+
+def test_conjunto_configurado_sin_familia_no_recurre_a_puntero_individual(tmp_path):
+    """050:RF-7, 050:RF-8 — ausente del conjunto no significa versión heredada."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    c = _ciclo_terminado(tmp_path, reg)
+    ac.publicar_conjunto(ap, reg, c, retencion={'pinn': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=['pinn'])
+    with pytest.raises(ac.CicloBloqueado, match='gru'):
+        ac.version_del_conjunto(ap, 'gru')
+
+
+def test_conjunto_sin_obligatorias_no_se_publica(tmp_path):
+    """050:RF-7, 050:RF-8 — un conjunto vacío no acredita familias compatibles."""
+    reg = RegistroModelo(tmp_path / 'reg')
+    c = _ciclo_terminado(tmp_path, reg)
+    r = ac.publicar_conjunto(tmp_path / 'ap', reg, c, retencion={}, conjunta={'aprobado': True}, obligatorias=[])
+    assert not r['publicado'] and r['motivos']
+
+
+def test_obligatorias_iterables_no_se_consumen_dos_veces(tmp_path):
+    """050:RF-7 — el contrato Iterable conserva todas las familias al escribir."""
+    reg = RegistroModelo(tmp_path / 'reg')
+    c = _ciclo_terminado(tmp_path, reg)
+    r = ac.publicar_conjunto(tmp_path / 'ap', reg, c, retencion={'pinn': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=(f for f in ['pinn']))
+    assert r['publicado'] and r['conjunto']['miembros'] == {'pinn': c['candidatos']['pinn']}
+
+
+def test_miembro_modificado_no_se_carga_desde_registro(tmp_path):
+    """050:RF-7 — la resolución del conjunto también comprueba los artefactos."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    c = _ciclo_terminado(tmp_path, reg)
+    ac.publicar_conjunto(ap, reg, c, retencion={'pinn': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=['pinn'])
+    cid = c['candidatos']['pinn']
+    (reg.raiz / 'pinn' / 'candidates' / cid / 'model_manifest.json').write_text('{}', encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado, match='integridad'):
+        ac.miembro_del_conjunto(ap, 'pinn', registro=reg)
+
+
+@pytest.mark.parametrize('campo,valor', [('schema', 'incompatible'), ('conjunto_id', '0' * 64)])
+def test_manifiesto_conjunto_no_ignora_identidad_y_esquema(tmp_path, campo, valor):
+    """050:RF-7 — la relectura valida el manifiesto completo antes de servirlo."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    c = _ciclo_terminado(tmp_path, reg)
+    p = ac.publicar_conjunto(ap, reg, c, retencion={'pinn': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=['pinn'])
+    ruta = ap / 'conjuntos' / f"{p['conjunto']['conjunto_id']}.json"
+    dato = json.loads(ruta.read_text(encoding='utf-8')); dato[campo] = valor
+    ruta.write_text(json.dumps(dato), encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado):
+        ac.conjunto_activo(ap)
+
+
+def test_reversion_a_conjunto_corrupto_conserva_el_actual(tmp_path):
+    """050:RF-7 — validar el destino precede al cambio del puntero en una reversión."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    ret = {'pinn': {'retiene': True}, 'transformer': {'retiene': True}}
+    a = ac.publicar_conjunto(ap, reg, _ciclo_terminado(tmp_path, reg), retencion=ret,
+        conjunta={'aprobado': True}, obligatorias=['pinn', 'transformer'])
+    b = ac.publicar_conjunto(ap, reg, _ciclo_terminado(tmp_path, reg, n=1), retencion=ret,
+        conjunta={'aprobado': True}, obligatorias=['pinn', 'transformer'])
+    ruta = ap / 'conjuntos' / f"{a['conjunto']['conjunto_id']}.json"
+    ruta.write_text('{}', encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado):
+        ac.revertir_conjunto(ap)
+    assert ac.conjunto_activo(ap)['conjunto_id'] == b['conjunto']['conjunto_id']
+
+
+def test_evaluacion_conjunta_tocada_no_conserva_identidad(tmp_path):
+    """050:RF-6, 050:RF-7 — retención y evaluación también quedan protegidas por la huella."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    p = ac.publicar_conjunto(ap, reg, _ciclo_terminado(tmp_path, reg), retencion={'pinn': {'retiene': True}},
+        conjunta={'aprobado': True}, obligatorias=['pinn'])
+    ruta = ap / 'conjuntos' / f"{p['conjunto']['conjunto_id']}.json"
+    dato = json.loads(ruta.read_text(encoding='utf-8')); dato['conjunta']['aprobado'] = False
+    ruta.write_text(json.dumps(dato), encoding='utf-8')
+    with pytest.raises(ac.CicloBloqueado):
+        ac.conjunto_activo(ap)
+
+
+def test_conjunto_v1_sigue_legible_con_su_identidad_original(tmp_path):
+    """050:RF-7 — la evolución de la huella no reescribe los conjuntos anteriores."""
+    reg, ap = RegistroModelo(tmp_path / 'reg'), tmp_path / 'ap'
+    c = _ciclo_terminado(tmp_path, reg)
+    cuerpo = {'miembros': c['candidatos'], 'snapshot_id': c['snapshot_id'], 'ciclo': c['clave']}
+    cid = ac._huella(cuerpo)
+    carpeta = ap / 'conjuntos'; carpeta.mkdir()
+    legado = {'schema': ac.ESQUEMA_CONJUNTO_V1, 'conjunto_id': cid, **cuerpo,
+        'retencion': {}, 'conjunta': {}, 'publicado': '2026-11-03'}
+    ruta = carpeta / f'{cid}.json'
+    ruta.write_text(json.dumps(legado), encoding='utf-8')
+    antes = ruta.read_bytes()
+    (carpeta / 'activo.json').write_text(json.dumps({'conjunto_id': cid}), encoding='utf-8')
+    assert ac.conjunto_activo(ap) == legado and ruta.read_bytes() == antes
+
+
 def test_publicacion_rechazada_mantiene_el_conjunto(tmp_path):
     """050:RF-6, 050:RF-7, 050:RF-8: sin puertas, reapertura, retención o mejora conjunta, sigue el anterior."""
     reg = RegistroModelo(tmp_path / 'reg')

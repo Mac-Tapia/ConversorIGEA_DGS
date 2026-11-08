@@ -61,6 +61,15 @@ La inspección confirma además que el ajuste de lenguaje sobre dataset v2 conse
 pesos pero no registra ni reabre aún el candidato. Esa brecha sigue pendiente:
 no se sustituye su evaluación funcional por declarar una etapa aprobada.
 
+RF-7: los nuevos conjuntos usan esquema v2 y su identidad cubre miembros,
+instantánea, ciclo, retención y evaluación conjunta. Los v1 conservan su lectura
+y bytes, con el alcance de integridad anterior. Una familia ausente de un conjunto
+configurado bloquea, sin recurrir a un puntero individual. `miembro_del_conjunto`
+resuelve el candidato por su SHA-256 exacto entre los registros declarados de la
+familia 043 y verifica sus artefactos; así GRU puede referenciar
+`pronostico_cabecera` sin fingir otro registro. No se publica un conjunto vacío.
+La reversión comprueba el manifiesto destino antes de cambiar el puntero vigente.
+
 ### Ejecución
 
 1. Auditar fuentes, series, episodios y modelos reales disponibles. Congelar los

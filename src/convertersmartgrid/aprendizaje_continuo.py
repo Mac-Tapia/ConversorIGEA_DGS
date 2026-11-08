@@ -30,7 +30,8 @@ from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingSt
 ESQUEMA_INSTANTANEA = 'convertersmartgrid-learning-snapshot-v1'
 ESQUEMA_INSTANTANEA_MULTIPROYECTO = 'convertersmartgrid-learning-snapshot-v2'
 ESQUEMA_CICLO = 'convertersmartgrid-learning-cycle-v1'
-ESQUEMA_CONJUNTO = 'convertersmartgrid-model-ensemble-v1'
+ESQUEMA_CONJUNTO_V1 = 'convertersmartgrid-model-ensemble-v1'
+ESQUEMA_CONJUNTO = 'convertersmartgrid-model-ensemble-v2'
 ESQUEMA_CONTEXTO_CICLO = 'convertersmartgrid-learning-context-v1'
 
 #: 050:RF-2: de dónde sale una muestra. Un dato redactado por el maestro no se vuelve humano.
@@ -648,16 +649,48 @@ def _puntero(raiz: Path, nombre: str) -> dict[str, Any] | None:
     return _leer(ruta) if ruta.is_file() else None
 
 
+def _conjunto_por_id(raiz: Path, identidad: str) -> dict[str, Any]:
+    if not isinstance(identidad, str) or not _HEX.fullmatch(identidad):
+        raise CicloBloqueado('identidad del conjunto no válida')
+    try:
+        dato = _leer(raiz / 'conjuntos' / f'{identidad}.json')
+        esquema = dato.get('schema')
+        if esquema not in (ESQUEMA_CONJUNTO, ESQUEMA_CONJUNTO_V1) or dato.get('conjunto_id') != identidad:
+            raise CicloBloqueado('esquema o identidad del conjunto no coincide')
+        campos = ('miembros', 'snapshot_id', 'ciclo')
+        if esquema == ESQUEMA_CONJUNTO:
+            campos = ('schema', *campos, 'retencion', 'conjunta')
+        if _huella({k: dato[k] for k in campos}) != identidad:
+            raise CicloBloqueado('conjunto activo modificado')
+        miembros = dato['miembros']
+        if (not isinstance(miembros, dict) or not miembros or any(
+                f not in ORDEN_MODELOS or not isinstance(cid, str) or not _HEX.fullmatch(cid)
+                for f, cid in miembros.items())):
+            raise CicloBloqueado('conjunto sin miembros válidos')
+        return dato
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CicloBloqueado(f'no se pudo verificar el conjunto: {exc}') from exc
+
+
 def conjunto_activo(raiz: Path | str) -> dict[str, Any] | None:
     """El conjunto en uso, releído y con su contenido verificado."""
     raiz = Path(raiz)
-    puntero = _puntero(raiz, 'activo.json')
-    if puntero is None:
-        return None
-    dato = _leer(raiz / 'conjuntos' / f"{puntero['conjunto_id']}.json")
-    if _huella({k: dato[k] for k in ('miembros', 'snapshot_id', 'ciclo')}) != puntero['conjunto_id']:
-        raise CicloBloqueado('conjunto activo modificado')
-    return dato
+    try:
+        puntero = _puntero(raiz, 'activo.json')
+        return None if puntero is None else _conjunto_por_id(raiz, puntero['conjunto_id'])
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CicloBloqueado(f'conjunto activo ilegible: {exc}') from exc
+
+
+def _detalle_de_familia(registro: RegistroModelo, familia: str, candidato: str) -> tuple[str, dict]:
+    """Resuelve por identidad exacta dentro de los registros declarados de la familia 043."""
+    from .model_registry import registros_de
+    if familia not in ORDEN_MODELOS or not isinstance(candidato, str) or not _HEX.fullmatch(candidato):
+        raise CicloBloqueado('familia o identidad de candidato no válida')
+    nombres = [n for n in registros_de(familia) if (registro.raiz / n / 'candidates' / candidato).is_dir()]
+    if len(nombres) != 1:
+        raise CicloBloqueado(f'{familia}: candidato inexistente o ambiguo en sus registros declarados')
+    return nombres[0], registro.detalle(nombres[0], candidato)
 
 
 def publicar_conjunto(raiz: Path | str, registro: RegistroModelo, ciclo: Mapping[str, Any], *,
@@ -670,20 +703,24 @@ def publicar_conjunto(raiz: Path | str, registro: RegistroModelo, ciclo: Mapping
     """
     raiz = Path(raiz)
     motivos = []
+    obligatorias = set(obligatorias)
+    if not obligatorias:
+        motivos.append('familias obligatorias vacías')
     if ciclo.get('estado') != 'terminado':
         motivos.append(f"el ciclo está {ciclo.get('estado')}, no terminado")
     candidatos = dict(ciclo.get('candidatos') or {})
-    for familia in sorted(set(obligatorias)):
+    for familia in sorted(obligatorias):
         cid = candidatos.get(familia)
         if not cid:
             motivos.append(f'{familia}: sin candidato')
             continue
         try:
-            detalle = registro.detalle(familia, cid)
-        except ValueError as exc:
+            _nombre, detalle = _detalle_de_familia(registro, familia, cid)
+        except (OSError, ValueError) as exc:
             motivos.append(f'{familia}: {exc}')
             continue
-        if (detalle['decision'].get('gates') or {}).get('approved') is not True:
+        if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
+                or (detalle['decision'].get('gates') or {}).get('approved') is not True):
             motivos.append(f'{familia}: no pasó sus puertas individuales')
         if detalle['smoke_reload'].get('ok') is not True:
             motivos.append(f'{familia}: no se reabrió')
@@ -694,11 +731,13 @@ def publicar_conjunto(raiz: Path | str, registro: RegistroModelo, ciclo: Mapping
     if motivos:
         registrar_bloqueo(raiz, 'publicacion', motivos, ciclo=ciclo.get('clave'))
         return {'publicado': False, 'motivos': motivos, 'activo': conjunto_activo(raiz)}
-    miembros = {f: candidatos[f] for f in sorted(set(obligatorias))}
-    cuerpo = {'miembros': miembros, 'snapshot_id': ciclo['snapshot_id'], 'ciclo': ciclo['clave']}
+    miembros = {f: candidatos[f] for f in sorted(obligatorias)}
+    cuerpo = {'schema': ESQUEMA_CONJUNTO, 'miembros': miembros,
+              'snapshot_id': ciclo['snapshot_id'], 'ciclo': ciclo['clave'],
+              'retencion': dict(retencion), 'conjunta': dict(conjunta)}
     cid = _huella(cuerpo)
-    dato = {'schema': ESQUEMA_CONJUNTO, 'conjunto_id': cid, **cuerpo, 'retencion': dict(retencion),
-            'conjunta': dict(conjunta), 'publicado': _ahora()}
+    dato = {'conjunto_id': cid, **cuerpo, 'publicado': _ahora()}
+    conjunto_activo(raiz)  # No sustituir un puntero previo ilegible sin diagnóstico.
     _escribir(raiz / 'conjuntos' / f'{cid}.json', dato)
     anterior = _puntero(raiz, 'activo.json')
     if anterior is not None and anterior['conjunto_id'] != cid:
@@ -716,6 +755,8 @@ def revertir_conjunto(raiz: Path | str) -> dict[str, Any]:
     anterior, activo = _puntero(raiz, 'anterior.json'), _puntero(raiz, 'activo.json')
     if anterior is None:
         raise CicloBloqueado('no hay conjunto anterior al que volver')
+    # Verificar antes de escribir: un destino dañado no debe romper el vigente.
+    _conjunto_por_id(raiz, anterior.get('conjunto_id'))
     _escribir(raiz / 'conjuntos' / 'activo.json', anterior)
     if activo is not None:
         _escribir(raiz / 'conjuntos' / 'anterior.json', activo)
@@ -728,7 +769,31 @@ def revertir_conjunto(raiz: Path | str) -> dict[str, Any]:
 def version_del_conjunto(raiz: Path | str, familia: str) -> str | None:
     """La versión que un consumidor usa de una familia: la del conjunto activo, no la última suelta."""
     activo = conjunto_activo(raiz)
-    return None if activo is None else activo['miembros'].get(familia)
+    if activo is None:
+        return None
+    if familia not in activo['miembros']:
+        raise CicloBloqueado(f'{familia}: no pertenece al conjunto activo; no se usa un puntero individual')
+    return activo['miembros'][familia]
+
+
+def miembro_del_conjunto(raiz: Path | str, familia: str, *, registro: RegistroModelo) -> dict | None:
+    """050:RF-7: referencia coherente y artefactos verificados en una sola relectura del conjunto."""
+    activo = conjunto_activo(raiz)
+    if activo is None:
+        return None
+    if familia not in activo['miembros']:
+        raise CicloBloqueado(f'{familia}: no pertenece al conjunto activo')
+    cid = activo['miembros'][familia]
+    try:
+        nombre, detalle = _detalle_de_familia(registro, familia, cid)
+        if ((detalle['decision'].get('gates') or {}).get('approved') is not True
+                or detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
+                or detalle['smoke_reload'].get('ok') is not True):
+            raise CicloBloqueado('candidato sin aprobación individual o reapertura')
+    except (OSError, ValueError) as exc:
+        raise CicloBloqueado(f'{familia}: integridad del miembro: {exc}') from exc
+    return {'conjunto_id': activo['conjunto_id'], 'familia': familia, 'candidate_id': cid,
+            'modelo_registro': nombre, 'detalle': detalle}
 
 
 # --------------------------------------------------------------------------- T5: estado visible

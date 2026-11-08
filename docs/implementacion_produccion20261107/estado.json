@@ -84,7 +84,7 @@
     },
     "P19": {
       "state": "en_curso_contratos_y_aislamiento_trabajadores_verificados",
-      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml", "p19_trabajadores_red.log", "p19_revision_trabajadores_red.log", "p19_custodia_red.log", "p19_trabajadores_final.xml"]
+      "evidence": ["p19_baseline.xml", "p19_red.log", "p19_red_revision.log", "p19_green_final.xml", "p19_trabajadores_red.log", "p19_revision_trabajadores_red.log", "p19_custodia_red.log", "p19_trabajadores_final.xml", "p19_conjunto_red.log", "p19_rollback_red.log", "p19_evaluacion_red.log", "p19_conjunto_final.xml"]
     },
     "P20": {
       "state": "pendiente",
