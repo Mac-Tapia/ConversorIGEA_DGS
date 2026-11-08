@@ -20,43 +20,43 @@ from pathlib import Path
 
 import pytest
 
-from vnr_etl import __version__
-from vnr_etl.application import VnrApplicationService
-from vnr_etl.config import Settings, deep_get
-from vnr_etl.connectors.arcgis import ArcGISLayer, ArcGISRestAdapter
-from vnr_etl.discovery.catalog import Publication, PublicationCatalog
-from vnr_etl.discovery.download import (
+from convertersmartgrid.adaptadores.entrada.vnr import __version__
+from convertersmartgrid.adaptadores.entrada.vnr.application import VnrApplicationService
+from convertersmartgrid.adaptadores.entrada.vnr.config import Settings, deep_get
+from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISLayer, ArcGISRestAdapter
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import Publication, PublicationCatalog
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import (
     DownloadError,
     DownloadManager,
     inventory_zip,
     safe_extract_zip,
 )
 from convertersmartgrid.util import sha256_file as sha256_of
-from vnr_etl.discovery.fingerprint import compute_schema_fingerprint
-from vnr_etl.discovery.freshness import resolve_freshness
-from vnr_etl.discovery.official import (
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.fingerprint import compute_schema_fingerprint
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.freshness import resolve_freshness
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
     default_discovery_pages,
     parse_official_publications,
     refresh_official_catalog,
 )
-from vnr_etl.discovery.schema import SchemaResolver, resolve_alias
-from vnr_etl.doctor import doctor
-from vnr_etl.electrical.enrich import apparent_power, enrich_electrical, power_factor
-from vnr_etl.exporters.base import ExportBlocked, TargetProfile
-from vnr_etl.exporters.cymdist import CymdistExporter
-from vnr_etl.exporters.dgs import DgsExporter
-from vnr_etl.gis.snapping import deterministic_node_id, snap_endpoints
-from vnr_etl.models import CanonicalModel, Load, Node, Section, Source
-from vnr_etl.models.canonical import ConductorType
-from vnr_etl.pipeline import (
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.schema import SchemaResolver, resolve_alias
+from convertersmartgrid.adaptadores.entrada.vnr.doctor import doctor
+from convertersmartgrid.adaptadores.entrada.vnr.electrical.enrich import apparent_power, enrich_electrical, power_factor
+from convertersmartgrid.adaptadores.entrada.vnr.exporters.base import ExportBlocked, TargetProfile
+from convertersmartgrid.adaptadores.entrada.vnr.exporters.cymdist import CymdistExporter
+from convertersmartgrid.adaptadores.entrada.vnr.exporters.dgs import DgsExporter
+from convertersmartgrid.adaptadores.entrada.vnr.gis.snapping import deterministic_node_id, snap_endpoints
+from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel, Load, Node, Section, Source
+from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import ConductorType
+from convertersmartgrid.adaptadores.entrada.vnr.pipeline import (
     canonicalize_sections,
     list_companies,
     list_periods,
     select_source_scope,
 )
-from vnr_etl.reconciliation.diff import diff_records
-from vnr_etl.topology.graph import validate_topology
-from vnr_etl.validation import run_gates
+from convertersmartgrid.adaptadores.entrada.vnr.reconciliation.diff import diff_records
+from convertersmartgrid.adaptadores.entrada.vnr.topology.graph import validate_topology
+from convertersmartgrid.adaptadores.entrada.vnr.validation import run_gates
 
 
 # --------------------------------------------------------------------------- modelo
@@ -212,7 +212,7 @@ def test_local_source_discovers_company_and_period_values(tmp_path):
 def test_sqlite_adapter_releases_database_file(tmp_path):
     import sqlite3
 
-    from vnr_etl.connectors.databases import SQLiteAdapter
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
 
     path = tmp_path / 'source.sqlite'
     connection = sqlite3.connect(path)
@@ -361,7 +361,7 @@ def test_official_fetch_retries_transient_failures(monkeypatch):
     import sys
     import types
 
-    from vnr_etl.discovery import official
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery import official
 
     calls = []
 
@@ -599,7 +599,7 @@ def test_dgs_export_writes_file_with_verified_profile(tmp_path):
 def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):
     """001:RF-10 — mismo modelo, mismo DGS byte a byte que el motor por la vía de la web."""
     from convertersmartgrid.batch import convert_group
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
 
     model = _production_ready_model()
     exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
@@ -954,10 +954,10 @@ def test_una_sola_api_web_sin_lanzador_de_vnr():
     """001:RF-11 — no queda una segunda app FastAPI ni el script `vnr-etl-web`."""
     import importlib.util
 
-    import vnr_etl.web.app as rutas
+    import convertersmartgrid.adaptadores.entrada.vnr.web.app as rutas
 
     assert not hasattr(rutas, 'create_app')
-    assert importlib.util.find_spec('vnr_etl.web.__main__') is None
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.entrada.vnr.web.__main__') is None
     pyproject = (Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text(encoding='utf-8')
     assert 'vnr-etl-web' not in pyproject
 
@@ -968,7 +968,7 @@ def test_las_rutas_de_vnr_no_pisan_las_de_la_api_principal(tmp_path, monkeypatch
 
     from fastapi.routing import APIRoute
 
-    from vnr_etl.web.app import create_router
+    from convertersmartgrid.adaptadores.entrada.vnr.web.app import create_router
 
     app = _main_app(tmp_path, monkeypatch)
     rutas = Counter(
@@ -1050,21 +1050,21 @@ def test_web_discovers_uploaded_sqlite_read_only(tmp_path, monkeypatch):
 
 # --------------------------------------------------------------------------- CLI
 def test_cli_doctor(capsys):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     assert main(['doctor']) == 0
     assert 'Python:' in capsys.readouterr().out
 
 
 def test_cli_version(capsys):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     assert main(['ver']) == 0
     assert __version__ in capsys.readouterr().out
 
 
 def test_cli_companies_and_periods_report_source_values(tmp_path, capsys):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     source = tmp_path / 'vnr.csv'
     source.write_text(
@@ -1082,7 +1082,7 @@ def test_cli_companies_and_periods_report_source_values(tmp_path, capsys):
 
 
 def test_cli_inspects_sql_without_execution_and_reconciles(tmp_path, capsys):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     sql = tmp_path / 'backup.sql'
     sql.write_text('CREATE TABLE sections (id INTEGER PRIMARY KEY);', encoding='utf-8')
@@ -1104,7 +1104,7 @@ def test_cli_inspects_sql_without_execution_and_reconciles(tmp_path, capsys):
 
 
 def test_cli_convert_scopes_records_and_writes_provenance(tmp_path):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     source = tmp_path / 'sections.geojson'
     source.write_text(json.dumps({
@@ -1132,8 +1132,8 @@ def test_cli_convert_scopes_records_and_writes_provenance(tmp_path):
 
 
 def test_cli_search_vnr_refreshes_official_catalog(tmp_path, capsys, monkeypatch):
-    from vnr_etl.cli import main
-    from vnr_etl.discovery import official
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery import official
 
     monkeypatch.setattr(
         official,
@@ -1152,7 +1152,7 @@ def test_cli_search_vnr_refreshes_official_catalog(tmp_path, capsys, monkeypatch
 
 
 def test_cli_audit(tmp_path):
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     assert main(['audit', '--project', str(tmp_path)]) == 0
     assert (tmp_path / 'AUDIT' / 'integration_plan.md').is_file()
@@ -1248,7 +1248,7 @@ def test_servicio_sigue_exigiendo_simulador_si_se_pide(tmp_path):
 
 def test_deducir_crs_en_grados_y_en_unidades_desconocidas():
     """001:RF-25 — sin CRS declarado: grados → EPSG:4326; si no, sin reproyectar."""
-    from vnr_etl.gis.crs import deducir_crs
+    from convertersmartgrid.adaptadores.entrada.vnr.gis.crs import deducir_crs
 
     assert deducir_crs([(-75.73, -14.06), (-75.72, -14.07)])[0] == 'EPSG:4326'
     crs, motivo = deducir_crs([(500000.0, 8450000.0), (500100.0, 8450000.0)])
@@ -1258,7 +1258,7 @@ def test_deducir_crs_en_grados_y_en_unidades_desconocidas():
 
 
 def _capa_sin_crs(tmp_path, puntos_a, puntos_b, monkeypatch):
-    from vnr_etl import pipeline
+    from convertersmartgrid.adaptadores.entrada.vnr import pipeline
 
     source = tmp_path / 'sections.geojson'
     source.write_text(json.dumps({
@@ -1276,7 +1276,7 @@ def _capa_sin_crs(tmp_path, puntos_a, puntos_b, monkeypatch):
 
 def test_cli_convert_deduce_el_crs_de_una_capa_en_grados(tmp_path, monkeypatch):
     """001:RF-25 — una capa en grados sin CRS declarado convierte, en su zona UTM."""
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     source = _capa_sin_crs(tmp_path, [-75.0, -14.0], [-74.999, -14.0], monkeypatch)
     assert main(['convert', str(source), '--output', str(tmp_path / 'out')]) == 0
@@ -1288,7 +1288,7 @@ def test_cli_convert_deduce_el_crs_de_una_capa_en_grados(tmp_path, monkeypatch):
 
 def test_cli_convert_lee_sin_reproyectar_si_no_puede_deducir_el_crs(tmp_path, monkeypatch):
     """001:RF-25 — sin CRS deducible, la capa se lee sin reproyectar en vez de rechazarse."""
-    from vnr_etl.cli import main
+    from convertersmartgrid.adaptadores.entrada.vnr.cli import main
 
     source = _capa_sin_crs(tmp_path, [500000.0, 8450000.0], [500250.0, 8450000.0], monkeypatch)
     assert main(['convert', str(source), '--output', str(tmp_path / 'out')]) == 0

@@ -353,8 +353,8 @@
    ]
   },
   {
-   "titulo": "VNR-GIS: `vnr_etl/`",
-   "base": "src/vnr_etl/",
+   "titulo": "VNR-GIS: `adaptadores/entrada/vnr/`",
+   "base": "src/convertersmartgrid/adaptadores/entrada/vnr/",
    "ficheros": [
     "__init__.py",
     "__main__.py",

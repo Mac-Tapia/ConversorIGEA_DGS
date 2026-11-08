@@ -24,7 +24,7 @@ from pathlib import Path, PurePosixPath
 RAIZ = Path(__file__).resolve().parents[1]
 SALIDA = 'docs/ARQUITECTURA_CATALOGO.md'
 MAPA = 'docs/architecture/subsistemas.json'
-RAICES = ('src/convertersmartgrid/', 'src/vnr_etl/', 'tools/', 'frontend/src/', 'frontend/scripts/', 'frontend/test/')
+RAICES = ('src/convertersmartgrid/', 'src/vnr_etl.py', 'tools/', 'frontend/src/', 'frontend/scripts/', 'frontend/test/')
 OTROS = ('config/', 'instalador/', '.githooks/')
 S = 'src/convertersmartgrid/'
 #: Lo que el generador necesita leer, también para copiarlo a un repositorio de prueba.
@@ -32,7 +32,7 @@ FUENTES = ('pyproject.toml', 'CODIGO_FUENTE.md', MAPA, 'docs/implementacion065/d
            S + 'asistente/tareas.py', S + 'asistente/equipo.py', S + 'asistente/revision_roles.py',
            S + 'asistente/orquestador.py', S + 'asistente/interprete.py', S + 'asistente/transformer.py',
            S + 'training_coordinator.py', S + 'edicion.py', S + 'web/jobs.py', S + 'web/app.py', S + 'web/services.py',
-           'src/vnr_etl/web/app.py')
+           'src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')
 _RUTA = re.compile(r'@(?:router|app)\.(?:get|post|put|patch|delete|websocket)\(\s*f?[\'"]([^\'"]+)')
 _FILA = re.compile(r'^\| `([^`]+)` \| (.*) \| ([^|]*) \|\s*$', re.M)
 _RF = re.compile(r'^- (RF-\d+[a-z]?):', re.M)
@@ -228,7 +228,7 @@ def documento(fuente: Fuente) -> str:
         'commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no está al día. Si hace falta a mano:',
         '`python tools/generar_arquitectura.py --escribir`. Lo que explica el porqué está en [`ARQUITECTURA.md`](ARQUITECTURA.md).', '',
         '## Cifras', '']
-    grupos_tamano = (('Motor, web, gemelo y asistente', 'src/convertersmartgrid/'), ('Módulo VNR-GIS', 'src/vnr_etl/'),
+    grupos_tamano = (('Motor, web, gemelo y asistente', 'src/convertersmartgrid/'), ('Módulo VNR-GIS', 'src/convertersmartgrid/adaptadores/entrada/vnr/'),
                      ('Herramientas y guiones', 'tools/'), ('Interfaz', 'frontend/src/'), ('Pruebas de la interfaz', 'frontend/test/'),
                      ('Pruebas', 'tests/'), ('Pruebas de modelos', 'tests_ml/'), ('Specs', 'specs/'))
     salida += _tabla(('Parte', 'Carpeta', 'Ficheros'),
@@ -256,8 +256,8 @@ def documento(fuente: Fuente) -> str:
     salida += ['### Carriles de trabajos', '', ', '.join(f'`{c}`' for c in constante(fuente.leer(S + 'web/jobs.py'), 'LANES')) + '.', '']
 
     familias = rutas(fuente.leer(S + 'web/app.py'))
-    vnr = len(_RUTA.findall(fuente.leer('src/vnr_etl/web/app.py')))
-    salida += ['### Rutas de la API', '', f'{sum(familias.values())} en `web/app.py`, y {vnr} bajo `/api/vnr` en `vnr_etl/web/app.py`.', '']
+    vnr = len(_RUTA.findall(fuente.leer('src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')))
+    salida += ['### Rutas de la API', '', f'{sum(familias.values())} en `web/app.py`, y {vnr} bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.', '']
     salida += _tabla(('Familia', 'Ámbito', 'Rutas'), [(f'`{n}`', a, c) for (a, n), c in sorted(familias.items(), key=lambda e: (-e[1], e[0]))])
 
     salida += ['', '### Órdenes y módulos instalados', '']

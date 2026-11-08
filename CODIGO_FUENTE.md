@@ -211,63 +211,66 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/sources/vnr.py` | Reexportación temporal de `convertersmartgrid.sources.vnr`. | 002 (RF-21 la retira) |
 | `src/convertersmartgrid/web/workspace.py` | Espacio de trabajo: entradas, opciones, salida de una sesión y obras de mejora sin aplicar; versiones y migración, rutas relativas, lo no disponible y lo dañado. | 001, 011 (RF-95), 025 (RF-17), 018 (RF-1 a RF-4, RF-13), 035 (RF-21), 038 (RF-1), 065 (RF-10), 086 (RF-2 a RF-6) |
 
-## `src/vnr_etl/` — módulo VNR-GIS
+## `src/convertersmartgrid/adaptadores/entrada/vnr/` — módulo VNR-GIS
 
 Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); operación en
-`docs/VNR_GIS_PRODUCTION.md`. La spec 002 (RF-6) lo integrará en `convertersmartgrid`.
+`docs/VNR_GIS_PRODUCTION.md`. La spec 002 (RF-6) sitúa la implementación en el adaptador de entrada; su aceptación final sigue pendiente.
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
-| `src/vnr_etl/__init__.py` | Paquete del módulo VNR-GIS. | 001 |
-| `src/vnr_etl/__main__.py` | `python -m vnr_etl`. | 001 |
-| `src/vnr_etl/application/__init__.py` | Servicios compartidos por el CLI y la API. | 001 |
-| `src/vnr_etl/application/cymdist_bridge.py` | Del modelo canónico VNR al contrato del motor. | 001 (RF-10) |
-| `src/vnr_etl/application/reconstruccion.py` | Reconstruye el modelo canónico antes del motor. | 001 (RF-17 a RF-22) |
-| `src/vnr_etl/application/services.py` | Validación y exportación VNR en un solo sitio. | 001 (RF-10) |
-| `src/vnr_etl/audit/__init__.py` | Auditoría de solo lectura. | 001 |
-| `src/vnr_etl/audit/project.py` | Auditoría del proyecto anfitrión. | 001 |
-| `src/vnr_etl/catalogs/__init__.py` | Catálogos aprobados de conductores y equipos. | 001 |
-| `src/vnr_etl/catalogs/conductor.py` | Mapeo del catálogo de conductores. | 001 (RF-18) |
-| `src/vnr_etl/cli.py` | Orden `vnr-etl`. | 001 |
-| `src/vnr_etl/config.py` | Configuración del ETL. | 001 |
-| `src/vnr_etl/connectors/__init__.py` | Conectores de fuente. | 001 |
-| `src/vnr_etl/connectors/arcgis.py` | Conector ArcGIS REST. | 001 |
-| `src/vnr_etl/connectors/base.py` | Contrato de los conectores. | 001 |
-| `src/vnr_etl/connectors/databases.py` | Bases de datos y volcados SQL. | 001 |
-| `src/vnr_etl/connectors/delimited.py` | Texto delimitado (CSV/TXT) con codificación y separador deducidos. | 001 (RF-26) |
-| `src/vnr_etl/connectors/registry.py` | Registro de adaptadores de fuente. | 001 (RF-26) |
-| `src/vnr_etl/connectors/sqlserver_vnr.py` | Copia de SQL Server (`.bak`) de VNR-GIS de cualquier concesionaria: restaura con su huella, lee las tablas por sus campos y arma el modelo canónico (tramos por su padre, SED, maniobras, bancos, tensión y CRS de la propia copia). | 023, 054 |
-| `src/vnr_etl/connectors/vector.py` | GeoJSON, Shapefile y GeoPackage. | 001 (RF-26) |
-| `src/vnr_etl/discovery/__init__.py` | Descubrimiento, huella, catálogo y descarga de fuentes. | 001 |
-| `src/vnr_etl/discovery/catalog.py` | Catálogo de publicaciones y empresas. | 001 |
-| `src/vnr_etl/discovery/download.py` | Descargas y manejo seguro de archivos. | 001, 065 (RF-11, RF-12, RF-18, RF-19) |
-| `src/vnr_etl/discovery/fingerprint.py` | Huella de fuente y de esquema. | 001 |
-| `src/vnr_etl/discovery/freshness.py` | La publicación más nueva por fecha autoritativa. | 001 |
-| `src/vnr_etl/discovery/official.py` | Publicaciones oficiales de OSINERGMIN. | 001 |
-| `src/vnr_etl/discovery/schema.py` | Descubrimiento semántico del esquema. | 001 |
-| `src/vnr_etl/doctor.py` | Dependencias y capacidades (`vnr-etl doctor`). | 001 |
-| `src/vnr_etl/electrical/__init__.py` | Enriquecimiento eléctrico. | 001 |
-| `src/vnr_etl/electrical/enrich.py` | Completa los datos eléctricos del modelo. | 001 (RF-18, RF-19) |
-| `src/vnr_etl/exporters/__init__.py` | Exportadores de simulador. | 001 |
-| `src/vnr_etl/exporters/base.py` | Contrato del exportador y perfil de destino. | 001 (RF-23) |
-| `src/vnr_etl/exporters/cymdist.py` | Exportador CYMDIST. | 001 |
-| `src/vnr_etl/exporters/dgs.py` | Exportador DIgSILENT: delega en el motor. | 001 (RF-10) |
-| `src/vnr_etl/gis/__init__.py` | CRS, snapping y reconstrucción de nodos. | 001 |
-| `src/vnr_etl/gis/crs.py` | CRS de las capas y su deducción. | 001 (RF-20, RF-25) |
-| `src/vnr_etl/gis/geometry.py` | Geometría auxiliar, sin `shapely`. | 001 |
-| `src/vnr_etl/gis/snapping.py` | Snapping y reconstrucción de nodos. | 001 |
-| `src/vnr_etl/logging.py` | Registro estructurado de eventos. | 001 |
-| `src/vnr_etl/models/__init__.py` | Modelo canónico VNR-GIS. | 001 |
-| `src/vnr_etl/models/canonical.py` | Clases del modelo canónico. | 001 |
-| `src/vnr_etl/pipeline.py` | Capa de aplicación compartida por el CLI y la web. | 001 (RF-2) |
-| `src/vnr_etl/reconciliation/__init__.py` | Reconciliación y comparación de periodos. | 001 |
-| `src/vnr_etl/reconciliation/diff.py` | Comparación incremental por ID estable. | 001 |
-| `src/vnr_etl/topology/__init__.py` | Topología y validación del grafo. | 001 |
-| `src/vnr_etl/topology/graph.py` | Validación de topología con NetworkX. | 001 |
-| `src/vnr_etl/validation/__init__.py` | Puertas de validación A–H. | 001 (RF-22 a RF-24) |
-| `src/vnr_etl/validation/gates.py` | Las puertas A–H. | 001 (RF-22 a RF-24) |
-| `src/vnr_etl/web/__init__.py` | Rutas web VNR-GIS, montadas en la API principal. | 001 (RF-11) |
-| `src/vnr_etl/web/app.py` | `APIRouter` bajo `/api/vnr`. | 001 (RF-11) |
+| `src/convertersmartgrid/adaptadores/__init__.py` | Adaptadores de fuentes y servicios externos. | 002 |
+| `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Adaptadores de entrada. | 002 |
+| `src/vnr_etl.py` | Fachada de CLI para python -m vnr_etl y el launcher anterior. | 002 (RF-22; compatibilidad pendiente de T9) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/__init__.py` | Paquete del módulo VNR-GIS. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/__main__.py` | `python -m vnr_etl`. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/application/__init__.py` | Servicios compartidos por el CLI y la API. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/application/cymdist_bridge.py` | Del modelo canónico VNR al contrato del motor. | 001 (RF-10) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/application/reconstruccion.py` | Reconstruye el modelo canónico antes del motor. | 001 (RF-17 a RF-22) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/application/services.py` | Validación y exportación VNR en un solo sitio. | 001 (RF-10) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/audit/__init__.py` | Auditoría de solo lectura. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/audit/project.py` | Auditoría del proyecto anfitrión. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/catalogs/__init__.py` | Catálogos aprobados de conductores y equipos. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/catalogs/conductor.py` | Mapeo del catálogo de conductores. | 001 (RF-18) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/cli.py` | Orden `vnr-etl`. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/config.py` | Configuración del ETL. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/__init__.py` | Conectores de fuente. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/arcgis.py` | Conector ArcGIS REST. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/base.py` | Contrato de los conectores. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/databases.py` | Bases de datos y volcados SQL. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/delimited.py` | Texto delimitado (CSV/TXT) con codificación y separador deducidos. | 001 (RF-26) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/registry.py` | Registro de adaptadores de fuente. | 001 (RF-26) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/sqlserver_vnr.py` | Copia de SQL Server (`.bak`) de VNR-GIS de cualquier concesionaria: restaura con su huella, lee las tablas por sus campos y arma el modelo canónico (tramos por su padre, SED, maniobras, bancos, tensión y CRS de la propia copia). | 023, 054 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/connectors/vector.py` | GeoJSON, Shapefile y GeoPackage. | 001 (RF-26) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/__init__.py` | Descubrimiento, huella, catálogo y descarga de fuentes. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/catalog.py` | Catálogo de publicaciones y empresas. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/download.py` | Descargas y manejo seguro de archivos. | 001, 065 (RF-11, RF-12, RF-18, RF-19) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/fingerprint.py` | Huella de fuente y de esquema. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/freshness.py` | La publicación más nueva por fecha autoritativa. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/official.py` | Publicaciones oficiales de OSINERGMIN. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/discovery/schema.py` | Descubrimiento semántico del esquema. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/doctor.py` | Dependencias y capacidades (`vnr-etl doctor`). | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/electrical/__init__.py` | Enriquecimiento eléctrico. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/electrical/enrich.py` | Completa los datos eléctricos del modelo. | 001 (RF-18, RF-19) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/__init__.py` | Exportadores de simulador. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/base.py` | Contrato del exportador y perfil de destino. | 001 (RF-23) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/cymdist.py` | Exportador CYMDIST. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/dgs.py` | Exportador DIgSILENT: delega en el motor. | 001 (RF-10) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/gis/__init__.py` | CRS, snapping y reconstrucción de nodos. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/gis/crs.py` | CRS de las capas y su deducción. | 001 (RF-20, RF-25) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/gis/geometry.py` | Geometría auxiliar, sin `shapely`. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/gis/snapping.py` | Snapping y reconstrucción de nodos. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/logging.py` | Registro estructurado de eventos. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/models/__init__.py` | Modelo canónico VNR-GIS. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/models/canonical.py` | Clases del modelo canónico. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/pipeline.py` | Capa de aplicación compartida por el CLI y la web. | 001 (RF-2) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/reconciliation/__init__.py` | Reconciliación y comparación de periodos. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/reconciliation/diff.py` | Comparación incremental por ID estable. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/topology/__init__.py` | Topología y validación del grafo. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/topology/graph.py` | Validación de topología con NetworkX. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/validation/__init__.py` | Puertas de validación A–H. | 001 (RF-22 a RF-24) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/validation/gates.py` | Las puertas A–H. | 001 (RF-22 a RF-24) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/web/__init__.py` | Rutas web VNR-GIS, montadas en la API principal. | 001 (RF-11) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py` | `APIRouter` bajo `/api/vnr`. | 001 (RF-11) |
 
 ## `tools/` — herramientas
 

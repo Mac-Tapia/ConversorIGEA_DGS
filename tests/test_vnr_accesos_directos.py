@@ -11,16 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from vnr_etl.discovery import download as descarga
-from vnr_etl.discovery.catalog import Publication, PublicationCatalog
-from vnr_etl.discovery.download import (
+from convertersmartgrid.adaptadores.entrada.vnr.discovery import download as descarga
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import Publication, PublicationCatalog
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import (
     DownloadCancelled,
     DownloadError,
     DownloadManager,
     extraer_copia_sql,
     preparar_unrar,
 )
-from vnr_etl.discovery.official import (
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
     PORTAL_VNR,
     paginas_de_ciclos,
     parse_official_publications,
@@ -295,7 +295,7 @@ class _Motor:
 
 def test_el_motor_recibe_lectura_solo_sobre_la_copia(tmp_path, monkeypatch):
     """080:RF-25 — a su cuenta y a ese fichero; luego restaura."""
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     bak = tmp_path / 'EMPR.bak'
     bak.write_bytes(b'TAPE')
@@ -315,7 +315,7 @@ def test_el_motor_recibe_lectura_solo_sobre_la_copia(tmp_path, monkeypatch):
 
 def test_sin_poder_dar_permiso_dice_fichero_y_cuenta(tmp_path, monkeypatch):
     """080:RF-26 — no un error de ODBC sin explicación."""
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     bak = tmp_path / 'EMPR.bak'
     bak.write_bytes(b'TAPE')
@@ -331,7 +331,7 @@ def test_una_salida_de_tramo_nulo_se_carga_con_su_sed():
     """080:RF-27 — 47 salidas de Electro Sur Este desaparecían con su SED."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtSalida'].append({'CodSalidaMT': 'F2', 'CodSet': 'S1', 'CodTenNomi': 'D',
@@ -360,7 +360,7 @@ def test_una_salida_con_sed_y_sin_tramos_se_carga():
     """080:RF-32 — 748055397 de Luz del Sur: su demanda no se pierde."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtSalida'].append({'CodSalidaMT': 'F2', 'CodSet': 'S1', 'CodTenNomi': 'D',
@@ -380,7 +380,7 @@ def test_una_salida_sin_tramos_ni_sed_sigue_sin_cargarse():
     """080:RF-32 — sin red ni demanda no se inventa nada, y se anota."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtSalida'].append({'CodSalidaMT': 'F2', 'CodSet': 'S1', 'CodTenNomi': 'D',
@@ -396,7 +396,7 @@ def test_dos_raices_en_un_mismo_punto_no_rompen_la_carga():
     """080:RF-33 — 11953196 de Luz del Sur, con sus dos tramos raíz en un punto."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtSalida'].append({'CodSalidaMT': 'F2', 'CodSet': 'S1', 'CodTenNomi': 'D',
@@ -416,7 +416,7 @@ def test_dos_raices_en_un_mismo_punto_no_rompen_la_carga():
 def _con_equipo(tipo: str, norma: str, descripcion: str):
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtEquipo'].append({'CodEqp': 'X1', 'CodTramoMT': 'T1', 'CodTipoEquipoProteccion': tipo,
@@ -471,7 +471,7 @@ def test_un_seccionador_abierto_se_conserva():
     """080:RF-40 — Q1 de la tabla de ejemplo, abierto: define dónde termina la red."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     modelo, _ = sv.modelo_canonico(sv.leer_datos(Motor(tablas=_tablas()).conectar('red')))
 
@@ -504,8 +504,8 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
     from convertersmartgrid.dgs import write_dgs
     from convertersmartgrid.model import build_feeder_model
     from convertersmartgrid.puentes import fundir_reguladores
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtEquipo'].append({'CodEqp': 'X1', 'CodTramoMT': 'T1', 'CodTipoEquipoProteccion': 'BR',
@@ -611,8 +611,8 @@ def test_toda_carga_de_la_tabla_sed_es_una_sed(tmp_path, codigo):
     from test_vnr_sqlserver import Motor, _tablas
 
     from convertersmartgrid.model import build_feeder_model
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['Sed'][0]['CodSed'] = codigo
@@ -685,8 +685,8 @@ def test_la_sed_lleva_su_codigo_operativo(tmp_path):
     from test_vnr_sqlserver import Motor, _tablas
 
     from convertersmartgrid.model import build_feeder_model
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['Sed'][0].update(CodSed='12027990', EtiquetaCampo='65335X')
@@ -702,7 +702,7 @@ def test_la_sed_lleva_su_codigo_operativo(tmp_path):
 
 def test_codigos_operativos_repetidos_o_vacios():
     """080:RF-47 — únicos y deterministas, con su aviso."""
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     avisos = []
     codigos = sv.codigos_operativos_sed([
@@ -775,7 +775,7 @@ def test_cada_empresa_amplia_solo_su_catalogo(tmp_path, monkeypatch):
 
 def test_una_empresa_nueva_completa_sus_conductores_sin_otro_catalogo(tmp_path):
     """080:RF-49, 080:RF-50 — con la semilla se deducen las familias de la leyenda."""
-    from vnr_etl.models.canonical import CanonicalModel, ConductorType
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, ConductorType
 
     from convertersmartgrid.catalog import asegurar_catalogo_empresa
     from convertersmartgrid.sources import vnr
@@ -815,7 +815,7 @@ def test_un_tramo_cerrado_en_una_salida_con_red_sigue_descartandose():
     """080:RF-27 — solo cambia la salida que se quedaría sin red."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     tablas = _tablas()
     tablas['mtTramo'].append({'CodTramoMT': 'T9', 'CodSalidaMT': 'F1', 'CodTramoMTPadre': 'T3',
@@ -895,7 +895,7 @@ def test_el_crs_de_la_fuente(monkeypatch, elegido, fuente, perfil, esperado):
 
 def test_la_copia_dice_su_crs_en_el_alcance():
     """080:RF-34 — el alcance de la carga lleva el CRS que declara ``empEmpresa``."""
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     assert sv.crs_de_empresa([{'ZonaUTM': 18, 'Datum': 'PSAD56'}]) == 'EPSG:24878'
     assert sv.crs_de_empresa([{'ZonaUTM': 18, 'Datum': 'WGS84'}]) == 'EPSG:32718'
@@ -992,7 +992,7 @@ def _espera(cliente, trabajo):
 
 def test_descargar_asigna_la_copia_y_no_el_comprimido(cliente, monkeypatch):
     """080:RF-13, 080:RF-18 — la entrada queda con la copia de red, lista para cargar."""
-    from vnr_etl.discovery.download import DownloadManifest
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManifest
 
     def bajar(self, url, destino, **_k):
         del self

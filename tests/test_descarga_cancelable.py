@@ -36,7 +36,7 @@ def servidor(tmp_path, monkeypatch):
 
 def test_cuota_no_reintenta_ni_reemplaza_original(servidor, tmp_path):
     """065:RF-19 — la cabecera y bytes reales se controlan antes de publicar."""
-    from vnr_etl.discovery.download import DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManager
     state, url = servidor
     destination = tmp_path / 'archivo.bin'
     destination.write_bytes(b'anterior')
@@ -50,7 +50,7 @@ def test_cuota_no_reintenta_ni_reemplaza_original(servidor, tmp_path):
 
 def test_cancelacion_previa_no_abre_red(servidor, tmp_path):
     """065:RF-18 — cancelar antes de admitir impide incluso la solicitud remota."""
-    from vnr_etl.discovery.download import DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManager
     state, url = servidor
     manager = DownloadManager(tmp_path / 'cache', verify_archive=False)
     with pytest.raises(RuntimeError, match='cancelada'):
@@ -60,7 +60,7 @@ def test_cancelacion_previa_no_abre_red(servidor, tmp_path):
 
 def test_cancelacion_durante_descarga_no_reintenta(servidor, tmp_path):
     """065:RF-18 / 065:RF-12 — un corte cooperativo limpia solamente su staging."""
-    from vnr_etl.discovery.download import DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManager
     state, url = servidor
     state['contenido'] = b'x' * (2 * 1024 ** 2)
     cancel = threading.Event()

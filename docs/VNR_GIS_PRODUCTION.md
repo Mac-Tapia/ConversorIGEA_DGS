@@ -11,7 +11,7 @@ fuente oficial/archivo/SQLite -> inventario y huellas -> modelo canónico
 -> DGS transaccional + manifiesto + informe de reconstrucción -> PowerFactory -> ComLdf
 ```
 
-CLI y API Web usan `vnr_etl.application.VnrApplicationService`. Las puertas A–F se
+CLI y API Web usan `convertersmartgrid.adaptadores.entrada.vnr.application.VnrApplicationService`. Las puertas A–F se
 evalúan siempre y se informan, pero ninguna impide exportar (spec 001, RF-17 y RF-22 a
 RF-24): lo que les falta se reconstruye y se anota. La procedencia ausente se deriva de
 la huella del modelo o queda `DESCONOCIDO`; sin perfil de destino verificado se usa el

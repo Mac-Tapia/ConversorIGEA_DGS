@@ -12,7 +12,7 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient
 
-from vnr_etl.discovery.catalog import Publication, PublicationCatalog
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import Publication, PublicationCatalog
 
 
 def _publication(publication_id: str, url: str, kind: str) -> Publication:
@@ -101,7 +101,7 @@ def test_download_rechaza_documento_y_host_no_oficial(client):
 
 
 def test_download_oficial_custodia_hash_y_asigna_slot(client, monkeypatch):
-    from vnr_etl.discovery.download import DownloadManifest, DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManifest, DownloadManager
 
     def fake_download(self, url, destination, **kwargs):
         del self, kwargs
@@ -175,7 +175,7 @@ def test_health_y_opciones_exponen_modo_vnr(client):
 
 @pytest.mark.parametrize('content_type', ['application/pdf', 'text/html; charset=utf-8'])
 def test_stream_rechaza_respuesta_documental_aunque_url_diga_zip(tmp_path, content_type):
-    from vnr_etl.discovery.download import DownloadError, DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadError, DownloadManager
 
     class Response:
         status_code = 200
@@ -208,7 +208,7 @@ def test_la_casilla_vnr_ofrece_lo_que_el_servidor_lee(client, tmp_path):
     """001:RF-26 — la casilla VNR-GIS ofrece los formatos del lector y el servidor los acepta."""
     import zipfile
 
-    from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR, SUPPORTED_SOURCE_SUFFIXES
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import FORMATOS_PAQUETE_VNR, SUPPORTED_SOURCE_SUFFIXES
 
     ofrecidos = client.get('/api/health').json()['slots']['vnr_package']['extensiones']
     assert ofrecidos == list(FORMATOS_PAQUETE_VNR)
@@ -216,7 +216,7 @@ def test_la_casilla_vnr_ofrece_lo_que_el_servidor_lee(client, tmp_path):
     # 023:RF-1: también la copia .bak de SQL Server.
     assert set(ofrecidos) == ({'.zip', '.rar', '.bak'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
 
-    from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
     for extension in ofrecidos:
         fichero = tmp_path / f'paquete{extension}'

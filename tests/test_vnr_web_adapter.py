@@ -42,8 +42,8 @@ def _vnr_zip(tmp_path: Path) -> Path:
 
 
 def test_safe_extract_package_rechaza_traversal_y_duplicados(tmp_path):
-    from vnr_etl.pipeline import safe_extract_package
-    from vnr_etl.discovery.download import ArchiveSecurityError
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import safe_extract_package
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import ArchiveSecurityError
 
     traversal = tmp_path / 'traversal.zip'
     with zipfile.ZipFile(traversal, 'w') as zf:
@@ -63,8 +63,8 @@ def test_safe_extract_package_rechaza_traversal_y_duplicados(tmp_path):
 
 def test_bridge_conserva_identidad_de_dos_alimentadores():
     from convertersmartgrid.model import build_feeder_model
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.models import CanonicalModel, ConductorType, Load, Node, Section, Source
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel, ConductorType, Load, Node, Section, Source
 
     model = CanonicalModel(metadata={
         'working_crs': 'EPSG:32718', 'working_crs_is_projected': True,
@@ -108,8 +108,8 @@ def test_bridge_conserva_identidad_de_dos_alimentadores():
 
 
 def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.pipeline import canonicalize_sections
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_sections
 
     rows = [
         _feature('S1', 'IN111', 'ELDU', 2025, -75.00),

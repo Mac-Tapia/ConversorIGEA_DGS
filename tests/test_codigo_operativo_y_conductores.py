@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from vnr_etl.connectors import sqlserver_vnr as sv
+from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
 from test_catalogo_crece import _catalogo
 from test_vnr_sqlserver import _datos, _tablas
@@ -48,7 +48,7 @@ def test_conductor_sin_impedancia_se_reconstruye_al_cargar(tmp_path):
     sin duplicar la fila, y el alimentador sale listo con CONDUCTOR_RECONSTRUIDO."""
     from convertersmartgrid.reglas import con_impedancia, preparar_dataset
     from convertersmartgrid.web.readiness import revisar_conductores
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
 
     tablas = _tablas()
     # Las normas del mismo material y sección que trae el catálogo de prueba.

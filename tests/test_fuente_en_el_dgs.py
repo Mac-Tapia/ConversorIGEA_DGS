@@ -25,7 +25,7 @@ def test_el_dataset_y_el_modelo_traen_su_fuente_con_txt_por_defecto():
 
 
 @pytest.mark.parametrize('modulo, fuente', [('convertersmartgrid/access.py', 'mdb'),
-                                            ('vnr_etl/application/cymdist_bridge.py', 'vnr')])
+                                            ('convertersmartgrid/adaptadores/entrada/vnr/application/cymdist_bridge.py', 'vnr')])
 def test_cada_lector_declara_su_fuente(modulo, fuente):
     """056:RF-6 — el lector de Access y el puente de VNR-GIS no dejan la fuente en TXT."""
     raiz = Path(__file__).resolve().parent.parent / 'src'

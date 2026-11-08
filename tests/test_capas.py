@@ -31,7 +31,7 @@ def test_inventario_real_y_deuda_sin_deriva():
     h = herramienta()
     informe = h.comprobar(RAIZ)
     assert len(informe.modulos) >= 150
-    assert any(m.startswith('vnr_etl.') for m in informe.modulos)
+    assert any(m.startswith('convertersmartgrid.adaptadores.entrada.vnr.') for m in informe.modulos)
     assert not informe.errores, '\n'.join(informe.errores)
 
 

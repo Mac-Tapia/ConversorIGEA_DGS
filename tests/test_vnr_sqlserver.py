@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from vnr_etl.connectors import sqlserver_vnr as sv
+from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
 
 @pytest.fixture(autouse=True)
@@ -232,7 +232,7 @@ def test_modelo_canonico_de_una_salida():
     con el padre anotado, la SED en su nodo con su kVA, la maniobra abierta en su lado, el
     banco con los kvar de su norma, el pararrayos fuera; el puente lleva maniobras y
     vértices intermedios."""
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
 
     datos, _ = _datos()
     modelo, avisos = sv.modelo_canonico(datos)
@@ -268,7 +268,7 @@ def test_la_fuente_vnr_acepta_la_copia(monkeypatch, tmp_path):
     Server, buscando sus vecinas donde estaba el original."""
     from convertersmartgrid.sources.snapshot import snapshot_from_paths
     from convertersmartgrid.sources.vnr import VnrSourceAdapter
-    from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import FORMATOS_PAQUETE_VNR
 
     assert '.bak' in FORMATOS_PAQUETE_VNR
     bak = tmp_path / 'red.bak'
@@ -314,7 +314,7 @@ def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_pat
     reconoce por su cabecera MTF «TAPE»; un fichero sin extensión que no lo es, no."""
     from convertersmartgrid.sources.snapshot import snapshot_from_paths
     from convertersmartgrid.sources.vnr import VnrSourceAdapter
-    from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
     copia = tmp_path / 'ELOR25_V2'
     copia.write_bytes(b'TAPE\x00\x00\x03\x00' + b'\x00' * 64)

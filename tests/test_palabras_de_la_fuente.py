@@ -80,8 +80,8 @@ def test_los_proyectos_anteriores_siguen_valiendo(tmp_path):
 def test_un_vnr_gis_convertido_no_deja_palabras_de_cymdist(tmp_path):
     """056:RF-6 — un VNR-GIS sintético convertido de punta a punta: ninguna salida dice IGEA, CYMDIST,
     TXT, BD_Equipo ni RED export."""
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     from convertersmartgrid.batch import convert_selection
     from test_vnr_sqlserver import _datos, _tablas
@@ -186,8 +186,8 @@ def test_el_txt_conserva_su_catalogo():
 def test_la_auditoria_de_un_vnr_gis_no_nombra_las_tablas_del_txt(tmp_path):
     """056:RF-4 — la auditoría de datos de un VNR-GIS convertido dice lo que su paquete no trae con sus
     palabras, sin «KWH», «[CUSTOMER LOADS]» ni «[SUBSTATION]»."""
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     from convertersmartgrid.studies import auditar_datos
     from test_vnr_sqlserver import _datos, _tablas

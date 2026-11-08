@@ -162,7 +162,7 @@ flowchart TB
     PU["Puertos y contratos<br/>source_contract · sources/base · schema · native_action · powerfactory_binding"]
     DO["Dominio<br/>model · naming · reglas · geography · catalog · reconstruction · capacidades"]
     LP["Lógica de PowerFactory sin DIgSILENT<br/>ajuste_cabecera · cargas_pf · demanda_medida · estudios_pf · obras_pf"]
-    AE["Adaptadores de entrada<br/>dataset (TXT) · access · sources/ · vnr_etl"]
+    AE["Adaptadores de entrada<br/>dataset (TXT) · access · sources/ · adaptadores/entrada/vnr"]
     AS["Adaptadores de salida<br/>dgs · export_tables · powerfactory_env"]
     PR --> AP
     PR --> LP

@@ -324,7 +324,7 @@ def test_ejemplo_de_perfil_sin_una_empresa_concreta(informe_repositorio):
 
 def test_contrato_vnr_sin_rutas_de_una_maquina(tmp_path, monkeypatch):
     """086:RF-32 — la muestra es local: va por variable, y sin ella el perfil queda «sin verificar», sin bloquear."""
-    from vnr_etl.exporters.base import TargetProfile
+    from convertersmartgrid.adaptadores.entrada.vnr.exporters.base import TargetProfile
 
     ruta = RAIZ / 'config' / 'vnr_dgs_profile.json'
     assert not json.loads(ruta.read_text(encoding='utf-8')).get('sample_path')

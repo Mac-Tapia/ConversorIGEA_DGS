@@ -1,5 +1,5 @@
 # Configuración de ejemplo para vnr_etl (módulo adicional ConverterSmartGrid).
-# Los valores por defecto están en src/vnr_etl/config.py; este YAML solo
+# Los valores por defecto están en src/convertersmartgrid/adaptadores/entrada/vnr/config.py; este YAML solo
 # sobrescribe lo que se indica. El CRS de origen NUNCA se copia de aquí:
 # debe salir de los metadatos de la fuente.
 

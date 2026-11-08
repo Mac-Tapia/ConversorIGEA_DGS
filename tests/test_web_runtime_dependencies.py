@@ -31,7 +31,7 @@ def test_runtime_probe_covers_all_three_source_modes():
     required = set(runtime.REQUIRED_MODULES)
 
     assert {'convertersmartgrid', 'pyproj', 'fastapi', 'uvicorn', 'multipart'} <= required
-    assert {'vnr_etl', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas'} <= required
+    assert {'convertersmartgrid.adaptadores.entrada.vnr', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas'} <= required
 
 
 def test_runtime_probe_reports_the_missing_import_name():
@@ -117,7 +117,7 @@ def test_extras_de_arranque_declaran_los_mismos_imports_requeridos():
         'docx': 'python-docx', 'PIL': 'pillow', 'yaml': 'pyyaml',
     }
     requeridos = {paquetes.get(nombre, nombre).lower() for nombre in runtime.REQUIRED_MODULES
-                  if nombre not in ('convertersmartgrid', 'vnr_etl')}
+                  if nombre not in ('convertersmartgrid', 'convertersmartgrid.adaptadores.entrada.vnr')}
     for grupo in ('web', 'all'):
         declarados = {Requirement(linea).name.lower() for linea in extras[grupo]}
         assert not (requeridos - declarados), (grupo, sorted(requeridos - declarados))

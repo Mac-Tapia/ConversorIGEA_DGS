@@ -121,7 +121,7 @@ def test_lo_que_no_se_deduce_queda_pendiente_y_se_dice(tmp_path):
 def test_la_fuente_vnr_hace_crecer_el_catalogo_y_lo_usa(tmp_path):
     """053:RF-1, 053:RF-7, 053:RF-8 — la conversión VNR-GIS añade los códigos sin R y X al
     catálogo (uno, sin perfil de empresa) y los usa en la misma conversión."""
-    from vnr_etl.models.canonical import CanonicalModel, ConductorType
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, ConductorType
 
     from convertersmartgrid.sources import vnr
 

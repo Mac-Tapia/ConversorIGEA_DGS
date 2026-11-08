@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--salida', type=Path, help='Guardar el informe en este JSON')
     args = p.parse_args(argv)
 
-    from vnr_etl.connectors import sqlserver_vnr as sv
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
     espacio = _leer(f'{args.web}/api/workspaces/{args.espacio}')
     entrada = (espacio.get('inputs') or {}).get('vnr_package') or {}

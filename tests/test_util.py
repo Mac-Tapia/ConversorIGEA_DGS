@@ -140,7 +140,7 @@ def _funciones(ruta: Path):
     return [n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef)]
 
 
-@pytest.mark.parametrize('paquete', ['convertersmartgrid', 'vnr_etl'])
+@pytest.mark.parametrize('paquete', ['convertersmartgrid', 'convertersmartgrid/adaptadores/entrada/vnr'])
 def test_ninguna_utilidad_esta_copiada(paquete):
     """001:RF-4, 001:RF-5 — las utilidades viven solo en ``convertersmartgrid.util``."""
     ruta_util = Path(util.__file__)

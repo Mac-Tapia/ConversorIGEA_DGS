@@ -88,6 +88,34 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
 
 ## Riesgos
 
+### Bloque VNR de T8 (2026-11-08, P23)
+
+Los 50 módulos de `src/vnr_etl/` se mueven, sin otra implementación, a
+`src/convertersmartgrid/adaptadores/entrada/vnr/`. Los consumidores de `src/`,
+`tools/`, pruebas, imports dinámicos, diagnóstico y entry point usan esa ruta.
+`src/vnr_etl.py` es únicamente una fachada de CLI: reexporta versión, `cli` y `main`,
+y registra `vnr_etl.cli` como alias del CLI canónico para el launcher anterior.
+Setuptools declara ese módulo suelto y la lista de entrega lo incluye.
+
+Esta compatibilidad responde al contrato explícito de conservar `python -m vnr_etl`
+y `vnr-etl`; no mantiene imports antiguos de subpaquetes. T9 debe decidir sobre la
+fachada sin romper ese contrato, además de retirar las reexportaciones previas de
+`web/sources`. Las capas de CLI/web de VNR conservan su clasificación de presentación;
+el movimiento no declara resuelta la separación completa de T7 ni reduce excepciones
+sin eliminar sus dependencias.
+
+El corpus `docs/asistente/preguntas_entregables.jsonl` y su documento generado
+`docs/PREGUNTAS_MAESTRO_076.md` citan expresamente la revisión histórica `10fd3e1d`
+(`tools/preguntas_entregables.py`, 076:RF-4). Su ancla antigua de VNR y sus etiquetas
+se conservan íntegros como evidencia fechada; no son imports operativos ni una
+deuda técnica añadida de T8. La documentación operativa actual sí usa la ruta nueva.
+
+La comprobación enfocada añade `tests/test_vnr_migracion.py`, conserva las pruebas
+de VNR y compara CLI y SHA-256 de un DGS sintético con la revisión anterior. La línea
+base real TXT/MDB/VNR y su validación nativa quedan para la puerta del integrador;
+no se regeneran para aceptar el cambio. Evidencia externa:
+`D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/paralelo_p23_vnr_20261108/HANDOFF.md`.
+
 - Mover `dataset` parte la clase del lector: es el módulo que más importan (motor,
   `vnr_etl`, pruebas). Se hace en dos pasos, con reexportación.
 - Los pickles de `workers>1` llevan rutas de módulo: la línea base con `workers=4`

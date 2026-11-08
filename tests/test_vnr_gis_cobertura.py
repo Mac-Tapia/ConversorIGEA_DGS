@@ -13,14 +13,14 @@ from __future__ import annotations
 
 import pytest
 
-from vnr_etl.catalogs.conductor import ConductorCatalog, load_conductor_catalog
+from convertersmartgrid.adaptadores.entrada.vnr.catalogs.conductor import ConductorCatalog, load_conductor_catalog
 from convertersmartgrid.util import sha256_file as sha256_of
-from vnr_etl.exporters.base import ExportBlocked, TargetProfile
-from vnr_etl.exporters.cymdist import CymdistExporter
-from vnr_etl.gis.crs import CRSError, CRSManager
-from vnr_etl.gis.geometry import (coords_from_geojson, length_pct_delta, line_endpoints,
+from convertersmartgrid.adaptadores.entrada.vnr.exporters.base import ExportBlocked, TargetProfile
+from convertersmartgrid.adaptadores.entrada.vnr.exporters.cymdist import CymdistExporter
+from convertersmartgrid.adaptadores.entrada.vnr.gis.crs import CRSError, CRSManager
+from convertersmartgrid.adaptadores.entrada.vnr.gis.geometry import (coords_from_geojson, length_pct_delta, line_endpoints,
                                   polyline_length_m)
-from vnr_etl.models import CanonicalModel, ConductorType, Load, Node, Section, Source
+from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel, ConductorType, Load, Node, Section, Source
 
 
 # ------------------------------------------------------------------------------ CRS

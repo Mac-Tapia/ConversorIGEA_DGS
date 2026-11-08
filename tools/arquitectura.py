@@ -27,7 +27,7 @@ class Informe:
 
 
 def inventario(raiz: Path) -> dict[str, Path]:
-    """Incluye paquetes y todos los módulos Python, también vnr_etl y anidados."""
+    """Incluye paquetes, módulos anidados y la fachada de CLI VNR."""
     resultado = {}
     for archivo in sorted(raiz.rglob('*.py')):
         partes = archivo.relative_to(raiz).with_suffix('').parts

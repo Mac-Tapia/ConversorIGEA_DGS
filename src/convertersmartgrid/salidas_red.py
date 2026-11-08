@@ -49,10 +49,10 @@ SALIDAS: dict[str, Salida] = {
                            ('tools/preparar_modelos_ia.py',)),
     'vnr_oficial': Salida('CSG_SALIDA_VNR_OFICIAL', 'el portal de Osinergmin',
                           'buscar y descargar los paquetes VNR-GIS',
-                          ('src/vnr_etl/discovery/official.py', 'src/vnr_etl/discovery/download.py')),
+                          ('src/convertersmartgrid/adaptadores/entrada/vnr/discovery/official.py', 'src/convertersmartgrid/adaptadores/entrada/vnr/discovery/download.py')),
     'arcgis': Salida('CSG_SALIDA_ARCGIS', 'el servidor ArcGIS que indique el usuario',
                      'leer una capa de un servicio ArcGIS',
-                     ('src/vnr_etl/connectors/arcgis.py',)),
+                     ('src/convertersmartgrid/adaptadores/entrada/vnr/connectors/arcgis.py',)),
 }
 
 

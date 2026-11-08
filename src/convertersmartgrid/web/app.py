@@ -840,7 +840,7 @@ def create_app(
     app.state.jobs = jobs
     app.state.retencion = retencion
 
-    from vnr_etl.web.app import create_router
+    from convertersmartgrid.adaptadores.entrada.vnr.web.app import create_router
 
     # Las rutas de VNR-GIS son parte de esta API y usan su cola de trabajos.
     app.include_router(create_router(store.root, jobs, vnr_settings))
@@ -957,8 +957,8 @@ def create_app(
 
     @app.get('/api/vnr/publications')
     def vnr_publications(refresh: bool = False) -> dict:
-        from vnr_etl.discovery.catalog import PublicationCatalog
-        from vnr_etl.discovery.official import (
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import PublicationCatalog
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
             PORTAL_VNR, is_allowed_official_url, is_vnr_data_package,
             publication_evidence_sha256, refresh_official_catalog, vigentes_por_empresa,
         )
@@ -1002,7 +1002,7 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/vnr/publications/refresh', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def vnr_publications_refresh(wid: str) -> dict:
-        from vnr_etl.discovery.official import refresh_official_catalog
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import refresh_official_catalog
 
         def refresh(ctx):
             ctx.check_cancel()
@@ -1190,7 +1190,7 @@ def create_app(
     def _assign(ws: Workspace, slot: str, path: Path, origin: str) -> dict:
         spec = SLOTS[slot]
         if slot == 'vnr_package':
-            from vnr_etl.discovery.official import (
+            from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
                 OfficialDiscoveryError, validate_vnr_package_file,
             )
 
@@ -1271,11 +1271,11 @@ def create_app(
     @app.post('/api/workspaces/{wid}/vnr/download', status_code=202,
               response_model=JobRespuesta, response_model_exclude_unset=True)
     def download_vnr(wid: str, body: VnrDownloadIn) -> dict:
-        from vnr_etl.discovery.catalog import PublicationCatalog
-        from vnr_etl.discovery.download import (
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import PublicationCatalog
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import (
             DownloadCancelled, DownloadError, DownloadManager, extraer_copia_sql,
         )
-        from vnr_etl.discovery.official import (
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
             DEFAULT_ALLOWED_HOSTS, is_allowed_official_url, is_vnr_data_package,
             validate_vnr_package_file,
         )

@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def test_vnr_bridge_preserves_capacitor_source_fields():
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.models import Capacitor, CanonicalModel, ConductorType, Load, Node, Section, Source
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.models import Capacitor, CanonicalModel, ConductorType, Load, Node, Section, Source
 
     model = CanonicalModel(
         metadata={'working_crs_is_projected': True},
@@ -34,8 +34,8 @@ def test_vnr_bridge_preserves_capacitor_source_fields():
 
 
 def test_vnr_bridge_retains_capacitor_without_capacity_for_audit():
-    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-    from vnr_etl.models import Capacitor, CanonicalModel
+    from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+    from convertersmartgrid.adaptadores.entrada.vnr.models import Capacitor, CanonicalModel
 
     result = canonical_to_cymdist(
         CanonicalModel(capacitors=[Capacitor('BC_SIN_Q', 'N0', kvar=0)]),

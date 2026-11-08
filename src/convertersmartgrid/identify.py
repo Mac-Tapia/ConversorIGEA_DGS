@@ -193,8 +193,8 @@ def fuente_de(path: Path | str) -> Fuente:
     if ident.tipo != DESCONOCIDO:
         return Fuente(FUENTE_TXT, ident.tipo)
     try:
-        from vnr_etl.connectors.sqlserver_vnr import es_copia_sql
-        from vnr_etl.discovery.official import (
+        from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import es_copia_sql
+        from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
             OfficialDiscoveryError, validate_vnr_package_file,
         )
     except ImportError:  # sin el módulo VNR no se reconoce un paquete

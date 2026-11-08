@@ -102,9 +102,16 @@ catálogo. No detecta accesos privados sobre instancias.
 `registro_modulos.py` comprueba su versión y sus métodos. Hoy van por esa vía `escritor-dgs` y los lectores `lector-txt`,
 `lector-mdb` y `lector-vnr`. `config/modulos_permitidos.json` limita los que se cargan.
 
-`src/vnr_etl/` es un paquete aparte con su propia arquitectura (`connectors`, `discovery`, `gis`, `models`, `validation`,
+`src/convertersmartgrid/adaptadores/entrada/vnr/` contiene el adaptador VNR-GIS (`connectors`, `discovery`, `gis`, `models`, `validation`,
 `exporters`, `application`); su diseño está en [`VNR-GIS.md`](../VNR-GIS.md). Exporta al motor por `application/cymdist_bridge.py`,
-de modo que su DGS sale del mismo `dgs.py`. Lo integrará la 002 T8.
+de modo que su DGS sale del mismo `dgs.py`. La fachada `src/vnr_etl.py` conserva únicamente
+`python -m vnr_etl` y el entry point anterior `vnr_etl.cli:main`; los consumidores usan la ruta canónica.
+La comparación final de fuentes reales y aceptación nativa de la migración 002 sigue pendiente.
+
+**Custodia histórica (076:RF-4).** En la revisión `10fd3e1d`, anterior a esta migración,
+la descripción era «`src/vnr_etl/` es un paquete aparte». Esa frase queda como ancla
+de los conjuntos fechados 076/077, cuyas citas y etiquetas se conservan. Describe
+aquella revisión; la ubicación operativa actual es el adaptador indicado arriba.
 
 ## Flujo de conversión
 

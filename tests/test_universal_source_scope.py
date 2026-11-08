@@ -80,7 +80,7 @@ def test_vnr_multiple_companies_requires_explicit_selection(tmp_path):
 
 def test_pipeline_and_adapter_have_no_company_specific_default():
     from convertersmartgrid.web.sources.vnr import VnrSourceAdapter
-    from vnr_etl.pipeline import canonicalize_vnr_package
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package
 
     assert inspect.signature(canonicalize_vnr_package).parameters['company'].default is None
     assert inspect.signature(VnrSourceAdapter).parameters['company'].default is None

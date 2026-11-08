@@ -24,11 +24,11 @@ class VnrSourceAdapter:
             allowed={'vnr_package'},
             required={'vnr_package'},
         )
-        from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-        from vnr_etl.pipeline import canonicalize_vnr_package, safe_extract_package
+        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+        from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package, safe_extract_package
 
         package = snapshot.files['vnr_package'].path
-        from vnr_etl.connectors.sqlserver_vnr import es_copia_sql
+        from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import es_copia_sql
 
         # La copia de SQL Server, con «.bak» o sin extensión (la de Electro Oriente, 2026-11-01).
         if Path(package).suffix.lower() == '.bak' or es_copia_sql(package):
@@ -60,8 +60,8 @@ class VnrSourceAdapter:
         """Spec 023: la copia de SQL Server de VNR-GIS de cualquier concesionaria."""
         import os
 
-        from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
-        from vnr_etl.connectors.sqlserver_vnr import SERVIDOR, cargar_copia
+        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+        from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import SERVIDOR, cargar_copia
 
         servidor = os.environ.get('CSG_SQLSERVER', SERVIDOR)
         original = Path(snapshot.files['vnr_package'].source_path or bak)

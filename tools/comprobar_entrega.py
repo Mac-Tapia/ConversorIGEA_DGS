@@ -400,13 +400,13 @@ def _revisar_fichero(ruta: Path, rel: str, manifiesto: Mapping[str, Any], termin
 
 #: De la rueda propia a la ruta del repositorio, que es en lo que está escrita la lista.
 _RUEDA_A_REPOSITORIO = (('convertersmartgrid/_programa/', ''), ('convertersmartgrid/', 'src/convertersmartgrid/'),
-                        ('vnr_etl/', 'src/vnr_etl/'))
+                        ('vnr_etl.py', 'src/vnr_etl.py'))
 
 
 def ruta_en_el_repositorio(nombre: str) -> str | None:
     """Dónde estaría en el repositorio un fichero de la rueda; None en sus metadatos («…dist-info/»)."""
     for prefijo, destino in _RUEDA_A_REPOSITORIO:
-        if nombre.startswith(prefijo):
+        if nombre == prefijo or (prefijo.endswith('/') and nombre.startswith(prefijo)):
             return destino + nombre[len(prefijo):]
     return None
 

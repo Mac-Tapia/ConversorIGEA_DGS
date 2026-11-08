@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from convertersmartgrid.estructura import asignar, estructura_de_dict, estructura_de_la_fuente
 from convertersmartgrid.web import services
-from vnr_etl.connectors import sqlserver_vnr as sv
+from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
 FILAS = {'A1': {'sistema_codigo': 'S1', 'sistema_nombre': 'Sistema Uno', 'sector': '2', 'set_codigo': 'T1', 'set_nombre': 'Norte'},
          'A2': {'sistema_codigo': 'S1', 'sistema_nombre': 'Sistema Uno', 'sector': '2', 'set_codigo': '', 'set_nombre': ''},

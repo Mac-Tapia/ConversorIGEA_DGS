@@ -3,7 +3,7 @@
   "version": 1,
   "incluir": [
     "src/convertersmartgrid/*",
-    "src/vnr_etl/*",
+    "src/vnr_etl.py",
     "tools/*.py",
     "tools/run_powerfactory_gate.bat",
     "config/*.example.*",

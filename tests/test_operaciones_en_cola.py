@@ -55,8 +55,8 @@ def test_inferencia_puede_esperar_sin_retener_la_peticion(client, monkeypatch):
 
 def test_refresh_vnr_se_encola_y_cache_se_consulta_sin_red(client, monkeypatch):
     """065:RF-18 — el catálogo lento tiene progreso y no bloquea el estado guardado."""
-    import vnr_etl.discovery.official as official
-    from vnr_etl.discovery.catalog import PublicationCatalog
+    import convertersmartgrid.adaptadores.entrada.vnr.discovery.official as official
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import PublicationCatalog
     entered, release = threading.Event(), threading.Event()
     def slow(*args, **kw):
         entered.set()

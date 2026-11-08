@@ -79,6 +79,40 @@ def _en_el_programa(fuera: Path, tmp_path: Path, codigo: str, **entorno) -> str:
 
 
 # --------------------------------------------------------------------------- RF-36: fuera del repositorio
+def test_rueda_incluye_adaptador_vnr_y_ambos_launchers_sin_instalar(rueda, tmp_path):
+    """002:RF-6/22; 086:RF-36: la rueda real conserva el CLI sin depender del checkout."""
+    import configparser
+
+    with zipfile.ZipFile(rueda) as z:
+        nombres = z.namelist()
+        assert 'vnr_etl.py' in nombres
+        assert not any(n.startswith('vnr_etl/') for n in nombres)
+        assert 'convertersmartgrid/adaptadores/entrada/vnr/models/canonical.py' in nombres
+        assert 'convertersmartgrid/adaptadores/entrada/vnr/cli.py' in nombres
+        assert sum(n.startswith('convertersmartgrid/adaptadores/entrada/vnr/') and n.endswith('.py')
+                   for n in nombres) == 50
+        cfg = configparser.ConfigParser()
+        cfg.read_string(z.read(next(n for n in nombres if n.endswith('.dist-info/entry_points.txt'))).decode('utf-8'))
+        nuevo = cfg['console_scripts']['vnr-etl']
+        assert nuevo == 'convertersmartgrid.adaptadores.entrada.vnr.cli:main'
+        declarados = tomllib.loads((RAIZ / 'pyproject.toml').read_text(encoding='utf-8'))[
+            'project']['entry-points']['convertersmartgrid.modulos']
+        assert dict(cfg['convertersmartgrid.modulos']) == declarados
+    for destino in (nuevo, 'vnr_etl.cli:main'):
+        codigo = (
+            'from importlib.metadata import EntryPoint\n'
+            f"main = EntryPoint(name='vnr-etl', value={destino!r}, group='console_scripts').load()\n"
+            'import sys\n'
+            "assert '.whl' in sys.modules[main.__module__].__file__\n"
+            "raise SystemExit(main(['--version']))\n"
+        )
+        assert 'vnr_etl 1.6.0' in _en_el_programa(rueda, tmp_path, codigo)
+    env = {**os.environ, 'PYTHONPATH': str(rueda)}
+    r = subprocess.run([sys.executable, '-B', '-m', 'vnr_etl', '--help'], cwd=tmp_path,
+                       env=env, capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0 and 'ETL universal' in r.stdout, r.stdout + r.stderr
+
+
 def test_rueda_conserva_textos_de_licencias_del_front(rueda):
     """086:RF-39 — instalar solo la rueda también conserva los permisos del frontend compilado."""
     with zipfile.ZipFile(rueda) as z:
@@ -115,7 +149,7 @@ print(json.dumps({'paquete': c.__file__, 'raiz': str(r), 'guiones': sorted(p.nam
 def test_la_plantilla_vnr_se_encuentra_sin_estar_en_la_carpeta_del_programa(fuera, tmp_path):
     """086:RF-36 — `config/vnr_dgs_profile.json` era relativa al directorio de trabajo; instalado, este es el de datos."""
     assert 'ok' in _en_el_programa(fuera, tmp_path, """
-from vnr_etl.application.services import VnrApplicationService
+from convertersmartgrid.adaptadores.entrada.vnr.application.services import VnrApplicationService
 assert VnrApplicationService()._profile('dgs') is not None
 print('ok')
 """)

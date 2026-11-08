@@ -19,7 +19,7 @@ REQUIRED_MODULES = (
     # Sin psutil jobs.py no puede vigilar el límite RAM de los libros (036:RF-1).
     'psutil',
     # Tercera fuente: VNR-GIS y su normalización GIS/topológica.
-    'vnr_etl',
+    'convertersmartgrid.adaptadores.entrada.vnr',
     'requests',
     'shapely',
     'networkx',
@@ -45,8 +45,8 @@ MODULOS_POR_CAPACIDAD = {
     'informes': ('docx', 'PIL'),
     'oraculo': ('pandapower',),
     'mdb': ('pyodbc',),
-    'vnr_gis': ('vnr_etl', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas', 'pyproj'),
-    'vnr_sqlserver': ('vnr_etl', 'pyodbc'),
+    'vnr_gis': ('convertersmartgrid.adaptadores.entrada.vnr', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas', 'pyproj'),
+    'vnr_sqlserver': ('convertersmartgrid.adaptadores.entrada.vnr', 'pyodbc'),
 }
 DRIVERS_POR_CAPACIDAD = {
     'mdb': 'Microsoft Access Driver (*.mdb, *.accdb)',
@@ -242,8 +242,8 @@ def huella_del_codigo(dist: Path | None = None) -> str:
 
     src = Path(__file__).resolve().parents[2]
     h = hashlib.sha1()
-    for paquete in ('convertersmartgrid', 'vnr_etl'):
-        for f in sorted((src / paquete).rglob('*.py')):
+    for f in sorted([*(src / 'convertersmartgrid').rglob('*.py'), src / 'vnr_etl.py']):
+        if f.is_file():
             st = f.stat()
             h.update(f'{f.relative_to(src).as_posix()}:{st.st_mtime_ns}:{st.st_size};'.encode())
     if dist is not None and (dist / 'index.html').is_file():

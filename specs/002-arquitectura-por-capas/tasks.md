@@ -47,8 +47,14 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       Hecho cuando: la tabla de `pyproject.toml` es la del plan y `test_capas.py` en verde sin excepciones de capa.
 - [ ] T8. `vnr_etl` dentro de `convertersmartgrid.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
       Hecho cuando: no queda `src/vnr_etl/` y `pytest -q tests/test_vnr_etl.py` en verde.
+      Bloque P23 del 2026-11-08: implementación y consumidores trasladados, fachada única
+      `src/vnr_etl.py` para los dos contratos de CLI, sin copia de implementación ni paquete paralelo.
+      T8 conserva esta casilla abierta hasta la puerta de regresión real RF-20 del integrador;
+      pruebas enfocadas, comparación sintética y revisión exacta en el HANDOFF externo indicado en el plan.
 - [ ] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
       Hecho cuando: `test_capas.py` no encuentra ningún módulo que solo reexporte.
+      Compatibilidad pendiente: `src/vnr_etl.py` (CLI público conservado por contrato) y
+      fachadas anteriores `convertersmartgrid.web.sources` / `web.sources.vnr`.
 - [x] T10. Modelos Pydantic en las respuestas de la API y tipos del front generados. (RF-16, RF-17)
       Hecho cuando: `pytest -q tests/test_contrato_api.py` en verde.
       Del 2026-11-03: lo cumplió la 065. Quedan 7 de 133 rutas de `/api` sin modelo de respuesta; salen como tipo abierto.

@@ -214,7 +214,7 @@ def test_informe_prepara_docx_y_json_antes_de_publicar(tmp_path, monkeypatch):
 def test_extraer_paquete_no_toca_part_ajeno_y_publica_fuera(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — copia custodiada y temporales ajenos conservados."""
     import zipfile
-    from vnr_etl.pipeline import safe_extract_package
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import safe_extract_package
     fuente = tmp_path / 'fuente.zip'
     with zipfile.ZipFile(fuente, 'w') as zip:
         zip.writestr('red/datos.csv', 'id,x\nA,1\n')
@@ -242,7 +242,7 @@ def test_extraer_paquete_no_toca_part_ajeno_y_publica_fuera(tmp_path, monkeypatc
 
 def test_descarga_prepara_ruta_privada_y_limpia_tras_error(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — validación previa, hash y destino anterior preservado."""
-    from vnr_etl.discovery.download import DownloadError, DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadError, DownloadManager
     destino = tmp_path / 'producto' / 'red.bin'
     destino.parent.mkdir()
     destino.write_bytes(b'anterior')
@@ -274,7 +274,7 @@ def test_descarga_prepara_ruta_privada_y_limpia_tras_error(tmp_path, monkeypatch
 def test_descarga_temp_dir_explicito_respeta_fronteras(tmp_path, monkeypatch, tipo):
     """065:RF-10, 065:RF-11 — temp_dir conserva contrato sin copiar entre volúmenes."""
     from convertersmartgrid.runtime_paths import rutas_runtime
-    from vnr_etl.discovery.download import DownloadManager
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManager
     destino = tmp_path / 'producto' / 'red.bin'
     if tipo == 'checkout':
         temporal = rutas_runtime().primario / 'temporal-no-crear'
@@ -309,7 +309,7 @@ def test_descarga_temp_dir_explicito_respeta_fronteras(tmp_path, monkeypatch, ti
 def test_exportador_dgs_publica_dgs_ultimo_sin_staging_en_salida(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — motor real, hash verificado y cleanup al fallar renombre."""
     from test_vnr_etl import _production_ready_model
-    from vnr_etl.exporters.dgs import DgsExporter
+    from convertersmartgrid.adaptadores.entrada.vnr.exporters.dgs import DgsExporter
     destino = tmp_path / 'producto'
     reemplazar = os.replace
     publicados = []
@@ -334,7 +334,7 @@ def test_subida_vnr_real_prepara_fuera_y_conserva_anteriores(tmp_path, monkeypat
     """065:RF-11, 065:RF-12 — multipart real publica completo y rechaza carga corrupta."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from vnr_etl.web.app import create_router
+    from convertersmartgrid.adaptadores.entrada.vnr.web.app import create_router
     app = FastAPI()
     raiz = tmp_path / 'web'
     app.include_router(create_router(raiz, jobs=None))

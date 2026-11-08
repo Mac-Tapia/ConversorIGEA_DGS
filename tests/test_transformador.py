@@ -33,8 +33,8 @@ def test_crs_invalido_da_error_que_lo_nombra(origen, destino):
 
 def test_vnr_reproyecta_con_el_mismo_transformador():
     """001:RF-6 — VNR-GIS da el mismo error con el mismo mensaje."""
-    from vnr_etl.gis.crs import CRSManager
-    from vnr_etl.pipeline import _transform_points
+    from convertersmartgrid.adaptadores.entrada.vnr.gis.crs import CRSManager
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import _transform_points
 
     with pytest.raises(ValueError, match='EPSG:999999'):
         CRSManager('EPSG:999999', 'EPSG:32718', strict=False).transformer_to_working()

@@ -29,10 +29,10 @@ class SourceScope:
 
 
 def _section_rows(root: Path) -> Iterable[dict[str, Any]]:
-    from vnr_etl.connectors import resolve_adapter
-    from vnr_etl.connectors.registry import iter_supported_sources
-    from vnr_etl.discovery.schema import resolve_alias
-    from vnr_etl.pipeline import geojson_rows, normalize_feature_record
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import resolve_adapter
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import iter_supported_sources
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.schema import resolve_alias
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import geojson_rows, normalize_feature_record
 
     for path in iter_supported_sources(root):
         if path.suffix.lower() in ('.geojson', '.json'):
@@ -63,8 +63,8 @@ def _inspect_extracted(
     selected_company: str | None = None,
     selected_period: str | None = None,
 ) -> SourceScope:
-    from vnr_etl.discovery.schema import resolve_alias
-    from vnr_etl.pipeline import period_key
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.schema import resolve_alias
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import period_key
 
     rows = list(_section_rows(root))
     if not rows:
@@ -100,8 +100,8 @@ def inspect_package_scope(
     selected_company: str | None = None,
     selected_period: str | None = None,
 ) -> SourceScope:
-    from vnr_etl.connectors.sqlserver_vnr import config_de, es_copia_sql
-    from vnr_etl.pipeline import safe_extract_package
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import config_de, es_copia_sql
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import safe_extract_package
 
     if es_copia_sql(package):
         # Una copia de SQL Server no se extrae como un paquete de capas: su empresa y su base

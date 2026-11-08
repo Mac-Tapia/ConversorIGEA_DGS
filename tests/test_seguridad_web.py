@@ -710,7 +710,7 @@ def test_portal_vnr_apagado_no_conecta(producto, monkeypatch, tmp_path):
     """086:RF-22 — buscar y bajar paquetes de Osinergmin; un paquete ya en disco se sigue usando."""
     import requests
 
-    from vnr_etl.discovery import download, official
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery import download, official
 
     monkeypatch.setattr(requests, 'get', _no_debe_salir)
     with pytest.raises(official.OfficialDiscoveryError, match=SALIDAS['vnr_oficial'].variable):
@@ -726,7 +726,7 @@ def test_arcgis_apagado_no_conecta(producto, monkeypatch):
     """086:RF-22 — un servidor ArcGIS, aunque lo indique el usuario."""
     import requests
 
-    from vnr_etl.connectors.arcgis import ArcGISError, ArcGISLayer
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISError, ArcGISLayer
 
     monkeypatch.setattr(requests, 'get', _no_debe_salir)
     with pytest.raises(ArcGISError, match=SALIDAS['arcgis'].variable):

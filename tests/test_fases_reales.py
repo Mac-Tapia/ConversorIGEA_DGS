@@ -154,7 +154,7 @@ def test_un_acoplador_lleva_las_fases_de_sus_dos_barras():
 def test_fases_de_la_sed_por_su_norma():
     """054:RF-1 — sufijo de la norma del regulador: 01 una fase, 02 dos, 03/04/05 tres; las
     letras, las del tramo que llega a su nodo; sin sufijo, trifásica."""
-    from vnr_etl.connectors.sqlserver_vnr import fases_de_sed
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import fases_de_sed
 
     assert fases_de_sed('SM03701', 'A') == 'A' and fases_de_sed('SM00501', 'B') == 'B'
     assert fases_de_sed('SB01002', 'ABC') == 'AB' and fases_de_sed('SB00702', 'BC') == 'BC'
@@ -262,8 +262,8 @@ def test_flujo_desequilibrado_si_hay_monofasicos():
 def test_ramales_monofasicos_repartidos_entre_fases():
     """054:RF-1, 054:RF-5 — VNR-GIS no dice la fase de un ramal monofásico: cada ramal entero va a
     una fase, el de más kVA a la de menos, y se anota; los trifásicos no se tocan."""
-    from vnr_etl.connectors.sqlserver_vnr import repartir_ramales_monofasicos
-    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import repartir_ramales_monofasicos
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, Load, Section
 
     m = CanonicalModel()
     m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),
@@ -287,8 +287,8 @@ def test_ramales_monofasicos_repartidos_entre_fases():
 
 def test_un_ramal_toma_solo_una_fase_del_tramo_del_que_sale():
     """054:RF-1 — un ramal que cuelga de un tramo bifásico AB va a la A o a la B, nunca a la C."""
-    from vnr_etl.connectors.sqlserver_vnr import repartir_ramales_monofasicos
-    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import repartir_ramales_monofasicos
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, Load, Section
 
     m = CanonicalModel()
     m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),
@@ -304,8 +304,8 @@ def test_un_ramal_toma_solo_una_fase_del_tramo_del_que_sale():
 def test_fases_coherentes_desde_la_cabecera():
     """054:RF-9 — un tramo trifásico tras uno monofásico devuelve sus fases aguas arriba; un
     monofásico con otra letra que su padre toma la del padre; una SED, las que le llegan."""
-    from vnr_etl.connectors.sqlserver_vnr import coherencia_de_fases
-    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import coherencia_de_fases
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, Load, Section
 
     m = CanonicalModel()
     m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),

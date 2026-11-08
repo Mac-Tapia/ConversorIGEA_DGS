@@ -38,7 +38,7 @@ from .jobs import EventLog
 #: ``tipo`` el contenido que se comprueba al elegirla (``identify``).
 def _formatos_vnr() -> tuple[str, ...]:
     try:
-        from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
+        from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import FORMATOS_PAQUETE_VNR
     except ImportError:  # sin el módulo VNR la casilla no se puede usar igual
         return ('.zip',)
     return FORMATOS_PAQUETE_VNR

@@ -8,8 +8,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 243 |
-| Módulo VNR-GIS | `src/vnr_etl/` | 50 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 295 |
+| Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 98 |
 | Interfaz | `frontend/src/` | 47 |
 | Pruebas de la interfaz | `frontend/test/` | 9 |
@@ -20,6 +20,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de la interfaz | `frontend/test/` | 12 |
 | Pruebas | `tests/` | 395 |
 | Pruebas | `tests/` | 396 |
+| Pruebas | `tests/` | 394 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
@@ -41,13 +42,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 116 |
+| adaptadores | Ada | 118 |
 | aplicacion | Apl | 100 |
 | dominio | Dom | 33 |
-| presentacion | Pre | 31 |
+| presentacion | Pre | 32 |
 | puertos | Pue | 2 |
 
-282 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
+285 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -56,6 +57,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 ### Rutas de la API
 
 145 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+144 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -109,7 +111,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- |
 | `convertersmartgrid` | `convertersmartgrid.cli:main` |
 | `convertersmartgrid-web` | `convertersmartgrid.web.__main__:main` |
-| `vnr-etl` | `vnr_etl.cli:main` |
+| `vnr-etl` | `convertersmartgrid.adaptadores.entrada.vnr.cli:main` |
 
 | Módulo enchufable | Objeto |
 | --- | --- |
@@ -556,7 +558,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
 | `sources/vnr.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources.vnr`. |
 
-### VNR-GIS: `vnr_etl/`
+### VNR-GIS: `adaptadores/entrada/vnr/`
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
@@ -802,12 +804,15 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
+| `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
 | `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
 | `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
+| `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 | `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |

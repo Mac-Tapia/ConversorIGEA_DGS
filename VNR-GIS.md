@@ -207,6 +207,13 @@ No automatic migration until safe insertion points are identified.
 9. Import outputs and run controlled load flow when simulators are available.
 
 ## 20. Recommended layout
+
+Nota de migración (002 T8, 2026-11-08): el árbol de diseño siguiente se implementa ahora
+en `src/convertersmartgrid/adaptadores/entrada/vnr/`. Lo mismo aplica a la propuesta E24;
+se conservan aquí como diseño de origen. Los imports de servicios usan
+`convertersmartgrid.adaptadores.entrada.vnr.application`; `src/vnr_etl.py` solo conserva
+`python -m vnr_etl` y el launcher anterior `vnr_etl.cli:main`, sin API de subpaquetes antiguos.
+
 ```text
 project/
 ├── existing_application/
