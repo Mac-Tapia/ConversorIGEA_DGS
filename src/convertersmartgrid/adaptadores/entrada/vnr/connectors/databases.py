@@ -10,43 +10,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from contextlib import closing, contextmanager
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .base import AdapterUnavailable, LayerInfo, SourceProbe, VNRSourceAdapter
-
-
-@contextmanager
-def _fuente_sqlite_estable(path: Path):
-    """Retiene un handle que admite lectores, pero no escritores ni reemplazos."""
-    import ctypes
-    from ctypes import wintypes
-    import sys
-
-    if sys.platform != 'win32':
-        raise OSError('No hay una guarda de solo lectura verificada para esta plataforma; '
-                      'se requiere Windows o una exportación/snapshot coherente.')
-    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-    abrir = kernel.CreateFileW
-    abrir.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
-                      wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
-    abrir.restype = wintypes.HANDLE
-    cerrar = kernel.CloseHandle
-    cerrar.argtypes = [wintypes.HANDLE]
-    cerrar.restype = wintypes.BOOL
-    exacta = path.resolve(strict=True)
-    # GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING. Sin compartir WRITE/DELETE:
-    # la cabecera comprobada no puede cambiar ni seleccionarse otro archivo después.
-    handle = abrir(str(exacta), 0x80000000, 0x00000001, None, 3, 0x80, None)
-    if handle == ctypes.c_void_p(-1).value:
-        raise ctypes.WinError(ctypes.get_last_error())
-    try:
-        yield exacta
-    finally:
-        if not cerrar(handle):
-            raise ctypes.WinError(ctypes.get_last_error())
+from ....fuentes_estables import abrir_fuente_estable
 
 
 # -------------------------------------------------------------------------- SQLite
@@ -66,9 +36,9 @@ class SQLiteAdapter(VNRSourceAdapter):
             if not path.is_file():
                 return SourceProbe(family=self.family, ok=False,
                                    reason=f'No existe un archivo SQLite en {path}.')
-            with _fuente_sqlite_estable(path) as exacta:
-                with exacta.open('rb') as fuente:
-                    cabecera = fuente.read(100)
+            with abrir_fuente_estable(path) as lectura:
+                exacta = lectura.path
+                cabecera = lectura.stream.read(100)
                 if len(cabecera) < 100 or cabecera[:16] != b'SQLite format 3\x00':
                     return SourceProbe(family=self.family, ok=False,
                                        reason=f'SQLite {path} tiene una cabecera ausente o inválida.')

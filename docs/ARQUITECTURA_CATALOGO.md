@@ -9,11 +9,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 302 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 296 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 98 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
 | Pruebas | `tests/` | 403 |
+| Pruebas | `tests/` | 401 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
@@ -38,10 +40,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | adaptadores | Ada | 120 |
 | aplicacion | Apl | 101 |
 | dominio | Dom | 36 |
+| adaptadores | Ada | 119 |
+| aplicacion | Apl | 100 |
+| dominio | Dom | 33 |
 | presentacion | Pre | 32 |
 | puertos | Pue | 3 |
 
 292 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
+286 módulos y 37 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -803,6 +809,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
 | `src/convertersmartgrid/dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
+| `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |

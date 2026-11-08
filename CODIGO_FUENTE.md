@@ -226,6 +226,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `src/convertersmartgrid/adaptadores/__init__.py` | Adaptadores de fuentes y servicios externos. | 002 |
+| `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. | 034 (RF-20), 065 (RF-18) |
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Adaptadores de entrada. | 002 |
 | `src/vnr_etl.py` | Fachada de CLI para python -m vnr_etl y el launcher anterior. | 002 (RF-22; compatibilidad pendiente de T9) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/__init__.py` | Paquete del módulo VNR-GIS. | 001 |
