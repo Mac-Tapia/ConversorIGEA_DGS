@@ -367,6 +367,23 @@ def test_la_confirmacion_conjunta_mide_todo_el_sistema_sin_apartar_nada(monkeypa
     assert any('087:RF-45' in t for t in ctx.textos)
 
 
+def test_el_conjunto_que_no_cumple_sin_motivos_dice_lo_que_fallo(monkeypatch):
+    """087:RF-46 — CA101 + CHN102: solo fallaba la fracción de sorteos y el aviso salía vacío."""
+    prep = {'p': P, 'anio_casos': 2026, 'sorteos': [], 'perfil': PERFIL, 'valle': {'puntos': []}}
+    monkeypatch.setattr(services, 'obras_escalera', lambda *a, **k: prep)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a: 'C')
+    monkeypatch.setattr(services, 'native_action_context', lambda *a: {})
+    for conjunto, esperado in (({'cumple': False, 'fraccion': 0.81, 'maxima': True}, 'cumple en el 81 % de los sorteos y en la máxima'),
+                               ({'cumple': False, 'valle': False}, 'no cumple en el valle'),
+                               ({'cumple': False}, 'sin motivo devuelto')):
+        monkeypatch.setattr(services, '_guion_pf', lambda *a, _c=conjunto, **k: (0, {'conjunto': _c}, None))
+        ctx = _Ctx()
+        services.confirmar_conjunto(object(), ctx, 'P', ['F1'], memo={})
+        aviso = next(t for t in ctx.textos if 'no cumple:' in t)
+        assert esperado in aviso and 'no cumple:  (' not in aviso
+
+
 def test_si_el_conjunto_no_cumple_se_rehace_solo_el_afectado_y_no_se_insiste(monkeypatch, tmp_path):
     """087:RF-46, 087:RF-47 — se rehace la obra del alimentador culpable, con las demás cargas activas, y como mucho dos veces."""
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)

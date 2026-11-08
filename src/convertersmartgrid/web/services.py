@@ -7862,7 +7862,15 @@ def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: li
                 f"{100 * float(c.get('fraccion') if c.get('fraccion') is not None else 1.0):.0f} %, valle "
                 f"{'bien' if c.get('valle') is not False else 'no'}, sin barras aisladas) (087:RF-45).")
     else:
-        ctx.log('Confirmación conjunta: el sistema entero no cumple: ' + '; '.join((c.get('motivos') or [])[:5])
+        # CA101 + CHN102 (2026-11-07): cumplía en la máxima y solo fallaba la fracción de sorteos
+        # (81 %); el aviso salía vacío («no cumple: (087:RF-46)»). Se dice lo que falló (087:RF-46).
+        motivos = list(c.get('motivos') or [])
+        if not motivos and c.get('fraccion') is not None:
+            motivos.append(f"cumple en el {100 * float(c['fraccion']):.0f} % de los sorteos"
+                           + (' y en la máxima' if c.get('maxima') else ''))
+        if not motivos and c.get('valle') is False:
+            motivos.append('no cumple en el valle')
+        ctx.log('Confirmación conjunta: el sistema entero no cumple: ' + ('; '.join(motivos[:5]) or 'sin motivo devuelto')
                 + (f"; {len(c['aisladas'])} barra(s) aisladas" if c.get('aisladas') else '') + ' (087:RF-46).')
         for f, motivos in (c.get('por_alimentador') or {}).items():
             ctx.log(f"  {f}: {'; '.join(motivos[:3])} (087:RF-46).")
