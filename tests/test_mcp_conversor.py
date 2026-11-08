@@ -51,6 +51,17 @@ def test_ayuda_sin_el_paquete():
     assert r.returncode == 0 and 'solo lectura' in r.stdout
 
 
+def test_error_cli_con_entorno_cp1252_conserva_utf8():
+    """081: un cliente Windows no debe perder los diagnósticos con acentos."""
+    r = subprocess.run(
+        [sys.executable, str(GUION), '--opcion-inválida'], capture_output=True,
+        check=False, timeout=60, env={**os.environ, 'PYTHONIOENCODING': 'cp1252'},
+    )
+    assert r.returncode == 2
+    assert r.stdout == b''
+    assert '--opcion-inválida' in r.stderr.decode('utf-8')
+
+
 def test_sin_mcp_en_la_web_ni_en_src():
     """077:RF-40 — ni la web ni `src/` importan `mcp`: que falte no puede romperlas."""
     malos = []
@@ -115,10 +126,14 @@ async def principal():
 
 asyncio.run(principal())
 '''
-    r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION)], capture_output=True, encoding='utf-8', check=False, timeout=120,
+    r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION)], capture_output=True, check=False, timeout=120,
                        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+    # Conservar ambos canales antes de decodificar: una excepción del hilo lector
+    # de subprocess no puede convertir una bitácora perdida en un test aprobado.
     assert r.returncode == 0, r.stderr[-2000:]
-    salida = json.loads(r.stdout.strip().splitlines()[-1])
+    diagnostico = r.stderr.decode('utf-8')
+    assert "lectura fuera del catálogo: 'escribir_fichero'" in diagnostico
+    salida = json.loads(r.stdout.decode('utf-8').strip().splitlines()[-1])
     assert salida['nombres'] == ['buscar_texto', 'consultar_api', 'leer_fichero']
     assert all(salida['solo_lectura']) and not any(salida['destructiva'])
     assert salida['bueno'] == 'CLAUDE.md:1' and salida['api'] is True and salida['busca'] == 2
@@ -147,10 +162,11 @@ async def principal():
 
 asyncio.run(principal())
 '''
-    r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION), *opciones], capture_output=True, encoding='utf-8', check=False, timeout=120,
+    r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION), *opciones], capture_output=True, check=False, timeout=120,
                        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     assert r.returncode == 0, r.stderr[-2000:]
-    salida = json.loads(r.stdout.strip().splitlines()[-1])
+    r.stderr.decode('utf-8')
+    salida = json.loads(r.stdout.decode('utf-8').strip().splitlines()[-1])
     assert salida['.gitignore'] is (not abierto)
     assert all(salida[x] is True for x in ('.env', 'docs/CONJUNTO_ABSTENCION_SELLADO_077.json', 'output/ejemplos.jsonl'))
 

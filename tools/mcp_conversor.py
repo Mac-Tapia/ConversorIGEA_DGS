@@ -55,9 +55,11 @@ def _servidor(lector: Any) -> Any:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # 081:RF-63: con la salida en un tubo, Windows escribe en cp1252 y la ayuda no se puede leer como UTF-8.
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
+    # 081:RF-63: los clientes stdio pueden filtrar PYTHONIOENCODING. Tanto el
+    # protocolo/ayuda como la bitácora deben ser UTF-8 aun con tubos CP1252.
+    for flujo in (sys.stdout, sys.stderr):
+        if hasattr(flujo, 'reconfigure'):
+            flujo.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--datos-locales', action='store_true',
                         help='Abre el árbol entero y las raíces configuradas. Solo con un cliente que se ejecute en esta máquina.')
