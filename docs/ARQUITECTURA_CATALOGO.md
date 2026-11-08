@@ -40,6 +40,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 36 |
 | presentacion | Pre | 32 |
 | sin capa | — | 8 |
+| adaptadores | Ada | 125 |
+| aplicacion | Apl | 103 |
+| dominio | Dom | 38 |
+| presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
 302 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
@@ -806,14 +810,14 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
 | `src/convertersmartgrid/dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
-| `src/convertersmartgrid/evaluacion_harness/__init__.py` | — | — | Evaluación integral local; importar el paquete no carga modelos ni motores. |
-| `src/convertersmartgrid/evaluacion_harness/adaptadores.py` | — | — | Adaptadores aditivos: los evaluadores del dominio mantienen sus políticas. |
-| `src/convertersmartgrid/evaluacion_harness/cli.py` | — | — | CLI local: no ejecuta comandos, imports ni proveedores indicados por JSON. |
-| `src/convertersmartgrid/evaluacion_harness/contratos.py` | — | — | Contratos sellados, sin dependencias opcionales ni cambios de política heredada. |
-| `src/convertersmartgrid/evaluacion_harness/ejecucion.py` | — | — | Ejecución pareada; las dependencias de dominio se inyectan desde la aplicación. |
-| `src/convertersmartgrid/evaluacion_harness/integracion.py` | — | — | Conecta el harness al coordinador y al registro existentes sin modificar sus políticas. |
-| `src/convertersmartgrid/evaluacion_harness/metricas.py` | — | — | HARNESS: métricas con soporte explícito y remuestreo por grupos. |
-| `src/convertersmartgrid/evaluacion_harness/publicacion.py` | — | — | JSON estricto, publicación atómica y relectura por huella, sin cargas de modelos. |
+| `src/convertersmartgrid/evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
+| `src/convertersmartgrid/evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
+| `src/convertersmartgrid/evaluacion_harness/cli.py` | Pre | 043, 044, 047 | Interfaz de sellado, replay y comprobación de informes del arnés. |
+| `src/convertersmartgrid/evaluacion_harness/contratos.py` | Dom | 043, 044 | Sello, política, identidad y particiones de las suites de evaluación. |
+| `src/convertersmartgrid/evaluacion_harness/ejecucion.py` | Apl | 043, 044 | Ejecución conservadora de suites y revalidación de sus resultados. |
+| `src/convertersmartgrid/evaluacion_harness/integracion.py` | Ada | 043, 044 | Puente al coordinador y registro, con guardas de identidad y activación explícita. |
+| `src/convertersmartgrid/evaluacion_harness/metricas.py` | Dom | 043, 044, 047 | Métricas con soporte, abstención y comparación pareada por grupos. |
+| `src/convertersmartgrid/evaluacion_harness/publicacion.py` | Ada | 043, 044 | Publicación atómica y relectura de informes sellados. |
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
@@ -823,7 +827,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
-| `tools/evaluar_harness.py` | — | — | Entrada aislada del harness; no carga motores ni altera modelos activos. |
+| `tools/evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 | `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |

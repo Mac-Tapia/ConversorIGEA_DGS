@@ -124,6 +124,14 @@ source-roots = ["src"]
 deuda = "docs/implementacion065/deuda_arquitectura.json"
 
 [tool.convertersmartgrid.capas.modulos]
+"convertersmartgrid.evaluacion_harness" = "aplicacion"
+"convertersmartgrid.evaluacion_harness.adaptadores" = "adaptadores"
+"convertersmartgrid.evaluacion_harness.cli" = "presentacion"
+"convertersmartgrid.evaluacion_harness.contratos" = "dominio"
+"convertersmartgrid.evaluacion_harness.ejecucion" = "aplicacion"
+"convertersmartgrid.evaluacion_harness.integracion" = "adaptadores"
+"convertersmartgrid.evaluacion_harness.metricas" = "dominio"
+"convertersmartgrid.evaluacion_harness.publicacion" = "adaptadores"
 "convertersmartgrid.adaptadores.entrada.capex" = "adaptadores"
 "convertersmartgrid.dominio" = "dominio"
 "convertersmartgrid.dominio.numeros_medidos" = "dominio"

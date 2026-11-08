@@ -13,6 +13,15 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
+| `src/convertersmartgrid/evaluacion_harness/__init__.py` | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. | 043, 044, 047 |
+| `src/convertersmartgrid/evaluacion_harness/contratos.py` | Sello, política, identidad y particiones de las suites de evaluación. | 043, 044 |
+| `src/convertersmartgrid/evaluacion_harness/metricas.py` | Métricas con soporte, abstención y comparación pareada por grupos. | 043, 044, 047 |
+| `src/convertersmartgrid/evaluacion_harness/ejecucion.py` | Ejecución conservadora de suites y revalidación de sus resultados. | 043, 044 |
+| `src/convertersmartgrid/evaluacion_harness/adaptadores.py` | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. | 043, 044, 047 |
+| `src/convertersmartgrid/evaluacion_harness/publicacion.py` | Publicación atómica y relectura de informes sellados. | 043, 044 |
+| `src/convertersmartgrid/evaluacion_harness/integracion.py` | Puente al coordinador y registro, con guardas de identidad y activación explícita. | 043, 044 |
+| `src/convertersmartgrid/evaluacion_harness/cli.py` | Interfaz de sellado, replay y comprobación de informes del arnés. | 043, 044, 047 |
+| `tools/evaluar_harness.py` | Entrada de consola para el arnés integral de evaluación. | 043, 044, 047 |
 | `src/convertersmartgrid/contratos_aprendizaje.py` | Identidad, procedencia y tipos puros de muestras y familias; sin productores, registro ni E/S. | 050, 002 |
 | `src/convertersmartgrid/conjuntos_aprendizaje.py` | Lectura verificada del conjunto activo para inferencia, separada de la preparación. | 050, 002 |
 | `src/convertersmartgrid/puertos_muestras.py` | Puerto de productores inyectado en la preparación del ciclo. | 050, 002 |
