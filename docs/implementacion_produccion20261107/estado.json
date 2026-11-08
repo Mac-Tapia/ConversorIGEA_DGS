@@ -20,7 +20,12 @@
     },
     "P03": {
       "state": "implementado_pruebas_enfocadas",
-      "evidence": []
+      "evidence": [
+        "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
+        "p03_solicitudes_precondiciones.json",
+        "p03_aislamiento_red.xml",
+        "p03_aislamiento_cierre.xml"
+      ]
     },
     "P04": {
       "state": "en_curso",
@@ -85,8 +90,12 @@
       ]
     },
     "P12": {
-      "state": "pendiente",
-      "evidence": []
+      "state": "081_t20_monofasica_verificada_parcial",
+      "evidence": [
+        "p12_monofasica_aceptacion.json",
+        "p12_monofasica_calibracion_reapertura.json",
+        "p12_monofasica_cierre.xml"
+      ]
     },
     "P13": {
       "state": "pendiente",
@@ -170,7 +179,10 @@
         "p19_estado_cierre.xml",
         "p19_estado_front_final.log",
         "p19_estado_typecheck.log",
-        "p19_estado_build.log"
+        "p19_estado_build.log",
+        "p19_reinicio_antes.json",
+        "p19_reinicio_despues.json",
+        "p19_visual_bloqueo_reintento.json"
       ]
     },
     "P20": {

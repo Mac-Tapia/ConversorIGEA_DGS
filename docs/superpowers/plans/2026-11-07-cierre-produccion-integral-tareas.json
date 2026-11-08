@@ -2344,7 +2344,10 @@
       "criterion": "«Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.",
       "original_block": "- [ ] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.\n  Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.",
       "evidence": "evidencia/P08/081_T20/manifest.json",
-      "state": "pendiente_de_ejecucion"
+      "state": "verificado_nativo_controlado",
+      "execution_package": "P12",
+      "execution_evidence": "D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p12_monofasica_aceptacion.json",
+      "execution_limit": "Carga sintética sobre ramal real en proyecto TXT nuevo; cumple criterio genérico 081 T20, no acepta R2 MDB ni la red."
     },
     {
       "key": "081:T10",

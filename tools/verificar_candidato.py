@@ -170,16 +170,26 @@ def _entorno(ejecucion: Path, entradas: dict) -> dict:
     env.update({k: str(v) for k, v in entradas.items()})
     env.update(PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1',
                MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1', PYTHONUTF8='1')
+    # 065:RF-24: una ruta heredada de la web activa prevalece sobre runtime_home y haría
+    # que las pruebas escribieran datos o modelos del operador. Las nueve entradas
+    # explícitas se conservan; los destinos y cachés pertenecen a esta ejecución.
     rutas = {'CSG_RUNTIME_HOME': 'runtime', 'CSG_CACHE_HOME': 'cache', 'CSG_TEMP_HOME': 'tmp',
+             'CSG_DATOS_HOME': 'runtime/data', 'CSG_WEB_DATA': 'runtime/data/web',
+             'CSG_ASISTENTE_DATA': 'runtime/data/asistente', 'CSG_TWIN_DATA': 'runtime/data/twin',
+             'CSG_WEB_SESIONES': 'runtime/sesiones_web',
              'TEMP': 'tmp', 'TMP': 'tmp', 'TMPDIR': 'tmp', 'PYTHONPYCACHEPREFIX': 'cache/python',
              'RUFF_CACHE_DIR': 'cache/ruff', 'npm_config_cache': 'cache/npm',
              'TORCH_HOME': 'cache/torch', 'TORCHINDUCTOR_CACHE_DIR': 'cache/torchinductor',
              'TRITON_CACHE_DIR': 'cache/triton', 'HF_HOME': 'cache/huggingface',
-             'HF_HUB_CACHE': 'cache/huggingface/hub', 'XDG_CACHE_HOME': 'cache/xdg'}
+             'HF_HUB_CACHE': 'cache/huggingface/hub', 'XDG_CACHE_HOME': 'cache/xdg',
+             'NUMBA_CACHE_DIR': 'cache/numba', 'MPLCONFIGDIR': 'cache/matplotlib',
+             'CUDA_CACHE_PATH': 'cache/cuda', 'TORCH_EXTENSIONS_DIR': 'cache/torch_extensions'}
     for variable, relativo in rutas.items():
         ruta = ejecucion / relativo
         ruta.mkdir(parents=True, exist_ok=True)
         env[variable] = str(ruta)
+    # El perfil es un fichero opcional, no un directorio ni el perfil real del puesto.
+    env['CSG_PERFIL_EMPRESA'] = str(ejecucion / 'runtime/data/perfil_empresa.json')
     return env
 
 

@@ -30,8 +30,18 @@
   Hecho cuando: `pytest -q tests/test_aviso_catalogo.py` en verde.
 - [ ] T22 [DIgSILENT] El aviso del catálogo en el navegador real, con la web reiniciada y el frente reconstruido; no toca DIgSILENT. (RF-70)
   Hecho cuando: al subir un catálogo, la pantalla y el Registro dan la misma frase, y la confirmación de «Quitar» dice que el DGS no cambia.
-- [ ] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
+- [x] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
   Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.
+  Verificado 2026-11-07: proyecto nuevo `20261107-233155_CSG_TXT_PE104`, importado por la web desde TXT reales intactos.
+  Carga explícitamente sintética PRBFASE_UNO por barra sin coordenadas: transformador de una fase releído,
+  baja a 0,914107 p.u. y potencia efectiva 0,099999997 kW para 0,1 kW pedidos. Con proyecto converge.
+  Aviso conservado: 10 kVA, 0,1 kW, 0 kvar y corriente calculada de 1,0 A por fase frente a 0,6 A con tres;
+  la corriente del aviso se calcula de la potencia declarada y no se presenta como una medición.
+  Procesos nuevos 25984/38692/29100, códigos 0 sin avisos: las variaciones persisten en Con proyecto;
+  Base/Sin conservan sus JSON completos por bytes. Repetición: cero creadas/una reutilizada; termina en Sin proyecto.
+  El ensayo anterior con coordenadas reubicó correctamente a tres fases (RF-8); se conserva, pero no prueba la adaptación.
+  Evidencia: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p12_monofasica_aceptacion.json`.
+  Mínima global 0,7759 p.u.: sin aceptación eléctrica de la red, visual, de R2 completo ni de una campaña ML.
 - [ ] T10 [DIgSILENT] Resolver en un proyecto de prueba de quien tenga el turno: un acoplador o un banco con más fases que su barra.
   Hecho cuando: importado por la web, el «Caso base» converge en DIgSILENT y su informe lleva la anotación.
 - [ ] T11 [DIgSILENT] La lectura real tras el flujo: una SED de una fase en un ramal sin esa fase, sobre una copia de prueba.

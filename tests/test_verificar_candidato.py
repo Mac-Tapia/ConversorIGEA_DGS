@@ -15,6 +15,29 @@ def runner():
     return cargar_herramienta('verificar_candidato.py', tools_en_path=True)
 
 
+@pytest.mark.parametrize('variable',[
+    'CSG_WEB_DATA','CSG_ASISTENTE_DATA','CSG_TWIN_DATA','CSG_WEB_SESIONES','CSG_DATOS_HOME',
+    'CSG_PERFIL_EMPRESA','NUMBA_CACHE_DIR','MPLCONFIGDIR','CUDA_CACHE_PATH','TORCH_EXTENSIONS_DIR',
+])
+def test_entorno_no_hereda_destinos_de_datos_o_cache_del_operador(tmp_path,monkeypatch,variable):
+    """065:RF-1/24 — el verificador aísla destinos aunque herede un espacio activo del operador."""
+    original=tmp_path/'datos_operador';original.mkdir()
+    (original/'custodia.txt').write_text('conservar',encoding='utf-8')
+    monkeypatch.setenv(variable,str(original))
+    ev=tmp_path/'evidencia'
+    fuente=tmp_path/'red_original.txt';fuente.write_text('fuente',encoding='utf-8')
+    env=runner()._entorno(ev,{'CSG_RED':fuente})
+    destino=Path(env[variable]).resolve()
+    assert destino.is_relative_to(ev.resolve())
+    assert env['CSG_RED']==str(fuente)
+    assert (original/'custodia.txt').read_text(encoding='utf-8')=='conservar'
+    assert len(list(original.iterdir()))==1
+    if variable=='CSG_PERFIL_EMPRESA':
+        assert destino.parent.is_dir() and not destino.exists()
+    else:
+        assert destino.is_dir()
+
+
 @pytest.fixture
 def candidato_minimo(tmp_path):
     raiz = tmp_path / 'candidato'
@@ -38,6 +61,28 @@ def test_help_no_carga_motores_ni_crea_salida(tmp_path):
     assert resultado.returncode == 0, resultado.stderr
     assert '--suite-completa' in resultado.stdout
     assert not list(tmp_path.iterdir())
+
+
+def test_subproceso_no_escribe_en_almacen_heredado(tmp_path,monkeypatch,candidato_minimo):
+    """065:RF-1/24 — la herencia se corta también al ejecutar pytest de verdad, conservando la fuente."""
+    host=tmp_path/'almacen_activo';host.mkdir()
+    (host/'conservar.json').write_text('original',encoding='utf-8')
+    monkeypatch.setenv('CSG_ASISTENTE_DATA',str(host))
+    fuente=tmp_path/'fuente.txt';fuente.write_text('fuente original',encoding='utf-8')
+    codigo=('import os\nfrom pathlib import Path\n'
+        'def test_destino():\n'
+        '    """065:RF-1 — escritura de prueba aislada."""\n'
+        '    assert Path(os.environ["CSG_RED"]).read_text(encoding="utf-8")=="fuente original"\n'
+        '    (Path(os.environ["CSG_ASISTENTE_DATA"])/"nuevo.json").write_text("solo evidencia",encoding="utf-8")\n')
+    (candidato_minimo/'tests/test_motor.py').write_text(codigo,encoding='utf-8')
+    ev=tmp_path/'evidencia'
+    assert runner().main(['--root',str(candidato_minimo),'--output-dir',str(ev),
+        '--red',str(fuente),'--ejecutar'])==0
+    run,=ev.iterdir()
+    assert (run/'runtime/data/asistente/nuevo.json').read_text(encoding='utf-8')=='solo evidencia'
+    assert [p.name for p in host.iterdir()]==['conservar.json']
+    assert (host/'conservar.json').read_text(encoding='utf-8')=='original'
+    assert fuente.read_text(encoding='utf-8')=='fuente original'
 
 
 @pytest.mark.parametrize('contenido,esperado', [
