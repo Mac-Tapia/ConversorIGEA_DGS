@@ -112,23 +112,16 @@ _SAFE_NAME = re.compile(r'[^A-Za-z0-9._() \-]+')
 
 def data_root() -> Path:
     """Los espacios nuevos viven fuera del código; la raíz explícita sigue vigente."""
-    from ..runtime_paths import rutas_runtime
+    from ..runtime_paths import raiz_datos_web
 
-    env = os.environ.get('CSG_WEB_DATA', '').strip()
-    return Path(env) if env else rutas_runtime(project_root()).runtime / 'data' / 'web'
+    return raiz_datos_web(project_root())
 
 
 def raiz_componente(nombre: str, variable: str) -> Path:
-    """Mantiene los modelos/episodios heredados hasta una migración explícita."""
-    env = os.environ.get(variable, '').strip()
-    if env:
-        return Path(env)
-    if nombre not in ('_asistente', '_digital_twin'):
-        raise ValueError('Componente de datos no reconocido.')
-    legacy = project_root() / 'output' / 'web' / nombre
-    if not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
-        return legacy
-    return data_root() / nombre
+    """La de ``runtime_paths.raiz_componente``, con la raíz del programa que ve la web."""
+    from .. import runtime_paths
+
+    return runtime_paths.raiz_componente(nombre, variable, project_root())
 
 
 def safe_filename(name: str) -> str:

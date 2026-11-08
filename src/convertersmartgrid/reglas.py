@@ -151,7 +151,7 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
     usados = codigos_en_red(dataset)
     if catalogo:
         from .catalog import tablas_equipo_desde_catalogo
-        from .dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
+        from .dominio.dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
 
         # Un código que la fuente trae sin impedancia cuenta como falta: se completa con su
         # ficha al cargar. En la copia de Electro Oriente (2026-11-01) 22 alimentadores traían

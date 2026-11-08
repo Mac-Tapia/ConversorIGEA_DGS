@@ -53,7 +53,8 @@ def raiz_buffer() -> Path:
     env = os.environ.get('CSG_TWIN_DATA', '').strip()
     if env:
         return Path(env)
-    from ..web.workspace import raiz_componente
+    # 002:RF-2: la raíz común está en runtime_paths; el gemelo no importa la web.
+    from ..runtime_paths import raiz_componente
     return raiz_componente('_digital_twin', 'CSG_TWIN_DATA')
 
 

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Iterable, Mapping, NamedTuple, Sequence
 
-from .dgs import geo_to_meters
+from .coordenadas import geo_to_meters
 
 #: Dos caminos cuya longitud difiere menos que esto son iguales (m): las longitudes de
 #: DIgSILENT son ``float`` en km y la suma depende del orden.

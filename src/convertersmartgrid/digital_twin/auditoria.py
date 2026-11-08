@@ -94,24 +94,3 @@ def auditar_muestras(muestras: Sequence[Any], ids: Sequence[str], *, parametros:
         'relacion_z': float(finitos.max() / finitos.min()) if len(finitos) else None,
         'avisos': avisos,
     }
-
-
-def auditar_ordenes(*, reales: int, sinteticas: int, prueba_real: int, parametros: int | None = None,
-                    umbrales: Umbrales | None = None) -> dict[str, Any]:
-    """El informe del dataset del asistente (RF-33, RF-34): sus puertas solo valen medidas con
-    órdenes reales, y con menos de 200 se pide confirmación de todo (RF-19)."""
-    u = umbrales or Umbrales()
-    avisos = []
-    if reales < u.min_ordenes_reales:
-        avisos.append(f'{reales} órdenes reales de las {u.min_ordenes_reales} que hacen falta: toda acción '
-                      'que escribe pide confirmación (027:RF-19).')
-    if prueba_real == 0:
-        avisos.append('sin órdenes reales en la prueba: sus métricas son de órdenes sintéticas y no valen '
-                      'como puertas (027:RF-34).')
-    if parametros:
-        avisos.append(f'{parametros:,} parámetros frente a {reales + sinteticas:,} órdenes, '
-                      f'{reales} reales (027:RF-33).')
-    return {'reales': reales, 'sinteticas': sinteticas, 'prueba_real': prueba_real,
-            'parametros': parametros,
-            'puertas_con_reales': prueba_real > 0 and reales >= u.min_ordenes_reales,
-            'avisos': avisos}

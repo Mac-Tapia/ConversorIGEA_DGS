@@ -179,6 +179,29 @@ def rutas_runtime(checkout: Path | None = None,
     return RutasRuntime(root, primary, identity, runtime, cache, temporary)
 
 
+def raiz_datos_web(programa: Path | None = None) -> Path:
+    """Dónde viven los espacios de la web: ``CSG_WEB_DATA`` o la carpeta de ejecución (065:RF-10).
+
+    Está aquí, y no solo en ``web.workspace``, porque el asistente y el gemelo guardan sus
+    modelos junto a los espacios y no deben importar la presentación para saber dónde (002:RF-2).
+    """
+    env = os.environ.get('CSG_WEB_DATA', '').strip()
+    return Path(env) if env else rutas_runtime(programa or raiz_programa()).runtime / 'data' / 'web'
+
+
+def raiz_componente(nombre: str, variable: str, programa: Path | None = None) -> Path:
+    """Mantiene los modelos/episodios heredados hasta una migración explícita (065:RF-12)."""
+    env = os.environ.get(variable, '').strip()
+    if env:
+        return Path(env)
+    if nombre not in ('_asistente', '_digital_twin'):
+        raise ValueError('Componente de datos no reconocido.')
+    legacy = (programa or raiz_programa()) / 'output' / 'web' / nombre
+    if not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
+        return legacy
+    return raiz_datos_web(programa) / nombre
+
+
 def configurar_entorno(checkout: Path | None = None) -> RutasRuntime:
     """Configura este proceso y sus hijos antes de importar motores y librerías."""
     try:

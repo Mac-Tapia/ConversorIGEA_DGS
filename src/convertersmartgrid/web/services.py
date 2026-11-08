@@ -620,7 +620,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         for network_id in network_ids
     )
     if not ready_without_reconstruction:
-        from ..dataset import CymdistDataset
+        from ..dominio.dataset import CymdistDataset
 
         # Keep the preflight fail-closed for adapter/test doubles that did not
         # provide a canonical dataset. Real TXT/MDB/VNR loads always do.
@@ -2511,7 +2511,8 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
         meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
         if tipo == 'estructura':
             # 022:RF-5: una tabla mal formada se rechaza al subirla, nombrando la fila.
-            from ..estructura import EstructuraError, leer_tabla_excel
+            from ..demanda_medida import leer_tabla_excel
+            from ..estructura import EstructuraError
             try:
                 e = leer_tabla_excel(path)
             except (EstructuraError, OSError, ValueError) as exc:
@@ -2962,8 +2963,8 @@ def _estructura_y_origen(ws: Workspace) -> tuple[Any, str | None]:
         clave,
         completar,
         estructura_de_la_fuente,
-        leer_tabla_excel,
     )
+    from ..demanda_medida import leer_tabla_excel
     from ..perfil_empresa import PerfilError, estructura_empresa
 
     ruta = ((ws.demanda or {}).get('estructura') or {}).get('path')
@@ -6197,7 +6198,7 @@ def _dgs_aceptados(ws: Workspace, project: str) -> list[Path]:
 def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
     """Los tramos del DGS con que se aceptó el proyecto (028:RF-17). Sin vínculo o sin el fichero, ninguno (no se dice
     «nuevo»)."""
-    from ..escaneo import tramos_del_dgs
+    from ..validate import tramos_del_dgs
 
     return {t for ruta in _dgs_aceptados(ws, project) for t in tramos_del_dgs(ruta)}
 
@@ -6299,7 +6300,7 @@ def _red_de_la_fuente_del_plan(ws: Workspace, project: str) -> dict[str, Any]:
     aceptación del 2026-11-05)."""
     from ..carpeta_pf import SELLO
     from ..dgs import DGS_ENCODING
-    from ..escaneo import tramos_del_dgs
+    from ..validate import tramos_del_dgs
     from ..transferencia_operador import maniobras_abiertas_del_dgs
 
     rutas = _dgs_aceptados(ws, project)

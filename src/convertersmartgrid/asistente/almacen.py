@@ -23,7 +23,8 @@ def raiz() -> Path:
     env = os.environ.get('CSG_ASISTENTE_DATA', '').strip()
     if env:
         return Path(env)
-    from ..web.workspace import raiz_componente
+    # 002:RF-2: la raíz común está en runtime_paths; el asistente no importa la web.
+    from ..runtime_paths import raiz_componente
 
     return raiz_componente('_asistente', 'CSG_ASISTENTE_DATA')
 

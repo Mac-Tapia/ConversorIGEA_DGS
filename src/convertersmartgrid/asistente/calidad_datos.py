@@ -7,6 +7,8 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+from .ajuste_condicionado import MIN_ORDENES_REALES
+
 
 CALIDADES = (
     'gold_human', 'gold_native', 'silver_deterministic',
@@ -68,3 +70,28 @@ def auditar_contaminacion(
         'unknown_qualities': unknown,
         **resumir_calidad(filas),
     }
+
+
+def auditar_ordenes(*, reales: int, sinteticas: int, prueba_real: int, parametros: int | None = None,
+                    umbrales: Any = None) -> dict[str, Any]:
+    """El informe del dataset del asistente (RF-33, RF-34): sus puertas solo valen medidas con
+    órdenes reales, y con menos de 200 se pide confirmación de todo (RF-19).
+
+    ``umbrales`` es el de ``digital_twin.auditoria.Umbrales`` u otro con ``min_ordenes_reales``. Está
+    aquí, con las puertas de calidad del dataset del asistente, porque lo pide el entrenamiento
+    del asistente (aplicación), que no debe importar la auditoría del gemelo (002:RF-2)."""
+    minimo = umbrales.min_ordenes_reales if umbrales is not None else MIN_ORDENES_REALES
+    avisos = []
+    if reales < minimo:
+        avisos.append(f'{reales} órdenes reales de las {minimo} que hacen falta: toda acción '
+                      'que escribe pide confirmación (027:RF-19).')
+    if prueba_real == 0:
+        avisos.append('sin órdenes reales en la prueba: sus métricas son de órdenes sintéticas y no valen '
+                      'como puertas (027:RF-34).')
+    if parametros:
+        avisos.append(f'{parametros:,} parámetros frente a {reales + sinteticas:,} órdenes, '
+                      f'{reales} reales (027:RF-33).')
+    return {'reales': reales, 'sinteticas': sinteticas, 'prueba_real': prueba_real,
+            'parametros': parametros,
+            'puertas_con_reales': prueba_real > 0 and reales >= minimo,
+            'avisos': avisos}

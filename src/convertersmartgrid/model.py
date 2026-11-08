@@ -12,9 +12,9 @@ import math
 import re
 from typing import Mapping, Sequence
 
-from .dataset import CymdistDataset
+from .dominio.dataset import CymdistDataset
 from .fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
-from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
+from .dominio.dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
                        TABLAS_TIPOS_SUBTERRANEO)
 from .naming import feeder_short_name
 

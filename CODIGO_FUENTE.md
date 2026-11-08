@@ -30,6 +30,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión. | 034 (RF-1) |
 | `src/convertersmartgrid/dominio/__init__.py` | Paquete real de valores y reglas puras, sin lectores ni E/S. | 002 (RF-1, RF-3) |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Un único cuerpo de normalización de códigos y números finitos de medición; compatibilidad importada por demanda_medida. | 002 (RF-1, RF-3, RF-21), 004 (RF-31) |
+| `src/convertersmartgrid/dominio/dataset.py` | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector; el lector de los TXT la extiende en `dataset.py`. | 002 (RF-1, RF-2) |
 | `src/convertersmartgrid/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | 034, 001 |
 | `src/convertersmartgrid/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66), 035 (RF-2 a RF-9), 035 (RF-28 a RF-30), 041 (RF-1 a RF-7), 095 |
 | `src/convertersmartgrid/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | 034, 001, 022 (RF-7, RF-25, RF-34), 065 (RF-11, RF-12, RF-25) |

@@ -42,6 +42,33 @@ def _memoria_sistema() -> dict[str, float | None]:
     return {'fisica_gib': estado.libre_fisica / 1024**3, 'commit_gib': estado.libre_commit / 1024**3}
 
 
+class SinGPU(RuntimeError):
+    """No hay GPU CUDA: el gemelo no entrena ni predice en la CPU."""
+
+
+#: cuBLAS solo es determinista con este espacio de trabajo, fijado antes de usar la GPU (027:RF-9).
+os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
+
+
+def dispositivo():
+    """La GPU CUDA, siempre (usuario, 2026-10-22: «sí o sí debe conectar a GPU para no usar
+    el CPU»). Sin ella, un error que lo dice; nunca la CPU en silencio.
+
+    La piden el gemelo, el pronóstico y el asistente; está en el coordinador, con la guardia de
+    la GPU, para que el asistente no importe el oráculo del gemelo, que es un adaptador (002:RF-2).
+    """
+    try:
+        import torch
+    except ImportError as exc:     # el extra «ml» no está instalado
+        raise ImportError('PyTorch no está instalado (extra «ml»): el oráculo PINN no está '
+                          'disponible; ModeloRadial cumple el mismo contrato') from exc
+    if not torch.cuda.is_available():
+        raise SinGPU('No hay GPU CUDA para el gemelo digital: instale PyTorch con CUDA '
+                     '(pip install torch --index-url https://download.pytorch.org/whl/cu126) '
+                     'y compruebe el controlador de la tarjeta.')
+    return torch.device('cuda')
+
+
 class MemoriaMLInsuficiente(ValueError):
     """El entorno no tiene margen de memoria; no es una ausencia de datos de entrenamiento."""
 

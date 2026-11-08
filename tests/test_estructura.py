@@ -8,6 +8,7 @@ import random
 import pytest
 
 from convertersmartgrid import estructura as es
+from convertersmartgrid.demanda_medida import leer_tabla_excel
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -96,7 +97,7 @@ def test_tabla_en_excel_como_la_publica_la_empresa(tmp_path):
                           f"{st['codigo']} {st['nombre'].upper()}", st['siglas'][0], a['codigo'],
                           'FUERA DE SERVICIO'])
     wb.save(tmp_path / 't.xlsx')
-    e = es.leer_tabla_excel(tmp_path / 't.xlsx')
+    e = leer_tabla_excel(tmp_path / 't.xlsx')
     primero = datos['zonales'][0]['sets'][0]
     st = e.set_de(primero['alimentadores'][0]['codigo'])
     assert (st.codigo, st.nombre) == (primero['codigo'].upper(), primero['nombre'].upper())
@@ -105,7 +106,7 @@ def test_tabla_en_excel_como_la_publica_la_empresa(tmp_path):
               primero['alimentadores'][0]['codigo']])
     wb.save(tmp_path / 't.xlsx')
     with pytest.raises(es.EstructuraError, match=r'fila \d+.*repetido'):
-        es.leer_tabla_excel(tmp_path / 't.xlsx')
+        leer_tabla_excel(tmp_path / 't.xlsx')
 
 
 def test_asignar_la_entrega():

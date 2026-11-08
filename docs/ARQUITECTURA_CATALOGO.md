@@ -8,7 +8,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 312 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 313 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 99 |
 | Interfaz | `frontend/src/` | 49 |
@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 12791 líneas y 384 funciones, pendiente de partir (002).
+`web/services.py` tiene 12792 líneas y 384 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -35,13 +35,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 125 |
-| aplicacion | Apl | 103 |
-| dominio | Dom | 38 |
+| adaptadores | Ada | 124 |
+| aplicacion | Apl | 101 |
+| dominio | Dom | 42 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-302 módulos y 34 excepciones en la deuda de `tools/arquitectura.py`.
+303 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -246,6 +246,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `sources/snapshot.py` | Dom | 001 | Qué ficheros forman una lectura y su huella. |
 | `source_contract.py` | Dom | 001, 004, 006 | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. |
 | `dataset.py` | Ada | 034 | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. |
+| `dominio/dataset.py` | Dom | 002 | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector. |
 | `access.py` | Ada | 034, 001 | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. |
 | `identify.py` | Ada | 034, 059 | Reconoce cada TXT por su contenido, no por su nombre, y a qué fuente (TXT, Access o VNR-GIS) pertenece un fichero. |
 | `study.py` | Ada | 034 | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. |
@@ -286,7 +287,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `batch.py` | Apl | 034, 001, 022, 065 | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo |
 | `combine.py` | Apl | 034, 022 | Une todos los alimentadores en una sola red. |
 | `enlaces.py` | Apl | 022 | Puntos de enlace de la red unida con sus SET y caminos cerrados (entre SET, entre alimentadores, anillos): abre la maniobra más lejana de su fuente… |
-| `estructura.py` | Apl | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
+| `estructura.py` | Dom | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
 | `oraculo.py` | Ada | 034, 022, 057, 082 | Flujo independiente con pandapower antes de escribir el DGS. |
 | `resolver_convergencia.py` | Dom | 081 | Si el «Caso base» no converge: su causa, corregir lo reconstruible, volver a medir, y decir lo que queda con su elemento y qué hacer. |
 | `preflight_contract.py` | Apl | 065 | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. |
@@ -353,9 +354,9 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `obras_pf.py` | Apl | 011, 016, 042, 048, 098 | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto». |
-| `troncal.py` | Ada | 016 | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados… |
+| `troncal.py` | Dom | 016 | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados… |
 | `escalera_optima.py` | Apl | 025, 073, 098 | Escalera optimizada de obras: variantes en el orden bancos, regulador, terna y sección con sus combinaciones, criterio de «no empeorar» por sorteo,… |
-| `optimizacion_oraculo.py` | Apl | 052, 073, 098 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
+| `optimizacion_oraculo.py` | Ada | 052, 073, 098 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
 | `perfil_tension.py` | Apl | 094 | Perfil de tensión de un alimentador (tensión de cada barra de media frente a su distancia eléctrica) y bancos ubicados según el perfil hasta la… |
 | `catalogo_reguladores.py` | Apl | 025 | Reguladores de tensión de catálogo (Eaton VR-32, 50 Hz): unidad por tensión del sistema y por corriente, y los datos de su `TypVoltreg`. |
 | `instalacion_ternas.py` | Apl | 084 | Dos o más ternas subterráneas: una por ducto, triangular o rectangular, y la capacidad del fabricante para esa configuración, de la tabla del perfil. |
@@ -406,7 +407,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `model_registry.py` | Apl | 043, 060 | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. |
 | `training_coordinator.py` | Apl | 043 | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. |
-| `trabajadores_ml.py` | Ada | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
+| `trabajadores_ml.py` | Apl | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
 | `aprendizaje_continuo.py` | Apl | 050 | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador,… |
 | `evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |
 | `experimentos.py` | Apl | 043 | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. |
@@ -417,7 +418,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `__init__.py` | Ada | 024 | Paquete del gemelo digital: episodios, búfer y captura, sin PowerFactory ni PyTorch. |
-| `episode.py` | Ada | 024 | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo… |
+| `episode.py` | Dom | 024 | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo… |
 | `buffer.py` | Ada | 024 | Búfer local e inmutable de episodios: un JSON por huella, escritura atómica e idempotente, colisión detectada, índice SQLite reconstruible con… |
 | `capture.py` | Ada | 024 | Ensamblaje del episodio desde el contexto firmado, el resultado del guion y la lectura tras reabrir. |
 | `integration.py` | Ada | 024 | Captura tras cada acción nativa de la web: plan de lectura, norma de cada alimentador por su sistema y límites más estrictos, referencia del último… |
@@ -517,7 +518,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `evaluacion_rag.py` | Apl | 047 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
 | `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
-| `ejemplos_pide.py` | Apl | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
+| `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
 
 ### Web: `web/`
 

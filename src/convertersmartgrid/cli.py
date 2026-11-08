@@ -433,8 +433,8 @@ def main(argv=None) -> int:
             estructura = None
             nombre = args.unir
             if args.por_sistema is not None:
-                from .estructura import (EstructuraError, asignar, aviso_deducidos, completar,
-                                         leer_tabla_excel)
+                from .demanda_medida import leer_tabla_excel
+                from .estructura import EstructuraError, asignar, aviso_deducidos, completar
                 from .inventory import cabecera_xy
                 from .util import nombre_seguro
                 from .perfil_empresa import PerfilError, estructura_empresa

@@ -199,8 +199,9 @@ def limites_de_perfil(ruta: Path | None = None) -> Limites:
     violaciones que no son.
     """
     if ruta is None:
-        from .carpeta_pf import ruta_perfil
-        ruta = ruta_perfil()
+        # 002:RF-2: el perfil activo lo da el dominio, no el adaptador de la carpeta de DIgSILENT.
+        from .perfil_empresa import ruta_perfil_activo
+        ruta = ruta_perfil_activo()
     ruta = Path(ruta)
     if not ruta.is_file():
         return LIMITES_POR_DEFECTO

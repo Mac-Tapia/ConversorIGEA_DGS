@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .dataset import TABLAS_TIPOS_LINEA,  CymdistDataset
+from .dominio.dataset import TABLAS_TIPOS_LINEA, CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
 
 

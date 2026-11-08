@@ -44,10 +44,13 @@ def test_modelos_y_episodios_heredados_siguen_disponibles(tmp_path, monkeypatch)
     """065:RF-12 — una raíz nueva de espacios no abandona al asistente ya entrenado."""
     from convertersmartgrid.web import workspace
     from convertersmartgrid.asistente import almacen
+    from convertersmartgrid import runtime_paths
     from convertersmartgrid.digital_twin.buffer import raiz_buffer
     root = tmp_path / 'codigo'
     (root / '.git').mkdir(parents=True)
     monkeypatch.setattr(workspace, 'project_root', lambda: root)
+    # 002:RF-2: el asistente y el gemelo toman la raíz de runtime_paths, no de la web.
+    monkeypatch.setattr(runtime_paths, 'raiz_programa', lambda: root)
     for variable in ('CSG_WEB_DATA', 'CSG_ASISTENTE_DATA', 'CSG_TWIN_DATA'):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
