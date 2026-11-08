@@ -77,7 +77,7 @@ def test_los_libros_de_cabecera_se_leen_en_el_proceso_del_trabajo():
     from convertersmartgrid.web import services
 
     fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
-    assert 'ctx.en_proceso(curvas_por_anio,' in fuente
+    assert "_en_proceso_con_reintento(ctx, avisos, 'la tasa de la cabecera', curvas_por_anio," in fuente   # 098:RF-49
     assert crecimiento.curvas_por_anio.__qualname__ == 'curvas_por_anio', 'de nivel superior'
 
 

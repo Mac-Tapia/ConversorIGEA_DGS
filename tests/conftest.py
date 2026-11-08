@@ -198,3 +198,13 @@ def dataset_for(request, txt_dataset, mdb_dataset):
     except KeyError:
         pytest.skip(f'{feeder} no está en la entrada «{request.param}»')
     return request.param, ds
+
+
+@pytest.fixture(autouse=True)
+def _sin_crecimiento_de_otra_prueba():
+    """098:RF-49: el crecimiento ya calculado vive en el proceso; cada prueba empieza sin el de otra."""
+    import sys
+    mod = sys.modules.get('convertersmartgrid.web.services')
+    if mod is not None and hasattr(mod, 'CRECIMIENTO_DEL_TRABAJO'):
+        mod.CRECIMIENTO_DEL_TRABAJO.clear()
+    yield

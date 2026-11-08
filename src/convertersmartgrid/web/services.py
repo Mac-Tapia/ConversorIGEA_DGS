@@ -5370,9 +5370,15 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
             return {}
         pares = [(a, m) for a, ms in sistema['medidores'].items() for m in ms if a in feeders]
         ctx.log(f'Crecimiento por alimentador desde la cabecera de {sorted(libros)} (029:RF-1)…')
-        curvas = ctx.en_proceso(curvas_por_anio, libros, pares, demanda_alias())   # 029:RF-7
-        return tasas_por_alimentador(curvas, feeders)
+        curvas = _en_proceso_con_reintento(ctx, avisos, 'la tasa de la cabecera', curvas_por_anio, libros, pares,
+                                           demanda_alias())   # 029:RF-7, 098:RF-49
+        return tasas_por_alimentador(curvas, feeders) if curvas is not None else {}
 
+    clave = ('cabecera', project.strip(), tuple(sorted(feeders)), bool(todos))
+    if clave in CRECIMIENTO_DEL_TRABAJO:
+        # 098:RF-49: una vez por proyecto y trabajo: las rondas de la escalera no vuelven a leer los libros.
+        ctx.log('Crecimiento por alimentador: el ya calculado en este trabajo (098:RF-49).')
+        return CRECIMIENTO_DEL_TRABAJO[clave]
     tasas = medidas()
     # 042:RF-7: sin dos años de cabecera, la demanda registrada que los tiene es la de las fijas.
     sin = [f for f in feeders if (tasas.get(f) or {}).get('tasa') is None]
@@ -5385,7 +5391,33 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
             ctx.log(f"  {a}: {100 * c['tasa']:+.2f} %/año ({c['origen']}"
                     + (f", meses {c['meses']}, {c['max_anterior_kw']:,.0f} → {c['max_ultimo_kw']:,.0f} kW" if c.get('meses') else '')
                     + ')')
-    return tasas if any((c or {}).get('tasa') is not None for c in tasas.values()) else None
+    resultado = tasas if any((c or {}).get('tasa') is not None for c in tasas.values()) else None
+    CRECIMIENTO_DEL_TRABAJO[clave] = resultado
+    return resultado
+
+
+#: 098:RF-49: el crecimiento ya calculado en el proceso de la web, por proyecto y alimentadores, para no releer los
+#: libros de cabecera y de clientes en cada ronda de la escalera.
+CRECIMIENTO_DEL_TRABAJO: dict[tuple, Any] = {}
+
+
+def _en_proceso_con_reintento(ctx: JobContext, avisos: list[str], que: str, fn, *args, **kwargs):
+    """098:RF-49: ``ctx.en_proceso`` con un reintento; si el proceso que lee los libros vuelve a caer, el estudio sigue
+    sin ese dato y lo dice. CA101 + CHN102 (2026-11-07): el lector de Excel (python-calamine) abortó tres veces con
+    0xC0000409 al leer los libros con 1,4 GB libres, y tumbaba el trabajo entero tras horas de escalera."""
+    for intento in (1, 2):
+        try:
+            return ctx.en_proceso(fn, *args, **kwargs)
+        except RuntimeError as exc:
+            if 'terminó sin resultado' not in str(exc):
+                raise
+            if intento == 1:
+                ctx.log(f'El proceso que lee los libros para {que} cayó ({exc}); se reintenta una vez (098:RF-49).')
+                continue
+            avisos.append(f'{que}: el proceso que lee los libros cayó dos veces ({exc}); se sigue sin ese dato '
+                          '(098:RF-49).')
+            ctx.log(avisos[-1])
+            return None
 
 
 def _crecimiento_de_las_fijas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
@@ -5420,8 +5452,14 @@ def _crecimiento_de_las_fijas(ws: Workspace, ctx: JobContext, project: str, feed
                 for f, cs in fijas.items()}
     ctx.log(f'Crecimiento desde las fijas registradas de {", ".join(feeders)} '
             f'({len(libros)} libros de clientes, 042:RF-7)…')
-    pot = ctx.en_proceso(pot_de_los_libros, libros, demanda_alias(), cache=str(ws.out_dir / 'cache' / 'pot_clientes'))  # 042:RF-96
-    return tasa_de_las_fijas(pot, clientes)
+    clave = ('fijas', project.strip(), tuple(sorted(feeders)))
+    if clave in CRECIMIENTO_DEL_TRABAJO:
+        return CRECIMIENTO_DEL_TRABAJO[clave]                                            # 098:RF-49
+    pot = _en_proceso_con_reintento(ctx, avisos, 'la tasa de las fijas', pot_de_los_libros, libros, demanda_alias(),
+                                    cache=str(ws.out_dir / 'cache' / 'pot_clientes'))   # 042:RF-96, 098:RF-49
+    resultado = tasa_de_las_fijas(pot, clientes) if pot is not None else {f: None for f in feeders}
+    CRECIMIENTO_DEL_TRABAJO[clave] = resultado
+    return resultado
 
 
 def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan_pide: dict,
@@ -7886,6 +7924,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     van a la SET nueva (RF-3, RF-5 en adelante). En NA203 + NA205 (2026-10-31) la escalera con
     las 37 a la vez no encontraba ninguna variante y no quedaba nada aplicado.
     """
+    CRECIMIENTO_DEL_TRABAJO.clear()             # 098:RF-49: una vez por corrida, nunca de otra anterior
     from ..demanda_medida import clave_codigo
     from .. import set_nueva as sn
 

@@ -2520,3 +2520,30 @@ def test_el_espacio_con_obras_de_la_escalera_se_abre_en_la_web():
             'eleccion': {'nombre': 'sección', 'regla': '098:corto_y_largo_plazo', 'costo_anual': 1.0}}
     r = ObraAplicadaRespuesta.model_validate(fila)
     assert r.origen == 'escalera' and r.eleccion['regla'] == '098:corto_y_largo_plazo'
+
+
+def test_el_lector_de_libros_que_cae_se_reintenta_y_si_no_se_sigue_sin_el_dato():
+    """098:RF-49 — el proceso que lee los libros cae: se reintenta una vez; si vuelve a caer, se sigue sin el dato y se
+    avisa, sin tumbar el trabajo; el crecimiento se guarda para las rondas siguientes."""
+    from convertersmartgrid.web import services
+
+    class Ctx:
+        def __init__(self, fallos):
+            self.fallos, self.textos = fallos, []
+
+        def en_proceso(self, fn, *a, **k):
+            if self.fallos:
+                self.fallos -= 1
+                raise RuntimeError('el proceso del trabajo terminó sin resultado (código 3221226505)')
+            return fn(*a, **k)
+
+        def log(self, t):
+            self.textos.append(t)
+
+    avisos: list[str] = []
+    assert services._en_proceso_con_reintento(Ctx(1), avisos, 'x', lambda v: v * 2, 21) == 42 and not avisos
+    assert services._en_proceso_con_reintento(Ctx(2), avisos, 'x', lambda v: v, 1) is None
+    assert any('098:RF-49' in a for a in avisos)
+    import inspect
+    fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
+    assert 'CRECIMIENTO_DEL_TRABAJO[clave]' in fuente and 'en el ya calculado' not in fuente
