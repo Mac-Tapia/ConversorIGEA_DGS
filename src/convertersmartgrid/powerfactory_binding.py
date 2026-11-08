@@ -498,7 +498,10 @@ def require_project_binding(
 ) -> PowerFactoryProjectBinding:
     """Exige identidad suficiente; la evolución manual legible queda como aviso."""
     project = str(project or '').strip()
-    requested = {str(item).strip() for item in feeders if str(item).strip()}
+    # Pisco (092 T2, 2026-11-08): el «Caso base» pide los rótulos del vínculo tal cual, con los
+    # de barra de SET («AL104 + AL105 + …»); se comparan sus alimentadores, como los del vínculo,
+    # porque si no el rótulo entero nunca está en el conjunto ya separado y se rechazaba.
+    requested = alimentadores_de_rotulos(str(item) for item in feeders if str(item).strip())
     raw = vinculo_guardado(ws, project)
     if not raw:
         raise ProjectBindingError(

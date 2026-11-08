@@ -687,8 +687,12 @@ def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
     record_project_binding(ws, _binding(feeders=('IN111 + PI101', 'IN111')))
     ws.pf_inventory['projects'][0]['feeders'] = ['IN111 + PI101', 'IN111']
     assert require_project_binding(ws, 'Oct/IN111', ['IN111', 'PI101']).project == 'Oct/IN111'
+    # 092 T2 (Pisco, 2026-11-08): el «Caso base» pide los rótulos tal cual, con el de la barra.
+    assert require_project_binding(ws, 'Oct/IN111', ['IN111 + PI101', 'IN111']).project == 'Oct/IN111'
     with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_FEEDER_MISMATCH'):
         require_project_binding(ws, 'Oct/IN111', ['PI102'])
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_FEEDER_MISMATCH'):
+        require_project_binding(ws, 'Oct/IN111', ['IN111 + PI102'])
 
 
 def test_caso_base_de_un_alimentador_del_rotulo_de_su_barra(tmp_path):
