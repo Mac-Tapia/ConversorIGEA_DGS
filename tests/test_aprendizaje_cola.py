@@ -73,7 +73,7 @@ def test_cola_deduplica_plan_vivo_y_admite_cancelacion_publica(tmp_path, monkeyp
     def mantener(_ctx):
         ocupado.set()
         assert liberar.wait(5)
-    primero = jobs.submit('operador', 'prueba', 'prioridad operador', mantener)
+    primero = jobs.submit('operador', 'aprendizaje:otra_solicitud', 'otro ciclo en engine', mantener)
     assert ocupado.wait(2)
     try:
         uno = app.encolar_ciclo_aprendizaje(jobs, ['episodios nuevos'])
@@ -141,4 +141,23 @@ def test_trabajo_real_mantiene_bloqueo_de_fuentes_sin_lanzar_modelos(tmp_path, m
         assert estado['ultimo_ciclo'] is None and estado['conjunto_activo'] is None
         assert any('dataset' in m for b in estado['bloqueos'] for m in b['motivos'])
     finally:
+        jobs.shutdown(timeout_s=2)
+
+
+def test_operador_en_otro_carril_pospone_admision_de_aprendizaje(tmp_path, monkeypatch):
+    """050:RF-4 — PowerFactory del operador tiene prioridad antes de admitir el ciclo CPU/GPU."""
+    monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '1')
+    monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))
+    ocupado, liberar = threading.Event(), threading.Event()
+    jobs = JobManager(lambda *_args: None)
+    def mantener(_ctx):
+        ocupado.set()
+        assert liberar.wait(5)
+    jobs.submit('operador', 'pf_projects', 'trabajo de contrato sin motor', mantener, lane='powerfactory')
+    assert ocupado.wait(2)
+    try:
+        assert app.encolar_ciclo_aprendizaje(jobs, ['datos nuevos']) is False
+        assert len(jobs.list()) == 1
+    finally:
+        liberar.set()
         jobs.shutdown(timeout_s=2)

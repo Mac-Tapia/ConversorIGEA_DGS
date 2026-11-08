@@ -117,9 +117,14 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
             raise ValueError(f'Ciclo conjunto bloqueado o fallido (código {codigo}); revise sus fases y motivos.')
         return ac.estado_aprendizaje(plan['raiz'])
     with _cola_aprendizaje_lock:
-        for trabajo in jobs.list():
+        trabajos = jobs.list()
+        for trabajo in trabajos:
             if trabajo.kind == kind and trabajo.status not in FINISHED:
                 return trabajo
+        if any(j.status not in FINISHED and not j.kind.startswith('aprendizaje:') for j in trabajos):
+            # El carril engine no protege al operador que ya trabaja en PowerFactory.
+            # False permite que vigilancia vuelva a solicitarlo cuando se libere.
+            return False
         return jobs.submit(plan['workspace_id'], kind, 'Ciclo conjunto de aprendizaje', ejecutar, lane='engine')
 
 

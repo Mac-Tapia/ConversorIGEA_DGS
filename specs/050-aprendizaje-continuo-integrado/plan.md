@@ -59,6 +59,9 @@ El callback devuelve False cuando no se admite la solicitud: vigilancia permite
 reintentar ese mismo lote tras corregir el plan. Los avisos piden preparar un ciclo;
 no anuncian un entrenamiento que aún no empezó. `--solo-preparar` genera diagnóstico
 CPU de cada familia y contraste de las particiones comunes, sin crear trabajadores.
+La admisión se pospone mientras haya trabajos del operador vivos en cualquier carril;
+la cola engine por sí sola no cubría el carril PowerFactory. Se vuelve a solicitar
+con los mismos datos después de liberarse, sin ejecutar un motor nativo en la prueba.
 
 El plan JSON usa esquema `convertersmartgrid-learning-plan-v1` y declara exactamente
 `workspace_id`, `raiz`, `contexto`, `fuentes`, `familias`, `politica_hash`, `tiempo_s`,
