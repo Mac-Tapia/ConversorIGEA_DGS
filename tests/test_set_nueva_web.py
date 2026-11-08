@@ -294,8 +294,8 @@ def test_la_web_no_queda_en_blanco_ni_esconde_resultados():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    assert 'SinPantallaEnBlanco' in (raiz / 'main.tsx').read_text(encoding='utf-8')
-    cargas = (raiz / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    assert 'SinPantallaEnBlanco' in (raiz / 'app' / 'main.tsx').read_text(encoding='utf-8')
+    cargas = (raiz / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     assert '{!simular && (' in cargas and 'a.ya_cumple ?' in cargas and 's.zonas' in cargas and 's.obra.error' in cargas
-    assert 'job.result?.enlace' in (raiz / 'components' / 'Asistente.tsx').read_text(encoding='utf-8')
-    assert 'transmision: transmision.trim()' in (raiz / 'components' / 'InformesPF.tsx').read_text(encoding='utf-8')
+    assert 'job.result?.enlace' in (raiz / 'features' / 'asistente' / 'Asistente.tsx').read_text(encoding='utf-8')
+    assert 'transmision: transmision.trim()' in (raiz / 'features' / 'powerfactory' / 'InformesPF.tsx').read_text(encoding='utf-8')

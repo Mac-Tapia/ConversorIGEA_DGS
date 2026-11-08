@@ -250,7 +250,7 @@ def test_web_lee_los_pdf_en_un_trabajo_y_los_guarda_en_el_espacio(client, tmp_pa
 def test_la_web_ofrece_los_pdf_en_los_dos_informes():
     """017:RF-136 / 017:RF-139 / 017:RF-140 — 4.4.2 sube un documento y rellena solo lo que está en
     blanco; 4.4.1 sube varios y añade antecedentes sin repetirlos."""
-    fuente = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'InformesPF.tsx').read_text(
+    fuente = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory' / 'InformesPF.tsx').read_text(
         encoding='utf-8')
     assert '<DocumentosSolicitante tipo="factibilidad" varios={false}' in fuente
     # También sin carga aplicada todavía: la carta llega antes que la carga.

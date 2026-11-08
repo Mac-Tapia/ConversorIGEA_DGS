@@ -27,7 +27,7 @@ TABLA_LARGA = '\n'.join(f'| fila{i} | dato{i} con unas cuantas palabras de relle
 def _repo(tmp_path: Path) -> Path:
     repo = tmp_path / 'repo'
     for carpeta in ('src/pkg', 'tools', 'docs/superpowers/specs', 'docs/procedimientos', 'docs/asistente', 'specs/098-cumplida',
-                    'specs/099-abierta', 'specs/097-retirada', '.claude/skills/uno', 'frontend/src/api', 'frontend/src/components', 'output'):
+                    'specs/099-abierta', 'specs/097-retirada', '.claude/skills/uno', 'frontend/src/api', 'frontend/src/features/demo', 'output'):
         (repo / carpeta).mkdir(parents=True)
     (repo / 'CODIGO_FUENTE.md').write_text('| `src/pkg/barra.py` | Reparte la barra. | 098 (RF-1) |\n', encoding='utf-8')
     (repo / 'src/pkg/barra.py').write_text('"""Reparto de la barra sin medidor."""\n', encoding='utf-8')
@@ -49,7 +49,7 @@ def _repo(tmp_path: Path) -> Path:
     (repo / 'specs/099-abierta/tasks.md').write_text(
         '# Tareas\n\n- [x] T1 Hacer el tucán. (RF-1)\n      Hecho cuando: pasa.\n- [ ] T2 Hacer la vicuña. (RF-1)\n      Hecho cuando: pasa.\n', encoding='utf-8')
     (repo / 'frontend/src/api/esquema.ts').write_text('export type Generado = { lemur: string }\n', encoding='utf-8')
-    (repo / 'frontend/src/components/Boton.tsx').write_text(
+    (repo / 'frontend/src/features/demo/Boton.tsx').write_text(
         "import x from 'y';\n\n// Enseña el botón del carpincho.\nexport function Boton() {\n  return <button>Carpincho</button>;\n}\n", encoding='utf-8')
     openapi = {'openapi': '3.1.0', 'paths': {'/api/capibara/{id}': {'get': {'summary': 'Lee un capibara', 'responses': {'200': {}}}}}}
     (repo / lp.OPENAPI).write_text(json.dumps(openapi, indent=2, sort_keys=True), encoding='utf-8')
@@ -96,7 +96,7 @@ def test_procedimientos(repo):
 def test_frontend_sin_el_esquema_generado(repo):
     """077:RF-4 — las fuentes del frontend por declaración, sin el esquema generado."""
     frags = [f for f in indice.fragmentos(repo, AMPLIADO) if f.fuente.startswith('frontend/')]
-    assert _rels(frags) == {'frontend/src/components/Boton.tsx'}
+    assert _rels(frags) == {'frontend/src/features/demo/Boton.tsx'}
     assert any('carpincho' in f.texto and 'Boton' in f.texto for f in frags)
 
 

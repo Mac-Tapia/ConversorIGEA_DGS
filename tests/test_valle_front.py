@@ -13,8 +13,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
-CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-TIPOS = (SRC / 'types.ts').read_text(encoding='utf-8')
+CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+TIPOS = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
 SERVICIOS = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 
@@ -72,7 +72,7 @@ def test_la_set_nueva_muestra_su_frase_del_valle():
 def test_008_rf16_el_factor_de_cada_alimentador_en_la_calibracion_conjunta():
     """008:RF-16 — PRUEBA_007 (2026-11-06): calibrados a la vez (021:RF-54), el historial trae el factor de cada
     alimentador y el informe decía «Factor de escala: [object Object]». La web lee el de su alimentador."""
-    ajuste = (RAIZ / 'frontend' / 'src' / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    ajuste = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert "typeof a === 'number' ? a : (a[inf.feeder] ?? null)" in ajuste
     assert 'const factor = factorDe(ultimoFlujo?.a);' in ajuste
     assert 'a?: number | Record<string, number>' in TIPOS

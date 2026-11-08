@@ -325,7 +325,7 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
     en el código que la conexión existe."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components'
+    src = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory'
     cargas = (src / 'CargasTab.tsx').read_text(encoding='utf-8')
     demanda = (src / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
@@ -345,8 +345,8 @@ def test_la_web_muestra_la_validacion_fisica_y_el_balance():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
+    ajuste = (raiz / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'api' / 'types.ts').read_text(encoding='utf-8')
     assert "'FALLO_VALIDACION_NATIVA'" in tipos
     assert 'validacion_posterior_nativa?: ValidacionNativa' in tipos
     assert "inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida" in ajuste
@@ -380,7 +380,7 @@ def test_casilla_por_cliente_marcada_por_defecto():
     marcada (nadie desconectado) y lo desmarcado llega al plan del ajuste."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components'
+    src = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory'
     demanda = (src / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert '<th>Conectado</th><th>Nis / Suministro</th>' in demanda
@@ -676,10 +676,10 @@ def test_la_web_avisa_de_las_sed_sobrecargadas_y_propone_transformadores():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
-    api = (raiz / 'api.ts').read_text(encoding='utf-8')
-    cargas = (raiz / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    ajuste = (raiz / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'api' / 'types.ts').read_text(encoding='utf-8')
+    api = (raiz / 'api' / 'client.ts').read_text(encoding='utf-8')
+    cargas = (raiz / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     # RF-3: al principio del resultado, antes del texto de la simulación y del de fallo.
     pos = ajuste.index('<SedSobrecargadas inf={inf} token={token} />')
     assert pos < ajuste.index('Nada se ha escrito en el proyecto')
@@ -710,7 +710,7 @@ def test_la_web_dice_lo_que_dejaron_los_transformadores():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    ajuste = (raiz / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert '<TransformadoresImplementados inf={inf} />' in ajuste
     assert 'La calibración salió válida con ellos.' in ajuste
     assert 'Se quedan, pero no salió: ${r.motivos.join' in ajuste
@@ -1047,8 +1047,8 @@ def test_la_web_muestra_conductores_con_ficha_y_nivel_de_cada_sed():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
+    ajuste = (raiz / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'api' / 'types.ts').read_text(encoding='utf-8')
     # RF-17: la tabla de conductores, con el «Caso base» dicho.
     assert '<ConductoresConFicha r={inf.conductores_ficha} />' in ajuste
     for texto in ('Archivo', 'Ficha', 'Tramos', 'Fuente', 'Sin ficha (quedan como en el archivo)',

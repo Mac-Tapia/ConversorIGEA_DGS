@@ -23,14 +23,14 @@ from convertersmartgrid.web.requisitos import UserError
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
-APP = (SRC / 'App.tsx').read_text(encoding='utf-8')
-PANEL = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
-DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-CATALOGO = (SRC / 'clientesCatalogo.ts').read_text(encoding='utf-8')
-ESTUDIOS = (SRC / 'components' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
-CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-API = (SRC / 'api.ts').read_text(encoding='utf-8')
+APP = (SRC / 'app' / 'App.tsx').read_text(encoding='utf-8')
+PANEL = (SRC / 'features' / 'conversion' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+DEMANDA = (SRC / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+AJUSTE = (SRC / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+CATALOGO = (SRC / 'features' / 'powerfactory' / 'clientesCatalogo.ts').read_text(encoding='utf-8')
+ESTUDIOS = (SRC / 'features' / 'powerfactory' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
+CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
 SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 

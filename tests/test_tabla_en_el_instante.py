@@ -95,8 +95,8 @@ def test_la_tabla_dice_la_p_y_la_q_del_instante_de_la_maxima_y_el_ajuste_escribe
 def test_la_web_manda_la_maxima_y_la_tabla_muestra_lo_que_se_escribe():
     """035:RF-1, 035:RF-2 — el front cruza con la máxima de cada alimentador marcado y la tabla
     enseña P (kW), Q (kvar), el registro y de dónde salen, y lo que suman las fijas."""
-    demanda = (RAIZ / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-    api = (RAIZ / 'frontend' / 'src' / 'api.ts').read_text(encoding='utf-8')
+    demanda = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    api = (RAIZ / 'frontend' / 'src' / 'api' / 'client.ts').read_text(encoding='utf-8')
     app = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
     assert 'maximas: dict[str, dict[str, Any]]' in app and 'maximas=body.maximas' in app
     assert '...(maximas ? { maximas } : {})' in api

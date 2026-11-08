@@ -392,7 +392,7 @@ def test_informe_por_entregable_al_dia(filas):
 
 # ----------------------------------------------------------------- hechos de la web
 def test_cada_hecho_con_componente_y_ruta_comprobada(hechos):
-    """076:RF-19 — la ruta existe en `web/app.py`, y la función de `api.ts` es la que el componente llama."""
+    """076:RF-19 — la ruta existe en `web/app.py`, y la función de `api/client.ts` es la que el componente llama."""
     assert hechos
     errores = PE.errores_de_hechos(hechos)
     assert not errores, errores[:20]
@@ -401,7 +401,7 @@ def test_cada_hecho_con_componente_y_ruta_comprobada(hechos):
 
 
 def test_el_catalogo_cubre_los_botones_del_front(hechos):
-    """076:RF-19 — cada botón con acción propia de `frontend/src/components` está, o se declara excluido con motivo."""
+    """076:RF-19 — cada botón con acción propia del frontend está, o se declara excluido con motivo."""
     cubiertos = {(h['componente'], h['fuentes'][0]['linea']) for h in hechos}
     faltan = [b for b in PE.botones_del_front() if b not in cubiertos and b not in PE.excluidos_del_catalogo()]
     assert not faltan, faltan[:30]

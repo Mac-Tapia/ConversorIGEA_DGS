@@ -11,10 +11,10 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
-DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-API = (SRC / 'api.ts').read_text(encoding='utf-8')
-TIPOS = (SRC / 'types.ts').read_text(encoding='utf-8')
+DEMANDA = (SRC / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+AJUSTE = (SRC / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
+TIPOS = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
 
 
 def test_campo_central_con_tres_medidores_y_su_nodo():
@@ -66,7 +66,7 @@ def test_el_plan_del_ajuste_lleva_las_centrales():
     assert 'centrales: dict[str, CentralIn]' in APP_PY
 
 
-CURVA = (SRC / 'components' / 'CurvaCabecera.tsx').read_text(encoding='utf-8')
+CURVA = (SRC / 'features' / 'powerfactory' / 'CurvaCabecera.tsx').read_text(encoding='utf-8')
 
 
 def test_curvas_de_la_central_en_la_grafica():
@@ -195,7 +195,7 @@ def test_conversion_por_sistema_electrico_aparte_de_unir():
     """022:RF-4, 022:RF-47, 022:RF-48, 022:RF-50, 022:RF-51 — botón propio «Convertir por
     sistema eléctrico» con el zonal (o todos), aparte de «Unir», que ya no lleva la
     estructura; la lista de DGS unidos dice el tipo; ranura para la tabla de la estructura."""
-    panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+    panel = (SRC / 'features' / 'conversion' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
     assert 'Convertir sistema {zonal ||' in panel and 'api.convertSistema(ws.id, zonal ? [zonal] : [])' in panel
     assert 'Todos los sistemas (SISTEMA_ELECTRICO)' in panel
     assert 'api.convertGroup(ws.id, selected, nombre.trim() || sugerido))' in panel
@@ -230,7 +230,7 @@ def test_conversion_por_set_y_estructura_al_cargar():
     """022:RF-82, 022:RF-83 — botón «Convertir SET» con el desplegable de las SET del
     sistema elegido; la estructura se pide al cargar la entrega, no al enfocar un
     desplegable desactivado (nunca recibía el foco y no aparecía Chincha Nueva)."""
-    panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+    panel = (SRC / 'features' / 'conversion' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
     assert 'api.convertSistema(ws.id, [], [setElegida])' in panel and 'Convertir SET {setElegida}' in panel
     assert 'z.sets_detalle' in panel and 'sets_detalle?:' in TIPOS
     assert 'onFocus={cargarEstructura}' not in panel

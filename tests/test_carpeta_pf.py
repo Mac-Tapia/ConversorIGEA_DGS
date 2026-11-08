@@ -774,11 +774,11 @@ def test_web_red_unida_en_la_carpeta(web, tmp_path):
 def test_front_elige_el_proyecto_por_su_ruta():
     """005:RF-16 — el desplegable usa la ruta como valor; 005:RF-12 — la muestra con « / »;
     005:RF-14 — enseña el aviso de carpeta inexistente."""
-    tab = (RAIZ / 'frontend' / 'src' / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    tab = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     assert 'value={ruta(p)}' in tab and 'value={p.name}' not in tab
     assert ".split('/').join(' / ')" in tab
     assert 'inventario?.aviso' in tab
-    assert 'path?: string' in (RAIZ / 'frontend' / 'src' / 'types.ts').read_text(encoding='utf-8')
+    assert 'path?: string' in (RAIZ / 'frontend' / 'src' / 'api' / 'types.ts').read_text(encoding='utf-8')
 
 
 # ---------------------------------------------------------------------------

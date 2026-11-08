@@ -589,7 +589,7 @@ def test_el_frente_no_pide_nada_de_fuera():
     """086:RF-21 — ni guiones ni estilos de terceros en la interfaz."""
     index = (RAIZ / 'frontend' / 'index.html').read_text(encoding='utf-8')
     assert not re.search(r'<(script|link)[^>]+(src|href)=["\']https?:', index)
-    estilos = (RAIZ / 'frontend' / 'src' / 'styles.css').read_text(encoding='utf-8')
+    estilos = (RAIZ / 'frontend' / 'src' / 'shared' / 'styles.css').read_text(encoding='utf-8')
     assert not re.search(r'@import|url\(["\']?https?:', estilos)
 
 

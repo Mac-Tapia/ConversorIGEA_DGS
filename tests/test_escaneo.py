@@ -171,7 +171,7 @@ def test_front_selector_y_lo_detectado_con_el_escaneo_guardado():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    demanda = (raiz / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    demanda = (raiz / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'setPorBarra' not in demanda and 'type="checkbox" checked={porBarra}' not in demanda
     for valor in ('alimentadores', 'set', 'sistema'):
         assert f'<option value="{valor}">' in demanda
@@ -186,8 +186,8 @@ def test_front_con_el_boton_y_la_tabla():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    demanda = (raiz / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-    api = (raiz / 'api.ts').read_text(encoding='utf-8')
+    demanda = (raiz / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    api = (raiz / 'api' / 'client.ts').read_text(encoding='utf-8')
     assert 'Escanear en DIgSILENT</button>' in demanda and 'api.pfEscanear(ws.id, project, feeders' in demanda
     assert '/powerfactory/escanear' in api
     assert 'function EscaneoTabla' in demanda and 'Generadores (centrales)' in demanda
@@ -350,7 +350,7 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
     assert cmd2[cmd2.index('--grupo') + 1] == 'IN111_TA225'
     # 039:RF-1: sin elegir, las fijas coincidentes con la cabecera.
     assert cmd[cmd.index('--criterio-fijas') + 1] == 'coincidente'
-    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'Recalibrar «Sin proyecto»' in demanda and 'api.recalibrar(ws.id' in demanda
 
 
@@ -394,7 +394,7 @@ def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
     assert cmd[cmd.index('--criterio-fijas') + 1] == 'coincidente'
     assert cmd[cmd.index('--maximo-mes') + 1:] [:1] == ['VA303']                  # 039:RF-8
     assert '--alimentadores' not in todos
-    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'del_sistema' in demanda and 'criterio_fijas: criterioFijas, solo,' in demanda and 'AlimentadoresMaximoMes' in demanda
 
 

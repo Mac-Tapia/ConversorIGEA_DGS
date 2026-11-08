@@ -234,7 +234,7 @@ def test_la_recalibracion_se_numera_desde_la_primera_calibracion(tmp_path):
     publico = ws.public()['calibraciones']
     assert publico == {'P': {'A1': {'recalibracion': 1, 'nombre': ws.calibraciones['P']['A1']['nombre'],
                                     'caso': None}}}
-    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components'
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory'
     ajuste = (raiz / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     demanda = (raiz / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'numeroDeRecalibracion(ws.calibraciones, project' in ajuste and 'Recalibrar ${' in ajuste
@@ -261,7 +261,7 @@ def test_la_web_dice_que_cuadra_cada_una(tmp_path):
     raiz = Path(__file__).resolve().parents[1]
     servicios = (raiz / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
     assert "plan['recalibracion'] = 0 if not previa else int(previa.get('recalibracion') or 0) + 1" in servicios
-    ajuste = (raiz / 'frontend' / 'src' / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    ajuste = (raiz / 'frontend' / 'src' / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert 'Calibración: solo se cuadra la P (kW).' in ajuste
     assert 'se cuadran la P (kW) y la Q (kvar)' in ajuste and "'P (kW) y Q (kvar)' : 'solo la P (kW)'" in ajuste
 

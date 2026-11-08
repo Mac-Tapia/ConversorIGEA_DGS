@@ -11,10 +11,10 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
-CURVA = (SRC / 'components' / 'CurvaCabecera.tsx').read_text(encoding='utf-8')
-AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-API = (SRC / 'api.ts').read_text(encoding='utf-8')
-CSS = (SRC / 'styles.css').read_text(encoding='utf-8')
+CURVA = (SRC / 'features' / 'powerfactory' / 'CurvaCabecera.tsx').read_text(encoding='utf-8')
+AJUSTE = (SRC / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
+CSS = (SRC / 'shared' / 'styles.css').read_text(encoding='utf-8')
 
 
 def test_curva_en_la_caja_del_ajuste_con_la_ruta_de_la_api():

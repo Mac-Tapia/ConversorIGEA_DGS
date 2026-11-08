@@ -7,8 +7,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TAB = (ROOT / 'frontend' / 'src' / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-TYPES = (ROOT / 'frontend' / 'src' / 'types.ts').read_text(encoding='utf-8')
+TAB = (ROOT / 'frontend' / 'src' / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+TYPES = (ROOT / 'frontend' / 'src' / 'api' / 'types.ts').read_text(encoding='utf-8')
 
 
 def test_front_declares_and_renders_project_binding_evidence():

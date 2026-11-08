@@ -35,22 +35,22 @@ def test_no_quedan_rutas_retiradas():
 
 def test_una_sola_pestana_de_cargas():
     """004:RF-2 — una pestaña «Cargas en DIgSILENT» que lee los proyectos y sus alimentadores."""
-    app_tsx = (SRC / 'App.tsx').read_text(encoding='utf-8')
+    app_tsx = (SRC / 'app' / 'App.tsx').read_text(encoding='utf-8')
     assert app_tsx.count("label: 'Cargas en DIgSILENT'") == 1
     assert '<CargasTab />' in app_tsx
-    tab = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    tab = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     assert 'api.pfProjects' in tab and 'p.feeders' in tab
 
 
 def test_simular_y_aplicar_son_trabajos():
     """004:RF-17 — simular y aplicar se lanzan como trabajos, nunca esperando dentro del clic."""
-    tab = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    tab = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     assert 'startJob(() => (simular ? api.cargasSimular : api.cargasAplicar)' in tab
 
 
 def test_el_informe_se_muestra_por_alimentador():
     """004:RF-20 — el informe del guion se muestra por alimentador, con omitidas y ambiguas."""
-    tab = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    tab = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     for clave in ('inf.feeders', 'inf.sin_alimentador', 'inf.ambiguas', 'inf.no_creadas',
                   'actualizadas', 'creadas', 'fallos'):
         assert clave in tab, clave
@@ -59,7 +59,7 @@ def test_el_informe_se_muestra_por_alimentador():
 def test_cada_ruta_del_cliente_existe_en_la_api():
     """004:RF-5, 018:RF-13 — el cliente del módulo llama a rutas que la API define, las mismas
     para uno o varios; la lista de proyectos se lee (POST) y se recupera guardada (GET)."""
-    api_ts = (SRC / 'api.ts').read_text(encoding='utf-8')
+    api_ts = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
     rutas = _rutas_api()
     llamadas = [ll for ll in re.findall(r'`\$\{ws\(id\)\}(/[^`?]*)', api_ts)
                 if ll.startswith(('/lote', '/cargas', '/powerfactory/projects'))]
@@ -71,7 +71,7 @@ def test_cada_ruta_del_cliente_existe_en_la_api():
 
 # ----------------------------------------------------------------- spec 007
 def _tab():
-    return (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    return (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
 
 
 def test_base_propuesta_desde_el_ultimo_ajuste():
@@ -82,7 +82,7 @@ def test_base_propuesta_desde_el_ultimo_ajuste():
     assert ("(j.kind === 'ajuste_aplicar' || j.kind === 'ajuste_transformadores')\n"
             "    && j.result?.project === project") in tab
     assert 'conBase ? baseJob!.id : null' in tab
-    assert "fd.append('ajuste_job_id', ajusteJobId)" in (SRC / 'api.ts').read_text(encoding='utf-8')
+    assert "fd.append('ajuste_job_id', ajusteJobId)" in (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
     for pieza in ('function Base(', 'i.variacion', 'i.objetivo', 'i.cuadrado'):
         assert pieza in tab, pieza
 
@@ -90,7 +90,7 @@ def test_base_propuesta_desde_el_ultimo_ajuste():
 def test_orden_de_los_pasos_del_trabajo():
     """007:RF-3 — proyecto, alimentador, máxima y clientes, ajuste, y por último las cargas."""
     tab = _tab()
-    demanda = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    demanda = (SRC / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert tab.index('1 · Proyecto') < tab.index('<DemandaMedida') < tab.index('3 · Integración de nuevas')
     assert demanda.index('2.2 · Máxima') < demanda.index('2.3 · Clientes') < demanda.index('<AjusteCabecera')
 

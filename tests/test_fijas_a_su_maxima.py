@@ -53,10 +53,10 @@ def test_la_web_ensena_los_dos_valores_ordena_marca_y_recalibra():
     cruzada tiene las columnas de los dos valores y de la diferencia, el orden y el filtro por ella, la casilla
     «a su máxima» con «Desmarcar todos», la selección guardada en el espacio y releída al abrir, el botón
     «Recalibrar con estos criterios» por la ruta de recalibrar, y el informe lista los clientes a su máxima."""
-    demanda = (FRONT / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-    ajuste = (FRONT / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-    api = (FRONT / 'api.ts').read_text(encoding='utf-8')
-    tipos = (FRONT / 'types.ts').read_text(encoding='utf-8')
+    demanda = (FRONT / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    ajuste = (FRONT / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    api = (FRONT / 'api' / 'client.ts').read_text(encoding='utf-8')
+    tipos = (FRONT / 'api' / 'types.ts').read_text(encoding='utf-8')
     for pieza in ('>Coincidente</th>', '>Su máxima del mes</th>', '>Diferencia</th>', '>A su máxima</th>', '>Criterio</th>',
                   'Diferencia de su máxima (kW), de mayor a menor', 'Diferencia de su máxima (%), de mayor a menor',
                   'Diferencia mínima (%)', 'Desmarcar todos «a su máxima»', 'Recalibrar con estos criterios',

@@ -13,10 +13,10 @@ from apoyo_pf_web import guion_falso  # noqa: F401
 from convertersmartgrid.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
-OBRAS = (RAIZ / 'frontend' / 'src' / 'components' / 'ObrasPF.tsx').read_text(encoding='utf-8')
-CARGAS = (RAIZ / 'frontend' / 'src' / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-API = (RAIZ / 'frontend' / 'src' / 'api.ts').read_text(encoding='utf-8')
-TYPES = (RAIZ / 'frontend' / 'src' / 'types.ts').read_text(encoding='utf-8')
+OBRAS = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'ObrasPF.tsx').read_text(encoding='utf-8')
+CARGAS = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+API = (RAIZ / 'frontend' / 'src' / 'api' / 'client.ts').read_text(encoding='utf-8')
+TYPES = (RAIZ / 'frontend' / 'src' / 'api' / 'types.ts').read_text(encoding='utf-8')
 CON, SIN = 'Con proyecto', 'Sin proyecto'
 TIPO = {'nombre': 'AAAC_120', 'clase': 'TypLne'}
 

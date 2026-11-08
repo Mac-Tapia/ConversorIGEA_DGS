@@ -13,9 +13,9 @@ def test_paso_5_en_la_pestana_de_cargas():
     """024:RF-45 / 024:RF-48 — el operador planifica, ve las obras con su estado y decide
     sobre cada una desde la pestaña «Cargas en DIgSILENT», con el proyecto y los
     alimentadores que ya eligió (sirve para cualquier proyecto y alimentadores)."""
-    cargas = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    cargas = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     assert '<GemeloPIDE project={project} feeders={order} />' in cargas
-    comp = (SRC / 'components' / 'GemeloPIDE.tsx').read_text(encoding='utf-8')
+    comp = (SRC / 'features' / 'powerfactory' / 'GemeloPIDE.tsx').read_text(encoding='utf-8')
     for pieza in ('api.pide(', 'api.pideDecision(', 'api.gemeloAprender(', 'api.gemeloEpisodios(',
                   'startJob(', "'aceptada', 'rechazada', 'modificada'"):
         assert pieza in comp, pieza
@@ -23,7 +23,7 @@ def test_paso_5_en_la_pestana_de_cargas():
 
 def test_cada_ruta_del_gemelo_existe_en_la_api():
     """024:RF-8 — las rutas que llama el front existen en la API."""
-    api = (SRC / 'api.ts').read_text(encoding='utf-8')
+    api = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
     rutas = {re.sub(r'\{[^}]+\}', '{}', r) for r in re.findall(r"@app\.(?:get|post)\('([^']+)'", APP)}
     for llamada in ('/pide', '/pide/decision', '/digital-twin/aprender', '/digital-twin/episodes'):
         assert f'${{ws(id)}}{llamada}' in api, llamada

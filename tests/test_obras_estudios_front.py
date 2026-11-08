@@ -12,12 +12,12 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
-CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-OBRAS = (SRC / 'components' / 'ObrasPF.tsx').read_text(encoding='utf-8')
-ESTUDIOS = (SRC / 'components' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
-GUIONES = (SRC / 'components' / 'GuionesPF.tsx').read_text(encoding='utf-8')
-TRANSF = (SRC / 'components' / 'TransferenciaPF.tsx').read_text(encoding='utf-8')
-API = (SRC / 'api.ts').read_text(encoding='utf-8')
+CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+OBRAS = (SRC / 'features' / 'powerfactory' / 'ObrasPF.tsx').read_text(encoding='utf-8')
+ESTUDIOS = (SRC / 'features' / 'powerfactory' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
+GUIONES = (SRC / 'features' / 'powerfactory' / 'GuionesPF.tsx').read_text(encoding='utf-8')
+TRANSF = (SRC / 'features' / 'powerfactory' / 'TransferenciaPF.tsx').read_text(encoding='utf-8')
+API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
 
 
 def _pos(texto: str, *piezas: str) -> list[int]:

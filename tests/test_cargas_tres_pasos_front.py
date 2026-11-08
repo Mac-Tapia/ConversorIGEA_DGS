@@ -11,11 +11,11 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
-APP = (SRC / 'App.tsx').read_text(encoding='utf-8')
-CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
-DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
-AJUSTE = (SRC / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-API = (SRC / 'api.ts').read_text(encoding='utf-8')
+APP = (SRC / 'app' / 'App.tsx').read_text(encoding='utf-8')
+CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
+DEMANDA = (SRC / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+AJUSTE = (SRC / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
 
 
 def _pos(texto: str, *piezas: str) -> list[int]:
@@ -93,7 +93,7 @@ def test_el_informe_muestra_el_kvar_nativo_no_bloqueante():
     el criterio de aceptación sea solo el cuadre de kW."""
     for pieza in ('kvar_no_bloqueante', 'red_nativa_kvar', 'diferencia_kvar',
                   'Diferencia de kVAR (no bloqueante)'):
-        assert pieza in AJUSTE or pieza in (SRC / 'types.ts').read_text(encoding='utf-8'), pieza
+        assert pieza in AJUSTE or pieza in (SRC / 'api' / 'types.ts').read_text(encoding='utf-8'), pieza
 
 
 def test_verificar_y_aplicar_solo_con_convergencia():

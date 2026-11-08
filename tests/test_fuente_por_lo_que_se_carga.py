@@ -160,7 +160,7 @@ def test_la_web_no_marca_fuente_y_recupera_el_espacio():
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
     # El tipo sale del contrato generado de la API (065), no de una declaración a mano en types.ts.
     assert 'input_mode: ("txt" | "mdb" | "vnr") | null;' in (raiz / 'api' / 'esquema.ts').read_text(encoding='utf-8')
-    boot = (raiz / 'useWorkspace.ts').read_text(encoding='utf-8')
+    boot = (raiz / 'shared' / 'useWorkspace.ts').read_text(encoding='utf-8')
     assert 'STORAGE_KEY_ANTERIOR' in boot and 'removeItem(STORAGE_KEY_ANTERIOR)' in boot
 
 

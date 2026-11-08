@@ -8,8 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INFORMES = (ROOT / 'frontend' / 'src' / 'components' / 'InformesPF.tsx').read_text(encoding='utf-8')
-CARGAS = (ROOT / 'frontend' / 'src' / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+INFORMES = (ROOT / 'frontend' / 'src' / 'features' / 'powerfactory' / 'InformesPF.tsx').read_text(encoding='utf-8')
+CARGAS = (ROOT / 'frontend' / 'src' / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
 
 
 def test_informes_en_4_4_con_sus_dos_apartados():

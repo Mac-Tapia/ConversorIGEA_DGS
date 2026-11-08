@@ -81,7 +81,8 @@ def test_el_cliente_no_tiene_metodos_sin_uso():
     assert len(metodos) > 10
     resto = '\n'.join(
         p.read_text(encoding='utf-8')
-        for p in (ROOT / 'frontend/src').rglob('*.ts*') if p.name != 'api.ts'
+        for p in (ROOT / 'frontend/src').rglob('*.ts*')
+        if p != ROOT / 'frontend/src/api/client.ts'
     )
     sin_uso = [m for m in metodos if not re.search(rf'\bapi\.{m}\b', resto)]
     assert sin_uso == []

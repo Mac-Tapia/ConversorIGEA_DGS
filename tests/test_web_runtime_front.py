@@ -15,8 +15,8 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 def _front(tmp_path, *, dist: bool = True) -> Path:
     frontend = tmp_path / 'frontend'
-    (frontend / 'src' / 'components').mkdir(parents=True)
-    (frontend / 'src' / 'components' / 'Panel.tsx').write_text('x', encoding='utf-8')
+    (frontend / 'src' / 'features' / 'demo').mkdir(parents=True)
+    (frontend / 'src' / 'features' / 'demo' / 'Panel.tsx').write_text('x', encoding='utf-8')
     (frontend / 'package.json').write_text('{}', encoding='utf-8')
     if dist:
         (frontend / 'dist').mkdir()
@@ -48,9 +48,9 @@ def test_un_componente_cambiado_obliga_a_recompilar(tmp_path):
     frontend = _front(tmp_path)
     _edad(frontend / 'package.json', 0)
     _edad(frontend / 'dist' / 'index.html', 10)
-    _edad(frontend / 'src' / 'components' / 'Panel.tsx', 20)
+    _edad(frontend / 'src' / 'features' / 'demo' / 'Panel.tsx', 20)
     assert front_desactualizado(frontend) == (
-        'src/components/Panel.tsx es más reciente que la compilación')
+        'src/features/demo/Panel.tsx es más reciente que la compilación')
 
 
 def test_el_lanzador_usa_la_comprobacion():
