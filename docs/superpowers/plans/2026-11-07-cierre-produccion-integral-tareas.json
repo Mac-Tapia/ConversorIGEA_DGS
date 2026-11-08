@@ -131,6 +131,8 @@
         1,
         2,
         3,
+        4,
+        5,
         6
       ]
     },
@@ -3147,10 +3149,10 @@
   "conciliacion": {
     "source_revision": "09f6f3f3686819c230dbec0816d56b5f7ad75df2",
     "audit_manifest_sha256": "59f9940c9b347f78c2ed95ade3279d1b1e8734bd11950e691b5cd920380396d1",
-    "new_steps_closed": 29,
+    "new_steps_closed": 31,
     "previous_checked": 7,
-    "checked_after": 36,
-    "open_after": 120,
+    "checked_after": 38,
+    "open_after": 118,
     "spec_tasks_open_after_T17": 113,
     "source": "docs/implementacion_produccion20261107/conciliacion_tareas_20261108.md"
   }

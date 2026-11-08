@@ -38,7 +38,7 @@
       "evidence": []
     },
     "P03": {
-      "state": "correctivos_y_harness_integrados_428_y20_subcasos_065T17_cerrada_g3_pendiente",
+      "state": "implementacion_puerta_y_campanas_explicitas_verificada_T17_cerrada_g3_y_campanas_reales_pendientes",
       "evidence": [
         "p03_e1_preparacion_completa/20261108T043711Z_c1bbaa2667e14af9929b875adab27ba5/registro.json",
         "p03_solicitudes_precondiciones.json",
@@ -76,7 +76,9 @@
         "p25_cancelacion_integrada_20261108/junit.xml",
         "p25_pid_integrado_20261108/junit.xml",
         "revision_p25_mcp_integrador_20261108/review.json",
-        "p25_estatica_postg2_20261108/junit.xml"
+        "p25_estatica_postg2_20261108/junit.xml",
+        "p03_campanas_entrega_20261108/HANDOFF.md",
+        "p26_harness_integracion_20261108/p03_integrado.xml"
       ]
     },
     "P04": {
@@ -636,7 +638,8 @@
       "native_deselected": 1,
       "evidence": "p26_harness_integracion_20261108/combinada.xml"
     },
-    "automatic_job_adoption": "asignada_al_owner_en_rutas_concretas; implementacion_operativa_pendiente"
+    "automatic_job_adoption": "asignada_al_owner_en_rutas_concretas; implementacion_operativa_pendiente",
+    "admission_complete_edition": "6familias_runtime_requeridas; contract_replay_no_aprueban; no_ejecucion_cientifica_inferida"
   },
   "post_g2_checks": [
     {
@@ -753,9 +756,9 @@
     ],
     "spec_tasks_open": 113,
     "plan_steps_open_before": 149,
-    "plan_steps_closed_now": 29,
-    "plan_steps_open_after": 120,
-    "plan_steps_closed_total": 36,
+    "plan_steps_closed_now": 31,
+    "plan_steps_open_after": 118,
+    "plan_steps_closed_total": 38,
     "original_audit_manifest_sha256": "59f9940c9b347f78c2ed95ade3279d1b1e8734bd11950e691b5cd920380396d1",
     "audit": "p25_conciliacion_tareas_20261108/HANDOFF.md"
   },
