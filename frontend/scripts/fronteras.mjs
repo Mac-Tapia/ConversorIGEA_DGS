@@ -4,6 +4,14 @@ import {existsSync,readFileSync,readdirSync,realpathSync} from 'node:fs';
 import {dirname,extname,isAbsolute,join,relative,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+// RF-19 se aplica a todos los scripts admitidos por el frontend, también JS.
+const TIPOS_SCRIPT = new Map([
+  ['.ts',ts.ScriptKind.TS], ['.tsx',ts.ScriptKind.TSX],
+  ['.mts',ts.ScriptKind.TS], ['.cts',ts.ScriptKind.TS],
+  ['.js',ts.ScriptKind.JS], ['.jsx',ts.ScriptKind.JSX],
+  ['.mjs',ts.ScriptKind.JS], ['.cjs',ts.ScriptKind.JS],
+]);
+
 function archivos(raiz){
   return readdirSync(raiz,{withFileTypes:true}).flatMap(e=>e.isDirectory()?archivos(join(raiz,e.name)):[join(raiz,e.name)]);
 }
@@ -27,8 +35,12 @@ export function comprobarFronteras(frontend){
   for(const file of archivos(src)){
     const origen=capa(src,file),rel=relative(raiz,file).split(sep).join('/');
     if(!origen){errores.push(`${rel}: fuera de api/shared/features/app`);continue;}
-    if(!/\.[cm]?tsx?$/.test(file))continue;
-    const ast=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);
+    const extension=extname(file).toLowerCase(),tipo=TIPOS_SCRIPT.get(extension);
+    if(tipo===undefined){
+      if(/\.[cm]?[jt]sx?$/.test(extension))errores.push(`${rel}: formato de script no admitido: ${extension}`);
+      continue;
+    }
+    const ast=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,tipo);
     function revisar(spec,nodo){
       const linea=ast.getLineAndCharacterOfPosition(nodo.getStart(ast)).line+1;
       const fallo=texto=>errores.push(`${rel}:${linea}: ${texto}`);

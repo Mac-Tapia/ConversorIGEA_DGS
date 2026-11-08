@@ -453,7 +453,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/propuestas_maestro.py` | Corpus separado de 200 propuestas únicas, con anotaciones y procedencia del maestro. | 047 (RF-16) |
 | `src/convertersmartgrid/asistente/aceptacion.py` | Auditoría, evaluación del intérprete/plan y puertas de aceptación por alcance; cuenta observaciones humanas únicas. | 047 (RF-13, RF-16 a RF-18) |
 | `tools/aceptar_agente.py` | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas. | 047 (RF-16 a RF-18) |
-| `frontend/src/asistenteAceptacion.ts` | Contrato web de propuestas, observaciones humanas y aceptación del agente. | 047 (RF-17) |
+| `frontend/src/api/asistenteAceptacion.ts` | Contrato web de propuestas, observaciones humanas y aceptación del agente. | 047 (RF-17) |
 | `tools/preparar_modelos_ia.py` | Descarga explícita y auditoría de pesos fijados, sin activación. | 043 (RF-12) |
 | `docs/MODELOS_IA_LOCK.json` | Revisiones, licencias, tamaños y hashes de los modelos locales seleccionados. | 043 (RF-12) |
 | `docs/DEPENDENCIAS_IA_LOCK.json` | Versiones, fuentes, hashes de bibliotecas y ejecutable Ipopt del entorno IA instalado. | 043 (RF-12) |
@@ -496,7 +496,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `src/convertersmartgrid/asistente/observacion.py` | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. | 061 (RF-1, RF-2, RF-3, RF-7, RF-8, RF-9) |
-| `frontend/src/components/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
+| `frontend/src/features/asistente/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
 | `tools/asistente_observar.py` | Incorpora y verifica informes locales del aprendizaje sin activar modelos. | 061 (RF-8) |
 | `src/convertersmartgrid/web/suspension.py` | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. | 096 (RF-1, RF-2) |
 | `src/convertersmartgrid/web/retencion.py` | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. | 062 (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8), 065 (RF-13) |
@@ -514,9 +514,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 (RF-1, RF-20, RF-21, RF-24) |
 | `tools/verificar_entrega_integral.py` | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. | 065 (RF-24), 086 (RF-46) |
 | `frontend/src/api/esquema.ts` | Tipos generados desde OpenAPI; no se editan a mano. | 065 (RF-17), 002 |
-| `frontend/src/components/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 (RF-18, RF-19) |
-| `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 (RF-22) |
-| `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 (RF-22) |
+| `frontend/src/features/conversion/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 (RF-18, RF-19) |
+| `frontend/src/features/asistente/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 (RF-22) |
+| `frontend/src/features/asistente/estadoEquipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 (RF-22) |
 | `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 (RF-22, RF-23) |
 | `src/convertersmartgrid/asistente/codificador_ordenes.py` | Intérprete de órdenes con codificador preentrenado congelado, cabezas de tarea y de datos, clase «ninguna» y el lugar en que el modelo la ve. | 069 (RF-1 a RF-9), 075 (RF-37) |
 | `src/convertersmartgrid/asistente/validacion_cruzada.py` | Validación cruzada con las órdenes confirmadas: familias de frases casi iguales, reparto en 5 vueltas estratificado por tarea, cabezas por vuelta sobre la caché del codificador, medida fuera de grupo y modelo final. | 075 (RF-1 a RF-28) |

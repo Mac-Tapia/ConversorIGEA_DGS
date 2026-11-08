@@ -744,7 +744,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `frontend/scripts/fronteras.mjs` | — | 002 | Regla AST y resolución TypeScript de fronteras. |
-| `frontend/src/api/asistenteAceptacion.ts` | — | 047, 002 | Tipo de respuesta de evaluación y aceptación del asistente. |
+| `frontend/src/api/asistenteAceptacion.ts` | — | 047 | Contrato web de propuestas, observaciones humanas y aceptación del agente. |
 | `frontend/src/api/client.ts` | — | 001, 011, 021, 022, 025, 039, 061 | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra |
 | `frontend/src/api/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
 | `frontend/src/api/types.ts` | — | 001, 011, 021, 025, 037, 039, 041, 061 | Tipos de las respuestas de la API. |
@@ -756,10 +756,10 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/app/main.tsx` | — | 001 | Arranque de React. |
 | `frontend/src/features/asistente/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
 | `frontend/src/features/asistente/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
-| `frontend/src/features/asistente/EquipoAsistente.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/src/features/asistente/MonitorAgente.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/src/features/asistente/estadoEquipoAsistente.ts` | — | 065, 047, 002 | Estado y operaciones del equipo del asistente, sin dependencia de otros flujos. |
-| `frontend/src/features/conversion/DescargaZip.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
+| `frontend/src/features/asistente/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |
+| `frontend/src/features/asistente/estadoEquipoAsistente.ts` | — | 065 | Cliente tipado de permisos, acciones y revisiones del equipo. |
+| `frontend/src/features/conversion/DescargaZip.tsx` | — | 065 | Descarga ZIP preparada como trabajo con progreso y cancelación. |
 | `frontend/src/features/conversion/FeedersPanel.tsx` | — | 001, 022, 091 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
 | `frontend/src/features/conversion/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
 | `frontend/src/features/conversion/Modules.tsx` | — | 001 | Pestañas de resultados, catálogo y sistema completo. |

@@ -68,3 +68,29 @@ test('002:RF-18, 002:RF-19 el árbol entregado usa las capas y carece de excepci
  const frontend=new URL('..',import.meta.url);
  assert.deepEqual(comprobarFronteras(fileURLToPath(frontend)),[]);
 });
+
+for(const extension of ['js','jsx','mjs','cjs','ts','tsx','mts','cts']){
+ test(`002:RF-19 script .${extension} no cruza features y la CLI devuelve 1`,()=>{
+  const jsx=extension==='jsx'||extension==='tsx';
+  const codigo=extension==='cjs'?"const {x}=require('../dos/panel.cjs');":
+   `import {x} from '../dos/panel.${extension}';${jsx?'const vista=<div>{x}</div>;':''}`;
+  const dir=fixture({[`features/uno/panel.${extension}`]:codigo,
+   [`features/dos/panel.${extension}`]:extension==='cjs'?'exports.x=1;':'export const x=1;'});
+  assert.ok(comprobarFronteras(dir).some(e=>e.includes('otro feature')));
+  const run=spawnSync(process.execPath,['scripts/fronteras.mjs','--raiz',dir],{encoding:'utf8'});
+  assert.equal(run.status,1,run.stdout+run.stderr);
+ });
+ test(`002:RF-18 script .${extension} permite dependencia dentro de su feature`,()=>{
+  const jsx=extension==='jsx'||extension==='tsx';
+  const codigo=extension==='cjs'?"const {x}=require('./datos.cjs');":
+   `import {x} from './datos.${extension}';${jsx?'const vista=<div>{x}</div>;':''}`;
+  const dir=fixture({[`features/uno/panel.${extension}`]:codigo,
+   [`features/uno/datos.${extension}`]:extension==='cjs'?'exports.x=1;':'export const x=1;'});
+  assert.deepEqual(comprobarFronteras(dir),[]);
+ });
+}
+
+for(const extension of ['mjsx','cjsx','mtsx','ctsx'])test(`002:RF-19 formato .${extension} no admitido falla explícitamente`,()=>{
+ const dir=fixture({[`features/uno/panel.${extension}`]:'export const x=1;'});
+ assert.ok(comprobarFronteras(dir).some(e=>e.includes('formato de script no admitido')));
+});
