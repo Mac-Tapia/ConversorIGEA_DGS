@@ -750,3 +750,20 @@ def test_cada_caso_deja_el_grafico_de_perfil_de_sus_alimentadores(semilla):
             (ligado,) = graficos[f'Perfil {f}'].feeder
             assert ligado.loc_name == f and ligado.GetClassName() == 'ElmFeeder'
             assert graficos[f'Perfil {f}'].iopt_x == 0
+
+
+def test_la_transferencia_deshecha_en_con_proyecto_no_se_vuelve_a_copiar(monkeypatch):
+    """098:RF-48 — los elementos de la transferencia del operador que la escalera deshizo en «Con proyecto» no se copian
+    otra vez desde «Sin proyecto» al aplicar una obra; lo demás del operador, sí. CA101 + CHN102 (2026-11-07)."""
+    app = _App()
+    enlace, otro = _Obj('Breaker/Switch(1)'), _Obj('SW_1')
+    R = 'P/Red/'
+    fotos = {'base': {R + 'E': (enlace, {'on_off': 0}), R + 'S': (otro, {'on_off': 1})},
+             'sin': {R + 'E': (enlace, {'on_off': 1}), R + 'S': (otro, {'on_off': 0})},
+             'con': {R + 'E': (enlace, {'on_off': 0}), R + 'S': (otro, {'on_off': 1})}}
+    monkeypatch.setattr(casos_pf, '_foto_operacion', lambda a: fotos[a.activo.rol])
+    monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: [])
+    app.casos['sin'].Activate()
+    out = casos_pf.sin_a_con_proyecto(app, app.casos, ['Breaker/Switch(1)'])
+    assert enlace.escrito == {} and otro.escrito == {'on_off': 0}
+    assert {c['objeto'] for c in out['copiados']} == {'SW_1'}

@@ -277,6 +277,10 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   dos alimentadores decide. CA101 + CHN102 (2026-11-07): «CHN102 no conserva margen» dejó el escalón de transferencia
   sin medir nada y la transferencia del operador sin evaluar.
 
+- RF-48: MIENTRAS la escalera tenga deshecha en «Con proyecto» la transferencia del operador como alternativa no
+  elegida, EL SISTEMA no volverá a copiar sus elementos desde «Sin proyecto» al aplicar una obra (014:RF-31). CA101 +
+  CHN102 (2026-11-07): la copia la reponía tras aplicar la obra de CA101 y CHN102 volvía a cargar la zona (0,703 p.u.).
+
 ## Relación con otras specs
 
 - Amplía 006/015/021/022/028 (calibración y recalibración): la cabecera se compara con la red de la fuente.

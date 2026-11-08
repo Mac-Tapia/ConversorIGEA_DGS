@@ -339,7 +339,7 @@ def _igual(a, b) -> bool:
         return a == b
 
 
-def sin_a_con_proyecto(app, casos: dict) -> dict:
+def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
     """Lo que el operador hizo a mano en «Sin proyecto», también en «Con proyecto».
 
     014:RF-31 a RF-34. «Con proyecto» es «Sin proyecto» más las cargas nuevas y las obras,
@@ -373,8 +373,14 @@ def sin_a_con_proyecto(app, casos: dict) -> dict:
                 fotos[rol] = _foto_operacion(app)
         base, sin, con = fotos.get('base', {}), fotos['sin'], fotos['con']
         cambios = []
+        excluir = set(excluir or ())
         for ruta, (obj_sin, datos) in sorted(sin.items()):
             nombre = getattr(obj_sin, 'loc_name', ruta)
+            # 098:RF-48: la transferencia del operador deshecha en «Con proyecto» como alternativa no elegida no se
+            # vuelve a copiar desde «Sin proyecto». CA101 + CHN102 (2026-11-07): al aplicar la obra de CA101, esta
+            # copia la reponía y CHN102 volvía a cargar la zona (0,703 p.u.) con la obra calculada sin ella.
+            if nombre in excluir:
+                continue
             if ruta not in con:
                 out['faltan'].append(nombre)
                 continue

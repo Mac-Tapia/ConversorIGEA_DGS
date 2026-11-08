@@ -5882,6 +5882,10 @@ def fila_de_la_transferencia_del_operador(tabla, zona: Mapping[str, Any]) -> dic
                      'elegida': False, 'plazo': None}}
 
 
+#: 098:RF-48: por proyecto, los elementos de la transferencia del operador deshecha en «Con proyecto» en este trabajo.
+TRANSFERENCIA_DESHECHA: dict[str, list[str]] = {}
+
+
 def _transferencias_como_alternativa(ws, ctx: JobContext, project: str, feeders: list[str],
                                      anio_casos: int | None) -> dict[str, dict]:
     """098:RF-44: las transferencias del operador entre los alimentadores marcados, deshechas en «Con proyecto» para que
@@ -5903,6 +5907,9 @@ def _transferencias_como_alternativa(ws, ctx: JobContext, project: str, feeders:
         ctx.log(f'No se pudo deshacer en «Con proyecto» la transferencia del operador: {exc} (098:RF-44).')
         return {}
     out = {}
+    # 098:RF-48: lo que se deshizo (enlace y corte), para que aplicar una obra no lo vuelva a copiar desde «Sin proyecto».
+    TRANSFERENCIA_DESHECHA[project.strip()] = sorted({str(n) for z in inf.get('zonas') or []
+                                                      for n in list(z.get('enlace') or []) + list(z.get('corte') or [])})
     for z in inf.get('zonas') or []:
         out[str(z['desde'])] = z
         ctx.log(f"En «Con proyecto», la transferencia del operador de {z['desde']} a {z['hacia']} ({z['n_sed']} SED, "
@@ -9035,6 +9042,7 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         raise UserError('No hay obras que simular ni aplicar: defina alguna primero.')
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project),
             'feeders': action_context['feeders'],
+            'no_copiar_a_con': list(TRANSFERENCIA_DESHECHA.get(project.strip()) or []),           # 098:RF-48
             'obras': [{k: v for k, v in o.items() if k != 'id'} for o in elegidas],
             'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context,

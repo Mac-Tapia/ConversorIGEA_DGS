@@ -3413,7 +3413,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             fotos_antes = {rol: leer_foto(app, casos[rol]) for rol in roles_de_referencia(obras) if rol in casos}
             casos['sin'].Activate()
         if 'con' in casos and not evaluando:                     # 014:RF-31 a RF-34
-            informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos, plan.get('no_copiar_a_con') or ())   # 098:RF-48
             informe['avisos'] += informe['sin_a_con']['avisos']
         for fila in filas:
             if not fila['error'] and fila['clase'] not in CONSTRUCTORES:
