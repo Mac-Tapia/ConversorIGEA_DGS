@@ -111,6 +111,7 @@ def test_sqlite_probe_rechazo_estructurado_sin_crear_ni_modificar(tmp_path, exte
     report = probe_source(str(path))
     assert report['family'] == 'DATABASE_SQLITE'
     assert report['ok'] is False and report['reason'] and report['layers'] == []
+    assert str(path) in report['reason']
     assert path.exists() == existia
     if antes:
         assert (sha256_of(path), path.stat().st_mtime_ns) == antes
@@ -162,9 +163,10 @@ def test_sqlite_probe_cli_real_codigo_y_json(tmp_path, modulo, modo):
         sqlite3.connect(path).close()
     antes = (sha256_of(path), path.stat().st_mtime_ns) if path.exists() else None
     destino = tmp_path / 'probe.json'
-    env = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src')}
+    env = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src'),
+           'PYTHONIOENCODING': 'utf-8'}
     r = subprocess.run([sys.executable, '-B', '-m', modulo, 'probe', str(path), '--output', str(destino)],
-                       cwd=tmp_path, env=env, capture_output=True, text=True, timeout=30)
+                       cwd=tmp_path, env=env, capture_output=True, text=True, encoding='utf-8', timeout=30)
     assert r.returncode == (0 if valida else 1), r.stdout + r.stderr
     report = json.loads(r.stdout)
     assert report['ok'] is valida and json.loads(destino.read_text(encoding='utf-8')) == report
@@ -221,6 +223,163 @@ def test_sqlite_probe_informe_no_escribible_dice_error_y_conserva_fuente(tmp_pat
         main(['probe', str(path), '--output', str(tmp_path)])
     assert capsys.readouterr().out == ''
     assert (sha256_of(path), path.stat().st_mtime_ns) == antes
+
+
+def _inventario_sqlite_probe(carpeta):
+    return {'mtime_directorio': carpeta.stat().st_mtime_ns,
+            'archivos': {p.name: (sha256_of(p), p.stat().st_mtime_ns, p.stat().st_size)
+                         for p in carpeta.iterdir() if p.is_file()}}
+
+
+@pytest.mark.parametrize('pendiente', [False, True])
+def test_sqlite_probe_wal_conserva_base_auxiliares_y_directorio(tmp_path, monkeypatch, pendiente):
+    """034:RF-5: WAL checkpointed y commits aún en WAL no se inspeccionan perdiendo datos."""
+    import sqlite3
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    path = tmp_path / 'red.sqlite'
+    conn = sqlite3.connect(path)
+    try:
+        assert conn.execute('PRAGMA journal_mode=WAL').fetchone() == ('wal',)
+        conn.execute('CREATE TABLE tramos (id TEXT)')
+        conn.commit()
+        if pendiente:
+            conn.execute('CREATE TABLE solo_en_wal (id TEXT)')
+            conn.commit()
+            assert Path(str(path) + '-wal').stat().st_size > 0
+        else:
+            conn.close()
+            assert not Path(str(path) + '-wal').exists()
+        antes = _inventario_sqlite_probe(tmp_path)
+        monkeypatch.setattr(sqlite3, 'connect', lambda *a, **k: pytest.fail('WAL se rechaza antes de conectar'))
+        report = SQLiteAdapter(path=str(path)).probe(str(path))
+        assert _inventario_sqlite_probe(tmp_path) == antes
+        assert report.ok is False and report.layers == []
+        assert 'snapshot' in report.reason.lower() and str(path) in report.reason
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize('sufijo', ['-wal', '-shm', '-journal'])
+def test_sqlite_probe_auxiliar_presente_rechaza_antes_de_conectar(tmp_path, monkeypatch, sufijo):
+    """034:RF-5: un diario ajeno tampoco se recupera ni se borra para poder leer."""
+    import sqlite3
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    path = tmp_path / 'red.sqlite'
+    _sqlite_de_probe(path)
+    Path(str(path) + sufijo).write_bytes(b'auxiliar propio que debe conservarse')
+    antes = _inventario_sqlite_probe(tmp_path)
+
+    def no_conectar(*args, **kwargs):
+        pytest.fail('no se debe llamar a SQLite con auxiliares presentes')
+
+    monkeypatch.setattr(sqlite3, 'connect', no_conectar)
+    report = SQLiteAdapter(path=str(path)).probe(str(path))
+    assert report.ok is False and 'snapshot' in report.reason.lower()
+    assert _inventario_sqlite_probe(tmp_path) == antes
+
+
+def test_sqlite_probe_impide_escritor_y_reemplazo_hijos_y_libera_guardia(tmp_path, monkeypatch):
+    """034:RF-5: exclusión efectiva Windows con hijos propios, no un mutex del conversor."""
+    import sqlite3
+    import subprocess
+    import sys
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    entrada = tmp_path / 'entrada'
+    entrada.mkdir()
+    path = entrada / 'red.sqlite'
+    _sqlite_de_probe(path)
+    reemplazo = tmp_path / 'reemplazo.sqlite'
+    reemplazo.write_bytes(b'reemplazo sintetico propio')
+    codigo = '''
+import json, os, sqlite3, sys
+salida = {}
+try:
+    conn = sqlite3.connect(sys.argv[1], timeout=0)
+    try:
+        conn.execute('CREATE TABLE escritor_hijo (id INTEGER)')
+        conn.commit()
+    finally:
+        conn.close()
+    salida['escritura_bloqueada'] = False
+except (OSError, sqlite3.Error):
+    salida['escritura_bloqueada'] = True
+try:
+    os.replace(sys.argv[2], sys.argv[1])
+    salida['reemplazo_bloqueado'] = False
+except OSError:
+    salida['reemplazo_bloqueado'] = True
+print(json.dumps(salida))
+'''
+    conectar = sqlite3.connect
+    observaciones = []
+
+    def comprobar_guardia(*args, **kwargs):
+        conn = conectar(*args, **kwargs)
+        try:
+            r = subprocess.run([sys.executable, '-B', '-c', codigo, str(path), str(reemplazo)],
+                               capture_output=True, text=True, timeout=20)
+            assert r.returncode == 0, r.stderr
+            observaciones.append(json.loads(r.stdout))
+            assert observaciones[-1] == {'escritura_bloqueada': True, 'reemplazo_bloqueado': True}
+        except BaseException:
+            conn.close()
+            raise
+        return conn
+
+    monkeypatch.setattr(sqlite3, 'connect', comprobar_guardia)
+    antes = _inventario_sqlite_probe(entrada)
+    report = SQLiteAdapter(path=str(path)).probe(str(path))
+    assert report.ok and observaciones
+    assert _inventario_sqlite_probe(entrada) == antes
+    # Control positivo tras retornar: la exclusión ya no queda huérfana.
+    r = subprocess.run([sys.executable, '-B', '-c', codigo, str(path), str(reemplazo)],
+                       capture_output=True, text=True, timeout=20)
+    assert r.returncode == 0 and json.loads(r.stdout) == {
+        'escritura_bloqueada': False, 'reemplazo_bloqueado': False}
+
+
+def test_sqlite_probe_escritor_previo_se_rechaza_antes_de_conectar(tmp_path, monkeypatch):
+    """034:RF-5: no abrir ni estabilizar una base que otro proceso ya puede escribir."""
+    import sqlite3
+    import subprocess
+    import sys
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    path = tmp_path / 'red.sqlite'
+    _sqlite_de_probe(path)
+    codigo = ('import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); '
+              "print('listo',flush=True); sys.stdin.readline(); c.close()")
+    hijo = subprocess.Popen([sys.executable, '-B', '-c', codigo, str(path)],
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        assert hijo.stdout.readline().strip() == 'listo'
+        antes = _inventario_sqlite_probe(tmp_path)
+        monkeypatch.setattr(sqlite3, 'connect', lambda *a, **k: pytest.fail('no debe conectar con escritor previo'))
+        report = SQLiteAdapter(path=str(path)).probe(str(path))
+        assert report.ok is False and 'snapshot' in report.reason.lower()
+        assert _inventario_sqlite_probe(tmp_path) == antes
+    finally:
+        hijo.communicate(input='\n', timeout=20)
+    assert hijo.returncode == 0
+
+
+def test_sqlite_probe_plataforma_sin_guardia_rechaza_antes_de_conectar(tmp_path, monkeypatch):
+    """034:RF-5: otra plataforma no recibe una garantía de exclusión no verificada."""
+    import sqlite3
+    import sys
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.databases import SQLiteAdapter
+
+    path = tmp_path / 'red.sqlite'
+    _sqlite_de_probe(path)
+    antes = _inventario_sqlite_probe(tmp_path)
+    monkeypatch.setattr(sys, 'platform', 'plataforma_sin_guardia')
+    monkeypatch.setattr(sqlite3, 'connect', lambda *a, **k: pytest.fail('no debe conectar sin guarda'))
+    report = SQLiteAdapter(path=str(path)).probe(str(path))
+    assert not report.ok and 'plataforma' in report.reason and 'snapshot' in report.reason
+    assert _inventario_sqlite_probe(tmp_path) == antes
 
 
 # --------------------------------------------------------------------------- modelo

@@ -10,12 +10,43 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .base import AdapterUnavailable, LayerInfo, SourceProbe, VNRSourceAdapter
+
+
+@contextmanager
+def _fuente_sqlite_estable(path: Path):
+    """Retiene un handle que admite lectores, pero no escritores ni reemplazos."""
+    import ctypes
+    from ctypes import wintypes
+    import sys
+
+    if sys.platform != 'win32':
+        raise OSError('No hay una guarda de solo lectura verificada para esta plataforma; '
+                      'se requiere Windows o una exportación/snapshot coherente.')
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    abrir = kernel.CreateFileW
+    abrir.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                      wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    abrir.restype = wintypes.HANDLE
+    cerrar = kernel.CloseHandle
+    cerrar.argtypes = [wintypes.HANDLE]
+    cerrar.restype = wintypes.BOOL
+    exacta = path.resolve(strict=True)
+    # GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING. Sin compartir WRITE/DELETE:
+    # la cabecera comprobada no puede cambiar ni seleccionarse otro archivo después.
+    handle = abrir(str(exacta), 0x80000000, 0x00000001, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        yield exacta
+    finally:
+        if not cerrar(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 # -------------------------------------------------------------------------- SQLite
@@ -35,19 +66,32 @@ class SQLiteAdapter(VNRSourceAdapter):
             if not path.is_file():
                 return SourceProbe(family=self.family, ok=False,
                                    reason=f'No existe un archivo SQLite en {path}.')
-            # probe siempre es de lectura, incluso si otro uso del adaptador habilitó
-            # escritura. as_uri escapa #/%: no deben seleccionar otro archivo por URI.
-            with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as conn:
-                layers = [name for (name,) in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
-                    "AND name NOT GLOB 'sqlite_*' ORDER BY name"
-                ).fetchall()]
+            with _fuente_sqlite_estable(path) as exacta:
+                with exacta.open('rb') as fuente:
+                    cabecera = fuente.read(100)
+                if len(cabecera) < 100 or cabecera[:16] != b'SQLite format 3\x00':
+                    return SourceProbe(family=self.family, ok=False,
+                                       reason=f'SQLite {path} tiene una cabecera ausente o inválida.')
+                auxiliares = [Path(str(exacta) + sufijo) for sufijo in ('-wal', '-shm', '-journal')]
+                if cabecera[18:20] != b'\x01\x01' or any(p.exists() for p in auxiliares):
+                    return SourceProbe(family=self.family, ok=False, reason=(
+                        f'SQLite {path} usa WAL u otros diarios; requiere una exportación o '
+                        'snapshot coherente en modo rollback sin archivos auxiliares.'))
+                # immutable solo bajo exclusión efectiva y tras descartar WAL/diarios.
+                # mode=ro solo puede CREAR auxiliares WAL; no basta para conservar la fuente.
+                uri = exacta.as_uri() + '?mode=ro&immutable=1'
+                with closing(sqlite3.connect(uri, uri=True)) as conn:
+                    layers = [name for (name,) in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
+                        "AND name NOT GLOB 'sqlite_*' ORDER BY name"
+                    ).fetchall()]
         except (OSError, ValueError, sqlite3.Error) as exc:
             return SourceProbe(family=self.family, ok=False,
-                               reason=f'No se puede inspeccionar SQLite: {exc}')
+                               reason=f'No se puede inspeccionar SQLite {self.path or source}: {exc}. '
+                               'Se requiere una exportación o snapshot coherente sin escritor activo.')
         if not layers:
             return SourceProbe(family=self.family, ok=False,
-                               reason='SQLite no contiene tablas ni vistas de usuario.')
+                               reason=f'SQLite {path} no contiene tablas ni vistas de usuario.')
         return SourceProbe(family=self.family, ok=True, layers=layers)
 
     def _conn(self):
