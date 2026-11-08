@@ -87,6 +87,18 @@ conservan la activación para el conjunto. La corrida individual de órdenes del
 2026-11-07 entrenó y reabrió en CUDA, pero quedó RECHAZADA por calidad/cobertura;
 no acredita la campaña conjunta ni aceptación funcional del asistente.
 
+RF-4/RF-10, control web: GET `/api/asistente/aprendizaje` conserva las siete fases.
+POST `/api/asistente/aprendizaje/{clave}/cancelar` reutiliza `cancelar_ciclo`; la clave
+es SHA-256 canónico validado también en la función compartida y CLI. Escribe un
+marcador atómico solo si el ciclo está en curso; repetir conserva el primer pedido.
+La respuesta tipada distingue `solicitada` de la terminación del ciclo. El panel
+ofrece cancelar al consultar un ciclo en curso y muestra que termina su etapa,
+sin declarar cancelado el entrenamiento antes de que el coordinador lo confirme.
+El ciclo publica su diario en curso antes de ejecutar la primera etapa para que
+la consulta y la cancelación usen su identidad real. La CLI devuelve `solicitada`
+en lugar de anunciar `cancelado` al escribir el marcador.
+No inicia ciclos, no cambia modelos y no cancela procesos de otros proyectos.
+
 RF-7: los nuevos conjuntos usan esquema v2 y su identidad cubre miembros,
 instantánea, ciclo, retención y evaluación conjunta. Los v1 conservan su lectura
 y bytes, con el alcance de integridad anterior. Una familia ausente de un conjunto
@@ -104,9 +116,9 @@ para que la carga y sus metadatos de herencia usen la misma identidad. Las accio
 individuales de lenguaje/provisional/reversión y la promoción PINN se bloquean
 cuando hay conjunto activo: no pueden anunciar un cambio sobre un puntero ignorado.
 Sin conjunto configurado se conserva el comportamiento anterior, incluido el
-provisional autorizado por 085. El consumidor temporal y su contrato causal aún
-deben conectarse; no se intercambia un pronóstico multihorizonte por la reconstrucción
-histórica a un paso de 024/046.
+provisional autorizado por 085. La competición temporal compara contra el miembro
+GRU verificado y su clase; no se intercambia un pronóstico multihorizonte por la
+reconstrucción histórica a un paso de 024/046. Falta la campaña conjunta real.
 
 ### Ejecución
 

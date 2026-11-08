@@ -3,6 +3,7 @@
 import type { components } from './api/esquema';
 
 export type EstadoAprendizaje = components['schemas']['EstadoAprendizajeRespuesta'];
+export type CancelacionAprendizaje = components['schemas']['CancelacionAprendizajeRespuesta'];
 
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 

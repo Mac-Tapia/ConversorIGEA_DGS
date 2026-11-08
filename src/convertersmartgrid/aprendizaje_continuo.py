@@ -509,6 +509,9 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
     if not presupuesto.usa_gpu and any(e.uses_gpu for e in etapas):
         return cerrar('bloqueado', ['el presupuesto no admite GPU y hay etapas que la piden'])
     (carpeta / 'en_curso').write_text(str(os.getpid()), encoding='utf-8')
+    # 050:RF-4/10: publicar antes de trabajar; el operador debe poder consultar la
+    # identidad real y pedir cancelación mientras se ejecuta cualquier etapa.
+    _escribir(ruta, {**base, 'estado': 'en_curso', 'motivos': []})
     antes = _activos(registro, familias)
     inicio = reloj()
     cancelar = carpeta / 'cancelar'
@@ -554,10 +557,16 @@ def ejecutar_ciclo(raiz: Path | str, instantanea: Mapping[str, Any], etapas: Seq
 
 def cancelar_ciclo(raiz: Path | str, clave: str) -> bool:
     """050:RF-4: el operador corta el ciclo; la etapa en curso termina y no empieza la siguiente."""
+    if not isinstance(clave, str) or not _HEX.fullmatch(clave):
+        raise CicloBloqueado('Identificador de ciclo inválido: se requiere su SHA-256 canónico.')
     carpeta = Path(raiz) / 'ciclos' / clave
     if not (carpeta / 'en_curso').exists():
         return False
-    (carpeta / 'cancelar').write_text(_ahora(), encoding='utf-8')
+    marcador = carpeta / 'cancelar'
+    if not marcador.is_file():
+        with staging_publicacion(marcador) as temporal:
+            temporal.write_text(_ahora(), encoding='utf-8')
+            os.replace(temporal, marcador)
     return True
 
 
@@ -828,6 +837,7 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
             ciclo = _leer(ruta)
             if (not isinstance(ciclo, dict) or not isinstance(ciclo.get('snapshot_id'), str)
                     or not _HEX.fullmatch(ciclo['snapshot_id'])
+                    or ciclo.get('clave') != ruta.parent.name or not _HEX.fullmatch(ruta.parent.name)
                     or not isinstance(ciclo.get('estado'), str) or not ciclo['estado']):
                 raise ValueError('diario de ciclo incompleto o con formato inválido')
             etapas = ciclo.get('etapas') or []
@@ -837,6 +847,8 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
                     or not isinstance(motivos, list) or any(not isinstance(m, str) for m in motivos)
                     or not isinstance(candidatos, dict) or any(not isinstance(v, str) for v in candidatos.values())):
                 raise ValueError('etapas, motivos o candidatos del diario inválidos')
+            if (ruta.parent / 'cancelar').is_file():
+                ciclo = {**ciclo, 'cancelacion_solicitada': True}
             ciclos.append(ciclo)
         except (OSError, ValueError) as exc:
             ciclos.append({'clave': ruta.parent.name, 'estado': 'ilegible', 'motivos': [str(exc)]})

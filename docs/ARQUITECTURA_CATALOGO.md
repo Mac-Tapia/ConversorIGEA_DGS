@@ -49,7 +49,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-143 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+144 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
 | `digital-twin` | espacio | 7 |
-| `asistente` | general | 5 |
+| `asistente` | general | 6 |
 | `lote` | espacio | 4 |
 | `catalog` | espacio | 3 |
 | `inputs` | espacio | 3 |

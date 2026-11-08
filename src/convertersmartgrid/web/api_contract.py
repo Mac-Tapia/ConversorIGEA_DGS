@@ -31,6 +31,11 @@ class EstadoAprendizajeRespuesta(Respuesta):
     bloqueos: list[dict[str, JsonValue]]
 
 
+class CancelacionAprendizajeRespuesta(Respuesta):
+    solicitada: bool
+    mensaje: str
+
+
 class ProgresoRespuesta(Respuesta):
     index: int
     total: int

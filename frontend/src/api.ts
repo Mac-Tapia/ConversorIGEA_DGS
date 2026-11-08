@@ -403,6 +403,8 @@ export const api = {
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
   asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
   asistenteAprendizaje: () => request<import('./types').EstadoAprendizaje>('/api/asistente/aprendizaje'),
+  cancelarAprendizaje: (clave: string) => request<import('./types').CancelacionAprendizaje>(
+    `/api/asistente/aprendizaje/${encodeURIComponent(clave)}/cancelar`, { method: 'POST' }),
   asistenteMonitor: (id: string) => request<import('./types').MonitorAgenteEstado>(`/api/workspaces/${id}/asistente/monitor`),
   asistenteAceptacion: () => request<import('./asistenteAceptacion').EstadoAceptacionAgente>('/api/asistente/aceptacion'),
   // 027:RF-43, RF-44: el proyecto entero desde el espacio, con puntos de control.

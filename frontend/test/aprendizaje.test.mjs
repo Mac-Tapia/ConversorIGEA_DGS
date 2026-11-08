@@ -61,3 +61,28 @@ test('050:RF-8/10 la vista muestra daños de lectura y versiones sin HTML ejecut
   assert.ok(html.includes('&lt;script&gt;daño&lt;/script&gt;'));
   assert.ok(!html.includes('<script>'));
 });
+
+test('050:RF-4 cancelar usa la clave codificada y devuelve el pedido, no un entrenamiento terminado', async () => {
+  const { api } = await cargar();
+  const anterior = globalThis.fetch;
+  const pedidos = [];
+  globalThis.fetch = async (url, init) => {
+    pedidos.push({ url, init });
+    return new Response(JSON.stringify({ solicitada: true, mensaje: 'termina su etapa' }));
+  };
+  try {
+    assert.equal((await api.cancelarAprendizaje('clave /a')).solicitada, true);
+    assert.equal(pedidos[0].url, '/api/asistente/aprendizaje/clave%20%2Fa/cancelar');
+    assert.equal(pedidos[0].init.method, 'POST');
+  } finally { globalThis.fetch = anterior; }
+});
+
+test('050:RF-4/10 el pedido de cancelar conserva visible la etapa en curso', async () => {
+  const { pintar } = await cargar();
+  const html = pintar({ fases: { entrenamiento: { estado: 'en_curso', motivo: 'etapa activa' } },
+    ultimo_ciclo: { estado: 'en_curso', cancelacion_solicitada: true }, conjunto_activo: null, bloqueos: [] });
+  assert.ok(html.includes('Cancelación solicitada'));
+  assert.ok(html.includes('En curso'));
+  assert.ok(html.includes('la etapa en curso termina'));
+  assert.ok(!html.includes('Cancelado'));
+});

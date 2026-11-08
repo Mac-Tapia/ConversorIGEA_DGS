@@ -102,7 +102,7 @@
       "evidence": []
     },
     "P14": {
-      "state": "dos_trabajadores_reales_rechazados_modelos_vigentes_conservados",
+      "state": "nueve_informes_confirmados_nueva_captura_sin_reentrenar_modelos_vigentes_conservados",
       "evidence": [
         "p14_preparacion_dataset_real.json",
         "p14_preparacion_dataset_spans_real.json",
@@ -117,7 +117,9 @@
         "p14_clasificador_curriculo_preparacion.json",
         "p14_dos_niveles_catalogo_final.xml",
         "p14_clasificador_real/decision.json",
-        "p14_clasificador_real_verificacion_v2.json"
+        "p14_clasificador_real_verificacion_v2.json",
+        "revision_etiquetas_informes/confirmacion_usuario_R6_R9_20261108.json",
+        "p14_nueve_etiquetas_preparacion.json"
       ]
     },
     "P15": {
@@ -137,7 +139,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "consumidor_temporal_y_vista_fases_conectados_ciclo_integral_pendiente",
+      "state": "vista_y_cancelacion_api_cli_integradas_campana_automatica_y_navegador_pendientes",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -182,7 +184,17 @@
         "p19_estado_build.log",
         "p19_reinicio_antes.json",
         "p19_reinicio_despues.json",
-        "p19_visual_bloqueo_reintento.json"
+        "p19_visual_bloqueo_reintento.json",
+        "p19_cancelacion_front_red.log",
+        "p19_cancelacion_backend.xml",
+        "p19_cancelacion_diario_red.log",
+        "p19_cancelacion_cli_red.log",
+        "p19_cancelacion_cli_red2.log",
+        "p19_cancelacion_cli_diario_green.xml",
+        "p19_cancelacion_cierre.xml",
+        "p19_cancelacion_front_final.log",
+        "p19_cancelacion_typecheck.log",
+        "p19_cancelacion_build.log"
       ]
     },
     "P20": {

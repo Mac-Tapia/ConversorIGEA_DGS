@@ -41,6 +41,36 @@ def test_estado_aprendizaje_web_sin_ciclo_no_anuncia_entrenamiento(tmp_path,monk
     assert respuesta['content']['application/json']['schema']['$ref'].endswith('/EstadoAprendizajeRespuesta')
 
 
+def test_cancelacion_aprendizaje_web_valida_clave_y_ciclo_inexistente(tmp_path,monkeypatch):
+    """050:RF-4/8 — rechazo claro de identificador inválido; sin ciclo no se crea un pedido."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'asistente'))
+    cliente=TestClient(create_app(tmp_path/'web'))
+    r=cliente.post('/api/asistente/aprendizaje/no-es-una-huella/cancelar')
+    assert r.status_code==422 and 'ciclo' in r.json()['detail']
+    r=cliente.post('/api/asistente/aprendizaje/'+'b'*64+'/cancelar')
+    assert r.status_code==200 and r.json()['solicitada'] is False
+    assert not (tmp_path/'asistente/aprendizaje/ciclos').exists()
+
+
+def test_cancelacion_aprendizaje_web_no_declara_etapa_terminada(tmp_path,monkeypatch):
+    """050:RF-4/10 — pedir cancelar no equivale a haber parado; el diario original se conserva."""
+    import json
+    raiz=tmp_path/'asistente';monkeypatch.setenv('CSG_ASISTENTE_DATA',str(raiz))
+    clave='c'*64;p=raiz/'aprendizaje/ciclos'/clave;p.mkdir(parents=True)
+    (p/'en_curso').write_text('activo',encoding='utf-8')
+    diario=json.dumps({'clave':clave,'snapshot_id':'d'*64,'estado':'en_curso'})
+    (p/'ciclo.json').write_text(diario,encoding='utf-8')
+    cliente=TestClient(create_app(tmp_path/'web'))
+    r=cliente.post('/api/asistente/aprendizaje/'+clave+'/cancelar')
+    assert r.status_code==200 and r.json()['solicitada'] is True
+    assert 'etapa' in r.json()['mensaje'] and (p/'cancelar').is_file()
+    e=cliente.get('/api/asistente/aprendizaje').json()
+    assert e['ultimo_ciclo']['cancelacion_solicitada'] is True
+    assert e['fases']['entrenamiento']['estado']=='en_curso'
+    assert e['fases']['aceptacion_nativa']['estado']=='pendiente'
+    assert (p/'ciclo.json').read_text(encoding='utf-8')==diario
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))

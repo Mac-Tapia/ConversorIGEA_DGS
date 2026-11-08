@@ -136,7 +136,7 @@ def main(argv=None) -> int:
         elif args.accion == 'estado':
             salida = ac.estado_aprendizaje(raiz)
         elif args.accion == 'cancelar':
-            salida = {'cancelado': ac.cancelar_ciclo(raiz, args.clave)}
+            salida = {'solicitada': ac.cancelar_ciclo(raiz, args.clave)}
         else:
             salida = {'ok': True, 'conjunto': ac.revertir_conjunto(raiz)}
     except ac.CicloBloqueado as exc:

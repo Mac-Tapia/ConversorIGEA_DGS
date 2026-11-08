@@ -940,6 +940,25 @@
         "title": "CalibracionRespuesta",
         "type": "object"
       },
+      "CancelacionAprendizajeRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "solicitada": {
+            "title": "Solicitada",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "solicitada",
+          "mensaje"
+        ],
+        "title": "CancelacionAprendizajeRespuesta",
+        "type": "object"
+      },
       "CapacidadesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -6002,6 +6021,46 @@
           }
         },
         "summary": "Asistente Aprendizaje"
+      }
+    },
+    "/api/asistente/aprendizaje/{clave}/cancelar": {
+      "post": {
+        "description": "050:RF-4: pide cancelar entre etapas; no declara una etapa terminada.",
+        "operationId": "asistente_aprendizaje_cancelar_api_asistente_aprendizaje__clave__cancelar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionAprendizajeRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asistente Aprendizaje Cancelar"
       }
     },
     "/api/asistente/equipo": {

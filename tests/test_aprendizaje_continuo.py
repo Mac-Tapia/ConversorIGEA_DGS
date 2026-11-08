@@ -342,6 +342,82 @@ def test_tiempo_agotado_bloquea_sin_ok_falso(tmp_path):
     assert any('tiempo' in m for m in r['motivos'])
 
 
+@pytest.mark.parametrize('clave_ajena',['absoluta','../../ajeno','invalida'])
+def test_cancelar_ciclo_rechaza_identidad_ajena_sin_escribir(tmp_path,clave_ajena):
+    """050:RF-4/8 — una clave no puede nombrar un directorio ajeno al ciclo."""
+    ajeno=tmp_path/'ajeno';ajeno.mkdir();(ajeno/'en_curso').write_text('testigo',encoding='utf-8')
+    clave=str(ajeno) if clave_ajena=='absoluta' else clave_ajena
+    with pytest.raises(ac.CicloBloqueado,match='ciclo'):
+        ac.cancelar_ciclo(tmp_path/'ap',clave)
+    assert not (ajeno/'cancelar').exists()
+    assert (ajeno/'en_curso').read_text(encoding='utf-8')=='testigo'
+
+
+def test_cancelacion_repetida_conserva_primer_pedido(tmp_path,monkeypatch):
+    """050:RF-4 — pedir dos veces cancelar no reescribe el primer marcador."""
+    clave='a'*64;p=tmp_path/'ciclos'/clave;p.mkdir(parents=True)
+    (p/'en_curso').write_text('activo',encoding='utf-8')
+    monkeypatch.setattr(ac,'_ahora',lambda:'2026-11-08T05:00:00+00:00')
+    assert ac.cancelar_ciclo(tmp_path,clave)
+    anterior=(p/'cancelar').read_bytes()
+    monkeypatch.setattr(ac,'_ahora',lambda:'2026-11-08T06:00:00+00:00')
+    assert ac.cancelar_ciclo(tmp_path,clave)
+    assert (p/'cancelar').read_bytes()==anterior
+
+
+def test_cli_cancelar_no_declara_terminacion_del_ciclo(tmp_path):
+    """050:RF-4/10 — la CLI también distingue solicitud aceptada y ciclo terminado."""
+    import os
+    import subprocess
+    import sys
+    clave = 'a' * 64
+    carpeta = tmp_path / 'ciclos' / clave
+    carpeta.mkdir(parents=True)
+    (carpeta / 'en_curso').write_text(str(os.getpid()), encoding='utf-8')
+    proceso = subprocess.run([sys.executable, '-B', str(RAIZ / 'tools/aprendizaje_continuo.py'),
+        '--raiz', str(tmp_path), 'cancelar', '--clave', clave], capture_output=True, text=True)
+    assert proceso.returncode == 0, proceso.stderr
+    respuesta = json.loads(proceso.stdout)
+    assert respuesta.get('solicitada') is True
+    assert 'cancelado' not in respuesta
+    assert (carpeta / 'en_curso').is_file()
+
+
+def test_estado_no_muestra_ciclo_de_otro_directorio(tmp_path):
+    """050:RF-4/8/10 — un diario con otra clave no dirige un control al ciclo equivocado."""
+    p=tmp_path/'ciclos'/('a'*64);p.mkdir(parents=True)
+    (p/'ciclo.json').write_text(json.dumps({'clave':'b'*64,'snapshot_id':'c'*64,'estado':'en_curso'}),encoding='utf-8')
+    e=ac.estado_aprendizaje(tmp_path)
+    assert e['fases']['preparacion']['estado']=='bloqueado'
+    assert e['ultimo_ciclo']['estado']=='ilegible'
+
+
+@pytest.mark.parametrize('ultima_etapa', [False, True])
+def test_ciclo_visible_mientras_trabaja_y_cancelable_desde_estado(tmp_path, ultima_etapa):
+    """050:RF-4/10 — el ciclo real publica su diario antes de la etapa, también al cancelar la última."""
+    inst, reg, llamadas = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg'), []
+    cid = _candidato(reg, 'transformer')
+
+    def primera():
+        llamadas.append('transformer')
+        estado = ac.estado_aprendizaje(tmp_path / 'ap')
+        assert estado['ultimo_ciclo'] is not None, 'el ciclo real no es visible durante su etapa'
+        assert estado['ultimo_ciclo']['estado'] == 'en_curso'
+        assert estado['fases']['entrenamiento']['estado'] == 'en_curso'
+        assert ac.cancelar_ciclo(tmp_path / 'ap', estado['ultimo_ciclo']['clave'])
+        assert ac.estado_aprendizaje(tmp_path / 'ap')['ultimo_ciclo']['cancelacion_solicitada']
+        return {'status': 'PROMOVIDO', 'candidate_id': cid, 'training_completed': True}
+
+    etapas = [TrainingStage('transformer', primera, uses_gpu=False)]
+    if not ultima_etapa:
+        etapas.append(_etapa('pinn', _candidato(reg, 'pinn'), llamadas))
+    r = ac.ejecutar_ciclo(tmp_path / 'ap', inst, etapas, politica_hash=CTX, presupuesto=PRES, registro=reg)
+    assert r['estado'] == 'cancelado', r
+    assert llamadas == ['transformer']
+    assert ac.estado_aprendizaje(tmp_path / 'ap')['ultimo_ciclo']['estado'] == 'cancelado'
+    assert ac.conjunto_activo(tmp_path / 'ap') is None
+
+
 def test_cancelacion_entre_etapas(tmp_path):
     """050:RF-4: el operador cancela; la etapa siguiente no empieza y el ciclo queda cancelado."""
     inst, reg, llamadas = _instantanea(tmp_path), RegistroModelo(tmp_path / 'reg'), []

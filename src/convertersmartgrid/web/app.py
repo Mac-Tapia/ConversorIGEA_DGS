@@ -44,7 +44,8 @@ from .jobs import FINISHED, JobManager
 from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
-    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta, EstadoAprendizajeRespuesta)
+    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
+    CancelacionAprendizajeRespuesta)
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -2141,6 +2142,19 @@ def create_app(
         from ..aprendizaje_continuo import estado_aprendizaje
         from ..asistente import almacen
         return estado_aprendizaje(almacen.raiz() / 'aprendizaje')
+
+    @app.post('/api/asistente/aprendizaje/{clave}/cancelar', response_model=CancelacionAprendizajeRespuesta)
+    def asistente_aprendizaje_cancelar(clave: str) -> dict:
+        """050:RF-4: pide cancelar entre etapas; no declara una etapa terminada."""
+        from ..aprendizaje_continuo import cancelar_ciclo, CicloBloqueado
+        from ..asistente import almacen
+        try:
+            solicitada = cancelar_ciclo(almacen.raiz() / 'aprendizaje', clave)
+        except CicloBloqueado as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {'solicitada': solicitada, 'mensaje': (
+            'Cancelación solicitada: la etapa en curso termina y no empieza la siguiente.'
+            if solicitada else 'Este ciclo ya no está en curso.')}
 
     @app.get('/api/asistente/aceptacion')
     def asistente_aceptacion() -> dict:
