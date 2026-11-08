@@ -214,6 +214,10 @@ en el núcleo de producción. Instale los extras en el entorno de desarrollo
 antes de la corrida: las pruebas de PDF no quedan verificadas si se omiten
 por falta de esa dependencia.
 
+También incluye Ruff para comprobar los nombres definidos. Esa prueba ejecuta
+`python -m ruff` con el mismo intérprete que ejecuta pytest; un ejecutable Ruff
+de otro entorno no sustituye esa dependencia de desarrollo.
+
 Entradas de consola: `convertersmartgrid` (CLI) e `convertersmartgrid-web` (interfaz web). `run_gui.bat` nunca instala: si falta algo, lo dice (086:RF-39). `convertersmartgrid doctor` dice qué falta y qué función afecta. Tras actualizar el código, `pip install -e .` retira el antiguo `convertersmartgrid-gui` del entorno.
 
 ## Principio de arquitectura
