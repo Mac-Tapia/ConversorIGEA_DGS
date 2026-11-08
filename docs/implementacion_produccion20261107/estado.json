@@ -46,12 +46,17 @@
       ]
     },
     "P08": {
-      "state": "si213_importado_calibrado_cargas_y_pn107_pendientes",
+      "state": "si213_cargas_reapertura_verificadas_pn107_importado_calibrado",
       "evidence": [
         "p08_fuentes_access.json",
         "p08_corrida_estado.json",
         "p08_si213_calibracion.log",
-        "p08_si213_resumen.json"
+        "p08_si213_resumen.json",
+        "p08_si213_aceptacion_parcial.json",
+        "p08_si213_cierre_persistencia/resultado.json",
+        "p08_cargas_si213.json",
+        "p08_pn107_estado.json",
+        "p08_pn107_calibracion.log"
       ]
     },
     "P09": {
@@ -84,11 +89,14 @@
       "evidence": []
     },
     "P14": {
-      "state": "dataset_real_preparado_informes_sin_revision_humana",
+      "state": "r1_r5_confirmados_por_usuario_falta_validacion_de_informes",
       "evidence": [
         "p14_preparacion_dataset_real.json",
         "p14_preparacion_dataset_spans_real.json",
-        "revision_etiquetas_informes/REVISION_ETIQUETAS.md"
+        "revision_etiquetas_informes/REVISION_ETIQUETAS.md",
+        "revision_etiquetas_informes/confirmacion_usuario_20261107.json",
+        "p14_informes_confirmados_preparacion.json",
+        "p14_revision_humana_final.xml"
       ]
     },
     "P15": {

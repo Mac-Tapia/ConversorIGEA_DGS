@@ -173,11 +173,15 @@ def normalizar_informe(fila: dict[str, Any]) -> RegistroEntrenamiento:
     humana=valido and origen in {'confirmado','corregido'}
     quality='gold_human' if humana else ('context' if valido and origen=='generado' else 'quarantine')
     verificacion=('operator_corrected' if origen=='corregido' else 'operator_confirmed') if humana else ''
+    provenance={'fecha':fila.get('fecha'),'origen':origen}
+    for clave in ('origen_inicial','revision_humana'):
+        if fila.get(clave) is not None:
+            provenance[clave]=fila[clave]
     return _crear(group_basis={'tipo':'informe','texto':texto_canonico(str(_limpiar(texto)))},
         tipo='informe',quality=quality,tarea='clasificar_informe',texto=texto,sistema='',
         sets=(),alimentadores=(),mensajes=({'role':'user','content':texto},),datos=(),
         resultado={'tipo_informe':tipo,'subtipo':subtipo},
-        provenance={'fecha':fila.get('fecha'),'origen':origen},evidence_hashes=(),
+        provenance=provenance,evidence_hashes=(),
         license='internal',verification=verificacion,
         motivo='' if humana else ('informe generado: etiqueta de contexto' if quality=='context'
                                    else 'informe sin etiquetas válidas confirmadas/corregidas por el operador'))
@@ -426,9 +430,15 @@ def importar_normativa(raiz: Path | str) -> tuple[RegistroEntrenamiento, ...]:
 
 def auditar_registro(registro: RegistroEntrenamiento) -> list[str]:
     errores = []
-    serializado = json.dumps(registro.as_dict(), ensure_ascii=False)
-    if _RUTA_WINDOWS.search(serializado):
-        errores.append('contiene ruta local')
+    pendientes=[registro.as_dict()]
+    while pendientes:
+        valor=pendientes.pop()
+        if isinstance(valor,str) and _RUTA_WINDOWS.search(valor):
+            errores.append('contiene ruta local');break
+        if isinstance(valor,dict):
+            pendientes.extend(valor.keys());pendientes.extend(valor.values())
+        elif isinstance(valor,(list,tuple)):
+            pendientes.extend(valor)
     if registro.quality.startswith('gold_') and not registro.verification:
         errores.append('oro sin verificación')
     if registro.quality == 'gold_native' and not registro.evidence_hashes:

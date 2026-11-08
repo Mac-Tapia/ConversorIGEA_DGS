@@ -74,10 +74,15 @@ El adaptador de órdenes traduce también las anotaciones históricas
 `[inicio,fin,tipo]` a pares literales sin reinterpretar la etiqueta. Conserva una
 huella de las anotaciones originales. Un rango, tipo o valor inválido deja la
 orden en cuarentena; no se borra el dato y se presenta como ausencia de entidades.
+Una revisión humana posterior conserva origen inicial, IDs y hashes del registro
+y archivo revisados; confirmar R1–R5 no aprueba otras filas del archivo. El control
+de rutas recorre los textos estructurados antes de serializar: un encabezado con
+salto de línea no se confunde con una ruta por el escape JSON.
 El runner pasa el registro común explícitamente; `PROMOVIDO` en la decisión del
 registro acredita puertas, mientras `promovido=false` y `publicacion_pendiente`
-conservan la activación para el conjunto. Falta ejecutar el entrenamiento y su
-evaluación funcional con datos reales; las pruebas de contrato no los acreditan.
+conservan la activación para el conjunto. La corrida individual de órdenes del
+2026-11-07 entrenó y reabrió en CUDA, pero quedó RECHAZADA por calidad/cobertura;
+no acredita la campaña conjunta ni aceptación funcional del asistente.
 
 RF-7: los nuevos conjuntos usan esquema v2 y su identidad cubre miembros,
 instantánea, ciclo, retención y evaluación conjunta. Los v1 conservan su lectura

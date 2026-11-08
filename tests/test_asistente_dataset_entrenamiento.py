@@ -50,6 +50,33 @@ def test_informes_con_etiquetas_humanas_contradictorias_se_conservan_en_cuarente
     assert all(r.quality=='quarantine' and 'contradictorias' in r.motivo for r in built.registros)
 
 
+def test_revision_humana_del_informe_conserva_la_procedencia_del_maestro():
+    """043:RF-3 / 050:RF-9: confirmar etiquetas no cambia quién las propuso."""
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_informe
+    revision={'id':'R1','revisor':'usuario','confirmed':True,'source_record_sha256':'a'*64,
+              'source_file_sha256':'b'*64,'fecha':'2026-11-07T22:25:00-05:00'}
+    record=normalizar_informe({'texto':'Informe revisado','tipo':'estudio','subtipo':'refuerzo',
+        'origen':'confirmado','origen_inicial':'maestro','revision_humana':revision})
+    assert record.quality=='gold_human' and record.verification=='operator_confirmed'
+    assert record.provenance['origen_inicial']=='maestro'
+    assert record.provenance['revision_humana']==revision
+
+
+def test_auditoria_de_privacidad_no_confunde_encabezados_con_rutas(tmp_path):
+    """043:RF-3: el escape JSON de un salto tras el encabezado no es una ruta."""
+    from dataclasses import replace
+    from convertersmartgrid.asistente.dataset_entrenamiento import (
+        normalizar_informe,auditar_registro,construir_dataset)
+    row={'texto':'CONCLUSIONES:\nLa red converge.\nASUNTO:\tRefuerzo',
+         'tipo':'estudio','subtipo':'refuerzo','origen':'confirmado'}
+    record=normalizar_informe(row)
+    assert not auditar_registro(record)
+    assert 'contiene ruta local' in auditar_registro(replace(record,texto=r'D:\privado\informe.docx'))
+    root=tmp_path/'assistant';root.mkdir()
+    (root/'informes.jsonl').write_text(json.dumps(row)+'\n',encoding='utf-8')
+    assert len(construir_dataset(root,tmp_path/'twin').registros)==1
+
+
 def _episode(*, accepted=True):
     return {
         'episode_id': 'e' * 64,
