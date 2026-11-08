@@ -24,7 +24,8 @@ def require_active_source_run(ws: Workspace, *, verify_files: bool = False):
                 snapshot.mode != ws.options.get('input_mode')
                 or (snapshot.selection_token is not None
                     and (snapshot.selection_token != ws.source_selection_token()
-                         or snapshot.selection_token != ws.loaded_selection_token))):
+                         or (ws.loaded_run_id is not None
+                             and snapshot.selection_token != ws.loaded_selection_token)))):
             raise UserError('SOURCE_SELECTION_CHANGED: la modalidad o las entradas seleccionadas '
                             'no corresponden a la red cargada. Vuelva a cargar la fuente.')
     # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir

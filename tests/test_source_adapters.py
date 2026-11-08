@@ -116,6 +116,78 @@ def test_load_crea_run_antes_de_leer_y_usa_su_salida(tmp_path):
     assert Path(ws.dataset.red_path).resolve() == snapshot.files['red'].path.resolve()
 
 
+def test_reinicio_sin_dataset_pide_cargar_sin_inventar_cambio_de_seleccion(tmp_path):
+    """034:RF-20: reabrir una fuente intacta no equivale a cambiar sus entradas."""
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.requisitos import require_active_source_run
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws, _ = _txt_workspace(tmp_path)
+    services.load_dataset(ws, _ctx())
+    reopened = Workspace.load(ws.root)
+    assert reopened.dataset is None and reopened.loaded_run_id is None
+    assert reopened.loaded_selection_token is None
+    assert reopened.active_run().selection_token == reopened.source_selection_token()
+    with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH.*no está cargada'):
+        require_active_source_run(reopened)
+
+
+@pytest.mark.parametrize('change', ['mode', 'generation', 'loaded_token'])
+def test_reinicio_guardas_de_una_red_cargada_siguen_vigentes(tmp_path, change):
+    """034:RF-20: disponer del dataset no permite saltarse modo o tokens."""
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.requisitos import require_active_source_run
+
+    ws, _ = _txt_workspace(tmp_path)
+    services.load_dataset(ws, _ctx())
+    if change == 'mode':
+        ws.options['input_mode'] = 'mdb'
+    elif change == 'generation':
+        ws.source_generation += 1
+    else:
+        ws.loaded_selection_token = {**ws.loaded_selection_token, 'generation': -1}
+    with pytest.raises(services.UserError, match='SOURCE_SELECTION_CHANGED'):
+        require_active_source_run(ws)
+
+
+@pytest.mark.parametrize('change', ['mode', 'generation'])
+def test_reinicio_con_seleccion_realmente_distinta_sigue_bloqueado(tmp_path, change):
+    """034:RF-20: no tener dataset tampoco oculta una modificación de selección."""
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.requisitos import require_active_source_run
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws, _ = _txt_workspace(tmp_path)
+    services.load_dataset(ws, _ctx())
+    reopened = Workspace.load(ws.root)
+    if change == 'mode':
+        reopened.options['input_mode'] = 'mdb'
+    else:
+        reopened.source_generation += 1
+    with pytest.raises(services.UserError, match='SOURCE_SELECTION_CHANGED'):
+        require_active_source_run(reopened)
+
+
+@pytest.mark.parametrize(('field', 'value'), [('version', 2), ('fingerprint', '0' * 64)])
+def test_reinicio_con_manifiesto_invalido_nunca_habilita_una_fuente(tmp_path, field, value):
+    """034:RF-20: un manifiesto inválido conserva el rechazo sin fuente cargada."""
+    import json
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.requisitos import require_active_source_run
+    from convertersmartgrid.web.workspace import Workspace
+
+    ws, _ = _txt_workspace(tmp_path)
+    services.load_dataset(ws, _ctx())
+    manifest = ws.active_run().root / 'source_manifest.json'
+    raw = json.loads(manifest.read_text(encoding='utf-8'))
+    raw[field] = value
+    manifest.write_text(json.dumps(raw), encoding='utf-8')
+    reopened = Workspace.load(ws.root)
+    assert reopened.active_run() is None
+    with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
+        require_active_source_run(reopened)
+
+
 def test_convert_rechaza_source_run_mismatch(tmp_path):
     from convertersmartgrid.web import services
     from convertersmartgrid.web.source_runs import create_source_run
