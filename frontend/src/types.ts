@@ -2,6 +2,8 @@
 // Los contratos de las otras operaciones siguen pendientes de la tarea 002 T10.
 import type { components } from './api/esquema';
 
+export type EstadoAprendizaje = components['schemas']['EstadoAprendizajeRespuesta'];
+
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 
 export type Options = components['schemas']['OpcionesRespuesta'];

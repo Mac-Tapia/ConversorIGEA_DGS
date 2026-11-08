@@ -7,6 +7,7 @@ import { esProducto } from '../edicion';
 import { AvisoBeta } from './MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
+import { Aprendizaje } from './Aprendizaje';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -295,6 +296,7 @@ export function Asistente() {
       <MonitorAgente />
       {desarrollo && <EquipoAsistente />}
       {desarrollo && <Modelos />}
+      {desarrollo && <Aprendizaje />}
       {desarrollo && <Aceptacion />}
       <p className="muted small">
         Escriba lo que quiere hacer, por ejemplo «calibra el sistema X con julio de 2026» o «¿cómo se calibra una

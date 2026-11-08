@@ -1220,7 +1220,9 @@
       "criterion": "en DIgSILENT una carga de PN107 sale con su nodo y, según la distancia,\n      con o sin cable.",
       "original_block": "- [ ] T18. [DIgSILENT] Carga nueva de PN107 con y sin cable según la distancia a su nodo de\n      media. (RF-88)\n      Hecho cuando: en DIgSILENT una carga de PN107 sale con su nodo y, según la distancia,\n      con o sin cable.",
       "evidence": "evidencia/P08/016_T18/manifest.json",
-      "state": "pendiente_de_ejecucion"
+      "state": "verificado_nativo_controlado",
+      "execution_evidence": "D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p08_cable_controlado_aceptacion.json",
+      "execution_limit": "Dos cargas sintéticas en proyecto propio; no aceptación eléctrica, visual ni ramal monofásico."
     },
     {
       "key": "017:T13",

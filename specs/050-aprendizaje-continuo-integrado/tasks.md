@@ -31,7 +31,7 @@
       Hecho el 2026-11-03.
 - [ ] T5b. Verificar el ciclo automático completo y sus estados en la web con una segunda captura real. (RF-4, RF-8, RF-9, RF-10)
       Hecho cuando: una segunda captura real demuestra deduplicación y actualización, con evidencia sin skips de funcionamiento y rechazo de regresiones, y la web muestra las fases en el navegador.
-      Falta: T1b a T4b; la web aún no tiene ruta ni vista del estado del aprendizaje.
+      Avance 2026-11-07: GET tipado `/api/asistente/aprendizaje` y panel adicional en la consola de desarrollo con las siete fases, motivos, versiones y bloqueos. Consulta sin iniciar trabajos; datos corruptos se muestran como bloqueo y se conservan. Falta: T1b a T4b, cola automática cancelable, segunda captura real y comprobación en navegador; una prueba de representación no cierra esta tarea.
 
 ## Evidencia y límites actuales
 

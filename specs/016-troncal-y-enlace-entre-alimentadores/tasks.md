@@ -145,7 +145,16 @@ Cierre
       Hecho el 2026-10-16: en IN111 + TA225 se dibujaron el enlace (140 vértices, extremos
       en 15232 y ENLACE_C_IN111(2)), las seis mitades partidas y sus seis nodos; las cargas
       IC_9 a IC_17 están en el punto del Excel (0,0 m); «Con proyecto» converge.
-- [ ] T18. [DIgSILENT] Carga nueva de PN107 con y sin cable según la distancia a su nodo de
+- [x] T18. [DIgSILENT] Carga nueva de PN107 con y sin cable según la distancia a su nodo de
       media. (RF-88)
       Hecho cuando: en DIgSILENT una carga de PN107 sale con su nodo y, según la distancia,
       con o sin cable.
+      Verificado 2026-11-07 con dos cargas sintéticas explícitas en proyecto propio separado
+      `20261107-230805_CSG_MDB_PN107`, importado por la API de la web desde MDB real.
+      ENSAYOA_CERCA: 0,0000049 m y ninguna ElmLne de enlace; ENSAYOB_LEJOS: 1926,337 m,
+      ElmLne nativa cerrada con 1,926337 km y trazado GPS releído. Ambas convergen.
+      Repetición: cero creadas/dos reutilizadas. Tres procesos nuevos (57180/21216/10100),
+      códigos 0 sin avisos: cargas persistentes en Con proyecto, Caso base y Sin proyecto
+      idénticos por bytes a las capturas previas; termina solo con la variación base activa.
+      Evidencia: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/p08_cable_controlado_aceptacion.json`.
+      No acredita aceptación eléctrica (mínimas 0,8717 p.u.), navegador, R2 completo ni 081 T20.

@@ -44,7 +44,7 @@ from .jobs import FINISHED, JobManager
 from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
-    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
+    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta, EstadoAprendizajeRespuesta)
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -2134,6 +2134,13 @@ def create_app(
     def asistente_modelos() -> dict:
         """043:RF-8 — estados respaldados por informes y candidatos íntegros."""
         return services.asistente_estado_modelos()
+
+    @app.get('/api/asistente/aprendizaje', response_model=EstadoAprendizajeRespuesta)
+    def asistente_aprendizaje() -> dict:
+        """050:RF-10: fases observadas del ciclo común, sin iniciar entrenamientos."""
+        from ..aprendizaje_continuo import estado_aprendizaje
+        from ..asistente import almacen
+        return estado_aprendizaje(almacen.raiz() / 'aprendizaje')
 
     @app.get('/api/asistente/aceptacion')
     def asistente_aceptacion() -> dict:

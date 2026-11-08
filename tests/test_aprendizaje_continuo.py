@@ -427,6 +427,41 @@ def test_aportes_de_cada_version_en_una_propuesta():
 
 # --------------------------------------------------------------------------- T4
 
+@pytest.mark.parametrize('contenido',['{incompleto','[]','{"estado":"en_curso","clave":"a"}'])
+def test_estado_no_acredita_preparacion_con_diario_ilegible(tmp_path,contenido):
+    """050:RF-8/10 — una escritura incompleta no tumba la vista ni acredita preparación."""
+    ruta=tmp_path/'ciclos'/'corte'/'ciclo.json';ruta.parent.mkdir(parents=True)
+    ruta.write_text(contenido,encoding='utf-8')
+    e=ac.estado_aprendizaje(tmp_path)
+    assert e['ultimo_ciclo']['estado']=='ilegible'
+    assert e['fases']['preparacion']['estado']=='bloqueado'
+    assert e['fases']['aceptacion_nativa']['estado']=='pendiente'
+
+
+def test_estado_expone_bloqueos_ilegibles_y_conjunto_corrupto(tmp_path):
+    """050:RF-8/10 — se conserva el daño y se muestra; no se anuncia un conjunto activo."""
+    p=tmp_path/'conjuntos'/'activo.json';p.parent.mkdir()
+    p.write_text('{"conjunto_id":"inexistente"}',encoding='utf-8')
+    (tmp_path/'bloqueos.jsonl').write_text('{roto\n'+json.dumps({'etapa':'preflight','motivos':['sin memoria']})+'\n',encoding='utf-8')
+    e=ac.estado_aprendizaje(tmp_path)
+    assert e['conjunto_activo']['error']
+    assert e['fases']['activacion']['estado']=='bloqueado'
+    assert any('ilegible' in str(b) for b in e['bloqueos'])
+    assert e['bloqueos'][-1]['motivos']==['sin memoria']
+    assert p.read_text(encoding='utf-8')=='{"conjunto_id":"inexistente"}'
+
+
+def test_estado_no_oculta_diario_roto_al_haber_ciclo_con_fecha(tmp_path):
+    """050:RF-8/10 — una entrada sin fecha por daño no desaparece tras ordenar las legibles."""
+    for nombre,contenido in [('legible',json.dumps({'snapshot_id':'a'*64,'clave':'b'*64,
+            'inicio':'2026-11-07T12:00:00Z','estado':'en_curso'})),('ilegible','{roto')]:
+        p=tmp_path/'ciclos'/nombre/'ciclo.json';p.parent.mkdir(parents=True)
+        p.write_text(contenido,encoding='utf-8')
+    e=ac.estado_aprendizaje(tmp_path)
+    assert e['fases']['preparacion']['estado']=='bloqueado'
+    assert any('diario' in str(b) and 'ilegible' in str(b) for b in e['bloqueos'])
+
+
 def test_retencion_por_contexto():
     """050:RF-6: un contexto histórico que retrocede, o que falta, no se da por retenido."""
     metricas = {'acierto': 'alta', 'mae_v': 'baja'}

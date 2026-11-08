@@ -2269,6 +2269,75 @@
         "title": "EspacioRespuesta",
         "type": "object"
       },
+      "EstadoAprendizajeRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "bloqueos": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Bloqueos",
+            "type": "array"
+          },
+          "conjunto_activo": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjunto Activo"
+          },
+          "fases": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FaseAprendizajeRespuesta"
+            },
+            "propertyNames": {
+              "enum": [
+                "preparacion",
+                "entrenamiento",
+                "seleccion",
+                "evaluacion",
+                "publicacion",
+                "activacion",
+                "aceptacion_nativa"
+              ]
+            },
+            "title": "Fases",
+            "type": "object"
+          },
+          "ultimo_ciclo": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Ciclo"
+          }
+        },
+        "required": [
+          "fases",
+          "ultimo_ciclo",
+          "conjunto_activo",
+          "bloqueos"
+        ],
+        "title": "EstadoAprendizajeRespuesta",
+        "type": "object"
+      },
       "EstadoCopiaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -2540,6 +2609,39 @@
           "x_ohm"
         ],
         "title": "FallaIn",
+        "type": "object"
+      },
+      "FaseAprendizajeRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "versiones": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versiones"
+          }
+        },
+        "required": [
+          "estado",
+          "motivo"
+        ],
+        "title": "FaseAprendizajeRespuesta",
         "type": "object"
       },
       "FeedersIn": {
@@ -5881,6 +5983,25 @@
           }
         },
         "summary": "Asistente Aceptacion"
+      }
+    },
+    "/api/asistente/aprendizaje": {
+      "get": {
+        "description": "050:RF-10: fases observadas del ciclo común, sin iniciar entrenamientos.",
+        "operationId": "asistente_aprendizaje_api_asistente_aprendizaje_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoAprendizajeRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Asistente Aprendizaje"
       }
     },
     "/api/asistente/equipo": {

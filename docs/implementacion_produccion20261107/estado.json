@@ -59,7 +59,8 @@
         "p08_pn107_calibracion.log",
         "p08_pn107_aceptacion_parcial.json",
         "p08_pn107_cierre_persistencia/resultado.json",
-        "p08_cargas_pn107.json"
+        "p08_cargas_pn107.json",
+        "p08_cable_controlado_aceptacion.json"
       ]
     },
     "P09": {
@@ -127,7 +128,7 @@
       "evidence": []
     },
     "P19": {
-      "state": "corrida_individual_lenguaje_real_rechazada_ciclo_integral_pendiente",
+      "state": "consumidor_temporal_y_vista_fases_conectados_ciclo_integral_pendiente",
       "evidence": [
         "p19_baseline.xml",
         "p19_red.log",
@@ -163,7 +164,13 @@
         "p19_lenguaje_real_verificacion.json",
         "p19_temporal_conjunto_red2.xml",
         "p19_temporal_conjunto_final2.xml",
-        "p19_temporal_catalogo.xml"
+        "p19_temporal_catalogo.xml",
+        "p19_estado_web_red.xml",
+        "p19_estado_orden_red.log",
+        "p19_estado_cierre.xml",
+        "p19_estado_front_final.log",
+        "p19_estado_typecheck.log",
+        "p19_estado_build.log"
       ]
     },
     "P20": {

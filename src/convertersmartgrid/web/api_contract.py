@@ -10,10 +10,25 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 ModoFuente = Literal['txt', 'mdb', 'vnr']
+FaseAprendizaje = Literal['preparacion', 'entrenamiento', 'seleccion', 'evaluacion', 'publicacion',
+                          'activacion', 'aceptacion_nativa']
 
 
 class Respuesta(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+class FaseAprendizajeRespuesta(Respuesta):
+    estado: str
+    motivo: str
+    versiones: dict[str, str] | None = None
+
+
+class EstadoAprendizajeRespuesta(Respuesta):
+    fases: dict[FaseAprendizaje, FaseAprendizajeRespuesta]
+    ultimo_ciclo: dict[str, JsonValue] | None
+    conjunto_activo: dict[str, JsonValue] | None
+    bloqueos: list[dict[str, JsonValue]]
 
 
 class ProgresoRespuesta(Respuesta):

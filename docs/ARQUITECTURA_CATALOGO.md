@@ -11,8 +11,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 243 |
 | Módulo VNR-GIS | `src/vnr_etl/` | 50 |
 | Herramientas y guiones | `tools/` | 98 |
-| Interfaz | `frontend/src/` | 46 |
-| Pruebas de la interfaz | `frontend/test/` | 8 |
+| Interfaz | `frontend/src/` | 47 |
+| Pruebas de la interfaz | `frontend/test/` | 9 |
 | Pruebas | `tests/` | 392 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
@@ -23,8 +23,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 50 |
-| implementada | 31 |
+| cumplida | 51 |
+| implementada | 30 |
 | aprobada | 16 |
 | reservada | 1 |
 | retirada | 1 |
@@ -49,7 +49,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-142 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
+143 en `web/app.py`, y 13 bajo `/api/vnr` en `vnr_etl/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -59,8 +59,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
 | `digital-twin` | espacio | 7 |
+| `asistente` | general | 5 |
 | `lote` | espacio | 4 |
-| `asistente` | general | 4 |
 | `catalog` | espacio | 3 |
 | `inputs` | espacio | 3 |
 | `obras` | espacio | 3 |
@@ -758,6 +758,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/components/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
 | `src/components/GemeloPIDE.tsx` | — | 024 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
 | `src/components/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
+| `src/components/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
 | `src/components/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
 | `src/components/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |
 | `src/components/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
@@ -774,6 +775,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/buildPreservado.test.mjs` | — | 065 | Pruebas de la compilación y sus rutas, con y sin espacios. |
 | `test/clientesCatalogo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/equipoAsistente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/aprendizaje.test.mjs` | — | 050 | Contrato de consulta sin trabajos y representación de fases, rechazo, versiones y errores de lectura. |
 | `test/operacionSet.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/projectBinding.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

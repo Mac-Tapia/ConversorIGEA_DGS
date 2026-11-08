@@ -822,23 +822,50 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
     """050:RF-10: cada fase con su estado y motivo reales; nada se da por hecho sin su fichero."""
     raiz = Path(raiz)
     ciclos = []
+    errores_diario = []
     for ruta in sorted((raiz / 'ciclos').glob('*/ciclo.json')) if (raiz / 'ciclos').is_dir() else ():
         try:
-            ciclos.append(_leer(ruta))
-        except (OSError, ValueError):
-            ciclos.append({'clave': ruta.parent.name, 'estado': 'ilegible'})
+            ciclo = _leer(ruta)
+            if (not isinstance(ciclo, dict) or not isinstance(ciclo.get('snapshot_id'), str)
+                    or not _HEX.fullmatch(ciclo['snapshot_id'])
+                    or not isinstance(ciclo.get('estado'), str) or not ciclo['estado']):
+                raise ValueError('diario de ciclo incompleto o con formato inválido')
+            etapas = ciclo.get('etapas') or []
+            motivos = ciclo.get('motivos') or []
+            candidatos = ciclo.get('candidatos') or {}
+            if (not isinstance(etapas, list) or any(not isinstance(e, dict) or not isinstance(e.get('model'), str) for e in etapas)
+                    or not isinstance(motivos, list) or any(not isinstance(m, str) for m in motivos)
+                    or not isinstance(candidatos, dict) or any(not isinstance(v, str) for v in candidatos.values())):
+                raise ValueError('etapas, motivos o candidatos del diario inválidos')
+            ciclos.append(ciclo)
+        except (OSError, ValueError) as exc:
+            ciclos.append({'clave': ruta.parent.name, 'estado': 'ilegible', 'motivos': [str(exc)]})
+            errores_diario.append({'etapa': 'lectura', 'motivos': [f'diario ilegible {ruta.parent.name}: {exc}']})
     ciclos.sort(key=lambda c: str(c.get('fin') or c.get('inicio') or ''))
     ultimo = ciclos[-1] if ciclos else None
     try:
         activo = conjunto_activo(raiz)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, CicloBloqueado) as exc:
         activo = {'error': str(exc)}
-    bloqueos = []
+    bloqueos = list(errores_diario)
     if (raiz / 'bloqueos.jsonl').is_file():
-        bloqueos = [json.loads(l) for l in (raiz / 'bloqueos.jsonl').read_text(encoding='utf-8').splitlines()
-                    if l.strip()][-5:]
+        for numero, linea in enumerate((raiz / 'bloqueos.jsonl').read_text(encoding='utf-8').splitlines(), 1):
+            if not linea.strip():
+                continue
+            try:
+                fila = json.loads(linea)
+                if (not isinstance(fila, dict) or not isinstance(fila.get('motivos'), list)
+                        or any(not isinstance(m, str) for m in fila['motivos'])):
+                    raise ValueError('formato inválido')
+            except ValueError as exc:
+                fila = {'etapa': 'lectura', 'motivos': [f'bloqueo ilegible en línea {numero}: {exc}']}
+            bloqueos.append(fila)
+        bloqueos = bloqueos[-5:]
     fases = {f: {'estado': 'pendiente', 'motivo': ''} for f in FASES}
-    if ultimo:
+    if ultimo and ultimo['estado'] == 'ilegible':
+        fases['preparacion'] = {'estado': 'bloqueado', 'motivo': '; '.join(ultimo['motivos'])}
+        fases['entrenamiento'] = {'estado': 'bloqueado', 'motivo': 'diario del ciclo ilegible'}
+    elif ultimo:
         fases['preparacion'] = {'estado': 'hecho', 'motivo': f"instantánea {ultimo['snapshot_id'][:12]}"}
         etapas = ultimo.get('etapas') or []
         entrenadas = [e['model'] for e in etapas if e.get('training_completed') is True]
@@ -854,6 +881,8 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
         for f in ('evaluacion', 'publicacion', 'activacion'):
             fases[f] = {'estado': 'hecho' if hecho_aqui else 'anterior',
                         'motivo': f"conjunto {activo['conjunto_id'][:12]}", 'versiones': activo.get('miembros')}
+    elif isinstance(activo, dict) and activo.get('error'):
+        fases['activacion'] = {'estado': 'bloqueado', 'motivo': activo['error']}
     ultimo_bloqueo = bloqueos[-1] if bloqueos else None
     if ultimo_bloqueo and ultimo_bloqueo.get('etapa') == 'publicacion' and (
             ultimo is None or ultimo_bloqueo.get('ciclo') == ultimo.get('clave')):
@@ -862,4 +891,6 @@ def estado_aprendizaje(raiz: Path | str) -> dict[str, Any]:
     nativa = (activo or {}).get('aceptacion_nativa') if isinstance(activo, dict) else None
     fases['aceptacion_nativa'] = ({'estado': 'hecho', 'motivo': str(nativa)} if nativa else
                                   {'estado': 'pendiente', 'motivo': 'sin validación en DIgSILENT del conjunto'})
+    if errores_diario:
+        fases['preparacion'] = {'estado': 'bloqueado', 'motivo': 'Hay diarios ilegibles: no se acredita el último ciclo.'}
     return {'fases': fases, 'ultimo_ciclo': ultimo, 'conjunto_activo': activo, 'bloqueos': bloqueos}

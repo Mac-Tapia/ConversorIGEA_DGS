@@ -43,7 +43,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 013 Mes de análisis y transferencia entre dos alimentadores | implementada | falta T7 |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
-  | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | implementada | falta T18 |
+  | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida |  |
   | 017 Informes de estudio eléctrico y de factibilidad de suministro | implementada | falta T13, T14, T19 |
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |

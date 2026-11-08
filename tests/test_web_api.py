@@ -24,6 +24,23 @@ from convertersmartgrid.web.app import create_app  # noqa: E402
 from apoyo import esperar_trabajo  # noqa: E402
 
 
+def test_estado_aprendizaje_web_sin_ciclo_no_anuncia_entrenamiento(tmp_path,monkeypatch):
+    """050:RF-10 — API tipada de siete fases, sin crear ni anunciar un entrenamiento."""
+    from convertersmartgrid.aprendizaje_continuo import FASES
+    monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'asistente'))
+    cliente=TestClient(create_app(tmp_path/'web'))
+    r=cliente.get('/api/asistente/aprendizaje')
+    assert r.status_code==200
+    estado=r.json()
+    assert set(estado['fases'])==set(FASES)
+    assert all(f['estado']=='pendiente' for f in estado['fases'].values())
+    assert estado['ultimo_ciclo'] is None and estado['conjunto_activo'] is None
+    assert not (tmp_path/'asistente'/'aprendizaje').exists()
+    esquema=cliente.get('/openapi.json').json()
+    respuesta=esquema['paths']['/api/asistente/aprendizaje']['get']['responses']['200']
+    assert respuesta['content']['application/json']['schema']['$ref'].endswith('/EstadoAprendizajeRespuesta')
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))

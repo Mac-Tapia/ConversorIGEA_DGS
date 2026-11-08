@@ -565,6 +565,7 @@
     "src/components/OperacionSet.tsx",
     "src/components/GemeloPIDE.tsx",
     "src/components/Asistente.tsx",
+    "src/components/Aprendizaje.tsx",
     "src/components/EquipoAsistente.tsx",
     "src/components/MonitorAgente.tsx",
     "src/components/AcercaDe.tsx",
@@ -581,6 +582,7 @@
     "test/buildPreservado.test.mjs",
     "test/clientesCatalogo.test.mjs",
     "test/equipoAsistente.test.mjs",
+    "test/aprendizaje.test.mjs",
     "test/operacionSet.test.mjs",
     "test/projectBinding.test.mjs",
     "test/solicitudLeida.test.mjs"

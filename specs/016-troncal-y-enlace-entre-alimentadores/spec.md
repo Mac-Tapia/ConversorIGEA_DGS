@@ -1,6 +1,6 @@
 # Spec 016 — Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo
 
-Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 (cambiar
+Estado: cumplida (016 T18 nativa verificada 2026-11-07; no aceptación eléctrica global) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 (cambiar
 la troncal de IN111 a 120 mm² y transferir carga de IN111 a TA225)
 
 ## Contexto y objetivo
