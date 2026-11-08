@@ -1,0 +1,83 @@
+{
+  "task_id": "HARNESS-20261108",
+  "date": "2026-11-08",
+  "reason": "orden del usuario de cerrar avances verificados; docs/CONCILIACION_TAREAS_2026-11-08.md leido",
+  "source_commit": "9e609f2c31621930e9ef01b6afef327d8cbbf8f3",
+  "delivery_commit": "3de431093981ba850e29fb840a5e90085adaa503",
+  "source_hashes_reread": 15,
+  "closed_deliverables": [
+    {
+      "id": "T1_metricas",
+      "state": "CERRADO_LOCAL",
+      "evidence": "evidencia.json:42stdlib/127enfocadas/17subtests, fuente9e609f2c y entrega3de43109"
+    },
+    {
+      "id": "T2_contratos",
+      "state": "CERRADO_LOCAL",
+      "evidence": "evidencia.json:42stdlib/127enfocadas/17subtests, fuente9e609f2c y entrega3de43109"
+    },
+    {
+      "id": "T3_ejecucion",
+      "state": "CERRADO_LOCAL",
+      "evidence": "evidencia.json:42stdlib/127enfocadas/17subtests, fuente9e609f2c y entrega3de43109"
+    },
+    {
+      "id": "T4_adaptadores",
+      "state": "CERRADO_LOCAL",
+      "evidence": "evidencia.json:42stdlib/127enfocadas/17subtests, fuente9e609f2c y entrega3de43109"
+    },
+    {
+      "id": "T5_cli",
+      "state": "CERRADO_LOCAL",
+      "evidence": "evidencia.json:42stdlib/127enfocadas/17subtests, fuente9e609f2c y entrega3de43109"
+    }
+  ],
+  "delivery": {
+    "state": "CERRADA",
+    "evidence": "mensaje a Audita el proyecto para produccion entregado y observado; integrador reconoce entrega y cherry-pick existente00f9bf65/6f82933a"
+  },
+  "integration": {
+    "owner": "root cierre comercial",
+    "state": "INCORPORADA_PENDIENTE_REVALIDACION_CONJUNTA",
+    "source_cherry_pick": "00f9bf65",
+    "metadata_cherry_pick": "6f82933a",
+    "residue": "capas/inventario y consumidor operativo los mantiene el integrador; correccion I3 asignada a P21"
+  },
+  "bridge": {
+    "id": "T6",
+    "state": "PARCIAL_POR_HALLAZGO_POSTERIOR_I3",
+    "completed": "API conectada con registro/coordinador real en temporales; identidades/snapshot/recibos probados",
+    "residue": "referencia evaluada debe corresponder al detalle integro del modelo activo esperado, incluido bootstrap explicito",
+    "owner": "P21 cierre en worktree propio por cesion de root; no duplicar escrituras",
+    "closure": "aplicar/revisar su commit y revalidar combinacion"
+  },
+  "campaign": {
+    "state": "BLOQUEADA_POR_TURNO_Y_PROTOCOLO",
+    "original_criterion": "Campañas LLM/GPU/PF: FIN/turno y datos/politica validos; demostrar precision/recall con modelos reales, no contratos",
+    "owner_execution": "owner HARNESS con productores/evaluadores operativos integrados",
+    "owner_admission": "root cierre comercial",
+    "memory_preflight": {
+      "estado": "APTA_EN_ESTA_SONDA",
+      "contadores": {
+        "fisica_gib": 1.5688896179199219,
+        "commit_gib": 20.242603302001953
+      }
+    },
+    "physical_min_gib": 12,
+    "commit_min_gib": 12,
+    "budget_provenance": "campaña integral12GiB declarada por integrador en ACTIVE.md; sonda de admision, no entrenamiento",
+    "resource_turn_granted": false,
+    "gpu_training_executed": false,
+    "powerfactory_executed": false,
+    "scientific_acceptance": false,
+    "memory_is_current_blocker": false,
+    "memory_interpretation": "La sonda fue apta: Windows permite paginacion con fisica>=0.5 GiB y commit suficiente; no se atribuye bloqueo a1.57GiB fisicos"
+  },
+  "no_spec_status_changed": true,
+  "no_shared_source_changed": true,
+  "plan_steps": {
+    "closed": 28,
+    "open": 1,
+    "scope": "checklist local del harness, no las115tareas originales de main"
+  }
+}

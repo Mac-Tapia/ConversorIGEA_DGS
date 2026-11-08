@@ -105,8 +105,10 @@ Solo se crean `src/convertersmartgrid/evaluacion_harness/{__init__,metricas,cont
 
 - [x] Ejecutar batería completa propia y comprobación de whitespace/compilación sin bytecode; registrar intérprete, comando, resultado y hashes.
 - [x] Revisión independiente del diff completo, solo lectura; corregir hallazgos demostrados con prueba roja y verde.
-- [ ] Entregar diff/commit de rutas propias al integrador comercial con alcance, contratos de su revisión contrastados y pendientes de runtime. No mezclar ni subir ramas ajenas.
+- [x] Entregar diff/commit de rutas propias al integrador comercial con alcance, contratos de su revisión contrastados y pendientes de runtime. No mezclar ni subir ramas ajenas.
+      Cerrada: fuente `9e609f2c`, metadata `3de43109`, HANDOFF y recibos; el integrador confirmó recepción y los incorporó como `00f9bf65` y `6f82933a`. La integración no se confunde con su aceptación final.
 - [ ] Campañas LLM/GPU/PF: pendientes hasta FIN/turno confirmado y datos/política de campaña válidos. No declarar aumento de precision/recall con ensayos de contrato.
+      Avance: núcleo, CLI, puente, diagnóstico y admisión de memoria comprobados. La sonda `exigir_memoria_ml(12, minimo_commit_gib=12)` permite admisión en Windows por el margen comprometible; no se inventa un bloqueo de RAM física ni se ejecuta entrenamiento. Faltante: cerrar el correctivo de referencia I3 y adopción operativa, fijar configuración/datos/puertas de campaña y obtener el turno exclusivo. Responsable de ejecución HARNESS; integración y turno, root comercial; correctivo I3, P21 por cesión expresa. Recibo `2026-11-08-harness-integral-modelos-conciliacion.json`.
 
 ## Fundamento y procedencia
 
@@ -123,3 +125,4 @@ Reutiliza las fuentes verificadas del diseño: [maestría de König](https://pub
 - Ruling: conexión automática disponible como `TrainingStage` ejecutable, no modificación unilateral de los jobs/productores heredados reservados. La admisión exclusiva por slot y el turno PF siguen siendo responsabilidad de la aplicación integradora.
 - Revisión final propia y revisión provisional de producción atendidas: el formato escalar por grupo fue eliminado y los seis tests recibieron citas semánticas de spec. Ocho módulos nuevos quedan propuestos al integrador para el mapa de capas, sin modificar su pyproject reservado.
 - Verificación del corte final de fuentes: 42 unittest stdlib correctas; regresión enfocada 127 correctas y17subtests, sin skips; Ruff correcto. No suite completa, entrenamiento, promoción de modelos del usuario ni aceptación eléctrica.
+- Conciliación solicitada por el usuario: 28 pasos cerrados y una campaña pendiente por su criterio original. La entrega estaba realizada y se corrige su casilla obsoleta. Los cierres locales T1–T5 y entrega están acreditados; T6 conserva avance implementado pero queda condicionado por el Important I3 posterior que está corrigiendo P21, sin ocultarlo bajo las pruebas anteriores. No se cambian estados de las 99 specs ni se reduce artificialmente el contador115 de main.
