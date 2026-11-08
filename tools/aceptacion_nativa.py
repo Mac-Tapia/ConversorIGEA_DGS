@@ -326,11 +326,77 @@ def leer(base: dict, rol: str, esperadas: list[str], carpeta: Path, etiqueta: st
     ruta_plan.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     salida = carpeta / f'lectura_{etiqueta}_{rol}.json'
     print(f'Lectura «{rol}» ({etiqueta}) en un proceso nuevo…', flush=True)
-    rc, pid = _correr([str(LECTURA), '--plan', str(ruta_plan), '--output-json', str(salida)],
-                      carpeta / f'lectura_{etiqueta}_{rol}.log')
-    lectura = json.loads(salida.read_text(encoding='utf-8')) if salida.is_file() else {'error': f'sin lectura (código {rc})'}
+    rc = pid = None
+    try:
+        rc, pid = _correr([str(LECTURA), '--plan', str(ruta_plan), '--output-json', str(salida)],
+                          carpeta / f'lectura_{etiqueta}_{rol}.log')
+        lectura = (json.loads(salida.read_text(encoding='utf-8')) if salida.is_file()
+                   else {'error': f'sin lectura (código {rc})'})
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        # El fichero original, incluso incompleto, queda para revisar; no se fabrica una lectura nativa.
+        lectura = {'error': f'lectura no disponible: {type(exc).__name__}: {exc}'}
     print(f'  código {rc}, proceso {pid}', flush=True)
     return {'ruta': salida.name, 'rc': rc, 'pid': pid, 'lectura': lectura}
+
+
+def referencia_valida(resultado: dict, rol: str, base: dict) -> dict:
+    """044/048:RF-9: reapertura, identidad pedida y referencia física completa antes de escribir."""
+    from convertersmartgrid.estudios_pf import CASO_BASE, SIN_PROYECTO
+
+    motivos = []
+    if resultado.get('rc') != 0:
+        motivos.append(f"lectura terminó con código {resultado.get('rc')}")
+    pid = resultado.get('pid')
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        motivos.append('sin identidad del proceso de relectura')
+    datos = resultado.get('lectura')
+    if not isinstance(datos, dict):
+        motivos.append('el informe de lectura no es un objeto')
+    else:
+        try:
+            motivos += releida(datos, rol)['motivos']
+            for clave in ('project', 'folder'):
+                if datos.get(clave) != base.get(clave):
+                    motivos.append(f'{clave} no corresponde al plan')
+            if sorted(datos.get('feeders') or []) != sorted(base.get('feeders') or []):
+                motivos.append('alimentadores no corresponden al plan')
+            caso = datos.get('caso_nativo') or {}
+            nombre = {'caso_base': CASO_BASE, 'sin_proyecto': SIN_PROYECTO}[rol]
+            nombre += f" {base['anio_casos']}" if base.get('anio_casos') is not None else ''
+            if caso.get('nombre') != nombre or not str(caso.get('id') or '').startswith('IntCase:'):
+                motivos.append('identidad del caso nativo ausente o distinta de la pedida')
+            propia = comparar_lecturas(datos, datos)
+            motivos += propia['motivos']
+            flujo = datos.get('flujo') or {}
+            tensiones = (flujo.get('tensiones') or {}).get('valores') or {}
+            cabeceras = ((flujo.get('balance') or {}).get('valores') or {}).get('cabeceras') or {}
+            if any(_num(v) is None for v in (*tensiones.values(), *cabeceras.values())):
+                motivos.append('la referencia contiene tensiones o cabeceras no finitas')
+            if _num(propia.get('max_dv_pu')) is None:
+                motivos.append('la referencia no tiene tensiones finitas comparables')
+        except (AttributeError, TypeError, ValueError, KeyError) as exc:
+            motivos.append(f'informe de lectura inválido: {type(exc).__name__}: {exc}')
+    return {'ok': not motivos, 'motivos': motivos,
+            **{k: resultado.get(k) for k in ('ruta', 'rc', 'pid')}}
+
+
+def referencias_conservadas(antes: dict, despues: dict, base: dict) -> dict:
+    """048:RF-9: misma comprobación al retirar y al recalcular los veredictos de los archivos."""
+    checks = {}
+    for rol in ('caso_base', 'sin_proyecto'):
+        previa, posterior = antes.get(rol) or {}, despues.get(rol) or {}
+        check = referencia_valida(posterior, rol, base)
+        previa_valida = referencia_valida(previa, rol, base)
+        if not previa_valida['ok']:
+            check['ok'] = False
+            check['motivos'] += ['referencia anterior: ' + m for m in previa_valida['motivos']]
+        if check['ok']:
+            comparacion = comparar_lecturas(previa['lectura'], posterior['lectura'])
+            check['ok'] = comparacion['ok']
+            check['motivos'] += comparacion['motivos']
+            check['comparacion'] = comparacion
+        checks[rol] = check
+    return checks
 
 
 def _web(url: str, espacio: str):
@@ -357,6 +423,14 @@ def etapa_obras(args, carpeta: Path) -> dict:
         lecturas[f'antes/{rol}'] = leer(base_lectura, rol, [], carpeta, 'antes')
     datos = {'clase': 'condensador', 'alimentador': args.alimentador, 'casos': ['Con proyecto'],
              'barra': args.barra, 'q_kvar': args.q_kvar, 'escalones': 1}
+    referencias = {rol: referencia_valida(lecturas[f'antes/{rol}'], rol, base_lectura)
+                   for rol in ('caso_base', 'sin_proyecto')}
+    motivos = [f'{rol}: {m}' for rol, ref in referencias.items() for m in ref['motivos']]
+    preflight = {'ok': not motivos, 'motivos': motivos, 'referencias': referencias}
+    if not preflight['ok']:
+        return {'obra': datos, 'trabajo': 'abortado_preflight', 'preflight': preflight, 'retiro': None,
+                'lecturas': {k: {kk: vv for kk, vv in v.items() if kk != 'lectura'}
+                             for k, v in lecturas.items()}}
     if args.guion_local:
         # La web ejecuta los guiones de su propia copia; un arreglo de ``tools/`` sin integrar se prueba con el
         # mismo guion y el plan que firmó la web (2026-11-07: la fecha de «Con proyecto», 081:RF-78).
@@ -398,7 +472,14 @@ def etapa_obras(args, carpeta: Path) -> dict:
         retiro = {'rc': rc, 'pid': pid, 'ruta': 'obras_retirar.json', 'pedidas': [variacion],
                   'ok': rc == 0 and informe_retiro.get('retiradas') == [variacion]}
         lecturas['retirada/con_proyecto'] = leer(base_lectura, 'con_proyecto', [], carpeta, 'retirada')
-    return {'obra': {**obra, 'variacion': variacion}, 'trabajo': trabajo.get('status'), 'lecturas': {
+        for rol in ('caso_base', 'sin_proyecto'):
+            lecturas[f'retirada/{rol}'] = leer(base_lectura, rol, [], carpeta, 'retirada')
+        referencias_retiro = referencias_conservadas(
+            {r: lecturas[f'antes/{r}'] for r in ('caso_base', 'sin_proyecto')},
+            {r: lecturas[f'retirada/{r}'] for r in ('caso_base', 'sin_proyecto')}, base_lectura)
+        retiro['referencias'] = referencias_retiro
+        retiro['ok'] = retiro['ok'] and all(c['ok'] for c in referencias_retiro.values())
+    return {'obra': {**obra, 'variacion': variacion}, 'trabajo': trabajo.get('status'), 'preflight': preflight, 'lecturas': {
         k: {kk: vv for kk, vv in v.items() if kk != 'lectura'} for k, v in lecturas.items()}, 'retiro': retiro,
         'base': {k: v for k, v in cargar(carpeta, 'plan_despues_con_proyecto.json').items()
                  if k in ('periodo', 'criterio_fijas', 'anio_casos')}}
@@ -450,7 +531,10 @@ def contexto_de_aceptacion(carpeta: Path, manifiesto: dict, perfil_ruta: Path | 
 def veredictos(carpeta: Path, manifiesto: dict, perfil_ruta: Path | None = None) -> dict:
     """Los veredictos de las cuatro T4 a partir de los ficheros de la evidencia, nunca del resumen guardado."""
     out: dict[str, Any] = {}
-    if manifiesto.get('obras'):
+    if manifiesto.get('obras') and (manifiesto['obras'].get('preflight') or {}).get('ok') is False:
+        out['preflight'] = {'cerrable': False, **manifiesto['obras']['preflight']}
+    elif manifiesto.get('obras'):
+        obras = manifiesto['obras']
         c = contexto_de_aceptacion(carpeta, manifiesto, perfil_ruta)
         obra = manifiesto['obras']['obra']
         var, barra, q = obra.get('variacion'), obra.get('barra'), float(obra.get('q_kvar') or 0.0)
@@ -471,9 +555,24 @@ def veredictos(carpeta: Path, manifiesto: dict, perfil_ruta: Path | None = None)
         out['045'] = veredicto_045(despues, antes, pedidos=list(ROLES), bancos_declarados=[nuevo] if nuevo else [],
                                    tolerancia_v_pu=c['tolerancias']['tolerancia_v_pu'], variacion=var)
         retirada = lect.get('retirada/con_proyecto')
-        out['retiro'] = {'ok': bool(retirada) and not bancos_nuevos(sin_d, retirada)
+        # Recalcular desde las lecturas: el resumen del manifiesto no sustituye a los datos.
+        refs = referencias_conservadas(
+            {r: {**obras['lecturas'].get(f'antes/{r}', {}), 'lectura': lect.get(f'antes/{r}')}
+             for r in ('caso_base', 'sin_proyecto')},
+            {r: {**obras['lecturas'].get(f'retirada/{r}', {}), 'lectura': lect.get(f'retirada/{r}')}
+             for r in ('caso_base', 'sin_proyecto')}, cargar(carpeta, 'plan_antes_caso_base.json'))
+        informe_retiro = cargar(carpeta, 'obras_retirar.json') if (carpeta / 'obras_retirar.json').is_file() else {}
+        out['retiro'] = {'ok': (obras.get('retiro') or {}).get('rc') == 0
+                         and informe_retiro.get('retiradas') == [var] and all(r['ok'] for r in refs.values())
+                         and releida(retirada, 'con_proyecto')['ok'] and not bancos_nuevos(sin_d, retirada)
                          and var not in set((retirada.get('topologia') or {}).get('variaciones_activas') or ()),
-                         'informe': cargar(carpeta, 'obras_retirar.json') if (carpeta / 'obras_retirar.json').is_file() else None}
+                         'referencias': refs, 'informe': informe_retiro}
+        for rol, check in refs.items():
+            original = out['048']['checks'][f'{rol}_intacto']
+            original['post_retiro'] = check
+            original['ok'] = original['ok'] and check['ok']
+        out['048']['persiste'] = out['048']['persiste'] and all(r['ok'] for r in refs.values())
+        out['048']['cerrable'] = out['048']['cerrable'] and out['retiro']['ok']
     if manifiesto.get('protecciones'):
         out['049'] = veredicto_049(cargar(carpeta, 'protecciones_capacidades.json'),
                                    cargar(carpeta, 'protecciones_estado.json'))
@@ -518,8 +617,13 @@ def main(argv=None) -> int:
         if args.etapa == 'obras':
             manifiesto['obras'] = {**etapa_obras(args, carpeta), 'inicio': datetime.now(UTC).isoformat(timespec='seconds')}
             manifiesto['obras']['obra'].update(barra=args.barra, q_kvar=args.q_kvar)
+            preflight = manifiesto['obras'].get('preflight') or {}
+            if preflight.get('ok') is False:
+                manifiesto.setdefault('errores', []).append('obras: preflight rechazado; no se llamó al escritor: '
+                                                          + '; '.join(preflight['motivos']))
             if manifiesto['obras'].get('retiro') and not manifiesto['obras']['retiro'].get('ok'):
-                manifiesto.setdefault('errores', []).append('obras: retiro de la variación del ensayo no confirmado')
+                manifiesto.setdefault('errores', []).append(
+                    'obras: retiro de la variación o conservación de referencias tras retirar no confirmados')
         elif args.etapa == 'protecciones':
             manifiesto['protecciones'] = etapa_protecciones(args, carpeta)
     except Exception as exc:  # noqa: BLE001 - la evidencia parcial se guarda con el motivo

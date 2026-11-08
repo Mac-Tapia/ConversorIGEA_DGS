@@ -76,7 +76,12 @@ def test_ensayo_retira_solo_la_variacion_que_acaba_de_crear(guion, tmp_path, mon
 
     def leer(_base, rol, _esperadas, carpeta, etiqueta):
         (carpeta/f'plan_{etiqueta}_{rol}.json').write_text('{}', encoding='utf-8')
-        return {'ruta': f'{etiqueta}_{rol}.json', 'rc': 0, 'pid': 1, 'lectura': {}}
+        data = lectura(rol, variaciones=_esperadas)
+        data.update(project='P', feeders=[feeder])
+        data['caso_nativo']['nombre'] = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto',
+                                       'con_proyecto': 'Con proyecto', 'cargas_nuevas': 'Cargas nuevas'}[rol]
+        (carpeta/f'{etiqueta}_{rol}.json').write_text(json.dumps(data), encoding='utf-8')
+        return {'ruta': f'{etiqueta}_{rol}.json', 'rc': 0, 'pid': 1, 'lectura': data}
 
     def correr(cmd, _log):
         assert cmd[0] == str(guion.OBRAS)
@@ -95,7 +100,7 @@ def test_ensayo_retira_solo_la_variacion_que_acaba_de_crear(guion, tmp_path, mon
     monkeypatch.setattr(guion, 'leer', leer)
     monkeypatch.setattr(guion, '_correr', correr)
     args = SimpleNamespace(url='http://127.0.0.1:1', espacio='sintetico', alimentador=feeder,
-        proyecto='P', planes=tmp_path, barra='B', q_kvar=30, guion_local=True)
+        proyecto='P', planes=tmp_path, barra='B', q_kvar=300, guion_local=True)
     result = guion.etapa_obras(args, tmp_path)
     remaining = {v.loc_name for v in scheme.GetContents('*.IntScheme', 1)}
     assert (own in remaining) is no_retiro
@@ -117,6 +122,178 @@ def test_retiro_no_confirmado_conserva_evidencia_y_falla_el_arnes(guion, tmp_pat
     assert rc == 2
     assert report['obras']['retiro']['ok'] is False
     assert any('retiro' in error for error in report['errores'])
+
+
+@pytest.mark.parametrize('rol_malo', ['caso_base', 'sin_proyecto'])
+@pytest.mark.parametrize('defecto', ['rc', 'pid', 'ausente', 'json', 'lista', 'vacio', 'version',
+                                    'reapertura', 'proyecto', 'carpeta', 'alimentadores',
+                                    'caso', 'nombre_caso', 'id_caso', 'flujo', 'nan'])
+def test_preflight_fallido_no_llama_escritor_y_conserva_motivos(
+        guion, tmp_path, monkeypatch, rol_malo, defecto):
+    """044:RF-9 — una referencia no válida no autoriza crear obra, caso ni variación."""
+    import json
+    from pathlib import Path
+
+    base = {'project': 'PROYECTO-ENSAYO', 'folder': 'CARPETA-ENSAYO', 'feeders': ['ALIM-A']}
+    monkeypatch.setattr(guion, 'plan_firmado', lambda *_: dict(base))
+    monkeypatch.setattr(guion, '_web', lambda *_: object())
+    writers = []
+
+    def correr(cmd, _log):
+        if cmd[0] == str(guion.OBRAS):
+            writers.append(cmd)
+            raise AssertionError('No debe alcanzarse el escritor')
+        assert cmd[0] == str(guion.LECTURA)
+        plan = json.loads(Path(cmd[cmd.index('--plan') + 1]).read_text(encoding='utf-8'))
+        rol = plan['case']
+        data = lectura(rol)
+        data.update(base)
+        data['caso_nativo'].update(nombre={'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto'}[rol])
+        output = Path(cmd[cmd.index('--output-json') + 1])
+        rc = 0
+        if rol == rol_malo:
+            if defecto == 'ausente':
+                return 0, 123
+            if defecto == 'json':
+                output.write_text('{JSON no valido', encoding='utf-8')
+                return 0, 123
+            if defecto == 'rc': rc = 2
+            elif defecto == 'lista': data = []
+            elif defecto == 'vacio': data = {}
+            elif defecto == 'version': data['pf_version'] = None
+            elif defecto == 'reapertura': data['reopen_verified'] = False
+            elif defecto == 'proyecto': data['project'] = 'OTRO-PROYECTO'
+            elif defecto == 'carpeta': data['folder'] = 'OTRA-CARPETA'
+            elif defecto == 'alimentadores': data['feeders'] = ['OTRO-ALIM']
+            elif defecto == 'caso': data['caso_nativo']['rol'] = 'con_proyecto'
+            elif defecto == 'nombre_caso': data['caso_nativo']['nombre'] = 'Otro caso'
+            elif defecto == 'id_caso': data['caso_nativo']['id'] = ''
+            elif defecto == 'flujo': data['flujo'] = {}
+            elif defecto == 'nan': data['flujo']['tensiones']['valores']['ElmTerm:B2'] = float('nan')
+        output.write_text(json.dumps(data), encoding='utf-8')
+        return rc, None if rol == rol_malo and defecto == 'pid' else 123
+
+    monkeypatch.setattr(guion, '_correr', correr)
+    evidence = tmp_path / 'evidencia'
+    rc = guion.main(['--espacio', 'ENSAYO', '--proyecto', base['project'], '--alimentador', 'ALIM-A',
+                     '--planes', str(tmp_path), '--evidencia', str(evidence),
+                     'obras', '--barra', 'B2', '--q-kvar', '300', '--guion-local'])
+    report = json.loads((evidence / guion.MANIFIESTO).read_text(encoding='utf-8'))
+    assert writers == []
+    assert rc == 2 and report['errores']
+    preflight = report['obras']['preflight']
+    assert preflight['ok'] is False and preflight['motivos']
+    assert rol_malo in preflight['referencias']
+    assert not report['obras']['obra'].get('variacion')
+    assert not (evidence / 'plan_aplicar.json').exists()
+    assert any('preflight' in error for error in report['errores'])
+
+
+@pytest.mark.parametrize('rol_retiro', ['caso_base', 'sin_proyecto'])
+@pytest.mark.parametrize('cambio', ['intacta', 'banco', 'tension', 'caso', 'ausente'])
+def test_retiro_relee_y_contrasta_ambas_referencias(
+        guion, tmp_path, monkeypatch, rol_retiro, cambio):
+    """048:RF-9 — ni retiro exitoso ni Con intacto ocultan cambios posteriores en Base/Sin."""
+    import json
+    from pathlib import Path
+    from types import SimpleNamespace
+    base = {'project': 'PROYECTO-ENSAYO', 'folder': 'CARPETA-ENSAYO', 'feeders': ['ALIM-A']}
+    monkeypatch.setattr(guion, 'plan_firmado', lambda *_: dict(base))
+    monkeypatch.setattr(guion, '_web', lambda *_: object())
+    writers = []
+    lecturas_finales = []
+
+    def correr(cmd, _log):
+        output = Path(cmd[cmd.index('--output-json') + 1])
+        if cmd[0] == str(guion.OBRAS):
+            writers.append(cmd)
+            data = ({'retiradas': ['Obra_condensador_ALIM-A']}
+                    if '--retirar-obras' in cmd else {'obras': [{'variacion': 'Obra_condensador_ALIM-A'}]})
+        else:
+            plan = json.loads(Path(cmd[cmd.index('--plan') + 1]).read_text(encoding='utf-8'))
+            rol = plan['case']
+            data = lectura(rol, bancos=[('BC_PREVIO', 0.3)],
+                           variaciones=plan.get('variaciones_esperadas') or [])
+            data.update(base)
+            data['caso_nativo']['nombre'] = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto',
+                                           'con_proyecto': 'Con proyecto', 'cargas_nuevas': 'Cargas nuevas'}[rol]
+            if output.name.startswith('lectura_retirada_'):
+                lecturas_finales.append(rol)
+                if rol == rol_retiro:
+                    if cambio == 'ausente': return 0, 123
+                    if cambio == 'banco': data['topologia']['grafo']['bancos'][0]['q_mvar'] = 0.45
+                    elif cambio == 'tension': data['flujo']['tensiones']['valores']['ElmTerm:B2'] = 0.8
+                    elif cambio == 'caso': data['caso_nativo']['rol'] = 'con_proyecto'
+        output.write_text(json.dumps(data), encoding='utf-8')
+        return 0, 123
+
+    monkeypatch.setattr(guion, '_correr', correr)
+    args = SimpleNamespace(url='http://127.0.0.1:1', espacio='ENSAYO', proyecto=base['project'],
+                           alimentador='ALIM-A', planes=tmp_path, barra='B2', q_kvar=300, guion_local=True)
+    r = guion.etapa_obras(args, tmp_path)
+    assert len(writers) == 2  # Únicamente aplicar y retirar la variación propia.
+    assert {'caso_base', 'sin_proyecto'} <= set(lecturas_finales)
+    assert r['retiro']['ok'] is (cambio == 'intacta')
+    for rol in ('caso_base', 'sin_proyecto'):
+        check = r['retiro']['referencias'][rol]
+        assert check['ok'] is (cambio == 'intacta' or rol != rol_retiro)
+        if not check['ok']:
+            assert check['motivos']
+
+
+def test_preflight_rechazado_no_inventa_veredictos_y_conserva_049(guion, tmp_path):
+    """044/049:RF-9 — el fallo de obras no fabrica44/45/48 ni oculta otro bloqueo leído."""
+    import json
+    (tmp_path / 'protecciones_capacidades.json').write_text(
+        json.dumps({'informe': {'version': '24.0.2'}}), encoding='utf-8')
+    (tmp_path / 'protecciones_estado.json').write_text(
+        json.dumps({'disponibilidad': {'disponible': False, 'faltan': ['fichas']}}), encoding='utf-8')
+    preflight = {'ok': False, 'motivos': ['caso_base: lectura ausente'], 'referencias': {}}
+    v = guion.veredictos(tmp_path, {'obras': {'preflight': preflight}, 'protecciones': {'trabajo': 'done'}})
+    assert v['preflight']['cerrable'] is False
+    assert not {'044', '045', '048'} & set(v)
+    assert v['049']['cerrable'] is False and v['049']['bloqueo'] == ['fichas']
+
+
+@pytest.mark.parametrize('mutada', [False, True])
+def test_veredictos_recalculan_conservacion_sin_confiar_en_resumen(guion, tmp_path, monkeypatch, mutada):
+    """048:RF-9 — un resumen guardado «ok» no puede ocultar el banco cambiado tras retirar."""
+    import json
+    from copy import deepcopy
+    base = {'project': 'P', 'folder': 'CARPETA', 'feeders': ['F1']}
+    lecturas = {}
+    metadata = {}
+    for etapa, roles in [('antes', ('caso_base', 'sin_proyecto')),
+                         ('despues', guion.ROLES), ('retirada', ('caso_base', 'sin_proyecto', 'con_proyecto'))]:
+        for rol in roles:
+            d = lectura(rol, bancos=[('BC_PREVIO', 0.3)])
+            d.update(base)
+            d['caso_nativo']['nombre'] = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto',
+                                        'con_proyecto': 'Con proyecto', 'cargas_nuevas': 'Cargas nuevas'}[rol]
+            lecturas[f'{etapa}/{rol}'] = d
+            metadata[f'{etapa}/{rol}'] = {'ruta': f'{etapa}_{rol}.json', 'pid': 123, 'rc': 0}
+    if mutada:
+        lecturas['retirada/caso_base']['topologia']['grafo']['bancos'][0]['q_mvar'] = 0.45
+    for label, d in lecturas.items():
+        (tmp_path / metadata[label]['ruta']).write_text(json.dumps(d), encoding='utf-8')
+    (tmp_path / 'plan_antes_caso_base.json').write_text(json.dumps(base), encoding='utf-8')
+    (tmp_path / 'obras_retirar.json').write_text(json.dumps({'retiradas': ['V']}), encoding='utf-8')
+    (tmp_path / 'obras_aplicar.json').write_text(json.dumps({'result': {'informe': {}}}), encoding='utf-8')
+    contexto = {'lecturas': lecturas, 'con': lecturas['despues/con_proyecto'], 'base': {},
+                'limites': None, 'tolerancias': {'tolerancia_v_pu': .01, 'tolerancia_perdidas': .1}}
+    monkeypatch.setattr(guion, 'contexto_de_aceptacion', lambda *_: contexto)
+    # Solo se aísla el cálculo eléctrico ajeno a esta prueba del agregador.
+    monkeypatch.setattr(guion, 'veredicto_044', lambda *a, **k: {'juicio': {'clase': 'accepted'}})
+    check = {r + '_intacto': {'ok': True, 'motivos': []} for r in ('caso_base', 'sin_proyecto')}
+    monkeypatch.setattr(guion, 'veredicto_048', lambda *a, **k: {
+        'checks': deepcopy(check), 'persiste': True, 'admisible': True, 'cerrable': True})
+    monkeypatch.setattr(guion, 'veredicto_045', lambda *a, **k: {})
+    manifiesto = {'obras': {'obra': {'variacion': 'V', 'barra': 'B2', 'q_kvar': 300},
+                            'lecturas': metadata, 'retiro': {'ok': True, 'rc': 0}}}
+    v = guion.veredictos(tmp_path, manifiesto)
+    assert v['retiro']['ok'] is (not mutada)
+    assert v['048']['checks']['caso_base_intacto']['ok'] is (not mutada)
+    assert v['048']['persiste'] is v['048']['cerrable'] is (not mutada)
 
 
 def test_top_k_nativo_reabre_y_relee():
