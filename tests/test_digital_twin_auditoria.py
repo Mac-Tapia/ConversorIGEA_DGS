@@ -96,11 +96,13 @@ def test_una_sola_red_y_pocas_ordenes_reales_se_avisan():
     g['ramas'].append({'id': 'S1', 'desde': 'N0', 'hasta': 'N7', 'r_ohm': 0.1, 'x_ohm': 0.1})
     cerrada = muestra(g, {f'N{i}': 1.0 for i in range(8)})
     assert au.auditar_muestras([abierta, cerrada], ['a', 'b'])['redes'] == 1
-    ordenes = au.auditar_ordenes(reales=1, sinteticas=4054, prueba_real=0, parametros=567_088)
+    from convertersmartgrid.asistente.calidad_datos import auditar_ordenes
+
+    ordenes = auditar_ordenes(reales=1, sinteticas=4054, prueba_real=0, parametros=567_088)
     assert any('200' in a for a in ordenes['avisos'])
     assert not ordenes['puertas_con_reales']
-    assert au.auditar_ordenes(reales=250, sinteticas=4000, prueba_real=50,
-                              parametros=567_088)['puertas_con_reales']
+    assert auditar_ordenes(reales=250, sinteticas=4000, prueba_real=50,
+                           parametros=567_088)['puertas_con_reales']
 
 
 def test_entrenar_no_arranca_con_un_dataset_no_apto(monkeypatch, tmp_path):

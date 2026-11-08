@@ -9,6 +9,7 @@ import pytest
 from apoyo import cargar_herramienta
 
 from convertersmartgrid import escaneo as esc
+from convertersmartgrid.validate import tramos_del_dgs
 
 SEMILLA = random.randrange(1 << 30)
 
@@ -224,9 +225,9 @@ def test_tramos_nuevos_frente_al_dgs(guion, tmp_path):
                    '$$ElmLne;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p)\n'
                    '  10;C;F1_L1;4\n  11;C;F1_L2;4\n  12;C;F1_L3;4\n$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40)\n'
                    '  20;C;F1_L4;4\n', encoding='cp1252')
-    assert esc.tramos_del_dgs(dgs) == {'F1_L1', 'F1_L2', 'F1_L3'}
+    assert tramos_del_dgs(dgs) == {'F1_L1', 'F1_L2', 'F1_L3'}
     app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
-    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'], 'tramos_dgs': sorted(esc.tramos_del_dgs(dgs))})
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'], 'tramos_dgs': sorted(tramos_del_dgs(dgs))})
     assert rc == 0
     [nuevo] = informe['alimentadores']['F1']['tramos_nuevos']
     assert nuevo['tramo'] == 'F1_L4' and nuevo['desde'] == 'F1_B3' and nuevo['hasta'] == 'F1_B4'

@@ -38,6 +38,9 @@ from .contratos_fisicos import VERSION_GRAFO, Z_ACOPLADOR_PU, validar_alcance_fi
 from .episode import Clase, Episodio
 from .escenarios import Escenario, familia, particion, reparto_del_sistema
 from ..runtime_paths import raiz_programa
+# La GPU del gemelo y del asistente es una sola regla, en el coordinador de entrenamientos: el
+# asistente (aplicación) la pedía importando este adaptador (002:RF-2). Aquí siguen sus nombres.
+from ..training_coordinator import SinGPU, dispositivo
 
 #: Potencia base del sistema por unidad (MVA).
 S_BASE = 10.0
@@ -392,23 +395,6 @@ def _torch():
     return torch
 
 
-class SinGPU(RuntimeError):
-    """No hay GPU CUDA: el gemelo no entrena ni predice en la CPU."""
-
-
-#: cuBLAS solo es determinista con este espacio de trabajo, fijado antes de usar la GPU (027:RF-9).
-os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
-
-
-def dispositivo():
-    """La GPU CUDA, siempre (usuario, 2026-10-22: «sí o sí debe conectar a GPU para no usar
-    el CPU»). Sin ella, un error que lo dice; nunca la CPU en silencio."""
-    torch = _torch()
-    if not torch.cuda.is_available():
-        raise SinGPU('No hay GPU CUDA para el gemelo digital: instale PyTorch con CUDA '
-                     '(pip install torch --index-url https://download.pytorch.org/whl/cu126) '
-                     'y compruebe el controlador de la tarjeta.')
-    return torch.device('cuda')
 
 
 def _parametros(cfg: Entrenamiento) -> int:

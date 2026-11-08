@@ -65,7 +65,7 @@ def modulo_torch():
 
 
 def dispositivo_de_calculo():
-    from ..digital_twin.oraculo import dispositivo
+    from ..training_coordinator import dispositivo
 
     return dispositivo()
 
@@ -417,7 +417,7 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     datos, quitados = sin_textos_de_prueba(datos, prueba)
     log(f'Asistente: {len(datos)} ejemplos ({len(reales)} reales), prueba fija de {len(prueba)}')
     # 027:RF-29, RF-33, RF-34: el dataset se audita antes y el informe va al registro.
-    from ..digital_twin.auditoria import auditar_ordenes
+    from .calidad_datos import auditar_ordenes
 
     auditoria = auditar_ordenes(reales=len(reales), sinteticas=len(datos) - 5 * len(reales),
                                 prueba_real=len(prueba_real))

@@ -28,7 +28,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from convertersmartgrid.asistente import almacen
     from convertersmartgrid.digital_twin import oraculo
-    from convertersmartgrid.digital_twin.auditoria import auditar_muestras, auditar_ordenes
+    from convertersmartgrid.asistente.calidad_datos import auditar_ordenes
+    from convertersmartgrid.digital_twin.auditoria import auditar_muestras
     from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta, raiz_buffer
 
     bufer = BuferEpisodios(args.raiz or raiz_buffer())

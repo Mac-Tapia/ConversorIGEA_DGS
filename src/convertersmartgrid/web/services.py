@@ -6198,7 +6198,7 @@ def _dgs_aceptados(ws: Workspace, project: str) -> list[Path]:
 def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
     """Los tramos del DGS con que se aceptó el proyecto (028:RF-17). Sin vínculo o sin el fichero, ninguno (no se dice
     «nuevo»)."""
-    from ..escaneo import tramos_del_dgs
+    from ..validate import tramos_del_dgs
 
     return {t for ruta in _dgs_aceptados(ws, project) for t in tramos_del_dgs(ruta)}
 
@@ -6300,7 +6300,7 @@ def _red_de_la_fuente_del_plan(ws: Workspace, project: str) -> dict[str, Any]:
     aceptación del 2026-11-05)."""
     from ..carpeta_pf import SELLO
     from ..dgs import DGS_ENCODING
-    from ..escaneo import tramos_del_dgs
+    from ..validate import tramos_del_dgs
     from ..transferencia_operador import maniobras_abiertas_del_dgs
 
     rutas = _dgs_aceptados(ws, project)

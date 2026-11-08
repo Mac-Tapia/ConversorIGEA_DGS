@@ -868,3 +868,26 @@ def write_validation_reports(report: dict, json_path: Path | str, txt_path: Path
     lines.append(f"WARNINGS: {len(report.get('warnings', []))}")
     lines.extend(f'  - {x}' for x in report.get('warnings', []))
     txt_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
+def tramos_del_dgs(ruta: Path | str) -> set[str]:
+    """Los ``loc_name`` de los tramos (``ElmLne``) de un DGS: los que venían en el aceptado, para
+    saber cuáles son nuevos (028:RF-17).
+
+    Es una lectura del DGS y vive con su lector; antes estaba en ``escaneo``, que son reglas sin
+    E/S, y le obligaba a importar el escritor DGS (002:RF-2).
+    """
+    from .dgs import DGS_ENCODING
+
+    nombres: set[str] = set()
+    dentro = False
+    with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
+        for linea in f:
+            if linea.startswith('$$'):
+                dentro = linea.startswith('$$ElmLne;')
+                continue
+            if dentro and linea.strip() and not linea.startswith('*'):
+                campos = linea.strip().split(';')
+                if len(campos) > 2:
+                    nombres.add(campos[2])
+    return nombres
