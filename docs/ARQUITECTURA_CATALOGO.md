@@ -17,7 +17,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 295 |
 
-`web/services.py` tiene 12791 líneas y 384 funciones, pendiente de partir (002).
+`web/services.py` tiene 12792 líneas y 384 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -36,12 +36,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 125 |
-| aplicacion | Apl | 103 |
-| dominio | Dom | 39 |
+| aplicacion | Apl | 102 |
+| dominio | Dom | 40 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-303 módulos y 26 excepciones en la deuda de `tools/arquitectura.py`.
+303 módulos y 24 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -287,7 +287,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `batch.py` | Apl | 034, 001, 022, 065 | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo |
 | `combine.py` | Apl | 034, 022 | Une todos los alimentadores en una sola red. |
 | `enlaces.py` | Apl | 022 | Puntos de enlace de la red unida con sus SET y caminos cerrados (entre SET, entre alimentadores, anillos): abre la maniobra más lejana de su fuente… |
-| `estructura.py` | Apl | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
+| `estructura.py` | Dom | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
 | `oraculo.py` | Ada | 034, 022, 057, 082 | Flujo independiente con pandapower antes de escribir el DGS. |
 | `resolver_convergencia.py` | Dom | 081 | Si el «Caso base» no converge: su causa, corregir lo reconstruible, volver a medir, y decir lo que queda con su elemento y qué hacer. |
 | `preflight_contract.py` | Apl | 065 | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. |

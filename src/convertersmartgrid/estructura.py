@@ -200,13 +200,13 @@ def estructura_de_dict(datos: Mapping[str, Any], origen: str = 'estructura') -> 
             if not st.get('alimentadores'):
                 filas.append({'zonal': zonal, 'set': st.get('codigo'), 'set_nombre': st.get('nombre'),
                               'siglas': st.get('siglas') or [], 'alimentador': None, 'sistema': None})
-    e = _construir(filas, sistemas, origen)
+    e = construir(filas, sistemas, origen)
     e.zonales_por_set = {str(z.get('nombre') or '').strip() for z in datos['zonales']
                          if isinstance(z, Mapping) and z.get('dividir_por_set') is True}
     return e
 
 
-def _construir(filas: Iterable[Mapping[str, Any]], sistemas: dict[str, Sistema],
+def construir(filas: Iterable[Mapping[str, Any]], sistemas: dict[str, Sistema],
                origen: str) -> Estructura:
     zonales: list[str] = []
     sets: dict[str, SetElectrica] = {}
@@ -275,57 +275,6 @@ def _con_clientes_de_alta(estructura: Estructura, datos: Mapping[str, Any]) -> E
         if previa is not None:
             estructura.sets[codigo] = replace(previa, clientes_alta=tuple(nombres))
     return estructura
-
-
-#: Columnas de la tabla en Excel (022:RF-4), por su nombre normalizado y con alias.
-ALIAS_TABLA = {
-    'zonal': ('zonal', 'zona'),
-    'set': ('codigo set', 'set', 'cod set'),
-    'set_nombre': ('nombre set', 'set nombre'),
-    'siglas': ('siglas',),
-    'sistema': ('codigo sist elect', 'codigo sistema electrico', 'codigo sistema', 'sistema'),
-    'sistema_nombre': ('nombre sist elect', 'nombre sistema electrico', 'nombre sistema'),
-    'sector': ('aplicacion final 2023 2026', 'sector tipico', 'sector'),
-    'norma': ('norma',),
-    'alimentador': ('codigo vnr alimentador', 'alimentador', 'codigo alimentador'),
-}
-
-
-def leer_tabla_excel(ruta: Path | str) -> Estructura:
-    """La tabla de la estructura en Excel, como la publica la empresa (022:RF-4, RF-5).
-
-    Una fila por alimentador; la SET puede venir con su nombre («SET 21 EL CARMEN») o en
-    columnas aparte, y el zonal en todas sus filas.
-    """
-    from .demanda_medida import ALIAS, abrir_libro, buscar_cabecera, filas_de_hoja, texto_de_celda, normalizar
-
-    alias = {**ALIAS, **{k: tuple(normalizar(x) for x in v) for k, v in ALIAS_TABLA.items()}}
-    libro = abrir_libro(ruta)
-    for hoja in libro.sheet_names:
-        filas = filas_de_hoja(libro, hoja)
-        hallada = buscar_cabecera(filas, tuple(ALIAS_TABLA), alias, ('zonal', 'set', 'alimentador'))
-        if hallada is None:
-            continue
-        i, cols = hallada
-        datos = []
-        for n, fila in enumerate(filas[i + 1:], start=i + 2):
-            f = {k: texto_de_celda(fila, cols.get(k)) for k in ALIAS_TABLA}
-            if not any(f.values()):
-                continue
-            set_, nombre = _partir_set(f['set'], f['set_nombre'])
-            datos.append({**f, 'fila': n, 'set': set_, 'set_nombre': nombre,
-                          'siglas': [s for s in f['siglas'].replace(';', ',').split(',')]})
-        return _construir(datos, {}, f'{Path(ruta).name} › {hoja}')
-    raise EstructuraError(f'{Path(ruta).name}: ninguna hoja tiene «Zonal», «Código SET» y '
-                          '«Alimentador».')
-
-
-def _partir_set(codigo: str, nombre: str) -> tuple[str, str]:
-    """«SET 21 EL CARMEN» → («SET 21», «EL CARMEN»); con el nombre aparte, tal cual."""
-    partes = codigo.split()
-    if not nombre and len(partes) > 2 and partes[0].upper() == 'SET':
-        return ' '.join(partes[:2]), ' '.join(partes[2:])
-    return codigo, nombre
 
 
 # =========================================================================== nuevos

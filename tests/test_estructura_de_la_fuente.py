@@ -83,7 +83,7 @@ def test_sin_excel_ni_perfil_que_cubra_manda_la_fuente(monkeypatch):
 def test_el_excel_gana_a_todo(monkeypatch, tmp_path):
     """055:RF-2 — lo que sube el operador manda."""
     _perfil(monkeypatch, None)
-    monkeypatch.setattr('convertersmartgrid.estructura.leer_tabla_excel', lambda ruta: _tabla())
+    monkeypatch.setattr('convertersmartgrid.demanda_medida.leer_tabla_excel', lambda ruta: _tabla())
     assert services._estructura_y_origen(_espacio(excel=str(tmp_path / 'x.xlsx')))[1] == 'excel'
 
 

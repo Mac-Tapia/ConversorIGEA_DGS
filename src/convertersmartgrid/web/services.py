@@ -2511,7 +2511,8 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
         meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
         if tipo == 'estructura':
             # 022:RF-5: una tabla mal formada se rechaza al subirla, nombrando la fila.
-            from ..estructura import EstructuraError, leer_tabla_excel
+            from ..demanda_medida import leer_tabla_excel
+            from ..estructura import EstructuraError
             try:
                 e = leer_tabla_excel(path)
             except (EstructuraError, OSError, ValueError) as exc:
@@ -2962,8 +2963,8 @@ def _estructura_y_origen(ws: Workspace) -> tuple[Any, str | None]:
         clave,
         completar,
         estructura_de_la_fuente,
-        leer_tabla_excel,
     )
+    from ..demanda_medida import leer_tabla_excel
     from ..perfil_empresa import PerfilError, estructura_empresa
 
     ruta = ((ws.demanda or {}).get('estructura') or {}).get('path')

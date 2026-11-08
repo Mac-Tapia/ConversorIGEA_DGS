@@ -36,6 +36,7 @@ from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
 from .libros_por_anio import EXTENSIONES, DemandaError
 from .dominio.numeros_medidos import clave_codigo, numero
+from .estructura import Estructura, EstructuraError, construir
 
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
 FILAS_DATOS_MINIMAS = 2      # una hoja de medición con menos no es un medidor
@@ -2772,3 +2773,56 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
             if r.fecha and not r.error and r.fecha != comun['fecha'].isoformat(sep=' '):
                 instantes[duenio(r.alimentador).upper()] = datetime.fromisoformat(r.fecha)
     return res, info, avisos, de_barra, instantes
+
+
+# =========================================================================== estructura en Excel
+# La tabla de la estructura (zonal → SET → alimentadores) que publica la empresa en Excel
+# (spec 022). Se lee aquí, con los mismos lectores de libros que la medición, y no en
+# ``estructura``: la estructura es dominio y no importa lectores de ficheros (002:RF-1, RF-2).
+#: Columnas de la tabla en Excel (022:RF-4), por su nombre normalizado y con alias.
+ALIAS_TABLA = {
+    'zonal': ('zonal', 'zona'),
+    'set': ('codigo set', 'set', 'cod set'),
+    'set_nombre': ('nombre set', 'set nombre'),
+    'siglas': ('siglas',),
+    'sistema': ('codigo sist elect', 'codigo sistema electrico', 'codigo sistema', 'sistema'),
+    'sistema_nombre': ('nombre sist elect', 'nombre sistema electrico', 'nombre sistema'),
+    'sector': ('aplicacion final 2023 2026', 'sector tipico', 'sector'),
+    'norma': ('norma',),
+    'alimentador': ('codigo vnr alimentador', 'alimentador', 'codigo alimentador'),
+}
+
+
+def leer_tabla_excel(ruta: Path | str) -> Estructura:
+    """La tabla de la estructura en Excel, como la publica la empresa (022:RF-4, RF-5).
+
+    Una fila por alimentador; la SET puede venir con su nombre («SET 21 EL CARMEN») o en
+    columnas aparte, y el zonal en todas sus filas.
+    """
+    alias = {**ALIAS, **{k: tuple(normalizar(x) for x in v) for k, v in ALIAS_TABLA.items()}}
+    libro = abrir_libro(ruta)
+    for hoja in libro.sheet_names:
+        filas = filas_de_hoja(libro, hoja)
+        hallada = buscar_cabecera(filas, tuple(ALIAS_TABLA), alias, ('zonal', 'set', 'alimentador'))
+        if hallada is None:
+            continue
+        i, cols = hallada
+        datos = []
+        for n, fila in enumerate(filas[i + 1:], start=i + 2):
+            f = {k: texto_de_celda(fila, cols.get(k)) for k in ALIAS_TABLA}
+            if not any(f.values()):
+                continue
+            set_, nombre = _partir_set(f['set'], f['set_nombre'])
+            datos.append({**f, 'fila': n, 'set': set_, 'set_nombre': nombre,
+                          'siglas': [s for s in f['siglas'].replace(';', ',').split(',')]})
+        return construir(datos, {}, f'{Path(ruta).name} › {hoja}')
+    raise EstructuraError(f'{Path(ruta).name}: ninguna hoja tiene «Zonal», «Código SET» y '
+                          '«Alimentador».')
+
+
+def _partir_set(codigo: str, nombre: str) -> tuple[str, str]:
+    """«SET 21 EL CARMEN» → («SET 21», «EL CARMEN»); con el nombre aparte, tal cual."""
+    partes = codigo.split()
+    if not nombre and len(partes) > 2 and partes[0].upper() == 'SET':
+        return ' '.join(partes[:2]), ' '.join(partes[2:])
+    return codigo, nombre
