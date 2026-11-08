@@ -1,6 +1,6 @@
 # Spec 005 — Carpeta de proyectos importados en DIgSILENT
 
-Estado: implementada (2026-11-07, revalidación RF-23/T15 pendiente) · cumplida previa (2026-11-05, T12 en DIgSILENT) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
+Estado: cumplida (2026-11-07, RF-23/T15 releída en DIgSILENT; T12 verificada el 2026-11-05) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
 
 ## Contexto y objetivo
 

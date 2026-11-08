@@ -64,7 +64,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
 - [x] T14. Al importar, se eliminan las versiones anteriores del mismo proyecto. (RF-22)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
-- [ ] T15. [DIgSILENT] Verificar identidad por ruta y restitución durante la relectura. (RF-23)
+- [x] T15. [DIgSILENT] Verificar identidad por ruta y restitución durante la relectura. (RF-23)
       Hecho cuando: regresiones de `tests/test_carpeta_pf.py` y
       `tests/test_powerfactory_binding.py` en verde, y la relectura nativa de
       CA101/PE104 produce huella sin aviso y permite continuar el plan de calibración.
+      Verificado el 2026-11-07 en `9042ec98`, espacio de prueba `dd45e057a0c04430`:
+      relectura `f81b7d6770c7` sin aviso, huella idéntica a la importación;
+      plan y aplicación `17a7799780e6` terminan `done`, CA101 −0,02 % y PE104 −0,39 %,
+      ambos VALIDO con avisos de reactiva conservados. Regresiones 138/138 y trazabilidad
+      22/22. Evidencia externa de implementación: `p07_relectura_resultado.json`,
+      `p07_calibracion_resultado.json`, `p07_binding_green.xml` y `p07_continuacion.log`.
+      Esto cierra la relectura; no acredita las obras/transferencias ni aceptación eléctrica de R1.
