@@ -110,6 +110,85 @@ def test_pronostico_del_ciclo_registra_sin_publicar_individual(tmp_path):
     assert reg.ultimo('pronostico_cabecera')['candidate_id'] == r['candidate_id']
 
 
+def _publicar_temporal(registro, candidato, familia='gru'):
+    from convertersmartgrid import aprendizaje_continuo as ac
+    r=ac.publicar_conjunto(registro.raiz.parent/'aprendizaje',registro,
+        {'estado':'terminado','clave':'a'*64,'snapshot_id':'b'*64,'candidatos':{familia:candidato}},
+        retencion={familia:{'retiene':True}},conjunta={'aprobado':True},obligatorias=[familia])
+    assert r['publicado'],r
+    return r['conjunto']
+
+
+def test_temporal_resuelve_conjunto_sin_seguir_puntero_individual(tmp_path):
+    """050:RF-7 — el activo es el del conjunto aunque difiera del puntero suelto."""
+    from test_model_registry import _payload
+    reg=RegistroModelo(tmp_path/'registro')
+    c1=reg.registrar_candidato('pronostico_cabecera',**_payload(tmp_path,contenido=b'conjunto'))['candidate_id']
+    c2=reg.registrar_candidato('pronostico_cabecera',**_payload(tmp_path,contenido=b'individual'))['candidate_id']
+    reg.promover('pronostico_cabecera',c2)
+    pointer=(reg.raiz/'pronostico_cabecera/active.json').read_bytes()
+    conjunto=_publicar_temporal(reg,c1)
+    d=te._detalle_temporal_en_uso(reg,'pronostico_cabecera')
+    assert Path(d['path']).name==c1 and d['conjunto_id']==conjunto['conjunto_id']
+    assert (reg.raiz/'pronostico_cabecera/active.json').read_bytes()==pointer
+
+
+def test_temporal_sin_conjunto_conserva_lectura_individual(tmp_path):
+    """050:RF-7 — compatibilidad heredada solo si no existe conjunto."""
+    from test_model_registry import _payload
+    reg=RegistroModelo(tmp_path/'registro')
+    assert te._detalle_temporal_en_uso(reg,'pronostico_cabecera') is None
+    c=reg.registrar_candidato('pronostico_cabecera',**_payload(tmp_path))['candidate_id']
+    reg.promover('pronostico_cabecera',c)
+    assert Path(te._detalle_temporal_en_uso(reg,'pronostico_cabecera')['path']).name==c
+
+
+@pytest.mark.parametrize('caso',['clase_distinta','familia_ausente','artefacto_corrupto'])
+def test_temporal_no_caera_a_individual_si_conjunto_no_es_utilizable(tmp_path,caso):
+    """050:RF-7/8 — clase ajena, familia ausente o corrupción bloquean la lectura."""
+    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
+    from test_model_registry import _payload
+    reg=RegistroModelo(tmp_path/'registro')
+    individual=reg.registrar_candidato('pronostico_cabecera',**_payload(tmp_path,contenido=b'individual'))['candidate_id']
+    reg.promover('pronostico_cabecera',individual)
+    nombre='pinn' if caso=='familia_ausente' else ('pronostico_cliente' if caso=='clase_distinta' else 'pronostico_cabecera')
+    c=reg.registrar_candidato(nombre,**_payload(tmp_path,contenido=b'conjunto'))['candidate_id']
+    _publicar_temporal(reg,c,'pinn' if caso=='familia_ausente' else 'gru')
+    if caso=='artefacto_corrupto':
+        (Path(reg.detalle(nombre,c)['path'])/'artifacts/pesos.bin').write_bytes(b'alterado')
+    with pytest.raises(CicloBloqueado):
+        te._detalle_temporal_en_uso(reg,'pronostico_cabecera')
+
+
+def test_temporal_no_publica_individual_bajo_conjunto(tmp_path,corrida):
+    """050:RF-7 — una activación individual ignorada no puede anunciar éxito."""
+    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
+    d,r=corrida
+    reg=RegistroModelo(d/'registro')
+    _publicar_temporal(reg,r['candidate_id'])
+    antes=(reg.raiz/'pronostico_cabecera/active.json').read_bytes()
+    with pytest.raises(CicloBloqueado,match='conjunto'):
+        _comparar(tmp_path,objetivos(1,84,ruido=.08,semilla_ruido=RUIDO),registro=reg)
+    assert (reg.raiz/'pronostico_cabecera/active.json').read_bytes()==antes
+
+
+def test_competicion_compara_con_miembro_conjunto_sin_puntero_individual(tmp_path,corrida):
+    """050:RF-7 — el empate con el miembro conjunto se rechaza aunque no haya activo suelto."""
+    d,r=corrida
+    detalle=RegistroModelo(d/'registro').detalle('pronostico_cabecera',r['candidate_id'])
+    reg=RegistroModelo(tmp_path/'registro')
+    candidato=reg.registrar_candidato('pronostico_cabecera',
+        **{k:detalle[k] for k in ('model_manifest','dataset_manifest','metrics','decision','smoke_reload')},
+        artifacts=[Path(detalle['path'])/'artifacts'/n for n in detalle['artifacts']])
+    _publicar_temporal(reg,candidato['candidate_id'])
+    assert reg.activo('pronostico_cabecera') is None
+    nuevo=_comparar(tmp_path,objetivos(CUANTOS,84,ruido=.08,semilla_ruido=RUIDO),
+        registro=reg,publicar_individual=False)
+    assert nuevo['status']=='RECHAZADO' and nuevo['promovido'] is False
+    assert any('activo' in f for f in nuevo['gates']['fallos'])
+    assert reg.activo('pronostico_cabecera') is None
+
+
 def test_empate_con_el_activo_no_promueve(tmp_path):
     """046:RF-8 — repetir el mismo modelo empata con el activo: sin ventaja predeclarada no sube."""
     reg = RegistroModelo(tmp_path / 'registro')

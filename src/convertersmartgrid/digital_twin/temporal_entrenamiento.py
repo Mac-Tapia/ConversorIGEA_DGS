@@ -334,6 +334,19 @@ def _decidir_objetivo(nombre, horizontes, modelos, politica, referencias):
     return {**fila, 'ganador': ref_global, 'es_referencia': True, 'motivo': motivo}
 
 
+def _detalle_temporal_en_uso(registro, nombre_registro: str) -> dict | None:
+    """050:RF-7: el conjunto decide el activo; no se mezclan clases de pronóstico."""
+    from ..aprendizaje_continuo import CicloBloqueado, miembro_en_uso
+
+    miembro = miembro_en_uso('gru', registro=registro)
+    if miembro is not None:
+        if miembro['modelo_registro'] != nombre_registro:
+            raise CicloBloqueado(f"El conjunto temporal usa {miembro['modelo_registro']}, no {nombre_registro}.")
+        return {**miembro['detalle'], 'conjunto_id': miembro['conjunto_id']}
+    activo = registro.activo(nombre_registro)
+    return registro.detalle(nombre_registro, activo['candidate_id']) if activo is not None else None
+
+
 def _fallos_frente_al_activo(registro, nombre_registro, conjunto, ventanas, contexto, H, horizontes, politica,
                              ganadores, modelos, fabricas) -> list[str]:
     """046:RF-8: frente al activo se exige mejora en las mismas ventanas; se reabre y se mide en ellas."""
@@ -341,10 +354,9 @@ def _fallos_frente_al_activo(registro, nombre_registro, conjunto, ventanas, cont
 
     from .evaluacion_temporal import MARGEN_ACTIVO
 
-    activo = registro.activo(nombre_registro)
-    if activo is None:
+    detalle = _detalle_temporal_en_uso(registro, nombre_registro)
+    if detalle is None:
         return []
-    detalle = registro.detalle(nombre_registro, activo['candidate_id'])
     previos = detalle['model_manifest']['ganadores']
     fallos = []
     for nombre, g in ganadores.items():
@@ -417,6 +429,9 @@ def comparar_pronosticos(objetivos, destino: Path, *, clase: str, algoritmos, ho
     reabrir = reabrir or _reabrir_en_otro_proceso
     if clase not in CLASES:
         raise ValueError(f'clase desconocida: {clase}')
+    if publicar_individual:
+        from ..aprendizaje_continuo import exigir_sin_conjunto
+        exigir_sin_conjunto(registro=registro)
     otros = [o.nombre for o in objetivos if o.clase != clase]
     if otros:
         raise ValueError(f'objetivos de otra clase en una corrida de {clase}: cabecera y clientes se deciden por separado')

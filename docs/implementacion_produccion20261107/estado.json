@@ -92,7 +92,7 @@
       "evidence": []
     },
     "P14": {
-      "state": "cinco_etiquetas_humanas_y_curriculo_congelados_puertas_dos_niveles_verificadas",
+      "state": "dos_trabajadores_reales_rechazados_modelos_vigentes_conservados",
       "evidence": [
         "p14_preparacion_dataset_real.json",
         "p14_preparacion_dataset_spans_real.json",
@@ -104,7 +104,10 @@
         "p14_seleccion_tipo_red.log",
         "p14_clasificador_legado_red.log",
         "p14_dos_niveles_final.xml",
-        "p14_clasificador_curriculo_preparacion.json"
+        "p14_clasificador_curriculo_preparacion.json",
+        "p14_dos_niveles_catalogo_final.xml",
+        "p14_clasificador_real/decision.json",
+        "p14_clasificador_real_verificacion_v2.json"
       ]
     },
     "P15": {
@@ -157,7 +160,10 @@
         "p19_spans_reales_green.xml",
         "p14_preparacion_dataset_spans_real.json",
         "p19_lenguaje_real_spans/decision.json",
-        "p19_lenguaje_real_verificacion.json"
+        "p19_lenguaje_real_verificacion.json",
+        "p19_temporal_conjunto_red2.xml",
+        "p19_temporal_conjunto_final2.xml",
+        "p19_temporal_catalogo.xml"
       ]
     },
     "P20": {
