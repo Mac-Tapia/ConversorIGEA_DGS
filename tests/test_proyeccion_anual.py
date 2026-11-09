@@ -601,3 +601,15 @@ def test_emision_cola_con_la_tasa_de_largo_plazo():
     assert pa._con_cola({1: 1.5, 2: 2.25, 3: 3.375}, 2, 0.03) == pytest.approx({1: 1.5, 2: 2.25, 3: 2.3175})
     assert pa._con_cola({1: 1.0, 2: 1.0}, 5, 0.03) == {1: 1.0, 2: 1.0}
 
+
+def test_ciclo_compiten_todos_los_modelos_de_pronostico(tmp_path):
+    """031:RF-2 — la orden temporal lleva las referencias y los modelos pedidos, una sola vez cada uno."""
+    from types import SimpleNamespace
+
+    from tools.reentrenar_modelos import orden_temporal
+
+    args = SimpleNamespace(cabeceras='l.xlsx', clase_temporal='cabecera', twin='t', semillas='11', cadencia_temporal=15,
+                           zona_horaria='UTC', pares_temporales=None, clientes_temporales=None)
+    cmd = orden_temporal(args, tmp_path / 'r.json', 'gru', 'nhits', 'tft', 'patchtst')
+    assert cmd[cmd.index('--comparar') + 1] == 'ingenuo,estacional_semanal,gru,nhits,tft,patchtst'
+

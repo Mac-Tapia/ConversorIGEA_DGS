@@ -90,9 +90,9 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     return resultado
 
 
-def orden_temporal(args, reporte: Path, algoritmo: str) -> list[str]:
+def orden_temporal(args, reporte: Path, algoritmo: str, *otros: str) -> list[str]:
     """046:RF-13: el candidato compite con las referencias y la GRU; nunca se sustituye por GRU."""
-    algoritmos = ','.join(dict.fromkeys(('ingenuo', 'estacional_semanal', 'gru', algoritmo)))
+    algoritmos = ','.join(dict.fromkeys(('ingenuo', 'estacional_semanal', 'gru', algoritmo, *otros)))
     cmd = [sys.executable, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
            '--comparar', algoritmos, '--libro', str(args.cabeceras),
            '--clase', args.clase_temporal, '--raiz', str(args.twin), '--output-json', str(reporte),
@@ -154,7 +154,8 @@ def _etapas(args, run_dir: Path):
         if getattr(args, 'ciclo_comun', False):
             if not getattr(args, 'cadencia_temporal', None) or not getattr(args, 'horizontes_temporales', None):
                 raise ValueError('el ciclo GRU exige cadencia y horizontes declarados')
-            cmd = orden_temporal(args, reporte, 'gru')
+            # 031:RF-2: en el ciclo compiten todos con los mismos datos, no solo la GRU contra sus referencias.
+            cmd = orden_temporal(args, reporte, 'gru', 'nhits', 'tft', 'patchtst')
             cmd[cmd.index('--raiz') + 1] = str(run_dir / 'gru_modelos')
             cmd += ['--horizontes', args.horizontes_temporales, '--sin-publicar', '--tramo-comun']
             return _subproceso(cmd, reporte, 'gru')
