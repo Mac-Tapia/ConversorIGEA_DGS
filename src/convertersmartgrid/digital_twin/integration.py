@@ -210,7 +210,8 @@ def capturar_accion(plan: Mapping[str, Any], informe: Mapping[str, Any], *, caso
         try:
             lectura = leer(plan_de_lectura(plan, caso, informe))
         except Exception as exc:  # noqa: BLE001 - sin lectura el episodio va a cuarentena
-            log(f'{AVISO_CUARENTENA}: la lectura nativa falló: {exc}')
+            # Una excepción sin texto (el trabajo cancelado) dejaba «falló: » sin causa.
+            log(f'{AVISO_CUARENTENA}: la lectura nativa falló: {str(exc) or type(exc).__name__}')
             lectura = None
         if lectura is not None and (lectura.get('error') or lectura.get('status') == 'BLOQUEADO_DATOS'):
             log(f"{AVISO_CUARENTENA}: {lectura.get('error')}")

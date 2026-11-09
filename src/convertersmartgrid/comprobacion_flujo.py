@@ -53,19 +53,35 @@ def texto_tras_flujo(tras: Mapping[str, Any]) -> str:
 
 
 #: Lo que no quedó calibrado aunque el trabajo termine: ``VIOLACION_FISICA`` converge y no cumple.
-_NO_QUEDO_BIEN = ('NO_CONVERGE', 'VIOLACION_FISICA', 'FALLO_VALIDACION_NATIVA', 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO')
+NO_QUEDO_BIEN = ('NO_CONVERGE', 'VIOLACION_FISICA', 'FALLO_VALIDACION_NATIVA', 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO')
 
 
-def _motivo(informe: Mapping[str, Any]) -> str:
-    avisos = informe.get('avisos') or []
-    return str(informe.get('error') or informe.get('motivo') or (avisos[0] if avisos else '') or 'vea su informe')
+#: Los avisos que dicen por qué no quedó calibrado, antes que los informativos.
+_ETIQUETAS_DE_FALLO = ('VALIDACION_FISICA', 'SOBRECARGA', 'NO cumple')
+
+
+def motivo_de_informe(informe: Mapping[str, Any]) -> str:
+    """Por qué no quedó calibrado un alimentador (081:RF-19), en una línea para el Registro.
+
+    CA101 + CHN102 (2026-11-09) quedó en FALLO_VALIDACION_NATIVA con ``motivo`` vacío: el
+    Registro decía «no cumple la tolerancia: None» y el motivo era el primer aviso, el de
+    los conductores con ficha, que es informativo. La causa estaba en el aviso
+    VALIDACION_FISICA: SED fijas con más demanda que su transformador.
+    """
+    avisos = [str(a) for a in informe.get('avisos') or [] if a]
+    de_fallo = next((a for e in _ETIQUETAS_DE_FALLO for a in avisos if a.startswith(e)), None)
+    return str(informe.get('error') or informe.get('motivo') or de_fallo
+               or (avisos[0] if avisos else '') or 'vea su informe')
+
+
+_motivo = motivo_de_informe
 
 
 def veredicto_calibracion(informes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """El estado verdadero de una calibración (081:RF-17 a RF-19), para el resultado del trabajo."""
     pendientes = [{'alimentador': i.get('feeder'), 'estado': i.get('status') or ('ERROR' if i.get('error') else None),
                    'motivo': _motivo(i)}
-                  for i in informes if i.get('error') or i.get('status') in _NO_QUEDO_BIEN]
+                  for i in informes if i.get('error') or i.get('status') in NO_QUEDO_BIEN]
     if not pendientes:
         return {'estado_trabajo': 'done', 'pendientes': []}
     alguno_no_converge = any(p['estado'] in ('NO_CONVERGE', 'ERROR') for p in pendientes)

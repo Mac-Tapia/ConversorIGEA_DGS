@@ -2962,6 +2962,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                                              informe.get('fijas_sobre_su_transformador'))
                 if aviso:
                     informe['avisos'].append(aviso)
+                    informe['motivo'] = informe.get('motivo') or aviso          # 081:RF-19
                 informe['fallos'].extend({
                     'sed': fallo.get('sed'),
                     'error': f"validación nativa: {fallo.get('tipo')}",
@@ -4215,6 +4216,8 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                                          inf.get('fijas_sobre_su_transformador'), feeder)
             if aviso:
                 inf['avisos'].append(aviso)
+                # 081:RF-19: el motivo del fallo; vacío, el Registro decía «None» (CA101, 2026-11-09).
+                inf['motivo'] = inf.get('motivo') or aviso
             inf['fallos'].extend({'sed': x.get('sed'), 'error': f"validación nativa: {x.get('tipo')}",
                                   'detalle': x} for x in validacion['fallos'])
         elif res.cuadrado and not inf['fallos']:

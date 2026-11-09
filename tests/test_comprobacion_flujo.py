@@ -9,7 +9,8 @@ from types import SimpleNamespace
 from convertersmartgrid.asistente import almacen
 from convertersmartgrid.asistente.vigilancia import revisar_calidad
 from convertersmartgrid.comprobacion_flujo import (
-    comparar_huellas, comprobar_tras_flujo, huella_de_caso, revisar_huellas, veredicto_calibracion, veredicto_importacion,
+    comparar_huellas, comprobar_tras_flujo, huella_de_caso, motivo_de_informe, revisar_huellas, veredicto_calibracion,
+    veredicto_importacion,
 )
 from convertersmartgrid.powerfactory_binding import fusionar_caso_base
 from convertersmartgrid.powerfactory_metadata import CASO_BASE_CALIBRABLE, classify_convergence, estado_caso_base, estado_flujo
@@ -114,6 +115,20 @@ def test_trabajo_calibracion_con_alguno_sin_converger_es_parcial():
     assert v['pendientes'] == [{'alimentador': 'B', 'estado': 'NO_CONVERGE', 'motivo': 'isla sin fuente'},
                                {'alimentador': 'C', 'estado': 'VIOLACION_FISICA', 'motivo': 'no cumple'},
                                {'alimentador': 'D', 'estado': 'ERROR', 'motivo': 'sin plan'}]
+
+
+def test_el_motivo_es_la_causa_y_no_el_primer_aviso():
+    """081:RF-19 — CA101 + CHN102 (2026-11-09): sin ``motivo``, el Registro daba «None» y el
+    aviso informativo de los conductores con ficha; la causa era el de VALIDACION_FISICA."""
+    avisos = ['16 conductor(es) con los parámetros de su ficha en «Sin proyecto»',
+              'Calibrado a la vez que CHN102',
+              'VALIDACION_FISICA: 171 cargas no consumen en el flujo lo que tienen escrito',
+              'SOBRECARGA: 6 SED fija(s) piden más que su potencia instalada']
+    v = veredicto_calibracion([_inf('CA101', 'FALLO_VALIDACION_NATIVA', motivo=None, avisos=avisos)])
+    assert v['pendientes'][0]['motivo'].startswith('VALIDACION_FISICA')
+    assert motivo_de_informe({'motivo': None, 'avisos': avisos[:2]}) == avisos[0]
+    assert motivo_de_informe({'motivo': None, 'avisos': []}) == 'vea su informe'
+    assert motivo_de_informe({'motivo': 'isla', 'avisos': avisos}) == 'isla'
 
 
 def test_trabajo_calibracion_sin_ninguno_es_no_converge():

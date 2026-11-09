@@ -4508,7 +4508,7 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
     (020:RF-25), que recalibran con el mismo guion: aplicando, la calibración que valga
     queda registrada.
     """
-    from ..comprobacion_flujo import veredicto_calibracion
+    from ..comprobacion_flujo import motivo_de_informe, veredicto_calibracion
 
     pf_dir, interpreter = _require_pf()
     cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py'))]
@@ -4546,7 +4546,7 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
         if informe.get('error'):
             ctx.log(f"{feeder}: {informe['error']}")
         elif not simular and not informe.get('cuadrado'):
-            ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+            ctx.log(f"{feeder}: no quedó calibrado: {motivo_de_informe(informe)} Vea el diagnóstico.")
         if not simular:
             _guardar_calibracion(ws, project, feeder, informe, **anios)
         informes.append(informe)
@@ -4618,13 +4618,107 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     if errores and len(errores) == len(informes):
         raise UserError(' · '.join(f"{i['feeder']}: {i['error']}" if varios else i['error']
                                    for i in errores))
-    return {'returncode': rc, 'modo': informes[0].get('modo'),
-            'report': reports[0].name, 'reports': [r.name for r in reports],
-            'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
-            'informe': informes[0], 'informes': informes,
-            'sistema': plan.get('sistema'),                                  # 022:RF-53
-            'escaneo': (escaneo or {}).get('resumen'),                       # 028:RF-16
-            **_verdad_de_la_calibracion(ctx, informes)}
+    resultado = {'returncode': rc, 'modo': informes[0].get('modo'),
+                 'report': reports[0].name, 'reports': [r.name for r in reports],
+                 'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
+                 'informe': informes[0], 'informes': informes,
+                 'sistema': plan.get('sistema'),                                  # 022:RF-53
+                 'escaneo': (escaneo or {}).get('resumen'),                       # 028:RF-16
+                 **_verdad_de_la_calibracion(ctx, informes)}
+    if simular:                                                                   # 101:RF-13
+        return resultado
+    return _transformadores_hasta_converger(ws, ctx, token, resultado)
+
+
+#: Rondas de transformadores nuevos dentro de una calibración (101:RF-5).
+RONDAS_TRANSFORMADORES = 3
+
+
+def cambios_automaticos(informes: list[dict], hechos: Mapping[tuple[str, str], tuple[Any, Any]],
+                        ) -> tuple[dict[str, list[dict]], list[str]]:
+    """Las SED cuyo transformador impide calibrar, con su propuesta de la 020 (101:RF-1, RF-4, RF-6, RF-12).
+
+    Solo las que pasan del 100 % de su potencia instalada: fijas (020:RF-1) y, tras el reparto, también
+    escaladas (032:RF-22). Las que están entre el umbral del perfil y el 100 % quedan para el operador.
+    ``hechos`` son las ya aplicadas, ``(alimentador, sed) -> (kva, unidades)``: la misma propuesta no
+    vuelve a aplicarse. Devuelve los cambios por alimentador y, por SED sin propuesta, su motivo (RF-7).
+    """
+    from ..comprobacion_flujo import NO_QUEDO_BIEN
+
+    if not any(i.get('error') or i.get('status') in NO_QUEDO_BIEN or i.get('cuadrado') is False
+               for i in informes):
+        return {}, []
+    cambios: dict[str, list[dict]] = {}
+    sin: list[str] = []
+    for informe in informes:
+        feeder = str(informe.get('feeder'))
+        candidatas = {x['sed']: x for x in informe.get('fijas_sobre_su_transformador') or []}
+        candidatas.update({x['sed']: x for x in (informe.get('sed_sobre_umbral') or {}).get('sed') or []
+                           if x.get('nivel') == 'sobre_100'})
+        for sed, x in candidatas.items():
+            p = x.get('propuesta') or {}
+            trs = x.get('transformadores') or []
+            if p.get('kva') is None or len(trs) != 1:
+                motivo = (p.get('motivo') or (f'{len(trs)} transformadores en la SED (020:RF-12)' if len(trs) > 1
+                                              else 'sin transformador ni propuesta'))
+                sin.append(f'{feeder}: {sed}: {motivo}')
+                continue
+            if hechos.get((feeder, sed)) == (p['kva'], p.get('unidades') or 1):
+                continue
+            cambios.setdefault(feeder, []).append({'sed': sed, 'transformador': trs[0]['transformador'],
+                                                   'propuesta': p})
+    return cambios, sin
+
+
+def _transformadores_hasta_converger(ws: Workspace, ctx: JobContext, token: str, resultado: dict) -> dict:
+    """Cambia los transformadores que impiden calibrar y recalibra, sin esperar al operador (spec 101).
+
+    CA101 + CHN102 (2026-11-09): SE20701 pedía 1 506 kVA con 50 kVA y la calibración quedaba sin
+    validar hasta pulsar «Implementar transformadores». El usuario: «no se acepta que no converge».
+    """
+    rondas: list[dict] = []
+    hechos: dict[tuple[str, str], tuple[Any, Any]] = {}
+    while True:
+        cambios, sin = cambios_automaticos(resultado['informes'], hechos)
+        for motivo in sin:                                                         # 101:RF-7
+            ctx.log(f'Sin transformador nuevo para {motivo}.')
+        if not cambios:                                                            # 101:RF-6
+            break
+        if len(rondas) >= RONDAS_TRANSFORMADORES:                                  # 101:RF-5
+            ctx.log(f'Tras {RONDAS_TRANSFORMADORES} rondas de transformadores nuevos la calibración '
+                    'sigue sin quedar válida: vea su motivo.')
+            break
+        if ctx.job.cancel.is_set():                                                # 101:RF-10, RF-11
+            ctx.log('Trabajo cancelado: no se cambian más transformadores; los cambiados se conservan.')
+            break
+        ronda = {'ronda': len(rondas) + 1, 'cambios': {}}
+        for feeder, cs in cambios.items():
+            for c in cs:
+                x = next(y for i in resultado['informes'] if str(i.get('feeder')) == feeder
+                         for y in [*(i.get('fijas_sobre_su_transformador') or []),
+                                   *((i.get('sed_sobre_umbral') or {}).get('sed') or [])]
+                         if y['sed'] == c['sed'])
+                tr = x['transformadores'][0]
+                p = c['propuesta']
+                fila = {'sed': c['sed'], 'antes_kva': tr.get('kva'), 'antes_unidades': tr.get('unidades') or 1,
+                        'kva': p['kva'], 'unidades': p.get('unidades') or 1}
+                ronda['cambios'].setdefault(feeder, []).append(fila)
+                hechos[(feeder, c['sed'])] = (fila['kva'], fila['unidades'])
+                ctx.log(f"{feeder}: {c['sed']} no cabe en su transformador: "                     # 101:RF-8
+                        f"{fila['antes_unidades']} × {float(fila['antes_kva'] or 0):g} kVA → "
+                        f"{fila['unidades']} × {fila['kva']:g} kVA (ronda {ronda['ronda']}).")
+        rondas.append(ronda)
+        ctx.log(f"Ronda {ronda['ronda']} de transformadores nuevos y recalibración del proyecto (101:RF-2, RF-3).")
+        try:
+            nuevo = ajuste_transformadores_varios(ws, ctx, token, cambios)
+        except UserError as exc:
+            # El error queda dicho y el resultado de la ronda anterior se conserva (020:RF-32).
+            ctx.log(f"Ronda {ronda['ronda']} de transformadores nuevos sin terminar: {exc}")
+            break
+        resultado ={**resultado, **nuevo, 'sistema': resultado.get('sistema'),
+                     'escaneo': resultado.get('escaneo')}
+    resultado['transformadores_automaticos'] = rondas                              # 101:RF-9
+    return resultado
 
 
 def _plan_y_sufijo(plan: dict, feeder: str) -> tuple[str, str]:
@@ -5220,6 +5314,12 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
         perfil = {}
     ajustes = perfil.get('gemelo') or {}
     if not captura_activa() or ajustes.get('captura') is False:
+        return None
+    job = getattr(ctx, 'job', None)
+    if job is not None and job.cancel.is_set():
+        # 024:RF-9: cancelado el trabajo, la lectura se lanzaba igual y se cortaba al empezar;
+        # el Registro decía «la lectura nativa falló: » sin causa (CA101 + CHN102, 2026-11-09).
+        ctx.log('Gemelo digital: no se relee el proyecto porque el trabajo se canceló.')
         return None
     # La captura nunca retiene al operador: con PA217 (2026-10-22) la lectura esperó 26 min a
     # DIgSILENT con el límite de un estudio. Pasado el suyo, el episodio va a cuarentena.

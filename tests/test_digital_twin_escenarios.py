@@ -189,7 +189,7 @@ def test_hipercubo_latino_del_rango_medido():
     assert {e.factor_carga for e in m} == set(f)
 
 
-def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch):
+def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch, tmp_path):
     """027:RF-4 — el servicio arma la matriz con los factores del hipercubo del rango medido
     en las curvas de la última máxima buscada."""
     from datetime import datetime
@@ -202,7 +202,8 @@ def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch):
 
     t0 = datetime(2026, 7, 1)
     curva = [(t0, kw, 0.0) for kw in (300.0, 600.0, 1000.0, 500.0)]
-    ws = SimpleNamespace(lock=Lock(), curvas_cabecera={'J': {'M1': {'curva': curva}}})
+    # Con su carpeta de salida, como el espacio real: la identidad del episodio (050:RF-23) busca allí la calibración.
+    ws = SimpleNamespace(lock=Lock(), curvas_cabecera={'J': {'M1': {'curva': curva}}}, out_dir=tmp_path, root=tmp_path)
     pedidas = []
     monkeypatch.setattr(services, 'native_action_context', lambda *a: {'feeders': ['F1']})
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'c')

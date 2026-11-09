@@ -363,4 +363,9 @@ def test_matriz_real_enlaza_cada_rf_de_la_spec_sin_dar_aceptacion():
         # Sin una ejecución vinculada por hash, la matriz sigue diciendo que falta: citar no es ejecutar.
         assert 'ejecucion_del_candidato_pendiente_o_no_aprobada' in fila['pending'], fila['requirement']
         assert fila['acceptance'] == 'pendiente_revision_semantica', fila['requirement']
-    assert any('aceptacion_nativa_pendiente' in f['pending'] for f in filas if f['requirement'] == '065:RF-21')
+    # La T12 de DIgSILENT del RF-21 se retiró el 2026-11-08 por orden del usuario y pasó a la 086 (R1 a R5):
+    # con una tarea de DIgSILENT vigente, la aceptación nativa queda pendiente; sin ella, sigue sin aceptarse.
+    rf21 = next(f for f in filas if f['requirement'] == '065:RF-21')
+    if any(t.digsilent and '21' in ES.rf_de_texto(t.texto) for t in spec.tareas):
+        assert 'aceptacion_nativa_pendiente' in rf21['pending']
+    assert rf21['acceptance'] == 'pendiente_revision_semantica'

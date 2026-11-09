@@ -128,6 +128,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
+  | 101 La calibración cambia sola los transformadores que impiden converger | implementada | falta T3 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

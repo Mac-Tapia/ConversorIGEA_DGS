@@ -321,7 +321,7 @@ et al. respaldan reconciliar el libro de clientes con la medición del mismo per
 - Modificar: `frontend/src/components/AjusteCabecera.tsx`
 - Modificar: `frontend/src/styles.css`
 - Modificar: `tests/test_demanda_medida_web.py`
-- Crear: `docs/acceptance/013-mes-clientes.md`
+- Crear: docs/acceptance/013-mes-clientes.md (no se creó: la evidencia de cada tarea está en `tasks.md`)
 
 **Justificación científica:** la UI hace visible el emparejamiento temporal que exigen las
 fuentes de perfilado y medición; no automatiza una decisión operativa que Erickson muestra
@@ -379,7 +379,7 @@ que depende de coincidencia.
 - Modificar: `frontend/src/styles.css`
 - Modificar: `tests/test_demanda_medida.py`
 - Modificar: `tests/test_demanda_medida_web.py`
-- Modificar: `docs/acceptance/013-mes-clientes.md`
+- Modificar: docs/acceptance/013-mes-clientes.md (no se creó: la evidencia de cada tarea está en `tasks.md`)
 
 **Justificación científica:** Singh y Erickson requieren observar perfiles sobre un eje
 temporal común para distinguir simultaneidad y diversidad.
@@ -566,7 +566,7 @@ solo por aritmética de puntas.
 - Modificar: `frontend/src/components/TransferenciaPF.tsx`
 - Modificar: `frontend/src/styles.css`
 - Modificar: `tests/test_estudios_pf_web.py`
-- Modificar: `docs/acceptance/013-mes-clientes.md`
+- Modificar: docs/acceptance/013-mes-clientes.md (no se creó: la evidencia de cada tarea está en `tasks.md`)
 
 **Justificación científica:** la evidencia de estado, sentido y resultado operacionaliza
 la evaluación multitemporal descrita por Ding, Mahdavi et al. y Azizivahed et al.
@@ -601,7 +601,7 @@ la evaluación multitemporal descrita por Ding, Mahdavi et al. y Azizivahed et a
 
 **Archivos**
 
-- Modificar si la evidencia lo exige: `docs/acceptance/013-mes-clientes.md`
+- Modificar si la evidencia lo exige: docs/acceptance/013-mes-clientes.md (no se creó: la evidencia de cada tarea está en `tasks.md`)
 - Crear por ejecución: `docs/acceptance/evidence/013/<fecha>/...`
 
 **Justificación científica:** las fuentes respaldan el método; la aceptación nativa

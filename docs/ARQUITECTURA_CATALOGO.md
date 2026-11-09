@@ -13,11 +13,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 102 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 416 |
+| Pruebas | `tests/` | 417 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 300 |
+| Specs | `specs/` | 303 |
 
-`web/services.py` tiene 12897 líneas y 389 funciones, pendiente de partir (002).
+`web/services.py` tiene 12997 líneas y 391 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -25,10 +25,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- |
 | cumplida | 80 |
 | aprobada | 18 |
-| implementada | 1 |
+| implementada | 2 |
 | retirada | 1 |
 
-100 specs con 3294 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+101 specs con 3307 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -528,7 +528,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `__main__.py` | Pre | 001 | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`. |
 | `app.py` | Pre | 001, 004, 008, 011, 104, 017, 103, 021, 022, 025, 035, 039, 042, 061, 091 | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura |
 | `api_contract.py` | Pre | 065, 002 | Modelos públicos Pydantic y contratos OpenAPI del frontend. |
-| `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061, 091 | Las acciones de la interfaz, sin interfaz. |
+| `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061, 091, 101 | Las acciones de la interfaz, sin interfaz. |
 | `requisitos.py` | Pre | 002 | Lo que un servicio exige antes de trabajar y el error del operador. |
 | `jobs.py` | Pre | 001, 011, 061, 086 | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). |
 | `operaciones_lentas.py` | Pre | 065 | ZIP cancelable, cuotas y entrega de archivos por trabajo. |

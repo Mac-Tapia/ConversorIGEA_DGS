@@ -63,6 +63,51 @@ def test_lectura_que_falla_deja_cuarentena_y_aviso(tmp_path):
     assert any(it.AVISO_CUARENTENA in a for a in avisos)
 
 
+def test_lectura_que_falla_sin_texto_dice_la_excepcion(tmp_path):
+    """024:RF-9 — «la lectura nativa falló: » sin causa (CA101 + CHN102, 2026-11-09)."""
+    class Cortada(Exception):
+        pass
+
+    def revienta(_p):
+        raise Cortada()
+
+    avisos = []
+    it.capturar_accion(_plan(), {'status': 'OK', 'converged': True}, caso=Caso.CON_PROYECTO,
+                       rutas={}, base=tmp_path, leer=revienta, perfil=PERFIL, estructura=None,
+                       bufer=BuferEpisodios(tmp_path / 'twin'), log=avisos.append)
+    assert any(a.endswith("falló: Cortada") for a in avisos), avisos
+
+
+def test_gemelo_no_relee_si_el_trabajo_se_cancelo(tmp_path, monkeypatch):
+    """024:RF-9 — cancelado el trabajo, la lectura se lanzaba igual y se cortaba al empezar."""
+    import threading
+
+    from convertersmartgrid.web import services
+
+    monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
+    pedidos, registro = [], []
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: pedidos.append(a))
+
+    class Job:
+        cancel = threading.Event()
+
+    Job.cancel.set()
+
+    class Ctx:
+        job = Job()
+
+        def log(self, m):
+            registro.append(m)
+
+    class Ws:
+        out_dir = root = tmp_path
+
+    out = services._gemelo(Ws(), Ctx(), {**_plan(), 'folder': 'F'}, {'status': 'OK'},
+                           caso='sin_proyecto', rutas={})
+    assert out is None and not pedidos
+    assert any('se canceló' in m for m in registro)
+
+
 def test_sin_contexto_firmado_no_hay_episodio(tmp_path):
     """024:RF-1 — una acción sin contexto firmado no se registra."""
     assert it.capturar_accion({'project': 'P'}, {}, caso=Caso.CASO_BASE, rutas={}, base=tmp_path,
