@@ -596,7 +596,6 @@ def generar_casos(p: Preparacion, destino: Path, proyectos: list[str], espacios:
                 # Un caso por proyecto, problema y parte: los escenarios de un episodio no añaden red distinta.
                 if parte is None or (problema, parte) in hechos:
                     continue
-                hechos.add((problema, parte))
                 from dataclasses import asdict
                 try:
                     normalizacion = _normalizacion(e, contexto, problema, parametros)
@@ -606,6 +605,7 @@ def generar_casos(p: Preparacion, destino: Path, proyectos: list[str], espacios:
                 casos.append({'record_id': f'{problema}:{eid}', 'episode_id': eid, 'contexto_043': asdict(contexto),
                               'problema': problema, 'particion': parte, 'parametros': parametros, 'normalizacion': normalizacion})
                 fila['casos'] += 1
+                hechos.add((problema, parte))
     p.informe['casos_generados'] = informe
     if not casos:
         p.pendiente('evolutivos_casos', 'ningún problema tiene todos sus parámetros reales; ver informe.casos_generados')

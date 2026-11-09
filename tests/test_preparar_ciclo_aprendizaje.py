@@ -428,6 +428,62 @@ def test_episodio_capturado_guarda_su_identidad_sin_complemento(tmp_path):
     assert motivo is None and contexto.profile_hash == 'b' * 64
 
 
+def _espacio_con_escalera(tmp_path, datos, tension_min=0.95):
+    espacio = tmp_path / 'web' / 'esp'
+    (espacio / 'planes').mkdir(parents=True)
+    salida = espacio / 'runs' / 'r1' / 'salida'
+    salida.mkdir(parents=True)
+    (salida / 'escalera_datos_1.json').write_text(json.dumps({'project': 'P', 'alimentadores': datos}), encoding='utf-8')
+    (espacio / 'planes' / 'escalera_datos_1.json').write_text(json.dumps({'project': 'P', 'tension_min_pu': tension_min}), encoding='utf-8')
+    return tmp_path / 'web'
+
+
+def _casos_con(monkeypatch, tmp_path, perfil, datos, *payloads):
+    from convertersmartgrid import perfil_empresa as pe
+    from convertersmartgrid.digital_twin import integration as ig
+    monkeypatch.setattr(pe, 'datos_perfil', lambda *_a, **_k: perfil)
+    monkeypatch.setattr(pe, 'estructura_empresa', lambda *_a, **_k: None)
+    monkeypatch.setattr(ig, 'normas_de', lambda *_a: ['N'])
+    monkeypatch.setattr(ig, 'limites_combinados', lambda *_a: SimpleNamespace(tension_max_pu=1.05))
+    espacios = [_espacio_con_escalera(tmp_path, datos)]
+    twin, _ = _bufer(tmp_path, *payloads)
+    p = pc.Preparacion(tmp_path, {'proyectos': {'P': COMPLETO}, 'series': {}})
+    leido = pc.preparar_twin(p, twin)
+    return p, pc.generar_casos(p, tmp_path, ['P'], espacios, leido['ensenan'], tmp_path / 'perfil.json')
+
+
+def test_caso_sin_costo_en_el_perfil_dice_el_parametro_que_falta(tmp_path, monkeypatch):
+    """050:RF-28 — sin costo por banco no hay caso: se informa, no se inventa."""
+    nodo = next(iter(_grafo()['nodos']))
+    p, ruta = _casos_con(monkeypatch, tmp_path, {'calibracion': {'bancos_kvar_por_tension': {'10': 300}}},
+                         {'A1': {'banco_en': {'x': pc._sufijo(nodo)}}}, _que_ensena())
+    assert ruta is None
+    faltan = ' '.join(p.informe['casos_generados']['P']['faltan'])
+    assert 'maniobras: la escalera no trae enlaces' in faltan
+    assert 'bancos' in faltan and ('falta el costo por banco' in faltan or 'módulo de banco' in faltan)
+    assert p.pendientes['evolutivos_casos']['familias'] == ['evolutivos']
+
+
+def test_caso_que_no_converge_no_gasta_el_turno_de_su_particion(tmp_path, monkeypatch):
+    """050:RF-28 — otro episodio de la misma parte puede dar el caso; el motivo del primero consta."""
+    from convertersmartgrid.digital_twin.oraculo import muestras_y_particiones  # noqa: F401 - comprueba el import real
+    rama = next(r['id'] for r in _grafo()['ramas'] if r.get('id'))
+    llamadas = []
+
+    def normalizacion(e, contexto, problema, parametros):
+        llamadas.append(e.episode_id)
+        if len(llamadas) == 1:
+            raise ValueError('el estado actual no converge en el flujo mallado')
+        return {'perdidas_kw': [0, 10.0]}
+    monkeypatch.setattr(pc, '_normalizacion', normalizacion)
+    a, b = _que_ensena(), _que_ensena(creado='2026-10-22T10:00:00+00:00')
+    monkeypatch.setattr(pc, '_particion_pinn', lambda ensenan: dict.fromkeys(ensenan, 'entrenamiento'))
+    p, ruta = _casos_con(monkeypatch, tmp_path, {}, {'A1': {'enlaces': [{'enlace': pc._sufijo(rama)}]}}, a, b)
+    casos = json.loads(ruta.read_text(encoding='utf-8'))['casos']
+    assert len(casos) == 1 and casos[0]['episode_id'] == llamadas[1] and casos[0]['parametros']['tension_max_pu'] == 1.05
+    assert any('no converge' in x for x in p.informe['casos_generados']['P']['faltan'])
+
+
 def test_lectura_de_escenarios_recibe_la_identidad_del_plan():
     """050:RF-23 — los escenarios leen con otro guion, sin contexto: el episodio toma la del plan."""
     from test_digital_twin_capture import _construir, _lectura, _plan
