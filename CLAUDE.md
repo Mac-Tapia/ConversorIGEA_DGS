@@ -58,7 +58,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
-  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T1, T6, T2, T3, T4, T5 |
+  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T4, T5 |
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
@@ -77,7 +77,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
   | 049 Protecciones nativas y coordinación | cumplida |  |
-  | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b, T6, T7 |
+  | 050 Aprendizaje continuo integrado | aprobada | falta T3b, T4b, T5b |
   | 051 Medición de cabecera en libro ancho: una columna por alimentador | cumplida |  |
   | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | cumplida |  |
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
