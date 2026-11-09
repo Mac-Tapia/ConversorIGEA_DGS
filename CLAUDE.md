@@ -77,7 +77,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
   | 049 Protecciones nativas y coordinación | cumplida |  |
-  | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b, T6 |
+  | 050 Aprendizaje continuo integrado | aprobada | falta T1b, T2b, T3b, T4b, T5b, T6, T7 |
   | 051 Medición de cabecera en libro ancho: una columna por alimentador | cumplida |  |
   | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | cumplida |  |
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
