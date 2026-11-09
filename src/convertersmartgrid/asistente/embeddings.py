@@ -301,6 +301,12 @@ def cargar_encoder(modelo_id: str):
         model_kwargs={'device_map':{'':0}})
 
 
+def _tensores_en_cuda(entrada: Mapping[str, Any]) -> dict[str, Any]:
+    """Solo los tensores van a la GPU: sentence-transformers 5 añade a la salida de ``tokenize`` valores de texto,
+    y el ciclo común (2026-11-08) caía con «'str' object has no attribute 'to'» antes de ajustar nada."""
+    return {k: v.to('cuda') if hasattr(v, 'to') else v for k, v in entrada.items()}
+
+
 def entrenar_recuperador(pares: Sequence[ParContraste], destino: Path | str, *,
                          modelo_base: str = 'intfloat/multilingual-e5-base',
                          epocas: int = 1, minimo_pares: int = 20) -> dict[str, Any]:
@@ -325,8 +331,8 @@ def entrenar_recuperador(pares: Sequence[ParContraste], destino: Path | str, *,
             for i in range(0,len(orden),8):
                 lote=orden[i:i+8]
                 if len(lote)<2 and len(orden)>=2:lote=orden[-2:]
-                q={k:v.to('cuda') for k,v in modelo.tokenize([prefijos[0]+p.pregunta for p in lote]).items()}
-                positivos={k:v.to('cuda') for k,v in modelo.tokenize([prefijos[1]+p.positive_texts[0] for p in lote]).items()}
+                q=_tensores_en_cuda(modelo.tokenize([prefijos[0]+p.pregunta for p in lote]))
+                positivos=_tensores_en_cuda(modelo.tokenize([prefijos[1]+p.positive_texts[0] for p in lote]))
                 a=torch.nn.functional.normalize(modelo(q)['sentence_embedding'],dim=-1)
                 b=torch.nn.functional.normalize(modelo(positivos)['sentence_embedding'],dim=-1)
                 objetivo=torch.arange(len(lote),device='cuda')

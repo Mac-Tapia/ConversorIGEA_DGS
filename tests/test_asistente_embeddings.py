@@ -131,3 +131,14 @@ def test_biserial_por_rangos_no_es_conteo_de_signos():
     candidato={'per_query':[{'group_id':str(i),'reciprocal_rank@10':v} for i,v in enumerate((0.6,0.7,0.1))]}
     r=comparar_pareado(base,candidato,metrica='mrr@10',remuestreos=100)
     assert r['rank_biserial']==pytest.approx(0.)
+
+
+def test_tensores_en_cuda_deja_los_textos():
+    """047:RF-4 — los valores sin ``.to`` de ``tokenize`` no tumban el ajuste; los tensores sí se mueven."""
+    from convertersmartgrid.asistente.embeddings import _tensores_en_cuda
+
+    class Tensor:
+        def to(self, destino):
+            return destino
+    assert _tensores_en_cuda({'input_ids': Tensor(), 'modality': 'text'}) == {'input_ids': 'cuda', 'modality': 'text'}
+
