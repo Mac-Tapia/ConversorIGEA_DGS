@@ -142,6 +142,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/madrl_politica.py` | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. | 074 |
 | `src/convertersmartgrid/metrados.py` | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. | 072 |
 | `src/convertersmartgrid/proyeccion_mercado.py` | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. | 072 |
+| `src/convertersmartgrid/proyeccion_anual.py` | Proyección de todos los años del PIDE: competición por clase y magnitud con la regla declarada antes de medir, Formato 01 desde la cabecera con sus meses, emisión de P y Q por carga con banda medida, evaluación con lo validado aparte, y la tasa de alcance de las obras. | 031 |
 | `src/convertersmartgrid/pide_economia.py` | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. 14, flujo privado con el pliego tarifario y la tasa privada, priorización del art. 15 con obras sobredimensionadas, y la propuesta con la obra de la spec 011 de lo que se construye solo. | 024 (RF-33, RF-34, RF-45 a RF-47, RF-54 a RF-59), 073 (RF-28, RF-29) |
 | `src/convertersmartgrid/pide_dataset.py` | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. | 024 (diseño `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideelor-design.md`) |
 | `src/convertersmartgrid/perfil_esquema.py` | Valida un perfil contra su esquema: valores imposibles, claves desconocidas y lo que falta con la función que afecta; orden `validar-perfil`. Solo lee y no bloquea. | 086 (RF-30) |
@@ -356,6 +357,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. | 087 |
 | `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
+| `tools/proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas: construye el Formato 01 si falta, compite los candidatos y escribe proyección y evaluación; acepta solo con `--aceptar` o con todo el horizonte validado. | 031 |
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019, 091 |
 | `tools/estadistica_ordenes.py` | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. | 081 |

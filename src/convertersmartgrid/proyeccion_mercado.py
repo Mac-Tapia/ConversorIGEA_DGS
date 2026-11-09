@@ -28,6 +28,8 @@ class SerieMercado:
     sector: str
     historico: Mapping[int, float]
     proyeccion_entregable: Mapping[int, float] = field(default_factory=dict)
+    #: 031:RF-8: de quién es el histórico: el Formato 01 de otra empresa tiene el mismo aspecto.
+    empresa: str = ''
 
 
 _ES_ANIO = re.compile(r'^(19|20)[0-9]{2}([.]0)?$')
@@ -87,7 +89,8 @@ def leer_hoja_formato_01(filas: Iterable[tuple]) -> SerieMercado | None:
     i = next((k for k, f in enumerate(filas) if any(_texto(x).startswith('Sistema El') for x in f)), 0)
     bloque = filas[i:]
     return SerieMercado(_valor_a_la_derecha(bloque, 'Código:'), _valor_a_la_derecha(bloque, 'Nombre:'),
-                        sector_tipico(_valor_a_la_derecha(bloque, 'Sector:')), historico, proyeccion)
+                        sector_tipico(_valor_a_la_derecha(bloque, 'Sector:')), historico, proyeccion,
+                        _valor_a_la_derecha(filas[:i], 'Nombre:'))
 
 
 def leer_formato_01(ruta: Path | str) -> list[SerieMercado]:

@@ -1376,7 +1376,7 @@ class _Registro:
 def _ws_con_obras(tmp_path, registros):
     from types import SimpleNamespace
 
-    return SimpleNamespace(out_dir=tmp_path, obras_aplicadas=list(registros), obras=[], lock=__import__('threading').Lock(),
+    return SimpleNamespace(out_dir=tmp_path, plans_dir=tmp_path / 'planes', obras_aplicadas=list(registros), obras=[], lock=__import__('threading').Lock(),
                            save=lambda: None)
 
 

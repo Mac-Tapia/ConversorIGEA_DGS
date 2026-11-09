@@ -121,7 +121,7 @@ class CurvaCompacta(Sequence):
 class Fuentes:
     """Dónde están los datos: carpetas que crecen cada mes y libros de referencia."""
 
-    cabecera: Path
+    cabecera: Path | Sequence[Path]
     equivalencia: Path
     clientes: Path | None = None
     suministros: Path | None = None
@@ -129,6 +129,9 @@ class Fuentes:
     apoyo_clientes: Path | None = None
     exogenas: Path | None = None
     patron_clientes: str | Sequence[str] | None = None
+    #: Solo estos alimentadores (031:RF-13): los libros de una empresa pesan cientos de MB, y proyectar un sistema no
+    #: exige leer los clientes de los demás.
+    alimentadores: Sequence[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -605,6 +608,14 @@ def _renumeracion(ruta: Path | None) -> tuple[Callable[[str], str], dict[str, st
     return (lambda c: actuales.get(clave_codigo(c), c)), radiales
 
 
+def _codigos_de(ruta: Path | None, pedidos: set[str]) -> list[str]:
+    """Los códigos, actuales y anteriores, de los suministros de los alimentadores pedidos (031:RF-13)."""
+    if ruta is None:
+        return []
+    libro = descubrir_libro_suministros(ruta) if Path(ruta).is_dir() else Path(ruta)
+    return [c for s in leer_suministros(libro)[0] if clave_codigo(s.radial) in pedidos for c in (s.actual, s.anterior) if c]
+
+
 def _fracciones_no_operativas(curva: Curva) -> float:
     p = np.array([v for _t, v, _q in curva], dtype=float)
     return float((p == 0).mean()) if len(p) else 1.0
@@ -620,8 +631,10 @@ def _centrales_del_perfil() -> dict:
 def armar_dataset(fuentes: Fuentes) -> Dataset:
     """De las carpetas a los objetivos limpios de las tres clases (089:RF-1 a RF-37)."""
     puntos, apartados = equivalencias(fuentes.equivalencia)
-    pares = [(p.codigo, m) for p in puntos if p.clase == 'alimentador' for m in p.medidores]
-    libros_cabecera = libros_de([fuentes.cabecera])
+    pedidos = None if fuentes.alimentadores is None else {clave_codigo(a) for a in fuentes.alimentadores}
+    pares = [(p.codigo, m) for p in puntos if p.clase == 'alimentador' and (pedidos is None or clave_codigo(p.codigo) in pedidos)
+             for m in p.medidores]
+    libros_cabecera = libros_de([fuentes.cabecera] if isinstance(fuentes.cabecera, (str, Path)) else fuentes.cabecera)
     fichas = [_ficha_de_libro(p) for p in libros_cabecera]
     leidas, ap = curvas_de_cabecera(libros_cabecera, pares, centrales=_centrales_del_perfil())
     avisos = [f"{a['objetivo']}: {a['motivo']}" for a in ap if a.get('libro_roto')]
@@ -664,14 +677,15 @@ def armar_dataset(fuentes: Fuentes) -> Dataset:
         avisos += sin_uso
         fichas += [_ficha_de_libro(p) for p, _m in libros]
         canonico, radiales = _renumeracion(fuentes.suministros)
-        por, de_libro, contradictorios, avisos_cli, ap = _curvas_por_cliente(libros, canonico=canonico)
+        codigos = None if pedidos is None else _codigos_de(fuentes.suministros, pedidos)
+        por, de_libro, contradictorios, avisos_cli, ap = _curvas_por_cliente(libros, codigos, canonico=canonico)
         apartados += ap
         por_apoyo: dict[str, dict] = {}
         if fuentes.apoyo_clientes:
             libros_apoyo, sin_uso = _libros_con_mes(fuentes.apoyo_clientes, fuentes.patron_clientes)
             avisos += sin_uso
             fichas += [_ficha_de_libro(p) for p, _m in libros_apoyo]
-            por_apoyo = _curvas_por_cliente(libros_apoyo, canonico=canonico)[0]
+            por_apoyo = _curvas_por_cliente(libros_apoyo, codigos, canonico=canonico)[0]
         for codigo, serie in por.items():
             if codigo in contradictorios:
                 # 089:RF-74: fuera como objetivo, pero su carga sigue en el alimentador.
@@ -1415,6 +1429,10 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
         'mejor_perfil': perfil})
 
 
+#: 031:RF-3: la capa anual mide con las mismas funciones; se publican en vez de copiarlas (la guarda de capas veda lo privado).
+arreglos, error_de_maxima, malla, sin_infinitos = _arreglos, _error_de_maxima, _malla, _sin_infinitos
+
+
 def _liberar_gpu() -> None:
     import gc
     import sys
@@ -1426,9 +1444,21 @@ def _liberar_gpu() -> None:
 
 
 # --------------------------------------------------------------------------- dataset guardado
+def huella_de_objetivos(objetivos: Iterable[Objetivo]) -> str:
+    """La huella de lo medido: la misma al guardar, al abrir y en la evaluación de la proyección anual (089:RF-68, 031:RF-9)."""
+    import hashlib
+
+    huella = hashlib.sha256()
+    for o in sorted(objetivos, key=lambda x: x.nombre):
+        t, v = _arreglos(o)
+        huella.update(o.nombre.encode())
+        huella.update(t.astype('int64').tobytes())
+        huella.update(v.tobytes())
+    return huella.hexdigest()
+
+
 def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
     """Los objetivos limpios en Parquet con su huella: entrenar no vuelve a leer los libros (089:RF-68)."""
-    import hashlib
     import json
 
     import pandas as pd
@@ -1436,15 +1466,11 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
     carpeta = Path(carpeta)
     carpeta.mkdir(parents=True, exist_ok=True)
     tablas, indice = [], []
-    huella = hashlib.sha256()
     for o in sorted(dataset.objetivos, key=lambda x: x.nombre):
         t, v = _arreglos(o)
-        huella.update(o.nombre.encode())
-        huella.update(t.astype('int64').tobytes())
-        huella.update(v.tobytes())
         tablas.append(pd.DataFrame({'objetivo': o.nombre, 't': t, 'v': v}))
         indice.append({'clase': o.clase, 'ident': o.ident, 'magnitud': o.magnitud, 'unidad': o.unidad, 'fuente': o.fuente})
-    texto = huella.hexdigest()
+    texto = huella_de_objetivos(dataset.objetivos)
     if tablas:
         pd.concat(tablas, ignore_index=True).to_parquet(carpeta / 'objetivos.parquet')
     (carpeta / 'dataset.json.tmp').write_text(json.dumps({'huella': texto, 'objetivos': indice, 'apartados': dataset.apartados, 'libros': dataset.libros,
@@ -1455,7 +1481,6 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
 
 def abrir_dataset(carpeta: Path | str, exogenas: Exogenas | None = None) -> Dataset:
     """El dataset guardado, comprobando su huella (089:RF-68)."""
-    import hashlib
     import json
 
     import pandas as pd
@@ -1469,12 +1494,6 @@ def abrir_dataset(carpeta: Path | str, exogenas: Exogenas | None = None) -> Data
         g = por.get(o.nombre)
         curva = CurvaCompacta(np.zeros(0, dtype='datetime64[ns]'), np.zeros(0)) if g is None else CurvaCompacta(g['t'].to_numpy(dtype='datetime64[ns]'), g['v'].to_numpy(dtype=float))
         objetivos.append(Objetivo(x['clase'], x['ident'], x['magnitud'], x['unidad'], curva, x['fuente']))
-    huella = hashlib.sha256()
-    for o in sorted(objetivos, key=lambda x: x.nombre):
-        t, v = _arreglos(o)
-        huella.update(o.nombre.encode())
-        huella.update(t.astype('int64').tobytes())
-        huella.update(v.tobytes())
-    if huella.hexdigest() != meta['huella']:
+    if huella_de_objetivos(objetivos) != meta['huella']:
         raise ValueError(f'{carpeta}: la huella del dataset no coincide; vuelva a armarlo')
     return Dataset(objetivos, meta['apartados'], meta['libros'], meta['ultimo_dato'], exogenas, meta['huella'], avisos=meta.get('avisos', []))

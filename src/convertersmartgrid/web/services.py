@@ -5455,7 +5455,14 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         plan_pide.update(anios_horizonte=list(estudio.largo_plazo), anios_pide=list(estudio.detalle_pide))
     tasa = plan_pide.get('crecimiento_demanda_anual')
     crecimiento = None
-    if tasa is None:
+    # 031:RF-1: primero se pronostica; solo la proyección aceptada cambia los años: sin ella, lo de siempre, y se dice.
+    proyectadas = _pronostico_primero(ws, ctx, project, feeders, estudio, perfil, avisos)
+    if proyectadas:
+        import statistics
+
+        crecimiento = {a: {'tasa': r, 'origen': 'proyección aceptada (031:RF-1)'} for a, r in proyectadas.items()}
+        tasa = statistics.median(proyectadas.values())
+    elif tasa is None:
         # 029:RF-1 a RF-3: sin tasa del perfil, la de cada alimentador desde la cabecera.
         crecimiento = _crecimiento_de_la_cabecera(ws, ctx, project, feeders, avisos)
         medidas = [c['tasa'] for c in (crecimiento or {}).values() if c.get('tasa') is not None]
@@ -5721,6 +5728,77 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
 #: 098:RF-49: el crecimiento ya calculado en el proceso de la web, por proyecto y alimentadores, para no releer los
 #: libros de cabecera y de clientes en cada ronda de la escalera.
 CRECIMIENTO_DEL_TRABAJO: dict[tuple, Any] = {}
+
+
+def _carpeta_de_proyeccion(ws: Workspace, project: str) -> Path:
+    """Una carpeta por proyecto: la proyección de uno no vale para otro (072:RF-24)."""
+    import hashlib
+
+    return ws.plans_dir / 'proyeccion_anual' / hashlib.sha256(project.strip().encode('utf-8')).hexdigest()[:16]
+
+
+def _tasa_de_alcance(ws: Workspace, project: str, feeder: str, tasa_perfil: float) -> dict[str, Any]:
+    """031:RF-11, 042:RF-86: la proyección aceptada en lugar de la tasa del perfil; sin ella, la del perfil y lo dice."""
+    from ..proyeccion_anual import tasa_de_alcance
+
+    return tasa_de_alcance(_carpeta_de_proyeccion(ws, project), project, [feeder], tasa_perfil)
+
+
+def _fuentes_de_demanda(ws: Workspace, feeders: list[str]):
+    """Los libros de demanda de este espacio para pronosticar, o ``None`` si falta la cabecera o la equivalencia."""
+    from ..pronostico_demanda import Fuentes
+
+    if not (ws.demanda or {}).get('cabecera') or not (ws.demanda or {}).get('medidores'):
+        return None
+    try:
+        return Fuentes(cabecera=_demanda_ruta(ws, 'cabecera'), equivalencia=_demanda_ruta(ws, 'medidores'),
+                       clientes=_demanda_ruta(ws, 'clientes') if ws.demanda.get('clientes') else None,
+                       suministros=_demanda_ruta(ws, 'suministros') if hay_suministros(ws) else None, alimentadores=list(feeders))
+    except UserError:
+        return None
+
+
+def _pronostico_primero(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], estudio, perfil: dict, avisos: list[str]) -> dict[str, float] | None:
+    """031:RF-1, RF-6, RF-7: la tasa de cada alimentador con la proyección aceptada; si no la hay, se pronostica y queda sin aceptar.
+
+    Una proyección sin aceptar no cambia ningún año: la ve el operador con lo validado y lo que no, y decide (RF-7). El PIDE sigue
+    entonces con la tasa de siempre, para no alterar lo ya entregado.
+    """
+    from .. import proyeccion_anual as pa
+    from ..escalera_optima import periodo_de_corto_plazo
+    from ..perfil_empresa import estructura_empresa
+
+    carpeta = _carpeta_de_proyeccion(ws, project)
+    aceptada = pa.proyeccion_aceptada(carpeta, project)
+    if aceptada is not None:
+        tasas = {a: r for a, r in pa.tasas_de_la_proyeccion(aceptada).items() if a in feeders}
+        ev = aceptada['evaluacion_leida']
+        avisos.append(f"Proyección aceptada {aceptada['modelo']} ({(ev.get('aceptacion') or {}).get('via')}): pronosticados {ev.get('horizonte_anios')} años, "
+                      f"validados contra lo ocurrido {ev.get('horizonte_validado_anios')} (031:RF-6, RF-7).")
+        return tasas or None
+    if estudio is None:
+        avisos.append('Sin año de presentación no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-1, RF-11).')
+        return None
+    fuentes = _fuentes_de_demanda(ws, feeders)
+    if fuentes is None:
+        avisos.append('Sin los libros de cabecera y medidores en este espacio no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-1, RF-11).')
+        return None
+    e = estructura_empresa()
+    sistema_de = {a: fila.sistema for a in feeders if e is not None and (fila := e.alimentador(a)) is not None and fila.sistema}
+    sistemas = {} if e is None else {k: {'nombre': v.nombre, 'sector': v.sector} for k, v in e.sistemas.items()}
+    ctx.log('PIDE: pronosticando los años del estudio antes de abrir sus casos (031:RF-1), sin GPU…')
+    try:
+        hecho = _en_proceso_con_reintento(ctx, avisos, 'la proyección anual', pa.pronosticar_estudio, fuentes, carpeta=carpeta, proyecto=project,
+                                          anio_base=estudio.anio_base, anio_corto=periodo_de_corto_plazo(perfil), anio_fin=max(estudio.largo_plazo),
+                                          empresa=perfil.get('empresa'), sistema_de=sistema_de, sistemas=sistemas, formato_01=(perfil.get('planificacion') or {}).get('formato_01'))
+    except (ValueError, OSError) as exc:                  # sin datos que basten no se para el estudio: se dice
+        avisos.append(f'La proyección anual no se pudo hacer: {exc}; el PIDE sigue con la tasa (031:RF-11).')
+        return None
+    if not hecho:
+        avisos.append('La proyección anual no terminó; el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-11).')
+        return None
+    avisos.append(f"Proyección anual en {hecho['referencia']['ruta']}, sin aceptar: no cambia los años de este estudio hasta que el operador la acepte (031:RF-7, RF-11).")
+    return None
 
 
 def _en_proceso_con_reintento(ctx: JobContext, avisos: list[str], que: str, fn, *args, **kwargs):
@@ -7217,7 +7295,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'tipo_cambio': tipo_cambio,
             **({'alternativas': p.alternativas,                                       # 042:RF-55, RF-105
                 # 098:RF-37: la de corto plazo aguanta del año 0 al del periodo (4); el resto lo plantea el PIDE.
-                'horizonte': eo.plan_de_corto_plazo(f, p.tasa_largo_plazo, p)}                # 042:RF-73, RF-86
+                'horizonte': eo.plan_de_corto_plazo(f, _tasa_de_alcance(ws, project, f, p.tasa_largo_plazo)['tasa'], p)}  # 042:RF-73, RF-86, 031:RF-11
                if por_alternativas else {}),
             'otro_proyecto': eo.BIBLIOTECA_TIPOS, 'parada_bayesiana': True,               # 087:RF-8
             'revision_codigo': revision_de_la_escalera(),                                 # 087:RF-50
@@ -7297,11 +7375,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             alternativa['procedencia_capex'] = procedencia_capex
         if por_alternativas:
             medida = _tasa_del_alimentador(ws, ctx, project, f, fila['avisos'])  # 042:RF-86: se dice, no se proyecta
-            fila['avisos'].append(f'{f}: el alcance se proyecta con {100 * p.tasa_largo_plazo:.2f} %/año de largo plazo'
+            alcance = _tasa_de_alcance(ws, project, f, p.tasa_largo_plazo)       # 031:RF-11
+            fila['avisos'].append(f"{f}: el alcance se proyecta con {100 * alcance['tasa']:.2f} %/año de largo plazo"
                                   + (f'; el crecimiento medido es {100 * medida:.2f} %/año' if medida is not None else '')
                                   + ' (042:RF-86).')
+            fila['avisos'].append(f"{f}: {alcance['aviso']}")
             for alt in fila['alternativas']:
-                alt['tasa_horizonte'] = p.tasa_largo_plazo
+                alt['tasa_horizonte'] = alcance['tasa']
         if objetivo_previo:                                                      # 042:RF-65, RF-66
             cercana = next((t for t in decision['tabla'] if t['nombre'] == decision['mas_cercana']), None)
             fila['alternativas'] = ([{**a, 'fraccion': None} for a in fila['alternativas']] or [{
@@ -9285,7 +9365,8 @@ def _buscar_anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_c
 
     perfil = completar_planeamiento(datos_perfil(), opciones.get('tipo_cambio'))[0]
     p = eo.parametros(perfil, opciones.get('tipo_cambio'))
-    tasa, horizonte = p.tasa_largo_plazo, int(p.horizonte_anios)
+    alcance = _tasa_de_alcance(ws, project, f, p.tasa_largo_plazo)       # 031:RF-11
+    tasa, horizonte = alcance['tasa'], int(p.horizonte_anios)
     out: dict[str, Any] = {'obra': nombre, 'horizonte': horizonte, 'tasa': tasa, 'anio': None, 'oraculo': None}
     desde = int(p.periodo_corto_plazo) + 1            # 098:RF-37: hasta el periodo ya se midió que aguanta
     if not tasa or tasa <= 0:
