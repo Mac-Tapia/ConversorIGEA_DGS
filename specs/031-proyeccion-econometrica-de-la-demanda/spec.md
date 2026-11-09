@@ -22,6 +22,7 @@ El PIDE anual ya exige una proyección por carga y año, con huella y evaluació
 - RF-12: SI una carga no tiene serie propia, ENTONCES EL SISTEMA la repartirá con la serie de su alimentador en proporción a su potencia instalada, y lo anotará en su fila.
 - RF-13: EL SISTEMA aplicará el mismo procedimiento a cualquier distribuidora y fuente, sin nombres, años ni libros fijos en el código.
 - RF-14: EL SISTEMA dará el mismo resultado con los mismos datos y semilla, y no escribirá en la calibración, el «Caso base» ni DIgSILENT.
+- RF-15: SI la empresa no tiene Formato 01, ENTONCES EL SISTEMA lo construirá con las mediciones históricas de cabecera, por sistema y año, en el formato que lee `leer_formato_01`, con cada año marcado por sus meses medidos; un año incompleto no se presentará como año completo ni se extrapolará sin decirlo.
 
 ## Fuera de alcance
 

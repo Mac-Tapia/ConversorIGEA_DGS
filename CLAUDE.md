@@ -58,7 +58,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
-  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T1, T2, T3, T4, T5 |
+  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T1, T6, T2, T3, T4, T5 |
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
