@@ -114,3 +114,15 @@ def test_gru_valida_con_la_ultima_parte_y_para_a_tiempo():
     # Una serie que se repite día a día: el estacional es exacto y la GRU no puede ganarle.
     repetida = np.tile(s[:tp.PUNTOS_DIA], 7)
     assert tp.elegido(tp.GemeloGRU(epocas=2, paciencia=1), repetida).nombre == 'estacional'
+
+
+def test_metricas_sin_base_se_pueden_guardar():
+    """024:RF-20 — con lo medido en cero el porcentaje no existe y el informe se puede escribir en JSON."""
+    import json
+
+    from convertersmartgrid.digital_twin import temporal as tp
+
+    r = tp.metricas([0.0, 0.0], [1.0, 2.0])
+    assert r['mape_pct'] is None and r['mae_kw'] == 1.5 and r['puntos'] == 2
+    json.dumps(r, allow_nan=False)
+    assert tp.metricas([1.0], [float('nan')]) == {'mae_kw': None, 'mape_pct': None, 'puntos': 0}

@@ -309,16 +309,20 @@ class GemeloGRUMultihorizonte:
         return m
 
 
-def metricas(medida: Sequence[float], reproducida: Sequence[float]) -> dict[str, float]:
-    """Error del gemelo frente a lo medido, donde hay las dos (RF-20)."""
+def metricas(medida: Sequence[float], reproducida: Sequence[float]) -> dict[str, float | None]:
+    """Error del gemelo frente a lo medido, donde hay las dos (RF-20).
+
+    Sin dato o con todo lo medido en cero el error porcentual no existe y va como ``None``: un NaN no se puede
+    guardar en JSON y tiraba el informe entero al acabar de entrenar (GRU de Pisco, 2026-11-08).
+    """
     m, r = np.asarray(medida, dtype=float), np.asarray(reproducida, dtype=float)
     ok = ~np.isnan(r)
     if not ok.any():
-        return {'mae_kw': float('nan'), 'mape_pct': float('nan'), 'puntos': 0}
+        return {'mae_kw': None, 'mape_pct': None, 'puntos': 0}
     err = np.abs(m[ok] - r[ok])
-    base = np.where(np.abs(m[ok]) > 1e-9, np.abs(m[ok]), np.nan)
-    return {'mae_kw': float(err.mean()), 'mape_pct': float(np.nanmean(100 * err / base)),
-            'puntos': int(ok.sum())}
+    con_base = np.abs(m[ok]) > 1e-9
+    mape = float(np.mean(100 * err[con_base] / np.abs(m[ok][con_base]))) if con_base.any() else None
+    return {'mae_kw': float(err.mean()), 'mape_pct': mape, 'puntos': int(ok.sum())}
 
 
 def desviaciones(medidas: Mapping[str, Sequence[float]], reproducidas: Mapping[str, Sequence[float]],

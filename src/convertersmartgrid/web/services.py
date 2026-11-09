@@ -6079,7 +6079,9 @@ def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: 
         r = modelo.reproducir(s)
         reproducidas[a] = r
         resultado[a] = {'modelo': modelo.nombre, **metricas(s[corte:], r[corte:])}
-        ctx.log(f"Gemelo temporal {a}: {resultado[a]['modelo']}, error {resultado[a]['mape_pct']:.1f} %")
+        mape = resultado[a]['mape_pct']
+        ctx.log(f"Gemelo temporal {a}: {resultado[a]['modelo']}, error "
+                + (f'{mape:.1f} %' if mape is not None else 'sin base para el porcentaje'))
     # 046:RF-25: la GRU ve la curva medida hasta el paso anterior; llamarlo pronóstico engañaría.
     out = {'salida': 'reconstruccion_un_paso',
            'aviso': 'Reconstrucción a un paso con lo medido: no es un pronóstico.',
