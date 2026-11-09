@@ -1154,6 +1154,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones: tiempo, recursos, obras, normas y contraste de hipótesis (spec 087). | |
 | `madrl_obras.py` | Mide la escalera, NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios (spec 074). |
 | `proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01 (spec 072). |
+| `proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas y escribe proyección y evaluación; construye el Formato 01 con la cabecera si la empresa no lo tiene (spec 031). |
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |
 | `escanear_alimentador_pf.py` | Escanea en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador antes de recalibrar; la web lo lanza con «Escanear en DIgSILENT» (`POST /api/workspaces/{id}/powerfactory/escanear`, spec 028). | PF |
 | `transferencia_operador_pf.py` | Lee en DIgSILENT, sin cambiar nada, las transferencias de carga que hizo el operador entre los alimentadores de un proyecto: SED, kW, bancos, lo que las une y el punto abierto (`--plan`, `--output-json`). La calibración y el escaneo usan su módulo para calibrar con la red de la fuente y restituirla al terminar (spec 098). | PF |
@@ -1253,6 +1254,18 @@ al siguiente arranque. No hay una tarea de Windows que opere con la web cerrada.
 .venv/Scripts/python.exe tools/mcp_conversor.py                           # MCP por stdio; ver docs/MCP_CONVERSOR.md
 .venv/Scripts/python.exe tools/generar_contrato_api.py --solo-openapi     # docs/asistente/openapi.json
 ```
+
+## Proyección anual para el PIDE (`proyeccion_anual.py`, spec 031)
+
+Pronostica primero todos los años del estudio: compite por clase y magnitud, con la regla escrita antes de medir, y escribe `proyeccion.json` y `evaluacion.json` con el formato que lee el PIDE anual. No usa DIgSILENT ni, sin `--modelos`, ningún modelo.
+
+```bash
+# Desde los libros (léalos una vez: el dataset queda en <salida>/dataset) o desde un dataset guardado con --dataset
+python tools/proyeccion_anual.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta> --suministros <libro> \
+  --perfil <perfil.json> --zonal <zonal> --empresa "<empresa>" --proyecto <proyecto> --anio-base <año> --anio-corto 4 --anio-fin 20 --salida <carpeta>
+```
+
+`horizonte_anios` es lo pronosticado y `horizonte_validado_anios`, lo medido contra lo ocurrido: un año sin validar no se presenta como validado. Sin `--aceptar <operador>` la evaluación queda `sin_aceptar`, salvo que todo el horizonte esté validado, y el PIDE y las obras siguen con la tasa de siempre y lo dicen. `--modelos lightgbm` compite sin GPU; una red sin GPU queda `NO_DISPONIBLE` con su motivo. `lightgbm` y una red juntos abortaron con el código 139 en una corrida real, y `lightgbm` solo terminó: páselos en corridas separadas.
 
 ## Pronóstico de demanda (`pronostico_demanda.py`, spec 089)
 

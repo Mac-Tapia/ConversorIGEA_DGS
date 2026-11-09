@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 313 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 99 |
+| Herramientas y guiones | `tools/` | 100 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 414 |
+| Pruebas | `tests/` | 415 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 300 |
 
-`web/services.py` tiene 12796 líneas y 384 funciones, pendiente de partir (002).
+`web/services.py` tiene 12877 líneas y 388 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -34,13 +34,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 124 |
+| adaptadores | Ada | 125 |
 | aplicacion | Apl | 101 |
 | dominio | Dom | 42 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-303 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+304 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -395,6 +395,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pide_dataset.py` | Ada | 024 | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. |
 | `estudio_planeamiento.py` | Dom | 072 | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. |
 | `proyeccion_mercado.py` | Apl | 072 | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. |
+| `proyeccion_anual.py` | Ada | 031 | Proyección de todos los años del PIDE: competición por clase y magnitud con la regla declarada antes de medir, Formato 01 desde la cabecera con sus… |
 | `costos_fuentes.py` | Apl | 072 | Costos oficiales: contrato de fuente, lectores del SICODI público y de los módulos estándar de transmisión, cruce por código, tensión, estructura y… |
 | `metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
 | `formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
@@ -663,6 +664,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `validar_totalidad_vnr.py` | — | 080 | Cruza con consultas propias a la base restaurada las salidas, tramos y SED de una copia VNR-GIS con lo que lista la web. |
 | `cabecera_ancha.py` | — | 051 | Herramienta de la spec 051: pasa la medición de cabecera a lo ancho o las máximas mensuales al formato de la calibración, con… |
 | `proyeccion_mercado.py` | — | 072 | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. |
+| `proyeccion_anual.py` | — | 031 | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas: construye el Formato 01 si falta, compite los candidatos y escribe… |
 | `costos_cruce.py` | — | 072 | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. |
 | `construir_dataset_pide.py` | — | 024 | Construye el corpus PIDE universal de una empresa con `pide_dataset`. |
 | `corpus_redaccion_pide.py` | — | 072 | Revisión humana del corpus PIDE para redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras. |

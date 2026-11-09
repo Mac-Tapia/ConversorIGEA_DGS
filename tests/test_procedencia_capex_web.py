@@ -39,7 +39,7 @@ def test_pide_guarda_plan_y_resultado_con_recibo_de_su_lectura(tmp_path, monkeyp
         reporte.write_text(json.dumps(informe), encoding='utf-8')
         return 0, deepcopy(informe), reporte
     monkeypatch.setattr(services, '_guion_pf', guion)
-    ws = SimpleNamespace(out_dir=tmp_path)
+    ws = SimpleNamespace(out_dir=tmp_path, plans_dir=tmp_path / 'planes')
     ctx = SimpleNamespace(log=lambda *a: None)
     r = services.pide_ejecutar(ws, ctx, 'Propio', ['F1'], capex=str(ruta), implementar=False)
     recibo = r['procedencia_capex']
