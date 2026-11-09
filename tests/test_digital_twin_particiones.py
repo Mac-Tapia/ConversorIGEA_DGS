@@ -59,3 +59,21 @@ def test_menos_de_diez_de_prueba_no_promueve():
     assert any('10' in f and '027:RF-3' in f for f in oraculo.fallos_de_particion(grupos))
     bastantes = oraculo.particionar(_muestras(rng, 2, 10))
     assert oraculo.fallos_de_particion(bastantes) == []
+
+
+def test_la_red_de_prueba_declarada_va_entera_a_la_prueba():
+    """045:RF-13 — el proyecto declarado queda entero en la prueba; sin declarar o ausente, sigue el reparto por huella."""
+    rng = random.Random(11)
+    ms = _muestras(rng, 4, 6)
+    redes = sorted({oraculo.red_de(m) for m in ms})
+    por_huella = oraculo.particionar(ms, set())
+    elegida = next(r for r in redes if r not in {oraculo.red_de(m) for m in por_huella['prueba']})
+    for m in ms:
+        m.proyecto = 'P_' + oraculo.red_de(m)[:6]
+    grupos = oraculo.particionar(ms, {'P_' + elegida[:6]})
+    assert {oraculo.red_de(m) for m in grupos['prueba']} == {elegida}
+    assert len(grupos['prueba']) == sum(oraculo.red_de(m) == elegida for m in ms)
+    assert elegida not in {oraculo.red_de(m) for parte in ('entrenamiento', 'validacion') for m in grupos[parte]}
+    ausente = oraculo.particionar(ms, {'OTRA_EMPRESA'})
+    assert {oraculo.red_de(m) for m in ausente['prueba']} == {oraculo.red_de(m) for m in por_huella['prueba']}
+

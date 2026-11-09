@@ -77,6 +77,7 @@ class Muestra:
     base_clave: tuple | None = None       # (física, exponente) con que se calculó ``base``
     sistema: Any = None                   # ``flujo.SistemaMallado`` factorizado, una vez
     ru: np.ndarray | None = None          # E: relación de cada arista en su origen (1 sin transformador)
+    proyecto: str = ''                    # 045:RF-13: de qué proyecto viene, para declarar la red de prueba
     rw: np.ndarray | None = None          # E: relación de cada arista en su destino
     s_shunt: np.ndarray | None = None     # nodos: lo que consumen los bancos a 1 p.u.
     version: int | None = None            # versión del grafo de que sale
@@ -1025,7 +1026,9 @@ def _muestras(bufer: BuferEpisodios, consulta: Consulta,
             if excluidos is not None:
                 excluidos[motivo] = excluidos.get(motivo, 0) + 1
             continue
-        muestras.append(muestra_de_episodio(e))
+        m = muestra_de_episodio(e)
+        m.proyecto = str((e.nativo or {}).get('project') or '')
+        muestras.append(m)
         ids.append(e.episode_id)
     return muestras, ids
 
@@ -1056,12 +1059,27 @@ def red_de(m: Muestra) -> str:
     return hashlib.sha256('\n'.join(m.ids).encode('utf-8')).hexdigest()
 
 
-def particionar(muestras: Sequence[Muestra]) -> dict[str, list[Muestra]]:
+def proyectos_de_prueba() -> set[str]:
+    """045:RF-13: los proyectos que el perfil declara, antes de medir, como red de prueba."""
+    from ..perfil_empresa import datos_perfil
+
+    return {str(p) for p in (datos_perfil().get('gemelo') or {}).get('proyectos_de_prueba') or ()}
+
+
+def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None) -> dict[str, list[Muestra]]:
     """«Un sistema fuera» (027:RF-2): cada red entera a prueba o a entrenamiento; con dos o
     más redes, al menos una a prueba (la de huella menor si el reparto fijo no da ninguna) y
-    nunca todas. La validación sale de los escenarios de las redes de entrenamiento."""
+    nunca todas. La validación sale de los escenarios de las redes de entrenamiento.
+
+    045:RF-13: el reparto por huella dejó de prueba a TM102, de 30 nodos, frente a redes de 5 147
+    (2026-11-08): con una red declarada en el perfil, esa es la de prueba. Si no está entre las
+    muestras se ignora, porque una declaración de otra empresa no debe vaciar la prueba.
+    """
     redes = sorted({red_de(m) for m in muestras})
-    de_prueba = {r for r in redes if particion(r) == 'prueba'}
+    declarados = proyectos_de_prueba() if declarados is None else declarados
+    de_prueba = {red_de(m) for m in muestras if m.proyecto in declarados} if declarados else set()
+    if not de_prueba or de_prueba == set(redes):
+        de_prueba = {r for r in redes if particion(r) == 'prueba'}
     if len(redes) >= 2 and (not de_prueba or de_prueba == set(redes)):
         de_prueba = {redes[0]}
     if len(redes) < 2:

@@ -25,6 +25,7 @@ Dependencias y relación: 043 y 044; preservar reglas y casos de 025, 032 y 037�
 - RF-10: CUANDO se capture la red real, EL SISTEMA conservará la central y los bancos existentes con sus estados medidos.
 - RF-11: CUANDO se acepte un modelo para un alcance, EL SISTEMA aportará contraste nativo de ese mismo alcance.
 - RF-12: CUANDO se pida aprender con flujo equilibrado, EL SISTEMA calculará los escenarios de la copia con flujo equilibrado, aunque la red tenga ramales monofásicos, para que esos episodios enseñen a la PINN; el proyecto del operador no cambia.
+- RF-13: DONDE el perfil declare un proyecto como red de prueba (`gemelo.proyectos_de_prueba`), EL SISTEMA dejará esa red entera en la prueba y fuera del entrenamiento, en lugar del reparto por huella; si no está entre las muestras, seguirá el reparto por huella.
 
 ## Requisitos no funcionales
 

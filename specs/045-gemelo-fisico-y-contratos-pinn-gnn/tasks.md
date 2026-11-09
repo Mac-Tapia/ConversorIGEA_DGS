@@ -12,7 +12,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in111_ta225.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
-- [ ] T3. Ablaciones, dominio y candidato opcional PyG. (RF-8, RF-9, RF-12)
+- [ ] T3. Ablaciones, dominio y candidato opcional PyG. (RF-8, RF-9, RF-12, RF-13)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_benchmark_pinn.py tests/test_digital_twin_oraculo.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
 
