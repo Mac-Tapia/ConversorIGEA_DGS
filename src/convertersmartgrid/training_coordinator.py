@@ -73,6 +73,19 @@ class MemoriaMLInsuficiente(ValueError):
     """El entorno no tiene margen de memoria; no es una ausencia de datos de entrenamiento."""
 
 
+def memoria_del_presupuesto() -> float:
+    """050:RF-31: el mismo criterio que ``exigir_memoria_ml``: en Windows cuenta el margen comprometible, con 0,5 GiB físicos.
+
+    El ciclo medía solo la física: con 15,7 GiB en total y un editor abierto, 12 libres eran imposibles, y lo bloqueaba
+    con 30 GiB comprometibles (2026-11-08). El error 1455, el que tumba un entrenamiento, depende del margen de compromiso.
+    """
+    estado = _memoria_sistema()
+    fisica, commit = estado['fisica_gib'], estado['commit_gib']
+    if commit is None:
+        return fisica
+    return commit if fisica >= .5 else 0.0
+
+
 def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> dict:
     """Exige margen previo; permite paginación Windows sin fingir que la carga pasó."""
     import math

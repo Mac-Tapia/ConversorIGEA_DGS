@@ -13,7 +13,7 @@
 - [ ] T2b. Preparación real sobre la instantánea de T1b, con los productores de cada familia emitiendo `Muestra`. (RF-2, RF-3, RF-6, RF-9)
       Hecho cuando: la preparación real contrasta fuentes y etiquetas, y su resumen por familia, cuarentena y replay constan aquí.
       Falta: que `dataset_entrenamiento.py`, `temporal_entrenamiento.py` y el búfer del gemelo emitan un `observacion_id` común; hoy cada uno agrupa por su cuenta.
-- [x] T3. Contrato del ciclo único sobre el coordinador y la vigilancia: idempotencia, presupuestos, prioridad del operador, cancelación y aportes por versión. (RF-4, RF-5, RF-8)
+- [x] T3. Contrato del ciclo único sobre el coordinador y la vigilancia: idempotencia, presupuestos, prioridad del operador, cancelación y aportes por versión. (RF-4, RF-5, RF-8, RF-31)
       Hecho cuando: las pruebas dan un ciclo por instantánea, posponen con trabajos del operador, bloquean sin memoria, con licencia nativa, con tiempo agotado, con una etapa sin candidato o con una promoción individual, cancelan entre etapas, y la vigilancia une gemelo y asistente en un solo ciclo.
       Hecho el 2026-11-03: `ejecutar_ciclo`, `cancelar_ciclo`, `decidir_ciclo`, `registrar_aportes` y `Vigilante.ciclo`; `tools/aprendizaje_continuo.py ciclo` usa las etapas de `tools/reentrenar_modelos.py` sobre las copias.
 - [ ] T3b. Un cambio de datos real inicia el ciclo desde la web y las etapas no promueven por separado. (RF-4, RF-5, RF-8)

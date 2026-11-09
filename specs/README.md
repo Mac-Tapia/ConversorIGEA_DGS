@@ -56,7 +56,7 @@ retirada.
 | [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 41 | 41 | T4, T8, T7 |
 | [048](048-optimizacion-mixta-evolutiva-y-pnl/spec.md) | Optimización mixta evolutiva y PNL | cumplida | 9 | 9 | — |
 | [049](049-protecciones-nativas-y-coordinacion/spec.md) | Protecciones nativas y coordinación | cumplida | 10 | 10 | — |
-| [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 30 | 30 | T1b, T2b, T3b, T4b, T5b, T6, T7 |
+| [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 31 | 31 | T1b, T2b, T3b, T4b, T5b, T6, T7 |
 | [051](051-medicion-de-cabecera-en-libro-ancho/spec.md) | Medición de cabecera en libro ancho: una columna por alimentador | cumplida | 11 | 11 | — |
 | [052](052-optimizacion-con-proyecto-con-el-oraculo/spec.md) | Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | cumplida | 19 | 19 | — |
 | [053](053-catalogo-de-fichas-que-crece/spec.md) | El catálogo de fichas crece con cada código nuevo | cumplida | 9 | 9 | — |

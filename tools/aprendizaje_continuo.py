@@ -160,7 +160,7 @@ def main(argv=None) -> int:
             else:
                 from convertersmartgrid.asistente import almacen
                 from convertersmartgrid.model_registry import RegistroModelo
-                from convertersmartgrid.training_coordinator import _memoria_sistema
+                from convertersmartgrid.training_coordinator import memoria_del_presupuesto
                 familias = [f.strip() for f in args.familias.split(',') if f.strip()]
                 from convertersmartgrid.productores_aprendizaje import ProductoresReales
                 clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
@@ -182,7 +182,7 @@ def main(argv=None) -> int:
                 salida = ac.ejecutar_ciclo(
                     raiz, inst, etapas, politica_hash=args.politica_hash, registro=registro,
                     presupuesto=ac.Presupuesto(args.tiempo_s, args.memoria_gib, not args.sin_gpu),
-                    memoria_libre_gib=lambda: _memoria_sistema()['fisica_gib'],
+                    memoria_libre_gib=memoria_del_presupuesto,
                     cancelado=lambda: bool(args.cancelar_archivo and args.cancelar_archivo.exists()))
         elif args.accion == 'estado':
             salida = ac.estado_aprendizaje(raiz)

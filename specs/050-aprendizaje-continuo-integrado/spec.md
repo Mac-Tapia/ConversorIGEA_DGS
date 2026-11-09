@@ -41,6 +41,7 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-28: CUANDO genere casos evolutivos desde escaleras guardadas, EL SISTEMA reportará el parámetro que falte en vez de crear el caso sin él.
 - RF-29: CUANDO una consulta reservada de recuperación la redacte el maestro, EL SISTEMA la marcará con ese origen y la informará por separado de las humanas al evaluar.
 - RF-30: CUANDO prepare las órdenes del ciclo, EL SISTEMA calculará la huella de la política a partir de las políticas 044 con que se evalúa.
+- RF-31: EL SISTEMA medirá el presupuesto de memoria del ciclo con el mismo criterio que cada trabajador: en Windows, el margen comprometible con al menos 0,5 GiB físicos.
 
 ## Requisitos no funcionales
 

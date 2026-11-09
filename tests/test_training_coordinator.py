@@ -300,3 +300,13 @@ def test_la_comprobacion_de_lanzadores_detecta_uno_sin_turno(tmp_path):
                     '    entrenar_epoca(2)\n    with turno_gpu("x"):\n        entrenar_epoca(3)\n', encoding='utf-8')
     llamadas, malas = _llamadas_sin_turno(ruta)
     assert len(llamadas) == 3 and sorted(malas) == [3, 5]
+
+
+def test_el_presupuesto_del_ciclo_mide_como_los_trabajadores(monkeypatch):
+    """050:RF-31 — en Windows cuenta el margen comprometible; sin 0,5 GiB físicos no hay margen; fuera, la física."""
+    import convertersmartgrid.training_coordinator as tc
+
+    for fisica, commit, esperado in ((3.9, 30.0, 30.0), (.4, 30.0, 0.0), (8.0, None, 8.0)):
+        monkeypatch.setattr(tc, '_memoria_sistema', lambda f=fisica, c=commit: {'fisica_gib': f, 'commit_gib': c})
+        assert tc.memoria_del_presupuesto() == esperado
+
