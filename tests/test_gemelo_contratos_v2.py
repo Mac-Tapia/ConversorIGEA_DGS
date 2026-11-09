@@ -338,7 +338,7 @@ def test_la_lectura_identifica_el_caso_y_el_de_su_anio(guion):
     assert lectura['caso_nativo']['rol'] == 'cargas_nuevas' and lectura['caso_nativo']['id'].endswith('Cargas nuevas.IntCase')
     lectura, _rc = guion.ejecutar(_red_del_doble('Sin proyecto 2025'), _plan_doble(anio_casos=2025, criterio_fijas='maximo_mes'))
     assert lectura['caso_nativo']['nombre'] == 'Sin proyecto 2025'
-    assert lectura['contexto'] == {'year': 2025, 'period': None, 'criterio_fijas': 'maximo_mes'}
+    assert lectura['contexto'] == {'year': 2025, 'period': None, 'criterio_fijas': 'maximo_mes', 'profile_hash': None}
     lectura, rc = guion.ejecutar(_red_del_doble('Sin proyecto 2025'), _plan_doble())
     assert rc == 2 and 'Sin proyecto' in lectura['error'], 'sin año no se cae en el caso de otro año'
 

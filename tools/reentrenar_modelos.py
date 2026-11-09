@@ -156,7 +156,7 @@ def _etapas(args, run_dir: Path):
                 raise ValueError('el ciclo GRU exige cadencia y horizontes declarados')
             cmd = orden_temporal(args, reporte, 'gru')
             cmd[cmd.index('--raiz') + 1] = str(run_dir / 'gru_modelos')
-            cmd += ['--horizontes', args.horizontes_temporales, '--sin-publicar']
+            cmd += ['--horizontes', args.horizontes_temporales, '--sin-publicar', '--tramo-comun']
             return _subproceso(cmd, reporte, 'gru')
         cmd = [py, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
                '--cabeceras', str(args.cabeceras), '--raiz', str(args.twin),

@@ -202,6 +202,12 @@
                 "null"
               ]
             },
+            "profile_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "year": {
               "type": [
                 "integer",

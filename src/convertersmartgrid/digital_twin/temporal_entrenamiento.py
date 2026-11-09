@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from datetime import timedelta
+from datetime import datetime, timedelta
 import uuid
 
 import numpy as np
@@ -36,8 +36,39 @@ def contenido_de_ventana(conjunto, nombre: str, emision: int, *, contexto_pasos:
         'objetivos': conjunto.valores[nombre][emision + 1:emision + horizonte_max + 1].tolist()}
 
 
-def series_de_aprendizaje(ruta: Path, *, zona_horaria: str, cadencia_min: int, horizontes) -> dict:
-    """050:RF-2/11/19: las series del libro y lo apartado, con su motivo textual."""
+def objetivos_del_ciclo(ruta: Path, *, zona_horaria: str, cadencia_min: int) -> tuple[list, list[dict]]:
+    """050:RF-22: sin series pedidas, el apartado y el tramo común de ``cargar_cabeceras`` (060:RF-5).
+
+    Pisco (2026-11-08): este camino dejaba 93 series en una rejilla con huecos y el otro lector 22 sobre 14 526
+    pasos comunes; el ciclo bloqueaba por «una partición carece de ventanas» con el mismo libro. Las curvas siguen
+    saliendo de ``objetivos_de_cabecera``, que orienta y trae el kVAR; aquí solo se decide cuáles y en qué tramo.
+    """
+    from dataclasses import replace
+    from zoneinfo import ZoneInfo
+    from .series_causales import instante_local
+    if cadencia_min != 15:
+        raise ValueError(f'el criterio común de cabeceras es de 15 minutos, no de {cadencia_min}')
+    series, meta = cargar_cabeceras(ruta, zona_horaria=zona_horaria)
+    apartados = [{'objetivo': f'cabecera:{n}', 'motivo': m} for n, m in meta['motivos_omitidas'].items()]
+    apartados += [{'objetivo': f'cabecera:{n}', 'motivo': 'flujo en ambos sentidos; no es una serie de demanda'}
+                  for n in meta['ambos_sentidos']]
+    comunes = {datetime.fromisoformat(t) for t in meta['instantes']}
+    zona = ZoneInfo(zona_horaria)
+    objetivos, otros = objetivos_de_cabecera([ruta], [(h, h) for h in series])
+    apartados += otros
+    elegidos = []
+    for o in objetivos:
+        curva = [(t, v) for t, v in o.curva if instante_local(t.isoformat(), zona) in comunes]
+        if len(curva) != len(comunes):
+            apartados.append({'objetivo': o.nombre, 'motivo': f'{len(comunes) - len(curva)} huecos en el tramo común; '
+                              'no se imputan objetivos'})
+            continue
+        elegidos.append(replace(o, curva=curva))
+    return elegidos, apartados
+
+
+def series_de_aprendizaje(ruta: Path, *, zona_horaria: str, cadencia_min: int, horizontes, pares=None) -> dict:
+    """050:RF-2/11/19/22: las series del libro y lo apartado, con su motivo textual."""
     from ..contratos_aprendizaje import CicloBloqueado
     from .pronostico import construir_conjunto
     from .series_causales import horizontes_validos
@@ -46,7 +77,10 @@ def series_de_aprendizaje(ruta: Path, *, zona_horaria: str, cadencia_min: int, h
     if isinstance(horizontes, str):
         horizontes = tuple(int(v) for v in horizontes.split(','))
     horizonte_max = max(horizontes_validos(cadencia_min, horizontes))
-    objetivos, apartados = objetivos_de_cabecera([ruta])
+    if pares:
+        objetivos, apartados = objetivos_de_cabecera([ruta], list(pares))
+    else:
+        objetivos, apartados = objetivos_del_ciclo(ruta, zona_horaria=zona_horaria, cadencia_min=cadencia_min)
     conjunto = construir_conjunto(objetivos, cadencia_min=cadencia_min, zona_horaria=zona_horaria)
     return {'conjunto': conjunto, 'apartados': [*apartados, *conjunto.apartados],
             'horizonte_max': horizonte_max, 'contexto_pasos': 7 * 1440 // cadencia_min}
@@ -66,12 +100,13 @@ def ventanas_de_aprendizaje(series: dict, cadencia_min: int) -> dict:
 
 
 def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: str,
-                         cadencia_min: int, horizontes) -> list:
-    """050:RF-2/8: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
+                         cadencia_min: int, horizontes, pares=None) -> list:
+    """050:RF-2/8/19/22: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
     from ..contratos_aprendizaje import CicloBloqueado, ruta_de
     series = series_de_aprendizaje(ruta_de(instantanea, 'cabeceras'), zona_horaria=zona_horaria,
-        cadencia_min=cadencia_min, horizontes=horizontes)
-    if series['apartados']:
+        cadencia_min=cadencia_min, horizontes=horizontes, pares=pares)
+    # Una serie pedida que falta falsea la suma o el estudio; sin pedir ninguna, lo apartado consta en la preparación.
+    if pares and series['apartados']:
         raise CicloBloqueado('gru: objetivos apartados; revise la medición antes del ciclo')
     return muestras_de_ventanas(instantanea, referencias, series['conjunto'],
         ventanas_de_aprendizaje(series, cadencia_min),
@@ -100,7 +135,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
     fin=instante_local(hasta,zona) if hasta else None
     if inicio is not None and inicio>=fin:raise ValueError('intervalo temporal vacío o invertido')
     if codigos and hojas:raise ValueError('seleccione códigos de libro ancho u hojas, no ambos')
-    series={};fechas={};omitidas=[];motivos={}
+    series={};fechas={};omitidas=[];motivos={};ambos=[]
     if codigos:
         from ..cabecera_ancha import leer_ancho
         lectura=leer_ancho([ruta],codigos)
@@ -154,7 +189,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         sentido=sentido_de_serie(np.array([v for _,v in pares]))
         if sentido=='ambos':
             if hojas or codigos:raise ValueError(f'{nombre}: flujo en ambos sentidos; no es una serie de demanda')
-            omitidas.append(nombre);continue
+            omitidas.append(nombre);ambos.append(nombre);continue
         if sentido=='invertido':
             pares=[(t,-v) for t,v in pares];invertidas.append(nombre)
         registros=[{'instante':t.isoformat(),'valor':v,'unidad':'kW'} for t,v in pares]
@@ -187,7 +222,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
             fechas[clave]=[t for t in fechas[clave] if t in comunes]
     if sha_archivo(ruta)!=hash_antes:raise ValueError('el libro cambió durante la lectura')
     return series,{'path':str(ruta.resolve()),'sha256':hash_antes,'zona_horaria':zona_horaria,
-        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'motivos_omitidas':motivos,'invertidas':invertidas,
+        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'motivos_omitidas':motivos,'ambos_sentidos':ambos,'invertidas':invertidas,
         'alcance':{'hojas':list(hojas),'codigos':list(codigos),'desde':desde,'hasta_exclusivo':hasta,
                    'filas_fuera_intervalo':fuera},
         'instantes':next(iter(fechas.values()))}

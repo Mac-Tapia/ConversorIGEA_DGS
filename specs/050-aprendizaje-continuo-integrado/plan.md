@@ -117,6 +117,16 @@ Vínculo serie-contexto: el complemento declara `series` o se usa el único cont
 van a cuarentena. La guarda «objetivos apartados» de `muestras_aprendizaje` no se toca; la
 herramienta la reproduce con los motivos del lector.
 
+### Decisiones del integrador para las siete familias (T7, RF-22 a RF-30)
+
+GRU: `objetivos_del_ciclo` pregunta a `cargar_cabeceras` qué series y qué tramo valen y toma las curvas de
+`objetivos_de_cabecera`; el trabajador recibe `--tramo-comun` para consumir lo mismo. Descartado copiar sus reglas: serían
+dos criterios otra vez. Con `pares`, la guarda sigue dura. Captura: `identidad_de_captura` da periodo, criterio y huella del
+perfil al plan de acciones y de escenarios; `construir_episodio` los pone en la lectura de escenarios, que no los trae.
+Lenguaje: `tools/unir_dataset_lenguaje.py` usa `particionar_dataset` y bloquea si algo cambia de partición. Evolutivos:
+barras de `banco_en` y `enlaces` de la escalera, módulo y costo del perfil, banda de la norma; normalización con ideal cero y
+nadir medido o inversión máxima, y un caso por proyecto, problema y partición de la observación en la vista PINN.
+
 ### Contratos de integración concretados el 2026-11-07
 
 RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto

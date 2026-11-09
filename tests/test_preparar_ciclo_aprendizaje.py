@@ -33,6 +33,7 @@ FECHA = '2026-11-08T10:00:00-05:00'
 def _args(salida, **cambios):
     base = dict(salida=salida, dataset=None, observaciones=[], vocabulario=None, twin=None, cabeceras=None,
                 llm_dataset=None, casos_evolutivos=None, referencia_pinn=None, complemento=None,
+                espacios=[], perfil=None, declarado_por='', proyecto_series=None, proyecto_casos=[],
                 zona_horaria=None, cadencia_min=None, horizontes=None, semillas=pc.SEMILLAS,
                 embedding_model=pc.MODELO_EMBEDDINGS)
     return SimpleNamespace(**{**base, **cambios})
@@ -76,7 +77,7 @@ def _que_ensena(**cambios):
 
 def _complemento(tmp_path, proyectos=None, series=None):
     ruta = tmp_path / 'complemento.json'
-    ruta.write_text(json.dumps({'schema': pc.ESQUEMA_COMPLEMENTO, 'proyectos': proyectos or {}, 'series': series or {}}),
+    ruta.write_text(json.dumps({'schema': pc.ESQUEMA_COMPLEMENTO, 'declarado_por': 'prueba', 'proyectos': proyectos or {}, 'series': series or {}}),
                     encoding='utf-8')
     return ruta
 
@@ -228,10 +229,14 @@ def test_referencia_fisica_no_toma_la_fecha_de_sellado(tmp_path):
 def _objetivos_falsos(monkeypatch, apartados=()):
     from convertersmartgrid.digital_twin import temporal_entrenamiento as te
     from convertersmartgrid.digital_twin.pronostico import Objetivo
-    inicio = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    curva = [(inicio + timedelta(hours=i), 100. + i % 24) for i in range(84 * 24)]
+    inicio = datetime(2026, 1, 1)
+    curva = [(inicio + timedelta(minutes=15 * i), 100. + i % 96) for i in range(84 * 96)]
     objetivo = Objetivo('cabecera', 'L-A1', 'kW', 'kW', curva)
-    monkeypatch.setattr(te, 'objetivos_de_cabecera', lambda rutas: ([objetivo], list(apartados)))
+    instantes = [(t + timedelta(hours=0)).replace(tzinfo=timezone.utc).isoformat() for t, _ in curva]
+    monkeypatch.setattr(te, 'cargar_cabeceras', lambda ruta, **_: ({'L-A1': [v for _, v in curva]},
+        {'instantes': instantes, 'motivos_omitidas': {'L-A9': 'L-A9: fila 2: potencia ausente/inválida'},
+         'ambos_sentidos': ['L-A8'], 'hojas_omitidas': ['L-A9', 'L-A8']}))
+    monkeypatch.setattr(te, 'objetivos_de_cabecera', lambda rutas, pares=None, **_: ([objetivo], list(apartados)))
 
 
 def _libro(tmp_path):
@@ -240,35 +245,70 @@ def _libro(tmp_path):
     return libro
 
 
-GRU = dict(zona_horaria='UTC', cadencia_min=60, horizontes='24')
+GRU = dict(zona_horaria='UTC', cadencia_min=15, horizontes='1,4,96')
 
 
-def test_serie_apartada_se_reporta_y_la_guarda_gru_sigue(tmp_path, monkeypatch):
-    """050:RF-19 — el motivo textual consta y la familia sigue bloqueada: no se rebaja la guarda."""
-    motivo = {'objetivo': 'cabecera:L-A9', 'motivo': 'L-A9: sin curva'}
-    _objetivos_falsos(monkeypatch, [motivo])
-    libro = _libro(tmp_path)
-    twin, _ = _bufer(tmp_path, _que_ensena(caso='caso_base', clase='accepted'))
-    resumen = pc.preparar(_args(tmp_path / 'salida', twin=twin, cabeceras=libro,
-        complemento=_complemento(tmp_path, {'P': COMPLETO}), **GRU))
-    assert resumen['informe']['cabeceras']['apartados'] == [motivo]
-    cuarentena = json.loads((tmp_path / 'salida' / 'cuarentena.json').read_text(encoding='utf-8'))
-    assert {'fuente': 'cabeceras', 'registro': 'cabecera:L-A9', 'motivo': 'objetivo apartado: L-A9: sin curva'} in cuarentena
-    inst = _congelar(resumen, tmp_path / 'ac')
-    with pytest.raises(ac.CicloBloqueado, match='objetivos apartados'):
-        ac.preparar_fuentes(inst, ['gru'], parametros=GRU, productores=ProductoresReales())
-
-
-def test_serie_con_caso_base_unico_recibe_referencias_que_el_productor_acepta(tmp_path, monkeypatch):
-    """050:RF-11/20 — sin apartados, cada ventana lleva la identidad 043 del caso base de su alimentador."""
+def test_sin_series_pedidas_lo_apartado_consta_y_el_ciclo_sigue(tmp_path, monkeypatch):
+    """050:RF-19/22 — el motivo textual de cargar_cabeceras consta y la serie válida prepara."""
     _objetivos_falsos(monkeypatch)
-    twin, (e,) = _bufer(tmp_path, _que_ensena(caso='caso_base', clase='accepted'))
+    twin, _ = _bufer(tmp_path, _que_ensena(caso='caso_base', clase='accepted', contexto_fisico=_fisico('caso_base')))
     resumen = pc.preparar(_args(tmp_path / 'salida', twin=twin, cabeceras=_libro(tmp_path),
         complemento=_complemento(tmp_path, {'P': COMPLETO}), **GRU))
-    assert resumen['informe']['cabeceras']['ventanas_con_referencia'] > 0
+    apartados = resumen['informe']['cabeceras']['apartados']
+    assert {'objetivo': 'cabecera:L-A9', 'motivo': 'L-A9: fila 2: potencia ausente/inválida'} in apartados
+    assert any(a['objetivo'] == 'cabecera:L-A8' for a in apartados)
     inst = _congelar(resumen, tmp_path / 'ac')
     r = ac.preparar_fuentes(inst, ['gru'], parametros=GRU, productores=ProductoresReales())
     assert set(r['vistas']['gru']) == {'entrenamiento', 'seleccion', 'calibracion', 'prueba'} and not r['cuarentena']
+
+
+def test_con_series_pedidas_la_guarda_sigue_dura(tmp_path, monkeypatch):
+    """050:RF-19 — lo pedido que falta bloquea: no se rebaja la guarda."""
+    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
+    _objetivos_falsos(monkeypatch, [{'objetivo': 'cabecera:L-A9', 'motivo': 'L-A9: sin curva'}])
+    inst = ac.congelar_instantanea({'cabeceras': _libro(tmp_path)}, tmp_path / 'ac', contexto='a' * 64, versiones={'codigo': 'x'})
+    with pytest.raises(ac.CicloBloqueado, match='objetivos apartados'):
+        te.muestras_aprendizaje(inst, {}, pares=[('L-A9', 'L-A9')], **GRU)
+
+
+def test_criterio_comun_recorta_al_tramo_y_aparta_con_huecos(tmp_path, monkeypatch):
+    """050:RF-22 — fuera del tramo común no se usa, y un kVAR con huecos dentro de él se aparta con su cifra."""
+    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
+    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    inicio = datetime(2026, 1, 1)
+    curva = [(inicio + timedelta(minutes=15 * i), 10.) for i in range(200)]
+    comunes = [(t.replace(tzinfo=timezone.utc)).isoformat() for t, _ in curva[50:150]]
+    monkeypatch.setattr(te, 'cargar_cabeceras', lambda ruta, **_: ({'S': []}, {'instantes': comunes, 'motivos_omitidas': {},
+        'ambos_sentidos': [], 'hojas_omitidas': []}))
+    monkeypatch.setattr(te, 'objetivos_de_cabecera', lambda rutas, pares=None, **_: ([Objetivo('cabecera', 'S', 'kW', 'kW', curva),
+        Objetivo('cabecera', 'S', 'kVAR', 'kVAR', curva[:100])], []))
+    objetivos, apartados = te.objetivos_del_ciclo(tmp_path / 'x', zona_horaria='UTC', cadencia_min=15)
+    assert [(o.nombre, len(o.curva)) for o in objetivos] == [('cabecera:S:kW', 100)]
+    assert apartados == [{'objetivo': 'cabecera:S:kVAR', 'motivo': '50 huecos en el tramo común; no se imputan objetivos'}]
+    with pytest.raises(ValueError, match='15 minutos'):
+        te.objetivos_del_ciclo(tmp_path / 'x', zona_horaria='UTC', cadencia_min=60)
+
+
+def test_trabajador_del_ciclo_recibe_el_mismo_criterio():
+    """050:RF-22 — la orden GRU del ciclo pide el tramo común con que se prepararon sus muestras."""
+    import inspect
+    from tools import reentrenar_modelos as rm
+    assert "'--tramo-comun'" in inspect.getsource(rm)
+
+
+def _fisico(rol):
+    return {'case_role': rol, 'case_id': f'IntCase:Estudios\\{rol}', 'topology_hash': 'a' * 64,
+            'controls_hash': 'a' * 64, 'scenario_hash': 'a' * 64}
+
+
+def test_serie_con_caso_base_unico_recibe_referencias_que_el_productor_acepta(tmp_path, monkeypatch):
+    """050:RF-11/20 — cada ventana lleva la identidad 043 del caso base de su alimentador."""
+    _objetivos_falsos(monkeypatch)
+    twin, _ = _bufer(tmp_path, _que_ensena(caso='caso_base', clase='accepted', contexto_fisico=_fisico('caso_base')))
+    resumen = pc.preparar(_args(tmp_path / 'salida', twin=twin, cabeceras=_libro(tmp_path),
+        complemento=_complemento(tmp_path, {'P': COMPLETO}), **GRU))
+    assert resumen['informe']['cabeceras']['ventanas_con_referencia'] > 0
+    assert resumen['informe']['cabeceras']['por_objetivo']['instantes'] == 84 * 96
 
 
 def test_serie_sin_identidad_unica_va_a_cuarentena(tmp_path, monkeypatch):
@@ -290,6 +330,201 @@ def test_serie_declarada_con_contexto_ajeno_se_rechaza(tmp_path, monkeypatch):
         complemento=_complemento(tmp_path, {'P': COMPLETO}, {'L-A1': 'f' * 64}), **GRU))
     cuarentena = json.loads((tmp_path / 'salida' / 'cuarentena.json').read_text(encoding='utf-8'))
     assert any('no es de ningún episodio' in c['motivo'] for c in cuarentena)
+
+
+def test_proyecto_de_las_series_usa_su_ultimo_caso_base(tmp_path, monkeypatch):
+    """050:RF-27 — las series del libro toman el caso base más reciente del proyecto declarado."""
+    _objetivos_falsos(monkeypatch)
+    viejo = _que_ensena(caso='caso_base', clase='accepted', contexto_fisico=_fisico('caso_base'))
+    nuevo = _que_ensena(caso='caso_base', clase='accepted', creado='2026-11-01T10:00:00+00:00',
+        contexto_fisico={**_fisico('caso_base'), 'scenario_hash': 'b' * 64})
+    twin, (_, e) = _bufer(tmp_path, viejo, nuevo)
+    resumen = pc.preparar(_args(tmp_path / 'salida', twin=twin, cabeceras=_libro(tmp_path), proyecto_series='P',
+        complemento=_complemento(tmp_path, {'P': COMPLETO}), **GRU))
+    declaradas = resumen['informe']['series_declaradas']
+    guardado = json.loads((tmp_path / 'salida' / 'complemento.json').read_text(encoding='utf-8'))
+    assert guardado['series'] == {'L-A1': declaradas['contexto']} and guardado['declarado_por'] == 'prueba'
+    contexto, _ = pc.contexto_de_episodio(e, guardado)
+    assert clave_contexto(contexto) == declaradas['contexto']
+    assert resumen['fuentes']['complemento'].endswith('complemento.json')
+
+
+def test_complemento_sin_responsable_se_rechaza(tmp_path):
+    """050:RF-25 — lo declarado tiene quien responda."""
+    ruta = tmp_path / 'c.json'
+    ruta.write_text(json.dumps({'schema': pc.ESQUEMA_COMPLEMENTO, 'proyectos': {}, 'series': {}}), encoding='utf-8')
+    assert pc.main(['--salida', str(tmp_path / 's'), '--complemento', str(ruta)]) == 1
+
+
+def test_complemento_generado_lee_la_ultima_calibracion_y_el_perfil(tmp_path):
+    """050:RF-25 — mes y criterio del informe más reciente; sin informe, se dice; la huella se anota como declarada."""
+    import os
+    salida = tmp_path / 'web' / 'esp' / 'runs' / 'r1' / 'salida'
+    salida.mkdir(parents=True)
+    for i, (mes, criterio) in enumerate((('2026-02-01 10:00:00', 'maximo_mes'), ('2026-07-01 10:00:00', 'coincidente'))):
+        ruta = salida / f'ajuste_cabecera_aplicacion_{i}.json'
+        ruta.write_text(json.dumps({'project': 'P', 'criterio_fijas': criterio, 'objetivo': {'fecha': mes}}), encoding='utf-8')
+        os.utime(ruta, (1000 + i, 1000 + i))
+    perfil = tmp_path / 'perfil.json'
+    perfil.write_text('{"empresa": "X"}', encoding='utf-8')
+    dato, sin = pc.generar_complemento({'P', 'Q'}, [tmp_path / 'web'], perfil, 'integrador')
+    assert dato['declarado_por'] == 'integrador' and 'declarada al preparar' in dato['profile_hash_nota']
+    assert dato['proyectos']['P']['period'] == '2026-07' and dato['proyectos']['P']['criterio_fijas'] == 'coincidente'
+    assert list(sin) == ['Q'] and 'Q' not in dato['proyectos']
+
+
+def test_plantilla_referenciada_por_su_parte_sigue_siendo_maestro(tmp_path):
+    """050:RF-26 — una plantilla no se coteja con observaciones y su etiqueta no sube."""
+    from dataclasses import replace
+    humano = normalizar_orden({'texto': 'convierte la red', 'tarea': 'convertir', 'datos': [], 'origen': 'confirmado', 'fecha': FECHA})
+    plantilla = replace(_orden('informe de plantilla sobre factibilidad'), record_id='plantilla1', group_id='g1',
+        tipo='informe', quality='silver_deterministic', verification='deterministic_template', resultado={'tipo_informe': 'estudio', 'subtipo': 'PIDE'})
+    dataset = _dataset(tmp_path, humano, plantilla)
+    resumen = pc.preparar(_args(tmp_path / 'salida', dataset=dataset, observaciones=[_observaciones(tmp_path, ('convierte la red', FECHA))]))
+    assert resumen['informe']['dataset']['generados_con_referencia'] == 1
+    inst = _congelar(resumen, tmp_path / 'ac')
+    r = ac.preparar_fuentes(inst, ['clasificador'], productores=ProductoresReales())
+    m = r['vistas']['clasificador']['entrenamiento'][0]
+    assert (m.etiqueta, m.origen) == ('maestro', 'redactado')
+
+
+def test_unir_datasets_conserva_particiones_y_bloquea_si_mueve(tmp_path, monkeypatch):
+    """050:RF-24 — la unión no mueve reservas; si moviera alguna, no escribe nada."""
+    spec = importlib.util.spec_from_file_location('unir_t7', Path(__file__).resolve().parents[1] / 'tools' / 'unir_dataset_lenguaje.py')
+    un = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(un)
+    a, b = tmp_path / 'a', tmp_path / 'b'
+    a.mkdir(), b.mkdir()
+    from convertersmartgrid.asistente.dataset_entrenamiento import particionar_dataset
+    filas = [_orden(f'orden numero {i}') for i in range(40)]
+    escribir_particiones(particionar_dataset(tuple(filas[:20])), a)
+    escribir_particiones(particionar_dataset(tuple(filas[20:])), b)
+    informe = un.unir([a, b], tmp_path / 'u')
+    assert informe['particiones_conservadas'] is True
+    assert sum(sum(v.values()) for v in informe['particiones'].values()) == 40
+    from convertersmartgrid.asistente import dataset_entrenamiento as de
+    real = de.particionar_dataset
+    monkeypatch.setattr(de, 'particionar_dataset', lambda r: {'train': tuple(r), 'validation': (), 'test': ()} if real(r)['test'] or real(r)['validation'] else real(r))
+    with pytest.raises(ValueError, match='movería'):
+        un.unir([a, b], tmp_path / 'u2')
+    assert not (tmp_path / 'u2').exists()
+
+
+def test_episodio_capturado_guarda_su_identidad_sin_complemento(tmp_path):
+    """050:RF-23 — con el plan completo, el episodio nuevo basta para la huella 043."""
+    from convertersmartgrid.digital_twin.contratos_fisicos import contexto_fisico
+    from convertersmartgrid.digital_twin.integration import plan_de_lectura
+    from convertersmartgrid.digital_twin.episode import Caso
+    plan = {'project': 'P', 'feeders': ['A1', 'A2'], 'periodo': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': 'b' * 64}
+    assert plan_de_lectura(plan, Caso.SIN_PROYECTO, {})['profile_hash'] == 'b' * 64
+    grafo = _grafo()
+    lectura = {'topologia': {'grafo': grafo}, 'caso_nativo': {'id': 'IntCase:x', 'rol': 'sin_proyecto'},
+               'contexto': {'period': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': 'b' * 64}}
+    fisico = contexto_fisico(lectura)
+    assert (fisico['period'], fisico['criterio_fijas'], fisico['profile_hash']) == ('2026-07', 'coincidente', 'b' * 64)
+    twin, (e,) = _bufer(tmp_path, _que_ensena(contexto_fisico={k: fisico[k] for k in
+        ('case_role', 'case_id', 'topology_hash', 'controls_hash', 'scenario_hash', 'period', 'criterio_fijas', 'profile_hash')} ))
+    contexto, motivo = pc.contexto_de_episodio(e, {'proyectos': {}, 'series': {}})
+    assert motivo is None and contexto.profile_hash == 'b' * 64
+
+
+def _espacio_con_escalera(tmp_path, datos, tension_min=0.95):
+    espacio = tmp_path / 'web' / 'esp'
+    (espacio / 'planes').mkdir(parents=True)
+    salida = espacio / 'runs' / 'r1' / 'salida'
+    salida.mkdir(parents=True)
+    (salida / 'escalera_datos_1.json').write_text(json.dumps({'project': 'P', 'alimentadores': datos}), encoding='utf-8')
+    (espacio / 'planes' / 'escalera_datos_1.json').write_text(json.dumps({'project': 'P', 'tension_min_pu': tension_min}), encoding='utf-8')
+    return tmp_path / 'web'
+
+
+def _casos_con(monkeypatch, tmp_path, perfil, datos, *payloads):
+    from convertersmartgrid import perfil_empresa as pe
+    from convertersmartgrid.digital_twin import integration as ig
+    monkeypatch.setattr(pe, 'datos_perfil', lambda *_a, **_k: perfil)
+    monkeypatch.setattr(pe, 'estructura_empresa', lambda *_a, **_k: None)
+    monkeypatch.setattr(ig, 'normas_de', lambda *_a: ['N'])
+    monkeypatch.setattr(ig, 'limites_combinados', lambda *_a: SimpleNamespace(tension_max_pu=1.05))
+    espacios = [_espacio_con_escalera(tmp_path, datos)]
+    twin, _ = _bufer(tmp_path, *payloads)
+    p = pc.Preparacion(tmp_path, {'proyectos': {'P': COMPLETO}, 'series': {}})
+    leido = pc.preparar_twin(p, twin)
+    return p, pc.generar_casos(p, tmp_path, ['P'], espacios, leido['ensenan'], tmp_path / 'perfil.json')
+
+
+def test_caso_sin_costo_en_el_perfil_dice_el_parametro_que_falta(tmp_path, monkeypatch):
+    """050:RF-28 — sin costo por banco no hay caso: se informa, no se inventa."""
+    nodo = next(iter(_grafo()['nodos']))
+    p, ruta = _casos_con(monkeypatch, tmp_path, {'calibracion': {'bancos_kvar_por_tension': {'10': 300}}},
+                         {'A1': {'banco_en': {'x': pc._sufijo(nodo)}}}, _que_ensena())
+    assert ruta is None
+    faltan = ' '.join(p.informe['casos_generados']['P']['faltan'])
+    assert 'maniobras: la escalera no trae enlaces' in faltan
+    assert 'bancos' in faltan and ('falta el costo por banco' in faltan or 'módulo de banco' in faltan)
+    assert p.pendientes['evolutivos_casos']['familias'] == ['evolutivos']
+
+
+def test_caso_que_no_converge_no_gasta_el_turno_de_su_particion(tmp_path, monkeypatch):
+    """050:RF-28 — otro episodio de la misma parte puede dar el caso; el motivo del primero consta."""
+    from convertersmartgrid.digital_twin.oraculo import muestras_y_particiones  # noqa: F401 - comprueba el import real
+    rama = next(r['id'] for r in _grafo()['ramas'] if r.get('id'))
+    llamadas = []
+
+    def normalizacion(e, contexto, problema, parametros):
+        llamadas.append(e.episode_id)
+        if len(llamadas) == 1:
+            raise ValueError('el estado actual no converge en el flujo mallado')
+        return {'perdidas_kw': [0, 10.0]}
+    monkeypatch.setattr(pc, '_normalizacion', normalizacion)
+    a, b = _que_ensena(), _que_ensena(creado='2026-10-22T10:00:00+00:00')
+    monkeypatch.setattr(pc, '_particion_pinn', lambda ensenan: dict.fromkeys(ensenan, 'entrenamiento'))
+    p, ruta = _casos_con(monkeypatch, tmp_path, {}, {'A1': {'enlaces': [{'enlace': pc._sufijo(rama)}]}}, a, b)
+    casos = json.loads(ruta.read_text(encoding='utf-8'))['casos']
+    assert len(casos) == 1 and casos[0]['episode_id'] == llamadas[1] and casos[0]['parametros']['tension_max_pu'] == 1.05
+    assert any('no converge' in x for x in p.informe['casos_generados']['P']['faltan'])
+
+
+def test_lectura_de_escenarios_recibe_la_identidad_del_plan():
+    """050:RF-23 — los escenarios leen con otro guion, sin contexto: el episodio toma la del plan."""
+    from test_digital_twin_capture import _construir, _lectura, _plan
+    from convertersmartgrid.digital_twin.episode import Caso
+    plan = {**_plan(), 'periodo': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': 'b' * 64}
+    e = _construir(plan=plan, caso=Caso.SIN_PROYECTO, referencia=None)
+    assert (e.contexto_fisico['period'], e.contexto_fisico['criterio_fijas'], e.contexto_fisico['profile_hash']) == (
+        '2026-07', 'coincidente', 'b' * 64)
+    # Lo que la lectura ya trae no se sobrescribe.
+    propia = _lectura(contexto={'period': '2025-01', 'criterio_fijas': 'maximo_mes', 'profile_hash': 'c' * 64})
+    e = _construir(plan=plan, caso=Caso.SIN_PROYECTO, lectura=propia, referencia=None)
+    assert e.contexto_fisico['period'] == '2025-01'
+
+
+def test_identidad_de_captura_da_lo_que_consta(monkeypatch):
+    """050:RF-23 — periodo y criterio de la calibración en disco y huella del perfil; lo que no consta, no va."""
+    from convertersmartgrid.web import services as sv
+    from convertersmartgrid.evaluacion_modelos import huella
+    monkeypatch.setattr(sv, 'ajuste_aplicado_en_disco', lambda ws, project: {'informes': [
+        {'objetivo': {'fecha': '2026-07-13 10:45:00'}, 'criterio_fijas': 'coincidente'}]})
+    ws = SimpleNamespace(criterio_cabecera={})
+    assert sv.identidad_de_captura(ws, 'P', {'a': 1}) == {'periodo': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': huella({'a': 1})}
+    monkeypatch.setattr(sv, 'ajuste_aplicado_en_disco', lambda ws, project: None)
+    assert sv.identidad_de_captura(ws, 'P', {'a': 1}) == {'profile_hash': huella({'a': 1})}
+
+
+def test_consultas_del_maestro_se_cuentan_aparte(tmp_path):
+    """050:RF-29 — en la evaluación el maestro y el operador no se suman."""
+    from convertersmartgrid.asistente.embeddings import origenes_consultas_reservadas
+    (tmp_path / 'retrieval_test.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in (
+        {'pregunta': 'a', 'origen': 'maestro', 'verification': 'teacher_redacted'},
+        {'pregunta': 'b', 'origen': 'maestro', 'verification': 'teacher_redacted'},
+        {'pregunta': 'c', 'verification': 'operator_confirmed'})), encoding='utf-8')
+    assert origenes_consultas_reservadas(tmp_path) == {'maestro': 2, 'humano': 1}
+
+
+def test_politica_del_ciclo_es_la_de_044_y_cambia_con_sus_valores():
+    """050:RF-30 — ni ceros ni texto: depende de las semillas y de las políticas reales."""
+    a = pc.politica_del_ciclo('11,23,37')
+    assert a == pc.politica_del_ciclo('11,23,37') and a['huella'] != '0' * 64
+    assert a['huella'] != pc.politica_del_ciclo('11,23')['huella'] and set(a['miembros']) == {'agente', 'temporal'}
 
 
 def test_ruta_ausente_queda_pendiente_con_sus_familias(tmp_path):
@@ -365,7 +600,7 @@ def test_congelar_y_ciclo_comparten_una_sola_copia(tmp_path):
                                 observaciones=[_observaciones(tmp_path, ('convierte la red', FECHA))]))
     raiz = tmp_path / 'ac'
     assert cli.main(['--raiz', str(raiz), *resumen['ordenes']['congelar']]) == 0
-    orden = [{'<huella 044>': 'a' * 64, '<s>': '60', '<GiB>': '1'}.get(v, v) for v in resumen['ordenes']['ciclo_solo_preparar']]
+    orden = [{'<s>': '60', '<GiB>': '1'}.get(v, v) for v in resumen['ordenes']['ciclo_solo_preparar']]
     orden[orden.index('--familias') + 1] = 'transformer'
     assert cli.main(['--raiz', str(raiz), *orden]) == 0
     assert len(list((raiz / 'instantaneas').iterdir())) == 1

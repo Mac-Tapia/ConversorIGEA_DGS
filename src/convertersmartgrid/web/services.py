@@ -4734,6 +4734,25 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
             **_verdad_de_la_calibracion(ctx, informes)}
 
 
+def identidad_de_captura(ws: Workspace, project: str | None, perfil: Mapping[str, Any]) -> dict[str, Any]:
+    """050:RF-23: periodo, criterio de fijas y huella del perfil que el episodio guarda; lo que no consta, no va.
+
+    Sin ellos el episodio no tiene identidad 043 (``ContextoExperimento``) y solo se puede completar después,
+    con un complemento declarado.
+    """
+    from ..evaluacion_modelos import huella
+
+    calibracion = ajuste_aplicado_en_disco(ws, project) or {}
+    informes = calibracion.get('informes') or []
+    periodo = next((str(c['periodo']) for c in (getattr(ws, 'criterio_cabecera', None) or {}).values()
+                    if (c or {}).get('periodo')), None)
+    if periodo is None:
+        periodo = next((str(i['objetivo']['fecha'])[:7] for i in informes if (i.get('objetivo') or {}).get('fecha')), None)
+    criterio = next((i.get('criterio_fijas') for i in informes if i.get('criterio_fijas')), None)
+    return {k: v for k, v in (('periodo', periodo), ('criterio_fijas', criterio), ('profile_hash', huella(dict(perfil))))
+            if v is not None}
+
+
 def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
                              token: str | None = None) -> dict[str, Any] | None:
     """El último ajuste aplicado del proyecto, rehecho con sus informes en disco (007:RF-40).
@@ -5213,6 +5232,7 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
                     'feeders': propios if sorted(propios) == firmados else firmados,
                     'native_action_context': contexto or None,
                     'huellas_gps_esperadas': plan.get('huellas_gps_esperadas') or {},
+                    **identidad_de_captura(ws, plan.get('project'), perfil),
                     **{k: plan[k] for k in ('anio_casos', 'periodo', 'criterio_fijas') if plan.get(k) is not None}}
 
     def leer(plan_lectura: dict) -> dict:
@@ -5980,7 +6000,7 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
     segundos = float(segundos or ajustes.get('licencia_s') or 600)
     feeders = list(contexto['feeders'])
     base = {'project': project, 'folder': carpeta_de(ws, project), 'feeders': feeders, 'case': caso,
-            'native_action_context': contexto}
+            'native_action_context': contexto, **identidad_de_captura(ws, project, perfil)}
     _rc, tramos, _r = _guion_pf(ws, ctx, 'escenarios_pf.py', {**base, 'solo_tramos': True},
                                 nombre='gemelo_tramos', cancelable=False, limite_s=segundos)
     if tramos.get('error'):

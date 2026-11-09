@@ -28,6 +28,10 @@ def _objetivos(args):
     for v in args.central:
         alimentador,medidores=v.split('=',1)
         centrales[alimentador]=dict(zip(('generacion','llegada','salida'),medidores.split(','),strict=True))
+    if args.tramo_comun and not pares and not centrales and len(rutas)==1:
+        # 050:RF-22: el mismo criterio con que el ciclo preparó sus muestras.
+        from convertersmartgrid.digital_twin.temporal_entrenamiento import objetivos_del_ciclo
+        return (*objetivos_del_ciclo(rutas[0],zona_horaria=args.zona_horaria,cadencia_min=args.cadencia_min),rutas)
     return (*objetivos_de_cabecera(rutas,pares,centrales=centrales),rutas)
 
 
@@ -81,6 +85,7 @@ def main(argv=None):
     entrada.add_argument('--libro',type=Path,action='append',help='Libro o carpeta de la medición; se puede repetir')
     p.add_argument('--raiz',type=Path)
     p.add_argument('--output-json',type=Path)
+    p.add_argument('--tramo-comun',action='store_true',help='050:RF-22: sin series pedidas, el apartado y el tramo común de cargar_cabeceras')
     p.add_argument('--inventario',action='store_true',help='Solo lista rango, cadencia y huecos de cada objetivo')
     p.add_argument('--sin-publicar',action='store_true',help='Registrar sin activar: publicación conjunta del ciclo (050:RF-7)')
     p.add_argument('--comparar',help='Modelos que compiten, separados por coma: ingenuo, estacional_semanal, gru, nhits, tft, patchtst')
