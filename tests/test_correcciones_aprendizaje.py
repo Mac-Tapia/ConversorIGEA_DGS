@@ -133,6 +133,21 @@ def test_temporal_aparta_la_serie_sin_potencia_y_sigue(tmp_path):
     assert 'Mala: fila 3' in meta['motivos_omitidas']['Mala']
 
 
+def test_temporal_recorta_al_tramo_comun_sin_hojas_pedidas(tmp_path):
+    """060:RF-5: sin hojas pedidas, las series con otro rango de fechas se recortan a su tramo común."""
+    from openpyxl import Workbook
+    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    w=Workbook();a=w.active;a.title='A';b=w.create_sheet('B')
+    a.append(['Local Time','kW tot']);b.append(['Local Time','kW tot'])
+    for k in range(3):a.append([datetime(2025,1,1,0,15*k),k+1])
+    for k in range(1,4):b.append([datetime(2025,1,1,0,15*k),k+10])
+    p=tmp_path/'datos.xlsx';w.save(p)
+    series,meta=cargar_cabeceras(p,zona_horaria='UTC')
+    assert series=={'A':[2,3],'B':[11,12]} and len(meta['instantes'])==2
+    with pytest.raises(ValueError,match='cronologia'):
+        cargar_cabeceras(p,zona_horaria='UTC',hojas=('A','B'))
+
+
 def test_temporal_fecha_textual_y_medianoche(tmp_path):
     """060:RF-5: los formatos soportados por el lector compartido mantienen la hora."""
     from openpyxl import Workbook

@@ -148,7 +148,13 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         fechas[nombre]=[r['instante'] for r in preparada['filas']]
     if not series:
         raise ValueError('; '.join(motivos.values()) if motivos else 'todas las series van en ambos sentidos; ninguna es de demanda')
-    if len({tuple(v) for v in fechas.values()})!=1:raise ValueError('las series no comparten cronologia')
+    if len({tuple(v) for v in fechas.values()})!=1:
+        comunes=set.intersection(*(set(v) for v in fechas.values()))
+        if hojas or codigos or not comunes:raise ValueError('las series no comparten cronologia')
+        # 060:RF-5, Pisco (2026-11-08): cada medidor empieza y acaba en su fecha; se usa el tramo común.
+        for clave in series:
+            series[clave]=[x for x,t in zip(series[clave],fechas[clave],strict=True) if t in comunes]
+            fechas[clave]=[t for t in fechas[clave] if t in comunes]
     if sha_archivo(ruta)!=hash_antes:raise ValueError('el libro cambió durante la lectura')
     return series,{'path':str(ruta.resolve()),'sha256':hash_antes,'zona_horaria':zona_horaria,
         'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'motivos_omitidas':motivos,'invertidas':invertidas,
