@@ -107,6 +107,21 @@ def test_escenarios_simulados_y_restituidos(guion):
     assert all(not ln.outserv for ln in app.proyecto.GetContents('*.ElmLne', 1))
 
 
+def test_aprender_con_flujo_equilibrado_en_la_copia(guion, monkeypatch):
+    """045:RF-12 — con «equilibrado» cada escenario va equilibrado aunque la red tenga monofásicos; sin él, como siempre."""
+    llamadas, real = [], guion.flujo_de_carga
+    monkeypatch.setattr(guion, 'flujo_de_carga', lambda app, **k: llamadas.append(k.get('monofasicos')) or real(app, **k))
+    app = _app()
+    object.__setattr__(app.ldf, 'iopt_net', 1)
+    informe, rc = guion.ejecutar(app, _plan(escenarios=[{'factor_carga': 1.0}], equilibrado=True))
+    assert rc == 0 and len(informe['escenarios']) == 1 and app.ldf.iopt_net == 0 and llamadas == [False]
+    llamadas.clear()
+    app = _app()
+    object.__setattr__(app.ldf, 'iopt_net', 1)
+    guion.ejecutar(app, _plan(escenarios=[{'factor_carga': 1.0}]))
+    assert app.ldf.iopt_net == 1 and llamadas == [None]
+
+
 def test_cancelar_para_entre_escenarios(guion):
     """024:RF-41 — cancelar para antes del siguiente escenario y lo dice."""
     informe, rc = guion.ejecutar(_app(), _plan(escenarios=[{'factor_carga': 1.0}] * 3), lambda: True)

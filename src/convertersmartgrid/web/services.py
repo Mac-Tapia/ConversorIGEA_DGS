@@ -5875,7 +5875,8 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
 
 @_fuera_de_la_version
 def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
-                    n: int = 20, segundos: float | None = None, caso: str = 'sin_proyecto') -> dict:
+                    n: int = 20, segundos: float | None = None, caso: str = 'sin_proyecto',
+                    equilibrado: bool = False) -> dict:
     """Aprendizaje activo: escenarios simulados en una copia del proyecto (spec 024, T10).
 
     Lee los tramos, arma la matriz (demanda escalada y N-1), elige los que más enseñan
@@ -5940,6 +5941,7 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
             f'({"por incertidumbre" if incertidumbre else "por diversidad"})…')
     _rc, informe, report = _guion_pf(
         ws, ctx, 'escenarios_pf.py', {**base, 'escenarios': [asdict(e) for e in elegidos],
+                                      **({'equilibrado': True} if equilibrado else {}),    # 045:RF-12
                                       'limite_s': segundos},
         nombre='gemelo_escenarios', cancelable=True, limite_s=segundos + 300)
     if informe.get('error') and not informe.get('escenarios'):

@@ -62,6 +62,11 @@ def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
             informe['grafo'] = grafo(app, copia, raiz, feeders)
             return informe, 0
         ldf = app.GetFromStudyCase('ComLdf')
+        # 045:RF-12: la PINN solo aprende de flujos equilibrados; las redes con ramales monofásicos fuerzan el
+        # desequilibrado (cargas_pf.flujo_de_carga) y sus episodios no enseñaban. La copia se borra al terminar.
+        equilibrado = bool(plan.get('equilibrado'))
+        if equilibrado:
+            ldf.iopt_net = 0
         escala_original = getattr(ldf, 'scLoadFac', 100.0)
         inicio, limite = time.monotonic(), float(plan.get('limite_s') or 600)
         for e in plan.get('escenarios') or []:
@@ -74,7 +79,7 @@ def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
                 ldf.scLoadFac = float(escala_original) * float(e['factor_carga'])
                 for ln in abiertos:
                     ln.outserv = 1
-                flujo = flujo_de_carga(app)
+                flujo = flujo_de_carga(app, monofasicos=False if equilibrado else None)
                 fila = {'escenario': e, 'converge': flujo['converged']}
                 if flujo['converged']:
                     barras, tramos, frontera, info = _red(app, raiz)

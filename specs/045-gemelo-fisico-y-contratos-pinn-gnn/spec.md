@@ -24,6 +24,7 @@ Dependencias y relación: 043 y 044; preservar reglas y casos de 025, 032 y 037�
 - RF-9: SI una predicción queda fuera del dominio validado, ENTONCES EL SISTEMA impedirá su uso como diseño aceptado.
 - RF-10: CUANDO se capture la red real, EL SISTEMA conservará la central y los bancos existentes con sus estados medidos.
 - RF-11: CUANDO se acepte un modelo para un alcance, EL SISTEMA aportará contraste nativo de ese mismo alcance.
+- RF-12: CUANDO se pida aprender con flujo equilibrado, EL SISTEMA calculará los escenarios de la copia con flujo equilibrado, aunque la red tenga ramales monofásicos, para que esos episodios enseñen a la PINN; el proyecto del operador no cambia.
 
 ## Requisitos no funcionales
 

@@ -2077,7 +2077,8 @@ def create_app(
                       lambda ctx: services.gemelo_aprender(
                           ws, ctx, project, [str(f) for f in body.get('feeders') or []],
                           n=int(body.get('n') or 20), segundos=body.get('segundos'),
-                          caso=str(body.get('caso') or 'sin_proyecto')),
+                          caso=str(body.get('caso') or 'sin_proyecto'),
+                          equilibrado=bool(body.get('equilibrado'))),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/digital-twin/temporal', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
