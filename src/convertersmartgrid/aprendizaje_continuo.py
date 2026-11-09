@@ -110,6 +110,11 @@ def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
             'plan_hash': hashlib.sha256(contenido).hexdigest()}
 
 
+def huella_parametros_ciclo(parametros: Mapping[str, Any]) -> str:
+    """050:RF-1/11: la misma huella en `congelar` y en `ciclo`, para que compartan una sola copia."""
+    return hashlib.sha256(json.dumps(parametros, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+
+
 def _sha(ruta: Path) -> str:
     with ruta.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()

@@ -600,26 +600,33 @@ def muestras_aprendizaje(instantanea: dict, referencias: dict, familias: list[st
                     fila['record_id'], fila, familia=familia, particion=nombres[parte],
                     origen=origen, etiqueta=etiqueta))
     if 'embeddings' in familias:
-        from .embeddings import cargar_dataset_recuperacion, construir_preguntas_extractivas
-        from .indice import Fragmento
         dataset = ruta_de(instantanea, 'dataset')
         for entrenamiento, nombre, particion in ((True, 'retrieval_train', 'entrenamiento'),
                                                   (False, 'retrieval_test', 'prueba')):
-            # El lector verifica grupos, textos, reservas y fuentes de los pares consumidos.
-            _, pares = cargar_dataset_recuperacion(dataset, entrenamiento=entrenamiento)
-            ruta = dataset / f'{nombre}.jsonl'
-            if ruta.is_file():
-                consultas = [json.loads(l) for l in ruta.read_text(encoding='utf-8').splitlines() if l.strip()]
-            else:
-                fragmentos = [Fragmento(i, f'{(r.get("provenance") or {}).get("source_url") or "documento_local"}#{r["record_id"]}', r['texto'])
-                    for i, r in enumerate(partes['train']) if r.get('quality') == 'context']
-                consultas = construir_preguntas_extractivas(fragmentos)
-            if len(consultas) != len(pares):
-                raise CicloBloqueado('embeddings: consultas distintas de las consumidas')
-            for r in consultas:
+            for clave, r in consultas_recuperacion(dataset, partes, entrenamiento=entrenamiento):
                 humana = r.get('verification') in ('operator_confirmed', 'operator_corrected')
                 muestras.append(muestra_de_registro(instantanea, referencias, 'dataset',
-                    f'{nombre}:{_hash(r)}', r, familia='embeddings', particion=particion,
+                    clave, r, familia='embeddings', particion=particion,
                     origen='observado' if humana else 'redactado',
                     etiqueta='operador' if humana else 'maestro'))
     return muestras
+
+
+def consultas_recuperacion(dataset: Path, partes: dict, *, entrenamiento: bool) -> list[tuple[str, dict]]:
+    """050:RF-2/11: ``(registro, consulta)`` consumidos; las mismas al declarar y al comprobar."""
+    from ..contratos_aprendizaje import CicloBloqueado
+    from .embeddings import cargar_dataset_recuperacion, construir_preguntas_extractivas
+    from .indice import Fragmento
+    nombre = 'retrieval_train' if entrenamiento else 'retrieval_test'
+    # El lector verifica grupos, textos, reservas y fuentes de los pares consumidos.
+    _, pares = cargar_dataset_recuperacion(dataset, entrenamiento=entrenamiento)
+    ruta = dataset / f'{nombre}.jsonl'
+    if ruta.is_file():
+        consultas = [json.loads(l) for l in ruta.read_text(encoding='utf-8').splitlines() if l.strip()]
+    else:
+        fragmentos = [Fragmento(i, f'{(r.get("provenance") or {}).get("source_url") or "documento_local"}#{r["record_id"]}', r['texto'])
+            for i, r in enumerate(partes['train']) if r.get('quality') == 'context']
+        consultas = construir_preguntas_extractivas(fragmentos)
+    if len(consultas) != len(pares):
+        raise CicloBloqueado('embeddings: consultas distintas de las consumidas')
+    return [(f'{nombre}:{_hash(r)}', r) for r in consultas]

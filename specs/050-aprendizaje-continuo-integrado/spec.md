@@ -21,6 +21,17 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-8: SI falta un adaptador, dato, recurso o validación obligatorios, ENTONCES EL SISTEMA registrará el bloqueo del ciclo y mantendrá el conjunto aceptado, sin anunciar entrenamiento ni sincronización completos.
 - RF-9: CUANDO el sistema proponga nuevos escenarios o anotaciones para aprender, EL SISTEMA validará su procedencia y consistencia, conservará los rechazados y evitará usar sus propias predicciones como recompensa o etiqueta verdadera sin contraste independiente.
 - RF-10: CUANDO web o CLI muestren el aprendizaje, EL SISTEMA distinguirá preparación, entrenamiento, selección, evaluación, publicación, activación y aceptación nativa, con las versiones y motivos reales de cada estado.
+- RF-11: CUANDO se prepare un ciclo sobre rutas reales declaradas, EL SISTEMA generará un manifiesto de procedencia por registro y un contexto del ciclo en una carpeta nueva.
+- RF-12: MIENTRAS prepara el ciclo, EL SISTEMA leerá los almacenes de origen sin escribir en ellos.
+- RF-13: EL SISTEMA calculará la huella 043 de un episodio solo con los catorce campos de su identidad leídos del episodio o de un complemento declarado.
+- RF-14: SI un complemento declarado contradice un campo del episodio, ENTONCES EL SISTEMA pondrá el episodio en cuarentena en vez de sustituir el campo.
+- RF-15: SI un registro consumido por una familia no tiene procedencia demostrable, ENTONCES EL SISTEMA lo reportará en cuarentena con su motivo y no emitirá referencia para él.
+- RF-16: CUANDO prepare la vista del búfer, EL SISTEMA copiará solo los episodios que pueden enseñar y tienen referencia.
+- RF-17: DONDE un registro documental no traiga fecha propia, EL SISTEMA usará como instante la fecha de sellado de su manifiesto y dejará escrito ese origen.
+- RF-18: SI el registro pertenece a una fuente física, ENTONCES EL SISTEMA no le aplicará el instante de sellado de RF-17.
+- RF-19: CUANDO una serie de cabecera quede apartada, EL SISTEMA la reportará con el motivo textual del lector y conservará el bloqueo de la familia GRU.
+- RF-20: SI una serie de cabecera no se vincula a una única identidad 043, ENTONCES EL SISTEMA la pondrá en cuarentena sin atribuirle otro contexto.
+- RF-21: SI falta la ruta de una fuente, ENTONCES EL SISTEMA la declarará pendiente junto con las familias que quedan sin preparar.
 
 ## Requisitos no funcionales
 
@@ -41,6 +52,13 @@ Una fuente sin productor verificable conserva un bloqueo; no se presenta como vi
 Aclaraciones de RF-4/RF-10 (P19, 2026-11-08): la vigilancia encola un único ciclo
 con plan explícito, idempotencia y cancelación cooperativa entre etapas. El permiso
 de autoentrenar permanece apagado por defecto; carecer de plan registra bloqueo.
+
+Aclaraciones de RF-13/RF-15 (T6, 2026-11-08): los episodios reales traen fuente, proyecto,
+alimentadores, caso y huellas de topología, controles y escenario, pero no `profile_hash`,
+y la mayoría tampoco periodo ni criterio de fijas. `clave_contexto` exige los catorce campos:
+una huella calculada con menos no es una identidad 043 y no entra en el mapa de proyectos,
+porque abriría la comprobación física de `muestra_de_registro`. Lo que falta lo aporta un
+complemento declarado por el responsable, o el episodio queda en cuarentena.
 
 ## Fuera de alcance
 
