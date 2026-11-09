@@ -58,6 +58,10 @@ def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: 
         contexto_pasos=contexto, horizonte_max=H)
 
 
+#: Pasos de 15 minutos que exige el ajuste de la GRU: 30 días comunes.
+MIN_PASOS_COMUNES=30*96
+
+
 def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] = (),
                      hojas: tuple[str,...] = (), desde: str | None = None,
                      hasta: str | None = None) -> tuple[dict,dict]:
@@ -148,6 +152,12 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
         fechas[nombre]=[r['instante'] for r in preparada['filas']]
     if not series:
         raise ValueError('; '.join(motivos.values()) if motivos else 'todas las series van en ambos sentidos; ninguna es de demanda')
+    if not (hojas or codigos):
+        # 060:RF-5, Pisco (2026-11-08): CHI201 traía 17 días y arrastraba a los demás, con 298, bajo el mínimo de 30.
+        cortas=[n for n in series if len(series[n])<MIN_PASOS_COMUNES]
+        if len(cortas)<len(series):
+            for n in cortas:
+                omitidas.append(n);motivos[n]=f'{n}: {len(series.pop(n))} pasos, menos de 30 días';fechas.pop(n)
     if len({tuple(v) for v in fechas.values()})!=1:
         comunes=set.intersection(*(set(v) for v in fechas.values()))
         if hojas or codigos or not comunes:raise ValueError('las series no comparten cronologia')
@@ -169,7 +179,7 @@ def entrenar_temporal(series: dict, destino: Path, *, semillas: tuple[int,...], 
     from ..trabajadores_ml import escribir_informe,sha_archivo
     if not series or epocas<1 or ventana<1 or not semillas:raise ValueError('series y parametros de ajuste obligatorios')
     largos={len(s) for s in series.values()}
-    if len(largos)!=1 or min(largos)<30*96:raise ValueError('se requieren al menos 30 dias comunes de 15 minutos')
+    if len(largos)!=1 or min(largos)<MIN_PASOS_COMUNES:raise ValueError('se requieren al menos 30 dias comunes de 15 minutos')
     import numpy as np
     for nombre,s in series.items():
         if not np.isfinite(s).all():raise ValueError(f'{nombre}: serie no finita')

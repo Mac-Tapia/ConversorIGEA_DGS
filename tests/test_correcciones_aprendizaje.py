@@ -148,6 +148,20 @@ def test_temporal_recorta_al_tramo_comun_sin_hojas_pedidas(tmp_path):
         cargar_cabeceras(p,zona_horaria='UTC',hojas=('A','B'))
 
 
+def test_temporal_aparta_la_serie_demasiado_corta(tmp_path,monkeypatch):
+    """060:RF-5: sin hojas pedidas, una serie por debajo del mínimo se aparta con su motivo y no recorta a las demás."""
+    from openpyxl import Workbook
+    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
+    monkeypatch.setattr(te,'MIN_PASOS_COMUNES',3)
+    w=Workbook();a=w.active;a.title='Larga';b=w.create_sheet('Corta')
+    a.append(['Local Time','kW tot']);b.append(['Local Time','kW tot'])
+    for k in range(4):a.append([datetime(2025,1,1,0,15*k),k+1])
+    b.append([datetime(2025,1,1,0,15),9])
+    p=tmp_path/'datos.xlsx';w.save(p)
+    series,meta=te.cargar_cabeceras(p,zona_horaria='UTC')
+    assert series=={'Larga':[1,2,3,4]} and meta['hojas_omitidas']==['Corta'] and 'menos de 30' in meta['motivos_omitidas']['Corta']
+
+
 def test_temporal_fecha_textual_y_medianoche(tmp_path):
     """060:RF-5: los formatos soportados por el lector compartido mantienen la hora."""
     from openpyxl import Workbook
