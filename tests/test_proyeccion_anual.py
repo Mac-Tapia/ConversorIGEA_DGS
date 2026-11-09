@@ -441,7 +441,7 @@ def test_obras_leen_la_proyeccion_aceptada_y_sin_ella_la_tasa_del_perfil(crece, 
     pro, ev = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7)
     pa.fijar_vigente(carpeta, pa.escribir_proyeccion(carpeta, pro, ev))
     assert pa.tasa_de_alcance(carpeta, 'P', ['F0'], .03)['origen'] == 'perfil', 'sin aceptar no vale aunque esté vigente'
-    pro, ev = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, orden={'operador': 'J. Pérez'})
+    pro, ev = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, orden={'operador': 'J. Pérez'}, tasa_cola=.10)
     pa.fijar_vigente(carpeta, pa.escribir_proyeccion(carpeta, pro, ev))
     con = pa.tasa_de_alcance(carpeta, 'P', ['F0'], .03)
     assert con['origen'] == 'proyeccion_aceptada' and con['tasa'] == pytest.approx(.10, abs=.03) and 'proyección aceptada' in con['aviso']
@@ -517,7 +517,7 @@ def test_pide_usa_la_proyeccion_aceptada_en_cada_anio(crece, tmp_path, monkeypat
         wid = cliente.post('/api/workspaces', json={'name': 'p'}).json()['id']
         ws = cliente.app.state.store.get(wid)
         carpeta = services._carpeta_de_proyeccion(ws, 'P')
-        pro, ev = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, orden={'operador': 'J. Pérez'})
+        pro, ev = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, orden={'operador': 'J. Pérez'}, tasa_cola=.10)
         pa.fijar_vigente(carpeta, pa.escribir_proyeccion(carpeta, pro, ev))
         avisos: list[str] = []
         tasas = services._pronostico_primero(ws, None, 'P', ['F0'], None, {}, avisos)
@@ -593,3 +593,11 @@ def test_competicion_mide_el_crecimiento_de_todo_el_grupo(monkeypatch):
     s = pa.SerieMensual({enero - 12: 100.0}, {enero - 12: 200.0}, {})
     historia = {'media': {2025: 10.0, 2026: 11.0}, 'maxima': {2025: 10.0, 2026: 11.0}}
     assert pa._predecir_anual('tasa_de_un_anio', s, enero, [enero + 12], historia)[enero + 12] == pytest.approx((121.0, 242.0)), 'el mes de su último año por dos años de la tasa del grupo'
+
+
+def test_emision_cola_con_la_tasa_de_largo_plazo():
+    """031:RF-16 — tras el último año validado no se sigue la tendencia medida: crece con la tasa de largo plazo."""
+    assert pa._con_cola({1: 1.5, 2: 2.25, 3: 3.375}, 0, 0.03) == pytest.approx({1: 1.5, 2: 1.545, 3: 1.59135})
+    assert pa._con_cola({1: 1.5, 2: 2.25, 3: 3.375}, 2, 0.03) == pytest.approx({1: 1.5, 2: 2.25, 3: 2.3175})
+    assert pa._con_cola({1: 1.0, 2: 1.0}, 5, 0.03) == {1: 1.0, 2: 1.0}
+

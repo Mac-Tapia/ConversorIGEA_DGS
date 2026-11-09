@@ -4,7 +4,7 @@
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k "competicion or eleccion"` en verde.
 - [ ] T6. Formato 01 construido con la medición de cabecera, con sus meses por año. (RF-15, RF-8)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k formato` en verde.
-- [ ] T2. Emisión de todos los años con banda, reparto por carga y evaluación que lee 072. (RF-5, RF-6, RF-7, RF-9, RF-12)
+- [ ] T2. Emisión de todos los años con banda, reparto por carga y evaluación que lee 072. (RF-5, RF-6, RF-7, RF-9, RF-12, RF-16)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k "emision or contrato"` en verde.
 - [ ] T3. El PIDE pronostica primero y las obras leen la proyección aceptada. (RF-1, RF-11)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k "pide or obras"` en verde.

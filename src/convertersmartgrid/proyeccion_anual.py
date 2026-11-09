@@ -766,6 +766,23 @@ def _factores_de(nombre: str, grupo: Mapping[str, Any], formato: Mapping[str, An
     return factores, nota, usar_cola
 
 
+def tasa_de_largo_plazo() -> float:
+    """La tasa del perfil, o la de referencia: la que el usuario eligió para el largo plazo (042:RF-86)."""
+    from .perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA, datos_perfil
+
+    return float((datos_perfil().get('planificacion') or {}).get('crecimiento_demanda_anual') or TASA_CRECIMIENTO_DE_REFERENCIA)
+
+
+def _con_cola(factores: Mapping[int, float], validados: int, tasa: float) -> dict[int, float]:
+    """031:RF-16: tras el último año validado, la tasa de largo plazo sobre lo pronosticado.
+
+    Un sistema real: la tasa medida de un solo cruce entre años, seguida 20 años, daba 13 365 MW y multiplicaba por 261 la
+    demanda. Las métricas eligen hasta donde hay con qué medir; más allá no hay nada que las respalde.
+    """
+    ancla = max(1, validados)
+    return {k: f if k <= ancla else factores[ancla] * (1 + tasa) ** (k - ancla) for k, f in factores.items()}
+
+
 def _banda_de(grupo: Mapping[str, Any], k: int) -> tuple[float, float, bool] | None:
     """Los cuantiles medidos a ese año o, sin ellos, los del último año medido abiertos con la raíz del tiempo, y lo dice."""
     banda = grupo.get('banda') or {}
@@ -802,7 +819,8 @@ def aceptacion(validado: int, horizonte: int, orden: Mapping[str, Any] | None) -
 
 def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str, anio_base: int, anio_corto: int, anio_fin: int,
               cargas: Sequence[Carga] | None = None, sistema_de: Mapping[str, str] | None = None, formato_01: Sequence[SerieMercado] = (),
-              orden: Mapping[str, Any] | None = None, extra: Mapping[str, Any] | None = None) -> tuple[dict, dict]:
+              orden: Mapping[str, Any] | None = None, extra: Mapping[str, Any] | None = None,
+              tasa_cola: float | None = None) -> tuple[dict, dict]:
     """P y Q de cada carga en cada año, con su banda, y su evaluación (031:RF-5 a RF-7, RF-9, RF-12).
 
     ``filas`` son los años que continúan el corto plazo, los únicos que admite ``leer_proyeccion_anual``; los anteriores, en
@@ -814,6 +832,7 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
         raise ProyeccionError('el año base y el horizonte deben ser enteros, y el último año mayor que el corto plazo')
     huella = dataset.huella or huella_de_objetivos(dataset.objetivos)
     grupos = competencia['grupos']
+    tasa_cola = tasa_de_largo_plazo() if tasa_cola is None else float(tasa_cola)
     # La Q de cabecera solo hace falta si no hay escaladas con que repartir.
     sin_escaladas = not any(o.clase == 'escaladas' for o in dataset.objetivos)
     series = {o.nombre: _serie(o) for o in dataset.objetivos if len(o.curva) and (o.clase != 'cabecera' or o.magnitud == 'kW' or sin_escaladas)}
@@ -851,8 +870,10 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
             return None
         fp, nota_p, cola = _factores_de(p.nombre, grupo_de['kW'], formato, serie_formato, adelante_fin)
         fq, nota_q, _c = _factores_de(q.nombre, grupo_de['kVAR'], formato, serie_formato, adelante_fin)
-        salida.update(p=base_p, q=base_q, fp=fp, fq=fq, nota=' · '.join(x for x in (nota_p, nota_q) if x), grupo_p=grupo_de['kW'], grupo_q=grupo_de['kVAR'],
-                      validados=_validados(grupo_de['kW'], grupo_de['kVAR'], formato, cola), objetivo=p.nombre)
+        validados = _validados(grupo_de['kW'], grupo_de['kVAR'], formato, cola)
+        salida.update(p=base_p, q=base_q, fp=_con_cola(fp, validados, tasa_cola), fq=_con_cola(fq, validados, tasa_cola),
+                      nota=' · '.join(x for x in (nota_p, nota_q) if x), grupo_p=grupo_de['kW'], grupo_q=grupo_de['kVAR'],
+                      validados=validados, objetivo=p.nombre)
         return salida
 
     # Cada carga con su serie propia o, sin ella, con la de su alimentador en proporción a su potencia instalada (RF-12).
@@ -909,6 +930,7 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
                     'p_q05_kw': None if p05 is None else round(max(0.0, p05), 3), 'p_q95_kw': None if p95 is None else round(p95, 3),
                     'q_q05_kvar': None if q05 is None else round(q05, 3), 'q_q95_kvar': None if q95 is None else round(q95, 3),
                     'modelo_p': d['grupo_p']['ganador'], 'modelo_q': d['grupo_q']['ganador'], 'validado': delante <= d['validados'],
+                    'origen_anio': 'modelo' if delante <= max(1, d['validados']) else 'tasa_de_largo_plazo',
                     'banda_extrapolada': bool((bp and bp[2]) or (bq and bq[2])), 'instante_base': d['p'][1], 'base': d['p'][2]}
             if reparto:
                 fila.update(reparto=reparto, parte=round(parte, 6))
@@ -924,6 +946,7 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
     evaluacion = {'estado': estado, 'aceptacion': via, 'uso': 'planeamiento_anual', 'modelo': modelo, 'dataset_sha256': huella,
                   'horizonte_anios': anio_fin, 'anios_a_validar': adelante_fin, 'horizonte_validado_anios': validado, 'horizonte_validado_meses': meses,
                   'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'anio_ultimo_dato': anio_datos, 'ultimo_mes_medido': _rotulo(fin_datos),
+                  'tasa_de_largo_plazo': tasa_cola,
                   'regla': competencia['regla'], 'semilla': competencia.get('semilla'), 'ganadores': {g: v['ganador'] for g, v in grupos.items()},
                   'competencia': competencia, 'cargas_apartadas': cargas_apartadas, 'avisos': sorted(set(avisos)) + list(dataset.avisos), 'apartados': dataset.apartados,
                   **dict(extra or {})}
