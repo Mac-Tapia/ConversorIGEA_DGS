@@ -157,7 +157,7 @@ def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
             pass
 
     class Ws:
-        out_dir = tmp_path
+        out_dir = root = tmp_path
 
     plan = {**_plan(), 'feeders': ['TA225', 'IN111'], 'folder': 'F'}
     out = services._gemelo(Ws(), Ctx(), plan, {'status': 'OK', 'converged': True, 'cuadrado': True},
@@ -193,7 +193,7 @@ def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes,
             pass
 
     class Ws:
-        out_dir = tmp_path
+        out_dir = root = tmp_path
 
     informe = {'status': 'OK', 'converged': True, 'cuadrado': True}
     services._gemelo(Ws(), Ctx(), _plan(), informe, caso='sin_proyecto', rutas={})
