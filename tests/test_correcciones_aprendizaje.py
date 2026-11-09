@@ -114,7 +114,23 @@ def test_temporal_localiza_celda_sin_potencia(tmp_path):
     h.append(['Local Time','kW tot']);h.append([datetime(2025,1,1),1]);h.append([datetime(2025,1,1,0,15),None])
     p=tmp_path/'datos.xlsx';w.save(p)
     with pytest.raises(ValueError,match='Medidor.*fila 3.*potencia'):
+        cargar_cabeceras(p,zona_horaria='UTC',hojas=('Medidor',))
+    # Sin hojas pedidas y sin otra serie útil, también falla y dice cuál y dónde.
+    with pytest.raises(ValueError,match='Medidor.*fila 3.*potencia'):
         cargar_cabeceras(p,zona_horaria='UTC')
+
+
+def test_temporal_aparta_la_serie_sin_potencia_y_sigue(tmp_path):
+    """060:RF-5: sin hojas pedidas, una serie con la potencia vacía se aparta con su motivo y no tumba el libro."""
+    from openpyxl import Workbook
+    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    w=Workbook();h=w.active;h.title='Buena';b=w.create_sheet('Mala')
+    for hoja,segundo in ((h,2),(b,None)):
+        hoja.append(['Local Time','kW tot']);hoja.append([datetime(2025,1,1),1]);hoja.append([datetime(2025,1,1,0,15),segundo])
+    p=tmp_path/'datos.xlsx';w.save(p)
+    series,meta=cargar_cabeceras(p,zona_horaria='UTC')
+    assert series=={'Buena':[1,2]} and meta['hojas_omitidas']==['Mala'] and not meta['targets_imputed']
+    assert 'Mala: fila 3' in meta['motivos_omitidas']['Mala']
 
 
 def test_temporal_fecha_textual_y_medianoche(tmp_path):

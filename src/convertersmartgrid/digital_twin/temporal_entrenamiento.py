@@ -76,7 +76,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
     fin=instante_local(hasta,zona) if hasta else None
     if inicio is not None and inicio>=fin:raise ValueError('intervalo temporal vacío o invertido')
     if codigos and hojas:raise ValueError('seleccione códigos de libro ancho u hojas, no ambos')
-    series={};fechas={};omitidas=[]
+    series={};fechas={};omitidas=[];motivos={}
     if codigos:
         from ..cabecera_ancha import leer_ancho
         lectura=leer_ancho([ruta],codigos)
@@ -116,8 +116,16 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
                 fuera[nombre]+=1;continue
             if utc in vistos:raise ValueError(f'{nombre}: fila {fila}: instante duplicado {utc.isoformat()}')
             vistos.add(utc)
-            if v is None:raise ValueError(f'{nombre}: fila {fila}: potencia ausente/inválida')
+            if v is None:
+                ausente=f'{nombre}: fila {fila}: potencia ausente/inválida';break
             pares.append((t,v))
+        else:
+            ausente=None
+        # 060:RF-5, Pisco (2026-11-08): L-PI141 tenía una celda vacía y tumbaba el libro entero.
+        # Sin hojas pedidas, esa serie se aparta con su motivo; no se rellena nada.
+        if ausente:
+            if hojas or codigos:raise ValueError(ausente)
+            omitidas.append(nombre);motivos[nombre]=ausente;continue
         if not pares:raise ValueError(f'{nombre}: sin observaciones en el intervalo declarado')
         sentido=sentido_de_serie(np.array([v for _,v in pares]))
         if sentido=='ambos':
@@ -132,14 +140,18 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
                 cadencia_min=15,zona_horaria=zona_horaria,covariables={})
         except ValueError as exc:
             raise ValueError(f'{nombre}: {exc}') from exc
-        if not all(preparada['mascara']):raise ValueError(f'{nombre}: huecos; no se imputan objetivos')
+        if not all(preparada['mascara']):
+            hueco=f'{nombre}: huecos; no se imputan objetivos'
+            if hojas or codigos:raise ValueError(hueco)
+            omitidas.append(nombre);motivos[nombre]=hueco;continue
         series[nombre]=[r['valor'] for r in preparada['filas']]
         fechas[nombre]=[r['instante'] for r in preparada['filas']]
-    if not series:raise ValueError('todas las series van en ambos sentidos; ninguna es de demanda')
+    if not series:
+        raise ValueError('; '.join(motivos.values()) if motivos else 'todas las series van en ambos sentidos; ninguna es de demanda')
     if len({tuple(v) for v in fechas.values()})!=1:raise ValueError('las series no comparten cronologia')
     if sha_archivo(ruta)!=hash_antes:raise ValueError('el libro cambió durante la lectura')
     return series,{'path':str(ruta.resolve()),'sha256':hash_antes,'zona_horaria':zona_horaria,
-        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'invertidas':invertidas,
+        'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,'motivos_omitidas':motivos,'invertidas':invertidas,
         'alcance':{'hojas':list(hojas),'codigos':list(codigos),'desde':desde,'hasta_exclusivo':hasta,
                    'filas_fuera_intervalo':fuera},
         'instantes':next(iter(fechas.values()))}
