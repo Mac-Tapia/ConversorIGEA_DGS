@@ -32,6 +32,8 @@
 - [ ] T5b. Verificar el ciclo automático completo y sus estados en la web con una segunda captura real. (RF-4, RF-8, RF-9, RF-10)
       Hecho cuando: una segunda captura real demuestra deduplicación y actualización, con evidencia sin skips de funcionamiento y rechazo de regresiones, y la web muestra las fases en el navegador.
       Avance 2026-11-08: GET tipado `/api/asistente/aprendizaje` y panel adicional en la consola de desarrollo con las siete fases, motivos, versiones y bloqueos. POST tipado de cancelación compartido con la CLI: SHA canónico, marcador atómico, solicitud distinguida de terminación y diario publicado antes de trabajar. Integración del ciclo activo y cancelación durante la última etapa comprobadas con etapas ligeras de contrato. Datos corruptos se muestran como bloqueo y se conservan. Falta: T1b a T4b, cola automática cancelable, segunda captura real y comprobación en navegador; representación/API no cierran esta tarea. Se deriva interrupción ante propietario muerto/ausente y bloqueo ante marcador inválido, conservando el diario; relectura real rc73 y regresiones de representación verificadas. La creación del propietario y la campaña integral siguen pendientes.
+- [ ] T6. Generar los manifiestos reales de procedencia por registro y contexto del ciclo, con cuarentena motivada, para que T1b y T2b se puedan ejecutar. (RF-11, RF-12, RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-19, RF-20, RF-21)
+      Hecho cuando: `pytest -q tests/test_preparar_ciclo_aprendizaje.py` pasa, y el ensayo de solo lectura `tools/preparar_ciclo_aprendizaje.py` seguido de `aprendizaje_continuo.py ciclo --solo-preparar` deja el preflight real por familia con sus motivos textuales. No acredita T1b ni T2b.
 
 ## Evidencia y límites actuales
 

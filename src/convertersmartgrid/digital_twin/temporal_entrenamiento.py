@@ -19,43 +19,63 @@ def muestras_de_ventanas(instantanea: dict, referencias: dict, conjunto, ventana
     for parte, objetivos in ventanas['partes'].items():
         for nombre, emisiones in objetivos.items():
             for emision in emisiones:
-                e = int(emision)
-                instante = conjunto.instantes[e].isoformat()
-                registro = f'{nombre}|{instante}'
-                contenido = {'objetivo': nombre, 'instante': instante,
-                    'contexto': conjunto.valores[nombre][e - contexto_pasos + 1:e + 1].tolist(),
-                    'objetivos': conjunto.valores[nombre][e + 1:e + horizonte_max + 1].tolist()}
+                registro, contenido = contenido_de_ventana(conjunto, nombre, int(emision),
+                    contexto_pasos=contexto_pasos, horizonte_max=horizonte_max)
                 resultado.append(muestra_de_registro(instantanea, referencias, 'cabeceras',
                     registro, contenido, familia='gru', particion=parte,
                     origen='observado', etiqueta='medicion'))
     return resultado
 
 
-def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: str,
-                         cadencia_min: int, horizontes) -> list:
-    """050:RF-2/8: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
-    from ..contratos_aprendizaje import CicloBloqueado, ruta_de
-    from .evaluacion_temporal import POLITICA_TEMPORAL
+def contenido_de_ventana(conjunto, nombre: str, emision: int, *, contexto_pasos: int,
+                         horizonte_max: int) -> tuple[str, dict]:
+    """050:RF-2/11: el registro y su contenido, los mismos al declarar la referencia y al comprobarla."""
+    instante = conjunto.instantes[emision].isoformat()
+    return f'{nombre}|{instante}', {'objetivo': nombre, 'instante': instante,
+        'contexto': conjunto.valores[nombre][emision - contexto_pasos + 1:emision + 1].tolist(),
+        'objetivos': conjunto.valores[nombre][emision + 1:emision + horizonte_max + 1].tolist()}
+
+
+def series_de_aprendizaje(ruta: Path, *, zona_horaria: str, cadencia_min: int, horizontes) -> dict:
+    """050:RF-2/11/19: las series del libro y lo apartado, con su motivo textual."""
+    from ..contratos_aprendizaje import CicloBloqueado
     from .pronostico import construir_conjunto
     from .series_causales import horizontes_validos
     if not zona_horaria or not cadencia_min or not horizontes:
         raise CicloBloqueado('gru: declare zona_horaria, cadencia y horizontes antes de preparar')
     if isinstance(horizontes, str):
         horizontes = tuple(int(v) for v in horizontes.split(','))
-    H = max(horizontes_validos(cadencia_min, horizontes))
-    objetivos, apartados = objetivos_de_cabecera([ruta_de(instantanea, 'cabeceras')])
+    horizonte_max = max(horizontes_validos(cadencia_min, horizontes))
+    objetivos, apartados = objetivos_de_cabecera([ruta])
     conjunto = construir_conjunto(objetivos, cadencia_min=cadencia_min, zona_horaria=zona_horaria)
-    if apartados or conjunto.apartados:
-        raise CicloBloqueado('gru: objetivos apartados; revise la medición antes del ciclo')
-    contexto = 7 * 1440 // cadencia_min
+    return {'conjunto': conjunto, 'apartados': [*apartados, *conjunto.apartados],
+            'horizonte_max': horizonte_max, 'contexto_pasos': 7 * 1440 // cadencia_min}
+
+
+def ventanas_de_aprendizaje(series: dict, cadencia_min: int) -> dict:
+    """050:RF-2/11: las ventanas comunes que consumirá la competición, o por qué no las hay."""
+    from ..contratos_aprendizaje import CicloBloqueado
+    from .evaluacion_temporal import POLITICA_TEMPORAL
     if 60 % cadencia_min:
         raise CicloBloqueado('gru: el paso horario debe ser múltiplo de la cadencia')
-    ventanas = conjunto.ventanas_comunes(POLITICA_TEMPORAL, contexto_pasos=contexto,
-        horizonte_max=H, paso=60 // cadencia_min)
+    ventanas = series['conjunto'].ventanas_comunes(POLITICA_TEMPORAL, contexto_pasos=series['contexto_pasos'],
+        horizonte_max=series['horizonte_max'], paso=60 // cadencia_min)
     if any(not len(ms) for p in ventanas['partes'].values() for ms in p.values()):
         raise CicloBloqueado('gru: una partición carece de ventanas completas')
-    return muestras_de_ventanas(instantanea, referencias, conjunto, ventanas,
-        contexto_pasos=contexto, horizonte_max=H)
+    return ventanas
+
+
+def muestras_aprendizaje(instantanea: dict, referencias: dict, *, zona_horaria: str,
+                         cadencia_min: int, horizontes) -> list:
+    """050:RF-2/8: los mismos lectores, rejilla y parámetros predeterminados del trabajador GRU."""
+    from ..contratos_aprendizaje import CicloBloqueado, ruta_de
+    series = series_de_aprendizaje(ruta_de(instantanea, 'cabeceras'), zona_horaria=zona_horaria,
+        cadencia_min=cadencia_min, horizontes=horizontes)
+    if series['apartados']:
+        raise CicloBloqueado('gru: objetivos apartados; revise la medición antes del ciclo')
+    return muestras_de_ventanas(instantanea, referencias, series['conjunto'],
+        ventanas_de_aprendizaje(series, cadencia_min),
+        contexto_pasos=series['contexto_pasos'], horizonte_max=series['horizonte_max'])
 
 
 #: Pasos de 15 minutos que exige el ajuste de la GRU: 30 días comunes.

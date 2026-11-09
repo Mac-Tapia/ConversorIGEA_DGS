@@ -10,10 +10,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 313 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 99 |
+| Herramientas y guiones | `tools/` | 100 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 414 |
+| Pruebas | `tests/` | 415 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 298 |
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | reservada | 1 |
 | retirada | 1 |
 
-100 specs con 3256 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+100 specs con 3267 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -694,6 +694,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `construir_dataset_entrenamiento.py` | — | 043 | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. |
 | `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
+| `preparar_ciclo_aprendizaje.py` | — | 050 | Genera en una carpeta nueva el manifiesto de procedencia por registro, el contexto del ciclo, la vista del búfer y la cuarentena motivada que exige… |
 | `evaluar_evolutivos.py` | — | 043, 048 | Benchmark analítico calculado de GA, NSGA-II y DE (y los de pymoo si está) con al menos 30 semillas, el mismo presupuesto de evaluaciones reales y la… |
 | `reubicar_corpus_llm.py` | — | 047, 065 | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. |
 | `preparar_modelos_ia.py` | — | 043 | Descarga explícita y auditoría de pesos fijados, sin activación. |

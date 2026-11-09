@@ -153,8 +153,7 @@ def main(argv=None) -> int:
             if args.accion == 'ciclo':
                 parametros = {k: getattr(args, k) for k in (
                     'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model')}
-                versiones['parametros_ciclo'] = hashlib.sha256(json.dumps(
-                    parametros, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+                versiones['parametros_ciclo'] = ac.huella_parametros_ciclo(parametros)
             inst = ac.congelar_instantanea(fuentes, raiz, contexto=_contexto(args.contexto), versiones=versiones)
             if args.accion == 'congelar':
                 salida = {'ok': True, 'snapshot_id': inst['snapshot_id'], 'ruta': inst['ruta']}

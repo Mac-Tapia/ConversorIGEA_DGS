@@ -86,6 +86,37 @@ cadencia_min, horizontes y embedding_model. No admite comandos. La orden revisab
 `python tools/aprendizaje_continuo.py plan --archivo <plan.json> --plan-hash <sha256> --solo-preparar`.
 Quitar `--solo-preparar` ejecuta entrenamiento solo después de las puertas y presupuesto.
 
+### Manifiestos reales de procedencia y contexto (T6, RF-11 a RF-21)
+
+`tools/preparar_ciclo_aprendizaje.py` escribe en `--salida`, que debe ser nueva o estar vacía:
+`procedencia.json`, `contexto_ciclo.json`, `cuarentena.json`, `vista_twin/objetos/` y
+`preparacion.json` con las órdenes `congelar` y `ciclo --solo-preparar`. Las dos órdenes llevan
+los mismos parámetros, de modo que `congelar` y `ciclo` resuelven la misma instantánea y no
+duplican la copia (`huella_parametros_ciclo`). Descartado escribir junto a las fuentes: son
+almacenes reales. Descartado un módulo nuevo de `src/`: la composición es del borde; las reglas
+de lectura siguen en los productores, que exponen lo que la herramienta y ellos comparten
+(`consultas_recuperacion`, `series_de_aprendizaje`, `ventanas_de_aprendizaje`, `contenido_de_ventana`).
+
+Referencias por fuente. `dataset`: las órdenes y los informes se cotejan por texto y fecha exactos
+con las observaciones declaradas (`--observaciones`); la fuente es ese fichero y el contexto, su
+huella documental. Consultas de recuperación: la parte del dataset y su fecha de sellado.
+`twin`: el fichero inmutable del episodio es la fuente congelada, porque la huella de la fuente
+(`source_fingerprint`) combina varios TXT y no es la de un fichero custodiable. `llm_dataset`: la
+parte sellada y su fecha de sellado. `cabeceras`: el libro, con la identidad 043 vinculada a la
+serie. `evolutivos_casos`: el episodio del caso, con el `contexto_043` que declara el caso.
+
+Identidad 043. Se compone con `ContextoExperimento`, nunca con un subconjunto de campos. El mapa
+usa la clave `<proyecto>#<huella corta>` porque un proyecto tiene varios casos y escenarios, cada
+uno con su contexto. Un periodo de forma `{clientes, maxima, status}` toma `maxima`, que es el mes
+de la cabecera. Descartado un contexto físico parcial con esquema propio: pasaría la comprobación
+«falta contexto físico 043» con algo que no lo es. Queda como decisión del integrador si la
+captura debe empezar a guardar `profile_hash` y el periodo.
+
+Vínculo serie-contexto: el complemento declara `series` o se usa el único contexto de rol
+`caso_base` cuyo alimentador coincide con la hoja según `hojas_del_alimentador`. Varios o ninguno
+van a cuarentena. La guarda «objetivos apartados» de `muestras_aprendizaje` no se toca; la
+herramienta la reproduce con los motivos del lector.
+
 ### Contratos de integración concretados el 2026-11-07
 
 RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto
