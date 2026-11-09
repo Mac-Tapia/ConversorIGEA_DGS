@@ -500,6 +500,7 @@
     "reentrenar_modelos.py",
     "aprendizaje_continuo.py",
     "preparar_ciclo_aprendizaje.py",
+    "unir_dataset_lenguaje.py",
     "evaluar_evolutivos.py",
     "reubicar_corpus_llm.py",
     "preparar_modelos_ia.py",

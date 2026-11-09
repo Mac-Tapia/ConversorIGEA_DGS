@@ -201,7 +201,7 @@ def contexto_fisico(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     con_carga = [d for d in nodos.values() if d.get('carga_p_mw') or d.get('carga_q_mvar')]
     return {
         'case_role': caso['rol'], 'case_id': caso['id'], 'year': plan.get('year'), 'period': plan.get('period'),
-        'criterio_fijas': plan.get('criterio_fijas'), 'comldf': comldf,
+        'criterio_fijas': plan.get('criterio_fijas'), 'profile_hash': plan.get('profile_hash'), 'comldf': comldf,
         'topology_hash': huella(topologia), 'controls_hash': huella(controles), 'scenario_hash': huella(escenario),
         'consignas': {'carga_p_mw': _suma(d.get('carga_p_mw') or 0.0 for d in nodos.values()),
                       'carga_q_mvar': _suma(d.get('carga_q_mvar') or 0.0 for d in nodos.values()),

@@ -37,6 +37,7 @@ def main(argv=None):
         with turno_gpu('embeddings'):
             if args.accion=='entrenar':resultado=entrenar_recuperador(pares,args.destino,modelo_base=args.modelo,epocas=args.epocas)
             else:
+                from convertersmartgrid.asistente.embeddings import origenes_consultas_reservadas
                 from convertersmartgrid.asistente.indice import Indice
                 modelo=cargar_encoder(args.modelo)
                 protocolo=protocolo_encoder(args.modelo)
@@ -56,6 +57,7 @@ def main(argv=None):
                 if recargado.buscar(q,10,vectores[q])!=indice.buscar(q,10,vectores[q]):raise RuntimeError('indice recargado distinto')
                 resultado={'status':'RECHAZADO','promovido':False,'training_completed':False,'evaluation_completed':True,
                     'metricas':metricas,'baseline_bm25':referencia,'active_index_changed':False,
+                    'origen_consultas_reservadas':origenes_consultas_reservadas(args.dataset),
                     'smoke_reload':{'ok':True,'tipo':'indice_en_mismo_proceso'},'gates':{'approved':False},
                     'reason':'evaluacion conservada; publicacion conjunta y puertas pendientes'}
         codigo=0

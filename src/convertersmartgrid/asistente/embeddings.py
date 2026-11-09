@@ -347,6 +347,14 @@ def entrenar_recuperador(pares: Sequence[ParContraste], destino: Path | str, *,
     return decision
 
 
+def origenes_consultas_reservadas(dataset: Path) -> dict[str, int]:
+    """050:RF-29: cuántas consultas reservadas redactó el maestro y cuántas el operador: no se suman como humanas."""
+    from collections import Counter
+    filas = (json.loads(l) for l in (dataset / 'retrieval_test.jsonl').read_text(encoding='utf-8').splitlines() if l.strip())
+    return dict(Counter('humano' if f.get('verification') in ('operator_confirmed', 'operator_corrected')
+                        else str(f.get('origen') or 'sin_origen') for f in filas))
+
+
 def cargar_dataset_recuperacion(dataset: Path, *, entrenamiento: bool):
     """047/050: un lector para los pares de preparación y del trabajador; reserva comprobada."""
     from convertersmartgrid.asistente.indice import Fragmento

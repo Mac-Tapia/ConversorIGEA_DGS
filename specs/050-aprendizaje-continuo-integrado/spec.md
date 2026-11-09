@@ -32,6 +32,15 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-19: CUANDO una serie de cabecera quede apartada, EL SISTEMA la reportará con el motivo textual del lector y conservará el bloqueo de la familia GRU.
 - RF-20: SI una serie de cabecera no se vincula a una única identidad 043, ENTONCES EL SISTEMA la pondrá en cuarentena sin atribuirle otro contexto.
 - RF-21: SI falta la ruta de una fuente, ENTONCES EL SISTEMA la declarará pendiente junto con las familias que quedan sin preparar.
+- RF-22: MIENTRAS el ciclo no pida series concretas de cabecera, EL SISTEMA aplicará a sus objetivos el apartado con motivo y el tramo común de la lectura de cabeceras de 060:RF-5.
+- RF-23: CUANDO capture un episodio, EL SISTEMA guardará en su contexto físico el periodo, el criterio de fijas y la huella del perfil que consten.
+- RF-24: CUANDO una los datasets de lenguaje, EL SISTEMA bloqueará la unión si un registro de origen cambia de partición.
+- RF-25: SI el complemento de identidad no nombra a su responsable, ENTONCES EL SISTEMA lo rechazará.
+- RF-26: CUANDO referencie un registro generado por plantilla, EL SISTEMA usará como fuente la parte sellada del dataset y conservará su etiqueta de maestro.
+- RF-27: DONDE se declare el proyecto de un libro de sistema, EL SISTEMA vinculará sus series al caso base más reciente de ese proyecto con identidad 043 completa.
+- RF-28: CUANDO genere casos evolutivos desde escaleras guardadas, EL SISTEMA reportará el parámetro que falte en vez de crear el caso sin él.
+- RF-29: CUANDO una consulta reservada de recuperación la redacte el maestro, EL SISTEMA la marcará con ese origen y la informará por separado de las humanas al evaluar.
+- RF-30: CUANDO prepare las órdenes del ciclo, EL SISTEMA calculará la huella de la política a partir de las políticas 044 con que se evalúa.
 
 ## Requisitos no funcionales
 
@@ -59,6 +68,15 @@ y la mayoría tampoco periodo ni criterio de fijas. `clave_contexto` exige los c
 una huella calculada con menos no es una identidad 043 y no entra en el mapa de proyectos,
 porque abriría la comprobación física de `muestra_de_registro`. Lo que falta lo aporta un
 complemento declarado por el responsable, o el episodio queda en cuarentena.
+
+Aclaración de RF-19 (integrador, 2026-11-08): el bloqueo de la familia GRU rige cuando se piden series concretas; sin
+pedirlas, las apartadas constan en la preparación con su motivo y el ciclo sigue con las demás (RF-22). Motivo: dos lectores
+del mismo libro daban criterios distintos, y la excepción de 060:RF-5 no llegaba al ciclo.
+
+Decisiones del integrador para los datos anteriores a RF-23 (2026-11-08): el complemento declara `declarado_por`; el
+periodo es el del episodio si lo trae y, si no, el mes de la última calibración de su proyecto; el criterio de fijas es el
+del informe de calibración; `profile_hash` es la huella del perfil vigente, declarada al preparar y no capturada. Las
+consultas reservadas de recuperación del maestro no son humanas y no sustituyen a 047/077.
 
 ## Fuera de alcance
 

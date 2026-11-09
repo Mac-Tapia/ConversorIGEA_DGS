@@ -64,7 +64,7 @@ def caso_nativo(app, proyecto, caso, rol) -> dict:
 def contexto_del_plan(plan: dict) -> dict:
     """Lo que dice el plan del caso; lo que no dice queda en ``None``, sin suponer."""
     return {'year': plan.get('anio_casos'), 'period': plan.get('periodo'),
-            'criterio_fijas': plan.get('criterio_fijas')}
+            'criterio_fijas': plan.get('criterio_fijas'), 'profile_hash': plan.get('profile_hash')}
 
 
 def _version(app) -> str | None:

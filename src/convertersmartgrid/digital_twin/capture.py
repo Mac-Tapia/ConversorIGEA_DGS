@@ -96,6 +96,12 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
     except NativeActionContextError as exc:
         raise CapturaImposible(str(exc)) from exc
 
+    # 050:RF-23: los escenarios traen su lectura de otro guion, sin el contexto del plan; sin él, la identidad
+    # 043 del episodio queda incompleta y los 79 contrafactuales reales de 2026-11-08 no se podían referenciar.
+    if lectura is not None and not lectura.get('contexto'):
+        lectura = {**lectura, 'contexto': {'year': plan.get('anio_casos'), 'period': plan.get('periodo'),
+                                           'criterio_fijas': plan.get('criterio_fijas'),
+                                           'profile_hash': plan.get('profile_hash')}}
     estado = native_result_status(resultado)
     revertido = bool((resultado.get('rollback') or {}).get('restored') or resultado.get('revertido'))
     convergio = estado != 'NO_CONVERGE' and resultado.get('converged') is not False
