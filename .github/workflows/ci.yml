@@ -44,6 +44,14 @@ jobs:
           .venv\Scripts\python -m pip install --upgrade pip setuptools wheel
           .venv\Scripts\python -m pip install -r requirements.txt
           .venv\Scripts\python -m pip install -e ".[ml]"
+      # 048 T3b: Ipopt oficial de COIN-OR, el mismo que en desarrollo, comprobado por su SHA-256 antes de usarlo.
+      - name: Ipopt 3.14.20
+        run: |
+          $zip = "$env:RUNNER_TEMP\ipopt.zip"
+          Invoke-WebRequest -Uri 'https://github.com/coin-or/Ipopt/releases/download/releases%2F3.14.20/Ipopt-3.14.20-win64-msvs2022-md.zip' -OutFile $zip
+          $huella = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($huella -ne '1fd1de97d3e8e48c298f6ccf5ac91cbfc417b42c61262c08d193fd14117e9098') { throw "Ipopt con otra huella: $huella" }
+          Expand-Archive $zip -DestinationPath "$env:USERPROFILE\.convertersmartgrid\solvers\ipopt-3.14.20"
       - name: Frontend para las pruebas del backend
         working-directory: frontend
         run: npm ci

@@ -164,6 +164,7 @@ def test_github_tiene_el_entorno_de_desarrollo_y_solo_omite_la_falta_de_gpu(monk
 
     flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
     assert 'python -m venv .venv' in flujo and '-e ".[ml]"' in flujo and 'npm ci' in flujo
+    assert '1fd1de97d3e8e48c298f6ccf5ac91cbfc417b42c61262c08d193fd14117e9098' in flujo     # Ipopt de la 048
     assert f"{conftest.VARIABLE_CI_SIN_GPU}: '1'" in flujo
     try:
         raise SinGPU('No hay GPU CUDA')
