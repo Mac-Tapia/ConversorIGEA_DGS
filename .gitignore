@@ -108,3 +108,5 @@ referencia/*.doc
 referencia/*.docx
 # PDF del solicitante (spec 017): datos, no código.
 referencia/*.pdf
+# 102:RF-15: rutas de los datos de la distribuidora de esta máquina
+config/suite_completa.json

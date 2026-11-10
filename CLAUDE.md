@@ -129,6 +129,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
   | 101 La calibración cambia sola los transformadores que impiden converger | implementada | falta T3 |
+  | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T4 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -152,6 +153,11 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 CSG_RED="D:/BaseDatosElectroDunas/referencia_retirada_20261102/RED_030826(1).txt" CSG_LOADS="D:/BaseDatosElectroDunas/referencia_retirada_20261102/CARGA_030826(1).txt" \
 CSG_EQUIPMENT="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
 ```
+
+La puerta de calidad (spec 102) lo exige: el gancho `pre-commit` corre las pruebas de gobierno y las del commit, y
+`pre-push` la suite completa sin fallidas ni omitidas, con las variables de `config/suite_completa.json` (local, fuera
+de git; ejemplo en `config/suite_completa.example.json`). GitHub Actions corre la suite sintética y el frontend.
+Se activan una vez por clon con `python tools/generar_arquitectura.py --instalar-ganchos`.
 
 Sin las tres variables `CSG_*`, la mayoría de las pruebas de integración se omiten en
 silencio y la suite «pasa» sin haber probado nada real. `CSG_TXT_DIR` no basta. La suite se da

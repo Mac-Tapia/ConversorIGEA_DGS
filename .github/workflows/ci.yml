@@ -1,0 +1,51 @@
+# Spec 102 (RF-12 a RF-15): en cada subida y petición de fusión, la suite sintética y el frontend.
+# Aquí no hay datos de la distribuidora ni pueden subirse: sus pruebas se omiten, y la suite completa sin omitidas la
+# exige el gancho pre-push en la máquina que los tiene (102:RF-5 a RF-9).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Suite sintética (Windows, Python 3.12)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Dependencias
+        run: python -m pip install -r requirements.txt
+      - name: Suite sintética
+        run: python tools/puerta_calidad.py --ci
+
+  frontend:
+    name: Frontend (build y pruebas)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test

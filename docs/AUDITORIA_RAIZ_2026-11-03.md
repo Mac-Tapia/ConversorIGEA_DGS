@@ -21,7 +21,8 @@ no lo continúa, lo rehace.
 | Carpeta | En git | Tamaño | Qué es | Quién la usa |
 | --- | --- | --- | --- | --- |
 | `.agents/` | no, y tampoco ignorada | sin medir | Registro de coordinación entre sesiones (`coordination/ACTIVE.md`) | Las sesiones de agentes |
-| `.githooks/` | sí | 2 kB | Ganchos que regeneran el catálogo de la arquitectura (spec 090) | git, con `core.hooksPath`; `tests/test_arquitectura_generada.py` |
+| `.githooks/` | sí | 4 kB | Ganchos que regeneran el catálogo de la arquitectura (spec 090) y la puerta de calidad antes del commit y de la subida (spec 102) | git, con `core.hooksPath`; `tests/test_arquitectura_generada.py`, `tests/test_puerta_calidad.py` |
+| `.github/` | sí | 2 kB | Flujo de GitHub Actions: suite sintética y frontend en cada subida (spec 102) | GitHub; `tests/test_puerta_calidad.py` |
 | `.claude/` | sí | 25 kB | Skills del proyecto | Agentes; `tests/test_trazabilidad_specs.py` |
 | `.cursor/` | sí | 2 kB | Punteros a los skills de `.claude/` | Cursor |
 | `.git/` | no | 0,64 GiB | Repositorio | Git |

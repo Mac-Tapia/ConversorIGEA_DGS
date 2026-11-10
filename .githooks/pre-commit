@@ -1,2 +1,6 @@
 #!/bin/sh
-exec sh "$(git rev-parse --show-toplevel)/.githooks/regenerar.sh"
+# 090:RF-11: primero el catálogo de la arquitectura; 102:RF-1 a RF-4: después, las pruebas del commit.
+raiz="$(git rev-parse --show-toplevel)"
+sh "$raiz/.githooks/regenerar.sh"
+. "$raiz/.githooks/python.sh"
+exec "$python_de_git" "$raiz/tools/puerta_calidad.py" --commit

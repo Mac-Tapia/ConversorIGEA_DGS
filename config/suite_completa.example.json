@@ -1,0 +1,16 @@
+{
+  "_nota": "Copie este fichero a config/suite_completa.json (fuera de git) con las rutas de esta máquina (spec 102).",
+  "variables": {
+    "CSG_RED": "D:/datos/distribuidora/RED.txt",
+    "CSG_LOADS": "D:/datos/distribuidora/CARGA.txt",
+    "CSG_EQUIPMENT": "D:/datos/distribuidora/BD_Equipo.txt",
+    "CSG_MDB": "D:/datos/distribuidora/red.mdb",
+    "CSG_EQUIPMENT_MDB": "D:/datos/distribuidora/equipos.mdb",
+    "CSG_DEMANDA_DIR": "D:/datos/distribuidora",
+    "CSG_VNR_BAK": "D:/datos/distribuidora/VNR.bak",
+    "CSG_SOLICITUD_PDF": "D:/datos/distribuidora/solicitud.pdf",
+    "CSG_SOLICITUD_DIR": "D:/datos/distribuidora/solicitudes",
+    "CSG_EVIDENCIA_NATIVA": "D:/datos/evidencia_nativa",
+    "CSG_MCP_PYTHON": "D:/venv_mcp/Scripts/python.exe"
+  }
+}

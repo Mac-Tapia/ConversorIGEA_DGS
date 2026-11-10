@@ -1,0 +1,6 @@
+#!/bin/sh
+# 102:RF-5 a RF-11: la suite completa, sin fallidas ni omitidas, antes de que la revisión salga de esta máquina.
+# git da por la entrada estándar «<ref local> <sha local> <ref remota> <sha remota>» por cada rama que sube.
+raiz="$(git rev-parse --show-toplevel)"
+. "$raiz/.githooks/python.sh"
+exec "$python_de_git" "$raiz/tools/puerta_calidad.py" --push

@@ -10,12 +10,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 102 |
+| Herramientas y guiones | `tools/` | 103 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 417 |
+| Pruebas | `tests/` | 418 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 303 |
+| Specs | `specs/` | 306 |
 
 `web/services.py` tiene 12997 líneas y 391 funciones, pendiente de partir (002).
 
@@ -24,11 +24,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 80 |
-| aprobada | 18 |
+| aprobada | 19 |
 | implementada | 2 |
 | retirada | 1 |
 
-101 specs con 3307 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3323 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -723,6 +723,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `verify_architecture_links.py` | — | 009 | Comprueba los enlaces públicos y locales del espacio Structurizr de la arquitectura. |
 | `verify_interactive_architecture.mjs` | — | 009 | Comprobación en navegador de la página de la arquitectura C4 interactiva (Node.js). |
 | `generar_arquitectura.py` | — | 090 | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo. |
+| `puerta_calidad.py` | — | 102 | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa… |
 
 ### Interfaz: `frontend/src/` y su compilación
 
@@ -838,6 +839,8 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `.githooks/post-commit` |
 | `.githooks/post-merge` |
 | `.githooks/pre-commit` |
+| `.githooks/pre-push` |
+| `.githooks/python.sh` |
 | `.githooks/regenerar.sh` |
 | `config/costes_referenciales.example.json` |
 | `config/demanda_medida_alias.example.json` |
@@ -850,6 +853,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/perfiles/ficticia.json` |
 | `config/perfiles/plantilla.json` |
 | `config/pide_universal_2017.json` |
+| `config/suite_completa.example.json` |
 | `config/terminos_huellas.json` |
 | `config/vnr_dgs_profile.json` |
 | `config/vnr_settings.example.yaml` |

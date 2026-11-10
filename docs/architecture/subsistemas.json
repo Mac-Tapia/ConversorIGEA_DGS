@@ -529,7 +529,8 @@
     "build_interactive_architecture.py",
     "verify_architecture_links.py",
     "verify_interactive_architecture.mjs",
-    "generar_arquitectura.py"
+    "generar_arquitectura.py",
+    "puerta_calidad.py"
    ]
   },
   {
