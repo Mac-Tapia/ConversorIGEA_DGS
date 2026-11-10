@@ -1,4 +1,4 @@
-"""N-HiTS, TFT, PatchTST, TiDE e iTransformer de neuralforecast, opcionales y solo en CUDA (046:RF-13 a RF-15, RF-26).
+"""N-HiTS, TFT y PatchTST de neuralforecast, y TiDE e iTransformer, opcionales y solo en CUDA (046:RF-13 a RF-15, RF-26).
 
 neuralforecast se importa al crear el adaptador: el núcleo arranca sin él. Si no se le fuerza,
 cae a la CPU cuando no ve la GPU sin decir nada, y el usuario lo prohíbe (2026-10-22: «sí o sí
