@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync , realpathSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync , realpathSync } from 'node:fs';
 import { join, parse } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -197,15 +197,26 @@ test('065:RF-4 — builds concurrentes reclaman un lock roto sin robar el build 
   }
 });
 
+// cpSync recursivo de Node 22.23 en Windows no copiaba a una carpeta con «ñ» (GitHub Actions, 2026-11-10: «Cannot
+// find module …\csg-con espacios y ñ-…\scripts\build.mjs»). Con readdirSync y copyFileSync la ruta llega entera.
+function copiarArbol(origen, destino) {
+  mkdirSync(destino, { recursive: true });
+  for (const entrada of readdirSync(origen, { withFileTypes: true })) {
+    const desde = join(origen, entrada.name);
+    const hasta = join(destino, entrada.name);
+    if (entrada.isDirectory()) copiarArbol(desde, hasta);
+    else copyFileSync(desde, hasta);
+  }
+}
 function preparar(raiz) {
   const destino = join(raiz, 'checkout', 'frontend');
   mkdirSync(join(destino, 'src'), { recursive: true });
   writeFileSync(join(destino, 'package.json'), JSON.stringify(paquete));
-  cpSync(join(frontend, 'tsconfig.json'), join(destino, 'tsconfig.json'));
-  if (existsSync(join(frontend, 'scripts'))) cpSync(join(frontend, 'scripts'), join(destino, 'scripts'), { recursive: true });
+  copyFileSync(join(frontend, 'tsconfig.json'), join(destino, 'tsconfig.json'));
+  if (existsSync(join(frontend, 'scripts'))) copiarArbol(join(frontend, 'scripts'), join(destino, 'scripts'));
   const backend = join(raiz, 'checkout', 'src', 'convertersmartgrid', 'web');
   mkdirSync(backend, { recursive: true });
-  cpSync(join(frontend, '..', 'src', 'convertersmartgrid', 'web', 'runtime.py'), join(backend, 'runtime.py'));
+  copyFileSync(join(frontend, '..', 'src', 'convertersmartgrid', 'web', 'runtime.py'), join(backend, 'runtime.py'));
   symlinkSync(join(frontend, 'node_modules'), join(destino, 'node_modules'), 'junction');
   writeFileSync(join(destino, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.ts"></script>');
   mkdirSync(join(destino, 'dist', 'assets'), { recursive: true });
@@ -236,10 +247,10 @@ for (const nombre of ['sin-espacios', 'con espacios y ñ']) {
   test(`065:RF-9 — pruebas existentes funcionan ${nombre}`, () => conCarpeta(nombre, raiz => {
     const destino = preparar(raiz);
     // 081:RF-51: el render de Entrada consume sus componentes reales y su contexto.
-    cpSync(join(frontend, 'src'), join(destino, 'src'), { recursive: true });
+    copiarArbol(join(frontend, 'src'), join(destino, 'src'));
     mkdirSync(join(destino, 'test'));
     for (const archivo of ['clientesCatalogo.test.mjs', 'projectBinding.test.mjs']) {
-      cpSync(join(frontend, 'test', archivo), join(destino, 'test', archivo));
+      copyFileSync(join(frontend, 'test', archivo), join(destino, 'test', archivo));
     }
     const resultado = spawnSync(process.execPath, ['--test', 'test/clientesCatalogo.test.mjs', 'test/projectBinding.test.mjs'], { cwd: destino, encoding: 'utf8', env: entornoHijo });
     assert.equal(resultado.status, 0, resultado.stdout + resultado.stderr);
