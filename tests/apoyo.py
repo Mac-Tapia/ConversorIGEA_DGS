@@ -139,6 +139,9 @@ def cargar_herramienta(fichero: str, nombre: str | None = None, *,
 
 def esperar_trabajo(client, job: dict, timeout: float = 60.0) -> dict:
     """Espera a que un trabajo de la API termine y devuelve su estado final."""
+    # La web pudo responder un error en vez de un trabajo: se dice cuál. En la suite completa del 2026-11-10 solo
+    # quedó «KeyError: 'id'» y no se supo qué había respondido.
+    assert isinstance(job, dict) and 'id' in job, f'la web no devolvió un trabajo: {job!r}'
     deadline = time.time() + timeout
     while time.time() < deadline:
         state = client.get(f"/api/jobs/{job['id']}").json()

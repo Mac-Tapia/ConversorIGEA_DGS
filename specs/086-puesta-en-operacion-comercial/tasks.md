@@ -162,6 +162,8 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 
 ## F7 Aceptación y v1.0
 
+- [x] T42 Sustituir un fichero de estado reintenta un bloqueo pasajero de Windows. (RF-54)
+      Hecho cuando: `tests/test_datos_duraderos.py` en verde.
 - [ ] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
 - [ ] T32 [DIgSILENT] Instalación con el `setup.exe` en este equipo, con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)

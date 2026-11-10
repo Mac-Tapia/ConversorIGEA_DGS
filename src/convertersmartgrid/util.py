@@ -55,8 +55,31 @@ def publicar_duradero(path: Path | str, contenido: str | bytes) -> None:
             temporary.write_bytes(contenido)
         with temporary.open('rb+') as escrito:
             os.fsync(escrito.fileno())
-        temporary.replace(path)
+        _sustituir(temporary, path)
     sincronizar_carpeta(path.parent)
+
+
+#: Esperas antes de cada reintento de ``replace`` (086:RF-54): en total, menos de dos segundos.
+ESPERAS_SUSTITUIR_S = (0.02, 0.05, 0.1, 0.2, 0.4, 0.8)
+
+
+def _sustituir(temporal: Path, destino: Path) -> None:
+    """``replace`` con reintentos ante un bloqueo pasajero de Windows (086:RF-54).
+
+    En Windows, ``replace`` falla con ``PermissionError`` (WinError 5 o 32) si otro proceso tiene abierto el destino en
+    ese instante, como el antivirus que lee cada JSON nuevo. Con la suite completa en marcha (2026-11-10) un trabajo de la
+    web no llegó a encolarse una vez de 8 613 pruebas, y corrida suelta pasaba. Pasado el último intento, el error sube.
+    """
+    import time
+
+    for espera in (*ESPERAS_SUSTITUIR_S, None):
+        try:
+            temporal.replace(destino)
+            return
+        except PermissionError:
+            if espera is None or os.name != 'nt':
+                raise
+            time.sleep(espera)
 
 
 def ruta_copia_anterior(path: Path | str) -> Path:

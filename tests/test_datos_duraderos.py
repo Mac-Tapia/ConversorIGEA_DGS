@@ -63,6 +63,33 @@ def test_fsync_antes_de_sustituir_el_fichero(tmp_path, monkeypatch):
     assert json.loads((tmp_path / 'estado.json').read_text(encoding='utf-8')) == {'a': 1}
 
 
+def test_sustituir_reintenta_un_bloqueo_pasajero_de_windows(tmp_path, monkeypatch):
+    """086:RF-54 — un ``PermissionError`` pasajero se reintenta; uno que no pasa, sube tras el último intento."""
+    from convertersmartgrid import util
+
+    monkeypatch.setattr(util.os, 'name', 'nt')
+    monkeypatch.setattr(util, 'ESPERAS_SUSTITUIR_S', (0.0, 0.0, 0.0))
+    sustituir, intentos = Path.replace, []
+
+    def bloqueado(veces):
+        def replace(s, d):
+            intentos.append(d)
+            if len(intentos) <= veces:
+                raise PermissionError(32, 'El proceso no tiene acceso al archivo porque está siendo utilizado')
+            return sustituir(s, d)
+        return replace
+
+    monkeypatch.setattr(Path, 'replace', bloqueado(2))
+    util.write_json_atomic(tmp_path / 'estado.json', {'a': 1})
+    assert len(intentos) == 3 and json.loads((tmp_path / 'estado.json').read_text(encoding='utf-8')) == {'a': 1}
+    intentos.clear()
+    monkeypatch.setattr(Path, 'replace', bloqueado(99))
+    with pytest.raises(PermissionError):
+        util.write_json_atomic(tmp_path / 'estado.json', {'a': 2})
+    assert len(intentos) == 4                     # el primero y uno por cada espera
+    assert json.loads((tmp_path / 'estado.json').read_text(encoding='utf-8')) == {'a': 1}
+
+
 def test_registro_de_vinculos_y_almacen_tambien_sincronizan(tmp_path, monkeypatch):
     """086:RF-1 — el registro compartido de vínculos y lo del asistente son estado igual que un espacio."""
     from convertersmartgrid.asistente import almacen
