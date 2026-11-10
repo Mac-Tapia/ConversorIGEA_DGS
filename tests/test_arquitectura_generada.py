@@ -170,7 +170,8 @@ def _git(repo, *args, env=None, check=True):
 def repo(tmp_path):
     """Un repositorio con lo mínimo que lee el generador y los ganchos activos."""
     r = tmp_path / 'repo'
-    for rel in (*GA.FUENTES, 'tools/generar_arquitectura.py', '.gitattributes'):
+    # 102:RF-16: el gancho pre-commit llama después a la puerta de calidad, que aquí no tiene pruebas que elegir.
+    for rel in (*GA.FUENTES, 'tools/generar_arquitectura.py', 'tools/puerta_calidad.py', '.gitattributes'):
         (r / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(RAIZ / rel, r / rel)
     shutil.copytree(RAIZ / '.githooks', r / '.githooks')

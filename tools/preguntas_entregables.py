@@ -175,9 +175,19 @@ def _en_revision(fichero: str) -> list[str] | None:
     return _CACHE[clave]
 
 
-def _ruta_actual(fichero: str) -> Path:
+#: Anclas que un refactor llevó a otro fichero sin renombrar el suyo, ``(fichero, ancla) -> fichero vigente``. La
+#: frase de la GPU del gemelo salió de ``oraculo.py`` a ``training_coordinator.py`` con el refactor de capas del
+#: 2026-11-08 (e2a3eb0d, 002:RF-2): la cita histórica sigue valiendo y su ancla se busca donde está ahora.
+_ANCLAS_MOVIDAS = {
+    ('src/convertersmartgrid/digital_twin/oraculo.py', 'No hay GPU CUDA: el gemelo no entrena ni predice en la CPU.'):
+        'src/convertersmartgrid/training_coordinator.py',
+}
+
+
+def _ruta_actual(fichero: str, ancla: str | None = None) -> Path:
     """076:RF-4: conserva la cita histórica; coteja su ancla literal en la ruta vigente."""
-    return RAIZ / _RENOMBRES_FRONTEND.get(fichero, fichero)
+    movida = _ANCLAS_MOVIDAS.get((fichero, ancla)) if ancla is not None else None
+    return RAIZ / (movida or _RENOMBRES_FRONTEND.get(fichero, fichero))
 
 
 def _rf_definido(rf: str) -> bool:
@@ -208,7 +218,7 @@ def errores_de_fuentes(filas: Iterable[Mapping[str, Any]]) -> list[str]:
                 errores.append(f'{donde} fuera del fichero')
             elif s['ancla'] not in lineas[s['linea'] - 1]:
                 errores.append(f'{donde} no contiene «{s["ancla"]}»')
-            actual = _ruta_actual(s['fichero'])
+            actual = _ruta_actual(s['fichero'], s.get('ancla'))
             if not actual.is_file():
                 errores.append(f'{donde} ya no existe')
             elif s['ancla'] not in actual.read_text(encoding='utf-8', errors='replace'):

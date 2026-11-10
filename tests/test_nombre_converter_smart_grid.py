@@ -20,6 +20,9 @@ EXCEPCIONES_FICHERO = (
     'referencia/',  # datos de la distribuidora, fuera de git (principio 9)
     '.agents/coordination/',  # registro entre sesiones, sin versionar: cita la ruta real de la carpeta
     'docs/implementacion065/',  # evidencia: cita proyectos reales de DIgSILENT y rutas; reescribirla la falsearía
+    # Evidencia y traspaso del arnés integral (2026-11-08): citan la carpeta real del repositorio, que se renombra en
+    # la T6 de la 058; reescribirlos antes la falsearía.
+    'docs/superpowers/specs/2026-11-08-harness-integral-modelos-',
     'tests/test_nombre_converter_smart_grid.py',
     'tests/test_palabras_de_la_fuente.py',  # 056:RF-6: la prueba de que una salida no dice IGEA ni CYMDIST
 )

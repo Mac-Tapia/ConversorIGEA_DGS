@@ -121,6 +121,9 @@ def test_sin_variables_la_subida_se_detiene(tmp_path, monkeypatch, capsys):
     """102:RF-7 — sin los datos reales no se sube."""
     raiz = _git_repo(tmp_path)
     cabeza = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=raiz, capture_output=True, text=True).stdout.strip()
+    # La suite completa corre con las variables en el entorno (la propia puerta las pone): aquí no deben estar.
+    for variable in PC.VARIABLES:
+        monkeypatch.delenv(variable, raising=False)
     monkeypatch.setattr(PC, '_pytest', lambda *a, **k: pytest.fail('no debe correr'))
     assert PC.puerta_push([cabeza], raiz) == 1
     assert 'Faltan variables de datos reales' in capsys.readouterr().out
@@ -129,6 +132,8 @@ def test_sin_variables_la_subida_se_detiene(tmp_path, monkeypatch, capsys):
 def test_un_fallo_detiene_el_commit(tmp_path, monkeypatch, capsys):
     """102:RF-3 — el commit se detiene y nombra la prueba."""
     raiz = _git_repo(tmp_path)
+    (raiz / 'tests').mkdir()
+    (raiz / PC.GOBIERNO[0]).write_text('def test_x():\n    pass\n', encoding='utf-8')
     monkeypatch.setattr(PC, '_pytest', lambda *a, **k: {'total': 1, 'omitidas': [],
                                                          'fallidas': [{'prueba': 't::y', 'motivo': 'assert'}]})
     assert PC.puerta_commit(raiz) == 1

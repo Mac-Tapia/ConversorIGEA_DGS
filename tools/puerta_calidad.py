@@ -183,6 +183,10 @@ def puerta_commit(raiz: Path = RAIZ) -> int:
     ficheros = [f for f in _git('diff', '--cached', '--name-only', '--diff-filter=ACMR', raiz=raiz).splitlines() if f]
     pruebas = pruebas_del_commit(ficheros, raiz)
     print(f'Puerta del commit: {len(pruebas)} ficheros de prueba.')
+    if not pruebas:
+        # Un repositorio sin pruebas de gobierno (el de las pruebas de los ganchos de la 090): sin pruebas que
+        # elegir, pytest correría todo el árbol y saldría con «ninguna prueba» (código 5).
+        return 0
     if not _informar(_pytest(pruebas, {}, raiz), omitidas_cuentan=False):
         print('Commit detenido: corrija las pruebas que fallan (102:RF-3).')
         return 1
