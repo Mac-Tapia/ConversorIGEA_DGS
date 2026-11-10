@@ -25,6 +25,19 @@ def _hasta(condicion, segundos=15):
     raise AssertionError('el proceso propio no alcanzó el punto esperado')
 
 
+def _json(ruta, segundos=15):
+    """El JSON que escribe el proceso hijo, ya completo: lo crea y lo escribe después, y leerlo en medio daba
+    ``JSONDecodeError`` una vez de cada pocas (puerta de calidad, 2026-11-10)."""
+    limite = time.monotonic() + segundos
+    while True:
+        try:
+            return json.loads(ruta.read_text())
+        except (OSError, ValueError):
+            if time.monotonic() >= limite:
+                raise
+            time.sleep(0.02)
+
+
 def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False, antes_anotar=False):
     """Diario producido por JobManager real; el servidor cae sin cerrar al trabajador."""
     guion = tmp_path / 'servidor_con_hijo.py'
@@ -89,7 +102,7 @@ def test_reserva_anterior_al_spawn_se_retira_si_creacion_falla(tmp_path, monkeyp
     diario.anotar(job)
     ctx = JobContext(job, lambda *a: None, diario)
     def fallar(*args, **kwargs):
-        datos = json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())
+        datos = _json(tmp_path / '_trabajos' / f'{job.id}.json')
         assert (datos.get('proceso') or {}).get('estado') == 'lanzando'
         raise OSError('creación propia denegada')
     if motor:
@@ -102,7 +115,7 @@ def test_reserva_anterior_al_spawn_se_retira_si_creacion_falla(tmp_path, monkeyp
         else:
             ctx.run_process(['solo-ensayo'], env={})
     assert job.proceso is None
-    assert json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())['proceso'] is None
+    assert _json(tmp_path / '_trabajos' / f'{job.id}.json')['proceso'] is None
 
 
 def test_no_crear_hijo_si_no_se_puede_persistir_reserva(tmp_path, monkeypatch):
@@ -131,8 +144,8 @@ def test_caida_entre_crear_hijo_y_confirmar_identidad_no_autoriza_otro(tmp_path,
     hijo = None
     try:
         _hasta(lambda: (tmp_path / 'servidor.json').exists() and (tmp_path / 'antes_anotar').exists())
-        servidor = json.loads((tmp_path / 'servidor.json').read_text())
-        hijo = psutil.Process(json.loads((tmp_path / 'hijo.json').read_text())['pid'])
+        servidor = _json(tmp_path / 'servidor.json')
+        hijo = psutil.Process(_json(tmp_path / 'hijo.json')['pid'])
         psutil.Process(servidor['pid']).kill()
         proceso.wait(10)
         assert hijo.is_running()
@@ -158,7 +171,7 @@ def test_trabajo_terminado_no_bloquea_otra_recuperacion(tmp_path):
     proceso = _servidor_con_hijo(tmp_path, motor=True)
     try:
         _hasta(lambda: (tmp_path / 'servidor.json').exists())
-        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+        servidor = _json(tmp_path / 'servidor.json')
     finally:
         _matar_de_golpe(proceso)
     jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
@@ -178,7 +191,7 @@ def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_
     proceso = _servidor_con_hijo(tmp_path, motor=True)
     try:
         _hasta(lambda: (tmp_path / 'servidor.json').exists())
-        anterior = json.loads((tmp_path / 'servidor.json').read_text())['id']
+        anterior = _json(tmp_path / 'servidor.json')['id']
     finally:
         _matar_de_golpe(proceso)
     guion = tmp_path / 'sucesor.py'
@@ -208,7 +221,7 @@ def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
         _hasta(lambda: (tmp_path / 'sucesor_listo.json').exists())
-        listo = json.loads((tmp_path / 'sucesor_listo.json').read_text())
+        listo = _json(tmp_path / 'sucesor_listo.json')
         psutil.Process(listo['pid']).kill()
         segundo.wait(10)
         observados = []
@@ -237,8 +250,8 @@ def test_caida_real_no_relanzar_encima_de_un_trabajador_vivo(tmp_path, motor):
     hijo = None
     try:
         _hasta(lambda: (tmp_path / 'servidor.json').exists())
-        servidor = json.loads((tmp_path / 'servidor.json').read_text())
-        hijo = psutil.Process(json.loads((tmp_path / 'hijo.json').read_text())['pid'])
+        servidor = _json(tmp_path / 'servidor.json')
+        hijo = psutil.Process(_json(tmp_path / 'hijo.json')['pid'])
         # Matar solo el servidor real: en Windows el ejecutable venv puede ser un lanzador.
         psutil.Process(servidor['pid']).kill()
         proceso.wait(10)
@@ -267,7 +280,7 @@ def test_cancelacion_persistida_impide_reanudar_tras_muerte_real(tmp_path):
     proceso = _servidor_con_hijo(tmp_path, cancelar=True, motor=True)
     try:
         _hasta(lambda: (tmp_path / 'servidor.json').exists())
-        servidor = json.loads((tmp_path / 'servidor.json').read_text())
+        servidor = _json(tmp_path / 'servidor.json')
     finally:
         _matar_de_golpe(proceso)
     jobs = JobManager(lambda *a: None, diario=tmp_path / '_trabajos')
@@ -358,8 +371,8 @@ def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_pa
     hijo = None
     try:
         _hasta(lambda: (raiz / 'servidor.json').exists())
-        servidor = json.loads((raiz / 'servidor.json').read_text())
-        hijo = psutil.Process(json.loads((raiz / 'hijo.json').read_text())['pid'])
+        servidor = _json(raiz / 'servidor.json')
+        hijo = psutil.Process(_json(raiz / 'hijo.json')['pid'])
         psutil.Process(servidor['pid']).kill()
         proceso.wait(10)
         ejecuciones, intentos = [], []
@@ -410,7 +423,7 @@ def test_un_emit_roto_no_pierde_cancelacion_persistida(tmp_path):
     try:
         with pytest.raises(OSError, match='desconectado'):
             jobs.cancel(job.id)
-        assert json.loads((tmp_path / '_trabajos' / f'{job.id}.json').read_text())['cancel_requested'] is True
+        assert _json(tmp_path / '_trabajos' / f'{job.id}.json')['cancel_requested'] is True
     finally:
         seguir.set()
         # El emisor fallido no debe escapar de la limpieza de este ensayo.

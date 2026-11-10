@@ -625,6 +625,22 @@ def _guardar_manifiesto(ruta: Path, manifiesto: dict) -> None:
             temporal.unlink()
 
 
+def perfil_de_la_captura(pedido: Path | None, manifiesto: dict) -> Path | None:
+    """El perfil con que se juzga la captura: el pedido, el ya anotado o el activo, y siempre queda anotado.
+
+    PE10 de prueba (2026-11-10): capturada sin ``--perfil``, el manifiesto no guardó cuál era el activo; la prueba
+    recalculó sin los límites de tensión de la empresa y la 044 no vio las 428 violaciones que sí vio la captura.
+    """
+    if pedido:
+        return pedido
+    if manifiesto.get('perfil'):
+        return Path(manifiesto['perfil'])
+    from convertersmartgrid.perfil_empresa import ruta_perfil_activo
+
+    activo = ruta_perfil_activo()
+    return activo if activo.is_file() else None
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Evidencia nativa de las T4 de las specs 044, 045, 048 y 049 '
                                             '(reapertura y relectura en DIgSILENT, por la web)')
@@ -661,6 +677,8 @@ def main(argv=None) -> int:
                     raise ValueError(f'{clave} distinto de la captura')
             if args.etapa != 'veredictos' and args.etapa in anterior:
                 raise ValueError('etapa ya capturada: utilice otra carpeta para una nueva captura')
+            if anterior.get('perfil') and args.perfil and Path(anterior['perfil']).resolve() != args.perfil.resolve():
+                raise ValueError('perfil distinto del de la captura')
         elif args.etapa == 'veredictos':
             raise ValueError('falta el manifiesto de captura')
         elif any(carpeta.iterdir()):
@@ -670,6 +688,9 @@ def main(argv=None) -> int:
         return 2
     manifiesto = json.loads(original) if original is not None else {
         'schema': ESQUEMA, 'proyecto': args.proyecto, 'alimentador': args.alimentador, 'espacio': args.espacio}
+    args.perfil = perfil_de_la_captura(args.perfil, manifiesto)
+    if args.perfil and not manifiesto.get('perfil'):
+        manifiesto['perfil'] = str(args.perfil)
     revision = {'commit': _commit(), 'escrito': datetime.now(UTC).isoformat(timespec='seconds')}
     try:
         if args.etapa == 'obras':
@@ -688,8 +709,6 @@ def main(argv=None) -> int:
         manifiesto.setdefault('errores', []).append(f'{args.etapa}: {type(exc).__name__}: {exc}')
         print(f'ERROR: {exc}', flush=True)
     if args.etapa != 'veredictos':
-        if args.perfil:
-            manifiesto['perfil'] = str(args.perfil)
         if anterior is None:
             manifiesto.update(revision)
         manifiesto.setdefault('capturas', {})[args.etapa] = dict(revision)

@@ -32,7 +32,9 @@ from .series_causales import (
 )
 
 REFERENCIAS = ('ingenuo', 'estacional_semanal')
-NEURONALES = ('gru', 'nhits', 'tft', 'patchtst')
+# 046:RF-13, RF-26: TiDE e iTransformer desde el 2026-11-10. iTransformer es multivariante: entrena con el tramo común
+# de todas las series y predice cada emisión con todas ellas (``adaptador_neuralforecast``).
+NEURONALES = ('gru', 'nhits', 'tft', 'patchtst', 'tide', 'itransformer')
 CLASES = ('cabecera', 'cliente', 'escaladas')
 #: Lo único que se usa además de la serie: se conoce al emitir porque es el reloj (046:RF-2).
 COVARIABLES = ('hora_sin', 'hora_cos', 'dia_sin', 'dia_cos')
@@ -69,6 +71,10 @@ class LoteVentanas:
     fin_contexto: list[datetime]        # instante de cada emisión, en UTC sin zona
     cadencia_min: int
     covariables: tuple[str, ...] = COVARIABLES
+    #: Índice de cada emisión en la rejilla y la rejilla misma (sin copiarla): un modelo multivariante (iTransformer)
+    #: necesita en cada emisión el contexto de todas las series, no solo el de la ventana pedida (046:RF-13).
+    emisiones: np.ndarray | None = None
+    valores: Mapping[str, np.ndarray] | None = field(default=None, repr=False)
 
     @property
     def n(self) -> int:
@@ -134,7 +140,8 @@ class Conjunto:
         return LoteVentanas(list(objetivos), contextos,
                             calendario[emisiones[:, None] + desplazamiento],
                             calendario[emisiones[:, None] + futuro],
-                            [self.instantes[int(e)].replace(tzinfo=None) for e in emisiones], self.cadencia_min)
+                            [self.instantes[int(e)].replace(tzinfo=None) for e in emisiones], self.cadencia_min,
+                            emisiones=emisiones, valores=self.valores)
 
     def ventanas_comunes(self, politica: PoliticaEvaluacion, *, contexto_pasos: int, horizonte_max: int,
                          paso: int) -> dict:

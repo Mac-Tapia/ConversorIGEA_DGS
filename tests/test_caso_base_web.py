@@ -27,6 +27,12 @@ ACEPTACION_FALSA = textwrap.dedent('''
     for a in ('--existing-project', '--source-dgs', '--manifest', '--output-json', '--source-fingerprint'):
         p.add_argument(a)
     a, _resto = p.parse_known_args()
+    if a.existing_project == 'BORRADO':
+        # Lo que escribe la aceptación real cuando el proyecto ya no está (018:RF-16).
+        Path(a.output_json).write_text(json.dumps({
+            'status': 'NO_VERIFICADO', 'project': 'BORRADO', 'proyecto_ausente': True,
+            'error': "No existe el proyecto 'BORRADO' en la carpeta 'F' ni en la raíz."}), encoding='utf-8')
+        raise SystemExit(2)
     feeder = Path(a.source_dgs).stem
     ok = feeder != 'PE104'
     caso = {'status': 'VERIFICADO' if ok else 'NO_VERIFICADO',
@@ -118,6 +124,23 @@ def test_verificar_el_caso_base_es_un_trabajo_y_guarda_cada_estado(client):
     assert estados['CA101']['status'] == 'VERIFICADO'
     assert estados['PE104']['status'] == 'NO_VERIFICADO'
     assert set(ws.pf_project_bindings['P']['feeders']) == {'CA101', 'PE104', 'SINGEO'}
+
+
+def test_018_rf16_un_proyecto_que_ya_no_esta_dice_el_motivo(client):
+    """018:RF-16 — PE10 de prueba (2026-11-10): decía «código 2 sin informe» de un proyecto borrado en DIgSILENT."""
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding, record_project_binding
+
+    wid = client.post('/api/workspaces').json()['id']
+    _proyecto_aceptado(client, wid)
+    record_project_binding(client.app.state.store.get(wid), PowerFactoryProjectBinding(
+        project='BORRADO', folder='F', source_run_id='run', source_mode='mdb', source_fingerprint='f' * 64,
+        feeders=('CA101',), dgs_sha256={}, native_inventory_sha256='n' * 64,
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=0.0))
+    trabajo = client.post(f'/api/workspaces/{wid}/powerfactory/caso-base',
+                          json={'project': 'BORRADO', 'feeders': ['CA101']})
+    fila = esperar_trabajo(client, trabajo.json())['result']['feeders'][0]
+    assert fila['status'] == 'NO_VERIFICADO' and fila['proyecto_ausente'] is True
+    assert 'No existe el proyecto' in fila['motivo'] and 'sin informe' not in fila['motivo']
 
 
 def test_verificar_el_caso_base_no_corre_el_flujo(client, monkeypatch):

@@ -1156,6 +1156,8 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `madrl_obras.py` | Mide la escalera, NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios (spec 074). |
 | `proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01 (spec 072). |
 | `proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas y escribe proyección y evaluación; construye el Formato 01 con la cabecera si la empresa no lo tiene (spec 031). |
+| `lanzar_pronostico_pide_gpu.py` | El pronóstico del PIDE en la GPU en un paso, con las redes compitiendo y 5 y 30 años por defecto; delega en `proyeccion_anual.py` (spec 031, RF-17). |
+| `entrenar_alimentadores_gpu.py` | Una red de pronóstico por alimentador, uno tras otro en la GPU; retoma los ya entrenados y no promociona modelos (spec 089, RF-89). |
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |
 | `escanear_alimentador_pf.py` | Escanea en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador antes de recalibrar; la web lo lanza con «Escanear en DIgSILENT» (`POST /api/workspaces/{id}/powerfactory/escanear`, spec 028). | PF |
 | `transferencia_operador_pf.py` | Lee en DIgSILENT, sin cambiar nada, las transferencias de carga que hizo el operador entre los alimentadores de un proyecto: SED, kW, bancos, lo que las une y el punto abierto (`--plan`, `--output-json`). La calibración y el escaneo usan su módulo para calibrar con la red de la fuente y restituirla al terminar (spec 098). | PF |
@@ -1270,6 +1272,12 @@ python tools/proyeccion_anual.py --cabecera <carpeta> --equivalencia <libro> --c
 
 `horizonte_anios` es lo pronosticado y `horizonte_validado_anios`, lo medido contra lo ocurrido: un año sin validar no se presenta como validado. Sin `--aceptar <operador>` la evaluación queda `sin_aceptar`, salvo que todo el horizonte esté validado, y el PIDE y las obras siguen con la tasa de siempre y lo dicen. `--modelos lightgbm` compite sin GPU; una red sin GPU queda `NO_DISPONIBLE` con su motivo. `lightgbm` y una red juntos abortaron con el código 139 en una corrida real, y `lightgbm` solo terminó: páselos en corridas separadas.
 
+```bash
+# El PIDE en la GPU en un paso: comprueba CUDA y memoria, las redes compiten y se proyectan 5 y 30 años (031:RF-17)
+python tools/lanzar_pronostico_pide_gpu.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta> --suministros <libro> \
+  --proyecto <proyecto> --anio-base <año> --salida <carpeta> [--modelos nhits,tide] [--anio-corto 5 --anio-fin 30]
+```
+
 ## Pronóstico de demanda (`pronostico_demanda.py`, spec 089)
 
 Lee los libros de cada carpeta sin lista fija: un mes nuevo entra solo. No usa DIgSILENT y no toca la calibración ni las obras.
@@ -1283,3 +1291,10 @@ python tools/pronostico_demanda.py --dataset <carpeta> --exogenas <carpeta> --mo
 ```
 
 Ambas dejan en el informe el motivo de cada serie apartada y la decisión de la puerta; si ningún modelo la pasa, queda el perfil.
+
+```bash
+# Una red por alimentador, uno tras otro en la GPU (089:RF-89); retoma los ya entrenados
+python tools/entrenar_alimentadores_gpu.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta>   --suministros <libro> --salida <carpeta> --algoritmo nhits --alimentadores CA101,PE104
+```
+
+Termina con código 1 si algún alimentador falla (089:RF-90); no elige ni promociona modelos: eso lo hace la competición de arriba.

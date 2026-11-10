@@ -358,6 +358,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
 | `tools/proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas: construye el Formato 01 si falta, compite los candidatos y escribe proyección y evaluación; acepta solo con `--aceptar` o con todo el horizonte validado. | 031 |
+| `tools/lanzar_pronostico_pide_gpu.py` | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y largo plazo (5 y 30 años); no fija ganador ni inventa series. | 031 |
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019, 091 |
 | `tools/estadistica_ordenes.py` | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. | 081 |
@@ -451,6 +452,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/digital_twin/series_causales.py` | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. | 046 (RF-1 a RF-3, RF-5) |
 | `src/convertersmartgrid/pronostico_demanda.py` | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera, clientes y escaladas, apoyo de años anteriores, métodos por perfil, backtest por origen, exógenas con su disponibilidad y filas con la marca `pronostico`. | 089 |
 | `tools/pronostico_demanda.py` | Dataset y backtest de demanda desde las carpetas que haya; informe JSON y CSV de pronóstico. | 089 |
+| `tools/entrenar_alimentadores_gpu.py` | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento; retoma los ya entrenados y no promociona modelos. | 089 |
 | `src/convertersmartgrid/digital_twin/pronostico.py` | Contrato multihorizonte: objetivos, conjunto en rejilla común, referencias ingenuo y estacional semanal, calibración de intervalos y filas con la marca `pronostico`. | 046 (RF-1 a RF-5, RF-12 a RF-15, RF-19) |
 | `src/convertersmartgrid/digital_twin/adaptador_neuralforecast.py` | N-HiTS, TFT y PatchTST de neuralforecast, opcionales y solo en CUDA, con la interfaz común. | 046 (RF-13 a RF-15) |
 | `src/convertersmartgrid/digital_twin/evaluacion_temporal.py` | Política predeclarada, pinball y cobertura por horizonte, error de la máxima y de su instante y familias para las puertas. | 046 (RF-5, RF-6, RF-8, RF-18) |

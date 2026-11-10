@@ -92,6 +92,15 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   fuente; la verificación pedía `CH101.dgs` y los demás de la ejecución nueva.) Las demás
   acciones nativas trabajan sobre el proyecto ya importado y no cambian la ejecución activa
   (Chincha, 2026-10-24: puesto también en ellas, la escalera cambió sola de ejecución y falló).
+- RF-16: Si el proyecto vinculado no se puede activar en DIgSILENT al verificar el «Caso base», la
+  verificación deberá decir el motivo que dio DIgSILENT y marcar si el proyecto ya no existe
+  (`proyecto_ausente`), en vez de «el guion terminó con el código 2 sin informe». (PE10 de prueba,
+  2026-11-10: el proyecto se había borrado en DIgSILENT y el vínculo seguía en la web.)
+- RF-17: Cuando `tools/sistema_web.py` retome un proyecto cuyo «Caso base» diga `proyecto_ausente`, el
+  sistema deberá convertir de nuevo el grupo desde la fuente cargada (el DGS de antes es de otra
+  ejecución y la web no lo importa: `SOURCE_RUN_MISMATCH`), importarlo sin borrar nada, verificar el
+  proyecto nuevo y seguir con él; si la importación no deja un proyecto nuevo, deberá parar con su
+  error en vez de calibrar un proyecto que no existe.
 
 ## Fuera de alcance
 

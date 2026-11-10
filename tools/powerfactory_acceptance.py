@@ -397,7 +397,8 @@ def activate_existing_project(app: Any, project_path: str,
             project = _activate_project_by_path(app, requested, folder_name)
         except Exception as exc:  # noqa: BLE001 - evidencia del API nativo
             errors.append(f'No se pudo activar el proyecto existente {requested!r}: {exc}')
-    if project is None and not errors:
+    ausente = bool(requested) and project is None and not errors
+    if ausente:
         errors.append(
             f'No existe el proyecto {requested!r} en la carpeta {folder_name!r} ni en la raíz.'
         )
@@ -421,8 +422,17 @@ def activate_existing_project(app: Any, project_path: str,
         'existing_project': True,
         'errors': errors,
         'warnings': [],
+        'ausente': ausente,
         'ok': not errors,
     }
+
+
+def informe_sin_activar(import_info: dict[str, Any]) -> dict[str, Any]:
+    """018:RF-16: el informe de un proyecto existente que no se pudo activar, con su motivo."""
+    errores = import_info.get('errors') or []
+    return {'status': 'NO_VERIFICADO', 'project': import_info.get('project_requested'),
+            'error': '; '.join(errores) or 'no se pudo activar el proyecto',
+            'proyecto_ausente': bool(import_info.get('ausente'))}
 
 def import_dgs_file(
     app: Any,
@@ -3646,6 +3656,11 @@ def main(argv=None) -> int:
         if not import_info.get('ok'):
             for err in import_info.get('errors') or []:
                 print(f'ERROR: {err}', file=sys.stderr)
+            # 018:RF-16: el informe dice por qué. PE10 de prueba (2026-11-10): el proyecto vinculado ya no estaba
+            # en DIgSILENT y la web solo supo «el guion terminó con el código 2 sin informe».
+            if args.output_json:
+                Path(args.output_json).write_text(json.dumps(informe_sin_activar(import_info), indent=2,
+                                                             ensure_ascii=False) + '\n', encoding='utf-8')
             return 2
         print(f"Activated existing project without import: {import_info.get('project_path')}")
         study_errors: list[str] = []

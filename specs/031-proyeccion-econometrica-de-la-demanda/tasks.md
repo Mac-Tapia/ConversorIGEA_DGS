@@ -16,3 +16,5 @@
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k ciclo` en verde.
 - [ ] T5. Corrida real: proyección de un sistema con sus métricas por modelo y el ganador anotados aquí. (Todos)
       Hecho cuando: el informe está fuera de git y el resumen, sin datos de la distribuidora, anotado aquí.
+- [x] T7. Lanzador del PIDE en la GPU en un paso, sin ganador fijo ni series inventadas. (RF-17, RF-18)
+      Hecho cuando: `tests/test_lanzar_pronostico_pide_gpu.py` en verde y `--help` responde.

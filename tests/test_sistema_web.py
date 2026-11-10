@@ -219,6 +219,64 @@ def test_al_retomar_la_verificacion_que_no_se_puede_pedir_no_para(herramienta, c
     assert 'sin verificar' in salida and 'sin vínculo' in salida
 
 
+class WebConProyectoBorrado(WebFalsa):
+    """El vínculo de la web nombra un proyecto que ya no está en DIgSILENT (PE10 de prueba, 2026-11-10)."""
+
+    def post(self, ruta, **kw):
+        if ruta == '/powerfactory/caso-base':
+            self.pedido = kw['json']['project']
+        return super().post(ruta, **kw)
+
+    def esperar(self, trabajo):
+        if trabajo['id'] == '/powerfactory/caso-base' and self.pedido == 'P_BORRADO':
+            self.esperados.append(trabajo['id'])
+            return {'status': 'done', 'result': {'feeders': [
+                {'feeder': 'F', 'status': 'NO_VERIFICADO', 'proyecto_ausente': True,
+                 'motivo': "No existe el proyecto 'P_BORRADO'"}]}}
+        return super().esperar(trabajo)
+
+
+def test_018_rf17_un_proyecto_borrado_se_importa_de_nuevo(herramienta, capsys):
+    """018:RF-17 — se convierte de nuevo desde la fuente cargada, se importa y se calibra el proyecto nuevo."""
+    web = WebConProyectoBorrado(proyecto='P_BORRADO', informes=[VALIDO])
+    assert _correr(herramienta, web) == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert rutas.count('/powerfactory/caso-base') == 2
+    assert (rutas.index('/powerfactory/caso-base') < rutas.index('/convert/sistema') < rutas.index('/powerfactory/flow')
+            < rutas.index('/demanda/ajuste/plan'))
+    # Si la importación no deja un proyecto nuevo, para: no calibra lo que no existe.
+    web = WebConProyectoBorrado(proyecto='P_BORRADO', informes=[VALIDO])
+    web.esperar_original = web.esperar
+    web.esperar = lambda t: ({'status': 'failed', 'error': 'sin licencia'} if t['id'] == '/powerfactory/flow'
+                             else web.esperar_original(t))
+    assert _correr(herramienta, web) == 2
+    assert '/demanda/ajuste/plan' not in [r for _m, r in web.llamadas]
+    salida = capsys.readouterr().out
+    assert 'ya no está en DIgSILENT' in salida and 'Proyecto: P_PISCO' in salida
+
+
+def test_018_rf16_el_informe_de_un_proyecto_sin_activar():
+    """018:RF-16 — la aceptación escribe el motivo y si el proyecto falta, antes de salir con el código 2."""
+    pa = cargar_herramienta('powerfactory_acceptance.py', 'aceptacion_rf16')
+
+    class App:
+        def GetActiveProject(self):
+            return None
+
+    pa._activate_project_by_path = lambda *_a: None
+    info = pa.activate_existing_project(App(), 'BORRADO', 'F')
+    informe = pa.informe_sin_activar(info)
+    assert informe['proyecto_ausente'] is True and informe['status'] == 'NO_VERIFICADO'
+    assert "No existe el proyecto 'BORRADO'" in informe['error']
+
+    def falla(*_a):
+        raise RuntimeError('licencia ocupada')
+
+    pa._activate_project_by_path = falla
+    informe = pa.informe_sin_activar(pa.activate_existing_project(App(), 'P', 'F'))
+    assert informe['proyecto_ausente'] is False and 'licencia ocupada' in informe['error']
+
+
 def test_importar_verifica_una_sola_vez(herramienta):
     """086:RF-13 — el mismo paso para importar y para retomar: no se verifica dos veces."""
     web = WebFalsa(informes=[VALIDO])

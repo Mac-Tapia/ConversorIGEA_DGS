@@ -131,6 +131,9 @@ Modelos
 - RF-54: EL SISTEMA juzgará el sentido de una serie por sus últimos 60 días, quitará los registros anteriores de sentido contrario y los contará en su procedencia.
 - RF-53: CUANDO resuma el backtest por clase, EL SISTEMA dará también el WAPE ponderado por la energía de cada objetivo.
 
+- RF-89: CUANDO se pida entrenar por alimentador (`tools/entrenar_alimentadores_gpu.py`), EL SISTEMA entrenará uno tras otro, en la GPU, los alimentadores pedidos o todos los del libro de equivalencia, con los libros que se le den por argumento y sin rutas fijas; liberará la memoria de la GPU entre uno y otro y retomará los ya entrenados con el mismo modelo. (2026-11-10: el guion de otra sesión fijaba las rutas de los libros de la distribuidora.)
+- RF-90: SI un alimentador falla al entrenar, ENTONCES EL SISTEMA seguirá con los demás, lo dirá en el resumen y terminará con código 1; uno sin historia suficiente queda `SIN_HISTORIA` con su motivo. No elige ni promociona modelos: eso es de la competición con su puerta.
+
 ## Fuera de alcance
 
 La proyección a años con variables exógenas, que necesita al menos un año completo y sigue en la 031; las curvas propias de fijas y escaladas en los sorteos de obras, que tocan `obras_pf` y `entrega-087q`; descargar temperatura; corregir el desfase de relojes; PBI y población; panel en la web. Los umbrales de RF-18, RF-20, RF-22, RF-24, RF-34 y RF-36 son propuesta, sin confirmar por el usuario.

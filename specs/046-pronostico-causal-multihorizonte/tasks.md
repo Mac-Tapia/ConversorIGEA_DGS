@@ -27,6 +27,9 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 - [x] T7. Medición real en GPU. (RF-5, RF-6, RF-7, RF-8, RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: el informe de `--comparar` sobre medición real está guardado fuera de git y sus métricas y decisión están anotadas aquí sin datos de la distribuidora.
+- [x] T8. TiDE e iTransformer entre los neuronales; iTransformer por el camino multivariante. (RF-13, RF-26)
+      Hecho cuando: `tests/test_pronostico_gpu.py` en verde en la GPU con los seis de `NEURONALES` (2026-11-10: 6 passed)
+      y las pruebas sin GPU del tramo común y de la emisión con hueco.
 
 ## Evidencia de ejecución
 

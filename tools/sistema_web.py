@@ -222,10 +222,11 @@ def _transformadores_pedidos(estado: dict) -> dict[str, list[str]]:
     return pedidos
 
 
-def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> None:
+def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> bool:
     """Paso 1.1 del flujo normal, y dice cómo quedó (015:RF-13). Nada para el flujo: lo que no quede verificado lo dice la web.
 
     Este guion pasaba de importar a calibrar: en Pisco (2026-11-03) ningún alimentador se habría calibrado.
+    Devuelve ``True`` si el proyecto vinculado ya no está en DIgSILENT (018:RF-17).
     """
     grupos = web.get('').get('groups') or []
     feeders = next((g.get('feeders') for g in grupos if g.get('name') == grupo), None) or [grupo]
@@ -233,12 +234,55 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> None:
         estado = web.esperar(web.post('/powerfactory/caso-base', json={'project': proyecto, 'feeders': feeders}))
     except RuntimeError as exc:
         print(f'AVISO: «Caso base» sin verificar: {exc}; se sigue (015:RF-13).', flush=True)
-        return
+        return False
     filas = (estado.get('result') or {}).get('feeders') or []
+    if filas and all(f.get('proyecto_ausente') for f in filas):
+        print(f"El proyecto {proyecto} ya no está en DIgSILENT: {filas[0].get('motivo')}", flush=True)
+        return True
     malos = [f.get('feeder') for f in filas if f.get('status') != 'VERIFICADO']
     print(f"Caso base: {estado['status']} {'VERIFICADO' if filas and not malos else malos}", flush=True)
     if not _terminado(estado) or not filas or malos:
-        print(f"AVISO: «Caso base» sin verificar: {malos or estado.get('error')}; se sigue (015:RF-13).", flush=True)
+        motivos = [f"{f.get('feeder')}: {f.get('motivo')}" for f in filas if f.get('status') != 'VERIFICADO'
+                   and f.get('motivo')]
+        print(f"AVISO: «Caso base» sin verificar: {motivos or malos or estado.get('error')}; se sigue (015:RF-13).",
+              flush=True)
+    return False
+
+
+def _convertir_e_importar(web: Web, *, red: list[str], zonal: str | None, set_electrica: str | None,
+                          grupo: str) -> tuple[str, str | None]:
+    """Convierte los alimentadores (``red``) o el sistema y los importa en DIgSILENT; devuelve el grupo y su proyecto.
+
+    El mismo paso al empezar y cuando el proyecto vinculado ya no existe (018:RF-17).
+    """
+    if red:
+        unir = len(red) > 1
+        estado = web.esperar(web.post('/convert', json={'feeders': red, 'unir': unir,
+                                                        'nombre': grupo if unir else ''}))
+        res = estado.get('result') or {}
+        print(f"Conversión: {estado['status']} {res.get('status') or ''} {grupo}", flush=True)
+        resumen = res.get('summary') or {}
+        convertido = (res.get('status') == 'ok' if unir else
+                      resumen.get('status') == 'completed' and resumen.get('ok') == 1
+                      and not any(resumen.get(k) for k in ('failed', 'skipped', 'not_processed')))
+    else:
+        pedido = {'zonales': [], 'sets': [set_electrica]} if set_electrica else {'zonales': [zonal]}
+        estado = web.esperar(web.post('/convert/sistema', json=pedido))
+        res = estado.get('result') or {}
+        print(f"Conversión: {estado['status']} {res.get('status')} {res.get('group')}", flush=True)
+        convertido = res.get('status') == 'ok'
+        grupo = res.get('group') or grupo
+    if estado['status'] != 'done' or not convertido:
+        print(f"ERROR: {res.get('error') or estado.get('error')}")
+        return grupo, None
+    estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [grupo]}))
+    print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
+    if not _terminado(estado):
+        return grupo, None
+    proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
+    if proyecto is None:
+        print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
+    return grupo, proyecto
 
 
 def nombre_del_grupo(zonal: str | None, *, red: list[str] | None = None, grupo: str | None = None,
@@ -297,50 +341,30 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             return 2
     grupo = nombre_del_grupo(zonal, red=red, grupo=grupo, set_electrica=set_electrica)
     proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
-    if red and (proyecto is None or reconvertir):
-        unir = len(red) > 1
-        estado = web.esperar(web.post('/convert', json={'feeders': red, 'unir': unir,
-                                                        'nombre': grupo if unir else ''}))
-        res = estado.get('result') or {}
-        print(f"Conversión: {estado['status']} {res.get('status') or ''} {grupo}", flush=True)
-        resumen = res.get('summary') or {}
-        convertido = (res.get('status') == 'ok' if unir else
-                      resumen.get('status') == 'completed' and resumen.get('ok') == 1
-                      and not any(resumen.get(k) for k in ('failed', 'skipped', 'not_processed')))
-        if estado['status'] != 'done' or not convertido:
-            print(f"ERROR: {res.get('error') or estado.get('error')}")
-            return 2
-        estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [grupo]}))
-        print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
-        if not _terminado(estado):
-            return 2
-        proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
+    if proyecto is None or reconvertir:
+        grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica, grupo=grupo)
         if proyecto is None:
-            print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
-            return 2
-    elif proyecto is None or reconvertir:
-        pedido = {'zonales': [], 'sets': [set_electrica]} if set_electrica else {'zonales': [zonal]}
-        estado = web.esperar(web.post('/convert/sistema', json=pedido))
-        res = estado.get('result') or {}
-        print(f"Conversión: {estado['status']} {res.get('status')} {res.get('group')}", flush=True)
-        if estado['status'] != 'done' or res.get('status') != 'ok':
-            print(f"ERROR: {res.get('error') or estado.get('error')}")
-            return 2
-        estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [res['group']]}))
-        print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
-        if not _terminado(estado):
-            return 2
-        grupo = res['group']
-        proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
-        if proyecto is None:
-            print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
     print(f'Proyecto: {proyecto}', flush=True)
     # 086:RF-13: aquí pasan importar, retomar y la vuelta de ``--reconstruir``: al retomar no se verificaba
     # y la calibración decía «no está verificado» o dejaba fuera a sus alimentadores. Lo que se va a
     # reconstruir no: se verifica lo nuevo en su vuelta.
-    if not reconstruir:
-        _caso_base_verificado(web, proyecto, grupo)
+    if not reconstruir and _caso_base_verificado(web, proyecto, grupo):
+        # 018:RF-17: el vínculo nombra un proyecto que ya no está en DIgSILENT. PE10 de prueba (2026-11-10): el DGS
+        # de antes es de otra ejecución y la web no lo deja importar (SOURCE_RUN_MISMATCH); se convierte de nuevo
+        # desde la fuente cargada, que da el mismo DGS, y se importa. No se borra nada: el anterior ya no existe.
+        print(f'Se convierte e importa de nuevo {grupo}.', flush=True)
+        if not web.get('').get('loaded') and not _terminado(web.esperar(web.post('/load'))):
+            return 2
+        anterior = proyecto
+        grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica, grupo=grupo)
+        if proyecto is None or proyecto == anterior:
+            print(f'ERROR: la importación de {grupo} no dejó un proyecto nuevo en DIgSILENT.')
+            return 2
+        print(f'Proyecto: {proyecto}', flush=True)
+        if _caso_base_verificado(web, proyecto, grupo):
+            print(f'ERROR: el proyecto recién importado {proyecto} no se encuentra en DIgSILENT.')
+            return 2
     for tipo in TIPOS_DEMANDA:
         if tipo in libros:
             print(f'  {TIPOS_DEMANDA[tipo]}: {libros[tipo]}', flush=True)

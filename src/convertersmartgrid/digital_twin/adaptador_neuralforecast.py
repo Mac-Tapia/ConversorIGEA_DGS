@@ -1,4 +1,4 @@
-"""N-HiTS, TFT y PatchTST de neuralforecast, opcionales y solo en CUDA (046:RF-13 a RF-15).
+"""N-HiTS, TFT, PatchTST, TiDE e iTransformer de neuralforecast, opcionales y solo en CUDA (046:RF-13 a RF-15, RF-26).
 
 neuralforecast se importa al crear el adaptador: el núcleo arranca sin él. Si no se le fuerza,
 cae a la CPU cuando no ve la GPU sin decir nada, y el usuario lo prohíbe (2026-10-22: «sí o sí
@@ -26,6 +26,41 @@ CLASE = {'nhits': 'NHITS', 'tft': 'TFT', 'patchtst': 'PatchTST', 'nbeatsx': 'NBE
 CON_CALENDARIO = ('nhits', 'tft', 'nbeatsx', 'itransformer', 'timesnet', 'tide', 'tsmixerx', 'bitcn')
 #: Ventanas por tanda al predecir: una tanda grande llena la memoria con la tabla de entrada.
 VENTANAS_POR_TANDA = 64
+#: Multivariantes: piden ``n_series`` y ven todas las series juntas (046:RF-26). Con la tabla de los univariantes
+#: (cada tramo y cada ventana, una serie) iTransformer fallaba en la GPU: «missing n_series» (2026-11-10).
+MULTIVARIANTES = ('itransformer', 'tsmixerx')
+
+
+def tramo_comun(conjunto: Any, fin: int, *, minimo: int) -> tuple[int, int]:
+    """El tramo continuo más largo antes de ``fin`` en que todas las series tienen dato; un hueco no se rellena."""
+    ok = np.all([np.isfinite(conjunto.valores[n][:fin]) for n in conjunto.nombres], axis=0)
+    mejor, inicio = (0, 0), None
+    for i, bueno in enumerate([*ok, False]):
+        if bueno and inicio is None:
+            inicio = i
+        elif not bueno and inicio is not None:
+            if i - inicio > mejor[1] - mejor[0]:
+                mejor = (inicio, i)
+            inicio = None
+    if mejor[1] - mejor[0] < minimo:
+        raise ValueError(f'ningún tramo con todas las series ({len(conjunto.nombres)}) llega a {minimo} pasos: '
+                         'el modelo multivariante necesita verlas juntas')
+    return mejor
+
+
+def tabla_panel(conjunto: Any, fin: int, *, minimo: int):
+    """Todas las series en su tramo común, cada una con su nombre (046:RF-26)."""
+    import pandas as pd
+
+    a, b = tramo_comun(conjunto, fin, minimo=minimo)
+    partes = []
+    for nombre in sorted(conjunto.nombres):
+        d = pd.DataFrame(conjunto.calendario[a:b], columns=list(conjunto.covariables))
+        d.insert(0, 'y', conjunto.valores[nombre][a:b])
+        d.insert(0, 'ds', [t.replace(tzinfo=None) for t in conjunto.instantes[a:b]])
+        d.insert(0, 'unique_id', nombre)
+        partes.append(d)
+    return pd.concat(partes, ignore_index=True)
 
 
 def disponibilidad_neuralforecast(algoritmo: str) -> dict:
@@ -108,7 +143,7 @@ class AdaptadorNeuralForecast:
     requiere_gpu = True
 
     def __init__(self, algoritmo: str, *, horizonte: int, cadencia_min: int, contexto_pasos: int | None = None,
-                 pasos: int = 1500, lote: int = 128, semilla: int = 0):
+                 pasos: int = 1500, lote: int = 128, semilla: int = 0, series: Sequence[str] | None = None):
         from .oraculo import dispositivo
 
         dispositivo()                    # sin CUDA, SinGPU antes de cargar nada (046:RF-15)
@@ -116,15 +151,29 @@ class AdaptadorNeuralForecast:
         self.horizonte, self.cadencia_min, self.pasos, self.lote = horizonte, cadencia_min, pasos, lote
         self.contexto_pasos = contexto_pasos or 2 * 1440 // cadencia_min
         self.semilla = semilla
+        self.series: list[str] = list(series or [])
         self.nf = None
+
+    @property
+    def multivariante(self) -> bool:
+        return self.algoritmo in MULTIVARIANTES
 
     def ajustar(self, conjunto: Any, fin_entrenamiento: int, horizonte: int, semilla: int) -> dict:
         from neuralforecast import NeuralForecast, models
         from neuralforecast.losses.pytorch import MQLoss
 
-        tabla = tabla_entrenamiento(conjunto, fin_entrenamiento, minimo=self.contexto_pasos + horizonte)
+        minimo = self.contexto_pasos + horizonte
         kw = argumentos_modelo(self.algoritmo, horizonte=horizonte, contexto_pasos=self.contexto_pasos, semilla=semilla,
                                pasos=self.pasos, lote=self.lote, covariables=conjunto.covariables)
+        if self.multivariante:
+            tabla = tabla_panel(conjunto, fin_entrenamiento, minimo=minimo)[['unique_id', 'ds', 'y']]
+            self.series = sorted(conjunto.nombres)
+            kw['n_series'] = len(self.series)
+            # Sin calendario: neuralforecast 3.3 escala también las exógenas de un multivariante con la escala de la
+            # ventana, y en una ventana corta el día de la semana es constante: escala cero y todo sale NaN (2026-11-10).
+            kw.pop('futr_exog_list', None)
+        else:
+            tabla = tabla_entrenamiento(conjunto, fin_entrenamiento, minimo=minimo)
         modelo = getattr(models, CLASE[self.algoritmo])(loss=MQLoss(quantiles=list(CUANTILES)), **kw)
         self.nf = NeuralForecast(models=[modelo], freq=f'{self.cadencia_min}min', local_scaler_type=None)
         if self.algoritmo not in CON_CALENDARIO:
@@ -136,6 +185,8 @@ class AdaptadorNeuralForecast:
     def predecir(self, lote: Any) -> np.ndarray:
         if self.nf is None:
             raise RuntimeError(f'{self.algoritmo} sin ajustar')
+        if self.multivariante:
+            return self._predecir_panel(lote)
         contextos, calendario = lote.recorte(self.contexto_pasos)
         salida = []
         for a in range(0, lote.n, VENTANAS_POR_TANDA):
@@ -147,6 +198,43 @@ class AdaptadorNeuralForecast:
             salida.append(a_arreglo(self.nf.predict(df=ctx, **kw), CLASE[self.algoritmo], n=b - a, horizonte=lote.horizonte))
         return np.concatenate(salida) if salida else np.zeros((0, lote.horizonte, len(CUANTILES)))
 
+    def _predecir_panel(self, lote: Any) -> np.ndarray:
+        """Una predicción por emisión con todas las series, y a cada ventana la de su objetivo (046:RF-26).
+
+        Solo con lo conocido en esa emisión: si a una serie le falta un dato del contexto, esa emisión no se predice
+        y se dice; no se rellena (046:RF-1).
+        """
+        import pandas as pd
+
+        if lote.valores is None or lote.emisiones is None:
+            raise ValueError(f'{self.algoritmo} es multivariante: el lote debe venir de Conjunto.lote, con la rejilla')
+        ajenas = sorted(set(lote.objetivos) - set(self.series))
+        if ajenas:
+            raise ValueError(f'{self.algoritmo} no se entrenó con {", ".join(ajenas)}')
+        n_ctx, h = self.contexto_pasos, lote.horizonte
+        if n_ctx > lote.contextos.shape[1]:
+            raise ValueError(f'el modelo pide {n_ctx} pasos y la ventana común tiene {lote.contextos.shape[1]}')
+        salida = np.full((lote.n, h, len(CUANTILES)), np.nan)
+        frecuencia = f'{lote.cadencia_min}min'
+        por_emision: dict[int, list[int]] = {}
+        for i, e in enumerate(lote.emisiones):
+            por_emision.setdefault(int(e), []).append(i)
+        for e, indices in por_emision.items():
+            fin = lote.fin_contexto[indices[0]]
+            horas = pd.date_range(end=fin, periods=n_ctx, freq=frecuencia)
+            contexto = []
+            for nombre in self.series:
+                v = np.asarray(lote.valores[nombre][e - n_ctx + 1:e + 1], dtype=float)
+                if len(v) != n_ctx or not np.isfinite(v).all():
+                    raise ValueError(f'{nombre} tiene un hueco en el contexto de la emisión {fin}: '
+                                     f'{self.algoritmo} necesita todas las series y no se rellena')
+                contexto.append(pd.DataFrame({'unique_id': nombre, 'ds': horas, 'y': v}))
+            pred = a_arreglo(self.nf.predict(df=pd.concat(contexto, ignore_index=True)),
+                             CLASE[self.algoritmo], n=len(self.series), horizonte=h)
+            for i in indices:
+                salida[i] = pred[self.series.index(lote.objetivos[i])]
+        return salida
+
     def guardar(self, carpeta: Path) -> None:
         if self.nf is None:
             raise RuntimeError(f'{self.algoritmo} sin ajustar')
@@ -154,7 +242,7 @@ class AdaptadorNeuralForecast:
         self.nf.save(path=str(carpeta), overwrite=True, save_dataset=False)
         (carpeta / 'adaptador.json').write_text(json.dumps({
             'horizonte': self.horizonte, 'cadencia_min': self.cadencia_min, 'contexto_pasos': self.contexto_pasos,
-            'pasos': self.pasos, 'lote': self.lote, 'semilla': self.semilla}), encoding='utf-8')
+            'pasos': self.pasos, 'lote': self.lote, 'semilla': self.semilla, 'series': self.series}), encoding='utf-8')
 
     @classmethod
     def reabrir(cls, carpeta: Path, algoritmo: str) -> AdaptadorNeuralForecast:

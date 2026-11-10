@@ -439,6 +439,29 @@ def test_fallo_publicacion_conserva_manifiesto_y_no_deja_temporal(guion, tmp_pat
     assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == antes
 
 
+def test_el_perfil_de_la_captura_queda_anotado_y_no_cambia(guion, tmp_path, monkeypatch):
+    """044:RF-9 — PE10 de prueba (2026-11-10): sin ``--perfil`` no quedaba cuál era el activo y la prueba juzgaba
+    sin los límites de tensión de la empresa; ahora se anota, y otro perfil no puede juzgar la misma captura."""
+    import json
+    from pathlib import Path
+
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    perfil = tmp_path.parent / f'{tmp_path.name}_perfil.json'
+    perfil.write_text('{}', encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    assert guion.perfil_de_la_captura(None, {}) == perfil
+    assert guion.perfil_de_la_captura(None, {'perfil': 'otro.json'}) == Path('otro.json')
+    _custodia_sintetica(guion, tmp_path)
+    usados = []
+    monkeypatch.setattr(guion, 'veredictos', lambda _c, _m, p=None: usados.append(p) or {})
+    assert guion.main(_argv_custodia(tmp_path)) == 0
+    assert json.loads((tmp_path / guion.MANIFIESTO).read_text(encoding='utf-8'))['perfil'] == str(perfil)
+    assert usados == [perfil]
+    otro = tmp_path.parent / f'{tmp_path.name}_otro.json'
+    otro.write_text('{}', encoding='utf-8')
+    assert guion.main([*_argv_custodia(tmp_path)[:-1], '--perfil', str(otro), 'veredictos']) == 2
+
+
 def test_captura_existente_no_se_sobrescribe(guion, tmp_path, monkeypatch):
     """044:RF-9 — repetir una captura requiere carpeta nueva, no reemplazar sus pruebas."""
     import json

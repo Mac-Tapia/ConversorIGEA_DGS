@@ -24,6 +24,8 @@ El PIDE anual ya exige una proyección por carga y año, con huella y evaluació
 - RF-14: EL SISTEMA dará el mismo resultado con los mismos datos y semilla, y no escribirá en la calibración, el «Caso base» ni DIgSILENT.
 - RF-15: SI la empresa no tiene Formato 01, ENTONCES EL SISTEMA lo construirá con las mediciones históricas de cabecera, por sistema y año, en el formato que lee `leer_formato_01`, con cada año marcado por sus meses medidos; un año incompleto no se presentará como año completo ni se extrapolará sin decirlo.
 - RF-16: EL SISTEMA emitirá con el ganador solo los años que tenga validados, y como mínimo el primero; los siguientes crecerán desde ahí con la tasa de largo plazo del perfil (042:RF-86), y cada fila dirá de cuál de los dos viene. Pisco (2026-11-08): la tasa medida seguida 20 años daba 13 365 MW.
+- RF-17: CUANDO se pida el pronóstico del PIDE en la GPU en un paso (`tools/lanzar_pronostico_pide_gpu.py`), EL SISTEMA hará competir las redes neuronales con la misma regla de RF-2 a RF-4, proyectará el quinquenio y el largo plazo (5 y 30 años si no se dicen otros) y no fijará ningún ganador. (2026-11-10: el guion de otra sesión ponía TiDE de ganador sin medir.)
+- RF-18: SI no hay CUDA o memoria, o faltan los libros y el dataset, ENTONCES EL SISTEMA lo dirá antes de leer nada y no seguirá: ni series inventadas de demostración ni errores de la proyección escondidos.
 
 ## Fuera de alcance
 

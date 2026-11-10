@@ -20,9 +20,44 @@ def _datos():
     return c, c.lote(c.nombres * 2, em, contexto=32, horizonte=H)
 
 
-@pytest.mark.parametrize('algoritmo', ['gru', 'nhits', 'tft', 'patchtst'])
+def test_tramo_comun_sin_rellenar_huecos():
+    """046:RF-26 — sin GPU: el multivariante entrena con el tramo en que todas las series tienen dato."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.digital_twin.adaptador_neuralforecast import tramo_comun
+
+    a = np.arange(20, dtype=float)
+    b = a.copy()
+    b[5] = np.nan                        # un hueco parte el tramo común en [0, 5) y [6, 20)
+    c = SimpleNamespace(nombres=['a', 'b'], valores={'a': a, 'b': b})
+    assert tramo_comun(c, 20, minimo=10) == (6, 20)
+    assert tramo_comun(c, 12, minimo=5) == (6, 12)
+    with pytest.raises(ValueError, match='todas las series'):
+        tramo_comun(c, 20, minimo=15)
+
+
+def test_el_multivariante_no_predice_una_emision_con_hueco():
+    """046:RF-26, 046:RF-1 — sin GPU: si a una serie le falta un dato en esa emisión, lo dice y no rellena."""
+    from convertersmartgrid.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
+
+    c, _lote = _datos()
+    nombre = c.nombres[0]
+    m = AdaptadorNeuralForecast.__new__(AdaptadorNeuralForecast)
+    m.algoritmo, m.contexto_pasos, m.series, m.nf = 'itransformer', 32, [nombre], object()
+    c.valores[nombre] = c.valores[nombre].copy()
+    e = 35 * PUNTOS_DIA
+    lote = c.lote([nombre], np.array([e]), contexto=32, horizonte=H)
+    c.valores[nombre][e - 3] = np.nan     # el lote ya se copió; la rejilla que ve el multivariante, no
+    with pytest.raises(ValueError, match='hueco'):
+        m.predecir(lote)
+    m.series = ['otro']
+    with pytest.raises(ValueError, match='no se entrenó con'):
+        m.predecir(lote)
+
+
+@pytest.mark.parametrize('algoritmo', pr.NEURONALES)
 def test_adaptador_real_entrena_predice_y_reabre(tmp_path, algoritmo):
-    """046:RF-13 — los cuatro cargan de verdad, en CUDA, con la misma salida y reapertura."""
+    """046:RF-13 — todos los de ``NEURONALES`` cargan de verdad, en CUDA, con la misma salida y reapertura."""
     d = pr.disponibilidad(algoritmo)
     assert d['disponible'], d
     c, lote = _datos()

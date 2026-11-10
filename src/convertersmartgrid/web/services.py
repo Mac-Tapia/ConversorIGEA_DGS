@@ -5036,6 +5036,12 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO',
                                'motivo': f'el guion terminó con el código {rc} sin informe'})
             continue
+        if acceptance.get('error') and rc != 0:
+            # 018:RF-16: lo que dijo DIgSILENT, y si el proyecto ya no está (PE10 de prueba, 2026-11-10).
+            ctx.log(f"  {feeder}: NO_VERIFICADO: {acceptance['error']}")
+            resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO', 'motivo': acceptance['error'],
+                               'proyecto_ausente': bool(acceptance.get('proyecto_ausente'))})
+            continue
         caso = _caso_base_fusionado(acceptance, _registrar_vinculo(ws, acceptance, project))
         ctx.log(f"  {feeder}: {caso.get('status') or 'NO_VERIFICADO'}")
         for aviso in caso.get('avisos') or []:

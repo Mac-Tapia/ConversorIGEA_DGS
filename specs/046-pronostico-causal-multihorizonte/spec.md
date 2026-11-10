@@ -25,7 +25,7 @@ Dependencias y relación: 043 y 044; lectura de medición existente y crecimient
 - RF-10: DONDE el operador declare los medidores de una central de un alimentador, EL SISTEMA pronosticará la demanda con la central descontada por `curva_de_demanda`.
 - RF-11: CUANDO el operador pida el pronóstico de clientes fijos, EL SISTEMA tomará como objetivos el kW y el kVAR de cada cliente pedido desde su hoja de 15 minutos del libro de clientes libres.
 - RF-12: SI un objetivo no cumple la cadencia declarada, ENTONCES EL SISTEMA lo apartará nombrando el objetivo y el motivo, sin rellenar valores.
-- RF-13: EL SISTEMA hará competir, en las mismas ventanas de cada objetivo, al ingenuo, al estacional semanal, a la GRU y a los adaptadores N-HiTS, TFT y PatchTST.
+- RF-13: EL SISTEMA hará competir, en las mismas ventanas de cada objetivo, al ingenuo, al estacional semanal, a la GRU y a los adaptadores N-HiTS, TFT, PatchTST y TiDE (TiDE desde el 2026-11-10; iTransformer, multivariante, compite solo en la 089).
 - RF-14: SI un adaptador no carga, ENTONCES EL SISTEMA lo declarará no disponible con su motivo y seguirá con los demás modelos.
 - RF-15: SI no hay GPU CUDA, ENTONCES EL SISTEMA dará un error que lo diga para cada modelo neuronal, sin entrenarlo en la CPU.
 - RF-16: EL SISTEMA elegirá un ganador por objetivo, y decidirá por separado la clase cabecera y la clase cliente.
@@ -38,6 +38,7 @@ Dependencias y relación: 043 y 044; lectura de medición existente y crecimient
 - RF-23: EL SISTEMA emitirá un pronóstico solo por una petición expresa desde la web o desde el asistente.
 - RF-24: CUANDO la web o el asistente pidan un pronóstico, EL SISTEMA lo ejecutará como trabajo cancelable en otro proceso.
 - RF-25: CUANDO se reproduzca el mes con `gemelo_temporal`, EL SISTEMA dirá en el resultado que es una reconstrucción a un paso y no un pronóstico.
+- RF-26: CUANDO compita un modelo multivariante (iTransformer), EL SISTEMA lo entrenará con el tramo común observado de todos los objetivos, sin rellenar huecos, y predecirá cada emisión con todas sus series; SI a una serie le falta un dato del contexto en esa emisión, ENTONCES EL SISTEMA no la predecirá y lo dirá. Irá sin el calendario como exógena: neuralforecast 3.3 la escala con la ventana, y el día de la semana constante daba escala cero y todo NaN (2026-11-10).
 - Aclaración de RF-8: las puertas son las de «Puertas predeclaradas»; no se cambian después de medir, y un cambio de valores abre otra versión de la política con su huella.
 - Aclaración de RF-5: las ventanas de un objetivo se fijan por su emisión, con todo el contexto común y todos los objetivos futuros observados, antes de ajustar ningún modelo.
 

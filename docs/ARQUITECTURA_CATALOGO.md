@@ -10,14 +10,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 103 |
+| Herramientas y guiones | `tools/` | 105 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 418 |
+| Pruebas | `tests/` | 420 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
-`web/services.py` tiene 12997 líneas y 391 funciones, pendiente de partir (002).
+`web/services.py` tiene 13003 líneas y 391 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 2 |
 | retirada | 1 |
 
-102 specs con 3323 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3330 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -827,7 +827,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
+| `tools/entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
 | `tools/evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
+| `tools/lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 | `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |

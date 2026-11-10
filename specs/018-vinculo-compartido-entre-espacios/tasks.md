@@ -37,3 +37,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T12. Retro (033, 2026-10-29): RF-14, RF-15, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-14, RF-15)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_powerfactory_binding.py`).
+- [x] T13. [DIgSILENT] Proyecto vinculado que ya no está: el motivo en la verificación y la importación de
+      nuevo desde `sistema_web.py`. (RF-16, RF-17) Hecho cuando: las pruebas de 018:RF-16 y 018:RF-17 de
+      `tests/test_caso_base_web.py` y `tests/test_sistema_web.py` en verde, y el PE10 de prueba (espacio
+      35ff5dab8b2b46a6) importado de nuevo y calibrado por la web.
+      Evidencia (2026-11-10): `sistema_web.py --red CA101 PE104` dijo «ya no está en DIgSILENT», convirtió e
+      importó `20261110-021747_CSG_TXT_8fc733e4_01_PE10` (Caso base VERIFICADO) y calibró CA101 (−0,02 %) y PE104
+      (−0,43 %), ambos VALIDO; la aceptación nativa sobre él está en `D:/converter/evidencia_nativa/20261110_PE10_t4b`.
