@@ -1,6 +1,6 @@
 # Spec 102 — Puerta de calidad: ningún commit ni subida con la suite en rojo
 
-Estado: aprobada · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
+Estado: cumplida (2026-11-10: T4 con la suite completa sin omitidas y GitHub Actions en verde) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
 fallas repetitivas; esas cosas ya se habían superado, pero veo que sigue fallando».
 
 ## Contexto y objetivo
