@@ -26,11 +26,31 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # Como en el equipo de desarrollo (102:RF-17): un .venv, porque el lanzador y sus pruebas corren dentro de uno
+      # (pyvenv.cfg); el extra «ml» (torch de CPU aquí: no hay GPU), y las herramientas del frontend que usan dos
+      # pruebas del backend (openapi-typescript, el lint de entrega). El 2026-11-10, sin ellos, 71 pruebas fallaban
+      # solo en GitHub.
       - name: Dependencias
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --upgrade pip setuptools wheel
+          .venv\Scripts\python -m pip install -r requirements.txt
+          .venv\Scripts\python -m pip install -e ".[ml]"
+      - name: Frontend para las pruebas del backend
+        working-directory: frontend
+        run: npm ci
       - name: Suite sintética
-        run: python tools/puerta_calidad.py --ci
+        env:
+          CSG_CI_SIN_GPU: '1'
+        run: .venv\Scripts\python tools/puerta_calidad.py --ci
 
   frontend:
     name: Frontend (build y pruebas)

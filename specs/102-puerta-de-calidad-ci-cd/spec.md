@@ -49,6 +49,10 @@ En GitHub
 Instalación
 
 - RF-16: EL SISTEMA dejará los ganchos activos con la misma orden que ya los instala (090:RF-11).
+- RF-17: GitHub Actions correrá la suite sintética en un entorno como el de desarrollo: un `.venv`, `requirements.txt`, el
+  extra `ml` y las herramientas del frontend. SI allí una prueba falla porque no hay GPU CUDA (`SinGPU`), ENTONCES quedará
+  omitida con ese motivo; cualquier otro fallo seguirá en rojo, y en la máquina de desarrollo esa regla no se activa.
+  (2026-11-10: el primer flujo instalaba solo `requirements.txt` y 71 pruebas fallaban solo en GitHub.)
 
 ## Requisitos no funcionales
 

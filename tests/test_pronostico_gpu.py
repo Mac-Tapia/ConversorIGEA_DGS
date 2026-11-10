@@ -59,6 +59,10 @@ def test_el_multivariante_no_predice_una_emision_con_hueco():
 def test_adaptador_real_entrena_predice_y_reabre(tmp_path, algoritmo):
     """046:RF-13 — todos los de ``NEURONALES`` cargan de verdad, en CUDA, con la misma salida y reapertura."""
     d = pr.disponibilidad(algoritmo)
+    if d.get('sin_gpu'):
+        from convertersmartgrid.training_coordinator import SinGPU
+
+        raise SinGPU(d['motivo'])       # en GitHub, omitida (102:RF-17); aquí, un fallo
     assert d['disponible'], d
     c, lote = _datos()
     m = pr.fabrica(algoritmo, horizonte=H, cadencia_min=CADENCIA, contexto_pasos=32, pasos=5, lote=8, semilla=3)

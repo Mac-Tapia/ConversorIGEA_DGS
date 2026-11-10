@@ -253,7 +253,10 @@ def disponibilidad(algoritmo: str) -> dict:
 
             dispositivo()
         except (ImportError, OSError, RuntimeError) as exc:
-            return {'disponible': False, 'motivo': str(exc)}
+            from ..training_coordinator import SinGPU
+
+            # 102:RF-17: «sin GPU» se dice aparte del motivo, para no tener que leerlo en el texto.
+            return {'disponible': False, 'motivo': str(exc), 'sin_gpu': isinstance(exc, SinGPU)}
         return {'disponible': True, 'motivo': ''}
     if algoritmo in NEURONALES:
         from .adaptador_neuralforecast import disponibilidad_neuralforecast

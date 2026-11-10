@@ -24,6 +24,48 @@ os.environ[sesion_web.VARIABLE_CARPETA] = tempfile.mkdtemp(prefix='csg-sesiones-
 os.environ.pop(sesion_web.VARIABLE_PUERTO, None)
 
 
+#: El flujo de GitHub Actions lo declara: allí no hay GPU (102:RF-17).
+VARIABLE_CI_SIN_GPU = 'CSG_CI_SIN_GPU'
+
+
+def _ci_sin_cuda() -> bool:
+    if os.environ.get(VARIABLE_CI_SIN_GPU) != '1':
+        return False
+    try:
+        import torch
+    except ImportError:
+        return True
+    return not torch.cuda.is_available()
+
+
+def _por_falta_de_gpu(exc: BaseException | None) -> bool:
+    """El fallo es la falta de GPU que el código declara (``SinGPU``), también como causa encadenada."""
+    from convertersmartgrid.training_coordinator import SinGPU
+
+    vistos = set()
+    while exc is not None and id(exc) not in vistos:
+        vistos.add(id(exc))
+        if isinstance(exc, SinGPU):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """102:RF-17: en GitHub, una prueba que exige GPU CUDA y no la tiene queda omitida con su motivo, no fallida.
+
+    Solo con ``CSG_CI_SIN_GPU=1`` y sin CUDA, y solo si el fallo es ``SinGPU``: cualquier otro sigue siendo un fallo.
+    En la máquina de desarrollo nunca se activa: allí la suite completa no admite omitidas (102:RF-9).
+    """
+    resultado = yield
+    informe = resultado.get_result()
+    if informe.failed and call.excinfo is not None and _ci_sin_cuda() and _por_falta_de_gpu(call.excinfo.value):
+        informe.outcome = 'skipped'
+        informe.longrepr = (str(item.path), item.location[1] or 0,
+                            'Skipped: exige GPU CUDA y GitHub Actions no la tiene (102:RF-17)')
+
+
 @pytest.fixture(autouse=True)
 def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     """Sin perfil de empresa salvo que la prueba lo pida (spec 002, RF-32 y RF-33).

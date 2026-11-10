@@ -157,6 +157,27 @@ def test_github_corre_la_suite_sintetica_y_el_frontend():
     assert 'npm run build' in flujo and 'npm test' in flujo
 
 
+def test_github_tiene_el_entorno_de_desarrollo_y_solo_omite_la_falta_de_gpu(monkeypatch):
+    """102:RF-17 — .venv, extra ml y frontend en el flujo; la omisión es solo SinGPU, y fuera de GitHub nunca."""
+    import conftest
+    from convertersmartgrid.training_coordinator import SinGPU
+
+    flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    assert 'python -m venv .venv' in flujo and '-e ".[ml]"' in flujo and 'npm ci' in flujo
+    assert f"{conftest.VARIABLE_CI_SIN_GPU}: '1'" in flujo
+    try:
+        raise SinGPU('No hay GPU CUDA')
+    except SinGPU as causa:
+        try:
+            raise RuntimeError('el modelo no entrena') from causa
+        except RuntimeError as encadenada:
+            assert conftest._por_falta_de_gpu(encadenada)
+    assert not conftest._por_falta_de_gpu(RuntimeError('otro fallo'))
+    assert not conftest._por_falta_de_gpu(AssertionError('GPU'))
+    monkeypatch.delenv(conftest.VARIABLE_CI_SIN_GPU, raising=False)
+    assert not conftest._ci_sin_cuda()
+
+
 def test_los_datos_reales_no_van_a_github():
     """102:RF-15 — el fichero de variables está fuera de git y el flujo no nombra ninguna variable de datos reales."""
     flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')

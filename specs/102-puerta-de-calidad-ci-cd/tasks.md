@@ -8,6 +8,8 @@
 - [x] T3. Ganchos `pre-commit` y `pre-push`, y flujo de GitHub Actions con la suite sintética y el frontend. (RF-12, RF-13,
       RF-14, RF-15, RF-16)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
+- [x] T5. GitHub con el entorno de desarrollo y la falta de GPU omitida con su motivo. (RF-17)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
 - [ ] T4. La puerta en uso: un commit con la puerta activa, una subida que pasa la suite completa sin omitidas y el flujo
       de GitHub en verde. (RF-3, RF-9, RF-12)
       Hecho cuando: el resultado de la revisión está en `.git/puerta_calidad/` y GitHub muestra el flujo en verde.

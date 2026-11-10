@@ -112,6 +112,8 @@ pytest>=8.0
 # Valida los episodios del gemelo contra su esquema JSON (045, test_gemelo_contratos_v2). El núcleo no lo usa
 # (perfil_esquema.py valida sin él); faltaba aquí y GitHub Actions no recogía dos ficheros de prueba (2026-11-10).
 jsonschema>=4.26
+# F821 limpio en src/ y tools/ (081:RF-1, test_nombres_definidos); tampoco estaba y GitHub no lo tenía.
+ruff>=0.16
 # Cliente HTTP de fastapi.testclient, para las pruebas web. Starlette 1.x pide httpx2:
 # con httpx a secas avisaba de que está obsoleto en cada ejecución de la suite, y dejará
 # de funcionar cuando Starlette retire ese camino.
