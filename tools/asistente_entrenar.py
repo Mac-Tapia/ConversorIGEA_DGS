@@ -73,6 +73,8 @@ def main(argv=None) -> int:
     p.add_argument('--afinar-lote', type=int, default=32, help='Frases por lote al afinar; bájelo si falta memoria de GPU (079:RF-8)')
     p.add_argument('--afinar-epocas', type=int, default=8, help='Tope de épocas de afinado, con parada por selección (079:RF-12)')
     p.add_argument('--afinar-pasos', type=int, default=800, help='Pasos de cada época de afinado')
+    p.add_argument('--codificador', choices=('base', 'large'), default='base',
+                   help='Con --integral: el codificador de las órdenes, con su revisión fija (069:RF-33)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
@@ -131,7 +133,7 @@ def main(argv=None) -> int:
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
                     cfg=codificador_ordenes.Configuracion(
-                        epocas=args.epocas, **({'afinar_capas': args.afinar_capas, 'afinar_lote': args.afinar_lote,
+                        epocas=args.epocas, codificador=args.codificador, **({'afinar_capas': args.afinar_capas, 'afinar_lote': args.afinar_lote,
                                                 'afinar_epocas': args.afinar_epocas, 'pasos_por_epoca': args.afinar_pasos}
                                                if args.afinar else {})),
                     semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),

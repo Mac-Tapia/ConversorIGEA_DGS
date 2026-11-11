@@ -82,6 +82,10 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   mensajes `ninguna` del almacén.
 - RF-29: EL SISTEMA añadirá solo a entrenamiento las frases de operador de las tareas flojas, con esas tareas elegidas
   mirando selección y calibración.
+- RF-33: CUANDO se pida el entrenamiento integral con `--codificador large`, EL SISTEMA usará `intfloat/multilingual-e5-large`
+  con su revisión fija del catálogo verificado (`docs/MODELOS_IA_LOCK.json`) y guardará en el modelo el codificador que usó,
+  para reabrirlo con él (RF-4). Sin la opción sigue el base. (2026-11-11: con el base y 6 capas afinadas el candidato llegó a
+  0,995 en selección y a 0,875 en la sellada; la distancia entre las dos, no un error concreto de la prueba, motiva el cambio.)
 
 ## Fuera de alcance
 

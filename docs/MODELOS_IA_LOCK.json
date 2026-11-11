@@ -233,6 +233,72 @@
       ]
     },
     {
+      "backend": "huggingface",
+      "id": "intfloat/multilingual-e5-large",
+      "revision": "3d7cfbdacd47fdda877c5cd8a79fbcc4f2a574f3",
+      "licencia": "mit",
+      "rol": "codificador mayor del intérprete de órdenes (069:RF-33)",
+      "files": [
+        {
+          "path": "1_Pooling/config.json",
+          "size": 201,
+          "sha256": null,
+          "git_blob_sha1": "63d473457c905564c8f818cff50a22e144b45f7b"
+        },
+        {
+          "path": "README.md",
+          "size": 160024,
+          "sha256": null,
+          "git_blob_sha1": "c0b23a5bdab73fb2c6ee05d6f767f26a6039343b"
+        },
+        {
+          "path": "config.json",
+          "size": 690,
+          "sha256": null,
+          "git_blob_sha1": "fc68c8c9ccbe4af4c95b6c9f8d4a3b8d6c790768"
+        },
+        {
+          "path": "model.safetensors",
+          "size": 2239611368,
+          "sha256": "020afdebf2762b29fcaf286629a96c3b3b65af241f6a08226b1cfee60a21def6"
+        },
+        {
+          "path": "modules.json",
+          "size": 387,
+          "sha256": null,
+          "git_blob_sha1": "ac2039abdf6ff023b27c919bb9675cfe378cb10f"
+        },
+        {
+          "path": "sentence_bert_config.json",
+          "size": 57,
+          "sha256": null,
+          "git_blob_sha1": "4eca68d85ecd3034cf4174d8a4033a75344ea62d"
+        },
+        {
+          "path": "sentencepiece.bpe.model",
+          "size": 5069051,
+          "sha256": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size": 280,
+          "sha256": null,
+          "git_blob_sha1": "d5698132694f4f1bcff08fa7d937b1701812598e"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 17082660,
+          "sha256": "62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 418,
+          "sha256": null,
+          "git_blob_sha1": "6de1940d16d38be9877bf7cc228c9377841b311f"
+        }
+      ]
+    },
+    {
       "backend": "ollama",
       "id": "qwen3:8b",
       "revision": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",

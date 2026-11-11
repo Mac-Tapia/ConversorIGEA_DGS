@@ -152,6 +152,19 @@ def test_modelo_artefactos_solo_cabezas_y_codificador_por_revision(falso):
     assert NINGUNA in meta['tareas'] and meta['simbolos'] == {}
 
 
+def test_069_rf33_el_modelo_guarda_el_codificador_que_uso(falso):
+    """069:RF-33 — el codificador elegido, con su revisión fija, queda en el modelo y en el catálogo verificado."""
+    m = _entrenado()
+    m.codificador.nombre, m.codificador.revision = co.CODIFICADORES['large']
+    di._guardar_alumno(m, falso / 'grande', {'version': 'grande'})
+    meta = json.loads((falso / 'grande' / 'modelo.json').read_text(encoding='utf-8'))
+    assert (meta['codificador']['nombre'], meta['codificador']['revision']) == co.CODIFICADORES['large']
+    assert co.Configuracion().codificador == 'base' and co.CODIFICADORES['base'] == (co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR)
+    catalogo = json.loads((Path(__file__).resolve().parents[1] / 'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
+    fijados = {x['id']: x['revision'] for x in catalogo['modelos']}
+    assert all(fijados.get(nombre) == revision for nombre, revision in co.CODIFICADORES.values())
+
+
 def test_modelo_codificador_solo_de_la_cache_local(monkeypatch):
     """069:RF-5 — se pide sin red; si no está, el error nombra el codificador."""
     import types

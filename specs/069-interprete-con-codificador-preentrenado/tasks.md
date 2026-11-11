@@ -15,5 +15,7 @@
   Hecho el 2026-11-02: candidato `b7d9bd4db807` RECHAZADO, 0,900 en 922 sintéticas, F1 0,993, 3 de 3 humanas; 6 tareas bajo la
   puerta de 0,95. Rechazo en 206 reservados: 0,942 recogido y 0,010 colado, en regla. El modelo en uso sigue `20261024-150042-37ce`.
   Un primer intento se cayó en la reapertura, antes de que el registro decidiera nada (arreglado en `1cb47837`).
+- [x] T8 Codificador elegible al entrenar, con su revisión fija y anotado en el modelo. (RF-33)
+      Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-33) en verde.
 - [ ] T7 Que un candidato pase todas las puertas, sin ajustar nada mirando la prueba ya medida.
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.

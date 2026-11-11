@@ -29,12 +29,20 @@ ARQUITECTURA_AFINADA = 'codificador_afinado_v1'
 NOMBRE_CODIFICADOR = 'intfloat/multilingual-e5-base'
 #: La revisión se fija: otra revisión del codificador daría otras representaciones para las mismas cabezas.
 REVISION_CODIFICADOR = 'd128750597153bb5987e10b1c3493a34e5a4502a'
+#: 069:RF-33: el codificador se elige al entrenar, cada uno con su revisión fija (docs/MODELOS_IA_LOCK.json). Con el base y
+#: 6 capas afinadas el candidato del 2026-11-11 llegó a 0,995 en selección y a 0,875 en la sellada: no generalizaba.
+CODIFICADORES = {'base': (NOMBRE_CODIFICADOR, REVISION_CODIFICADOR),
+                 'large': ('intfloat/multilingual-e5-large', '3d7cfbdacd47fdda877c5cd8a79fbcc4f2a574f3')}
 PREFIJO = 'query: '
 LARGO_TOKENS = 96
 RASGOS_FORMA = 6
 UMBRAL_HEREDADO = .85
 #: 079:RF-59: la orden que deja el codificador en la caché que lee este proceso.
 ORDEN_PREPARAR = f'python tools/preparar_modelos_ia.py --descargar --backend huggingface --id {NOMBRE_CODIFICADOR} --output-json preparar.json'
+
+
+def orden_preparar(nombre: str) -> str:
+    return ORDEN_PREPARAR.replace(NOMBRE_CODIFICADOR, nombre)
 
 
 def _torch():
@@ -58,6 +66,7 @@ class Configuracion:
     # 079: 0 es solo las cabezas (RF-2). Con 2 capas: 14,2 M de los 278 M parámetros, 58 MB en `pesos.pt` con las cabezas (medido el 2026-11-03).
     afinar_capas: int = 0
     afinar_epocas: int = 8
+    codificador: str = 'base'                                                          # 069:RF-33
     #: Una época aquí es este tope de pasos: con 44 298 filas, medir selección solo al recorrerlas todas pararía tarde.
     pasos_por_epoca: int = 800
     afinar_lote: int = 32
@@ -100,11 +109,12 @@ class CodificadorPreentrenado:
             self.red = AutoModel.from_pretrained(nombre, revision=revision, local_files_only=True)
         except (ImportError, OSError, ValueError) as exc:
             raise RuntimeError(f'El codificador {nombre} (revisión {revision}) no está en la caché local de '
-                               f'Hugging Face que usa este proceso, o faltan sus librerías; se prepara con: {ORDEN_PREPARAR}: {exc}') from exc
+                               f'Hugging Face que usa este proceso, o faltan sus librerías; se prepara con: {orden_preparar(nombre)}: {exc}') from exc
         self.red.to(dispositivo).eval()
         for p in self.red.parameters():
             p.requires_grad_(False)
         self.dispositivo = dispositivo
+        self.nombre, self.revision = nombre, revision
         self.dim = int(self.red.config.hidden_size)
         self._huellas: dict[int, str] = {}
 
@@ -277,7 +287,9 @@ class ModeloCodificador:
     @property
     def meta_extra(self) -> dict[str, Any]:
         tramo = getattr(self.codificador, 'meta_tramo', None)
-        datos = {'nombre': NOMBRE_CODIFICADOR, 'revision': REVISION_CODIFICADOR, 'prefijo': PREFIJO,
+        # 069:RF-33: el que se usó, no el de por defecto: al reabrir se carga ese (RF-4).
+        datos = {'nombre': getattr(self.codificador, 'nombre', NOMBRE_CODIFICADOR),
+                 'revision': getattr(self.codificador, 'revision', REVISION_CODIFICADOR), 'prefijo': PREFIJO,
                  'largo_tokens': LARGO_TOKENS, 'dim': int(self.codificador.dim)}
         extra = {'arquitectura': ARQUITECTURA_AFINADA if tramo else ARQUITECTURA, 'umbral': self.umbral,
                  'codificador': {**datos, 'tramo': tramo()} if tramo else datos}

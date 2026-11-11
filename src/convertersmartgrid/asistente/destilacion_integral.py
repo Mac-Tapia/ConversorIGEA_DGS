@@ -722,7 +722,10 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     disp = tr.dispositivo_de_calculo()                                                         # 069:RF-6, 079:RF-10
     tr.liberar_gpu()
     por_parte = {p: [r for r in filas if r['particion'] == p] for p in PARTES}
-    codificador = co.obtener_codificador(co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR, disp)
+    if cfg.codificador not in co.CODIFICADORES:
+        raise ValueError(f'codificador desconocido: {cfg.codificador}; se admiten {sorted(co.CODIFICADORES)}')
+    nombre_cod, revision_cod = co.CODIFICADORES[cfg.codificador]                              # 069:RF-33
+    codificador = co.obtener_codificador(nombre_cod, revision_cod, disp)
     # 079:RF-15: con afinado solo se guarda lo que dan las capas congeladas; las que cambian se recorren en cada paso.
     cache = (af.CachePrefijo(codificador, cfg.afinar_capas, por_parte['seleccion'], evaluar_alumno) if cfg.afinar_capas
              else co.CacheCodificada(codificador))
@@ -733,7 +736,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     protocolo = {'policy': asdict(politica), 'policy_hash': politica.hash,
                  'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
-                 'codificador': {'nombre': co.NOMBRE_CODIFICADOR, 'revision': co.REVISION_CODIFICADOR},
+                 'codificador': {'nombre': nombre_cod, 'revision': revision_cod},
                  'afinado': af.protocolo(cfg) if cfg.afinar_capas else None,                     # 079:RF-63
                  'regla_charla': {'puestos': list(PUESTOS_CHARLA), 'pisos': list(PISOS_CHARLA)},
                  # 075:RF-46: lo que decide la medida fuera de grupo queda escrito antes de la primera vuelta.
