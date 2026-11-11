@@ -163,6 +163,10 @@ def test_069_rf33_el_modelo_guarda_el_codificador_que_uso(falso):
     catalogo = json.loads((Path(__file__).resolve().parents[1] / 'docs/MODELOS_IA_LOCK.json').read_text(encoding='utf-8'))
     fijados = {x['id']: x['revision'] for x in catalogo['modelos']}
     assert all(fijados.get(nombre) == revision for nombre, revision in co.CODIFICADORES.values())
+    # Afinado, el codificador es un envoltorio del congelado: también da el del congelado (el fallo del 2026-11-11).
+    base = CodificadorFalso()
+    base.nombre, base.revision = co.CODIFICADORES['large']
+    assert (co.CodificadorAfinado(base, None, 6).nombre, co.CodificadorAfinado(base, None, 6).revision) == co.CODIFICADORES['large']
 
 
 def test_modelo_codificador_solo_de_la_cache_local(monkeypatch):

@@ -205,6 +205,16 @@ class CodificadorAfinado:
     def dim(self) -> int:
         return int(self.base.dim)
 
+    # 069:RF-33: el nombre y la revisión son los del congelado. Sin ellos el candidato de e5-large se guardó como base
+    # y la reapertura cargó 768 donde había pesos de 1024 (2026-11-11).
+    @property
+    def nombre(self) -> str:
+        return getattr(self.base, 'nombre', NOMBRE_CODIFICADOR)
+
+    @property
+    def revision(self) -> str:
+        return getattr(self.base, 'revision', REVISION_CODIFICADOR)
+
     def __call__(self, textos: Sequence[str]) -> Codificado:
         with _torch().no_grad():
             p = self.base.prefijo(textos, self.capas)
