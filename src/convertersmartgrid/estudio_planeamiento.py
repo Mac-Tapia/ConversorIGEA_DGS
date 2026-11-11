@@ -7,7 +7,7 @@ fijo porque se presenta cada 4 años». Los desplazamientos salen de la metodolo
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 
@@ -67,3 +67,77 @@ def aviso_del_anio_medido(estudio: Estudio, anio_medido: int | None) -> str | No
         return (f'el caso base se calibró con mediciones de {anio_medido} y el año 00 del estudio, que se '
                 f'presenta en {estudio.anio_presentacion}, es {estudio.anio_base}')
     return None
+
+
+#: 072:RF-29: los tres tipos de análisis que el operador elige en la web, en el orden en que se encadenan: el PIDE parte
+#: de la obra de corto plazo (098:RF-37) y consume el plan de largo plazo (RF-4).
+TIPOS_DE_ANALISIS = ('corto_plazo', 'pide', 'largo_plazo')
+#: El nombre del entregable de cada tipo en ``informes_planeamiento.MODULOS``.
+ENTREGABLE_DE = {'pide': 'PIDE', 'largo_plazo': 'Plan de largo plazo'}
+#: La ``etapa`` de los artículos de cada tipo en la metodología (``config/pide_universal_2017.json``).
+ETAPA_DE = {'pide': 'pide', 'largo_plazo': 'planeamiento_largo_plazo'}
+#: 072:RF-31: las palabras de cada obra de la escalera (098:RF-45, RF-50); un código sin rótulo se muestra tal cual.
+ROTULO_OBRA = {'bancos': 'Bancos de condensadores', 'seccion': 'Cambio de sección', 'terna': 'Nueva terna',
+               'transferencia': 'Transferencia o traslado de carga', 'regulador': 'Regulador de tensión',
+               'nivel': 'Cambio de nivel de tensión (p. ej. a 22,9 kV)', 'expreso': 'Alimentador nuevo (expreso)',
+               'set_nueva': 'SET nueva'}
+#: 072:RF-32: los entregables del corto plazo son los informes de la web (spec 017) con su libro (spec 066).
+ENTREGABLES_CORTO = ({'clave': 'informe_estudio', 'titulo': 'Informe de estudio eléctrico', 'formatos': []},
+                     {'clave': 'informe_factibilidad', 'titulo': 'Informe de factibilidad de suministro', 'formatos': []},
+                     {'clave': 'libro_informe', 'titulo': 'Libro Excel de cada informe', 'formatos': []})
+
+
+def _anios(relativos, estudio: Estudio | None) -> list[dict]:
+    return [{'relativo': a, 'calendario': estudio.calendario(a) if estudio else None} for a in relativos]
+
+
+def tipos_de_analisis(metodologia: Mapping, *, periodo_corto: int, modulos: Sequence[Mapping],
+                      obras_corto: Sequence[str], obras_largo: Sequence[str],
+                      anio_presentacion: int | None = None) -> dict:
+    """Horizonte, obras, artículos y entregables de cada tipo de análisis (072:RF-29 a RF-32, RF-37).
+
+    Todo sale de lo que se le pasa: la metodología (años, artículos y estado jurídico), los módulos de los informes (qué
+    formatos son de cada entregable), las obras de cada plazo (098:RF-50) y el periodo de corto plazo del perfil
+    (098:RF-37). Aquí no se escribe ningún año ni formato: la web antes no distinguía los tres y un solo «Planificar»
+    escribía siempre los dos entregables (petición del usuario).
+    """
+    if type(periodo_corto) is not int or periodo_corto < 1:
+        raise EstudioError(f'periodo de corto plazo no válido: {periodo_corto!r}')
+    horizonte = metodologia.get('horizonte') or {}
+    estudio = estudio_de(anio_presentacion, horizonte) if anio_presentacion is not None else None
+    fuente = metodologia.get('fuente') or {}
+    estado = str(metodologia.get('estado_juridico') or '')
+    articulos = [a for a in metodologia.get('articulos') or () if isinstance(a, Mapping)]
+    corto = [{'codigo': c, 'titulo': ROTULO_OBRA.get(c, c)} for c in obras_corto]
+    largo = [{'codigo': c, 'titulo': ROTULO_OBRA.get(c, c)} for c in obras_largo]
+
+    def de_la_norma(clave: str, relativos) -> dict:
+        propios = [m for m in modulos if m['entregable'] == ENTREGABLE_DE[clave]]
+        return {'articulos': [{'numero': a['numero'], 'titulo': a.get('titulo', '')} for a in articulos
+                              if a.get('etapa') == ETAPA_DE[clave]],
+                'anios': _anios(relativos, estudio),
+                'formatos': [f for m in propios for f in m['formatos']],
+                'entregables': [{'clave': m['clave'], 'titulo': f"{m['entregable']}: {m['titulo']}",
+                                 'formatos': list(m['formatos'])} for m in propios]}
+
+    tipos = [
+        {'clave': 'corto_plazo', 'titulo': 'Corto plazo', 'articulos': [], 'formatos': [],
+         'anios': _anios(range(0, periodo_corto + 1), estudio),
+         'descripcion': ('La obra más barata que deja la red en norma hoy y aguanta hasta el año '
+                         f'{periodo_corto:02d}; se aplica en «Con proyecto».'),
+         'obras_admitidas': corto, 'obras_excluidas': largo, 'aplica_obras': True,
+         'entregables': [dict(e) for e in ENTREGABLES_CORTO]},
+        {'clave': 'pide', 'titulo': 'PIDE', **de_la_norma('pide', _desplazamientos(horizonte, 'detalle_pide')),
+         'descripcion': ('Plan de inversiones del periodo, año a año, partiendo de la obra de corto plazo; consume el '
+                         'plan de largo plazo del mismo estudio, que también se entrega.'),
+         'obras_admitidas': corto + largo, 'obras_excluidas': [], 'aplica_obras': True},
+        {'clave': 'largo_plazo', 'titulo': 'Planeamiento de largo plazo',
+         **de_la_norma('largo_plazo', _desplazamientos(horizonte, 'largo_plazo')),
+         'descripcion': ('Diagnóstico y alternativas de inversión del horizonte, con la solución integral y definitiva; '
+                         'plantea las obras, no las aplica.'),
+         'obras_admitidas': corto + largo, 'obras_excluidas': [], 'aplica_obras': False},
+    ]
+    return {'norma': {'acto': fuente.get('acto', ''), 'titulo': fuente.get('titulo', ''), 'estado_juridico': estado,
+                      'vigente': estado not in ('', 'proyecto'), 'nota': fuente.get('nota', '')},
+            'estudio': estudio.resumen() if estudio else None, 'periodo_corto': periodo_corto,
+            'ciclo_anios': horizonte.get('ciclo_anios'), 'tipos': tipos}

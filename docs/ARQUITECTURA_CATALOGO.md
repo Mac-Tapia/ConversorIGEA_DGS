@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 105 |
-| Interfaz | `frontend/src/` | 50 |
-| Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 421 |
+| Interfaz | `frontend/src/` | 51 |
+| Pruebas de la interfaz | `frontend/test/` | 13 |
+| Pruebas | `tests/` | 422 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
-`web/services.py` tiene 13064 líneas y 394 funciones, pendiente de partir (002).
+`web/services.py` tiene 13106 líneas y 396 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-102 specs con 3344 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3354 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,7 +48,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-147 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+148 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -93,6 +93,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `health` | general | 1 |
 | `modelos` | general | 1 |
 | `pf` | general | 1 |
+| `planeamiento` | general | 1 |
 | `powerfactory` | general | 1 |
 | `vnr` | general | 1 |
 | `{full_path:path}` | general | 1 |
@@ -778,12 +779,13 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
 | `frontend/src/features/powerfactory/DemandaMedida.tsx` | — | 004, 008, 013, 021, 022, 025, 035, 038, 039, 091 | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y… |
 | `frontend/src/features/powerfactory/EstudiosPF.tsx` | — | 011, 012, 037, 049, 091 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
-| `frontend/src/features/powerfactory/GemeloPIDE.tsx` | — | 024 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
+| `frontend/src/features/powerfactory/GemeloPIDE.tsx` | — | 024, 072 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
 | `frontend/src/features/powerfactory/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
 | `frontend/src/features/powerfactory/InformesPF.tsx` | — | 017, 100, 102, 104, 125 | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas… |
 | `frontend/src/features/powerfactory/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
 | `frontend/src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
 | `frontend/src/features/powerfactory/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
+| `frontend/src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | Tipo de análisis al principio de «Cargas en DIgSILENT»: corto plazo, PIDE o planeamiento de largo plazo, con su horizonte, obras, entregables y norma… |
 | `frontend/src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
 | `frontend/src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
 | `frontend/src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
@@ -803,6 +805,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `src/convertersmartgrid/adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |

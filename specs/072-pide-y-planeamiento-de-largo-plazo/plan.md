@@ -16,6 +16,27 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
 | Generadores 4.1 y 4.2 | RF-13, RF-14, RF-16 | `informe_docx.py`, perfil de empresa |
 | Herramientas y entrenamiento del asistente | RF-18, RF-19 | Coordinado con la spec 070 |
 | COyM del perfil en la propuesta | RF-22 | `propuesta_pide(coym_pct_anual=)`, `formatos_pide._por_grupo`; lo pasa `web/services.py` |
+| Tipo de análisis en la web (T17) | RF-29 a RF-38 | `estudio_planeamiento.tipos_de_analisis`, `GET /api/planeamiento/tipos`, `PideIn.plazo`, `TipoDeAnalisis.tsx` |
+
+## Tipo de análisis (T17, 2026-11-11)
+
+- **Una fuente para los tres tipos.** `estudio_planeamiento.tipos_de_analisis` arma horizonte, artículos, formatos, módulos y
+  obras de cada tipo con la metodología (`config/pide_universal_2017.json`: `horizonte`, la `etapa` de cada artículo y su
+  estado jurídico), los módulos de `informes_planeamiento.MODULOS` (qué módulo y qué formatos son de cada entregable),
+  `escalera_optima.OBRAS_DE_LARGO_PLAZO` (098:RF-50) y `escalera_optima.periodo_de_corto_plazo(perfil)` (098:RF-37). La
+  ruta `GET /api/planeamiento/tipos` lo sirve; la web no copia ninguna de esas reglas. Descartado: escribir los años y
+  formatos en el TypeScript, que se desfasaría con la metodología.
+- **Un solo «Planificar».** `PideIn.plazo` (`pide` o `largo_plazo`; sin él, lo de siempre) va a `services.pide_ejecutar`.
+  Con `largo_plazo` se escriben solo los módulos del entregable «Plan de largo plazo» (`escribir_modulos(entregables=)`) y
+  la petición con `implementar` se rechaza con 422. Con `pide` se escriben los dos, porque el PIDE consume el plan (RF-4).
+  Sin año de presentación en la petición ni en el perfil, 422 antes de encolar. Descartado: una ruta por tipo, que
+  duplicaría el diagnóstico y la cola.
+- **La web guía, no sustituye.** `TipoDeAnalisis.tsx` va al principio de «Cargas en DIgSILENT»: el selector de los tres
+  tipos, su ficha (norma, horizonte, obras, entregables) y sus pasos con estado y un botón «Ir al paso» que lleva a la
+  sección existente (1 a 5). El tipo se pasa a `GemeloPIDE` (paso 5), que manda `plazo` y en largo plazo no aplica obras.
+  Ningún paso se quita ni se oculta (regla del usuario: la web solo se mejora).
+- Pruebas: `tests/test_tipos_de_analisis.py` (función pura y API, con dos años de presentación) y las de la web en
+  `frontend/test/tiposDeAnalisis.test.mjs` (selector, pasos y cuerpo de la petición).
 
 Fuentes públicas ubicadas el 2026-11-02, en Procesos Regulatorios de Osinergmin: SICODI y VNR al 31-12-2025 (Res. 184-2026-OS/CD);
 VNR de Electro Oriente, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD; su base la sustituyó la Res. 181-2026-OS/CD, 2026-11-06): el

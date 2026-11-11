@@ -4,7 +4,8 @@ import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { esProducto } from '../../shared/edicion';
 import { AvisoBeta } from '../../shared/MarcaBeta';
-import type { EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud } from '../../api/types';
+import type { ClaveTipoAnalisis, EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud,
+  TiposAnalisis } from '../../api/types';
 
 const RUBRO: Record<string, string> = {
   ampliacion_reforzamiento: 'Ampliación y reforzamiento', mejoramiento: 'Mejoramiento',
@@ -19,14 +20,23 @@ const RUBRO: Record<string, string> = {
  * y aplica solas en «Con proyecto» las que se construyen sin diseño, tras simularlas. El
  * gemelo aprende de cada acción y de los escenarios que simula en una copia del proyecto.
  */
-export function GemeloPIDE({ project, feeders }: { project: string; feeders: string[] }) {
+export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, onAnio, tipos = null }: {
+  project: string; feeders: string[];
+  /** 072:RF-29: el tipo de análisis elegido arriba; con él, el año de presentación es el mismo campo. */
+  plazo?: ClaveTipoAnalisis | null; anio?: string; onAnio?: (a: string) => void; tipos?: TiposAnalisis | null;
+}) {
   const { ws, startJob, active, jobs, run, health } = useApp();
   // 086:RF-16: el gemelo (PINN, aprendizaje) no se entrega; su ruta también se niega, y aquí ni se pregunta.
   const producto = esProducto(health);
   const [capex, setCapex] = useState('');
-  const [anio, setAnio] = useState('');
+  const [anioPropio, setAnioPropio] = useState('');
+  const anio = anioExterno ?? anioPropio;
+  const setAnio = onAnio ?? setAnioPropio;
   const [formato01, setFormato01] = useState('');
   const [implementar, setImplementar] = useState(true);
+  // 072:RF-34, RF-35: el largo plazo plantea las obras; el corto plazo no se planifica aquí (pasos 2 a 4).
+  const plazoPeticion = planificacionDe(plazo);
+  const aplicar = implementar && plazoPeticion !== 'largo_plazo';
   const [n, setN] = useState(20);
   const [episodios, setEpisodios] = useState<EpisodioResumen[]>([]);
   const pfBusy = Boolean(active.powerfactory);
@@ -71,17 +81,24 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
         <label className="field grow"><span>Formato 01 de la empresa (ruta en el servidor, opcional)</span>
           <input className="search" value={formato01} placeholder="p. ej. D:\…\formato01.xlsx"
             onChange={(e) => setFormato01(e.target.value)} /></label>
-        <label className="check"><input type="checkbox" checked={implementar}
-          onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>
+        <label className="check" title={plazoPeticion === 'largo_plazo' ? 'El plan de largo plazo plantea las obras; no las aplica.' : undefined}>
+          <input type="checkbox" checked={aplicar} disabled={plazoPeticion === 'largo_plazo'}
+            onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>
         <button className="btn btn-pf" disabled={pfBusy || !project}
-          onClick={() => startJob(() => api.pide(ws.id, { project, feeders, capex: capex.trim() || null,
-            anio_presentacion: anio ? Number(anio) : null, formato_01: formato01.trim() || null, implementar }))}>
-          Planificar
+          onClick={() => startJob(() => api.pide(ws.id, cuerpoPlanificar(project, feeders, plazo, {
+            capex, anio, formato01, implementar })))}>
+          {plazoPeticion === 'largo_plazo' ? 'Planificar el largo plazo' : plazoPeticion === 'pide' ? 'Planificar como PIDE' : 'Planificar'}
         </button>
       </div>
+      {plazo === 'corto_plazo' && <p className="small muted">Tipo elegido: corto plazo. Se resuelve en los pasos 2 a 4
+        («Con proyecto» y sus informes); aquí se planifican el PIDE y el largo plazo, que escriben los dos entregables
+        si no elige uno de ellos arriba.</p>}
+      {plazoPeticion && <p className="small muted">{plazoPeticion === 'largo_plazo'
+        ? 'Tipo elegido: planeamiento de largo plazo. Se escriben solo sus módulos (F01 a F07) y las obras se plantean, sin aplicarlas.'
+        : 'Tipo elegido: PIDE. Se escriben sus módulos (F08 a F15) y los del plan de largo plazo que consume (F01 a F07).'}</p>}
       </>}
       {r && ('modo' in r && r.modo === 'anual'
-        ? <VistaPideAnual r={r} ws={ws.id} /> : <ResultadoPIDE r={r as PideResultado} ws={ws.id} decidir={decidir} />)}
+        ? <VistaPideAnual r={r} ws={ws.id} /> : <ResultadoPIDE r={r as PideResultado} ws={ws.id} decidir={decidir} tipos={tipos} />)}
 
       {!producto && <>
       <h4>5.2 · Gemelo digital</h4>
@@ -119,8 +136,37 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
   );
 }
 
-function ResultadoPIDE({ r, ws, decidir }: { r: PideResultado; ws: string;
-  decidir: (o: ObraPIDE, d: 'aceptada' | 'rechazada' | 'modificada') => void }) {
+/** 072:RF-29: qué tipo va en la petición: el corto plazo no se planifica aquí, así que no lo lleva. */
+export function planificacionDe(plazo: ClaveTipoAnalisis | null): 'pide' | 'largo_plazo' | null {
+  return plazo === 'pide' || plazo === 'largo_plazo' ? plazo : null;
+}
+
+/** 072:RF-34, RF-35: el cuerpo de «Planificar»; en largo plazo nunca pide aplicar obras. */
+export function cuerpoPlanificar(project: string, feeders: string[], plazo: ClaveTipoAnalisis | null,
+  f: { capex: string; anio: string; formato01: string; implementar: boolean }): PideSolicitud {
+  const tipo = planificacionDe(plazo);
+  return { project, feeders, capex: f.capex.trim() || null, anio_presentacion: f.anio.trim() ? Number(f.anio) : null,
+    formato_01: f.formato01.trim() || null, implementar: f.implementar && tipo !== 'largo_plazo',
+    ...(tipo ? { plazo: tipo } : {}) };
+}
+
+/** 072:RF-32: los documentos del estudio agrupados por su entregable, con las claves de módulo del servidor. */
+export function porEntregable(ficheros: string[], tipos: TiposAnalisis | null): { titulo: string; ficheros: string[] }[] {
+  const grupos = (tipos?.tipos ?? []).filter((t) => t.clave !== 'corto_plazo').map((t) => ({
+    titulo: t.titulo, claves: t.entregables.map((e) => e.clave), ficheros: [] as string[] }));
+  const otros: string[] = [];
+  for (const f of ficheros) {
+    // «3_formulacion_pide_<token>.docx»: el número y la clave del módulo, como los escribe el servidor.
+    const clave = f.replace(/^\d+_/, '');
+    const g = grupos.find((x) => x.claves.some((c) => clave.startsWith(`${c}_`)));
+    (g ? g.ficheros : otros).push(f);
+  }
+  return [...grupos.filter((g) => g.ficheros.length).map(({ titulo, ficheros: fs }) => ({ titulo, ficheros: fs })),
+    ...(otros.length ? [{ titulo: 'Documentos del estudio', ficheros: otros }] : [])];
+}
+
+function ResultadoPIDE({ r, ws, decidir, tipos }: { r: PideResultado; ws: string;
+  decidir: (o: ObraPIDE, d: 'aceptada' | 'rechazada' | 'modificada') => void; tipos: TiposAnalisis | null }) {
   return (
     <div className="alert">
       {r.avisos.map((x) => <p key={x} className="alert alert-warn">{x}</p>)}
@@ -146,8 +192,9 @@ function ResultadoPIDE({ r, ws, decidir }: { r: PideResultado; ws: string;
         </table>
       </div>
       <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws, r.formatos, true)}>Formatos 01 a 15 · {r.formatos}</a>
-      {r.informes_planeamiento?.map((f) => (
-        <a key={f} className="btn btn-sm btn-ghost" href={api.fileUrl(ws, f, true)}>{f}</a>))}
+      {porEntregable(r.informes_planeamiento ?? [], tipos).map((g) => (
+        <div key={g.titulo} className="row"><span className="small strong">{g.titulo}:</span>
+          {g.ficheros.map((f) => <a key={f} className="btn btn-sm btn-ghost" href={api.fileUrl(ws, f, true)}>{f}</a>)}</div>))}
       {r.con_y_sin && (
         <p className="small">Con y sin proyecto: {r.con_y_sin.hueco
           ?? `VAN ${fmtNum(r.con_y_sin.van ?? null, 0)}, TIR ${r.con_y_sin.tir != null ? `${fmtNum(r.con_y_sin.tir * 100, 2)} %` : 'no tiene'}; solo mide el ahorro de pérdidas`}</p>)}

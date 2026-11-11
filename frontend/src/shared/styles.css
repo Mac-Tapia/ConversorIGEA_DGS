@@ -336,6 +336,13 @@ small.alert { display: block; margin: 4px 0 0; }
   padding: 2px 10px; font: inherit; font-size: 12.5px; cursor: pointer;
 }
 .chip.on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+/* 072:RF-30 a RF-33: ficha y pasos del tipo de análisis, con los tokens del tema. */
+.ficha-tipo { margin: 0; display: grid; gap: 4px; }
+.ficha-tipo > div { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: 8px; }
+.ficha-tipo dt { font-weight: 600; color: var(--muted); }
+.ficha-tipo dd { margin: 0; }
+.pasos-tipo { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 6px; }
+[id^="paso-"]:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 .map-frame { width: 100%; height: 460px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
 .report {
   font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--border);
