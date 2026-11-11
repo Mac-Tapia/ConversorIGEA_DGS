@@ -98,6 +98,8 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
 - RF-36: EL SISTEMA resolverá en el plan las listas de alimentadores sin las palabras de unión («CA101 a CHN102»), la ruta
   que existe dentro de un trozo con palabras de más, y el texto de `pregunta` y `clasificar_informe` como el mensaje entero;
   `buscar_internet` sigue con su trozo, para no sacar a la red las palabras de la orden (086:RF-24).
+- RF-37: EL SISTEMA elegirá el umbral de ejecución con el límite inferior de Wilson (95 %) del acierto en calibración, no
+  con el acierto puntual. (2026-11-11: el puntual eligió 0,90 por 0,981 y en la sellada acertó 0,970 de lo ejecutado solo.)
 
 ## Fuera de alcance
 

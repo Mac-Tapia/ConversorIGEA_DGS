@@ -522,12 +522,20 @@ class Variable:
 
 def test_calibra_umbral_el_menor_que_acierta_el_98():
     """069:RF-24 — los errores están en confianza baja: el umbral sube hasta dejarlos fuera."""
-    filas = _calibracion(99, 3)
-    m = Variable([.99] * 99 + [.87] * 3)
+    # 069:RF-37: con el límite de Wilson hace falta muestra: 400 aciertos aseguran el 98 %; 99 no (0,963).
+    filas = _calibracion(400, 3)
+    m = Variable([.99] * 400 + [.87] * 3)
     r = di.calibrar_umbral(m, filas)
     assert r['umbral'] == .9 and m.umbral == .9
-    assert r['por_umbral']['0.85']['acierto'] < .98 <= r['por_umbral']['0.9']['acierto']
-    assert di.calibrar_umbral(Variable([.99] * 99), _calibracion(99, 0))['umbral'] == .85    # nunca por debajo
+    assert r['por_umbral']['0.85']['limite_inferior'] < .98 <= r['por_umbral']['0.9']['limite_inferior']
+    assert di.calibrar_umbral(Variable([.99] * 400), _calibracion(400, 0))['umbral'] == .85    # nunca por debajo
+    assert di.calibrar_umbral(Variable([.99] * 99), _calibracion(99, 0))['umbral'] == .95     # sin evidencia, el más alto
+
+
+def test_069_rf37_el_umbral_se_asegura_con_wilson():
+    """069:RF-37 — 0,981 puntual en 1 400 no asegura el 98 %; 0,996 en 1 200 sí (el candidato del 2026-11-11)."""
+    assert di.limite_inferior_wilson(1373, 1400) < .98 <= di.limite_inferior_wilson(1195, 1200)
+    assert di.limite_inferior_wilson(0, 0) == 0.
 
 
 def test_calibra_umbral_si_ninguno_llega_el_mas_alto():

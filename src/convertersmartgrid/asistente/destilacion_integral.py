@@ -694,13 +694,27 @@ def calibrar_temperatura(modelo, registros: list[dict]) -> dict:
             'garantia_de_cobertura': False}
 
 
+def limite_inferior_wilson(aciertos: int, n: int, z: float = 1.96) -> float:
+    """069:RF-37: el acierto que se puede asegurar con un 95 % de confianza (intervalo de Wilson)."""
+    if n <= 0:
+        return 0.
+    p = aciertos / n
+    return (p + z * z / (2 * n) - z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / (1 + z * z / n)
+
+
 def calibrar_umbral(modelo, registros: list[dict]) -> dict:
-    """El menor umbral que acierta el 98 % de lo que cubre en calibración; si ninguno, el más alto (069:RF-24, RF-25)."""
+    """El menor umbral que asegura el 98 % de lo que cubre en calibración; si ninguno, el más alto (069:RF-24, RF-25).
+
+    069:RF-37: se exige el límite inferior de Wilson, no el acierto puntual. Con el puntual, el candidato del 2026-11-11
+    eligió 0,90 por 0,981 en calibración y en la sellada acertó 0,970 de lo que ejecutaba solo; con el límite, 0,95.
+    """
     if not registros or any(r['particion'] != 'calibracion' for r in registros):
         raise ValueError('calibración independiente obligatoria')
     por_umbral = cobertura_por_umbral(modelo, registros, UMBRALES)
+    for medida in por_umbral.values():
+        medida['limite_inferior'] = limite_inferior_wilson(round(medida['acierto'] * medida['cubiertos']), medida['cubiertos'])
     elegido = next((u for u in UMBRALES if por_umbral[str(u)]['cubiertos'] and
-                    por_umbral[str(u)]['acierto'] >= ACIERTO_DEL_UMBRAL), UMBRALES[-1])
+                    por_umbral[str(u)]['limite_inferior'] >= ACIERTO_DEL_UMBRAL), UMBRALES[-1])
     modelo.umbral = float(elegido)
     return {'umbral': modelo.umbral, 'por_umbral': por_umbral, 'ejemplos': len(registros)}
 
