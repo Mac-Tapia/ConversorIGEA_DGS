@@ -1,6 +1,6 @@
 # Spec 101 — La calibración cambia sola los transformadores que impiden converger
 
-Estado: implementada · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09, calibración de CA101 + CHN102
+Estado: cumplida (2026-11-10: T3 en DIgSILENT y RF-14) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09, calibración de CA101 + CHN102
 (`20261109-152654_CSG_TXT_CA101_CHN102`): «no se acepta que no converge, todo tiene que converger, y para eso
 debería hacer los cambios físicos según corresponde».
 
@@ -42,6 +42,9 @@ por la misma ruta.
 - RF-12: EL SISTEMA dejará al operador las SED entre el umbral de carga del perfil y el 100 %, con la casilla y el botón
   de 020:RF-13: no impiden converger.
 - RF-13: MIENTRAS se simula la calibración, EL SISTEMA no cambiará ningún transformador.
+- RF-14: CUANDO la primera pasada de la calibración (la que mide para los bancos, 021:RF-64) cambie transformadores
+  (083:RF-31), EL SISTEMA los dejará anotados, con su aviso, en el informe que vale. (CA101 + CHN102 de prueba,
+  2026-11-10: SE20701 quedó con 3 × 630 kVA en «SED_NTP_» y ningún informe lo decía.)
 
 ## Requisitos no funcionales
 

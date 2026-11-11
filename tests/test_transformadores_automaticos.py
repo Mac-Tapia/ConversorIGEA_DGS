@@ -162,3 +162,26 @@ def test_simular_no_cambia_transformadores(corrida):
     secuencia += [[_informe('CA101', fijas=[_fija('SE20701')])]]
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=True)
     assert 'transformadores_automaticos' not in out and not secuencia
+
+
+def test_los_transformadores_de_la_primera_pasada_quedan_en_el_informe_que_vale():
+    """101:RF-14 — lo que cambió la pasada que mide (083:RF-31) llega al informe guardado, con su aviso, una vez."""
+    from apoyo import cargar_herramienta
+
+    guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_rf14', tools_en_path=True)
+    aviso = '1 transformador(es) de la ficha puestos antes de calibrar, en la misma pasada: SE20701 (083:RF-31).'
+    primera = {'transformadores_implementados': {'cambios': [{'sed': 'SE20701', 'kva': 630, 'unidades': 3}]},
+               'avisos': ['Primera pasada para medir lo que falta: no se guarda.', aviso]}
+    segunda = {'avisos': ['Calibrado a la vez que CHN102']}
+    guion.trasladar_transformadores_de_la_primera(primera, segunda)
+    assert segunda['transformadores_implementados']['cambios'][0]['sed'] == 'SE20701'
+    assert segunda['transformadores_implementados']['pasada'] == 'primera'
+    assert segunda['avisos'] == ['Calibrado a la vez que CHN102', aviso]
+    guion.trasladar_transformadores_de_la_primera(primera, segunda)
+    assert segunda['avisos'].count(aviso) == 1
+    propia = {'transformadores_implementados': {'cambios': [{'sed': 'SE30000'}]}, 'avisos': []}
+    guion.trasladar_transformadores_de_la_primera(primera, propia)        # la de la segunda manda
+    assert propia['transformadores_implementados']['cambios'][0]['sed'] == 'SE30000'
+    nada = {'avisos': []}
+    guion.trasladar_transformadores_de_la_primera({'avisos': []}, nada)
+    assert 'transformadores_implementados' not in nada

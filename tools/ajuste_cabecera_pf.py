@@ -3305,6 +3305,21 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
     return creados
 
 
+def trasladar_transformadores_de_la_primera(primera: dict, segunda: dict) -> None:
+    """101:RF-14: los transformadores que puso la primera pasada (083:RF-31) quedan en el informe que vale.
+
+    La primera pasada mide y no se guarda; los cambia en «Sin proyecto», y la segunda ya ve los nuevos y no tiene nada
+    que anotar. CA101 + CHN102 de prueba (2026-11-10): SE20701 quedó con 3 × 630 kVA en «SED_NTP_» y ningún informe lo
+    decía; el día anterior, en el proyecto del operador, no se supo quién los había cambiado.
+    """
+    hecho = primera.get('transformadores_implementados') or {}
+    if not hecho.get('cambios') or (segunda.get('transformadores_implementados') or {}).get('cambios'):
+        return
+    segunda['transformadores_implementados'] = {**hecho, 'pasada': 'primera'}
+    segunda.setdefault('avisos', [])
+    segunda['avisos'] += [a for a in primera.get('avisos') or [] if '(083:RF-31)' in a and a not in segunda['avisos']]
+
+
 def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
     """Calibra, pone los bancos que faltan y recalibra, en la misma ejecución (021:RF-64 a RF-68)."""
     from convertersmartgrid.ajuste_cabecera import bancos_que_faltan, tamano_de_banco
@@ -3393,8 +3408,9 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
                                pedidos, avisos)
     # RF-68: la calibración que vale, con los bancos y los ajustes del flujo restituidos.
     segunda = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
-    for plan, (inf, _rc) in zip(planes, segunda):
+    for plan, (inf, _rc), (previo, _rp) in zip(planes, segunda, primera):
         inf['bancos_nuevos'] = [b for b in creados if b['feeder'] == plan['feeder']]
+        trasladar_transformadores_de_la_primera(previo, inf)
         inf['avisos'] = avisos + inf['avisos']
         cambios = cambios_en_la_red(inf)                                  # RF-69
         if cambios:
