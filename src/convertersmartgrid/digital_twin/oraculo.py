@@ -370,7 +370,15 @@ class ModeloMallado:
 
     def predecir_muestra(self, m: Muestra) -> dict[str, Any]:
         sol = sistema_de(m).resolver(m.s_carga, exponente=self.exponente)
-        v, th = (sol.v, sol.theta) if sol.convergio else (np.zeros(len(m.ids)), np.zeros(len(m.ids)))
+        if not sol.convergio:
+            # 045:RF-14: sin solución mallada, la física base es el barrido radial, nunca ceros. Ciclo del 2026-11-08: la red
+            # 9f53b98… (dos fuentes, barras a 0,54 p.u. en DIgSILENT) no convergía, la base salía a 0 p.u., la PINN aprendía
+            # de ceros (pérdida nan) y su error medio era 0,354 p.u.; el radial se queda a 0,005 de DIgSILENT en esa red.
+            radial = ModeloRadial(exponente=self.exponente).predecir(_grafo_de_muestra(m))
+            # 024:RF-66 sigue: no es un resultado (fuera de dominio); solo la base de la que aprende la PINN.
+            return {**radial, 'modelo': self.nombre, 'convergio': False, 'fuera_de_dominio': True,
+                    'motivos': ['el flujo mallado no converge: física base del barrido radial', *radial.get('motivos', [])]}
+        v, th = sol.v, sol.theta
         return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': np.zeros(len(m.ids)),
                 'residuo': residuo(m, v, th, self.exponente),
                 # 045:RF-4: converger sobre una red que la física no representa no es un resultado.

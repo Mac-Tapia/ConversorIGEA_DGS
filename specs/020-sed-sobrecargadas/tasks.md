@@ -75,3 +75,5 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
 - [x] T11. Retro (033, 2026-10-29): RF-60 a RF-62, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-60 a RF-62)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py` y `tests/test_central_termica_front.py`).
+- [x] T12. Las fichas NTP 370.400 son parte del conversor y se usan cuando el perfil no trae las suyas. (RF-63)
+      Hecho cuando: `tests/test_instalacion_programa.py` (020:RF-63) en verde y el catálogo entra en la entrega.

@@ -145,6 +145,11 @@ potencia cambiada con sus respectivos códigos SED»)
   su total en kVA, y la de un banco como escalones conectados × kvar por escalón.
 - RF-62: EL SISTEMA mostrará la tabla de cambios en el resultado del ajuste de la web y la
   guardará en el informe del ajuste.
+- RF-63: SI el perfil de la empresa no trae fichas de transformadores de SED, ENTONCES EL SISTEMA usará las del conversor
+  (`config/fichas/transformadores_sed.json`, NTP 370.400-2013, Tablas 6 y 7), que se entregan con el programa, y dirá su
+  origen; las del perfil, si las trae, mandan. Cambia la regla de 020:RF-29 («la norma va en el perfil»). Usuario
+  (2026-11-11): «las fichas deben ser parte del conversor, eso sí debe ir». Programa instalado sin perfil (2026-11-11): CA101
+  no quedó válido porque SE20701 no se pudo cambiar por su ficha.
 
 ## Requisitos no funcionales
 

@@ -130,6 +130,13 @@ class SistemaMallado:
                     break
                 if cambio > 10.0:       # diverge: demanda que la red no puede llevar
                     break
+            if not convergio:
+                # 045:RF-14: el punto fijo oscila en una red muy cargada aunque tenga solución. Red 9f53b98… del búfer
+                # (2026-11-11): DIgSILENT da 0,54 p.u. en su barra más baja y el punto fijo no bajaba de 0,01 de cambio
+                # con 2 000 iteraciones; sin solución, la física daba 0 p.u. y la PINN aprendía de ceros (mae 0,354).
+                v_newton = self._newton(s, v, exponente, tolerancia)
+                if v_newton is not None:
+                    v, convergio = v_newton, True
         inyeccion = v * np.conj(self.y @ v)
         # Lo que entra a la red por todas las barras es lo que se pierde en sus ramas.
         perdidas = float(np.sum(inyeccion.real)) if convergio else float('nan')
@@ -138,3 +145,62 @@ class SistemaMallado:
                               for i in self._fuentes_orig])
         return Solucion(np.abs(v)[self.indice], np.angle(v)[self.indice], it, convergio,
                         perdidas, s_fuentes)
+
+    def _newton(self, s: np.ndarray, v0: np.ndarray, exponente: float, tolerancia: float,
+                iteraciones: int = 50) -> np.ndarray | None:
+        """045:RF-14: Newton-Raphson en coordenadas polares sobre las barras libres; las fuentes son de tensión fija.
+
+        Balance en cada barra libre: ``V·conj(Y·V) + s·|V|^e + s_shunt·|V|²`` = 0 (la carga es positiva cuando consume).
+        Jacobiano disperso como en MATPOWER (``dSbus_dV``) más la derivada de la carga con |V|. Parte del perfil plano,
+        no del punto fijo que osciló. ``None`` si no converge.
+        """
+        import scipy.sparse as sp
+        import scipy.sparse.linalg as spl
+
+        libres = self.libres
+        if not len(libres):
+            return v0
+        v = v0.copy()
+        v[libres] = 1.0 + 0j
+        y = self.y
+        for _ in range(iteraciones):
+            corriente = y @ v
+            vm = np.abs(v)
+            balance = (v * np.conj(corriente) + s * vm ** exponente + self.s_shunt * vm ** 2)[libres]
+            if not np.all(np.isfinite(balance)):
+                return None
+            if float(np.max(np.abs(balance))) < max(tolerancia, 1e-9):
+                return v
+            vn = np.where(vm > 0, v / np.where(vm > 0, vm, 1.0), 0)
+            d_v, d_i, d_vn = sp.diags(v), sp.diags(corriente), sp.diags(vn)
+            ds_dvm = d_v @ np.conj(y @ d_vn) + np.conj(d_i) @ d_vn
+            ds_dva = 1j * d_v @ np.conj(d_i - y @ d_v)
+            carga_dvm = exponente * s * np.where(vm > 0, vm, 1.0) ** (exponente - 1) + 2 * self.s_shunt * vm
+            ds_dvm = ds_dvm + sp.diags(carga_dvm)
+            a = ds_dva.tocsr()[libres][:, libres]
+            m = ds_dvm.tocsr()[libres][:, libres]
+            jac = sp.bmat([[a.real, m.real], [a.imag, m.imag]], format='csc')
+            try:
+                paso = spl.spsolve(jac, -np.concatenate([balance.real, balance.imag]))
+            except (RuntimeError, ValueError):
+                return None
+            if not np.all(np.isfinite(paso)):
+                return None
+            k = len(libres)
+            # Paso con búsqueda lineal hacia atrás: cerca del colapso de tensión el paso entero se pasa y oscila (red
+            # 9f53b98…: el desbalance bajaba a 0,0018 y volvía a 0,01). Se acepta el primero que reduce el desbalance.
+            actual = float(np.max(np.abs(balance)))
+            for alfa in (1.0, 0.5, 0.25, 0.125, 0.0625):
+                magnitud = vm[libres] + alfa * paso[k:]
+                if np.any(magnitud <= 0):
+                    continue
+                prueba = v.copy()
+                prueba[libres] = magnitud * np.exp(1j * (np.angle(v[libres]) + alfa * paso[:k]))
+                pm = np.abs(prueba)
+                nuevo = (prueba * np.conj(y @ prueba) + s * pm ** exponente + self.s_shunt * pm ** 2)[libres]
+                if np.all(np.isfinite(nuevo)) and float(np.max(np.abs(nuevo))) < actual:
+                    v = prueba
+                    break
+            else:
+                return None
+        return None

@@ -2260,9 +2260,9 @@ def cargas_plan(
         # 040:RF-5: las fichas del perfil para proponer el transformador de la SED de una
         # ampliación, las mismas que la calibración (020:RF-31).
         from ..digital_twin.integration import limites_combinados, normas_de
-        from ..perfil_empresa import datos_perfil, estructura_empresa
+        from ..perfil_empresa import datos_perfil, estructura_empresa, seccion_transformadores_sed
 
-        plan['transformadores_sed'] = (datos_perfil().get('calibracion') or {}).get('transformadores_sed')
+        plan['transformadores_sed'] = seccion_transformadores_sed(datos_perfil())        # 020:RF-63
         # Aclaración de 004:RF-68: el transformador de una carga nueva, a la tensión mínima de sus normas.
         limites = limites_combinados(datos_perfil(), normas_de(estructura_empresa(), feeders))
         if limites is not None:
@@ -4065,7 +4065,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     from ..ajuste_cabecera import (N_PROBABILISTICO, AjusteError, Objetivo, fijas_de, objetivo_de,
                                    probabilistico_del_perfil)
     from ..demanda_medida import clave_codigo, periodo_de_fecha
-    from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas
+    from ..perfil_empresa import (PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas,
+                                  seccion_transformadores_sed)
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
     if not project.strip():
@@ -4323,8 +4324,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'banda_tension': banda,
             # 020:RF-6 a RF-12: las fichas del perfil para proponer transformadores nuevos;
             # el guion las valida con la misma lectura (020:RF-31).
-            'transformadores_sed': (datos_perfil().get('calibracion') or {}).get(
-                'transformadores_sed'),
+            'transformadores_sed': seccion_transformadores_sed(),          # 020:RF-63: del perfil o del conversor
             # 032:RF-14: el «Caso base» lleva los conductores del archivo; su ficha se pone
             # en «Sin proyecto», en la variación de los conductores.
             'fichas_conductores': fichas_conductores,
@@ -7544,6 +7544,9 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                            [fila['transferencia_del_operador']['fila']])
         if decision.get('aviso_periodo'):                                        # 098:RF-37
             fila['avisos'].append(f"{f}: {decision['aviso_periodo']}")
+        if decision.get('aviso_adelanta'):                                       # 098:RF-50
+            fila['avisos'].append(f"{f}: {decision['aviso_adelanta']}")
+            ctx.log(f"{f}: {decision['aviso_adelanta']}")
         if decision['elegida']:                                                  # 098:RF-37
             fila['corto_plazo'] = decision['elegida']
             fila['obras_elegida'] = [dict(o) for o in por_nombre[decision['elegida']].obras]   # 098:RF-39

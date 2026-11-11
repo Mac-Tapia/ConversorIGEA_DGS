@@ -13,11 +13,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 105 |
 | Interfaz | `frontend/src/` | 49 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 420 |
+| Pruebas | `tests/` | 421 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
-`web/services.py` tiene 13003 líneas y 391 funciones, pendiente de partir (002).
+`web/services.py` tiene 13006 líneas y 391 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-102 specs con 3334 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3340 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -847,6 +847,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/costes_referenciales.example.json` |
 | `config/demanda_medida_alias.example.json` |
 | `config/entrega.json` |
+| `config/fichas/transformadores_sed.json` |
 | `config/line_type_aliases.example.json` |
 | `config/modulos_permitidos.example.json` |
 | `config/perfil_empresa.example.json` |

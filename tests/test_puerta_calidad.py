@@ -203,3 +203,24 @@ def test_una_rama_de_trabajo_sube_sin_suite_y_main_la_exige(monkeypatch, capsys)
     assert PC.main(['--push']) == 0 and corridas == [[sha_b]]
     flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
     assert "branches: ['**']" in flujo
+
+
+def test_102_rf19_las_pruebas_no_heredan_las_variables_del_gancho(tmp_path, monkeypatch):
+    """102:RF-19 — GIT_INDEX_FILE y las demás GIT_* del gancho no llegan a pytest; el resto del entorno sí."""
+    vistos = {}
+    monkeypatch.setenv('GIT_INDEX_FILE', str(tmp_path / 'index.lock'))
+    monkeypatch.setenv('GIT_DIR', str(tmp_path))
+
+    class Corrida:
+        returncode = 0
+
+    def correr(cmd, cwd, env):
+        vistos.update(env)
+        (tmp_path / 'junit.xml').write_text('<testsuites><testsuite/></testsuites>', encoding='utf-8')
+        junit = next(a.split('=', 1)[1] for a in cmd if a.startswith('--junitxml='))
+        __import__('shutil').copy(tmp_path / 'junit.xml', junit)
+        return Corrida()
+
+    monkeypatch.setattr(PC.subprocess, 'run', correr)
+    PC._pytest([], {'CSG_X': '1'}, tmp_path)
+    assert not any(k.startswith('GIT_') for k in vistos) and vistos['CSG_X'] == '1' and 'PATH' in vistos

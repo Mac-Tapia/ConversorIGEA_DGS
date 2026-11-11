@@ -68,3 +68,5 @@ Limitaciones de lo cerrado:
 - `ElmVoltreg`, `ElmTr3` y las demás clases de `CLASES_NO_REPRESENTADAS` se declaran y se rechazan; no se modelan.
 - Atributos como `dutap`, `nntap0`, `tap_side`, `ngnum` o `bustp` están leídos con el doble y sin confirmar en DIgSILENT.
 
+- [x] T5. La física base de la PINN nunca da 0 p.u.: Newton-Raphson y, si no, barrido radial. (RF-14)
+      Hecho cuando: `tests/test_digital_twin_flujo.py` (045:RF-14) en verde y la red 9f53b98… del búfer a 0,005 p.u. de DIgSILENT.

@@ -54,6 +54,9 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-39: CUANDO se pida un dictamen al LLM, EL SISTEMA le enviará solo la propuesta y el localizador y el fragmento de cada evidencia, sin rutas, huellas ni nombres de proyecto o de caso.
 - RF-40: CUANDO se pida un dictamen al LLM, EL SISTEMA le pedirá las contradicciones y las incertidumbres antes que la decisión, con la regla que da la decisión a partir de ellas.
 - RF-41: CUANDO se mida la revisión, EL SISTEMA guardará en el informe la decisión, la evidencia citada, las contradicciones y las incertidumbres de cada dictamen.
+- RF-42: CUANDO una puerta rechace un modelo del asistente por una métrica, EL SISTEMA dirá si falta o si está bajo la
+  puerta, con el valor medido y de cuántos ejemplos sale. Ciclo del 2026-11-08: «acierto_tarea ausente, inválido o bajo 0,98»
+  escondía que el Transformer se midió (0,71 con 7 ejemplos).
 
 ## Requisitos no funcionales
 

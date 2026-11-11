@@ -249,8 +249,10 @@ def _fallos_de_metricas(metricas: dict, actual: dict | None, minimo: float) -> l
     for clave in METRICAS_INFORME:
         valor=metricas.get(clave)
         valido=type(valor) in (int,float) and math.isfinite(valor) and 0<=valor<=1
-        if not valido or valor<minimo:
-            fallos.append(f'{clave} ausente, inválido o bajo {minimo}')
+        if not valido:
+            fallos.append(f'{clave} ausente o inválido')                       # 047:RF-42
+        elif valor<minimo:
+            fallos.append(f'{clave} {valor:.3f} bajo {minimo}')
         if actual is not None:
             previo=actual.get(clave)
             comparable=type(previo) in (int,float) and math.isfinite(previo) and 0<=previo<=1

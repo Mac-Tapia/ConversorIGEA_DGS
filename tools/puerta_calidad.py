@@ -157,7 +157,10 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> di
         junit = Path(tmp) / 'junit.xml'
         cmd = [sys.executable, '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider', f'--junitxml={junit}',
                *argumentos]
-        rc = subprocess.run(cmd, cwd=raiz, env={**os.environ, **entorno}).returncode
+        # 102:RF-19: sin las variables que git pone al gancho (GIT_INDEX_FILE, GIT_DIR…): heredadas, el «git worktree add»
+        # de las pruebas del asistente usaba el índice de este repositorio y fallaba solo dentro de la puerta (2026-11-11).
+        limpio = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+        rc = subprocess.run(cmd, cwd=raiz, env={**limpio, **entorno}).returncode
         if not junit.is_file():
             raise PuertaError(f'pytest terminó con el código {rc} sin dejar resultado.')
         juicio = veredicto(junit)

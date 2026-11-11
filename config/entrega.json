@@ -8,6 +8,7 @@
     "tools/run_powerfactory_gate.bat",
     "config/*.example.*",
     "config/pide_universal_2017.json",
+    "config/fichas/*.json",
     "config/vnr_dgs_profile.json",
     "config/perfiles/plantilla.json",
     "config/perfiles/ficticia.json",

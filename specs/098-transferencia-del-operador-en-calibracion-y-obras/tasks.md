@@ -106,3 +106,5 @@
       obra de 1 banco + sección en 3 caminos; confirmación conjunta en la segunda vuelta (98 % de los sorteos, valle bien).
       El usuario acepta cerrar así (2026-11-08) con dos salvedades: el paso a 22,9 kV de CHN102 no se ejercitó, porque CHN102 queda
       dentro de límites sin obra; y la transferencia del operador no se eligió en «Con proyecto», que RF-44 trata como alternativa.
+- [x] T23. Plazo de cada obra: corto plazo se aplica, largo plazo integral (propuesta A del usuario). (RF-50)
+      Hecho cuando: `tests/test_escalera_optima.py` (098:RF-50) en verde.

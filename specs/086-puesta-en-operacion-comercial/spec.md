@@ -127,6 +127,10 @@ Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento»
 - RF-51: SI la potencia de diseño de la SET nueva no cuenta la tasa de crecimiento, ENTONCES EL SISTEMA usará `factor_seguridad_set_sin_tasa`; con la tasa, `factor_seguridad_set`.
 - RF-53: CUANDO dimensiona un elevador o un regulador sin contar la tasa de crecimiento, EL SISTEMA usará también `factor_seguridad_set_sin_tasa`. Usuario (2026-11-04): «sí aplica, para regulador 1.25».
 - RF-54: SI en Windows sustituir un fichero de estado falla porque otro proceso lo tiene abierto en ese instante (`PermissionError`), ENTONCES EL SISTEMA lo reintentará unas pocas veces, en menos de dos segundos, y solo después dará el error. (Suite completa del 2026-11-10: un trabajo de la web no se encoló una vez de 8 613 pruebas.)
+- RF-55: SI el perfil de la empresa no trae las fichas de transformadores de SED o el tamaño de banco por tensión, ENTONCES el
+  diagnóstico lo avisará con la función que afecta (calibrar un alimentador con una SED sobrecargada) y cómo completarlo, en
+  vez de dar el perfil por bueno. (Programa instalado de prueba, 2026-11-11: sin perfil, CA101 no quedó válido y el
+  diagnóstico decía «se puede leer».)
 
 ### Aceptación
 

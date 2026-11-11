@@ -53,6 +53,17 @@ PREFIJO_PERFIL = 'bancos según perfil'
 ESCALONES = ('bancos', 'seccion', 'terna', 'transferencia', 'nivel', 'regulador')
 #: Los nombres de escalón que van en uno de :data:`ESCALONES`.
 ESCALON_DE = {'traslado': 'transferencia', 'sed_nivel': 'nivel', 'celda_nivel': 'nivel', 'elevador_nivel': 'nivel'}
+#: 098:RF-50: las obras de largo plazo, el proyecto de inversión integral y definitivo del PIDE; todas las demás son de
+#: corto plazo, de implementación inmediata. Usuario (2026-11-11, propuesta A): corto plazo, bancos, sección, terna,
+#: transferencia o traslado de carga y regulador; largo plazo, la migración a 22,9 kV, el alimentador nuevo y la SET nueva.
+OBRAS_DE_LARGO_PLAZO = frozenset({'nivel', 'sed_nivel', 'celda_nivel', 'elevador_nivel', 'expreso', 'set_nueva'})
+
+
+def plazo_de(escalones) -> str:
+    """098:RF-50: ``'largo'`` si la variante lleva alguna obra integral; si no, ``'corto'``."""
+    return 'largo' if any(e in OBRAS_DE_LARGO_PLAZO for e in escalones or ()) else 'corto'
+
+
 #: 098:RF-45: el escalón de la transferencia y el primero de lo que va después de ella.
 ESCALON_TRANSFERENCIA = ESCALONES.index('transferencia')
 ESCALON_NIVEL = ESCALONES.index('nivel')
@@ -1382,13 +1393,17 @@ def largo_plazo(factibles: Sequence[Mapping[str, Any]], corto: Mapping[str, Any]
     if (corto.get('horizonte') or {}).get('definitiva'):
         return {'nombre': corto['nombre'], 'misma': True, 'parte_de_la_corta': True, 'hace_falta_en_anio': None,
                 'costo_anual': corto['costo']['costo_anual'], 'aguanta_anios': corto['horizonte'].get('aguanta_anios'),
-                'aviso': f"«{corto['nombre']}» aguanta el horizonte del proyecto: es la de corto y la de largo plazo (098:RF-37)."}
-    definitivas = [t for t in factibles if (t.get('horizonte') or {}).get('definitiva')]
+                'aviso': f"«{corto['nombre']}» aguanta el horizonte del proyecto: no hace falta un proyecto integral de "
+                         'largo plazo (098:RF-37, RF-50).'}
+    # 098:RF-50: la de largo plazo es un proyecto de inversión integral (22,9 kV, alimentador nuevo o SET nueva).
+    definitivas = [t for t in factibles if (t.get('horizonte') or {}).get('definitiva')
+                   and plazo_de(t.get('escalones')) == 'largo']
     if not definitivas:
         medida = bool(corto.get('horizonte'))
-        return {'nombre': None, 'aviso': ('ninguna de las que cumplen hoy aguanta el horizonte del proyecto'
+        return {'nombre': None, 'aviso': ('ninguna obra integral (22,9 kV, alimentador nuevo, SET nueva) de las que '
+                                          'cumplen hoy aguanta el horizonte del proyecto'
                                           if medida else 'sin el horizonte medido no se plantea la de largo plazo')
-                + ' (098:RF-37).'}
+                + ' (098:RF-37, RF-50).'}
     def parte(t):
         return contiene(t, corto)
     mejor = min(definitivas, key=lambda t: (not parte(t), t['costo']['costo_anual'], t['nombre']))
@@ -1439,8 +1454,14 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
         else:
             motivo = (f"cumple en el {100 * (e.get('fraccion') or 0):.0f} % de los sorteos "
                       f"(pide {100 * p.cumplimiento:.0f} %)")
-        tabla.append({**e, 'factible': factible, 'motivo': motivo})
+        tabla.append({**e, 'factible': factible, 'motivo': motivo, 'plazo': plazo_de(e.get('escalones'))})
     factibles = [t for t in tabla if t['factible']]
+    # 098:RF-50: la que se aplica sale de las de corto plazo; una integral solo si ninguna de ellas cumple hoy, y se dice
+    # que se adelanta la inversión de largo plazo (nunca se queda sin solución).
+    de_corto = [t for t in factibles if t['plazo'] == 'corto']
+    aviso_adelanta = (None if de_corto or not factibles else
+                      'ninguna obra de corto plazo cumple hoy: se adelanta la inversión de largo plazo (098:RF-50)')
+    factibles = de_corto or factibles
     if factibles:
         # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
@@ -1478,6 +1499,7 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                                f"{mejor['costo']['costo_anual']:,.0f}")
         return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, **_marcas_de_valle(mejor, tabla),
                 **({'aviso_periodo': aviso_periodo} if aviso_periodo else {}),
+                **({'aviso_adelanta': aviso_adelanta} if aviso_adelanta else {}),
                 'alternativas': alternativas(tabla, mejor['nombre'], p)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se

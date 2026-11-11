@@ -145,6 +145,34 @@ def _perfil() -> Comprobacion:
     return Comprobacion('perfil', 'Perfil de empresa', True, False, 'Se puede leer.', afecta, '')
 
 
+def _calibracion_del_perfil() -> Comprobacion:
+    """086:RF-55: sin fichas de transformadores de SED ni tamaño de banco, la calibración no resuelve una SED sobrecargada.
+
+    Programa instalado de prueba (2026-11-11): sin perfil, «Perfil de empresa: se puede leer» salía en verde y CA101 no
+    quedó válido porque SE20701 (1 506 kVA de cliente en 50 kVA) no se pudo cambiar por su ficha (101) ni se pusieron bancos.
+    """
+    from ..perfil_empresa import datos_perfil, seccion_transformadores_sed
+
+    nombre, afecta = 'Calibración del perfil', 'Calibrar un alimentador con una SED sobrecargada o sin reactiva suficiente.'
+    try:
+        datos = datos_perfil()
+    except (OSError, ValueError):
+        datos = {}
+    cal = dict(datos.get('calibracion') or {})
+    fichas = seccion_transformadores_sed(datos) or {}            # 020:RF-63: del perfil o las del conversor
+    de_donde = 'las del conversor (NTP 370.400)' if fichas.get('origen') == 'conversor' else 'las del perfil'
+    faltan = [texto for texto, hay in (('las fichas de transformadores de SED (calibracion.transformadores_sed)',
+                                        bool(fichas.get('tablas'))),
+                                       ('el tamaño de banco por tensión (calibracion.bancos_kvar_por_tension)',
+                                        bool(cal.get('bancos_kvar_por_tension')))) if not hay]
+    if not faltan:
+        return Comprobacion('perfil_calibracion', nombre, True, False,
+                            f'Fichas de transformadores ({de_donde}) y bancos por tensión.', afecta, '')
+    return Comprobacion('perfil_calibracion', nombre, False, False, 'Faltan ' + ' y '.join(faltan) + '.', afecta,
+                        'Complételas en el perfil de su empresa siguiendo PERFIL_EMPRESA.md, con las fichas de su norma (en '
+                        'Perú, NTP 370.400), y compruébelo con «validar-perfil».')
+
+
 def _ia(buscar: Callable[[str], Any]) -> Comprobacion:
     """El complemento de IA es opcional en la 1.0: faltarle no estropea nada de lo que se vende (086:RF-37)."""
     hay = buscar('torch') is not None
@@ -198,7 +226,7 @@ def diagnosticar(
                      'Todo el programa, y hablar con DIgSILENT, cuya API solo carga en 3.12.',
                      '' if python_ok else f'Se requiere 3.12. {_REINSTALAR}'),
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
-        _digsilent(carpeta_pf), _perfil(), _ia(buscar_modulo), _tesseract(buscar_programa), _edicion(),
+        _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo), _tesseract(buscar_programa), _edicion(),
         *([_python_propio()] if es_programa_instalado(raiz) else []),
     ]
     filas = [asdict(c) for c in comprobaciones]

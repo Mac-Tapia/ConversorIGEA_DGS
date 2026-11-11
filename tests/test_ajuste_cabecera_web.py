@@ -590,8 +590,8 @@ def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path)
 
 # --------------------------------------------------------------------------- spec 020
 def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path, monkeypatch):
-    """020:RF-6 / 020:RF-10 — con el perfil de Electro Dunas el plan lleva sus tablas de fichas;
-    sin perfil, ninguna (el guion lo dice sin propuesta)."""
+    """020:RF-6 / 020:RF-10 / 020:RF-63 — con el perfil de Electro Dunas el plan lleva sus tablas de fichas;
+    sin perfil, las NTP 370.400 del conversor, con su origen (antes ninguna: CA101 no se calibraba sin perfil)."""
     import json as _json
 
     from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
@@ -601,7 +601,7 @@ def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path
     token = _plan(client, wid, job).json()['token']
     ws = client.app.state.store.get(wid)
     plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
-    assert plan['transformadores_sed'] is None
+    assert plan['transformadores_sed']['origen'] == 'conversor' and len(plan['transformadores_sed']['tablas']) == 2
     perfil = tmp_path / 'perfil_empresa.json'
     perfil.write_text(_json.dumps({'perfil': 'electro_dunas'}), encoding='utf-8')
     monkeypatch.setenv(VARIABLE_RUTA, str(perfil))

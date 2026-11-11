@@ -26,6 +26,9 @@ Dependencias y relación: 043 y 044; preservar reglas y casos de 025, 032 y 037�
 - RF-11: CUANDO se acepte un modelo para un alcance, EL SISTEMA aportará contraste nativo de ese mismo alcance.
 - RF-12: CUANDO se pida aprender con flujo equilibrado, EL SISTEMA calculará los escenarios de la copia con flujo equilibrado, aunque la red tenga ramales monofásicos, para que esos episodios enseñen a la PINN; el proyecto del operador no cambia.
 - RF-13: DONDE el perfil declare un proyecto como red de prueba (`gemelo.proyectos_de_prueba`), EL SISTEMA dejará esa red entera en la prueba y fuera del entrenamiento, en lugar del reparto por huella; si no está entre las muestras, seguirá el reparto por huella.
+- RF-14: SI el flujo mallado de la física base no converge, ENTONCES EL SISTEMA intentará Newton-Raphson y, si tampoco,
+  usará el barrido radial y lo dirá; nunca dará 0 p.u. como física base. Ciclo del 2026-11-08: la red 9f53b98… del búfer (dos
+  fuentes, 0,54 p.u. en DIgSILENT) no convergía, la base salía a 0 p.u. y la PINN, que aprendía de ceros, quedó a 0,354 p.u.
 
 ## Requisitos no funcionales
 

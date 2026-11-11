@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -131,6 +132,29 @@ def ruta_perfil_activo() -> Path:
 
 def carpeta_perfiles() -> Path:
     return _raiz() / 'config' / 'perfiles'
+
+
+#: 020:RF-63: el catálogo de fichas de transformadores de SED que trae el conversor.
+CATALOGO_FICHAS_SED = Path('config') / 'fichas' / 'transformadores_sed.json'
+
+
+def seccion_transformadores_sed(datos: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+    """020:RF-63: las fichas de transformadores de SED del perfil; si el perfil no las trae, las del conversor.
+
+    Usuario (2026-11-11): «las fichas deben ser parte del conversor». El programa instalado sin perfil no pudo cambiar
+    SE20701 (1 506 kVA de cliente en 50 kVA) y CA101 no quedó válido. Las del perfil de la empresa mandan; las del conversor
+    (NTP 370.400, norma técnica nacional) llevan ``origen: conversor`` para que el informe diga de dónde salen.
+    """
+    datos = datos_perfil() if datos is None else datos
+    propia = (datos.get('calibracion') or {}).get('transformadores_sed')
+    if propia:
+        return dict(propia)
+    ruta = _raiz() / CATALOGO_FICHAS_SED
+    try:
+        catalogo = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    return {k: v for k, v in catalogo.items() if not k.startswith('_')}
 
 
 def perfiles_disponibles(carpeta: Path | None = None) -> list[str]:

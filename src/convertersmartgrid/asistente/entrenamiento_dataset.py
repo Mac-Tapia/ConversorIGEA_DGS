@@ -26,8 +26,12 @@ def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
         if not medidas or type(medidas.get('ejemplos')) is not int or medidas['ejemplos'] < 1:
             fallos.append(f'{nombre}: faltan ejemplos medidos')
         for clave, minimo in umbrales.items():
-            if not valida(medidas, clave) or medidas[clave] < minimo:
-                fallos.append(f'{nombre}: {clave} ausente, inválido o bajo {minimo}')
+            # 047:RF-42: el valor medido y con cuántos ejemplos; «ausente, inválido o bajo» juntos escondían que el
+            # Transformer del 2026-11-08 sí se midió (0,71 con 7 ejemplos) y estaba bajo la puerta.
+            if not valida(medidas, clave):
+                fallos.append(f'{nombre}: {clave} ausente o inválido')
+            elif medidas[clave] < minimo:
+                fallos.append(f"{nombre}: {clave} {medidas[clave]:.3f} bajo {minimo} con {medidas.get('ejemplos')} ejemplo(s)")
     if en_uso is not None:
         for clave in limites:
             if not valida(en_uso, clave) or not valida(prueba, clave) or prueba[clave] < en_uso[clave] - 1e-9:

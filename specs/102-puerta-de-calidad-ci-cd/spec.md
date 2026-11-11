@@ -57,6 +57,9 @@ Instalación
   completa; GitHub Actions correrá allí la sintética (RF-12). La suite completa con los datos reales se exige una vez, al
   integrar en `main`. Usuario (2026-11-10): «cada vez que voy a hacer un trabajo voy a hacer commit, subir a GitHub y
   hacer la suite completa; eso no sería viable». Nada de esto toca la operación comercial: el operador no usa git.
+- RF-19: CUANDO la puerta lance las pruebas desde un gancho de git, EL SISTEMA las lanzará sin las variables `GIT_*` que git
+  pone al gancho. (2026-11-11: heredadas, el `git worktree add` de las pruebas del asistente usaba el índice de este
+  repositorio y fallaba solo dentro de la puerta.)
 
 ## Requisitos no funcionales
 

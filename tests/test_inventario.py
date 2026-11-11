@@ -206,7 +206,9 @@ def test_config_sin_datos_de_una_empresa():
     genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json', 'config/entrega.json',
                  'config/terminos_huellas.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
-             and not (f.startswith('config/perfiles/') and f.endswith('.json'))]
+             and not (f.startswith('config/perfiles/') and f.endswith('.json'))
+             # 020:RF-63: las fichas NTP 370.400 son del conversor (norma técnica nacional), no de una empresa.
+             and not (f.startswith('config/fichas/') and f.endswith('.json'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'
 
 

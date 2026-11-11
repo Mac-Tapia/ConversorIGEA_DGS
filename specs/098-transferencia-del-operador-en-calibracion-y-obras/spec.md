@@ -285,6 +285,13 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   reutilizará en las rondas siguientes sin volver a leer los libros. SI el proceso que lee los libros cae, ENTONCES lo
   reintentará una vez y, si vuelve a caer, seguirá sin ese dato y lo avisará, sin tumbar el trabajo. CA101 + CHN102
   (2026-11-07): el lector de Excel abortó tres veces (0xC0000409) con 1,4 GB de memoria libre, tras horas de escalera.
+- RF-50: EL SISTEMA clasificará cada obra por su plazo: de corto plazo, de implementación inmediata, los bancos, el cambio
+  de sección, la nueva terna, la transferencia o el traslado de carga y el regulador; de largo plazo, el proyecto de
+  inversión integral y definitivo, la migración a 22,9 kV, el alimentador nuevo y la SET nueva. La que se aplica saldrá de
+  las de corto plazo; SI ninguna cumple hoy, ENTONCES se aplicará la integral y se dirá que se adelanta la inversión de largo
+  plazo. La de largo plazo saldrá solo de las integrales; SI la de corto plazo aguanta el horizonte, ENTONCES se dirá que no
+  hace falta un proyecto integral. Usuario (2026-11-11): «debe organizar cuáles entran para obras de corto plazo y cuáles
+  para proyecto de inversión de largo plazo, integrales, una inversión más grande y solución definitiva» (propuesta A).
 
 ## Relación con otras specs
 

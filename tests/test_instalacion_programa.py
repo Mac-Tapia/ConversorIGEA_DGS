@@ -1285,3 +1285,42 @@ def test_inventario_front_incluye_transitivas_de_ejecucion(tmp_path):
     componentes = CC._componentes_del_front(tmp_path)
     assert {c['name'] for c in componentes} == {'react-dom', 'scheduler'}
     assert all(c['license'] == 'MIT' and c['origen'] == 'front' for c in componentes)
+
+
+def test_086_rf55_el_doctor_avisa_un_perfil_sin_fichas_ni_bancos(tmp_path, monkeypatch):
+    """086:RF-55 — sin fichas de transformadores ni bancos por tensión, aviso con lo que afecta; con ellas, bien."""
+    import json
+
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+
+    perfil = tmp_path / 'perfil_empresa.json'
+    perfil.write_text(json.dumps({'calibracion': {'bancos_kvar_por_tension': None, 'transformadores_sed': None}}),
+                      encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    c = DR._calibracion_del_perfil()
+    # 020:RF-63: las fichas del conversor cubren las que faltan en el perfil; solo faltan los bancos.
+    assert not c.ok and not c.obligatoria and 'transformadores_sed' not in c.detalle and 'bancos_kvar_por_tension' in c.detalle
+    assert 'NTP 370.400' in c.arreglo and 'SED sobrecargada' in c.afecta
+    perfil.write_text(json.dumps({'calibracion': {'bancos_kvar_por_tension': {'10': 300},
+                                                  'transformadores_sed': {'tablas': [{'fichas': {'50': [1, 2, 3, 4]}}]}}}),
+                      encoding='utf-8')
+    assert DR._calibracion_del_perfil().ok
+
+
+def test_020_rf63_las_fichas_del_conversor_cuando_el_perfil_no_las_trae(tmp_path, monkeypatch):
+    """020:RF-63 — sin fichas en el perfil, las NTP 370.400 del conversor (con su origen); con fichas propias, las suyas."""
+    import json
+
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA, seccion_transformadores_sed, transformadores_sed
+
+    perfil = tmp_path / 'perfil_empresa.json'
+    perfil.write_text('{}', encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    del_conversor = seccion_transformadores_sed()
+    assert del_conversor['origen'] == 'conversor' and len(del_conversor['tablas']) == 2
+    assert all('NTP 370.400' in t['norma'] for t in del_conversor['tablas'])
+    leidas = transformadores_sed({'calibracion': {'transformadores_sed': del_conversor}})   # la misma lectura que la calibración
+    assert leidas and leidas['tablas'] and not leidas['avisos']
+    propia = {'umbral_carga_pct': 70, 'tablas': [{'norma': 'propia', 'kv_min': 0, 'kv_max': 36, 'fichas': {'50': '1 2 3 4'}}]}
+    perfil.write_text(json.dumps({'calibracion': {'transformadores_sed': propia}}), encoding='utf-8')
+    assert seccion_transformadores_sed() == propia

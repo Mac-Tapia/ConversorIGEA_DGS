@@ -21,3 +21,5 @@
       intermitente de JSON a medio escribir y 086:RF-54) y las 71 que solo fallaban en GitHub (102:RF-17).
 - [x] T6. Las ramas de trabajo suben sin la suite completa; la exige la integración en `main`. (RF-5, RF-18)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
+- [x] T7. La puerta lanza las pruebas sin las variables GIT_* del gancho. (RF-19)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.

@@ -1075,3 +1075,28 @@ def test_alternativas_fuera_de_3_a_6_se_rechazan(valor):
     """042:RF-106 — un valor que no es un entero de 3 a 6 es un error que nombra la clave."""
     with pytest.raises(eo.EscaleraError, match='escalera.alternativas'):
         _p_terna(alternativas=valor)
+
+
+def test_098_rf50_corto_plazo_se_aplica_y_largo_plazo_es_integral():
+    """098:RF-50 — se aplica la de corto plazo aunque una integral cueste menos; si ninguna de corto cumple, la integral
+    con su aviso; la de largo plazo solo sale de las integrales (22,9 kV, alimentador nuevo, SET nueva)."""
+    assert eo.plazo_de(('bancos', 'seccion')) == 'corto' and eo.plazo_de(('regulador',)) == 'corto'
+    assert eo.plazo_de(('transferencia',)) == 'corto' and eo.plazo_de(('traslado',)) == 'corto'
+    assert all(eo.plazo_de((e,)) == 'largo' for e in ('sed_nivel', 'elevador_nivel', 'expreso', 'set_nueva'))
+    terna = dict(_evaluada('terna', True, 1.0, 500), escalones=('terna',))
+    nivel = dict(_evaluada('22,9 kV', True, 1.0, 300), escalones=('sed_nivel',))
+    r = eo.elegir([terna, nivel], P)
+    assert r['elegida'] == 'terna' and 'aviso_adelanta' not in r
+    assert {t['nombre']: t['plazo'] for t in r['tabla']} == {'terna': 'corto', '22,9 kV': 'largo'}
+    r = eo.elegir([dict(terna, maxima=False, motivos=['0,91 p.u.']), nivel], P)
+    assert r['elegida'] == '22,9 kV' and 'se adelanta la inversión de largo plazo' in r['aviso_adelanta']
+    hz = {'definitiva': True, 'aguanta_anios': 20}
+    corto = dict(terna, horizonte={'definitiva': False, 'aguanta_anios': 4}, obras=[])
+    terna_larga = dict(_evaluada('terna doble', True, 1.0, 200), escalones=('terna',), horizonte=hz, obras=[])
+    expreso = dict(_evaluada('alimentador expreso', True, 1.0, 900), escalones=('expreso',), horizonte=hz, obras=[])
+    largo = eo.largo_plazo([corto, terna_larga, expreso], corto)
+    assert largo['nombre'] == 'alimentador expreso'                       # la terna, aunque aguante, no es integral
+    largo = eo.largo_plazo([corto, terna_larga], corto)
+    assert largo['nombre'] is None and 'ninguna obra integral' in largo['aviso']
+    aguanta = dict(corto, horizonte=hz)
+    assert 'no hace falta un proyecto integral' in eo.largo_plazo([aguanta, expreso], aguanta)['aviso']

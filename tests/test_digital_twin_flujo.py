@@ -130,3 +130,27 @@ def test_residuo_por_barra_electrica():
     v = p['v'].copy()
     v[m.ids.index('NA')] += 1e-5
     assert float(np.max(orc.residuo(m, v, p['theta']))) < 1e-3
+
+
+@pytest.mark.parametrize('semilla', [4, 5])
+def test_045_rf14_si_el_punto_fijo_no_converge_newton_da_lo_de_pandapower(semilla):
+    """045:RF-14 — con una sola iteración el punto fijo no llega; Newton-Raphson resuelve y coincide con pandapower."""
+    g = red_mallada(random.Random(semilla), 30, 3)
+    m = orc.muestra(g)
+    sol = orc.sistema_de(m).resolver(m.s_carga, iteraciones=1)
+    assert sol.convergio
+    ref = _pandapower(g)
+    assert max(abs(v - ref[n]) for n, v in zip(m.ids, sol.v, strict=True)) < 1e-6
+
+
+def test_045_rf14_sin_solucion_mallada_la_base_es_el_radial_y_nunca_ceros(monkeypatch):
+    """045:RF-14 — ciclo del 2026-11-08: sin converger, la física daba 0 p.u. y la PINN aprendía de ceros."""
+    from convertersmartgrid.digital_twin import flujo
+
+    g = red_radial(random.Random(7), 25)
+    radial = orc.ModeloRadial().predecir(g)
+    monkeypatch.setattr(flujo.SistemaMallado, 'resolver', lambda self, *a, **k: flujo.Solucion(
+        np.zeros(len(g['nodos'])), np.zeros(len(g['nodos'])), 200, False, float('nan'), np.zeros(1, dtype=complex)))
+    p = orc.ModeloMallado().predecir(g)
+    assert np.allclose(p['v'], radial['v']) and float(np.min(p['v'])) > 0.5
+    assert p['convergio'] is False and 'barrido radial' in p['motivos'][0]
