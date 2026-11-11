@@ -154,6 +154,20 @@ consultas sin datos y registradas; vigila trabajos, modelos, calidad de resultad
 - RF-35: EL SISTEMA promoverá un clasificador solo si también pasa la puerta medida solo con los informes reales de la
   prueba; sin informes reales no se promueve. (2026-11-11: uno pasó con 0,981/0,963 sobre 160 ejemplos, 150 de plantilla,
   y en los 10 reales acertaba 0,7 el tipo y 0,6 el subtipo.)
+- RF-36: EL SISTEMA ofrecerá, elegible al entrenar, una segunda arquitectura del clasificador de informes: los vectores
+  de un codificador preentrenado con revisión fija y una regresión logística por nivel, sin quitar la arquitectura
+  actual. (Usuario, 2026-11-11: «implementarlo como candidato»; un prototipo dio 0,96 el tipo y 0,90 el par
+  tipo|subtipo con un grupo fuera sobre los 50 informes reales.)
+- RF-37: EL SISTEMA guardará el clasificador de vectores sin código serializado: sus coeficientes e interceptos en un
+  fichero de matrices que se lee sin pickle, y el nombre y la revisión de su codificador en sus metadatos.
+- RF-38: SI al abrir un clasificador de vectores sus rasgos guardados no son los del código, o sus matrices no cuadran con
+  sus clases, ENTONCES EL SISTEMA lo rechazará con un error que lo diga.
+- RF-39: CUANDO se entrene el clasificador de vectores por la vía gobernada, EL SISTEMA le aplicará las mismas puertas que
+  al actual (prueba mezclada, no acertar menos que el modelo en uso y la puerta de reales de RF-35) y la misma reapertura
+  en un proceso nuevo.
+- RF-40: CUANDO elija los hiperparámetros del clasificador de vectores, EL SISTEMA los elegirá validando con un grupo fuera
+  solo sobre los grupos de entrenamiento, y anotará esa medida aparte de la de la prueba.
+- RF-41: EL SISTEMA abrirá y usará para clasificar el clasificador en uso, sea cual sea su arquitectura.
 
 ## Requisitos no funcionales
 

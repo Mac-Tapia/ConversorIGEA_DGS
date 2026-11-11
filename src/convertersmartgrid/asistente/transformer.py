@@ -286,9 +286,13 @@ def version_de_registro(candidate_id: str) -> str:
 
 
 def materializar_candidato(detalle: dict, carpeta: Path) -> None:
-    """050:RF-7: copia verificada y atómica, también cuando ya existe una versión local."""
-    if not {'pesos.pt', 'modelo.json'}.issubset(detalle['artifacts']):
-        raise ValueError('integridad: el candidato no trae pesos.pt y modelo.json')
+    """050:RF-7: copia verificada y atómica, también cuando ya existe una versión local.
+
+    026:RF-37: el clasificador de vectores guarda sus pesos en ``pesos.npz`` (matrices sin pickle), no en ``pesos.pt``.
+    """
+    artefactos = set(detalle['artifacts'])
+    if 'modelo.json' not in artefactos or not artefactos & {'pesos.pt', 'pesos.npz'}:
+        raise ValueError('integridad: el candidato no trae sus pesos (pesos.pt o pesos.npz) y modelo.json')
     from ..model_registry import materializar_artefactos
     materializar_artefactos(detalle, carpeta)
 
