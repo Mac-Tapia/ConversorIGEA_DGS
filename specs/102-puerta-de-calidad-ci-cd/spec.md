@@ -63,6 +63,8 @@ Instalación
 - RF-20: CUANDO una prueba escriba variables de entorno del proceso o registre el cierre de la web, EL SISTEMA lo restituirá al terminar esa prueba,
   para que ninguna dependa del orden. (2026-11-11: `web.__main__.main` deja `CSG_WEB_HOST` y el puerto; en la puerta, con
   4 749 pruebas en un proceso, la ruta del libro de pérdidas y el cierre del lanzador fallaban y solas pasaban.)
+- RF-21: EL SISTEMA correrá en cada commit la prueba de los procedimientos, que citan líneas de `src/`. (2026-11-11: al añadir
+  el perfil en `services.py` se movieron cuatro citas y solo lo vio GitHub Actions.)
 
 ## Requisitos no funcionales
 

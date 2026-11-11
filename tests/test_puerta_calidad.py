@@ -252,3 +252,8 @@ def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba_2():
     from convertersmartgrid.web import app as app_mod
 
     assert app_mod._cierre == []
+
+
+def test_102_rf21_la_puerta_corre_los_procedimientos():
+    """102:RF-21 — las citas de línea de los procedimientos se comprueban en cada commit."""
+    assert 'tests/test_procedimientos.py' in PC.GOBIERNO

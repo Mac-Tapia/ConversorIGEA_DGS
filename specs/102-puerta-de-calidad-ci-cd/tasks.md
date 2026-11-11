@@ -25,3 +25,5 @@
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
 - [x] T8. Cada prueba deja el entorno del proceso como lo encontró. (RF-20)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde y la puerta sin fallos por orden.
+- [x] T9. La puerta del commit corre la prueba de los procedimientos. (RF-21)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-21) en verde.

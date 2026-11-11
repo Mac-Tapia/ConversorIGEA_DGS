@@ -26,7 +26,10 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 #: Las pruebas de gobierno: inventario, trazabilidad y estado de las specs, auditoría de raíz (102:RF-1).
 GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tests/test_auditoria_raiz.py',
-            'tests/test_trazabilidad_candidato.py')
+            'tests/test_trazabilidad_candidato.py',
+            # 102:RF-21: los procedimientos citan líneas de src/; un cambio en services.py las movió y solo lo vio
+            # GitHub Actions (2026-11-11), porque ninguna prueba del commit los leía.
+            'tests/test_procedimientos.py')
 
 #: Las variables de datos reales de la suite completa (CLAUDE.md, «Pruebas»): sin una, la suite omite pruebas.
 VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_MDB', 'CSG_DEMANDA_DIR',
