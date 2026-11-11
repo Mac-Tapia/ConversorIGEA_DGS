@@ -34,7 +34,7 @@ Fuentes de la ayuda de DIgSILENT (instalación PF 2024)::
 
 Ejemplo::
 
-    set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12
+    set PYTHONPATH=<carpeta de PowerFactory>\Python\3.x   (la que coincida con su Python; la web la elige sola)
     python tools\powerfactory_acceptance.py ^
       --import-dgs output\ALIMENTADOR.dgs ^
       --manifest output\ALIMENTADOR_geography.json ^
@@ -311,9 +311,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
         pf = importar_api()
     except _SinApi as exc:
         raise ImportError(
-            'Módulo powerfactory no disponible. Añada a PYTHONPATH la carpeta '
-            r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12 '
-            '(o la versión instalada) y use un Python compatible (3.10–3.12).'
+            'Módulo powerfactory no disponible. Añada a PYTHONPATH la carpeta Python\\3.x de su PowerFactory '
+            'que coincida con este intérprete, o lance el guion desde la web, que la elige sola (103:RF-4).'
         ) from exc
     exigir_fuera_de_pruebas(pf)                                            # 084:RF-22
 
@@ -365,8 +364,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
         if app is not None:
             return app
     raise RuntimeError(
-        'No se pudo conectar a PowerFactory. Abra PF 2024 o ejecute con licencia '
-        'y el API Python de la misma versión.'
+        'No se pudo conectar a PowerFactory. Compruebe la licencia y que la API de Python sea de la misma '
+        'PowerFactory que se abre (103:RF-4).'
     )
 
 

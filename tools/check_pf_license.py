@@ -117,8 +117,8 @@ def main(argv: list[str] | None = None) -> int:
         import powerfactory  # type: ignore
     except ImportError as exc:
         print(f'No se pudo importar powerfactory desde {pf}: {exc}', file=sys.stderr)
-        print(f'Intérprete actual: {sys.version.split()[0]}; PF 2024 pide 3.12.',
-              file=sys.stderr)
+        print(f'Intérprete actual: {sys.version.split()[0]}; la API de {pf} pide Python {Path(pf).name}.',
+              file=sys.stderr)                                                        # 103:RF-4
         return 2
 
     # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin

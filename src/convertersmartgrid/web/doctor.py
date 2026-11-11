@@ -89,7 +89,12 @@ def _digsilent(carpeta: Callable[[], Path | None]) -> Comprobacion:
     """No se conecta: abrir DIgSILENT gasta licencia y aquí solo se pregunta si está."""
     pf = carpeta()
     afecta = 'Importar en DIgSILENT, calibrar, estudios, obras e informes. Convertir a DGS sigue funcionando.'
-    arreglo = ('Instale DIgSILENT PowerFactory 2024 con su Python 3.12, o indique la carpeta de su API con la variable PF_PYTHON.')
+    # 103:RF-4: ninguna versión fija; se dice lo instalado y qué le falta a cada una.
+    from ..powerfactory_env import resumen_instalaciones
+    encontradas = resumen_instalaciones()
+    arreglo = (' '.join(encontradas) if encontradas else
+               'Instale DIgSILENT PowerFactory (2021 o posterior)') + (
+               ' También puede indicar la carpeta de su API con la variable PF_PYTHON.')
     if pf is None:
         return Comprobacion('digsilent', 'DIgSILENT PowerFactory', False, False, 'No se encuentra la API de Python.', afecta, arreglo)
     if not (Path(pf) / 'powerfactory.pyd').is_file():

@@ -8,15 +8,33 @@ Tk, y la lógica no puede existir en dos copias que acaben divergiendo.
 from __future__ import annotations
 
 import os
+import re
 import shutil
+import string
 import subprocess
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from .runtime_paths import raiz_programa
 
-# Carpeta por defecto de la API Python de PowerFactory (se sobrescribe con PF_PYTHON).
-DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
+#: 103:RF-6: donde el instalador deja los intérpretes embebidos, uno por versión (``python_pf/3.9/python.exe``).
+CARPETA_PYTHON_EMBEBIDOS = 'python_pf'
+_VERSION_PF = re.compile(r'PowerFactory\s+(\d{4})(?:\s*SP\s*(\d+))?', re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class InstalacionPF:
+    """103:RF-1: una PowerFactory instalada, con las carpetas de su API que traen la extensión, de mayor a menor."""
+
+    carpeta: Path
+    version: tuple[int, int]
+    apis: tuple[Path, ...]
+
+    @property
+    def nombre(self) -> str:
+        return self.carpeta.name
 
 
 def project_root() -> Path:
@@ -42,30 +60,169 @@ def version_key(path: Path) -> tuple[int, ...]:
     return tuple(partes)
 
 
+def raices_habituales() -> list[Path]:
+    """103:RF-1: ``DIgSILENT`` en ``Program Files`` de cada unidad: no se supone la C."""
+    raices = []
+    for letra in string.ascii_uppercase:
+        for programas in ('Program Files', 'Program Files (x86)'):
+            raiz = Path(f'{letra}:/') / programas / 'DIgSILENT'
+            try:
+                if raiz.is_dir():
+                    raices.append(raiz)
+            except OSError:
+                continue
+    return raices
+
+
+def carpetas_del_registro() -> list[str]:
+    """103:RF-1: las ``InstallDir`` de ``HKLM\\SOFTWARE\\DIgSILENT GmbH\\PowerFactory …`` (así registra la 2024)."""
+    try:
+        import winreg
+    except ImportError:
+        return []
+    salida = []
+    for vista in ('SOFTWARE\\DIgSILENT GmbH', 'SOFTWARE\\WOW6432Node\\DIgSILENT GmbH'):
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, vista) as clave:
+                for i in range(winreg.QueryInfoKey(clave)[0]):
+                    nombre = winreg.EnumKey(clave, i)
+                    if not nombre.lower().startswith('powerfactory'):
+                        continue
+                    try:
+                        with winreg.OpenKey(clave, nombre) as sub:
+                            salida.append(str(winreg.QueryValueEx(sub, 'InstallDir')[0]))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return salida
+
+
+def _instalacion(carpeta: Path) -> InstalacionPF | None:
+    m = _VERSION_PF.search(carpeta.name)
+    if not m or not carpeta.is_dir():
+        return None
+    apis = sorted((p for p in (carpeta / 'Python').glob('3.*') if (p / 'powerfactory.pyd').is_file()),
+                  key=version_key, reverse=True)
+    return InstalacionPF(carpeta, (int(m.group(1)), int(m.group(2) or 0)), tuple(apis))
+
+
+def instalaciones(raices: list[Path] | None = None, registro: list[str] | tuple[str, ...] | None = None
+                  ) -> list[InstalacionPF]:
+    """103:RF-1: todas las PowerFactory instaladas, de la más nueva a la más antigua, sin repetir ninguna."""
+    candidatas: list[Path] = []
+    for raiz in (raices_habituales() if raices is None else raices):
+        try:
+            candidatas.extend(sorted(raiz.glob('PowerFactory *')))
+        except OSError:
+            continue
+    candidatas.extend(Path(c.rstrip('\\/')) for c in (carpetas_del_registro() if registro is None else registro))
+    vistas, salida = set(), []
+    for carpeta in candidatas:
+        try:
+            clave = os.path.normcase(str(carpeta.resolve()))
+        except OSError:
+            continue
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        inst = _instalacion(carpeta)
+        if inst is not None and inst.apis:
+            salida.append(inst)
+    return sorted(salida, key=lambda i: i.version, reverse=True)
+
+
+def _python_actual() -> str:
+    return f'{sys.version_info.major}.{sys.version_info.minor}'
+
+
+def _sondear_py(version: str) -> Path | None:
+    """El intérprete que da el lanzador ``py -X.Y``, si lo hay."""
+    launcher = shutil.which('py')
+    if not launcher:
+        return None
+    try:
+        probe = subprocess.run([launcher, f'-{version}', '-c', 'import sys; print(sys.executable)'],
+                               capture_output=True, text=True, timeout=20, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    candidato = Path((probe.stdout or '').strip())
+    return candidato if probe.returncode == 0 and candidato.is_file() else None
+
+
+def interprete_para(version: str) -> tuple[Path | None, str]:
+    """103:RF-2: un intérprete de esta versión: el del programa, el embebido del instalador o el de la máquina."""
+    if version == _python_actual():
+        return Path(sys.executable), f'interprete actual ({version})'
+    embebido = raiz_programa() / CARPETA_PYTHON_EMBEBIDOS / version / 'python.exe'
+    if embebido.is_file():
+        return embebido, f'Python {version} embebido del programa'
+    override = os.environ.get('CSG_PF_INTERPRETER', '').strip()
+    if override and Path(override).is_file():
+        return Path(override), f'CSG_PF_INTERPRETER ({override})'
+    lanzado = _sondear_py(version)
+    if lanzado is not None:
+        return lanzado, f'py -{version}'
+    major, minor = version.split('.')
+    local = os.environ.get('LOCALAPPDATA', '')
+    candidatos = [Path(rf'C:\Python{major}{minor}\python.exe'), Path(rf'C:\Program Files\Python{major}{minor}\python.exe')]
+    if local:
+        candidatos.insert(0, Path(local) / 'Programs' / 'Python' / f'Python{major}{minor}' / 'python.exe')
+    for candidato in candidatos:
+        if candidato.is_file():
+            return candidato, f'instalacion local {version}'
+    return None, f'no se encontro Python {version}'
+
+
+def elegir_api(inst: InstalacionPF, interprete: Callable[[str], tuple[Path | None, str]] = interprete_para
+               ) -> tuple[Path, Path, str] | None:
+    """103:RF-2: la carpeta de la API con intérprete; primero la del Python del programa, luego de mayor a menor.
+
+    Elegir la más alta y exigir después su intérprete dejaba fuera a una PowerFactory con API para 3.13 aunque trajera
+    la de 3.12, que es la del programa.
+    """
+    actual = _python_actual()
+    orden = sorted(inst.apis, key=lambda a: (a.name != actual, tuple(-x for x in version_key(a))))
+    for api in orden:
+        ruta, motivo = interprete(api.name)
+        if ruta is not None:
+            return api, ruta, motivo
+    return None
+
+
 def pf_python_dir() -> Path | None:
+    """La carpeta de la API que se usa: ``PF_PYTHON`` si se fija; si no, la de la PowerFactory más nueva que funciona.
+
+    103:RF-3: sin ninguna que funcione, la carpeta más alta de la más nueva, para que el diagnóstico diga qué falta.
+    """
     env = os.environ.get('PF_PYTHON', '').strip()
     if env:
         path = Path(env)
         return path if path.is_dir() else None
-    if DEFAULT_PF_PYTHON.is_dir():
-        return DEFAULT_PF_PYTHON
-    # Carpetas de versión hermanas bajo la instalación de DIgSILENT.
-    root = Path(r'C:\Program Files\DIgSILENT')
-    if root.is_dir():
-        candidates = sorted(root.glob('PowerFactory */Python/3.*'),
-                            key=version_key, reverse=True)
-        # Primero el que trae la extensión; solo si ninguno la tiene se acepta otro.
-        for candidate in candidates:
-            if candidate.is_dir() and (candidate / 'powerfactory.pyd').is_file():
-                return candidate
-        for candidate in candidates:
-            if candidate.is_dir():
-                return candidate
-    return None
+    encontradas = instalaciones()
+    for inst in encontradas:
+        elegida = elegir_api(inst)
+        if elegida is not None:
+            return elegida[0]
+    return encontradas[0].apis[0] if encontradas else None
+
+
+def resumen_instalaciones(encontradas: list[InstalacionPF] | None = None,
+                          interprete: Callable[[str], tuple[Path | None, str]] = interprete_para) -> list[str]:
+    """103:RF-4: una línea por PowerFactory encontrada: con qué Python carga o qué Python le falta."""
+    lineas = []
+    for inst in instalaciones() if encontradas is None else encontradas:
+        elegida = elegir_api(inst, interprete)
+        if elegida is not None:
+            lineas.append(f'{inst.nombre}: API {elegida[0].name} con {elegida[2]}.')
+        else:
+            faltan = ', '.join(a.name for a in inst.apis)
+            lineas.append(f'{inst.nombre}: falta un intérprete de Python {faltan} para cargar su API.')
+    return lineas
 
 
 def pf_api_version(pf_dir: Path | None) -> str | None:
-    """Versión de Python que exige la API de PowerFactory ('3.12' en PF 2024)."""
+    """Versión de Python de la carpeta de la API («3.12» de ``Python\\3.12``)."""
     if pf_dir is None:
         return None
     parts = pf_dir.name.strip().split('.')
@@ -75,51 +232,14 @@ def pf_api_version(pf_dir: Path | None) -> str | None:
 
 
 def python_for_pf(pf_dir: Path | None) -> tuple[Path | None, str]:
-    """Intérprete capaz de cargar ``powerfactory.pyd``, y por qué se eligió.
+    """Intérprete capaz de cargar ``powerfactory.pyd`` de esa carpeta, y por qué se eligió.
 
-    ``powerfactory.pyd`` es una extensión binaria compilada contra una versión
-    concreta de CPython: solo carga en esa versión (PowerFactory 2024 llega a 3.12).
-    Lanzar el script de aceptación con ``sys.executable`` falla con «DLL load failed»
-    en cuanto el entorno del conversor usa un Python más nuevo, por ejemplo 3.14.
-
-    Prioridad: el intérprete actual si ya coincide, ``CSG_PF_INTERPRETER``,
-    el lanzador ``py -X.Y``, y por último rutas de instalación habituales.
+    ``powerfactory.pyd`` es una extensión compilada contra una versión concreta de CPython y solo carga en esa versión.
     """
     wanted = pf_api_version(pf_dir)
-    current = f'{sys.version_info.major}.{sys.version_info.minor}'
-    if wanted is None or wanted == current:
-        return Path(sys.executable), f'interprete actual ({current})'
-
-    override = os.environ.get('CSG_PF_INTERPRETER', '').strip()
-    if override and Path(override).is_file():
-        return Path(override), f'CSG_PF_INTERPRETER ({override})'
-
-    launcher = shutil.which('py')
-    if launcher:
-        try:
-            probe = subprocess.run(
-                [launcher, f'-{wanted}', '-c', 'import sys; print(sys.executable)'],
-                capture_output=True, text=True, timeout=20, check=False,
-            )
-            candidate = Path((probe.stdout or '').strip())
-            if probe.returncode == 0 and candidate.is_file():
-                return candidate, f'py -{wanted}'
-        except (OSError, subprocess.SubprocessError):
-            pass
-
-    major, minor = wanted.split('.')
-    local = os.environ.get('LOCALAPPDATA', '')
-    candidates = [
-        Path(rf'C:\Python{major}{minor}\python.exe'),
-        Path(rf'C:\Program Files\Python{major}{minor}\python.exe'),
-    ]
-    if local:
-        candidates.insert(0, Path(local) / 'Programs' / 'Python' / f'Python{major}{minor}' / 'python.exe')
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate, f'instalacion local {wanted}'
-
-    return None, f'no se encontro Python {wanted}'
+    if wanted is None:
+        return Path(sys.executable), f'interprete actual ({_python_actual()})'
+    return interprete_para(wanted)
 
 
 def pf_subprocess_env(pf_dir: Path | None) -> dict[str, str]:

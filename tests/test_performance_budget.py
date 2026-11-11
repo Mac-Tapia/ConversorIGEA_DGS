@@ -151,13 +151,18 @@ def test_conversion_cost_grows_linearly_with_sections(tmp_path):
     small = _chain_model(200)
     large = _chain_model(800)
 
-    start = time.perf_counter()
-    _convert(small, tmp_path / 'small.dgs')
-    t_small = time.perf_counter() - start
+    def mejor_de_tres(modelo, nombre):
+        # El mínimo de tres: en GitHub Actions una sola medida dio ×26,5 (2026-11-11) y en este equipo ×4; la máquina
+        # compartida mete pausas que no son del conversor. El mínimo mide el coste, no la pausa.
+        tiempos = []
+        for i in range(3):
+            start = time.perf_counter()
+            _convert(modelo, tmp_path / f'{nombre}_{i}.dgs')
+            tiempos.append(time.perf_counter() - start)
+        return min(tiempos)
 
-    start = time.perf_counter()
-    _convert(large, tmp_path / 'large.dgs')
-    t_large = time.perf_counter() - start
+    t_small = mejor_de_tres(small, 'small')
+    t_large = mejor_de_tres(large, 'large')
 
     if t_small < 0.02:  # too fast to time reliably on this machine
         pytest.skip(f'medición no fiable: {t_small * 1000:.1f} ms para 200 tramos')
