@@ -11,7 +11,7 @@ falta se dice en su sitio con su motivo.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -320,10 +320,17 @@ def escribir_modulo(destino: Path, modulo: Modulo, datos: DatosPlaneamiento) -> 
     return e.huecos
 
 
-def escribir_modulos(carpeta: Path, sufijo: str, datos: DatosPlaneamiento) -> tuple[list[str], list[str]]:
-    """Todos los módulos; uno que falle no pierde a los demás. Devuelve (ficheros, fallos)."""
+def escribir_modulos(carpeta: Path, sufijo: str, datos: DatosPlaneamiento,
+                     entregables: Collection[str] | None = None) -> tuple[list[str], list[str]]:
+    """Los módulos de ``entregables`` (todos sin ella); uno que falle no pierde a los demás. Devuelve (ficheros, fallos).
+
+    072:RF-34: el planeamiento de largo plazo escribe solo los suyos; cada módulo conserva su número, para que el
+    «1_diagnostico» sea el mismo fichero se pida el tipo que se pida.
+    """
     hechos, fallos = [], []
     for i, modulo in enumerate(MODULOS, start=1):
+        if entregables is not None and modulo.entregable not in entregables:
+            continue
         nombre = f'{i}_{modulo.clave}_{sufijo}.docx'
         try:
             escribir_modulo(Path(carpeta) / nombre, modulo, datos)

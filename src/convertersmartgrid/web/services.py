@@ -5592,7 +5592,7 @@ def pide_anual_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
 
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                   capex: str | None = None, implementar: bool = True, anio_presentacion: int | None = None,
-                  formato_01: str | None = None) -> dict:
+                  formato_01: str | None = None, plazo: str | None = None) -> dict:
     """Metodología del PIDE sobre el proyecto, de punta a punta (spec 024, T13 y T14).
 
     Diagnostica cada año del horizonte en DIgSILENT (``tools/pide_pf.py``), arma las obras
@@ -5719,8 +5719,9 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                            precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
     formatos = _formatos_del_pide(ws, project, propuesta, informe, plan_pide, estudio, feeders, avisos)
     libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
+    # 072:RF-34: el planeamiento de largo plazo escribe solo sus módulos; el PIDE, los dos, porque consume el plan (RF-4).
     informes_planeamiento = _informes_del_estudio(ws, token, project, estudio, formatos, informe, propuesta, con_y_sin,
-                                                  perfil, avisos) if estudio else []
+                                                  perfil, avisos, plazo=plazo) if estudio else []
     # 027:RF-49: cada formato frente al entregado del mismo código, si hay corpus de ejemplos.
     from ..asistente.ejemplos_pide import comparar_formatos, ultimo_ejemplos
     from ..pide import FORMATOS
@@ -5743,11 +5744,12 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
             'informes_planeamiento': informes_planeamiento,                      # 072:RF-13, RF-14
-            'comparacion_formatos': comparacion, 'procedencia_capex': procedencia_capex}
+            'comparacion_formatos': comparacion, 'procedencia_capex': procedencia_capex,
+            'plazo': plazo}                                                      # 072:RF-29
 
 
 def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, formatos: dict, informe: dict, propuesta: dict,
-                          con_y_sin: dict, perfil: dict, avisos: list[str]) -> list[str]:
+                          con_y_sin: dict, perfil: dict, avisos: list[str], *, plazo: str | None = None) -> list[str]:
     """Un documento por módulo del mismo estudio (072:RF-4, RF-17, RF-21). Un modelo que falte no pierde el cálculo."""
     from ..informes_planeamiento import DatosPlaneamiento, escribir_modulos
 
@@ -5761,7 +5763,10 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
                               modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {},
                               procedencia_capex=propuesta.get('procedencia_capex'),
                               alternativas_escalera=alternativas_de_la_escalera(ws, project))    # 042:RF-58
-    hechos, fallos = escribir_modulos(ws.out_dir, token, datos)
+    from ..estudio_planeamiento import ENTREGABLE_DE
+
+    hechos, fallos = escribir_modulos(ws.out_dir, token, datos,
+                                      entregables={ENTREGABLE_DE['largo_plazo']} if plazo == 'largo_plazo' else None)
     avisos.extend(fallos)
     return hechos
 
@@ -13062,3 +13067,40 @@ def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     if resultado['umbrales']:
         ctx.log(f"Asistente: umbrales por tarea {resultado['umbrales']} (027:RF-38)")
     return resultado
+
+
+def planeamiento_tipos(anio_presentacion: int | None = None) -> dict:
+    """072:RF-29 a RF-32, RF-37: los tres tipos de análisis para la web, con la metodología y el perfil activo.
+
+    Sin año en la petición se usa el del perfil (``planificacion.anio_presentacion``); sin ninguno, los años van solo
+    relativos al año 00. La web no copia ninguna de estas reglas: las lee de aquí.
+    """
+    from ..escalera_optima import ESCALON_DE, ESCALONES, OBRAS_DE_LARGO_PLAZO, periodo_de_corto_plazo
+    from ..estudio_planeamiento import EstudioError, tipos_de_analisis
+    from ..informes_planeamiento import MODULOS
+    from ..perfil_empresa import datos_perfil
+
+    perfil = datos_perfil()
+    if anio_presentacion is None:
+        anio_presentacion = anio_presentacion_del_perfil(perfil)
+    metodologia = json.loads((project_root() / 'config' / 'pide_universal_2017.json').read_text(encoding='utf-8'))
+    largo = {ESCALON_DE.get(e, e) for e in OBRAS_DE_LARGO_PLAZO}
+    try:
+        tipos = tipos_de_analisis(
+            metodologia, periodo_corto=periodo_de_corto_plazo(perfil),
+            modulos=[{'clave': m.clave, 'entregable': m.entregable, 'titulo': m.titulo, 'formatos': m.formatos}
+                     for m in MODULOS],
+            obras_corto=[e for e in ESCALONES if e not in largo],
+            obras_largo=[e for e in ESCALONES if e in largo] + sorted(largo - set(ESCALONES)),
+            anio_presentacion=anio_presentacion)
+    except EstudioError as exc:
+        raise UserError(f'Tipos de análisis: {exc}') from exc
+    return tipos | {'anio_presentacion_perfil': anio_presentacion_del_perfil(perfil)}
+
+
+def anio_presentacion_del_perfil(perfil: dict | None = None) -> int | None:
+    """072:RF-36: el año de presentación del perfil activo, si lo declara como entero."""
+    from ..perfil_empresa import datos_perfil
+
+    valor = ((datos_perfil() if perfil is None else perfil).get('planificacion') or {}).get('anio_presentacion')
+    return valor if type(valor) is int else None

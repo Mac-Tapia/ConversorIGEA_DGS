@@ -19,6 +19,7 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
+import { DESTINO, TipoDeAnalisis, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva, esProducto } from '../../shared/edicion';
 import { FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
@@ -170,6 +171,10 @@ export function CargasTab() {
   const [eco, setEco] = useState<Record<string, string>>(
     Object.fromEntries([...COSTOS, ...TEC].map(([k, , v]) => [k, v])));
   const toast = useToast();
+  // 072:RF-29: corto plazo, PIDE o largo plazo; el último elegido en este navegador, si se puede leer.
+  const [tipo, setTipo] = useState(tipoGuardado);
+  const [anioPresentacion, setAnioPresentacion] = useState('');
+  const { tipos, error: errorTipos } = useTiposAnalisis(anioPresentacion);
 
   const hayNuevas = Boolean(nuevas || nueva);
   const pfBusy = Boolean(active.powerfactory);
@@ -372,6 +377,21 @@ export function CargasTab() {
     ? 'Verifique antes la convergencia (3.0) o ajuste a la máxima en el paso 2.'
     : !flujo.converge ? `El último flujo del proyecto (${flujo.fuente}) no converge: corríjalo y vuelva a verificar.` : '';
   const quien = order.length === 1 ? order[0] : `${order.length} alimentadores`;
+  // 072:RF-33: lo que consta de cada paso, con los trabajos de este proyecto en la sesión.
+  const delProyecto = (kind: string) => todos.some((j) => j.kind === kind && j.status === 'done'
+    && (j.result as { project?: string } | null)?.project === project);
+  const ultimoPide = todos.filter((j) => j.kind === 'pide' && j.status === 'done'
+    && (j.result as { project?: string } | null)?.project === project).pop();
+  const plazoPide = (ultimoPide?.result as { plazo?: string | null; modo?: string } | null) ?? null;
+  const estadoPasos: EstadoPasos = {
+    proyecto: Boolean(current), alimentadores: order.length > 0,
+    calibrado: Boolean(baseJob) && informesBase.some((i) => !i.error && !i.no_empezado),
+    cargas: resultado?.informe.project === project && resultado?.informe.modo !== 'simular',
+    conProyecto: Boolean(escalera || conProyecto) || delProyecto('obras_aplicar'),
+    informes: todos.some((j) => (j.kind === 'informe_estudio' || j.kind === 'informe_factibilidad') && j.status === 'done'),
+    pide: Boolean(plazoPide) && plazoPide?.plazo !== 'largo_plazo',
+    largo: plazoPide?.plazo === 'largo_plazo',
+  };
 
   return (
     <div className="module">
@@ -380,7 +400,11 @@ export function CargasTab() {
         demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</p>
       <PfWarning />
 
-      <div className="step-box">
+      <TipoDeAnalisis tipo={tipo} onTipo={(t) => { setTipo(t); guardarTipo(t); }}
+        anio={anioPresentacion} onAnio={setAnioPresentacion} tipos={tipos} error={errorTipos}
+        estado={estadoPasos} planificacion={betaActiva(health, 'pide')} />
+
+      <div className="step-box" id={DESTINO.proyecto} tabIndex={-1}>
         <h3>1 · Proyecto de DIgSILENT</h3>
         <div className="row">
           <button className="btn" disabled={pfBusy} onClick={() => startJob(() => api.pfProjects(ws.id))}>
@@ -485,7 +509,7 @@ export function CargasTab() {
       </div>
 
       <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <div className="step-box">
+      <div className="step-box" id={DESTINO.calibracion} tabIndex={-1}>
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
           <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
@@ -526,7 +550,7 @@ export function CargasTab() {
         </>}
       </div>
 
-      <div className="step-box">
+      <div className="step-box" id={DESTINO.nuevas} tabIndex={-1}>
         <h3>3 · Integración de nuevas</h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
           <p className="muted">Sobre la red calibrada y con el flujo convergido. Las tres partes son optativas: use las que
@@ -656,7 +680,7 @@ export function CargasTab() {
       </>}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
-      <div className="step-box">
+      <div className="step-box" id={DESTINO.obras} tabIndex={-1}>
         <h3>4 · Obras y estudios</h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : !order.length
           ? <p className="muted">Marque al menos un alimentador en el paso 2.</p> : <>
@@ -669,16 +693,19 @@ export function CargasTab() {
             <h4>4.3 · Transferencia de carga</h4>
             <TransferenciaPF project={project} feeders={order} />
             {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}
+            {/* 072:RF-33: el destino de «Ir al paso» de los informes, sin cambiar su título. */}
+            <span id={DESTINO.informes} tabIndex={-1} />
             <h4>4.4 · Informes</h4>
             <InformesPF project={project} feeders={order} />
           </>}
       </div>
 
       {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
-      {betaActiva(health, 'pide') && <div className="step-box">
+      {betaActiva(health, 'pide') && <div className="step-box" id={DESTINO.planificacion} tabIndex={-1}>
         <h3>{esProducto(health) ? '5 · Planificación PIDE' : '5 · Planificación PIDE y gemelo digital'} <MarcaBeta clave="pide" /></h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
-          : <GemeloPIDE project={project} feeders={order} />}
+          : <GemeloPIDE project={project} feeders={order} plazo={tipo} anio={anioPresentacion}
+            onAnio={setAnioPresentacion} tipos={tipos} />}
       </div>}
       </fieldset>
 

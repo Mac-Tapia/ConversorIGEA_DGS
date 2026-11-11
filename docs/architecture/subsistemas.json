@@ -277,6 +277,7 @@
     "validacion_cruzada.py",
     "datos_por_palabra.py",
     "clasificador.py",
+    "clasificador_vectores.py",
     "modelos_en_uso.py",
     "ollama.py"
    ]

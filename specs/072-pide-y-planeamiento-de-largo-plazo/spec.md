@@ -105,6 +105,35 @@ archivo no concede aceptación científica ni reemplaza una revisión humana.
   sin COyM queda vacío, con su hueco nombrado (RF-16). (Revisión de la 076, fila `formatos_pide-012`, 2026-11-03: la propuesta
   pasaba siempre el COyM vacío y la columna quedaba en blanco aunque el perfil lo diera.)
 
+### Tipo de análisis en la web
+
+Usuario, 2026-11-11: «desde la web se debe diferenciar si va a ser un análisis de corto plazo, el PIDE o el planeamiento de
+largo plazo, según la normativa», «cada uno bien hilado y robusto», con los botones o pasos necesarios. Hasta ahora la web
+llegaba a los tres por pasos sueltos (4 · Obras y estudios, 5 · Planificación PIDE) y un único «Planificar» escribía siempre
+los dos entregables.
+
+- RF-29: EL SISTEMA hará que el operador elija en la web, de forma explícita, uno de tres tipos de análisis: corto plazo,
+  PIDE o planeamiento de largo plazo.
+- RF-30: EL SISTEMA dará el horizonte de cada tipo desde la metodología y el perfil, sin años en el código: el corto plazo,
+  del año 00 al periodo de corto plazo (098:RF-37); el PIDE, los años de detalle (art. 11.2); el largo plazo, los años de
+  largo plazo (arts. 5.1 y 9); y, DONDE haya año de presentación, el año de calendario de cada uno (RF-1).
+- RF-31: EL SISTEMA dará las obras que admite cada tipo según 098:RF-50: el corto plazo, solo las de implementación
+  inmediata; el PIDE, las de su periodo empezando por la de corto plazo (098:RF-37); el largo plazo, además, las integrales.
+- RF-32: EL SISTEMA dará los entregables de cada tipo: el corto plazo, los informes de estudio y de factibilidad (spec 017)
+  con su libro (spec 066); el PIDE, los módulos de los arts. 11 a 17 con F08 a F15; el largo plazo, los de los arts. 6 a 10
+  con F01 a F07; los artículos y formatos, los de la metodología.
+- RF-33: EL SISTEMA mostrará los pasos de cada tipo en su orden, cada uno con su estado según los trabajos del proyecto y un
+  acceso al paso de la web que lo hace, sin quitar ni duplicar ningún paso.
+- RF-34: CUANDO se planifique como largo plazo, EL SISTEMA escribirá solo los módulos del plan de largo plazo.
+- RF-35: SI se planifica como largo plazo con la aplicación de obras pedida, ENTONCES EL SISTEMA lo rechazará antes de
+  encolar: el plan plantea las obras, no las aplica en «Con proyecto».
+- RF-36: SI se planifica como PIDE o largo plazo sin año de presentación en la petición ni en el perfil, ENTONCES EL SISTEMA
+  lo rechazará antes de encolar, diciendo que falta el año de presentación.
+- RF-37: EL SISTEMA dirá con los tipos de análisis la norma de la que salen y su estado jurídico, sin presentarla como
+  vigente mientras la metodología la marque como proyecto.
+- RF-38: MIENTRAS el tipo elegido sea PIDE y no conste un «Con proyecto» del proyecto, EL SISTEMA avisará que el PIDE parte
+  de la obra de corto plazo (098:RF-37), sin bloquear.
+
 ### Asistente
 
 - RF-18: EL SISTEMA dará al asistente herramientas para ejecutar cada paso del estudio por las mismas rutas que la web, con

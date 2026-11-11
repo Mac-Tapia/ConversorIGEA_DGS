@@ -253,6 +253,8 @@ class PideIn(BaseModel):
     implementar: bool = True
     anio_presentacion: int | None = None
     formato_01: str | None = None
+    # 072:RF-29, RF-34: el tipo de análisis elegido en la web; sin él, los dos entregables, como siempre.
+    plazo: Literal['pide', 'largo_plazo'] | None = None
 
 
 class PideFuentesRespuesta(BaseModel):
@@ -2074,11 +2076,25 @@ def create_app(
                           lambda ctx: services.pide_anual_ejecutar(ws, ctx, plan), lane='powerfactory')
         if body.anual is not None:
             raise HTTPException(422, 'Seleccione el modo anual para usar sus fuentes y obras.')
-        return submit(ws, 'pide', f'PIDE · {project}',
+        if body.plazo == 'largo_plazo' and body.implementar:                   # 072:RF-35
+            raise HTTPException(422, 'El planeamiento de largo plazo plantea las obras; no las aplica en «Con proyecto».')
+        if body.plazo and body.anio_presentacion is None and services.anio_presentacion_del_perfil() is None:
+            raise HTTPException(422, 'Falta el año de presentación del estudio (072:RF-36).')
+        titulo = {'largo_plazo': 'Plan de largo plazo', 'pide': 'PIDE'}.get(body.plazo or '', 'PIDE')
+        return submit(ws, 'pide', f'{titulo} · {project}',
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
                           capex=body.capex, implementar=body.implementar,
-                          anio_presentacion=body.anio_presentacion, formato_01=body.formato_01),
+                          anio_presentacion=body.anio_presentacion, formato_01=body.formato_01,
+                          **({'plazo': body.plazo} if body.plazo else {})),
                       lane='powerfactory')
+
+    @app.get('/api/planeamiento/tipos')
+    def planeamiento_tipos(anio_presentacion: int | None = Query(None, ge=1, le=9999)) -> dict:
+        """072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables."""
+        try:
+            return services.planeamiento_tipos(anio_presentacion)
+        except UserError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_aprender(wid: str, body: dict[str, Any]) -> dict:

@@ -8,6 +8,9 @@ migración de tensión, transferencia o PIDE; la lista sale del perfil
 Usa el mismo codificador Transformer que las órdenes, con dos cabezas. Aprende de
 descripciones sintéticas de cada subtipo, de los informes que genera la web y de cada
 corrección del operador (RF-15), y se promueve con las mismas puertas.
+
+026:RF-36: una segunda arquitectura, elegible al entrenar, en ``clasificador_vectores.py`` (vectores de un codificador
+preentrenado y regresión logística). ``cargar`` abre la que esté en uso según su ``modelo.json``.
 """
 from __future__ import annotations
 
@@ -37,6 +40,7 @@ from .transformer import (
     liberar_gpu,
     lotes,
     promover,
+    raiz_modelos,
     rellenar,
     version_promovida,
 )
@@ -44,6 +48,8 @@ from .transformer import (
 from ..contratos_aprendizaje import TIPOS_INFORME
 METRICAS_INFORME = ('acierto_tipo', 'acierto_subtipo')
 SEMILLA_PRUEBA = 7919
+#: 026:RF-36: las arquitecturas que se pueden entrenar, con el nombre que queda en el registro.
+ARQUITECTURAS = {'transformer': 'transformer_informes', 'vectores': 'vectores_e5_logistica'}
 
 #: Una carga nueva puede ser una factibilidad o un estudio eléctrico; cada tipo con sus frases.
 #: Con las mismas frases y el tipo solo en un prefijo (a veces vacío), el clasificador decía
@@ -251,15 +257,35 @@ def reales() -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
     return entrenar_, prueba
 
 
-_cache: dict[str, tuple[str, ClasificadorInformes]] = {}
+def reales_de_entrenamiento_con_grupo() -> list[tuple[str, str, str, str]]:
+    """026:RF-40: los de entrenamiento con su grupo, para validar con un grupo fuera sin tocar los de prueba."""
+    filas = _validos()
+    de_prueba = _grupos_de_prueba(filas)
+    return [(f['texto'], f['tipo'], f['subtipo'], _grupo(f)) for f in filas if _grupo(f) not in de_prueba]
 
 
-def cargar() -> ClasificadorInformes | None:
+_cache: dict[str, tuple[str, Any]] = {}
+
+
+def _arquitectura_de(carpeta: Path) -> str | None:
+    ruta = Path(carpeta) / 'modelo.json'
+    return json.loads(ruta.read_text(encoding='utf-8')).get('arquitectura') if ruta.is_file() else None
+
+
+def cargar() -> Any:
+    """El clasificador en uso, de la arquitectura que sea (026:RF-41); ``None`` si no hay ninguno."""
     version = version_promovida('informes')
     if version is None:
         return None
     if 'informes' in _cache and _cache['informes'][0] == version:
         return _cache['informes'][1]
+    from . import clasificador_vectores as cv
+
+    carpeta = raiz_modelos('informes') / version
+    if _arquitectura_de(carpeta) == cv.ARQUITECTURA:
+        modelo = cv.abrir(carpeta, version)
+        _cache['informes'] = (version, modelo)
+        return modelo
     meta, pesos = cargar_pesos('informes', version)
     cfg = Configuracion(**meta['cfg'])
     red = construir_red(len(meta['simbolos']) + 3, {'tipo': len(TIPOS_INFORME), 'subtipo': len(meta['subtipos'])},
@@ -331,8 +357,13 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
     return {'version': version, 'promovido': not fallos, 'fallos': fallos, **m}
 
 
-def guardar_candidato(modelo: ClasificadorInformes, carpeta: Path) -> None:
+def guardar_candidato(modelo: Any, carpeta: Path) -> None:
     """Pesos, metadatos y predicciones de reapertura de un candidato, fuera de los modelos en uso."""
+    from . import clasificador_vectores as cv
+
+    if isinstance(modelo, cv.ClasificadorVectores):                                  # 026:RF-37
+        cv.guardar(modelo, carpeta)
+        return
     carpeta.mkdir(parents=True, exist_ok=False)
     modulo_torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
     (carpeta / 'modelo.json').write_text(json.dumps({
@@ -346,6 +377,10 @@ def guardar_candidato(modelo: ClasificadorInformes, carpeta: Path) -> None:
 def verificar_reapertura(carpeta: Path) -> dict[str, Any]:
     """El candidato reabierto en un proceso nuevo da lo mismo que al guardarlo."""
     carpeta = Path(carpeta)
+    from . import clasificador_vectores as cv
+
+    if _arquitectura_de(carpeta) == cv.ARQUITECTURA:                                   # 026:RF-39
+        return cv.verificar_reapertura(carpeta)
     meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
     prueba = json.loads((carpeta / 'readback.json').read_text(encoding='utf-8'))
     cfg = Configuracion(**meta['cfg'])
@@ -361,21 +396,28 @@ def verificar_reapertura(carpeta: Path) -> dict[str, Any]:
 
 
 def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = None, minimo_subtipo: float = 0.9,
-                       log: Callable[[str], None] = lambda _m: None, reabrir=None) -> dict[str, Any]:
+                       log: Callable[[str], None] = lambda _m: None, reabrir=None,
+                       arquitectura: str = 'transformer') -> dict[str, Any]:
     """El clasificador por el registro y la misma puesta en uso que las órdenes (067:RF-26, RF-27).
 
     Las mismas puertas que ``entrenar_y_promover``. La tarea decía que se reentrenaba y no se hacía; sin
     informes reales en la prueba solo mediría sus propias plantillas, y eso no es evidencia de nada.
+
+    026:RF-39: ``arquitectura='vectores'`` entrena el de ``clasificador_vectores`` con las mismas puertas, la misma
+    prueba y la misma reapertura; solo cambia cómo se entrena y se guarda.
     """
     from .modelos_en_uso import aplicar_decision
 
+    if arquitectura not in ARQUITECTURAS:
+        raise ValueError(f'arquitectura del clasificador desconocida: {arquitectura!r} (hay {sorted(ARQUITECTURAS)})')
+    algoritmo = ARQUITECTURAS[arquitectura]
     ent, prueba_real = reales()
     if not prueba_real:
         motivo = (f'sin informes reales en la prueba ({len(ent)} para entrenar): el clasificador no se entrena '
                   'y sigue el que está en uso')
         log(f'Clasificador: {motivo}')
         c = registro.registrar_candidato(
-            'clasificador', model_manifest={'algorithm': 'transformer_informes', 'training_completed': False},
+            'clasificador', model_manifest={'algorithm': algoritmo, 'training_completed': False},
             dataset_manifest={'informes_reales': len(ent)}, metrics={},
             decision={'status': 'BLOQUEADO_POR_DATOS', 'gates': {'approved': False}, 'fallos': [motivo]},
             smoke_reload={'ok': False, 'motivo': 'no entrenado'})
@@ -385,8 +427,23 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
     subtipos = subtipos_del_perfil()
     subtipos += sorted({s for _t, _tp, s in ent + prueba_real} - set(subtipos))
     prueba = generar(subtipos, por_subtipo=25, semilla=SEMILLA_PRUEBA) + prueba_real
-    datos, quitados = _sin_textos_de_prueba(generar(subtipos, semilla=cfg.semilla) + ent * 5, prueba)
-    candidato = entrenar(datos, subtipos, cfg, log)
+    eleccion: dict[str, Any] | None = None
+    if arquitectura == 'vectores':
+        from . import clasificador_vectores as cv
+
+        plantillas, quitados = _sin_textos_de_prueba(
+            generar(subtipos, por_subtipo=cv.PLANTILLAS_POR_SUBTIPO, semilla=cv.SEMILLA_PLANTILLAS), prueba)
+        vistos = {' '.join(t.lower().split()) for t, _tp, _s in prueba}
+        todos = reales_de_entrenamiento_con_grupo()
+        con_grupo = [f for f in todos if ' '.join(f[0].lower().split()) not in vistos]      # 070:RF-65
+        quitados += len(todos) - len(con_grupo)
+        candidato, eleccion = cv.entrenar(con_grupo, plantillas, subtipos, log=log)
+        manifiesto = {'algorithm': algoritmo, 'arquitectura': cv.ARQUITECTURA, 'codificador': candidato.codificador,
+                      'rasgos': cv.RASGOS, 'hiper': candidato.hiper}
+    else:
+        datos, quitados = _sin_textos_de_prueba(generar(subtipos, semilla=cfg.semilla) + ent * 5, prueba)
+        candidato = entrenar(datos, subtipos, cfg, log)
+        manifiesto = {'algorithm': algoritmo, 'cfg': asdict(cfg)}
     m = evaluar(candidato, prueba)
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
@@ -407,19 +464,21 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
         fallos.append('falló la reapertura en un proceso nuevo')
     aprobado = not fallos
     c = registro.registrar_candidato(
-        'clasificador', model_manifest={'algorithm': 'transformer_informes', 'cfg': asdict(cfg),
-                                        'subtipos': subtipos, 'training_completed': True},
+        'clasificador', model_manifest={**manifiesto, 'subtipos': subtipos, 'training_completed': True},
         dataset_manifest={'informes_reales': len(ent) + len(prueba_real), 'prueba_real': len(prueba_real),
                           'origenes': origenes_de_informes(),                                                     # 085:RF-25
                           'calidades': {'plantillas': 'silver_deterministic', 'informes': 'gold_generado_o_corregido'},   # 070:RF-66
                           'textos_de_prueba_quitados': quitados},
-        metrics={'candidato': m, 'en_uso': del_actual, 'reales': m_reales},
+        metrics={'candidato': m, 'en_uso': del_actual, 'reales': m_reales,
+                 **({'eleccion_grupo_fuera': eleccion} if eleccion is not None else {})},          # 026:RF-40
         decision={'status': 'PROMOVIDO' if aprobado else 'RECHAZADO', 'gates': {'approved': aprobado}, 'fallos': fallos},
         smoke_reload=smoke,
-        artifacts=[p for p in (final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')) if p.is_file()])
+        artifacts=[p for p in (final / n for n in ('pesos.pt', 'pesos.npz', 'modelo.json', 'readback.json'))
+                   if p.is_file()])
     uso = aplicar_decision('clasificador', c)
     log(f"Clasificador: {'en uso ' + str(uso['version']) if uso['promovido'] else 'no pasa: ' + uso['motivo']}")
-    return {'entrenado': True, 'status': c['status'], 'candidato': c, 'fallos': fallos, **m, **uso}
+    return {'entrenado': True, 'status': c['status'], 'candidato': c, 'fallos': fallos, 'arquitectura': arquitectura,
+            'reales': m_reales, **({'eleccion_grupo_fuera': eleccion} if eleccion is not None else {}), **m, **uso}
 
 
 def texto_de_docx(ruta: Path) -> str:

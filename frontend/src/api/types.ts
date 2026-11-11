@@ -1902,6 +1902,33 @@ export interface PideResultado {
   informes_planeamiento?: string[];
   huecos?: { formato: string; campo: string | null; filas: number; motivo: string }[];
   con_y_sin?: { hueco?: string; van?: number; tir?: number | null; avisos?: string[] };
+  /** 072:RF-29: el tipo de análisis con que se planificó; sin él, los dos entregables. */
+  plazo?: 'pide' | 'largo_plazo' | null;
+}
+
+/** 072:RF-29 a RF-32, RF-37: los tres tipos de análisis, como los da `GET /api/planeamiento/tipos`. */
+export type ClaveTipoAnalisis = 'corto_plazo' | 'pide' | 'largo_plazo';
+
+export interface TipoAnalisis {
+  clave: ClaveTipoAnalisis;
+  titulo: string;
+  descripcion: string;
+  articulos: { numero: number; titulo: string }[];
+  anios: { relativo: number; calendario: number | null }[];
+  formatos: string[];
+  entregables: { clave: string; titulo: string; formatos: string[] }[];
+  obras_admitidas: { codigo: string; titulo: string }[];
+  obras_excluidas: { codigo: string; titulo: string }[];
+  aplica_obras: boolean;
+}
+
+export interface TiposAnalisis {
+  norma: { acto: string; titulo: string; estado_juridico: string; vigente: boolean; nota: string };
+  estudio: { anio_presentacion: number; anio_base: number } | null;
+  periodo_corto: number;
+  ciclo_anios: number | null;
+  anio_presentacion_perfil: number | null;
+  tipos: TipoAnalisis[];
 }
 
 /** Spec 026: el plan que arma el asistente a partir de una orden escrita. */
