@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 315 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 50 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 421 |
+| Pruebas | `tests/` | 422 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-102 specs con 3348 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3354 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -39,8 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 42 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
+| sin capa | — | 1 |
 
-304 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+305 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -479,6 +480,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `validacion_cruzada.py` | Apl | 075 | Validación cruzada con las órdenes confirmadas: familias de frases casi iguales, reparto en 5 vueltas estratificado por tarea, cabezas por vuelta… |
 | `datos_por_palabra.py` | Apl | 026, 069 | Etiquetas de los datos de una orden y su decisión por palabra, comunes a los dos modelos de órdenes. |
 | `clasificador.py` | Apl | 026 | Clasificador de informes en dos niveles (estudio o factibilidad, y subtipo del perfil) sobre el mismo codificador. |
+| `clasificador_vectores.py` | — | 026 | Segunda arquitectura del clasificador de informes: vectores del codificador preentrenado (revisión fija, caché local) del informe y de su línea… |
 | `modelos_en_uso.py` | Apl | 067, 085 | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. |
 | `ollama.py` | Apl | 026 | Cliente del modelo local de Ollama: solo direcciones de la máquina, tareas como herramientas con respuesta JSON, respuestas con cita y embeddings. |
 

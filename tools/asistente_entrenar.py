@@ -26,6 +26,11 @@ mide fuera de grupo y el modelo final se entrena con todas. Sin ella, las confir
 ``--afinar`` (079:RF-61), con la vía gobernada: afina las últimas capas del codificador junto con las cabezas, con parada por
 selección. Sin ella, solo las cabezas (079:RF-2). Lee el codificador de la caché del proceso, sin red: ver 079:RF-58 en su plan.
 
+``--arquitectura vectores`` (026:RF-36, RF-39), con ``--solo informes``: el clasificador de informes por vectores del
+codificador preentrenado y regresión logística, con las mismas puertas y la misma reapertura. Sin ella, el de siempre.
+
+    python tools/asistente_entrenar.py --output-json informes.json --solo informes --arquitectura vectores
+
 Códigos de salida: 0 hecho, 2 sin PyTorch o sin GPU, 1 error.
 """
 from __future__ import annotations
@@ -76,6 +81,8 @@ def main(argv=None) -> int:
     p.add_argument('--codificador', choices=('base', 'large'), default='base',
                    help='Con --integral: el codificador de las órdenes, con su revisión fija (069:RF-33)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
+    p.add_argument('--arquitectura', choices=('transformer', 'vectores'), default='transformer',
+                   help='Con --solo informes: la arquitectura del clasificador de informes (026:RF-36)')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
     salida.parent.mkdir(parents=True, exist_ok=True)
@@ -86,6 +93,8 @@ def main(argv=None) -> int:
         p.error('--validacion-cruzada solo vale con --integral')
     if args.afinar and not args.integral:                                            # 079:RF-62
         p.error('--afinar solo vale con --integral')
+    if args.arquitectura != 'transformer' and (args.solo != 'informes' or args.evaluar or args.dataset_v2):   # 026:RF-39
+        p.error('--arquitectura solo vale con --solo informes')
     if args.afinar and min(args.afinar_capas, args.afinar_lote, args.afinar_epocas, args.afinar_pasos) < 1:
         p.error('las opciones de --afinar deben ser positivas')
 
@@ -216,7 +225,8 @@ def main(argv=None) -> int:
 
                 with turno_gpu('asistente-via-antigua'):
                     out['informes'] = clasificador.entrenar_gobernado(
-                        RegistroModelo(almacen.raiz() / 'model_registry'), salida.parent / (salida.stem + '_informes'), log=_log)
+                        RegistroModelo(almacen.raiz() / 'model_registry'), salida.parent / (salida.stem + '_informes'), log=_log,
+                        arquitectura=args.arquitectura)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         out, codigo = {'error': repr(exc), 'traza': traceback.format_exc()}, 1

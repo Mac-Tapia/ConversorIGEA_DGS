@@ -69,3 +69,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_asistente_clasificador.py` (026:RF-33, RF-34) en verde.
 - [x] T14. Puerta propia de los informes reales en las dos vías de entrenamiento. (RF-35)
       Hecho cuando: `tests/test_asistente_clasificador.py` (026:RF-35) en verde.
+- [x] T15. Clasificador de informes por vectores como arquitectura elegible, guardado sin pickle, con las mismas puertas,
+      elección con un grupo fuera solo en entrenamiento y carga según la arquitectura en uso. (RF-36 a RF-41)
+      Hecho cuando: `tests/test_asistente_clasificador_vectores.py` (026:RF-36 a RF-41) en verde y el ensayo corto con los
+      informes reales (entrenar, guardar y reabrir en un proceso nuevo) da las mismas predicciones.
