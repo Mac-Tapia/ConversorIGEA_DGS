@@ -193,6 +193,29 @@ def puerta_commit(raiz: Path = RAIZ) -> int:
     return 0
 
 
+#: La rama que integra: lo que llega a ella pasa la suite completa con los datos reales (102:RF-18).
+RAMA_PRINCIPAL = 'main'
+
+
+def revisiones_por_destino(lineas: Iterable[str]) -> tuple[list[str], list[str]]:
+    """102:RF-18: de las líneas del gancho pre-push (``ref_local sha_local ref_remota sha_remota``), las revisiones que
+    van a la rama principal y los nombres de las ramas de trabajo.
+
+    El usuario (2026-11-10): «cada vez que voy a hacer un trabajo voy a hacer commit, subir a GitHub y hacer la suite
+    completa; eso no sería viable». La suite completa, ~80 min, se corre al integrar en ``main``, no en cada subida.
+    """
+    a_main, otras = [], []
+    for linea in lineas:
+        partes = linea.split()
+        if len(partes) < 4 or partes[1] == _CERO:      # un borrado de rama no sube código
+            continue
+        if partes[2] == f'refs/heads/{RAMA_PRINCIPAL}':
+            a_main.append(partes[1])
+        else:
+            otras.append(partes[2].removeprefix('refs/heads/'))
+    return a_main, otras
+
+
 def puerta_push(revisiones: Iterable[str], raiz: Path = RAIZ) -> int:
     """102:RF-5 a RF-11. ``revisiones``: las que se suben (de la entrada del gancho pre-push)."""
     revisiones = [r for r in revisiones if r and r != _CERO]
@@ -242,8 +265,13 @@ def main(argv: list[str] | None = None) -> int:
             return puerta_commit()
         if args.push:
             lineas = [] if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read().splitlines()
-            revisiones = [p[1] for p in (linea.split() for linea in lineas) if len(p) >= 2]
-            return puerta_push(revisiones or [_git('rev-parse', 'HEAD').strip()])
+            if not lineas:                        # a mano, sin el gancho: la revisión actual, como al integrar
+                return puerta_push([_git('rev-parse', 'HEAD').strip()])
+            a_main, otras = revisiones_por_destino(lineas)
+            for rama in otras:
+                print(f'Puerta de la subida: {rama} es una rama de trabajo; sube sin la suite completa, que se exige al '
+                      f'integrar en {RAMA_PRINCIPAL} (102:RF-18). GitHub Actions corre la sintética.')
+            return puerta_push(a_main) if a_main else 0
         return puerta_ci()
     except PuertaError as exc:
         print(f'Puerta de calidad: {exc}')

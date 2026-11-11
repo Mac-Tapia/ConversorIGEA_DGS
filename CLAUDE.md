@@ -155,9 +155,11 @@ CSG_EQUIPMENT="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BD_Equipo_V
 ```
 
 La puerta de calidad (spec 102) lo exige: el gancho `pre-commit` corre las pruebas de gobierno y las del commit, y
-`pre-push` la suite completa sin fallidas ni omitidas, con las variables de `config/suite_completa.json` (local, fuera
-de git; ejemplo en `config/suite_completa.example.json`). GitHub Actions corre la suite sintética y el frontend.
-Se activan una vez por clon con `python tools/generar_arquitectura.py --instalar-ganchos`.
+`pre-push` la suite completa sin fallidas ni omitidas (~80 min), con las variables de `config/suite_completa.json`
+(local, fuera de git; ejemplo en `config/suite_completa.example.json`), **solo al subir a `main`** (102:RF-18). El
+trabajo diario va en una rama propia y sube sin esperar; GitHub Actions corre allí la sintética y el frontend, y la suite
+completa se corre una vez al integrar en `main`. Se activan una vez por clon con
+`python tools/generar_arquitectura.py --instalar-ganchos`.
 
 Sin las tres variables `CSG_*`, la mayoría de las pruebas de integración se omiten en
 silencio y la suite «pasa» sin haber probado nada real. `CSG_TXT_DIR` no basta. La suite se da

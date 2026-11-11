@@ -185,3 +185,21 @@ def test_los_datos_reales_no_van_a_github():
     assert not any(v in flujo for v in PC.VARIABLES)
     salida = subprocess.run(['git', 'check-ignore', str(PC.FICHERO_VARIABLES)], cwd=RAIZ, capture_output=True, text=True)
     assert salida.returncode == 0
+
+
+def test_una_rama_de_trabajo_sube_sin_suite_y_main_la_exige(monkeypatch, capsys):
+    """102:RF-5, 102:RF-18 — la suite completa, solo para lo que llega a main; un borrado de rama no sube nada."""
+    sha_a, sha_b, cero = 'a' * 40, 'b' * 40, '0' * 40
+    lineas = [f'refs/heads/trabajo/x {sha_a} refs/heads/trabajo/x {cero}',
+              f'refs/heads/main {sha_b} refs/heads/main {cero}',
+              f'(delete) {cero} refs/heads/vieja {sha_a}']
+    assert PC.revisiones_por_destino(lineas) == ([sha_b], ['trabajo/x'])
+    corridas = []
+    monkeypatch.setattr(PC, 'puerta_push', lambda revs, *a, **k: corridas.append(list(revs)) or 0)
+    monkeypatch.setattr(PC.sys, 'stdin', __import__('io').StringIO(lineas[0] + '\n'))
+    assert PC.main(['--push']) == 0 and corridas == []
+    assert 'rama de trabajo' in capsys.readouterr().out
+    monkeypatch.setattr(PC.sys, 'stdin', __import__('io').StringIO('\n'.join(lineas[:2]) + '\n'))
+    assert PC.main(['--push']) == 0 and corridas == [[sha_b]]
+    flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    assert "branches: ['**']" in flujo

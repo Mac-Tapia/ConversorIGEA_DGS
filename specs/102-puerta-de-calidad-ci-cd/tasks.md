@@ -19,3 +19,5 @@
       suite sintética 8 615, 0 fallidas, 188 omitidas por datos de la distribuidora o GPU; frontend 93 en verde.
       Por el camino la puerta detuvo y se corrigieron: cuatro fallas de la suite completa (048:RF-9, 076:RF-4, una
       intermitente de JSON a medio escribir y 086:RF-54) y las 71 que solo fallaban en GitHub (102:RF-17).
+- [x] T6. Las ramas de trabajo suben sin la suite completa; la exige la integración en `main`. (RF-5, RF-18)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.

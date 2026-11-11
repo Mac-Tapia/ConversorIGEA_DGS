@@ -28,7 +28,7 @@ Antes del commit
 
 Antes de subir
 
-- RF-5: CUANDO se sube una rama, EL SISTEMA correrá la suite completa con todas las variables de datos reales.
+- RF-5: CUANDO se sube a la rama principal (`main`), EL SISTEMA correrá la suite completa con todas las variables de datos reales (ver RF-18).
 - RF-6: EL SISTEMA leerá las variables de datos reales de un fichero local fuera de git, o del entorno.
 - RF-7: SI falta una variable de datos reales o su ruta no existe, ENTONCES EL SISTEMA detendrá la subida y la nombrará.
 - RF-8: SI alguna prueba falla, ENTONCES EL SISTEMA detendrá la subida y nombrará las pruebas que fallan.
@@ -53,6 +53,10 @@ Instalación
   extra `ml`, las herramientas del frontend e Ipopt oficial comprobado por su SHA-256 (048 T3b). SI allí una prueba falla porque no hay GPU CUDA (`SinGPU`), ENTONCES quedará
   omitida con ese motivo; cualquier otro fallo seguirá en rojo, y en la máquina de desarrollo esa regla no se activa.
   (2026-11-10: el primer flujo instalaba solo `requirements.txt` y 71 pruebas fallaban solo en GitHub.)
+- RF-18: CUANDO se sube a una rama de trabajo (cualquiera que no sea `main`), EL SISTEMA dejará subir sin la suite
+  completa; GitHub Actions correrá allí la sintética (RF-12). La suite completa con los datos reales se exige una vez, al
+  integrar en `main`. Usuario (2026-11-10): «cada vez que voy a hacer un trabajo voy a hacer commit, subir a GitHub y
+  hacer la suite completa; eso no sería viable». Nada de esto toca la operación comercial: el operador no usa git.
 
 ## Requisitos no funcionales
 
