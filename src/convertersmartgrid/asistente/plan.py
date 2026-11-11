@@ -16,11 +16,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .interprete import Interpretacion, numero_de, periodo_de
 from ..edicion import tarea_fuera_de_alcance
+from .interprete import Interpretacion, numero_de, periodo_de
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
 from .tareas import EFECTOS, TAREAS, requiere_confirmacion
-
 
 #: 084:RF-25: los verbos de una orden de borrar. «borra la escalera de X» activaba la frase literal de la
 #: escalera y lanzaba justo la obra que se quería quitar.
@@ -112,8 +111,33 @@ def _nombrados(texto: str, opciones: Sequence[str]) -> list[str]:
     return [o for _p, o in sorted(hallados)]
 
 
+#: 069:RF-36: las palabras que unen alimentadores no son alimentadores. «transfiere de CA101 a CHN102» daba «A»
+#: y «junta CA101 con PE104», «CON»: el plan dudaba «“A” no es un alimentador» en una orden correcta (2026-11-11).
+UNIONES_DE_LISTA = frozenset({'a', 'al', 'con', 'de', 'del', 'entre', 'hasta', 'y', 'e'})
+#: 069:RF-36: el texto de estas tareas es el mensaje entero, como el de ``pregunta`` (069:RF-30): se resuelven en la
+#: máquina y un trozo recortado («factibilidad de suministro…» de «solicitud de factibilidad de suministro…») perdía
+#: contexto. ``buscar_internet`` no: el mensaje entero sacaría a la red las palabras de la orden (086:RF-24).
+TAREAS_DE_MENSAJE_ENTERO = frozenset({'pregunta', 'clasificar_informe'})
+
+
 def trozos_lista(valor: str) -> list[str]:
-    return [p.strip() for p in re.split(r',|;|\s+y\s+|\s+e\s+|\s+', valor) if p.strip()]
+    return [p.strip() for p in re.split(r',|;|\s+y\s+|\s+e\s+|\s+', valor)
+            if p.strip() and normalizar(p.strip()) not in UNIONES_DE_LISTA]
+
+
+def ruta_existente(valor: str, texto: str) -> str | None:
+    """069:RF-36: la ruta que existe dentro de un trozo con palabras de más («archivo D:/…xlsx», «D:/…xlsx porfa»).
+
+    Prueba desde cada unidad (``D:/``) hacia atrás, palabra a palabra, para admitir rutas con espacios.
+    """
+    for fuente in (valor, texto):
+        for m in re.finditer(r'[A-Za-z]:[\\/]', fuente):
+            palabras = fuente[m.start():].split(' ')
+            for n in range(len(palabras), 0, -1):
+                candidata = ' '.join(palabras[:n]).strip(' ,.;:"\'«»')
+                if candidata and Path(candidata).exists():
+                    return candidata
+    return None
 
 
 def _patron_grupo(grupo: str) -> str:
@@ -291,6 +315,10 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
         if not valores:
             return None
         if not Path(valores[0]).exists():
+            hallada = ruta_existente(valores[0], texto)                                            # 069:RF-36
+            if hallada:
+                plan.razonamiento.append(f'ruta: «{valores[0]}» → {hallada}.')
+                return hallada
             plan.dudas.append(f'La ruta {valores[0]} no existe en el servidor.')
             return None
         return valores[0]
@@ -316,5 +344,7 @@ def _resolver_dato(tipo: str, valores: list[str], texto: str, vocab: Mapping[str
                 return o
         return next((s for s in lista if normalizar(s) in normalizar(texto)), None)
     if tipo == 'texto':
+        if plan.tarea in TAREAS_DE_MENSAJE_ENTERO:                                                    # 069:RF-36
+            return texto
         return valores[0] if valores else texto
     return valores[0] if valores else None

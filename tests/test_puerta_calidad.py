@@ -257,3 +257,12 @@ def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba_2():
 def test_102_rf21_la_puerta_corre_los_procedimientos():
     """102:RF-21 — las citas de línea de los procedimientos se comprueban en cada commit."""
     assert 'tests/test_procedimientos.py' in PC.GOBIERNO
+
+
+def test_102_rf22_cada_prueba_con_su_guardia_de_gpu(tmp_path):
+    """102:RF-22 — la guardia de la prueba no es la de la máquina: un entrenamiento real no tumba la puerta."""
+    from convertersmartgrid.training_coordinator import ruta_guardia_gpu
+
+    guardia = ruta_guardia_gpu()
+    assert guardia == tmp_path / 'gpu.lock'
+    assert guardia != ruta_guardia_gpu({'LOCALAPPDATA': 'C:/Users/x/AppData/Local'})

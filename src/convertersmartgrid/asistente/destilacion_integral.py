@@ -21,7 +21,7 @@ from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_e
 from .ordenes_fijas import generar as generar_fijas, repartir
 from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de_sellada, selladas
 from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de_079, selladas as selladas_079
-from .sinteticos import Ejemplo, expandir
+from .sinteticos import Ejemplo, expandir, normalizar
 from .tareas import TAREAS, TAREAS_HASTA_069
 from . import ordenes_maestro as ordenes_maestro_085
 from ..runtime_paths import raiz_programa
@@ -461,6 +461,83 @@ def medir_regla_ollama(modelo, seleccion: Sequence[dict], reservados: Sequence[s
                        and tasa_ordenes <= REGLA_ORDENES_MAXIMO)}
 
 
+#: 069:RF-35: decisión del usuario del 2026-11-11: el intérprete ejecuta solo lo que da con confianza sobre su umbral
+#: calibrado; lo demás lo confirma el operador o lo resuelve el modelo local. Más de la mitad debe ejecutarse sola.
+COBERTURA_MINIMA = .5
+PUERTAS_SELECTIVAS = (('acierto_tarea', .98), ('plan_igual', .95), ('cobertura', COBERTURA_MINIMA))
+
+
+def _vocabulario_de(registros: Sequence[dict]) -> dict[str, list[str]]:
+    """Los nombres que el operador tiene cargados, tomados de las etiquetas: el plan los busca ahí (069:RF-35)."""
+    from .plan import trozos_lista
+    vocab: dict[str, set[str]] = defaultdict(set)
+    for r in registros:
+        for a, b, tipo in r['datos']:
+            valor = r['texto'][a:b]
+            if tipo == 'alimentadores':
+                vocab[tipo].update(x.upper() for x in trozos_lista(valor))
+            elif tipo in ('proyecto', 'sistema', 'set'):
+                vocab[tipo].add(valor)
+    return {k: sorted(v) for k, v in vocab.items()}
+
+
+def _plan_canonico(datos: dict) -> dict:
+    return {k: sorted(normalizar(str(x)) for x in v) if isinstance(v, list) else normalizar(str(v))
+            for k, v in datos.items()}
+
+
+def medir_selectiva(modelo, registros: Sequence[dict], umbral: float) -> dict:
+    """069:RF-35: lo que el intérprete ejecuta solo y cómo lo hace, medido como lo ejecuta el plan.
+
+    Cubre lo que da con confianza ≥ ``umbral`` y no es «ninguna». ``acierto_tarea``, sobre lo cubierto;
+    ``plan_igual``, entre lo cubierto con la tarea bien, el plan de sus datos igual al de las etiquetas, con el mismo
+    vocabulario. El F1 por trozo exacto contaba como error «CA101 a CHN102» frente a «CA101» y «CHN102», o
+    «variante sur» frente a «Variante Sur», que el plan resuelve igual (2026-11-11).
+    """
+    from .interprete import Interpretacion
+    from .plan import resolver
+    vocab = _vocabulario_de(registros)
+    cubiertos = bien = igual = 0
+    for r in registros:
+        p = modelo.predecir(r['texto'])
+        if p['tarea'] == NINGUNA or p['confianza'] < umbral:
+            continue
+        cubiertos += 1
+        if p['tarea'] != r['tarea']:
+            continue
+        bien += 1
+        etiquetas: dict[str, list[dict]] = defaultdict(list)
+        for a, b, tipo in r['datos']:
+            etiquetas[tipo].append({'valor': r['texto'][a:b], 'inicio': a, 'fin': b, 'confianza': 1.})
+        esperado = resolver(Interpretacion(r['texto'], r['tarea'], 1., 'transformer', dict(etiquetas)), vocab).datos
+        obtenido = resolver(Interpretacion(r['texto'], p['tarea'], p['confianza'], 'transformer', p['datos']), vocab).datos
+        igual += _plan_canonico(esperado) == _plan_canonico(obtenido)
+    return {'umbral': umbral, 'ejemplos': len(registros), 'cubiertos': cubiertos,
+            'cobertura': cubiertos / max(1, len(registros)), 'acierto_tarea': bien / max(1, cubiertos),
+            'plan_igual': igual / max(1, bien)}
+
+
+def decidir_selectiva(selectiva: dict, decide: str, sinteticas: dict, en_uso: dict | None,
+                      rechazo: dict | None = None) -> dict:
+    """069:RF-35: la puerta sobre lo que el intérprete ejecuta solo, en la sellada y en el conjunto que decide
+    (el examen del maestro sin 200 humanas, 085:RF-19). En el total no puede acertar menos que el modelo en uso."""
+    # La charla que se ejecutaría sola es la que cuenta: la que no reconoce como «ninguna» y queda bajo el umbral va a
+    # confirmación o al modelo local. El candidato del 2026-11-11 reconocía 0,887 (mínimo 0,90) y no se colaba ninguna.
+    fallos = [f for f in _fallos_de_rechazo(rechazo) if not f.startswith('rechazo: la clase ninguna')]
+    for conjunto in ('sinteticas', decide):
+        medida = selectiva.get(conjunto) or {}
+        for k, minimo in PUERTAS_SELECTIVAS:
+            valor = medida.get(k)
+            if type(valor) not in (float, int) or not math.isfinite(valor) or valor < minimo:
+                fallos.append(f'{conjunto}, ejecución sola: {k} {valor if valor is None else round(valor, 3)} bajo {minimo}')
+    previo = ((en_uso or {}).get('sinteticas') or {}).get('acierto_tarea')
+    if type(previo) in (float, int) and sinteticas.get('acierto_tarea', 0) < previo - 1e-9:
+        fallos.append(f"acierta menos que el modelo en uso en el total: {sinteticas.get('acierto_tarea'):.3f} < {previo:.3f}")
+    return {'status': 'RECHAZADO' if fallos else 'PROMOVIDO', 'gates': {'approved': not fallos}, 'fallos': fallos,
+            'puerta': 'selectiva', 'decide': decide, 'selectiva': selectiva, 'alcance': 'asistido',
+            'confirmacion_obligatoria': True}
+
+
 def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
                       rechazo: dict | None = None, maestro: dict | None = None, humanas_distintas: int | None = None) -> dict:
     if maestro is not None:
@@ -851,14 +928,22 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     # Sin examen del maestro la llamada es la de antes de la 085: decide como entonces.
     extra = ({'maestro': examen_maestro, 'humanas_distintas': meta.get('ordenes_humanas_independientes')}
              if examen_maestro else {})
-    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo, **extra)
+    completa = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo, **extra)
+    en_uso = _medir_en_uso(prueba_sintetica, filas_humanas, reservados)
+    # 069:RF-35: decide la puerta sobre lo que ejecuta solo; la de todas las órdenes queda para comparar.
+    selectiva = {'sinteticas': medir_selectiva(modelo, prueba_sintetica, modelo.umbral),
+                 'humanas': medir_selectiva(modelo, filas_humanas, modelo.umbral) if filas_humanas else None,
+                 'maestro': medir_selectiva(modelo, filas_maestro, modelo.umbral) if filas_maestro else None}
+    decide = 'maestro' if (completa.get('puerta_ordenes') or {}).get('conjunto') == ordenes_maestro_085.ORIGEN else 'humanas'
+    # Lo que cuenta la de todas (humanas, conjunto que decide) se conserva; el veredicto es el de la selectiva.
+    decision = {**completa, **decidir_selectiva(selectiva, decide, sinteticas, en_uso, rechazo),
+                'puerta_completa': {k: completa.get(k) for k in ('status', 'gates', 'fallos')}}
     if validacion is not None:
         decision['tareas_sin_independencia'] = {t: d['motivo'] for t, d in validacion.por_tarea.items()     # 075:RF-26
                                                 if d['estado'] == 'sin_independencia'}
         if validacion.medida is None:
             decision['fallos'].append(f"validación cruzada sin medir: {validacion.informe['motivo']}")
     regla_ollama = medir_regla_ollama(modelo, por_parte['seleccion'], reservados)                           # 075:RF-42
-    en_uso = _medir_en_uso(prueba_sintetica, filas_humanas, reservados)
     funcionamiento = ensayar_funcionamiento(modelo)
     if not funcionamiento['ok']:
         decision['gates']['approved'] = False

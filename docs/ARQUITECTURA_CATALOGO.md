@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 50 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
-| Pruebas | `tests/` | 421 |
+| Pruebas | `tests/` | 422 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-102 specs con 3348 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3351 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

@@ -88,6 +88,16 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   0,995 en selección y a 0,875 en la sellada; la distancia entre las dos, no un error concreto de la prueba, motiva el cambio.)
 - RF-34: CUANDO se guarde cada candidato, EL SISTEMA comprobará en ese momento que anota el codificador con que se entrenó,
   y si no, parará el entrenamiento. (2026-11-11: el error salió al reabrir, tras 1 h 45 min de GPU.)
+- RF-35: EL SISTEMA promoverá el intérprete con la puerta selectiva (decisión del usuario del 2026-11-11): sobre lo que
+  da con confianza igual o mayor que su umbral calibrado, la tarea acertada en al menos el 98 % y el plan de sus datos igual
+  al de las etiquetas en al menos el 95 %, con al menos la mitad de las órdenes ejecutadas solas, en la sellada y en el
+  conjunto que decide (085:RF-19); en el total no acertará menos que el modelo en uso. Lo demás lo confirma el operador o lo
+  resuelve el modelo local. De la charla reservada (RF-17 a RF-19) cuenta la que se colaría a ejecutarse sola (como mucho
+  el 2 %, con al menos 100 mensajes medidos), no la que no reconoce como `ninguna` y queda bajo el umbral. La puerta de
+  todas las órdenes queda en la decisión para comparar.
+- RF-36: EL SISTEMA resolverá en el plan las listas de alimentadores sin las palabras de unión («CA101 a CHN102»), la ruta
+  que existe dentro de un trozo con palabras de más, y el texto de `pregunta` y `clasificar_informe` como el mensaje entero;
+  `buscar_internet` sigue con su trozo, para no sacar a la red las palabras de la orden (086:RF-24).
 
 ## Fuera de alcance
 

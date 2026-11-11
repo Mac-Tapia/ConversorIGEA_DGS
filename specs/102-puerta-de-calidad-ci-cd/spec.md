@@ -65,6 +65,8 @@ Instalación
   4 749 pruebas en un proceso, la ruta del libro de pérdidas y el cierre del lanzador fallaban y solas pasaban.)
 - RF-21: EL SISTEMA correrá en cada commit la prueba de los procedimientos, que citan líneas de `src/`. (2026-11-11: al añadir
   el perfil en `services.py` se movieron cuatro citas y solo lo vio GitHub Actions.)
+- RF-22: EL SISTEMA dará a cada prueba su propia guardia de GPU (`CSG_ML_GPU_LOCK`), no la de la máquina. (2026-11-11:
+  con un entrenamiento real en marcha, 25 pruebas del oráculo fallaron en la puerta con «GPU ocupada».)
 
 ## Requisitos no funcionales
 

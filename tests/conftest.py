@@ -98,6 +98,16 @@ def _entorno_restituido():
 
 
 @pytest.fixture(autouse=True)
+def _guardia_de_gpu_propia(monkeypatch, tmp_path):
+    """102:RF-22: cada prueba con su guardia de GPU, no la de la máquina.
+
+    El 2026-11-11 un entrenamiento real tenía la guardia y 25 pruebas del oráculo fallaron en la puerta con «GPU ocupada:
+    otro proceso conserva la guardia». Sus modelos son de prueba y caben junto al entrenamiento.
+    """
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
+
+
+@pytest.fixture(autouse=True)
 def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     """Sin perfil de empresa salvo que la prueba lo pida (spec 002, RF-32 y RF-33).
 

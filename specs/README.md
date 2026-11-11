@@ -75,7 +75,7 @@ retirada.
 | [066](066-libro-de-cada-informe/spec.md) | Cada informe con su libro Excel, según el perfil de la empresa | cumplida | 13 | 13 | — |
 | [067](067-asistente-operativo/spec.md) | Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | 40 | 40 | — |
 | [068](068-dataset-real-del-maestro/spec.md) | Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida | 42 | 42 | — |
-| [069](069-interprete-con-codificador-preentrenado/spec.md) | Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | 34 | 34 | T7 |
+| [069](069-interprete-con-codificador-preentrenado/spec.md) | Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | 36 | 36 | T7 |
 | [070](070-asistente-de-punta-a-punta/spec.md) | El asistente opera el conversor de punta a punta | implementada | 77 | 77 | T11 (DIgSILENT) |
 | [071](071-puertas-de-los-modelos/spec.md) | Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | 8 | 8 | T5 |
 | [072](072-pide-y-planeamiento-de-largo-plazo/spec.md) | PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | 28 | 28 | T9b, T11, T13, T14 |
@@ -108,4 +108,4 @@ retirada.
 | [099](099-cargas-del-libro-duplicadas-por-el-nombre-del-cliente/spec.md) | Cargas del libro duplicadas por el nombre del cliente | cumplida | 8 | 8 | — |
 | [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | 7 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 14 | 14 | — |
-| [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida | 21 | 21 | — |
+| [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida | 22 | 22 | — |

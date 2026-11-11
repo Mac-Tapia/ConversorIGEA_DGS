@@ -19,5 +19,7 @@
       Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-33) en verde.
 - [x] T9 Cada candidato comprueba al guardarse el codificador que anota. (RF-34)
       Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-34) en verde.
+- [x] T10 Puerta selectiva del intérprete y plan que resuelve uniones, rutas y mensaje entero. (RF-35, RF-36)
+      Hecho cuando: `tests/test_puerta_selectiva.py` (069:RF-35, RF-36) en verde.
 - [ ] T7 Que un candidato pase todas las puertas, sin ajustar nada mirando la prueba ya medida.
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.
