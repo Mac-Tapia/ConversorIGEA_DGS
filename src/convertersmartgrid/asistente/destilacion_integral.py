@@ -550,6 +550,17 @@ def evaluar_alumno(modelo, registros: list[dict]) -> dict:
             'familias': familias}
 
 
+def comprobar_codificador_guardado(carpeta: Path, nombre: str, revision: str) -> None:
+    """069:RF-34: cada candidato, nada más guardarlo, anota el codificador con que se entrenó; si no, se para ahí.
+
+    El 2026-11-11 el candidato de e5-large se guardó como «base» y el error salió al reabrirlo, tras 1 h 45 min de GPU.
+    """
+    datos = json.loads((Path(carpeta) / 'modelo.json').read_text(encoding='utf-8')).get('codificador') or {}
+    if (datos.get('nombre'), datos.get('revision')) != (nombre, revision):
+        raise ValueError(f'el candidato {Path(carpeta).name} anota el codificador {datos.get("nombre")} '
+                         f'({datos.get("revision")}) y se entrenó con {nombre} ({revision})')
+
+
 def _guardar_alumno(modelo, carpeta: Path, meta: dict):
     from . import transformer as tr
     carpeta.mkdir(parents=True, exist_ok=False)
@@ -769,6 +780,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
             carpeta = destino / f'{metodo}-{semilla}'
             _guardar_alumno(modelo, carpeta, {'version': carpeta.name, 'metodo': metodo,
                 'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
+            comprobar_codificador_guardado(carpeta, nombre_cod, revision_cod)                    # 069:RF-34
             candidatos.append({'semilla': semilla, 'metodo': metodo, 'path': str(carpeta.resolve()),
                                'seleccion': seleccion, 'afinado': modelo.afinado})     # 079:RF-17
             (destino / 'seleccion.json').write_text(json.dumps(candidatos, ensure_ascii=False, indent=2), encoding='utf-8')

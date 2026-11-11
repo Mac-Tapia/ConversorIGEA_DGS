@@ -17,5 +17,7 @@
   Un primer intento se cayó en la reapertura, antes de que el registro decidiera nada (arreglado en `1cb47837`).
 - [x] T8 Codificador elegible al entrenar, con su revisión fija y anotado en el modelo. (RF-33)
       Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-33) en verde.
+- [x] T9 Cada candidato comprueba al guardarse el codificador que anota. (RF-34)
+      Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-34) en verde.
 - [ ] T7 Que un candidato pase todas las puertas, sin ajustar nada mirando la prueba ya medida.
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.

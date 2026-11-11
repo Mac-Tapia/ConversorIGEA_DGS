@@ -169,6 +169,15 @@ def test_069_rf33_el_modelo_guarda_el_codificador_que_uso(falso):
     assert (co.CodificadorAfinado(base, None, 6).nombre, co.CodificadorAfinado(base, None, 6).revision) == co.CODIFICADORES['large']
 
 
+def test_069_rf34_el_candidato_guardado_se_comprueba_al_momento(falso):
+    """069:RF-34 — un candidato que anota otro codificador para el entrenamiento en ese momento, no al final."""
+    m = _entrenado(epocas=5)
+    di._guardar_alumno(m, falso / 'cand', {'version': 'cand'})
+    di.comprobar_codificador_guardado(falso / 'cand', co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR)
+    with pytest.raises(ValueError, match='anota el codificador'):
+        di.comprobar_codificador_guardado(falso / 'cand', *co.CODIFICADORES['large'])
+
+
 def test_modelo_codificador_solo_de_la_cache_local(monkeypatch):
     """069:RF-5 — se pide sin red; si no está, el error nombra el codificador."""
     import types

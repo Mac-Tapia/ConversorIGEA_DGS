@@ -86,6 +86,8 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   con su revisión fija del catálogo verificado (`docs/MODELOS_IA_LOCK.json`) y guardará en el modelo el codificador que usó,
   para reabrirlo con él (RF-4). Sin la opción sigue el base. (2026-11-11: con el base y 6 capas afinadas el candidato llegó a
   0,995 en selección y a 0,875 en la sellada; la distancia entre las dos, no un error concreto de la prueba, motiva el cambio.)
+- RF-34: CUANDO se guarde cada candidato, EL SISTEMA comprobará en ese momento que anota el codificador con que se entrenó,
+  y si no, parará el entrenamiento. (2026-11-11: el error salió al reabrir, tras 1 h 45 min de GPU.)
 
 ## Fuera de alcance
 
