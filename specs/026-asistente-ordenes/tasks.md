@@ -65,3 +65,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       transferencia, PIDE e informes): el 2026-10-24 otra sesión tenía DIgSILENT ocupado y el espacio
       no tenía entradas.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T13. Informes reales por grupo y estratificados; herramienta para anotarlos desde un manifiesto. (RF-33, RF-34)
+      Hecho cuando: `tests/test_asistente_clasificador.py` (026:RF-33, RF-34) en verde.

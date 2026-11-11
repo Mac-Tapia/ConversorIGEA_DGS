@@ -145,6 +145,12 @@ consultas sin datos y registradas; vigila trabajos, modelos, calidad de resultad
 - RF-31: EL SISTEMA registrará cada consulta a internet con su texto, destino, fecha y motivo.
 - RF-32: EL SISTEMA no instalará librerías por su cuenta: propondrá cada una en una rama
   (RF-26) con su licencia, su mantenimiento y por qué mejora el conversor.
+- RF-33: EL SISTEMA partirá los informes reales del clasificador por grupo de documento, estratificado por tipo y subtipo:
+  las versiones de un mismo informe van todas a entrenamiento o todas a prueba, y cada subtipo con dos o más grupos tiene
+  uno en prueba. (2026-11-11: por posición, con 9 informes la prueba tenía 2 y un fallo rechazaba un candidato.)
+- RF-34: EL SISTEMA dejará anotar informes reales etiquetados desde un manifiesto (`tools/asistente_informes_reales.py`),
+  leyendo Word y PDF (con OCR), sin repetir uno ya anotado, con su grupo y su origen; el maestro puede redactar informes
+  de un subtipo sin ninguno real, marcados `origen: maestro`.
 
 ## Requisitos no funcionales
 

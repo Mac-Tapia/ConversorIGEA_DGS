@@ -11,6 +11,7 @@ corrección del operador (RF-15), y se promueve con las mismas puertas.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import random
@@ -191,27 +192,62 @@ def subtipos_del_perfil() -> list[str]:
     return list(lista or SUBTIPOS_ESTUDIO)
 
 
-def registrar(texto: str, tipo: str, subtipo: str, origen: str) -> None:
-    """Un informe o una corrección como ejemplo del próximo entrenamiento (RF-15)."""
-    almacen.anotar('informes', {'texto': texto[:LARGO_MAX * 8], 'tipo': tipo, 'subtipo': subtipo, 'origen': origen})
+def registrar(texto: str, tipo: str, subtipo: str, origen: str, grupo: str | None = None) -> None:
+    """Un informe o una corrección como ejemplo del próximo entrenamiento (RF-15).
+
+    026:RF-33: ``grupo`` junta las versiones de un mismo informe (el CA101 se generó nueve veces): van todas a
+    entrenamiento o todas a prueba. Sin él, cada texto es su propio grupo.
+    """
+    fila = {'texto': texto[:LARGO_MAX * 8], 'tipo': tipo, 'subtipo': subtipo, 'origen': origen}
+    if grupo:
+        fila['grupo'] = str(grupo)
+    almacen.anotar('informes', fila)
+
+
+def _grupo(f: dict) -> str:
+    return str(f.get('grupo') or hashlib.sha256(str(f.get('texto', '')).encode('utf-8')).hexdigest())
+
+
+def _grupos_de_prueba(filas: Sequence[dict]) -> set[str]:
+    """026:RF-33: un quinto de los grupos de cada tipo y subtipo va a prueba, al menos uno si hay dos o más.
+
+    Por posición (``i % 5``), con 9 informes la prueba tenía 2 y ninguno de factibilidad cuando tocaba; y versiones
+    casi iguales de un mismo informe quedaban a los dos lados (2026-11-11). El orden sale de la huella: no depende
+    de cuándo se anotó cada uno. Por tipo solo, los cinco de «mejora de tensión» cayeron en prueba y ninguno entrenaba.
+    """
+    por_tipo: dict[tuple[str, str], set[str]] = {}
+    for f in filas:
+        por_tipo.setdefault((f['tipo'], f['subtipo']), set()).add(_grupo(f))
+    elegidos: set[str] = set()
+    for grupos in por_tipo.values():
+        orden = sorted(grupos, key=lambda g: hashlib.sha256(f'026-RF-33:{g}'.encode()).hexdigest())
+        n = max(1, round(len(orden) / 5)) if len(orden) >= 2 else 0
+        elegidos.update(orden[:n])
+    return elegidos
+
+
+def _validos() -> list[dict]:
+    return [f for f in almacen.leer('informes') if f.get('tipo') in TIPOS_INFORME and f.get('subtipo')]
 
 
 def origenes_de_informes() -> dict[str, dict[str, int]]:
     """085:RF-25: cuántos informes de entrenamiento y de prueba trae cada origen; los del maestro no son del operador."""
     salida: dict[str, dict[str, int]] = {'entrenamiento': {}, 'prueba': {}}
-    for i, f in enumerate(almacen.leer('informes')):
-        if f.get('tipo') in TIPOS_INFORME and f.get('subtipo'):
-            parte = salida['prueba' if i % 5 == 4 else 'entrenamiento']
-            origen = str(f.get('origen') or 'sin_origen')
-            parte[origen] = parte.get(origen, 0) + 1
+    filas = _validos()
+    prueba = _grupos_de_prueba(filas)
+    for f in filas:
+        parte = salida['prueba' if _grupo(f) in prueba else 'entrenamiento']
+        origen = str(f.get('origen') or 'sin_origen')
+        parte[origen] = parte.get(origen, 0) + 1
     return salida
 
 
 def reales() -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
     entrenar_, prueba = [], []
-    for i, f in enumerate(almacen.leer('informes')):
-        if f.get('tipo') in TIPOS_INFORME and f.get('subtipo'):
-            (prueba if i % 5 == 4 else entrenar_).append((f['texto'], f['tipo'], f['subtipo']))
+    filas = _validos()
+    de_prueba = _grupos_de_prueba(filas)
+    for f in filas:
+        (prueba if _grupo(f) in de_prueba else entrenar_).append((f['texto'], f['tipo'], f['subtipo']))
     return entrenar_, prueba
 
 

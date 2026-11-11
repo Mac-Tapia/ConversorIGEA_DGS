@@ -165,4 +165,7 @@ def test_clasificador_da_los_origenes_de_sus_informes(tmp_path, monkeypatch):
     for i in range(5):
         almacen.anotar('informes', {'texto': f'informe {i}', 'tipo': 'estudio', 'subtipo': 'PIDE',
                                     'origen': 'maestro' if i % 2 else 'corregido'})
-    assert clasificador.origenes_de_informes() == {'entrenamiento': {'corregido': 2, 'maestro': 2}, 'prueba': {'corregido': 1}}
+    origenes = clasificador.origenes_de_informes()
+    # 026:RF-33: qué informe va a prueba lo decide la huella de su grupo, no su posición; los orígenes se cuentan aparte.
+    total = {o: origenes['entrenamiento'].get(o, 0) + origenes['prueba'].get(o, 0) for o in ('corregido', 'maestro')}
+    assert total == {'corregido': 3, 'maestro': 2} and sum(origenes['prueba'].values()) == 1

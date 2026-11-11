@@ -69,3 +69,41 @@ def test_subtipos_del_perfil(monkeypatch):
     assert cl.subtipos_del_perfil() == list(SUBTIPOS_ESTUDIO) and cl.TIPOS_INFORME == ('estudio', 'factibilidad')
     datos = cl.generar(['otro subtipo'], por_subtipo=3)
     assert all(s == 'otro subtipo' for _, _, s in datos)
+
+
+def test_026_rf33_reales_por_grupo_y_estratificados(tmp_path, monkeypatch):
+    """026:RF-33 — las versiones de un informe no se reparten; cada subtipo con dos o más grupos tiene uno en prueba."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    for v in range(4):
+        cl.registrar(f'version {v} del estudio de caida de tension de AB101', 'estudio', 'mejora de tensión', 'generado',
+                     grupo='AB101')
+    for g in ('CD202', 'EF303'):
+        cl.registrar(f'estudio de caida de tension de {g}', 'estudio', 'mejora de tensión', 'generado', grupo=g)
+    for g in ('GH404', 'IJ505'):
+        cl.registrar(f'factibilidad de suministro en {g}', 'factibilidad', 'alimentación de carga nueva', 'maestro', grupo=g)
+    ent, prueba = cl.reales()
+    lados = {('AB101' in t) for t, _tp, _s in prueba}
+    assert not ({t for t, *_ in ent if 'AB101' in t} and {t for t, *_ in prueba if 'AB101' in t}), lados
+    assert {tp for _t, tp, _s in prueba} == {'estudio', 'factibilidad'}
+    assert len(ent) + len(prueba) == 8 and cl.reales() == (ent, prueba)
+
+
+def test_026_rf34_informes_desde_un_manifiesto(tmp_path, monkeypatch):
+    """026:RF-34 — anota con su grupo, no repite y dice lo que no pudo anotar."""
+    import importlib.util
+    from pathlib import Path
+
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    ruta = Path(__file__).resolve().parents[1] / 'tools/asistente_informes_reales.py'
+    spec = importlib.util.spec_from_file_location('asistente_informes_reales', ruta)
+    herramienta = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(herramienta)
+    filas = [{'texto': 'ASUNTO : transferencia de carga entre AB101 y CD202', 'tipo': 'estudio', 'subtipo': 'transferencia',
+              'grupo': 'g1'},
+             {'texto': 'ASUNTO :  transferencia de carga  entre AB101 y CD202', 'tipo': 'estudio', 'subtipo': 'transferencia',
+              'grupo': 'g1'},
+             {'texto': 'sin grupo', 'tipo': 'estudio', 'subtipo': 'transferencia'}]
+    r = herramienta.registrar_manifiesto(filas, 'maestro')
+    assert len(r['anotados']) == 1 and len(r['repetidos']) == 1 and len(r['errores']) == 1
+    fila = almacen.leer('informes')[-1]
+    assert fila['grupo'] == 'g1' and fila['origen'] == 'maestro'
