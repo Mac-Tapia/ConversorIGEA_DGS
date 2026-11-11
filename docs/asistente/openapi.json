@@ -4768,6 +4768,21 @@
             "title": "Modo",
             "type": "string"
           },
+          "plazo": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pide",
+                  "largo_plazo"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plazo"
+          },
           "project": {
             "title": "Project",
             "type": "string"
@@ -6715,6 +6730,57 @@
           }
         },
         "summary": "Estudios Catalogo"
+      }
+    },
+    "/api/planeamiento/tipos": {
+      "get": {
+        "description": "072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables.",
+        "operationId": "planeamiento_tipos_api_planeamiento_tipos_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "anio_presentacion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9999,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Anio Presentacion"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Planeamiento Tipos Api Planeamiento Tipos Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Planeamiento Tipos"
       }
     },
     "/api/powerfactory": {

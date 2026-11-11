@@ -153,6 +153,17 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       muestra obras, fuentes y restitución anual. T14/T13/T11/T9b siguen abiertas.
       Evidencia externa: `paralelo_p17_web_20261108/HANDOFF.md`. Sin PowerFactory,
       GPU, aceptación científica ni revisión visual en navegador.
+- [x] T17 Tipo de análisis en la web: corto plazo, PIDE o planeamiento de largo plazo. (RF-29 a RF-38)
+      Hecho cuando: `pytest -q tests/test_tipos_de_analisis.py` y `node --test test/tiposDeAnalisis.test.mjs` (en
+      `frontend/`) en verde, con `npx tsc --noEmit -p .` y `npm run build` sin errores.
+      Hecho el 2026-11-11 (rama `trabajo/web-plazos-072`): `estudio_planeamiento.tipos_de_analisis` y
+      `GET /api/planeamiento/tipos` dan horizonte, artículos, formatos, módulos y obras de cada tipo desde la metodología,
+      `informes_planeamiento.MODULOS`, `escalera_optima.OBRAS_DE_LARGO_PLAZO` y el periodo de corto plazo del perfil;
+      `PideIn.plazo` hace que el largo plazo escriba solo sus dos módulos y no aplique obras (422 si se pide), y PIDE o
+      largo plazo sin año de presentación se rechazan antes de encolar. En la web, `TipoDeAnalisis.tsx` (selector, ficha,
+      pasos con estado e «Ir al paso» a las secciones 1 a 5, aviso del PIDE sin «Con proyecto») y `GemeloPIDE` con el tipo.
+      Evidencia: 14 pruebas de pytest y 8 de `node --test` aprobadas. Sin DIgSILENT ni revisión en el navegador real: la
+      prueba de la web es de renderizado estático; queda verla con el operador junto con T11.
 
 Nota de corrección P17 (2026-11-08), sin cerrar criterios originales: se corrigieron
 los Important I1/I2/I3 y los Minor M1/M2 de la revisión independiente de RF-23 a

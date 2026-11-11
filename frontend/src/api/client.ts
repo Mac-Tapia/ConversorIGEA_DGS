@@ -397,6 +397,9 @@ export const api = {
     body.append('perfil', perfil); body.append('evaluacion', evaluacion); body.append('corto_plazo', corto);
     return request<import('./types').PideFuentes>(`${ws(id)}/pide/fuentes`, { method: 'POST', body });
   },
+  /** 072:RF-29 a RF-32: corto plazo, PIDE y largo plazo, con el horizonte del año de presentación si lo hay. */
+  planeamientoTipos: (anio?: number | null) =>
+    request<import('./types').TiposAnalisis>(`/api/planeamiento/tipos${anio ? `?${new URLSearchParams({ anio_presentacion: String(anio) })}` : ''}`),
   pideDecision: (id: string, body: { project: string; codigo: string; decision: string; comentario?: string }) =>
     request<Record<string, unknown>>(`${ws(id)}/pide/decision`, json('POST', body)),
   gemeloAprender: (id: string, body: { project: string; feeders: string[]; n: number }) =>
