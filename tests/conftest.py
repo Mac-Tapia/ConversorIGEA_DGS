@@ -6,6 +6,7 @@ are required (IN111/TA121 etc. are optional samples when present).
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
 import tempfile
 from pathlib import Path
@@ -64,6 +65,36 @@ def pytest_runtest_makereport(item, call):
         informe.outcome = 'skipped'
         informe.longrepr = (str(item.path), item.location[1] or 0,
                             'Skipped: exige GPU CUDA y GitHub Actions no la tiene (102:RF-17)')
+
+
+@contextmanager
+def entorno_restituido():
+    """102:RF-20: lo que haya escrito el bloque en ``os.environ`` se deshace al salir."""
+    antes = dict(os.environ)
+    try:
+        yield
+    finally:
+        if os.environ != antes:
+            os.environ.clear()
+            os.environ.update(antes)
+
+
+@pytest.fixture(autouse=True)
+def _entorno_restituido():
+    """102:RF-20: cada prueba deja las variables de entorno como las encontró.
+
+    ``web.__main__.main`` escribe ``CSG_WEB_HOST`` y el puerto en ``os.environ`` (es el proceso del servidor). Las pruebas
+    del lanzador lo llaman dentro de pytest y, en la puerta del 2026-11-11 (4 749 pruebas en un proceso), la ruta del libro
+    de pérdidas ya no daba 403 y el cierre del lanzador daba 202: ambas pasaban solas.
+    """
+    with entorno_restituido():
+        yield
+    # Lo mismo con el cierre que ``main`` registra en la web: con él, «cerrar» de otra prueba daba 202 y no 503.
+    import sys
+    app_mod = sys.modules.get('convertersmartgrid.web.app')
+    if app_mod is not None:
+        app_mod._cierre.clear()
+        app_mod._motivo_cierre.clear()
 
 
 @pytest.fixture(autouse=True)

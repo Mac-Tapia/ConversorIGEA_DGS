@@ -23,3 +23,5 @@
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
 - [x] T7. La puerta lanza las pruebas sin las variables GIT_* del gancho. (RF-19)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde.
+- [x] T8. Cada prueba deja el entorno del proceso como lo encontró. (RF-20)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` en verde y la puerta sin fallos por orden.

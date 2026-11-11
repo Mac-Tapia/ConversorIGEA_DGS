@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 314 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 105 |
-| Interfaz | `frontend/src/` | 49 |
+| Interfaz | `frontend/src/` | 50 |
 | Pruebas de la interfaz | `frontend/test/` | 12 |
 | Pruebas | `tests/` | 421 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 306 |
 
-`web/services.py` tiene 13006 líneas y 391 funciones, pendiente de partir (002).
+`web/services.py` tiene 13064 líneas y 394 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-102 specs con 3340 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+102 specs con 3342 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,7 +48,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-145 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+147 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -74,6 +74,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `runs` | espacio | 2 |
 | `source-scope` | espacio | 2 |
 | `vnr` | espacio | 2 |
+| `perfil` | general | 2 |
 | `workspaces` | general | 2 |
 | `cargas` | espacio | 1 |
 | `diagnose` | espacio | 1 |
@@ -769,6 +770,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/conversion/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
 | `frontend/src/features/conversion/Modules.tsx` | — | 001 | Pestañas de resultados, catálogo y sistema completo. |
 | `frontend/src/features/conversion/OptionsPanel.tsx` | — | 001 | Opciones de conversión. |
+| `frontend/src/features/conversion/PerfilEmpresa.tsx` | — | 086 | Carga y validación del perfil de la empresa desde la web. |
 | `frontend/src/features/conversion/ReconstructionPanel.tsx` | — | 001 | Diagnóstico y reconstrucción. |
 | `frontend/src/features/powerfactory/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041, 091 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
 | `frontend/src/features/powerfactory/CargasTab.tsx` | — | 004, 005, 008, 011, 016, 042, 091 | Pestaña «Cargas en DIgSILENT» en cuatro pasos. |

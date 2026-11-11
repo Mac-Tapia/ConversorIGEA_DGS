@@ -13,6 +13,7 @@ import { LogPanel } from './LogPanel';
 import { MarcaBeta } from '../shared/MarcaBeta';
 import { CatalogTab, ResultsTab, SystemTab } from '../features/conversion/Modules';
 import { OptionsPanel } from '../features/conversion/OptionsPanel';
+import { PerfilEmpresa } from '../features/conversion/PerfilEmpresa';
 import { Modal, Pill, useConfirm, useToast } from '../shared/ui';
 import type { Health, Job, PowerFactoryStatus } from '../api/types';
 import { useWorkspace } from '../shared/useWorkspace';
@@ -249,6 +250,7 @@ export default function App() {
             <div className="col-side">
               <InputsPanel />
               <OptionsPanel />
+              <PerfilEmpresa />
             </div>
             <div className="col-main">
               <FeedersPanel />

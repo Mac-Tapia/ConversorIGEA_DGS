@@ -60,6 +60,9 @@ Instalación
 - RF-19: CUANDO la puerta lance las pruebas desde un gancho de git, EL SISTEMA las lanzará sin las variables `GIT_*` que git
   pone al gancho. (2026-11-11: heredadas, el `git worktree add` de las pruebas del asistente usaba el índice de este
   repositorio y fallaba solo dentro de la puerta.)
+- RF-20: CUANDO una prueba escriba variables de entorno del proceso o registre el cierre de la web, EL SISTEMA lo restituirá al terminar esa prueba,
+  para que ninguna dependa del orden. (2026-11-11: `web.__main__.main` deja `CSG_WEB_HOST` y el puerto; en la puerta, con
+  4 749 pruebas en un proceso, la ruta del libro de pérdidas y el cierre del lanzador fallaban y solas pasaban.)
 
 ## Requisitos no funcionales
 

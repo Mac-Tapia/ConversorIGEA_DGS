@@ -874,6 +874,32 @@
         "title": "Body_lote_plan_api_workspaces__wid__lote_plan_post",
         "type": "object"
       },
+      "Body_perfil_guardar_api_perfil_post": {
+        "properties": {
+          "estructura": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estructura"
+          },
+          "perfil": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Perfil",
+            "type": "string"
+          }
+        },
+        "required": [
+          "perfil"
+        ],
+        "title": "Body_perfil_guardar_api_perfil_post",
+        "type": "object"
+      },
       "Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post": {
         "properties": {
           "corto_plazo": {
@@ -6609,6 +6635,66 @@
           }
         },
         "summary": "Volver Al Modelo Anterior"
+      }
+    },
+    "/api/perfil": {
+      "get": {
+        "description": "086:RF-56: el perfil activo de la empresa, validado.",
+        "operationId": "perfil_estado_api_perfil_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Perfil Estado Api Perfil Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Perfil Estado"
+      },
+      "post": {
+        "description": "086:RF-56: carga el perfil de la empresa (y su estructura) desde la web; con errores no se guarda.",
+        "operationId": "perfil_guardar_api_perfil_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_perfil_guardar_api_perfil_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Perfil Guardar Api Perfil Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Perfil Guardar"
       }
     },
     "/api/pf/estudios": {

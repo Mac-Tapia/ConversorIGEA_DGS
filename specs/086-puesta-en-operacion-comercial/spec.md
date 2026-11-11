@@ -131,6 +131,10 @@ Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento»
   diagnóstico lo avisará con la función que afecta (calibrar un alimentador con una SED sobrecargada) y cómo completarlo, en
   vez de dar el perfil por bueno. (Programa instalado de prueba, 2026-11-11: sin perfil, CA101 no quedó válido y el
   diagnóstico decía «se puede leer».)
+- RF-56: EL SISTEMA dejará cargar desde la web el perfil de la empresa y, si lo nombra, su estructura; lo validará como
+  `validar-perfil` antes de escribir, no guardará nada si tiene errores, y si es bueno lo dejará en la carpeta de datos con
+  copia del anterior. Usuario (2026-11-11): «debe usar todos los perfiles de la empresa, todos los libros deben cargar desde
+  la web»; en el programa instalado el perfil hubo que dejarlo a mano.
 
 ### Aceptación
 

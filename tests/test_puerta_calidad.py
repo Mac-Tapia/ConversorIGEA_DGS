@@ -224,3 +224,31 @@ def test_102_rf19_las_pruebas_no_heredan_las_variables_del_gancho(tmp_path, monk
     monkeypatch.setattr(PC.subprocess, 'run', correr)
     PC._pytest([], {'CSG_X': '1'}, tmp_path)
     assert not any(k.startswith('GIT_') for k in vistos) and vistos['CSG_X'] == '1' and 'PATH' in vistos
+
+
+def test_102_rf20_el_entorno_vuelve_como_estaba():
+    """102:RF-20 — lo que escribe el lanzador de la web en el entorno no queda para la prueba siguiente."""
+    import os
+
+    from conftest import entorno_restituido
+
+    previo = os.environ.get('CSG_WEB_HOST')
+    with entorno_restituido():
+        os.environ['CSG_WEB_HOST'] = '0.0.0.0'
+        os.environ['CSG_PRUEBA_102_RF20'] = '1'
+    assert os.environ.get('CSG_WEB_HOST') == previo and 'CSG_PRUEBA_102_RF20' not in os.environ
+
+
+def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba():
+    """102:RF-20 — el lanzador registra el cierre de la web; la prueba siguiente empieza sin él (paso 1 de 2)."""
+    from convertersmartgrid.web import app as app_mod
+
+    app_mod.al_pedir_cierre(lambda: None)
+    assert app_mod._cierre
+
+
+def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba_2():
+    """102:RF-20 — paso 2 de 2: sin el cierre de la prueba anterior."""
+    from convertersmartgrid.web import app as app_mod
+
+    assert app_mod._cierre == []

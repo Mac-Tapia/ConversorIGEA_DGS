@@ -304,7 +304,9 @@ def test_el_registro_numera_los_eventos_para_no_perder_lineas(client, export):
     assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)
     assert any('Carga e inventario' in e['data'].get('text', '') for e in events if e['type'] == 'log')
     later = client.get(f'/api/workspaces/{wid}/events', params={'since': seqs[-1]}).json()
-    assert later == []
+    # Desde la última vista no se repite ninguna. Que no llegue otra no es del registro: en la puerta del 2026-11-11, con
+    # 4 766 pruebas en un proceso, una tarea de fondo de la carga escribió una línea más entre las dos lecturas.
+    assert all(e['seq'] > seqs[-1] for e in later)
 
 
 def test_websocket_entrega_el_registro(client, export):
@@ -599,3 +601,26 @@ def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys, mon
     assert 'Ciérrelo con' in err
     # El que escucha es esta misma prueba: el aviso da su PID para cerrarlo sin ventana.
     assert f'proceso {os.getpid()}' in err
+
+
+def test_086_rf56_el_perfil_se_carga_desde_la_web(client, tmp_path, monkeypatch):
+    """086:RF-56 — con errores no se escribe nada; bueno, queda con su estructura y copia del anterior."""
+    import json as _json
+
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+
+    destino = tmp_path / 'datos' / 'config' / 'perfil_empresa.json'
+    monkeypatch.setenv(VARIABLE_RUTA, str(destino))
+    malo = client.post('/api/perfil', files={'perfil': ('p.json', b'{no es json', 'application/json')})
+    assert malo.status_code == 422 and not destino.exists()
+    sin_estructura = client.post('/api/perfil', files={'perfil': ('p.json', b'{"estructura": "e.json"}', 'application/json')})
+    assert sin_estructura.status_code == 422 and 'estructura' in sin_estructura.json()['detail'] and not destino.exists()
+    perfil = {'crs_origen': 'EPSG:32718', 'calibracion': {'bancos_kvar_por_tension': {'10': 300}}}
+    bueno = client.post('/api/perfil', files={'perfil': ('p.json', _json.dumps(perfil).encode(), 'application/json')})
+    assert bueno.status_code == 200, bueno.text
+    assert _json.loads(destino.read_text(encoding='utf-8'))['crs_origen'] == 'EPSG:32718'
+    otro = {**perfil, 'crs_origen': 'EPSG:32717'}
+    assert client.post('/api/perfil', files={'perfil': ('p.json', _json.dumps(otro).encode(), 'application/json')}).status_code == 200
+    assert _json.loads((destino.parent / 'perfil_empresa.json.bak').read_text(encoding='utf-8'))['crs_origen'] == 'EPSG:32718'
+    estado = client.get('/api/perfil').json()
+    assert estado['existe'] and estado['errores'] == [] and isinstance(estado['faltan'], list)

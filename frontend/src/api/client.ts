@@ -53,6 +53,15 @@ const enc = encodeURIComponent;
 
 export type DemandaTipo = 'medidores' | 'cabecera' | 'suministros' | 'clientes' | 'estructura';
 
+/** 086:RF-56: el perfil activo, con lo que dice «validar-perfil». */
+export interface PerfilEstado {
+  ruta: string;
+  existe: boolean;
+  errores: string[];
+  desconocidas: string[];
+  faltan: { clave: string; funcion: string; si_falta: string; opcional: boolean }[];
+}
+
 export const api = {
   health: () => request<Health>('/api/health'),
   // 086:RF-40, RF-43: el doctor y la versión con sus notas.
@@ -375,6 +384,14 @@ export const api = {
   // Spec 024: PIDE, gemelo digital y decisiones del operador.
   pide: (id: string, body: import('./types').PideSolicitud) =>
     request<Job>(`${ws(id)}/pide`, json('POST', body)),
+  // 086:RF-56: el perfil de la empresa, validado y cargado desde la web.
+  perfilEstado: () => request<PerfilEstado>('/api/perfil'),
+  perfilGuardar: (perfil: File, estructura?: File | null) => {
+    const body = new FormData();
+    body.append('perfil', perfil);
+    if (estructura) body.append('estructura', estructura);
+    return request<PerfilEstado>('/api/perfil', { method: 'POST', body });
+  },
   pideFuentes: (id: string, perfil: File, evaluacion: File, corto: File) => {
     const body = new FormData();
     body.append('perfil', perfil); body.append('evaluacion', evaluacion); body.append('corto_plazo', corto);

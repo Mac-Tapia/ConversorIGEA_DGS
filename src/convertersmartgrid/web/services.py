@@ -1466,6 +1466,64 @@ def perfil_de(ws: Workspace):
         raise UserError(f'Perfil de empresa: {exc}') from exc
 
 
+def _resultado_perfil(r) -> dict[str, Any]:
+    return {'errores': list(r.errores), 'desconocidas': list(r.desconocidas),
+            'faltan': [{'clave': f.clave, 'funcion': f.funcion, 'si_falta': f.si_falta, 'opcional': f.opcional}
+                       for f in r.faltan]}
+
+
+def perfil_estado() -> dict[str, Any]:
+    """086:RF-56: el perfil activo validado como «validar-perfil», para la web."""
+    from ..perfil_empresa import ruta_perfil_activo
+    from ..perfil_esquema import validar_fichero
+
+    ruta = ruta_perfil_activo()
+    return {'ruta': str(ruta), 'existe': ruta.is_file(), **_resultado_perfil(validar_fichero(None, None))}
+
+
+def perfil_guardar(perfil: bytes, estructura: bytes | None = None) -> dict[str, Any]:
+    """086:RF-56: el perfil de la empresa, y su estructura si la nombra, cargados desde la web.
+
+    Se valida antes de escribir: con errores no se toca nada. Lo bueno queda en la carpeta de datos con copia del
+    anterior. Programa instalado de prueba (2026-11-11): el perfil hubo que dejarlo a mano en la carpeta de datos; el
+    usuario: «debe usar todos los perfiles de la empresa, todos los libros deben cargar desde la web».
+    """
+    import tempfile
+
+    from ..perfil_empresa import ruta_perfil_activo
+    from ..perfil_esquema import validar_fichero
+    from ..util import publicar_duradero, write_json_atomic
+
+    try:
+        datos = json.loads(perfil.decode('utf-8-sig'))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise UserError(f'El perfil no es un JSON válido: {exc}') from exc
+    if not isinstance(datos, dict):
+        raise UserError('El perfil tiene que ser un objeto JSON.')
+    nombre_estructura = datos.get('estructura')
+    if nombre_estructura is not None:
+        nombre_estructura = str(nombre_estructura)
+        if Path(nombre_estructura).name != nombre_estructura:
+            raise UserError('La estructura se nombra solo por su fichero, sin carpetas.')
+    destino = ruta_perfil_activo()
+    if nombre_estructura and estructura is None and not (destino.parent / nombre_estructura).is_file():
+        raise UserError(f'El perfil nombra la estructura «{nombre_estructura}»: súbala junto con el perfil.')
+    with tempfile.TemporaryDirectory() as tmp:
+        prueba = Path(tmp) / destino.name
+        prueba.write_text(json.dumps(datos, ensure_ascii=False), encoding='utf-8')
+        if nombre_estructura:
+            origen = estructura if estructura is not None else (destino.parent / nombre_estructura).read_bytes()
+            (Path(tmp) / nombre_estructura).write_bytes(origen)
+        r = validar_fichero(prueba, None)
+    if r.errores:
+        raise UserError('El perfil tiene errores y no se guardó: ' + '; '.join(r.errores[:10]))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    if nombre_estructura and estructura is not None:
+        publicar_duradero(destino.parent / nombre_estructura, estructura)
+    write_json_atomic(destino, datos, copia=True)
+    return {'ruta': str(destino), 'existe': True, **_resultado_perfil(r)}
+
+
 def perfil_info() -> dict[str, Any]:
     """El perfil activo para la interfaz; un perfil roto se informa, no tumba la página."""
     from ..perfil_empresa import PerfilError, cargar_perfil

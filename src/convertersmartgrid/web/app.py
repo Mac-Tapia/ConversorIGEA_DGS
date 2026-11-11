@@ -2030,6 +2030,20 @@ def create_app(
         return job.result
 
     # ------------------------------------------------------------ obras y estudios (spec 011)
+    @app.get('/api/perfil')
+    def perfil_estado() -> dict:
+        """086:RF-56: el perfil activo de la empresa, validado."""
+        return services.perfil_estado()
+
+    @app.post('/api/perfil')
+    def perfil_guardar(perfil: UploadFile = File(...), estructura: UploadFile | None = File(None)) -> dict:
+        """086:RF-56: carga el perfil de la empresa (y su estructura) desde la web; con errores no se guarda."""
+        try:
+            return services.perfil_guardar(perfil.file.read(5 * 1024 * 1024 + 1),
+                                           estructura.file.read(50 * 1024 * 1024 + 1) if estructura else None)
+        except UserError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @app.post('/api/workspaces/{wid}/pide/fuentes', response_model=PideFuentesRespuesta)
     def pide_fuentes(wid: str, perfil: UploadFile = File(...), evaluacion: UploadFile = File(...),
                      corto_plazo: UploadFile = File(...)) -> dict:

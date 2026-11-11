@@ -166,6 +166,8 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `tests/test_datos_duraderos.py` en verde.
 - [x] T43 El diagnóstico avisa un perfil sin fichas de transformadores o sin bancos por tensión. (RF-55)
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-55) en verde.
+- [x] T44 El perfil de la empresa y su estructura se cargan desde la web («Perfil de la empresa»), validados antes de guardar. (RF-56)
+      Hecho cuando: `tests/test_web_api.py` (086:RF-56) en verde y el panel compila.
 - [ ] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
 - [ ] T32 [DIgSILENT] Instalación con el `setup.exe` en este equipo, con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)

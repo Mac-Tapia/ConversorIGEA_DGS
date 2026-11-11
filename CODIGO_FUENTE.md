@@ -392,6 +392,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/shared/styles.css` | Tokens y estilos, modo claro y oscuro; paleta de las series de la curva. | 001, 021 |
 | `frontend/src/features/conversion/InputsPanel.tsx` | Entrada de datos: TXT, MDB y VNR-GIS. | 001 (RF-26) |
 | `frontend/src/features/conversion/OptionsPanel.tsx` | Opciones de conversión. | 001 |
+| `frontend/src/features/conversion/PerfilEmpresa.tsx` | Carga y validación del perfil de la empresa desde la web. | 086 |
 | `frontend/src/features/conversion/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido | 001, 022 (RF-7), 091 |
 | `frontend/src/features/conversion/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/features/conversion/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
