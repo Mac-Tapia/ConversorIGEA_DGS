@@ -19,6 +19,9 @@ from convertersmartgrid.asistente.transformer import Configuracion
 def entrenado(tmp_path_factory):
     raiz = tmp_path_factory.mktemp('asistente_inf')
     os.environ['CSG_ASISTENTE_DATA'] = str(raiz)
+    # 026:RF-35: sin informes anotados no se promueve; estos, de otra semilla, dan a la puerta de reales qué medir.
+    for i, (texto, tipo, subtipo) in enumerate(cl.generar(cl.subtipos_del_perfil(), por_subtipo=4, semilla=99)):
+        cl.registrar(texto, tipo, subtipo, 'corregido', grupo=f'g{i}')
     try:
         yield raiz, cl.entrenar_y_promover(cfg=Configuracion(epocas=8), minimo_subtipo=0.8)
     finally:
@@ -52,10 +55,10 @@ def test_aprende_de_las_correcciones(entrenado, monkeypatch):
     """026:RF-15 — cada corrección queda como ejemplo y entra al siguiente entrenamiento."""
     raiz, _ = entrenado
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
+    antes = sum(map(len, cl.reales()))
     for i in range(5):
         cl.registrar(f'estudio de coordinación de protecciones número {i}', 'estudio', 'mejora de tensión', 'corregido')
-    ent, prueba = cl.reales()
-    assert len(ent) + len(prueba) == 5 and len(prueba) == 1
+    assert sum(map(len, cl.reales())) == antes + 5
     assert almacen.leer('informes')[-1]['origen'] == 'corregido'
 
 
@@ -107,3 +110,11 @@ def test_026_rf34_informes_desde_un_manifiesto(tmp_path, monkeypatch):
     assert len(r['anotados']) == 1 and len(r['repetidos']) == 1 and len(r['errores']) == 1
     fila = almacen.leer('informes')[-1]
     assert fila['grupo'] == 'g1' and fila['origen'] == 'maestro'
+
+
+def test_026_rf35_los_informes_reales_tienen_su_puerta():
+    """026:RF-35 — las plantillas no tapan los reales: un buen promedio con reales malos no pasa."""
+    assert cl.puerta_de_reales({'acierto_tipo': 1.0, 'acierto_subtipo': 0.95}, 0.9) == []
+    fallos = cl.puerta_de_reales({'acierto_tipo': 0.7, 'acierto_subtipo': 0.6}, 0.9)
+    assert len(fallos) == 2 and all(f.startswith('reales: ') for f in fallos)
+    assert cl.puerta_de_reales({}, 0.9) == ['reales: acierto_tipo ausente o inválido', 'reales: acierto_subtipo ausente o inválido']

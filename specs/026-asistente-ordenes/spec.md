@@ -151,6 +151,9 @@ consultas sin datos y registradas; vigila trabajos, modelos, calidad de resultad
 - RF-34: EL SISTEMA dejará anotar informes reales etiquetados desde un manifiesto (`tools/asistente_informes_reales.py`),
   leyendo Word y PDF (con OCR), sin repetir uno ya anotado, con su grupo y su origen; el maestro puede redactar informes
   de un subtipo sin ninguno real, marcados `origen: maestro`.
+- RF-35: EL SISTEMA promoverá un clasificador solo si también pasa la puerta medida solo con los informes reales de la
+  prueba; sin informes reales no se promueve. (2026-11-11: uno pasó con 0,981/0,963 sobre 160 ejemplos, 150 de plantilla,
+  y en los 10 reales acertaba 0,7 el tipo y 0,6 el subtipo.)
 
 ## Requisitos no funcionales
 

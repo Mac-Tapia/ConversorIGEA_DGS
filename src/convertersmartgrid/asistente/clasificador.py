@@ -297,6 +297,15 @@ def _fallos_de_metricas(metricas: dict, actual: dict | None, minimo: float) -> l
     return fallos
 
 
+def puerta_de_reales(metricas: dict, minimo: float) -> list[str]:
+    """026:RF-35: los informes reales tienen su propia puerta; las plantillas no pueden taparlos.
+
+    El 2026-11-11 un candidato pasó con 0,981 y 0,963 sobre 160 ejemplos, de los que 150 eran plantillas, y en los 10
+    informes reales acertaba 0,7 el tipo y 0,6 el subtipo: se puso en uso.
+    """
+    return [f'reales: {f}' for f in _fallos_de_metricas(metricas, None, minimo)]
+
+
 def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: float = 0.9,
                         log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
     """Entrena con sintéticos y reales; exige el umbral y no retroceder en ambos niveles."""
@@ -311,6 +320,8 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
     fallos = _fallos_de_metricas(m,del_actual,minimo_subtipo)
+    fallos += puerta_de_reales(evaluar(candidato, prueba_real), minimo_subtipo) if prueba_real else [
+        'sin informes reales en la prueba']                                                    # 026:RF-35
     version = guardar_pesos(candidato.red, {'metricas': m, 'cfg': asdict(candidato.cfg), 'simbolos': candidato.simbolos,
                                             'subtipos': subtipos, 'tipos': list(TIPOS_INFORME)}, 'informes')
     candidato.version = version
@@ -380,6 +391,8 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
     fallos = _fallos_de_metricas(m,del_actual,minimo_subtipo)
+    m_reales = evaluar(candidato, prueba_real)
+    fallos += puerta_de_reales(m_reales, minimo_subtipo)                                       # 026:RF-35
     final = Path(destino) / 'clasificador'
     guardar_candidato(candidato, final)
     if reabrir is None:
@@ -400,7 +413,7 @@ def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = N
                           'origenes': origenes_de_informes(),                                                     # 085:RF-25
                           'calidades': {'plantillas': 'silver_deterministic', 'informes': 'gold_generado_o_corregido'},   # 070:RF-66
                           'textos_de_prueba_quitados': quitados},
-        metrics={'candidato': m, 'en_uso': del_actual},
+        metrics={'candidato': m, 'en_uso': del_actual, 'reales': m_reales},
         decision={'status': 'PROMOVIDO' if aprobado else 'RECHAZADO', 'gates': {'approved': aprobado}, 'fallos': fallos},
         smoke_reload=smoke,
         artifacts=[p for p in (final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')) if p.is_file()])
