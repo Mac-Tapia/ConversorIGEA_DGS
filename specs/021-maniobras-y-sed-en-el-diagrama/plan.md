@@ -47,6 +47,8 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 | K. Objetivo de dos zonas | `ajuste_cabecera.py`: `Objetivo` con `zonas` opcionales (aguas arriba, aguas abajo, generación P y Q); `cuadrar` con dos factores; `cuadrado` exige las dos | RF-33, RF-40, RF-41, RF-43, RF-45, RF-46 |
 | L. Central en DIgSILENT | `tools/ajuste_cabecera_pf.py`: `central_en_sin_proyecto` (crea o reutiliza el `ElmGenstat` marcado como del conversor en el nodo, en «Sin proyecto»; P y Q del registro); zonas con `troncal.aguas_abajo`; medida de la salida y la llegada en los cubículos de la barra de la central; informe | RF-35 a RF-39, RF-42, RF-44 |
 | M. Curvas de la central | `services.demanda_curva` sin cambios (una por medidor) + una serie calculada de demanda en el front; marcas de las dos máximas | RF-47, RF-48, RF-49 |
+| N. Tensión medida (2026-11-12) | `demanda_medida.py`: alias `tension*`, `Registro.valores['v']` aparte de las magnitudes, `MaximaCabecera.tension*`, `tension_en_kv`, `poner_tension`, `tension_de_barra`, `tension_medida_de_la_fuente`, `consigna_de_la_fuente`; columnas al final del Excel | RF-71 a RF-78, RF-82, RF-85 |
+| O. Consigna por alimentador | `web/services.py` (`_tension_en_pu` con la nominal del inventario, `_con_tension_de_la_fuente`, `ajuste_plan` con `tensiones_fuente`), `web/app.py` (`AjusteIn.tensiones_fuente`), `tools/ajuste_cabecera_pf.py` (`tension_del_plan`, `consigna_en_pu` con la `uknom` de la barra de la red externa, `consigna_por_fuente` por la barra de cabecera de cada `ElmFeeder`), `DemandaMedida.tsx` (columnas), `AjusteCabecera.tsx` (un campo por alimentador, relleno con la medida) | RF-75, RF-79 a RF-84 |
 
 ## Decisiones
 
@@ -77,6 +79,16 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - **Signos deducidos del balance (RF-29), no por perfil.** Cada medidor exporta con su
   convención; el balance BH4 = BH1 + BH2 la delata registro a registro. Descartado:
   pedir el signo al operador, que no lo sabe sin mirar los datos.
+
+- **La tensión, fuera de las magnitudes de la hoja (parte N).** Un medidor partido en hojas se
+  reconoce por cuántas magnitudes trae cada una (RF-25, RF-44): con la tensión entre ellas, la hoja
+  de kW con tensión dejaría de ser la del kW. Descartado: añadirla a `MAGNITUDES`.
+- **La medida viaja en kV y DIgSILENT la pasa a pu (parte O).** La nominal de la web es la de la
+  conversión; la de la red externa puede no coincidir, y sin conversión en el espacio solo hay kV.
+  El guion divide por la `uknom` de la barra de cada red externa. Descartado: enviar solo el pu.
+- **El campo sin tocar lo decide el servidor (parte O).** La web manda solo los alimentadores cuyo
+  campo tocó el operador; los demás, y la recalibración por `tools/sistema_web.py`, toman la medida
+  con la misma regla. Descartado: repetir en el front la regla de la barra de SET (RF-85).
 
 ## Comprobación contra la constitución
 

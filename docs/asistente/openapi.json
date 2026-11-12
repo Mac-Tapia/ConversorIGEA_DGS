@@ -235,6 +235,30 @@
             ],
             "title": "Tension Fuente Pu"
           },
+          "tensiones_fuente": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "maximum": 1.1,
+                      "minimum": 0.9,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxProperties": 2000,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tensiones Fuente"
+          },
           "tolerancia": {
             "default": 0.01,
             "maximum": 0.1,

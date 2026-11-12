@@ -21,7 +21,7 @@ import threading
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import (
     BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket,
@@ -363,6 +363,9 @@ class AjusteIn(BaseModel):
     centrales: dict[str, CentralIn] = Field(default_factory=dict)
     # Spec 021, RF-61: consigna de tensión de la fuente, en pu; vacío, la que tenga.
     tension_fuente_pu: float | None = Field(None, ge=0.9, le=1.1)
+    # 021:RF-79, RF-80: la de cada alimentador cuyo campo tocó el operador en 2.4 (``None``, lo borró); los
+    # que no están, ``tension_fuente_pu`` si se da o la medida de cada uno.
+    tensiones_fuente: dict[str, Annotated[float, Field(ge=0.9, le=1.1)] | None] | None = Field(None, max_length=2000)
     # Spec 021, RF-64: poner los bancos que falten para el kVAR medido y recalibrar.
     completar_bancos: bool = False
     # 083:RF-31: las fijas sobre su transformador con ficha propuesta se cambian en la misma pasada.
@@ -2011,6 +2014,7 @@ def create_app(
                                     body.desconectados, job_id=body.job_id,
                                     centrales={a: c.model_dump() for a, c in body.centrales.items()},
                                     tension_fuente_pu=body.tension_fuente_pu,
+                                    tensiones_fuente=body.tensiones_fuente,
                                     completar_bancos=body.completar_bancos,
                                     transformadores_automaticos=body.transformadores_automaticos,
                                     barras=job.result.get('barras'),
