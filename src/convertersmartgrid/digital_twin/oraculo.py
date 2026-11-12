@@ -540,7 +540,11 @@ def _fronteras_torch(f: dict, v, theta):
 
 def _terminos_torch(f: dict, v, theta, objetivo, mascara) -> dict:
     """Los tres términos de la pérdida, sin sumar (045:RF-6)."""
-    return {'datos': ((v - objetivo)[mascara] ** 2).mean(), 'fisica': _residuo_torch(f, v, theta).mean(),
+    balance = _residuo_torch(f, v, theta)
+    # Sin barras libres no hay balance que medir: 0, como ``perdidas_fisicas``. La media de nada era NaN y la pérdida de
+    # la época salía «nan» (ciclo del 2026-11-12, cinco episodios de TM102).
+    fisica = balance.mean() if balance.numel() else balance.sum()
+    return {'datos': ((v - objetivo)[mascara] ** 2).mean(), 'fisica': fisica,
             'fronteras': _fronteras_torch(f, v, theta)}
 
 
