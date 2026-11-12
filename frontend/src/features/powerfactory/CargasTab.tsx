@@ -1,14 +1,15 @@
 import type { Alternativa } from '../../api/types';
 import { fmtNum } from '../../shared/formato';
 import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe } from './alternativas';
+import { aDelNodo, camposDePropuesta, medidaDelFormulario as medida, textoDeLaConexion } from './ubicacionCarga';
 import { useEffect, useRef, useState } from 'react';
 import { api, download } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import type {
   AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
-  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConProyectoAlimentador, ConProyectoResultado, Economia, EscaleraResultado, Job,
-  PfInventario, PfProject,
+  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConexionDeLaCarga, ConProyectoAlimentador, ConProyectoResultado, Economia,
+  EscaleraResultado, Job, PfInventario, PfProject, PropuestaUbicacion, UbicacionCarga, UbicacionRechazada,
   VerificarInforme, VerificarResultado,
 } from '../../api/types';
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../../shared/projectBinding';
@@ -166,6 +167,9 @@ export function CargasTab() {
   // 008:RF-28: el trabajo de «Conectar al NMT más cercano» de esta carga.
   const [conectarId, setConectarId] = useState<string | null>(null);
   const [plan, setPlan] = useState<CargasPlan | null>(null);
+  // 004:RF-80: lo que la web midió de la carga del formulario: su rechazo con la propuesta, o su nodo más cercano.
+  const [rechazoNueva, setRechazoNueva] = useState<UbicacionRechazada | null>(null);
+  const [ubicacionNueva, setUbicacionNueva] = useState<UbicacionCarga | null>(null);
   const [tecOn, setTecOn] = useState(false);
   // Spec 007, RF-4: el operador puede quitar la base y aplicar sobre lo activo.
   const [sinBase, setSinBase] = useState(false);
@@ -301,7 +305,23 @@ export function CargasTab() {
     const m = minima.trim().replace(',', '.');
     const p = await run(() => api.cargasPlan(ws.id, project, order, demandas, nuevas, nueva, e,
       conBase ? baseJob!.id : null, m === '' ? null : Number(m)));
-    if (p) setPlan(p);
+    if (p) { setPlan(p); medidaDelFormulario(p); }
+  };
+
+  /** 004:RF-80: el rechazo o el nodo más cercano de la carga del formulario, junto al formulario. */
+  const medidaDelFormulario = (p: CargasPlan) => {
+    const { rechazo, ubicacion } = medida(p);
+    setRechazoNueva(rechazo);
+    setUbicacionNueva(ubicacion);
+  };
+
+  /** 004:RF-74: la propuesta se copia en el formulario solo si el operador la elige; luego se vuelve a revisar. */
+  const usarPropuesta = (pr: PropuestaUbicacion) => {
+    setValues((v) => ({ ...v, ...camposDePropuesta(pr) }));
+    setPlan(null);
+    setConectarId(null);
+    setRechazoNueva(null);
+    setUbicacionNueva(null);
   };
 
   const ejecutar = async (simular: boolean) => {
@@ -314,6 +334,8 @@ export function CargasTab() {
     setValues((v) => ({ ...v, [key]: valor }));
     setPlan(null);
     setConectarId(null);
+    setRechazoNueva(null);
+    setUbicacionNueva(null);
   };
 
   // 008:RF-26: CoordX/CoordY se pasan a GPS con el CRS del espacio o del perfil de empresa.
@@ -339,6 +361,7 @@ export function CargasTab() {
     const p = await run(() => api.cargasPlan(ws.id, project, [nueva.alimentador], null, null, nueva, null,
       conBase ? baseJob!.id : null, m === '' ? null : Number(m)));
     if (!p) return;
+    medidaDelFormulario(p);
     if (!p.applicable) {
       toast('error', 'La carga no se puede conectar', p.row_errors.join(' · ') || 'Revise los datos.');
       return;
@@ -605,7 +628,7 @@ export function CargasTab() {
               Conectar al NMT más cercano
             </button>
             {nueva && <button className="btn btn-ghost btn-sm" onClick={() => {
-              setValues(vacio()); setPlan(null); setConectarId(null);
+              setValues(vacio()); setPlan(null); setConectarId(null); setRechazoNueva(null); setUbicacionNueva(null);
             }}>Limpiar</button>}
             {nueva && faltaParaConectar && <small className="muted">{faltaParaConectar}</small>}
             {nueva && !faltaParaConectar && pfBusy && (
@@ -614,6 +637,22 @@ export function CargasTab() {
           </div>
           {conectarJob && (conectarJob.status === 'queued' || conectarJob.status === 'running') && (
             <p className="muted">Buscando en DIgSILENT el nodo de media más cercano…</p>
+          )}
+          {rechazoNueva && (
+            <div className="alert alert-error" role="alert">
+              <p>{rechazoNueva.mensaje}</p>
+              {(rechazoNueva.propuestas ?? []).length > 0 && (
+                <div className="row">{rechazoNueva.propuestas!.map((pr) => (
+                  <button key={pr.texto} className="btn btn-sm" onClick={() => usarPropuesta(pr)}
+                    title="Copia la corrección en el formulario; después, vuelva a conectar">
+                    Usar {pr.texto} (a {fmtNum(pr.distancia_m)} m del nodo {pr.nodo})</button>
+                ))}</div>
+              )}
+            </div>
+          )}
+          {ubicacionNueva && !rechazoNueva && (
+            <p className="muted">La carga queda {aDelNodo(ubicacionNueva)} de {ubicacionNueva.alimentador}
+              {' '}({ubicacionNueva.fuente}).</p>
           )}
           {conectarJob?.status === 'failed' && <p className="alert alert-error">{conectarJob.error}</p>}
           {ubicacion?.c && (
@@ -779,12 +818,13 @@ export function CargasTab() {
             <div className="table-wrap table-short">
               <table className="table">
                 <thead><tr><th>Carga nueva</th><th className="num">kVA</th><th className="num">kW</th><th className="num">kVAR</th>
-                  <th>Conexión</th><th>Alimentador</th></tr></thead>
+                  <th>Conexión</th><th>Alimentador</th><th>Ubicación</th></tr></thead>
                 <tbody>{plan.nuevas.map((n) => (
                   <tr key={`${n.hoja}-${n.sed}`}><td className="strong">{n.sed}</td><td className="num">{fmtNum(n.kva_instalado)}</td>
                     <td className="num">{fmtNum(n.kw, 1)}</td><td className="num">{fmtNum(n.kvar, 1)}</td>
                     <td className="small">{n.barra ? `barra ${n.barra}` : `GPS ${fmtNum(n.lat ?? 0, 5)}, ${fmtNum(n.lon ?? 0, 5)}`}</td>
-                    <td className="small">{n.alimentador || '—'}</td></tr>
+                    <td className="small">{n.alimentador || '—'}</td>
+                    <td className="small">{n.ubicacion ? aDelNodo(n.ubicacion) : '—'}</td></tr>
                 ))}</tbody>
               </table>
             </div>
@@ -866,7 +906,7 @@ function PorCarga({ cargas, sin }: { cargas: CargaIntegrada[]; sin: CargasInform
           <tr key={c.variacion}>
             <td className="strong">{c.sed}{c.nota && <div className="muted small">{c.nota}</div>}</td>
             <td>{c.alimentador}</td><td className="mono small">{c.variacion}</td>
-            <td className="small">{c.barra} <span className="muted">({c.criterio})</span></td>
+            <td className="small">{c.barra} <span className="muted">({c.criterio})</span>{linea(c)}</td>
             <td className="num">{c.distancia_m != null ? fmtNum(c.distancia_m) : '—'}</td>
             <td className="num">{signo(c.delta?.kw)}</td><td className="num">{signo(c.delta?.kvar)}</td>
             <td className="num">{signo(c.delta?.perdidas_kw, 2)}</td><td className="num">{signo(c.delta?.vm_min, 4)}</td>
@@ -976,7 +1016,13 @@ function motivos(titulo: string, xs: CargasMotivo[], tono: 'warn' | 'error') {
 
 function conexion(c: CargaConectada) {
   const dist = c.distancia_m != null ? ` a ${fmtNum(c.distancia_m)} m` : '';
-  return <>{c.barra} <span className="muted">({c.criterio}{dist})</span></>;
+  return <>{c.barra} <span className="muted">({c.criterio}{dist})</span>{linea(c)}</>;
+}
+
+/** 004:RF-72, RF-76, RF-78: el nodo más cercano medido antes de conectar, la línea de conexión y la carga que reemplaza. */
+function linea(c: ConexionDeLaCarga) {
+  const texto = textoDeLaConexion(c);
+  return texto ? <div className="muted small">{texto}</div> : null;
 }
 
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */

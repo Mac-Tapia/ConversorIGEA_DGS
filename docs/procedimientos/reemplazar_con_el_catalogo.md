@@ -5,15 +5,15 @@ Cuándo: un conductor tiene parámetros que no corresponden a su ficha, o una fi
 
 1. Generar el catálogo y su auditoría: `POST /api/workspaces/<espacio>/catalog/build`
    (`src/convertersmartgrid/web/app.py:2756` («/api/workspaces/{wid}/catalog/build»)), un trabajo de
-   `build_catalog` (`src/convertersmartgrid/web/services.py:5210` («def build_catalog»)). El fichero es
+   `build_catalog` (`src/convertersmartgrid/web/services.py:5281` («def build_catalog»)). El fichero es
    `catalogo_parametros.xlsx` (`src/convertersmartgrid/catalog.py:58` («CATALOG_FILENAME = 'catalogo_parametros.xlsx'»)).
 2. **Lo hace el operador:** corregir en el libro las filas con su ficha y marcarlas «ficha» o «derivado». El asistente no
    inventa parámetros: si no hay ficha, la pide.
 3. Subir el libro corregido: `POST /api/workspaces/<espacio>/catalog/apply`
    (`src/convertersmartgrid/web/app.py:2763` («/api/workspaces/{wid}/catalog/apply»)). Solo cuentan las filas marcadas
-   (`src/convertersmartgrid/web/services.py:5263` («def apply_catalog»)).
+   (`src/convertersmartgrid/web/services.py:5334` («def apply_catalog»)).
 4. Calibrar «Sin proyecto»: las fichas entran ahí, no en el DGS, que conserva los parámetros de la entrada; reconvertir
-   no las lleva al DGS (`src/convertersmartgrid/web/services.py:5259` («AVISO_CATALOGO_APLICADO»), 032:RF-2, 032:RF-14).
+   no las lleva al DGS (`src/convertersmartgrid/web/services.py:5330` («AVISO_CATALOGO_APLICADO»), 032:RF-2, 032:RF-14).
 5. Para deshacerlo, `DELETE /api/workspaces/<espacio>/catalog` (src/convertersmartgrid/web/app.py:2776`
    («@app.delete('/api/workspaces/{wid}/catalog')»)).
 

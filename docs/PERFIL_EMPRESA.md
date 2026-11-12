@@ -122,6 +122,12 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | `planificacion.capex` | empresa | Leer el libro CAPEX | Sin costo del libro, y se dice |
 | `planificacion.tarifas` | empresa | Evaluación privada del PIDE | Queda señalada como pendiente |
 
+### Cargas nuevas
+
+| Clave | Origen | Función afectada | Si falta |
+| --- | --- | --- | --- |
+| `cargas_nuevas.distancia_max_al_nodo_m` | empresa | Distancia máxima de una carga nueva a su nodo de media más cercano; más lejos, la fila se rechaza con su propuesta de corrección (004:RF-73) | Manda el radio del propio alimentador |
+
 `escalera` y `planificacion` tienen más claves técnicas (tolerancias, sorteos, módulos de SET, ternas). Sus valores de referencia se
 aplican con aviso, y cada una se valida al usarse.
 

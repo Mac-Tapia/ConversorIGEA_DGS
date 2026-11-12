@@ -228,7 +228,8 @@ def test_deshacer_borra_lo_creado(guion):
 def test_activo_con_varios_marcados(guion):
     """007:RF-36 — con varios marcados: el de su columna si está marcado; sin columna, el de
     la barra más cercana entre los marcados; con uno no marcado, no se crea (RF-29)."""
-    app = _app()
+    # 12 barras (1,3 km): N1, de F2 y junto a F1, queda a 1,1 km de F2 y dentro de su zona (004:RF-73).
+    app = _app(n=12)
     plan = _plan(['F1', 'F2'], nuevas=[
         _nueva('N1', alimentador='F2', **_cerca(app, 'F1_B1')),      # su columna manda
         _nueva('N2', **_cerca(app, 'F1_B3')),                        # sin columna: la más cercana
@@ -424,13 +425,15 @@ def _caso(app, nombre):
 
 
 def test_repetir_la_insercion_reutiliza_la_variacion(guion):
-    """014:RF-19, 014:RF-23, 014:RF-24, 014:RF-27, 014:RF-28 — la primera inserción prepara
-    los casos y deja la carga solo en «Con proyecto»; repetirla, con la variación apagada y
-    otra potencia y otro punto en el libro, no crea otra: reutiliza la variación, la deja
-    activa en «Con proyecto» y avisa de las diferencias."""
+    """014:RF-19, 014:RF-23, 014:RF-24, 014:RF-27, 014:RF-28, 004:RF-77 — la primera inserción
+    prepara los casos y deja la carga solo en «Con proyecto»; repetirla con la misma fila del
+    libro, con la variación apagada y la carga retocada a mano en DIgSILENT (otra potencia y
+    otro punto), no crea otra: reutiliza la variación, la deja activa en «Con proyecto» y avisa
+    de las diferencias. Con otra fila del libro se reemplaza (004:RF-76, en
+    ``test_cargas_pf_ubicacion.py``)."""
     app = _app()
-    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]),
-                                 simular=False)
+    fila = _nueva('N1', **_cerca(app, 'F1_B2'))
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[fila]), simular=False)
     assert rc == 0, primero
     var = f'Carga_N1_F1_{STAMP}'
     assert primero['casos_preparados']
@@ -439,9 +442,11 @@ def test_repetir_la_insercion_reutiliza_la_variacion(guion):
     _caso(app, 'Con proyecto').Activate()
     _variaciones(app)[var].Deactivate()
     _caso(app, 'Caso base').Activate()
+    (carga,) = [c for e in _variaciones(app)[var].GetContents('*.IntSstage')
+                for c in e.GetContents('*.ElmLod', 1) if c.loc_name == 'N1']
+    carga.plini, carga.GPSlat = 0.095, carga.GPSlat + 0.001          # cambios del operador en DIgSILENT
 
-    otra = _nueva('N1', kw=95.0, **_cerca(app, 'F1_B2', dlat=0.001))
-    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[otra]), simular=False)
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[fila]), simular=False)
 
     assert rc == 0, segundo
     assert sorted(_variaciones(app)) == [var] and segundo['cargas'] == []

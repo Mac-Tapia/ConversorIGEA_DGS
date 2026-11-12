@@ -122,3 +122,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: `pytest -q tests/test_cargas_pf.py -k fp_del_perfil` en verde.
 - [x] T23. El nombre del cliente de la tabla cruzada, del libro de suministros cuando el libro mensual no lo trae. (RF-71)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py -k nombre` (004:RF-71) en verde.
+- [x] T24. Ubicación de la carga nueva frente a su alimentador, en la web: `ZonaAlimentador` y `verificar_ubicaciones`
+      en `cargas_pf.py` (radio del alimentador, tope del perfil, propuesta de un dígito, X/Y y Lat/Lon intercambiadas),
+      la geografía del DGS aceptado en `services.cargas_plan` y la clave `cargas_nuevas.distancia_max_al_nodo_m` del
+      perfil. (RF-72, RF-73, RF-74)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_ubicacion.py` en verde.
+- [x] T25. La misma comprobación en el guion sin geografía, la carga reemplazada si cambió y la longitud de la línea
+      de conexión con su aviso, con el doble de DIgSILENT. (RF-75, RF-76, RF-77, RF-78, RF-79)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_ubicacion.py tests/test_cargas_pf_guion.py` en verde.
+- [x] T26. La web: el error con su propuesta junto a la fila y la distancia y la línea tras simular o aplicar. (RF-80)
+      Hecho cuando: `npm test`, `npx tsc --noEmit -p .` y `npm run build` en `frontend/` en verde, y
+      `pytest -q tests/test_cargas_pf_ubicacion.py -k web` en verde.

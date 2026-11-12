@@ -493,6 +493,8 @@ export interface CargasPlan {
     sed: string; hoja: string; alimentador: string; barra: string;
     lat: number | null; lon: number | null; kva_instalado: number;
     kw: number; kvar: number; fp: number; tipo_linea: string; tension_bt_kv: number | null;
+    /** 004:RF-72: el nodo de media más cercano de su alimentador, medido con la red convertida. */
+    ubicacion?: UbicacionCarga | null;
   }[];
   n_demandas: number;
   n_nuevas: number;
@@ -508,6 +510,45 @@ export interface CargasPlan {
   variacion_demandas: string;
   /** Spec 099, RF-7: filas repetidas del libro en los alimentadores marcados y la que cuenta. */
   repetidas?: FilaRepetida[];
+  /** 004:RF-73, RF-74, RF-80: las filas fuera de la zona de su alimentador, con su propuesta. */
+  ubicaciones_rechazadas?: UbicacionRechazada[];
+}
+
+/** 004:RF-72: dónde queda una carga nueva frente a su alimentador, antes de conectarla. */
+export interface UbicacionCarga {
+  alimentador: string;
+  nodo: string;
+  distancia_m: number;
+  radio_m: number;
+  tope_m: number | null;
+  tope_del_perfil: boolean;
+  fuente: string;
+  fuera: boolean;
+  mensaje: string;
+  propuestas?: PropuestaUbicacion[];
+}
+
+/** 004:RF-74: una corrección probable; nunca se aplica sola: el operador la usa o no. */
+export interface PropuestaUbicacion {
+  campo: 'CoordX' | 'CoordY' | 'CoordX/CoordY' | 'Lat/Lon';
+  texto: string;
+  /** Campo del formulario → valor que quedaría. */
+  cambios: Record<string, number>;
+  nodo: string;
+  distancia_m: number;
+}
+
+export interface UbicacionRechazada extends UbicacionCarga {
+  sed: string;
+  hoja?: string | null;
+}
+
+/** 004:RF-76, RF-78: lo que el informe dice de la ubicación, la línea y la carga reemplazada. */
+export interface ConexionDeLaCarga {
+  ubicacion?: UbicacionCarga | null;
+  longitud_linea_m?: number | null;
+  radio_m?: number | null;
+  reemplaza?: { variaciones: string[]; cambios: string[] } | null;
 }
 
 /** Spec 099, RF-7: una fila del libro que repite el cliente (o el punto) de otra posterior. */
@@ -555,7 +596,7 @@ export interface EstadoRed {
 }
 
 /** Spec 007: una carga nueva en su variación, con proyecto frente a sin proyecto (RF-33). */
-export interface CargaIntegrada {
+export interface CargaIntegrada extends ConexionDeLaCarga {
   sed: string;
   alimentador: string;
   variacion: string;
@@ -574,7 +615,7 @@ export interface CargasMotivo { sed: string; motivo: string }
 /** Foto de una carga de DIgSILENT: los atributos de demanda tal como estaban. */
 export type FotoCarga = Record<string, number | string | null>;
 
-export interface CargaConectada {
+export interface CargaConectada extends ConexionDeLaCarga {
   sed: string;
   barra: string;
   criterio: string;

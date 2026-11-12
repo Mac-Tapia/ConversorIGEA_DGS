@@ -77,6 +77,12 @@
         "alternativas": {"type": ["number", "null"], "x-opcional": true, "x-funcion": "Alternativas de obras por alimentador, de 3 a 6", "x-si-falta": "Se presentan 3.", "x-origen": "empresa"}
       }
     },
+    "cargas_nuevas": {
+      "type": ["object", "null"],
+      "properties": {
+        "distancia_max_al_nodo_m": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-opcional": true, "x-funcion": "Distancia máxima de una carga nueva a su nodo de media más cercano (004:RF-73)", "x-si-falta": "Manda el radio del propio alimentador.", "x-origen": "empresa"}
+      }
+    },
     "planificacion": {
       "type": ["object", "null"],
       "x-abierta": true,

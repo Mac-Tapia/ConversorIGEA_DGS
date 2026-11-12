@@ -96,3 +96,32 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
 - Que la variación grabe los cambios de demanda de cargas existentes depende de
   DIgSILENT (manual, cap. 16: las etapas registran cambios de objetos existentes). Se
   comprueba en la prueba real; si no, la demanda iría en un escenario guardado.
+
+## Ubicación antes de conectar (RF-72 a RF-80, 2026-11-12)
+
+- `cargas_pf.py`: `ZonaAlimentador` con los nodos de media de un alimentador (nombre, lat, lon), su centro y su radio (la
+  mayor distancia de un nodo al centro); `verificar_ubicaciones` mide cada fila con coordenadas contra la zona de su
+  alimentador, deja en la fila su `ubicacion` (nodo, distancia, radio) y aparta las que quedan fuera con su error y sus
+  `propuestas`. `CargaNueva` guarda `coord_x`/`coord_y` tal como se escribieron, para proponer sobre ellas y no sobre el
+  GPS ya convertido. El tope es el radio del alimentador más otro radio (`MARGEN_ZONA`); el del perfil
+  (`cargas_nuevas.distancia_max_al_nodo_m`) manda. Descartado un margen fijo en metros: dependería de la empresa (P13).
+  Descartado el radio solo: en un alimentador corto rechazaba un cliente a un km, y un error de dígito mueve el punto
+  cientos de km.
+- Propuestas (RF-74): cada dígito que falta o sobra en la parte entera de X o de Y (insertar 0–9 en cada posición, o
+  quitar uno), X e Y intercambiadas, y Lat y Lon intercambiadas. Se pasan a GPS de una vez con el CRS del perfil y se
+  queda la que cae dentro de la zona más cerca de un nodo. Nunca se aplica: el error la propone y el operador decide.
+- `web/services.py`: la geografía del alimentador sale del DGS con que se aceptó el proyecto (`_dgs_aceptados`, el
+  `<alimentador>_geography.json` a su lado; en una red unida sin el suyo, la de la red entera, y se dice). Sin geografía,
+  no se mide en la web y lo hace el guion (RF-75).
+- `tools/cargas_pf.py`: sin `ubicacion` en la fila, `resolver_nuevas` arma la zona con las barras de media con GPS del
+  alimentador y rechaza igual; la propuesta allí es solo Lat/Lon intercambiadas (el guion no tiene las X/Y). RF-76:
+  `cambios_de_la_carga` compara la fila con la huella que deja `crear_carga` en `desc` de la carga (coordenadas, kW, kVAR,
+  kVA, barra) o, en una carga de antes sin huella, solo con su GPS (la potencia leída depende del escenario y de los
+  retoques del operador, y se sigue avisando con 014:RF-28); si algo cambió, la variación anterior va a
+  `eliminar` de la resuelta y se crea de nuevo. RF-78, RF-79: la resuelta lleva el radio y la longitud de la línea;
+  `_crearian` y `crear_carga` la dan, y el aviso sale al resolver, también al simular.
+- Front (`CargasTab.tsx`): `ubicaciones_rechazadas` del plan junto al formulario de 3.2, con un botón que copia la
+  propuesta en el campo, y en el plan del libro; la columna «Ubicación» de las cargas del plan y la línea en la conexión.
+- Pruebas: `tests/test_cargas_pf_ubicacion.py`, sintéticas (un dígito de menos en Y, X/Y y Lat/Lon intercambiadas, un
+  punto bueno, el tope del perfil, la reutilización con y sin cambios con `tests/fake_pf.py`). La fila real de SE0001 se
+  comprueba en solo lectura con la geografía de PA217 del espacio del usuario; sus cifras no van a git.
