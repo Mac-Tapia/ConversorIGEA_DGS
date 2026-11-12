@@ -602,11 +602,14 @@ class LibrosNuevosRespuesta(Respuesta):
     intervalo_min: float
     repetidos: list[str]
     dataset: dict[str, Any] | None
+    #: 104:RF-31: el carril de fondo («libre», «pendiente», «revisando», «en_espera» o «error»), con su texto.
+    fondo: dict[str, Any]
 
 
 class RevisarLibrosRespuesta(Respuesta):
+    """104:RF-30: la revisión va al carril de fondo, no a la cola: no hay trabajo que seguir."""
     estado: LibrosNuevosRespuesta
-    job: JobRespuesta | None
+    lanzada: bool
 # --------------------------------------------------------------------------- 105: evolución de los clientes fijos
 class EvolucionFijasPeticion(BaseModel):
     """105:RF-18, RF-19: alimentadores y rango de meses; un rango al revés o vacío se rechaza con 422."""

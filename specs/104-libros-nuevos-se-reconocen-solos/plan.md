@@ -29,7 +29,25 @@
 - `frontend/src/app/AvisosLibros.tsx` (RF-20 a RF-22): los avisos sin ver, «Dar por visto» y el estado del dataset; se
   relee al terminar un trabajo `libros_nuevos`.
 
+- `src/convertersmartgrid/web/fondo.py` (nuevo, presentación; RF-30, RF-32, RF-33, RF-36, RF-37): el carril de
+  fondo. `operador_trabajando` mira la cola (motor y DIgSILENT de todos los espacios); `ProcesoFondo` corre una función
+  en un proceso `spawn` que baja su prioridad y se termina al ceder; `ContextoFondo` hace de `JobContext` para los
+  índices de `services`, que reciben `ejecutar=` para leer cada libro en ese proceso.
+- `src/convertersmartgrid/web/libros_nuevos.py` (RF-30 a RF-39): `VigilanciaLibros` deja de encolar en el motor. Un hilo
+  propio atiende las revisiones pedidas, guarda la foto de cada fuente al publicar su índice y la lista `por_verificar`
+  (lo hecho no se pierde al ceder), y regenera el dataset tras el reposo. Cada cambio se publica como evento
+  `libros_nuevos`.
+- `frontend/src/app/AvisosLibros.tsx` (RF-31, RF-35, RF-38, RF-39): indicador discreto del carril de fondo, botón
+  «Verificar todos ahora», cuándo se regenerará el dataset; se relee con cada evento `libros_nuevos`
+  (`useWorkspace` lo cuenta).
+
 ## Decisiones
+
+- Carril de fondo fuera de `JobManager` (RF-30). Descartado: un carril `fondo` más en `LANES`, que el diario de trabajos
+  guardaría y mostraría como interrumpido tras reiniciar, contaría en `en_curso` (el lanzador no cerraría la web) y
+  aparecería en la barra de trabajos.
+- Ceder terminando el proceso del libro (RF-32, RF-33). Descartado: puntos de control dentro del lector de libros, que
+  no cortan una lectura de calamine de decenas de segundos y siguen compitiendo por el GIL de la web.
 
 - Foto por listado (ruta relativa, tamaño y fecha), como el índice de cabecera (025:RF-28). Descartado: una huella del
   contenido, que obliga a leer libros de cientos de MB en cada revisión.

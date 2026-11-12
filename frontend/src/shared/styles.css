@@ -484,3 +484,9 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
 .veredicto-una_fuente { color: var(--muted); }
 .pill-ok { color: var(--ok); font-weight: 600; }
 .pill-warn { color: var(--warn); font-weight: 600; }
+/* 086:RF-74: los avisos generales de arriba, una línea cada uno; el detalle al desplegarlos. */
+.aviso-linea { padding: 6px 12px; }
+.aviso-linea > summary { cursor: pointer; list-style: none; }
+.aviso-linea > summary::-webkit-details-marker { display: none; }
+.aviso-linea .mas { color: var(--primary); font-size: 12px; text-decoration: underline; }
+.aviso-linea[open] .mas { display: none; }

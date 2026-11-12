@@ -99,6 +99,42 @@ El operador de la web, que deja libros en las carpetas de demanda de su espacio;
 - RF-29: SI de un libro no se deduce el mes, ENTONCES EL SISTEMA lo dirá en sus avisos, con lo que se pierde (las hojas
   «día, hora» no se leen) y cómo asignarlo.
 
+### El trabajo de fondo no estorba al operador (2026-11-12)
+
+En la web del operador, al abrir un espacio sin índice anterior, el reconocimiento tomó como nuevos los 22 libros y
+ocupó el carril del motor más de 2 minutos («22/22»); cancelarlo tardó 40 s y, al terminar, lanzó la regeneración del
+dataset. Mientras, «Cargar / listar alimentadores» quedó desactivado y después en cola: «¿por qué no arranca o está lista
+la web?».
+
+- Aclaración de RF-3 y RF-4: desde RF-30 el reconocimiento no es un trabajo de la cola, y el motor ocupado es cualquier
+  trabajo del operador en el motor o en DIgSILENT, de cualquier espacio (RF-32).
+- RF-30: EL SISTEMA hará la revisión de libros y la regeneración del dataset en un carril de fondo propio, fuera de la
+  cola de trabajos: ningún trabajo del operador quedará en cola por ellos.
+- RF-31: MIENTRAS corre un trabajo de fondo, LA WEB no desactivará ningún botón del operador y lo mostrará en un
+  indicador propio del aviso de libros, no en la barra de trabajos.
+- RF-32: CUANDO el operador tiene un trabajo en el motor o en DIgSILENT mientras corre uno de fondo, EL SISTEMA
+  detendrá el de fondo en menos de 2 s, conservará lo que ya terminó y lo reanudará cuando no quede ningún trabajo del
+  operador.
+- RF-33: EL SISTEMA leerá cada libro del trabajo de fondo (índice y verificación) en un proceso aparte de prioridad baja
+  (en Windows, BELOW_NORMAL_PRIORITY_CLASS), que se termina al ceder.
+- RF-34: SI una fuente no tiene foto anterior ni índice publicado, ENTONCES EL SISTEMA tomará su foto como base sin
+  abrir, indexar ni verificar ningún libro; solo se verificarán los libros que aparezcan o cambien después.
+- RF-35: CUANDO el operador pulsa «Verificar todos ahora» en el aviso de libros, EL SISTEMA reindexará las fuentes de
+  clientes y de cabecera y verificará todos sus libros en el carril de fondo, sin el tope de RF-19.
+- RF-36: EL SISTEMA regenerará el dataset del pronóstico solo cuando no haya trabajos del operador desde hace 5 min
+  (`CSG_DATASET_REPOSO_MIN`), en un proceso aparte de prioridad baja y nunca dentro del proceso de la web.
+- RF-37: SI el operador lanza un trabajo mientras se regenera el dataset, ENTONCES EL SISTEMA terminará ese proceso y
+  dejará el dataset desactualizado, para el siguiente reposo.
+- RF-38: MIENTRAS el dataset esté desactualizado, EL SISTEMA dirá cuándo se regenerará: la hora prevista, que espera a
+  que el motor quede libre o que faltan la cabecera o los medidores.
+- RF-39: CUANDO cambian el carril de fondo, los avisos o el dataset, EL SISTEMA lo publicará en los eventos del espacio y
+  LA WEB volverá a leer el estado del servidor, sin dejar a la vista un aviso desfasado.
+- RF-40: EL SISTEMA revisará al arrancar y en cada intervalo solo los espacios modificados o abiertos en las últimas 24
+  horas (`CSG_LIBROS_RECIENTES_H`), no todos los del equipo: la web del operador recorría los 43 y encolaba la lectura
+  de uno detrás de otro en el motor común a todos los espacios.
+- RF-41: SI el operador no tiene abierto un espacio (ninguna pestaña conectada ni pedido en los últimos 10 min),
+  ENTONCES EL SISTEMA solo comparará la foto de sus libros, sin leer ninguno, y dirá que lo nuevo se lee al abrirlo.
+
 ## Criterios de aceptación
 
 - Con libros sintéticos «0125 Pulso e.xlsx», «1025 Pulso.xlsx» y «0526clientesImportantes.xlsx» en la carpeta de su año,

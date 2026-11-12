@@ -129,6 +129,8 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
   const [connected, setConnected] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [espacioNoAbre, setEspacioNoAbre] = useState<{ id: string; mensaje: string } | null>(null);
+  // 104:RF-39: cada evento del carril de fondo hace releer el aviso de libros del servidor.
+  const [librosNuevosSeq, setLibrosNuevosSeq] = useState(0);
 
   const seqRef = useRef(0);
   const bootedAt = useRef(Date.now());
@@ -181,6 +183,7 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
       seqRef.current = events[events.length - 1].seq;
       const lines: LogLine[] = [];
       const jobUpdates: Job[] = [];
+      let libros = 0;
       for (const ev of events) {
         if (ev.type === 'log') {
           for (const t of String(ev.data.text).split('\n')) {
@@ -188,8 +191,11 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
           }
         } else if (ev.type === 'job') {
           jobUpdates.push(ev.data as Job);
+        } else if (ev.type === 'libros_nuevos') {
+          libros += 1;
         }
       }
+      if (libros) setLibrosNuevosSeq((n) => n + libros);
       if (lines.length) setLog((prev) => {
         const next = prev.concat(lines);
         return next.length > MAX_LOG ? next.slice(next.length - MAX_LOG) : next;
@@ -269,7 +275,7 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
   }, []);
 
   return {
-    state, setState, feeders, outputs, log, setLog, jobs, connected, bootError, espacioNoAbre,
+    state, setState, feeders, outputs, log, setLog, jobs, connected, bootError, espacioNoAbre, librosNuevosSeq,
     refresh: () => (id ? refresh(id) : Promise.resolve(null)),
     newWorkspace, trackJob,
   };

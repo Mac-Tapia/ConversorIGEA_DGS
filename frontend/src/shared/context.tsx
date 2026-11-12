@@ -20,6 +20,8 @@ export interface AppCtx {
   refresh: () => Promise<unknown>;
   /** Vuelve a leer el estado del servidor (`/api/health`): perfil de empresa, capacidades, edición (086:RF-59). */
   refreshHealth: () => void;
+  /** 104:RF-39: crece con cada evento del carril de fondo; el aviso de libros se relee al cambiar. */
+  librosNuevosSeq?: number;
 }
 
 export const Ctx = createContext<AppCtx | null>(null);

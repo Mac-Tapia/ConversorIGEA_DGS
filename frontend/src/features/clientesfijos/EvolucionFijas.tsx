@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { EVENTO_ARCHIVO, evolucionFijas, type EvolucionEstado } from '../../api/evolucionFijas';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { useApp } from '../../shared/context';
 import { Tablero } from './Tablero';
 import { nombreMes } from './datosTablero';
@@ -65,6 +66,8 @@ export function EvolucionFijas() {
 
   return (
     <div className="evolucion-fijas">
+      {/* 086:RF-70: el aviso de un cálculo interrumpido o fallido, en su propio paso. */}
+      <AvisosTrabajo paso="clientes-fijos" />
       <p className="muted">Máximas, crecimiento, variaciones y tendencia de los clientes fijos de cada alimentador, con los
         libros de clientes importantes y de suministros asignados en «Cargas en DIgSILENT» › 2.1 · Libros de medición.</p>
       {estado && estado.faltan.length > 0 && (

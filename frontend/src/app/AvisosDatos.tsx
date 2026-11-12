@@ -1,56 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useApp } from '../shared/context';
-import { interrumpidosPendientes } from '../api/reconexion';
-import type { Job, ResumenEspacio } from '../api/types';
+import type { ResumenEspacio } from '../api/types';
+import { avisosDeTrabajos, esGeneral } from '../shared/pasoDeTrabajo';
+import { AvisoTrabajo, useVistos } from '../shared/AvisosTrabajo';
 import { abrirEspacio } from '../shared/useWorkspace';
 import { useToast } from '../shared/ui';
-
-const VISTOS_KEY = 'convertersmartgrid.interrumpidos-vistos';
-
-function leerVistos(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(VISTOS_KEY) ?? '[]');
-    return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
-}
 
 const QUE_ES: Record<string, string> = {
   inputs: 'Entrada', demanda: 'Libro de demanda', datos_empresa: 'Libro de la empresa',
   libro_perdidas: 'Libro de pérdidas', catalog_file: 'Catálogo corregido', active_run_id: 'Última carga de la fuente',
 };
 
-/** 086:RF-9: un trabajo que el servidor dejó a medias, con lo que alcanzó a escribir. */
-function Interrumpido({ job, onVisto }: { job: Job; onVisto: () => void }) {
-  const { run } = useApp();
-  const [lineas, setLineas] = useState<string[] | null>(null);
-  const cuando = job.finished_at ? new Date(job.finished_at * 1000).toLocaleString() : null;
-  return (
-    <div className="alert alert-warn stack">
-      <p><strong>Trabajo interrumpido: {job.title}</strong>{cuando && <span className="muted small"> · {cuando}</span>}</p>
-      <p>{job.error}</p>
-      <div className="row">
-        <button className="btn btn-sm" aria-expanded={lineas !== null}
-          onClick={() => (lineas ? setLineas(null)
-            : void run(() => api.registroTrabajo(job.id)).then((r) => r && setLineas(r.lineas)))}>
-          {lineas ? 'Ocultar el registro' : 'Ver su registro'}</button>
-        <button className="btn btn-sm btn-ghost" onClick={onVisto}>Dar por visto</button>
-      </div>
-      {lineas && <pre className="report">{lineas.join('\n') || 'Este trabajo no llegó a escribir nada.'}</pre>}
-    </div>
-  );
-}
-
 /**
- * Lo que le pasó a los datos y el operador tiene que saber (086:RF-2, RF-3, RF-9, RF-47): ficheros que hoy no
- * están, otros espacios dañados, trabajos interrumpidos y una copia vieja. El servidor ya lo decía por su API.
+ * Lo que le pasó a los datos y el operador tiene que saber (086:RF-2, RF-3, RF-47): ficheros que hoy no
+ * están, otros espacios dañados y una copia vieja. El servidor ya lo decía por su API.
+ *
+ * 086:RF-74: arriba quedan solo los avisos generales del espacio, cada uno en una línea que se despliega. Los de un
+ * trabajo van a su paso (RF-70); aquí, solo los que no tienen paso o cuyo paso no se ofrece hoy (RF-71, RF-75).
  */
-export function AvisosDatos() {
+export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
   const { ws, setWs, health, jobs, run } = useApp();
   const [danados, setDanados] = useState<ResumenEspacio[]>([]);
-  const [vistos, setVistos] = useState<string[]>(leerVistos);
+  const vistos = useVistos();
 
   const leerEspacios = useCallback(() => run(api.espacios).then((filas) => {
     if (filas) setDanados(filas.filter((f) => f.estado !== 'ok'));
@@ -58,24 +30,19 @@ export function AvisosDatos() {
   // `health` cambia al volver a conectar: un corte que dañó otro espacio se ve sin recargar la pestaña.
   useEffect(() => { void leerEspacios(); }, [leerEspacios, ws.id, health]);
 
-  const darPorVisto = (id: string) => {
-    const nuevos = [...vistos, id];
-    setVistos(nuevos);
-    try {
-      localStorage.setItem(VISTOS_KEY, JSON.stringify(nuevos.slice(-200)));
-    } catch { /* navegación privada: vuelve a salir al recargar, nada se pierde */ }
-  };
   const copia = health.copia_datos;
-  const interrumpidos = interrumpidosPendientes(jobs, ws.id, vistos);
+  const generales = avisosDeTrabajos(jobs, ws.id, vistos).filter((a) => esGeneral(a, pestanas));
   return (
     <>
       {copia.vencida && (
-        <p className="alert alert-warn" role="status">
-          {copia.edad_dias == null
-            ? 'Aún no hay ninguna copia de sus datos. '
-            : `La última copia de sus datos tiene ${Math.round(copia.edad_dias)} días (el máximo es ${copia.maxima_dias}). `}
-          Haga una copia, como explica el manual de operación, para no perder trabajo si falla el equipo.
-        </p>
+        // 086:RF-74: una línea; el «cómo» al desplegarla. La copia se hace con la orden del manual: la web no tiene botón.
+        <details className="alert alert-warn aviso-linea" role="status">
+          <summary>{copia.edad_dias == null
+            ? 'Aún no hay ninguna copia de sus datos.'
+            : `La última copia de sus datos tiene ${Math.round(copia.edad_dias)} días (el máximo es ${copia.maxima_dias}).`}
+            {' '}<span className="mas">más</span></summary>
+          <p>Haga una copia, como explica el manual de operación, para no perder trabajo si falla el equipo.</p>
+        </details>
       )}
       {danados.map((d) => (
         <div key={d.id} className="alert alert-error stack">
@@ -90,8 +57,10 @@ export function AvisosDatos() {
         </div>
       ))}
       {ws.no_disponibles.length > 0 && (
-        <div className="alert alert-warn stack">
-          <p><strong>Estos ficheros no están ahora.</strong> Se conservan: si la unidad vuelve, se recuperan solos.</p>
+        <details className="alert alert-warn aviso-linea">
+          <summary><strong>{ws.no_disponibles.length === 1 ? 'Un fichero no está ahora.' : `${ws.no_disponibles.length} ficheros no están ahora.`}</strong>
+            {' '}<span className="mas">más</span></summary>
+          <p>Se conservan: si la unidad vuelve, se recuperan solos.</p>
           <ul className="small">
             {ws.no_disponibles.map((n) => (
               <li key={`${n.campo}-${n.clave}`}>
@@ -103,10 +72,10 @@ export function AvisosDatos() {
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
       {ws.avisos_datos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
-      {interrumpidos.map((j) => <Interrumpido key={j.id} job={j} onVisto={() => darPorVisto(j.id)} />)}
+      {generales.map((a) => <AvisoTrabajo key={a.job.id} aviso={a} conPaso />)}
     </>
   );
 }

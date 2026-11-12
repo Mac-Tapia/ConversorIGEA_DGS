@@ -229,3 +229,14 @@ Verificar con dos raíces privadas, usuarios/entornos/cwd distintos y recibos
 absolutos/relativos; ninguna ruta privada viaja en el paquete pequeño de prueba.
 Rechazar recibo ausente, SHA distinto y contenido alterado con igual tamaño/mtime.
 Esto no acredita instalación, GPU, modelos, aprobación legal ni producción.
+
+## Cada aviso en su paso (2026-11-12, RF-70 a RF-75)
+
+`frontend/src/shared/pasoDeTrabajo.ts` guarda la tabla `kind → paso` y la lógica pura: agrupar por ámbito (espacio,
+`kind` y título, que lleva el proyecto o los alimentadores), dar por resuelto el que tiene después uno `done` del mismo
+ámbito, y decidir qué va arriba. `frontend/src/shared/AvisosTrabajo.tsx` pinta el aviso con sus botones; los «vistos»
+siguen en la misma clave de `localStorage` y en un almacén único para todos los pasos. Cada paso pone su
+`<AvisosTrabajo paso=… />` junto a su botón; `AvisosDatos` deja arriba lo general y lo que no tiene paso visible.
+Alternativa descartada: guardar en el servidor el ámbito y la petición de cada trabajo para reintentarlo; solo
+`recalibrar` la guarda (096:RF-5) y su relanzamiento ya es automático. Sin cambio de API.
+Pruebas: `frontend/test/avisosEnSuPaso.test.mjs` lee los `submit` del servidor y exige una fila por `kind`.

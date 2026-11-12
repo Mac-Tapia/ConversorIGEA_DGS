@@ -226,6 +226,8 @@ export const api = {
   librosNuevos: (id: string) => request<LibrosNuevos>(`${ws(id)}/demanda/libros-nuevos`),
   librosNuevosRevisar: (id: string) =>
     request<RevisarLibros>(`${ws(id)}/demanda/libros-nuevos/revisar`, { method: 'POST' }),
+  librosNuevosVerificarTodos: (id: string) =>
+    request<RevisarLibros>(`${ws(id)}/demanda/libros-nuevos/verificar-todos`, { method: 'POST' }),
   librosNuevosVisto: (id: string, aviso: string) =>
     request<LibrosNuevos>(`${ws(id)}/demanda/libros-nuevos/avisos/${enc(aviso)}/visto`, { method: 'POST' }),
   demandaQuitar: (id: string, tipo: DemandaTipo) =>

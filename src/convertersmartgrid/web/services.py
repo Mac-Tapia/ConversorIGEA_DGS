@@ -2633,8 +2633,16 @@ def _foto_fuente_clientes(path: Path) -> tuple[tuple[str, int, int], ...]:
     return foto_de_fuente(path)       # 104:RF-1: la misma foto que compara el reconocimiento
 
 
-def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
-    """Reescanea la fuente persistida y publica un catálogo mensual sin rutas absolutas."""
+def _aqui(fn, *args):
+    return fn(*args)
+
+
+def demanda_clientes_indexar(ws: Workspace, ctx: JobContext, *, ejecutar=None) -> dict:
+    """Reescanea la fuente persistida y publica un catálogo mensual sin rutas absolutas.
+
+    ``ejecutar(fn, *args)`` lee los libros donde diga quien llama: el carril de fondo, en un proceso que se termina si
+    el operador lanza algo (104:RF-33).
+    """
     from ..demanda_medida import DemandaError, catalogar_libros_clientes
 
     with ws.lock:
@@ -2648,8 +2656,8 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
 
     ctx.progress(0, len(foto_inicial), 'Leyendo nombres y meses')
     try:
-        catalogo = catalogar_libros_clientes(
-            fuente, perfil_de(ws).patron_libro_clientes, meta.get('asignaciones') or {})
+        catalogo = (ejecutar or _aqui)(
+            catalogar_libros_clientes, fuente, perfil_de(ws).patron_libro_clientes, meta.get('asignaciones') or {})
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     # 104:RF-16: el libro que repite otro mes queda inactivo también al reindexar a mano.
@@ -2693,7 +2701,7 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
     return {'catalogo': publico, 'anios': anios, 'vigente': vigente, 'avisos': avisos}
 
 
-def demanda_cabecera_indexar(ws: Workspace, ctx: JobContext) -> dict:
+def demanda_cabecera_indexar(ws: Workspace, ctx: JobContext, *, ejecutar=None) -> dict:
     """Índice de la medición de cabecera por año (025:RF-28 a RF-33).
 
     Qué trae cada libro (año, hojas de medición, meses con registro) para que el operador
@@ -2728,7 +2736,7 @@ def demanda_cabecera_indexar(ws: Workspace, ctx: JobContext) -> dict:
                 and previo.get('mtime_ns') == stat.st_mtime_ns and previo.get('anio') == anio):
             indice.append(previo)
             continue
-        datos = dm.indexar_libro_cabecera(path, alias)
+        datos = (ejecutar or _aqui)(dm.indexar_libro_cabecera, path, alias)      # 104:RF-33: como en clientes
         if datos['error']:
             ctx.log(f'  {relativa}: {datos["error"]}')
         indice.append({'relativa': relativa, 'anio': anio, 'size': stat.st_size,

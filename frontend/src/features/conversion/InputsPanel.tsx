@@ -2,6 +2,7 @@ import { fmtBytes } from '../../shared/formato';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import type { InputMode, SourceScope, VnrPublication, VnrPublications } from '../../api/types';
 import { FileDrop, Pill, useConfirm, useToast } from '../../shared/ui';
 
@@ -312,6 +313,8 @@ export function InputsPanel() {
             disabled={Boolean(active.engine)} onClick={() => setMode('vnr')}>VNR-GIS</button>
         </div>
       </header>
+      {/* 086:RF-70: lo de las publicaciones de VNR-GIS, en este paso. */}
+      <AvisosTrabajo paso="entradas" />
 
       <EmpresaEspacio key={ws.id} />
 

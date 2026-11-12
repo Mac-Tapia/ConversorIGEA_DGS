@@ -21,6 +21,8 @@ import { PerfilEmpresa } from '../features/conversion/PerfilEmpresa';
 import { Modal, Pill, useConfirm, useToast } from '../shared/ui';
 import type { Health, Job, PowerFactoryStatus } from '../api/types';
 import { useWorkspace } from '../shared/useWorkspace';
+import { avisosDeTrabajos, avisosPorPestana } from '../shared/pasoDeTrabajo';
+import { useVistos } from '../shared/AvisosTrabajo';
 
 // ``entradas``: la pestaña necesita la entrega cargada. «Cargas en DIgSILENT» trabaja
 // sobre un proyecto que ya está en DIgSILENT y se ve siempre (spec 008, RF-1).
@@ -153,6 +155,7 @@ export default function App() {
     api.health().then(setHealth).catch((e) => toast('error', 'No responde la API', String(e.message ?? e)));
   }, [toast]);
   const w = useWorkspace(onFinished, leerHealth);
+  const vistos = useVistos();
 
   useEffect(() => {
     leerHealth();
@@ -206,12 +209,14 @@ export default function App() {
   const ctx: AppCtx = {
     ws: w.state, setWs: w.setState, health, pf, feeders: w.feeders, outputs: w.outputs, jobs: w.jobs,
     selected, setSelected, active, run, startJob, refresh: w.refresh, refreshHealth: leerHealth,
+    librosNuevosSeq: w.librosNuevosSeq,
   };
   const running = [active.engine, active.powerfactory, active.asistente].filter(Boolean) as Job[];
   // RF-2: sin entradas, solo las pestañas que no las necesitan.
   // 086:RF-16: un asistente en beta apagado no se ofrece.
   const tabs = TABS.filter((t) => (w.state!.loaded || !t.entradas) && (t.id !== 'asistente' || betaActiva(health, 'asistente')));
   const actual = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const avisosPestana = avisosPorPestana(avisosDeTrabajos(w.jobs, w.state.id, vistos), tabs.map((t) => t.id));
   // 091:RF-8: en otro espacio solo se montan las que se abran en él.
   if (espacioVisto.current !== w.state.id) {
     espacioVisto.current = w.state.id;
@@ -255,7 +260,7 @@ export default function App() {
         </header>
 
         <main className="content">
-          <AvisosDatos />
+          <AvisosDatos pestanas={tabs.map((t) => t.id)} />
           <AvisosLibros />
           <JobBar jobs={running} />
           <div className="grid">
@@ -271,7 +276,10 @@ export default function App() {
                 <nav className="tabs" role="tablist">
                   {tabs.map((t) => (
                     <button key={t.id} role="tab" aria-selected={actual.id === t.id} className={actual.id === t.id ? 'on' : ''}
-                      onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</button>
+                      onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}
+                      {/* 086:RF-75: el aviso de un trabajo espera en su paso; la pestaña dice que lo hay. */}
+                      {avisosPestana[t.id] > 0 && <> <span className="badge warn" title="Trabajos que no terminaron bien en esta pestaña">
+                        {avisosPestana[t.id]} aviso{avisosPestana[t.id] > 1 ? 's' : ''}</span></>}</button>
                   ))}
                 </nav>
                 {/* 091:RF-8: otro espacio las vuelve a montar, sin lo del anterior. */}

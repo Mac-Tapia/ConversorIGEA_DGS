@@ -4506,6 +4506,11 @@
             ],
             "title": "Dataset"
           },
+          "fondo": {
+            "additionalProperties": true,
+            "title": "Fondo",
+            "type": "object"
+          },
           "intervalo_min": {
             "title": "Intervalo Min",
             "type": "number"
@@ -4546,7 +4551,8 @@
           "proxima_revision",
           "intervalo_min",
           "repetidos",
-          "dataset"
+          "dataset",
+          "fondo"
         ],
         "title": "LibrosNuevosRespuesta",
         "type": "object"
@@ -6633,24 +6639,19 @@
       },
       "RevisarLibrosRespuesta": {
         "additionalProperties": false,
+        "description": "104:RF-30: la revisión va al carril de fondo, no a la cola: no hay trabajo que seguir.",
         "properties": {
           "estado": {
             "$ref": "#/components/schemas/LibrosNuevosRespuesta"
           },
-          "job": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/JobRespuesta"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "lanzada": {
+            "title": "Lanzada",
+            "type": "boolean"
           }
         },
         "required": [
           "estado",
-          "job"
+          "lanzada"
         ],
         "title": "RevisarLibrosRespuesta",
         "type": "object"
@@ -11338,7 +11339,7 @@
     },
     "/api/workspaces/{wid}/demanda/libros-nuevos/revisar": {
       "post": {
-        "description": "104:RF-1, RF-4: la misma revisión que la periódica, cuando la pide el operador.",
+        "description": "104:RF-1, RF-30: la misma revisión que la periódica, cuando la pide el operador; va al carril de fondo.",
         "operationId": "libros_nuevos_revisar_api_workspaces__wid__demanda_libros_nuevos_revisar_post",
         "parameters": [
           {
@@ -11374,6 +11375,46 @@
           }
         },
         "summary": "Libros Nuevos Revisar"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/libros-nuevos/verificar-todos": {
+      "post": {
+        "description": "104:RF-35: «Verificar todos ahora»: todos los libros de clientes y de cabecera, en el carril de fondo.",
+        "operationId": "libros_nuevos_verificar_todos_api_workspaces__wid__demanda_libros_nuevos_verificar_todos_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisarLibrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Libros Nuevos Verificar Todos"
       }
     },
     "/api/workspaces/{wid}/demanda/medidores": {

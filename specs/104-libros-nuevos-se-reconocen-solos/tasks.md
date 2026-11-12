@@ -21,3 +21,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       nada, y el dataset del espacio se regenera con los libros reales. (RF-1, RF-20, RF-23)
       Hecho cuando: se ve en el navegador real. La comprobación con los libros reales por la vía de la web, sin navegador
       ni servidor, se hizo el 2026-11-12 (cifras en el informe de la tarea, fuera de git).
+- [x] T7. Carril de fondo que cede al operador: sin la cola del motor, proceso de prioridad baja que se termina al ceder,
+      foto base sin abrir libros, «Verificar todos ahora», dataset solo en reposo y aviso que se relee. (RF-30 a RF-39)
+      Hecho cuando: `tests/test_libros_nuevos_web.py -k "fondo or base or ceder or reposo or verificar_todos"` y
+      `npm test` (`frontend/test/librosFondo.test.mjs`) en verde, y en el navegador «Cargar / listar alimentadores»
+      arranca enseguida con una revisión de fondo en marcha.
+- [x] T8. Solo los espacios recientes, y sin leer libros de los que el operador no tiene abiertos. (RF-40, RF-41)
+      Hecho cuando: `tests/test_libros_nuevos_web.py -k "recientes or abierto"` en verde.
