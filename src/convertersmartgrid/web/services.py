@@ -3346,15 +3346,13 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
             'total': len(tramo), 'reducida': len(reducidos) < len(tramo), 'fuera_de_curva': 0}
 
 
-def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
-    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial.
+def propietarios_de_sed(ws: Workspace) -> dict[str, set[str]]:
+    """Los alimentadores de la red cargada en que está cada SED, por su nombre corto (038:RF-1; 105:RF-34).
 
-    091:RF-9: con ``libro``, el que no está en el libro de suministros se busca en su hoja.
+    Se calcula una vez por red: un plan cruza por alimentador y la evolución de los clientes fijos lo consulta.
     """
-    from ..demanda_medida import DemandaError, completar_desde_hojas, cruzar, reconciliar_radiales
     from ..model import extract_sed_code
 
-    cruzados, aparte = cruzar(clientes, suministros)
     # Un plan llama este cruce por alimentador: no releer toda la red por cada uno (P2).
     with ws.lock:
         dataset = ws.dataset
@@ -3376,6 +3374,18 @@ def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
                 # Dos NetworkID distintos con el mismo nombre corto siguen siendo ambiguos.
                 nombres[sed] = cortos if len(cortos) == len(owners) else owners
             ws._sed_owners_cache = (dataset, nombres)
+    return nombres
+
+
+def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
+    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial.
+
+    091:RF-9: con ``libro``, el que no está en el libro de suministros se busca en su hoja.
+    """
+    from ..demanda_medida import DemandaError, completar_desde_hojas, cruzar, reconciliar_radiales
+
+    cruzados, aparte = cruzar(clientes, suministros)
+    nombres = propietarios_de_sed(ws)
     if libro is not None:
         try:
             de_su_hoja, aparte = completar_desde_hojas(aparte, libro, nombres)   # 091:RF-9

@@ -138,7 +138,11 @@
     "escaneo.py",
     "transferencia_operador.py",
     "trafos_sed.py",
-    "economia.py"
+    "economia.py",
+    "evolucion_clientes.py",
+    "dominio/meses_copiados.py",
+    "dominio/evolucion_mensual.py",
+    "dominio/conciliacion_clientes.py"
    ]
   },
   {
@@ -179,7 +183,8 @@
     "libro_informe.py",
     "libros_informe.py",
     "mapa_informe.py",
-    "documentos_solicitud.py"
+    "documentos_solicitud.py",
+    "archivo_informes.py"
    ]
   },
   {
@@ -354,7 +359,9 @@
     "suspension.py",
     "cierre.py",
     "sources/__init__.py",
-    "sources/vnr.py"
+    "sources/vnr.py",
+    "evolucion_fijas.py",
+    "evolucion_fijas_api.py"
    ]
   },
   {
@@ -595,7 +602,14 @@
     "test/aprendizaje.test.mjs",
     "test/operacionSet.test.mjs",
     "test/projectBinding.test.mjs",
-    "test/solicitudLeida.test.mjs"
+    "test/solicitudLeida.test.mjs",
+    "src/api/evolucionFijas.ts",
+    "src/app/ArchivoInformes.tsx",
+    "src/shared/graficos.ts",
+    "src/features/clientesfijos/EvolucionFijas.tsx",
+    "src/features/clientesfijos/Tablero.tsx",
+    "src/features/clientesfijos/Graficos.tsx",
+    "src/features/clientesfijos/datosTablero.ts"
    ]
   }
  ]

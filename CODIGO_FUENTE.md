@@ -30,6 +30,9 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión. | 034 (RF-1) |
 | `src/convertersmartgrid/dominio/__init__.py` | Paquete real de valores y reglas puras, sin lectores ni E/S. | 002 (RF-1, RF-3) |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Un único cuerpo de normalización de códigos y números finitos de medición; compatibilidad importada por demanda_medida. | 002 (RF-1, RF-3, RF-21), 004 (RF-31) |
+| `src/convertersmartgrid/dominio/meses_copiados.py` | Mes de cada registro de 15 minutos y detección del libro mensual que repite el mes anterior, día a día, por mayoría de las series; la usa también el reconocimiento de libros. | 105 (RF-4, RF-13, RF-14) |
+| `src/convertersmartgrid/dominio/evolucion_mensual.py` | Indicadores mensuales de una serie (máximas con su instante, medias, energías, FP, factor de carga, registros) y su crecimiento, variación, tendencia y meses de mayor valor. | 105 (RF-5 a RF-11, RF-37) |
+| `src/convertersmartgrid/dominio/conciliacion_clientes.py` | Veredicto de cada cliente frente a sus fuentes, cadenas de renumeración, renumeraciones posibles por CL o SED y fijos por encima de la cabecera. | 105 (RF-34 a RF-38) |
 | `src/convertersmartgrid/dominio/dataset.py` | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector; el lector de los TXT la extiende en `dataset.py`. | 002 (RF-1, RF-2) |
 | `src/convertersmartgrid/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | 034, 001 |
 | `src/convertersmartgrid/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66), 035 (RF-2 a RF-9), 035 (RF-28 a RF-30), 041 (RF-1 a RF-7), 095 |
@@ -420,6 +423,13 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/features/powerfactory/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
 | `frontend/src/features/powerfactory/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red; tensión en la fuente; bancos que falten. | 006, 008, 020 (RF-62), 021, 025 (RF-24), 035 (RF-11, RF-16, RF-21, RF-22), 039 (RF-1), 035 (RF-30), 039 (RF-1), 041 (RF-6, RF-9), 091 |
 | `frontend/src/features/powerfactory/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
+| `frontend/src/shared/graficos.ts` | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. | 105 (RF-23, RF-25), 006 (RF-32) |
+| `frontend/src/api/evolucionFijas.ts` | Cliente tipado de la evolución de los clientes fijos y de la carpeta de archivo. | 105 (RF-18, RF-20, RF-29) |
+| `frontend/src/app/ArchivoInformes.tsx` | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. | 105 (RF-29) |
+| `frontend/src/features/clientesfijos/EvolucionFijas.tsx` | Pestaña «Evolución de clientes fijos»: alimentadores, rango de meses y trabajo. | 105 (RF-21) |
+| `frontend/src/features/clientesfijos/Tablero.tsx` | Tablero: conciliación, buscador, tarjetas, gráficos, variaciones, cabecera, curva y avisos. | 105 (RF-22 a RF-26, RF-34, RF-39) |
+| `frontend/src/features/clientesfijos/Graficos.tsx` | Gráficos de líneas por mes y curva de 15 minutos de un cliente, en SVG. | 105 (RF-23, RF-25) |
+| `frontend/src/features/clientesfijos/datosTablero.ts` | Lógica del tablero sin React: series, variaciones, avisos, reducción de la curva y buscador difuso. | 105 (RF-23 a RF-26, RF-39) |
 | `frontend/src/features/powerfactory/PerfilTension.tsx` | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. | 094 (RF-3) |
 | `frontend/src/app/InstalacionesPowerFactory.tsx` | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. | 103 (RF-3) |
 | `frontend/src/app/JobBar.tsx` | Barra de trabajos en curso. | 001 |
@@ -460,6 +470,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |
 | `src/convertersmartgrid/digital_twin/series_causales.py` | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. | 046 (RF-1 a RF-3, RF-5) |
 | `src/convertersmartgrid/pronostico_demanda.py` | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera, clientes y escaladas, apoyo de años anteriores, métodos por perfil, backtest por origen, exógenas con su disponibilidad y filas con la marca `pronostico`. | 089 |
+| `src/convertersmartgrid/evolucion_clientes.py` | Evolución de los clientes fijos de uno o varios alimentadores con los lectores del pronóstico: conciliación de fuentes, indicadores, mes copiado, participación en la cabecera y libro Excel con gráficos. | 105 (RF-1 a RF-16, RF-27, RF-34 a RF-38) |
+| `src/convertersmartgrid/archivo_informes.py` | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar ni pisar nada. | 105 (RF-28 a RF-33) |
 | `tools/pronostico_demanda.py` | Dataset y backtest de demanda desde las carpetas que haya; informe JSON y CSV de pronóstico. | 089 |
 | `tools/entrenar_alimentadores_gpu.py` | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento; retoma los ya entrenados y no promociona modelos. | 089 |
 | `src/convertersmartgrid/digital_twin/pronostico.py` | Contrato multihorizonte: objetivos, conjunto en rejilla común, referencias ingenuo y estacional semanal, calibración de intervalos y filas con la marca `pronostico`. | 046 (RF-1 a RF-5, RF-12 a RF-15, RF-19) |
@@ -567,6 +579,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/runtime_paths.py` | Raíces externas, identidad estable de la instalación, staging por volumen o junto al destino, custodia y reconciliación de temporales. | 065 (RF-10 a RF-13), 086 (RF-7, RF-8) |
 | `src/convertersmartgrid/web/api_contract.py` | Modelos públicos Pydantic y contratos OpenAPI del frontend. | 065 (RF-17, RF-26), 002 |
 | `src/convertersmartgrid/web/equipo_api.py` | API del equipo LLM: permisos por plan y revisiones locales en cola. | 065 (RF-22, RF-23) |
+| `src/convertersmartgrid/web/evolucion_fijas.py` | Servicio de la evolución de los clientes fijos: libros del espacio, trabajo con avance, último resultado y curvas, libro en la salida y su archivo. | 105 (RF-1, RF-17, RF-18, RF-27, RF-30, RF-31, RF-34) |
+| `src/convertersmartgrid/web/evolucion_fijas_api.py` | Rutas `…/clientes-fijos/evolucion`, su curva y `/api/archivo`, montadas en la API única. | 105 (RF-18 a RF-20, RF-29) |
 | `src/convertersmartgrid/web/operaciones_lentas.py` | ZIP cancelable, cuotas y entrega de archivos por trabajo. | 065 (RF-12, RF-18, RF-19) |
 | `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065 (RF-16), 002 |
 | `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 (RF-15) |
@@ -581,6 +595,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/test/reconexion.test.mjs` | Pruebas de los trabajos al reconectar y de la edición en la web. | 086 (RF-9, RF-16) |
 | `frontend/test/fondoMapa.test.mjs` | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. | 086 (RF-67, RF-68) |
 | `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
+| `frontend/test/evolucionFijas.test.mjs` | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. | 105 (RF-22 a RF-26, RF-34, RF-39) |
 | `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |
 | `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |
 | `src/convertersmartgrid/asistente/ajuste_condicionado.py` | Puertas de 027:RF-18 sobre órdenes reales independientes y decisión de ajustar el LLM, sin entrenar ni activar. | 047 (RF-8, RF-9) |

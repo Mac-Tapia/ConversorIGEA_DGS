@@ -1,4 +1,5 @@
 import { fmtNum } from '../../shared/formato';
+import { colorSerie, marcas, tramos } from '../../shared/graficos';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { api } from '../../api/client';
@@ -19,29 +20,6 @@ function isoLocal(d: Date): string {
 const dia = (d: Date) => d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 const diaHora = (d: Date) => `${dia(d)} ${d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`;
 
-/** Valores «redondos» para las marcas del eje del kW. */
-function marcas(min: number, max: number, n = 5): number[] {
-  const paso0 = (max - min) / n || 1;
-  const mag = 10 ** Math.floor(Math.log10(paso0));
-  const paso = [1, 2, 2.5, 5, 10].map((k) => k * mag).find((k) => k >= paso0) ?? paso0;
-  const out = [];
-  for (let v = Math.ceil(min / paso) * paso; v <= max + 1e-9; v += paso) out.push(Number(v.toFixed(6)));
-  return out;
-}
-
-/** Tramos de puntos seguidos con valor: un kVAR vacío corta la línea, no la lleva a cero. */
-function tramos(xs: [number, number | null][]): string[] {
-  const out: string[] = [];
-  let actual: string[] = [];
-  for (const [x, y] of xs) {
-    if (y == null) {
-      if (actual.length) out.push(actual.join(' '));
-      actual = [];
-    } else actual.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-  }
-  if (actual.length) out.push(actual.join(' '));
-  return out;
-}
 /** Una curva de la gráfica: el medidor de cabecera de un alimentador (spec 021, RF-17). */
 export interface SerieCurva {
   clave: string;
@@ -52,9 +30,7 @@ export interface SerieCurva {
   demanda?: { alimentador: string; central: CentralTermica };
 }
 
-/** Colores de las series: tokens de styles.css, con su versión oscura. */
-const COLORES = 8;
-const color = (i: number) => `var(--serie-${i % COLORES})`;
+const color = colorSerie;
 
 /**
  * Curva del registro histórico del medidor de cabecera (spec 006, RF-32 a RF-38).

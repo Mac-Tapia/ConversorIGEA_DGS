@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../api/client';
 import { AcercaDe } from './AcercaDe';
+import { ArchivoInformes } from './ArchivoInformes';
 import { Ctx, type AppCtx } from '../shared/context';
 import { betaActiva } from '../shared/edicion';
 import { Asistente } from '../features/asistente/Asistente';
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
 import { AvisosLibros } from './AvisosLibros';
 import { CargasTab } from '../features/powerfactory/CargasTab';
+import { EvolucionFijas } from '../features/clientesfijos/EvolucionFijas';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
 import { InputsPanel } from '../features/conversion/InputsPanel';
 import { InstalacionesPowerFactoryModal } from './InstalacionesPowerFactory';
@@ -25,6 +27,8 @@ import { useWorkspace } from '../shared/useWorkspace';
 const TABS = [
   { id: 'results', label: 'Resultados', el: <ResultsTab />, entradas: true },
   { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false },
+  // Spec 105: con los libros de medición del espacio; no necesita la red cargada.
+  { id: 'clientes_fijos', label: 'Evolución de clientes fijos', el: <EvolucionFijas />, entradas: false },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
   { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
   // Spec 026: la consola de órdenes no necesita la entrega cargada (puede pedir que se cargue).
@@ -258,6 +262,7 @@ export default function App() {
             <div className="col-side">
               <InputsPanel />
               <OptionsPanel />
+              <ArchivoInformes />
               <PerfilEmpresa />
             </div>
             <div className="col-main">
