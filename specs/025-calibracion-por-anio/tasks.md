@@ -193,3 +193,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_libros_por_anio_front.py` en verde.
       Hecho el 2026-10-29: retirado el `useEffect` de `Libro` que lanzaba los dos índices en
       cada montaje; el índice sale de `subir` y `porRuta` con la fuente recién asignada.
+- [x] T26. «Cargas nuevas <año>», copia fresca de «Sin proyecto <año>» en cada inserción, con sus
+      etapas al día y comparada objeto a objeto con «Sin proyecto» antes de activar las cargas; «Con
+      proyecto» frente a «Sin proyecto» sin sus obras ni sus cargas; un reintento y, si sigue distinto,
+      aviso. (RF-61, RF-79 a RF-83)
+      Hecho cuando: `pytest -q tests/test_casos_por_anio.py tests/test_casos_pf.py tests/test_cargas_pf_guion_007.py
+      tests/test_seis_reglas.py` en verde.
+      Hecho el 2026-11-12 (PA217): `casos_pf.cargas_nuevas` borra el caso del sistema (nombre y marca) y lo
+      copia otra vez con `AddCopy`, llama a `etapas_al_dia`, compara con `foto_de_red` y
+      `diferencias_de_red` y, con `con`, `con_frente_a_sin`; `_a_cargas_nuevas` y `preparar` le pasan los
+      alimentadores marcados y «Con proyecto». Pruebas con `fake_pf`, en rojo con el código anterior. Dos flujos
+      más por inserción (el de «Sin proyecto» y el de «Con proyecto»); el de la copia es el de partida.
+- [ ] T27. [DIgSILENT] En una copia del proyecto PA217 con los bancos y los tramos de dos conductores
+      de 120 mm² que el operador puso en «Sin proyecto», insertar una carga unitaria (3.2) y un bloque
+      (3.1) desde la web y comprobar en DIgSILENT que «Cargas nuevas» los tiene, con la hora de «Sin
+      proyecto» y la comparación sin diferencias. (RF-79 a RF-83)
+      Hecho cuando: el informe de la inserción dice `igualdad.iguales` y la sonda de solo lectura lo confirma.

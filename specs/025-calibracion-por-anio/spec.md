@@ -1,6 +1,6 @@
 # Spec 025 — Calibración por año de medición
 
-Estado: cumplida (2026-11-12: T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
+Estado: implementada (2026-11-12: RF-79 a RF-83 por PA217, falta la prueba en DIgSILENT T27; T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
 
 ## Contexto y objetivo
 
@@ -339,6 +339,32 @@ proyecto»; nombre «Cargas nuevas <año>»; si no converge, se deja y se dice)
   dejará inactiva allí y dirá en la web con qué carga deja de converger y por qué: su
   alimentador, su potencia, la tensión mínima y los tramos sobrecargados del alimentador
   justo antes de ella, y lo que informa DIgSILENT del flujo que no convergió.
+
+Copia fresca de «Sin proyecto» en cada inserción (usuario, 2026-11-12, PA217: en «Sin proyecto»
+incluyó o actualizó a mano bancos y tramos con dos conductores de 120 mm², y «Cargas nuevas» no
+los tenía; «sí o sí debe hacer copia del caso Sin proyecto, y sobre ese caso, copiado con todas
+las modificaciones, se deben crear las nuevas cargas, ya sean unitarias o en bloques». El caso se
+copiaba una vez y se reutilizaba con la hora de estudio de su creación; una etapa fechada después
+no se aplica aunque su variación esté activa, y DIgSILENT no avisa, 081:RF-78)
+
+- Aclaración de RF-61 (2026-11-12): «reutilizará» deja de valer; cada inserción rehace el caso
+  según RF-79.
+- RF-79: CUANDO se insertan cargas nuevas, unitarias o en bloque, EL SISTEMA borrará el caso
+  «Cargas nuevas <año>» que reconoce por su nombre y su marca y lo volverá a copiar de «Sin
+  proyecto <año>», con su hora de estudio, sus variaciones activas, su escenario y todo lo que
+  el operador cambió allí, sin tocar un caso del operador con el mismo nombre (RF-61).
+- RF-80: EL SISTEMA adelantará a la hora de «Cargas nuevas <año>» las etapas de sus variaciones
+  activas fechadas después de ella, antes de activar ninguna carga nueva, y lo dirá.
+- RF-81: ANTES de activar las cargas nuevas, EL SISTEMA comparará «Cargas nuevas <año>» con «Sin
+  proyecto <año>» objeto a objeto en los alimentadores marcados (bancos, tramos, transformadores,
+  interruptores y cargas, con los datos que el operador cambia) y listará en el informe y en la
+  web cada diferencia, también lo que está en uno y falta en el otro.
+- RF-82: EL SISTEMA comparará igual «Con proyecto <año>» con «Sin proyecto <año>», sin lo que
+  graban las variaciones activas solo en «Con proyecto <año>» (obras y cargas nuevas), y avisará
+  de cada diferencia restante.
+- RF-83: SI «Cargas nuevas <año>» sale distinto de «Sin proyecto <año>», ENTONCES EL SISTEMA lo
+  borrará y lo copiará otra vez una sola vez y, si sigue distinto, avisará con la lista y
+  seguirá con las cargas nuevas sobre él.
 
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o

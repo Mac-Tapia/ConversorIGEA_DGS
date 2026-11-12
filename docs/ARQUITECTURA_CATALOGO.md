@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 86 |
+| cumplida | 85 |
 | aprobada | 17 |
-| implementada | 1 |
+| implementada | 2 |
 | retirada | 1 |
 
-105 specs con 3481 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3486 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

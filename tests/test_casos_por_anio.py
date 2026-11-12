@@ -455,6 +455,224 @@ def test_cargas_nuevas_sin_las_obras_de_con_proyecto():
     assert obra.loc_name not in activas and informe['reutilizadas'][0]['variacion'] in activas
 
 
+# =========================================================================== T26: copia fresca (PA217)
+def _diagnostico(app, *, anio=ANIO, cargas=('N1',), **kw):
+    """«Cargas nuevas» con ``casos_pf.cargas_nuevas`` y un flujo que siempre converge; las variaciones
+    de carga quedan inactivas en el caso activo, como las deja la inserción."""
+    from test_casos_pf import _variacion
+
+    variaciones = []
+    for sed in cargas:
+        v = _variacion(app, f'Carga_{sed}_F1_20261112_100000')
+        v.Deactivate()
+        variaciones.append(v)
+    sin = casos_pf.caso(app, 'sin')
+    return casos_pf.cargas_nuevas(app, sin, anio, variaciones, lambda _a: (True, []), **kw), sin, variaciones
+
+
+def _banco_en(app, variacion_nombre, barra='F1_B2', nombre='BC_OPERADOR'):
+    """El operador pone un banco en ``barra`` con una variación activa en el caso activo."""
+    from test_casos_pf import _variacion
+
+    v = _variacion(app, variacion_nombre)
+    etapa = v.GetContents('*.IntSstage')[0]
+    app.grabando = etapa
+    red = next(o for o in app.proyecto.GetContents('*.ElmNet', 1))
+    banco = red.CreateObject('ElmShnt', nombre)
+    banco.ncapa, banco.qcapn, banco.outserv = 1, 0.3, 0
+    cub = next(b for b in red.GetContents('*.ElmTerm') if b.loc_name == barra).CreateObject(
+        'StaCubic', f'c_{nombre}')
+    cub.obj_id = banco
+    app.grabando = None
+    return v, banco
+
+
+def test_cargas_nuevas_se_copia_de_nuevo_en_cada_insercion():
+    """025:RF-79 — en cada inserción «Cargas nuevas <año>» se borra y se copia otra vez de «Sin
+    proyecto <año>»: el caso de la inserción anterior no se reutiliza, queda uno solo y trae la hora
+    de estudio que «Sin proyecto» tiene ahora (PA217, 2026-11-12)."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, base = _red_calibrada(escenario=True)
+    plan = {**_plan_cargas(['F1'], nuevas=[_nueva('N1', barra='F1_B2', tension_bt_kv=0.38)]),
+            'base': base, 'anio_casos': ANIO}
+    informe, rc = cargas_guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    nombre = f'Cargas nuevas {ANIO}'
+    primero = _caso_por_nombre(app, nombre)
+    sin = casos_pf.caso(app, 'sin', ANIO)
+    sin.iStudyTime = int(sin.iStudyTime) + 3600           # el operador cambió la hora de «Sin proyecto»
+    plan2 = {**plan, 'nuevas': [_nueva('N2', barra='F1_B3', tension_bt_kv=0.38)]}
+    informe, rc = cargas_guion.ejecutar(app, plan2, simular=False)
+    assert rc == 0, informe
+    segundo = _caso_por_nombre(app, nombre)
+    assert segundo is not primero and primero in app.borrados
+    assert [c.loc_name for c in app.carpetas['study'].GetContents('*.IntCase')].count(nombre) == 1
+    assert casos_pf.rol_de(segundo) == f'cargas@{ANIO}' and segundo.iStudyTime == sin.iStudyTime
+    d = informe['cargas_nuevas']
+    assert d['recreado'] is True and d['igualdad']['iguales'] is True and d['intentos'] == 1
+    assert len(d['activas']) == 2 and d['con_frente_a_sin']['caso'] == f'Con proyecto {ANIO}'
+
+
+def test_cargas_nuevas_trae_los_bancos_y_las_ternas_que_el_operador_puso_en_sin_proyecto():
+    """025:RF-79, 025:RF-81 — lo que el operador cambió en «Sin proyecto» después de la inserción
+    anterior (un banco y un tramo con dos conductores en paralelo) está en la copia nueva, y la
+    comparación lo da por igual."""
+    app, _base = _red_calibrada(escenario=True)
+    app.atributos_en_variacion = True
+    _diagnostico(app, anio=None)
+    sin = casos_pf.caso(app, 'sin')
+    sin.Activate()
+    tramo = next(o for o in app.GetCalcRelevantObjects('*.ElmLne') if o.loc_name == 'F1_L2')
+    var, banco = _banco_en(app, 'Operador_bancos_PA217')
+    app.grabando = var.GetContents('*.IntSstage')[0]
+    tramo.nlnum = 2
+    app.grabando = None
+    informe, _sin, _v = _diagnostico(app, anio=None, cargas=('N2',))
+    caso = _caso_por_nombre(app, 'Cargas nuevas')
+    activas, _esc = _activas_en(app, caso)
+    assert var.loc_name in activas
+    assert informe['igualdad']['iguales'] is True, informe['igualdad']
+    caso.Activate()
+    assert banco in app.GetCalcRelevantObjects('*.ElmShnt') and tramo.nlnum == 2
+
+
+def test_cargas_nuevas_pone_al_dia_sus_etapas_antes_de_activar_cargas(monkeypatch):
+    """025:RF-80 — ``etapas_al_dia`` se llama con «Cargas nuevas» activo y antes de activar ninguna
+    carga nueva."""
+    app, _base = _red_calibrada(escenario=True)
+    vistos = []
+
+    def al_dia(a):
+        vistos.append((a.GetActiveStudyCase().loc_name,
+                       [v.loc_name for v in a.GetActiveNetworkVariations() if v.loc_name.startswith('Carga_')]))
+        return []
+
+    monkeypatch.setattr(casos_pf, 'etapas_al_dia', al_dia)
+    informe, _sin, variaciones = _diagnostico(app, anio=None)
+    assert vistos == [('Cargas nuevas', [])]
+    assert informe['activas'] == [variaciones[0].loc_name]
+
+
+def test_una_etapa_fechada_despues_de_la_hora_del_caso_queda_aplicada():
+    """025:RF-80 — una etapa de una variación activa en «Sin proyecto», fechada después de la hora
+    del caso (SM218, PRUEBA_007), queda antes de la hora de «Cargas nuevas», y se avisa."""
+    from test_casos_pf import _variacion
+
+    app, _base = _red_calibrada(escenario=True)
+    sin = casos_pf.caso(app, 'sin')
+    sin.Activate()
+    v = _variacion(app, 'Fichas_F1_20261112')
+    etapa = v.GetContents('*.IntSstage')[0]
+    etapa.tAcTime = int(sin.iStudyTime) + 5
+    informe, _sin, _v = _diagnostico(app, anio=None)
+    caso = _caso_por_nombre(app, 'Cargas nuevas')
+    assert v.loc_name in _activas_en(app, caso)[0]
+    assert int(etapa.tAcTime) <= int(caso.iStudyTime)
+    assert informe['etapas_adelantadas'] == [v.loc_name]
+    assert any('025:RF-80' in a and v.loc_name in a for a in informe['avisos'])
+
+
+def test_la_comparacion_detecta_un_banco_y_dos_conductores_que_faltan():
+    """025:RF-81 — objeto a objeto en los alimentadores marcados: el banco que está en «Sin
+    proyecto» y no en la copia, y el tramo con ``nlnum`` 2 en uno y 1 en el otro, se listan."""
+    app, _base = _red_calibrada(escenario=True)
+    app.atributos_en_variacion = True
+    sin = casos_pf.caso(app, 'sin')
+    copia = app.carpetas['study'].AddCopy(sin, 'Copia')
+    sin.Activate()
+    var, _banco = _banco_en(app, 'Operador_bancos_PA217')
+    tramo = next(o for o in app.GetCalcRelevantObjects('*.ElmLne') if o.loc_name == 'F1_L2')
+    app.grabando = var.GetContents('*.IntSstage')[0]
+    tramo.nlnum = 2
+    app.grabando = None
+    ref = casos_pf.foto_de_red(app, ['F1'])
+    copia.Activate()
+    otra = casos_pf.foto_de_red(app, ['F1'])
+    difs = casos_pf.diferencias_de_red(ref, otra, 'Sin proyecto', 'Copia')
+    textos = [d['texto'] for d in difs]
+    assert 'en «Sin proyecto» hay ElmShnt BC_OPERADOR y en «Copia» no' in textos
+    assert any(d['objeto'] == 'F1_L2' and d['dato'] == 'nlnum' and d['ref'] == 2 and d['otro'] == 1
+               for d in difs)
+    assert not any(d['objeto'].startswith('F2_') for d in difs)            # solo los marcados
+    sin.Activate()
+    assert casos_pf.diferencias_de_red(ref, casos_pf.foto_de_red(app, ['F1']), 'Sin proyecto', 'Sin') == []
+
+
+@pytest.mark.parametrize('persiste', [False, True])
+def test_si_la_copia_sale_distinta_se_rehace_una_vez_y_si_sigue_se_avisa(monkeypatch, persiste):
+    """025:RF-83 — si la copia sale distinta se borra y se copia otra vez; si sigue distinta, se
+    avisa con la lista y las cargas se activan igual (reconstruir, no bloquear)."""
+    app, _base = _red_calibrada(escenario=True)
+    real = casos_pf.diferencias_de_red
+    llamadas = []
+    falta = {'clase': 'ElmShnt', 'objeto': 'BC_1', 'dato': None,
+             'texto': 'en «Sin proyecto» hay ElmShnt BC_1 y en «Cargas nuevas» no'}
+
+    def comparar(ref, otra, *a, **k):
+        llamadas.append(1)
+        return [falta] if persiste or len(llamadas) == 1 else real(ref, otra, *a, **k)
+
+    monkeypatch.setattr(casos_pf, 'diferencias_de_red', comparar)
+    informe, _sin, variaciones = _diagnostico(app, anio=None)
+    assert informe['intentos'] == 2 and len(llamadas) == 2
+    assert app.borrados and app.borrados[-1].loc_name == 'Cargas nuevas'
+    assert [c.loc_name for c in app.carpetas['study'].GetContents('*.IntCase')].count('Cargas nuevas') == 1
+    assert informe['activas'] == [variaciones[0].loc_name] and informe['converge'] is True
+    avisos = [a for a in informe['avisos'] if '025:RF-83' in a]
+    assert informe['igualdad']['iguales'] is not persiste
+    assert (avisos and 'BC_1' in avisos[0]) if persiste else not avisos
+
+
+def test_si_digsilent_no_deja_borrar_el_caso_se_reutiliza_sin_duplicarlo():
+    """025:RF-79 — si ``Delete`` falla, no queda un segundo «Cargas nuevas»: se reutiliza el que hay,
+    se compara igual y se avisa."""
+    app, _base = _red_calibrada(escenario=True)
+    _diagnostico(app, anio=None)
+    viejo = _caso_por_nombre(app, 'Cargas nuevas')
+    object.__setattr__(viejo, 'Delete', lambda: 1)
+    informe, _sin, variaciones = _diagnostico(app, anio=None, cargas=('N2',))
+    assert _caso_por_nombre(app, 'Cargas nuevas') is viejo
+    assert [c.loc_name for c in app.carpetas['study'].GetContents('*.IntCase')].count('Cargas nuevas') == 1
+    assert any('no dejó borrar' in a and '025:RF-79' in a for a in informe['avisos'])
+    assert informe['igualdad']['iguales'] is True and variaciones[0].loc_name in informe['activas']
+
+
+@pytest.mark.parametrize('con_el_del_sistema', [False, True])
+def test_un_caso_del_operador_llamado_cargas_nuevas_no_se_toca(con_el_del_sistema):
+    """025:RF-61, 025:RF-79 — un «Cargas nuevas» sin la marca del sistema no se borra ni se cambia,
+    y tampoco se rehace el del sistema a su lado; se avisa."""
+    app, _base = _red_calibrada(escenario=True)
+    if con_el_del_sistema:
+        _diagnostico(app, anio=None)
+    carpeta = app.carpetas['study']
+    ajeno = carpeta.CreateObject('IntCase', 'Cargas nuevas')
+    ajeno.desc = ['del operador']
+    casos = list(carpeta.GetContents('*.IntCase'))
+    borrados = list(app.borrados)
+    informe, _sin, _v = _diagnostico(app, anio=None, cargas=('N2',))
+    assert app.borrados == borrados and list(carpeta.GetContents('*.IntCase')) == casos
+    assert ajeno.desc == ['del operador'] and informe['converge'] is None
+    assert any('025:RF-61' in a for a in informe['avisos'])
+
+
+def test_con_proyecto_frente_a_sin_proyecto_sin_sus_obras_ni_sus_cargas():
+    """025:RF-82 — «Con proyecto» se compara con «Sin proyecto» sin lo que traen sus obras y sus
+    cargas nuevas: el banco de una obra no se lista; el del operador que no pasó, sí, con aviso."""
+    app, _base = _red_calibrada(escenario=True)
+    sin, con = casos_pf.caso(app, 'sin'), casos_pf.caso(app, 'con')
+    con.Activate()
+    _banco_en(app, 'Obra_bancos_F1', barra='F1_B3', nombre='BC_OBRA')
+    sin.Activate()
+    _banco_en(app, 'Operador_bancos_PA217')
+    out = casos_pf.con_frente_a_sin(app, sin, con, ['F1'], lambda _a: (True, []))
+    textos = [d['texto'] for d in out['diferencias']]
+    assert textos == ['en «Sin proyecto» hay ElmShnt BC_OPERADOR y en «Con proyecto» no']
+    assert out['iguales'] is False and '025:RF-82' in out['avisos'][0]
+    assert app.GetActiveStudyCase() is sin
+
+
 # =========================================================================== T15: escalera
 def _tipo_linea(nombre, kv, ka, aereo=True, origen='proyecto'):
     return {'nombre': nombre, 'clase': 'TypLne', 'origen': origen, 'proyecto': '',

@@ -2259,8 +2259,10 @@ def _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe, variaciones) 
     variaciones = [v for v in variaciones if v.loc_name in nombres]
     vistas = {v.loc_name for v in variaciones}
     variaciones += sorted((v for v in en_con if v.loc_name not in vistas), key=lambda v: v.loc_name)
+    # 025:RF-79 a RF-83: copia fresca de «Sin proyecto» en cada inserción, comparada objeto a objeto en los
+    # alimentadores marcados antes de activar las cargas, y «Con proyecto» frente a «Sin proyecto» (PA217).
     out = c011.cargas_nuevas(app, casos['sin'], anio, variaciones, flujo_con_mensajes,
-                             antes=antes, explicar=explicar)
+                             antes=antes, explicar=explicar, feeders=alims.elegidos, con=casos['con'])
     informe['cargas_nuevas'] = out
     informe['avisos'] += out['avisos']
 

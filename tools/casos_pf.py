@@ -595,10 +595,209 @@ def _escenario_renovado(app, caso, nombre: str, origen) -> str:
     return nuevo.loc_name
 
 
+#: Lo que se compara, objeto a objeto, entre «Sin proyecto» y un caso que sale de él (025:RF-81, RF-82).
+#: PA217 (2026-11-12): el operador puso bancos y pasó tramos a dos conductores de 120 mm² en «Sin
+#: proyecto», y «Cargas nuevas» no los tenía. Son los datos que el operador cambia: bancos (pasos y
+#: potencia), tramos (tipo, conductores en paralelo, largo, servicio), transformadores (tipo, toma y
+#: unidades), interruptores (estado) y cargas (potencia y escala). Un atributo que la clase no tenga
+#: en esta versión de DIgSILENT se salta.
+RED_COMPARADA = {
+    'ElmShnt': ('outserv', 'ncapa', 'qtotn', 'qcapn'),
+    'ElmLne': ('typ_id', 'nlnum', 'dline', 'outserv'),
+    'ElmTr2': ('typ_id', 'nntap', 'ntnum', 'outserv'),
+    'ElmCoup': ('on_off', 'outserv'),
+    'StaSwitch': ('on_off',),
+    'ElmLod': ('plini', 'qlini', 'scale0', 'outserv'),
+}
+
+
+def _valor_comparable(v):
+    """Un tipo (``typ_id``) por su nombre; un vector, como tupla; lo demás, tal cual."""
+    if isinstance(v, (list, tuple)):
+        return tuple(_valor_comparable(x) for x in v)
+    if v is None or isinstance(v, (int, float, str, bool)):
+        return v
+    return getattr(v, 'loc_name', str(v))
+
+
+def _barra_de_interruptor(sw):
+    """La barra del cubículo de un ``StaSwitch`` (interruptor → cubículo → barra), o ``None``."""
+    try:
+        cub = sw.GetParent()
+        return cub.GetParent() if cub is not None else None
+    except Exception:  # noqa: BLE001 - un interruptor suelto: no es de ningún alimentador
+        return None
+
+
+def foto_de_red(app, feeders=None) -> dict[str, tuple[str, str, dict]]:
+    """Ruta → (clase, nombre, datos de :data:`RED_COMPARADA`) de la red del caso activo (025:RF-81).
+
+    Con ``feeders``, solo lo de sus ``ElmFeeder`` (los interruptores, por la barra de su cubículo); si
+    ninguno tiene ``ElmFeeder``, toda la red calculable. El ``ElmFeeder`` da sus objetos según la
+    última topología calculada: quien llama corre antes un flujo en el caso.
+    """
+    elms = {f.loc_name: f for f in (app.GetCalcRelevantObjects('*.ElmFeeder') or [])}
+    propios = [elms[f] for f in (feeders or []) if f in elms]
+    barras = ({t.GetFullName() for e in propios for t in (e.GetObjs('ElmTerm') or [])}
+              if propios else None)
+    out: dict[str, tuple[str, str, dict]] = {}
+    for clase, attrs in RED_COMPARADA.items():
+        if clase == 'StaSwitch' or not propios:
+            objetos = list(app.GetCalcRelevantObjects(f'*.{clase}') or [])
+        else:
+            objetos = [o for e in propios for o in (e.GetObjs(clase) or [])]
+        for o in objetos:
+            if clase == 'StaSwitch' and barras is not None:
+                barra = _barra_de_interruptor(o)
+                if barra is None or barra.GetFullName() not in barras:
+                    continue
+            datos = {}
+            for a in attrs:
+                try:
+                    datos[a] = _valor_comparable(o.GetAttribute(a))
+                except Exception:  # noqa: BLE001 - un atributo que la clase no tiene
+                    continue
+            out[o.GetFullName()] = (clase, getattr(o, 'loc_name', ''), datos)
+    return out
+
+
+def diferencias_de_red(ref: dict, otra: dict, nombre_ref: str, nombre_otra: str,
+                       excluir=frozenset()) -> list[dict]:
+    """Lo que tiene ``ref`` y no ``otra``, lo que ``otra`` tiene de más y cada dato distinto (025:RF-81).
+
+    ``excluir`` son ``(clase, nombre)`` que se dejan fuera: lo que traen las obras y las cargas
+    nuevas de «Con proyecto», que difiere a propósito (RF-82). Cada diferencia lleva su ``texto``.
+    """
+    out = []
+    for ruta in sorted(set(ref) | set(otra)):
+        clase, nombre, datos = ref.get(ruta) or otra[ruta]
+        if (clase, nombre) in excluir:
+            continue
+        if ruta not in otra:
+            out.append({'clase': clase, 'objeto': nombre, 'dato': None,
+                        'texto': f'en «{nombre_ref}» hay {clase} {nombre} y en «{nombre_otra}» no'})
+            continue
+        if ruta not in ref:
+            out.append({'clase': clase, 'objeto': nombre, 'dato': None,
+                        'texto': f'en «{nombre_otra}» hay {clase} {nombre} y en «{nombre_ref}» no'})
+            continue
+        en_otra = otra[ruta][2]
+        for attr, valor in datos.items():
+            if attr in en_otra and not _igual(valor, en_otra[attr]):
+                out.append({'clase': clase, 'objeto': nombre, 'dato': attr, 'ref': valor,
+                            'otro': en_otra[attr],
+                            'texto': f'{clase} {nombre}: {attr} es {valor} en «{nombre_ref}» y '
+                                     f'{en_otra[attr]} en «{nombre_otra}»'})
+    return out
+
+
+def _foto_del_caso(app, caso, feeders, flujo) -> tuple[dict, tuple]:
+    """:func:`foto_de_red` con ``caso`` activo y un flujo antes, para que el ``ElmFeeder`` esté al día.
+
+    Devuelve también lo que dio el flujo: en «Cargas nuevas» es el flujo de partida (RF-65).
+    """
+    caso.Activate()
+    resultado = flujo(app) if flujo is not None else (None, [])
+    return foto_de_red(app, feeders), resultado
+
+
+def _lo_de_sus_variaciones(app, caso, ref) -> set[tuple[str, str]]:
+    """``(clase, nombre)`` de lo que graban las variaciones activas en ``caso`` y no en ``ref`` (RF-82)."""
+    ref.Activate()
+    en_ref = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+    caso.Activate()
+    out: set[tuple[str, str]] = set()
+    for v in app.GetActiveNetworkVariations() or []:
+        if v.loc_name not in en_ref:
+            out.update(objetos_de_variacion(v))
+    return out
+
+
+def _aviso_diferencias(nombre_ref: str, nombre: str, difs: list[dict], rf: str, extra: str = '') -> str:
+    lista = '; '.join(d['texto'] for d in difs[:10]) + (f' y {len(difs) - 10} más' if len(difs) > 10 else '')
+    return f'«{nombre}» no es igual a «{nombre_ref}»{extra}: {lista} ({rf}).'
+
+
+def con_frente_a_sin(app, sin, con, feeders, flujo, excluir=(), foto_sin=None) -> dict:
+    """«Con proyecto» frente a «Sin proyecto», sin lo que traen sus obras y sus cargas nuevas (025:RF-82).
+
+    Lo que «Sin proyecto» tiene y «Con proyecto» no, fuera de sus variaciones propias, es algo que no
+    pasó de un caso al otro (014:RF-31 a RF-34). Solo avisa; deja activo el caso que lo estaba.
+    """
+    previo = app.GetActiveStudyCase()
+    try:
+        ref = foto_sin if foto_sin is not None else _foto_del_caso(app, sin, feeders, flujo)[0]
+        fuera = _lo_de_sus_variaciones(app, con, sin) | {(c, n) for c in RED_COMPARADA for n in excluir}
+        foto = _foto_del_caso(app, con, feeders, flujo)[0]
+        difs = diferencias_de_red(ref, foto, sin.loc_name, con.loc_name, fuera)
+    finally:
+        if previo is not None and app.GetActiveStudyCase() is not previo:
+            previo.Activate()
+    avisos = ([_aviso_diferencias(sin.loc_name, con.loc_name, difs, '025:RF-82',
+                                  ' fuera de sus obras y sus cargas nuevas')] if difs else [])
+    return {'caso': con.loc_name, 'frente_a': sin.loc_name, 'iguales': not difs, 'diferencias': difs,
+            'avisos': avisos}
+
+
+def _borrar_caso(app, caso, sin) -> bool:
+    """Borra el «Cargas nuevas» del sistema para copiarlo de nuevo (025:RF-79).
+
+    Manual de PowerFactory 2024, 12.1: el caso guarda sus órdenes de cálculo, la hora, qué variaciones y
+    qué escenario están activos, los resultados y los gráficos del estudio. Borrarlo quita solo eso: las
+    variaciones (cap. 16) y los escenarios (cap. 15) están en sus carpetas y no cuelgan de él, y los
+    diagramas de red están en el modelo de red. La copia nueva trae los de «Sin proyecto» (su escritorio
+    con el perfil de tensión, 094:RF-15); el escenario propio lo renueva :func:`_escenario_renovado`. No
+    se borra el caso activo: antes se activa «Sin proyecto». Devuelve si se borró: ``Delete`` da 0.
+    """
+    if app.GetActiveStudyCase() is caso:
+        sin.Activate()
+    try:
+        return not caso.Delete()
+    except Exception:  # noqa: BLE001 - DIgSILENT no lo deja borrar: se reutiliza y se avisa
+        return False
+
+
+def _armar_cargas_nuevas(app, sin, carpeta, nombre: str, clave: str, informe: dict, caso=None):
+    """Copia fresca de «Sin proyecto» con su escenario, sus variaciones y sus etapas al día (RF-79, RF-80).
+
+    Con ``caso``, el que no se pudo borrar: se reutiliza como antes de RF-79, en vez de dejar dos.
+    """
+    if caso is None:
+        caso = carpeta.AddCopy(sin, nombre)
+        _marcar(caso, clave)
+    # RF-64: lo de «Sin proyecto», nada más: sus variaciones activas, ninguna de cargas. La copia ya
+    # las trae; esto lo asegura si DIgSILENT copiara distinto.
+    sin.Activate()
+    de_sin = {v.loc_name for v in (app.GetActiveNetworkVariations() or []) if not es_de_carga_nueva(v)}
+    esc_sin = app.GetActiveScenario()
+    informe['escenario'] = _escenario_renovado(app, caso, nombre, esc_sin)
+    for v in list(app.GetActiveNetworkVariations() or []):
+        if es_de_carga_nueva(v) or v.loc_name not in de_sin:
+            v.Deactivate()
+    carpeta_var = app.GetProjectFolder('scheme')
+    for v in (carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []):
+        if v.loc_name in de_sin and v not in (app.GetActiveNetworkVariations() or []):
+            v.Activate()
+    # RF-80: una etapa fechada después de la hora del caso no se aplica aunque su variación esté
+    # activa, y DIgSILENT no avisa (SM218 y PRUEBA_007, 081:RF-78). Se adelantan antes de comparar.
+    adelantadas = etapas_al_dia(app)
+    informe['etapas_adelantadas'] = sorted(set(informe['etapas_adelantadas']) | set(adelantadas))
+    return caso
+
+
 def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
-                  antes=lambda _app, _v: {}, explicar=lambda v, _antes, _mensajes: {'texto': v.loc_name}) -> dict:
-    """«Cargas nuevas <año>»: copia de «Sin proyecto <año>» y de su escenario, con las cargas
-    nuevas activadas una a una (025:RF-61 a RF-66).
+                  antes=lambda _app, _v: {}, explicar=lambda v, _antes, _mensajes: {'texto': v.loc_name},
+                  feeders=None, con=None, excluir_con=()) -> dict:
+    """«Cargas nuevas <año>»: copia fresca de «Sin proyecto <año>» y de su escenario, con las cargas
+    nuevas activadas una a una (025:RF-61 a RF-66, RF-79 a RF-83).
+
+    En cada inserción el caso del sistema se borra y se vuelve a copiar de «Sin proyecto» (RF-79): así
+    trae la hora, las variaciones, el escenario y lo que el operador cambió allí (PA217, 2026-11-12:
+    bancos y tramos de dos conductores de 120 mm² que el caso reutilizado no tenía). Se adelantan sus
+    etapas (RF-80) y, antes de activar ninguna carga, se compara con «Sin proyecto» objeto a objeto en
+    los alimentadores ``feeders`` (RF-81); si sale distinto se rehace una vez y, si sigue distinto, se
+    avisa con la lista y se sigue (RF-83). Con ``con``, también «Con proyecto» frente a «Sin proyecto»,
+    sin lo que traen sus obras y sus cargas nuevas (RF-82).
 
     ``flujo(app)`` ejecuta el flujo del caso activo y devuelve ``(converge, mensajes)``.
     ``antes(app, v)`` lee el estado con el último flujo que convergió, antes de activar
@@ -609,33 +808,57 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
     nombre = nombre_cargas_nuevas(anio)
     carpeta = app.GetProjectFolder('study')
     clave = _clave(ROL_CARGAS, anio)
-    caso = next((c for c in carpeta.GetContents('*.IntCase')
-                 if c.loc_name == nombre and rol_de(c) == clave), None)
-    informe: dict = {'caso': nombre, 'creado': caso is None, 'activas': [], 'no_convergen': [],
-                     'avisos': []}
-    if caso is None:
-        if any(c.loc_name == nombre for c in carpeta.GetContents('*.IntCase')):
-            informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; '
-                                     'renómbrelo en DIgSILENT para tener el de diagnóstico (025:RF-61).')
-            informe['converge'] = None
-            return informe
-        caso = carpeta.AddCopy(sin, nombre)
-        _marcar(caso, clave)
+    existentes = list(carpeta.GetContents('*.IntCase'))
+    caso = next((c for c in existentes if c.loc_name == nombre and rol_de(c) == clave), None)
+    informe: dict = {'caso': nombre, 'creado': True, 'recreado': caso is not None, 'activas': [],
+                     'no_convergen': [], 'avisos': [], 'etapas_adelantadas': []}
+    if any(c.loc_name == nombre and rol_de(c) != clave for c in existentes):
+        # RF-61: un caso del operador con el mismo nombre no se toca, ni se borra el del sistema para
+        # copiar otro con su nombre al lado (DIgSILENT tendría dos con el mismo nombre o lo renombraría).
+        informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; '
+                                 'renómbrelo en DIgSILENT para tener el de diagnóstico (025:RF-61).')
+        informe['converge'] = None
+        informe['creado'] = informe['recreado'] = False
+        return informe
     previo = app.GetActiveStudyCase()
+    era_este = previo is not None and previo is caso       # se borra: al final, el nuevo
+    if era_este:
+        previo = sin
     try:
-        # RF-64: lo de «Sin proyecto», nada más: sus variaciones activas, ninguna de cargas.
-        sin.Activate()
-        de_sin = {v.loc_name for v in (app.GetActiveNetworkVariations() or []) if not es_de_carga_nueva(v)}
-        esc_sin = app.GetActiveScenario()
-        informe['escenario'] = _escenario_renovado(app, caso, nombre, esc_sin)
-        for v in list(app.GetActiveNetworkVariations() or []):
-            if es_de_carga_nueva(v) or v.loc_name not in de_sin:
-                v.Deactivate()
-        carpeta_var = app.GetProjectFolder('scheme')
-        for v in (carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []):
-            if v.loc_name in de_sin and v not in (app.GetActiveNetworkVariations() or []):
-                v.Activate()
-        converge, mensajes = flujo(app)
+        difs: list[dict] = []
+        partida: tuple = (None, [])
+        for intento in (1, 2):                                                     # RF-83
+            reutilizado = None
+            if caso is not None and not _borrar_caso(app, caso, sin):
+                reutilizado = caso
+                informe['avisos'].append(f'DIgSILENT no dejó borrar «{nombre}» para copiarlo otra vez de '
+                                         f'«{sin.loc_name}»: se reutiliza y se compara con él (025:RF-79).')
+            caso = _armar_cargas_nuevas(app, sin, carpeta, nombre, clave, informe, reutilizado)
+            # «Sin proyecto» se fotografía después de armar la copia: las etapas que adelanta RF-80 son de
+            # variaciones que también están activas en él, y desde ese momento también las ve.
+            foto_sin = _foto_del_caso(app, sin, feeders, flujo)[0]
+            if con is not None and 'con_frente_a_sin' not in informe:
+                informe['con_frente_a_sin'] = con_frente_a_sin(app, sin, con, feeders, flujo, excluir_con,
+                                                               foto_sin=foto_sin)
+            # La copia, la última: su flujo es el de partida de las cargas nuevas.
+            foto, partida = _foto_del_caso(app, caso, feeders, flujo)
+            difs = diferencias_de_red(foto_sin, foto, sin.loc_name, nombre)
+            informe['intentos'] = intento
+            if not difs:
+                break
+        if era_este:
+            previo = caso
+        informe['igualdad'] = {'frente_a': sin.loc_name, 'iguales': not difs, 'diferencias': difs}
+        if difs:
+            informe['avisos'].append(_aviso_diferencias(
+                sin.loc_name, nombre, difs, '025:RF-83',
+                ' antes de activar las cargas nuevas, ni al copiarlo otra vez; se sigue con él'))
+        if informe['etapas_adelantadas']:
+            informe['avisos'].append(f'«{nombre}» no veía las etapas de ' + ', '.join(informe['etapas_adelantadas'])
+                                     + ' por su fecha: se adelantan a la hora del caso (025:RF-80).')
+        if 'con_frente_a_sin' in informe:
+            informe['avisos'] += informe['con_frente_a_sin']['avisos']
+        converge, mensajes = partida                     # «Cargas nuevas» sigue activo con ese flujo
         if not converge:
             informe['avisos'].append(f'«{nombre}» no converge ni sin cargas nuevas, como «Sin proyecto»: '
                                      'no se activa ninguna (025:RF-65). DIgSILENT: ' + '; '.join(mensajes[-3:]))
@@ -991,7 +1214,8 @@ def preparar(app, plan: dict) -> tuple[dict, int]:
 
             diagnostico = cargas_nuevas(app, casos['sin'], anio,
                                         sorted(grupos['cargas'], key=lambda v: v.loc_name),
-                                        flujo_con_mensajes, antes=antes, explicar=explicar)
+                                        flujo_con_mensajes, antes=antes, explicar=explicar,
+                                        feeders=feeders, con=casos.get('con'))       # 025:RF-79 a RF-83
             informe['cargas_nuevas'] = diagnostico
             informe['avisos'] += diagnostico['avisos']
             informe['casos']['cargas'] = {
