@@ -1,6 +1,6 @@
 # Cierre verificable de la auditoría integral
 
-Estado: aprobada (2026-11-02, implementación integral solicitada por el usuario)
+Estado: cumplida (2026-11-12: T13 con la suite completa y el candidato rc5 instalado; implementación integral solicitada por el usuario el 2026-11-02)
 
 ## Motivo
 

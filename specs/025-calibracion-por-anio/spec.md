@@ -1,6 +1,6 @@
 # Spec 025 — Calibración por año de medición
 
-Estado: aprobada (2026-10-23, con RF-26 a RF-35 añadidos ese día) · Fecha: 2026-10-23
+Estado: cumplida (2026-11-12: T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
 
 ## Contexto y objetivo
 

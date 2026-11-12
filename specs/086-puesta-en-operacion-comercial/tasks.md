@@ -168,8 +168,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-55) en verde.
 - [x] T44 El perfil de la empresa y su estructura se cargan desde la web («Perfil de la empresa»), validados antes de guardar. (RF-56)
       Hecho cuando: `tests/test_web_api.py` (086:RF-56) en verde y el panel compila.
-- [ ] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
+- [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
+  Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.
 - [ ] T32 [DIgSILENT] Instalación con el `setup.exe` en este equipo, con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)
   Hecho cuando: sin tocar el código, solo su perfil, sale un informe que un ingeniero da por bueno.
 - [ ] T33 [DIgSILENT] Ensayo de corte a media calibración y a media importación, matando los procesos con las demás sesiones paradas. (RF-46)

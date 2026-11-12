@@ -171,8 +171,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       aplicada); la escalera antigua (`obras_pf.escalera_de_obras`) retirada; tabla de variantes en el
       informe de cargas con su costo y por qué no.
 - T21. Retirada el 2026-11-08 por orden del usuario, sin hacer: PA217 está vetado (086, «No hacen falta para la 1.0»). Era: [DIgSILENT] DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
-- [ ] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
+- [x] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
       Hecho cuando: `grep -rnoE "025:RF-[0-9]+[a-z]?" tests | sort -u` lista RF-44 a RF-60 y la suite con las siete variables pasa sin omitidas.
+      Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`).
       Avance del 2026-11-03: el grep lista RF-44 a RF-60, y los 12 ficheros de pruebas que los citan pasan sin datos reales. Falta
       solo la suite completa con las variables `CSG_*` de `CLAUDE.md` y `-rs`, sin omitidas: `python -m pytest -q -rs`.
 - [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)

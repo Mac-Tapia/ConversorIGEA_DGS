@@ -52,7 +52,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
-  | 025 Calibración por año de medición | aprobada | falta T22 |
+  | 025 Calibración por año de medición | cumplida |  |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida |  |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26 |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
@@ -85,14 +85,14 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | cumplida |  |
   | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | cumplida |  |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
-  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6 |
+  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T6 |
   | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
   | 060 Correcciones verificables del aprendizaje | cumplida |  |
   | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
-  | 065 Cierre verificable de la auditoría integral | aprobada | falta T13 |
+  | 065 Cierre verificable de la auditoría integral | cumplida |  |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida |  |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
@@ -116,7 +116,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
-  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T5, T7 |
+  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
   | 091 De la calibración al estudio, en su orden y sin avisos que engañen | cumplida |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida |  |

@@ -8,8 +8,9 @@
       Hecho cuando: las pruebas que citan sus RF pasan.
 - [x] T4. Prueba de que nada menciona IGEA fuera de las excepciones. (RF-8, RF-9)
       Hecho cuando: `tests/test_nombre_converter_smart_grid.py` pasa.
-- [ ] T5. Líneas base regeneradas solo por la cabecera y suite completa sin omitidas. (RF-10)
+- [x] T5. Líneas base regeneradas solo por la cabecera y suite completa sin omitidas. (RF-10)
       Hecho cuando: la suite completa con las nueve variables pasa con `-rs` sin omitidas.
+      Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`).
 - [ ] T6. Carpeta principal `ConverterSmartGrid`, `.venv`, acceso directo y espacios. (RF-6)
       Hecho cuando: la web abre desde el acceso directo nuevo con los espacios de antes.
 - [x] T7. [DIgSILENT] Un alimentador importado por la web con el nombre nuevo. (RF-4, RF-5)
