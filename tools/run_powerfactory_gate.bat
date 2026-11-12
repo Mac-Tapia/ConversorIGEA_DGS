@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0.."
 
-rem DigSilent PowerFactory 2024 Python API (adjust version if needed)
+rem DIgSILENT PowerFactory 2024 Python API (adjust version if needed)
 if not defined PF_PYTHON set "PF_PYTHON=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12"
 if exist "%PF_PYTHON%\powerfactory.pyd" set "PYTHONPATH=%PF_PYTHON%;%PYTHONPATH%"
 

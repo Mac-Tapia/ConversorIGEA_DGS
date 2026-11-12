@@ -28,7 +28,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from convertersmartgrid import sesion_web
 from convertersmartgrid.edicion import VARIABLE_EDICION, es_edicion_producto
-from convertersmartgrid.salidas_red import (SALIDAS, SalidaApagada, exigir_salida, motivo_apagada,
+from convertersmartgrid.salidas_red import (SALIDAS, SalidaApagada, contraer, exigir_salida, motivo_apagada,
                                             preparar_entorno_sin_red, salida_permitida)
 from convertersmartgrid.web import __main__ as lanzador
 from convertersmartgrid.web import seguridad
@@ -833,3 +833,25 @@ def test_el_motivo_dice_como_activarla():
     """086:RF-22 — el operador tiene que poder encenderla sin leer el código."""
     for nombre, salida in SALIDAS.items():
         assert salida.variable in motivo_apagada(nombre)
+
+
+def test_086_rf61_el_aviso_dice_al_y_del():
+    """086:RF-61 — «La salida al portal de Osinergmin», nunca «a el portal» (rc5, 2026-11-12, en la web)."""
+    assert motivo_apagada('vnr_oficial').startswith('La salida al portal de Osinergmin está apagada')
+    for nombre in SALIDAS:
+        texto = motivo_apagada(nombre)
+        assert not re.search(r'\b[Aa] el\b|\b[Dd]e el\b', texto), texto
+
+
+@pytest.mark.parametrize('texto, sale', [
+    ('La salida a el portal', 'La salida al portal'),
+    ('A el servidor', 'Al servidor'),
+    ('la copia de el servicio', 'la copia del servicio'),
+    ('De el enrutador', 'Del enrutador'),
+    ('para el portal', 'para el portal'),
+    ('a ellos y de ella', 'a ellos y de ella'),
+    ('la SET de El Carmen', 'la SET de El Carmen'),
+])
+def test_086_rf61_contraer(texto, sale):
+    """086:RF-61 — solo «a el» y «de el» con el artículo; un nombre propio con «El» no se contrae (RAE)."""
+    assert contraer(texto) == sale

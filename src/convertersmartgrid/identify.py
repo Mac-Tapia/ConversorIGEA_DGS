@@ -8,7 +8,7 @@ pero precisamente por eso **el nombre no protege de nada**.
 
 Y una de las tres confusiones posibles pasaba sin ruido: poner el catálogo de equipos
 en la casilla de cargas producía un dataset con **0 cargas** y la conversión seguía
-adelante, entregando una red sin demanda. Un DGS así converge, se importa en DigSILENT
+adelante, entregando una red sin demanda. Un DGS así converge, se importa en DIgSILENT
 y da un flujo de potencia perfecto de una red que no alimenta a nadie. Es la peor clase
 de error: el que no falla.
 

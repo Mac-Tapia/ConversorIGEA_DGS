@@ -655,7 +655,7 @@ def validate_dgs(
             if gr and gr[0].get('sSymNam') != 'PointTerm':
                 graphic_errors.append(f'Visible ElmTerm graphic for {fid} must use sSymNam=PointTerm')
 
-        # Electrical: underground sections must keep inAir=0 (DigSilent cable look).
+        # Electrical: underground sections must keep inAir=0 (DIgSILENT cable look).
         # First match wins, matching the previous next() scan: _loc truncates to 40
         # chars, so two long SectionIDs can collide on the same key.
         line_by_loc: dict[str, Line] = {}
@@ -673,7 +673,7 @@ def validate_dgs(
                     f'({"OH" if line.overhead else "UG"})'
                 )
 
-        # DigSilent sheet/grid must cover the full network map (no clipped edges).
+        # DIgSILENT sheet/grid must cover the full network map (no clipped edges).
         sheet_xs: list[float] = []
         sheet_ys: list[float] = []
         for r in graphic_rows:
@@ -720,7 +720,7 @@ def validate_dgs(
                         f'y {min(sheet_ys):.1f}…{max(sheet_ys):.1f}'
                     )
 
-    # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
+    # ElmFeeder required always (DIgSILENT feeder colouring / Define Feeder).
     feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
     # Spec 022: con la estructura, un ElmFeeder por alimentador aunque compartan fuente.
     feeders_esperados = (len(getattr(_comb, 'feeders', None) or ()) if barras_set

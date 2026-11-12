@@ -24,7 +24,7 @@ export function JobBar({ jobs }: { jobs: Job[] }) {
         return (
           <div key={j.id} className="job">
             <div className="job-top">
-              <span className={`lane lane-${j.lane}`}>{j.lane === 'powerfactory' ? 'DigSILENT' : 'Motor'}</span>
+              <span className={`lane lane-${j.lane}`}>{j.lane === 'powerfactory' ? 'DIgSILENT' : 'Motor'}</span>
               <strong>{j.title}</strong>
               <span className="muted">
                 {j.status === 'queued' ? 'en cola' : p ? `${p.index}/${p.total}${p.label ? ` · ${p.label}` : ''}` : 'trabajando…'}

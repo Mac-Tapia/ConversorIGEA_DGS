@@ -3,11 +3,24 @@ import { api, type PerfilEstado } from '../../api/client';
 import { useApp } from '../../shared/context';
 
 /**
+ * 086:RF-59: un perfil guardado vuelve a leer el estado del servidor, que es de donde el resto de la página lee el
+ * perfil. rc5 (2026-11-12): tras «Cargar perfil», el CRS de origen seguía diciendo «Sin perfil de empresa…» hasta
+ * recargar, aunque la conversión ya usaba el CRS del perfil. Un perfil rechazado no cambia nada que releer.
+ */
+export async function guardarPerfil(
+  guardar: () => Promise<PerfilEstado | undefined>, ponerAlDia: () => void,
+): Promise<PerfilEstado | undefined> {
+  const r = await guardar();
+  if (r) ponerAlDia();
+  return r;
+}
+
+/**
  * 086:RF-56: el perfil de la empresa se carga desde la web, no a mano en la carpeta de datos.
  * Se valida antes de guardar (como «validar-perfil»): con errores no se toca el que hay.
  */
 export function PerfilEmpresa() {
-  const { run } = useApp();
+  const { run, refreshHealth } = useApp();
   const [estado, setEstado] = useState<PerfilEstado | null>(null);
   const [perfil, setPerfil] = useState<File | null>(null);
   const [estructura, setEstructura] = useState<File | null>(null);
@@ -20,7 +33,7 @@ export function PerfilEmpresa() {
   const guardar = async () => {
     if (!perfil) return;
     setOcupado(true);
-    const r = await run(() => api.perfilGuardar(perfil, estructura));
+    const r = await guardarPerfil(() => run(() => api.perfilGuardar(perfil, estructura)), refreshHealth);
     setOcupado(false);
     if (r) {
       setEstado(r);

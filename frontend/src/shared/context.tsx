@@ -18,6 +18,8 @@ export interface AppCtx {
   /** Encola un trabajo y lo sigue en el Registro. */
   startJob: (fn: () => Promise<Job>) => Promise<Job | undefined>;
   refresh: () => Promise<unknown>;
+  /** Vuelve a leer el estado del servidor (`/api/health`): perfil de empresa, capacidades, edición (086:RF-59). */
+  refreshHealth: () => void;
 }
 
 export const Ctx = createContext<AppCtx | null>(null);

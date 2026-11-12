@@ -37,7 +37,7 @@ export function usoDeLaFuente(project: PfProject | null): 'automatico' | 'boton'
 const CAUSA_VINCULO: Record<string, string> = {
   PROJECT_BINDING_MISSING:
     'Este proyecto no se aceptó nunca desde esta web: se importó a mano o antes de que existiera el vínculo. '
-    + 'Conviértalo e impórtelo con «Cargar en DigSILENT + flujo» en la pestaña de conversión.',
+    + 'Conviértalo e impórtelo con «Cargar en DIgSILENT + flujo» en la pestaña de conversión.',
   PROJECT_BINDING_NO_ACTIVE_SOURCE:
     'Este espacio de trabajo no tiene fuente cargada y la ejecución con la que se aceptó el proyecto ya no está en disco. '
     + 'Cargue y convierta la misma fuente, con las mismas opciones.',

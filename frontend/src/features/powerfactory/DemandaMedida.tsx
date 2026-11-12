@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api, type DemandaTipo } from '../../api/client';
 import { estadoCatalogoClientes } from './clientesCatalogo';
 import { useApp } from '../../shared/context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija } from '../../api/types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 
@@ -15,6 +15,19 @@ const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)', ayuda: '«Zonal», «Código SET» y «Alimentador» (y sistema eléctrico, sector y siglas). Sin ella, la del perfil de empresa.' },
 ];
 const EXT = '.xls,.xlsx,.xlsb,.xlsm';
+
+/**
+ * 086:RF-62: lo que el servidor deduce de los libros del espacio se vuelve a pedir cuando cambian en «2.1».
+ * rc5 (2026-11-12): asignados los libros por ruta y calibrado, «Recalibrar» seguía diciendo «El espacio no tiene
+ * libros de demanda…» hasta recargar: su lectura dependía solo del espacio y del proyecto, y se hizo al elegir el
+ * proyecto. Es la misma falta que la del perfil (086:RF-59): un dato del servidor leído una vez y no releído tras lo
+ * que lo cambia.
+ */
+export function claveLibros(demanda: WorkspaceState['demanda']): string {
+  return Object.entries(demanda ?? {}).filter(([, v]) => Boolean(v)).sort(([a], [b]) => a.localeCompare(b))
+    .map(([tipo, v]) => `${tipo}=${v?.origin}:${v?.source_kind ?? ''}:${v?.name}:${(v?.libros ?? []).join('|')}`)
+    .join(';');
+}
 
 /** Un libro de la demanda medida: subida o, en local, ruta del servidor (RF-39). */
 function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
@@ -1010,11 +1023,12 @@ function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maxi
   const { ws, startJob, active } = useApp();
   const [datos, setDatos] = useState<{ alimentadores?: string[]; del_sistema?: string[] } | null>(null);
   const [error, setError] = useState('');
+  const libros = claveLibros(ws.demanda);
   useEffect(() => {
     setDatos(null); setError('');
     if (!project) return;
     void api.recalibrarDatos(ws.id, project).then(setDatos).catch((e: Error) => setError(e.message));
-  }, [ws.id, project]);
+  }, [ws.id, project, libros]);                                               // 086:RF-62
   const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
   // 028:RF-40: en un sistema, solo los alimentadores de esta tabla; un proyecto de uno o de varios unidos, entero.
   const delSistema = datos?.alimentadores?.length ? [] : datos?.del_sistema ?? [];
@@ -1228,15 +1242,18 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
   const [carpeta, setCarpeta] = useState('');
   const [transformadores, setTransformadores] = useState(false);
   const [error, setError] = useState('');
+  const libros = claveLibros(ws.demanda);
+  // Lo elegido se borra al cambiar de proyecto, no al cambiar los libros en «2.1».
+  useEffect(() => { setSolo([]); setMaximoMesR([]); }, [ws.id, project]);
   useEffect(() => {
-    setError(''); setSolo([]); setMaximoMesR([]);
+    setError('');
     if (!project) return;
     void api.recalibrarDatos(ws.id, project).then((d) => {
       setZonal(d.zonal); setCarpeta(d.demanda_dir); setAlimentadores(d.alimentadores ?? []);
       setDelSistema(d.del_sistema ?? []);
     })
       .catch((e: Error) => setError(e.message));
-  }, [ws.id, project]);
+  }, [ws.id, project, libros]);                                               // 086:RF-62
   // 035:RF-21: se activa con la primera calibración del proyecto.
   const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
   // 039:RF-8: los que pueden tomar «máximo del mes»: los elegidos, o todos los del proyecto.

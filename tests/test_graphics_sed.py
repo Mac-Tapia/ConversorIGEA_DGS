@@ -171,7 +171,7 @@ def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
     """Lo contrario de lo que se hacía antes, y el motivo del cambio.
 
     La hoja de NA205 medía 55.000 unidades y se tomó como si fuera el lienzo máximo de
-    DigSILENT. No lo es: es el tamaño que medía ese diagrama. Usarlo como tope obligaba
+    DIgSILENT. No lo es: es el tamaño que medía ese diagrama. Usarlo como tope obligaba
     a encoger la escala, y como los símbolos se miden en unidades de diagrama y no en
     metros, encoger la escala los agranda sobre el terreno.
 

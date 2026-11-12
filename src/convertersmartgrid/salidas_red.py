@@ -13,6 +13,7 @@ aquí la hace fallar.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from typing import Mapping, MutableMapping
 
@@ -71,11 +72,24 @@ def salida_permitida(nombre: str, environ: Mapping[str, str] | None = None) -> b
     return not es_edicion_producto()
 
 
+#: «a el» y «de el» con el artículo en minúscula; «de El Carmen», nombre propio, no se contrae (RAE).
+_SIN_CONTRAER = re.compile(r'\b([Aa]|[Dd]e) el\b')
+
+
+def contraer(texto: str) -> str:
+    """«a el» pasa a «al» y «de el» a «del» (086:RF-61).
+
+    Los destinos se escriben con su artículo («el portal de Osinergmin») y se unen a «a» o «de» al armar el texto: la web
+    del rc5 decía «La salida a el portal de Osinergmin está apagada».
+    """
+    return _SIN_CONTRAER.sub(lambda m: m.group(1)[0] + ('l' if m.group(1) in 'Aa' else 'el'), texto)
+
+
 def motivo_apagada(nombre: str) -> str:
     """Por qué no sale, y cómo se enciende: lo lee el operador, en el aviso o en el registro."""
     s = SALIDAS[nombre]
-    return (f'La salida a {s.destino} está apagada ({s.para_que}). '
-            f'Para activarla, ponga {s.variable}=1 al arrancar.')
+    return contraer(f'La salida a {s.destino} está apagada ({s.para_que}). '
+                    f'Para activarla, ponga {s.variable}=1 al arrancar.')
 
 
 def exigir_salida(nombre: str) -> None:

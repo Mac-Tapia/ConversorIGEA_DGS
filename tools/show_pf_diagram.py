@@ -46,7 +46,7 @@ def main(argv=None) -> int:
             'Deje PowerFactory abierto, inicie sesión si pide licencia, y ejecute de nuevo:\n'
             r'  set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12' '\n'
             f'  python tools\\show_pf_diagram.py --feeder {args.feeder}\n'
-            '\nMientras tanto, en DigSilent:\n'
+            '\nMientras tanto, en DIgSILENT:\n'
             f'  1) Manager → abra el proyecto *{args.project_substr}* (el más reciente)\n'
             f'  2) Active Study Case\n'
             f'  3) Network Data → ElmNet "{args.feeder}" → clic derecho → Edit Graphic / Show Diagram\n'

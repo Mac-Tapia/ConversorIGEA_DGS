@@ -186,7 +186,7 @@ export function SystemTab() {
 
   const launch = async (action: 'grid' | 'base' | 'missing-data') => {
     if (action === 'grid' && !(await confirm('Convertir todo a una sola grid', <>
-      <p>Se unirán TODOS los alimentadores en una sola red y se importará en DigSILENT. Cada alimentador conserva su
+      <p>Se unirán TODOS los alimentadores en una sola red y se importará en DIgSILENT. Cada alimentador conserva su
         tensión y su fuente, y los enlaces entre ellos quedan como interruptores normalmente abiertos.</p>
       <p className="muted">Sobre el export completo son unos 30 MB y varios minutos.</p>
     </>))) return;
@@ -206,7 +206,7 @@ export function SystemTab() {
       <div className="steps">
         <div className="step-box">
           <h3>¿Qué datos faltan?</h3>
-          <p className="muted small">Qué estudios se pueden sustentar hoy y qué dato falta para los demás. No toca DigSILENT;
+          <p className="muted small">Qué estudios se pueden sustentar hoy y qué dato falta para los demás. No toca DIgSILENT;
             tarda segundos.</p>
           <button className="btn" disabled={!ready || Boolean(active.engine)} onClick={() => launch('missing-data')}>Diagnosticar</button>
         </div>

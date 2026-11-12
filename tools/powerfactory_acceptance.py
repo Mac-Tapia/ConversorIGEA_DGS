@@ -748,7 +748,7 @@ def _find_dgs_export_definitions(app: Any) -> Any | None:
 def export_dgs_file(app: Any, dest_path: Path | str) -> dict[str, Any]:
     """Best-effort ComExport of the active project to ``dest_path``.
 
-    Mirrors DigSilent ``ApiExample.cpp`` ``ExportDgsFile`` (ComExport + optional
+    Mirrors DIgSILENT ``ApiExample.cpp`` ``ExportDgsFile`` (ComExport + optional
     export-definition folder). Fragile across PF setups — callers must fall back
     to ``persist_feeder_dgs`` when this fails.
     """
@@ -947,7 +947,7 @@ def activate_base_study_and_scenario(app: Any) -> dict[str, Any]:
             rc = int(case.Activate())
             active_after = app.GetActiveStudyCase()
             already = active_after is not None and _name(active_after) == _name(case)
-            # DigSilent may return 1 when the case is already active.
+            # DIgSILENT may return 1 when the case is already active.
             info['study_activated'] = rc == 0 or already
             if not info['study_activated']:
                 info['errors'].append(f'StudyCase.Activate() returned {rc}')
@@ -993,7 +993,7 @@ def ensure_operation_scenario(
 ) -> dict[str, Any]:
     """Find an IntScenario or create one, then activate it.
 
-    DigSilent DGS imports often leave Study Case present but no operation
+    DIgSILENT DGS imports often leave Study Case present but no operation
     scenario; load flow can still run, but web/acceptance expect an explicit
     IntScenario for operating state.
     """
@@ -1073,7 +1073,7 @@ def ensure_operation_scenario(
 # ---------------------------------------------------------------------------
 # Load flow + non-convergence corrections
 # ---------------------------------------------------------------------------
-# Correction order follows DigSILENT User Manual §24.6 (Troubleshooting Load
+# Correction order follows DIgSILENT User Manual §24.6 (Troubleshooting Load
 # Flow Calculation Problems): relax regulation/limits → restore sources →
 # remove unsupplied loads → shed/scale load → isolate islands → restore scale.
 # Attribute names from PF Help localisation (ComLdf.*) and User Manual ch. 24.3.
@@ -1120,7 +1120,7 @@ def _configure_comldf(
     iopt_lim: int | None = None,
     show_progress: bool = False,
 ) -> dict[str, Any]:
-    """Set ComLdf attributes per DigSILENT Help; return applied map."""
+    """Set ComLdf attributes per DIgSILENT Help; return applied map."""
     applied: dict[str, Any] = {}
     # User Manual §24.3.1.1 / DPL: iopt_net=0 balanced AC, 1 unbalanced, …
     net_opt = 0 if iopt_net is None else iopt_net
@@ -1376,7 +1376,7 @@ def apply_correction_intent(
 ) -> dict[str, Any]:
     """Apply one correction intent; returns description of the solution applied.
 
-    Intents mirror DigSILENT-documented countermeasures (User Manual §24.6):
+    Intents mirror DIgSILENT-documented countermeasures (User Manual §24.6):
     relax ComLdf regulation/limits, restore sources (``outserv=0``), take
     unsupplied loads out of service, scale/shed load, handle islands.
     """
@@ -2449,7 +2449,7 @@ def compare_line_gps(lines: list[Any], manifest: dict[str, Any]) -> dict[str, An
 
 
 def inventory_network(net: Any) -> dict[str, int]:
-    """Count DigSilent elements relevant to DGS acceptance."""
+    """Count DIgSILENT elements relevant to DGS acceptance."""
     all_terms = _contents(net, '*.ElmTerm')
     # SED triangles add internal MT/BT ElmTerm children — not TXT network buses.
     net_term_count = 0
@@ -3359,7 +3359,7 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         f"Load flow executed:         {(report.get('load_flow') or {}).get('requested')}",
         f"Load flow PASS:             {(report.get('load_flow') or {}).get('pass')}",
         '',
-        'COUNTS (expected vs DigSilent)',
+        'COUNTS (expected vs DIgSILENT)',
     ]
     for key in sorted(set(report.get('expected_counts', {})) | set(report.get('actual_counts', {}))):
         lines.append(
@@ -3455,7 +3455,7 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description='Import DGS into DigSilent PowerFactory and validate connectivity/convergence/GPS'
+        description='Import DGS into DIgSILENT PowerFactory and validate connectivity/convergence/GPS'
     )
     p.add_argument(
         '--manifest',

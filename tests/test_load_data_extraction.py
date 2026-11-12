@@ -1,4 +1,4 @@
-"""Datos del TXT que se perdían por el camino y ahora llegan a DigSILENT.
+"""Datos del TXT que se perdían por el camino y ahora llegan a DIgSILENT.
 
 El export de la empresa trae tres cosas que el conversor dejaba caer:
 

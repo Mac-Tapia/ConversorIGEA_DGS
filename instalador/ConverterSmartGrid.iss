@@ -48,6 +48,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ; Actualizar deja la versión anterior instalada para poder volver: no se cierra nada por sorpresa.
 CloseApplications=no
 UninstallDisplayName={#NombreApp}
+; RF-58: quien actualiza sigue en su carpeta, con la versión anterior a la que volver al lado. Con «no», un operador que
+; eligió otra carpeta acabaría con dos programas y sin vuelta atrás. Lo que no se reutiliza (una carpeta en la temporal,
+; o que ya no tiene el programa: el rc5 se instaló en %TEMP%\csgp, la de un ensayo del rc1) lo decide InitializeWizard.
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -77,21 +81,76 @@ Type: files; Name: "{app}\volver_atras.cmd"
 Type: files; Name: "{app}\copia_datos.cmd"
 
 [Code]
+const
+  { RF-57: instalar_candidato.py corre oculto; lo que dice en su consola se perdía y el registro solo tenía «1».
+    Con --registro deja aquí su motivo (UTF-8 con BOM), y este guion lo lee. }
+  FicheroMotivo = 'motivo_instalacion.txt';
+
 var
   FalloInstalacion: Boolean;
+
+function DentroDe(const Carpeta, Raiz: String): Boolean;
+begin
+  Result := (Raiz <> '') and (Pos(Lowercase(AddBackslash(Raiz)), Lowercase(AddBackslash(Carpeta))) = 1);
+end;
+
+procedure InitializeWizard;
+var
+  Previa, Motivo: String;
+begin
+  { RF-58: UsePreviousAppDir deja en la carpeta de la instalación registrada. Sirve si es una instalación de verdad;
+    una carpeta en la temporal de Windows (que se limpia) o sin actual.txt (sin el programa) no lo es. /DIR manda. }
+  Previa := WizardForm.DirEdit.Text;
+  if (ExpandConstant('{param:DIR|}') <> '') or
+      (CompareText(RemoveBackslash(Previa), RemoveBackslash(ExpandConstant('{#DirectorioApp}'))) = 0) then
+    Exit;
+  Motivo := '';
+  if DentroDe(Previa, GetEnv('TEMP')) or DentroDe(Previa, GetEnv('TMP')) or
+      DentroDe(Previa, ExpandConstant('{localappdata}\Temp')) then
+    Motivo := 'esta en la carpeta temporal de Windows'
+  else if not FileExists(AddBackslash(Previa) + 'actual.txt') then
+    Motivo := 'ya no tiene el programa';
+  if Motivo <> '' then
+  begin
+    { Una línea de [Code] que empieza por corchete se lee como sección: los argumentos van en la misma línea. }
+    Log(Format('La instalacion anterior registrada en %s %s: se instala en %s.', [Previa, Motivo,
+      ExpandConstant('{#DirectorioApp}')]));
+    WizardForm.DirEdit.Text := ExpandConstant('{#DirectorioApp}');
+  end;
+end;
+
+function MotivoDelFallo: String;
+var
+  Lineas: TArrayOfString;
+  I: Integer;
+begin
+  Result := '';
+  if LoadStringsFromFile(ExpandConstant('{tmp}\' + FicheroMotivo), Lineas) then
+    for I := 0 to GetArrayLength(Lineas) - 1 do
+      if Trim(Lineas[I]) <> '' then
+      begin
+        if Result <> '' then
+          Result := Result + #13#10;
+        Result := Result + Trim(Lineas[I]);
+      end;
+end;
 
 procedure ComprobarInstalacion;
 var
   CodigoProceso: Integer;
   VersionActiva: AnsiString;
+  Motivo: String;
 begin
   { RF-39: una carpeta anterior no salva un proceso fallido. El guion Python
     conserva el puntero anterior si falla; el contenedor debe devolver error. }
   FalloInstalacion := True;
   CodigoProceso := -1;
+  Motivo := '';
+  DeleteFile(ExpandConstant('{tmp}\' + FicheroMotivo));
   WizardForm.StatusLabel.Caption := 'Comprobando las huellas e instalando...';
   if Exec(ExpandConstant('{app}\_entrega\terceros\python\python.exe'),
-      ExpandConstant('"{app}\_entrega\instalador\instalar_candidato.py" instalar --candidato "{app}\_entrega" --destino "{app}"'),
+      ExpandConstant('"{app}\_entrega\instalador\instalar_candidato.py" instalar --candidato "{app}\_entrega" --destino "{app}"'
+        + ' --registro "{tmp}\' + FicheroMotivo + '"'),
       '', SW_HIDE, ewWaitUntilTerminated, CodigoProceso) then
   begin
     Log(Format('Resultado de instalar_candidato.py: %d', [CodigoProceso]));
@@ -99,14 +158,23 @@ begin
         FileExists(ExpandConstant('{app}\versiones\{#Version}\python\python.exe')) and
         LoadStringFromFile(ExpandConstant('{app}\actual.txt'), VersionActiva) then
       FalloInstalacion := Trim(String(VersionActiva)) <> '{#Version}';
+    if FalloInstalacion then
+      Motivo := MotivoDelFallo;
   end
   else
+  begin
     Log(Format('No se pudo iniciar instalar_candidato.py: %d', [CodigoProceso]));
+    Motivo := 'No se pudo iniciar el Python del paquete: ' + SysErrorMessage(CodigoProceso);
+  end;
   if FalloInstalacion then
   begin
-    Log('No se pudo terminar la instalacion. Se conserva el programa anterior.');
-    if not WizardSilent then
-      MsgBox('No se pudo terminar la instalacion. Lo que hubiera instalado sigue igual.', mbError, MB_OK);
+    if Motivo = '' then
+      Motivo := Format('instalar_candidato.py termino con el codigo %d sin dejar su motivo.', [CodigoProceso]);
+    Log('No se pudo terminar la instalacion. Se conserva el programa anterior. Motivo: ' + Motivo);
+    { Tambien con /VERYSILENT: el operador que actualiza en silencio tiene que saber por que no cambio nada. Quien
+      automatiza la instalacion lo calla con /SUPPRESSMSGBOXES, y el motivo sigue en el registro. }
+    SuppressibleMsgBox('No se pudo terminar la instalacion. Lo que hubiera instalado sigue igual.' + #13#10#13#10 + Motivo,
+      mbError, MB_OK, IDOK);
   end;
 end;
 
