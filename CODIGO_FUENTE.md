@@ -576,6 +576,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/scripts/runtime-paths.mjs` | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. | 065 (RF-10, RF-11) |
 | `frontend/package.json` | Dependencias del frontend y versiones compatibles de Node y npm. | 065 (RF-8) |
 | `frontend/test/reconexion.test.mjs` | Pruebas de los trabajos al reconectar y de la edición en la web. | 086 (RF-9, RF-16) |
+| `frontend/test/fondoMapa.test.mjs` | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. | 086 (RF-67, RF-68) |
 | `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
 | `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |
 | `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |

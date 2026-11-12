@@ -8,6 +8,7 @@ Spec 034: 034:RF-20.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -624,3 +625,57 @@ def test_086_rf56_el_perfil_se_carga_desde_la_web(client, tmp_path, monkeypatch)
     assert _json.loads((destino.parent / 'perfil_empresa.json.bak').read_text(encoding='utf-8'))['crs_origen'] == 'EPSG:32718'
     estado = client.get('/api/perfil').json()
     assert estado['existe'] and estado['errores'] == [] and isinstance(estado['faltan'], list)
+
+
+# ------------------------------------------------------------ 086:RF-67 a RF-69, salidas a la red
+def test_086_rf69_lista_las_salidas_con_su_estado_origen_y_destino(client, monkeypatch):
+    """086:RF-69 — todas las salidas, con su estado, quién lo decide y adónde van; solo teselas se cambia."""
+    from convertersmartgrid.salidas_red import SALIDAS
+
+    for s in SALIDAS.values():
+        monkeypatch.delenv(s.variable, raising=False)
+    monkeypatch.setenv('CSG_EDICION', 'producto')
+    r = client.get('/api/salidas')
+    assert r.status_code == 200
+    filas = {f['nombre']: f for f in r.json()['salidas']}
+    assert set(filas) == set(SALIDAS)
+    for nombre, f in filas.items():
+        assert f['encendida'] is False and f['origen'] == 'edicion'
+        assert f['destino'] == SALIDAS[nombre].destino and f['variable'] == SALIDAS[nombre].variable
+        assert f['cambiable'] is (nombre == 'teselas')
+    assert filas['teselas']['destino'] == 'OpenStreetMap y Esri World Imagery'
+    r = client.post('/api/salidas/internet', json={'encendida': True})
+    assert r.status_code == 403 and 'CSG_SALIDA_INTERNET' in r.json()['detail']
+    assert client.post('/api/salidas/no_existe', json={'encendida': True}).status_code == 404
+    assert client.post('/api/salidas/teselas', json={'encendida': 'quizá'}).status_code == 422
+    assert client.post('/api/salidas/teselas', json={'encendida': True, 'otra': 1}).status_code == 422
+
+
+def test_086_rf67_encender_el_fondo_de_mapa_se_recuerda_en_el_equipo(client, monkeypatch):
+    """086:RF-67 — el POST lo guarda fuera de git y la conversión siguiente lo usa; un servidor nuevo lo lee igual."""
+    from convertersmartgrid.salidas_red import SALIDAS, ruta_guardadas, salida_permitida
+
+    monkeypatch.delenv(SALIDAS['teselas'].variable, raising=False)
+    monkeypatch.setenv('CSG_EDICION', 'producto')
+    assert salida_permitida('teselas') is False
+    r = client.post('/api/salidas/teselas', json={'encendida': True})
+    assert r.status_code == 200
+    teselas = next(f for f in r.json()['salidas'] if f['nombre'] == 'teselas')
+    assert teselas['encendida'] is True and teselas['origen'] == 'equipo' and teselas['cambiable'] is True
+    assert json.loads(ruta_guardadas().read_text(encoding='utf-8')) == {'teselas': True}
+    assert salida_permitida('teselas') is True
+    r = client.post('/api/salidas/teselas', json={'encendida': False})
+    assert next(f for f in r.json()['salidas'] if f['nombre'] == 'teselas')['encendida'] is False
+    assert salida_permitida('teselas') is False
+
+
+def test_086_rf68_con_la_variable_fijada_la_web_no_la_cambia(client, monkeypatch):
+    """086:RF-68 — la variable manda: el GET dice «variable» y no cambiable, y el POST se niega sin tocar nada."""
+    from convertersmartgrid.salidas_red import SALIDAS, ruta_guardadas
+
+    monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
+    teselas = next(f for f in client.get('/api/salidas').json()['salidas'] if f['nombre'] == 'teselas')
+    assert teselas['encendida'] is True and teselas['origen'] == 'variable' and teselas['cambiable'] is False
+    r = client.post('/api/salidas/teselas', json={'encendida': False})
+    assert r.status_code == 409 and SALIDAS['teselas'].variable in r.json()['detail']
+    assert not ruta_guardadas().exists()

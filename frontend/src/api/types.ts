@@ -17,6 +17,9 @@ export interface PideAnualResultado {
 
 export type EstadoAprendizaje = components['schemas']['EstadoAprendizajeRespuesta'];
 export type CancelacionAprendizaje = components['schemas']['CancelacionAprendizajeRespuesta'];
+// 086:RF-67 a RF-69: las salidas a la red y quién decide cada una.
+export type SalidaRed = components['schemas']['SalidaRedRespuesta'];
+export type SalidasRed = components['schemas']['SalidasRedRespuesta'];
 
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 

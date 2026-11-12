@@ -560,3 +560,25 @@ class EstadoPowerFactoryRespuesta(Respuesta):
     interpreter_reason: str
     running_python: str
     available: bool
+
+
+class SalidaRedRespuesta(Respuesta):
+    """086:RF-69: una salida a la red, con quién decide si está encendida."""
+    nombre: str
+    encendida: bool
+    #: ``variable`` (la de entorno, al arrancar), ``equipo`` (guardada desde la web) o ``edicion``.
+    origen: Literal['variable', 'equipo', 'edicion']
+    variable: str
+    destino: str
+    para_que: str
+    #: Si la web puede cambiarla ahora: solo las de la lista, y no si la fija su variable (086:RF-68).
+    cambiable: bool
+
+
+class SalidasRedRespuesta(Respuesta):
+    salidas: list[SalidaRedRespuesta]
+
+
+class CambiarSalidaPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    encendida: bool

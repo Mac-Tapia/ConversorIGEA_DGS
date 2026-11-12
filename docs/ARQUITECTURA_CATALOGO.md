@@ -12,7 +12,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 52 |
-| Pruebas de la interfaz | `frontend/test/` | 15 |
+| Pruebas de la interfaz | `frontend/test/` | 16 |
 | Pruebas | `tests/` | 425 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 309 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-103 specs con 3386 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+103 specs con 3393 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,7 +48,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-150 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+152 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -76,6 +76,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `source-scope` | espacio | 2 |
 | `vnr` | espacio | 2 |
 | `perfil` | general | 2 |
+| `salidas` | general | 2 |
 | `workspaces` | general | 2 |
 | `cargas` | espacio | 1 |
 | `diagnose` | espacio | 1 |
@@ -804,6 +805,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
 | `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

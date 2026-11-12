@@ -564,6 +564,114 @@ def test_con_teselas_encendidas_abre_y_dice_si_no_llega(tmp_path, monkeypatch):
     assert ORIGEN_TESELAS not in politica_pagina_generada()
 
 
+# ------------------------------------------------------------ RF-63 a RF-66, fondo de calles y satélite
+_TESELAS_EN_HTML = re.compile(r'tile\.openstreetmap\.org|arcgisonline\.com|World_Imagery|L\.tileLayer\(')
+
+
+def test_086_rf63_calles_y_satelite_con_su_selector(tmp_path, monkeypatch):
+    """086:RF-63 — dos fondos con su atribución, el selector de capas y calles al abrir; Leaflet sigue dentro (RF-65)."""
+    from convertersmartgrid.preview import (ORIGEN_SATELITE, ORIGEN_TESELAS, URL_SATELITE, URL_TESELAS,
+                                            politica_pagina_generada, write_preview_html)
+
+    monkeypatch.setenv(VARIABLE_EDICION, 'producto')
+    monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
+    modelo, geo = _modelo_de_vista_previa()
+    texto = write_preview_html(modelo, geo, tmp_path / 'a.html', backend='leaflet').read_text(encoding='utf-8')
+    assert URL_TESELAS in texto and URL_SATELITE in texto
+    assert URL_SATELITE == 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    assert '&copy; OpenStreetMap' in texto
+    assert 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' in texto
+    assert 'L.control.layers(fondos' in texto
+    assert texto.index('"nombre": "Calles"') < texto.index('"nombre": "Satélite"')
+    assert 'if (i === 0) capa.addTo(map);' in texto           # calles por defecto: el primero
+    # La red se añade después y va en su propio panel, por encima de las teselas.
+    assert texto.index('L.control.layers(') < texto.index('L.geoJSON(data')
+    assert not re.search(r'<(script|link)[^>]+(src|href)=', texto)
+    politica = politica_pagina_generada()
+    assert ORIGEN_TESELAS in politica and ORIGEN_SATELITE in politica
+    assert SALIDAS['teselas'].destino == 'OpenStreetMap y Esri World Imagery'
+
+
+def test_086_rf64_el_aviso_va_por_capa(tmp_path, monkeypatch):
+    """086:RF-64 — cada fondo avisa una vez con su nombre si no llega; la red se dibuja igual."""
+    from convertersmartgrid.preview import write_preview_html
+
+    monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
+    modelo, geo = _modelo_de_vista_previa()
+    texto = write_preview_html(modelo, geo, tmp_path / 'a.html', backend='leaflet').read_text(encoding='utf-8')
+    assert "capa.once('tileerror'" in texto and 'sinFondo.push(f.aviso)' in texto
+    assert 'OpenStreetMap (calles)' in texto and 'Esri World Imagery (satélite)' in texto
+    assert 'La red se dibuja igual.' in texto
+
+
+def test_086_rf65_sin_la_salida_ni_una_direccion_de_teselas(tmp_path, monkeypatch):
+    """086:RF-65 — apagada por la edición, por la variable o por lo guardado: ninguna tesela en el HTML."""
+    from convertersmartgrid.preview import politica_pagina_generada, write_preview_html
+    from convertersmartgrid.salidas_red import guardar_salida
+
+    modelo, geo = _modelo_de_vista_previa()
+    monkeypatch.delenv(SALIDAS['teselas'].variable, raising=False)
+    casos = []
+    monkeypatch.setenv(VARIABLE_EDICION, 'producto')
+    casos.append(write_preview_html(modelo, geo, tmp_path / 'edicion.html', backend='leaflet'))
+    monkeypatch.delenv(VARIABLE_EDICION)
+    guardar_salida('teselas', False)
+    casos.append(write_preview_html(modelo, geo, tmp_path / 'equipo.html', backend='leaflet'))
+    guardar_salida('teselas', True)
+    monkeypatch.setenv(SALIDAS['teselas'].variable, '0')
+    casos.append(write_preview_html(modelo, geo, tmp_path / 'variable.html', backend='leaflet'))
+    for ruta in casos:
+        texto = ruta.read_text(encoding='utf-8')
+        assert not _TESELAS_EN_HTML.search(texto), ruta.name
+        assert 'L.control.layers' not in texto and 'Sin fondo de mapa' in texto
+        assert 'L.map' in texto                                    # Leaflet dentro, el mapa abre igual
+    assert 'arcgisonline' not in politica_pagina_generada()
+
+
+def test_086_rf66_la_variable_manda_luego_el_equipo_luego_la_edicion(tmp_path, monkeypatch):
+    """086:RF-66 — precedencia de la salida: variable, lo guardado en el equipo y, sin nada, la edición."""
+    from convertersmartgrid.salidas_red import (VARIABLE_RUTA_GUARDADAS, estado_salida, guardar_salida,
+                                                ruta_guardadas, salidas_guardadas)
+
+    variable = SALIDAS['teselas'].variable
+    monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv(VARIABLE_RUTA_GUARDADAS, str(tmp_path / 'config' / 'salidas.json'))
+    monkeypatch.setenv(VARIABLE_EDICION, 'producto')
+    assert estado_salida('teselas') == (False, 'edicion')
+    monkeypatch.delenv(VARIABLE_EDICION)
+    assert estado_salida('teselas') == (True, 'edicion')
+    monkeypatch.setenv(VARIABLE_EDICION, 'producto')
+    guardar_salida('teselas', True)
+    assert json.loads(ruta_guardadas().read_text(encoding='utf-8')) == {'teselas': True}
+    assert estado_salida('teselas') == (True, 'equipo') and salida_permitida('teselas') is True
+    monkeypatch.setenv(variable, '0')
+    assert estado_salida('teselas') == (False, 'variable') and salida_permitida('teselas') is False
+    guardar_salida('teselas', False)
+    monkeypatch.setenv(variable, '1')
+    assert estado_salida('teselas') == (True, 'variable')
+    monkeypatch.delenv(variable)
+    assert estado_salida('teselas') == (False, 'equipo')
+    # Lo guardado solo vale para las que se cambian desde la web; un fichero roto es nada guardado.
+    ruta_guardadas().write_text('{"internet": true, "teselas": "si"}', encoding='utf-8')
+    assert salidas_guardadas() == {} and estado_salida('internet') == (False, 'edicion')
+    ruta_guardadas().write_text('{roto', encoding='utf-8')
+    assert estado_salida('teselas') == (False, 'edicion')
+    with pytest.raises(ValueError):
+        guardar_salida('internet', True)
+
+
+def test_086_rf67_lo_guardado_va_en_la_carpeta_local_fuera_de_git(tmp_path, monkeypatch):
+    """086:RF-67 — junto a ``config/powerfactory.json``, en la carpeta local, y ``.gitignore`` lo deja fuera."""
+    from convertersmartgrid import runtime_paths
+    from convertersmartgrid.salidas_red import VARIABLE_RUTA_GUARDADAS, ruta_guardadas
+
+    monkeypatch.delenv(VARIABLE_RUTA_GUARDADAS)
+    monkeypatch.setattr(runtime_paths, 'raiz_local', lambda programa=None, environ=None: tmp_path / 'datos')
+    assert ruta_guardadas() == tmp_path / 'datos' / 'config' / 'salidas.json'
+    ignorados = (RAIZ / '.gitignore').read_text(encoding='utf-8').splitlines()
+    assert 'config/salidas.json' in ignorados and 'config/powerfactory.json' in ignorados
+
+
 def test_la_web_sirve_sus_paginas_con_politica(tmp_path, puerta):
     """086:RF-21 — la de la interfaz en todo, y la aislada en una página generada."""
     wid = _espacio(puerta)
@@ -833,6 +941,8 @@ def test_el_motivo_dice_como_activarla():
     """086:RF-22 — el operador tiene que poder encenderla sin leer el código."""
     for nombre, salida in SALIDAS.items():
         assert salida.variable in motivo_apagada(nombre)
+    assert '«Opciones de conversión»' in motivo_apagada('teselas')                  # 086:RF-67
+    assert 'Opciones de conversión' not in motivo_apagada('internet')
 
 
 def test_086_rf61_el_aviso_dice_al_y_del():

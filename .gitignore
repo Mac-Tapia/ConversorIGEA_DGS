@@ -112,3 +112,5 @@ referencia/*.pdf
 config/suite_completa.json
 # 103:RF-3: la PowerFactory que eligió el operador en esta máquina.
 config/powerfactory.json
+# 086:RF-67: el fondo de mapa que el operador encendió o apagó desde la web en esta máquina.
+config/salidas.json

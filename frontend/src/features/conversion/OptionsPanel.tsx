@@ -1,8 +1,41 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import type { Options } from '../../api/types';
+import type { Options, SalidaRed, SalidasRed } from '../../api/types';
 import { Toggle } from '../../shared/ui';
+
+export const ETIQUETA_FONDO_MAPA = 'Fondo de mapa (calles y satélite; pide las teselas a internet)';
+
+/** 086:RF-67, RF-68: lo que se explica bajo el interruptor; sin la salida leída, nada. */
+export function ayudaFondoMapa(salida: SalidaRed | null): string {
+  if (!salida) return '';
+  if (salida.origen === 'variable') {
+    return `Lo fija ${salida.variable} al arrancar el programa: no se cambia desde aquí.`;
+  }
+  return `Fondo de mapa: pide las teselas a ${salida.destino}. Se recuerda en este equipo y vale para las `
+    + 'conversiones siguientes; los mapas ya generados no cambian.';
+}
+
+/** 086:RF-67: guarda la elección en el servidor y devuelve la salida de las teselas como quedó. */
+export async function cambiarFondoMapa(llamada: (encendida: boolean) => Promise<SalidasRed | undefined>,
+  encendida: boolean, poner: (s: SalidaRed) => void): Promise<SalidaRed | undefined> {
+  const r = await llamada(encendida);
+  const teselas = r?.salidas.find((s) => s.nombre === 'teselas');
+  if (teselas) poner(teselas);
+  return teselas;
+}
+
+/** 086:RF-67, RF-68: el interruptor del fondo de mapa; bloqueado si lo fija la variable o mientras se lee. */
+export function FondoMapa({ salida, locked, onChange }: {
+  salida: SalidaRed | null; locked: boolean; onChange: (v: boolean) => void;
+}) {
+  const fijada = salida?.origen === 'variable';
+  return (
+    <Toggle label={ETIQUETA_FONDO_MAPA} checked={Boolean(salida?.encendida)}
+      disabled={locked || !salida || !salida.cambiable}
+      hint={fijada ? ayudaFondoMapa(salida) : ''} onChange={onChange} />
+  );
+}
 
 export function OptionsPanel() {
   const { ws, setWs, health, run, active } = useApp();
@@ -12,6 +45,11 @@ export function OptionsPanel() {
   const [target, setTarget] = useState(o.target_crs);
   const [crsWarning, setCrsWarning] = useState('');
   const locked = Boolean(active.engine);
+  const [fondo, setFondo] = useState<SalidaRed | null>(null);
+
+  useEffect(() => {
+    api.salidas().then((r) => setFondo(r.salidas.find((s) => s.nombre === 'teselas') ?? null)).catch(() => setFondo(null));
+  }, []);
 
   useEffect(() => setCrs(o.source_crs ?? ''), [o.source_crs]);
   const perfil = health.perfil_empresa;
@@ -98,12 +136,15 @@ export function OptionsPanel() {
         <Toggle label="Vista previa en mapa (HTML)" checked={o.write_preview} disabled={locked || !o.include_geography}
           hint={!o.include_geography ? 'Requiere georreferenciación' : ''}
           onChange={(v) => save({ write_preview: v })} />
+        <FondoMapa salida={fondo} locked={locked}
+          onChange={(v) => void cambiarFondoMapa((e) => run(() => api.fondoMapa(e)), v, setFondo)} />
         <Toggle label="Exportar Excel (.xlsx)" checked={o.export_xlsx} disabled={locked || !caps.xlsx}
           hint={caps.xlsx ? '' : 'Falta pandas/openpyxl en el servidor'}
           onChange={(v) => save({ export_xlsx: v })} />
         <Toggle label="Exportar TSV por tabla" checked={o.export_tsv} disabled={locked}
           onChange={(v) => save({ export_tsv: v })} />
       </div>
+      {fondo && <p className="muted small">{ayudaFondoMapa(fondo)}</p>}
       {o.include_geography && !caps.geography && (
         <p className="alert alert-warn">El servidor no tiene <code>pyproj</code>: desactive la georreferenciación o instálelo.</p>
       )}
