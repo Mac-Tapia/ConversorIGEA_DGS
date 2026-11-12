@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -97,7 +97,10 @@ const DINAMICOS = {
  *  libros_nuevos: desde 104:RF-30 la revisión va en su carril de fondo, sin trabajo; los de antes siguen guardados. */
 const HISTORICOS = ['libros_nuevos'];
 
-test('086:RF-70 086:RF-71 todo kind del servidor tiene su fila en la tabla, con paso o en la zona general', async () => {
+test('086:RF-70 086:RF-71 todo kind del servidor tiene su fila en la tabla, con paso o en la zona general', async (t) => {
+  // 065:RF-9 (suite completa del 2026-11-12): test_frontend_rutas copia solo el frontend a una ruta con espacios para probarlo;
+  // allí no está el código del servidor. Esta comprobación es del proyecto entero y se hace donde está.
+  if (!existsSync(SRC)) { t.skip('el código del servidor no está junto al frontend (copia aislada)'); return; }
   const { PASO_DE_TRABAJO, PASOS } = await cargar();
   const { kinds, sinLeer } = kindsDelServidor();
   for (const d of Object.values(DINAMICOS)) for (const k of d.kinds) kinds.add(k);
