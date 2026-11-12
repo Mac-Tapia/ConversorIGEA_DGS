@@ -232,3 +232,98 @@ def test_103_rf3_la_web_lista_y_elige(maquina, tmp_path, monkeypatch):
         assert r['eleccion'] == antigua and r['en_uso'] == antigua
         assert c.post('/api/powerfactory/instalaciones', json={'carpeta_api': 'C:/otra/Python/3.12'}).status_code == 422
         assert c.post('/api/powerfactory/instalaciones', json={'carpeta_api': None}).json()['eleccion'] is None
+
+
+# ------------------------------------------------------------------ 103:RF-2, RF-6 (el proceso del guion)
+
+def test_103_rf6_el_entorno_pone_las_librerias_del_interprete_antes_que_el_paquete(tmp_path):
+    """103:RF-6 — con otro intérprete: la API, sus librerías y luego el paquete; con el del programa, solo la API."""
+    api = tmp_path / 'PowerFactory 2021 SP3' / 'Python' / '3.9'
+    otro = tmp_path / 'python_pf' / '3.9' / 'python.exe'
+    rutas = pe.pf_subprocess_env(api, otro)['PYTHONPATH'].split(os.pathsep)
+    assert rutas[:3] == [str(api), str(otro.parent / 'Lib' / 'site-packages'), str(pe.carpeta_del_paquete())]
+    assert pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)[0] == str(api)
+    assert str(pe.carpeta_del_paquete()) not in pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)
+
+
+def test_103_rf6_el_guion_carga_su_numpy_y_el_paquete_con_otro_python(tmp_path):
+    """103:RF-6 — un proceso con el Python 3.9 embebido carga su numpy (no el del programa) y el paquete del conversor."""
+    py39 = os.environ.get('CSG_PF_PYTHON_39') or ''
+    if not Path(py39).is_file():
+        pytest.skip('sin intérprete Python 3.9: CSG_PF_PYTHON_39 (embebido oficial de python.org con su numpy)')
+    env = pe.pf_subprocess_env(tmp_path / 'api', Path(py39))
+    r = subprocess.run([py39, '-c', 'import sys, numpy, convertersmartgrid.valle as v; '
+                        'print(sys.version_info[:2], numpy.__file__, v.__file__)'],
+                       capture_output=True, text=True, env=env, check=False)
+    assert r.returncode == 0, r.stderr
+    assert '(3, 9)' in r.stdout and str(Path(py39).parent).lower() in r.stdout.lower()
+    assert str(pe.carpeta_del_paquete()).lower() in r.stdout.lower()
+
+
+def _herramienta(nombre):
+    import importlib.util
+    sys.path.insert(0, str(RAIZ / 'tools'))
+    spec = importlib.util.spec_from_file_location(nombre, RAIZ / 'tools' / f'{nombre}.py')
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_103_rf6_el_candidato_trae_los_python_de_powerfactory_y_se_instalan(tmp_path):
+    """103:RF-6 — el candidato lleva cada Python sin ._pth y su numpy como rueda; al instalar, por su huella."""
+    import hashlib
+    import json
+    import zipfile
+    cc, ic = _herramienta('construir_candidato'), _herramienta('instalar_candidato')
+    origen = tmp_path / 'origen'
+    origen.mkdir()
+    with zipfile.ZipFile(origen / 'python-3.9.13-embed-amd64.zip', 'w') as z:
+        z.writestr('python.exe', b'')
+        z.writestr('python39._pth', 'python39.zip\n.\n')
+    with zipfile.ZipFile(origen / 'numpy-2.0.2-cp39-cp39-win_amd64.whl', 'w') as z:
+        z.writestr('numpy/__init__.py', '__version__ = "2.0.2"\n')
+    sha = {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in origen.iterdir()}
+    fijados = {'3.9': {'zip': 'python-3.9.13-embed-amd64.zip', 'sha256': sha['python-3.9.13-embed-amd64.zip'],
+                       'numpy': 'numpy-2.0.2-cp39-cp39-win_amd64.whl', 'numpy_sha256': sha['numpy-2.0.2-cp39-cp39-win_amd64.whl']}}
+    candidato = tmp_path / 'candidato'
+    componentes = cc.empaquetar_python_pf(origen, candidato / 'terceros', fijados)
+    pf = candidato / 'terceros' / 'python_pf'
+    assert (pf / '3.9' / 'python.exe').is_file() and not list((pf / '3.9').glob('*._pth'))
+    assert not (pf / '3.9' / 'Lib' / 'site-packages' / 'numpy').exists()          # va como rueda: datos .npz vedados
+    assert {c['name'] for c in componentes} == {'CPython', 'numpy'}
+    version = tmp_path / 'instalado' / 'versiones' / '1.0.0'
+    ic._instalar_python_pf(candidato, version)
+    assert (version / 'python_pf' / '3.9' / 'Lib' / 'site-packages' / 'numpy' / '__init__.py').is_file()
+    # Una rueda alterada no se instala.
+    with zipfile.ZipFile(pf / 'ruedas' / 'numpy-2.0.2-cp39-cp39-win_amd64.whl', 'a') as z:
+        z.writestr('numpy/otro.py', 'x = 1\n')
+    with pytest.raises(ic.ErrorInstalacion, match='huella'):
+        ic._instalar_python_pf(candidato, tmp_path / 'otra' / 'versiones' / '1.0.0')
+    assert json.loads((pf / 'huellas.json').read_text(encoding='utf-8'))['3.9']['numpy'].startswith('numpy-2.0.2')
+
+
+def test_103_rf6_un_zip_que_no_es_el_fijado_no_entra(tmp_path):
+    """103:RF-6 — un Python que no tiene el SHA-256 de config/entrega.json no se usa."""
+    import zipfile
+    cc = _herramienta('construir_candidato')
+    falso = tmp_path / 'python-3.9.13-embed-amd64.zip'
+    with zipfile.ZipFile(falso, 'w') as z:
+        z.writestr('python.exe', b'otro')
+    with pytest.raises(cc.CE.EntregaError, match='SHA-256'):
+        cc.extraer_python_pf(falso, tmp_path / 'destino', sha_zip='0' * 64)
+
+
+def test_103_rf6_el_diagnostico_lista_los_python_de_powerfactory(tmp_path, monkeypatch):
+    """103:RF-6 — el diagnóstico dice qué Python trae el programa para las otras PowerFactory."""
+    for v in ('3.11', '3.9', '3.10'):
+        exe = tmp_path / pe.CARPETA_PYTHON_EMBEBIDOS / v / 'python.exe'
+        exe.parent.mkdir(parents=True)
+        exe.write_bytes(b'')
+    monkeypatch.setattr(pe, 'raiz_programa', lambda: tmp_path)
+    assert pe.interpretes_embebidos() == ['3.9', '3.10', '3.11']
+    api = tmp_path / 'PowerFactory 2024' / 'Python' / '3.12'
+    api.mkdir(parents=True)
+    (api / 'powerfactory.pyd').write_bytes(b'')
+    from convertersmartgrid.web import doctor
+    monkeypatch.setattr(pe, 'resumen_instalaciones', lambda: [])
+    assert 'Python para otras PowerFactory: 3.9, 3.10, 3.11.' in doctor._digsilent(lambda: api).detalle

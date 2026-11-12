@@ -154,9 +154,11 @@ def interprete_para(version: str) -> tuple[Path | None, str]:
     """103:RF-2: un intérprete de esta versión: el del programa, el embebido del instalador o el de la máquina."""
     if version == _python_actual():
         return Path(sys.executable), f'interprete actual ({version})'
-    embebido = raiz_programa() / CARPETA_PYTHON_EMBEBIDOS / version / 'python.exe'
-    if embebido.is_file():
-        return embebido, f'Python {version} embebido del programa'
+    # Instalado, van junto al Python del programa (``versiones/<v>/python_pf``); en desarrollo, en la raíz.
+    for base in (Path(sys.executable).resolve().parent.parent, raiz_programa()):
+        embebido = base / CARPETA_PYTHON_EMBEBIDOS / version / 'python.exe'
+        if embebido.is_file():
+            return embebido, f'Python {version} embebido del programa'
     override = os.environ.get('CSG_PF_INTERPRETER', '').strip()
     if override and Path(override).is_file():
         return Path(override), f'CSG_PF_INTERPRETER ({override})'
@@ -172,6 +174,15 @@ def interprete_para(version: str) -> tuple[Path | None, str]:
         if candidato.is_file():
             return candidato, f'instalacion local {version}'
     return None, f'no se encontro Python {version}'
+
+
+def interpretes_embebidos() -> list[str]:
+    """103:RF-6: las versiones de Python para PowerFactory que trae el programa (``python_pf/3.x``)."""
+    vistas: set[str] = set()
+    for base in (Path(sys.executable).resolve().parent.parent, raiz_programa()):
+        for exe in (base / CARPETA_PYTHON_EMBEBIDOS).glob('3.*/python.exe'):
+            vistas.add(exe.parent.name)
+    return sorted(vistas, key=lambda v: tuple(int(x) for x in v.split('.')))
 
 
 def elegir_api(inst: InstalacionPF, interprete: Callable[[str], tuple[Path | None, str]] = interprete_para
@@ -273,12 +284,30 @@ def python_for_pf(pf_dir: Path | None) -> tuple[Path | None, str]:
     return interprete_para(wanted)
 
 
-def pf_subprocess_env(pf_dir: Path | None) -> dict[str, str]:
-    """Entorno para un guion que importa ``powerfactory`` en otro proceso."""
+def carpeta_del_paquete() -> Path:
+    """La carpeta que contiene el paquete ``convertersmartgrid``: ``src`` en desarrollo, ``site-packages`` instalado."""
+    return Path(__file__).resolve().parent.parent
+
+
+def pf_subprocess_env(pf_dir: Path | None, interprete: Path | None = None) -> dict[str, str]:
+    """Entorno para un guion que importa ``powerfactory`` en otro proceso.
+
+    103:RF-2, RF-6: con un intérprete que no es el del programa (el 3.9 de PowerFactory 2021), el guion necesita el
+    paquete del conversor, que es código puro, y el ``numpy`` de su propia versión. El orden decide: la API, las
+    librerías de ese intérprete y luego la carpeta del paquete; al revés cargaría el ``numpy`` compilado para el
+    Python del programa, que no carga en otra versión.
+    """
     env = os.environ.copy()
-    if pf_dir is not None:
-        env['PYTHONPATH'] = str(pf_dir) + os.pathsep + env.get('PYTHONPATH', '')
-        env['PF_PYTHON'] = str(pf_dir)
+    if pf_dir is None:
+        return env
+    if interprete is None:
+        interprete = python_for_pf(pf_dir)[0]
+    rutas = [str(pf_dir)]
+    if interprete is not None and os.path.normcase(str(Path(interprete).resolve())) != os.path.normcase(
+            str(Path(sys.executable).resolve())):
+        rutas += [str(Path(interprete).parent / 'Lib' / 'site-packages'), str(carpeta_del_paquete())]
+    env['PYTHONPATH'] = os.pathsep.join([*rutas, *([env['PYTHONPATH']] if env.get('PYTHONPATH') else [])])
+    env['PF_PYTHON'] = str(pf_dir)
     return env
 
 

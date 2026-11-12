@@ -99,7 +99,11 @@ def _digsilent(carpeta: Callable[[], Path | None]) -> Comprobacion:
         return Comprobacion('digsilent', 'DIgSILENT PowerFactory', False, False, 'No se encuentra la API de Python.', afecta, arreglo)
     if not (Path(pf) / 'powerfactory.pyd').is_file():
         return Comprobacion('digsilent', 'DIgSILENT PowerFactory', False, False, f'En {pf} no está powerfactory.pyd.', afecta, arreglo)
-    return Comprobacion('digsilent', 'DIgSILENT PowerFactory', True, False, f'API en {pf}.', afecta, '')
+    # 103:RF-6: qué Python trae el programa para las PowerFactory que no cargan con el suyo.
+    from ..powerfactory_env import interpretes_embebidos
+    embebidos = interpretes_embebidos()
+    extra = f' Python para otras PowerFactory: {", ".join(embebidos)}.' if embebidos else ''
+    return Comprobacion('digsilent', 'DIgSILENT PowerFactory', True, False, f'API en {pf}.{extra}', afecta, '')
 
 
 def _interfaz(programa: Path) -> Comprobacion:

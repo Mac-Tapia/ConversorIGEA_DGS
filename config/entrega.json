@@ -83,7 +83,13 @@
     "rueda_propia": "programa/convertersmartgrid-*.whl",
     "_comentario_seguridad": "Mínimos de seguridad por pip-audit del 2026-11-04. El lock y constraints ya incluyen las correcciones de Pillow, pypdf y certifi. fijar_entorno impide volver a congelar versiones inferiores; la auditoría actual sigue siendo una puerta independiente de cada candidato.",
     "versiones_de_seguridad": {"pillow": "13.0.0", "pypdf": "6.21.4", "certifi": "2026.10.18"},
-    "fuera_del_nucleo": ["torch", "torchvision", "torchaudio", "transformers", "sentence-transformers", "tokenizers", "accelerate", "peft", "bitsandbytes", "safetensors", "huggingface-hub", "torch-geometric", "neuralforecast", "optuna", "pytest", "httpx2", "httpcore2", "pluggy", "iniconfig"]
+    "fuera_del_nucleo": ["torch", "torchvision", "torchaudio", "transformers", "sentence-transformers", "tokenizers", "accelerate", "peft", "bitsandbytes", "safetensors", "huggingface-hub", "torch-geometric", "neuralforecast", "optuna", "pytest", "httpx2", "httpcore2", "pluggy", "iniconfig"],
+    "_comentario_python_pf": "103:RF-6: los Python de las PowerFactory que no cargan su API con el 3.12 del programa (2021 con 3.9, 2022 con 3.10, 2023 con 3.11), embebidos de python.org con la firma de sus binarios de Windows verificada, y su numpy de PyPI.",
+    "python_pf": {
+      "3.9": {"zip": "python-3.9.13-embed-amd64.zip", "sha256": "938a1f3b80d580320836260612084d74ce094a261e36f9ff3ac7b9463df5f5e4", "numpy": "numpy-2.0.2-cp39-cp39-win_amd64.whl", "numpy_sha256": "a3f4ab0caa7f053f6797fcd4e1e25caee367db3112ef2b6ef82d749530768c73"},
+      "3.10": {"zip": "python-3.10.11-embed-amd64.zip", "sha256": "608619f8619075629c9c69f361352a0da6ed7e62f83a0e19c63e0ea32eb7629d", "numpy": "numpy-2.2.6-cp310-cp310-win_amd64.whl", "numpy_sha256": "f0fd6321b839904e15c46e0d257fdd101dd7f530fe03fd6359c1ea63738703f3"},
+      "3.11": {"zip": "python-3.11.9-embed-amd64.zip", "sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b", "numpy": "numpy-2.2.6-cp311-cp311-win_amd64.whl", "numpy_sha256": "e8213002e427c69c45a52bbd94163084025f533a55a59d6f9c5b820774ef3303"}
+    }
   },
   "_comentario_compilado": "Lo que se entrega compilado se comprueba en el repositorio por su fuente: el paquete ya lleva dist/, y el árbol de trabajo puede no tenerlo.",
   "fuente_de_lo_compilado": {"frontend/dist/*": ["frontend/src/*", "frontend/index.html"]},

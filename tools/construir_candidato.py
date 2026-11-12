@@ -372,8 +372,64 @@ def extraer_python(zip_embebido: Path, destino: Path) -> str:
     return zip_embebido.name.split('-')[1]
 
 
+def extraer_python_pf(zip_embebido: Path, destino: Path, *, sha_zip: str) -> str:
+    """103:RF-6: un Python de PowerFactory (3.9 a 3.11) como el del programa: sin ``._pth``.
+
+    Con el ``._pth`` el Python embebido ignora PYTHONPATH y el guion no encuentra ni la API ni el paquete del conversor
+    (2026-11-11, con el 3.9 de PowerFactory 2021). Se comprueba con su SHA-256 antes de usarlo.
+    """
+    if _sha256(zip_embebido) != sha_zip:
+        raise CE.EntregaError(f'{zip_embebido.name} no tiene el SHA-256 fijado en config/entrega.json.')
+    m = re.fullmatch(r'python-(3\.\d+)\.\d+-embed-amd64\.zip', zip_embebido.name)
+    if not m:
+        raise CE.EntregaError(f'Se espera un Python embebido de 64 bits de python.org, y esto es {zip_embebido.name}.')
+    with zipfile.ZipFile(zip_embebido) as z:
+        z.extractall(destino)
+    for pth in destino.glob('*._pth'):
+        pth.unlink()
+    (destino / 'Lib' / 'site-packages').mkdir(parents=True, exist_ok=True)
+    return m.group(1)
+
+
+def preparar_python_pf(zip_embebido: Path, rueda_numpy: Path, destino: Path, *, sha_zip: str, sha_rueda: str) -> str:
+    """El Python de PowerFactory con su ``numpy`` ya puesto: lo que deja el instalador (para la máquina de pruebas)."""
+    version = extraer_python_pf(zip_embebido, destino, sha_zip=sha_zip)
+    if _sha256(rueda_numpy) != sha_rueda:
+        raise CE.EntregaError(f'{rueda_numpy.name} no tiene el SHA-256 fijado en config/entrega.json.')
+    with zipfile.ZipFile(rueda_numpy) as z:
+        z.extractall(destino / 'Lib' / 'site-packages')
+    return version
+
+
+def empaquetar_python_pf(origen: Path, terceros: Path, fijados: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
+    """103:RF-6: cada Python de PowerFactory en ``terceros/python_pf/<versión>`` y su ``numpy`` como rueda.
+
+    ``numpy`` va como rueda y se descomprime al instalar: descomprimido trae datos ``.npz`` de sus pruebas, que el
+    manifiesto veda como pesos, y así se instala igual que las ruedas del Python del programa (por su huella).
+    """
+    destino = terceros / 'python_pf'
+    ruedas = destino / 'ruedas'
+    ruedas.mkdir(parents=True, exist_ok=True)
+    componentes, huellas = [], {}
+    for version, f in sorted(fijados.items()):
+        zip_embebido, rueda = origen / f['zip'], origen / f['numpy']
+        if not zip_embebido.is_file() or not rueda.is_file():
+            raise CE.EntregaError(f'Falta en {origen} el Python {version} o su numpy ({f["zip"]}, {f["numpy"]}).')
+        if _sha256(rueda) != f['numpy_sha256']:
+            raise CE.EntregaError(f'{rueda.name} no tiene el SHA-256 fijado en config/entrega.json.')
+        completa = extraer_python_pf(zip_embebido, destino / version, sha_zip=f['sha256'])
+        shutil.copyfile(rueda, ruedas / rueda.name)
+        huellas[version] = {'numpy': rueda.name, 'sha256': f['numpy_sha256']}
+        componentes.append({'name': 'CPython', 'version': f['zip'].split('-')[1], 'license': 'PSF-2.0', 'origen': 'embebido',
+                            'sha256': f['sha256'], 'sin_purl': True, 'uso': f'API de PowerFactory con Python {completa}'})
+        componentes.append({'name': 'numpy', 'version': rueda.name.split('-')[1], 'license': 'BSD-3-Clause', 'origen': 'python',
+                            'sha256': f['numpy_sha256'], 'uso': f'Python {completa} de PowerFactory'})
+    (destino / 'huellas.json').write_text(json.dumps(huellas, ensure_ascii=False, indent=1), encoding='utf-8')
+    return componentes
+
+
 def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Path | None = None, version: str | None = None,
-                        lista_local: Path | None = None) -> tuple[dict[str, Any], CE.Informe]:
+                        lista_local: Path | None = None, python_pf: Path | None = None) -> tuple[dict[str, Any], CE.Informe]:
     if salida.exists() and any(salida.iterdir()):
         raise CE.EntregaError(f'La carpeta {salida} no está vacía: un candidato no se arma sobre otro.')
     manifiesto = CE.leer_manifiesto(raiz / 'config' / 'entrega.json')
@@ -385,6 +441,11 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     ruedas = salida / 'terceros' / 'wheels'
     traer_ruedas(raiz, ruedas, raiz / LOCK.name, cache)
     version_python = extraer_python(zip_python, salida / 'terceros' / 'python')
+    # 103:RF-6: sin los Python de PowerFactory 2021 a 2023 no se arma el candidato: el operador no instala nada.
+    fijados = manifiesto['candidato'].get('python_pf') or {}
+    if fijados and python_pf is None:
+        raise CE.EntregaError('Faltan los Python de PowerFactory: indique su carpeta con --python-pf (103:RF-6).')
+    componentes_pf = empaquetar_python_pf(python_pf, salida / 'terceros', fijados) if fijados else []
     # El lock más la rueda propia: pip la instala por su huella como a las demás.
     (salida / 'terceros' / 'instalacion.lock').write_text(
         (raiz / LOCK.name).read_text(encoding='utf-8')
@@ -404,6 +465,7 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
         componentes.append({**meta, 'sha256': _sha256(r), 'origen': 'python'})
         textos[f'{meta["name"]} {meta["version"]}'] = licencias
     componentes.append({'name': 'CPython', 'version': version_python, 'license': 'PSF-2.0', 'origen': 'embebido', 'sha256': _sha256(zip_python), 'sin_purl': True})
+    componentes += componentes_pf                                                     # 103:RF-6
     licencia_python = salida / 'terceros' / 'python' / 'LICENSE.txt'
     if licencia_python.is_file():
         textos[f'CPython {version_python}'] = [('LICENSE.txt', licencia_python.read_text(encoding='utf-8', errors='replace'))]
@@ -754,6 +816,8 @@ def main(argv: list[str] | None = None) -> int:
     p_cand = orden.add_parser('candidato', help='El paquete entero.')
     p_cand.add_argument('--salida', type=Path, required=True)
     p_cand.add_argument('--python-embebido', type=Path, required=True, help='python-3.12.x-embed-amd64.zip de python.org')
+    p_cand.add_argument('--python-pf', type=Path,
+                        help='Carpeta con los Python embebidos y las ruedas de numpy de config/entrega.json (103:RF-6)')
     p_cand.add_argument('--ruedas-cache', type=Path, help='Carpeta con las ruedas ya descargadas; sin ella, del índice.')
     p_cand.add_argument('--version', help='Otra versión, para ensayar una actualización.')
     p_cand.add_argument('--lista-local', type=Path, help='Lista de términos fuera de git; si no, CSG_TERMINOS_PROHIBIDOS.')
@@ -787,7 +851,8 @@ def main(argv: list[str] | None = None) -> int:
                 filas = escribir_lock(ruedas, args.salida)
             print(json.dumps({'lock': str(args.salida), 'ruedas': len(filas)}, ensure_ascii=False, indent=2))
             return 0
-        resultado, informe = construir_candidato(RAIZ, args.salida, args.python_embebido, cache=args.ruedas_cache, version=args.version, lista_local=args.lista_local)
+        resultado, informe = construir_candidato(RAIZ, args.salida, args.python_embebido, cache=args.ruedas_cache, version=args.version, lista_local=args.lista_local,
+                                                 python_pf=args.python_pf)
         print(json.dumps({k: resultado[k] for k in ('version', 'revision', 'python', 'neutralizados', 'bytes_total')} | {'ficheros': len(resultado['ficheros'])},
                          ensure_ascii=False, indent=2))
         print(json.dumps(informe.resumen(), ensure_ascii=False, indent=2))

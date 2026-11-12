@@ -24,6 +24,7 @@ import socket
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 
 ACTUAL = 'actual.txt'
@@ -157,6 +158,25 @@ def _python_de(destino: Path, version: str) -> Path:
     return destino / 'versiones' / version / 'python' / 'python.exe'
 
 
+def _instalar_python_pf(candidato: Path, carpeta: Path) -> None:
+    """103:RF-6: los Python de PowerFactory 2021 a 2023 junto al del programa, cada uno con su ``numpy`` por su huella.
+
+    Van en ``versiones/<versión>/python_pf/<3.x>``, donde los busca el programa al lado de su propio Python.
+    """
+    origen = candidato / 'terceros' / 'python_pf'
+    if not origen.is_dir():
+        return
+    huellas = json.loads((origen / 'huellas.json').read_text(encoding='utf-8'))
+    destino = carpeta / 'python_pf'
+    for version, h in sorted(huellas.items()):
+        rueda = origen / 'ruedas' / h['numpy']
+        if hashlib.sha256(rueda.read_bytes()).hexdigest() != h['sha256']:
+            raise ErrorInstalacion(f'{rueda.name} no coincide con su huella: el candidato está alterado.')
+        shutil.copytree(origen / version, destino / version)
+        with zipfile.ZipFile(rueda) as z:
+            z.extractall(destino / version / 'Lib' / 'site-packages')
+
+
 def _preparar_version(candidato: Path, destino: Path, manifiesto: dict) -> Path:
     """Copia el Python del candidato e instala con huella y sin red: el lock exige que coincida cada rueda."""
     version = manifiesto['version']
@@ -181,6 +201,7 @@ def _preparar_version(candidato: Path, destino: Path, manifiesto: dict) -> Path:
                            encoding='utf-8', errors='replace', check=False)
         if r.returncode:
             raise ErrorInstalacion(f'pip no pudo instalar con las huellas del candidato:\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}')
+        _instalar_python_pf(candidato, carpeta)                                        # 103:RF-6
         larga = max((str(f) for f in carpeta.rglob('*.pyd')), key=len, default='')
         if len(larga) > LONGITUD_MAXIMA_RUTA:
             # Sale en la última línea de un error que solo dice «nombre demasiado largo» al importar geopandas.
