@@ -122,6 +122,18 @@ def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
+def _sin_salidas_guardadas_de_la_maquina(monkeypatch, tmp_path):
+    """086:RF-66: cada prueba con su fichero de salidas, ni el del equipo ni el de otra prueba.
+
+    En desarrollo la carpeta local es el repositorio: un ``config/salidas.json`` con el fondo de mapa
+    encendido desde la web cambiaba lo que las pruebas de la edición de producto esperan.
+    """
+    from convertersmartgrid.salidas_red import VARIABLE_RUTA_GUARDADAS
+
+    monkeypatch.setenv(VARIABLE_RUTA_GUARDADAS, str(tmp_path / '_salidas_guardadas.json'))
+
+
+@pytest.fixture(autouse=True)
 def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     """Cada prueba con su propio turno de DIgSILENT (spec 019).
 

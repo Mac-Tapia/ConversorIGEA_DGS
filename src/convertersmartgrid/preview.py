@@ -28,6 +28,19 @@ HUELLAS_LEAFLET = {'leaflet.js': 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvT
                    'leaflet.css': 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='}
 ORIGEN_TESELAS = 'https://*.tile.openstreetmap.org'
 URL_TESELAS = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+#: 086:RF-63: el fondo de satélite, el que pidió el usuario junto a las calles («como en Google Maps», 2026-11-12).
+ORIGEN_SATELITE = 'https://server.arcgisonline.com'
+URL_SATELITE = f'{ORIGEN_SATELITE}/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}'
+#: Cada fondo con su nombre en el selector, su dirección, su atribución y cómo se nombra en el aviso si no llega.
+#: El primero es el que se ve al abrir. Las atribuciones son las que piden sus licencias (ODbL de OSM; Esri).
+#: El último número es el zoom más alto que sirve cada uno: Esri no tiene imágenes de zoom 19 en todas partes
+#: (navegador, 2026-11-12: vacías en un alimentador pequeño ajustado a zoom 19); por encima se amplía la de 18.
+FONDOS_MAPA = (
+    ('Calles', URL_TESELAS, '&copy; OpenStreetMap', 'OpenStreetMap (calles)', 19),
+    ('Satélite', URL_SATELITE,
+     'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+     'Esri World Imagery (satélite)', 18),
+)
 
 
 @lru_cache(maxsize=2)
@@ -37,7 +50,7 @@ def _recurso_leaflet(nombre: str) -> str:
 
 def _politica_base() -> str:
     """Solo lo que va dentro del fichero, y las teselas si esa salida está encendida (086:RF-22)."""
-    imagenes = f'data: {ORIGEN_TESELAS}' if salida_permitida('teselas') else 'data:'
+    imagenes = f'data: {ORIGEN_TESELAS} {ORIGEN_SATELITE}' if salida_permitida('teselas') else 'data:'
     return (f"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src {imagenes}; "
             "base-uri 'none'; form-action 'none'")
 
@@ -318,16 +331,26 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
     feeder = html_std.escape(str(layers.feeder))
     title = f'Preview DGS — {feeder}'
     # 086:RF-22: sin la salida no se pide ninguna tesela; si está encendida y no hay red, también se dice.
+    # 086:RF-63, RF-64: calles y satélite con su selector, como en Google Maps. Las teselas van en el «tilePane» de
+    # Leaflet, por debajo del de los tramos y nodos: la red queda siempre encima, con el fondo que se elija.
     if salida_permitida('teselas'):
-        teselas = f"""const fondo = L.tileLayer({json.dumps(URL_TESELAS)}, {{
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }}).addTo(map);
-    fondo.once('tileerror', function () {{
-      const aviso = document.getElementById('sin-fondo');
-      aviso.textContent = 'Sin fondo de mapa: no se pudo llegar a OpenStreetMap. La red se dibuja igual.';
-      aviso.hidden = false;
-    }});"""
+        fondos = json.dumps([{'nombre': n, 'url': u, 'atribucion': a, 'aviso': s, 'zoom': z}
+                             for n, u, a, s, z in FONDOS_MAPA],
+                            ensure_ascii=False).replace('<', '\\u003c')
+        teselas = f"""const fondos = {{}};
+    const sinFondo = [];
+    {fondos}.forEach(function (f, i) {{
+      const capa = L.tileLayer(f.url, {{ maxZoom: 19, maxNativeZoom: f.zoom, attribution: f.atribucion }});
+      capa.once('tileerror', function () {{
+        sinFondo.push(f.aviso);
+        const aviso = document.getElementById('sin-fondo');
+        aviso.textContent = 'Sin fondo de mapa: no se pudo llegar a ' + sinFondo.join(' ni a ') + '. La red se dibuja igual.';
+        aviso.hidden = false;
+      }});
+      fondos[f.nombre] = capa;
+      if (i === 0) capa.addTo(map);
+    }});
+    L.control.layers(fondos, null, {{ position: 'topright', collapsed: false }}).addTo(map);"""
         aviso_fondo = ''
     else:
         teselas = ''

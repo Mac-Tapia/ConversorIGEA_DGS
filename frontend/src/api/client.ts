@@ -2,7 +2,7 @@ import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaD
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
-  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
+  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
   status: number;
@@ -73,6 +73,9 @@ export const api = {
   pfInstalaciones: () => request<InstalacionesPowerFactory>('/api/powerfactory/instalaciones'),
   pfElegir: (carpeta_api: string | null) =>
     request<InstalacionesPowerFactory>('/api/powerfactory/instalaciones', json('POST', { carpeta_api })),
+  // 086:RF-67 a RF-69: las salidas a la red; desde la web solo se cambia el fondo de mapa.
+  salidas: () => request<SalidasRed>('/api/salidas'),
+  fondoMapa: (encendida: boolean) => request<SalidasRed>('/api/salidas/teselas', json('POST', { encendida })),
 
   createWorkspace: () => request<WorkspaceState>('/api/workspaces', { method: 'POST' }),
   // 086:RF-2, RF-3, RF-9: lo que le pasó a los datos, con lo que se puede hacer.

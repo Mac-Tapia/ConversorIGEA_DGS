@@ -992,6 +992,20 @@
         "title": "CalibracionRespuesta",
         "type": "object"
       },
+      "CambiarSalidaPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "encendida": {
+            "title": "Encendida",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "encendida"
+        ],
+        "title": "CambiarSalidaPeticion",
+        "type": "object"
+      },
       "CancelacionAprendizajeRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5486,6 +5500,73 @@
         "title": "RevisionEquipoIn",
         "type": "object"
       },
+      "SalidaRedRespuesta": {
+        "additionalProperties": false,
+        "description": "086:RF-69: una salida a la red, con quién decide si está encendida.",
+        "properties": {
+          "cambiable": {
+            "title": "Cambiable",
+            "type": "boolean"
+          },
+          "destino": {
+            "title": "Destino",
+            "type": "string"
+          },
+          "encendida": {
+            "title": "Encendida",
+            "type": "boolean"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "origen": {
+            "enum": [
+              "variable",
+              "equipo",
+              "edicion"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "para_que": {
+            "title": "Para Que",
+            "type": "string"
+          },
+          "variable": {
+            "title": "Variable",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "encendida",
+          "origen",
+          "variable",
+          "destino",
+          "para_que",
+          "cambiable"
+        ],
+        "title": "SalidaRedRespuesta",
+        "type": "object"
+      },
+      "SalidasRedRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "salidas": {
+            "items": {
+              "$ref": "#/components/schemas/SalidaRedRespuesta"
+            },
+            "title": "Salidas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "salidas"
+        ],
+        "title": "SalidasRedRespuesta",
+        "type": "object"
+      },
       "SelectionIn": {
         "properties": {
           "all": {
@@ -7017,6 +7098,75 @@
           }
         },
         "summary": "Powerfactory Elegir"
+      }
+    },
+    "/api/salidas": {
+      "get": {
+        "description": "086:RF-69: cada salida a la red con su estado, quién lo decide y adónde va.",
+        "operationId": "salidas_red_api_salidas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalidasRedRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Salidas Red"
+      }
+    },
+    "/api/salidas/{nombre}": {
+      "post": {
+        "description": "086:RF-67, RF-68: el operador enciende o apaga el fondo de mapa; se recuerda en este equipo.",
+        "operationId": "cambiar_salida_red_api_salidas__nombre__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nombre",
+            "required": true,
+            "schema": {
+              "title": "Nombre",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarSalidaPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalidasRedRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cambiar Salida Red"
       }
     },
     "/api/sistema/cerrar": {

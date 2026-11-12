@@ -46,7 +46,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
     InstalacionesPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
-    CancelacionAprendizajeRespuesta)
+    CancelacionAprendizajeRespuesta, CambiarSalidaPeticion, SalidasRedRespuesta)
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -966,6 +966,28 @@ def create_app(
             return services.powerfactory_elegir(peticion.carpeta_api)
         except UserError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    # ------------------------------------------------------------ salidas a la red
+    @app.get('/api/salidas', response_model=SalidasRedRespuesta)
+    def salidas_red() -> dict:
+        """086:RF-69: cada salida a la red con su estado, quién lo decide y adónde va."""
+        from ..salidas_red import estado_salidas
+        return {'salidas': estado_salidas()}
+
+    @app.post('/api/salidas/{nombre}', response_model=SalidasRedRespuesta)
+    def cambiar_salida_red(nombre: str, peticion: CambiarSalidaPeticion) -> dict:
+        """086:RF-67, RF-68: el operador enciende o apaga el fondo de mapa; se recuerda en este equipo."""
+        from ..salidas_red import (CAMBIABLES_DESDE_LA_WEB, SALIDAS, contraer, estado_salida, estado_salidas,
+                                   guardar_salida)
+        if nombre not in SALIDAS:
+            raise HTTPException(404, f'No existe la salida a la red «{nombre}».')
+        if nombre not in CAMBIABLES_DESDE_LA_WEB:
+            raise HTTPException(403, contraer(f'La salida a {SALIDAS[nombre].destino} solo se cambia con '
+                                              f'{SALIDAS[nombre].variable} al arrancar.'))
+        if estado_salida(nombre)[1] == 'variable':
+            raise HTTPException(409, f'La fija {SALIDAS[nombre].variable} al arrancar: quítela para cambiarla aquí.')
+        guardar_salida(nombre, peticion.encendida)
+        return {'salidas': estado_salidas()}
 
     # ------------------------------------------------------------ catálogo VNR oficial
     def _vnr_catalog_dir() -> Path:

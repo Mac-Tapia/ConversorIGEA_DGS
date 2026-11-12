@@ -157,6 +157,26 @@ Instalado y usado el rc5 en este equipo, como un operador: cuatro defectos sin p
   servidor lo que la recalibración de «Sin proyecto» deduce de ellos, sin recargar la página. (rc5: asignados los libros
   por ruta y calibrado, «Recalibrar» seguía diciendo «El espacio no tiene libros de demanda» hasta recargar.)
 
+### Fondo de mapa: calles y satélite (2026-11-12)
+
+Usuario (2026-11-12): ver la red sobre un plano «como en Google Maps», con «Calles + satélite». En la edición de producto la
+salida de las teselas está apagada (RF-22) y solo se encendía con su variable al arrancar: el operador del programa instalado
+veía la red sobre fondo blanco y no tenía cómo cambiarlo.
+
+- RF-63: DONDE la salida de las teselas está encendida, EL SISTEMA dibujará la vista previa con dos fondos, calles
+  (OpenStreetMap) y satélite (Esri World Imagery), cada uno con su atribución, y un selector de capas, con calles por defecto
+  y la red siempre encima.
+- RF-64: SI un fondo no carga, ENTONCES EL SISTEMA dirá en el mapa cuál no llegó, y la red se dibujará igual.
+- RF-65: MIENTRAS la salida de las teselas está apagada, la vista previa no contendrá ninguna dirección de teselas, y el
+  HTML seguirá llevando Leaflet dentro en los dos casos.
+- RF-66: EL SISTEMA decidirá si una salida a la red está encendida por su variable de entorno; sin ella, por lo guardado en
+  el equipo; sin nada de eso, por la edición.
+- RF-67: EL SISTEMA dejará encender y apagar desde la web el fondo de mapa, lo recordará en la carpeta local de configuración
+  del programa, fuera de git, y lo aplicará a las conversiones siguientes sin cambiar los mapas ya generados.
+- RF-68: SI la variable de entorno fija la salida de las teselas, ENTONCES la web lo dirá y no dejará cambiarla.
+- RF-69: EL SISTEMA dirá por la API cada salida a la red con su estado, su origen (variable, equipo o edición) y su destino;
+  desde la web solo se podrá cambiar la de las teselas.
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.

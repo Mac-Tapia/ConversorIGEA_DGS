@@ -180,6 +180,12 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `tests/test_seguridad_web.py` (086:RF-61) en verde.
 - [x] T50 «Recalibrar «Sin proyecto»» vuelve a leer sus datos del servidor cuando cambian los libros en «2.1». (RF-62)
       Hecho cuando: `frontend/test/relecturaServidor.test.mjs` (086:RF-62) en verde.
+- [x] T51 La vista previa con calles y satélite, su selector y su aviso por capa; sin teselas si la salida está apagada. (RF-63, RF-64, RF-65)
+      Hecho cuando: `tests/test_seguridad_web.py` (086:RF-63 a RF-65) en verde.
+- [x] T52 La salida se decide por variable, equipo y edición, y la API la lee y cambia (`GET /api/salidas`, `POST /api/salidas/teselas`). (RF-66, RF-68, RF-69)
+      Hecho cuando: `tests/test_seguridad_web.py` (086:RF-66) y `tests/test_web_api.py` (086:RF-68, RF-69) en verde.
+- [x] T53 Interruptor «Fondo de mapa» en «Opciones de conversión», recordado en el equipo y bloqueado si lo fija la variable. (RF-67, RF-68)
+      Hecho cuando: `frontend/test/fondoMapa.test.mjs` (086:RF-67, RF-68) y `tests/test_web_api.py` (086:RF-67) en verde.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

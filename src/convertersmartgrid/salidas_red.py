@@ -6,16 +6,19 @@ Osinergmin) sin un lugar donde verlos ni apagarlos. Un cliente que instala esto 
 una distribuidora tiene que saber qué sale, y que por defecto no sale nada.
 
 En desarrollo siguen encendidas, como hasta ahora. En la edición de producto están apagadas y
-cada una se enciende con su variable. La variable manda en las dos ediciones.
+cada una se enciende con su variable. La variable manda en las dos ediciones; sin ella, lo que el
+operador guardó en este equipo desde la web (086:RF-66, hoy solo el fondo de mapa), y si no, la edición.
 ``tests/test_seguridad_web.py`` recorre el código: un módulo nuevo que abra la red sin estar
 aquí la hace fallar.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass
-from typing import Mapping, MutableMapping
+from pathlib import Path
+from typing import Literal, Mapping, MutableMapping
 
 from .edicion import es_edicion_producto
 
@@ -39,8 +42,8 @@ SALIDAS: dict[str, Salida] = {
     'vias': Salida('CSG_SALIDA_VIAS', 'el enrutador OSRM del perfil de empresa',
                    'trazar una línea nueva por la vía pública',
                    ('src/convertersmartgrid/vias.py',)),
-    'teselas': Salida('CSG_SALIDA_TESELAS', 'OpenStreetMap',
-                      'el fondo del mapa de la vista previa, que pide el navegador',
+    'teselas': Salida('CSG_SALIDA_TESELAS', 'OpenStreetMap y Esri World Imagery',
+                      'el fondo de calles y satélite del mapa de la vista previa, que pide el navegador',
                       ('src/convertersmartgrid/preview.py',)),
     'codex': Salida('CSG_SALIDA_CODEX', 'el servicio de Codex, por su CLI',
                     'el maestro de destilación del asistente',
@@ -61,15 +64,76 @@ class SalidaApagada(RuntimeError):
     """Se pidió una salida a la red que está apagada."""
 
 
-def salida_permitida(nombre: str, environ: Mapping[str, str] | None = None) -> bool:
-    """Si esta salida puede abrirse: su variable manda; sin ella, según la edición."""
+#: 086:RF-69: las que el operador puede cambiar desde la web. El resto, solo con su variable al arrancar.
+CAMBIABLES_DESDE_LA_WEB = frozenset({'teselas'})
+#: Otra ruta para lo guardado en el equipo; la usan las pruebas, para no leer el de la máquina.
+VARIABLE_RUTA_GUARDADAS = 'CSG_SALIDAS_RUTA'
+
+Origen = Literal['variable', 'equipo', 'edicion']
+
+
+def ruta_guardadas(environ: Mapping[str, str] | None = None) -> Path:
+    """086:RF-67: junto a ``config/powerfactory.json`` (103:RF-3), en la carpeta local que una actualización no borra."""
+    env = os.environ if environ is None else environ
+    otra = str(env.get(VARIABLE_RUTA_GUARDADAS) or '').strip()
+    if otra:
+        return Path(otra)
+    from .runtime_paths import raiz_local
+    return raiz_local(environ=env) / 'config' / 'salidas.json'
+
+
+def salidas_guardadas(environ: Mapping[str, str] | None = None) -> dict[str, bool]:
+    """Lo que el operador dejó en este equipo; un fichero roto o ajeno cuenta como nada guardado."""
+    try:
+        datos = json.loads(ruta_guardadas(environ).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(datos, dict):
+        return {}
+    return {k: v for k, v in datos.items() if k in CAMBIABLES_DESDE_LA_WEB and isinstance(v, bool)}
+
+
+def guardar_salida(nombre: str, encendida: bool, environ: Mapping[str, str] | None = None) -> None:
+    """086:RF-67: recuerda en el equipo la elección del operador; solo las que se cambian desde la web."""
+    if nombre not in CAMBIABLES_DESDE_LA_WEB:
+        raise ValueError(f'La salida {nombre!r} no se cambia desde la web.')
+    ruta = ruta_guardadas(environ)
+    datos = salidas_guardadas(environ)
+    datos[nombre] = bool(encendida)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    temporal = ruta.with_name(ruta.name + '.tmp')
+    temporal.write_text(json.dumps(datos, ensure_ascii=False, sort_keys=True) + '\n', encoding='utf-8')
+    os.replace(temporal, ruta)
+
+
+def estado_salida(nombre: str, environ: Mapping[str, str] | None = None) -> tuple[bool, Origen]:
+    """086:RF-66: si está encendida y quién lo decide: la variable, lo guardado en el equipo o la edición."""
     env = os.environ if environ is None else environ
     valor = env.get(SALIDAS[nombre].variable, '').strip().lower()
     if valor in _ENCENDIDA:
-        return True
+        return True, 'variable'
     if valor in _APAGADA:
-        return False
-    return not es_edicion_producto()
+        return False, 'variable'
+    guardada = salidas_guardadas(env).get(nombre)
+    if guardada is not None:
+        return guardada, 'equipo'
+    return not es_edicion_producto(), 'edicion'
+
+
+def salida_permitida(nombre: str, environ: Mapping[str, str] | None = None) -> bool:
+    """Si esta salida puede abrirse: su variable manda; sin ella, lo guardado en el equipo; si no, la edición."""
+    return estado_salida(nombre, environ)[0]
+
+
+def estado_salidas(environ: Mapping[str, str] | None = None) -> list[dict[str, object]]:
+    """086:RF-69: cada salida con su estado, su origen y su destino, para la web."""
+    filas = []
+    for nombre, s in SALIDAS.items():
+        encendida, origen = estado_salida(nombre, environ)
+        filas.append({'nombre': nombre, 'encendida': encendida, 'origen': origen, 'variable': s.variable,
+                      'destino': s.destino, 'para_que': s.para_que,
+                      'cambiable': nombre in CAMBIABLES_DESDE_LA_WEB and origen != 'variable'})
+    return filas
 
 
 #: «a el» y «de el» con el artículo en minúscula; «de El Carmen», nombre propio, no se contrae (RAE).
@@ -88,8 +152,10 @@ def contraer(texto: str) -> str:
 def motivo_apagada(nombre: str) -> str:
     """Por qué no sale, y cómo se enciende: lo lee el operador, en el aviso o en el registro."""
     s = SALIDAS[nombre]
+    # 086:RF-67: la que se cambia desde la web dice también dónde, sin tener que rearrancar.
+    web = ' o enciéndala en la web, en «Opciones de conversión»' if nombre in CAMBIABLES_DESDE_LA_WEB else ''
     return contraer(f'La salida a {s.destino} está apagada ({s.para_que}). '
-                    f'Para activarla, ponga {s.variable}=1 al arrancar.')
+                    f'Para activarla, ponga {s.variable}=1 al arrancar{web}.')
 
 
 def exigir_salida(nombre: str) -> None:
