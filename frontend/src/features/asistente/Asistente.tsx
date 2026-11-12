@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../../api/types';
 import type { EstadoAceptacionAgente } from '../../api/asistenteAceptacion';
 import { esProducto } from '../../shared/edicion';
@@ -292,6 +293,8 @@ export function Asistente() {
   return (
     <div className="stack">
       <AvisoBeta clave="asistente" />
+      {/* 086:RF-70: las órdenes y los entrenamientos del asistente que no terminaron bien. */}
+      <AvisosTrabajo paso="asistente" />
       <ModeloProvisional />
       <MonitorAgente />
       {desarrollo && <EquipoAsistente />}

@@ -2,6 +2,7 @@ import { fmtNum } from '../../shared/formato';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { DescargaZip } from './DescargaZip';
 import type { EstructuraResumen, FeederRow } from '../../api/types';
 import { Pill, Stat, useConfirm } from '../../shared/ui';
@@ -238,6 +239,8 @@ export function FeedersPanel() {
           {ws.loaded ? 'Volver a cargar' : 'Cargar / listar alimentadores'}
         </button>
       </header>
+      {/* 086:RF-70: «Cargar / listar», las conversiones y su importación avisan aquí, junto a su botón. */}
+      <AvisosTrabajo paso="alimentadores" />
 
       {!ws.loaded && (
         <p className="empty">
