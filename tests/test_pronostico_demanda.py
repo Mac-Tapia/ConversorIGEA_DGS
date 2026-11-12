@@ -1154,3 +1154,13 @@ def test_el_resumen_da_el_mase_por_clase():
 
     r = pd_.backtest(pd_.Dataset(objetivos=[Objetivo('cabecera', 'A', 'kW', 'kW', [(t, p) for t, p, _q in _serie(200)], {})], apartados=[], libros=[], ultimo_dato={}), origenes=3)
     assert r['resumen']['cabecera|kW']['mase_prueba']['semanal'] > 0
+
+
+def test_las_redes_toman_una_ventana_por_dia():
+    """089:RF-91 — una ventana de entrenamiento por día y no por registro: con 28 días de contexto y de horizonte, N-HiTS pidió
+    285 GiB en la cabecera real (2026-11-12)."""
+    objs = _objetivos_ml()
+    hasta = np.datetime64(objs[0].curva[150 * 96][0])
+    m = pd_.fabrica_modelo('nhits', pasos=2, semilla=1, lote=4, contexto_dias=2)
+    m.ajustar(objs, hasta, 96, None, 1)
+    assert pd_.PASO_VENTANAS == 96 and m.nf.models[0].step_size == pd_.PASO_VENTANAS

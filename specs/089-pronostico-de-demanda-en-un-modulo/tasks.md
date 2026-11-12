@@ -14,5 +14,7 @@
       Hecho cuando: `tests/test_pronostico_demanda.py` en verde, en la GPU.
 - [x] T8. Entrenamiento por alimentador en la GPU, sin rutas fijas. (RF-89, RF-90)
       Hecho cuando: `tests/test_entrenar_alimentadores_gpu.py` en verde y `--help` responde.
+- [x] T9. Una ventana de entrenamiento por día en las redes. (RF-91)
+      Hecho cuando: `tests/test_pronostico_demanda.py::test_las_redes_toman_una_ventana_por_dia` en verde, en la GPU.
 - [ ] T7. Corrida larga real de todos los modelos.
       Hecho cuando: cada clase, magnitud y horizonte tiene su informe fuera de git, con la decisión y sus cifras anotadas aquí.

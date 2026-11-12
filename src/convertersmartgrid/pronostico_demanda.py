@@ -1041,6 +1041,8 @@ COVARIABLES_ML = ('hora_sin', 'hora_cos', 'dia_sin', 'dia_cos', 'no_laborable', 
 #: Fijadas el 2026-11-05, antes de la primera medición (089:RF-63 a RF-65). Cambiarlas exige otra versión.
 PUERTA = {'version': 1, 'mejora_wape': .02, 'cobertura': (.85, .95), 'maxima_no_peor': True}
 ORIGENES_MODELOS = 6
+#: Registros entre dos ventanas de entrenamiento de las redes: una por día (089:RF-91).
+PASO_VENTANAS = 96
 
 
 def _covariables(t: np.ndarray, exogenas: Exogenas | None, hasta: np.datetime64) -> np.ndarray:
@@ -1130,6 +1132,9 @@ class ModeloRed:
                                lote=self.lote, covariables=COVARIABLES_ML)
         if self.nombre in self.MULTIVARIANTES:
             kw['n_series'] = int(tabla['unique_id'].nunique())
+        # 089:RF-91: la librería copia en la GPU todas las ventanas de cada serie del lote. Con una por registro, 28 días de
+        # contexto y 28 de horizonte, N-HiTS pidió 285 GiB en la cabecera (2026-11-12); con una por día caben en 8 GB.
+        kw['step_size'] = PASO_VENTANAS
         kw.update(self.ajustes)
         self.con_calendario = self.nombre in CON_CALENDARIO
         if not self.con_calendario:
