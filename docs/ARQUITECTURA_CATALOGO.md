@@ -11,8 +11,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 319 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 53 |
-| Pruebas de la interfaz | `frontend/test/` | 17 |
+| Interfaz | `frontend/src/` | 55 |
+| Pruebas de la interfaz | `frontend/test/` | 18 |
 | Pruebas | `tests/` | 427 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 312 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-104 specs con 3434 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+104 specs con 3441 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -764,7 +764,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/api/types.ts` | — | 001, 011, 021, 025, 037, 039, 041, 061 | Tipos de las respuestas de la API. |
 | `frontend/src/app/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
 | `frontend/src/app/App.tsx` | — | 001, 008, 061, 091 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
-| `frontend/src/app/AvisosDatos.tsx` | — | 086 | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. |
+| `frontend/src/app/AvisosDatos.tsx` | — | 086 | Avisos generales de arriba: copia vieja y ficheros no disponibles en una línea, espacio dañado con su botón de restaurar, y los avisos de trabajo sin… |
 | `frontend/src/app/InstalacionesPowerFactory.tsx` | — | 103 | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. |
 | `frontend/src/app/JobBar.tsx` | — | 001 | Barra de trabajos en curso. |
 | `frontend/src/app/LogPanel.tsx` | — | 001 | Registro. |
@@ -799,17 +799,20 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
+| `frontend/src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
 | `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
 | `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
 | `frontend/src/shared/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
 | `frontend/src/shared/context.tsx` | — | 001 | Contexto común de la aplicación. |
 | `frontend/src/shared/edicion.ts` | — | 086 | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. |
 | `frontend/src/shared/formato.ts` | — | 002, 001 | Formateadores numéricos y tamaños compartidos, extraídos sin cambiar su cuerpo. |
+| `frontend/src/shared/pasoDeTrabajo.ts` | — | 086 | Tabla de cada tipo de trabajo del servidor al paso de la web que lo lanza. |
 | `frontend/src/shared/projectBinding.ts` | — | 005, 018, 034 | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. |
 | `frontend/src/shared/styles.css` | — | 001, 021 | Tokens y estilos, modo claro y oscuro. |
 | `frontend/src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
 | `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

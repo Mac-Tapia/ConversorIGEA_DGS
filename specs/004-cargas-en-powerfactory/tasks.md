@@ -120,3 +120,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py -k ficha` en verde.
 - [x] T22. El FP del perfil para las cargas nuevas que solo traen kW, con su aviso. (RF-70)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py -k fp_del_perfil` en verde.
+- [x] T23. El nombre del cliente de la tabla cruzada, del libro de suministros cuando el libro mensual no lo trae. (RF-71)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py -k nombre` (004:RF-71) en verde.

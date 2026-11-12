@@ -186,6 +186,12 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `tests/test_seguridad_web.py` (086:RF-66) y `tests/test_web_api.py` (086:RF-68, RF-69) en verde.
 - [x] T53 Interruptor «Fondo de mapa» en «Opciones de conversión», recordado en el equipo y bloqueado si lo fija la variable. (RF-67, RF-68)
       Hecho cuando: `frontend/test/fondoMapa.test.mjs` (086:RF-67, RF-68) y `tests/test_web_api.py` (086:RF-67) en verde.
+- [x] T54 Tabla de cada `kind` del servidor a su paso, en `frontend/src/shared/pasoDeTrabajo.ts`, y los avisos de trabajo en su paso, con «Reintentar» en los repetibles. (RF-70, RF-71, RF-72)
+      Hecho cuando: `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-70 a RF-72) en verde.
+- [x] T55 Un aviso resuelto por un trabajo posterior del mismo tipo y ámbito no se muestra. (RF-73)
+      Hecho cuando: `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-73) en verde.
+- [x] T56 Arriba solo los avisos generales, en una línea; la pestaña cuenta los avisos de sus pasos. (RF-74, RF-75)
+      Hecho cuando: `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-74, RF-75) en verde.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

@@ -177,6 +177,27 @@ veía la red sobre fondo blanco y no tenía cómo cambiarlo.
 - RF-69: EL SISTEMA dirá por la API cada salida a la red con su estado, su origen (variable, equipo o edición) y su destino;
   desde la web solo se podrá cambiar la de las teselas.
 
+### Cada aviso en su paso (2026-11-12)
+
+Usuario (2026-11-12): arriba de la web se apilaban «Aún no hay ninguna copia de sus datos…» y dos tarjetas «Trabajo
+interrumpido: Cargar / listar alimentadores» (11:20:31 y 10:33:13): «estos mensajes deberían aparecer en el numeral que
+corresponde de la web». Las dos interrupciones ya no valían: después el mismo «Cargar / listar» terminó bien. Amplía RF-9.
+
+- RF-70: CUANDO un trabajo queda interrumpido, fallido o cancelado, EL SISTEMA mostrará su aviso en el paso de la web
+  cuyo botón lo lanza, según una tabla de cada tipo de trabajo a su paso que está en un solo sitio.
+- RF-71: SI un tipo de trabajo no tiene paso en esa tabla, ENTONCES EL SISTEMA mostrará su aviso en la zona general de
+  arriba; ningún tipo que encola el servidor queda fuera de la tabla.
+- RF-72: EL SISTEMA dará en cada aviso «Ver su registro» y «Dar por visto», y «Reintentar» solo si el trabajo se repite
+  con sus mismos datos, sin más parámetro que el espacio; los avisos del mismo ámbito se dan por vistos juntos.
+- RF-73: CUANDO después de un trabajo interrumpido, fallido o cancelado termina bien otro del mismo tipo y del mismo
+  ámbito (el espacio y el proyecto o los alimentadores de su título), EL SISTEMA dará el aviso por resuelto y no lo
+  mostrará; el trabajo seguirá en el registro del espacio.
+- RF-74: EL SISTEMA dejará arriba solo los avisos generales del espacio (copia de datos, ficheros que no están,
+  espacios dañados, datos del espacio), y el de la copia de datos y el de los ficheros irán en una línea que se
+  despliega; la copia no tiene botón en la web, se hace con la orden del manual.
+- RF-75: MIENTRAS el paso de un aviso está en una pestaña que se ofrece, la pestaña dirá cuántos avisos tiene; SI la
+  pestaña no se ofrece, ENTONCES el aviso irá a la zona general.
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.

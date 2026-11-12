@@ -1427,12 +1427,14 @@ class Suministro:
     radial: str
     fila: int
     nota_asignacion: str = ''
+    #: 004:RF-71: el nombre del cliente del libro de suministros (`nombre_cliente`), para cuando el libro mensual no lo trae.
+    nombre: str = ''
 
 
 def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], list[str]]:
     """Código actual, anterior, SED y radial de cada suministro (RF-33)."""
     libro = abrir_libro(path)
-    campos = ('suministro_act', 'suministro', 'sed', 'radial', 'nota_asignacion')
+    campos = ('suministro_act', 'suministro', 'sed', 'radial', 'nota_asignacion', 'cliente_nombre')
     for hoja in libro.sheet_names:
         filas = filas_de_hoja(libro, hoja)
         hallada = buscar_cabecera(filas, campos, alias, ('sed',))
@@ -1447,7 +1449,8 @@ def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], l
             if act or ant:
                 out.append(Suministro(act, ant, texto_de_celda(fila, cols['sed']),
                                       texto_de_celda(fila, cols.get('radial')), n,
-                                      texto_de_celda(fila, cols.get('nota_asignacion'))))
+                                      texto_de_celda(fila, cols.get('nota_asignacion')),
+                                      texto_de_celda(fila, cols.get('cliente_nombre'))))
         return out, avisos
     raise DemandaError(f'{Path(path).name}: ninguna hoja tiene «Suministro Act» o «Suministro» y «SED».')
 
@@ -2047,6 +2050,10 @@ def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suminist
         c.sed, c.radial = s.sed, s.radial
         c.radial_libro = s.radial
         c.nota_asignacion = s.nota_asignacion
+        # 004:RF-71: la tabla cruzada de PA217 salía con «—» en «Cliente» (2026-11-12): los libros mensuales casi nunca
+        # traen el nombre y el de suministros sí («nombre_cliente»). El del libro mensual, si lo trae, manda.
+        if not c.nombre and s.nombre:
+            c.nombre = s.nombre
         if not s.sed:
             c.motivo = f'cruza por el código {via} pero el suministro no tiene SED'
             aparte.append(c)

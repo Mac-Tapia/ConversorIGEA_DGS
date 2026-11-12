@@ -4,6 +4,7 @@ import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe } from './a
 import { useEffect, useRef, useState } from 'react';
 import { api, download } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import type {
   AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
   CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConProyectoAlimentador, ConProyectoResultado, Economia, EscaleraResultado, Job,
@@ -411,6 +412,8 @@ export function CargasTab() {
             {projects.length ? 'Volver a leer proyectos' : 'Leer proyectos de DIgSILENT'}
           </button>
         </div>
+        {/* 086:RF-70: cada paso con los avisos de los trabajos que lanza. */}
+        <AvisosTrabajo paso="pf-proyecto" />
         {projects.length > 0 ? (
           <div className="row">
             <label className="field">
@@ -511,6 +514,7 @@ export function CargasTab() {
       <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="step-box" id={DESTINO.calibracion} tabIndex={-1}>
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
+        <AvisosTrabajo paso="pf-calibracion" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
           <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
             la máxima lo decide el tipo de análisis que se elija abajo: alimentadores, SET o sistema eléctrico.</p>
@@ -552,6 +556,7 @@ export function CargasTab() {
 
       <div className="step-box" id={DESTINO.nuevas} tabIndex={-1}>
         <h3>3 · Integración de nuevas</h3>
+        <AvisosTrabajo paso="pf-nuevas" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
           <p className="muted">Sobre la red calibrada y con el flujo convergido. Las tres partes son optativas: use las que
             necesite y revíselas juntas; se aplican en este orden en cada alimentador.</p>
@@ -682,20 +687,26 @@ export function CargasTab() {
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box" id={DESTINO.obras} tabIndex={-1}>
         <h3>4 · Obras y estudios</h3>
+        {/* 086:RF-70: sin proyecto o sin alimentadores no se ven 4.1 a 4.4; sus avisos, aquí. */}
+        {(!current || !order.length) && <AvisosTrabajo paso={['pf-obras', 'pf-estudios', 'pf-transferencia', 'pf-informes']} />}
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : !order.length
           ? <p className="muted">Marque al menos un alimentador en el paso 2.</p> : <>
             <h4>4.1 · Obras de mejora</h4>
+            <AvisosTrabajo paso="pf-obras" />
             <ObrasPF project={project} feeders={order} />
             <h4>4.2 · Estudios</h4>
+            <AvisosTrabajo paso="pf-estudios" />
             <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}
               faltaRecalibrar={informesBase.filter((i) => !i.error && !i.no_empezado && order.includes(i.feeder)
                 && i.tipo_ajuste?.tipo === 'CALIBRACION').map((i) => i.feeder)} />
             <h4>4.3 · Transferencia de carga</h4>
+            <AvisosTrabajo paso="pf-transferencia" />
             <TransferenciaPF project={project} feeders={order} />
             {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}
             {/* 072:RF-33: el destino de «Ir al paso» de los informes, sin cambiar su título. */}
             <span id={DESTINO.informes} tabIndex={-1} />
             <h4>4.4 · Informes</h4>
+            <AvisosTrabajo paso="pf-informes" />
             <InformesPF project={project} feeders={order} />
           </>}
       </div>
@@ -703,10 +714,13 @@ export function CargasTab() {
       {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
       {betaActiva(health, 'pide') && <div className="step-box" id={DESTINO.planificacion} tabIndex={-1}>
         <h3>{esProducto(health) ? '5 · Planificación PIDE' : '5 · Planificación PIDE y gemelo digital'} <MarcaBeta clave="pide" /></h3>
+        <AvisosTrabajo paso="pf-planificacion" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
           : <GemeloPIDE project={project} feeders={order} plazo={tipo} anio={anioPresentacion}
             onAnio={setAnioPresentacion} tipos={tipos} />}
       </div>}
+      {/* 086:RF-70: con la planificación apagada, un aviso suyo anterior no se pierde. */}
+      {!betaActiva(health, 'pide') && <AvisosTrabajo paso="pf-planificacion" />}
       </fieldset>
 
       {plan && (

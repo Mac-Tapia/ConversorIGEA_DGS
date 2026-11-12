@@ -413,7 +413,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/features/powerfactory/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/features/powerfactory/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
 | `frontend/src/features/powerfactory/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
-| `frontend/src/app/AvisosDatos.tsx` | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. | 086 (RF-2, RF-3, RF-9, RF-47) |
+| `frontend/src/app/AvisosDatos.tsx` | Avisos generales de arriba: copia vieja y ficheros no disponibles en una línea, espacio dañado con su botón de restaurar, y los avisos de trabajo sin paso visible. | 086 (RF-2, RF-3, RF-9, RF-47, RF-71, RF-74) |
+| `frontend/src/shared/pasoDeTrabajo.ts` | Tabla de cada tipo de trabajo del servidor al paso de la web que lo lanza; agrupa sus avisos por ámbito y da por resueltos los que terminaron bien después. | 086 (RF-70 a RF-75) |
+| `frontend/src/shared/AvisosTrabajo.tsx` | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». | 086 (RF-9, RF-70, RF-72) |
 | `frontend/src/app/AvisosLibros.tsx` | Avisos de los libros de demanda que la web reconoció sola, con «Dar por visto», y el estado del dataset del pronóstico. | 104 (RF-20 a RF-22) |
 | `frontend/src/shared/MarcaBeta.tsx` | La marca y el aviso de una función en beta; en desarrollo no se ven. | 086 (RF-16) |
 | `frontend/src/features/powerfactory/OperacionSet.tsx` | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. | 063 |
@@ -581,6 +583,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/package.json` | Dependencias del frontend y versiones compatibles de Node y npm. | 065 (RF-8) |
 | `frontend/test/reconexion.test.mjs` | Pruebas de los trabajos al reconectar y de la edición en la web. | 086 (RF-9, RF-16) |
 | `frontend/test/fondoMapa.test.mjs` | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. | 086 (RF-67, RF-68) |
+| `frontend/test/avisosEnSuPaso.test.mjs` | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda arriba. | 086 (RF-70 a RF-75) |
 | `frontend/test/buildPreservado.test.mjs` | Pruebas de la compilación y sus rutas, con y sin espacios. | 065 (RF-9) |
 | `docs/implementacion065/progreso.md` | Registro de candidato, responsables, cambios, dependencias y evidencia por fase M0–M10. | 065 (RF-1) |
 | `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |

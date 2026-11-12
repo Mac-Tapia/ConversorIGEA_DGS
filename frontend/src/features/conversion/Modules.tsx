@@ -3,6 +3,7 @@ import { PfWarning } from '../../shared/PfWarning';
 import { useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { DescargaZip } from './DescargaZip';
 import { FileDrop, Pill, useConfirm, useToast } from '../../shared/ui';
 
@@ -108,6 +109,7 @@ export function CatalogTab() {
       <div className="steps">
         <div className="step-box">
           <h3>1 · Generar catálogo y auditar</h3>
+          <AvisosTrabajo paso="catalogo" />
           <button className="btn" disabled={!ws.loaded || Boolean(active.engine)}
             onClick={() => startJob(() => api.catalogBuild(ws.id, selected))}>
             Auditar {selected.length ? `${selected.length} seleccionado(s)` : 'todos'}
@@ -203,6 +205,7 @@ export function SystemTab() {
     <div className="module">
       <p className="muted">Los alimentadores en UNA sola red: es lo que permite preguntar si uno puede respaldar a otro o
         dónde conviene abrir, porque el respaldo y la reconfiguración ocurren entre alimentadores.</p>
+      <AvisosTrabajo paso="sistema" />
       <div className="steps">
         <div className="step-box">
           <h3>¿Qué datos faltan?</h3>
