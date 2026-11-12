@@ -32,8 +32,11 @@ GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tes
             'tests/test_procedimientos.py')
 
 #: Las variables de datos reales de la suite completa (CLAUDE.md, «Pruebas»): sin una, la suite omite pruebas.
+#: 102:RF-23: la puerta pasa solo las de esta lista; ``CSG_PF_PYTHON_39`` (spec 103) estaba en el fichero local y no
+#: aquí, y la suite de la T31 de la 086 (2026-11-12) habría omitido las dos pruebas del Python 3.9.
 VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_MDB', 'CSG_DEMANDA_DIR',
-             'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON')
+             'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON',
+             'CSG_PF_PYTHON_39')
 
 #: El fichero local de las variables, fuera de git (102:RF-6, RF-15).
 FICHERO_VARIABLES = Path('config') / 'suite_completa.json'

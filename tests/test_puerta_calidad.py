@@ -266,3 +266,20 @@ def test_102_rf22_cada_prueba_con_su_guardia_de_gpu(tmp_path):
     guardia = ruta_guardia_gpu()
     assert guardia == tmp_path / 'gpu.lock'
     assert guardia != ruta_guardia_gpu({'LOCALAPPDATA': 'C:/Users/x/AppData/Local'})
+
+
+def test_102_rf23_la_puerta_pasa_todas_las_variables_que_las_pruebas_piden():
+    """102:RF-23 — una variable que una prueba nombra al omitirse, o que trae el ejemplo, la pasa la puerta."""
+    import json
+    import re
+
+    nombradas = set()
+    for prueba in (RAIZ / 'tests').rglob('*.py'):
+        for linea in prueba.read_text(encoding='utf-8').splitlines():
+            if 'skip' in linea:
+                nombradas.update(re.findall(r'\bCSG_[A-Z0-9_]+', linea))
+    ejemplo = json.loads((RAIZ / 'config' / 'suite_completa.example.json').read_text(encoding='utf-8'))
+    del_ejemplo = set(ejemplo['variables'])
+    assert 'CSG_PF_PYTHON_39' in nombradas      # el caso que la motivó
+    assert nombradas - set(PC.VARIABLES) == set()
+    assert del_ejemplo == set(PC.VARIABLES)

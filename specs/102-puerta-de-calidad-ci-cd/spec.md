@@ -67,6 +67,9 @@ Instalación
   el perfil en `services.py` se movieron cuatro citas y solo lo vio GitHub Actions.)
 - RF-22: EL SISTEMA dará a cada prueba su propia guardia de GPU (`CSG_ML_GPU_LOCK`), no la de la máquina. (2026-11-11:
   con un entrenamiento real en marcha, 25 pruebas del oráculo fallaron en la puerta con «GPU ocupada».)
+- RF-23: Toda variable `CSG_*` que una prueba nombre al omitirse, y toda la del ejemplo `config/suite_completa.example.json`,
+  estará en la lista de la puerta; la puerta pasa a la suite solo las de esa lista. (2026-11-12: `CSG_PF_PYTHON_39`, de la
+  spec 103, estaba en el fichero local y no en la lista, y la suite de la 086 T31 habría omitido dos pruebas.)
 
 ## Requisitos no funcionales
 

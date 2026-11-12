@@ -29,3 +29,5 @@
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-21) en verde.
 - [x] T10. Cada prueba con su guardia de GPU. (RF-22)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-22) en verde.
+- [x] T11. La lista de variables de la puerta cubre las que nombran las pruebas y el ejemplo. (RF-23)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-23) en verde.
