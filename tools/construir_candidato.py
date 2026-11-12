@@ -412,7 +412,8 @@ def empaquetar_python_pf(origen: Path, terceros: Path, fijados: dict[str, dict[s
     ruedas.mkdir(parents=True, exist_ok=True)
     componentes, huellas = [], {}
     for version, f in sorted(fijados.items()):
-        zip_embebido, rueda = origen / f['zip'], origen / f['numpy']
+        zip_embebido = origen / f['zip']
+        rueda = next((c for c in (origen / f['numpy'], origen / 'ruedas' / f['numpy']) if c.is_file()), origen / f['numpy'])
         if not zip_embebido.is_file() or not rueda.is_file():
             raise CE.EntregaError(f'Falta en {origen} el Python {version} o su numpy ({f["zip"]}, {f["numpy"]}).')
         if _sha256(rueda) != f['numpy_sha256']:

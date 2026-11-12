@@ -130,7 +130,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida |  |
-  | 103 DIgSILENT de cualquier versión instalada | aprobada | falta T5, T6, T7 |
+  | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

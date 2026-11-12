@@ -244,6 +244,12 @@ def test_103_rf6_el_entorno_pone_las_librerias_del_interprete_antes_que_el_paque
     assert rutas[:3] == [str(api), str(otro.parent / 'Lib' / 'site-packages'), str(pe.carpeta_del_paquete())]
     assert pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)[0] == str(api)
     assert str(pe.carpeta_del_paquete()) not in pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)
+    # 103:RF-6: el PYTHONHOME del lanzador (el del 3.12) no pasa a otro intérprete.
+    import unittest.mock
+    with unittest.mock.patch.dict(os.environ, {'PYTHONHOME': 'D:/programa/python'}):
+        otro_env = pe.pf_subprocess_env(api, otro)
+        assert 'PYTHONHOME' not in otro_env and otro_env['PYTHONNOUSERSITE'] == '1'
+        assert pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONHOME'] == 'D:/programa/python'
 
 
 def test_103_rf6_el_guion_carga_su_numpy_y_el_paquete_con_otro_python(tmp_path):

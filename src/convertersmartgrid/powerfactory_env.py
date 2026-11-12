@@ -306,6 +306,10 @@ def pf_subprocess_env(pf_dir: Path | None, interprete: Path | None = None) -> di
     if interprete is not None and os.path.normcase(str(Path(interprete).resolve())) != os.path.normcase(
             str(Path(sys.executable).resolve())):
         rutas += [str(Path(interprete).parent / 'Lib' / 'site-packages'), str(carpeta_del_paquete())]
+        # El lanzador del programa fija PYTHONHOME en su Python 3.12: heredado, el 3.9 tomaba esa carpeta como
+        # sys.prefix y «site» habría añadido las librerías del 3.12 (QA del rc4, 2026-11-11).
+        env.pop('PYTHONHOME', None)
+        env['PYTHONNOUSERSITE'] = '1'
     env['PYTHONPATH'] = os.pathsep.join([*rutas, *([env['PYTHONPATH']] if env.get('PYTHONPATH') else [])])
     env['PF_PYTHON'] = str(pf_dir)
     return env

@@ -10,9 +10,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_powerfactory_versiones.py` (103:RF-4, RF-7) en verde.
 - [x] T4. Guiones de DIgSILENT compatibles con Python 3.9 y sin más librerías que `numpy`. (RF-5)
       Hecho cuando: `tests/test_powerfactory_versiones.py` (103:RF-5) en verde.
-- [ ] T5. Selector de instalación en la web. (RF-3)
+- [x] T5. Selector de instalación en la web. (RF-3)
       Hecho cuando: `npm test` en verde y probado en el navegador con la PowerFactory de la máquina.
-- [ ] T6. Python embebidos en el instalador. (RF-6)
+- [x] T6. Python embebidos en el instalador. (RF-6)
       Hecho cuando: el candidato construido trae 3.9, 3.10 y 3.11 con su SHA-256 y `numpy`, y `csg.cmd doctor` los lista.
-- [ ] T7. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+      Hecho el 2026-11-11: candidato 1.0.0rc4 (D:/csg/c_rc4, no rechazado) instalado en la QA aislada; `csg.cmd doctor`:
+      «listo para trabajar… Python para otras PowerFactory: 3.9, 3.10, 3.11»; desde el programa instalado, estudios_pf,
+      obras_pf y cargas_pf arrancan con su 3.9 y la API de PowerFactory 2024 para 3.9 carga con él. La QA mostró que el
+      PYTHONHOME del lanzador pasaba al 3.9: corregido en pf_subprocess_env, con su prueba (entra en el siguiente candidato).
+- [x] T7. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "103:RF-[0-9]+" tests | sort -u` lista los 7 RF.

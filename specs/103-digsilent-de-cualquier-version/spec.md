@@ -1,6 +1,6 @@
 # Spec 103 — DIgSILENT de cualquier versión instalada
 
-Estado: aprobada · Fecha: 2026-11-11 · Origen: usuario, 2026-11-11: «la versión de DIgSILENT no debe ser limitativa:
+Estado: cumplida (2026-11-11: T1 a T7, candidato rc4 en la QA) · Fecha: 2026-11-11 · Origen: usuario, 2026-11-11: «la versión de DIgSILENT no debe ser limitativa:
 debería conectarse a cualquier DIgSILENT que exista instalado, cualquiera que sea el del usuario».
 
 ## Contexto y objetivo
