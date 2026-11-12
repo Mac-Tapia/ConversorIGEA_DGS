@@ -87,7 +87,7 @@ class TestUnusableInputFailsLoudly:
         """La confusión que antes NO fallaba.
 
         Daba un dataset con 0 cargas y la conversión seguía: un DGS que converge, se
-        importa en DigSILENT y da un flujo perfecto de una red que no alimenta a nadie.
+        importa en DIgSILENT y da un flujo perfecto de una red que no alimenta a nadie.
         """
         red, carga, equipo = export
         with pytest.raises(ValueError) as excinfo:

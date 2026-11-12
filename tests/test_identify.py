@@ -7,7 +7,7 @@ cualquier nombre —comprobado con ``exportacion_enero.txt``, ``demanda.txt`` y
 
 La confusión que importa es la que no fallaba: poner el catálogo de equipos en la
 casilla de cargas daba un dataset con **0 cargas** y la conversión seguía adelante. El
-DGS resultante converge, se importa en DigSILENT y da un flujo de potencia impecable de
+DGS resultante converge, se importa en DIgSILENT y da un flujo de potencia impecable de
 una red que no alimenta a nadie. Un error que no falla es peor que uno que falla.
 
 Spec 034: 034:RF-2.

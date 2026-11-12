@@ -57,10 +57,10 @@ function GroupsList() {
                 {g.dgs && <a className="link" href={api.fileUrl(ws.id, `${g.name}.dgs`, true)}>Descargar</a>}
                 {g.dgs && (
                   <button className="link" disabled={Boolean(active.powerfactory)} onClick={async () => {
-                    if (await confirm('DigSILENT PowerFactory', <p>Se importará <b>{g.name}.dgs</b> en PowerFactory y se correrá el flujo.</p>)) {
+                    if (await confirm('DIgSILENT PowerFactory', <p>Se importará <b>{g.name}.dgs</b> en PowerFactory y se correrá el flujo.</p>)) {
                       await run(() => startJob(() => api.powerfactoryFlow(ws.id, [g.name])));
                     }
-                  }}>Cargar en DigSILENT</button>
+                  }}>Cargar en DIgSILENT</button>
                 )}
               </td>
             </tr>
@@ -196,7 +196,7 @@ export function FeedersPanel() {
     const withDgs = joinedGroup
       ? [joinedGroup.name]
       : selected.filter((n) => feeders.find((r) => r.feeder === n)?.conversion?.status === 'ok');
-    const ok = await confirm('DigSILENT PowerFactory', <>
+    const ok = await confirm('DIgSILENT PowerFactory', <>
       {joinedGroup
         ? <p>La selección coincide con la red unida <b>{joinedGroup.name}.dgs</b>. Se comprobará que siga vigente;
           si es así, se importará ese único DGS. Si quedó desactualizado, se usarán los DGS individuales disponibles.</p>
@@ -427,7 +427,7 @@ export function FeedersPanel() {
             <span className="spacer" />
             <button className="btn btn-pf" disabled={pfBusy || selected.length === 0 || !pfReady} onClick={() => run(pfFlow)}
               title="Import del DGS + escenario + flujo de potencia + estudios">
-              Cargar en DigSILENT + flujo
+              Cargar en DIgSILENT + flujo
             </button>
           </div>
         </>

@@ -2,7 +2,7 @@
 
 This is the final acceptance gate for a feeder produced by the converter. Static tests prove DGS structure, source-data preservation, topology, GPS coverage and graphical references; **PowerFactory API** proves import, study/scenario activation, connectivity, scaled location, load-flow convergence, and (optionally) a short study suite.
 
-## DigSILENT Help sources (this machine)
+## DIgSILENT Help sources (this machine)
 
 Installed under `C:\Program Files\DIgSILENT\PowerFactory 2024\`:
 
@@ -17,7 +17,7 @@ Installed under `C:\Program Files\DIgSILENT\PowerFactory 2024\`:
 
 ## One-shot API gate (recommended)
 
-Requires DigSilent PowerFactory 2024 (or compatible) with the matching Python API on `PYTHONPATH`.
+Requires DIgSILENT PowerFactory 2024 (or compatible) with the matching Python API on `PYTHONPATH`.
 
 ```bat
 set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12
@@ -41,9 +41,9 @@ python tools\powerfactory_acceptance.py --list-studies
 What this does:
 
 1. Connects to PF (`GetApplication` / `GetApplicationExt`)
-2. Imports the `.dgs` via **ComImport** into a new project (same pattern as DigSilent `ApiExample.cpp`)
+2. Imports the `.dgs` via **ComImport** into a new project (same pattern as DIgSILENT `ApiExample.cpp`)
 3. Activates **Study Case base**; if no **IntScenario** exists, **creates** `Operation Scenario` and activates it (`--ensure-scenario`, default on) — User Manual §12 study/scenario pattern
-4. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DigSILENT-aligned correction intents until convergence (or intents exhausted)
+4. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DIgSILENT-aligned correction intents until convergence (or intents exhausted)
 5. With `--run-studies`, runs the **study suite** (default: `load_flow` + `short_circuit` / ComShc)
 6. **Persists DGS into the convert out_dir** (same folder as web/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
    - Always ensures `{feeder}.dgs` (+ known sidecars if present) remain there (idempotent copy when the import path differed)
@@ -118,7 +118,7 @@ Short-circuit defaults (applied only when attributes exist): prefer IEC 60909 (`
 
 ### Web
 
-In the web UI, select converted feeder(s) and press **«Cargar en DigSILENT + flujo»**. The API queues a job on the `powerfactory` lane that launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DigSilent’s Python folder is found.
+In the web UI, select converted feeder(s) and press **«Cargar en DIgSILENT + flujo»**. The API queues a job on the `powerfactory` lane that launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DIgSILENT’s Python folder is found.
 
 ## Equipment scope (important)
 

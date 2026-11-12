@@ -1,4 +1,4 @@
-# Manual de comandos — pruebas, conversión e importación en DigSILENT
+# Manual de comandos — pruebas, conversión e importación en DIgSILENT
 
 Anexo del [Manual de uso](MANUAL_DE_USO.md), que explica la arquitectura, los flujos de trabajo
 y los procedimientos; aquí van las órdenes exactas y sus opciones.
@@ -441,11 +441,11 @@ parametrizadas sobre las dos alternativas).
 
 ---
 
-## 5. Importación en DigSILENT PowerFactory
+## 5. Importación en DIgSILENT PowerFactory
 
 | En la interfaz | Comando |
 | --- | --- |
-| **Cargar DGS en DigSILENT + flujo** | `tools\powerfactory_acceptance.py` |
+| **Cargar DGS en DIgSILENT + flujo** | `tools\powerfactory_acceptance.py` |
 
 ### 5.1 Requisitos
 
@@ -589,7 +589,7 @@ echo === 2/3 Conversion ===
 "%PY%" -m convertersmartgrid.cli convert --red "%RED%" --loads "%CARGA%" --equipment "%EQUIPO%" ^
     --feeder %ALIM% --source-crs %CRS% --out-dir "%SALIDA%" || (echo Conversion fallida. & exit /b 2)
 
-echo === 3/3 Importacion en DigSILENT ===
+echo === 3/3 Importacion en DIgSILENT ===
 if not defined PF_PYTHON set "PF_PYTHON=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12"
 if exist "%PF_PYTHON%\powerfactory.pyd" set "PYTHONPATH=%PF_PYTHON%;%PYTHONPATH%"
 "%PY%" tools\powerfactory_acceptance.py ^
@@ -1009,7 +1009,7 @@ sigue siendo su propia área radial y el enlace queda explícito y cerrable.
 rem Solo el DGS de la red unida
 .venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt
 
-rem DGS, importación en DigSILENT y flujo de potencia
+rem DGS, importación en DIgSILENT y flujo de potencia
 .venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt ^
     --importar --run-load-flow
 ```
@@ -1024,7 +1024,7 @@ rem Construye, importa, crea el caso ANIO_0_BASE, converge y ejecuta los estudio
 .venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt ^
     --nombre PIDE_ANIO_0
 
-rem Solo la lista de datos que faltan. NO toca DigSILENT y tarda segundos.
+rem Solo la lista de datos que faltan. NO toca DIgSILENT y tarda segundos.
 .venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt --solo-datos
 
 rem Incluir los estudios que resuelven la red muchas veces, con 600 s cada uno
@@ -1099,7 +1099,7 @@ rem Red unida y ano 0 del PIDE
 rem Catalogo de parametros electricos -> input\catalogo_parametros.xlsx
 .venv\Scripts\python.exe tools\build_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
 
-rem Importar en DigSILENT
+rem Importar en DIgSILENT
 .venv\Scripts\python.exe tools\powerfactory_acceptance.py --import-dgs output\prod\ALIMENTADOR.dgs --manifest output\prod\ALIMENTADOR_geography.json --ensure-scenario --run-load-flow --fix-until-converge --run-studies
 ```
 

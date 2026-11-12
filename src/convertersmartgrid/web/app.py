@@ -1599,7 +1599,7 @@ def create_app(
         ws = ws_or_404(wid)
         targets = services.powerfactory_targets(ws, body.feeders)
         services.check_powerfactory_flow(ws, targets)
-        return submit(ws, 'powerfactory', f'DigSILENT: import + flujo ({len(targets)})',
+        return submit(ws, 'powerfactory', f'DIgSILENT: import + flujo ({len(targets)})',
                       lambda ctx: services.powerfactory_flow(ws, ctx, targets),
                       lane='powerfactory')
 

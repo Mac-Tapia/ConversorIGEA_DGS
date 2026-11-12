@@ -47,7 +47,7 @@ reescribirlo.
    se conserva. La tabla recuerda qué alimentadores tienen su DGS entre lotes.
 5. **Resultados**: descarga por fichero o en `.zip`, y el mapa de vista previa dentro
    de la página.
-6. **Cargar en DigSILENT + flujo**, **Catálogo de parámetros** y **Sistema completo**
+6. **Cargar en DIgSILENT + flujo**, **Catálogo de parámetros** y **Sistema completo**
    (red unida, escenario año 0, datos que faltan): con el plan a la vista antes de
    aplicarlo.
 
@@ -138,7 +138,7 @@ ejemplo). En desarrollo siguen encendidas; con `CSG_EDICION=producto`, apagadas 
 Hay dos carriles, cada uno en serie: **motor** (leer, convertir, auditar) y
 **PowerFactory** (import, flujo, cargas, red unida). PowerFactory admite un solo
 proceso con el motor a la vez; serializarlo evita el fallo que eso produce, y separar
-los carriles permite seguir convirtiendo mientras DigSILENT importa la red unida.
+los carriles permite seguir convirtiendo mientras DIgSILENT importa la red unida.
 
 La interfaz de escritorio Tkinter se retiró (spec 001, RF-16): todas sus funciones
 están en la web, y `run_gui.bat` conserva el nombre por los accesos directos ya creados.
@@ -353,7 +353,7 @@ Instale deps de desarrollo: `pip install -r requirements.txt`.
 
 Sin datos, pasan solo las sintéticas, y la suite «pasa» sin haber probado nada real. Con datos reales hacen falta `CSG_RED`, `CSG_LOADS` y `CSG_EQUIPMENT` (`CSG_TXT_DIR` no basta): la lista completa de variables, y la regla de darla por buena solo sin ninguna omitida, está en `CLAUDE.md`.
 
-Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
+Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DIgSILENT + flujo**.
 
 ## Resultado de ejemplo (IN111)
 

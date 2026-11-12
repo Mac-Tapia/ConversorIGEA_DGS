@@ -136,6 +136,27 @@ Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento»
   copia del anterior. Usuario (2026-11-11): «debe usar todos los perfiles de la empresa, todos los libros deben cargar desde
   la web»; en el programa instalado el perfil hubo que dejarlo a mano.
 
+### Defectos de la instalación del rc5 (2026-11-12)
+
+Instalado y usado el rc5 en este equipo, como un operador: cuatro defectos sin prueba que los viera.
+
+- RF-57: SI la instalación no puede terminar, ENTONCES EL SISTEMA dejará el motivo que da `instalar_candidato.py` en el
+  registro del instalador y en el aviso al operador, también en una instalación silenciosa, y no solo su código de salida.
+  (rc5: el registro decía «Resultado de instalar_candidato.py: 1»; el motivo era el programa abierto en el puerto 8765.)
+- RF-58: SI la carpeta de una instalación anterior registrada está en la carpeta temporal de Windows o ya no tiene el
+  programa, ENTONCES EL SISTEMA instalará en la carpeta por defecto y lo anotará en el registro; una actualización sobre
+  una instalación válida seguirá en su carpeta, y la que se pida con `/DIR` manda. (rc5: se instaló en `%TEMP%\csgp`,
+  la carpeta de un ensayo del rc1.)
+- RF-59: CUANDO el perfil de la empresa se carga desde la web con éxito, EL SISTEMA pondrá al día, sin recargar la página,
+  lo que se muestra del perfil: el CRS de origen enseña el del perfil y deja de avisar de que no hay perfil.
+- RF-60: EL SISTEMA escribirá el nombre del programa de cálculo como «DIgSILENT» en la web, en el registro y en su
+  código; «DigSILENT» y «DigSilent» son erratas.
+- RF-61: CUANDO un texto armado une «a» o «de» con un nombre que empieza por el artículo «el», EL SISTEMA escribirá la
+  contracción «al» o «del» («La salida al portal de Osinergmin»), nunca «a el» ni «de el».
+- RF-62: CUANDO cambian los libros de demanda del espacio en «2.1 · Libros de medición», EL SISTEMA volverá a pedir al
+  servidor lo que la recalibración de «Sin proyecto» deduce de ellos, sin recargar la página. (rc5: asignados los libros
+  por ruta y calibrado, «Recalibrar» seguía diciendo «El espacio no tiene libros de demanda» hasta recargar.)
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.

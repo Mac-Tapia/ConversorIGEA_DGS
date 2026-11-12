@@ -218,7 +218,7 @@ def test_list_studies_exits_zero_without_pf():
 def test_relaxed_comldf_attrs_are_documented_names():
     mod = _load_pf_mod()
     names = {n for n, _ in mod._RELAXED_COMLDF_ATTRS}
-    # DigSILENT Help localisation (ComLdf.*) — not invented aliases.
+    # DIgSILENT Help localisation (ComLdf.*) — not invented aliases.
     assert 'iopt_lim' in names
     assert 'iopt_at' in names
     assert 'iopt_fl' in names

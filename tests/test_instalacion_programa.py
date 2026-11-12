@@ -1097,6 +1097,21 @@ def test_los_documentos_existen_y_no_llevan_nombres(terminos):
         assert not CE.buscar_en_texto(rel, ruta.read_text(encoding='utf-8'), terminos), rel
 
 
+def test_086_rf60_digsilent_bien_escrito():
+    """086:RF-60 — «DIgSILENT», con la I mayúscula, en la web, el registro, el código y los manuales.
+
+    rc5 (2026-11-12): el botón «Cargar en … + flujo» y el registro «--- Fin … ---» lo escribían con la i minúscula. Los nombres en
+    mayúsculas o minúsculas enteras (``TANDA_DIGSILENT``, ``confirmar_en_digsilent``) son identificadores, no texto.
+    """
+    errata = re.compile('Dig' + r'(?:SILENT|[Ss]ilent)')
+    ficheros = [p for carpeta in ('frontend/src', 'src/convertersmartgrid', 'tools', 'tests', 'instalador')
+                for p in (RAIZ / carpeta).rglob('*') if p.is_file() and p.suffix in {'.py', '.ts', '.tsx', '.iss', '.bat', '.cmd', '.md'}]
+    ficheros += [RAIZ / 'README.md', *sorted((RAIZ / 'docs').glob('*.md'))]
+    con_errata = [f'{p.relative_to(RAIZ).as_posix()}:{n}' for p in ficheros
+                  for n, linea in enumerate(p.read_text(encoding='utf-8', errors='replace').splitlines(), 1) if errata.search(linea)]
+    assert not con_errata, con_errata
+
+
 def test_el_manual_cita_ordenes_que_existen():
     """086:RF-44 — el manual dice `csg.cmd doctor`: lo que cita tiene que responder."""
     ordenes = _parser()._subparsers._group_actions[0].choices
@@ -1209,6 +1224,63 @@ def test_el_guion_del_instalador_no_sale_a_internet():
     assert not re.search(r'https?://|DownloadTemporaryFile|pip install|npm', iss, flags=re.I)
     borra = [l for l in iss.splitlines() if l.startswith('Type:')]
     assert borra and all('{app}' in l for l in borra), 'desinstalar no toca la carpeta de datos'
+
+
+def test_086_rf57_el_motivo_del_fallo_queda_en_su_fichero(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-57 — con --registro, el motivo por el que no se instala queda en un fichero que el .iss puede leer.
+
+    rc5 (2026-11-12): con /VERYSILENT el registro de Inno solo decía «Resultado: 1»; el motivo, el programa abierto en
+    el puerto 8765, salía por la consola oculta y se perdía.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato(tmp_path, '1.0'), destino)
+    monkeypatch.setattr(IC, '_web_escuchando', lambda puerto: True)
+    motivo = tmp_path / 'motivo.txt'
+    assert IC.main(['instalar', '--candidato', str(_candidato(tmp_path, '1.1')), '--destino', str(destino),
+                    '--registro', str(motivo)]) == 1
+    assert motivo.read_bytes().startswith('﻿'.encode('utf-8')), 'Inno lee el UTF-8 sin dudas con su BOM'
+    assert 'abierto en el puerto 8765' in motivo.read_text(encoding='utf-8-sig')
+    monkeypatch.setattr(IC, '_web_escuchando', lambda puerto: False)
+    assert IC.main(['instalar', '--candidato', str(_candidato(tmp_path, '1.2')), '--destino', str(destino),
+                    '--registro', str(motivo)]) == 0
+    assert not motivo.exists(), 'un motivo viejo no puede pasar por el de una instalación que salió bien'
+
+
+def _codigo_del_iss() -> str:
+    return (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8').split('[Code]', 1)[1]
+
+
+def test_086_rf57_el_iss_pasa_el_fichero_y_dice_su_motivo():
+    """086:RF-57 — el .iss pide el motivo con --registro, lo lee y lo pone en su registro y en el aviso, también en silencio."""
+    codigo = _codigo_del_iss()
+    fichero = re.search(r"FicheroMotivo\s*=\s*'([^']+)'", codigo)
+    assert fichero, 'el nombre del fichero del motivo, en un solo sitio'
+    llamada = re.search(r"Exec\(.*?instalar_candidato\.py.*?CodigoProceso\)", codigo, flags=re.S)
+    assert llamada and '--registro' in llamada.group(0) and 'FicheroMotivo' in llamada.group(0)
+    assert re.search(r"LoadStringsFromFile\(ExpandConstant\('\{tmp\}\\' \+ FicheroMotivo\)", codigo)
+    assert re.search(r"Log\([^;]*Motivo", codigo), 'el motivo va al registro de Inno'
+    aviso = re.search(r"SuppressibleMsgBox\([^;]*Motivo[^;]*;", codigo, flags=re.S)
+    assert aviso, 'el aviso al operador lleva el motivo'
+    assert 'if not WizardSilent then' not in codigo, ('con /VERYSILENT también se avisa; quien automatiza lo calla con '
+                                                     '/SUPPRESSMSGBOXES')
+
+
+def test_086_rf58_no_se_reutiliza_una_carpeta_temporal_o_vacia():
+    """086:RF-58 — quien actualiza sigue en su carpeta; una carpeta en la temporal o sin el programa no se reutiliza.
+
+    rc5 (2026-11-12): Inno reutilizó la carpeta registrada por un ensayo del rc1, %TEMP%\\csgp, y el programa quedó allí.
+    """
+    iss = (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    assert re.search(r'^UsePreviousAppDir=yes$', iss, flags=re.M), 'una actualización válida sigue en su carpeta'
+    codigo = _codigo_del_iss()
+    inicio = re.search(r'procedure InitializeWizard;.*?\nend;', codigo, flags=re.S)
+    assert inicio, 'la carpeta se revisa al abrir el asistente, antes de instalar'
+    cuerpo = inicio.group(0)
+    assert "{param:DIR|}" in cuerpo, 'la carpeta pedida con /DIR manda'
+    assert "GetEnv('TEMP')" in cuerpo and "{localappdata}\\Temp" in cuerpo, 'la temporal, con su nombre corto o largo'
+    assert "'actual.txt'" in cuerpo, 'una carpeta sin el puntero de versión ya no tiene el programa'
+    assert "WizardForm.DirEdit.Text := ExpandConstant('{#DirectorioApp}')" in cuerpo
+    assert re.search(r'Log\(', cuerpo), 'el cambio de carpeta queda anotado'
 
 
 def test_subprocesos_del_instalador_no_importan_modulos_del_directorio_actual(tmp_path, monkeypatch):

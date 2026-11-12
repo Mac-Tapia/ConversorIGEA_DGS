@@ -1287,7 +1287,7 @@ def _causas_de_no_convergencia(flujo: dict, preflight: dict, feeder: str) -> lis
 def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_errors, artifacts) -> dict:
     """Calcula e importa las mismas copias privadas durante toda la vida del proceso."""
     script = _script('powerfactory_acceptance.py')
-    ctx.log('--- Inicio DigSILENT: import + escenario + flujo ---')
+    ctx.log('--- Inicio DIgSILENT: import + escenario + flujo ---')
     ctx.log('--- Preflight pandapower: conectividad, islas y convergencia ---')
     preflight = pandapower_preflight(control, [name for name, _dgs, _geo in jobs], ctx)
     preflight['artifacts'] = artifacts
@@ -1475,7 +1475,7 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
     ctx.progress(len(jobs), len(jobs), '')
     for line in lines:
         ctx.log('  ' + line)
-    ctx.log('--- Fin DigSILENT ---')
+    ctx.log('--- Fin DIgSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'sin_aceptar': sin_aceptar, 'requested': len(jobs),
             'missing_dgs': missing, 'lines': lines, 'preflight': preflight, 'sin_resolver': sin_resolver,
             'avisos_oraculo': avisos_oraculo,                                  # 081:RF-57

@@ -18,7 +18,7 @@ from .coordenadas import geo_to_meters
 
 @dataclass(frozen=True)
 class DiagramSheet:
-    """Bounding box of the DigSilent IntGrf sheet (diagram units)."""
+    """Bounding box of the DIgSILENT IntGrf sheet (diagram units)."""
 
     scale: float
     xmin: float
@@ -348,7 +348,7 @@ def diagram_line_rail_counts(
     """Return ``(overhead_drawn, underground_drawn, d_lin_graphics)``.
 
     One IntGrf ``d_lin`` per drawn ElmLne (NA205 pattern). Underground look in
-    DigSilent comes from ``ElmLne.inAir=0``, not duplicate graphics.
+    DIgSILENT comes from ``ElmLne.inAir=0``, not duplicate graphics.
     """
     if drawn is None:
         drawn = diagram_line_sections(model, max_stub_m=max_stub_m, neighbors=neighbors)
@@ -371,7 +371,7 @@ def parallel_circuit_graphic_offsets(
     """Signed diagram offset for true parallel circuits (same From↔To).
 
     CYMDIST encodes doble circuito as two SECTION rows sharing endpoints.
-    Both ElmLne are kept electrically; graphics are offset so DigSilent shows
+    Both ElmLne are kept electrically; graphics are offset so DIgSILENT shows
     two distinct ternaries instead of overlapping ghosts.
     """
     groups: dict[tuple[str, str], list[str]] = defaultdict(list)
@@ -469,7 +469,7 @@ REF_SED_RADIUS = 20.0
 REF_SOURCE_OFFSET = 40.0
 # Inside ElmSubstat (double-click triangle): LV bus like NA205 SE_*_2.
 REF_SED_LV_KV = 0.22
-# DigSilent feeder colour (NA205 uses 10/11); one ElmFeeder per converted network.
+# DIgSILENT feeder colour (NA205 uses 10/11); one ElmFeeder per converted network.
 REF_FEEDER_ICOLOR = 11
 # Offset between true parallel circuits sharing the same From↔To endpoints.
 PARALLEL_CIRCUIT_OFFSET_DU = 4.0
@@ -537,7 +537,7 @@ def _diagram_symbol_layout(
     """Return NA205 symbol sizes/offsets (not density-adaptive).
 
     Geographic placement still follows GPS via ``map_point``; only the graphic
-    footprint of loads/SEDs/source matches the reference DGS so DigSilent
+    footprint of loads/SEDs/source matches the reference DGS so DIgSILENT
     schematic and map views keep the same element scale as NA205.
     """
     if sheet is not None and sheet.formato:
@@ -571,7 +571,7 @@ def _diagram_symbol_layout(
 
 # Calibrated from referencia NA205 (Ica / Nazca GPS ≈ -14.9°, -75.0°):
 # IntGrf extent ≈ 54623 over ≈ 26283 m GPS span → ~2.08 diagram units per meter.
-# Same scale keeps schematic + DigSilent Geographic Diagram element sizes aligned
+# Same scale keeps schematic + DIgSILENT Geographic Diagram element sizes aligned
 # with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
 REF_DIAGRAM_UNITS_PER_METER = 2.08
 # Escala geográfica calibrada con NA205; el lienzo se dimensiona con la red y nunca
@@ -1558,7 +1558,7 @@ def write_dgs(
         ))
         if barras_set and nombre_fuente not in sin_set:
             continue        # la barra de SET: sus ElmFeeder van en sus cabeceras, abajo
-        # DigSilent ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
+        # DIgSILENT ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
         # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
         feeder_cubic_fid = source_cubic_fid
         for line in lineas_ordenadas:
@@ -1638,7 +1638,7 @@ def write_dgs(
 
         # Skip micro service-stub d_lin (≤1 m tip→primary). Electrical ElmLne remains;
         # SED/load symbols already snap to the primary via diagram_anchor_node.
-        # One d_lin per ElmLne (NA205). Underground style = inAir=0 in DigSilent.
+        # One d_lin per ElmLne (NA205). Underground style = inAir=0 in DIgSILENT.
         # True doble circuito (2 SECTION same From↔To) → slight perpendicular offset.
         # drawn_line_sections was already computed above with the shared index.
         circuit_offsets = parallel_circuit_graphic_offsets(

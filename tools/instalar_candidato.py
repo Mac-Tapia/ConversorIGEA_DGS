@@ -6,6 +6,9 @@ Uso:
   python instalar_candidato.py estado --destino CARPETA
   python instalar_candidato.py verificar --candidato CANDIDATO
 
+Con ``--registro FICHERO``, en cualquier orden, si no se puede el motivo queda también en ese fichero (UTF-8 con BOM):
+el instalador lo corre sin consola y lo lee de ahí para su registro y su aviso (RF-57).
+
 Lo corre el instalador con el Python que viene en el candidato: solo usa la biblioteca estándar y no sale a la
 red. Cada versión queda en ``versiones/<versión>``, con su Python y sus librerías, y ``actual.txt`` dice cuál se
 usa: actualizar es preparar la nueva al lado y cambiar ese puntero solo si responde, y volver atrás es cambiarlo
@@ -335,22 +338,41 @@ def estado(destino: Path) -> dict:
             'versiones': sorted(c.name for c in (destino / 'versiones').iterdir()) if (destino / 'versiones').is_dir() else []}
 
 
+def _dejar_motivo(registro: Path | None, motivo: str | None) -> None:
+    """086:RF-57: el motivo, donde lo lee el instalador; sin motivo, se quita el de una vez anterior.
+
+    El instalador corre este guion oculto: lo que escribe en la consola se perdía, y su registro solo decía «1» (rc5,
+    2026-11-12: el programa estaba abierto en el puerto 8765). El BOM es para que Inno lo lea como UTF-8 sin dudar.
+    """
+    if registro is None:
+        return
+    try:
+        if motivo is None:
+            registro.unlink(missing_ok=True)
+        else:
+            registro.write_text(motivo + '\n', encoding='utf-8-sig')
+    except OSError as exc:
+        print(f'No se pudo escribir el motivo en {registro}: {exc}', file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    comun = argparse.ArgumentParser(add_help=False)
+    comun.add_argument('--registro', type=Path, help='Fichero donde dejar el motivo si no se puede (lo lee el instalador).')
     orden = parser.add_subparsers(dest='orden', required=True)
-    p_instalar = orden.add_parser('instalar', help='Instala, o actualiza si ya hay una versión.')
+    p_instalar = orden.add_parser('instalar', parents=[comun], help='Instala, o actualiza si ya hay una versión.')
     p_instalar.add_argument('--candidato', type=Path, required=True)
     p_instalar.add_argument('--destino', type=Path, required=True)
     p_instalar.add_argument('--puerto', type=int, default=8765, help='Dónde se mira si el programa está abierto.')
     p_instalar.add_argument('--forzar', action='store_true', help='Aunque el programa parezca abierto.')
-    p_volver = orden.add_parser('volver', help='Vuelve a la versión anterior, con sus datos.')
+    p_volver = orden.add_parser('volver', parents=[comun], help='Vuelve a la versión anterior, con sus datos.')
     p_volver.add_argument('--destino', type=Path, required=True)
     p_volver.add_argument('--sin-restaurar', action='store_true', help='Conserva los datos de ahora.')
     p_volver.add_argument('--puerto', type=int, default=8765)
     p_volver.add_argument('--forzar', action='store_true', help='Aunque el programa parezca abierto.')
-    p_estado = orden.add_parser('estado', help='Qué versión se usa y a cuál se puede volver.')
+    p_estado = orden.add_parser('estado', parents=[comun], help='Qué versión se usa y a cuál se puede volver.')
     p_estado.add_argument('--destino', type=Path, required=True)
-    p_verificar = orden.add_parser('verificar', help='Comprueba cada fichero del candidato contra su huella.')
+    p_verificar = orden.add_parser('verificar', parents=[comun], help='Comprueba cada fichero del candidato contra su huella.')
     p_verificar.add_argument('--candidato', type=Path, required=True)
     args = parser.parse_args(argv)
     for flujo in (sys.stdout, sys.stderr):
@@ -369,7 +391,9 @@ def main(argv: list[str] | None = None) -> int:
             salida = {'version': verificar_candidato(args.candidato)['version'], 'huellas': 'correctas'}
     except (ErrorInstalacion, OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
+        _dejar_motivo(args.registro, str(exc))
         return 1
+    _dejar_motivo(args.registro, None)
     print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0
 

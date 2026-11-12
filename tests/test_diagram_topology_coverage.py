@@ -1,4 +1,4 @@
-"""Topology from TXT coords, DigSilent sheet coverage, and DGS convergence checks."""
+"""Topology from TXT coords, DIgSILENT sheet coverage, and DGS convergence checks."""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ def _all_graphic_xy(tables):
 
 
 def test_diagram_topology_matches_scaled_txt_coordinates(ds, sample_model, tmp_path):
-    """Isotropic scale: relative distances in DigSilent IntGrf match TXT CoordX/Y."""
+    """Isotropic scale: relative distances in DIgSILENT IntGrf match TXT CoordX/Y."""
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     out = tmp_path / f'{sample_model.name}_topo.dgs'
     write_dgs(sample_model, out, geography=geo)
@@ -127,7 +127,7 @@ def test_diagram_topology_matches_scaled_txt_coordinates(ds, sample_model, tmp_p
 
 
 def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
-    """Sheet bbox includes all IntGrf/IntGrfcon points within DigSilent canvas."""
+    """Sheet bbox includes all IntGrf/IntGrfcon points within DIgSILENT canvas."""
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     visible = set(sample_model.nodes)
     _map_point, sheet = _diagram_mapper(geo, visible)
@@ -158,7 +158,7 @@ def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
 
 
 def test_validate_dgs_converges_for_digsilent_static_gate(ds, sample_model, tmp_path):
-    """Static DigSilent gate: counts, GPS, graphics, sheet, connectivity."""
+    """Static DIgSILENT gate: counts, GPS, graphics, sheet, connectivity."""
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     out = tmp_path / f'{sample_model.name}_gate.dgs'
     write_dgs(sample_model, out, geography=geo)

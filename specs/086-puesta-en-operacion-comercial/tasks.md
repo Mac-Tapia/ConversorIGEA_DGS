@@ -168,6 +168,18 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-55) en verde.
 - [x] T44 El perfil de la empresa y su estructura se cargan desde la web («Perfil de la empresa»), validados antes de guardar. (RF-56)
       Hecho cuando: `tests/test_web_api.py` (086:RF-56) en verde y el panel compila.
+- [x] T45 El instalador deja en su registro y en su aviso el motivo por el que `instalar_candidato.py` no terminó. (RF-57)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-57) en verde.
+- [x] T46 El instalador no reutiliza la carpeta de una instalación anterior que está en la temporal o ya no tiene el programa. (RF-58)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-58) en verde y el `.iss` compila.
+- [x] T47 Tras «Cargar perfil», la web vuelve a leer el estado del servidor y el CRS de origen enseña el del perfil. (RF-59)
+      Hecho cuando: `frontend/test/relecturaServidor.test.mjs` (086:RF-59) en verde.
+- [x] T48 «DIgSILENT» bien escrito en la web, el registro y el código. (RF-60)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-60) en verde.
+- [x] T49 Las contracciones «al» y «del» en los avisos de las salidas a la red. (RF-61)
+      Hecho cuando: `tests/test_seguridad_web.py` (086:RF-61) en verde.
+- [x] T50 «Recalibrar «Sin proyecto»» vuelve a leer sus datos del servidor cuando cambian los libros en «2.1». (RF-62)
+      Hecho cuando: `frontend/test/relecturaServidor.test.mjs` (086:RF-62) en verde.
 - [ ] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
 - [ ] T32 [DIgSILENT] Instalación con el `setup.exe` en este equipo, con su DIgSILENT, y corrida de otra empresa de punta a punta hasta el informe. (RF-46)
