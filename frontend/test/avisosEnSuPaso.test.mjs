@@ -91,14 +91,17 @@ const DINAMICOS = {
   'web/app.py': { llamadas: 3, kinds: ['aprendizaje'] },
   // vnr/web/app.py: el submit(kind, title, fn) del adaptador, con 'download' y f'vnr_export_{target}' (cymdist o dgs).
   'adaptadores/entrada/vnr/web/app.py': { llamadas: 2, kinds: ['download', 'vnr_export_cymdist', 'vnr_export_dgs'] },
-  // libros_nuevos: self.jobs.submit(ws.id, KIND…), con KIND = 'libros_nuevos'.
-  'web/libros_nuevos.py': { llamadas: 1, kinds: ['libros_nuevos'] },
 };
+
+/** Kinds que el servidor ya no encola pero que siguen en el historial de los espacios: sus avisos se muestran igual.
+ *  libros_nuevos: desde 104:RF-30 la revisión va en su carril de fondo, sin trabajo; los de antes siguen guardados. */
+const HISTORICOS = ['libros_nuevos'];
 
 test('086:RF-70 086:RF-71 todo kind del servidor tiene su fila en la tabla, con paso o en la zona general', async () => {
   const { PASO_DE_TRABAJO, PASOS } = await cargar();
   const { kinds, sinLeer } = kindsDelServidor();
   for (const d of Object.values(DINAMICOS)) for (const k of d.kinds) kinds.add(k);
+  for (const k of HISTORICOS) kinds.add(k);
   // Una forma nueva de llamar a submit no se cuela: o se lee su literal, o está declarada arriba.
   const porFichero = {};
   for (const s of sinLeer) porFichero[s.split(':')[0]] = (porFichero[s.split(':')[0]] ?? 0) + 1;
