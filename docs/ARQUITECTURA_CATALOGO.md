@@ -12,7 +12,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 62 |
-| Pruebas de la interfaz | `frontend/test/` | 19 |
+| Pruebas de la interfaz | `frontend/test/` | 20 |
 | Pruebas | `tests/` | 429 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 315 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-105 specs con 3481 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3482 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -829,6 +829,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/letraFija.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

@@ -64,3 +64,5 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T14. Retro (033, 2026-10-29): RF-40 a RF-44, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-40 a RF-44)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py`).
+- [x] T15. Letra de los ejes de las gráficas del mismo tamaño en pantalla que el título. (RF-45)
+      Hecho cuando: `frontend/test/letraFija.test.mjs` (006:RF-45) en verde.
