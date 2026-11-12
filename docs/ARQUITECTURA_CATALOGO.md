@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 318 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 319 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 53 |
-| Pruebas de la interfaz | `frontend/test/` | 16 |
+| Pruebas de la interfaz | `frontend/test/` | 17 |
 | Pruebas | `tests/` | 427 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 312 |
 
-`web/services.py` tiene 13146 líneas y 398 funciones, pendiente de partir (002).
+`web/services.py` tiene 13154 líneas y 399 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-104 specs con 3422 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+104 specs con 3434 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -39,8 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 43 |
 | presentacion | Pre | 34 |
 | puertos | Pue | 3 |
+| sin capa | — | 1 |
 
-308 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+309 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -48,11 +49,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-155 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+156 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
-| `demanda` | espacio | 28 |
+| `demanda` | espacio | 29 |
 | `pf` | espacio | 20 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
@@ -551,7 +552,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
-| `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo, reindexa, verifica, avisa, deja… |
+| `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo. |
+| `fondo.py` | — | 104 | Carril de fondo de la web: mira si el operador tiene trabajos en el motor o en DIgSILENT, corre cada libro en un proceso de prioridad baja que se… |
 | `suspension.py` | Pre | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
@@ -810,6 +812,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

@@ -351,6 +351,7 @@
     "copia_datos.py",
     "retencion.py",
     "libros_nuevos.py",
+    "fondo.py",
     "suspension.py",
     "cierre.py",
     "sources/__init__.py",

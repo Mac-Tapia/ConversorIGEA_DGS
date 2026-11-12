@@ -202,6 +202,7 @@ export default function App() {
   const ctx: AppCtx = {
     ws: w.state, setWs: w.setState, health, pf, feeders: w.feeders, outputs: w.outputs, jobs: w.jobs,
     selected, setSelected, active, run, startJob, refresh: w.refresh, refreshHealth: leerHealth,
+    librosNuevosSeq: w.librosNuevosSeq,
   };
   const running = [active.engine, active.powerfactory, active.asistente].filter(Boolean) as Job[];
   // RF-2: sin entradas, solo las pestañas que no las necesitan.

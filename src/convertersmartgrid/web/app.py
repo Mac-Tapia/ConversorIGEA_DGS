@@ -1542,6 +1542,7 @@ def create_app(
         await websocket.accept()
         # 001:RF-35: cada pestaña abierta tiene su WebSocket; el lanzador lo lee en /api/health.
         paginas['abiertas'] += 1
+        libros_nuevos.pagina(wid, +1)                    # 104:RF-41: el espacio está abierto y sus libros se leen
         seq = since
         try:
             while True:
@@ -1555,6 +1556,7 @@ def create_app(
             return
         finally:
             paginas['abiertas'] -= 1
+            libros_nuevos.pagina(wid, -1)
 
     # ------------------------------------------------------------ salida
     def _safe_out(ws: Workspace, rel: str) -> Path:
@@ -2719,10 +2721,17 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/revisar', response_model=RevisarLibrosRespuesta)
     def libros_nuevos_revisar(wid: str) -> dict:
-        """104:RF-1, RF-4: la misma revisión que la periódica, cuando la pide el operador."""
+        """104:RF-1, RF-30: la misma revisión que la periódica, cuando la pide el operador; va al carril de fondo."""
         ws = ws_or_404(wid)
-        job = libros_nuevos.revisar(ws)
-        return {'estado': libros_nuevos.estado(ws), 'job': job}
+        lanzada = libros_nuevos.revisar(ws)
+        return {'estado': libros_nuevos.estado(ws), 'lanzada': lanzada}
+
+    @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/verificar-todos', response_model=RevisarLibrosRespuesta)
+    def libros_nuevos_verificar_todos(wid: str) -> dict:
+        """104:RF-35: «Verificar todos ahora»: todos los libros de clientes y de cabecera, en el carril de fondo."""
+        ws = ws_or_404(wid)
+        lanzada = libros_nuevos.revisar(ws, todos=True)
+        return {'estado': libros_nuevos.estado(ws), 'lanzada': lanzada}
 
     @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/avisos/{aviso_id}/visto', response_model=LibrosNuevosRespuesta)
     def libros_nuevos_visto(wid: str, aviso_id: str) -> dict:

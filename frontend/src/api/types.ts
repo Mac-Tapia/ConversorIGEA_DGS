@@ -411,7 +411,8 @@ export interface SourceRun {
 export interface EventItem {
   seq: number;
   ts: number;
-  type: 'log' | 'job';
+  // 104:RF-39: «libros_nuevos» avisa de que cambió el carril de fondo, un aviso de libros o el dataset.
+  type: 'log' | 'job' | 'libros_nuevos';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }

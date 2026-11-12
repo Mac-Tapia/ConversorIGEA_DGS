@@ -272,6 +272,43 @@ def verificar_libro_clientes(path: Path | str, mes: str | None, *, origen: str |
     return ficha
 
 
+def verificar_clientes_de_fuente(raiz: Path | str, rel: str, catalogo: Sequence[Mapping[str, Any]],
+                                 suministros: Path | str | None = None, alias=ALIAS) -> dict[str, Any]:
+    """La verificación de un libro de una carpeta de clientes indexada, con el libro del mes anterior y el de
+    suministros leídos aquí: corre entera en el proceso de fondo, que se termina si el operador lanza algo (104:RF-33).
+    """
+    import logging
+
+    from .demanda_medida import DemandaError, descubrir_libro_suministros
+
+    log = logging.getLogger(__name__)
+    raiz = Path(raiz)
+    fila = next((x for x in catalogo if x.get('nombre') == rel), {})
+    mes = fila.get('mes')
+    path = raiz / rel if raiz.is_dir() else raiz
+    otros = {x['mes']: x['nombre'] for x in catalogo if x.get('activo') and x.get('mes') and x.get('nombre') != rel}
+    anterior, mes_previo = None, None
+    if mes:
+        mes_previo = mes_anterior(mes)
+        previo = otros.get(mes_previo)
+        if previo:
+            try:
+                anterior, _notas = curvas_de_clientes(raiz / previo, None, mes=mes_previo)
+            except Exception as exc:  # noqa: BLE001 - sin el mes anterior se verifica lo demás (RF-18)
+                log.warning('mes anterior %s: %s', previo, exc)
+    codigos, nombre_sum = None, None
+    if suministros is not None:
+        try:
+            libro = Path(suministros)
+            libro = descubrir_libro_suministros(libro, alias) if libro.is_dir() else libro
+            codigos, nombre_sum = suministros_del_libro(libro, alias), libro.name
+        except (DemandaError, OSError, ValueError) as exc:
+            log.warning('suministros: %s', exc)
+    return verificar_libro_clientes(path, mes, origen=fila.get('origen_mes'), anio=fila.get('anio'),
+                                    anterior=anterior, mes_previo=mes_previo, suministros=codigos,
+                                    nombre_suministros=nombre_sum, meses_de_otros=otros)
+
+
 def _lista(codigos: Sequence[str], tope: int = 10) -> str:
     return ', '.join(codigos[:tope]) + (f' y {len(codigos) - tope} más' if len(codigos) > tope else '')
 
