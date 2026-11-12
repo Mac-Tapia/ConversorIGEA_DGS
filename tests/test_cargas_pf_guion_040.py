@@ -23,8 +23,8 @@ def guion():
     return cargar_herramienta('cargas_pf.py', 'cargas_pf_guion_040', tools_en_path=True)
 
 
-def _app():
-    app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=4, bt=True, flujo=True)
+def _app(n=4):
+    app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=n, bt=True, flujo=True)
     # En DIgSILENT la barra de baja de cada SED tiene el GPS de su SED (NA203 + NA205: 188 de 188).
     for sub in app.proyecto.GetContents('*.ElmSubstat', 1):
         f, i = sub.loc_name.split('_S')
@@ -67,7 +67,9 @@ def test_fila_duplicada_en_el_mismo_alimentador_no_se_crea(guion):
     """040:RF-1, 040:RF-2, 040:RF-9, 099:RF-4 — dos filas de F1 en el mismo punto son la misma carga: se
     crea la última del libro (099:RF-4 cambia «la primera» de 040:RF-1) y la otra se informa como duplicada;
     la del mismo punto en F2 no es duplicada y va a F2, como dice el libro."""
-    app = _app()
+    # 12 barras (1,3 km): la fila de F2 junto a F1 queda a 1,1 km de F2, dentro de su zona (004:RF-73); con 4 barras
+    # (0,4 km) el punto estaría fuera de F2 y no se crearía.
+    app = _app(n=12)
     p = _punto(app, 'F1_B2', 0.0005)                    # unos 55 m: lejos de toda SED
     nuevas = [_nueva('N1', alimentador='F1', **p), _nueva('N1B', alimentador='F1', **p),
               _nueva('N1C', alimentador='F2', **p)]

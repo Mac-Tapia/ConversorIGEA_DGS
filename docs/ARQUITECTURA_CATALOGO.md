@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 326 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 63 |
-| Pruebas de la interfaz | `frontend/test/` | 21 |
-| Pruebas | `tests/` | 430 |
+| Interfaz | `frontend/src/` | 64 |
+| Pruebas de la interfaz | `frontend/test/` | 22 |
+| Pruebas | `tests/` | 431 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 315 |
 
-`web/services.py` tiene 13214 líneas y 402 funciones, pendiente de partir (002).
+`web/services.py` tiene 13267 líneas y 404 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-105 specs con 3502 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3511 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -813,6 +813,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `frontend/src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
+| `frontend/src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
 | `frontend/src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
 | `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
 | `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
@@ -838,6 +839,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
+| `frontend/test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `src/convertersmartgrid/adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |

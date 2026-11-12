@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: cumplida (2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: cumplida (2026-11-12: RF-72 a RF-80, la ubicación de la carga nueva antes de conectarla; 2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -307,6 +307,38 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   del nombre del cliente del libro de suministros (`nombre_cliente`) del suministro con que cruzó; el del libro mensual, si
   lo trae, manda. Cambia RF-57: la celda queda vacía solo si ninguno de los dos lo trae. (Usuario, 2026-11-12: la tabla
   cruzada de PA217 mostraba «—» en «Cliente».)
+
+La ubicación se comprueba antes de conectar (web del usuario, 2026-11-12): en «3.2 · Una carga nueva» se escribió SE0001
+de PA217 (1 500 kW) con Y = 476 517, un dígito de menos (la real, hacia 8 476 517). El punto pasó a GPS cerca del Polo
+Sur, se conectó «al nodo de media más cercano» con una línea de miles de km, el flujo de «Cargas nuevas» no convergió y,
+al volver a aplicar, la carga mal puesta se reutilizó por su nombre (014:RF-24).
+
+- RF-72: CUANDO una carga nueva trae coordenadas, EL SISTEMA medirá, antes de crear ni conectar nada, la distancia de su
+  punto al nodo de media más cercano de su alimentador con las coordenadas de la red convertida, y la dará en la web y en
+  el informe («a N m del nodo X»).
+- RF-73: SI ese punto queda más lejos de su nodo más cercano que el radio del propio alimentador (la mayor distancia de
+  sus nodos a su centro) más otro radio de margen, o que el tope del perfil (`cargas_nuevas.distancia_max_al_nodo_m`),
+  que manda, ENTONCES EL SISTEMA rechazará la fila con un error que diga a cuánto queda y de qué alimentador, sin
+  ninguna distancia fija de una empresa (P13).
+- RF-74: CUANDO rechaza una fila por RF-73, EL SISTEMA propondrá en el error la corrección que deja el punto dentro de la
+  zona y más cerca de un nodo —un dígito de más o de menos en X o en Y, X e Y intercambiadas, o Lat y Lon
+  intercambiadas— con la distancia y el nodo que quedarían, y no la aplicará sin el operador.
+- RF-75: SI la red convertida no da la geografía del alimentador de una fila con alimentador (TRONCAL), ENTONCES EL
+  SISTEMA hará la comprobación de RF-72 y RF-73 en DIgSILENT, con las barras de media con GPS de ese alimentador, antes
+  de crear la carga; sin TRONCAL manda 007:RF-31.
+- RF-76: SI una carga nueva ya creada en una variación de carga nueva difiere de la fila en sus coordenadas, su kW o
+  kVAR, su kVA o su barra, ENTONCES EL SISTEMA eliminará esa variación, con la carga y la línea de conexión anteriores,
+  creará la carga de nuevo y lo dirá en el informe («SE0001: cambió su ubicación; se reemplaza la carga anterior»).
+  Cambia 014:RF-24 y RF-28, que la reutilizaban y solo avisaban de la diferencia. Una carga creada antes de este cambio
+  no guarda la fila con que se creó: en ella solo cuenta la ubicación, y la diferencia de potencia se sigue avisando.
+- RF-77: MIENTRAS la carga ya creada coincida con la fila en todo lo que cuenta RF-76, EL SISTEMA la reutilizará como
+  dice 014:RF-24.
+- RF-78: CUANDO crea o simularía la línea de conexión de una carga nueva, EL SISTEMA dará su longitud en el informe.
+- RF-79: SI esa línea es más larga que la mitad del radio del alimentador, ENTONCES EL SISTEMA lo avisará con su longitud
+  y el radio.
+- RF-80: EL SISTEMA mostrará en la web el error de RF-73 con su propuesta junto a la fila —en «3.2 · Una carga nueva»,
+  con un botón para usarla, y en el plan del libro de cargas nuevas— y, tras simular o aplicar, la distancia al nodo de
+  conexión y la longitud de la línea de cada carga.
 
 ## Requisitos no funcionales
 

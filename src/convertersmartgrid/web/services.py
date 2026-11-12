@@ -2345,6 +2345,9 @@ def cargas_plan(
             carpeta=carpeta_de(ws, project), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
+        # 004:RF-72 a RF-74: antes de ir a DIgSILENT, cada punto frente a la zona de su alimentador. SE0001 (PA217,
+        # 2026-11-12) llegó con un dígito de menos en Y, se conectó con una línea de miles de km y no convergió.
+        _verificar_ubicaciones_del_plan(ws, plan, crs)
         # 099:RF-8: lo repetido no va a DIgSILENT; de las repetidas solo viaja
         # lo necesario para borrar la variación que se les creó antes. Usuario (2026-11-07): «no debe ir a
         # DIgSILENT lo duplicado; eso debe bloquearse al momento de cargarlo».
@@ -2393,11 +2396,61 @@ def cargas_plan(
         'native_action_context': action_context,
         # 099:RF-7: las filas repetidas de los alimentadores marcados, al cargar el libro y antes de aplicar.
         'repetidas': plan['repetidas'],
+        # 004:RF-80: las filas fuera de su alimentador, con su propuesta, junto a la fila en la web.
+        'ubicaciones_rechazadas': plan['ubicaciones_rechazadas'],
     }
     with ws.lock:
         ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
                                    'feeders': plan['feeders'], 'applicable': plan['aplicable']}
     return resumen
+
+
+def _geografias_del_proyecto(ws: Workspace, project: str, feeders: Sequence[str]) -> dict[str, tuple[Path, str]]:
+    """Alimentador → la geografía de la red convertida con que se aceptó el proyecto (004:RF-72).
+
+    La del propio alimentador (``<alimentador>_geography.json``, junto al DGS aceptado) o, en una red unida que no la
+    trae, la de la red entera, y se dice. Sin vínculo ni DGS aceptado, ninguna: lo mide el guion (004:RF-75)."""
+    rutas = _dgs_aceptados(ws, project.strip())
+    if not rutas:
+        return {}
+    carpeta = rutas[0].parent
+    out: dict[str, tuple[Path, str]] = {}
+    for f in feeders:
+        propia = carpeta / f'{f}_geography.json'
+        if propia.is_file():
+            out[f] = (propia, f'red convertida de {f}')
+            continue
+        unida = next((r.with_name(f'{r.stem}_geography.json') for r in rutas
+                      if r.with_name(f'{r.stem}_geography.json').is_file()), None)
+        if unida is not None:
+            out[f] = (unida, f'red convertida {unida.stem.removesuffix("_geography")}, sin la geografía propia de {f}')
+    return out
+
+
+def _verificar_ubicaciones_del_plan(ws: Workspace, plan: dict, crs: str) -> None:
+    """004:RF-72 a RF-74: aparta del plan las cargas nuevas fuera de la zona de su alimentador, con su propuesta, y deja
+    en las demás su nodo más cercano y su distancia. El tope del perfil (``cargas_nuevas.distancia_max_al_nodo_m``)
+    manda sobre el radio del alimentador."""
+    from ..cargas_pf import a_wgs84, nodos_de_la_geografia, verificar_ubicaciones, zona_del_alimentador
+    from ..perfil_empresa import datos_perfil
+
+    plan['ubicaciones_rechazadas'] = []
+    tope = (datos_perfil().get('cargas_nuevas') or {}).get('distancia_max_al_nodo_m')
+    plan['distancia_max_al_nodo_m'] = tope            # 004:RF-75: el mismo tope para el guion
+    con_punto = sorted({str(f.get('alimentador') or '').strip() for f in plan['nuevas'] if f.get('lat') is not None})
+    if not con_punto:
+        return
+    zonas = {}
+    for f, (ruta, fuente) in _geografias_del_proyecto(ws, plan['project'], [f for f in con_punto if f]).items():
+        try:
+            zonas[f] = zona_del_alimentador(f, nodos_de_la_geografia(ruta), tope, fuente)
+        except (OSError, ValueError) as exc:
+            plan['avisos'].append(f'{f}: no se pudo leer la geografía de la red convertida ({exc}); la ubicación de '
+                                  'sus cargas nuevas la comprueba DIgSILENT (004:RF-75).')
+    siguen, rechazadas = verificar_ubicaciones(plan['nuevas'], zonas, (lambda pts: a_wgs84(pts, crs)) if crs else None)
+    plan['nuevas'] = siguen
+    plan['ubicaciones_rechazadas'] = rechazadas
+    plan['row_errors'] += [r['mensaje'] for r in rechazadas]
 
 
 def cargas_plan_de(ws: Workspace, token: str) -> dict:

@@ -17,5 +17,6 @@
                "norma": null, "regulador": null},
   "escalera": {"moneda": null, "secciones_normalizadas": null, "costos_unitarios": null, "conductor_terna": null,
                "alternativas": null},
-  "planificacion": {"tasa_regulada": null, "vida_util_anios": null}
+  "planificacion": {"tasa_regulada": null, "vida_util_anios": null},
+  "cargas_nuevas": {"distancia_max_al_nodo_m": null}
 }

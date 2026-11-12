@@ -128,6 +128,10 @@ Inserción sin duplicados
 - RF-28: SI una carga ya existente difiere de la fila del libro en potencia o en punto,
   ENTONCES EL SISTEMA no la creará otra vez y avisará de cada diferencia con el valor
   existente y el del libro.
+- Aclaración de RF-24 y RF-28 (cambian con 004:RF-76 y RF-77, 2026-11-12): se reutiliza solo si la fila del libro es la
+  misma con que se creó la carga; si cambian sus coordenadas, su kW o kVAR, su kVA o su barra, la variación anterior se
+  elimina y la carga se crea de nuevo. SE0001 (PA217) se creó con un dígito de menos en Y y, corregida, se habría
+  reutilizado la mal puesta. Lo que el operador retocó a mano en DIgSILENT, con la misma fila, sigue avisándose (RF-28).
 - RF-29: EL SISTEMA reconocerá la carga de RF-27 en una variación también cuando DIgSILENT
   le ha añadido un sufijo «(n)» al guardarla en la etapa, donde la SED, su barra y su carga
   comparten carpeta y nombre (PN107, 2026-10-16: la carga CH_9 estaba guardada como

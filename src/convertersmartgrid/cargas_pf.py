@@ -140,6 +140,10 @@ class CargaNueva:
     kva_deducido: bool = False
     """004:RF-68: el libro no da kVA_instalado; con fichas en el perfil, el guion elige el
     transformador por la regla de 020:RF-6 y RF-7, no por la serie R10 al 100 %."""
+    coord_x: float | None = None
+    coord_y: float | None = None
+    """004:RF-74: CoordX/CoordY tal como se escribieron. La propuesta de un dígito de menos se hace sobre ellos: SE0001
+    (PA217, 2026-11-12) llegó con Y = 476 517 y su GPS, ya convertido, solo decía «cerca del Polo Sur»."""
 
     def para_pf(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -402,6 +406,7 @@ def leer_hoja_nuevas(
             tipo_linea=texto.get('tipo_linea', ''), tension_bt_kv=numeros.get('tension_bt_kv'),
             anio_ingreso=int(ingreso) if ingreso is not None else None, etapas=tuple(etapas),
             descripcion=texto.get('nombre', ''),                                     # 093:RF-3
+            coord_x=x if tiene_xy else None, coord_y=y if tiene_xy else None,       # 004:RF-74
         ))
     if pendientes_xy:
         gps = a_wgs84([(x, y) for _i, x, y in pendientes_xy], source_crs)
@@ -542,6 +547,207 @@ def a_wgs84(puntos: Sequence[tuple[float, float]], source_crs: str) -> list[tupl
         ok = math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
         out.append((lat, lon) if ok else None)
     return out
+
+
+# --------------------------------------------------------------------------- ubicación (004:RF-72 a RF-79)
+#: 004:RF-79: la línea de conexión más larga que esta fracción del radio del alimentador se avisa. Relativa a cada
+#: alimentador, como el tope de RF-73: una distancia en metros sería la de una empresa (P13).
+FRACCION_LINEA_LARGA = 0.5
+#: 004:RF-73: el margen de la zona, en radios del propio alimentador: el tope es su radio más otro tanto (su
+#: diámetro). Un dígito de más o de menos, o X/Y o Lat/Lon al revés, mueven el punto cientos o miles de km (SE0001:
+#: 7 990 km de PA217, de radio 8,7 km); un cliente legítimo a uno o dos km de un alimentador corto no se rechaza.
+MARGEN_ZONA = 1.0
+_RADIO_TIERRA_M = 6_371_000.0
+
+
+def distancia_gps_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Distancia de círculo máximo entre dos (lat, lon), en metros."""
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * _RADIO_TIERRA_M * math.asin(min(1.0, math.sqrt(h)))
+
+
+def numero_es(valor: float, decimales: int = 1) -> str:
+    """«8 476 517», «374 207,8»: como los escribe el operador, con espacio de miles y coma decimal."""
+    if abs(valor - round(valor)) < 1e-9:
+        texto = f'{round(valor):,}'
+    else:
+        texto = f'{valor:,.{decimales}f}'
+    return texto.replace(',', ' ').replace('.', ',')
+
+
+def distancia_es(metros: float) -> str:
+    """«312 m», «2,4 km», «7 960 km»."""
+    if metros >= 10_000:
+        return f'{numero_es(round(metros / 1000))} km'
+    if metros >= 1_000:
+        return f'{numero_es(round(metros / 1000, 1))} km'
+    return f'{numero_es(round(metros))} m'
+
+
+@dataclass(frozen=True)
+class ZonaAlimentador:
+    """Los nodos de media de un alimentador con GPS, su centro y su radio (004:RF-72, RF-73).
+
+    El radio es la mayor distancia de un nodo al centro: la extensión del propio alimentador. Un punto más lejos de su
+    nodo más cercano que el radio más :data:`MARGEN_ZONA` radios está fuera de la zona; el tope del perfil, si lo hay,
+    manda.
+    """
+
+    alimentador: str
+    nodos: tuple[tuple[str, float, float], ...]
+    centro: tuple[float, float]
+    radio_m: float
+    tope_m: float | None
+    tope_del_perfil: bool = False
+    fuente: str = ''
+
+    def cercano(self, punto: tuple[float, float]) -> tuple[str, float]:
+        return min(((n, distancia_gps_m((la, lo), punto)) for n, la, lo in self.nodos), key=lambda x: (x[1], x[0]))
+
+    def dentro(self, distancia_m: float) -> bool:
+        return self.tope_m is None or distancia_m <= self.tope_m
+
+
+def zona_del_alimentador(alimentador: str, nodos: Sequence[tuple[str, Any, Any]],
+                         tope_perfil_m: float | None = None, fuente: str = '') -> ZonaAlimentador | None:
+    """La zona de RF-73; ``None`` sin ningún nodo con GPS válido. Un alimentador de un solo punto no tiene radio: sin
+    tope del perfil no se rechaza por él, solo se mide."""
+    buenos = []
+    for n, la, lo in nodos:
+        try:
+            la, lo = float(la), float(lo)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(la) and math.isfinite(lo) and -90 <= la <= 90 and -180 <= lo <= 180:
+            buenos.append((str(n), la, lo))
+    if not buenos:
+        return None
+    centro = (sum(x[1] for x in buenos) / len(buenos), sum(x[2] for x in buenos) / len(buenos))
+    radio = max(distancia_gps_m(centro, (la, lo)) for _n, la, lo in buenos)
+    del_perfil = isinstance(tope_perfil_m, (int, float)) and not isinstance(tope_perfil_m, bool) and tope_perfil_m > 0
+    tope = (float(tope_perfil_m) if del_perfil  # type: ignore[arg-type]
+            else (radio * (1.0 + MARGEN_ZONA) if radio > 0 else None))
+    return ZonaAlimentador(alimentador, tuple(buenos), centro, radio, tope, del_perfil, fuente)
+
+
+def nodos_de_la_geografia(ruta: Path | str) -> list[tuple[str, Any, Any]]:
+    """(nombre, lat, lon) de los nodos de un ``<alimentador>_geography.json`` de la conversión: los nodos de la red de
+    media, con el nombre que tienen sus barras en el DGS."""
+    import json
+
+    datos = json.loads(Path(ruta).read_text(encoding='utf-8'))
+    return [(str(n), p.get('lat'), p.get('lon')) for n, p in sorted((datos.get('nodes') or {}).items())
+            if isinstance(p, dict)]
+
+
+def _variantes_de_un_digito(valor: float) -> list[float]:
+    """Cada número con un dígito de más o de menos en su parte entera (004:RF-74): «476517» → «8476517», «47651»…"""
+    signo = -1.0 if valor < 0 else 1.0
+    texto = f'{abs(valor):.6f}'.rstrip('0').rstrip('.')
+    entero, _, dec = texto.partition('.')
+    enteros: set[str] = set()
+    for i in range(len(entero) + 1):
+        for d in '0123456789':
+            enteros.add(entero[:i] + d + entero[i:])
+    for i in range(len(entero)):
+        enteros.add(entero[:i] + entero[i + 1:])
+    enteros = {e for e in enteros if e and e != entero and not (len(e) > 1 and e[0] == '0')}
+    return sorted(signo * float(e + ('.' + dec if dec else '')) for e in enteros)
+
+
+def propuestas_de_ubicacion(fila: dict, zona: ZonaAlimentador, a_gps=None) -> list[dict]:
+    """Las correcciones probables que dejan el punto dentro de la zona, de la más cercana a un nodo a la más lejana.
+
+    Con CoordX/CoordY (y ``a_gps``, que pasa una lista de (x, y) a (lat, lon) con el CRS del perfil): un dígito de más
+    o de menos en X o en Y, y X e Y intercambiadas. Con Lat/Lon: Lat y Lon intercambiadas. Nunca se aplican (RF-74)."""
+    candidatos: list[tuple[dict, tuple[float, float] | None]] = []
+    x, y = fila.get('coord_x'), fila.get('coord_y')
+    if x is not None and y is not None and a_gps is not None:
+        x, y = float(x), float(y)
+        xy: list[tuple[dict, tuple[float, float]]] = []
+        for v in _variantes_de_un_digito(y):
+            xy.append(({'campo': 'CoordY', 'texto': f'Y = {numero_es(v)}', 'cambios': {'CoordY': v}}, (x, v)))
+        for v in _variantes_de_un_digito(x):
+            xy.append(({'campo': 'CoordX', 'texto': f'X = {numero_es(v)}', 'cambios': {'CoordX': v}}, (v, y)))
+        xy.append(({'campo': 'CoordX/CoordY',
+                    'texto': f'X e Y intercambiadas (X {numero_es(y)}; Y {numero_es(x)})',
+                    'cambios': {'CoordX': y, 'CoordY': x}}, (y, x)))
+        gps = a_gps([p for _c, p in xy])
+        candidatos += [(c, g) for (c, _p), g in zip(xy, gps)]
+    elif fila.get('lat') is not None and fila.get('lon') is not None:
+        la, lo = float(fila['lat']), float(fila['lon'])
+        if -90 <= lo <= 90:
+            candidatos.append(({'campo': 'Lat/Lon',
+                                'texto': f'Lat y Lon intercambiadas (Lat {numero_es(lo, 6)}; Lon {numero_es(la, 6)})',
+                                'cambios': {'Lat': lo, 'Lon': la}}, (lo, la)))
+    alcance = zona.radio_m + (zona.tope_m or 0.0)
+    out = []
+    for c, g in candidatos:
+        # Primero contra el centro, que es barato: con miles de nodos y ~150 candidatos no hace falta medir cada uno
+        # contra todos para descartar los que caen a cientos de km.
+        if g is None or distancia_gps_m(zona.centro, g) > alcance:
+            continue
+        nodo, d = zona.cercano(g)
+        if zona.dentro(d):
+            out.append({**c, 'lat': g[0], 'lon': g[1], 'nodo': nodo, 'distancia_m': round(d, 1)})
+    return sorted(out, key=lambda c: (c['distancia_m'], c['texto']))
+
+
+def _punto_escrito(fila: dict) -> str:
+    if fila.get('coord_x') is not None and fila.get('coord_y') is not None:
+        return f"(X {numero_es(float(fila['coord_x']))}; Y {numero_es(float(fila['coord_y']))})"
+    return f"(Lat {numero_es(float(fila['lat']), 6)}; Lon {numero_es(float(fila['lon']), 6)})"
+
+
+def verificar_ubicacion(fila: dict, zona: ZonaAlimentador, a_gps=None) -> dict:
+    """La ubicación de una carga nueva frente a la zona de su alimentador (004:RF-72 a RF-74).
+
+    Devuelve el nodo más cercano, su distancia, el radio y, si queda fuera, ``fuera``, las ``propuestas`` y el
+    ``mensaje`` del error, con la mejor propuesta y lo que quedaría."""
+    punto = (float(fila['lat']), float(fila['lon']))
+    nodo, d = zona.cercano(punto)
+    out: dict[str, Any] = {
+        'alimentador': zona.alimentador, 'nodo': nodo, 'distancia_m': round(d, 1), 'radio_m': round(zona.radio_m, 1),
+        'tope_m': round(zona.tope_m, 1) if zona.tope_m is not None else None,
+        'tope_del_perfil': zona.tope_del_perfil, 'fuente': zona.fuente, 'fuera': not zona.dentro(d)}
+    if not out['fuera']:
+        out['mensaje'] = f'{fila["sed"]}: a {distancia_es(d)} del nodo {nodo} de {zona.alimentador} (004:RF-72).'
+        return out
+    propuestas = propuestas_de_ubicacion(fila, zona, a_gps)
+    out['propuestas'] = propuestas[:3]
+    texto = f'{fila["sed"]}: el punto {_punto_escrito(fila)} queda a {distancia_es(d)} de {zona.alimentador}'
+    if propuestas:
+        p = propuestas[0]
+        texto += (f'; ¿quiso decir {p["texto"]}? Quedaría a {distancia_es(p["distancia_m"])} del nodo {p["nodo"]}. '
+                  'Corríjalo y vuelva a revisar: no se cambia solo (004:RF-73, RF-74).')
+    else:
+        limite = (f'el tope del perfil, {distancia_es(zona.tope_m or 0.0)}' if zona.tope_del_perfil
+                  else f'el tamaño del propio alimentador (radio de {distancia_es(zona.radio_m)})')
+        texto += f', más que {limite}: revise las coordenadas (004:RF-73).'
+    out['mensaje'] = texto
+    return out
+
+
+def verificar_ubicaciones(filas: list[dict], zonas: dict[str, ZonaAlimentador | None],
+                          a_gps=None) -> tuple[list[dict], list[dict]]:
+    """Las filas del plan con coordenadas, medidas contra la zona de su alimentador antes de ir a DIgSILENT (RF-72).
+
+    Devuelve ``(filas que siguen, cada una con su ubicacion; rechazadas)``. Una fila sin coordenadas, o de un
+    alimentador sin geografía, sigue sin ``ubicacion``: la mide el guion con las barras de DIgSILENT (RF-75)."""
+    por_nombre = {str(f).strip().upper(): z for f, z in zonas.items() if z is not None}
+    siguen, rechazadas = [], []
+    for fila in filas:
+        zona = por_nombre.get(str(fila.get('alimentador') or '').strip().upper())
+        if zona is None or fila.get('lat') is None or fila.get('lon') is None:
+            siguen.append(fila)
+            continue
+        u = verificar_ubicacion(fila, zona, a_gps)
+        if u['fuera']:
+            rechazadas.append({'sed': fila['sed'], 'hoja': fila.get('hoja'), **u})
+        else:
+            siguen.append({**fila, 'ubicacion': u})
+    return siguen, rechazadas
 
 
 # --------------------------------------------------------------------------- plan

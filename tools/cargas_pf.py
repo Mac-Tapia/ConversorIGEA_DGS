@@ -47,6 +47,7 @@ import traceback
 from collections import Counter
 from pathlib import Path
 
+from convertersmartgrid.cargas_pf import FRACCION_LINEA_LARGA, distancia_es, verificar_ubicacion, zona_del_alimentador
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.pf_arnes import borrar_en_su_proyecto
 from convertersmartgrid.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
@@ -1024,6 +1025,82 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
     return None
 
 
+#: 004:RF-76: la huella de la fila con que se creó la carga, en su descripción: con ella se sabe si la fila cambió sin
+#: depender de lo que el escenario activo diga de su potencia, y sin tomar por cambio de la fila lo que el operador
+#: retocó a mano en DIgSILENT (eso solo se avisa, 014:RF-28).
+HUELLA = 'CSG 004:RF-76 '
+
+
+def huella_de_la_fila(fila: dict) -> dict:
+    return {'lat': fila.get('lat'), 'lon': fila.get('lon'), 'kw': fila.get('kw'), 'kvar': fila.get('kvar'),
+            'kva': fila.get('kva_instalado'), 'barra': fila.get('barra') or ''}
+
+
+def huella_de(carga) -> dict | None:
+    """La huella que dejó :func:`crear_carga`; ``None`` en una carga de antes del 2026-11-12."""
+    desc = getattr(carga, 'desc', None)
+    for linea in ([desc] if isinstance(desc, str) else list(desc or [])):
+        if isinstance(linea, str) and linea.startswith(HUELLA):
+            try:
+                return json.loads(linea[len(HUELLA):])
+            except ValueError:
+                return None
+    return None
+
+
+def _distinto(a, b, rel: float = 1e-3, abs_: float = 0.01) -> bool:
+    if a is None or b is None:
+        return False
+    return not math.isclose(float(a), float(b), rel_tol=rel, abs_tol=abs_)
+
+
+def cambios_de_la_carga(carga, fila: dict) -> list[str]:
+    """Qué cambió la fila frente a la carga ya creada: su ubicación, su kW, su kVAR, su kVA o su barra (004:RF-76).
+
+    Con la huella, contra la fila con que se creó. Sin ella (las creadas antes del 2026-11-12), solo su ubicación: el
+    GPS es dato de la carga, y la potencia que se lee depende del escenario activo y de lo que el operador retocó, que
+    no son cambios de la fila; esa diferencia se sigue avisando (014:RF-28) sin borrar nada."""
+    h = huella_de(carga)
+    if h is not None:
+        lat, lon, kw, kvar = h.get('lat'), h.get('lon'), h.get('kw'), h.get('kvar')
+    else:
+        lat, lon = getattr(carga, 'GPSlat', None), getattr(carga, 'GPSlon', None)
+        kw = kvar = None
+    cambios = []
+    if fila.get('lat') is not None and lat is not None and lon is not None and distancia_m(
+            (float(lat), float(lon)), (float(fila['lat']), float(fila['lon']))) > MISMO_PUNTO_M:
+        cambios.append('su ubicación')
+    if _distinto(kw, fila.get('kw')):
+        cambios.append('su kW')
+    if _distinto(kvar, fila.get('kvar')):
+        cambios.append('su kVAR')
+    if h is not None:
+        if _distinto(h.get('kva'), fila.get('kva_instalado')):
+            cambios.append('su kVA')
+        if (h.get('barra') or '') != (fila.get('barra') or ''):
+            cambios.append('su barra')
+    return cambios
+
+
+def reemplazo_de(fila: dict, candidatos: list[str], ya: dict | None) -> dict | None:
+    """004:RF-76 (cambia 014:RF-24 y RF-28): la carga ya creada que difiere de la fila se reemplaza; sus variaciones van
+    a eliminar, con la carga y la línea de conexión anteriores. Sin cambios, ``None``: se reutiliza (004:RF-77).
+
+    SE0001 (PA217, 2026-11-12) se creó con un dígito de menos en Y, cerca del Polo Sur; al corregirla se reutilizaba
+    la mal puesta por su nombre."""
+    halladas, _criterio = creadas_de_la_fila(fila, candidatos, (ya or {}).get('indice') or {})
+    variaciones = sorted({v for d in halladas for v in d['variaciones']})
+    if not variaciones:
+        return None
+    cambios = cambios_de_la_carga(halladas[0]['carga'], fila)
+    if not cambios:
+        return None
+    que = cambios[0] if len(cambios) == 1 else ', '.join(cambios[:-1]) + ' y ' + cambios[-1]
+    return {'variaciones': variaciones, 'cambios': cambios,
+            'aviso': f"{fila['sed']}: cambió {que}; se reemplaza la carga anterior ({', '.join(variaciones)}) "
+                     '(004:RF-76).'}
+
+
 def _gps_de_sed(carga) -> tuple[float, float] | None:
     """El punto de una SED existente: el de la barra de baja de su carga, o el de la carga o la SED."""
     barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
@@ -1245,7 +1322,8 @@ def tipo_de_linea_con_fases(proyecto, typ_folder, tipo, n: int):
 
 
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None,
-                    minima_m: float | None = None, repetidas: list[dict] | None = None):
+                    minima_m: float | None = None, repetidas: list[dict] | None = None,
+                    tope_m: float | None = None):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
 
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
@@ -1273,6 +1351,15 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                     for pos in [gps_de(b)] if pos is not None] for f in alims.elegidos}
     resueltas = {f: [] for f in alims.elegidos}
     no_creadas, avisos = [], []
+    # 004:RF-75, RF-79: la zona de cada alimentador con sus barras de media de la red (no las internas de una SED, que
+    # repiten el GPS de su nodo), una vez por alimentador; ``tope_m`` es el del perfil, que manda sobre el radio.
+    zonas: dict[str, object] = {}
+
+    def _zona(f):
+        if f not in zonas:
+            zonas[f] = zona_del_alimentador(f, [(b.loc_name, pos[0], pos[1]) for b, pos, interna in cercanas.get(f, [])
+                                                if not interna], tope_m, 'barras de media de DIgSILENT')
+        return zonas[f]
     # RF-28: un alimentador sin barras con GPS se dice una vez, no carga por carga.
     sin_gps = {f for f in alims.elegidos if not cercanas[f]}
     avisados = set()
@@ -1314,6 +1401,18 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 continue
             candidatos = [marcados[suyo.upper()]]
         punto_fila = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
+        # 004:RF-75: sin la geografía de la red convertida la web no midió el punto; se mide aquí, con las barras de
+        # media con GPS del alimentador, antes de crear ni conectar nada. SE0001 (PA217, 2026-11-12) se conectó desde
+        # cerca del Polo Sur con una línea de miles de km.
+        # Solo con su TRONCAL: sin ella manda 007:RF-31 (la barra más cercana de los marcados, sin umbral).
+        zona = _zona(candidatos[0]) if suyo else None
+        if punto_fila is not None and zona is not None and not fila.get('ubicacion'):
+            u = verificar_ubicacion(fila, zona)
+            if u['fuera']:
+                no_creadas.append({'sed': sed, 'alimentador': candidatos[0], 'motivo': u['mensaje'], 'ubicacion': u})
+                avisos.append(u['mensaje'])
+                continue
+            fila = {**fila, 'ubicacion': u}
         nombre = nombre_pf(sed)
         entrada = next(iter(entradas_del_indice(indice, candidatos, nombre)), None)
         # 040:RF-1, RF-2: el mismo punto en el mismo alimentador del libro es la misma carga
@@ -1371,7 +1470,11 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                           f'SED: su carga va a la barra de baja {bt.loc_name} (040:RF-3, RF-4).')
             existentes.add(sed)
             continue
-        repetida = ya_creada(fila, candidatos, existentes, ya)
+        # 004:RF-76, RF-77: la ya creada se reutiliza solo si es la misma; si cambió, se reemplaza.
+        reemplazo = reemplazo_de(fila, candidatos, ya)
+        if reemplazo is not None:
+            avisos.append(reemplazo['aviso'])
+        repetida = None if reemplazo is not None else ya_creada(fila, candidatos, existentes, ya)
         if repetida is not None:
             no_creadas.append(repetida[0])
             avisos += repetida[1]
@@ -1489,6 +1592,13 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                                                      'los transformadores del alimentador'})
             continue
         red = _red_de(barra)
+        zona_f = _zona(feeder)
+        radio = zona_f.radio_m if zona_f is not None else (fila.get('ubicacion') or {}).get('radio_m')
+        if con_cable(dist) and dist is not None and radio and dist > FRACCION_LINEA_LARGA * radio:
+            # 004:RF-79: una línea de conexión de la mitad del alimentador o más casi siempre es una coordenada mal
+            # escrita.
+            avisos.append(f'{sed}: su línea de conexión mide {distancia_es(dist)}, más que la mitad del radio de '
+                          f'{feeder} ({distancia_es(radio)}): revise su ubicación (004:RF-79).')
         resueltas[feeder].append({
             'fila': fila, 'barra': barra, 'distancia_m': dist, 'criterio': criterio,
             'partir': conexion,
@@ -1498,6 +1608,10 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             'tension_bt_kv': float(bt), 'red': red,
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
             'fases': fases_sed,
+            'radio_m': round(radio, 1) if radio else None,                        # 004:RF-79
+            # 004:RF-76: la variación de la carga anterior se elimina antes de crear la nueva (040:RF-6).
+            'eliminar': list(reemplazo['variaciones']) if reemplazo else [],
+            'reemplaza': {k: reemplazo[k] for k in ('variaciones', 'cambios')} if reemplazo else None,
         })
         existentes.add(sed)
     # 016:RF-47 (cambia con RF-77): dos cargas en el mismo tramo lo parten una tras otra;
@@ -1779,6 +1893,10 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r, plan=None) -> 
     carga = sub.CreateObject('ElmLod', nombre_pf(sed))
     carga.mode_inp, carga.i_sym, carga.outserv = 'PC', 0, 0
     escribir_carga(carga, float(fila['plini_mw']), float(fila['qlini_mvar']))
+    try:
+        carga.desc = [HUELLA + json.dumps(huella_de_la_fila(fila), sort_keys=True)]          # 004:RF-76
+    except Exception:  # noqa: BLE001, S110 - sin huella, se compara con su GPS y su potencia
+        pass
     cub = b_bt.CreateObject('StaCubic', nombre_pf(f'Cub_{sed}'))
     cub.obj_id, cub.obj_bus = carga, 0
     # RF-49: sin GPS, la SED nueva no salía en el diagrama geográfico aunque la fila
@@ -1809,6 +1927,7 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r, plan=None) -> 
                           if ficha else None),                                   # 004:RF-68
         'aviso': aviso or None, 'error_relectura': error or None, 'dibujo': dibujo,
         'tramo_partido': partido, 'cable': con_cable(r['distancia_m']),
+        **_ubicacion_y_linea(r),                                                       # 004:RF-72, RF-78
     }
 
 
@@ -2394,8 +2513,19 @@ def _crearian(r: dict, variacion: str) -> dict:
             'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
             'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota'),
             'fases': int(r.get('fases') or 3),
+            **_ubicacion_y_linea(r),                                                   # 004:RF-72, RF-78
             'ampliacion': ({k: r['ampliacion'][k] for k in ('sed', 'barra', 'criterio', 'distancia_m')}
                            if r.get('ampliacion') else None)}
+
+
+def _ubicacion_y_linea(r: dict) -> dict:
+    """004:RF-72, RF-76, RF-78: el nodo más cercano medido antes de conectar, la longitud de la línea de conexión que
+    se crea (ninguna si se engancha en la barra) y la carga que reemplaza."""
+    d = r.get('distancia_m')
+    return {'ubicacion': r['fila'].get('ubicacion'), 'radio_m': r.get('radio_m'),
+            'longitud_linea_m': (round(float(d), 1) if (d is not None and con_cable(d) and not r.get('ampliacion'))
+                                 else None),
+            'reemplaza': r.get('reemplaza')}
 
 
 def variaciones_que_sobran(no_creadas: list[dict], resueltas: dict, por_nombre: dict, c011) -> list[dict]:
@@ -2421,9 +2551,13 @@ def variaciones_que_sobran(no_creadas: list[dict], resueltas: dict, por_nombre: 
         anotar(x.get('eliminar'), x['sed'], motivo)
     for lista in resueltas.values():
         for r in lista:
-            anotar(r.get('eliminar'), r['fila']['sed'],
-                   f"ampliación de {r['ampliacion']['sed']} creada antes como SED nueva (040:RF-3)"
-                   if r.get('ampliacion') else 'sobra (040:RF-6)')
+            if r.get('reemplaza'):
+                motivo = f"cambió {', '.join(r['reemplaza']['cambios'])}; se reemplaza la carga anterior (004:RF-76)"
+            elif r.get('ampliacion'):
+                motivo = f"ampliación de {r['ampliacion']['sed']} creada antes como SED nueva (040:RF-3)"
+            else:
+                motivo = 'sobra (040:RF-6)'
+            anotar(r.get('eliminar'), r['fila']['sed'], motivo)
     return [out[n] for n in sorted(out)]
 
 
@@ -2527,7 +2661,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
           'red': nombres_en_red(app, alims, casos['con']) if casos else None}
     resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya,
                                                     minima_m=plan.get('minima_m'),
-                                                    repetidas=plan.get('repetidas_del_libro'))
+                                                    repetidas=plan.get('repetidas_del_libro'),
+                                                    tope_m=plan.get('distancia_max_al_nodo_m'))      # 004:RF-73
     informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
     por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
                                               if app.GetProjectFolder('scheme') else [])}
@@ -2732,7 +2867,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                     por_feeder[feeder]['creadas'].append(creada)
                     informe['cargas'].append({k: creada.get(k) for k in (
                         'sed', 'alimentador', 'variacion', 'barra', 'criterio', 'distancia_m', 'nota', 'fases',
-                        'con_proyecto', 'delta', 'economia', 'tecnico_economico', 'ampliacion')})
+                        'con_proyecto', 'delta', 'economia', 'tecnico_economico', 'ampliacion',
+                        'ubicacion', 'longitud_linea_m', 'radio_m', 'reemplaza')})        # 004:RF-72, RF-76, RF-78
                     amp = creada.get('ampliacion')
                     if amp and amp.get('propuesta'):
                         p = amp['propuesta']
