@@ -360,6 +360,10 @@ def _mes_de_valor(valor: Any, *, columna_fecha: bool) -> str | None:
     periodo = re.fullmatch(r'(?P<mes>0[1-9]|1[0-2])[/.-](?P<anio>\d{4})', texto)
     if periodo:
         return f"{int(periodo.group('anio')):04d}-{int(periodo.group('mes')):02d}"
+    # 104:RF-28: la FECHA de las hojas de 2026 es texto «01/06/2026» (día/mes/año, como periodo_de_fecha).
+    local = re.fullmatch(r'\d{1,2}[/.-](?P<mes>0?[1-9]|1[0-2])[/.-](?P<anio>\d{4})(?:\s.*)?', texto)
+    if local:
+        return f"{int(local.group('anio')):04d}-{int(local.group('mes')):02d}"
     return None
 
 
@@ -409,7 +413,12 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
             raise DemandaError(f'{fuente.name}: extensión no soportada; use ' + ', '.join(EXTENSIONES))
         rutas = [(fuente, fuente.name, None)]
     elif fuente.is_dir():
-        rutas = [(x.ruta, x.relativa, x.anio) for x in arbol_de_libros(fuente)]
+        # 104:RF-27: elegida la carpeta de un año («…/2025»), sus libros son de ese año. Antes quedaban sin
+        # año y sin el mes de su nombre: «0125 Pulso e» … «0625 Pulso» y «1025 Pulso» no daban mes, y sus
+        # hojas «día, hora» se quedaban fuera del pronóstico (a 301 de 323 clientes les faltaba octubre).
+        anio_raiz = int(fuente.name) if re.fullmatch(r'\d{4}', fuente.name) else None
+        rutas = [(x.ruta, x.relativa, x.anio if x.anio is not None else anio_raiz)
+                 for x in arbol_de_libros(fuente)]
     else:
         raise DemandaError(f'No se encuentra la fuente de clientes: {fuente}')
 
@@ -437,6 +446,17 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
                 internos = meses_de_contenido(path, alias)
                 if len(internos) == 1:
                     mes, origen = next(iter(internos)), 'contenido'
+                else:
+                    # 104:RF-28: sin carpeta de año, el mes del nombre con el año de sus fechas, si ese mes está
+                    # entre ellas. «0526clientesImportantes» trae del 01-05 00:15 al 01-06 00:00: dos meses.
+                    candidatos = {m for m in (mes_generico(path.name, int(a)) for a in {x[:4] for x in internos})
+                                  if m in internos}
+                    if len(candidatos) == 1:
+                        mes, origen = candidatos.pop(), 'contenido'
+                if mes is None:
+                    # 104:RF-29: no se calla. Sin mes, las hojas «día, hora» no se pueden fechar.
+                    avisos = ('no se reconoce su mes ni por el nombre ni por sus fechas: sus hojas «día, hora» '
+                              'no se pueden fechar y quedan fuera; asígnele el mes o déjelo en la carpeta de su año.',)
         activo = mes is not None
         if (mes is not None and anio is not None and origen != 'manual'
                 and mes[:4] != f'{anio:04d}'):

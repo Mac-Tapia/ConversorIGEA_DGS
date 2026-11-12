@@ -5,6 +5,7 @@ import { Ctx, type AppCtx } from '../shared/context';
 import { betaActiva } from '../shared/edicion';
 import { Asistente } from '../features/asistente/Asistente';
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
+import { AvisosLibros } from './AvisosLibros';
 import { CargasTab } from '../features/powerfactory/CargasTab';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
 import { InputsPanel } from '../features/conversion/InputsPanel';
@@ -251,6 +252,7 @@ export default function App() {
 
         <main className="content">
           <AvisosDatos />
+          <AvisosLibros />
           <JobBar jobs={running} />
           <div className="grid">
             <div className="col-side">

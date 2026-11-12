@@ -127,6 +127,7 @@
    "ficheros": [
     "demanda_medida.py",
     "libros_por_anio.py",
+    "libros_nuevos.py",
     "cabecera_ancha.py",
     "loads.py",
     "cargas_pf.py",
@@ -349,6 +350,7 @@
     "soporte.py",
     "copia_datos.py",
     "retencion.py",
+    "libros_nuevos.py",
     "suspension.py",
     "cierre.py",
     "sources/__init__.py",
@@ -577,6 +579,7 @@
     "src/components/MonitorAgente.tsx",
     "src/components/AcercaDe.tsx",
     "src/components/AvisosDatos.tsx",
+    "src/app/AvisosLibros.tsx",
     "src/components/DescargaZip.tsx",
     "src/components/JobBar.tsx",
     "src/components/LogPanel.tsx",

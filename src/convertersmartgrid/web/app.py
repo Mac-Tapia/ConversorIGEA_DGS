@@ -47,6 +47,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
     InstalacionesPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
     CancelacionAprendizajeRespuesta)
+from .api_contract import LibrosNuevosRespuesta, RevisarLibrosRespuesta    # spec 104
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -798,6 +799,9 @@ def create_app(
     jobs = JobManager(emit, diario=store.root / '_trabajos')
     from .retencion import RetencionDiaria
     retencion = RetencionDiaria(store, jobs)
+    # 104:RF-1, RF-2: los libros nuevos de demanda se reconocen solos.
+    from .libros_nuevos import VigilanciaLibros
+    libros_nuevos = VigilanciaLibros(store, jobs)
     from .runtime import huella_del_codigo
 
     huella = huella_del_codigo(frontend_dist())
@@ -822,6 +826,8 @@ def create_app(
         _app.state.tarea_reanudacion = tarea_reanudacion
         detener_retencion = asyncio.Event()
         tarea_retencion = asyncio.create_task(retencion.vigilar(detener_retencion))
+        detener_libros = asyncio.Event()                                       # 104:RF-1
+        tarea_libros = asyncio.create_task(libros_nuevos.vigilar(detener_libros))
         try:
             yield
         finally:
@@ -831,6 +837,9 @@ def create_app(
                 await tarea_reanudacion
             detener_retencion.set()
             await tarea_retencion
+            detener_libros.set()                                               # 104:RF-1
+            await tarea_libros
+            libros_nuevos.parar()
             if vigilante is not None:
                 _sin_tumbar_la_web(anotar_cierre, _motivo_cierre[0] if _motivo_cierre else 'señal, Ctrl+C o cierre de la ventana')
                 vigilante.parar()
@@ -842,6 +851,7 @@ def create_app(
     app.state.store = store
     app.state.jobs = jobs
     app.state.retencion = retencion
+    app.state.libros_nuevos = libros_nuevos
 
     from convertersmartgrid.adaptadores.entrada.vnr.web.app import create_router
 
@@ -1042,6 +1052,7 @@ def create_app(
     @app.get('/api/workspaces/{wid}', response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def get_workspace(wid: str) -> dict:
         ws = ws_or_404(wid)
+        libros_nuevos.al_abrir(ws)                                             # 104:RF-1
         return {**ws.public(), 'jobs': [j.public() for j in jobs.list(wid)[-20:]]}
 
     @app.get('/api/workspaces/{wid}/runs')
@@ -2677,6 +2688,25 @@ def create_app(
         ws = ws_or_404(wid)
         return submit(ws, 'demanda_cabecera_index', 'Actualizar libros de cabecera',
                       lambda ctx: services.demanda_cabecera_indexar(ws, ctx), lane='engine')
+
+    # ---------------------------------------------------------------- spec 104: libros nuevos de demanda
+    @app.get('/api/workspaces/{wid}/demanda/libros-nuevos', response_model=LibrosNuevosRespuesta)
+    def libros_nuevos_estado(wid: str) -> dict:
+        """104:RF-20, RF-22: los avisos de los libros nuevos y el estado del dataset del pronóstico."""
+        return libros_nuevos.estado(ws_or_404(wid))
+
+    @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/revisar', response_model=RevisarLibrosRespuesta)
+    def libros_nuevos_revisar(wid: str) -> dict:
+        """104:RF-1, RF-4: la misma revisión que la periódica, cuando la pide el operador."""
+        ws = ws_or_404(wid)
+        job = libros_nuevos.revisar(ws)
+        return {'estado': libros_nuevos.estado(ws), 'job': job}
+
+    @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/avisos/{aviso_id}/visto', response_model=LibrosNuevosRespuesta)
+    def libros_nuevos_visto(wid: str, aviso_id: str) -> dict:
+        """104:RF-21."""
+        return libros_nuevos.dar_por_visto(ws_or_404(wid), aviso_id)
+    # ---------------------------------------------------------------- fin spec 104
 
     @app.post('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:

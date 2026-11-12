@@ -45,6 +45,7 @@ from .demanda_medida import (
     texto_de_celda,
 )
 from .digital_twin.pronostico import Objetivo
+from .libros_nuevos import mes_anterior, nombre_de_mes, repite_otro_mes
 from .perfil_empresa import PerfilError, centrales_termicas, datos_perfil
 
 Curva = Sequence[tuple[datetime, float, float | None]]
@@ -525,15 +526,26 @@ def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None,
     contradictorios: dict[str, str] = {}
     avisos: dict[str, list[str]] = {}
     apartados: list[dict] = []
+    previo: tuple[str, dict[str, CurvaCompacta]] | None = None
     for libro, mes in libros:
         curvas, notas = curvas_de_clientes(libro, codigos, mes=mes)
         if not curvas and not codigos:
             # Un mes que no se puede leer no se calla: el objetivo tendría un hueco sin explicar.
             apartados.append({'objetivo': f'libro:{libro.name}', 'motivo': '; '.join(notas) or 'sin curvas de clientes'})
-        for codigo, curva in curvas.items():
+        compactas = {codigo: CurvaCompacta.desde(curva) for codigo, curva in curvas.items()}
+        del curvas
+        if mes and previo is not None and previo[0] == mes_anterior(mes) and compactas:
+            # 104:RF-26: abril de 2026 repetía marzo registro a registro; entraba como dato bueno.
+            if repite_otro_mes(compactas, previo[1])['repite']:
+                apartados.append({'objetivo': f'libro:{libro.name}',
+                                  'motivo': f'repite los valores de {nombre_de_mes(previo[0])}: no se usa (104:RF-26)'})
+                continue
+        if mes:
+            previo = (mes, compactas)
+        for codigo, curva in compactas.items():
             actual = canonico(codigo)
             de_libro.setdefault(actual, []).append(libro.name)
-            trozos.setdefault(actual, []).append(CurvaCompacta.desde(curva))
+            trozos.setdefault(actual, []).append(curva)
         for nota in notas:
             avisos.setdefault(nota.split(':', 1)[0], []).append(nota)
     por = {}
@@ -1470,6 +1482,69 @@ def huella_de_objetivos(objetivos: Iterable[Objetivo]) -> str:
     return huella.hexdigest()
 
 
+def _perfil_de_serie(o: Objetivo) -> dict[str, Any]:
+    t, v = _arreglos(o)
+    orden = np.argsort(t, kind='stable')
+    t, v = t[orden], np.asarray(v, dtype=float)[orden]
+    fila: dict[str, Any] = {'objetivo': o.nombre, 'clase': o.clase, 'magnitud': o.magnitud, 'registros': int(len(v))}
+    if not len(v):
+        return {**fila, 'esperados': 0, 'cobertura_pct': None}
+    paso = np.timedelta64(15, 'm')
+    esperados = int((t[-1] - t[0]) // paso) + 1
+    difs = np.diff(t)
+    huecos = difs[difs > paso]
+    finitos = v[np.isfinite(v)]
+    p95 = float(np.percentile(finitos, 95)) if finitos.size else None
+    media = float(finitos.mean()) if finitos.size else None
+    limpieza = (o.fuente or {}).get('limpieza') or {}
+    return {**fila, 'inicio': str(t[0])[:19], 'fin': str(t[-1])[:19], 'dias': round(float((t[-1] - t[0]) / np.timedelta64(1, 'D')), 1),
+            'esperados': esperados, 'cobertura_pct': 100.0 * len(v) / esperados,
+            'nan_pct': 100.0 * float(np.mean(~np.isfinite(v))),
+            'cero_pct': 100.0 * float(np.mean(finitos == 0)) if finitos.size else None,
+            'negativos_pct': 100.0 * float(np.mean(finitos < 0)) if finitos.size else None,
+            'huecos': int(len(huecos)), 'hueco_max_h': float(huecos.max() / np.timedelta64(1, 'h')) if len(huecos) else 0.0,
+            'media': media, 'cv': float(finitos.std()) / abs(media) if media else None,
+            'p95': p95, 'max': float(finitos.max()) if finitos.size else None,
+            'max_sobre_p95': float(finitos.max()) / p95 if p95 else None,
+            'limpieza': {k: limpieza.get(k) for k in ('cero', 'congelado', 'atipico') if k in limpieza}}
+
+
+def _mediana(xs: Sequence[float | None]) -> float | None:
+    xs = [x for x in xs if x is not None]
+    return float(np.median(xs)) if xs else None
+
+
+def perfil_del_dataset(dataset: Dataset) -> dict[str, Any]:
+    """Calidad del dataset por serie y por clase: cobertura, huecos, ceros, negativos y picos (104:RF-24).
+
+    Era un guion suelto de la revisión del 2026-11-12 (``perfil_dataset_089.py``); el dataset regenerado solo ha de
+    decir lo mismo sin que nadie lo corra a mano.
+    """
+    series = [_perfil_de_serie(o) for o in sorted(dataset.objetivos, key=lambda x: x.nombre)]
+    por_clase = []
+    for (clase, magnitud) in sorted({(x['clase'], x['magnitud']) for x in series}):
+        g = [x for x in series if x['clase'] == clase and x['magnitud'] == magnitud]
+        por_clase.append({
+            'clase': clase, 'magnitud': magnitud, 'series': len(g),
+            'dias_mediana': _mediana([x.get('dias') for x in g]),
+            'cobertura_mediana_pct': _mediana([x.get('cobertura_pct') for x in g]),
+            'cobertura_min_pct': min((x['cobertura_pct'] for x in g if x.get('cobertura_pct') is not None), default=None),
+            'series_cobertura_menor_90': sum(1 for x in g if (x.get('cobertura_pct') or 0) < 90),
+            'cero_mediana_pct': _mediana([x.get('cero_pct') for x in g]),
+            'series_cero_mayor_50': sum(1 for x in g if (x.get('cero_pct') or 0) > 50),
+            'series_con_negativos': sum(1 for x in g if (x.get('negativos_pct') or 0) > 0),
+            'huecos_mediana': _mediana([x.get('huecos') for x in g]),
+            'hueco_max_h': max((x.get('hueco_max_h') or 0.0 for x in g), default=0.0),
+            'series_pico_mayor_2xp95': sum(1 for x in g if (x.get('max_sobre_p95') or 0) > 2),
+        })
+    motivos: dict[str, int] = {}
+    for a in dataset.apartados:
+        motivos[str(a.get('motivo'))] = motivos.get(str(a.get('motivo')), 0) + 1
+    return {'huella': dataset.huella, 'objetivos': len(series), 'registros': sum(x['registros'] for x in series),
+            'libros': len(dataset.libros), 'ultimo_dato': dataset.ultimo_dato, 'avisos': list(dataset.avisos),
+            'apartados': len(dataset.apartados), 'motivos_apartados': motivos, 'por_clase': por_clase, 'por_serie': series}
+
+
 def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
     """Los objetivos limpios en Parquet con su huella: entrenar no vuelve a leer los libros (089:RF-68)."""
     import json
@@ -1486,10 +1561,27 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
     texto = huella_de_objetivos(dataset.objetivos)
     if tablas:
         pd.concat(tablas, ignore_index=True).to_parquet(carpeta / 'objetivos.parquet')
+    dataset.huella = texto
+    # 104:RF-24, RF-25: el perfil va con el dataset que describe, antes de su dataset.json.
+    (carpeta / 'perfil.json').write_text(json.dumps(perfil_del_dataset(dataset), ensure_ascii=False, indent=1, default=str),
+                                         encoding='utf-8')
     (carpeta / 'dataset.json.tmp').write_text(json.dumps({'huella': texto, 'objetivos': indice, 'apartados': dataset.apartados, 'libros': dataset.libros,
                                                        'ultimo_dato': dataset.ultimo_dato, 'avisos': dataset.avisos}, ensure_ascii=False, default=str), encoding='utf-8')
     (carpeta / 'dataset.json.tmp').replace(carpeta / 'dataset.json')     # lo último: sin este fichero, el dataset no existe
     return texto
+
+
+def regenerar_dataset(fuentes: Fuentes, carpeta: Path | str) -> dict[str, Any]:
+    """El dataset de las carpetas de siempre, guardado con su huella y su perfil, sin entrenar nada (104:RF-23).
+
+    Lo llama la web cuando llega un mes nuevo; entrenar sigue siendo una orden del operador.
+    """
+    dataset = armar_dataset(fuentes)
+    huella = guardar_dataset(dataset, carpeta)
+    perfil = perfil_del_dataset(dataset)
+    return {'huella': huella, 'objetivos': perfil['objetivos'], 'registros': perfil['registros'],
+            'apartados': perfil['apartados'], 'motivos_apartados': perfil['motivos_apartados'],
+            'ultimo_dato': dataset.ultimo_dato, 'por_clase': perfil['por_clase'], 'avisos': list(dataset.avisos)[:50]}
 
 
 def abrir_dataset(carpeta: Path | str, exogenas: Exogenas | None = None) -> Dataset:

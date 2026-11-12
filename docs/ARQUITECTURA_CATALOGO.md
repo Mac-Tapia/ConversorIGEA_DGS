@@ -8,14 +8,14 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 316 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 318 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 52 |
+| Interfaz | `frontend/src/` | 53 |
 | Pruebas de la interfaz | `frontend/test/` | 15 |
-| Pruebas | `tests/` | 425 |
+| Pruebas | `tests/` | 427 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 309 |
+| Specs | `specs/` | 312 |
 
 `web/services.py` tiene 13146 líneas y 398 funciones, pendiente de partir (002).
 
@@ -24,23 +24,23 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 85 |
-| aprobada | 16 |
+| aprobada | 17 |
 | implementada | 1 |
 | retirada | 1 |
 
-103 specs con 3386 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+104 specs con 3415 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 125 |
-| aplicacion | Apl | 102 |
+| aplicacion | Apl | 103 |
 | dominio | Dom | 43 |
-| presentacion | Pre | 33 |
+| presentacion | Pre | 34 |
 | puertos | Pue | 3 |
 
-306 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+308 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -48,11 +48,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-150 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+153 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
-| `demanda` | espacio | 25 |
+| `demanda` | espacio | 28 |
 | `pf` | espacio | 20 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
@@ -338,6 +338,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089, 091 | Máxima de cabecera por medidor y clientes importantes con su SED. |
 | `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
+| `libros_nuevos.py` | Apl | 104 | Foto de una fuente de demanda y sus cambios, verificación de un libro de clientes (mes, registros frente a días × 96, nuevos, sin suministro, en… |
 | `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
 | `loads.py` | Ada | 004 | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. |
 | `cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093, 099 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
@@ -549,6 +550,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
+| `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo, reindexa, verifica, avisa, deja… |
 | `suspension.py` | Pre | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
@@ -733,6 +735,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `src/api/esquema.ts` | — | 065, 002 | Tipos generados desde OpenAPI. |
+| `src/app/AvisosLibros.tsx` | — | 104 | Avisos de los libros de demanda que la web reconoció sola, con «Dar por visto», y el estado del dataset del pronóstico. |
 | `scripts/build.mjs` | — | 065 | Compila fuera del checkout y publica `dist` completo, conservando el anterior ante cualquier fallo. |
 | `scripts/runtime-paths.mjs` | — | 065 | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. |
 | `test/reconexion.test.mjs` | — | 086 | Pruebas de los trabajos al reconectar y de la edición en la web. |
