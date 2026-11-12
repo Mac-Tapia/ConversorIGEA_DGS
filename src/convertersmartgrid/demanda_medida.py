@@ -34,9 +34,10 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
-from .libros_por_anio import EXTENSIONES, DemandaError
+from .compat_pf import zip_estricto
 from .dominio.numeros_medidos import clave_codigo, numero
 from .estructura import Estructura, EstructuraError, construir
+from .libros_por_anio import EXTENSIONES, DemandaError
 
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
 FILAS_DATOS_MINIMAS = 2      # una hoja de medición con menos no es un medidor
@@ -2568,7 +2569,7 @@ def completar_sin_medida(res: Sequence[MaximaCabecera], fecha: datetime, periodo
         if not faltan:
             break
         hallados = buscar([(salen[i].alimentador, salen[i].medidor) for i in faltan], donde)
-        for i, nuevo in zip(faltan, hallados, strict=True):
+        for i, nuevo in zip_estricto(faltan, hallados):
             if not falta(nuevo):
                 avisos.append(f'{nuevo.alimentador}: sin medida el {fecha}; se toma su máxima de '
                               f'{donde or "todo lo medido"}: {nuevo.kw:,.1f} kW el {nuevo.fecha} (028:RF-38).')

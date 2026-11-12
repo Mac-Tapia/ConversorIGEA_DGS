@@ -455,3 +455,7 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
 .btn-link:hover { color: var(--text); }
 .doctor { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .doctor p { margin: .15rem 0 0; }
+
+/* 103:RF-3: la píldora de PowerFactory abre la lista de instalaciones. */
+.pill-boton { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.pill-boton:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; border-radius: 999px; }

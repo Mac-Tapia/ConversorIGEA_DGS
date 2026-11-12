@@ -11,6 +11,7 @@
     "CSG_SOLICITUD_PDF": "D:/datos/distribuidora/solicitud.pdf",
     "CSG_SOLICITUD_DIR": "D:/datos/distribuidora/solicitudes",
     "CSG_EVIDENCIA_NATIVA": "D:/datos/evidencia_nativa",
-    "CSG_MCP_PYTHON": "D:/venv_mcp/Scripts/python.exe"
+    "CSG_MCP_PYTHON": "D:/venv_mcp/Scripts/python.exe",
+    "CSG_PF_PYTHON_39": "D:/python_pf/3.9/python.exe"
   }
 }

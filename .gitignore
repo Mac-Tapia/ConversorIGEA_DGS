@@ -110,3 +110,5 @@ referencia/*.docx
 referencia/*.pdf
 # 102:RF-15: rutas de los datos de la distribuidora de esta máquina
 config/suite_completa.json
+# 103:RF-3: la PowerFactory que eligió el operador en esta máquina.
+config/powerfactory.json

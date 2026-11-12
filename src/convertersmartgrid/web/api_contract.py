@@ -527,9 +527,35 @@ class AmbitoFuenteRespuesta(Respuesta):
     ambiguous: bool
 
 
+class InstalacionPowerFactoryRespuesta(Respuesta):
+    nombre: str
+    carpeta: str
+    version: list[int]
+    apis: list[str]
+    #: La carpeta de la API que se usaría y con qué intérprete; ``None`` si a ninguna le hay intérprete (103:RF-2).
+    api: str | None
+    interprete: str | None
+    motivo: str
+
+
+class InstalacionesPowerFactoryRespuesta(Respuesta):
+    """103:RF-3: las PowerFactory encontradas, la elegida por el operador y la que se usa."""
+    instalaciones: list[InstalacionPowerFactoryRespuesta]
+    eleccion: str | None
+    en_uso: str | None
+    fijada_por_variable: bool
+
+
+class ElegirPowerFactoryPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    #: La carpeta ``Python\3.x`` de una instalación encontrada; ``None`` vuelve a la más nueva que funcione.
+    carpeta_api: str | None = None
+
+
 class EstadoPowerFactoryRespuesta(Respuesta):
     api_dir: str | None
     api_version: str | None
+    instalacion: str | None = None
     interpreter: str | None
     interpreter_reason: str
     running_python: str

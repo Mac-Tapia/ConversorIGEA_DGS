@@ -44,7 +44,8 @@ from .jobs import FINISHED, JobManager
 from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
-    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
+    ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
+    InstalacionesPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
     CancelacionAprendizajeRespuesta)
 from .services import UserError
 from .workspace import (
@@ -952,6 +953,19 @@ def create_app(
     @app.get('/api/powerfactory', response_model=EstadoPowerFactoryRespuesta, response_model_exclude_unset=True)
     def powerfactory(refresh: bool = False) -> dict:
         return services.powerfactory_status(refresh=refresh)
+
+    @app.get('/api/powerfactory/instalaciones', response_model=InstalacionesPowerFactoryRespuesta)
+    def powerfactory_instalaciones() -> dict:
+        """103:RF-3: las PowerFactory encontradas en esta máquina y cuál se usa."""
+        return services.powerfactory_instalaciones()
+
+    @app.post('/api/powerfactory/instalaciones', response_model=InstalacionesPowerFactoryRespuesta)
+    def powerfactory_elegir(peticion: ElegirPowerFactoryPeticion) -> dict:
+        """103:RF-3: el operador elige otra PowerFactory; se recuerda en esta máquina."""
+        try:
+            return services.powerfactory_elegir(peticion.carpeta_api)
+        except UserError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     # ------------------------------------------------------------ catálogo VNR oficial
     def _vnr_catalog_dir() -> Path:

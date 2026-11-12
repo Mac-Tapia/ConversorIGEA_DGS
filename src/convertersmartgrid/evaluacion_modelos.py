@@ -1,14 +1,15 @@
 """044:RF-1 a RF-8 — particiones declaradas, política sellada y medición nativa completa."""
 from __future__ import annotations
 
-from collections import defaultdict
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
 import unicodedata
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass
 
+from .compat_pf import zip_estricto
 from .experimentos import ContextoExperimento
 
 PARTES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
@@ -130,7 +131,7 @@ def particionar_registros(registros: Sequence[Mapping], politica: PoliticaEvalua
         for sistema, p in sistemas.items():
             if not sistema or (p['prueba'] and any(p[n] for n in PARTES[:-1])):
                 raise ValueError('generalización requiere un sistema independiente para prueba')
-    minimos = dict(zip(PARTES, politica.minimos, strict=True))
+    minimos = dict(zip_estricto(PARTES, politica.minimos))
     minimos['calibracion'] = max(minimos['calibracion'], politica.min_calibracion_grupos)
     if any(len(grupos[p]) < n for p, n in minimos.items()):
         raise ValueError('BLOQUEADO_POR_DATOS: mínimo de grupos por partición incumplido')

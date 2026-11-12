@@ -101,12 +101,52 @@ def powerfactory_status(refresh: bool = False) -> dict[str, Any]:
     _PF_CACHE = {
         'api_dir': str(pf_dir) if pf_dir else None,
         'api_version': pf_api_version(pf_dir),
+        # 103:RF-3: la píldora decía «PowerFactory 3.12», la versión de Python de la API; ahora, la instalación.
+        'instalacion': pf_dir.parent.parent.name if pf_dir and pf_dir.parent.name == 'Python' else None,
         'interpreter': str(interpreter) if interpreter else None,
         'interpreter_reason': why,
         'running_python': f'{sys.version_info.major}.{sys.version_info.minor}',
         'available': pf_dir is not None and interpreter is not None,
     }
     return _PF_CACHE
+
+
+def powerfactory_instalaciones() -> dict[str, Any]:
+    """103:RF-3: cada PowerFactory encontrada con la API que usaría, la elegida y la que está en uso."""
+    import os
+
+    from ..powerfactory_env import eleccion_guardada, elegir_api, instalaciones
+    filas = []
+    for inst in instalaciones():
+        elegida = elegir_api(inst)
+        filas.append({'nombre': inst.nombre, 'carpeta': str(inst.carpeta), 'version': list(inst.version),
+                      'apis': [a.name for a in inst.apis], 'api': str(elegida[0]) if elegida else None,
+                      'interprete': str(elegida[1]) if elegida else None,
+                      'motivo': elegida[2] if elegida else
+                      f"falta un intérprete de Python {', '.join(a.name for a in inst.apis)}"})
+    eleccion = eleccion_guardada()
+    en_uso = pf_python_dir()
+    return {'instalaciones': filas, 'eleccion': str(eleccion) if eleccion else None,
+            'en_uso': str(en_uso) if en_uso else None, 'fijada_por_variable': bool(os.environ.get('PF_PYTHON', '').strip())}
+
+
+def powerfactory_elegir(carpeta_api: str | None) -> dict[str, Any]:
+    """103:RF-3: el operador elige una de las encontradas (con intérprete), o vuelve a la más nueva que funcione."""
+    from ..powerfactory_env import guardar_eleccion
+    global _PF_CACHE
+    if carpeta_api is None:
+        guardar_eleccion(None)
+    else:
+        validas = {f['api'] for f in powerfactory_instalaciones()['instalaciones'] if f['api']}
+        posibles = {str(Path(f['carpeta']) / 'Python' / v) for f in powerfactory_instalaciones()['instalaciones']
+                    for v in f['apis']}
+        if carpeta_api not in posibles:
+            raise UserError(f'{carpeta_api} no es la API de ninguna PowerFactory encontrada en esta máquina.')
+        if carpeta_api not in validas and python_for_pf(Path(carpeta_api))[0] is None:
+            raise UserError(f'Para {carpeta_api} no hay un intérprete de Python {Path(carpeta_api).name}.')
+        guardar_eleccion(Path(carpeta_api))
+    _PF_CACHE = None
+    return powerfactory_instalaciones()
 
 
 def sin_conexion_digsilent() -> UserError:

@@ -2,7 +2,7 @@ import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaD
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
-  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
+  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
   status: number;
@@ -69,6 +69,10 @@ export const api = {
   versionPrograma: () => request<{ version: string; notas: string }>('/api/sistema/version'),
   powerfactory: (refresh = false) =>
     request<PowerFactoryStatus>(`/api/powerfactory${refresh ? '?refresh=true' : ''}`),
+  // 103:RF-3: las instalaciones encontradas y la elección del operador.
+  pfInstalaciones: () => request<InstalacionesPowerFactory>('/api/powerfactory/instalaciones'),
+  pfElegir: (carpeta_api: string | null) =>
+    request<InstalacionesPowerFactory>('/api/powerfactory/instalaciones', json('POST', { carpeta_api })),
 
   createWorkspace: () => request<WorkspaceState>('/api/workspaces', { method: 'POST' }),
   // 086:RF-2, RF-3, RF-9: lo que le pasó a los datos, con lo que se puede hacer.

@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from .compat_pf import zip_estricto
 from .dominio.numeros_medidos import clave_codigo, numero
 
 
@@ -552,11 +553,11 @@ class _Broyden:
 
     def actualizar(self, x: list[float], y: list[float]) -> None:
         if self.x is not None and self.y is not None:
-            dx = [p - q for p, q in zip(x, self.x, strict=True)]
-            dy = [p - q for p, q in zip(y, self.y, strict=True)]
+            dx = [p - q for p, q in zip_estricto(x, self.x)]
+            dy = [p - q for p, q in zip_estricto(y, self.y)]
             nn = sum(v * v for v in dx)
             if nn > 1e-24:
-                prod = [sum(f * v for f, v in zip(fila, dx, strict=True)) for fila in self.b]
+                prod = [sum(f * v for f, v in zip_estricto(fila, dx)) for fila in self.b]
                 for i, fila in enumerate(self.b):
                     for j in range(len(fila)):
                         fila[j] += (dy[i] - prod[i]) * dx[j] / nn
@@ -565,7 +566,7 @@ class _Broyden:
     def paso(self, residuo: list[float]) -> list[float] | None:
         """El incremento de los factores, por eliminación con pivote; ``None`` si la matriz no sirve."""
         n = len(residuo)
-        m = [list(f) + [r] for f, r in zip(self.b, residuo, strict=True)]
+        m = [list(f) + [r] for f, r in zip_estricto(self.b, residuo)]
         for c in range(n):
             p = max(range(c, n), key=lambda i: abs(m[i][c]))
             if abs(m[p][c]) < 1e-12:
@@ -1326,7 +1327,6 @@ def montecarlo(rep: Reparto, prob: Probabilistico,
     ``None``) con lo que se leyó del flujo (``carga`` por SED, ``fuera_de_banda``).
     """
     import random
-
     import time
 
     reloj = reloj or time.perf_counter

@@ -16,11 +16,11 @@ import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
 from .ajuste_cabecera import AjusteError, objetivo_de
+from .compat_pf import pairwise, zip_estricto
 from .demanda_medida import ALIAS, en_periodo, maximas
 
 #: Lo que se aparta de la energía, con la frase que lo dice (RF-6).
@@ -235,7 +235,7 @@ def _sin_caidas(validos: dict, aj: Ajustes, apartados: dict) -> dict:
             quedan.append(t)
     paso = _paso(quedan)
     aisladas = set()
-    for a, t, b in zip(quedan, quedan[1:], quedan[2:], strict=False):
+    for a, t, b in zip(quedan, quedan[1:], quedan[2:]):
         if paso is None or b - a > 2 * paso:             # sin los dos vecinos no se sabe
             continue
         if validos[t][0] < aj.fraccion_aislada * min(validos[a][0], validos[b][0]):
@@ -253,17 +253,17 @@ def _sin_ciclo_semanal(fechas: Sequence[date], x: Sequence[float]) -> list[float
     """La serie sin el ciclo de la semana, solo para buscar: un domingo no es un valle."""
     centro = statistics.median(x)
     por_dia: dict[int, list[float]] = {}
-    for d, v in zip(fechas, x, strict=True):
+    for d, v in zip_estricto(fechas, x):
         por_dia.setdefault(d.weekday(), []).append(v)
     if not centro or min((len(v) for v in por_dia.values()), default=0) < MUESTRAS_FRANJA_MINIMAS or len(por_dia) < CICLO_SEMANAL:
         return list(x)
     factor = {k: statistics.median(v) / centro for k, v in por_dia.items()}
-    return [v / factor[d.weekday()] if factor[d.weekday()] else v for d, v in zip(fechas, x, strict=True)]
+    return [v / factor[d.weekday()] if factor[d.weekday()] else v for d, v in zip_estricto(fechas, x)]
 
 
 def _ruido(fechas: Sequence[date], y: Sequence[float]) -> float:
     """El ruido de un día a otro; no el escalón de la ventana, que solo son dos diferencias."""
-    saltos = [abs(b - a) for a, b, d0, d1 in zip(y, y[1:], fechas, fechas[1:], strict=False)
+    saltos = [abs(b - a) for a, b, d0, d1 in zip(y, y[1:], fechas, fechas[1:])
               if d1 - d0 == timedelta(days=1)]
     medido = statistics.median(saltos) / _NORMAL_MAD if saltos else 0.0
     return max(medido, RUIDO_RELATIVO_MINIMO * statistics.median(y))

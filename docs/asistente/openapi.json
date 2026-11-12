@@ -1870,6 +1870,24 @@
         "title": "EdicionRespuesta",
         "type": "object"
       },
+      "ElegirPowerFactoryPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "carpeta_api": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carpeta Api"
+          }
+        },
+        "title": "ElegirPowerFactoryPeticion",
+        "type": "object"
+      },
       "EntradaAsignadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -2504,6 +2522,17 @@
           "available": {
             "title": "Available",
             "type": "boolean"
+          },
+          "instalacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instalacion"
           },
           "interpreter": {
             "anyOf": [
@@ -3401,6 +3430,117 @@
           "tipo"
         ],
         "title": "InformeFormularioIn",
+        "type": "object"
+      },
+      "InstalacionPowerFactoryRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "api": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api"
+          },
+          "apis": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Apis",
+            "type": "array"
+          },
+          "carpeta": {
+            "title": "Carpeta",
+            "type": "string"
+          },
+          "interprete": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interprete"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "version": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Version",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nombre",
+          "carpeta",
+          "version",
+          "apis",
+          "api",
+          "interprete",
+          "motivo"
+        ],
+        "title": "InstalacionPowerFactoryRespuesta",
+        "type": "object"
+      },
+      "InstalacionesPowerFactoryRespuesta": {
+        "additionalProperties": false,
+        "description": "103:RF-3: las PowerFactory encontradas, la elegida por el operador y la que se usa.",
+        "properties": {
+          "eleccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eleccion"
+          },
+          "en_uso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En Uso"
+          },
+          "fijada_por_variable": {
+            "title": "Fijada Por Variable",
+            "type": "boolean"
+          },
+          "instalaciones": {
+            "items": {
+              "$ref": "#/components/schemas/InstalacionPowerFactoryRespuesta"
+            },
+            "title": "Instalaciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instalaciones",
+          "eleccion",
+          "en_uso",
+          "fijada_por_variable"
+        ],
+        "title": "InstalacionesPowerFactoryRespuesta",
         "type": "object"
       },
       "IntegridadRespuesta": {
@@ -6821,6 +6961,62 @@
           }
         },
         "summary": "Powerfactory"
+      }
+    },
+    "/api/powerfactory/instalaciones": {
+      "get": {
+        "description": "103:RF-3: las PowerFactory encontradas en esta máquina y cuál se usa.",
+        "operationId": "powerfactory_instalaciones_api_powerfactory_instalaciones_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstalacionesPowerFactoryRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Powerfactory Instalaciones"
+      },
+      "post": {
+        "description": "103:RF-3: el operador elige otra PowerFactory; se recuerda en esta máquina.",
+        "operationId": "powerfactory_elegir_api_powerfactory_instalaciones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElegirPowerFactoryPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstalacionesPowerFactoryRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Powerfactory Elegir"
       }
     },
     "/api/sistema/cerrar": {

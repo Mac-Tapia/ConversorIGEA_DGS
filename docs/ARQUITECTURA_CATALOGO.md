@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 315 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 316 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 51 |
+| Interfaz | `frontend/src/` | 52 |
 | Pruebas de la interfaz | `frontend/test/` | 13 |
 | Pruebas | `tests/` | 425 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 309 |
 
-`web/services.py` tiene 13106 líneas y 396 funciones, pendiente de partir (002).
+`web/services.py` tiene 13146 líneas y 398 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -36,11 +36,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 125 |
 | aplicacion | Apl | 102 |
-| dominio | Dom | 42 |
+| dominio | Dom | 43 |
 | presentacion | Pre | 33 |
 | puertos | Pue | 3 |
 
-305 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+306 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -48,7 +48,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-148 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+150 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -65,6 +65,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `obras` | espacio | 3 |
 | `pide` | espacio | 3 |
 | `jobs` | general | 3 |
+| `powerfactory` | general | 3 |
 | `sistema` | general | 3 |
 | `(raíz)` | espacio | 2 |
 | `agente` | espacio | 2 |
@@ -94,7 +95,6 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `modelos` | general | 1 |
 | `pf` | general | 1 |
 | `planeamiento` | general | 1 |
-| `powerfactory` | general | 1 |
 | `vnr` | general | 1 |
 | `{full_path:path}` | general | 1 |
 
@@ -759,6 +759,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/app/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
 | `frontend/src/app/App.tsx` | — | 001, 008, 061, 091 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
 | `frontend/src/app/AvisosDatos.tsx` | — | 086 | Avisos de los datos: copia vieja, espacio dañado con su botón de restaurar, ficheros no disponibles y trabajos interrumpidos con su registro. |
+| `frontend/src/app/InstalacionesPowerFactory.tsx` | — | 103 | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. |
 | `frontend/src/app/JobBar.tsx` | — | 001 | Barra de trabajos en curso. |
 | `frontend/src/app/LogPanel.tsx` | — | 001 | Registro. |
 | `frontend/src/app/main.tsx` | — | 001 | Arranque de React. |
@@ -811,6 +812,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `src/convertersmartgrid/adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
 | `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
+| `src/convertersmartgrid/compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
 | `src/convertersmartgrid/conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
 | `src/convertersmartgrid/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
 | `src/convertersmartgrid/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |

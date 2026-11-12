@@ -33,6 +33,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/dominio/dataset.py` | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector; el lector de los TXT la extiende en `dataset.py`. | 002 (RF-1, RF-2) |
 | `src/convertersmartgrid/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | 034, 001 |
 | `src/convertersmartgrid/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66), 035 (RF-2 a RF-9), 035 (RF-28 a RF-30), 041 (RF-1 a RF-7), 095 |
+| `src/convertersmartgrid/compat_pf.py` | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. | 103 (RF-5) |
 | `src/convertersmartgrid/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | 034, 001, 022 (RF-7, RF-25, RF-34), 065 (RF-11, RF-12, RF-25) |
 | `src/convertersmartgrid/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/convertersmartgrid/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73), 030 (RF-13, RF-14), 093, 099 |
@@ -418,6 +419,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/features/powerfactory/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red; tensión en la fuente; bancos que falten. | 006, 008, 020 (RF-62), 021, 025 (RF-24), 035 (RF-11, RF-16, RF-21, RF-22), 039 (RF-1), 035 (RF-30), 039 (RF-1), 041 (RF-6, RF-9), 091 |
 | `frontend/src/features/powerfactory/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
 | `frontend/src/features/powerfactory/PerfilTension.tsx` | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. | 094 (RF-3) |
+| `frontend/src/app/InstalacionesPowerFactory.tsx` | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. | 103 (RF-3) |
 | `frontend/src/app/JobBar.tsx` | Barra de trabajos en curso. | 001 |
 | `frontend/src/app/LogPanel.tsx` | Registro. | 001 |
 | `frontend/src/shared/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |

@@ -1,6 +1,10 @@
 """DIgSILENT de cualquier versión instalada (spec 103)."""
 from __future__ import annotations
 
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -107,3 +111,124 @@ def test_103_rf7_sin_digsilent_se_sigue_convirtiendo(monkeypatch):
     monkeypatch.setattr(pe, 'resumen_instalaciones', lambda: [])
     c = doctor._digsilent(lambda: None)
     assert c.ok is False and c.obligatoria is False and 'Convertir a DGS sigue funcionando' in c.afecta
+
+
+# ------------------------------------------------------------------ 103:RF-5
+
+RAIZ = Path(__file__).resolve().parents[1]
+#: Los guiones que corren con el Python de PowerFactory, y el comprobador de licencia y la aceptación.
+GUIONES_PF = sorted([*(RAIZ / 'tools').glob('*_pf.py'), RAIZ / 'tools/powerfactory_acceptance.py',
+                     RAIZ / 'tools/check_pf_license.py'])
+#: Las de la biblioteca posteriores a 3.9 que ya aparecieron (2026-11-11): rompían 12 de los 22 guiones en 3.9.
+POSTERIORES_A_39 = (re.compile(r'\bfrom itertools import [^\n]*\bpairwise\b'), re.compile(r'\bzip\([^)]*\bstrict='),
+                    re.compile(r'\bfrom typing import [^\n]*\b(?:TypeAlias|ParamSpec|Self|TypeGuard)\b'),
+                    re.compile(r'\bimport tomllib\b'), re.compile(r'\bdatetime\.UTC\b|from datetime import [^\n]*\bUTC\b'))
+
+
+def _cierre_de_los_guiones() -> list[Path]:
+    """Los ficheros del repositorio que cargan los guiones, con un Python sin librerías de terceros."""
+    codigo = ('import importlib, os, sys\n'
+              f"sys.path[:0] = [{str(RAIZ / 'src')!r}, {str(RAIZ / 'tools')!r}]\n"
+              f'for m in {[g.stem for g in GUIONES_PF]!r}:\n'
+              '    try:\n        importlib.import_module(m)\n'
+              '    except ModuleNotFoundError as exc:\n'
+              "        if exc.name != 'numpy': print('FALTA', m, exc.name)\n"
+              'for mod in list(sys.modules.values()):\n'
+              "    f = getattr(mod, '__file__', None)\n"
+              '    if f: print(os.path.abspath(f))\n')
+    salida = subprocess.run([sys.executable, '-S', '-c', codigo], capture_output=True, text=True, check=True).stdout
+    faltan = [linea for linea in salida.splitlines() if linea.startswith('FALTA')]
+    assert not faltan, f'librerías de terceros en los guiones de DIgSILENT: {faltan}'
+    raiz = os.path.normcase(str(RAIZ))
+    return sorted({Path(linea) for linea in salida.splitlines()
+                   if os.path.normcase(linea).startswith(raiz) and 'site-packages' not in linea})
+
+
+def test_103_rf5_los_guiones_cargan_con_python_39():
+    """103:RF-5 — sin sintaxis ni funciones posteriores a 3.9 y sin más librerías de terceros que numpy."""
+    cierre = _cierre_de_los_guiones()
+    assert len(cierre) > len(GUIONES_PF)
+    # compat_pf usa los nativos solo en 3.10 o posterior: es el único sitio donde pueden ir.
+    usadas = [f'{f.relative_to(RAIZ)}: {p.pattern}' for f in cierre if f.name != 'compat_pf.py' for p in POSTERIORES_A_39
+              if p.search(f.read_text(encoding='utf-8'))]
+    assert not usadas, usadas
+    ruff = Path(sys.executable).with_name('ruff.exe' if os.name == 'nt' else 'ruff')
+    if ruff.is_file():
+        r = subprocess.run([str(ruff), 'check', '--target-version', 'py39', '--select', 'F401', '--output-format', 'concise',
+                            *map(str, cierre)], capture_output=True, text=True, check=False)
+        assert 'invalid-syntax' not in r.stdout, r.stdout
+
+
+def test_103_rf5_cargan_de_verdad_con_un_python_39():
+    """103:RF-5 — con el Python 3.9 real (el embebido de python.org), cada guion carga; numpy va con el instalador."""
+    py39 = os.environ.get('CSG_PF_PYTHON_39') or ''
+    if not Path(py39).is_file():
+        py39 = str(pe.interprete_para('3.9')[0] or '')
+    if not Path(py39).is_file():
+        pytest.skip('sin intérprete Python 3.9: CSG_PF_PYTHON_39 (embebido oficial de python.org)')
+    fallan = []
+    for guion in GUIONES_PF:
+        codigo = (f"import sys; sys.path[:0] = [{str(RAIZ / 'src')!r}, {str(RAIZ / 'tools')!r}]\n"
+                  f'try:\n    import {guion.stem}\n'
+                  "except ModuleNotFoundError as exc:\n    if exc.name != 'numpy': raise\n")
+        r = subprocess.run([py39, '-c', codigo], capture_output=True, text=True, check=False)
+        if r.returncode:
+            fallan.append(f'{guion.stem}: {(r.stderr.strip().splitlines() or ["?"])[-1]}')
+    assert not fallan, fallan
+
+
+def test_103_rf5_compatibilidad_de_pairwise_y_zip_estricto():
+    """103:RF-5 — los equivalentes dan lo mismo que los nativos y el estricto falla con largos distintos."""
+    from convertersmartgrid.compat_pf import pairwise, zip_estricto
+    assert list(pairwise([1, 2, 3])) == [(1, 2), (2, 3)] and list(pairwise([])) == []
+    assert list(zip_estricto([1, 2], 'ab')) == [(1, 'a'), (2, 'b')]
+    with pytest.raises(ValueError):
+        list(zip_estricto([1, 2], 'a'))
+
+
+# ------------------------------------------------------------------ 103:RF-3
+
+def test_103_rf3_la_eleccion_del_operador_se_recuerda(maquina, tmp_path, monkeypatch):
+    """103:RF-3 — la más nueva que funciona por defecto; la elegida, recordada; PF_PYTHON por encima de todo."""
+    encontradas = pe.instalaciones(raices=maquina, registro=())
+    monkeypatch.delenv('PF_PYTHON', raising=False)
+    monkeypatch.setattr(pe, 'instalaciones', lambda *a, **k: encontradas)
+    monkeypatch.setattr(pe, 'interprete_para', _interpretes('3.12', '3.9'))
+    monkeypatch.setattr(pe, 'ruta_eleccion', lambda: tmp_path / 'config' / 'powerfactory.json')
+    assert pe.pf_python_dir() == encontradas[0].carpeta / 'Python' / '3.12'           # la 2025, por su 3.12
+    antigua = encontradas[3].carpeta / 'Python' / '3.9'
+    pe.guardar_eleccion(antigua)
+    assert pe.pf_python_dir() == antigua
+    monkeypatch.setenv('PF_PYTHON', str(encontradas[1].apis[0]))
+    assert pe.pf_python_dir() == encontradas[1].apis[0]
+    monkeypatch.delenv('PF_PYTHON')
+    pe.guardar_eleccion(None)
+    assert pe.pf_python_dir() == encontradas[0].carpeta / 'Python' / '3.12'
+    # Una elección que ya no existe (se desinstaló) no se usa.
+    (tmp_path / 'config' / 'powerfactory.json').write_text('{"carpeta_api": "Z:/no/existe/Python/3.9"}', encoding='utf-8')
+    assert pe.pf_python_dir() == encontradas[0].carpeta / 'Python' / '3.12'
+
+
+def test_103_rf3_la_web_lista_y_elige(maquina, tmp_path, monkeypatch):
+    """103:RF-3 — la web lista las encontradas, acepta una de ellas y rechaza una carpeta ajena."""
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.web.app import create_app
+    encontradas = pe.instalaciones(raices=maquina, registro=())
+    monkeypatch.delenv('PF_PYTHON', raising=False)
+    monkeypatch.setattr(pe, 'instalaciones', lambda *a, **k: encontradas)
+    monkeypatch.setattr(pe, 'interprete_para', _interpretes('3.12', '3.9'))
+    monkeypatch.setattr(pe, 'python_for_pf', lambda d: _interpretes('3.12', '3.9')(d.name))
+    monkeypatch.setattr(pe, 'ruta_eleccion', lambda: tmp_path / 'config' / 'powerfactory.json')
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    from convertersmartgrid.web import services
+    monkeypatch.setattr(services, 'pf_python_dir', pe.pf_python_dir)
+    monkeypatch.setattr(services, 'python_for_pf', pe.python_for_pf)
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        r = c.get('/api/powerfactory/instalaciones').json()
+        assert [i['nombre'] for i in r['instalaciones']][0] == 'PowerFactory 2025' and r['eleccion'] is None
+        antigua = str(encontradas[3].carpeta / 'Python' / '3.9')
+        r = c.post('/api/powerfactory/instalaciones', json={'carpeta_api': antigua}).json()
+        assert r['eleccion'] == antigua and r['en_uso'] == antigua
+        assert c.post('/api/powerfactory/instalaciones', json={'carpeta_api': 'C:/otra/Python/3.12'}).status_code == 422
+        assert c.post('/api/powerfactory/instalaciones', json={'carpeta_api': None}).json()['eleccion'] is None

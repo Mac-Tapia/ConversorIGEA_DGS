@@ -190,8 +190,36 @@ def elegir_api(inst: InstalacionPF, interprete: Callable[[str], tuple[Path | Non
     return None
 
 
+def ruta_eleccion() -> Path:
+    """103:RF-3: la PowerFactory elegida en esta máquina, en la carpeta local, que una actualización no borra (086:RF-38)."""
+    from .runtime_paths import raiz_local
+    return raiz_local() / 'config' / 'powerfactory.json'
+
+
+def eleccion_guardada() -> Path | None:
+    """La carpeta de la API que eligió el operador, si sigue instalada con su extensión; si no, ninguna."""
+    import json
+    try:
+        datos = json.loads(ruta_eleccion().read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    carpeta = Path(str(datos.get('carpeta_api') or ''))
+    return carpeta if str(carpeta) not in ('', '.') and (carpeta / 'powerfactory.pyd').is_file() else None
+
+
+def guardar_eleccion(carpeta_api: Path | None) -> None:
+    """103:RF-3: recuerda la elección del operador; ``None`` vuelve a la más nueva que funcione."""
+    import json
+    ruta = ruta_eleccion()
+    if carpeta_api is None:
+        ruta.unlink(missing_ok=True)
+        return
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(json.dumps({'carpeta_api': str(carpeta_api)}, ensure_ascii=False) + '\n', encoding='utf-8')
+
+
 def pf_python_dir() -> Path | None:
-    """La carpeta de la API que se usa: ``PF_PYTHON`` si se fija; si no, la de la PowerFactory más nueva que funciona.
+    """La carpeta de la API que se usa: ``PF_PYTHON``; la elegida por el operador; la de la más nueva que funciona.
 
     103:RF-3: sin ninguna que funcione, la carpeta más alta de la más nueva, para que el diagnóstico diga qué falta.
     """
@@ -199,6 +227,9 @@ def pf_python_dir() -> Path | None:
     if env:
         path = Path(env)
         return path if path.is_dir() else None
+    elegida = eleccion_guardada()
+    if elegida is not None:
+        return elegida
     encontradas = instalaciones()
     for inst in encontradas:
         elegida = elegir_api(inst)

@@ -246,10 +246,30 @@ export type ResumenEspacio = components['schemas']['ResumenEspacioRespuesta'];
 export interface PowerFactoryStatus {
   api_dir: string | null;
   api_version: string | null;
+  /** 103:RF-3: «PowerFactory 2024», no la versión de Python de su API. */
+  instalacion?: string | null;
   interpreter: string | null;
   interpreter_reason: string;
   running_python: string;
   available: boolean;
+}
+
+export interface InstalacionPowerFactory {
+  nombre: string;
+  carpeta: string;
+  version: number[];
+  apis: string[];
+  api: string | null;
+  interprete: string | null;
+  motivo: string;
+}
+
+/** 103:RF-3: las PowerFactory encontradas en la máquina y cuál se usa. */
+export interface InstalacionesPowerFactory {
+  instalaciones: InstalacionPowerFactory[];
+  eleccion: string | null;
+  en_uso: string | null;
+  fijada_por_variable: boolean;
 }
 
 // El sobre se genera; result depende de kind y conserva los informes nativos variables.

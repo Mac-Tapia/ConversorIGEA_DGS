@@ -8,6 +8,7 @@ import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
 import { CargasTab } from '../features/powerfactory/CargasTab';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
 import { InputsPanel } from '../features/conversion/InputsPanel';
+import { InstalacionesPowerFactoryModal } from './InstalacionesPowerFactory';
 import { JobBar } from './JobBar';
 import { LogPanel } from './LogPanel';
 import { MarcaBeta } from '../shared/MarcaBeta';
@@ -123,6 +124,7 @@ export default function App() {
   const confirm = useConfirm();
   const [health, setHealth] = useState<Health | null>(null);
   const [pf, setPf] = useState<PowerFactoryStatus | null>(null);
+  const [verPf, setVerPf] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>(() => {
     const solicitado = new URLSearchParams(window.location.search).get('panel');
@@ -228,9 +230,13 @@ export default function App() {
             <Pill tone={caps.geography ? 'ok' : 'muted'} title="pyproj">GPS</Pill>
             <Pill tone={caps.xlsx ? 'ok' : 'muted'} title="pandas + openpyxl">Excel</Pill>
             <Pill tone={caps.access ? 'ok' : 'muted'} title="pyodbc">Access</Pill>
-            <Pill tone={pf?.available ? 'ok' : 'muted'} title={pf ? `${pf.api_dir ?? 'sin API'} · ${pf.interpreter_reason}` : 'comprobando…'}>
-              PowerFactory{pf?.api_version ? ` ${pf.api_version}` : ''}
-            </Pill>
+            {/* 103:RF-3: la instalación en uso; al pulsarla, las encontradas y la elección del operador. */}
+            <button type="button" className="pill-boton" onClick={() => setVerPf(true)}
+              title={pf ? `${pf.api_dir ?? 'sin API'} · ${pf.interpreter_reason} · pulse para elegir otra` : 'comprobando…'}>
+              <Pill tone={pf?.available ? 'ok' : 'muted'}>
+                {pf?.instalacion ?? 'PowerFactory'}{pf?.api_version ? ` · Python ${pf.api_version}` : ''}
+              </Pill>
+            </button>
           </div>
           <div className="ws-id">
             <span className="muted small" title={w.state.id}>Espacio {w.state.id.slice(0, 6)}</span>
@@ -289,6 +295,8 @@ export default function App() {
         <LogPanel lines={w.log} onClear={() => w.setLog([])} connected={w.connected} />
       </div>
       {summary && <JobSummary job={summary} onClose={() => setSummary(null)} />}
+      {verPf && <InstalacionesPowerFactoryModal onClose={() => setVerPf(false)}
+        onCambio={() => { api.powerfactory(true).then(setPf).catch(() => undefined); }} />}
     </Ctx.Provider>
   );
 }

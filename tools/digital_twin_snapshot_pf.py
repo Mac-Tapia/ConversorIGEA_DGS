@@ -26,6 +26,7 @@ from pathlib import Path
 from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de
 from estudios_pf import _num, medida
 
+from convertersmartgrid.compat_pf import zip_estricto
 from convertersmartgrid.digital_twin.contratos_fisicos import (
     APROXIMACIONES,
     CLASES_NO_REPRESENTADAS,
@@ -105,10 +106,10 @@ def _red(app, raiz: str) -> tuple[list[str], list[tuple[str, str, bool]], list[s
     su nombre y su tensión nominal."""
     barras = list(app.GetCalcRelevantObjects('*.ElmTerm'))
     ids = [identidad_nativa('ElmTerm', clave_pf(b), raiz) for b in barras]
-    info = {i: {'nombre': b.loc_name, 'kv': _num(b, 'uknom')} for i, b in zip(ids, barras, strict=True)}
+    info = {i: {'nombre': b.loc_name, 'kv': _num(b, 'uknom')} for i, b in zip_estricto(ids, barras)}
     extremos: dict[str, list] = {}
     objetos = {}
-    for barra, ident in zip(barras, ids, strict=True):
+    for barra, ident in zip_estricto(barras, ids):
         for cub in barra.GetContents('*.StaCubic') or []:
             o = getattr(cub, 'obj_id', None)
             if o is None or o.GetClassName() not in ('ElmLne', 'ElmCoup'):
