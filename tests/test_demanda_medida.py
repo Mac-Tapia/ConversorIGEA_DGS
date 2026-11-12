@@ -753,6 +753,22 @@ def test_cruce_por_codigo_actual_y_si_no_por_el_anterior(tmp_path):
     assert {c.codigo: c.cruzado_por for c in cruzados} == {'9011': 'actual', '14': 'anterior'}
 
 
+def test_nombre_del_cliente_desde_suministros(tmp_path):
+    """004:RF-71 — el libro mensual sin nombre (formato antiguo) toma el de suministros; el del libro mensual manda."""
+    sums, _ = dm.leer_suministros(_suministros(tmp_path))
+    assert [s.nombre for s in sums] == ['C1', 'C2', 'C3', 'C4']
+    antiguos, _ = dm.leer_clientes(_libro(tmp_path / 'ci.xlsx', FORMATO_ANTIGUO))
+    assert {c.nombre for c in antiguos} == {''}
+    cruzados, _ = dm.cruzar(antiguos, sums)
+    assert {c.codigo: c.nombre for c in cruzados} == {'11': 'C1', '9012': 'C2'}
+    nuevos, _ = dm.leer_clientes(_libro(tmp_path / 'cn.xlsx', FORMATO_NUEVO))
+    from dataclasses import replace
+
+    con_nombre = [replace(c, nombre=f'del libro {c.codigo}') for c in nuevos]
+    cruzados, _ = dm.cruzar(con_nombre, sums)
+    assert {c.codigo: c.nombre for c in cruzados} == {'9011': 'del libro 9011', '14': 'del libro 14'}
+
+
 def test_clientes_sin_filtrar_por_alimentador(tmp_path):
     """004:RF-36 — se cruzan todos los clientes del libro, de cualquier radial."""
     sums, _ = dm.leer_suministros(_suministros(tmp_path))

@@ -303,6 +303,10 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   (`calibracion.factor_potencia_cargas`) y lo dirá en un aviso con la Q que resulta; sin ese FP en el perfil, la Q queda en
   cero y también se avisa. Usuario (2026-11-07): con Q = 0 las tensiones de una carga nueva salían optimistas; ningún FP
   se supone sin perfil (constitución, P13).
+- RF-71: CUANDO la hoja resumen del libro de clientes no traiga el nombre del cliente, EL SISTEMA tomará el de la columna
+  del nombre del cliente del libro de suministros (`nombre_cliente`) del suministro con que cruzó; el del libro mensual, si
+  lo trae, manda. Cambia RF-57: la celda queda vacía solo si ninguno de los dos lo trae. (Usuario, 2026-11-12: la tabla
+  cruzada de PA217 mostraba «—» en «Cliente».)
 
 ## Requisitos no funcionales
 
