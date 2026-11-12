@@ -1043,6 +1043,10 @@ PUERTA = {'version': 1, 'mejora_wape': .02, 'cobertura': (.85, .95), 'maxima_no_
 ORIGENES_MODELOS = 6
 #: Registros entre dos ventanas de entrenamiento de las redes: una por día (089:RF-91).
 PASO_VENTANAS = 96
+#: Tope del lote por red (089:RF-92): la atención de TFT sobre 28 + 28 días no cabe en 8 GB con más de una serie por lote.
+LOTE_MAXIMO = {'tft': 1}
+#: Redes que entrenan sin el escalado de la librería (089:RF-93): el resto ya va en la escala de su objetivo.
+SIN_ESCALADO = ('itransformer',)
 
 
 def _covariables(t: np.ndarray, exogenas: Exogenas | None, hasta: np.datetime64) -> np.ndarray:
@@ -1117,7 +1121,7 @@ class ModeloRed:
         from .digital_twin.oraculo import dispositivo
 
         dispositivo()                                   # sin CUDA, SinGPU antes de cargar nada (046:RF-15)
-        self.nombre, self.pasos, self.lote, self.semilla = nombre, pasos, lote, semilla
+        self.nombre, self.pasos, self.lote, self.semilla = nombre, pasos, min(lote, LOTE_MAXIMO.get(nombre, lote)), semilla
         self.contexto_dias, self.ajustes = contexto_dias, ajustes
         self.nf = None
 
@@ -1135,6 +1139,10 @@ class ModeloRed:
         # 089:RF-91: la librería copia en la GPU todas las ventanas de cada serie del lote. Con una por registro, 28 días de
         # contexto y 28 de horizonte, N-HiTS pidió 285 GiB en la cabecera (2026-11-12); con una por día caben en 8 GB.
         kw['step_size'] = PASO_VENTANAS
+        if self.nombre in SIN_ESCALADO:
+            # 089:RF-93: iTransformer ve las 87 series a la vez y el escalado robusto de las que aún no empiezan, sin datos en la
+            # ventana, dio «Loss is NaN» en la cabecera (2026-11-12). El resto ya está dividido por la escala de su objetivo.
+            kw['scaler_type'] = 'identity'
         kw.update(self.ajustes)
         self.con_calendario = self.nombre in CON_CALENDARIO
         if not self.con_calendario:
