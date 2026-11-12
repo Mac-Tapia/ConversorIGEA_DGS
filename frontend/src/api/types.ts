@@ -245,6 +245,9 @@ export interface PerfilEmpresa {
 export type Health = components['schemas']['HealthRespuesta'];
 export type Diagnostico = components['schemas']['DiagnosticoRespuesta'];
 export type ResumenEspacio = components['schemas']['ResumenEspacioRespuesta'];
+// Spec 104: los libros nuevos de demanda que la web reconoce sola.
+export type LibrosNuevos = components['schemas']['LibrosNuevosRespuesta'];
+export type RevisarLibros = components['schemas']['RevisarLibrosRespuesta'];
 
 export interface PowerFactoryStatus {
   api_dir: string | null;

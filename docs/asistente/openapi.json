@@ -613,6 +613,64 @@
         "title": "AutoEntradasRespuesta",
         "type": "object"
       },
+      "AvisoLibroRespuesta": {
+        "additionalProperties": false,
+        "description": "104:RF-20: lo que se dijo de un libro nuevo; ``ficha`` es la verificación entera.",
+        "properties": {
+          "cuando": {
+            "title": "Cuando",
+            "type": "number"
+          },
+          "ficha": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ficha"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "libro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Libro"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "visto": {
+            "title": "Visto",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "texto",
+          "cuando",
+          "visto"
+        ],
+        "title": "AvisoLibroRespuesta",
+        "type": "object"
+      },
       "BetaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -3828,6 +3886,74 @@
         "title": "LibroClienteRespuesta",
         "type": "object"
       },
+      "LibrosNuevosRespuesta": {
+        "additionalProperties": false,
+        "description": "104:RF-1, RF-2, RF-20 a RF-23: avisos sin ver, revisiones y estado del dataset del pronóstico.",
+        "properties": {
+          "avisos": {
+            "items": {
+              "$ref": "#/components/schemas/AvisoLibroRespuesta"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "intervalo_min": {
+            "title": "Intervalo Min",
+            "type": "number"
+          },
+          "proxima_revision": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proxima Revision"
+          },
+          "repetidos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Repetidos",
+            "type": "array"
+          },
+          "ultima_revision": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima Revision"
+          }
+        },
+        "required": [
+          "avisos",
+          "ultima_revision",
+          "proxima_revision",
+          "intervalo_min",
+          "repetidos",
+          "dataset"
+        ],
+        "title": "LibrosNuevosRespuesta",
+        "type": "object"
+      },
       "NoDisponibleRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5484,6 +5610,30 @@
           "estado"
         ],
         "title": "ResumenEspacioRespuesta",
+        "type": "object"
+      },
+      "RevisarLibrosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "estado": {
+            "$ref": "#/components/schemas/LibrosNuevosRespuesta"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "estado",
+          "job"
+        ],
+        "title": "RevisarLibrosRespuesta",
         "type": "object"
       },
       "RevisionEquipoIn": {
@@ -9772,6 +9922,135 @@
           }
         },
         "summary": "Demanda Excel"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/libros-nuevos": {
+      "get": {
+        "description": "104:RF-20, RF-22: los avisos de los libros nuevos y el estado del dataset del pronóstico.",
+        "operationId": "libros_nuevos_estado_api_workspaces__wid__demanda_libros_nuevos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibrosNuevosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Libros Nuevos Estado"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/libros-nuevos/avisos/{aviso_id}/visto": {
+      "post": {
+        "description": "104:RF-21.",
+        "operationId": "libros_nuevos_visto_api_workspaces__wid__demanda_libros_nuevos_avisos__aviso_id__visto_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aviso_id",
+            "required": true,
+            "schema": {
+              "title": "Aviso Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibrosNuevosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Libros Nuevos Visto"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/libros-nuevos/revisar": {
+      "post": {
+        "description": "104:RF-1, RF-4: la misma revisión que la periódica, cuando la pide el operador.",
+        "operationId": "libros_nuevos_revisar_api_workspaces__wid__demanda_libros_nuevos_revisar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisarLibrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Libros Nuevos Revisar"
       }
     },
     "/api/workspaces/{wid}/demanda/medidores": {

@@ -582,3 +582,28 @@ class SalidasRedRespuesta(Respuesta):
 class CambiarSalidaPeticion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     encendida: bool
+# --------------------------------------------------------------------------- spec 104: libros nuevos de demanda
+class AvisoLibroRespuesta(Respuesta):
+    """104:RF-20: lo que se dijo de un libro nuevo; ``ficha`` es la verificación entera."""
+    id: str
+    tipo: str
+    libro: str | None = None
+    texto: str
+    cuando: float
+    visto: bool
+    ficha: dict[str, Any] | None = None
+
+
+class LibrosNuevosRespuesta(Respuesta):
+    """104:RF-1, RF-2, RF-20 a RF-23: avisos sin ver, revisiones y estado del dataset del pronóstico."""
+    avisos: list[AvisoLibroRespuesta]
+    ultima_revision: float | None
+    proxima_revision: float | None
+    intervalo_min: float
+    repetidos: list[str]
+    dataset: dict[str, Any] | None
+
+
+class RevisarLibrosRespuesta(Respuesta):
+    estado: LibrosNuevosRespuesta
+    job: JobRespuesta | None

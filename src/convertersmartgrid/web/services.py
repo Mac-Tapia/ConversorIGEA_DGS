@@ -2628,16 +2628,9 @@ def _foto_fuente_clientes(path: Path) -> tuple[tuple[str, int, int], ...]:
     Con sus subcarpetas de año (025:RF-1, RF-31): un libro nuevo en ``2025/`` también
     cambia la foto.
     """
-    from ..demanda_medida import EXTENSIONES
-    from ..libros_por_anio import arbol_de_libros
+    from ..libros_nuevos import foto_de_fuente
 
-    if path.is_file():
-        rutas = [(path, path.name)] if path.suffix.lower() in EXTENSIONES else []
-    elif path.is_dir():
-        rutas = [(x.ruta, x.relativa) for x in arbol_de_libros(path)]
-    else:
-        return ()
-    return tuple((rel, p.stat().st_size, p.stat().st_mtime_ns) for p, rel in rutas)
+    return foto_de_fuente(path)       # 104:RF-1: la misma foto que compara el reconocimiento
 
 
 def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
@@ -2659,6 +2652,13 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
             fuente, perfil_de(ws).patron_libro_clientes, meta.get('asignaciones') or {})
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    # 104:RF-16: el libro que repite otro mes queda inactivo también al reindexar a mano.
+    from dataclasses import replace as _reemplazar
+
+    from ..libros_nuevos import libros_repetidos
+    repetidos = libros_repetidos(ws.root / 'demanda')
+    catalogo = [_reemplazar(x, activo=False, avisos=(*x.avisos, repetidos[x.nombre])) if x.nombre in repetidos else x
+                for x in catalogo]
     ctx.check_cancel()
     foto_final = _foto_fuente_clientes(fuente)
     vigente = foto_final == foto_inicial

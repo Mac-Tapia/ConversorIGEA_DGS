@@ -2,7 +2,7 @@ import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaD
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
-  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
+  ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
   status: number;
@@ -222,6 +222,12 @@ export const api = {
   // Spec 025, RF-28 y RF-32: el índice por año de la medición de cabecera, como trabajo.
   demandaCabeceraIndexar: (id: string) =>
     request<Job>(`${ws(id)}/demanda/cabecera/indexar`, { method: 'POST' }),
+  // Spec 104: lo que la web reconoció sola en las carpetas de demanda, y la revisión a pedido.
+  librosNuevos: (id: string) => request<LibrosNuevos>(`${ws(id)}/demanda/libros-nuevos`),
+  librosNuevosRevisar: (id: string) =>
+    request<RevisarLibros>(`${ws(id)}/demanda/libros-nuevos/revisar`, { method: 'POST' }),
+  librosNuevosVisto: (id: string, aviso: string) =>
+    request<LibrosNuevos>(`${ws(id)}/demanda/libros-nuevos/avisos/${enc(aviso)}/visto`, { method: 'POST' }),
   demandaQuitar: (id: string, tipo: DemandaTipo) =>
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
   demandaMedidores: (id: string, alimentador: string) =>

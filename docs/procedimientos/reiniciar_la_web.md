@@ -4,7 +4,7 @@ Cuándo: después de cambiar el código de la web o el del conversor que la web 
 («reiniciarla: parar»)). Los guiones de `tools/` no hacen falta: el servidor de DIgSILENT los vuelve a cargar en cada orden.
 
 1. Comprobar que no hay trabajos en curso en ningún espacio. Si hay uno que deba pararse, se cancela por la web con
-   `POST /api/jobs/<id>/cancel` (`src/convertersmartgrid/web/app.py:1492` («/api/jobs/{job_id}/cancel»)); parar un cliente no
+   `POST /api/jobs/<id>/cancel` (`src/convertersmartgrid/web/app.py:1525` («/api/jobs/{job_id}/cancel»)); parar un cliente no
    para el trabajo (`CLAUDE.md:189` («POST /api/jobs/<id>/cancel»)).
 2. **Lo hace el operador:** parar el proceso que escucha en el puerto 8765 y abrir el acceso directo «ConverterSmartGrid» del
    escritorio (`CLAUDE.md:187` («abrir el acceso directo»)). El asistente no cierra procesos ni abre accesos directos: se lo pide
