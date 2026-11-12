@@ -133,6 +133,9 @@ Modelos
 
 - RF-89: CUANDO se pida entrenar por alimentador (`tools/entrenar_alimentadores_gpu.py`), EL SISTEMA entrenará uno tras otro, en la GPU, los alimentadores pedidos o todos los del libro de equivalencia, con los libros que se le den por argumento y sin rutas fijas; liberará la memoria de la GPU entre uno y otro y retomará los ya entrenados con el mismo modelo. (2026-11-10: el guion de otra sesión fijaba las rutas de los libros de la distribuidora.)
 - RF-90: SI un alimentador falla al entrenar, ENTONCES EL SISTEMA seguirá con los demás, lo dirá en el resumen y terminará con código 1; uno sin historia suficiente queda `SIN_HISTORIA` con su motivo. No elige ni promociona modelos: eso es de la competición con su puerta.
+- RF-91: CUANDO entrene una red de neuralforecast, EL SISTEMA tomará como mucho una ventana de entrenamiento por día (un paso de 96 registros de 15 minutos) para que las ventanas que la librería copia en la GPU quepan en una tarjeta de 8 GB. (2026-11-12: N-HiTS con 28 días de contexto y de horizonte, una ventana por registro, pidió 285 GiB en la cabecera.)
+- RF-92: DONDE una red no quepa en la GPU con el lote pedido, EL SISTEMA le pondrá su tope de lote y lo dirá en el código, en vez de dejarla en `ERROR_ENTORNO` en cada corrida. (2026-11-12: TFT, con 28 días de contexto y de horizonte, no cupo en 4,8 GB ni con lote 4; con lote 1 entrena con 3 GiB.)
+- RF-93: CUANDO entrene iTransformer, EL SISTEMA lo hará sin el escalado de la librería, porque el resto ya va dividido por la escala de su objetivo. (2026-11-12: con el escalado robusto, las series sin datos en la ventana dieron «Loss is NaN».)
 
 ## Fuera de alcance
 

@@ -369,3 +369,20 @@ def test_acoplador_sigue_siendo_acoplador():
     sis = orc.sistema_de(m)
     assert sis.indice[pos['S1']] == sis.indice[pos['S1b']]
     assert np.abs(m.z).min() < Z_ACOPLADOR
+
+
+def test_sin_barras_que_cumplir_el_balance_la_fisica_es_cero_y_no_nan():
+    """045:RF-6 — una red sin barras libres (la fuente y lo que cuelga de ella por acopladores) no tiene residuo que medir.
+
+    Ciclo del 2026-11-12: cinco episodios de TM102 sin barras libres daban en PyTorch la media de nada, NaN, y la pérdida de
+    la época salía «nan» en los tres miembros; ``perdidas_fisicas`` daba 0 para la misma muestra.
+    """
+    torch = pytest.importorskip('torch')
+    g = _grafo({'S': _fuente(1.0), 'A': _nodo(0.1, 0.02)}, [_acoplador('K', 'S', 'A')])
+    m = orc.muestra(g, {'S': 1.0, 'A': 1.0})
+    assert not orc.barras_electricas(m)[2].any(), 'la prueba necesita una red sin barras libres'
+    f = orc._fisica(m, torch.device('cpu'), 0.0, dtype=torch.float64)
+    v, th = torch.ones(len(m.ids), dtype=torch.float64), torch.zeros(len(m.ids), dtype=torch.float64)
+    t = orc._terminos_torch(f, v, th, torch.tensor(m.v), torch.tensor(m.mascara))
+    n = orc.perdidas_fisicas({'v': v.numpy(), 'theta': th.numpy()}, m, pesos={'datos': 1.0, 'fisica': 1.0, 'fronteras': 1.0})
+    assert torch.isfinite(t['fisica']) and float(t['fisica']) == n['fisica'] == 0.0
