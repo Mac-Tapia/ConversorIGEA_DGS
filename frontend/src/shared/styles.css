@@ -299,7 +299,7 @@ small.alert { display: block; margin: 4px 0 0; }
 }
 .curva-franja { fill: var(--warn-soft); }
 .curva-rejilla { stroke: var(--border); stroke-width: 1; }
-.curva-texto { fill: var(--muted); font-size: 12px; }
+.curva-texto { fill: var(--muted); font-size: calc(11.5px * var(--escala, 1)); }
 .perfil-limite { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
 .perfil-punto { fill: var(--primary); }
 .perfil-punto-bajo { fill: var(--error); }

@@ -388,6 +388,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/api/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
 | `frontend/src/features/powerfactory/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
+| `frontend/src/features/powerfactory/tensionFuente.ts` | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. | 021 (RF-79 a RF-82) |
 | `frontend/src/shared/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |
 | `frontend/src/api/client.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39), 025 (RF-28), 039 (RF-1, RF-5), 061 (RF-2, RF-5) |

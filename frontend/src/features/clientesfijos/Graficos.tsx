@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { evolucionFijas, type CurvaClienteFijo } from '../../api/evolucionFijas';
 import { fmtNum } from '../../shared/formato';
-import { colorSerie, marcas, tramos } from '../../shared/graficos';
+import { colorSerie, marcas, tramos, useLetraFija } from '../../shared/graficos';
 import { fmtInstante, nombreMes, reducir, type SerieMensual } from './datosTablero';
 
 const W = 1000;
@@ -28,6 +28,7 @@ export function GraficoMensual({ titulo, unidad, meses, series }: {
         puntos: s.valores.map((v, i) => (v == null ? null : { x: sx(i), y: sy(v), v })) })),
     };
   }, [visibles, meses, series]);
+  const [letra, estiloLetra] = useLetraFija(W);
   const conmutar = (clave: string) => setOcultas((o) => {
     const n = new Set(o);
     if (!n.delete(clave)) n.add(clave);
@@ -45,7 +46,7 @@ export function GraficoMensual({ titulo, unidad, meses, series }: {
         ))}
       </div>
       {!g ? <p className="muted">Sin datos que dibujar.</p> : (
-        <svg className="curva-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${titulo} de ${meses.length} meses`}>
+        <svg ref={letra} className="curva-svg" style={estiloLetra} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${titulo} de ${meses.length} meses`}>
           {g.ejeY.map((m) => (
             <g key={m.texto}>
               <line className="curva-rejilla" x1={M.l} x2={W - M.r} y1={m.y} y2={m.y} />
@@ -113,6 +114,7 @@ export function CurvaCliente({ wsId, cliente }: { wsId: string; cliente: string 
       reducida: pts.length < curva.puntos.length,
     };
   }, [curva]);
+  const [letra, estiloLetra] = useLetraFija(W);
   if (error) return <p className="alert alert-error">{error}</p>;
   if (!curva) return <p className="muted">Cargando la curva de {cliente}…</p>;
   if (!g) return <p className="muted">{cliente} no tiene registros.</p>;
@@ -121,7 +123,7 @@ export function CurvaCliente({ wsId, cliente }: { wsId: string; cliente: string 
       <span className="curva-leyenda small">
         <i className="curva-muestra curva-muestra-kw" /> P (kW) <i className="curva-muestra curva-muestra-kvar" /> Q (kVAR)
       </span>
-      <svg className="curva-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+      <svg ref={letra} className="curva-svg" style={estiloLetra} viewBox={`0 0 ${W} ${H}`} role="img"
         aria-label={`Curva de 15 minutos de ${cliente}; máxima ${fmtNum(g.pico.v, 1)} kW el ${fmtInstante(g.pico.t)}`}>
         {g.ejeY.map((m) => (
           <g key={m.texto}>

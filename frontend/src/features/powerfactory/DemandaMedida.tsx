@@ -739,12 +739,15 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <div className="table-wrap table-short">
           <table className="table">
             <thead><tr><th>Alimentador</th><th>Medidor</th><th>Fecha y hora del kW máx.</th><th className="num">kW máx.</th>
-              <th className="num">kVAR</th><th className="num">kVA</th><th className="num">FP</th><th>Libro › hoja</th></tr></thead>
+              <th className="num">kVAR</th><th className="num">kVA</th><th className="num">FP</th>
+              <th className="num" title="Tensión de línea del mismo registro (021:RF-71)">V (kV)</th>
+              <th className="num" title="En pu de la tensión nominal del alimentador (021:RF-75)">V (pu)</th>
+              <th>Libro › hoja</th></tr></thead>
             <tbody>{cabecera.map((r) => (
               <tr key={`${r.alimentador}-${r.medidor}`}>
                 <td>{r.alimentador || '—'}</td>
                 <td className="strong">{r.medidor}</td>
-                {r.error ? <td colSpan={6} className="alert-error small">{r.error}</td> : <>
+                {r.error ? <td colSpan={8} className="alert-error small">{r.error}</td> : <>
                   <td className="mono">{r.fecha}
                     {/* 013:RF-14: junto a la del mes, la del periodo entero y su mes. */}
                     {r.maxima_periodo && (
@@ -755,6 +758,12 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
                   <td className="num" title={r.kva_calculado ? 'Calculado con kW y kVAR' : undefined}>
                     {fmtNum(r.kva, 2)}{r.kva_calculado ? ' *' : ''}</td>
                   <td className="num" title={r.columnas.fp}>{fp(r.fp)}{r.fp_calculado ? ' *' : ''}</td>
+                  {/* 021:RF-77: la tensión del mismo instante; sin ella o sin nominal, el porqué. */}
+                  <td className="num" title={r.tension_columna ?? r.tension_aviso ?? undefined}>
+                    {r.tension_kv == null ? '—' : fmtNum(r.tension_kv, 3)}</td>
+                  <td className="num" title={r.tension_aviso ?? (r.tension_nominal_kv ? `de ${fmtNum(r.tension_nominal_kv, 1)} kV nominales` : undefined)}>
+                    {r.tension_pu == null ? '—' : fmtNum(r.tension_pu, 4)}
+                    {r.tension_aviso && <div className="muted small">{r.tension_aviso}</div>}</td>
                 </>}
                 <td className="small">{r.libro ? `${r.libro} › ${r.hojas.join(', ')}` : ''}
                   {r.avisos.length > 0 && <div className="muted">{r.avisos.join(' · ')}</div>}</td>
@@ -783,7 +792,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
             <small className="alert alert-info">Todos los medidores, también los de una central, en el
               registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno (021:RF-50).</small>
           )}
-          <small className="muted">kVAR, kVA y FP son del mismo registro que el kW máximo. * calculado con kW y kVAR.
+          <small className="muted">kVAR, kVA, FP y la tensión son del mismo registro que el kW máximo; la tensión en pu, de
+            la nominal del alimentador en la conversión, va a su fuente en 2.4. * calculado con kW y kVAR.
             {ultimo?.status === 'cancelled' ? ' Cancelado: faltan medidores.' : ''}</small>
         </div>
       )}
@@ -1128,7 +1138,8 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
       <strong>Máxima por barra de SET{conAlta ? ': instante de la barra de alta tensión' : ''}</strong>
       <table className="small">
         <thead><tr><th>SET</th><th>Barra</th><th>Medidores (transformador)</th><th>Fecha y hora</th>
-          <th>kW</th><th>kVAR</th><th>Centrales térmicas (CT)</th><th>Alimentadores (en esa fecha)</th></tr></thead>
+          <th>kW</th><th>kVAR</th><th title="Tensión de la barra en esa fecha y hora, media de sus medidores (021:RF-78)">V (kV)</th>
+          <th>V (pu)</th><th>Centrales térmicas (CT)</th><th>Alimentadores (en esa fecha)</th></tr></thead>
         <tbody>{filas.map((b) => (
           <tr key={b.clave}>
             <td>{b.set}</td>
@@ -1139,6 +1150,9 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
             <td>{b.fecha}</td>
             <td className="num">{b.kw === null ? 'sin registro' : fmtNum(b.kw, 1)}</td>
             <td className="num">{b.kvar === null ? '—' : fmtNum(b.kvar, 1)}</td>
+            <td className="num" title={[b.tension_columna, ...(b.tension_avisos ?? [])].filter(Boolean).join(' · ') || undefined}>
+              {b.tension_kv == null ? '—' : fmtNum(b.tension_kv, 3)}</td>
+            <td className="num">{b.tension_pu == null ? '—' : fmtNum(b.tension_pu, 4)}</td>
             <td>{b.centrales.map((c) => `${c.medidor} ${c.kw === null ? '—' : fmtNum(c.kw, 1)} kW`).join('; ') || '—'}</td>
             <td>{b.alimentadores.join(', ') || '—'}</td>
           </tr>

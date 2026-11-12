@@ -825,6 +825,29 @@ export interface MaximaCabecera {
   fuera_de_curva?: number;
   /** Con un mes elegido, la máxima de todo el periodo y su mes (spec 013, RF-14). */
   maxima_periodo?: { fecha: string; kw: number; mes: string } | null;
+  /** 021:RF-71: la tensión de línea del mismo registro, como viene en la hoja (V o kV), y su columna. */
+  tension?: number | null;
+  tension_columna?: string | null;
+  /** 021:RF-74 a RF-76: en kV y en pu de la nominal del alimentador; sin nominal, solo kV. */
+  tension_kv?: number | null;
+  tension_pu?: number | null;
+  tension_nominal_kv?: number | null;
+  /** 021:RF-73, RF-74, RF-76: por qué no hay tensión o no hay pu. */
+  tension_aviso?: string | null;
+  /** 021:RF-79, RF-85: la tensión medida que va a su fuente (la de su barra de SET si la mide). */
+  tension_fuente?: TensionFuente | null;
+}
+
+/** 021:RF-79: la consigna de la fuente de un alimentador en el plan: la medida o la del operador. */
+export interface TensionFuente {
+  origen: 'medida' | 'operador';
+  pu: number | null;
+  kv?: number | null;
+  nominal_kv?: number | null;
+  fecha?: string | null;
+  medidor?: string | null;
+  barra?: string | null;
+  columna?: string | null;
 }
 
 /** Curva del registro de un medidor de cabecera, entera o un tramo (spec 006, RF-31 a RF-39). */
@@ -1195,6 +1218,9 @@ export interface AjusteResumenAlimentador {
   n_sed_escaladas_estimadas: number;
   periodo: AjustePeriodo;
   client_evidence: ClientPeriodEvidence;
+  /** 021:RF-83: la consigna que va a su fuente y de dónde sale. */
+  tension_fuente?: TensionFuente | null;
+  tension_fuente_origen?: string;
 }
 
 export interface AjustePlan {
@@ -1307,6 +1333,9 @@ export interface PerfilTension {
 export interface AjusteInforme {
   /** 094:RF-1 a RF-3. */
   perfil_tension?: PerfilTension;
+  /** 021:RF-83: la consigna que se quiso poner en la fuente y de dónde sale; ``consigna_fuente``, la que cambió. */
+  tension_fuente?: TensionFuente & { texto: string };
+  consigna_fuente?: { fuente: string; barra: string | null; antes: number | null; despues: number; origen?: string }[];
   project: string;
   feeder: string;
   status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE' | 'FALLO_VALIDACION_NATIVA';
@@ -1866,6 +1895,12 @@ export interface BarraDeSet {
   kw: number | null;
   kvar: number | null;
   registros: number;
+  /** 021:RF-78: la tensión de la barra en esa fecha y hora, media de sus medidores con tensión. */
+  tension_kv?: number | null;
+  tension_pu?: number | null;
+  tension_medidores?: string[];
+  tension_columna?: string | null;
+  tension_avisos?: string[];
 }
 
 /** Spec 022, RF-48: los zonales de la estructura con sus alimentadores en la entrega. */

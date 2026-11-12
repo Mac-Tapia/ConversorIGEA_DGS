@@ -1,6 +1,6 @@
 # Spec 021 — Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-17; RF-50 a RF-53 añadidos el mismo día) · Fecha: 2026-10-17
+Estado: implementada (RF-71 a RF-85, 2026-11-12: falta la comprobación en DIgSILENT, T25) · cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-17; RF-50 a RF-53 añadidos el mismo día) · Fecha: 2026-10-17
 
 ## Contexto y objetivo
 
@@ -261,6 +261,49 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
   faltan con la Q escrita de las cargas frente a la medida, que no depende del flujo
   (CA101: 5 316 kW con 13 kVAR medidos y ningún banco en la base: sin ellos no converge).
 
+Tensión medida en la fuente (usuario, 2026-11-12, con la tabla «2.2 · Máxima de cabecera» de PA217:
+«quiero que en esta tabla se extraiga la tensión del mismo instante de la columna VLL avg mean y esa
+tensión se suba a la fuente en pu en DIgSILENT»)
+
+- RF-71: EL SISTEMA leerá la tensión de línea del mismo registro que el kW máximo (o que el instante
+  de la calibración): la de la columna de tensión media de línea y, si la hoja no la trae, el promedio
+  de las tensiones de línea de ese registro.
+- RF-72: EL SISTEMA reconocerá las columnas de tensión por los alias genéricos del lector de cabecera
+  («Vll avg mean», «Vll avg», «Vll ab», «Vll bc», «Vll ca», con «mean» o sin él) y por los que dé la
+  empresa en su JSON de alias, sin suponer el libro de ninguna empresa (P13).
+- RF-73: SI la hoja no trae ninguna columna de tensión o el registro la tiene vacía, ENTONCES EL
+  SISTEMA dejará ese medidor sin tensión y dirá por qué.
+- RF-74: EL SISTEMA dará la tensión en kV según la nominal del alimentador: un valor de 500 a 1 500
+  veces la nominal en kV está en V y uno de 0,5 a 1,5 veces, en kV; SI no casa con ninguno (el
+  secundario del transformador de tensión, 380 en B-PA2T2), ENTONCES no la tomará y lo dirá; sin
+  nominal, un valor de 1 000 o más está en V.
+- RF-75: EL SISTEMA tomará como tensión nominal del pu la de la barra de la fuente del alimentador: la
+  de la conversión en la web y la de la barra de su red externa en DIgSILENT.
+- RF-76: SI no se conoce la tensión nominal del alimentador, ENTONCES EL SISTEMA dará la tensión en kV
+  sin pu y lo dirá.
+- RF-77: EL SISTEMA mostrará la tensión del mismo instante en kV y en pu como columnas «V (kV)» y
+  «V (pu)» de la tabla «2.2 · Máxima de cabecera», del Excel «Descargar máxima y clientes» y del
+  resultado de la API de la máxima.
+- RF-78: EN el análisis por SET y por sistema, EL SISTEMA dará la tensión de cada barra con medidor en
+  la fecha y hora de su máxima coincidente, como la media de los medidores de esa barra que la miden.
+- RF-79: CUANDO el operador prepara el ajuste en 2.4 o recalibra «Sin proyecto», EL SISTEMA tomará
+  por defecto como consigna de la fuente de cada alimentador su tensión medida en pu, y el campo
+  «Tensión en la fuente» la mostrará con «medida a las <fecha y hora> en <medidor>».
+- RF-80: SI el operador escribe otra tensión en ese campo o lo deja vacío, ENTONCES EL SISTEMA usará
+  la suya o dejará la fuente como está.
+- RF-81: MIENTRAS el análisis junte alimentadores con fuentes distintas, EL SISTEMA escribirá en cada
+  red externa la consigna de los alimentadores que salen de su barra; SI una fuente es de varios con
+  medidas distintas, ENTONCES pondrá su promedio y lo dirá.
+- RF-82: SI la tensión medida da menos de 0,90 o más de 1,10 pu, ENTONCES EL SISTEMA no la aplicará
+  sola: lo avisará y el operador la escribe en el campo si la confirma.
+- RF-83: EL SISTEMA dirá en el informe de la calibración y en la tabla de cambios en la red qué
+  tensión puso en cada fuente y de dónde salió: la medida, con su fecha, medidor y columna, o la del
+  operador.
+- RF-84: SI no hay tensión medida, ENTONCES EL SISTEMA hará lo de RF-61 a RF-63.
+- RF-85: EN el análisis por SET y por sistema, EL SISTEMA tomará para la fuente de un alimentador la
+  tensión de la barra de media de su SET, donde está su red externa, si la mide; si no, la de su
+  cabecera.
+
 ## Requisitos no funcionales
 
 - Determinismo: el DGS sigue idéntico byte a byte con `workers=1` y `workers>1`.
@@ -288,6 +331,10 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
 - Registros de los medidores de la central con fechas que no casan con los de la cabecera:
   solo se usan los registros comunes a los cuatro.
 - Una central declarada en un alimentador que no está entre los marcados: no se usa.
+- Hoja de barra con solo «Vll ab», «Vll bc» y «Vll ca» (B-PA2T2): el promedio de las tres (RF-71).
+- Tensión del secundario (380 con 22,9 kV nominales): no se toma (RF-74).
+- Una fuente compartida por dos alimentadores de la misma barra de SET: el promedio (RF-81).
+- Libro ancho de cabecera (spec 051), con una columna de kW por alimentador: no trae tensión.
 
 ## Fuera de alcance
 
@@ -299,6 +346,9 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
 - El modelo dinámico de la central (máquina síncrona, regulación de tensión, despacho):
   entra como generador estático con P y Q fijas.
 - Leer la central de los archivos de la distribuidora: no la traen.
+- La tensión de un medidor partido en hojas cuya tensión va en una hoja aparte, sin kW (RF-71).
+- Ajustar la toma de los transformadores de la SET con la tensión medida: solo la consigna de la
+  red externa.
 
 ## Criterios de finalización
 

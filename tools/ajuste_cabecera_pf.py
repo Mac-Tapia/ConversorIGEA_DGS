@@ -51,6 +51,7 @@ from cargas_pf import (
     _num,
     activar_proyecto,
     cabecera_de,
+    clave_pf,
     detalle_cabecera,
     error_de_unidades,
     error_inesperado,
@@ -70,6 +71,7 @@ from casos_pf import caso as caso_del_sistema
 import transferencia_operador_pf as transferencia_pf
 
 from convertersmartgrid.comprobacion_flujo import huella_de_caso
+from convertersmartgrid.demanda_medida import BANDA_TENSION_FUENTE_PU, origen_de_la_tension
 from convertersmartgrid.native_action import native_action_block_report
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
@@ -673,11 +675,100 @@ def _barra_y_sed(o) -> tuple[str | None, str | None]:
     return getattr(barra, 'loc_name', None), sed
 
 
-def fijar_consigna_de_la_fuente(app, pu: float, casos: list) -> list[dict]:
-    """La tensión en la fuente que indica el operador, en cada red externa (021:RF-61).
+def _clave_de_cabecera(elm) -> str | None:
+    """La clave de la barra de cabecera de un alimentador, o ``None`` si no se lee (021:RF-81)."""
+    barra = cabecera_de(elm) if elm is not None else None
+    try:
+        return clave_pf(barra) if barra is not None else None
+    except Exception:  # noqa: BLE001 - una barra sin nombre completo no tiene fuente que casar
+        return None
+
+
+def tension_del_plan(plan: dict) -> dict | None:
+    """La consigna de la fuente del plan (021:RF-79): la de la web, o la de un plan anterior que
+    solo traía ``tension_fuente_pu`` (la del operador)."""
+    if plan.get('tension_fuente'):
+        return dict(plan['tension_fuente'])
+    pu = plan.get('tension_fuente_pu')
+    return {'origen': 'operador', 'pu': float(pu)} if pu else None
+
+
+def consigna_en_pu(tension: dict | None, uknom: float | None) -> tuple[float | None, str | None]:
+    """La consigna en pu de una red externa y, si no se pone, por qué (021:RF-75, RF-82).
+
+    La medida va en kV y se pasa a pu con la nominal de la barra de esa red externa en DIgSILENT;
+    sin ella, con la de la conversión que trae el plan. La del operador va tal cual.
+    """
+    if not tension:
+        return None, None
+    pu = tension.get('pu')
+    if tension.get('origen') == 'medida' and tension.get('kv') and uknom:
+        pu = float(tension['kv']) / float(uknom)
+    if pu is None:
+        return None, ('tensión medida en kV sin la nominal de la barra de su fuente: no se pasa a pu y la fuente '
+                      'queda como está (021:RF-76)')
+    bajo, alto = BANDA_TENSION_FUENTE_PU
+    if tension.get('origen') == 'medida' and not bajo <= pu <= alto:
+        return None, (f'la tensión medida da {pu:.4f} pu con {uknom or tension.get("nominal_kv")} kV nominales, fuera '
+                      f'de {bajo:.2f} a {alto:.2f}: no se aplica sola; escríbala en la web si la confirma (021:RF-82)')
+    return round(float(pu), 4), None
+
+
+def consigna_por_fuente(tensiones: dict[str, dict], cabeceras: dict[str, str | None]):
+    """La consigna de cada red externa según los alimentadores que salen de su barra (021:RF-81).
+
+    ``tensiones``: la consigna de cada alimentador calibrado (``tension_del_plan``); ``cabeceras``:
+    la clave de la barra de cabecera de cada uno (la del cubículo de su ``ElmFeeder``, que el DGS pone
+    en la barra de su fuente). Una fuente de varios alimentadores con medidas distintas toma su
+    promedio, y se dice. Una que no es de ninguno toma la consigna solo si todos tienen la misma
+    (lo de antes con un valor del operador, RF-61); si no, queda como está. Devuelve una función
+    ``ElmXnet → (pu | None, origen | None)`` con sus ``avisos``.
+    """
+    avisos: dict[str, None] = {}
+    distintas = {json.dumps(t, sort_keys=True, default=str) for t in tensiones.values()}
+
+    def consigna(x) -> tuple[float | None, str | None]:
+        try:
+            barra = x.bus1.cterm
+        except Exception:  # noqa: BLE001 - red externa sin conectar
+            barra = None
+        clave = clave_pf(barra) if barra is not None else None
+        suyas = [f for f in tensiones if clave is not None and cabeceras.get(f) == clave]
+        if not suyas:
+            if len(distintas) != 1:
+                avisos[f'{x.loc_name}: no es la fuente de ningún alimentador con consigna; queda como está '
+                       '(021:RF-81).'] = None
+                return None, None
+            suyas = list(tensiones)[:1]
+        valores = []
+        for f in suyas:
+            pu, aviso = consigna_en_pu(tensiones[f], _num(barra, 'uknom') if barra is not None else None)
+            if aviso:
+                avisos[f'{f}: {aviso}'] = None
+            if pu is not None:
+                valores.append((f, pu))
+        if not valores:
+            return None, None
+        pu = round(sum(v for _f, v in valores) / len(valores), 4)
+        if len({v for _f, v in valores}) > 1:
+            avisos[f'{x.loc_name}: es la fuente de {", ".join(f for f, _v in valores)}, con '
+                   + ', '.join(f'{v:.4f}' for _f, v in valores) + f' pu; se pone su promedio, {pu:.4f} pu '
+                   '(021:RF-81).'] = None
+        origen = '; '.join(f'{f}: {origen_de_la_tension(tensiones[f])}' for f, _v in valores)
+        return pu, origen
+
+    consigna.avisos = avisos
+    return consigna
+
+
+def fijar_consigna_de_la_fuente(app, pu, casos: list) -> list[dict]:
+    """La tensión en la fuente, en cada red externa (021:RF-61, RF-79 a RF-83).
 
     NA203 y NA205, de 22,9 kV (2026-10-17), no convergían con su carga fija: 0,906 pu en
     SE50290 con la fuente a 1,0 pu; el usuario: «puede enviar desde la fuente con 1,05 pu».
+    ``pu``: la misma para todas, o una función ``ElmXnet → (pu, origen)`` (``consigna_por_fuente``)
+    con la de cada fuente: la medida de PA217 en Pisco, 23,536 kV a las 2026-03-03 10:00, son
+    1,0278 pu a 22,9 kV (2026-11-12).
     Es dato de operación: va al escenario de cada caso (``casos``, el primero el que se
     calibra) y se guarda. Deja activo el primero y devuelve lo que cambió en él.
     """
@@ -685,13 +776,17 @@ def fijar_consigna_de_la_fuente(app, pu: float, casos: list) -> list[dict]:
     for n, caso in enumerate(c for c in casos if c is not None):
         caso.Activate()
         for x in app.GetCalcRelevantObjects('*.ElmXnet') or []:
-            antes = _num(x, 'usetp')
-            if antes is not None and math.isclose(antes, pu, abs_tol=1e-6):
+            valor, origen = pu(x) if callable(pu) else (pu, None)
+            if valor is None:
                 continue
-            x.usetp = pu
+            antes = _num(x, 'usetp')
+            if antes is not None and math.isclose(antes, valor, abs_tol=1e-6):
+                continue
+            x.usetp = valor
             if n == 0:
                 barra, _sed = _barra_y_sed(x)
-                cambios.append({'fuente': x.loc_name, 'barra': barra, 'antes': antes, 'despues': pu})
+                cambios.append({'fuente': x.loc_name, 'barra': barra, 'antes': antes, 'despues': valor,
+                                **({'origen': origen} if origen else {})})
         escenario = app.GetActiveScenario()
         if escenario is not None:
             escenario.Save()
@@ -727,7 +822,9 @@ def cambios_en_la_red(informe: dict) -> list[dict]:
                                    'potencia': x['antes'], 'unidad': 'pu'},
                       'nuevo': {'descripcion': f"consigna de tensión {x['despues']:.3f} pu",
                                 'potencia': x['despues'], 'unidad': 'pu'},
-                      'motivo': 'tensión en la fuente indicada por el operador (021:RF-61)'})
+                      # 021:RF-83: de dónde sale: la medida, con su fecha y su medidor, o el operador.
+                      'motivo': ('tensión en la fuente ' + x['origen'] if x.get('origen')
+                                 else 'tensión en la fuente indicada por el operador (021:RF-61)')})
     for b in informe.get('bancos_nuevos') or []:                         # 021:RF-69
         filas.append({'sed': b.get('barra') or '', 'elemento': b['banco'], 'clase': 'banco',
                       'original': {'descripcion': 'no existe', 'potencia': 0.0, 'unidad': 'kvar'},
@@ -2654,11 +2751,15 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['cargas_nuevas_apartadas'] = apartadas
         informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
                                  'terminar): ' + ', '.join(apartadas))
-    if plan.get('tension_fuente_pu') and not simular:                     # 021:RF-61
+    tension = tension_del_plan(plan)                                    # 021:RF-61, RF-79
+    if tension and not simular:
         # 063:RF-29: también el «Caso base» (usuario, 2026-11-01: «en caso base, caso con cargas y
         # caso con proyecto, fuente a 1,02 p.u.»); «Cargas nuevas» la hereda del escenario de «Sin».
+        consigna = consigna_por_fuente({feeder: tension}, {feeder: _clave_de_cabecera(elm)})
         informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
-            app, float(plan['tension_fuente_pu']), [sin, con, caso_del_sistema(app, 'base', anio)])
+            app, consigna, [sin, con, caso_del_sistema(app, 'base', anio)])
+        informe['tension_fuente'] = {**tension, 'texto': origen_de_la_tension(tension)}     # 021:RF-83
+        informe['avisos'] += list(consigna.avisos)
         escenario = app.GetActiveScenario()
     if not simular:
         _huella_antes(app, estado, anio)                               # 086:RF-14
@@ -3756,14 +3857,19 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         return todos(f"«{nombre_caso('sin', anio)}» no tiene escenario de operación: la "
                      'calibración se graba en él (015:RF-26).')
     apartadas = _apartar_cargas_nuevas(app, estado)
-    pu = next((float(p['tension_fuente_pu']) for p in validos if p.get('tension_fuente_pu')), None)
-    consigna = (fijar_consigna_de_la_fuente(app, pu, [sin, con, caso_del_sistema(app, 'base', anio)])
-                if pu else [])                                           # 021:RF-61, 063:RF-29
+    # 021:RF-61, RF-79, RF-81: cada fuente con la consigna de los alimentadores que salen de su barra.
+    tensiones = {p['feeder']: t for p in validos if (t := tension_del_plan(p))}
+    por_fuente = consigna_por_fuente(tensiones, {f: _clave_de_cabecera(alims.elm.get(f)) for f in tensiones})
+    consigna = (fijar_consigna_de_la_fuente(app, por_fuente, [sin, con, caso_del_sistema(app, 'base', anio)])
+                if tensiones else [])                                    # 063:RF-29
     _huella_antes(app, estado, anio)                                     # 086:RF-14
     escenario = app.GetActiveScenario()
     for f in feeders:
-        if pu:
+        if tensiones:
             informes[f]['consigna_fuente'] = consigna
+            informes[f]['avisos'] += [a for a in por_fuente.avisos if a not in informes[f]['avisos']]
+        if f in tensiones:
+            informes[f]['tension_fuente'] = {**tensiones[f], 'texto': origen_de_la_tension(tensiones[f])}
     # 032:RF-14: los conductores de todo el proyecto con su ficha, antes del primer flujo.
     crono.marca('consigna y unidades')
     _conductores_con_ficha(app, validos[0], [p['feeder'] for p in validos], alims,

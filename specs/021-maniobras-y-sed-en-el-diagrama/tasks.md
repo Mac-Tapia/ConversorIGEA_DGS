@@ -265,3 +265,20 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
 - [x] T21. Retro (033, 2026-10-29): RF-70, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-70)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_proyecto_guion.py`).
+- [x] T22. Tensión medida en el lector de cabecera: alias, tensión del registro de la máxima,
+      unidad por la nominal y tensión de cada barra en su instante.
+      (RF-71, RF-72, RF-73, RF-74, RF-76, RF-78)
+      Hecho cuando: `pytest tests/test_tension_fuente.py` en verde con libros sintéticos con
+      «Vll avg mean», con solo «Vll ab/bc/ca», sin tensión, en V y en kV.
+- [x] T23. Tensión en la web: pu con la nominal del inventario, columnas en 2.2, en la tabla de
+      barras y en el Excel, y la tensión de la fuente en el resultado de la máxima. (RF-75, RF-77, RF-85)
+      Hecho cuando: las pruebas de la API, del Excel y del front de `tests/test_tension_fuente.py` pasan.
+- [x] T24. Consigna medida por alimentador: plan con `tension_fuente`, campo de 2.4 relleno con la
+      medida, la del operador manda, banda de 0,90 a 1,10, una consigna por red externa en el guion
+      y su origen en el informe y en la tabla de cambios. (RF-79, RF-80, RF-81, RF-82, RF-83, RF-84)
+      Hecho cuando: las pruebas del plan, del guion con dobles y del front de
+      `tests/test_tension_fuente.py` pasan.
+- [ ] T25. [DIgSILENT] Calibrar un proyecto de prueba de Pisco desde la web con la tensión medida: la
+      red externa de PA217 a 1,0278 pu (23,536 kV el 2026-03-03 10:00) en «Caso base», «Sin
+      proyecto» y «Con proyecto», con su origen en el informe. (RF-75, RF-79, RF-81, RF-83)
+      Hecho cuando: el usuario lo comprueba en DIgSILENT con un proyecto de prueba.

@@ -122,6 +122,10 @@ Cuadre con las pérdidas
 - RF-44: DESPUÉS de una distribución nueva, EL SISTEMA repetirá RF-42 carga por carga. SI
   la relectura falla, ENTONCES devolverá `FALLO_VALIDACION_NATIVA`, retirará la variación
   defectuosa y no promoverá el resultado como una calibración aceptada.
+- RF-45: Las etiquetas de los ejes y de la máxima de las gráficas de la web (curva de cabecera, perfil de tensión y tablero
+  de clientes fijos) medirán en pantalla lo mismo que el texto del título, sea cual sea el ancho de la gráfica. (Usuario,
+  2026-11-12: «disminuir el tamaño de las letras y números de las etiquetas de los ejes al mismo tamaño del título»; en
+  una pantalla ancha medían unos 26 px.)
 
 Convergencia
 

@@ -48,7 +48,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |
   | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida |  |
-  | 021 Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | cumplida |  |
+  | 021 Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | implementada | falta T25 |
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |

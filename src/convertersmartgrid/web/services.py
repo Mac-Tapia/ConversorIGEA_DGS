@@ -2988,11 +2988,14 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
                       progreso=lambda i, n, m: ctx.progress(i, n, m))
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    _tension_en_pu(ws, res)                                                     # 021:RF-74 a RF-76
     for r in res:
         if r.error:
             ctx.log(f'  {r.medidor}: {r.error}')
         else:
-            ctx.log(f'  {r.medidor}: kW máx {r.kw:g} el {r.fecha} ({r.libro} › {", ".join(r.hojas)})')
+            ctx.log(f'  {r.medidor}: kW máx {r.kw:g} el {r.fecha} ({r.libro} › {", ".join(r.hojas)})'
+                    + (f'; {r.tension_kv:.3f} kV' if r.tension_kv is not None else '')
+                    + (f' = {r.tension_pu:.4f} pu' if r.tension_pu is not None else ''))
         for aviso in r.avisos:
             ctx.log(f'    aviso: {aviso}')
     # La curva no va en el resultado, que viaja entero por el WebSocket: se guarda aparte
@@ -3003,7 +3006,7 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
                                                        'alimentador': r.alimentador}
                                            for r in res if r.curva}}
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': instante}}
-    return {'resultados': [r.to_dict() for r in res],
+    return {'resultados': _con_tension_de_la_fuente(res, None),                 # 021:RF-79
             'cancelado': len(res) < len(pares),
             'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None,
             'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None),
@@ -3093,6 +3096,34 @@ def _estructura_y_origen(ws: Workspace) -> tuple[Any, str | None]:
     # Nueva en RED_231026); un espacio cargado antes de RF-74 no tiene sus cabeceras y
     # solo coloca los de siglas conocidas hasta que se vuelve a cargar.
     return (completar(e, cabeceras_de_inventario(filas)) if e is not None and filas else e), origen
+
+
+def _tension_en_pu(ws: Workspace, res: list) -> None:
+    """La tensión medida de cada máxima en kV y en pu de la nominal de su alimentador (021:RF-74 a RF-76).
+
+    La nominal es la de la barra de la fuente en la conversión del espacio; un alimentador que no
+    está en ella queda en kV, sin pu, y se dice. En DIgSILENT, el guion la vuelve a pasar a pu con
+    la de la barra de su red externa (021:RF-75).
+    """
+    from ..demanda_medida import poner_tension
+
+    nominal = _kv_alimentadores(ws)
+    for r in res:
+        dueno = r.alimentador[len('Central '):] if r.alimentador.lower().startswith('central ') else r.alimentador
+        poner_tension(r, nominal.get(dueno.strip().upper()))
+
+
+def _con_tension_de_la_fuente(res: list, barras: list[dict] | None) -> list[dict]:
+    """Cada máxima con la tensión medida que iría a la fuente de su alimentador (021:RF-79, RF-85): la
+    regla es del servidor, y 2.4 la muestra tal cual en su campo «Tensión en la fuente»."""
+    from ..demanda_medida import tension_medida_de_la_fuente
+
+    out = []
+    for r in res:
+        d = r.to_dict()
+        d['tension_fuente'] = tension_medida_de_la_fuente(d, barras)
+        out.append(d)
+    return out
 
 
 def _kv_alimentadores(ws: Workspace) -> dict[str, float]:
@@ -3198,6 +3229,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
             balances=balances)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    _tension_en_pu(ws, res)                                                     # 021:RF-74 a RF-76
     if sistema_60kv:
         # 028:RF-31: CHN101, CHN102 y CHN201 no tienen el registro del instante de Chincha: no se
         # les da otra fecha (el sistema tiene una sola), y el operador lo tiene que ver.
@@ -3220,7 +3252,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
                                            for r in list(res) + list(de_barra) if r.curva}}
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': None,
                                              'instantes': instantes}}
-    return {'resultados': [r.to_dict() for r in res], 'cancelado': False, 'periodo': periodo,
+    return {'resultados': _con_tension_de_la_fuente(res, info), 'cancelado': False, 'periodo': periodo,
             'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos,
             'sistema_60kv': ({'fecha': next(iter(x['fecha'] for x in info), None),
                               # 028:RF-36: la demanda del sistema: lo neto de sus barras más lo que generan sus centrales.
@@ -4155,6 +4187,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 desconectados: list[str] | None = None, *, job_id: str = '',
                 centrales: dict[str, dict] | None = None,
                 tension_fuente_pu: float | None = None,
+                tensiones_fuente: dict[str, float | None] | None = None,
                 completar_bancos: bool = False,
                 transformadores_automaticos: bool = False,
                 barras: list[dict] | None = None,
@@ -4171,6 +4204,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     van aparte en el plan, y el guion decide qué carga de SED se queda sin clientes.
     ``a_su_maxima``: los clientes que van con su máxima del mes (039:RF-12, RF-16); ``None``, los
     guardados en el espacio.
+    ``tensiones_fuente``: la consigna de la fuente de cada alimentador cuyo campo tocó el operador en
+    2.4 (un valor, o ``None`` si lo borró, 021:RF-80); los demás, ``tension_fuente_pu`` si se dio o, si
+    no, la tensión medida de cada uno en el registro de su máxima (021:RF-79).
     """
     from dataclasses import replace
 
@@ -4180,7 +4216,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import (N_PROBABILISTICO, AjusteError, Objetivo, fijas_de, objetivo_de,
                                    probabilistico_del_perfil)
-    from ..demanda_medida import clave_codigo, periodo_de_fecha
+    from ..demanda_medida import (clave_codigo, consigna_de_la_fuente, origen_de_la_tension, periodo_de_fecha,
+                                  tension_medida_de_la_fuente)
     from ..perfil_empresa import (PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas,
                                   seccion_transformadores_sed)
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
@@ -4318,6 +4355,15 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             }
             if client_period.warning and client_period.warning not in avisos:
                 avisos.append(client_period.warning)
+        # 021:RF-79 a RF-82, RF-84, RF-85: la consigna de la fuente de este alimentador.
+        # Un alimentador que no está en ``tensiones_fuente`` es uno cuyo campo el operador no tocó.
+        indicadas = {clave_codigo(a): v for a, v in (tensiones_fuente or {}).items()}
+        tocada = clave_codigo(alimentador) in indicadas
+        tension, aviso = consigna_de_la_fuente(
+            tension_medida_de_la_fuente(fila, barras), del_operador=tocada or tension_fuente_pu is not None,
+            pu_operador=indicadas[clave_codigo(alimentador)] if tocada else tension_fuente_pu)
+        if aviso:
+            avisos.append(f'{alimentador}: {aviso}')
         kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
         if aviso:
             avisos.append(pre + aviso)
@@ -4417,8 +4463,10 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             # 022:RF-41b, RF-44: la barra de SET con medidor del alimentador, si la tiene.
             'barra_set': next((b for b in barras or []
                                if alimentador.upper() in b.get('alimentadores', [])), None),
-            # 021:RF-61: la tensión en la fuente que indicó el operador, o None.
-            'tension_fuente_pu': tension_fuente_pu,
+            # 021:RF-61, RF-79: la consigna de la fuente en pu, o None (la de la red queda); con la
+            # medida, su kV para que el guion la pase a pu con la nominal de su red externa (RF-75).
+            'tension_fuente_pu': (tension or {}).get('pu'),
+            'tension_fuente': tension,
             # 021:RF-64, RF-65: poner los bancos que falten, con el tamaño de su tensión.
             'completar_bancos': completar_bancos,
             # 083:RF-31: el guion pone los transformadores de la ficha antes de calibrar, sin repetir.
@@ -4473,7 +4521,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                         'fijas_a_su_maxima': fijas_max,                          # 039:RF-18
                         'n_sed_escaladas_estimadas': max(0, len(kva_entrada) - len(fixed_evidence)),
                         'n_kva_entrada': len(kva_entrada), 'periodo': period_evidence,
-                        'client_evidence': client_period.to_dict()})
+                        'client_evidence': client_period.to_dict(),
+                        # 021:RF-83: qué consigna va a su fuente y de dónde sale.
+                        'tension_fuente': tension, 'tension_fuente_origen': origen_de_la_tension(tension)})
     if not ajustes:
         raise UserError('Ningún alimentador se puede calibrar. ' + ' '.join(avisos))
     feeders = [a['feeder'] for a in ajustes]

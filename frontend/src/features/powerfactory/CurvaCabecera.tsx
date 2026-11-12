@@ -1,5 +1,5 @@
 import { fmtNum } from '../../shared/formato';
-import { colorSerie, marcas, tramos } from '../../shared/graficos';
+import { colorSerie, marcas, tramos, useLetraFija } from '../../shared/graficos';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { api } from '../../api/client';
@@ -60,6 +60,7 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
   const [cargando, setCargando] = useState(false);
   const [arrastre, setArrastre] = useState<{ x0: number; x1: number } | null>(null);
   const svg = useRef<SVGSVGElement>(null);
+  const [letra, estiloLetra] = useLetraFija(W);
 
   // Al cambiar el medidor que da el objetivo (otro alimentador, otra elección), se sigue.
   useEffect(() => { setMedidor(inicial); setTramo(null); }, [inicial, jobId]);
@@ -227,7 +228,8 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
       )}
       {g && (
         <>
-          <svg ref={svg} className="curva-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+          <svg ref={(el) => { (svg as { current: SVGSVGElement | null }).current = el; letra(el); }}
+            className="curva-svg" style={estiloLetra} viewBox={`0 0 ${W} ${H}`} role="img"
             aria-label={varias
               ? `Curvas de kW de ${g.trazos.length} alimentadores`
               : `Curva de kW del medidor ${una?.medidor ?? medidor}; máxima ${fmtNum(g.trazos[0].kwMax, 1)} kW el ${diaHora(g.fm)}`}

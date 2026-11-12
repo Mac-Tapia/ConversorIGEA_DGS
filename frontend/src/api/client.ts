@@ -331,7 +331,7 @@ export const api = {
   demandaCompararFijas: (id: string, body: { project: string; alimentadores: string[]; periodo?: string;
     maximas: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }> }) =>
     request<Job>(`${ws(id)}/demanda/clientes/comparar`, json('POST', body)),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas>; a_su_maxima?: string[] }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; tensiones_fuente?: Record<string, number | null>; completar_bancos?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas>; a_su_maxima?: string[] }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

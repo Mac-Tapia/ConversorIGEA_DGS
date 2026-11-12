@@ -7,9 +7,11 @@ import type {
   ConsumoDistinto, CriterioFijas, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada, WorkspaceState,
 } from '../../api/types';
 import { CurvaCabecera } from './CurvaCabecera';
+import { notaDeLaMedida, puEscrito, tensionesTocadas, tensionInicial, tensionValida } from './tensionFuente';
 import { PerfilTension } from './PerfilTension';
 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
+
 
 /**
  * Ajuste de las demandas de los alimentadores a su máxima de cabecera (spec 006, RF-23).
@@ -46,8 +48,11 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   const { ws, run, startJob, active, jobs } = useApp();
   const [elegido, setElegido] = useState<Record<string, string>>({});
   const [tolerancia, setTolerancia] = useState('1');
-  // 021:RF-61: vacío, la fuente queda como está.
-  const [tensionFuente, setTensionFuente] = useState('');
+  // 021:RF-61, RF-79, RF-80: por alimentador; sin tocar, la medida; lo que escriba el operador manda y vacío deja la
+  // fuente como está.
+  const [tensionEscrita, setTensionEscrita] = useState<Record<string, string>>({});
+  // Otra máxima buscada trae otra medida: lo escrito para la anterior no vale para esta.
+  useEffect(() => { setTensionEscrita({}); }, [maxima?.id]);
   // 021:RF-64: los bancos que falten para el kVAR medido.
   const [completarBancos, setCompletarBancos] = useState(false);
   const [plan, setPlan] = useState<AjustePlan | null>(null);
@@ -86,8 +91,21 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   }, [ws.id, maxima?.id, firmaCentrales, medidores.join('|')]);
   const tol = Number(tolerancia.replace(',', '.')) / 100;
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
-  const uFuente = tensionFuente.trim() ? Number(tensionFuente.replace(',', '.')) : null;
-  const uValida = uFuente === null || (Number.isFinite(uFuente) && uFuente >= 0.9 && uFuente <= 1.1);
+  // 021:RF-79: la medida de la fila del medidor elegido como cabecera de cada alimentador.
+  const medidaDe = (i: number) => {
+    const g = grupos[i];
+    return (g.filas.find((r) => r.medidor === medidores[i]) ?? g.filas[0]).tension_fuente ?? null;
+  };
+  const fuentes = grupos.map((g, i) => {
+    const medida = medidaDe(i);
+    const tocada = g.alimentador in tensionEscrita;
+    const texto = tocada ? tensionEscrita[g.alimentador] : tensionInicial(medida);
+    return { alimentador: g.alimentador, medida, tocada, texto, pu: puEscrito(texto) };
+  });
+  // Solo los que tocó el operador: los demás los decide el servidor con la medida (021:RF-79).
+  const delMaximo = new Set(grupos.map((g) => g.alimentador));
+  const tensionesFuente = tensionesTocadas(Object.fromEntries(Object.entries(tensionEscrita).filter(([a]) => delMaximo.has(a))));
+  const uValida = fuentes.every((f) => !f.tocada || tensionValida(f.texto));
 
   const ultimo = Object.values(jobs)
     .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar'
@@ -110,7 +128,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
-      centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
+      centrales, tensiones_fuente: tensionesFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
       criterio_por_alimentador: criterioPorAlimentador, ...(aSuMaxima ? { a_su_maxima: aSuMaxima } : {}),
     }));
     if (!p) return;
@@ -188,11 +206,21 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
           <span>Tolerancia (%)</span>
           <input value={tolerancia} inputMode="decimal" size={5} onChange={(e) => setTolerancia(e.target.value)} />
         </label>
-        <label className="field" title="Consigna de la red externa en «Sin proyecto» y «Con proyecto»; vacío, la que tenga">
-          <span>Tensión en la fuente (pu)</span>
-          <input value={tensionFuente} inputMode="decimal" size={5} placeholder="actual"
-            onChange={(e) => setTensionFuente(e.target.value)} />
-        </label>
+        {/* 021:RF-79 a RF-82: una por alimentador, con la medida por defecto y de dónde sale. */}
+        {fuentes.map((f) => (
+          <label key={f.alimentador} className="field"
+            title="Consigna de la red externa en «Caso base», «Sin proyecto» y «Con proyecto»; vacío, la que tenga">
+            <span>Tensión en la fuente{fuentes.length > 1 ? ` de ${f.alimentador || '—'}` : ''} (pu)</span>
+            <input value={f.texto} inputMode="decimal" size={7} placeholder="actual"
+              aria-label={`Tensión en la fuente de ${f.alimentador || '—'} (pu)`}
+              onChange={(e) => setTensionEscrita((x) => ({ ...x, [f.alimentador]: e.target.value }))} />
+            {f.medida && !f.tocada && <small className="muted">{notaDeLaMedida(f.medida)}</small>}
+            {f.tocada && <small className="muted">{f.texto.trim() ? 'indicada por el operador' : 'vacía: la fuente queda como está'}
+              {f.medida && <> · <button type="button" className="btn btn-sm btn-ghost"
+                onClick={() => setTensionEscrita((x) => { const n = { ...x }; delete n[f.alimentador]; return n; })}>
+                volver a la medida</button></>}</small>}
+          </label>
+        ))}
         <label className="check" title="Tras un primer cuadre, bancos del tamaño del perfil en la troncal para el kVAR medido; después recalibra">
           <input type="checkbox" checked={completarBancos} onChange={(e) => setCompletarBancos(e.target.checked)} />
           {' '}Poner los bancos que falten
@@ -240,6 +268,11 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
                   : `${x.periodo.maxima ?? '—'} · sin libro de clientes`}</span>
                 <span>{x.feeder}: reparto</span>
                 <span>{x.n_sed_fijas} SED fija(s) · {x.n_sed_escaladas_estimadas} SED escalada(s)</span>
+                {/* 021:RF-83: la consigna de su fuente y de dónde sale. */}
+                <span>{x.feeder}: fuente</span>
+                <span>{x.tension_fuente
+                  ? `${x.tension_fuente.pu == null ? `${fmtNum(x.tension_fuente.kv ?? 0, 3)} kV` : `${fmtNum(x.tension_fuente.pu, 4)} pu`}, ${x.tension_fuente_origen ?? ''}`
+                  : 'queda como está'}</span>
               </div>
             ))}
           </div>
@@ -308,6 +341,10 @@ function InformeAjuste({ inf, report, cancelado, token }: {
       {inf.conductores_ficha && <ConductoresConFicha r={inf.conductores_ficha} />}
       {inf.transformadores_implementados && <TransformadoresImplementados inf={inf} />}
       {(inf.cambios_en_la_red ?? []).length > 0 && <CambiosEnLaRed filas={inf.cambios_en_la_red!} />}
+      {/* 021:RF-83: qué tensión se puso en la fuente y de dónde salió. */}
+      {inf.tension_fuente && <p className="small">Tensión en la fuente: {inf.tension_fuente.pu == null ? '—'
+        : `${fmtNum(inf.tension_fuente.pu, 4)} pu`}, {inf.tension_fuente.texto}
+        {(inf.consigna_fuente ?? []).length > 0 && <> · {(inf.consigna_fuente ?? []).map((c) => `${c.fuente} ${fmtNum(c.despues, 4)} pu`).join(', ')}</>}</p>}
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
         las SED repartidas suben lo que pidan las pérdidas.</p>}
       {!simular && revertida && (

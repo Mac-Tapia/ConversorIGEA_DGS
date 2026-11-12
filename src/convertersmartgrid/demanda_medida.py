@@ -76,9 +76,22 @@ ALIAS: dict[str, tuple[str, ...]] = {
     # 004:RF-56: el nombre del cliente; en los libros de julio de 2026, «CLIENTE». Los de
     # enero a abril no lo traen.
     'cliente_nombre': ('cliente', 'nombre cliente', 'nombre del cliente', 'razon social', 'nombre'),
+    # 021:RF-71, RF-72: la tensión de línea del registro. Primero la media de las tres («Vll avg
+    # mean» en las hojas de alimentador de Pisco); sin ella, cada una de línea («Vll ab», «Vll
+    # bc» y «Vll ca» en las de barra, B-PA2T2), con «mean» o sin él.
+    'tension': ('vll avg mean', 'vll avg', 'v ll avg mean', 'v ll avg', 'vll mean', 'u ll avg',
+                'tension de linea', 'tension linea'),
+    'tension_ab': ('vll ab mean', 'vll ab', 'v ll ab', 'vab', 'v ab', 'uab'),
+    'tension_bc': ('vll bc mean', 'vll bc', 'v ll bc', 'vbc', 'v bc', 'ubc'),
+    'tension_ca': ('vll ca mean', 'vll ca', 'v ll ca', 'vca', 'v ca', 'uca'),
 }
 MAGNITUDES = ('kw', 'kvar', 'kva', 'fp')
 NOMBRE = {'kw': 'kW', 'kvar': 'kVAR', 'kva': 'kVA', 'fp': 'FP'}
+#: 021:RF-71: las columnas de tensión. No son magnitudes de la hoja: una hoja con kW y tensión
+#: sigue siendo la de una sola magnitud para unir un medidor partido en hojas (RF-25, RF-44).
+TENSIONES = ('tension', 'tension_ab', 'tension_bc', 'tension_ca')
+#: 021:RF-82: fuera de esta banda, la tensión medida no se aplica sola en la fuente.
+BANDA_TENSION_FUENTE_PU = (0.90, 1.10)
 
 
 #: 070:RF-57: lo que decidió el usuario para el análisis por alimentadores (028:RF-27); con más, por SET o por sistema.
@@ -660,6 +673,26 @@ class Registro:
     # Columna de la que salió el FP de este registro: «lag» o «lead» según el registro.
     fuente_fp: str | None = None
     fila_origen: int | None = None
+    # 021:RF-71: columna (o columnas) de la que salió la tensión de línea ``valores['v']``.
+    fuente_tension: str | None = None
+
+
+def _tension_de(fila: Sequence[Any], cols: Mapping[str, int],
+                cabecera: Sequence[Any]) -> tuple[float | None, str | None]:
+    """La tensión de línea del registro y de dónde sale (021:RF-71).
+
+    La media de las tres si la hoja la trae; si no, el promedio de las de línea que tengan
+    valor. Un cero o un vacío no es una tensión: un medidor sin tensión la deja en blanco.
+    """
+    media = numero(_celda(fila, cols.get('tension'))) if 'tension' in cols else None
+    if media is not None and media > 0:
+        return media, str(cabecera[cols['tension']]).strip()
+    lineas = [(str(cabecera[cols[k]]).strip(), numero(_celda(fila, cols[k])))
+              for k in ('tension_ab', 'tension_bc', 'tension_ca') if k in cols]
+    lineas = [(n, v) for n, v in lineas if v is not None and v > 0]
+    if not lineas:
+        return None, None
+    return sum(v for _n, v in lineas) / len(lineas), 'promedio de ' + ', '.join(n for n, _v in lineas)
 
 
 def _fecha_de(fila: Sequence[Any], cols_fecha: Sequence[int]) -> Any:
@@ -695,6 +728,9 @@ def registros_de_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Regis
     # la que tenga valor en el registro.
     cols_fp = [norm.index(a) for a in alias['fp'] if a in norm]
     usadas = {k: str(cabecera[v]).strip() for k, v in cols.items()}
+    # 021:RF-71: la tensión va aparte de ``usadas``; un alias de la empresa sin tensión no falla.
+    cols_v = {k: v for k, v in columnas(cabecera, [t for t in TENSIONES if t in alias], alias).items()
+              if v not in cols.values()}
     registros = []
     for fila_excel, fila in enumerate(filas[i + 1:], start=i + 2):
         fecha = _fecha_de(fila, cols_fecha)
@@ -709,7 +745,12 @@ def registros_de_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Regis
             valores['fp'] = fp
         if fecha is None and not any(v is not None for v in valores.values()):
             continue
-        registros.append(Registro(fecha, valores, fuente, fila_excel))
+        registro = Registro(fecha, valores, fuente, fila_excel)
+        if cols_v:
+            tension, registro.fuente_tension = _tension_de(fila, cols_v, cabecera)
+            if tension is not None:
+                valores['v'] = tension
+        registros.append(registro)
     # python-calamine devuelve una fecha sin hora (``date``) para el registro de las 00:00
     # y con hora para los demás: la máxima a medianoche salía sin su hora y, en un medidor
     # partido en hojas, no casaba por fecha con la misma hora de otra hoja. En una hoja con
@@ -733,6 +774,7 @@ def _unir_por_fecha(partes: Sequence[list[Registro]]) -> list[Registro]:
                 if v is not None or k not in destino.valores:
                     destino.valores[k] = v
             destino.fuente_fp = destino.fuente_fp or r.fuente_fp
+            destino.fuente_tension = destino.fuente_tension or r.fuente_tension
     return list(por_fecha.values())
 
 
@@ -767,13 +809,27 @@ class MaximaCabecera:
     fuera_de_curva: int = 0
     # 013:RF-14: con un mes elegido, la máxima de todo lo leído y su mes ``{fecha, kw, mes}``.
     maxima_periodo: dict[str, Any] | None = None
+    # 021:RF-71 a RF-76: la tensión de línea del mismo registro, como viene en la hoja (V o kV)
+    # y de qué columna; en kV y en pu cuando se conoce la nominal del alimentador (``poner_tension``).
+    tension: float | None = None
+    tension_columna: str | None = None
+    tension_kv: float | None = None
+    tension_pu: float | None = None
+    tension_nominal_kv: float | None = None
+    #: Por qué no hay tensión, o no hay pu, o de qué unidad se supuso (RF-73, RF-74, RF-76). Aparte de
+    #: ``avisos``: un libro sin columnas de tensión no tiene nada mal en su kW.
+    tension_aviso: str | None = None
     # Curva entera ``(fecha, kW, kVAR)`` en orden. Fuera de ``to_dict``: el resultado del
     # trabajo viaja al navegador por el WebSocket, y un año de lecturas cada 15 min son
     # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39).
     curva: list[tuple[datetime, float, float | None]] = field(default_factory=list, repr=False)
+    # 021:RF-78: la tensión de cada registro, para la barra en el instante de su máxima. Fuera de
+    # ``to_dict`` por lo mismo que la curva.
+    tensiones: dict[datetime, tuple[float, str]] = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
-        return {f.name: copy.deepcopy(getattr(self, f.name)) for f in fields(self) if f.name != 'curva'}
+        return {f.name: copy.deepcopy(getattr(self, f.name)) for f in fields(self)
+                if f.name not in ('curva', 'tensiones')}
 
 
 def _iso(fecha: Any) -> str | None:
@@ -828,6 +884,8 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
                                     'mes': periodo_de_fecha(del_todo.fecha)}
     resultado.registros = len(registros)
     resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
+    resultado.tensiones = {f: (r.valores['v'], r.fuente_tension or '') for r in registros
+                           if r.valores.get('v') is not None and (f := _como_datetime(r.fecha)) is not None}
     if corruptos:
         resultado.avisos.append(f'{corruptos} registro(s) con kVA negativo descartados: no son '
                                 'físicos (desborde del contador del medidor).')
@@ -851,6 +909,12 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         resultado.columnas['fp'] = mejor.fuente_fp
     resultado.kw, resultado.kvar = v['kw'], v.get('kvar')
     resultado.kva, resultado.fp = v.get('kva'), v.get('fp')
+    # 021:RF-71, RF-73: la tensión de ese mismo registro; sin ella, se dice por qué.
+    resultado.tension, resultado.tension_columna = v.get('v'), mejor.fuente_tension
+    if resultado.tension is None:
+        resultado.tension_aviso = ('sin tensión de línea: la hoja no trae «Vll avg» ni «Vll ab», «Vll bc» y «Vll ca» '
+                                   '(021:RF-73)' if not resultado.tensiones else
+                                   'sin tensión de línea en el registro de la máxima: la columna está vacía (021:RF-73)')
     if resultado.kva is None and resultado.kvar is not None:
         resultado.kva = math.hypot(resultado.kw, resultado.kvar)
         resultado.kva_calculado = True
@@ -875,6 +939,129 @@ def _como_datetime(fecha: Any) -> datetime | None:
     if isinstance(fecha, date):
         return datetime(fecha.year, fecha.month, fecha.day)
     return None
+
+
+# =========================================================================== tensión medida
+def tension_en_kv(valor: float | None, nominal_kv: float | None) -> tuple[float | None, str | None]:
+    """La tensión medida en kV y, si no se puede dar, por qué (021:RF-74).
+
+    La unidad la dice la nominal: los medidores de Pisco dan voltios (23 536 en L-PA235 con 22,9
+    kV nominales) y otro libro puede dar kV. Un valor que no casa con la nominal ni en V ni en kV
+    no se toma: B-PA2T2 da 380, el secundario de su transformador de tensión. Sin nominal, 1 000
+    o más es V (ninguna red pasa de 1 000 kV) y menos se toma como kV, y se dice.
+    """
+    if valor is None or not math.isfinite(valor) or valor <= 0:
+        return None, None
+    if nominal_kv:
+        razon = valor / nominal_kv
+        if 0.5 <= razon <= 1.5:
+            return valor, None
+        if 500.0 <= razon <= 1500.0:
+            return valor / 1000.0, None
+        return None, (f'la tensión medida, {valor:g}, no casa con los {nominal_kv:g} kV nominales ni en V ni en '
+                      'kV (¿el secundario del transformador de tensión?): no se toma (021:RF-74)')
+    if valor >= 1000.0:
+        return valor / 1000.0, None
+    return valor, f'tensión {valor:g} tomada como kV: sin la nominal no se confirma la unidad (021:RF-74)'
+
+
+def poner_tension(res: MaximaCabecera, nominal_kv: float | None) -> MaximaCabecera:
+    """La tensión del registro de la máxima en kV y en pu de la nominal del alimentador (021:RF-74 a RF-76)."""
+    if res.tension is None:
+        return res
+    nominal = float(nominal_kv) if nominal_kv else None
+    kv, aviso = tension_en_kv(res.tension, nominal)
+    res.tension_nominal_kv = nominal
+    res.tension_kv = kv
+    res.tension_pu = kv / nominal if kv is not None and nominal else None
+    res.tension_aviso = aviso or (f'{kv:.3f} kV medidos; sin la tensión nominal del alimentador no se da en pu '
+                                  '(021:RF-76)' if kv is not None and nominal is None else None)
+    return res
+
+
+def tension_de_barra(maximas_de: Sequence[MaximaCabecera], fecha: datetime | None,
+                     nominal_kv: float | None) -> dict[str, Any]:
+    """La tensión de una barra en la fecha y hora de su máxima: la media de sus medidores (021:RF-78).
+
+    Los dos transformadores de una barra miden la misma barra; un medidor sin tensión en ese
+    registro o en otra unidad (el secundario, RF-74) no entra en la media y se dice.
+    """
+    vistos, avisos = [], []
+    for r in maximas_de:
+        valor = r.tensiones.get(fecha) if fecha is not None else None
+        if valor is None:
+            avisos.append(f'{r.medidor}: sin tensión de línea el {_iso(fecha)}')
+            continue
+        kv, aviso = tension_en_kv(valor[0], nominal_kv)
+        if kv is None:
+            avisos.append(f'{r.medidor}: {aviso or "tensión no válida"}')
+            continue
+        vistos.append((r.medidor, kv, valor[1]))
+    kv = sum(v for _m, v, _c in vistos) / len(vistos) if vistos else None
+    return {'tension_kv': kv, 'tension_pu': kv / nominal_kv if kv is not None and nominal_kv else None,
+            'tension_medidores': [m for m, _v, _c in vistos],
+            'tension_columna': '; '.join(dict.fromkeys(c for _m, _v, c in vistos if c)) or None,
+            'tension_avisos': avisos}
+
+
+def origen_de_la_tension(t: Mapping[str, Any] | None) -> str:
+    """De dónde sale la consigna de la fuente, para el campo de 2.4 y el informe (021:RF-79, RF-83)."""
+    if not t:
+        return 'sin consigna: la fuente queda como está (021:RF-63)'
+    if t.get('origen') != 'medida':
+        return 'indicada por el operador (021:RF-61)'
+    donde = t.get('barra') or t.get('medidor') or '—'
+    kv = f", {t['kv']:.3f} kV" if t.get('kv') is not None else ''
+    columna = f" ({t['columna']})" if t.get('columna') else ''
+    return f"medida a las {t.get('fecha') or '—'} en {donde}{columna}{kv} (021:RF-79)"
+
+
+def tension_medida_de_la_fuente(fila: Mapping[str, Any], barras: Sequence[Mapping[str, Any]] | None = None
+                                ) -> dict[str, Any] | None:
+    """La tensión medida que va a la fuente de un alimentador, del resultado de la máxima (021:RF-79, RF-85).
+
+    En el análisis por SET o por sistema, la de la barra de media de su SET si su medidor la da: la
+    red externa del modelo está en esa barra. Si no, la de su cabecera, del mismo registro que su kW.
+    """
+    alimentador = str(fila.get('alimentador') or '').strip().upper()
+    barra = next((b for b in barras or [] if not b.get('alta') and b.get('tension_kv') is not None
+                  and alimentador in [str(a).upper() for a in b.get('alimentadores') or []]), None)
+    if barra is not None:
+        return {'origen': 'medida', 'kv': barra['tension_kv'], 'pu': barra.get('tension_pu'),
+                'nominal_kv': barra.get('kv'), 'fecha': barra.get('fecha'),
+                'medidor': ', '.join(barra.get('tension_medidores') or []),
+                'barra': f"la barra {barra.get('clave')} ({', '.join(barra.get('tension_medidores') or [])})",
+                'columna': barra.get('tension_columna')}
+    if fila.get('error') or fila.get('tension_kv') is None:
+        return None
+    return {'origen': 'medida', 'kv': fila['tension_kv'], 'pu': fila.get('tension_pu'),
+            'nominal_kv': fila.get('tension_nominal_kv'), 'fecha': fila.get('fecha'),
+            'medidor': fila.get('medidor'), 'columna': fila.get('tension_columna')}
+
+
+def consigna_de_la_fuente(medida: Mapping[str, Any] | None, *, del_operador: bool,
+                          pu_operador: float | None) -> tuple[dict[str, Any] | None, str | None]:
+    """La consigna de la fuente de un alimentador y, si la medida no se aplica sola, el aviso (021:RF-79 a RF-82, RF-84).
+
+    ``del_operador``: el operador dejó un valor en el campo (o lo borró, ``pu_operador`` ``None``), y
+    manda. Si coincide con la medida, sigue siendo la medida, con su fecha y su medidor. Sin
+    operador, la medida; fuera de la banda, no se aplica sola. Sin medida, lo de hoy (RF-61 a RF-63).
+    """
+    if del_operador:
+        if pu_operador is None:
+            return None, None
+        if medida and medida.get('pu') is not None and abs(float(medida['pu']) - pu_operador) < 5e-4:
+            return {**medida, 'pu': pu_operador}, None
+        return {'origen': 'operador', 'pu': pu_operador}, None
+    if medida is None:
+        return None, None
+    pu = medida.get('pu')
+    bajo, alto = BANDA_TENSION_FUENTE_PU
+    if pu is not None and not bajo <= pu <= alto:
+        return None, (f'la tensión medida, {pu:.4f} pu ({origen_de_la_tension(medida)}), está fuera de '
+                      f'{bajo:.2f} a {alto:.2f} pu: no se aplica sola; escríbala en «Tensión en la fuente» si '
+                      'la confirma (021:RF-82)')
+    return dict(medida), None
 
 
 def curva_de_registros(registros: Sequence[Registro]) -> tuple[list[tuple[datetime, float, float | None]], int]:
@@ -2119,6 +2306,9 @@ CABECERA_COLUMNAS = (
     ('fecha', 'Fecha y hora del kW máximo'), ('kw', 'kW máximo'), ('kvar', 'kVAR'), ('kva', 'kVA'),
     ('fp', 'FP'), ('kva_calculado', 'kVA calculado'), ('fp_calculado', 'FP calculado'),
     ('error', 'Error'), ('avisos', 'Avisos'),
+    # 021:RF-77, al final: las de siempre no cambian de letra.
+    ('tension_kv', 'V (kV)'), ('tension_pu', 'V (pu)'), ('tension_nominal_kv', 'V nominal (kV)'),
+    ('tension_columna', 'Columna de la tensión'), ('tension_aviso', 'Aviso de la tensión'),
 )
 CLIENTE_COLUMNAS = (
     ('codigo', 'Nis / Suministro'), ('nombre', 'Cliente'), ('cruzado_por', 'Cruzado por'),
@@ -2632,6 +2822,7 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                              alias=alias, periodo=periodo, cancelado=cancelado,
                              cabecera=cabecera) if con_alta else []
     curva_de = {(r.alimentador, r.medidor): r.curva for r in de_barra if r.curva}
+    maxima_de = {(r.alimentador, r.medidor): r for r in de_barra}          # 021:RF-78
     fechas_de: dict[str, list[set]] = defaultdict(list)
     for r in de_alimentador:
         if r.curva:
@@ -2739,7 +2930,10 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                               'kvar': punto[2] if punto else None})
         for f in b.alimentadores:
             instantes[f] = mx['fecha']
-        info.append({'clave': b.clave, 'set': b.set_codigo, 'kv': b.kv, 'suelta': b.suelta,
+        # 021:RF-78: la tensión de la barra en ese mismo instante, de los medidores que la miden.
+        tension = tension_de_barra([x for m in b.medidores if (x := maxima_de.get((b.clave, m))) is not None],
+                                   mx['fecha'], b.kv)
+        info.append({**tension, 'clave': b.clave, 'set': b.set_codigo, 'kv': b.kv, 'suelta': b.suelta,
                      'alta': b.alta, 'de_alta': b.de_alta if alta is not None else '',  # RF-84
                      'transformadores': b.transformadores,                         # RF-87
                      'medidores': b.medidores, 'centrales': centrales,

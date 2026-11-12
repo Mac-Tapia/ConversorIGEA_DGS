@@ -11,24 +11,24 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 326 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 62 |
-| Pruebas de la interfaz | `frontend/test/` | 19 |
-| Pruebas | `tests/` | 429 |
+| Interfaz | `frontend/src/` | 63 |
+| Pruebas de la interfaz | `frontend/test/` | 21 |
+| Pruebas | `tests/` | 430 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 315 |
 
-`web/services.py` tiene 13164 líneas y 400 funciones, pendiente de partir (002).
+`web/services.py` tiene 13214 líneas y 402 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 86 |
+| cumplida | 85 |
 | aprobada | 17 |
-| implementada | 1 |
+| implementada | 2 |
 | retirada | 1 |
 
-105 specs con 3481 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3497 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -812,6 +812,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
+| `frontend/src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
 | `frontend/src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
 | `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
 | `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
@@ -829,11 +830,13 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/letraFija.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
