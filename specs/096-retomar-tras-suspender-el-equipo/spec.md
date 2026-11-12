@@ -27,6 +27,9 @@ web, el guion y DIgSILENT. Al despertar, los procesos siguen donde estaban, pero
 - RF-6: EL SISTEMA relanzará cada trabajo interrumpido una sola vez, y no lo relanzará mientras siga vivo el guion que
   lanzó en la ejecución anterior de la web.
 - RF-7: EL SISTEMA dirá en el registro del trabajo relanzado de qué trabajo interrumpido viene.
+- RF-8: CUANDO el navegador no recuerde ningún espacio, o el que recuerda ya no exista, LA WEB abrirá el último modificado
+  de los espacios con datos cargados que se abren, y creará uno nuevo solo si no hay ninguno. (2026-11-12: con el 8765
+  ocupado por el programa instalado, la web abrió en el 8766 y creó un espacio vacío; los 42 del operador no se veían.)
 
 ## Relación con otras specs
 
@@ -42,5 +45,5 @@ web, el guion y DIgSILENT. Al despertar, los procesos siguen donde estaban, pero
 
 ## Criterios de finalización
 
-- `grep -rnoE "096:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.
+- `grep -rnoE "096:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7, y `grep -rnoE "096:RF-[0-9]+" frontend/test` lista RF-8.
 - Con una recalibración en curso, el equipo suspendido y despertado: el trabajo termina, repetido si su orden falló.

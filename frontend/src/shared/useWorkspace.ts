@@ -33,10 +33,32 @@ function bootWorkspace(): Promise<WorkspaceState> {
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
     }
+    // 096:RF-8: sin espacio recordado en este navegador (otro puerto, otro navegador o datos borrados), se retoma el
+    // último trabajado. El 2026-11-12, con el 8765 ocupado por el programa instalado, el acceso directo abrió la web
+    // en el 8766 y creó un espacio vacío: los 42 del operador seguían en disco, pero no se veía ninguno.
+    if (!pedido) {
+      const retomar = espacioParaRetomar(await api.espacios().catch(() => []));
+      if (retomar) {
+        try {
+          return await api.workspace(retomar);
+        } catch (e) {
+          if (!(e instanceof ApiError && (e.status === 404 || e.status === 409))) throw e;
+        }
+      }
+    }
     return api.createWorkspace();
   })();
   bootPromise.catch(() => { bootPromise = null; });
   return bootPromise;
+}
+
+/** 096:RF-8: el espacio que se retoma cuando el navegador no recuerda ninguno: el último modificado de los que tienen
+ *  datos cargados y se abren; ninguno si no hay, y entonces se crea uno nuevo. */
+export function espacioParaRetomar(lista: ReadonlyArray<{ id: string; modified_at?: number | null; inputs?: object | null;
+  estado?: string | null }>): string | null {
+  const conDatos = lista.filter((e) => (e.estado ?? 'ok') === 'ok' && e.inputs && Object.keys(e.inputs).length > 0);
+  conDatos.sort((a, b) => (b.modified_at ?? 0) - (a.modified_at ?? 0));
+  return conDatos[0]?.id ?? null;
 }
 
 /** 081:RF-23: «parcial» y «no_converge» terminaron, con su resultado. */

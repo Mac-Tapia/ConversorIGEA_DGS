@@ -31,3 +31,5 @@ y joins fuera del cerrojo; un fallo de notificación se informa tras liberar los
 intercalaciones, 51 recibos, referencia causal y resultado completo de 8 MiB. No se cerró
 ningún criterio nativo/humano/global. Evidencia externa y revisión exacta:
 `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p21_20261108/HANDOFF.md`.
+- [x] T4. Sin espacio recordado en el navegador, la web retoma el último trabajado en vez de crear uno vacío. (RF-8)
+      Hecho cuando: `frontend/test/retomarEspacio.test.mjs` (096:RF-8) en verde.

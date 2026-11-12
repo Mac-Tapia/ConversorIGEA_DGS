@@ -12,7 +12,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 52 |
-| Pruebas de la interfaz | `frontend/test/` | 14 |
+| Pruebas de la interfaz | `frontend/test/` | 15 |
 | Pruebas | `tests/` | 425 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 309 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-103 specs con 3385 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+103 specs con 3386 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -807,6 +807,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
