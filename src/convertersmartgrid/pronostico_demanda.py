@@ -518,14 +518,22 @@ def apoyar(base: Curva, apoyo: Curva) -> tuple[list, dict]:
     return [*sorted(anteriores, key=lambda f: f[0]), *base], {**info, 'usado': bool(anteriores)}
 
 
-def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None, canonico: Callable[[str], str] = lambda c: c):
-    """Las curvas de cada cliente en todos los libros. Dos valores de un instante no se eligen (046:RF-12)."""
+def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None, canonico: Callable[[str], str] = lambda c: c,
+                        avance: Callable[[int, int, str], None] | None = None):
+    """Las curvas de cada cliente en todos los libros. Dos valores de un instante no se eligen (046:RF-12).
+
+    ``avance(i, n, libro)`` antes de abrir cada libro: la evolución de los clientes fijos lo usa para su progreso y para
+    cancelar entre libros (105:RF-17).
+    """
     trozos: dict[str, list[CurvaCompacta]] = {}
     de_libro: dict[str, list[str]] = {}
     contradictorios: dict[str, str] = {}
     avisos: dict[str, list[str]] = {}
     apartados: list[dict] = []
-    for libro, mes in libros:
+    libros = list(libros)
+    for i, (libro, mes) in enumerate(libros):
+        if avance is not None:
+            avance(i, len(libros), libro.name)
         curvas, notas = curvas_de_clientes(libro, codigos, mes=mes)
         if not curvas and not codigos:
             # Un mes que no se puede leer no se calla: el objetivo tendría un hueco sin explicar.
@@ -577,12 +585,14 @@ def _ficha_de_libro(p: Path) -> dict:
     return {'libro': p.name, 'bytes': s.st_size, 'modificado': datetime.fromtimestamp(s.st_mtime).isoformat(timespec='seconds')}
 
 
-def _libros_con_mes(carpeta: Path, patron) -> tuple[list[tuple[Path, str | None]], list[str]]:
+def _libros_con_mes(carpeta: Path, patron, asignaciones: dict[str, str] | None = None
+                    ) -> tuple[list[tuple[Path, str | None]], list[str]]:
     """Los libros de clientes y su mes, sin lista fija; de los duplicados de un mes, el más reciente (013:RF-5).
 
-    Lo que no se usa se dice (089:RF-75)."""
+    Lo que no se usa se dice (089:RF-75). ``asignaciones``: los meses que el operador dio a mano en la web (013:RF-4).
+    """
     salida, sin_uso = [], []
-    for x in catalogar_libros_clientes(carpeta, patron):
+    for x in catalogar_libros_clientes(carpeta, patron, asignaciones):
         # Un libro sin mes en el nombre sigue valiendo si sus hojas traen la fecha (disposición moderna).
         descartado = any('no se usa' in a for a in x.avisos) or any('duplicados' in a for a in x.avisos) and not x.activo
         if descartado:
@@ -590,6 +600,11 @@ def _libros_con_mes(carpeta: Path, patron) -> tuple[list[tuple[Path, str | None]
         else:
             salida.append((Path(x.path), x.mes))
     return salida, sin_uso
+
+
+#: 105:RF-4: la evolución de los clientes fijos lee los mismos libros y curvas que el pronóstico, sin otro lector.
+libros_con_mes = _libros_con_mes
+curvas_por_cliente = _curvas_por_cliente
 
 
 def _renumeracion(ruta: Path | None) -> tuple[Callable[[str], str], dict[str, str]]:

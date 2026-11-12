@@ -8,39 +8,40 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 316 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 323 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 52 |
-| Pruebas de la interfaz | `frontend/test/` | 15 |
-| Pruebas | `tests/` | 425 |
+| Interfaz | `frontend/src/` | 59 |
+| Pruebas de la interfaz | `frontend/test/` | 16 |
+| Pruebas | `tests/` | 427 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 309 |
+| Specs | `specs/` | 313 |
 
-`web/services.py` tiene 13146 líneas y 398 funciones, pendiente de partir (002).
+`web/services.py` tiene 13156 líneas y 399 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 85 |
+| cumplida | 86 |
 | aprobada | 16 |
 | implementada | 1 |
+| reservada | 1 |
 | retirada | 1 |
 
-103 specs con 3386 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3425 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 125 |
+| adaptadores | Ada | 127 |
 | aplicacion | Apl | 102 |
-| dominio | Dom | 43 |
-| presentacion | Pre | 33 |
+| dominio | Dom | 46 |
+| presentacion | Pre | 35 |
 | puertos | Pue | 3 |
 
-306 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+313 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -349,6 +350,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `transferencia_operador.py` | Dom | 098 | Transferencias de carga del operador: qué SED están transferidas, qué zona forman, qué abrir y qué cerrar para calibrar con la red de la fuente, y lo… |
 | `trafos_sed.py` | Apl | 020 | Transformador nuevo para una SED fija sobrecargada: la menor potencia de la tabla de fichas del perfil (por tensión primaria) con la máxima en el… |
 | `economia.py` | Dom | 004 | Datos de la evaluación técnico-económica (`ComTececo`). |
+| `evolucion_clientes.py` | Ada | 105 | Evolución de los clientes fijos de uno o varios alimentadores con los lectores del pronóstico: conciliación de fuentes, indicadores, mes copiado,… |
+| `dominio/meses_copiados.py` | Dom | 105 | Mes de cada registro de 15 minutos y detección del libro mensual que repite el mes anterior, día a día, por mayoría de las series. |
+| `dominio/evolucion_mensual.py` | Dom | 105 | Indicadores mensuales de una serie (máximas con su instante, medias, energías, FP, factor de carga, registros) y su crecimiento, variación, tendencia… |
+| `dominio/conciliacion_clientes.py` | Dom | 105 | Veredicto de cada cliente frente a sus fuentes, cadenas de renumeración, renumeraciones posibles por CL o SED y fijos por encima de la cabecera. |
 
 ### Motor: obras y optimización
 
@@ -387,6 +392,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
 | `mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |
 | `documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
+| `archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
 
 ### Motor: PIDE y planeamiento
 
@@ -553,6 +559,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
 | `sources/vnr.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources.vnr`. |
+| `evolucion_fijas.py` | Pre | 105 | Servicio de la evolución de los clientes fijos: libros del espacio, trabajo con avance, último resultado y curvas, libro en la salida y su archivo. |
+| `evolucion_fijas_api.py` | Pre | 105 | Rutas `…/clientes-fijos/evolucion`, su curva y `/api/archivo`, montadas en la API única. |
 
 ### VNR-GIS: `adaptadores/entrada/vnr/`
 
@@ -744,6 +752,13 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/operacionSet.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/projectBinding.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `src/api/evolucionFijas.ts` | — | 105 | Cliente tipado de la evolución de los clientes fijos y de la carpeta de archivo. |
+| `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
+| `src/shared/graficos.ts` | — | 105, 006 | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. |
+| `src/features/clientesfijos/EvolucionFijas.tsx` | — | 105 | Pestaña «Evolución de clientes fijos»: alimentadores, rango de meses y trabajo. |
+| `src/features/clientesfijos/Tablero.tsx` | — | 105 | Tablero: conciliación, buscador, tarjetas, gráficos, variaciones, cabecera, curva y avisos. |
+| `src/features/clientesfijos/Graficos.tsx` | — | 105 | Gráficos de líneas por mes y curva de 15 minutos de un cliente, en SVG. |
+| `src/features/clientesfijos/datosTablero.ts` | — | 105 | Lógica del tablero sin React: series, variaciones, avisos, reducción de la curva y buscador difuso. |
 
 ### Sin subsistema asignado
 
@@ -804,6 +819,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
 | `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
@@ -855,6 +871,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `.githooks/pre-push` |
 | `.githooks/python.sh` |
 | `.githooks/regenerar.sh` |
+| `config/archivo.example.json` |
 | `config/costes_referenciales.example.json` |
 | `config/demanda_medida_alias.example.json` |
 | `config/entrega.json` |

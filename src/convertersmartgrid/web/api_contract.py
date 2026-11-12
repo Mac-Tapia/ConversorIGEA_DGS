@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 ModoFuente = Literal['txt', 'mdb', 'vnr']
 FaseAprendizaje = Literal['preparacion', 'entrenamiento', 'seleccion', 'evaluacion', 'publicacion',
@@ -560,3 +560,207 @@ class EstadoPowerFactoryRespuesta(Respuesta):
     interpreter_reason: str
     running_python: str
     available: bool
+
+
+# --------------------------------------------------------------------------- 105: evolución de los clientes fijos
+class EvolucionFijasPeticion(BaseModel):
+    """105:RF-18, RF-19: alimentadores y rango de meses; un rango al revés o vacío se rechaza con 422."""
+    model_config = ConfigDict(extra='forbid')
+    alimentadores: list[str] = Field(min_length=1, max_length=500)
+    desde: str = Field(pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    hasta: str = Field(pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    #: La participación en la máxima de cabecera lee sus libros, que pesan cientos de MB.
+    con_cabecera: bool = True
+
+    @model_validator(mode='after')
+    def _rango(self) -> 'EvolucionFijasPeticion':
+        limpios = [a.strip() for a in self.alimentadores]
+        if not all(limpios):
+            raise ValueError('un alimentador vacío')
+        if self.hasta < self.desde:
+            raise ValueError(f'el rango empieza en {self.desde} y termina antes, en {self.hasta}')
+        self.alimentadores = list(dict.fromkeys(limpios))
+        return self
+
+
+class MesClienteFijoRespuesta(Respuesta):
+    mes: str
+    p_max: float
+    fecha_p_max: str
+    q_en_p_max: float | None
+    q_max: float | None
+    fecha_q_max: str | None
+    p_media: float
+    q_media: float | None
+    energia_p: float
+    energia_q: float | None
+    fp: float | None
+    factor_carga: float | None
+    registros: int
+    esperados: int
+    completo: bool
+    copia_de: str | None = None
+
+
+class CrecimientoRespuesta(Respuesta):
+    pct: float | None
+    desde: str | None
+    hasta: str | None
+
+
+class VariacionMesRespuesta(Respuesta):
+    pct: float | None
+    respecto: str
+
+
+class ResumenEvolucionRespuesta(Respuesta):
+    p_max: float | None = None
+    fecha_p_max: str | None = None
+    crecimiento: dict[str, CrecimientoRespuesta]
+    tendencia: dict[str, float | None]
+    variacion: dict[str, dict[str, VariacionMesRespuesta]]
+    mes_mayor: dict[str, str | None]
+
+
+class VeredictoClienteRespuesta(Respuesta):
+    """105:RF-34: cuántas fuentes dicen su alimentador y qué dice cada una que discrepa."""
+    estado: Literal['confirmado', 'discrepa', 'una_fuente']
+    fuentes: int
+    acuerdan: list[str]
+    texto: str
+
+
+class ClienteEvolucionRespuesta(Respuesta):
+    codigo: str
+    alimentador: str
+    sed: str
+    cl: str = ''
+    nombre: str = ''
+    suministrador: str = ''
+    #: Un resultado guardado antes de la conciliación no lo trae.
+    veredicto: VeredictoClienteRespuesta | None = None
+    anteriores: list[str]
+    libros: list[str]
+    meses: list[MesClienteFijoRespuesta]
+    resumen: ResumenEvolucionRespuesta
+
+
+class MesTotalFijosRespuesta(Respuesta):
+    mes: str
+    clientes: int
+    p_max: float | None = None
+    energia_p: float | None = None
+    q_max: float | None = None
+    energia_q: float | None = None
+    p_max_coincidente: float | None = None
+    fecha_coincidente: str | None = None
+    copia_de: str | None = None
+
+
+class CabeceraMesRespuesta(Respuesta):
+    mes: str
+    p_max: float
+    fecha: str
+    fijas_kw: float | None
+    participacion: float | None
+    copia_de: str | None = None
+
+
+class TotalEvolucionRespuesta(Respuesta):
+    alimentador: str
+    clientes: int
+    meses: list[MesTotalFijosRespuesta]
+    resumen: ResumenEvolucionRespuesta
+    cabecera: list[CabeceraMesRespuesta] | None = None
+
+
+class AvisoEvolucionRespuesta(Respuesta):
+    tipo: Literal['copia', 'incompleto', 'sin_suministro', 'sin_medicion', 'sin_clientes', 'sin_libro',
+                  'contradiccion', 'lectura', 'cabecera', 'discrepancia', 'posible_renumeracion',
+                  'fijos_sobre_cabecera']
+    texto: str
+
+
+class MesCopiadoRespuesta(Respuesta):
+    mes: str
+    de: str
+    clientes: list[str]
+    comparables: int
+
+
+class LibroDelMesRespuesta(Respuesta):
+    libro: str
+    mes: str | None
+
+
+class RenumeracionRespuesta(Respuesta):
+    anterior: str
+    actual: str
+    alimentador: str
+    #: Los meses en que los libros de clientes traen el código anterior (105:RF-35).
+    meses: list[str] = Field(default_factory=list)
+
+
+class PropuestaRenumeracionRespuesta(Respuesta):
+    """105:RF-36: una renumeración posible, que no se aplica."""
+    desaparece: str
+    aparece: str
+    mes: str
+    por: Literal['CL', 'SED']
+    valor: str
+
+
+class ConciliacionRespuesta(Respuesta):
+    confirmado: int
+    discrepa: int
+    una_fuente: int
+
+
+class ArchivoDelLibroRespuesta(Respuesta):
+    ruta: str | None
+    aviso: str | None
+
+
+class EvolucionResultadoRespuesta(Respuesta):
+    alimentadores: list[str]
+    desde: str
+    hasta: str
+    meses: list[str]
+    libros: list[LibroDelMesRespuesta]
+    suministros: str
+    renumeraciones: list[RenumeracionRespuesta]
+    propuestas: list[PropuestaRenumeracionRespuesta] = Field(default_factory=list)
+    conciliacion: ConciliacionRespuesta | None = None
+    #: Si la conciliación miró la red convertida del espacio.
+    red: bool = False
+    copias: list[MesCopiadoRespuesta]
+    clientes: list[ClienteEvolucionRespuesta]
+    totales: list[TotalEvolucionRespuesta]
+    avisos: list[AvisoEvolucionRespuesta]
+    libro: str
+    archivo: ArchivoDelLibroRespuesta
+
+
+class EvolucionFijasRespuesta(Respuesta):
+    """105:RF-18: lo que el tablero necesita para pedir, y el último resultado del espacio."""
+    alimentadores: list[str]
+    meses: list[str]
+    faltan: list[str]
+    cabecera: bool
+    archivo: str | None
+    resultado: EvolucionResultadoRespuesta | None
+
+
+class CurvaClienteFijoRespuesta(Respuesta):
+    codigo: str
+    puntos: list[tuple[str, float, float | None]]
+
+
+class ArchivoInformesPeticion(BaseModel):
+    """105:RF-29: la carpeta de archivo de esta máquina; vacía o ``None`` la quita."""
+    model_config = ConfigDict(extra='forbid')
+    ruta: str | None = None
+
+
+class ArchivoInformesRespuesta(Respuesta):
+    ruta: str | None

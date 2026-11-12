@@ -361,6 +361,79 @@
         "title": "AmbitoFuenteRespuesta",
         "type": "object"
       },
+      "ArchivoDelLibroRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "ruta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruta"
+          }
+        },
+        "required": [
+          "ruta",
+          "aviso"
+        ],
+        "title": "ArchivoDelLibroRespuesta",
+        "type": "object"
+      },
+      "ArchivoInformesPeticion": {
+        "additionalProperties": false,
+        "description": "105:RF-29: la carpeta de archivo de esta máquina; vacía o ``None`` la quita.",
+        "properties": {
+          "ruta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruta"
+          }
+        },
+        "title": "ArchivoInformesPeticion",
+        "type": "object"
+      },
+      "ArchivoInformesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "ruta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruta"
+          }
+        },
+        "required": [
+          "ruta"
+        ],
+        "title": "ArchivoInformesRespuesta",
+        "type": "object"
+      },
       "ArchivoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -611,6 +684,39 @@
           "workspace"
         ],
         "title": "AutoEntradasRespuesta",
+        "type": "object"
+      },
+      "AvisoEvolucionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "copia",
+              "incompleto",
+              "sin_suministro",
+              "sin_medicion",
+              "sin_clientes",
+              "sin_libro",
+              "contradiccion",
+              "lectura",
+              "cabecera",
+              "discrepancia",
+              "posible_renumeracion",
+              "fijos_sobre_cabecera"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "texto"
+        ],
+        "title": "AvisoEvolucionRespuesta",
         "type": "object"
       },
       "BetaRespuesta": {
@@ -954,6 +1060,65 @@
         "title": "Body_upload_source_api_vnr_sources_upload_post",
         "type": "object"
       },
+      "CabeceraMesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "copia_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copia De"
+          },
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "fijas_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fijas Kw"
+          },
+          "mes": {
+            "title": "Mes",
+            "type": "string"
+          },
+          "p_max": {
+            "title": "P Max",
+            "type": "number"
+          },
+          "participacion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participacion"
+          }
+        },
+        "required": [
+          "mes",
+          "p_max",
+          "fecha",
+          "fijas_kw",
+          "participacion"
+        ],
+        "title": "CabeceraMesRespuesta",
+        "type": "object"
+      },
       "CalibracionRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1174,6 +1339,83 @@
         "title": "CentralIn",
         "type": "object"
       },
+      "ClienteEvolucionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "anteriores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Anteriores",
+            "type": "array"
+          },
+          "cl": {
+            "default": "",
+            "title": "Cl",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "libros": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Libros",
+            "type": "array"
+          },
+          "meses": {
+            "items": {
+              "$ref": "#/components/schemas/MesClienteFijoRespuesta"
+            },
+            "title": "Meses",
+            "type": "array"
+          },
+          "nombre": {
+            "default": "",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "resumen": {
+            "$ref": "#/components/schemas/ResumenEvolucionRespuesta"
+          },
+          "sed": {
+            "title": "Sed",
+            "type": "string"
+          },
+          "suministrador": {
+            "default": "",
+            "title": "Suministrador",
+            "type": "string"
+          },
+          "veredicto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VeredictoClienteRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "codigo",
+          "alimentador",
+          "sed",
+          "anteriores",
+          "libros",
+          "meses",
+          "resumen"
+        ],
+        "title": "ClienteEvolucionRespuesta",
+        "type": "object"
+      },
       "CompararFijasIn": {
         "description": "039:RF-5: los alimentadores de la máxima buscada y el proyecto de su última calibración.",
         "properties": {
@@ -1305,6 +1547,30 @@
         "title": "ComprobacionDoctorRespuesta",
         "type": "object"
       },
+      "ConciliacionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmado": {
+            "title": "Confirmado",
+            "type": "integer"
+          },
+          "discrepa": {
+            "title": "Discrepa",
+            "type": "integer"
+          },
+          "una_fuente": {
+            "title": "Una Fuente",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "confirmado",
+          "discrepa",
+          "una_fuente"
+        ],
+        "title": "ConciliacionRespuesta",
+        "type": "object"
+      },
       "ConversionEsperadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1348,6 +1614,51 @@
         "title": "ConversionEsperadaRespuesta",
         "type": "object"
       },
+      "CrecimientoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "desde": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desde"
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          }
+        },
+        "required": [
+          "pct",
+          "desde",
+          "hasta"
+        ],
+        "title": "CrecimientoRespuesta",
+        "type": "object"
+      },
       "CrsRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1365,6 +1676,48 @@
           "label"
         ],
         "title": "CrsRespuesta",
+        "type": "object"
+      },
+      "CurvaClienteFijoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "puntos": {
+            "items": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Puntos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codigo",
+          "puntos"
+        ],
+        "title": "CurvaClienteFijoRespuesta",
         "type": "object"
       },
       "DatabaseIn": {
@@ -2630,6 +2983,224 @@
         "title": "EstudiosIn",
         "type": "object"
       },
+      "EvolucionFijasPeticion": {
+        "additionalProperties": false,
+        "description": "105:RF-18, RF-19: alimentadores y rango de meses; un rango al revés o vacío se rechaza con 422.",
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "con_cabecera": {
+            "default": true,
+            "title": "Con Cabecera",
+            "type": "boolean"
+          },
+          "desde": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Desde",
+            "type": "string"
+          },
+          "hasta": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Hasta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alimentadores",
+          "desde",
+          "hasta"
+        ],
+        "title": "EvolucionFijasPeticion",
+        "type": "object"
+      },
+      "EvolucionFijasRespuesta": {
+        "additionalProperties": false,
+        "description": "105:RF-18: lo que el tablero necesita para pedir, y el último resultado del espacio.",
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "archivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivo"
+          },
+          "cabecera": {
+            "title": "Cabecera",
+            "type": "boolean"
+          },
+          "faltan": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Faltan",
+            "type": "array"
+          },
+          "meses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Meses",
+            "type": "array"
+          },
+          "resultado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvolucionResultadoRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "alimentadores",
+          "meses",
+          "faltan",
+          "cabecera",
+          "archivo",
+          "resultado"
+        ],
+        "title": "EvolucionFijasRespuesta",
+        "type": "object"
+      },
+      "EvolucionResultadoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "archivo": {
+            "$ref": "#/components/schemas/ArchivoDelLibroRespuesta"
+          },
+          "avisos": {
+            "items": {
+              "$ref": "#/components/schemas/AvisoEvolucionRespuesta"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "clientes": {
+            "items": {
+              "$ref": "#/components/schemas/ClienteEvolucionRespuesta"
+            },
+            "title": "Clientes",
+            "type": "array"
+          },
+          "conciliacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConciliacionRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copias": {
+            "items": {
+              "$ref": "#/components/schemas/MesCopiadoRespuesta"
+            },
+            "title": "Copias",
+            "type": "array"
+          },
+          "desde": {
+            "title": "Desde",
+            "type": "string"
+          },
+          "hasta": {
+            "title": "Hasta",
+            "type": "string"
+          },
+          "libro": {
+            "title": "Libro",
+            "type": "string"
+          },
+          "libros": {
+            "items": {
+              "$ref": "#/components/schemas/LibroDelMesRespuesta"
+            },
+            "title": "Libros",
+            "type": "array"
+          },
+          "meses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Meses",
+            "type": "array"
+          },
+          "propuestas": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaRenumeracionRespuesta"
+            },
+            "title": "Propuestas",
+            "type": "array"
+          },
+          "red": {
+            "default": false,
+            "title": "Red",
+            "type": "boolean"
+          },
+          "renumeraciones": {
+            "items": {
+              "$ref": "#/components/schemas/RenumeracionRespuesta"
+            },
+            "title": "Renumeraciones",
+            "type": "array"
+          },
+          "suministros": {
+            "title": "Suministros",
+            "type": "string"
+          },
+          "totales": {
+            "items": {
+              "$ref": "#/components/schemas/TotalEvolucionRespuesta"
+            },
+            "title": "Totales",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alimentadores",
+          "desde",
+          "hasta",
+          "meses",
+          "libros",
+          "suministros",
+          "renumeraciones",
+          "copias",
+          "clientes",
+          "totales",
+          "avisos",
+          "libro",
+          "archivo"
+        ],
+        "title": "EvolucionResultadoRespuesta",
+        "type": "object"
+      },
       "FallaIn": {
         "description": "Una falla del estudio de protecciones (049:RF-4): barra, tipo, fase e impedancia.",
         "properties": {
@@ -3812,6 +4383,304 @@
           "avisos"
         ],
         "title": "LibroClienteRespuesta",
+        "type": "object"
+      },
+      "LibroDelMesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "libro": {
+            "title": "Libro",
+            "type": "string"
+          },
+          "mes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes"
+          }
+        },
+        "required": [
+          "libro",
+          "mes"
+        ],
+        "title": "LibroDelMesRespuesta",
+        "type": "object"
+      },
+      "MesClienteFijoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "completo": {
+            "title": "Completo",
+            "type": "boolean"
+          },
+          "copia_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copia De"
+          },
+          "energia_p": {
+            "title": "Energia P",
+            "type": "number"
+          },
+          "energia_q": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energia Q"
+          },
+          "esperados": {
+            "title": "Esperados",
+            "type": "integer"
+          },
+          "factor_carga": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor Carga"
+          },
+          "fecha_p_max": {
+            "title": "Fecha P Max",
+            "type": "string"
+          },
+          "fecha_q_max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Q Max"
+          },
+          "fp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fp"
+          },
+          "mes": {
+            "title": "Mes",
+            "type": "string"
+          },
+          "p_max": {
+            "title": "P Max",
+            "type": "number"
+          },
+          "p_media": {
+            "title": "P Media",
+            "type": "number"
+          },
+          "q_en_p_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q En P Max"
+          },
+          "q_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q Max"
+          },
+          "q_media": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q Media"
+          },
+          "registros": {
+            "title": "Registros",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mes",
+          "p_max",
+          "fecha_p_max",
+          "q_en_p_max",
+          "q_max",
+          "fecha_q_max",
+          "p_media",
+          "q_media",
+          "energia_p",
+          "energia_q",
+          "fp",
+          "factor_carga",
+          "registros",
+          "esperados",
+          "completo"
+        ],
+        "title": "MesClienteFijoRespuesta",
+        "type": "object"
+      },
+      "MesCopiadoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "clientes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clientes",
+            "type": "array"
+          },
+          "comparables": {
+            "title": "Comparables",
+            "type": "integer"
+          },
+          "de": {
+            "title": "De",
+            "type": "string"
+          },
+          "mes": {
+            "title": "Mes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mes",
+          "de",
+          "clientes",
+          "comparables"
+        ],
+        "title": "MesCopiadoRespuesta",
+        "type": "object"
+      },
+      "MesTotalFijosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "clientes": {
+            "title": "Clientes",
+            "type": "integer"
+          },
+          "copia_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copia De"
+          },
+          "energia_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energia P"
+          },
+          "energia_q": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energia Q"
+          },
+          "fecha_coincidente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Coincidente"
+          },
+          "mes": {
+            "title": "Mes",
+            "type": "string"
+          },
+          "p_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Max"
+          },
+          "p_max_coincidente": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Max Coincidente"
+          },
+          "q_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q Max"
+          }
+        },
+        "required": [
+          "mes",
+          "clientes"
+        ],
+        "title": "MesTotalFijosRespuesta",
         "type": "object"
       },
       "NoDisponibleRespuesta": {
@@ -5081,6 +5950,45 @@
         "title": "ProgresoRespuesta",
         "type": "object"
       },
+      "PropuestaRenumeracionRespuesta": {
+        "additionalProperties": false,
+        "description": "105:RF-36: una renumeración posible, que no se aplica.",
+        "properties": {
+          "aparece": {
+            "title": "Aparece",
+            "type": "string"
+          },
+          "desaparece": {
+            "title": "Desaparece",
+            "type": "string"
+          },
+          "mes": {
+            "title": "Mes",
+            "type": "string"
+          },
+          "por": {
+            "enum": [
+              "CL",
+              "SED"
+            ],
+            "title": "Por",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "desaparece",
+          "aparece",
+          "mes",
+          "por",
+          "valor"
+        ],
+        "title": "PropuestaRenumeracionRespuesta",
+        "type": "object"
+      },
       "ProteccionesCapacidadesIn": {
         "description": "Inventario de la versión conectada para las protecciones (spec 049, RF-1).",
         "properties": {
@@ -5400,6 +6308,37 @@
         "title": "ReconstruccionRespuesta",
         "type": "object"
       },
+      "RenumeracionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "string"
+          },
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "anterior": {
+            "title": "Anterior",
+            "type": "string"
+          },
+          "meses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Meses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "anterior",
+          "actual",
+          "alimentador"
+        ],
+        "title": "RenumeracionRespuesta",
+        "type": "object"
+      },
       "ResumenEspacioRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5470,6 +6409,86 @@
           "estado"
         ],
         "title": "ResumenEspacioRespuesta",
+        "type": "object"
+      },
+      "ResumenEvolucionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "crecimiento": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CrecimientoRespuesta"
+            },
+            "title": "Crecimiento",
+            "type": "object"
+          },
+          "fecha_p_max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha P Max"
+          },
+          "mes_mayor": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Mes Mayor",
+            "type": "object"
+          },
+          "p_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Max"
+          },
+          "tendencia": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Tendencia",
+            "type": "object"
+          },
+          "variacion": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/VariacionMesRespuesta"
+              },
+              "type": "object"
+            },
+            "title": "Variacion",
+            "type": "object"
+          }
+        },
+        "required": [
+          "crecimiento",
+          "tendencia",
+          "variacion",
+          "mes_mayor"
+        ],
+        "title": "ResumenEvolucionRespuesta",
         "type": "object"
       },
       "RevisionEquipoIn": {
@@ -5898,6 +6917,51 @@
         "title": "TipoObraRespuesta",
         "type": "object"
       },
+      "TotalEvolucionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "cabecera": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CabeceraMesRespuesta"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cabecera"
+          },
+          "clientes": {
+            "title": "Clientes",
+            "type": "integer"
+          },
+          "meses": {
+            "items": {
+              "$ref": "#/components/schemas/MesTotalFijosRespuesta"
+            },
+            "title": "Meses",
+            "type": "array"
+          },
+          "resumen": {
+            "$ref": "#/components/schemas/ResumenEvolucionRespuesta"
+          }
+        },
+        "required": [
+          "alimentador",
+          "clientes",
+          "meses",
+          "resumen"
+        ],
+        "title": "TotalEvolucionRespuesta",
+        "type": "object"
+      },
       "TotalesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -6212,6 +7276,70 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VariacionMesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "respecto": {
+            "title": "Respecto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pct",
+          "respecto"
+        ],
+        "title": "VariacionMesRespuesta",
+        "type": "object"
+      },
+      "VeredictoClienteRespuesta": {
+        "additionalProperties": false,
+        "description": "105:RF-34: cuántas fuentes dicen su alimentador y qué dice cada una que discrepa.",
+        "properties": {
+          "acuerdan": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Acuerdan",
+            "type": "array"
+          },
+          "estado": {
+            "enum": [
+              "confirmado",
+              "discrepa",
+              "una_fuente"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "fuentes": {
+            "title": "Fuentes",
+            "type": "integer"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "fuentes",
+          "acuerdan",
+          "texto"
+        ],
+        "title": "VeredictoClienteRespuesta",
+        "type": "object"
+      },
       "VerificarIn": {
         "description": "Verificación de la convergencia (spec 008): el proyecto y los alimentadores a medir.",
         "properties": {
@@ -6406,6 +7534,62 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/archivo": {
+      "get": {
+        "description": "105:RF-28: la carpeta donde se archivan los informes en esta máquina, si hay.",
+        "operationId": "archivo_ver_api_archivo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchivoInformesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Archivo Ver"
+      },
+      "put": {
+        "description": "105:RF-29: pone o quita la carpeta de archivo; solo un servidor que admite rutas locales.",
+        "operationId": "archivo_poner_api_archivo_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchivoInformesPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchivoInformesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archivo Poner"
+      }
+    },
     "/api/asistente/aceptacion": {
       "get": {
         "description": "047:RF-16 / RF-17 — propuestas materializadas y observaciones reales separadas.",
@@ -8534,6 +9718,145 @@
           }
         },
         "summary": "Catalog Build"
+      }
+    },
+    "/api/workspaces/{wid}/clientes-fijos/evolucion": {
+      "get": {
+        "description": "105:RF-18: alimentadores con clientes fijos, meses con libro y el último resultado del espacio.",
+        "operationId": "evolucion_estado_api_workspaces__wid__clientes_fijos_evolucion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvolucionFijasRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evolucion Estado"
+      },
+      "post": {
+        "description": "105:RF-17: lee los libros de clientes del rango en un trabajo del motor, cancelable entre libros.",
+        "operationId": "evolucion_lanzar_api_workspaces__wid__clientes_fijos_evolucion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvolucionFijasPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evolucion Lanzar"
+      }
+    },
+    "/api/workspaces/{wid}/clientes-fijos/evolucion/curva": {
+      "get": {
+        "description": "105:RF-25: la curva de 15 minutos de un cliente del último resultado.",
+        "operationId": "evolucion_curva_api_workspaces__wid__clientes_fijos_evolucion_curva_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cliente",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Cliente",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurvaClienteFijoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evolucion Curva"
       }
     },
     "/api/workspaces/{wid}/convert": {

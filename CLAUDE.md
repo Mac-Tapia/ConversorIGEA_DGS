@@ -131,6 +131,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida |  |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
+  | 104 Los libros nuevos de demanda se reconocen solos | reservada |  |
+  | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

@@ -2740,6 +2740,12 @@ def create_app(
 
     registrar_rutas_equipo(app, ws_or_404=ws_or_404, submit=submit)
 
+    # 105: evolución de los clientes fijos y carpeta de archivo, en su módulo.
+    from .evolucion_fijas_api import registrar_rutas_evolucion
+
+    registrar_rutas_evolucion(app, ws_or_404=ws_or_404, submit=submit,
+                              rutas_locales=lambda: _server_paths_allowed(host))
+
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()
     if (dist / 'index.html').is_file():

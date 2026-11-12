@@ -459,3 +459,28 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
 /* 103:RF-3: la píldora de PowerFactory abre la lista de instalaciones. */
 .pill-boton { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
 .pill-boton:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; border-radius: 999px; }
+
+/* Spec 105: tablero de la evolución de los clientes fijos. */
+.chips-scroll { max-height: 120px; overflow: auto; }
+.tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.tarjeta { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); }
+.tarjeta.on { border-color: var(--primary); }
+.tarjeta-total { background: var(--primary-soft); }
+.tarjeta h5 { margin: 0 0 6px; font-size: 14px; }
+.tarjeta-datos { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12.5px; }
+.tarjeta-datos dt { color: var(--muted); }
+.tarjeta-datos dd { margin: 0; font-variant-numeric: tabular-nums; }
+.var-sube { background: var(--ok-soft); color: var(--ok); }
+.var-baja { background: var(--error-soft); color: var(--error); }
+.var-igual { color: var(--muted); }
+.tabla-variaciones td { font-variant-numeric: tabular-nums; text-align: right; }
+.tabla-variaciones td:first-child { text-align: left; }
+.tablero-fijas details summary { cursor: pointer; }
+button.link { background: none; border: 0; padding: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+.resultados-busqueda { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; }
+.veredicto { margin: 0 0 6px; }
+.veredicto-confirmado { color: var(--ok); }
+.veredicto-discrepa { color: var(--warn); font-weight: 600; }
+.veredicto-una_fuente { color: var(--muted); }
+.pill-ok { color: var(--ok); font-weight: 600; }
+.pill-warn { color: var(--warn); font-weight: 600; }

@@ -112,3 +112,5 @@ referencia/*.pdf
 config/suite_completa.json
 # 103:RF-3: la PowerFactory que eligió el operador en esta máquina.
 config/powerfactory.json
+# 105:RF-28: la carpeta de archivo de los informes de esta máquina.
+config/archivo.json

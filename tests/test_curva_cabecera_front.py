@@ -80,7 +80,10 @@ def test_varios_alimentadores_en_una_grafica_con_el_mismo_eje():
 def test_un_color_y_una_leyenda_por_alimentador():
     """021:RF-18 — un color por alimentador (tokens con modo oscuro) y la leyenda con su
     nombre y su medidor."""
-    assert 'const color = (i: number) => `var(--serie-${i % COLORES})`;' in CURVA
+    # 105: los colores, las marcas y los tramos de las gráficas SVG se comparten en shared/graficos.ts.
+    graficos = (SRC / 'shared' / 'graficos.ts').read_text(encoding='utf-8')
+    assert 'export const colorSerie = (i: number) => `var(--serie-${i % COLORES_SERIE})`;' in graficos
+    assert 'const color = colorSerie;' in CURVA
     assert CSS.count('--serie-0:') == 2, 'claro y oscuro'
     assert "etiqueta: `${g.alimentador || '—'} · ${m}`" in AJUSTE
     assert 'className="curva-serie-btn"' in CURVA
