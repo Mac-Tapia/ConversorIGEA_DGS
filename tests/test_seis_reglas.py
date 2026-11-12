@@ -491,7 +491,9 @@ BORRADOS = {
         'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca',
         'tools/obras_pf.py::retirar_obras',
         # 098:RF-36: las variaciones de obra por su nombre exacto: la vieja tras comprobar la nueva, o la nueva al deshacer.
-        'tools/obras_pf.py::_borrar_variaciones'},
+        'tools/obras_pf.py::_borrar_variaciones',
+        # 025:RF-79: «Cargas nuevas <año>» por su nombre y su marca, para copiarlo otra vez de «Sin proyecto» (PA217).
+        'tools/casos_pf.py::_borrar_caso'},
     # Con su guarda: la de esta spec, o la de la copia de prueba (064).
     'con_guarda': {'src/convertersmartgrid/pf_arnes.py::borrar_en_su_proyecto', 'tools/restitucion_pf.py::borrar'},
 }
