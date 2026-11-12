@@ -1,4 +1,5 @@
 import { fmtNum } from '../../shared/formato';
+import { useLetraFija } from '../../shared/graficos';
 
 import type { PerfilTension as Perfil } from '../../api/types';
 
@@ -26,6 +27,7 @@ function marcas(min: number, max: number, n = 5): number[] {
  */
 export function PerfilTension({ perfil, feeder }: { perfil: Perfil; feeder: string }) {
   const puntos = perfil.puntos.filter((p) => p.u != null && p.km != null);
+  const [letra, estiloLetra] = useLetraFija(W);
   if (!puntos.length) return null;
   const banda = perfil.banda ?? null;
   const kmMax = Math.max(...puntos.map((p) => p.km), 0.001);
@@ -44,7 +46,7 @@ export function PerfilTension({ perfil, feeder }: { perfil: Perfil; feeder: stri
       <div className="curva-head">
         <strong>Perfil de tensión de {feeder} tras la calibración</strong>
       </div>
-      <svg className="curva-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+      <svg ref={letra} className="curva-svg" style={estiloLetra} viewBox={`0 0 ${W} ${H}`} role="img"
         aria-label={`Perfil de tensión de ${feeder}: ${puntos.length} barras de media; mínima ${fmtNum(minima.u, 4)} p.u. en ${minima.barra}`}>
         {marcas(uMin, uMax).map((m) => (
           <g key={`u${m}`}>
