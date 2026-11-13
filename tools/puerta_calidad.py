@@ -43,6 +43,9 @@ VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_
              'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON',
              'CSG_PF_PYTHON_39')
 
+#: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
+DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')
+
 #: El fichero local de las variables, fuera de git (102:RF-6, RF-15).
 FICHERO_VARIABLES = Path('config') / 'suite_completa.json'
 
@@ -60,6 +63,10 @@ def pruebas_del_commit(ficheros: Iterable[str], raiz: Path = RAIZ) -> list[str]:
     o una herramienta de ``tools/`` del commit.
     """
     ficheros = [f.replace('\\', '/') for f in ficheros]
+    # Sin carpeta de pruebas (el repositorio de las pruebas de los ganchos, 102:RF-16) no hay suite que correr.
+    if any(f in DE_TODA_LA_SUITE for f in ficheros) and (raiz / 'tests').is_dir():
+        # 106:RF-13: el conftest de la 106 cambió lo que ven todas las pruebas y la puerta corrió solo 16 ficheros.
+        return ['tests']
     elegidas = [g for g in GOBIERNO if (raiz / g).is_file()]
     nombres = set()
     for f in ficheros:
@@ -67,6 +74,9 @@ def pruebas_del_commit(ficheros: Iterable[str], raiz: Path = RAIZ) -> list[str]:
         if f.startswith('tests/') and ruta.name.startswith('test_') and ruta.suffix == '.py' and (raiz / f).is_file():
             elegidas.append(f)
         elif f.startswith(('src/', 'tools/')) and ruta.suffix == '.py' and ruta.stem != '__init__':
+            nombres.add(ruta.stem)
+        elif f.startswith('tests/') and ruta.suffix == '.py' and ruta.parent.as_posix() == 'tests':
+            # 106:RF-13: un ayudante de pruebas (apoyo, fake_pf…) elige las pruebas que lo nombran.
             nombres.add(ruta.stem)
     if nombres:
         patron = re.compile(r'\b(' + '|'.join(sorted(map(re.escape, nombres))) + r')\b')

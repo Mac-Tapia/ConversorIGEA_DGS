@@ -40,6 +40,12 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   que lanzó, porque todo entrenamiento lo pide), ENTONCES EL SISTEMA la hará fallar diciéndolo.
 - RF-11: EL SISTEMA hará que la puerta de calidad importe el código del árbol que juzga, también en un worktree que usa
   el `.venv` del árbol principal.
+- RF-12: EL SISTEMA hará que todo proceso hijo que lance una prueba con el intérprete del `.venv` cargue el código del
+  árbol que se prueba, también en un worktree.
+- RF-14: EL SISTEMA dará al Python de DIgSILENT el paquete del conversor solo desde la ruta que fija 103:RF-6, sin
+  ninguna otra carpeta con el paquete que traiga el `PYTHONPATH` heredado.
+- RF-13: CUANDO un commit cambia lo que ven todas las pruebas (`tests/conftest.py`, `pyproject.toml`), EL SISTEMA
+  correrá en su puerta todas las pruebas; y CUANDO cambia un ayudante de `tests/`, las que lo nombran.
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

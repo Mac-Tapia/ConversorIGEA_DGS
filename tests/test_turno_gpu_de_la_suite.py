@@ -264,6 +264,36 @@ def test_la_puerta_importa_el_codigo_del_arbol_que_juzga():
     assert Path(salida).resolve().is_relative_to((raiz / 'src').resolve()), salida
 
 
+def test_un_hijo_de_una_prueba_carga_el_src_de_este_arbol():
+    """106:RF-12 — un hijo con el python del .venv, lanzado desde un worktree, carga el src de ese worktree y no el del
+    árbol principal, al que apunta el .pth del paquete editable."""
+    import subprocess
+    import sys
+
+    raiz = Path(__file__).resolve().parents[1]
+    salida = subprocess.run([sys.executable, '-c', 'import convertersmartgrid; print(convertersmartgrid.__file__)'],
+                            capture_output=True, text=True, encoding='utf-8', cwd=raiz.parent, check=True).stdout.strip()
+    assert Path(salida).resolve().is_relative_to((raiz / 'src').resolve()), salida
+
+
+def test_el_entorno_de_digsilent_no_hereda_otro_paquete(tmp_path, monkeypatch):
+    """106:RF-14, 103:RF-6 — con un PYTHONPATH heredado que trae otro src del conversor, el entorno de DIgSILENT no lo
+    pasa; las rutas heredadas sin el paquete siguen detrás."""
+    from convertersmartgrid import powerfactory_env as pe
+
+    otro_src = tmp_path / 'otro_arbol' / 'src'
+    (otro_src / 'convertersmartgrid').mkdir(parents=True)
+    (otro_src / 'convertersmartgrid' / '__init__.py').write_text('', encoding='utf-8')
+    ajena = tmp_path / 'libreria_ajena'
+    ajena.mkdir()
+    monkeypatch.setenv('PYTHONPATH', os.pathsep.join([str(otro_src), str(ajena)]))
+    api = tmp_path / 'PowerFactory 2021 SP3' / 'Python' / '3.9'
+    otro = tmp_path / 'python_pf' / '3.9' / 'python.exe'
+    for interprete in (otro, Path(__import__('sys').executable)):
+        rutas = pe.pf_subprocess_env(api, interprete)['PYTHONPATH'].split(os.pathsep)
+        assert str(otro_src) not in rutas and rutas[-1] == str(ajena) and rutas[0] == str(api)
+
+
 def test_una_prueba_colgada_vuelca_su_pila():
     """106:RF-5 — ``faulthandler_timeout`` en la configuración de pytest: una prueba de más de 30 min deja su pila."""
     import tomllib

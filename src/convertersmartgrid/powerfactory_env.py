@@ -310,7 +310,12 @@ def pf_subprocess_env(pf_dir: Path | None, interprete: Path | None = None) -> di
         # sys.prefix y «site» habría añadido las librerías del 3.12 (QA del rc4, 2026-11-11).
         env.pop('PYTHONHOME', None)
         env['PYTHONNOUSERSITE'] = '1'
-    env['PYTHONPATH'] = os.pathsep.join([*rutas, *([env['PYTHONPATH']] if env.get('PYTHONPATH') else [])])
+    # 106:RF-14, 103:RF-6: de dónde sale el paquete lo decide esta función. Una ruta heredada con otro paquete del
+    # conversor (la suite pone el src de su árbol, 106:RF-12) metía un segundo paquete en el Python de DIgSILENT;
+    # las demás rutas heredadas siguen detrás.
+    heredadas = [r for r in (env.get('PYTHONPATH') or '').split(os.pathsep)
+                 if r and not (Path(r) / 'convertersmartgrid' / '__init__.py').is_file()]
+    env['PYTHONPATH'] = os.pathsep.join([*rutas, *heredadas])
     env['PF_PYTHON'] = str(pf_dir)
     return env
 

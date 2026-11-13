@@ -29,6 +29,14 @@ os.environ.pop(sesion_web.VARIABLE_PUERTO, None)
 # el fixture por prueba de 102:RF-22, y la puerta del 2026-11-12 esperó 40 min en silencio a la T7.
 from convertersmartgrid.training_coordinator import ruta_guardia_gpu as _ruta_guardia_gpu
 
+# 106:RF-12: los hijos (guiones de tools/, --help, lanzadores) cargan el src de ESTE árbol. pytest pone «pythonpath =
+# ["src"]» solo en su propio sys.path; un hijo con el python del .venv cargaba el src del árbol principal por el .pth
+# del paquete editable, y una puerta de rama podía dar verde con código que no era el suyo (auditoría, 2026-11-12).
+SRC_DEL_ARBOL = Path(__file__).resolve().parents[1] / 'src'
+os.environ['PYTHONPATH'] = os.pathsep.join(
+    [str(SRC_DEL_ARBOL)] + [p for p in os.environ.get('PYTHONPATH', '').split(os.pathsep)
+                            if p and Path(p).resolve() != SRC_DEL_ARBOL.resolve()])
+
 GUARDIA_GPU_DE_LA_MAQUINA = _ruta_guardia_gpu()
 os.environ['CSG_ML_GPU_LOCK'] = str(Path(tempfile.mkdtemp(prefix='csg-gpu-sesion-')) / 'gpu.lock')
 #: Segundos que la suite espera la GPU de la máquina antes de salir sin veredicto (106:RF-3).

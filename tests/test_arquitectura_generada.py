@@ -163,7 +163,12 @@ def test_orden_de_familias_se_lee_del_contrato_puro():
 
 # ---------------------------------------------------------------------- ganchos de punta a punta
 def _git(repo, *args, env=None, check=True):
-    return subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, encoding='utf-8', env=env, check=check)
+    r = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, encoding='utf-8', env=env)
+    if check and r.returncode:
+        # 106:RF-13: el 2026-11-12 cuatro de estas fallaron en el «git commit» del repo temporal y el error no decía por
+        # qué (el gancho pre-commit pedía la suite «tests» en un repo sin tests/).
+        raise AssertionError(f"git {' '.join(args)} salió con {r.returncode}:\n{r.stdout}\n{r.stderr}")
+    return r
 
 
 @pytest.fixture

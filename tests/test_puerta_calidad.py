@@ -283,3 +283,20 @@ def test_102_rf23_la_puerta_pasa_todas_las_variables_que_las_pruebas_piden():
     assert 'CSG_PF_PYTHON_39' in nombradas      # el caso que la motivó
     assert nombradas - set(PC.VARIABLES) == set()
     assert del_ejemplo == set(PC.VARIABLES)
+
+
+def test_lo_comun_a_todas_las_pruebas_corre_la_suite_entera(tmp_path):
+    """106:RF-13 — un cambio en el conftest o en pyproject.toml corre todas las pruebas; un ayudante, las que lo nombran."""
+    from apoyo import cargar_herramienta
+
+    puerta = cargar_herramienta('puerta_calidad.py', 'puerta_comun', tools_en_path=True)
+    raiz = Path(__file__).resolve().parents[1]
+    assert puerta.pruebas_del_commit(['tests/conftest.py'], raiz) == ['tests']
+    assert puerta.pruebas_del_commit(['pyproject.toml', 'src/convertersmartgrid/naming.py'], raiz) == ['tests']
+    con_fake = puerta.pruebas_del_commit(['tests/fake_pf.py'], raiz)
+    propias = [p for p in con_fake if p not in puerta.GOBIERNO]
+    assert con_fake != ['tests'] and propias
+    assert all('fake_pf' in (raiz / p).read_text(encoding='utf-8') for p in propias)
+    # Un repositorio sin tests/ (el de las pruebas de los ganchos de la 090) no pide la suite: 102:RF-16.
+    assert puerta.pruebas_del_commit(['pyproject.toml'], tmp_path) == []
+
