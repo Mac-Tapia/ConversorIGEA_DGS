@@ -320,3 +320,16 @@ def test_el_resultado_guarda_las_mas_lentas_y_avisa_de_las_del_umbral(tmp_path, 
     ini = tomllib.loads((Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text(encoding='utf-8'))
     assert ini['tool']['pytest']['ini_options']['faulthandler_timeout'] == PC.UMBRAL_PRUEBA_LENTA_S
 
+
+
+def test_106_rf13_un_fichero_que_no_es_codigo_elige_las_pruebas_que_lo_nombran(tmp_path):
+    """106:RF-13 — un cambio en un fichero que no es un módulo de Python (el .iss del instalador, un .json de
+    configuración…) elige las pruebas que lo nombran. 2026-11-13: un commit cambió el .iss del instalador y su puerta no
+    eligió test_instalador_qa, que lo lee; la regresión entró y la rama quedó en rojo."""
+    raiz = _repo(tmp_path)
+    (raiz / 'instalador').mkdir()
+    (raiz / 'instalador' / 'Programa.iss').write_text('#define X "1"\n', encoding='utf-8')
+    (raiz / 'tests' / 'test_instalador.py').write_text("ISS = RAIZ / 'instalador' / 'Programa.iss'\n", encoding='utf-8')
+    elegidas = PC.pruebas_del_commit(['instalador/Programa.iss'], raiz)
+    assert 'tests/test_instalador.py' in elegidas
+    assert 'tests/test_otro.py' not in elegidas

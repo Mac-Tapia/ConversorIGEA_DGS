@@ -30,6 +30,12 @@ if str(RAIZ / 'src') not in sys.path:
     sys.path.insert(0, str(RAIZ / 'src'))
 
 #: Las pruebas de gobierno: inventario, trazabilidad y estado de las specs, auditoría de raíz (102:RF-1).
+#: 106:RF-13: ficheros que cambian en casi todos los commits y que ya juzgan las pruebas de GOBIERNO (la trazabilidad,
+#: el inventario y la arquitectura). Por su nombre elegirían una docena de pruebas del asistente que solo los citan
+#: como texto de su corpus (medido el 2026-11-13: de 8 a 27 pruebas en bd4cc7d2 y de 41 a 53 en c83a1aab).
+NOMBRADOS_POR_EL_GOBIERNO = frozenset({'README.md', 'ARQUITECTURA_CATALOGO.md', 'CODIGO_FUENTE.md', 'CLAUDE.md',
+                                       'spec.md', 'plan.md', 'tasks.md'})
+
 GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tests/test_auditoria_raiz.py',
             'tests/test_trazabilidad_candidato.py',
             # 102:RF-21: los procedimientos citan líneas de src/; un cambio en services.py las movió y solo lo vio
@@ -74,6 +80,7 @@ def pruebas_del_commit(ficheros: Iterable[str], raiz: Path = RAIZ) -> list[str]:
         return ['tests']
     elegidas = [g for g in GOBIERNO if (raiz / g).is_file()]
     nombres = set()
+    ficheros_nombrados: set[str] = set()
     for f in ficheros:
         ruta = Path(f)
         if f.startswith('tests/') and ruta.name.startswith('test_') and ruta.suffix == '.py' and (raiz / f).is_file():
@@ -83,8 +90,15 @@ def pruebas_del_commit(ficheros: Iterable[str], raiz: Path = RAIZ) -> list[str]:
         elif f.startswith('tests/') and ruta.suffix == '.py' and ruta.parent.as_posix() == 'tests':
             # 106:RF-13: un ayudante de pruebas (apoyo, fake_pf…) elige las pruebas que lo nombran.
             nombres.add(ruta.stem)
-    if nombres:
-        patron = re.compile(r'\b(' + '|'.join(sorted(map(re.escape, nombres))) + r')\b')
+        elif ruta.suffix != '.py' and ruta.name not in NOMBRADOS_POR_EL_GOBIERNO:
+            # 106:RF-13: un fichero que no es un módulo de Python (el .iss del instalador, un .json, un .ts…) elige las
+            # pruebas que nombran su fichero. 2026-11-13: un commit cambió el .iss y su puerta no eligió
+            # test_instalador_qa, que lo lee; la regresión entró y la rama quedó en rojo.
+            ficheros_nombrados.add(ruta.name)
+    partes = [r'\b' + re.escape(n) + r'\b' for n in sorted(nombres)]
+    partes += [r'(?<![\w.-])' + re.escape(n) + r'(?![\w-])' for n in sorted(ficheros_nombrados)]
+    if partes:
+        patron = re.compile('|'.join(partes))
         for prueba in sorted((raiz / 'tests').glob('test_*.py')):
             try:
                 if patron.search(prueba.read_text(encoding='utf-8', errors='replace')):

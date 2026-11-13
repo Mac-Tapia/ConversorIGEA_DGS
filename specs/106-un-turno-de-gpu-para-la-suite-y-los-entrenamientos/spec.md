@@ -45,7 +45,9 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
 - RF-14: EL SISTEMA dará al Python de DIgSILENT el paquete del conversor solo desde la ruta que fija 103:RF-6, sin
   ninguna otra carpeta con el paquete que traiga el `PYTHONPATH` heredado.
 - RF-13: CUANDO un commit cambia lo que ven todas las pruebas (`tests/conftest.py`, `pyproject.toml`), EL SISTEMA
-  correrá en su puerta todas las pruebas; y CUANDO cambia un ayudante de `tests/`, las que lo nombran.
+  correrá en su puerta todas las pruebas; y CUANDO cambia un ayudante de `tests/` o un fichero que no es un módulo de
+  Python (el `.iss` del instalador, un `.json`, un `.ts`…), las que lo nombran. (2026-11-13: un commit cambió el `.iss`
+  y su puerta no eligió `test_instalador_qa`, que lo lee; la regresión entró en la rama.)
 - RF-15: EL SISTEMA guardará en el resultado de cada suite las 30 pruebas más lentas con sus segundos, y dirá cuáles pasan
   del umbral de RF-5, sin hacerlas fallar.
 
