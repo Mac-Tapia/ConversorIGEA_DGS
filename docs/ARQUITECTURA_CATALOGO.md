@@ -8,7 +8,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 326 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 327 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3545 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3554 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -37,10 +37,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | adaptadores | Ada | 127 |
 | aplicacion | Apl | 103 |
 | dominio | Dom | 46 |
-| presentacion | Pre | 37 |
+| presentacion | Pre | 38 |
 | puertos | Pue | 3 |
 
-316 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+317 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -554,7 +554,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `runtime.py` | Pre | 001, 036, 065 | Comprobación del entorno que hace el lanzador de Windows y huella del código. |
 | `doctor.py` | Pre | 086, 091 | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. |
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
-| `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. |
+| `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que… |
+| `copia_datos_api.py` | Pre | 086 | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
 | `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo. |
 | `fondo.py` | Pre | 104 | Carril de fondo de la web: mira si el operador tiene trabajos en el motor o en DIgSILENT, corre cada libro en un proceso de prioridad baja que se… |
@@ -682,7 +683,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `costos_cruce.py` | — | 072 | Mide cuánto de una red convertida encuentra costo en el SICODI público, y nombra lo que no. |
 | `construir_dataset_pide.py` | — | 024 | Construye el corpus PIDE universal de una empresa con `pide_dataset`. |
 | `corpus_redaccion_pide.py` | — | 072 | Revisión humana del corpus PIDE para redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras. |
-| `copia_datos.py` | — | 086 | Órdenes de copia, verificación, restauración, estado de la copia e identidad de la instalación. |
+| `copia_datos.py` | — | 086 | Órdenes de cálculo, copia, verificación, restauración, estado de la copia e identidad de la instalación. |
 
 ### Herramientas: modelos, asistente y MADRL
 

@@ -205,6 +205,36 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
   pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
   resultado diciendo que lo medido es el estado actual.
 
+### Copia de los datos sin duplicados, a un destino que sincroniza (2026-11-12)
+
+La web avisaba «Aún no hay ninguna copia de sus datos». La orden `tools/copia_datos.py crear` iba a escribir unos 95 GB
+de unos datos que ocupaban unos 21 en el disco: el paquete VNR-GIS `ELOR25_V2` (5,4 GB) estaba en once ejecuciones de
+`output/web` y en su original como enlaces duros de un solo fichero físico, y lo mismo `BASE JUL25 1.mdb` y los TXT. El
+destino del usuario es Google Drive (`G:\Mi unidad\ConverterSmartGrid\copias_de_datos\`), con unos 41 GB libres, sin
+enlaces duros y que bloquea un fichero mientras lo sincroniza. Amplía RF-10 y RF-47.
+
+- RF-78: CUANDO se crea una copia, EL SISTEMA guardará cada fichero físico una vez: los nombres de un mismo fichero
+  (enlaces duros) y los ficheros distintos con la misma huella SHA-256 ocuparán en la copia lo que uno.
+- RF-79: EL SISTEMA anotará en el manifiesto todos los nombres de cada fichero guardado, con su huella, y seguirá
+  verificando y restaurando igual las copias de un manifiesto de versión anterior.
+- RF-80: CUANDO se restaura una copia, EL SISTEMA recreará todos los nombres de cada fichero: los que eran enlaces duros
+  de un mismo fichero, como enlace duro del primero si el destino lo admite, y los demás nombres, como copia con su
+  huella comprobada. Dos ficheros distintos con el mismo contenido (dos registros vacíos que crecen por separado)
+  vuelven separados, como hace `rsync -H`, que solo enlaza lo que ya era un enlace en el origen.
+- RF-81: SI una escritura en el destino falla por un bloqueo (la sincronización de Google Drive o de OneDrive),
+  ENTONCES EL SISTEMA la repetirá con espera creciente y, si sigue fallando, anotará el fichero como error de la copia.
+- RF-82: CUANDO se pide una copia, EL SISTEMA dirá antes de escribir nada cuántos bytes físicos únicos ocupará y cuánto
+  espacio libre hay en el destino.
+- RF-83: SI la copia no cabe en el destino, ENTONCES EL SISTEMA no la empezará y lo dirá con las dos cifras.
+- RF-84: SI una copia se cancela o falla a medias, ENTONCES EL SISTEMA retirará su carpeta `.parcial`, con los mismos
+  reintentos de RF-81, y no dejará ninguna carpeta con el nombre de una copia buena.
+- RF-85: DONDE el aviso de la copia de datos se muestra, EL SISTEMA ofrecerá «Hacer una copia ahora», que pide la
+  carpeta destino y la recuerda en el equipo.
+- RF-86: EL SISTEMA hará la copia de la web como un trabajo con progreso y cancelación, no la empezará con otros
+  trabajos en curso y no admitirá otro trabajo mientras copia, tampoco los que se encolan sin la ruta de la web
+  (VNR-GIS, los reintentos de la vigilancia).
+- Aclaración de RF-74 (2026-11-12): la copia ya tiene botón en la web (RF-85); la orden del manual sigue sirviendo.
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.

@@ -116,3 +116,5 @@ config/powerfactory.json
 config/salidas.json
 # 105:RF-28: la carpeta de archivo de los informes de esta máquina.
 config/archivo.json
+# 086:RF-85: la carpeta de las copias de los datos que recuerda esta máquina.
+config/copia_datos.json

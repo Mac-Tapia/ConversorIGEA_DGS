@@ -116,7 +116,8 @@ test('086:RF-70 086:RF-71 todo kind del servidor tiene su fila en la tabla, con 
   for (const [k, p] of Object.entries(PASO_DE_TRABAJO)) assert.ok(p === null || p in PASOS, `${k} → ${p}`);
   // Los de la zona general, dichos: lo que encola el servidor solo o va a otro espacio.
   const generales = Object.entries(PASO_DE_TRABAJO).filter(([, p]) => p === null).map(([k]) => k).sort();
-  assert.deepEqual(generales, ['aprendizaje', 'download', 'libros_nuevos', 'vnr_export_cymdist', 'vnr_export_dgs']);
+  assert.deepEqual(generales, ['aprendizaje', 'copia_datos', 'download', 'libros_nuevos', 'vnr_export_cymdist',
+    'vnr_export_dgs']);
   // Y ninguna fila sobra: cada una es un kind que el servidor encola hoy.
   const sobran = Object.keys(PASO_DE_TRABAJO).filter((k) => !kinds.has(k));
   assert.deepEqual(sobran, [], `filas sin kind en el servidor: ${sobran.join(', ')}`);
@@ -211,6 +212,21 @@ test('086:RF-74 086:RF-71 arriba: la copia en una línea, y de trabajos solo los
   assert.ok(html.includes('<span class="mas">más</span>'));
   assert.ok(!html.includes('Cargar / listar alimentadores'), 'el de «Cargar / listar» va a su paso, no arriba');
   assert.ok(html.includes('Trabajo fallido: Reconocer libros nuevos de demanda'));
+});
+
+test('086:RF-85 el aviso de la copia trae la carpeta y «Hacer una copia ahora»; copiando, el botón espera', async () => {
+  const { arriba, pasoDeTrabajo } = await cargar();
+  const sinCopia = { health: { copia_datos: { vencida: true, edad_dias: null }, server_paths: true } };
+  const html = arriba({}, ['results'], sinCopia);
+  assert.match(html, /aria-label="Carpeta de la copia"/);
+  assert.match(html, /<button[^>]*>Hacer una copia ahora<\/button>/);
+  assert.match(html, /<button[^>]*disabled=""[^>]*>Hacer una copia ahora/, 'sin carpeta escrita, el botón espera a que se escriba');
+  const copiando = arriba(porId(trabajo('copia_datos', 'running', { title: 'Copia de los datos' })), ['results'], sinCopia);
+  assert.match(copiando, /<button[^>]*disabled=""[^>]*>Copiando…<\/button>/);
+  const remoto = arriba({}, ['results'], { health: { copia_datos: { vencida: true, edad_dias: null }, server_paths: false } });
+  assert.ok(remoto.includes('use la orden del manual'));
+  assert.equal(pasoDeTrabajo('copia_datos'), null, 'su fallo sale arriba, junto al aviso de la copia');
+  assert.ok(!arriba({}, ['results']).includes('Hacer una copia ahora'), 'con la copia al día no hay aviso ni botón');
 });
 
 test('086:RF-75 un aviso cuya pestaña no se ofrece va arriba; si se ofrece, su pestaña lo cuenta', async () => {

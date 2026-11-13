@@ -218,7 +218,8 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/app.py` | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7, RF-47 a RF-49), 025 (RF-7, RF-28, RF-32), 035 (RF-1), 039 (RF-1, RF-5), 042, 061 (RF-1, RF-3, RF-10), 091 |
 | `src/convertersmartgrid/web/doctor.py` | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. | 086 (RF-40), 091 |
 | `src/convertersmartgrid/web/soporte.py` | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. | 086 (RF-42) |
-| `src/convertersmartgrid/web/copia_datos.py` | Copia y restauración de los datos con manifiesto, según la regla de la retención, y aviso de copia vieja. | 086 (RF-10, RF-47) |
+| `src/convertersmartgrid/web/copia_datos.py` | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que ocupa; aviso de copia vieja. | 086 (RF-10, RF-47, RF-78 a RF-85) |
+| `src/convertersmartgrid/web/copia_datos_api.py` | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. | 086 (RF-85, RF-86) |
 | `src/convertersmartgrid/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7); diario de lo que queda a medias. | 001 (RF-8), 011 (RF-39, RF-40), 061 (RF-1, RF-10), 086 (RF-9) |
 | `src/convertersmartgrid/web/readiness.py` | Puertas por alimentador antes de producir DGS; quita la falta de conductor que la carga ya reconstruyó. | 001, 053 (RF-9) |
 | `src/convertersmartgrid/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
@@ -565,7 +566,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/asistente/corpus_redaccion.py` | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro de solo añadir. | 072 (RF-19) |
 | `src/convertersmartgrid/asistente/reubicacion_corpus.py` | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. | 047, 065 |
 | `tools/reubicar_corpus_llm.py` | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. | 047, 065 |
-| `tools/copia_datos.py` | Órdenes de copia, verificación, restauración, estado de la copia e identidad de la instalación. | 086 (RF-7, RF-10, RF-47) |
+| `tools/copia_datos.py` | Órdenes de cálculo, copia, verificación, restauración, estado de la copia e identidad de la instalación. | 086 (RF-7, RF-10, RF-47, RF-82, RF-83) |
 | `tools/aceptar_dominio.py` | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. | 065 (RF-21) |
 | `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 (RF-1, RF-20, RF-21, RF-24) |
 | `tools/verificar_entrega_integral.py` | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. | 065 (RF-24), 086 (RF-46) |

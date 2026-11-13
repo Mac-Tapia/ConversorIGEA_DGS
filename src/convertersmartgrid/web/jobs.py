@@ -106,6 +106,16 @@ def _en_hijo(fn, args, kwargs, cola, cancelado) -> None:
             cola.put(('error', RuntimeError(f'{type(exc).__name__}: {exc}')))
 
 
+#: 086:RF-86: trabajos que corren solos. La copia de los datos guardaba una mezcla de antes y de después si otro
+#: trabajo escribía a la vez; la ruta de la web lo comprobaba, pero VNR-GIS y los reintentos de la vigilancia
+#: encolan sin pasar por ella, y entre la comprobación y el encolado podía entrar otro. Lo decide la cola.
+EXCLUSIVOS = frozenset({'copia_datos'})
+
+
+class TrabajoRechazado(RuntimeError):
+    """La cola no admite el trabajo mientras corre uno exclusivo, ni uno exclusivo con otros en curso (086:RF-86)."""
+
+
 class JobCancelled(Exception):
     """El operador canceló el trabajo."""
 
@@ -837,6 +847,13 @@ class JobManager:
     def active(self, workspace_id: str) -> list[Job]:
         return [j for j in self.list(workspace_id) if j.status not in FINISHED]
 
+    def comprobar_exclusivo(self) -> None:
+        """086:RF-86: ``TrabajoRechazado`` si corre un trabajo exclusivo (la copia de los datos)."""
+        exclusivo = next((j for j in self.list() if j.kind in EXCLUSIVOS and j.status not in FINISHED), None)
+        if exclusivo is not None:
+            raise TrabajoRechazado(f'Se está haciendo la copia de los datos («{exclusivo.title}»): espere a que '
+                                   'termine o cancélela.')
+
     def en_curso(self) -> int:
         """Trabajos sin terminar en todos los espacios: el lanzador no cierra un servidor con ellos."""
         return sum(1 for j in self.list() if j.status not in FINISHED)
@@ -860,6 +877,10 @@ class JobManager:
             raise ValueError(f'carril desconocido: {lane}')
         if self._closing:
             raise RuntimeError('el servidor se está cerrando')
+        self.comprobar_exclusivo()
+        activos = [j for j in self.list() if j.status not in FINISHED]
+        if kind in EXCLUSIVOS and activos:
+            raise TrabajoRechazado(f'Hay {len(activos)} trabajo(s) en curso: la copia se hace con la web en reposo.')
         job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn,
                   reanudar=reanudar, relanzado_de=relanzado_de)
         if relanzado_de and self._diario is not None and not self._diario.anotar(job):

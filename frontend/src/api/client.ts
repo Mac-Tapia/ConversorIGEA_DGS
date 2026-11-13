@@ -81,6 +81,9 @@ export const api = {
   // 086:RF-2, RF-3, RF-9: lo que le pasó a los datos, con lo que se puede hacer.
   espacios: () => request<ResumenEspacio[]>('/api/workspaces'),
   restaurarCopia: (id: string) => request<WorkspaceState>(`${ws(id)}/restaurar-copia`, { method: 'POST' }),
+  // 086:RF-85, RF-86: la copia de los datos desde el aviso general, con la carpeta que recuerda el equipo.
+  carpetaCopia: () => request<{ carpeta: string | null }>('/api/copia-datos/carpeta'),
+  copiarDatos: (id: string, carpeta: string) => request<Job>(`${ws(id)}/copia-datos`, json('POST', { carpeta })),
   descartarNoDisponible: (id: string, campo: string, clave: string) =>
     request<WorkspaceState>(`${ws(id)}/no-disponibles/descartar`, json('POST', { campo, clave })),
   registroTrabajo: (jobId: string) => request<{ job: string; lineas: string[] }>(`/api/jobs/${enc(jobId)}/registro`),

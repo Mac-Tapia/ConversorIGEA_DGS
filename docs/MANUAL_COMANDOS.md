@@ -62,6 +62,11 @@ aceptación eléctrica. Véase [verificación integrada](implementacion065/verif
 (`verificar --copia`), los restaura apartando lo que hubiera (`restaurar --copia`, con la web parada), dice la edad de la
 última copia (`estado`; `CSG_COPIA_MAX_DIAS` fija el máximo, siete días si no) y fija la identidad de la instalación antes
 de renombrar su carpeta (`identidad --fijar`). Los ficheros de fuera de los datos no se copian: el manifiesto los lista.
+Cada fichero físico se guarda una vez aunque tenga varios nombres (enlaces duros) o el mismo contenido, y al restaurar
+vuelven todos sus nombres. `calcular --destino` dice cuánto ocupará y cuánto hay libre sin copiar nada; `crear` lo dice
+antes de empezar y no empieza si no cabe. `--programa <carpeta>` copia los datos de otra instalación (otro árbol).
+Un destino que sincroniza, como Google Drive, se escribe fichero a fichero con reintentos. La web lo hace también
+con «Hacer una copia ahora» en su aviso.
 
 `aceptar_dominio.py` verifica identidad y evidencia del caso sin abrir PowerFactory.
 `reubicar_corpus_llm.py` requiere origen, destino nuevo y ambas raíces explícitas;

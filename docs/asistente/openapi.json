@@ -1710,6 +1710,50 @@
         "title": "ConversionEsperadaRespuesta",
         "type": "object"
       },
+      "CopiaDatosCarpetaRespuesta": {
+        "additionalProperties": false,
+        "description": "086:RF-85: la carpeta de las copias que recuerda este equipo, si hay.",
+        "properties": {
+          "carpeta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carpeta"
+          }
+        },
+        "required": [
+          "carpeta"
+        ],
+        "title": "CopiaDatosCarpetaRespuesta",
+        "type": "object"
+      },
+      "CopiaDatosPeticion": {
+        "additionalProperties": false,
+        "description": "086:RF-85: la carpeta donde se hace la copia; se recuerda en el equipo.",
+        "properties": {
+          "carpeta": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Carpeta",
+            "type": "string"
+          },
+          "sin_modelos": {
+            "default": false,
+            "title": "Sin Modelos",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "carpeta"
+        ],
+        "title": "CopiaDatosPeticion",
+        "type": "object"
+      },
       "CrecimientoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -8066,6 +8110,25 @@
         "summary": "Asistente Registro"
       }
     },
+    "/api/copia-datos/carpeta": {
+      "get": {
+        "description": "086:RF-85: la carpeta que este equipo usó la última vez para sus copias.",
+        "operationId": "copia_carpeta_api_copia_datos_carpeta_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopiaDatosCarpetaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Copia Carpeta"
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "health_api_health_get",
@@ -10306,6 +10369,56 @@
           }
         },
         "summary": "Convert Sistema"
+      }
+    },
+    "/api/workspaces/{wid}/copia-datos": {
+      "post": {
+        "description": "086:RF-85, RF-86: recuerda la carpeta y encola la copia; con otros trabajos en curso no se empieza.",
+        "operationId": "copia_lanzar_api_workspaces__wid__copia_datos_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopiaDatosPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Copia Lanzar"
       }
     },
     "/api/workspaces/{wid}/demanda/ajuste/plan": {

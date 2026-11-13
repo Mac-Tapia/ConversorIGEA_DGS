@@ -195,6 +195,21 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 - [x] T57 «Con proyecto» sin cargas nuevas: obras solo donde el estado actual viola límites, desde la web. (RF-76, RF-77)
       Hecho cuando: `tests/test_con_proyecto_sin_cargas.py` (086:RF-76) y `frontend/test/obrasEstadoActual.test.mjs`
       (086:RF-77) en verde; la corrida real va en la T32.
+- [x] T58 La copia guarda cada fichero físico una vez, con todos sus nombres en el manifiesto 3, y restaurar los recrea
+      como enlaces duros o como copias; el manifiesto 1 y 2 se sigue leyendo. (RF-78, RF-79, RF-80)
+      Hecho cuando: `tests/test_copia_datos.py` (086:RF-78 a RF-80) en verde.
+- [x] T59 Reintentos ante un destino que bloquea, cálculo de lo que ocupa frente al libre antes de copiar, y nada con
+      aspecto de buena si se cancela; orden `calcular` y `--programa`. (RF-81, RF-82, RF-83, RF-84)
+      Hecho cuando: `tests/test_copia_datos.py` (086:RF-81 a RF-84) en verde.
+      Evidencia: copia real del 2026-11-12 de los datos del árbol principal a Google Drive
+      (`G:/Mi unidad/ConverterSmartGrid/copias_de_datos/csg-copia-20261112T184236-40574e83`, manifiesto 3): 8 989
+      ficheros físicos con 11 933 nombres, 19,8 GB guardados de 83,0 GB lógicos, 0 errores; `tools/copia_datos.py
+      verificar --copia …` releyó cada huella el 2026-11-12: `"ok": true`, 0 faltan, 0 distintos, código 0 (7 min 27 s).
+      Esa copia es anterior a la marca `fisico` de RF-80: al restaurarla, sus ficheros de igual contenido vuelven
+      enlazados; las copias nuevas ya los separan.
+- [x] T60 «Hacer una copia ahora» en el aviso general, con la carpeta recordada en `config/copia_datos.json`, y la copia
+      como trabajo `copia_datos` con progreso y cancelación. (RF-85, RF-86)
+      Hecho cuando: `tests/test_copia_datos.py` (086:RF-85, RF-86) y `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-85) en verde.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

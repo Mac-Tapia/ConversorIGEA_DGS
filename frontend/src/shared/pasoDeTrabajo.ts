@@ -64,6 +64,8 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   agente_proyecto: 'asistente',
   // Sin botón propio en un paso: los lanza el servidor solo, o van al espacio aparte de VNR-GIS (`_vnr`).
   libros_nuevos: null, aprendizaje: null, download: null, vnr_export_cymdist: null, vnr_export_dgs: null,
+  // 086:RF-85: la copia de los datos se lanza desde su aviso, en la zona general de arriba; su fallo sale allí.
+  copia_datos: null,
 };
 
 /**

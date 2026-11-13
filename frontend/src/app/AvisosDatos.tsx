@@ -18,6 +18,7 @@ const QUE_ES: Record<string, string> = {
  *
  * 086:RF-74: arriba quedan solo los avisos generales del espacio, cada uno en una línea que se despliega. Los de un
  * trabajo van a su paso (RF-70); aquí, solo los que no tienen paso o cuyo paso no se ofrece hoy (RF-71, RF-75).
+ * 086:RF-85: el de la copia lleva «Hacer una copia ahora»; antes solo remitía a la orden del manual.
  */
 export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
   const { ws, setWs, health, jobs, run } = useApp();
@@ -35,13 +36,14 @@ export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
   return (
     <>
       {copia.vencida && (
-        // 086:RF-74: una línea; el «cómo» al desplegarla. La copia se hace con la orden del manual: la web no tiene botón.
+        // 086:RF-74: una línea; el «cómo» al desplegarla, con el botón de la copia (RF-85).
         <details className="alert alert-warn aviso-linea" role="status">
           <summary>{copia.edad_dias == null
             ? 'Aún no hay ninguna copia de sus datos.'
             : `La última copia de sus datos tiene ${Math.round(copia.edad_dias)} días (el máximo es ${copia.maxima_dias}).`}
             {' '}<span className="mas">más</span></summary>
-          <p>Haga una copia, como explica el manual de operación, para no perder trabajo si falla el equipo.</p>
+          <p>Haga una copia para no perder trabajo si falla el equipo, en otro disco o en una carpeta de Google Drive.</p>
+          <CopiaAhora />
         </details>
       )}
       {danados.map((d) => (
@@ -77,6 +79,36 @@ export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
       {ws.avisos_datos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
       {generales.map((a) => <AvisoTrabajo key={a.job.id} aviso={a} conPaso />)}
     </>
+  );
+}
+
+/**
+ * 086:RF-85, RF-86: la carpeta de la copia, recordada en el equipo, y el botón que la lanza como trabajo. El progreso y
+ * «Cancelar» salen en la barra de trabajos, como los de cualquier otro; antes de copiar, su registro dice cuánto ocupará
+ * (cada fichero una vez, RF-78) y cuánto hay libre, y si no cabe no empieza (RF-82, RF-83).
+ */
+function CopiaAhora() {
+  const { ws, health, jobs, run, startJob, refreshHealth } = useApp();
+  const [carpeta, setCarpeta] = useState('');
+  useEffect(() => {
+    void run(api.carpetaCopia).then((r) => { if (r?.carpeta) setCarpeta((actual) => actual || (r.carpeta ?? '')); });
+  }, [run]);
+  const deCopia = Object.values(jobs).filter((j) => j.kind === 'copia_datos');
+  const copiando = deCopia.some((j) => j.status === 'queued' || j.status === 'running');
+  const hecha = deCopia.find((j) => j.status === 'done')?.id;
+  // Terminada, el aviso se vuelve a leer: con la copia hecha deja de salir.
+  useEffect(() => { if (hecha) refreshHealth(); }, [hecha, refreshHealth]);
+  const rutasLocales = health.server_paths;
+  const texto = carpeta.trim();
+  return (
+    <div className="row">
+      <input className="search" value={carpeta} placeholder="G:/Mi unidad/…/copias_de_datos" disabled={!rutasLocales || copiando}
+        aria-label="Carpeta de la copia" onChange={(e) => setCarpeta(e.target.value)} />
+      <button className="btn btn-sm btn-primary" disabled={!rutasLocales || copiando || !texto}
+        onClick={() => void startJob(() => api.copiarDatos(ws.id, texto))}>
+        {copiando ? 'Copiando…' : 'Hacer una copia ahora'}</button>
+      {!rutasLocales && <small className="muted">Este servidor no admite rutas locales: use la orden del manual.</small>}
+    </div>
   );
 }
 

@@ -819,3 +819,15 @@ class ArchivoInformesPeticion(BaseModel):
 
 class ArchivoInformesRespuesta(Respuesta):
     ruta: str | None
+
+
+class CopiaDatosPeticion(BaseModel):
+    """086:RF-85: la carpeta donde se hace la copia; se recuerda en el equipo."""
+    model_config = ConfigDict(extra='forbid')
+    carpeta: str = Field(min_length=1, max_length=1024)
+    sin_modelos: bool = False
+
+
+class CopiaDatosCarpetaRespuesta(Respuesta):
+    """086:RF-85: la carpeta de las copias que recuerda este equipo, si hay."""
+    carpeta: str | None

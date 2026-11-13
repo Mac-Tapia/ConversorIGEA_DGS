@@ -40,7 +40,7 @@ from ..preview import politica_pagina_generada
 from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
 from .copia_datos import estado_copia
-from .jobs import FINISHED, JobManager
+from .jobs import FINISHED, JobManager, TrabajoRechazado
 from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
@@ -136,8 +136,14 @@ def arrancar_vigilancia(jobs: JobManager):
 
     def reintentar(job_id: str) -> None:
         j = jobs.get(job_id)
-        if j is not None:
+        if j is None:
+            return
+        try:
             jobs.submit(j.workspace_id, j.kind, f'{j.title} (reintento)', j.fn, lane=j.lane)
+        except TrabajoRechazado:
+            # 086:RF-86: con la copia de los datos en marcha no entra; se olvida el aviso para reintentarlo después.
+            v.reintentados.discard(job_id)
+            v.vistos.discard(f'fallo:{job_id}')
 
     v = Vigilante(listar_trabajos=lambda: [j.public() for j in jobs.list()], reintentar=reintentar,
                   entrenar_gemelo=lambda: None, entrenar_asistente=lambda: None,
@@ -877,6 +883,11 @@ def create_app(
     if sesion_web.EXIGIR_SEGURIDAD:
         instalar_seguridad(app, origenes_dev)
 
+    @app.exception_handler(TrabajoRechazado)
+    async def _trabajo_rechazado(_request: Request, exc: TrabajoRechazado):
+        # 086:RF-86: también las rutas que encolan sin el ``submit`` de aquí (VNR-GIS, estudios enchufables).
+        return JSONResponse(status_code=409, content={'detail': str(exc)})
+
     @app.exception_handler(UserError)
     async def _user_error(_request: Request, exc: UserError):
         return JSONResponse(status_code=400, content={'detail': str(exc)})
@@ -898,6 +909,11 @@ def create_app(
     def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine',
                reanudar: dict | None = None, relanzado_de: str | None = None) -> dict:
         with encolando:
+            try:
+                # 086:RF-86: antes que el carril ocupado, que es el de la propia copia, para decir qué espera.
+                jobs.comprobar_exclusivo()
+            except TrabajoRechazado as exc:
+                raise HTTPException(409, str(exc)) from exc
             # 047:RF-24: los vectores del índice ceden ante cualquier orden, no la rechazan.
             busy = [j for j in jobs.active(ws.id) if j.lane == lane and j.kind != 'asistente_indice']
             if busy:
@@ -906,6 +922,9 @@ def create_app(
             try:
                 return jobs.submit(ws.id, kind, title, fn, lane=lane, reanudar=reanudar,
                                    relanzado_de=relanzado_de).public()
+            except TrabajoRechazado as exc:
+                # 086:RF-86: mientras se copian los datos nada los cambia; lo decide la cola (jobs.EXCLUSIVOS).
+                raise HTTPException(409, str(exc)) from exc
             except OSError as exc:
                 raise HTTPException(503,str(exc)) from exc
 
@@ -2818,6 +2837,12 @@ def create_app(
 
     registrar_rutas_evolucion(app, ws_or_404=ws_or_404, submit=submit,
                               rutas_locales=lambda: _server_paths_allowed(host))
+
+    # 086:RF-85, RF-86: la copia de los datos desde el aviso general, en su módulo.
+    from .copia_datos_api import registrar_rutas_copia
+
+    registrar_rutas_copia(app, ws_or_404=ws_or_404, submit=submit, en_curso=jobs.en_curso, raiz_datos=store.root,
+                          rutas_locales=lambda: _server_paths_allowed(host))
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()
