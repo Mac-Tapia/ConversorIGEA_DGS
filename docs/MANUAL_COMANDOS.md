@@ -450,11 +450,15 @@ parametrizadas sobre las dos alternativas).
 ### 5.1 Requisitos
 
 - PowerFactory **instalado y licenciado** en la máquina.
-- La API Python de PowerFactory accesible. Si no está en la ruta por defecto
-  (`C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12`), indíquela:
+- La API Python de PowerFactory accesible. Desde la spec 103 no hay ruta por defecto: el conversor
+  busca las PowerFactory 2021 o posteriores de `Program Files` en cada unidad y las que registra
+  Windows, y usa la más nueva cuya API pueda cargar un intérprete disponible (el del programa, los
+  Python 3.9 a 3.11 que trae el instalador, `CSG_PF_INTERPRETER` o los de la máquina). La web deja
+  elegir otra y la recuerda; `csg.cmd doctor` dice cuál usa. Para fijar una carpeta a mano, que manda
+  sobre la elección de la web:
 
 ```bat
-> set PF_PYTHON=C:\Ruta\A\DIgSILENT\PowerFactory 2024\Python\3.12
+> set PF_PYTHON=C:\Ruta\A\DIgSILENT\PowerFactory <año>\Python\3.x
 > set PYTHONPATH=%PF_PYTHON%;%PYTHONPATH%
 ```
 

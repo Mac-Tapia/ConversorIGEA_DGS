@@ -524,6 +524,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `docs/VERIFICACION_SPECS_2026-10-14.md` | Verificación de cada spec, RF por RF y tarea por tarea. | histórico |
 | `docs/REVISION_SPECS_2026-10-29.md` | Revisión de numeración, estado y trazabilidad spec ↔ tareas ↔ pruebas ↔ código, con el plan de saneamiento (futura spec 033). | vigente |
 | `docs/MANUAL_COMANDOS.md` | Cada orden del CLI y cada herramienta. | vigente |
+| `docs/MANUAL_INSTALACION.md` | Instalar, actualizar, volver atrás, copias y perfil de empresa en el programa instalado, para una persona ajena al proyecto. | 086 (RF-44) |
+| `docs/NOTAS_VERSION_1.0.0.md` | Notas de la etiqueta `v1.0.0`: qué hace, qué cambió desde el rc5 con sus commits, requisitos, limitaciones y licencias. | 086 (T34) |
+| `docs/GUIA_PRUEBA_PERSONA_AJENA.md` | Pasos, lo que se debe ver y hoja del observador para la prueba de una persona ajena con el manual. | 086 (T41) |
 | `docs/POWERFACTORY_ACCEPTANCE.md` | Aceptación en PowerFactory. | vigente |
 | `docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md` | Investigación de mejoras de gemelo, PINN/GNN, pronóstico, LLM/PLN y optimización evolutiva/PNL sobre el código existente, con repositorios y bibliografía. | propuesta, 2026-10-31 |
 | `docs/VERIFICACION_PUBLICACIONES_IA_PF_2026-10-31.md` | Contraste de los enlaces PINN, TradingAgents y protecciones DIgSILENT con código local y brechas reproducidas. | 043–049, borrador |
