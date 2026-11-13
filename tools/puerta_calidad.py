@@ -222,8 +222,12 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> di
         if not junit.is_file():
             raise PuertaError(f'pytest terminó con el código {rc} sin dejar resultado.')
         juicio = veredicto(junit)
-    if rc not in (0, 1) and not juicio['fallidas']:
-        juicio['fallidas'].append({'prueba': 'pytest', 'motivo': f'terminó con el código {rc}'})
+    # 106:RF-16: un código distinto de 0 sin ninguna prueba fallida es una sesión que falló por algo que no es una prueba
+    # (una línea de pruebas en un registro real de la web, por ejemplo). Antes solo contaban los códigos distintos de 0
+    # y 1, y con 1 y el junit limpio la puerta daba «0 fallidas» y aprobaba (auditoría del 2026-11-13).
+    if rc != 0 and not juicio['fallidas']:
+        juicio['fallidas'].append({'prueba': 'pytest', 'motivo': f'terminó con el código {rc} sin ninguna prueba fallida: '
+                                   'mire su salida (p. ej. 106:RF-16, una prueba que escribió en un registro real)'})
     return juicio
 
 

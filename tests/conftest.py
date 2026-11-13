@@ -14,6 +14,54 @@ from pathlib import Path
 import pytest
 
 from csg_paths import SKIP_MSG, resolve_txt_paths
+
+# 106:RF-16 y RF-17: antes que cualquier import de la web o del asistente, el runtime y los almacenes de la suite son de
+# la sesión. Auditoría del 2026-11-13: las pruebas del lanzador colgaban del registro raíz un manejador sobre
+# <runtime>/registros/web.log del runtime real, y 10 de sus 85 carpetas tenían líneas de pruebas; y sin CSG_ASISTENTE_DATA
+# ni CSG_TWIN_DATA, almacen.raiz() y el búfer del gemelo caían en output/web/_asistente (3,8 GB) y _digital_twin (1,1 GB)
+# del usuario, o en <runtime>/data/web/… desde un worktree. Lo que una prueba fije por su cuenta (monkeypatch) manda.
+# La carpeta la crea quien no la hereda y la borra al final esa misma sesión (avisando si no puede): cada suite
+# dejaba en %TEMP% su runtime y sus almacenes, que el entrenamiento del gemelo llena. Los trabajadores de xdist la
+# heredan por VARIABLE_SESION_DE_DATOS y no crean otra.
+VARIABLE_SESION_DE_DATOS = 'CSG_SUITE_DATOS'
+_SESION_PROPIA = not os.environ.get(VARIABLE_SESION_DE_DATOS)
+if _SESION_PROPIA:
+    os.environ[VARIABLE_SESION_DE_DATOS] = tempfile.mkdtemp(prefix='csg-suite-')
+_SESION_DE_DATOS = Path(os.environ[VARIABLE_SESION_DE_DATOS])
+RUNTIME_REAL = None
+if not os.environ.get('CSG_RUNTIME_HOME'):
+    from convertersmartgrid.runtime_paths import rutas_runtime as _rutas_runtime
+
+    RUNTIME_REAL = _rutas_runtime().runtime
+    os.environ['CSG_RUNTIME_HOME'] = str(_SESION_DE_DATOS / 'runtime')
+for _variable, _carpeta in (('CSG_ASISTENTE_DATA', '_asistente'), ('CSG_TWIN_DATA', '_digital_twin')):
+    if not os.environ.get(_variable):
+        os.environ[_variable] = str(_SESION_DE_DATOS / _carpeta)
+_TAMANOS_DE_REGISTROS: dict[Path, int] = {}
+if RUNTIME_REAL is not None and RUNTIME_REAL.parent.is_dir():
+    for _registro in RUNTIME_REAL.parent.glob('*/registros/*.log'):
+        try:
+            _TAMANOS_DE_REGISTROS[_registro] = _registro.stat().st_size
+        except OSError:
+            pass
+
+
+def lineas_de_pruebas_en_registros(tamanos: dict) -> list[str]:
+    """106:RF-16: las líneas con rutas de pytest que llegaron durante la sesión a un registro real de la web."""
+    halladas = []
+    for ruta, antes in tamanos.items():
+        try:
+            if ruta.stat().st_size <= antes:
+                continue
+            with ruta.open('rb') as f:
+                f.seek(antes)
+                nuevo = f.read().decode('utf-8', 'replace')
+        except OSError:
+            continue
+        halladas += [f'{ruta}: {linea[:160]}' for linea in nuevo.splitlines() if 'pytest-of-' in linea]
+    return halladas
+
+
 from convertersmartgrid import sesion_web
 from convertersmartgrid.naming import feeder_short_name
 
@@ -140,8 +188,45 @@ def pytest_runtest_call(item):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    import sys
+
     while _turno_de_la_sesion:
         _turno_de_la_sesion.pop().__exit__(None, None, None)
+    # 106:RF-16: si una prueba escribió en un registro real de la web, la sesión falla y dice dónde. Lo mira el
+    # proceso principal; la web del usuario escribe a la vez en el suyo, por eso solo cuentan las líneas de pytest.
+    if os.environ.get('PYTEST_XDIST_WORKER'):
+        return
+    halladas = lineas_de_pruebas_en_registros(_TAMANOS_DE_REGISTROS)
+    if halladas:
+        print('\nUNA PRUEBA ESCRIBIÓ EN UN REGISTRO REAL DE LA WEB (106:RF-16):', *halladas[:10], sep='\n  ',
+              file=sys.__stderr__, flush=True)
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+    if _SESION_PROPIA:
+        aviso = retirar_sesion_de_datos(_SESION_DE_DATOS)
+        if aviso:
+            print(f'\n{aviso}', file=sys.__stderr__, flush=True)
+
+
+def retirar_sesion_de_datos(carpeta: Path) -> str | None:
+    """106:RF-17: borra la carpeta de datos de la sesión; si algo queda, lo dice sin hacer fallar la suite.
+
+    Antes cierra los manejadores de registro que apuntan dentro: en Windows, el web.log que abren las pruebas del
+    lanzador sigue abierto y un fichero abierto no se borra.
+    """
+    import logging
+    import shutil
+
+    raiz = Path(carpeta).resolve()
+    for registrador in [logging.getLogger(), *[logging.getLogger(n) for n in logging.root.manager.loggerDict]]:
+        for manejador in list(getattr(registrador, 'handlers', [])):
+            destino = getattr(manejador, 'baseFilename', None)
+            if destino and Path(destino).resolve().is_relative_to(raiz):
+                registrador.removeHandler(manejador)
+                manejador.close()
+    shutil.rmtree(raiz, ignore_errors=True)
+    if raiz.exists():
+        return f'No se pudo borrar la carpeta de datos de la suite {raiz}: bórrela a mano (106:RF-17).'
+    return None
 
 
 #: El flujo de GitHub Actions lo declara: allí no hay GPU (102:RF-17).

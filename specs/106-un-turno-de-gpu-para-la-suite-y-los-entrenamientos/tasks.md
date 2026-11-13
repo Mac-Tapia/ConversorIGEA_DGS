@@ -5,10 +5,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T1. Espera del turno con plazo y dueño; la sesión de pytest toma el turno de la máquina; volcado de pila; marca
       `gpu` sola; la puerta cuenta la salida sin turno como fallo. (RF-1 a RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_turno_gpu_de_la_suite.py` en verde.
-- [x] T3. Los hijos de las pruebas cargan el src del árbol que se prueba; la puerta corre todo si cambia lo común.
-      (RF-12, RF-13)
+- [x] T3. Los hijos de las pruebas cargan el src del árbol que se prueba; la puerta corre todo si cambia lo común; y la
+      suite no escribe en los datos del usuario: su runtime y sus almacenes son de la sesión. (RF-12, RF-13, RF-16, RF-17)
       Hecho cuando: `tests/test_turno_gpu_de_la_suite.py` (106:RF-12) y `tests/test_puerta_calidad.py` (106:RF-13) en verde, y en rojo con el conftest anterior en un
-      worktree.
+      worktree; y `tests/test_suite_sin_datos_del_usuario.py` (106:RF-16, RF-17) en verde, con su rojo sobre el conftest
+      anterior (3 failed, D:/csg/integrador_a3/datos_suite_rojo.log; verde 3 passed, …_verde.log).
 - [x] T5. El entorno de DIgSILENT no hereda otro paquete del conversor por PYTHONPATH. (RF-14)
       Hecho cuando: `tests/test_powerfactory_versiones.py` (103:RF-6, sin tocar) y `tests/test_turno_gpu_de_la_suite.py`
       (106:RF-14) en verde.

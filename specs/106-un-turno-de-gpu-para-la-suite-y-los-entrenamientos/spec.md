@@ -50,6 +50,14 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   y su puerta no eligió `test_instalador_qa`, que lo lee; la regresión entró en la rama.)
 - RF-15: EL SISTEMA guardará en el resultado de cada suite las 30 pruebas más lentas con sus segundos, y dirá cuáles pasan
   del umbral de RF-5, sin hacerlas fallar.
+- RF-16: CUANDO empieza una sesión de pruebas sin `CSG_RUNTIME_HOME`, EL SISTEMA le dará un runtime propio en una
+  carpeta temporal de la sesión, antes de importar la web; y SI al terminar algún registro real de la web
+  (`<runtime>/registros/*.log`) recibió líneas con rutas de pytest, ENTONCES la sesión fallará diciendo cuáles.
+  (Auditoría del 2026-11-13: 10 de las 85 carpetas del runtime real tenían líneas de pruebas en `registros/web.log`.)
+- RF-17: CUANDO empieza una sesión de pruebas sin `CSG_ASISTENTE_DATA` o sin `CSG_TWIN_DATA`, EL SISTEMA dará al
+  almacén del asistente y al del gemelo una carpeta de la sesión, nunca `output/web/_asistente`, `output/web/_digital_twin`
+  ni `<runtime>/data/web/…` del usuario; lo que una prueba fije por su cuenta manda. (Mismo día: sin ellas, desde el
+  árbol principal caían en los 3,8 GB y 1,1 GB del usuario, y desde un worktree en el almacén de un runtime real.)
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

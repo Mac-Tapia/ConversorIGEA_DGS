@@ -333,3 +333,24 @@ def test_106_rf13_un_fichero_que_no_es_codigo_elige_las_pruebas_que_lo_nombran(t
     elegidas = PC.pruebas_del_commit(['instalador/Programa.iss'], raiz)
     assert 'tests/test_instalador.py' in elegidas
     assert 'tests/test_otro.py' not in elegidas
+
+
+def test_106_rf16_un_codigo_de_error_sin_pruebas_fallidas_no_aprueba(tmp_path, monkeypatch):
+    """106:RF-16 — pytest con el código 1 y un junit sin ninguna fallida (la sesión falló por algo que no es una prueba,
+    como una línea de pruebas en un registro real de la web) no se da por bueno: antes la puerta solo miraba los códigos
+    distintos de 0 y 1, y con 1 decía «0 fallidas» y aprobaba."""
+
+    class Corrida:
+        returncode = 1
+
+    def correr(cmd, cwd, env):
+        junit = next(a.split('=', 1)[1] for a in cmd if a.startswith('--junitxml='))
+        Path(junit).write_text('<testsuites><testsuite tests="3" failures="0" errors="0" skipped="0">'
+                               '<testcase classname="t" name="a"/><testcase classname="t" name="b"/>'
+                               '<testcase classname="t" name="c"/></testsuite></testsuites>', encoding='utf-8')
+        return Corrida()
+
+    monkeypatch.setattr(PC.subprocess, 'run', correr)
+    juicio = PC._pytest([], {}, tmp_path)
+    assert juicio['fallidas'], juicio
+    assert 'código 1' in juicio['fallidas'][0]['motivo'] and '106:RF-16' in juicio['fallidas'][0]['motivo']

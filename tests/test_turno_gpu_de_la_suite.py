@@ -300,3 +300,96 @@ def test_una_prueba_colgada_vuelca_su_pila():
 
     datos = tomllib.loads((Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text(encoding='utf-8'))
     assert datos['tool']['pytest']['ini_options']['faulthandler_timeout'] == 1800
+
+
+# 106:RF-16 y RF-17 — la suite no escribe en los datos del usuario (auditoría del 2026-11-13: 10 de las 85 carpetas del
+# runtime real con líneas de pruebas en registros/web.log; y sin CSG_ASISTENTE_DATA ni CSG_TWIN_DATA, el almacén del
+# asistente y el del gemelo caían en output/web/_asistente y _digital_twin del usuario, o en <runtime>/data/web/…).
+import tempfile  # noqa: E402
+
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+def _dentro_de_tmp(ruta: Path) -> bool:
+    return Path(ruta).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+
+
+def test_el_runtime_de_la_suite_es_de_la_sesion():
+    """106:RF-16 — el runtime (y con él registros/web.log) es una carpeta temporal de la sesión, no el del usuario."""
+    from convertersmartgrid.registro_rotativo import carpeta_de_registros
+
+    runtime = Path(os.environ['CSG_RUNTIME_HOME'])
+    assert _dentro_de_tmp(runtime), runtime
+    assert carpeta_de_registros().resolve().is_relative_to(runtime.resolve())
+    if conftest.RUNTIME_REAL is not None:
+        assert not carpeta_de_registros().resolve().is_relative_to(conftest.RUNTIME_REAL.resolve())
+
+
+def test_las_lineas_de_pruebas_en_un_registro_real_se_detectan(tmp_path):
+    """106:RF-16 — solo cuenta lo que llegó durante la sesión y lleva rutas de pytest; lo de la web del usuario, no."""
+    registro = tmp_path / 'registros' / 'web.log'
+    registro.parent.mkdir()
+    registro.write_text('2026-11-12 10:30 INFO arranque de la web\n', encoding='utf-8')
+    tamanos = {registro: registro.stat().st_size}
+    assert conftest.lineas_de_pruebas_en_registros(tamanos) == []
+    with registro.open('a', encoding='utf-8') as f:
+        f.write('2026-11-13 09:41 INFO la web del usuario sigue\n')
+    assert conftest.lineas_de_pruebas_en_registros(tamanos) == []
+    with registro.open('a', encoding='utf-8') as f:
+        f.write("2026-11-13 09:42 ERROR retencion: [WinError 183] 'C:/Temp/pytest-of-x/pytest-1/a'\n")
+    halladas = conftest.lineas_de_pruebas_en_registros(tamanos)
+    assert len(halladas) == 1 and 'pytest-of-' in halladas[0]
+
+
+def test_los_almacenes_del_asistente_y_del_gemelo_son_de_la_sesion():
+    """106:RF-17 — sin fijar nada en la prueba, el almacén del asistente y el del gemelo caen en la carpeta de la
+    sesión, nunca en output/web/_asistente ni en output/web/_digital_twin del checkout."""
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.digital_twin import buffer
+
+    for raiz, heredado in ((almacen.raiz(), RAIZ / 'output' / 'web' / '_asistente'),
+                           (buffer.raiz_buffer(), RAIZ / 'output' / 'web' / '_digital_twin')):
+        assert _dentro_de_tmp(raiz), raiz
+        assert not Path(raiz).resolve().is_relative_to(heredado.resolve()), raiz
+
+
+def test_la_carpeta_de_datos_de_la_sesion_se_retira_aunque_su_registro_siga_abierto(tmp_path):
+    """106:RF-17 — al terminar, la carpeta de la sesión se borra; antes se cierran los registros abiertos dentro (en
+    Windows un fichero abierto no se borra), y si algo queda se avisa sin hacer fallar la suite."""
+    import logging
+
+    carpeta = tmp_path / 'csg-suite-x'
+    (carpeta / 'runtime' / 'registros').mkdir(parents=True)
+    manejador = logging.FileHandler(carpeta / 'runtime' / 'registros' / 'web.log', encoding='utf-8')
+    registrador = logging.getLogger('prueba_106_rf17')
+    registrador.addHandler(manejador)
+    registrador.warning('una línea')
+    assert conftest.retirar_sesion_de_datos(carpeta) is None
+    assert not carpeta.exists() and manejador not in registrador.handlers
+
+
+def test_si_la_carpeta_no_se_puede_borrar_se_avisa(tmp_path, monkeypatch):
+    """106:RF-17 — si queda algo, el aviso dice qué carpeta borrar a mano."""
+    import shutil
+
+    carpeta = tmp_path / 'csg-suite-y'
+    carpeta.mkdir()
+    monkeypatch.setattr(shutil, 'rmtree', lambda *a, **k: None)
+    aviso = conftest.retirar_sesion_de_datos(carpeta)
+    assert aviso and str(carpeta.resolve()) in aviso and '106:RF-17' in aviso
+
+
+def test_un_trabajador_hereda_la_carpeta_de_datos_y_no_crea_otra():
+    """106:RF-17 — con xdist cada trabajador importa el conftest: hereda la carpeta del controlador por su variable y
+    no crea una suya, que nadie borraría."""
+    import subprocess
+    import sys
+
+    assert os.environ[conftest.VARIABLE_SESION_DE_DATOS] == str(conftest._SESION_DE_DATOS)
+    codigo = ('import sys; sys.path.insert(0, "tests"); import conftest; '
+              'print(conftest._SESION_PROPIA, conftest._SESION_DE_DATOS)')
+    salida = subprocess.run([sys.executable, '-c', codigo], cwd=RAIZ, env=dict(os.environ), capture_output=True,
+                            text=True, timeout=120)
+    assert salida.returncode == 0, salida.stderr
+    propia, carpeta = salida.stdout.strip().splitlines()[-1].split(' ', 1)
+    assert propia == 'False' and Path(carpeta) == conftest._SESION_DE_DATOS
