@@ -255,12 +255,55 @@ def native_action_context(
     try:
         binding = require_project_binding(ws, project, normalized)
         comprobar_dgs_vinculados(ws, binding.dgs_sha256, normalized)
-    except ProjectBindingError as exc:
-        raise UserError(str(exc)) from exc
-    warnings = project_binding_warnings(ws, project, normalized)
+        warnings = project_binding_warnings(ws, project, normalized)
+    except (ProjectBindingError, UserError) as exc:
+        # 018:RF-19, regla del usuario (2026-11-13): «se recalibra cualquier proyecto que esté en DIgSILENT, haya sido
+        # convertido o no por el conversor; no hay reglas ni restricciones para eso». Sin vínculo, o con uno que no se
+        # puede usar, la acción sigue con el vínculo guardado si lo hay o con uno armado con el propio proyecto, y la
+        # causa queda como aviso. La web bloqueaba 20261109-152654_CSG_TXT_CA101_CHN102, aceptado el día 9.
+        binding = vinculo_del_proyecto(ws, project, normalized)
+        warnings = [{'code': getattr(exc, 'code', 'PROJECT_BINDING_AVISO'), 'elements': [],
+                     'message': aviso_sin_vinculo(binding, exc)}]
     return build_native_action_context(
         binding, project, normalized, action, warnings=warnings,
     )
+
+
+def vinculo_del_proyecto(ws: Workspace, project: str, feeders: list[str]):
+    """018:RF-19: el vínculo con que se trabaja cuando el de la conversión no se puede exigir.
+
+    Si hay un vínculo guardado (también el de un registro heredado, 018:RF-18) se usa tal cual: lleva su «Caso base»
+    y su procedencia. Si no hay ninguno, se arma con el propio proyecto de DIgSILENT (origen «proyecto»), sin fuente ni
+    DGS: la calibración lee la red de DIgSILENT, como en la spec 004.
+    """
+    from ..powerfactory_binding import (
+        MODO_PROYECTO, ORIGEN_PROYECTO, PowerFactoryProjectBinding, vinculo_guardado,
+    )
+
+    try:
+        raw = vinculo_guardado(ws, project)
+    except Exception:                                  # noqa: BLE001 - un registro ilegible no impide calibrar
+        raw = None
+    if raw:
+        try:
+            return PowerFactoryProjectBinding.from_dict(raw)
+        except (KeyError, TypeError, ValueError):
+            pass
+    carpeta = str((getattr(ws, 'pf_inventory', {}) or {}).get('folder') or '').strip()
+    return PowerFactoryProjectBinding(
+        project=project, folder=carpeta, source_run_id='', source_mode=MODO_PROYECTO, source_fingerprint='',
+        feeders=tuple(feeders), dgs_sha256={}, native_inventory_sha256='', native_reread={},
+        origen=ORIGEN_PROYECTO,
+    )
+
+
+def aviso_sin_vinculo(binding, causa: Exception) -> str:
+    """018:RF-19: lo que se dice, informativo y veraz, cuando no se usa el vínculo de la conversión."""
+    if getattr(binding, 'origen', '') == 'proyecto':
+        return ('Se trabaja con los datos del propio proyecto de DIgSILENT: no hay vínculo con una conversión de '
+                f'esta web ({causa}).')
+    return (f'Se usa el vínculo guardado del proyecto (ejecución {binding.source_run_id or "—"}) aunque no se pudo '
+            f'comprobar contra la fuente de este espacio ({causa}).')
 
 
 def _script(name: str) -> Path:
@@ -4365,7 +4408,14 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     # El mismo nombre que da ``tools/casos_pf.nombre_caso``; el guion lo confirma en su informe.
     caso_calibracion = f'{SIN_PROYECTO} {anio_casos}' if anio_casos else SIN_PROYECTO
     # 015:RF-13, RF-15: sin «Caso base» verificado no se calibra; con varios, los demás sí.
-    sin_verificar = caso_base_verificado(ws, project, requested_feeders)
+    # 015:RF-70, regla del usuario (2026-11-13): un proyecto sin ninguna conversión vinculada no tiene contra qué
+    # verificarse; se calibra con lo que trae DIgSILENT y se dice, en vez de bloquearlo.
+    if project_binding.origen == 'proyecto':
+        sin_verificar = {}
+        avisos.append('Sin conversión vinculada: el «Caso base» no se verifica contra un DGS y se calibra con los datos '
+                      'del propio proyecto de DIgSILENT (015:RF-70).')
+    else:
+        sin_verificar = caso_base_verificado(ws, project, requested_feeders)
     # 032:RF-14: las fichas de los conductores, una vez para todo el proyecto.
     fichas_conductores = fichas_conductores_de(ws)
     red_fuente = None                       # 098:RF-14: se lee una vez, con el primer plan

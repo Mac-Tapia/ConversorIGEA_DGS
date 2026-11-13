@@ -266,6 +266,9 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   que trae el archivo (SL144 + SM117, 2026-10-28; usuario: «en cualquier alimentador todas las
   SED no fijas se deben escalar y distribuir sus cargas, no debe haber ninguna SED con carga
   cero»).
+- RF-70: SI el proyecto no tiene ninguna conversión vinculada, ENTONCES EL SISTEMA lo calibrará con los datos del
+  propio proyecto de DIgSILENT, sin exigir un «Caso base» verificado contra un DGS, y lo dirá en sus avisos. (Regla
+  del usuario, 2026-11-13: se calibra cualquier proyecto que esté en DIgSILENT, convertido o no por el conversor.)
 
 ## Requisitos que esta spec cambia
 

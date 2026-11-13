@@ -240,7 +240,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       proyecto» sin ninguna variación; los dos convergen, y «Cargas nuevas» también. De paso:
       la base de un proyecto de un solo alimentador no se encontraba por su token (su informe
       no lleva `_n`), arreglado con su prueba (025:RF-37).
-- [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos; RF-70 añadido el 2026-11-13)
       Hecho cuando: `grep -rnoE "015:RF-[0-9]+" tests | sort -u` lista los 46 RF y la suite
       con las variables `CSG_*` pasa.
 - [x] T27. Retro (033, 2026-10-29): RF-68, RF-69, añadidos a la spec como cambio después de

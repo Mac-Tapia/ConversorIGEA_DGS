@@ -39,21 +39,53 @@ def _maxima():
              'kw': 1000.0, 'kvar': 300.0, 'error': None}]
 
 
+class _LlegoAlTrabajo(Exception):
+    """La acción pasó la puerta del proyecto y llegó a DIgSILENT."""
+
+
+class _CtxQueAnota(_NoSubprocess):
+    def run_process(self, *_args, **_kwargs):
+        raise _LlegoAlTrabajo()
+
+
 @pytest.mark.parametrize('invoke', [
     lambda s, w: s.cargas_plan(w, 'P', ['A1'], None, None),
     lambda s, w: s.ajuste_plan(w, 'P', _maxima(), '', .01),
-    lambda s, w: s.pf_verificar(w, _NoSubprocess(), 'P', ['A1']),
-    lambda s, w: s.obras_bibliotecas(w, _NoSubprocess(), 'P', ['A1']),
-    lambda s, w: s.obras_ejecutar(w, _NoSubprocess(), 'P', ['A1'], None, '', simular=True),
+    lambda s, w: s.obras_bibliotecas(w, _CtxQueAnota(), 'P', ['A1']),
+    lambda s, w: s.obras_ejecutar(w, _CtxQueAnota(), 'P', ['A1'], None, '', simular=True),
     lambda s, w: s.estudios_plan(w, 'P', ['A1'], ['flujo'], None),
     lambda s, w: s.transferencia_ejecutar(
-        w, _NoSubprocess(), 'P', ['A1', 'A2'], ['sin'], None),
+        w, _CtxQueAnota(), 'P', ['A1', 'A2'], ['sin'], None),
 ])
-def test_every_native_action_rejects_unbound_project_before_work(tmp_path, invoke):
+def test_018_rf19_ninguna_accion_nativa_se_detiene_por_el_vinculo(tmp_path, invoke):
+    """018:RF-19 — regla del usuario (2026-11-13): se trabaja sobre cualquier proyecto de DIgSILENT, convertido o no por
+    el conversor. Antes esta prueba exigía lo contrario («toda acción nativa rechaza el proyecto sin vínculo»); una
+    acción puede seguir fallando por otra causa (falta de calibración, de datos…), pero nunca por PROJECT_BINDING_*."""
     from convertersmartgrid.web import services
 
-    with pytest.raises(services.UserError, match='PROJECT_BINDING_MISSING'):
+    try:
         invoke(services, _workspace(tmp_path))
+    except _LlegoAlTrabajo:
+        return
+    except Exception as exc:                                   # noqa: BLE001
+        assert 'PROJECT_BINDING' not in str(exc), exc
+
+
+def test_018_rf19_sin_vinculo_el_contexto_se_arma_con_el_proyecto_y_lo_avisa(tmp_path):
+    """018:RF-19 — sin vínculo, el contexto nativo lleva un vínculo de origen «proyecto», firmado, y la causa como aviso
+    informativo; nunca «se importó a mano»."""
+    from convertersmartgrid.native_action import verify_native_action_context
+    from convertersmartgrid.web import services
+
+    feeders = ['A1', 'A2']
+    contexto = services.native_action_context(_workspace(tmp_path), 'P', feeders, 'ajuste')
+    assert contexto['binding']['origen'] == 'proyecto' and contexto['binding']['project'] == 'P'
+    assert contexto['binding']['feeders'] == feeders
+    assert [a['code'] for a in contexto['binding_warnings']] == ['PROJECT_BINDING_MISSING']
+    assert 'propio proyecto de DIgSILENT' in contexto['binding_warnings'][0]['message']
+    assert 'a mano' not in contexto['binding_warnings'][0]['message']
+    plan = {'project': 'P', 'feeders': feeders, 'native_action_context': contexto}
+    assert verify_native_action_context(plan, 'ajuste')['project'] == 'P'
 
 
 def test_native_action_context_carries_one_signed_binding(tmp_path):
@@ -149,3 +181,13 @@ def test_native_tool_rejects_unsigned_plan_before_powerfactory(tmp_path):
     report = json.loads(output.read_text(encoding='utf-8'))
     assert report['status'] == 'BLOQUEADO_DATOS'
     assert 'native_action_context' in report['error']
+
+
+def test_015_rf70_sin_conversion_vinculada_se_calibra_sin_exigir_el_caso_base(tmp_path):
+    """015:RF-70 — un proyecto sin ninguna conversión vinculada no tiene contra qué verificar su «Caso base»: la
+    calibración no se detiene por eso y lo dice en sus avisos (regla del usuario, 2026-11-13)."""
+    from convertersmartgrid.web import services
+
+    plan = services.ajuste_plan(_workspace(tmp_path), 'P', _maxima(), '', .01)
+    avisos = ' '.join(str(a) for a in plan.get('avisos') or [])
+    assert '015:RF-70' in avisos

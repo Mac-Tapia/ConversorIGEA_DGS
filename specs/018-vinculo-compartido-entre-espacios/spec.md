@@ -101,6 +101,15 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   ejecución y la web no lo importa: `SOURCE_RUN_MISMATCH`), importarlo sin borrar nada, verificar el
   proyecto nuevo y seguir con él; si la importación no deja un proyecto nuevo, deberá parar con su
   error en vez de calibrar un proyecto que no existe.
+- RF-18: Cuando el registro de vínculos de la carpeta de datos de la web no tenga un proyecto, el sistema deberá
+  buscarlo, solo leyendo, en el registro de la carpeta de datos anterior (`output/web/vinculos_pf.json`) y usarlo si
+  su huella cuadra con su contenido y es de la carpeta de DIgSILENT en uso; nunca escribirá en ese registro.
+  (2026-11-13: un proyecto aceptado el día 9 salía como «importado a mano»: su vínculo estaba en el registro
+  anterior, con otros 68, y la web nueva no lo leía.)
+- RF-19: Ninguna acción nativa (calibración, estudios, obras) se bloqueará por el vínculo: sin vínculo usable, el
+  sistema deberá seguir con el vínculo guardado si lo hay, o con uno armado con el propio proyecto de DIgSILENT
+  (origen «proyecto»), y dirá la causa como aviso informativo, nunca «se importó a mano». (Regla del usuario,
+  2026-11-13: se calibra cualquier proyecto de DIgSILENT, convertido o no por el conversor.)
 
 ## Fuera de alcance
 

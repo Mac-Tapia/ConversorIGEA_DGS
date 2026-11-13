@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -434,15 +435,23 @@ def test_018_rf5_verificar_caso_base_exige_vinculo_en_el_servidor(tmp_path):
 
 
 def test_018_rf14_el_nombre_de_la_red_por_sistema_vale_por_sus_alimentadores(tmp_path, monkeypatch):
-    """018:RF-14 — verificar el «Caso base» o una acción nativa con ``SISTEMA_NASCA`` pide al
-    vínculo sus alimentadores, no el nombre del DGS; un alimentador suelto sigue igual."""
+    """018:RF-14 — verificar el «Caso base» o una acción nativa con el nombre de un sistema eléctrico pide al vínculo
+    sus alimentadores, no el nombre del DGS; un alimentador suelto sigue igual. Universal: el sistema y sus alimentadores
+    se sortean en cada corrida (cualquier empresa, sistema o alimentador; los reales solo son ensayos)."""
+    import random
+    import string
+
     from convertersmartgrid import powerfactory_binding
     from convertersmartgrid.web import services
 
+    azar = random.Random()
+    codigo = lambda: ''.join(azar.choices(string.ascii_uppercase, k=2)) + str(azar.randint(100, 999))  # noqa: E731
+    sistema = 'SISTEMA_' + ''.join(azar.choices(string.ascii_uppercase, k=azar.randint(3, 8)))
+    del_sistema = sorted({codigo() for _ in range(azar.randint(2, 6))})
+    suelto = next(c for c in iter(codigo, None) if c not in del_sistema)
     ws = _workspace(tmp_path)
-    ws.groups = {'SISTEMA_NASCA': {'feeders': ['NA203', 'NA205', 'PU101'], 'status': 'ok'}}
-    assert services.alimentadores_pedidos(ws, ['SISTEMA_NASCA', 'NA203', 'IN111', ' ']) == [
-        'NA203', 'NA205', 'PU101', 'IN111']
+    ws.groups = {sistema: {'feeders': list(del_sistema), 'status': 'ok'}}
+    assert services.alimentadores_pedidos(ws, [sistema, del_sistema[0], suelto, ' ']) == [*del_sistema, suelto]
     pedidos = []
 
     def exigir(ws_, project, feeders):
@@ -451,10 +460,11 @@ def test_018_rf14_el_nombre_de_la_red_por_sistema_vale_por_sus_alimentadores(tmp
 
     monkeypatch.setattr(powerfactory_binding, 'require_project_binding', exigir)
     with pytest.raises(services.UserError, match='PARADA'):
-        services.pf_verificar_base(ws, _CtxSinEjecutar(), 'P/SISTEMA_NASCA', ['SISTEMA_NASCA'])
-    with pytest.raises(services.UserError, match='PARADA'):
-        services.native_action_context(ws, 'P/SISTEMA_NASCA', ['SISTEMA_NASCA'], 'obras')
-    assert pedidos == [['NA203', 'NA205', 'PU101']] * 2
+        services.pf_verificar_base(ws, _CtxSinEjecutar(), f'P/{sistema}', [sistema])
+    # 018:RF-19: la acción nativa ya no se detiene por el vínculo; lo pedido y el contexto, con los alimentadores.
+    contexto = services.native_action_context(ws, f'P/{sistema}', [sistema], 'obras')
+    assert pedidos == [del_sistema] * 2
+    assert contexto['feeders'] == del_sistema
 
 
 @pytest.mark.parametrize('caso, adopta', [
@@ -475,11 +485,11 @@ def test_018_rf15_misma_fuente_sin_el_dgs_aceptado_usa_la_ejecucion_del_vinculo(
                              fingerprint='h' if caso != 'otra huella' else 'otra')
     monkeypatch.setattr(type(ws), 'active_run', lambda self: activa)
     binding = SimpleNamespace(source_run_id='vieja', source_mode='txt', source_fingerprint='h')
-    monkeypatch.setattr(services, 'dgs_jobs', lambda ws_, f: ([], [] if caso == 'con su DGS' else ['NA203']))
+    monkeypatch.setattr(services, 'dgs_jobs', lambda ws_, f: ([], [] if caso == 'con su DGS' else ['A1']))
     adoptados = []
     monkeypatch.setattr(services, 'adoptar_fuente_del_vinculo', lambda ws_, p: adoptados.append(p))
-    aviso = services.usar_ejecucion_del_vinculo(ws, 'P/SISTEMA_NASCA', binding, ['NA203'])
-    assert (adoptados == ['P/SISTEMA_NASCA']) is adopta
+    aviso = services.usar_ejecucion_del_vinculo(ws, 'P/RED', binding, ['A1'])
+    assert (adoptados == ['P/RED']) is adopta
     assert (aviso is not None and '018:RF-15' in aviso) is adopta
 
 
@@ -735,3 +745,74 @@ def test_081_rf75_relectura_posterior_sin_el_proyecto_sigue_fallando(tmp_path):
     record_project_binding(ws, _binding(project='Oct/NUEVO', accepted_at=1_797_000_000.0))
     with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_PROJECT_MISMATCH'):
         require_project_binding(ws, 'Oct/NUEVO', ['IN111'])
+
+
+def _registro_heredado(tmp_path, monkeypatch, vinculos):
+    """Un registro de una carpeta de datos anterior, con el formato de siempre, que la web nueva no conocía."""
+    from convertersmartgrid import powerfactory_binding as pb
+
+    ruta = tmp_path / 'heredado' / 'output' / 'web' / 'vinculos_pf.json'
+    ruta.parent.mkdir(parents=True)
+    ruta.write_text(json.dumps({'schema': pb.REGISTRO_SCHEMA, 'vinculos': vinculos}), encoding='utf-8')
+    monkeypatch.setattr(pb, 'registros_heredados', lambda: [ruta])
+    return ruta
+
+
+def test_018_rf18_el_vinculo_del_registro_anterior_se_reconoce_sin_escribir_en_el(tmp_path, monkeypatch):
+    """018:RF-18 — un proyecto aceptado con la carpeta de datos anterior deja de salir como «no aceptado»; el registro
+    anterior se lee y no se toca. (2026-11-13: un proyecto aceptado el día 9 salía como «importado a mano».)"""
+    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+
+    ws = _workspace(tmp_path)
+    ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
+    vinculo = _binding().as_dict()
+    ruta = _registro_heredado(tmp_path, monkeypatch, {'Oct/IN111': vinculo})
+    antes = ruta.read_bytes()
+    hallado = vinculo_guardado(ws, 'Oct/IN111')
+    assert hallado and hallado['binding_sha256'] == vinculo['binding_sha256']
+    assert hallado['registro_heredado'] == str(ruta) and hallado['feeders'] == ['IN111']
+    assert ruta.read_bytes() == antes and not ws.vinculos_compartidos.exists()
+
+
+@pytest.mark.parametrize('cambio', ['huella', 'carpeta'])
+def test_018_rf18_del_registro_anterior_solo_vale_un_vinculo_integro_y_de_esta_carpeta(tmp_path, monkeypatch, cambio):
+    """018:RF-18 — un vínculo heredado cuya huella no cuadra con su contenido, o de otra carpeta de DIgSILENT, no se
+    acepta a ciegas."""
+    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+
+    ws = _workspace(tmp_path)
+    ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
+    vinculo = _binding().as_dict() if cambio == 'huella' else _binding(folder='OtraEmpresa').as_dict()
+    if cambio == 'huella':
+        vinculo['feeders'] = ['IN111', 'IN999']               # contenido cambiado tras firmarlo
+    _registro_heredado(tmp_path, monkeypatch, {'Oct/IN111': vinculo})
+    assert vinculo_guardado(ws, 'Oct/IN111') is None
+
+
+def test_018_rf18_el_registro_actual_gana_al_anterior(tmp_path, monkeypatch):
+    """018:RF-18 — si el registro de la carpeta de datos en uso ya tiene el proyecto, el anterior ni se mira."""
+    from convertersmartgrid import powerfactory_binding as pb
+
+    ws = _workspace(tmp_path)
+    ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
+    ws.vinculos_compartidos.parent.mkdir(parents=True)
+    actual = _binding(source_run_id='run-nuevo').as_dict()
+    ws.vinculos_compartidos.write_text(json.dumps({'schema': pb.REGISTRO_SCHEMA, 'vinculos': {'Oct/IN111': actual}}),
+                                       encoding='utf-8')
+    _registro_heredado(tmp_path, monkeypatch, {'Oct/IN111': _binding(source_run_id='run-viejo').as_dict()})
+    hallado = pb.vinculo_guardado(ws, 'Oct/IN111')
+    assert hallado['source_run_id'] == 'run-nuevo' and 'registro_heredado' not in hallado
+
+
+def test_018_rf19_con_vinculo_heredado_la_calibracion_usa_su_caso_base(tmp_path, monkeypatch):
+    """018:RF-19 — con el vínculo en el registro anterior, el contexto nativo lo usa (no uno armado) aunque la fuente
+    activa del espacio no sea la suya, y el aviso lo dice sin «se importó a mano»."""
+    from convertersmartgrid.web import services
+
+    ws = _workspace(tmp_path)
+    ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
+    _registro_heredado(tmp_path, monkeypatch, {'Oct/IN111': _binding(source_run_id='run-de-otra-carpeta').as_dict()})
+    contexto = services.native_action_context(ws, 'Oct/IN111', ['IN111'], 'ajuste')
+    assert contexto['binding']['source_run_id'] == 'run-de-otra-carpeta'
+    assert contexto['binding'].get('origen', 'conversion') == 'conversion'
+    assert all('a mano' not in a['message'] for a in contexto['binding_warnings'])

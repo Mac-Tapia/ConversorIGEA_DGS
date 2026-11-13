@@ -10,7 +10,9 @@ export interface EstadoVinculoProyecto {
 export function estadoVinculoProyecto(project: PfProject | null): EstadoVinculoProyecto {
   const warnings = project?.binding_warnings ?? [];
   return {
-    bloqueado: Boolean(project && (!project.binding || project.binding_blocked_reason)),
+    // 018:RF-19, regla del usuario (2026-11-13): se calibra cualquier proyecto de DIgSILENT, convertido o no por
+    // el conversor. El vínculo con la conversión ya no bloquea nada: su falta es un aviso (textoCausaVinculo).
+    bloqueado: false,
     advertencias: warnings.length,
     elementos: warnings.reduce((total, warning) => total + warning.elements.length, 0),
   };
@@ -36,15 +38,15 @@ export function usoDeLaFuente(project: PfProject | null): 'automatico' | 'boton'
  */
 const CAUSA_VINCULO: Record<string, string> = {
   PROJECT_BINDING_MISSING:
-    'Este proyecto no se aceptó nunca desde esta web: se importó a mano o antes de que existiera el vínculo. '
-    + 'Conviértalo e impórtelo con «Cargar en DIgSILENT + flujo» en la pestaña de conversión.',
+    'Este proyecto no tiene vínculo con una conversión de esta web: se calibra y se estudia con los datos del propio '
+    + 'proyecto de DIgSILENT.',
   PROJECT_BINDING_NO_ACTIVE_SOURCE:
-    'Este espacio de trabajo no tiene fuente cargada y la ejecución con la que se aceptó el proyecto ya no está en disco. '
-    + 'Cargue y convierta la misma fuente, con las mismas opciones.',
+    'Este espacio no tiene fuente cargada: se usa el vínculo guardado del proyecto y los datos de DIgSILENT. Para '
+    + 'comprobarlo contra la fuente, cargue y convierta la misma, con las mismas opciones.',
   PROJECT_BINDING_SOURCE_MISMATCH:
-    'La fuente activa de este espacio no es la que se usó al aceptar el proyecto.',
+    'La fuente activa de este espacio no es la que se usó al aceptar el proyecto: se trabaja con el vínculo guardado y los datos de DIgSILENT.',
   PROJECT_BINDING_SOURCE_UNAVAILABLE:
-    'La ejecución con la que se aceptó el proyecto ya no está en disco. Cargue y convierta la misma fuente, con las mismas opciones.',
+    'La ejecución con la que se aceptó el proyecto no está en esta carpeta de datos: se trabaja con el vínculo guardado y los datos de DIgSILENT.',
   PROJECT_BINDING_FEEDER_MISMATCH:
     'Los alimentadores del proyecto en DIgSILENT ya no son los que se aceptaron. Vuelva a leer los proyectos; si siguen distintos, reimporte.',
   PROJECT_BINDING_PROJECT_MISMATCH:

@@ -82,14 +82,16 @@ test('las advertencias de modificaciones manuales no bloquean el proyecto', asyn
   assert.deepEqual(estado, { bloqueado: false, advertencias: 1, elementos: 1 });
 });
 
-test('un error bloqueante sigue deshabilitando las acciones nativas', async () => {
+// 018:RF-19, regla del usuario (2026-11-13): se calibra cualquier proyecto de DIgSILENT, convertido o no por el
+// conversor. Antes esta prueba exigía que la falta de vínculo deshabilitara las acciones nativas; ahora es un aviso.
+test('018:RF-19 la falta de vínculo ya no deshabilita las acciones nativas', async () => {
   const { estadoVinculoProyecto } = await cargar();
   const estado = estadoVinculoProyecto({
     name: 'P', path: 'P', feeders: ['A1'], binding: null,
     binding_blocked_reason: 'PROJECT_BINDING_MISSING', binding_warnings: [],
   });
 
-  assert.deepEqual(estado, { bloqueado: true, advertencias: 0, elementos: 0 });
+  assert.deepEqual(estado, { bloqueado: false, advertencias: 0, elementos: 0 });
 });
 
 test('018:RF-11 sin fuente activa se usa sola la fuente del vínculo; con otra, con botón', async () => {

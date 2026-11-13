@@ -23,6 +23,10 @@ from .powerfactory_metadata import CASO_BASE_CALIBRABLE, FLUJO_CONVERGE, FLUJO_N
 
 
 BINDING_SCHEMA = 'convertersmartgrid-powerfactory-project-binding-v1'
+ORIGEN_CONVERSION = 'conversion'
+ORIGEN_PROYECTO = 'proyecto'
+#: 018:RF-18: el modo de fuente de un vínculo armado con el propio proyecto de DIgSILENT.
+MODO_PROYECTO = 'proyecto'
 
 _NATIVE_CLASSES = (
     'ElmNet', 'ElmTerm', 'ElmLne', 'ElmTr2', 'ElmTr3', 'ElmLod', 'ElmXnet',
@@ -137,7 +141,54 @@ def vinculo_guardado(ws: Any, project: str) -> dict[str, Any] | None:
             entrada = _leer_registro(Path(registro)).get(project)
         if entrada:
             return entrada
-    return (getattr(ws, 'pf_project_bindings', {}) or {}).get(project)
+    propia = (getattr(ws, 'pf_project_bindings', {}) or {}).get(project)
+    if propia:
+        return propia
+    return vinculo_heredado(ws, project, registro)
+
+
+#: 018:RF-18: dónde guardaba la web su registro antes de mudar sus datos a la carpeta de ejecución (065:RF-10).
+REGISTRO_HEREDADO = Path('output') / 'web' / 'vinculos_pf.json'
+
+
+def registros_heredados() -> list[Path]:
+    """Los registros de vínculos de carpetas de datos anteriores que puede haber en esta instalación."""
+    from .runtime_paths import raiz_programa
+
+    return [raiz_programa() / REGISTRO_HEREDADO]
+
+
+def vinculo_heredado(ws: Any, project: str, registro_actual: Any = None) -> dict[str, Any] | None:
+    """018:RF-18: el vínculo que un proyecto tiene en el registro de una carpeta de datos anterior, solo leyendo.
+
+    2026-11-13: la web, con sus datos ya en la carpeta de ejecución, decía de un proyecto aceptado el día 9 que «no se
+    aceptó nunca desde esta web: se importó a mano», porque su vínculo seguía en el registro de output/web (69
+    proyectos, ninguno en el nuevo). Se lee ese registro sin escribir en él ni copiarlo. Solo vale un vínculo íntegro
+    (su ``binding_sha256`` cuadra con su contenido) y de la carpeta de DIgSILENT en uso, si se conoce; el del registro
+    actual siempre gana, porque este solo se mira cuando aquel no tiene el proyecto.
+    """
+    actual = Path(registro_actual).resolve() if registro_actual else None
+    carpeta = str((getattr(ws, 'pf_inventory', {}) or {}).get('folder') or '').strip()
+    for ruta in registros_heredados():
+        try:
+            if actual is not None and ruta.resolve() == actual:
+                continue
+            with _REGISTRO_LOCK:
+                entrada = _leer_registro(ruta).get(project)
+        except (OSError, ProjectBindingError):
+            continue                            # un registro antiguo ilegible no bloquea nada: se ignora
+        if not entrada:
+            continue
+        try:
+            integro = PowerFactoryProjectBinding.from_dict(entrada).binding_sha256 == entrada.get('binding_sha256')
+        except (KeyError, TypeError, ValueError):     # ProjectBindingError es un ValueError
+            integro = False
+        if not integro:
+            continue
+        if carpeta and entrada.get('folder') and str(entrada['folder']) != carpeta:
+            continue
+        return {**entrada, 'registro_heredado': str(ruta)}
+    return None
 
 
 def alimentadores_vinculados(ws: Any, project: str) -> list[str]:
@@ -293,17 +344,28 @@ class PowerFactoryProjectBinding:
     native_reread: dict[str, Any]
     accepted_at: float = field(default_factory=time.time)
     schema_version: str = BINDING_SCHEMA
+    # 018:RF-18: de dónde sale el vínculo. «conversion», el aceptado al importar un DGS de esta
+    # web; «proyecto», el que se arma con lo que trae el propio proyecto de DIgSILENT cuando no
+    # hay conversión que lo respalde. El de conversión no lo escribe en su sobre: así su huella
+    # sigue siendo la de los vínculos ya guardados.
+    origen: str = ORIGEN_CONVERSION
 
     def __post_init__(self) -> None:
         object.__setattr__(self, 'feeders', tuple(sorted(set(self.feeders))))
 
+    def _contenido(self) -> dict[str, Any]:
+        result = asdict(self)
+        if self.origen == ORIGEN_CONVERSION:
+            result.pop('origen')
+        return result
+
     @property
     def binding_sha256(self) -> str:
-        raw = json.dumps(asdict(self), sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        raw = json.dumps(self._contenido(), sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         return hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
     def as_dict(self) -> dict[str, Any]:
-        result = asdict(self)
+        result = self._contenido()
         result['feeders'] = list(self.feeders)
         result['binding_sha256'] = self.binding_sha256
         return result
@@ -322,6 +384,7 @@ class PowerFactoryProjectBinding:
             native_reread=dict(value.get('native_reread') or {}),
             accepted_at=float(value.get('accepted_at') or 0.0),
             schema_version=str(value.get('schema_version') or BINDING_SCHEMA),
+            origen=str(value.get('origen') or ORIGEN_CONVERSION),
         )
         # El esquema guardado se conserva tal cual: entra en binding_sha256 (058:RF-6).
         if esquema_vigente(result.schema_version) != BINDING_SCHEMA:
@@ -404,6 +467,7 @@ def fusionar_caso_base(
         native_inventory_sha256=binding.native_inventory_sha256,
         native_reread=reread,
         accepted_at=binding.accepted_at,
+        origen=binding.origen,
     )
 
 
