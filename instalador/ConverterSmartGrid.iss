@@ -1,7 +1,10 @@
 ; Instalador de ConverterSmartGrid (spec 086, RF-36, RF-38, RF-39). Probado en una compilación real: compilado el 2026-11-04 (086 T40).
 ;
 ; Compilar, con el candidato ya armado por tools/construir_candidato.py:
-;   ISCC.exe /DCandidato=C:\ruta\candidato /DVersion=1.0.0rc1 instalador\ConverterSmartGrid.iss
+;   ISCC.exe /DCandidato=C:\ruta\candidato instalador\ConverterSmartGrid.iss
+;
+; La versión no se pasa (086:RF-92): sale del nombre de la rueda del candidato, que la toma de __version__ del paquete.
+; El rc5 la recibió a mano con /DVersion mientras el paquete decía otra; aquí no se escribe ninguna.
 ;
 ; No sale a internet, ni pide Node ni pytest. Todo el trabajo lo hace instalar_candidato.py con el Python del propio
 ; paquete: comprueba cada huella, instala con pip sin red y solo cambia de versión si la nueva responde al doctor.
@@ -10,9 +13,23 @@
 #ifndef Candidato
   #error Falta /DCandidato=carpeta del candidato
 #endif
-#ifndef Version
-  #error Falta /DVersion=version del manifiesto del candidato
+#ifdef Version
+  #error No pase /DVersion: la version es la de la rueda del candidato (086:RF-92)
 #endif
+; ISPP: FindFirst devuelve 0 si no hay fichero; Copy, Pos y Len cuentan desde 1 (ayuda de ISPP, funciones integradas).
+#define PrefijoRueda "convertersmartgrid-"
+#define BusquedaRueda FindFirst(AddBackslash(Candidato) + "programa\" + PrefijoRueda + "*.whl", 0)
+#if BusquedaRueda == 0
+  #error El candidato no trae su rueda en programa\convertersmartgrid-*.whl
+#endif
+#define Rueda FindGetFileName(BusquedaRueda)
+#expr FindClose(BusquedaRueda)
+#define RestoRueda Copy(Rueda, Len(PrefijoRueda) + 1)
+#define Version Copy(RestoRueda, 1, Pos("-", RestoRueda) - 1)
+#if Version == ""
+  #error No se pudo leer la version del nombre de la rueda
+#endif
+#pragma message "Version del candidato, de su rueda: " + Version
 
 ; /DEnsayoQA conserva la instalación de producto, incluidos sus accesos.
 ; La receta de QA fija también /DIR y CSG_DATOS_HOME al espacio de ensayo.
@@ -61,17 +78,26 @@ Name: "escritorio"; Description: "Crear un acceso directo en el escritorio"
 
 [Files]
 ; El candidato se deja en una carpeta temporal del programa, y se borra al terminar.
+; 086:RF-89, RF-97: sus documentos van con él y los publica instalar_candidato.py en {app}\documentos, solo si termina bien.
+; Aquí no se copian ni se borran: Inno procesa [InstallDelete] y [Files] antes de ssPostInstall, y una instalación que
+; luego fallara dejaría al programa que sigue sin los suyos o con los de la versión nueva.
 Source: "{#Candidato}\*"; DestDir: "{app}\_entrega"; Flags: recursesubdirs createallsubdirs ignoreversion deleteafterinstall
 
 [Icons]
 Name: "{autoprograms}\{#NombreAcceso}"; Filename: "{app}\ConverterSmartGrid.cmd"
 Name: "{autodesktop}\{#NombreAcceso}"; Filename: "{app}\ConverterSmartGrid.cmd"; Tasks: escritorio
 Name: "{autoprograms}\{#NombreAcceso} - diagnostico"; Filename: "{cmd}"; Parameters: "/k ""{app}\csg.cmd"" doctor"
+; 086:RF-90: con el Bloc de notas, porque un Windows limpio no tiene programa asociado a «.md».
+Name: "{autoprograms}\{#NombreAcceso} - manual de instalacion"; Filename: "{win}\notepad.exe"; Parameters: """{app}\documentos\MANUAL_INSTALACION.md"""
 
 [UninstallDelete]
 ; Solo el programa. La carpeta de datos (%LOCALAPPDATA%\ConverterSmartGrid\datos) es del operador y se queda.
 Type: filesandordirs; Name: "{app}\versiones"
 Type: filesandordirs; Name: "{app}\_entrega"
+Type: filesandordirs; Name: "{app}\documentos"
+Type: filesandordirs; Name: "{app}\documentos.preparando"
+Type: filesandordirs; Name: "{app}\documentos.anterior"
+Type: filesandordirs; Name: "{app}\documentos.retirar"
 Type: files; Name: "{app}\actual.txt"
 Type: files; Name: "{app}\anterior.txt"
 Type: files; Name: "{app}\ultima_copia.json"
@@ -88,6 +114,8 @@ const
 
 var
   FalloInstalacion: Boolean;
+  { 086:RF-96: la versión que había antes de copiar nada; a esa se tiene que poder volver. }
+  VersionPrevia: String;
 
 function DentroDe(const Carpeta, Raiz: String): Boolean;
 begin
@@ -135,6 +163,31 @@ begin
       end;
 end;
 
+function LeerPuntero(const Fichero: String): String;
+var
+  Texto: AnsiString;
+begin
+  Result := '';
+  if LoadStringFromFile(Fichero, Texto) then
+    Result := Trim(String(Texto));
+end;
+
+procedure AnotarVueltaAtras;
+var
+  Anterior: AnsiString;
+begin
+  { 086:RF-96: instalar_candidato.py registra la anterior; aquí queda dicho a cuál se puede volver, o que no queda ninguna. }
+  Anterior := '';
+  if not LoadStringFromFile(ExpandConstant('{app}\anterior.txt'), Anterior) then
+    Anterior := '';
+  if Trim(String(Anterior)) <> '' then
+    Log(Format('Se puede volver a la version %s con volver_atras.cmd.', [Trim(String(Anterior))]))
+  else if VersionPrevia <> '' then
+    Log(Format('Aviso: habia la version %s y no quedo registrada para volver.', [VersionPrevia]))
+  else
+    Log('Primera instalacion: no hay version anterior a la que volver.');
+end;
+
 procedure ComprobarInstalacion;
 var
   CodigoProceso: Integer;
@@ -159,7 +212,15 @@ begin
         LoadStringFromFile(ExpandConstant('{app}\actual.txt'), VersionActiva) then
       FalloInstalacion := Trim(String(VersionActiva)) <> '{#Version}';
     if FalloInstalacion then
-      Motivo := MotivoDelFallo;
+      Motivo := MotivoDelFallo
+    else
+    begin
+      { 086:RF-105: terminada bien, instalar_candidato.py deja en el mismo fichero lo que hay que saber igualmente
+        (una carpeta de paso que no pudo borrar, con su ruta); antes se perdía en su consola oculta. }
+      if MotivoDelFallo <> '' then
+        Log('Avisos de instalar_candidato.py: ' + MotivoDelFallo);
+      AnotarVueltaAtras;
+    end;
   end
   else
   begin
@@ -180,7 +241,9 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then
+  if CurStep = ssInstall then
+    VersionPrevia := LeerPuntero(ExpandConstant('{app}\actual.txt'))
+  else if CurStep = ssPostInstall then
     ComprobarInstalacion;
 end;
 

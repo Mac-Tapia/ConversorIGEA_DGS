@@ -5,7 +5,7 @@ Uso:
   python tools/construir_candidato.py lock [--salida requirements-nucleo.lock]
   python tools/construir_candidato.py candidato --salida DIR --python-embebido python-3.12.x-embed-amd64.zip
                                                 [--ruedas-cache DIR] [--version 1.0.0rc2]
-  python tools/construir_candidato.py complemento-ia --salida DIR --ruedas-cache DIR --version VERSION
+  python tools/construir_candidato.py complemento-ia --salida DIR --ruedas-cache DIR [--version VERSION]
       [--capacidades integrales --versiones-capturadas FREEZE --procedencias JSON --licencias-suplementarias JSON]
 
 `rueda` construye el programa: lo que `config/entrega.json` deja entrar, con `tools/`, `config/` y `frontend/dist/`
@@ -15,6 +15,10 @@ pruebas ni torch. `candidato` reúne todo en la forma que lee `tools/instalar_ca
 no necesita: `cd frontend && npm ci && npm run build`.
 
 La carpeta del candidato queda lista para el guion de Inno Setup, `instalador/ConverterSmartGrid.iss`.
+
+La versión es la de ``__version__`` del paquete (086:RF-92): la rueda la lleva en su nombre y el .iss la saca de ahí.
+``--version`` solo sirve para ensayar una actualización. El candidato lleva en «documentos/» los manuales que se instalan
+y las notas de su publicación, ``docs/NOTAS_VERSION_<x.y.z>.md`` (086:RF-89); si falta alguno, no se arma (086:RF-91).
 
 Salida: 0 bien, 1 no se pudo armar, 2 armado pero rechazado por `comprobar_entrega`.
 """
@@ -50,6 +54,12 @@ PROGRAMA_EN_PAQUETE = Path('src', 'convertersmartgrid', '_programa')
 #: Lo que se copia a «documentos/» del candidato. Pasa por la misma lista de términos que el código.
 DOCUMENTOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_OPERADOR.md', 'docs/SEGURIDAD_Y_PRIVACIDAD.md', 'docs/PERFIL_EMPRESA.md',
               'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt')
+#: 086:RF-89: además, lo que el operador encuentra instalado, porque el .iss copia «documentos/» a «{app}\\documentos». El rc5
+#: dejaba el candidato en «{app}\\_entrega» y lo borraba al terminar: los manuales se iban con él. Las notas de la
+#: publicación no van aquí: su nombre sale de la versión, en ``documentos_del_candidato``.
+MANUALES_INSTALADOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_COMANDOS.md', 'docs/GUIA_PRUEBA_PERSONA_AJENA.md')
+INICIAL_DEL_PAQUETE = Path('src', 'convertersmartgrid', '__init__.py')
+NOTAS_DEL_PAQUETE = Path('src', 'convertersmartgrid', 'recursos', 'NOTAS_VERSION.md')
 _LEEME_RUEDA = 'ConverterSmartGrid: conversor de redes de distribución a DIgSILENT PowerFactory.\n'
 _MARCADOR = 'python_version == "3.12" and sys_platform == "win32" and platform_machine == "AMD64"'
 
@@ -67,6 +77,52 @@ def _sha256(ruta: Path) -> str:
         for trozo in iter(lambda: f.read(1 << 20), b''):
             h.update(trozo)
     return h.hexdigest()
+
+
+# --------------------------------------------------------------------------- versión y documentos (086:RF-89 a RF-93)
+def version_del_paquete(raiz: Path) -> str:
+    """086:RF-92: la versión, leída del único sitio donde se escribe, ``__version__`` del paquete de ``raiz``."""
+    texto = (raiz / INICIAL_DEL_PAQUETE).read_text(encoding='utf-8')
+    hallada = re.search(r"^__version__ = '([^']+)'$", texto, flags=re.M)
+    if not hallada:
+        raise CE.EntregaError(f'No se encontró la versión en {INICIAL_DEL_PAQUETE.as_posix()}.')
+    return hallada.group(1)
+
+
+def publicacion(version: str) -> str:
+    """La publicación de una versión, sin su marca de candidata: ``1.0.0rc6`` → ``1.0.0``."""
+    hallada = re.match(r'\d+(?:\.\d+)*', version)
+    if not hallada:
+        raise CE.EntregaError(f'La versión «{version}» no empieza por su número de publicación.')
+    return hallada.group(0)
+
+
+def documentos_del_candidato(version: str) -> tuple[str, ...]:
+    """Lo que va a «documentos/» del candidato: los de siempre, los manuales que se instalan y las notas de su publicación."""
+    pedidos = [*DOCUMENTOS, *MANUALES_INSTALADOS, f'docs/NOTAS_VERSION_{publicacion(version)}.md']
+    return tuple(dict.fromkeys(pedidos))
+
+
+def copiar_documentos(raiz: Path, destino: Path, version: str) -> list[str]:
+    """086:RF-91: copia todos o ninguno; si falta alguno, el error los nombra y no se arma el candidato."""
+    pedidos = documentos_del_candidato(version)
+    faltan = [rel for rel in pedidos if not (raiz / rel).is_file()]
+    if faltan:
+        raise CE.EntregaError('Faltan documentos que se instalan con el programa: ' + ', '.join(faltan) + '.')
+    destino.mkdir(parents=True, exist_ok=True)
+    for rel in pedidos:
+        shutil.copyfile(raiz / rel, destino / Path(rel).name)
+    return [Path(rel).name for rel in pedidos]
+
+
+def comprobar_notas(texto: str, version: str) -> None:
+    """086:RF-93: las notas del paquete empiezan por el apartado de su versión, que es lo que enseña «Acerca de»."""
+    from convertersmartgrid import seccion_de_notas
+
+    apartados = re.findall(r'^## (\S+)', texto, flags=re.M)
+    if not apartados or apartados[0] != version or seccion_de_notas(texto, version) is None:
+        raise CE.EntregaError(f'Las notas del paquete ({NOTAS_DEL_PAQUETE.as_posix()}) no empiezan por el apartado '
+                              f'«## {version}»: «Acerca de» enseñaría las de otra versión.')
 
 
 # --------------------------------------------------------------------------- rueda propia
@@ -437,8 +493,17 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     terminos = CE.cargar_terminos(raiz, manifiesto, lista_local=lista_local)
     if not LOCK.is_file():
         raise CE.EntregaError(f'Falta {LOCK.name}: genérelo con la orden «lock».')
+    # 086:RF-92: sin «--version», la del paquete; con ella es un ensayo de actualización, que no tiene notas propias.
+    prevista = version or version_del_paquete(raiz)
+    if version is None:
+        comprobar_notas((raiz / NOTAS_DEL_PAQUETE).read_text(encoding='utf-8'), prevista)        # 086:RF-93
+    faltan = [rel for rel in documentos_del_candidato(prevista) if not (raiz / rel).is_file()]
+    if faltan:                                                                                  # 086:RF-91, antes de construir
+        raise CE.EntregaError('Faltan documentos que se instalan con el programa: ' + ', '.join(faltan) + '.')
     rueda, cuenta = construir_rueda(raiz, salida / 'programa', manifiesto, terminos, version=version)
     version_final = rueda.name.split('-')[1]
+    if version_final != prevista:
+        raise CE.EntregaError(f'La rueda salió con la versión {version_final} y el paquete dice {prevista}.')
     ruedas = salida / 'terceros' / 'wheels'
     traer_ruedas(raiz, ruedas, raiz / LOCK.name, cache)
     version_python = extraer_python(zip_python, salida / 'terceros' / 'python')
@@ -456,9 +521,7 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     shutil.copyfile(raiz / 'tools' / 'instalar_candidato.py', instalador / 'instalar_candidato.py')
     shutil.copyfile(raiz / 'instalador' / 'ConverterSmartGrid.iss', instalador / 'ConverterSmartGrid.iss')
     documentos = salida / 'documentos'
-    documentos.mkdir()
-    for rel in DOCUMENTOS:
-        shutil.copyfile(raiz / rel, documentos / Path(rel).name)
+    copiar_documentos(raiz, documentos, version_final)                                         # 086:RF-89
     componentes: list[dict[str, Any]] = []
     textos: dict[str, list[tuple[str, str]]] = {}
     for r in sorted(ruedas.glob('*.whl')):
@@ -810,7 +873,7 @@ def main(argv: list[str] | None = None) -> int:
     orden = parser.add_subparsers(dest='orden', required=True)
     p_rueda = orden.add_parser('rueda', help='Solo la rueda del programa.')
     p_rueda.add_argument('--salida', type=Path, required=True)
-    p_rueda.add_argument('--version', help='Otra versión, para ensayar una actualización.')
+    p_rueda.add_argument('--version', help='Solo para ensayar una actualización; la de entrega es la de __version__ (086:RF-92).')
     p_lock = orden.add_parser('lock', help='Fija con huella las ruedas del núcleo; descarga del índice.')
     p_lock.add_argument('--salida', type=Path, default=LOCK)
     p_lock.add_argument('--ruedas', type=Path, help='Carpeta donde dejar las ruedas; por defecto, una temporal.')
@@ -820,12 +883,12 @@ def main(argv: list[str] | None = None) -> int:
     p_cand.add_argument('--python-pf', type=Path,
                         help='Carpeta con los Python embebidos y las ruedas de numpy de config/entrega.json (103:RF-6)')
     p_cand.add_argument('--ruedas-cache', type=Path, help='Carpeta con las ruedas ya descargadas; sin ella, del índice.')
-    p_cand.add_argument('--version', help='Otra versión, para ensayar una actualización.')
+    p_cand.add_argument('--version', help='Solo para ensayar una actualización; la de entrega es la de __version__ (086:RF-92).')
     p_cand.add_argument('--lista-local', type=Path, help='Lista de términos fuera de git; si no, CSG_TERMINOS_PROHIBIDOS.')
     p_ia = orden.add_parser('complemento-ia', help='Complemento separado, de inferencia o capacidades integrales, offline con lock y avisos.')
     p_ia.add_argument('--salida', type=Path, required=True)
     p_ia.add_argument('--ruedas-cache', type=Path, required=True)
-    p_ia.add_argument('--version', required=True, help='Versión del núcleo compatible.')
+    p_ia.add_argument('--version', help='Versión del núcleo compatible; por defecto, la del paquete (086:RF-92).')
     p_ia.add_argument('--capacidades', choices=('inferencia', 'integrales'), default='inferencia')
     p_ia.add_argument('--versiones-capturadas', type=Path, help='Freeze exacto del entorno integral ya verificado.')
     p_ia.add_argument('--procedencias', type=Path, help='JSON de recibos Git/CUDA: name, version, url, commit_id (Git), wheel, sha256.')
@@ -834,7 +897,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.orden == 'complemento-ia':
-            resultado = construir_complemento_ia(RAIZ, args.salida, cache=args.ruedas_cache, version=args.version,
+            resultado = construir_complemento_ia(RAIZ, args.salida, cache=args.ruedas_cache, version=args.version or version_del_paquete(RAIZ),
                 capacidades=args.capacidades, versiones=args.versiones_capturadas, procedencias=args.procedencias,
                 caches_adicionales=args.ruedas_cache_adicional, licencias=args.licencias_suplementarias)
             print(json.dumps({k: resultado[k] for k in ('tipo', 'version', 'revision', 'bytes_total')}

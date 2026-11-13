@@ -215,6 +215,27 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       llega también a «Cargas nuevas». (RF-87, RF-88)
       Hecho cuando: `tests/test_variaciones_por_marca.py` (086:RF-87, RF-88) y `tests/test_ajuste_proyecto_guion.py`
       (086:RF-88) en verde; la corrida en DIgSILENT sobre una copia de PA217 va en la T32.
+- [x] T70 Los manuales y las notas de la publicación en «documentos/» del candidato y en `{app}\documentos`, y el menú Inicio
+      abre el manual de instalación; `instalar_candidato.py` los prepara al lado y solo los publica cuando cambia el puntero,
+      y si falla deja los anteriores. (RF-89, RF-90, RF-91, RF-97)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-89 a RF-91, RF-97) en verde y el `.iss` compila con ISCC sobre
+      un candidato de prueba. Verlo instalado es de la T40, con el rc6.
+- [x] T71 La versión solo en `__version__`: pyproject la lee, el candidato la pone en su rueda y el `.iss` la saca de su
+      nombre, sin `/DVersion`; «Acerca de» enseña el apartado de esa versión. (RF-92, RF-93)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-92, RF-93) en verde, y ISCC da la versión de la rueda y
+      rechaza `/DVersion`. La etiqueta `v1.0.0` es la T34.
+- [x] T72 Instalar sobre otra versión registra la anterior, también sobre un rc sin `anterior.txt` o con el puntero roto, y el
+      instalador anota a cuál se puede volver; volver atrás cambia documentos y punteros juntos, una sola vez, y un fallo a
+      mitad lo deja todo como estaba; reinstalar la versión apartada la vuelve a poner en uso. (RF-94, RF-95, RF-96, RF-98,
+      RF-99, RF-100, RF-101, RF-102)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-94 a RF-96, RF-98 a RF-102) en verde con versiones de prueba.
+      Instalar el rc6 sobre el rc5 de este equipo y volver es de la T40.
+- [x] T73 El cambio de versión aguanta sus propios fallos: cada paso del deshacer va por su cuenta y el error lleva el
+      original con los pasos que no se pudieron deshacer; renombrar una carpeta o un puntero en uso se reintenta con espera creciente y,
+      si sigue, pide cerrar los documentos; las carpetas de paso que no se borran se avisan en el registro. (RF-103, RF-104,
+      RF-105)
+      Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-103 a RF-105) en verde, con rojo previo, y las pruebas de
+      RF-97 a RF-102 siguen en verde. Evidencia: `D:/csg/F2/rojo_*.log` y `D:/csg/F2/verde_*.log`.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

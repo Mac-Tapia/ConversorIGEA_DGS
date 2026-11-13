@@ -75,6 +75,26 @@ su lugar.
 12. **Preparar el paquete de soporte** (`csg.cmd soporte`).
     Debe ver: un `.zip` en la carpeta de datos con un `LEAME.txt` que dice lo que lleva.
 
+13. **Instalar la versión B encima** (quien organiza le da el instalador de una segunda versión, B, que sigue a la A
+    instalada en el paso 2), con el programa cerrado.
+    Debe ver: el instalador terminado sin el aviso «No se pudo terminar la instalacion»; el diagnóstico dice
+    «ConverterSmartGrid <B>: listo para trabajar.», y en `%LOCALAPPDATA%\Programs\ConverterSmartGrid\documentos` el manual
+    y las notas de B. El registro del instalador dice «Se puede volver a la version <A> con volver_atras.cmd.».
+
+14. **Volver a la versión anterior**, con el programa cerrado, con `volver_atras.cmd` del manual.
+    Debe ver: en la consola, `"version": "<A>"` y `"dejada": "<B>"`; el diagnóstico vuelve a decir
+    «ConverterSmartGrid <A>: listo para trabajar.», y «documentos» tiene el manual y las notas de A, sin los de B. Al abrir
+    el programa, el mismo espacio de trabajo.
+
+15. **Volver atrás otra vez.**
+    Debe ver: «No hay una versión anterior a la que volver.», y nada cambia (el diagnóstico sigue en A).
+
+16. **Reinstalar la versión B** con su mismo instalador.
+    Debe ver: el instalador terminado sin aviso, sin «ya es la instalada»; el diagnóstico dice «ConverterSmartGrid <B>: listo
+    para trabajar.», «documentos» tiene los de B y el registro del instalador dice «Se puede volver a la version <A> con
+    volver_atras.cmd.». Si algún paso dice «Cierre los documentos de ConverterSmartGrid abiertos (manual, notas) y vuelva a
+    intentarlo», cerrar el manual o las notas abiertos y repetirlo: lo instalado sigue como estaba.
+
 Al terminar, quien organiza desinstala desde «Aplicaciones instaladas» y borra la carpeta de datos y la fuente de prueba de ese
 equipo.
 
@@ -96,6 +116,10 @@ Prueba: candidato `____________` · equipo `____________` · fecha `__________` 
 | 10 Cerrar y reabrir | | | | | |
 | 11 Copia de los datos | | | | | |
 | 12 Paquete de soporte | | | | | |
+| 13 Instalar B encima | | | | | |
+| 14 Volver a la anterior | | | | | |
+| 15 Volver atrás otra vez | | | | | |
+| 16 Reinstalar B | | | | | |
 
 Palabras del manual que no entendió: `________________________________________________`
 

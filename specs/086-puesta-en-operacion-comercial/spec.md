@@ -205,6 +205,61 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
   pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
   resultado diciendo que lo medido es el estado actual.
 
+### La 1.0 instalada: manuales, una versión y vuelta atrás (2026-11-13)
+
+Usuario (2026-11-13): los manuales se instalan con el programa, y la versión sale de un solo sitio. Auditor (2026-11-13): el rc5
+de este equipo no tiene `anterior.txt`, y «volver atrás» no tiene a qué volver. En el rc5, el candidato iba a `{app}\_entrega` y
+se borraba al terminar, con sus manuales; el paquete decía 1.0.0rc1 mientras el candidato se armó con `--version 1.0.0rc5` y el
+instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del rc1.
+
+- RF-89: CUANDO se instala, EL SISTEMA dejará en la carpeta del programa, fuera de la carpeta de entrega que se borra al
+  terminar, el manual de instalación, el de órdenes, la guía de prueba para una persona ajena y las notas de su publicación.
+- RF-90: EL SISTEMA dará en el menú Inicio un acceso que abre el manual de instalación instalado.
+- RF-91: SI al armar el candidato falta uno de los documentos que se instalan, ENTONCES EL SISTEMA no lo armará y dirá cuáles faltan.
+- RF-92: EL SISTEMA escribirá su versión en un solo sitio, el paquete; pyproject, el candidato y el instalador la leerán de
+  ahí, y el instalador rechazará que se le pase otra.
+- RF-93: EL SISTEMA enseñará en «Acerca de» solo las notas de su propia versión; SI las notas del paquete no empiezan por el
+  apartado de su versión, ENTONCES no se armará el candidato.
+- RF-94: CUANDO se instala una versión sobre otra, EL SISTEMA registrará la que estaba como la anterior a la que volver,
+  aunque esa versión no hubiera registrado ninguna.
+- RF-95: SI el puntero de la versión instalada falta o nombra una versión sin su Python, ENTONCES EL SISTEMA tomará como la
+  que estaba la versión instalada más reciente que conserve su Python, y no la retirará.
+- RF-96: CUANDO termina una instalación, EL SISTEMA dejará en el registro del instalador a qué versión se puede volver, o que
+  no queda ninguna.
+- RF-97: SI una instalación no termina, ENTONCES EL SISTEMA dejará intactos los documentos de la versión que sigue instalada,
+  sin restos de los nuevos; los nuevos solo sustituirán a los anteriores cuando la versión nueva quede como la que se usa.
+  (Auditor, 2026-11-13: el instalador vaciaba y copiaba los documentos antes de saber si la instalación terminaba.)
+- RF-98: CUANDO se vuelve atrás, EL SISTEMA pondrá a la vez la versión anterior como la que se usa y sus documentos como
+  los del programa, y retirará los de la versión que se deja, cuyo programa se aparta sin borrarse. (Auditor, 2026-11-13:
+  volver atrás dejaba los documentos de la versión nueva junto al programa anterior.)
+- RF-99: EL SISTEMA guardará, aparte de los documentos de la versión que se usa, solo los de la versión a la que se puede
+  volver, y ninguno cuando no haya a cuál volver.
+- RF-100: SI no hay versión anterior, también tras volver atrás una vez o tras una instalación que no terminó, ENTONCES EL
+  SISTEMA dirá que no hay a cuál volver y no cambiará nada; una instalación que no termina deja la versión, la anterior,
+  la nota de la copia de datos y los documentos como estaban.
+- RF-101: SI volver atrás falla a mitad, ENTONCES EL SISTEMA dejará la instalación exactamente como estaba.
+- RF-102: CUANDO se instala una versión que está apartada en `versiones/` pero no es la que se usa, EL SISTEMA la volverá
+  a poner en uso como en una actualización normal: la que se usa pasará a ser la anterior y sus documentos a
+  `documentos.anterior`, los datos se copiarán como en cualquier actualización y no se borrará nada; «ya está» solo se dirá
+  de la versión que se usa. (Integrador, 2026-11-13: tras volver atrás, reinstalar la versión nueva decía «ya está» y para
+  volver a ella había que desinstalar.)
+- RF-103: SI al deshacer un cambio de versión que no terminó falla uno de sus pasos, ENTONCES EL SISTEMA seguirá con los
+  demás, informará del fallo original con los pasos que no pudo deshacer anotados y dejará en el registro qué quedó a
+  medias y cómo arreglarlo a mano, con sus rutas. (Auditor, 2026-11-13: el fallo de un paso del deshacer tapaba el
+  original y dejaba sin deshacer los siguientes, el estado mezclado que RF-97 y RF-98 impiden.)
+- RF-104: SI Windows no deja renombrar una carpeta de documentos o un puntero de versión porque están en uso, ENTONCES EL SISTEMA lo
+  reintentará unas pocas veces, con una espera creciente y acotada a unos segundos, y si sigue sin poder deshará el cambio
+  y pedirá que se cierren los documentos de ConverterSmartGrid abiertos (manual, notas) antes de volver a intentarlo.
+  (Auditor, 2026-11-13: `os.replace` de una carpeta falla con WinError 32 o 5 si un visor, Defender u OneDrive o Drive
+  tienen un fichero abierto; CPython lo da como `PermissionError`. La documentación de `os.replace` solo promete el
+  cambio atómico como requisito POSIX: https://docs.python.org/3.12/library/os.html#os.replace; los códigos, en
+  https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-; pip reintenta igual
+  `os.replace`, en https://github.com/pypa/pip/blob/26.2.1/src/pip/_internal/utils/filesystem.py.)
+- RF-105: SI no se puede borrar una carpeta de paso de los documentos (`documentos.retirar`, `documentos.preparando` o
+  `documentos.anterior`), o una versión vieja de `versiones/` al retirarla, ENTONCES EL SISTEMA no fallará por ello, pero lo dirá con su ruta en el registro del instalador.
+  (Auditor, 2026-11-13: `shutil.rmtree(..., ignore_errors=True)` lo callaba y la carpeta se quedaba sin que nadie lo
+  supiera.)
+
 ### Copia de los datos sin duplicados, a un destino que sincroniza (2026-11-12)
 
 La web avisaba «Aún no hay ninguna copia de sus datos». La orden `tools/copia_datos.py crear` iba a escribir unos 95 GB

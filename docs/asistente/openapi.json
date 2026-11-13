@@ -7856,7 +7856,7 @@
   },
   "info": {
     "title": "ConverterSmartGrid",
-    "version": "1.0.0rc1"
+    "version": "1.0.0rc6"
   },
   "openapi": "3.1.0",
   "paths": {

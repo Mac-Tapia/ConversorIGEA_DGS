@@ -399,7 +399,8 @@ def test_volver_cambia_el_puntero_y_restaura_la_copia(tmp_path, instalador_sin_m
     Resultado.returncode = 0
     r = IC.volver(destino)
     assert r == {'version': '1.0', 'dejada': '1.1', 'datos_restaurados_de': 'copia-previa'}
-    assert IC.estado(destino)['anterior'] == '1.1'
+    # 086:RF-100: la que se deja no pasa a ser la anterior; volver otra vez no alterna entre las dos. Su programa se aparta.
+    assert IC.estado(destino) == {'actual': '1.0', 'anterior': None, 'versiones': ['1.0', '1.1']}
 
 
 def test_volver_usa_el_lector_actual_para_su_formato_de_copia(tmp_path, instalador_sin_motor, monkeypatch):
@@ -1396,3 +1397,648 @@ def test_020_rf63_las_fichas_del_conversor_cuando_el_perfil_no_las_trae(tmp_path
     propia = {'umbral_carga_pct': 70, 'tablas': [{'norma': 'propia', 'kv_min': 0, 'kv_max': 36, 'fichas': {'50': '1 2 3 4'}}]}
     perfil.write_text(json.dumps({'calibracion': {'transformadores_sed': propia}}), encoding='utf-8')
     assert seccion_transformadores_sed() == propia
+
+
+# --------------------------------------------------------------------------- 1.0: manuales, versión y vuelta atrás (2026-11-13)
+def _seccion_del_iss(nombre: str) -> list[str]:
+    """Las líneas de una sección del .iss, sin comentarios."""
+    texto = (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    bloque = re.search(rf'^\[{re.escape(nombre)}\]\n(.*?)(?=^\[|\Z)', texto, flags=re.M | re.S)
+    return [l for l in (bloque.group(1).splitlines() if bloque else ()) if l.strip() and not l.lstrip().startswith(';')]
+
+
+def test_086_rf89_el_iss_instala_los_documentos_fuera_de_la_entrega():
+    """086:RF-89, 086:RF-97 — los documentos llegan con el candidato a «_entrega» y los publica instalar_candidato.py.
+
+    rc5 (2026-11-12): el candidato se copiaba a {app}\\_entrega con «deleteafterinstall» y los manuales se iban con él.
+    Inno procesa [InstallDelete] y [Files] antes de ssPostInstall: si el .iss vaciara o copiara {app}\\documentos, una
+    instalación que luego falla dejaría al programa anterior sin sus documentos, o con los de la versión nueva.
+    """
+    assert not [l for l in _seccion_del_iss('Files') if 'documentos' in l], 'el .iss no copia los documentos por su cuenta'
+    assert not [l for l in _seccion_del_iss('InstallDelete') if 'documentos' in l], 'ni los borra antes de saber si se instala'
+    desinstalar = ' '.join(_seccion_del_iss('UninstallDelete'))
+    for carpeta in ('documentos', 'documentos.preparando', 'documentos.anterior', 'documentos.retirar'):
+        assert f'Name: "{{app}}\\{carpeta}"' in desinstalar, carpeta
+
+
+def test_086_rf90_el_menu_inicio_abre_el_manual_de_instalacion():
+    """086:RF-90 — un acceso en el menú Inicio al manual de instalación instalado, que abre el Bloc de notas de Windows."""
+    accesos = [l for l in _seccion_del_iss('Icons') if 'MANUAL_INSTALACION.md' in l]
+    assert len(accesos) == 1, _seccion_del_iss('Icons')
+    acceso = accesos[0]
+    assert acceso.startswith('Name: "{autoprograms}\\')
+    assert '{app}\\documentos\\MANUAL_INSTALACION.md' in acceso
+    assert 'Filename: "{win}\\notepad.exe"' in acceso, 'un Windows limpio no tiene programa asociado a «.md»'
+
+
+def _raiz_de_mentira(tmp_path: Path, version: str, *, faltan: tuple[str, ...] = ()) -> Path:
+    """Un árbol con solo lo que el candidato copia a «documentos/», y ficheros de mentira."""
+    raiz = tmp_path / 'raiz'
+    for rel in CC.documentos_del_candidato(version):
+        if rel not in faltan:
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text(f'De mentira: {rel}\n', encoding='utf-8')
+    return raiz
+
+
+def test_086_rf89_el_candidato_lleva_los_manuales_y_las_notas_de_su_version(tmp_path):
+    """086:RF-89 — el candidato lleva los cuatro documentos que se instalan; las notas, las de la publicación de su versión."""
+    assert CC.publicacion('1.0.0rc6') == '1.0.0' and CC.publicacion('1.0.0') == '1.0.0' and CC.publicacion('2.1.3rc1') == '2.1.3'
+    pedidos = set(CC.documentos_del_candidato('1.0.0rc6'))
+    assert {'docs/MANUAL_INSTALACION.md', 'docs/MANUAL_COMANDOS.md', 'docs/GUIA_PRUEBA_PERSONA_AJENA.md',
+            'docs/NOTAS_VERSION_1.0.0.md'} <= pedidos
+    assert set(CC.DOCUMENTOS) <= pedidos
+    raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6')
+    destino = tmp_path / 'documentos'
+    CC.copiar_documentos(raiz, destino, '1.0.0rc6')
+    assert {p.name for p in destino.iterdir()} == {Path(r).name for r in pedidos}
+    assert (destino / 'NOTAS_VERSION_1.0.0.md').read_text(encoding='utf-8') == 'De mentira: docs/NOTAS_VERSION_1.0.0.md\n'
+
+
+def test_086_rf91_sin_un_manual_no_se_arma_el_candidato(tmp_path):
+    """086:RF-91 — si falta un documento que se instala, el candidato no se arma, y se dice cuál falta."""
+    raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6', faltan=('docs/GUIA_PRUEBA_PERSONA_AJENA.md', 'docs/NOTAS_VERSION_1.0.0.md'))
+    with pytest.raises(CE.EntregaError, match=r'GUIA_PRUEBA_PERSONA_AJENA\.md.*NOTAS_VERSION_1\.0\.0\.md'):
+        CC.copiar_documentos(raiz, tmp_path / 'documentos', '1.0.0rc6')
+    assert not (tmp_path / 'documentos').exists(), 'nada a medias'
+
+
+def test_086_rf92_la_version_sale_de_un_solo_sitio():
+    """086:RF-92 — pyproject, el constructor del candidato y el .iss toman la versión del paquete, sin escribirla otra vez.
+
+    rc5 (2026-11-12): el paquete decía 1.0.0rc1, el candidato se armó con «--version 1.0.0rc5» y el .iss la recibió a mano
+    con «/DVersion»: tres sitios para un dato.
+    """
+    pyproject = tomllib.loads((RAIZ / 'pyproject.toml').read_text(encoding='utf-8'))
+    assert 'version' not in pyproject['project'] and 'version' in pyproject['project']['dynamic']
+    assert pyproject['tool']['setuptools']['dynamic']['version'] == {'attr': 'convertersmartgrid.__version__'}
+    assert CC.version_del_paquete(RAIZ) == __version__
+    iss = (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    assert not re.search(r'\d+\.\d+\.\d+', iss), 'ninguna versión escrita en el .iss'
+    assert re.search(r'^#ifdef Version\s*\n\s*#error', iss, flags=re.M), 'pasarla con /DVersion sería un segundo sitio'
+    # La versión del .iss es la de la rueda del candidato, que la toma del paquete.
+    assert re.search(r'FindFirst\(.*"programa\\" \+ PrefijoRueda \+ "\*\.whl"', iss)
+    assert re.search(r'^#define Version ', iss, flags=re.M)
+    assert re.search(r'^AppVersion=\{#Version\}$', iss, flags=re.M)
+
+
+def test_086_rf92_la_version_del_iss_es_la_de_la_rueda():
+    """086:RF-92 — lo que el preprocesador de Inno saca del nombre de la rueda es la versión del paquete.
+
+    Se repite en Python la misma cuenta del .iss (Copy, Pos y Len de ISPP, base 1) sobre el nombre que da setuptools.
+    """
+    iss = (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    prefijo = re.search(r'#define PrefijoRueda "([^"]+)"', iss).group(1)
+    assert re.search(r'#define RestoRueda Copy\(Rueda, Len\(PrefijoRueda\) \+ 1\)', iss)
+    assert re.search(r'#define Version Copy\(RestoRueda, 1, Pos\("-", RestoRueda\) - 1\)', iss)
+    rueda = f'{prefijo}{__version__}-py3-none-any.whl'
+    resto = rueda[len(prefijo):]                                   # Copy(Rueda, Len(PrefijoRueda) + 1)
+    assert resto[:resto.index('-')] == __version__                 # Copy(Resto, 1, Pos("-", Resto) - 1)
+    assert prefijo == 'convertersmartgrid-'
+
+
+def test_086_rf93_acerca_de_muestra_las_notas_de_la_version_instalada():
+    """086:RF-93 — las notas del paquete empiezan por su versión, y «Acerca de» solo enseña esa.
+
+    rc5 (2026-11-12): «Acerca de» del rc5 instalado decía «1.0.0rc1 (candidata, sin aceptar)».
+    """
+    texto = (RAIZ / 'src/convertersmartgrid/recursos/NOTAS_VERSION.md').read_text(encoding='utf-8')
+    apartados = re.findall(r'^## (\S+)', texto, flags=re.M)
+    assert apartados and apartados[0] == __version__, apartados
+    notas = notas_de_la_version()
+    assert f'## {__version__}' in notas
+    assert not [v for v in apartados[1:] if f'## {v}' in notas], 'las de otras versiones no se enseñan'
+
+
+def test_086_rf93_sin_notas_de_su_version_no_se_arma():
+    """086:RF-93 — el candidato no se arma si las notas del paquete no tienen el apartado de su versión."""
+    assert CC.comprobar_notas('# Notas\n\n## 1.0.0rc6 (candidata)\n\nAlgo.\n', '1.0.0rc6') is None
+    with pytest.raises(CE.EntregaError, match='1.0.0rc6'):
+        CC.comprobar_notas('# Notas\n\n## 1.0.0rc1\n\nOtra.\n', '1.0.0rc6')
+    with pytest.raises(CE.EntregaError, match='1.0.0rc6'):
+        CC.comprobar_notas('# Notas\n\n## 1.0.0rc1\n\nOtra.\n\n## 1.0.0rc6\n\nTarde.\n', '1.0.0rc6')
+
+
+def _instalada(destino: Path, version: str) -> None:
+    python = destino / 'versiones' / version / 'python' / 'python.exe'
+    python.parent.mkdir(parents=True)
+    python.write_text('', encoding='utf-8')
+
+
+def test_086_rf94_instalar_sobre_un_rc_sin_anterior_la_registra(tmp_path, instalador_sin_motor):
+    """086:RF-94 — sobre un rc que nunca registró anterior.txt, la versión que estaba queda como la anterior, y se vuelve a ella.
+
+    Así está el rc5 de este equipo (2026-11-13): actual.txt, versiones/1.0.0rc5 y ningún anterior.txt.
+    """
+    destino = tmp_path / 'app'
+    _instalada(destino, '1.0.0rc5')
+    (destino / 'actual.txt').write_text('1.0.0rc5\n', encoding='utf-8')
+    assert not (destino / 'anterior.txt').exists()
+    r = IC.instalar(_candidato(tmp_path, '1.0.0rc6'), destino)
+    assert r['anterior'] == '1.0.0rc5'
+    assert IC.estado(destino) == {'actual': '1.0.0rc6', 'anterior': '1.0.0rc5', 'versiones': ['1.0.0rc5', '1.0.0rc6']}
+    assert instalador_sin_motor['copias'] == 1, 'cambiar de versión copia antes los datos'
+    assert IC.volver(destino, restaurar=False)['version'] == '1.0.0rc5'
+    assert IC.estado(destino)['actual'] == '1.0.0rc5'
+
+
+def test_086_rf95_sin_puntero_valido_se_toma_la_instalada_mas_reciente(tmp_path, instalador_sin_motor):
+    """086:RF-95 — sin actual.txt, o con uno que nombra una versión sin su Python, la anterior es la instalada más reciente.
+
+    Antes se tomaba por una primera instalación: no se copiaban los datos, no quedaba anterior y se retiraba esa versión.
+    """
+    destino = tmp_path / 'app'
+    for v in ('1.0.0rc4', '1.0.0rc5', '1.0.0rc10'):
+        _instalada(destino, v)
+    (destino / 'versiones' / '1.0.0rc3').mkdir()                   # sin Python: no es una versión a la que volver
+    r = IC.instalar(_candidato(tmp_path, '1.0.0'), destino)
+    assert r['anterior'] == '1.0.0rc10', 'rc10 es más reciente que rc5, aunque por orden de letras vaya antes'
+    assert IC.estado(destino)['anterior'] == '1.0.0rc10' and instalador_sin_motor['copias'] == 1
+    assert set(IC.estado(destino)['versiones']) == {'1.0.0rc10', '1.0.0'}
+    # Un puntero roto tampoco borra a qué volver.
+    otro = tmp_path / 'otro'
+    _instalada(otro, '1.0.0rc5')
+    (otro / 'actual.txt').write_text('1.0.0rc9\n', encoding='utf-8')
+    assert IC.instalar(_candidato(tmp_path, '1.0.0rc6'), otro)['anterior'] == '1.0.0rc5'
+    assert IC.estado(otro)['versiones'] == ['1.0.0rc5', '1.0.0rc6']
+
+
+def test_086_rf96_el_iss_anota_a_que_version_se_puede_volver():
+    """086:RF-96 — tras actualizar, el registro del instalador dice a qué versión se puede volver, o que no queda ninguna."""
+    codigo = _codigo_del_iss()
+    assert re.search(r"LoadStringFromFile\(ExpandConstant\('\{app\}\\anterior\.txt'\)", codigo)
+    assert re.search(r"Log\([^;]*volver", codigo, flags=re.I)
+    previa = re.search(r'if CurStep = ssInstall then\s*\n\s*VersionPrevia := ', codigo)
+    assert previa, 'la versión que estaba se lee antes de copiar nada'
+
+
+def _candidato_con_documentos(tmp_path: Path, version: str) -> Path:
+    """Un candidato de prueba con «documentos/» propios de su versión, en su manifiesto con huella."""
+    c = _candidato(tmp_path, version)
+    ficheros = json.loads((c / 'manifiesto_candidato.json').read_text(encoding='utf-8'))['ficheros']
+    for nombre in ('MANUAL_INSTALACION.md', f'NOTAS_VERSION_{version}.md'):
+        contenido = f'{nombre} de la {version}\n'.encode('utf-8')
+        (c / 'documentos').mkdir(exist_ok=True)
+        (c / 'documentos' / nombre).write_bytes(contenido)
+        ficheros.append({'ruta': f'documentos/{nombre}', 'sha256': hashlib.sha256(contenido).hexdigest(), 'bytes': len(contenido)})
+    (c / 'manifiesto_candidato.json').write_text(json.dumps({'version': version, 'ficheros': ficheros}), encoding='utf-8')
+    return c
+
+
+def _documentos(destino: Path, nombre: str = 'documentos') -> dict[str, str]:
+    carpeta = destino / nombre
+    return {p.name: p.read_text(encoding='utf-8') for p in carpeta.iterdir()} if carpeta.is_dir() else {}
+
+
+def test_086_rf97_una_instalacion_que_termina_publica_los_documentos_nuevos(tmp_path, instalador_sin_motor):
+    """086:RF-97 — al terminar bien, {app}\\documentos tiene solo los de la versión nueva, sin restos de la preparación."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    assert _documentos(destino) == {'MANUAL_INSTALACION.md': 'MANUAL_INSTALACION.md de la 1.0\n',
+                                    'NOTAS_VERSION_1.0.md': 'NOTAS_VERSION_1.0.md de la 1.0\n'}
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    assert _documentos(destino) == {'MANUAL_INSTALACION.md': 'MANUAL_INSTALACION.md de la 1.1\n',
+                                    'NOTAS_VERSION_1.1.md': 'NOTAS_VERSION_1.1.md de la 1.1\n'}, 'las notas de la 1.0 no se quedan'
+    assert not (destino / 'documentos.preparando').exists() and not (destino / 'documentos.retirar').exists()
+    # 086:RF-99: se guardan los de la versión anterior, para volver con ellos, y nada más.
+    assert _documentos(destino, 'documentos.anterior') == {'MANUAL_INSTALACION.md': 'MANUAL_INSTALACION.md de la 1.0\n',
+                                                           'NOTAS_VERSION_1.0.md': 'NOTAS_VERSION_1.0.md de la 1.0\n'}
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.2'), destino)
+    assert _documentos(destino, 'documentos.anterior') == {'MANUAL_INSTALACION.md': 'MANUAL_INSTALACION.md de la 1.1\n',
+                                                           'NOTAS_VERSION_1.1.md': 'NOTAS_VERSION_1.1.md de la 1.1\n'}
+    assert sorted(p.name for p in destino.iterdir() if p.name.startswith('documentos')) == ['documentos', 'documentos.anterior']
+
+
+@pytest.mark.parametrize('paso', ['_doctor', '_copiar_datos', 'puntero'])
+def test_086_rf97_una_instalacion_que_falla_deja_los_documentos_anteriores(tmp_path, instalador_sin_motor, monkeypatch, paso):
+    """086:RF-97 — si instalar_candidato.py falla a mitad, el programa que sigue conserva sus documentos, intactos.
+
+    Antes, Inno vaciaba {app}\\documentos en [InstallDelete] y copiaba los nuevos en [Files], los dos antes de saber si
+    instalar_candidato.py terminaba: tras un fallo, el programa anterior se quedaba con los documentos de la versión nueva.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    antes = _documentos(destino)
+
+    def falla(*_):
+        raise IC.ErrorInstalacion('falla')
+
+    if paso == 'puntero':
+        # El último paso: los documentos nuevos ya estaban en su sitio y tienen que volver los anteriores.
+        publicar = IC._publicar
+        monkeypatch.setattr(IC, '_publicar', lambda ruta, texto: falla() if ruta.name == IC.ACTUAL else publicar(ruta, texto))
+    else:
+        monkeypatch.setattr(IC, paso, falla)
+    with pytest.raises(IC.ErrorInstalacion):
+        IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    assert _documentos(destino) == antes
+    assert IC.estado(destino)['actual'] == '1.0'
+    assert not (destino / 'documentos.preparando').exists() and not (destino / 'documentos.anterior').exists()
+
+
+def _huella_del_arbol(destino: Path) -> dict[str, str]:
+    """Cada fichero y carpeta de la instalación con su huella: lo que «no tocar nada» tiene que dejar igual."""
+    return {p.relative_to(destino).as_posix(): (hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else 'carpeta')
+            for p in sorted(destino.rglob('*'))}
+
+
+def _docs_de(version: str) -> dict[str, str]:
+    return {'MANUAL_INSTALACION.md': f'MANUAL_INSTALACION.md de la {version}\n',
+            f'NOTAS_VERSION_{version}.md': f'NOTAS_VERSION_{version}.md de la {version}\n'}
+
+
+def test_086_rf98_volver_atras_trae_la_version_anterior_con_sus_documentos(tmp_path, instalador_sin_motor):
+    """086:RF-98 — instalar A, luego B y volver atrás: el programa y los documentos son los de A.
+
+    «Acerca de» lo enseña el paquete de la versión que nombra actual.txt, que es la que arranca el lanzador.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    assert IC.volver(destino, restaurar=False)['version'] == '1.0'
+    assert IC.estado(destino)['actual'] == '1.0'
+    assert _documentos(destino) == _docs_de('1.0')
+    assert 'actual.txt' in (destino / IC.LANZADOR).read_text(encoding='cp1252'), 'el lanzador arranca la versión de actual.txt'
+    # 086:RF-99: sin anterior, no se guardan documentos de ninguna; los de la 1.1 se retiran (su programa se aparta).
+    assert sorted(p.name for p in destino.iterdir() if p.name.startswith('documentos')) == ['documentos']
+
+
+def test_086_rf100_volver_dos_veces_la_segunda_no_tiene_a_cual(tmp_path, instalador_sin_motor):
+    """086:RF-100 — la segunda vuelta atrás dice que no hay anterior y no toca nada; antes alternaba entre las dos."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    IC.volver(destino, restaurar=False)
+    antes = _huella_del_arbol(destino)
+    with pytest.raises(IC.ErrorInstalacion, match='No hay una versión anterior'):
+        IC.volver(destino, restaurar=False)
+    assert _huella_del_arbol(destino) == antes
+
+
+def _falla_al_escribir(monkeypatch, nombre: str) -> None:
+    publicar = IC._publicar
+
+    def publicar_o_fallar(ruta, texto):
+        if ruta.name == nombre:
+            raise OSError(f'no se pudo escribir {nombre}')
+        publicar(ruta, texto)
+
+    monkeypatch.setattr(IC, '_publicar', publicar_o_fallar)
+
+
+def test_086_rf100_volver_tras_una_instalacion_fallida(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-100 — tras una instalación que falló sigue la versión de antes con sus documentos y su anterior.
+
+    El fallo es el último paso, el puntero: antes, anterior.txt y ultima_copia.json ya se habían escrito con la versión
+    que estaba, y volver atrás iba a esa misma versión y no restauraba los datos.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    antes = _huella_del_arbol(destino)
+    with monkeypatch.context() as m:
+        _falla_al_escribir(m, IC.ACTUAL)
+        with pytest.raises(OSError):
+            IC.instalar(_candidato_con_documentos(tmp_path, '1.2'), destino)
+    assert _huella_del_arbol(destino) == antes, 'punteros, nota de la copia, documentos y versiones, como antes de intentarlo'
+    assert IC.estado(destino)['actual'] == '1.1' and IC.estado(destino)['anterior'] == '1.0'
+    assert _documentos(destino) == _docs_de('1.1') and _documentos(destino, 'documentos.anterior') == _docs_de('1.0')
+    assert IC.volver(destino, restaurar=False)['version'] == '1.0'
+    assert _documentos(destino) == _docs_de('1.0')
+
+
+def test_086_rf100_sin_anterior_tras_una_instalacion_fallida_no_se_toca_nada(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-100 — con una sola versión y una actualización fallida no hay a cuál volver: se dice y no se toca nada."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    with monkeypatch.context() as m:
+        m.setattr(IC, '_doctor', lambda python: (_ for _ in ()).throw(IC.ErrorInstalacion('falla')))
+        with pytest.raises(IC.ErrorInstalacion):
+            IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    antes = _huella_del_arbol(destino)
+    assert IC.estado(destino) == {'actual': '1.0', 'anterior': None, 'versiones': ['1.0']}
+    with pytest.raises(IC.ErrorInstalacion, match='No hay una versión anterior'):
+        IC.volver(destino, restaurar=False)
+    assert _huella_del_arbol(destino) == antes and _documentos(destino) == _docs_de('1.0')
+
+
+@pytest.mark.parametrize('fallo', ['documentos', 'anterior.txt', 'actual.txt'])
+def test_086_rf101_un_fallo_a_mitad_de_volver_deja_lo_que_habia(tmp_path, instalador_sin_motor, monkeypatch, fallo):
+    """086:RF-101 — si volver atrás falla a mitad, la instalación queda byte a byte como estaba."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    antes = _huella_del_arbol(destino)
+    if fallo == 'documentos':
+        # El segundo renombrado: los de la 1.1 ya se apartaron y los de la 1.0 no llegan a su sitio.
+        reemplazar = IC.os.replace
+
+        def reemplazar_o_fallar(origen, hacia, *a, **k):
+            if Path(origen).name == IC.DOCUMENTOS_ANTERIORES:
+                raise OSError('carpeta en uso')
+            return reemplazar(origen, hacia, *a, **k)
+
+        monkeypatch.setattr(IC.os, 'replace', reemplazar_o_fallar)
+    elif fallo == 'anterior.txt':
+        # Quitar anterior.txt es el primer puntero: falla y ni él ni los documentos cambian.
+        desvincular = Path.unlink
+
+        def desvincular_o_fallar(self, *a, **k):
+            if self.name == IC.ANTERIOR:
+                raise OSError('fichero en uso')
+            return desvincular(self, *a, **k)
+
+        monkeypatch.setattr(Path, 'unlink', desvincular_o_fallar)
+    else:
+        _falla_al_escribir(monkeypatch, IC.ACTUAL)
+    with pytest.raises(OSError):
+        IC.volver(destino, restaurar=False)
+    monkeypatch.undo()
+    assert _huella_del_arbol(destino) == antes
+    assert IC.estado(destino)['actual'] == '1.1' and IC.estado(destino)['anterior'] == '1.0'
+
+
+def test_086_rf102_reinstalar_la_version_apartada_la_vuelve_a_poner_en_uso(tmp_path, instalador_sin_motor):
+    """086:RF-102 — A, B, volver atrás y reinstalar B: B en uso con sus documentos, A como anterior; volver otra vez deja A.
+
+    Antes, tras volver atrás, reinstalar B decía «ya está» porque su carpeta seguía apartada en versiones/, y para volver a
+    ella había que desinstalar.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    IC.volver(destino, restaurar=False)
+    apartada = (destino / 'versiones' / '1.1' / 'python' / 'python.exe').read_bytes()
+    copias = instalador_sin_motor['copias']
+    r = IC.instalar(_candidato_con_documentos(tmp_path / 'otra', '1.1'), destino)
+    assert (r['version'], r['anterior'], r['reactivada']) == ('1.1', '1.0', True)
+    assert IC.estado(destino) == {'actual': '1.1', 'anterior': '1.0', 'versiones': ['1.0', '1.1']}
+    assert _documentos(destino) == _docs_de('1.1') and _documentos(destino, 'documentos.anterior') == _docs_de('1.0')
+    assert instalador_sin_motor['copias'] == copias + 1, 'los datos se copian como en cualquier actualización'
+    assert (destino / 'versiones' / '1.1' / 'python' / 'python.exe').read_bytes() == apartada, 'la apartada no se pisa'
+    assert IC.volver(destino, restaurar=False)['version'] == '1.0'
+    assert IC.estado(destino)['actual'] == '1.0' and _documentos(destino) == _docs_de('1.0')
+
+
+def test_086_rf102_ya_esta_solo_si_es_la_que_se_usa(tmp_path, instalador_sin_motor):
+    """086:RF-102 — «ya está» se dice solo de la versión en uso, y entonces no se toca nada."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    antes = _huella_del_arbol(destino)
+    with pytest.raises(IC.ErrorInstalacion, match='ya es la instalada'):
+        IC.instalar(_candidato_con_documentos(tmp_path / 'otra', '1.1'), destino)
+    assert _huella_del_arbol(destino) == antes
+
+
+@pytest.mark.parametrize('paso', ['_doctor', '_copiar_datos', 'puntero'])
+def test_086_rf102_un_fallo_al_reactivar_deja_todo_como_estaba(tmp_path, instalador_sin_motor, monkeypatch, paso):
+    """086:RF-102 — si poner de nuevo en uso la versión apartada falla a mitad, el árbol queda igual, también la apartada."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    IC.volver(destino, restaurar=False)
+    antes = _huella_del_arbol(destino)
+    if paso == 'puntero':
+        _falla_al_escribir(monkeypatch, IC.ACTUAL)
+    else:
+        def falla(*_):
+            raise IC.ErrorInstalacion('falla')
+
+        monkeypatch.setattr(IC, paso, falla)
+    with pytest.raises((IC.ErrorInstalacion, OSError)):
+        IC.instalar(_candidato_con_documentos(tmp_path / 'otra', '1.1'), destino)
+    assert _huella_del_arbol(destino) == antes
+    assert IC.estado(destino) == {'actual': '1.0', 'anterior': None, 'versiones': ['1.0', '1.1']}
+
+
+def _en_uso(ruta) -> PermissionError:
+    """El error que da Windows al renombrar una carpeta con un fichero abierto dentro (WinError 32, errno EACCES)."""
+    return PermissionError(13, 'El proceso no tiene acceso al archivo porque está siendo utilizado por otro proceso', str(ruta))
+
+
+def test_086_rf103_un_fallo_al_deshacer_no_corta_el_resto_ni_tapa_el_original(tmp_path, instalador_sin_motor, monkeypatch, capsys):
+    """086:RF-103 — falla el puntero y, al deshacer, el segundo paso: se reponen el primero y los demás, y el error trae los dos.
+
+    Antes, el fallo de un paso del deshacer salía como una excepción nueva: tapaba la original y dejaba sin deshacer los
+    renombrados de los documentos, que es el estado mezclado que RF-97 y RF-98 quieren impedir.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    anterior_antes = (destino / IC.ANTERIOR).read_bytes()
+    publicar = IC._publicar
+    veces = {IC.ULTIMA_COPIA: 0}
+
+    def publicar_o_fallar(ruta, texto):
+        if ruta.name == IC.ACTUAL:
+            raise OSError('no se pudo escribir actual.txt')                   # el fallo original
+        if ruta.name == IC.ULTIMA_COPIA:
+            veces[IC.ULTIMA_COPIA] += 1
+            if veces[IC.ULTIMA_COPIA] == 2:                                    # la segunda es la reposición
+                raise OSError('ultima_copia.json bloqueado por el antivirus')
+        publicar(ruta, texto)
+
+    monkeypatch.setattr(IC, '_publicar', publicar_o_fallar)
+    capsys.readouterr()
+    with pytest.raises(OSError, match='no se pudo escribir actual.txt') as error:
+        IC.instalar(_candidato_con_documentos(tmp_path / 'otra', '1.2'), destino)
+    notas = '\n'.join(getattr(error.value, '__notes__', []))
+    assert 'ultima_copia.json bloqueado por el antivirus' in notas, 'la nota lleva el fallo del deshacer'
+    # El primer paso del deshacer (anterior.txt) y los renombrados de los documentos se repusieron igual.
+    assert (destino / IC.ANTERIOR).read_bytes() == anterior_antes
+    assert _documentos(destino) == _docs_de('1.1') and _documentos(destino, 'documentos.anterior') == _docs_de('1.0')
+    assert IC.estado(destino)['actual'] == '1.1'
+    aviso = capsys.readouterr().err
+    assert str(destino / IC.ULTIMA_COPIA) in aviso and 'a mano' in aviso, 'el aviso dice qué quedó a medias y dónde'
+
+
+def test_086_rf103_el_motivo_del_registro_lleva_las_notas_del_deshacer(tmp_path, monkeypatch):
+    """086:RF-103 — el instalador lee el motivo del fichero de registro: ahí tienen que estar también las notas."""
+    def instalar(*_a, **_k):
+        exc = OSError('no se pudo escribir actual.txt')
+        exc.add_note('No se pudo deshacer: reponer ultima_copia.json')
+        raise exc
+
+    monkeypatch.setattr(IC, 'instalar', instalar)
+    registro = tmp_path / 'motivo.txt'
+    assert IC.main(['instalar', '--candidato', str(tmp_path), '--destino', str(tmp_path / 'app'), '--registro', str(registro)]) == 1
+    motivo = registro.read_text(encoding='utf-8-sig')
+    assert 'no se pudo escribir actual.txt' in motivo and 'reponer ultima_copia.json' in motivo
+
+
+def test_086_rf104_un_documento_abierto_un_momento_no_impide_instalar(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-104 — os.replace de la carpeta de documentos falla dos veces por un fichero abierto y después pasa: se instala.
+
+    Windows no deja renombrar una carpeta con un fichero abierto dentro (WinError 32): el manual en un visor, Defender o
+    la sincronización de OneDrive o Drive lo tienen abierto un momento.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    esperas: list[float] = []
+    monkeypatch.setattr(IC, '_esperar', esperas.append, raising=False)
+    reemplazar = IC.os.replace
+    fallos = {'n': 0}
+
+    def reemplazar_tras_dos(origen, hacia, *a, **k):
+        if Path(origen).name == IC.DOCUMENTOS_PREPARANDO and fallos['n'] < 2:
+            fallos['n'] += 1
+            raise _en_uso(origen)
+        return reemplazar(origen, hacia, *a, **k)
+
+    monkeypatch.setattr(IC.os, 'replace', reemplazar_tras_dos)
+    assert IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)['version'] == '1.1'
+    assert _documentos(destino) == _docs_de('1.1') and _documentos(destino, 'documentos.anterior') == _docs_de('1.0')
+    assert len(esperas) == 2 and esperas[1] > esperas[0], 'espera creciente entre intentos'
+
+
+def test_086_rf104_un_documento_que_sigue_abierto_falla_con_que_hacer_y_deshace(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-104 — si la carpeta sigue en uso tras los intentos, se dice que se cierren los documentos y no cambia nada."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    antes = _huella_del_arbol(destino)
+    esperas: list[float] = []
+    monkeypatch.setattr(IC, '_esperar', esperas.append, raising=False)
+    reemplazar = IC.os.replace
+
+    def siempre_en_uso(origen, hacia, *a, **k):
+        if Path(origen).name == IC.DOCUMENTOS_PREPARANDO:
+            raise _en_uso(origen)
+        return reemplazar(origen, hacia, *a, **k)
+
+    monkeypatch.setattr(IC.os, 'replace', siempre_en_uso)
+    with pytest.raises(IC.ErrorInstalacion, match=r'[Cc]ierre los documentos de ConverterSmartGrid abiertos \(manual, notas\) y vuelva a intentarlo'):
+        IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    assert len(esperas) == IC.INTENTOS_RENOMBRAR - 1 and sum(esperas) < 10, 'acotado: unos segundos, no minutos'
+    monkeypatch.undo()
+    assert _huella_del_arbol(destino) == antes
+    assert IC.estado(destino) == {'actual': '1.0', 'anterior': None, 'versiones': ['1.0']}
+
+
+def test_086_rf105_si_no_se_pueden_borrar_los_documentos_retirados_se_avisa(tmp_path, instalador_sin_motor, monkeypatch, capsys):
+    """086:RF-105 — documentos.retirar que no se deja borrar: la instalación termina y el registro lo dice.
+
+    Antes, shutil.rmtree(..., ignore_errors=True) lo callaba y la carpeta se quedaba sin que nadie lo supiera.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    borrar = IC.shutil.rmtree
+
+    def borrar_o_no(ruta, *a, **k):
+        if Path(ruta).name == IC.DOCUMENTOS_RETIRAR and Path(ruta).exists():
+            manejador = k.get('onexc')
+            assert manejador is not None, 'los fallos al borrar se recogen, no se ignoran'
+            manejador(IC.os.rmdir, str(ruta), _en_uso(ruta))
+            return None
+        return borrar(ruta, *a, **k)
+
+    monkeypatch.setattr(IC.shutil, 'rmtree', borrar_o_no)
+    capsys.readouterr()
+    assert IC.instalar(_candidato_con_documentos(tmp_path, '1.2'), destino)['version'] == '1.2'
+    aviso = capsys.readouterr().err
+    assert str(destino / IC.DOCUMENTOS_RETIRAR) in aviso, 'el aviso nombra la carpeta que quedó'
+    assert (destino / IC.DOCUMENTOS_RETIRAR).is_dir()
+
+
+def test_086_rf105_los_avisos_quedan_en_el_registro_aunque_se_instale(tmp_path, monkeypatch):
+    """086:RF-105 — con la instalación bien, los avisos van al fichero de registro que el instalador vuelca en su log."""
+    def instalar(*_a, **_k):
+        IC._avisar('No se pudo borrar C:/app/documentos.retirar; bórrela a mano.')
+        return {'version': '1.1'}
+
+    monkeypatch.setattr(IC, 'instalar', instalar)
+    registro = tmp_path / 'motivo.txt'
+    assert IC.main(['instalar', '--candidato', str(tmp_path), '--destino', str(tmp_path / 'app'), '--registro', str(registro)]) == 0
+    assert 'documentos.retirar' in registro.read_text(encoding='utf-8-sig')
+
+
+def test_086_rf105_el_iss_copia_a_su_registro_los_avisos_de_una_instalacion_buena():
+    """086:RF-105 — con la instalación bien, el .iss lee el mismo fichero y deja sus avisos en el registro de Inno."""
+    codigo = _codigo_del_iss()
+    rama_buena = codigo.split('Motivo := MotivoDelFallo', 1)[1].split('AnotarVueltaAtras', 1)[0]
+    assert re.search(r"Log\('Avisos de instalar_candidato\.py: ' \+ MotivoDelFallo\)", rama_buena)
+
+
+def _reemplazo_en_uso(monkeypatch, nombre: str, veces: int | None):
+    """Doble de os.replace: el fichero temporal de ``nombre`` está en uso ``veces`` veces (``None``: siempre)."""
+    reemplazar = IC.os.replace
+    fallos = {'n': 0}
+
+    def reemplazar_o_fallar(origen, hacia, *a, **k):
+        if Path(origen).name == nombre + '.nuevo' and (veces is None or fallos['n'] < veces):
+            fallos['n'] += 1
+            raise _en_uso(hacia)
+        return reemplazar(origen, hacia, *a, **k)
+
+    monkeypatch.setattr(IC.os, 'replace', reemplazar_o_fallar)
+    return fallos
+
+
+def test_086_rf104_un_puntero_en_uso_un_momento_no_impide_instalar(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-104 — _publicar reintenta igual que las carpetas: actual.txt en uso dos veces y luego libre, se instala."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    esperas: list[float] = []
+    monkeypatch.setattr(IC, '_esperar', esperas.append, raising=False)
+    _reemplazo_en_uso(monkeypatch, IC.ACTUAL, 2)
+    assert IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)['version'] == '1.1'
+    assert IC.estado(destino)['actual'] == '1.1' and len(esperas) == 2
+
+
+def test_086_rf104_un_puntero_que_sigue_en_uso_falla_con_que_hacer_y_deja_lo_que_habia(tmp_path, instalador_sin_motor, monkeypatch):
+    """086:RF-104 — actual.txt en uso siempre: se pide cerrar los documentos, se deshace y no queda el «.nuevo»."""
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    antes = _huella_del_arbol(destino)
+    monkeypatch.setattr(IC, '_esperar', lambda s: None, raising=False)
+    _reemplazo_en_uso(monkeypatch, IC.ACTUAL, None)
+    with pytest.raises(IC.ErrorInstalacion, match=r'[Cc]ierre los documentos de ConverterSmartGrid abiertos \(manual, notas\)'):
+        IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    monkeypatch.undo()
+    assert _huella_del_arbol(destino) == antes, 'sin actual.txt.nuevo ni nada a medias'
+
+
+def _rmtree_que_no_borra(monkeypatch, nombre: str) -> None:
+    """Doble de shutil.rmtree: la carpeta ``nombre`` tiene un fichero abierto y no se deja borrar."""
+    borrar = IC.shutil.rmtree
+
+    def borrar_o_no(ruta, *a, **k):
+        if Path(ruta).name == nombre and Path(ruta).exists():
+            manejador = k.get('onexc')
+            assert manejador is not None, f'los fallos al borrar {nombre} se recogen, no se ignoran'
+            manejador(IC.os.rmdir, str(ruta), _en_uso(ruta))
+            return None
+        return borrar(ruta, *a, **k)
+
+    monkeypatch.setattr(IC.shutil, 'rmtree', borrar_o_no)
+
+
+def test_086_rf105_documentos_preparando_que_no_se_borra_se_avisa(tmp_path, instalador_sin_motor, monkeypatch, capsys):
+    """086:RF-105 — falla el puntero, los documentos nuevos vuelven a «documentos.preparando» y esta no se deja borrar.
+
+    El error sigue siendo el del puntero; el aviso nombra la carpeta que quedó.
+    """
+    destino = tmp_path / 'app'
+    IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)
+    _falla_al_escribir(monkeypatch, IC.ACTUAL)
+    _rmtree_que_no_borra(monkeypatch, IC.DOCUMENTOS_PREPARANDO)
+    capsys.readouterr()
+    with pytest.raises(OSError, match='no se pudo escribir actual.txt'):
+        IC.instalar(_candidato_con_documentos(tmp_path, '1.1'), destino)
+    assert str(destino / IC.DOCUMENTOS_PREPARANDO) in capsys.readouterr().err
+    assert IC.estado(destino)['actual'] == '1.0'
+
+
+def test_086_rf105_documentos_anterior_que_no_se_borra_se_avisa(tmp_path, instalador_sin_motor, monkeypatch, capsys):
+    """086:RF-105 — primera instalación sobre unos «documentos» sueltos: su «documentos.anterior» no se deja borrar.
+
+    La instalación termina; el aviso nombra la carpeta.
+    """
+    destino = tmp_path / 'app'
+    (destino / IC.DOCUMENTOS).mkdir(parents=True)
+    (destino / IC.DOCUMENTOS / 'resto.md').write_text('de una instalación que se cortó\n', encoding='utf-8')
+    _rmtree_que_no_borra(monkeypatch, IC.DOCUMENTOS_ANTERIORES)
+    capsys.readouterr()
+    assert IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)['version'] == '1.0'
+    assert str(destino / IC.DOCUMENTOS_ANTERIORES) in capsys.readouterr().err

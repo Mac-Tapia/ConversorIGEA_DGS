@@ -9,6 +9,10 @@ Uso:
 Con ``--registro FICHERO``, en cualquier orden, si no se puede el motivo queda también en ese fichero (UTF-8 con BOM):
 el instalador lo corre sin consola y lo lee de ahí para su registro y su aviso (RF-57).
 
+Al instalar sobre otra versión, la que estaba queda en ``anterior.txt`` para volver, aunque no lo registrara (086:RF-94).
+Los documentos del candidato pasan a ``documentos/`` solo cuando la instalación termina bien (086:RF-97); los de la
+versión anterior quedan en ``documentos.anterior`` y vuelven con ella al volver atrás (086:RF-98, RF-99).
+
 Lo corre el instalador con el Python que viene en el candidato: solo usa la biblioteca estándar y no sale a la
 red. Cada versión queda en ``versiones/<versión>``, con su Python y sus librerías, y ``actual.txt`` dice cuál se
 usa: actualizar es preparar la nueva al lado y cambiar ese puntero solo si responde, y volver atrás es cambiarlo
@@ -22,6 +26,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -33,6 +38,12 @@ from pathlib import Path
 ACTUAL = 'actual.txt'
 ANTERIOR = 'anterior.txt'
 ULTIMA_COPIA = 'ultima_copia.json'
+#: 086:RF-97 a RF-99: los manuales y las notas del programa, los de la versión anterior y dos carpetas de paso; el .iss
+#: las quita al desinstalar.
+DOCUMENTOS = 'documentos'
+DOCUMENTOS_PREPARANDO = 'documentos.preparando'
+DOCUMENTOS_ANTERIORES = 'documentos.anterior'
+DOCUMENTOS_RETIRAR = 'documentos.retirar'
 LANZADOR = 'ConverterSmartGrid.cmd'
 ORDEN = 'csg.cmd'
 HERRAMIENTA_COPIA = Path('Lib', 'site-packages', 'convertersmartgrid', '_programa', 'tools', 'copia_datos.py')
@@ -150,7 +161,73 @@ def _publicar(ruta: Path, texto: str) -> None:
         f.write(texto)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(temporal, ruta)
+    # 086:RF-104: el mismo reintento que las carpetas; Defender o un visor también tienen abierto un momento actual.txt.
+    # Si no se puede, el temporal se quita: un «.nuevo» suelto era lo único que quedaba distinto tras deshacer.
+    try:
+        _reemplazar(temporal, ruta)
+    except BaseException:
+        temporal.unlink(missing_ok=True)
+        raise
+
+
+#: 086:RF-105: lo que hay que saber aunque se instale bien; ``main`` lo deja en ``--registro``, que el .iss vuelca en su log.
+AVISOS: list[str] = []
+
+
+def _avisar(texto: str) -> None:
+    AVISOS.append(texto)
+    print(texto, file=sys.stderr, flush=True)
+
+
+#: 086:RF-104: intentos de renombrar una carpeta en uso y la primera espera, que se dobla en cada uno: 0,2 + 0,4 + 0,8 +
+#: 1,6 = 3 s en total. pip hace lo mismo con os.replace (``retry(stop_after_delay=1, wait=0.25)``, en
+#: https://github.com/pypa/pip/blob/26.2.1/src/pip/_internal/utils/filesystem.py) y con rmtree (3 s, en misc.py); CPython
+#: en sus pruebas de Windows espera con retroceso exponencial hasta ~1 s (``_waitfor``, Lib/test/support/os_helper.py).
+INTENTOS_RENOMBRAR = 5
+ESPERA_INICIAL_S = 0.2
+#: Inyectable: las pruebas la sustituyen para no dormir.
+_esperar = time.sleep
+
+
+def _reemplazar(origen: Path, hacia: Path) -> None:
+    """086:RF-104: ``os.replace`` de una carpeta o de un puntero, con unos pocos reintentos si Windows lo tiene en uso.
+
+    Windows no deja renombrar una carpeta con un fichero abierto dentro: ERROR_SHARING_VIOLATION (WinError 32, «el proceso
+    no tiene acceso al archivo porque está siendo utilizado por otro proceso») o ERROR_ACCESS_DENIED (5), que CPython
+    traduce a EACCES (PC/errmap.h) y por tanto a ``PermissionError``. Lo provocan el manual o las notas abiertos en un
+    visor, Defender al revisar los ficheros nuevos u OneDrive y Drive al sincronizarlos; casi siempre es un momento. La
+    documentación de ``os.replace`` solo promete el renombrado atómico como requisito POSIX
+    (https://docs.python.org/3.12/library/os.html#os.replace): en Windows, sobre carpetas, puede fallar a medias.
+    """
+    espera = ESPERA_INICIAL_S
+    for intento in range(1, INTENTOS_RENOMBRAR + 1):
+        try:
+            os.replace(origen, hacia)
+            return
+        except PermissionError as exc:
+            if intento == INTENTOS_RENOMBRAR:
+                raise ErrorInstalacion(
+                    f'Windows no deja mover {origen} a {hacia.name}: está en uso ({exc}). Cierre los '
+                    'documentos de ConverterSmartGrid abiertos (manual, notas) y vuelva a intentarlo; si ya están cerrados, '
+                    'espere a que el antivirus o la sincronización de OneDrive o Drive terminen con esa carpeta.'
+                ) from exc
+            _esperar(espera)
+            espera *= 2
+
+
+def _borrar_o_avisar(carpeta: Path) -> None:
+    """086:RF-105: borra una carpeta de paso; si no puede, no falla, pero lo dice con su ruta.
+
+    Antes, ``shutil.rmtree(..., ignore_errors=True)`` callaba el fallo y ``documentos.retirar``, ``documentos.preparando`` o
+    ``documentos.anterior`` se quedaban sin que nadie lo supiera. ``onexc`` es de Python 3.12, el del candidato.
+    """
+    if not carpeta.exists():
+        return
+    fallos: list[str] = []
+    shutil.rmtree(carpeta, onexc=lambda _funcion, ruta, exc: fallos.append(f'{ruta}: {exc}'))
+    if fallos:
+        _avisar(f'No se pudo borrar {carpeta} (la instalación sigue bien): {fallos[0]}. Bórrela a mano cuando no haya '
+                'ningún documento de ConverterSmartGrid abierto.')
 
 
 def _leer(ruta: Path) -> str:
@@ -261,17 +338,132 @@ def _escribir_lanzadores(destino: Path) -> None:
 
 
 def _retirar_viejas(destino: Path, conservar: set[str]) -> None:
-    """Una versión pesa cientos de MB: quedan la actual y a la que se puede volver."""
+    """Una versión pesa cientos de MB: quedan la actual y a la que se puede volver.
+
+    086:RF-105: una que no se deja borrar (un ``.pyd`` de su Python embebido cargado) se avisa; callada, cada
+    actualización dejaba otra y el disco del cliente crecía sin que nadie lo supiera.
+    """
     for carpeta in sorted((destino / 'versiones').iterdir()):
         if carpeta.is_dir() and carpeta.name not in conservar:
-            shutil.rmtree(carpeta, ignore_errors=True)
+            _borrar_o_avisar(carpeta)
+
+
+def _clave_de_version(version: str) -> tuple:
+    """Orden de versiones sin ``packaging`` (aquí solo hay biblioteca estándar): 1.0.0rc5 < 1.0.0rc10 < 1.0.0."""
+    hallada = re.fullmatch(r'(\d+(?:\.\d+)*)(?:(a|b|rc)(\d+))?', version)
+    if not hallada:
+        return (0, (), 0, 0, version)
+    numeros = tuple(int(n) for n in hallada.group(1).split('.'))
+    previa = {'a': 0, 'b': 1, 'rc': 2, None: 3}[hallada.group(2)]
+    return (1, numeros, previa, int(hallada.group(3) or 0), version)
+
+
+def version_instalada(destino: Path) -> str:
+    """086:RF-94, RF-95: la versión que hay ahora, a la que se podrá volver; ``''`` si no hay ninguna con su Python.
+
+    Manda ``actual.txt`` si su versión tiene su Python. Sin él, o con uno que nombra una versión que ya no está, se toma la
+    más reciente de ``versiones/`` que conserve su Python: antes eso pasaba por una primera instalación, no se copiaban los
+    datos, no quedaba anterior y ``_retirar_viejas`` borraba justo la versión a la que había que volver.
+    """
+    actual = _leer(destino / ACTUAL)
+    if actual and _python_de(destino, actual).is_file():
+        return actual
+    carpeta = destino / 'versiones'
+    con_python = [c.name for c in carpeta.iterdir() if c.is_dir() and _python_de(destino, c.name).is_file()] if carpeta.is_dir() else []
+    return max(con_python, key=_clave_de_version, default='')
+
+
+def _preparar_documentos(candidato: Path, destino: Path) -> Path | None:
+    """086:RF-97: los documentos del candidato, copiados al lado de los publicados; aún no son los del programa."""
+    origen = candidato / DOCUMENTOS
+    if not origen.is_dir():
+        return None
+    preparacion = destino / DOCUMENTOS_PREPARANDO
+    _borrar_o_avisar(preparacion)                                   # restos de una vez que se cortó (086:RF-105)
+    shutil.copytree(origen, preparacion)
+    return preparacion
+
+
+_SIN_CAMBIO = object()
+
+
+def _cambiar_de_version(destino: Path, renombrados: list[tuple[str, str]], punteros: dict[str, object]) -> None:
+    """086:RF-97, RF-98, RF-101: documentos y punteros cambian juntos; si algo falla, queda exactamente lo que había.
+
+    ``renombrados`` son pares (origen, destino) de carpetas de ``destino``; los que no existen se saltan. ``punteros``
+    da a cada fichero (``actual.txt``, ``anterior.txt``, ``ultima_copia.json``) su texto nuevo, ``None`` para quitarlo
+    o ``_SIN_CAMBIO``. Son renombrados en la misma carpeta, y por tanto en el mismo volumen: ``os.replace`` no pisa una
+    carpeta con contenido y en Windows no promete un cambio atómico de varias, así que cada paso hecho se deshace al
+    revés. Lo retirado espera en ``documentos.retirar`` y solo se borra cuando todo quedó escrito.
+    """
+    _borrar_o_avisar(destino / DOCUMENTOS_RETIRAR)                         # restos de una vez que se cortó
+    previos = {n: _leer_crudo(destino / n) for n, v in punteros.items() if v is not _SIN_CAMBIO}
+    hechos: list[tuple[str, str]] = []
+    escritos: list[str] = []
+    try:
+        for origen, hacia in renombrados:
+            if (destino / origen).exists():
+                _reemplazar(destino / origen, destino / hacia)
+                hechos.append((origen, hacia))
+        for nombre, texto in punteros.items():
+            if texto is None:
+                (destino / nombre).unlink(missing_ok=True)
+            elif texto is not _SIN_CAMBIO:
+                _publicar(destino / nombre, str(texto))
+            else:
+                continue
+            escritos.append(nombre)
+    except BaseException as original:
+        # Solo se repone lo que llegó a cambiar: _publicar escribe aparte y sustituye al final, y si falla no tocó nada.
+        # 086:RF-103: cada paso del deshacer va por su cuenta. Antes, si uno fallaba (un fichero que el antivirus tenía
+        # abierto), su excepción tapaba la original y los pasos que faltaban no se hacían: documentos de una versión con
+        # punteros de la otra, el estado mezclado que RF-97 y RF-98 impiden. Se sigue con los demás, se relanza la
+        # original y cada paso que no se pudo va en sus notas (BaseException.add_note) y en el aviso, con sus rutas.
+        pendientes: list[tuple[str, str]] = []
+
+        def reponer(que: str, a_mano: str, paso) -> None:
+            try:
+                paso()
+            except Exception as exc:                                   # noqa: BLE001 — se anota y se sigue deshaciendo
+                pendientes.append((f'{que}: {exc}', a_mano))
+
+        for nombre in reversed(escritos):
+            ruta, texto = destino / nombre, previos[nombre]
+            if texto is None:
+                reponer(f'quitar {ruta}', f'borre {ruta}', lambda r=ruta: r.unlink(missing_ok=True))
+            else:
+                reponer(f'reponer {ruta}', f'deje en {ruta} este texto: {texto.strip()!r}',
+                        lambda r=ruta, t=texto: _publicar(r, t))
+        for origen, hacia in reversed(hechos):
+            de, a = destino / hacia, destino / origen
+            reponer(f'devolver {de} a {a}', f'renombre la carpeta {de} a {a.name}', lambda d=de, h=a: _reemplazar(d, h))
+        if pendientes:
+            for que, _ in pendientes:
+                original.add_note(f'No se pudo deshacer: {que}')
+            _avisar('El cambio de versión (instalar o volver atrás) no terminó y no se pudo deshacer del todo; queda a medias:\n'
+                    + '\n'.join(f'- {que}. Arréglelo a mano: {a_mano}.' for que, a_mano in pendientes)
+                    + f'\nDespués, «instalar_candidato.py estado --destino {destino}» debe nombrar la versión que tenía.')
+        raise
+    _borrar_o_avisar(destino / DOCUMENTOS_RETIRAR)                         # 086:RF-105
+
+
+def _leer_crudo(ruta: Path) -> str | None:
+    """El texto tal cual, saltos de línea incluidos, para reponerlo byte a byte con ``_publicar``."""
+    if not ruta.is_file():
+        return None
+    with ruta.open(encoding='utf-8', newline='') as f:
+        return f.read()
 
 
 def instalar(candidato: Path, destino: Path, *, puerto: int = 8765, forzar: bool = False) -> dict:
-    """Primera instalación o actualización: el puntero solo cambia al final, con la versión nueva respondiendo."""
+    """Primera instalación o actualización: el puntero solo cambia al final, con la versión nueva respondiendo.
+
+    Sobre otra versión, esa queda en ``anterior.txt`` para volver atrás, aunque la que estaba no registrara ninguna (el rc5
+    de este equipo, 2026-11-13, no tenía ``anterior.txt``): lo escribe la versión que se instala, no la que estaba.
+    """
     manifiesto = verificar_candidato(candidato)
     version = manifiesto['version']
-    actual = _leer(destino / ACTUAL)
+    actual = version_instalada(destino)                                                    # 086:RF-94, RF-95
     if actual == version:
         raise ErrorInstalacion(f'La versión {version} ya es la instalada.')
     if actual and _web_escuchando(puerto) and not forzar:
@@ -279,29 +471,60 @@ def instalar(candidato: Path, destino: Path, *, puerto: int = 8765, forzar: bool
                                'guarda sus espacios en memoria y al salir pisaría lo que se haga aquí.')
     destino.mkdir(parents=True, exist_ok=True)
     carpeta = destino / 'versiones' / version
+    # 086:RF-102: la que volver atrás dejó apartada, con su Python, vuelve a ponerse en uso como en una actualización.
+    # Antes se respondía «ya está» y para volver a ella había que desinstalar. No se prepara de nuevo ni se pisa: la
+    # carpeta no es de esta llamada y nada de ella se borra si algo falla. Una carpeta sin Python sigue sin pisarse.
+    reactivada = _python_de(destino, version).is_file()
     copia = None
     preparada = False
+    documentos = None
     try:
-        python = _preparar_version(candidato, destino, manifiesto)
-        preparada = True
+        if reactivada:
+            python = _python_de(destino, version)
+        else:
+            python = _preparar_version(candidato, destino, manifiesto)
+            preparada = True
         informe = _doctor(python)
         if actual:
             copia = _copiar_datos(python, carpeta)
+        documentos = _preparar_documentos(candidato, destino)                              # 086:RF-97
     except (ErrorInstalacion, OSError, ValueError):
         # El preparador limpia sus fallos. Solo una preparación devuelta con éxito
         # nos pertenece para retirar tras un fallo del doctor o de la copia.
         if preparada:
             shutil.rmtree(carpeta, ignore_errors=True)
+        _borrar_o_avisar(destino / DOCUMENTOS_PREPARANDO)                                 # 086:RF-105
         raise
     _escribir_lanzadores(destino)
-    if copia is not None:
-        _publicar(destino / ULTIMA_COPIA, json.dumps({'desde': actual, 'hacia': version, 'copia': copia['ruta'], 'cuando': time.time()},
-                                                     ensure_ascii=False, indent=2))
-    if actual:
-        _publicar(destino / ANTERIOR, actual + '\n')
-    _publicar(destino / ACTUAL, version + '\n')
+    # 086:RF-97, RF-99: los documentos cambian con los punteros y no antes. El .iss los vaciaba y copiaba en [InstallDelete]
+    # y [Files], antes de saber si esto terminaba; tras un fallo, el programa que seguía tenía los de la versión nueva. Los
+    # de la versión que estaba quedan en documentos.anterior, para volver atrás con ellos; los de antes de esa se retiran.
+    # anterior.txt y ultima_copia.json entran en el mismo cambio: escritos antes del puntero, un fallo dejaba anterior.txt
+    # igual a actual.txt y la nota de la copia de otra actualización, y volver atrás ya no restauraba los datos.
+    renombrados = [(DOCUMENTOS_ANTERIORES, DOCUMENTOS_RETIRAR), (DOCUMENTOS, DOCUMENTOS_ANTERIORES)]
+    if documentos is not None:
+        renombrados.append((DOCUMENTOS_PREPARANDO, DOCUMENTOS))
+    punteros: dict[str, object] = {
+        ULTIMA_COPIA: _SIN_CAMBIO if copia is None else json.dumps(
+            {'desde': actual, 'hacia': version, 'copia': copia['ruta'], 'cuando': time.time()}, ensure_ascii=False, indent=2),
+        ANTERIOR: actual + '\n' if actual else _SIN_CAMBIO,
+        ACTUAL: version + '\n',
+    }
+    try:
+        _cambiar_de_version(destino, renombrados, punteros)
+    except BaseException:
+        # La versión preparada es de esta llamada y se retira (086:RF-100); la reactivada no, sigue apartada (086:RF-102).
+        if preparada:
+            shutil.rmtree(carpeta, ignore_errors=True)
+        raise
+    finally:
+        _borrar_o_avisar(destino / DOCUMENTOS_PREPARANDO)                                 # 086:RF-105
+    if not actual:
+        # Primera instalación: no hay versión a la que volver, ni documentos que guardar para ella.
+        _borrar_o_avisar(destino / DOCUMENTOS_ANTERIORES)                                 # 086:RF-105
     _retirar_viejas(destino, {version, actual} - {''})
-    return {'version': version, 'anterior': actual or None, 'copia': copia and copia['ruta'], 'pendientes': informe['pendientes']}
+    return {'version': version, 'anterior': actual or None, 'copia': copia and copia['ruta'], 'pendientes': informe['pendientes'],
+            'reactivada': reactivada}
 
 
 def volver(destino: Path, *, restaurar: bool = True, puerto: int = 8765, forzar: bool = False) -> dict:
@@ -328,8 +551,11 @@ def volver(destino: Path, *, restaurar: bool = True, puerto: int = 8765, forzar:
         if r.returncode:
             raise ErrorInstalacion(f'No se pudo restaurar la copia {apuntes["copia"]}; sigue la versión {actual}.\n{r.stdout[-1000:]}\n{r.stderr[-1000:]}')
         restaurado = apuntes['copia']
-    _publicar(destino / ANTERIOR, actual + '\n')
-    _publicar(destino / ACTUAL, anterior + '\n')
+    # 086:RF-98, RF-100, RF-101: vuelven a la vez la versión anterior y sus documentos; los de la que se deja se retiran
+    # (su programa se aparta, no se borra). Sin anterior.txt después, una segunda vuelta atrás dice que no hay a cuál
+    # volver en vez de alternar entre las dos. Si algo falla a mitad, queda exactamente lo que había.
+    _cambiar_de_version(destino, [(DOCUMENTOS, DOCUMENTOS_RETIRAR), (DOCUMENTOS_ANTERIORES, DOCUMENTOS)],
+                        {ANTERIOR: None, ACTUAL: anterior + '\n'})
     return {'version': anterior, 'dejada': actual, 'datos_restaurados_de': restaurado}
 
 
@@ -340,6 +566,9 @@ def estado(destino: Path) -> dict:
 
 def _dejar_motivo(registro: Path | None, motivo: str | None) -> None:
     """086:RF-57: el motivo, donde lo lee el instalador; sin motivo, se quita el de una vez anterior.
+
+    086:RF-105: si todo fue bien pero hubo avisos (una carpeta de paso que no se pudo borrar), van aquí también: el
+    instalador los copia a su registro.
 
     El instalador corre este guion oculto: lo que escribe en la consola se perdía, y su registro solo decía «1» (rc5,
     2026-11-12: el programa estaba abierto en el puerto 8765). El BOM es para que Inno lo lea como UTF-8 sin dudar.
@@ -380,6 +609,7 @@ def main(argv: list[str] | None = None) -> int:
             flujo.reconfigure(encoding='utf-8', errors='replace')
         except (AttributeError, ValueError):
             pass
+    AVISOS.clear()
     try:
         if args.orden == 'instalar':
             salida = instalar(args.candidato, args.destino, puerto=args.puerto, forzar=args.forzar)
@@ -390,10 +620,13 @@ def main(argv: list[str] | None = None) -> int:
         else:
             salida = {'version': verificar_candidato(args.candidato)['version'], 'huellas': 'correctas'}
     except (ErrorInstalacion, OSError, ValueError) as exc:
-        print(str(exc), file=sys.stderr)
-        _dejar_motivo(args.registro, str(exc))
+        # 086:RF-103: el motivo lleva también las notas de lo que no se pudo deshacer y los avisos con las rutas que
+        # arreglar a mano; str(exc) no trae las notas, y el instalador solo enseña lo que hay en este fichero.
+        motivo = '\n'.join([str(exc), *getattr(exc, '__notes__', ()), *AVISOS])
+        print(motivo, file=sys.stderr)
+        _dejar_motivo(args.registro, motivo)
         return 1
-    _dejar_motivo(args.registro, None)
+    _dejar_motivo(args.registro, '\n'.join(AVISOS) or None)                 # 086:RF-105: avisos de una vez que fue bien
     print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0
 

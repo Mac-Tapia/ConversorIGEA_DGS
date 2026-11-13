@@ -141,6 +141,9 @@ Vuelve a la versión anterior y a los datos de la copia que se hizo al actualiza
 `--sin-restaurar` se quedan los datos de ahora. Si nunca se ha actualizado, dice «No hay una versión anterior a la que volver.».
 Una versión anterior no abre un espacio que una más nueva ya haya pasado a su formato: lo dice, no lo pisa.
 
+Tras volver atrás no queda anterior: una segunda vuelta dice «No hay una versión anterior a la que volver.». Para volver
+a la nueva, instálela otra vez con su instalador; la versión que deja pasa a ser la anterior.
+
 ## Copias de los datos
 
 La web avisa arriba cuando no hay copia o cuando la última tiene más días de los permitidos (siete, salvo que la variable
@@ -229,6 +232,9 @@ python tools\construir_candidato.py candidato --salida C:\csg\candidato --python
 python tools\comprobar_entrega.py --candidato C:\csg\candidato
 ISCC.exe /DCandidato=C:\csg\candidato /OC:\csg\salida instalador\ConverterSmartGrid.iss
 ```
+
+Lance `ISCC` desde PowerShell o desde `cmd`, no desde el Bash de Git: MSYS toma `/DCandidato=…` por una ruta de Unix y la
+convierte, y el instalador no encuentra el candidato.
 
 Use rutas cortas: la de construir se suma a la de cada fichero. El candidato rechaza lo que lleve el nombre de una empresa o un
 peso entrenado. La versión sale de un solo sitio, la del paquete (`__version__`): el candidato la toma de ahí y el instalador la
