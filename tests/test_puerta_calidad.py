@@ -300,3 +300,23 @@ def test_lo_comun_a_todas_las_pruebas_corre_la_suite_entera(tmp_path):
     # Un repositorio sin tests/ (el de las pruebas de los ganchos de la 090) no pide la suite: 102:RF-16.
     assert puerta.pruebas_del_commit(['pyproject.toml'], tmp_path) == []
 
+
+def test_el_resultado_guarda_las_mas_lentas_y_avisa_de_las_del_umbral(tmp_path, capsys):
+    """106:RF-15 — el junit da los tiempos; el resultado guarda las 30 más lentas y avisa, sin fallar, de las que pasan
+    del umbral de faulthandler_timeout, que es el mismo de pyproject.toml."""
+    import tomllib
+
+    casos = ''.join(f'<testcase classname="tests.test_t" name="p{i}" time="{i}"/>' for i in range(40))
+    casos += '<testcase classname="tests.test_t" name="colgada" time="2000.5"/>'
+    junit = tmp_path / 'junit.xml'
+    junit.write_text(f'<testsuites><testsuite>{casos}</testsuite></testsuites>', encoding='utf-8')
+    juicio = PC.veredicto(junit)
+    assert len(juicio['lentas']) == PC.LENTAS_GUARDADAS == 30
+    assert juicio['lentas'][0] == {'prueba': 'tests.test_t::colgada', 'segundos': 2000.5}
+    assert juicio['lentas'][1]['prueba'] == 'tests.test_t::p39'
+    assert juicio['mas_de_umbral'] == [juicio['lentas'][0]]
+    assert PC._informar(juicio, omitidas_cuentan=True) is True
+    assert 'LENTA tests.test_t::colgada' in capsys.readouterr().out
+    ini = tomllib.loads((Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text(encoding='utf-8'))
+    assert ini['tool']['pytest']['ini_options']['faulthandler_timeout'] == PC.UMBRAL_PRUEBA_LENTA_S
+

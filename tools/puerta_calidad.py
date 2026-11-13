@@ -46,6 +46,11 @@ VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_
 #: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
 DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')
 
+
+#: 106:RF-15: cuántas de las más lentas guarda el resultado, y el umbral de ``faulthandler_timeout`` de pyproject.toml.
+LENTAS_GUARDADAS = 30
+UMBRAL_PRUEBA_LENTA_S = 1800.0
+
 #: El fichero local de las variables, fuera de git (102:RF-6, RF-15).
 FICHERO_VARIABLES = Path('config') / 'suite_completa.json'
 
@@ -120,17 +125,26 @@ def veredicto(junit: Path) -> dict:
         arbol = ET.parse(junit)
     except (OSError, ET.ParseError) as exc:
         raise PuertaError(f'pytest no dejó su resultado ({junit.name}): {exc}') from exc
-    fallidas, omitidas, total = [], [], 0
+    fallidas, omitidas, total, tiempos = [], [], 0, []
     for caso in arbol.iter('testcase'):
         total += 1
         nombre = f"{caso.get('classname', '')}::{caso.get('name', '')}"
+        try:
+            tiempos.append((float(caso.get('time') or 0), nombre))
+        except ValueError:
+            pass
         for etiqueta, lista in (('failure', fallidas), ('error', fallidas), ('skipped', omitidas)):
             nodo = caso.find(etiqueta)
             if nodo is not None:
                 motivo = (nodo.get('message') or (nodo.text or '')).strip().splitlines()
                 lista.append({'prueba': nombre, 'motivo': motivo[0][:300] if motivo else ''})
                 break
-    return {'total': total, 'fallidas': fallidas, 'omitidas': omitidas}
+    # 106:RF-15: las más lentas quedan en el resultado guardado; el junit se borra con su temporal y la suite de
+    # 10a80812 (2026-11-12) se quedó sin tiempos que mirar.
+    tiempos.sort(key=lambda x: (-x[0], x[1]))
+    lentas = [{'prueba': p, 'segundos': round(s, 1)} for s, p in tiempos[:LENTAS_GUARDADAS]]
+    return {'total': total, 'fallidas': fallidas, 'omitidas': omitidas, 'lentas': lentas,
+            'mas_de_umbral': [x for x in lentas if x['segundos'] > UMBRAL_PRUEBA_LENTA_S]}
 
 
 def _git(*args: str, raiz: Path = RAIZ) -> str:
@@ -200,6 +214,9 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> di
 
 
 def _informar(juicio: dict, *, omitidas_cuentan: bool) -> bool:
+    for x in juicio.get('mas_de_umbral') or []:
+        # 106:RF-15: no falla (faulthandler solo vuelca la pila), pero se dice: o la prueba se cuelga o el umbral es corto.
+        print(f"LENTA {x['prueba']}: {x['segundos']:.0f} s, más que los {UMBRAL_PRUEBA_LENTA_S:.0f} s del volcado de pila.")
     for f in juicio['fallidas']:
         print(f"FALLA {f['prueba']}: {f['motivo']}")
     if omitidas_cuentan:

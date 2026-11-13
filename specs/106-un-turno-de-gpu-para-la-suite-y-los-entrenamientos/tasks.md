@@ -12,5 +12,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T5. El entorno de DIgSILENT no hereda otro paquete del conversor por PYTHONPATH. (RF-14)
       Hecho cuando: `tests/test_powerfactory_versiones.py` (103:RF-6, sin tocar) y `tests/test_turno_gpu_de_la_suite.py`
       (106:RF-14) en verde.
+- [x] T4. El resultado de la suite guarda las más lentas y avisa de las que pasan del umbral del volcado. (RF-15)
+      Hecho cuando: `tests/test_puerta_calidad.py` (106:RF-15) en verde.
 - [ ] T2. Suite completa con un entrenamiento esperando su turno: las 62 de 10a80812 en verde, sin omitidas. (RF-1, RF-4)
       Hecho cuando: la suite completa corrida sola da 0 fallidas, 0 omitidas y 0 errores, y el entrenamiento esperó.

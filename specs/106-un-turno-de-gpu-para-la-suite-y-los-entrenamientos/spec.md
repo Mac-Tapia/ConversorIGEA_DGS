@@ -46,6 +46,8 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   ninguna otra carpeta con el paquete que traiga el `PYTHONPATH` heredado.
 - RF-13: CUANDO un commit cambia lo que ven todas las pruebas (`tests/conftest.py`, `pyproject.toml`), EL SISTEMA
   correrá en su puerta todas las pruebas; y CUANDO cambia un ayudante de `tests/`, las que lo nombran.
+- RF-15: EL SISTEMA guardará en el resultado de cada suite las 30 pruebas más lentas con sus segundos, y dirá cuáles pasan
+  del umbral de RF-5, sin hacerlas fallar.
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.
