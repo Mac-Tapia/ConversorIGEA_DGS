@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
 | Pruebas de la interfaz | `frontend/test/` | 23 |
-| Pruebas | `tests/` | 433 |
+| Pruebas | `tests/` | 435 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3527 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3532 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -436,7 +436,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `escenarios.py` | Ada | 024 | Matriz de escenarios (demanda escalada y N-1), familia topológica y partición fija, elección por incertidumbre o diversidad y presupuesto de licencia… |
 | `auditoria.py` | Ada | 027 | Auditoría del dataset de cada modelo antes de entrenar: muestras, redes distintas, nodos, columnas, fracción etiquetada, rangos, no finitos (no se… |
 | `curva.py` | Ada | 027 | Episodios del gemelo por sistema eléctrico frente a los 30/10/10 (reparto fijo por la huella de cada episodio) y curva de aprendizaje que dice si un… |
-| `hiperparametros.py` | Ada | 027, 060 | Búsqueda de hiperparámetros del gemelo con Optuna (TPE y poda por mediana), con presupuesto de ensayos y tiempo, evaluada solo en validación. |
+| `hiperparametros.py` | Ada | 027, 060 | Búsqueda de hiperparámetros del gemelo con Optuna (TPE y poda por mediana), limitada por ensayos con el reloj como tope de seguridad que no elige,… |
 | `contratos_fisicos.py` | Ada | 045 | Versión y alcance del grafo del gemelo: qué física representa y por qué rechaza una red, y huellas de controles y caso. |
 | `oraculo.py` | Ada | 024, 060 | Oráculo PINN/GNN (PyTorch, GPU si la hay): grafo por unidad, red de grafos sobre la física mallada con pérdida física de balance por barra eléctrica,… |
 | `flujo.py` | Ada | 024 | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo… |
@@ -509,7 +509,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `calidad_datos.py` | Apl | 043 | Calidad y contaminación entre particiones sin inflar el conjunto humano. |
 | `entrenamiento_dataset.py` | Apl | 043 | Ajuste de clasificadores pequeños sobre particiones v2 explícitas. |
 | `destilacion.py` | Apl | 027 | Destilación del modelo local de Ollama (maestro) al Transformer de órdenes: k votos con temperatura por orden sin etiqueta, filtro por acuerdo y… |
-| `destilacion_integral.py` | Apl | 047 | Comparación supervisado/destilado, calibración, prueba sellada, recarga y registro del alumno. |
+| `destilacion_integral.py` | Apl | 047, 069 | Comparación supervisado/destilado, calibración, prueba sellada, puerta de no regresión en las humanas frente al modelo en uso (McNemar exacto),… |
 | `ajuste_condicionado.py` | Apl | 047 | Puertas de 027:RF-18 sobre órdenes reales independientes y decisión de ajustar el LLM, sin entrenar ni activar. |
 | `llm_destilacion.py` | Apl | 047, 060 | Custodia de referencia, corpus del LLM con entidades reales y objetivos causales de respuesta. |
 | `llm_checkpoint.py` | Apl | 002 | Comprobaciones de un checkpoint, comunes a entrenar y publicar. |

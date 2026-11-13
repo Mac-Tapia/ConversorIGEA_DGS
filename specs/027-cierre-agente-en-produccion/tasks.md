@@ -268,6 +268,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       el gemelo se aparta 0,0024 p.u. en sus 10 episodios de prueba y queda promovido
       (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN111–TA225 daba 0,31 p.u.
       en Chincha.
+- [x] T32. Búsqueda de hiperparámetros por ensayos, con el reloj como tope de seguridad, y un ensayo que falla
+      para la búsqueda con su error. (RF-70, RF-71)
+      Hecho cuando: `tests/test_hiperparametros_presupuesto.py` (027:RF-70, RF-71) en verde.
+      Hecho el 2026-11-12: `digital_twin/hiperparametros.py` sin `timeout` ni `catch` en `Study.optimize`; el tope
+      lo vigila un callback que para y levanta `TimeoutError`; el informe guarda `presupuesto` (unidad: ensayos).
 - T29. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Corrida de los escenarios por hipercubo latino en copias del proyecto de Nasca (sigue a T3). (RF-4)
 - T30. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Propuesta de bancos con el top-k verificada en DIgSILENT con Chincha (sigue a T8). (RF-14 a RF-16)
 - T31. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)

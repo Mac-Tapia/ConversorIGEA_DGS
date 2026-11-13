@@ -266,6 +266,15 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
   empeora más del 5 % al añadir un 20 % de episodios: la marcará inestable.
 - RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
   k, la temperatura, α, T, cuántas órdenes etiquetó y cuántas descartó (RF-8).
+- Aclaración de RF-7: el presupuesto que decide son los ensayos (RF-70); el tiempo es solo un tope de seguridad.
+- RF-70: EL SISTEMA limitará la búsqueda de hiperparámetros por el número de ensayos pedido, y SI el tope de
+  seguridad de tiempo vence antes de completarlos, ENTONCES EL SISTEMA parará la búsqueda sin elegir configuración y
+  lo dirá con el tope y los ensayos hechos. (2026-11-12: con `timeout` de `Study.optimize`, Optuna deja de crear
+  ensayos al vencer el plazo, y cuántos entraban, y así la elección, dependía de la carga de la máquina;
+  https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.Study.html)
+- RF-71: SI un ensayo de la búsqueda falla con un error (no por poda), ENTONCES EL SISTEMA parará la búsqueda con el
+  número del ensayo y su error, sin elegir entre los demás. (Suite del 2026-11-12: los tres ensayos fallaron por
+  «CUDA error: out of memory» con la GPU compartida y el mensaje culpaba a un presupuesto que no se había agotado.)
 
 Auditoría del dataset de cada modelo (antes de entrenar)
 

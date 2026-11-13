@@ -100,6 +100,16 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   `buscar_internet` sigue con su trozo, para no sacar a la red las palabras de la orden (086:RF-24).
 - RF-37: EL SISTEMA elegirá el umbral de ejecución con el límite inferior de Wilson (95 %) del acierto en calibración, no
   con el acierto puntual. (2026-11-11: el puntual eligió 0,90 por 0,981 y en la sellada acertó 0,970 de lo ejecutado solo.)
+- RF-38: SI, sobre las mismas órdenes humanas, el candidato acierta la tarea menos que el modelo en uso con una
+  diferencia significativa en la prueba de McNemar exacta unilateral (binomial sobre las órdenes discordantes, α = 0,05),
+  ENTONCES EL SISTEMA rechazará el candidato, haya o no 200 humanas y decida o no el examen del maestro (085:RF-19).
+  (2026-11-12: reg-75fdd605 se promovió con 0 fallos acertando 32 de 43 humanas frente a 41 de 43 de prov-8fd8a405;
+  Dietterich, *Neural Computation* 10(7), 1998, https://web.engr.oregonstate.edu/~tgd/publications/dietterich-approximate-statistical-tests-nc1998.pdf;
+  Miller, *Adding Error Bars to Evals*, 2024, https://arxiv.org/abs/2411.00640.)
+- RF-39: EL SISTEMA medirá el modelo en uso y el candidato orden por orden sobre las mismas humanas, con el modelo que
+  da la medida humana informada (el de fuera de grupo con validación cruzada), y guardará la prueba en la decisión.
+- RF-40: SI hay modelo en uso y no se pudo medir sobre las humanas, ENTONCES EL SISTEMA no aprobará el candidato; sin
+  modelo en uso, la puerta de RF-38 no aplica y lo dirá.
 
 ## Fuera de alcance
 

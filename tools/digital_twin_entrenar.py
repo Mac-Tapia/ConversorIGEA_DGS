@@ -76,7 +76,7 @@ def main(argv=None) -> int:
     p.add_argument('--buscar', action='store_true',
                    help='Buscar hiperparámetros (Optuna, solo en validación) y entrenar con ellos (027:RF-7)')
     p.add_argument('--ensayos', type=int, default=20, help='Ensayos de la búsqueda')
-    p.add_argument('--limite-s', type=float, default=1800.0, help='Segundos de la búsqueda')
+    p.add_argument('--limite-s', type=float, default=1800.0, help='Tope de seguridad en segundos: si vence antes de los ensayos, la búsqueda se para sin elegir (027:RF-70)')
     p.add_argument('--sistema', metavar='RED',
                    help='Entrenar y evaluar solo con ese sistema (huella de su red, de --curva; 027:RF-68)')
     p.add_argument('--curva', action='store_true',

@@ -3,9 +3,20 @@
 Los de la PINN/GNN se eligieron a mano en IN111–TA225 (64 ocultas, 8 pasos, peso físico
 10⁻⁴; 2026-10-24) y no tenían por qué valer para otro sistema. La búsqueda es bayesiana (TPE
 de Optuna, Bischl et al., *WIREs DMKD* 2023) con poda por mediana sobre la curva de
-validación, con presupuesto de ensayos y de tiempo, y evalúa cada ensayo **solo en la
-partición de validación**: la de prueba (otra red) queda para decidir la promoción.
-Todos los ensayos y la configuración elegida se guardan junto a los modelos.
+validación, con presupuesto de ensayos, y evalúa cada ensayo **solo en la partición de
+validación**: la de prueba (otra red) queda para decidir la promoción. Todos los ensayos y la
+configuración elegida se guardan junto a los modelos.
+
+El presupuesto son ensayos, no segundos (027:RF-70). Con ``timeout`` de ``Study.optimize``, Optuna
+deja de crear ensayos al vencer el plazo («the study continues to create trials until the number of
+trials reaches n_trials, timeout period elapses…»): cuántos ensayos entraban, y así la configuración
+elegida, dependía de lo cargada que estuviera la máquina. El reloj queda como tope de seguridad: si
+vence antes de los ensayos pedidos, la búsqueda se para sin elegir nada.
+
+Un ensayo que falla para la búsqueda con su error (027:RF-71). Con ``catch=(RuntimeError,)``, en la
+suite del 2026-11-12 los tres ensayos fallaron en 0,2 s por «CUDA error: out of memory» con la GPU
+compartida, y el mensaje decía «ningún ensayo terminó dentro del presupuesto»: la elección entre los
+que quedaran dependería de la memoria libre, no de los datos.
 """
 from __future__ import annotations
 
@@ -56,7 +67,11 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
             if trial.should_prune():
                 raise optuna.TrialPruned()
 
-        estado = entrenar_miembro(entrenamiento, cfg, None, validacion=validacion, al_validar=podar)
+        try:
+            estado = entrenar_miembro(entrenamiento, cfg, None, validacion=validacion, al_validar=podar)
+        except RuntimeError as exc:
+            raise RuntimeError(f'el ensayo {trial.number} de la búsqueda falló: {exc}; no se elige entre los '
+                               f'demás (027:RF-71)') from exc
         error = mae(OraculoPINN([estado], cfg, dominio), validacion)
         log(f'  ensayo {trial.number}: {trial.params} → {error:.3e} p.u. en validación')
         return float(error)
@@ -65,13 +80,24 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
                                   sampler=optuna.samplers.TPESampler(seed=semilla),
                                   pruner=optuna.pruners.MedianPruner(n_startup_trials=3, n_warmup_steps=10))
     inicio = time.monotonic()
-    estudio.optimize(objetivo, n_trials=ensayos, timeout=limite_s, catch=(RuntimeError,))
+
+    def tope_de_seguridad(estudio_, _trial) -> None:
+        # Entre ensayos, como Optuna con ``timeout``; pero aquí el tope no da por buena una búsqueda corta.
+        if time.monotonic() - inicio > limite_s and len(estudio_.trials) < ensayos:
+            estudio_.stop()
+
+    # Sin ``timeout`` ni ``catch``: deciden los ensayos (RF-70) y un fallo para la búsqueda (RF-71).
+    estudio.optimize(objetivo, n_trials=ensayos, callbacks=[tope_de_seguridad])
+    if len(estudio.trials) < ensayos:
+        raise TimeoutError(f'la búsqueda superó el tope de seguridad de {limite_s:g} s tras {len(estudio.trials)} '
+                           f'de {ensayos} ensayos; no se elige con una búsqueda incompleta (027:RF-70)')
     completos = [t for t in estudio.trials if t.state == optuna.trial.TrialState.COMPLETE]
     if not completos:
-        raise ValueError('ningún ensayo terminó dentro del presupuesto (027:RF-7)')
+        raise ValueError(f'los {ensayos} ensayos se podaron y ninguno terminó (027:RF-7)')
     mejor = estudio.best_trial
     elegida = _sugerir(optuna.trial.FixedTrial(mejor.params), base)
     informe = {'ensayos_pedidos': ensayos, 'limite_s': limite_s, 'segundos': time.monotonic() - inicio,
+               'presupuesto': {'unidad': 'ensayos', 'ensayos': ensayos, 'tope_seguridad_s': limite_s},
                'semilla': semilla, 'evaluado_en': 'validacion', 'validacion': len(validacion),
                'entrenamiento': len(entrenamiento),
                'calibracion_reservada': len(grupos['calibracion']),

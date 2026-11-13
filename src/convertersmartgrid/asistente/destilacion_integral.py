@@ -518,7 +518,7 @@ def medir_selectiva(modelo, registros: Sequence[dict], umbral: float) -> dict:
 
 
 def decidir_selectiva(selectiva: dict, decide: str, sinteticas: dict, en_uso: dict | None,
-                      rechazo: dict | None = None) -> dict:
+                      rechazo: dict | None = None, no_regresion: dict | None = None) -> dict:
     """069:RF-35: la puerta sobre lo que el intérprete ejecuta solo, en la sellada y en el conjunto que decide
     (el examen del maestro sin 200 humanas, 085:RF-19). En el total no puede acertar menos que el modelo en uso."""
     # La charla que se ejecutaría sola es la que cuenta: la que no reconoce como «ninguna» y queda bajo el umbral va a
@@ -533,9 +533,72 @@ def decidir_selectiva(selectiva: dict, decide: str, sinteticas: dict, en_uso: di
     previo = ((en_uso or {}).get('sinteticas') or {}).get('acierto_tarea')
     if type(previo) in (float, int) and sinteticas.get('acierto_tarea', 0) < previo - 1e-9:
         fallos.append(f"acierta menos que el modelo en uso en el total: {sinteticas.get('acierto_tarea'):.3f} < {previo:.3f}")
-    return {'status': 'RECHAZADO' if fallos else 'PROMOVIDO', 'gates': {'approved': not fallos}, 'fallos': fallos,
-            'puerta': 'selectiva', 'decide': decide, 'selectiva': selectiva, 'alcance': 'asistido',
-            'confirmacion_obligatoria': True}
+    # 069:RF-38: decida quien decida (también el maestro, 085:RF-19), no empeora en las humanas frente al modelo en uso.
+    if no_regresion and no_regresion.get('bloquea'):
+        fallos.append(f"no regresión en las humanas: {no_regresion['motivo']}")
+    salida = {'status': 'RECHAZADO' if fallos else 'PROMOVIDO', 'gates': {'approved': not fallos}, 'fallos': fallos,
+              'puerta': 'selectiva', 'decide': decide, 'selectiva': selectiva, 'alcance': 'asistido',
+              'confirmacion_obligatoria': True}
+    if no_regresion is not None:
+        salida['no_regresion'] = no_regresion
+    return salida
+
+
+#: 069:RF-38: nivel de la prueba de McNemar exacta, unilateral (solo interesa que el candidato empeore).
+ALFA_NO_REGRESION = 0.05
+
+
+def aciertos_de_tarea(modelo, registros: Sequence[dict]) -> list[bool]:
+    """069:RF-39: acierto de la tarea orden por orden, con el criterio de ``transformer.evaluar``."""
+    return [modelo.predecir(r['texto'])['tarea'] == r['tarea'] for r in registros]
+
+
+def puerta_no_regresion(candidato: Sequence[bool], referencia: Sequence[bool] | None, *,
+                        alfa: float = ALFA_NO_REGRESION, error_referencia: str | None = None) -> dict:
+    """069:RF-38, RF-40: McNemar exacto sobre las mismas órdenes; bloquea si el candidato empeora de forma significativa.
+
+    El 2026-11-12 reg-75fdd605 se promovió con 32 de 43 humanas frente a 41 de 43 del modelo en uso, porque con
+    menos de 200 decidía el examen del maestro y las humanas solo se informaban. Con 43 no vale comparar porcentajes:
+    la diferencia de dos proporciones tiene un error de tipo I alto (Dietterich, *Neural Computation* 10(7), 1998),
+    y medidas sobre la misma muestra las dos cifras están correlacionadas, de modo que lo que informa son las órdenes
+    en que discrepan (Miller, *Adding Error Bars to Evals*, arXiv:2411.00640, 2024: análisis pareado). Si los dos
+    fueran igual de buenos, de las ``b + c`` órdenes discordantes las ``b`` que solo acierta el modelo en uso
+    seguirían una binomial de p = 0,5; el valor p es P(X >= b), el de
+    ``scipy.stats.binomtest(b, b + c, 0.5, alternative='greater')``, calculado aquí sin depender de SciPy.
+    """
+    if referencia is None:
+        if error_referencia and candidato:
+            return {'aplica': True, 'bloquea': True, 'ejemplos': len(candidato),
+                    'motivo': f'no se pudo medir el modelo en uso sobre las mismas órdenes: {error_referencia}'}
+        return {'aplica': False, 'bloquea': False, 'ejemplos': len(candidato),
+                'motivo': 'sin modelo en uso con que comparar'}
+    if len(candidato) != len(referencia):
+        raise ValueError(f'la no regresión compara los mismos ejemplos: {len(candidato)} del candidato y '
+                         f'{len(referencia)} del modelo en uso (069:RF-40)')
+    n = len(candidato)
+    if not n:
+        return {'aplica': False, 'bloquea': False, 'ejemplos': 0, 'motivo': 'sin órdenes humanas'}
+    empeora = sum(1 for c, r in zip(candidato, referencia, strict=True) if r and not c)
+    mejora = sum(1 for c, r in zip(candidato, referencia, strict=True) if c and not r)
+    discordantes = empeora + mejora
+    p_valor = (sum(math.comb(discordantes, k) for k in range(empeora, discordantes + 1)) / 2 ** discordantes
+               if discordantes else 1.0)
+    bloquea = empeora > mejora and p_valor < alfa
+    aciertos_c, aciertos_r = sum(map(bool, candidato)), sum(map(bool, referencia))
+    motivo = (f'McNemar exacto en {n} órdenes humanas: el modelo en uso acierta {aciertos_r} y el candidato '
+              f'{aciertos_c}; {empeora} solo las acierta el modelo en uso y {mejora} solo el candidato, '
+              f'p = {p_valor:.4f} {"<" if p_valor < alfa else ">="} {alfa}')
+    return {'aplica': True, 'bloquea': bloquea, 'ejemplos': n, 'aciertos_candidato': aciertos_c,
+            'aciertos_referencia': aciertos_r, 'empeora': empeora, 'mejora': mejora, 'p_valor': p_valor,
+            'alfa': alfa, 'prueba': 'mcnemar_exacta_unilateral', 'motivo': motivo}
+
+
+def no_regresion_humanas(medidor, filas_humanas: Sequence[dict], en_uso: dict | None) -> dict:
+    """069:RF-39: la puerta del flujo, con el modelo que mide las humanas y la medida del modelo en uso."""
+    en_uso = en_uso or {}
+    puerta = puerta_no_regresion(aciertos_de_tarea(medidor, filas_humanas) if filas_humanas else [],
+                                 en_uso.get('aciertos_humanas'), error_referencia=en_uso.get('error'))
+    return {**puerta, 'referencia': en_uso.get('version')}
 
 
 def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
@@ -590,6 +653,7 @@ def _medir_en_uso(sinteticas: list[dict], humanas: list[dict], reservados: Seque
             return None
         return {'version': activo.version, 'sinteticas': evaluar_alumno(activo, sinteticas),
                 'humanas': evaluar_alumno(activo, humanas) if humanas else None,
+                'aciertos_humanas': aciertos_de_tarea(activo, humanas) if humanas else None,     # 069:RF-39
                 'rechazo': medir_rechazo(activo, reservados) if reservados else None,
                 'cobertura': cobertura_por_umbral(activo, sinteticas)}
     except (ImportError, RuntimeError, OSError, ValueError, KeyError) as exc:
@@ -950,7 +1014,10 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'maestro': medir_selectiva(modelo, filas_maestro, modelo.umbral) if filas_maestro else None}
     decide = 'maestro' if (completa.get('puerta_ordenes') or {}).get('conjunto') == ordenes_maestro_085.ORIGEN else 'humanas'
     # Lo que cuenta la de todas (humanas, conjunto que decide) se conserva; el veredicto es el de la selectiva.
-    decision = {**completa, **decidir_selectiva(selectiva, decide, sinteticas, en_uso, rechazo),
+    # 069:RF-39: la medida de las humanas que se informa (fuera de grupo con validación cruzada) frente al modelo en uso.
+    medidor_humanas = validacion.medida if validacion is not None and validacion.medida is not None else modelo
+    no_regresion = no_regresion_humanas(medidor_humanas, filas_humanas, en_uso)
+    decision = {**completa, **decidir_selectiva(selectiva, decide, sinteticas, en_uso, rechazo, no_regresion),
                 'puerta_completa': {k: completa.get(k) for k in ('status', 'gates', 'fallos')}}
     if validacion is not None:
         decision['tareas_sin_independencia'] = {t: d['motivo'] for t, d in validacion.por_tarea.items()     # 075:RF-26

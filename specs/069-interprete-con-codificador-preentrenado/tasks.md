@@ -23,5 +23,8 @@
       Hecho cuando: `tests/test_puerta_selectiva.py` (069:RF-35, RF-36) en verde.
 - [x] T11 Umbral de ejecución con el límite inferior de Wilson. (RF-37)
       Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-37) en verde.
+- [x] T12 Puerta de no regresión sobre las humanas frente al modelo en uso, con McNemar exacto. (RF-38 a RF-40)
+      Hecho cuando: `tests/test_no_regresion_humanas.py` (069:RF-38 a RF-40) en verde, con el caso de reg-75fdd605
+      (43 humanas, 41 frente a 32) RECHAZADO y una diferencia de una orden sin bloquear.
 - [ ] T7 Que un candidato pase todas las puertas, sin ajustar nada mirando la prueba ya medida.
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.
