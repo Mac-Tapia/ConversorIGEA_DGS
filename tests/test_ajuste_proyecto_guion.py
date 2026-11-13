@@ -160,9 +160,9 @@ def test_consigna_de_la_fuente_en_los_dos_casos(guion):
 
 
 def test_consigna_de_la_fuente_tambien_en_el_caso_base(guion):
-    """063:RF-29 — SM218 (2026-11-01): la fuente a 1,02 p.u. en «Caso base», «Sin proyecto» y «Con
-    proyecto» («Cargas nuevas» la hereda del escenario de «Sin»); las dos llamadas de la
-    calibración pasan el «Caso base»."""
+    """063:RF-29, 086:RF-88 — SM218 (2026-11-01): la fuente a 1,02 p.u. en «Caso base», «Sin proyecto» y «Con
+    proyecto»; las dos llamadas de la calibración pasan el «Caso base» y, desde PA217 (2026-11-12), también
+    «Cargas nuevas», que ya no hereda la consigna hasta la siguiente inserción."""
     import inspect
     from types import SimpleNamespace
 
@@ -183,7 +183,8 @@ def test_consigna_de_la_fuente_tambien_en_el_caso_base(guion):
     guion.fijar_consigna_de_la_fuente(app, 1.02, casos)
     assert all(x.usetp == 1.02 for x in xnet.values()) and app.activo is casos[0]
     fuente = inspect.getsource(guion)
-    assert fuente.count("caso_del_sistema(app, 'base', anio)]") == 2
+    assert fuente.count("[sin, con, caso_del_sistema(app, 'base', anio),") == 2
+    assert fuente.count('caso_cargas_nuevas(app, anio)]') == 2
 
 
 def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):

@@ -1,6 +1,6 @@
 # ConverterSmartGrid 1.0.0 — notas de la versión
 
-Notas para la etiqueta `v1.0.0`. Recogen solo lo integrado en la rama `trabajo/puerta-por-ramas` hasta `375200ae`; cada punto lleva
+Notas para la etiqueta `v1.0.0`. Recogen solo lo integrado en la rama `trabajo/puerta-por-ramas` hasta `ee1151f3`; cada punto lleva
 el commit que lo trae. La publicación la ordena el usuario (086 T34): estas notas no la fechan.
 
 ## Qué hace
@@ -43,6 +43,8 @@ continuo), pronóstico por modelos y las preguntas del asistente sobre el códig
   silencio; no reutiliza la carpeta de una instalación anterior que está en la temporal de Windows o que ya no tiene el programa;
   tras «Cargar perfil», la web enseña el sistema de coordenadas del perfil sin recargar; «DIgSILENT» bien escrito; los avisos de
   salida a la red dicen «al» y «del»; y «Recalibrar» vuelve a leer los libros de medición cuando cambian (`f7110865`).
+- La copia de los datos guarda cada fichero físico una vez, aunque tenga varios nombres; reintenta ante un destino que se
+  bloquea y se hace también desde la web, con «Hacer una copia ahora» (086:RF-78 a RF-86, `ee1151f3`).
 - Fondo de mapa con calles y satélite en la vista previa, con un interruptor en «Opciones de conversión» que el equipo recuerda;
   apagado salvo que se encienda, porque sale a internet (`9b33b85a`).
 - Cada aviso de un trabajo fallido, cancelado o interrumpido sale en el paso de la web que lo lanzó, con «Ver su registro», «Dar por
@@ -77,10 +79,6 @@ continuo), pronóstico por modelos y las preguntas del asistente sobre el códig
 - Un dataset de demanda interrumpido ya no se queda en «regenerando»: se avisa y se retoma. El lector reconoce libros de clientes
   sin títulos por el contenido de sus columnas, avisa de cada libro que no sabe leer y deja confirmar un formato nuevo (`375200ae`).
 - Evidencia de la suite completa sin omitidas sobre el rc5 (`ee5befb6`).
-
-**No incluido en esta revisión.** La copia de los datos sin duplicados y el botón «Hacer una copia ahora» de la web (086:RF-78 a
-RF-86) estaban en curso en otra rama y no figuran en `375200ae`. Si se integran antes de etiquetar, hay que añadirlos aquí con su
-commit.
 
 ## Requisitos
 

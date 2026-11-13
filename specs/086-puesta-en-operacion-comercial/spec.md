@@ -235,6 +235,23 @@ enlaces duros y que bloquea un fichero mientras lo sincroniza. Amplía RF-10 y R
   (VNR-GIS, los reintentos de la vigilancia).
 - Aclaración de RF-74 (2026-11-12): la copia ya tiene botón en la web (RF-85); la orden del manual sigue sirviendo.
 
+### Variaciones y casos del conversor por su marca, también en una copia del proyecto (2026-11-12)
+
+En la copia PRUEBA064_184942 de PA217, la calibración buscaba `Fichas_PRUEBA064_184942` y, al no hallarla, creaba otra
+junto a la `Fichas_<original>` que traía la copia; la restitución de la 064 no la deshacía en «Con proyecto». Y, como
+«Cargas nuevas» solo se rehace al insertar una carga (025:RF-79), al recalibrar se quedó con la fuente a 1,025 p.u.
+mientras los demás casos pasaban a 1,0278.
+
+- RF-87: CUANDO la calibración graba fichas de conductores o transformadores en un proyecto que ya trae una variación
+  del conversor con ese prefijo (`Fichas_`, `SED_NTP_`), EL SISTEMA grabará en ella aunque su nombre sea el de otro
+  proyecto, y creará la del proyecto solo si no hay ninguna. La reconocerá por la marca del conversor en su
+  descripción, que pone al crearla o al reutilizarla, y, en las creadas antes de la marca, por la etapa que crea el
+  conversor (`Etapa_fichas`, `Etapa_sed_ntp`); nunca solo por el prefijo. SI una variación con ese prefijo no es del
+  conversor, ENTONCES no la tocará y lo avisará; SI hay más de una del conversor, ENTONCES no elegirá ninguna, lo
+  avisará y grabará en la del proyecto.
+- RF-88: CUANDO la calibración fija la consigna de la fuente, EL SISTEMA la fijará también en el caso «Cargas nuevas»
+  del sistema de ese año, hallado por su nombre y su marca, y seguirá sin error si ese caso no existe.
+
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.

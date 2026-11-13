@@ -66,7 +66,7 @@ from cargas_pf import (
     unidades_del_proyecto,
 )
 from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
-from casos_pf import anio_del_plan, nombre_caso
+from casos_pf import anio_del_plan, caso_cargas_nuevas, nombre_caso
 from casos_pf import caso as caso_del_sistema
 import transferencia_operador_pf as transferencia_pf
 
@@ -1021,9 +1021,11 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
     from convertersmartgrid.trafos_sed import nombre_tipo
 
     variacion = None
+    avisos: list[str] = []
     if cambios:
         try:
-            variacion, _creada = variacion_grabando(app, f'{PREFIJO_SED_NTP}{proyecto}', 'sed_ntp')
+            variacion, _creada = variacion_grabando(app, nombre_de_la_propia(app, PREFIJO_SED_NTP, proyecto, avisos),
+                                                    'sed_ntp')
         except RuntimeError as exc:
             return {'error': f'Los transformadores no se pudieron escribir: {exc} (032:RF-8).',
                     'cambios': [], 'omitidas': []}
@@ -1080,7 +1082,7 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
                        'despues': {'tipo': nombre, 'kva': p['kva'], 'unidades': int(p['unidades']),
                                    'norma': p.get('norma')}})
     return {'cambios': hechos, 'omitidas': omitidas, 'sin_cambio': sin_cambio,
-            'variacion': getattr(variacion, 'loc_name', None)}
+            'variacion': getattr(variacion, 'loc_name', None), 'avisos': avisos}
 
 
 def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: dict,
@@ -1688,6 +1690,75 @@ def variacion_propia(app, nombre: str):
                  if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
 
 
+#: La etapa que ``cargas_pf.crear_variacion`` pone en cada variación del conversor de ese prefijo: es la firma de las
+#: creadas antes de la marca (086:RF-87).
+ETAPA_DE_PREFIJO = {PREFIJO_FICHAS: 'fichas', PREFIJO_SED_NTP: 'sed_ntp'}
+
+
+def _rol_de_variacion(prefijo: str) -> str:
+    """La marca de una variación del conversor en su ``desc``, como la de los casos (``casos_pf.rol_de``)."""
+    return f'variacion:{prefijo}'
+
+
+def _tiene_etapa_del_conversor(variacion, prefijo: str) -> bool:
+    """Sin marca: ¿lleva la etapa ``Etapa_<etiqueta>`` que crea el conversor? Una hecha a mano no la lleva."""
+    from cargas_pf import nombre_pf
+
+    etiqueta = ETAPA_DE_PREFIJO.get(prefijo)
+    if etiqueta is None:
+        return False
+    etapa = nombre_pf(f'Etapa_{etiqueta}')
+    contenido = getattr(variacion, 'GetContents', None)
+    etapas = (contenido('*.IntSstage') or []) if contenido is not None else []
+    return any(s.loc_name == etapa or s.loc_name.startswith(etapa + '(') for s in etapas)
+
+
+def marcar_variacion_del_conversor(variacion, prefijo: str) -> None:
+    """Deja la marca del conversor en la variación (086:RF-87); si DIgSILENT no la acepta, no falla: la reconoce su etapa."""
+    from casos_pf import _marcar, rol_de
+
+    try:
+        if rol_de(variacion) != _rol_de_variacion(prefijo):
+            _marcar(variacion, _rol_de_variacion(prefijo))
+    except Exception:  # noqa: BLE001 - la marca ayuda a reconocerla; sin ella queda su etapa como firma
+        pass
+
+
+def nombre_de_la_propia(app, prefijo: str, proyecto: str, avisos: list | None = None) -> str:
+    """El nombre de la variación del conversor con ese prefijo: la del proyecto, o la que ya trae (086:RF-87).
+
+    Copia PRUEBA064_184942 de PA217 (2026-11-12): la copia trae ``Fichas_<original>`` y la calibración, que buscaba
+    ``Fichas_PRUEBA064_184942``, creaba otra al lado; la restitución de la 064 no la deshacía en «Con proyecto».
+    Se reconoce por su marca del conversor (la de los casos, en ``desc``) y, en las creadas antes de la marca, por la
+    etapa que crea el conversor; nunca solo por el prefijo, porque una ``Fichas_prueba`` hecha a mano por el operador
+    se tomaría por la del conversor y se grabaría dentro (sus cambios se avisan, nunca se tocan). Si hay varias, no
+    se elige ninguna: el orden alfabético no dice cuál es la vigente en una copia de una copia; se avisa y se graba
+    en la del proyecto.
+    """
+    from casos_pf import rol_de
+
+    propio = f'{prefijo}{proyecto}'
+    if variacion_propia(app, propio) is not None:
+        return propio
+    carpeta = app.GetProjectFolder('scheme')
+    candidatas = [v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []) if v.loc_name.startswith(prefijo)]
+    marcadas = [v for v in candidatas if rol_de(v) == _rol_de_variacion(prefijo)]
+    elegibles = marcadas or [v for v in candidatas if _tiene_etapa_del_conversor(v, prefijo)]
+    nombres = sorted({v.loc_name.split('(')[0] for v in elegibles})
+    ids = {id(v) for v in elegibles}
+    ajenas = sorted(v.loc_name for v in candidatas if id(v) not in ids)
+    if ajenas and avisos is not None:
+        avisos.append(f'{", ".join(ajenas)} empieza por «{prefijo}» pero no es una variación del conversor: no se toca '
+                      '(086:RF-87).')
+    if len(nombres) == 1:
+        return nombres[0]
+    if len(nombres) > 1 and avisos is not None:
+        avisos.append(f'Hay varias variaciones del conversor con «{prefijo}» ({", ".join(nombres)}) y no se sabe cuál es '
+                      f'la vigente: no se elige ninguna y se graba en {propio}. Desactive o borre las que sobran '
+                      '(086:RF-87).')
+    return propio
+
+
 def _etapa_ajena(app):
     """La etapa que graba si no es de una variación del conversor (032:RF-12), o ``None``."""
     from convertersmartgrid.escaneo import origen_de
@@ -1789,9 +1860,15 @@ def variacion_grabando(app, nombre: str, etiqueta: str):
 
     nombre = nombre_pf(nombre)
     variacion = variacion_propia(app, nombre)
+    # 086:RF-87: la marca del conversor, al crearla y en las de antes de la marca, para reconocerla en sus copias.
+    prefijo = next((p for p in ETAPA_DE_PREFIJO if nombre.startswith(p)), None)
     if variacion is None:
         variacion, _etapa = crear_variacion(app, nombre, etiqueta)
+        if prefijo is not None:
+            marcar_variacion_del_conversor(variacion, prefijo)
         return variacion, True
+    if prefijo is not None:
+        marcar_variacion_del_conversor(variacion, prefijo)
     if not any(_misma(v, variacion) for v in (app.GetActiveNetworkVariations() or [])):
         variacion.Activate()
     etapas = sorted(variacion.GetContents('*.IntSstage') or [],
@@ -1883,14 +1960,17 @@ def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
     por_hacer = [x for x in pendientes
                  if x[2] is None or any(ln.typ_id is not x[2] for ln in x[4])]
     if not por_hacer:
-        variacion = variacion_propia(app, f'{PREFIJO_FICHAS}{proyecto}')
+        variacion = variacion_propia(app, nombre_de_la_propia(app, PREFIJO_FICHAS, proyecto,
+                                                              out.setdefault('avisos_variacion', [])))
         out['variacion'] = getattr(variacion, 'loc_name', None)
         return out
     # RF-12: con la etapa del operador grabando (sus tramos y ternas a mano), los conductores
     # se graban en «Fichas_» y la grabación vuelve a la suya; antes no se cambiaba nada.
     ajena = _etapa_ajena(app)
     try:
-        variacion, creada = variacion_grabando(app, f'{PREFIJO_FICHAS}{proyecto}', 'fichas')
+        variacion, creada = variacion_grabando(app, nombre_de_la_propia(app, PREFIJO_FICHAS, proyecto,
+                                                                        out.setdefault('avisos_variacion', [])),
+                                               'fichas')
         out['variacion'], out['variacion_creada'] = variacion.loc_name, creada
         for base, destino, existente, nuevos, lns in por_hacer:
             tipo = existente
@@ -1965,6 +2045,7 @@ def _conductores_con_ficha(app, plan: dict, feeders: list[str], alims, informes:
             inf['avisos'].append(r['error'])
         if r.get('aviso_grabacion'):
             inf['avisos'].append(r['aviso_grabacion'])
+        inf['avisos'].extend(r.get('avisos_variacion') or [])                     # 086:RF-87
         if not r.get('error') and r.get('cambios'):
             codigos = sorted({c['codigo'] for c in r['cambios']})
             inf['avisos'].append(
@@ -2754,10 +2835,11 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     tension = tension_del_plan(plan)                                    # 021:RF-61, RF-79
     if tension and not simular:
         # 063:RF-29: también el «Caso base» (usuario, 2026-11-01: «en caso base, caso con cargas y
-        # caso con proyecto, fuente a 1,02 p.u.»); «Cargas nuevas» la hereda del escenario de «Sin».
+        # caso con proyecto, fuente a 1,02 p.u.»). 086:RF-88: también «Cargas nuevas», que desde la 025:RF-79 solo se
+        # rehace al insertar una carga: PA217 (2026-11-12) se quedó a 1,025 p.u. con la fuente ya en 1,0278.
         consigna = consigna_por_fuente({feeder: tension}, {feeder: _clave_de_cabecera(elm)})
         informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
-            app, consigna, [sin, con, caso_del_sistema(app, 'base', anio)])
+            app, consigna, [sin, con, caso_del_sistema(app, 'base', anio), caso_cargas_nuevas(app, anio)])
         informe['tension_fuente'] = {**tension, 'texto': origen_de_la_tension(tension)}     # 021:RF-83
         informe['avisos'] += list(consigna.avisos)
         escenario = app.GetActiveScenario()
@@ -3860,7 +3942,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     # 021:RF-61, RF-79, RF-81: cada fuente con la consigna de los alimentadores que salen de su barra.
     tensiones = {p['feeder']: t for p in validos if (t := tension_del_plan(p))}
     por_fuente = consigna_por_fuente(tensiones, {f: _clave_de_cabecera(alims.elm.get(f)) for f in tensiones})
-    consigna = (fijar_consigna_de_la_fuente(app, por_fuente, [sin, con, caso_del_sistema(app, 'base', anio)])
+    consigna = (fijar_consigna_de_la_fuente(app, por_fuente, [sin, con, caso_del_sistema(app, 'base', anio),
+                                                              caso_cargas_nuevas(app, anio)])   # 086:RF-88
                 if tensiones else [])                                    # 063:RF-29
     _huella_antes(app, estado, anio)                                     # 086:RF-14
     escenario = app.GetActiveScenario()

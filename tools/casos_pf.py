@@ -576,6 +576,14 @@ def nombre_cargas_nuevas(anio: int | None = None) -> str:
     return f'{NOMBRE_CARGAS} {anio}' if anio else NOMBRE_CARGAS
 
 
+def caso_cargas_nuevas(app, anio: int | None = None):
+    """El caso «Cargas nuevas» del sistema para ese año, por su nombre y su marca, o ``None`` (037:RF-4, 086:RF-88)."""
+    carpeta = app.GetProjectFolder('study')
+    clave = _clave(ROL_CARGAS, anio)
+    return next((c for c in (carpeta.GetContents('*.IntCase') if carpeta else [])
+                 if c.loc_name == nombre_cargas_nuevas(anio) and rol_de(c) == clave), None)
+
+
 def _escenario_renovado(app, caso, nombre: str, origen) -> str:
     """El escenario de ``caso``, copia nueva de ``origen`` (025:RF-62).
 

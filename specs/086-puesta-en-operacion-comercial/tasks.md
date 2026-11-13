@@ -210,6 +210,11 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 - [x] T60 «Hacer una copia ahora» en el aviso general, con la carpeta recordada en `config/copia_datos.json`, y la copia
       como trabajo `copia_datos` con progreso y cancelación. (RF-85, RF-86)
       Hecho cuando: `tests/test_copia_datos.py` (086:RF-85, RF-86) y `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-85) en verde.
+- [x] T61 La calibración reutiliza la `Fichas_`/`SED_NTP_` del conversor que trae una copia del proyecto, reconocida por su
+      marca y no por el prefijo (una del operador no se toca; con varias se avisa), y la consigna de la fuente
+      llega también a «Cargas nuevas». (RF-87, RF-88)
+      Hecho cuando: `tests/test_variaciones_por_marca.py` (086:RF-87, RF-88) y `tests/test_ajuste_proyecto_guion.py`
+      (086:RF-88) en verde; la corrida en DIgSILENT sobre una copia de PA217 va en la T32.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.
