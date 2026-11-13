@@ -137,6 +137,35 @@ Modelos
 - RF-92: DONDE una red no quepa en la GPU con el lote pedido, EL SISTEMA le pondrá su tope de lote y lo dirá en el código, en vez de dejarla en `ERROR_ENTORNO` en cada corrida. (2026-11-12: TFT, con 28 días de contexto y de horizonte, no cupo en 4,8 GB ni con lote 4; con lote 1 entrena con 3 GiB.)
 - RF-93: CUANDO entrene iTransformer, EL SISTEMA lo hará sin el escalado de la librería, porque el resto ya va dividido por la escala de su objetivo. (2026-11-12: con el escalado robusto, las series sin datos en la ventana dieron «Loss is NaN».)
 
+- RF-94 a RF-106: no se usan en esta rama: los define la T10 de la rama `trabajo/pronostico-reanudable` (d020d13b); al
+  fusionarla, esta línea se quita.
+
+### Libros de clientes de formas nuevas (2026-11-13)
+
+El dataset de 2026-11-12 apartó «0225 Pulso e.xlsx» y «0625 Pulso.xlsx» con «sin maestro_lib ni hojas con SUMINISTRO,
+FECHA, HORA y EA». Al guardarse perdieron todo su texto: su tabla de textos compartidos solo conserva los títulos de
+«resumen»; en las hojas de cada cliente no quedan «día, hora» ni «EA, ERI, ERC, Pot», y la hora vale 0. Los números
+sí: el día, la energía de lectura y por su factor, y Pot = 4 × EA. El lector solo reconocía las columnas por su nombre
+exacto. El mes ya lo daban la carpeta del año y el nombre (104:RF-27); el traspaso del 2026-11-12 lo daba por fallo.
+
+- RF-107: SI una hoja de un cliente no trae títulos, ENTONCES EL SISTEMA reconocerá sus columnas por su contenido: el
+  día, la columna de enteros desde 1 en tramos iguales que parten el día; EA y Pot, el par con Pot = (registros por hora)
+  × EA en el 95 % de los registros con energía; y la hora, una columna con horas o, si no la hay, la posición del
+  registro en su día.
+- RF-108: EL SISTEMA reconocerá las columnas de las hojas de un cliente (suministro, fecha, hora, día, EA, ERI y Pot) por
+  sus sinónimos: los genéricos y, delante, los del fichero de alias de la empresa.
+- RF-109: CUANDO lee hojas por su contenido o no reconoce su formato, EL SISTEMA lo dirá una vez por libro y formato,
+  con el número de hojas, lo reconocido, lo que falta y la huella del formato; una hoja sin ninguna medida se dice como
+  sin energía.
+- RF-110: CUANDO el operador confirma las columnas de un formato, EL SISTEMA guardará la regla con su huella en la fuente
+  de clientes del espacio y la aplicará a todo libro con esa huella sin volver a preguntar.
+- RF-111: SI el nombre de un libro no da su mes, ENTONCES EL SISTEMA lo tomará de sus fechas y, si no las trae, del
+  nombre de sus hojas dentro del año de su carpeta.
+- RF-112: SI las fechas de un libro son de otro mes que el de su nombre, ENTONCES EL SISTEMA usará el de las fechas y lo
+  dirá, con los dos meses.
+- RF-113: SI un libro «día, hora» trae energía en más días de los que tiene el mes de su nombre, ENTONCES EL SISTEMA lo
+  apartará con ese motivo y pedirá su mes.
+
 ## Fuera de alcance
 
 La proyección a años con variables exógenas, que necesita al menos un año completo y sigue en la 031; las curvas propias de fijas y escaladas en los sorteos de obras, que tocan `obras_pf` y `entrega-087q`; descargar temperatura; corregir el desfase de relojes; PBI y población; panel en la web. Los umbrales de RF-18, RF-20, RF-22, RF-24, RF-34 y RF-36 son propuesta, sin confirmar por el usuario.

@@ -133,6 +133,10 @@ class Fuentes:
     #: Solo estos alimentadores (031:RF-13): los libros de una empresa pesan cientos de MB, y proyectar un sistema no
     #: exige leer los clientes de los demás.
     alimentadores: Sequence[str] | None = None
+    #: 089:RF-108: los sinónimos de columnas de la empresa (``config/demanda_medida_alias.json``); None, los genéricos.
+    alias: Mapping[str, Sequence[str]] | None = None
+    #: 089:RF-110: las reglas de formato que confirmó el operador, por la huella de cada formato.
+    formatos: Mapping[str, Mapping[str, int]] | None = None
 
 
 @dataclass(frozen=True)
@@ -519,8 +523,20 @@ def apoyar(base: Curva, apoyo: Curva) -> tuple[list, dict]:
     return [*sorted(anteriores, key=lambda f: f[0]), *base], {**info, 'usado': bool(anteriores)}
 
 
+def _mes_dominante(compactas: Mapping[str, CurvaCompacta]) -> str | None:
+    """089:RF-112: el mes con más registros del libro; el último registro de un mes («día 1, 00:00») no lo cambia."""
+    if not compactas:
+        return None
+    meses = np.concatenate([c.t.astype('datetime64[M]') for c in compactas.values() if len(c.t)] or [np.array([], 'datetime64[M]')])
+    if not len(meses):
+        return None
+    valores, cuentas = np.unique(meses, return_counts=True)
+    return str(valores[int(np.argmax(cuentas))])[:7]
+
+
 def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None, canonico: Callable[[str], str] = lambda c: c,
-                        avance: Callable[[int, int, str], None] | None = None, apartar_copias: bool = True):
+                        avance: Callable[[int, int, str], None] | None = None, apartar_copias: bool = True,
+                        alias=None, formatos: Mapping[str, Mapping[str, int]] | None = None):
     """Las curvas de cada cliente en todos los libros. Dos valores de un instante no se eligen (046:RF-12).
 
     ``avance(i, n, libro)`` antes de abrir cada libro: la evolución de los clientes fijos lo usa para su progreso y para
@@ -528,7 +544,10 @@ def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None,
 
     `apartar_copias`: el dataset del pronóstico deja fuera el libro que repite el mes anterior (104:RF-26); la evolución de
     los clientes fijos lo necesita dentro para marcarlo «copia de» y sacarlo solo del crecimiento (105:RF-5).
+
+    `alias` y `formatos`: los sinónimos de columnas de la empresa y las reglas de formato confirmadas (089:RF-108, RF-110).
     """
+    alias = ALIAS if alias is None else alias
     trozos: dict[str, list[CurvaCompacta]] = {}
     de_libro: dict[str, list[str]] = {}
     contradictorios: dict[str, str] = {}
@@ -539,12 +558,19 @@ def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None,
     for i, (libro, mes) in enumerate(libros):
         if avance is not None:
             avance(i, len(libros), libro.name)
-        curvas, notas = curvas_de_clientes(libro, codigos, mes=mes)
-        if not curvas and not codigos:
+        curvas, notas = curvas_de_clientes(libro, codigos, mes=mes, alias=alias, formatos=formatos)
+        # 089:RF-113: un libro que no se usa se aparta con su motivo también cuando se piden unos códigos.
+        if not curvas and (not codigos or any('no se usa' in n for n in notas)):
             # Un mes que no se puede leer no se calla: el objetivo tendría un hueco sin explicar.
             apartados.append({'objetivo': f'libro:{libro.name}', 'motivo': '; '.join(notas) or 'sin curvas de clientes'})
         compactas = {codigo: CurvaCompacta.desde(curva) for codigo, curva in curvas.items()}
         del curvas
+        de_datos = _mes_dominante(compactas)
+        if mes and de_datos and de_datos != mes:
+            # 089:RF-112: las fechas son el dato medido; el nombre lo pone una persona. Manda la fecha y se dice.
+            notas = [*notas, f'{libro.name}: el nombre dice {nombre_de_mes(mes)} y sus fechas son de '
+                             f'{nombre_de_mes(de_datos)}: manda la fecha, que es lo medido (089:RF-112).']
+            mes = de_datos
         if apartar_copias and mes and previo is not None and previo[0] == mes_anterior(mes) and compactas:
             # 104:RF-26: abril de 2026 repetía marzo registro a registro; entraba como dato bueno.
             if repite_otro_mes(compactas, previo[1])['repite']:
@@ -708,14 +734,19 @@ def armar_dataset(fuentes: Fuentes) -> Dataset:
         fichas += [_ficha_de_libro(p) for p, _m in libros]
         canonico, radiales = _renumeracion(fuentes.suministros)
         codigos = None if pedidos is None else _codigos_de(fuentes.suministros, pedidos)
-        por, de_libro, contradictorios, avisos_cli, ap = _curvas_por_cliente(libros, codigos, canonico=canonico)
+        por, de_libro, contradictorios, avisos_cli, ap = _curvas_por_cliente(
+            libros, codigos, canonico=canonico, alias=fuentes.alias, formatos=fuentes.formatos)
         apartados += ap
+        # 089:RF-109: lo que se dice de un libro entero (su formato, su mes) no es de ningún cliente: va a los avisos.
+        nombres_de_libros = {p.name for p, _m in libros}
+        avisos += [n for clave, notas in avisos_cli.items() if clave in nombres_de_libros for n in notas]
         por_apoyo: dict[str, dict] = {}
         if fuentes.apoyo_clientes:
             libros_apoyo, sin_uso = _libros_con_mes(fuentes.apoyo_clientes, fuentes.patron_clientes)
             avisos += sin_uso
             fichas += [_ficha_de_libro(p) for p, _m in libros_apoyo]
-            por_apoyo = _curvas_por_cliente(libros_apoyo, codigos, canonico=canonico)[0]
+            por_apoyo = _curvas_por_cliente(libros_apoyo, codigos, canonico=canonico, alias=fuentes.alias,
+                                            formatos=fuentes.formatos)[0]
         for codigo, serie in por.items():
             if codigo in contradictorios:
                 # 089:RF-74: fuera como objetivo, pero su carga sigue en el alimentador.
@@ -1597,9 +1628,17 @@ def regenerar_dataset(fuentes: Fuentes, carpeta: Path | str) -> dict[str, Any]:
     dataset = armar_dataset(fuentes)
     huella = guardar_dataset(dataset, carpeta)
     perfil = perfil_del_dataset(dataset)
+    # 104:RF-47: cada libro apartado con su nombre y su motivo, y lo dicho de cada libro, para el aviso de la web;
+    # antes solo quedaba la cuenta por motivo en «motivos_apartados», que nadie abría.
+    libros_apartados = [{'libro': a['objetivo'].split(':', 1)[1], 'motivo': a['motivo']} for a in dataset.apartados
+                        if str(a.get('objetivo', '')).startswith('libro:')]
+    from .libros_por_anio import EXTENSIONES
+
+    avisos_de_libros = [a for a in dataset.avisos if Path(a.split(':', 1)[0]).suffix.lower() in EXTENSIONES]
     return {'huella': huella, 'objetivos': perfil['objetivos'], 'registros': perfil['registros'],
             'apartados': perfil['apartados'], 'motivos_apartados': perfil['motivos_apartados'],
-            'ultimo_dato': dataset.ultimo_dato, 'por_clase': perfil['por_clase'], 'avisos': list(dataset.avisos)[:50]}
+            'ultimo_dato': dataset.ultimo_dato, 'por_clase': perfil['por_clase'], 'avisos': list(dataset.avisos)[:50],
+            'libros_apartados': libros_apartados, 'avisos_de_libros': avisos_de_libros}
 
 
 def abrir_dataset(carpeta: Path | str, exogenas: Exogenas | None = None) -> Dataset:

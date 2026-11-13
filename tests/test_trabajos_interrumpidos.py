@@ -83,12 +83,12 @@ def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False, antes_anotar=Fa
 def test_identidad_incompleta_de_un_pid_real_muerto_no_bloquea():
     """096:RF-6 — primero comprobar muerte: la ausencia de fecha no mantiene vivo un PID que ya no existe."""
     import psutil
-    from convertersmartgrid.web.jobs import _proceso_pendiente
+    from convertersmartgrid.web.jobs import proceso_pendiente
 
     proceso = subprocess.Popen([sys.executable, '-c', 'pass'])
     proceso.wait(10)
     assert not psutil.pid_exists(proceso.pid)
-    assert not _proceso_pendiente({'pid': proceso.pid, 'inicio': None})
+    assert not proceso_pendiente({'pid': proceso.pid, 'inicio': None})
 
 
 @pytest.mark.parametrize('motor', [False, True], ids=['guion', 'motor'])
@@ -346,14 +346,14 @@ def test_relanzar_real_es_reintentable_y_exclusivo(tmp_path, monkeypatch, concur
 def test_identidad_ambigua_bloquea_y_pid_reutilizado_no_bloquea():
     """096:RF-6 — una fecha ilegible no autoriza repetir ni enviar señales a ese PID."""
     import psutil
-    from convertersmartgrid.web.jobs import _proceso_pendiente
+    from convertersmartgrid.web.jobs import proceso_pendiente
 
     inicio = psutil.Process(os.getpid()).create_time()
-    assert _proceso_pendiente({'pid': os.getpid(), 'inicio': inicio})
-    assert not _proceso_pendiente({'pid': os.getpid(), 'inicio': inicio - 100})
+    assert proceso_pendiente({'pid': os.getpid(), 'inicio': inicio})
+    assert not proceso_pendiente({'pid': os.getpid(), 'inicio': inicio - 100})
     for identidad in ({'pid': os.getpid(), 'inicio': None}, {'pid': os.getpid(), 'inicio': 'ilegible'},
                       {'pid': os.getpid()}, {'pid': -1, 'inicio': inicio}):
-        assert _proceso_pendiente(identidad)
+        assert proceso_pendiente(identidad)
 
 
 @pytest.mark.parametrize('rechazar', [False, True], ids=['esperar-hijo', 'sin-bucle-invalido'])

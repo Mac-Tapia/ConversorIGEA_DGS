@@ -24,7 +24,9 @@ genéricos y, delante, los que traiga la empresa en ``config/demanda_medida_alia
 from __future__ import annotations
 
 import bisect
+import calendar
 import copy
+import hashlib
 import json
 import math
 import re
@@ -69,6 +71,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'ea': ('ea', 'ea total', 'energia activa'),
     'eri': ('eri', 'eri total', 'energia reactiva inductiva'),
     'pot': ('pot max', 'pot', 'potencia maxima', 'potencia'),
+    # 089:RF-108: las columnas de las hojas de 15 minutos de un cliente; las de cada empresa, en su JSON de alias.
+    'dia': ('dia', 'day'),
+    'hora': ('hora', 'hour', 'time'),
     # 022:RF-37: las filas de barra del libro de medidores, con su nivel y sus siglas.
     'nivel': ('nivel tension', 'nivel de tension', 'tension kv', 'kv'),
     # 022:RF-85: la columna «SET» del libro (siglas, código o nombre de la SET).
@@ -105,6 +110,19 @@ def normalizar(texto: Any) -> str:
     t = unicodedata.normalize('NFKD', '' if texto is None else str(texto))
     t = ''.join(c for c in t if not unicodedata.combining(c)).casefold()
     return ' '.join(re.sub(r'[_\-.]+', ' ', t).split())
+
+
+# 002:RF-2/3: aquí y no en libros_nuevos, que importa este módulo: el aviso de los días de más del lector de
+# clientes (089:RF-113) lo necesita, y desde allí formaba un ciclo.
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+         'noviembre', 'diciembre')
+
+
+def nombre_de_mes(mes: str | None) -> str:
+    """«2026-10» → «octubre 2026»."""
+    if not mes or not re.fullmatch(r'\d{4}-\d{2}', mes):
+        return 'mes sin reconocer'
+    return f'{MESES[int(mes[5:]) - 1]} {mes[:4]}'
 
 
 def fp_decimal(valor: float | None) -> float | None:
@@ -201,7 +219,7 @@ class LibroClientesMes:
     #: Ruta relativa a la carpeta elegida («2025/0125 Pulso e.xlsx», 025:RF-3).
     nombre: str
     mes: str | None
-    origen_mes: Literal['nombre', 'contenido', 'manual', 'sin_mes']
+    origen_mes: Literal['nombre', 'contenido', 'hojas', 'manual', 'sin_mes']
     mtime_ns: int
     size: int
     activo: bool
@@ -452,7 +470,8 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
             # Sin mes en el nombre el libro se abre de todos modos: «0926 Clientes_spl.xlsx»
             # (el de suministros) tiene fechas de septiembre y se activaba como clientes de
             # ese mes. Sin hoja «resumen» no es de clientes (004:RF-65).
-            if not _hojas_resumen(abrir_libro(path).sheet_names):
+            hojas_del_libro = abrir_libro(path).sheet_names
+            if not _hojas_resumen(hojas_del_libro):
                 avisos = ('sin hoja «resumen»: no es un libro de clientes importantes '
                           '(¿es el de suministros?); no se usa.',)
             else:
@@ -466,6 +485,11 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] |
                                   if m in internos}
                     if len(candidatos) == 1:
                         mes, origen = candidatos.pop(), 'contenido'
+                if mes is None and anio is not None:
+                    # 089:RF-111: ni el fichero ni las filas lo dicen; el nombre de una hoja («resumen marzo») sí.
+                    de_hojas = {m for m in (mes_generico(h, anio) for h in hojas_del_libro) if m}
+                    if len(de_hojas) == 1:
+                        mes, origen = de_hojas.pop(), 'hojas'
                 if mes is None:
                     # 104:RF-29: no se calla. Sin mes, las hojas «día, hora» no se pueden fechar.
                     avisos = ('no se reconoce su mes ni por el nombre ni por sus fechas: sus hojas «día, hora» '
@@ -1770,22 +1794,237 @@ def _hojas_por_contenido(libro: Any, codigos: Iterable[str]) -> dict[str, str]:
     return hojas
 
 
-def _columnas_de_hoja(datos: Sequence[Sequence[Any]]) -> dict[str, int] | None:
-    """Las columnas del registro de un cliente, en sus dos disposiciones (083:RF-14).
+#: 089:RF-108: los campos de una hoja de cliente que se reconocen por sus sinónimos.
+CAMPOS_DE_HOJA = ('suministro', 'fecha', 'hora', 'dia', 'ea', 'eri', 'pot')
+
+
+def _nombres_de_campos(alias=ALIAS) -> dict[str, set[str]]:
+    """Por campo, sus nombres normalizados (los de la empresa delante, 089:RF-108). «hora» es de la hora: entre los
+    alias de la fecha está para los medidores, cuya única columna de tiempo a veces se llama así."""
+    nombres = {campo: {normalizar(x) for x in alias.get(campo, ALIAS.get(campo, ()))} for campo in CAMPOS_DE_HOJA}
+    nombres['hora'] |= {'hora'}
+    nombres['fecha'] -= nombres['hora']
+    nombres['dia'] |= {'dia'}
+    nombres['suministro'] |= {'suministro'}
+    return nombres
+
+
+def _campos_de_fila(fila: Sequence[Any], nombres: Mapping[str, set[str]]) -> dict[str, int]:
+    """``{campo: columna}`` de una fila de títulos; un título repetido vale en su última columna, como antes."""
+    campos: dict[str, int] = {}
+    for j, celda in enumerate(fila):
+        texto = normalizar(celda)
+        if not texto:
+            continue
+        for campo, conocidos in nombres.items():
+            if texto in conocidos:
+                campos[campo] = j
+                break
+    return campos
+
+
+def _columnas_de_hoja(datos: Sequence[Sequence[Any]], alias=ALIAS) -> dict[str, int] | None:
+    """Las columnas del registro de un cliente, en sus dos disposiciones (083:RF-14), por sus sinónimos (089:RF-108).
 
     La moderna: «FECHA, HORA, EA, ERI, POT». La de los libros .xlsb: «día, hora», con los datos ya por su factor de
     medición en el último grupo «EA, ERI, ERC, Pot» de la fila de arriba; el primero aún no lo lleva.
     """
+    nombres = _nombres_de_campos(alias)
     for i, fila in enumerate(datos[:FILAS_CABECERA]):
-        nombres = [normalizar(c) for c in fila]
-        if {'fecha', 'hora', 'eri', 'pot'} <= set(nombres):
-            return {n: j for j, n in enumerate(nombres)}
-        if i and {'dia', 'hora'} <= set(nombres):
+        campos = _campos_de_fila(fila, nombres)
+        if {'fecha', 'hora', 'eri', 'pot'} <= set(campos):
+            return campos
+        if i and {'dia', 'hora'} <= set(campos):
             arriba = [normalizar(c) for c in datos[i - 1]]
-            grupo = {n: max((j for j, x in enumerate(arriba) if x == n), default=None) for n in ('ea', 'eri', 'pot')}
+            grupo = {n: max((j for j, x in enumerate(arriba) if x in nombres[n]), default=None)
+                     for n in ('ea', 'eri', 'pot')}
             if None not in grupo.values():
-                return {'dia': nombres.index('dia'), 'hora': nombres.index('hora'), **grupo}
+                return {'dia': campos['dia'], 'hora': campos['hora'], **grupo}
     return None
+
+
+# --------------------------------------------------------------------------- esquema por contenido (089:RF-107)
+#: Registros por día que se aceptan al deducir el día de una hoja sin títulos: los que parten el día en minutos enteros.
+_REGISTROS_POR_DIA = (24, 48, 96, 144, 288)
+#: Parte de los registros con energía que debe cumplir Pot = (registros por hora) × EA para tomar ese par.
+_RELACION_MINIMA = 0.95
+_FILAS_CON_ENERGIA_MINIMAS = 10
+_ETIQUETAS_CAMPO = {'dia': 'día', 'hora': 'hora', 'ea': 'EA', 'eri': 'ERI', 'pot': 'Pot'}
+
+
+def _letra(j: int) -> str:
+    letras = ''
+    j += 1
+    while j:
+        j, r = divmod(j - 1, 26)
+        letras = chr(65 + r) + letras
+    return letras
+
+
+def _es_numero(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _tramos_de_dia(datos: Sequence[Sequence[Any]], j: int) -> tuple[int, int] | None:
+    """``(fila de inicio, registros por día)`` si la columna ``j`` es un día: enteros desde 1, sin bajar, de uno en uno,
+    en tramos iguales que parten el día. Lo que sigue al último tramo (totales, filas vacías) no cuenta."""
+    inicio = next((i for i, f in enumerate(datos) if _es_numero(_celda(f, j)) and _celda(f, j) == 1), None)
+    if inicio is None:
+        return None
+    tramos: list[int] = []
+    previo, n = 1, 0
+    for f in datos[inicio:]:
+        v = _celda(f, j)
+        if not _es_numero(v) or not float(v).is_integer():
+            break
+        v = int(v)
+        if v == previo:
+            n += 1
+        elif v == previo + 1 and v <= 31:
+            tramos.append(n)
+            previo, n = v, 1
+        else:
+            break
+    tramos.append(n)
+    completos = tramos[:-1] or tramos
+    if len(completos) < 1 or len(set(completos)) != 1 or completos[0] not in _REGISTROS_POR_DIA:
+        return None
+    if tramos[-1] > completos[0]:
+        return None
+    return inicio, completos[0]
+
+
+def _par_energia_potencia(filas: Sequence[Sequence[Any]], excluir: set[int], k: float) -> tuple[int, int] | None:
+    """``(EA, Pot)``: Pot = k × EA en casi todos los registros con energía (k = registros por hora: la demanda media del
+    intervalo). De varios pares, el de EA con más registros con energía: las columnas de punta y fuera de punta («0225
+    Pulso e», P a Y) cumplen la misma relación con ceros en las horas del otro periodo. A igualdad, la primera Pot y, con
+    ella, la EA más cercana a su izquierda: el grupo «EA, ERI, ERC, Pot» ya por su factor de medición (083:RF-14)."""
+    ancho = max((len(f) for f in filas), default=0)
+    columnas = [j for j in range(ancho) if j not in excluir
+                and sum(_es_numero(_celda(f, j)) for f in filas) >= len(filas) * _RELACION_MINIMA]
+    mejores = []
+    for a in columnas:
+        con_energia = [f for f in filas if _es_numero(_celda(f, a)) and _celda(f, a) != 0]
+        if len(con_energia) < _FILAS_CON_ENERGIA_MINIMAS:
+            continue
+        for b in columnas:
+            if b == a:
+                continue
+            cumplen = sum(1 for f in con_energia if _es_numero(_celda(f, b))
+                          and abs(_celda(f, b) - k * _celda(f, a)) <= 1e-6 * max(1.0, abs(_celda(f, b))))
+            if cumplen >= len(con_energia) * _RELACION_MINIMA:
+                mejores.append(((len(con_energia), -b, a < b, -abs(b - a)), a, b))
+    return max(mejores)[1:] if mejores else None
+
+
+def _sin_energia(filas: Sequence[Sequence[Any]], excluir: set[int]) -> bool:
+    """Ninguna columna con medidas: el cliente no tuvo medida ese mes (hojas en cero de «0225 Pulso e»). Las columnas
+    de enteros (el periodo punta 1/2, el contador de filas) no son medidas."""
+    ancho = max((len(f) for f in filas), default=0)
+
+    def medida(j: int) -> bool:
+        return sum(1 for f in filas if _es_numero(v := _celda(f, j)) and v != 0
+                   and not float(v).is_integer()) >= _FILAS_CON_ENERGIA_MINIMAS
+    return not any(medida(j) for j in range(ancho) if j not in excluir)
+
+
+def _columna_de_horas(filas: Sequence[Sequence[Any]], excluir: set[int]) -> int | None:
+    """Una columna con horas de verdad («00:15», una hora o una fracción del día que cambia); si no, ninguna."""
+    ancho = max((len(f) for f in filas), default=0)
+    for j in range(ancho):
+        if j in excluir:
+            continue
+        valores = [_celda(f, j) for f in filas[:200]]
+        horas = [v for v in valores if isinstance(v, (time, datetime))
+                 or (isinstance(v, str) and re.fullmatch(r'\d{1,2}:\d{2}(:\d{2})?', v.strip()))]
+        if len(horas) >= len(valores) * _RELACION_MINIMA and len(set(map(str, horas))) > 1:
+            return j
+    return None
+
+
+def esquema_por_contenido(datos: Sequence[Sequence[Any]], formatos: Mapping[str, Mapping[str, int]] | None = None
+                          ) -> dict[str, Any]:
+    """Las columnas de una hoja de cliente sin títulos, por lo que traen sus celdas (089:RF-107, RF-110).
+
+    «0225 Pulso e» y «0625 Pulso» perdieron todo su texto al guardarse: ni «día, hora» ni «EA, ERI, Pot», y la hora en
+    cero. Lo que queda decide: el día es la columna de enteros en tramos iguales; EA y Pot, el par con Pot = k × EA; la
+    hora, una columna con horas o, si no hay, la posición del registro en su día. ERI no se distingue por su contenido
+    de ERC: la da una regla confirmada por el operador, guardada por la huella del formato.
+
+    Devuelve ``columnas`` (``None`` si no se reconoce), ``reconocido``, ``falta``, ``huella`` y ``como``.
+    """
+    reconocido: list[str] = []
+    columnas: dict[str, Any] = {}
+    dia = next(((j, t) for j in range(min(12, max((len(f) for f in datos[:FILAS_CABECERA + 5]), default=0)))
+                if (t := _tramos_de_dia(datos, j))), None)
+    filas: list = []
+    if dia is not None:
+        j_dia, (inicio, por_dia) = dia[0], dia[1]
+        columnas.update(dia=j_dia, _inicio=inicio, _por_dia=por_dia)
+        reconocido.append(f'día (col {_letra(j_dia)}, {por_dia} registros por día = {1440 // por_dia} min)')
+        filas = [f for f in datos[inicio:inicio + por_dia * 31] if _es_numero(_celda(f, j_dia))]
+        par = _par_energia_potencia(filas, {j_dia}, por_dia / 24)
+        if par is not None:
+            columnas.update(ea=par[0], pot=par[1])
+            reconocido.append(f'EA (col {_letra(par[0])}) y Pot = {por_dia / 24:g} × EA (col {_letra(par[1])})')
+        if par is None and _sin_energia(filas, {j_dia}):
+            columnas['_sin_energia'] = True
+        hora = _columna_de_horas(filas, {j_dia, *(par or ())})
+        if hora is not None:
+            columnas['hora'] = hora
+            reconocido.append(f'hora (col {_letra(hora)})')
+        else:
+            reconocido.append('hora por su posición en el día')
+    else:
+        filas = [f for f in datos[:400] if sum(_es_numero(c) for c in f) >= 2]
+    ancho = max((len(f) for f in filas), default=0)
+    numericas = ''.join('n' if sum(_es_numero(_celda(f, j)) for f in filas) >= len(filas) * 0.5 else '-'
+                        for j in range(ancho)) if filas else ''
+    clave = (f"dia={columnas.get('dia')};n={columnas.get('_por_dia')};ea={columnas.get('ea')};"
+             f"pot={columnas.get('pot')};hora={columnas.get('hora')};num={numericas}")
+    huella = hashlib.sha1(clave.encode('utf-8')).hexdigest()[:12]
+    regla = (formatos or {}).get(huella)
+    como = 'contenido'
+    if regla:
+        columnas.update({k: int(v) for k, v in regla.items() if k in CAMPOS_DE_HOJA and v is not None})
+        como = 'regla'
+    falta = [c for c in ('dia', 'ea', 'eri', 'pot') if c not in columnas]
+    completas = {'dia', 'ea'} <= set(columnas)
+    if columnas.get('_sin_energia') and not completas:
+        como = 'sin_energia'
+    return {'columnas': columnas if completas else None, 'reconocido': reconocido,
+            'falta': [_ETIQUETAS_CAMPO[c] for c in falta], 'huella': huella, 'como': como}
+
+
+#: 089:RF-109: el aviso lleva la huella con esta forma, para confirmarla en la web.
+_PATRON_HUELLA = re.compile(r'huella ([0-9a-f]{12})')
+
+
+def huella_de_aviso(texto: str) -> str | None:
+    """La huella de formato que cita un aviso de 089:RF-109, o None."""
+    hallada = _PATRON_HUELLA.search(texto or '')
+    return hallada.group(1) if hallada else None
+
+
+def _aviso_de_formato(libro: str, esquema: Mapping[str, Any], hojas: Sequence[str]) -> str:
+    """089:RF-109: lo reconocido, lo que falta y la huella, una vez por formato y libro."""
+    n = len(hojas)
+    cuales = f'{n} hoja(s) de cliente ({", ".join(hojas[:3])}{"…" if n > 3 else ""})'
+    reconocido = '; '.join(esquema['reconocido']) or 'nada'
+    if esquema['como'] == 'sin_energia':
+        return (f'{libro}: {cuales} sin títulos y sin energía en todo el mes (todas sus columnas en cero o vacías): no '
+                f'dan curva (huella {esquema["huella"]}, 089:RF-109).')
+    if esquema['columnas'] is None:
+        return (f'{libro}: formato no reconocido en {cuales} (huella {esquema["huella"]}): reconoció {reconocido}; '
+                f'le falta {", ".join(esquema["falta"])}. No se usan: confirme sus columnas en la web o añada sus '
+                'nombres al fichero de alias de la empresa (089:RF-109).')
+    if esquema['como'] == 'regla':
+        return (f'{libro}: {cuales} sin títulos, leídas con la regla confirmada de su formato (huella '
+                f'{esquema["huella"]}): {reconocido} (089:RF-110).')
+    falta = (f'; le falta {", ".join(esquema["falta"])}: confírmela en la web para los libros con este formato'
+             if esquema['falta'] else '')
+    return (f'{libro}: {cuales} sin títulos, leídas por su contenido (huella {esquema["huella"]}): {reconocido}'
+            f'{falta} (089:RF-107).')
 
 
 def _instante_de_hoja(fecha: Any, hora: Any) -> datetime | None:
@@ -1820,6 +2059,8 @@ def _curva_por_dia(datos: Sequence[Sequence[Any]], cols: Mapping[str, int], mes:
     leído tal cual, 255 clientes se apartaban por un valor contradictorio que no existía.
     """
     anio, numero_mes = int(mes[:4]), int(mes[5:7])
+    if 'hora' not in cols:
+        return _curva_por_posicion(datos, cols, anio, numero_mes)
     curva, fuera, anterior = [], 0, None
     for f in datos:
         dia, hora = numero(_celda(f, cols['dia'])), _celda(f, cols['hora'])
@@ -1841,12 +2082,51 @@ def _curva_por_dia(datos: Sequence[Sequence[Any]], cols: Mapping[str, int], mes:
                 continue
             t = datetime.combine(anterior.date() + timedelta(days=1), t.time())
         anterior = t
-        eri = numero(_celda(f, cols['eri']))
+        eri = numero(_celda(f, cols.get('eri')))
         curva.append((t, ea * 4.0, None if eri is None else eri * 4.0))
     return curva, fuera
 
 
+def _curva_por_posicion(datos: Sequence[Sequence[Any]], cols: Mapping[str, int], anio: int, numero_mes: int
+                        ) -> tuple[list, int]:
+    """089:RF-107: sin hora, el k-ésimo registro del día es su final ``(k + 1) × intervalo``, como «00:15» el primero y
+    «24:00» el último de los libros que sí la traen. kW = EA × (registros por hora), igual que con la hora."""
+    por_dia = int(cols['_por_dia'])
+    paso = timedelta(minutes=1440 // por_dia)
+    k_hora = por_dia / 24
+    curva, fuera, previo, k = [], 0, None, 0
+    for f in datos[int(cols.get('_inicio', 0)):]:
+        dia = numero(_celda(f, cols['dia']))
+        if dia is None:
+            break
+        k = k + 1 if dia == previo else 0
+        previo = dia
+        try:
+            fecha = datetime(anio, numero_mes, int(dia))
+        except ValueError:
+            fuera += 1
+            continue
+        ea = numero(_celda(f, cols['ea']))
+        if ea is None:
+            fuera += 1
+            continue
+        eri = numero(_celda(f, cols.get('eri')))
+        curva.append((fecha + paso * (k + 1), ea * k_hora, None if eri is None else eri * k_hora))
+    return curva, fuera
+
+
+def dias_con_energia(datos: Sequence[Sequence[Any]], cols: Mapping[str, int]) -> int:
+    """089:RF-113: el último día de una hoja «día, hora» con energía; la plantilla de 31 días trae ceros tras el mes."""
+    ultimo = 0
+    for f in datos[int(cols.get('_inicio', 0)):]:
+        dia, ea = numero(_celda(f, cols['dia'])), numero(_celda(f, cols['ea']))
+        if dia is not None and ea:
+            ultimo = max(ultimo, int(dia))
+    return ultimo
+
+
 def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *, mes: str | None = None,
+                       alias=ALIAS, formatos: Mapping[str, Mapping[str, int]] | None = None,
                        ) -> tuple[dict[str, list[tuple[datetime, float, float | None]]], list[str]]:
     """La curva ``(fecha, kW = EA × 4, kVAR = ERI × 4)`` de cada cliente libre (046:RF-11).
 
@@ -1857,8 +2137,15 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *
 
     Con ``mes`` (``AAAA-MM``), también las hojas «día, hora» de los libros de enero a abril (089:RF-14): sin
     él, «día 3» no es una fecha y esas hojas se quedan fuera, como siempre.
+
+    Las columnas se reconocen por sus sinónimos (``alias``, 089:RF-108) y, en las hojas de un cliente sin títulos, por
+    su contenido, completado con las reglas confirmadas por la huella de su formato (``formatos``, 089:RF-107, RF-110).
+    Cada formato leído así, o no reconocido, se dice una vez por libro (089:RF-109).
     """
     libro = abrir_libro(path)
+    nombres = _nombres_de_campos(alias)
+    por_formato: dict[str, tuple[dict, list[str]]] = {}
+    dias_de_mas: list[tuple[str, int]] = []
     pares, avisos = _hojas_de_maestro(libro, path)
     con_maestro = bool(pares or avisos)
     pedidos = None if codigos is None else {clave_codigo(c) for c in codigos}
@@ -1871,19 +2158,28 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *
             avisos.append(f'{codigo}: la hoja «{hoja}» del maestro no está en {Path(path).name}.')
             continue
         datos = filas_de_hoja(libro, hoja)
-        cab, cols = next(((i, {n: j for j, n in enumerate(normalizar(c) for c in f)})
-                          for i, f in enumerate(datos[:FILAS_CABECERA])
-                          if {'fecha', 'hora', 'ea'} <= {normalizar(c) for c in f}), (None, None))
+        cab, cols = next(((i, campos) for i, f in enumerate(datos[:FILAS_CABECERA])
+                          if {'fecha', 'hora', 'ea'} <= set(campos := _campos_de_fila(f, nombres))), (None, None))
         if cols is None:
-            antigua = _columnas_de_hoja(datos) if mes else None
+            antigua = _columnas_de_hoja(datos, alias) if mes else None
+            if mes and (antigua is None or 'dia' not in antigua) and normalizar(hoja) not in _HOJAS_NO_DE_CLIENTE:
+                # 089:RF-107: sin títulos, solo en las hojas de un cliente del libro (por su código en la cabecera).
+                if por_contenido is None and not con_maestro:
+                    por_contenido = _hojas_de_clientes(libro, path, alias)
+                propio = codigo or (por_contenido or {}).get(hoja, '')
+                if propio:
+                    esquema = esquema_por_contenido(datos, formatos)
+                    por_formato.setdefault(esquema['huella'], (esquema, []))[1].append(hoja)
+                    antigua = esquema['columnas']
             if antigua and 'dia' in antigua:
                 if por_contenido is None and not con_maestro:
-                    resumen = leer_clientes(path)[0] if _hojas_resumen(libro.sheet_names) else []
-                    claves = {clave_codigo(c.codigo): c.codigo for c in resumen}
-                    por_contenido = {h: claves[k] for k, h in _hojas_por_contenido(libro, claves).items()}
+                    por_contenido = _hojas_de_clientes(libro, path, alias)
                 propio = codigo or (por_contenido or {}).get(hoja, '')
                 if not propio or (pedidos is not None and clave_codigo(propio) not in pedidos):
                     continue
+                ultimo = dias_con_energia(datos, antigua)
+                if ultimo > calendar.monthrange(int(mes[:4]), int(mes[5:7]))[1]:
+                    dias_de_mas.append((propio, ultimo))
                 curva, fuera = _curva_por_dia(datos, antigua, mes)
                 if fuera:
                     avisos.append(f'{propio}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
@@ -1913,9 +2209,25 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *
             avisos.append(f'{codigo}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
         curva.sort(key=lambda p: p[0])
         out[codigo] = curva
-    if not con_maestro and not out and pedidos is None:
-        avisos.append(f'{Path(path).name}: sin «maestro_lib» ni hojas con SUMINISTRO, FECHA, HORA y EA.')
+    nombre = Path(path).name
+    for esquema, hojas in por_formato.values():
+        avisos.append(_aviso_de_formato(nombre, esquema, hojas))
+    if dias_de_mas and mes:
+        dias = max(d for _c, d in dias_de_mas)
+        largo = calendar.monthrange(int(mes[:4]), int(mes[5:7]))[1]
+        # 089:RF-113: «0426clientesImportantes» traía los 31 días de marzo con el nombre de abril.
+        return {}, [*avisos, f'{nombre}: trae {dias} días con energía y {nombre_de_mes(mes)} tiene {largo}: sus hojas '
+                             '«día, hora» no son de ese mes; no se usa (089:RF-113). Asígnele su mes en la web.']
+    if not con_maestro and not out and pedidos is None and not por_formato:
+        avisos.append(f'{nombre}: sin «maestro_lib» ni hojas con SUMINISTRO, FECHA, HORA y EA.')
     return out, avisos
+
+
+def _hojas_de_clientes(libro: Any, path: Path | str, alias=ALIAS) -> dict[str, str]:
+    """Hoja → código de cliente por la cabecera de cada hoja y los códigos de «resumen» (083:RF-14)."""
+    resumen = leer_clientes(path, alias)[0] if _hojas_resumen(libro.sheet_names) else []
+    claves = {clave_codigo(c.codigo): c.codigo for c in resumen}
+    return {h: claves[k] for k, h in _hojas_por_contenido(libro, claves).items()}
 
 
 def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],

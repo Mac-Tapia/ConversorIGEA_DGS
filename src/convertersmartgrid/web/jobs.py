@@ -238,7 +238,7 @@ class JobContext:
 
     def anotar_proceso(self, pid: int) -> None:
         """096:RF-6: registrar inmediatamente el Popen propio para impedir un relanzamiento simultáneo."""
-        self.job.proceso = {'pid': pid, 'inicio': _inicio_de_proceso(pid)}
+        self.job.proceso = {'pid': pid, 'inicio': inicio_de_proceso(pid)}
         if self._diario is not None:
             self._diario.anotar(self.job)
 
@@ -540,7 +540,7 @@ def _estado_del_resultado(resultado: Any) -> str:
     return estado if estado in (PARCIAL, NO_CONVERGE) else DONE
 
 
-def _inicio_de_proceso(pid: int) -> float | None:
+def inicio_de_proceso(pid: int) -> float | None:
     """Cuándo arrancó ``pid``, o None si ya no existe: un pid solo no basta, Windows los reutiliza."""
     try:
         import psutil
@@ -550,7 +550,7 @@ def _inicio_de_proceso(pid: int) -> float | None:
         return None
 
 
-def _proceso_pendiente(identidad: dict | None) -> bool:
+def proceso_pendiente(identidad: dict | None) -> bool:
     """096:RF-6: un hijo vivo o de identidad ilegible bloquea repetir; nunca se le envían señales."""
     if identidad is None:
         return False
@@ -590,7 +590,7 @@ class DiarioTrabajos:
         self._sincronizado: dict[str, float] = {}
         self._avance: dict[str, float] = {}
         self._mi_pid = os.getpid()
-        self._mi_inicio = _inicio_de_proceso(self._mi_pid)
+        self._mi_inicio = inicio_de_proceso(self._mi_pid)
 
     def _ruta(self, job_id: str, extension: str) -> Path:
         return self.carpeta / f'{job_id}.{extension}'
@@ -717,7 +717,7 @@ class DiarioTrabajos:
                 job.lane = 'engine'  # de una versión con otros carriles: se ve igual
             if job.status not in FINISHED:
                 pid, inicio = datos.get('pid'), datos.get('inicio_proceso')
-                if type(pid) is int and (_inicio_de_proceso(pid) == inicio if inicio is not None
+                if type(pid) is int and (inicio_de_proceso(pid) == inicio if inicio is not None
                                          else pid == self._mi_pid):
                     servidores_vivos.add(job.id)
                     continue
@@ -753,7 +753,7 @@ class DiarioTrabajos:
             return conservar
 
         protegidos = cadena(servidores_vivos | {j.id for j in trabajos
-            if (j.status == INTERRUMPIDO or j.status not in FINISHED) and _proceso_pendiente(j.proceso)})
+            if (j.status == INTERRUMPIDO or j.status not in FINISHED) and proceso_pendiente(j.proceso)})
         residuo = [j for j in trabajos if j.id not in protegidos]
         conservar = cadena(protegidos | {j.id for j in residuo[-MAX_INTERRUMPIDOS:]})
         # La cap es para el residuo seguro: un reloj atrasado o un hijo vivo no autorizan
@@ -795,7 +795,7 @@ class JobManager:
         todos = self.list()
         ancestros = {j.relanzado_de for j in todos if j.relanzado_de}
         bloqueados = {j.workspace_id for j in todos if (j.status == INTERRUMPIDO or j.status not in FINISHED)
-                      and _proceso_pendiente(j.proceso)}
+                      and proceso_pendiente(j.proceso)}
         for job in sorted(todos, key=lambda j: j.created_at):
             if job.status == INTERRUMPIDO:
                 ultimos[job.workspace_id] = job

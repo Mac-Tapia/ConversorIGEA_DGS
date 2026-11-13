@@ -3424,6 +3424,32 @@
         "title": "FeedersIn",
         "type": "object"
       },
+      "FormatoPeticion": {
+        "additionalProperties": false,
+        "description": "089:RF-110: la huella que cita el aviso y la columna de cada campo (letra, como «K», o índice desde 0).",
+        "properties": {
+          "columnas": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 7,
+            "minProperties": 1,
+            "title": "Columnas",
+            "type": "object"
+          },
+          "huella": {
+            "pattern": "^[0-9a-f]{12}$",
+            "title": "Huella",
+            "type": "string"
+          }
+        },
+        "required": [
+          "huella",
+          "columnas"
+        ],
+        "title": "FormatoPeticion",
+        "type": "object"
+      },
       "GrupoDgsRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -11184,6 +11210,56 @@
           }
         },
         "summary": "Demanda Clientes"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/clientes/formatos": {
+      "post": {
+        "description": "089:RF-110: el operador confirma una vez las columnas de un formato que el lector no decidía solo.",
+        "operationId": "demanda_confirmar_formato_api_workspaces__wid__demanda_clientes_formatos_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormatoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibrosNuevosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda Confirmar Formato"
       }
     },
     "/api/workspaces/{wid}/demanda/clientes/indexar": {

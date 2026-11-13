@@ -13,11 +13,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
 | Pruebas de la interfaz | `frontend/test/` | 23 |
-| Pruebas | `tests/` | 435 |
+| Pruebas | `tests/` | 436 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
-`web/services.py` tiene 13276 líneas y 404 funciones, pendiente de partir (002).
+`web/services.py` tiene 13313 líneas y 405 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3532 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3545 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,11 +48,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-156 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+157 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
-| `demanda` | espacio | 29 |
+| `demanda` | espacio | 30 |
 | `pf` | espacio | 20 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |

@@ -135,6 +135,34 @@ la web?».
 - RF-41: SI el operador no tiene abierto un espacio (ninguna pestaña conectada ni pedido en los últimos 10 min),
   ENTONCES EL SISTEMA solo comparará la foto de sus libros, sin leer ninguno, y dirá que lo nuevo se lee al abrirlo.
 
+### El dataset no se queda «regenerando» y lo apartado se ve (2026-11-13)
+
+En el espacio de la web del operador el dataset quedó en «regenerando» desde las 10:32 del 2026-11-12 durante más de
+11 horas, sin carpeta `pronostico/` en su ejecución. La web se había cerrado de golpe 47 minutos después de lanzarlo
+(su registro arranca otro proceso a las 11:19 sin «Shutting down»): el proceso que regeneraba murió con ella, el estado
+en disco siguió diciendo «regenerando», y la web siguiente solo volvía a mirar los «desactualizado». Además tenía la
+vigilancia apagada (`CSG_LIBROS_NUEVOS=0`) y su «Revisar ahora» del 2026-11-13 a las 06:07 tampoco lo tocó. El mismo
+día, dos libros de clientes de 2025 quedaron fuera del dataset y solo constaban en la cuenta de «motivos_apartados» del
+dataset, que nadie abre (089:RF-107 a RF-113 corrigen su lectura).
+
+- RF-42: CUANDO lanza la regeneración del dataset, EL SISTEMA guardará con su estado la identidad de su proceso y la
+  de la web (pid y hora de arranque), como el diario de trabajos (096:RF-6).
+- RF-43: SI el dataset está «regenerando» y su proceso no está vivo ni lo lleva esta web, ENTONCES EL SISTEMA lo pasará a
+  desactualizado, con la hora y el motivo de la interrupción, al leer el estado, al revisar los libros y al arrancar.
+- RF-44: CUANDO el dataset queda interrumpido, EL SISTEMA lo dirá en un aviso de los libros de demanda del espacio, con
+  cuándo empezó y por qué se cortó, y lo retomará en el siguiente reposo del motor (RF-36), o en la siguiente revisión
+  de libros si la vigilancia está apagada.
+- RF-45: SI la regeneración que lleva esta web pasa su plazo (`CSG_DATASET_PLAZO_MIN`, 120 min), ENTONCES EL SISTEMA
+  terminará su proceso, dejará el dataset desactualizado con ese motivo y lo avisará.
+- RF-46: CUANDO la web se apaga con el dataset regenerándose, EL SISTEMA terminará su proceso y lo dejará interrumpido
+  en disco; al arrancar, también con la vigilancia apagada, revisará los «regenerando» de los espacios recientes sin
+  abrir ningún libro.
+- RF-47: CUANDO la regeneración del dataset aparta un libro o dice algo de un libro entero (su formato, su mes), EL
+  SISTEMA lo mostrará como aviso de los libros de demanda del espacio, con el nombre del libro y el motivo.
+- Aclaración de RF-26 (2026-11-13): el libro de abril de 2026 que se apartaba por repetir marzo es un acierto, no un falso
+  positivo: en 19 hojas comparadas con energía, los 56 034 registros son iguales a los de marzo, y trae energía en 31
+  días, que abril no tiene (089:RF-113).
+
 ## Criterios de aceptación
 
 - Con libros sintéticos «0125 Pulso e.xlsx», «1025 Pulso.xlsx» y «0526clientesImportantes.xlsx» en la carpeta de su año,
@@ -144,6 +172,8 @@ la web?».
 - Con libros sintéticos, un mes copiado se detecta y queda inactivo; un mes distinto no.
 
 ## Fuera de alcance
+
+- Terminar el proceso de otra web viva: un «regenerando» con su proceso vivo en otro sitio no se toca (RF-43).
 
 - Entrenar o aceptar modelos: el dataset se regenera; entrenar sigue siendo una orden del operador (089, 071).
 - Apartar de la máxima de cabecera un mes repetido: se avisa (RF-17) y el operador elige otro periodo; el libro de

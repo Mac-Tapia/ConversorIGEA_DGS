@@ -116,7 +116,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
-  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |
+  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T12, T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
   | 091 De la calibración al estudio, en su orden y sin avisos que engañen | cumplida |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida |  |
@@ -131,7 +131,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida |  |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
-  | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
+  | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6, T10 |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
 

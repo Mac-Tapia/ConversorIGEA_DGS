@@ -2690,6 +2690,43 @@ def _aqui(fn, *args):
     return fn(*args)
 
 
+def demanda_confirmar_formato(ws: Workspace, huella: str, columnas: Mapping[str, str | int]) -> dict:
+    """089:RF-110: guarda en la fuente de clientes la regla de un formato (columna de cada campo, por su letra o su
+    índice desde 0); el lector la aplica a todo libro con esa huella."""
+    from ..demanda_medida import CAMPOS_DE_HOJA
+
+    if not re.fullmatch(r'[0-9a-f]{12}', huella or ''):
+        raise UserError('La huella del formato son 12 cifras hexadecimales, como la cita el aviso.')
+    regla: dict[str, int] = {}
+    for campo, valor in (columnas or {}).items():
+        if campo not in CAMPOS_DE_HOJA:
+            raise UserError(f'Campo desconocido {campo!r}; válidos: {", ".join(CAMPOS_DE_HOJA)}.')
+        texto = str(valor).strip().upper()
+        if texto.isdigit():
+            regla[campo] = int(texto)
+        elif re.fullmatch(r'[A-Z]{1,3}', texto):
+            indice = 0
+            for letra in texto:
+                indice = indice * 26 + ord(letra) - 64
+            regla[campo] = indice - 1
+        else:
+            raise UserError(f'{campo}: «{valor}» no es una columna (una letra, como K, o su número desde 0).')
+    if not regla:
+        raise UserError('Indique al menos una columna.')
+    with ws.lock:
+        meta = ws.demanda.get('clientes')
+        if not meta:
+            raise UserError('Falta la fuente de clientes importantes: indique un libro o una carpeta.')
+        formatos = dict(meta.get('formatos') or {})
+        formatos[huella] = {**formatos.get(huella, {}), **regla}
+        meta['formatos'] = formatos
+        ws.save()
+    ws.events.append('log', {'text': f'Regla del formato {huella} guardada: '
+                                     + ', '.join(f'{k} en la columna {v}' for k, v in sorted(regla.items()))
+                                     + '; se aplica a los libros con ese formato (089:RF-110).'})
+    return {'huella': huella, 'columnas': formatos[huella]}
+
+
 def demanda_clientes_indexar(ws: Workspace, ctx: JobContext, *, ejecutar=None) -> dict:
     """Reescanea la fuente persistida y publica un catálogo mensual sin rutas absolutas.
 

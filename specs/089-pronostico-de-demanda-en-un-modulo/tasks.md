@@ -17,5 +17,13 @@
       Hecho cuando: `tests/test_entrenar_alimentadores_gpu.py` en verde y `--help` responde.
 - [x] T9. Una ventana de entrenamiento por día en las redes, tope de lote de TFT e iTransformer sin escalado. (RF-91, RF-92, RF-93)
       Hecho cuando: `tests/test_pronostico_demanda.py::test_las_redes_toman_una_ventana_por_dia` y `::test_tope_de_lote_y_escalado_por_red` en verde, en la GPU.
+- [x] T11. Lector de clientes adaptable: columnas por contenido y por sinónimos, aviso por formato, regla confirmada,
+      mes por los datos y libro «día, hora» con más días que su mes. (RF-107 a RF-113)
+      Hecho cuando: `tests/test_libros_formas.py` y `tests/test_libros_nuevos_web.py -k apartado_y_formato` fallan sin
+      el arreglo y pasan con él (registros `D:/csg/D_todo_rojo_9063b8af.log` y `D:/csg/D_todo_verde.log`).
+- [ ] T12. Regenerar el dataset con los libros reales y repetir su perfil: «0225 Pulso e» y «0625 Pulso» entran.
+      (RF-107, RF-109)
+      Hecho cuando: el perfil del dataset regenerado fuera de git ya no aparta esos dos libros y sus cifras, sin datos de
+      la distribuidora, están anotadas aquí. Lo hace quien tiene la orden de regenerar (no esta tarea de código).
 - [ ] T7. Corrida larga real de todos los modelos.
       Hecho cuando: cada clase, magnitud y horizonte tiene su informe fuera de git, con la decisión y sus cifras anotadas aquí.

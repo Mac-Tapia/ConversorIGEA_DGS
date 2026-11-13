@@ -28,3 +28,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       arranca enseguida con una revisión de fondo en marcha.
 - [x] T8. Solo los espacios recientes, y sin leer libros de los que el operador no tiene abiertos. (RF-40, RF-41)
       Hecho cuando: `tests/test_libros_nuevos_web.py -k "recientes or abierto"` en verde.
+- [x] T9. El dataset «regenerando» sin proceso vivo, pasado de plazo o cortado al apagar la web pasa a interrumpido, se
+      avisa y se retoma; los libros apartados salen como aviso. (RF-42 a RF-47)
+      Hecho cuando: `tests/test_libros_nuevos_web.py -k "interrumpido or vivo_no_se_toca or plazo or cerrar_la_web or
+      apartado_y_formato"` falla sin el arreglo y pasa con él (registros `D:/csg/D_todo_rojo_9063b8af.log` y
+      `D:/csg/D_todo_verde.log`).
+- [ ] T10. En la web real, el aviso del dataset interrumpido y el de un libro apartado se ven en el paso de la demanda, y
+      la confirmación de un formato (089:RF-110) se hace con su botón. (RF-44, RF-47)
+      Hecho cuando: se ve en el navegador real, tras `npm run lint`, `npx tsc --noEmit -p .`, `npm test`, `npm run build`
+      y `tools/generar_contrato_api.py --check` en verde.

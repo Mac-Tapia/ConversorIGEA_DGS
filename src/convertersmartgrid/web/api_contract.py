@@ -606,6 +606,13 @@ class LibrosNuevosRespuesta(Respuesta):
     fondo: dict[str, Any]
 
 
+class FormatoPeticion(BaseModel):
+    """089:RF-110: la huella que cita el aviso y la columna de cada campo (letra, como «K», o índice desde 0)."""
+    model_config = ConfigDict(extra='forbid')
+    huella: str = Field(pattern=r'^[0-9a-f]{12}$')
+    columnas: dict[str, str] = Field(min_length=1, max_length=7)
+
+
 class RevisarLibrosRespuesta(Respuesta):
     """104:RF-30: la revisión va al carril de fondo, no a la cola: no hay trabajo que seguir."""
     estado: LibrosNuevosRespuesta

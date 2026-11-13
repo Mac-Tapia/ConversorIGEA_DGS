@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import threading
 import time
 import uuid
@@ -34,6 +35,7 @@ from .fondo import (
     ejecutar_en_proceso,
     operador_trabajando,
 )
+from .jobs import inicio_de_proceso, proceso_pendiente
 from .requisitos import UserError
 
 log = logging.getLogger(__name__)
@@ -43,6 +45,10 @@ VARIABLE_INTERVALO = 'CSG_LIBROS_INTERVALO_MIN'
 VARIABLE_ACTIVA = 'CSG_LIBROS_NUEVOS'
 #: 104:RF-36: minutos sin trabajos del operador antes de regenerar el dataset.
 VARIABLE_REPOSO = 'CSG_DATASET_REPOSO_MIN'
+#: 104:RF-45: minutos que puede durar la regeneración del dataset. Aislada tardó 12 min el 2026-11-12; diez veces eso
+#: cubre un equipo cargado sin dejarla colgada para siempre (el mismo criterio que ``activeDeadlineSeconds`` de un Job).
+VARIABLE_PLAZO = 'CSG_DATASET_PLAZO_MIN'
+PLAZO_MIN = 120.0
 INTERVALO_MIN = 10.0
 REPOSO_MIN = 5.0
 #: RF-19: libros que se verifican por reconocimiento; los demás se dicen.
@@ -79,6 +85,11 @@ def intervalo_min() -> float:
 def reposo_min() -> float:
     """RF-36: 5 minutos sin trabajos del operador por defecto."""
     return _minutos(VARIABLE_REPOSO, REPOSO_MIN)
+
+
+def plazo_min() -> float:
+    """RF-45: 120 minutos por defecto; ``0`` lo quita."""
+    return _minutos(VARIABLE_PLAZO, PLAZO_MIN)
 
 
 def recientes_h() -> float:
@@ -137,6 +148,7 @@ class VigilanciaLibros:
         self._pedidos: dict[str, bool] = {}          # espacio -> «verificar todos» (RF-35)
         self._datasets: set[str] = set()             # espacios con el dataset desactualizado (RF-22)
         self._procesos: dict[str, tuple[ProcesoFondo, list[str]]] = {}
+        self._lanzando: set[str] = set()             # datasets cuyo proceso está arrancando (RF-43)
         self._fondo: dict[str, dict] = {}            # lo que ve el operador del carril, por espacio (RF-31)
         self._hilo: threading.Thread | None = None
         self._detener = threading.Event()
@@ -196,7 +208,8 @@ class VigilanciaLibros:
 
     def estado(self, ws) -> dict[str, Any]:
         """Lo que ve el operador: los avisos sin dar por vistos, la última revisión, el carril de fondo y el dataset
-        (RF-20, RF-22, RF-31, RF-38)."""
+        (RF-20, RF-22, RF-31, RF-38). Un «regenerando» sin proceso vivo se ve aquí como interrumpido (RF-43)."""
+        self.comprobar_regenerando(ws)
         e = ln.leer_estado(carpeta_estado(ws))
         intervalo = intervalo_min()
         ultima = e.get('ultima_revision')
@@ -269,6 +282,7 @@ class VigilanciaLibros:
         ``leer=False`` (un espacio que el operador no tiene abierto, RF-41) solo se compara la foto: lo nuevo queda
         dicho en el estado y se lee al abrirlo.
         """
+        self.comprobar_regenerando(ws)                                       # RF-43, RF-44
         try:
             pendientes, bases = self._comparar(ws)
         except OSError as exc:              # la unidad de los libros no está: se dirá en la próxima
@@ -337,8 +351,14 @@ class VigilanciaLibros:
                 self._revisar_sin_fallar(ws, leer=self.abierto(ws.id))
 
     async def vigilar(self, detener: asyncio.Event) -> None:
-        """Al arrancar y cada intervalo; la espera se corta al apagar la web (RF-1, RF-2)."""
+        """Al arrancar y cada intervalo; la espera se corta al apagar la web (RF-1, RF-2).
+
+        Al arrancar se miran los «regenerando» que dejó una web anterior, también con la vigilancia apagada (RF-46):
+        el 2026-11-12 la web del operador tenía ``CSG_LIBROS_NUEVOS=0`` y nadie volvió a mirarlo en 11 h. Con ella
+        encendida ya lo hace cada ``revisar`` de ``revisar_todos``.
+        """
         if not self.activa:
+            await asyncio.to_thread(self.recuperar_datasets)
             return
         while not detener.is_set():
             await asyncio.to_thread(self.revisar_todos)
@@ -358,8 +378,14 @@ class VigilanciaLibros:
             hilo = self._hilo
         if hilo is not None:
             hilo.join(timeout=timeout_s)
-        for proc, _libros in list(self._procesos.values()):
+        for wid, (proc, _libros) in list(self._procesos.items()):
             proc.terminar()
+            with self._cv:
+                self._procesos.pop(wid, None)
+            ws = self._espacio(wid)
+            if ws is not None:
+                # RF-46: si no, el disco se queda con «regenerando» y la próxima web no sabe que murió.
+                self._interrumpir(ws, 'se cerró la web mientras se regeneraba', retomar=False)
 
     # ------------------------------------------------------------------ carril de fondo (RF-30 a RF-37)
     def _ceder(self) -> bool:
@@ -595,20 +621,35 @@ class VigilanciaLibros:
                 suministros = None
         fuentes = Fuentes(cabecera=Path(demanda['cabecera']['path']), equivalencia=Path(demanda['medidores']['path']),
                           clientes=Path(demanda['clientes']['path']) if demanda.get('clientes') else None,
-                          suministros=suministros, patron_clientes=services.perfil_de(ws).patron_libro_clientes)
+                          suministros=suministros, patron_clientes=services.perfil_de(ws).patron_libro_clientes,
+                          # 089:RF-108, RF-110: los sinónimos de la empresa y las reglas de formato confirmadas.
+                          alias=services.demanda_alias(),
+                          formatos=dict((demanda.get('clientes') or {}).get('formatos') or {}) or None)
         libros = list(dataset.get('libros_nuevos') or [])
+        with self._cv:
+            self._lanzando.add(wid)          # RF-43: mientras arranca el proceso, el «regenerando» es de esta web
         self._modificar(ws, lambda e: e.setdefault('dataset', {}).update(estado='regenerando', inicio=self.ahora()))
         ws.events.append('log', {'text': 'Regenerando el dataset del pronóstico con los libros nuevos, en segundo '
                                          'plano y sin entrenar; se detiene si lanza un trabajo (104:RF-36, RF-37)…'})
         self._publicar(ws)
-        if not self.en_fondo:
+        try:
+            if not self.en_fondo:
+                with self._cv:
+                    self._datasets.discard(wid)
+                self._terminar_dataset(ws, libros, *_regenerar(fuentes, carpeta_dataset(ws)))
+                return
+            proc = ProcesoFondo(_regenerar, fuentes, carpeta_dataset(ws), nombre=f'csg-dataset-{wid[:6]}')
             with self._cv:
-                self._datasets.discard(wid)
-            self._terminar_dataset(ws, libros, *_regenerar(fuentes, carpeta_dataset(ws)))
-            return
-        proc = ProcesoFondo(_regenerar, fuentes, carpeta_dataset(ws), nombre=f'csg-dataset-{wid[:6]}')
-        with self._cv:
-            self._procesos[wid] = (proc, libros)
+                self._procesos[wid] = (proc, libros)
+        finally:
+            with self._cv:
+                self._lanzando.discard(wid)
+        # RF-42: la identidad del proceso y de la web, como el diario de trabajos (096:RF-6): un pid solo no basta,
+        # Windows los reutiliza; con su hora de arranque otra web sabe si sigue vivo.
+        pid = proc.proc.pid
+        identidad = {'proceso': {'pid': pid, 'inicio': inicio_de_proceso(pid) if pid else None},
+                     'servidor': {'pid': os.getpid(), 'inicio': inicio_de_proceso(os.getpid())}}
+        self._modificar(ws, lambda e: e.setdefault('dataset', {}).update(identidad))
 
     def _recoger_datasets(self) -> None:
         for wid, (proc, libros) in list(self._procesos.items()):
@@ -617,6 +658,7 @@ class VigilanciaLibros:
             except Exception as exc:  # noqa: BLE001 - el motivo llega al aviso; la web sigue
                 listo, valor = True, (None, f'{type(exc).__name__}: {exc}')
             if not listo:
+                self._vigilar_plazo(wid, proc)
                 continue
             with self._cv:
                 self._procesos.pop(wid, None)
@@ -640,6 +682,121 @@ class VigilanciaLibros:
                                              f'Se rehará tras {reposo_min():g} min sin trabajos (104:RF-37).'})
             self._publicar(ws)
 
+    def _avisar_libros_del_dataset(self, ws, resumen: dict) -> None:
+        """104:RF-47: cada libro apartado y lo dicho de cada libro, como aviso del paso de la demanda. El 2026-11-12
+        «0225 Pulso e» y «0625 Pulso» quedaron fuera y solo constaban en la cuenta de «motivos_apartados»."""
+        abiertos = {a.get('texto') for a in ln.leer_estado(carpeta_estado(ws)).get('avisos') or [] if not a.get('visto')}
+        avisos: list[dict] = []
+        for x in resumen.get('libros_apartados') or []:
+            texto = f"{x['libro']}: queda fuera del dataset del pronóstico: {x['motivo']} (104:RF-47)."
+            if texto not in abiertos:
+                self._avisar(ws, avisos, 'apartado', texto, libro=x['libro'])
+        from ..demanda_medida import huella_de_aviso
+
+        for texto in resumen.get('avisos_de_libros') or []:
+            if texto not in abiertos:
+                # 089:RF-110: la huella y lo que falta, para que la web pida esas columnas y guarde la regla.
+                falta = re.search(r'le falta ([^:.]+)', texto)
+                ficha = {'huella': huella_de_aviso(texto),
+                         'falta': [x.strip() for x in falta.group(1).split(',')] if falta else []}
+                self._avisar(ws, avisos, 'formato', texto, libro=texto.split(':', 1)[0], ficha=ficha)
+        self._guardar_avisos(ws, avisos)
+
+    def formato_confirmado(self, ws, huella: str) -> None:
+        """089:RF-110: una regla nueva cambia lo que se lee: el dataset queda desactualizado y se regenera en reposo."""
+        def poner(e):
+            d = e.setdefault('dataset', {})
+            if d.get('estado') != 'regenerando':
+                d.update(estado='desactualizado', desde=self.ahora(), formato_confirmado=huella)
+        self._modificar(ws, poner)
+        with self._cv:
+            self._datasets.add(ws.id)
+        self._asegurar_hilo()
+        self._publicar(ws)
+
+    # ------------------------------------------------------------------ dataset interrumpido (RF-42 a RF-46)
+    def _vigilar_plazo(self, wid: str, proc: ProcesoFondo) -> None:
+        """RF-45: el proceso propio que pasa su plazo se termina; se dice y espera al siguiente reposo."""
+        plazo = plazo_min()
+        ws = self._espacio(wid)
+        if not plazo or ws is None:
+            return
+        dataset = ln.leer_estado(carpeta_estado(ws)).get('dataset') or {}
+        inicio = dataset.get('inicio') or dataset.get('desde')
+        if not isinstance(inicio, (int, float)) or self.ahora() - inicio <= plazo * 60:
+            return
+        proc.terminar()
+        with self._cv:
+            self._procesos.pop(wid, None)
+        # Sin relanzarlo enseguida: lo retoma la próxima revisión de libros, que da tiempo a mirar el aviso.
+        self._interrumpir(ws, f'pasó su plazo de {plazo:g} min sin terminar (CSG_DATASET_PLAZO_MIN)', retomar=False)
+
+    @staticmethod
+    def _vivo_en_otro_sitio(dataset: dict) -> bool:
+        """RF-42: el proceso guardado sigue vivo con la misma hora de arranque (``proceso_pendiente`` de 096:RF-6).
+        Sin identidad, un estado de antes de RF-42, no hay proceso que esperar."""
+        proceso = dataset.get('proceso')
+        if not isinstance(proceso, dict) or proceso.get('inicio') is None:
+            return False
+        return proceso_pendiente(proceso)
+
+    def comprobar_regenerando(self, ws) -> bool:
+        """RF-43: un «regenerando» que no es de esta web y cuyo proceso ya no vive pasa a interrumpido; devuelve si
+        lo hizo. El 2026-11-12 la web se cerró de golpe 47 min después de lanzarlo y quedó así más de 11 h."""
+        dataset = ln.leer_estado(carpeta_estado(ws)).get('dataset') or {}
+        if dataset.get('estado') != 'regenerando':
+            return False
+        with self._cv:
+            if ws.id in self._procesos or ws.id in self._lanzando:
+                return False                     # es de esta web: lo vigila su plazo (RF-45)
+        if self._vivo_en_otro_sitio(dataset):
+            return False                         # otra web lo tiene en marcha; no se le envía ninguna señal
+        self._interrumpir(ws, 'sin proceso vivo: la web que lo regeneraba se cerró o su proceso murió',
+                          retomar=self.activa)
+        return True
+
+    def recuperar_datasets(self) -> None:
+        """RF-46: al arrancar, los «regenerando» de los espacios recientes o abiertos, sin abrir ningún libro."""
+        desde = self.ahora() - recientes_h() * 3600
+        for fila in self.store.list():
+            if fila.get('estado', 'ok') != 'ok':
+                continue
+            if not self.abierto(fila['id']) and float(fila.get('modified_at') or 0) < desde:
+                continue
+            ws = self._espacio(fila['id'])
+            if ws is None:
+                continue
+            try:
+                self.comprobar_regenerando(ws)
+            except Exception:  # noqa: BLE001 - un espacio que no se puede revisar no para el arranque
+                log.exception('dataset interrumpido de %s', ws.id)
+
+    def _interrumpir(self, ws, motivo: str, *, retomar: bool = True) -> None:
+        """RF-44: desactualizado con el motivo, un aviso en el paso de la demanda y, si se retoma, al carril de fondo."""
+        ahora = self.ahora()
+        previo: dict = {}
+
+        def poner(e):
+            d = e.setdefault('dataset', {})
+            previo.update(d)
+            d.update(estado='desactualizado', interrumpido=ahora, motivo_interrupcion=motivo)
+            d.pop('proceso', None)
+            d.pop('servidor', None)
+        self._modificar(ws, poner)
+        inicio = previo.get('inicio') or previo.get('desde')
+        empezada = (time.strftime(' (empezada el %d/%m a las %H:%M)', time.localtime(inicio))
+                    if isinstance(inicio, (int, float)) else '')
+        sigue = (f'se retoma sola tras {reposo_min():g} min sin trabajos del operador' if retomar else
+                 'se retoma al revisar los libros (al abrir el espacio o con «Revisar ahora»)')
+        avisos: list[dict] = []
+        self._avisar(ws, avisos, 'dataset', f'La regeneración del dataset del pronóstico{empezada} quedó interrumpida: '
+                                            f'{motivo}; {sigue}. No se entrenó ningún modelo (104:RF-44).')
+        self._guardar_avisos(ws, avisos)
+        if retomar:
+            with self._cv:
+                self._datasets.add(ws.id)
+            self._asegurar_hilo()
+
     def _terminar_dataset(self, ws, libros: list[str], resumen: dict | None, error: str | None) -> None:
         def poner(e):
             d = e.setdefault('dataset', {})
@@ -652,6 +809,8 @@ class VigilanciaLibros:
             d.update(estado='desactualizado' if llegados else 'al_dia', error=None, terminado=self.ahora(),
                      carpeta=str(carpeta_dataset(ws)), libros_incluidos=libros, libros_nuevos=llegados, **resumen)
         self._modificar(ws, poner)
+        if not error:
+            self._avisar_libros_del_dataset(ws, resumen or {})
         texto = (f'El dataset del pronóstico no se pudo regenerar: {error}.' if error else
                  f"Dataset del pronóstico regenerado ({resumen['huella'][:12]}): {resumen['objetivos']} series, "
                  f"{resumen['apartados']} apartadas; no se entrenó ningún modelo (104:RF-23).")

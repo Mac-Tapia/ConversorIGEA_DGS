@@ -230,6 +230,9 @@ export const api = {
     request<RevisarLibros>(`${ws(id)}/demanda/libros-nuevos/verificar-todos`, { method: 'POST' }),
   librosNuevosVisto: (id: string, aviso: string) =>
     request<LibrosNuevos>(`${ws(id)}/demanda/libros-nuevos/avisos/${enc(aviso)}/visto`, { method: 'POST' }),
+  /** 089:RF-110: las columnas de un formato que el lector no decidía solo; la regla queda guardada por su huella. */
+  demandaConfirmarFormato: (id: string, huella: string, columnas: Record<string, string>) =>
+    request<LibrosNuevos>(`${ws(id)}/demanda/clientes/formatos`, json('POST', { huella, columnas })),
   demandaQuitar: (id: string, tipo: DemandaTipo) =>
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
   demandaMedidores: (id: string, alimentador: string) =>

@@ -17,7 +17,7 @@ async function cargar() {
         import { renderToStaticMarkup } from 'react-dom/server';
         import { Ctx } from './src/shared/context';
         import { FeedersPanel } from './src/features/conversion/FeedersPanel';
-        export { textoDelDataset, textoDelFondo } from './src/app/AvisosLibros';
+        export { esAlerta, porConfirmar, textoDelDataset, textoDelFondo, tituloDelAviso } from './src/app/AvisosLibros';
         export function panel(active) {
           const value = {
             ws: { id: 'prueba', loaded: false, missing_inputs: [], totals: {}, catalog_report: null, active_run_id: null,
@@ -86,4 +86,20 @@ test('104:RF-39 el aviso de libros se relee del servidor con cada evento del car
   assert.match(app, /librosNuevosSeq: w\.librosNuevosSeq/);
   const avisos = readFileSync(new URL('../src/app/AvisosLibros.tsx', import.meta.url), 'utf8');
   assert.match(avisos, /useEffect\(\(\) => \{ leer\(\); \}, \[leer, librosNuevosSeq\]\)/);
+});
+
+test('104:RF-44, 104:RF-47 cada aviso dice de qué es y el interrumpido o el apartado se ven como alerta', async () => {
+  const { esAlerta, tituloDelAviso } = await cargar();
+  assert.equal(tituloDelAviso('dataset'), 'Dataset del pronóstico.');
+  assert.equal(tituloDelAviso('apartado'), 'Libro de demanda apartado.');
+  assert.equal(tituloDelAviso('clientes'), 'Libro de demanda reconocido.');
+  assert.ok(esAlerta('La regeneración del dataset del pronóstico quedó interrumpida: sin proceso vivo'));
+  assert.ok(esAlerta('0225 Pulso e.xlsx: queda fuera del dataset del pronóstico: formato no reconocido'));
+});
+
+test('089:RF-110 el aviso de un formato pide solo las columnas que faltan, con su huella', async () => {
+  const { porConfirmar } = await cargar();
+  assert.deepEqual(porConfirmar({ huella: '0123456789ab', falta: ['ERI'] }), { huella: '0123456789ab', falta: ['ERI'] });
+  assert.equal(porConfirmar({ huella: '0123456789ab', falta: [] }), null);
+  assert.equal(porConfirmar(null), null);
 });

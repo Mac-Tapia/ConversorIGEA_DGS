@@ -47,7 +47,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
     InstalacionesPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
     CancelacionAprendizajeRespuesta, CambiarSalidaPeticion, SalidasRedRespuesta)
-from .api_contract import LibrosNuevosRespuesta, RevisarLibrosRespuesta    # spec 104
+from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -2736,6 +2736,14 @@ def create_app(
         ws = ws_or_404(wid)
         lanzada = libros_nuevos.revisar(ws, todos=True)
         return {'estado': libros_nuevos.estado(ws), 'lanzada': lanzada}
+
+    @app.post('/api/workspaces/{wid}/demanda/clientes/formatos', response_model=LibrosNuevosRespuesta)
+    def demanda_confirmar_formato(wid: str, peticion: FormatoPeticion) -> dict:
+        """089:RF-110: el operador confirma una vez las columnas de un formato que el lector no decidía solo."""
+        ws = ws_or_404(wid)
+        services.demanda_confirmar_formato(ws, peticion.huella, peticion.columnas)
+        libros_nuevos.formato_confirmado(ws, peticion.huella)
+        return libros_nuevos.estado(ws)
 
     @app.post('/api/workspaces/{wid}/demanda/libros-nuevos/avisos/{aviso_id}/visto', response_model=LibrosNuevosRespuesta)
     def libros_nuevos_visto(wid: str, aviso_id: str) -> dict:

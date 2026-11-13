@@ -4,8 +4,48 @@ import type { LibrosNuevos } from '../api/types';
 import { useApp } from '../shared/context';
 
 /** Un mes que repite otro o un libro que no se lee pide algo al operador; lo demás informa. */
-function esAlerta(texto: string): boolean {
-  return /repite los valores|no se pudo|incompleto/.test(texto);
+export function esAlerta(texto: string): boolean {
+  return /repite los valores|no se pudo|incompleto|interrumpida|queda fuera|no reconocido|le falta|no se usa/.test(texto);
+}
+
+/** 104:RF-44, RF-47, 089:RF-109: cada aviso dice de qué es; antes todos decían «Libro de demanda reconocido». */
+export function tituloDelAviso(tipo: string): string {
+  if (tipo === 'dataset') return 'Dataset del pronóstico.';
+  if (tipo === 'apartado') return 'Libro de demanda apartado.';
+  if (tipo === 'formato') return 'Formato de libro de clientes.';
+  return 'Libro de demanda reconocido.';
+}
+
+/** 089:RF-110: el aviso de un formato con columnas por confirmar trae su huella y lo que falta. */
+export function porConfirmar(ficha: Record<string, unknown> | null | undefined): { huella: string; falta: string[] } | null {
+  const huella = typeof ficha?.huella === 'string' ? ficha.huella : '';
+  const falta = Array.isArray(ficha?.falta) ? ficha.falta.filter((x): x is string => typeof x === 'string') : [];
+  return huella && falta.length ? { huella, falta } : null;
+}
+
+const CAMPO_DE_ETIQUETA: Record<string, string> = { 'día': 'dia', hora: 'hora', EA: 'ea', ERI: 'eri', Pot: 'pot' };
+
+/** Una columna por cada campo que falta (su letra, como «K»); se guarda una vez para todos los libros iguales. */
+function ConfirmarFormato({ huella, falta, confirmar }: {
+  huella: string; falta: string[]; confirmar: (huella: string, columnas: Record<string, string>) => void;
+}) {
+  const [columnas, setColumnas] = useState<Record<string, string>>({});
+  const listas = falta.filter((f) => CAMPO_DE_ETIQUETA[f]);
+  const completas = listas.length > 0 && listas.every((f) => (columnas[CAMPO_DE_ETIQUETA[f]] ?? '').trim());
+  return (
+    <div className="row">
+      {listas.map((f) => (
+        <label key={f} className="small">
+          Columna de {f}{' '}
+          <input className="input input-sm" size={3} value={columnas[CAMPO_DE_ETIQUETA[f]] ?? ''}
+                 onChange={(e) => setColumnas({ ...columnas, [CAMPO_DE_ETIQUETA[f]]: e.target.value })} />
+        </label>
+      ))}
+      <button className="btn btn-sm" disabled={!completas} onClick={() => confirmar(huella, columnas)}>
+        Confirmar formato
+      </button>
+    </div>
+  );
 }
 
 interface Fondo { estado?: string; texto?: string | null; por_verificar?: number }
@@ -62,6 +102,8 @@ export function AvisosLibros() {
   if (!estado) return null;
   const dataset = estado.dataset as Dataset | null;
   const visto = (id: string) => void run(() => api.librosNuevosVisto(ws.id, id)).then((r) => r && setEstado(r));
+  const confirmar = (huella: string, columnas: Record<string, string>) =>
+    void run(() => api.demandaConfirmarFormato(ws.id, huella, columnas)).then((r) => r && setEstado(r));
   // RF-1: la misma revisión que la periódica, sin esperar al intervalo; con el motor ocupado espera en el carril.
   const revisar = () => void run(() => api.librosNuevosRevisar(ws.id)).then((r) => r && setEstado(r.estado));
   // RF-35: la primera revisión de un espacio solo toma la foto; la verificación de todos se pide aquí.
@@ -81,7 +123,11 @@ export function AvisosLibros() {
       {textoFondo && <p className="muted small" role="status" data-fondo={fondo.estado}>{textoFondo}</p>}
       {estado.avisos.map((a) => (
         <div key={a.id} className={`alert ${esAlerta(a.texto) ? 'alert-warn' : 'alert-info'} stack`} role="status">
-          <p><strong>Libro de demanda reconocido.</strong> {a.texto}</p>
+          <p><strong>{tituloDelAviso(a.tipo)}</strong> {a.texto}</p>
+          {(() => {
+            const pendiente = a.tipo === 'formato' ? porConfirmar(a.ficha) : null;
+            return pendiente && <ConfirmarFormato huella={pendiente.huella} falta={pendiente.falta} confirmar={confirmar} />;
+          })()}
           <div className="row">
             <span className="muted small">{new Date(a.cuando * 1000).toLocaleString()}</span>
             <button className="btn btn-sm btn-ghost" onClick={() => visto(a.id)}>Dar por visto</button>

@@ -21,6 +21,8 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 
 from .demanda_medida import (
+    MESES,
+    nombre_de_mes,
     ALIAS,
     EXTENSIONES,
     abrir_libro,
@@ -43,8 +45,6 @@ MINIMO_COMPARABLE = 96
 REGISTROS_DIA = 96
 PASO = timedelta(minutes=15)
 
-MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
-         'noviembre', 'diciembre')
 
 Foto = tuple[tuple[str, int, int], ...]
 Curva = Sequence[tuple[datetime, float, float | None]]
@@ -81,13 +81,6 @@ def cambios(conocidos: Mapping[str, tuple[int, int]], foto: Foto) -> dict[str, l
 
 
 # --------------------------------------------------------------------------- textos
-def nombre_de_mes(mes: str | None) -> str:
-    """«2026-10» → «octubre 2026»."""
-    if not mes or not re.fullmatch(r'\d{4}-\d{2}', mes):
-        return 'mes sin reconocer'
-    return f'{MESES[int(mes[5:]) - 1]} {mes[:4]}'
-
-
 def mes_anterior(mes: str) -> str:
     anio, m = int(mes[:4]), int(mes[5:])
     return f'{anio - (m == 1):04d}-{(m - 2) % 12 + 1:02d}'
