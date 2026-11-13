@@ -7,7 +7,9 @@ Chincha (2026-10-18) se probaron así, uno tras otro y cada uno en su proyecto:
 
 1. espera los trabajos en curso del espacio y carga la fuente si no lo está;
 2. convierte por sistema eléctrico y lo importa en DIgSILENT, salvo que el espacio ya
-   tenga el proyecto de ese sistema (``--reconvertir`` lo rehace);
+   tenga el proyecto de ese sistema (``--reconvertir`` lo rehace); sin ese vínculo y sin
+   ``--reconvertir``, si la carpeta de DIgSILENT ya tiene un proyecto del grupo, para en vez
+   de importar, porque importar lo borraría (005:RF-24);
 3. sube los libros de demanda de ``--demanda-dir``, busca la máxima por barra de SET de los
    alimentadores con medidor, cruza los clientes y prepara el plan de la calibración;
 4. aplica la calibración del sistema entero (``--transformadores`` antes simula y cambia
@@ -249,11 +251,39 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> bool:
     return False
 
 
+class NoSeImporta(Exception):
+    """005:RF-24: importar borraría un proyecto de la carpeta que el operador no pidió reemplazar."""
+
+
+def _comprobar_que_no_borra(web: Web, grupo: str) -> None:
+    """005:RF-24: sin vínculo ni ``--reconvertir``, para si la importación borraría otro proyecto del grupo (005:RF-22).
+
+    Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, convertía e importaba ``PA217`` sin preguntar, y la
+    005:RF-22 habría borrado ``20261112-113130_CSG_TXT_PA217``, el que el usuario ya había trabajado. La lista se
+    lee de DIgSILENT con «Leer proyectos», no de la guardada: un espacio nuevo puede no tenerla, o tenerla vieja.
+    """
+    from convertersmartgrid.carpeta_pf import proyectos_que_borraria
+
+    estado = web.esperar(web.post('/powerfactory/projects'))
+    if not _terminado(estado) or estado.get('status') != 'done':
+        raise NoSeImporta(f'no se pudo leer la carpeta de proyectos de DIgSILENT ({estado.get("error") or estado["status"]}),'
+                          f' y sin ella no se sabe qué borraría importar {grupo} (005:RF-22); no se importa.')
+    rutas = [str(p.get('path') or p.get('name') or '') for p in (estado.get('result') or {}).get('projects') or []]
+    existentes = proyectos_que_borraria(rutas, grupo, web.get('').get('source_mode'))
+    if existentes:
+        raise NoSeImporta(
+            f"el espacio no tiene vínculo con un proyecto de DIgSILENT para {grupo}, y en la carpeta ya está "
+            f"{', '.join(existentes)}: importarlo de nuevo lo borraría (005:RF-22). No se importa. Para seguir con "
+            'ese proyecto, vincule el espacio con él (use el espacio de la web que lo importó, spec 018); para '
+            'reemplazarlo, repita con --reconvertir, que lo borrará al importar.')
+
+
 def _convertir_e_importar(web: Web, *, red: list[str], zonal: str | None, set_electrica: str | None,
-                          grupo: str) -> tuple[str, str | None]:
+                          grupo: str, proteger: bool = False) -> tuple[str, str | None]:
     """Convierte los alimentadores (``red``) o el sistema y los importa en DIgSILENT; devuelve el grupo y su proyecto.
 
-    El mismo paso al empezar y cuando el proyecto vinculado ya no existe (018:RF-17).
+    El mismo paso al empezar y cuando el proyecto vinculado ya no existe (018:RF-17). Con ``proteger``, antes de
+    importar comprueba que no se borrará otro proyecto del grupo (005:RF-24), o lanza :class:`NoSeImporta`.
     """
     if red:
         unir = len(red) > 1
@@ -275,6 +305,9 @@ def _convertir_e_importar(web: Web, *, red: list[str], zonal: str | None, set_el
     if estado['status'] != 'done' or not convertido:
         print(f"ERROR: {res.get('error') or estado.get('error')}")
         return grupo, None
+    if proteger:
+        # Tras convertir, con el grupo que dio la conversión: es el nombre del DGS que se importa.
+        _comprobar_que_no_borra(web, grupo)
     estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [grupo]}))
     print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
     if not _terminado(estado):
@@ -342,7 +375,12 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     grupo = nombre_del_grupo(zonal, red=red, grupo=grupo, set_electrica=set_electrica)
     proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
     if proyecto is None or reconvertir:
-        grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica, grupo=grupo)
+        try:
+            grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica,
+                                                    grupo=grupo, proteger=not reconvertir)
+        except NoSeImporta as exc:
+            print(f'ERROR: {exc}', flush=True)
+            return 2
         if proyecto is None:
             return 2
     print(f'Proyecto: {proyecto}', flush=True)
@@ -357,7 +395,13 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         if not web.get('').get('loaded') and not _terminado(web.esperar(web.post('/load'))):
             return 2
         anterior = proyecto
-        grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica, grupo=grupo)
+        # 005:RF-24: el vinculado ya no está, pero otra versión del grupo en la carpeta sí, y la 005:RF-22 la borraría.
+        try:
+            grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica,
+                                                    grupo=grupo, proteger=not reconvertir)
+        except NoSeImporta as exc:
+            print(f'ERROR: {exc}', flush=True)
+            return 2
         if proyecto is None or proyecto == anterior:
             print(f'ERROR: la importación de {grupo} no dejó un proyecto nuevo en DIgSILENT.')
             return 2

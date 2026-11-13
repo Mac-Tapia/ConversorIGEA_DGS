@@ -102,6 +102,15 @@ PowerFactory que no responde (añadido el 2026-10-14)
   Hallado el 2026-11-07: CA101/PE104 se importaba y convergía, pero el plan de calibración
   se bloqueaba al confundir otro wrapper del proyecto activo con otro proyecto.
 
+- RF-24: CUANDO `tools/sistema_web.py` va a importar un grupo sin que el espacio tenga vínculo con su proyecto
+  y sin `--reconvertir`, incluida la reimportación de un vínculo cuyo proyecto ya no está (018:RF-17), EL SISTEMA
+  leerá antes la carpeta de DIgSILENT y, SI en ella hay un proyecto que la RF-22 borraría al importar (mismo
+  nombre tras el sello, con la misma fuente y en la propia carpeta), ENTONCES no importará, saldrá con el
+  código 2 y dirá qué proyecto es y que se use el espacio vinculado con él o `--reconvertir`, que lo borrará.
+  SI la carpeta no se puede leer, tampoco importará. Sin ninguno (la primera importación) importa como antes, y
+  la RF-22 no cambia. Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, iba a importar `PA217` sin
+  preguntar y la RF-22 habría borrado `20261112-113130_CSG_TXT_PA217`, el que el usuario ya había trabajado.
+
 ## Requisitos no funcionales
 
 - Idioma y estilo de la constitución (P10).

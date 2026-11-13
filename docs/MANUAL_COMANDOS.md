@@ -889,6 +889,11 @@ Un sistema eléctrico entero, con la web abierta (spec 022, RF-56):
 > python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--criterio-fijas maximo_mes] [--alimentadores COD …] [--reconstruir TM106 TM101]
 ```
 
+Un espacio sin vínculo con el proyecto del sistema convierte e importa; pero si la carpeta de
+DIgSILENT ya tiene un proyecto de ese grupo y esa fuente (`<sello>_CSG_TXT_PA217`), para con el
+código 2 y lo nombra, porque importar lo borraría (spec 005, RF-22): se sigue desde el espacio
+vinculado con él, o se repite con `--reconvertir`, que lo borra al importar (spec 005, RF-24).
+
 Las fijas de la tabla cruzada van por defecto coincidentes con la máxima de cabecera (EA × 4 y
 ERI × 4 del registro de su fecha y hora); con `--criterio-fijas maximo_mes`, con la POT máxima
 del mes de cada una y el ERI × 4 de ese registro. Con «coincidente», una fija cuya hoja no trae

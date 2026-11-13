@@ -211,6 +211,41 @@ def versiones_anteriores(nombres: Iterable[str], nuevo: str) -> list[str]:
     return sorted(out)
 
 
+def nombre_de_importacion(sello: str, red: str, fuente: str | None = None) -> str:
+    """``<sello>_CSG_<fuente>_<red>`` (056:RF-1, 058:RF-4); sin fuente, ``<sello>_CSG_<red>``.
+
+    DIgSILENT corta ``loc_name`` a :data:`LARGO_MAXIMO`: un nombre más largo lleva la huella de ``red`` y su final.
+    """
+    import hashlib
+
+    prefijo = f'{sello}_CSG_' + (f'{fuente}_' if fuente else '')
+    candidato = f'{prefijo}{red}'
+    if len(candidato) <= LARGO_MAXIMO:
+        return candidato
+    huella = hashlib.sha256(red.encode('utf-8')).hexdigest()[:8]
+    return f'{prefijo}{huella}_{red[-8:]}'[:LARGO_MAXIMO]
+
+
+#: Las siglas de fuente que lleva el nombre de un proyecto importado (056:RF-1); ``None``, los de antes de la 056.
+SIGLAS_DE_FUENTE = ('TXT', 'MDB', 'VNR', None)
+#: Un sello posterior a cualquier importación real: con él, toda versión del grupo con sello cuenta como anterior.
+_SELLO_FUTURO = '99999999-999999'
+
+
+def proyectos_que_borraria(rutas: Iterable[str], red: str, fuente: str | None) -> list[str]:
+    """005:RF-24: los proyectos de la carpeta que la 005:RF-22 borraría al importar ``red`` de esa fuente.
+
+    La misma regla de :func:`versiones_anteriores`, con el nombre que tendría la importación. Solo cuentan los de
+    la propia carpeta: la 005:RF-22 no baja a las subcarpetas. Sin fuente conocida, cualquiera de las siglas, para
+    no dejar fuera uno que sí se borraría. Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, iba a
+    importar ``PA217`` y a borrar ``20261112-113130_CSG_TXT_PA217``, el que el usuario ya había trabajado.
+    """
+    nombres = [r for r in rutas if SEPARADOR not in r]
+    siglas = (fuente.upper(),) if fuente else SIGLAS_DE_FUENTE
+    return sorted({n for sigla in siglas
+                   for n in versiones_anteriores(nombres, nombre_de_importacion(_SELLO_FUTURO, red, sigla))})
+
+
 def eliminar_versiones_anteriores(app, carpeta, nuevo: str) -> list[str]:
     """005:RF-22: borra de la carpeta las versiones obsoletas de ``nuevo``, salvo la activa.
 

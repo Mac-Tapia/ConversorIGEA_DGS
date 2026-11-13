@@ -604,17 +604,12 @@ def _generated_project_name(stamp: str, dgs_stem: str, fuente: str | None = None
     """``<sello>_CSG_<fuente>_<red>`` (056:RF-1, 058:RF-4); sin fuente, ``<sello>_CSG_<red>``.
 
     PowerFactory loc_name está limitado a 40 caracteres. Los proyectos ya importados no se renombran ni
-    se reconocen por su nombre, sino por su vínculo (056:RF-2, spec 018).
+    se reconocen por su nombre, sino por su vínculo (056:RF-2, spec 018). La regla vive en ``carpeta_pf``,
+    que ``sistema_web.py`` usa para saber qué borraría una importación antes de pedirla (005:RF-24).
     """
-    import hashlib
+    from convertersmartgrid.carpeta_pf import nombre_de_importacion
 
-    prefijo = f'{stamp}_CSG_' + (f'{fuente}_' if fuente else '')
-    candidate = f'{prefijo}{dgs_stem}'
-    if len(candidate) <= 40:
-        return candidate
-    digest = hashlib.sha256(dgs_stem.encode('utf-8')).hexdigest()[:8]
-    tail = dgs_stem[-8:]
-    return f'{prefijo}{digest}_{tail}'[:40]
+    return nombre_de_importacion(stamp, dgs_stem, fuente)
 
 
 # ---------------------------------------------------------------------------

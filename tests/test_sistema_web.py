@@ -710,3 +710,82 @@ def test_con_proyecto_sin_proyecto_sigue_tras_calibrar(herramienta, monkeypatch,
 def test_un_trabajo_interrumpido_cuenta_como_terminado(herramienta):
     """086:RF-9 — tras un reinicio de la web el trabajo cortado queda «interrumpido»: el cliente no lo espera para siempre."""
     assert 'interrumpido' in herramienta.TERMINADOS
+
+
+class WebConCarpeta(WebRed):
+    """La carpeta de DIgSILENT ya tiene proyectos, y el espacio, ningún vínculo (copia de PA217, 2026-11-13)."""
+
+    def __init__(self, red, grupo, carpeta, *, fuente='txt', **kw):
+        super().__init__(red, grupo, **kw)
+        self.carpeta, self.fuente = list(carpeta), fuente
+
+    def get(self, ruta, **kw):
+        respuesta = super().get(ruta, **kw)
+        if ruta == '':
+            respuesta['source_mode'] = self.fuente
+        return respuesta
+
+    def esperar(self, trabajo):
+        if trabajo['id'] == '/powerfactory/projects' and self.fallo != trabajo['id']:
+            return {'status': 'done', 'result': {'folder': 'C', 'exists': True, 'projects': [
+                {'name': n.rsplit('/', 1)[-1], 'path': n, 'feeders': []} for n in self.carpeta]}}
+        return super().esperar(trabajo)
+
+
+def test_005_rf24_sin_vinculo_no_importa_encima_de_un_proyecto_del_grupo(herramienta, capsys):
+    """005:RF-24 — sin vínculo y sin ``--reconvertir``, un proyecto del grupo con sello anterior en la carpeta no se
+    importa de nuevo: la importación lo habría borrado (005:RF-22) y era el ya trabajado por el usuario."""
+    web = WebConCarpeta(['PA217'], 'PA217', ['20261112-113130_CSG_TXT_PA217', 'OTRO_A_MANO'])
+    assert _correr_red(herramienta, web) == 2
+    assert '/powerfactory/flow' not in web.enviados, 'importar habría borrado 20261112-113130_CSG_TXT_PA217'
+    assert '/demanda/ajuste/plan' not in web.enviados
+    salida = capsys.readouterr().out
+    assert '20261112-113130_CSG_TXT_PA217' in salida and '--reconvertir' in salida
+
+
+def test_005_rf24_lo_que_la_importacion_no_borraria_no_la_impide(herramienta):
+    """005:RF-24 — otra fuente, otro grupo, uno a mano o uno en una subcarpeta no los borra la 005:RF-22: se importa."""
+    web = WebConCarpeta(['PA217'], 'PA217', ['20261112-113130_CSG_MDB_PA217', '20261112-113130_CSG_TXT_PA2170',
+                                             'PA217', 'SUB/20261112-113130_CSG_TXT_PA217'])
+    assert _correr_red(herramienta, web) == 0
+    assert '/powerfactory/flow' in web.enviados
+
+
+def test_005_rf24_con_reconvertir_se_importa_y_se_sabe(herramienta):
+    """005:RF-24 — ``--reconvertir`` es la orden de reemplazarlo: no se pregunta ni se lee la carpeta."""
+    web = WebConCarpeta(['PA217'], 'PA217', ['20261112-113130_CSG_TXT_PA217'])
+    assert herramienta.correr(web, None, demanda_dir=Path('libros'), periodo='2026-07', reconvertir=True,
+                              transformadores=False, tension_pu=None, bancos=True, libros=LIBROS,
+                              red=web.red) == 0
+    assert '/powerfactory/flow' in web.enviados
+
+
+def test_005_rf24_si_no_se_puede_leer_la_carpeta_no_se_importa_a_ciegas(herramienta, capsys):
+    """005:RF-24 — sin la lista de la carpeta no se sabe qué borraría la importación: se para."""
+    web = WebConCarpeta(['PA217'], 'PA217', [], fallo='/powerfactory/projects')
+    assert _correr_red(herramienta, web) == 2
+    assert '/powerfactory/flow' not in web.enviados
+
+
+class WebBorradoConCarpeta(WebConProyectoBorrado):
+    """018:RF-17 con la carpeta: el vínculo nombra un proyecto que ya no está, pero hay otra versión del grupo."""
+
+    def get(self, ruta, **kw):
+        respuesta = super().get(ruta, **kw)
+        if ruta == '':
+            respuesta['source_mode'] = 'txt'
+        return respuesta
+
+    def esperar(self, trabajo):
+        if trabajo['id'] == '/powerfactory/projects':
+            return {'status': 'done', 'result': {'projects': [
+                {'name': '20261112-113130_CSG_TXT_SISTEMA_PISCO', 'path': '20261112-113130_CSG_TXT_SISTEMA_PISCO'}]}}
+        return super().esperar(trabajo)
+
+
+def test_005_rf24_el_proyecto_borrado_no_se_reimporta_encima_de_otra_version(herramienta, capsys):
+    """005:RF-24, 018:RF-17 — al reimportar el vínculo que ya no existe, la otra versión del grupo tampoco se borra."""
+    web = WebBorradoConCarpeta(proyecto='P_BORRADO', informes=[VALIDO])
+    assert _correr(herramienta, web) == 2
+    assert ('POST', '/powerfactory/flow') not in web.llamadas
+    assert '20261112-113130_CSG_TXT_SISTEMA_PISCO' in capsys.readouterr().out

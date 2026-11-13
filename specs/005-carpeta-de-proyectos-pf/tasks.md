@@ -75,3 +75,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       22/22. Evidencia externa de implementación: `p07_relectura_resultado.json`,
       `p07_calibracion_resultado.json`, `p07_binding_green.xml` y `p07_continuacion.log`.
       Esto cierra la relectura; no acredita las obras/transferencias ni aceptación eléctrica de R1.
+- [x] T16. `tools/sistema_web.py` no importa sin vínculo encima de un proyecto del grupo que la RF-22 borraría:
+      lee la carpeta con «Leer proyectos» y `carpeta_pf.proyectos_que_borraria` aplica la regla de
+      `versiones_anteriores` con el nombre que tendría la importación (`nombre_de_importacion`, la regla de
+      `_generated_project_name`, que ahora vive en `carpeta_pf`). (RF-24)
+      Hecho cuando: `pytest -q tests/test_sistema_web.py tests/test_carpeta_pf.py` en verde, con las pruebas
+      `test_005_rf24_*` en rojo antes de la corrección. Hecho el 2026-11-13 sobre `ab29e4ce`.
