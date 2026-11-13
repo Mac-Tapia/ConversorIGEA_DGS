@@ -359,7 +359,7 @@ export const api = {
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
   // Spec 042, RF-13: escalera carga a carga y SET nueva para las que no caben.
   obrasConProyecto: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
-    tipo_cambio: number | null; capex: string; alimentadores_nuevos: number;
+    tipo_cambio: number | null; capex: string; alimentadores_nuevos?: number;   // 086:RF-77: sin cargas, el de la API
     set_nueva_nombre?: string; directo_set_nueva?: boolean;
     escalera_primero?: boolean; rehacer_obras?: boolean }) =>      // 042:RF-76
     request<Job>(`${ws(id)}/pf/obras/con-proyecto`, json('POST', body)),

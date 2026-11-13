@@ -25,6 +25,7 @@ import { DESTINO, TipoDeAnalisis, guardarTipo, tipoGuardado, useTiposAnalisis, t
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva, esProducto } from '../../shared/edicion';
 import { FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
+import { RESUMEN_SIN_CARGAS, ofrecerObrasEstadoActual } from './obrasEstadoActual';
 
 const ANIO = new Date().getFullYear();
 
@@ -232,7 +233,8 @@ export function CargasTab() {
   const escalera = (lastEscalera?.result ?? null) as EscaleraResultado | null;
   // Spec 042: la última optimización de «Con proyecto» de ese proyecto.
   const lastConProyecto = todos.filter((j) => j.kind === 'obras_con_proyecto' && j.result
-    && (j.result as ConProyectoResultado).escalera_por_cargas?.project === resultado?.informe.project).pop();
+    // 086:RF-77: sin cargas integradas, la del proyecto abierto (obras para el estado actual).
+    && (j.result as ConProyectoResultado).escalera_por_cargas?.project === (resultado?.informe.project ?? project)).pop();
   const conProyecto = (lastConProyecto?.result ?? null) as ConProyectoResultado | null;
   const flujo = estadoFlujo(todos, project);
   const lastCheck = todos.filter((j) => j.kind === 'pf_verificar' && j.result?.project === project).pop();
@@ -716,6 +718,14 @@ export function CargasTab() {
           tipo_cambio: tipoCambio, capex, alimentadores_nuevos: nuevos,
           set_nueva_nombre: setNombre, directo_set_nueva: directo,
           escalera_primero: porAlimentador, rehacer_obras: rehacer }))} />}
+
+      {/* 086:RF-77: sin cargas nuevas integradas, el estado actual calibrado también puede violar límites. */}
+      {ofrecerObrasEstadoActual({ proyecto: current ? project : null, alimentadores: order,
+        calibrado: estadoPasos.calibrado, proyectoDeCargas: resultado?.informe.project ?? null }) && (
+        <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto}
+          onCorregir={(tipoCambio, capex, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
+            project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
+            escalera_primero: true, rehacer_obras: rehacer }))} />)}
 
       {current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
         <AvisoBeta clave="set_nueva" />
@@ -1227,6 +1237,43 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
   );
 }
 
+/** 086:RF-77: obras para el estado actual, sin cargas nuevas: solo los alimentadores que violan límites las llevan. */
+function ObrasEstadoActual({ feeders, ocupado, conProyecto, onCorregir }: {
+  feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null;
+  onCorregir: (tipoCambio: number | null, capex: string, rehacer: boolean) => void;
+}) {
+  const [tipoCambio, setTipoCambio] = useState('');
+  const [capex, setCapex] = useState('');
+  const [rehacer, setRehacer] = useState(false);
+  const tc = Number(tipoCambio.replace(',', '.'));
+  const tcValido = tipoCambio.trim() !== '' && Number.isFinite(tc) && tc > 0;
+  return (
+    <div className="step-box">
+      <h3>Obras para el estado actual</h3>
+      <p className="muted small">Sin cargas nuevas, «Con proyecto» lleva obras solo si el estado calibrado de {lista(feeders)} viola
+        límites: bancos, regulador, sección, terna o transferencia, de menor a mayor costo. El que cumple queda sin obras.</p>
+      <div className="row">
+        <label className="small">Tipo de cambio{' '}
+          <input type="text" inputMode="decimal" size={7} value={tipoCambio} placeholder="p. ej. 3,495"
+            aria-label="Tipo de cambio de los precios de pérdidas a la moneda del costo"
+            onChange={(e) => setTipoCambio(e.target.value)} />
+        </label>
+        <label className="small">Libro CAPEX{' '}
+          <input type="text" size={34} value={capex} placeholder="ruta del .xlsx en este equipo"
+            aria-label="Ruta del libro CAPEX de la empresa" onChange={(e) => setCapex(e.target.value)} />
+        </label>
+        <label className="small" title="Borra las obras de la escalera en estos alimentadores y las evalúa de nuevo">
+          <input type="checkbox" checked={rehacer} onChange={(e) => setRehacer(e.target.checked)} /> Rehacer obras</label>
+        <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
+          onClick={() => onCorregir(tcValido ? tc : null, capex.trim(), rehacer)}>
+          Corregir el estado actual en «Con proyecto»
+        </button>
+      </div>
+      {conProyecto && <ConProyecto r={conProyecto} />}
+    </div>
+  );
+}
+
 /** Spec 042, RF-12: qué carga va a la red existente y cuál a la SET nueva, y su diseño. */
 function ConProyecto({ r }: { r: ConProyectoResultado }) {
   const e = r.escalera_por_cargas;
@@ -1234,8 +1281,11 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
   return (
     <div className="step-box">
       <h4>«Con proyecto» optimizado</h4>
-      <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
-        ({e.pruebas ? `de mayor a menor potencia; ${e.pruebas.length} escaleras medidas` : 'por alimentador'}).</p>
+      {e.orden.length > 0
+        ? <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
+          ({e.pruebas ? `de mayor a menor potencia; ${e.pruebas.length} escaleras medidas` : 'por alimentador'}).</p>
+        // 086:RF-77: sin cargas nuevas, lo que se midió es el estado actual y sus obras.
+        : <p>{RESUMEN_SIN_CARGAS}</p>}
       {e.a_set_nueva.length > 0 && (
         <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
       )}

@@ -197,6 +197,13 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
   despliega; la copia no tiene botón en la web, se hace con la orden del manual.
 - RF-75: MIENTRAS el paso de un aviso está en una pestaña que se ofrece, la pestaña dirá cuántos avisos tiene; SI la
   pestaña no se ofrece, ENTONCES el aviso irá a la zona general.
+- RF-76: CUANDO se optimiza «Con proyecto» en alimentadores marcados sin ninguna carga nueva aplicada, EL SISTEMA
+  subirá la escalera de 098:RF-29 en cada uno que viole límites y aplicará la obra elegida; el que cumple quedará sin
+  obras, sin reponer cargas ni consultar el oráculo de cargas. SI se pidieron cargas concretas y ninguna está
+  aplicada, ENTONCES lo rechazará diciendo cuáles. (Electro Oriente NJA202, T32: 0,568 p.u. y ninguna obra ofrecida.)
+- RF-77: MIENTRAS el proyecto elegido está calibrado, con alimentadores marcados y sin cargas nuevas integradas, la
+  pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
+  resultado diciendo que lo medido es el estado actual.
 
 ### Aceptación
 

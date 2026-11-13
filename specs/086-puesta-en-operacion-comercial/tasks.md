@@ -192,6 +192,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Hecho cuando: `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-73) en verde.
 - [x] T56 Arriba solo los avisos generales, en una línea; la pestaña cuenta los avisos de sus pasos. (RF-74, RF-75)
       Hecho cuando: `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-74, RF-75) en verde.
+- [x] T57 «Con proyecto» sin cargas nuevas: obras solo donde el estado actual viola límites, desde la web. (RF-76, RF-77)
+      Hecho cuando: `tests/test_con_proyecto_sin_cargas.py` (086:RF-76) y `frontend/test/obrasEstadoActual.test.mjs`
+      (086:RF-77) en verde; la corrida real va en la T32.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

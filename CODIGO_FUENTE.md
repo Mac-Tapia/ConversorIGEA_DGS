@@ -389,6 +389,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
 | `frontend/src/features/powerfactory/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
 | `frontend/src/features/powerfactory/tensionFuente.ts` | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. | 021 (RF-79 a RF-82) |
+| `frontend/src/features/powerfactory/obrasEstadoActual.ts` | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. | 086 (RF-77) |
 | `frontend/src/features/powerfactory/ubicacionCarga.ts` | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. | 004 (RF-72 a RF-80) |
 | `frontend/src/shared/SinPantallaEnBlanco.tsx` | Si una pantalla falla al dibujarse, lo dice y deja recargar | 042 |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. | 063 |

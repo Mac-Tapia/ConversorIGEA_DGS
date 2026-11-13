@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 326 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 64 |
-| Pruebas de la interfaz | `frontend/test/` | 22 |
-| Pruebas | `tests/` | 431 |
+| Interfaz | `frontend/src/` | 65 |
+| Pruebas de la interfaz | `frontend/test/` | 23 |
+| Pruebas | `tests/` | 432 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 315 |
 
-`web/services.py` tiene 13267 líneas y 404 funciones, pendiente de partir (002).
+`web/services.py` tiene 13276 líneas y 404 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-105 specs con 3511 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+105 specs con 3513 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -811,6 +811,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
 | `frontend/src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
+| `frontend/src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `frontend/src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
 | `frontend/src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
@@ -833,6 +834,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/letraFija.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/obrasEstadoActual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

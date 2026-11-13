@@ -189,8 +189,11 @@ def test_sin_dato_de_la_set_nueva_se_conserva_la_escalera(monkeypatch):
     """042:RF-8, 042:RF-12 — si a la SET nueva le falta un dato, se dice en su informe y el trabajo
     conserva lo que midió la escalera."""
     monkeypatch.setattr(services, 'optimizar_con_proyecto', lambda *a, **k: {'caben': 3, 'a_set_nueva': [{'sed': 'N'}]})
-    # 063:RF-34: la optimización suma las cargas aplicadas para el umbral de la SET nueva.
-    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
+    # 063:RF-34: la optimización suma las cargas aplicadas para el umbral de la SET nueva. 086:RF-76: con ninguna
+    # aplicada el trabajo corrige el estado actual y no optimiza cargas; el doble devolvía [] y a la vez esperaba que la
+    # optimización hallara 3 que caben, un mundo que no puede darse. Una carga aplicada en NA203 lo hace coherente.
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
+                        lambda ws, project: [{'sed': 'N', 'alimentador': 'NA203', 'kw': 100.0, 'variacion': 'Carga_N'}])
 
     def falta(*_a, **_k):
         raise services.UserError('sin tasa de crecimiento de la spec 029 para NA203 (042:RF-8).')

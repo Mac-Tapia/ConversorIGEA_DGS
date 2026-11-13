@@ -8420,8 +8420,13 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     aplicadas = [c for c in _cargas_nuevas_aplicadas(ws, project)
                  if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')
                  and (not claves or clave_codigo(c.get('sed')) in claves)]
+    if not aplicadas and claves:
+        raise UserError('No están aplicadas en los alimentadores marcados: ' + ', '.join(cargas or []) + '.')
     if not aplicadas:
-        raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+        # 086:RF-76: sin cargas nuevas, «Con proyecto» lleva obras solo si el estado actual viola límites. Electro
+        # Oriente NJA202 (T32, 2026-11-12): calibrado a 0,568 p.u. en la fase A y la web no ofrecía ninguna obra.
+        ctx.log('Sin cargas nuevas aplicadas: cada alimentador marcado que viole límites en «Con proyecto» sube su '
+                'escalera; el que cumple no lleva obras (086:RF-76, 098:RF-29).')
     if rehacer_obras:
         # 042:RF-60: lo pide el operador: las de la escalera y las aplicadas sin origen guardado; nunca las suyas.
         _retirar_obras(ws, ctx, project, feeders, anio_casos, sin_origen=True)
@@ -8429,7 +8434,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     # nueva cumple y cuesta menos, y si algo falla tras retirarla, se repone.
     comparar = {} if rehacer_obras else _obras_a_comparar(ws, ctx, project, feeders)
     operador = _transferencias_como_alternativa(ws, ctx, project, feeders, anio_casos)       # 098:RF-44
-    _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
+    if aplicadas:
+        _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in aplicadas])
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     por_alim: dict[str, list[dict]] = {}
     for c in aplicadas:
@@ -8440,7 +8446,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     # 087:RF-1: el oráculo (el PINN promovido o el flujo físico) ordena; DIgSILENT mide por tandas y es el que decide.
     # 087:RF-30: sin oráculo, para poder comparar los dos métodos sobre el mismo sistema.
     usar = (completar_planeamiento(datos_perfil())[0]['escalera']).get('usar_oraculo', True)
-    seleccion = _seleccion_por_oraculo(ws, ctx, project, feeders, aplicadas, opciones, memo) if usar else {}
+    seleccion = _seleccion_por_oraculo(ws, ctx, project, feeders, aplicadas, opciones, memo) if usar and aplicadas else {}
     de_oraculo = seleccion.get('alimentadores') or {}
     modelo = _modelo_de_obras(ctx) if de_oraculo else None                            # 087:RF-18 a RF-20
     medidas: list[dict] = []
@@ -9577,7 +9583,10 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         # 042:RF-80: la misma forma que los otros dos flujos: la web busca el proyecto y lee el orden.
         escalera = {'project': project.strip(), 'caben': 0, 'orden': [{k: c.get(k) for k in campos} for c in todas],
                     'pruebas': [], 'escalera': None, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
-    elif escalera_primero:                                              # 042:RF-24
+    elif escalera_primero or not (evaluadas or pedidas):                   # 042:RF-24, 086:RF-76
+        if not (evaluadas or pedidas):
+            ctx.log('Ninguna carga nueva aplicada en los alimentadores marcados: se corrige el estado actual con la '
+                    'escalera por alimentador (086:RF-76).')
         escalera = escalera_por_alimentador(ws, ctx, project, feeders, anio_casos=anio_casos,
                                             tipo_cambio=tipo_cambio, capex=capex, cargas=cargas,
                                             rehacer_obras=rehacer_obras)
