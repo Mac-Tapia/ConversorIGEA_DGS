@@ -133,6 +133,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
+  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

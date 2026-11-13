@@ -110,6 +110,10 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 # La evidencia se conserva fuera del checkout; pytest no deja cachés locales (065:RF-10).
 addopts = "-p no:cacheprovider"
+# 106:RF-5: una prueba que pasa de 30 min vuelca la pila de cada hilo (faulthandler) y sigue: la puerta del 2026-11-12
+# estuvo 40 min parada sin decir dónde.
+faulthandler_timeout = 1800
+markers = ["gpu: la prueba usa la GPU; la marca la pone tests/conftest.py (106:RF-6)"]
 
 # El código vive en src/: sin esto, los revisores del editor (mypy y pylint) marcaban
 # «no se encuentra convertersmartgrid» en tools/ y tests/, aunque al ejecutar se encuentra

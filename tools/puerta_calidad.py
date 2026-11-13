@@ -23,6 +23,11 @@ from datetime import datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
+# 106:RF-11: la puerta importa el código del árbol que juzga. Con el .venv del árbol principal, su paquete instalado
+# apunta al src del principal: en un worktree, la puerta de la 106 (2026-11-12) importó trabajadores_ml del principal y
+# cayó con ImportError; peor aún, podía juzgar la rama con funciones de otro árbol.
+if str(RAIZ / 'src') not in sys.path:
+    sys.path.insert(0, str(RAIZ / 'src'))
 
 #: Las pruebas de gobierno: inventario, trazabilidad y estado de las specs, auditoría de raíz (102:RF-1).
 GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tests/test_auditoria_raiz.py',
@@ -167,6 +172,15 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> di
         # de las pruebas del asistente usaba el índice de este repositorio y fallaba solo dentro de la puerta (2026-11-11).
         limpio = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
         rc = subprocess.run(cmd, cwd=raiz, env={**limpio, **entorno}).returncode
+        from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, quien_tiene_la_gpu
+
+        if rc == SALIDA_SIN_TURNO_GPU:
+            # 106:RF-8: sin el turno de GPU no hay veredicto, y eso es un fallo con su dueño, nunca «0 fallidas».
+            from convertersmartgrid.training_coordinator import ruta_guardia_gpu
+
+            dueno = quien_tiene_la_gpu(ruta_guardia_gpu({**limpio, **entorno}))   # la misma que calculó el conftest
+            return {'total': 0, 'omitidas': [],
+                    'fallidas': [{'prueba': 'pytest', 'motivo': f'sin el turno de GPU en su plazo: la tiene {dueno} (106:RF-8)'}]}
         if not junit.is_file():
             raise PuertaError(f'pytest terminó con el código {rc} sin dejar resultado.')
         juicio = veredicto(junit)

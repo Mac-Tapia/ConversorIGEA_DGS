@@ -13,9 +13,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
 | Pruebas de la interfaz | `frontend/test/` | 23 |
-| Pruebas | `tests/` | 432 |
+| Pruebas | `tests/` | 433 |
 | Pruebas de modelos | `tests_ml/` | 6 |
-| Specs | `specs/` | 315 |
+| Specs | `specs/` | 318 |
 
 `web/services.py` tiene 13276 líneas y 404 funciones, pendiente de partir (002).
 
@@ -24,11 +24,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 84 |
-| aprobada | 17 |
+| aprobada | 18 |
 | implementada | 3 |
 | retirada | 1 |
 
-105 specs con 3513 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3524 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

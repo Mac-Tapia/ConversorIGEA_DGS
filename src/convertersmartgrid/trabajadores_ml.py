@@ -92,3 +92,59 @@ def turno_gpu(nombre: str):
     else:
         with BloqueoGPU(ruta,nombre):
             yield
+
+
+#: Código de salida de pytest sin el turno de GPU en su plazo (106:RF-4). Los de pytest van del 0 al 5.
+SALIDA_SIN_TURNO_GPU = 6
+
+
+def quien_tiene_la_gpu(ruta: Path | str) -> str:
+    """El dueño del turno en ``ruta``: proceso, orden y desde cuándo, o «nadie» (106:RF-3)."""
+    try:
+        dueno = json.loads(Path(ruta).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return 'nadie'
+    if not isinstance(dueno, dict):
+        return 'nadie'
+    return f"PID {dueno.get('pid')} ({dueno.get('model')}, desde {dueno.get('started_at')})"
+
+
+@contextmanager
+def turno_gpu_con_plazo(nombre: str, *, ruta: Path | str | None = None, limite_s: float, pausa_s: float = 5.0,
+                        avisar=None, aviso_cada_s: float = 60.0, reloj=None, dormir=None):
+    """El turno de la GPU, esperando a que lo suelte otro, con plazo y diciendo quién lo tiene (106:RF-2, RF-3).
+
+    2026-11-12: la puerta de un commit esperó 40 min en silencio al entrenamiento T7 (una prueba de módulo tomaba el
+    turno real y lo pedía cada 5 s hasta 1 800 s), y nadie supo si estaba colgada. Cada ``aviso_cada_s`` se dice quién
+    lo tiene; al vencer ``limite_s`` se lanza ``RuntimeError`` con ese dueño, sin dar nada por bueno.
+    """
+    import time
+
+    from .training_coordinator import BloqueoGPU, ruta_guardia_gpu
+
+    reloj = reloj or time.monotonic
+    dormir = dormir or time.sleep
+    ruta = Path(ruta) if ruta is not None else ruta_guardia_gpu()
+    inicio = reloj()
+    ultimo_aviso = None
+    while True:
+        bloqueo = BloqueoGPU(ruta, nombre)
+        try:
+            bloqueo.__enter__()
+            break
+        except RuntimeError as exc:
+            if 'GPU ocupada' not in str(exc):
+                raise
+            transcurrido = reloj() - inicio
+            if transcurrido >= limite_s:
+                raise RuntimeError(f'GPU ocupada por {quien_tiene_la_gpu(ruta)} tras esperar {limite_s:.0f} s '
+                                   f'({nombre}, 106:RF-3).') from None
+            if avisar is not None and (ultimo_aviso is None or reloj() - ultimo_aviso >= aviso_cada_s):
+                avisar(f'{nombre}: esperando la GPU, la tiene {quien_tiene_la_gpu(ruta)} '
+                       f'({transcurrido:.0f} de {limite_s:.0f} s).')
+                ultimo_aviso = reloj()
+            dormir(pausa_s)
+    try:
+        yield bloqueo
+    finally:
+        bloqueo.__exit__(None, None, None)

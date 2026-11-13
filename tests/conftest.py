@@ -24,6 +24,117 @@ sesion_web.EXIGIR_SEGURIDAD = False
 os.environ[sesion_web.VARIABLE_CARPETA] = tempfile.mkdtemp(prefix='csg-sesiones-pruebas-')
 os.environ.pop(sesion_web.VARIABLE_PUERTO, None)
 
+# 106:RF-1: la GPU de la máquina se pide una vez por sesión (ver pytest_sessionstart); dentro, la guardia es de la
+# sesión. Aquí y no en un fixture: con un fixture de módulo, test_digital_twin_oraculo tomaba la guardia real antes que
+# el fixture por prueba de 102:RF-22, y la puerta del 2026-11-12 esperó 40 min en silencio a la T7.
+from convertersmartgrid.training_coordinator import ruta_guardia_gpu as _ruta_guardia_gpu
+
+GUARDIA_GPU_DE_LA_MAQUINA = _ruta_guardia_gpu()
+os.environ['CSG_ML_GPU_LOCK'] = str(Path(tempfile.mkdtemp(prefix='csg-gpu-sesion-')) / 'gpu.lock')
+#: Segundos que la suite espera la GPU de la máquina antes de salir sin veredicto (106:RF-3).
+VARIABLE_ESPERA_GPU_SUITE = 'CSG_GPU_ESPERA_SUITE_S'
+ESPERA_GPU_SUITE_S = 7200.0
+#: Lo que delata un módulo de pruebas que usa la GPU (106:RF-6), sin distinguir mayúsculas: torch, CUDA o la GPU
+#: (``turno_gpu``, ``*_gpu``). Con «CUDA» en mayúsculas, test_pronostico_demanda se quedaba fuera.
+SEÑALES_GPU = ('torch', 'cuda', 'gpu')
+_turno_de_la_sesion: list = []
+_usa_gpu_cache: dict = {}
+
+
+def _hay_cuda() -> bool:
+    try:
+        import torch
+    except ImportError:
+        return False
+    return bool(torch.cuda.is_available())
+
+
+def usa_gpu(ruta) -> bool:
+    """106:RF-6: el módulo de pruebas usa la GPU si su texto trae una de :data:`SEÑALES_GPU`."""
+    ruta = Path(ruta)
+    if ruta not in _usa_gpu_cache:
+        try:
+            texto = ruta.read_text(encoding='utf-8')
+        except OSError:
+            texto = ''
+        texto = texto.lower()
+        _usa_gpu_cache[ruta] = any(s in texto for s in SEÑALES_GPU)
+    return _usa_gpu_cache[ruta]
+
+
+def pytest_collection_modifyitems(config, items):
+    """106:RF-6: la marca ``gpu`` se pone sola; ninguna prueba depende de que alguien se acuerde de marcarla."""
+    for item in items:
+        if usa_gpu(item.path):
+            item.add_marker(pytest.mark.gpu)
+
+
+def tomar_turno_si_hace_falta(items) -> None:
+    """106:RF-1 a RF-4, RF-7: el turno común, solo si alguna prueba elegida usa la GPU, esperando con plazo.
+
+    Con otro proceso en la GPU (un entrenamiento de tools/, otra puerta), las pruebas de CUDA fallaban por memoria
+    (suite de 10a80812: 61 de 62 fallidas, «CUDA error: out of memory»). Una puerta sin pruebas de GPU no espera
+    (102:RF-18). Si el plazo vence, pytest sale con :data:`SALIDA_SIN_TURNO_GPU` y el dueño, sin juzgar ni omitir
+    nada. Una sesión de pytest lanzada por una prueba no lo pide: es de su padre.
+    """
+    import sys
+
+    if (os.environ.get('PYTEST_CURRENT_TEST') or not any(i.get_closest_marker('gpu') for i in items)
+            or not _hay_cuda()):
+        return
+    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, turno_gpu_con_plazo
+
+    limite = float(os.environ.get(VARIABLE_ESPERA_GPU_SUITE, ESPERA_GPU_SUITE_S))
+    turno = turno_gpu_con_plazo('suite-pytest', ruta=GUARDIA_GPU_DE_LA_MAQUINA, limite_s=limite,
+                                avisar=lambda t: print(t, file=sys.__stderr__, flush=True))
+    try:
+        turno.__enter__()
+    except RuntimeError as exc:
+        pytest.exit(f'La suite no puede juzgar: {exc}', returncode=SALIDA_SIN_TURNO_GPU)
+    _turno_de_la_sesion.append(turno)
+
+
+def pytest_collection_finish(session):
+    tomar_turno_si_hace_falta(session.items)
+
+
+def _cuda_iniciada() -> bool:
+    import sys
+
+    torch = sys.modules.get('torch')
+    return bool(torch is not None and torch.cuda.is_initialized())
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    """106:RF-9: gobierno en ejecución: una prueba sin la marca ``gpu`` que reserva memoria de CUDA falla diciéndolo.
+
+    El texto del módulo (RF-6) no ve el uso indirecto, una prueba que entrena por ``src`` sin nombrar torch; sin el
+    turno de RF-1 esa prueba volvería a chocar con un entrenamiento. No mira lo que reserva un proceso hijo.
+    """
+    import sys
+
+    vigilar = item.get_closest_marker('gpu') is None
+    antes = _cuda_iniciada()
+    base = 0
+    if vigilar and antes:
+        torch = sys.modules['torch']
+        torch.cuda.reset_peak_memory_stats()
+        base = torch.cuda.memory_allocated()
+    resultado = yield
+    if vigilar and _cuda_iniciada():
+        torch = sys.modules['torch']
+        pico = torch.cuda.max_memory_allocated()
+        if not antes or pico > base:
+            pytest.fail(f'{item.nodeid} usa CUDA ({pico} bytes) sin la marca gpu: añada a su módulo una de '
+                        f'{SEÑALES_GPU} o la marca, para que tome el turno de la GPU (106:RF-9).', pytrace=False)
+    return resultado
+
+
+def pytest_sessionfinish(session, exitstatus):
+    while _turno_de_la_sesion:
+        _turno_de_la_sesion.pop().__exit__(None, None, None)
+
 
 #: El flujo de GitHub Actions lo declara: allí no hay GPU (102:RF-17).
 VARIABLE_CI_SIN_GPU = 'CSG_CI_SIN_GPU'
@@ -98,13 +209,28 @@ def _entorno_restituido():
 
 
 @pytest.fixture(autouse=True)
-def _guardia_de_gpu_propia(monkeypatch, tmp_path):
+def _guardia_de_gpu_propia(monkeypatch, tmp_path, request):
     """102:RF-22: cada prueba con su guardia de GPU, no la de la máquina.
 
     El 2026-11-11 un entrenamiento real tenía la guardia y 25 pruebas del oráculo fallaron en la puerta con «GPU ocupada:
     otro proceso conserva la guardia». Sus modelos son de prueba y caben junto al entrenamiento.
+
+    106:RF-10: un hijo que entrena toma el turno, que aquí es el de la prueba, y su ``.guard`` queda en disco (043:RF-6
+    nunca lo borra). Si la prueba no lleva la marca ``gpu``, ella o un hijo suyo usaron la GPU sin pedir el turno común.
     """
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
+    yield
+    fallo = turno_sin_marca(tmp_path / 'gpu.lock', marcada=request.node.get_closest_marker('gpu') is not None)
+    if fallo:
+        pytest.fail(f'{request.node.nodeid}: {fallo}', pytrace=False)
+
+
+def turno_sin_marca(lock: Path, *, marcada: bool) -> str | None:
+    """106:RF-10: el motivo si una prueba sin la marca ``gpu`` dejó el turno de su guardia tomado alguna vez."""
+    if marcada or not lock.with_name(lock.name + '.guard').exists():
+        return None
+    return ('tomó el turno de GPU (ella o un proceso que lanzó) sin la marca gpu: añada a su módulo una de '
+            f'{SEÑALES_GPU} o la marca (106:RF-10).')
 
 
 @pytest.fixture(autouse=True)
