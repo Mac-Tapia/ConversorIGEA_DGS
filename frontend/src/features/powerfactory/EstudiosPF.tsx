@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, FallaProteccion, Limites, OpcionesEstudios, PropuestaRed,
-  ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
+import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen, FallaProteccion, Limites, OpcionesEstudios,
+  PropuestaRed, ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
 import { betaActiva } from '../../shared/edicion';
 import { GuionesPF } from './GuionesPF';
@@ -14,21 +14,67 @@ const LIMITES: [keyof Limites, string][] = [
   ['cargabilidad_max_pct', 'Cargabilidad máxima (%)'],
 ];
 
+/** Los casos del conversor, con o sin el año de su calibración (025, 037:RF-3). */
+const CASO_DEL_CONVERSOR = /^(Sin proyecto|Cargas nuevas|Con proyecto)( \d{4})?$/;
+
+/** 011:RF-135: por defecto, los casos del conversor que tenga el proyecto; si no tiene ninguno, ninguno marcado. */
+export function casosPorDefecto(casos: string[]): string[] {
+  return casos.filter((c) => CASO_DEL_CONVERSOR.test(c));
+}
+
+/** 011:RF-131, RF-135: sin calibración se puede estudiar igual; solo hacen falta estudios y alimentadores. */
+export function puedePrepararEstudios({ pfBusy, estudios, alimentadores }: {
+  pfBusy: boolean; estudios: number; alimentadores: number;
+}): boolean {
+  return !pfBusy && estudios > 0 && alimentadores > 0;
+}
+
+/** 011:RF-135: los casos de estudio del proyecto, varios a la vez, para elegir en cuáles se estudia. */
+export function SelectorCasos({ casos, elegidos, onCambio }: {
+  casos: string[]; elegidos: string[]; onCambio: (casos: string[]) => void;
+}) {
+  if (!casos.length) {
+    return <p className="small muted">La lectura de los proyectos (paso 1) no trae sus casos de estudio: vuelva a leerlos
+      para elegir otros. Sin elegir ninguno se estudian los del conversor que tenga el proyecto.</p>;
+  }
+  const alternar = (c: string) => onCambio(elegidos.includes(c)
+    ? elegidos.filter((x) => x !== c) : casos.filter((x) => x === c || elegidos.includes(x)));
+  return (
+    <div>
+      <p className="small"><strong>Casos de estudio</strong> ({elegidos.length} de {casos.length}): cualquier caso del
+        proyecto de DIgSILENT, tal como está. Sin elegir ninguno se estudian los del conversor.</p>
+      <div className="chips" role="group" aria-label="Casos de estudio">
+        {casos.map((c) => (
+          <button key={c} type="button" className={`chip ${elegidos.includes(c) ? 'on' : ''}`}
+            aria-pressed={elegidos.includes(c)} onClick={() => alternar(c)}>{c}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
- * 4.2 · Estudios (spec 011, RF-17 a RF-41).
+ * 4.2 · Estudios (spec 011, RF-17 a RF-41, RF-130 a RF-135).
  *
- * Sobre la base del último ajuste aplicado (RF-12): primero en «Sin proyecto» y después
- * en «Cargas nuevas» y «Con proyecto» (037:RF-3), con su límite de tiempo (RF-39). Los
- * estudios sin datos se listan con lo que les falta, sin poder elegirlos (RF-24).
+ * En cualquier caso de estudio del proyecto de DIgSILENT (RF-130): por defecto, los del conversor
+ * («Sin proyecto», «Cargas nuevas» y «Con proyecto», 037:RF-3) sobre el último ajuste aplicado (RF-12).
+ * Sin calibración se estudia el caso tal como está y se avisa, sin bloquear (RF-131). Cada estudio con su
+ * límite de tiempo (RF-39); los que no tienen datos se listan con lo que les falta (RF-24).
  */
-export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = [] }: {
+export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = [], casos = [] }: {
   project: string; feeders: string[]; ajusteJobId: string | null;
   /** 091:RF-21: el orden es calibración, recalibración y estudio; se avisa, sin apagar el botón. */
   faltaRecalibrar?: string[];
+  /** 011:RF-134: los casos de estudio del proyecto, de la lectura de proyectos. */
+  casos?: string[];
 }) {
   const { ws, run, startJob, active, jobs, health } = useApp();
   const [catalogo, setCatalogo] = useState<EstudiosCatalogo | null>(null);
   const [elegidos, setElegidos] = useState<string[]>(['flujo']);
+  // Al cambiar de proyecto, o al releerlo, se vuelve a los del conversor que tenga.
+  const claveCasos = casos.join('\n');
+  const [casosElegidos, setCasosElegidos] = useState<string[]>(() => casosPorDefecto(casos));
+  useEffect(() => setCasosElegidos(casosPorDefecto(claveCasos ? claveCasos.split('\n') : [])), [project, claveCasos]);
   const [limites, setLimites] = useState<Record<string, string>>({});
   const [minutos, setMinutos] = useState('');
   const [plan, setPlan] = useState<EstudiosPlan | null>(null);
@@ -65,7 +111,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
     const m = Number(minutos.trim().replace(',', '.'));
     const p = await run(() => api.estudiosPlan(ws.id, {
       project, feeders, estudios: elegidos, ajuste_job_id: ajusteJobId, limites: cambiados,
-      limite_s: Number.isFinite(m) && m > 0 ? m * 60 : null, opciones,
+      limite_s: Number.isFinite(m) && m > 0 ? m * 60 : null, opciones, casos: casosElegidos,
     }));
     if (p) setPlan(p);
   };
@@ -78,7 +124,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
   if (!catalogo) return <p className="muted">Cargando el catálogo de estudios…</p>;
   return (
     <div>
-      <p className="muted">Se estudian tres casos sobre la misma calibración:</p>
+      <p className="muted">Se estudia cualquier caso del proyecto de DIgSILENT. Por defecto, los del conversor:</p>
       <ul className="small">
         <li><strong>«Sin proyecto»</strong>: la red calibrada y las demandas existentes.</li>
         <li><strong>«Cargas nuevas»</strong>: la misma red con las cargas nuevas que permiten converger,
@@ -86,9 +132,11 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
         <li><strong>«Con proyecto»</strong>: las cargas nuevas y las obras de mejora activas.</li>
       </ul>
       <p className="muted">Sin cargas nuevas se omite el diagnóstico; sin cargas ni obras se estudia solo «Sin proyecto».
-        Lo que proponen los optimizadores se informa, no se aplica.</p>
-      {!ajusteJobId && <p className="alert alert-warn">No hay ningún ajuste a la máxima aplicado en este proyecto: primero
-        hay que calibrar (paso 2).</p>}
+        Un caso que no existe se informa y se sigue con los demás. Lo que proponen los optimizadores se informa, no se aplica.</p>
+      <SelectorCasos casos={casos} elegidos={casosElegidos} onCambio={setCasosElegidos} />
+      {!ajusteJobId && <p className="alert alert-warn">No hay ningún ajuste a la máxima aplicado en este proyecto: se estudia
+        cada caso tal como está en DIgSILENT, sin comparar la cabecera con los objetivos de una calibración. Puede
+        calibrar antes en el paso 2.</p>}
       {ajusteJobId && faltaRecalibrar.length > 0 && <p className="alert alert-warn">{faltaRecalibrar.join(', ')}: solo
         tiene la calibración. El orden es calibración, recalibración y estudio: recalibre en el paso 2.4. Puede preparar
         los estudios igual; el plan lo anota.</p>}
@@ -125,7 +173,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
       {catalogo.limites && <small className="muted">Límites de partida: {catalogo.limites.origen === 'perfil'
         ? 'los del perfil de empresa' : 'los de por defecto (sin perfil de empresa)'}.</small>}
       <div className="row">
-        <button className="btn btn-primary" disabled={pfBusy || !elegidos.length || !feeders.length || !ajusteJobId}
+        <button className="btn btn-primary"
+          disabled={!puedePrepararEstudios({ pfBusy, estudios: elegidos.length, alimentadores: feeders.length })}
           onClick={preparar}>Preparar los estudios ({elegidos.length})</button>
       </div>
       {resultado && <ResultadoEstudios r={resultado} cancelado={ultima?.status === 'cancelled'} />}
@@ -155,8 +204,17 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
 }
 
 function ResultadoEstudios({ r, cancelado }: { r: EstudiosResultado; cancelado: boolean }) {
-  const { ws } = useApp();
+  const { ws, run } = useApp();
+  const [resumen, setResumen] = useState<EstudiosResumen | null>(null);
+  // Sin calibración no se preparan los casos del conversor: «casos» llega vacío y sin diagnóstico (011:RF-131).
   const diagnostico = r.casos.cargas_nuevas;
+  // 017:RF-142: con lo que la corrida guardó; no se vuelve a DIgSILENT.
+  const token = r.token;
+  const pedirResumen = async () => {
+    if (!token) return;
+    const hecho = await run(() => api.estudiosResumen(ws.id, token));
+    if (hecho) setResumen(hecho);
+  };
   return (
     <div className="alert">
       <p><strong>Estudios en {r.project}</strong> · {r.feeders.join(', ')}</p>
@@ -188,6 +246,26 @@ function ResultadoEstudios({ r, cancelado }: { r: EstudiosResultado; cancelado: 
         <p>Ficheros: {r.ficheros.map((f) => (
           <a key={f} className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, f, true)}>{f}</a>))}</p>
       )}
+      <ResumenEjecutivo token={token} resumen={resumen} onPedir={pedirResumen}
+        enlace={(f) => api.fileUrl(ws.id, f, true)} />
+    </div>
+  );
+}
+
+/** 017:RF-142, RF-143: el botón del resumen ejecutivo de la corrida y sus ficheros, cuando están. */
+export function ResumenEjecutivo({ token, resumen, onPedir, enlace }: {
+  token?: string; resumen: EstudiosResumen | null; onPedir: () => void; enlace: (fichero: string) => string;
+}) {
+  return (
+    <div>
+      <div className="row">
+        <button className="btn" disabled={!token} onClick={onPedir}
+          title={token ? undefined : 'Esta corrida es anterior al resumen: vuelva a ejecutar los estudios.'}>
+          Resumen ejecutivo</button>
+        {resumen && <a className="btn btn-sm btn-ghost" href={enlace(resumen.docx)}>{resumen.docx}</a>}
+        {resumen?.xlsx && <a className="btn btn-sm btn-ghost" href={enlace(resumen.xlsx)}>{resumen.xlsx}</a>}
+      </div>
+      {resumen && <ul className="small">{resumen.conclusiones.map((c) => <li key={c}>{c}</li>)}</ul>}
     </div>
   );
 }

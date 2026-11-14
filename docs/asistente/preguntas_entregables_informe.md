@@ -2,7 +2,7 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 443. Huella del contenido: `995a804fea89091d1230a5cd8ea33680d300d1e3327598767ee9c041184140b2`.
+Filas: 441. Huella del contenido: `0327aeec3f11f0a12c1ca0c8747b33deaf36d400339ac2c39ef6fe93b62eec6b`.
 Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
@@ -15,7 +15,7 @@ Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e
 | planeamiento_pide | 22 | 19 | 3 | 16 | 6 | 0 |
 | dgs_manifiesto | 19 | 16 | 3 | 14 | 5 | 0 |
 | calibracion_alcance | 22 | 19 | 3 | 16 | 6 | 0 |
-| estudios_resultados | 19 | 16 | 3 | 14 | 5 | 0 |
+| estudios_resultados | 17 | 14 | 3 | 12 | 5 | 0 |
 | transferencias | 19 | 16 | 3 | 14 | 5 | 0 |
 | escalera_obras | 20 | 17 | 3 | 15 | 5 | 0 |
 | set_nueva | 18 | 15 | 3 | 13 | 5 | 0 |
@@ -104,7 +104,7 @@ Huecos encontrados:
 
 ## estudios_resultados
 
-Filas: 19; con respuesta 16, sin respuesta 3. Fuentes: implementada 19.
+Filas: 17; con respuesta 14, sin respuesta 3. Fuentes: implementada 17.
 
 Huecos encontrados:
 

@@ -429,6 +429,8 @@ export interface PfProject {
    *  lecturas anteriores a la spec 005 no la traen: entonces vale el nombre. */
   path?: string;
   feeders: string[];
+  /** 011:RF-134: los casos de estudio (IntCase) del proyecto; las lecturas anteriores no los traen. */
+  cases?: string[];
   native_inventory_sha256?: string | null;
   native_reread_at?: number | null;
   native_warning?: string | null;
@@ -1824,9 +1826,23 @@ export interface EstudiosPlan {
   avisos: string[];
   limites: Limites;
   limite_s: number;
+  /** 011:RF-131: sin calibración se estudia el caso tal como está en DIgSILENT. */
+  calibrado?: boolean;
+}
+
+/** 017:RF-142, RF-143: el resumen ejecutivo de una corrida de estudios. */
+export interface EstudiosResumen {
+  token: string;
+  project: string;
+  docx: string;
+  xlsx: string | null;
+  huecos: string[];
+  conclusiones: string[];
 }
 
 export interface EstudiosResultado {
+  /** El token del plan: el resumen ejecutivo lo pide (017:RF-142). */
+  token?: string;
   project: string;
   feeders: string[];
   estudios: {

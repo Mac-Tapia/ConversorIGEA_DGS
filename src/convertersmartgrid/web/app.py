@@ -491,6 +491,8 @@ class EstudiosIn(BaseModel):
     # Spec 012: objetivo y máximos de reconectadores (RF-37), crecimiento conjunto (RF-45) y
     # contingencias de las curvas PV (RF-53).
     opciones: dict[str, Any] = Field(default_factory=dict)
+    # 011:RF-130: los casos de DIgSILENT que se estudian, por su nombre; sin ninguno, los del conversor.
+    casos: list[str] = Field(default_factory=list, max_length=500)
 
 
 class DatosEmpresaAplicarIn(BaseModel):
@@ -2708,7 +2710,12 @@ def create_app(
         ws = ws_or_404(wid)
         return services.estudios_plan(ws, body.project, body.feeders, body.estudios,
                                       _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
-                                      body.limite_s, body.opciones)
+                                      body.limite_s, body.opciones, body.casos)
+
+    @app.post('/api/workspaces/{wid}/pf/estudios/{token}/resumen')
+    def estudios_resumen(wid: str, token: str) -> dict:
+        """017:RF-142, RF-143: el resumen ejecutivo de una corrida, con lo que guardó; sin DIgSILENT."""
+        return services.estudios_resumen(ws_or_404(wid), token)
 
     @app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def estudios_ejecutar(wid: str, token: str) -> dict:

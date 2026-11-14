@@ -1,6 +1,6 @@
 import type { AvanceDisco, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
-  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
+  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
 
@@ -378,7 +378,11 @@ export const api = {
   estudiosPlan: (id: string, body: {
     project: string; feeders: string[]; estudios: string[]; ajuste_job_id: string | null;
     limites: Partial<Limites>; limite_s: number | null; opciones: OpcionesEstudios;
+    /** 011:RF-130: los casos de DIgSILENT por su nombre; vacío, los del conversor. */
+    casos?: string[];
   }) => request<EstudiosPlan>(`${ws(id)}/pf/estudios/plan`, json('POST', body)),
+  estudiosResumen: (id: string, token: string) =>
+    request<EstudiosResumen>(`${ws(id)}/pf/estudios/${enc(token)}/resumen`, { method: 'POST' }),
   datosEmpresaSubir: (id: string, project: string, file: File) => {
     const fd = new FormData();
     fd.append('project', project);

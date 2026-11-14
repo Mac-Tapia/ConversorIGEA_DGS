@@ -26,7 +26,7 @@ RAIZ = PE.RAIZ
 #: 072 T3 (2026-11-06): planeamiento_pide-015, sellada, citaba «- [ ] T3» y la tarea se cerró con el adaptador; el ancla
 #: pasa a «T3 Adaptador…», que está en la misma línea de la revisión fijada y en el árbol, y la respuesta se corrige por
 #: el campo de revisión (lo que falta es la base real, T13). Es la primera vez que cambia lo sellado: el ancla es contenido.
-HUELLA_CONJUNTO = '995a804fea89091d1230a5cd8ea33680d300d1e3327598767ee9c041184140b2'
+HUELLA_CONJUNTO = '0327aeec3f11f0a12c1ca0c8747b33deaf36d400339ac2c39ef6fe93b62eec6b'
 HUELLA_SELLADO = '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 

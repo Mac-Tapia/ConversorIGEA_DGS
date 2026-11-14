@@ -882,36 +882,6 @@
 {
 "fuentes": [
 {
-"ancla": "- RF-13:",
-"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
-},
-{
-"ancla": "no tiene ningún ajuste a la máxima aplicado",
-"fichero": "src/convertersmartgrid/web/services.py"
-}
-],
-"id": "estudios_resultados-001",
-"pregunta": "¿Puedo correr estudios sin calibrar?",
-"tipo": "entregable"
-},
-{
-"fuentes": [
-{
-"ancla": "- RF-13:",
-"fichero": "specs/011-estudios-sobre-la-red-calibrada/spec.md"
-},
-{
-"ancla": "no tiene ningún ajuste a la máxima aplicado",
-"fichero": "src/convertersmartgrid/web/services.py"
-}
-],
-"id": "estudios_resultados-001-p1",
-"pregunta": "sin calibrar me deja los estudios?",
-"tipo": "entregable"
-},
-{
-"fuentes": [
-{
 "ancla": "- RF-3:",
 "fichero": "specs/037-cargas-nuevas-en-estudios-web/spec.md"
 }

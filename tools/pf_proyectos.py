@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Lista los proyectos de la carpeta de importación de DIgSILENT y sus alimentadores.
+"""Lista los proyectos de la carpeta de importación de DIgSILENT, sus alimentadores y sus casos.
 
 Alimenta el desplegable de la web: el operador elige el proyecto que ya existe en
 DIgSILENT y, dentro de él, en qué alimentadores aplicar las cargas.
@@ -72,8 +72,22 @@ def _restituir(app, anterior):
         raise RuntimeError(f'No se pudo restituir el proyecto activo previo: {exc}') from exc
 
 
+def casos_de_estudio(prj) -> list[str]:
+    """Los nombres de los ``IntCase`` de la carpeta de casos del proyecto, ordenados (011:RF-134).
+
+    La web 4.2 estudia cualquier caso del proyecto (orden del usuario del 2026-11-13), y para ofrecerlos tiene
+    que saber cuáles hay. Solo se abre la carpeta de casos (``iopt_typ`` «study», de primer nivel en el
+    proyecto) y sus subcarpetas: nunca el árbol entero, que el 2026-10-09 tardó seis minutos (spec 005).
+    """
+    nombres = set()
+    for carpeta in prj.GetContents('*.IntPrjfolder'):
+        if getattr(carpeta, 'iopt_typ', '') == 'study':
+            nombres |= {c.loc_name for c in carpeta.GetContents('*.IntCase', 1)}
+    return sorted(nombres)
+
+
 def leer(app, carpeta: str) -> dict:
-    """``{'folder', 'exists', 'aviso', 'projects': [{name, path, feeders}]}``."""
+    """``{'folder', 'exists', 'aviso', 'projects': [{name, path, feeders, cases}]}``."""
     destino = buscar_carpeta(app.GetCurrentUser(), carpeta)
     if destino is None:
         return {'folder': carpeta, 'exists': False, 'projects': [],
@@ -90,6 +104,11 @@ def leer(app, carpeta: str) -> dict:
                 feeders, nota = [], None
             if nota:
                 print(f'  AVISO {nota}')
+            try:
+                casos = casos_de_estudio(prj)
+            except Exception as exc:          # sin la lista, la web estudia los del conversor
+                print(f'  {ruta}: no se pudieron leer sus casos de estudio ({exc})')
+                casos = []
             native_hash = None
             native_manifest = None
             native_reread_at = None
@@ -101,7 +120,7 @@ def leer(app, carpeta: str) -> dict:
             except Exception as exc:
                 native_warning = f'No se pudo releer la identidad nativa: {exc}'
             proyectos.append({
-                'name': prj.loc_name, 'path': ruta, 'feeders': feeders,
+                'name': prj.loc_name, 'path': ruta, 'feeders': feeders, 'cases': casos,
                 'native_inventory_sha256': native_hash,
                 'native_inventory_manifest': native_manifest,
                 'native_reread_at': native_reread_at,

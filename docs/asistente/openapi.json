@@ -3072,6 +3072,14 @@
             ],
             "title": "Ajuste Job Id"
           },
+          "casos": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Casos",
+            "type": "array"
+          },
           "estudios": {
             "items": {
               "type": "string"
@@ -14526,6 +14534,57 @@
           }
         },
         "summary": "Estudios Ejecutar"
+      }
+    },
+    "/api/workspaces/{wid}/pf/estudios/{token}/resumen": {
+      "post": {
+        "description": "017:RF-142, RF-143: el resumen ejecutivo de una corrida, con lo que guardó; sin DIgSILENT.",
+        "operationId": "estudios_resumen_api_workspaces__wid__pf_estudios__token__resumen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Estudios Resumen Api Workspaces  Wid  Pf Estudios  Token  Resumen Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Estudios Resumen"
       }
     },
     "/api/workspaces/{wid}/pf/guiones": {

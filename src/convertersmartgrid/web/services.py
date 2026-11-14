@@ -10383,14 +10383,78 @@ def avisos_de_recalibracion(ajuste: dict, pedidos: Sequence[str]) -> list[str]:
                      for f in sin_tipo]
 
 
+#: Los casos del conversor, en su orden de estudio (037:RF-3); por defecto, si el operador no elige otros.
+CASOS_DEL_CONVERSOR = (('sin', 'Sin proyecto'), ('cargas', 'Cargas nuevas'), ('con', 'Con proyecto'))
+
+
+def _nombre_del_rol(nombre: str, anio: Any) -> str:
+    return f'{nombre} {anio}' if anio else nombre
+
+
+def _casos_elegidos(casos: list[str] | None) -> list[str]:
+    """Los nombres de los casos que eligió el operador, sin repetir y en su orden (011:RF-130)."""
+    return list(dict.fromkeys(str(c).strip() for c in (casos or []) if str(c).strip()))
+
+
+def _estudios_sin_calibracion(ws: Workspace, project: str, pedidos: list[str], claves: list[str],
+                              lim, libro, limite_s: float | None, opciones: dict | None,
+                              casos: list[str]) -> dict:
+    """El plan sin un ajuste a la máxima en el espacio: el estado de cada caso tal como está en DIgSILENT.
+
+    011:RF-131. Orden del usuario (2026-11-13): «en la web 4.2 · Estudios yo debería hacer esos estudios en
+    cualquier proyecto físico existente en DIgSILENT, con cualquier caso». Antes se paraba con «primero hay que
+    calibrar». Sin calibración no hay objetivos de cabecera ni tolerancia del ajuste: no se inventan, se omiten,
+    y no se preparan los casos del conversor (casos_pf.py los crearía); cada caso se estudia por su nombre.
+    """
+    from dataclasses import asdict
+
+    if not pedidos:
+        raise UserError('Marque al menos un alimentador para los estudios.')
+    elegidos = casos or [n for _rol, n in CASOS_DEL_CONVERSOR]
+    avisos = ['Este espacio no tiene una calibración aplicada en el proyecto: se estudia cada caso tal como '
+              'está en DIgSILENT, sin comparar la cabecera con los objetivos de una calibración.']
+    if not casos:
+        avisos.append('No se eligió ningún caso: se estudian los del conversor que tenga el proyecto ('
+                      + ', '.join(elegidos) + '); el que no exista se dice y se sigue con los demás.')
+    token = uuid.uuid4().hex[:12]
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': pedidos,
+            'base': None, 'calibrado': False, 'casos_elegidos': elegidos, 'estudios': claves,
+            'limites': asdict(lim), 'anio_casos': None,
+            'limite_s': float(limite_s or LIMITE_ESTUDIO_S), 'objetivos': {}, 'tolerancia': None,
+            'opciones': dict(opciones or {}), 'libro': libro.a_dict() if libro is not None else None,
+            'libro_cargado': (ws.datos_empresa.get(project.strip()) or {}).get('cargado'),
+            'clases_equipo': _clases_de_la_entrada(ws, pedidos), 'avisos': avisos,
+            'native_action_context': native_action_context(ws, project, pedidos, 'estudios')}
+    return _guardar_plan_estudios(ws, token, plan, [], avisos)
+
+
+def _guardar_plan_estudios(ws: Workspace, token: str, plan: dict, excluidos: list, avisos: list) -> dict:
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'estudios_{token}.json'
+    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    with ws.lock:
+        ws.cargas_planes[token] = {'kind': 'estudios', 'path': str(path),
+                                   'project': plan['project'], 'feeders': plan['feeders'],
+                                   'applicable': True}
+    casos = plan.get('casos_elegidos') or [_nombre_del_rol(n, plan['anio_casos'])
+                                           for _rol, n in CASOS_DEL_CONVERSOR]
+    return {'token': token, 'kind': 'estudios', 'project': plan['project'],
+            'feeders': plan['feeders'], 'estudios': plan['estudios'], 'excluidos': excluidos,
+            'casos': casos, 'calibrado': bool(plan.get('calibrado', True)),
+            'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
+
+
 def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: list[str],
                   ajuste: dict | None, limites: dict | None = None,
-                  limite_s: float | None = None, opciones: dict | None = None) -> dict:
+                  limite_s: float | None = None, opciones: dict | None = None,
+                  casos: list[str] | None = None) -> dict:
     """Valida y guarda el plan de los estudios sobre la base calibrada (RF-12 a RF-15, RF-25).
 
-    La base es la del último ajuste aplicado, la misma de las cargas (RF-12). Sin ajuste
-    no hay base (RF-13); un alimentador sin variación de ajuste queda fuera, con el
-    motivo (RF-14); uno que no cuadró se estudia y se avisa (RF-15).
+    La base es la del último ajuste aplicado, la misma de las cargas (RF-12). Sin ajuste se
+    estudia el estado de cada caso tal como está en DIgSILENT y se avisa (RF-131, que cambia
+    RF-13); un alimentador sin variación de ajuste queda fuera, con el motivo (RF-14); uno que
+    no cuadró se estudia y se avisa (RF-15). ``casos`` son los casos de DIgSILENT que eligió el
+    operador por su nombre; sin ninguno, los del conversor (RF-130).
     """
     from dataclasses import asdict
 
@@ -10400,15 +10464,16 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
         raise UserError('Elija el proyecto de DIgSILENT.')
     requested_for_gate = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
     native_action_context(ws, project, requested_for_gate, 'estudios')
-    if ajuste is None:
-        raise UserError('El proyecto no tiene ningún ajuste a la máxima aplicado en este espacio: '
-                        'primero hay que calibrar.')
     libro = _libro_empresa(ws, project)
     try:
         claves = list(validar_estudios(estudios, libro, ws.sin_licencia))      # 012:RF-4, RF-19
         lim = limites_de_perfil().con(**(limites or {}))
     except EstudiosError as exc:
         raise UserError(str(exc)) from exc
+    elegidos = _casos_elegidos(casos)
+    if ajuste is None:
+        return _estudios_sin_calibracion(ws, project, requested_for_gate, claves, lim, libro,
+                                         limite_s, opciones, elegidos)
     base = base_del_ajuste(ajuste, project)
     pedidos = list(dict.fromkeys(feeders)) or list(base['feeders'])
     excluidos = [x for x in base['excluidos'] if x['feeder'] in pedidos]
@@ -10425,7 +10490,8 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     avisos += avisos_de_recalibracion(ajuste, estudiables)                   # 091:RF-20, RF-22
     token = uuid.uuid4().hex[:12]
     plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': estudiables,
-            'base': base, 'estudios': claves, 'limites': asdict(lim),
+            'base': base, 'calibrado': True, 'casos_elegidos': elegidos, 'avisos': avisos,
+            'estudios': claves, 'limites': asdict(lim),
             'anio_casos': base.get('anio_casos'),
             'limite_s': float(limite_s or LIMITE_ESTUDIO_S),
             'objetivos': {a['feeder']: a.get('objetivo') for a in base['ajustes']
@@ -10440,18 +10506,7 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
             'native_action_context': native_action_context(
                 ws, project, estudiables, 'estudios',
             )}
-    ws.plans_dir.mkdir(parents=True, exist_ok=True)
-    path = ws.plans_dir / f'estudios_{token}.json'
-    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    with ws.lock:
-        ws.cargas_planes[token] = {'kind': 'estudios', 'path': str(path),
-                                   'project': plan['project'], 'feeders': estudiables,
-                                   'applicable': True}
-    return {'token': token, 'kind': 'estudios', 'project': plan['project'],
-            'feeders': estudiables, 'estudios': claves, 'excluidos': excluidos,
-            'casos': [f'{n} {plan["anio_casos"]}' if plan['anio_casos'] else n
-                      for n in ('Sin proyecto', 'Cargas nuevas', 'Con proyecto')],
-            'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
+    return _guardar_plan_estudios(ws, token, plan, excluidos, avisos)
 
 
 def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
@@ -10546,43 +10601,66 @@ def _correr_estudios(ws: Workspace, ctx: JobContext, token: str, plan: dict, cor
     from .jobs import JobCancelled
 
     nombres = {'sin': SIN_PROYECTO, 'cargas': 'Cargas nuevas', 'con': CON_PROYECTO}
-    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
-    from ..powerfactory_binding import caso_base_verificado
+    anio = plan.get('anio_casos')
+    calibrado = plan.get('base') is not None
+    elegidos = list(plan.get('casos_elegidos') or [])
+    # 011:RF-130: con calibración, un caso elegido que es uno del conversor (con su año) conserva su rol, y con
+    # él lo que hace hoy (el desvío de cabecera de «Sin proyecto», la herencia de «Con proyecto»). Cualquier
+    # otro, y todos sin calibración (RF-131), se estudian por su nombre, tal como están.
+    rol_de_nombre = {_nombre_del_rol(n, anio): r for r, n in CASOS_DEL_CONVERSOR} if calibrado else {}
+    pedidos = [(rol_de_nombre.get(c, 'caso'), c) for c in elegidos]
+    casos, casos_report = {}, None
+    feeders = plan['feeders']
+    if calibrado and (not elegidos or any(r != 'caso' for r, _c in pedidos)):
+        ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
+        from ..powerfactory_binding import caso_base_verificado
 
-    _rc, casos, casos_report = _guion_pf(
-        ws, ctx, 'casos_pf.py', {
-            **{k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
-            'anio_casos': plan.get('anio_casos'), 'incluir_cargas_nuevas': True,
-            'nuevas': _cargas_nuevas_aplicadas(ws, plan['project']),
-            'native_action_context': plan['native_action_context'],
-            # 015:RF-17: sin «Caso base» verificado no se crean «Sin» ni «Con proyecto».
-            'caso_base_sin_verificar': caso_base_verificado(ws, plan['project'], plan['feeders']),
-        },
-        nombre='casos', cancelable=False)
-    if casos.get('error'):
-        raise UserError(casos['error'])                                # RF-13, RF-16
-    feeders = casos.get('feeders') or plan['feeders']
+        _rc, casos, casos_report = _guion_pf(
+            ws, ctx, 'casos_pf.py', {
+                **{k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
+                'anio_casos': anio, 'incluir_cargas_nuevas': True,
+                'nuevas': _cargas_nuevas_aplicadas(ws, plan['project']),
+                'native_action_context': plan['native_action_context'],
+                # 015:RF-17: sin «Caso base» verificado no se crean «Sin» ni «Con proyecto».
+                'caso_base_sin_verificar': caso_base_verificado(ws, plan['project'], plan['feeders']),
+            },
+            nombre='casos', cancelable=False)
+        if casos.get('error'):
+            raise UserError(casos['error'])                                # RF-13, RF-16
+        feeders = casos.get('feeders') or plan['feeders']
+        estudiables = ['sin'] + [r for r in ('cargas', 'con')
+                                 if (casos.get('casos') or {}).get(r, {}).get('estudiable')]
+        if elegidos:
+            for r, c in pedidos:
+                if r != 'caso' and r not in estudiables:
+                    ctx.log(f'«{c}» no tiene cargas nuevas ni obras que estudiar: no se estudia.')
+            pedidos = [(r, c) for r, c in pedidos if r == 'caso' or r in estudiables]
+        else:
+            pedidos = [(r, nombres[r]) for r in estudiables]
+    else:
+        ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  casos por su nombre: {', '.join(elegidos)}")
     corrida['feeders'] = list(feeders)
-    roles = ['sin'] + [r for r in ('cargas', 'con')
-                       if (casos.get('casos') or {}).get(r, {}).get('estudiable')]
-    total = len(roles) * len(plan['estudios'])
+    total = len(pedidos) * len(plan['estudios'])
     resultados, informes, cancelado, n = [], [], False, 0
     red, capacidad, propuestas = [], [], []                   # spec 012
     try:
-        for rol in roles:
+        for rol, nombre_pedido in pedidos:
+            etiqueta = nombres.get(rol, nombre_pedido)
             for estudio in plan['estudios']:
                 if ctx.cancel.is_set():
                     cancelado = True
                     break
-                ctx.progress(n, total, f'{estudio} · {nombres[rol]}')
+                ctx.progress(n, total, f'{estudio} · {etiqueta}')
                 n += 1
                 sub = {'project': plan['project'], 'folder': plan['folder'], 'feeders': feeders,
                        'estudio': estudio, 'caso': rol, 'objetivos': plan['objetivos'],
-                       'anio_casos': plan.get('anio_casos'),
+                       'anio_casos': anio,
                        'tolerancia': plan['tolerancia'], 'stamp': token,
                        'native_action_context': plan['native_action_context'],
                        # Spec 012: lo que necesitan sus guiones.
                        **{k: plan.get(k) for k in ('limites', 'opciones', 'libro', 'clases_equipo')}}
+                if rol == 'caso':
+                    sub['nombre_caso'] = nombre_pedido                      # 011:RF-133
                 if rol == 'con' and estudio in ('flujo', 'flujo_desequilibrado'):
                     # 017:RF-130: cada alternativa del informe medida en esta misma ejecución.
                     alternativas = _alternativas_del_proyecto(ws, plan['project'], feeders)
@@ -10592,23 +10670,22 @@ def _correr_estudios(ws: Workspace, ctx: JobContext, token: str, plan: dict, cor
                                             nombre=f'estudio_{rol}_{estudio}', cancelable=False,
                                             limite_s=plan['limite_s'])
                 if inf.get('no_terminado'):
-                    ctx.log(f'{estudio} en «{nombres[rol]}»: {inf["error"]}; se sigue con el siguiente.')
+                    ctx.log(f'{estudio} en «{etiqueta}»: {inf["error"]}; se sigue con el siguiente.')
                 elif estudio == 'flujo' and rol in CASO_DEL_ROL and not inf.get('error'):
                     # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo. 045:RF-1: también
                     # «Cargas nuevas», que no se capturaba y no llegaba a ser un episodio de la red.
                     _gemelo(ws, ctx, sub, inf, caso=CASO_DEL_ROL[rol], rutas={'resultado': report})
-                informes.append({'rol': rol, 'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
+                informes.append({'rol': rol, 'caso': etiqueta, 'estudio': estudio, 'returncode': rc,
                                  'nombre_caso': inf.get('nombre_caso') or (
-                                     f'{nombres[rol]} {plan["anio_casos"]}' if plan.get('anio_casos')
-                                     else nombres[rol]),
+                                     nombre_pedido if rol == 'caso' else _nombre_del_rol(etiqueta, anio)),
                                  'report': report.name, 'error': inf.get('error'),
                                  'no_terminado': bool(inf.get('no_terminado')),
                                  'obras_activas': inf.get('obras_activas') or [],     # RF-68
                                  'avisos': inf.get('avisos') or []})
                 for f, medida in sorted((inf.get('medidas') or {}).items()):
-                    resultados.append({'caso': nombres[rol], 'alimentador': f,
+                    resultados.append({'caso': etiqueta, 'alimentador': f,
                                        'estudio': estudio, **medida})
-                _resultados_de_red(ws, estudio, nombres[rol], inf, red, capacidad, propuestas)
+                _resultados_de_red(ws, estudio, etiqueta, inf, red, capacidad, propuestas)
                 corrida['estudios'] = informes
                 _guardar_corrida(ws, corrida)
             if cancelado:
@@ -10638,15 +10715,75 @@ def _correr_estudios(ws: Workspace, ctx: JobContext, token: str, plan: dict, cor
             ficheros.append(escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv').name)
     fiab = {c: {r['alimentador']: r for r in red if r['estudio'] == 'fiabilidad' and r['caso'] == c}
             for c in (SIN_PROYECTO, CON_PROYECTO)}
-    return {'token': token, 'project': plan['project'], 'feeders': feeders, 'casos': casos,
-            'casos_report': casos_report.name, 'estudios': informes, 'ficheros': ficheros,
-            'medidas': resultados, 'resultados': result_rows, 'violaciones': violation_rows,
-            'red': red_rows, 'capacidad': capacidad, 'propuestas': propuestas,
-            'comparacion_ens': (comparar(fiab[SIN_PROYECTO], fiab[CON_PROYECTO])            # 012:RF-68
-                                if any(fiab.values()) else None),
-            'libro': ({'nombre': (plan['libro'] or {}).get('nombre'), 'cargado': plan.get('libro_cargado')}
-                      if plan.get('libro') else None),                                   # 012:RF-20
-            'cancelado': cancelado}
+    resultado = {
+        'token': token, 'project': plan['project'], 'feeders': feeders, 'casos': casos,
+        'casos_report': casos_report.name if casos_report is not None else None,
+        'estudios': informes, 'ficheros': ficheros,
+        'medidas': resultados, 'resultados': result_rows, 'violaciones': violation_rows,
+        'red': red_rows, 'capacidad': capacidad, 'propuestas': propuestas,
+        'comparacion_ens': (comparar(fiab[SIN_PROYECTO], fiab[CON_PROYECTO])            # 012:RF-68
+                            if any(fiab.values()) else None),
+        'libro': ({'nombre': (plan['libro'] or {}).get('nombre'), 'cargado': plan.get('libro_cargado')}
+                  if plan.get('libro') else None),                                   # 012:RF-20
+        # 011:RF-130, RF-131: qué casos se pidieron y si había calibración, para el resumen (017:RF-142).
+        'casos_estudiados': [c for _r, c in pedidos], 'calibrado': calibrado,
+        'avisos_plan': list(plan.get('avisos') or []), 'limites': plan['limites'],
+        'estudios_pedidos': list(plan['estudios']), 'cancelado': cancelado}
+    # 017:RF-142: lo que el resumen ejecutivo lee después, sin volver a DIgSILENT (las medidas por barra, no).
+    write_json_atomic(ws.out_dir / f'estudios_resultado_{token}.json',
+                      {k: v for k, v in resultado.items() if k != 'medidas'})
+    return resultado
+
+
+#: Tope de violaciones en el Word del resumen, además de la hoja (017:RF-142); el libro y los CSV llevan todas.
+TOPE_FILAS_RESUMEN = 40
+
+
+def _resultado_guardado(ws: Workspace, token: str) -> dict:
+    # El token lo da el plan (12 hexadecimales): nada de rutas que salgan de la salida del espacio.
+    ruta = ws.out_dir / f'estudios_resultado_{token}.json'
+    if not re.fullmatch(r'[0-9a-f]{12}', token) or not ruta.is_file():
+        raise UserError('No hay un resultado guardado de esos estudios: ejecútelos (4.2) y vuelva a pedir el '
+                        'resumen.')
+    return json.loads(ruta.read_text(encoding='utf-8'))
+
+
+def estudios_resumen(ws: Workspace, token: str) -> dict:
+    """El resumen ejecutivo de una corrida de estudios, con lo que guardó al ejecutarse (017:RF-142, RF-143).
+
+    Orden del usuario (2026-11-13): «una vez ejecutado cualquier estudio, yo debería hacer un informe o resumen
+    ejecutivo». Se arma con el resultado guardado de la corrida, nunca con otra ejecución de DIgSILENT (como los
+    informes de la 017): casos, estudios, resultados principales y violaciones, con sus cifras.
+    """
+    from ..informe_docx import escribir_resumen_estudios
+    from ..libro_informe import ConfigLibro
+    from ..perfil_empresa import datos_perfil
+
+    from ..informes import ConfigInforme, InformeError
+
+    resultado = _resultado_guardado(ws, token)
+    destino = ws.out_dir / f'resumen_ejecutivo_estudios_{token}.docx'
+    perfil = datos_perfil()
+    # 066:RF-1, RF-2: el libro solo si el perfil de la empresa declara el de sus informes.
+    con_libro = ConfigLibro.de_perfil(perfil, raiz_local(project_root())) is not None
+    # 017:RF-142, decisión del usuario (2026-11-13): una hoja del informe modelo de la empresa. Sin modelo, o con uno
+    # que no se puede abrir, la plantilla neutra (086:RF-31) y el motivo en los huecos: el resumen nunca se niega.
+    modelo, rotulos, aviso = None, {}, None
+    try:
+        config = ConfigInforme.de_perfil(perfil, raiz_local(project_root()))
+        ruta = config.modelos.get('estudio')
+        if ruta is not None and Path(ruta).is_file():
+            modelo, rotulos = Path(ruta), dict(config.rotulos_cabecera)
+        elif ruta is not None:
+            aviso = f'El informe modelo del perfil no está en {ruta}: el resumen va en la plantilla neutra.'
+    except InformeError as exc:
+        aviso = f'El perfil no da un informe modelo usable ({exc}): el resumen va en la plantilla neutra.'
+    hecho = escribir_resumen_estudios(destino, resultado, libro=con_libro, modelo=modelo, rotulos=rotulos,
+                                      tope=TOPE_FILAS_RESUMEN)
+    if aviso:
+        hecho['huecos'] = [aviso, *hecho['huecos']]
+    return {'token': token, 'project': resultado.get('project'), 'docx': destino.name,
+            'xlsx': hecho['xlsx'], 'huecos': hecho['huecos'], 'conclusiones': hecho['conclusiones']}
 
 
 def _resultados_de_red(ws: Workspace, estudio: str, caso: str, inf: dict, red: list, capacidad: list,

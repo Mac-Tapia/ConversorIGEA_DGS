@@ -12,12 +12,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
-| Pruebas de la interfaz | `frontend/test/` | 24 |
+| Pruebas de la interfaz | `frontend/test/` | 25 |
 | Pruebas | `tests/` | 437 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
-`web/services.py` tiene 13482 líneas y 414 funciones, pendiente de partir (002).
+`web/services.py` tiene 13619 líneas y 420 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3580 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3589 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,12 +48,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-157 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+158 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 30 |
-| `pf` | espacio | 20 |
+| `pf` | espacio | 21 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
@@ -831,6 +831,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
 | `frontend/test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/estudiosCasos.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

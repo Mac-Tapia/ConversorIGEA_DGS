@@ -670,24 +670,6 @@ Respuesta: No lo sé: hay que correr el estudio en su proyecto.
 Fuentes: ninguna: lo preguntado no está en el repositorio.
 Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
-## estudios_resultados-001
-
-Pregunta: ¿Puedo correr estudios sin calibrar?
-
-Respuesta: No: sin ningún ajuste a la máxima aplicado no se preparan los casos y pide calibrar primero.
-
-Fuentes: specs/011-estudios-sobre-la-red-calibrada/spec.md:145, src/convertersmartgrid/web/services.py:6437.
-Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
-
-## estudios_resultados-001-p1
-
-Pregunta: sin calibrar me deja los estudios?
-
-Respuesta: No: sin ningún ajuste a la máxima aplicado no se preparan los casos y pide calibrar primero.
-
-Fuentes: specs/011-estudios-sobre-la-red-calibrada/spec.md:145, src/convertersmartgrid/web/services.py:6437.
-Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
-
 ## estudios_resultados-002
 
 Pregunta: en q casos corre los estudios

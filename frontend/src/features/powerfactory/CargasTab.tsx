@@ -755,7 +755,7 @@ export function CargasTab() {
             <span id={DESTINO.estudios} tabIndex={-1} />
             <h4>4.2 · Estudios</h4>
             <AvisosTrabajo paso="pf-estudios" />
-            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}
+            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} casos={current.cases ?? []}
               faltaRecalibrar={informesBase.filter((i) => !i.error && !i.no_empezado && order.includes(i.feeder)
                 && i.tipo_ajuste?.tipo === 'CALIBRACION').map((i) => i.feeder)} />
             <h4>4.3 · Transferencia de carga</h4>

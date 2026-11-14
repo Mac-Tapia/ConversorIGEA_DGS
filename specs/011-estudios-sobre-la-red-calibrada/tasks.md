@@ -97,13 +97,16 @@ Transferencia de carga
 Web
 
 - [x] T16. Servicios y API: obras guardadas en el espacio, bibliotecas, aplicar y simular
-      obras, plan y trabajo de estudios, ficheros. (RF-12 a RF-16, RF-25, RF-39 a RF-41,
-      RF-95, y el trabajo de las transferencias)
+      obras, plan y trabajo de estudios, ficheros; el plan con los casos elegidos por su nombre, sin
+      calibración y con un caso que no existe; el guion, un caso cualquiera por su nombre; la lectura de
+      proyectos, con sus casos; y un caso del operador queda como estaba (2026-11-13). (RF-12 a RF-16, RF-25, RF-39 a RF-41,
+      RF-95, RF-130 a RF-134, RF-136, y el trabajo de las transferencias)
       Hecho cuando: `pytest -q tests/test_estudios_pf_web.py tests/test_obras_pf_web.py`
-      en verde.
+      en verde, y `tests/test_estudios_pf_guion.py -k caso` y `tests/test_carpeta_pf.py -k casos`.
 - [x] T17. Paso «4 · Obras y estudios» (leer antes el skill `convertersmartgrid-frontend`). (RF-24,
-      RF-35, RF-42, RF-70, RF-88 a RF-95, RF-98, RF-104)
-      Hecho cuando: `pytest -q tests/test_obras_estudios_front.py` en verde y
+      RF-35, RF-42, RF-70, RF-88 a RF-95, RF-98, RF-104; el selector de casos y la preparación sin
+      calibración, 2026-11-13: RF-135)
+      Hecho cuando: `pytest -q tests/test_obras_estudios_front.py` y `npm test` (`estudiosCasos.test.mjs`) en verde y
       `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - [x] T17b. Guiones del operador en la web: listar los DPL y Python del proyecto, y
       ejecutar uno en «Sin proyecto» y en «Con proyecto» con sus parámetros, cada caso en
@@ -120,7 +123,7 @@ Cierre
       `CLAUDE.md`, cada RF citado por una prueba en verde, suite completa con las tres
       `CSG_*`. (Todos)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
-      `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-129.
+      `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-136 (RF-130 a RF-136 añadidos el 2026-11-13).
 - [x] T19. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y
       una obra de cada clase, a cargo del usuario; la migración de tensión, con un
       alimentador que comparte tipos con otro. (Todos)

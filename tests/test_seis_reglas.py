@@ -477,6 +477,7 @@ BORRADOS = {
         'tools/confiabilidad_pf.py::fiabilidad', 'tools/confiabilidad_pf.py::reconectadores',
         'tools/escenarios_pf.py::ejecutar', 'tools/estudios_pf.py::_optimizador', 'tools/estudios_pf.py::_contingencias',
         'tools/estudios_pf.py::_estudio_de_red', 'tools/obras_pf.py::_grabar_una', 'tools/obras_pf.py::_Sorteo.__exit__',
+        'tools/estudios_pf.py::retirar_variacion_del_estudio',     # 011:RF-136: la variación que el estudio crea y retira
         'tools/obras_pf.py::crear_tipos_regulador', 'tools/obras_pf.py::evaluar.con_variante',
         # 098:RF-36: lo creado por la obra nueva de una sustitución que no queda, por sus nombres del diario.
         'tools/obras_pf.py::_borrar_creadas',

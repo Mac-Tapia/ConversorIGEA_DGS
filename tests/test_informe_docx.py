@@ -651,3 +651,103 @@ def test_el_perfil_de_tension_de_la_calibracion_en_el_estado_actual(tmp_path):
     assert 'perfil de tensión' in texto.lower() and f'{bajo} de las {n} barras de media' in texto
     assert ['Barra', 'Distancia a la cabecera (km)', 'Tensión (p.u.)'] in _filas(destino)
     assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['perfil_tension']['troncal'] == troncal
+
+
+# --------------------------------------------------------------------------- resumen ejecutivo (017:RF-142, RF-143)
+def _resultado_sorteado(semilla):
+    """Un resultado guardado de 4.2 con casos, alimentadores y filas sorteados (ningún tamaño fijo)."""
+    import random
+
+    rng = random.Random(semilla)
+    casos = [f'Caso {rng.randint(1, 99)}-{i}' for i in range(rng.randint(1, 3))]
+    feeders = [f'F{rng.randint(100, 999)}_{i}' for i in range(rng.randint(1, 6))]
+    resultados, violaciones = [], []
+    for c in casos:
+        for f in feeders:
+            vm = round(rng.uniform(0.9, 1.0), 3)
+            resultados.append({'caso': c, 'alimentador': f, 'estudio': 'flujo', 'converge': True, 'vm_min': vm,
+                               'vm_min_barra': f'{f}_B1', 'vm_max': 1.0, 'cargabilidad_max': rng.uniform(10, 130),
+                               'mas_cargado': f'{f}_L1', 'cabecera_kw': rng.uniform(100, 5000), 'perdidas_kw': 3.0,
+                               'violaciones': int(vm < 0.95)})
+            if vm < 0.95:
+                violaciones.append({'caso': c, 'alimentador': f, 'estudio': 'flujo', 'tipo': 'tension_baja',
+                                    'elemento': f'{f}_B1', 'valor': vm, 'limite': 0.95, 'nueva': ''})
+    estudios = [{'caso': c, 'nombre_caso': c, 'estudio': 'flujo', 'error': None, 'no_terminado': False, 'avisos': []}
+                for c in casos]
+    return {'token': 'abcdef012345', 'project': f'Proyecto {semilla}', 'feeders': feeders, 'casos_estudiados': casos,
+            'estudios_pedidos': ['flujo'], 'estudios': estudios, 'resultados': resultados,
+            'violaciones': violaciones, 'red': [], 'calibrado': bool(semilla % 2), 'cancelado': False,
+            'limites': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100.0},
+            'avisos_plan': []}
+
+
+@pytest.mark.parametrize('semilla', (1, 4, 9, 22))
+def test_resumen_ejecutivo_con_sus_cifras(tmp_path, semilla):
+    """017:RF-142 — el resumen dice cada caso con sus violaciones, alimentadores y tensión mínima, y lleva las tablas
+    hasta su tope diciendo cuántas filas quedan fuera; sin calibración, lo avisa."""
+    from convertersmartgrid.informe_docx import escribir_resumen_estudios
+    from convertersmartgrid.informes import numero
+
+    r = _resultado_sorteado(semilla)
+    hecho = escribir_resumen_estudios(tmp_path / 'resumen.docx', r)
+    d = docx.Document(tmp_path / 'resumen.docx')
+    texto = ' '.join(p.text for p in d.paragraphs)
+    por_caso = next(t for t in d.tables if t.rows[0].cells[0].text == 'Caso' and len(t.columns) == 6)
+    filas = {row.cells[0].text: [c.text for c in row.cells] for row in por_caso.rows[1:]}
+    for c in r['casos_estudiados']:
+        suyas = [v for v in r['violaciones'] if v['caso'] == c]
+        vm = min(f['vm_min'] for f in r['resultados'] if f['caso'] == c)
+        frase = next(x for x in hecho['conclusiones'] if x.startswith(f'«{c}»'))
+        assert (f'{len(suyas)} violación(es)' in frase) if suyas else ('sin violaciones' in frase)
+        assert numero(vm, 3) in frase and filas[c][1] == str(len(suyas)) and filas[c][3] == numero(vm, 3)
+    assert f"{len(r['violaciones'])} violaciones" in texto and 'en los ficheros de la corrida' in texto
+    assert ('AVISO' in texto) == (not r['calibrado'])
+    assert hecho['xlsx'] is None and not (tmp_path / 'resumen.xlsx').exists()
+    assert json.loads((tmp_path / 'resumen.json').read_text(encoding='utf-8'))['conclusiones'] == hecho['conclusiones']
+
+
+@pytest.mark.parametrize('semilla', (3, 8))
+def test_resumen_ejecutivo_con_su_libro_si_el_perfil_lo_pide(tmp_path, semilla):
+    """017:RF-143 — con el libro que declara el perfil, el Excel lleva todas las filas, sin el tope del Word."""
+    import openpyxl
+
+    from convertersmartgrid.informe_docx import escribir_resumen_estudios
+
+    r = _resultado_sorteado(semilla)
+    hecho = escribir_resumen_estudios(tmp_path / 'resumen.docx', r, libro=True, tope=1)
+    libro = openpyxl.load_workbook(tmp_path / hecho['xlsx'])
+    assert libro.sheetnames == ['Resumen', 'Resultados', 'Violaciones']
+    assert libro['Resultados'].max_row - 1 == len(r['resultados'])
+    assert libro['Violaciones'].max_row - 1 == len(r['violaciones'])
+
+
+def _lineas_de_texto(d) -> int:
+    """Las líneas que ocupa el cuerpo: cada párrafo (por cada 95 caracteres) y cada fila de tabla."""
+    lineas = sum(max(1, -(-len(p.text) // 95)) for p in d.paragraphs)
+    return lineas + sum(len(t.rows) for t in d.tables)
+
+
+@pytest.mark.parametrize('semilla', (2, 5, 11, 30))
+def test_resumen_ejecutivo_en_una_hoja_con_la_cabecera_del_modelo(tmp_path, semilla):
+    """017:RF-142 — decisión del usuario (2026-11-13): el resumen ejecutivo lleva del informe modelo de la empresa
+    solo una hoja: su cabecera y su pie, y un cuerpo que cabe en una página, sin saltos; el detalle, en el libro."""
+    from convertersmartgrid.informe_docx import LINEAS_POR_HOJA, escribir_resumen_estudios
+    from convertersmartgrid.informes import numero
+
+    r = _resultado_sorteado(semilla)
+    for i in range(semilla * 9):                               # más violaciones de las que caben en una hoja
+        r['violaciones'].append({'caso': r['casos_estudiados'][0], 'alimentador': r['feeders'][0], 'estudio': 'flujo',
+                                 'tipo': 'tension_baja', 'elemento': f'B{i}', 'valor': 0.9 - i / 1000,
+                                 'limite': 0.95, 'nueva': ''})
+    modelo = _modelo(tmp_path / 'modelo.docx')
+    hecho = escribir_resumen_estudios(tmp_path / 'resumen.docx', r, libro=True, modelo=modelo,
+                                      rotulos={'numero': 'INFORME TECNICO', 'referencia': 'REFERENCIA'})
+    d = docx.Document(tmp_path / 'resumen.docx')
+    assert 'INFORME TECNICO' in d.sections[0].header.tables[0].cell(0, 0).text      # la cabecera del modelo
+    assert 'texto del modelo que no debe quedar' not in ' '.join(p.text for p in d.paragraphs)
+    assert 'w:br w:type="page"' not in d.element.xml and len(d.sections) == 1
+    assert _lineas_de_texto(d) <= LINEAS_POR_HOJA
+    peor = min(v['valor'] for v in r['violaciones'])
+    assert any(numero(peor, 3) in c.text for t in d.tables for row in t.rows for c in row.cells)   # la más grave
+    import openpyxl
+    assert openpyxl.load_workbook(tmp_path / hecho['xlsx'])['Violaciones'].max_row - 1 == len(r['violaciones'])

@@ -592,6 +592,18 @@ Línea de órdenes
 - RF-105: EL SISTEMA ofrecerá generar los informes desde una herramienta de línea de
   órdenes con el mismo plan JSON que prepara la web.
 
+Resumen ejecutivo de cualquier estudio (orden del usuario, 2026-11-13: «una vez ejecutado cualquier
+estudio, yo debería hacer un informe o resumen ejecutivo»)
+
+- RF-142: CUANDO el operador lo pide tras una corrida de 4.2, EL SISTEMA generará un resumen ejecutivo en
+  Word con lo que esa corrida guardó, sin otra ejecución de DIgSILENT: proyecto, alimentadores, casos,
+  estudios, su estado, los resultados principales y las violaciones, con sus cifras. Llevará del informe modelo de
+  la empresa solo una hoja (su cabecera y su pie, o la plantilla neutra sin modelo): la ficha, las conclusiones, una
+  fila por caso y las violaciones más graves que quepan, y dirá dónde está el detalle completo (decisión del
+  usuario, 2026-11-13).
+- RF-143: DONDE el perfil de empresa declare el libro de sus informes (066:RF-1), EL SISTEMA dejará junto al
+  resumen un libro Excel con todas las filas de sus resultados y violaciones.
+
 ## Requisitos no funcionales
 
 - Escala: un informe de estudio admite uno o varios alimentadores, sin número fijo; nada

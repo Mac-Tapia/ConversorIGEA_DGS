@@ -692,10 +692,88 @@ def _estudio_de_red(app, plan: dict, alims, feeders: list[str], informe: dict) -
                                      'resultado queda como no fiable.')
 
 
+def caso_por_nombre(app, nombre: str) -> tuple:
+    """El ``IntCase`` del proyecto que se llama ``nombre``, sin mirar su marca (011:RF-133).
+
+    Orden del usuario (2026-11-13): «yo debería hacer esos estudios en cualquier proyecto físico existente en
+    DIgSILENT, con cualquier caso». Un caso del operador no lleva la marca del conversor (``rol_de``) ni su
+    nombre: se busca solo por su nombre en la carpeta de casos y sus subcarpetas, y no se crea, copia ni borra.
+    Si hay varios con el mismo nombre, se estudia el primero y se dice (aviso), en vez de no estudiar ninguno.
+    """
+    carpeta = app.GetProjectFolder('study') if nombre else None
+    todos = [c for c in (carpeta.GetContents('*.IntCase', 1) if carpeta is not None else [])
+             if c.loc_name == nombre]
+    if not todos:
+        return None, None
+    aviso = None
+    if len(todos) > 1:
+        donde = getattr(todos[0], 'GetFullName', lambda: todos[0].loc_name)()
+        aviso = f'Hay {len(todos)} casos «{nombre}» en el proyecto; se estudia el primero ({donde}).'
+    return todos[0], aviso
+
+
+#: El rol de un caso elegido por su nombre, que no es uno de los del conversor (011:RF-130).
+ROL_POR_NOMBRE = 'caso'
+#: Los que no escriben en la red (solo el ``ComLdf``, que se restituye): en un caso del operador van sin variación.
+ESTUDIOS_SIN_ESCRITURA = ('flujo', 'flujo_desequilibrado')
+#: Prefijo y marca (``desc``, como la de 086:RF-87) de la variación del conversor que recoge lo que un estudio escriba
+#: en la red de un caso del operador; se borra al terminar.
+PREFIJO_ESTUDIO_OPERADOR = 'Estudio_operador'
+MARCA_ESTUDIO_OPERADOR = f'variacion:{PREFIJO_ESTUDIO_OPERADOR}'
+
+
+def etapas_tardias(app) -> list[str]:
+    """Las variaciones activas con etapas justo después de la hora del caso, solo leídas (lo que ``etapas_al_dia``
+    adelantaría). En un caso del operador no se adelantan: se dicen (011:RF-136)."""
+    from cargas_pf import VENTANA_ETAPAS_S
+
+    caso = app.GetActiveStudyCase()
+    hora = int(getattr(caso, 'iStudyTime', 0) or 0) if caso is not None else 0
+    return sorted(v.loc_name for v in list(app.GetActiveNetworkVariations() or [])
+                  if any(hora < int(getattr(s, 'tAcTime', 0) or 0) <= hora + VENTANA_ETAPAS_S
+                         for s in v.GetContents('*.IntSstage') or []))
+
+
+def variacion_del_estudio(app, plan: dict, informe: dict):
+    """Una variación del conversor, con su marca, que graba lo que el estudio escriba en la red de un caso del operador.
+
+    011:RF-136. ``ComBbone`` deja sus troncales en la red (``ElmBbone``) y nada las quitaba: en un caso del operador
+    quedaban como si las hubiera hecho él. Con esta variación grabando, lo que el módulo cree o cambie va a ella, se
+    lee y se retira con ella (:func:`retirar_variacion_del_estudio`); las variaciones temporales de los optimizadores y
+    de la 012 se crean y se borran dentro, como siempre. Devuelve ``(variación, caso, hora, etapa que grababa)``.
+    """
+    from casos_pf import _marcar
+
+    caso = app.GetActiveStudyCase()
+    hora = getattr(caso, 'iStudyTime', None) if caso is not None else None
+    grabando = app.GetRecordingStage()
+    variacion, _etapa = crear_variacion(app, PREFIJO_ESTUDIO_OPERADOR, plan.get('stamp') or 'estudio')
+    try:
+        _marcar(variacion, MARCA_ESTUDIO_OPERADOR)
+    except Exception:  # noqa: BLE001 - sin marca se reconoce por su nombre y se borra igual al terminar
+        pass
+    informe['avisos'].append(f'En un caso del operador, lo que el estudio escriba en la red va a la variación del '
+                             f'conversor {variacion.loc_name}, que se borra al terminar.')
+    return variacion, caso, hora, grabando
+
+
+def retirar_variacion_del_estudio(app, temporal) -> None:
+    """Desactiva y borra la variación de :func:`variacion_del_estudio` y devuelve la hora del caso y la etapa que
+    grababa, como la restitución de la 064."""
+    variacion, caso, hora, grabando = temporal
+    variacion.Deactivate()
+    variacion.Delete()
+    if caso is not None and hora is not None and getattr(caso, 'iStudyTime', None) != hora:
+        caso.iStudyTime = hora
+    if grabando is not None and app.GetRecordingStage() is not grabando:
+        grabando.Activate(1)
+
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """Un estudio en un caso. Devuelve (informe, código de salida)."""
     estudio, rol = plan['estudio'], plan['caso']
-    nombre = 'Cargas nuevas' if rol == 'cargas' else NOMBRES.get(rol)
+    pedido = str(plan.get('nombre_caso') or '').strip() if rol == ROL_POR_NOMBRE else ''
+    nombre = pedido or ('Cargas nuevas' if rol == 'cargas' else NOMBRES.get(rol))
     informe = {'project': plan.get('project'), 'estudio': estudio, 'caso': nombre,
                'avisos': [], 'medidas': {}}
     if estudio not in ORDENES:
@@ -704,8 +782,18 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
     anio = anio_del_plan(plan)
-    casos = casos_del_proyecto(app, anio)
-    caso = casos.get(rol)
+    casos: dict = {}
+    if rol == ROL_POR_NOMBRE:
+        # 011:RF-132, RF-133: un caso que no existe se dice y la web sigue con los demás.
+        caso, aviso = caso_por_nombre(app, pedido)
+        if aviso:
+            informe['avisos'].append(aviso)
+        if caso is None:
+            return {**informe, 'error': f'el proyecto no tiene el caso «{pedido or "(sin nombre)"}»: '
+                                        'se sigue con los demás casos'}, 2
+    else:
+        casos = casos_del_proyecto(app, anio)
+        caso = casos.get(rol)
     if rol == 'cargas':
         # 037:RF-4, RF-7: no adoptar un caso ajeno ni el de otra calibración.
         marca = f'cargas@{anio}' if anio else 'cargas'
@@ -719,6 +807,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     inicial = app.GetActiveStudyCase()
     ldf = None                      # el del caso: se toma con el caso ya activo
     guardados: dict = {}
+    temporal = None                 # la variación del conversor en un caso del operador (011:RF-136)
     try:
         if rol == 'con':                                         # 014:RF-31 a RF-34
             informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
@@ -726,8 +815,15 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         caso.Activate()
         # 063:RF-5: una etapa activa fechada justo después de la hora del caso no se aplica, y
         # DIgSILENT no avisa. SM218 (2026-11-01): la de los bancos EBC/ECB quedó así y el flujo
-        # de «Sin proyecto» salía sin ellos. Se adelanta antes del flujo y se dice.
-        adelantadas = etapas_al_dia(app)
+        # de «Sin proyecto» salía sin ellos. Se adelanta antes del flujo y se dice. En un caso del
+        # operador no (011:RF-136): sus etapas son trabajo suyo; solo se dice cuáles no se aplican.
+        if rol == ROL_POR_NOMBRE:
+            tardias = etapas_tardias(app)
+            if tardias:
+                informe['etapas_sin_aplicar'] = tardias
+                informe['avisos'].append('Etapas de variaciones activas fechadas después de la hora del caso, que '
+                                         'DIgSILENT no aplica; no se tocan en un caso del operador: ' + ', '.join(tardias) + '.')
+        adelantadas = [] if rol == ROL_POR_NOMBRE else etapas_al_dia(app)
         if adelantadas:
             informe['etapas_adelantadas'] = adelantadas
             informe['avisos'].append('Etapas que quedaban después de la hora del caso y no se aplicaban; '
@@ -749,9 +845,12 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             return {**informe, 'error': 'el flujo de carga del caso no converge: no se ejecuta '
                                         'el estudio'}, 2
         base = medidas(alims, feeders, True)
+        if rol == ROL_POR_NOMBRE and estudio not in ESTUDIOS_SIN_ESCRITURA:
+            temporal = variacion_del_estudio(app, plan, informe)          # 011:RF-136
         if rol == 'sin':
+            # 011:RF-131: sin calibración en el espacio no hay objetivos ni tolerancia, y no se inventan.
             informe['avisos'] += desvios_de_cabecera(
-                base, plan.get('objetivos') or {}, float(plan.get('tolerancia', 0.01)))
+                base, plan.get('objetivos') or {}, float(plan.get('tolerancia') or 0.01))
 
         if estudio == 'flujo':
             informe['medidas'] = base
@@ -794,6 +893,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             flujo = flujo_de_carga(app)
             informe['medidas'] = medidas(alims, feeders, flujo['converged'])
     finally:
+        if temporal is not None:
+            retirar_variacion_del_estudio(app, temporal)
         if ldf is not None:
             for k, v in guardados.items():
                 setattr(ldf, k, v)

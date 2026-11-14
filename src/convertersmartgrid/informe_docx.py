@@ -691,6 +691,247 @@ guardar_informe = _guardar
 preparar_modelo = _preparar
 
 
+# --------------------------------------------------------------------------- resumen ejecutivo (017:RF-142)
+#: Columnas de los resultados principales del resumen: (clave de la fila de 4.2, rótulo, decimales).
+_RESUMEN_RESULTADOS = (('caso', 'Caso', None), ('alimentador', 'Alimentador', None), ('estudio', 'Estudio', None),
+                       ('converge', 'Converge', None), ('vm_min', 'V mín. (p.u.)', 3), ('vm_min_barra', 'Barra', None),
+                       ('vm_max', 'V máx. (p.u.)', 3), ('cargabilidad_max', 'Carga máx. (%)', 1),
+                       ('mas_cargado', 'Elemento', None), ('cabecera_kw', 'P cabecera (kW)', 1),
+                       ('perdidas_kw', 'Pérdidas (kW)', 1), ('violaciones', 'Violaciones', 0))
+_RESUMEN_VIOLACIONES = (('caso', 'Caso', None), ('alimentador', 'Alimentador', None), ('estudio', 'Estudio', None),
+                        ('tipo', 'Tipo', None), ('elemento', 'Elemento', None), ('valor', 'Valor', 3),
+                        ('limite', 'Límite', 3), ('nueva', 'Nueva', None))
+
+
+def _celda_resumen(valor: Any, decimales: int | None) -> str:
+    if valor is None or valor == '':
+        return '—'
+    if isinstance(valor, bool):
+        return 'sí' if valor else 'no'
+    if decimales is not None and isinstance(valor, (int, float)):
+        return numero(float(valor), decimales)
+    return str(valor)
+
+
+def _filas_resumen(filas: Sequence[Mapping[str, Any]], columnas) -> list[list[str]]:
+    return [[_celda_resumen(f.get(k), d) for k, _t, d in columnas] for f in filas]
+
+
+def _estado_estudio(e: Mapping[str, Any]) -> str:
+    if e.get('no_terminado'):
+        return 'no terminó en su límite'
+    return f"error: {e['error']}" if e.get('error') else 'hecho'
+
+
+def conclusiones_resumen(resultado: Mapping[str, Any]) -> list[str]:
+    """Una frase por caso estudiado, con sus cifras: violaciones, alimentadores, tensión mínima y carga máxima;
+    y una por estudio que no terminó o falló (017:RF-142)."""
+    from .estudios_pf import DIFERENCIA
+
+    por_caso: dict[str, list[Mapping[str, Any]]] = {}
+    for f in resultado.get('resultados') or []:
+        if f.get('caso') != DIFERENCIA:
+            por_caso.setdefault(str(f.get('caso')), []).append(f)
+    violaciones = resultado.get('violaciones') or []
+    frases = []
+    for caso, suyas in por_caso.items():
+        v = [x for x in violaciones if x.get('caso') == caso]
+        alims = sorted({str(x.get('alimentador')) for x in v})
+        vm = [f['vm_min'] for f in suyas if isinstance(f.get('vm_min'), (int, float))]
+        carga = [f['cargabilidad_max'] for f in suyas if isinstance(f.get('cargabilidad_max'), (int, float))]
+        sin_conv = sorted({str(f.get('alimentador')) for f in suyas if f.get('converge') is False})
+        if v:
+            texto = (f'«{caso}»: {len(v)} violación(es) de los límites en {len(alims)} alimentador(es) '
+                     f'({", ".join(alims)})')
+        else:
+            texto = f'«{caso}»: sin violaciones de los límites'
+        if vm:
+            texto += f'; tensión mínima {numero(min(vm), 3)} p.u.'
+        if carga:
+            texto += f'; cargabilidad máxima {numero(max(carga), 1)} %'
+        if sin_conv:
+            texto += f'; no converge en {", ".join(sin_conv)}'
+        frases.append(texto + '.')
+    for e in resultado.get('estudios') or []:
+        if e.get('error') or e.get('no_terminado'):
+            frases.append(f"{e.get('estudio')} en «{e.get('nombre_caso') or e.get('caso')}»: {_estado_estudio(e)}.")
+    return frases
+
+
+def _libro_resumen(destino: Path, resultado: Mapping[str, Any], conclusiones: Sequence[str]) -> Path:
+    """El Excel del resumen, con las tablas enteras, sin tope de filas (017:RF-143; 066:RF-1)."""
+    from openpyxl import Workbook
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = 'Resumen'
+    hoja.append(['Proyecto', resultado.get('project')])
+    hoja.append(['Alimentadores', ', '.join(resultado.get('feeders') or [])])
+    hoja.append(['Casos', ', '.join(resultado.get('casos_estudiados') or [])])
+    hoja.append([])
+    for frase in conclusiones:
+        hoja.append([frase])
+    for titulo, filas, columnas in (('Resultados', resultado.get('resultados') or [], _RESUMEN_RESULTADOS),
+                                    ('Violaciones', resultado.get('violaciones') or [], _RESUMEN_VIOLACIONES)):
+        h = libro.create_sheet(titulo)
+        h.append([t for _k, t, _d in columnas])
+        for f in filas:
+            h.append([('sí' if f.get(k) else 'no') if isinstance(f.get(k), bool) else f.get(k)
+                      for k, _t, _d in columnas])
+    ruta = Path(destino).with_suffix('.xlsx')
+    with staging_publicacion(ruta) as tmp:
+        libro.save(tmp)
+        os.replace(tmp, ruta)
+    return ruta
+
+
+#: Lo que cabe en el cuerpo de una hoja A4 con la cabecera y el pie del modelo, contado como el resumen lo cuenta:
+#: cada párrafo, una línea por cada 95 caracteres, y cada fila de tabla, una (017:RF-142).
+LINEAS_POR_HOJA = 44
+_CARACTERES_POR_LINEA = 95
+
+
+def _lineas(texto: str) -> int:
+    return max(1, -(-len(texto) // _CARACTERES_POR_LINEA))
+
+
+def _ocupadas(documento) -> int:
+    """Las líneas que ya ocupa el cuerpo, contadas como ``LINEAS_POR_HOJA``: así el reparto mide lo escrito, con los
+    prefijos que pone el escritor (viñeta, «AVISO:»), y no una estimación aparte."""
+    return sum(_lineas(x.text) for x in documento.paragraphs) + sum(len(t.rows) for t in documento.tables)
+
+
+def _gravedad(v: Mapping[str, Any]) -> float:
+    """Cuánto se aparta una violación de su límite, en proporción: la más grave primero, sea por abajo o por arriba."""
+    valor, limite = v.get('valor'), v.get('limite')
+    if not isinstance(valor, (int, float)) or not isinstance(limite, (int, float)) or not limite:
+        return 0.0
+    return abs(float(valor) - float(limite)) / abs(float(limite))
+
+
+_RESUMEN_POR_CASO = ('Caso', 'Violaciones', 'Alimentadores con violación', 'Tensión mínima (p.u.)',
+                     'Cargabilidad máxima (%)', 'No converge')
+
+
+def _filas_por_caso(resultado: Mapping[str, Any]) -> list[list[str]]:
+    from .estudios_pf import DIFERENCIA
+
+    por_caso: dict[str, list[Mapping[str, Any]]] = {}
+    for f in resultado.get('resultados') or []:
+        if f.get('caso') != DIFERENCIA:
+            por_caso.setdefault(str(f.get('caso')), []).append(f)
+    filas = []
+    for caso, suyas in por_caso.items():
+        v = [x for x in resultado.get('violaciones') or [] if x.get('caso') == caso]
+        vm = [f['vm_min'] for f in suyas if isinstance(f.get('vm_min'), (int, float))]
+        carga = [f['cargabilidad_max'] for f in suyas if isinstance(f.get('cargabilidad_max'), (int, float))]
+        sin_conv = sorted({str(f.get('alimentador')) for f in suyas if f.get('converge') is False})
+        filas.append([caso, str(len(v)), str(len({str(x.get('alimentador')) for x in v})),
+                      numero(min(vm), 3) if vm else '—', numero(max(carga), 1) if carga else '—',
+                      ', '.join(sin_conv) or '—'])
+    return filas
+
+
+def escribir_resumen_estudios(destino: Path, resultado: Mapping[str, Any], *, libro: bool = False,
+                              modelo: Path | None = None, rotulos: Mapping[str, str] | None = None,
+                              tope: int | None = None) -> dict[str, Any]:
+    """El resumen ejecutivo de una corrida de 4.2 con lo que guardó, en UNA hoja (017:RF-142, RF-143).
+
+    Decisión del usuario (2026-11-13): «el formato ejecutivo debe llevar del informe modelo solo una hoja». Se escribe
+    sobre el informe modelo de la empresa (su cabecera y su pie, con el cuerpo vacío, como los informes de la 017) o,
+    sin modelo, sobre la plantilla neutra (086:RF-31). El cuerpo cabe en una página: la ficha, las conclusiones, una
+    fila por caso y las violaciones más graves, hasta llenar ``LINEAS_POR_HOJA``; el detalle entero va en el libro, si
+    el perfil lo declara, y siempre en los ficheros de la corrida, y se dice cuánto queda fuera. Sirve para cualquier
+    proyecto y caso de DIgSILENT: no supone los casos del conversor ni una calibración. ``tope`` limita además las
+    violaciones que se muestran.
+    """
+    casos = list(resultado.get('casos_estudiados') or dict.fromkeys(
+        str(x.get('nombre_caso') or x.get('caso')) for x in resultado.get('estudios') or []))
+    referencia = f"Resumen ejecutivo de estudios · {resultado.get('project')}"
+    e = _Escritor(_preparar(modelo, rotulos or {}, {'referencia': referencia}))
+    usadas = sum(_lineas(x.text) for x in e.d.paragraphs)      # lo que el modelo deja en el cuerpo
+
+    def titulo(texto: str) -> None:
+        nonlocal usadas
+        e.titulo(texto)
+        usadas += _lineas(texto)
+
+    def parrafo(texto: str, *, aviso: bool = False) -> None:
+        nonlocal usadas
+        (e.aviso if aviso else e.parrafo)(texto)
+        usadas += _lineas(texto)
+
+    def tabla(cabecera: Sequence[str], filas: Sequence[Sequence[str]]) -> None:
+        nonlocal usadas
+        e.tabla(cabecera, filas)
+        usadas += 1 + len(filas)
+
+    lim = resultado.get('limites') or {}
+    titulo('RESUMEN EJECUTIVO DE LOS ESTUDIOS')
+    ficha = [['Proyecto de DIgSILENT', str(resultado.get('project') or '—')],
+             ['Alimentadores', ', '.join(resultado.get('feeders') or []) or '—'],
+             ['Casos estudiados', ', '.join(casos) or '—'],
+             ['Estudios', ', '.join(resultado.get('estudios_pedidos') or []) or '—']]
+    if lim:
+        ficha.append(['Límites', f"tensión {_celda_resumen(lim.get('tension_min_pu'), 3)} a "
+                                 f"{_celda_resumen(lim.get('tension_max_pu'), 3)} p.u.; cargabilidad hasta "
+                                 f"{_celda_resumen(lim.get('cargabilidad_max_pct'), 1)} %"])
+    e.tabla(('Dato', 'Valor'), ficha)
+    usadas += 1 + sum(_lineas(a + b) for a, b in ficha)
+    if resultado.get('calibrado') is False:
+        parrafo('Sin calibración aplicada en el espacio: se estudió cada caso tal como estaba en DIgSILENT.',
+                aviso=True)
+    if resultado.get('cancelado'):
+        parrafo('La corrida se canceló: solo constan los estudios terminados.', aviso=True)
+    fallidos = [x for x in resultado.get('estudios') or [] if x.get('error') or x.get('no_terminado')]
+    conclusiones = conclusiones_resumen(resultado)
+    por_caso = _filas_por_caso(resultado)
+    violaciones = sorted(resultado.get('violaciones') or [], key=_gravedad, reverse=True)
+    avisos = list(resultado.get('avisos_plan') or [])
+    for x in resultado.get('estudios') or []:
+        avisos += [a for a in x.get('avisos') or [] if a not in avisos]
+    xlsx = _libro_resumen(destino, resultado, conclusiones).name if libro else None
+    donde = f'en el libro {xlsx}' if xlsx else 'en los ficheros de la corrida'
+    pie = (f"Detalle completo ({len(resultado.get('resultados') or [])} resultados, {len(violaciones)} violaciones, "
+           f"{len(avisos)} avisos) {donde}.")
+    linea_aviso = (f'Aviso: {avisos[0]}' + (f' (y {len(avisos) - 1} más)' if len(avisos) > 1 else '')) if avisos else ''
+    # Lo que va siempre al final (la tabla por caso, el aviso y el pie) se reserva antes de repartir el resto.
+    reserva = (_lineas(pie) + (_lineas(linea_aviso) if avisos else 0) + (1 + len(por_caso) if por_caso else 0)
+               + 2)                                                       # el título de Conclusiones y el «y N más»
+    titulo('Conclusiones')
+    libres = max(1, LINEAS_POR_HOJA - _ocupadas(e.d) - reserva)
+    mostradas, lineas = [], 0
+    for frase in conclusiones or ['La corrida no dejó resultados que resumir.']:
+        if mostradas and lineas + _lineas('•	' + frase) > libres // 2:          # la otra mitad, para las violaciones
+            break
+        mostradas.append(frase)
+        lineas += _lineas('•	' + frase)
+    for frase in mostradas:
+        e.vinieta(frase)
+    usadas += lineas
+    if len(mostradas) < len(conclusiones):
+        parrafo(f'Y {len(conclusiones) - len(mostradas)} conclusiones más {donde}.')
+    if por_caso:
+        tabla(_RESUMEN_POR_CASO, por_caso)
+    final = _lineas(pie) + (_lineas('AVISO: ' + linea_aviso) if avisos else 0)
+    if violaciones:
+        cupo = max(0, LINEAS_POR_HOJA - _ocupadas(e.d) - final - 2)          # su título y su cabecera
+        if tope is not None:
+            cupo = min(cupo, tope)
+        if cupo:
+            titulo('Violaciones más graves')
+            tabla([t for _k, t, _d in _RESUMEN_VIOLACIONES], _filas_resumen(violaciones[:cupo], _RESUMEN_VIOLACIONES))
+    elif not fallidos:
+        parrafo('Ninguna violación de los límites.')
+    if avisos:
+        parrafo(linea_aviso, aviso=True)
+    parrafo(pie)
+    _guardar(e.d, destino, {'tipo': 'resumen_estudios', 'token': resultado.get('token'),
+                            'project': resultado.get('project'), 'casos': casos, 'conclusiones': conclusiones,
+                            'huecos': e.huecos, 'xlsx': xlsx, 'lineas': _ocupadas(e.d), 'modelo': bool(modelo)})
+    return {'conclusiones': conclusiones, 'huecos': e.huecos, 'xlsx': xlsx}
+
+
 def _nodo_banco(b: Mapping[str, Any]) -> str:
     """El nodo de la red de un banco existente, no la barra auxiliar, y la SED más cercana
     si el nodo no es ella (RF-135)."""

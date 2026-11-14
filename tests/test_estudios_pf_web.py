@@ -7,6 +7,7 @@ con él. Los guiones son el falso de ``apoyo_pf_web``.
 from __future__ import annotations
 
 import json
+import random
 import time
 
 import pytest
@@ -70,11 +71,122 @@ def test_catalogo_de_estudios_y_limites(client):
     assert r['limites']['origen'] == 'por defecto' and r['limite_s'] > 0
 
 
-def test_sin_ajuste_primero_hay_que_calibrar(client):
-    """011:RF-13 — sin un ajuste aplicado no hay base: se pide calibrar primero."""
+def _sorteo(semilla):
+    """Alimentadores y casos del operador sorteados: ningún nombre ni tamaño fijo (universal)."""
+    rng = random.Random(semilla)
+    feeders = [f'AL{rng.randint(100, 999)}_{i}' for i in range(rng.randint(1, 5))]
+    casos = [f'Caso operador {rng.randint(1, 99)}-{i}' for i in range(rng.randint(1, 4))]
+    return feeders, casos
+
+
+@pytest.mark.parametrize('semilla', (3, 17, 41))
+def test_sin_ajuste_se_estudia_el_caso_tal_como_esta_y_se_avisa(client, semilla):
+    """011:RF-131, 011:RF-130 — antes (011:RF-13) sin ajuste no había plan: «primero hay que calibrar». Orden del
+    usuario del 2026-11-13: los estudios se hacen en cualquier proyecto y caso de DIgSILENT. Sin calibración el plan
+    sale, avisa, no inventa objetivos ni tolerancia y estudia los casos elegidos por su nombre."""
+    feeders, casos = _sorteo(semilla)
+    wid = client.post('/api/workspaces').json()['id']
+    r = _plan(client, wid, None, feeders=feeders, casos=casos)
+    assert r.status_code == 200, r.text
+    plan = r.json()
+    assert plan['feeders'] == feeders and plan['casos'] == casos and plan['calibrado'] is False
+    assert any('calibración' in a and 'tal como' in a for a in plan['avisos'])
+    estado = esperar_trabajo(client, _ejecutar(client, wid, plan['token']))
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    # Sin calibración no se preparan los casos del conversor: casos_pf.py los crearía.
+    assert res['casos'] == {} and res['casos_report'] is None
+    assert [(e['caso'], e['estudio']) for e in res['estudios']] == [
+        (c, e) for c in casos for e in ('flujo', 'contingencias')]
+    recibidos = [json.loads(open(client.app.state.store.get(wid).out_dir / e['report'], encoding='utf-8').read())
+                 ['recibido'] for e in res['estudios']]
+    assert [(p['caso'], p['nombre_caso']) for p in recibidos] == [
+        ('caso', c) for c in casos for _e in ('flujo', 'contingencias')]
+    assert all(p['objetivos'] == {} and p['tolerancia'] is None for p in recibidos)
+
+
+def test_sin_ajuste_ni_casos_elegidos_se_piden_los_del_conversor(client):
+    """011:RF-130, 011:RF-131 — sin elegir casos ni calibración, se piden por su nombre los del conversor."""
+    feeders, _ = _sorteo(5)
+    wid = client.post('/api/workspaces').json()['id']
+    plan = _plan(client, wid, None, feeders=feeders).json()
+    assert plan['casos'] == [SIN, 'Cargas nuevas', CON]
+    assert any('No se eligió ningún caso' in a for a in plan['avisos'])
+
+
+@pytest.mark.parametrize('semilla', (2, 29))
+def test_casos_elegidos_con_calibracion(client, semilla):
+    """011:RF-130 — con calibración, un caso del conversor elegido conserva su rol y cualquier otro se estudia por su
+    nombre, en el orden elegido."""
+    _feeders, casos = _sorteo(semilla)
+    elegidos = [casos[0], SIN, *casos[1:]]
     wid = _espacio(client)
-    r = _plan(client, wid, None)
-    assert r.status_code == 400 and 'calibrar' in r.json()['detail']
+    plan = _plan(client, wid, _ajuste(client, wid), casos=elegidos).json()
+    assert plan['casos'] == elegidos and plan['calibrado'] is True
+    estado = esperar_trabajo(client, _ejecutar(client, wid, plan['token']))
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    assert [(e['rol'], e['caso']) for e in res['estudios'] if e['estudio'] == 'flujo'] == [
+        ('sin' if c == SIN else 'caso', c) for c in elegidos]
+    assert res['casos_estudiados'] == elegidos
+
+
+def test_caso_inexistente_se_informa_y_no_detiene_los_demas(client):
+    """011:RF-132 — un caso que no está en el proyecto se dice con su nombre y se sigue con los demás."""
+    feeders, casos = _sorteo(11)
+    wid = client.post('/api/workspaces').json()['id']
+    elegidos = ['NO_EXISTE', *casos]
+    plan = _plan(client, wid, None, feeders=feeders, casos=elegidos, estudios=['flujo']).json()
+    estado = esperar_trabajo(client, _ejecutar(client, wid, plan['token']))
+    assert estado['status'] == 'done', estado
+    por = {e['caso']: e for e in estado['result']['estudios']}
+    assert list(por) == elegidos
+    assert 'NO_EXISTE' in por['NO_EXISTE']['error']
+    assert all(not por[c]['error'] for c in casos)
+    assert {m['caso'] for m in estado['result']['medidas']} == set(casos)
+
+
+@pytest.mark.parametrize('semilla', (7, 23))
+def test_resumen_ejecutivo_del_resultado_guardado(client, semilla, monkeypatch):
+    """017:RF-142 — tras cualquier estudio, el resumen ejecutivo sale del resultado guardado, sin otra ejecución de
+    DIgSILENT, con sus casos, estudios, resultados y violaciones con cifras."""
+    import docx
+
+    from convertersmartgrid.web import services
+
+    feeders, casos = _sorteo(semilla)
+    wid = client.post('/api/workspaces').json()['id']
+    plan = _plan(client, wid, None, feeders=feeders, casos=casos, estudios=['flujo'],
+                 limites={'tension_min_pu': 0.98}).json()
+    estado = esperar_trabajo(client, _ejecutar(client, wid, plan['token']))
+    assert estado['status'] == 'done', estado
+    llamadas = []
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **_k: llamadas.append(a))
+    r = client.post(f"/api/workspaces/{wid}/pf/estudios/{plan['token']}/resumen")
+    assert r.status_code == 200, r.text
+    assert llamadas == []                                  # nada vuelve a DIgSILENT
+    hecho = r.json()
+    assert hecho['xlsx'] is None                           # sin perfil que declare el libro (066:RF-2)
+    texto = '\n'.join(p.text for p in docx.Document(
+        client.app.state.store.get(wid).out_dir / hecho['docx']).paragraphs)
+    tablas = ' '.join(c.text for t in docx.Document(client.app.state.store.get(wid).out_dir / hecho['docx']).tables
+                      for fila in t.rows for c in fila.cells)
+    for c in casos:
+        assert c in texto and c in tablas
+    for f in feeders:
+        assert f in texto
+    # El falso da 0,97 p.u. en B1: con el mínimo en 0,98 cada alimentador viola la tensión, y se dice con cifras.
+    assert any(f'«{c}»: {len(feeders)} violación(es)' in x for c in casos for x in hecho['conclusiones'])
+    assert '0,970' in tablas or '0.970' in tablas
+    assert 'calibración' in texto
+    assert client.get(f"/api/workspaces/{wid}/files/{hecho['docx']}").status_code == 200
+
+
+def test_resumen_sin_resultado_guardado_lo_dice(client):
+    """017:RF-142 — sin una corrida guardada no se inventa un resumen: se pide ejecutar los estudios."""
+    wid = client.post('/api/workspaces').json()['id']
+    r = client.post(f'/api/workspaces/{wid}/pf/estudios/0123456789ab/resumen')
+    assert r.status_code == 400 and 'ejecút' in r.json()['detail']
 
 
 def test_plan_sobre_la_base_del_ultimo_ajuste(client):
@@ -354,3 +466,17 @@ def test_guion_nunca_en_el_caso_base(client):
     estado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/pf/guiones/ejecutar', json={
         'project': 'P', 'nombre': 'Revisar', 'casos': ['Caso base'], 'confirmado': True}).json())
     assert estado['status'] == 'failed' and 'Caso base' in estado['error']
+
+
+def test_resumen_con_libro_cuando_el_perfil_lo_declara(client, monkeypatch):
+    """017:RF-143 — si el perfil de la empresa declara el libro de sus informes (066:RF-1), el resumen deja su Excel."""
+    from convertersmartgrid import perfil_empresa
+
+    feeders, casos = _sorteo(19)
+    wid = client.post('/api/workspaces').json()['id']
+    plan = _plan(client, wid, None, feeders=feeders, casos=casos, estudios=['flujo']).json()
+    assert esperar_trabajo(client, _ejecutar(client, wid, plan['token']))['status'] == 'done'
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *_a, **_k: {'informes': {'libro_informe': {}}})
+    hecho = client.post(f"/api/workspaces/{wid}/pf/estudios/{plan['token']}/resumen").json()
+    assert hecho['xlsx'] and hecho['xlsx'].endswith('.xlsx')
+    assert client.get(f"/api/workspaces/{wid}/files/{hecho['xlsx']}").status_code == 200

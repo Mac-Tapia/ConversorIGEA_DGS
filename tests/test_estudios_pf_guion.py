@@ -624,3 +624,113 @@ def test_sin_gps_el_flujo_guarda_la_topologia_para_el_esquematico():
         barra.GPSlat, barra.GPSlon = -14.0 - random.random() / 100, -75.7 + random.random() / 100
     informe, rc = guion.ejecutar(app, _plan(feeders))
     assert all('esquema' not in informe['geo'][f] for f in feeders), 'con GPS no hace falta'
+
+
+# --------------------------------------------------------------------------- 011:RF-130 a RF-133
+def _sin_casos_del_conversor(rng):
+    """Un proyecto sin calibrar ni casos del conversor, con casos del operador de nombres sorteados."""
+    alims = tuple(f'X{rng.randint(10, 99)}_{i}' for i in range(rng.randint(1, 4)))
+    app = fake_pf.proyecto(alimentadores=alims, cargas_por_alim=rng.randint(2, 4), flujo=True)
+    sub = app.carpetas['study'].CreateObject('IntFolder', f'Carpeta {rng.randint(1, 9)}')
+    nombres = [f'Operador {rng.randint(100, 999)}-{i}' for i in range(rng.randint(1, 3))]
+    for i, n in enumerate(nombres):
+        (sub if i % 2 else app.carpetas['study']).CreateObject('IntCase', n)
+    app.creados.clear()
+    app.escrituras.clear()
+    return app, list(alims), nombres
+
+
+def _casos(app):
+    return sorted(id(c) for c in app.carpetas['study'].GetContents('*.IntCase', 1))
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_cualquier_caso_por_su_nombre_sin_crear_ni_borrar_casos(semilla):
+    """011:RF-133, 011:RF-130 — el guion estudia un caso del operador por su nombre, sin la marca del conversor, también
+    en una subcarpeta; no crea, copia ni borra casos y deja activo el caso que lo estaba (064)."""
+    app, feeders, nombres = _sin_casos_del_conversor(random.Random(semilla))
+    antes, activo = _casos(app), app.GetActiveStudyCase()
+    for nombre in nombres:
+        informe, rc = guion.ejecutar(app, _plan(feeders, caso='caso', nombre_caso=nombre))
+        assert rc == 0, informe
+        assert informe['nombre_caso'] == nombre and informe['caso'] == nombre
+        assert set(informe['medidas']) == set(feeders)
+        assert all(m['converge'] for m in informe['medidas'].values())
+        assert app.GetActiveStudyCase() is activo
+    assert _casos(app) == antes
+    assert not [o for o in app.creados if o.GetClassName() == 'IntCase']
+    assert not [o for o in app.borrados if o.GetClassName() == 'IntCase']
+
+
+def test_caso_que_no_existe_se_dice_con_su_nombre():
+    """011:RF-132 — un caso pedido que no está en el proyecto se dice con su nombre, sin crear ninguno."""
+    app, feeders, _nombres = _sin_casos_del_conversor(random.Random(8))
+    antes = _casos(app)
+    informe, rc = guion.ejecutar(app, _plan(feeders, caso='caso', nombre_caso='No está en el proyecto'))
+    assert rc == 2 and '«No está en el proyecto»' in informe['error']
+    assert _casos(app) == antes and not app.creados
+
+
+def test_sin_calibracion_no_se_comparan_objetivos():
+    """011:RF-131 — sin objetivos ni tolerancia de una calibración el estudio no los inventa ni falla."""
+    app, feeders, nombres = _sin_casos_del_conversor(random.Random(4))
+    informe, rc = guion.ejecutar(app, _plan(feeders, caso='caso', nombre_caso=nombres[0],
+                                            objetivos={}, tolerancia=None))
+    assert rc == 0, informe
+    assert not any('objetivo' in a for a in informe['avisos'])
+
+
+def _foto_del_operador(app, caso):
+    """Lo que el operador dejó en su caso: variaciones del proyecto, las activas y sus etapas, la que graba, la hora, el caso
+    activo, las troncales de la red y el estado de cargas e interruptores."""
+    red = app.proyecto
+    return {
+        'variaciones': sorted(v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)),
+        'activas': [v.loc_name for v in caso._estado.variaciones],
+        'etapas': sorted((s.loc_name, s.tAcTime) for v in caso._estado.variaciones for s in v.GetContents('*.IntSstage')),
+        'grabando': caso._estado.grabando, 'hora': caso.iStudyTime, 'activo': app.GetActiveStudyCase(),
+        'troncales': sorted(b.loc_name for b in red.GetContents('*.ElmBbone', 1)),
+        'cargas': sorted((o.loc_name, o.plini, o.qlini) for o in red.GetContents('*.ElmLod', 1)),
+        'interruptores': sorted((o.loc_name, o.on_off) for o in red.GetContents('*.StaSwitch', 1)),
+    }
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+@pytest.mark.parametrize('estudio', ('flujo', 'troncal', 'contingencias', 'punto_apertura'))
+def test_un_caso_del_operador_queda_como_estaba(semilla, estudio):
+    """011:RF-133, 011:RF-136 — tras estudiar un caso del operador, su red, sus variaciones, sus etapas, la que graba, su
+    hora y el caso activo quedan como estaban (como la restitución de la 064). Antes, ``etapas_al_dia`` adelantaba las
+    etapas de sus variaciones y la troncal de ``ComBbone`` quedaba en su red: dos cambios que el operador no hizo."""
+    rng = random.Random(semilla)
+    app, feeders, nombres = _sin_casos_del_conversor(rng)
+    caso = next(c for c in app.carpetas['study'].GetContents('*.IntCase', 1) if c.loc_name == nombres[0])
+    inicial = app.GetActiveStudyCase()
+    caso.Activate()
+    caso.iStudyTime = 1_760_000_000
+    propia = app.carpetas['scheme'].CreateObject('IntScheme', f'Cambio manual {rng.randint(1, 99)}')
+    propia.NewStage('Etapa del operador', caso.iStudyTime, 1)
+    propia.GetContents('*.IntSstage')[0].tAcTime = caso.iStudyTime + rng.randint(1, 1000)   # justo después de la hora
+    caso.iStudyTime = 1_760_000_000
+    app.grabando = None
+    inicial.Activate()
+    app.ordenes['ComBbone'] = fake_pf.Orden(app, 'BB', clase='ComBbone', efecto=_bbone_en_variacion(feeders))
+    app.ordenes['ComTieopt'] = fake_pf.Orden(app, 'TOPO', clase='ComTieopt')
+    app.creados.clear()
+    antes = _foto_del_operador(app, caso)
+    informe, rc = guion.ejecutar(app, _plan(feeders, estudio, caso='caso', nombre_caso=caso.loc_name))
+    assert rc == 0, informe
+    assert _foto_del_operador(app, caso) == antes
+    if estudio in ('troncal', 'contingencias'):
+        assert informe['troncales'], 'la troncal se lee antes de retirar la variación del conversor'
+    if estudio != 'flujo':
+        assert any('variación del conversor' in a for a in informe['avisos'])
+
+
+def _bbone_en_variacion(feeders):
+    """``ComBbone`` que crea su troncal con ``CreateObject``: como en DIgSILENT, va a la etapa que graba, si la hay."""
+    def efecto(app_, _orden):
+        for a in app_.proyecto.GetContents('*.ElmFeeder', 1):
+            if a.loc_name in feeders:
+                t = a.GetParent().CreateObject('ElmBbone', f'BB_{a.loc_name}')
+                t.pBbStart, t.pBbEnd = a, None
+    return efecto

@@ -115,7 +115,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       carga nueva ingresada sola en 3.2, no las del libro en bloque. La prueba de estudio
       con IN111 + TA225 se cerró sin ella.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos; RF-142 y RF-143, el resumen
+      ejecutivo de cualquier corrida de 4.2, añadidos el 2026-11-13 con sus pruebas en
+      `tests/test_informe_docx.py` y `tests/test_estudios_pf_web.py`; el mismo día, por decisión del usuario, en una
+      hoja del informe modelo: `test_resumen_ejecutivo_en_una_hoja_con_la_cabecera_del_modelo`)
       Hecho cuando: `grep -rnoE "017:RF-[0-9]+" tests | sort -u` lista todos los RF.
       Cierre 2026-11-04: todos salvo los 19 que declaran «no se usa», 16 de ellos aceptados por el usuario.
 

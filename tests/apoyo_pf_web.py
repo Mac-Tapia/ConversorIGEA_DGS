@@ -85,6 +85,10 @@ elif herramienta == 'estudios_pf.py' and plan['estudio'] in ('fiabilidad', 'reco
                                                             'kvar': 300.0, 'coste_anual': 12.0}],
                               'kvar_propuestos': 300.0, 'ahorro_anual': 40.0, 'coste_anual': 12.0}
                           for f in plan['feeders']}
+elif herramienta == 'estudios_pf.py' and plan.get('nombre_caso') == 'NO_EXISTE':
+    # 011:RF-132: como el guion de verdad, un caso que no está en el proyecto se dice con su nombre.
+    informe.update(caso='NO_EXISTE', estudio=plan['estudio'], avisos=[], medidas={},
+                   error='el proyecto no tiene el caso «NO_EXISTE»: se sigue con los demás casos')
 elif herramienta == 'estudios_pf.py':
     if proyecto == 'LENTO' and plan['estudio'] == 'contingencias':
         time.sleep(60)

@@ -462,6 +462,28 @@ pasar por el enlace en una configuración dada: el margen que queda para crecer.
 - RF-127: EL SISTEMA aplicará en el análisis los mismos límites de tensión y cargabilidad
   que en los pasos (RF-35), solo sobre el alimentador que recibe y la parte transferida.
 
+Cualquier caso de cualquier proyecto (orden del usuario, 2026-11-13: «en la web 4.2 · Estudios yo debería
+hacer esos estudios en cualquier proyecto físico existente en DIgSILENT, con cualquier caso»)
+
+- RF-130: EL SISTEMA permitirá elegir uno o varios casos de estudio del proyecto de DIgSILENT por su
+  nombre y ejecutará en cada uno los estudios elegidos; si no se elige ninguno, estudiará los del conversor
+  («Sin proyecto», «Cargas nuevas» y «Con proyecto»).
+- RF-131: SI el proyecto no tiene ningún ajuste aplicado en el espacio, ENTONCES EL SISTEMA estudiará
+  cada caso tal como está en DIgSILENT, sin objetivos de cabecera ni tolerancia de calibración, y lo avisará.
+- RF-132: SI un caso elegido no existe en el proyecto, ENTONCES EL SISTEMA lo dirá con su nombre y seguirá
+  con los demás casos.
+- RF-133: EL SISTEMA buscará un caso elegido por su nombre en la carpeta de casos y sus subcarpetas, sin
+  exigir la marca del conversor, sin crear, copiar ni borrar casos, y dejará activo al terminar el caso que lo
+  estaba (064).
+- RF-134: CUANDO lee los proyectos de la carpeta de DIgSILENT, EL SISTEMA leerá también los nombres de los
+  casos de estudio de cada uno.
+- RF-135: EL SISTEMA mostrará en 4.2 los casos del proyecto para elegir varios, con los del conversor
+  marcados por defecto, y no apagará la preparación de los estudios por falta de calibración.
+- RF-136: MIENTRAS estudia un caso que no es del conversor, EL SISTEMA grabará lo que el estudio escriba en la red
+  solo en una variación del conversor con su marca (086:RF-87), la borrará al terminar y no adelantará las etapas de
+  las variaciones del operador, de modo que su red, sus variaciones, sus etapas, su hora y el caso activo queden como
+  estaban (revisión del auditor del 2026-11-13; memoria «cambios manuales en PF son intencionales»).
+
 ## Requisitos no funcionales
 
 - Carril `powerfactory`, un único proceso con el motor a la vez, con progreso por estudio
@@ -536,7 +558,7 @@ pasar por el enlace en una configuración dada: el margen que queda para crecer.
 
 ## Criterios de finalización
 
-- `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-129.
+- `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-136.
 - Suite completa en verde, también la de las specs 004, 006, 007 y 008.
 - `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - Prueba real en DIgSILENT con un proyecto de dos alimentadores calibrados y al menos una
@@ -607,3 +629,17 @@ Ninguna.
   las demandas en bloque. La calibración y las demandas están en el escenario de «Sin
   proyecto» (y se copian al de «Con proyecto»); un alimentador está calibrado si su
   ajuste aplicado no falló (015:RF-26, RF-27). Los ajustes de antes de la 015 no se tocan.
+
+## Cambios del 2026-11-13: cualquier caso y sin calibración
+
+- RF-13 (cambiado por RF-132): sin un ajuste aplicado ya no se pide calibrar primero; se estudia el caso tal
+  como está y se avisa. Con ajuste, RF-12 a RF-16 siguen igual.
+- Aclaración de RF-25: el orden «Sin proyecto», «Cargas nuevas» y «Con proyecto» es el de los casos del
+  conversor por defecto; con casos elegidos (RF-130), los estudios siguen el orden en que se eligieron.
+
+## Cambios del 2026-11-13: cualquier caso y sin calibración
+
+- RF-13 (cambiado por RF-131): sin un ajuste aplicado ya no se pide calibrar primero; se estudia cada caso
+  tal como está y se avisa. Con ajuste, RF-12 a RF-16 siguen igual.
+- Aclaración de RF-25: el orden «Sin proyecto», «Cargas nuevas» y «Con proyecto» es el de los casos del
+  conversor por defecto; con casos elegidos (RF-130), los estudios siguen el orden en que se eligieron.

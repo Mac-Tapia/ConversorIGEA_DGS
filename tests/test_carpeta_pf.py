@@ -532,6 +532,32 @@ def test_leer_solo_la_carpeta():
     assert all(p['native_reread_at'] for p in datos['projects'])
 
 
+@pytest.mark.parametrize('semilla', (1, 13, 57))
+def test_leer_trae_los_casos_de_estudio_de_cada_proyecto(semilla):
+    """011:RF-134 — cada proyecto sale con los nombres de sus casos de estudio (también los de subcarpetas), para
+    que 4.2 estudie cualquiera; se leen sin crear ni cambiar nada y sin abrir las bibliotecas."""
+    import random
+
+    rng = random.Random(semilla)
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    esperados = {}
+    for i in range(rng.randint(1, 4)):
+        prj = _proyecto(app, carpeta, f'P{rng.randint(100, 999)}_{i}', alimentadores=(f'F{i}',))
+        estudio = _carpeta_de(prj, 'study')
+        sub = estudio.CreateObject('IntFolder', 'Otros')
+        nombres = {'Caso'} | {f'Caso {rng.randint(1, 99)}-{k}' for k in range(rng.randint(0, 5))}
+        for k, n in enumerate(sorted(nombres - {'Caso'})):
+            (sub if k % 2 else estudio).CreateObject('IntCase', n)
+        _intocable(_carpeta_de(prj, 'lib'))
+        esperados[prj.loc_name] = sorted(nombres)
+    for lista in (app.creados, app.escrituras):
+        lista.clear()
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert {p['name']: p['cases'] for p in datos['projects']} == esperados
+    assert _sin_cambios(app)
+
+
 def test_leer_sin_carpeta():
     """005:RF-14 — sin carpeta, lista vacía con un aviso que la nombra y dice cuándo se crea."""
     app = _app()
