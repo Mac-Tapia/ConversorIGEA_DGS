@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 327 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 328 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
 | Pruebas de la interfaz | `frontend/test/` | 25 |
-| Pruebas | `tests/` | 437 |
+| Pruebas | `tests/` | 438 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3589 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3591 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -36,11 +36,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 127 |
 | aplicacion | Apl | 103 |
-| dominio | Dom | 46 |
+| dominio | Dom | 47 |
 | presentacion | Pre | 38 |
 | puertos | Pue | 3 |
 
-317 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+318 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -224,7 +224,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `__init__.py` | Dom | 034 | Paquete del motor y su versión. |
+| `__init__.py` | Dom | 034, 106 | Paquete del motor y su versión. |
 | `util.py` | Dom | 001, 086 | SHA-256, JSON atómico y duradero, con copia anterior, y números: una sola implementación. |
 | `runtime_paths.py` | Dom | 065, 086 | Raíces externas, identidad estable de la instalación, staging por volumen o junto al destino, custodia y reconciliación de temporales. |
 | `naming.py` | Dom | 034, 011 | Nombres y selectores de alimentador. |
@@ -417,6 +417,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `model_registry.py` | Apl | 043, 060 | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. |
 | `training_coordinator.py` | Apl | 043 | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. |
 | `trabajadores_ml.py` | Apl | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
+| `compat_gpu.py` | Dom | 106 | Fija en memoria la DLL del controlador NVIDIA antes del primer cuInit, para que su hilo no ejecute en ella descargada (0xC0000005). |
 | `aprendizaje_continuo.py` | Apl | 050 | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador,… |
 | `evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |
 | `experimentos.py` | Apl | 043 | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. |
@@ -552,7 +553,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `equipo_api.py` | Pre | 065 | API del equipo LLM: permisos por plan y revisiones locales en cola. |
 | `seguridad.py` | Pre | 086 | La puerta de la web, en un middleware ASGI: Host, Origin, token de la sesión (también en el WebSocket) y política de contenido. |
 | `runtime.py` | Pre | 001, 036, 065 | Comprobación del entorno que hace el lanzador de Windows y huella del código. |
-| `doctor.py` | Pre | 086, 091 | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. |
+| `doctor.py` | Pre | 086, 091, 106 | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. |
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que… |
 | `copia_datos_api.py` | Pre | 086 | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. |

@@ -3,8 +3,13 @@
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
 - [x] T1. Espera del turno con plazo y dueño; la sesión de pytest toma el turno de la máquina; volcado de pila; marca
-      `gpu` sola; la puerta cuenta la salida sin turno como fallo. (RF-1 a RF-11)
-      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_turno_gpu_de_la_suite.py` en verde.
+      `gpu` sola; la puerta cuenta la salida sin turno como fallo; y el controlador de NVIDIA no tumba la sesión ni el
+      producto al iniciar CUDA, con su aviso en el doctor. (RF-1 a RF-11, RF-18, RF-19)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_turno_gpu_de_la_suite.py` en verde; y
+      `tests/test_compat_gpu.py` (106:RF-18, RF-19) en verde, con su prueba lenta en Windows real (rc 0 con la DLL
+      fijada) y el rojo del mismo subproceso sin fijarla (0xC0000005) guardado en `D:/csg/NV/rojo_*.log`; y la de la GPU
+      oculta (106:RF-18): un backward en CPU y un `lgb.train` descargan la DLL sin el paquete y no con él, con el rojo
+      de la suite del pronóstico y su verde con la DLL fijada en `D:/csg/OPENMP`.
 - [x] T3. Los hijos de las pruebas cargan el src del árbol que se prueba; la puerta corre todo si cambia lo común; y la
       suite no escribe en los datos del usuario: su runtime y sus almacenes son de la sesión. (RF-12, RF-13, RF-16, RF-17)
       Hecho cuando: `tests/test_turno_gpu_de_la_suite.py` (106:RF-12) y `tests/test_puerta_calidad.py` (106:RF-13) en verde, y en rojo con el conftest anterior en un

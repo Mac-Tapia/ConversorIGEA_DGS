@@ -210,6 +210,7 @@
     "model_registry.py",
     "training_coordinator.py",
     "trabajadores_ml.py",
+    "compat_gpu.py",
     "aprendizaje_continuo.py",
     "evaluacion_modelos.py",
     "experimentos.py",

@@ -63,7 +63,13 @@ def lineas_de_pruebas_en_registros(tamanos: dict) -> list[str]:
 
 
 from convertersmartgrid import sesion_web
+from convertersmartgrid.compat_gpu import fijar_dll_nvidia
 from convertersmartgrid.naming import feeder_short_name
+
+# 106:RF-18: antes de _hay_cuda y de cualquier torch.cuda de la sesión. Con el controlador NVIDIA 560.94, el primer
+# cuInit dejaba un hilo en nvdxgdmal64.dll ya descargada y pytest moría con 0xC0000005 a los ~90 s, a mitad de la suite
+# (D:/csg/AV_diagnostico). Importar el paquete ya lo deja listo para el primer import torch; aquí se hace explícito.
+fijar_dll_nvidia()
 
 # Aquí y no en un fixture: hay módulos que crean la aplicación al importarse o con fixtures de
 # módulo. La puerta de la web se prueba en test_seguridad_web.py (086:RF-17 a RF-20), que la

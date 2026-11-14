@@ -152,6 +152,9 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.access" = "adaptadores"
 "convertersmartgrid.ajuste_cabecera" = "dominio"
 "convertersmartgrid.compat_pf" = "dominio"
+# 106:RF-18: lo importa el paquete (dominio) para dejar la DLL de NVIDIA fijada antes de torch; solo usa la biblioteca
+# estándar (winreg, ctypes), como compat_pf.
+"convertersmartgrid.compat_gpu" = "dominio"
 "convertersmartgrid.asistente" = "aplicacion"
 "convertersmartgrid.asistente.custodia_corpus" = "aplicacion"
 "convertersmartgrid.asistente.corpus_redaccion" = "aplicacion"

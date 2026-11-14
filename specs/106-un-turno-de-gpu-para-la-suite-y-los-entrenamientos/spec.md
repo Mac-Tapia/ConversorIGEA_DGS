@@ -58,6 +58,22 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   almacén del asistente y al del gemelo una carpeta de la sesión, nunca `output/web/_asistente`, `output/web/_digital_twin`
   ni `<runtime>/data/web/…` del usuario; lo que una prueba fije por su cuenta manda. (Mismo día: sin ellas, desde el
   árbol principal caían en los 3,8 GB y 1,1 GB del usuario, y desde un worktree en el almacén de un runtime real.)
+- RF-18: DONDE el equipo tiene en Windows un adaptador NVIDIA cuyo controlador trae `nvdxgdmal64.dll`, EL SISTEMA dejará
+  esa DLL fijada en memoria antes del primer inicio de CUDA de cada proceso del producto y de cada sesión de pruebas; sin
+  Windows, sin NVIDIA, sin la clave del registro o sin la DLL no hará nada ni fallará. La fijará con cualquier versión del
+  controlador: no se sabe en cuáles está el defecto, y fijarla es inocuo con uno sano. (2026-11-13: con el controlador
+  560.94, iniciar CUDA cargaba y descargaba esa DLL y dejaba un hilo que, al siguiente aviso del sistema, ejecutaba en
+  ella ya descargada: el proceso moría con 0xC0000005 a los ~90 s, también con `CUDA_VISIBLE_DEVICES=-1`, y la suite caía
+  a mitad. Diagnóstico y reproducción mínima en `D:/csg/AV_diagnostico`.) El inicio de CUDA no hace falta pedirlo:
+  el primer `backward` de autograd, también en CPU, cuenta los dispositivos de cada backend y llama a `cuInit`, así
+  que lo cubre también el entrenamiento en CPU con la GPU oculta, como el reentreno del pronóstico, que corre torch y
+  LightGBM en el mismo proceso de la web. (2026-11-14, auditoría de c7: `tests/test_pronostico_demanda.py` entero con
+  `CUDA_VISIBLE_DEVICES=-1` caía con 0xC0000005 y se sospechó de los dos OpenMP, `libiomp5md.dll` de torch y
+  `vcomp140.dll` de LightGBM. Se descartó: con la DLL fijada conviven 1018 vueltas en 480 s, y sin fijarla caen a la
+  vez, en el mismo instante, dos procesos sin relación, uno sin LightGBM. Evidencia en `D:/csg/OPENMP`.)
+- RF-19: DONDE el equipo tiene un controlador NVIDIA que no pasa de la última versión con el fallo de RF-18 comprobado,
+  EL SISTEMA avisará en el doctor de que conviene actualizarlo, sin bloquear nada, y dirá si la protección de RF-18 está
+  activa.
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.
@@ -74,7 +90,16 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   aun así 61 fallos por memoria).
 - El presupuesto de la prueba de 027:RF-7, que depende del reloj: va en su propia corrección (A3).
 
-## Referencias (verificadas el 2026-11-12)
+## Referencias (verificadas el 2026-11-12; las de RF-18 y RF-19, el 2026-11-13)
+- FluidVoice, issue 585 (https://github.com/altic-dev/FluidVoice/issues/585): el mismo cierre al iniciar CUDA, con el
+  controlador 555.85. Ni la incidencia ni NVIDIA dicen en qué versión se corrige: por eso RF-19 compara con la última
+  versión con el fallo comprobado. chia-gigahorse, issue 336 (https://github.com/madMAx43v3r/chia-gigahorse/issues/336):
+  el módulo culpable sale como «nvdxgdmal64.dll_unloaded». Blender, issue 122826
+  (https://projects.blender.org/blender/blender/issues/122826), citada en el diagnóstico: el 2026-11-13 su servidor
+  respondió 403 y no se pudo releer. Microsoft, *GetModuleHandleExW*
+  (https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw): con
+  `GET_MODULE_HANDLE_EX_FLAG_PIN` el módulo queda cargado hasta que termina el proceso, se llame a `FreeLibrary` las
+  veces que se llame. Sustentan RF-18.
 - PyTorch, *CUDA semantics*, sección de gestión de memoria (https://docs.pytorch.org/docs/2.5/notes/cuda.html): el
   asignador con caché guarda memoria que «seguirá apareciendo como usada en nvidia-smi», así que un proceso no puede dar
   por libre la que otro reservó. Sustenta RF-1 y el fuera de alcance: dos procesos de PyTorch no comparten una GPU con

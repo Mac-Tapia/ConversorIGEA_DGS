@@ -239,6 +239,36 @@ def _gpu(consultar: Callable[[], Mapping[str, Any] | None]) -> Comprobacion:
     return Comprobacion('gpu', 'GPU NVIDIA con CUDA', True, False, detalle, afecta, '')
 
 
+def _controlador_nvidia(adaptadores: Callable[[], list] | None = None, existe: Callable[[str], bool] = os.path.isfile,
+                        mitigacion: Callable[[], bool] | None = None) -> Comprobacion:
+    """106:RF-19: con un controlador NVIDIA que tiene el fallo de ``nvdxgdmal64.dll``, aconseja actualizarlo, sin bloquear.
+
+    Con el 560.94, iniciar CUDA tumbaba el proceso con 0xC0000005 a los ~90 s; el programa lo evita fijando la DLL
+    (``compat_gpu``), y aquí se dice si esa protección está puesta.
+    """
+    from .. import compat_gpu
+
+    nombre, afecta = 'Controlador NVIDIA', 'Modelos en la GPU (asistente, gemelo, pronóstico): el proceso podía cerrarse solo.'
+    lista = (adaptadores or compat_gpu.adaptadores_nvidia)()
+    if not lista:
+        return Comprobacion('controlador_nvidia', nombre, True, False, 'Sin adaptador NVIDIA.', afecta, '')
+    a = lista[0]
+    version = compat_gpu.version_nvidia(a.version_windows)
+    texto = f'{version[0]}.{version[1]:02d}' if version else (a.version_windows or 'desconocida')
+    tiene_dll = existe(os.path.join(a.carpeta, compat_gpu.DLL_NVIDIA))
+    activa = (mitigacion or compat_gpu.antes_de_torch_instalado)()
+    proteccion = ('protección activa: la DLL se fija antes de iniciar CUDA' if tiene_dll and activa else
+                  'protección NO activa' if tiene_dll else f'sin {compat_gpu.DLL_NVIDIA}, no hace falta protección')
+    detalle = f'{a.descripcion}, controlador {texto}; {proteccion}.'
+    if not (tiene_dll and version is not None and version <= compat_gpu.ULTIMA_VERSION_AFECTADA):
+        return Comprobacion('controlador_nvidia', nombre, True, False, detalle, afecta, '')
+    ultima = compat_gpu.ULTIMA_VERSION_AFECTADA
+    return Comprobacion('controlador_nvidia', nombre, False, False, detalle, afecta,
+                        f'Conviene actualizar el controlador de NVIDIA a una versión posterior a la {ultima[0]}.{ultima[1]:02d}, '
+                        f'que tiene el fallo de {compat_gpu.DLL_NVIDIA}. Mientras tanto el programa sigue funcionando, '
+                        'con la protección.')
+
+
 def _tesseract_en_sus_rutas() -> str | None:
     from ..documentos_solicitud import tesseract
 
@@ -277,6 +307,7 @@ def diagnosticar(
     programa: Path | None = None, buscar_modulo: Callable[[str], Any] = importlib.util.find_spec,
     buscar_programa: Callable[[str], str | None] = shutil.which, espacio_minimo_mb: int = ESPACIO_MINIMO_MB,
     consultar_gpu: Callable[[], Mapping[str, Any] | None] | None = None,
+    adaptadores_nvidia: Callable[[], list] | None = None,
 ) -> dict[str, Any]:
     """El informe del doctor. Las dependencias se inyectan para poder quitar cada requisito en una prueba."""
     raiz = project_root() if programa is None else programa
@@ -288,7 +319,8 @@ def diagnosticar(
                      '' if python_ok else f'Se requiere 3.12. {_REINSTALAR}'),
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
         _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo),
-        _gpu(consultar_gpu or (lambda: _gpu_del_equipo(buscar_programa))), _tesseract(buscar_programa), _edicion(),
+        _gpu(consultar_gpu or (lambda: _gpu_del_equipo(buscar_programa))), _controlador_nvidia(adaptadores_nvidia),
+        _tesseract(buscar_programa), _edicion(),
         *([_python_propio()] if es_programa_instalado(raiz) else []),
     ]
     filas = [asdict(c) for c in comprobaciones]

@@ -27,7 +27,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/puertos_muestras.py` | Puerto de productores inyectado en la preparación del ciclo. | 050, 002 |
 | `src/convertersmartgrid/productores_aprendizaje.py` | Composición real y diferida por familia, con lectores/validadores existentes. | 050, 002 |
 | `src/convertersmartgrid/digital_twin/productor_pinn.py` | Vista PINN congelada, con particiones comunes; sin inicializar SQLite. | 050, 002 |
-| `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión. | 034 (RF-1) |
+| `src/convertersmartgrid/__init__.py` | Paquete del motor y su versión; deja la protección del controlador NVIDIA lista para el primer import de torch. | 034 (RF-1), 106 (RF-18) |
 | `src/convertersmartgrid/dominio/__init__.py` | Paquete real de valores y reglas puras, sin lectores ni E/S. | 002 (RF-1, RF-3) |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Un único cuerpo de normalización de códigos y números finitos de medición; compatibilidad importada por demanda_medida. | 002 (RF-1, RF-3, RF-21), 004 (RF-31) |
 | `src/convertersmartgrid/dominio/meses_copiados.py` | Mes de cada registro de 15 minutos y detección del libro mensual que repite el mes anterior, día a día, por mayoría de las series; la usa también el reconocimiento de libros. | 105 (RF-4, RF-13, RF-14) |
@@ -216,7 +216,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/web/__main__.py` | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
 | `src/convertersmartgrid/web/cierre.py` | Registro de cada arranque y cierre de la web, con su motivo; avisa si la anterior cayó sin registrarlo. | 081 (RF-42, RF-43) |
 | `src/convertersmartgrid/web/app.py` | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7, RF-47 a RF-49), 025 (RF-7, RF-28, RF-32), 035 (RF-1), 039 (RF-1, RF-5), 042, 061 (RF-1, RF-3, RF-10), 091 |
-| `src/convertersmartgrid/web/doctor.py` | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. | 086 (RF-40), 091 |
+| `src/convertersmartgrid/web/doctor.py` | Qué le falta a la instalación, qué función afecta y cómo arreglarlo, para la orden y la pantalla. | 086 (RF-40), 091, 106 (RF-19) |
 | `src/convertersmartgrid/web/soporte.py` | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. | 086 (RF-42) |
 | `src/convertersmartgrid/web/copia_datos.py` | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que ocupa; aviso de copia vieja. | 086 (RF-10, RF-47, RF-78 a RF-85) |
 | `src/convertersmartgrid/web/copia_datos_api.py` | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. | 086 (RF-85, RF-86) |
@@ -453,6 +453,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Responsabilidad | Spec |
 | --- | --- | --- |
 | `src/convertersmartgrid/model_registry.py` | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. | 043 (RF-1, RF-5), 060 (RF-7) |
+| `src/convertersmartgrid/compat_gpu.py` | Fija en memoria la DLL del controlador NVIDIA antes del primer cuInit, para que su hilo no ejecute en ella descargada (0xC0000005); qué hizo, para el doctor. | 106 (RF-18, RF-19) |
 | `src/convertersmartgrid/training_coordinator.py` | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. | 043 (RF-6, RF-7, RF-12) |
 | `src/convertersmartgrid/aprendizaje_continuo.py` | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador, retención y conjunto publicado con su anterior, y las fases del estado. | 050 (RF-1 a RF-10) |
 | `src/convertersmartgrid/trabajadores_ml.py` | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. | 043 (RF-6, RF-7, RF-13) |
