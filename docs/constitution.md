@@ -38,6 +38,15 @@ comprueba; uno que no se pueda comprobar no es un principio.
    externo, tampoco a un modelo de IA de terceros. Un módulo externo solo se carga si
    figura en la lista de módulos permitidos, porque se ejecuta con acceso a esos datos.
    *Se comprueba:* prueba de que un módulo instalado y no permitido no se carga.
+   *Cambio del 2026-11-14:* el almacenamiento en la nube **propio del usuario** (su Google Drive, por ejemplo
+   `G:\Mi unidad\ConverterSmartGrid`) es un destino autorizado para las copias de datos (086), el archivo de
+   informes (105) y las salidas de entrenamiento. Lo decidió el usuario el 2026-11-14 («sí está autorizada»), a
+   la vista de la copia de 19,8 GB del 2026-11-12. Sigue prohibido enviar estos datos a un modelo de IA de
+   terceros o a destinatarios ajenos. Compartir un expediente o enviar un informe a terceros (specs 109 y 110)
+   necesita la confirmación del operador en cada envío, y nunca incluye los datos crudos (TXT, MDB ni el paquete
+   VNR). *Se comprobará* con las pruebas de 109:RF-15 y 110:RF-5 (ninguna publicación ni envío sale sin la
+   confirmación del operador) y de 110:RF-11 (ningún adjunto lleva TXT, MDB ni VNR), cuando existan esas specs
+   implementadas. Mientras tanto no hay vía de publicación ni de envío a terceros en el código.
 10. **Idioma y estilo.** Código, comentarios, mensajes y commits en español. Los
     comentarios explican el **porqué**, con el caso real que lo motivó.
 11. **Las pruebas son la puerta.** Una tarea termina con la suite en verde, y con datos

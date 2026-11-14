@@ -1,0 +1,95 @@
+# Tareas — Spec 111
+
+Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
+Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistemas.json` en la tarea que lo crea
+(`tests/test_inventario.py`). Ninguna tarea toca `web/services.py`, `pide_economia.py`, `adaptadores/entrada/vnr/**` ni
+`catalog_resolution.py`. Las órdenes de `npm` y `npx` se ejecutan en `frontend/`.
+
+- [ ] T1. Arnés e2e: `@playwright/test` y `@axe-core/playwright` como dependencias de desarrollo, `playwright.config.ts`
+      y `e2e/preparar.mjs`, que arranca la web con un espacio sintético sorteado; primera prueba: las pestañas y
+      acciones de hoy siguen ahí. (RF-16)
+      Hecho cuando: `npx playwright test e2e/linea_base.spec.ts` (111:RF-16) en verde y `npm run build` correcto.
+- [ ] T2. Medición de la línea base: peso de la página y tiempo hasta el primer dibujo de la vista previa Leaflet de la
+      red unida con todos los alimentadores de una entrega sorteada grande; fija el presupuesto y decide si basta
+      Leaflet con lienzo o hace falta deck.gl en la página. (RF-1)
+      Hecho cuando: `npx playwright test e2e/medicion_plano.spec.ts` deja la medición con la semilla y el número de
+      alimentadores, y `plan.md` anota la cifra, el presupuesto y la decisión.
+- [ ] T3. Identidad y revisión de la red en `plano_red.py`: código de la fuente por elemento, cruce con el nombre en
+      DIgSILENT por `dgs.nombre_en_pf`. Esa función **no existe en 51895566**: esta tarea la CREA en `dgs.py` como alias
+      público de `_loc_name`, igual a él y sin cambiar ningún DGS; ningún módulo importa el nombre privado. Aviso de
+      colisiones y huella de revisión. (RF-2, RF-11)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_plano_red.py -k "identidad or revision or nombre_en_pf" tests/test_capas.py`
+      en verde. Una prueba comprueba que `dgs.nombre_en_pf(x) == dgs._loc_name(x)` sobre identificadores sorteados (con
+      tildes, espacios y longitud por encima del límite), y que el DGS de referencia sintético sale idéntico byte a byte.
+- [ ] T4. Vista del plano: todos los vértices de la fuente por alimentador, sin simplificar; dato original, lo deducido
+      con su motivo y el estado de calidad de cada elemento; doble terna y alimentador sin coordenadas. (RF-1, RF-2,
+      RF-3)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_plano_red.py` en verde con las dos disposiciones y
+      dos perfiles sintéticos.
+- [ ] T5. Variación del plano en `variacion_plano.py`: maniobra y tramo nuevo (vértices tal como se dibujaron, longitud
+      GIS y eléctrica por separado), guardada con versión y su revisión de partida en el espacio, nunca en el caso
+      base; la geografía y el DGS quedan con la misma huella. (RF-4, RF-5)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano.py -k "maniobra or tramo"` en
+      verde.
+- [ ] T6. Reglas de topología de la edición: dos tramos que se cruzan sin nodo ni equipo no se conectan; el ajuste de un
+      extremo a un nodo cercano es una propuesta con su distancia, aplicada solo al confirmarla; radio
+      `editor_ajuste_m` del perfil. (RF-6, RF-7)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano.py -k "cruce or ajuste"` en verde.
+- [ ] T7. Inserción de equipos con validación de tensión, fases y conexión, y la lista de lo que falta; un equipo sin
+      parámetros no se acepta. (RF-8)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano.py -k equipo` en verde.
+- [ ] T8. Deshacer y rehacer las ediciones de una variación sin confirmar; al confirmarla, el diario queda cerrado.
+      (RF-9)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano.py -k "deshacer or rehacer"` en
+      verde.
+- [ ] T9. Resultado por elemento con el motor abierto: `oraculo.resultados_por_elemento` y `resultados_plano.py`, que
+      aplica la variación a una copia del modelo; si no converge, no hay resultado que pintar y se dan los mensajes del
+      motor; el resultado guarda el motor, el caso y la revisión. (RF-10, RF-11, RF-17, RF-18)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_resultados_plano.py -k "abierto or converge"` y
+      `tests/test_oraculo.py` en verde.
+- [ ] T10. Capas de resultados: tensión por barra, corriente y cargabilidad por tramo y estado de cada equipo, con
+      unidad, banda, umbral del perfil (o el de por defecto, dicho), caso y motor; un incumplimiento lleva texto,
+      icono, valor y umbral; los resultados de DIgSILENT se traducen por la identidad y solo se pintan si coinciden el
+      caso y la revisión. (RF-10, RF-11, RF-13, RF-18)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_resultados_plano.py -k "capa or umbral or revision"`
+      en verde.
+- [ ] T11. Comparación de dos casos por elemento sobre el mismo plano, con aviso cuando los motores son distintos.
+      (RF-12, RF-19)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_resultados_plano.py -k comparar` en verde.
+- [ ] T12. Guion `tools/variacion_plano_pf.py`: la variación, en una variación temporal del conversor dentro de una
+      copia del caso (y del escenario de operación si lo hay), `ComLdf`, lectura con `geografia`, borrado y
+      restitución comprobada con `pf_estado`; elección del motor por licencia y vínculo del proyecto. (RF-4, RF-10,
+      RF-17)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano_pf_guion.py` en verde con
+      `tests/fake_pf.py` y `.venv/Scripts/python.exe tools/variacion_plano_pf.py --help` responde sin DIgSILENT.
+- [ ] T13. API en `web/plano_api.py` (`registrar_rutas_plano`) y contratos en `web/api_contract.py`; cableado mínimo
+      en `web/app.py`, pactado con el integrador; versión con `409` si cambió la versión o la revisión de la red;
+      estudiar como trabajo en su carril; las rutas de antes siguen. (RF-4, RF-9, RF-15, RF-16, RF-17)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_plano_api.py tests/test_contrato_api.py` en verde y
+      `.venv/Scripts/python.exe tools/generar_contrato_api.py --check` sin deriva.
+- [ ] T14. Página del plano en `pagina_plano.py`: Leaflet propio con lienzo, capas por vista, nivel de detalle solo
+      gráfico y reversible, leyenda con unidad, umbral, caso y motor, tokens claro y oscuro, sin fondo si las teselas
+      están apagadas, CSP aislada y mensajes `postMessage` con esquema cerrado. (RF-1, RF-2, RF-10, RF-13, RF-14,
+      RF-18)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pagina_plano.py` en verde.
+- [ ] T15. Pestaña «Plano de la red»: `api/plano.ts` y `features/plano/` (plano, buscador por código, inspector,
+      ediciones con deshacer y rehacer, tabla enlazada y virtualizada, capas, caso y comparación), montada en
+      `app/App.tsx` sin quitar nada; anuncios `aria-live`; todo con teclado; ninguna regla eléctrica ni umbral en el
+      navegador; textos sin RF ni jerga. (RF-2, RF-3, RF-9, RF-12, RF-13, RF-14, RF-15, RF-16, RF-18, RF-19)
+      Hecho cuando: `npm run lint`, `npm run typecheck`, `npm test` (`test/plano.test.mjs`) y `npm run build` en verde.
+- [ ] T16. Recorridos e2e en navegador real: maniobra → flujo con el motor abierto → resultados sobre el plano, y
+      comparación de dos casos, los dos también solo con teclado; axe sin fallos serios en claro y en oscuro; huellas de
+      los vértices de la fuente iguales antes y después. (RF-1, RF-2, RF-3, RF-4, RF-10, RF-11, RF-12, RF-13, RF-14,
+      RF-16, RF-17, RF-18, RF-19)
+      Hecho cuando: `npx playwright test e2e/plano.spec.ts` en verde, con la semilla en el registro.
+- [ ] T17. Revisión a mano en navegador real: solo teclado, lector de pantalla, contraste en claro y oscuro, foco
+      visible y microcopia sin exceso de texto. (RF-13, RF-14)
+      Hecho cuando: la nota de la revisión, con capturas, está en la evidencia de la entrega (fuera de git) sin
+      hallazgos abiertos.
+- [ ] T18. [DIgSILENT] Recorrido real por la web sobre una copia de un proyecto de prueba: una maniobra y un tramo nuevo
+      estudiados en DIgSILENT, resultados sobre el plano con el motor dicho, y el caso base y los casos del operador
+      como estaban. (RF-4, RF-10, RF-11, RF-17, RF-18)
+      Hecho cuando: la evidencia de la corrida (informe del guion, foto de `pf_estado` antes y después y capturas del
+      plano) está fuera de git y la relectura no da ninguna diferencia en los casos del operador.
+- [ ] T19. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+      Hecho cuando: `grep -rnoE "111:RF-[0-9]+" tests frontend/test frontend/e2e | sort -u` lista de RF-1 a RF-19.
