@@ -583,6 +583,9 @@ como los de la subcarpeta ampliaciondecarga»)
   párrafo por documento en orden de fecha, y los añadirá a los escritos sin repetir ninguno.
 - RF-141: EL SISTEMA guardará los PDF subidos solo en la carpeta del espacio de trabajo
   (datos de la distribuidora, P9) y no los enviará a ningún servicio externo.
+- Aclaración de RF-141 (2026-11-13, auditoría c7): los PDF de una subida nueva sustituyen a los de la lectura anterior
+  solo cuando la nueva lectura queda encolada; MIENTRAS la lectura anterior (el OCR) siga en curso, la subida responde
+  409 y no borra sus PDF (086:RF-3).
 
 Línea de órdenes
 

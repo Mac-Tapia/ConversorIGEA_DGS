@@ -41,6 +41,17 @@ Restauración
   huella del fichero y sus ficheros de datos en una carpeta del conversor (`WITH MOVE`).
 - RF-4: SI ya hay restaurada una base con la misma huella, ENTONCES EL SISTEMA la reutilizará
   sin volver a restaurar.
+- Aclaración de RF-4 (2026-11-13, auditoría c7): solo se reutiliza una base con la huella en estado `ONLINE`
+  (`sys.databases.state_desc`). SI está en otro estado (`RESTORING` tras un `RESTORE` cortado, `RECOVERY_PENDING`,
+  `SUSPECT`, `OFFLINE`…), ENTONCES EL SISTEMA retirará esa base, y solo esa (RF-6), la restaurará de nuevo con `REPLACE`
+  y lo anotará en el registro del trabajo. Antes cada carga «reutilizaba» una base que no se podía leer, con un error que
+  no decía la causa y sin salida desde la web. Referencias (Microsoft Learn, consultadas el 2026-11-13):
+  `sys.databases` (columnas `state` y `state_desc`: 0 = ONLINE, 1 = RESTORING…),
+  https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-databases-transact-sql;
+  `DROP DATABASE` («A database can be dropped regardless of its state»; si está fuera de línea «the disk files aren't
+  deleted»), https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-database-transact-sql; `RESTORE … REPLACE`
+  («allows RESTORE to overwrite an existing file»),
+  https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-statements-arguments-transact-sql.
 - RF-5: SI no hay motor de SQL Server disponible, ENTONCES EL SISTEMA lo dirá con lo que hay
   que instalar, sin intentar leer la `.bak`.
 - RF-6: EL SISTEMA solo leerá la base restaurada: no escribirá en ella ni en otras bases del

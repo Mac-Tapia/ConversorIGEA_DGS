@@ -56,7 +56,8 @@ class Motor:
     """Responde como SQL Server a lo que piden ``restaurar`` y ``leer_datos``."""
 
     def __init__(self, bases=(), tablas=None):
-        self.bases = set(bases)
+        # Nombre → estado de ``sys.databases.state_desc``; una lista de nombres vale como bases en línea.
+        self.bases = dict(bases) if isinstance(bases, dict) else {b: 'ONLINE' for b in bases}
         self.tablas = tablas or {}
         self.sql: list[str] = []
 
@@ -66,6 +67,11 @@ class Motor:
     def responder(self, sql, params):
         if sql.startswith('SELECT name FROM sys.databases'):
             return [(params[0],)] if params[0] in self.bases else []
+        if sql.startswith('SELECT state_desc FROM sys.databases'):
+            return [(self.bases[params[0]],)] if params[0] in self.bases else []
+        if sql.startswith('DROP DATABASE'):
+            self.bases.pop(sql.split('[', 1)[1].split(']', 1)[0], None)
+            return []
         if 'InstanceDefaultDataPath' in sql:
             return [('C:\\datos\\',)]
         if sql.startswith('RESTORE FILELISTONLY'):
@@ -185,6 +191,25 @@ def test_restaura_con_su_huella_y_reutiliza(tmp_path):
     motor2 = Motor(bases={nombre})
     assert sv.restaurar(bak, conectar_odbc=motor2.conectar) == nombre
     assert not any(s.startswith('RESTORE') for s in motor2.sql)
+
+
+@pytest.mark.parametrize('estado', ['RESTORING', 'RECOVERY_PENDING', 'SUSPECT', 'OFFLINE'])
+def test_una_base_que_no_esta_en_linea_se_restaura_otra_vez(tmp_path, estado):
+    """023:RF-4 — un RESTORE cortado deja la base de la huella en RESTORING: no se reutiliza. Se retira, se restaura
+    de nuevo con REPLACE (los ficheros de una base fuera de línea siguen en disco) y queda anotado."""
+    bak = tmp_path / 'red.bak'
+    bak.write_bytes(b'copia')
+    nombre = f'CSG_VNR_{sv.huella(bak)[:16]}'
+    motor = Motor(bases={nombre: estado, 'OTRA_BASE': 'RESTORING'})
+    avisos: list[dict] = []
+    assert sv.restaurar(bak, conectar_odbc=motor.conectar, avisos=avisos) == nombre
+    drop = [s for s in motor.sql if s.startswith('DROP DATABASE')]
+    assert drop == [f'DROP DATABASE [{nombre}]']
+    restore = next(s for s in motor.sql if s.startswith('RESTORE DATABASE'))
+    assert motor.sql.index(drop[0]) < motor.sql.index(restore) and 'REPLACE' in restore
+    assert 'OTRA_BASE' in motor.bases, 'solo se retira la base de esta huella'
+    (aviso,) = avisos
+    assert aviso['code'] == 'BASE_VNR_RESTAURADA_DE_NUEVO' and estado in aviso['detalle']
 
 
 def test_sin_motor_se_dice_que_instalar():

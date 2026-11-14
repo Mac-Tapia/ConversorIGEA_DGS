@@ -363,6 +363,9 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     except SourceIntegrityError as exc:
         raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     dataset, catalog_report = loaded.dataset, loaded.catalog_report
+    for aviso in (loaded.provenance or {}).get('vnr_avisos') or ():
+        if aviso.get('code') == 'BASE_VNR_RESTAURADA_DE_NUEVO':
+            ctx.log(aviso['detalle'])               # 023:RF-4: la base de la huella no estaba en línea
     from ..source_contract import audit_source
 
     source_audit = audit_source(dataset, loaded.provenance)

@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import threading
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -904,11 +905,17 @@ def create_app(
 
     # Comprobar el carril y encolar van juntos: las rutas corren en hilos distintos, y dos
     # clics seguidos (o dos pestañas) pasaban los dos la comprobación y encolaban dos veces.
-    encolando = threading.Lock()
+    # 086:RF-86 (aclaración 2026-11-13): borrar el espacio y reemplazar sus libros o sus PDF van bajo este mismo
+    # cerrojo; reentrante porque la subida de los PDF publica y encola dentro de él.
+    encolando = threading.RLock()
 
     def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine',
                reanudar: dict | None = None, relanzado_de: str | None = None) -> dict:
         with encolando:
+            if store.get(ws.id) is None:
+                # El espacio se borró entre que la petición lo leyó y llegó aquí: un trabajo sobre una carpeta
+                # que ya no existe escribía sus resultados en ninguna parte (auditoría c7, 2026-11-13).
+                raise HTTPException(404, 'Espacio de trabajo no encontrado: se borró mientras se encolaba.')
             try:
                 # 086:RF-86: antes que el carril ocupado, que es el de la propia copia, para decir qué espera.
                 jobs.comprobar_exclusivo()
@@ -1176,9 +1183,12 @@ def create_app(
     @app.delete('/api/workspaces/{wid}', status_code=204)
     def delete_workspace(wid: str) -> None:
         ws = ws_or_404(wid)
-        if jobs.active(ws.id):
-            raise HTTPException(409, 'Hay trabajos en curso en este espacio.')
-        store.delete(wid)
+        # 086:RF-86: comprobar y borrar bajo el cerrojo de ``submit``; fuera de él, otro clic encolaba un trabajo
+        # entre las dos cosas y el borrado le quitaba la carpeta en marcha.
+        with encolando:
+            if jobs.active(ws.id):
+                raise HTTPException(409, 'Hay trabajos en curso en este espacio.')
+            store.delete(wid)
 
     @app.put('/api/workspaces/{wid}/options', response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def put_options(wid: str, body: OptionsIn) -> dict:
@@ -1258,7 +1268,11 @@ def create_app(
             raise HTTPException(404, f'Casilla desconocida: {slot}')
         return spec
 
-    def _assign(ws: Workspace, slot: str, path: Path, origin: str) -> dict:
+    def _validar_entrada(slot: str, path: Path) -> str:
+        """Lo que la casilla exige del fichero, sin asignarlo; el aviso si lo hay (059:RF-3).
+
+        Aparte de la asignación para validar una subida en su staging, antes de tocar la entrada vigente (086:RF-3).
+        """
         spec = SLOTS[slot]
         if slot == 'vnr_package':
             from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
@@ -1281,7 +1295,12 @@ def create_app(
                            'vnr': 'un paquete VNR-GIS'}
                 raise UserError(f'«{path.name}» es {nombres[fuente]} y la casilla '
                                 f'«{spec["etiqueta"]}» es de {nombres[group]}.')
-        warning = comprobar_ranura(path, spec['tipo']) if spec['tipo'] else ''
+        return comprobar_ranura(path, spec['tipo']) if spec['tipo'] else ''
+
+    def _assign(ws: Workspace, slot: str, path: Path, origin: str, *, warning: str | None = None) -> dict:
+        if warning is None:
+            warning = _validar_entrada(slot, path)
+        group = str(SLOTS[slot].get('grupo') or '')
         meta = ws.set_input(slot, path, origin=origin, warning=warning)
         if group in ('txt', 'mdb', 'vnr'):
             # La fuente es la del fichero asignado (059:RF-3); otra fuente, otro dataset.
@@ -1294,32 +1313,126 @@ def create_app(
                                  + (f'  (AVISO: {warning.splitlines()[0]})' if warning else '')})
         return {'slot': slot, **meta, 'workspace': ws.public()}
 
-    def _save_upload(target: Path, upload: UploadFile) -> None:
+    def _escribir_subida(destino: Path, upload: UploadFile) -> None:
+        """Escribe lo subido en ``destino``, que no existe y es privado de la subida, con la cuota de subida."""
         from .operaciones_lentas import presupuesto
 
         limit = presupuesto('CSG_UPLOAD_MAX_BYTES', 16 * 1024 ** 3)
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        size = 0
+        with destino.open('xb') as fh:
+            while block := upload.file.read(1024 * 1024):
+                size += len(block)
+                if size > limit:
+                    raise HTTPException(413, 'El archivo supera la cuota de almacenamiento de subida.')
+                fh.write(block)
+
+    def _save_upload(target: Path, upload: UploadFile) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         with staging_publicacion(target) as tmp:
-            size = 0
-            with tmp.open('xb') as fh:
-                while block := upload.file.read(1024 * 1024):
-                    size += len(block)
-                    if size > limit:
-                        raise HTTPException(413, 'El archivo supera la cuota de almacenamiento de subida.')
-                    fh.write(block)
+            _escribir_subida(tmp, upload)
             tmp.replace(target)
+
+    #: Trabajos que solo leen la red de la fuente (o el índice del asistente, 047:RF-24): los demás pueden leer los
+    #: libros de demanda o el de pérdidas en cualquier momento, y un trabajo nuevo que no esté aquí cuenta como lector.
+    NO_LEEN_LIBROS = frozenset({'convert', 'convert_group', 'load', 'catalog', 'asistente_indice'})
+
+    def _enlazar_o_copiar(origen: str, destino: str) -> None:
+        # Un enlace duro no copia los libros (la cabecera puede ser de varios GB); un volumen sin enlaces, copia.
+        try:
+            os.link(origen, destino)
+        except OSError:
+            shutil.copy2(origen, destino)
+
+    def _reemplazar_carpeta(ws: Workspace, carpeta: Path, files: list[UploadFile], por_defecto: str, asignar, *,
+                            conservar: bool = False, lectores: frozenset[str] | None = None):
+        """086:RF-3: los ficheros subidos sustituyen a los de ``carpeta`` solo si ``asignar`` los acepta.
+
+        Se guardan y se validan en un staging del espacio (mismo volumen) y se publican con ``os.replace``, que
+        renombra de forma atómica (documentación de Python, ``os.replace``); la carpeta anterior se aparta y solo se
+        retira después de asignar la nueva, y vuelve a su sitio si la asignación falla. Antes se borraba la carpeta
+        antes de guardar y validar: un libro rechazado dejaba el hueco vacío y los PDF que el OCR estaba leyendo,
+        borrados. Con ``conservar``, la nueva lleva también lo que ya había (la cabecera se sube por partes).
+        Con un trabajo que pueda leerlos en curso (``lectores``; sin ella, cualquiera que no esté en
+        ``NO_LEEN_LIBROS``) responde 409 sin tocar nada. Todo bajo el cerrojo de ``submit`` (086:RF-86).
+        """
+        with encolando:
+            ocupado = next((j for j in jobs.active(ws.id)
+                            if (j.kind in lectores if lectores is not None else j.kind not in NO_LEEN_LIBROS)), None)
+            if ocupado is not None:
+                raise HTTPException(409, f'«{ocupado.title}» está en curso y puede estar leyendo estos ficheros: '
+                                         'espere a que termine o cancélelo. Los guardados no se han tocado.')
+            raiz = ws.root / '.subidas'
+            raiz.mkdir(parents=True, exist_ok=True)
+            nueva = Path(tempfile.mkdtemp(prefix=f'{carpeta.name}-', dir=raiz))
+            anterior: Path | None = None
+            publicado = False
+            try:
+                if conservar and carpeta.is_dir():
+                    nueva.rmdir()
+                    shutil.copytree(carpeta, nueva, copy_function=_enlazar_o_copiar)
+                destinos = []
+                for f in files:
+                    nombre = safe_filename(f.filename or por_defecto)
+                    # Quitar el enlace antes de escribir: escribir en él cambiaría también el libro vigente.
+                    (nueva / nombre).unlink(missing_ok=True)
+                    _escribir_subida(nueva / nombre, f)
+                    destinos.append(carpeta / nombre)
+                if carpeta.exists():
+                    anterior = raiz / f'{nueva.name}.anterior'
+                    os.replace(carpeta, anterior)
+                try:
+                    carpeta.parent.mkdir(parents=True, exist_ok=True)
+                    os.replace(nueva, carpeta)
+                    resultado = asignar(destinos)
+                    publicado = True
+                except BaseException:
+                    if carpeta.exists():
+                        shutil.rmtree(carpeta)                  # la nueva, que no se asignó
+                    if anterior is not None:
+                        os.replace(anterior, carpeta)
+                        anterior = None
+                    raise
+            except OSError as exc:
+                raise HTTPException(409, f'No se pudieron reemplazar los ficheros guardados: {exc}. '
+                                         'Los anteriores siguen en el espacio.') from exc
+            finally:
+                shutil.rmtree(nueva, ignore_errors=True)
+                if publicado and anterior is not None:
+                    shutil.rmtree(anterior, ignore_errors=True)
+            return resultado
 
     @app.post('/api/workspaces/{wid}/inputs/{slot}', response_model=EntradaAsignadaRespuesta, response_model_exclude_unset=True)
     def upload_input(wid: str, slot: str, file: UploadFile = File(...)) -> dict:
+        """086:RF-3 y 059:RF-3: lo subido se valida en su staging; la entrada vigente solo se toca si pasa.
+
+        Antes se escribía encima del destino y se borraba si la casilla lo rechazaba: con el mismo nombre, eso era
+        el fichero vigente. Osinergmin nombra igual el paquete VNR-GIS de cada ciclo, y una descarga cortada borraba
+        el bueno, que la casilla seguía apuntando; igual una base Access subida en la casilla del TXT con su nombre.
+        """
         ws = ws_or_404(wid)
         _check_slot(slot)
         target = ws.upload_target(slot, file.filename or slot)
-        _save_upload(target, file)
-        try:
-            return _assign(ws, slot, target, 'upload')
-        except Exception:
-            target.unlink(missing_ok=True)
-            raise
+        with staging_publicacion(target) as tmp:
+            # Con su nombre de verdad, en una carpeta propia: la casilla lo reconoce también por la extensión
+            # y los mensajes lo nombran como lo subió el operador.
+            subido = tmp.parent / 'subida' / target.name
+            _escribir_subida(subido, file)
+            warning = _validar_entrada(slot, subido)        # si no pasa, la entrada vigente ni se mira
+            respaldo = tmp.parent / 'anterior' / target.name
+            habia = target.exists()
+            if habia:
+                # Mismo nombre que el vigente: se aparta, no se pisa, hasta que lo nuevo quede asignado.
+                respaldo.parent.mkdir()
+                os.replace(target, respaldo)
+            try:
+                os.replace(subido, target)
+                return _assign(ws, slot, target, 'upload', warning=warning)
+            except BaseException:
+                target.unlink(missing_ok=True)
+                if habia:
+                    os.replace(respaldo, target)
+                raise
 
     @app.post('/api/workspaces/{wid}/inputs/{slot}/path', response_model=EntradaAsignadaRespuesta, response_model_exclude_unset=True)
     def server_path_input(wid: str, slot: str, body: ServerPathIn) -> dict:
@@ -2622,12 +2735,9 @@ def create_app(
     def informes_perdidas_subir(wid: str, file: UploadFile = File(...)) -> dict:
         """017:RF-93: el libro de pérdidas de la empresa, guardado con el espacio."""
         ws = ws_or_404(wid)
-        carpeta = services.informes_carpeta_perdidas(ws)
-        shutil.rmtree(carpeta, ignore_errors=True)
-        carpeta.mkdir(parents=True, exist_ok=True)
-        destino = carpeta / safe_filename(file.filename or 'perdidas.xlsx')
-        _save_upload(destino, file)
-        return services.informes_perdidas_asignar(ws, destino, 'upload')
+        # 086:RF-3: un libro rechazado (no .xlsx) ya no deja al informe sin el vigente.
+        return _reemplazar_carpeta(ws, services.informes_carpeta_perdidas(ws), [file], 'perdidas.xlsx',
+                                   lambda destinos: services.informes_perdidas_asignar(ws, destinos[0], 'upload'))
 
     @app.post('/api/workspaces/{wid}/informes/perdidas/path')
     def informes_perdidas_ruta(wid: str, body: ServerPathIn) -> dict:
@@ -2651,17 +2761,16 @@ def create_app(
         malos = [f.filename for f in files if Path(f.filename or '').suffix.lower() != '.pdf']
         if malos:
             raise HTTPException(400, f'Solo se leen PDF: {", ".join(str(m) for m in malos)}.')
-        # 017:RF-141: cada lectura en su carpeta del espacio; la anterior se reemplaza.
+        # 017:RF-141: cada lectura en su carpeta del espacio; la anterior se reemplaza solo cuando la nueva queda
+        # encolada, y nunca mientras la lectura anterior (el OCR) puede estar abriendo sus PDF: 409.
         carpeta = services.informes_carpeta_documentos(ws, tipo)
-        shutil.rmtree(carpeta, ignore_errors=True)
-        carpeta.mkdir(parents=True, exist_ok=True)
-        rutas = []
-        for f in files:
-            destino = carpeta / safe_filename(f.filename or 'documento.pdf')
-            _save_upload(destino, f)
-            rutas.append(destino)
-        return submit(ws, 'informe_documentos', f'Leer {len(rutas)} documento(s) del solicitante',
-                      lambda ctx: services.informe_documentos(ws, ctx, tipo, rutas), lane='engine')
+
+        def encolar(rutas: list[Path]) -> dict:
+            return submit(ws, 'informe_documentos', f'Leer {len(rutas)} documento(s) del solicitante',
+                          lambda ctx: services.informe_documentos(ws, ctx, tipo, rutas), lane='engine')
+
+        return _reemplazar_carpeta(ws, carpeta, files, 'documento.pdf', encolar,
+                                   lectores=frozenset({'informe_documentos'}))
 
     @app.post('/api/workspaces/{wid}/informes/transformador/cargas', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informes_trafo_cargas(wid: str, body: TransformadorListarIn) -> dict:
@@ -2780,16 +2889,15 @@ def create_app(
         if tipo not in {'cabecera', 'suministros', 'clientes'} and len(files) != 1:
             raise HTTPException(422, 'Suba un solo libro.')
         carpeta = services.demanda_carpeta(ws, tipo)
-        if tipo != 'cabecera':
-            shutil.rmtree(carpeta, ignore_errors=True)
-        carpeta.mkdir(parents=True, exist_ok=True)
-        destinos = []
-        for f in files:
-            destino = carpeta / safe_filename(f.filename or f'{tipo}.xlsx')
-            _save_upload(destino, f)
-            destinos.append(destino)
-        fuente = carpeta if tipo in {'cabecera', 'suministros'} or (tipo == 'clientes' and len(destinos) > 1) else destinos[0]
-        return services.demanda_asignar(ws, tipo, fuente, 'upload')
+
+        def asignar(destinos: list[Path]) -> dict:
+            fuente = (carpeta if tipo in {'cabecera', 'suministros'} or (tipo == 'clientes' and len(destinos) > 1)
+                      else destinos[0])
+            return services.demanda_asignar(ws, tipo, fuente, 'upload')
+
+        # 086:RF-3: antes se borraba la carpeta del hueco antes de guardar y validar los libros nuevos, y sin mirar
+        # si un trabajo los estaba leyendo; la cabecera se sube por partes y conserva lo que ya tenía.
+        return _reemplazar_carpeta(ws, carpeta, files, f'{tipo}.xlsx', asignar, conservar=tipo == 'cabecera')
 
     @app.delete('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_quitar(wid: str, tipo: DemandaTipo) -> dict:

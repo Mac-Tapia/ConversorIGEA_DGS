@@ -136,19 +136,37 @@ def permitir_lectura_al_motor(bak: Path, cuenta: str) -> None:
 
 
 def restaurar(bak: Path | str, *, servidor: str = SERVIDOR, carpeta: Path | str | None = None,
-              conectar_odbc: Callable | None = None) -> str:
-    """Restaura la copia con su huella en el nombre; si ya está, la reutiliza (RF-3, RF-4).
+              conectar_odbc: Callable | None = None, avisos: list[dict] | None = None) -> str:
+    """Restaura la copia con su huella en el nombre; si ya está en línea, la reutiliza (RF-3, RF-4).
 
     Los ficheros de datos van a ``carpeta`` (``WITH MOVE``): la copia trae las rutas del
     servidor de la empresa, que aquí no existen.
+
+    Solo se reutiliza una base ``ONLINE`` (``sys.databases.state_desc``). Un ``RESTORE`` cortado (el servidor
+    apagado, el motor reiniciado a mitad) deja la base de la huella en ``RESTORING``, y cada carga posterior la
+    «reutilizaba» sin poder leerla, con un error de ODBC que no decía la causa y sin salida desde la web. En otro
+    estado se retira con ``DROP DATABASE`` (vale en cualquier estado, pero los ficheros de una base fuera de línea
+    quedan en disco) y se restaura de nuevo con ``REPLACE``, que deja sobrescribir esos ficheros; lo anotado
+    (``BASE_VNR_RESTAURADA_DE_NUEVO``) va a ``avisos`` y de ahí al registro del trabajo. Solo se toca la base con el
+    nombre de esta huella, nunca otra del motor (RF-6).
     """
     bak = Path(bak).resolve()
     nombre = f'CSG_VNR_{huella(bak)[:16]}'
     cn = conectar(servidor, conectar_odbc=conectar_odbc)
     cur = cn.cursor()
-    cur.execute('SELECT name FROM sys.databases WHERE name = ?', nombre)
-    if cur.fetchone():
+    cur.execute('SELECT state_desc FROM sys.databases WHERE name = ?', nombre)
+    fila = cur.fetchone()
+    estado = str(fila[0]).strip().upper() if fila and fila[0] is not None else None
+    if estado == 'ONLINE':
         return nombre
+    if fila:
+        cur.execute(f'DROP DATABASE [{nombre}]')
+        while cur.nextset():
+            pass
+        if avisos is not None:
+            avisos.append({'code': 'BASE_VNR_RESTAURADA_DE_NUEVO', 'source_id': nombre,
+                           'detalle': f'La base {nombre} de «{bak.name}» estaba en {estado or "estado desconocido"} '
+                                      '(una restauración anterior no terminó): se retiró y se restauró de nuevo.'})
     if carpeta is None:
         # La del propio motor: su cuenta de servicio siempre puede escribir en ella.
         cur.execute("SELECT CAST(SERVERPROPERTY('InstanceDefaultDataPath') AS nvarchar(400))")
@@ -167,7 +185,8 @@ def restaurar(bak: Path | str, *, servidor: str = SERVIDOR, carpeta: Path | str 
     moves = ', '.join(
         f"MOVE N'{_literal(n)}' TO N'{_literal(Path(carpeta) / f'{nombre}_{i}{_ext(t)}')}'"
         for i, (n, t) in enumerate(ficheros))
-    cur.execute(f"RESTORE DATABASE [{nombre}] FROM DISK = N'{_literal(bak)}' WITH {moves}, RECOVERY")
+    # REPLACE: los ficheros de la base retirada pueden seguir en disco con estos mismos nombres.
+    cur.execute(f"RESTORE DATABASE [{nombre}] FROM DISK = N'{_literal(bak)}' WITH {moves}, REPLACE, RECOVERY")
     while cur.nextset():
         pass
     return nombre
@@ -952,9 +971,10 @@ def cargar_copia(bak: Path | str, *, servidor: str = SERVIDOR,
     bak = Path(bak)
     vecinas = list(vecinas)
     config = config_de(bak, vecinas)
-    base_red = restaurar(bak, servidor=servidor)
+    de_la_restauracion: list[dict] = []
+    base_red = restaurar(bak, servidor=servidor, avisos=de_la_restauracion)
     param_bak = copia_de_parametros(bak, vecinas)
-    base_param = restaurar(param_bak, servidor=servidor) if param_bak else None
+    base_param = restaurar(param_bak, servidor=servidor, avisos=de_la_restauracion) if param_bak else None
     cn_red = conectar(servidor, base_red, autocommit=False)
     cn_param = conectar(servidor, base_param, autocommit=False) if base_param else None
     try:
@@ -964,6 +984,7 @@ def cargar_copia(bak: Path | str, *, servidor: str = SERVIDOR,
         if cn_param is not None:
             cn_param.close()
     modelo, avisos = modelo_canonico(datos, salidas)
+    avisos[:0] = de_la_restauracion               # 023:RF-4: una base que se restauró de nuevo queda anotada
     avisos.extend({'code': 'TABLA_ILEGIBLE', 'source_id': x['tabla'], 'detalle': x['motivo']}
                   for x in datos.ilegibles)
     empresa = config.get('CodEmpresa') or modelo.metadata.get('company') or ''

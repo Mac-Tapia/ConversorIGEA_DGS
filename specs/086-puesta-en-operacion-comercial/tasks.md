@@ -34,6 +34,10 @@
 - [x] T6 Escritura duradera, espacio dañado y rutas conservadas. (RF-1, RF-2, RF-3)
   Hecho cuando: pruebas de JSON truncado y de unidad ausente: el espacio se ve, se puede restaurar y ninguna ruta se pierde al guardar.
   Por la API; el botón y el aviso en la interfaz siguen en T35.
+  Ampliación 2026-11-13 (aclaración de RF-3, auditoría c7): subidas validadas en un staging del espacio y publicadas con
+  `os.replace`; lo anterior se retira después de asignar; 409 con un trabajo que lee esos libros o PDF.
+  Hecho cuando: `tests/test_datos_duraderos.py` (086:RF-3: casillas, paquete VNR-GIS, demanda, pérdidas y PDF) en verde,
+  en rojo sobre 048812bb.
 - [x] T7 Migraciones, rutas relativas e identidad estable. (RF-4, RF-5, RF-6, RF-7, RF-8)
   Hecho cuando: todos los espacios actuales migran sobre una copia sin perder nada; mover la carpeta conserva los espacios; escribir en otra unidad funciona.
   Evidencia: los 24 de `output/web` (2026-11-04), 0 fallos, 0 diferencias al expandir, 24 copias `workspace.v2.json` idénticas y el origen intacto por sus huellas; los 2 de la raíz de ejecución, igual. Solo se copiaron los JSON: las entradas se ven como no disponibles porque sus ficheros no se copiaron. El espacio abre con las dos raíces (`WorkspaceStore.roots`).
@@ -210,6 +214,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
 - [x] T60 «Hacer una copia ahora» en el aviso general, con la carpeta recordada en `config/copia_datos.json`, y la copia
       como trabajo `copia_datos` con progreso y cancelación. (RF-85, RF-86)
       Hecho cuando: `tests/test_copia_datos.py` (086:RF-85, RF-86) y `frontend/test/avisosEnSuPaso.test.mjs` (086:RF-85) en verde.
+      Ampliación 2026-11-13 (aclaración de RF-86, auditoría c7): borrar el espacio bajo el cerrojo de encolar.
+      Hecho cuando: `tests/test_datos_duraderos.py::test_borrar_el_espacio_y_encolar_van_bajo_el_mismo_cerrojo`
+      (086:RF-86) en verde, en rojo sobre 048812bb.
 - [x] T61 La calibración reutiliza la `Fichas_`/`SED_NTP_` del conversor que trae una copia del proyecto, reconocida por su
       marca y no por el prefijo (una del operador no se toca; con varias se avisa), y la consigna de la fuente
       llega también a «Cargas nuevas». (RF-87, RF-88)

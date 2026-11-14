@@ -6,6 +6,9 @@
 - [x] T2. `sqlserver_vnr.py` (restauración): huella, cabecera, restauración con `WITH MOVE`, reutilizar, error
       sin motor, `ConfigBD.config`. (RF-2 a RF-6)
       Hecho cuando: pruebas con el doble del motor en verde.
+      Ampliación 2026-11-13 (aclaración de RF-4, auditoría c7): solo se reutiliza la base `ONLINE`; en otro estado se
+      retira, se restaura con `REPLACE` y se anota. Hecho cuando:
+      `tests/test_vnr_sqlserver.py::test_una_base_que_no_esta_en_linea_se_restaura_otra_vez` (023:RF-4) en verde.
 - [x] T3. `sqlserver_vnr.py`: tablas por campos y modelo canónico de un alimentador con su
       geometría y su CRS. (RF-7, RF-8, RF-10)
       Hecho cuando: pruebas sintéticas en verde.

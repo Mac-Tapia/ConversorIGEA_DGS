@@ -142,6 +142,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       varios PDF del expediente en el estudio, leídos con su texto o con OCR. (RF-136 a RF-141)
       Hecho cuando: las pruebas que citan 017:RF-136 a RF-141 pasan, también con los PDF de
       `referencia/` (`CSG_SOLICITUD_PDF`, `CSG_SOLICITUD_DIR`), y se ve en el navegador.
+      Ampliación 2026-11-13 (aclaración de RF-141): los PDF de la lectura en curso no se borran; 409.
+      Hecho cuando: `tests/test_datos_duraderos.py::test_pdf_con_la_lectura_anterior_en_curso_responden_409`
+      (017:RF-141) en verde.
 
 - [x] T19. [DIgSILENT] Informe de estudio de CA101 con las dos alternativas medidas en
       DIgSILENT desde la web, revisado por el usuario. (RF-128 a RF-135)

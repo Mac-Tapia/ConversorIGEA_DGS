@@ -56,6 +56,15 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-1: CUANDO se guarda un fichero de estado, EL SISTEMA lo sincronizará a disco antes de reemplazar el anterior.
 - RF-2: SI `workspace.json` está dañado, ENTONCES EL SISTEMA mostrará el espacio como dañado con la opción de restaurar su copia anterior.
 - RF-3: SI una entrada apunta a un fichero que no existe al cargar, ENTONCES EL SISTEMA la conservará marcada como no disponible.
+- Aclaración de RF-3 (2026-11-13, auditoría c7): una entrada tampoco se pierde por una subida rechazada. Lo subido a una
+  casilla, a un hueco de demanda, al libro de pérdidas o a los PDF del solicitante se guarda y se valida en un staging del
+  espacio y se publica con `os.replace` solo si pasa; lo anterior se aparta y se retira después de asignar lo nuevo, y
+  vuelve a su sitio si la asignación falla. MIENTRAS un trabajo del espacio pueda leer esos libros o PDF, la subida
+  responde 409 sin tocar los guardados. Caso real: Osinergmin nombra igual el paquete VNR-GIS de cada ciclo, y una
+  descarga cortada con ese nombre pisaba y después borraba el vigente, que la casilla seguía apuntando; los libros de
+  demanda y los PDF se borraban antes de guardar los nuevos. Referencia: documentación de Python 3.12, `os.replace`
+  («If successful, the renaming will be an atomic operation»; «may fail if src and dst are on different filesystems»,
+  por eso el staging va en el propio espacio), https://docs.python.org/3.12/library/os.html#os.replace.
 - RF-4: EL SISTEMA leerá la versión de `workspace.json` y lo migrará con copia previa, por pasos numerados.
 - RF-5: SI `workspace.json` es de una versión futura, ENTONCES EL SISTEMA no lo sobrescribirá y lo dirá.
 - RF-6: EL SISTEMA guardará las rutas de dentro del espacio relativas al espacio.
@@ -288,6 +297,10 @@ enlaces duros y que bloquea un fichero mientras lo sincroniza. Amplía RF-10 y R
 - RF-86: EL SISTEMA hará la copia de la web como un trabajo con progreso y cancelación, no la empezará con otros
   trabajos en curso y no admitirá otro trabajo mientras copia, tampoco los que se encolan sin la ruta de la web
   (VNR-GIS, los reintentos de la vigilancia).
+- Aclaración de RF-86 (2026-11-13, auditoría c7): borrar un espacio comprueba sus trabajos y lo borra bajo el mismo
+  cerrojo con que la web encola, y un trabajo no se admite sobre un espacio que se borró mientras se encolaba (404);
+  reemplazar libros o PDF guardados (aclaración de RF-3) va bajo ese cerrojo. Antes, otro clic encolaba un trabajo
+  entre «no hay trabajos» y el borrado, y el borrado le quitaba la carpeta en marcha.
 - Aclaración de RF-74 (2026-11-12): la copia ya tiene botón en la web (RF-85); la orden del manual sigue sirviendo.
 
 ### Variaciones y casos del conversor por su marca, también en una copia del proyecto (2026-11-12)

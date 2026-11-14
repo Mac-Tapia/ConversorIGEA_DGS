@@ -26,6 +26,9 @@ fuente; y el navegador vuelve al espacio con el que trabajaba.
 - RF-3: CUANDO se carga un fichero en una de las tres entradas (TXT de CYMDIST, base Access o
   VNR-GIS), EL SISTEMA comprobará por su contenido que sea de esa entrada —TXT por sus tablas,
   Access por su cabecera, VNR-GIS por su formato— y la fuente del espacio pasará a ser esa.
+- Aclaración de RF-3 (2026-11-13, auditoría c7): la comprobación se hace sobre lo subido en su staging, antes de tocar
+  la entrada vigente; un fichero rechazado con el mismo nombre que el asignado (una base Access en la casilla de un TXT,
+  un paquete VNR-GIS cortado) no lo pisa ni lo borra (086:RF-3).
 - RF-4: SI en una entrada se carga un fichero de otra fuente, ENTONCES EL SISTEMA no lo asignará y
   dirá qué es y en qué entrada va: cada fichero en la suya, nada se mezcla.
 - RF-5: MIENTRAS el espacio no tenga fuente, la web mostrará las tres entradas separadas, como

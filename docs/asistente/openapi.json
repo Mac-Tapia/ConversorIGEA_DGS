@@ -13465,6 +13465,7 @@
         "summary": "Delete Input"
       },
       "post": {
+        "description": "086:RF-3 y 059:RF-3: lo subido se valida en su staging; la entrada vigente solo se toca si pasa.\n\nAntes se escribía encima del destino y se borraba si la casilla lo rechazaba: con el mismo nombre, eso era\nel fichero vigente. Osinergmin nombra igual el paquete VNR-GIS de cada ciclo, y una descarga cortada borraba\nel bueno, que la casilla seguía apuntando; igual una base Access subida en la casilla del TXT con su nombre.",
         "operationId": "upload_input_api_workspaces__wid__inputs__slot__post",
         "parameters": [
           {

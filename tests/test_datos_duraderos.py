@@ -722,3 +722,194 @@ def test_mismo_volumen_sigue_fuera_del_destino(tmp_path):
     rutas = rutas_runtime(tmp_path / 'codigo', {'CSG_RUNTIME_HOME': str(tmp_path / 'runtime'),
                                                 'LOCALAPPDATA': str(tmp_path / 'local')})
     assert rutas.staging_para(tmp_path / 'x.json') == rutas.runtime / 'staging'
+
+
+# --------------------------------------------------------------------------- subidas que no pierden lo vigente
+# Auditoría c7 (2026-11-13): una subida rechazada borraba la entrada buena. Osinergmin nombra igual el paquete VNR-GIS
+# de cada ciclo y una descarga cortada con ese nombre pisaba y luego borraba el vigente; los libros de demanda, el de
+# pérdidas y los PDF del solicitante se borraban antes de guardar y validar los nuevos.
+_RED_TXT = '[NODE]\nFORMAT_NODE=NodeID,X,Y\nN1,0,0\n[SECTION]\nFORMAT_SECTION=SectionID\n'
+_BASE_ACCESS = b'\x00\x01\x00\x00Standard Jet DB\x00' + b'\x00' * 64
+
+
+def _sha(path) -> str:
+    import hashlib
+
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+@pytest.fixture()
+def _web(tmp_path, monkeypatch):
+    from convertersmartgrid.web.app import create_app
+
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    app = create_app(tmp_path / 'web', host='127.0.0.1')
+    with TestClient(app) as cliente:
+        yield app, cliente
+
+
+def _bloqueante(liberar):
+    """Un trabajo que sigue en curso hasta que la prueba lo suelta; nunca más de 30 s."""
+    def fn(_ctx, *_a, **_k):
+        liberar.wait(30)
+        return {}
+    return fn
+
+
+def _libro_estructura(alimentadores) -> bytes:
+    import io
+
+    from openpyxl import Workbook
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.append(['Zonal', 'Codigo SET', 'Codigo VNR Alimentador'])
+    for nombre in alimentadores:
+        hoja.append(['Z', 'SET 1 UNO', nombre])
+    contenido = io.BytesIO()
+    libro.save(contenido)
+    return contenido.getvalue()
+
+
+def test_subida_rechazada_con_el_mismo_nombre_no_pisa_la_entrada(_web):
+    """086:RF-3 / 059:RF-3 — una base Access subida en la casilla del TXT con el mismo nombre se rechaza y el TXT
+    vigente sigue asignado, en su sitio y con la misma huella."""
+    _app, cliente = _web
+    wid = cliente.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/inputs/red'
+    assert cliente.post(url, files={'file': ('RED.txt', _RED_TXT.encode())}).status_code == 200
+    ruta = Path(cliente.get(f'/api/workspaces/{wid}').json()['inputs']['red']['path'])
+    huella = _sha(ruta)
+    r = cliente.post(url, files={'file': ('RED.txt', _BASE_ACCESS)})
+    assert 400 <= r.status_code < 500 and 'base Access' in r.json()['detail']
+    entrada = cliente.get(f'/api/workspaces/{wid}').json()['inputs']['red']
+    assert Path(entrada['path']) == ruta and ruta.is_file() and _sha(ruta) == huella
+
+
+def test_paquete_vnr_cortado_con_el_mismo_nombre_no_borra_el_bueno(_web, tmp_path):
+    """086:RF-3 / 059:RF-3 — el paquete del ciclo siguiente llega con el mismo nombre y cortado: se rechaza y el
+    vigente queda como estaba."""
+    import zipfile
+
+    _app, cliente = _web
+    wid = cliente.post('/api/workspaces').json()['id']
+    bueno = tmp_path / 'paquete.zip'
+    with zipfile.ZipFile(bueno, 'w') as z:
+        z.writestr('tramos.geojson', '{"type": "FeatureCollection", "features": []}')
+    url = f'/api/workspaces/{wid}/inputs/vnr_package'
+    assert cliente.post(url, files={'file': ('paquete.zip', bueno.read_bytes())}).status_code == 200
+    ruta = Path(cliente.get(f'/api/workspaces/{wid}').json()['inputs']['vnr_package']['path'])
+    huella = _sha(ruta)
+    r = cliente.post(url, files={'file': ('paquete.zip', bueno.read_bytes()[:20])})
+    assert 400 <= r.status_code < 500
+    entrada = cliente.get(f'/api/workspaces/{wid}').json()['inputs']['vnr_package']
+    assert Path(entrada['path']) == ruta and _sha(ruta) == huella
+
+
+def test_libro_de_demanda_rechazado_no_borra_el_vigente(_web):
+    """086:RF-3 — un libro de demanda que no pasa la validación se rechaza sin borrar el vigente de su hueco."""
+    pytest.importorskip('openpyxl')
+    app, cliente = _web
+    wid = cliente.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/demanda/estructura'
+    r = cliente.post(url, files=[('files', ('estructura.xlsx', _libro_estructura(['A1', 'A2'])))])
+    assert r.status_code == 200, r.text
+    ruta = Path(app.state.store.get(wid).demanda['estructura']['path'])
+    huella = _sha(ruta)
+    r = cliente.post(url, files=[('files', ('estructura.csv', b'Zonal;SET\n'))])
+    assert r.status_code == 400
+    meta = app.state.store.get(wid).demanda['estructura']
+    assert Path(meta['path']) == ruta and ruta.is_file() and _sha(ruta) == huella
+
+
+def test_libros_de_demanda_con_un_trabajo_en_curso_responden_409(_web):
+    """086:RF-3 — mientras un trabajo del espacio puede leer los libros, una subida no los reemplaza: 409 y los
+    guardados siguen intactos."""
+    import threading
+
+    pytest.importorskip('openpyxl')
+    app, cliente = _web
+    wid = cliente.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/demanda/estructura'
+    r = cliente.post(url, files=[('files', ('estructura.xlsx', _libro_estructura(['A1'])))])
+    assert r.status_code == 200, r.text
+    ruta = Path(app.state.store.get(wid).demanda['estructura']['path'])
+    huella = _sha(ruta)
+    liberar = threading.Event()
+    app.state.jobs.submit(wid, 'recalibrar', 'Recalibrar · P1', _bloqueante(liberar), lane='powerfactory')
+    try:
+        r = cliente.post(url, files=[('files', ('estructura.xlsx', _libro_estructura(['B1'])))])
+        assert r.status_code == 409 and 'Recalibrar' in r.json()['detail']
+        assert ruta.is_file() and _sha(ruta) == huella
+    finally:
+        liberar.set()
+
+
+def test_libro_de_perdidas_rechazado_no_borra_el_vigente(_web):
+    """086:RF-3 — un libro de pérdidas que no es .xlsx se rechaza sin borrar el vigente."""
+    app, cliente = _web
+    wid = cliente.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/informes/perdidas'
+    assert cliente.post(url, files={'file': ('perdidas.xlsx', b'PK-libro')}).status_code == 200
+    ruta = Path(app.state.store.get(wid).informes['libro_perdidas']['path'])
+    r = cliente.post(url, files={'file': ('perdidas.csv', b'a;b\n')})
+    assert r.status_code == 400
+    assert Path(app.state.store.get(wid).informes['libro_perdidas']['path']) == ruta
+    assert ruta.read_bytes() == b'PK-libro'
+
+
+def test_pdf_con_la_lectura_anterior_en_curso_responden_409(_web, monkeypatch):
+    """017:RF-141 / 086:RF-3 — mientras el OCR lee los PDF de la subida anterior, otra subida responde 409 y no
+    borra esos PDF."""
+    import threading
+
+    from convertersmartgrid.web import services
+
+    app, cliente = _web
+    liberar = threading.Event()
+    monkeypatch.setattr(services, 'informe_documentos', _bloqueante(liberar))
+    wid = cliente.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/informes/documentos'
+    try:
+        r = cliente.post(url, data={'tipo': 'estudio'}, files=[('files', ('carta.pdf', b'%PDF-1.4 carta'))])
+        assert r.status_code == 202, r.text
+        carpeta = services.informes_carpeta_documentos(app.state.store.get(wid), 'estudio')
+        r = cliente.post(url, data={'tipo': 'estudio'}, files=[('files', ('otra.pdf', b'%PDF-1.4 otra'))])
+        assert r.status_code == 409
+        assert sorted(p.name for p in carpeta.iterdir()) == ['carta.pdf']
+        assert (carpeta / 'carta.pdf').read_bytes() == b'%PDF-1.4 carta'
+    finally:
+        liberar.set()
+
+
+def test_borrar_el_espacio_y_encolar_van_bajo_el_mismo_cerrojo(_web, monkeypatch):
+    """086:RF-86 / 086:RF-3 — un trabajo que se encola mientras se borra el espacio no se admite sobre un espacio que
+    ya no existe: borrar comprueba y borra bajo el mismo cerrojo con que se encola."""
+    import threading
+
+    from convertersmartgrid.web import services
+
+    app, cliente = _web
+    liberar = threading.Event()
+    monkeypatch.setattr(services, 'informe_estudio', _bloqueante(liberar))
+    wid = cliente.post('/api/workspaces').json()['id']
+    respuesta: dict = {}
+    borrar_de_verdad = app.state.store.delete
+
+    def borrar_con_otro_clic_a_la_vez(wid_):
+        # El otro clic llega justo entre «no hay trabajos» y el borrado.
+        hilo = threading.Thread(target=lambda: respuesta.update(r=cliente.post(
+            f'/api/workspaces/{wid_}/informes/estudio', json={'alimentador': 'AL01'})))
+        hilo.start()
+        hilo.join(1.5)
+        respuesta['hilo'] = hilo
+        return borrar_de_verdad(wid_)
+
+    monkeypatch.setattr(app.state.store, 'delete', borrar_con_otro_clic_a_la_vez)
+    try:
+        assert cliente.delete(f'/api/workspaces/{wid}').status_code == 204
+        respuesta['hilo'].join(10)
+        assert respuesta['r'].status_code in (404, 409), respuesta['r'].text
+        assert not app.state.jobs.active(wid)
+    finally:
+        liberar.set()
