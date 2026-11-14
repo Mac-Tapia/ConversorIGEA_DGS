@@ -12532,10 +12532,24 @@ def asistente_grupos(ws: Workspace) -> list[str]:
                   if (g or {}).get('status') == 'ok' and (ws.out_dir / f'{n}.dgs').is_file())
 
 
+def _alimentadores_del_vocabulario(filas: list[dict]) -> list[str]:
+    """El código del alimentador, como en la tabla de la web y en las rutas (026:RF-6).
+
+    Con el NetworkID de la fuente («NET_2030_179_PA217»), «convierte el PA217» decía que faltaban alimentadores
+    (auditor, 2026-11-14). Un código que llevan dos redes (el mismo en dos SET, o repetido en la fuente) no
+    identifica a ninguna: van sus NetworkID, y el plan pregunta cuál en vez de tomar uno en silencio.
+    """
+    from collections import Counter
+
+    codigos = [str(r.get('feeder') or r['network_id']) for r in filas]
+    repetidos = {c for c, n in Counter(codigos).items() if n > 1}
+    return list(dict.fromkeys(str(r['network_id']) if c in repetidos else c for r, c in zip(filas, codigos)))
+
+
 def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     """Lo que existe y contra lo que se contrastan los datos de una orden (026:RF-6)."""
     vocab: dict[str, list[str]] = {
-        'alimentadores': [r['network_id'] for r in feeder_rows(ws)],
+        'alimentadores': _alimentadores_del_vocabulario(feeder_rows(ws)),
         'proyecto': [str(p.get('name')) for p in pf_proyectos_guardados(ws).get('projects') or [] if p.get('name')],
     }
     try:

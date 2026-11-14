@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..naming import feeder_short_name
 from .interprete import Interpretacion, numero_de, periodo_de
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
 from .tareas import EFECTOS, TAREAS, requiere_confirmacion
@@ -225,6 +226,16 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
     return plan
 
 
+def _codigos_repetidos(opciones: Sequence[str]) -> dict[str, tuple[str, list[str]]]:
+    """Los códigos que llevan varias redes de la fuente: el vocabulario da sus NetworkID (``services``)."""
+    por_codigo: dict[str, tuple[str, list[str]]] = {}
+    for o in opciones:
+        codigo = feeder_short_name(o)
+        if _clave(codigo) != _clave(o):
+            por_codigo.setdefault(_clave(codigo), (codigo, []))[1].append(o)
+    return {k: v for k, v in por_codigo.items() if len(v[1]) > 1}
+
+
 def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Plan) -> list[str]:
     crudos = [p for v in valores for p in trozos_lista(v)]
     if any(normalizar(p) in ('todos', 'todo', 'todos los alimentadores') for p in crudos) or (not crudos and re.search(
@@ -234,15 +245,33 @@ def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Pl
             return list(opciones)
         return ['todos']
     elegidos: list[str] = []
+    repetidos = _codigos_repetidos(opciones)
+    preguntados: set[str] = set()
+
+    def preguntar(clave: str) -> None:
+        if clave not in preguntados:
+            preguntados.add(clave)
+            codigo, redes = repetidos[clave]
+            plan.faltan.append(f"cuál de los alimentadores con el código {codigo}: la fuente tiene {len(redes)} "
+                               f"({', '.join(redes)}); dígalo con el nombre de su red.")
+
     for p in crudos:
         if normalizar(p) in ('los', 'alimentadores', 'alimentador'):
             continue
-        o = parecido(p, opciones) if opciones else p.upper()
+        if _clave(p) in repetidos:
+            # 026:RF-6: el mismo código en dos redes no se resuelve con la primera: se pregunta.
+            preguntar(_clave(p))
+            continue
+        # 026:RF-6: el NetworkID de la fuente («NET_2030_179_PA217») es el mismo alimentador que su código corto.
+        o = (parecido(p, opciones) or parecido(feeder_short_name(p), opciones)) if opciones else p.upper()
         if o is None:
             plan.dudas.append(f'«{p}» no es un alimentador de la fuente cargada: no entra.')
         elif o not in elegidos:
             elegidos.append(o)
-    if not elegidos and opciones:
+    if not elegidos and not preguntados:
+        for clave in [c for c, (codigo, _r) in repetidos.items() if _nombrados(texto, [codigo])]:
+            preguntar(clave)
+    if not elegidos and opciones and not preguntados:
         elegidos = _nombrados(texto, opciones)
         if elegidos:
             plan.razonamiento.append(f"alimentadores: tomados del texto: {', '.join(elegidos)}.")

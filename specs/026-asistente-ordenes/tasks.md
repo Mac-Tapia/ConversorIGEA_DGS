@@ -29,6 +29,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-24; los requisitos de cada tarea (entradas del espacio) se comprueban en el
       plan con la misma validación de la web: «carga la fuente» sin entradas se ofrecía para
       confirmar y fallaba después en la ruta.
+      Corregido el 2026-11-14 (prueba del auditor con órdenes reales, F1): el vocabulario de alimentadores era el
+      NetworkID de la fuente y «convierte el PA217» decía que faltaban alimentadores. Ahora es el código del
+      alimentador, como en la tabla de la web, y una orden con el NetworkID resuelve al mismo
+      (`services.asistente_vocabulario`, `plan._alimentadores`). Evidencia: `pytest -q tests/test_asistente_vocabulario.py`,
+      con las dos disposiciones del TXT, cuatro convenciones de NetworkID y filas de .mdb y VNR-GIS, sorteadas.
+      Un código que llevan dos redes (dos SET o repetido en la fuente) no se resuelve con la primera: el vocabulario
+      da sus NetworkID y el plan pregunta cuál. De punta a punta por la web, la ruta real convierte el alimentador
+      sorteado; con CSG_MDB y CSG_VNR_BAK, el vocabulario de la fuente real reconoce sus códigos.
 - [x] T6. Web: rutas de orden, confirmación y corrección, ejecución por los trabajos de la web;
       consola en el front. (RF-1, RF-8, RF-9, RF-10, RF-12, RF-15, RF-19)
       Hecho cuando: `pytest -q tests/test_asistente_web.py` en verde y `npm run build` sin errores.
