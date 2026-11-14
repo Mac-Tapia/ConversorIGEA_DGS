@@ -84,7 +84,8 @@ el documento. Descartada la opción B (sacarlo por su contenido): anulaba esa de
   sin respuesta solo si el maestro confirmó que el repositorio no la tiene; los documentos que el corpus indexa por decisión
   del usuario (076:RF-29) siguen en él. No calibrará con menos de 100 preguntas sin respuesta ni de 30 con ella, y dirá cuántas faltan:
   con n sin respuesta el umbral es su cuantil ⌈(n+1)(1−α)⌉/n (Angelopoulos y Bates, arXiv 2107.07511), que con 25 y
-  α=0,05 es el máximo. El maestro amplía la calibración con preguntas nuevas, de origen `maestro`, que no estén en el corpus.
+  α=0,05 es el máximo. El maestro amplía la calibración con preguntas nuevas, de origen `maestro`, que no estén en el corpus,
+  en `docs/CONJUNTO_MAESTRO_CALIBRACION_077.json`, que el corpus no indexa ni el asistente lee.
 - Aclaración de 077:RF-44 por RF-19: la calibración del 077 sigue saliendo del reparto `corpus` de la 076, sin las filas que
   el corpus ya lleva (el documento del maestro copia las marcadas correctas; quedan las que no copia, 076:RF-30).
 - RF-20: EL SISTEMA comprobará en cada commit que ninguna pregunta de seis palabras o más de un conjunto de evaluación de la

@@ -19,7 +19,9 @@ from convertersmartgrid.asistente.equipo import LecturaGobernada
 RAIZ = Path(__file__).resolve().parents[1]
 AMPLIADO = indice.CORPUS_AMPLIADO
 #: Huellas fijadas al formar los conjuntos, antes de medir nada (077:RF-45).
-HUELLA_CALIBRACION = 'f3cda79eba76f3f892a7940922bcbb5ac981734de43a19d6b297465329a7e8f6'
+HUELLA_CALIBRACION = '0c4fa5886ec1ff5d9b68734e6786e9401c8e539919b21527928d96f5cfcaf9b6'
+#: Las preguntas nuevas del maestro que amplían la calibración del 077 (097:RF-19); no entran en el corpus.
+MAESTRO_077 = 'docs/CONJUNTO_MAESTRO_CALIBRACION_077.json'
 HUELLA_SELLADO = '590420002b131dc563290b0202cdb054d04b9d5439a2abab1bc36462cc498935'
 TABLA_LARGA = '\n'.join(f'| fila{i} | dato{i} con unas cuantas palabras de relleno para que pese |' for i in range(80))
 
@@ -423,6 +425,8 @@ def test_conjuntos_nuevos_de_cada_reparto():
     """077:RF-44, 097:RF-19 — la calibración sale de `corpus` (sin lo que el corpus ya lleva), lo sellado de `sellado`, y
     lo ajeno es distinto en cada uno."""
     filas = [json.loads(x) for x in (RAIZ / 'docs/asistente/preguntas_entregables.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    # 097:RF-19: la calibración se amplía con preguntas nuevas del maestro, también del reparto `corpus`.
+    filas += _conjunto(RAIZ / MAESTRO_077)['preguntas']
     reparto = {f['id']: f['reparto'] for f in filas}
     calibracion, sellado = _conjunto(reranker.CONJUNTO_CALIBRACION_077), _conjunto(reranker.CONJUNTO_SELLADO_077)
     assert {reparto[p['id']] for p in calibracion['preguntas'] if 'id' in p} == {'corpus'}
@@ -434,8 +438,8 @@ def test_conjuntos_nuevos_de_cada_reparto():
     assert {'entregable', 'fuera'} <= {p['tipo'] for p in calibracion['preguntas']} <= {'entregable', 'dominio', 'fuera'}
     assert str(calibracion['procedencia']).startswith('sintetico')
     # 097:RF-19: en la calibración, una sin respuesta solo si el maestro confirmó que el repositorio no la tiene; las
-    # confirmadas del reparto `corpus` están todas en el documento del maestro (076:RF-29), así que hoy no queda ninguna
-    # «dominio» en ella y lo sin respuesta es lo ajeno.
+    # confirmadas del reparto `corpus` de la 076 están todas en el documento del maestro (076:RF-29), así que las «dominio»
+    # de la calibración son las nuevas del maestro, fuera del corpus.
     veredicto = {f['id']: (f.get('revision') or {}).get('veredicto') for f in filas}
     assert {veredicto[p['id']] for p in calibracion['preguntas'] if p.get('sin_respuesta') and 'id' in p} <= {'correcta'}
 
@@ -618,6 +622,45 @@ def test_097_la_calibracion_del_077_no_esta_en_su_corpus(frags_077_reales):
     assert '076:RF-30' in conjunto['origen_de_las_preguntas'] and conjunto['excluidas_en_el_corpus'] > 0
     con = sum(not p.get('sin_respuesta') for p in conjunto['preguntas'])
     assert con >= 30 and len(conjunto['preguntas']) - con >= 20
+
+
+def test_097_rf19_la_calibracion_real_del_077_basta_para_calibrar():
+    """097:RF-19 — la calibración real del 077 llega al mínimo de 100 sin respuesta y 30 con ella, con las preguntas nuevas
+    del maestro: con solo las 58 que dejaba el reparto `corpus` sin las del corpus (25 y 33), `muestra_suficiente` se
+    negaba y la 097 T5 no podía calibrar."""
+    conjunto = _conjunto(reranker.CONJUNTO_CALIBRACION_077)
+    cuenta = evaluacion_rag.muestra_suficiente(conjunto)
+    assert cuenta['sin_respuesta'] >= evaluacion_rag.MINIMO_SIN_RESPUESTA
+    assert cuenta['con_respuesta'] >= evaluacion_rag.MINIMO_CON_RESPUESTA
+
+
+def test_097_rf19_las_preguntas_nuevas_del_maestro_no_estan_en_el_corpus(frags_077_reales):
+    """097:RF-19, RF-20 — las preguntas nuevas del maestro son de origen `maestro`, universales (P13), de varios entregables,
+    ninguna literal en el corpus 077 (de ninguna longitud, fuera de su fuente), con sus anclas en él las que tienen
+    respuesta, y todas en la calibración. El fichero no lo indexa el corpus ni lo lee el asistente (077:RF-54), y no es el
+    documento del maestro de la 076, que sí entra en el corpus (076:RF-29)."""
+    import re
+
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    nuevas = _conjunto(RAIZ / MAESTRO_077)['preguntas']
+    textos = fe.textos_por_fichero(frags_077_reales)
+    assert MAESTRO_077 not in textos and 'docs/PREGUNTAS_MAESTRO_076.md' in textos
+    assert lp.excluido_siempre(MAESTRO_077) == 'conjunto sellado o su resultado'
+    r = fe.fugas(textos, fe.preguntas_de(RAIZ, MAESTRO_077), min_palabras=1)
+    assert r['comprobadas'] == len(nuevas) and not r['fugas'], r['fugas'][:5]
+    assert {f['origen'] for f in nuevas} == {'maestro'} and {f['reparto'] for f in nuevas} == {'corpus'}
+    assert {(f['revision'] or {}).get('veredicto') for f in nuevas} == {'correcta'}
+    assert len({f['entregable'] for f in nuevas}) >= 15
+    # P13: ningún código de alimentador, SED ni empresa en las preguntas (como «AL209», «M0123» o una razón social).
+    assert not [f['pregunta'] for f in nuevas if re.search(r'\b[A-Z]{1,3}-?\d{2,}\b|Electro|Dunas|S\.A\.', f['pregunta'])]
+    con = [f for f in nuevas if f['tipo'] == 'con_respuesta']
+    assert con and all(f['fuentes'] for f in con) and not [f for f in nuevas if f['tipo'] == 'sin_respuesta' and f['fuentes']]
+    pares, sin_ancla, _ = evaluacion_rag.resolver_pares({'preguntas': con}, frags_077_reales)
+    assert not sin_ancla and len(pares) == len(con)
+    calibracion = {p['pregunta']: p for p in _conjunto(reranker.CONJUNTO_CALIBRACION_077)['preguntas']}
+    assert all(f['pregunta'] in calibracion for f in nuevas)
+    assert {calibracion[f['pregunta']]['tipo'] for f in nuevas if f['tipo'] == 'sin_respuesta'} == {'dominio'}
 
 
 @pytest.mark.parametrize('semilla', [3, 17, 2026])

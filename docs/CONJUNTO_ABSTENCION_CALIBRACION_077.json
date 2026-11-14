@@ -1,4 +1,9 @@
 {
+"ampliada_por_el_maestro": {
+"con_respuesta": 21,
+"fichero": "docs/CONJUNTO_MAESTRO_CALIBRACION_077.json",
+"sin_respuesta": 90
+},
 "corpus": "077",
 "esquema": "csg-conjunto-rag-077-v1",
 "excluidas_en_el_corpus": 267,
@@ -411,6 +416,781 @@
 ],
 "id": "tipos_de_informe-017",
 "pregunta": "¿Dónde veo los informes ya hechos?",
+"tipo": "entregable"
+},
+{
+"id": "maestro077-sin-001",
+"pregunta": "¿Cuánto costó desarrollar el conversor hasta hoy en horas de ingeniería?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-002",
+"pregunta": "¿Cuántos programadores mantienen el proyecto y quién responde por cada módulo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-003",
+"pregunta": "¿Se puede ejecutar el conversor desde un teléfono móvil con Android?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-004",
+"pregunta": "¿Qué plan de continuidad hay si se daña el disco del servidor en medio de una corrida?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-005",
+"pregunta": "¿Cuánta electricidad consume al mes el servidor donde corre el conversor?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-006",
+"pregunta": "¿Cada cuánto tiempo se contrastan en campo los transformadores de corriente de la medición de cabecera?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-007",
+"pregunta": "¿Qué día del mes publica la distribuidora la medición de cabecera del mes anterior?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-008",
+"pregunta": "¿Quién firma la conformidad de la calibración antes de enviarla al regulador?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-009",
+"pregunta": "¿Qué persona de la distribuidora valida las lecturas de los medidores de cabecera antes de usarlas?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-010",
+"pregunta": "¿Cuánto error de calibración aceptó el regulador en su última fiscalización?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-011",
+"pregunta": "¿Qué proveedor entrega más rápido los conductores de aluminio?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-012",
+"pregunta": "¿Cuántos años de vida útil tiene un aislador polimérico en una zona costera?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-013",
+"pregunta": "¿Qué ensayos de fábrica se exigen a los transformadores de distribución importados?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-014",
+"pregunta": "¿Cuánto pesa por kilómetro un conductor de cobre de 70 mm²?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-015",
+"pregunta": "¿Qué color de cubierta identifica cada fase en los cables subterráneos?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-016",
+"pregunta": "¿Qué esfuerzo de rotura tiene un poste de concreto de 13 metros?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-017",
+"pregunta": "¿Qué editor de texto conviene para abrir a mano un DGS muy grande?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-018",
+"pregunta": "¿Cuánto espacio en disco ocupará el DGS de toda la empresa dentro de cinco años?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-019",
+"pregunta": "¿Se puede abrir el DGS en ETAP o en NEPLAN?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-020",
+"pregunta": "¿Cuál es la diferencia de precio entre la licencia básica y la completa de DIgSILENT?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-021",
+"pregunta": "¿Cuántos días de corte programado necesita una cuadrilla para el cambio de sección de un tramo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-022",
+"pregunta": "¿Qué permisos municipales hacen falta para tender una terna nueva por la vía pública?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-023",
+"pregunta": "¿Qué contratista ejecutó más barato el último cambio de conductor?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-024",
+"pregunta": "¿Cuánto tarda en llegar un banco de condensadores desde que se hace el pedido de compra?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-025",
+"pregunta": "¿Cómo se gestiona la servidumbre de paso cuando la terna cruza un terreno privado?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-026",
+"pregunta": "¿Cómo se hace la coordinación de aislamiento frente a descargas atmosféricas en la red de media tensión?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-027",
+"pregunta": "¿Cómo se calcula la energía incidente por arco eléctrico en un tablero de baja tensión?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-028",
+"pregunta": "¿Qué estudio de parpadeo de tensión se pide al conectar un horno de arco?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-029",
+"pregunta": "¿Cómo se modela la resistividad del terreno para diseñar la malla de puesta a tierra de una subestación?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-030",
+"pregunta": "¿Qué gerencia recibe los resultados de los estudios y en qué plazo debe responder?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-031",
+"pregunta": "¿Cuántos estudios eléctricos se hicieron el año pasado en toda la empresa?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-032",
+"pregunta": "¿Los resultados de los estudios se publican en el portal de transparencia del regulador?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-033",
+"pregunta": "¿Cuántos de los estudios del año pasado terminaron en una obra construida en campo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-034",
+"pregunta": "¿Cuántos días hábiles tiene la distribuidora por ley para contestar una solicitud de factibilidad?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-035",
+"pregunta": "¿Cuánto cobra la distribuidora al solicitante por emitir el certificado de factibilidad?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-036",
+"pregunta": "¿Qué pasa si el solicitante presenta un reclamo contra la factibilidad que se le dio?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-037",
+"pregunta": "¿Qué carta fianza se pide al cliente antes de reservarle la potencia?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-038",
+"pregunta": "¿Qué requisitos de seguridad debe cumplir el tablero de medición del cliente que pide la conexión?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-039",
+"pregunta": "¿Cuánto tiempo de capacitación necesita un ingeniero nuevo para manejar el conversor?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-040",
+"pregunta": "¿Hay un curso en video que explique el flujo del conversor paso a paso?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-041",
+"pregunta": "¿En qué menú de CYMDIST está la opción para exportar los ficheros de texto?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-042",
+"pregunta": "¿Cuánto ancho de banda de la red de la oficina consume el conversor al cargar los ficheros?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-043",
+"pregunta": "¿Qué versión de CYMDIST tiene instalada cada zonal de la empresa?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-044",
+"pregunta": "¿En qué fecha vence la presentación del próximo PIDE ante el regulador?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-045",
+"pregunta": "¿Por qué correo electrónico se envía el PIDE al regulador?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-046",
+"pregunta": "¿Qué funcionario del regulador revisa el PIDE de cada distribuidora?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-047",
+"pregunta": "¿Qué ingeniero colegiado firma el informe de estudio y con qué número de colegiatura?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-048",
+"pregunta": "¿Qué tipo de letra y tamaño exige la gerencia para el informe de estudio?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-049",
+"pregunta": "¿Cuántos ejemplares impresos del informe se entregan al cliente?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-050",
+"pregunta": "¿Qué plazo tiene el cliente para pagar la obra después de recibir el informe de estudio?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-051",
+"pregunta": "¿Cómo se protege con contraseña el libro Excel antes de enviarlo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-052",
+"pregunta": "¿Se puede abrir el libro del informe en LibreOffice sin perder las fórmulas?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-053",
+"pregunta": "¿Qué macro del libro calcula el valor presente neto de la obra?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-054",
+"pregunta": "¿Cómo se pasa el libro Excel a PDF sin que se corten los saltos de página?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-055",
+"pregunta": "¿Cómo se entra a la web del conversor desde la casa por VPN?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-056",
+"pregunta": "¿Cómo se cambia el idioma de la web a portugués?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-057",
+"pregunta": "¿Hay una aplicación de la web para usar en una tableta en campo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-058",
+"pregunta": "¿Cómo se pide al área de sistemas una cuenta de usuario nueva para la web?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-059",
+"pregunta": "¿Cómo se configura que la web mande alertas al correo del supervisor?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-060",
+"pregunta": "¿Cuál será la tasa de interés de los préstamos para financiar las obras del próximo quinquenio?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-061",
+"pregunta": "¿Cuántas obras del PIDE anterior se ejecutaron realmente en campo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-062",
+"pregunta": "¿Qué presupuesto anual tiene la distribuidora para inversiones en media tensión?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-063",
+"pregunta": "¿Cómo influye el plan de desarrollo urbano de la municipalidad en el PIDE?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-064",
+"pregunta": "¿Qué subsidio del Estado se puede pedir para la electrificación rural?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-065",
+"pregunta": "¿Cuántas viviendas nuevas se esperan por las habilitaciones urbanas de los próximos años?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-066",
+"pregunta": "¿Qué plotter conviene para imprimir los planos en formato A0?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-067",
+"pregunta": "¿Qué escala de impresión exige el regulador para los planos del informe?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-068",
+"pregunta": "¿Los planos del informe muestran las curvas de nivel del terreno?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-069",
+"pregunta": "¿Qué sistema de coordenadas usa el catastro municipal de cada ciudad?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-070",
+"pregunta": "¿Cuánto subirá la demanda si se instala una planta de hidrógeno verde en la zona?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-071",
+"pregunta": "¿Cómo afecta el fenómeno de El Niño a la demanda del verano?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-072",
+"pregunta": "¿Cuántos vehículos eléctricos se espera que se carguen en la red dentro de diez años?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-073",
+"pregunta": "¿Cuánto bajará la demanda si hay una cuarentena como la de la pandemia?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-074",
+"pregunta": "¿Se pueden enviar las salidas del conversor por WhatsApp al supervisor?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-075",
+"pregunta": "¿Cuántos años debe guardar la empresa las salidas por exigencia de la auditoría externa?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-076",
+"pregunta": "¿Las salidas se pueden subir solas a SharePoint?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-077",
+"pregunta": "¿Qué tamaño máximo de adjunto acepta el correo de la empresa para mandar las salidas?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-078",
+"pregunta": "¿Las salidas se pueden firmar digitalmente antes de enviarlas?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-079",
+"pregunta": "¿Cuánto demora la licencia de construcción de una SET nueva?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-080",
+"pregunta": "¿Qué fabricante de transformadores de potencia tiene mejor plazo de entrega?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-081",
+"pregunta": "¿Cómo se hace la consulta vecinal antes de levantar una SET nueva?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-082",
+"pregunta": "¿Cuántos meses dura la construcción civil de una SET nueva?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-083",
+"pregunta": "¿Hay un informe de pérdidas no técnicas por hurto de energía?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-084",
+"pregunta": "¿Hay un informe mensual automático para la gerencia general?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-085",
+"pregunta": "¿Hay un informe de seguridad y salud en el trabajo para las cuadrillas?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-086",
+"pregunta": "¿Cuánto tarda una cuadrilla en hacer una transferencia de carga en campo?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-087",
+"pregunta": "¿Quién autoriza en el centro de control una transferencia entre alimentadores?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-088",
+"pregunta": "¿Cómo se avisa a los clientes afectados por el corte de una transferencia programada?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-089",
+"pregunta": "¿Qué indemnización se paga al cliente si la transferencia causa un corte no programado?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"id": "maestro077-sin-090",
+"pregunta": "¿Qué protocolo de comunicación usa el SCADA para mandar la maniobra a distancia?",
+"sin_respuesta": true,
+"tipo": "dominio"
+},
+{
+"fuentes": [
+{
+"ancla": "La API de PowerFactory 2024 solo carga en 3.12.",
+"fichero": "CLAUDE.md"
+}
+],
+"id": "maestro077-con-001",
+"pregunta": "¿Qué versión del intérprete de Python hay que usar para que cargue la API de PowerFactory 2024?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "el proceso del puerto 8765 y abrir el acceso directo",
+"fichero": "CLAUDE.md"
+}
+],
+"id": "maestro077-con-002",
+"pregunta": "Después de cambiar el código del servidor web, ¿cómo hago para que la interfaz tome los cambios?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "Parar un cliente no para el trabajo de la web",
+"fichero": "CLAUDE.md"
+}
+],
+"id": "maestro077-con-003",
+"pregunta": "Si cierro el cliente que lanzó un trabajo, ¿el trabajo de la web se detiene o cómo lo paro de verdad?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "el DGS es idéntico byte a byte",
+"fichero": "CLAUDE.md"
+}
+],
+"id": "maestro077-con-004",
+"pregunta": "¿El fichero que se importa en DIgSILENT sale distinto si lo genero con varios procesos en paralelo en vez de uno solo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-6:",
+"fichero": "specs/020-sed-sobrecargadas/spec.md"
+}
+],
+"id": "maestro077-con-005",
+"pregunta": "Cuando una subestación de distribución fija queda sobrecargada, ¿de qué potencia propone el transformador que la reemplaza?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-49:",
+"fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+}
+],
+"id": "maestro077-con-006",
+"pregunta": "¿A partir de qué longitud del recorrido hasta la carga se plantea un regulador de tensión como obra?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/084-seis-reglas-con-requisito/spec.md"
+}
+],
+"id": "maestro077-con-007",
+"pregunta": "¿Dónde no se puede ubicar una subestación de transformación nueva que propone el programa?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-28:",
+"fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+}
+],
+"id": "maestro077-con-008",
+"pregunta": "¿Hasta qué porcentaje de su capacidad se deja cargar un alimentador al planificar las obras?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/062-retencion-diaria-de-ejecuciones/spec.md"
+}
+],
+"id": "maestro077-con-009",
+"pregunta": "¿Al cabo de cuántos días se retiran las corridas viejas que ya ningún trabajo usa?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/089-pronostico-de-demanda-en-un-modulo/spec.md"
+}
+],
+"id": "maestro077-con-010",
+"pregunta": "Si dejo en la carpeta el libro de medición de un mes recién cerrado, ¿tengo que tocar código o configuración para que el pronóstico lo tome?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/spec.md"
+}
+],
+"id": "maestro077-con-011",
+"pregunta": "¿Qué años del horizonte largo calcula el estudio a partir del año de referencia cero?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/014-calibracion-en-sin-proyecto/spec.md"
+}
+],
+"id": "maestro077-con-012",
+"pregunta": "¿En qué casos de DIgSILENT no se ajustan nunca las demandas a la máxima medida?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/073-bancos-limitados-por-valle/spec.md"
+},
+{
+"ancla": "- RF-2:",
+"fichero": "specs/073-bancos-limitados-por-valle/spec.md"
+}
+],
+"id": "maestro077-con-013",
+"pregunta": "¿Cómo escoge el programa el periodo de valle con el que comprueba los bancos de condensadores?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/096-retomar-tras-suspender-el-equipo/spec.md"
+}
+],
+"id": "maestro077-con-014",
+"pregunta": "¿Qué hace el programa para que la computadora no se suspenda mientras corre un trabajo largo?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-2:",
+"fichero": "specs/066-libro-de-cada-informe/spec.md"
+}
+],
+"id": "maestro077-con-015",
+"pregunta": "Si el perfil de mi empresa no tiene un libro modelo, ¿se genera igual una hoja de cálculo junto al informe?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-10:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "maestro077-con-016",
+"pregunta": "¿Qué figuras del alimentador acompañan a cada caso analizado en el documento del estudio?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-41:",
+"fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+}
+],
+"id": "maestro077-con-017",
+"pregunta": "¿Con qué comando nativo de DIgSILENT se calcula cuánta generación o carga adicional admite cada barra?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/098-transferencia-del-operador-en-calibracion-y-obras/spec.md"
+}
+],
+"id": "maestro077-con-018",
+"pregunta": "Al empezar a calibrar, ¿cómo detecta el programa las subestaciones que el operador pasó de un alimentador a otro?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-1:",
+"fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+}
+],
+"id": "maestro077-con-019",
+"pregunta": "¿Hace falta preparar antes los estudios del paso anterior para sacar la evaluación de conexión de una carga nueva?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "va en un perfil de empresa, nunca",
+"fichero": "docs/constitution.md"
+}
+],
+"id": "maestro077-con-020",
+"pregunta": "¿Dónde se guardan las convenciones propias de cada distribuidora, como el sistema de coordenadas de origen?",
+"tipo": "entregable"
+},
+{
+"fuentes": [
+{
+"ancla": "- RF-128:",
+"fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+}
+],
+"id": "maestro077-con-021",
+"pregunta": "¿Cómo se presentan las obras del escenario proyectado en el informe de estudio?",
 "tipo": "entregable"
 },
 {

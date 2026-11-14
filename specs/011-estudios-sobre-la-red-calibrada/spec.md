@@ -483,6 +483,11 @@ hacer esos estudios en cualquier proyecto físico existente en DIgSILENT, con cu
   solo en una variación del conversor con su marca (086:RF-87), la borrará al terminar y no adelantará las etapas de
   las variaciones del operador, de modo que su red, sus variaciones, sus etapas, su hora y el caso activo queden como
   estaban (revisión del auditor del 2026-11-13; memoria «cambios manuales en PF son intencionales»).
+  En cualquier caso, también en los del conversor («Caso base», «Sin proyecto», «Cargas nuevas» y «Con
+  proyecto»), un estudio que ejecuta ``ComBbone`` no dejará en la red las troncales (``ElmBbone``) que cree esa
+  corrida: van a la misma variación del conversor y, las que queden fuera de ella, se reconocen por la marca que
+  les pone la corrida y por no estar antes del estudio, nunca por su nombre, y se retiran; una troncal que ya
+  estaba no se toca (a3, 2026-11-14: tras un estudio con troncal, el «Caso base» quedaba con ``ElmBbone``).
 
 ## Requisitos no funcionales
 

@@ -87,7 +87,8 @@ def test_alojamiento_conjunto_solo_con_las_escalables():
 def test_curva_pv_por_alimentador(contingencias):
     """012:RF-50, 012:RF-51, 012:RF-52, 012:RF-53 — una curva por alimentador con sus cargas
     escalables; demanda inicial y crítica, margen y barra crítica; con contingencias, las de
-    su troncal y la más crítica; sin licencia para ellas, sin contingencias y dicho."""
+    su troncal y la más crítica; sin licencia para ellas, sin contingencias y dicho. 011:RF-136: en «Sin
+    proyecto», caso del conversor, la troncal de ``ComBbone`` no queda en la red."""
     rng = random.Random(11)
     app, alims = _red(rng)
     app.ordenes['ComBbone'] = fake_pf.Orden(app, 'BB', clase='ComBbone', efecto=_bbone_que_crea(alims))
@@ -111,6 +112,7 @@ def test_curva_pv_por_alimentador(contingencias):
         assert any('contingencias' in a for a in informe['avisos'])
         assert all(o.calcCont == 0 for o in pv)
     assert not app.GetActiveStudyCase().GetContents('*.ComSimoutage')
+    assert not app.proyecto.GetContents('*.ElmBbone', 1), '011:RF-136: la troncal de ComBbone no queda en la red'
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)

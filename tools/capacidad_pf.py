@@ -126,14 +126,14 @@ def alojamiento(app, plan: dict, alims, feeders: list[str], informe: dict) -> st
 def curvas_pv(app, plan: dict, alims, feeders: list[str], informe: dict) -> str | None:
     """RF-50 a RF-53: una curva PV por alimentador, solo con sus escalables, y con las N-1 de
     su troncal si el operador lo pide y la licencia lo cubre."""
-    from estudios_pf import NOMBRE_N1, _limpiar_salida, _salida, tramos_troncales
+    from estudios_pf import NOMBRE_N1, _limpiar_salida, _salida, tramos_troncales, troncal_de_la_corrida
 
     contingencias = bool((plan.get('opciones') or {}).get('contingencias'))
     tramos = {}
     if contingencias:
         bbone = app.GetFromStudyCase('ComBbone')
         if bbone is not None:
-            bbone.Execute()
+            troncal_de_la_corrida(app, bbone)      # 011:RF-136: marcada para retirarla al terminar
             tramos, sin_troncal = tramos_troncales(app, feeders)
             informe['avisos'] += [f'{f}: sin troncal calculada, su curva PV va sin contingencias.'
                                   for f in sin_troncal]

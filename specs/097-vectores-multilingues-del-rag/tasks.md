@@ -16,7 +16,9 @@
       fuentes movidas; y, ampliada el 2026-11-13, la calibración y el sellado con preguntas que no están en el corpus
       que miden (con el documento del maestro dentro, decisión del usuario, opción A), la calibración del 077 rehecha
       con `tools/asistente_indice_ampliado.py conjuntos --rehacer-calibracion`, la comprobación permanente de los
-      conjuntos del RAG y del intérprete, y hit@10. (RF-9, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15,
+      conjuntos del RAG y del intérprete, y hit@10; el 2026-11-14, la calibración del 077 ampliada hasta el mínimo de
+      RF-19 con las preguntas nuevas del maestro de `docs/CONJUNTO_MAESTRO_CALIBRACION_077.json` (90 sin respuesta y 21
+      con ella, de los 20 entregables), comprobadas contra el corpus antes de formarla. (RF-9, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15,
       RF-16, RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23)
       Hecho cuando: `pytest -q tests/test_asistente_vectores_097_t3.py tests/test_asistente_vectores_097.py
       tests/test_asistente_reranker.py tests/test_asistente_corpus_ampliado.py tests/test_auditoria_raiz.py

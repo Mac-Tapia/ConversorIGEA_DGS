@@ -1,0 +1,2317 @@
+{
+ "aviso": "Preguntas nuevas del maestro para la calibración de la abstención del 077 (097:RF-19), escritas el 2026-11-14 de una vez, antes de calibrar; no se cambian mirando un resultado. Ninguna está en el corpus 077: este fichero no se indexa (docs/*.json) ni lo lee el asistente (conjunto_*.json, 077:RF-54), y la herramienta comprueba cada una contra el corpus antes de formar la calibración. Universales (P13): sin alimentador, empresa, SED ni proyecto. Las sin respuesta las confirmó el maestro buscando sus términos en el corpus; las con respuesta llevan sus anclas en fuentes del corpus. Lo forma `tools/asistente_indice_ampliado.py conjuntos --rehacer-calibracion`; nunca en docs/PREGUNTAS_MAESTRO_076.md, que entra en el corpus (076:RF-29).",
+ "corpus": "077",
+ "esquema": "csg-preguntas-maestro-077-v1",
+ "origen": "maestro",
+ "preguntas": [
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "arquitectura",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-001",
+   "id": "maestro077-sin-001",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto costó desarrollar el conversor hasta hoy en horas de ingeniería?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: horas de ingeniería, costo de desarrollo; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "arquitectura",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-002",
+   "id": "maestro077-sin-002",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos programadores mantienen el proyecto y quién responde por cada módulo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: programadores, mantenedor; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "arquitectura",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-003",
+   "id": "maestro077-sin-003",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Se puede ejecutar el conversor desde un teléfono móvil con Android?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: android, teléfono móvil, celular; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "si_falta",
+   "entregable": "arquitectura",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-004",
+   "id": "maestro077-sin-004",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué plan de continuidad hay si se daña el disco del servidor en medio de una corrida?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: plan de continuidad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "arquitectura",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-005",
+   "id": "maestro077-sin-005",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánta electricidad consume al mes el servidor donde corre el conversor?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: consumo eléctrico, kWh al mes; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "calibracion_alcance",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-006",
+   "id": "maestro077-sin-006",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cada cuánto tiempo se contrastan en campo los transformadores de corriente de la medición de cabecera?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: transformadores de corriente; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "calibracion_alcance",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-007",
+   "id": "maestro077-sin-007",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué día del mes publica la distribuidora la medición de cabecera del mes anterior?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: publica la medición, fecha de publicación de la medición; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "calibracion_alcance",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-008",
+   "id": "maestro077-sin-008",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Quién firma la conformidad de la calibración antes de enviarla al regulador?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: conformidad de la calibración, firma; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "calibracion_alcance",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-009",
+   "id": "maestro077-sin-009",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué persona de la distribuidora valida las lecturas de los medidores de cabecera antes de usarlas?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: valida las lecturas, responsable de la medición; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "calibracion_alcance",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-010",
+   "id": "maestro077-sin-010",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto error de calibración aceptó el regulador en su última fiscalización?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: fiscalización; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-011",
+   "id": "maestro077-sin-011",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué proveedor entrega más rápido los conductores de aluminio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: plazo de entrega; proveedor solo en otro sentido; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-012",
+   "id": "maestro077-sin-012",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos años de vida útil tiene un aislador polimérico en una zona costera?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: aislador; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-013",
+   "id": "maestro077-sin-013",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué ensayos de fábrica se exigen a los transformadores de distribución importados?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: ensayo de fábrica, ensayos de rutina; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-014",
+   "id": "maestro077-sin-014",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto pesa por kilómetro un conductor de cobre de 70 mm²?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: kg/km, peso por kilómetro; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-015",
+   "id": "maestro077-sin-015",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué color de cubierta identifica cada fase en los cables subterráneos?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: color de cubierta; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "catalogo_parametros",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-016",
+   "id": "maestro077-sin-016",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué esfuerzo de rotura tiene un poste de concreto de 13 metros?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: esfuerzo de rotura; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "dgs_manifiesto",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-017",
+   "id": "maestro077-sin-017",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué editor de texto conviene para abrir a mano un DGS muy grande?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: editor de texto, bloc de notas, notepad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "dgs_manifiesto",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-018",
+   "id": "maestro077-sin-018",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto espacio en disco ocupará el DGS de toda la empresa dentro de cinco años?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: espacio en disco; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "dgs_manifiesto",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-019",
+   "id": "maestro077-sin-019",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Se puede abrir el DGS en ETAP o en NEPLAN?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: etap, neplan; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "dgs_manifiesto",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-020",
+   "id": "maestro077-sin-020",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuál es la diferencia de precio entre la licencia básica y la completa de DIgSILENT?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: precio de la licencia, costo de la licencia; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "escalera_obras",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-021",
+   "id": "maestro077-sin-021",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos días de corte programado necesita una cuadrilla para el cambio de sección de un tramo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: corte programado; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "escalera_obras",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-022",
+   "id": "maestro077-sin-022",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué permisos municipales hacen falta para tender una terna nueva por la vía pública?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: municipal, municipalidad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "escalera_obras",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-023",
+   "id": "maestro077-sin-023",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué contratista ejecutó más barato el último cambio de conductor?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: contratista; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "escalera_obras",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-024",
+   "id": "maestro077-sin-024",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto tarda en llegar un banco de condensadores desde que se hace el pedido de compra?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: pedido de compra, orden de compra, plazo de entrega; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "escalera_obras",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-025",
+   "id": "maestro077-sin-025",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se gestiona la servidumbre de paso cuando la terna cruza un terreno privado?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: servidumbre; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "estudios",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-026",
+   "id": "maestro077-sin-026",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se hace la coordinación de aislamiento frente a descargas atmosféricas en la red de media tensión?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: coordinación de aislamiento, descargas atmosféricas; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "estudios",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-027",
+   "id": "maestro077-sin-027",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se calcula la energía incidente por arco eléctrico en un tablero de baja tensión?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: arco eléctrico, energía incidente; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "estudios",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-028",
+   "id": "maestro077-sin-028",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué estudio de parpadeo de tensión se pide al conectar un horno de arco?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: flicker, parpadeo; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "estudios",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-029",
+   "id": "maestro077-sin-029",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se modela la resistividad del terreno para diseñar la malla de puesta a tierra de una subestación?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: malla de puesta a tierra; resistividad solo la del conductor; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "estudios_resultados",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-030",
+   "id": "maestro077-sin-030",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué gerencia recibe los resultados de los estudios y en qué plazo debe responder?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: gerencia; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "estudios_resultados",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-031",
+   "id": "maestro077-sin-031",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos estudios eléctricos se hicieron el año pasado en toda la empresa?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: el año pasado: solo una pregunta sin respuesta del maestro; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "estudios_resultados",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-032",
+   "id": "maestro077-sin-032",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Los resultados de los estudios se publican en el portal de transparencia del regulador?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: transparencia; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "estudios_resultados",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-033",
+   "id": "maestro077-sin-033",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos de los estudios del año pasado terminaron en una obra construida en campo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: obra construida; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-034",
+   "id": "maestro077-sin-034",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos días hábiles tiene la distribuidora por ley para contestar una solicitud de factibilidad?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: días hábiles, plazo legal, por ley; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-035",
+   "id": "maestro077-sin-035",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto cobra la distribuidora al solicitante por emitir el certificado de factibilidad?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: derecho de trámite, certificado de factibilidad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-036",
+   "id": "maestro077-sin-036",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué pasa si el solicitante presenta un reclamo contra la factibilidad que se le dio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: reclamo, apelación; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-037",
+   "id": "maestro077-sin-037",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué carta fianza se pide al cliente antes de reservarle la potencia?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: carta fianza, garantía bancaria; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-038",
+   "id": "maestro077-sin-038",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué requisitos de seguridad debe cumplir el tablero de medición del cliente que pide la conexión?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: tablero de medición; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "flujo_conversor",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-039",
+   "id": "maestro077-sin-039",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto tiempo de capacitación necesita un ingeniero nuevo para manejar el conversor?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: capacitación; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "flujo_conversor",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-040",
+   "id": "maestro077-sin-040",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Hay un curso en video que explique el flujo del conversor paso a paso?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: video, tutorial; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "flujo_conversor",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-041",
+   "id": "maestro077-sin-041",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿En qué menú de CYMDIST está la opción para exportar los ficheros de texto?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: menú de CYMDIST; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "flujo_conversor",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-042",
+   "id": "maestro077-sin-042",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto ancho de banda de la red de la oficina consume el conversor al cargar los ficheros?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: ancho de banda; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "flujo_conversor",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-043",
+   "id": "maestro077-sin-043",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué versión de CYMDIST tiene instalada cada zonal de la empresa?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: versión de CYMDIST; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "formatos_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-044",
+   "id": "maestro077-sin-044",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿En qué fecha vence la presentación del próximo PIDE ante el regulador?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: fecha límite, vence la presentación; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "formatos_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-045",
+   "id": "maestro077-sin-045",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Por qué correo electrónico se envía el PIDE al regulador?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: correo electrónico del regulador; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "formatos_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-046",
+   "id": "maestro077-sin-046",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué funcionario del regulador revisa el PIDE de cada distribuidora?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: funcionario; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "informe_estudio",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-047",
+   "id": "maestro077-sin-047",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué ingeniero colegiado firma el informe de estudio y con qué número de colegiatura?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: colegiado, colegiatura; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "informe_estudio",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-048",
+   "id": "maestro077-sin-048",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué tipo de letra y tamaño exige la gerencia para el informe de estudio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: tipo de letra, arial, calibri, tamaño de letra; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "informe_estudio",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-049",
+   "id": "maestro077-sin-049",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos ejemplares impresos del informe se entregan al cliente?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: ejemplares; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "informe_estudio",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-050",
+   "id": "maestro077-sin-050",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué plazo tiene el cliente para pagar la obra después de recibir el informe de estudio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: plazo para pagar; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "libro_excel_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-051",
+   "id": "maestro077-sin-051",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se protege con contraseña el libro Excel antes de enviarlo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: contraseña; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "libro_excel_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-052",
+   "id": "maestro077-sin-052",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Se puede abrir el libro del informe en LibreOffice sin perder las fórmulas?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: libreoffice; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "libro_excel_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-053",
+   "id": "maestro077-sin-053",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué macro del libro calcula el valor presente neto de la obra?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: macro de Excel; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "libro_excel_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-054",
+   "id": "maestro077-sin-054",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se pasa el libro Excel a PDF sin que se corten los saltos de página?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: saltos de página; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "operacion_web",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-055",
+   "id": "maestro077-sin-055",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se entra a la web del conversor desde la casa por VPN?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: vpn; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "operacion_web",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-056",
+   "id": "maestro077-sin-056",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se cambia el idioma de la web a portugués?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: portugués; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "operacion_web",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-057",
+   "id": "maestro077-sin-057",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Hay una aplicación de la web para usar en una tableta en campo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: tableta; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "operacion_web",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-058",
+   "id": "maestro077-sin-058",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se pide al área de sistemas una cuenta de usuario nueva para la web?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: cuenta de usuario, inicio de sesión, login; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "que_hace",
+   "entregable": "operacion_web",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-059",
+   "id": "maestro077-sin-059",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se configura que la web mande alertas al correo del supervisor?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: alertas por correo; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-060",
+   "id": "maestro077-sin-060",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuál será la tasa de interés de los préstamos para financiar las obras del próximo quinquenio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: tasa de interés, préstamo; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-061",
+   "id": "maestro077-sin-061",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántas obras del PIDE anterior se ejecutaron realmente en campo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: obras ejecutadas en campo; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-062",
+   "id": "maestro077-sin-062",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué presupuesto anual tiene la distribuidora para inversiones en media tensión?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: presupuesto anual; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-063",
+   "id": "maestro077-sin-063",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo influye el plan de desarrollo urbano de la municipalidad en el PIDE?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: desarrollo urbano, municipalidad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-064",
+   "id": "maestro077-sin-064",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué subsidio del Estado se puede pedir para la electrificación rural?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: subsidio, electrificación rural; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "planeamiento_pide",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-065",
+   "id": "maestro077-sin-065",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántas viviendas nuevas se esperan por las habilitaciones urbanas de los próximos años?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: habilitación urbana; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "planos_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-066",
+   "id": "maestro077-sin-066",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué plotter conviene para imprimir los planos en formato A0?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: plotter; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "planos_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-067",
+   "id": "maestro077-sin-067",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué escala de impresión exige el regulador para los planos del informe?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: escala de impresión; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "que_hace",
+   "entregable": "planos_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-068",
+   "id": "maestro077-sin-068",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Los planos del informe muestran las curvas de nivel del terreno?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: curvas de nivel, topografía; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "planos_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-069",
+   "id": "maestro077-sin-069",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué sistema de coordenadas usa el catastro municipal de cada ciudad?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: catastro; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "pronostico",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-070",
+   "id": "maestro077-sin-070",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto subirá la demanda si se instala una planta de hidrógeno verde en la zona?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: hidrógeno; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "pronostico",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-071",
+   "id": "maestro077-sin-071",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo afecta el fenómeno de El Niño a la demanda del verano?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: El Niño, fenómeno; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "pronostico",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-072",
+   "id": "maestro077-sin-072",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos vehículos eléctricos se espera que se carguen en la red dentro de diez años?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: vehículos eléctricos, electromovilidad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "pronostico",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-073",
+   "id": "maestro077-sin-073",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto bajará la demanda si hay una cuarentena como la de la pandemia?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: pandemia, covid; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-074",
+   "id": "maestro077-sin-074",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Se pueden enviar las salidas del conversor por WhatsApp al supervisor?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: whatsapp; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-075",
+   "id": "maestro077-sin-075",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos años debe guardar la empresa las salidas por exigencia de la auditoría externa?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: auditoría externa: solo la del almacenamiento y la de seguridad; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-076",
+   "id": "maestro077-sin-076",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Las salidas se pueden subir solas a SharePoint?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: sharepoint; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-077",
+   "id": "maestro077-sin-077",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué tamaño máximo de adjunto acepta el correo de la empresa para mandar las salidas?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: adjunto; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-078",
+   "id": "maestro077-sin-078",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Las salidas se pueden firmar digitalmente antes de enviarlas?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: firma digital; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "set_nueva",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-079",
+   "id": "maestro077-sin-079",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto demora la licencia de construcción de una SET nueva?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: licencia de construcción; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "set_nueva",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-080",
+   "id": "maestro077-sin-080",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué fabricante de transformadores de potencia tiene mejor plazo de entrega?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: plazo de entrega, fabricante; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "set_nueva",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-081",
+   "id": "maestro077-sin-081",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se hace la consulta vecinal antes de levantar una SET nueva?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: consulta vecinal; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "set_nueva",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-082",
+   "id": "maestro077-sin-082",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuántos meses dura la construcción civil de una SET nueva?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: construcción civil, duración de la obra; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "tipos_de_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-083",
+   "id": "maestro077-sin-083",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Hay un informe de pérdidas no técnicas por hurto de energía?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: pérdidas no técnicas, hurto; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "tipos_de_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-084",
+   "id": "maestro077-sin-084",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Hay un informe mensual automático para la gerencia general?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: gerencia general; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "tipos_de_informe",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-085",
+   "id": "maestro077-sin-085",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Hay un informe de seguridad y salud en el trabajo para las cuadrillas?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: seguridad y salud; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "transferencias",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-086",
+   "id": "maestro077-sin-086",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cuánto tarda una cuadrilla en hacer una transferencia de carga en campo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: cuadrilla: solo como lector de las coordenadas; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "transferencias",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-087",
+   "id": "maestro077-sin-087",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Quién autoriza en el centro de control una transferencia entre alimentadores?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: centro de control; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "entrega",
+   "entregable": "transferencias",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-088",
+   "id": "maestro077-sin-088",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se avisa a los clientes afectados por el corte de una transferencia programada?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: aviso a los clientes; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "transferencias",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-089",
+   "id": "maestro077-sin-089",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué indemnización se paga al cliente si la transferencia causa un corte no programado?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: indemnización: solo la de la licencia comercial; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "transferencias",
+   "fuentes": [],
+   "grupo_parafrasis": "maestro077-sin-090",
+   "id": "maestro077-sin-090",
+   "motivo_sin_respuesta": "El repositorio no lo trata: es un dato o una práctica de la empresa, de campo o de terceros.",
+   "origen": "maestro",
+   "pregunta": "¿Qué protocolo de comunicación usa el SCADA para mandar la maniobra a distancia?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No lo sé: el conversor y su documentación no lo tratan.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: búsqueda en los 883 ficheros del corpus 077 (2026-11-14) de: scada: solo como fuente de datos; sin respuesta.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "sin_respuesta"
+  },
+  {
+   "aspecto": "requisito",
+   "entregable": "flujo_conversor",
+   "fuentes": [
+    {
+     "ancla": "La API de PowerFactory 2024 solo carga en 3.12.",
+     "fichero": "CLAUDE.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-001",
+   "id": "maestro077-con-001",
+   "origen": "maestro",
+   "pregunta": "¿Qué versión del intérprete de Python hay que usar para que cargue la API de PowerFactory 2024?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Python 3.12 exacto, en el .venv del proyecto.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "orden",
+   "entregable": "operacion_web",
+   "fuentes": [
+    {
+     "ancla": "el proceso del puerto 8765 y abrir el acceso directo",
+     "fichero": "CLAUDE.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-002",
+   "id": "maestro077-con-002",
+   "origen": "maestro",
+   "pregunta": "Después de cambiar el código del servidor web, ¿cómo hago para que la interfaz tome los cambios?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Parar el proceso del puerto 8765 y abrir de nuevo el acceso directo del escritorio.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "cancelar",
+   "entregable": "operacion_web",
+   "fuentes": [
+    {
+     "ancla": "Parar un cliente no para el trabajo de la web",
+     "fichero": "CLAUDE.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-003",
+   "id": "maestro077-con-003",
+   "origen": "maestro",
+   "pregunta": "Si cierro el cliente que lanzó un trabajo, ¿el trabajo de la web se detiene o cómo lo paro de verdad?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No se detiene: se cancela con POST /api/jobs/<id>/cancel.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "dgs_manifiesto",
+   "fuentes": [
+    {
+     "ancla": "el DGS es idéntico byte a byte",
+     "fichero": "CLAUDE.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-004",
+   "id": "maestro077-con-004",
+   "origen": "maestro",
+   "pregunta": "¿El fichero que se importa en DIgSILENT sale distinto si lo genero con varios procesos en paralelo en vez de uno solo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No: el DGS es idéntico byte a byte con uno o con varios procesos.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "catalogo_parametros",
+   "fuentes": [
+    {
+     "ancla": "- RF-6:",
+     "fichero": "specs/020-sed-sobrecargadas/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-005",
+   "id": "maestro077-con-005",
+   "origen": "maestro",
+   "pregunta": "Cuando una subestación de distribución fija queda sobrecargada, ¿de qué potencia propone el transformador que la reemplaza?",
+   "reparto": "corpus",
+   "respuesta_esperada": "La menor potencia de la tabla de fichas del perfil con la que su demanda queda en el umbral de carga o por debajo.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "escalera_obras",
+   "fuentes": [
+    {
+     "ancla": "- RF-49:",
+     "fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-006",
+   "id": "maestro077-con-006",
+   "origen": "maestro",
+   "pregunta": "¿A partir de qué longitud del recorrido hasta la carga se plantea un regulador de tensión como obra?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Desde escalera.regulador_min_km del perfil, 15 km si no lo da.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "set_nueva",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/084-seis-reglas-con-requisito/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-007",
+   "id": "maestro077-con-007",
+   "origen": "maestro",
+   "pregunta": "¿Dónde no se puede ubicar una subestación de transformación nueva que propone el programa?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Ni en la calle ni encima de los alimentadores: en un área libre, respetando el retiro del perfil.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "planeamiento_pide",
+   "fuentes": [
+    {
+     "ancla": "- RF-28:",
+     "fichero": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-008",
+   "id": "maestro077-con-008",
+   "origen": "maestro",
+   "pregunta": "¿Hasta qué porcentaje de su capacidad se deja cargar un alimentador al planificar las obras?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Hasta escalera.cargabilidad_planeamiento_pct del perfil; el usuario fijó el 80 %.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "limite",
+   "entregable": "salidas_auxiliares",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/062-retencion-diaria-de-ejecuciones/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-009",
+   "id": "maestro077-con-009",
+   "origen": "maestro",
+   "pregunta": "¿Al cabo de cuántos días se retiran las corridas viejas que ya ningún trabajo usa?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Cuando todos sus archivos tienen más de siete días y no hay referencias vigentes.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "dato_entrada",
+   "entregable": "pronostico",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/089-pronostico-de-demanda-en-un-modulo/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-010",
+   "id": "maestro077-con-010",
+   "origen": "maestro",
+   "pregunta": "Si dejo en la carpeta el libro de medición de un mes recién cerrado, ¿tengo que tocar código o configuración para que el pronóstico lo tome?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No: el libro de un mes nuevo se incluye sin cambios de código ni de configuración.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "formatos_pide",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/072-pide-y-planeamiento-de-largo-plazo/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-011",
+   "id": "maestro077-con-011",
+   "origen": "maestro",
+   "pregunta": "¿Qué años del horizonte largo calcula el estudio a partir del año de referencia cero?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Los años 04, 08, 12, 16 y 20, contados desde el año 00.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "cuando_no_aplica",
+   "entregable": "calibracion_alcance",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/014-calibracion-en-sin-proyecto/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-012",
+   "id": "maestro077-con-012",
+   "origen": "maestro",
+   "pregunta": "¿En qué casos de DIgSILENT no se ajustan nunca las demandas a la máxima medida?",
+   "reparto": "corpus",
+   "respuesta_esperada": "En «Caso base» y en «Con proyecto»: el ajuste va en «Sin proyecto».",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "estudios",
+   "fuentes": [
+    {
+     "ancla": "- RF-1:",
+     "fichero": "specs/073-bancos-limitados-por-valle/spec.md"
+    },
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/073-bancos-limitados-por-valle/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-013",
+   "id": "maestro077-con-013",
+   "origen": "maestro",
+   "pregunta": "¿Cómo escoge el programa el periodo de valle con el que comprueba los bancos de condensadores?",
+   "reparto": "corpus",
+   "respuesta_esperada": "El periodo de menor energía registrada en kWh, con su inicio y duración sacados del histórico.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "que_hace",
+   "entregable": "operacion_web",
+   "fuentes": [
+    {
+     "ancla": "- RF-1:",
+     "fichero": "specs/096-retomar-tras-suspender-el-equipo/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-014",
+   "id": "maestro077-con-014",
+   "origen": "maestro",
+   "pregunta": "¿Qué hace el programa para que la computadora no se suspenda mientras corre un trabajo largo?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Pide a Windows que no suspenda el equipo mientras hay un trabajo en curso.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "si_falta",
+   "entregable": "libro_excel_informe",
+   "fuentes": [
+    {
+     "ancla": "- RF-2:",
+     "fichero": "specs/066-libro-de-cada-informe/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-015",
+   "id": "maestro077-con-015",
+   "origen": "maestro",
+   "pregunta": "Si el perfil de mi empresa no tiene un libro modelo, ¿se genera igual una hoja de cálculo junto al informe?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No: sin libro declarado en el perfil no se genera libro ni se señala como falta.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "que_hace",
+   "entregable": "planos_informe",
+   "fuentes": [
+    {
+     "ancla": "- RF-10:",
+     "fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-016",
+   "id": "maestro077-con-016",
+   "origen": "maestro",
+   "pregunta": "¿Qué figuras del alimentador acompañan a cada caso analizado en el documento del estudio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Una imagen coloreada por tensión y otra por cargabilidad, por cada caso.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "escribe_digsilent",
+   "entregable": "estudios",
+   "fuentes": [
+    {
+     "ancla": "- RF-41:",
+     "fichero": "specs/012-confiabilidad-y-capacidad-de-la-red/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-017",
+   "id": "maestro077-con-017",
+   "origen": "maestro",
+   "pregunta": "¿Con qué comando nativo de DIgSILENT se calcula cuánta generación o carga adicional admite cada barra?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Con ComHostcap, en dos cálculos: generación distribuida y carga nueva.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "metodologia",
+   "entregable": "transferencias",
+   "fuentes": [
+    {
+     "ancla": "- RF-1:",
+     "fichero": "specs/098-transferencia-del-operador-en-calibracion-y-obras/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-018",
+   "id": "maestro077-con-018",
+   "origen": "maestro",
+   "pregunta": "Al empezar a calibrar, ¿cómo detecta el programa las subestaciones que el operador pasó de un alimentador a otro?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Busca las que llevan la etiqueta de un alimentador del proyecto y hoy las alimenta otro del mismo proyecto, en una pasada por las cargas.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "orden",
+   "entregable": "factibilidad_conexion",
+   "fuentes": [
+    {
+     "ancla": "- RF-1:",
+     "fichero": "specs/063-informe-de-factibilidad-en-un-paso/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-019",
+   "id": "maestro077-con-019",
+   "origen": "maestro",
+   "pregunta": "¿Hace falta preparar antes los estudios del paso anterior para sacar la evaluación de conexión de una carga nueva?",
+   "reparto": "corpus",
+   "respuesta_esperada": "No: el botón prepara los casos, corre los flujos y escribe la evaluación en un solo trabajo, sin exigir el paso 4.2.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "criterio",
+   "entregable": "arquitectura",
+   "fuentes": [
+    {
+     "ancla": "va en un perfil de empresa, nunca",
+     "fichero": "docs/constitution.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-020",
+   "id": "maestro077-con-020",
+   "origen": "maestro",
+   "pregunta": "¿Dónde se guardan las convenciones propias de cada distribuidora, como el sistema de coordenadas de origen?",
+   "reparto": "corpus",
+   "respuesta_esperada": "En un perfil de empresa, nunca en el código ni como valor por defecto (principio 13).",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  },
+  {
+   "aspecto": "formato",
+   "entregable": "informe_estudio",
+   "fuentes": [
+    {
+     "ancla": "- RF-128:",
+     "fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md"
+    }
+   ],
+   "grupo_parafrasis": "maestro077-con-021",
+   "id": "maestro077-con-021",
+   "origen": "maestro",
+   "pregunta": "¿Cómo se presentan las obras del escenario proyectado en el informe de estudio?",
+   "reparto": "corpus",
+   "respuesta_esperada": "Como alternativas numeradas, una por etapa con obras, cada una sumada a las anteriores.",
+   "revisado_por_maestro": true,
+   "revisado_por_operador": false,
+   "revision": {
+    "correccion": "| razón: el ancla está literal en la fuente indexada del corpus 077.",
+    "revisor": "maestro",
+    "veredicto": "correcta"
+   },
+   "tipo": "con_respuesta"
+  }
+ ],
+ "reparto": "corpus"
+}

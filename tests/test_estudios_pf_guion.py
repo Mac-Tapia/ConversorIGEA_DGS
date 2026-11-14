@@ -734,3 +734,35 @@ def _bbone_en_variacion(feeders):
                 t = a.GetParent().CreateObject('ElmBbone', f'BB_{a.loc_name}')
                 t.pBbStart, t.pBbEnd = a, None
     return efecto
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+@pytest.mark.parametrize('rol', ('base', 'sin', 'con'))
+@pytest.mark.parametrize('estudio', ('troncal', 'contingencias'))
+@pytest.mark.parametrize('graba', (True, False), ids=('en_la_variacion', 'fuera_de_ella'))
+@pytest.mark.parametrize('marcada', (False, True), ids=('del_operador', 'del_operador_con_la_marca'))
+def test_en_un_caso_del_conversor_la_troncal_no_queda_en_la_red(semilla, rol, estudio, graba, marcada):
+    """011:RF-136 — tras un estudio con troncal en un caso del conversor («Caso base», «Sin proyecto», «Con proyecto»), en
+    su red no queda ninguna ``ElmBbone`` de la corrida, la grabe DIgSILENT en la variación del conversor o no, y la del
+    operador que ya estaba queda intacta aunque lleve la marca. Antes, el «Caso base» quedaba con las troncales de
+    ``ComBbone`` en su red: E2 solo lo resolvió en los casos del operador."""
+    rng = random.Random(semilla)
+    app, feeders = _red(rng)
+    red = app.proyecto
+    padre = _alim(app, feeders[0]).GetParent()
+    propia = _Troncal(app, 'ElmBbone', f'Troncal operador {rng.randint(100, 999)}', padre)
+    padre._hijos.append(propia)
+    propia.pBbStart, propia.pBbEnd, propia.enlace, propia.camino = _alim(app, feeders[0]), None, None, []
+    if marcada:
+        propia.desc = [guion.MARCA_TRONCAL]
+    efecto = _bbone_en_variacion(feeders) if graba else _bbone_que_crea(feeders)
+    app.ordenes['ComBbone'] = fake_pf.Orden(app, 'BB', clase='ComBbone', efecto=efecto)
+    variaciones = sorted(v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1))
+    informe, rc = guion.ejecutar(app, _plan(feeders, estudio, caso=rol))
+    assert rc == 0, informe
+    if estudio == 'troncal':
+        assert {t['troncal'] for t in informe['troncales']} >= {f'BB_{f}' for f in feeders}, \
+            'la troncal se lee antes de retirarla'
+    assert [b for b in red.GetContents('*.ElmBbone', 1)] == [propia], 'solo queda la del operador'
+    assert propia not in app.borrados and (getattr(propia, 'desc', None) == [guion.MARCA_TRONCAL]) == marcada
+    assert sorted(v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)) == variaciones

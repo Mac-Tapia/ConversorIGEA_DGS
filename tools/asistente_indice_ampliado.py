@@ -7,6 +7,8 @@ Subórdenes:
   conjuntos     Forma docs/CONJUNTO_ABSTENCION_{CALIBRACION,SELLADO}_077.json. Solo cuenta filas y no enseña ninguna (077:RF-44),
                 sin las preguntas que el corpus 077 ya lleva (097:RF-19). Un conjunto que existe no se vuelve a formar;
                 `--rehacer-calibracion` rehace la calibración, que no está sellada (el sellado no se rehace nunca, 077:RF-46).
+                La calibración lleva además las preguntas nuevas del maestro de docs/CONJUNTO_MAESTRO_CALIBRACION_077.json
+                (097:RF-19), comprobadas contra el corpus como las demás.
 
 Cada una se ejecuta sobre una carpeta de datos propia, para no tocar la de la web.
 """
@@ -26,6 +28,11 @@ if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 ENTREGABLES = REPO / 'docs' / 'asistente' / 'preguntas_entregables.jsonl'
 FUERA = REPO / 'docs' / 'CONJUNTO_FUERA_077.json'
+#: Preguntas nuevas del maestro, con el esquema de las filas de la 076 y del reparto `corpus`, que amplían la calibración
+#: (097:RF-19). Caso real (auditor c7, 2026-11-13): sin las del corpus, la calibración del 077 quedó en 25 sin respuesta y
+#: 33 con ella, y `muestra_suficiente` pide 100 y 30. No van en docs/PREGUNTAS_MAESTRO_076.md, que entra en el corpus
+#: (076:RF-29), ni en el JSONL de la 076, cuyo reparto `corpus` copia ese documento.
+MAESTRO = REPO / 'docs' / 'CONJUNTO_MAESTRO_CALIBRACION_077.json'
 
 
 def _filas() -> list[dict]:
@@ -92,7 +99,14 @@ def _conjuntos(indice, evaluacion_rag, reranker, rehacer_calibracion: bool = Fal
         if ruta.is_file() and not (rehacer_calibracion and clave == 'calibracion'):
             salida[clave] = {'estado': 'ya existe: un conjunto sellado no se vuelve a formar', 'sha256': reranker.sha256_de(ruta)}
             continue
-        conjunto = evaluacion_rag.conjunto_de_entregables(filas, reparto, frags, fuera[clave], sin_las_del_corpus=True)
+        nuevas = json.loads(MAESTRO.read_text(encoding='utf-8'))['preguntas'] if clave == 'calibracion' else []
+        conjunto = evaluacion_rag.conjunto_de_entregables(filas + nuevas, reparto, frags, fuera[clave], sin_las_del_corpus=True)
+        if nuevas:
+            dentro = {f['pregunta'] for f in conjunto['preguntas']}
+            conjunto['ampliada_por_el_maestro'] = {
+                'fichero': MAESTRO.relative_to(REPO).as_posix(),
+                'sin_respuesta': sum(f['tipo'] == 'sin_respuesta' and f['pregunta'] in dentro for f in nuevas),
+                'con_respuesta': sum(f['tipo'] == 'con_respuesta' and f['pregunta'] in dentro for f in nuevas)}
         ruta.write_text(json.dumps(conjunto, ensure_ascii=False, indent=0, sort_keys=True) + '\n', encoding='utf-8', newline='\n')
         salida[clave] = {'preguntas': len(conjunto['preguntas']), 'excluidas_sin_fuente_indexada': conjunto['excluidas_sin_fuente_indexada'],
                          'excluidas_en_el_corpus': conjunto['excluidas_en_el_corpus'],

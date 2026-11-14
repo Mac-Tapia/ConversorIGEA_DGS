@@ -482,6 +482,8 @@ BORRADOS = {
         # creadas por la misma ejecución y retiradas al terminar, con el estado comprobado.
         'tools/estudios_entradas_pf.py::cortocircuito', 'tools/estudios_entradas_pf.py::cuasi_dinamica',
         'tools/estudios_entradas_pf.py::_deshacer',
+        # 011:RF-136: las ElmBbone que esta corrida creó (su marca y no estar antes), las que la variación no grabó.
+        'tools/estudios_pf.py::retirar_troncales_de_la_corrida',
         'tools/obras_pf.py::crear_tipos_regulador', 'tools/obras_pf.py::evaluar.con_variante',
         # 098:RF-36: lo creado por la obra nueva de una sustitución que no queda, por sus nombres del diario.
         'tools/obras_pf.py::_borrar_creadas',

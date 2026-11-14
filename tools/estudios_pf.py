@@ -58,10 +58,10 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import (
-    Alimentadores, _num, activar_proyecto, cabecera_de, crear_variacion, error_inesperado,
+    Alimentadores, _num, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado,
     etapas_al_dia, flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
 )
-from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
+from casos_pf import (NOMBRES, _desc, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
 
 from convertersmartgrid.estudios_pf import CON_GUION
@@ -552,7 +552,7 @@ def _contingencias(app, plan, alims, feeders, informe) -> str | None:
     bbone = app.GetFromStudyCase('ComBbone')
     if bbone is None:
         return 'el caso no admite la orden ComBbone: sin troncal no hay N-1'
-    informe['codigo_troncal'] = bbone.Execute()                     # RF-44
+    informe['codigo_troncal'] = troncal_de_la_corrida(app, bbone)   # RF-44; 011:RF-136
     informe['troncales'] = _troncal(app, feeders)
     tramos, sin_troncal = tramos_troncales(app, feeders)
     for f in sin_troncal:                                           # RF-45
@@ -728,6 +728,54 @@ ESTUDIOS_SIN_ESCRITURA = ('flujo', 'flujo_desequilibrado')
 #: en la red de un caso del operador; se borra al terminar.
 PREFIJO_ESTUDIO_OPERADOR = 'Estudio_operador'
 MARCA_ESTUDIO_OPERADOR = f'variacion:{PREFIJO_ESTUDIO_OPERADOR}'
+#: Los que ejecutan ``ComBbone``, que deja sus troncales (``ElmBbone``) en la red: también en un caso del conversor van
+#: con la variación del conversor, y lo que de ellas quede fuera se retira al terminar (011:RF-136).
+ESTUDIOS_CON_TRONCAL = ('troncal', 'contingencias', 'curvas_pv')
+#: Marca (``desc``) de cada ``ElmBbone`` que crea la corrida. Se borra al terminar solo la que la lleva **y** no estaba
+#: antes del estudio: nunca por su nombre, que puede ser el de una troncal del operador.
+MARCA_TRONCAL = 'convertersmartgrid:011:troncal-de-la-corrida'
+
+
+def _troncales_en_la_red(app) -> dict:
+    """Identidad (``clave_pf``, el nombre completo con su ruta) → ``ElmBbone`` de la red que se calcula."""
+    return {clave_pf(b): b for b in app.GetCalcRelevantObjects('*.ElmBbone') or []}
+
+
+def troncal_de_la_corrida(app, bbone) -> int:
+    """Ejecuta ``ComBbone`` y marca las ``ElmBbone`` que crea esta ejecución; devuelve su código (011:RF-136).
+
+    ``ComBbone`` no devuelve los objetos que crea, solo un entero: se reconocen como las troncales que hay después y no
+    había antes, como en ``transferencia_pf._troncales``. La marca es la que permite retirarlas al terminar
+    (:func:`retirar_troncales_de_la_corrida`) aunque la variación del conversor no las haya grabado.
+    """
+    previas = set(_troncales_en_la_red(app))
+    codigo = bbone.Execute()
+    for clave, b in _troncales_en_la_red(app).items():
+        if clave in previas:
+            continue
+        try:
+            b.desc = [x for x in _desc(b) if x != MARCA_TRONCAL] + [MARCA_TRONCAL]
+        except Exception:  # noqa: BLE001, S110 - sin marca no se borra: la retira solo la variación del conversor
+            pass
+    return codigo
+
+
+def retirar_troncales_de_la_corrida(app, previas: set[str]) -> list[str]:
+    """Borra las ``ElmBbone`` con :data:`MARCA_TRONCAL` que no estaban antes del estudio, y devuelve sus nombres.
+
+    011:RF-136. Tras un estudio con troncal, el «Caso base» quedaba con las ``ElmBbone`` de ``ComBbone`` en su red:
+    E2 las llevaba a la variación del conversor solo en un caso del operador. Ahora los casos del conversor llevan la
+    misma variación, y esto es la segunda red: lo que DIgSILENT no grabe en ella y siga en la red tras retirarla. Una
+    troncal que ya estaba (``previas``) no se toca aunque lleve la marca, y una nueva sin la marca tampoco: solo se
+    borra lo que creó esta corrida.
+    """
+    retiradas = []
+    for clave, b in sorted(_troncales_en_la_red(app).items()):
+        if clave in previas or MARCA_TRONCAL not in _desc(b):
+            continue
+        retiradas.append(b.loc_name)
+        b.Delete()
+    return retiradas
 
 
 def etapas_tardias(app) -> list[str]:
@@ -760,7 +808,8 @@ def variacion_del_estudio(app, plan: dict, informe: dict):
         _marcar(variacion, MARCA_ESTUDIO_OPERADOR)
     except Exception:  # noqa: BLE001 - sin marca se reconoce por su nombre y se borra igual al terminar
         pass
-    informe['avisos'].append(f'En un caso del operador, lo que el estudio escriba en la red va a la variación del '
+    donde = 'En un caso del operador, lo' if plan.get('caso') == ROL_POR_NOMBRE else 'Lo'
+    informe['avisos'].append(f'{donde} que el estudio escriba en la red va a la variación del '
                              f'conversor {variacion.loc_name}, que se borra al terminar.')
     return variacion, caso, hora, grabando
 
@@ -815,7 +864,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     inicial = app.GetActiveStudyCase()
     ldf = None                      # el del caso: se toma con el caso ya activo
     guardados: dict = {}
-    temporal = None                 # la variación del conversor en un caso del operador (011:RF-136)
+    temporal = None                 # la variación del conversor (011:RF-136)
+    troncales_previas = None        # las ElmBbone de antes del estudio, que nunca se borran (011:RF-136)
     try:
         if rol == 'con':                                         # 014:RF-31 a RF-34
             informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
@@ -853,8 +903,11 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             return {**informe, 'error': 'el flujo de carga del caso no converge: no se ejecuta '
                                         'el estudio'}, 2
         base = medidas(alims, feeders, True)
-        if rol == ROL_POR_NOMBRE and estudio not in ESTUDIOS_SIN_ESCRITURA:
-            temporal = variacion_del_estudio(app, plan, informe)          # 011:RF-136
+        if estudio in ESTUDIOS_CON_TRONCAL:
+            troncales_previas = set(_troncales_en_la_red(app))
+        if estudio not in ESTUDIOS_SIN_ESCRITURA and (rol == ROL_POR_NOMBRE or estudio in ESTUDIOS_CON_TRONCAL):
+            # 011:RF-136: en un caso del operador, todo lo que escriba; en uno del conversor, la troncal de ComBbone.
+            temporal = variacion_del_estudio(app, plan, informe)
         if rol == 'sin':
             # 011:RF-131: sin calibración en el espacio no hay objetivos ni tolerancia, y no se inventan.
             informe['avisos'] += desvios_de_cabecera(
@@ -895,7 +948,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             if estudio in OPTIMIZADORES:
                 _optimizador(app, plan, alims, feeders, orden, informe)
             else:
-                informe['codigo_orden'] = orden.Execute()
+                informe['codigo_orden'] = troncal_de_la_corrida(app, orden)    # 011:RF-136
                 informe['troncales'] = _troncal(app, feeders)
             # Las medidas son las de la red tal como queda: sin la propuesta aplicada.
             flujo = flujo_de_carga(app)
@@ -903,6 +956,11 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     finally:
         if temporal is not None:
             retirar_variacion_del_estudio(app, temporal)
+        if troncales_previas is not None:
+            retiradas = retirar_troncales_de_la_corrida(app, troncales_previas)
+            if retiradas:
+                informe['avisos'].append('Troncales de ComBbone que quedaban en la red fuera de la variación del '
+                                         'conversor; se retiran: ' + ', '.join(retiradas) + '.')
         if ldf is not None:
             for k, v in guardados.items():
                 setattr(ldf, k, v)
