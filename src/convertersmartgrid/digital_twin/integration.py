@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ..edicion import es_edicion_producto
 from .buffer import BuferEpisodios, Consulta
 from .capture import CapturaImposible, artefacto_de, construir_episodio
 from .contratos_fisicos import contexto_fisico
@@ -36,8 +35,11 @@ ALTERNATIVA_DE_OBRA = {'condensador': 'bancos', 'regulador': 'reguladores',
 
 
 def captura_activa() -> bool:
-    # 086:RF-16: capturar es para entrenar: en producto, cada acción abriría una lectura más de DIgSILENT para nada.
-    return os.environ.get(VARIABLE_CAPTURA, '1').strip() != '0' and not es_edicion_producto()
+    # 024:RF-1: activa en toda edición, también en la de producto. Orden del usuario (2026-11-13): «nada debería estar
+    # apagado ni bloqueado»; antes el producto la apagaba (086:RF-16) y las corridas de los clientes no dejaban datos.
+    # Capturar no es entrenar ni promover: eso sigue negado en producto (086:RF-15). Solo la apaga una orden explícita
+    # del operador, esta variable o «gemelo.captura: false» en su perfil (services._gemelo).
+    return os.environ.get(VARIABLE_CAPTURA, '1').strip() != '0'
 
 
 def obras_pide(obras: Iterable[Mapping[str, Any]],

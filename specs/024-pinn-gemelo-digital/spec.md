@@ -216,7 +216,9 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
 ### Captura universal
 
 - RF-1: CUANDO una ejecución recorra desde una fuente hasta PowerFactory, EL SISTEMA emitirá un
-  episodio ligado al `source_run_id`, huella de fuente, proyecto y resultado nativo.
+  episodio ligado al `source_run_id`, huella de fuente, proyecto y resultado nativo. Lo hará en toda edición, también en
+  la de producto, y solo una orden explícita del operador (`CSG_TWIN_CAPTURA=0` o `gemelo.captura: false` en su perfil) la
+  apagará; capturar no es entrenar ni promover, que siguen fuera de la edición de producto (086:RF-15).
 - RF-2: DONDE intervengan uno, dos o más alimentadores, enlaces o transferencias, EL SISTEMA
   conservará la identidad y orientación de cada red y la frontera abierta que separa fuentes.
 - RF-3: CUANDO exista trazado o conexión manual, EL SISTEMA conservará su huella antes y después;

@@ -163,9 +163,12 @@ def test_los_servicios_tampoco_entrenan_aunque_les_llamen_directo(producto, nomb
         llamada()
 
 
-def test_sin_captura_para_entrenar_en_producto(monkeypatch, producto):
-    """086:RF-16 — el ciclo de aprendizaje no corre: cada acción en DIgSILENT abría una lectura extra para el búfer."""
+def test_024_rf1_en_producto_la_captura_sigue_activa_y_solo_la_apaga_el_operador(monkeypatch, producto):
+    """024:RF-1 — orden del usuario (2026-11-13): «nada debería estar apagado ni bloqueado». Cada corrida de la web deja
+    su episodio también en la edición de producto; capturar no es entrenar (086:RF-15 sigue negando el entrenamiento)."""
     monkeypatch.delenv(integration.VARIABLE_CAPTURA, raising=False)
+    assert integration.captura_activa() is True
+    monkeypatch.setenv(integration.VARIABLE_CAPTURA, '0')                 # la orden explícita del operador
     assert integration.captura_activa() is False
 
 
