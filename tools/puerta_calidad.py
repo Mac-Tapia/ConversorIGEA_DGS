@@ -40,14 +40,22 @@ GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tes
             'tests/test_trazabilidad_candidato.py',
             # 102:RF-21: los procedimientos citan líneas de src/; un cambio en services.py las movió y solo lo vio
             # GitHub Actions (2026-11-11), porque ninguna prueba del commit los leía.
-            'tests/test_procedimientos.py')
+            'tests/test_procedimientos.py',
+            # 106:RF-13: las entradas de docs/regresiones citan pruebas que deben existir (081:RF-47). 2026-11-13: la
+            # edición ccb81aa8 quitó cuatro que citaba una entrada y ninguna puerta lo vio, porque el commit no tocaba
+            # docs/regresiones ni nada que nombrara test_regresiones.
+            'tests/test_regresiones.py',
+            # 106:RF-13: lo que mira el árbol entero (capas y ciclos, 002:RF-2/3; ningún nombre anterior, 058) tampoco lo elige
+            # el commit que lo rompe. 2026-11-14: cad225d0 dejó un ciclo indice -> evaluacion_rag -> embeddings -> indice y una
+            # ruta con el nombre anterior en CLAUDE.md, y 38dc1581 otro ciclo y módulos sin capa; ninguna de sus puertas lo vio.
+            'tests/test_capas.py', 'tests/test_dominio_numeros_medidos.py', 'tests/test_nombre_converter_smart_grid.py')
 
 #: Las variables de datos reales de la suite completa (CLAUDE.md, «Pruebas»): sin una, la suite omite pruebas.
 #: 102:RF-23: la puerta pasa solo las de esta lista; ``CSG_PF_PYTHON_39`` (spec 103) estaba en el fichero local y no
 #: aquí, y la suite de la T31 de la 086 (2026-11-12) habría omitido las dos pruebas del Python 3.9.
 VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_MDB', 'CSG_DEMANDA_DIR',
              'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON',
-             'CSG_PF_PYTHON_39', 'CSG_ASISTENTE_REAL')
+             'CSG_PF_PYTHON_39', 'CSG_ASISTENTE_REAL', 'CSG_CATALOGO_PROYECTO')
 
 #: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
 DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')

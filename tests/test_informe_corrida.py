@@ -450,13 +450,12 @@ def test_el_avance_del_proyecto_sale_del_disco(client, monkeypatch):  # noqa: F8
 
 def _lectura(monkeypatch, ws, filas, diferencias):
     """La lectura de DIgSILENT de la comprobación previa, sin DIgSILENT: el fichero crudo y sus diferencias."""
-    from convertersmartgrid.web import mapa_cargas_api
 
     def leer(ws_, _ctx, project, _alims, _anio):
         nombre = 'ubicacion_cargas_0123456789ab.json'
         (ws_.out_dir / nombre).write_text(json.dumps({'project': project, 'cargas': filas}), encoding='utf-8')
         return {'project': project, 'lectura': nombre, 'diferencias': diferencias, 'avisos': []}
-    monkeypatch.setattr(mapa_cargas_api, 'leer_en_digsilent', leer)
+    monkeypatch.setattr(services, 'mapa_leer_en_digsilent', leer)
 
 
 class _Ctx:

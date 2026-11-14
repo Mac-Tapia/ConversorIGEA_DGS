@@ -55,7 +55,10 @@ def raiz_local(programa: Path | None = None, environ: Mapping[str, str] | None =
     env = os.environ if environ is None else environ
     raiz = raiz_programa() if programa is None else Path(programa)
     if not es_programa_instalado(raiz):
-        return raiz
+        # 106:RF-17: durante la suite, el config/ e input/ locales del checkout real son una carpeta vacía de la
+        # sesión. Con el perfil_empresa.json de Electro Dunas (o su catálogo de input/), una prueba pasaba en esta
+        # máquina y fallaba en otra (P13); la que necesite uno lo fija ella.
+        return raiz_de_datos_heredados(raiz, env)
     otra = str(env.get(VARIABLE_DATOS) or '').strip()
     if otra:
         return Path(otra)
@@ -189,6 +192,38 @@ def raiz_datos_web(programa: Path | None = None) -> Path:
     return Path(env) if env else rutas_runtime(programa or raiz_programa()).runtime / 'data' / 'web'
 
 
+#: La carpeta de datos de la sesión de pytest que fija ``tests/conftest.py`` (106:RF-16, RF-17); fuera de pytest no existe.
+VARIABLE_SUITE = 'CSG_SUITE_DATOS'
+
+
+#: Dónde se cargó de verdad este paquete, fijado al importarlo: una prueba que simula otro checkout sustituyendo
+#: ``__file__``, ``raiz_programa`` o ``project_root`` (test_dominio_numeros_medidos lo hace con ``__file__``) usa el suyo.
+_PAQUETE_CARGADO = Path(__file__).resolve().parent
+
+
+def _arboles_reales() -> set[Path]:
+    """El árbol de donde se cargó este paquete y su checkout primario (106:RF-17)."""
+    arbol = _PAQUETE_CARGADO.parents[1]
+    return {arbol, _primario(arbol), _PAQUETE_CARGADO / CARPETA_PROGRAMA}
+
+
+def raiz_de_datos_heredados(programa: Path | None = None, environ: Mapping[str, str] | None = None) -> Path:
+    """Bajo qué carpeta se buscan los datos locales de una instalación: su ``output/`` y, por :func:`raiz_local`, su
+    ``config/`` e ``input/`` locales (106:RF-17).
+
+    Es la del programa, salvo durante la suite si ese programa es el checkout real (el que se prueba o su primario):
+    entonces es una carpeta de la sesión, vacía. 2026-11-13: en el árbol principal, ``raices_de_datos()`` daba
+    ``output/web`` (19,1 GB y 8 533 ficheros del usuario) como raíz heredada, y dos pruebas de la copia de datos la
+    copiaban a tmp hasta vencer su plazo; en un worktree limpio no existe y pasaban, y ninguna puerta lo vio. Un
+    checkout que la prueba simule en otra carpeta conserva el suyo, y fuera de pytest nada cambia.
+    """
+    base = Path(programa) if programa is not None else raiz_programa()
+    suite = str((os.environ if environ is None else environ).get(VARIABLE_SUITE) or '').strip()
+    if suite and base.resolve() in _arboles_reales():
+        return Path(suite) / 'checkout'
+    return base
+
+
 def raiz_componente(nombre: str, variable: str, programa: Path | None = None) -> Path:
     """Mantiene los modelos/episodios heredados hasta una migración explícita (065:RF-12)."""
     env = os.environ.get(variable, '').strip()
@@ -196,7 +231,7 @@ def raiz_componente(nombre: str, variable: str, programa: Path | None = None) ->
         return Path(env)
     if nombre not in ('_asistente', '_digital_twin'):
         raise ValueError('Componente de datos no reconocido.')
-    legacy = (programa or raiz_programa()) / 'output' / 'web' / nombre
+    legacy = raiz_de_datos_heredados(programa) / 'output' / 'web' / nombre
     if not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
         return legacy
     return raiz_datos_web(programa) / nombre

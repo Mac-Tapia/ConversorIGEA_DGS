@@ -213,7 +213,7 @@ def _elegir(args) -> int:
 
 def _poner_en_uso(args) -> int:
     """097:RF-14: comprueba la puerta del elegido frente al en uso y, solo con --aplicar, escribe el puntero."""
-    from convertersmartgrid.asistente import indice, reranker
+    from convertersmartgrid.asistente import evaluacion_rag, indice, reranker
 
     medicion = json.loads(args.sellado_047.read_text(encoding='utf-8'))
     en_uso = json.loads((args.sellado_en_uso or REPO / 'docs' / 'EVALUACION_ABSTENCION_047.json').read_text(encoding='utf-8'))
@@ -221,7 +221,7 @@ def _poner_en_uso(args) -> int:
     if args.calibracion_077:
         calibraciones['077'] = str(args.calibracion_077)
     mediciones = {'077': str(args.sellado_077)} if args.sellado_077 else {}
-    r = indice.poner_en_uso(args.poner_en_uso, medicion, en_uso, calibraciones=calibraciones, mediciones=mediciones,
+    r = evaluacion_rag.poner_en_uso(args.poner_en_uso, medicion, en_uso, calibraciones=calibraciones, mediciones=mediciones,
                             escribir=args.aplicar)
     import os
 

@@ -83,7 +83,10 @@ def raices_de_datos(checkout: Path | None = None) -> dict[str, Path]:
         from ..runtime_paths import raiz_datos_web
 
         raices = {'datos': raiz_datos_web(programa)}
-    heredada = programa / 'output' / 'web'
+    from ..runtime_paths import raiz_de_datos_heredados
+
+    # 106:RF-17: durante la suite, la del checkout real es una carpeta vacía de la sesión, nunca los datos del usuario.
+    heredada = raiz_de_datos_heredados(programa) / 'output' / 'web'
     if heredada.is_dir() and heredada.resolve() != raices['datos'].resolve():
         raices['heredada'] = heredada
     raices['config'] = raiz_local(programa) / 'config'

@@ -13,11 +13,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 108 |
 | Interfaz | `frontend/src/` | 71 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 444 |
+| Pruebas | `tests/` | 446 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
-`web/services.py` tiene 13837 líneas y 429 funciones, pendiente de partir (002).
+`web/services.py` tiene 13892 líneas y 432 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -34,11 +34,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 127 |
-| aplicacion | Apl | 103 |
+| adaptadores | Ada | 129 |
+| aplicacion | Apl | 104 |
 | dominio | Dom | 47 |
-| presentacion | Pre | 38 |
-| sin capa | — | 5 |
+| presentacion | Pre | 40 |
 | puertos | Pue | 3 |
 
 323 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
@@ -381,7 +380,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
-| `entradas_estudios.py` | — | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
+| `entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
 | `protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
@@ -394,7 +393,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `libro_informe.py` | Ada | 066 | El libro Excel de cada informe, relleno desde el modelo de la empresa con el plano de su perfil |
 | `libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
 | `mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |
-| `mapa_cargas.py` | — | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
+| `mapa_cargas.py` | Ada | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
 | `documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
 | `archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
 
@@ -530,7 +529,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `embeddings.py` | Apl | 043, 047, 097 | Pares contrastivos, métricas de recuperación (también hit@10), encoder CUDA local y persistencia de índices con hashes. |
 | `reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
 | `evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
-| `fuga_evaluacion.py` | — | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
+| `fuga_evaluacion.py` | Apl | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
 | `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
 | `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
@@ -561,8 +560,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que… |
 | `copia_datos_api.py` | Pre | 086 | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. |
-| `mapa_cargas_api.py` | — | 017, 109, 124 | Rutas `…/mapa-cargas`, `…/pagina`, `…/digsilent` y `…/confirmar`: el mapa de las cargas nuevas, la lectura sin escribir en DIgSILENT y «Usar este… |
-| `entradas_estudios_api.py` | — | 012 | Rutas `…/pf/entradas-estudios`: leer ficheros como trabajo (borrador), guardar lo confirmado, descartar y listar, por proyecto en la carpeta del… |
+| `mapa_cargas_api.py` | Pre | 017, 109, 124 | Rutas `…/mapa-cargas`, `…/pagina`, `…/digsilent` y `…/confirmar`: el mapa de las cargas nuevas, la lectura sin escribir en DIgSILENT y «Usar este… |
+| `entradas_estudios_api.py` | Pre | 012 | Rutas `…/pf/entradas-estudios`: leer ficheros como trabajo (borrador), guardar lo confirmado, descartar y listar, por proyecto en la carpeta del… |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
 | `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo. |
 | `fondo.py` | Pre | 104 | Carril de fondo de la web: mira si el operador tiene trabajos en el motor o en DIgSILENT, corre cada libro en un proceso de prioridad baja que se… |

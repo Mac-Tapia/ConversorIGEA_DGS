@@ -182,8 +182,12 @@ La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON`, un intérprete
 opcional y no se instala en `.venv`. Sin ella, esa prueba se omite y la suite no se da por buena.
 
 La comprobación de que el intérprete no entrena con lo que lo examina (097:RF-21) pide `CSG_ASISTENTE_REAL`, la carpeta del
-asistente con sus órdenes (`ejemplos.jsonl`, `ordenes_maestro.jsonl`, `maestro_real/`; en esta máquina
-`D:/converter/ConversorIGEA_DGS/output/web/_asistente`). La prueba la copia a una temporal y nunca escribe en ella.
+asistente con sus órdenes (`ejemplos.jsonl`, `ordenes_maestro.jsonl`, `maestro_real/`; en el árbol principal,
+`output/web/_asistente`). La prueba la copia a una temporal y nunca escribe en ella.
+
+La comparación con la línea base de la 001 (001:RF-14) pide `CSG_CATALOGO_PROYECTO`: el `catalogo_parametros.xlsx` con el
+que se hizo esa línea base (en el árbol principal, `input/catalogo_parametros.xlsx`). Durante la suite el checkout no
+presta su `input/` (106:RF-17), así que sin esta variable la línea base nunca coincidiría y sus pruebas se omitirían.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:

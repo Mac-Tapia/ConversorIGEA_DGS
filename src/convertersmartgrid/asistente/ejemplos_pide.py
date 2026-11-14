@@ -225,6 +225,9 @@ def comparar_formatos(producidos: Mapping[str, Sequence[str]], filas: Mapping[st
 
 def ultimo_ejemplos(raiz: Path | str) -> Path | None:
     """El ``ejemplos_agente.json`` más reciente bajo ``output/pide_dataset`` de ``raiz``."""
-    candidatos = sorted(Path(raiz).glob('output/pide_dataset/*/ejemplos_agente.json'),
+    from ..runtime_paths import raiz_de_datos_heredados
+
+    # 106:RF-17: durante la suite, el output/pide_dataset del checkout real no se lee.
+    candidatos = sorted(raiz_de_datos_heredados(Path(raiz)).glob('output/pide_dataset/*/ejemplos_agente.json'),
                         key=lambda p: p.stat().st_mtime)
     return candidatos[-1] if candidatos else None

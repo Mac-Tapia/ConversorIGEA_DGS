@@ -64,7 +64,7 @@ from cargas_pf import (
 from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
 
-from convertersmartgrid.entradas_estudios import CON_GUION
+from convertersmartgrid.estudios_pf import CON_GUION
 from convertersmartgrid.estudios_pf import ESTUDIOS_012
 from convertersmartgrid.obras_pf import PREFIJO_VARIACION
 from convertersmartgrid.native_action import native_action_block_report

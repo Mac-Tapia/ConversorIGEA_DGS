@@ -666,3 +666,33 @@ def por_procedencia(partes: Mapping[str, Mapping[str, Any]]) -> dict[str, dict[s
     if ajenas:
         raise ValueError(f'solo se informan las procedencias por separado, sin agregados: {sorted(ajenas)}')
     return {k: dict(v) for k, v in partes.items()}
+
+
+# 002:RF-2: vive aquí y no en indice.py, porque usa la puerta de la 047 (_puerta); importarla desde indice
+# cerraba el ciclo indice -> evaluacion_rag -> embeddings/reranker -> indice (caso real: cad225d0, 2026-11-14).
+def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapping[str, Any], *,
+                 calibraciones: Mapping[str, str], mediciones: Mapping[str, str] | None = None,
+                 escribir: bool = False, metodo: str = 'reranker') -> dict[str, Any]:
+    """Escribe el puntero del modelo en uso solo si su medición sellada del 047 es de ese modelo y pasa la puerta de la
+    047 frente a la del modelo en uso (097:RF-5, RF-14); si no, sigue el en uso y dice qué lo impidió (RF-6).
+
+    Sin ``escribir`` solo comprueba: lo pone en uso el usuario, no la medición."""
+    motivos = []
+    if not modulo_indice.con_ficha(modelo):
+        motivos.append(f'el modelo {modelo} no tiene ficha de prefijos (097:RF-3)')
+    if not modulo_indice.mismo_modelo(medicion.get('modelo_vectores'), modelo):
+        motivos.append(f"la medición sellada es del modelo {medicion.get('modelo_vectores')}, no de {modelo}")
+    if modulo_indice.CORPUS_047 not in calibraciones:
+        motivos.append('falta la calibración del 047 con este modelo (097:RF-13)')
+    nuevo = (medicion.get('metodos') or {}).get(metodo) or {}
+    actual = (medicion_en_uso.get('metodos') or {}).get(metodo) or {}
+    if not nuevo or not actual:
+        motivos.append(f'falta el método {metodo} en alguna de las dos mediciones')
+    else:
+        motivos += _puerta(nuevo, actual)['motivos']
+    puesto = escribir and not motivos
+    if puesto:
+        modulo_indice.escribir_publicado(modulo_indice.almacen.raiz() / modulo_indice.PUNTERO_VECTORES, lambda t: t.write_text(json.dumps(
+            {'modelo': modelo, 'calibraciones': dict(calibraciones), 'mediciones': dict(mediciones or {}), 'metodo': metodo,
+             'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1), encoding='utf-8'))
+    return {'puesto': puesto, 'motivos': motivos, 'modelo': modelo, 'en_uso': modulo_indice.modelo_vectores()}

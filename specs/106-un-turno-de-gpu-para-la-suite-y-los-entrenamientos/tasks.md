@@ -15,6 +15,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_turno_gpu_de_la_suite.py` (106:RF-12) y `tests/test_puerta_calidad.py` (106:RF-13) en verde, y en rojo con el conftest anterior en un
       worktree; y `tests/test_suite_sin_datos_del_usuario.py` (106:RF-16, RF-17) en verde, con su rojo sobre el conftest
       anterior (3 failed, D:/csg/integrador_a3/datos_suite_rojo.log; verde 3 passed, …_verde.log).
+      Y `tests/test_suite_sin_output_del_checkout.py` (106:RF-17, ampliado el 2026-11-13: ninguna raíz de datos cae en
+      el `output/` del checkout real) en verde, con su rojo sobre el src anterior (1 failed,
+      D:/csg/SUITE_OUTPUT_WEB/rojo.log; verde 2 passed, D:/csg/SUITE_OUTPUT_WEB/verde.log); y su caso de `config/` e
+      `input/` locales y de la puerta, con su rojo sobre `raiz_local` sin redirigir (1 failed, rojo_config.log; verde
+      4 passed, verde_config.log).
+      Y `tests/test_puerta_corre_las_regresiones.py` (106:RF-13: `test_regresiones` en el gobierno de la puerta) en
+      verde, con su rojo sobre la lista anterior (1 failed, D:/csg/SUITE_OUTPUT_WEB/rojo_regresiones.log; verde,
+      verde_regresiones.log).
 - [x] T5. El entorno de DIgSILENT no hereda otro paquete del conversor por PYTHONPATH. (RF-14)
       Hecho cuando: `tests/test_powerfactory_versiones.py` (103:RF-6, sin tocar) y `tests/test_turno_gpu_de_la_suite.py`
       (106:RF-14) en verde.

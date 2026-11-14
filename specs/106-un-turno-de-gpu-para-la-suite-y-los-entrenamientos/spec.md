@@ -48,6 +48,9 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   correrá en su puerta todas las pruebas; y CUANDO cambia un ayudante de `tests/` o un fichero que no es un módulo de
   Python (el `.iss` del instalador, un `.json`, un `.ts`…), las que lo nombran. (2026-11-13: un commit cambió el `.iss`
   y su puerta no eligió `test_instalador_qa`, que lo lee; la regresión entró en la rama.)
+  Y entre las de gobierno que corre siempre irá `tests/test_regresiones.py` (081:RF-47), con la trazabilidad, el
+  inventario y los procedimientos. (Mismo día, auditor: la edición ccb81aa8 quitó cuatro pruebas que citaba una
+  entrada de `docs/regresiones/`, y ninguna puerta lo vio porque el commit no tocaba esa carpeta.)
 - RF-15: EL SISTEMA guardará en el resultado de cada suite las 30 pruebas más lentas con sus segundos, y dirá cuáles pasan
   del umbral de RF-5, sin hacerlas fallar.
 - RF-16: CUANDO empieza una sesión de pruebas sin `CSG_RUNTIME_HOME`, EL SISTEMA le dará un runtime propio en una
@@ -58,6 +61,17 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   almacén del asistente y al del gemelo una carpeta de la sesión, nunca `output/web/_asistente`, `output/web/_digital_twin`
   ni `<runtime>/data/web/…` del usuario; lo que una prueba fije por su cuenta manda. (Mismo día: sin ellas, desde el
   árbol principal caían en los 3,8 GB y 1,1 GB del usuario, y desde un worktree en el almacén de un runtime real.)
+  Y durante la sesión, ninguna raíz de datos que se deduce del checkout real (el que se prueba o su primario) caerá en
+  su `output/`: ni las de la copia de datos, ni los espacios heredados de la web, ni el registro de vínculos heredado,
+  ni los almacenes heredados, ni los ejemplos del PIDE; se buscan bajo la carpeta de la sesión, y un checkout que la
+  prueba simule en otra carpeta conserva el suyo. Fuera de pytest nada cambia. (Mismo día: en el árbol principal,
+  `raices_de_datos()` daba `output/web`, 19,1 GB y 8 533 ficheros del usuario, como raíz heredada, y dos pruebas de
+  la copia de datos la copiaban a tmp hasta vencer su plazo; en un worktree limpio no existe y pasaban.)
+  Tampoco se buscarán en el `config/` ni en el `input/` locales del checkout real: el perfil activo, los alias,
+  la elección de DIgSILENT, las salidas, el archivo de informes, la copia de datos, los módulos permitidos y
+  los catálogos se buscan bajo esa misma carpeta de la sesión; lo versionado (`config/perfiles`, `config/fichas`…)
+  sigue siendo del programa, y la puerta de calidad lee su `config/suite_completa.json`. (Mismo día, auditor: con
+  el `perfil_empresa.json` de Electro Dunas, una prueba pasaba en esta máquina y fallaba en otra, P13.)
 - RF-18: DONDE el equipo tiene en Windows un adaptador NVIDIA cuyo controlador trae `nvdxgdmal64.dll`, EL SISTEMA dejará
   esa DLL fijada en memoria antes del primer inicio de CUDA de cada proceso del producto y de cada sesión de pruebas; sin
   Windows, sin NVIDIA, sin la clave del registro o sin la DLL no hará nada ni fallará. La fijará con cualquier versión del

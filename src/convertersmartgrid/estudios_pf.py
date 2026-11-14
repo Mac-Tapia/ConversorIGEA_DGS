@@ -32,6 +32,9 @@ ESTUDIOS_011 = tuple(e.clave for e in ESTUDIOS if e.clave in {
     'flujo', 'flujo_desequilibrado', 'contingencias', 'troncal',
     'punto_apertura', 'perfil_tension', 'balance_fases'})
 
+#: Estudios que el conversor ya ejecuta en DIgSILENT con lo cargado en la web (012:RF-83, RF-84). Vive aquí y no en
+#: `entradas_estudios`, que es un adaptador: la aplicación no depende de él (test_capas, 2026-11-14).
+CON_GUION = ('cortocircuito', 'cuasi_dinamica')
 #: La red como se importó: referencia, sin estudios ni obras (RF-58).
 CASO_BASE = 'Caso base'
 SIN_PROYECTO = 'Sin proyecto'
@@ -106,7 +109,6 @@ def _que_le_falta(e: Estudio, libro, sin_licencia, capacidades=None, perfil=None
     proyecto (012:RF-79, ``entradas_estudios.cumplidas``); dejan de faltar, como el libro.
     """
     from .datos_empresa import que_falta
-    from .entradas_estudios import CON_GUION
 
     cargadas = set(entradas or ())
     if e.clase_pf in set(sin_licencia or ()):
@@ -137,7 +139,6 @@ def estudios_ofrecidos(libro=None, sin_licencia=(), *, entradas: Iterable[str] =
     ``entradas``: lo cargado en la web para el proyecto; con ello se ofrecen también el
     cortocircuito y la cuasi-dinámica (012:RF-79, RF-83, RF-84).
     """
-    from .entradas_estudios import CON_GUION
 
     return tuple(e for e in ESTUDIOS if e.clave in ESTUDIOS_011 + ESTUDIOS_012 + CON_GUION
                  and not _que_le_falta(e, libro, sin_licencia, entradas=entradas)[1])

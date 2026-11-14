@@ -11996,10 +11996,9 @@ def comprobar_carga_en_digsilent(ws: Workspace, ctx: JobContext, project: str, a
     intencionales) y se dice. Después se corren los flujos sobre ese estado (063:RF-1).
     """
     from ..mapa_cargas import clave, guardar_puntos
-    from .mapa_cargas_api import leer_en_digsilent
 
     ctx.log(f'Comprobando en DIgSILENT, sin escribir, la carga {sed} de {alimentador}.')
-    leido = leer_en_digsilent(ws, ctx, project, [alimentador], None)
+    leido = mapa_leer_en_digsilent(ws, ctx, project, [alimentador], None)
     k = clave(alimentador, sed)
     fila = next((d for d in leido['diferencias'] if clave(d.get('alimentador'), d.get('sed')) == k), None)
     if fila is None or fila['estado'] == 'no_leida':
@@ -13835,3 +13834,59 @@ def anio_presentacion_del_perfil(perfil: dict | None = None) -> int | None:
 
     valor = ((datos_perfil() if perfil is None else perfil).get('planificacion') or {}).get('anio_presentacion')
     return valor if type(valor) is int else None
+
+
+# --------------------------------------------------------------------------- mapa de las cargas nuevas (017:RF-109, RF-124)
+# Antes en web/mapa_cargas_api.py; viven aquí porque usan los privados de este módulo (test_capas, 2026-11-14).
+def mapa_cargas_del_proyecto(ws: Workspace, project: str) -> list[dict]:
+    """Las cargas nuevas aplicadas del proyecto, con su punto de diseño confirmado si lo hay."""
+    from ..mapa_cargas import aplicar_puntos
+
+    return aplicar_puntos(ws.root, project, _cargas_nuevas_aplicadas(ws, project))
+
+
+def mapa_datos_para_la_web(ws: Workspace, project: str, alimentadores: list[str]) -> dict:
+    """017:RF-109, RF-124: el mapa con la geografía del último flujo de «Con proyecto» de cada alimentador."""
+    from ..mapa_cargas import datos_del_mapa
+
+    cargas = mapa_cargas_del_proyecto(ws, project)
+    feeders = sorted({*(a for a in alimentadores if a), *(str(c['alimentador']) for c in cargas if c.get('alimentador'))})
+    geos: dict[str, Any] = {}
+    epoca: dict[str, float] = {}
+    for f in feeders:
+        con = _ultimo_estudio(ws, 'con', project, f) or {}
+        geo = (con.get('geo') or {}).get(f)
+        if geo:
+            geos[f] = geo
+            fichero = ws.out_dir / str(con.get('_fichero') or '')
+            try:
+                epoca[f] = fichero.stat().st_mtime if con.get('_fichero') else 0.0
+            except OSError:
+                epoca[f] = 0.0
+    return datos_del_mapa(project, cargas, geos, utm=_utm, flujo_epoca=epoca, alimentadores=alimentadores)
+
+
+def mapa_leer_en_digsilent(ws: Workspace, ctx: JobContext, project: str, alimentadores: list[str], anio: int | None) -> dict:
+    """017:RF-124: lee en DIgSILENT, sin escribir, la conexión de hoy de cada carga y la compara con lo guardado."""
+    from ..mapa_cargas import comparar
+    from .requisitos import UserError
+
+    cargas = mapa_cargas_del_proyecto(ws, project)
+    feeders = sorted({*(a for a in alimentadores if a), *(str(c['alimentador']) for c in cargas if c.get('alimentador'))})
+    plan = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'feeders': feeders,
+            'anio_casos': anio,
+            'cargas': [{'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'variacion': c.get('variacion')}
+                       for c in cargas]}
+    ctx.log(f'Lectura en DIgSILENT, sin escribir, de {len(cargas)} carga(s) nueva(s) de {project}.')
+    _rc, informe, report = _guion_pf(ws, ctx, 'ubicacion_cargas_pf.py', plan, nombre='ubicacion_cargas',
+                                              cancelable=False)
+    if informe.get('error'):
+        raise UserError(f"Lectura de {project} en DIgSILENT: {informe['error']}")
+    diferencias = comparar(cargas, informe.get('cargas') or [])
+    for d in diferencias:
+        texto = '; '.join(d['cambios']) or d.get('error') or 'igual'
+        ctx.log(f"  {d['sed']} ({d.get('alimentador')}): {d['estado']} — {texto}")
+    for aviso in informe.get('avisos') or []:
+        ctx.log(f'  Aviso: {aviso}')
+    return {'project': project.strip(), 'lectura': report.name, 'caso': informe.get('caso'),
+            'diferencias': diferencias, 'avisos': informe.get('avisos') or []}

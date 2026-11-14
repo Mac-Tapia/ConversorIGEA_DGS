@@ -295,7 +295,7 @@ def pagina_del_mapa(datos: Mapping[str, Any]) -> str:
     La web lo muestra en un marco aislado (``politica_pagina_generada``): los nombres vienen de la entrega y de
     DIgSILENT, así que se escapan y el guion no alcanza la API.
     """
-    from .preview import _politica_base, _recurso_leaflet, guion_de_fondos
+    from .preview import politica_base, recurso_leaflet, guion_de_fondos
 
     carga = json.dumps(datos, ensure_ascii=False, default=str).replace('<', '\\u003c')
     teselas, aviso = guion_de_fondos()
@@ -305,13 +305,13 @@ def pagina_del_mapa(datos: Mapping[str, Any]) -> str:
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta http-equiv="Content-Security-Policy" content="{_politica_base()}"/>
+  <meta http-equiv="Content-Security-Policy" content="{politica_base()}"/>
   <title>{titulo}</title>
   <style>
-{_recurso_leaflet('leaflet.css')}
+{recurso_leaflet('leaflet.css')}
   </style>
   <script>
-{_recurso_leaflet('leaflet.js')}
+{recurso_leaflet('leaflet.js')}
   </script>
   <style>
     html, body, #map {{ height: 100%; margin: 0; }}

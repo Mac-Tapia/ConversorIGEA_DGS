@@ -44,11 +44,11 @@ FONDOS_MAPA = (
 
 
 @lru_cache(maxsize=2)
-def _recurso_leaflet(nombre: str) -> str:
+def recurso_leaflet(nombre: str) -> str:
     return (CARPETA_LEAFLET / nombre).read_text(encoding='utf-8')
 
 
-def _politica_base() -> str:
+def politica_base() -> str:
     """Solo lo que va dentro del fichero, y las teselas si esa salida está encendida (086:RF-22)."""
     imagenes = f'data: {ORIGEN_TESELAS} {ORIGEN_SATELITE}' if salida_permitida('teselas') else 'data:'
     return (f"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src {imagenes}; "
@@ -61,7 +61,7 @@ def politica_pagina_generada() -> str:
     Sus textos (nombres de la red, popups) vienen de la entrega. Con ``sandbox`` y sin
     ``connect-src``, un nombre con código dentro corre, pero sin alcance a la API de la web.
     """
-    return 'sandbox allow-scripts; ' + _politica_base()
+    return 'sandbox allow-scripts; ' + politica_base()
 
 
 class PreviewError(ValueError):
@@ -365,13 +365,13 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta http-equiv="Content-Security-Policy" content="{_politica_base()}"/>
+  <meta http-equiv="Content-Security-Policy" content="{politica_base()}"/>
   <title>{title}</title>
   <style>
-{_recurso_leaflet('leaflet.css')}
+{recurso_leaflet('leaflet.css')}
   </style>
   <script>
-{_recurso_leaflet('leaflet.js')}
+{recurso_leaflet('leaflet.js')}
   </script>
   <style>
     html, body, #map {{ height: 100%; margin: 0; }}

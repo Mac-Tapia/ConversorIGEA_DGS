@@ -63,7 +63,7 @@ FICHAS_EMBEDDINGS = {
 VARIABLE_MODELO = 'CSG_ASISTENTE_MODELO_VECTORES'
 
 
-#: 097:RF-12: el puntero del modelo en uso, en la carpeta del asistente. Lo escribe solo ``poner_en_uso`` (RF-14).
+#: 097:RF-12: el puntero del modelo en uso, en la carpeta del asistente. Lo escribe solo ``evaluacion_rag.poner_en_uso`` (RF-14).
 PUNTERO_VECTORES = 'vectores_en_uso.json'
 
 
@@ -92,36 +92,6 @@ def mismo_modelo(a: str | None, b: str | None) -> bool:
         x = str(x or MODELO_EMBEDDINGS)
         return x[:-len(':latest')] if x.endswith(':latest') else x
     return norma(a) == norma(b)
-
-
-def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapping[str, Any], *,
-                 calibraciones: Mapping[str, str], mediciones: Mapping[str, str] | None = None,
-                 escribir: bool = False, metodo: str = 'reranker') -> dict[str, Any]:
-    """Escribe el puntero del modelo en uso solo si su medición sellada del 047 es de ese modelo y pasa la puerta de la
-    047 frente a la del modelo en uso (097:RF-5, RF-14); si no, sigue el en uso y dice qué lo impidió (RF-6).
-
-    Sin ``escribir`` solo comprueba: lo pone en uso el usuario, no la medición."""
-    from .evaluacion_rag import _puerta
-
-    motivos = []
-    if not _con_ficha(modelo):
-        motivos.append(f'el modelo {modelo} no tiene ficha de prefijos (097:RF-3)')
-    if not mismo_modelo(medicion.get('modelo_vectores'), modelo):
-        motivos.append(f"la medición sellada es del modelo {medicion.get('modelo_vectores')}, no de {modelo}")
-    if CORPUS_047 not in calibraciones:
-        motivos.append('falta la calibración del 047 con este modelo (097:RF-13)')
-    nuevo = (medicion.get('metodos') or {}).get(metodo) or {}
-    actual = (medicion_en_uso.get('metodos') or {}).get(metodo) or {}
-    if not nuevo or not actual:
-        motivos.append(f'falta el método {metodo} en alguna de las dos mediciones')
-    else:
-        motivos += _puerta(nuevo, actual)['motivos']
-    puesto = escribir and not motivos
-    if puesto:
-        _escribir(almacen.raiz() / PUNTERO_VECTORES, lambda t: t.write_text(json.dumps(
-            {'modelo': modelo, 'calibraciones': dict(calibraciones), 'mediciones': dict(mediciones or {}), 'metodo': metodo,
-             'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1), encoding='utf-8'))
-    return {'puesto': puesto, 'motivos': motivos, 'modelo': modelo, 'en_uso': modelo_vectores()}
 
 
 def prefijos(modelo: str | None = None) -> tuple[str, str]:
@@ -835,3 +805,8 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
     resumen = ' '.join(f'[{c["n"]}] {_con_marca(c, c["texto"][:300])}' for c in citas[:3]) + nota
     return {'respuesta': resumen, 'citas': citas, 'sabe': True, 'redactada_por': None,
             **({'citas_sin_apoyo': problemas} if problemas else {}), **base}
+
+
+#: Nombres públicos para quien comprueba y escribe el puntero desde fuera (evaluacion_rag.poner_en_uso, 002:RF-2).
+con_ficha = _con_ficha
+escribir_publicado = _escribir

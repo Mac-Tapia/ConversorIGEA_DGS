@@ -162,8 +162,6 @@ ESQUEMAS: dict[str, Esquema] = {e.clave: e for e in (
                'las campañas de medición de calidad de producto.'),
 )}
 
-#: Estudios que el conversor ya ejecuta en DIgSILENT con lo cargado (RF-83, RF-84).
-CON_GUION = ('cortocircuito', 'cuasi_dinamica')
 #: Pasos admitidos de un perfil, en minutos: horario, media hora o 15 minutos (RF-76).
 PASOS_PERFIL_MIN = (15, 30, 60)
 #: Unidades que se comprueban en la cabecera («Pcc (kVA)» no se lee como MVA).
@@ -571,7 +569,7 @@ def _registro_libro(hoja: str):
 
         libro = de.Libro(nombre='entradas')
         propios: list[str] = []
-        {'tasas': de._tasas, 'tiempos': de._tiempos, 'costes': de._costes}[hoja](filas, libro, propios)
+        {'tasas': de.hoja_tasas, 'tiempos': de.hoja_tiempos, 'costes': de.hoja_costes}[hoja](filas, libro, propios)
         # Los mensajes del libro nombran su hoja; aquí no hay hoja, hay filas de la tabla.
         errores += [re.sub(r'^Hoja «[^»]*»,?\s*', '', e).replace('fila ', 'Fila ', 1) for e in propios]
         d = libro.a_dict()

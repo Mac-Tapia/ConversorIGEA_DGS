@@ -840,7 +840,9 @@ class WorkspaceStore:
         self.root = root or data_root()
         # No mover fuentes mientras otra sesión puede leerlas. Los espacios heredados
         # siguen usando su raíz y registro; solo los nuevos nacen en el almacén externo.
-        legacy = project_root() / 'output' / 'web'
+        from ..runtime_paths import raiz_de_datos_heredados
+
+        legacy = raiz_de_datos_heredados(project_root()) / 'output' / 'web'      # 106:RF-17
         self.roots = (self.root,)
         if root is None and not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
             if legacy.resolve() != self.root.resolve():

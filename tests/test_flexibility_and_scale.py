@@ -211,20 +211,22 @@ class TestScalability:
         few = ExportSpec(feeders=few_n, seed=rng.randrange(2**31), **typical)
         many = ExportSpec(feeders=many_n, seed=rng.randrange(2**31), **typical)
 
-        # El mejor de tres. El ruido (otro proceso, el antivirus revisando cada fichero
-        # nuevo) solo suma tiempo, nunca lo resta, así que el mínimo es la medida
-        # fiable. Con una sola medida, esta prueba falló una vez al ejecutarse justo
-        # detrás de las pruebas pesadas con datos reales, y pasaba sola.
-        def best_of_three(spec, name):
-            times = []
-            for attempt in range(3):
-                start = time.perf_counter()
-                _convert(spec, tmp_path / f'{name}{attempt}')
-                times.append(time.perf_counter() - start)
-            return min(times)
+        # El mejor de cinco, con las dos medidas INTERCALADAS. El ruido (otro proceso, el antivirus revisando cada
+        # fichero nuevo) solo suma tiempo, nunca lo resta, así que el mínimo es la medida fiable. Con una sola medida,
+        # esta prueba falló una vez detrás de las pruebas pesadas con datos reales, y pasaba sola. Con tres de cada
+        # una en bloques (primero las pocas, luego las muchas), en la puerta entera del 2026-11-14 la carga cambió
+        # entre los dos bloques y dio ×2,05 (semilla 813733170); sola pasaba 5 de 5 y en reposo da ×1,80. Intercaladas,
+        # las dos sufren la misma carga. El criterio (×2) no cambia.
+        def best_interleaved(rondas=5):
+            veces: dict[str, list[float]] = {'few': [], 'many': []}
+            for attempt in range(rondas):
+                for name, spec in (('few', few), ('many', many)):
+                    start = time.perf_counter()
+                    _convert(spec, tmp_path / f'{name}{attempt}')
+                    veces[name].append(time.perf_counter() - start)
+            return min(veces['few']), min(veces['many'])
 
-        t_few = best_of_three(few, 'few')
-        t_many = best_of_three(many, 'many')
+        t_few, t_many = best_interleaved()
 
         if t_few < 0.05:
             pytest.skip(f'medición no fiable: {t_few * 1000:.0f} ms (semilla {seed})')

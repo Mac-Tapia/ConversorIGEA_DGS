@@ -153,9 +153,10 @@ REGISTRO_HEREDADO = Path('output') / 'web' / 'vinculos_pf.json'
 
 def registros_heredados() -> list[Path]:
     """Los registros de vínculos de carpetas de datos anteriores que puede haber en esta instalación."""
-    from .runtime_paths import raiz_programa
+    from .runtime_paths import raiz_de_datos_heredados
 
-    return [raiz_programa() / REGISTRO_HEREDADO]
+    # 106:RF-17: durante la suite no se lee el registro de output/web del usuario.
+    return [raiz_de_datos_heredados() / REGISTRO_HEREDADO]
 
 
 def vinculo_heredado(ws: Any, project: str, registro_actual: Any = None) -> dict[str, Any] | None:

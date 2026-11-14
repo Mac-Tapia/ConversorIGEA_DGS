@@ -16,6 +16,23 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _catalogo_de_la_linea_base(monkeypatch):
+    """001:RF-14 — el catálogo con el que se hizo la línea base, por ``CSG_CATALOGO_PROYECTO``.
+
+    Durante la suite el checkout ya no presta su ``input/`` (106:RF-17): ``catalogo_del_proyecto()`` daba ``None``, la
+    huella nunca coincidía y estas pruebas se omitían también en la puerta de ``main`` (ensayo de la puerta entera del
+    2026-11-14). Con la variable, la conversión y la huella usan ese fichero, y solo ese.
+    """
+    import os
+
+    ruta = os.environ.get('CSG_CATALOGO_PROYECTO', '').strip()
+    if ruta and Path(ruta).is_file():
+        from convertersmartgrid import reglas
+
+        monkeypatch.setattr(reglas, 'catalogo_del_proyecto', lambda: Path(ruta))
+
+
 def _herramienta():
     ruta = RAIZ / 'tools' / 'linea_base_dgs.py'
     spec = importlib.util.spec_from_file_location('linea_base_dgs', ruta)

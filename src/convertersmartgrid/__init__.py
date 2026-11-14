@@ -1,5 +1,9 @@
 """Motor universal de conversión CYMDIST (TXT o Access) a DGS de DIgSILENT."""
 
+# 103:RF-5: el paquete lo importan los guiones de DIgSILENT con su Python 3.9 embebido, donde «str | None» en una
+# anotación falla al importar (bd4cc7d2 lo trajo con seccion_de_notas; la puerta entera con CSG_PF_PYTHON_39 lo cazó).
+from __future__ import annotations
+
 # La única versión del programa (086:RF-43, RF-92): pyproject la lee de aquí, el candidato la pone en el nombre de su rueda
 # y el .iss la saca de ese nombre. No se escribe en ningún otro sitio: el rc5 se armó con «--version» y «/DVersion» a mano
 # mientras aquí seguía 1.0.0rc1, y su «Acerca de» enseñaba las notas del rc1.

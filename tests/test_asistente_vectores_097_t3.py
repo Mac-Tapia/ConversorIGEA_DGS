@@ -144,15 +144,15 @@ def test_poner_en_uso_solo_si_pasa_la_puerta_frente_al_en_uso(tmp_path, monkeypa
     monkeypatch.delenv(indice.VARIABLE_MODELO, raising=False)
     en_uso = _medicion(None, random.Random(14))
     peor = _medicion('bge-m3', random.Random(14), recall=0.80)
-    r = indice.poner_en_uso('bge-m3', peor, en_uso, calibraciones={'047': 'c.json'}, escribir=True)
+    r = evaluacion_rag.poner_en_uso('bge-m3', peor, en_uso, calibraciones={'047': 'c.json'}, escribir=True)
     assert r['puesto'] is False and any('Recall@10' in m for m in r['motivos'])
     assert not (tmp_path / indice.PUNTERO_VECTORES).exists() and indice.modelo_vectores() == 'nomic-embed-text'
-    otro = indice.poner_en_uso('bge-m3', _medicion('e5', random.Random(14)), en_uso, calibraciones={}, escribir=True)
+    otro = evaluacion_rag.poner_en_uso('bge-m3', _medicion('e5', random.Random(14)), en_uso, calibraciones={}, escribir=True)
     assert otro['puesto'] is False and any('modelo' in m for m in otro['motivos'])
     bien = _medicion('bge-m3', random.Random(14))
-    seco = indice.poner_en_uso('bge-m3', bien, en_uso, calibraciones={'047': 'c.json'}, escribir=False)
+    seco = evaluacion_rag.poner_en_uso('bge-m3', bien, en_uso, calibraciones={'047': 'c.json'}, escribir=False)
     assert seco['puesto'] is False and seco['motivos'] == [] and not (tmp_path / indice.PUNTERO_VECTORES).exists()
-    hecho = indice.poner_en_uso('bge-m3', bien, en_uso, calibraciones={'047': 'c.json'}, escribir=True)
+    hecho = evaluacion_rag.poner_en_uso('bge-m3', bien, en_uso, calibraciones={'047': 'c.json'}, escribir=True)
     assert hecho['puesto'] is True and indice.modelo_vectores() == 'bge-m3'
     assert json.loads((tmp_path / indice.PUNTERO_VECTORES).read_text(encoding='utf-8'))['calibraciones'] == {'047': 'c.json'}
 

@@ -49,61 +49,20 @@ class ConfirmarPuntoPeticion(BaseModel):
     cargas: list[CargaElegida] = Field(min_length=1, max_length=5000)
 
 
-def cargas_del_mapa(ws, project: str) -> list[dict]:
-    """Las cargas nuevas aplicadas del proyecto, con su punto de diseño confirmado si lo hay."""
-    from ..mapa_cargas import aplicar_puntos
-    from . import services
-
-    return aplicar_puntos(ws.root, project, services._cargas_nuevas_aplicadas(ws, project))
-
-
+# Capas (2026-11-14, test_capas): lo que usa los privados de `services` vive allí con nombre público, y este módulo
+# solo lo enruta; así la dependencia va en un solo sentido (mapa_cargas_api → services) y no hay ciclo.
 def datos_para_la_web(ws, project: str, alimentadores: list[str]) -> dict:
     """017:RF-109, RF-124: el mapa con la geografía del último flujo de «Con proyecto» de cada alimentador."""
-    from ..mapa_cargas import datos_del_mapa
     from . import services
 
-    cargas = cargas_del_mapa(ws, project)
-    feeders = sorted({*(a for a in alimentadores if a), *(str(c['alimentador']) for c in cargas if c.get('alimentador'))})
-    geos: dict[str, Any] = {}
-    epoca: dict[str, float] = {}
-    for f in feeders:
-        con = services._ultimo_estudio(ws, 'con', project, f) or {}
-        geo = (con.get('geo') or {}).get(f)
-        if geo:
-            geos[f] = geo
-            fichero = ws.out_dir / str(con.get('_fichero') or '')
-            try:
-                epoca[f] = fichero.stat().st_mtime if con.get('_fichero') else 0.0
-            except OSError:
-                epoca[f] = 0.0
-    return datos_del_mapa(project, cargas, geos, utm=services._utm, flujo_epoca=epoca, alimentadores=alimentadores)
+    return services.mapa_datos_para_la_web(ws, project, alimentadores)
 
 
 def leer_en_digsilent(ws, ctx, project: str, alimentadores: list[str], anio: int | None) -> dict:
     """017:RF-124: lee en DIgSILENT, sin escribir, la conexión de hoy de cada carga y la compara con lo guardado."""
-    from ..mapa_cargas import comparar
     from . import services
-    from .requisitos import UserError
 
-    cargas = cargas_del_mapa(ws, project)
-    feeders = sorted({*(a for a in alimentadores if a), *(str(c['alimentador']) for c in cargas if c.get('alimentador'))})
-    plan = {'project': project.strip(), 'folder': services.carpeta_de(ws, project), 'feeders': feeders,
-            'anio_casos': anio,
-            'cargas': [{'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'variacion': c.get('variacion')}
-                       for c in cargas]}
-    ctx.log(f'Lectura en DIgSILENT, sin escribir, de {len(cargas)} carga(s) nueva(s) de {project}.')
-    _rc, informe, report = services._guion_pf(ws, ctx, 'ubicacion_cargas_pf.py', plan, nombre='ubicacion_cargas',
-                                              cancelable=False)
-    if informe.get('error'):
-        raise UserError(f"Lectura de {project} en DIgSILENT: {informe['error']}")
-    diferencias = comparar(cargas, informe.get('cargas') or [])
-    for d in diferencias:
-        texto = '; '.join(d['cambios']) or d.get('error') or 'igual'
-        ctx.log(f"  {d['sed']} ({d.get('alimentador')}): {d['estado']} — {texto}")
-    for aviso in informe.get('avisos') or []:
-        ctx.log(f'  Aviso: {aviso}')
-    return {'project': project.strip(), 'lectura': report.name, 'caso': informe.get('caso'),
-            'diferencias': diferencias, 'avisos': informe.get('avisos') or []}
+    return services.mapa_leer_en_digsilent(ws, ctx, project, alimentadores, anio)
 
 
 def confirmar_puntos(ws, body: ConfirmarPuntoPeticion) -> dict:

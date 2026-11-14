@@ -329,7 +329,7 @@ def _leer_hoja(ws, hoja: Hoja, errores: list[str]) -> list[tuple[int, dict[str, 
     return out
 
 
-def _tasas(filas, libro: Libro, errores: list[str]) -> None:
+def hoja_tasas(filas, libro: Libro, errores: list[str]) -> None:
     hoja = POR_CLAVE['tasas'].titulo
     for n, d in filas:
         clase = _CLASE_POR_NOMBRE.get(_norm(d['clase'])) if d['clase'] else None
@@ -366,7 +366,7 @@ def _por_concepto(filas, hoja: str, nombres: Mapping[str, str], errores) -> dict
     return out
 
 
-def _tiempos(filas, libro: Libro, errores: list[str]) -> None:
+def hoja_tiempos(filas, libro: Libro, errores: list[str]) -> None:
     hoja = POR_CLAVE['tiempos'].titulo
     filas_por_concepto = _por_concepto(filas, hoja, _TIEMPO_POR_NOMBRE, errores)
     for clave, (_n, d) in filas_por_concepto.items():
@@ -400,7 +400,7 @@ def _bancos(filas, libro: Libro, errores: list[str], tasa: float | None) -> None
                                   d['inversion'], d['vida'], coste))
 
 
-def _costes(filas, libro: Libro, errores: list[str]) -> None:
+def hoja_costes(filas, libro: Libro, errores: list[str]) -> None:
     hoja = POR_CLAVE['costes'].titulo
     filas_por_concepto = _por_concepto(filas, hoja, _COSTE_POR_NOMBRE, errores)
     for clave, (n, d) in filas_por_concepto.items():
@@ -486,9 +486,9 @@ def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
     finally:
         wb.close()
     if 'tasas' in leidas:
-        _tasas(leidas['tasas'], libro, errores)
+        hoja_tasas(leidas['tasas'], libro, errores)
     if 'tiempos' in leidas:
-        _tiempos(leidas['tiempos'], libro, errores)
+        hoja_tiempos(leidas['tiempos'], libro, errores)
     if 'telemandados' in leidas:
         libro.telemandados = tuple(sorted({str(d['codigo']) for _n, d in leidas['telemandados']
                                            if d['codigo'] is not None}))
@@ -496,7 +496,7 @@ def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
             errores.append(f"Hoja «{POR_CLAVE['tiempos'].titulo}»: hay equipos telemandados y falta "
                            f"la fila «{TIEMPOS['telemandada']}».")
     if 'costes' in leidas:
-        _costes(leidas['costes'], libro, errores)
+        hoja_costes(leidas['costes'], libro, errores)
     if 'bancos' in leidas:
         _bancos(leidas['bancos'], libro, errores, libro.tasa_descuento)
     if 'protecciones' in leidas:
