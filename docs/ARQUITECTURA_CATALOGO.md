@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 328 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 329 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
 | Pruebas de la interfaz | `frontend/test/` | 25 |
-| Pruebas | `tests/` | 438 |
+| Pruebas | `tests/` | 439 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3591 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3606 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -39,8 +39,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | dominio | Dom | 47 |
 | presentacion | Pre | 38 |
 | puertos | Pue | 3 |
+| sin capa | — | 1 |
 
-318 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+319 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -524,9 +525,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `indice.py` | Apl | 026, 047 | Índice local del proyecto (CODIGO_FUENTE, RF de las specs, docstrings, manual, constitución), BM25 y vectores fusionados por posición, cálculo de… |
-| `embeddings.py` | Apl | 043, 047 | Pares contrastivos, métricas de recuperación, encoder CUDA local y persistencia de índices con hashes. |
+| `embeddings.py` | Apl | 043, 047, 097 | Pares contrastivos, métricas de recuperación (también hit@10), encoder CUDA local y persistencia de índices con hashes. |
 | `reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
-| `evaluacion_rag.py` | Apl | 047 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
+| `evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
+| `fuga_evaluacion.py` | — | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
 | `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
 | `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
@@ -698,7 +700,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `asistente_medir_ollama.py` | — | 026 | Mide los modelos locales de Ollama con las mismas órdenes (acierto, segundos, sin respuesta) y guarda el elegido para la web. |
 | `asistente_modelo_provisional.py` | — | 085 | Ve, pone y retira un modelo en uso provisional por decisión del usuario, sin aprobarlo ni bajar las puertas. |
 | `asistente_embeddings.py` | — | 043, 047 | Ajuste solo con train y evaluación sobre consultas reservadas del recuperador local. |
-| `asistente_indice_ampliado.py` | — | 077 | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos. |
+| `asistente_indice_ampliado.py` | — | 077, 097 | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos, sin las preguntas que el corpus ya… |
 | `asistente_evaluar_rag.py` | — | 047 | Medición real de la recuperación en la GPU, comprobación del conjunto sin ella con `--solo-conjunto`, calibración de la abstención y su medición… |
 | `asistente_qlora.py` | — | 043, 047 | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado. |
 | `asistente_destilar.py` | — | 047 | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. |

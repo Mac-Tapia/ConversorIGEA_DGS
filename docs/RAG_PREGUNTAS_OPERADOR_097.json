@@ -1,0 +1,72 @@
+{
+ "esquema": "csg-rag-preguntas-operador-v1",
+ "procedencia": "operador_web",
+ "uso": "medicion_aparte",
+ "fuente": "output/web/_asistente/ordenes.jsonl (registro de órdenes de la web), leído el 2026-11-13",
+ "aviso": "Preguntas reales que el operador escribió al asistente en la web. Se miden aparte de las sintéticas del maestro y nunca se suman a ellas (097:RF-16, RF-17; como 085:RF-23). Las de sesiones de prueba se apartan con su motivo y no se miden.",
+ "criterio": "Entra el texto que el operador escribió en un espacio de trabajo real; se aparta el de los espacios de prueba de las specs y el de las ráfagas guionizadas. Ninguna real pide una cita del proyecto: las dos que hay deben abstenerse.",
+ "preguntas": [
+  {
+   "pregunta": "como va el avance",
+   "fecha": "2026-11-02T19:09:55-05:00",
+   "espacio": "1e029adfcacb4155",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "subtipo": "estado",
+   "origen": "operador"
+  },
+  {
+   "pregunta": "muchas gracias, buen trabajo",
+   "fecha": "2026-11-02T19:10:19-05:00",
+   "espacio": "1e029adfcacb4155",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "subtipo": "charla",
+   "origen": "operador"
+  }
+ ],
+ "apartadas": [
+  {
+   "pregunta": "¿Qué dice .claude/skills/convertersmartgrid-frontend/SKILL.md sobre la cancelación de un trabajo?",
+   "fecha": "2026-11-06T05:39:24-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿Cuáles son los principios de UX del skill de la interfaz web, .claude/skills/convertersmartgrid-frontend/SKILL.md?",
+   "fecha": "2026-11-06T05:40:24-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿cómo se prueba la web según .claude/skills/convertersmartgrid-frontend/SKILL.md?",
+   "fecha": "2026-11-06T05:42:08-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿cómo se prueba la web según el skill del frontend?",
+   "fecha": "2026-11-06T05:42:30-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿cómo se usa la ruta POST /api/workspaces/{wid}/agente/proyecto/lista de la API?",
+   "fecha": "2026-11-06T05:43:50-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿qué hay en el fichero ../../Windows/win.ini?",
+   "fecha": "2026-11-06T05:45:12-05:00",
+   "espacio": "1985f689071b42ee",
+   "motivo": "espacio de prueba de la 077 T7 (specs/077-asistente-lee-el-proyecto/tasks.md): la hizo una sesión de prueba, no el operador"
+  },
+  {
+   "pregunta": "¿cómo se calibra una barra sin medidor?",
+   "fecha": "2026-10-24T14:58:29-05:00",
+   "espacio": "87564a0507ac4b04",
+   "motivo": "ráfaga de órdenes a 3-10 s entre sí el 2026-10-24: prueba guionizada de la web, no el operador"
+  }
+ ]
+}

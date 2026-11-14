@@ -1,0 +1,4094 @@
+{
+ "esquema": "csg-evaluacion-vectores-097-v1",
+ "fecha": "2026-11-13",
+ "spec": "097 T3",
+ "rama": "trabajo/rag-097",
+ "base": "eedaf7d4",
+ "candidatos": [
+  "bge-m3",
+  "jeffh/intfloat-multilingual-e5-large:f16",
+  "nomic-embed-text"
+ ],
+ "reranker": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+ "calibracion": {
+  "047": {
+   "bge-m3": {
+    "fichero": "calibra_047_bge-m3.json",
+    "sha256": "1122fa6c54f98e10da6e93c24f28597d6750bc1d6defd2a21492bea744a9802c",
+    "conjunto_sha256": "c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437",
+    "preguntas": {
+     "con_respuesta": 37,
+     "sin_respuesta": 40
+    },
+    "umbrales": {
+     "reranker": -0.6860083474388122,
+     "bm25_solo": 15.620333457054196,
+     "bm25": 17.54709693404491,
+     "coseno": 0.560827063156128
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.95,
+      "conserva": 1.0
+     },
+     "bm25_solo": {
+      "abstencion": 0.95,
+      "conserva": 0.7027027027027027
+     },
+     "hibrido": {
+      "abstencion": 0.95,
+      "conserva": 1.0
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 69.10090000019409,
+     "latencia_consulta_carga_ms": 6999.886600009631,
+     "memoria_gpu_mib": 657.3
+    }
+   },
+   "jeffh/intfloat-multilingual-e5-large:f16": {
+    "fichero": "calibra_047_jeffh_intfloat-multilingual-e5-large_f16.json",
+    "sha256": "a19122060f64feac396a83f3690fc4f082634f3e3b852c33ee8d635c27b3a290",
+    "conjunto_sha256": "c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437",
+    "preguntas": {
+     "con_respuesta": 37,
+     "sin_respuesta": 40
+    },
+    "umbrales": {
+     "reranker": -0.18411238329315185,
+     "bm25_solo": 15.620333457054196,
+     "bm25": 15.620333457054196,
+     "coseno": 0.8416908250579834
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.95,
+      "conserva": 1.0
+     },
+     "bm25_solo": {
+      "abstencion": 0.95,
+      "conserva": 0.7027027027027027
+     },
+     "hibrido": {
+      "abstencion": 0.95,
+      "conserva": 0.972972972972973
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 79.37899997341447,
+     "latencia_consulta_carga_ms": 64.17560001136735,
+     "memoria_gpu_mib": 595.7
+    }
+   },
+   "nomic-embed-text": {
+    "fichero": "calibra_047_nomic-embed-text.json",
+    "sha256": "8e0e548db442d1eb5f2a482c957ecc13148590db372c6b81eb675a88de98d9c6",
+    "conjunto_sha256": "c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437",
+    "preguntas": {
+     "con_respuesta": 37,
+     "sin_respuesta": 40
+    },
+    "umbrales": {
+     "reranker": -2.2325768007507323,
+     "bm25_solo": 15.620333457054196,
+     "bm25": 17.54709693404491,
+     "coseno": 0.7377851472625733
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.95,
+      "conserva": 1.0
+     },
+     "bm25_solo": {
+      "abstencion": 0.95,
+      "conserva": 0.7027027027027027
+     },
+     "hibrido": {
+      "abstencion": 0.95,
+      "conserva": 0.8108108108108109
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 71.97889999952167,
+     "latencia_consulta_carga_ms": 41.78169998340309,
+     "memoria_gpu_mib": 320.2
+    }
+   }
+  },
+  "077": {
+   "bge-m3": {
+    "fichero": "calibra_077_bge-m3.json",
+    "sha256": "4823c3577657fb4871803fac78bb37863fb22ca508c92ffc2fbe6b8478cfcf8c",
+    "conjunto_sha256": "4093c1c2410b7499f74ff8f4d60c0ce898ba43dcf11ee7fdba035ae70ccecf36",
+    "preguntas": {
+     "con_respuesta": 236,
+     "sin_respuesta": 69
+    },
+    "umbrales": {
+     "reranker": 10.506920860839843,
+     "bm25_solo": 44.71891885213921,
+     "bm25": 45.416721095623046,
+     "coseno": 0.8598736987838745
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.0423728813559322
+     },
+     "bm25_solo": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.01694915254237288
+     },
+     "hibrido": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.0635593220338983
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 82.01439998811111,
+     "latencia_consulta_carga_ms": 2944.434899982298,
+     "memoria_gpu_mib": 657.3
+    }
+   },
+   "jeffh/intfloat-multilingual-e5-large:f16": {
+    "fichero": "calibra_077_jeffh_intfloat-multilingual-e5-large_f16.json",
+    "sha256": "6eaa35fa6a47d3773aaca7573c12cf398203a8a774fe6609f11866e7bf45f49b",
+    "conjunto_sha256": "4093c1c2410b7499f74ff8f4d60c0ce898ba43dcf11ee7fdba035ae70ccecf36",
+    "preguntas": {
+     "con_respuesta": 236,
+     "sin_respuesta": 69
+    },
+    "umbrales": {
+     "reranker": 10.506917999816894,
+     "bm25_solo": 44.71891885213921,
+     "bm25": 50.40088292509567,
+     "coseno": 0.9074500070343018
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.0423728813559322
+     },
+     "bm25_solo": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.01694915254237288
+     },
+     "hibrido": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.059322033898305086
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 80.07740002358332,
+     "latencia_consulta_carga_ms": 5560.870499990415,
+     "memoria_gpu_mib": 595.7
+    }
+   },
+   "nomic-embed-text": {
+    "fichero": "calibra_077_nomic-embed-text.json",
+    "sha256": "4fe769c9bdb53c0bf6fed5f577e99d80437fc5fe614fe112dd37b0eade9f6053",
+    "conjunto_sha256": "4093c1c2410b7499f74ff8f4d60c0ce898ba43dcf11ee7fdba035ae70ccecf36",
+    "preguntas": {
+     "con_respuesta": 236,
+     "sin_respuesta": 69
+    },
+    "umbrales": {
+     "reranker": 10.506917999816894,
+     "bm25_solo": 44.71891885213921,
+     "bm25": 49.300923180077525,
+     "coseno": 0.8806621895561219
+    },
+    "en_calibracion": {
+     "reranker": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.0423728813559322
+     },
+     "bm25_solo": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.01694915254237288
+     },
+     "hibrido": {
+      "abstencion": 0.9565217391304348,
+      "conserva": 0.046610169491525424
+     }
+    },
+    "recursos": {
+     "latencia_consulta_p95_ms": 84.44330000202172,
+     "latencia_consulta_carga_ms": 54.683900001691654,
+     "memoria_gpu_mib": 320.2
+    }
+   }
+  }
+ },
+ "eleccion": {
+  "regla": "Compite el modelo con calibración en el 047 y en el 077. Queda fuera el que otro supera en un corpus con el IC95 % pareado de la diferencia de «conserva» (híbrido, abstención 0,95) por encima de cero sin quedar por debajo en el otro. Entre los que quedan, el de menor p95 de latencia de la consulta si la diferencia pasa del 20 %; si no, el de menor memoria de GPU medida (097:RF-11).",
+  "compiten": [
+   "bge-m3",
+   "jeffh/intfloat-multilingual-e5-large:f16",
+   "nomic-embed-text"
+  ],
+  "fuera": {},
+  "quedan": [
+   "bge-m3",
+   "jeffh/intfloat-multilingual-e5-large:f16",
+   "nomic-embed-text"
+  ],
+  "elegido": "nomic-embed-text",
+  "decide": "memoria de GPU, con la latencia a menos del 20 %",
+  "recursos": {
+   "bge-m3": {
+    "latencia_p95_ms": 82.01439998811111,
+    "memoria_gpu_mib": 657.3
+   },
+   "jeffh/intfloat-multilingual-e5-large:f16": {
+    "latencia_p95_ms": 80.07740002358332,
+    "memoria_gpu_mib": 595.7
+   },
+   "nomic-embed-text": {
+    "latencia_p95_ms": 84.44330000202172,
+    "memoria_gpu_mib": 320.2
+   }
+  },
+  "remuestreos": 2000,
+  "semilla": 0,
+  "objetivo": 0.95,
+  "por_corpus": {
+   "047": {
+    "modelos": {
+     "bge-m3": {
+      "conserva": 1.0,
+      "ic95": [
+       0.9459459459459459,
+       1.0
+      ]
+     },
+     "jeffh/intfloat-multilingual-e5-large:f16": {
+      "conserva": 0.972972972972973,
+      "ic95": [
+       0.918918918918919,
+       1.0
+      ]
+     },
+     "nomic-embed-text": {
+      "conserva": 0.8108108108108109,
+      "ic95": [
+       0.6756756756756757,
+       1.0
+      ]
+     }
+    },
+    "diferencias": {
+     "bge-m3 - jeffh/intfloat-multilingual-e5-large:f16": [
+      -0.027027027027026973,
+      0.08108108108108103
+     ],
+     "bge-m3 - nomic-embed-text": [
+      0.0,
+      0.29729729729729726
+     ],
+     "jeffh/intfloat-multilingual-e5-large:f16 - bge-m3": [
+      -0.08108108108108103,
+      0.027027027027026973
+     ],
+     "jeffh/intfloat-multilingual-e5-large:f16 - nomic-embed-text": [
+      0.0,
+      0.29729729729729726
+     ],
+     "nomic-embed-text - bge-m3": [
+      -0.29729729729729726,
+      0.0
+     ],
+     "nomic-embed-text - jeffh/intfloat-multilingual-e5-large:f16": [
+      -0.29729729729729726,
+      0.0
+     ]
+    },
+    "n_con": 37,
+    "n_sin": 40
+   },
+   "077": {
+    "modelos": {
+     "bge-m3": {
+      "conserva": 0.0635593220338983,
+      "ic95": [
+       0.03389830508474576,
+       0.11864406779661017
+      ]
+     },
+     "jeffh/intfloat-multilingual-e5-large:f16": {
+      "conserva": 0.059322033898305086,
+      "ic95": [
+       0.025423728813559324,
+       0.1483050847457627
+      ]
+     },
+     "nomic-embed-text": {
+      "conserva": 0.046610169491525424,
+      "ic95": [
+       0.012711864406779662,
+       0.15254237288135594
+      ]
+     }
+    },
+    "diferencias": {
+     "bge-m3 - jeffh/intfloat-multilingual-e5-large:f16": [
+      -0.07627118644067796,
+      0.05084745762711865
+     ],
+     "bge-m3 - nomic-embed-text": [
+      -0.0805084745762712,
+      0.0635593220338983
+     ],
+     "jeffh/intfloat-multilingual-e5-large:f16 - bge-m3": [
+      -0.05084745762711865,
+      0.07627118644067796
+     ],
+     "jeffh/intfloat-multilingual-e5-large:f16 - nomic-embed-text": [
+      -0.08474576271186442,
+      0.08050847457627118
+     ],
+     "nomic-embed-text - bge-m3": [
+      -0.0635593220338983,
+      0.0805084745762712
+     ],
+     "nomic-embed-text - jeffh/intfloat-multilingual-e5-large:f16": [
+      -0.08050847457627118,
+      0.08474576271186442
+     ]
+    },
+    "n_con": 236,
+    "n_sin": 69
+   }
+  }
+ },
+ "decision": "Con la regla declarada (097:RF-11) ningún modelo queda fuera: en el 047 bge-m3 − nomic da IC95 % [0,000; 0,297], sin pasar de cero, y en el 077 ninguna diferencia se separa. Decide la memoria de GPU (latencias dentro del 20 %): sigue nomic-embed-text, el modelo en uso (097:RF-6). No hay nada que cambiar en la web.",
+ "sellado_del_elegido": {
+  "047": {
+   "fichero": "sellado_047_nomic-embed-text.json",
+   "sha256": "af24b70b615d08b0272b59cfacb3364cafdaaaa7c4093d0d3f4f479811eaf67d",
+   "conjunto_sha256": "2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231",
+   "preguntas": 79,
+   "con_respuesta": 39,
+   "perdidas_al_medir": 1,
+   "cumple_todos": false,
+   "puerta": {
+    "reranker": {
+     "cumple": true,
+     "motivos": [],
+     "mrr@10": {
+      "status": "OK",
+      "n": 39,
+      "metric": "mrr@10",
+      "mean_difference": 0.0,
+      "ci95_bootstrap": [
+       0.0,
+       0.0
+      ],
+      "p_permutation": 1.0,
+      "rank_biserial": 0.0
+     }
+    },
+    "hibrido": {
+     "cumple": false,
+     "motivos": [
+      "abstención 0.875 bajo 0.9",
+      "Recall@10 baja de 0.940 a 0.812",
+      "mrr@10 peor de forma significativa: IC95 % [-0.10989010989010989, -0.005413105413105413]"
+     ],
+     "mrr@10": {
+      "status": "OK",
+      "n": 39,
+      "metric": "mrr@10",
+      "mean_difference": -0.04753764753764754,
+      "ci95_bootstrap": [
+       -0.10989010989010989,
+       -0.005413105413105413
+      ],
+      "p_permutation": 0.06323419145213696,
+      "rank_biserial": -1.0
+     }
+    },
+    "bm25": {
+     "cumple": false,
+     "motivos": [
+      "Recall@10 baja de 0.889 a 0.632",
+      "mrr@10 peor de forma significativa: IC95 % [-0.31135531135531136, -0.08058608058608059]"
+     ],
+     "mrr@10": {
+      "status": "OK",
+      "n": 39,
+      "metric": "mrr@10",
+      "mean_difference": -0.18742368742368742,
+      "ci95_bootstrap": [
+       -0.31135531135531136,
+       -0.08058608058608059
+      ],
+      "p_permutation": 0.002749312671832042,
+      "rank_biserial": -1.0
+     }
+    }
+   },
+   "metodos": {
+    "reranker": {
+     "abstencion_por_tipo": {
+      "dominio": 0.8,
+      "fuera": 1.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.8598290598290598,
+       "ic95": [
+        0.7487179487179487,
+        0.9538461538461539
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.9316239316239316,
+       "ic95": [
+        0.8547008547008548,
+        1.0
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.9743589743589743,
+       "ic95": [
+        0.9230769230769231,
+        1.0
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.9192307692307693,
+       "ic95": [
+        0.8358974358974359,
+        0.9871794871794872
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.9265423403701186,
+       "ic95": [
+        0.8499948422551455,
+        0.9850105100011115
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.8974358974358975,
+       "ic95": [
+        0.7948717948717948,
+        0.9743589743589743
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 109.63469999842346,
+       "ic95": [
+        100.03190001589246,
+        131.37339998502284
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.9,
+       "ic95": [
+        0.8,
+        0.975
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.6666666666666666,
+        "ic95": [
+         0.3333333333333333,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8922400682359457,
+        "ic95": [
+         0.7844801364718914,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.75,
+        "ic95": [
+         0.45,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8123212623289702,
+        "ic95": [
+         0.5845918855583274,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.9629629629629629,
+        "ic95": [
+         0.8888888888888888,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.9296296296296297,
+        "ic95": [
+         0.8222222222222222,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.9366320306043662,
+        "ic95": [
+         0.8362270241716955,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "reranker_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.8598290598290598,
+       "ic95": [
+        0.7487179487179487,
+        0.9538461538461539
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.9316239316239316,
+       "ic95": [
+        0.8547008547008548,
+        1.0
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.9743589743589743,
+       "ic95": [
+        0.9230769230769231,
+        1.0
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.9192307692307693,
+       "ic95": [
+        0.8358974358974359,
+        0.9871794871794872
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.9265423403701186,
+       "ic95": [
+        0.8499948422551455,
+        0.9850105100011115
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.8974358974358975,
+       "ic95": [
+        0.7948717948717948,
+        0.9743589743589743
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 113.25190000934526,
+       "ic95": [
+        106.61079999408685,
+        118.43949998728931
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.6666666666666666,
+        "ic95": [
+         0.3333333333333333,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8922400682359457,
+        "ic95": [
+         0.7844801364718914,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.75,
+        "ic95": [
+         0.45,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8123212623289702,
+        "ic95": [
+         0.5845918855583274,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.9629629629629629,
+        "ic95": [
+         0.8888888888888888,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.9296296296296297,
+        "ic95": [
+         0.8222222222222222,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.9366320306043662,
+        "ic95": [
+         0.8362270241716955,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "hibrido": {
+     "abstencion_por_tipo": {
+      "dominio": 0.75,
+      "fuera": 1.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.5521367521367522,
+       "ic95": [
+        0.39829059829059826,
+        0.7008547008547008
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.7094017094017094,
+       "ic95": [
+        0.5641025641025641,
+        0.8461538461538461
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.811965811965812,
+       "ic95": [
+        0.6837606837606838,
+        0.9230769230769231
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.6639194139194139,
+       "ic95": [
+        0.5265567765567766,
+        0.7980769230769231
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.6951166647509555,
+       "ic95": [
+        0.5692626060491746,
+        0.8173056616453017
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.5897435897435898,
+       "ic95": [
+        0.4358974358974359,
+        0.7435897435897436
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 35.62040001270361,
+       "ic95": [
+        31.3210999884177,
+        42.05329998512752
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.875,
+       "ic95": [
+        0.775,
+        0.975
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8826803184943108,
+        "ic95": [
+         0.7653606369886217,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.4,
+        "ic95": [
+         0.0,
+         0.8
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.5666666666666667,
+        "ic95": [
+         0.2,
+         0.9
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.6261859507142915,
+        "ic95": [
+         0.3,
+         0.9261859507142916
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.4,
+        "ic95": [
+         0.0,
+         0.8
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.75,
+        "ic95": [
+         0.5,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8154648767857288,
+        "ic95": [
+         0.6309297535714575,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.5925925925925926,
+        "ic95": [
+         0.4074074074074074,
+         0.7777777777777778
+        ]
+       },
+       "recall@5": {
+        "valor": 0.6296296296296297,
+        "ic95": [
+         0.4444444444444444,
+         0.8148148148148148
+        ]
+       },
+       "recall@10": {
+        "valor": 0.7777777777777778,
+        "ic95": [
+         0.6296296296296297,
+         0.9259259259259259
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.6318342151675486,
+        "ic95": [
+         0.4636243386243386,
+         0.8055555555555556
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.6648666676883063,
+        "ic95": [
+         0.49889309794974135,
+         0.8245133150793672
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.5925925925925926,
+        "ic95": [
+         0.4074074074074074,
+         0.7777777777777778
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "hibrido_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.5777777777777778,
+       "ic95": [
+        0.4273504273504274,
+        0.7316239316239317
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.7606837606837608,
+       "ic95": [
+        0.6239316239316239,
+        0.8888888888888888
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.9401709401709402,
+       "ic95": [
+        0.8632478632478632,
+        1.0
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.7114570614570614,
+       "ic95": [
+        0.5775946275946275,
+        0.8304334554334554
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.760613021389075,
+       "ic95": [
+        0.6603113051931068,
+        0.861654987898979
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.6153846153846154,
+       "ic95": [
+        0.46153846153846156,
+        0.7692307692307693
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 34.69629999017343,
+       "ic95": [
+        26.47899999283254,
+        36.381600017193705
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8826803184943108,
+        "ic95": [
+         0.7653606369886217,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.4,
+        "ic95": [
+         0.0,
+         0.8
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.5888888888888889,
+        "ic95": [
+         0.2777777777777778,
+         0.9
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.6863919498470877,
+        "ic95": [
+         0.43298989882697175,
+         0.9261859507142916
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.4,
+        "ic95": [
+         0.0,
+         0.8
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.75,
+        "ic95": [
+         0.5,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8154648767857288,
+        "ic95": [
+         0.6309297535714575,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.6296296296296297,
+        "ic95": [
+         0.4444444444444444,
+         0.8148148148148148
+        ]
+       },
+       "recall@5": {
+        "valor": 0.7037037037037037,
+        "ic95": [
+         0.5185185185185185,
+         0.8518518518518519
+        ]
+       },
+       "recall@10": {
+        "valor": 0.9259259259259259,
+        "ic95": [
+         0.8148148148148148,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.6963844797178131,
+        "ic95": [
+         0.5380952380952381,
+         0.8478835978835979
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.7483232570669242,
+        "ic95": [
+         0.6110665986797008,
+         0.8740814162112345
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.6296296296296297,
+        "ic95": [
+         0.4444444444444444,
+         0.8148148148148148
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "bm25": {
+     "abstencion_por_tipo": {
+      "dominio": 0.9,
+      "fuera": 0.95
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.47521367521367525,
+       "ic95": [
+        0.3264957264957265,
+        0.6205128205128205
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.6324786324786326,
+       "ic95": [
+        0.47863247863247865,
+        0.7777777777777778
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.6324786324786326,
+       "ic95": [
+        0.47863247863247865,
+        0.7863247863247863
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.5585470085470086,
+       "ic95": [
+        0.40683760683760684,
+        0.6982905982905984
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.570005369000281,
+       "ic95": [
+        0.43177729135679155,
+        0.7071638172423295
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.5128205128205128,
+       "ic95": [
+        0.358974358974359,
+        0.6666666666666666
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 18.097399995895103,
+       "ic95": [
+        16.730700008338317,
+        20.711799996206537
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.925,
+       "ic95": [
+        0.825,
+        1.0
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8254102592800545,
+        "ic95": [
+         0.6508205185601091,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.6,
+        "ic95": [
+         0.2,
+         1.0
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 0.25,
+        "ic95": [
+         0.0,
+         0.75
+        ]
+       },
+       "recall@5": {
+        "valor": 0.75,
+        "ic95": [
+         0.25,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.75,
+        "ic95": [
+         0.25,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.4583333333333333,
+        "ic95": [
+         0.125,
+         0.8333333333333334
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.5327324383928644,
+        "ic95": [
+         0.15773243839286438,
+         0.875
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.25,
+        "ic95": [
+         0.0,
+         0.75
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.48148148148148145,
+        "ic95": [
+         0.2962962962962963,
+         0.6666666666666666
+        ]
+       },
+       "recall@5": {
+        "valor": 0.5925925925925926,
+        "ic95": [
+         0.4074074074074074,
+         0.7777777777777778
+        ]
+       },
+       "recall@10": {
+        "valor": 0.5925925925925926,
+        "ic95": [
+         0.4074074074074074,
+         0.7777777777777778
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.5166666666666666,
+        "ic95": [
+         0.34814814814814815,
+         0.7018518518518518
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.5351281155140515,
+        "ic95": [
+         0.34994293032886636,
+         0.7134022039682562
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.48148148148148145,
+        "ic95": [
+         0.2962962962962963,
+         0.6666666666666666
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "bm25_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.05
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.6290598290598292,
+       "ic95": [
+        0.48717948717948717,
+        0.7692307692307693
+       ],
+       "n": 39
+      },
+      "recall@5": {
+       "valor": 0.8632478632478632,
+       "ic95": [
+        0.7435897435897436,
+        0.9658119658119657
+       ],
+       "n": 39
+      },
+      "recall@10": {
+       "valor": 0.8888888888888888,
+       "ic95": [
+        0.7863247863247863,
+        0.9743589743589743
+       ],
+       "n": 39
+      },
+      "mrr@10": {
+       "valor": 0.745970695970696,
+       "ic95": [
+        0.6143467643467643,
+        0.8641025641025641
+       ],
+       "n": 39
+      },
+      "ndcg@10": {
+       "valor": 0.7742172430234807,
+       "ic95": [
+        0.6684481840467724,
+        0.8733745208114064
+       ],
+       "n": 39
+      },
+      "exact_citation@1": {
+       "valor": 0.6666666666666666,
+       "ic95": [
+        0.5128205128205128,
+        0.7948717948717948
+       ],
+       "n": 39
+      },
+      "latencia_p95_ms": {
+       "valor": 16.173899988643825,
+       "ic95": [
+        15.38200001232326,
+        21.4579000021331
+       ],
+       "n": 79
+      },
+      "abstencion": {
+       "valor": 0.025,
+       "ic95": [
+        0.0,
+        0.075
+       ],
+       "n": 40
+      }
+     },
+     "por_tipo": {
+      "codigo": {
+       "n": 1,
+       "recall@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "documento": {
+       "n": 2,
+       "recall@1": {
+        "valor": 0.26666666666666666,
+        "ic95": [
+         0.2,
+         0.3333333333333333
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8333333333333333,
+        "ic95": [
+         0.6666666666666666,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8254102592800545,
+        "ic95": [
+         0.6508205185601091,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       }
+      },
+      "funcion": {
+       "n": 5,
+       "recall@1": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.8,
+        "ic95": [
+         0.4,
+         1.0
+        ]
+       }
+      },
+      "modulo": {
+       "n": 4,
+       "recall@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       },
+       "recall@5": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "recall@10": {
+        "valor": 1.0,
+        "ic95": [
+         1.0,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.7083333333333334,
+        "ic95": [
+         0.41666666666666663,
+         1.0
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.7827324383928644,
+        "ic95": [
+         0.5654648767857288,
+         1.0
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.5,
+        "ic95": [
+         0.0,
+         1.0
+        ]
+       }
+      },
+      "spec": {
+       "n": 27,
+       "recall@1": {
+        "valor": 0.6296296296296297,
+        "ic95": [
+         0.4444444444444444,
+         0.8148148148148148
+        ]
+       },
+       "recall@5": {
+        "valor": 0.8518518518518519,
+        "ic95": [
+         0.7037037037037037,
+         0.9629629629629629
+        ]
+       },
+       "recall@10": {
+        "valor": 0.8888888888888888,
+        "ic95": [
+         0.7777777777777778,
+         1.0
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.7133156966490299,
+        "ic95": [
+         0.5620811287477954,
+         0.8549382716049382
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.7560267483623773,
+        "ic95": [
+         0.6152953852326759,
+         0.872652085616476
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.6296296296296297,
+        "ic95": [
+         0.4444444444444444,
+         0.8148148148148148
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    }
+   }
+  },
+  "077": {
+   "fichero": "sellado_077_nomic-embed-text.json",
+   "sha256": "b7d6a6e300adcb6874914bb87ffac0814a405ae6faea0fcdd1506a25b3b3084e",
+   "conjunto_sha256": "590420002b131dc563290b0202cdb054d04b9d5439a2abab1bc36462cc498935",
+   "preguntas": 127,
+   "con_respuesta": 77,
+   "perdidas_al_medir": 1,
+   "cumple_todos": false,
+   "puerta": {
+    "reranker": {
+     "cumple": false,
+     "motivos": [
+      "Recall@10 baja de 0.526 a 0.039",
+      "mrr@10 peor de forma significativa: IC95 % [-0.4333281797567512, -0.24395485466914038]"
+     ],
+     "mrr@10": {
+      "status": "OK",
+      "n": 77,
+      "metric": "mrr@10",
+      "mean_difference": -0.33522469593898163,
+      "ci95_bootstrap": [
+       -0.4333281797567512,
+       -0.24395485466914038
+      ],
+      "p_permutation": 0.00024993751562109475,
+      "rank_biserial": -1.0
+     }
+    },
+    "hibrido": {
+     "cumple": false,
+     "motivos": [
+      "Recall@10 baja de 0.474 a 0.013",
+      "mrr@10 peor de forma significativa: IC95 % [-0.33334879406307977, -0.1730674087816945]"
+     ],
+     "mrr@10": {
+      "status": "OK",
+      "n": 77,
+      "metric": "mrr@10",
+      "mean_difference": -0.24743351886209028,
+      "ci95_bootstrap": [
+       -0.33334879406307977,
+       -0.1730674087816945
+      ],
+      "p_permutation": 0.00024993751562109475,
+      "rank_biserial": -1.0
+     }
+    },
+    "bm25": {
+     "cumple": false,
+     "motivos": [
+      "Recall@10 baja de 0.365 a 0.013",
+      "mrr@10 peor de forma significativa: IC95 % [-0.26666666666666666, -0.12313955885384456]"
+     ],
+     "mrr@10": {
+      "status": "OK",
+      "n": 77,
+      "metric": "mrr@10",
+      "mean_difference": -0.19155328798185942,
+      "ci95_bootstrap": [
+       -0.26666666666666666,
+       -0.12313955885384456
+      ],
+      "p_permutation": 0.00024993751562109475,
+      "rank_biserial": -1.0
+     }
+    }
+   },
+   "metodos": {
+    "reranker": {
+     "abstencion_por_tipo": {
+      "dominio": 0.96,
+      "fuera": 1.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.03896103896103896
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.03896103896103896,
+       "ic95": [
+        0.0,
+        0.09090909090909091
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.03896103896103896,
+       "ic95": [
+        0.0,
+        0.09090909090909091
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.022727272727272728,
+       "ic95": [
+        0.0,
+        0.05519480519480519
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.02677410794343962,
+       "ic95": [
+        0.0,
+        0.06313445605385436
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.05194805194805195
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 134.89760001539253,
+       "ic95": [
+        129.55170002533123,
+        145.12349999858998
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.98,
+       "ic95": [
+        0.94,
+        1.0
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       },
+       "recall@5": {
+        "valor": 0.03896103896103896,
+        "ic95": [
+         0.0,
+         0.07792207792207792
+        ]
+       },
+       "recall@10": {
+        "valor": 0.03896103896103896,
+        "ic95": [
+         0.0,
+         0.09090909090909091
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.022727272727272728,
+        "ic95": [
+         0.0,
+         0.05844155844155844
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.02677410794343962,
+        "ic95": [
+         0.0,
+         0.06174210879040466
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "reranker_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.2532467532467532,
+       "ic95": [
+        0.16233766233766234,
+        0.35064935064935066
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.43506493506493504,
+       "ic95": [
+        0.3246753246753247,
+        0.5454545454545454
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.525974025974026,
+       "ic95": [
+        0.4155844155844156,
+        0.6233766233766234
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.3579519686662544,
+       "ic95": [
+        0.2667542774685632,
+        0.4519635126777984
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.38530292641322783,
+       "ic95": [
+        0.2984452194866621,
+        0.4792723083508182
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.2727272727272727,
+       "ic95": [
+        0.18181818181818182,
+        0.37662337662337664
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 132.31960000121035,
+       "ic95": [
+        129.56430000485852,
+        135.35629998659715
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.2532467532467532,
+        "ic95": [
+         0.16233766233766234,
+         0.35064935064935066
+        ]
+       },
+       "recall@5": {
+        "valor": 0.43506493506493504,
+        "ic95": [
+         0.33116883116883117,
+         0.5454545454545454
+        ]
+       },
+       "recall@10": {
+        "valor": 0.525974025974026,
+        "ic95": [
+         0.4155844155844156,
+         0.6363636363636364
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.3579519686662544,
+        "ic95": [
+         0.26756854256854257,
+         0.4502164502164502
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.38530292641322783,
+        "ic95": [
+         0.2930846221512418,
+         0.4751288943084489
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.2727272727272727,
+        "ic95": [
+         0.18181818181818182,
+         0.37662337662337664
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "hibrido": {
+     "abstencion_por_tipo": {
+      "dominio": 0.96,
+      "fuera": 1.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.03896103896103896
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.03896103896103896
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.004329004329004329,
+       "ic95": [
+        0.0,
+        0.012987012987012988
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.006493506493506494,
+       "ic95": [
+        0.0,
+        0.01948051948051948
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 76.86530001228675,
+       "ic95": [
+        74.76120002684183,
+        79.1779000137467
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.98,
+       "ic95": [
+        0.94,
+        1.0
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.0,
+        "ic95": [
+         0.0,
+         0.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       },
+       "recall@10": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.004329004329004329,
+        "ic95": [
+         0.0,
+         0.012987012987012988
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.006493506493506494,
+        "ic95": [
+         0.0,
+         0.01948051948051948
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.0,
+        "ic95": [
+         0.0,
+         0.0
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "hibrido_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.15584415584415584,
+       "ic95": [
+        0.07792207792207792,
+        0.23376623376623376
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.35714285714285715,
+       "ic95": [
+        0.2532467532467532,
+        0.4675324675324675
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.474025974025974,
+       "ic95": [
+        0.37012987012987014,
+        0.577922077922078
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.2517625231910946,
+       "ic95": [
+        0.17340754483611628,
+        0.3284786641929499
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.3022521631844723,
+       "ic95": [
+        0.22103174034771694,
+        0.3870631823947651
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.15584415584415584,
+       "ic95": [
+        0.07792207792207792,
+        0.23376623376623376
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 78.63439997890964,
+       "ic95": [
+        73.5080000013113,
+        80.73849999345839
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.15584415584415584,
+        "ic95": [
+         0.07792207792207792,
+         0.24675324675324675
+        ]
+       },
+       "recall@5": {
+        "valor": 0.35714285714285715,
+        "ic95": [
+         0.2532467532467532,
+         0.461038961038961
+        ]
+       },
+       "recall@10": {
+        "valor": 0.474025974025974,
+        "ic95": [
+         0.36363636363636365,
+         0.5844155844155844
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.2517625231910946,
+        "ic95": [
+         0.17181508967223252,
+         0.33545145330859616
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.3022521631844723,
+        "ic95": [
+         0.22300328963545563,
+         0.3875030725059234
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.15584415584415584,
+        "ic95": [
+         0.07792207792207792,
+         0.23376623376623376
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "bm25": {
+     "abstencion_por_tipo": {
+      "dominio": 0.96,
+      "fuera": 1.0
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.03896103896103896
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.012987012987012988,
+       "ic95": [
+        0.0,
+        0.03896103896103896
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.004329004329004329,
+       "ic95": [
+        0.0,
+        0.012987012987012988
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.006493506493506494,
+       "ic95": [
+        0.0,
+        0.01948051948051948
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.0,
+       "ic95": [
+        0.0,
+        0.0
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 59.52050001360476,
+       "ic95": [
+        55.60170000535436,
+        62.90920000174083
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.98,
+       "ic95": [
+        0.94,
+        1.0
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.0,
+        "ic95": [
+         0.0,
+         0.0
+        ]
+       },
+       "recall@5": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       },
+       "recall@10": {
+        "valor": 0.012987012987012988,
+        "ic95": [
+         0.0,
+         0.03896103896103896
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.004329004329004329,
+        "ic95": [
+         0.0,
+         0.012987012987012988
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.006493506493506494,
+        "ic95": [
+         0.0,
+         0.01948051948051948
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.0,
+        "ic95": [
+         0.0,
+         0.0
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    },
+    "bm25_sin_puerta": {
+     "abstencion_por_tipo": {
+      "dominio": 0.0,
+      "fuera": 0.08
+     },
+     "global": {
+      "recall@1": {
+       "valor": 0.09740259740259741,
+       "ic95": [
+        0.03896103896103896,
+        0.16233766233766234
+       ],
+       "n": 77
+      },
+      "recall@5": {
+       "valor": 0.2792207792207792,
+       "ic95": [
+        0.17532467532467533,
+        0.38961038961038963
+       ],
+       "n": 77
+      },
+      "recall@10": {
+       "valor": 0.3652597402597403,
+       "ic95": [
+        0.2597402597402597,
+        0.4675324675324675
+       ],
+       "n": 77
+      },
+      "mrr@10": {
+       "valor": 0.19588229231086374,
+       "ic95": [
+        0.12530406101834674,
+        0.27343846629560914
+       ],
+       "n": 77
+      },
+      "ndcg@10": {
+       "valor": 0.22445260272234882,
+       "ic95": [
+        0.15507840760756883,
+        0.29890345926985873
+       ],
+       "n": 77
+      },
+      "exact_citation@1": {
+       "valor": 0.11688311688311688,
+       "ic95": [
+        0.05194805194805195,
+        0.19480519480519481
+       ],
+       "n": 77
+      },
+      "latencia_p95_ms": {
+       "valor": 51.21739997412078,
+       "ic95": [
+        48.154400021303445,
+        55.263099988223985
+       ],
+       "n": 127
+      },
+      "abstencion": {
+       "valor": 0.04,
+       "ic95": [
+        0.0,
+        0.1
+       ],
+       "n": 50
+      }
+     },
+     "por_tipo": {
+      "entregable": {
+       "n": 77,
+       "recall@1": {
+        "valor": 0.09740259740259741,
+        "ic95": [
+         0.03896103896103896,
+         0.16883116883116883
+        ]
+       },
+       "recall@5": {
+        "valor": 0.2792207792207792,
+        "ic95": [
+         0.18181818181818182,
+         0.37662337662337664
+        ]
+       },
+       "recall@10": {
+        "valor": 0.3652597402597403,
+        "ic95": [
+         0.26136363636363635,
+         0.46915584415584416
+        ]
+       },
+       "mrr@10": {
+        "valor": 0.19588229231086374,
+        "ic95": [
+         0.12477324263038549,
+         0.2720676149247578
+        ]
+       },
+       "ndcg@10": {
+        "valor": 0.22445260272234882,
+        "ic95": [
+         0.1574294889792531,
+         0.29713185018802457
+        ]
+       },
+       "exact_citation@1": {
+        "valor": 0.11688311688311688,
+        "ic95": [
+         0.05194805194805195,
+         0.19480519480519481
+        ]
+       }
+      }
+     },
+     "remuestreos": 2000
+    }
+   }
+  }
+ },
+ "recuperacion_047_sin_abstencion": {
+  "fichero": "recuperacion_047_nomic-embed-text.json",
+  "conjunto_sha256": "88245a0755bac8813968dee64a03a22778168d8a6aec9d21e813f73a0ff5c36a",
+  "preguntas": 74,
+  "con_respuesta": 64,
+  "perdidas_al_medir": 2,
+  "metodos": {
+   "bm25": {
+    "global": {
+     "recall@1": {
+      "valor": 0.4276041666666667,
+      "ic95": [
+       0.3125,
+       0.546875
+      ],
+      "n": 64
+     },
+     "recall@5": {
+      "valor": 0.6177083333333333,
+      "ic95": [
+       0.5020833333333333,
+       0.734375
+      ],
+      "n": 64
+     },
+     "recall@10": {
+      "valor": 0.6984375,
+      "ic95": [
+       0.5859375,
+       0.8125
+      ],
+      "n": 64
+     },
+     "mrr@10": {
+      "valor": 0.5375372023809524,
+      "ic95": [
+       0.42801339285714285,
+       0.643266369047619
+      ],
+      "n": 64
+     },
+     "ndcg@10": {
+      "valor": 0.5638797273325101,
+      "ic95": [
+       0.4627089040343446,
+       0.6680409635516252
+      ],
+      "n": 64
+     },
+     "exact_citation@1": {
+      "valor": 0.453125,
+      "ic95": [
+       0.328125,
+       0.578125
+      ],
+      "n": 64
+     },
+     "latencia_p95_ms": {
+      "valor": 20.127900002989918,
+      "ic95": [
+       17.32310000807047,
+       21.799900016048923
+      ],
+      "n": 74
+     },
+     "abstencion": {
+      "valor": 0.3,
+      "ic95": [
+       0.1,
+       0.6
+      ],
+      "n": 10
+     }
+    },
+    "por_tipo": {
+     "codigo": {
+      "n": 6,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "documento": {
+      "n": 3,
+      "recall@1": {
+       "valor": 0.12222222222222223,
+       "ic95": [
+        0.0,
+        0.20000000000000004
+       ]
+      },
+      "recall@5": {
+       "valor": 0.17777777777777778,
+       "ic95": [
+        0.0,
+        0.3333333333333333
+       ]
+      },
+      "recall@10": {
+       "valor": 0.2333333333333333,
+       "ic95": [
+        0.0,
+        0.5
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.6666666666666666,
+       "ic95": [
+        0.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.3111836520392118,
+       "ic95": [
+        0.0,
+        0.5943907508440193
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.6666666666666666,
+       "ic95": [
+        0.0,
+        1.0
+       ]
+      }
+     },
+     "funcion": {
+      "n": 11,
+      "recall@1": {
+       "valor": 0.45454545454545453,
+       "ic95": [
+        0.18181818181818182,
+        0.7272727272727273
+       ]
+      },
+      "recall@5": {
+       "valor": 0.5454545454545454,
+       "ic95": [
+        0.2727272727272727,
+        0.8181818181818182
+       ]
+      },
+      "recall@10": {
+       "valor": 0.5454545454545454,
+       "ic95": [
+        0.2727272727272727,
+        0.8181818181818182
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.4848484848484848,
+       "ic95": [
+        0.2121212121212121,
+        0.7575757575757577
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.5,
+       "ic95": [
+        0.22727272727272727,
+        0.7727272727272727
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.45454545454545453,
+       "ic95": [
+        0.18181818181818182,
+        0.7272727272727273
+       ]
+      }
+     },
+     "inventario": {
+      "n": 3,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "modulo": {
+      "n": 9,
+      "recall@1": {
+       "valor": 0.1111111111111111,
+       "ic95": [
+        0.0,
+        0.3333333333333333
+       ]
+      },
+      "recall@5": {
+       "valor": 0.2222222222222222,
+       "ic95": [
+        0.0,
+        0.5555555555555556
+       ]
+      },
+      "recall@10": {
+       "valor": 0.5555555555555556,
+       "ic95": [
+        0.2222222222222222,
+        0.8888888888888888
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.17142857142857143,
+       "ic95": [
+        0.03333333333333334,
+        0.39841269841269844
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.25536842146707234,
+       "ic95": [
+        0.09635494210596263,
+        0.48148148148148145
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.1111111111111111,
+       "ic95": [
+        0.0,
+        0.3333333333333333
+       ]
+      }
+     },
+     "spec": {
+      "n": 32,
+      "recall@1": {
+       "valor": 0.375,
+       "ic95": [
+        0.1875,
+        0.53125
+       ]
+      },
+      "recall@5": {
+       "valor": 0.6875,
+       "ic95": [
+        0.53125,
+        0.84375
+       ]
+      },
+      "recall@10": {
+       "valor": 0.75,
+       "ic95": [
+        0.59375,
+        0.90625
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.5164434523809524,
+       "ic95": [
+        0.3820684523809524,
+        0.665625
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.5736386187487299,
+       "ic95": [
+        0.435580987635432,
+        0.7142999977844212
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.375,
+       "ic95": [
+        0.21875,
+        0.53125
+       ]
+      }
+     }
+    },
+    "remuestreos": 2000
+   },
+   "hibrido": {
+    "global": {
+     "recall@1": {
+      "valor": 0.3807291666666667,
+      "ic95": [
+       0.26145833333333335,
+       0.5005208333333333
+      ],
+      "n": 64
+     },
+     "recall@5": {
+      "valor": 0.6515625,
+      "ic95": [
+       0.534375,
+       0.7578125
+      ],
+      "n": 64
+     },
+     "recall@10": {
+      "valor": 0.7661458333333333,
+      "ic95": [
+       0.6598958333333333,
+       0.859375
+      ],
+      "n": 64
+     },
+     "mrr@10": {
+      "valor": 0.5275111607142857,
+      "ic95": [
+       0.42152157738095236,
+       0.623828125
+      ],
+      "n": 64
+     },
+     "ndcg@10": {
+      "valor": 0.5750234298021074,
+      "ic95": [
+       0.47853603533867844,
+       0.6687266244149987
+      ],
+      "n": 64
+     },
+     "exact_citation@1": {
+      "valor": 0.40625,
+      "ic95": [
+       0.28125,
+       0.53125
+      ],
+      "n": 64
+     },
+     "latencia_p95_ms": {
+      "valor": 32.24410000257194,
+      "ic95": [
+       25.366999994730577,
+       32.89450000738725
+      ],
+      "n": 74
+     },
+     "abstencion": {
+      "valor": 0.0,
+      "ic95": [
+       0.0,
+       0.0
+      ],
+      "n": 10
+     }
+    },
+    "por_tipo": {
+     "codigo": {
+      "n": 6,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "documento": {
+      "n": 3,
+      "recall@1": {
+       "valor": 0.12222222222222223,
+       "ic95": [
+        0.0,
+        0.20000000000000004
+       ]
+      },
+      "recall@5": {
+       "valor": 0.2333333333333333,
+       "ic95": [
+        0.0,
+        0.5
+       ]
+      },
+      "recall@10": {
+       "valor": 0.6777777777777777,
+       "ic95": [
+        0.20000000000000004,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.7222222222222222,
+       "ic95": [
+        0.16666666666666666,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.5007603898176962,
+       "ic95": [
+        0.3391602052736162,
+        0.8069137770714502
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.6666666666666666,
+       "ic95": [
+        0.0,
+        1.0
+       ]
+      }
+     },
+     "funcion": {
+      "n": 11,
+      "recall@1": {
+       "valor": 0.2727272727272727,
+       "ic95": [
+        0.0,
+        0.5454545454545454
+       ]
+      },
+      "recall@5": {
+       "valor": 0.6363636363636364,
+       "ic95": [
+        0.36363636363636365,
+        0.9090909090909091
+       ]
+      },
+      "recall@10": {
+       "valor": 0.7272727272727273,
+       "ic95": [
+        0.45454545454545453,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.42121212121212126,
+       "ic95": [
+        0.19393939393939394,
+        0.6545454545454545
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.4943433764268495,
+       "ic95": [
+        0.2784336764351792,
+        0.7143428836895173
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.2727272727272727,
+       "ic95": [
+        0.09090909090909091,
+        0.5454545454545454
+       ]
+      }
+     },
+     "inventario": {
+      "n": 3,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "modulo": {
+      "n": 9,
+      "recall@1": {
+       "valor": 0.1111111111111111,
+       "ic95": [
+        0.0,
+        0.3333333333333333
+       ]
+      },
+      "recall@5": {
+       "valor": 0.4444444444444444,
+       "ic95": [
+        0.1111111111111111,
+        0.7777777777777778
+       ]
+      },
+      "recall@10": {
+       "valor": 0.6666666666666666,
+       "ic95": [
+        0.3333333333333333,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.25092592592592594,
+       "ic95": [
+        0.07500000000000001,
+        0.4731481481481482
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.3469235848788462,
+       "ic95": [
+        0.14616276408730322,
+        0.5691458071010684
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.1111111111111111,
+       "ic95": [
+        0.0,
+        0.3333333333333333
+       ]
+      }
+     },
+     "spec": {
+      "n": 32,
+      "recall@1": {
+       "valor": 0.34375,
+       "ic95": [
+        0.1875,
+        0.5
+       ]
+      },
+      "recall@5": {
+       "valor": 0.65625,
+       "ic95": [
+        0.5,
+        0.8125
+       ]
+      },
+      "recall@10": {
+       "valor": 0.75,
+       "ic95": [
+        0.59375,
+        0.875
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.49069940476190477,
+       "ic95": [
+        0.3552827380952381,
+        0.6294642857142857
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.5543477791649009,
+       "ic95": [
+        0.42342463790110846,
+        0.6871244406622069
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.34375,
+       "ic95": [
+        0.1875,
+        0.5
+       ]
+      }
+     }
+    },
+    "remuestreos": 2000
+   },
+   "reranker:cross-encoder/mmarco-mMiniLMv2-L12-H384-v1": {
+    "global": {
+     "recall@1": {
+      "valor": 0.6463541666666667,
+      "ic95": [
+       0.5322916666666667,
+       0.7557291666666667
+      ],
+      "n": 64
+     },
+     "recall@5": {
+      "valor": 0.8208333333333333,
+      "ic95": [
+       0.721875,
+       0.90625
+      ],
+      "n": 64
+     },
+     "recall@10": {
+      "valor": 0.8703125,
+      "ic95": [
+       0.784375,
+       0.9453125
+      ],
+      "n": 64
+     },
+     "mrr@10": {
+      "valor": 0.7455915178571428,
+      "ic95": [
+       0.6453869047619047,
+       0.8385416666666666
+      ],
+      "n": 64
+     },
+     "ndcg@10": {
+      "valor": 0.7642302263517179,
+      "ic95": [
+       0.676325158283837,
+       0.8421530415303352
+      ],
+      "n": 64
+     },
+     "exact_citation@1": {
+      "valor": 0.671875,
+      "ic95": [
+       0.5625,
+       0.78125
+      ],
+      "n": 64
+     },
+     "latencia_p95_ms": {
+      "valor": 96.47530000074767,
+      "ic95": [
+       94.63779997895472,
+       101.99550000834279
+      ],
+      "n": 74
+     },
+     "abstencion": {
+      "valor": 0.0,
+      "ic95": [
+       0.0,
+       0.0
+      ],
+      "n": 10
+     }
+    },
+    "por_tipo": {
+     "codigo": {
+      "n": 6,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "documento": {
+      "n": 3,
+      "recall@1": {
+       "valor": 0.45555555555555555,
+       "ic95": [
+        0.16666666666666666,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 0.5111111111111111,
+       "ic95": [
+        0.20000000000000004,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 0.5666666666666667,
+       "ic95": [
+        0.20000000000000004,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.6445169853725451,
+       "ic95": [
+        0.3391602052736162,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "funcion": {
+      "n": 11,
+      "recall@1": {
+       "valor": 0.5454545454545454,
+       "ic95": [
+        0.2727272727272727,
+        0.8181818181818182
+       ]
+      },
+      "recall@5": {
+       "valor": 0.6363636363636364,
+       "ic95": [
+        0.36363636363636365,
+        0.9090909090909091
+       ]
+      },
+      "recall@10": {
+       "valor": 0.7272727272727273,
+       "ic95": [
+        0.45454545454545453,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.6022727272727273,
+       "ic95": [
+        0.3181818181818182,
+        0.8636363636363636
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.6314904209415624,
+       "ic95": [
+        0.3587631482142897,
+        0.8755390685064962
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.5454545454545454,
+       "ic95": [
+        0.2727272727272727,
+        0.8181818181818182
+       ]
+      }
+     },
+     "inventario": {
+      "n": 3,
+      "recall@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@5": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "ndcg@10": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 1.0,
+       "ic95": [
+        1.0,
+        1.0
+       ]
+      }
+     },
+     "modulo": {
+      "n": 9,
+      "recall@1": {
+       "valor": 0.4444444444444444,
+       "ic95": [
+        0.1111111111111111,
+        0.7777777777777778
+       ]
+      },
+      "recall@5": {
+       "valor": 0.7777777777777778,
+       "ic95": [
+        0.4444444444444444,
+        1.0
+       ]
+      },
+      "recall@10": {
+       "valor": 0.8888888888888888,
+       "ic95": [
+        0.6666666666666666,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.5751322751322752,
+       "ic95": [
+        0.3132275132275132,
+        0.8306878306878307
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.6501239882377036,
+       "ic95": [
+        0.42592592592592593,
+        0.8769765845238191
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.4444444444444444,
+       "ic95": [
+        0.1111111111111111,
+        0.7777777777777778
+       ]
+      }
+     },
+     "spec": {
+      "n": 32,
+      "recall@1": {
+       "valor": 0.65625,
+       "ic95": [
+        0.5,
+        0.8125
+       ]
+      },
+      "recall@5": {
+       "valor": 0.875,
+       "ic95": [
+        0.75,
+        0.96875
+       ]
+      },
+      "recall@10": {
+       "valor": 0.90625,
+       "ic95": [
+        0.78125,
+        1.0
+       ]
+      },
+      "mrr@10": {
+       "valor": 0.7473958333333334,
+       "ic95": [
+        0.6197916666666666,
+        0.875
+       ]
+      },
+      "ndcg@10": {
+       "valor": 0.7868647814342433,
+       "ic95": [
+        0.6648131464331529,
+        0.8944753944778031
+       ]
+      },
+      "exact_citation@1": {
+       "valor": 0.65625,
+       "ic95": [
+        0.5,
+        0.8125
+       ]
+      }
+     }
+    },
+    "remuestreos": 2000
+   }
+  }
+ },
+ "operador_aparte": {
+  "conjunto": "docs/RAG_PREGUNTAS_OPERADOR_097.json",
+  "conjunto_sha256": "5cc3d1074bcfe737f64ca723e10f4913da4bcd613a28a36bb5600d21eeae3fc9",
+  "preguntas": 2,
+  "apartadas": 7,
+  "por_corpus": {
+   "047": {
+    "reranker": {
+     "abstencion": 0.5
+    },
+    "hibrido": {
+     "abstencion": 1.0
+    },
+    "bm25": {
+     "abstencion": 1.0
+    }
+   },
+   "077": {
+    "reranker": {
+     "abstencion": 1.0
+    },
+    "hibrido": {
+     "abstencion": 1.0
+    },
+    "bm25": {
+     "abstencion": 1.0
+    }
+   }
+  }
+ },
+ "notas": [
+  "El 077 no se puede servir con ningún candidato: con abstención 0,95 la calibración conserva 0,042 con el reranker y de 0,047 a 0,064 con el híbrido, y el sellado no pasa la puerta (Recall@10 0,526 → 0,039). RF-7 no se cumple.",
+  "La puerta en uso del 047 (reranker) pasa con nomic en el sellado: Recall@10 0,974 con y sin umbrales.",
+  "Anclas: el 047 pierde 1 de 80 (sellado) y 2 de 76 (recuperación), el 077 1 de 128, tras seguir los ficheros movidos de carpeta (097:RF-18); sin ello el 077 perdía 34 de 308 y no se medía.",
+  "Las preguntas del operador se miden aparte y no se suman (097:RF-17): solo 2 reales y ninguna pide una cita."
+ ],
+ "salidas": "D:/csg/rag_097_20261113 (espejo en G:/Mi unidad/ConverterSmartGrid/entrenamientos/097_rag/20261113_T3)"
+}

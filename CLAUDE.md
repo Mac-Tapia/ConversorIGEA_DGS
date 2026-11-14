@@ -124,7 +124,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | cumplida |  |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
   | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | cumplida |  |
-  | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T3 |
+  | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T5 |
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
@@ -180,6 +180,10 @@ Las pruebas nativas de las T4 (044, 045, 048, 049) no conectan con DIgSILENT des
 
 La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON`, un intérprete aparte con `requirements-mcp.txt`: el paquete es
 opcional y no se instala en `.venv`. Sin ella, esa prueba se omite y la suite no se da por buena.
+
+La comprobación de que el intérprete no entrena con lo que lo examina (097:RF-21) pide `CSG_ASISTENTE_REAL`, la carpeta del
+asistente con sus órdenes (`ejemplos.jsonl`, `ordenes_maestro.jsonl`, `maestro_real/`; en esta máquina
+`D:/converter/ConversorIGEA_DGS/output/web/_asistente`). La prueba la copia a una temporal y nunca escribe en ella.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:

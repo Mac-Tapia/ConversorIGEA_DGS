@@ -169,3 +169,58 @@ def test_clasificador_da_los_origenes_de_sus_informes(tmp_path, monkeypatch):
     # 026:RF-33: qué informe va a prueba lo decide la huella de su grupo, no su posición; los orígenes se cuentan aparte.
     total = {o: origenes['entrenamiento'].get(o, 0) + origenes['prueba'].get(o, 0) for o in ('corregido', 'maestro')}
     assert total == {'corregido': 3, 'maestro': 2} and sum(origenes['prueba'].values()) == 1
+
+
+# --- 097:RF-21, RF-22: ninguna orden que examina al intérprete en su entrenamiento ---------------------------------
+
+def test_097_las_fugas_del_interprete_se_cuentan_sin_textos():
+    """097:RF-21 — una orden de entrenamiento con el texto de una de prueba (con otra mayúscula o tilde) o de una humana
+    cuenta; la salida son números, nunca los textos del operador."""
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    filas = [{'texto': 'Calibra el alimentador QX511', 'particion': 'entrenamiento'},
+             {'texto': 'calibra el alimentador qx511', 'particion': 'prueba', 'conjunto': om.CONJUNTO},
+             {'texto': 'importa los txt', 'particion': 'calibracion'},
+             {'texto': 'muéstrame el estado', 'particion': 'entrenamiento'}]
+    cuenta = fe.fugas_del_interprete(filas, {'humanas': ['muestrame el estado', ''], 'reservados': ['hola']})
+    assert cuenta == {'calibracion': 0, om.CONJUNTO: 1, 'humanas': 1, 'reservados': 0}
+    assert all(isinstance(v, int) for v in cuenta.values())
+
+
+def _almacen_real():
+    import os
+    from pathlib import Path
+
+    ruta = os.environ.get('CSG_ASISTENTE_REAL', '').strip()
+    return Path(ruta) if ruta and (Path(ruta) / 'ejemplos.jsonl').is_file() else None
+
+
+@pytest.mark.skipif(_almacen_real() is None, reason='Defina CSG_ASISTENTE_REAL con la carpeta del asistente (ejemplos.jsonl)')
+def test_097_el_interprete_no_entrena_con_lo_que_lo_examina(tmp_path, monkeypatch):
+    """097:RF-21, 097:RF-22 — con el almacén real (órdenes humanas, del maestro, etiquetas y mensajes reservados), el corpus
+    del intérprete no entrena con ninguna orden de selección, calibración, prueba, examen del maestro, humana, reservada ni
+    de las pruebas selladas 070 y 079. Se copia el almacén: la prueba nunca escribe en el de la web."""
+    import shutil
+
+    from convertersmartgrid.asistente import almacen, prueba_sellada, prueba_sellada_079
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
+
+    origen = _almacen_real()
+    for nombre in ('ejemplos.jsonl', 'ordenes_maestro.jsonl', 'vocabulario.json'):
+        if (origen / nombre).is_file():
+            shutil.copy2(origen / nombre, tmp_path / nombre)
+    if (origen / 'maestro_real').is_dir():
+        shutil.copytree(origen / 'maestro_real', tmp_path / 'maestro_real', ignore=shutil.ignore_patterns('*.xlsx', '*.antes_*'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    humanas = almacen.leer('ejemplos')
+    ninguna, reservados = leer_ninguna(almacen.raiz())
+    filas, _ = di.preparar_corpus(almacen.leer_json('vocabulario') or {}, humanas,
+                                  etiquetas_reales=leer_etiquetas(almacen.raiz())[0], ninguna=ninguna,
+                                  ninguna_reservada=reservados, ordenes_maestro=om.leer(almacen.raiz())[0])
+    cuenta = fe.fugas_del_interprete(filas, {
+        'humanas': [str(h.get('texto') or '') for h in humanas], 'ninguna_reservada': reservados,
+        'sellada_070': [r['texto'] for r in prueba_sellada.selladas()],
+        'sellada_079': [r['texto'] for r in prueba_sellada_079.selladas()]})
+    assert humanas and {'prueba', 'calibracion', 'seleccion'} <= {r['particion'] for r in filas}
+    assert not any(cuenta.values()), cuenta

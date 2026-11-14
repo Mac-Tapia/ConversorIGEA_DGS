@@ -19,7 +19,7 @@ from convertersmartgrid.asistente.equipo import LecturaGobernada
 RAIZ = Path(__file__).resolve().parents[1]
 AMPLIADO = indice.CORPUS_AMPLIADO
 #: Huellas fijadas al formar los conjuntos, antes de medir nada (077:RF-45).
-HUELLA_CALIBRACION = '8bea0b0632eae2945aca8e1dc732230e3dfd3735c4b735ed710fda22daafce80'
+HUELLA_CALIBRACION = 'f9a8dbce534a4a3e2f95dd5cc7154bdb5a9ac01b75f6390412cbac4629244aa4'
 HUELLA_SELLADO = '590420002b131dc563290b0202cdb054d04b9d5439a2abab1bc36462cc498935'
 TABLA_LARGA = '\n'.join(f'| fila{i} | dato{i} con unas cuantas palabras de relleno para que pese |' for i in range(80))
 
@@ -420,7 +420,8 @@ def test_conjuntos_nuevos_sin_preguntas_de_la_047():
 
 
 def test_conjuntos_nuevos_de_cada_reparto():
-    """077:RF-44 — la calibración sale de `corpus`, lo sellado de `sellado`, y lo ajeno es distinto en cada uno."""
+    """077:RF-44, 097:RF-19 — la calibración sale de `corpus` (sin lo que el corpus ya lleva), lo sellado de `sellado`, y
+    lo ajeno es distinto en cada uno."""
     filas = [json.loads(x) for x in (RAIZ / 'docs/asistente/preguntas_entregables.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
     reparto = {f['id']: f['reparto'] for f in filas}
     calibracion, sellado = _conjunto(reranker.CONJUNTO_CALIBRACION_077), _conjunto(reranker.CONJUNTO_SELLADO_077)
@@ -429,9 +430,14 @@ def test_conjuntos_nuevos_de_cada_reparto():
     assert not {p['pregunta'] for p in calibracion['preguntas']} & {p['pregunta'] for p in sellado['preguntas']}
     fuera = _conjunto(RAIZ / 'docs/CONJUNTO_FUERA_077.json')
     assert not set(fuera['calibracion']) & set(fuera['sellado'])
-    for c in (calibracion, sellado):
-        assert {p['tipo'] for p in c['preguntas']} == {'entregable', 'dominio', 'fuera'}
+    assert {p['tipo'] for p in sellado['preguntas']} == {'entregable', 'dominio', 'fuera'}
+    assert {'entregable', 'fuera'} <= {p['tipo'] for p in calibracion['preguntas']} <= {'entregable', 'dominio', 'fuera'}
     assert str(calibracion['procedencia']).startswith('sintetico')
+    # 097:RF-19: en la calibración, una sin respuesta solo si el maestro confirmó que el repositorio no la tiene; las
+    # confirmadas del reparto `corpus` están todas en el documento del maestro (076:RF-29), así que hoy no queda ninguna
+    # «dominio» en ella y lo sin respuesta es lo ajeno.
+    veredicto = {f['id']: (f.get('revision') or {}).get('veredicto') for f in filas}
+    assert {veredicto[p['id']] for p in calibracion['preguntas'] if p.get('sin_respuesta') and 'id' in p} <= {'correcta'}
 
 
 def test_huellas_de_los_conjuntos():
@@ -546,3 +552,114 @@ def test_recuperacion_sin_abrir_lo_sellado(monkeypatch):
     funcion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == '_recuperacion')
     cuerpo = ast.get_source_segment(fuente, funcion)
     assert "f['reparto'] == 'corpus'" in cuerpo and 'sellado' not in cuerpo.replace('sin abrir', '')
+
+
+# --- 097: la calibración y el sellado salen de preguntas que no están en el corpus, y las anclas del frontend movido ---
+
+def _fila(id_, pregunta, *, grupo=None, sin=False, veredicto='correcta', ancla='Ancla de la guía'):
+    return {'id': id_, 'grupo_parafrasis': grupo or id_, 'pregunta': pregunta, 'reparto': 'corpus',
+            'tipo': 'sin_respuesta' if sin else 'con_respuesta', 'revision': {'veredicto': veredicto},
+            'fuentes': [] if sin else [{'fichero': 'docs/GUIA.md', 'ancla': ancla}]}
+
+
+@pytest.mark.parametrize('semilla', [5, 41, 2026])
+def test_097_la_calibracion_sale_de_preguntas_que_no_estan_en_el_corpus(semilla):
+    """097:RF-19 — sorteado: la fila cuya pregunta copia otro fichero del corpus sale, y con ella su paráfrasis; también la
+    corta (por debajo de las seis palabras de RF-20); la que solo está en su propia fuente se queda; una sin respuesta solo
+    entra si el maestro confirmó que no la tiene; lo ajeno copiado sale. El fichero que copia sigue en el corpus.
+    Caso real: `docs/PREGUNTAS_MAESTRO_076.md` copia las marcadas correctas del reparto `corpus` (076:RF-29)."""
+    import random
+    from types import SimpleNamespace
+
+    rnd = random.Random(semilla)
+    vocab = ['barra', 'tensión', 'banco', 'cabecera', 'alimentador', 'calibración', 'demanda', 'carga', 'obra', 'fase']
+
+    def frase(n):
+        return ' '.join(rnd.choice(vocab) for _ in range(n)) + f' {rnd.randrange(10**6)}'
+
+    copiada, parafrasis, libre, en_su_fuente, corta = frase(8), frase(9), frase(7), frase(8), 'q 4'
+    sin_ok, sin_mal, fuera_copiada, fuera_libre = frase(6), frase(6), frase(7), frase(7)
+    filas = [_fila('a', copiada, grupo='g'), _fila('a2', parafrasis, grupo='g'), _fila('b', libre),
+             _fila('c', en_su_fuente), _fila('d', corta), _fila('e', sin_ok, sin=True),
+             _fila('f', sin_mal, sin=True, veredicto='incorrecta'), {**_fila('z', frase(8)), 'reparto': 'sellado'}]
+    copia = '\n'.join(f'Pregunta: ¿{q.upper()}?' for q in (copiada, corta, fuera_copiada))
+    frags = [SimpleNamespace(fuente='docs/GUIA.md:1', texto=f'Ancla de la guía. {en_su_fuente}.'),
+             SimpleNamespace(fuente='docs/COPIA.md:1', texto=copia)]
+    c = evaluacion_rag.conjunto_de_entregables(filas, 'corpus', frags, [fuera_copiada, fuera_libre], sin_las_del_corpus=True)
+    assert [(p.get('id'), p['tipo']) for p in c['preguntas']] == [('b', 'entregable'), ('c', 'entregable'), ('e', 'dominio'),
+                                                                  (None, 'fuera')]
+    assert c['preguntas'][-1]['pregunta'] == fuera_libre
+    assert (c['excluidas_en_el_corpus'], c['excluidas_sin_respuesta_sin_confirmar']) == (4, 1)
+    assert 'RF-19' in c['origen_de_las_preguntas'] and c['procedencia'].startswith('sintetico')
+    # Sin la opción, el conjunto es el de 077:RF-44 de antes: con lo que el corpus ya lleva.
+    viejo = evaluacion_rag.conjunto_de_entregables(filas, 'corpus', frags, [fuera_copiada, fuera_libre])
+    assert {'a', 'a2', 'd', 'f'} <= {p.get('id') for p in viejo['preguntas']}
+
+
+@pytest.fixture(scope='module')
+def frags_077_reales(tmp_path_factory):
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv('CSG_ASISTENTE_DATA', str(tmp_path_factory.mktemp('asistente')))
+        yield indice.fragmentos(RAIZ, AMPLIADO)
+
+
+def test_097_la_calibracion_del_077_no_esta_en_su_corpus(frags_077_reales):
+    """097:RF-19 — con el documento del maestro dentro del 077 (076:RF-29), ninguna pregunta de la calibración, de ninguna
+    longitud, está literal en el corpus fuera de su fuente; el fichero dice de dónde salen y por qué no están indexadas, y
+    conserva preguntas con y sin respuesta para calibrar."""
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    textos = fe.textos_por_fichero(frags_077_reales)
+    assert 'docs/PREGUNTAS_MAESTRO_076.md' in textos
+    conjunto = _conjunto(reranker.CONJUNTO_CALIBRACION_077)
+    preguntas = fe.preguntas_de(RAIZ, reranker.CONJUNTO_CALIBRACION_077.relative_to(RAIZ).as_posix())
+    r = fe.fugas(textos, preguntas, min_palabras=1)
+    assert r['comprobadas'] == len(conjunto['preguntas']) and not r['fugas'], r['fugas'][:5]
+    assert '076:RF-30' in conjunto['origen_de_las_preguntas'] and conjunto['excluidas_en_el_corpus'] > 0
+    con = sum(not p.get('sin_respuesta') for p in conjunto['preguntas'])
+    assert con >= 30 and len(conjunto['preguntas']) - con >= 20
+
+
+@pytest.mark.parametrize('semilla', [3, 17, 2026])
+def test_097_el_detector_ve_la_copia_y_respeta_la_fuente(semilla):
+    """097:RF-20 — sorteado: una pregunta copiada con otras mayúsculas, tildes y signos se ve; en su propia fuente (también
+    movida de carpeta, 097:RF-18) no cuenta; una de menos de seis palabras no se comprueba y se cuenta."""
+    import random
+
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    rnd = random.Random(semilla)
+    vocab = ['barra', 'tensión', 'banco', 'cabecera', 'alimentador', 'calibración', 'demanda', 'carga', 'obra', 'fase']
+
+    def frase(n):
+        return ' '.join(rnd.choice(vocab) for _ in range(n))
+
+    copiada, en_fuente, movida, corta = frase(7), frase(8), frase(9), 'carga los txt'
+    preguntas = [fe.Pregunta('c', '¿' + copiada.capitalize() + '?'), fe.Pregunta('c', en_fuente, frozenset({'specs/a/spec.md'})),
+                 fe.Pregunta('c', movida, frozenset({'frontend/src/components/X.tsx'})), fe.Pregunta('c', corta)]
+    textos = {'docs/COPIA.md': f'{frase(30)}\nPregunta: {copiada.upper().replace("O", "Ó")}.\n{frase(30)} carga los txt',
+              'specs/a/spec.md': f'{frase(5)} {en_fuente} {frase(5)}', 'frontend/src/features/y/X.tsx': f'// {movida}'}
+    r = fe.fugas(textos, preguntas)
+    assert r['fugas'] == [{'conjunto': 'c', 'pregunta': '¿' + copiada.capitalize() + '?', 'fichero': 'docs/COPIA.md'}]
+    assert r['cortas_sin_comprobar'] == 1 and r['comprobadas'] == 3
+
+
+@pytest.mark.parametrize('nombre', ['CALIBRACION', 'SELLADO'])
+def test_097_los_conjuntos_del_077_se_miden_con_el_frontend_movido(frags_077_reales, nombre):
+    """097:RF-18, 077:RF-49 — con el frontend en `features/`, las fuentes de `components/` se siguen: el conjunto pierde a
+    lo sumo el 5 % de sus filas (sin seguirlas perdía 34 de 308 y no se podía medir), sin cambiar el conjunto ni su sello.
+
+    El sellado sigue citando las rutas de antes y no se rehace (077:RF-46): ahí se mira que se sigan. La calibración se
+    formó de nuevo el 2026-11-13 sin las preguntas del corpus (097:RF-19), con las rutas de hoy; si alguna se mueve, se
+    sigue igual."""
+    ruta = RAIZ / 'docs' / f'CONJUNTO_ABSTENCION_{nombre}_077.json'
+    antes = ruta.read_bytes()
+    conjunto = evaluacion_rag.cargar_conjunto(ruta)
+    medible = evaluacion_rag.sin_anclas_perdidas(conjunto, frags_077_reales)
+    assert medible['perdidas_al_medir'] <= evaluacion_rag.TOPE_SIN_ANCLA * len(conjunto['preguntas'])
+    movidas = [f for f in medible['preguntas'] if any('/components/' in x['fichero'] for x in f.get('fuentes') or ())]
+    if nombre == 'SELLADO':
+        assert movidas, 'el sellado ya no cita fuentes movidas: la prueba no mira nada'
+    pares, sin_ancla, _ = evaluacion_rag.resolver_pares({'preguntas': movidas}, frags_077_reales)
+    assert not sin_ancla and all(p.positive_ids for p in pares)
+    assert ruta.read_bytes() == antes and medible['sha256'] == conjunto['sha256']

@@ -325,6 +325,7 @@
     "embeddings.py",
     "reranker.py",
     "evaluacion_rag.py",
+    "fuga_evaluacion.py",
     "corpus_proyecto.py",
     "lectura_proyecto.py",
     "ejemplos_pide.py"

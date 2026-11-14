@@ -142,3 +142,33 @@ def test_tensores_en_cuda_deja_los_textos():
             return destino
     assert _tensores_en_cuda({'input_ids': Tensor(), 'modality': 'text'}) == {'input_ids': 'cuda', 'modality': 'text'}
 
+
+def test_hit_a_10_dice_si_hay_algun_positivo_y_recall_no_cambia():
+    """097:RF-23 — con 4 positivos y uno en el puesto 3, Recall@10 = 0,25 y hit@10 = 1; sin ninguno, los dos 0."""
+    from convertersmartgrid.asistente import evaluacion_rag
+
+    pares = [ParContraste('q1', ('a', 'b', 'c', 'd'), (), True, 'g1'), ParContraste('q2', ('z',), (), True, 'g2'),
+             ParContraste('q3', (), (), False, 'g3')]
+    rankings = {'q1': ['x', 'y', 'b', 'w'], 'q2': ['x', 'y'], 'q3': []}
+    m = evaluar_recuperador(pares, lambda q, k: rankings[q])
+    fila = {x['group_id']: x for x in m['per_query']}
+    assert fila['g1']['recall@10'] == 0.25 and fila['g1']['hit@10'] == 1.0
+    assert fila['g2']['recall@10'] == 0.0 and fila['g2']['hit@10'] == 0.0
+    assert m['recall@10'] == 0.125 and m['hit@10'] == 0.5 and 'hit@10' not in fila['g3']
+    assert evaluacion_rag.con_intervalos(m, {'g1': 'spec', 'g2': 'spec'})['global']['hit@10']['valor'] == 0.5
+
+
+def test_hit_a_10_no_decide_ninguna_puerta():
+    """097:RF-23 — la decisión de la 047 y la puerta de la abstención dan lo mismo con cualquier hit@10."""
+    from convertersmartgrid.asistente import evaluacion_rag
+
+    def medido(rr, hit):
+        filas = [{'group_id': f'g{i}', 'answerable': True, 'reciprocal_rank@10': rr, 'exact_citation@1': rr,
+                  'recall@10': .5, 'hit@10': hit} for i in range(6)]
+        return {'mrr@10': rr, 'recall@10': .5, 'hit@10': hit, 'abstention_accuracy': .97, 'latencia_p95_ms': 10.0,
+                'per_query': filas}
+
+    base = {'bm25': medido(.5, 1.0), 'hibrido': medido(.6, 1.0), 'reranker:m': medido(.7, 1.0)}
+    otra = {k: {**v, 'hit@10': 0.0, 'per_query': [{**f, 'hit@10': 0.0} for f in v['per_query']]} for k, v in base.items()}
+    assert evaluacion_rag.decidir(base, set()) == evaluacion_rag.decidir(otra, set())
+    assert evaluacion_rag._puerta(base['hibrido'], base['bm25']) == evaluacion_rag._puerta(otra['hibrido'], otra['bm25'])

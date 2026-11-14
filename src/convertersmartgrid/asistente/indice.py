@@ -24,7 +24,7 @@ import math
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -63,9 +63,65 @@ FICHAS_EMBEDDINGS = {
 VARIABLE_MODELO = 'CSG_ASISTENTE_MODELO_VECTORES'
 
 
+#: 097:RF-12: el puntero del modelo en uso, en la carpeta del asistente. Lo escribe solo ``poner_en_uso`` (RF-14).
+PUNTERO_VECTORES = 'vectores_en_uso.json'
+
+
+def _con_ficha(modelo: str) -> bool:
+    return modelo in FICHAS_EMBEDDINGS or modelo.split(':')[0] in FICHAS_EMBEDDINGS
+
+
+def puntero_vectores() -> dict[str, Any]:
+    """El puntero del modelo en uso, o vacío si falta, está roto o nombra un modelo sin ficha (097:RF-12)."""
+    try:
+        datos = json.loads((almacen.raiz() / PUNTERO_VECTORES).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    return datos if isinstance(datos, dict) and _con_ficha(str(datos.get('modelo') or '')) else {}
+
+
 def modelo_vectores() -> str:
-    """El modelo de los vectores del índice (097:RF-1): el elegido para medir o el en uso."""
-    return os.environ.get(VARIABLE_MODELO, '').strip() or MODELO_EMBEDDINGS
+    """El modelo de los vectores del índice (097:RF-1): el elegido para medir, el del puntero en uso (RF-12) o nomic."""
+    return (os.environ.get(VARIABLE_MODELO, '').strip() or str(puntero_vectores().get('modelo') or '')
+            or MODELO_EMBEDDINGS)
+
+
+def mismo_modelo(a: str | None, b: str | None) -> bool:
+    """Dos nombres del mismo modelo de Ollama: «bge-m3» y «bge-m3:latest» son el mismo."""
+    def norma(x: str | None) -> str:
+        x = str(x or MODELO_EMBEDDINGS)
+        return x[:-len(':latest')] if x.endswith(':latest') else x
+    return norma(a) == norma(b)
+
+
+def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapping[str, Any], *,
+                 calibraciones: Mapping[str, str], mediciones: Mapping[str, str] | None = None,
+                 escribir: bool = False, metodo: str = 'reranker') -> dict[str, Any]:
+    """Escribe el puntero del modelo en uso solo si su medición sellada del 047 es de ese modelo y pasa la puerta de la
+    047 frente a la del modelo en uso (097:RF-5, RF-14); si no, sigue el en uso y dice qué lo impidió (RF-6).
+
+    Sin ``escribir`` solo comprueba: lo pone en uso el usuario, no la medición."""
+    from .evaluacion_rag import _puerta
+
+    motivos = []
+    if not _con_ficha(modelo):
+        motivos.append(f'el modelo {modelo} no tiene ficha de prefijos (097:RF-3)')
+    if not mismo_modelo(medicion.get('modelo_vectores'), modelo):
+        motivos.append(f"la medición sellada es del modelo {medicion.get('modelo_vectores')}, no de {modelo}")
+    if CORPUS_047 not in calibraciones:
+        motivos.append('falta la calibración del 047 con este modelo (097:RF-13)')
+    nuevo = (medicion.get('metodos') or {}).get(metodo) or {}
+    actual = (medicion_en_uso.get('metodos') or {}).get(metodo) or {}
+    if not nuevo or not actual:
+        motivos.append(f'falta el método {metodo} en alguna de las dos mediciones')
+    else:
+        motivos += _puerta(nuevo, actual)['motivos']
+    puesto = escribir and not motivos
+    if puesto:
+        _escribir(almacen.raiz() / PUNTERO_VECTORES, lambda t: t.write_text(json.dumps(
+            {'modelo': modelo, 'calibraciones': dict(calibraciones), 'mediciones': dict(mediciones or {}), 'metodo': metodo,
+             'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1), encoding='utf-8'))
+    return {'puesto': puesto, 'motivos': motivos, 'modelo': modelo, 'en_uso': modelo_vectores()}
 
 
 def prefijos(modelo: str | None = None) -> tuple[str, str]:

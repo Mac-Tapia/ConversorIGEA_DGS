@@ -93,7 +93,8 @@ documentación: se anota. Comprobar la web en un navegador. Las filas de «banco
 ## Limitaciones declaradas
 
 - Las filas que entran comparten pregunta con el conjunto de calibración de la 077, formado del mismo reparto, y una medición nueva del corpus ampliado
-  con ese conjunto saldría optimista: antes de medirlo hay que formar otros conjuntos. La medición sellada que ya existe es del corpus sin estas filas.
+  con ese conjunto saldría optimista: antes de medirlo hay que formar otros conjuntos. Hecho el 2026-11-13: la calibración
+  del 077 se rehízo sin las filas que el documento lleva (097:RF-19), y el documento sigue en el corpus. La medición sellada que ya existe es del corpus sin estas filas.
 - El corpus ampliado no se sirve hasta pasar su medición (077:RF-47): hasta entonces, estas filas están en el índice ampliado y no en las respuestas de la web.
 
 ## Criterios de finalización

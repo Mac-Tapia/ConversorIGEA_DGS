@@ -47,7 +47,7 @@ GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tes
 #: aquí, y la suite de la T31 de la 086 (2026-11-12) habría omitido las dos pruebas del Python 3.9.
 VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_MDB', 'CSG_DEMANDA_DIR',
              'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON',
-             'CSG_PF_PYTHON_39')
+             'CSG_PF_PYTHON_39', 'CSG_ASISTENTE_REAL')
 
 #: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
 DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')

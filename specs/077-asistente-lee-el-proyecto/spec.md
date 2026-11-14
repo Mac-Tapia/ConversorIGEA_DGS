@@ -2,6 +2,19 @@
 
 Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario
 
+## Estado del corpus ampliado (2026-11-13)
+
+La abstención calibrada no supera la puerta del recall (reranker 0,553 → 0,406); no se sirve en producción (edicion.py,
+_medicion_aprobada). La medición de la T6 (2026-11-03) es anterior a que `docs/PREGUNTAS_MAESTRO_076.md` entrara en el corpus
+(076 T8, 2026-11-04); las del 077 de después usaban una calibración con 231 de sus 308 preguntas copiadas en ese documento,
+y por eso no valen. El documento se queda en el corpus (decisión del usuario del 2026-11-13, opción A): la calibración se
+rehízo sin las preguntas que el corpus ya lleva (097:RF-19, aclaración de RF-44), y la comprobación permanente es 097:RF-20.
+Lo pendiente sigue en tareas que ya existen: la nueva medición con la calibración rehecha es la 097 T5, y mejorar la recuperación
+del código (indexar por símbolos o la API por operación, según el diagnóstico de `D:/csg/D077`: de las 99 anclas de código
+de la calibración, 68 no resuelven, 67 porque de un `.py` solo se indexan los docstrings) queda para después de la 1.0. La
+línea de estado no baja a «implementada»: 033:RF-10 la admite solo con tareas `[DIgSILENT]` abiertas, y la 077 no tiene
+ninguna abierta.
+
 ## Contexto y objetivo
 
 El usuario, el 2026-11-02: «el LLM debe aprender a leer los skill, mcp, md del proyecto conversor, los archivos del proyecto,

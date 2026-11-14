@@ -127,6 +127,9 @@ def evaluar_recuperador(pares: Sequence[ParContraste],
             'recall@1': recalls[1], 'recall@5': recalls[5], 'recall@10': recalls[10],
             'reciprocal_rank@10': rr, 'ndcg@10': dcg / ideal,
             'exact_citation@1': float(bool(ranking) and ranking[0] in relevantes),
+            # 097:RF-23: Recall@10 es la fracción de positivos entre los 10 primeros; una pregunta del 077 con 16
+            # trozos que la responden saca 0,06 aunque el primero sea correcto. hit@10 dice si hay alguno; no decide nada.
+            'hit@10': float(primero is not None and primero <= 10),
             'ranking': ranking,
         })
     respondibles = [x for x in por_consulta if x['answerable']]
@@ -143,6 +146,7 @@ def evaluar_recuperador(pares: Sequence[ParContraste],
         'mrr@10': promedio('reciprocal_rank@10', respondibles),
         'ndcg@10': promedio('ndcg@10', respondibles),
         'exact_citation@1': promedio('exact_citation@1', respondibles),
+        'hit@10': promedio('hit@10', respondibles),
         'abstention_accuracy': promedio('abstained', no_respondibles),
         'per_query': por_consulta,
     }

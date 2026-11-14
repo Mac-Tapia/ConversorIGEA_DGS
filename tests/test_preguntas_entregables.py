@@ -263,8 +263,14 @@ def test_no_entra_al_rag_ni_a_entrenar():
     """076:RF-16 — nada de `src/` lee este conjunto, y los sellados del RAG siguen como en la revisión fijada."""
     for ruta in (RAIZ / 'src').rglob('*.py'):
         assert 'preguntas_entregables' not in ruta.read_text(encoding='utf-8', errors='ignore'), ruta
+    # Los sellados que había en la revisión fijada; un conjunto posterior (el del operador, 097:RF-16, 2026-11-13) no
+    # existía entonces y no tiene con qué compararse.
+    en_revision = set(subprocess.run(['git', 'ls-tree', '--name-only', PE.REVISION, 'docs/'], cwd=RAIZ, capture_output=True,
+                                     text=True, check=True).stdout.split())
     for ruta in sorted((RAIZ / 'docs').glob('RAG_*.json')):
         rel = ruta.relative_to(RAIZ).as_posix()
+        if rel not in en_revision:
+            continue
         fijado = subprocess.run(['git', 'show', f'{PE.REVISION}:{rel}'], cwd=RAIZ, capture_output=True, check=True).stdout
         assert json.loads(fijado) == json.loads(ruta.read_text(encoding='utf-8')), rel
 
@@ -563,7 +569,10 @@ def test_corpus_documento_al_dia_y_determinista(filas, tmp_path):
 
 
 def test_corpus_entra_al_ampliado_y_no_al_de_la_047():
-    """076:RF-29, 076:RF-34, 077:RF-47 — está en los ficheros del índice ampliado, no en los del que se sirve hoy."""
+    """076:RF-29, 076:RF-34, 077:RF-47, 097:RF-19 — está en los ficheros del índice ampliado, no en los del que se sirve hoy.
+
+    Decisión del usuario del 2026-11-04 (076 T8, «sí entran»), confirmada el 2026-11-13 tras la fuga de la calibración del
+    077 (opción A): el documento se queda; lo que cambia es de dónde salen las preguntas que miden ese corpus (097:RF-19)."""
     from convertersmartgrid.asistente import indice
 
     assert PE.CORPUS_MAESTRO in indice._ficheros_de(RAIZ, indice.CORPUS_AMPLIADO)

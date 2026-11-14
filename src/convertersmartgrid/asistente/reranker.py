@@ -16,7 +16,8 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .indice import CORPUS_047, CORPUS_AMPLIADO, Abstencion, RerankerNoDisponible
+from .indice import (CORPUS_047, CORPUS_AMPLIADO, Abstencion, RerankerNoDisponible, mismo_modelo, modelo_vectores,
+                     puntero_vectores)
 from ..runtime_paths import raiz_programa
 
 _RAIZ = raiz_programa()
@@ -166,12 +167,20 @@ def politica(informe: Path = INFORME, conjunto: Path = CONJUNTO) -> dict[str, An
     return salida
 
 
-def abstencion(calibracion: Path = CALIBRACION, conjunto: Path = CONJUNTO_CALIBRACION) -> Abstencion:
-    """Los umbrales guardados, solo si salen del conjunto de calibración de hoy (047:RF-33, RF-34).
-    Sin ellos, una ``Abstencion`` sin calibrar: «No lo sé» antes que una cita que no apoya."""
+def abstencion(calibracion: Path | None = None, conjunto: Path = CONJUNTO_CALIBRACION) -> Abstencion:
+    """Los umbrales guardados, solo si salen del conjunto de calibración de hoy (047:RF-33, RF-34) y del modelo de
+    vectores en uso (097:RF-13). Sin ellos, una ``Abstencion`` sin calibrar: «No lo sé» antes que una cita que no apoya.
+
+    Sin ruta, la del puntero del modelo en uso (097:RF-14) o la de la 047."""
+    if calibracion is None:
+        calibracion = Path((puntero_vectores().get('calibraciones') or {}).get(CORPUS_047) or CALIBRACION)
     try:
         datos = json.loads(calibracion.read_text(encoding='utf-8'))
         if datos['conjunto_sha256'] != sha256_de(conjunto):
+            return Abstencion()
+        # 097:RF-13: el umbral del coseno de bge-m3 (0,56) no vale para nomic ni al revés. Sin modelo anotado, la
+        # calibración es la histórica de la 047, hecha con nomic-embed-text.
+        if not mismo_modelo(datos.get('modelo_vectores'), modelo_vectores()):
             return Abstencion()
         umbrales, modelo = datos['umbrales'], datos.get('modelo_reranker')
         valido = bool(modelo) and ficha_modelo(modelo)['revision'] == datos.get('revision')
@@ -204,10 +213,16 @@ def servicio(medicion: Path | None = None, conjunto: Path | None = None, calibra
     """Qué corpus, política y umbrales sirve la web. Sin una medición aprobada del corpus ampliado, los de la 047: seguir
     con sus umbrales sobre un índice mayor daría una abstención sin medir (077:RF-47)."""
     base = {'corpus': CORPUS_047, 'politica': politica(), 'abstencion': abstencion()}
-    datos = _medicion_aprobada(medicion or MEDICION_077, conjunto or CONJUNTO_SELLADO_077)
+    puntero = puntero_vectores()                                       # 097:RF-14: las del modelo en uso
+    datos = _medicion_aprobada(medicion or Path((puntero.get('mediciones') or {}).get(CORPUS_AMPLIADO) or MEDICION_077),
+                               conjunto or CONJUNTO_SELLADO_077)
+    if datos is not None and not mismo_modelo(datos.get('modelo_vectores'), modelo_vectores()):
+        datos = None                                                   # 097:RF-13: medida con otros vectores
     if datos is None:
         return base
-    umbrales = abstencion(calibracion or CALIBRACION_077, conjunto_calibracion or CONJUNTO_CALIBRACION_077)
+    en_uso = puntero.get('calibraciones') or {}
+    umbrales = abstencion(calibracion or Path(en_uso.get(CORPUS_AMPLIADO) or CALIBRACION_077),
+                          conjunto_calibracion or CONJUNTO_CALIBRACION_077)
     if not umbrales.calibrada or umbrales.modelo_reranker != datos.get('modelo_reranker'):
         return base
     revision = ficha_modelo(umbrales.modelo_reranker)['revision']

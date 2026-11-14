@@ -4,7 +4,9 @@
 Subórdenes:
   medir         Trozos, caracteres, vectores previstos, memoria y tiempo de los dos corpus (077:RF-14).
   recuperacion  BM25 de los dos corpus con el reparto `corpus` de la 076; nunca abre el reparto `sellado` (077:RF-50).
-  conjuntos     Forma docs/CONJUNTO_ABSTENCION_{CALIBRACION,SELLADO}_077.json. Solo cuenta filas y no enseña ninguna (077:RF-44).
+  conjuntos     Forma docs/CONJUNTO_ABSTENCION_{CALIBRACION,SELLADO}_077.json. Solo cuenta filas y no enseña ninguna (077:RF-44),
+                sin las preguntas que el corpus 077 ya lleva (097:RF-19). Un conjunto que existe no se vuelve a formar;
+                `--rehacer-calibracion` rehace la calibración, que no está sellada (el sellado no se rehace nunca, 077:RF-46).
 
 Cada una se ejecuta sobre una carpeta de datos propia, para no tocar la de la web.
 """
@@ -79,18 +81,22 @@ def _recuperacion(indice, evaluacion_rag) -> dict:
     return salida
 
 
-def _conjuntos(indice, evaluacion_rag, reranker) -> dict:
+def _conjuntos(indice, evaluacion_rag, reranker, rehacer_calibracion: bool = False) -> dict:
+    """Con el documento del maestro dentro del corpus (076:RF-29), cada conjunto se forma sin lo que el corpus ya lleva
+    (097:RF-19): la calibración de antes salía del reparto entero y 231 de sus 308 preguntas estaban copiadas en él."""
     frags = indice.fragmentos(REPO, indice.CORPUS_AMPLIADO)
     filas, fuera = _filas(), json.loads(FUERA.read_text(encoding='utf-8'))
     salida = {}
     for reparto, ruta, clave in (('corpus', reranker.CONJUNTO_CALIBRACION_077, 'calibracion'),
                                  ('sellado', reranker.CONJUNTO_SELLADO_077, 'sellado')):
-        if ruta.is_file():
+        if ruta.is_file() and not (rehacer_calibracion and clave == 'calibracion'):
             salida[clave] = {'estado': 'ya existe: un conjunto sellado no se vuelve a formar', 'sha256': reranker.sha256_de(ruta)}
             continue
-        conjunto = evaluacion_rag.conjunto_de_entregables(filas, reparto, frags, fuera[clave])
+        conjunto = evaluacion_rag.conjunto_de_entregables(filas, reparto, frags, fuera[clave], sin_las_del_corpus=True)
         ruta.write_text(json.dumps(conjunto, ensure_ascii=False, indent=0, sort_keys=True) + '\n', encoding='utf-8', newline='\n')
         salida[clave] = {'preguntas': len(conjunto['preguntas']), 'excluidas_sin_fuente_indexada': conjunto['excluidas_sin_fuente_indexada'],
+                         'excluidas_en_el_corpus': conjunto['excluidas_en_el_corpus'],
+                         'excluidas_sin_respuesta_sin_confirmar': conjunto['excluidas_sin_respuesta_sin_confirmar'],
                          'sha256': reranker.sha256_de(ruta)}
     return salida
 
@@ -98,6 +104,8 @@ def _conjuntos(indice, evaluacion_rag, reranker) -> dict:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('orden', choices=('medir', 'recuperacion', 'conjuntos'))
+    p.add_argument('--rehacer-calibracion', action='store_true',
+                   help='con «conjuntos», vuelve a formar la calibración aunque exista (097:RF-19); el sellado, nunca')
     args = p.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix='csg-indice-077-') as datos:
         os.environ['CSG_ASISTENTE_DATA'] = datos
@@ -113,7 +121,7 @@ def main(argv=None) -> int:
         elif args.orden == 'recuperacion':
             salida = _recuperacion(indice, evaluacion_rag)
         else:
-            salida = _conjuntos(indice, evaluacion_rag, reranker)
+            salida = _conjuntos(indice, evaluacion_rag, reranker, args.rehacer_calibracion)
     print(json.dumps(salida, ensure_ascii=False, indent=1))
     return 0
 

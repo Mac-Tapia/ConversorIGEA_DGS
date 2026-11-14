@@ -241,3 +241,55 @@ def test_una_spec_cumplida_no_cita_un_documento_que_no_existe():
                                ruta.read_text(encoding='utf-8') if ruta.is_file() else '')
             rotos += [f'{spec.numero}/{fichero}: {c}' for c in citas if not (RAIZ / c).is_file()]
     assert not rotos, rotos
+
+
+# --------------------------------------------------- ningún conjunto de evaluación en lo que lo juzga (097:RF-20)
+# Caso real (D077, 2026-11-13): 231 de las 308 preguntas de la calibración de la abstención del 077 estaban literales en
+# `docs/PREGUNTAS_MAESTRO_076.md`, que el corpus 077 indexaba; ninguna prueba miraba qué textos del corpus son examen. El
+# usuario decidió (opción A) que el documento se queda en el corpus (076 T8): la calibración sale de otras preguntas.
+
+CONJUNTO_076 = 'docs/asistente/preguntas_entregables.jsonl'
+#: El reparto «corpus» de la 076 es corpus por decisión del usuario (076:RF-29): lo que examina al 077 es el «sellado».
+SELLADO_076 = (CONJUNTO_076, 'sellado')
+
+
+@pytest.fixture(scope='module')
+def frags_de_los_corpus(tmp_path_factory):
+    """Los trozos de los dos corpus del asistente, una vez por módulo y sin tocar la carpeta de la web."""
+    from convertersmartgrid.asistente import indice
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv('CSG_ASISTENTE_DATA', str(tmp_path_factory.mktemp('asistente')))
+        yield {c: indice.fragmentos(RAIZ, c) for c in (indice.CORPUS_047, indice.CORPUS_AMPLIADO)}
+
+
+@pytest.mark.parametrize('corpus', ['047', '077'])
+def test_ninguna_pregunta_de_evaluacion_literal_en_el_corpus_que_la_mide(frags_de_los_corpus, corpus):
+    """097:RF-20 — ni la calibración ni el sellado de la 047, la 076/077 y el operador (097:RF-16) están en los trozos del
+    corpus que los mide, salvo en el fichero que la pregunta cita como su fuente; en el 077, con el documento del maestro
+    dentro (076:RF-29). Con la calibración formada del reparto entero, 374 fugas en el 077 (2026-11-13)."""
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    textos = fe.textos_por_fichero(frags_de_los_corpus[corpus])
+    maestro = 'docs/PREGUNTAS_MAESTRO_076.md'
+    assert (maestro in textos) is (corpus == '077'), 'el documento del maestro va al 077 y no al 047 (076:RF-29, RF-34)'
+    # El JSONL de la 076 lo nombra la prueba y no `src/` (076:RF-16); de él, solo el reparto que examina.
+    otros = (SELLADO_076,) if corpus == '077' else ()
+    r = fe.fugas_del_corpus(RAIZ, corpus, frags_de_los_corpus[corpus], otros)
+    assert r['conjuntos'] == [*fe.CONJUNTOS_RAG[corpus], *(f'{a}#{b}' for a, b in otros)],         'falta un conjunto: la prueba no puede pasar sin mirarlo'
+    assert r['comprobadas'] > 100
+    assert not r['fugas'], f"{len(r['fugas'])} preguntas de evaluación en el corpus {corpus}, p. ej. {r['fugas'][:5]}"
+
+
+def test_todo_conjunto_de_evaluacion_del_repositorio_se_comprueba():
+    """097:RF-20 — un conjunto nuevo de `docs/` con preguntas no queda sin comprobar por olvido."""
+    import json
+
+    from convertersmartgrid.asistente import fuga_evaluacion as fe
+
+    vistos = {r for rs in fe.CONJUNTOS_RAG.values() for r in rs}
+    for p in sorted(p for patron in ('RAG_*.json', 'CONJUNTO_*.json') for p in (RAIZ / 'docs').glob(patron)):
+        datos = json.loads(p.read_text(encoding='utf-8'))
+        if isinstance(datos, dict) and (datos.get('preguntas') or 'calibracion' in datos):
+            assert p.relative_to(RAIZ).as_posix() in vistos, p.name
+    assert (RAIZ / CONJUNTO_076).is_file()
