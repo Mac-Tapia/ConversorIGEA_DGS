@@ -410,3 +410,37 @@ def test_pdf_con_un_apostrofo_en_la_ruta(tmp_path):
 
     exportar_pdf(carpeta / 'x.docx', ejecutar=correr)
     assert "INKA''S" in ordenes[0] and "INKA'S" not in ordenes[0]
+
+
+def test_la_carga_sola_trae_su_set_y_la_tension_de_su_barra(monkeypatch):
+    """017:RF-91 — la solicitud se propone con la SET de la estructura y la tensión nominal de la barra de
+    la carga en el flujo guardado («Con proyecto» primero; si no está, la de la cabecera). Sin estructura ni
+    flujo, ``None``: se pide. CA101 (2026-11-13) volvía a pedir SET y tensión ya conocidas."""
+    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+
+    estructura = Estructura(zonales=['Z'], sets={'SET 21': SetElectrica('SET 21', 'El Carmen', 'Z')},
+                            alimentadores={'CA101': AlimentadorEstructura('CA101', 'SET 21')})
+    monkeypatch.setattr(services, 'estructura_del_espacio', lambda _ws: estructura)
+    flujos = {'sin': {'geo': {'CA101': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0]]}}},
+              'con': {'geo': {'CA101': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0],
+                                                                      ['N1', 0, 0, 0.95, 22.9]]}}}}
+    kv = {'CA101': services._kv_de_barras(flujos, 'CA101'), 'XX1': {}}
+    cargas = [{'alimentador': 'CA101', 'barra': 'N1'}, {'alimentador': 'CA101', 'barra': 'OTRA'},
+              {'alimentador': 'XX1', 'barra': 'B'}]
+    services._set_y_tension_de_cargas(None, cargas, kv)
+    assert [(c['set_nombre'], c['tension_kv']) for c in cargas] == [
+        ('SET 21 El Carmen', 22.9), ('SET 21 El Carmen', 10.0), (None, None)]
+
+
+def test_el_avance_del_proyecto_sale_del_disco(client, monkeypatch):  # noqa: F811
+    """072:RF-33 — tras reiniciar la web, las cargas aplicadas, los flujos de «Con proyecto» y las obras se leen de
+    lo guardado, solo los del proyecto pedido."""
+    wid, ws = _espacio(client)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda _ws, project: [
+        {'sed': 'N1', 'alimentador': 'AL01', 'sola': True}] if project == 'PRY' else [])
+    _correr(ws, monkeypatch, ('AL01', 'AL02'))
+    ws.obras_aplicadas.append({'project': 'PRY', 'obra': {'alimentador': 'AL01'}})
+    avance = client.get(f'/api/workspaces/{wid}/demanda/ajuste/ultimo', params={'project': 'PRY'}).json()['avance']
+    assert avance['cargas'] == [{'sed': 'N1', 'alimentador': 'AL01', 'sola': True}]
+    assert avance['estudiados'] == ['AL01', 'AL02'] and avance['obras'] is True
+    assert services.avance_en_disco(ws, 'OTRO') == {'cargas': [], 'estudiados': [], 'obras': False, 'informes': []}

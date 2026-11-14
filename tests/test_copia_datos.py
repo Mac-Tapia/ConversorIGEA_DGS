@@ -759,6 +759,16 @@ def _esperar(cliente, job_id: str, *, segundos: float = 60) -> dict:
     raise AssertionError(f'el trabajo {job_id} no terminó')
 
 
+def _solo_estos_datos(monkeypatch, copia, raiz: Path) -> None:
+    """La copia de la web, solo con los datos de la prueba.
+
+    Sin esto tomaba también ``output/web`` del programa: en el árbol principal, 19,1 GB de datos reales del operador
+    (8 533 ficheros) que empezaba a copiar a la carpeta temporal, y la prueba vencía su plazo (2026-11-13). En un
+    worktree limpio esa carpeta no existe y pasaba: por eso no lo vio ninguna puerta de worktree (106:RF-16).
+    """
+    monkeypatch.setattr(copia, 'raices_de_datos', lambda checkout=None: {'datos': raiz})
+
+
 def test_la_web_recuerda_la_carpeta_y_copia_como_trabajo(tmp_path, monkeypatch):
     """086:RF-85, 086:RF-86 — «Hacer una copia ahora»: carpeta recordada, trabajo con progreso, y el aviso calla."""
     from convertersmartgrid.web import copia_datos as copia
@@ -766,6 +776,7 @@ def test_la_web_recuerda_la_carpeta_y_copia_como_trabajo(tmp_path, monkeypatch):
 
     monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
     raiz, wid = _crear_datos(tmp_path)
+    _solo_estos_datos(monkeypatch, copia, raiz)
     destino = tmp_path / 'drive'
     destino.mkdir()
     with TestClient(create_app(raiz, host='127.0.0.1')) as cliente:
@@ -795,6 +806,7 @@ def test_la_copia_de_la_web_se_cancela_y_bloquea_otros_trabajos(tmp_path, monkey
     monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
     monkeypatch.setattr(services, 'check_ready', lambda _ws: None)
     raiz, wid = _crear_datos(tmp_path)
+    _solo_estos_datos(monkeypatch, copia, raiz)
     destino = tmp_path / 'drive'
     destino.mkdir()
     dentro, soltar = threading.Event(), threading.Event()

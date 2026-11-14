@@ -429,7 +429,11 @@ Apartado 5.1 · Conexión de un cliente nuevo
   SISTEMA lo dirá en 5.1 y remitirá al paso 3.
 - RF-91: CUANDO el operador elija la carga, EL SISTEMA rellenará con sus datos la potencia,
   el alimentador y la tensión de RF-51, y dejará editables los demás campos de la
-  solicitud.
+  solicitud. También propondrá, solo en los campos vacíos, lo ya escrito en «Una carga
+  nueva» (el nombre como cliente y sus UTM como ubicación y punto) y la SET de su
+  alimentador según la estructura; la tensión es la nominal de la barra de la carga en el
+  flujo guardado. La fecha de la solicitud no se propone: es la de la carta (CA101,
+  2026-11-13).
 - RF-92: EL SISTEMA mostrará el factor de carga calculado de la medición de cabecera (RF-60)
   con el mes del que sale, y pedirá el factor de carga solo si no hay medición (RF-61).
 - RF-93: EL SISTEMA permitirá subir el libro de pérdidas de la empresa en 5.1 y lo guardará

@@ -78,7 +78,11 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   ejemplo, tras reiniciar la web), el sistema deberá mostrar la última lista leída en el
   espacio o, si el espacio no tiene ninguna, la más reciente de la misma carpeta de DIgSILENT
   en otro espacio, con el vínculo recalculado, sin abrir DIgSILENT; «Volver a leer
-  proyectos» la actualiza.
+  proyectos» la actualiza. Como la carpeta es común, manda la lectura más reciente, sea del
+  espacio o de otro; y SI una acción pide un proyecto que estaba en una lectura anterior y
+  falta en la más reciente, ENTONCES el sistema la rechazará antes de abrir DIgSILENT,
+  proponiendo los de sus mismos alimentadores, sea cual sea su nombre (CA101_CHN102,
+  2026-11-13).
 - RF-14: Cuando una acción sobre un proyecto de DIgSILENT (verificar el «Caso base» y toda
   acción nativa) reciba el nombre de una red unida o por sistema del espacio (`SISTEMA_NASCA`),
   el sistema deberá tomarlo como sus alimentadores antes de comprobar el vínculo. (Nasca,

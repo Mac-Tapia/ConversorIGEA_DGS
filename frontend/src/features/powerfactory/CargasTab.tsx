@@ -1,4 +1,4 @@
-import type { Alternativa } from '../../api/types';
+import type { Alternativa, AvanceDisco } from '../../api/types';
 import { fmtNum } from '../../shared/formato';
 import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe } from './alternativas';
 import { aDelNodo, camposDePropuesta, medidaDelFormulario as medida, textoDeLaConexion } from './ubicacionCarga';
@@ -21,7 +21,7 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
-import { DESTINO, TipoDeAnalisis, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
+import { DESTINO, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva, esProducto } from '../../shared/edicion';
 import { FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
@@ -253,18 +253,24 @@ export function CargasTab() {
   // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto. RF-40: sin ninguno
   // en la sesión (tras reiniciar la web u otro espacio), el último guardado en disco.
   const [ajusteDisco, setAjusteDisco] = useState<Job | null>(null);
+  // 072:RF-33: lo demás que consta en disco (cargas, flujos de «Con proyecto», informes).
+  const [avanceDisco, setAvanceDisco] = useState<AvanceDisco | null>(null);
+  // Un trabajo terminado en esta sesión cambia lo que hay en disco: se vuelve a leer.
+  const terminados = todos.filter((j) => j.status === 'done').length;
   useEffect(() => {
     setAjusteDisco(null);
+    setAvanceDisco(null);
     if (!project) return;
     let vivo = true;
-    api.ajusteUltimo(ws.id, project).then(({ ajuste }) => {
+    api.ajusteUltimo(ws.id, project).then(({ ajuste, avance }) => {
+      if (vivo) setAvanceDisco(avance ?? null);
       if (!vivo || !ajuste) return;
       setAjusteDisco({ id: ajuste.id, kind: 'ajuste_aplicar', title: 'Ajuste guardado', workspace_id: ws.id,
         lane: 'powerfactory', status: 'done', progress: null, result: ajuste, error: null,
         created_at: ajuste.finished_at, started_at: null, finished_at: ajuste.finished_at, cancel_requested: false });
     }).catch(() => undefined);
     return () => { vivo = false; };
-  }, [ws.id, project]);
+  }, [ws.id, project, terminados]);
   // Spec 020, RF-28: los transformadores nuevos recalibran; su ajuste también hace de base.
   const baseJob = todos.filter((j) => (j.kind === 'ajuste_aplicar' || j.kind === 'ajuste_transformadores')
     && j.result?.project === project
@@ -409,7 +415,7 @@ export function CargasTab() {
   const ultimoPide = todos.filter((j) => j.kind === 'pide' && j.status === 'done'
     && (j.result as { project?: string } | null)?.project === project).pop();
   const plazoPide = (ultimoPide?.result as { plazo?: string | null; modo?: string } | null) ?? null;
-  const estadoPasos: EstadoPasos = {
+  const estadoSesion: EstadoPasos = {
     proyecto: Boolean(current), alimentadores: order.length > 0,
     calibrado: Boolean(baseJob) && informesBase.some((i) => !i.error && !i.no_empezado),
     cargas: resultado?.informe.project === project && resultado?.informe.modo !== 'simular',
@@ -418,6 +424,8 @@ export function CargasTab() {
     pide: Boolean(plazoPide) && plazoPide?.plazo !== 'largo_plazo',
     largo: plazoPide?.plazo === 'largo_plazo',
   };
+  const estadoPasos = estadoConDisco(estadoSesion, avanceDisco, order);
+  const calibrados = informesBase.filter((i) => !i.error && !i.no_empezado).map((i) => i.feeder);
 
   return (
     <div className="module">
@@ -429,6 +437,7 @@ export function CargasTab() {
       <TipoDeAnalisis tipo={tipo} onTipo={(t) => { setTipo(t); guardarTipo(t); }}
         anio={anioPresentacion} onAnio={setAnioPresentacion} tipos={tipos} error={errorTipos}
         estado={estadoPasos} planificacion={betaActiva(health, 'pide')} />
+      {current && <SeguirDondeQuedo avance={avanceDisco} calibrados={calibrados} order={order} />}
 
       <div className="step-box" id={DESTINO.proyecto} tabIndex={-1}>
         <h3>1 · Proyecto de DIgSILENT</h3>
@@ -743,6 +752,7 @@ export function CargasTab() {
             <h4>4.1 · Obras de mejora</h4>
             <AvisosTrabajo paso="pf-obras" />
             <ObrasPF project={project} feeders={order} />
+            <span id={DESTINO.estudios} tabIndex={-1} />
             <h4>4.2 · Estudios</h4>
             <AvisosTrabajo paso="pf-estudios" />
             <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}

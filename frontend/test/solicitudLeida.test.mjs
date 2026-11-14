@@ -64,3 +64,24 @@ test('063:RF-52 el incremento que no cuadra con la carga del modelo se dice', as
   assert.equal(incrementoNoCuadra(null, 1100), false);
   assert.equal(incrementoNoCuadra(200, null), false);
 });
+
+test('017:RF-91 la carga elegida rellena cliente, ubicación, SET, tensión y UTM sin pisar lo escrito', async () => {
+  const { propuestaDeCarga } = await cargar();
+  const sol = { cliente: '', ubicacion: '', potencia_kw: '', set_nombre: 'SET escrita', tension_kv: '',
+    fecha_solicitud: '' };
+  const punto = { pcc_mva: '', utm_x: '', utm_y: '' };
+  const carga = { kw: 1206, cliente: 'TierraLarga', utm_x: 388631, utm_y: 8503377, set_nombre: 'SET 21 El Carmen',
+    tension_kv: 10 };
+  const r = propuestaDeCarga(sol, punto, carga);
+  assert.equal(r.cambia, true);
+  assert.equal(r.sol.cliente, 'TierraLarga');
+  assert.equal(r.sol.ubicacion, 'UTM 388631 E, 8503377 N');
+  assert.equal(r.sol.tension_kv, '10');
+  assert.equal(r.sol.potencia_kw, '1206');
+  assert.equal(r.sol.set_nombre, 'SET escrita');           // lo del operador no se pisa
+  assert.equal(r.sol.fecha_solicitud, '');                 // la fecha de la carta no se inventa
+  assert.deepEqual([r.punto.utm_x, r.punto.utm_y], ['388631', '8503377']);
+  // Sin datos de la carga, nada cambia; con todo ya lleno, tampoco.
+  assert.equal(propuestaDeCarga(sol, punto, null).cambia, false);
+  assert.equal(propuestaDeCarga(r.sol, r.punto, carga).cambia, false);
+});

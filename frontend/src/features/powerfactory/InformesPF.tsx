@@ -2,7 +2,7 @@ import { fmtNum } from '../../shared/formato';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga, esPotenciaPropuesta, incrementoNoCuadra } from './solicitudLeida';
+import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga, esPotenciaPropuesta, incrementoNoCuadra, propuestaDeCarga } from './solicitudLeida';
 import { FileDrop } from '../../shared/ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
@@ -591,7 +591,8 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
         c?.kw != null ? String(c.kw) : '', fecha_solicitud: '', set_nombre: '', tension_kv: '', transformador: '',
         expediente: '', potencia_actual_kw: '', nis: '', codigo_ficha: '' };
       const otroAlimentador = clave.split('|')[0] !== k.split('|')[0];
-      fijar({ clave: k, codigo: c?.barra ?? '', sol: vacia, punto: { pcc_mva: '', utm_x: '', utm_y: '' }, leidos: [],
+      const propuesta = propuestaDeCarga(vacia, { pcc_mva: '', utm_x: '', utm_y: '' } as PuntoFicha, c);
+      fijar({ clave: k, codigo: c?.barra ?? '', sol: propuesta.sol, punto: propuesta.punto, leidos: [],
         fechas: [], concesion: '', cab: { ...cab, asunto: '', numero: '' },
         ...(otroAlimentador ? { fc: '', trafoCarga: '', trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' },
           perd: { sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '', reconocido_kwh_pct: '',
@@ -600,10 +601,16 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     }
     // 063:RF-16: la estructura ya leída de la ficha no se pisa con la barra.
     const conservar = codigo.trim() && !solas.some((x) => x.barra === codigo);
+    const propuesta = propuestaDeCarga(sol, punto, c);
     fijar(c ? { clave: k, codigo: conservar ? codigo : c.barra,
-      sol: { ...sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw } }
+      sol: { ...propuesta.sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw }, punto: propuesta.punto }
       : { clave: k });
   };
+  // 017:RF-91: un formulario guardado antes, con la carga ya elegida, también recibe lo que se sabe de ella.
+  useEffect(() => {
+    const propuesta = propuestaDeCarga(sol, punto, carga);
+    if (propuesta.cambia) fijar({ sol: propuesta.sol, punto: propuesta.punto });
+  }, [carga?.sed, carga?.alimentador, carga?.set_nombre, carga?.tension_kv]);  // eslint-disable-line react-hooks/exhaustive-deps
   /**
    * 017:RF-139: lo leído de la carta va a los campos en blanco; lo escrito por el operador no
    * se pisa. El tipo propuesto por defecto («factibilidad de suministro») cuenta como blanco.

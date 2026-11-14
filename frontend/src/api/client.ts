@@ -1,4 +1,4 @@
-import type { Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
+import type { AvanceDisco, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -153,7 +153,7 @@ export const api = {
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
   // Spec 007, RF-40: el último ajuste aplicado guardado en disco (sobrevive a un reinicio).
   ajusteUltimo: (id: string, project: string) =>
-    request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null }>(
+    request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null; avance?: AvanceDisco }>(
       `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),
   // Spec 018, RF-13: la última lista leída en el espacio, sin abrir DIgSILENT.
   // Spec 028, RF-21, RF-22: recalibrar el sistema del proyecto, aparte de la calibración inicial.

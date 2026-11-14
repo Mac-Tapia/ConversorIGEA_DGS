@@ -249,6 +249,10 @@ def native_action_context(
     )
 
     project = str(project or '').strip()
+    # 018:RF-13: un proyecto que ya no está en DIgSILENT se dice aquí, antes de encolar y abrirlo.
+    desaparecido = proyecto_desaparecido(ws, project)
+    if desaparecido:
+        raise UserError(desaparecido)
     normalized = sorted(set(alimentadores_pedidos(ws, list(feeders))))           # 018:RF-14
     if not normalized:
         normalized = sorted(set(alimentadores_vinculados(ws, project)))
@@ -2181,34 +2185,55 @@ def adoptar_fuente_del_vinculo(ws: Workspace, project: str) -> dict[str, Any]:
 
 
 def pf_proyectos_guardados(ws: Workspace) -> dict[str, Any]:
-    """Última lista de proyectos leída en el espacio, con el vínculo recalculado (018:RF-13).
+    """Última lista de proyectos leída de la carpeta, con el vínculo recalculado (018:RF-13).
 
     Los trabajos viven en memoria: tras reiniciar la web la pestaña perdía la lista, y
     volver a leerla abre DIgSILENT y cada proyecto (231 s con 32 proyectos, 2026-10-15).
+    La carpeta de DIgSILENT es común a los espacios: manda la lectura más reciente, sea de
+    este espacio o de otro. Con la propia del 8 de noviembre, el espacio ofrecía
+    20261105-124711_CSG_TXT_CA101_CHN102, ya borrado al importar la versión del día 9, y el
+    ajuste fallaba con «no existe el proyecto» (2026-11-13).
     """
-    if not (ws.pf_inventory or {}).get('projects'):
-        otra = _lectura_mas_reciente_de_la_carpeta(ws)
-        if otra:
-            # La carpeta de DIgSILENT es común, como el registro de vínculos: un espacio
-            # nuevo parte de la última lectura de otro en vez de esperar a abrir DIgSILENT.
-            with ws.lock:
-                ws.pf_inventory = otra
-                ws.save()
+    otra = _lectura_mas_reciente_de_la_carpeta(ws)
+    propia = ws.pf_inventory or {}
+    if otra and (not propia.get('projects')
+                 or _cuando_se_leyo(otra[1], otra[0]) > _cuando_se_leyo(propia, _mtime(ws.root / 'workspace.json'))):
+        with ws.lock:
+            ws.pf_inventory = otra[1]
+            ws.save()
     inventario = dict(ws.pf_inventory or {})
     inventario['projects'] = estado_vinculos(
         ws, [dict(p) for p in inventario.get('projects') or []])
     return inventario
 
 
-def _lectura_mas_reciente_de_la_carpeta(ws: Workspace) -> dict[str, Any] | None:
-    """La lectura de proyectos más reciente de otro espacio, de la misma carpeta de DIgSILENT."""
+def _mtime(ruta: Path) -> float:
     try:
-        carpeta = carpeta_de(ws)
-    except UserError:
-        return None
-    mejor: tuple[float, dict[str, Any]] | None = None
+        return ruta.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _cuando_se_leyo(inventario: dict, respaldo: float = 0.0) -> float:
+    """Cuándo se leyó una lista de proyectos: su relectura más reciente, o la fecha del espacio."""
+    return max((float(p.get('native_reread_at') or 0) for p in inventario.get('projects') or []),
+               default=0.0) or respaldo
+
+
+def _lecturas_de_la_carpeta(ws: Workspace, carpeta: str | None = None) -> list[tuple[float, dict[str, Any], bool]]:
+    """Las listas de proyectos de una carpeta de DIgSILENT (la del espacio si no se dice), de todos los espacios:
+    ``(cuándo, lista, propia)``. La de otra carpeta nunca cuenta."""
+    if carpeta is None:
+        try:
+            carpeta = carpeta_de(ws)
+        except UserError:
+            return []
+    out: list[tuple[float, dict[str, Any], bool]] = []
+    propia = getattr(ws, 'pf_inventory', None) or {}
+    if propia.get('projects') and propia.get('folder') in (None, carpeta):
+        out.append((_cuando_se_leyo(propia, _mtime(ws.root / 'workspace.json')), propia, True))
     if not ws.root.parent.is_dir():
-        return None
+        return out
     for otra in ws.root.parent.iterdir():
         meta = otra / 'workspace.json'
         if otra == ws.root or not meta.is_file():
@@ -2219,11 +2244,62 @@ def _lectura_mas_reciente_de_la_carpeta(ws: Workspace) -> dict[str, Any] | None:
             continue
         if inventario.get('folder') != carpeta or not inventario.get('projects'):
             continue
-        cuando = max((float(p.get('native_reread_at') or 0) for p in inventario['projects']),
-                     default=0.0) or meta.stat().st_mtime
-        if mejor is None or cuando > mejor[0]:
-            mejor = (cuando, inventario)
-    return mejor[1] if mejor else None
+        out.append((_cuando_se_leyo(inventario, _mtime(meta)), inventario, False))
+    return out
+
+
+def _lectura_mas_reciente_de_la_carpeta(ws: Workspace) -> tuple[float, dict[str, Any]] | None:
+    """La lectura de proyectos más reciente de otro espacio, de la misma carpeta de DIgSILENT, con su fecha."""
+    otras = [(c, inv) for c, inv, propia in _lecturas_de_la_carpeta(ws) if not propia]
+    return max(otras, key=lambda x: x[0]) if otras else None
+
+
+def _nombres_de(inventario: dict) -> set[str]:
+    return {str(x) for p in inventario.get('projects') or [] for x in (p.get('path'), p.get('name')) if x}
+
+
+def proyecto_desaparecido(ws: Workspace, project: str) -> str | None:
+    """El motivo si ``project`` ya no está en DIgSILENT según las lecturas de su carpeta (018:RF-13), o ``None``.
+
+    Solo cuenta como desaparecido el que estaba en una lectura anterior y falta en la más reciente: uno recién
+    importado, que aún no sale en ninguna, no se bloquea. Se propone el de sus mismos alimentadores por lo que
+    lleva, no por el nombre: los proyectos de DIgSILENT pueden llamarse de cualquier forma (usuario, 2026-11-13).
+    """
+    project = str(project or '').strip()
+    if not project:
+        return None
+    try:
+        carpeta = carpeta_de(ws, project)                                       # la del vínculo, 081:RF-54
+    except UserError:
+        return None
+    # Solo lecturas con su fecha de relectura: sin fecha no se sabe cuál es posterior, y no se rechaza (018:RF-19).
+    lecturas = [(c, inv, propia) for _, inv, propia in _lecturas_de_la_carpeta(ws, carpeta)
+                if (c := _cuando_se_leyo(inv)) > 0]
+    if not lecturas:
+        return None
+    cuando, ultima, _ = max(lecturas, key=lambda x: x[0])
+    if project in _nombres_de(ultima):
+        return None
+    visto = [(c, inv) for c, inv, _ in lecturas if project in _nombres_de(inv)]
+    if not visto or max(c for c, _ in visto) >= cuando:
+        return None
+    _, donde = max(visto, key=lambda x: x[0])
+    suyos = {str(f) for p in donde.get('projects') or [] if project in (p.get('path'), p.get('name'))
+             for f in p.get('feeders') or []}
+    # Primero los que llevan justo esos alimentadores; un sistema entero que también los trae, después.
+    candidatos = [str(p.get('path') or p.get('name')) for p in sorted(
+        ultima.get('projects') or [], key=lambda p: (len({str(f) for f in p.get('feeders') or []} - suyos),
+                                                     str(p.get('path') or p.get('name'))))
+                  if suyos and suyos <= {str(f) for f in p.get('feeders') or []}]
+    fecha = datetime.fromtimestamp(cuando).strftime('%Y-%m-%d %H:%M') if cuando > 1e9 else 'la última'
+    texto = (f'El proyecto {project} ya no está en la carpeta «{ultima.get("folder")}» de DIgSILENT: la lectura '
+             f'de {fecha} no lo trae (se borró o se reemplazó al importar otra versión).')
+    if candidatos:
+        texto += (f' Con sus alimentadores ({", ".join(sorted(suyos))}) está: {", ".join(candidatos)}. '
+                  'Elíjalo en el paso 1.')
+    else:
+        texto += ' Vuelva a leer los proyectos en el paso 1 y elija el vigente.'
+    return texto
 
 
 def _economia_del_lote(economia: dict | None):
@@ -11280,6 +11356,9 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
                 'sola': fila.get('hoja') == 'formulario', 'informe': fichero.name,
                 'anio_ingreso': fila.get('anio_ingreso'),                     # 030:RF-10
                 'etapas': fila.get('etapas') or [],                            # 030:RF-13
+                # 017:RF-91: el nombre y las UTM que el operador ya escribió en «Una carga nueva».
+                'cliente': fila.get('descripcion') or None,
+                'utm_x': fila.get('coord_x'), 'utm_y': fila.get('coord_y'),
             }
     return list(vistas.values())
 
@@ -11303,6 +11382,32 @@ def _factor_de_carga_cabecera(ws: Workspace, job_id: str | None) -> dict[str, di
         if fc is not None:
             out[medidor] = {'fc': round(fc, 4), 'mes': f'{pico.year:04d}-{pico.month:02d}'}
     return out
+
+
+def avance_en_disco(ws: Workspace, project: str) -> dict:
+    """Lo ya hecho en el proyecto según lo guardado en disco, no según los trabajos de la sesión (072:RF-33).
+
+    Los trabajos viven en memoria: tras reiniciar la web, CA101_CHN102 (2026-11-13), calibrado, recalibrado y con
+    su carga nueva aplicada, salía con todos los pasos «pendiente» y sin camino directo al estudio y al informe.
+    """
+    from ..demanda_medida import clave_codigo
+
+    project = str(project or '').strip()
+    if not project:
+        return {'cargas': [], 'estudiados': [], 'obras': False, 'informes': []}
+    cargas = [{'sed': c['sed'], 'alimentador': c['alimentador'], 'sola': bool(c.get('sola'))}
+              for c in _cargas_nuevas_aplicadas(ws, project)]
+    estudiados: list[str] = []
+    for corrida in _corridas_de_estudios(ws, project):
+        if any(e.get('rol') == 'con' and not e.get('no_terminado') and not e.get('error')
+               for e in corrida.get('estudios') or []):
+            estudiados += [f for f in corrida.get('feeders') or [] if f not in estudiados]
+    obras = any(a.get('project') == project for a in ws.obras_aplicadas or [])
+    deEllos = {clave_codigo(c['alimentador']) for c in cargas} | {clave_codigo(f) for f in estudiados}
+    informes = [{'tipo': i['tipo'], 'docx': i['docx'], 'alimentadores': i['alimentadores']}
+                for i in _informes_generados(ws)
+                if any(clave_codigo(a) in deEllos for a in i['alimentadores'] or [])]
+    return {'cargas': cargas, 'estudiados': estudiados, 'obras': obras, 'informes': informes}
 
 
 def _informes_generados(ws: Workspace) -> list[dict]:
@@ -11369,8 +11474,11 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
         por_corrida.setdefault(c['token'] if c else f'sin registro {f}', (c, []))[1].append(f)
     avisos_corrida: list[dict] = []
     activas: set[str] = set()
+    kv_de_barras: dict[str, dict[str, float]] = {}
     for c, suyos in por_corrida.values():
         flujos = {rol: _ultimo_estudio(ws, rol, project, None if c else suyos[0], c) for rol in estudios}
+        for f in suyos:
+            kv_de_barras[f] = _kv_de_barras(flujos, f)
         activas |= set((flujos['con'] or {}).get('obras_activas') or [])
         de_ellos = {clave_codigo(f) for f in suyos}
         for rol, datos in flujos.items():
@@ -11396,12 +11504,46 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
         if a.get('variacion') in activas and a.get('project') == project.strip()                 and clave_codigo(f) in claves:
             obras[f] = obras.get(f, 0) + 1
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
+    _set_y_tension_de_cargas(ws, cargas, kv_de_barras)
     return {'faltan': faltan, 'limites': limites, 'moneda': moneda, 'bandas': bandas, 'plantilla_neutra': neutra,
             'estudios': estudios, 'avisos_corrida': avisos_corrida, 'obras': obras,
             'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),
             'generados': _informes_generados(ws),
             'formularios': dict((ws.informes.get('formularios') or {}).get(project.strip()) or {}),
             'libro_perdidas': _perdidas_del_libro(ws, list(feeders))}
+
+
+def _kv_de_barras(flujos: dict, alimentador: str) -> dict[str, float]:
+    """Tensión nominal de cada barra del alimentador en los flujos guardados de 4.2 (017:RF-91).
+
+    «Con proyecto» primero: la barra de una carga nueva solo existe con su variación. La cabecera
+    va con la clave ``''`` para la carga cuya barra no se encuentre.
+    """
+    out: dict[str, float] = {}
+    for rol in ('sin', 'con'):
+        geo = ((flujos.get(rol) or {}).get('geo') or {}).get(alimentador) or {}
+        for fila in geo.get('barras') or []:
+            if len(fila) >= 5 and fila[4]:
+                out[str(fila[0])] = float(fila[4])
+        if geo.get('cabecera') in out:
+            out[''] = out[str(geo['cabecera'])]
+    return out
+
+
+def _set_y_tension_de_cargas(ws: Workspace, cargas: list[dict], kv_de_barras: dict[str, dict[str, float]]) -> None:
+    """La SET del alimentador y la tensión de la barra de cada carga, para proponerlas en la solicitud
+    (017:RF-91). Con CA101 (2026-11-13) el operador había escrito la carga en 3.2 y el informe le volvía a
+    pedir cliente, ubicación, SET y tensión. Lo que no se sabe queda en ``None`` y se pide.
+    """
+    try:
+        estructura = estructura_del_espacio(ws)
+    except UserError:
+        estructura = None
+    for c in cargas:
+        st = estructura.set_de(c['alimentador']) if estructura is not None else None
+        c['set_nombre'] = st.rotulo if st is not None else None
+        kv = kv_de_barras.get(c['alimentador']) or {}
+        c['tension_kv'] = kv.get(str(c.get('barra') or '')) or kv.get('') or None
 
 
 #: Tope de lo que se guarda de un formulario de 4.4: textos de antecedentes, no ficheros.

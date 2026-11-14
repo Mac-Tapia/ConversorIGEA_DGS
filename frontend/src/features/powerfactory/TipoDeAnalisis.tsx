@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import type { ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from '../../api/types';
+import type { AvanceDisco, ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from '../../api/types';
 
 /** Dónde está cada paso en «Cargas en DIgSILENT»: los `id` de sus secciones (072:RF-33). */
 export const DESTINO = {
   proyecto: 'paso-proyecto', calibracion: 'paso-calibracion', nuevas: 'paso-nuevas', obras: 'paso-obras',
-  informes: 'paso-informes', planificacion: 'paso-planificacion',
+  estudios: 'paso-estudios', informes: 'paso-informes', planificacion: 'paso-planificacion',
 } as const;
 
 /** Lo que ya consta del proyecto en la sesión, leído de sus trabajos (072:RF-33). */
@@ -18,6 +18,63 @@ export interface EstadoPasos {
   informes: boolean;
   pide: boolean;
   largo: boolean;
+}
+
+/**
+ * 072:RF-33: lo de la sesión o lo guardado en disco, de los alimentadores marcados. Con solo la sesión, tras
+ * reiniciar la web, CA101_CHN102 (2026-11-13) ya calibrado y con su carga nueva salía con todo «pendiente».
+ */
+export function estadoConDisco(e: EstadoPasos, avance: AvanceDisco | null, order: string[]): EstadoPasos {
+  if (!avance) return e;
+  const marcado = (f: string) => order.includes(f);
+  return {
+    ...e,
+    cargas: e.cargas || avance.cargas.some((c) => marcado(c.alimentador)),
+    conProyecto: e.conProyecto || avance.obras,
+    informes: e.informes || avance.informes.some((i) => i.alimentadores.some(marcado)),
+  };
+}
+
+function irA(destino: string) {
+  const el = document.getElementById(destino);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.focus({ preventScroll: true });
+}
+
+/**
+ * 072:RF-33: con los alimentadores marcados ya calibrados, el camino directo a lo que sigue: 4.2 si falta el flujo de
+ * «Con proyecto» de alguno y 4.4 para el informe. No salta nada: los pasos anteriores siguen ahí para recalibrar.
+ */
+export function SeguirDondeQuedo({ avance, calibrados, order }: {
+  avance: AvanceDisco | null; calibrados: string[]; order: string[];
+}) {
+  const listos = order.filter((f) => calibrados.includes(f));
+  if (!order.length || listos.length < order.length) return null;
+  const cargas = (avance?.cargas ?? []).filter((c) => order.includes(c.alimentador));
+  const sinFlujo = order.filter((f) => !(avance?.estudiados ?? []).includes(f));
+  const informes = (avance?.informes ?? []).filter((i) => i.alimentadores.some((a) => order.includes(a)));
+  return (
+    <div className="callout" role="status">
+      <strong>Seguir donde quedó</strong>
+      <ul className="small">
+        <li>Calibrados en «Sin proyecto»: {listos.join(', ')}.</li>
+        <li>{cargas.length
+          ? `Cargas nuevas aplicadas: ${cargas.map((c) => `${c.sed} (${c.alimentador}${c.sola ? '' : ', en bloque'})`).join(', ')}.`
+          : 'Sin cargas nuevas aplicadas.'}</li>
+        <li>{sinFlujo.length
+          ? `Falta el flujo de «Con proyecto» de ${sinFlujo.join(', ')} (4.2).`
+          : `Flujos de «Con proyecto» ya corridos: ${order.join(', ')}.`}</li>
+        {informes.length > 0 && <li>Informes ya escritos: {informes.map((i) => i.docx).join(', ')}.</li>}
+      </ul>
+      <div className="row">
+        <button type="button" className="btn btn-sm" onClick={() => irA(DESTINO.estudios)}>Ir a 4.2 · Estudios</button>
+        <button type="button" className={`btn btn-sm${sinFlujo.length ? ' btn-ghost' : ''}`}
+          onClick={() => irA(DESTINO.informes)}>Ir a 4.4 · Preparar informe</button>
+      </div>
+      <small className="muted">Para recalibrar o cambiar cargas, los pasos 2 y 3 siguen abajo.</small>
+    </div>
+  );
 }
 
 export interface Paso {
@@ -95,13 +152,6 @@ export function useTiposAnalisis(anio: string): { tipos: TiposAnalisis | null; e
     return () => { vivo = false; };
   }, [valido]);
   return { tipos, error: valido === undefined ? 'El año de presentación tiene que ser un año de cuatro cifras.' : error };
-}
-
-function irA(destino: string) {
-  const el = document.getElementById(destino);
-  if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  el.focus({ preventScroll: true });
 }
 
 const anio2 = (a: { relativo: number; calendario: number | null }) =>

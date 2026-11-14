@@ -1066,6 +1066,12 @@ export interface CargaAplicada {
   kva_instalado: number | null;
   /** Ingresada sola (formulario); las del libro van en bloque. */
   sola: boolean;
+  /** 017:RF-91: lo ya escrito en «Una carga nueva» y lo que la web sabe de su alimentador. */
+  cliente?: string | null;
+  utm_x?: number | null;
+  utm_y?: number | null;
+  set_nombre?: string | null;
+  tension_kv?: number | null;
 }
 
 export interface InformeGenerado {
@@ -2201,4 +2207,13 @@ export interface Alternativa {
   /** 098:RF-40: con la de corto plazo, el año en que vuelve a salir de límites; su obra la plantea el PIDE. */
   vuelve_a_fallar?: { anio?: number | null; barra?: string | null; u?: number | null; horizonte?: number | null } | null;
   elegida: boolean;
+}
+
+/** Lo que ya consta del proyecto en disco, aunque la web se haya reiniciado (072:RF-33). */
+export interface AvanceDisco {
+  cargas: { sed: string; alimentador: string; sola: boolean }[];
+  /** Alimentadores con un flujo de «Con proyecto» terminado. */
+  estudiados: string[];
+  obras: boolean;
+  informes: { tipo: string; docx: string; alimentadores: string[] }[];
 }

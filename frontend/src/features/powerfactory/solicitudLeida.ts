@@ -64,3 +64,42 @@ export function incrementoNoCuadra(incremento: number | null, kwCarga: number | 
   return incremento != null && kwCarga != null && Math.abs(incremento - kwCarga) > 1;
 }
 
+
+/** Lo que la web ya sabe de la carga elegida (017:RF-91). */
+export interface DatosDeCarga {
+  kw?: number | null;
+  cliente?: string | null;
+  utm_x?: number | null;
+  utm_y?: number | null;
+  set_nombre?: string | null;
+  tension_kv?: number | null;
+}
+
+/**
+ * 017:RF-91: la solicitud y el punto con lo que ya se escribió de la carga en «Una carga nueva» y lo
+ * que se sabe de su alimentador; solo en los campos vacíos: lo escrito o leído de la carta no se pisa.
+ * Con CA101 (2026-11-13) el operador había escrito TierraLarga, sus UTM y CA101 en 3.2, y el informe
+ * le volvía a pedir cliente, ubicación, SET y tensión.
+ */
+export function propuestaDeCarga<S extends Record<string, string>, P extends Record<string, string>>(
+  sol: S, punto: P, carga: DatosDeCarga | null | undefined,
+): { sol: S; punto: P; cambia: boolean } {
+  if (!carga) return { sol, punto, cambia: false };
+  const texto = (v: string | number | null | undefined) => (v == null || v === '' ? '' : String(v));
+  const utm = carga.utm_x != null && carga.utm_y != null
+    ? `UTM ${Math.round(carga.utm_x)} E, ${Math.round(carga.utm_y)} N` : '';
+  const deSol: Record<string, string> = {
+    cliente: texto(carga.cliente), ubicacion: utm, potencia_kw: texto(carga.kw),
+    set_nombre: texto(carga.set_nombre), tension_kv: texto(carga.tension_kv),
+  };
+  const dePunto: Record<string, string> = { utm_x: texto(carga.utm_x), utm_y: texto(carga.utm_y) };
+  let cambia = false;
+  const llenar = <T extends Record<string, string>>(base: T, de: Record<string, string>): T => {
+    const out: Record<string, string> = { ...base };
+    for (const [k, v] of Object.entries(de)) {
+      if (k in out && v && !String(out[k] ?? '').trim()) { out[k] = v; cambia = true; }
+    }
+    return out as T;
+  };
+  return { sol: llenar(sol, deSol), punto: llenar(punto, dePunto), cambia };
+}

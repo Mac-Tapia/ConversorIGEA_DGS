@@ -9,10 +9,11 @@ async function cargar() {
   const salida = await build({ stdin: { contents: `
     import { createElement } from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
-    import { TipoDeAnalisis, pasosDelTipo, DESTINO } from './src/features/powerfactory/TipoDeAnalisis';
+    import { TipoDeAnalisis, SeguirDondeQuedo, estadoConDisco, pasosDelTipo, DESTINO } from './src/features/powerfactory/TipoDeAnalisis';
     import { GemeloPIDE, cuerpoPlanificar, porEntregable } from './src/features/powerfactory/GemeloPIDE';
     import { Ctx } from './src/shared/context';
-    export { pasosDelTipo, cuerpoPlanificar, porEntregable, DESTINO };
+    export { pasosDelTipo, cuerpoPlanificar, porEntregable, DESTINO, estadoConDisco };
+    export const seguir = (props) => renderToStaticMarkup(createElement(SeguirDondeQuedo, props));
     export const tipo = (props) => renderToStaticMarkup(createElement(TipoDeAnalisis, {
       onTipo: () => undefined, onAnio: () => undefined, error: '', planificacion: true, ...props }));
     export const gemelo = (plazo) => renderToStaticMarkup(createElement(Ctx.Provider, { value: {
@@ -134,4 +135,31 @@ test('072:RF-32 los documentos del estudio se agrupan por entregable con las cla
   assert.deepEqual(grupos.map((g) => g.titulo), ['PIDE', 'Planeamiento de largo plazo', 'Documentos del estudio']);
   assert.deepEqual(grupos[1].ficheros, ['1_diagnostico_ab12.docx', '2_alternativas_ab12.docx']);
   assert.deepEqual(porEntregable(['1_diagnostico_x.docx'], null), [{ titulo: 'Documentos del estudio', ficheros: ['1_diagnostico_x.docx'] }]);
+});
+
+
+const AVANCE = { cargas: [{ sed: 'SECA001', alimentador: 'CA101', sola: true }], estudiados: ['CA101'], obras: false,
+  informes: [] };
+
+test('072:RF-33 lo guardado en disco marca los pasos aunque la sesión no tenga sus trabajos', async () => {
+  const { estadoConDisco } = await cargar();
+  const e = estadoConDisco({ ...NADA, proyecto: true, alimentadores: true, calibrado: true }, AVANCE, ['CA101', 'CHN102']);
+  assert.equal(e.cargas, true);
+  assert.equal(e.conProyecto, false);
+  // Solo cuenta lo de los alimentadores marcados.
+  assert.equal(estadoConDisco(NADA, AVANCE, ['CHN102']).cargas, false);
+  assert.deepEqual(estadoConDisco(NADA, null, ['CA101']), NADA);
+});
+
+test('072:RF-33 con los marcados calibrados hay camino directo a 4.2 y 4.4', async () => {
+  const { seguir, DESTINO } = await cargar();
+  assert.equal(DESTINO.estudios, 'paso-estudios');
+  const html = seguir({ avance: AVANCE, calibrados: ['CA101', 'CHN102'], order: ['CA101', 'CHN102'] });
+  for (const t of ['Seguir donde quedó', 'SECA001 (CA101)', 'Falta el flujo de «Con proyecto» de CHN102',
+    'Ir a 4.2 · Estudios', 'Ir a 4.4 · Preparar informe', 'los pasos 2 y 3 siguen abajo']) assert.ok(html.includes(t), t);
+  const listo = seguir({ avance: { ...AVANCE, estudiados: ['CA101', 'CHN102'] }, calibrados: ['CA101', 'CHN102'],
+    order: ['CA101', 'CHN102'] });
+  assert.ok(listo.includes('Flujos de «Con proyecto» ya corridos: CA101, CHN102'));
+  // Sin calibrar todos los marcados, no se ofrece el atajo.
+  assert.equal(seguir({ avance: AVANCE, calibrados: ['CA101'], order: ['CA101', 'CHN102'] }), '');
 });

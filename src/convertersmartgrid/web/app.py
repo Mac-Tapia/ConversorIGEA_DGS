@@ -1812,7 +1812,10 @@ def create_app(
     # Spec 007, RF-40: el último ajuste aplicado guardado en disco, para la base.
     @app.get('/api/workspaces/{wid}/demanda/ajuste/ultimo')
     def ajuste_ultimo(wid: str, project: str) -> dict:
-        return {'ajuste': services.ajuste_aplicado_en_disco(ws_or_404(wid), project)}
+        ws = ws_or_404(wid)
+        # 072:RF-33: con lo demás que ya consta en disco, para ir directo al estudio y al informe.
+        return {'ajuste': services.ajuste_aplicado_en_disco(ws, project),
+                'avance': services.avance_en_disco(ws, project)}
 
     # Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto. Carril del
     # motor: cambia la ejecución activa, y una conversión en marcha escribe en ella.
