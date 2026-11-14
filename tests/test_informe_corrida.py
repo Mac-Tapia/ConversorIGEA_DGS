@@ -351,6 +351,8 @@ def test_el_boton_liga_el_informe_a_la_corrida_que_acaba_de_lanzar(client, monke
     wid, ws = _espacio(client)
     _carga_aplicada(ws)
     _correr(ws, monkeypatch)
+    # La comprobación previa en DIgSILENT (017:RF-124) tiene sus propias pruebas; aquí, la carga está igual.
+    monkeypatch.setattr(services, 'comprobar_carga_en_digsilent', lambda *_a, **_k: ([], None))
     preparados = {}
     ejecutar = services.estudios_ejecutar
 
@@ -444,3 +446,56 @@ def test_el_avance_del_proyecto_sale_del_disco(client, monkeypatch):  # noqa: F8
     assert avance['cargas'] == [{'sed': 'N1', 'alimentador': 'AL01', 'sola': True}]
     assert avance['estudiados'] == ['AL01', 'AL02'] and avance['obras'] is True
     assert services.avance_en_disco(ws, 'OTRO') == {'cargas': [], 'estudiados': [], 'obras': False, 'informes': []}
+
+
+def _lectura(monkeypatch, ws, filas, diferencias):
+    """La lectura de DIgSILENT de la comprobación previa, sin DIgSILENT: el fichero crudo y sus diferencias."""
+    from convertersmartgrid.web import mapa_cargas_api
+
+    def leer(ws_, _ctx, project, _alims, _anio):
+        nombre = 'ubicacion_cargas_0123456789ab.json'
+        (ws_.out_dir / nombre).write_text(json.dumps({'project': project, 'cargas': filas}), encoding='utf-8')
+        return {'project': project, 'lectura': nombre, 'diferencias': diferencias, 'avisos': []}
+    monkeypatch.setattr(mapa_cargas_api, 'leer_en_digsilent', leer)
+
+
+class _Ctx:
+    def __init__(self):
+        self.lineas = []
+
+    def log(self, texto):
+        self.lineas.append(texto)
+
+
+def test_el_informe_no_se_escribe_con_una_carga_que_no_esta_en_digsilent(client, monkeypatch):  # noqa: F811
+    """017:RF-124 ampliada — SECA001 seguía en la web con su variación inactiva, sustituida por SECA0001: el informe
+    no se escribe sobre una carga que no está en DIgSILENT y dice cuál es la vigente."""
+    _wid, ws = _espacio(client)
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    _lectura(monkeypatch, ws, [], [
+        {'sed': 'SN1', 'alimentador': 'AL01', 'estado': 'no_leida', 'error': 'su variación no está activa',
+         'leido': None, 'guardado': {'barra': 'B1', 'kw': 400.0}, 'cambios': []},
+        {'sed': 'SN2', 'alimentador': 'AL01', 'estado': 'solo_en_digsilent', 'leido': {'barra': 'B9', 'kw': 500.0},
+         'guardado': None, 'cambios': []}])
+    with pytest.raises(UserError, match=r'SN1 no está en DIgSILENT \(su variación no está activa\).*vigentes en AL01: SN2'):
+        services.comprobar_carga_en_digsilent(ws, _Ctx(), 'PRY', 'AL01', 'SN1')
+
+
+def test_lo_que_cambio_en_digsilent_manda_en_el_informe(client, monkeypatch):  # noqa: F811
+    """017:RF-124 ampliada — la conexión movida en DIgSILENT se adopta como punto de diseño, y la potencia de
+    DIgSILENT manda si difiere; los dos cambios se dicen en el informe."""
+    from convertersmartgrid.mapa_cargas import leer_puntos
+
+    _wid, ws = _espacio(client)
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    cruda = {'sed': 'SN1', 'alimentador': 'AL01', 'variacion': 'Carga_SN1', 'punto': [-13.5, -76.0], 'kw': 450.0,
+             'nodo': {'nombre': 'B7', 'gps': [-13.51, -76.01]}, 'enlace': {'nombre': 'LNE_SN1', 'km': 0.2}}
+    _lectura(monkeypatch, ws, [cruda], [
+        {'sed': 'SN1', 'alimentador': 'AL01', 'estado': 'cambiada', 'cambios': ['nodo de conexión B1 → B7'],
+         'leido': {'barra': 'B7', 'kw': 450.0}, 'guardado': {'barra': 'B1', 'kw': 400.0}}])
+    avisos, kw = services.comprobar_carga_en_digsilent(ws, _Ctx(), 'PRY', 'AL01', 'SN1')
+    assert kw == 450.0
+    assert any('se tomó de DIgSILENT: nodo de conexión B1 → B7' in a for a in avisos)
+    assert any('450 kW, no 400 kW' in a for a in avisos)
+    assert any(p.get('barra') == 'B7' or (p.get('nodo') or {}).get('nombre') == 'B7'
+               for p in leer_puntos(ws.root, 'PRY').values())

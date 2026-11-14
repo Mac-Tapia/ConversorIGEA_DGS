@@ -2233,3 +2233,20 @@ export interface AvanceDisco {
   obras: boolean;
   informes: { tipo: string; docx: string; alimentadores: string[] }[];
 }
+/** 017:RF-106 ampliada: lo que ocasionan las cargas nuevas, comparado con «Sin proyecto», y su estado con las obras. */
+export type EstadoDiagnostico = 'corregido' | 'sigue' | null;
+export interface DiagnosticoCargas {
+  evaluado: boolean;
+  con_proyecto: boolean;
+  limites: { tension_min_pu: number; cargabilidad_max_pct: number };
+  tension: { provocadas: FilaTensionDiag[]; previas: FilaTensionDiag[] };
+  sobrecargas: { provocadas: FilaCargaDiag[]; previas: FilaCargaDiag[] };
+  trechos: { desde: string; hasta: string; km: number; tramos: string[]; carga_max: number; estado: EstadoDiagnostico }[];
+  tension_min: { sin: number | null; cargas: number | null; con: number | null };
+  provocados: number;
+  corregidos: number | null;
+  siguen: number | null;
+  corrida?: string | null;
+}
+export interface FilaTensionDiag { barra: string; sin: number | null; cargas: number; con: number | null; estado: EstadoDiagnostico }
+export interface FilaCargaDiag { elemento: string; sin: number | null; cargas: number; con: number | null; estado: EstadoDiagnostico }

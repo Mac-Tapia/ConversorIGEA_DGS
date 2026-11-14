@@ -794,7 +794,7 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 | 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py`, en «Con proyecto», una variación por carga (specs 007 y 014) |
 | **4 · Obras y estudios** | | Sobre «Sin proyecto» y «Con proyecto», preparados por `tools/casos_pf.py` (spec 011) |
 | 4.1 Obras de mejora | Formulario y obras guardadas; «Simular» o «Aplicar» | `tools/obras_pf.py` |
-| 4.2 Estudios y guiones | Estudio, caso y límites; libro de la empresa (confiabilidad, reconectadores, capacidad, curvas PV, condensadores, spec 012); guiones DPL y Python del operador | `tools/estudios_pf.py`, `tools/confiabilidad_pf.py`, `tools/capacidad_pf.py` |
+| 4.2 Estudios y guiones | Estudio, caso y límites; libro de la empresa (confiabilidad, reconectadores, capacidad, curvas PV, condensadores, spec 012); guiones DPL y Python del operador | `tools/estudios_pf.py`, `tools/confiabilidad_pf.py`, `tools/capacidad_pf.py`, `tools/estudios_entradas_pf.py` |
 | 4.3 Transferencia | Dos alimentadores y su enlace | `tools/transferencia_pf.py` |
 
 ### Medición de cabecera de otra forma: una columna por alimentador (spec 051)
@@ -867,6 +867,12 @@ que prepara la web (`output/web/<espacio>/planes/`):
 TT y la generación del caso; sin él, corre las fallas del plan con la traza de cortocircuito y deja los
 ajustes propuestos en una variación desactivada. No da por coordinada la red: eso lo dice la web con los
 criterios del perfil.
+
+`estudios_entradas_pf.py` (spec 012, RF-83 a RF-85) no se ejecuta solo: `estudios_pf.py` lo llama para el
+cortocircuito y la cuasi-dinámica con los datos que el operador cargó y confirmó en «4.2 Estudios» (Pcc de
+cada SET de cabecera, perfiles de carga). La Pcc va a las redes externas en una variación temporal y los
+perfiles a las cargas como características de tiempo; todo se borra al terminar y se comprueba que la red
+quedó como estaba. `--help` dice solo eso.
 
 Un solo proceso a la vez tiene el motor de DIgSILENT en la máquina (spec 019): si otro lo
 tiene, el guion espera hasta 10 minutos diciendo quién, y con DIgSILENT abierto a mano
@@ -1175,6 +1181,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `entrenar_alimentadores_gpu.py` | Una red de pronóstico por alimentador, uno tras otro en la GPU; retoma los ya entrenados y no promociona modelos (spec 089, RF-89). |
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |
 | `escanear_alimentador_pf.py` | Escanea en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador antes de recalibrar; la web lo lanza con «Escanear en DIgSILENT» (`POST /api/workspaces/{id}/powerfactory/escanear`, spec 028). | PF |
+| `ubicacion_cargas_pf.py` | Lee en «Con proyecto», sin cambiar nada, dónde está conectada hoy cada carga nueva: el nodo de media, la línea de enlace y su GPS, también de las variaciones `Carga_…` que la web no tiene (`--plan`, `--output-json`). La web lo lanza con «Actualizar desde DIgSILENT» (`POST /api/workspaces/{id}/mapa-cargas/digsilent`) y compara con lo guardado (spec 017, RF-124). | PF |
 | `transferencia_operador_pf.py` | Lee en DIgSILENT, sin cambiar nada, las transferencias de carga que hizo el operador entre los alimentadores de un proyecto: SED, kW, bancos, lo que las une y el punto abierto (`--plan`, `--output-json`). La calibración y el escaneo usan su módulo para calibrar con la red de la fuente y restituirla al terminar (spec 098). | PF |
 | `informe_web.py` | Repite por la web un informe de estudio o de factibilidad con el `.plan.json` que la página dejó junto al Word (`--espacio ID --plan RUTA [--salida CARPETA]`); descarga el Word y dice sus huecos (spec 017, RF-105; paso 4.4). | Web |
 | `set_nueva_operacion_pf.py` | `--plan PLAN.json --output-json INFORME.json`: adaptador del trabajo web `/pf/obras/set-nueva/operacion`. Diagnostica, evalúa temporalmente o aplica refuerzos y `salidas` sobre una SET existente, con escenario copiado y variación por obra. `conciliar_fases=true` alinea las fases con P/Q nominales sin reducir los totales ni cambiar su reparto relativo; guarda antes/después. Aplicar exige ambos flujos conformes y relectura, y captura los cuatro flujos de referencia (spec 063, RF-36 a RF-38). | DIgSILENT |

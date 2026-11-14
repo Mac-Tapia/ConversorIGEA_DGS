@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 329 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 333 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 106 |
-| Interfaz | `frontend/src/` | 65 |
-| Pruebas de la interfaz | `frontend/test/` | 25 |
-| Pruebas | `tests/` | 439 |
+| Herramientas y guiones | `tools/` | 108 |
+| Interfaz | `frontend/src/` | 71 |
+| Pruebas de la interfaz | `frontend/test/` | 27 |
+| Pruebas | `tests/` | 443 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
-`web/services.py` tiene 13619 líneas y 420 funciones, pendiente de partir (002).
+`web/services.py` tiene 13823 líneas y 428 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-106 specs con 3606 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+106 specs con 3620 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -38,10 +38,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | aplicacion | Apl | 103 |
 | dominio | Dom | 47 |
 | presentacion | Pre | 38 |
+| sin capa | — | 5 |
 | puertos | Pue | 3 |
-| sin capa | — | 1 |
 
-319 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+323 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -49,12 +49,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-158 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+161 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 30 |
-| `pf` | espacio | 21 |
+| `pf` | espacio | 24 |
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
@@ -381,6 +381,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `entradas_estudios.py` | — | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
 | `protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
@@ -393,6 +394,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `libro_informe.py` | Ada | 066 | El libro Excel de cada informe, relleno desde el modelo de la empresa con el plano de su perfil |
 | `libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
 | `mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |
+| `mapa_cargas.py` | — | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
 | `documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
 | `archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
 
@@ -559,6 +561,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que… |
 | `copia_datos_api.py` | Pre | 086 | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. |
+| `mapa_cargas_api.py` | — | 017, 109, 124 | Rutas `…/mapa-cargas`, `…/pagina`, `…/digsilent` y `…/confirmar`: el mapa de las cargas nuevas, la lectura sin escribir en DIgSILENT y «Usar este… |
+| `entradas_estudios_api.py` | — | 012 | Rutas `…/pf/entradas-estudios`: leer ficheros como trabajo (borrador), guardar lo confirmado, descartar y listar, por proyecto en la carpeta del… |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
 | `libros_nuevos.py` | Pre | 104 | La web reconoce sola los libros nuevos de demanda: compara fotos al arrancar, al abrir un espacio y cada intervalo. |
 | `fondo.py` | Pre | 104 | Carril de fondo de la web: mira si el operador tiene trabajos en el motor o en DIgSILENT, corre cada libro en un proceso de prioridad baja que se… |
@@ -636,6 +640,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_pf.py` | — | 011, 017, 130, 131, 135, 012, 037 | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores. |
 | `capacidad_pf.py` | — | 012 | Guion de DIgSILENT de la capacidad de alojamiento nodo a nodo y conjunta (`ComHostcap`), las curvas PV por alimentador con o sin contingencias… |
 | `confiabilidad_pf.py` | — | 012 | Guion de DIgSILENT: con `--aplicar-datos`, el libro de la empresa en la variación «Datos de confiabilidad» (modelos `Sto*` por clase y tipo, equipos… |
+| `estudios_entradas_pf.py` | — | 012 | Guion de DIgSILENT que llama `tools/estudios_pf.py`: cortocircuito (`ComShc`) con la Pcc confirmada en una variación temporal y cuasi-dinámica… |
 | `protecciones_pf.py` | — | 049 | Guion de DIgSILENT de las protecciones: con `--capacidades`, el inventario de la versión conectada (órdenes `ComShc`, `ComShctrace` y… |
 | `transferencia_pf.py` | — | 011, 104, 129, 016 | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del… |
 | `transformador_set_pf.py` | — | 017 | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la… |
@@ -644,6 +649,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `escenarios_pf.py` | — | 024 | Guion de DIgSILENT: escenarios del gemelo en una copia del proyecto (desactivado antes de copiar), demanda escalada y tramos abiertos, resultados y… |
 | `digital_twin_snapshot_pf.py` | — | 024, 098 | Guion de DIgSILENT de solo lectura: reabre el proyecto, activa el caso, ejecuta el flujo y devuelve tensiones, cargabilidad, cabeceras, pérdidas,… |
 | `escanear_alimentador_pf.py` | — | 028, 098 | Escaneo de solo lectura de alimentadores en DIgSILENT: generadores con su barra, bancos, variaciones y cargas cambiadas a mano. |
+| `ubicacion_cargas_pf.py` | — | 017, 124 | Lectura de solo lectura en «Con proyecto» de dónde está conectada hoy cada carga nueva: nodo de media, línea de enlace y GPS, también de las… |
 | `transferencia_operador_pf.py` | — | 098 | Transferencias de carga del operador en DIgSILENT: leerlas, desactivarlas mientras se calibra con registro en disco y restituirlas con su evidencia. |
 | `verificar_pf.py` | — | 008 | Guion de DIgSILENT: convergencia del proyecto con lo activo. |
 | `hojas_diagrama_pf.py` | — | 022 | Hoja de cada diagrama de un proyecto de DIgSILENT frente a sus gráficos y conectores, de solo lectura. |
@@ -748,7 +754,11 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `src/api/esquema.ts` | — | 065, 002 | Tipos generados desde OpenAPI. |
-| `src/app/AvisosLibros.tsx` | — | 104 | Avisos de los libros de demanda que la web reconoció sola, con «Dar por visto», y el estado del dataset del pronóstico. |
+| `src/features/powerfactory/EntradasEstudios.tsx` | — | 012 | Paso 4.2: datos que faltan a los estudios. |
+| `src/features/powerfactory/entradasEstudiosLogica.ts` | — | 012 | Lógica de esa tabla: entradas por estudio sin repetir, edición sin mutar, páginas y filas con error. |
+| `src/api/entradasEstudios.ts` | — | 012 | Cliente de las entradas de los estudios: estado, leer, guardar y descartar. |
+| `test/entradasEstudios.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `src/features/powerfactory/AvisosLibros.tsx` | — | 104 | «Novedades de los libros» en 2.1: avisos de los libros de demanda que la web reconoció sola, con «Dar por visto», y el estado del dataset del… |
 | `scripts/build.mjs` | — | 065 | Compila fuera del checkout y publica `dist` completo, conservando el anterior ante cualquier fallo. |
 | `scripts/runtime-paths.mjs` | — | 065 | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. |
 | `test/reconexion.test.mjs` | — | 086 | Pruebas de los trabajos al reconectar y de la edición en la web. |
@@ -761,6 +771,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/projectBinding.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/api/evolucionFijas.ts` | — | 105 | Cliente tipado de la evolución de los clientes fijos y de la carpeta de archivo. |
+| `src/api/mapaCargas.ts` | — | 017, 109, 124 | Cliente tipado del mapa de las cargas nuevas y de su punto de diseño. |
+| `src/features/powerfactory/MapaCargas.tsx` | — | 017, 109, 124 | El mapa de las cargas nuevas en la web, con «Actualizar desde DIgSILENT», la tabla de diferencias y «Usar este punto». |
+| `src/features/powerfactory/puntosDeDiseno.ts` | — | 017, 109, 124 | Lógica del mapa de las cargas nuevas: la última lectura del proyecto, qué filas se pueden usar y cómo se dice cada diferencia. |
+| `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
 | `src/shared/graficos.ts` | — | 105, 006 | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. |
 | `src/features/clientesfijos/EvolucionFijas.tsx` | — | 105 | Pestaña «Evolución de clientes fijos»: alimentadores, rango de meses y trabajo. |

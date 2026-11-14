@@ -548,6 +548,8 @@ def test_el_boton_prepara_los_casos_y_corre_los_flujos_en_el_mismo_trabajo(clien
     «Cargas nuevas» como el estado proyectado sin obras."""
     from convertersmartgrid.web import services
 
+    # La comprobación previa en DIgSILENT (017:RF-124) tiene sus propias pruebas; aquí, la carga está igual.
+    monkeypatch.setattr(services, 'comprobar_carga_en_digsilent', lambda *_a, **_k: ([], None))
     wid, salida = _espacio(client, tmp_path)
     _carga_aplicada(client, wid, salida)
     llamadas = []

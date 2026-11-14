@@ -64,6 +64,7 @@ from cargas_pf import (
 from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
 
+from convertersmartgrid.entradas_estudios import CON_GUION
 from convertersmartgrid.estudios_pf import ESTUDIOS_012
 from convertersmartgrid.obras_pf import PREFIJO_VARIACION
 from convertersmartgrid.native_action import native_action_block_report
@@ -76,9 +77,13 @@ ORDENES = {
     # Spec 012: los guiones confiabilidad_pf.py y capacidad_pf.py.
     'fiabilidad': 'ComRel3', 'reconectadores': 'ComOpri', 'alojamiento': 'ComHostcap',
     'curvas_pv': 'ComPvcurves', 'condensadores': 'ComCapo',
+    # 012:RF-83, RF-84: con lo que el operador cargó en la web, en estudios_entradas_pf.py.
+    'cortocircuito': 'ComShc', 'cuasi_dinamica': 'ComStatsim',
 }
 #: Los de la spec 012: su propio guion y la comprobación de estado al terminar (RF-60).
 ESTUDIOS_RED = ESTUDIOS_012
+#: Los que usan las entradas cargadas en la web (012:RF-83, RF-84), con la misma comprobación.
+ESTUDIOS_ENTRADAS = CON_GUION
 #: Los que proponen cambios en la red: se ejecutan en una variación temporal (RF-26).
 OPTIMIZADORES = ('punto_apertura', 'perfil_tension', 'balance_fases')
 
@@ -660,12 +665,15 @@ def _estudio_de_red(app, plan: dict, alims, feeders: list[str], informe: dict) -
         sys.path.insert(0, carpeta)
     import capacidad_pf
     import confiabilidad_pf
+    import estudios_entradas_pf
 
     from convertersmartgrid.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
 
     funcion = {'fiabilidad': confiabilidad_pf.fiabilidad, 'reconectadores': confiabilidad_pf.reconectadores,
                'alojamiento': capacidad_pf.alojamiento, 'curvas_pv': capacidad_pf.curvas_pv,
-               'condensadores': capacidad_pf.condensadores}[plan['estudio']]
+               'condensadores': capacidad_pf.condensadores,
+               'cortocircuito': estudios_entradas_pf.cortocircuito,
+               'cuasi_dinamica': estudios_entradas_pf.cuasi_dinamica}[plan['estudio']]
     antes, foto = _estado(app, alims, feeders)
     try:
         return funcion(app, plan, alims, feeders, informe)
@@ -870,7 +878,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             if rol == 'con' and plan.get('alternativas'):
                 informe['alternativas'] = _alternativas(app, alims, feeders, plan['alternativas'],
                                                         todo, informe['avisos'])
-        elif estudio in ESTUDIOS_RED:
+        elif estudio in ESTUDIOS_RED + ESTUDIOS_ENTRADAS:
             motivo = _estudio_de_red(app, plan, alims, feeders, informe)
             informe['medidas'] = base
             if motivo:

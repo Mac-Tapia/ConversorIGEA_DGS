@@ -629,3 +629,31 @@ def test_linea_con_un_extremo_fuera_del_alimentador_no_es_candidata(guion):
     assert rc == 0, informe
     creada = informe['feeders'][0]['creadas'][0]
     assert creada['sed'] == 'N1' and 'F1_L4' not in str(creada.get('tramo') or '')
+
+
+def test_la_carga_que_ya_esta_en_digsilent_se_dice_con_su_nombre_punto_y_potencia(guion):
+    """004:RF-77 — antes de conectar, la carga nueva que ya está en DIgSILENT se dice con su nombre, sus coordenadas y
+    su potencia, y si se reutiliza o se reemplaza; nunca queda conectada dos veces (SECA001 y SECA0001 en CA101,
+    2026-11-13)."""
+    app = fake_pf.proyecto(cargas_por_alim=4)
+    destino = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F2_B3')
+    fila = _nueva('N1', lat=destino.GPSlat + 0.0003, lon=destino.GPSlon, coord_x=388631.0, coord_y=8503377.0)
+    informe, rc = guion.ejecutar(app, _plan(['F1', 'F2'], nuevas=[fila]), simular=False)
+    assert rc == 0, informe
+    assert informe['ya_en_digsilent'] == []
+    # La misma fila otra vez: ya existe y se reutiliza, con su ficha.
+    otra, rc = guion.ejecutar(app, _plan(['F1', 'F2'], nuevas=[dict(fila)], variacion='Cargas_2'), simular=True)
+    assert rc == 0, otra
+    [ficha] = otra['ya_en_digsilent']
+    assert (ficha['sed'], ficha['existente'], ficha['alimentador'], ficha['accion']) == ('N1', 'N1', 'F2', 'se reutiliza')
+    assert ficha['kw'] == pytest.approx(80.0) and ficha['kvar'] == pytest.approx(30.0)
+    assert ficha['utm'] == [388631.0, 8503377.0] and ficha['lat'] == pytest.approx(fila['lat'])
+    # Con otra potencia: se reemplaza, y se dice qué cambió.
+    mayor = _nueva('N1', lat=fila['lat'], lon=fila['lon'], kw=120.0)
+    cambio, rc = guion.ejecutar(app, _plan(['F1', 'F2'], nuevas=[mayor], variacion='Cargas_3'), simular=False)
+    assert rc == 0, cambio
+    [ficha] = cambio['ya_en_digsilent']
+    assert ficha['accion'] == 'se reemplaza' and 'su kW' in ficha['cambios'] and ficha['kw'] == pytest.approx(80.0)
+    # Una sola carga N1 en el proyecto: nunca dos veces.
+    _ver_cargas(app)
+    assert [o.loc_name for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name.startswith('N1')] == ['N1']

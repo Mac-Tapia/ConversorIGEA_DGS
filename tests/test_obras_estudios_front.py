@@ -38,9 +38,11 @@ def test_paso_4_despues_de_la_integracion_en_tres_partes():
 def test_mismo_proyecto_y_mismos_alimentadores_marcados():
     """011:RF-42 — las tres partes reciben el proyecto y los alimentadores marcados en el
     paso 2; los estudios, también el ajuste que hace de base (RF-12)."""
-    assert '<ObrasPF project={project} feeders={order} />' in CARGAS
-    assert '<EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null}' in CARGAS  # 091:RF-21 añade faltaRecalibrar
-    assert '<TransferenciaPF project={project} feeders={order} />' in CARGAS
+    # 018:RF-19: 4.1 a 4.3 usan el proyecto que se estudia (por defecto, el del paso 1 con sus alimentadores).
+    assert '<ObrasPF project={estudio.proyecto} feeders={estudio.feeders} />' in CARGAS
+    assert '<EstudiosPF project={estudio.proyecto} feeders={estudio.feeders}' in CARGAS  # 091:RF-21 añade faltaRecalibrar
+    assert 'ajusteJobId={estudio.propio ? null : baseJob?.id ?? null}' in CARGAS
+    assert '<TransferenciaPF project={estudio.proyecto} feeders={estudio.feeders} />' in CARGAS
 
 
 def test_cada_llamada_va_a_una_ruta_de_la_api():

@@ -162,3 +162,16 @@ export function Toggle({ label, checked, onChange, disabled, hint }: {
     </label>
   );
 }
+
+/**
+ * La explicación de un paso, plegada: se ve «Cómo funciona» y el texto a un clic. Usuario (2026-11-14): la web «no
+ * debería estar así, con tanto texto»; cada paso abría con su párrafo de explicación a la vista.
+ */
+export function Ayuda({ children, titulo = 'Cómo funciona' }: { children: ReactNode; titulo?: string }) {
+  return (
+    <details className="ayuda">
+      <summary>{titulo}</summary>
+      <div className="muted">{children}</div>
+    </details>
+  );
+}

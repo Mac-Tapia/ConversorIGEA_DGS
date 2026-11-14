@@ -125,6 +125,44 @@ def ocr_pagina(pdf: Path, pagina: int, exe: str, idioma: str) -> str:
     return r.stdout
 
 
+#: Las imágenes que se leen por OCR: fotos o escaneos de fichas, placas, oficios y ajustes (usuario, 2026-11-13).
+EXTENSIONES_IMAGEN = ('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.webp')
+
+
+def texto_de_fichero(ruta: Path) -> tuple[str, str, list[str]]:
+    """(texto, método, avisos) de un TXT, un PDF o una imagen: lo que falte para un estudio se carga así.
+
+    Usuario (2026-11-13): los datos que faltan se ingresan en TXT o en imagen (JPG o similares). El PDF va por
+    :func:`texto_pdf`; la imagen, limpia como una página escaneada y por Tesseract; el resto, como texto.
+    """
+    sufijo = ruta.suffix.lower()
+    if sufijo == '.pdf':
+        texto, _paginas, metodo, avisos = texto_pdf(ruta)
+        return texto, metodo, avisos
+    if sufijo in EXTENSIONES_IMAGEN:
+        from PIL import Image
+
+        exe = tesseract()
+        if not exe:
+            return '', 'ocr', [f'{ruta.name}: no hay Tesseract para leer la imagen; escriba los datos a mano.']
+        with Image.open(ruta) as imagen, tempfile.TemporaryDirectory() as carpeta:
+            png = Path(carpeta) / 'imagen.png'
+            _limpiar_imagen(imagen).save(png)
+            r = subprocess.run([exe, *tessdata(), str(png), 'stdout', '-l', idioma_ocr(exe), '--psm', '6'],
+                               capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=300)
+        if r.returncode != 0:
+            return '', 'ocr', [f'{ruta.name}: Tesseract no la pudo leer ({(r.stderr or "").strip()[:120]}).']
+        return r.stdout, 'ocr', []
+    # El Bloc de notas de Windows en español guarda en Latin-1 (cp1252): «Ã±» en vez de «ñ» si se leyera como UTF-8.
+    datos = ruta.read_bytes()
+    for codificacion in ('utf-8-sig', 'cp1252'):
+        try:
+            return datos.decode(codificacion), 'texto', []
+        except UnicodeDecodeError:
+            continue
+    return datos.decode('latin-1'), 'texto', []
+
+
 def texto_pdf(pdf: Path, *, forzar_ocr: bool = False,
               cancelado: Callable[[], None] | None = None) -> tuple[str, int, str, list[str]]:
     """(texto, páginas, método, avisos). OCR solo en las páginas sin capa de texto."""
@@ -305,8 +343,15 @@ def clase_de(texto: str) -> str:
 
 def leer_documento(pdf: Path, *, forzar_ocr: bool = False,
                    cancelado: Callable[[], None] | None = None) -> Documento:
-    """Un PDF leído y sus datos (RF-137, RF-138)."""
-    texto, paginas, metodo, avisos = texto_pdf(pdf, forzar_ocr=forzar_ocr, cancelado=cancelado)
+    """Un PDF, un TXT o una imagen leídos y sus datos (RF-137, RF-138).
+
+    Usuario (2026-11-13): las cartas, oficios y fichas también llegan como TXT o como foto o escaneo en JPG o PNG.
+    """
+    if pdf.suffix.lower() == '.pdf':
+        texto, paginas, metodo, avisos = texto_pdf(pdf, forzar_ocr=forzar_ocr, cancelado=cancelado)
+    else:
+        texto, metodo, avisos = texto_de_fichero(pdf)
+        paginas = 1
     extracto = '\n'.join(x.strip() for x in texto.splitlines() if x.strip())[:1500]
     datos = datos_de_texto(texto) if texto.strip() else {}
     if texto.strip() and not datos:

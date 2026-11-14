@@ -602,6 +602,121 @@ def bajo_limite(sin: Mapping[str, Any], con: Mapping[str, Any], limites: Limites
     return clasificar_bajo_limite(u_sin, u_con, barras_cargas, limites.tension_min_pu, tolerancia_pu)
 
 
+def _u_por_barra(medida: Mapping[str, Any] | None) -> dict[str, float]:
+    """La tensión de cada barra juzgada; con dos del mismo nombre, la más baja. Sin flujo convergido, nada."""
+    out: dict[str, float] = {}
+    if not medida or not medida.get('converge'):
+        return out
+    for barra, u in _barras_juzgadas(medida):
+        if u is not None and (barra not in out or u < out[barra]):
+            out[barra] = u
+    return out
+
+
+def _carga_por_elemento(medida: Mapping[str, Any] | None) -> dict[str, float]:
+    """La cargabilidad de cada elemento (%); con dos del mismo nombre, la más alta."""
+    out: dict[str, float] = {}
+    if not medida or not medida.get('converge'):
+        return out
+    for nombre, _clase, carga in medida.get('elementos') or []:
+        if carga is not None and (nombre not in out or carga > out[nombre]):
+            out[nombre] = float(carga)
+    return out
+
+
+def diagnostico_de_cargas(sin: Mapping[str, Any] | None, cargas: Mapping[str, Any] | None,
+                          con: Mapping[str, Any] | None, limites: Limites,
+                          geo: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Lo que provocaron las cargas nuevas y si «Con proyecto» lo corrige (086:RF-48 ampliada).
+
+    Usuario (2026-11-13): tras conectar la carga, un resumen de qué problemas ocasionó (sobrecargas de un nodo a otro y
+    barras con caída de tensión) para ver después, al proponer obras, si de verdad se corrigieron. Se compara «Cargas
+    nuevas» (sin obras) con «Sin proyecto»: lo que solo está con las cargas lo provocaron ellas; lo que ya estaba antes
+    va aparte. Cada problema dice su estado en «Con proyecto»: «corregido» o «sigue», con el valor; sin ese flujo,
+    ``None``. Las sobrecargas de líneas se agrupan en trechos continuos desde la cabecera (:func:`trechos_de_conductor`).
+    """
+    u_sin, u_car, u_con = _u_por_barra(sin), _u_por_barra(cargas), _u_por_barra(con)
+    c_sin, c_car, c_con = _carga_por_elemento(sin), _carga_por_elemento(cargas), _carga_por_elemento(con)
+    hay_con = bool(con and con.get('converge'))
+    umin, cmax = limites.tension_min_pu, limites.cargabilidad_max_pct
+
+    def estado_tension(barra: str) -> str | None:
+        if not hay_con:
+            return None
+        u = u_con.get(barra)
+        return 'corregido' if u is None or u >= umin else 'sigue'
+
+    def estado_carga(nombre: str) -> str | None:
+        if not hay_con:
+            return None
+        c = c_con.get(nombre)
+        return 'corregido' if c is None or c <= cmax else 'sigue'
+
+    tension = {'provocadas': [], 'previas': []}
+    for barra, u in sorted(u_car.items(), key=lambda x: (x[1], x[0])):
+        if u >= umin:
+            continue
+        clave = 'previas' if u_sin.get(barra) is not None and u_sin[barra] < umin else 'provocadas'
+        tension[clave].append({'barra': barra, 'sin': u_sin.get(barra), 'cargas': u, 'con': u_con.get(barra),
+                               'estado': estado_tension(barra)})
+    carga = {'provocadas': [], 'previas': []}
+    for nombre, c in sorted(c_car.items(), key=lambda x: (-x[1], x[0])):
+        if c <= cmax:
+            continue
+        clave = 'previas' if c_sin.get(nombre, 0.0) > cmax else 'provocadas'
+        carga[clave].append({'elemento': nombre, 'sin': c_sin.get(nombre), 'cargas': c, 'con': c_con.get(nombre),
+                             'estado': estado_carga(nombre)})
+    trechos = []
+    if geo:
+        provocadas = {f['elemento']: f for f in carga['provocadas']}
+        for t in trechos_de_conductor(geo, list(provocadas)):
+            filas = [provocadas[n] for n in t.tramos if n in provocadas]
+            estados = {f['estado'] for f in filas}
+            trechos.append({'desde': t.desde, 'hasta': t.hasta, 'km': round(t.km, 3), 'tramos': list(t.tramos),
+                            'desde_gps': t.desde_gps, 'hasta_gps': t.hasta_gps,
+                            'carga_max': max(f['cargas'] for f in filas),
+                            'estado': None if None in estados else ('sigue' if 'sigue' in estados else 'corregido')})
+    pendientes = [f for grupo in (tension, carga) for f in grupo['provocadas'] if f['estado'] == 'sigue']
+    return {
+        'evaluado': bool(cargas and cargas.get('converge')),
+        'con_proyecto': hay_con,
+        'limites': {'tension_min_pu': umin, 'cargabilidad_max_pct': cmax},
+        'tension': tension, 'sobrecargas': carga, 'trechos': trechos,
+        'tension_min': {'sin': min(u_sin.values(), default=None), 'cargas': min(u_car.values(), default=None),
+                        'con': min(u_con.values(), default=None)},
+        'provocados': len(tension['provocadas']) + len(carga['provocadas']),
+        'corregidos': (None if not hay_con else
+                       sum(1 for g in (tension, carga) for f in g['provocadas'] if f['estado'] == 'corregido')),
+        'siguen': None if not hay_con else len(pendientes),
+    }
+
+
+def frases_diagnostico(d: Mapping[str, Any] | None) -> list[str]:
+    """Lo que ocasiona la carga y si las obras lo corrigen, en frases para las conclusiones (017:RF-106 ampliada)."""
+    if not d or not d.get('evaluado'):
+        return []
+    tension, trechos = d['tension'], d['trechos']
+    sobre = d['sobrecargas']['provocadas']
+    if not d['provocados']:
+        frase = 'La carga nueva no ocasiona barras bajo el límite de tensión ni tramos sobrecargados'
+        previas = len(tension['previas']) + len(d['sobrecargas']['previas'])
+        return [frase + (f'; los {previas} problemas que se ven ya existían sin ella.' if previas else '.')]
+    partes = []
+    if tension['provocadas']:
+        peor = tension['provocadas'][0]
+        partes.append(f"{len(tension['provocadas'])} barras bajo {numero(d['limites']['tension_min_pu'], 2)} p.u. "
+                      f"(la más baja, {peor['barra']}, a {numero(peor['cargas'], 3)} p.u.)")
+    if sobre:
+        tramos = (f"{len(trechos)} trecho(s) de " + ', '.join(f"{t['desde']} a {t['hasta']}" for t in trechos)
+                  if trechos else ', '.join(f['elemento'] for f in sobre))
+        partes.append(f'{len(sobre)} tramos sobrecargados ({tramos})')
+    frases = [f"Sin obras, la carga nueva ocasiona {' y '.join(partes)}."]
+    if d.get('con_proyecto'):
+        frases.append(f"Con las obras, se corrigen {d['corregidos']} de {d['provocados']} problemas"
+                      + (f"; siguen {d['siguen']}." if d['siguen'] else '; no queda ninguno de los que ocasiona.'))
+    return frases
+
+
 def queda_deficit(fuera: Mapping[str, Any] | None) -> bool:
     """Si queda alguna barra baja que la carga no causa, y por tanto no se puede decir que esté en norma (RF-50)."""
     return bool(fuera and (fuera.get('previo') or fuera.get('sin_comparacion')))

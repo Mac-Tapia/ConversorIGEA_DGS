@@ -14,6 +14,7 @@ Nada bloquea: lo que falla se dice y se sigue.
 
 from __future__ import annotations
 
+import json
 import asyncio
 import logging
 import os
@@ -129,6 +130,79 @@ def _ultimo_trabajo_del_operador(jobs) -> float | None:
     return max(fines) if fines else None
 
 
+
+#: Hasta aquí el aviso se guarda entero: «le falta ERI» o «se retoma sola» son lo que el operador necesita leer.
+LARGO_DEL_AVISO = 600
+#: Una lista de este tamaño o más (una entrada por hoja apartada) se guarda resumida; el detalle va al Registro (104:RF-20).
+ELEMENTOS_DE_UNA_LISTA = 5
+#: Huellas de los avisos dados por vistos que se recuerdan para no repetirlos (104:RF-21).
+MAX_VISTOS = 500
+
+
+def resumen_de_aviso(texto: str, maximo: int = LARGO_DEL_AVISO) -> str:
+    """Una línea del aviso. Usuario (2026-11-14): «no debe ir en la web así»; un aviso de «0226clientesImportantes.xlsb»
+    tenía 22 105 caracteres, una entrada por hoja apartada. Se queda la primera y «y N más»; el resto está en el Registro.
+    """
+    partes = [x.strip() for x in re.split(r';\s+', texto) if x.strip()]
+    if len(texto) <= maximo and len(partes) < ELEMENTOS_DE_UNA_LISTA:
+        return texto
+    primera = partes[0] if partes else texto
+    if len(primera) > maximo:
+        corte = primera.rfind(' ', 0, maximo)
+        primera = primera[:corte if corte > maximo // 2 else maximo] + '…'
+    return f'{primera} · y {len(partes) - 1} más (detalle en el Registro)' if len(partes) > 1 else primera
+
+
+def clave_de_aviso(tipo: str, texto: str) -> str:
+    """La huella del aviso completo: con ella uno dado por visto no vuelve a salir al regenerarse el dataset."""
+    import hashlib
+
+    return hashlib.sha1(f'{tipo}\n{texto}'.encode('utf-8')).hexdigest()[:16]
+
+
+#: Donde queda, entero, cada aviso antes de acortarse o de quitarse de la vista: no se pierde nada (auditor, 2026-11-14).
+FICHERO_ARCHIVO = 'avisos_archivados.jsonl'
+
+
+def archivar_en(carpeta: Path) -> Callable[[dict], None]:
+    """Añade el aviso entero, una línea JSON, al archivo de la carpeta del estado; no se muestra en la web."""
+    def archivar(aviso: dict) -> None:
+        carpeta.mkdir(parents=True, exist_ok=True)
+        with (carpeta / FICHERO_ARCHIVO).open('a', encoding='utf-8') as f:
+            f.write(json.dumps(aviso, ensure_ascii=False) + '\n')
+    return archivar
+
+
+def compactar_avisos(estado: dict, archivar: Callable[[dict], None] | None = None) -> bool:
+    """Deja en el estado solo los avisos abiertos y en una línea; los vistos pasan a ser su huella. Devuelve si cambió.
+
+    Limpia lo que guardaban los espacios de antes: avisos de 22 105 caracteres y vistos que no se borraban (2026-11-14).
+    """
+    cambio = False
+    vistos = list(estado.get('vistos') or [])
+    abiertos = []
+    for a in estado.get('avisos') or []:
+        texto = str(a.get('texto') or '')
+        clave = a.get('clave') or clave_de_aviso(str(a.get('tipo') or ''), texto)
+        if a.get('clave') != clave:
+            a['clave'], cambio = clave, True
+        if a.get('visto'):                       # solo lo que el operador dio por visto sale de la vista
+            if archivar is not None:
+                archivar(dict(a))
+            vistos.append(clave)
+            cambio = True
+            continue
+        corto = resumen_de_aviso(texto)
+        if corto != texto:
+            if archivar is not None:
+                archivar(dict(a))                     # el texto entero, antes de acortarlo
+            a['texto'], cambio = corto, True
+        abiertos.append(a)
+    if cambio:
+        estado['avisos'] = abiertos
+        estado['vistos'] = list(dict.fromkeys(vistos))[-MAX_VISTOS:]
+    return cambio
+
 class VigilanciaLibros:
     """Revisa las fuentes de demanda de los espacios y reconoce lo nuevo en el carril de fondo (RF-1 a RF-6, RF-30)."""
 
@@ -211,13 +285,17 @@ class VigilanciaLibros:
         (RF-20, RF-22, RF-31, RF-38). Un «regenerando» sin proceso vivo se ve aquí como interrumpido (RF-43)."""
         self.comprobar_regenerando(ws)
         e = ln.leer_estado(carpeta_estado(ws))
+        if compactar_avisos(json.loads(json.dumps(e))):   # avisos de antes: largos o vistos sin borrar (2026-11-14)
+            self._modificar(ws, lambda est: compactar_avisos(est, archivar_en(carpeta_estado(ws))))
+            e = ln.leer_estado(carpeta_estado(ws))
         intervalo = intervalo_min()
         ultima = e.get('ultima_revision')
         dataset = e.get('dataset')
         if dataset and dataset.get('estado') == 'desactualizado':
             dataset = {**dataset, **self._plazo_del_dataset(ws)}
         return {
-            'avisos': [a for a in e.get('avisos') or [] if not a.get('visto')],
+            # La huella es interna (104:RF-21): la web no la necesita.
+            'avisos': [{k: v for k, v in a.items() if k != 'clave'} for a in e.get('avisos') or [] if not a.get('visto')],
             'ultima_revision': ultima,
             'proxima_revision': (ultima + intervalo * 60) if (ultima and intervalo) else None,
             'intervalo_min': intervalo,
@@ -232,6 +310,7 @@ class VigilanciaLibros:
             for a in e.get('avisos') or []:
                 if a.get('id') == aviso_id:
                     a['visto'] = True
+            compactar_avisos(e, archivar_en(carpeta_estado(ws)))   # el visto sale de la vista y queda archivado
         self._modificar(ws, marcar)
         return self.estado(ws)
 
@@ -485,13 +564,21 @@ class VigilanciaLibros:
 
     def _avisar(self, ws, avisos: list[dict], tipo: str, texto: str, libro: str | None = None,
                 ficha: dict | None = None) -> None:
-        ws.events.append('log', {'text': texto})
-        avisos.append({'id': uuid.uuid4().hex[:12], 'tipo': tipo, 'libro': libro, 'texto': texto,
-                       'cuando': self.ahora(), 'visto': False, 'ficha': ficha})
+        ws.events.append('log', {'text': texto})                       # el detalle completo, solo en el Registro
+        avisos.append({'id': uuid.uuid4().hex[:12], 'tipo': tipo, 'libro': libro, 'texto': resumen_de_aviso(texto),
+                       'clave': clave_de_aviso(tipo, texto), 'cuando': self.ahora(), 'visto': False, 'ficha': ficha})
 
     def _guardar_avisos(self, ws, avisos: list[dict]) -> None:
-        if avisos:
-            self._modificar(ws, lambda e: e.update(avisos=[*(e.get('avisos') or []), *avisos][-100:]))
+        if not avisos:
+            return
+
+        def anadir(e):
+            compactar_avisos(e, archivar_en(carpeta_estado(ws)))
+            conocidas = {a.get('clave') for a in e.get('avisos') or []} | set(e.get('vistos') or [])
+            nuevos = [a for a in avisos if a['clave'] not in conocidas]
+            e['avisos'] = [*(e.get('avisos') or []), *nuevos][-100:]
+            return bool(nuevos)
+        if self._modificar(ws, anadir):
             self._publicar(ws)
 
     def _reindexar(self, ws, ctx: ContextoFondo, tipo: str, c: dict) -> None:
@@ -671,13 +758,15 @@ class VigilanciaLibros:
         """RF-37: el operador lanzó algo; el dataset vuelve a desactualizado y espera al siguiente reposo."""
         for wid, (proc, _libros) in list(self._procesos.items()):
             proc.terminar()
+            ws = self._espacio(wid)
+            if ws is not None:
+                # El estado antes de soltar el proceso, por la misma carrera que en _vigilar_plazo (2026-11-14).
+                self._modificar(ws, lambda e: e.setdefault('dataset', {}).update(estado='desactualizado',
+                                                                                  interrumpido=self.ahora()))
             with self._cv:
                 self._procesos.pop(wid, None)
-            ws = self._espacio(wid)
             if ws is None:
                 continue
-            self._modificar(ws, lambda e: e.setdefault('dataset', {}).update(estado='desactualizado',
-                                                                              interrumpido=self.ahora()))
             ws.events.append('log', {'text': 'Se detuvo la regeneración del dataset del pronóstico: lanzó un trabajo. '
                                              f'Se rehará tras {reposo_min():g} min sin trabajos (104:RF-37).'})
             self._publicar(ws)
@@ -726,10 +815,13 @@ class VigilanciaLibros:
         if not isinstance(inicio, (int, float)) or self.ahora() - inicio <= plazo * 60:
             return
         proc.terminar()
-        with self._cv:
-            self._procesos.pop(wid, None)
+        # Primero el estado y después soltar el proceso: entre las dos cosas, una lectura del estado (la web consulta a
+        # menudo) veía «regenerando» sin proceso propio y lo daba por «sin proceso vivo», con un segundo aviso de motivo
+        # falso (carrera hallada el 2026-11-14, intermitente en la suite). Mientras sigue en la lista, es de esta web.
         # Sin relanzarlo enseguida: lo retoma la próxima revisión de libros, que da tiempo a mirar el aviso.
         self._interrumpir(ws, f'pasó su plazo de {plazo:g} min sin terminar (CSG_DATASET_PLAZO_MIN)', retomar=False)
+        with self._cv:
+            self._procesos.pop(wid, None)
 
     @staticmethod
     def _vivo_en_otro_sitio(dataset: dict) -> bool:

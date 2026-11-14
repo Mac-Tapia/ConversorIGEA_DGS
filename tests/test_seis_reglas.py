@@ -478,6 +478,10 @@ BORRADOS = {
         'tools/escenarios_pf.py::ejecutar', 'tools/estudios_pf.py::_optimizador', 'tools/estudios_pf.py::_contingencias',
         'tools/estudios_pf.py::_estudio_de_red', 'tools/obras_pf.py::_grabar_una', 'tools/obras_pf.py::_Sorteo.__exit__',
         'tools/estudios_pf.py::retirar_variacion_del_estudio',     # 011:RF-136: la variación que el estudio crea y retira
+        # 012:RF-83 a RF-86: la variación temporal con la Pcc cargada y las características de tiempo de la cuasi-dinámica,
+        # creadas por la misma ejecución y retiradas al terminar, con el estado comprobado.
+        'tools/estudios_entradas_pf.py::cortocircuito', 'tools/estudios_entradas_pf.py::cuasi_dinamica',
+        'tools/estudios_entradas_pf.py::_deshacer',
         'tools/obras_pf.py::crear_tipos_regulador', 'tools/obras_pf.py::evaluar.con_variante',
         # 098:RF-36: lo creado por la obra nueva de una sustitución que no queda, por sus nombres del diario.
         'tools/obras_pf.py::_borrar_creadas',

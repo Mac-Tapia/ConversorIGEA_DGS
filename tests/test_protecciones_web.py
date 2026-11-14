@@ -189,3 +189,31 @@ def test_fallas_y_coordinacion_desde_la_web(client, tmp_path, monkeypatch, semil
     fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/pf/protecciones/ejecutar', json=cuerpo).json())
     assert fin['result']['evaluacion']['estado'] == pr.NO_CUMPLE
     assert {v['tipo'] for v in fin['result']['evaluacion']['violaciones']} == {'cti'}
+
+
+def test_los_ajustes_se_cargan_desde_su_fichero_y_entran_al_estudio(client):
+    """049:RF-2 — en Protecciones se suben los TXT de ajustes del relé o el reconectador del alimentador; se leen en un
+    trabajo, el operador confirma y el dispositivo entra al inventario: ya no falta «los dispositivos de protección»."""
+    wid = _espacio(client)
+    antes = client.get(f'/api/workspaces/{wid}/pf/protecciones', params={'project': 'P'}).json()
+    assert any('dispositivos de protección' in f for f in antes['disponibilidad']['faltan'])
+    ajustes = ('Relay ID: R1\nManufacturer: SEL\nModel = SEL-751A\nCT 600/5 A\n51P1P := 2.50 A sec\n'
+               '51P1C := U3\n51P1TD := 3.00\nInterrupting rating: 25 kA\nCelda: CUB1\n')
+    malo = client.post(f'/api/workspaces/{wid}/pf/protecciones/ajustes', data={'project': 'P'},
+                       files=[('files', ('ajustes.docx', b'x', 'application/octet-stream'))])
+    assert malo.status_code == 400
+    job = client.post(f'/api/workspaces/{wid}/pf/protecciones/ajustes', data={'project': 'P'},
+                      files=[('files', ('R1.txt', ajustes.encode(), 'text/plain'))])
+    assert job.status_code == 202, job.text
+    fin = esperar_trabajo(client, job.json())
+    assert fin['status'] == 'done', fin
+    [lectura] = fin['result']['lecturas']
+    assert lectura['faltan'] == [] and lectura['dispositivo']['modelo'] == 'SEL-751A'
+    # Un dispositivo con un valor que el contrato no admite no se guarda.
+    malo = client.put(f'/api/workspaces/{wid}/pf/protecciones/dispositivos',
+                      json={'project': 'P', 'dispositivos': [{**lectura['dispositivo'], 'unidad_dial': 'minutos'}]})
+    assert malo.status_code == 400
+    r = client.put(f'/api/workspaces/{wid}/pf/protecciones/dispositivos',
+                   json={'project': 'P', 'dispositivos': [lectura['dispositivo']]})
+    assert r.status_code == 200, r.text
+    assert not any('dispositivos de protección' in f for f in r.json()['disponibilidad']['faltan'])

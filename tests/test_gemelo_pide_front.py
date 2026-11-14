@@ -15,7 +15,8 @@ def test_paso_5_en_la_pestana_de_cargas():
     alimentadores que ya eligió (sirve para cualquier proyecto y alimentadores)."""
     cargas = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
     # 072:RF-29: desde el 2026-11-11 también recibe el tipo de análisis elegido; el proyecto y los alimentadores, los mismos.
-    assert '<GemeloPIDE project={project} feeders={order}' in cargas
+    # 018:RF-19: el paso 5 usa el proyecto que se estudia (por defecto, el del paso 1 con sus alimentadores).
+    assert '<GemeloPIDE project={estudio.proyecto} feeders={estudio.feeders}' in cargas
     comp = (SRC / 'features' / 'powerfactory' / 'GemeloPIDE.tsx').read_text(encoding='utf-8')
     for pieza in ('api.pide(', 'api.pideDecision(', 'api.gemeloAprender(', 'api.gemeloEpisodios(',
                   'startJob(', "'aceptada', 'rechazada', 'modificada'"):

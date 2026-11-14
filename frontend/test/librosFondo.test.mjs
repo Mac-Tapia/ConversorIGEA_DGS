@@ -17,7 +17,7 @@ async function cargar() {
         import { renderToStaticMarkup } from 'react-dom/server';
         import { Ctx } from './src/shared/context';
         import { FeedersPanel } from './src/features/conversion/FeedersPanel';
-        export { esAlerta, porConfirmar, textoDelDataset, textoDelFondo, tituloDelAviso } from './src/app/AvisosLibros';
+        export { agruparAvisos, esAlerta, porConfirmar, resumenDeAvisos, resumirAviso, textoDelDataset, textoDelFondo, tituloDelAviso } from './src/features/powerfactory/AvisosLibros';
         export function panel(active) {
           const value = {
             ws: { id: 'prueba', loaded: false, missing_inputs: [], totals: {}, catalog_report: null, active_run_id: null,
@@ -54,7 +54,7 @@ test('104:RF-31 una revisión de fondo no desactiva «Cargar / listar alimentado
 });
 
 test('104:RF-31 el aviso de libros no usa la cola ni la barra de trabajos', () => {
-  const avisos = readFileSync(new URL('../src/app/AvisosLibros.tsx', import.meta.url), 'utf8');
+  const avisos = readFileSync(new URL('../src/features/powerfactory/AvisosLibros.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(avisos, /startJob|active\.|kind === 'libros_nuevos'/);
   const cliente = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8');
   assert.match(cliente, /libros-nuevos\/verificar-todos/);
@@ -84,7 +84,7 @@ test('104:RF-39 el aviso de libros se relee del servidor con cada evento del car
   assert.match(uso, /setLibrosNuevosSeq/);
   const app = readFileSync(new URL('../src/app/App.tsx', import.meta.url), 'utf8');
   assert.match(app, /librosNuevosSeq: w\.librosNuevosSeq/);
-  const avisos = readFileSync(new URL('../src/app/AvisosLibros.tsx', import.meta.url), 'utf8');
+  const avisos = readFileSync(new URL('../src/features/powerfactory/AvisosLibros.tsx', import.meta.url), 'utf8');
   assert.match(avisos, /useEffect\(\(\) => \{ leer\(\); \}, \[leer, librosNuevosSeq\]\)/);
 });
 
@@ -102,4 +102,31 @@ test('089:RF-110 el aviso de un formato pide solo las columnas que faltan, con s
   assert.deepEqual(porConfirmar({ huella: '0123456789ab', falta: ['ERI'] }), { huella: '0123456789ab', falta: ['ERI'] });
   assert.equal(porConfirmar({ huella: '0123456789ab', falta: [] }), null);
   assert.equal(porConfirmar(null), null);
+});
+
+test('104:RF-20 las novedades de los libros van en 2.1, junto a los libros, y no en la cabecera de la página', async () => {
+  const app = readFileSync(new URL('../src/app/App.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /<AvisosLibros/);
+  const demanda = readFileSync(new URL('../src/features/powerfactory/DemandaMedida.tsx', import.meta.url), 'utf8');
+  assert.match(demanda, /2\.1 · Libros de medición[\s\S]*<AvisosLibros \/>[\s\S]*2\.2 · Máxima de cabecera/);
+  const { resumenDeAvisos } = await cargar();
+  assert.deepEqual(resumenDeAvisos([{ texto: 'quedó interrumpida' }, { texto: 'Llegó octubre 2026' }]),
+    { alertas: 1, informativos: 1 });
+  assert.deepEqual(resumenDeAvisos([]), { alertas: 0, informativos: 0 });
+});
+
+test('104:RF-20 cada aviso en una línea y por tipo: los largos dejan su detalle aparte', async () => {
+  const { agruparAvisos, resumirAviso } = await cargar();
+  const largo = '0226clientesImportantes.xlsb: queda fuera del dataset del pronóstico: '
+    + Array.from({ length: 76 }, (_, i) => `18100${i}: 288 registro(s) de la hoja «h${i}» sin fecha o sin EA.`).join('; ');
+  const r = resumirAviso(largo);
+  assert.ok(r.corto.length < 260 && r.corto.endsWith('· y 75 más'), r.corto);
+  assert.equal(r.detalle.length, 76);
+  assert.deepEqual(resumirAviso('corto'), { corto: 'corto', detalle: [] });
+  const grupos = agruparAvisos([
+    { tipo: 'formato', texto: 'a' }, { tipo: 'formato', texto: 'b' }, { tipo: 'clientes', texto: 'Llegó octubre' },
+    { tipo: 'dataset', texto: 'quedó interrumpida' }]);
+  assert.deepEqual(grupos.map((g) => [g.tipo, g.avisos.length, g.alerta]),
+    [['dataset', 1, true], ['formato', 2, false], ['clientes', 1, false]]);
+  assert.equal(grupos[1].titulo, 'Formato de libro de clientes');
 });

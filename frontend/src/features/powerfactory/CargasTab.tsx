@@ -15,6 +15,7 @@ import type {
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../../shared/projectBinding';
 import { DemandaMedida } from './DemandaMedida';
 import { EstudiosPF } from './EstudiosPF';
+import { MapaCargas } from './MapaCargas';
 import { ObrasPF } from './ObrasPF';
 import { PfWarning } from '../../shared/PfWarning';
 import { InformesPF } from './InformesPF';
@@ -24,8 +25,8 @@ import { GemeloPIDE } from './GemeloPIDE';
 import { DESTINO, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva } from '../../shared/edicion';
-import { FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
-import { RESUMEN_SIN_CARGAS, ofrecerObrasEstadoActual } from './obrasEstadoActual';
+import { Ayuda, FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
+import { RESUMEN_SIN_CARGAS, proyectoDeEstudio, textosObras, type CargaAplicadaEnDisco, ofrecerObrasEstadoActual } from './obrasEstadoActual';
 
 const ANIO = new Date().getFullYear();
 
@@ -203,6 +204,11 @@ export function CargasTab() {
   // distintas son dos proyectos (spec 005, RF-16).
   const ruta = (p: PfProject) => p.path ?? p.name;
   const current = projects.find((p) => ruta(p) === project) ?? null;
+  // 018:RF-19 ampliada: 4 y 5 pueden trabajar con otro proyecto de DIgSILENT, ya calibrado y ajustado allí.
+  const [estudioProyecto, setEstudioProyecto] = useState('');
+  const [estudioFeeders, setEstudioFeeders] = useState<string[]>([]);
+  const estudio = proyectoDeEstudio(estudioProyecto, estudioFeeders, current ? project : '', order);
+  const deEstudio = projects.find((p) => ruta(p) === estudio.proyecto) ?? null;
   const bindingState = estadoVinculoProyecto(current);
   const bindingBlocked = bindingState.bloqueado;
   const usoFuente = usoDeLaFuente(current);
@@ -429,9 +435,9 @@ export function CargasTab() {
 
   return (
     <div className="module">
-      <p className="muted">Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: verifica
+      <Ayuda>Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: verifica
         el «Caso base», calibra las demandas a la máxima de cabecera en «Sin proyecto» y, sobre esa red, integra
-        demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</p>
+        demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</Ayuda>
       <PfWarning />
 
       <TipoDeAnalisis tipo={tipo} onTipo={(t) => { setTipo(t); guardarTipo(t); }}
@@ -529,10 +535,10 @@ export function CargasTab() {
         {current?.binding && !bindingBlocked && (
           <>
             <h4>1.1 · Caso base</h4>
-            <p className="muted">El modelo físico se verifica frente al archivo original: GPS y trazado, conexiones, diagrama
+            <Ayuda>El modelo físico se verifica frente al archivo original: GPS y trazado, conexiones, diagrama
               y capacidades. El grupo de conexión y la tensión de baja de las SED se corrigen solos. La convergencia se prueba
               al importar el DGS (antes, con el oráculo y las cargas del archivo); aquí no se corre el flujo. Si falla algo
-              físico, corríjalo en el «Caso base» de DIgSILENT y vuelva a verificar; sin él verificado no se calibra.</p>
+              físico, corríjalo en el «Caso base» de DIgSILENT y vuelva a verificar; sin él verificado no se calibra.</Ayuda>
             <div className="row">
               <button className="btn" disabled={pfBusy || !order.length}
                 onClick={() => startJob(() => api.pfVerificarBase(ws.id, project, order))}
@@ -550,8 +556,8 @@ export function CargasTab() {
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         <AvisosTrabajo paso="pf-calibracion" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
-          <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
-            la máxima lo decide el tipo de análisis que se elija abajo: alimentadores, SET o sistema eléctrico.</p>
+          <Ayuda>Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
+            la máxima lo decide el tipo de análisis que se elija abajo: alimentadores, SET o sistema eléctrico.</Ayuda>
           <div className="toolbar">
             <input className="search" type="search" placeholder="Filtrar alimentadores…" value={filter}
               onChange={(e) => setFilter(e.target.value)} />
@@ -592,8 +598,8 @@ export function CargasTab() {
         <h3>3 · Integración de nuevas</h3>
         <AvisosTrabajo paso="pf-nuevas" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
-          <p className="muted">Sobre la red calibrada y con el flujo convergido. Las tres partes son optativas: use las que
-            necesite y revíselas juntas; se aplican en este orden en cada alimentador.</p>
+          <Ayuda>Sobre la red calibrada y con el flujo convergido. Las tres partes son optativas: use las que
+            necesite y revíselas juntas; se aplican en este orden en cada alimentador.</Ayuda>
 
           <Base informes={informesBase} activa={conBase} hay={Boolean(baseJob)} order={order}
             onQuitar={() => { setSinBase(true); setPlan(null); }} onUsar={() => { setSinBase(false); setPlan(null); }}
@@ -624,8 +630,8 @@ export function CargasTab() {
           </div>
 
           <h4>3.2 · Una carga nueva</h4>
-          <p className="muted">Con las coordenadas, la SED queda en su sitio en DIgSILENT y se conecta al nodo de media
-            más cercano de su alimentador. Se valida al revisar, con las mismas reglas que el libro.</p>
+          <Ayuda>Con las coordenadas, la SED queda en su sitio en DIgSILENT y se conecta al nodo de media
+            más cercano de su alimentador. Se valida al revisar, con las mismas reglas que el libro.</Ayuda>
           <div className="form-grid">
             {NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)}
             <details className="span-2" open={NUEVA_CAMPOS.some((c) => c.mas && values[c.key]?.trim())}>
@@ -728,10 +734,16 @@ export function CargasTab() {
           set_nueva_nombre: setNombre, directo_set_nueva: directo,
           escalera_primero: porAlimentador, rehacer_obras: rehacer }))} />}
 
+      {/* 017:RF-109, RF-124: dónde están las cargas nuevas y dónde se conectaron, sobre calles o satélite. */}
+      {resultado && lastRun?.kind === 'cargas_aplicar' && resultado.informe.project && (
+        <MapaCargas project={resultado.informe.project} anio={resultado.informe.anio_casos ?? null} />
+      )}
+
       {/* 086:RF-77: sin cargas nuevas integradas, el estado actual calibrado también puede violar límites. */}
       {ofrecerObrasEstadoActual({ proyecto: current ? project : null, alimentadores: order,
         calibrado: estadoPasos.calibrado, proyectoDeCargas: resultado?.informe.project ?? null }) && (
         <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto}
+          cargas={avanceDisco?.cargas ?? []}
           onCorregir={(tipoCambio, capex, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
             project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
             escalera_primero: true, rehacer_obras: rehacer }))} />)}
@@ -745,28 +757,54 @@ export function CargasTab() {
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box" id={DESTINO.obras} tabIndex={-1}>
         <h3>4 · Obras y estudios</h3>
+        <div className="row">
+          <label className="field"><span>Proyecto que se estudia</span>
+            <select value={estudioProyecto || (current ? project : '')}
+              onChange={(e) => {
+                const r = e.target.value;
+                setEstudioProyecto(r === project ? '' : r);
+                setEstudioFeeders(projects.find((p) => ruta(p) === r)?.feeders ?? []);
+              }}>
+              <option value="">— elija un proyecto de DIgSILENT —</option>
+              {projects.map((p) => <option key={ruta(p)} value={ruta(p)}>{ruta(p).split('/').join(' / ')}
+                {ruta(p) === project ? ' (el del paso 1)' : ''}</option>)}
+            </select>
+          </label>
+          {estudio.propio && deEstudio && (
+            <div className="chips" role="group" aria-label="Alimentadores que se estudian">
+              {deEstudio.feeders.map((f) => (
+                <button key={f} type="button" className={`chip${estudioFeeders.includes(f) ? ' on' : ''}`}
+                  aria-pressed={estudioFeeders.includes(f)}
+                  onClick={() => setEstudioFeeders((xs) => xs.includes(f) ? xs.filter((x) => x !== f) : [...xs, f])}>{f}</button>))}
+            </div>)}
+        </div>
+        {estudio.propio && <p className="small muted">Se estudia «{estudio.proyecto}» tal como está en DIgSILENT, con su calibración y
+          sus ajustes manuales: aquí no se calibra. Los estudios, las obras, los informes y la planificación (PIDE y largo
+          plazo) usan este proyecto; los pasos 1 a 3 siguen con el suyo.</p>}
         {/* 086:RF-70: sin proyecto o sin alimentadores no se ven 4.1 a 4.4; sus avisos, aquí. */}
-        {(!current || !order.length) && <AvisosTrabajo paso={['pf-obras', 'pf-estudios', 'pf-transferencia', 'pf-informes']} />}
-        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : !order.length
-          ? <p className="muted">Marque al menos un alimentador en el paso 2.</p> : <>
+        {(!estudio.proyecto || !estudio.feeders.length) && <AvisosTrabajo paso={['pf-obras', 'pf-estudios', 'pf-transferencia', 'pf-informes']} />}
+        {!estudio.proyecto ? <p className="muted">Elija un proyecto aquí o en el paso 1.</p> : !estudio.feeders.length
+          ? <p className="muted">Marque al menos un alimentador{estudio.propio ? ' del proyecto' : ' en el paso 2'}.</p> : <>
             <h4>4.1 · Obras de mejora</h4>
             <AvisosTrabajo paso="pf-obras" />
-            <ObrasPF project={project} feeders={order} />
+            <ObrasPF project={estudio.proyecto} feeders={estudio.feeders} />
             <span id={DESTINO.estudios} tabIndex={-1} />
             <h4>4.2 · Estudios</h4>
             <AvisosTrabajo paso="pf-estudios" />
-            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} casos={current.cases ?? []}
-              faltaRecalibrar={informesBase.filter((i) => !i.error && !i.no_empezado && order.includes(i.feeder)
-                && i.tipo_ajuste?.tipo === 'CALIBRACION').map((i) => i.feeder)} />
+            <EstudiosPF project={estudio.proyecto} feeders={estudio.feeders}
+              casos={(estudio.propio ? deEstudio : current)?.cases ?? []}
+              ajusteJobId={estudio.propio ? null : baseJob?.id ?? null}
+              faltaRecalibrar={estudio.propio ? [] : informesBase.filter((i) => !i.error && !i.no_empezado
+                && order.includes(i.feeder) && i.tipo_ajuste?.tipo === 'CALIBRACION').map((i) => i.feeder)} />
             <h4>4.3 · Transferencia de carga</h4>
             <AvisosTrabajo paso="pf-transferencia" />
-            <TransferenciaPF project={project} feeders={order} />
+            <TransferenciaPF project={estudio.proyecto} feeders={estudio.feeders} />
             {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}
             {/* 072:RF-33: el destino de «Ir al paso» de los informes, sin cambiar su título. */}
             <span id={DESTINO.informes} tabIndex={-1} />
             <h4>4.4 · Informes</h4>
             <AvisosTrabajo paso="pf-informes" />
-            <InformesPF project={project} feeders={order} />
+            <InformesPF project={estudio.proyecto} feeders={estudio.feeders} />
           </>}
       </div>
 
@@ -774,8 +812,8 @@ export function CargasTab() {
       {betaActiva(health, 'pide') && <div className="step-box" id={DESTINO.planificacion} tabIndex={-1}>
         <h3>5 · Planificación PIDE y gemelo digital <MarcaBeta clave="pide" /></h3>
         <AvisosTrabajo paso="pf-planificacion" />
-        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
-          : <GemeloPIDE project={project} feeders={order} plazo={tipo} anio={anioPresentacion}
+        {!estudio.proyecto ? <p className="muted">Elija un proyecto en el paso 1 o en «Proyecto que se estudia» del paso 4.</p>
+          : <GemeloPIDE project={estudio.proyecto} feeders={estudio.feeders} plazo={tipo} anio={anioPresentacion}
             onAnio={setAnioPresentacion} tipos={tipos} />}
       </div>}
       {/* 086:RF-70: con la planificación apagada, un aviso suyo anterior no se pierde. */}
@@ -1046,6 +1084,41 @@ function linea(c: ConexionDeLaCarga) {
 }
 
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */
+/** 004:RF-77: una carga nueva que ya está en DIgSILENT, como la devuelve el guion. */
+interface FichaExistente {
+  sed: string; existente: string; alimentador: string | null; variaciones: string[]; kw: number; kvar: number;
+  lat: number | null; lon: number | null; utm: number[] | null; accion: 'se reutiliza' | 'se reemplaza'; cambios: string[];
+}
+
+/**
+ * 004:RF-77: antes de conectar, las cargas nuevas (solas o del bloque) que ya están en DIgSILENT, con su nombre, su punto y
+ * su potencia, y si se reutilizan o se reemplazan: nunca se conectan dos veces. Antes solo un aviso de texto lo decía
+ * (SECA001 y SECA0001 en CA101, 2026-11-13).
+ */
+function YaEnElProyecto({ fichas, simular }: { fichas: FichaExistente[]; simular: boolean }) {
+  if (!fichas.length) return null;
+  const punto = (f: FichaExistente) => f.utm
+    ? `UTM ${fmtNum(f.utm[0], 0)} E, ${fmtNum(f.utm[1], 0)} N`
+    : f.lat != null && f.lon != null ? `${fmtNum(f.lat, 6)}, ${fmtNum(f.lon, 6)}` : '—';
+  return (
+    <div className="alert alert-warn">
+      <strong>Ya está{fichas.length > 1 ? 'n' : ''} en DIgSILENT {fichas.length} carga{fichas.length > 1 ? 's' : ''} de este
+        lote</strong>: {simular ? 'al aplicar' : 'se'} {fichas.every((f) => f.accion === 'se reutiliza')
+        ? 'reutiliza' : 'reutiliza o reemplaza'} la existente; nunca se conecta otra vez.
+      <div className="table-wrap"><table className="table">
+        <thead><tr><th>Carga pedida</th><th>Ya existe como</th><th>Alimentador</th><th>Coordenadas</th><th>kW</th><th>kvar</th>
+          <th>Qué se hace</th></tr></thead>
+        <tbody>{fichas.map((f) => (
+          <tr key={`${f.sed}-${f.existente}`}>
+            <td>{f.sed}</td><td title={f.variaciones.join(', ')}>{f.existente}</td><td>{f.alimentador ?? '—'}</td>
+            <td className="small">{punto(f)}</td><td>{fmtNum(f.kw, 0)}</td><td>{fmtNum(f.kvar, 0)}</td>
+            <td>{f.accion}{f.cambios.length ? ` (cambió ${f.cambios.join(', ')})` : ''}</td>
+          </tr>))}</tbody>
+      </table></div>
+    </div>
+  );
+}
+
 function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto }: {
   resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null;
   conProyecto: ConProyectoResultado | null; ocupado: boolean;
@@ -1079,6 +1152,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
     <div className="step-box">
       <h3>{simular ? 'Simulación' : 'Aplicación'} en {inf.project}{inf.variacion ? ` · variación ${inf.variacion}` : ''}</h3>
       {simular && <p className="muted">Nada se ha escrito en el proyecto.</p>}
+      <YaEnElProyecto fichas={(inf as { ya_en_digsilent?: FichaExistente[] }).ya_en_digsilent ?? []} simular={simular} />
       {(inf.cancelado || cancelado) && <p className="alert alert-warn">Cancelado: el alimentador en curso terminó y no se empezó ninguno más.</p>}
       {inf.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
       {inf.flujo && (
@@ -1248,20 +1322,20 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
 }
 
 /** 086:RF-77: obras para el estado actual, sin cargas nuevas: solo los alimentadores que violan límites las llevan. */
-function ObrasEstadoActual({ feeders, ocupado, conProyecto, onCorregir }: {
-  feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null;
+function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir }: {
+  feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null; cargas: CargaAplicadaEnDisco[];
   onCorregir: (tipoCambio: number | null, capex: string, rehacer: boolean) => void;
 }) {
+  const textos = textosObras(cargas, feeders);
   const [tipoCambio, setTipoCambio] = useState('');
   const [capex, setCapex] = useState('');
   const [rehacer, setRehacer] = useState(false);
   const tc = Number(tipoCambio.replace(',', '.'));
   const tcValido = tipoCambio.trim() !== '' && Number.isFinite(tc) && tc > 0;
   return (
-    <div className="step-box">
-      <h3>Obras para el estado actual</h3>
-      <p className="muted small">Sin cargas nuevas, «Con proyecto» lleva obras solo si el estado calibrado de {lista(feeders)} viola
-        límites: bancos, regulador, sección, terna o transferencia, de menor a mayor costo. El que cumple queda sin obras.</p>
+    <div className="step-box" id={DESTINO.obrasAutomaticas} tabIndex={-1}>
+      <h3>{textos.titulo}</h3>
+      <p className="muted small">{lista(feeders)}: {textos.ayuda}</p>
       <div className="row">
         <label className="small">Tipo de cambio{' '}
           <input type="text" inputMode="decimal" size={7} value={tipoCambio} placeholder="p. ej. 3,495"
@@ -1276,7 +1350,7 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, onCorregir }: {
           <input type="checkbox" checked={rehacer} onChange={(e) => setRehacer(e.target.checked)} /> Rehacer obras</label>
         <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
           onClick={() => onCorregir(tcValido ? tc : null, capex.trim(), rehacer)}>
-          Corregir el estado actual en «Con proyecto»
+          {textos.boton}
         </button>
       </div>
       {conProyecto && <ConProyecto r={conProyecto} />}

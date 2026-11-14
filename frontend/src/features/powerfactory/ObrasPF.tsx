@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import { Toggle } from '../../shared/ui';
+import { Ayuda, Toggle } from '../../shared/ui';
 import type {
   AlimentadorLeido, ClaseObra, ClaseTipo, Obra, ObraFila, ObrasBibliotecas, ObrasResultado, TipoFicha, TipoRef,
 } from '../../api/types';
@@ -153,8 +153,8 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
 
   return (
     <div>
-      <p className="muted">Cada obra va en su <strong>propia variación</strong>, activa solo en los casos que elija; nunca en
-        el «Caso base». Ninguna obra cambia un tipo del proyecto: si necesita otros datos, usa una copia.</p>
+      <Ayuda>Cada obra va en su <strong>propia variación</strong>, activa solo en los casos que elija; nunca en
+        el «Caso base». Ninguna obra cambia un tipo del proyecto: si necesita otros datos, usa una copia.</Ayuda>
       <div className="row">
         <label className="field">
           <span>Otro proyecto como origen de tipos (opcional)</span>

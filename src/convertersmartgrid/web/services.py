@@ -2605,6 +2605,10 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
         raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
     if informe.get('error'):
         raise UserError(informe['error'])
+    # 004:RF-77: la carga que ya está en DIgSILENT, con sus UTM en el CRS del perfil si su huella no las trae.
+    for ficha in informe.get('ya_en_digsilent') or []:
+        if not ficha.get('utm') and ficha.get('lat') is not None and ficha.get('lon') is not None:
+            ficha['utm'] = _utm((ficha['lat'], ficha['lon']))
     if rc == 2:
         ctx.log('Hubo cargas que no se pudieron escribir o crear: vea «fallos» en el informe.')
     resultado = {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
@@ -10111,8 +10115,14 @@ def estudios_catalogo(ws: Workspace | None = None, project: str = '') -> dict:
     sin_lic = list(ws.sin_licencia) if ws is not None else []
     # 049:RF-2: las protecciones dicen lo que falta con lo que comprobó DIgSILENT y el perfil.
     capacidades = _capacidades_protecciones(ws, project) if ws is not None else None
-    no_ofrecidos = estudios_no_ofrecidos(libro, sin_lic, capacidades=capacidades, perfil=_perfil_protecciones()[0])
-    return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre} for e in estudios_ofrecidos(libro, sin_lic)],
+    # 012:RF-73 a RF-82: lo cargado desde la web también cumple las entradas de los estudios.
+    from .entradas_estudios_api import entradas_cargadas
+
+    cargadas = entradas_cargadas(ws, project) if ws is not None else set()
+    no_ofrecidos = estudios_no_ofrecidos(libro, sin_lic, capacidades=capacidades, perfil=_perfil_protecciones()[0],
+                                         entradas=cargadas)
+    return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre}
+                          for e in estudios_ofrecidos(libro, sin_lic, entradas=cargadas)],
             'no_ofrecidos': no_ofrecidos, 'limites': limites,
             'error_limites': error, 'limite_s': LIMITE_ESTUDIO_S,
             'datos_empresa': datos_empresa_estado(ws, project) if ws is not None else None}
@@ -10150,7 +10160,78 @@ def _inventario_protecciones(ws: Workspace, project: str) -> dict:
     from ..estudios_pf import inventario_de_protecciones
 
     tablas = getattr(ws.dataset, 'equipment_tables', None) if ws.dataset is not None else None
-    return inventario_de_protecciones(_libro_empresa(ws, project), tablas_fuente=tablas)
+    inventario = inventario_de_protecciones(_libro_empresa(ws, project), tablas_fuente=tablas)
+    # 049:RF-2: más los confirmados desde sus ficheros de ajustes; con el mismo identificador, manda el confirmado.
+    propios = protecciones_dispositivos(ws, project)
+    if propios:
+        ids = {str(d.get('id')) for d in propios}
+        inventario['dispositivos'] = [d for d in inventario.get('dispositivos') or [] if str(d.get('id')) not in ids]
+        inventario['dispositivos'] += propios
+    return inventario
+
+
+from ..documentos_solicitud import EXTENSIONES_IMAGEN  # noqa: E402 (017:RF-136 ampliada)
+
+#: Los ficheros de ajustes que se leen en Protecciones (049:RF-2): texto, PDF o imagen.
+EXTENSIONES_AJUSTES = ('.txt', '.pdf', '.csv', '.set', '.rdb', '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.webp')
+
+
+def protecciones_carpeta_ajustes(ws: Workspace, project: str) -> Path:
+    return _carpeta_protecciones(ws, project) / 'ajustes'
+
+
+def protecciones_dispositivos(ws: Workspace, project: str) -> list[dict]:
+    """Los dispositivos confirmados desde sus ficheros de ajustes (049:RF-2); ninguno si no hay."""
+    datos = _leer_json_o_none(_carpeta_protecciones(ws, project) / 'dispositivos.json')
+    return [dict(d) for d in (datos or {}).get('dispositivos') or [] if isinstance(d, dict)]
+
+
+def protecciones_ajustes_leer(ws: Workspace, ctx: JobContext | None, project: str, rutas: list[Path]) -> dict:
+    """Lee los ficheros de ajustes de relés y reconectadores y propone un dispositivo por fichero (049:RF-2).
+
+    Usuario (2026-11-13): en Protecciones se cargan los TXT y PDF de ajustes del alimentador en análisis; antes solo
+    había «bloqueado» y la hoja «Protecciones» del libro de la empresa, en otra pestaña. Nada se guarda aquí: lo leído
+    se confirma en la web (:func:`protecciones_dispositivos_guardar`).
+    """
+    from ..documentos_solicitud import texto_de_fichero
+    from ..protecciones import leer_ajustes
+
+    lecturas = []
+    for ruta in rutas:
+        avisos: list[str] = []
+        try:
+            texto, _metodo, avisos = texto_de_fichero(ruta)
+        except Exception as exc:                    # noqa: BLE001 - un fichero ilegible se dice y se sigue
+            lecturas.append({'fichero': ruta.name, 'dispositivo': {'fuente': ruta.name}, 'faltan': [],
+                             'errores': [f'no se pudo leer: {exc}'], 'leidos': [], 'avisos': []})
+            continue
+        lectura = {**leer_ajustes(texto, ruta.name), 'fichero': ruta.name, 'avisos': list(avisos)}
+        if ctx is not None:
+            ctx.log(f'{ruta.name}: {len(lectura["leidos"])} dato(s) leído(s); faltan {len(lectura["faltan"])}.')
+        lecturas.append(lectura)
+    return {'project': project.strip(), 'lecturas': lecturas}
+
+
+def protecciones_dispositivos_guardar(ws: Workspace, project: str, dispositivos: list[dict]) -> dict:
+    """Guarda los dispositivos que el operador confirmó, con lo que aún les falta (049:RF-2, RF-3)."""
+    from ..protecciones import validar_dispositivo
+
+    project = project.strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    previos = {str(d.get('id')): d for d in protecciones_dispositivos(ws, project)}
+    for d in dispositivos:
+        if not str(d.get('id') or '').strip():
+            raise UserError('Cada dispositivo necesita su identificador.')
+        _faltan, errores = validar_dispositivo(d)
+        if errores:
+            raise UserError('; '.join(errores))
+        previos[str(d['id'])] = dict(d)
+    carpeta = _carpeta_protecciones(ws, project)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / 'dispositivos.json').write_text(
+        json.dumps({'dispositivos': list(previos.values())}, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    return protecciones_estado(ws, project)
 
 
 def protecciones_estado(ws: Workspace, project: str) -> dict:
@@ -10272,7 +10353,14 @@ def _libro_empresa(ws: Workspace | None, project: str):
     from ..datos_empresa import Libro
 
     meta = (ws.datos_empresa.get(project.strip()) if ws is not None else None) or {}
-    return Libro.desde_dict(meta['libro']) if meta.get('libro') else None
+    libro = Libro.desde_dict(meta['libro']) if meta.get('libro') else None
+    # 012:RF-81: más las tasas, tiempos y costes cargados en la web para este proyecto.
+    if ws is None:
+        return libro
+    from ..entradas_estudios import combinar_con_libro
+    from .entradas_estudios_api import guardadas
+
+    return combinar_con_libro(libro, guardadas(ws, project))
 
 
 def datos_empresa_estado(ws: Workspace, project: str) -> dict | None:
@@ -10396,6 +10484,13 @@ def _casos_elegidos(casos: list[str] | None) -> list[str]:
     return list(dict.fromkeys(str(c).strip() for c in (casos or []) if str(c).strip()))
 
 
+def _registros_de_entradas(ws: Workspace, project: str) -> dict:
+    """Las entradas de los estudios cargadas desde la web para este proyecto (012:RF-83 a RF-86)."""
+    from .entradas_estudios_api import registros_para_plan
+
+    return registros_para_plan(ws, project)
+
+
 def _estudios_sin_calibracion(ws: Workspace, project: str, pedidos: list[str], claves: list[str],
                               lim, libro, limite_s: float | None, opciones: dict | None,
                               casos: list[str]) -> dict:
@@ -10424,6 +10519,8 @@ def _estudios_sin_calibracion(ws: Workspace, project: str, pedidos: list[str], c
             'opciones': dict(opciones or {}), 'libro': libro.a_dict() if libro is not None else None,
             'libro_cargado': (ws.datos_empresa.get(project.strip()) or {}).get('cargado'),
             'clases_equipo': _clases_de_la_entrada(ws, pedidos), 'avisos': avisos,
+            # 012:RF-83 a RF-86: lo cargado desde la web también vale para un proyecto sin calibración de esta web.
+            'entradas': _registros_de_entradas(ws, project),
             'native_action_context': native_action_context(ws, project, pedidos, 'estudios')}
     return _guardar_plan_estudios(ws, token, plan, [], avisos)
 
@@ -10466,7 +10563,10 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     native_action_context(ws, project, requested_for_gate, 'estudios')
     libro = _libro_empresa(ws, project)
     try:
-        claves = list(validar_estudios(estudios, libro, ws.sin_licencia))      # 012:RF-4, RF-19
+        from .entradas_estudios_api import entradas_cargadas, registros_para_plan
+
+        claves = list(validar_estudios(estudios, libro, ws.sin_licencia,          # 012:RF-4, RF-19
+                                       entradas=entradas_cargadas(ws, project)))  # 012:RF-73 a RF-82
         lim = limites_de_perfil().con(**(limites or {}))
     except EstudiosError as exc:
         raise UserError(str(exc)) from exc
@@ -10503,6 +10603,8 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
             'libro': libro.a_dict() if libro is not None else None,
             'libro_cargado': (ws.datos_empresa.get(project.strip()) or {}).get('cargado'),
             'clases_equipo': _clases_de_la_entrada(ws, estudiables),
+            # 012:RF-83 a RF-86: lo cargado desde la web (Pcc, perfiles…) viaja al guion.
+            'entradas': registros_para_plan(ws, project),
             'native_action_context': native_action_context(
                 ws, project, estudiables, 'estudios',
             )}
@@ -10658,7 +10760,7 @@ def _correr_estudios(ws: Workspace, ctx: JobContext, token: str, plan: dict, cor
                        'tolerancia': plan['tolerancia'], 'stamp': token,
                        'native_action_context': plan['native_action_context'],
                        # Spec 012: lo que necesitan sus guiones.
-                       **{k: plan.get(k) for k in ('limites', 'opciones', 'libro', 'clases_equipo')}}
+                       **{k: plan.get(k) for k in ('limites', 'opciones', 'libro', 'clases_equipo', 'entradas')}}
                 if rol == 'caso':
                     sub['nombre_caso'] = nombre_pedido                      # 011:RF-133
                 if rol == 'con' and estudio in ('flujo', 'flujo_desequilibrado'):
@@ -11011,6 +11113,38 @@ def _corrida_del_alimentador(corridas: list[dict], alimentador: str | None) -> d
     return None
 
 
+def _diagnostico_de_flujos(sin: dict | None, cargas: dict | None, con: dict | None, alimentador: str,
+                           lim) -> dict | None:
+    """Lo que ocasionan las cargas nuevas y si «Con proyecto» lo corrige, con los flujos guardados de 4.2 (017:RF-106).
+
+    Sin el flujo de «Cargas nuevas» no hay diagnóstico (``None``): sin cargas nuevas no hay nada que atribuirles.
+    """
+    from ..informes import diagnostico_de_cargas
+
+    def medida(f):
+        return ((f or {}).get('medidas') or {}).get(alimentador)
+    if medida(cargas) is None:
+        return None
+    geo = ((cargas or {}).get('geo') or {}).get(alimentador) or ((sin or {}).get('geo') or {}).get(alimentador)
+    return diagnostico_de_cargas(medida(sin), medida(cargas), medida(con), lim, geo)
+
+
+def diagnostico_cargas(ws: Workspace, project: str, feeders: list[str]) -> dict:
+    """El diagnóstico de cada alimentador para el panel de 4.2, con la última corrida de cada uno (086:RF-11)."""
+    from ..estudios_pf import limites_de_perfil
+
+    lim = limites_de_perfil()
+    corridas = _corridas_de_estudios(ws, project)
+    out = {}
+    for f in feeders:
+        c = _corrida_del_alimentador(corridas, f)
+        flujos = {rol: _ultimo_estudio(ws, rol, project, None if c else f, c) for rol in ('sin', 'cargas', 'con')}
+        d = _diagnostico_de_flujos(flujos['sin'], flujos['cargas'], flujos['con'], f, lim)
+        if d is not None:
+            out[f] = {**d, 'corrida': (c or {}).get('token')}
+    return {'project': project.strip(), 'diagnosticos': out}
+
+
 def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, alimentador: str | None = None,
                     corrida: dict | None = None) -> dict | None:
     """El flujo de ese caso con el que se arma el informe: el de la corrida, nunca el de otra.
@@ -11186,7 +11320,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     lim: Limites = config.limites
 
     proyecto = str(formulario.get('project') or '').strip() or None
-    flujos, corrida, avisos = _flujos_del_informe(ws, proyecto, alimentador, ('sin', 'con'), opcionales=('con',))
+    flujos, corrida, avisos = _flujos_del_informe(ws, proyecto, alimentador, ('sin', 'con', 'cargas'),
+                                                  opcionales=('con', 'cargas'))
     sin, con = flujos['sin'], flujos['con']
     if sin is None:
         # 086:RF-12: de una corrida que no llegó se entrega el informe diciéndolo; sin ninguna, no hay nada que entregar.
@@ -11286,7 +11421,9 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                 ctx.log(f'Sin imágenes del {estado}: {exc}')
             continue
         imagenes[clave] = {k: str(v) for k, v in rutas.items()}
+    diagnostico = _diagnostico_de_flujos(sin, flujos.get('cargas'), con, alimentador, lim)    # 017:RF-106 ampliada
     datos = DatosEstudio(alimentadores=[alimentador], encabezado=encabezado, actual=actual, etapas=etapas,
+                         diagnosticos={alimentador: diagnostico} if diagnostico else {},
                          imagenes={k: {i: Path(r) if r else None for i, r in v.items()}
                                    for k, v in imagenes.items()},
                          numero=formulario.get('numero') or None,
@@ -11480,7 +11617,10 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
                 'cliente': fila.get('descripcion') or None,
                 'utm_x': fila.get('coord_x'), 'utm_y': fila.get('coord_y'),
             }
-    return list(vistas.values())
+    # 017:RF-124: el punto de diseño confirmado en DIgSILENT manda sobre la barra de la aplicación.
+    from ..mapa_cargas import aplicar_puntos
+
+    return aplicar_puntos(ws.root, project, list(vistas.values()))
 
 
 def _factor_de_carga_cabecera(ws: Workspace, job_id: str | None) -> dict[str, dict]:
@@ -11841,6 +11981,55 @@ def transformador_set_calcular(ws: Workspace, ctx: JobContext, project: str, ali
             'devanado': {'kv': t_sin['kv'], 'sin_pct': t_sin['devanado_pct'], 'con_pct': t_con['devanado_pct']}}
 
 
+#: Diferencia de potencia a partir de la cual manda la de DIgSILENT (kW): la escrita y la leída redondean distinto.
+TOLERANCIA_KW_DIGSILENT = 1.0
+
+
+def comprobar_carga_en_digsilent(ws: Workspace, ctx: JobContext, project: str, alimentador: str,
+                                 sed: str) -> tuple[list[str], float | None]:
+    """La carga del informe, comprobada en DIgSILENT antes de escribirlo: (avisos, kW de DIgSILENT si difiere).
+
+    Usuario (2026-11-13): «el informe debe ser comprobado en DIgSILENT y modificarse según lo que hay en físico; su
+    flujo es la guía». SECA001 seguía en la web con su variación ya inactiva en DIgSILENT, sustituida por SECA0001:
+    el informe habría descrito una carga que no existe. Se lee, sin escribir, dónde está conectada hoy y con qué
+    potencia; si no está, no hay informe; si cambió, se adopta lo de DIgSILENT (los cambios del operador allí son
+    intencionales) y se dice. Después se corren los flujos sobre ese estado (063:RF-1).
+    """
+    from ..mapa_cargas import clave, guardar_puntos
+    from .mapa_cargas_api import leer_en_digsilent
+
+    ctx.log(f'Comprobando en DIgSILENT, sin escribir, la carga {sed} de {alimentador}.')
+    leido = leer_en_digsilent(ws, ctx, project, [alimentador], None)
+    k = clave(alimentador, sed)
+    fila = next((d for d in leido['diferencias'] if clave(d.get('alimentador'), d.get('sed')) == k), None)
+    if fila is None or fila['estado'] == 'no_leida':
+        vigentes = [d['sed'] for d in leido['diferencias'] if d.get('alimentador') == alimentador
+                    and d['estado'] in ('igual', 'cambiada', 'solo_en_digsilent') and d.get('leido')]
+        motivo = (fila or {}).get('error') or 'no se encontró en el proyecto'
+        raise UserError(f'{sed} no está en DIgSILENT ({motivo}): el informe se hace sobre lo que hay en el proyecto. '
+                        + (f'Cargas nuevas vigentes en {alimentador}: {", ".join(vigentes)}.' if vigentes
+                           else 'Vuelva a aplicarla en el paso 3.'))
+    avisos: list[str] = []
+    if fila['estado'] == 'cambiada':
+        crudas = json.loads((ws.out_dir / leido['lectura']).read_text(encoding='utf-8')).get('cargas') or []
+        cruda = next(c for c in crudas if clave(c.get('alimentador'), c.get('sed')) == k)
+        guardar_puntos(ws.root, project, [cruda], lectura=leido['lectura'])
+        avisos.append(f"La conexión de {sed} se tomó de DIgSILENT: {'; '.join(fila['cambios'])}.")
+    kw_pf = (fila.get('leido') or {}).get('kw')
+    kw_web = (fila.get('guardado') or {}).get('kw')
+    kw = None
+    if kw_pf is not None and (kw_web is None or abs(float(kw_pf) - float(kw_web)) > TOLERANCIA_KW_DIGSILENT):
+        kw = float(kw_pf)
+        if kw_web is not None:
+            avisos.append(f'La potencia de {sed} en DIgSILENT es {kw:.0f} kW, no {float(kw_web):.0f} kW: se usa la de '
+                          'DIgSILENT.')
+    for aviso in avisos:
+        ctx.log(aviso)
+    if not avisos:
+        ctx.log(f'{sed}: conexión y potencia iguales en DIgSILENT.')
+    return avisos, kw
+
+
 def carga_del_informe(ws: Workspace, project: str, alimentador: str, sed: str) -> dict:
     """La carga nueva del informe de factibilidad, que tiene que estar aplicada y sola (RF-47)."""
     from ..demanda_medida import clave_codigo
@@ -11876,9 +12065,13 @@ def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: 
     texto = rotulo_de_carga(cliente.strip() or str(carga['sed']), kw, codigo.strip() or carga['barra'])
     destino = (ws.out_dir / 'imagenes_informe' /
                f'vista_ubicacion_{nombre_seguro(alimentador)}_{nombre_seguro(str(carga["sed"]))}.png')
+    from ..mapa_cargas import fondo_del_informe
+
+    fondo, sin_fondo = fondo_del_informe(getattr(ws, 'root', None))              # 017:RF-111: calles si el fondo está encendido
     try:
         ubicacion_del_cliente(geos, carga['alimentador'], carga['barra'], texto, destino,
-                              titulo=f'Ubicación del cliente nuevo · {alimentador}')
+                              titulo=f'Ubicación del cliente nuevo · {alimentador}',
+                              punto=carga.get('nodo_gps'), fondo=fondo, sin_fondo=sin_fondo)
     except MapaError as exc:
         raise UserError(str(exc)) from exc
     return {'fichero': destino.relative_to(ws.out_dir).as_posix(), 'rotulo': texto}
@@ -11966,15 +12159,21 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
             else _perdidas_del_libro(ws, [alimentador])
         if previo and previo['error']:
             raise UserError(f'Libro de pérdidas: {previo["error"]}')
+        # 017:RF-124 ampliada: lo que hay en DIgSILENT manda; después, sus flujos sobre ese estado.
+        fisicos, kw_pf = comprobar_carga_en_digsilent(ws, ctx, project, alimentador, str(carga['sed']))
+        carga = carga_del_informe(ws, project, alimentador, str(carga['sed']))
+        if kw_pf is not None:
+            carga = {**carga, 'kw': kw_pf}
         lanzada = preparar_flujos_del_informe(ws, ctx, project, alimentador)       # 063:RF-1
     else:
-        lanzada = None
+        fisicos, lanzada = [], None
     flujos, corrida, avisos = _flujos_del_informe(ws, project, alimentador, ('sin', 'con', 'cargas'),
                                                   opcionales=('cargas',), token=(lanzada or {}).get('token'))
     sin, con, cargas_est = flujos['sin'], flujos['con'], flujos['cargas']
     if ctx is not None:
         for aviso in avisos:
             ctx.log(aviso)
+    avisos = [*fisicos, *avisos]                     # 017:RF-124 ampliada: lo tomado de DIgSILENT va al informe
     # 086:RF-12: lo que su corrida no tiene se entrega sin convergencia y dicho: nunca el anterior ni un
     # «factible». Sin ninguna corrida ni flujo guardado no hay nada que entregar.
     if corrida is None:
@@ -12086,7 +12285,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         valle=valle_de_la_obra(ws, project, alimentador),
         aviso_cliente=(f'el cliente «{solicitud.cliente}» no parece el de la carga «{carga["sed"]}»: compruebe la solicitud'
                        if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''),
-        avisos=tuple(avisos), corrida=(corrida or {}).get('token'), bajo_limite=fuera)
+        avisos=tuple(avisos), corrida=(corrida or {}).get('token'), bajo_limite=fuera,
+        diagnostico=_diagnostico_de_flujos(sin, cargas_est, con, alimentador, lim))      # 017:RF-106 ampliada
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:
@@ -12234,9 +12434,13 @@ def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: d
                 out[clave] = dict(r)
     geos = con.get('geo') or {}
     if geos.get(alimentador):
+        from ..mapa_cargas import fondo_del_informe
+
+        fondo, sin_fondo = fondo_del_informe(getattr(ws, 'root', None))          # 017:RF-111: calles si el fondo está encendido
         r = intentar('ubicación del cliente', lambda: ubicacion_del_cliente(
             geos, alimentador, carga['barra'], texto, carpeta / f'{prefijo}_ubicacion_cliente.png',
-            titulo=f'Ubicación del cliente nuevo · {alimentador}'))
+            titulo=f'Ubicación del cliente nuevo · {alimentador}',
+            punto=carga.get('nodo_gps'), fondo=fondo, sin_fondo=sin_fondo))
         if r:
             out.setdefault('proyectado', {})['ubicacion'] = r
     if devanado is not None and devanado.con_pct is not None:

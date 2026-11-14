@@ -244,7 +244,7 @@ def test_web_lee_los_pdf_en_un_trabajo_y_los_guarda_en_el_espacio(client, tmp_pa
     assert sorted(p.name for p in carpeta.iterdir()) == ['carta.pdf', 'ficha.pdf']
     malo = client.post(url, data={'tipo': 'factibilidad'},
                        files=[('files', ('carta.docx', io.BytesIO(b'x'), 'application/octet-stream'))])
-    assert malo.status_code == 400 and 'Solo se leen PDF' in malo.json()['detail']
+    assert malo.status_code == 400 and 'Se leen PDF, TXT e imágenes' in malo.json()['detail']
 
 
 def test_la_web_ofrece_los_pdf_en_los_dos_informes():
@@ -275,3 +275,16 @@ def test_documentos_exp_codigo_de_ficha_fechas_y_alimentadores():
     assert all(f['clase'] in ('solicitud', 'ficha', 'respuesta') for f in fechas)
     alims = ds.de_cada_documento(docs, 'alimentador')
     assert alims and all(a['fichero'] and a['valor'] for a in alims)
+
+
+def test_un_oficio_en_txt_se_lee_como_un_pdf(tmp_path):
+    """017:RF-136 ampliada — una carta o un oficio en TXT se lee con los mismos datos que un PDF."""
+    from convertersmartgrid.documentos_solicitud import leer_documento
+
+    ruta = tmp_path / 'oficio.txt'
+    lineas = ['Ica, 22 de octubre de 2026', 'Solicitud de factibilidad de suministro',
+              'Potencia solicitada: 430 kW', 'Alimentador AL02']
+    ruta.write_text(chr(10).join(lineas), encoding='utf-8')
+    d = leer_documento(ruta)
+    assert d.metodo == 'texto' and d.paginas == 1 and d.fichero == 'oficio.txt'
+    assert d.datos.get('potencia_kw') == 430

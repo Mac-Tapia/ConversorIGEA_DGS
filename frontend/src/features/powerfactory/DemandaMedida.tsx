@@ -6,6 +6,7 @@ import { useApp } from '../../shared/context';
 import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
+import { AvisosLibros } from './AvisosLibros';
 
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
@@ -578,6 +579,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       <div className="form-grid">
         {LIBROS.map((l) => <Libro key={l.tipo} {...l} />)}
       </div>
+      {/* 104:RF-20: lo que la revisión de fondo encontró en estos libros, aquí y no en la cabecera de la página. */}
+      <AvisosLibros />
 
       <h4>2.2 · Máxima de cabecera</h4>
       <div className="row">

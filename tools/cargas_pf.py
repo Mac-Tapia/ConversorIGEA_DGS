@@ -1011,6 +1011,8 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
                                            'activa en «Con proyecto» (014:RF-24)',
                      'variacion': conserva, 'reutilizada': True,
                      'alimentador': next((d.get('feeder') for d in halladas if conserva in d['variaciones']), None)}
+        no_creada['existente'] = ficha_de_existente(halladas[0]['carga'], no_creada['alimentador'], variaciones,
+                                                    'se reutiliza')                          # 004:RF-77
         avisos = _diferencias_con_la_fila(sed, halladas[0]['carga'], fila)
         if sobran:
             no_creada['eliminar'] = sobran
@@ -1033,7 +1035,29 @@ HUELLA = 'CSG 004:RF-76 '
 
 def huella_de_la_fila(fila: dict) -> dict:
     return {'lat': fila.get('lat'), 'lon': fila.get('lon'), 'kw': fila.get('kw'), 'kvar': fila.get('kvar'),
-            'kva': fila.get('kva_instalado'), 'barra': fila.get('barra') or ''}
+            'kva': fila.get('kva_instalado'), 'barra': fila.get('barra') or '',
+            # 004:RF-77: las coordenadas como se escribieron, para decir dónde está la que ya existe.
+            'coord_x': fila.get('coord_x'), 'coord_y': fila.get('coord_y')}
+
+
+def ficha_de_existente(carga, feeder: str | None, variaciones: list[str], accion: str,
+                       cambios: list[str] | None = None) -> dict:
+    """La carga nueva que ya está en DIgSILENT: su nombre, su punto y su potencia, y qué se hará con ella (004:RF-77).
+
+    El operador pidió (2026-11-13) que, antes de conectar, se revise en DIgSILENT si la carga sola o del bloque ya existe
+    y se diga «ya existe» con el nombre, las coordenadas y la potencia: SECA001 se aplicó a las 18:20 y otra vez, como
+    SECA0001, a las 19:33, y solo un aviso de texto decía que se reemplazaba. La potencia y el punto son los de la
+    huella con que se creó; sin huella (antes del 2026-11-12), los que lee DIgSILENT.
+    """
+    h = huella_de(carga) or {}
+    pos = (h['lat'], h['lon']) if h.get('lat') is not None and h.get('lon') is not None else _gps_de_sed(carga)
+    kw = h.get('kw') if h.get('kw') is not None else float(getattr(carga, 'plini', 0) or 0) * 1000.0
+    kvar = h.get('kvar') if h.get('kvar') is not None else float(getattr(carga, 'qlini', 0) or 0) * 1000.0
+    utm = [h['coord_x'], h['coord_y']] if h.get('coord_x') is not None and h.get('coord_y') is not None else None
+    return {'existente': SUFIJO_PF.sub('', carga.loc_name), 'alimentador': feeder, 'variaciones': list(variaciones),
+            'kw': round(float(kw), 1), 'kvar': round(float(kvar), 1),
+            'lat': pos[0] if pos else None, 'lon': pos[1] if pos else None, 'utm': utm,
+            'accion': accion, 'cambios': list(cambios or [])}
 
 
 def huella_de(carga) -> dict | None:
@@ -1096,7 +1120,9 @@ def reemplazo_de(fila: dict, candidatos: list[str], ya: dict | None) -> dict | N
     if not cambios:
         return None
     que = cambios[0] if len(cambios) == 1 else ', '.join(cambios[:-1]) + ' y ' + cambios[-1]
-    return {'variaciones': variaciones, 'cambios': cambios,
+    existente = ficha_de_existente(halladas[0]['carga'], halladas[0].get('feeder'), variaciones,
+                                   'se reemplaza', cambios)
+    return {'variaciones': variaciones, 'cambios': cambios, 'existente': existente,
             'aviso': f"{fila['sed']}: cambió {que}; se reemplaza la carga anterior ({', '.join(variaciones)}) "
                      '(004:RF-76).'}
 
@@ -1480,6 +1506,9 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
         reemplazo = reemplazo_de(fila, candidatos, ya)
         if reemplazo is not None:
             avisos.append(reemplazo['aviso'])
+            if ya is not None:                                                  # 004:RF-77
+                # En ``ya``, el del trabajo: la fila puede ser una copia (la de su ubicación, 004:RF-73).
+                ya.setdefault('en_digsilent', []).append({**reemplazo['existente'], 'sed': sed})
         repetida = None if reemplazo is not None else ya_creada(fila, candidatos, existentes, ya)
         if repetida is not None:
             no_creadas.append(repetida[0])
@@ -2670,6 +2699,10 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                                                     repetidas=plan.get('repetidas_del_libro'),
                                                     tope_m=plan.get('distancia_max_al_nodo_m'))      # 004:RF-73
     informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
+    # 004:RF-77: antes de conectar, lo que ya está en DIgSILENT, con su nombre, su punto y su potencia.
+    informe['ya_en_digsilent'] = (
+        [{**x['existente'], 'sed': x['sed']} for x in no_creadas if x.get('existente')]
+        + list(ya.get('en_digsilent') or []))
     por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
                                               if app.GetProjectFolder('scheme') else [])}
     reutilizadas = [por_nombre_var[x['variacion']] for x in informe['reutilizadas']

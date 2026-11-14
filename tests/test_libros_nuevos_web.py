@@ -633,3 +633,98 @@ def test_libro_apartado_y_formato_salen_como_aviso_y_la_regla_se_confirma_una_ve
     assert any(a['tipo'] == 'formato' and 'regla confirmada' in a['texto'] for a in avisos)
     assert client.post(f'/api/workspaces/{wid}/demanda/clientes/formatos',
                        json={'huella': huella, 'columnas': {'nada': 'K'}}).status_code == 400
+
+
+def test_104_rf20_rf21_el_aviso_es_una_linea_lo_visto_se_borra_y_no_vuelve():
+    """104:RF-20, 104:RF-21, 104:RF-47 — usuario (2026-11-14): «eso no debe ir en la web así». Un aviso de un libro
+    apartado tenía 22 105 caracteres, una entrada por hoja; el estado guarda una línea (el detalle va al Registro), lo
+    dado por visto se borra y queda su huella, y el mismo aviso no vuelve a salir al regenerarse el dataset."""
+    from convertersmartgrid.web.libros_nuevos import clave_de_aviso, compactar_avisos, resumen_de_aviso
+
+    largo = '0226clientesImportantes.xlsb: queda fuera del dataset del pronóstico: ' + '; '.join(
+        f'18100{i}: 288 registro(s) de la hoja «h{i}» sin fecha o sin EA.' for i in range(76))
+    corto = resumen_de_aviso(largo)
+    assert len(corto) < 300 and corto.endswith('y 75 más (detalle en el Registro)')
+    assert resumen_de_aviso('Llegó octubre 2026') == 'Llegó octubre 2026'
+    estado = {'avisos': [{'id': 'a', 'tipo': 'apartado', 'texto': largo},
+                         {'id': 'b', 'tipo': 'formato', 'texto': 'visto antes', 'visto': True}]}
+    assert compactar_avisos(estado) is True
+    assert [a['id'] for a in estado['avisos']] == ['a'] and estado['avisos'][0]['texto'] == corto
+    assert estado['avisos'][0]['clave'] == clave_de_aviso('apartado', largo)
+    assert estado['vistos'] == [clave_de_aviso('formato', 'visto antes')]
+    assert compactar_avisos(estado) is False                       # ya limpio: no se reescribe
+
+
+def test_104_rf20_al_compactar_no_se_pierde_nada(tmp_path):
+    """104:RF-20, 104:RF-21 — condición del auditor (2026-11-14): son datos del usuario. Antes de acortar un aviso o de
+    quitar uno dado por visto, su texto entero queda en el archivo de la carpeta del estado; lo que el operador no dio
+    por visto sigue a la vista."""
+    import json as _json
+
+    from convertersmartgrid.web.libros_nuevos import FICHERO_ARCHIVO, archivar_en, compactar_avisos
+
+    largo = 'Libro.xlsb: queda fuera del dataset: ' + '; '.join(f'h{i}: sin fecha' for i in range(40))
+    estado = {'avisos': [{'id': 'a', 'tipo': 'apartado', 'texto': largo},
+                         {'id': 'b', 'tipo': 'formato', 'texto': 'marcado por el operador', 'visto': True},
+                         {'id': 'c', 'tipo': 'clientes', 'texto': 'sin ver'}]}
+    assert compactar_avisos(estado, archivar_en(tmp_path)) is True
+    archivados = [_json.loads(x) for x in (tmp_path / FICHERO_ARCHIVO).read_text(encoding='utf-8').splitlines()]
+    assert {a['id']: a['texto'] for a in archivados} == {'a': largo, 'b': 'marcado por el operador'}
+    assert [a['id'] for a in estado['avisos']] == ['a', 'c']
+    assert estado['avisos'][1]['texto'] == 'sin ver'
+
+
+class _ProcesoQueConsulta:
+    """Un proceso de fondo cuyo «terminar» deja paso a una lectura del estado en el peor momento posible."""
+
+    def __init__(self, al_terminar):
+        self.al_terminar = al_terminar
+        self.terminado = False
+
+    def terminar(self):
+        self.terminado = True
+
+    def vivo(self):
+        return not self.terminado
+
+
+@pytest.mark.parametrize('camino', ['plazo', 'cortar'])
+def test_104_rf45_al_terminar_el_proceso_ninguna_lectura_lo_da_por_muerto(app, client, tmp_path, monkeypatch, camino):
+    """104:RF-37, 104:RF-43, 104:RF-45 — carrera real (2026-11-14, intermitente en la suite): al vencer el plazo se
+    quitaba el proceso de la lista de esta web ANTES de escribir «desactualizado»; una lectura del estado en medio (la
+    web consulta a menudo) veía «regenerando» sin proceso propio, lo daba por «sin proceso vivo» y dejaba un segundo
+    aviso con el motivo falso. Se fuerza esa lectura justo cuando se escribe el estado: el motivo es el bueno y hay un
+    solo aviso."""
+    from convertersmartgrid.web import libros_nuevos as wl
+
+    vig = app.state.libros_nuevos
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    monkeypatch.setenv('CSG_DATASET_PLAZO_MIN', '0.01')
+    _poner_regenerando(app, wid, inicio=time.time() - 3600)
+    proc = _ProcesoQueConsulta(None)
+    with vig._cv:
+        vig._procesos[wid] = (proc, [])
+    original = vig._modificar
+    lecturas = []
+
+    def modificar_con_lectura(ws_, fn):
+        # Justo antes de escribir, otra petición lee el estado (y puede «comprobarlo»).
+        if not lecturas:
+            lecturas.append(None)                       # una sola lectura, aunque ella misma escriba
+            lecturas[0] = vig.comprobar_regenerando(ws_)
+        return original(ws_, fn)
+    monkeypatch.setattr(vig, '_modificar', modificar_con_lectura)
+    if camino == 'plazo':
+        vig._vigilar_plazo(wid, proc)
+    else:
+        monkeypatch.setattr(vig, '_espacio', lambda _wid: ws)
+        vig._cortar_datasets()
+    monkeypatch.setattr(vig, '_modificar', original)
+    assert lecturas == [False], 'la lectura en medio dio el dataset por muerto'
+    dataset = _estado_guardado(app, wid)['dataset']
+    assert dataset['estado'] == 'desactualizado'
+    assert 'sin proceso vivo' not in str(dataset.get('motivo_interrupcion') or '')
+    assert wid not in vig._procesos and proc.terminado
+    textos = [a['texto'] for a in _avisos_del_dataset(client, wid)]
+    assert not any('sin proceso vivo' in t for t in textos), textos

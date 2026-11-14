@@ -539,19 +539,109 @@ def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 111.32 * math.hypot(a[0] - b[0], (a[1] - b[1]) * math.cos(lat))
 
 
+def _mercator(lat: float, lon: float) -> tuple[float, float]:
+    """(lat, lon) → coordenadas del mundo de las teselas, de 0 a 1 (Web Mercator, EPSG:3857)."""
+    lat = max(min(lat, 85.05112878), -85.05112878)
+    s = math.sin(math.radians(lat))
+    return (lon + 180.0) / 360.0, 0.5 - math.log((1 + s) / (1 - s)) / (4 * math.pi)
+
+
+def _proyeccion_mercator(puntos: list[tuple[float, float]]):
+    """Como :func:`_proyeccion`, en Web Mercator: así cada tesela del fondo es un rectángulo de la imagen.
+
+    En el área de un alimentador las dos coinciden a menos de un píxel; la equirectangular se queda para las
+    imágenes sin fondo, que ya tienen sus pruebas.
+    """
+    mundo = [_mercator(*p) for p in puntos]
+    xs, ys = [m[0] for m in mundo], [m[1] for m in mundo]
+    ancho, alto = (max(xs) - min(xs)) or 1e-12, (max(ys) - min(ys)) or 1e-12
+    util_x = ANCHO_PX - LEYENDA_PX - 2 * MARGEN_PX
+    util_y = ALTO_PX - 2 * MARGEN_PX - 40
+    escala = min(util_x / ancho, util_y / alto)
+    # Un solo punto (una carga sin red cerca) no daría escala: unos 2 km de lado.
+    escala = min(escala, util_x / 5e-5)
+    x0 = MARGEN_PX + (util_x - ancho * escala) / 2 - min(xs) * escala
+    y0 = MARGEN_PX + 40 + (util_y - alto * escala) / 2 - min(ys) * escala
+
+    def a_px(lat: float, lon: float) -> tuple[float, float]:
+        mx, my = _mercator(lat, lon)
+        return x0 + mx * escala, y0 + my * escala
+
+    def de_px(x: float, y: float) -> tuple[float, float]:
+        return (x - x0) / escala, (y - y0) / escala
+    return a_px, de_px, escala
+
+
+#: Teselas como mucho en un fondo: con el zoom elegido caben unas 25; más es un área que no es de un alimentador.
+MAX_TESELAS = 64
+
+
+def _pintar_fondo(img, fondo, de_px, escala: float) -> tuple[int, int]:
+    """Pega en ``img`` las teselas de ``fondo`` que caen en la zona del mapa. Devuelve (pegadas, fallidas).
+
+    ``fondo.tesela(z, x, y)`` da los bytes de la imagen o ``None``; nunca lanza: una red caída deja el mapa sin
+    fondo, no sin informe (017:RF-112).
+    """
+    import io
+
+    from PIL import Image
+
+    z = max(0, min(int(getattr(fondo, 'zoom_max', 18)), math.ceil(math.log2(max(escala / 256.0, 1.0)))))
+    izq, arr = de_px(0, MARGEN_PX + 10)
+    der, aba = de_px(ANCHO_PX - LEYENDA_PX, ALTO_PX)
+    while z > 0:
+        n = 2 ** z
+        cols = range(max(0, math.floor(izq * n)), min(n - 1, math.floor(der * n)) + 1)
+        filas = range(max(0, math.floor(arr * n)), min(n - 1, math.floor(aba * n)) + 1)
+        if len(cols) * len(filas) <= MAX_TESELAS:
+            break
+        z -= 1
+    n = 2 ** z
+    cols = range(max(0, math.floor(izq * n)), min(n - 1, math.floor(der * n)) + 1)
+    filas = range(max(0, math.floor(arr * n)), min(n - 1, math.floor(aba * n)) + 1)
+    pegadas = fallidas = 0
+    ox, oy = de_px(0, 0)
+    for tx in cols:
+        for ty in filas:
+            datos = fondo.tesela(z, tx, ty)
+            if not datos:
+                fallidas += 1
+                continue
+            # Las esquinas de la tesela en píxeles (la inversa de ``de_px``), redondeadas cada una: con el lado
+            # redondeado aparte quedaban rayas blancas de un píxel entre teselas (Lima, prueba del 2026-11-13).
+            x0, y0 = round((tx / n - ox) * escala), round((ty / n - oy) * escala)
+            x1, y1 = round(((tx + 1) / n - ox) * escala), round(((ty + 1) / n - oy) * escala)
+            try:
+                with Image.open(io.BytesIO(datos)) as t:
+                    pieza = t.convert('RGB').resize((max(1, x1 - x0), max(1, y1 - y0)))
+            except (OSError, ValueError):
+                fallidas += 1
+                continue
+            img.paste(pieza, (x0, y0))
+            pegadas += 1
+    return pegadas, fallidas
+
+
 def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: str, barra: str,
-                          texto: str, destino: Path, *, titulo: str) -> Path:
+                          texto: str, destino: Path, *, titulo: str, punto: Sequence[float] | None = None,
+                          fondo=None, sin_fondo: str = '') -> Path:
     """La ubicación del cliente nuevo (017:RF-109, RF-112): su punto de conexión marcado y
     rotulado, y los alimentadores cercanos, cada uno en su color y con su nombre.
 
-    No hay mapa de fondo: dibujarlo pediría las coordenadas a un servicio de teselas, y el
-    informe se arma sin enviar la red fuera (RF-111); el pie lo dice.
+    017:RF-111 (2026-11-13, «la ubicación en Google Maps o similar … y eso debe ir en el informe»): con ``fondo``
+    (un proveedor de teselas, ``mapa_cargas.fondo_del_informe``) se dibuja sobre calles o satélite, en Web
+    Mercator para que cada tesela case con la red; sin él, o si no llega ninguna tesela, sin fondo como hasta
+    ahora, y el pie lo dice con ``sin_fondo`` (por qué no hay fondo).
+
+    ``punto``: el GPS del nodo cuando la barra no está en la geografía guardada: el punto de diseño corregido en
+    DIgSILENT (017:RF-124) puede ser un nodo que el último flujo de «Con proyecto» todavía no tiene.
     """
     from PIL import Image, ImageDraw
 
     propia = geos.get(alimentador) or {}
-    punto = next(((b[1], b[2]) for b in propia.get('barras') or [] if b[0] == barra
-                  and b[1] is not None and b[2] is not None), None)
+    en_geo = next(((b[1], b[2]) for b in propia.get('barras') or [] if b[0] == barra
+                   and b[1] is not None and b[2] is not None), None)
+    punto = en_geo or (tuple(float(v) for v in punto[:2]) if punto else None)
     if punto is None:
         raise MapaError(f'La barra {barra} de la carga no tiene coordenadas en la geografía de {alimentador}.')
 
@@ -562,20 +652,32 @@ def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: st
     cercanos = [alimentador] + sorted(
         f for f, g in geos.items() if f != alimentador
         and any(_km(punto, p) <= RADIO_CERCANOS_KM for p in puntos(g)))
-    todos = [p for f in cercanos for p in puntos(geos[f])]
-    a_px, _ = _proyeccion(todos)
+    todos = [p for f in cercanos for p in puntos(geos.get(f) or {})] + [punto]
     img = Image.new('RGB', (ANCHO_PX, ALTO_PX), 'white')
+    pie = PIE_SIN_FONDO + (f'. {sin_fondo}' if sin_fondo else '')
+    if fondo is not None:
+        a_px, de_px, escala = _proyeccion_mercator(todos)
+        pegadas, fallidas = _pintar_fondo(img, fondo, de_px, escala)
+        if pegadas:
+            pie = f'Fondo de mapa: {fondo.nombre} ({fondo.atribucion})'
+            if fallidas:
+                pie += f'; faltan {fallidas} teselas que no llegaron'
+        else:
+            pie = f'{PIE_SIN_FONDO}. No se pudo llegar a {fondo.nombre}: la red se dibuja igual'
+    else:
+        a_px, _ = _proyeccion(todos)
     d = ImageDraw.Draw(img)
     f_titulo, f_texto = _fuente(30), _fuente(20)
     ocupados: list = []
     for i, f in enumerate(cercanos):
         color = COLORES_ALIMENTADOR[i % len(COLORES_ALIMENTADOR)]
-        for t in geos[f].get('tramos') or []:
+        for t in (geos.get(f) or {}).get('tramos') or []:
             if len(t[1] or []) >= 2:
                 d.line([a_px(*p) for p in t[1]], fill=color, width=4 if f == alimentador else 3, joint='curve')
         # El nombre, junto a la cabecera o, sin ella, junto a su primera barra.
-        cab = next((b for b in geos[f].get('barras') or [] if b[0] == geos[f].get('cabecera')), None)
-        ref = cab or next((b for b in geos[f].get('barras') or [] if b[1] is not None), None)
+        g = geos.get(f) or {}
+        cab = next((b for b in g.get('barras') or [] if b[0] == g.get('cabecera')), None)
+        ref = cab or next((b for b in g.get('barras') or [] if b[1] is not None), None)
         if ref is not None:
             _rotular(d, *a_px(ref[1], ref[2]), f, color, f_texto, ocupados)
     _marcar_cliente(d, *a_px(*punto), texto, f_texto, ocupados)
@@ -591,12 +693,14 @@ def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: st
     y += 30
     d.polygon([(x0 + 14, y), (x0 + 28, y + 9), (x0 + 14, y + 18), (x0, y + 9)], fill=COLOR_CLIENTE)
     d.text((x0 + 38, y - 2), 'cliente nuevo', fill=(0, 0, 0), font=f_texto)
-    d.text((x0, ALTO_PX - 60), 'Sin mapa de fondo: dibujado con las', fill=(90, 90, 90), font=_fuente(16))
-    d.text((x0, ALTO_PX - 40), 'coordenadas de la red (RF-112)', fill=(90, 90, 90), font=_fuente(16))
+    # El pie al pie de la leyenda, en las líneas que hagan falta (RF-112: dice si hay fondo y por qué no).
+    lineas = textwrap.wrap(pie + ' (017:RF-112)', width=36)
+    for i, linea in enumerate(lineas):
+        d.text((x0, ALTO_PX - 20 - 20 * (len(lineas) - i)), linea, fill=(90, 90, 90), font=_fuente(16))
     destino.parent.mkdir(parents=True, exist_ok=True)
     from PIL.PngImagePlugin import PngInfo
     info = PngInfo()
-    info.add_text('pie', PIE_SIN_FONDO)
+    info.add_text('pie', pie)
     img.save(destino, 'PNG', dpi=(250, 250), pnginfo=info)
     return destino
 

@@ -6,6 +6,7 @@ import type { AvanceDisco, ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from
 export const DESTINO = {
   proyecto: 'paso-proyecto', calibracion: 'paso-calibracion', nuevas: 'paso-nuevas', obras: 'paso-obras',
   estudios: 'paso-estudios', informes: 'paso-informes', planificacion: 'paso-planificacion',
+  obrasAutomaticas: 'paso-obras-automaticas',
 } as const;
 
 /** Lo que ya consta del proyecto en la sesión, leído de sus trabajos (072:RF-33). */
@@ -68,6 +69,7 @@ export function SeguirDondeQuedo({ avance, calibrados, order }: {
         {informes.length > 0 && <li>Informes ya escritos: {informes.map((i) => i.docx).join(', ')}.</li>}
       </ul>
       <div className="row">
+        <button type="button" className="btn btn-sm" onClick={() => irA(DESTINO.obrasAutomaticas)}>Ir a obras automáticas</button>
         <button type="button" className="btn btn-sm" onClick={() => irA(DESTINO.estudios)}>Ir a 4.2 · Estudios</button>
         <button type="button" className={`btn btn-sm${sinFlujo.length ? ' btn-ghost' : ''}`}
           onClick={() => irA(DESTINO.informes)}>Ir a 4.4 · Preparar informe</button>

@@ -42,9 +42,11 @@ SALIDAS: dict[str, Salida] = {
     'vias': Salida('CSG_SALIDA_VIAS', 'el enrutador OSRM del perfil de empresa',
                    'trazar una línea nueva por la vía pública',
                    ('src/convertersmartgrid/vias.py',)),
+    # 017:RF-111: también la imagen de ubicación del informe, que pide las teselas desde el servidor.
     'teselas': Salida('CSG_SALIDA_TESELAS', 'OpenStreetMap y Esri World Imagery',
-                      'el fondo de calles y satélite del mapa de la vista previa, que pide el navegador',
-                      ('src/convertersmartgrid/preview.py',)),
+                      'el fondo de calles y satélite de la vista previa y del mapa de las cargas nuevas, que pide el '
+                      'navegador, y de la imagen de ubicación del informe',
+                      ('src/convertersmartgrid/preview.py', 'src/convertersmartgrid/mapa_cargas.py')),
     'codex': Salida('CSG_SALIDA_CODEX', 'el servicio de Codex, por su CLI',
                     'el maestro de destilación del asistente',
                     ('src/convertersmartgrid/asistente/destilacion.py',)),

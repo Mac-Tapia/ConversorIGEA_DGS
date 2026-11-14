@@ -931,6 +931,28 @@
         "title": "Body_demanda_subir_api_workspaces__wid__demanda__tipo__post",
         "type": "object"
       },
+      "Body_entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "files"
+        ],
+        "title": "Body_entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post",
+        "type": "object"
+      },
       "Body_informes_documentos_api_workspaces__wid__informes_documentos_post": {
         "properties": {
           "files": {
@@ -1112,6 +1134,28 @@
           "corto_plazo"
         ],
         "title": "Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post",
+        "type": "object"
+      },
+      "Body_protecciones_ajustes_api_workspaces__wid__pf_protecciones_ajustes_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "files"
+        ],
+        "title": "Body_protecciones_ajustes_api_workspaces__wid__pf_protecciones_ajustes_post",
         "type": "object"
       },
       "Body_upload_input_api_workspaces__wid__inputs__slot__post": {
@@ -1299,6 +1343,34 @@
           "pandapower"
         ],
         "title": "CapacidadesRespuesta",
+        "type": "object"
+      },
+      "CargaElegida": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentador": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alimentador"
+          },
+          "sed": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Sed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sed"
+        ],
+        "title": "CargaElegida",
         "type": "object"
       },
       "CasillaRespuesta": {
@@ -1665,6 +1737,40 @@
           "una_fuente"
         ],
         "title": "ConciliacionRespuesta",
+        "type": "object"
+      },
+      "ConfirmarPuntoPeticion": {
+        "additionalProperties": false,
+        "description": "017:RF-124: las cargas cuyo punto leído en DIgSILENT pasa a ser su punto de diseño.",
+        "properties": {
+          "cargas": {
+            "items": {
+              "$ref": "#/components/schemas/CargaElegida"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Cargas",
+            "type": "array"
+          },
+          "lectura": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Lectura",
+            "type": "string"
+          },
+          "project": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "lectura",
+          "cargas"
+        ],
+        "title": "ConfirmarPuntoPeticion",
         "type": "object"
       },
       "ConversionEsperadaRespuesta": {
@@ -2339,6 +2445,30 @@
           "comprobaciones"
         ],
         "title": "DiagnosticoRespuesta",
+        "type": "object"
+      },
+      "DispositivosProteccionIn": {
+        "description": "049:RF-2: los dispositivos confirmados desde sus ficheros de ajustes; cada uno se valida al guardar.",
+        "properties": {
+          "dispositivos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 500,
+            "title": "Dispositivos",
+            "type": "array"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "dispositivos"
+        ],
+        "title": "DispositivosProteccionIn",
         "type": "object"
       },
       "EdicionRespuesta": {
@@ -3722,6 +3852,33 @@
         "title": "GrupoDgsRespuesta",
         "type": "object"
       },
+      "GuardarEntradaPeticion": {
+        "additionalProperties": false,
+        "description": "012:RF-77: las filas que el operador confirmó en la tabla, tal como las ve.",
+        "properties": {
+          "filas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 200000,
+            "title": "Filas",
+            "type": "array"
+          },
+          "project": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "filas"
+        ],
+        "title": "GuardarEntradaPeticion",
+        "type": "object"
+      },
       "GuionIn": {
         "description": "Un guion del operador en los casos elegidos, con sus parámetros (RF-28).",
         "properties": {
@@ -4433,6 +4590,44 @@
         "type": "object"
       },
       "JsonValue": {},
+      "LecturaMapaPeticion": {
+        "additionalProperties": false,
+        "description": "017:RF-124: qué proyecto leer en DIgSILENT; sin alimentadores, los de sus cargas nuevas.",
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "anio": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 2000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anio"
+          },
+          "project": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "LecturaMapaPeticion",
+        "type": "object"
+      },
       "LibroCabeceraRespuesta": {
         "additionalProperties": false,
         "description": "Una fila del índice tal como la guarda ``services`` (025:RF-28): el tamaño y la fecha deciden si se reabre.",
@@ -13823,6 +14018,288 @@
         "summary": "Lote Simular"
       }
     },
+    "/api/workspaces/{wid}/mapa-cargas": {
+      "get": {
+        "description": "017:RF-109, RF-124: las cargas nuevas con su punto, su nodo, su enlace y la red, sin DIgSILENT.",
+        "operationId": "mapa_cargas_api_workspaces__wid__mapa_cargas_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alimentador",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Alimentador",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Mapa Cargas Api Workspaces  Wid  Mapa Cargas Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mapa Cargas"
+      }
+    },
+    "/api/workspaces/{wid}/mapa-cargas/alta": {
+      "post": {
+        "description": "017:RF-124 ampliada: «Dar de alta» la carga que solo está en DIgSILENT, como carga sola aplicada.",
+        "operationId": "mapa_cargas_alta_api_workspaces__wid__mapa_cargas_alta_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarPuntoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Mapa Cargas Alta Api Workspaces  Wid  Mapa Cargas Alta Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mapa Cargas Alta"
+      }
+    },
+    "/api/workspaces/{wid}/mapa-cargas/confirmar": {
+      "post": {
+        "description": "017:RF-124: «Usar este punto»; guarda en el espacio, nunca en DIgSILENT.",
+        "operationId": "mapa_cargas_confirmar_api_workspaces__wid__mapa_cargas_confirmar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarPuntoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Mapa Cargas Confirmar Api Workspaces  Wid  Mapa Cargas Confirmar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mapa Cargas Confirmar"
+      }
+    },
+    "/api/workspaces/{wid}/mapa-cargas/digsilent": {
+      "post": {
+        "description": "017:RF-124: «Actualizar desde DIgSILENT», en el carril de DIgSILENT y sin escribir en el proyecto.",
+        "operationId": "mapa_cargas_leer_en_pf_api_workspaces__wid__mapa_cargas_digsilent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LecturaMapaPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mapa Cargas Leer En Pf"
+      }
+    },
+    "/api/workspaces/{wid}/mapa-cargas/pagina": {
+      "get": {
+        "description": "017:RF-124; 086:RF-21, RF-63: el mapa con Leaflet dentro, aislado como toda página generada.",
+        "operationId": "mapa_cargas_pagina_api_workspaces__wid__mapa_cargas_pagina_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alimentador",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Alimentador",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mapa Cargas Pagina"
+      }
+    },
     "/api/workspaces/{wid}/no-disponibles/descartar": {
       "post": {
         "description": "086:RF-3: el operador da por perdida una referencia a un fichero que no volverá.",
@@ -14385,6 +14862,238 @@
         "summary": "Datos Empresa Plantilla"
       }
     },
+    "/api/workspaces/{wid}/pf/entradas-estudios": {
+      "get": {
+        "description": "012:RF-75, RF-80: qué entradas hay, cuáles están guardadas y los borradores por confirmar.",
+        "operationId": "entradas_estado_api_workspaces__wid__pf_entradas_estudios_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Entradas Estado Api Workspaces  Wid  Pf Entradas Estudios Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entradas Estado"
+      }
+    },
+    "/api/workspaces/{wid}/pf/entradas-estudios/{clave}": {
+      "put": {
+        "description": "012:RF-77: guarda lo confirmado; con una celda mala, 400 con cada fila y columna.",
+        "operationId": "entradas_guardar_api_workspaces__wid__pf_entradas_estudios__clave__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardarEntradaPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Entradas Guardar Api Workspaces  Wid  Pf Entradas Estudios  Clave  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entradas Guardar"
+      }
+    },
+    "/api/workspaces/{wid}/pf/entradas-estudios/{clave}/borrador": {
+      "delete": {
+        "description": "012:RF-75: descarta lo leído sin confirmar; lo guardado antes sigue.",
+        "operationId": "entradas_descartar_api_workspaces__wid__pf_entradas_estudios__clave__borrador_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Entradas Descartar Api Workspaces  Wid  Pf Entradas Estudios  Clave  Borrador Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entradas Descartar"
+      }
+    },
+    "/api/workspaces/{wid}/pf/entradas-estudios/{clave}/leer": {
+      "post": {
+        "description": "012:RF-74, RF-76: lee los ficheros en un trabajo del motor (el OCR tarda) y deja el borrador.",
+        "operationId": "entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entradas Leer"
+      }
+    },
     "/api/workspaces/{wid}/pf/estudios": {
       "get": {
         "description": "012:RF-19, RF-4: los estudios según el libro del proyecto y la licencia.",
@@ -14435,6 +15144,67 @@
           }
         },
         "summary": "Estudios Catalogo Proyecto"
+      }
+    },
+    "/api/workspaces/{wid}/pf/estudios/diagnostico": {
+      "get": {
+        "description": "017:RF-106 ampliada: lo que ocasionan las cargas nuevas y si «Con proyecto» lo corrige, por alimentador.",
+        "operationId": "estudios_diagnostico_api_workspaces__wid__pf_estudios_diagnostico_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "feeders",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Feeders",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Estudios Diagnostico Api Workspaces  Wid  Pf Estudios Diagnostico Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Estudios Diagnostico"
       }
     },
     "/api/workspaces/{wid}/pf/estudios/plan": {
@@ -15073,6 +15843,56 @@
         "summary": "Protecciones Estado"
       }
     },
+    "/api/workspaces/{wid}/pf/protecciones/ajustes": {
+      "post": {
+        "description": "049:RF-2: los TXT y PDF de ajustes de relés y reconectadores, leídos en un trabajo (OCR si hace falta).",
+        "operationId": "protecciones_ajustes_api_workspaces__wid__pf_protecciones_ajustes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_protecciones_ajustes_api_workspaces__wid__pf_protecciones_ajustes_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Protecciones Ajustes"
+      }
+    },
     "/api/workspaces/{wid}/pf/protecciones/capacidades": {
       "post": {
         "description": "049:RF-1: qué órdenes, métodos, licencia y dispositivos tiene la versión conectada.",
@@ -15121,6 +15941,58 @@
           }
         },
         "summary": "Protecciones Capacidades"
+      }
+    },
+    "/api/workspaces/{wid}/pf/protecciones/dispositivos": {
+      "put": {
+        "description": "049:RF-2, RF-3: los dispositivos que el operador confirmó desde sus ficheros de ajustes.",
+        "operationId": "protecciones_dispositivos_guardar_api_workspaces__wid__pf_protecciones_dispositivos_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispositivosProteccionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Protecciones Dispositivos Guardar Api Workspaces  Wid  Pf Protecciones Dispositivos Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Protecciones Dispositivos Guardar"
       }
     },
     "/api/workspaces/{wid}/pf/protecciones/ejecutar": {

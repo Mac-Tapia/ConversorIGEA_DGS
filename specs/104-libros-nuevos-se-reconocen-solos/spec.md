@@ -71,7 +71,8 @@ El operador de la web, que deja libros en las carpetas de demanda de su espacio;
 
 ### Avisar
 
-- RF-20: EL SISTEMA dejará el resultado de cada libro en el registro del espacio y en un aviso visible del espacio, con la
+- RF-20: EL SISTEMA dejará el resultado de cada libro en el registro del espacio y en un aviso visible del espacio, en
+  «Novedades de los libros» de 2.1, junto a los libros y no en la cabecera de la página (usuario, 2026-11-13), con la
   forma «Llegó octubre 2026 de clientes importantes: 280 clientes, completo (31 días), 2 nuevos sin suministro: …; falta
   el libro de suministros de octubre», y el de un mes repetido con la forma «Abril 2026 de clientes importantes repite los
   valores de marzo 2026: pida el libro correcto; mientras, abril no se usa para la máxima ni para el pronóstico».
@@ -154,6 +155,9 @@ dataset, que nadie abre (089:RF-107 a RF-113 corrigen su lectura).
   de libros si la vigilancia está apagada.
 - RF-45: SI la regeneración que lleva esta web pasa su plazo (`CSG_DATASET_PLAZO_MIN`, 120 min), ENTONCES EL SISTEMA
   terminará su proceso, dejará el dataset desactualizado con ese motivo y lo avisará.
+  Al terminarlo, por su plazo o porque el operador lanza un trabajo (RF-37), EL SISTEMA escribirá
+  el estado del dataset antes de dejar de tenerlo como proceso propio, para que ninguna lectura en
+  medio lo dé por «sin proceso vivo» (RF-43) ni deje un segundo aviso (carrera hallada el 2026-11-14).
 - RF-46: CUANDO la web se apaga con el dataset regenerándose, EL SISTEMA terminará su proceso y lo dejará interrumpido
   en disco; al arrancar, también con la vigilancia apagada, revisará los «regenerando» de los espacios recientes sin
   abrir ningún libro.

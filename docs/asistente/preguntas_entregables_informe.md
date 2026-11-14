@@ -2,7 +2,7 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 441. Huella del contenido: `0327aeec3f11f0a12c1ca0c8747b33deaf36d400339ac2c39ef6fe93b62eec6b`.
+Filas: 441. Huella del contenido: `f8c5b4f34cc64a3f64adc6bda65e192928dbeedce650cf8c17da5041008a45a6`.
 Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
@@ -211,5 +211,4 @@ Manda el código; se anotan y no se corrigen aquí.
 - La arquitectura cuenta 210 módulos con capa y pyproject.toml declara 230. Documento: `docs/ARQUITECTURA.md:47`. Código: `pyproject.toml:109`.
 - La cifra de acierto del Transformer en uso no sale de ningún fichero del repositorio y el puntero del almacén de esta revisión no existe: hay que medirla de nuevo. Documento: `docs/ARQUITECTURA.md:202`. Código: `src/convertersmartgrid/asistente/modelos_en_uso.py:4`.
 - La spec pide el informe de estudio de uno o varios alimentadores y el código lo hace de uno. Documento: `specs/017-informes-de-estudio-y-factibilidad/spec.md:137`. Código: `src/convertersmartgrid/web/services.py:6926`.
-- La spec pide un mapa satélite de fondo y el código no lo dibuja para no enviar coordenadas a un servicio de teselas. Documento: `specs/017-informes-de-estudio-y-factibilidad/spec.md:312`. Código: `src/convertersmartgrid/mapa_informe.py:472`.
 - El docstring del informe de factibilidad dice que las pérdidas reconocidas vienen del formulario, y el código ya las lee del libro de pérdidas. Documento: `src/convertersmartgrid/web/services.py:7545`. Código: `src/convertersmartgrid/web/services.py:7631`.

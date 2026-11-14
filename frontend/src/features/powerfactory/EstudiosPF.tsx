@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import type { EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen, FallaProteccion, Limites, OpcionesEstudios,
-  PropuestaRed, ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
+import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen,
+  FallaProteccion, Limites, OpcionesEstudios, PropuestaRed, ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
+import { EntradasEstudios } from './EntradasEstudios';
 import { betaActiva } from '../../shared/edicion';
 import { GuionesPF } from './GuionesPF';
-import { Modal } from '../../shared/ui';
+import { Ayuda, FileDrop, Modal } from '../../shared/ui';
 
 const LIMITES: [keyof Limites, string][] = [
   ['tension_min_pu', 'Tensión mínima (p.u.)'],
@@ -131,8 +132,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
           sin las obras exclusivas de «Con proyecto». Se informan las cargas excluidas.</li>
         <li><strong>«Con proyecto»</strong>: las cargas nuevas y las obras de mejora activas.</li>
       </ul>
-      <p className="muted">Sin cargas nuevas se omite el diagnóstico; sin cargas ni obras se estudia solo «Sin proyecto».
-        Un caso que no existe se informa y se sigue con los demás. Lo que proponen los optimizadores se informa, no se aplica.</p>
+      <Ayuda>Sin cargas nuevas se omite el diagnóstico; sin cargas ni obras se estudia solo «Sin proyecto». Un caso que no
+        existe se informa y se sigue con los demás. Lo que proponen los optimizadores se informa, no se aplica.</Ayuda>
       <SelectorCasos casos={casos} elegidos={casosElegidos} onCambio={setCasosElegidos} />
       {!ajusteJobId && <p className="alert alert-warn">No hay ningún ajuste a la máxima aplicado en este proyecto: se estudia
         cada caso tal como está en DIgSILENT, sin comparar la cabecera con los objetivos de una calibración. Puede
@@ -155,6 +156,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
           <ul className="small">{catalogo.no_ofrecidos.map((e) => <li key={e.clave}><strong>{e.nombre}</strong>: {e.motivo}</li>)}</ul>
         </details>
       )}
+      {/* 012:RF-73 a RF-82: lo que falta a cada estudio se carga aquí, en TXT, PDF o imagen. */}
+      <EntradasEstudios project={project} noOfrecidos={catalogo.no_ofrecidos} onCambio={cargar} />
       {catalogo.error_limites && <p className="alert alert-error">{catalogo.error_limites}</p>}
       <div className="form-grid">
         {LIMITES.map(([k, label]) => (
@@ -181,6 +184,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
       {/* RF-27 a RF-30: los guiones del operador, en la misma parte de los estudios. */}
       <GuionesPF project={project} />
       {/* Spec 049: las protecciones, con lo que les falta; nunca se juzgan por el flujo (RF-10). */}
+      <DiagnosticoDeCargas project={project} feeders={feeders} />
       <ProteccionesPF project={project} feeders={feeders} />
 
       {plan && (
@@ -190,8 +194,8 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
         </>}>
           <p>Alimentadores: {plan.feeders.join(', ')} · {plan.estudios.length} estudio(s).
             Orden de casos: {plan.casos.join(' → ')}. Hasta {Math.round(plan.limite_s / 60)} min por estudio y caso.</p>
-          <p className="muted">«Cargas nuevas» se ejecuta si hay cargas nuevas; «Con proyecto», si hay cargas u obras.
-            El diagnóstico se renueva con la calibración actual y muestra las cargas que no permiten converger.</p>
+          <Ayuda>«Cargas nuevas» se ejecuta si hay cargas nuevas; «Con proyecto», si hay cargas u obras.
+            El diagnóstico se renueva con la calibración actual y muestra las cargas que no permiten converger.</Ayuda>
           {plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
           {plan.excluidos.length > 0 && (
             <div className="alert alert-warn"><strong>Fuera de los estudios:</strong>
@@ -405,7 +409,8 @@ function ProteccionesPF({ project, feeders }: { project: string; feeders: string
   return (
     <details className="card" open={!d.disponible}>
       <summary><strong>Protecciones</strong>{' '}
-        <span className={`badge ${d.disponible ? 'ok' : 'err'}`}>{d.disponible ? 'disponible' : 'bloqueado'}</span></summary>
+        {/* 049:RF-2: lo que falta se carga aquí mismo; no es un bloqueo (usuario, 2026-11-13). */}
+        <span className={`badge ${d.disponible ? 'ok' : 'warn'}`}>{d.disponible ? 'disponible' : 'faltan datos'}</span></summary>
       <p className="alert alert-warn">{estado.aviso}</p>
       {!d.disponible && <>
         {d.faltan.length > 0 && <><p className="small"><strong>Faltan datos:</strong></p>
@@ -413,6 +418,7 @@ function ProteccionesPF({ project, feeders }: { project: string; feeders: string
         {d.bloqueos.length > 0 && <><p className="small"><strong>DIgSILENT no lo ha comprobado:</strong></p>
           <ul className="small">{d.bloqueos.map((b) => <li key={b}>{b}</li>)}</ul></>}
       </>}
+      <AjustesProtecciones project={project} onGuardado={setEstado} />
       {estado.capacidades
         ? <p className="small muted">Comprobado en DIgSILENT {estado.capacidades.version ?? '(versión desconocida)'},
           caso «{estado.capacidades.caso}»{estado.capacidades.comprobado ? `, ${estado.capacidades.comprobado}` : ''}:{' '}
@@ -437,6 +443,132 @@ function ProteccionesPF({ project, feeders }: { project: string; feeders: string
       {Object.entries(estado.evaluaciones).map(([rol, e]) => <EvaluacionProtecciones key={rol} rol={rol} e={e} />)}
       {estado.comparacion?.error && <p className="small muted">Sin comparación entre casos: {estado.comparacion.error}.</p>}
     </details>
+  );
+}
+
+/** Los campos de un dispositivo que el operador confirma, con su tipo (049:RF-3). */
+const CAMPOS_AJUSTE: [string, string, 'texto' | 'numero' | string[]][] = [
+  ['id', 'Equipo', 'texto'], ['clase', 'Clase', ['rele', 'reconectador', 'fusible']], ['cubiculo', 'Cubículo', 'texto'],
+  ['fabricante', 'Fabricante', 'texto'], ['modelo', 'Modelo', 'texto'], ['curva', 'Curva', 'texto'],
+  ['arranque', 'Arranque', 'numero'], ['unidad_arranque', 'Unidad', ['A', 'A sec', 'pu']], ['dial', 'Dial', 'numero'],
+  ['unidad_dial', 'Unidad del dial', ['dial', 's']], ['ct_primario_a', 'TC primario (A)', 'numero'],
+  ['ct_secundario_a', 'TC secundario (A)', 'numero'], ['poder_corte_ka', 'Poder de corte (kA)', 'numero'],
+];
+
+interface LecturaAjuste { fichero: string; dispositivo: Record<string, unknown>; faltan: string[]; errores: string[]; avisos: string[] }
+
+/**
+ * 049:RF-2: los ficheros de ajustes del relé y el reconectador del alimentador se cargan aquí, se leen en un trabajo y el
+ * operador confirma o completa cada dato antes de guardarlo. Antes solo cabía la hoja «Protecciones» del libro de la
+ * empresa, en otra pestaña, y esta sección decía «bloqueado» (usuario, 2026-11-13).
+ */
+function AjustesProtecciones({ project, onGuardado }: { project: string; onGuardado: (e: ProteccionesEstado) => void }) {
+  const { ws, run, startJob, jobs } = useApp();
+  const ultimo = Object.values(jobs).filter((j) => j.kind === 'protecciones_ajustes').pop();
+  const [filas, setFilas] = useState<LecturaAjuste[]>([]);
+  const leido = ultimo?.status === 'done' ? (ultimo.result as { lecturas?: LecturaAjuste[] } | null) : null;
+  useEffect(() => { if (leido?.lecturas) setFilas(leido.lecturas); }, [ultimo?.id, ultimo?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const cambiar = (i: number, campo: string, valor: string, tipo: CampoTipo) => setFilas((fs) => fs.map((f, k) => k !== i ? f
+    : { ...f, dispositivo: { ...f.dispositivo, [campo]: tipo === 'numero' ? (valor.trim() === '' ? null : Number(valor.replace(',', '.'))) : valor } }));
+  const guardar = async () => {
+    const r = await run(() => api.proteccionesDispositivos(ws.id, project, filas.map((f) => f.dispositivo)));
+    if (r) { onGuardado(r); setFilas([]); }
+  };
+  return (
+    <div className="stack">
+      <p className="small"><strong>Ajustes de los equipos del alimentador</strong> — los ficheros del relé o del
+        reconectador (TXT, PDF, foto o escaneo en JPG o PNG, o los de su programa); se leen y usted confirma cada dato antes de guardarlo.</p>
+      <FileDrop compact accept=".txt,.pdf,.csv,.set,.rdb,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp" multiple
+        onFiles={(files) => void startJob(() => api.proteccionesAjustes(ws.id, project, files))}>
+        <span>Soltar o <u>elegir</u> los ficheros de ajustes</span>
+      </FileDrop>
+      {filas.length > 0 && <>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Fichero</th>{CAMPOS_AJUSTE.map(([, t]) => <th key={t}>{t}</th>)}<th>Falta</th></tr></thead>
+            <tbody>{filas.map((f, i) => (
+              <tr key={f.fichero + i}>
+                <td className="small">{f.fichero}</td>
+                {CAMPOS_AJUSTE.map(([campo, , tipo]) => (
+                  <td key={campo}>{Array.isArray(tipo)
+                    ? <select value={String(f.dispositivo[campo] ?? '')} onChange={(e) => cambiar(i, campo, e.target.value, 'texto')}>
+                        <option value="">—</option>{tipo.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                    : <input size={tipo === 'numero' ? 6 : 12} inputMode={tipo === 'numero' ? 'decimal' : undefined}
+                        value={f.dispositivo[campo] == null ? '' : String(f.dispositivo[campo])}
+                        onChange={(e) => cambiar(i, campo, e.target.value, tipo)} />}</td>))}
+                <td className="small">{[...f.errores, ...f.faltan].join('; ') || 'completo'}</td>
+              </tr>))}</tbody>
+          </table>
+        </div>
+        <div className="row">
+          <button className="btn btn-primary btn-sm" onClick={() => void guardar()}>Guardar {filas.length} equipo(s)</button>
+          <small className="muted">Lo que siga faltando se dice en «Faltan datos»; el estudio usa solo los equipos completos.</small>
+        </div>
+      </>}
+    </div>
+  );
+}
+
+type CampoTipo = 'texto' | 'numero' | string[];
+
+const ESTADO_DIAG: Record<string, [string, string]> = { corregido: ['ok', 'corregido'], sigue: ['err', 'sigue'] };
+const pu = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(3).replace('.', ','));
+const pct = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(1).replace('.', ','));
+
+function EstadoDiag({ e }: { e: EstadoDiagnostico }) {
+  if (e == null) return <span className="muted small">sin «Con proyecto»</span>;
+  const [tono, texto] = ESTADO_DIAG[e];
+  return <span className={`badge ${tono}`}>{texto}</span>;
+}
+
+/**
+ * 017:RF-106 ampliada: lo que ocasionan las cargas nuevas, comparado con «Sin proyecto», y si las obras de «Con proyecto»
+ * lo corrigen. Usuario (2026-11-13): tras conectar la carga, un resumen de sobrecargas de nodo a nodo y de barras con
+ * caída de tensión, para ver al proponer obras si de verdad se corrigió. Sale de los flujos guardados de esta sección.
+ */
+function DiagnosticoDeCargas({ project, feeders }: { project: string; feeders: string[] }) {
+  const { ws, jobs } = useApp();
+  const [diag, setDiag] = useState<Record<string, DiagnosticoCargas>>({});
+  // Se vuelve a leer al terminar cada corrida de estudios.
+  const hechos = Object.values(jobs).filter((j) => j.kind.startsWith('estudios') && j.status === 'done').length;
+  useEffect(() => {
+    if (!project || !feeders.length) return;
+    let vivo = true;
+    api.estudiosDiagnostico(ws.id, project, feeders).then((r) => { if (vivo) setDiag(r.diagnosticos); })
+      .catch(() => { if (vivo) setDiag({}); });
+    return () => { vivo = false; };
+  }, [ws.id, project, feeders.join(','), hechos]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const filas = Object.entries(diag);
+  if (!filas.length) return null;
+  return (
+    <div className="card stack">
+      <strong>Diagnóstico de las cargas nuevas</strong>
+      <p className="small muted">«Sin proyecto», con las cargas sin obras y «Con proyecto»: lo que solo aparece con las cargas lo
+        ocasionaron ellas; lo que ya estaba va aparte. Corra de nuevo los estudios tras aplicar obras para ver si se corrigió.</p>
+      {filas.map(([f, d]) => (
+        <details key={f} open={d.provocados > 0}>
+          <summary><strong>{f}</strong>{' — '}
+            {d.provocados
+              ? <>{d.tension.provocadas.length} barra(s) bajo {pu(d.limites.tension_min_pu)} p.u. y{' '}
+                {d.sobrecargas.provocadas.length} tramo(s) sobre {pct(d.limites.cargabilidad_max_pct)} % por las cargas
+                {d.con_proyecto ? `; con las obras se corrigen ${d.corregidos} de ${d.provocados}` : '; aún sin «Con proyecto»'}</>
+              : 'las cargas no ocasionan barras bajas ni sobrecargas'}
+            {' · '}tensión mínima {pu(d.tension_min.sin)} → {pu(d.tension_min.cargas)} → {pu(d.tension_min.con)} p.u.
+          </summary>
+          {d.trechos.length > 0 && <div className="table-wrap"><table className="table">
+            <thead><tr><th>Trecho sobrecargado: desde</th><th>Hasta</th><th>km</th><th>Carga máx. (%)</th><th>Con las obras</th></tr></thead>
+            <tbody>{d.trechos.map((t) => <tr key={`${t.desde}-${t.hasta}`}><td>{t.desde}</td><td>{t.hasta}</td>
+              <td>{t.km.toFixed(3).replace('.', ',')}</td><td>{pct(t.carga_max)}</td><td><EstadoDiag e={t.estado} /></td></tr>)}</tbody>
+          </table></div>}
+          {d.tension.provocadas.length > 0 && <div className="table-wrap table-short"><table className="table">
+            <thead><tr><th>Barra bajo el límite</th><th>Sin proyecto</th><th>Con las cargas</th><th>Con proyecto</th><th>Estado</th></tr></thead>
+            <tbody>{d.tension.provocadas.map((b) => <tr key={b.barra}><td>{b.barra}</td><td>{pu(b.sin)}</td><td>{pu(b.cargas)}</td>
+              <td>{pu(b.con)}</td><td><EstadoDiag e={b.estado} /></td></tr>)}</tbody>
+          </table></div>}
+          {(d.tension.previas.length + d.sobrecargas.previas.length) > 0 && <p className="small muted">
+            Ya estaban sin las cargas: {d.tension.previas.length} barra(s) baja(s) y {d.sobrecargas.previas.length} sobrecarga(s).</p>}
+        </details>))}
+    </div>
   );
 }
 

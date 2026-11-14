@@ -490,3 +490,39 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
 .aviso-linea > summary::-webkit-details-marker { display: none; }
 .aviso-linea .mas { color: var(--primary); font-size: 12px; text-decoration: underline; }
 .aviso-linea[open] .mas { display: none; }
+
+/* 104:RF-20: «Novedades de los libros» en 2.1, plegable y discreto; las alertas lo abren. */
+.badge.info { color: var(--info); background: var(--info-soft); }
+.novedades { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); margin: 12px 0; }
+.novedades[open] { background: var(--surface); box-shadow: var(--shadow); }
+.novedades-cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; margin: 0;
+  color: var(--text); list-style: none; }
+.novedades-cabecera::-webkit-details-marker { display: none; }
+.novedades-cabecera::before { content: '›'; color: var(--muted); font-weight: 700; transition: transform .15s ease; }
+.novedades[open] > .novedades-cabecera::before { transform: rotate(90deg); }
+.novedades-titulo { font-weight: 600; }
+.novedades-revision { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.novedades-cuerpo { padding: 0 14px 12px; }
+.novedades-lista { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+.novedad { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; align-items: flex-start;
+  padding: 9px 12px; border-radius: 8px; border-left: 3px solid var(--info); background: var(--info-soft); font-size: 13px; }
+.novedad-alerta { border-left-color: var(--warn); background: var(--warn-soft); }
+.novedad-texto { flex: 1 1 420px; min-width: 0; }
+.novedad-pie { display: flex; align-items: center; gap: 8px; }
+.pulso { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: pulso 1.4s ease-in-out infinite; }
+@keyframes pulso { 0%, 100% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pulso, .novedades-cabecera::before { animation: none; transition: none; } }
+/* 104:RF-20: un grupo por tipo de aviso, y el detalle largo en una caja con su barra. */
+.novedad-grupo { border-left: 3px solid var(--info); border-radius: 8px; background: var(--surface-2); margin: 8px 0; padding: 6px 10px; }
+.novedad-grupo.novedad-alerta { border-left-color: var(--warn); }
+.novedad-grupo > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); margin: 0; }
+.novedad-vistos { margin-left: auto; }
+.novedad-grupo .novedad { background: transparent; border-left: 0; padding: 6px 0; border-bottom: 1px solid var(--border); border-radius: 0; }
+.novedad-detalle ul { max-height: 180px; overflow: auto; margin: 4px 0; padding-left: 18px; }
+
+/* La explicación de cada paso, plegada («Cómo funciona»). */
+.ayuda { margin: 4px 0 10px; }
+.ayuda > summary { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--primary); cursor: pointer; margin: 0; }
+.ayuda > summary::before { content: '?'; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid currentColor; font-size: 11px; font-weight: 700; }
+.ayuda > div { margin-top: 6px; font-size: 13px; line-height: 1.5; max-width: 90ch; }

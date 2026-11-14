@@ -322,22 +322,19 @@ def to_geodataframes(layers: PreviewLayers):
     return nodes_gdf, lines_gdf
 
 
-def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
-    """HTML autónomo, con Leaflet dentro: abre igual desde la web, desde el disco y sin red (086:RF-21)."""
-    geojson = layers_to_geojson(layers)
-    lat, lon = layers.center
-    # Un nombre de la entrega con «</script>» cerraba el guion y lo que siguiera se ejecutaba.
-    payload = json.dumps(geojson, ensure_ascii=False).replace('<', '\\u003c')
-    feeder = html_std.escape(str(layers.feeder))
-    title = f'Preview DGS — {feeder}'
-    # 086:RF-22: sin la salida no se pide ninguna tesela; si está encendida y no hay red, también se dice.
-    # 086:RF-63, RF-64: calles y satélite con su selector, como en Google Maps. Las teselas van en el «tilePane» de
-    # Leaflet, por debajo del de los tramos y nodos: la red queda siempre encima, con el fondo que se elija.
+def guion_de_fondos() -> tuple[str, str]:
+    """El guion de los fondos de calles y satélite para un mapa Leaflet con ``map`` ya creado, y el aviso si no hay.
+
+    086:RF-22: sin la salida no se pide ninguna tesela; si está encendida y no hay red, también se dice.
+    086:RF-63, RF-64: calles y satélite con su selector, como en Google Maps. Las teselas van en el «tilePane» de
+    Leaflet, por debajo del de los tramos y nodos: la red queda siempre encima, con el fondo que se elija. Lo usan la
+    vista previa y el mapa de las cargas nuevas (017:RF-124), para que los dos digan y pidan lo mismo.
+    """
     if salida_permitida('teselas'):
         fondos = json.dumps([{'nombre': n, 'url': u, 'atribucion': a, 'aviso': s, 'zoom': z}
                              for n, u, a, s, z in FONDOS_MAPA],
                             ensure_ascii=False).replace('<', '\\u003c')
-        teselas = f"""const fondos = {{}};
+        return f"""const fondos = {{}};
     const sinFondo = [];
     {fondos}.forEach(function (f, i) {{
       const capa = L.tileLayer(f.url, {{ maxZoom: 19, maxNativeZoom: f.zoom, attribution: f.atribucion }});
@@ -350,11 +347,19 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
       fondos[f.nombre] = capa;
       if (i === 0) capa.addTo(map);
     }});
-    L.control.layers(fondos, null, {{ position: 'topright', collapsed: false }}).addTo(map);"""
-        aviso_fondo = ''
-    else:
-        teselas = ''
-        aviso_fondo = html_std.escape(f'Sin fondo de mapa. {motivo_apagada("teselas")}')
+    L.control.layers(fondos, null, {{ position: 'topright', collapsed: false }}).addTo(map);""", ''
+    return '', html_std.escape(f'Sin fondo de mapa. {motivo_apagada("teselas")}')
+
+
+def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
+    """HTML autónomo, con Leaflet dentro: abre igual desde la web, desde el disco y sin red (086:RF-21)."""
+    geojson = layers_to_geojson(layers)
+    lat, lon = layers.center
+    # Un nombre de la entrega con «</script>» cerraba el guion y lo que siguiera se ejecutaba.
+    payload = json.dumps(geojson, ensure_ascii=False).replace('<', '\\u003c')
+    feeder = html_std.escape(str(layers.feeder))
+    title = f'Preview DGS — {feeder}'
+    teselas, aviso_fondo = guion_de_fondos()
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>

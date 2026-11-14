@@ -258,6 +258,46 @@ Resultados y estado del proyecto
 - RF-61: SI la comprobación de RF-60 encuentra un cambio, ENTONCES EL SISTEMA lo deshará,
   lo nombrará y marcará el estudio como no fiable.
 
+Entradas cargadas desde la web (usuario, 2026-11-13: «haz disponibles todos» los estudios; «lo que
+falta se ingresará en TXT o en imagen (JPG o similares)» y «todo tiene que ser cargado desde la
+web»). Una sonda de ese día en CA101_CHN102 dio la red externa con los valores por defecto de
+DIgSILENT (10 000 MVA, R/X 0,1), ninguna característica de tiempo en sus 204 cargas, ninguna tasa
+de falla y ningún espectro: ninguna fuente los trae y no se rellenan con valores típicos.
+
+- RF-73: EL SISTEMA aceptará desde la web, para cada entrada que le falta a un estudio de «4.2
+  Estudios» (Pcc e impedancia de cabecera, perfiles de carga, tasas de falla, tiempos de maniobra,
+  precios unitarios, coste de la energía y tasa, alternativas por etapa, proyección de la demanda y
+  espectros armónicos), un fichero TXT, CSV, PDF o de imagen (JPG, PNG y similares).
+- RF-74: CUANDO el fichero es una imagen o un PDF sin capa de texto, EL SISTEMA leerá su texto por
+  OCR y avisará de que cada cifra leída así se revisa antes de guardarla.
+- RF-75: EL SISTEMA mostrará lo leído en una tabla editable con las columnas de la entrada y los
+  errores de cada fila y columna, sin contarlo para el catálogo hasta que el operador lo guarde.
+- RF-76: EL SISTEMA leerá la tabla con cualquier separador (tabulador, «;», «|», «,» o los
+  espacios del OCR) y reconocerá cada columna por su nombre, sin tildes ni mayúsculas.
+- RF-77: CUANDO el operador guarda la tabla, EL SISTEMA la validará entera y no guardará nada si
+  una sola celda tiene un error.
+- RF-78: SI a una entrada le falta una columna obligatoria, una unidad o una fila, o trae una
+  unidad distinta de la pedida, ENTONCES EL SISTEMA lo dirá con su fila y su columna y no lo
+  completará con un valor típico.
+- RF-79: EL SISTEMA dará por cumplida en el catálogo de estudios una entrada guardada y completa
+  para el proyecto, igual que una hoja del libro de la empresa.
+- RF-80: EL SISTEMA dirá, por cada estudio no disponible, las entradas que le faltan y, si ya
+  están cargadas pero su ejecución en DIgSILENT no está, que queda para la siguiente iteración.
+- RF-81: EL SISTEMA usará las tasas, los tiempos y los costes cargados en la web como las hojas
+  del mismo nombre del libro de la empresa, y lo cargado en la web prevalecerá sobre el libro.
+- RF-82: EL SISTEMA guardará lo leído, lo confirmado y el fichero original en la carpeta del
+  espacio de trabajo, por proyecto de DIgSILENT.
+- RF-83: CUANDO se ejecuta el cortocircuito, EL SISTEMA escribirá la Pcc confirmada en cada red
+  externa del caso dentro de una variación temporal, ejecutará `ComShc` y borrará la variación,
+  comprobando que cada red externa vuelve a sus valores.
+- RF-84: CUANDO se ejecuta la cuasi-dinámica, EL SISTEMA asignará a cada carga la característica
+  de tiempo de su perfil confirmado, ejecutará `ComStatsim` y borrará al terminar las
+  características, sus referencias y la orden.
+- RF-85: SI una red externa del caso no tiene su Pcc cargada o una carga no tiene perfil, ENTONCES
+  EL SISTEMA no ejecutará ese estudio y nombrará las que faltan.
+- RF-86: EL SISTEMA aceptará la Pcc en MVA o la corriente Ik" en kA con la tensión, y convertirá
+  esta con Pcc = √3·U·Ik".
+
 ## Requisitos no funcionales
 
 - Escala: la confiabilidad y la capacidad de alojamiento se ejecutan sobre todos los
@@ -297,7 +337,7 @@ Resultados y estado del proyecto
 
 ## Criterios de finalización
 
-- `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-72.
+- `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-86.
 - Suite completa en verde, también la de la spec 011.
 - `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - Prueba real en DIgSILENT con dos alimentadores calibrados y un fichero de la empresa, a

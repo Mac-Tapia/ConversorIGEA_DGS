@@ -180,21 +180,6 @@
   },
   {
    "codigo": {
-    "ancla": "No hay mapa de fondo",
-    "fichero": "src/convertersmartgrid/mapa_informe.py",
-    "linea": 472,
-    "rf": null
-   },
-   "documento": {
-    "ancla": "- RF-111:",
-    "fichero": "specs/017-informes-de-estudio-y-factibilidad/spec.md",
-    "linea": 312,
-    "rf": null
-   },
-   "nota": "La spec pide un mapa satélite de fondo y el código no lo dibuja para no enviar coordenadas a un servicio de teselas."
-  },
-  {
-   "codigo": {
     "ancla": "leido = _perdidas_del_libro(ws, [alimentador])",
     "fichero": "src/convertersmartgrid/web/services.py",
     "linea": 7631,

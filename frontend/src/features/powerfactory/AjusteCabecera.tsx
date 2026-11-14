@@ -1,4 +1,5 @@
 import { fmtNum } from '../../shared/formato';
+import { Ayuda } from '../../shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
@@ -142,10 +143,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   return (
     <div className="step-box">
       <h4>Ajustar a la máxima en DIgSILENT</h4>
-      <p className="muted">Se calibra en «Sin proyecto», la copia del «Caso base» verificado. Las SED con clientes
+      <Ayuda>Se calibra en «Sin proyecto», la copia del «Caso base» verificado. Las SED con clientes
         importantes llevan su P y Q (fijas, factor de escala 1); las demás se reparten por su potencia instalada (kVA),
         con el FP del perfil, y suben todas con el mismo <strong>factor de escala</strong> de DIgSILENT hasta que la cabecera dé la máxima, con
-        las pérdidas del flujo. Queda en el escenario de «Sin proyecto», sin variaciones; el «Caso base» no cambia.</p>
+        las pérdidas del flujo. Queda en el escenario de «Sin proyecto», sin variaciones; el «Caso base» no cambia.</Ayuda>
       {grupos.some((g) => g.filas.length > 1) && (
         <div className="row">
           {grupos.filter((g) => g.filas.length > 1).map((g) => (
@@ -345,8 +346,8 @@ function InformeAjuste({ inf, report, cancelado, token }: {
       {inf.tension_fuente && <p className="small">Tensión en la fuente: {inf.tension_fuente.pu == null ? '—'
         : `${fmtNum(inf.tension_fuente.pu, 4)} pu`}, {inf.tension_fuente.texto}
         {(inf.consigna_fuente ?? []).length > 0 && <> · {(inf.consigna_fuente ?? []).map((c) => `${c.fuente} ${fmtNum(c.despues, 4)} pu`).join(', ')}</>}</p>}
-      {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
-        las SED repartidas suben lo que pidan las pérdidas.</p>}
+      {simular && <Ayuda>Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
+        las SED repartidas suben lo que pidan las pérdidas.</Ayuda>}
       {!simular && revertida && (
         <p className="alert alert-error">
           La validación física en DIgSILENT no pasa: las cargas no consumen en el flujo lo que tienen

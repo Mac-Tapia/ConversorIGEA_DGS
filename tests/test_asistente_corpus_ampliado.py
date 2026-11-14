@@ -19,7 +19,7 @@ from convertersmartgrid.asistente.equipo import LecturaGobernada
 RAIZ = Path(__file__).resolve().parents[1]
 AMPLIADO = indice.CORPUS_AMPLIADO
 #: Huellas fijadas al formar los conjuntos, antes de medir nada (077:RF-45).
-HUELLA_CALIBRACION = 'f9a8dbce534a4a3e2f95dd5cc7154bdb5a9ac01b75f6390412cbac4629244aa4'
+HUELLA_CALIBRACION = 'f3cda79eba76f3f892a7940922bcbb5ac981734de43a19d6b297465329a7e8f6'
 HUELLA_SELLADO = '590420002b131dc563290b0202cdb054d04b9d5439a2abab1bc36462cc498935'
 TABLA_LARGA = '\n'.join(f'| fila{i} | dato{i} con unas cuantas palabras de relleno para que pese |' for i in range(80))
 

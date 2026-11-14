@@ -227,7 +227,10 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
   clasificará como `rejected` y conservará la causa y la restauración.
 - RF-5: SI un episodio de «Con proyecto» converge pero viola los límites de la norma de su
   sistema o empeora pérdidas o confiabilidad frente a «Sin proyecto», ENTONCES EL SISTEMA lo
-  clasificará como `converged_with_violations`, nunca como aceptación operativa.
+  clasificará como `converged_with_violations`, nunca como aceptación operativa. En la web, la
+  tabla de episodios dirá cada clase, caso y acción en español («Converge con violaciones»,
+  «Escenario simulado», «En revisión»), la fecha en la hora del equipo y los avisos por el
+  nombre del elemento, sin su ruta de DIgSILENT (usuario, 2026-11-13).
 - RF-32: CUANDO un episodio de «Con proyecto» incluya obras, EL SISTEMA registrará la alternativa
   del PIDE de cada obra (tabla de «Con proyecto»), su tramo o equipo, su coste y los indicadores
   que pide el Anexo N.º 6 (VAN, TIR y período de retorno) tomados de la evaluación nativa.

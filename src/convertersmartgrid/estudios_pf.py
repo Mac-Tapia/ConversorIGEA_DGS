@@ -66,18 +66,20 @@ _DEL_LIBRO = {'Tasa de falla (λ) y tiempo de reparación por tipo de elemento',
               'Coste de la energía (moneda/kWh) y tasa de actualización'}
 
 
-def inventario_de_protecciones(libro, estudio: Estudio | None = None, tablas_fuente=None) -> dict[str, Any]:
+def inventario_de_protecciones(libro, estudio: Estudio | None = None, tablas_fuente=None,
+                               entradas: Iterable[str] = ()) -> dict[str, Any]:
     """Las entradas de las protecciones (049:RF-2): el libro, las filas de la fuente y si la
-    impedancia de cortocircuito de la cabecera es real según el catálogo de su fuente."""
+    impedancia de cortocircuito de la cabecera es real según el catálogo de su fuente o porque
+    el operador la cargó desde la web (012:RF-79)."""
     from .protecciones import inventario_protecciones
 
     estudio = estudio or next(x for x in ESTUDIOS if x.clave == 'protecciones')
     impedancia = next((x for x in estudio.entradas if x.nombre.startswith('Potencia e impedancia')), None)
-    return inventario_protecciones(libro, tablas_fuente=tablas_fuente,
-                                   impedancia_real=impedancia is not None and not impedancia.bloquea)
+    real = impedancia is not None and (not impedancia.bloquea or impedancia.nombre in set(entradas))
+    return inventario_protecciones(libro, tablas_fuente=tablas_fuente, impedancia_real=real)
 
 
-def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[str], str]:
+def _faltan_protecciones(e: Estudio, libro, capacidades, perfil, entradas=()) -> tuple[list[str], str]:
     """049:RF-1, RF-2: la lista concreta de lo que falta a las protecciones, no «faltan curvas».
 
     Los dispositivos salen del libro de la empresa; la impedancia de la cabecera, del catálogo
@@ -87,7 +89,7 @@ def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[s
     """
     from .protecciones import ProteccionesError, disponibilidad_protecciones
 
-    inventario = inventario_de_protecciones(libro, e)
+    inventario = inventario_de_protecciones(libro, e, entradas=entradas)
     try:
         d = disponibilidad_protecciones(inventario, capacidades or {}, perfil or {})
     except ProteccionesError as exc:
@@ -96,59 +98,78 @@ def _faltan_protecciones(e: Estudio, libro, capacidades, perfil) -> tuple[list[s
     return falta, ('faltan datos: ' + '; '.join(falta)) if falta else 'se ejecuta desde el apartado «Protecciones»'
 
 
-def _que_le_falta(e: Estudio, libro, sin_licencia, capacidades=None, perfil=None) -> tuple[list[str], str]:
-    """Lo que impide ofrecer un estudio y el motivo para el operador (011:RF-24, 012:RF-4, RF-19)."""
-    from .datos_empresa import que_falta
+def _que_le_falta(e: Estudio, libro, sin_licencia, capacidades=None, perfil=None,
+                  entradas: Iterable[str] = ()) -> tuple[list[str], str]:
+    """Lo que impide ofrecer un estudio y el motivo para el operador (011:RF-24, 012:RF-4, RF-19).
 
+    ``entradas``: los ``Entrada.nombre`` que el operador cargó y confirmó en la web para el
+    proyecto (012:RF-79, ``entradas_estudios.cumplidas``); dejan de faltar, como el libro.
+    """
+    from .datos_empresa import que_falta
+    from .entradas_estudios import CON_GUION
+
+    cargadas = set(entradas or ())
     if e.clase_pf in set(sin_licencia or ()):
         return [], f'no disponible: la licencia de DIgSILENT no incluye el módulo {e.clase_pf}'
     if e.clave == 'protecciones':
-        return _faltan_protecciones(e, libro, capacidades, perfil)
+        return _faltan_protecciones(e, libro, capacidades, perfil, cargadas)
     if e.clave in ESTUDIOS_012:
-        falta = [x.nombre for x in e.bloqueantes if x.nombre not in _DEL_LIBRO] + que_falta(libro, e.clave)
+        falta = [x.nombre for x in e.bloqueantes if x.nombre not in _DEL_LIBRO | cargadas] + que_falta(libro, e.clave)
     elif e.clave in ESTUDIOS_011:
         falta = [x.nombre for x in e.bloqueantes]
     else:
-        falta = [x.nombre for x in e.bloqueantes]
-        return falta, ('faltan datos: ' + '; '.join(falta)) if falta else 'fuera de esta iteración'
+        falta = [x.nombre for x in e.bloqueantes if x.nombre not in cargadas]
+        if falta:
+            return falta, 'faltan datos: ' + '; '.join(falta)
+        if e.clave in CON_GUION:
+            return [], ''                                      # 012:RF-83, RF-84
+        # 012:RF-80: con lo suyo cargado, el operador sabe que el dato ya está y qué queda.
+        return [], ('datos cargados; su ejecución en DIgSILENT queda para la siguiente iteración'
+                    if any(x.nombre in cargadas for x in e.entradas) else 'fuera de esta iteración')
     return falta, ('faltan datos: ' + '; '.join(falta)) if falta else ''
 
 
-def estudios_ofrecidos(libro=None, sin_licencia=()) -> tuple[Estudio, ...]:
+def estudios_ofrecidos(libro=None, sin_licencia=(), *, entradas: Iterable[str] = ()) -> tuple[Estudio, ...]:
     """Los de la 011 (RF-23) y los de la 012 que tienen sus datos y su licencia.
 
     ``libro``: el ``datos_empresa.Libro`` del proyecto, o ``None`` si no hay (012:RF-19).
     ``sin_licencia``: clases de orden que DIgSILENT rechazó por licencia (012:RF-4).
+    ``entradas``: lo cargado en la web para el proyecto; con ello se ofrecen también el
+    cortocircuito y la cuasi-dinámica (012:RF-79, RF-83, RF-84).
     """
-    return tuple(e for e in ESTUDIOS if e.clave in ESTUDIOS_011 + ESTUDIOS_012
-                 and not _que_le_falta(e, libro, sin_licencia)[1])
+    from .entradas_estudios import CON_GUION
+
+    return tuple(e for e in ESTUDIOS if e.clave in ESTUDIOS_011 + ESTUDIOS_012 + CON_GUION
+                 and not _que_le_falta(e, libro, sin_licencia, entradas=entradas)[1])
 
 
-def estudios_no_ofrecidos(libro=None, sin_licencia=(), *, capacidades=None, perfil=None) -> list[dict[str, Any]]:
+def estudios_no_ofrecidos(libro=None, sin_licencia=(), *, capacidades=None, perfil=None,
+                          entradas: Iterable[str] = ()) -> list[dict[str, Any]]:
     """Los demás del catálogo con lo que les falta (011:RF-24, 012:RF-4, RF-19).
 
     Un estudio defendible que no está en la iteración (el flujo óptimo) no tiene dato
     faltante: se dice que queda fuera, en vez de inventarle uno. ``capacidades`` y ``perfil``
     son los de las protecciones (049:RF-1, RF-2): lo que comprobó DIgSILENT y los criterios.
     """
-    ofrecidos = {e.clave for e in estudios_ofrecidos(libro, sin_licencia)}
+    ofrecidos = {e.clave for e in estudios_ofrecidos(libro, sin_licencia, entradas=entradas)}
     out = []
     for e in ESTUDIOS:
         if e.clave in ofrecidos:
             continue
-        falta, motivo = _que_le_falta(e, libro, sin_licencia, capacidades, perfil)
+        falta, motivo = _que_le_falta(e, libro, sin_licencia, capacidades, perfil, entradas)
         out.append({'clave': e.clave, 'nombre': e.nombre, 'falta': falta, 'motivo': motivo,
                     'modulo': e.clase_pf})
     return out
 
 
-def validar_estudios(claves: Iterable[str], libro=None, sin_licencia=()) -> tuple[str, ...]:
+def validar_estudios(claves: Iterable[str], libro=None, sin_licencia=(), *,
+                     entradas: Iterable[str] = ()) -> tuple[str, ...]:
     """Los pedidos, sin repetir y en el orden del catálogo; error si alguno no se ofrece."""
     pedidos = set(claves)
     if not pedidos:
         raise EstudiosError('Elija al menos un estudio.')
-    ofrecidos = [e.clave for e in estudios_ofrecidos(libro, sin_licencia)]
-    no = {o['clave']: o for o in estudios_no_ofrecidos(libro, sin_licencia)}
+    ofrecidos = [e.clave for e in estudios_ofrecidos(libro, sin_licencia, entradas=entradas)]
+    no = {o['clave']: o for o in estudios_no_ofrecidos(libro, sin_licencia, entradas=entradas)}
     malos = sorted(c for c in pedidos if c not in ofrecidos)
     if malos:
         partes = [f"{no[c]['nombre']} ({no[c]['motivo']})" if c in no else f'{c} (no existe)'

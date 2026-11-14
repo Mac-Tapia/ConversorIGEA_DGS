@@ -1,4 +1,4 @@
-import type { AvanceDisco, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
+import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -395,6 +395,19 @@ export const api = {
   // Spec 049: disponibilidad, capacidades de la versión conectada y fallas de las protecciones.
   protecciones: (id: string, project: string) =>
     request<ProteccionesEstado>(`${ws(id)}/pf/protecciones?project=${enc(project)}`),
+  // 017:RF-106 ampliada: lo que ocasionan las cargas nuevas y si «Con proyecto» lo corrige, por alimentador.
+  estudiosDiagnostico: (id: string, project: string, feeders: string[]) =>
+    request<{ project: string; diagnosticos: Record<string, DiagnosticoCargas> }>(
+      `${ws(id)}/pf/estudios/diagnostico?project=${enc(project)}&feeders=${enc(feeders.join(','))}`),
+  // 049:RF-2: los TXT y PDF de ajustes de relés y reconectadores, leídos en un trabajo; lo confirmado se guarda.
+  proteccionesAjustes: (id: string, project: string, files: File[]) => {
+    const fd = new FormData();
+    fd.append('project', project);
+    files.forEach((f) => fd.append('files', f, f.name));
+    return request<Job>(`${ws(id)}/pf/protecciones/ajustes`, { method: 'POST', body: fd });
+  },
+  proteccionesDispositivos: (id: string, project: string, dispositivos: Record<string, unknown>[]) =>
+    request<ProteccionesEstado>(`${ws(id)}/pf/protecciones/dispositivos`, json('PUT', { project, dispositivos })),
   proteccionesCapacidades: (id: string, body: { project: string; feeders: string[]; ejecutar_ordenes: boolean }) =>
     request<Job>(`${ws(id)}/pf/protecciones/capacidades`, json('POST', body)),
   proteccionesEjecutar: (id: string, body: { project: string; feeders: string[]; caso: string; periodo: string;

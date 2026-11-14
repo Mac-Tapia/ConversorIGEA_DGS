@@ -10,8 +10,9 @@ async function cargar() {
     import { createElement } from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
     import { TipoDeAnalisis, SeguirDondeQuedo, estadoConDisco, pasosDelTipo, DESTINO } from './src/features/powerfactory/TipoDeAnalisis';
-    import { GemeloPIDE, cuerpoPlanificar, porEntregable } from './src/features/powerfactory/GemeloPIDE';
+    import { GemeloPIDE, cuerpoPlanificar, porEntregable, avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO } from './src/features/powerfactory/GemeloPIDE';
     import { Ctx } from './src/shared/context';
+    export { avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO };
     export { pasosDelTipo, cuerpoPlanificar, porEntregable, DESTINO, estadoConDisco };
     export const seguir = (props) => renderToStaticMarkup(createElement(SeguirDondeQuedo, props));
     export const tipo = (props) => renderToStaticMarkup(createElement(TipoDeAnalisis, {
@@ -162,4 +163,18 @@ test('072:RF-33 con los marcados calibrados hay camino directo a 4.2 y 4.4', asy
   assert.ok(listo.includes('Flujos de «Con proyecto» ya corridos: CA101, CHN102'));
   // Sin calibrar todos los marcados, no se ofrece el atajo.
   assert.equal(seguir({ avance: AVANCE, calibrados: ['CA101'], order: ['CA101', 'CHN102'] }), '');
+});
+
+test('024:RF-5 la tabla de episodios del gemelo se lee en español y sin rutas de DIgSILENT', async () => {
+  const { avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO } = await cargar();
+  assert.deepEqual(claseDeEpisodio('counterfactual'), ['Escenario simulado', 'ok']);
+  assert.deepEqual(claseDeEpisodio('converged_with_violations'), ['Converge con violaciones', 'err']);
+  assert.deepEqual(claseDeEpisodio('quarantine'), ['En revisión', 'warn']);
+  assert.equal(TEXTO_EPISODIO.sin_proyecto, 'Sin proyecto');
+  assert.equal(TEXTO_EPISODIO.ajuste, 'Calibración');
+  assert.doesNotMatch(fechaDeEpisodio('2026-11-13T23:23:22+00:00'), /T23|\+00:00/);
+  const ruta = (n) => `tensión 0.9468 p.u. en ElmTerm:Network Model.IntPrjfolder\\Network Data.IntPrjfolder\\CA101_CHN102.ElmNet\\${n}.ElmTerm fuera de 0.95–1.05 (NTCSE)`;
+  assert.equal(avisosDeEpisodio([ruta(11799)]), 'barra 11799 a 0,9468 p.u., fuera de 0,95–1,05 (NTCSE)');
+  assert.match(avisosDeEpisodio([ruta(1), ruta(2), ruta(3), ruta(4)]), /barra 1 .* · barra 2 .* · y 2 más$/);
+  assert.equal(avisosDeEpisodio(['sin medida para comprobar la calibración']), 'sin medida para comprobar la calibración');
 });

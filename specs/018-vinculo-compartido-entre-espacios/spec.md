@@ -114,6 +114,10 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   sistema deberá seguir con el vínculo guardado si lo hay, o con uno armado con el propio proyecto de DIgSILENT
   (origen «proyecto»), y dirá la causa como aviso informativo, nunca «se importó a mano». (Regla del usuario,
   2026-11-13: se calibra cualquier proyecto de DIgSILENT, convertido o no por el conversor.)
+  Desde el paso 4 se elige cualquier proyecto leído de DIgSILENT, con sus alimentadores, y con él
+  se hacen las obras, los estudios de 4.2 (también la cuasi-dinámica y la evaluación económica
+  cuando tienen sus datos), la transferencia, los informes y la planificación del PIDE y de largo
+  plazo, tal cual está en DIgSILENT, sin calibrarlo en la web (usuario, 2026-11-13).
 
 ## Fuera de alcance
 

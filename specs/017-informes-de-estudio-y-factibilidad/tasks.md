@@ -49,6 +49,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `mapa_informe.esquematico` lo dibuja con su pie; `tests/test_estudios_pf_guion.py`,
       `tests/test_mapa_informe.py`); RF-112 con su pie probado; RF-11, RF-110 y RF-111 no se
       usan (sin ventana no hay diagrama de DIgSILENT ni mapa de fondo, RF-11b y RF-124).
+      Cambio 2026-11-13: RF-111 vuelve a usarse, con el fondo de calles o satélite de la vista previa
+      (`mapa_cargas.fondo_del_informe`); el mapa de la web y el punto leído en DIgSILENT, en las aclaraciones de
+      RF-124; pruebas en `tests/test_mapa_cargas.py` y `frontend/test/puntosDeDiseno.test.mjs`.
 - [x] T8. Etapas 1 a 3: bancos existentes y del proyecto anterior, sonda y uso de `ComCapo`
       y `ComPlaceopt`. (RF-32, RF-35 a RF-40d)
       Hecho cuando: pruebas sobre `fake_pf` en verde y la sonda anotada en el plan.

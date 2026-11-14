@@ -1,4 +1,5 @@
 import { fmtNum } from '../../shared/formato';
+import { Ayuda } from '../../shared/ui';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
@@ -44,8 +45,8 @@ export function TransferenciaPF({ project, feeders }: { project: string; feeders
   if (feeders.length < 2) return <p className="muted">Marque al menos dos alimentadores en el paso 2.</p>;
   return (
     <div>
-      <p className="muted">Cierra el enlace y abre, uno tras otro desde él hacia la cabecera del que cede, cada seccionador y
-        cada barra, con un flujo de carga en cada paso. Nada queda cambiado en el proyecto.</p>
+      <Ayuda>Cierra el enlace y abre, uno tras otro desde él hacia la cabecera del que cede, cada seccionador y
+        cada barra, con un flujo de carga en cada paso. Nada queda cambiado en el proyecto.</Ayuda>
       <div className="row">
         <label className="field"><span>Alimentador</span>{elegir(uno, setA)}</label>
         <label className="field"><span>y</span>{elegir(otro, setB)}</label>

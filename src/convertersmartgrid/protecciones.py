@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
@@ -147,6 +148,84 @@ def validar_dispositivo(d: Mapping[str, Any]) -> tuple[list[str], list[str]]:
             # Poder de corte cero es la fila DEFAULT de la fuente, no una ficha (049:RF-2).
             faltan.append(f'«{nombre}»: {_TITULO_CAMPO[campo]} es {v:g}, que no es un dato de ficha')
     return faltan, errores
+
+
+# --------------------------------------------------------------------------- ficheros de ajustes (RF-2)
+#: Cómo nombran cada campo los ficheros de ajustes de relés y reconectadores, en español y en inglés, y los ajustes
+#: estilo SEL (``51P1P := 2.50``). Va en minúsculas y sin tildes; manda el primero que aparece en el fichero.
+ETIQUETAS_AJUSTE: dict[str, tuple[str, ...]] = {
+    'id': ('identificador', 'id del equipo', 'equipo', 'dispositivo', 'device id', 'relay id', 'rid', 'tid'),
+    'fabricante': ('fabricante', 'manufacturer', 'marca', 'vendor'),
+    'modelo': ('modelo', 'model', 'tipo de rele', 'relay type', 'fid'),
+    'curva': ('curva', 'curve', 'caracteristica', 'characteristic', '51p1c', '51pc', 'tcc'),
+    'arranque': ('arranque', 'pickup', 'pick-up', 'pick up', 'corriente de ajuste', '51p1p', '51pp'),
+    'dial': ('dial', 'tms', 'time dial', 'multiplicador de tiempo', '51p1td', '51ptd'),
+    'poder_corte_ka': ('poder de corte', 'capacidad de interrupcion', 'breaking capacity', 'interrupting rating',
+                       'icu'),
+    'cubiculo': ('cubiculo', 'cubicle', 'celda', 'bahia', 'bay'),
+}
+#: Un TC escrito como «600/5» junto a TC, CT o RTC.
+_TC = re.compile(r'\b(?:t\.?c\.?|c\.?t\.?|rtc|ctr|relacion\s+(?:de\s+)?tc)\b[^0-9\n]{0,20}(\d+(?:[.,]\d+)?)\s*/\s*(1|5)\b')
+_NUMERO = re.compile(r'[-+]?\d+(?:[.,]\d+)?')
+
+
+def _sin_tildes(texto: str) -> str:
+    import unicodedata
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
+
+
+def _valor_de_linea(linea: str, etiqueta: str) -> str | None:
+    """Lo que sigue a la etiqueta en la línea: tras «:=», «=», «:» o espacios. ``None`` si la etiqueta no está."""
+    m = re.search(rf'(?<![\w>]){re.escape(etiqueta)}(?![\w>])\s*(?::=|=|:|\s)\s*(.+)$', linea, re.IGNORECASE)
+    return m.group(1).strip() if m else None
+
+
+def leer_ajustes(texto: str, fichero: str, cubiculo: str | None = None) -> dict[str, Any]:
+    """Un dispositivo de protección leído de su fichero de ajustes, con lo que falta para el estudio (049:RF-2).
+
+    Usuario (2026-11-13): en Protecciones se cargan los TXT y PDF de ajustes del relé y del reconectador del alimentador
+    en análisis, como se cargan los PDF de la solicitud. Nada se da por bueno: lo leído se confirma en la web y lo que
+    falta lo dice :func:`validar_dispositivo`. Los ficheros cambian por fabricante; las etiquetas son las de
+    :data:`ETIQUETAS_AJUSTE`, y una que no se reconoce queda vacía, no adivinada.
+    """
+    lineas = [_sin_tildes(l) for l in texto.splitlines() if l.strip()]
+    originales = [l.strip() for l in texto.splitlines() if l.strip()]
+    d: dict[str, Any] = {'fuente': fichero}
+    for campo, etiquetas in ETIQUETAS_AJUSTE.items():
+        for i, linea in enumerate(lineas):
+            valor = next((v for e in etiquetas if (v := _valor_de_linea(linea, e))), None)
+            if valor is None:
+                continue
+            if campo in ('arranque', 'dial', 'poder_corte_ka'):
+                n = _NUMERO.search(valor)
+                if n is None:
+                    continue
+                d[campo] = float(n.group(0).replace(',', '.'))
+                if campo == 'arranque':
+                    d['unidad_arranque'] = 'A sec' if re.search(r'\bsec|\ba\s*sec|secundari', valor) else 'A'
+                if campo == 'poder_corte_ka' and re.search(r'\d\s*a\b(?!\s*sec)', valor) and d[campo] > 200:
+                    d[campo] = d[campo] / 1000.0          # escrito en amperios
+            else:
+                # El texto como venía, sin pasarlo a minúsculas: el modelo y el fabricante se escriben así.
+                bruto = _valor_de_linea(originales[i], next(e for e in etiquetas if _valor_de_linea(linea, e)))
+                d[campo] = (bruto if bruto is not None else valor).strip().strip('"\'')
+            break
+    todo = '\n'.join(lineas)
+    tc = _TC.search(todo)
+    if tc:
+        d['ct_primario_a'], d['ct_secundario_a'] = float(tc.group(1).replace(',', '.')), float(tc.group(2))
+    if 'dial' in d:
+        d['unidad_dial'] = 's' if re.search(r'tiempo definido|definite time|\bdt\b', todo) else 'dial'
+    clase = ('reconectador' if re.search(r'reconectador|recloser', todo)
+             else 'fusible' if re.search(r'\bfusible\b|\bfuse\b', todo) else 'rele')
+    d['clase'] = clase
+    if cubiculo and not d.get('cubiculo'):
+        d['cubiculo'] = cubiculo
+    if not d.get('id'):
+        d['id'] = Path(fichero).stem
+    faltan, errores = validar_dispositivo(d)
+    return {'dispositivo': d, 'faltan': faltan, 'errores': errores,
+            'leidos': sorted(k for k in d if k not in ('fuente',))}
 
 
 def es_fila_por_defecto(fila: Mapping[str, Any]) -> bool:

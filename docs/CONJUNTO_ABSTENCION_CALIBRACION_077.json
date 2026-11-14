@@ -1,7 +1,7 @@
 {
 "corpus": "077",
 "esquema": "csg-conjunto-rag-077-v1",
-"excluidas_en_el_corpus": 269,
+"excluidas_en_el_corpus": 267,
 "excluidas_sin_fuente_indexada": 13,
 "excluidas_sin_respuesta_sin_confirmar": 8,
 "origen_de_las_preguntas": "Filas del reparto «corpus» de la 076 sin ninguna pregunta de su grupo de paráfrasis, de ninguna longitud, literal en un fichero del corpus 077 que no sea su fuente (097:RF-19), y las preguntas ajenas al proyecto que tampoco están en él. Las demás filas del reparto no entran porque el corpus ya las lleva: el documento del maestro que el usuario decidió indexar (docs/PREGUNTAS_MAESTRO_076.md, 076:RF-29, 076 T8) copia las marcadas correctas, y no copia las marcadas incorrectas (076:RF-30), que son las que quedan; de esas no vale la respuesta esperada, pero sí la pregunta y sus anclas, que es lo único que mide la recuperación. Una sin respuesta entra solo si el maestro confirmó que el repositorio no la tiene: marcada incorrecta, dice que sí la tiene.",

@@ -16,7 +16,8 @@ def test_informes_en_4_4_con_sus_dos_apartados():
     """017:RF-73 / 017:RF-74 — «4.4 · Informes» va en el paso 4, tras los estudios, con el
     proyecto del paso 1 y los alimentadores marcados del paso 2, sin volver a pedirlos."""
     assert CARGAS.index('<h4>4.2 · Estudios</h4>') < CARGAS.index('<h4>4.4 · Informes</h4>')
-    assert '<InformesPF project={project} feeders={order} />' in CARGAS
+    # 018:RF-19: 4.4 usa el proyecto que se estudia (por defecto, el del paso 1 con sus alimentadores).
+    assert '<InformesPF project={estudio.proyecto} feeders={estudio.feeders} />' in CARGAS
     assert INFORMES.index('4.4.1 · Análisis eléctrico') < INFORMES.index('4.4.2 · Conexión de un cliente nuevo')
 
 

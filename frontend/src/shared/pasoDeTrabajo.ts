@@ -52,6 +52,8 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   obras_bibliotecas: 'pf-obras', obras_simular: 'pf-obras', obras_aplicar: 'pf-obras',
   estudios: 'pf-estudios', estudio: 'pf-estudios', sesion: 'pf-estudios', guiones_listar: 'pf-estudios',
   guion_ejecutar: 'pf-estudios', protecciones_capacidades: 'pf-estudios', protecciones_fallas: 'pf-estudios',
+  protecciones_ajustes: 'pf-estudios',
+  mapa_cargas_digsilent: 'pf-nuevas', entradas_estudios: 'pf-estudios',
   datos_confiabilidad: 'pf-estudios',
   transferencia: 'pf-transferencia',
   informe_estudio: 'pf-informes', informe_factibilidad: 'pf-informes', informe_documentos: 'pf-informes',

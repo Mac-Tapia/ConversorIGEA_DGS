@@ -225,6 +225,12 @@ def frontend_dist() -> Path:
 # ---------------------------------------------------------------------------
 
 
+class DispositivosProteccionIn(BaseModel):
+    """049:RF-2: los dispositivos confirmados desde sus ficheros de ajustes; cada uno se valida al guardar."""
+    project: str
+    dispositivos: list[dict] = Field(max_length=500)
+
+
 class DescartarNoDisponibleIn(BaseModel):
     campo: str
     clave: str
@@ -2650,6 +2656,12 @@ def create_app(
     def estudios_catalogo() -> dict:
         return services.estudios_catalogo()
 
+    @app.get('/api/workspaces/{wid}/pf/estudios/diagnostico')
+    def estudios_diagnostico(wid: str, project: str, feeders: str = '') -> dict:
+        """017:RF-106 ampliada: lo que ocasionan las cargas nuevas y si «Con proyecto» lo corrige, por alimentador."""
+        return services.diagnostico_cargas(ws_or_404(wid), project,
+                                           [f for f in feeders.split(',') if f.strip()])
+
     @app.get('/api/workspaces/{wid}/pf/estudios')
     def estudios_catalogo_proyecto(wid: str, project: str = '') -> dict:
         """012:RF-19, RF-4: los estudios según el libro del proyecto y la licencia."""
@@ -2659,6 +2671,30 @@ def create_app(
     def protecciones_estado(wid: str, project: str = '') -> dict:
         """049:RF-1, RF-2, RF-7, RF-10: disponibilidad con lo que falta y resultados, sin juzgar por el flujo."""
         return services.protecciones_estado(ws_or_404(wid), project)
+
+    @app.post('/api/workspaces/{wid}/pf/protecciones/ajustes', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def protecciones_ajustes(wid: str, project: str = Form(...), files: list[UploadFile] = File(...)) -> dict:
+        """049:RF-2: los TXT y PDF de ajustes de relés y reconectadores, leídos en un trabajo (OCR si hace falta)."""
+        ws = ws_or_404(wid)
+        malos = [f.filename for f in files
+                 if Path(f.filename or '').suffix.lower() not in services.EXTENSIONES_AJUSTES]
+        if malos:
+            raise HTTPException(400, f'Se leen ficheros {", ".join(services.EXTENSIONES_AJUSTES)}: '
+                                     f'{", ".join(str(m) for m in malos)}.')
+        carpeta = services.protecciones_carpeta_ajustes(ws, project)
+        carpeta.mkdir(parents=True, exist_ok=True)
+        rutas = []
+        for f in files:
+            destino = carpeta / safe_filename(f.filename or 'ajustes.txt')
+            _save_upload(destino, f)
+            rutas.append(destino)
+        return submit(ws, 'protecciones_ajustes', f'Leer {len(rutas)} fichero(s) de ajustes de protecciones',
+                      lambda ctx: services.protecciones_ajustes_leer(ws, ctx, project, rutas), lane='engine')
+
+    @app.put('/api/workspaces/{wid}/pf/protecciones/dispositivos')
+    def protecciones_dispositivos_guardar(wid: str, body: DispositivosProteccionIn) -> dict:
+        """049:RF-2, RF-3: los dispositivos que el operador confirmó desde sus ficheros de ajustes."""
+        return services.protecciones_dispositivos_guardar(ws_or_404(wid), body.project, body.dispositivos)
 
     @app.post('/api/workspaces/{wid}/pf/protecciones/capacidades', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def protecciones_capacidades(wid: str, body: ProteccionesCapacidadesIn) -> dict:
@@ -2789,9 +2825,12 @@ def create_app(
                             files: list[UploadFile] = File(...)) -> dict:
         """017:RF-136 y RF-137: los PDF del solicitante, leídos en un trabajo (con OCR si hace falta)."""
         ws = ws_or_404(wid)
-        malos = [f.filename for f in files if Path(f.filename or '').suffix.lower() != '.pdf']
+        # 017:RF-136 ampliada: también TXT y fotos o escaneos en imagen (usuario, 2026-11-13).
+        admitidas = ('.pdf', '.txt', *services.EXTENSIONES_IMAGEN)
+        malos = [f.filename for f in files if Path(f.filename or '').suffix.lower() not in admitidas]
         if malos:
-            raise HTTPException(400, f'Solo se leen PDF: {", ".join(str(m) for m in malos)}.')
+            raise HTTPException(400, f'Se leen PDF, TXT e imágenes ({", ".join(admitidas)}): '
+                                     f'{", ".join(str(m) for m in malos)}.')
         # 017:RF-141: cada lectura en su carpeta del espacio; la anterior se reemplaza solo cuando la nueva queda
         # encolada, y nunca mientras la lectura anterior (el OCR) puede estar abriendo sus PDF: 409.
         carpeta = services.informes_carpeta_documentos(ws, tipo)
@@ -2985,6 +3024,14 @@ def create_app(
 
     registrar_rutas_copia(app, ws_or_404=ws_or_404, submit=submit, en_curso=jobs.en_curso, raiz_datos=store.root,
                           rutas_locales=lambda: _server_paths_allowed(host))
+    # 017:RF-109, RF-124: el mapa de las cargas nuevas y su punto de diseño leído en DIgSILENT, en su módulo.
+    from .mapa_cargas_api import registrar_rutas_mapa
+
+    registrar_rutas_mapa(app, ws_or_404=ws_or_404, submit=submit)
+    # 012:RF-73 a RF-82: las entradas que faltan a los estudios, cargadas desde la web, en su módulo.
+    from .entradas_estudios_api import registrar_rutas_entradas
+
+    registrar_rutas_entradas(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()

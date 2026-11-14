@@ -71,6 +71,8 @@ class DatosEstudio:
     alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
     #: 094:RF-3: el perfil de tensión que dejó la calibración (barras de media, troncal y banda del perfil).
     perfil_tension: Mapping[str, Any] | None = None
+    #: 017:RF-106 ampliada: por alimentador, lo que ocasionan las cargas nuevas y si «Con proyecto» lo corrige.
+    diagnosticos: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
 
 def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
@@ -147,6 +149,8 @@ class DatosFactibilidad:
     valle: Mapping[str, Any] | None = None
     #: Comparación de los balances medidos cuando no se evalúa una curva anual.
     perdidas_instantaneas: bool = False
+    #: 017:RF-106 ampliada: lo que ocasiona la carga y si «Con proyecto» lo corrige (:func:`diagnostico_de_cargas`).
+    diagnostico: Mapping[str, Any] | None = None
     observaciones: Sequence[str] = ()
     #: Solo el generador desde una operación nativa certificada habilita esta excepción RF-38.
     con_proyecto_verificado: bool = False
@@ -1080,6 +1084,9 @@ def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], conf
              f'{_NOMBRE_IMAGEN["ubicacion"]} del estado actual')
     e.parrafo(f'ESCENARIO PROYECTADO: el alimentador {lista} con {resumen}.')
     e.imagen(imagenes.get('ubicacion'), f'{_NOMBRE_IMAGEN["ubicacion"]} del estado proyectado')
+    # 017:RF-106 ampliada: lo que ocasionan las cargas (en bloque o solas) y si las obras lo corrigen.
+    for k, (f, d) in enumerate(sorted((datos.diagnosticos or {}).items()), start=n + 2):
+        _diagnostico(e, f'2.4.{k} PROBLEMAS QUE OCASIONAN LAS CARGAS NUEVAS EN {f} Y SU CORRECCIÓN', d)
 
 
 def _punto(barra: str, sed: Sequence | None) -> str:
@@ -1243,6 +1250,64 @@ def _alternativas(e: _Escritor, datos: DatosEstudio, evaluadas: list[Etapa], rec
 
 
 # --------------------------------------------------------------------------- factibilidad
+#: Cuántas barras bajas se listan; el resto se resume en una frase (el JSON del informe las trae todas).
+MAX_BARRAS_DIAGNOSTICO = 15
+
+_ESTADO = {'corregido': 'Corregido', 'sigue': 'Sigue', None: 'Sin «Con proyecto»'}
+
+
+def _pu(v: float | None) -> str:
+    return '—' if v is None else numero(v, 3)
+
+
+def _pct(v: float | None) -> str:
+    return '—' if v is None else numero(v, 1)
+
+
+def _diagnostico(e: _Escritor, titulo: str, d: Mapping[str, Any] | None) -> None:
+    """Lo que ocasiona la carga nueva, comparado con «Sin proyecto», y su estado con las obras (017:RF-106 ampliada).
+
+    Usuario (2026-11-13): el diagnóstico de «Sin proyecto», con cargas y con proyecto se recoge en el informe para ver
+    si las obras de verdad corrigen lo que la carga ocasiona: barras con caída de tensión y trechos sobrecargados.
+    """
+    if d is None:          # un informe sin diagnóstico (de antes, o sin los flujos de 4.2) no lleva la sección
+        return
+    e.titulo(titulo)
+    if not d.get('evaluado'):
+        e.hueco('diagnóstico de la carga: falta el flujo de «Cargas nuevas» de 4.2')
+        return
+    tension, sobre, trechos = d['tension'], d['sobrecargas'], d['trechos']
+    umin = d['tension_min']
+    e.tabla(['Concepto', 'Sin proyecto', 'Con las cargas, sin obras', 'Con proyecto'], [
+        ['Tensión mínima (p.u.)', _pu(umin.get('sin')), _pu(umin.get('cargas')), _pu(umin.get('con'))],
+        ['Barras bajo el límite que ocasiona la carga', '0', str(len(tension['provocadas'])),
+         '—' if not d.get('con_proyecto') else str(sum(1 for f in tension['provocadas'] if f['estado'] == 'sigue'))],
+        ['Tramos sobrecargados que ocasiona la carga', '0', str(len(sobre['provocadas'])),
+         '—' if not d.get('con_proyecto') else str(sum(1 for f in sobre['provocadas'] if f['estado'] == 'sigue'))],
+        ['Problemas que ya existían sin la carga', str(len(tension['previas']) + len(sobre['previas'])),
+         str(len(tension['previas']) + len(sobre['previas'])), '—'],
+    ])
+    if tension['provocadas']:
+        e.parrafo('Barras que la carga deja bajo el límite de tensión, de la más baja a la más alta:')
+        e.tabla(['Barra', 'Sin proyecto (p.u.)', 'Con las cargas (p.u.)', 'Con proyecto (p.u.)', 'Estado'],
+                [[f['barra'], _pu(f['sin']), _pu(f['cargas']), _pu(f['con']), _ESTADO[f['estado']]]
+                 for f in tension['provocadas'][:MAX_BARRAS_DIAGNOSTICO]])
+        resto = len(tension['provocadas']) - MAX_BARRAS_DIAGNOSTICO
+        if resto > 0:
+            e.parrafo(f'Y {resto} barras más, con tensiones más altas que las listadas.')
+    if trechos:
+        e.parrafo('Trechos sobrecargados por la carga, desde la cabecera hacia la cola:')
+        e.tabla(['Desde', 'Hasta', 'Longitud (km)', 'Carga máxima (%)', 'Estado'],
+                [[t['desde'], t['hasta'], numero(t['km'], 3), _pct(t['carga_max']), _ESTADO[t['estado']]]
+                 for t in trechos])
+    elif sobre['provocadas']:
+        e.tabla(['Elemento', 'Sin proyecto (%)', 'Con las cargas (%)', 'Con proyecto (%)', 'Estado'],
+                [[f['elemento'], _pct(f['sin']), _pct(f['cargas']), _pct(f['con']), _ESTADO[f['estado']]]
+                 for f in sobre['provocadas']])
+    if not tension['provocadas'] and not sobre['provocadas']:
+        e.parrafo('La carga nueva no ocasiona barras bajo el límite de tensión ni tramos sobrecargados.')
+
+
 def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: DatosFactibilidad) -> list[str]:
     """Escribe el informe de factibilidad en ``destino`` y su JSON al lado; devuelve los huecos.
 
@@ -1359,6 +1424,7 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         _analisis_carga(e, '2.3.4 ANÁLISIS DE CARGABILIDAD', proyectado, proy_img.get('cargabilidad'),
                         'estado proyectado', config)
         _tabla_tension(e, proyectado)
+        _diagnostico(e, '2.3.5 PROBLEMAS QUE OCASIONA LA CARGA Y SU CORRECCIÓN', datos.diagnostico)
 
     _perdidas(e, datos, config, alimentador)
 
@@ -1406,6 +1472,10 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                                            actual=datos.actual, bajo_limite=datos.bajo_limite)
     if datos.aviso_cliente:
         e.hueco(datos.aviso_cliente)
+    from .informes import frases_diagnostico
+
+    for texto in frases_diagnostico(datos.diagnostico):                    # 017:RF-106 ampliada
+        e.parrafo(texto)
     if s is None:
         e.hueco('conclusiones: faltan los datos de la solicitud')
     elif conexion is not None:

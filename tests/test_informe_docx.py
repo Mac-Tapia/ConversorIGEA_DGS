@@ -751,3 +751,44 @@ def test_resumen_ejecutivo_en_una_hoja_con_la_cabecera_del_modelo(tmp_path, semi
     assert any(numero(peor, 3) in c.text for t in d.tables for row in t.rows for c in row.cells)   # la más grave
     import openpyxl
     assert openpyxl.load_workbook(tmp_path / hecho['xlsx'])['Violaciones'].max_row - 1 == len(r['violaciones'])
+
+
+def test_factibilidad_recoge_lo_que_ocasiona_la_carga_y_si_las_obras_lo_corrigen(tmp_path):
+    """017:RF-106 ampliada — 2.3.5 compara «Sin proyecto», con las cargas sin obras y «Con proyecto»: las barras que la
+    carga deja bajo el límite, los trechos sobrecargados de nodo a nodo y su estado con las obras; y las conclusiones lo
+    resumen (CA101 con SECA001, 2026-11-13)."""
+    from convertersmartgrid.estudios_pf import Limites
+    from convertersmartgrid.informes import diagnostico_de_cargas
+    from test_diagnostico_cargas import CARGAS, GEO, SIN, _medida
+
+    con = _medida({'C': 1.0, 'B1': 0.98, 'B2': 0.94, 'B3': 0.96}, {'L1': 70.0, 'L2': 65.0, 'L3': 50.0})
+    d = diagnostico_de_cargas(SIN, CARGAS, con, Limites(0.95, 1.05, 100.0), GEO)
+    destino = tmp_path / 'factibilidad.docx'
+    escribir_informe_factibilidad(_config(tmp_path), destino, _factibilidad(tmp_path, diagnostico=d))
+    texto = _texto(destino)
+    orden = ['2.3.4 ANÁLISIS DE CARGABILIDAD', '2.3.5 PROBLEMAS QUE OCASIONA LA CARGA Y SU CORRECCIÓN',
+             '2.4 ANÁLISIS DE PÉRDIDAS TÉCNICAS', '3. CONCLUSIONES', 'se corrigen 2 de 3 problemas; siguen 1.']
+    posiciones = [texto.find(t) for t in orden]
+    assert -1 not in posiciones and posiciones == sorted(posiciones), dict(zip(orden, posiciones))
+    filas = _filas(destino)
+    assert ['C', 'B2', '2,200', '120,0', 'Corregido'] in filas
+    assert ['B2', '0,970', '0,930', '0,940', 'Sigue'] in filas
+    # Sin diagnóstico, la sección no aparece ni deja un hueco nuevo.
+    sin = tmp_path / 'sin.docx'
+    escribir_informe_factibilidad(_config(tmp_path), sin, _factibilidad(tmp_path))
+    assert '2.3.5' not in _texto(sin)
+
+
+def test_estudio_recoge_por_alimentador_lo_que_ocasionan_las_cargas(tmp_path):
+    """017:RF-106 ampliada — el informe de estudio (cargas en bloque) trae, tras el escenario actual y proyectado, el
+    diagnóstico de cada alimentador con su estado en «Con proyecto»."""
+    from convertersmartgrid.estudios_pf import Limites
+    from convertersmartgrid.informes import diagnostico_de_cargas
+    from test_diagnostico_cargas import CARGAS, GEO, SIN
+
+    d = diagnostico_de_cargas(SIN, CARGAS, None, Limites(0.95, 1.05, 100.0), GEO)
+    destino = tmp_path / 'estudio.docx'
+    escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path, diagnosticos={'AL01': d}))
+    texto = _texto(destino)
+    assert texto.find('ESCENARIO ACTUAL Y PROYECTADO') < texto.find('PROBLEMAS QUE OCASIONAN LAS CARGAS NUEVAS EN AL01')
+    assert ['C', 'B2', '2,200', '120,0', 'Sin «Con proyecto»'] in _filas(destino)

@@ -1,4 +1,5 @@
 import { fmtNum } from '../../shared/formato';
+import { Ayuda } from '../../shared/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
@@ -19,6 +20,53 @@ const RUBRO: Record<string, string> = {
  * y aplica solas en «Con proyecto» las que se construyen sin diseño, tras simularlas. El
  * gemelo aprende de cada acción y de los escenarios que simula en una copia del proyecto.
  */
+/** Las clases de episodio del gemelo, en las palabras del operador; la clave interna queda en el «title». */
+const CLASES_EPISODIO: Record<string, [string, string]> = {
+  accepted: ['Aceptado', 'ok'], counterfactual: ['Escenario simulado', 'ok'], quarantine: ['En revisión', 'warn'],
+  converged_with_violations: ['Converge con violaciones', 'err'], rejected: ['Rechazado', 'err'],
+  not_converged: ['No converge', 'err'],
+};
+
+/** Los casos y acciones que guardan los episodios, como los nombra la web. */
+export const TEXTO_EPISODIO: Record<string, string> = {
+  sin_proyecto: 'Sin proyecto', con_proyecto: 'Con proyecto', cargas_nuevas: 'Cargas nuevas', caso_base: 'Caso base',
+  ajuste: 'Calibración', cargas: 'Cargas nuevas', estudios: 'Estudios', obras: 'Obras', transferencia: 'Transferencia',
+};
+
+export function claseDeEpisodio(clase: string): [string, string] {
+  return CLASES_EPISODIO[clase] ?? [clase.replace(/_/g, ' '), 'err'];
+}
+
+/** La fecha del episodio en la hora del equipo: «13 nov 2026, 18:23», no «2026-11-13T23:23:22+00:00». */
+export function fechaDeEpisodio(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Cuántos avisos se ven por episodio; el resto se cuenta. */
+const AVISOS_A_LA_VISTA = 2;
+
+/**
+ * Los avisos sin la ruta de DIgSILENT: «tensión 0.9468 p.u. en ElmTerm:Network Model.IntPrjfolder\\…\\11799.ElmTerm
+ * fuera de 0.95–1.05 (NTCSE)» se lee «barra 11799 a 0,9468 p.u., fuera de 0,95–1,05 (NTCSE)» (usuario, 2026-11-13).
+ */
+export function avisoDeEpisodio(texto: string): string {
+  const CLASE: Record<string, string> = { ElmTerm: 'barra', ElmLne: 'línea', ElmTr2: 'transformador', ElmLod: 'carga' };
+  // La ruta lleva espacios («Network Model.IntPrjfolder\Network Data…»): va de «ElmX:» hasta el último tramo, el que
+  // no sigue con otra «\».
+  let t = texto.replace(/Elm\w+:[^\n]*?\\([^\\\s]+)\.(Elm\w+)(?![\\\w])/g,
+    (_m, nombre: string, clase: string) => `${CLASE[clase] ?? clase} ${nombre}`);
+  t = t.replace(/^tensión (\d+(?:\.\d+)?) p\.u\. en (barra \S+) fuera de/, (_m, u: string, b: string) => `${b} a ${u} p.u., fuera de`);
+  return t.replace(/(\d)\.(\d)/g, '$1,$2');
+}
+
+export function avisosDeEpisodio(avisos: string[]): string {
+  const textos = [...new Set(avisos.map(avisoDeEpisodio))];
+  const resto = textos.length - AVISOS_A_LA_VISTA;
+  return textos.slice(0, AVISOS_A_LA_VISTA).join(' · ') + (resto > 0 ? ` · y ${resto} más` : '');
+}
+
 export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, onAnio, tipos = null }: {
   project: string; feeders: string[];
   /** 072:RF-29: el tipo de análisis elegido arriba; con él, el año de presentación es el mismo campo. */
@@ -65,9 +113,9 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
         </select></label>
       {modo === 'anual' ? <FormularioPideAnual key={`${ws.id}:${project}:${feeders.join('|')}`} ws={ws.id}
         project={project} feeders={feeders} busy={pfBusy} planificar={(body) => startJob(() => api.pide(ws.id, body))} /> : <>
-      <p className="muted">Diagnóstico de «Sin proyecto» en DIgSILENT para cada año del horizonte, obras por rubro con su
+      <Ayuda>Diagnóstico de «Sin proyecto» en DIgSILENT para cada año del horizonte, obras por rubro con su
         costo, evaluación (art. 14) y prioridad (art. 15). Los bancos y las ternas se simulan y, si funcionan, se aplican
-        solos en «Con proyecto», cada uno en su variación para poder deshacerlo.</p>
+        solos en «Con proyecto», cada uno en su variación para poder deshacerlo.</Ayuda>
       <div className="row">
         <label className="field grow"><span>Libro CAPEX (ruta en el servidor, opcional)</span>
           <input className="search" value={capex} placeholder="p. ej. D:\…\capex.xlsx"
@@ -100,8 +148,8 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
       {/* 086:RF-15 (usuario, 2026-11-13): el gemelo, también en la edición de producto. */}
       <>
       <h4>5.2 · Gemelo digital</h4>
-      <p className="muted">Aprende de cada acción en DIgSILENT. Aquí simula escenarios (demanda y tramos fuera de servicio)
-        en una copia del proyecto, que se borra al terminar, y reentrena el modelo si toca.</p>
+      <Ayuda>Aprende de cada acción en DIgSILENT. Aquí simula escenarios (demanda y tramos fuera de servicio)
+        en una copia del proyecto, que se borra al terminar, y reentrena el modelo si toca.</Ayuda>
       <div className="row">
         <label className="field"><span>Escenarios</span>
           <input type="number" min={1} max={200} value={n} onChange={(e) => setN(Number(e.target.value) || 1)} /></label>
@@ -118,14 +166,17 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
         <div className="table-wrap table-short">
           <table className="table">
             <thead><tr><th>Fecha</th><th>Caso</th><th>Clase</th><th>Acción</th><th>Avisos</th></tr></thead>
-            <tbody>{episodios.slice(-50).reverse().map((e) => (
-              <tr key={e.episode_id}>
-                <td className="small">{e.creado}</td><td>{e.caso}</td>
-                <td><span className={`badge ${e.clase === 'accepted' || e.clase === 'counterfactual' ? 'ok'
-                  : e.clase === 'quarantine' ? 'warn' : 'err'}`}>{e.clase}</span></td>
-                <td className="small">{e.accion}</td>
-                <td className="small">{[...e.bloqueos, ...e.violaciones].slice(0, 2).join(' · ')}</td>
-              </tr>))}</tbody>
+            <tbody>{episodios.slice(-50).reverse().map((e) => {
+              const [texto, tono] = claseDeEpisodio(e.clase);
+              return (
+                <tr key={e.episode_id}>
+                  <td className="small" title={e.creado}>{fechaDeEpisodio(e.creado)}</td>
+                  <td>{TEXTO_EPISODIO[e.caso] ?? e.caso}</td>
+                  <td><span className={`badge ${tono}`} title={e.clase}>{texto}</span></td>
+                  <td className="small">{e.accion ? TEXTO_EPISODIO[e.accion] ?? e.accion : '—'}</td>
+                  <td className="small">{avisosDeEpisodio([...e.bloqueos, ...e.violaciones])}</td>
+                </tr>);
+            })}</tbody>
           </table>
         </div>
       )}
@@ -251,9 +302,9 @@ export function FormularioPideAnual({ ws, project, feeders, busy, planificar }: 
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
   return <section>
-    <p className="muted">Continúa copias del corto plazo con demanda P/Q anual aceptada por carga y, cuando corresponde,
+    <Ayuda>Continúa copias del corto plazo con demanda P/Q anual aceptada por carga y, cuando corresponde,
       por fase. Cada obra se conserva en los años siguientes. Sin evaluación anual aceptada, datos físicos completos
-      u obra suficiente, el estudio se bloquea. No se extrapola el pronóstico de 28 días.</p>
+      u obra suficiente, el estudio se bloquea. No se extrapola el pronóstico de 28 días.</Ayuda>
     <fieldset disabled={busy || subiendo}>
       <legend>Fuentes del estudio anual</legend>
       <div className="row">

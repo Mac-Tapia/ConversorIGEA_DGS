@@ -1770,11 +1770,11 @@ Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
 ## planos_informe-009
 
-Pregunta: ¿Tiene mapa satelital de fondo?
+Pregunta: ¿Qué marca la imagen de ubicación del cliente?
 
-Respuesta: No: no hay mapa de fondo, porque dibujarlo pediría las coordenadas a un servicio de teselas; la spec lo pedía y manda el código.
+Respuesta: Su punto de conexión, marcado y rotulado, y los alimentadores cercanos, cada uno en su color y con su nombre.
 
-Fuentes: src/convertersmartgrid/mapa_informe.py:472, specs/017-informes-de-estudio-y-factibilidad/spec.md:312.
+Fuentes: src/convertersmartgrid/mapa_informe.py:469, specs/017-informes-de-estudio-y-factibilidad/spec.md:307.
 Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
 ## planos_informe-010

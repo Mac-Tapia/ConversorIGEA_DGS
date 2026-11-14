@@ -342,14 +342,16 @@ captura de Google Earth.
   dibuja la web con el GPS (RF-11b, y RF-124 cambiado el 2026-11-01), sin enviar coordenadas
   fuera (P9, RF-112)): era «EL SISTEMA tomará la imagen de ubicación del diagrama geográfico
   de DIgSILENT, con el mapa de fondo y centrada en el cliente y su punto de conexión.»
-- RF-111: no se usa desde el 2026-11-03 (los guiones trabajan siempre sin ventana (T4,
-  2026-10-15) y DIgSILENT no exporta ni dibuja el diagrama ni su mapa de fondo; la imagen la
-  dibuja la web con el GPS (RF-11b, y RF-124 cambiado el 2026-11-01), sin enviar coordenadas
-  fuera (P9, RF-112)): era «EL SISTEMA usará de fondo el mapa satélite configurado en
-  DIgSILENT (Esri ArcGIS u OpenStreetMap), sin enviar coordenadas a ningún servicio fuera de
-  DIgSILENT.»
+- RF-111: DONDE la salida de las teselas está encendida (086:RF-22), EL SISTEMA dibujará la imagen de ubicación de 2.1
+  sobre el fondo de calles o de satélite de la vista previa (086:RF-63), con su atribución al pie y las
+  teselas guardadas en el espacio de trabajo (usuario, 2026-11-13: «la ubicación en Google Maps o similar …
+  y eso debe ir en el informe»; cambiado el 2026-11-13: de 2026-11-03 a 2026-11-13 no se usaba, porque
+  DIgSILENT sin ventana no dibuja su mapa; era «EL SISTEMA usará de fondo el mapa satélite configurado en
+  DIgSILENT (Esri ArcGIS u OpenStreetMap), sin enviar coordenadas a ningún servicio fuera de DIgSILENT.»).
 - RF-112: SI no se puede cargar el mapa de fondo, ENTONCES EL SISTEMA dará el diagrama
   geográfico sin fondo y lo dirá al pie de la imagen.
+- Aclaración de RF-112 (2026-11-13): con la salida de las teselas apagada, el pie dice por qué y cómo se
+  enciende; sin red, se pide una sola vez, la imagen sale sin fondo y el pie nombra el fondo al que no se llegó.
 - RF-113: EL SISTEMA pondrá antes de cada imagen coloreada por tensión la leyenda de ese
   coloreado, con sus bandas, colores y anchuras de línea.
 - RF-114: EL SISTEMA pondrá antes de cada imagen coloreada por cargabilidad la leyenda de
@@ -446,6 +448,18 @@ Apartado 5.1 · Conexión de un cliente nuevo
 - RF-124: EL SISTEMA ofrecerá en 4.4.2 una vista previa de la imagen de ubicación antes de
   generar el informe, dibujada con la geografía del último flujo de «Con proyecto», sin
   DIgSILENT (RF-11b: DIgSILENT sin ventana no exporta imágenes; cambiado el 2026-11-01).
+- Aclaración de RF-124 (2026-11-13, con RF-109): la web muestra, tras «Aplicar» en el paso 3 y en 4.4, un mapa con la
+  red de cada alimentador, cada carga nueva aplicada (sola o en bloque) en su punto con su nombre y kW, el nodo
+  de conexión y la línea de enlace, con los fondos de la vista previa (086:RF-63).
+- Aclaración de RF-124 (2026-11-13): «Actualizar desde DIgSILENT» lee, sin escribir, en «Con proyecto» dónde está
+  conectada hoy cada carga y lo compara con lo guardado; «Usar este punto» guarda el nodo leído como punto de
+  diseño en el espacio de trabajo, y desde entonces la imagen, el mapa y el informe lo usan y la web pide repetir
+  los flujos de 4.2. Los cambios del operador en DIgSILENT solo se leen, nunca se deshacen.
+  Al escribir el informe de factibilidad con sus flujos (063:RF-1), EL SISTEMA comprobará antes en
+  DIgSILENT, sin escribir, la conexión y la potencia de la carga: SI no está en el proyecto, no
+  escribirá el informe y dirá las cargas vigentes del alimentador; SI cambió, adoptará lo de
+  DIgSILENT y lo dirá en el informe; después correrá los flujos sobre ese estado (usuario,
+  2026-11-13: «el informe debe ser comprobado en DIgSILENT; su flujo es la guía»).
 - RF-125: EL SISTEMA pedirá en 5.1 que el operador confirme si el predio está en el área de
   concesión (RF-122 a).
 - RF-126: EL SISTEMA evaluará como etapa «refuerzo de la red», entre el cambio de
@@ -566,7 +580,8 @@ como los de la subcarpeta ampliaciondecarga»)
 
 - RF-136: EL SISTEMA ofrecerá en el informe de factibilidad (4.4.2) un campo para subir uno o
   más PDF del solicitante (carta, oficio, ficha), y en el informe de estudio (4.4.1) un campo
-  para subir varios PDF del expediente.
+  para subir varios PDF del expediente; los dos admiten también TXT e imágenes (JPG, PNG, TIFF,
+  BMP, WEBP), que se leen por OCR (usuario, 2026-11-13).
 - RF-137: CUANDO se suben los PDF, EL SISTEMA leerá su texto en un trabajo con progreso y
   cancelable; la capa de texto del PDF primero y, SI una página no trae texto (escaneada),
   ENTONCES la leerá con OCR (Tesseract), con la imagen limpiada con OpenCV si está instalado.
@@ -664,7 +679,8 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
 
 Resueltas el 2026-10-15:
 
-- Mapa: cualquiera; se usa el de DIgSILENT (RF-111), sin Google Maps.
+- Mapa: cualquiera; se usa el de DIgSILENT (RF-111), sin Google Maps. (Cambiado el 2026-11-13: calles o
+  satélite de la vista previa, con la salida de las teselas encendida, RF-111.)
 - Bancos nuevos y reguladores: con los módulos nativos `ComCapo` y `ComPlaceopt`, costes de
   mercado como referencia (RF-39 a RF-40d).
 - Bancos de CA101: hoy en servicio; la etapa 1 coincide con el estado actual (RF-38).

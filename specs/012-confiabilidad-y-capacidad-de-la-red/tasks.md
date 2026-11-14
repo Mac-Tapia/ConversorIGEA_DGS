@@ -120,6 +120,10 @@ Cierre
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-72.
       Hecho el 2026-10-29: `CODIGO_FUENTE.md`, `docs/MANUAL_COMANDOS.md`; los 72 RF citados.
+      Ampliada el 2026-11-13 con las entradas cargadas desde la web (RF-73 a RF-86):
+      `entradas_estudios.py`, `web/entradas_estudios_api.py`, `tools/estudios_entradas_pf.py`,
+      `EntradasEstudios.tsx`; `pytest -q tests/test_entradas_estudios.py` en verde y el cortocircuito y
+      la cuasi-dinámica ejecutados en una copia de CA101_CHN102 borrada al terminar.
 - [x] T13. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y un
       libro de la empresa, a cargo del usuario: índices y ENS por alimentador, un
       reconectador y un banco propuestos y aceptados como obra, capacidad de un nodo y

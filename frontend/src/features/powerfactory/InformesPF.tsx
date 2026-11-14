@@ -1,9 +1,10 @@
 import { fmtNum } from '../../shared/formato';
+import { MapaCargas } from './MapaCargas';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga, esPotenciaPropuesta, incrementoNoCuadra, propuestaDeCarga } from './solicitudLeida';
-import { FileDrop } from '../../shared/ui';
+import { Ayuda, FileDrop } from '../../shared/ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
   TrafoCargas, TrafoResultado,
@@ -100,11 +101,11 @@ function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
   return (
     <div className="field span-2">
       <span>{titulo}</span>
-      <FileDrop compact multiple={varios} accept=".pdf,application/pdf"
+      <FileDrop compact multiple={varios} accept=".pdf,application/pdf,.txt,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp"
         onFiles={(fs) => setFiles(varios ? fs : fs.slice(0, 1))}>
         <span>{files.length
           ? <><strong>{files.map((f) => f.name).join(', ')}</strong> · reemplazar: soltar o <u>elegir</u></>
-          : <>PDF{varios ? ' (uno o varios)' : ''}: soltar o <u>elegir</u></>}</span>
+          : <>PDF, TXT o imagen (JPG, PNG){varios ? ', uno o varios' : ''}: soltar o <u>elegir</u></>}</span>
       </FileDrop>
       <div className="row">
         <button className="btn btn-sm" disabled={!files.length || corriendo || Boolean(active.engine)} onClick={leer}>
@@ -114,8 +115,8 @@ function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
         {corriendo && <small className="muted">Leyendo el texto (y con OCR las páginas escaneadas)…</small>}
         {job?.status === 'failed' && <small className="alert alert-error">{job.error}</small>}
       </div>
-      <small className="muted">Se lee la capa de texto del PDF; una página escaneada pasa por OCR. Los PDF quedan solo en
-        este equipo.</small>
+      <small className="muted">Se lee la capa de texto del PDF o el TXT; una página escaneada o una imagen pasa por OCR. Los
+        documentos quedan solo en este equipo.</small>
       {r && r.documentos.map((d) => (
         <details key={d.fichero} className={`alert ${d.avisos.length ? 'alert-warn' : 'alert-ok'}`}>
           <summary>{`${d.fichero} · ${CLASE_DOC[d.clase]} · ${d.paginas} pág. por ${d.metodo === 'texto' ? 'texto' : 'OCR'}`}
@@ -293,9 +294,9 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
   if (!ctx) return <p className="muted">Leyendo lo que ya guardó la web…</p>;
   return (
     <div>
-      <p className="muted">Los informes se arman con lo ya ejecutado desde la web: el último estudio de flujo de 4.2 en «Sin
+      <Ayuda>Los informes se arman con lo ya ejecutado desde la web: el último estudio de flujo de 4.2 en «Sin
         proyecto» (estado actual) y en «Con proyecto» (proyectado), las obras de 4.1 y las cargas nuevas del paso 3. Vuelva
-        a ejecutar el flujo en 4.2 si cambió algo después.</p>
+        a ejecutar el flujo en 4.2 si cambió algo después.</Ayuda>
       {/* 086:RF-12: lo que el operador no veía hasta abrir el Word: de qué corrida sale cada alimentador. */}
       {ctx.avisos_corrida.length > 0 && (
         <div className="alert alert-warn stack" role="status">
@@ -335,6 +336,8 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
       <h4>4.4.2 · Conexión de un cliente nuevo (factibilidad y punto de diseño)</h4>
       <InformeFactibilidad key={`f-${project}`} project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
         limites={limitesForm} limitesOk={limitesCompletos && bandasValidas} maximas={maximas} recargar={recargar} bandas={bandasForm} />
+      {/* 017:RF-109, RF-124: el mapa y «Actualizar desde DIgSILENT» del punto de diseño. */}
+      <MapaCargas project={project} alimentadores={feeders} />
       {ctx.generados.length > 0 && <>
         <h4>Informes generados</h4>
         <div className="table-wrap table-short">
@@ -703,9 +706,9 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
   if (!ctx.cargas.length || !solas.length) {
     const leido = SOLICITUD.filter(([k]) => sol[k].trim() && k !== 'tipo_solicitud');
     return <div className="stack compact">
-      <p className="muted">No hay ninguna carga nueva ingresada sola y aplicada en {feeders.join(', ')}: intégrela en
+      <Ayuda>No hay ninguna carga nueva ingresada sola y aplicada en {feeders.join(', ')}: intégrela en
         el paso 3 con «Una carga nueva» y aplíquela.{enBloque.length > 0 && ` Las ${enBloque.length} del libro van en bloque
-        y entran como solicitudes vigentes.`}</p>
+        y entran como solicitudes vigentes.`}</Ayuda>
       <div className="form-grid">{documento}</div>
       {leido.length > 0 && <small className="muted">Solicitud guardada para el informe: {leido.map(([k, l]) =>
         `${l.replace(' *', '')}: ${sol[k]}`).join(' · ')}.</small>}

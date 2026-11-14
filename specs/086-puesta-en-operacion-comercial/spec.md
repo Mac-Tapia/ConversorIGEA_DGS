@@ -226,7 +226,10 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
   aplicada, ENTONCES lo rechazará diciendo cuáles. (Electro Oriente NJA202, T32: 0,568 p.u. y ninguna obra ofrecida.)
 - RF-77: MIENTRAS el proyecto elegido está calibrado, con alimentadores marcados y sin cargas nuevas integradas, la
   pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
-  resultado diciendo que lo medido es el estado actual.
+  resultado diciendo que lo medido es el estado actual. SI en disco hay cargas nuevas aplicadas en los alimentadores
+  marcados y el informe de su aplicación ya no está en la sesión (tras reiniciar la web), ENTONCES el bloque se llamará
+  «Obras en «Con proyecto» con las cargas nuevas», las nombrará y su botón dirá «Proponer obras automáticamente»; el
+  servidor ya las evalúa con esas cargas (CA101 con SECA001, 2026-11-13).
 
 ### La 1.0 instalada: manuales, una versión y vuelta atrás (2026-11-13)
 
