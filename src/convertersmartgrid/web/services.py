@@ -32,7 +32,6 @@ from pathlib import Path
 from collections.abc import Mapping, Sequence
 from typing import Any, Callable
 
-from ..edicion import MENSAJE_FUERA_DE_ALCANCE, es_edicion_producto, tarea_fuera_de_alcance
 from ..naming import feeder_short_name
 from ..runtime_paths import raiz_local
 from ..powerfactory_env import (
@@ -48,17 +47,6 @@ from .workspace import Workspace, leer_metadatos_espacio
 # ---------------------------------------------------------------------------
 # Capacidades del entorno
 # ---------------------------------------------------------------------------
-
-
-def _fuera_de_la_version(fn):
-    """086:RF-15, RF-16: lo que no se entrega tampoco corre por otra vía que la ruta negada: el asistente
-    llama a varias de estas funciones directamente, y un plan guardado de antes también llegaría aquí."""
-    @functools.wraps(fn)
-    def envuelta(*args, **kwargs):
-        if es_edicion_producto():
-            raise UserError(MENSAJE_FUERA_DE_ALCANCE)
-        return fn(*args, **kwargs)
-    return envuelta
 
 
 def _importable(name: str) -> bool:
@@ -6396,8 +6384,6 @@ def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan
 
     grafo = red_del_gemelo(BuferEpisodios().consultar(Consulta(proyecto=project, caso='sin_proyecto')))
     if grafo is None:
-        if es_edicion_producto():                                       # 086:RF-16: ese paso no está
-            return ['los bancos quedan los del diagnóstico: en esta versión no se optimiza su ubicación']
         return ['los bancos no se optimizan: el gemelo aún no tiene la red de este proyecto '
                 '(«Aprender» en el paso del gemelo)']
     costo = (costos.get('bancos') or {}).get('costo_unitario')
@@ -6467,7 +6453,6 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return out
 
 
-@_fuera_de_la_version
 def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                     n: int = 20, segundos: float | None = None, caso: str = 'sin_proyecto',
                     equilibrado: bool = False) -> dict:
@@ -6557,7 +6542,6 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
     return out
 
 
-@_fuera_de_la_version
 def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> dict:
     """Entrena el oráculo en otro proceso (``tools/digital_twin_entrenar.py``, RF-39).
 
@@ -6584,7 +6568,6 @@ def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> 
     return {k: v for k, v in r.items() if k != 'traza'}
 
 
-@_fuera_de_la_version
 def gemelo_pronostico(ws: Workspace, ctx: JobContext, pedido: dict[str, Any]) -> dict:
     """Pronóstico de cabecera o de clientes fijos, en otro proceso que se puede cancelar (046:RF-23, RF-24).
 
@@ -6629,7 +6612,6 @@ def gemelo_pronostico(ws: Workspace, ctx: JobContext, pedido: dict[str, Any]) ->
                 'marca': 'pronostico', 'promovido': False}
 
 
-@_fuera_de_la_version
 def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: dict[str, str], *,
                     barra: str | None = None, sin_medidor: dict[str, float] | None = None,
                     fijas_kw: dict[str, float] | None = None, perdidas_pct: float = 0.0,
@@ -8931,9 +8913,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
 
 
 def _pinn_promovido():
-    """La PINN promovida, o None. 086:RF-16: en producto no se entrega, y decide el flujo físico."""
-    if es_edicion_producto():
-        return None
+    """La PINN promovida, o None. 086:RF-15: también en la edición de producto (usuario, 2026-11-13)."""
     from ..digital_twin.buffer import BuferEpisodios
     from ..digital_twin.oraculo import cargar
 
@@ -12143,7 +12123,6 @@ _ASISTENTE_PLANES: dict[str, dict[str, dict]] = {}
 _ASISTENTE_CERROJO = threading.Lock()
 
 
-@_fuera_de_la_version
 def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
     """Cuánto se apartan de DIgSILENT el modelo del gemelo y la física (024:RF-74), en otro proceso."""
     import sys
@@ -12162,7 +12141,6 @@ def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
             'unidades': r.get('unidades'), 'reparto': r.get('reparto'), 'politica_hash': r.get('politica_hash')}
 
 
-@_fuera_de_la_version
 def gemelo_deriva(ws: Workspace, ctx: JobContext) -> dict:
     """Deriva por familia y propuesta de reentrenar (027:RF-22, RF-23), en otro proceso."""
     import sys
@@ -12739,8 +12717,6 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
     from ..asistente.tareas import TAREAS_IDEMPOTENTES
 
     plan = guardado['plan']
-    if tarea_fuera_de_alcance(plan.tarea):                                     # 086:RF-16: guardado de antes
-        raise UserError(MENSAJE_FUERA_DE_ALCANCE)
     if not plan.listo:
         raise UserError('El plan no está completo: ' + '; '.join(plan.faltan))
     # La ruta de confirmación (o la autolectura) autoriza este plan del servidor;
@@ -12843,7 +12819,6 @@ def asistente_equipo(ws: Workspace) -> dict:
         'revisiones': [r for r in almacen.leer('equipo_revisiones') if r.get('espacio') == ws.id][-50:]}
 
 
-@_fuera_de_la_version
 def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_rondas: int = 2) -> dict:
     """047:RF-5/6/7: revisores locales sobre informes custodiados del mismo contexto.
 
@@ -13319,7 +13294,6 @@ def asistente_vectores_pendientes() -> bool:
     return indice.vectores_pendientes(project_root(), cliente_configurado(), reranker.servicio()['corpus'])
 
 
-@_fuera_de_la_version
 def asistente_calcular_vectores(ctx: JobContext, ceder) -> dict:
     """Los vectores del índice como trabajo: cancelable y cediendo el carril (047:RF-22, RF-24)."""
     from ..asistente import indice, reranker
@@ -13336,8 +13310,7 @@ def asistente_clasificar(texto: str) -> dict:
     """El tipo y el subtipo de estudio de un texto o un pedido (026:RF-14)."""
     c = _asistente_clasificador()
     if c is None:
-        return {'texto': 'El clasificador de informes no está disponible en esta versión.' if es_edicion_producto()
-                else 'El clasificador de informes aún no está entrenado: pida «reentrena el asistente».'}
+        return {'texto': 'El clasificador de informes aún no está entrenado: pida «reentrena el asistente».'}
     r = c.clasificar(texto)
     return {'texto': f"{r['tipo']} · {r['subtipo']} ({r['confianza_subtipo']:.0%})", **r}
 
@@ -13359,11 +13332,13 @@ def asistente_buscar(ws: Workspace, texto: str) -> dict:
     return {'texto': f"{len(r['github'])} repositorio(s) y {len(r['arxiv'])} artículo(s).", **r}
 
 
-@_fuera_de_la_version
 def asistente_proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, motivo: str) -> dict:
     """Ficha de una librería en una rama aparte, con su suite, para que el operador decida (026:RF-32)."""
     from ..asistente import mejoras
     from ..asistente.internet import Buscador
+    from ..edicion import exigir_desarrollo
+
+    exigir_desarrollo()                     # 086:RF-15: antes de consultar PyPI, que en el instalado no llevaría a nada
 
     vocab = asistente_vocabulario(ws)
     b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
@@ -13432,7 +13407,6 @@ def asistente_marcar_entrenado(gemelo: bool) -> None:
     almacen.guardar_json('vigilancia', antes)
 
 
-@_fuera_de_la_version
 def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     """Reentrena el Transformer y el clasificador en otro proceso (026:RF-20), con el vocabulario del espacio."""
     import sys

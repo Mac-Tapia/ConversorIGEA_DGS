@@ -14,7 +14,6 @@ import pytest
 from convertersmartgrid.asistente.equipo import ROLES_LECTURA, ROLES_REVISION, inventario_equipo
 from convertersmartgrid.asistente.orquestador import ETAPAS, ETAPAS_CARGA
 from convertersmartgrid.asistente.tareas import TAREAS
-from convertersmartgrid.edicion import TAREAS_FUERA_DE_ALCANCE
 from convertersmartgrid.web.jobs import LANES
 from apoyo import cargar_herramienta
 
@@ -122,12 +121,13 @@ def test_tareas_iguales_al_codigo_real():
         assert {d['nombre']: d['obligatorio'] for d in t['datos']} == {d.nombre: d.obligatorio for d in real.datos}, t['nombre']
 
 
-def test_tareas_con_carril_y_edicion_como_el_inventario(texto):
-    """090:RF-5 — el carril y la edición son los del gobierno del equipo y de edicion.py."""
+def test_tareas_con_carril_como_el_inventario(texto):
+    """090:RF-5 — el carril es el del gobierno del equipo. 086:RF-16: desde el 2026-11-13 todas las tareas están en
+    las dos ediciones, y la columna «Producto», siempre «sí», ya no dice nada: no se escribe."""
+    assert '| Producto |' not in texto
     for h in inventario_equipo()['herramientas']:
         nombre = h['herramienta']
-        producto = 'no' if nombre in TAREAS_FUERA_DE_ALCANCE else 'sí'
-        assert re.search(rf"^\| `{nombre}` \| {h['modo']} \| {'sí' if h['escribe'] else 'no'} \| {h['carril']} \| {producto} \| `{h['funcion']}` \|", texto, re.M), nombre
+        assert re.search(rf"^\| `{nombre}` \| {h['modo']} \| {'sí' if h['escribe'] else 'no'} \| {h['carril']} \| `{h['funcion']}` \|", texto, re.M), nombre
 
 
 def test_roles_iguales_al_inventario(texto):

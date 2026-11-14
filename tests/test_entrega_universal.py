@@ -510,12 +510,16 @@ def test_comentarios_pendientes_de_neutralizar_quedan_contados(informe_repositor
 
 # --------------------------------------------------------------------------- RF-34
 def test_lista_de_entrega_unica_y_declarativa(manifiesto):
-    """086:RF-34 — T21 lee este fichero: sin pruebas, specs ni instrucciones de agentes (D4), y sin pesos."""
-    for dentro in ('src/convertersmartgrid/cli.py', 'tools/cargas_pf.py', 'config/entrega.json', 'docs/PERFIL_EMPRESA.md'):
+    """086:RF-34 — T21 lee este fichero: sin pruebas, specs ni instrucciones de agentes (D4), y sin pesos.
+
+    086:RF-15 (orden del usuario, 2026-11-13: «nada debería estar apagado ni bloqueado»): los guiones que lanza el
+    programa para entrenar entran; sin ellos el instalado respondía «No se encuentra el guion» al entrenar."""
+    for dentro in ('src/convertersmartgrid/cli.py', 'tools/cargas_pf.py', 'config/entrega.json', 'docs/PERFIL_EMPRESA.md',
+                   'tools/asistente_entrenar.py'):
         assert CE.entra(dentro, manifiesto), dentro
     for fuera in ('tests/test_x.py', 'specs/086/spec.md', '.claude/x.md', '.git/config', 'output/x.dgs',
                   'config/perfil_empresa.json', f'config/perfiles/{_perfil_excluido().name}', 'tools/madrl_obras.py',
-                  'tools/asistente_entrenar.py', 'CLAUDE.md', 'docs/constitution.md'):
+                  'CLAUDE.md', 'docs/constitution.md'):
         assert not CE.entra(fuera, manifiesto), fuera
     assert manifiesto['pesos_permitidos'] == []
 

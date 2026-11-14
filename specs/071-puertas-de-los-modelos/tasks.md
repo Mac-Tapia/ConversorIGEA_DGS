@@ -5,6 +5,10 @@
 - [x] T2 Puertas contra la física y el modelo en uso. (RF-3, RF-4)
       Hecho cuando: `pytest -q tests/test_puertas_modelos.py -k comparacion` en verde, y `tests/test_digital_twin_oraculo.py` y `tests/test_optimizacion_oraculo.py` en verde con GPU.
 - [x] T3 Monitor y vigilancia. (RF-5, RF-6)
+  Cambio del 2026-11-13 (aclaración de RF-6): sin la variable la vigilancia cuenta los datos nuevos; solo `0` la para.
+  Pruebas: `tests/test_puertas_modelos.py::test_vigilancia_entrena_salvo_la_orden_de_parar` y
+  `test_un_candidato_que_no_pasa_sus_puertas_no_se_promueve`; rojo y verde en `D:/csg/EDICION/rojo2_ampliacion.log` y
+  `verde2_ampliacion.log`.
       Hecho cuando: `pytest -q tests/test_puertas_modelos.py -k "monitor or vigilancia"` en verde.
 - [x] T4 Turno de GPU común. (RF-7, RF-8)
       Hecho cuando: `pytest -q tests/test_puertas_modelos.py -k turno` en verde.

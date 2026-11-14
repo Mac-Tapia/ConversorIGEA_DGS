@@ -308,7 +308,7 @@ Una orden recorre esto. Solo el rol `operador` ejecuta, y toda escritura espera 
 | Conocimiento con citas | `asistente/{indice,reranker,evaluacion_rag}.py` | conectado: BM25 y vectores. Sin reranker adoptado por la evaluación sellada, queda ese orden. Las puertas de abstención medidas no se cumplen enteras (`cumple_todos: false` en `EVALUACION_ABSTENCION_047.json` y `_077.json`) |
 | Lecturas del proyecto | `asistente/{lectura_proyecto,corpus_proyecto}.py`, `tools/mcp_conversor.py` | conectadas a `pregunta` y al MCP, solo lectura: con LLM local, todo salvo secretos, lo sellado y el examen humano; el MCP, restringido salvo `--datos-locales`. El corpus ampliado no se sirve hasta pasar su medición (077:RF-47) |
 | Revisión por roles y evidencia | `asistente/{revision_roles,evidencias_web}.py` | conectadas y probadas con el transporte de Ollama simulado; sin revisión real registrada |
-| Mejoras e internet | `asistente/{mejoras,internet}.py` | mejoras en rama aparte, nunca fusiona ni sube; búsquedas filtradas y registradas; apagadas en la edición de producto |
+| Mejoras e internet | `asistente/{mejoras,internet}.py` | mejoras en rama aparte, nunca fusiona ni sube; búsquedas filtradas y registradas; activas en las dos ediciones, con la salida a internet apagada por defecto en producto (086:RF-22) |
 
 **Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no agentes
 separados, y su revisión es documental (`autoriza_ejecucion=False`). Exige evidencias en `observacion/evidencias` del espacio, que se
@@ -385,8 +385,10 @@ El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 
 ## Operación comercial y entrega (086)
 
-- **Ediciones** (`edicion.py`): en la de producto, el servidor niega las rutas y tareas fuera de alcance (entrenar, gemelo, revisión por
-  roles, mejoras, `pregunta`); el front solo pregunta en `/api/health` qué enseñar. Las funciones en beta llevan marca y se pueden apagar.
+- **Ediciones** (`edicion.py`): las dos ofrecen las mismas funciones, también entrenar, el gemelo, la revisión por roles, las mejoras y
+  `pregunta` (usuario, 2026-11-13: «nada debería estar apagado ni bloqueado»). El programa instalado siempre es de producto, y
+  `CSG_EDICION` solo puede forzar «producto». Las funciones en beta llevan marca, activas por defecto, y el operador las puede apagar;
+  el front pregunta en `/api/health` cuáles.
 - **Salidas a la red** (`salidas_red.py`): cada una declarada con su interruptor, apagadas en producto. Una prueba recorre el código.
 - **Candidato:** `config/entrega.json` es el único fichero que dice qué entra. `tools/comprobar_entrega.py` lo comprueba,
   `tools/construir_candidato.py` lo arma y `tools/instalar_candidato.py` instala, actualiza y vuelve atrás sin red. Ver

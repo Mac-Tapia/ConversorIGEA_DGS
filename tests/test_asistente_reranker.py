@@ -258,6 +258,21 @@ def test_la_web_programa_los_vectores_sola(tmp_path, monkeypatch):
     assert indice.cargar_o_construir(repo).cobertura == 1.0
 
 
+def test_en_producto_tambien_programa_los_vectores(tmp_path, monkeypatch):
+    """047:RF-22; 086:RF-15 — las preguntas sobre el código, con sus vectores, también en el programa instalado.
+    Hasta el 2026-11-13 la edición de producto no los calculaba ni dejaba al lanzador pedirlos."""
+    repo, o = _repo(tmp_path), Ollama()
+    monkeypatch.setenv('CSG_EDICION', 'producto')
+    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', lambda: o)
+    with TestClient(_cliente_con_orden(tmp_path, monkeypatch, repo)) as c:
+        wid = c.post('/api/workspaces', json={'name': 'rag'}).json()['id']
+        orden = c.post(f'/api/workspaces/{wid}/asistente/orden', json={'texto': '¿cómo se reparte?'}).json()
+        assert _esperar(c, orden['id'])['status'] == 'done'
+        trabajo = next((j for j in _trabajos(c, wid) if j['kind'] == 'asistente_indice'), None)
+        assert trabajo is not None, 'en producto no se programaron los vectores'
+        assert _esperar(c, trabajo['id'])['status'] == 'done'
+
+
 def test_pruebas_y_app_sin_variable_no_programan(tmp_path, monkeypatch):
     """047:RF-22 — fuera del servidor real no hay trabajo que use Ollama por su cuenta."""
     repo, o = _repo(tmp_path), Ollama()

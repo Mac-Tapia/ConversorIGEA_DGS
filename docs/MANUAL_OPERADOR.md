@@ -11,8 +11,27 @@ Lleva a DIgSILENT PowerFactory la red de una distribuidora, y estudia en DIgSILE
 | --- | --- |
 | Cargar la fuente y convertir; importar con «Caso base» verificado; calibrar; cargas nuevas; «Con proyecto» con escalera; informes de estudio y de factibilidad con su Excel; flujo, N-1 y transferencia | Sin marca |
 | Asistente de órdenes, SET nueva, diagnóstico y borrador del PIDE, confiabilidad | **Beta**, dicho en su pantalla: revise lo que proponga. Se pueden apagar con `CSG_BETA_APAGADAS` |
+| Entrenar los modelos, gemelo digital (PINN y GRU), pronóstico por modelos, mejoras y aprendizaje continuo, revisión por roles, preguntas sobre el código | Activos. Piden una GPU NVIDIA con CUDA y el complemento de IA (ver «Entrenar los modelos») |
 
 **No hay** cortocircuito ni protecciones.
+
+### Entrenar los modelos
+
+El programa no trae pesos entrenados: los modelos aprenden en su equipo, con sus datos, que no salen de él. Hace falta:
+
+- Una tarjeta **NVIDIA con CUDA** y su controlador al día. El gemelo digital (PINN y GRU) y los entrenamientos solo corren en la GPU,
+  nunca en el procesador: sin ella, el trabajo termina con un mensaje que lo dice, y lo demás del programa sigue igual.
+- El **complemento de IA** de capacidades integrales, que trae PyTorch con CUDA y lo de entrenar (`MANUAL_INSTALACION.md`,
+  «Complemento de IA»).
+
+`csg.cmd doctor` dice si hay GPU, qué tarjeta es, su versión de CUDA y su memoria libre. Con eso:
+
+- **Asistente → Reentrenar** entrena el modelo de órdenes; el paso 5.2 «Gemelo digital» de la pestaña de cargas aprende y reentrena
+  el gemelo.
+- Cada modelo nuevo pasa sus puertas antes de usarse; si no las pasa, sigue el anterior y el panel de modelos dice por qué.
+- El aprendizaje continuo (050) reentrena solo cuando hay datos nuevos, en segundo plano y cediendo a lo que usted esté haciendo,
+  con el plan del ciclo de los datos del asistente; para pararlo, `CSG_AUTOENTRENAMIENTO=0`.
+- Las mejoras del código que propone el asistente solo funcionan en el entorno de desarrollo; en el programa instalado lo dice.
 
 ## El recorrido
 

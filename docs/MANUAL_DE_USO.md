@@ -519,7 +519,9 @@ Las opciones están en el [Manual de comandos](MANUAL_COMANDOS.md).
 En el paso 5 de la pestaña: **Planificar** (diagnóstico del año 00 y del horizonte, obras por
 rubro, evaluación y prioridad), **Decidir** (aceptar, rechazar o modificar cada obra) y
 **Aprender** (escenarios en una copia del proyecto y reentrenamiento del gemelo). Lo que el
-perfil necesita para esto está en la sección `planificacion` (§8).
+perfil necesita para esto está en la sección `planificacion` (§8). El gemelo está activo también
+en el programa instalado; aprende y predice solo en una GPU NVIDIA con CUDA, con el complemento de
+IA (`MANUAL_OPERADOR.md`, «Entrenar los modelos»).
 
 ---
 

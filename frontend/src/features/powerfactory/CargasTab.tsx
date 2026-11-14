@@ -23,7 +23,7 @@ import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
 import { DESTINO, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
-import { betaActiva, esProducto } from '../../shared/edicion';
+import { betaActiva } from '../../shared/edicion';
 import { FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
 import { RESUMEN_SIN_CARGAS, ofrecerObrasEstadoActual } from './obrasEstadoActual';
 
@@ -772,7 +772,7 @@ export function CargasTab() {
 
       {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
       {betaActiva(health, 'pide') && <div className="step-box" id={DESTINO.planificacion} tabIndex={-1}>
-        <h3>{esProducto(health) ? '5 · Planificación PIDE' : '5 · Planificación PIDE y gemelo digital'} <MarcaBeta clave="pide" /></h3>
+        <h3>5 · Planificación PIDE y gemelo digital <MarcaBeta clave="pide" /></h3>
         <AvisosTrabajo paso="pf-planificacion" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
           : <GemeloPIDE project={project} feeders={order} plazo={tipo} anio={anioPresentacion}

@@ -46,6 +46,14 @@ class SinGPU(RuntimeError):
     """No hay GPU CUDA: el gemelo no entrena ni predice en la CPU."""
 
 
+def mensaje_sin_gpu() -> str:
+    """Lo que lee el operador sin GPU (086:RF-15). Antes llevaba una orden de pip y una dirección web: en el
+    programa instalado no hay pip que escribir, y lo que falta se instala con el complemento de IA."""
+    return ('No hay GPU CUDA para el gemelo digital: entrena y predice solo en una tarjeta NVIDIA con CUDA, nunca en la '
+            'CPU. Instale el complemento de IA, que trae PyTorch con CUDA, compruebe el controlador de la tarjeta y '
+            'revise el doctor del programa.')
+
+
 #: cuBLAS solo es determinista con este espacio de trabajo, fijado antes de usar la GPU (027:RF-9).
 os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
 
@@ -60,12 +68,10 @@ def dispositivo():
     try:
         import torch
     except ImportError as exc:     # el extra «ml» no está instalado
-        raise ImportError('PyTorch no está instalado (extra «ml»): el oráculo PINN no está '
-                          'disponible; ModeloRadial cumple el mismo contrato') from exc
+        raise ImportError('PyTorch no está instalado (extra «ml»): el oráculo PINN no está disponible hasta '
+                          'instalar el complemento de IA; ModeloRadial cumple el mismo contrato') from exc
     if not torch.cuda.is_available():
-        raise SinGPU('No hay GPU CUDA para el gemelo digital: instale PyTorch con CUDA '
-                     '(pip install torch --index-url https://download.pytorch.org/whl/cu126) '
-                     'y compruebe el controlador de la tarjeta.')
+        raise SinGPU(mensaje_sin_gpu())
     return torch.device('cuda')
 
 

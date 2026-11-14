@@ -26,7 +26,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..edicion import MENSAJE_FUERA_DE_ALCANCE, es_edicion_producto
 from . import almacen
 
 #: Fallos con remedio conocido: reintentar (el 4002 de la spec 019).
@@ -163,12 +162,6 @@ def toca_suite(ahora: datetime, ultima: str | None, hora: int = 22) -> bool:
     return ultima is None or ultima[:10] != ahora.date().isoformat()
 
 
-def _sin_pruebas_en_producto() -> None:
-    """086:RF-15: en el equipo de un cliente no hay pruebas que correr, ni deben ocupar la máquina de noche."""
-    if es_edicion_producto():
-        raise RuntimeError(MENSAJE_FUERA_DE_ALCANCE)
-
-
 def rf_de_prueba(repo: Path, nodo: str) -> list[str]:
     """Los RF que cita la docstring de una prueba ``tests/x.py::test_y``."""
     fichero, _, nombre = nodo.partition('::')
@@ -187,7 +180,6 @@ def correr_suite(repo: Path, *, argumentos: Iterable[str] = ('-q', '-rs', '-p', 
                  limite_s: float = 4 * 3600, env: Mapping[str, str] | None = None,
                  registro: str = 'suite') -> dict[str, Any]:
     """La suite en otro proceso; lo que falla, con el RF que cita cada prueba (RF-25)."""
-    _sin_pruebas_en_producto()
     inicio = time.monotonic()
     try:
         # «-rfE»: sin él, pytest no lista lo que falló y no habría RF que avisar.
@@ -231,7 +223,6 @@ def correr_por_tandas(repo: Path, *, tandas: list[list[str]] | None = None,
     Si algo la corta o revienta, queda «interrumpida» con su motivo (RF-40) y con las tandas que
     sí acabaron: la suite del 2026-11-03 murió con la web y su registro quedó en «empezada».
     """
-    _sin_pruebas_en_producto()
     entorno ={**(dict(env) if env is not None else dict(os.environ)), **ENTORNO_SUITE}
     # Heredada del servidor, cada prueba que abre la web arrancaba la vigilancia del de verdad, y una suite que se
     # lanzara de noche podía lanzar otra: es la web, no las pruebas, quien vigila.
@@ -284,9 +275,11 @@ def lanzar_suite_separada(repo: Path, *, lanzar: Callable[..., Any] = subprocess
     Espera solo al paso intermedio, que termina enseguida y deja registrada la suite: así dos
     vueltas de la vigilancia no lanzan dos.
     """
-    if es_edicion_producto():                                           # 086:RF-15
+    herramienta = Path(repo) / 'tools' / 'suite_por_tandas.py'
+    if not herramienta.is_file() or not (Path(repo) / 'tests').is_dir():
+        # 086:RF-15: el programa instalado no trae las pruebas (086 D4). Lanzarla igual anotaba cada noche una
+        # suite «interrumpida» que nunca pudo empezar.
         return False
-    herramienta = repo / 'tools' / 'suite_por_tandas.py'
     try:
         r = lanzar([sys.executable, str(herramienta), '--separar'], cwd=str(repo), timeout=120, check=False,
                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
@@ -325,11 +318,10 @@ class Vigilante:
         ahora = time.time() if ahora is None else ahora
         trabajos = self.listar_trabajos()
         avisos = revisar_trabajos(trabajos, ahora, self.reintentados) + revisar_calidad(trabajos)
-        # 086:RF-15: en producto sigue vigilando los trabajos, pero ni reentrena ni lanza la suite.
-        producto = es_edicion_producto()
-        if not producto:
-            episodios, ordenes = self.contar_nuevos()
-            avisos += revisar_modelos(episodios_nuevos=episodios, ordenes_nuevas=ordenes)
+        # 086:RF-15 (usuario, 2026-11-13): igual en las dos ediciones; hasta entonces el producto ni reentrenaba ni
+        # lanzaba la suite. Lo automático sigue pidiendo su permiso (071:RF-6, ``contar_nuevos``).
+        episodios, ordenes = self.contar_nuevos()
+        avisos += revisar_modelos(episodios_nuevos=episodios, ordenes_nuevas=ordenes)
         nuevos, motivos_ciclo = [], []
         for a in avisos:
             if a.clave in self.vistos:
@@ -353,8 +345,6 @@ class Vigilante:
                 # solicitar de nuevo el mismo lote; no se marca como atendido.
                 self.vistos.difference_update(a.clave for a in nuevos
                     if a.accion in ('entrenar_gemelo', 'entrenar_asistente'))
-        if producto:
-            return nuevos
         fecha = fecha or datetime.now().astimezone()
         filas = almacen.leer('suite', 1)
         interrumpida = revisar_suite(filas, self.proceso_vivo)

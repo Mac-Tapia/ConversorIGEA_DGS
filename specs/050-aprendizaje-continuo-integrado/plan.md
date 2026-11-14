@@ -49,7 +49,8 @@ El contexto documental tiene esquema y huella independientes; el agregado conser
 por separado los mapas físicos y documentales. Una muestra física exige pertenecer
 al mapa físico. No se modifica ContextoExperimento043.
 
-`CSG_AUTOENTRENAMIENTO=1` requiere además `CSG_APRENDIZAJE_PLAN`. El plan tipado
+Desde el 2026-11-13 el ciclo no espera permiso: solo `CSG_AUTOENTRENAMIENTO=0` lo para, y el plan se lee de
+`aprendizaje/plan.json` en los datos del asistente, o de `CSG_APRENDIZAJE_PLAN` si se da otra ruta. El plan tipado
 declara espacio, fuentes, contexto, familias, política y presupuesto; no contiene
 código ejecutable. El callback común usa JobManager.submit en engine y deduplica
 solicitudes vivas. La cancelación de JobContext llega al ciclo mediante un marcador

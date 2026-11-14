@@ -1,15 +1,15 @@
 # Complemento de IA de ConverterSmartGrid (spec 086, RF-37): aparte del núcleo y opcional.
 #
-# Solo hace falta para los modelos locales del asistente de órdenes, que está en beta. Convertir, calibrar, cargas nuevas, obras
-# e informes no lo usan, y la versión 1.0 no entrega pesos: los modelos se descargan aparte, con CSG_SALIDA_HUGGING_FACE=1.
+# Complemento de inferencia: torch y los modelos locales del asistente. Convertir, calibrar, cargas nuevas, obras e informes no
+# lo usan, y la versión 1.0 no entrega pesos: se entrenan en el cliente o se descargan aparte, con CSG_SALIDA_HUGGING_FACE=1.
 #
 # Instalación, con el Python del programa y salida a internet. Con GPU NVIDIA, torch desde el índice de su CUDA:
 #   python -m pip install -r requirements-complemento-ia.txt
 #
 # Para generar el paquete offline con versiones y huellas: tools/construir_candidato.py complemento-ia --help.
-# El lock de instalación se genera a partir de sus ruedas; esta lista es la entrada declarada. Quedan fuera las de entrenar
-# (peft, bitsandbytes, optuna, PINN y GRU), que no se
-# entregan en la 1.0. Versiones: las de `pyproject.toml`, extra `ml`.
+# El lock de instalación se genera a partir de sus ruedas; esta lista es la entrada declarada. Lo de entrenar (peft, bitsandbytes,
+# optuna, PINN y GRU), activo en la 1.0 (086, usuario 2026-11-13), va en el complemento de capacidades integrales
+# (--capacidades integrales), que toma el extra `ml` de `pyproject.toml` con torch de CUDA. Versiones: las de ese extra.
 torch>=2.4
 transformers==5.20.2
 sentence-transformers==5.7.0

@@ -38,26 +38,78 @@ def test_plan_no_infiere_recursos_ni_acepta_comandos(tmp_path):
         ac.cargar_plan_ciclo(ruta)
 
 
-def test_vigilancia_comun_apagada_por_defecto_y_sin_plan_bloquea(tmp_path, monkeypatch):
-    """050:RF-4/8, 071:RF-6 — conectar el callback no habilita autoentrenamiento."""
+def test_vigilancia_comun_activa_por_defecto_y_sin_plan_bloquea(tmp_path, monkeypatch):
+    """050:RF-4/8, 071:RF-6 — sin ninguna variable la vigilancia ve los datos nuevos y pide el ciclo (usuario,
+    2026-11-13: el reentreno automático va siempre). Sin plan del ciclo en el equipo, el bloqueo queda a la vista
+    y no se encola nada: faltar el plan es un dato que falta (RF-8), no un permiso."""
     from convertersmartgrid.asistente import almacen
     from convertersmartgrid.asistente.vigilancia import Vigilante
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
     monkeypatch.delenv('CSG_APRENDIZAJE_PLAN', raising=False)
     monkeypatch.setattr(Vigilante, 'arrancar', lambda _v: None)
+    monkeypatch.setattr(app.services, 'asistente_nuevos', lambda: (30, 40))
     jobs = JobManager(lambda *_args: None)
     try:
         vigilante = app.arrancar_vigilancia(jobs)
         assert vigilante.ciclo is not None
-        assert vigilante.contar_nuevos() == (0, 0)
-        vigilante.ciclo(['datos nuevos'])
-        assert jobs.list() == []
-        monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '1')
-        vigilante.ciclo(['datos nuevos'])
+        assert vigilante.contar_nuevos() == (30, 40)
+        assert vigilante.ciclo(['datos nuevos']) is False
         assert jobs.list() == []
         bloqueos = ac.estado_aprendizaje(almacen.raiz() / 'aprendizaje')['bloqueos']
         assert 'plan' in bloqueos[-1]['motivos'][0].casefold()
+    finally:
+        jobs.shutdown(timeout_s=1)
+
+
+def _con_carril_ocupado(jobs):
+    """Otro ciclo en marcha: el nuevo queda en cola y no ejecuta nada en la prueba."""
+    ocupado, liberar = threading.Event(), threading.Event()
+
+    def mantener(_ctx):
+        ocupado.set()
+        assert liberar.wait(5)
+
+    jobs.submit('operador', 'aprendizaje:otra_solicitud', 'otro ciclo en engine', mantener)
+    assert ocupado.wait(2)
+    return liberar
+
+
+def test_sin_ninguna_variable_el_ciclo_arranca_con_el_plan_del_equipo(tmp_path, monkeypatch):
+    """050:RF-4; 071:RF-6 — ni CSG_AUTOENTRENAMIENTO ni CSG_APRENDIZAJE_PLAN: con el plan guardado en los datos del
+    asistente, el ciclo se encola en el carril de fondo. Antes devolvía None sin la variable a «1»."""
+    from convertersmartgrid.asistente import almacen
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
+    monkeypatch.delenv('CSG_APRENDIZAJE_PLAN', raising=False)
+    destino = almacen.raiz() / 'aprendizaje' / 'plan.json'
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(_plan(tmp_path).read_text(encoding='utf-8'), encoding='utf-8')
+    jobs = JobManager(lambda *_args: None)
+    liberar = _con_carril_ocupado(jobs)
+    try:
+        trabajo = app.encolar_ciclo_aprendizaje(jobs, ['episodios nuevos'])
+        assert trabajo not in (None, False) and trabajo.kind.startswith('aprendizaje:') and trabajo.lane == 'engine'
+        jobs.cancel(trabajo.id)
+    finally:
+        liberar.set()
+        jobs.shutdown(timeout_s=2)
+
+
+def test_con_la_orden_de_parar_no_arranca(tmp_path, monkeypatch):
+    """050:RF-4; 071:RF-6 — el operador lo para con una orden explícita, ``CSG_AUTOENTRENAMIENTO=0``, como la captura
+    del gemelo con ``CSG_TWIN_CAPTURA=0``: ni se encola ni la vigilancia cuenta datos nuevos."""
+    from convertersmartgrid.asistente.vigilancia import Vigilante
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '0')
+    monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))
+    monkeypatch.setattr(Vigilante, 'arrancar', lambda _v: None)
+    monkeypatch.setattr(app.services, 'asistente_nuevos', lambda: (30, 40))
+    jobs = JobManager(lambda *_args: None)
+    try:
+        assert app.encolar_ciclo_aprendizaje(jobs, ['datos nuevos']) is None
+        assert app.arrancar_vigilancia(jobs).contar_nuevos() == (0, 0)
+        assert jobs.list() == []
     finally:
         jobs.shutdown(timeout_s=1)
 

@@ -13,7 +13,8 @@ Falta probar con el código final los flujos que se venderían, y faltan cosas q
 web, durabilidad de los datos y separar lo que es de Electro Dunas.
 
 El objetivo es una **versión 1.0** para una distribuidora, instalable en un equipo limpio, en la que cada flujo vendido se haya probado
-en DIgSILENT real con el código congelado. Lo que no se venda queda apagado o marcado como beta, sin retrasar la entrada.
+en DIgSILENT real con el código congelado. Nada queda apagado: lo que aún no se ha probado en DIgSILENT se marca como beta, sin
+retrasar la entrada (usuario, 2026-11-13).
 
 ## Alcance de la 1.0
 
@@ -23,8 +24,14 @@ de estudio y de factibilidad con su Excel; estudios de flujo, N-1 y transferenci
 Como beta, desactivable y dicho en pantalla: asistente de órdenes (provisional, con confirmación, 085), SET nueva (con revisión de un
 ingeniero), diagnóstico y borrador F01–F15 del PIDE, confiabilidad.
 
-No se entrega activo: entrenamiento de modelos, revisión por roles (047 T8 no pasa su puerta), índice RAG 077, QLoRA, PINN, GRU, ciclo de
-aprendizaje continuo, MADRL.
+También se entrega, activo: entrenar los modelos, el gemelo digital (PINN y GRU), el pronóstico por modelos, las mejoras y el ciclo de
+aprendizaje continuo (050), la revisión por roles y las preguntas del asistente sobre el código (índice RAG 077). Lo que entrena o usa el
+gemelo pide una GPU NVIDIA con CUDA y el complemento de IA (RF-37); ningún modelo pasa a uso sin sus puertas (071).
+
+Motivo del cambio (usuario, 2026-11-13, confirmado con pregunta expresa del auditor): «nada debería estar apagado ni bloqueado». Hasta
+entonces este apartado decía «No se entrega activo» de todo lo anterior, y la edición de producto negaba sus rutas y tareas. La edición
+sigue decidiendo solo lo que es de seguridad: las salidas a la red, apagadas por defecto (RF-22), y que la web no admita el servidor de
+desarrollo de Vite como origen.
 
 ## Decisiones del usuario que este plan pide
 
@@ -83,8 +90,15 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 
 ### Producto y seguridad
 
-- RF-15: EL SISTEMA no lanzará la suite de pruebas ni entrenamientos en la edición de producto.
-- RF-16: EL SISTEMA ocultará en la edición de producto lo que esté fuera del alcance de la 1.0.
+- RF-15: EL SISTEMA ofrecerá en la edición de producto los mismos entrenamientos, modelos, mejoras y ciclos de aprendizaje que en desarrollo.
+- RF-16: EL SISTEMA marcará en la edición de producto las funciones en beta, activas por defecto y desactivables por el operador.
+- Aclaración de RF-15 y RF-16 (usuario, 2026-11-13: «nada debería estar apagado ni bloqueado»): hasta esa fecha decían «no lanzará la
+  suite de pruebas ni entrenamientos» y «ocultará lo que esté fuera del alcance de la 1.0»; la edición de producto ya no niega ninguna
+  ruta ni tarea. La suite nocturna corre donde están sus pruebas: el programa instalado no trae `tests/` (D4), y entonces no se lanza ni
+  se anota como interrumpida. Sin GPU CUDA, lo que la pide dice en palabras del operador qué falta, sin caer a la CPU ni dejar una traza
+  en el Registro. Las mejoras del código (una rama con git y sus pruebas) quedan fuera del programa instalado, que no trae git ni el
+  código fuente: allí avisan que solo funcionan en el entorno de desarrollo, sin error de git ni traza; entrenar y reentrenar siguen
+  activos, y el reentreno automático va sin permiso de empezar (071:RF-6).
 - RF-17: EL SISTEMA rechazará las peticiones cuyo `Host` no sea de su lista.
 - RF-18: EL SISTEMA exigirá un `Origin` propio en las peticiones que cambian algo y en el WebSocket.
 - RF-19: EL SISTEMA exigirá un token de la sesión, entregado por el lanzador, en toda la API.

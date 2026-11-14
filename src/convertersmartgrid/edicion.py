@@ -1,9 +1,10 @@
-"""Qué edición corre, y qué se entrega en la de producto (086:RF-15, RF-16, RF-22).
+"""Qué edición corre, y qué funciones en beta marca la de producto (086:RF-15, RF-16, RF-22).
 
-Una sola función para preguntarlo, para que lo que se oculta y las salidas a la red no acaben leyendo
-dos variables distintas. El alcance de la 1.0 está aquí y en ningún otro sitio: el servidor niega estas
-rutas y tareas, y la web solo pregunta en ``/api/health`` qué enseñar. Ocultar un botón sin negar su ruta
-dejaba a cualquier petición entrenar un modelo en el equipo de un cliente.
+Una sola función para preguntarlo, para que las salidas a la red y la web no acaben leyendo dos variables distintas.
+Hasta el 2026-11-13 aquí estaba también la lista de rutas y tareas que el producto negaba (entrenar, gemelo, pronóstico,
+mejoras, revisión por roles y preguntas sobre el código). El usuario lo cambió ese día: «nada debería estar apagado ni
+bloqueado». La edición ya solo decide lo que es de seguridad, en ``salidas_red.py`` (RF-22) y en el CORS de la web, y
+marca las funciones en beta, que siguen activas por defecto y el operador puede apagar.
 """
 from __future__ import annotations
 
@@ -17,27 +18,18 @@ VARIABLE_EDICION = 'CSG_EDICION'
 #: Las funciones en beta que esta instalación no quiere, separadas por comas (086, «desactivable»).
 VARIABLE_BETA_APAGADAS = 'CSG_BETA_APAGADAS'
 
-MENSAJE_FUERA_DE_ALCANCE = 'Esta función no forma parte de esta versión del programa.'
 MENSAJE_BETA_APAGADA = 'Esta función está desactivada en esta instalación.'
+#: 086:RF-15 (usuario, 2026-11-13): las mejoras del código preparan una rama con git y corren las pruebas; el programa
+#: instalado no trae ni git ni el código fuente, y no se entregan.
+MENSAJE_SOLO_DESARROLLO = ('Las mejoras del código solo funcionan en el entorno de desarrollo, donde están el código '
+                           'fuente y sus pruebas. En esta instalación no se preparan; lo demás, también entrenar, sigue '
+                           'disponible.')
+
+
+class SoloDesarrollo(RuntimeError):
+    """Una función que necesita el repositorio, pedida en el programa instalado (086:RF-15)."""
 
 _ESPACIO = r'^/api/workspaces/[^/]+'
-
-#: Entrenar modelos, revisión por roles, gemelo (PINN, GRU, aprendizaje) y proponer mejoras, que corre pruebas.
-_RUTAS_FUERA_DE_ALCANCE = tuple(re.compile(p) for p in (
-    rf'{_ESPACIO}/digital-twin(/|$)',
-    r'^/api/modelos/gemelo/volver$',
-    rf'{_ESPACIO}/asistente/entrenar$',
-    rf'{_ESPACIO}/asistente/[^/]+/revision$',
-    r'^/api/(workspaces/[^/]+/)?asistente/equipo$',
-    r'^/api/(workspaces/[^/]+/)?asistente/mejoras(/|$)',
-    r'^/api/asistente/aceptacion$',
-))
-
-#: Lo mismo por el asistente. «pregunta» responde con el índice RAG del propio código, que no se entrega.
-TAREAS_FUERA_DE_ALCANCE = frozenset({
-    'episodios', 'evaluar_gemelo', 'gemelo_aprender', 'gemelo_entrenar', 'gemelo_temporal', 'pronostico',
-    'entrenar_asistente', 'pregunta',
-})
 
 
 @dataclass(frozen=True)
@@ -66,14 +58,27 @@ _BETAS = (
 _RUTAS_BETA = {b.clave: tuple(re.compile(p) for p in b.rutas) for b in _BETAS}
 
 
-def es_edicion_producto() -> bool:
-    """Si esto es la edición de producto. Sin la variable manda de dónde corre: el árbol de hoy no cambia.
+def es_instalado() -> bool:
+    """Si corre el programa instalado: lo dice su carpeta, como en ``es_edicion_producto`` (M-3), nunca la variable."""
+    return es_programa_instalado(raiz_programa())
 
-    Un programa instalado es de producto aunque nadie lo haya dicho: abrirlo sin el lanzador
-    (``python -m convertersmartgrid.web``) no puede destapar el entrenamiento en el equipo de un cliente.
+
+def exigir_desarrollo() -> None:
+    """086:RF-15: lo que necesita git o el código fuente avisa en el instalado, antes de tocar git o la red."""
+    if es_instalado():
+        raise SoloDesarrollo(MENSAJE_SOLO_DESARROLLO)
+
+
+def es_edicion_producto() -> bool:
+    """Si esto es la edición de producto. Un programa instalado lo es siempre; en el árbol, solo si la variable lo dice.
+
+    ``CSG_EDICION`` solo puede forzar «producto» (086:RF-22): con «desarrollo», un programa instalado encendía por
+    defecto las salidas a la red, y los datos del cliente salían de su equipo. Abrirlo sin el lanzador
+    (``python -m convertersmartgrid.web``) tampoco cambia la edición.
     """
-    valor = os.environ.get(VARIABLE_EDICION, '').strip().lower()
-    return valor == 'producto' if valor else es_programa_instalado(raiz_programa())
+    if es_instalado():
+        return True
+    return os.environ.get(VARIABLE_EDICION, '').strip().lower() == 'producto'
 
 
 def _betas_apagadas() -> frozenset[str]:
@@ -81,23 +86,17 @@ def _betas_apagadas() -> frozenset[str]:
 
 
 def motivo_ruta_negada(ruta: str) -> str | None:
-    """Por qué esta ruta no se atiende en la edición de producto; None si se atiende (o en desarrollo)."""
+    """Por qué esta ruta no se atiende: solo si es de una beta que el operador apagó en el producto; si no, None."""
     if not es_edicion_producto():
         return None
-    if any(p.search(ruta) for p in _RUTAS_FUERA_DE_ALCANCE):
-        return MENSAJE_FUERA_DE_ALCANCE
     for clave in _betas_apagadas():
         if any(p.search(ruta) for p in _RUTAS_BETA.get(clave, ())):
             return MENSAJE_BETA_APAGADA
     return None
 
 
-def tarea_fuera_de_alcance(tarea: str | None) -> bool:
-    return es_edicion_producto() and tarea in TAREAS_FUERA_DE_ALCANCE
-
-
 def estado_edicion() -> dict:
-    """Lo que la web necesita para enseñar o marcar cada cosa; en desarrollo no marca nada."""
+    """Lo que la web necesita para marcar cada beta; en desarrollo no marca nada."""
     if not es_edicion_producto():
         return {'producto': False, 'beta': []}
     apagadas = _betas_apagadas()

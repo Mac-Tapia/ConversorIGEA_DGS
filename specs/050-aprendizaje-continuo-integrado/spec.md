@@ -61,7 +61,11 @@ Una fuente sin productor verificable conserva un bloqueo; no se presenta como vi
 
 Aclaraciones de RF-4/RF-10 (P19, 2026-11-08): la vigilancia encola un único ciclo
 con plan explícito, idempotencia y cancelación cooperativa entre etapas. El permiso
-de autoentrenar permanece apagado por defecto; carecer de plan registra bloqueo.
+de autoentrenar estuvo apagado por defecto hasta el 2026-11-13; carecer de plan registra bloqueo.
+Aclaración de RF-4 (usuario, 2026-11-13): el permiso de empezar desaparece. El ciclo se
+programa siempre, salvo la orden explícita `CSG_AUTOENTRENAMIENTO=0` (071:RF-6), y lee su
+plan de los datos del asistente (`aprendizaje/plan.json`) o de `CSG_APRENDIZAJE_PLAN`, que
+solo cambia la ruta. Sin plan sigue el bloqueo visible de RF-8, y la promoción sigue con sus puertas.
 
 Aclaraciones de RF-13/RF-15 (T6, 2026-11-08): los episodios reales traen fuente, proyecto,
 alimentadores, caso y huellas de topología, controles y escenario, pero no `profile_hash`,

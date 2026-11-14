@@ -243,16 +243,30 @@ solo sirve para ensayar una actualización (pendiente de comprobar con el rc6).
 
 ### Complemento de IA (opcional)
 
-El núcleo no trae `torch`: pesa gigas y nada de lo que se vende en la 1.0 lo necesita. Su lista está en
-`requirements-complemento-ia.txt`. Solo hace falta para los modelos locales del asistente de órdenes, que está en beta; se instala con
-salida a internet, o desde un paquete offline con su `instalacion.lock` y la carpeta `wheels`.
-La versión 1.0 no entrega pesos entrenados.
+El núcleo no trae `torch`: pesa gigas, y convertir, calibrar, cargas nuevas, obras e informes no lo necesitan. El complemento hace
+falta para todo lo que usa modelos, que en la 1.0 está activo: entrenar, el gemelo digital (PINN y GRU), el pronóstico por modelos, la
+revisión por roles y los modelos locales del asistente. Requisitos del equipo: una **GPU NVIDIA con CUDA** y su controlador; sin ella,
+esas funciones dicen que falta la GPU y no usan el procesador. `doctor` informa de la tarjeta, su CUDA y su memoria libre.
+
+Hay dos complementos. El de **inferencia** (`requirements-complemento-ia.txt`, por defecto) trae torch y los modelos del asistente. El
+de **capacidades integrales** (`--capacidades integrales`) trae además lo de entrenar (el extra `ml` de `pyproject.toml`: optuna, PEFT,
+torch-geometric, neuralforecast, Pyomo…), con torch de CUDA desde el índice oficial de PyTorch y la procedencia de cada rueda; es el
+que hace falta para entrenar en el cliente. Se instala con salida a internet, o desde un paquete offline con su `instalacion.lock` y la
+carpeta `wheels`. La versión 1.0 no entrega pesos entrenados: se generan en el equipo del cliente. No se entregan git ni el código
+fuente: las mejoras del código del asistente solo funcionan en el entorno de desarrollo.
 
 Para preparar ese paquete con CPython 3.12 de 64 bits en Windows, descargue previamente las ruedas
 de la lista y sus dependencias a una caché separada y ejecute:
 
 ```powershell
 python tools/construir_candidato.py complemento-ia --salida D:/entregas/ia --ruedas-cache D:/cache-ia
+```
+
+Para el de capacidades integrales, además, el freeze del entorno ya verificado y los recibos de procedencia (Git y torch CUDA):
+
+```powershell
+python tools/construir_candidato.py complemento-ia --capacidades integrales --salida D:/entregas/ia-integral --ruedas-cache D:/cache-ia `
+  --versiones-capturadas freeze.txt --procedencias procedencias.json --licencias-suplementarias licencias.json
 ```
 
 La construcción usa esa caché sin red y respeta las versiones del núcleo. Incluye inventario,

@@ -73,10 +73,11 @@ def _git(repo: Path, *args: str) -> str:
 def preparar_rama(repo: Path, p: Propuesta, *, suite: Sequence[str] | None = ('-q', '-x', '-p', 'no:cacheprovider'),
                   limite_s: float = 3 * 3600, env: Mapping[str, str] | None = None) -> dict[str, Any]:
     """La rama ``asistente/<id>`` en su worktree, con el cambio confirmado y la suite corrida."""
-    from ..edicion import MENSAJE_FUERA_DE_ALCANCE, es_edicion_producto
+    # 086:RF-15 (usuario, 2026-11-13): activa en la edición de producto, salvo en el programa instalado, que no trae
+    # git ni el código fuente: allí lo dice en palabras del operador en vez de fallar en «git worktree».
+    from ..edicion import exigir_desarrollo
 
-    if es_edicion_producto():                                           # 086:RF-15: esto corre pytest
-        raise RuntimeError(MENSAJE_FUERA_DE_ALCANCE)
+    exigir_desarrollo()
     validar(p)
     rama = f'asistente/{p.id}'
     destino = almacen.raiz() / 'ramas' / p.id

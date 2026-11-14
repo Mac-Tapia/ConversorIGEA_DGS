@@ -62,9 +62,19 @@
 - [x] T11 «Caso base» al retomar y su huella. (RF-13, RF-14) (`v1/informes`)
   Hecho cuando: retomar verifica; el guion escribe `caso_base_huella` y la guarda de 081 actúa.
   Evidencia: `tests/test_sistema_web.py` y `tests/test_huella_caso_base.py`, con `fake_pf`. La huella real sigue abierta en 081 T12 (R3, T26).
-- [x] T12 Edición de producto: sin suite nocturna, sin entrenar, oculto lo que no se vende. (RF-15, RF-16) (`v1/producto`)
+- [x] T12 Edición de producto: todo activo, con las betas marcadas y desactivables. (RF-15, RF-16) (`v1/producto`)
   Hecho cuando: pruebas en las dos ediciones, y comprobación en el navegador real.
   Evidencia: `tests/test_edicion_producto.py`; navegador real en el 8792 en las dos ediciones, con las rutas negadas también desde la página. La lista de lo que no se empaqueta es la T19.
+  Cambio del 2026-11-13 (usuario: «nada debería estar apagado ni bloqueado»): la edición de producto ya no niega rutas ni tareas
+  (`edicion.py` sin `_RUTAS_FUERA_DE_ALCANCE`, `TAREAS_FUERA_DE_ALCANCE` ni `MENSAJE_FUERA_DE_ALCANCE`), ni apaga la vigilancia, las
+  mejoras, el ciclo del 050, la PINN del oráculo ni los vectores del asistente; la web enseña el gemelo, reentrenar, el equipo, los modelos,
+  el aprendizaje y la aceptación en las dos ediciones; el doctor dice la GPU, su CUDA y su memoria libre; sin GPU el trabajo falla con
+  un mensaje para el operador y sin traza; `config/entrega.json` entrega los guiones de entrenar (los pesos siguen fuera, RF-34). Se quedan, por seguridad: Host, Origin y token (RF-17 a RF-20), salidas a la red apagadas por
+  defecto (RF-22), CORS sin Vite en producto y `CSG_EDICION` solo para forzar «producto». Rojo y verde en `D:/csg/EDICION/`
+  (`tests/test_edicion_producto.py`, `tests/test_asistente_reranker.py`, `tests/test_arquitectura_generada.py`,
+  `tests/test_instalacion_programa.py`, `frontend/test/edicionTodoActivo.test.mjs`). Ampliación del mismo día: en el programa
+  instalado las mejoras del código avisan que son de desarrollo (`edicion.exigir_desarrollo`, decidido por la carpeta instalada
+  como M-3) y el reentreno automático no pide permiso (rojo2 y verde2 en `D:/csg/EDICION/`). Pendiente: probar el gemelo y entrenar en el programa instalado con GPU, en la T40.
 - [x] T13 Host, Origin, token y escucha. (RF-17, RF-18, RF-19, RF-20) (`v1/seguridad`)
   Hecho cuando: pruebas negativas por cada una, también en WebSocket; la web sigue funcionando en el navegador real.
   Evidencia: `tests/test_seguridad_web.py`; navegador real contra una web propia en el 8791, con una página de otro origen rechazada en POST, GET y WebSocket.

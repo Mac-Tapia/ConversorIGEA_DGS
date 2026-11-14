@@ -16,7 +16,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..edicion import tarea_fuera_de_alcance
 from .interprete import Interpretacion, numero_de, periodo_de
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
 from .tareas import EFECTOS, TAREAS, requiere_confirmacion
@@ -182,11 +181,6 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
         dudas = ', '.join(f'{t} ({c:.0%})' for t, c in interp.alternativas[:3])
         plan.faltan.append('la tarea: no entendí la orden con suficiente confianza'
                            + (f'; ¿quiso decir {dudas}?' if dudas else ''))
-        return plan
-    if tarea_fuera_de_alcance(interp.tarea):
-        # 086:RF-16: va en las dudas y no en lo que falta: no hay dato que dar, y el plan no se puede confirmar.
-        plan.tarea = None
-        plan.dudas.append('Esa orden es de una función que no forma parte de esta versión del programa.')
         return plan
     tarea = TAREAS[interp.tarea]
     plan.escribe, plan.modo = tarea.escribe, tarea.modo

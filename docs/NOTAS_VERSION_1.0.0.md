@@ -16,13 +16,17 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
 - Cargas nuevas y «Con proyecto», con la escalera de obras (bancos, sección y terna).
 - Informes de estudio y de factibilidad, cada uno con su libro Excel.
 - Estudios de flujo, N-1 y transferencia.
+- Entrenar los modelos, el gemelo digital (PINN y GRU), el pronóstico por modelos, las mejoras y el aprendizaje continuo (050), la
+  revisión por roles y las preguntas del asistente sobre el código. Lo que entrena o usa el gemelo pide una GPU NVIDIA con CUDA y el
+  complemento de IA; sin ella, el trabajo lo dice y no cae a la CPU. Ningún modelo pasa a uso sin sus puertas (071). La 1.0 no trae
+  pesos entrenados: se generan en el equipo del cliente, con sus datos. El reentreno automático va solo, salvo que el operador lo
+  pare (`CSG_AUTOENTRENAMIENTO=0`); las mejoras del código solo funcionan en el entorno de desarrollo.
 
 **En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva, diagnóstico y borrador
 del PIDE, y confiabilidad (`src/convertersmartgrid/edicion.py`).
 
-**No se entrega activo** en la edición de producto: entrenar modelos, revisión por roles, gemelo digital (PINN, GRU, aprendizaje
-continuo), pronóstico por modelos y las preguntas del asistente sobre el código; el servidor niega esas rutas y tareas
-(`src/convertersmartgrid/edicion.py`).
+Nada está apagado en la edición de producto (usuario, 2026-11-13). La edición solo decide lo que es de seguridad: las salidas a
+la red están apagadas hasta que el operador las encienda, y los datos del cliente se quedan en su equipo.
 
 **Del programa instalable**, ya en el rc5 (`6306cc65`) y que esta versión mantiene:
 
@@ -70,7 +74,7 @@ continuo), pronóstico por modelos y las preguntas del asistente sobre el códig
 
 **Internos, sin efecto en lo que se entrega activo**
 
-- Pronóstico y PINN, que la edición de producto no ofrece: `a190e8df`, `483fa4af`, `c74a6154`.
+- Pronóstico y PINN, activos también en la edición de producto: `a190e8df`, `483fa4af`, `c74a6154`.
 - La suite y los entrenamientos se turnan la GPU de la máquina de desarrollo (`9063b8af`).
 - Las pruebas de una rama prueban el código de su propia rama, y el entorno de DIgSILENT no hereda otro paquete del conversor
   (`eedaf7d4`).
@@ -119,9 +123,9 @@ calibración por año con bancos y tramos de dos conductores (025 T27); el asist
 - Asistente de órdenes: en beta. Faltan el intérprete con codificador preentrenado (069 T7), la búsqueda multilingüe (097 T3) y la
   revisión por roles (047 T4, T7, T8).
 - Pronóstico de demanda: falta la corrida larga real de todos los modelos (089 T7) y la proyección para todos los años del PIDE
-  (031 T4, T5); no se ofrece en la edición de producto.
+  (031 T4, T5); se ofrece en las dos ediciones.
 - Libros nuevos de demanda: falta verlo en la web real arrancada por el operador (104 T6).
-- Modelos que no se entregan: gemelo físico PINN/GNN (045 T3), aprendizaje continuo (050 T3b, T4b, T5b), puertas de los modelos
+- Modelos que se entregan activos con tareas abiertas: gemelo físico PINN/GNN (045 T3), aprendizaje continuo (050 T3b, T4b, T5b), puertas de los modelos
   (071 T5), gobierno de modelos (043 T9), agente en producción (027 T11, T26), piloto MADRL (074 T5, T7, T8). La 1.0 no trae pesos
   entrenados.
 - Internas, sin efecto para el usuario: arquitectura por capas (002 T7, T8, T9, T11, T12), renombrar la carpeta (058 T6) y el turno de

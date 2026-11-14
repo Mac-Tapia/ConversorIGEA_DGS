@@ -26,8 +26,12 @@ Ingeniero de planificación que optimiza obras desde la web; quien reentrena el 
   lo promoverá y lo dirá.
 - RF-5: CUANDO el monitor lea una PINN promovida cuya versión sea la del puntero en uso, EL SISTEMA la mostrará como
   promovida y en uso, sin anularla por falta de `active.json`.
-- RF-6: MIENTRAS `CSG_AUTOENTRENAMIENTO` no valga `1`, la vigilancia no lanzará entrenamientos ni anunciará que se
+- RF-6: MIENTRAS `CSG_AUTOENTRENAMIENTO` valga `0`, la vigilancia no lanzará entrenamientos ni anunciará que se
   reentrena; sus demás funciones seguirán.
+- Aclaración de RF-6 (usuario, 2026-11-13): hasta esa fecha el reentreno automático necesitaba `CSG_AUTOENTRENAMIENTO=1`
+  para empezar, y en el equipo del cliente no corría nunca. Ahora va siempre, en el carril de fondo que cede al operador
+  y con el turno de GPU de la 106; `0` es la orden explícita del operador para pararlo, como `CSG_TWIN_CAPTURA=0` para la
+  captura del gemelo. Se quita el permiso de empezar, no la puerta de promover: RF-3 y RF-4 siguen decidiendo.
 - RF-7: CUANDO `tools/digital_twin_entrenar.py` vaya a entrenar, EL SISTEMA tomará el turno de GPU común; SI está ocupado,
   ENTONCES no entrenará, escribirá el motivo en su informe y terminará con código 1.
 - RF-8: `tools/llm_destilar.py` tomará el turno con `turno_gpu`, respetando `CSG_ML_GPU_LOCK` y la guardia heredada.

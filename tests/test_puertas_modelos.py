@@ -83,14 +83,30 @@ def _vigilante(monkeypatch):
     return visto['v']
 
 
-@pytest.mark.parametrize('valor, nuevos', [(None, (0, 0)), ('0', (0, 0)), ('1', (30, 40))])
-def test_vigilancia_no_entrena_sin_permiso(monkeypatch, valor, nuevos):
-    """071:RF-6: sin la variable, no ve datos nuevos: ni lanza ni anuncia; lo demás sigue arrancando."""
+@pytest.mark.parametrize('valor, nuevos', [(None, (30, 40)), ('0', (0, 0)), ('1', (30, 40))])
+def test_vigilancia_entrena_salvo_la_orden_de_parar(monkeypatch, valor, nuevos):
+    """071:RF-6: sin la variable ve los datos nuevos y pide el ciclo (usuario, 2026-11-13); solo «0», la orden explícita
+    del operador, lo para. Antes, sin la variable, no veía nada."""
     if valor is None:
         monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
     else:
         monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', valor)
     assert _vigilante(monkeypatch).contar_nuevos() == nuevos
+
+
+def test_un_candidato_que_no_pasa_sus_puertas_no_se_promueve(tmp_path, monkeypatch):
+    """071:RF-3, 071:RF-4, 071:RF-6 — el reentreno va solo, pero la puerta de promover se queda: un candidato que no
+    mejora al flujo físico ni se reabre ni pasa a uso."""
+    promovidos = []
+    monkeypatch.setattr(o, 'promover', lambda *a, **_k: promovidos.append(a))
+    fallos = o.fallos_de_comparacion(0.003, 0.002, None, o.Puertas())
+    assert fallos
+
+    def reabrir(_carpeta):
+        raise AssertionError('un candidato rechazado no se reabre')
+
+    r = o._decidir_promocion(object(), tmp_path, {}, fallos, 'reentreno automático', reabrir=reabrir)
+    assert r['promovido'] is False and r['gates'] == {'approved': False} and not promovidos
 
 
 def _herramienta(nombre):

@@ -299,7 +299,6 @@ def _asistente(fuente: Fuente) -> list[str]:
     catalogo = tareas(fuente.leer(S + 'asistente/tareas.py'))
     equipo = fuente.leer(S + 'asistente/equipo.py')
     nativas = constante(equipo, '_NATIVAS')
-    fuera = constante(fuente.leer(S + 'edicion.py'), 'TAREAS_FUERA_DE_ALCANCE')
     interprete = fuente.leer(S + 'asistente/interprete.py')
     orquestador = fuente.leer(S + 'asistente/orquestador.py')
     salida = ['', '## El asistente y su equipo', '',
@@ -309,10 +308,10 @@ def _asistente(fuente: Fuente) -> list[str]:
                      [(f"`{r['rol']}`", _si(r['ejecuta']), _si(r['lee']), r['encargo'])
                       for r in roles(equipo, fuente.leer(S + 'asistente/revision_roles.py'))])
     salida += ['', f'### Tareas ({len(catalogo)})', '',
-               'Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. «Producto» dice si queda en esa edición.', '']
-    salida += _tabla(('Tarea', 'Modo', 'Escribe', 'Carril', 'Producto', 'Función', 'Datos', 'Qué hace'), [
+               'Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).', '']
+    salida += _tabla(('Tarea', 'Modo', 'Escribe', 'Carril', 'Función', 'Datos', 'Qué hace'), [
         (f"`{t['nombre']}`", t['modo'], _si(t['escribe']), 'powerfactory' if t['nombre'] in nativas else 'engine',
-         _si(t['nombre'] not in fuera), f"`{t['funcion']}`",
+         f"`{t['funcion']}`",
          ', '.join(d['nombre'] + ('' if d['obligatorio'] else '?') for d in t['datos']) or '—', t['descripcion'].replace('|', '/'))
         for t in catalogo])
 

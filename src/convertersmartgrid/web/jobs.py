@@ -124,6 +124,15 @@ class PowerFactorySinRespuesta(RuntimeError):
     """Un guion de PowerFactory no llegó a conectar en ``LIMITE_ARRANQUE_PF_S``."""
 
 
+def _es_sin_gpu(exc: BaseException) -> bool:
+    """Si el trabajo falló por no haber GPU CUDA, o por pedir en el instalado lo que es de desarrollo (086:RF-15):
+    se avisa sin traza, porque no es un fallo del programa."""
+    from ..edicion import SoloDesarrollo
+    from ..training_coordinator import SinGPU
+
+    return isinstance(exc, (SinGPU, SoloDesarrollo))
+
+
 class EventLog:
     """Registro de eventos numerados de un espacio de trabajo.
 
@@ -1006,7 +1015,8 @@ class JobManager:
                 self._finish(job, CANCELLED)
                 return
             except Exception as exc:  # noqa: BLE001 - borde: el trabajo informa, no tumba el hilo
-                ctx.log(traceback.format_exc())
+                # 086:RF-15: sin GPU no es un fallo del programa: el Registro lo dice en una línea, sin la traza.
+                ctx.log(str(exc) if _es_sin_gpu(exc) else traceback.format_exc())
                 dormido = suspendido_s() - dormido_antes
                 # 096:RF-2 a RF-4: tras una suspensión, una vez; nunca cancelado ni sin suspensión.
                 if not repetido and dormido >= SUSPENSION_MINIMA_S and not job.cancel.is_set():

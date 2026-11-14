@@ -1,4 +1,4 @@
-"""La edición de producto y lo que el asistente puede hacer sin preguntar (spec 086, T12 y T15).
+"""La edición de producto, con todo activo, y lo que el asistente puede hacer sin preguntar (spec 086, T12 y T15).
 
 Cada prueba dice qué pasaba antes de corregirlo: la revisión de la 086 solo leyó el código, y estos fallos se
 reprodujeron aquí antes de tocar nada. ``docs/regresiones/`` guarda la reproducción.
@@ -26,8 +26,8 @@ from convertersmartgrid.web.app import create_app
 from convertersmartgrid.web.jobs import EventLog
 
 RAIZ = Path(__file__).resolve().parents[1]
-#: Las rutas que la 1.0 no entrega activas, con un cuerpo que pasaría la validación de cada una.
-RUTAS_FUERA = (
+#: Las rutas que la 1.0 negaba en la edición de producto hasta el 2026-11-13; ahora se atienden.
+RUTAS_ANTES_NEGADAS = (
     ('post', '/api/workspaces/{wid}/digital-twin/entrenar'),
     ('post', '/api/workspaces/{wid}/digital-twin/aprender'),
     ('post', '/api/workspaces/{wid}/digital-twin/temporal'),
@@ -97,7 +97,18 @@ def _orden(client, wid, tarea, monkeypatch, datos=None, texto='haz esto'):
     return j['result']
 
 
-# ---------------------------------------------------------------- T12: suite y entrenamientos
+# ---------------------------------------------------------------- T12: todo activo en producto (usuario, 2026-11-13)
+#
+# Orden del usuario del 2026-11-13, confirmada con pregunta expresa: «nada debería estar apagado ni bloqueado». La
+# edición de producto entregaba apagados el entrenamiento, el gemelo (PINN y GRU), el pronóstico por modelos, las
+# mejoras, el ciclo del 050, la revisión por roles y las preguntas sobre el código: el servidor negaba sus rutas y el
+# asistente sus tareas. Ahora se entregan activos; lo que la edición sigue decidiendo es de seguridad (salidas a la
+# red apagadas por defecto, 086:RF-22, y CORS sin el servidor de Vite).
+
+#: Las tareas que la 1.0 negaba en producto hasta el 2026-11-13.
+TAREAS_ANTES_NEGADAS = ('episodios', 'evaluar_gemelo', 'gemelo_aprender', 'gemelo_entrenar', 'gemelo_temporal', 'pronostico',
+                        'entrenar_asistente', 'pregunta')
+
 
 def _vigilante(tmp_path, hechos, nuevos=(15, 25)):
     return vigilancia.Vigilante(
@@ -106,19 +117,19 @@ def _vigilante(tmp_path, hechos, nuevos=(15, 25)):
         contar_nuevos=lambda: nuevos, repo=tmp_path)
 
 
-def test_la_vigilancia_no_lanza_suite_ni_entrena_en_producto(tmp_path, monkeypatch, producto):
-    """086:RF-15 — de noche y con datos nuevos, la edición de producto no lanza la suite ni reentrena.
-    Antes, a las 22:00, un equipo de cliente lanzaba ``tools/suite_por_tandas.py``, y con datos nuevos reentrenaba."""
-    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
-    hechos = []
-    monkeypatch.setattr(vigilancia, 'lanzar_suite_separada', lambda repo, **_k: hechos.append('suite'))
-    avisos = _vigilante(tmp_path, hechos).tic(fecha=datetime(2026, 11, 4, 23))
-    assert hechos == [] and not [a for a in avisos if a.accion and a.accion.startswith('entrenar')]
+def _repo_con_pruebas(tmp_path) -> Path:
+    """Un árbol con sus pruebas y la herramienta de la suite, como el de desarrollo."""
+    (tmp_path / 'tests').mkdir(exist_ok=True)
+    (tmp_path / 'tools').mkdir(exist_ok=True)
+    (tmp_path / 'tools' / 'suite_por_tandas.py').write_text('', encoding='utf-8')
+    return tmp_path
 
 
-def test_en_desarrollo_la_vigilancia_sigue_igual(tmp_path, monkeypatch):
-    """086:RF-15 — en desarrollo nada cambia: la suite de noche y los reentrenamientos siguen."""
-    monkeypatch.delenv(edicion.VARIABLE_EDICION, raising=False)
+@pytest.mark.parametrize('edicion_', ['producto', 'desarrollo'])
+def test_la_vigilancia_hace_lo_mismo_en_las_dos_ediciones(tmp_path, monkeypatch, edicion_):
+    """086:RF-15 — de noche y con datos nuevos, el producto reentrena y lanza la suite como en desarrollo.
+    Antes, en producto, ni avisaba de los datos nuevos ni lanzaba nada."""
+    monkeypatch.setenv(edicion.VARIABLE_EDICION, edicion_)
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     hechos = []
     monkeypatch.setattr(vigilancia, 'lanzar_suite_separada', lambda repo, **_k: hechos.append('suite'))
@@ -126,23 +137,108 @@ def test_en_desarrollo_la_vigilancia_sigue_igual(tmp_path, monkeypatch):
     assert hechos == ['gemelo', 'asistente', 'suite']
 
 
-def test_ninguna_via_lanza_pruebas_en_producto(tmp_path, monkeypatch, producto):
-    """086:RF-15 — tampoco por la herramienta, ni la propuesta de una librería, que corre pytest en su rama."""
-    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+def test_la_suite_corre_en_producto_donde_estan_sus_pruebas(tmp_path, monkeypatch, producto):
+    """086:RF-15 — la edición ya no la para: con las pruebas y su herramienta, se lanza y se corre."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    repo = _repo_con_pruebas(tmp_path)
     lanzados = []
+
+    class _Hecho:
+        returncode, stdout, stderr = 0, '3 passed in 1.0s\n', ''
 
     def lanzar(*a, **_k):
         lanzados.append(a)
+        return _Hecho()
 
-    assert vigilancia.lanzar_suite_separada(tmp_path, lanzar=lanzar) is False and not lanzados
+    assert vigilancia.lanzar_suite_separada(repo, lanzar=lanzar) is True
     monkeypatch.setattr(vigilancia.subprocess, 'run', lanzar)
-    with pytest.raises(RuntimeError, match='esta versión'):
-        vigilancia.correr_suite(tmp_path)
-    with pytest.raises(RuntimeError, match='esta versión'):
-        vigilancia.correr_por_tandas(tmp_path, tandas=[['x.py']])
-    with pytest.raises(RuntimeError, match='esta versión'):
+    assert vigilancia.correr_suite(repo)['codigo'] == 0
+    assert len(lanzados) == 2
+
+
+def test_sin_pruebas_instaladas_la_vigilancia_no_anota_falsos_fallos(tmp_path, monkeypatch, producto):
+    """086:RF-15 — el programa instalado no trae ``tests/`` ni la herramienta de la suite (086 D4). Sin la negación por
+    edición, la vigilancia lanzaba cada noche una herramienta que no existe y anotaba una suite «interrumpida»; ahora
+    no la lanza ni anota nada."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    lanzados = []
+    assert vigilancia.lanzar_suite_separada(tmp_path, lanzar=lambda *a, **_k: lanzados.append(a)) is False
+    assert not lanzados and not almacen.leer('suite')
+
+
+def test_las_mejoras_se_preparan_en_producto(tmp_path, monkeypatch, producto):
+    """086:RF-15 — proponer una librería prepara su rama también en producto: la edición ya no la corta antes de
+    validar la propuesta."""
+    class _Validada(Exception):
+        pass
+
+    def validar(_p):
+        raise _Validada
+
+    monkeypatch.setattr(mejoras, 'validar', validar)
+    with pytest.raises(_Validada):
         mejoras.preparar_rama(tmp_path, {'id': 'x', 'paquete': 'y'})
-    assert not lanzados
+
+
+def _instalado_simulado(tmp_path, monkeypatch) -> None:
+    """Un programa instalado, como en la 086:RF-36: lo decide su carpeta, no la variable."""
+    instalado = tmp_path / 'sitio' / 'convertersmartgrid' / '_programa'
+    instalado.mkdir(parents=True)
+    monkeypatch.setattr(edicion, 'raiz_programa', lambda: instalado)
+    monkeypatch.delenv(edicion.VARIABLE_EDICION, raising=False)
+    assert edicion.es_instalado() and edicion.es_edicion_producto()
+
+
+def test_en_el_instalado_las_mejoras_dicen_que_son_de_desarrollo(tmp_path, monkeypatch):
+    """086:RF-15 — el equipo del cliente no trae git ni el código fuente: la mejora lo dice en palabras del operador,
+    sin llegar a git ni a la red. Antes habría fallado con «git worktree: fatal: not a git repository»."""
+    _instalado_simulado(tmp_path, monkeypatch)
+    llamadas = []
+    monkeypatch.setattr(mejoras, '_git', lambda *a: llamadas.append(a) or '')
+    monkeypatch.setattr(mejoras, 'validar', lambda _p: llamadas.append('validar'))
+    with pytest.raises(edicion.SoloDesarrollo) as exc:
+        mejoras.preparar_rama(tmp_path, {'id': 'x', 'paquete': 'y'})
+    texto = str(exc.value)
+    assert texto == edicion.MENSAJE_SOLO_DESARROLLO and 'desarrollo' in texto
+    assert not re.search(r'git|Traceback|\.py|RF-\d', texto) and not llamadas
+    monkeypatch.setattr(services, 'asistente_vocabulario', lambda _ws: pytest.fail('no consulta PyPI'))
+    with pytest.raises(edicion.SoloDesarrollo):
+        services.asistente_proponer_libreria(None, None, 'paquete', 'motivo')
+
+
+def test_en_el_instalado_la_mejora_falla_sin_traza_en_el_registro(tmp_path, monkeypatch):
+    """086:RF-15 — el trabajo de la mejora termina con el aviso y el Registro lo dice en una línea."""
+    from convertersmartgrid.web.jobs import JobManager
+
+    _instalado_simulado(tmp_path, monkeypatch)
+    eventos = []
+    jobs = JobManager(lambda *a: eventos.append(a))
+    try:
+        j = jobs.submit('w', 'asistente_mejora', 'Proponer una librería',
+                        lambda _ctx: services.asistente_proponer_libreria(None, None, 'p', 'm'))
+        fin = time.monotonic() + 10
+        while j.status not in ('failed', 'done') and time.monotonic() < fin:
+            time.sleep(0.02)
+        assert j.status == 'failed' and j.error == edicion.MENSAJE_SOLO_DESARROLLO
+        assert not any('Traceback' in str(e) for e in eventos)
+    finally:
+        jobs.shutdown(timeout_s=2)
+
+
+def test_en_desarrollo_las_mejoras_siguen_igual(tmp_path, monkeypatch):
+    """086:RF-15 — en el árbol, también con ``CSG_EDICION=producto``, la mejora sigue hasta su validación."""
+    monkeypatch.setenv(edicion.VARIABLE_EDICION, 'producto')
+    assert not edicion.es_instalado()
+
+    class _Validada(Exception):
+        pass
+
+    def validar(_p):
+        raise _Validada
+
+    monkeypatch.setattr(mejoras, 'validar', validar)
+    with pytest.raises(_Validada):
+        mejoras.preparar_rama(tmp_path, {'id': 'x', 'paquete': 'y'})
 
 
 @pytest.mark.parametrize('nombre, llamada', [
@@ -157,81 +253,158 @@ def test_ninguna_via_lanza_pruebas_en_producto(tmp_path, monkeypatch, producto):
     ('asistente_proponer_libreria', lambda: services.asistente_proponer_libreria(None, None, 'p', 'm')),
     ('asistente_calcular_vectores', lambda: services.asistente_calcular_vectores(None, None)),
 ])
-def test_los_servicios_tampoco_entrenan_aunque_les_llamen_directo(producto, nombre, llamada):
-    """086:RF-15 — negar la ruta no basta: ``entrenar_asistente`` llega por el asistente, sin pasar por ella."""
-    with pytest.raises(services.UserError, match='esta versión'):
+def test_los_servicios_ya_no_se_niegan_en_producto(producto, monkeypatch, nombre, llamada):
+    """086:RF-15 — cada servicio entra en su trabajo: con argumentos vacíos falla por ellos, nunca por la edición.
+    Antes, todos respondían «Esta función no forma parte de esta versión del programa»."""
+    from convertersmartgrid.digital_twin import oraculo
+
+    def sin_gpu(*_a, **_k):                     # el controlador de la GPU no se toca en estas pruebas
+        raise oraculo.SinGPU('No hay GPU CUDA para el gemelo digital')
+
+    monkeypatch.setattr(oraculo, 'dispositivo', sin_gpu)
+    try:
         llamada()
+    except Exception as exc:                   # noqa: BLE001 - lo que importa es el motivo
+        assert 'esta versión' not in str(exc), nombre
+    assert not hasattr(services, '_fuera_de_la_version')
 
 
 def test_024_rf1_en_producto_la_captura_sigue_activa_y_solo_la_apaga_el_operador(monkeypatch, producto):
-    """024:RF-1 — orden del usuario (2026-11-13): «nada debería estar apagado ni bloqueado». Cada corrida de la web deja
-    su episodio también en la edición de producto; capturar no es entrenar (086:RF-15 sigue negando el entrenamiento)."""
+    """024:RF-1; 086:RF-15 — orden del usuario (2026-11-13): «nada debería estar apagado ni bloqueado». Cada corrida de
+    la web deja su episodio también en la edición de producto, y el ciclo de aprendizaje lo usa; solo lo apaga el operador."""
     monkeypatch.delenv(integration.VARIABLE_CAPTURA, raising=False)
     assert integration.captura_activa() is True
     monkeypatch.setenv(integration.VARIABLE_CAPTURA, '0')                 # la orden explícita del operador
     assert integration.captura_activa() is False
 
 
-def test_el_oraculo_no_usa_la_pinn_en_producto(monkeypatch, producto):
-    """086:RF-16 — en producto decide el flujo físico; la PINN no se entrega activa."""
-    from convertersmartgrid.digital_twin import oraculo
+def test_el_oraculo_usa_la_pinn_promovida_en_producto(tmp_path, monkeypatch, producto):
+    """086:RF-15 — en producto decide la PINN promovida, como en desarrollo; antes se ignoraba aunque la hubiera."""
+    from convertersmartgrid.digital_twin import buffer, oraculo
 
-    def no_debe(*_a, **_k):
-        raise AssertionError('no se carga la PINN')
+    promovida = object()
+    monkeypatch.setattr(buffer, 'BuferEpisodios', lambda *_a, **_k: 'búfer')
+    monkeypatch.setattr(oraculo, 'cargar', lambda bufer: promovida if bufer == 'búfer' else None)
+    assert services._pinn_promovido() is promovida
 
-    monkeypatch.setattr(oraculo, 'cargar', no_debe)
-    assert services._pinn_promovido() is None
+
+def test_el_ciclo_del_050_se_encola_en_producto(tmp_path, monkeypatch, producto):
+    """086:RF-15; 050:RF-4 — con su permiso y su plan, el producto encola el ciclo común; antes devolvía None."""
+    import json
+    import threading
+
+    from convertersmartgrid import aprendizaje_continuo as ac
+    from convertersmartgrid.web import app as web_app
+    from convertersmartgrid.web.jobs import JobManager
+
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '1')
+    plan = tmp_path / 'plan.json'
+    plan.write_text(json.dumps({'schema': ac.ESQUEMA_PLAN, 'workspace_id': 'espacio', 'raiz': str(tmp_path / 'ap'),
+                                'contexto': 'a' * 64, 'fuentes': {'dataset': str(tmp_path / 'dataset')},
+                                'familias': ['transformer'], 'politica_hash': 'b' * 64, 'tiempo_s': 600,
+                                'memoria_gib': 4, 'usa_gpu': True, 'parametros': {}}), encoding='utf-8')
+    monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(plan))
+    jobs = JobManager(lambda *_args: None)
+    ocupado, liberar = threading.Event(), threading.Event()
+
+    def mantener(_ctx):                         # el carril ocupado: el ciclo queda en cola y no se ejecuta aquí
+        ocupado.set()
+        assert liberar.wait(5)
+
+    jobs.submit('otro', 'aprendizaje:otro', 'otro ciclo', mantener)
+    assert ocupado.wait(2)
+    try:
+        trabajo = web_app.encolar_ciclo_aprendizaje(jobs, ['datos nuevos'])
+        assert trabajo is not None and trabajo is not False and trabajo.kind.startswith('aprendizaje:')
+        jobs.cancel(trabajo.id)
+    finally:
+        liberar.set()
+        jobs.shutdown(timeout_s=2)
 
 
 # ---------------------------------------------------------------- T12: rutas y tareas
 
-@pytest.mark.parametrize('metodo, ruta', RUTAS_FUERA)
-def test_el_servidor_niega_lo_que_no_se_vende(client, producto, metodo, ruta):
-    """086:RF-16 — ocultar el botón no basta: la ruta responde 403, y el mensaje es para el operador."""
-    wid = _wid(client)
-    r = getattr(client, metodo)(ruta.format(wid=wid), **({'json': {}} if metodo == 'post' else {}))
-    assert r.status_code == 403, f'{ruta}: {r.status_code} {r.text[:200]}'
-    assert 'esta versión' in r.json()['detail'] and not re.search(r'RF-\d|/api/|\.py', r.json()['detail'])
+@pytest.mark.parametrize('metodo, ruta', RUTAS_ANTES_NEGADAS)
+def test_el_servidor_ya_no_niega_rutas_por_la_edicion(producto, metodo, ruta):
+    """086:RF-16 — las rutas que la 1.0 negaba (403) se atienden en producto. Se mira la puerta, sin llamarlas:
+    varias lanzarían un entrenamiento de verdad."""
+    assert edicion.motivo_ruta_negada(ruta.format(wid='w')) is None, ruta
 
 
-def test_en_desarrollo_las_rutas_siguen(client):
-    """086:RF-16 — sin la edición de producto, ninguna ruta se niega."""
+def test_las_de_solo_lectura_responden_en_producto(client, producto):
+    """086:RF-16 — por la API real: el equipo, la aceptación y los episodios del gemelo, en producto."""
     for ruta in ('/api/asistente/aceptacion', '/api/asistente/equipo', f'/api/workspaces/{_wid(client)}/digital-twin/episodes'):
         assert client.get(ruta).status_code == 200, ruta
 
 
-def test_una_ruta_nueva_de_estas_nace_negada(client, producto):
-    """086:RF-16 — recorre la API: lo que entrene, revise por roles, proponga mejoras o toque el gemelo está en la lista."""
-    sospechosas = re.compile(r'entrenar|digital-twin|/revision|/equipo|/mejoras|/aceptacion|qlora|madrl|modelos/gemelo')
-    rutas = [r.path.replace('{wid}', 'x').replace('{plan_id}', 'y').replace('{propuesta_id}', 'z').replace('{episode_id}', 'e')
-             .replace('{modelo}', 'gemelo') for r in client.app.routes if sospechosas.search(getattr(r, 'path', ''))
-             or '{modelo}' in getattr(r, 'path', '')]
-    assert rutas, 'la búsqueda no halló nada: revise la expresión'
-    sueltas = [r for r in rutas if edicion.motivo_ruta_negada(r) is None]
-    assert not sueltas
+def test_ninguna_ruta_se_niega_en_producto_si_no_se_apaga_una_beta(client, producto):
+    """086:RF-16 — recorre toda la API: sin ``CSG_BETA_APAGADAS``, la edición de producto no niega ninguna."""
+    rutas = [r.path for r in client.app.routes if getattr(r, 'path', '').startswith('/api/')]
+    assert rutas
+    assert not [r for r in rutas if edicion.motivo_ruta_negada(r) is not None]
 
 
-def test_las_tareas_fuera_de_alcance_existen_y_no_se_ofrecen(client, monkeypatch, producto):
-    """086:RF-16 — la orden se contesta sin plan que confirmar; antes se ofrecía confirmar «reentrena la PINN»."""
-    assert edicion.TAREAS_FUERA_DE_ALCANCE <= set(TAREAS)
-    wid = _wid(client)
-    for tarea in sorted(edicion.TAREAS_FUERA_DE_ALCANCE):
-        plan = _orden(client, wid, tarea, monkeypatch, texto=f'orden {tarea}')['plan']
-        assert plan['tarea'] is None and not plan['listo'], tarea
-        assert any('esta versión' in d for d in plan['dudas']), tarea
+def test_las_tareas_se_ofrecen_en_producto(producto):
+    """086:RF-16 — la orden da su plan en producto; antes se contestaba «no forma parte de esta versión»."""
+    assert not hasattr(edicion, 'TAREAS_FUERA_DE_ALCANCE') and not hasattr(edicion, 'MENSAJE_FUERA_DE_ALCANCE')
+    for tarea in TAREAS_ANTES_NEGADAS:
+        assert tarea in TAREAS, tarea
+        plan = resolver(Interpretacion('orden', tarea, 0.9, 'x', {}, [], []), {})
+        assert plan.tarea == tarea and not any('esta versión' in d for d in plan.dudas), tarea
 
 
-def test_en_desarrollo_las_tareas_siguen():
-    """086:RF-16 — la misma interpretación da su plan en desarrollo."""
-    plan = resolver(Interpretacion('reentrena', 'gemelo_entrenar', 0.9, 'x', {}, [], []), {})
-    assert plan.tarea == 'gemelo_entrenar'
-
-
-def test_un_plan_guardado_de_antes_no_se_ejecuta_en_producto(tmp_path, monkeypatch, producto):
-    """086:RF-16 — un plan que quedó por confirmar al instalar la edición de producto no entrena al confirmarlo."""
-    guardado = {'plan': Plan('p', 't', 'entrenar_asistente', True, 'proceso'), 'extras': {}, 'gobierno': None}
-    with pytest.raises(services.UserError, match='esta versión'):
+def test_un_plan_guardado_de_entrenar_se_atiende_en_producto(producto):
+    """086:RF-16 — confirmar un plan de entrenar ya no se niega: llega a su propia comprobación (aquí, incompleto)."""
+    guardado = {'plan': Plan('p', 't', 'entrenar_asistente', True, 'proceso', faltan=['un dato']), 'extras': {}, 'gobierno': None}
+    with pytest.raises(services.UserError, match='no está completo'):
         services._asistente_ejecutar_plan(None, None, guardado, 'http://x', None, None)
+
+
+def test_el_doctor_informa_de_la_gpu_cuda_y_su_memoria(monkeypatch):
+    """086:RF-40 — entrenar y el gemelo piden una tarjeta NVIDIA con CUDA: el doctor dice cuál, su CUDA y su memoria
+    libre, y sin ella qué funciones afecta y cómo arreglarlo, sin trazas."""
+    from convertersmartgrid.web import doctor
+
+    hay = doctor._gpu(lambda: {'nombre': 'NVIDIA RTX de prueba', 'cuda': '12.6', 'memoria_total_mib': 8192,
+                               'memoria_libre_mib': 6144, 'controlador': '560.94'})
+    assert hay.ok and not hay.obligatoria and all(t in hay.detalle for t in ('NVIDIA RTX de prueba', 'CUDA 12.6', '6,0', '8,0'))
+    falta = doctor._gpu(lambda: None)
+    assert not falta.ok and not falta.obligatoria
+    assert 'gemelo' in falta.afecta and 'Entrenar' in falta.afecta and 'NVIDIA' in falta.arreglo
+    assert not re.search(r'Traceback|Error\b|\.py', falta.detalle + falta.arreglo)
+
+
+def test_sin_gpu_el_error_es_para_el_operador():
+    """086:RF-15 — sin CUDA, el gemelo no cae a la CPU (regla del proyecto) y lo dice sin órdenes de pip."""
+    from convertersmartgrid.training_coordinator import SinGPU, mensaje_sin_gpu
+
+    texto = mensaje_sin_gpu()
+    assert issubclass(SinGPU, RuntimeError) and 'GPU' in texto and 'CUDA' in texto and 'complemento de IA' in texto
+    assert 'pip ' not in texto and 'http' not in texto and 'CPU' in texto
+
+
+def test_un_trabajo_sin_gpu_no_deja_traza_en_el_registro(tmp_path):
+    """086:RF-15 — el trabajo falla con el mensaje, y el Registro lo dice en una línea en lugar de una traza."""
+    from convertersmartgrid.training_coordinator import SinGPU
+    from convertersmartgrid.web.jobs import JobManager
+
+    eventos = []
+    jobs = JobManager(lambda *a: eventos.append(a))
+
+    def sin_gpu(_ctx):
+        raise SinGPU('No hay GPU CUDA para el gemelo digital')
+
+    try:
+        j = jobs.submit('w', 'gemelo_entrenar', 'Entrenar el gemelo', sin_gpu)
+        fin = time.monotonic() + 10
+        while j.status not in ('failed', 'done') and time.monotonic() < fin:
+            time.sleep(0.02)
+        assert j.status == 'failed' and j.error.startswith('No hay GPU CUDA')
+        textos = [str(e) for e in eventos]
+        assert not any('Traceback' in t for t in textos)
+    finally:
+        jobs.shutdown(timeout_s=2)
 
 
 def test_health_dice_la_edicion(client, producto, monkeypatch):

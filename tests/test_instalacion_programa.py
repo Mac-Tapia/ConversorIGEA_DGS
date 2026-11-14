@@ -190,12 +190,19 @@ if __name__ == '__main__':
 
 
 def test_lo_que_lanza_la_web_entra_en_la_entrega(manifiesto):
-    """086:RF-36; 086:RF-34 — el fallo real: `powerfactory_acceptance.py`, el que importa en DIgSILENT, estaba excluido de la lista."""
-    guiones = re.findall(r"_script\('([\w.]+)'\)", (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8'))
-    # Lo de entrenar lo niega la edición de producto antes de llegar aquí (086:RF-15).
-    no_vendidos = {'digital_twin_entrenar.py', 'digital_twin_temporal_entrenar.py', 'asistente_entrenar.py'}
-    assert guiones
-    faltan = sorted({g for g in guiones if not CE.entra(f'tools/{g}', manifiesto)} - no_vendidos)
+    """086:RF-36; 086:RF-34 — el fallo real: `powerfactory_acceptance.py`, el que importa en DIgSILENT, estaba excluido de la lista.
+
+    086:RF-15 (usuario, 2026-11-13): lo de entrenar también se entrega. Antes se excluían ``digital_twin_entrenar.py``,
+    ``digital_twin_temporal_entrenar.py``, ``asistente_entrenar.py`` y los que lanza el código (el ciclo del 050, la
+    destilación y la reapertura de un candidato en otro proceso): en el programa instalado, entrenar habría dado
+    «No se encuentra el guion». Solo queda fuera la suite, que necesita ``tests/`` (086 D4)."""
+    fuentes = {f: f.read_text(encoding='utf-8') for f in (RAIZ / 'src').rglob('*.py')}
+    guiones = set(re.findall(r"_script\('([\w.]+)'\)", fuentes[RAIZ / 'src/convertersmartgrid/web/services.py']))
+    for texto in fuentes.values():
+        guiones |= set(re.findall(r"(?:'tools' / |tools_dir\(\) / |'tools/)'?([a-z_]+\.py)'", texto))
+    sin_pruebas = {'suite_por_tandas.py'}
+    assert {'digital_twin_entrenar.py', 'aprendizaje_continuo.py', 'asistente_destilar.py'} <= guiones
+    faltan = sorted({g for g in guiones - sin_pruebas if (RAIZ / 'tools' / g).is_file() and not CE.entra(f'tools/{g}', manifiesto)})
     assert not faltan, faltan
 
 
@@ -214,7 +221,9 @@ def test_los_guiones_entregados_no_importan_uno_excluido(manifiesto):
 
 
 def test_lo_instalado_es_de_producto_sin_que_nadie_lo_diga(monkeypatch, tmp_path):
-    """086:RF-36; 086:RF-15 — abrirlo sin el lanzador no destapa el entrenamiento; en el árbol, sin la variable, sigue siendo desarrollo."""
+    """086:RF-36; 086:RF-22 — lo instalado es de producto sin que nadie lo diga, y ``CSG_EDICION`` solo puede forzar «producto»:
+    con «desarrollo» un programa instalado encendía por defecto las salidas a la red, y los datos del cliente salían de su equipo.
+    En el árbol, sin la variable, sigue siendo desarrollo."""
     monkeypatch.delenv('CSG_EDICION', raising=False)
     assert es_edicion_producto() is False
     instalado = tmp_path / 'convertersmartgrid' / '_programa'
@@ -224,7 +233,11 @@ def test_lo_instalado_es_de_producto_sin_que_nadie_lo_diga(monkeypatch, tmp_path
     monkeypatch.setattr('convertersmartgrid.edicion.raiz_programa', lambda: instalado)
     assert es_edicion_producto() is True
     monkeypatch.setenv('CSG_EDICION', 'desarrollo')
+    assert es_edicion_producto() is True
+    monkeypatch.setattr('convertersmartgrid.edicion.raiz_programa', lambda: RAIZ)
     assert es_edicion_producto() is False
+    monkeypatch.setenv('CSG_EDICION', 'producto')
+    assert es_edicion_producto() is True
 
 
 # --------------------------------------------------------------------------- RF-38: programa y datos

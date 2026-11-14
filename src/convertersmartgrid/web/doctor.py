@@ -10,7 +10,9 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import os
+import re
 import shutil
+import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
@@ -183,11 +185,58 @@ def _calibracion_del_perfil() -> Comprobacion:
 
 
 def _ia(buscar: Callable[[str], Any]) -> Comprobacion:
-    """El complemento de IA es opcional en la 1.0: faltarle no estropea nada de lo que se vende (086:RF-37)."""
+    """El complemento de IA es opcional en la 1.0: faltarle no estropea convertir, calibrar ni los informes (086:RF-37)."""
     hay = buscar('torch') is not None
-    afecta = 'Modelos locales del asistente de órdenes, en beta. Convertir, calibrar e informes no los usan.'
+    afecta = ('Entrenar los modelos, el gemelo digital (PINN y GRU), el pronóstico por modelos, la revisión por roles y los '
+              'modelos locales del asistente de órdenes. Convertir, calibrar e informes no los usan.')
     return Comprobacion('complemento_ia', 'Complemento de IA', hay, False, 'Instalado.' if hay else 'No instalado.', afecta,
-                        '' if hay else 'Es opcional: si quiere esos modelos, instale el complemento de IA según el manual de instalación.')
+                        '' if hay else 'Es opcional: si quiere esas funciones, instale el complemento de IA según el manual de instalación.')
+
+
+def _gpu_del_equipo(buscar_programa: Callable[[str], str | None] = shutil.which) -> dict[str, Any] | None:
+    """La tarjeta NVIDIA, su CUDA y su memoria, preguntadas a ``nvidia-smi``: sin importar torch ni reservar la GPU.
+
+    None si no hay ``nvidia-smi`` o no responde (sin tarjeta NVIDIA, o con el controlador a medio instalar).
+    """
+    smi = buscar_programa('nvidia-smi')
+    if not smi:
+        return None
+    try:
+        r = subprocess.run([smi, '--query-gpu=name,driver_version,memory.total,memory.free', '--format=csv,noheader,nounits'],
+                           capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10, check=False,
+                           creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        cabecera = subprocess.run([smi], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10,
+                                  check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except (OSError, subprocess.SubprocessError):
+        return None
+    primera = next((linea for linea in r.stdout.splitlines() if linea.strip()), '')
+    partes = [x.strip() for x in primera.split(',')]
+    if r.returncode != 0 or len(partes) < 4:
+        return None
+    try:
+        total, libre = int(float(partes[2])), int(float(partes[3]))
+    except ValueError:
+        return None
+    cuda = re.search(r'CUDA Version:\s*([\d.]+)', cabecera.stdout or '')
+    return {'nombre': partes[0], 'controlador': partes[1], 'memoria_total_mib': total, 'memoria_libre_mib': libre,
+            'cuda': cuda.group(1) if cuda else None}
+
+
+def _gib(mib: float) -> str:
+    return f'{mib / 1024:.1f}'.replace('.', ',')
+
+
+def _gpu(consultar: Callable[[], Mapping[str, Any] | None]) -> Comprobacion:
+    """086:RF-40: entrenar y el gemelo piden una GPU NVIDIA con CUDA, nunca la CPU; el doctor dice cuál y cuánta memoria."""
+    afecta = ('Entrenar los modelos, el gemelo digital (PINN y GRU) y el pronóstico por modelos: solo corren en una GPU '
+              'NVIDIA con CUDA. Convertir, calibrar e informes no la usan.')
+    g = consultar()
+    if not g:
+        return Comprobacion('gpu', 'GPU NVIDIA con CUDA', False, False, 'No se encuentra una tarjeta NVIDIA que responda.',
+                            afecta, 'Es opcional: instale una tarjeta NVIDIA con su controlador al día, y el complemento de IA.')
+    detalle = (f"{g['nombre']}, CUDA {g.get('cuda') or 'sin versión'}, {_gib(g['memoria_libre_mib'])} GiB libres de "
+               f"{_gib(g['memoria_total_mib'])} GiB" + (f", controlador {g['controlador']}" if g.get('controlador') else '') + '.')
+    return Comprobacion('gpu', 'GPU NVIDIA con CUDA', True, False, detalle, afecta, '')
 
 
 def _tesseract_en_sus_rutas() -> str | None:
@@ -217,7 +266,9 @@ def _python_propio() -> Comprobacion:
 
 def _edicion() -> Comprobacion:
     producto = es_edicion_producto()
-    return Comprobacion('edicion', 'Edición', True, False, 'Producto.' if producto else 'Desarrollo.', 'Qué funciones se ofrecen.', '')
+    # 086:RF-15, RF-22 (usuario, 2026-11-13): las dos ediciones ofrecen las mismas funciones; solo cambian las salidas a la red.
+    return Comprobacion('edicion', 'Edición', True, False, 'Producto.' if producto else 'Desarrollo.',
+                        'Las salidas a la red: en producto, apagadas hasta que se enciendan.', '')
 
 
 def diagnosticar(
@@ -225,6 +276,7 @@ def diagnosticar(
     version: tuple[int, ...] | None = None, carpeta_pf: Callable[[], Path | None] = pf_python_dir,
     programa: Path | None = None, buscar_modulo: Callable[[str], Any] = importlib.util.find_spec,
     buscar_programa: Callable[[str], str | None] = shutil.which, espacio_minimo_mb: int = ESPACIO_MINIMO_MB,
+    consultar_gpu: Callable[[], Mapping[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     """El informe del doctor. Las dependencias se inyectan para poder quitar cada requisito en una prueba."""
     raiz = project_root() if programa is None else programa
@@ -235,7 +287,8 @@ def diagnosticar(
                      'Todo el programa, y hablar con DIgSILENT, cuya API solo carga en 3.12.',
                      '' if python_ok else f'Se requiere 3.12. {_REINSTALAR}'),
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
-        _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo), _tesseract(buscar_programa), _edicion(),
+        _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo),
+        _gpu(consultar_gpu or (lambda: _gpu_del_equipo(buscar_programa))), _tesseract(buscar_programa), _edicion(),
         *([_python_propio()] if es_programa_instalado(raiz) else []),
     ]
     filas = [asdict(c) for c in comprobaciones]

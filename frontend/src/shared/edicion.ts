@@ -3,7 +3,8 @@ import type { Health } from '../api/types';
 export type ClaveBeta = 'asistente' | 'set_nueva' | 'pide' | 'confiabilidad';
 type Edicion = Pick<Health, 'edicion'>;
 
-/** 086:RF-16: qué se enseña lo decide el servidor (`/api/health`); aquí solo se pregunta. */
+/** 086:RF-16: qué edición es lo dice el servidor (`/api/health`). Desde el 2026-11-13 (usuario: «nada debería estar
+ * apagado ni bloqueado») ninguna pantalla se oculta por la edición: solo se marcan las betas y se respeta la que se apague. */
 export const esProducto = (h: Edicion): boolean => h.edicion.producto;
 
 /** Una función en beta apagada no se ofrece. En desarrollo no hay betas: todo sigue visible. */

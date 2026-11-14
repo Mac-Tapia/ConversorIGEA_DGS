@@ -91,17 +91,42 @@ def _suite_viva(fila) -> bool:
 _cola_aprendizaje_lock = threading.Lock()
 
 
+#: ``0`` para el reentreno automático: la orden explícita del operador, como ``CSG_TWIN_CAPTURA=0`` para la captura.
+VARIABLE_AUTOENTRENAMIENTO = 'CSG_AUTOENTRENAMIENTO'
+#: Otra ruta del plan del ciclo; sin ella, el de los datos del asistente (``aprendizaje/plan.json``).
+VARIABLE_PLAN_APRENDIZAJE = 'CSG_APRENDIZAJE_PLAN'
+
+
+def autoentrenamiento_activo() -> bool:
+    """050:RF-4; 071:RF-6 (usuario, 2026-11-13): el reentreno automático va siempre, salvo la orden de pararlo.
+
+    Hasta entonces hacía falta ``CSG_AUTOENTRENAMIENTO=1`` para empezar, y nadie la ponía en el equipo del cliente:
+    el ciclo no corría nunca. Lo que no cambia es la puerta de promover (071:RF-3, RF-4).
+    """
+    return os.environ.get(VARIABLE_AUTOENTRENAMIENTO, '1').strip() != '0'
+
+
+def ruta_plan_aprendizaje() -> Path:
+    from ..asistente import almacen
+
+    ruta = os.environ.get(VARIABLE_PLAN_APRENDIZAJE, '').strip()
+    return Path(ruta) if ruta else almacen.raiz() / 'aprendizaje' / 'plan.json'
+
+
 def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
-    """050:RF-4/8: un trabajo común por plan vivo; autoentrenar requiere permiso explícito."""
+    """050:RF-4/8: un trabajo común por plan vivo, en el carril de fondo, que cede al operador."""
     from .. import aprendizaje_continuo as ac
     from ..asistente import almacen
     from ..powerfactory_env import tools_dir
-    if es_edicion_producto() or os.environ.get('CSG_AUTOENTRENAMIENTO') != '1':
+    # 086:RF-15: también en la edición de producto. Solo lo para la orden explícita (071:RF-6).
+    if not autoentrenamiento_activo():
         return None
-    ruta = os.environ.get('CSG_APRENDIZAJE_PLAN', '').strip()
+    ruta = str(ruta_plan_aprendizaje())
     try:
-        if not ruta:
-            raise ac.CicloBloqueado('Falta CSG_APRENDIZAJE_PLAN: el ciclo conjunto no tiene plan autorizado.')
+        if not Path(ruta).is_file():
+            # 050:RF-8: faltar el plan es un dato que falta: se anota el bloqueo y se sigue con el conjunto aceptado.
+            raise ac.CicloBloqueado(f'Falta el plan del ciclo de aprendizaje ({ruta}): sin él no se sabe qué '
+                                    'espacio, fuentes y presupuesto usar.')
         plan = ac.cargar_plan_ciclo(ruta)
     except (OSError, ValueError) as exc:
         ac.registrar_bloqueo(almacen.raiz() / 'aprendizaje', 'cola', [str(exc)], disparadores=motivos)
@@ -148,10 +173,9 @@ def arrancar_vigilancia(jobs: JobManager):
 
     v = Vigilante(listar_trabajos=lambda: [j.public() for j in jobs.list()], reintentar=reintentar,
                   entrenar_gemelo=lambda: None, entrenar_asistente=lambda: None,
-                  # 071:RF-6: hasta que haya un solo pipeline por modelo, no lanza entrenamientos
-                  # ni anuncia que reentrena, salvo que se pida.
-                  contar_nuevos=(services.asistente_nuevos if os.environ.get('CSG_AUTOENTRENAMIENTO') == '1'
-                                 else (lambda: (0, 0))),
+                  # 071:RF-6: ve los datos nuevos salvo la orden de parar; se pregunta en cada vuelta, para que
+                  # la orden valga sin reiniciar la web.
+                  contar_nuevos=lambda: services.asistente_nuevos() if autoentrenamiento_activo() else (0, 0),
                   repo=project_root(), proceso_vivo=_suite_viva,
                   ciclo=lambda motivos: encolar_ciclo_aprendizaje(jobs, motivos))
     v.arrancar()
@@ -2423,7 +2447,7 @@ def create_app(
     def _programar_vectores(ws: Workspace) -> None:
         """047:RF-22: la pregunta ya tiene respuesta con lo que hay; lo que falte, detrás y sin pedirlo.
         Solo el servidor real: las pruebas crean la app a cientos y no deben usar Ollama por su cuenta."""
-        if os.environ.get('CSG_ASISTENTE_VECTORES') != '1' or es_edicion_producto():       # 086:RF-16
+        if os.environ.get('CSG_ASISTENTE_VECTORES') != '1':                     # 086:RF-15: en las dos ediciones
             return
         if any(j.kind == 'asistente_indice' and j.status not in FINISHED for j in jobs.list()):
             return

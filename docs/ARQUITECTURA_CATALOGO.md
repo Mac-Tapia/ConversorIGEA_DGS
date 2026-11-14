@@ -12,12 +12,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 106 |
 | Interfaz | `frontend/src/` | 65 |
-| Pruebas de la interfaz | `frontend/test/` | 23 |
+| Pruebas de la interfaz | `frontend/test/` | 24 |
 | Pruebas | `tests/` | 437 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 318 |
 
-`web/services.py` tiene 13508 líneas y 415 funciones, pendiente de partir (002).
+`web/services.py` tiene 13482 líneas y 414 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -131,58 +131,58 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 
 ### Tareas (48)
 
-Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. «Producto» dice si queda en esa edición.
+Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).
 
-| Tarea | Modo | Escribe | Carril | Producto | Función | Datos | Qué hace |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `estado` | consulta | no | engine | sí | `feeder_rows` | — | Qué hay cargado en el espacio, sus alimentadores, trabajos y salidas. |
-| `proyectos` | consulta | no | engine | sí | `pf_proyectos_guardados` | — | Los proyectos de DIgSILENT que la web ya conoce. |
-| `resultados_pide` | consulta | no | engine | sí | `pide_ejecutar` | proyecto? | Las obras, prioridades y formatos del último PIDE de un proyecto. |
-| `episodios` | consulta | no | engine | no | `gemelo_episodios` | proyecto? | Los episodios del gemelo digital por clase y caso. |
-| `pregunta` | consulta | no | engine | no | `asistente_pregunta` | texto | Cómo funciona el conversor, con cita de ficheros, funciones y RF. |
-| `clasificar_informe` | consulta | no | engine | sí | `asistente_clasificar` | texto | A qué tipo y subtipo de estudio corresponde un informe o un pedido. |
-| `buscar_internet` | consulta | no | engine | sí | `asistente_buscar` | texto | Busca librerías, proyectos o artículos, sin datos de la red (RF-29). |
-| `leer_proyectos` | trabajo | no | powerfactory | sí | `pf_projects` | — | Lee de DIgSILENT la lista de proyectos. |
-| `evaluar_gemelo` | trabajo | no | engine | no | `gemelo_evaluar` | — | Cuánto se apartan de DIgSILENT el modelo del gemelo y la física (024:RF-74). |
-| `cargar_fuente` | trabajo | sí | engine | sí | `load_dataset` | — | Carga la fuente asignada al espacio. |
-| `convertir` | trabajo | sí | engine | sí | `convert` | alimentadores | Convierte alimentadores a DGS, uno por fichero. |
-| `unir` | trabajo | sí | engine | sí | `convert_group` | alimentadores | Convierte varios alimentadores en una red unida. |
-| `convertir_sistema` | trabajo | sí | engine | sí | `convert_group` | sistema | Convierte un sistema eléctrico a un DGS por sistema. |
-| `sistema_completo` | proceso | sí | powerfactory | sí | `sistema_web` | sistema, periodo, ruta? | Sistema eléctrico de punta a punta: convertir, importar y calibrar (022:RF-56). |
-| `flujo` | trabajo | sí | powerfactory | sí | `powerfactory_flow` | alimentadores | Flujo de potencia en DIgSILENT de los alimentadores. |
-| `verificar_caso_base` | trabajo | sí | powerfactory | sí | `pf_verificar_base` | proyecto, alimentadores? | Verifica el «Caso base» frente al archivo original (spec 015). |
-| `cargas_nuevas` | trabajo | sí | powerfactory | sí | `cargas_ejecutar` | proyecto, alimentadores, ruta | Integra las cargas nuevas de un Excel en «Con proyecto» (specs 007 y 014). |
-| `obras` | trabajo | sí | powerfactory | sí | `obras_ejecutar` | proyecto, alimentadores | Aplica en DIgSILENT las obras pendientes del espacio (spec 011). |
-| `estudios` | trabajo | sí | powerfactory | sí | `estudios_ejecutar` | proyecto, alimentadores, estudio? | Estudios de la red en los casos del proyecto (spec 011). |
-| `obras_escalera` | trabajo | sí | powerfactory | sí | `obras_escalera` | proyecto, alimentadores, ruta? | Escalera de obras en «Con proyecto»: bancos, sección y terna hasta dejar la red en norma (025:RF-44). |
-| `optimizar_con_proyecto` | trabajo | sí | powerfactory | sí | `con_proyecto_optimizar` | proyecto, alimentadores, ruta?, set? | Optimiza «Con proyecto»: escalera carga a carga y SET nueva para las que no caben (042:RF-13, spec 052). |
-| `transferencia` | trabajo | sí | powerfactory | sí | `transferencia_ejecutar` | proyecto, alimentadores | Transferencia de carga entre dos alimentadores (spec 011). |
-| `pide` | trabajo | sí | powerfactory | sí | `pide_ejecutar` | proyecto, alimentadores, periodo? | Metodología del PIDE: diagnóstico, obras propias y formatos (024, T13 y T14). |
-| `gemelo_aprender` | trabajo | sí | powerfactory | no | `gemelo_aprender` | proyecto, alimentadores, numero? | Aprendizaje activo del gemelo: escenarios en una copia del proyecto (024, T10). |
-| `gemelo_entrenar` | trabajo | sí | engine | no | `gemelo_entrenar` | — | Reentrena el oráculo PINN del gemelo con lo que hay en el búfer (024, T11). |
-| `gemelo_temporal` | trabajo | sí | engine | no | `gemelo_temporal` | alimentadores? | Gemelo temporal del mes con las curvas de la última máxima (024, T12). |
-| `informe_estudio` | trabajo | sí | engine | sí | `informe_estudio` | proyecto, alimentadores, subtipo? | Informe de estudio eléctrico en Word (spec 017). |
-| `informe_factibilidad` | trabajo | sí | powerfactory | sí | `informe_factibilidad` | proyecto, alimentadores, sed, subtipo? | Informe de factibilidad de una carga nueva (spec 017). |
-| `consultar_datos` | consulta | no | engine | sí | `sed_de_alimentador` | alimentadores?, proyecto?, set?, periodo? | Consulta lo que hay: alimentadores, SED, medidores, clientes fijos, máximas buscadas, años de medición, catálogo, variaciones escaneadas, proyectos y última calibración, con su fuente (070:RF-41). |
-| `no_disponible` | consulta | no | engine | sí | `estudios_catalogo` | estudio?, proyecto? | Dice por qué un estudio no está disponible: cortocircuito, protecciones, optimización no lineal y los que el catálogo no ofrece, sin ejecutar nada (070:RF-47). |
-| `evaluar_carga_nueva` | etapas | sí | powerfactory | sí | `agente_proyecto` | proyecto, alimentadores, sed, periodo?, ruta? | Evalúa una carga nueva de una vez: diagnóstico, calibración si hace falta, carga, informe y obras solo si hay problemas (070:RF-50). |
-| `cancelar_trabajo` | trabajo | sí | engine | sí | `pf_projects` | — | Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32). |
-| `convertir_set` | trabajo | sí | engine | sí | `sistema_seleccion` | set | Convierte una SET sola, con sus alimentadores y su barra (022:RF-82). |
-| `set_completo` | proceso | sí | powerfactory | sí | `sistema_web` | set, periodo, ruta? | Una SET de punta a punta: convertir, importar y calibrar con su máxima de barra (070:RF-21). |
-| `alimentadores_completo` | proceso | sí | powerfactory | sí | `sistema_web` | alimentadores, periodo, ruta? | Uno o varios alimentadores de punta a punta: convertir, importar y calibrar (028:RF-25). |
-| `buscar_maxima` | trabajo | no | engine | sí | `demanda_cabecera` | alimentadores?, set?, sistema?, periodo?, alcance? | Busca la máxima según el alcance: alimentadores, SET o sistema (028:RF-27). |
-| `cruzar_clientes` | trabajo | no | engine | sí | `demanda_clientes` | alimentadores?, periodo? | Cruza los clientes de la máxima ya buscada: quiénes quedan fijos (035:RF-1). |
-| `calibrar` | trabajo | sí | powerfactory | sí | `ajuste_plan` | proyecto | Calibra un proyecto con la última máxima buscada: prepara el plan y lo aplica (spec 006). |
-| `simular_calibracion` | trabajo | sí | powerfactory | sí | `ajuste_plan` | proyecto | Simula la calibración de un proyecto con la última máxima, sin aplicarla (spec 006). |
-| `recalibrar` | proceso | sí | powerfactory | sí | `sistema_web` | proyecto, periodo, ruta? | Recalibra un proyecto ya importado, sin reconvertir (028:RF-21). |
-| `escanear` | trabajo | no | powerfactory | sí | `escanear_alimentadores` | proyecto, alimentadores | Lee del proyecto generadores, bancos y lo cambiado a mano, sin escribir (spec 028). |
-| `verificar_convergencia` | trabajo | no | powerfactory | sí | `pf_verificar` | proyecto, alimentadores? | Corre el flujo con lo activo para ver si el proyecto converge, sin grabar (008:RF-18). |
-| `carga_nueva_sola` | trabajo | sí | powerfactory | sí | `cargas_plan` | proyecto, alimentadores, sed | Conecta una carga nueva sola, con el formulario de 3.2 (008:RF-24, 070:RF-29). |
-| `proyecto_entero` | etapas | sí | powerfactory | sí | `agente_proyecto` | sistema, periodo, ruta? | El proyecto entero de un sistema, etapa por etapa, con la lista de etapas a la vista (027:RF-43). |
-| `leer_solicitud` | trabajo | sí | engine | sí | `informe_documentos` | ruta | Lee los PDF del solicitante y propone sus datos, sin rellenar el formulario (017:RF-137). |
-| `descargar_resultados` | trabajo | no | engine | sí | `feeder_rows` | alimentadores? | Prepara el ZIP de los resultados y da el enlace para bajarlo (spec 001). |
-| `pronostico` | trabajo | sí | engine | no | `gemelo_temporal` | ruta, alimentadores? | Pronóstico de demanda de cabecera o de clientes fijos, con su competencia de modelos (spec 046). Es un pronóstico, nunca una medición. |
-| `entrenar_asistente` | proceso | sí | engine | no | `asistente_entrenar` | — | Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28). |
+| Tarea | Modo | Escribe | Carril | Función | Datos | Qué hace |
+| --- | --- | --- | --- | --- | --- | --- |
+| `estado` | consulta | no | engine | `feeder_rows` | — | Qué hay cargado en el espacio, sus alimentadores, trabajos y salidas. |
+| `proyectos` | consulta | no | engine | `pf_proyectos_guardados` | — | Los proyectos de DIgSILENT que la web ya conoce. |
+| `resultados_pide` | consulta | no | engine | `pide_ejecutar` | proyecto? | Las obras, prioridades y formatos del último PIDE de un proyecto. |
+| `episodios` | consulta | no | engine | `gemelo_episodios` | proyecto? | Los episodios del gemelo digital por clase y caso. |
+| `pregunta` | consulta | no | engine | `asistente_pregunta` | texto | Cómo funciona el conversor, con cita de ficheros, funciones y RF. |
+| `clasificar_informe` | consulta | no | engine | `asistente_clasificar` | texto | A qué tipo y subtipo de estudio corresponde un informe o un pedido. |
+| `buscar_internet` | consulta | no | engine | `asistente_buscar` | texto | Busca librerías, proyectos o artículos, sin datos de la red (RF-29). |
+| `leer_proyectos` | trabajo | no | powerfactory | `pf_projects` | — | Lee de DIgSILENT la lista de proyectos. |
+| `evaluar_gemelo` | trabajo | no | engine | `gemelo_evaluar` | — | Cuánto se apartan de DIgSILENT el modelo del gemelo y la física (024:RF-74). |
+| `cargar_fuente` | trabajo | sí | engine | `load_dataset` | — | Carga la fuente asignada al espacio. |
+| `convertir` | trabajo | sí | engine | `convert` | alimentadores | Convierte alimentadores a DGS, uno por fichero. |
+| `unir` | trabajo | sí | engine | `convert_group` | alimentadores | Convierte varios alimentadores en una red unida. |
+| `convertir_sistema` | trabajo | sí | engine | `convert_group` | sistema | Convierte un sistema eléctrico a un DGS por sistema. |
+| `sistema_completo` | proceso | sí | powerfactory | `sistema_web` | sistema, periodo, ruta? | Sistema eléctrico de punta a punta: convertir, importar y calibrar (022:RF-56). |
+| `flujo` | trabajo | sí | powerfactory | `powerfactory_flow` | alimentadores | Flujo de potencia en DIgSILENT de los alimentadores. |
+| `verificar_caso_base` | trabajo | sí | powerfactory | `pf_verificar_base` | proyecto, alimentadores? | Verifica el «Caso base» frente al archivo original (spec 015). |
+| `cargas_nuevas` | trabajo | sí | powerfactory | `cargas_ejecutar` | proyecto, alimentadores, ruta | Integra las cargas nuevas de un Excel en «Con proyecto» (specs 007 y 014). |
+| `obras` | trabajo | sí | powerfactory | `obras_ejecutar` | proyecto, alimentadores | Aplica en DIgSILENT las obras pendientes del espacio (spec 011). |
+| `estudios` | trabajo | sí | powerfactory | `estudios_ejecutar` | proyecto, alimentadores, estudio? | Estudios de la red en los casos del proyecto (spec 011). |
+| `obras_escalera` | trabajo | sí | powerfactory | `obras_escalera` | proyecto, alimentadores, ruta? | Escalera de obras en «Con proyecto»: bancos, sección y terna hasta dejar la red en norma (025:RF-44). |
+| `optimizar_con_proyecto` | trabajo | sí | powerfactory | `con_proyecto_optimizar` | proyecto, alimentadores, ruta?, set? | Optimiza «Con proyecto»: escalera carga a carga y SET nueva para las que no caben (042:RF-13, spec 052). |
+| `transferencia` | trabajo | sí | powerfactory | `transferencia_ejecutar` | proyecto, alimentadores | Transferencia de carga entre dos alimentadores (spec 011). |
+| `pide` | trabajo | sí | powerfactory | `pide_ejecutar` | proyecto, alimentadores, periodo? | Metodología del PIDE: diagnóstico, obras propias y formatos (024, T13 y T14). |
+| `gemelo_aprender` | trabajo | sí | powerfactory | `gemelo_aprender` | proyecto, alimentadores, numero? | Aprendizaje activo del gemelo: escenarios en una copia del proyecto (024, T10). |
+| `gemelo_entrenar` | trabajo | sí | engine | `gemelo_entrenar` | — | Reentrena el oráculo PINN del gemelo con lo que hay en el búfer (024, T11). |
+| `gemelo_temporal` | trabajo | sí | engine | `gemelo_temporal` | alimentadores? | Gemelo temporal del mes con las curvas de la última máxima (024, T12). |
+| `informe_estudio` | trabajo | sí | engine | `informe_estudio` | proyecto, alimentadores, subtipo? | Informe de estudio eléctrico en Word (spec 017). |
+| `informe_factibilidad` | trabajo | sí | powerfactory | `informe_factibilidad` | proyecto, alimentadores, sed, subtipo? | Informe de factibilidad de una carga nueva (spec 017). |
+| `consultar_datos` | consulta | no | engine | `sed_de_alimentador` | alimentadores?, proyecto?, set?, periodo? | Consulta lo que hay: alimentadores, SED, medidores, clientes fijos, máximas buscadas, años de medición, catálogo, variaciones escaneadas, proyectos y última calibración, con su fuente (070:RF-41). |
+| `no_disponible` | consulta | no | engine | `estudios_catalogo` | estudio?, proyecto? | Dice por qué un estudio no está disponible: cortocircuito, protecciones, optimización no lineal y los que el catálogo no ofrece, sin ejecutar nada (070:RF-47). |
+| `evaluar_carga_nueva` | etapas | sí | powerfactory | `agente_proyecto` | proyecto, alimentadores, sed, periodo?, ruta? | Evalúa una carga nueva de una vez: diagnóstico, calibración si hace falta, carga, informe y obras solo si hay problemas (070:RF-50). |
+| `cancelar_trabajo` | trabajo | sí | engine | `pf_projects` | — | Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32). |
+| `convertir_set` | trabajo | sí | engine | `sistema_seleccion` | set | Convierte una SET sola, con sus alimentadores y su barra (022:RF-82). |
+| `set_completo` | proceso | sí | powerfactory | `sistema_web` | set, periodo, ruta? | Una SET de punta a punta: convertir, importar y calibrar con su máxima de barra (070:RF-21). |
+| `alimentadores_completo` | proceso | sí | powerfactory | `sistema_web` | alimentadores, periodo, ruta? | Uno o varios alimentadores de punta a punta: convertir, importar y calibrar (028:RF-25). |
+| `buscar_maxima` | trabajo | no | engine | `demanda_cabecera` | alimentadores?, set?, sistema?, periodo?, alcance? | Busca la máxima según el alcance: alimentadores, SET o sistema (028:RF-27). |
+| `cruzar_clientes` | trabajo | no | engine | `demanda_clientes` | alimentadores?, periodo? | Cruza los clientes de la máxima ya buscada: quiénes quedan fijos (035:RF-1). |
+| `calibrar` | trabajo | sí | powerfactory | `ajuste_plan` | proyecto | Calibra un proyecto con la última máxima buscada: prepara el plan y lo aplica (spec 006). |
+| `simular_calibracion` | trabajo | sí | powerfactory | `ajuste_plan` | proyecto | Simula la calibración de un proyecto con la última máxima, sin aplicarla (spec 006). |
+| `recalibrar` | proceso | sí | powerfactory | `sistema_web` | proyecto, periodo, ruta? | Recalibra un proyecto ya importado, sin reconvertir (028:RF-21). |
+| `escanear` | trabajo | no | powerfactory | `escanear_alimentadores` | proyecto, alimentadores | Lee del proyecto generadores, bancos y lo cambiado a mano, sin escribir (spec 028). |
+| `verificar_convergencia` | trabajo | no | powerfactory | `pf_verificar` | proyecto, alimentadores? | Corre el flujo con lo activo para ver si el proyecto converge, sin grabar (008:RF-18). |
+| `carga_nueva_sola` | trabajo | sí | powerfactory | `cargas_plan` | proyecto, alimentadores, sed | Conecta una carga nueva sola, con el formulario de 3.2 (008:RF-24, 070:RF-29). |
+| `proyecto_entero` | etapas | sí | powerfactory | `agente_proyecto` | sistema, periodo, ruta? | El proyecto entero de un sistema, etapa por etapa, con la lista de etapas a la vista (027:RF-43). |
+| `leer_solicitud` | trabajo | sí | engine | `informe_documentos` | ruta | Lee los PDF del solicitante y propone sus datos, sin rellenar el formulario (017:RF-137). |
+| `descargar_resultados` | trabajo | no | engine | `feeder_rows` | alimentadores? | Prepara el ZIP de los resultados y da el enlace para bajarlo (spec 001). |
+| `pronostico` | trabajo | sí | engine | `gemelo_temporal` | ruta, alimentadores? | Pronóstico de demanda de cabecera o de clientes fijos, con su competencia de modelos (spec 046). Es un pronóstico, nunca una medición. |
+| `entrenar_asistente` | proceso | sí | engine | `asistente_entrenar` | — | Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28). |
 
 ### Etapas del proyecto entero
 
@@ -230,7 +230,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `naming.py` | Dom | 034, 011 | Nombres y selectores de alimentador. |
 | `perfil_empresa.py` | Dom | 002, 020, 021, 025 | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código. |
 | `perfil_esquema.py` | Ada | 086 | Valida un perfil contra su esquema: valores imposibles, claves desconocidas y lo que falta con la función que afecta. |
-| `edicion.py` | Dom | 086 | Qué edición corre y qué entrega la de producto: rutas y tareas fuera de alcance, y funciones en beta. |
+| `edicion.py` | Dom | 086 | Qué edición corre (el programa instalado siempre es de producto) y las funciones en beta, activas y desactivables por el operador. |
 | `salidas_red.py` | Dom | 086 | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. |
 | `sesion_web.py` | Dom | 086 | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. |
 | `registro_rotativo.py` | Ada | 086 | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. |
@@ -830,6 +830,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
+| `frontend/test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

@@ -133,7 +133,11 @@ def test_la_vigilancia_la_lanza_aparte_y_avisa(tmp_path, monkeypatch):
 
 
 def test_lanzar_espera_solo_al_paso_intermedio(tmp_path):
-    """081:RF-37, 081:RF-40 — devuelve al terminar el intermedio; si no se pudo, lo registra."""
+    """081:RF-37, 081:RF-40 — devuelve al terminar el intermedio; si no se pudo, lo registra.
+    Con las pruebas y su herramienta en el árbol: sin ellas no se lanza (086:RF-15, ``test_edicion_producto``)."""
+    (tmp_path / 'tests').mkdir()
+    (tmp_path / 'tools').mkdir()
+    (tmp_path / 'tools' / 'suite_por_tandas.py').write_text('', encoding='utf-8')
     llamadas = []
 
     def lanzar(cmd, **_kw):

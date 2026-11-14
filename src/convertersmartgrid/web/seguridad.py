@@ -228,8 +228,8 @@ class SeguridadWeb:
 
 
 class AlcanceEdicion:
-    """086:RF-16: lo que la edición de producto no entrega se niega aquí, y no ruta por ruta: la lista está en
-    ``edicion.py``, y ocultar el botón dejaba la ruta abierta a cualquier petición."""
+    """086:RF-16: una beta que el operador apagó se niega aquí, y no ruta por ruta: la lista está en ``edicion.py``,
+    y ocultar el botón dejaba la ruta abierta a cualquier petición. Sin betas apagadas no se niega nada."""
 
     def __init__(self, app) -> None:
         self.app = app

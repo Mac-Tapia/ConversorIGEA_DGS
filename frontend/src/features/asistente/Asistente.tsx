@@ -4,7 +4,6 @@ import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../../api/types';
 import type { EstadoAceptacionAgente } from '../../api/asistenteAceptacion';
-import { esProducto } from '../../shared/edicion';
 import { AvisoBeta } from '../../shared/MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
@@ -138,7 +137,7 @@ function Aceptacion() {
 }
 
 function Registro() {
-  const { run, health } = useApp();
+  const { run } = useApp();
   const [registro, setRegistro] = useState<Record<string, unknown[]> | null>(null);
   const filas = (k: string) => (registro?.[k] ?? []) as Record<string, unknown>[];
   return (
@@ -147,11 +146,11 @@ function Registro() {
       {registro && (
         <div className="stack small">
           <p>{Object.entries(registro).map(([k, v]) => `${k}: ${v.length}`).join(' · ')}</p>
-          {!esProducto(health) && filas('conjunto_real').map((c, i) => (
+          {filas('conjunto_real').map((c, i) => (
             <p key={i}>Órdenes reales únicas del operador: {String(c.ordenes)}.
               {' '}Referencia de muestra humana: {String(c.hacen_falta)}.
               {c.confirmacion_obligatoria ? ' Las escrituras requieren confirmación.' : ''}</p>))}
-          {!esProducto(health) && filas('senales').length > 0 && (
+          {filas('senales').length > 0 && (
             <table className="small">
               <thead><tr><th>Tarea</th><th>Recompensas</th><th>Penalizaciones</th><th>Confirmadas</th>
                 <th>Corregidas</th><th>Rechazadas</th><th>Fallidas</th></tr></thead>
@@ -226,9 +225,7 @@ function ProyectoDesdeCero() {
 }
 
 export function Asistente() {
-  const { ws, run, startJob, jobs, active, health } = useApp();
-  // 086:RF-16: entrenar y la revisión por roles no se entregan; el servidor también niega sus rutas.
-  const desarrollo = !esProducto(health);
+  const { ws, run, startJob, jobs, active } = useApp();
   const [texto, setTexto] = useState('');
   const [historial, setHistorial] = useState<Intercambio[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -297,10 +294,11 @@ export function Asistente() {
       <AvisosTrabajo paso="asistente" />
       <ModeloProvisional />
       <MonitorAgente />
-      {desarrollo && <EquipoAsistente />}
-      {desarrollo && <Modelos />}
-      {desarrollo && <Aprendizaje />}
-      {desarrollo && <Aceptacion />}
+      {/* 086:RF-15 (usuario, 2026-11-13): entrenar, el equipo, los modelos y la aceptación, en las dos ediciones. */}
+      <EquipoAsistente />
+      <Modelos />
+      <Aprendizaje />
+      <Aceptacion />
       <p className="muted small">
         Escriba lo que quiere hacer, por ejemplo «calibra el sistema X con julio de 2026» o «¿cómo se calibra una
         barra sin medidor?». Las consultas se responden al momento; lo que escribe en DIgSILENT o en disco espera su
@@ -314,9 +312,9 @@ export function Asistente() {
         <button className="btn btn-primary" disabled={enviando || !texto.trim()} onClick={() => void enviar()}>
           {enviando ? 'Interpretando…' : 'Enviar'}
         </button>
-        {desarrollo && <button className="btn btn-ghost" disabled={Boolean(active.engine)}
+        <button className="btn btn-ghost" disabled={Boolean(active.engine)}
           title="Reentrena el Transformer de órdenes y, si hay informes reales, el clasificador. Solo pasa a uso lo que aprueben sus puertas; si no, sigue el modelo actual"
-          onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>}
+          onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>
       </div>
       <Registro />
       <ProyectoDesdeCero />
@@ -338,7 +336,7 @@ export function Asistente() {
           <article key={plan.id} className="card stack">
             <p><b>›</b> {x.texto}</p>
             <Plan plan={plan} />
-            {desarrollo && <EquipoAsistente planId={plan.id} />}
+            <EquipoAsistente planId={plan.id} />
             {x.r.respuesta && (
               <div className="stack">
                 <p>{x.r.respuesta.texto}</p>

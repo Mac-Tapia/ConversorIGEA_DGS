@@ -2,7 +2,6 @@ import { fmtNum } from '../../shared/formato';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import { esProducto } from '../../shared/edicion';
 import { AvisoBeta } from '../../shared/MarcaBeta';
 import type { ClaveTipoAnalisis, EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud,
   TiposAnalisis } from '../../api/types';
@@ -25,9 +24,7 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   /** 072:RF-29: el tipo de análisis elegido arriba; con él, el año de presentación es el mismo campo. */
   plazo?: ClaveTipoAnalisis | null; anio?: string; onAnio?: (a: string) => void; tipos?: TiposAnalisis | null;
 }) {
-  const { ws, startJob, active, jobs, run, health } = useApp();
-  // 086:RF-16: el gemelo (PINN, aprendizaje) no se entrega; su ruta también se niega, y aquí ni se pregunta.
-  const producto = esProducto(health);
+  const { ws, startJob, active, jobs, run } = useApp();
   const [capex, setCapex] = useState('');
   const [anioPropio, setAnioPropio] = useState('');
   const anio = anioExterno ?? anioPropio;
@@ -50,7 +47,7 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
     const e = await run(() => api.gemeloEpisodios(ws.id, { proyecto: project }));
     if (e) setEpisodios(e);
   };
-  useEffect(() => { if (project && !producto) void cargarEpisodios(); }, [project, ultima?.id, aprendido?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (project) void cargarEpisodios(); }, [project, ultima?.id, aprendido?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const decidir = async (o: ObraPIDE, decision: 'aceptada' | 'rechazada' | 'modificada') => {
     await run(() => api.pideDecision(ws.id, { project, codigo: o.codigo, decision }));
@@ -60,7 +57,7 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   return (
     <div>
       <AvisoBeta clave="pide" />
-      <h4>{producto ? 'Plan de inversiones (PIDE)' : '5.1 · Plan de inversiones (PIDE)'}</h4>
+      <h4>5.1 · Plan de inversiones (PIDE)</h4>
       <label className="field"><span>Flujo de planeamiento</span>
         <select value={modo} disabled={pfBusy} onChange={(e) => setModo(e.target.value as typeof modo)}>
           <option value="historico">Diagnóstico y propuesta del horizonte</option>
@@ -100,7 +97,8 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
       {r && ('modo' in r && r.modo === 'anual'
         ? <VistaPideAnual r={r} ws={ws.id} /> : <ResultadoPIDE r={r as PideResultado} ws={ws.id} decidir={decidir} tipos={tipos} />)}
 
-      {!producto && <>
+      {/* 086:RF-15 (usuario, 2026-11-13): el gemelo, también en la edición de producto. */}
+      <>
       <h4>5.2 · Gemelo digital</h4>
       <p className="muted">Aprende de cada acción en DIgSILENT. Aquí simula escenarios (demanda y tramos fuera de servicio)
         en una copia del proyecto, que se borra al terminar, y reentrena el modelo si toca.</p>
@@ -131,7 +129,7 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
           </table>
         </div>
       )}
-      </>}
+      </>
     </div>
   );
 }
