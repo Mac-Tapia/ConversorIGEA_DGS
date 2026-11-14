@@ -144,6 +144,29 @@ def costos_por_alternativa(obras: Iterable[ObraCapex]) -> dict[str, dict[str, An
     return out
 
 
+def costos_en_moneda_de_trabajo(costos: Mapping[str, Mapping[str, Any]],
+                                escala: float | None) -> dict[str, dict[str, Any]]:
+    """Los costos del libro en la moneda de trabajo, con la escala del perfil (025:RF-77), una sola vez.
+
+    Es la regla de la escalera (``escalera_optima.costos_de_alternativas``) para el PIDE: el libro de Electro
+    Dunas está en miles de dólares y el PIDE lo tomaba en dólares (hallazgo H1, 2026-11-14). Con costos y sin
+    escala no se supone 1: :class:`EconomiaPideError`. Cada costo guarda la ``escala_aplicada``, y uno que ya
+    la trae no se vuelve a escalar.
+    """
+    if any(c.get('costo_unitario') for c in costos.values()) and not escala:
+        raise EconomiaPideError('el perfil no dice en qué escala está el libro CAPEX respecto de la moneda de '
+                                'trabajo: escalera.escala_capex, p. ej. 1000 si está en miles (025:RF-77)')
+    if not escala:                                     # sin costos que escalar
+        return {alt: dict(c) for alt, c in costos.items()}
+    out = {}
+    for alt, c in costos.items():
+        if c.get('escala_aplicada') is not None or not c.get('costo_unitario'):
+            out[alt] = dict(c)
+            continue
+        out[alt] = {**c, 'costo_unitario': float(c['costo_unitario']) * float(escala), 'escala_aplicada': escala}
+    return out
+
+
 # ------------------------------------------------------------------ art. 14 (RF-57, RF-58)
 def frc(tasa: float, anios: int) -> float:
     """Factor de recuperación de capital: anualidad de 1 en ``anios`` a ``tasa``."""
@@ -273,6 +296,38 @@ def ingreso_anual_kw(kw: float, tarifa: Mapping[str, Any], *, factor_carga: floa
     return por_energia + por_potencia
 
 
+def plan_en_moneda_de_trabajo(plan: Mapping[str, Any], *, moneda_trabajo: str | None,
+                              tipo_cambio: float | None) -> tuple[dict[str, Any], list[str]]:
+    """La planificación con las tarifas y el precio de compra en la moneda de trabajo (025:RF-67, RF-77; H4).
+
+    El CAPEX va en la moneda de trabajo (``costos_en_moneda_de_trabajo``); las tarifas del pliego y el precio de
+    compra, en la de ``tarifas.moneda`` (Electro Dunas: PEN). Si no coinciden, se dividen una vez por el tipo de
+    cambio que escribe el operador (unidades de la moneda de las tarifas por una de la de trabajo, como en la
+    escalera). Sin él no se supone 1: las tarifas y el precio de compra quedan fuera, la evaluación privada y el
+    valor de las pérdidas no se calculan (024:RF-58e) y se dice. El plan de entrada no cambia.
+    """
+    out = dict(plan)
+    out['moneda_trabajo'] = moneda_trabajo
+    tarifas = dict(plan.get('tarifas') or {})
+    de = tarifas.get('moneda')
+    if not tarifas or not de or not moneda_trabajo or de == moneda_trabajo:
+        return out, []
+    if not tipo_cambio or float(tipo_cambio) <= 0:
+        out['tarifas'] = {'moneda': de}
+        out['precio_compra_kwh'] = None
+        return out, [f'las tarifas y el precio de compra están en {de} y el CAPEX en {moneda_trabajo}: sin el tipo '
+                     f'de cambio ({de} por {moneda_trabajo}) no se hacen la evaluación privada ni el valor de las '
+                     'pérdidas (025:RF-68)']
+    tc = float(tipo_cambio)
+    out['tarifas'] = {k: ({c: (v / tc if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
+                           for c, v in opcion.items()} if isinstance(opcion, Mapping) else opcion)
+                      for k, opcion in tarifas.items()}
+    out['tarifas'].update(moneda=moneda_trabajo, moneda_del_pliego=de, tipo_cambio_aplicado=tc)
+    if plan.get('precio_compra_kwh') is not None:
+        out['precio_compra_kwh'] = float(plan['precio_compra_kwh']) / tc
+    return out, []
+
+
 @dataclass
 class Evaluacion:
     ci: float
@@ -302,6 +357,12 @@ def evaluar(ci: float, *, kw_nuevos: float, usuarios: int, km: float, coym_anual
         'costo_usuario': ci / usuarios if usuarios else None,
         'costo_km': ci / km if km else None,
     }
+    moneda_tarifas, moneda_trabajo = (plan.get('tarifas') or {}).get('moneda'), plan.get('moneda_trabajo')
+    if moneda_tarifas and moneda_trabajo and moneda_tarifas != moneda_trabajo:
+        # 025:RF-77 (H4): ingresos en una moneda menos inversión en otra no es una VAN.
+        avisos.append(f'evaluación privada sin hacer: las tarifas están en {moneda_tarifas} y el CAPEX en '
+                      f'{moneda_trabajo} (plan_en_moneda_de_trabajo, 025:RF-77)')
+        return Evaluacion(ci, regulada, None, indicadores, avisos)
     tarifa = (plan.get('tarifas') or {}).get(opcion)
     tasa_p = plan.get('tasa_privada')
     if tarifa is None or tasa_p is None or factor_carga is None or precio_compra_kwh is None:

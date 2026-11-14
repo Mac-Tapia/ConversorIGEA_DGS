@@ -101,6 +101,52 @@ def test_sin_datos_no_hay_evaluacion_privada():
     assert e.regulada['anualidad'] > 0
 
 
+PLAN_PEN = {**PLAN, 'tarifas': {**PLAN['tarifas'], 'moneda': 'PEN'}, 'precio_compra_kwh': 0.20}
+
+
+def test_van_no_mezcla_tarifas_en_soles_con_capex_en_dolares():
+    """024:RF-58 / 025:RF-77 (H4, 2026-11-14): con las tarifas en PEN y el CAPEX en USD, ``evaluar`` no resta
+    dólares de soles: sin pasar el plan a la moneda de trabajo, la evaluación privada no se hace y se dice."""
+    e = ec.evaluar(200_000, kw_nuevos=500, usuarios=10, km=2, coym_anual=4_000, cp_anual=2_000,
+                   plan={**PLAN_PEN, 'moneda_trabajo': 'USD'}, factor_carga=0.6, precio_compra_kwh=0.20,
+                   opcion='MT3')
+    assert e.privada is None
+    assert any('PEN' in a and 'USD' in a for a in e.avisos)
+    assert e.regulada['anualidad'] > 0
+
+
+def test_plan_en_moneda_de_trabajo_con_el_tipo_de_cambio_del_operador():
+    """025:RF-67 / 025:RF-77 (H4): tarifas y precio de compra en PEN, trabajo en USD, 3,5 PEN por USD: todo se
+    divide por 3,5 una vez, y la VAN privada es la de soles pasada a dólares."""
+    plan, avisos = ec.plan_en_moneda_de_trabajo(PLAN_PEN, moneda_trabajo='USD', tipo_cambio=3.5)
+    assert not avisos
+    assert plan['tarifas']['moneda'] == 'USD' and plan['tarifas']['tipo_cambio_aplicado'] == 3.5
+    assert plan['tarifas']['MT3']['energia_punta_kwh'] == pytest.approx(0.3226 / 3.5)
+    assert plan['precio_compra_kwh'] == pytest.approx(0.20 / 3.5)
+    assert PLAN_PEN['tarifas']['MT3']['energia_punta_kwh'] == 0.3226            # el del perfil no cambia
+    otra, _ = ec.plan_en_moneda_de_trabajo(plan, moneda_trabajo='USD', tipo_cambio=3.5)
+    assert otra['tarifas']['MT3'] == plan['tarifas']['MT3']                      # ya en USD: no se divide dos veces
+    kw = dict(kw_nuevos=500, usuarios=10, km=2, coym_anual=None, cp_anual=None, factor_carga=0.6, opcion='MT3')
+    en_soles = ec.evaluar(0, plan=PLAN, precio_compra_kwh=0.20, **kw)
+    en_dolares = ec.evaluar(0, plan=plan, precio_compra_kwh=plan['precio_compra_kwh'], **kw)
+    assert en_dolares.privada is not None
+    assert en_dolares.privada['flujos'][1:] == pytest.approx([f / 3.5 for f in en_soles.privada['flujos'][1:]])
+
+
+def test_plan_en_otra_moneda_sin_tipo_de_cambio_avisa_y_no_calcula():
+    """025:RF-68 / 025:RF-77 (H4): sin el tipo de cambio no se supone 1: sin tarifas ni precio de compra en la
+    moneda de trabajo, la evaluación privada y el valor de las pérdidas no se calculan, y se dice."""
+    plan, avisos = ec.plan_en_moneda_de_trabajo(PLAN_PEN, moneda_trabajo='USD', tipo_cambio=None)
+    assert any('tipo de cambio' in a for a in avisos)
+    assert plan.get('precio_compra_kwh') is None
+    e = ec.evaluar(1000, kw_nuevos=10, usuarios=1, km=0, coym_anual=None, cp_anual=None, plan=plan,
+                   factor_carga=0.6, precio_compra_kwh=plan.get('precio_compra_kwh'), opcion='MT3')
+    assert e.privada is None
+    misma, sin_aviso = ec.plan_en_moneda_de_trabajo({**PLAN_PEN, 'tarifas': {**PLAN_PEN['tarifas'], 'moneda': 'USD'}},
+                                                    moneda_trabajo='USD', tipo_cambio=None)
+    assert not sin_aviso and misma['precio_compra_kwh'] == 0.20                  # misma moneda: nada que pasar
+
+
 def _cand(codigo, alt, problema, ci, cumple=True, van=10.0, criterios=None):
     ev = ec.Evaluacion(ci, {}, {'van': van}, {'costo_kw': ci / 100, 'costo_kwh': None,
                                               'costo_usuario': ci / 10, 'costo_km': None})

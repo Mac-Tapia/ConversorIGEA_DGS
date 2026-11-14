@@ -6238,6 +6238,19 @@
           "project": {
             "title": "Project",
             "type": "string"
+          },
+          "tipo_cambio": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Cambio"
           }
         },
         "required": [

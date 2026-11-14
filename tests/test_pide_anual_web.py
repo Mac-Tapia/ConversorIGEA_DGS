@@ -157,6 +157,18 @@ def test_historia_conserva_campos_y_no_admite_anual_oculto(api, monkeypatch):
     assert c.post(f'/api/workspaces/{wid}/pide',json=body).status_code==422
 
 
+def test_tipo_de_cambio_llega_al_pide_solo_si_se_envia(api, monkeypatch):
+    """025:RF-67 (H4): el tipo de cambio que escribe el operador llega a pide_ejecutar; sin él, la llamada no cambia."""
+    c, wid = api
+    calls=[]
+    monkeypatch.setattr(services,'pide_ejecutar',lambda ws,ctx,p,fs,**kw: calls.append(kw) or {'project':p})
+    body={'project':'P','feeders':['F1'],'capex':'capex.xlsx','implementar':False,'tipo_cambio':3.5}
+    r=c.post(f'/api/workspaces/{wid}/pide',json=body)
+    assert r.status_code==202 and esperar(c,r.json()['id'])['status']=='done'
+    assert calls[-1]['tipo_cambio']==3.5
+    assert c.post(f'/api/workspaces/{wid}/pide',json={**body,'tipo_cambio':0}).status_code==422      # gt=0
+
+
 def test_aceptacion_no_se_inventa_al_subir(api):
     """072:RF-24: evaluación rechazada conserva su estado y bloquea antes de la cola."""
     c,wid=api

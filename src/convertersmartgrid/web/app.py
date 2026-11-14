@@ -294,6 +294,8 @@ class PideIn(BaseModel):
     formato_01: str | None = None
     # 072:RF-29, RF-34: el tipo de análisis elegido en la web; sin él, los dos entregables, como siempre.
     plazo: Literal['pide', 'largo_plazo'] | None = None
+    # 025:RF-67, RF-77 (H4): el tipo de cambio del operador, el mismo campo y los mismos límites que la escalera.
+    tipo_cambio: float | None = Field(None, gt=0, le=100_000)
 
 
 class PideFuentesRespuesta(BaseModel):
@@ -2305,6 +2307,8 @@ def create_app(
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
                           capex=body.capex, implementar=body.implementar,
                           anio_presentacion=body.anio_presentacion, formato_01=body.formato_01,
+                          # 025:RF-67 (H4): solo si el operador lo envía; sin él, la llamada es la de siempre (072:RF-18).
+                          **({'tipo_cambio': body.tipo_cambio} if body.tipo_cambio is not None else {}),
                           **({'plazo': body.plazo} if body.plazo else {})),
                       lane='powerfactory')
 

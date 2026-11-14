@@ -37,7 +37,11 @@ y el instalador comercial (spec 086).
 - RF-4: Ningún mensaje, ruta por defecto ni diagnóstico nombrará una versión fija de PowerFactory o de Python; dirá las
   instalaciones encontradas y, si ninguna sirve, qué intérprete falta para cuál.
 - RF-5: Los guiones de `tools/` que corren con el Python de PowerFactory, y lo que importan del conversor, cargarán con el
-  Python más antiguo soportado (3.9) y solo con la biblioteca estándar y `numpy`.
+  Python más antiguo soportado (3.9) y solo con la biblioteca estándar y `numpy`. Una comprobación sin variables, que
+  corre en cada commit y en la CI, recorre todo `src/convertersmartgrid` y falla con la sintaxis que 3.9 no importa:
+  `X | Y` en una anotación evaluada al importar sin `from __future__ import annotations`, `match`, `except*` y los
+  parámetros de tipo. (2026-11-14: `__init__.py:16`, de bd4cc7d2, anotaba `-> str | None` y ningún guion de
+  DIgSILENT 2021–2023 cargaba el paquete; solo lo vio el ensayo de la puerta entera con `CSG_PF_PYTHON_39`.)
 - RF-6: El instalador comercial traerá los intérpretes de Python embebidos que piden las versiones soportadas y no
   coinciden con el del programa (3.9, 3.10 y 3.11), con `numpy`, verificados con su SHA-256.
 - RF-7: CUANDO no haya ninguna instalación que funcione, EL SISTEMA seguirá convirtiendo a DGS y lo dirá; nada de la

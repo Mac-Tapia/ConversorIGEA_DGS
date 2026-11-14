@@ -53,6 +53,25 @@ def test_propuesta_del_pide_desde_el_diagnostico():
     assert p['formatos']['F09 Evaluación económica'] and p['formatos']['F12 Propuesta proyecto']
 
 
+def test_el_orden_de_las_obras_no_cambia_al_pasar_a_la_moneda_de_trabajo():
+    """025:RF-67 / 025:RF-77 (H4, condición del auditor): todo en soles, o tarifas y precio de compra en soles
+    pasados a dólares con 3,5 y el CAPEX en dólares, dan las mismas obras en el mismo orden; solo cambia la
+    escala del dinero."""
+    from convertersmartgrid.pide_economia import plan_en_moneda_de_trabajo
+    tc = 3.5
+    plan_soles = {**PLAN, 'tarifas': {**PLAN['tarifas'], 'moneda': 'PEN'}, 'precio_compra_kwh': 0.70}
+    costos_soles = {a: {**c, 'costo_unitario': c['costo_unitario'] * tc} for a, c in COSTOS.items()}
+    en_soles = propuesta_pide(INFORME, plan_soles, costos=costos_soles, bancos_kvar={10.0: 300.0},
+                              factor_carga=0.6, precio_compra_kwh=0.70, coym_pct_anual=2.0)
+    plan_usd, avisos = plan_en_moneda_de_trabajo(plan_soles, moneda_trabajo='USD', tipo_cambio=tc)
+    assert not avisos
+    en_dolares = propuesta_pide(INFORME, plan_usd, costos=COSTOS, bancos_kvar={10.0: 300.0},
+                                factor_carga=0.6, precio_compra_kwh=plan_usd['precio_compra_kwh'], coym_pct_anual=2.0)
+    assert [(o['codigo'], o['prioridad']) for o in en_dolares['obras']] == \
+        [(o['codigo'], o['prioridad']) for o in en_soles['obras']]
+    assert [o['ci'] * tc for o in en_dolares['obras']] == pytest.approx([o['ci'] for o in en_soles['obras']])
+
+
 def test_sin_capex_se_dice():
     """024:RF-55 — sin libro CAPEX las obras van sin costo y se avisa."""
     p = propuesta_pide(INFORME, PLAN, costos={}, bancos_kvar=None)

@@ -5911,7 +5911,8 @@ def pide_anual_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
 
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                   capex: str | None = None, implementar: bool = True, anio_presentacion: int | None = None,
-                  formato_01: str | None = None, plazo: str | None = None) -> dict:
+                  formato_01: str | None = None, plazo: str | None = None,
+                  tipo_cambio: float | None = None) -> dict:
     """Metodología del PIDE sobre el proyecto, de punta a punta (spec 024, T13 y T14).
 
     Diagnostica cada año del horizonte en DIgSILENT (``tools/pide_pf.py``), arma las obras
@@ -5926,7 +5927,9 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     from ..pide_economia import (
         EconomiaPideError,
         con_y_sin_de_las_aplicadas,
+        costos_en_moneda_de_trabajo,
         costos_por_alternativa,
+        plan_en_moneda_de_trabajo,
         propuesta_pide,
     )
     from ..adaptadores.entrada.capex import leer_capex_con_procedencia
@@ -5989,15 +5992,24 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'native_action_context': contexto}
     costos: dict = {}
     procedencia_capex = None
+    escalera = perfil.get('escalera') or {}
+    # 025:RF-67, RF-77 (H4, 2026-11-14): las tarifas y el precio de compra, en la moneda de trabajo del CAPEX, con el
+    # tipo de cambio que escribe el operador; sin él, la evaluación privada no se hace y se dice.
+    plan_pide, avisos_moneda = plan_en_moneda_de_trabajo(plan_pide, moneda_trabajo=escalera.get('moneda'),
+                                                         tipo_cambio=tipo_cambio)
+    avisos += avisos_moneda
     if capex:
+        # 025:RF-77 (H1, 2026-11-14): la escala y la moneda del libro son las del perfil, las de la escalera.
+        # Antes iban escala 1 y moneda None: con un libro en kUSD el PIDE salía 1000 veces bajo.
+        escala_capex = escalera.get('escala_capex')
         try:
             obras_capex, avisos_capex, procedencia_capex = leer_capex_con_procedencia(
                 Path(capex.strip().strip('"')), plan_pide.get('capex') or {},
-                contexto_unidades={'moneda': plan_pide.get('moneda'), 'escala_aplicada': 1,
-                                   'tipo_cambio': None})
+                contexto_unidades={'moneda': escalera.get('moneda') or plan_pide.get('moneda'),
+                                   'escala_aplicada': escala_capex, 'tipo_cambio': None})
+            costos = costos_en_moneda_de_trabajo(costos_por_alternativa(obras_capex), escala_capex)
         except (EconomiaPideError, OSError, ValueError) as exc:
             raise UserError(f'Libro CAPEX: {exc}') from exc
-        costos = costos_por_alternativa(obras_capex)
         avisos += avisos_capex
         plan['procedencia_capex'] = procedencia_capex
     ctx.log(f'PIDE de {project}: diagnóstico de los años {anios} en DIgSILENT…')

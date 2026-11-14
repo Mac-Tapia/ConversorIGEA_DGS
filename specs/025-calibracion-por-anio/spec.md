@@ -305,7 +305,14 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   del perfil (`escalera.escala_capex`); SI el libro trae costos y el perfil no da la escala,
   ENTONCES lo dirá y no costeará con ellos. (Electro Dunas, 2026-10-24: el libro está en miles
   de dólares y se tomaba en dólares; la terna salía a 60,9 USD/km y en SI213 ganó terna y
-  sección solo por las pérdidas.)
+  sección solo por las pérdidas.) Vale para todo lo que costea con el libro, también el PIDE: la escala y la moneda del
+  recibo son las del perfil, y cada costo se escala una sola vez (`pide_economia.costos_en_moneda_de_trabajo`).
+  (Auditoría del 2026-11-14, hallazgo H1: el PIDE pasaba escala 1 y moneda None, y sus F07, F09 y F10 salían 1000
+  veces bajos.) Y las tarifas del pliego y el precio de compra que restan o suman a ese CAPEX en el PIDE, en la
+  misma moneda: si `planificacion.tarifas.moneda` no es la de trabajo, se pasan con el tipo de cambio que escribe el
+  operador (RF-67), una vez (`pide_economia.plan_en_moneda_de_trabajo`); sin él, la evaluación privada y el valor de
+  las pérdidas no se calculan y se dice (RF-68), y `evaluar` no resta inversión en una moneda de ingresos en otra.
+  (Hallazgo H4, latente: con factor de carga y precio de compra en el perfil, la VAN y la TIR mezclaban PEN y USD.)
 - RF-74: ANTES de probar las variantes de un alimentador, EL SISTEMA medirá «Con proyecto
   <año>» tal como está; SI ya cumple con la máxima y en los sorteos, ENTONCES no aplicará
   nada, lo dirá y lo dará por resuelto. (Pisco, 2026-10-24: volver a pedir la escalera con la

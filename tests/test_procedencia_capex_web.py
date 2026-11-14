@@ -44,18 +44,76 @@ def test_pide_guarda_plan_y_resultado_con_recibo_de_su_lectura(tmp_path, monkeyp
     r = services.pide_ejecutar(ws, ctx, 'Propio', ['F1'], capex=str(ruta), implementar=False)
     recibo = r['procedencia_capex']
     assert recibo['fuente']['sha256'] == hashlib.sha256(ruta.read_bytes()).hexdigest()
-    assert recibo['contexto_unidades']['escala_aplicada'] == 1
-    assert recibo['contexto_unidades']['moneda'] is None
+    # 025:RF-77 en el PIDE (hallazgo H1 del auditor, 2026-11-14): la escala y la moneda son las del perfil, como en
+    # la escalera. Antes el recibo blindaba escala 1 y moneda None, y el PIDE tomaba los kUSD del libro como USD.
+    assert recibo['contexto_unidades']['escala_aplicada'] == 1000
+    assert recibo['contexto_unidades']['moneda'] == 'USD'
+    assert not recibo['unidades_no_declaradas']
     plan = json.loads((tmp_path / 'plan_persistido.json').read_text(encoding='utf-8'))
     assert plan['procedencia_capex'] == recibo
     resultado = tmp_path / 'resultado.json'
     resultado.write_text(json.dumps(r), encoding='utf-8')
     assert json.loads(resultado.read_text(encoding='utf-8'))['procedencia_capex'] == recibo
-    esperado = ec.propuesta_pide(informe, p['planificacion'],
-                                costos=ec.costos_por_alternativa(ec.leer_capex(ruta, CONFIG)[0]),
+    costos_libro = ec.costos_por_alternativa(ec.leer_capex(ruta, CONFIG)[0])
+    costos_usd = ec.costos_en_moneda_de_trabajo(costos_libro, 1000)
+    # Una sola vez: los 3500 kUSD por banco del libro son 3 500 000 USD, ni 3500 ni 3 500 000 000.
+    assert costos_libro['bancos']['costo_unitario'] == 3500
+    assert costos_usd['bancos']['costo_unitario'] == 3_500_000
+    esperado = ec.propuesta_pide(informe, p['planificacion'], costos=costos_usd,
                                 bancos_kvar=None, factor_carga=None, precio_compra_kwh=None, coym_pct_anual=None)
     assert r['obras']
     assert [{k: v for k, v in obra.items() if k != 'procedencia_capex'} for obra in r['obras']] == esperado['obras']
+    con_costo = [o for o in r['obras'] if o['ci']]
+    assert con_costo and all(o['ci'] == costos_usd[o['alternativa']]['costo_unitario'] for o in con_costo)
+
+
+def test_pide_sin_escala_del_libro_en_el_perfil_lo_dice_y_no_supone_1(tmp_path, monkeypatch):
+    """025:RF-77 (H1): con costos en el libro y sin ``escalera.escala_capex`` el PIDE no sigue con escala 1."""
+    import pytest
+    from convertersmartgrid import perfil_empresa as pe
+    p = perfil()
+    del p['escalera']['escala_capex']
+    p['estudios'] = {'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}
+    monkeypatch.setattr(pe, 'datos_perfil', lambda: p)
+    monkeypatch.setattr(pe, 'estructura_empresa', lambda: None)
+    monkeypatch.setattr(services, 'native_action_context', lambda ws, project, feeders, action: {'feeders': feeders})
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a: 'Propia')
+    monkeypatch.setattr(services, '_ingreso_de_las_cargas', lambda *a: [])
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: pytest.fail('no debe llegar a DIgSILENT'))
+    ws = SimpleNamespace(out_dir=tmp_path, plans_dir=tmp_path / 'planes')
+    ctx = SimpleNamespace(log=lambda *a: None)
+    with pytest.raises(services.UserError, match='escala_capex'):
+        services.pide_ejecutar(ws, ctx, 'Propio', ['F1'], capex=str(_capex(tmp_path)), implementar=False)
+
+
+def test_pide_con_tarifas_en_soles_y_sin_tipo_de_cambio_lo_dice_en_el_resultado(tmp_path, monkeypatch):
+    """025:RF-68 / 025:RF-77 (H4): tarifas y precio de compra en PEN, CAPEX en USD y sin tipo de cambio: el
+    resultado que ve la web trae el aviso y ninguna obra lleva VAN privada."""
+    from convertersmartgrid import perfil_empresa as pe
+    from convertersmartgrid.asistente import ejemplos_pide
+    p = perfil()
+    p['planificacion'].update(tarifas={'moneda': 'PEN', 'MT3': {'energia_kwh': 0.29}}, tasa_privada=.12,
+                              factor_carga=.6, precio_compra_kwh=.20)
+    p['estudios'] = {'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}
+    monkeypatch.setattr(pe, 'datos_perfil', lambda: p)
+    monkeypatch.setattr(pe, 'estructura_empresa', lambda: None)
+    monkeypatch.setattr(ejemplos_pide, 'ultimo_ejemplos', lambda *a: None)
+    monkeypatch.setattr(services, 'native_action_context', lambda ws, project, feeders, action: {'feeders': feeders})
+    monkeypatch.setattr(services, 'carpeta_de', lambda *a: 'Propia')
+    monkeypatch.setattr(services, '_ingreso_de_las_cargas', lambda *a: [])
+    monkeypatch.setattr(services, '_pide_optimizar', lambda *a: [])
+    monkeypatch.setattr(services, '_formatos_del_pide', lambda *a: {'filas': {}, 'huecos': []})
+    informe = {'anios': [{'anio': 0, 'cabeceras_kw': {'F1': 100}, 'vm_min': .90,
+                          'problemas': [{'tipo': 'tension', 'elemento': 'B9', 'valor': .90, 'limite': .95,
+                                         'causa': 'caida_de_tension', 'kv': 10., 'alimentador': 'F1'}]}], 'avisos': []}
+    reporte = tmp_path / 'diagnostico.json'
+    reporte.write_text(json.dumps(informe), encoding='utf-8')
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, deepcopy(informe), reporte))
+    ws = SimpleNamespace(out_dir=tmp_path, plans_dir=tmp_path / 'planes')
+    ctx = SimpleNamespace(log=lambda *a: None)
+    r = services.pide_ejecutar(ws, ctx, 'Propio', ['F1'], capex=str(_capex(tmp_path)), implementar=False)
+    assert any('025:RF-68' in a and 'PEN' in a and 'USD' in a for a in r['avisos'])
+    assert r['obras'] and all(o['privada'] is None for o in r['obras'])
 
 
 def test_expresso_preserva_costo_y_enlaza_recibo_real(tmp_path):
