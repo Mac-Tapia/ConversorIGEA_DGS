@@ -1203,8 +1203,14 @@ def _troncales(alims: Alimentadores):
                 # 2026-10-15: «ubicadas de acuerdo a su punto de coordenada»).
                 # Ni el enlace entre alimentadores (016, normalmente abierto): IC_13 caía en
                 # Enlace_TA225_IN111, a 720 m de su punto (2026-10-15).
+                # 016:RF-78: solo las líneas que son tramos de la red leída, con sus dos
+                # extremos en barras del alimentador (RF-2). En CA101_CHN102 (2026-11-13) el
+                # ElmFeeder traía SEC_1091_315216 con un extremo fuera, y aplicar las cargas
+                # acababa con «KeyError: 'SEC_1091_315216'».
+                en_red = red.por_nombre()
                 tramos = tuple(n for n in sorted(lineas)
-                               if not int(getattr(lineas[n], 'outserv', 0) or 0)
+                               if n in en_red
+                               and not int(getattr(lineas[n], 'outserv', 0) or 0)
                                and not n.startswith('Enlace_'))
                 cache[f] = (red, tramos, lineas)
         return cache[f]

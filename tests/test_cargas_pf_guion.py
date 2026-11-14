@@ -612,3 +612,20 @@ def test_el_transformador_de_ficha_cuenta_la_corriente_a_la_tension_minima(guion
     assert _tr_de(app, 'N1').typ_id.strn == 0.63, SEMILLA
     assert _tr_de(app, 'N2').ntnum == math.ceil(kw_grande / u_min / (0.8 * 630)), SEMILLA
     assert all(c['transformador']['carga_pct_prevista'] <= 80.0 for c in por_sed.values())
+
+
+def test_linea_con_un_extremo_fuera_del_alimentador_no_es_candidata(guion):
+    """016:RF-78 — una línea del ``ElmFeeder`` que no tiene sus dos extremos en barras suyas no
+    es un tramo de su red (016:RF-2): no se ofrece para conectar. CA101_CHN102 (2026-11-13)
+    acababa con «KeyError: 'SEC_1091_315216'» al aplicar las cargas."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True)
+    suelta = next(o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name == 'F1_L4')
+    cub = next(c for c in app.proyecto.GetContents('*.StaCubic', 1)
+               if c.obj_id is suelta and int(getattr(c, 'obj_bus', 0) or 0) == 1)
+    cub.obj_id = None
+    destino = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F1_B2')
+    plan = _plan(['F1'], nuevas=[_nueva('N1', lat=destino.GPSlat + 0.0003, lon=destino.GPSlon)])
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    creada = informe['feeders'][0]['creadas'][0]
+    assert creada['sed'] == 'N1' and 'F1_L4' not in str(creada.get('tramo') or '')

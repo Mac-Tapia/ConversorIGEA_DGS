@@ -272,7 +272,9 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
   colgarla del nodo de otra dejaba a CH_8 de TM105 sin red al desactivar CH_3.
 - RF-78: CUANDO una carga nueva trae coordenadas y no trae barra, EL SISTEMA la conectará
   en el punto más cercano a sus coordenadas de cualquier tramo de media en servicio del
-  alimentador, no solo de la troncal; SI ese punto es el de otra carga de la misma
+  alimentador, no solo de la troncal (solo los que son tramos de su red, con sus dos
+  extremos en barras suyas, RF-2: una línea del alimentador con un extremo fuera no se
+  ofrece, CA101_CHN102, 2026-11-13); SI ese punto es el de otra carga de la misma
   aplicación, ENTONCES usará su nodo (cambia RF-45; usuario, 2026-10-15: «las cargas
   nuevas en bloque deben ser ubicadas de acuerdo a su punto de coordenada, no en el
   mismo punto»).
