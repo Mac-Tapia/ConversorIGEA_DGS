@@ -13,7 +13,10 @@
     #csg-c4-flow * { box-sizing: border-box; }
     #csg-c4-flow [hidden] { display: none !important; }
     #csg-c4-flow .c4-heading { margin: 0 0 0.35rem; font-weight: 500; }
-    #csg-c4-flow .c4-subtitle { margin: 0 0 0.8rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+    #csg-c4-flow .c4-subtitle { margin: 0 0 0.4rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+    #csg-c4-flow .c4-legend { margin: 0 0 0.8rem; color: var(--muted-foreground); font-size: 0.9em; overflow-wrap: anywhere; }
+    #csg-c4-flow .c4-legend span { display: inline-block; width: 1.6rem; height: 0.7rem; margin: 0 0.3rem -0.05rem 0; border: 2px solid var(--muted-foreground); border-radius: 4px; }
+    #csg-c4-flow .c4-legend span.is-plan { border-style: dashed; }
     #csg-c4-flow .c4-toolbar,
     #csg-c4-flow .c4-view-tabs,
     #csg-c4-flow .c4-actions {
@@ -62,6 +65,11 @@
       stroke-width: 2;
       rx: 12;
     }
+    #csg-c4-flow .c4-node[data-status="plan"] rect {
+      fill: color-mix(in srgb, currentColor 5%, var(--card));
+      stroke-dasharray: 7 5;
+    }
+    #csg-c4-flow .c4-node[data-status="plan"] .c4-node-tech { font-style: italic; }
     #csg-c4-flow .c4-node:hover rect,
     #csg-c4-flow .c4-node:focus rect,
     #csg-c4-flow .c4-node.is-active rect {
@@ -165,14 +173,16 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107 a 112). 323 módulos en 25 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
       <button id="tab-context" class="nav-link active" type="button" role="tab" aria-controls="c4-stage" aria-selected="true" data-view="context">Contexto</button>
       <button id="tab-containers" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="containers">Contenedores</button>
+      <button id="tab-components" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="components">Componentes</button>
       <button id="tab-conversion" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="conversion">Datos a DGS</button>
       <button id="tab-powerfactory" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="powerfactory">DGS a PowerFactory</button>
-      <button id="tab-intelligence" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="intelligence">IA y decision</button>
+      <button id="tab-intelligence" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="intelligence">IA y decisión</button>
       <button id="tab-deployment" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="deployment">Despliegue</button>
     </div>
     <div class="c4-actions">
@@ -180,7 +190,7 @@
       <button id="flow-next" class="btn" type="button">Paso siguiente</button>
       <button id="flow-reset" class="btn btn-ghost" type="button">Reiniciar</button>
       <label class="c4-speed form-label" for="flow-speed">Velocidad
-        <input id="flow-speed" class="form-range" type="range" min="600" max="2600" step="200" value="1400" aria-label="Duracion de cada paso en milisegundos">
+        <input id="flow-speed" class="form-range" type="range" min="600" max="2600" step="200" value="1400" aria-label="Duración de cada paso en milisegundos">
       </label>
     </div>
   </div>
@@ -194,7 +204,7 @@
           <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path>
         </marker>
       </defs>
-      <rect class="c4-frame" x="1" y="1" width="1198" height="618" rx="12"></rect>
+      <rect id="c4-frame" class="c4-frame" x="1" y="1" width="1198" height="618" rx="12"></rect>
       <g id="c4-boundaries"></g>
       <g id="c4-edges"></g>
       <g id="c4-nodes"></g>
@@ -222,22 +232,29 @@
     <button class="btn btn-ghost" type="button" data-node-id="engine">Motor</button>
     <button class="btn btn-ghost" type="button" data-node-id="powerfactory">PowerFactory</button>
     <button class="btn btn-ghost" type="button" data-node-id="twin">Gemelo</button>
+    <button class="btn btn-ghost" type="button" data-node-id="forecast">Pronóstico</button>
     <button class="btn btn-ghost" type="button" data-node-id="assistant">Asistente</button>
     <button class="btn btn-ghost" type="button" data-node-id="deliverables">Entregables</button>
     <button class="btn btn-ghost" type="button" data-node-id="security">Seguridad</button>
     <button class="btn btn-ghost" type="button" data-node-id="governance">Modelos</button>
     <button class="btn btn-ghost" type="button" data-node-id="planning">Planeamiento</button>
     <button class="btn btn-ghost" type="button" data-node-id="reports">Informes</button>
+    <button class="btn btn-ghost" type="button" data-node-id="pit">PIT</button>
+    <button class="btn btn-ghost" type="button" data-node-id="vad">VAD</button>
+    <button class="btn btn-ghost" type="button" data-node-id="cloudConn">Nube</button>
+    <button class="btn btn-ghost" type="button" data-node-id="mailer">Correo</button>
+    <button class="btn btn-ghost" type="button" data-node-id="gisEditor">Plano GIS</button>
+    <button class="btn btn-ghost" type="button" data-node-id="bench">Benchmarks</button>
   </div>
 
   <details class="c4-sources">
-    <summary>Fundamento academico y tecnico del plano</summary>
+    <summary>Fundamento académico y técnico del plano</summary>
     <ul>
-      <li><a href="https://doi.org/10.1016/j.jss.2014.03.071" target="_blank" rel="noreferrer">Shahin et al. (2014): revision sistematica de visualizacion arquitectonica</a>.</li>
-      <li><a href="https://doi.org/10.1109/TPWRS.2018.2829021" target="_blank" rel="noreferrer">Thurner et al. (2018): pandapower para analisis automatizado</a>.</li>
+      <li><a href="https://doi.org/10.1016/j.jss.2014.03.071" target="_blank" rel="noreferrer">Shahin et al. (2014): revisión sistemática de visualización arquitectónica</a>.</li>
+      <li><a href="https://doi.org/10.1109/TPWRS.2018.2829021" target="_blank" rel="noreferrer">Thurner et al. (2018): pandapower para análisis automatizado</a>.</li>
       <li><a href="https://doi.org/10.1016/j.epsr.2020.106664" target="_blank" rel="noreferrer">Fobes et al. (2020): PowerModelsDistribution y modelado de redes</a>.</li>
-      <li><a href="https://redi.cedia.edu.ec/document/42803" target="_blank" rel="noreferrer">Zambrano Asanza y Andrade Rodas (2011), tesis de maestria: analisis del modelo comun de datos electrico para integrar sistemas de manejo de la distribucion</a>.</li>
-      <li><a href="https://etheses.whiterose.ac.uk/id/eprint/30114/" target="_blank" rel="noreferrer">Sanchez Pina (2021), tesis doctoral: ejecuciones conservativas y trazables de flujos heterogeneos de modelos</a>.</li>
+      <li><a href="https://redi.cedia.edu.ec/document/42803" target="_blank" rel="noreferrer">Zambrano Asanza y Andrade Rodas (2011), tesis de maestría: análisis del modelo común de datos eléctrico para integrar sistemas de manejo de la distribución</a>.</li>
+      <li><a href="https://etheses.whiterose.ac.uk/id/eprint/30114/" target="_blank" rel="noreferrer">Sánchez Piña (2021), tesis doctoral: ejecuciones conservativas y trazables de flujos heterogéneos de modelos</a>.</li>
     </ul>
   </details>
 
@@ -245,6 +262,7 @@
     (() => {
       const root = document.getElementById('csg-c4-flow');
       const svg = root.querySelector('.c4-canvas');
+      const frameRect = root.querySelector('#c4-frame');
       const nodeLayer = root.querySelector('#c4-nodes');
       const edgeLayer = root.querySelector('#c4-edges');
       const boundaryLayer = root.querySelector('#c4-boundaries');
@@ -261,50 +279,159 @@
       const mobileFlow = root.querySelector('#c4-mobile-flow');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       const NS = 'http://www.w3.org/2000/svg';
+      const PLAN = 'plan';
 
+      // Cifras: docs/ARQUITECTURA_CATALOGO.md y docs/architecture/subsistemas.json (spec 090), revisión b4b03c0c.
       const common = {
-        operator: { label: 'Operador electrico', tech: 'Decision humana', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Selecciona alcance, confirma planes y acepta o rechaza con evidencia.' },
-        sources: { label: 'Fuentes electricas', tech: 'TXT / MDB / VNR-GIS', path: 'src/convertersmartgrid/sources', kind: 'external', detail: 'Entradas primarias aisladas y libros auxiliares de medicion.' },
-        system: { label: 'ConverterSmartGrid', tech: 'Sistema local auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, acepta y documenta redes de distribucion.' },
-        frontend: { label: 'Frontend web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Seleccion, seguimiento, confirmacion y descarga.' },
-        api: { label: 'API y orquestacion', tech: 'FastAPI / Python 3.12', path: 'src/convertersmartgrid/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos.' },
-        jobs: { label: 'Colas', tech: 'engine | PF | asistente | control', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril; control solo cancela.' },
-        custody: { label: 'Custodia', tech: 'Snapshots + SHA-256', path: 'src/convertersmartgrid/web/source_runs.py', kind: 'store', detail: 'Fija una ejecucion fuente inmutable sin mezclar modalidades.' },
-        engine: { label: 'Motor de conversion', tech: 'Python / FeederModel', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canonico.' },
+        // Contexto
+        operator: { label: 'Operador eléctrico', tech: 'Planifica y decide', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Elige el alcance, confirma cada escritura y acepta o rechaza con evidencia.' },
+        sources: { label: 'Fuentes de la distribuidora', tech: 'TXT CYMDIST, Access y libros', path: 'src/convertersmartgrid/sources', kind: 'external', detail: 'Exportaciones de CYMDIST y libros de medición; cada fuente se carga por su ruta y nunca entra en git.' },
+        vnrSource: { label: 'Paquete VNR-GIS', tech: 'Osinergmin, copia .bak', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'external', detail: 'Base y capas del VNR; las copias .bak se restauran en SQL Server Express.' },
+        regulator: { label: 'Osinergmin / COES', tech: 'Normas, costos y formatos', path: 'specs/README.md', kind: 'external', detail: 'Normas técnicas, costos oficiales y formatos del PIDE, del PIT y del VAD.' },
+        system: { label: 'ConverterSmartGrid', tech: 'Local y auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, calibra, estudia y documenta redes de distribución en la máquina del operador.' },
+        powerfactory: { label: 'DIgSILENT PowerFactory', tech: '2021 o posterior, API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa el DGS, verifica el Caso base, calibra, aplica obras y corre los estudios; cada resultado se relee.' },
+        llm: { label: 'LLM local', tech: 'Ollama en esta máquina', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'external', detail: 'Inferencia del asistente y de su revisión, solo en direcciones de la máquina.' },
+        cloud: { label: 'Nube del operador', tech: 'en implementación · 109', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'external', status: PLAN, detail: 'Google Drive y OneDrive con la cuenta del operador: fuentes, avisos de cambio y expedientes compartidos.' },
+        mail: { label: 'Correo del operador', tech: 'en implementación · 110', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'external', status: PLAN, detail: 'Gmail y Outlook con la cuenta del operador, con vista previa, confirmación y recibo.' },
+        deliverables: { label: 'Entregables', tech: 'DGS, PF, estudios e informes', path: 'docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf', kind: 'store', detail: 'Artefactos para revisión, operación y decisión, cada uno con su huella.' },
+        // Contenedores
+        frontend: { label: 'Interfaz web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Selección, seguimiento, confirmación y descarga; compilada en frontend/dist.' },
+        security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesión, política de contenido, edición y salidas a la red.' },
+        api: { label: 'API web', tech: 'FastAPI, 161 + 13 rutas', path: 'src/convertersmartgrid/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
+        jobs: { label: 'Colas de trabajo', tech: 'engine, PF, asistente, control', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Un hilo por carril; el de PowerFactory va en serie y el de control solo cancela.' },
+        custody: { label: 'Custodia de fuentes', tech: 'Copias fijas + SHA-256', path: 'src/convertersmartgrid/web/source_runs.py', kind: 'store', detail: 'Fija una ejecución fuente inmutable con su alcance y sus huellas, sin mezclar fuentes.' },
+        workspace: { label: 'Espacios de trabajo', tech: 'Ficheros por espacio', path: 'output/web', kind: 'store', detail: 'Entradas, opciones, ejecuciones, DGS, planes, informes y descargas de cada espacio.' },
+        vnr: { label: 'Adaptador VNR-GIS', tech: 'Python, 50 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Descubre, valida y exporta el VNR al mismo modelo común; su DGS sale del mismo escritor.' },
+        engine: { label: 'Motor de conversión', tech: 'Python, FeederModel', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canónico; hasta 4 procesos con el mismo DGS.' },
         oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/convertersmartgrid/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
-        dgs: { label: 'DGS y validacion', tech: 'Esquema versionado', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica atomicamente.' },
-        powerfactory: { label: 'PowerFactory 2024', tech: 'API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa, activa Caso base, ejecuta flujo, guarda y produce evidencia de aceptacion.' },
-        native: { label: 'Ejecutor nativo', tech: 'Plan JSON / informe JSON', path: 'src/convertersmartgrid/web/services.py', kind: 'native', detail: 'Aisla y serializa los procesos que controlan PowerFactory.' },
-        twin: { label: 'Gemelo digital', tech: 'Radial / mallado / PINN-GNN / GRU', path: 'src/convertersmartgrid/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y conserva metricas.' },
-        optimizer: { label: 'PIDE y evolutivos', tech: 'Escalera / Optuna / NSGA-II', path: 'src/convertersmartgrid/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto; DIgSILENT confirma.' },
-        assistant: { label: 'Asistente', tech: 'Reglas / codificador / Ollama', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
-        episodes: { label: 'Buffer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/digital_twin/buffer.py', kind: 'store', detail: 'Guarda evidencia y snapshots direccionados por contenido.' },
-        workspace: { label: 'Workspace', tech: 'Filesystem', path: 'output/web', kind: 'store', detail: 'Conserva entradas, planes, resultados y descargas.' },
-        deliverables: { label: 'Entregables', tech: 'DGS / PF / estudios / informes', path: 'docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf', kind: 'store', detail: 'Artefactos para revision, operacion y decision.' },
-        security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesion, politica de contenido, edicion y salidas a la red.' },
-        reports: { label: 'Informes', tech: 'Word / PDF / libro Excel', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardaron calibracion y obras.' },
-        planning: { label: 'Planeamiento', tech: 'Largo plazo y PIDE', path: 'src/convertersmartgrid/estudio_planeamiento.py', kind: 'engine', detail: 'Mercado, costos oficiales, formatos y entregables por modulo.' },
-        governance: { label: 'Gobierno de modelos', tech: 'Registro / puertas / GPU', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Candidatos, puertas, puntero en uso, guardia de GPU y ciclo de aprendizaje.' },
-        mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta maquina.' },
-        browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a frontend y API.' },
-        python: { label: 'Python 3.12', tech: 'API + motor + IA', path: 'pyproject.toml', kind: 'engine', detail: 'Proceso principal del conversor.' },
-        ollama: { label: 'Ollama / GPU', tech: 'Opcional y local', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' }
+        dgs: { label: 'DGS y validación', tech: 'Esquema versionado', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica de forma atómica, con su manifiesto.' },
+        native: { label: 'Guiones de DIgSILENT', tech: 'Plan JSON / informe JSON', path: 'src/convertersmartgrid/web/services.py', kind: 'native', detail: 'tools/*_pf.py con el intérprete de PowerFactory, turno exclusivo y servidor que repone el estado.' },
+        calibration: { label: 'Demanda y calibración', tech: 'Máxima, fijas y escaladas', path: 'src/convertersmartgrid/demanda_medida.py', kind: 'engine', detail: 'Libros por año, máxima coincidente y reparto de la demanda; el Caso base no se toca.' },
+        optimizer: { label: 'Obras y optimización', tech: 'Escalera, Optuna, NSGA-II', path: 'src/convertersmartgrid/escalera_optima.py', kind: 'ai', detail: 'Bancos, sección y terna hasta dejar la red en norma; DIgSILENT confirma cada obra.' },
+        studies: { label: 'Estudios eléctricos', tech: 'Flujo, N-1, transferencia', path: 'src/convertersmartgrid/estudios_pf.py', kind: 'engine', detail: 'Estudios de la red en los casos del proyecto, con los módulos nativos de DIgSILENT.' },
+        reports: { label: 'Informes', tech: 'Word, PDF y libro Excel', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardó la corrida; cada informe con su libro.' },
+        planning: { label: 'PIDE y planeamiento', tech: 'Mercado, costos y formatos', path: 'src/convertersmartgrid/pide.py', kind: 'engine', detail: 'Largo plazo y PIDE de distribución: diagnóstico, obras, costos y formatos por módulo.' },
+        pit: { label: 'Plan de inversiones (PIT)', tech: 'en implementación · 107', path: 'specs/107-plan-de-inversiones-en-transmision/spec.md', kind: 'engine', status: PLAN, detail: 'Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método.' },
+        vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas; la red real y la red óptima se calculan por separado.' },
+        twin: { label: 'Gemelo digital', tech: 'PINN-GNN, GRU, flujo propio', path: 'src/convertersmartgrid/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y filtra candidatos; DIgSILENT decide. Exige GPU.' },
+        forecast: { label: 'Pronóstico de demanda', tech: 'Competencia de modelos', path: 'src/convertersmartgrid/pronostico_demanda.py', kind: 'ai', detail: 'Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST. Ninguno se pone en uso solo.' },
+        episodes: { label: 'Búfer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/digital_twin/buffer.py', kind: 'store', detail: 'Episodios inmutables por huella; lo dudoso va a cuarentena sin repetir la acción.' },
+        governance: { label: 'Gobierno de modelos', tech: 'Registro, puertas, GPU', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Candidatos, puertas, puntero en uso, un turno de GPU para toda la máquina y ciclo de aprendizaje.' },
+        assistant: { label: 'Asistente y su equipo', tech: 'Intérprete, plan, revisión', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: '48 tareas; solo el operador ejecuta y toda escritura espera confirmación; revisan fuentes, física, coste y riesgo.' },
+        mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta máquina.' },
+        journal: { label: 'Diario de operaciones', tech: 'SQLite + JSON + SHA-256', path: 'src/convertersmartgrid/asistente/observacion.py', kind: 'store', detail: 'Estados por espacio, contexto inicial y evidencias custodiadas; no promueve modelos.' },
+        tooling: { label: 'Herramientas de órdenes', tech: 'tools/, 66 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Operación, aceptación, entrenamientos y calidad desde la línea de órdenes.' },
+        gisEditor: { label: 'Editor sobre el plano', tech: 'en implementación · 111', path: 'specs/111-editor-electrico-sobre-el-plano-gis/spec.md', kind: 'web', status: PLAN, detail: 'Ver la red, elegir un equipo, proponer maniobras u obras y ver resultados en el mismo trazo, sin tocar el Caso base.' },
+        cloudConn: { label: 'Conector de nube', tech: 'en implementación · 109', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella.' },
+        mailer: { label: 'Envío de informes', tech: 'en implementación · 110', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
+        bench: { label: 'Benchmarks anonimizados', tech: 'en implementación · 112', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', status: PLAN, detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
+        // Componentes (subsistemas de docs/architecture/subsistemas.json)
+        cInterfaz: { label: 'Interfaz', tech: 'frontend/src, 71 ficheros', path: 'frontend/src', kind: 'web', detail: 'Paneles, pestañas, formularios y cliente tipado de la API.' },
+        cWeb: { label: 'Web', tech: 'web/, 33 ficheros', path: 'src/convertersmartgrid/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor y soporte.' },
+        cHerrOper: { label: 'Operación y aceptación', tech: 'tools/, 21 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
+        cHerrCalidad: { label: 'Calidad y entrega', tech: 'tools/, 15 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Capas, contrato de la API, estado de specs, suite por tandas y candidato.' },
+        cVnr: { label: 'VNR-GIS', tech: 'adaptador, 50 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Conectores, descubrimiento, GIS, validación y puente al modelo común.' },
+        cEntrada: { label: 'Entrada de datos', tech: 'TXT, MDB, VNR · 14', path: 'src/convertersmartgrid/sources', kind: 'engine', detail: 'Lectores, contrato de fuente, copia fija, identificación e inventario.' },
+        cReconstruccion: { label: 'Reconstrucción y catálogo', tech: '8 ficheros', path: 'src/convertersmartgrid/reconstruction_pipeline.py', kind: 'engine', detail: 'Completa lo que falta con el catálogo y anota cada supuesto.' },
+        cModelo: { label: 'Modelo y reglas', tech: '9 ficheros', path: 'src/convertersmartgrid/model.py', kind: 'engine', detail: 'FeederModel, reglas comunes, puentes, fases y capacidades.' },
+        cConversion: { label: 'Conversión y oráculo', tech: 'red unida, 8 ficheros', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Lote, red unida, enlaces, estructura y oráculo de convergencia.' },
+        cSalida: { label: 'Salida y módulos', tech: 'DGS y esquemas, 19', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Esquemas versionados, escritor DGS, validación y módulos enchufables.' },
+        cTransversales: { label: 'Transversales', tech: '11 ficheros', path: 'src/convertersmartgrid/util.py', kind: 'engine', detail: 'Rutas de ejecución, nombres, perfil de empresa, edición y salidas a la red.' },
+        cEnlace: { label: 'Enlace con DIgSILENT', tech: 'arnés y vínculo, 9', path: 'src/convertersmartgrid/pf_arnes.py', kind: 'native', detail: 'Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto.' },
+        cGuiones: { label: 'Guiones de DIgSILENT', tech: 'tools/*_pf.py, 35', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
+        cDemanda: { label: 'Demanda y calibración', tech: '18 ficheros', path: 'src/convertersmartgrid/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
+        cObras: { label: 'Obras y optimización', tech: '12 ficheros', path: 'src/convertersmartgrid/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores y optimización.' },
+        cEstudios: { label: 'Estudios', tech: '6 ficheros', path: 'src/convertersmartgrid/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
+        cInformes: { label: 'Informes', tech: '8 ficheros', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
+        cPide: { label: 'PIDE y planeamiento', tech: '10 ficheros', path: 'src/convertersmartgrid/pide.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },
+        cGemelo: { label: 'Gemelo digital', tech: 'digital_twin/, 28', path: 'src/convertersmartgrid/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
+        cGobierno: { label: 'Gobierno de modelos', tech: '8 ficheros', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, compatibilidad de GPU y evaluación.' },
+        cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: 'tools/, 30 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente y del piloto MADRL.' },
+        cPorAsignar: { label: 'Módulos por asignar', tech: '27 módulos', path: 'docs/ARQUITECTURA_CATALOGO.md', kind: 'ai', detail: 'Arnés de evaluación, contratos de aprendizaje, pronóstico de demanda y obras integrales: el catálogo los lista sin subsistema.' },
+        cAsisNucleo: { label: 'Núcleo y operación', tech: 'asistente, 17', path: 'src/convertersmartgrid/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
+        cAsisModelos: { label: 'Órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
+        cAsisDatos: { label: 'Datos y entrenamiento', tech: '22 ficheros', path: 'src/convertersmartgrid/asistente/ordenes_maestro.py', kind: 'ai', detail: 'Órdenes sintéticas, fijas y del maestro; currículos y destilación.' },
+        cAsisRag: { label: 'Conocimiento y RAG', tech: '8 ficheros', path: 'src/convertersmartgrid/asistente/indice.py', kind: 'ai', detail: 'Índice, vectores, reordenación y evaluación de la recuperación.' },
+        // Despliegue
+        browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a la interfaz y a la API.' },
+        python: { label: 'Proceso web', tech: 'Python 3.12: API, motor, IA', path: 'pyproject.toml', kind: 'engine', detail: 'API, colas, motor y asistente en un proceso local.' },
+        ollama: { label: 'Ollama', tech: 'Opcional y local', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' },
+        gpu: { label: 'GPU CUDA', tech: 'Un turno para toda la máquina', path: 'src/convertersmartgrid/compat_gpu.py', kind: 'ai', detail: 'Gemelo y entrenamientos solo en CUDA; sin GPU, un error claro.' },
+        sqlserver: { label: 'SQL Server Express', tech: 'Restaura copias .bak', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'store', detail: 'Restaura las copias del VNR-GIS para leerlas como capas.' }
       };
 
       const n = (id, x, y, w = 190, h = 88) => ({ id, x, y, w, h, ...common[id] });
       const e = (from, to, label) => ({ from, to, label });
 
+      // Rejillas de las vistas grandes: columnas y filas fijas para que las flechas pasen por los huecos.
+      const CW = 170, CH = 92;
+      const cx = col => (col < 0 ? 20 : col > 6 ? 1790 : 240 + col * 220);
+      const ry = row => [20, 180, 330, 480, 630, 780][row];
+      const g = (id, col, row) => n(id, cx(col), ry(row), CW, CH);
+      const KW = 200, KH = 92;
+      const kx = col => 40 + col * 240;
+      const band = i => 20 + i * 172;
+      const k = (id, col, i) => n(id, kx(col), band(i) + 52, KW, KH);
+      const zone = (i, label) => ({ x: 20, y: band(i), w: 1920, h: 160, label, anchor: 'end' });
+
       const views = {
         context: {
           title: 'Contexto del sistema',
-          nodes: [n('operator', 55, 235), n('sources', 55, 405), n('system', 455, 290, 285, 120), n('powerfactory', 900, 250, 235, 100), n('deliverables', 900, 420, 235, 100)],
-          edges: [e('operator','system','Opera y confirma'), e('sources','system','Entrega redes y mediciones'), e('system','powerfactory','Importa y ejecuta'), e('powerfactory','system','Devuelve lectura nativa'), e('system','deliverables','Publica evidencia')]
+          nodes: [n('operator', 40, 50, 210), n('sources', 40, 190, 210), n('vnrSource', 40, 330, 210), n('regulator', 40, 470, 210), n('system', 465, 245, 270, 120), n('deliverables', 490, 470, 220), n('powerfactory', 950, 50, 210), n('llm', 950, 190, 210), n('cloud', 950, 330, 210), n('mail', 950, 470, 210)],
+          edges: [e('operator','system','Opera y confirma'), e('sources','system','Redes y mediciones'), e('vnrSource','system','Base y capas'), e('regulator','system','Normas y costos'), e('system','powerfactory','Importa y estudia'), e('system','llm','Inferencia local'), e('system','cloud','Expedientes'), e('system','mail','Informe con recibo'), e('system','deliverables','Publica evidencia')]
         },
         containers: {
           title: 'Contenedores del sistema',
-          boundary: { x: 35, y: 18, w: 1130, h: 590, label: 'ConverterSmartGrid' },
-          nodes: [n('frontend',50,70,175,78), n('api',280,70,175,78), n('jobs',510,70,175,78), n('custody',740,70,175,78), n('workspace',970,70,175,78), n('engine',50,205,175,78), n('dgs',280,205,175,78), n('oracle',510,205,175,78), n('native',740,205,175,78), n('powerfactory',970,205,175,78), n('twin',50,340,175,78), n('episodes',280,340,175,78), n('optimizer',510,340,175,78), n('assistant',740,340,175,78), n('deliverables',970,340,175,78), n('security',50,500,175,78), n('governance',280,500,175,78), n('planning',510,500,175,78), n('mcp',740,500,175,78), n('reports',970,500,175,78)],
-          edges: [e('frontend','api','REST + WebSocket'), e('security','api','Filtra'), e('api','jobs','Encola'), e('api','custody','Custodia'), e('jobs','engine','Carril engine'), e('engine','dgs','Escribe y valida'), e('dgs','workspace','Publica'), e('jobs','native','Carril PF'), e('native','oracle','Consulta opcional'), e('native','powerfactory','API nativa'), e('native','workspace','Informe + binding'), e('native','twin','Captura'), e('twin','episodes','Episodios'), e('twin','optimizer','Evalua'), e('optimizer','assistant','Propone'), e('assistant','api','API existente'), e('workspace','deliverables','Descarga'), e('twin','governance','Registra'), e('governance','assistant','En uso'), e('optimizer','planning','Alternativas'), e('mcp','assistant','Lecturas'), e('native','reports','Casos'), e('reports','deliverables','Publica')]
+          grid: true,
+          width: 1980,
+          height: 910,
+          boundary: { x: 225, y: 135, w: 1520, h: 755, label: 'ConverterSmartGrid (equipo del operador)' },
+          nodes: [
+            g('operator',-1,1), g('llm',-1,2), g('sources',2,0), g('cloud',5,0), g('mail',6,0), g('powerfactory',7,3), g('regulator',7,5),
+            g('frontend',0,1), g('security',1,1), g('api',2,1), g('jobs',3,1), g('workspace',4,1), g('cloudConn',5,1), g('mailer',6,1),
+            g('assistant',0,2), g('gisEditor',1,2), g('custody',2,2), g('engine',3,2), g('dgs',4,2), g('native',5,2), g('oracle',6,2),
+            g('mcp',0,3), g('journal',1,3), g('vnr',2,3), g('calibration',3,3), g('optimizer',4,3), g('twin',5,3), g('studies',6,3),
+            g('tooling',0,4), g('governance',3,4), g('planning',4,4), g('episodes',5,4), g('reports',6,4),
+            g('forecast',2,5), g('vad',3,5), g('pit',4,5), g('bench',5,5)
+          ],
+          edges: [
+            e('operator','frontend','Usa'), e('frontend','security','REST'), e('security','api','Filtra'), e('api','jobs','Encola'),
+            e('sources','api','Ficheros o rutas'), e('api','custody','Custodia'), e('custody','engine','Copia'), e('custody','vnr','Paquete VNR'), e('vnr','engine','Red común'),
+            e('jobs','engine','Carril engine'), e('jobs','native','PF'), e('engine','dgs','Modelo'), e('dgs','workspace','Publica'), e('dgs','native','DGS'),
+            e('native','oracle','Solicita'), e('oracle','native','Avisos; la importación continúa'), e('native','powerfactory','Plan JSON'),
+            e('native','calibration','Calibra'), e('native','studies','Estudia'), e('native','twin','Captura'), e('calibration','optimizer','Red'),
+            e('optimizer','planning','Alternativas'), e('studies','reports','Casos guardados'), e('planning','pit','Base común'), e('planning','vad','Base común'), e('regulator','planning','Normas y costos'),
+            e('twin','episodes','Persiste'), e('twin','governance','Candidatos'), e('forecast','governance','Sin promover'), e('episodes','bench','Datos de referencia'),
+            e('frontend','assistant','Órdenes'), e('frontend','gisEditor','Plano'), e('gisEditor','security','Maniobras'), e('assistant','api','Ejecuta tras confirmar'),
+            e('llm','assistant','LLM'), e('mcp','assistant','Lecturas'), e('assistant','journal','Avances'), e('tooling','governance','Entrena y mide'),
+            e('workspace','cloudConn','Sube'), e('cloudConn','cloud','Comparte'), e('cloudConn','mailer','Enlace'), e('mailer','mail','Envía con recibo')
+          ]
+        },
+        components: {
+          title: 'Componentes por subsistema',
+          grid: true,
+          width: 1960,
+          height: 1060,
+          boundary: [
+            zone(0, 'Interfaz, web y herramientas'), zone(1, 'Motor de conversión y adaptador VNR-GIS'), zone(2, 'DIgSILENT: enlace, guiones, calibración, obras, estudios e informes'),
+            zone(3, 'Planeamiento'), zone(4, 'Gemelo digital, pronóstico y gobierno de modelos'), zone(5, 'Asistente y su equipo')
+          ],
+          nodes: [
+            k('cInterfaz',0,0), k('cWeb',1,0), k('cloudConn',2,0), k('mailer',3,0), k('gisEditor',4,0), k('cHerrOper',6,0), k('cHerrCalidad',7,0),
+            k('cVnr',0,1), k('cEntrada',1,1), k('cReconstruccion',2,1), k('cModelo',3,1), k('cConversion',4,1), k('cSalida',5,1), k('cTransversales',7,1),
+            k('cEnlace',0,2), k('cGuiones',1,2), k('cDemanda',2,2), k('cObras',3,2), k('cEstudios',4,2), k('cInformes',5,2),
+            k('vad',2,3), k('cPide',3,3), k('pit',4,3),
+            k('bench',0,4), k('cGemelo',1,4), k('cGobierno',2,4), k('cHerrModelos',3,4), k('cPorAsignar',5,4),
+            k('cAsisRag',1,5), k('cAsisNucleo',2,5), k('cAsisModelos',3,5), k('cAsisDatos',4,5)
+          ],
+          edges: [
+            e('cInterfaz','cWeb','API'), e('cWeb','cloudConn','Sube'), e('cloudConn','mailer','Enlace'), e('cWeb','cEntrada','Carga y convierte'),
+            e('cVnr','cEntrada','Puente'), e('cEntrada','cReconstruccion','Datos'), e('cReconstruccion','cModelo','Red'), e('cModelo','cConversion','Red'), e('cConversion','cSalida','Red'),
+            e('cSalida','cEnlace','DGS validado'), e('cEnlace','cGuiones','Turno'), e('cGuiones','cDemanda','Calibra'), e('cDemanda','cObras','Red'), e('cObras','cEstudios','Obras'), e('cEstudios','cInformes','Casos'),
+            e('cObras','cPide','Alternativas'), e('cPide','pit','Base'), e('cPide','vad','Base común'),
+            e('cGuiones','cGemelo','Episodios'), e('cGemelo','cGobierno','Registra'), e('cHerrModelos','cGobierno','Entrena'), e('cGemelo','bench','Datos de referencia'),
+            e('cGobierno','cAsisNucleo','Modelo en uso'), e('cAsisNucleo','cAsisModelos','Usa'), e('cAsisNucleo','cAsisRag','Citas'), e('cAsisDatos','cAsisModelos','Entrena')
+          ]
         },
         conversion: {
           title: 'Flujo de datos a DGS',
@@ -314,18 +441,19 @@
         powerfactory: {
           title: 'Flujo DGS a PowerFactory',
           nodes: [n('frontend',20,260,140), n('api',180,260,140), n('jobs',340,260,140), n('native',500,260,150), n('oracle',690,105,170), n('powerfactory',710,320,180), n('workspace',940,320,170)],
-          edges: [e('frontend','api','1. Solicitar'), e('api','jobs','2. Encolar'), e('jobs','native','3. Lanzar aislado'), e('native','oracle','4. Preflight consultivo'), e('oracle','native','5. Avisar y continuar'), e('native','powerfactory','6. Importar y ejecutar'), e('powerfactory','native','7. Guardar y releer'), e('native','workspace','8. Guardar evidencia'), e('workspace','frontend','9. Presentar evidencia')]
+          edges: [e('frontend','api','1. Solicitar'), e('api','jobs','2. Encolar'), e('jobs','native','3. Lanzar aislado'), e('native','oracle','4. Preflight consultivo'), e('oracle','native','5. Avisar y continuar'), e('native','powerfactory','6. Importar, calibrar y estudiar'), e('powerfactory','native','7. Guardar y releer'), e('native','workspace','8. Guardar evidencia'), e('workspace','frontend','9. Presentar evidencia')]
         },
         intelligence: {
-          title: 'Flujo de IA y decision humana',
+          title: 'Flujo de IA y decisión humana',
           nodes: [n('native',20,260,145), n('twin',180,260,145), n('episodes',340,260,145), n('optimizer',500,260,145), n('assistant',660,260,145), n('operator',820,260,145), n('api',1000,260,145)],
           edges: [e('native','twin','1. Capturar'), e('twin','episodes','2. Persistir'), e('episodes','twin','3. Entrenar/evaluar'), e('twin','optimizer','4. Evaluar alternativas'), e('optimizer','assistant','5. Explicar'), e('operator','assistant','6. Confirmar o rechazar'), e('assistant','api','7. Ejecutar por API')]
         },
         deployment: {
           title: 'Despliegue local',
-          boundary: { x: 35, y: 50, w: 1130, h: 525, label: 'Estacion Windows del operador' },
-          nodes: [n('browser',80,120,190), n('frontend',340,120,190), n('python',600,120,190), n('powerfactory',860,120,210), n('workspace',210,380,190), n('episodes',505,380,190), n('ollama',800,380,190)],
-          edges: [e('browser','frontend','HTTP local'), e('frontend','python','REST + WebSocket'), e('python','powerfactory','Proceso nativo exclusivo'), e('python','workspace','Archivos'), e('python','episodes','SQLite/JSON'), e('python','ollama','Inferencia opcional')]
+          grid: true,
+          boundary: { x: 35, y: 50, w: 1130, h: 525, label: 'Estación Windows del operador' },
+          nodes: [n('browser',60,120), n('frontend',285,120), n('python',510,120), n('native',735,120), n('powerfactory',960,120, 180), n('workspace',60,400), n('episodes',285,400), n('sqlserver',510,400), n('ollama',735,400), n('gpu',960,400, 180)],
+          edges: [e('browser','frontend','HTTP'), e('frontend','python','REST'), e('python','native','Plan'), e('native','powerfactory','API'), e('python','workspace','Ficheros'), e('python','episodes','SQLite'), e('python','sqlserver','VNR'), e('python','ollama','Local'), e('python','gpu','CUDA')]
         }
       };
 
@@ -355,23 +483,44 @@
         return lines.slice(0, 3);
       }
 
-      function edgePath(source, target) {
+      // Devuelve el trazo ortogonal y dónde va su etiqueta. Hacia la derecha: por el lado; hacia atrás en la
+      // misma fila: por encima. En las vistas de rejilla, entre filas distintas baja o sube por el centro y gira
+      // en el hueco junto al destino, sin cruzar cajas.
+      function edgeGeometry(source, target, grid) {
+        const sameRow = source.y < target.y + target.h && target.y < source.y + source.h;
         const sx = source.x + source.w;
         const sy = source.y + source.h / 2;
         const tx = target.x;
         const ty = target.y + target.h / 2;
-        if (tx >= sx) {
+        if (tx >= sx && (sameRow || !grid)) {
           const mx = sx + (tx - sx) / 2;
-          return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+          if (Math.abs(sy - ty) < 1) return { d: `M ${sx} ${sy} L ${tx} ${ty}`, lx: mx, ly: sy - 12 };
+          const nearTarget = source.h > target.h;
+          return { d: `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`, lx: nearTarget ? (mx + tx) / 2 : (sx + mx) / 2, ly: (nearTarget ? ty : sy) - 8 };
         }
-        const startX = source.x + source.w / 2;
-        const endX = target.x + target.w / 2;
-        const bendY = Math.min(source.y, target.y) - 42;
-        return `M ${startX} ${source.y} L ${startX} ${bendY} L ${endX} ${bendY} L ${endX} ${target.y}`;
+        const below = target.y >= source.y + source.h;
+        const above = target.y + target.h <= source.y;
+        if (sameRow || !(below || above)) {
+          const startX = source.x + source.w / 2;
+          const endX = target.x + target.w / 2;
+          const bendY = Math.min(source.y, target.y) - (grid ? 26 : 42);
+          return { d: `M ${startX} ${source.y} L ${startX} ${bendY} L ${endX} ${bendY} L ${endX} ${target.y}`, lx: (startX + endX) / 2, ly: bendY - (grid ? 6 : 12) };
+        }
+        const down = target.y >= source.y + source.h;
+        const shift = down ? -8 : 8;
+        const x1 = source.x + source.w / 2 + shift;
+        const x2 = target.x + target.w / 2 + shift;
+        const y1 = down ? source.y + source.h : source.y;
+        const y2 = down ? target.y : target.y + target.h;
+        const midY = down ? y2 - 20 : y2 + 20;
+        const straight = Math.abs(x1 - x2) < 1;
+        const d = straight ? `M ${x1} ${y1} L ${x2} ${y2}` : `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+        if (straight) return { d, lx: x1, ly: (y1 + y2) / 2 + 4 };
+        return { d, lx: (x1 + x2) / 2, ly: down ? midY - 6 : midY + 15 };
       }
 
       function showDetail(item, labelOverride) {
-        const title = labelOverride || item.label || 'Relacion';
+        const title = labelOverride || item.label || 'Relación';
         detailTitle.textContent = title;
         detailText.textContent = item.detail || item.description || '';
         const access = item.path || `${item.from} -> ${item.to}`;
@@ -386,15 +535,20 @@
 
       function drawBoundary(boundary) {
         boundaryLayer.replaceChildren();
-        if (!boundary) return;
-        const rect = svgEl('rect', { class: 'c4-boundary', x: boundary.x, y: boundary.y, width: boundary.w, height: boundary.h, rx: 18 });
-        const label = svgEl('text', { class: 'c4-boundary-label', x: boundary.x + 18, y: boundary.y + 27 });
-        label.textContent = boundary.label;
-        boundaryLayer.append(rect, label);
+        const list = Array.isArray(boundary) ? boundary : (boundary ? [boundary] : []);
+        list.forEach(item => {
+          const rect = svgEl('rect', { class: 'c4-boundary', x: item.x, y: item.y, width: item.w, height: item.h, rx: 18 });
+          const atEnd = item.anchor === 'end';
+          const label = svgEl('text', { class: 'c4-boundary-label', x: atEnd ? item.x + item.w - 18 : item.x + 18, y: item.y + 27, 'text-anchor': atEnd ? 'end' : 'start' });
+          label.textContent = item.label;
+          boundaryLayer.append(rect, label);
+        });
       }
 
       function drawNode(node) {
-        const group = svgEl('g', { class: 'c4-node', 'data-node-id': node.id, 'data-kind': node.kind, role: 'button', tabindex: '0', 'aria-label': `${node.label}. ${node.tech}` });
+        const attrs = { class: 'c4-node', 'data-node-id': node.id, 'data-kind': node.kind, role: 'button', tabindex: '0', 'aria-label': `${node.label}. ${node.tech}` };
+        if (node.status === PLAN) attrs['data-status'] = PLAN;
+        const group = svgEl('g', attrs);
         group.appendChild(svgEl('rect', { x: node.x, y: node.y, width: node.w, height: node.h }));
         const title = svgEl('text', { class: 'c4-node-title', x: node.x + 14, y: node.y + 25 });
         wrapLabel(node.label, Math.max(16, Math.floor(node.w / 9))).forEach((line, index) => {
@@ -418,17 +572,11 @@
         const source = nodes.find(node => node.id === edge.from);
         const target = nodes.find(node => node.id === edge.to);
         const group = svgEl('g', { class: 'c4-edge', 'data-edge-index': index, role: 'button', tabindex: '0', 'aria-label': `${source.label} a ${target.label}: ${edge.label}` });
-        const d = edgePath(source, target);
+        const geometry = edgeGeometry(source, target, Boolean(views[currentView].grid));
+        const d = geometry.d;
         const visible = svgEl('path', { class: 'c4-edge-visible', d });
         const hit = svgEl('path', { class: 'c4-edge-hit', d });
-        const forward = target.x >= source.x + source.w;
-        const labelX = forward
-          ? source.x + source.w + (target.x - source.x - source.w) / 2
-          : (source.x + source.w / 2 + target.x + target.w / 2) / 2;
-        const labelY = forward
-          ? source.y + source.h / 2 - 12
-          : Math.min(source.y, target.y) - 54;
-        const label = svgEl('text', { class: 'c4-edge-label', x: labelX, y: labelY, 'text-anchor': 'middle' });
+        const label = svgEl('text', { class: 'c4-edge-label', x: geometry.lx, y: geometry.ly, 'text-anchor': 'middle' });
         visible.setAttribute('id', `edge-${currentView}-${index}`);
         label.textContent = edge.label;
         const activate = () => selectEdge(index, false);
@@ -453,10 +601,19 @@
         mobileFlow.replaceChildren(list);
       }
 
+      function sizeCanvas(view) {
+        const width = view.width || 1200;
+        const height = view.height || 620;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        frameRect.setAttribute('width', width - 2);
+        frameRect.setAttribute('height', height - 2);
+      }
+
       function renderView() {
         stopPlayback();
         currentStep = -1;
         const view = views[currentView];
+        sizeCanvas(view);
         drawBoundary(view.boundary);
         nodeLayer.replaceChildren(...view.nodes.map(drawNode));
         edgeLayer.replaceChildren(...view.edges.map((edge, index) => drawEdge(edge, index, view.nodes)));
@@ -515,7 +672,7 @@
         timer = setTimeout(() => {
           if (currentStep >= views[currentView].edges.length - 1) {
             stopPlayback();
-            detailText.textContent = 'Flujo completado. La reproduccion se detuvo sin reiniciar automaticamente.';
+            detailText.textContent = 'Flujo completado. La reproducción se detuvo sin reiniciar automáticamente.';
             return;
           }
           advanceFlow(true);

@@ -1,79 +1,328 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables" {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión b4b03c0c, 14-11-2026: 323 módulos en 25 subsistemas." {
+
+    // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
+    !impliedRelationships false
+
+    // Los enlaces apuntan a la revisión fijada b4b03c0c, nunca a una ruta de la máquina.
+
     model {
-        operador = person "Operador electrico" "Selecciona el alcance, confirma planes y decide con evidencia." {
+        operador = person "Operador eléctrico" "Elige el alcance, confirma cada escritura y decide con evidencia." {
             url "http://127.0.0.1:8765/"
             tags "Person"
         }
 
-        fuentes = softwareSystem "Fuentes electricas" "TXT CYMDIST, MDB/Access, VNR-GIS y libros de medicion." {
-            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/lectura-de-las-dos-disposiciones/src/convertersmartgrid/sources"
+        // ------------------------------------------------------------------ sistemas externos
+        fuentes = softwareSystem "Fuentes de la distribuidora" "TXT de CYMDIST, base Access y libros de medición; cada fuente se carga por su ruta." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/sources"
             tags "External"
         }
 
-        powerfactory = softwareSystem "DIgSILENT PowerFactory 2024" "Motor nativo propietario para aceptar, calibrar y estudiar la red." {
-            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/tools/powerfactory_acceptance.py"
+        vnrGis = softwareSystem "Paquete VNR-GIS" "Base y capas del VNR publicadas por Osinergmin; las copias .bak se restauran en SQL Server Express." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/adaptadores/entrada/vnr"
+            tags "External"
+        }
+
+        regulador = softwareSystem "Osinergmin / COES" "Entes públicos: normas técnicas, costos oficiales y formatos del PIDE, del PIT y del VAD." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/README.md"
+            tags "External"
+        }
+
+        powerfactory = softwareSystem "DIgSILENT PowerFactory" "Motor nativo propietario, 2021 o posterior: importa, verifica, calibra y estudia la red." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/powerfactory_acceptance.py"
             tags "Native"
         }
 
-        conversor = softwareSystem "ConverterSmartGrid" "Convierte, valida, acepta y documenta redes de distribucion." {
-            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/README.md"
+        llm = softwareSystem "LLM local" "Ollama en esta máquina, para el asistente y su revisión; solo direcciones locales." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/ollama.py"
+            tags "External"
+        }
 
-            frontend = container "Frontend web" "Interfaz, seleccion, progreso, resultados y confirmacion." "React + TypeScript" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/lectura-de-las-dos-disposiciones/frontend/src"
+        nube = softwareSystem "Nube del operador" "Google Drive y OneDrive con la cuenta del operador." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md"
+            tags "External,en implementación"
+            properties {
+                "Estado" "en implementación"
+                "Spec" "109"
+            }
+        }
+
+        correo = softwareSystem "Correo del operador" "Gmail y Outlook con la cuenta del operador." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/110-envio-de-informes-por-correo-desde-la-web/spec.md"
+            tags "External,en implementación"
+            properties {
+                "Estado" "en implementación"
+                "Spec" "110"
+            }
+        }
+
+        // ------------------------------------------------------------------ el sistema
+        conversor = softwareSystem "ConverterSmartGrid" "Convierte, valida, calibra, estudia y documenta redes de distribución en la máquina del operador." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/README.md"
+
+            frontend = container "Interfaz web" "Selección, seguimiento, confirmación y descarga; compilada en frontend/dist." "React + TypeScript" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/frontend/src"
                 tags "Web"
+                cmpInterfaz = component "Interfaz" "Paneles, pestañas, formularios y cliente tipado de la API (71 ficheros)." "React + TypeScript" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/frontend/src"
+                    tags "Web"
+                }
             }
 
-            api = container "API y orquestacion" "Expone REST/WebSocket, valida pedidos y coordina trabajos." "FastAPI / Python 3.12" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/app.py"
+            gisEditor = container "Editor sobre el plano" "Ver la red, elegir un equipo, proponer maniobras u obras y ver los resultados en el mismo trazo, sin tocar el Caso base." "React + Leaflet" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/111-editor-electrico-sobre-el-plano-gis/spec.md"
+                tags "Web,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "111"
+                }
+            }
+
+            security = container "Puerta de seguridad" "Host, Origin, token de sesión, política de contenido, edición y salidas a la red." "Middleware ASGI" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web/seguridad.py"
                 tags "API"
             }
 
-            jobs = container "Colas de trabajo" "Serializa engine, powerfactory y asistente; el carril control solo cancela." "Python threads/queues" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/jobs.py"
+            api = container "API web" "REST y WebSocket: 161 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web/app.py"
+                tags "API"
+                cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor y soporte (33 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web"
+                    tags "API"
+                }
+            }
+
+            jobs = container "Colas de trabajo" "Cuatro carriles: engine, powerfactory, asistente y control; el de control solo cancela." "Hilos y colas de Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web/jobs.py"
                 tags "Queue"
             }
 
-            custody = container "Custodia de fuentes" "Crea source runs inmutables con alcance y huellas." "Filesystem + SHA-256" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/source_runs.py"
+            custody = container "Custodia de fuentes" "Ejecuciones fuente inmutables con alcance y huellas, sin mezclar fuentes." "Ficheros + SHA-256" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web/source_runs.py"
                 tags "Store"
             }
 
-            engine = container "Motor de conversion" "Adapta, reconstruye, aplica reglas y construye FeederModel." "Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/batch.py"
+            cloudConn = container "Conector de nube" "Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md"
+                tags "API,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "109"
+                }
+            }
+
+            mailer = container "Envío de informes" "Envía el informe cerrado o un enlace privado a su expediente, con vista previa, confirmación y recibo." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/110-envio-de-informes-por-correo-desde-la-web/spec.md"
+                tags "API,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "110"
+                }
+            }
+
+            vnr = container "Adaptador VNR-GIS" "Descubre, valida y exporta el VNR al mismo modelo común; su DGS sale del mismo escritor." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/adaptadores/entrada/vnr"
                 tags "Engine"
+                cmpVnr = component "VNR-GIS" "Conectores, descubrimiento, GIS, validación y puente al modelo común (50 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/adaptadores/entrada/vnr"
+                    tags "Engine"
+                }
+            }
+
+            engine = container "Motor de conversión" "Adapta, reconstruye, aplica reglas y construye FeederModel; hasta 4 procesos con el mismo DGS." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/batch.py"
+                tags "Engine"
+                cmpTransversales = component "Transversales" "Rutas de ejecución, nombres, perfil de empresa, edición y salidas a la red (11 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/runtime_paths.py"
+                    tags "Engine"
+                }
+                cmpEntrada = component "Entrada de datos" "Lectores TXT, MDB y VNR, contrato de fuente, copia fija, identificación e inventario (14 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/sources"
+                    tags "Engine"
+                }
+                cmpReconstruccion = component "Reconstrucción y catálogo" "Completa lo que falta con el catálogo y anota cada supuesto (8 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/reconstruction_pipeline.py"
+                    tags "Engine"
+                }
+                cmpModelo = component "Modelo y reglas" "FeederModel, reglas comunes, puentes, fases y capacidades (9 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/model.py"
+                    tags "Engine"
+                }
+                cmpConversion = component "Conversión, red unida y oráculo" "Lote, red unida, enlaces, estructura y oráculo de convergencia (8 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/batch.py"
+                    tags "Engine"
+                }
             }
 
             oracle = container "Preflight consultivo" "Informa conectividad y convergencia antes de importar a PowerFactory; sus avisos no omiten el DGS." "pandapower" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/oraculo.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/oraculo.py"
                 tags "Engine"
             }
 
-            dgs = container "Escritor y validador DGS" "Escribe con esquema versionado, valida y publica atomicamente." "Python + DGS schema" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/dgs.py"
+            dgs = container "Escritor y validador DGS" "Escribe con esquema versionado, valida y publica de forma atómica." "Python + esquema DGS" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/dgs.py"
                 tags "Engine"
+                cmpSalida = component "Salida y módulos enchufables" "Esquemas versionados, escritor DGS, validación y módulos enchufables (19 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/dgs.py"
+                    tags "Engine"
+                }
             }
 
-            nativeRunner = container "Ejecutor PowerFactory" "Lanza tools/*_pf.py con plan JSON y turno exclusivo del motor; recibe informe JSON. Calibra, aplica obras y corre estudios." "Python 3.12 / PowerFactory API" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/services.py"
+            nativeRunner = container "Guiones de DIgSILENT" "Lanza tools/*_pf.py con plan JSON y turno exclusivo; recibe informe JSON. Importa, calibra, aplica obras y corre estudios." "Python / API de PowerFactory" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/web/services.py"
                 tags "Native"
+                cmpEnlacePf = component "Enlace con DIgSILENT" "Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto (9 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/pf_arnes.py"
+                    tags "Native"
+                }
+                cmpGuiones = component "Guiones de DIgSILENT" "Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios (35 ficheros)." "Python con el intérprete de PowerFactory" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/powerfactory_acceptance.py"
+                    tags "Native"
+                }
             }
 
-            twin = container "Gemelo digital" "Captura episodios y ofrece oraculos radial, mallado, PINN-GNN y GRU." "Python + PyTorch" {
-                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin"
+            calibration = container "Demanda y calibración" "Libros por año, máxima coincidente y reparto de la demanda; el Caso base no se toca." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/demanda_medida.py"
+                tags "Engine"
+                cmpDemanda = component "Demanda y calibración" "Libros por año y libros nuevos, cabecera, cargas y reparto (18 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/demanda_medida.py"
+                    tags "Engine"
+                }
+            }
+
+            optimizer = container "Obras y optimización" "Escalera de bancos, sección y terna, Optuna y NSGA-II; DIgSILENT confirma cada obra." "Python + NumPy + Optuna" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/escalera_optima.py"
+                tags "AI"
+                cmpObras = component "Obras y optimización" "Escalera, troncal, perfil de tensión, reguladores y optimización (12 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/obras_pf.py"
+                    tags "AI"
+                }
+            }
+
+            studies = container "Estudios eléctricos" "Flujo, N-1, protecciones y transferencia con los módulos nativos de DIgSILENT." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/estudios_pf.py"
+                tags "Engine"
+                cmpEstudios = component "Estudios" "Estudios de red, protecciones y transferencia (6 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/estudios_pf.py"
+                    tags "Engine"
+                }
+            }
+
+            reports = container "Informes" "Word, PDF, imágenes y libro Excel de estudio y factibilidad, con lo guardado por la corrida." "python-docx + COM" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/informes.py"
+                tags "Engine"
+                cmpInformes = component "Informes" "Word, libros, mapas del informe y mapa de cargas (8 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/informes.py"
+                    tags "Engine"
+                }
+            }
+
+            planning = container "PIDE y planeamiento" "Largo plazo y PIDE de distribución: diagnóstico, obras, costos oficiales y formatos." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/pide.py"
+                tags "Engine"
+                cmpPide = component "PIDE y planeamiento" "PIDE, economía, proyecciones de mercado y estudio de planeamiento (10 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/estudio_planeamiento.py"
+                    tags "Engine"
+                }
+            }
+
+            pit = container "Plan de inversiones en transmisión" "Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/107-plan-de-inversiones-en-transmision/spec.md"
+                tags "Engine,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "107"
+                }
+            }
+
+            vad = container "Estudio de costos del VAD" "Empresa modelo eficiente en cuatro etapas; la red real y la red óptima se calculan por separado." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/108-estudio-de-costos-del-vad/spec.md"
+                tags "Engine,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "108"
+                }
+            }
+
+            twin = container "Gemelo digital" "Captura episodios y ofrece oráculos radial, mallado, PINN-GNN y GRU; filtra candidatos, DIgSILENT decide." "Python + PyTorch (CUDA)" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/digital_twin"
+                tags "AI"
+                cmpGemelo = component "Gemelo digital" "Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos (28 ficheros)." "Python + PyTorch" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/digital_twin"
+                    tags "AI"
+                }
+            }
+
+            forecast = container "Pronóstico de demanda" "Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST; ninguno se pone en uso solo." "Python + PyTorch" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/pronostico_demanda.py"
                 tags "AI"
             }
 
-            optimizer = container "PIDE y optimizacion" "Ordena alternativas con escalera, Optuna, GA y NSGA-II; DIgSILENT confirma." "Python + NumPy + Optuna" {
-                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/evolutivo.py"
+            bench = container "Benchmarks anonimizados" "Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md"
+                tags "AI,en implementación"
+                properties {
+                    "Estado" "en implementación"
+                    "Spec" "112"
+                }
+            }
+
+            assistant = container "Asistente y su equipo" "48 tareas; interpreta órdenes, muestra el plan y ejecuta solo tras confirmación; revisan fuentes, física, coste y riesgo." "Reglas + codificador de órdenes + LLM local" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente"
+                tags "AI"
+                cmpAsisNucleo = component "Núcleo y operación" "Tareas, intérprete, plan, planes guardados, ejecutor y orquestador (17 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/tareas.py"
+                    tags "AI"
+                }
+                cmpAsisModelos = component "Modelos de órdenes y documentos" "Transformer, codificador y clasificador de informes (9 ficheros)." "Python + PyTorch" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/codificador_ordenes.py"
+                    tags "AI"
+                }
+                cmpAsisDatos = component "Datos y entrenamiento" "Órdenes sintéticas, fijas y del maestro; currículos y destilación (22 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/ordenes_maestro.py"
+                    tags "AI"
+                }
+                cmpAsisRag = component "Conocimiento y RAG" "Índice, vectores, reordenación y evaluación de la recuperación (8 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/indice.py"
+                    tags "AI"
+                }
+            }
+
+            modelGovernance = container "Gobierno de modelos" "Registro de candidatos, puertas, puntero en uso, un turno de GPU para toda la máquina y ciclo de aprendizaje." "Python + JSON + SHA-256" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/model_registry.py"
+                tags "AI"
+                cmpGobierno = component "Gobierno de modelos" "Registro, coordinador de entrenamiento, compatibilidad de GPU y evaluación (8 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/model_registry.py"
+                    tags "AI"
+                }
+                cmpPorAsignar = component "Módulos por asignar" "27 módulos que el catálogo lista sin subsistema: arnés de evaluación, contratos de aprendizaje, pronóstico de demanda y obras integrales." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/docs/ARQUITECTURA_CATALOGO.md"
+                    tags "AI"
+                }
+            }
+
+            mcp = container "MCP local" "Las lecturas del asistente para un cliente de esta máquina: solo stdio y solo lectura." "Python + MCP (opcional)" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/mcp_conversor.py"
                 tags "AI"
             }
 
-            assistant = container "Asistente" "Interpreta ordenes, muestra el plan y ejecuta solo tras confirmacion." "Reglas + codificador de ordenes + Ollama local" {
-                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/asistente"
-                tags "AI"
+            tooling = container "Herramientas de órdenes" "Operación, aceptación, entrenamientos y calidad desde la línea de órdenes." "Python" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools"
+                tags "Engine"
+                cmpHerrOperacion = component "Operación, datos y aceptación" "Flujo completo por la web, informes de casos guardados y aceptación nativa (21 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/sistema_web.py"
+                    tags "Engine"
+                }
+                cmpHerrModelos = component "Modelos, asistente y MADRL" "Entrenamientos y auditorías del gemelo, del asistente y del piloto MADRL (30 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/digital_twin_entrenar.py"
+                    tags "AI"
+                }
+                cmpHerrCalidad = component "Calidad y entrega" "Capas, contrato de la API, estado de specs, suite por tandas y candidato (15 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/tools/arquitectura.py"
+                    tags "Engine"
+                }
             }
 
-            workspaceStore = container "Espacios y entregables" "Conserva entradas, planes, DGS, informes y descargas." "Filesystem" {
+            workspaceStore = container "Espacios y entregables" "Entradas, planes, DGS, informes y descargas de cada espacio." "Ficheros" {
                 url "http://127.0.0.1:8765/"
                 properties {
                     "Local path" "output/web"
@@ -81,116 +330,202 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "Store"
             }
 
-            episodeStore = container "Buffer de episodios" "JSON inmutable, snapshots y indice SQLite." "JSON + SQLite" {
-                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/buffer.py"
+            episodeStore = container "Búfer de episodios" "JSON inmutable por huella, objetos e índice SQLite." "JSON + SQLite" {
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/digital_twin/buffer.py"
                 tags "Store"
             }
+
             operationStore = container "Diario de operaciones y evidencia" "Estados por espacio, contexto inicial e informes custodiados; no promueve modelos." "SQLite + JSON + SHA-256" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/asistente/observacion.py" // legado-058: ruta real del checkout existente
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/b4b03c0c3d65a478d4862c7d07f8346d70b1ede2/src/convertersmartgrid/asistente/observacion.py"
                 tags "Store"
-            }
-
-            security = container "Puerta de seguridad" "Host, Origin, token de sesion, politica de contenido, edicion y salidas a la red." "Middleware ASGI" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/web/seguridad.py" // legado-058: ruta real del checkout existente
-                tags "API"
-            }
-
-            reports = container "Informes" "Word, PDF, imagenes y libro Excel de estudio y factibilidad, con lo guardado por la web." "python-docx + COM" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/informes.py" // legado-058: ruta real del checkout existente
-                tags "Engine"
-            }
-
-            planning = container "Planeamiento" "Largo plazo y PIDE: mercado, costos oficiales, formatos y entregables por modulo." "Python" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/estudio_planeamiento.py" // legado-058: ruta real del checkout existente
-                tags "Engine"
-            }
-
-            modelGovernance = container "Gobierno de modelos" "Registro de candidatos, puertas, puntero en uso, guardia de GPU y ciclo de aprendizaje." "Python + JSON + SHA-256" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/model_registry.py" // legado-058: ruta real del checkout existente
-                tags "AI"
-            }
-
-            mcp = container "MCP local" "Las lecturas del asistente para un cliente de esta maquina: solo stdio y solo lectura." "Python + MCP (opcional)" {
-                url "file:///D:/converter/ConversorIGEA_DGS/tools/mcp_conversor.py" // legado-058: ruta real del checkout existente
-                tags "AI"
             }
         }
 
+        // ------------------------------------------------------------------ relaciones entre contenedores
         operador -> frontend "Usa" "HTTP local"
-        fuentes -> api "Entrega archivos o rutas" "Upload/path"
+        operador -> assistant "Confirma o rechaza"
+        fuentes -> api "Entrega archivos o rutas" "Subida o ruta"
+        vnrGis -> vnr "Entrega base y capas" "SQL Server Express"
+        regulador -> planning "Publica normas, costos y formatos"
         frontend -> security "Invoca y consulta" "REST + WebSocket"
-        security -> api "Deja pasar lo de esta maquina"
+        frontend -> gisEditor "Abre el plano"
+        frontend -> assistant "Envía órdenes"
+        gisEditor -> security "Propone maniobras y obras" "REST"
+        security -> api "Deja pasar lo de esta máquina"
         api -> jobs "Encola trabajos"
         api -> operationStore "Registra estados y consulta el monitor por espacio"
-        assistant -> operationStore "Consulta avances e informes sin activar pesos"
-        api -> custody "Registra la ejecucion fuente"
-        custody -> engine "Entrega snapshot vinculado"
+        api -> custody "Registra la ejecución fuente"
+        custody -> engine "Entrega la copia fija"
+        custody -> vnr "Entrega el paquete VNR custodiado"
+        vnr -> engine "Exporta al modelo común"
         jobs -> engine "Ejecuta en carril engine"
+        jobs -> nativeRunner "Ejecuta en carril powerfactory"
         engine -> dgs "Escribe modelo con esquema versionado"
+        dgs -> workspaceStore "Publica DGS, validación y manifiesto"
+        dgs -> nativeRunner "Entrega el DGS validado"
         nativeRunner -> oracle "Solicita preflight informativo"
         oracle -> nativeRunner "Devuelve avisos; la importacion continua"
-        dgs -> workspaceStore "Publica DGS, validacion y manifiesto"
-        jobs -> nativeRunner "Ejecuta en carril powerfactory"
         nativeRunner -> powerfactory "Plan JSON / API nativa"
         powerfactory -> nativeRunner "Informe JSON y lectura posterior"
-        nativeRunner -> workspaceStore "Guarda planes, informes y binding"
-        nativeRunner -> twin "Captura accion y snapshot"
-        twin -> episodeStore "Persiste episodio y metricas"
-        episodeStore -> twin "Provee muestras entrenables"
-        twin -> optimizer "Evalua candidatos"
-        optimizer -> assistant "Entrega propuestas con limites"
-        operador -> assistant "Confirma o rechaza"
-        assistant -> api "Ejecuta mediante endpoints existentes"
-        workspaceStore -> frontend "Sirve resultados y entregables"
-        nativeRunner -> reports "Entrega casos y flujos guardados"
-        reports -> workspaceStore "Publica Word, PDF y libro"
+        nativeRunner -> workspaceStore "Guarda planes, informes y vínculo"
+        nativeRunner -> calibration "Calibra con la máxima coincidente"
+        nativeRunner -> studies "Corre los estudios"
+        nativeRunner -> twin "Captura acción y copia del estado"
+        calibration -> optimizer "Entrega la red calibrada"
         optimizer -> planning "Aporta alternativas"
-        nativeRunner -> planning "Mide cada periodo del horizonte"
+        studies -> reports "Entrega casos y flujos guardados"
+        reports -> workspaceStore "Publica Word, PDF y libro"
         planning -> workspaceStore "Publica formatos y entregables"
+        planning -> pit "Comparte red, costos e informes"
+        planning -> vad "Comparte red, demanda y trazas reales"
+        twin -> episodeStore "Persiste episodio y métricas"
+        episodeStore -> twin "Provee muestras entrenables"
+        episodeStore -> bench "Datos de referencia desidentificados"
+        twin -> optimizer "Evalúa candidatos"
         twin -> modelGovernance "Registra candidatos"
+        forecast -> modelGovernance "Registra candidatos sin promover"
+        optimizer -> assistant "Entrega propuestas con límites"
+        assistant -> api "Ejecuta mediante endpoints existentes tras confirmar"
+        assistant -> llm "Pide inferencia local"
         assistant -> modelGovernance "Consulta el modelo en uso"
+        assistant -> operationStore "Consulta avances e informes sin activar pesos"
         mcp -> assistant "Usa las lecturas del proyecto"
+        tooling -> modelGovernance "Entrena y mide candidatos"
+        workspaceStore -> frontend "Sirve resultados y entregables"
+        workspaceStore -> cloudConn "Entrega expedientes cerrados"
+        cloudConn -> nube "Sube, comparte y vigila cambios"
+        cloudConn -> mailer "Entrega el enlace privado del expediente"
+        mailer -> correo "Envía con recibo"
 
+        // ------------------------------------------------------------------ relaciones entre componentes
+        cmpInterfaz -> cmpWeb "Llama a la API"
+        cmpWeb -> cloudConn "Sube expedientes"
+        cmpWeb -> cmpEntrada "Carga y convierte"
+        cmpVnr -> cmpEntrada "Puente al modelo común"
+        cmpEntrada -> cmpReconstruccion "Datos de la fuente"
+        cmpReconstruccion -> cmpModelo "Red completada"
+        cmpModelo -> cmpConversion "Red con reglas"
+        cmpConversion -> cmpSalida "Red comprobada"
+        cmpSalida -> cmpEnlacePf "DGS validado"
+        cmpEnlacePf -> cmpGuiones "Turno exclusivo"
+        cmpGuiones -> cmpDemanda "Calibra"
+        cmpDemanda -> cmpObras "Red calibrada"
+        cmpObras -> cmpEstudios "Obras aplicadas"
+        cmpEstudios -> cmpInformes "Casos guardados"
+        cmpObras -> cmpPide "Alternativas"
+        cmpPide -> pit "Base común"
+        cmpPide -> vad "Base común"
+        cmpGuiones -> cmpGemelo "Episodios"
+        cmpGemelo -> cmpGobierno "Registra candidatos"
+        cmpHerrModelos -> cmpGobierno "Entrena"
+        cmpGemelo -> bench "Datos de referencia"
+        cmpGobierno -> cmpAsisNucleo "Modelo en uso"
+        cmpAsisNucleo -> cmpAsisModelos "Interpreta órdenes"
+        cmpAsisNucleo -> cmpAsisRag "Responde con citas"
+        cmpAsisDatos -> cmpAsisModelos "Entrena"
+
+        // ------------------------------------------------------------------ despliegue
         local = deploymentEnvironment "Local" {
-            workstation = deploymentNode "Estacion Windows" "Equipo local del operador" "Windows" {
+            workstation = deploymentNode "Estación Windows" "Equipo local del operador" "Windows" {
                 browser = infrastructureNode "Navegador" "http://127.0.0.1:8765"
-                python = deploymentNode "Python 3.12" "Motor, API, colas e IA" "CPython" {
+                python = deploymentNode "Proceso web" "API, colas, motor e IA" "CPython 3.12" {
                     containerInstance api
+                    containerInstance security
                     containerInstance jobs
                     containerInstance custody
+                    containerInstance cloudConn
+                    containerInstance mailer
+                    containerInstance vnr
                     containerInstance engine
                     containerInstance oracle
                     containerInstance dgs
-                    containerInstance nativeRunner
-                    containerInstance twin
+                    containerInstance calibration
                     containerInstance optimizer
+                    containerInstance studies
+                    containerInstance reports
+                    containerInstance planning
+                    containerInstance pit
+                    containerInstance vad
+                    containerInstance twin
+                    containerInstance forecast
                     containerInstance assistant
+                    containerInstance modelGovernance
                     containerInstance workspaceStore
                     containerInstance episodeStore
                     containerInstance operationStore
-                    containerInstance security
-                    containerInstance reports
-                    containerInstance planning
-                    containerInstance modelGovernance
+                }
+                pfProc = deploymentNode "Intérprete de PowerFactory" "Guiones y servidor que se cierra sin órdenes" "Python de DIgSILENT" {
+                    containerInstance nativeRunner
+                }
+                cli = deploymentNode "Línea de órdenes" "Herramientas, entrenamientos y MCP" "CPython 3.12" {
+                    containerInstance tooling
                     containerInstance mcp
+                    containerInstance bench
                 }
-                ui = deploymentNode "Frontend compilado" "frontend/dist" "Static files" {
+                ui = deploymentNode "Interfaz compilada" "frontend/dist" "Ficheros estáticos" {
                     containerInstance frontend
+                    containerInstance gisEditor
                 }
-                pf = infrastructureNode "PowerFactory 2024" "Proceso nativo exclusivo, con tools/pf_servidor.py"
+                pf = infrastructureNode "DIgSILENT PowerFactory" "Proceso nativo exclusivo, 2021 o posterior, con tools/pf_servidor.py"
                 sqlServer = infrastructureNode "SQL Server Express" "Restaura copias .bak de VNR-GIS"
-                ollama = infrastructureNode "Ollama/GPU opcional" "Inferencia local del asistente"
+                ollama = infrastructureNode "Ollama" "Inferencia local del asistente, opcional"
+                gpu = infrastructureNode "GPU CUDA" "Un turno para la suite y los entrenamientos"
             }
         }
     }
 
     views {
-        systemContext conversor "SystemContext" "Quien usa el sistema y con que sistemas se relaciona" {
+        systemContext conversor "SystemContext" "Quién usa el sistema y con qué sistemas se relaciona" {
             include *
             autoLayout lr
         }
 
-        container conversor "Containers" "Frontend, backend, motores, IA y almacenes" {
+        container conversor "Containers" "Interfaz, API, motor, guiones de DIgSILENT, IA y almacenes" {
+            include *
+            autoLayout lr
+        }
+
+        component frontend "Componentes-Interfaz" "Interfaz web" {
+            include *
+            autoLayout lr
+        }
+
+        component api "Componentes-Web" "API web, nube y correo" {
+            include *
+            autoLayout lr
+        }
+
+        component engine "Componentes-Motor" "Motor de conversión y adaptador VNR-GIS" {
+            include *
+            autoLayout lr
+        }
+
+        component nativeRunner "Componentes-DIgSILENT" "Enlace y guiones de DIgSILENT" {
+            include *
+            autoLayout lr
+        }
+
+        component planning "Componentes-Planeamiento" "PIDE, PIT y VAD" {
+            include *
+            autoLayout lr
+        }
+
+        component twin "Componentes-Gemelo" "Gemelo digital y benchmarks" {
+            include *
+            autoLayout lr
+        }
+
+        component modelGovernance "Componentes-Gobierno" "Gobierno de modelos" {
+            include *
+            autoLayout lr
+        }
+
+        component assistant "Componentes-Asistente" "Asistente y su equipo" {
+            include *
+            autoLayout lr
+        }
+
+        component tooling "Componentes-Herramientas" "Herramientas de órdenes" {
             include *
             autoLayout lr
         }
@@ -200,37 +535,37 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             api -> custody "2. Custodiar y fijar huellas"
             custody -> engine "3. Adaptar, reconstruir y modelar"
             engine -> dgs "4. Escribir con esquema versionado"
-            dgs -> workspaceStore "5. Validar y publicar atomicamente"
+            dgs -> workspaceStore "5. Validar y publicar atómicamente"
             workspaceStore -> frontend "6. Mostrar y descargar"
             autoLayout lr
         }
 
-        dynamic conversor "PowerFactory" "Del DGS a la aceptacion nativa y los estudios" {
-            frontend -> security "1. Solicitar operacion"
+        dynamic conversor "PowerFactory" "Del DGS a la aceptación nativa y los estudios" {
+            frontend -> security "1. Solicitar operación"
             security -> api "2. Comprobar origen y token"
             api -> jobs "3. Encolar en powerfactory"
             jobs -> nativeRunner "4. Lanzar proceso aislado"
             nativeRunner -> oracle "5. Consultar preflight pandapower"
             oracle -> nativeRunner "6. Informar avisos sin omitir DGS"
-            nativeRunner -> powerfactory "7. Importar/verificar/calibrar/estudiar"
+            nativeRunner -> powerfactory "7. Importar, verificar, calibrar y estudiar"
             powerfactory -> nativeRunner "8. Guardar, reabrir, releer y recalcular"
-            nativeRunner -> workspaceStore "9. Conservar informe y binding"
+            nativeRunner -> workspaceStore "9. Conservar informe y vínculo"
             workspaceStore -> frontend "10. Presentar evidencia"
             autoLayout lr
         }
 
-        dynamic conversor "Inteligencia" "De una accion aceptada a una propuesta confirmada" {
+        dynamic conversor "Inteligencia" "De una acción aceptada a una propuesta confirmada" {
             nativeRunner -> twin "1. Capturar episodio"
             twin -> episodeStore "2. Persistir evidencia"
-            episodeStore -> twin "3. Entrenar/evaluar modelos"
+            episodeStore -> twin "3. Entrenar y evaluar modelos"
             twin -> optimizer "4. Ordenar alternativas"
             optimizer -> assistant "5. Explicar propuesta"
             operador -> assistant "6. Confirmar o rechazar"
-            assistant -> api "7. Ejecutar por API existente"
+            assistant -> api "7. Ejecutar por la API existente"
             autoLayout lr
         }
 
-        deployment conversor "Local" "Deployment" "Despliegue local y limites de proceso" {
+        deployment conversor "Local" "Deployment" "Despliegue local y límites de proceso" {
             include *
             autoLayout lr
         }
@@ -274,6 +609,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 shape Cylinder
                 background #f4f7fa
                 color #11263d
+            }
+            element "en implementación" {
+                border dashed
+                opacity 80
             }
             relationship "Relationship" {
                 color #526579

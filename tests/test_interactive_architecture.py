@@ -44,7 +44,10 @@ def test_structurizr_model_exposes_required_views_and_real_access_points():
     assert "oracle -> dgs" not in text
     assert "/tree/main/" not in text
     assert "/blob/main/" not in text
-    assert "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin" in text
+    # 034:RF-31: los puntos de acceso se enlazan fijados a una revisión, nunca a una ruta de la máquina del desarrollo
+    # (antes se exigía un «file:///D:/…»: no vale en otro equipo y la lista de términos de la entrega lo rechaza).
+    assert "file:///" not in text
+    assert re.search(r"https://github\.com/[^\s\"]+/tree/[0-9a-f]{40}/src/convertersmartgrid/digital_twin", text)
 
 
 def test_interactive_visualization_has_finite_flow_controls_and_accessible_nodes():
