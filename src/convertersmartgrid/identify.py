@@ -182,7 +182,7 @@ def fuente_de(path: Path | str) -> Fuente:
     """La fuente del fichero por su contenido (059:RF-3).
 
     El 2026-11-01 la web abrió un espacio vacío como «Tres TXT de CYMDIST» por un valor por
-    defecto, con el de Electro Oriente, que es VNR-GIS: nada se supone, lo dice el fichero.
+    defecto, con un paquete VNR-GIS: nada se supone, lo dice el fichero.
     El orden importa: Access por su cabecera y CYMDIST por sus tablas antes que VNR-GIS, que
     por extensión admite también .txt y .mdb.
     """

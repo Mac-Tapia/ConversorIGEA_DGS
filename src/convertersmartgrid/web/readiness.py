@@ -232,7 +232,7 @@ def revisar_conductores(readiness: dict[str, dict[str, Any]], dataset: Any,
     """Quita la falta de conductor a los alimentadores que la carga ya completó (053:RF-9).
 
     El lector la anota antes de que la carga complete el catálogo con las fichas; en la copia
-    de Electro Oriente (2026-11-01) 22 alimentadores quedaban «incompletos» con todos sus
+    de una distribuidora (2026-11-01) decenas de alimentadores quedaban «incompletos» con todos sus
     conductores ya reconstruidos. Se mira el dataset completado: si cada código de sus tramos
     tiene R1 y X1, la falta pasa a aviso ``CONDUCTOR_RECONSTRUIDO``. Devuelve cuántos cambian.
     """

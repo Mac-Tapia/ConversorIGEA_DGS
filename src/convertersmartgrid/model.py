@@ -1280,7 +1280,7 @@ def _fases_coherentes(name: str, source_node: str, lines: list[Line],
     """Cada tramo y SED del TXT o de la MDB con fases que le lleguen (054:RF-9).
 
     En Pisco (TXT, 2026-11-02) 230 SED de fase C colgaban de ramales solo AB: DIgSILENT las dejaba con la barra de baja a
-    0 p.u., sin consumir y sin avisar, y el flujo «convergía». Con VNR-GIS ya pasaba (NJA202) y se resolvía solo allí.
+    0 p.u., sin consumir y sin avisar, y el flujo «convergía». Con VNR-GIS ya pasaba y se resolvía solo allí.
     """
     letras = [(ln.section_id, ln.from_node, ln.to_node, decode_phase(ln.phase) or 'ABC') for ln in lines]
     cambiados, en_nodo = fases_desde_la_cabecera(letras, source_node)

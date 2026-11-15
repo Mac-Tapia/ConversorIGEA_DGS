@@ -176,7 +176,7 @@ def _make_row(schema: DgsSchema, table: str, **values) -> str:
 
 
 #: ``ElmTerm.phtech`` de PowerFactory 2024 por número de fases (054:RF-3): ABC, 2PH y 1PH. Leído
-#: en el proyecto importado de NJA202 (2026-11-01): «ABC:ABC-N:BI:BI-N:2PH:2PH-N:1PH:1PH-N:N».
+#: en un proyecto importado de VNR-GIS (2026-11-01): «ABC:ABC-N:BI:BI-N:2PH:2PH-N:1PH:1PH-N:N».
 PHTECH_POR_FASES = {3: 0, 2: 4, 1: 6}
 
 
@@ -214,7 +214,7 @@ def red_con_monofasicos(app) -> bool:
 
     Con ellos hace falta el flujo desequilibrado: con el equilibrado una SED monofásica
     desaparece del cálculo (su barra de baja a 0 pu y su carga sin servir; medido en una copia
-    de NJA202, 2026-11-01). Se mira el tipo de cada elemento, y para en el primero.
+    de un proyecto real, 2026-11-01). Se mira el tipo de cada elemento, y para en el primero.
     """
     for clase, atributo in (('ElmLne', 'nlnph'), ('ElmTr2', 'nt2ph')):
         try:
@@ -1266,7 +1266,7 @@ def write_dgs(
             loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'
                                + (f'_{nfases}F' if nfases < 3 else '')),
             # 054:RF-4: monofásica de retorno por tierra, alta en D a la tensión entre líneas
-            # (medido en DIgSILENT en NJA202: en YN a 13,2 kV la BT salía a 1,59 pu).
+            # (medido en DIgSILENT en un proyecto real: en YN la BT salía muy por encima de 1 pu).
             nt2ph=nfases, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
             uktr=uk, pcutr=pcutr, uk0tr=uk, ur0tr=0,
             tr2cn_h='D', tr2cn_l='YN' if nfases == 3 else 'D', nt2ag=5 if nfases == 3 else 0, curmg=curmg, pfe=pfe_kw,
@@ -1346,7 +1346,7 @@ def write_dgs(
             # En blanco se aplica ese mismo defecto, pero sin ensuciar el registro.
             NrCust=load.customers if load.customers > 0 else '',
             # 054:RF-4: la de una SED no trifásica, equilibrada: en su barra 1PH DIgSILENT la
-            # hace «1PH PH-E» y consume su plini (medido en NJA202, 2026-11-01).
+            # hace «1PH PH-E» y consume su plini (medido en un proyecto real, 2026-11-01).
             i_sym=1 if letras == 'ABC' or (key in nested_load_keys and len(letras) < 3) else 0,
             plinir=pr, plinis=ps, plinit=pt,
             qlinir=qr, qlinis=qs, qlinit=qt,

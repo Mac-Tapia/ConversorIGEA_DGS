@@ -284,6 +284,27 @@ def _tesseract(buscar: Callable[[str], str | None],
                         '' if hay else 'Es opcional: instale Tesseract con el idioma español, en el PATH o con la variable CSG_TESSERACT.')
 
 
+def _clase_com_registrada(progid: str) -> bool:
+    """Si Windows tiene registrada la clase COM (``Excel.Application``), sin abrir el programa."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, rf'{progid}\CLSID'):
+            return True
+    except OSError:
+        return False
+
+
+def _hoja_de_calculo(registrada: Callable[[str], bool] = _clase_com_registrada) -> Comprobacion:
+    # L7 (auditoría de lanzamiento, 2026-11-14): el libro de cada informe se rellena por COM con Excel.Application
+    # (libro_informe.py), al que también responde WPS; la tabla de requisitos no lo decía y el doctor tampoco.
+    hay = registrada('Excel.Application')
+    return Comprobacion('hoja_de_calculo', 'Excel o WPS', hay, False,
+                        'Excel.Application está registrado.' if hay else 'No hay Excel ni WPS registrados.',
+                        'Rellenar el libro Excel de cada informe (066); el informe Word sale igual.',
+                        '' if hay else 'Es opcional: instale Microsoft Excel o WPS Office, que responden a Excel.Application.')
+
+
 def _python_propio() -> Comprobacion:
     """Sin PYTHONHOME, el Python del programa añade a su ruta las carpetas de otro del registro de Windows."""
     propias = [Path(sys.prefix).resolve(), *(Path(p).resolve() for p in os.environ.get('PYTHONPATH', '').split(os.pathsep) if p)]
@@ -308,6 +329,7 @@ def diagnosticar(
     buscar_programa: Callable[[str], str | None] = shutil.which, espacio_minimo_mb: int = ESPACIO_MINIMO_MB,
     consultar_gpu: Callable[[], Mapping[str, Any] | None] | None = None,
     adaptadores_nvidia: Callable[[], list] | None = None,
+    clase_com: Callable[[str], bool] = _clase_com_registrada,
 ) -> dict[str, Any]:
     """El informe del doctor. Las dependencias se inyectan para poder quitar cada requisito en una prueba."""
     raiz = project_root() if programa is None else programa
@@ -320,7 +342,7 @@ def diagnosticar(
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
         _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo),
         _gpu(consultar_gpu or (lambda: _gpu_del_equipo(buscar_programa))), _controlador_nvidia(adaptadores_nvidia),
-        _tesseract(buscar_programa), _edicion(),
+        _tesseract(buscar_programa), _hoja_de_calculo(clase_com), _edicion(),
         *([_python_propio()] if es_programa_instalado(raiz) else []),
     ]
     filas = [asdict(c) for c in comprobaciones]

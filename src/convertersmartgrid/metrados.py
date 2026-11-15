@@ -40,7 +40,7 @@ def valorar_metrados(por_codigo: Mapping[str, Mapping[str, float]], tabla: Tabla
     """Metrado × costo de red; lo que no cruza queda fuera del total y nombrado (072:RF-7, RF-15).
 
     Solo la familia de redes va por km: Osinergmin expresa esos costos en USD/km (informe de
-    observaciones al VAD de Electro Oriente, 2023). Otra familia no se multiplica por un largo.
+    observaciones al VAD de una distribuidora, 2023). Otra familia no se multiplica por un largo.
     """
     # Los tramos de la red de distribución van con el SICODI; un módulo de transmisión que cruzara
     # por código daría un costo de otro ámbito sin que nada lo dijera (072:RF-6).

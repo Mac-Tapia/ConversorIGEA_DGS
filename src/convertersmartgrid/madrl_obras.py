@@ -137,8 +137,8 @@ def fidelidad(grafo: Mapping[str, Any], tensiones: Mapping[str, float], cargas: 
               max_error_pu: float = 0.01, max_error_carga_pct: float = 10.0, peor_carga_pct: float = 25.0) -> dict[str, Any]:
     """Si el entorno reproduce lo que midió DIgSILENT en esa misma red (074:RF-7).
 
-    Una política que aprende contra una física equivocada aprende a resolver otra red: NJA202 da 0,683 p.u.
-    de mínima donde DIgSILENT mide 0,532. Sin medida comparable, tampoco pasa. El peor error también cuenta:
+    Una política que aprende contra una física equivocada aprende a resolver otra red: un alimentador daba una mínima
+    muy por encima de la que mide DIgSILENT. Sin medida comparable, tampoco pasa. El peor error también cuenta:
     SM218 tiene 0,9 % de error medio y una rama a 245 %, y una obra se decide por esa rama, no por la media.
     """
     m = muestra(grafo)

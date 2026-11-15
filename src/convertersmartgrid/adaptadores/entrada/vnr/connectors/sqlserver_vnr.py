@@ -57,7 +57,7 @@ def huella(path: Path | str, bloque: int = 1 << 20) -> str:
 
 def es_copia_sql(path: Path | str) -> bool:
     """Si el fichero es una copia de seguridad de SQL Server, por su cabecera MTF «TAPE» y no por
-    su extensión: Electro Oriente entregó la suya como «ELOR25_V2», sin «.bak» (2026-11-01)."""
+    su extensión: una distribuidora entregó la suya sin «.bak» (2026-11-01)."""
     try:
         with open(path, 'rb') as f:
             return f.read(4) == b'TAPE'
@@ -123,7 +123,7 @@ def permitir_lectura_al_motor(bak: Path, cuenta: str) -> None:
 
     Desde Python 3.12, ``mkdtemp`` crea en Windows carpetas privadas, y lo publicado desde ellas
     conserva esos permisos. La custodia de la web deja así la copia, y el motor respondía «error
-    5, acceso denegado» (Electro Sur Este, 2026-11-02). Las empresas ya restauradas no lo
+    5, acceso denegado» (paquete de otra distribuidora, 2026-11-02). Las empresas ya restauradas no lo
     revelaban, porque su base se reutiliza sin abrir el fichero.
     """
     resultado = subprocess.run(['icacls', str(bak), '/grant', f'{cuenta}:R'],
@@ -215,7 +215,7 @@ CAMPOS: dict[str, tuple[str, ...]] = {
     'enlace': ('CodNodoMT', 'CodTramoMT', 'CodSed', 'UTMEste', 'UTMNorte'),
     'norma': ('CodNorma', 'Descripcion', 'CodSubComponente'),
     'codigo_secundario': ('CodSecundario', 'CodTipSecundario', 'Descripcion'),
-    # La tabla «Tensiones» de la base de red: letra y kV. Electro Oriente 2025 no entregó su
+    # La tabla «Tensiones» de la base de red: letra y kV. Una distribuidora no entregó su
     # base de parámetros (donde está «cfgCodigoSecundario») y sin ella ninguna salida tenía
     # tensión; su copia de red sí trae esta tabla (2026-11-01).
     'tension': ('CodTenNomi', 'Tension'),
@@ -224,7 +224,7 @@ CAMPOS: dict[str, tuple[str, ...]] = {
 
 #: Tipos de equipo MT de VNR-GIS (``TIPO_EQUIPO_MT`` de los parámetros) que abren o cierran
 #: el circuito; el seccionalizador va aparte. Pararrayos y derivaciones no son maniobras.
-# 080:RF-35: celdas y derivaciones de bóveda y pedestal se perdían (190 en Luz del Sur, 2026-11-03).
+# 080:RF-35: celdas y derivaciones de bóveda y pedestal se perdían (en una red subterránea, 2026-11-03).
 MANIOBRAS = {'IN', 'SE', 'SF', 'SC', 'RE', 'FU', 'CE', 'DB', 'DP'}
 SECCIONALIZADORES = {'SL'}
 BANCOS = {'BC'}
@@ -333,8 +333,8 @@ def norma_de(descripcion: str) -> tuple[str, float | None, int | None]:
 def repartir_ramales_monofasicos(modelo: CanonicalModel, salida: str, avisos: list[dict]) -> None:
     """Reparte los ramales monofásicos de una salida entre las fases A, B y C (054:RF-1, RF-5).
 
-    VNR-GIS dice cuántas fases tiene un tramo, no cuál: todos salían en la A, y en NJA202
-    (2026-11-01) sus 698 km de ramales y ~780 SED monofásicas colgaban de la misma fase de la
+    VNR-GIS dice cuántas fases tiene un tramo, no cuál: todos salían en la A, y en un alimentador rural
+    (2026-11-01) cientos de kilómetros de ramales y de SED monofásicas colgaban de la misma fase de la
     troncal; con el flujo desequilibrado la red colapsaba (cargas a 0,0000x-0,29 pu). Cada ramal
     (tramos monofásicos unidos entre sí) va entero a una fase: el de más kVA primero, a la de
     menos kVA; se anota que la fase es deducida. Un ramal con fase ya distinta de la A se respeta.
@@ -376,7 +376,7 @@ def repartir_ramales_monofasicos(modelo: CanonicalModel, salida: str, avisos: li
             kva[r] = kva.get(r, 0.0) + float(c.connected_kva or c.kw or 0.0)
     ramales = sorted({raiz(clave(s.from_node, s)) for s in tramos}, key=lambda r: (-kva.get(r, 0.0), r))
     # Un ramal solo puede tomar una fase que tenga el tramo del que sale: uno que cuelga de un
-    # tramo bifásico AB no puede ir a la C (NJA202, 2026-11-01: la C llevaba el doble de corriente).
+    # tramo bifásico AB no puede ir a la C (caso real, 2026-11-01: la C llevaba el doble de corriente).
     permitidas: dict[str, set[str]] = {}
     for s in tramos:
         for n in (s.from_node, s.to_node):
@@ -405,8 +405,8 @@ def coherencia_de_fases(modelo: CanonicalModel, salida: str, cabecera: str,
                         avisos: list[dict]) -> None:
     """Que cada tramo y cada SED tenga solo fases que le llegan desde la cabecera (054:RF-9).
 
-    En NJA202 (Electro Oriente, 2026-11-01) 374 de 849 SED no consumían en el flujo de
-    DIgSILENT, con su barra de BT a 0 pu: 18 empalmes cortaban ramales enteros. Siete tramos
+    En un alimentador real (2026-11-01) casi la mitad de sus SED no consumían en el flujo de
+    DIgSILENT, con su barra de BT a 0 pu: unos empalmes cortaban ramales enteros. Unos tramos
     trifásicos salían de uno monofásico (la copia clasifica mal ese tramo: tres fases no salen
     de una) y otros ramales monofásicos seguidos quedaban con letras distintas. Se reconstruye
     desde la cabecera, sin bloquear: el hijo con fases que no le llegan toma las del padre; el
@@ -493,7 +493,7 @@ class _Nodos:
 def codigos_operativos_sed(seds: Sequence[Mapping], avisos: list[dict]) -> dict[str, str]:
     """080:RF-46, RF-47: ``{CodSed: código operativo}``, único y determinista.
 
-    Luz del Sur repite etiquetas (12 194 distintas en 13 095 SED, 2026-11-03) y DIgSILENT pide
+    Una distribuidora repite etiquetas (cientos de SED repetidas, 2026-11-03) y DIgSILENT pide
     nombres únicos: la primera por ``CodSed`` la conserva y las siguientes llevan un sufijo.
     """
     codigos: dict[str, str] = {}
@@ -515,8 +515,8 @@ def codigos_operativos_sed(seds: Sequence[Mapping], avisos: list[dict]) -> dict[
 def codigos_operativos(salidas: Sequence[Mapping], avisos: list[dict]) -> dict[str, str]:
     """``{CodSalidaMT: código operativo}``: el que el operador usa, ``EtiquetaSalida`` (056:RF-7).
 
-    En Electro Oriente (2026-11-01) la web listaba W12882 y L14243, códigos internos de VNR-GIS,
-    y el operador los conoce como NJA202 y 0205; su medición de cabecera ya viene con NJA202. Sin
+    En una distribuidora (2026-11-01) la web listaba los códigos internos de VNR-GIS de sus salidas,
+    y el operador las conoce por su etiqueta; su medición de cabecera ya viene con la etiqueta. Sin
     etiqueta, o con una repetida, la salida conserva su código y se anota.
     """
     etiquetas = {_s(f, 'CodSalidaMT'): _s(f, 'EtiquetaSalida') for f in salidas}
@@ -593,7 +593,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         kv = kv_de.get(letra)
         tramos = sorted(tramos_de.get(salida, []), key=lambda t: _s(t, 'CodTramoMT'))
         if not tramos:
-            # 080:RF-32: SED sin ningún tramo (748055397 de Luz del Sur): su demanda es real y no
+            # 080:RF-32: SED sin ningún tramo (caso real, 2026-11-03): su demanda es real y no
             # se pierde. El tramo mínimo se arma en la primera SED ubicada.
             con_lugar = sorted(
                 (s for s in datos.seds if _s(s, 'CodSalidaMT') == salida
@@ -687,7 +687,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         orientado: dict[str, tuple[str, str, list]] = {}
         fases_en_nodo: dict[str, str] = {}                     # 054:RF-1: las del tramo que llega
         if len({nodos.raiz(n) for par in extremos.values() for n in par}) == 1:
-            # 080:RF-27: toda la salida en un punto: 47 de Electro Sur Este, de un tramo de 0,5 m
+            # 080:RF-27: toda la salida en un punto: decenas en una distribuidora, de un tramo de medio metro
             # con una SED. Sin tramo, la salida desaparecía con su demanda; se le da uno mínimo,
             # a dos veces la tolerancia para que no vuelva a unirse.
             cod = min(extremos)
@@ -897,7 +897,7 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
         try:
             cur.execute('SELECT ' + ', '.join(f'[{c}]' for c in campos) + f' FROM [{tabla}]')
         except Exception as exc:  # noqa: BLE001 - el error del controlador ODBC, sea cual sea
-            # Una vista que nombra otra base que no vino en la copia (Electro Oriente 2025:
+            # Una vista que nombra otra base que no vino en la copia (caso real, 2026-11-01:
             # «norEquipoMT» apunta a «VNRGISGART», su base de parámetros, que no se entregó)
             # no tumba la conversión: se anota y se sigue con lo que trae la red.
             datos.ilegibles.append({'tabla': tabla, 'motivo': str(exc)[:300]})

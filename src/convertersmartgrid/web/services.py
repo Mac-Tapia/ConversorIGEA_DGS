@@ -8587,8 +8587,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     if not aplicadas and claves:
         raise UserError('No están aplicadas en los alimentadores marcados: ' + ', '.join(cargas or []) + '.')
     if not aplicadas:
-        # 086:RF-76: sin cargas nuevas, «Con proyecto» lleva obras solo si el estado actual viola límites. Electro
-        # Oriente NJA202 (T32, 2026-11-12): calibrado a 0,568 p.u. en la fase A y la web no ofrecía ninguna obra.
+        # 086:RF-76: sin cargas nuevas, «Con proyecto» lleva obras solo si el estado actual viola límites. Un
+        # alimentador de otra distribuidora (T32, 2026-11-12): calibrado bajo el límite en una fase y la web no ofrecía ninguna obra.
         ctx.log('Sin cargas nuevas aplicadas: cada alimentador marcado que viole límites en «Con proyecto» sube su '
                 'escalera; el que cumple no lleva obras (086:RF-76, 098:RF-29).')
     if rehacer_obras:

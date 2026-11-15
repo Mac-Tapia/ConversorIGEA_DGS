@@ -55,6 +55,21 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
   025 T21 usa el PA217 del proyecto de prueba de Pisco, no el trabajado. D7 **no se considera** en la venta ni en otro uso: quien use
   el proyecto debe tener sus propias licencias (DIgSILENT, datos de las distribuidoras y de Osinergmin, modelos); el producto no las
   incluye ni las concede.
+- Decisiones del usuario del 2026-11-14, para el lanzamiento (auditoría de lanzamiento de c7):
+  - U1 La entrega se usa con una **licencia comercial por puesto** (uso por equipo, sin redistribución, con garantía y limitación de
+    responsabilidad), en español; el instalador la muestra y pide aceptarla; el texto final lo revisa un abogado. La MIT del
+    repositorio (D3) no va en la entrega. Cambia D7 solo en esto: el producto da su propia licencia de uso, no las de terceros.
+  - U2 **Firma de código** con un certificado OV o un servicio de firma en la nube; el certificado nunca va en git y su trámite es del
+    usuario. Un candidato final sin firmar no se entrega; uno de prueba lo avisa. Sustituye a «firma de código si D2 no la exige» de
+    «Fuera de alcance».
+  - U3 El Python del programa es el **3.12 oficial de python.org**, el último 3.12 con binarios de Windows que carga la API de
+    DIgSILENT (3.12.10), firmado por la PSF, en lugar del 3.12.16 compilado aquí; su firma se comprueba al armar.
+  - U4 **Entrega directa** (correo o enlace privado): instalador, complemento, notas, licencias y `SHA256SUMS`, que genera una
+    herramienta al construir. Las 1.0.x van por el mismo canal, con 12 meses de soporte por versión.
+  - U5 La lista local de términos de las dos empresas la propone a3 fuera de git y la aprueba el usuario.
+  - U6 Windows 10 solo se declara con evidencia: «Windows 11 probado; Windows 10 sin probar».
+  - U7 Instalación silenciosa **por usuario**, documentada; la instalación por equipo queda para después de la 1.0.
+  - U8 `MANUAL_DE_USO` se entrega solo si cubre la 1.0 tal como queda.
 
 ## Requisitos
 
@@ -119,6 +134,11 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-31: DONDE la empresa no trae modelo de informe, EL SISTEMA generará el informe con una plantilla neutra y lo dirá.
 - RF-32: EL SISTEMA entregará un perfil plantilla y otro ficticio, sin el de Electro Dunas.
 - RF-33: EL SISTEMA comprobará en cada versión que lo entregado no contiene términos de una lista prohibida guardada fuera de git.
+- Aclaración de RF-33 (auditoría de lanzamiento, 2026-11-14): el candidato **final** sin la lista local no se arma ni se da por
+  comprobado (es un error, no un aviso); uno de prueba lo avisa. Las huellas en git cubren las siglas, paquetes, corpus, códigos de
+  alimentador y sistemas de cada distribuidora con la que se trabajó, un término partido por un salto de línea cuenta, y al
+  neutralizar un comentario (D5) se quitan también las cifras de su línea. El rc6 llevaba comentarios con códigos y cifras de la red
+  de otra distribuidora.
 - RF-34: EL SISTEMA no entregará pesos entrenados con datos de otra empresa.
 - RF-35: DONDE el perfil no define las bandas y la tensión nominal, EL SISTEMA las pedirá en vez de tomar valores de una empresa.
 
@@ -133,6 +153,13 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-42: EL SISTEMA dará una orden que reúna un paquete de soporte anonimizado.
 - RF-43: EL SISTEMA tendrá una sola versión, mostrada en la web y con sus notas.
 - RF-44: EL SISTEMA dará manuales de instalación y de operador, una hoja de seguridad y privacidad, y las licencias de terceros.
+- Aclaración de RF-44 (2026-11-14, U1 a U8): la entrega lleva además la licencia comercial por puesto, el resultado de `pip-audit`
+  del lock y, aparte, `SHA256SUMS`; no lleva la MIT del repositorio, ni la parte de construir del manual de instalación, ni
+  documentos de desarrollo o de la aceptación interna. Los requisitos del manual dicen lo probado: Windows 11 probado y 10 sin
+  probar, PowerFactory 2024 real y 2021 a 2023 y 2025 con simulación, Excel o WPS por COM, memoria, GPU, VRAM, controlador y disco
+  del complemento, y la instalación silenciosa por usuario.
+- Aclaración de RF-39 (2026-11-14, L5 y U3): el candidato final se arma con el Python oficial fijado, con su SHA-256 y la firma de la
+  PSF comprobadas, y con `pip-audit` del lock sin vulnerabilidades sin justificar, desde un entorno aparte del de desarrollo.
 
 ### Déficit previo
 
@@ -240,6 +267,9 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
 
 - RF-89: CUANDO se instala, EL SISTEMA dejará en la carpeta del programa, fuera de la carpeta de entrega que se borra al
   terminar, el manual de instalación, el de órdenes, la guía de prueba para una persona ajena y las notas de su publicación.
+- Aclaración de RF-89 (auditoría de lanzamiento, 2026-11-14): el manual de órdenes que se instala es el del programa instalado
+  (`MANUAL_ORDENES.md`), solo con lo que se entrega; el de comandos es de desarrollo, y la guía de la persona ajena es material de la
+  aceptación interna (T41): no se instalan.
 - RF-90: EL SISTEMA dará en el menú Inicio un acceso que abre el manual de instalación instalado.
 - RF-91: SI al armar el candidato falta uno de los documentos que se instalan, ENTONCES EL SISTEMA no lo armará y dirá cuáles faltan.
 - RF-92: EL SISTEMA escribirá su versión en un solo sitio, el paquete; pyproject, el candidato y el instalador la leerán de
@@ -345,6 +375,6 @@ mientras los demás casos pasaban a 1,0278.
 
 ## Fuera de alcance
 
-Multiusuario en servidor, firma de código si D2 no la exige, otros países, cortocircuito y protecciones (049, que no existen y hay que
+Multiusuario en servidor, instalación por equipo (U7, después de la 1.0), otros países, cortocircuito y protecciones (049, que no existen y hay que
 declararlo al cliente), mover los módulos a sus capas (002 T7 y T9), MADRL (074), aprendizaje continuo con datos reales (050), QLoRA (047 T7),
 PINN (045 T3), optimización mixta (048), 072 T3 y T9, 027 T11 y T26, 071 T5.

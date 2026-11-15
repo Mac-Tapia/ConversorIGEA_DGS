@@ -311,7 +311,7 @@ def _extraer_pdf(path: Path, max_chars: int) -> tuple[list[dict], list[dict], li
 
 def _extraer_docx_crudo(path: Path, max_chars: int) -> tuple[list[dict], list[dict], list[str]]:
     """El texto de ``word/document.xml`` sin python-docx: un Word antiguo guarda sus imágenes
-    con «\\» en la ruta interna y python-docx no lo abre (P&C-059-2022 de PIDEELOR)."""
+    con «\\» en la ruta interna y python-docx no lo abre (un entregable PIDE real)."""
     with ZipFile(path) as archive:
         xml = archive.read('word/document.xml').decode('utf-8', errors='replace')
     parrafos = [''.join(re.findall(r'<w:t[^>]*>([^<]*)</w:t>', p)) for p in re.split(r'</w:p>', xml)]
@@ -346,7 +346,7 @@ aprender la forma de un formato (027:RF-48) sin volcar libros de miles de filas.
 def _contenido_de_hojas(path: Path, max_chars: int) -> tuple[list[dict], dict[str, list[str]]]:
     """El texto de las primeras filas de cada hoja y su cabecera (la primera fila con texto),
     con calamine para .xlsx y .xls. Antes solo se guardaban nombre y tamaño de cada hoja, y los
-    276 libros de PIDEELOR no daban ninguna columna (2026-10-28)."""
+    cientos de libros de un corpus PIDE no daban ninguna columna (2026-10-28)."""
     from python_calamine import CalamineWorkbook
 
     libro = CalamineWorkbook.from_path(str(path))

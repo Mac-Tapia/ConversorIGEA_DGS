@@ -1088,9 +1088,9 @@ def leer_trafos(path: Path | str) -> dict[float, dict[str, float]]:
 # --------------------------------------------------------------------------------
 #
 # Las fichas técnicas son universales: el mismo código de norma vale para cualquier
-# distribuidora (usuario, 2026-11-01). Al convertir NJA202 y R205 de Electro Oriente, seis
-# códigos no estaban en el catálogo y sus tramos salían con R = X = 0; el flujo de NJA202
-# solo convergía con la demanda al 11,3 %. Un código nuevo se añade con lo que se pueda
+# distribuidora (usuario, 2026-11-01). Al convertir dos alimentadores de otra distribuidora, unos
+# códigos no estaban en el catálogo y sus tramos salían con R = X = 0; el flujo de uno de ellos
+# solo convergía con una fracción de la demanda. Un código nuevo se añade con lo que se pueda
 # deducir de fichas que ya están, anotado, hasta que se escriba la del fabricante.
 
 #: Resistividad a 20 °C (IEC 60228): cobre recocido 100 % IACS y aluminio 61 % IACS.
@@ -1106,7 +1106,7 @@ FAMILIAS_CABLE = ('N2', 'NK', 'EC')
 FAMILIA_EQUIVALENTE = {
     'CS': ('N2', 1.0, 'Autoportante Cu (XLPE)'),
     'AS': ('N2', RHO20_AL_OHM_MM2_M / RHO20_CU_OHM_MM2_M, 'Autoportante Al (XLPE)'),
-    # Electro Oriente (2026-11-01) usa en 22 alimentadores estas familias y no entregó su base de
+    # Una distribuidora (2026-11-01) usa en decenas de alimentadores estas familias y no entregó su base de
     # parámetros con la descripción de la norma: protegido = el desnudo del mismo material (la
     # cubierta apenas cambia R y X), cable seco de Al = el N2XSY por ρAl/ρCu, «EC» = cable seco
     # de Cu. Quedan «por confirmar» hasta la ficha del fabricante (053:RF-5).
@@ -1342,7 +1342,7 @@ def ampliar_catalogo(path: Path | str, codigos: Iterable[str], *, origen: str = 
         existentes = {str(f.get('codigo') or '').strip().upper() for f in todas
                       if _valor(f, 'R1', 'ohm_km') is not None}
         # Una fila que quedó pendiente (sin R ni X) se rellena en su sitio cuando ya se puede
-        # deducir: con Electro Oriente, 20 códigos quedaban vacíos para siempre porque la regla
+        # deducir: con otra distribuidora, decenas de códigos quedaban vacíos para siempre porque la regla
         # de su familia llegó después de añadirlos (2026-11-01).
         vacias = {}
         for hoja in hojas.values():

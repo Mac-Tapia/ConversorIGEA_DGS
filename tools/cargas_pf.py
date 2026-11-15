@@ -703,7 +703,7 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
         for f, pv, qv in zip(fases, p_new, q_new):
             setattr(obj, f'plini{f}', pv)
             setattr(obj, f'qlini{f}', qv)
-        # DIgSILENT guarda la fase sin carga como 8·10⁻¹¹, no como 0 (W2875143 de NJA202,
+        # DIgSILENT guarda la fase sin carga como 8·10⁻¹¹, no como 0 (una SED de un alimentador real,
         # 2026-11-01): una fase cuenta si pasa de una millonésima de la mayor.
         # 054:RF-11: las tres fases con valor no la hacen trifásica: una SED monofásica con 0 kW en el archivo las
         # recibe a partes iguales, y volviendo aquí no se escribía su modo: 194 de 228 de CHI201 sin carga (2026-11-03).
@@ -713,8 +713,8 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
             return
         # Una SED monofásica o bifásica sin tipo de carga queda «1PH PH-E» y el flujo consume
         # sus entradas de modo (``plini`` y ``coslini`` en PC), no sus fases (054, medido en
-        # NJA202): además de las fases se escriben las de su modo. Sin esto, las 784 SED
-        # monofásicas de NJA202 (2026-11-01) se quedaban con la plini de la importación, y con
+        # caso real): además de las fases se escriben las de su modo. Sin esto, las SED
+        # monofásicas de un alimentador real (2026-11-01) se quedaban con la plini de la importación, y con
         # solo ``qlini`` (que en PC no es dato) las de 0205 quedaban con FP 1.
     modo = str(getattr(obj, 'mode_inp', '') or 'PC').upper()
     if modo == 'PQ':

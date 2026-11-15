@@ -95,8 +95,8 @@ def catalogo_del_proyecto() -> Path | None:
 def catalogo_de_empresa(codigo: str) -> Path:
     """080:RF-49: ``input/empresas/<código>/catalogo_parametros.xlsx``; se crea si no existe.
 
-    Cada empresa con sus propios archivos (usuario, 2026-11-03): en un fichero único, TI01 de
-    Electro Sur Este usaba filas añadidas al aparecer en Electro Oriente.
+    Cada empresa con sus propios archivos (usuario, 2026-11-03): en un fichero único, un alimentador de
+    una distribuidora usaba filas añadidas al aparecer otra.
     """
     import re
 
@@ -154,8 +154,8 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
         from .dominio.dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
 
         # Un código que la fuente trae sin impedancia cuenta como falta: se completa con su
-        # ficha al cargar. En la copia de Electro Oriente (2026-11-01) 22 alimentadores traían
-        # sus conductores (AA03503D, CU01603G…) solo descritos, sin R ni X; la carga los dejaba
+        # ficha al cargar. En la copia de una distribuidora (2026-11-01) decenas de alimentadores traían
+        # sus conductores solo descritos, sin R ni X; la carga los dejaba
         # «incompletos» y la reconstrucción esperaba a convertir.
         presentes = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
                      for f in tablas.get(t, ()) if con_impedancia(f)}

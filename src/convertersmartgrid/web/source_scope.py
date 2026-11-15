@@ -106,7 +106,7 @@ def inspect_package_scope(
     if es_copia_sql(package):
         # Una copia de SQL Server no se extrae como un paquete de capas: su empresa y su base
         # están en ``ConfigBD.config`` y, sin él, se leen al restaurarla. El 2026-11-01, la de
-        # Electro Oriente («ELOR25_V2», sin ConfigBD) daba «no contiene una capa de tramos» al
+        # copia de una distribuidora (sin ConfigBD) daba «no contiene una capa de tramos» al
         # asignarla en su entrada VNR-GIS, aunque se convierte entera.
         config = config_de(package)
         empresa = config.get('CodEmpresa') or None

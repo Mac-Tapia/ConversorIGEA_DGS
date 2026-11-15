@@ -1,8 +1,8 @@
 """Lo que los entregables de otra empresa enseñan al asistente: redactar y dar formato (spec 072, RF-19).
 
-El usuario autorizó el 2026-11-02 usar los entregables PIDE de Electro Oriente para entrenar, «con revisión
+El usuario autorizó el 2026-11-02 usar los entregables PIDE de otra distribuidora para entrenar, «con revisión
 humana», y la spec lo limita a redactar y dar formato, nunca como verdad eléctrica: las cifras de esos
-informes son de otra red y tienen incoherencias propias (103 proyectos en ALT1 frente a 81 hojas de
+informes son de otra red y tienen incoherencias propias (más proyectos en una alternativa que hojas de
 evaluación). Por eso aquí:
 
 * solo entra un fragmento que una persona revisó y aprobó, con su nombre y su fecha; el maestro destila

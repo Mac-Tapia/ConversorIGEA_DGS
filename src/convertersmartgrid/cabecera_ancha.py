@@ -1,9 +1,9 @@
 """Medición de cabecera entregada «a lo ancho»: una columna por alimentador (spec 051).
 
 La calibración (specs 006, 025 y 035) lee la cabecera como la entrega Electro Dunas: una hoja
-por medidor con fecha, kW y kVAR, y un libro de medidores. Electro Oriente la entrega en los
-perfiles de carga del PIDE 2026: una hoja por sistema y magnitud («BJSI_ACTIVA»), la fecha y la
-hora en dos columnas y una columna por alimentador; y en Iquitos, solo una tabla de máximas
+por medidor con fecha, kW y kVAR, y un libro de medidores. Otra distribuidora la entrega en los
+perfiles de carga del PIDE 2026: una hoja por sistema y magnitud («<SISTEMA>_ACTIVA»), la fecha y la
+hora en dos columnas y una columna por alimentador; y en un sistema aislado, solo una tabla de máximas
 mensuales en MW por salida. Este módulo lee las dos formas y las escribe en la que la
 calibración ya lee, sin tocarla. No supone nada de una empresa: los códigos, el nombre de cada
 alimentador en DIgSILENT y las carpetas los da quien lo usa (051:RF-7).
@@ -242,7 +242,7 @@ def escribir(lectura: Lectura, carpeta: Path | str, medidores: Mapping[str, str]
              fp: Mapping[str, float] | None = None) -> list[Path]:
     """Un libro de cabecera por año (una hoja por código: Fecha, kW, kVAR) y el de medidores.
 
-    ``medidores``: nombre del alimentador en DIgSILENT → código de la medición (R205 → R5,
+    ``medidores``: nombre del alimentador en DIgSILENT → código de la medición (``<ALIM>`` → ``<MED>``,
     RF-10). ``fp``: el factor de potencia que da el usuario para un código cuya medición no trae
     reactiva (RF-11); va en la columna FP y la calibración saca de él la Q. Nada se escribe en
     ``referencia/`` (RF-7).
@@ -277,7 +277,7 @@ def escribir(lectura: Lectura, carpeta: Path | str, medidores: Mapping[str, str]
                 for t, (kw, kvar) in puntos:
                     ws.append([t, kw, kvar])
         # Una subcarpeta por año, como la lee la calibración (025:RF-1): en una carpeta plana
-        # todos los libros cuentan para cualquier año y NJA202, que está en el de 2024 y en el
+        # todos los libros cuentan para cualquier año, y un alimentador que está en el de 2024 y en el
         # de 2025 (solo su «24:00» del 31 de diciembre), salía «sin registro en 2024».
         (carpeta / str(anio)).mkdir(exist_ok=True)
         destino = carpeta / str(anio) / f'cabecera_{anio}.xlsx'

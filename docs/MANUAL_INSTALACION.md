@@ -1,21 +1,21 @@
 # Manual de instalación de ConverterSmartGrid
 
 Para quien instala el programa en el puesto de un operador. No hace falta saber programar, ni tener Python, Node o internet.
-Guarde este manual junto al instalador: el programa instalado no trae una copia aparte.
-
-Lo que va marcado *(pendiente de comprobar con el rc6)* está en el programa, pero todavía no se ha comprobado en una
-instalación hecha con el instalador.
+El programa instalado trae este manual en su carpeta `documentos`, y el menú de inicio lo abre.
 
 ## Qué hace falta
 
 | Requisito | Para qué | Si falta |
 | --- | --- | --- |
-| Windows 10 u 11 de 64 bits | Todo | No se instala |
-| Al menos 2 GB libres en el disco de los datos | Conversiones grandes, resultados e informes | El diagnóstico avisa |
-| DIgSILENT PowerFactory 2021 o posterior, con su licencia | Importar en DIgSILENT, calibrar, estudios, obras e informes | Convertir a DGS sigue funcionando |
+| Windows 11 de 64 bits: es el probado. Windows 10 de 64 bits, sin probar | Todo | No se instala |
+| Memoria: 8 GB de RAM como mínimo, 16 GB con DIgSILENT abierto y un sistema entero (recomendación, no medida en cada caso) | Todo | Las corridas grandes van lentas o se quedan sin memoria |
+| Disco: unos 520 MB para el programa y al menos 2 GB libres en el disco de los datos | Conversiones grandes, resultados e informes | El diagnóstico avisa |
+| Microsoft Excel o WPS Office, que responden a `Excel.Application` por COM | Rellenar el libro Excel de cada informe | El informe Word sale igual; el diagnóstico avisa |
+| DIgSILENT PowerFactory con su licencia: la **2024**, probada en una instalación real; la 2021, 2022, 2023 y 2025, probadas con simulación (sin una instalación real) | Importar en DIgSILENT, calibrar, estudios, obras e informes | Convertir a DGS sigue funcionando |
 | Microsoft Access Database Engine de 64 bits | Cargar una base `.mdb` de CYMDIST | Las otras fuentes siguen funcionando |
 | «ODBC Driver 18 for SQL Server» de Microsoft, y SQL Server Express si la copia es local | Cargar una copia `.bak` de VNR-GIS | Las otras fuentes siguen funcionando |
 | Tesseract OCR con el idioma español (`spa`) | Leer un PDF escaneado del solicitante | Un PDF con texto se lee sin él |
+| Para el complemento de IA: GPU NVIDIA con CUDA 12.6, controlador NVIDIA 560 o posterior y 8 GB de VRAM recomendados; unos 2,7 GB de disco para el complemento, más sus modelos (unos 5 GB el del asistente y 1 GB el de búsqueda) | Entrenar, gemelo digital, pronóstico por modelos, revisión por roles y asistente | Esas funciones dicen que falta la GPU o el complemento; lo demás funciona |
 
 DIgSILENT, los drivers, SQL Server Express y Tesseract pueden pedir permisos de administrador al instalarlos. ConverterSmartGrid no
 los pide: se instala para su usuario de Windows.
@@ -30,14 +30,16 @@ habitual, o indicando el ejecutable con la variable de usuario `CSG_TESSERACT`. 
 para añadir el idioma `spa`, ponga `spa.traineddata`, con una copia de `eng.traineddata` al lado, en
 `%USERPROFILE%\.convertersmartgrid\tessdata`, o en la carpeta que diga la variable `CSG_TESSDATA`.
 
-**Licencias.** El programa no incluye ni concede licencias de terceros. Cada usuario necesita las suyas: la de DIgSILENT y el
-permiso de la distribuidora para usar sus datos.
+**Licencias.** El programa se usa con su licencia comercial por puesto (`LICENCIA_COMERCIAL.txt`, en `documentos`): un equipo por
+licencia y sin redistribuir. El instalador la muestra y no sigue sin aceptarla. El programa no incluye ni concede licencias de terceros:
+cada usuario necesita las suyas, la de DIgSILENT y el permiso de la distribuidora para usar sus datos.
 
 ## Instalar
 
-1. Ejecute `ConverterSmartGrid-<versión>-setup.exe`. El instalador no va firmado: si Windows avisa de un editor desconocido,
-   compruebe que el fichero vino de quien se lo dio antes de ejecutarlo.
-2. El instalador está en español. Acepte la carpeta propuesta, `%LOCALAPPDATA%\Programs\ConverterSmartGrid`, y marque «Crear un
+1. Compruebe el instalador antes de ejecutarlo: su huella SHA-256 tiene que ser la de `SHA256SUMS`, que llega por otro canal
+   (vea [Entrega y actualizaciones](#entrega-y-actualizaciones)), y en sus propiedades, «Firmas digitales» tiene que nombrar al
+   editor del programa. Ejecute `ConverterSmartGrid-<versión>-setup.exe`.
+2. El instalador está en español. Lea la licencia y marque «Acepto el acuerdo» para seguir. Acepte la carpeta propuesta, `%LOCALAPPDATA%\Programs\ConverterSmartGrid`, y marque «Crear un
    acceso directo en el escritorio» si lo quiere. Use una ruta corta: Windows no carga librerías por encima de 259 caracteres.
 3. Espere. Verá «Comprobando las huellas e instalando...»: comprueba cada fichero, instala sin salir a internet y prueba el
    programa con su diagnóstico antes de darlo por instalado.
@@ -107,8 +109,7 @@ sistema de coordenadas y no aparta ninguna subestación por su nombre.
 3. Si el perfil tiene errores, sale «El perfil tiene errores y no se guardó», con cada error, y se queda el que había. Si está bien,
    la tarjeta dice «Perfil activo en …» con la carpeta donde quedó (guarda una copia del anterior), y «Faltan N dato(s) que conviene
    dar» lista lo que falta, qué función afecta y qué pasa sin ello.
-4. En «Opciones de conversión», el «CRS de origen» enseña el del perfil *(pendiente de comprobar con el rc6: en el rc5 no se ponía
-   al día hasta recargar la página)*.
+4. En «Opciones de conversión», el «CRS de origen» enseña el del perfil, sin recargar la página.
 
 **Para escribir el perfil**, parta de la plantilla vacía o del ejemplo de una empresa inventada que trae el programa, como explica
 `PERFIL_EMPRESA.md`. Puede comprobar un fichero antes de cargarlo, y después el perfil activo:
@@ -159,10 +160,39 @@ Deja una carpeta `csg-copia-…` con un manifiesto y la huella de cada fichero. 
 última; `verificar` y `restaurar` están en su ayuda (`copia_datos.cmd --help`). Restaurar comprueba cada huella antes de tocar
 nada y aparta lo que hubiera, sin borrarlo; con la web abierta se niega.
 
-*(Pendiente de comprobar con el rc6.)* El aviso de la web trae **Hacer una copia ahora**: escriba la carpeta destino (otro disco
+El aviso de la web trae **Hacer una copia ahora**: escriba la carpeta destino (otro disco
 o una carpeta que sincroniza, como Google Drive), que el equipo recuerda. La copia corre como un trabajo, con su progreso y
 «Cancelar» en la barra de trabajos; antes de empezar dice cuánto ocupará y cuánto hay libre, y si no cabe no empieza. Cada fichero
 se guarda una vez aunque esté repetido. Mientras copia no se admite otro trabajo.
+
+## Instalación silenciosa, para la TI del cliente
+
+En la 1.0 el programa se instala **por usuario**, sin permisos de administrador; la instalación por equipo queda para después de la
+1.0. La TI puede instalarlo sin preguntas en la sesión del usuario (un guion de inicio de sesión, o Intune o el gestor que use, en
+el contexto del usuario):
+
+```bat
+ConverterSmartGrid-<versión>-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="%TEMP%\csg_instalacion.log"
+```
+
+- `/DIR="C:\ruta\corta"` elige otra carpeta; sin ella, `%LOCALAPPDATA%\Programs\ConverterSmartGrid`, o la de la instalación
+  anterior si es válida.
+- En modo silencioso no se muestra la licencia: quien despliega la acepta por los usuarios del cliente.
+- El código de salida es 0 si terminó; otro, si no. El motivo queda en el registro de `/LOG`, también en silencio.
+- Con el programa abierto no se actualiza: ciérrelo antes. Los datos del usuario no se tocan.
+
+## Entrega y actualizaciones
+
+El programa se entrega **directamente** al cliente, por correo o por un enlace privado: el instalador, el complemento de IA, las
+notas de la versión, las licencias y `SHA256SUMS`, con la huella de cada fichero. `SHA256SUMS` se envía por un canal distinto del
+instalador (por ejemplo, el enlace por un lado y las huellas por correo). Para comprobar un fichero:
+
+```powershell
+Get-FileHash .\ConverterSmartGrid-<versión>-setup.exe -Algorithm SHA256
+```
+
+Las actualizaciones 1.0.x llegan por el mismo canal y se instalan como dice [Actualizar](#actualizar). Cada versión tiene **12 meses
+de soporte** desde su entrega: correcciones y actualizaciones 1.0.x, y avisos de seguridad por el mismo canal.
 
 ## Llevarlo a otro equipo o a otro usuario
 
@@ -197,7 +227,7 @@ importar desde la web. Los datos de una distribuidora son suyos: no los copie a 
 | --- | --- |
 | El instalador dice «No se pudo terminar la instalacion» | Lea el motivo del aviso; si es el programa abierto, ciérrelo y repita |
 | El instalador rechaza la carpeta | Use una ruta más corta: Windows no carga librerías por encima de 259 caracteres |
-| Windows avisa de un editor desconocido | El instalador no va firmado; compruebe que vino de quien se lo dio |
+| Windows avisa de un editor desconocido | El instalador de la entrega va firmado: no ejecute uno sin firma ni con otra huella que la de `SHA256SUMS`, y pida otro a quien se lo dio |
 | La ventana negra dice «No se pudo abrir el programa» | Ejecute `csg.cmd doctor` y siga lo que diga |
 | El diagnóstico no encuentra DIgSILENT | Instale PowerFactory 2021 o posterior, o defina `PF_PYTHON` con la carpeta de su API |
 | «Esta pestaña no tiene sesión con el Conversor» | Abra el acceso directo: cada arranque usa una sesión nueva, y los enlaces guardados dejan de valer |
@@ -228,10 +258,29 @@ ruedas de numpy que fija `config/entrega.json`.
 
 ```bat
 cd frontend && npm ci && npm run build && cd ..
-python tools\construir_candidato.py candidato --salida C:\csg\candidato --python-embebido python-3.12.10-embed-amd64.zip --python-pf C:\csg\python_pf
-python tools\comprobar_entrega.py --candidato C:\csg\candidato
-ISCC.exe /DCandidato=C:\csg\candidato /OC:\csg\salida instalador\ConverterSmartGrid.iss
+set CSG_PIP_AUDIT=C:\csg\venv_pip_audit\Scripts\pip-audit.exe
+python tools\construir_candidato.py candidato --final --salida C:\csg\candidato --python-embebido python-3.12.10-embed-amd64.zip --python-pf C:\csg\python_pf --lista-local C:\csg\terminos_prohibidos.json
+python tools\comprobar_entrega.py --final --candidato C:\csg\candidato --lista-local C:\csg\terminos_prohibidos.json
+ISCC.exe /DCandidato=C:\csg\candidato /DFirmar "/Scsg=signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /sha1 <huella> $f" /OC:\csg\entrega instalador\ConverterSmartGrid.iss
+python tools\construir_candidato.py firmar --final C:\csg\entrega\ConverterSmartGrid-<versión>-setup.exe
+python tools\construir_candidato.py sumas C:\csg\entrega
 ```
+
+`--final` es la entrega del cliente, y no se arma si falta algo de esto; un candidato sin `--final` es de prueba y deja cada falta en
+`avisos` de su manifiesto:
+
+- **La lista local de términos** (`--lista-local` o `CSG_TERMINOS_PROHIBIDOS`), fuera de git, con los nombres, siglas, paquetes,
+  corpus y códigos de alimentador de **cada** distribuidora con la que se trabajó. Los comentarios con esos casos se neutralizan en
+  el paquete, con sus cifras.
+- **El Python oficial**: el `python-3.12.10-embed-amd64.zip` de python.org que fija `config/entrega.json`, con su SHA-256 y la firma
+  de la Python Software Foundation en `python.exe`, `pythonw.exe` y `python312.dll`.
+- **pip-audit** sobre el lock, desde un entorno aparte (`CSG_PIP_AUDIT`), nunca en el entorno del desarrollo. Una vulnerabilidad solo
+  pasa justificada en `config/vulnerabilidades_justificadas.json`; el resultado va en `documentos/auditoria_dependencias.json`.
+- **La firma de código**: `firmar` usa signtool con el certificado que dice `CSG_FIRMA_ARGUMENTOS` (`/sha1 <huella>` de uno OV en
+  su token, o los argumentos `/dlib … /dmdf …` de un servicio de firma en la nube), `CSG_FIRMA_SIGNTOOL` y `CSG_FIRMA_SELLO`. El
+  certificado nunca va en git; sin él, `firmar` sin `--final` avisa y deja el fichero sin firmar.
+
+`sumas` escribe `SHA256SUMS` de todo lo que hay en la carpeta de la entrega: el instalador, el complemento, las notas y las licencias.
 
 Lance `ISCC` desde PowerShell o desde `cmd`, no desde el Bash de Git: MSYS toma `/DCandidato=…` por una ruta de Unix y la
 convierte, y el instalador no encuentra el candidato.
@@ -239,7 +288,7 @@ convierte, y el instalador no encuentra el candidato.
 Use rutas cortas: la de construir se suma a la de cada fichero. El candidato rechaza lo que lleve el nombre de una empresa o un
 peso entrenado. La versión sale de un solo sitio, la del paquete (`__version__`): el candidato la toma de ahí y el instalador la
 lee de la rueda del candidato, así que no se pasa a mano. Desde el rc6, `ISCC` rechaza `/DVersion`, y `--version` del candidato
-solo sirve para ensayar una actualización (pendiente de comprobar con el rc6).
+solo sirve para ensayar una actualización.
 
 ### Complemento de IA (opcional)
 

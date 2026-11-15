@@ -6,9 +6,9 @@ tablas de máximas mensuales por salida, y escribe en ``--salida`` un libro de c
 mezcla con la medición de otra (051:RF-7).
 
 Uso:
-    python tools/cabecera_ancha.py --ancho <carpeta o libros> --alimentador W12882=NJA202 \
+    python tools/cabecera_ancha.py --ancho <carpeta o libros> --alimentador <CODIGO_VNR>=<ALIMENTADOR> \
         --salida <carpeta del espacio>
-    python tools/cabecera_ancha.py --mensual <libro> --alimentador L14243=R5 --salida <carpeta>
+    python tools/cabecera_ancha.py --mensual <libro> --alimentador <CODIGO_VNR>=<MEDICION> --salida <carpeta>
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def main(argv=None) -> int:
     p.add_argument('--mensual', nargs='*', default=[], help='Libros con máximas mensuales por salida')
     p.add_argument('--unidad', choices=('mw', 'kw'), help='Unidad de las máximas mensuales si la tabla no la dice')
     p.add_argument('--alimentador', nargs='+', required=True,
-                   help='NOMBRE_EN_DIGSILENT=CODIGO_DE_LA_MEDICION (R205=R5); solo CODIGO si son iguales')
+                   help='NOMBRE_EN_DIGSILENT=CODIGO_DE_LA_MEDICION (ALIM=MED); solo CODIGO si son iguales')
     p.add_argument('--fp', nargs='*', default=[],
                    help='CODIGO=FP para una medición sin reactiva (R5=0.98): la Q sale de ese FP (051:RF-11)')
     p.add_argument('--salida', required=True, help='Carpeta del espacio de trabajo donde escribir (nunca la de los datos de la distribuidora)')

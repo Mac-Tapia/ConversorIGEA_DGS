@@ -21,7 +21,7 @@ class EspacioNoAbre extends Error {
 
 function bootWorkspace(): Promise<WorkspaceState> {
   bootPromise ??= (async () => {
-    // ?espacio=<id> abre ese espacio en este navegador (2026-11-01: la copia de Electro Oriente
+    // ?espacio=<id> abre ese espacio en este navegador (2026-11-01: la copia de otra distribuidora
     // se cargó en un espacio y el navegador del operador abría otro, sin ella ni su listado).
     const pedido = espacioDeLaDireccion();
     const stored = pedido ?? readStoredId();
@@ -72,7 +72,7 @@ export interface LogLine {
 }
 
 // Clave con el nombre anterior del proyecto (059:RF-6, 058:RF-9). El 2026-11-01, tras el cambio
-// de nombre, el navegador no encontró el espacio de Electro Oriente bajo la clave nueva y creó uno
+// de nombre, el navegador no encontró el espacio de otra distribuidora bajo la clave nueva y creó uno
 // vacío. Se lee una vez, se pasa a la nueva y se borra; manda sobre la nueva porque esta, en ese
 // arranque, ya apuntaba al espacio vacío recién creado.
 const STORAGE_KEY_ANTERIOR = 'igea-dgs.workspace'; // legado-058

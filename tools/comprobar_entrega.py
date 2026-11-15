@@ -204,7 +204,12 @@ def leer_lista_local(ruta: Path, terminos: Terminos) -> None:
 
 
 def cargar_terminos(raiz: Path = RAIZ, manifiesto: Mapping[str, Any] | None = None, *, huellas: Path | None = None,
-                    lista_local: Path | str | None = None) -> Terminos:
+                    lista_local: Path | str | None = None, final: bool = False) -> Terminos:
+    """Los términos de las tres fuentes. ``final``: la entrega que recibe un cliente exige la lista local (086:RF-33, D5).
+
+    El rc6 se armó sin lista local y la comprobación lo dejó en una línea de ``listas``: pasaron los códigos de los
+    alimentadores de otra distribuidora, que no están en ningún perfil (auditoría de lanzamiento, 2026-11-14).
+    """
     manifiesto = leer_manifiesto() if manifiesto is None else manifiesto
     terminos = Terminos()
     terminos_de_los_perfiles_excluidos(raiz, manifiesto, terminos)
@@ -212,8 +217,11 @@ def cargar_terminos(raiz: Path = RAIZ, manifiesto: Mapping[str, Any] | None = No
     local = lista_local if lista_local is not None else os.environ.get(VARIABLE_LISTA_LOCAL, '').strip()
     if local:
         leer_lista_local(Path(local), terminos)
+    elif final:
+        raise EntregaError(f'La entrega final no se comprueba sin la lista local de términos: indique --lista-local o '
+                           f'{VARIABLE_LISTA_LOCAL} (086:RF-33).')
     else:
-        terminos.origenes.append(f'sin lista local ({VARIABLE_LISTA_LOCAL})')
+        terminos.origenes.append(f'sin lista local ({VARIABLE_LISTA_LOCAL}): aviso, solo vale para un candidato de prueba')
     return terminos
 
 
@@ -282,18 +290,51 @@ class Hallazgo:
     termino: str
 
 
+def _palabras(linea: str) -> list[str]:
+    return _TOKEN.findall(unicodedata.normalize('NFKD', linea).encode('ascii', 'ignore').decode().lower())
+
+
+def _entre_lineas(anterior: str, actual: str, terminos: Terminos, memoria: dict[str, str | None]) -> Iterator[tuple[str, str, str, str]]:
+    """Un término de varias palabras partido por el salto de línea: (cola de la anterior, cabeza de esta, término, categoría).
+
+    El rc6 dejó la segunda palabra de un nombre al principio de una línea: la primera cerraba la anterior y la búsqueda no veía
+    el nombre entero (auditoría de lanzamiento, 2026-11-14). Solo se miran ventanas que cruzan el salto.
+    """
+    cola, cabeza = _palabras(anterior)[-3:], _palabras(actual)[:3]
+    for i in range(len(cola)):
+        for j in range(1, len(cabeza) + 1):
+            izquierda, derecha = cola[i:], cabeza[:j]
+            if len(izquierda) + len(derecha) > 4:
+                continue
+            trozo = ' '.join(izquierda + derecha)
+            for termino, categoria in _buscar(trozo, terminos, memoria):
+                if termino == trozo:
+                    yield ' '.join(izquierda), ' '.join(derecha), termino, categoria
+
+
 def buscar_en_texto(rel: str, texto: str, terminos: Terminos, memoria: dict[str, str | None] | None = None) -> list[Hallazgo]:
     memoria = {} if memoria is None else memoria
     codigo = lineas_de_codigo(rel, texto)
+    lineas = texto.splitlines()
     salida = []
-    for n, linea in enumerate(texto.splitlines(), 1):
+    for n, linea in enumerate(lineas, 1):
         vistos = set()
-        for termino, categoria in _buscar(codigo[n - 1] if n <= len(codigo) else '', terminos, memoria):
+        de_codigo = codigo[n - 1] if n <= len(codigo) else ''
+        for termino, categoria in _buscar(de_codigo, terminos, memoria):
             vistos.add(termino)
             salida.append(Hallazgo(rel, n, categoria, 'codigo', termino))
         for termino, categoria in _buscar(linea, terminos, memoria):
             if termino not in vistos:
                 salida.append(Hallazgo(rel, n, categoria, 'comentario', termino))
+        if n == 1:
+            continue
+        codigo_anterior = codigo[n - 2] if n - 1 <= len(codigo) else ''
+        en_codigo = {t for _, _, t, _ in _entre_lineas(codigo_anterior, de_codigo, terminos, memoria)}
+        for cola, cabeza, termino, categoria in _entre_lineas(lineas[n - 2], linea, terminos, memoria):
+            clase = 'codigo' if termino in en_codigo else 'comentario'
+            # Cada mitad, en su línea: así el neutralizador quita las dos y el informe dice dónde empieza.
+            salida.append(Hallazgo(rel, n - 1, categoria, clase, cola))
+            salida.append(Hallazgo(rel, n, categoria, clase, cabeza))
     return salida
 
 
@@ -543,6 +584,20 @@ def _sustituir_termino(linea: str, termino: str) -> str:
     return linea
 
 
+#: Una cifra suelta: ni parte de una fecha o de un requisito («2026-11-12», «RF-76», «086:RF-5»), ni de un nombre («T32»).
+_CIFRA = re.compile(r'(?<![\w\-:./])\d+(?:[.,]\d+)?(?![\w\-:/])')
+_MARCA_CIFRA = '[cifra]'
+
+
+def _sin_cifras(linea: str, inicio: int) -> str:
+    """D5: en una línea que nombraba un caso real, sus cifras tampoco van («calibrado a 0,568 p.u.», «374 de 849 SED»).
+
+    Solo desde ``inicio``, donde acaba el código de la línea: el comentario o el docstring. Auditoría de lanzamiento
+    (2026-11-14): el neutralizador quitaba el nombre y dejaba las cifras reales de la red junto al código.
+    """
+    return linea[:inicio] + _CIFRA.sub(_MARCA_CIFRA, linea[inicio:])
+
+
 def _forma_del_codigo(texto: str) -> str:
     arbol = ast.parse(texto)
     for nodo in ast.walk(arbol):
@@ -562,8 +617,11 @@ def neutralizar(rel: str, texto: str, terminos: Terminos, memoria: dict[str, str
     if not hallazgos:
         return texto, 0
     lineas = texto.splitlines(keepends=True)
+    codigo = lineas_de_codigo(rel, texto)
     for h in hallazgos:
         lineas[h.linea - 1] = _sustituir_termino(lineas[h.linea - 1], h.termino)
+    for fila in sorted({h.linea - 1 for h in hallazgos}):
+        lineas[fila] = _sin_cifras(lineas[fila], len((codigo[fila] if fila < len(codigo) else '').rstrip()))
     nuevo = ''.join(lineas)
     if rel.endswith('.py') and _forma_del_codigo(nuevo) != _forma_del_codigo(texto):
         raise EntregaError(f'Neutralizar {rel} cambiaría su código.')
@@ -576,10 +634,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--manifiesto', type=Path, default=MANIFIESTO, help='lista de la entrega (config/entrega.json)')
     parser.add_argument('--lista-local', type=Path, help=f'lista de términos fuera de git; por defecto, {VARIABLE_LISTA_LOCAL}')
     parser.add_argument('--detalle', type=Path, help='escribe cada lugar con su término: fuera de git, porque lleva los nombres')
+    parser.add_argument('--final', action='store_true', help='la entrega final: sin lista local es un error, no un aviso (086:RF-33)')
     args = parser.parse_args(argv)
     try:
         manifiesto = leer_manifiesto(args.manifiesto)
-        terminos = cargar_terminos(RAIZ, manifiesto, lista_local=args.lista_local)
+        terminos = cargar_terminos(RAIZ, manifiesto, lista_local=args.lista_local, final=args.final)
         if args.candidato is not None and not (args.candidato.is_dir() or args.candidato.suffix == '.whl' and args.candidato.is_file()):
             raise EntregaError(f'El candidato {args.candidato} no es una carpeta ni una rueda.')
         informe = comprobar(RAIZ, manifiesto, terminos, candidato=args.candidato)

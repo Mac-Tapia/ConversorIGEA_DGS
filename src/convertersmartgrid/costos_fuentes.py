@@ -4,7 +4,7 @@ El SICODI se publica en Procesos Regulatorios de Osinergmin como TXT separados p
 Un costo depende de código, tensión, estructura y sector típico: `AA03503G` es el código `AA03503`
 a 22,9 kV (`G`), y el mismo código cuesta distinto en madera que en concreto. Sin alguno de esos
 datos no hay costo: se nombra el hueco, porque un costo supuesto se confunde con uno oficial. Por
-eso tampoco hay factores por defecto: el informe de Electro Oriente aplicó 1,8 sobre mercado y la
+eso tampoco hay factores por defecto: el informe de otra distribuidora aplicó un factor sobre mercado y la
 carpeta de su cálculo estaba vacía.
 
 Las obras de transmisión se valoran con los módulos estándar de inversión (Res. 152-2026-OS/CD,

@@ -19,6 +19,8 @@ readme = "README.md"
 # en 3.12, el conversor importa «powerfactory» en su propio proceso y deja de hacer
 # falta saltar a otro intérprete para cada llamada a la API.
 requires-python = ">=3.12,<3.13"
+# U1 (2026-11-14): el editor de la entrega, el mismo que «AppPublisher» del instalador.
+authors = [{name = "Mac-Tapia"}]
 dependencies = []
 
 [project.optional-dependencies]

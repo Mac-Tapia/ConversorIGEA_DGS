@@ -170,8 +170,8 @@ def errores_contra_lo_ocurrido(hist: Mapping[int, float], cortes: Iterable[int],
 def perfiles_distintos(series: Iterable[SerieMercado]) -> list[SerieMercado]:
     """Una serie por cada forma de la historia: las copias a escala no son pruebas independientes.
 
-    En el Formato 01 de Electro Oriente, los 53 sistemas son 9 perfiles: la historia por sistema sale
-    de repartir unas pocas series comunes, y contarlas como 53 inflaría la evidencia.
+    En el Formato 01 de una distribuidora, decenas de sistemas eran unos pocos perfiles: la historia por sistema sale
+    de repartir unas pocas series comunes, y contarlas como sistemas distintos inflaría la evidencia.
     """
     vistos: dict[tuple, SerieMercado] = {}
     for s in series:

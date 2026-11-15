@@ -67,7 +67,7 @@ class Web:
         self.http = requests.Session()
         # Sin reutilizar la conexión: entre consultas se espera 5 s, lo mismo que la web la
         # mantiene abierta, y la reutilizada llegaba ya cerrada («la web no respondió
-        # (ConnectionError)» cada pocos segundos con NJA202, 2026-11-01).
+        # (ConnectionError)» cada pocos segundos con un alimentador VNR-GIS, 2026-11-01).
         self.http.headers['Connection'] = 'close'
 
     def _pedir(self, metodo: str, ruta: str, **kw):
@@ -773,8 +773,8 @@ def main(argv=None) -> int:
     try:
         demanda_dir = args.demanda_dir.resolve()
         # Relativa, dentro de la carpeta de la demanda («--medidores medidores.xlsx»); pero si ya
-        # existe tal como se escribió, esa: con «output/…/demanda_elor/medidores.xlsx» se pegaba
-        # dos veces la carpeta y la web decía «No existe» (Electro Oriente, 2026-11-01).
+        # existe tal como se escribió, esa: con «output/…/demanda_<empresa>/medidores.xlsx» se pegaba
+        # dos veces la carpeta y la web decía «No existe» (caso real, 2026-11-01).
         dados = {t: (p.resolve() if p.is_absolute() or p.exists() else demanda_dir / p)
                  for t, p in (('medidores', args.medidores), ('cabecera', args.cabecera),
                               ('clientes', args.clientes), ('suministros', args.suministros)) if p}

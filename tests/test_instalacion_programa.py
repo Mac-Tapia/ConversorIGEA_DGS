@@ -1458,8 +1458,9 @@ def test_086_rf89_el_candidato_lleva_los_manuales_y_las_notas_de_su_version(tmp_
     """086:RF-89 — el candidato lleva los cuatro documentos que se instalan; las notas, las de la publicación de su versión."""
     assert CC.publicacion('1.0.0rc6') == '1.0.0' and CC.publicacion('1.0.0') == '1.0.0' and CC.publicacion('2.1.3rc1') == '2.1.3'
     pedidos = set(CC.documentos_del_candidato('1.0.0rc6'))
-    assert {'docs/MANUAL_INSTALACION.md', 'docs/MANUAL_COMANDOS.md', 'docs/GUIA_PRUEBA_PERSONA_AJENA.md',
-            'docs/NOTAS_VERSION_1.0.0.md'} <= pedidos
+    # Aclaración de 086:RF-89 (2026-11-14): el manual de órdenes del programa instalado; la guía de la persona ajena no.
+    assert {'docs/MANUAL_INSTALACION.md', 'docs/MANUAL_ORDENES.md', 'docs/NOTAS_VERSION_1.0.0.md'} <= pedidos
+    assert not pedidos & {'docs/MANUAL_COMANDOS.md', 'docs/GUIA_PRUEBA_PERSONA_AJENA.md'}
     assert set(CC.DOCUMENTOS) <= pedidos
     raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6')
     destino = tmp_path / 'documentos'
@@ -1470,8 +1471,8 @@ def test_086_rf89_el_candidato_lleva_los_manuales_y_las_notas_de_su_version(tmp_
 
 def test_086_rf91_sin_un_manual_no_se_arma_el_candidato(tmp_path):
     """086:RF-91 — si falta un documento que se instala, el candidato no se arma, y se dice cuál falta."""
-    raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6', faltan=('docs/GUIA_PRUEBA_PERSONA_AJENA.md', 'docs/NOTAS_VERSION_1.0.0.md'))
-    with pytest.raises(CE.EntregaError, match=r'GUIA_PRUEBA_PERSONA_AJENA\.md.*NOTAS_VERSION_1\.0\.0\.md'):
+    raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6', faltan=('docs/MANUAL_ORDENES.md', 'docs/NOTAS_VERSION_1.0.0.md'))
+    with pytest.raises(CE.EntregaError, match=r'MANUAL_ORDENES\.md.*NOTAS_VERSION_1\.0\.0\.md'):
         CC.copiar_documentos(raiz, tmp_path / 'documentos', '1.0.0rc6')
     assert not (tmp_path / 'documentos').exists(), 'nada a medias'
 
@@ -2055,3 +2056,184 @@ def test_086_rf105_documentos_anterior_que_no_se_borra_se_avisa(tmp_path, instal
     capsys.readouterr()
     assert IC.instalar(_candidato_con_documentos(tmp_path, '1.0'), destino)['version'] == '1.0'
     assert str(destino / IC.DOCUMENTOS_ANTERIORES) in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- lanzamiento: U1 a U8, L5 a L7 (086:RF-39, RF-44, RF-89)
+def test_086_rf44_la_licencia_de_la_entrega_es_la_comercial_y_la_mit_no_va(rueda, manifiesto):
+    """086:RF-44 — U1 (2026-11-14): la entrega lleva la licencia por puesto; la MIT del repositorio no va, ni en la rueda."""
+    pedidos = set(CC.documentos_del_candidato(__version__))
+    assert CC.LICENCIA_DE_LA_ENTREGA in pedidos and 'LICENSE' in manifiesto['documentos']['no_se_entregan']
+    assert not (pedidos & set(manifiesto['documentos']['no_se_entregan']))
+    texto = (RAIZ / CC.LICENCIA_DE_LA_ENTREGA).read_text(encoding='utf-8')
+    for clausula in ('UN (1) equipo', 'redistribuir', 'Garantía limitada', 'Limitación de responsabilidad', 'lo revisa un abogado'):
+        assert clausula in texto, clausula
+    with zipfile.ZipFile(rueda) as z:
+        mit = [n for n in z.namelist() if 'leaflet' not in n and n.rsplit('/', 1)[-1].upper().startswith('LICEN')
+               and 'Permission is hereby granted' in z.read(n).decode('utf-8', 'replace')]
+    assert not mit, mit
+    with pytest.raises(CE.EntregaError, match='LICENSE'):
+        CC.comprobar_documentos_de_la_entrega(['LICENSE'], manifiesto)
+
+
+def test_086_rf44_el_iss_muestra_la_licencia_y_el_editor_es_el_de_la_rueda(rueda):
+    """086:RF-44 — U1: LicenseFile= la pide aceptar; AppPublisher coincide con «authors» de los metadatos de la rueda."""
+    iss = (RAIZ / 'instalador' / 'ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    editor = re.search(r'#define Editor "([^"]+)"', iss).group(1)
+    assert 'LicenseFile={#Candidato}\\documentos\\LICENCIA_COMERCIAL.txt' in iss and 'AppPublisher={#Editor}' in iss
+    with zipfile.ZipFile(rueda) as z:
+        meta = z.read(next(n for n in z.namelist() if n.endswith('.dist-info/METADATA'))).decode('utf-8')
+    assert f'Author: {editor}' in meta
+
+
+def test_086_rf44_la_licencia_lleva_bom_para_inno_y_el_manual_sin_la_parte_de_construir(tmp_path, manifiesto):
+    """086:RF-44 — U1, L6: Inno lee como UTF-8 solo un .txt con BOM; «Para quien prepara una versión» no llega al cliente."""
+    destino = tmp_path / 'documentos'
+    CC.copiar_documentos(RAIZ, destino, __version__, manifiesto)
+    assert (destino / 'LICENCIA_COMERCIAL.txt').read_bytes().startswith(b'\xef\xbb\xbf')
+    manual = (destino / 'MANUAL_INSTALACION.md').read_text(encoding='utf-8')
+    assert 'Para quien prepara una versión' not in manual and 'construir_candidato' not in manual
+    assert '## Instalación silenciosa' in manual and '## Entrega y actualizaciones' in manual
+    assert not (destino / 'GUIA_PRUEBA_PERSONA_AJENA.md').exists() and not (destino / 'MANUAL_COMANDOS.md').exists()
+
+
+def test_086_rf89_el_manual_de_ordenes_solo_cita_lo_que_se_entrega(manifiesto):
+    """086:RF-89 — aclaración (L6): el manual de órdenes instalado no cita herramientas excluidas ni rutas del desarrollo."""
+    texto = (RAIZ / 'docs' / 'MANUAL_ORDENES.md').read_text(encoding='utf-8')
+    assert '.venv' not in texto and 'pytest' not in texto
+    for herramienta in re.findall(r'tools[\\/]([A-Za-z_0-9]+\.py)', texto):
+        assert CE.entra(f'tools/{herramienta}', manifiesto), herramienta
+    ordenes = _parser()._subparsers._group_actions[0].choices
+    citadas = re.findall(r'`csg\.cmd ([a-z-]+)', texto)
+    assert citadas and all(o in ordenes for o in citadas), citadas
+
+
+def test_086_rf44_los_documentos_del_cliente_sin_marcas_pendientes():
+    """086:RF-44 — L6: ni «pendiente de comprobar con el rc6» ni la licencia «pendiente» en lo que recibe el cliente."""
+    for rel in CC.documentos_del_candidato(__version__):
+        texto = (RAIZ / rel).read_text(encoding='utf-8')
+        assert not re.search(r'[Pp]endiente de comprobar|pendiente de la asesoría', texto), rel
+
+
+def test_086_rf44_los_requisitos_dicen_lo_probado():
+    """086:RF-44 — L7, U6, U7: Excel o WPS, memoria, GPU, disco del complemento, versiones probadas y modo silencioso."""
+    manual = (RAIZ / 'docs' / 'MANUAL_INSTALACION.md').read_text(encoding='utf-8')
+    for texto in ('Windows 11 de 64 bits: es el probado', 'Windows 10 de 64 bits, sin probar', 'Excel.Application', 'RAM',
+                  'VRAM', 'controlador NVIDIA', '2,7 GB', 'probadas con simulación', '/VERYSILENT', '12 meses',
+                  'SHA256SUMS'):
+        assert texto in manual, texto
+
+
+def test_086_rf44_el_doctor_avisa_sin_excel_ni_wps(tmp_path):
+    """086:RF-44 — L7: el libro del informe se rellena por COM; sin Excel ni WPS, el doctor lo dice sin bloquear."""
+    sin = _doctor(tmp_path, clase_com=lambda progid: False)
+    fila = next(c for c in sin['comprobaciones'] if c['clave'] == 'hoja_de_calculo')
+    assert not fila['ok'] and not fila['obligatoria'] and 'WPS' in fila['arreglo']
+    con = _doctor(tmp_path, clase_com=lambda progid: progid == 'Excel.Application')
+    assert next(c for c in con['comprobaciones'] if c['clave'] == 'hoja_de_calculo')['ok']
+    assert sin['listo'] == con['listo'], 'es opcional: no cambia «listo»'
+
+
+def _resultado(stdout='', returncode=0, stderr=''):
+    return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+
+def _auditoria(tmp_path, vulns, justificadas=()):
+    raiz = tmp_path / 'raiz'
+    (raiz / 'config').mkdir(parents=True)
+    (raiz / 'config' / 'just.json').write_text(json.dumps({'justificadas': list(justificadas)}), encoding='utf-8')
+    lock = tmp_path / 'lock.txt'
+    lock.write_text('pillow==13.0.0 \\\n    --hash=sha256:' + '0' * 64 + '\n', encoding='utf-8')
+    pedidas = []
+
+    def doble(orden, **kw):
+        pedidas.append(orden)
+        return _resultado(json.dumps({'dependencies': [{'name': 'pillow', 'version': '13.0.0', 'vulns': vulns}]}))
+    return raiz, lock, pedidas, doble
+
+
+_CONF_AUDITORIA = {'justificadas': 'config/just.json', 'variable': 'CSG_PIP_AUDIT'}
+_PIP_AUDIT_APARTE = {'CSG_PIP_AUDIT': 'C:/aparte/Scripts/pip-audit.exe'}
+
+
+def test_086_rf39_pip_audit_rechaza_una_vulnerabilidad_sin_justificar(tmp_path):
+    """086:RF-39 — L5: pip-audit del lock desde un entorno aparte; una vulnerabilidad sin justificar no deja armar el candidato."""
+    raiz, lock, pedidas, doble = _auditoria(tmp_path, [{'id': 'GHSA-x', 'fix_versions': ['13.0.1']}])
+    with pytest.raises(CE.EntregaError, match='GHSA-x'):
+        CC.auditar_dependencias(raiz, lock, tmp_path / 'a.json', _CONF_AUDITORIA, CC.Avisos(False), ejecutar=doble,
+                                entorno=_PIP_AUDIT_APARTE)
+    assert pedidas[0][0] == 'C:/aparte/Scripts/pip-audit.exe' and '--require-hashes' in pedidas[0] and '--strict' in pedidas[0]
+    justificada = [{'id': 'GHSA-x', 'paquete': 'Pillow', 'motivo': 'sin uso de la función afectada', 'fecha': '2026-11-14'}]
+    raiz, lock, _, doble = _auditoria(tmp_path / 'b', [{'id': 'GHSA-x'}], justificada)
+    resumen = CC.auditar_dependencias(raiz, lock, tmp_path / 'b.json', _CONF_AUDITORIA, CC.Avisos(True), ejecutar=doble,
+                                      entorno=_PIP_AUDIT_APARTE)
+    assert resumen['justificadas'] == 1 and not resumen['sin_justificar']
+    assert json.loads((tmp_path / 'b.json').read_text(encoding='utf-8'))['resumen']['auditado']
+
+
+def test_086_rf39_sin_pip_audit_el_final_no_se_arma_y_el_de_prueba_lo_avisa(tmp_path):
+    """086:RF-39 — L5: sin el pip-audit del entorno aparte, un final es un error; uno de prueba lo deja en sus avisos."""
+    raiz, lock, _, doble = _auditoria(tmp_path, [])
+    with pytest.raises(CE.EntregaError, match='pip-audit'):
+        CC.auditar_dependencias(raiz, lock, tmp_path / 'a.json', _CONF_AUDITORIA, CC.Avisos(True), ejecutar=doble, entorno={})
+    avisos = CC.Avisos(False)
+    assert CC.auditar_dependencias(raiz, lock, tmp_path / 'a.json', _CONF_AUDITORIA, avisos, ejecutar=doble,
+                                   entorno={}) == {'auditado': False}
+    assert avisos and 'pip-audit' in avisos[0]
+    assert json.loads((RAIZ / 'config' / 'vulnerabilidades_justificadas.json').read_text(encoding='utf-8'))['justificadas'] == []
+
+
+def test_086_rf39_el_python_del_programa_es_el_oficial_firmado(tmp_path, manifiesto):
+    """086:RF-39 — U3: el zip fijado de python.org y la firma de la PSF; otro, o sin firma, no arma el final."""
+    fijado = manifiesto['python_programa']
+    assert re.fullmatch(r'python-3\.12\.\d+-embed-amd64\.zip', fijado['zip']) and fijado['firmante'] == 'Python Software Foundation'
+    ajeno = tmp_path / fijado['zip']
+    ajeno.write_bytes(b'otro')
+    with pytest.raises(CE.EntregaError, match='no es el fijado'):
+        CC.verificar_python_oficial(ajeno, tmp_path, fijado, CC.Avisos(True))
+    avisos = CC.Avisos(False)
+    CC.verificar_python_oficial(ajeno, tmp_path, fijado, avisos)
+    assert avisos
+    igual = {**fijado, 'sha256': CC._sha256(ajeno)}
+    psf = 'CN=Python Software Foundation, O=Python Software Foundation'
+    CC.verificar_python_oficial(ajeno, tmp_path, igual, CC.Avisos(True),
+                                leer_firmas=lambda rutas: {Path(r).name: ('Valid', psf) for r in rutas})
+    with pytest.raises(CE.EntregaError, match='firma'):
+        CC.verificar_python_oficial(ajeno, tmp_path, igual, CC.Avisos(True),
+                                    leer_firmas=lambda rutas: {Path(r).name: ('NotSigned', '') for r in rutas})
+
+
+def test_086_rf39_firmar_con_signtool_y_sin_certificado_avisa_o_falla(tmp_path):
+    """086:RF-39 — U2: firma con el certificado de la variable, nunca de git; sin él, el final falla y el de prueba avisa."""
+    setup = tmp_path / 'ConverterSmartGrid-1.0.0-setup.exe'
+    setup.write_bytes(b'MZ')
+    pedidas = []
+    entorno = {'CSG_FIRMA_ARGUMENTOS': '/sha1 ABCDEF', 'CSG_FIRMA_SIGNTOOL': 'C:/sdk/signtool.exe'}
+    firmados = CC.firmar([setup], CC.Avisos(True), entorno=entorno, ejecutar=lambda o, **k: pedidas.append(o) or _resultado(),
+                         leer_firmas=lambda rutas: {Path(r).name: ('Valid', 'CN=Editor') for r in rutas})
+    assert firmados == [setup.name] and pedidas[0][:2] == ['C:/sdk/signtool.exe', 'sign'] and '/tr' in pedidas[0]
+    assert '/sha1' in pedidas[0] and pedidas[0][-1] == str(setup)
+    with pytest.raises(CE.EntregaError, match='válida'):
+        CC.firmar([setup], CC.Avisos(True), entorno=entorno, ejecutar=lambda o, **k: _resultado(),
+                  leer_firmas=lambda rutas: {Path(r).name: ('NotSigned', '') for r in rutas})
+    with pytest.raises(CE.EntregaError, match='certificado'):
+        CC.firmar([setup], CC.Avisos(True), entorno={})
+    avisos = CC.Avisos(False)
+    assert CC.firmar([setup], avisos, entorno={}) == [] and 'sin firmar' in avisos[0]
+
+
+def test_086_rf39_sha256sums_de_la_entrega(tmp_path):
+    """086:RF-39 — U4: SHA256SUMS lo escribe la herramienta, con el formato de sha256sum, de todo lo que se entrega."""
+    (tmp_path / 'complemento').mkdir()
+    (tmp_path / 'setup.exe').write_bytes(b'uno')
+    (tmp_path / 'complemento' / 'ia.zip').write_bytes(b'dos')
+    sumas = CC.escribir_sumas(tmp_path).read_text(encoding='utf-8').splitlines()
+    assert f'{hashlib.sha256(b"uno").hexdigest()} *setup.exe' in sumas
+    assert f'{hashlib.sha256(b"dos").hexdigest()} *complemento/ia.zip' in sumas
+    assert CC.main(['sumas', str(tmp_path)]) == 0 and len((tmp_path / 'SHA256SUMS').read_text(encoding='utf-8').splitlines()) == 2
+
+
+def test_086_rf44_quitar_un_apartado_de_desarrollo_deja_lo_demas():
+    """086:RF-44 — L6: se quita el apartado entero, hasta el siguiente «## », y nada más."""
+    texto = '# M\n\n## Uso\n\nuno\n\n---\n\n## Para quien prepara una versión\n\nISCC\n\n### Sub\n\ndos\n\n## Final\n\ntres\n'
+    salida = CC.sin_secciones_de_desarrollo(texto, ['Para quien prepara una versión'])
+    assert 'ISCC' not in salida and 'dos' not in salida and '## Uso' in salida and '## Final\n\ntres' in salida

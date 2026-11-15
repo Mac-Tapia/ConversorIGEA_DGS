@@ -45,10 +45,27 @@
 #define NombreAcceso "ConverterSmartGrid"
 #endif
 
+; U1 (usuario, 2026-11-14): licencia comercial por puesto. El asistente la muestra y no sigue sin aceptarla; el editor es el
+; mismo que el de los metadatos de la rueda (pyproject.toml, «authors»).
+#define Editor "Mac-Tapia"
+#if FileExists(AddBackslash(Candidato) + "documentos\LICENCIA_COMERCIAL.txt") == 0
+  #error El candidato no trae documentos\LICENCIA_COMERCIAL.txt (U1)
+#endif
+
 [Setup]
 AppId={#IdentidadApp}
 AppName={#NombreApp}
 AppVersion={#Version}
+AppPublisher={#Editor}
+VersionInfoCompany={#Editor}
+VersionInfoProductName=ConverterSmartGrid
+LicenseFile={#Candidato}\documentos\LICENCIA_COMERCIAL.txt
+; U2: con /DFirmar, ISCC firma el instalador y el desinstalador con la herramienta «csg» que se le pasa con /S
+; (ISCC /Scsg="signtool sign /fd SHA256 /tr <sello> /td SHA256 <certificado> $f"); el certificado nunca va aquí.
+#ifdef Firmar
+SignTool=csg
+SignedUninstaller=yes
+#endif
 DefaultDirName={#DirectorioApp}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest

@@ -156,7 +156,7 @@ NOMBRES_ANTERIORES_PF = {
 def esquema_vigente(valor: object) -> object:
     """El esquema de un fichero guardado, con el nombre de hoy (058:RF-6).
 
-    El 2026-11-01, tras el cambio de nombre, la importación de NJA202 (Electro Oriente) falló con
+    El 2026-11-01, tras el cambio de nombre, la importación de un alimentador VNR-GIS falló con
     «vinculos_pf.json no tiene el esquema esperado»: el registro compartido y los vínculos de
     cada espacio, escritos antes, llevaban el prefijo anterior. Se lee cualquiera de los dos y
     se escribe siempre el nuevo; lo guardado no se reescribe, para que sus huellas sigan valiendo.

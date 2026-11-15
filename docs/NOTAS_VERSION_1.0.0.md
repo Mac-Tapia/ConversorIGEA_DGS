@@ -1,7 +1,7 @@
 # ConverterSmartGrid 1.0.0 — notas de la versión
 
-Notas para la etiqueta `v1.0.0`. Recogen solo lo integrado en la rama `trabajo/puerta-por-ramas` hasta `ee1151f3`; cada punto lleva
-el commit que lo trae. La publicación la ordena el usuario (086 T34): estas notas no la fechan.
+Notas para la etiqueta `v1.0.0`. Recogen lo integrado en la rama `trabajo/puerta-por-ramas` hasta la revisión que lleva el
+manifiesto del candidato final; cada punto lleva el commit que lo trae. La publicación la ordena el usuario (086 T34): estas notas no la fechan.
 
 ## Qué hace
 
@@ -136,15 +136,19 @@ calibración por año con bancos y tramos de dos conductores (025 T27); el asist
 - Solo Perú en la 1.0 (decisión D1): 60 Hz, soles y normas peruanas, salvo lo que diga el perfil de la empresa.
 - Un puesto local por licencia, sin servidor multiusuario (D2): la web escucha solo en `127.0.0.1` y se instala por usuario de
   Windows.
-- Solo Windows de 64 bits. El instalador no va firmado.
-- El programa instalado no trae los manuales aparte: se entregan junto al instalador.
-- La pantalla «Acerca de» del programa muestra todavía las notas del 1.0.0rc1 (`src/convertersmartgrid/recursos/NOTAS_VERSION.md`), y
-  la versión del paquete en el código es `1.0.0rc1`: el candidato fija la suya al construirse con `--version`. Hay que poner las dos al
-  día antes de etiquetar.
+- Solo Windows de 64 bits: Windows 11 probado; Windows 10, sin probar. El instalador y su desinstalador van firmados con el
+  certificado del editor (OV o firma en la nube); un candidato sin firmar es de prueba y no se entrega.
+- El programa instalado trae sus manuales en `documentos`, y el menú de inicio abre el de instalación (086:RF-89, RF-90).
+- La pantalla «Acerca de» muestra las notas de la versión instalada, que salen de `__version__` del paquete (086:RF-92, RF-93).
+- Se entrega directamente, por correo o enlace privado: instalador, complemento, notas, licencias y `SHA256SUMS`, que va por otro
+  canal. Las actualizaciones 1.0.x llegan por el mismo canal, y cada versión tiene 12 meses de soporte.
 
 ## Licencias
 
-- El código de ConverterSmartGrid se publica con licencia MIT (`LICENSE`, `50cb9307`).
+- La entrega se usa con la licencia comercial por puesto (`LICENCIA_COMERCIAL.txt`): un equipo por licencia, sin redistribuir, con
+  garantía y limitación de responsabilidad. El instalador la muestra y pide aceptarla. Es un borrador: **el texto final lo revisa un
+  abogado** antes de la primera venta.
+- El código fuente del repositorio sigue con licencia MIT (`LICENSE`, `50cb9307`); esa licencia no va en la entrega.
 - Las librerías de terceros que viajan en el instalador, con su licencia y su texto, están en `THIRD_PARTY_NOTICES.txt`, y su lista
   con huella en `sbom.cdx.json`, los dos en los documentos del candidato.
 - El programa **no incluye ni concede** ninguna otra licencia (decisión D7, 2026-11-07). Cada usuario necesita las suyas:

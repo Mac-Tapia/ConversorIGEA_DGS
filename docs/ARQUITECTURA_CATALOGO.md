@@ -923,6 +923,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/terminos_huellas.json` |
 | `config/vnr_dgs_profile.json` |
 | `config/vnr_settings.example.yaml` |
+| `config/vulnerabilidades_justificadas.json` |
 | `constraints-python312-win.txt` |
 | `instalador/ConverterSmartGrid.iss` |
 | `requirements-complemento-ia.txt` |

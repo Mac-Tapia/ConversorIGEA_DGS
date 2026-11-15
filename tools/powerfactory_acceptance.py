@@ -587,7 +587,7 @@ SIGLA_POR_ORIGEN = {'CYMDIST': 'TXT', 'Access (.mdb)': 'MDB', 'VNR-GIS': 'VNR'}
 def fuente_del_dgs(dgs_path: Path) -> str | None:
     """La sigla de la fuente de un DGS (TXT, MDB o VNR), leída de su cabecera; ``None`` si no la dice.
 
-    Una conversión de VNR-GIS se importaba como ``…_CSG_W12882`` y nada en DIgSILENT decía de qué fuente
+    Una conversión de VNR-GIS se importaba como ``…_CSG_<código VNR-GIS>`` y nada en DIgSILENT decía de qué fuente
     venía (2026-11-01). Se lee del fichero que se importa, no de un parámetro: es el que queda fijado.
     """
     try:
@@ -1182,7 +1182,7 @@ def execute_load_flow(
             return result
         if iopt_net is None:
             # 054:RF-7: una red con líneas o trafos de menos de 3 fases, en desequilibrado; con
-            # el equilibrado sus SED monofásicas quedaban a 0 pu (NJA202, 2026-11-01).
+            # el equilibrado sus SED monofásicas quedaban a 0 pu (caso real, 2026-11-01).
             from convertersmartgrid.dgs import red_con_monofasicos
 
             if red_con_monofasicos(app):

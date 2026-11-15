@@ -81,9 +81,9 @@ def redimensionar_sobrecargadas(
 # Demanda de relleno o fuera de escala (spec 057)
 # ---------------------------------------------------------------------------
 #
-# Caso real (2026-11-01): la copia VNR-GIS ELOR25_V2 de Electro Oriente trae
-# ``Sed.MaxDemTotal`` = 39 kW en sus 8 729 SED, con potencias instaladas de 5 a 2 000 kVA.
-# Es un relleno, no una demanda: 470 SED de 5 kVA de NJA202 quedaban al 780 % y el flujo no
+# Caso real (2026-11-01): la copia VNR-GIS de una distribuidora trae
+# ``Sed.MaxDemTotal`` con el mismo valor en todas sus SED, con potencias instaladas muy distintas.
+# Es un relleno, no una demanda: las SED pequeñas quedaban muy sobrecargadas y el flujo no
 # convergía ni bajando toda la demanda por igual (015:RF-38). Aquí no se agranda el
 # transformador (eso cambiaría los kVA del «Caso base», 032:RF-1): se corrige la demanda,
 # que es el dato que falta, con la potencia instalada, que sí trae la fuente.
@@ -140,8 +140,8 @@ def demanda_fuera_de_escala(model: FeederModel) -> list[tuple[str, str]]:
     if (len(con_carga) >= 2 and len({round(p_kw[k], 6) for k in con_carga}) == 1
             and len({kva[k] for k in con_carga}) >= 2):
         fuera.update(con_carga)
-    # 080:RF-42: también de relleno si es la potencia por un factor fijo. En Electro Sur Este
-    # (2026-11-03) TI01 sumaba así 14,5 MW en 508 km, con solo 0,87, 0,88, 0,90 y 0,80, y no convergía.
+    # 080:RF-42: también de relleno si es la potencia por un factor fijo. En otra distribuidora
+    # (2026-11-03) un alimentador rural sumaba así su demanda, con solo unos pocos factores, y no convergía.
     razones = Counter(round(p_kw[k] / kva[k], 2) for k in con_carga)
     if (len(con_carga) >= MINIMO_SED_RELLENO and len({kva[k] for k in con_carga}) >= 2
             and sum(n for _r, n in razones.most_common(RAZONES_DE_RELLENO))

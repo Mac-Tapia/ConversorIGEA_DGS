@@ -1,4 +1,4 @@
-// 086:RF-77: las obras del estado actual, sin cargas nuevas. Electro Oriente NJA202 (T32, 2026-11-12): calibrado a
+// 086:RF-77: las obras del estado actual, sin cargas nuevas. Un alimentador de otra distribuidora (T32, 2026-11-12): calibrado a
 // 0,568 p.u. en la fase A y con 14 % de pérdidas, la web solo ofrecía la escalera dentro del informe de cargas nuevas,
 // y sin cargas no había informe: «Con proyecto» quedaba sin obras aunque la red violaba límites.
 

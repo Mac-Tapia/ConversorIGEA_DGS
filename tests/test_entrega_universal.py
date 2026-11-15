@@ -668,3 +668,66 @@ def test_web_arranca_con_el_perfil_ficticio(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         assert c.get('/api/health').json()['perfil_empresa']['nombre'] == 'ficticia'
+
+
+# --------------------------------------------------------------------------- RF-33: lanzamiento (L1, U5)
+def _otra_empresa(tmp_path: Path) -> Path:
+    """La lista local de una segunda distribuidora, inventada: los nombres reales viven fuera de git (U5)."""
+    lista = tmp_path / 'lista_local.json'
+    lista.write_text(json.dumps({'empresa': ['Compañía Ejemplo Norte'], 'paquete, base o corpus': ['CEJN25_V2', 'PIDECEJN'],
+                                 'codigo de alimentador o SET': ['QZX202']}), encoding='utf-8')
+    return lista
+
+
+@pytest.mark.parametrize('comentario', [
+    lambda e, o: f'# Falló en {e}, con su red.\nVALOR = 1\n',                       # la empresa del perfil excluido
+    lambda e, o: f'"""Caso real: el paquete {o["paquete"]} de su copia."""\nVALOR = 1\n',  # el paquete de la otra
+    lambda e, o: f'# Medido en {o["codigo"]}: calibrado bajo el límite.\nVALOR = 1\n',  # su alimentador
+    lambda e, o: '# 086:RF-76: lo pidió Compañía Ejemplo\n# Norte (T32).\nVALOR = 1\n',  # partido por el salto de línea
+])
+def test_086_rf33_un_comentario_de_cualquiera_de_las_dos_empresas_rechaza_la_entrega(tmp_path, manifiesto, comentario):
+    """086:RF-33 — L1 (2026-11-14): en el rc6 pasaron comentarios con el paquete, el corpus y los códigos de otra distribuidora."""
+    base = _paquete(tmp_path)
+    otra = {'paquete': 'CEJN25_V2', 'codigo': 'QZX202'}
+    (base / 'src' / 'convertersmartgrid' / 'motor.py').write_text(comentario(_empresa_de_prueba(), otra), encoding='utf-8')
+    informe = _revisar(base, manifiesto, lista_local=_otra_empresa(tmp_path), final=True)
+    assert informe.rechazado and informe.en_codigo == [] and informe.en_comentarios
+
+
+def test_086_rf33_el_candidato_final_sin_lista_local_es_un_error(tmp_path, manifiesto, monkeypatch, capsys):
+    """086:RF-33 — L1: sin lista local, el final no se comprueba (error, salida 1); uno de prueba lo avisa y sigue."""
+    monkeypatch.delenv(CE.VARIABLE_LISTA_LOCAL, raising=False)
+    with pytest.raises(CE.EntregaError, match='lista local'):
+        CE.cargar_terminos(RAIZ, manifiesto, final=True)
+    assert any('sin lista local' in o and 'prueba' in o for o in CE.cargar_terminos(RAIZ, manifiesto).origenes)
+    assert CE.main(['--candidato', str(_paquete(tmp_path)), '--final']) == 1
+    assert 'lista local' in capsys.readouterr().err
+
+
+def test_086_rf33_neutralizar_quita_el_nombre_partido_y_las_cifras_de_su_linea(tmp_path):
+    """086:RF-33, D5 — L1: un nombre partido entre dos líneas pasaba, y con él las cifras reales de su línea."""
+    terminos = CE.Terminos()
+    terminos.anadir('Compañía Ejemplo Norte', 'empresa')
+    terminos.anadir('QZX202', 'codigo de alimentador o SET')
+    texto = ('X = 1  # 086:RF-76: sin cargas nuevas. Compañía Ejemplo\n'
+             '# Norte QZX202 (T32, 2026-11-12): calibrado a 0,568 p.u. con 374 de 849 SED.\n'
+             'Y = "0,568"\n')
+    nuevo, n = CE.neutralizar('a.py', texto, terminos)
+    assert n and not CE.buscar_en_texto('a.py', nuevo, terminos)
+    lineas = nuevo.splitlines()
+    assert lineas[0].startswith('X = 1  # 086:RF-76') and lineas[2] == 'Y = "0,568"', 'el código y el requisito no cambian'
+    assert '0,568' not in lineas[1] and '374' not in lineas[1] and '849' not in lineas[1]
+    assert 'T32' in lineas[1] and '2026-11-12' in lineas[1], 'la fecha y la tarea se quedan'
+
+
+def test_086_rf33_las_huellas_cubren_paquetes_y_codigos_de_cada_empresa():
+    """086:RF-33 — L1: la lista mínima en git ya no es de una sola empresa: lleva paquetes, corpus y códigos de alimentador."""
+    huellas = json.loads(CE.HUELLAS.read_text(encoding='utf-8'))['huellas']['086']
+    assert {'empresa', 'paquete, base o corpus', 'codigo de alimentador o SET'} <= set(huellas)
+    assert len(huellas['codigo de alimentador o SET']) >= 50 and len(huellas['empresa']) > 23, 'la de una sola empresa tenía 23'
+
+
+def test_086_rf33_el_codigo_entregado_no_cita_a_otras_distribuidoras(manifiesto):
+    """086:RF-33 — L1: lo que se entrega del repositorio, sin lista local, no tiene ningún término de las huellas en el código."""
+    informe = CE.comprobar(RAIZ, manifiesto, CE.cargar_terminos(RAIZ, manifiesto))
+    assert not informe.en_codigo, informe.resumen()

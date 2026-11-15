@@ -11,7 +11,7 @@ se le da su nombre con todo copiado y el manifiesto sincronizado. Restaurar comp
 antes de tocar nada, y lo que hubiera se aparta en vez de borrarse.
 
 Cada fichero físico se guarda una vez (086:RF-78 a RF-80). El 2026-11-12 la copia iba a escribir 95 GB
-de unos datos que ocupaban 21 en el disco: el paquete VNR-GIS ``ELOR25_V2`` (5,4 GB) estaba en once
+de unos datos que ocupaban 21 en el disco: un paquete VNR-GIS de varios GB estaba en once
 ejecuciones de ``output/web`` como enlaces duros de un solo fichero, y lo mismo los TXT y la ``.mdb``. El
 destino del usuario era Google Drive, con 41 GB libres y sin enlaces duros. Se agrupa por identidad física
 (``st_dev``, ``st_ino``) y, entre ficheros distintos del mismo tamaño, por su huella; el manifiesto lleva

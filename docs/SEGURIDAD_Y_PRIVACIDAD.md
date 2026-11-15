@@ -61,14 +61,18 @@ sustitución es automática y por patrones: **revíselo antes de enviarlo**, por
 ## Integridad
 
 Cada fichero del paquete lleva su huella SHA-256 en el manifiesto y se comprueba antes de instalar. Las librerías se instalan con `--require-hashes`, sin
-índice. **El instalador no está firmado**: Windows puede avisar al abrirlo. Compruebe que viene de quien se lo entrega.
+índice. El instalador va firmado con el certificado del editor, y `SHA256SUMS`, que llega por otro canal que el instalador, da la
+huella de cada fichero de la entrega: compruebe las dos antes de instalar. No ejecute un instalador sin firma.
 
 ## Lo que va con el paquete
 
 `THIRD_PARTY_NOTICES.txt` lista cada componente de terceros y sus licencias, y `sbom.cdx.json` es el inventario en CycloneDX. Son inventarios técnicos
-generados de los metadatos de cada librería. La licencia comercial del propio programa está pendiente de la asesoría legal.
+generados de los metadatos de cada librería. El programa se usa con su licencia comercial por puesto, `LICENCIA_COMERCIAL.txt`.
+[DECISIÓN DEL USUARIO: el texto de esa licencia es un borrador; el final lo revisa un abogado antes de la primera venta.]
 
 ## Vulnerabilidades conocidas
 
-Cada candidato se comprueba con `pip-audit` contra su lock, antes de entregarlo. Es una foto de esa fecha: lo que se publique después hay que
-volver a comprobarlo. El 2026-11-04, con el lock de esta versión: ninguna conocida.
+Cada candidato final se comprueba con `pip-audit` contra su lock al armarlo, y no se arma con una vulnerabilidad sin justificar por
+escrito; el resultado, con su fecha, va en `auditoria_dependencias.json` junto a este documento. Es una foto de esa fecha: lo que se publique
+después hay que volver a comprobarlo. El 2026-11-14, con el lock de esta versión: 58 librerías, ninguna vulnerabilidad conocida. El
+intérprete es el Python 3.12.10 oficial de python.org, firmado por la Python Software Foundation.

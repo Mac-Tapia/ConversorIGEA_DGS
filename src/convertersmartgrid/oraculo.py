@@ -25,17 +25,17 @@ Las correcciones con regla explícita están en :mod:`convertersmartgrid.saneami
 
 La única corrección propia es :func:`corregir_para_converger` (spec 057), y solo sobre un
 dato que falta: la demanda de relleno o mayor que su SED, que pasa a la potencia
-instalada que sí trae la fuente, con regla y anotada. Caso real: ELOR25_V2 trae 39 kW en
-todas sus SED y NJA202 no convergía ni en DIgSILENT ni aquí.
+instalada que sí trae la fuente, con regla y anotada. Caso real: un paquete VNR-GIS traía la misma demanda en
+todas sus SED y su alimentador no convergía ni en DIgSILENT ni aquí.
 
 Donde la red tiene tramos o cargas de menos de tres fases, el veredicto sale del flujo
 **desequilibrado**, el mismo que corre DIgSILENT (054:RF-7), y el equilibrado queda como
-comparación (082:RF-5, RF-8). Con el equilibrado solo, TI01 de Electro Sur Este daba 0,802 p.u. y
-en DIgSILENT tenía 0,790: se importaba por debajo del umbral.
+comparación (082:RF-5, RF-8). Con el equilibrado solo, un alimentador de otra distribuidora pasaba el umbral y
+en DIgSILENT quedaba por debajo: se importaba por debajo del umbral.
 
 Nada del modelo queda fuera de la red (082:RF-1 a RF-4): un elemento con datos incompletos se
 calcula como se pueda y se anota, y ``recuento`` cuadra el modelo con la red por clase. Sin los
-bancos, C+æ02 de Luz del Sur daba 0,80 p.u. con 4,6 MW donde DIgSILENT da 0,93, y el oráculo le
+bancos, un alimentador de otra distribuidora daba una tensión mucho menor que la de DIgSILENT, y el oráculo le
 quitaba más de la mitad de la demanda sin motivo.
 """
 
@@ -66,7 +66,7 @@ PERDIDAS_SOSPECHOSAS_PCT = 15.0
 _RED_EXTERNA_3F = {'s_sc_max_mva': 1000.0, 'rx_max': 0.1, 'r0x0_max': 1.0, 'x0x_max': 1.0}
 
 #: 082:RF-15: ``uk`` que DIgSILENT da a un ``TypVoltreg`` que no lo dice, y que el DGS no escribe
-#: (leído en C+æ02, 2026-11-03). Con X = uk·Un/In, por fase, el oráculo da su misma P y Q.
+#: (leído en un proyecto real, 2026-11-03). Con X = uk·Un/In, por fase, el oráculo da su misma P y Q.
 UK_REGULADOR_PCT = 0.3
 #: El tipo no tiene pérdidas (``pcu`` = 0); pandapower no admite R nula en una línea.
 _R_REGULADOR_OHM = 1e-6
@@ -315,8 +315,8 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     for cp in model.couplers:
         datos = cp.regulador
         if datos is not None and float(datos.corriente_a or 0.0) > 0:
-            # 082:RF-15: un regulador no es un interruptor. En C+æ02 sus 3 consumían 0,23 Mvar en
-            # DIgSILENT, y sin ellos el oráculo erraba 0,92 puntos; con esta X, 0,00 (2026-11-03).
+            # 082:RF-15: un regulador no es un interruptor. En un alimentador real sus reguladores consumían reactiva en
+            # DIgSILENT, y sin ellos el oráculo erraba casi un punto; con esta X, nada (2026-11-03).
             kv_reg = float(datos.nominal_kv or kv_de(cp.node_a))
             x_reg = UK_REGULADOR_PCT / 100.0 * kv_reg * 1000.0 / math.sqrt(3.0) / float(datos.corriente_a)
             pp.create_line_from_parameters(
@@ -559,7 +559,7 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
         return informe
 
     vm = _tensiones(net)
-    # 082:RF-9: ``runpp_3ph`` dice «convergió» con todas las tensiones en nan (TI01 y C+æ02 con
+    # 082:RF-9: ``runpp_3ph`` dice «convergió» con todas las tensiones en nan (dos alimentadores reales con
     # toda su demanda): una barra alimentada sin tensión es que no convergió.
     if set(net.bus.index) - sin_alimentar - set(vm.index):
         informe.convergio = False
@@ -748,8 +748,8 @@ def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION
     def converge(f: float) -> bool:
         model.loads = list(original)
         corregir_demanda(model, claves, f, reglas=reglas)
-        # 080:RF-43: sin tensiones imposibles, o la importación lo rechazaría igualmente (TI01
-        # de Electro Sur Este converge al 70 % con 0,68 p.u.).
+        # 080:RF-43: sin tensiones imposibles, o la importación lo rechazaría igualmente (un
+        # alimentador real convergía con parte de la demanda y una tensión imposible).
         informe = validar(model, comparar=False)
         return bool(informe.convergio) and not informe.errores
 
@@ -764,7 +764,7 @@ def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION
                 alto = medio
     model.loads = list(original)
     if mejor is None:
-        # 080:RF-45: las otras SED también pesan (C+æ02 de Luz del Sur): ahora, todas por igual.
+        # 080:RF-45: las otras SED también pesan (caso real, 2026-11-03): ahora, todas por igual.
         return _reducir_por_igual(model, original, res, pasos)
     res.cambios = corregir_demanda(model, claves, mejor, reglas=reglas)
     res.factor = round(mejor, 6)

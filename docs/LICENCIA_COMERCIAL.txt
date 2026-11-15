@@ -1,0 +1,67 @@
+CONTRATO DE LICENCIA DE USO DE CONVERTERSMARTGRID, POR PUESTO
+Versión 1.0 del texto — BORRADOR: el texto final lo revisa un abogado antes de la primera venta.
+
+Lea este contrato antes de instalar. Al marcar «Acepto el acuerdo» en el instalador, o al instalar o usar el
+programa, usted (el «Licenciatario», la persona o la entidad que adquiere la licencia) acepta estas condiciones
+frente al titular de los derechos del programa, que figura como editor en el instalador (el «Licenciante»). Si no
+las acepta, no instale ni use el programa.
+
+1. Objeto
+   El programa ConverterSmartGrid, en la versión que acompaña a este texto, con sus manuales, sus actualizaciones
+   1.0.x y los ficheros que instala (el «Programa»). Los componentes de terceros que lo acompañan se rigen por sus
+   propias licencias, listadas en THIRD_PARTY_NOTICES.txt; este contrato no las sustituye ni las restringe.
+
+2. Licencia concedida
+   2.1 El Licenciante concede una licencia no exclusiva, intransferible y por tiempo indefinido para instalar y usar
+       el Programa en UN (1) equipo por cada licencia adquirida (un «puesto»), para las actividades propias del
+       Licenciatario.
+   2.2 Se permite una copia de seguridad del instalador. Cambiar el Programa de equipo requiere desinstalarlo del
+       anterior.
+   2.3 El Programa no incluye ni concede licencias de DIgSILENT PowerFactory, de los datos de las distribuidoras ni
+       de Osinergmin, ni de modelos de terceros: el Licenciatario debe tener las suyas.
+
+3. Restricciones
+   El Licenciatario no podrá, salvo lo que la ley aplicable permita expresamente:
+   a) redistribuir, vender, alquilar, prestar, sublicenciar ni poner el Programa a disposición de terceros;
+   b) instalarlo en más equipos que puestos haya adquirido, ni ofrecerlo como servicio a terceros;
+   c) retirar los avisos de derechos de autor ni los de terceros;
+   d) descompilar, desensamblar o modificar el Programa para eludir este contrato.
+
+4. Propiedad
+   El Programa se licencia, no se vende. El Licenciante conserva todos los derechos que este contrato no concede.
+   Los datos, proyectos, informes y modelos que el Licenciatario genera con el Programa son suyos.
+
+5. Garantía limitada
+   5.1 Durante doce (12) meses desde la entrega de cada versión, el Licenciante garantiza que el Programa funciona
+       sustancialmente como dicen sus manuales en un equipo que cumple los requisitos del manual de instalación, y
+       dará soporte y actualizaciones 1.0.x por el mismo canal de la entrega.
+   5.2 Si el Programa no cumple esa garantía, la única obligación del Licenciante es corregir el defecto o, si no
+       puede, devolver lo pagado por la licencia afectada contra su desinstalación.
+   5.3 Las funciones marcadas como beta en las notas de la versión, y lo que el Licenciatario modifique, quedan fuera
+       de la garantía.
+   5.4 Salvo lo dicho en este apartado, el Programa se entrega «tal cual». Los resultados (flujos de carga,
+       calibraciones, obras, informes, pronósticos) son una ayuda técnica: un ingeniero responsable debe revisarlos
+       antes de decidir una inversión o una maniobra en la red.
+
+6. Limitación de responsabilidad
+   6.1 En la máxima medida que permita la ley, el Licenciante no responderá de daños indirectos, lucro cesante,
+       pérdida de datos ni de decisiones tomadas con los resultados del Programa.
+   6.2 La responsabilidad total del Licenciante por cualquier causa no excederá lo pagado por la licencia en los doce
+       (12) meses anteriores al hecho que la origina.
+   6.3 Nada en este contrato limita la responsabilidad que la ley no permita limitar, como la que nace del dolo o de la
+       culpa inexcusable.
+
+7. Privacidad
+   El Programa no envía datos fuera del equipo sin permiso del operador, como dice SEGURIDAD_Y_PRIVACIDAD.md.
+
+8. Terminación
+   La licencia termina si el Licenciatario incumple este contrato y no lo corrige en treinta (30) días desde el aviso.
+   Al terminar, debe desinstalar el Programa; los apartados 4, 5.4, 6 y 9 siguen vigentes.
+
+9. Ley y jurisdicción
+   Este contrato se rige por las leyes de la República del Perú. [DECISIÓN DEL USUARIO: tribunales o arbitraje, y
+   sede, a confirmar con el abogado.]
+
+10. Contrato completo
+    Este texto, junto con el pedido o la factura de la licencia, es el acuerdo completo entre las partes sobre el
+    Programa. Si una cláusula fuera nula, las demás siguen vigentes.

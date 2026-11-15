@@ -1,0 +1,4 @@
+{
+  "_comentario": "L5 (086:RF-39, RF-44): vulnerabilidades que pip-audit encuentra en el lock final y se aceptan por escrito: id, paquete, versión, motivo y fecha. Vacía: ninguna se acepta.",
+  "justificadas": []
+}

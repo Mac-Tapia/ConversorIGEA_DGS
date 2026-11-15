@@ -53,11 +53,18 @@ COMPLEMENTO_IA = RAIZ / 'requirements-complemento-ia.txt'
 PROGRAMA_EN_PAQUETE = Path('src', 'convertersmartgrid', '_programa')
 #: Lo que se copia a «documentos/» del candidato. Pasa por la misma lista de términos que el código.
 DOCUMENTOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_OPERADOR.md', 'docs/SEGURIDAD_Y_PRIVACIDAD.md', 'docs/PERFIL_EMPRESA.md',
-              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt')
+              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt', 'docs/LICENCIA_COMERCIAL.txt')
+#: U8 (2026-11-14): MANUAL_DE_USO no se entrega: es del 2026-10-31, remite a specs/, a MANUAL_COMANDOS y a tools/ del
+#: repositorio, y no cubre la 1.0 instalada (instalador, todo activo, perfil desde la web, copia de datos, asistente).
+#: Lo que falta está en specs/086-puesta-en-operacion-comercial/tasks.md, T23.
+#: U1 (usuario, 2026-11-14): la licencia comercial por puesto es la de la entrega; el .iss la muestra y pide aceptarla.
+LICENCIA_DE_LA_ENTREGA = 'docs/LICENCIA_COMERCIAL.txt'
 #: 086:RF-89: además, lo que el operador encuentra instalado, porque el .iss copia «documentos/» a «{app}\\documentos». El rc5
 #: dejaba el candidato en «{app}\\_entrega» y lo borraba al terminar: los manuales se iban con él. Las notas de la
 #: publicación no van aquí: su nombre sale de la versión, en ``documentos_del_candidato``.
-MANUALES_INSTALADOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_COMANDOS.md', 'docs/GUIA_PRUEBA_PERSONA_AJENA.md')
+#: Aclaración de 086:RF-89 (auditoría de lanzamiento, 2026-11-14): el manual de órdenes que se instala es el del programa
+#: instalado (MANUAL_ORDENES); MANUAL_COMANDOS es de desarrollo, y la guía de la persona ajena es de la aceptación interna (T41).
+MANUALES_INSTALADOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_ORDENES.md')
 INICIAL_DEL_PAQUETE = Path('src', 'convertersmartgrid', '__init__.py')
 NOTAS_DEL_PAQUETE = Path('src', 'convertersmartgrid', 'recursos', 'NOTAS_VERSION.md')
 _LEEME_RUEDA = 'ConverterSmartGrid: conversor de redes de distribución a DIgSILENT PowerFactory.\n'
@@ -103,15 +110,49 @@ def documentos_del_candidato(version: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(pedidos))
 
 
-def copiar_documentos(raiz: Path, destino: Path, version: str) -> list[str]:
+def sin_secciones_de_desarrollo(texto: str, titulos: Iterable[str]) -> str:
+    """Quita de un manual los apartados ``## <título>`` que son de quien construye, hasta el siguiente ``## `` (L6).
+
+    El manual de instalación llevaba «Para quien prepara una versión» al cliente, con rutas y órdenes del repositorio.
+    """
+    quitar = set(titulos)
+    salida, fuera = [], False
+    for linea in texto.splitlines(keepends=True):
+        if linea.startswith('## '):
+            fuera = linea[3:].strip() in quitar
+        if not fuera:
+            salida.append(linea)
+    return ''.join(salida).rstrip().rstrip('-').rstrip() + chr(10)
+
+
+def comprobar_documentos_de_la_entrega(pedidos: Iterable[str], manifiesto: dict) -> None:
+    """U1 y L6: lo que ``config/entrega.json`` dice que no va al cliente no entra en «documentos/» (la MIT del repositorio)."""
+    vedados = set((manifiesto.get('documentos') or {}).get('no_se_entregan') or ())
+    dentro = sorted(vedados & set(pedidos))
+    if dentro:
+        raise CE.EntregaError('Van a «documentos/» ficheros que config/entrega.json no deja entregar: ' + ', '.join(dentro) + '.')
+
+
+def copiar_documentos(raiz: Path, destino: Path, version: str, manifiesto: dict | None = None) -> list[str]:
     """086:RF-91: copia todos o ninguno; si falta alguno, el error los nombra y no se arma el candidato."""
     pedidos = documentos_del_candidato(version)
     faltan = [rel for rel in pedidos if not (raiz / rel).is_file()]
     if faltan:
         raise CE.EntregaError('Faltan documentos que se instalan con el programa: ' + ', '.join(faltan) + '.')
+    documentos = (manifiesto or {}).get('documentos') or {}
+    comprobar_documentos_de_la_entrega(pedidos, manifiesto or {})
     destino.mkdir(parents=True, exist_ok=True)
     for rel in pedidos:
-        shutil.copyfile(raiz / rel, destino / Path(rel).name)
+        secciones = (documentos.get('secciones_de_desarrollo') or {}).get(rel)
+        if secciones:
+            texto = sin_secciones_de_desarrollo((raiz / rel).read_text(encoding='utf-8'), secciones)
+            (destino / Path(rel).name).write_text(texto, encoding='utf-8', newline='')
+        elif rel == LICENCIA_DE_LA_ENTREGA:
+            # Inno Setup solo lee como UTF-8 un .txt de LicenseFile con su BOM; sin él, las tildes salen rotas.
+            texto = (raiz / rel).read_text(encoding='utf-8').lstrip(chr(0xFEFF))
+            (destino / Path(rel).name).write_text(texto, encoding='utf-8-sig', newline='')
+        else:
+            shutil.copyfile(raiz / rel, destino / Path(rel).name)
     return [Path(rel).name for rel in pedidos]
 
 
@@ -485,12 +526,168 @@ def empaquetar_python_pf(origen: Path, terceros: Path, fijados: dict[str, dict[s
     return componentes
 
 
+# --------------------------------------------------------------------------- lanzamiento: final, Python oficial, firma, auditoría y sumas
+class Avisos(list):
+    """Lo que en un candidato de prueba solo se avisa y en el final es un error (086:RF-33, RF-39; U2, U3, L1, L5)."""
+
+    def __init__(self, final: bool):
+        super().__init__()
+        self.final = final
+
+    def falta(self, mensaje: str) -> None:
+        if self.final:
+            raise CE.EntregaError(mensaje)
+        self.append(mensaje)
+
+
+def firmas_authenticode(rutas: Iterable[Path]) -> dict[str, tuple[str, str]]:
+    """Estado y firmante Authenticode de cada fichero, con PowerShell (``Get-AuthenticodeSignature``), sin instalar nada."""
+    rutas = [str(Path(r).resolve()) for r in rutas]
+    if not rutas:
+        return {}
+    orden = ('$ErrorActionPreference="Stop"; $r=@(); foreach($f in ($env:CSG_RUTAS_FIRMA -split [char]10)){$s=Get-AuthenticodeSignature -LiteralPath $f; '
+             '$r+=[pscustomobject]@{ruta=$f;estado=[string]$s.Status;firmante=[string]$s.SignerCertificate.Subject}}; '
+             'ConvertTo-Json -InputObject $r -Compress')
+    import os
+
+    # Las rutas van por el entorno: con «-Command», PowerShell no pasa a $args lo que sigue a la orden.
+    r = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', orden],
+                       env={**os.environ, 'CSG_RUTAS_FIRMA': chr(10).join(rutas)},
+                       capture_output=True, text=True, encoding='utf-8', errors='replace', check=False)
+    if r.returncode:
+        raise CE.EntregaError(f'No se pudo leer la firma Authenticode: {r.stderr.strip()[-500:]}')
+    datos = json.loads(r.stdout or '[]')
+    datos = datos if isinstance(datos, list) else [datos]
+    return {Path(d['ruta']).name: (d['estado'], d['firmante'] or '') for d in datos}
+
+
+def verificar_python_oficial(zip_python: Path, carpeta: Path, fijado: dict[str, Any], avisos: Avisos, *,
+                             leer_firmas=firmas_authenticode) -> None:
+    """U3: el Python del programa es el oficial de python.org que fija la lista, con la firma de la PSF en sus binarios.
+
+    El rc6 llevaba un 3.12.16 compilado aquí, sin firma: el intérprete que ejecuta todo el programa iba sin firmar
+    (auditoría de lanzamiento, 2026-11-14). En un candidato de prueba se avisa; en el final es un error.
+    """
+    if not fijado:
+        avisos.falta('config/entrega.json no fija el Python del programa (python_programa).')
+        return
+    if zip_python.name != fijado['zip'] or _sha256(zip_python) != fijado['sha256']:
+        avisos.falta(f'El Python del programa no es el fijado ({fijado["zip"]}, de {fijado.get("origen", "python.org")}).')
+        return
+    firmas = leer_firmas([carpeta / n for n in fijado.get('firmados') or ()])
+    malas = [n for n in fijado.get('firmados') or ()
+             if firmas.get(n, ('', ''))[0] != 'Valid' or f'CN={fijado["firmante"]}' not in firmas.get(n, ('', ''))[1]]
+    if malas:
+        avisos.falta(f'Sin la firma válida de {fijado["firmante"]}: {", ".join(malas)}.')
+
+
+def auditar_dependencias(raiz: Path, lock: Path, destino: Path, configuracion: dict[str, Any], avisos: Avisos, *,
+                         ejecutar=subprocess.run, entorno: dict[str, str] | None = None) -> dict[str, Any]:
+    """L5: pip-audit sobre el lock final, con el pip-audit de un entorno aparte (nunca el .venv del desarrollo).
+
+    Una vulnerabilidad sin justificar en el fichero declarado rechaza el candidato, de prueba o final; sin pip-audit,
+    el de prueba lo avisa y el final no se arma. El resultado queda en ``destino`` (va en «documentos/»).
+    """
+    import os
+
+    entorno = dict(os.environ) if entorno is None else entorno
+    variable = configuracion.get('variable') or 'CSG_PIP_AUDIT'
+    programa = entorno.get(variable, '').strip()
+    justificadas_rel = configuracion.get('justificadas') or 'config/vulnerabilidades_justificadas.json'
+    justificadas = {(j['id'], j['paquete'].lower()) for j in
+                    json.loads((raiz / justificadas_rel).read_text(encoding='utf-8')).get('justificadas') or ()}
+    if not programa:
+        avisos.falta(f'Falta pip-audit: indique en {variable} el pip-audit de un entorno aparte (L5, 086:RF-39).')
+        return {'auditado': False}
+    with tempfile.TemporaryDirectory(prefix='csg-audit-') as temporal:
+        # Sin la rueda propia, que no está en PyPI; con huellas y sin resolver, como se instala.
+        pedido = Path(temporal) / 'lock.txt'
+        pedido.write_text(lock.read_text(encoding='utf-8'), encoding='utf-8')
+        r = ejecutar([programa, '-r', str(pedido), '--require-hashes', '--no-deps', '--disable-pip', '--strict',
+                      '--progress-spinner', 'off', '-f', 'json'], capture_output=True, text=True, encoding='utf-8',
+                     errors='replace', check=False)
+    try:
+        datos = json.loads(r.stdout or '{}')
+    except ValueError as exc:
+        raise CE.EntregaError(f'pip-audit no dio un JSON: {r.stderr.strip()[-800:]}') from exc
+    dependencias = datos.get('dependencies') or []
+    if not dependencias:
+        raise CE.EntregaError(f'pip-audit no auditó nada: {r.stderr.strip()[-800:]}')
+    halladas = [(v['id'], d['name'].lower(), d.get('version', '')) for d in dependencias for v in d.get('vulns') or ()]
+    sin_justificar = sorted({h for h in halladas if (h[0], h[1]) not in justificadas})
+    resumen = {'auditado': True, 'fecha': time.strftime('%Y-%m-%d', time.gmtime()), 'herramienta': 'pip-audit',
+               'dependencias': len(dependencias), 'vulnerabilidades': len(halladas),
+               'justificadas': len(halladas) - len(sin_justificar), 'sin_justificar': [list(h) for h in sin_justificar]}
+    destino.write_text(json.dumps({'resumen': resumen, 'pip_audit': datos}, ensure_ascii=False, indent=1), encoding='utf-8')
+    if sin_justificar:
+        raise CE.EntregaError('pip-audit halló vulnerabilidades sin justificar en el lock: '
+                              + ', '.join(f'{p} {v} ({i})' for i, p, v in sin_justificar) + f'; justifíquelas en {justificadas_rel}.')
+    return resumen
+
+
+#: U2: el certificado nunca va en git. ``CSG_FIRMA_ARGUMENTOS`` lleva lo que identifica el certificado para signtool
+#: (``/sha1 <huella>`` de uno instalado o en un token, o ``/dlib … /dmdf …`` de un servicio de firma en la nube).
+VARIABLES_FIRMA = {'signtool': 'CSG_FIRMA_SIGNTOOL', 'argumentos': 'CSG_FIRMA_ARGUMENTOS', 'sello': 'CSG_FIRMA_SELLO'}
+
+
+def firmar(ficheros: Iterable[Path], avisos: Avisos, *, entorno: dict[str, str] | None = None, ejecutar=subprocess.run,
+           leer_firmas=firmas_authenticode) -> list[str]:
+    """U2: firma con signtool el setup.exe y los ejecutables propios, con sello de tiempo, y comprueba la firma.
+
+    Sin certificado, un candidato de prueba lo avisa y sigue sin firmar; el final no se entrega sin firma.
+    """
+    import os
+    import shlex
+
+    entorno = dict(os.environ) if entorno is None else entorno
+    ficheros = [Path(f) for f in ficheros]
+    argumentos = entorno.get(VARIABLES_FIRMA['argumentos'], '').strip()
+    if not argumentos:
+        avisos.falta(f'Sin certificado de firma ({VARIABLES_FIRMA["argumentos"]}): {", ".join(f.name for f in ficheros)} '
+                     'quedan sin firmar.')
+        return []
+    signtool = entorno.get(VARIABLES_FIRMA['signtool'], '').strip() or 'signtool'
+    sello = entorno.get(VARIABLES_FIRMA['sello'], '').strip() or 'http://timestamp.digicert.com'
+    for f in ficheros:
+        r = ejecutar([signtool, 'sign', '/fd', 'SHA256', '/tr', sello, '/td', 'SHA256', *shlex.split(argumentos, posix=False),
+                      str(f)], capture_output=True, text=True, encoding='utf-8', errors='replace', check=False)
+        if r.returncode:
+            raise CE.EntregaError(f'signtool no firmó {f.name}: {(r.stdout + r.stderr).strip()[-800:]}')
+    firmas = leer_firmas(ficheros)
+    malas = [f.name for f in ficheros if firmas.get(f.name, ('', ''))[0] != 'Valid']
+    if malas:
+        raise CE.EntregaError(f'Firmados, pero Windows no da la firma por válida: {", ".join(malas)}.')
+    return [f.name for f in ficheros]
+
+
+def escribir_sumas(carpeta: Path) -> Path:
+    """U4 (L2): ``SHA256SUMS`` de todo lo que se entrega en ``carpeta`` (instalador, complemento, notas, licencias).
+
+    Formato de ``sha256sum``, con «*» de binario y rutas con «/», para comprobarlo con ``sha256sum -c`` o a mano con
+    ``Get-FileHash``. Se envía por un canal distinto del instalador. El rc6 tenía uno, pero hecho a mano.
+    """
+    filas = [f'{_sha256(r)} *{rel}' for r, rel in CE._recorrer(carpeta) if rel != 'SHA256SUMS']
+    if not filas:
+        raise CE.EntregaError(f'No hay nada que sumar en {carpeta}.')
+    destino = carpeta / 'SHA256SUMS'
+    destino.write_text('\n'.join(filas) + '\n', encoding='utf-8', newline='\n')
+    return destino
+
+
 def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Path | None = None, version: str | None = None,
-                        lista_local: Path | None = None, python_pf: Path | None = None) -> tuple[dict[str, Any], CE.Informe]:
+                        lista_local: Path | None = None, python_pf: Path | None = None,
+                        final: bool = False) -> tuple[dict[str, Any], CE.Informe]:
+    """``final``: la entrega del cliente. Sin lista local, sin el Python oficial firmado o sin pip-audit no se arma;
+    en un candidato de prueba esas faltas quedan en ``avisos`` del manifiesto (L1, L5, U3)."""
     if salida.exists() and any(salida.iterdir()):
         raise CE.EntregaError(f'La carpeta {salida} no está vacía: un candidato no se arma sobre otro.')
+    if final and version is not None:
+        raise CE.EntregaError('Un candidato final lleva la versión del paquete: «--version» solo es para ensayar.')
+    avisos = Avisos(final)
     manifiesto = CE.leer_manifiesto(raiz / 'config' / 'entrega.json')
-    terminos = CE.cargar_terminos(raiz, manifiesto, lista_local=lista_local)
+    terminos = CE.cargar_terminos(raiz, manifiesto, lista_local=lista_local, final=final)
+    if not any(o == 'lista local' for o in terminos.origenes):
+        avisos.append(f'Sin lista local de términos ({CE.VARIABLE_LISTA_LOCAL}): solo vale para un candidato de prueba.')
     if not LOCK.is_file():
         raise CE.EntregaError(f'Falta {LOCK.name}: genérelo con la orden «lock».')
     # 086:RF-92: sin «--version», la del paquete; con ella es un ensayo de actualización, que no tiene notas propias.
@@ -507,6 +704,8 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     ruedas = salida / 'terceros' / 'wheels'
     traer_ruedas(raiz, ruedas, raiz / LOCK.name, cache)
     version_python = extraer_python(zip_python, salida / 'terceros' / 'python')
+    verificar_python_oficial(zip_python, salida / 'terceros' / 'python', manifiesto.get('python_programa') or {},
+                             avisos)                                                            # U3
     # 103:RF-6: sin los Python de PowerFactory 2021 a 2023 no se arma el candidato: el operador no instala nada.
     fijados = manifiesto['candidato'].get('python_pf') or {}
     if fijados and python_pf is None:
@@ -521,7 +720,9 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     shutil.copyfile(raiz / 'tools' / 'instalar_candidato.py', instalador / 'instalar_candidato.py')
     shutil.copyfile(raiz / 'instalador' / 'ConverterSmartGrid.iss', instalador / 'ConverterSmartGrid.iss')
     documentos = salida / 'documentos'
-    copiar_documentos(raiz, documentos, version_final)                                         # 086:RF-89
+    copiar_documentos(raiz, documentos, version_final, manifiesto)                             # 086:RF-89, U1, L6
+    auditar_dependencias(raiz, raiz / LOCK.name, documentos / 'auditoria_dependencias.json',
+                         manifiesto.get('auditoria_dependencias') or {}, avisos)                # L5
     componentes: list[dict[str, Any]] = []
     textos: dict[str, list[tuple[str, str]]] = {}
     for r in sorted(ruedas.glob('*.whl')):
@@ -544,7 +745,7 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     (documentos / 'sbom.cdx.json').write_text(json.dumps(sbom(componentes, version_final, revision), ensure_ascii=False, indent=2), encoding='utf-8')
     ficheros = [{'ruta': rel, 'sha256': _sha256(r), 'bytes': r.stat().st_size} for r, rel in CE._recorrer(salida)]
     salida_manifiesto = {'version': version_final, 'revision': revision, 'python': version_python, 'creado': time.time(),
-                         'neutralizados': cuenta, 'bytes_total': sum(f['bytes'] for f in ficheros), 'ficheros': ficheros}
+                         'final': final, 'avisos': list(avisos), 'neutralizados': cuenta, 'bytes_total': sum(f['bytes'] for f in ficheros), 'ficheros': ficheros}
     (salida / 'manifiesto_candidato.json').write_text(json.dumps(salida_manifiesto, ensure_ascii=False, indent=1), encoding='utf-8')
     return salida_manifiesto, CE.comprobar(raiz, manifiesto, terminos, candidato=salida)
 
@@ -885,6 +1086,13 @@ def main(argv: list[str] | None = None) -> int:
     p_cand.add_argument('--ruedas-cache', type=Path, help='Carpeta con las ruedas ya descargadas; sin ella, del índice.')
     p_cand.add_argument('--version', help='Solo para ensayar una actualización; la de entrega es la de __version__ (086:RF-92).')
     p_cand.add_argument('--lista-local', type=Path, help='Lista de términos fuera de git; si no, CSG_TERMINOS_PROHIBIDOS.')
+    p_cand.add_argument('--final', action='store_true',
+                        help='La entrega del cliente: sin lista local, sin el Python oficial firmado o sin pip-audit es un error.')
+    p_firma = orden.add_parser('firmar', help='Firma con signtool el setup.exe y los ejecutables propios (U2); certificado por variable.')
+    p_firma.add_argument('ficheros', type=Path, nargs='+')
+    p_firma.add_argument('--final', action='store_true', help='Sin certificado es un error; si no, se avisa y quedan sin firmar.')
+    p_sumas = orden.add_parser('sumas', help='Escribe SHA256SUMS de la carpeta de la entrega (U4).')
+    p_sumas.add_argument('carpeta', type=Path)
     p_ia = orden.add_parser('complemento-ia', help='Complemento separado, de inferencia o capacidades integrales, offline con lock y avisos.')
     p_ia.add_argument('--salida', type=Path, required=True)
     p_ia.add_argument('--ruedas-cache', type=Path, required=True)
@@ -903,6 +1111,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({k: resultado[k] for k in ('tipo', 'version', 'revision', 'bytes_total')}
                              | {'ficheros': len(resultado['ficheros'])}, ensure_ascii=False, indent=2))
             return 0
+        if args.orden == 'firmar':
+            avisos = Avisos(args.final)
+            firmados = firmar(args.ficheros, avisos)
+            print(json.dumps({'firmados': firmados, 'avisos': list(avisos)}, ensure_ascii=False, indent=2))
+            return 0
+        if args.orden == 'sumas':
+            print(escribir_sumas(args.carpeta))
+            return 0
         manifiesto = CE.leer_manifiesto(RAIZ / 'config' / 'entrega.json')
         if args.orden == 'rueda':
             rueda, cuenta = construir_rueda(RAIZ, args.salida, manifiesto, CE.cargar_terminos(RAIZ, manifiesto), version=args.version)
@@ -916,8 +1132,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({'lock': str(args.salida), 'ruedas': len(filas)}, ensure_ascii=False, indent=2))
             return 0
         resultado, informe = construir_candidato(RAIZ, args.salida, args.python_embebido, cache=args.ruedas_cache, version=args.version, lista_local=args.lista_local,
-                                                 python_pf=args.python_pf)
-        print(json.dumps({k: resultado[k] for k in ('version', 'revision', 'python', 'neutralizados', 'bytes_total')} | {'ficheros': len(resultado['ficheros'])},
+                                                 python_pf=args.python_pf, final=args.final)
+        print(json.dumps({k: resultado[k] for k in ('version', 'revision', 'python', 'final', 'avisos', 'neutralizados', 'bytes_total')} | {'ficheros': len(resultado['ficheros'])},
                          ensure_ascii=False, indent=2))
         print(json.dumps(informe.resumen(), ensure_ascii=False, indent=2))
         return 2 if informe.rechazado else 0

@@ -30,7 +30,7 @@ class VnrSourceAdapter:
         package = snapshot.files['vnr_package'].path
         from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import es_copia_sql
 
-        # La copia de SQL Server, con «.bak» o sin extensión (la de Electro Oriente, 2026-11-01).
+        # La copia de SQL Server, con «.bak» o sin extensión (caso real, 2026-11-01).
         if Path(package).suffix.lower() == '.bak' or es_copia_sql(package):
             return self._cargar_copia_sql(snapshot, Path(package))
         extracted = safe_extract_package(package, snapshot.root / 'derivados' / 'vnr')

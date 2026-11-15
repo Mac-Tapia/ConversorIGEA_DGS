@@ -38,7 +38,7 @@ def _olvidar_modulos_de_tools(carpeta: Path = HERE) -> list[str]:
     """Saca de ``sys.modules`` los módulos de ``tools/`` que importan los guiones.
 
     El guion se carga de nuevo en cada orden, pero lo que él importa (``from cargas_pf
-    import …``) se quedaba el de la primera orden: el 2026-11-01 la calibración de NJA202 y
+    import …``) se quedaba el de la primera orden: el 2026-11-01 la calibración de un alimentador y
     0205 siguió con el ``escribir_carga`` anterior tras corregirlo, y las 784 SED monofásicas
     seguían mal. Devuelve los que quitó.
     """

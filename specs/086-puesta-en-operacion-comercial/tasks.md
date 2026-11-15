@@ -101,6 +101,11 @@
 - [x] T19 Lista de lo que entra en el paquete, términos prohibidos y pesos. (RF-33, RF-34)
   Hecho cuando: un candidato con un término o peso ajeno se rechaza; comentarios según D5.
   `config/entrega.json` es la lista que leerá la T21. Neutralizar los comentarios es un paso de empaquetar: hoy se cuentan y solo rechazan en un candidato, no en el repositorio.
+  Ampliación de lanzamiento (L1, 2026-11-14; aclaración de RF-33): los comentarios de `src/` y de los guiones entregados que citaban a
+  otras distribuidoras se reescriben sin nombre, código ni cifra; las huellas en git pasan de 49 a 182, con las dos empresas;
+  `comprobar_entrega` ve un término partido entre dos líneas y el neutralizador quita las cifras de la línea; `--final` sin lista
+  local es un error. La lista local propuesta (U5) está fuera de git, en `D:/csg/LANZAMIENTO/lista_local/`, a la espera del usuario.
+  Pruebas: `tests/test_entrega_universal.py` (086:RF-33); rojo y verde en `D:/csg/LANZAMIENTO/`.
 
 ## F5 Instalador y soporte (`v1/instalador`)
 
@@ -116,6 +121,16 @@
 - [x] T23 Manuales, hoja de seguridad, `THIRD_PARTY_NOTICES`, SBOM, `pip-audit`; corregir README y `MANUAL_COMANDOS` (órdenes rotas en `:629,676`). (RF-44)
   Hecho cuando: los documentos existen sin nombres de empresa y sus órdenes responden; auditoría sin vulnerabilidades graves.
   Evidencia: `tests/test_instalacion_programa.py`; `pip-audit` del lock el 2026-11-04, sin avisos, tras subir Pillow, pypdf y certifi (`docs/regresiones/2026-11-04-versiones-con-vulnerabilidades-en-el-entorno.md`). Las licencias quedan como inventario para la asesoría (D7), sin conclusiones. La persona ajena es la T41.
+  Ampliación de lanzamiento (L5, L6, L7; U1 a U8, 2026-11-14; aclaraciones de RF-39, RF-44 y RF-89): `construir_candidato --final`
+  exige lista local, el Python 3.12.10 oficial con la firma de la PSF y `pip-audit` (de un entorno aparte, `CSG_PIP_AUDIT`) sin
+  vulnerabilidades sin justificar en `config/vulnerabilidades_justificadas.json`; `firmar` (signtool, certificado por variable) y
+  `sumas` (`SHA256SUMS`). `LICENCIA_COMERCIAL.txt` en la entrega y en `LicenseFile=` del `.iss`, con `AppPublisher` igual que `authors`
+  de la rueda; la MIT no va. `MANUAL_ORDENES.md` sustituye en la entrega al de comandos; la guía de la persona ajena y la parte de
+  construir del manual de instalación no se instalan (`config/entrega.json`, `documentos`). El doctor avisa sin Excel ni WPS.
+  `pip-audit` real del lock el 2026-11-14: 58 librerías, 0 vulnerabilidades. U8: `MANUAL_DE_USO.md` no se entrega: es del
+  2026-10-31, remite a `specs/`, al manual de comandos y a `tools/`, y le falta la 1.0 instalada (instalador y actualizaciones,
+  todo activo, perfil desde la web, copia de datos, fondo de mapa, avisos por paso, el asistente y el complemento de IA).
+  Sin certificado todavía (trámite del usuario): `firmar` está probado con un doble de signtool.
 - [ ] T40 [DIgSILENT] Con el `setup.exe`, en este equipo y sin nada de desarrollo en el entorno: instalar, actualizar y volver atrás, y una importación real en DIgSILENT con el Python del programa. Construir y probar el complemento de IA. (RF-36, RF-37, RF-38, RF-39)
   Hecho cuando: el instalador conserva los datos, una importación real termina con el Python del programa, y el complemento instala con huella y carga sus modelos.
   Hecho (2026-11-04): compilado con Inno Setup 6.7.3 (129 MB, 17 s), instalado con `PATH` solo de System32 (158 s, 519 MB), doctor «listo para trabajar» en edición de producto, y `import powerfactory` con el Python del programa, sin abrir el motor. Falta lo demás: la sesión de la 042 ocupa DIgSILENT.
