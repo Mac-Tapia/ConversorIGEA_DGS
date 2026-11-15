@@ -120,6 +120,11 @@ class ExportSpec:
     #: valor dado: unos pocos grandes y muchos pequeños, como en una red real. Los
     #: campos ``*_per_feeder`` pasan a ser el tamaño *típico*, no el de todos.
     seed: int | None = None
+    #: Con ``size_cycle = n`` (> 0), los tamaños se sortean para n alimentadores y se repiten en ciclo: el alimentador
+    #: i tiene el tamaño del ((i - 1) % n) + 1. Sirve para comparar F y k·F alimentadores con LOS MISMOS tramos por
+    #: alimentador (tarjeta ESC, 2026-11-15): con tamaños sorteados aparte, el coste fijo por alimentador se reparte
+    #: entre más o menos tramos y el coste «por tramo» deja de medir solo el crecimiento O(F·N).
+    size_cycle: int = 0
 
     def feeder_size(self, index: int) -> 'FeederSize':
         """Tamaño del alimentador ``index`` (1..feeders). Reproducible para una semilla."""
@@ -144,15 +149,17 @@ class ExportSpec:
                 high = max(minimum, 2 * typical)
                 return max(minimum, int(round(math.exp(rng.uniform(math.log(minimum), math.log(high))))))
 
-            sizes = tuple(
+            sorteados = self.size_cycle if 0 < self.size_cycle < self.feeders else self.feeders
+            base = tuple(
                 FeederSize(
                     sections=draw(self.sections_per_feeder),
                     loads=draw(self.loads_per_feeder),
                     switches=draw(self.switches_per_feeder),
                     intermediate_per_section=rng.randint(0, 2 * self.intermediate_per_section),
                 )
-                for _ in range(self.feeders)
+                for _ in range(sorteados)
             )
+            sizes = tuple(base[i % sorteados] for i in range(self.feeders))
         _SIZES_CACHE[self] = sizes
         return sizes
 

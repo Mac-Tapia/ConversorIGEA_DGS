@@ -209,7 +209,18 @@ class TestScalability:
             intermediate_per_section=rng.randint(1, 2),
         )
         few = ExportSpec(feeders=few_n, seed=rng.randrange(2**31), **typical)
-        many = ExportSpec(feeders=many_n, seed=rng.randrange(2**31), **typical)
+        rng.randrange(2**31)   # la semilla que antes sorteaba «many»: se consume para que «few» no cambie
+        # Tarjeta ESC (2026-11-15): «many» son los MISMOS alimentadores de «few» repetidos k veces (size_cycle), con
+        # los mismos tramos por alimentador. Con tamaños sorteados aparte, la semilla 644573672 daba 57 tramos por
+        # alimentador en «few» y 26,6 en «many», y el coste fijo de cada alimentador (sus ficheros, ~0,23 s) pesaba el
+        # doble por tramo sin que hubiera nada O(F·N): ×2,07 sobre el tope de ×2. El tope no cambia.
+        many = ExportSpec(feeders=many_n, seed=few.seed, size_cycle=few_n, **typical)
+        assert many_n % few_n == 0, f'many_n ({many_n}) tiene que ser múltiplo de few_n ({few_n})'
+        assert many.total_sections == few.total_sections * (many_n // few_n)
+        # Lo que vigila esta prueba (ESC, rojo de mutación del 2026-11-15): solo las DEGRADACIONES GRUESAS del coste por
+        # tramo. El coste fijo de cada alimentador (~0,23 s) tapa un O(F·N) pequeño: con el defecto histórico inyectado
+        # (los índices por alimentador rehechos en cada alimentador, 72 veces en vez de 1) la razón solo pasa de ×1,02 a
+        # ×1,05. El guardián de ese O(F·N) es la prueba estructural TestNoFullTableScanPerFeeder, que lo caza siempre.
 
         # El mejor de cinco, con las dos medidas INTERCALADAS. El ruido (otro proceso, el antivirus revisando cada
         # fichero nuevo) solo suma tiempo, nunca lo resta, así que el mínimo es la medida fiable. Con una sola medida,
