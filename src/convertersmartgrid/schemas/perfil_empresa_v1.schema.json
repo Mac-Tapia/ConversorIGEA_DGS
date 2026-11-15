@@ -92,6 +92,16 @@
         "capex": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Leer el libro CAPEX de la empresa", "x-si-falta": "Las obras quedan sin costo del libro, y se dice.", "x-origen": "empresa"},
         "tarifas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Evaluación privada del PIDE", "x-si-falta": "Esa evaluación queda señalada como pendiente.", "x-origen": "empresa"}
       }
+    },
+    "pit": {
+      "type": ["object", "null"],
+      "x-abierta": true,
+      "properties": {
+        "areas": {"type": ["array", "null"], "items": {"type": "object"}, "x-funcion": "Plan de Inversiones en Transmisión: cada área de demanda con su código, titulares, SET, alimentadores de cada SET, tensión mínima del ámbito (tension_min_kv) y asignación de los elementos compartidos (107:RF-2)", "x-si-falta": "El PIT no se puede estudiar: pide el área y no la supone.", "x-origen": "empresa"},
+        "libro_red": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Leer la red de transmisión del área de un libro de la empresa (.xlsx, .xlsm, .xls o .xlsb): hoja o lista de hojas (sin ella, se recorren todas), fila de cabecera (sin ella, se busca por contenido) y columnas (107:RF-2, RF-12)", "x-si-falta": "La red del área sale del proyecto de transmisión de DIgSILENT, si hay licencia.", "x-origen": "empresa"},
+        "libro_cuadros": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Escribir los cuadros del expediente del PIT en el libro modelo de la empresa: modelo y, por cuadro, hoja y celda inicial (107:RF-9)", "x-si-falta": "Los cuadros quedan en el expediente JSON, sin libro Excel, y se dice.", "x-origen": "empresa"},
+        "limites": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Límites de tensión (tension_min_pu, tension_max_pu) y cargabilidad (cargabilidad_max_pct) del diagnóstico del PIT cuando el registro normativo no los da (107:RF-3)", "x-si-falta": "Se usan los del registro normativo; si tampoco están, el diagnóstico se detiene y nombra el límite.", "x-origen": "norma"}
+      }
     }
   }
 }

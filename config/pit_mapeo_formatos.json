@@ -1,0 +1,754 @@
+{
+ "esquema": "pit_mapeo_formatos_v1",
+ "nota": "107-T19b. Mapeo campo → celda de los formatos de la Norma Tarifas (RCD 217-2013), por formato y bloque. Cada columna cita la fila y la letra de su rótulo en la plantilla transcrita (config/normativa/rcd_217_2013_formatos.json); pit/plantillas.py comprueba que el rótulo sigue ahí antes de llenar y, si la norma cambia la plantilla, lo dice. Los rótulos que abarcan varias columnas (centrados en la selección, sin celdas combinadas) se cotejaron con la hoja exportada a PDF en solo lectura y sin macros por el COM «Excel.Application», que en esta máquina atiende WPS Spreadsheets (et.exe 12.1.0.296), no Microsoft Excel; (D:/csg/NORMATIVA_OSINERGMIN/PIT_NORMA/rcd_217-2013_formatos/pdf, 2026-11-14).",
+ "formatos": {
+  "F-001": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "Área de Demanda (1):"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "titulares",
+     "fila_marca": 8,
+     "marca": "Titular 1 :",
+     "fila_total": 12,
+     "marca_total": "Total SER :",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "TITULARES(2)"
+       ],
+       "campo": "titular"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "MAT"
+       ],
+       "campo": "km_mat"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "AT"
+       ],
+       "campo": "km_at"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        7,
+        "D",
+        "MAT/AT"
+       ],
+       "campo": "set_mat_at"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        7,
+        "E",
+        "AT/MT"
+       ],
+       "campo": "set_at_mt"
+      }
+     ]
+    }
+   ]
+  },
+  "F-002": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "ÁREA DE DEMANDA"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "lineas",
+     "fila_marca": 10,
+     "marca": "Línea \"1\"",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "NOMBRE DE LA LÍNEA"
+       ],
+       "campo": "nombre"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        8,
+        "B",
+        "CÓDIGO (2)"
+       ],
+       "campo": "codigo"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        9,
+        "C",
+        "Día"
+       ],
+       "campo": "servicio_dia"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        9,
+        "D",
+        "Mes"
+       ],
+       "campo": "servicio_mes"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        9,
+        "E",
+        "Año"
+       ],
+       "campo": "servicio_anio"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        8,
+        "F",
+        "SST ó SCT"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        9,
+        "G",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        9,
+        "H",
+        "Ternas"
+       ],
+       "campo": "ternas"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        9,
+        "I",
+        "Conductor"
+       ],
+       "campo": "conductor"
+      },
+      {
+       "letra": "J",
+       "rotulo": [
+        9,
+        "J",
+        "(mm2)"
+       ],
+       "campo": "seccion_mm2"
+      },
+      {
+       "letra": "K",
+       "rotulo": [
+        7,
+        "K",
+        "Peso (kg/m)"
+       ],
+       "campo": "peso_kg_m"
+      },
+      {
+       "letra": "L",
+       "rotulo": [
+        9,
+        "L",
+        "(km)"
+       ],
+       "campo": "longitud_km"
+      },
+      {
+       "letra": "M",
+       "rotulo": [
+        9,
+        "M",
+        "(kA)3"
+       ],
+       "campo": "max_i_ka"
+      },
+      {
+       "letra": "N",
+       "rotulo": [
+        9,
+        "N",
+        "(Ohm/km)"
+       ],
+       "campo": "r_ohm_per_km"
+      },
+      {
+       "letra": "O",
+       "rotulo": [
+        9,
+        "O",
+        "(Ohm/km)"
+       ],
+       "campo": "x_ohm_per_km"
+      },
+      {
+       "letra": "P",
+       "rotulo": [
+        9,
+        "P",
+        "(Mho/km)"
+       ],
+       "campo": "g_mho_per_km"
+      },
+      {
+       "letra": "Q",
+       "rotulo": [
+        9,
+        "Q",
+        "(Mho/km)"
+       ],
+       "campo": "b_mho_per_km"
+      },
+      {
+       "letra": "R",
+       "rotulo": [
+        9,
+        "R",
+        "(1 o 2)"
+       ],
+       "campo": "guarda_numero"
+      },
+      {
+       "letra": "S",
+       "rotulo": [
+        8,
+        "S",
+        "Tipo"
+       ],
+       "campo": "guarda_tipo"
+      },
+      {
+       "letra": "T",
+       "rotulo": [
+        9,
+        "T",
+        "(mm2)"
+       ],
+       "campo": "guarda_seccion_mm2"
+      }
+     ]
+    }
+   ]
+  },
+  "F-003": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "ÁREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "trafo2",
+     "fila_marca": 12,
+     "marca": "Transformador \"1\"",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        9,
+        "A",
+        "TRANSFORMADOR"
+       ],
+       "campo": "nombre"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        9,
+        "B",
+        "CÓDIGO"
+       ],
+       "campo": "codigo"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        10,
+        "C",
+        "Fabricación"
+       ],
+       "campo": "anio_fabricacion"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        10,
+        "D",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        10,
+        "E",
+        "UTM"
+       ],
+       "campo": "utm"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        11,
+        "F",
+        "(MVA)"
+       ],
+       "campo": "sn_mva"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        10,
+        "G",
+        "Primario"
+       ],
+       "campo": "vn_hv_kv"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        10,
+        "H",
+        "Secundario"
+       ],
+       "campo": "vn_lv_kv"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        11,
+        "I",
+        "Conexión"
+       ],
+       "campo": "grupo_conexion"
+      },
+      {
+       "letra": "J",
+       "rotulo": [
+        11,
+        "J",
+        "Regulación"
+       ],
+       "campo": "taps"
+      },
+      {
+       "letra": "K",
+       "rotulo": [
+        10,
+        "K",
+        "Vcc (%)"
+       ],
+       "campo": "vk_percent"
+      },
+      {
+       "letra": "L",
+       "rotulo": [
+        11,
+        "L",
+        "Pcu%"
+       ],
+       "campo": "pcu_percent"
+      },
+      {
+       "letra": "M",
+       "rotulo": [
+        11,
+        "M",
+        "Pfe%"
+       ],
+       "campo": "pfe_percent"
+      },
+      {
+       "letra": "N",
+       "rotulo": [
+        10,
+        "N",
+        "Regulación"
+       ],
+       "campo": "tipo_regulacion"
+      },
+      {
+       "letra": "O",
+       "rotulo": [
+        10,
+        "O",
+        "Total"
+       ],
+       "campo": "peso_total_kg"
+      },
+      {
+       "letra": "P",
+       "rotulo": [
+        10,
+        "P",
+        "del Cobre"
+       ],
+       "campo": "peso_cobre_kg"
+      },
+      {
+       "letra": "Q",
+       "rotulo": [
+        10,
+        "Q",
+        "Compensador?"
+       ],
+       "campo": "asociado_compensador"
+      },
+      {
+       "letra": "R",
+       "rotulo": [
+        10,
+        "R",
+        "(En Operación  o Reserva)"
+       ],
+       "campo": "estado"
+      }
+     ]
+    },
+    {
+     "bloque": "trafo3",
+     "fila_marca": 22,
+     "marca": "Transformador \"1\"",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        20,
+        "A",
+        "TRANSFORMADOR"
+       ],
+       "campo": "nombre"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        20,
+        "B",
+        "CÓDIGO"
+       ],
+       "campo": "codigo"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        21,
+        "C",
+        "Fabricación"
+       ],
+       "campo": "anio_fabricacion"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        21,
+        "D",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        21,
+        "E",
+        "UTM"
+       ],
+       "campo": "utm"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        21,
+        "F",
+        "Primario"
+       ],
+       "campo": "sn_hv_mva"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        21,
+        "G",
+        "Secundario"
+       ],
+       "campo": "sn_mv_mva"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        21,
+        "H",
+        "Terciario"
+       ],
+       "campo": "sn_lv_mva"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        21,
+        "I",
+        "Primario"
+       ],
+       "campo": "vn_hv_kv"
+      },
+      {
+       "letra": "J",
+       "rotulo": [
+        21,
+        "J",
+        "Secundario"
+       ],
+       "campo": "vn_mv_kv"
+      },
+      {
+       "letra": "K",
+       "rotulo": [
+        21,
+        "K",
+        "Terciario"
+       ],
+       "campo": "vn_lv_kv"
+      },
+      {
+       "letra": "L",
+       "rotulo": [
+        21,
+        "L",
+        "de Conexión"
+       ],
+       "campo": "grupo_conexion"
+      },
+      {
+       "letra": "M",
+       "rotulo": [
+        21,
+        "M",
+        "de Regulación"
+       ],
+       "campo": "taps"
+      },
+      {
+       "letra": "N",
+       "rotulo": [
+        21,
+        "N",
+        "P-S"
+       ],
+       "campo": "vk_ps_percent"
+      },
+      {
+       "letra": "O",
+       "rotulo": [
+        21,
+        "O",
+        "P-T"
+       ],
+       "campo": "vk_pt_percent"
+      },
+      {
+       "letra": "P",
+       "rotulo": [
+        21,
+        "P",
+        "S-T"
+       ],
+       "campo": "vk_st_percent"
+      },
+      {
+       "letra": "Q",
+       "rotulo": [
+        21,
+        "Q",
+        "P-S"
+       ],
+       "campo": "pcu_ps_percent"
+      },
+      {
+       "letra": "R",
+       "rotulo": [
+        21,
+        "R",
+        "P-T"
+       ],
+       "campo": "pcu_pt_percent"
+      },
+      {
+       "letra": "S",
+       "rotulo": [
+        21,
+        "S",
+        "S-T"
+       ],
+       "campo": "pcu_st_percent"
+      },
+      {
+       "letra": "T",
+       "rotulo": [
+        21,
+        "T",
+        "%"
+       ],
+       "campo": "pfe_percent"
+      },
+      {
+       "letra": "U",
+       "rotulo": [
+        20,
+        "U",
+        "Tipo Regulación"
+       ],
+       "campo": "tipo_regulacion"
+      },
+      {
+       "letra": "V",
+       "rotulo": [
+        21,
+        "V",
+        "(kg)"
+       ],
+       "campo": "peso_total_kg"
+      },
+      {
+       "letra": "W",
+       "rotulo": [
+        21,
+        "W",
+        "Cobre (kg)"
+       ],
+       "campo": "peso_cobre_kg"
+      },
+      {
+       "letra": "X",
+       "rotulo": [
+        21,
+        "X",
+        "(En Operación  o Reserva)"
+       ],
+       "campo": "estado"
+      }
+     ]
+    },
+    {
+     "bloque": "compensacion",
+     "fila_marca": 33,
+     "marca": "Compensador \"1\"",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        30,
+        "A",
+        "TIPO (1)"
+       ],
+       "campo": "tipo_compensacion"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        30,
+        "B",
+        "CÓDIGO"
+       ],
+       "campo": "codigo"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        31,
+        "C",
+        "Fabricación"
+       ],
+       "campo": "anio_fabricacion"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        31,
+        "D",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        31,
+        "E",
+        "UTM"
+       ],
+       "campo": "utm"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        32,
+        "F",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "M",
+       "rotulo": [
+        32,
+        "M",
+        "(MVAR)"
+       ],
+       "campo": "q_capacitor_mvar"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

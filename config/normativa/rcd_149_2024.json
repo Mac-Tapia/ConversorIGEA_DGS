@@ -1,0 +1,23 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 149-2024-OS/CD",
+   "estado_juridico": "modificada",
+   "fecha_consulta": "2026-11-14",
+   "fichero_local": "rcd_149-2024.txt",
+   "modifica": [
+    "RCD 112-2024-OS/CD"
+   ],
+   "modificada_por": [
+    "RCD 199-2026-OS/CD"
+   ],
+   "nota": "Incorpora el Informe Técnico 565-2024-GRT (art. 2; https://www.osinergmin.gob.pe/Resoluciones/pdf/2024/Informe-Tecnico-565-2024-GRT.pdf, sha256 f315d7123ad5df0df4c89207c03120e89f819dd6d80668fa1bed82e096b8e80e). Hay modificatorias posteriores por área que no se han leído (G0 vio la 188-2026 de forma indirecta; la 199-2026, leída el 2026-11-14 en El Peruano, modifica el Área de Demanda 9 (rcd_199_2026.json)): sin vigencia comprobada, sus reglas se usan como referencia.",
+   "sha256": "ba01e0b51f56d34ac1b57ae356ec061ee8a2e10053856374c5e78b91127fb91a",
+   "sha256_texto": "b377533d11a0c3da58f481ffdc12c44f37cd0361ed9f82372acc657b8e2108ce",
+   "titulo": "Modifica la RCD 112-2024-OS/CD: Plan de Inversiones 2025-2029 por Área de Demanda y titular",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2024/Osinergmin-149-2024-OS-CD.pdf",
+   "version": "Lima, 19 de julio de 2024"
+  }
+ ]
+}

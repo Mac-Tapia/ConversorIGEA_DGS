@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 335 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 353 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 108 |
+| Herramientas y guiones | `tools/` | 109 |
 | Interfaz | `frontend/src/` | 71 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 452 |
+| Pruebas | `tests/` | 470 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3718 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3725 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 129 |
-| aplicacion | Apl | 104 |
-| dominio | Dom | 48 |
-| presentacion | Pre | 40 |
+| adaptadores | Ada | 139 |
+| aplicacion | Apl | 105 |
+| dominio | Dom | 54 |
+| presentacion | Pre | 41 |
 | puertos | Pue | 3 |
 
-324 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+342 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -413,6 +413,29 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
 | `registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
 
+### Motor: PIT (plan de inversiones en transmisión)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `pit/__init__.py` | Dom | 107 | Paquete del PIT, aparte del PIDE, y su error común. |
+| `pit/ambito.py` | Dom | 107 | Áreas de demanda del perfil y los elementos de cada una, sin mezclar áreas. |
+| `pit/red_area.py` | Apl | 107 | Contrato neutro RedArea y lector del libro de la red del perfil. |
+| `pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación) y flujo del motor abierto con potencia sin servir. |
+| `pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
+| `pit/diagnostico.py` | Ada | 107 | Diagnóstico por año: demanda por barra de SET, caso base y N-1 contra los límites del registro o del perfil. |
+| `pit/programa.py` | Dom | 107 | Programa por año, titular y área, con bajas y reemplazos. |
+| `pit/observaciones.py` | Dom | 107 | Observaciones del regulador con su respuesta, enlazadas con la traza del expediente, y el documento de absolución con lo que cambió por cada una. |
+| `pit/alternativas.py` | Ada | 107 | Alternativas excluyentes: inversión, COyM, pérdidas, confiabilidad y valor presente con la misma demanda y motor. |
+| `pit/cuadros.py` | Ada | 107 | Cuadros desde su definición en el registro, formatos aplicables de la norma vigente (transcritos o nombrados), celdas con traza, vínculos entre… |
+| `pit/f208.py` | Dom | 107 | Formato F-208 (fallas e índices de desempeño): estructura leída de la plantilla transcrita, celdas con traza desde las fuentes importadas, «Cumple»… |
+| `pit/reserva.py` | Dom | 107 | Transformadores de reserva compartida: horizonte, costo de la ENS, umbral de beneficio/costo y exclusión por tensión desde el registro. |
+| `pit/llenado.py` | Ada | 107 | Llenado de los formatos que exige el estudio del plan (regla del num. |
+| `pit/plantillas.py` | Ada | 107 | Motor de llenado de un formato desde su plantilla transcrita y su mapeo declarado (config/pit_mapeo_formatos.json): comprueba rótulos y marcas, llena… |
+| `pit/formatos_red.py` | Ada | 107 | Datos de F-001, F-002 y F-003 desde la red del área, con los niveles de la regla 12.1.1 y sus cálculos declarados (Pcu%, Pfe%, B con la frecuencia… |
+| `pit/expediente.py` | Ada | 107 | Expediente aparte del PIDE: instantánea del registro, aviso de modificatoria sin recalcular, reglas aplicadas, determinismo, memoria de cada sección,… |
+| `pit/informe.py` | Ada | 107 | Resumen ejecutivo del PIT: demanda, alternativa elegida y programa, con cada cifra tomada de los ficheros del expediente y su huella. |
+| `web/rutas_pit.py` | Pre | 107 | Rutas /api/pit: áreas, matriz de motores, diagnóstico en cola y observaciones. |
+
 ### Motor: gobierno de modelos
 
 | Fichero | Capa | Specs | Papel |
@@ -644,6 +667,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `protecciones_pf.py` | — | 049 | Guion de DIgSILENT de las protecciones: con `--capacidades`, el inventario de la versión conectada (órdenes `ComShc`, `ComShctrace` y… |
 | `transferencia_pf.py` | — | 011, 104, 129, 016 | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del… |
 | `transformador_set_pf.py` | — | 017 | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la… |
+| `pit_pf.py` | — | 107 | Guion de DIgSILENT del PIT: exporta la red de transmisión al contrato RedArea y corre ComLdf, ComSimoutage y ComRel3 por año sin dejar nada cambiado. |
 | `set_nueva_operacion_pf.py` | — | 063 | Diagnóstico físico de conexiones y tipos de una SET existente. |
 | `pide_pf.py` | — | 024, 029, 030 | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión… |
 | `escenarios_pf.py` | — | 024 | Guion de DIgSILENT: escenarios del gemelo en una copia del proyecto (desactivado antes de copiar), demanda escalada y tramos abiertos, resultados y… |
@@ -915,12 +939,24 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/fichas/transformadores_sed.json` |
 | `config/line_type_aliases.example.json` |
 | `config/modulos_permitidos.example.json` |
+| `config/normativa/it_565_2024_cuadros.json` |
+| `config/normativa/rcd_018_2018.json` |
+| `config/normativa/rcd_094_2022.json` |
+| `config/normativa/rcd_112_2024.json` |
+| `config/normativa/rcd_149_2024.json` |
+| `config/normativa/rcd_199_2026.json` |
+| `config/normativa/rcd_217_2013.json` |
+| `config/normativa/rcd_217_2013_formatos.json` |
+| `config/normativa/rcd_217_2013_plan.json` |
+| `config/normativa/rcd_242_2021.json` |
+| `config/normativa/vad_2023_2027_perdidas.json` |
 | `config/perfil_empresa.example.json` |
 | `config/perfiles/electro_dunas.estructura.json` |
 | `config/perfiles/electro_dunas.json` |
 | `config/perfiles/ficticia.json` |
 | `config/perfiles/plantilla.json` |
 | `config/pide_universal_2017.json` |
+| `config/pit_mapeo_formatos.json` |
 | `config/suite_completa.example.json` |
 | `config/terminos_huellas.json` |
 | `config/vnr_dgs_profile.json` |

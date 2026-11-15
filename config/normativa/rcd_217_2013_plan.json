@@ -1,0 +1,97 @@
+{
+ "amplia": "RCD 217-2013-OS/CD",
+ "esquema": "registro_normativo_v1",
+ "nota": "107 T19b. Formatos que exige el estudio del Plan de Inversiones (num. 5.7 de la Norma Tarifas) y niveles de tensión regulatorios (num. 12.1.1).",
+ "reglas": [
+  {
+   "articulo_o_anexo": "art. 5.7.2, 5.7.3, 5.7.5 y 5.7.6",
+   "cita_literal": "5.7.2. Información de los sistemas eléctricos de transmisión existentes y los del tipo SCTPT y SCTLN para los cuales se requiere fijación de Tarifas y/o Compensaciones, conforme a los formatos previstos en los formularios del Capítulo Segundo del Título IV de la presente Nor ma. 5.7.3. Proyección de la Demanda de energía y potencia correspondiente, acompañando los datos básicos según los formatos establecidos en el Título IV de la presente Norma. 5.7.5. Información general del Plan de Inversiones definido según los formatos establecidos en el Título IV de la presente Norma. 5.7.6. La propuesta del Plan de Inversiones: Programación de las inversiones por Elemento, indicando el plazo previsto para su puesta en operación comercial, la valorización preliminar del Costo Medi o anual, según lo establecido en el numeral I) del Literal d) del Artículo 139° del Reglamento de la LCE, así como la relación de instalaciones existentes cuyas bajas se prevén en el siguiente Período Tarifario (horizonte de 4 años).",
+   "clave": "pit.plan.formatos_exigidos",
+   "interpretacion": "el estudio del plan lleva los formatos de información general, demanda, SER, inversión y COyM (5.7.6: «valorización preliminar del Costo Medio anual», que es inversión más COyM); los de tarifas y compensaciones (F-501 a F-523) son de la fijación tarifaria",
+   "lineas": "558-561,585-587,592-600",
+   "pagina": "13-14",
+   "unidad": "",
+   "valor": {
+    "fuera_del_estudio": [
+     "F-501 a F-523"
+    ],
+    "grupos": [
+     "F-001 a F-003",
+     "F-101 a F-124",
+     "F-201 a F-212",
+     "F-301 a F-306",
+     "F-401"
+    ]
+   }
+  },
+  {
+   "articulo_o_anexo": "art. 12.1.1",
+   "cita_literal": "12.1.1. Las tensiones  a considerarse , para efectos regulatorios, son: MAT = 500, 220 y 138 kV, AT = 60 y 33 kV, MT = 10 y 22,9 kV (únicamente para las celdas de los alimentadores).",
+   "clave": "pit.niveles_tension_kv",
+   "interpretacion": "tensiones nominales para efectos regulatorios; MT solo para las celdas de los alimentadores. Una tensión que no está en la lista no se clasifica por aproximación",
+   "lineas": "1262-1264",
+   "pagina": "27",
+   "unidad": "kV",
+   "valor": {
+    "AT": [
+     60,
+     33
+    ],
+    "MAT": [
+     500,
+     220,
+     138
+    ],
+    "MT": [
+     10,
+     22.9
+    ]
+   }
+  },
+  {
+   "articulo_o_anexo": "art. 8.1 (Etapa 3)",
+   "cita_literal": "- La transformación de la proyección de la Energía a proyección en Potencia Coincidente a nivel de barras en MT , AT o MAT, según corresponda, en una SET, se realizará a través de los FC y FCP: Potencia = (Ventas de Energía * (1+%p) / (t*FC)) * FCP Donde: %p: Porcentaje de pérdidas estándares en media tensión y baja tensión. Para clientes con Punto de Suministro en MAT y AT, el %p es igual a cero. FC: Factor de carga calculado para el Año Representativo. FCP: Factor de Contribución a la Punta del Año Representativo. t:  Número de horas del Año Representativo.",
+   "clave": "pit.demanda.potencia_desde_energia",
+   "interpretacion": "el (1+%p) de la norma se aplica con el factor de expansión de pérdidas de la fijación vigente (FE = 1/(1−p)), en cascada por nivel; para MAT y AT %p = 0",
+   "lineas": "1100-1110",
+   "pagina": "24",
+   "unidad": "MW",
+   "valor": {
+    "formula": "Potencia = Ventas · FE / (t · FC) · FCP",
+    "perdidas_mat_at": 0,
+    "variables": {
+     "FC": "factor de carga",
+     "FCP": "factor de contribución a la punta",
+     "FE": "factor de expansión de pérdidas de la fijación del VAD",
+     "Ventas": "MWh del nivel",
+     "t": "horas del Año Representativo"
+    }
+   }
+  },
+  {
+   "articulo_o_anexo": "art. 3.10, 3.11 y 3.12",
+   "cita_literal": "3.10. Factor de Contribución a la Punta  (FCP): Es la relación entre la potencia de una carga a la hora de máxima demanda de la SET desde la cual se alimenta y la máxima demanda de potencia de dicha carga: 3.11. Factor de Simultaneidad (FS): Igual al cociente de la potencia de cada SET o Usuario Libre a la hora de máxima demanda de potencia del SEIN entre la máxima demanda de potencia de la SET o Usuario Libre. 3.12. Factor de Carga  (FC):   Es la relación entre la potencia media de una carga y la potencia máxima de la misma:",
+   "clave": "pit.demanda.definiciones_factores",
+   "lineas": "411-420",
+   "pagina": "10",
+   "unidad": "p.u.",
+   "valor": {
+    "FC": "potencia media de la carga / su potencia máxima",
+    "FCP": "P de la carga a la hora de máxima demanda de su SET / máxima demanda de la carga",
+    "FS": "P de la SET o Usuario Libre a la hora de máxima demanda del SEIN / su máxima demanda"
+   }
+  },
+  {
+   "articulo_o_anexo": "Título IV, Formato F-103",
+   "cita_literal": "Formato F-103 Factores por SET – Usuarios Regulados En este formato se consignan los factores de participación de la carga acumulada en cada nivel de tensión res pecto de la máxima demanda del Sistema Eléctrico (FPHMS) y los factores de participación en energía respecto a la demanda de energía total del  Sistema Eléctrico (FPMWHS). Pmax: Corresponde al valor consignado en la columna \"Potencia Activa\" del Formato F-102, por subestación y nivel de tensión , a la hora de máxima demanda del Sistema Eléctrico. FPHMS: Factor de participación en potencia a la hora de máxima demanda anual del Sistema Eléctrico, determinado como el cociente del Pmax entre la máxima demanda anual del Sistema Eléctrico. FPMWHS: Factor de participación en energía respecto a la demanda de energía total del  Sistema Eléctrico, determinado como el cociente entre el valor de la energía de cada devanado y la energía total del   Sistema Eléctrico, del Año Representativo.",
+   "clave": "pit.demanda.definiciones_participacion",
+   "lineas": "2287-2302",
+   "pagina": "50",
+   "unidad": "p.u.",
+   "valor": {
+    "FPHMS": "Pmax del devanado a la hora de máxima del Sistema Eléctrico / máxima demanda anual del Sistema Eléctrico",
+    "FPMWHS": "energía de cada devanado / energía total del Sistema Eléctrico, del Año Representativo"
+   }
+  }
+ ]
+}

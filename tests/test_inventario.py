@@ -204,12 +204,16 @@ def test_config_sin_datos_de_una_empresa():
     # (test_pide_dataset lo comprueba).
     # 086:RF-33, RF-34: la lista de lo que se entrega no es de ninguna empresa, y la de términos solo lleva huellas.
     # 086:RF-39 (L5): las vulnerabilidades aceptadas por escrito son de las librerías del lock, no de una empresa.
+    # 107:RF-9 (T19b): el mapeo campo → celda es de los formatos de la Norma Tarifas, igual para toda empresa.
     genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json', 'config/entrega.json',
-                 'config/terminos_huellas.json', 'config/vulnerabilidades_justificadas.json'}
+                 'config/terminos_huellas.json', 'config/vulnerabilidades_justificadas.json',
+                 'config/pit_mapeo_formatos.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
              and not (f.startswith('config/perfiles/') and f.endswith('.json'))
              # 020:RF-63: las fichas NTP 370.400 son del conversor (norma técnica nacional), no de una empresa.
-             and not (f.startswith('config/fichas/') and f.endswith('.json'))]
+             and not (f.startswith('config/fichas/') and f.endswith('.json'))
+             # 107:RF-11: el registro normativo transcribe normas públicas del regulador, no datos de una empresa.
+             and not (f.startswith('config/normativa/') and f.endswith('.json'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'
 
 

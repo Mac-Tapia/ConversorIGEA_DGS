@@ -1,0 +1,319 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 094-2022-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-14",
+   "fecha_publicacion": "2022-06-05",
+   "fichero_local": "rcd_094-2022.txt",
+   "nota": "Art. 2: rige desde el proceso de aprobación del PIT 2025-2029, a partir de la elaboración de propuestas; la fecha no está en el texto y no se supone (regla pit.reserva.aplica_desde_proceso). Vigencia comprobada por su aplicación como norma complementaria en la RCD 112-2024-OS/CD (rcd_112-2024.txt:53-55) y en el IT 565-2024-GRT (it_565-2024.txt:205-207, «Norma Reserva de Transformación»), que la toman con sus modificatorias; el 2026-11-14 no se halló ninguna modificatoria (búsqueda en El Peruano y en el portal de Osinergmin). La página 3 del PDF no tiene texto extraíble. El modelo oficial de confiabilidad (num. 5.7, anexo del IT 305-2022-GRT) no está descargado. Publicada el 05-06-2022 (Resoluciones-GRT-2022.aspx: «e. 02/06/2022 - p. 05/06/2022»); el enlace de fe de erratas de esa página está vacío y da 404 (2026-11-14): no hay fe de erratas publicada. El IT 305-2022-GRT y su modelo no están en esa página ni en el portal (búsqueda del 2026-11-14).",
+   "reglas": [
+    {
+     "articulo_o_anexo": "art. 2 de la resolución",
+     "cita_literal": "Artículo 2°. - Disponer la vigencia de la norma aprobada, desde el proceso regulatorio de aprobación del Plan de Inversiones 2025 – 2029, a partir de la elaboración de propuestas.",
+     "clave": "pit.reserva.aplica_desde_proceso",
+     "interpretacion": "a partir de la elaboración de propuestas",
+     "lineas": "101-102",
+     "pagina": "2",
+     "unidad": "",
+     "valor": "PIT 2025-2029"
+    },
+    {
+     "articulo_o_anexo": "art. 5.1",
+     "cita_literal": "5.1. Para fines de la presente norma, solo se considera el Transformador de Reserva Compartida. Asimismo, dicho transformador será de características estándar considerando para su aprobación y remuneración la Base de Datos de Módulos Estándar vigente.",
+     "clave": "pit.reserva.tipo",
+     "interpretacion": "de características estándar, con la Base de Datos de Módulos Estándar vigente",
+     "lineas": "281-284",
+     "pagina": "6",
+     "unidad": "",
+     "valor": "compartida"
+    },
+    {
+     "articulo_o_anexo": "art. 5.1 y 6.4",
+     "cita_literal": "5.1. Para fines de la presente norma, solo se considera el Transformador de Reserva Compartida. Asimismo, dicho transformador será de características estándar considerando para su aprobación y remuneración la Base de Datos de Módulos Estándar vigente. 6.4. El Transformador de Reserva Compartida se remunera en función a los costos de Módulos Estándar vigente y bajo los criterios de reconocimiento de costos asociados a los",
+     "clave": "pit.reserva.costo_fuente",
+     "lineas": "281-284,346-347",
+     "pagina": "6-7",
+     "unidad": "",
+     "valor": "base_de_datos_modulos_estandar_vigente"
+    },
+    {
+     "articulo_o_anexo": "art. 5.2",
+     "cita_literal": "5.2. No será aplicable para los fines de la presente norma, el caso de los transformadores trifásicos mayores a 100 kV y cuya viabilidad de transporte no sea factible ni accesible por parte del Agente que solicite el Transformador de Reserva Compartida; analizándose este caso por criterios de demanda en la planificación dentro del proceso regulatorio de aprobación del Plan de Inversiones.",
+     "clave": "pit.reserva.excluye_trifasicos_mayor_kv",
+     "interpretacion": "solo cuando su transporte no sea factible ni accesible para el Agente; ese caso se analiza por criterios de demanda en la planificación del PIT",
+     "lineas": "286-288,296-297",
+     "pagina": "6-7",
+     "unidad": "kV",
+     "valor": 100
+    },
+    {
+     "articulo_o_anexo": "art. 5.3",
+     "cita_literal": "5.3. La determinación del Transformador de Reserva Compartida, requerida por Área de Demanda, deberá hacerse en base al modelo de confiabilidad que se enmarca en un estudio de Viabilidad Económica, que considere los beneficios de las reservas en función del costo evitado por reducción del Valor Esperado de la Energía No Servida en cada punto de posible ubicación de Transformadores de Reserva Compartida, considerando el Costo de Energía No Servida y la probabilidad de ocurrencia del evento de Indisponibilidad del transformador.",
+     "clave": "pit.reserva.metodo",
+     "interpretacion": "beneficio = costo evitado por la reducción del Valor Esperado de la ENS en cada ubicación posible, con el Costo de ENS y la probabilidad de indisponibilidad del transformador",
+     "lineas": "299-305",
+     "pagina": "7",
+     "unidad": "",
+     "valor": "viabilidad_economica_reduccion_valor_esperado_ens"
+    },
+    {
+     "articulo_o_anexo": "art. 5.4",
+     "cita_literal": "5.4. Para el cálculo de la Potencia No Servida los Agentes deberán efectuar Simulaciones de Flujo de Carga, con y sin el transformador bajo estudio, utilizando la red que se determina a partir de la planificación que se realiza dentro del proceso del Plan de Inversiones y considerando los despachos de generación modelados en dicha red. La estimación de la Potencia No Servida se determinará para un horizonte de análisis de 10 años a partir del estudio que será analizado y evaluado en un proceso de Plan de Inversiones.",
+     "clave": "pit.reserva.horizonte_pns_anios",
+     "interpretacion": "Potencia No Servida con flujos de carga con y sin el transformador, sobre la red del PIT",
+     "lineas": "307-312",
+     "pagina": "7",
+     "unidad": "años",
+     "valor": 10
+    },
+    {
+     "articulo_o_anexo": "art. 5.5",
+     "cita_literal": "5.5. Para la determinación del Tiempo Promedio de Duración de las Interrupciones los Agentes deberán utilizar el Modelo Markov-Montecarlo basados en las Tasas de Fallas, Tasas de Mantenimientos y tiempos de reparación.",
+     "clave": "pit.reserva.metodo_duracion_interrupciones",
+     "interpretacion": "con tasas de fallas, tasas de mantenimientos y tiempos de reparación",
+     "lineas": "314-316",
+     "pagina": "7",
+     "unidad": "",
+     "valor": "markov_montecarlo"
+    },
+    {
+     "articulo_o_anexo": "art. 5.6",
+     "cita_literal": "5.6. A partir de la determinación de la Potencia No Servida y del estudio de confiabilidad se calculará el Valor Esperado de la Energía No Servida, considerando el Costo de Energía No Servida y el costo de la inversión requerida para los Transformadores de Reserva obtenida de los valores vigentes de la Base de Datos de los Módulos Estándar, referidos a los SST y SCT. Con esto se establecerá la relación Beneficio/Costo de considerar un Transformador de Reserva Compartida, la cual deberá ser mayor a uno para justificar su inversión.",
+     "clave": "pit.reserva.beneficio_costo_minimo",
+     "interpretacion": "la relación Beneficio/Costo debe ser estrictamente mayor que 1",
+     "lineas": "318-323",
+     "pagina": "7",
+     "unidad": "p.u.",
+     "valor": 1
+    },
+    {
+     "articulo_o_anexo": "art. 4.5",
+     "cita_literal": "4.5. Costo de Energía No Servida: Valor económico expresado que se asigna por unidad de Energía No Servida (USD/kWh) por eventos de fallas o mantenimientos. Para eventos de falla se determinará a partir del Costo de Racionamiento que se utiliza en los Procesos de Fijación de Tarifas en Barra vigente, multiplicado por el factor que deriva de la relación entre el Costo de Racionamiento en Baja Tensión (1 624,08 USD/MWh) y el Costo de Racionamiento promedio del sector eléctrico (746 USD/MWh) o su respectiva actualización. Este valor económico se utilizará hasta que se defina el Costo de Falla en la regulación peruana.",
+     "clave": "pit.reserva.costo_ens_falla",
+     "interpretacion": "Costo de Racionamiento vigente × (1 624,08 / 746) «o su respectiva actualización», hasta que se defina el Costo de Falla",
+     "lineas": "209-216",
+     "pagina": "5",
+     "unidad": "USD/kWh",
+     "valor": {
+      "base": "costo_racionamiento_fijacion_tarifas_en_barra_vigente",
+      "factor_denominador_usd_mwh": 746,
+      "factor_numerador_usd_mwh": 1624.08
+     }
+    },
+    {
+     "articulo_o_anexo": "art. 4.5",
+     "cita_literal": "Para mantenimientos, se utilizará el Costo de Racionamiento establecido en los Procesos de Fijación de Tarifas en Barra vigente.",
+     "clave": "pit.reserva.costo_ens_mantenimiento",
+     "lineas": "218-219",
+     "pagina": "5",
+     "unidad": "USD/kWh",
+     "valor": "costo_racionamiento_fijacion_tarifas_en_barra_vigente"
+    },
+    {
+     "articulo_o_anexo": "art. 5.7",
+     "cita_literal": "5.7. Para efectos del desarrollo del estudio correspondiente a la necesidad de Transformadores de Reserva Compartida en los SST y SCT; Osinergmin pone a disposición de los Agentes, un modelo confiabilidad y optimización que es anexo del Informe Técnico que sustenta la presente norma y se publicará en la página web institucional, el cual debe ser utilizado para justificar los Transformadores de Reserva Compartida.",
+     "clave": "pit.reserva.modelo_oficial",
+     "interpretacion": "el IT que sustenta la norma es el 305-2022-GRT (considerando, líneas 79-80); su anexo no está descargado",
+     "lineas": "325-329",
+     "pagina": "7",
+     "unidad": "",
+     "valor": {
+      "documento": "anexo del Informe Técnico 305-2022-GRT",
+      "transcrito": false,
+      "uso_obligatorio": true
+     }
+    },
+    {
+     "articulo_o_anexo": "art. 6.1",
+     "cita_literal": "6.1. Para efectos del modelamiento del parque de trasformadores, los niveles de tensión de los devanados de los transformadores deberán asociarse a los niveles de tensión establecidos en el numeral 12.1.1 de la Norma Tarifas.",
+     "clave": "pit.reserva.niveles_tension_fuente",
+     "lineas": "333-335",
+     "pagina": "7",
+     "unidad": "",
+     "valor": "num. 12.1.1 de la Norma Tarifas (RCD 217-2013-OS/CD)"
+    },
+    {
+     "articulo_o_anexo": "art. 6.2",
+     "cita_literal": "6.2. En caso un parque de transformadores comprenda más de dos regiones geográficas (costa, sierra, selva) se debe considerar para el Transformador de Reserva Compartida, el mayor BIL (“Basic Insulation Level”) requerido, y las respectivas correcciones de capacidad por efectos ambientales y por altura sobre el nivel del mar.",
+     "clave": "pit.reserva.varias_regiones",
+     "interpretacion": "cuando el parque abarca más de una región geográfica (costa, sierra, selva)",
+     "lineas": "337-340",
+     "pagina": "7",
+     "unidad": "",
+     "valor": "mayor_bil_con_correcciones_ambientales_y_altitud"
+    },
+    {
+     "articulo_o_anexo": "art. 6.3",
+     "cita_literal": "6.3. Un transformador de tres devanados puede considerarse como Transformador de Reserva Compartida de dos devanados de igual o menor capacidad, con los mismos niveles de tensión, de acuerdo con la evaluación.",
+     "clave": "pit.reserva.tres_devanados_sustituye_dos",
+     "interpretacion": "de igual o menor capacidad y los mismos niveles de tensión, según la evaluación",
+     "lineas": "342-344",
+     "pagina": "7",
+     "unidad": "",
+     "valor": true
+    },
+    {
+     "articulo_o_anexo": "art. 6.9",
+     "cita_literal": "6.9. Los Transformadores de Reserva Compartida existentes que actualmente no son remunerados por la demanda, podrán ser remunerados a solicitud del Agente por única vez en el proceso regulatorio de aprobación del Plan de Inversiones 2025 – 2029, sustentado en base a los resultados del modelo de determinación de ubicación y capacidad óptima de reserva de Transformación. Para ello, el Transformador de Reserva Compartida existente debe cumplir con las especificaciones técnicas, de capacidad y ubicación óptima que resulte de la empleabilidad del modelo; caso contrario, no se considerará el reconocimiento de su remuneración. Dicho reconocimiento no tiene carácter retroactivo y es de aplicación para los Transformadores de Reserva Compartida existentes con una antigüedad no mayor a (02) años respecto al año inicial de la presentación de propuestas del Plan de Inversiones 2025-2029.",
+     "clave": "pit.reserva.existentes_antiguedad_max_anios",
+     "interpretacion": "solo por única vez en el PIT 2025-2029, a solicitud del Agente y con el resultado del modelo",
+     "lineas": "375-385",
+     "pagina": "8",
+     "unidad": "años",
+     "valor": 2
+    },
+    {
+     "articulo_o_anexo": "art. 6.10",
+     "cita_literal": "6.10. El Agente Beneficiario que haga uso del Transformador de Reserva Compartida frente a un evento de falla, tendrá la obligación de comunicar por escrito a la División de Supervisión de Electricidad (DSE) en un plazo máximo de tres (3) días hábiles desde la fecha de entrada en operación del Transformador de Reserva Compartida. Corresponde a la DSE",
+     "clave": "pit.reserva.aviso_uso_dias_habiles",
+     "interpretacion": "comunicación escrita a la DSE desde la entrada en operación de la reserva",
+     "lineas": "387-390",
+     "pagina": "8",
+     "unidad": "días hábiles",
+     "valor": 3
+    },
+    {
+     "articulo_o_anexo": "art. 6.11",
+     "cita_literal": "6.11. El Agente Beneficiario que haga uso del Transformador de Reserva, frente a un evento de falla, deberá presentar a Osinergmin una declaración jurada, en un plazo no mayor a treinta (30) días calendario, conteniendo un cronograma de reposición del transformador fallado o la implementación de un transformador nuevo, según sea el tipo de falla y sujetándose al respectivo plazo máximo del cronograma. El cumplimiento del cronograma",
+     "clave": "pit.reserva.declaracion_reposicion_dias_calendario",
+     "interpretacion": "declaración jurada con el cronograma de reposición del transformador fallado",
+     "lineas": "395-399",
+     "pagina": "8",
+     "unidad": "días calendario",
+     "valor": 30
+    },
+    {
+     "articulo_o_anexo": "Anexo, tabla 1 (art. 7)",
+     "cita_literal": "Tabla 1: Información de los datos de entrada para el Modelo Económico- Financiero de Confiabilidad Área de  Año  Titulares de    Nombre         Año    Tipo de        Código de         Código de        Latitud    Longitud   Factor de                                          PNS [MW/ Año] Demanda        Tr ansmisión  Subestación  Operación  Sis te m a      Módulo            Módulo          (Grados     (Grados   Carga (%)  Año1 Año2 Año3 Año4 Año5 Año6 Año7 Año8 Año9 Año10 (SST o      Estánd ar del     Estánd ar del    Decimales)  Decimales) Tr ans form ador  Tr ans form ador SCT)          (Versión          (Versión Anterio r)         Vigente)",
+     "clave": "pit.reserva.formato.tabla_1",
+     "interpretacion": "columnas leídas de la tabla; el texto extraído separa letras («Tr ansmisión»), y se cotejaron con la página renderizada del PDF",
+     "lineas": "438-445",
+     "pagina": "10",
+     "unidad": "",
+     "valor": {
+      "columnas": [
+       "Área de Demanda",
+       "Año",
+       "Titulares de Transmisión",
+       "Nombre Subestación",
+       "Año Operación",
+       "Tipo de Sistema (SST o SCT)",
+       "Código de Módulo Estándar del Transformador (Versión Anterior)",
+       "Código de Módulo Estándar del Transformador (Versión Vigente)",
+       "Latitud (Grados Decimales)",
+       "Longitud (Grados Decimales)",
+       "Factor de Carga (%)",
+       "PNS [MW/Año] Año1",
+       "PNS [MW/Año] Año2",
+       "PNS [MW/Año] Año3",
+       "PNS [MW/Año] Año4",
+       "PNS [MW/Año] Año5",
+       "PNS [MW/Año] Año6",
+       "PNS [MW/Año] Año7",
+       "PNS [MW/Año] Año8",
+       "PNS [MW/Año] Año9",
+       "PNS [MW/Año] Año10"
+      ],
+      "titulo": "Información de los datos de entrada para el Modelo Económico- Financiero de Confiabilidad"
+     }
+    },
+    {
+     "articulo_o_anexo": "Anexo, tabla 2 (art. 7)",
+     "cita_literal": "Tabla 2: Información de entrada para la determinación de la capacidad y ubicación óptima del Transformador de Reserva Compartida Nodo  Titulares de  Subestación     Capacidad Estándar     Potencia No Servida     Tiempo de      Tiempo de instalar un Transm isión                                                  (MW)                            Transformador de 1                                 del Transformador                           reposición de un  Reserva Compartida 2                                         (MVA)                               Transformador              (horas) Matriz de Tiempos de Transporte (Horas) Nodo          1            2  3                   4  5  6                 7  8              9  10",
+     "clave": "pit.reserva.formato.tabla_2",
+     "interpretacion": "columnas leídas de la tabla; el texto extraído separa letras («Tr ansmisión»), y se cotejaron con la página renderizada del PDF; las 10 filas de nodos son del modelo de formato, no un tope",
+     "lineas": "449-455,465-467",
+     "pagina": "11",
+     "unidad": "",
+     "valor": {
+      "columnas": [
+       "Nodo",
+       "Titulares de Transmisión",
+       "Subestación",
+       "Capacidad Estándar del Transformador (MVA)",
+       "Potencia No Servida (MW)",
+       "Tiempo de reposición de un Transformador (horas)",
+       "Tiempo de instalar un Transformador de Reserva Compartida (horas)"
+      ],
+      "matriz": "Matriz de Tiempos de Transporte (Horas), nodo por nodo",
+      "titulo": "Información de entrada para la determinación de la capacidad y ubicación óptima del Transformador de Reserva Compartida"
+     }
+    },
+    {
+     "articulo_o_anexo": "Anexo, tabla 3 (art. 7)",
+     "cita_literal": "Tabla 3: Información del Transformador de Reserva solicitado por el Agente INFORMACIÓN DEL TRANSFORMADOR DE RESERVA COMPARTIDA Ítem                                                              Selección Tipo de Reserva                                                     Marque con una x Compa rtida Tipo de trans formador                                                  Marque con una x Monofásico Potencia del trans formador            Trifási co cua tro devanados Ubi ca ción del Tra nsformador          Trifási co tres devanados Trifási co dos deva nados Especifique el valor [MVA] Nombre de Subes taci ón Capa cidad con refri gera ción forzada  [MVA] Número de deva nados Impedancia de secuencia positi va       [Ω] Ni vel de tensión                       [kV] Co ne xió n                         Grupo vectorial",
+     "clave": "pit.reserva.formato.tabla_3",
+     "interpretacion": "columnas leídas de la tabla; el texto extraído separa letras («Tr ansmisión»), y se cotejaron con la página renderizada del PDF",
+     "lineas": "483-506",
+     "pagina": "12",
+     "unidad": "",
+     "valor": {
+      "items": [
+       {
+        "item": "Tipo de Reserva",
+        "opciones": [
+         "Compartida"
+        ],
+        "seleccion": "Marque con una x"
+       },
+       {
+        "item": "Tipo de transformador",
+        "opciones": [
+         "Monofásico",
+         "Trifásico cuatro devanados",
+         "Trifásico tres devanados",
+         "Trifásico dos devanados"
+        ],
+        "seleccion": "Marque con una x"
+       },
+       {
+        "item": "Potencia del transformador",
+        "seleccion": "Especifique el valor",
+        "unidad": "MVA"
+       },
+       {
+        "item": "Ubicación del Transformador",
+        "seleccion": "Especifique el valor",
+        "unidad": "Nombre de Subestación"
+       },
+       {
+        "item": "Capacidad con refrigeración forzada",
+        "seleccion": "Especifique el valor",
+        "unidad": "MVA"
+       },
+       {
+        "item": "Número de devanados",
+        "seleccion": "Especifique el valor",
+        "unidad": ""
+       },
+       {
+        "item": "Impedancia de secuencia positiva",
+        "seleccion": "Especifique el valor",
+        "unidad": "Ω"
+       },
+       {
+        "item": "Nivel de tensión",
+        "seleccion": "Especifique el valor",
+        "unidad": "kV"
+       },
+       {
+        "item": "Conexión",
+        "seleccion": "Especifique el valor",
+        "unidad": "Grupo vectorial"
+       }
+      ],
+      "titulo": "Información del Transformador de Reserva solicitado por el Agente"
+     }
+    }
+   ],
+   "sha256": "21241b1430a2e5825daa78e55d1fc920fa74593e8e0dce599d503e86667568fb",
+   "sha256_texto": "57dcb4da58c99aa72404d3e42f0b7fcd5b00c3efe5fe460cc0f7b246b668ac38",
+   "titulo": "Norma «Procedimiento para la determinación de transformadores de reserva en los SST y SCT»",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2022/Osinergmin-094-2022-OS-CD.pdf",
+   "version": "Lima, 02 de junio de 2022"
+  }
+ ],
+ "nota": "107 T24. Norma «Procedimiento para la determinación de transformadores de reserva en los SST y SCT»."
+}

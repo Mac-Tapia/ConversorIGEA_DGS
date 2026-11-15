@@ -121,6 +121,10 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | `planificacion.factor_seguridad_set_sin_tasa` | norma | SET nueva sin tasa de crecimiento | 1,25 de referencia, con aviso; con tasa se usa `factor_seguridad_set` |
 | `planificacion.capex` | empresa | Leer el libro CAPEX | Sin costo del libro, y se dice |
 | `planificacion.tarifas` | empresa | Evaluación privada del PIDE | Queda señalada como pendiente |
+| `pit.areas` | empresa | Plan de Inversiones en Transmisión: cada área de demanda con su código, sus titulares, sus SET, los alimentadores de cada SET, la tensión mínima del ámbito (`tension_min_kv`) y a qué área va cada elemento compartido (`compartidos`) | El PIT no se estudia: no se supone ningún área |
+| `pit.libro_red` | empresa | Libro de la red de transmisión del área, en .xlsx, .xlsm, .xls o .xlsb: `hoja` (una, una lista o ninguna: entonces se recorren todas y se avisa de las que no traen el contrato), `fila_cabecera` (opcional: se busca por contenido) y `columnas` (clave del contrato → encabezado del libro) | La red sale del proyecto de transmisión de DIgSILENT |
+| `pit.libro_cuadros` | empresa | Libro modelo de los cuadros del PIT: `modelo` y, por cuadro, `hoja` y `celda` inicial | Los cuadros quedan en el expediente, sin libro, y se dice |
+| `pit.limites` | norma | Límites de tensión y cargabilidad del diagnóstico del PIT si el registro normativo no los da | Los del registro; sin ninguno, el diagnóstico se detiene y nombra el límite |
 
 ### Cargas nuevas
 

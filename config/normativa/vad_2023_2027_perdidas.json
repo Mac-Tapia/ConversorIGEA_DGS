@@ -1,0 +1,461 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "107-T19b 3a. Pérdidas estándar del VAD 2023-2027 de las 11 empresas de la fijación 187-2023. Fichero reemplazable por periodo: una empresa que no esté aquí no toma los valores de otra; su fijación vigente va en su propio fichero y, si no lo hay, sus pérdidas quedan «no transcritas».",
+ "normas": [
+  {
+   "acto": "RCD 187-2023-OS/CD",
+   "estado_juridico": "modificada",
+   "fecha_consulta": "2026-11-14",
+   "titulo": "Fija el Valor Agregado de Distribución del período 01 de noviembre 2023 al 31 de octubre 2027",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Osinergmin-187-2023-OS-CD.pdf",
+   "sha256": "52e3443c7404a428fc774508e4010815db24f654afe672d182020434ed45aca4",
+   "modificada_por": [
+    "RCD 223-2023-OS/CD"
+   ],
+   "nota": "Su num. 2.5 (factores de expansión de pérdidas) lo sustituye el art. 4 de la 223-2023, la resolución complementaria de los recursos de reconsideración (209 y 213 a 222-2023, cuyo art. 3 manda consignar las modificaciones en resolución complementaria). Sustento: IT 716-2023-GRT, tabla 3.5.",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.factores_expansion_it716",
+     "valor": {
+      "periodo": {
+       "desde": "2023-11-01",
+       "hasta": "2027-10-31"
+      },
+      "orden": [
+       "PEMT",
+       "PPMT",
+       "PESED",
+       "PPSED",
+       "PEBT",
+       "PPBT",
+       "PEBTCO",
+       "PPBTCO"
+      ],
+      "empresas": {
+       "Electrocentro": {
+        "fe": {
+         "PEMT": 1.0154,
+         "PPMT": 1.0212,
+         "PESED": 1.0202,
+         "PPSED": 1.0217,
+         "PEBT": 1.0766,
+         "PPBT": 1.0872,
+         "PEBTCO": 1.0734,
+         "PPBTCO": 1.0821
+        },
+        "porcentaje": {
+         "PEMT": 1.52,
+         "PPMT": 2.08,
+         "PESED": 1.98,
+         "PPSED": 2.12,
+         "PEBT": 7.11,
+         "PPBT": 8.02,
+         "PEBTCO": 6.84,
+         "PPBTCO": 7.59
+        }
+       },
+       "Electronoroeste": {
+        "fe": {
+         "PEMT": 1.0108,
+         "PPMT": 1.0188,
+         "PESED": 1.0167,
+         "PPSED": 1.0167,
+         "PEBT": 1.068,
+         "PPBT": 1.0764,
+         "PEBTCO": 1.0649,
+         "PPBTCO": 1.0702
+        },
+        "porcentaje": {
+         "PEMT": 1.07,
+         "PPMT": 1.85,
+         "PESED": 1.64,
+         "PPSED": 1.64,
+         "PEBT": 6.37,
+         "PPBT": 7.1,
+         "PEBTCO": 6.09,
+         "PPBTCO": 6.56
+        }
+       },
+       "Electronorte": {
+        "fe": {
+         "PEMT": 1.0116,
+         "PPMT": 1.0196,
+         "PESED": 1.0184,
+         "PPSED": 1.0202,
+         "PEBT": 1.0712,
+         "PPBT": 1.0838,
+         "PEBTCO": 1.0682,
+         "PPBTCO": 1.0777
+        },
+        "porcentaje": {
+         "PEMT": 1.15,
+         "PPMT": 1.92,
+         "PESED": 1.81,
+         "PPSED": 1.98,
+         "PEBT": 6.65,
+         "PPBT": 7.73,
+         "PEBTCO": 6.38,
+         "PPBTCO": 7.21
+        }
+       },
+       "Hidrandina": {
+        "fe": {
+         "PEMT": 1.0085,
+         "PPMT": 1.0203,
+         "PESED": 1.0198,
+         "PPSED": 1.0206,
+         "PEBT": 1.0655,
+         "PPBT": 1.078,
+         "PEBTCO": 1.0628,
+         "PPBTCO": 1.0721
+        },
+        "porcentaje": {
+         "PEMT": 0.84,
+         "PPMT": 1.99,
+         "PESED": 1.94,
+         "PPSED": 2.02,
+         "PEBT": 6.15,
+         "PPBT": 7.24,
+         "PEBTCO": 5.91,
+         "PPBTCO": 6.73
+        }
+       },
+       "Electro Puno": {
+        "fe": {
+         "PEMT": 1.0205,
+         "PPMT": 1.0276,
+         "PESED": 1.0301,
+         "PPSED": 1.0323,
+         "PEBT": 1.0948,
+         "PPBT": 1.1054,
+         "PEBTCO": 1.0942,
+         "PPBTCO": 1.1049
+        },
+        "porcentaje": {
+         "PEMT": 2.01,
+         "PPMT": 2.69,
+         "PESED": 2.92,
+         "PPSED": 3.13,
+         "PEBT": 8.66,
+         "PPBT": 9.54,
+         "PEBTCO": 8.61,
+         "PPBTCO": 9.49
+        }
+       },
+       "Electro Sur Este": {
+        "fe": {
+         "PEMT": 1.018,
+         "PPMT": 1.025,
+         "PESED": 1.0225,
+         "PPSED": 1.027,
+         "PEBT": 1.0871,
+         "PPBT": 1.0913,
+         "PEBTCO": 1.0867,
+         "PPBTCO": 1.091
+        },
+        "porcentaje": {
+         "PEMT": 1.77,
+         "PPMT": 2.44,
+         "PESED": 2.2,
+         "PPSED": 2.63,
+         "PEBT": 8.01,
+         "PPBT": 8.37,
+         "PEBTCO": 7.98,
+         "PPBTCO": 8.34
+        }
+       },
+       "Electrosur": {
+        "fe": {
+         "PEMT": 1.0163,
+         "PPMT": 1.0236,
+         "PESED": 1.019,
+         "PPSED": 1.0198,
+         "PEBT": 1.0904,
+         "PPBT": 1.0927,
+         "PEBTCO": 1.09,
+         "PPBTCO": 1.0923
+        },
+        "porcentaje": {
+         "PEMT": 1.6,
+         "PPMT": 2.31,
+         "PESED": 1.86,
+         "PPSED": 1.94,
+         "PEBT": 8.29,
+         "PPBT": 8.48,
+         "PEBTCO": 8.26,
+         "PPBTCO": 8.45
+        }
+       },
+       "Seal": {
+        "fe": {
+         "PEMT": 1.0202,
+         "PPMT": 1.0236,
+         "PESED": 1.0173,
+         "PPSED": 1.023,
+         "PEBT": 1.083,
+         "PPBT": 1.102,
+         "PEBTCO": 1.0826,
+         "PPBTCO": 1.1016
+        },
+        "porcentaje": {
+         "PEMT": 1.98,
+         "PPMT": 2.31,
+         "PESED": 1.7,
+         "PPSED": 2.25,
+         "PEBT": 7.66,
+         "PPBT": 9.26,
+         "PEBTCO": 7.63,
+         "PPBTCO": 9.22
+        }
+       },
+       "Adinelsa": {
+        "fe": {
+         "PEMT": 1.021,
+         "PPMT": 1.0307,
+         "PESED": 1.0243,
+         "PPSED": 1.0358,
+         "PEBT": 1.0696,
+         "PPBT": 1.0935,
+         "PEBTCO": 1.0674,
+         "PPBTCO": 1.0899
+        },
+        "porcentaje": {
+         "PEMT": 2.06,
+         "PPMT": 2.98,
+         "PESED": 2.37,
+         "PPSED": 3.46,
+         "PEBT": 6.51,
+         "PPBT": 8.55,
+         "PEBTCO": 6.31,
+         "PPBTCO": 8.25
+        }
+       },
+       "Electro Oriente": {
+        "fe": {
+         "PEMT": 1.0111,
+         "PPMT": 1.016,
+         "PESED": 1.0211,
+         "PPSED": 1.0298,
+         "PEBT": 1.0887,
+         "PPBT": 1.1125,
+         "PEBTCO": 1.0881,
+         "PPBTCO": 1.1117
+        },
+        "porcentaje": {
+         "PEMT": 1.1,
+         "PPMT": 1.57,
+         "PESED": 2.07,
+         "PPSED": 2.89,
+         "PEBT": 8.15,
+         "PPBT": 10.11,
+         "PEBTCO": 8.1,
+         "PPBTCO": 10.05
+        }
+       },
+       "Electro Ucayali": {
+        "fe": {
+         "PEMT": 1.013,
+         "PPMT": 1.0195,
+         "PESED": 1.0205,
+         "PPSED": 1.0284,
+         "PEBT": 1.0929,
+         "PPBT": 1.118,
+         "PEBTCO": 1.0919,
+         "PPBTCO": 1.1165
+        },
+        "porcentaje": {
+         "PEMT": 1.28,
+         "PPMT": 1.91,
+         "PESED": 2.01,
+         "PPSED": 2.76,
+         "PEBT": 8.5,
+         "PPBT": 10.55,
+         "PEBTCO": 8.42,
+         "PPBTCO": 10.43
+        }
+       }
+      },
+      "uso": "MT: ventas × FE_MT; BT: ventas × FE_BT × FE_SED × FE_MT; BT con medición centralizada: ventas × FE_BTCO × FE_SED × FE_MT; potencia con los PP; AT y MAT sin pérdidas (217-2013, art. 8.1). El (1+%p) de la 217 se lee como este factor, que es 1/(1−p)"
+     },
+     "articulo_o_anexo": "IT 716-2023-GRT, num. 3.5 (sustento de la 187-2023)",
+     "pagina": "25-26",
+     "cita_literal": "3.5 Porcentajes y Factores de Expansión de Pérdidas. Los porcentajes de pérdidas a nivel empresa, referidos al ingreso en cada nivel de tensión, son: … A partir de los porcentajes señalados, los factores de expansión de pérdidas a aplicar son los siguientes:",
+     "interpretacion": "valores de la fijación ANTES de las reconsideraciones; se conservan como sustento y para la comprobación cruzada. Leídos por columnas de la capa de texto (pdftotext desplaza las etiquetas una fila) y cotejados con la página renderizada; cada fila cumple FE = 1/(1−p)"
+    }
+   ]
+  },
+  {
+   "acto": "RCD 223-2023-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-14",
+   "fecha_publicacion": "2023-12-06",
+   "titulo": "Resolución Complementaria VAD de los Recursos de Reconsideración interpuestos contra la Resolución N° 187-2023-OS/CD",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Osinergmin-223-2023-OS-CD.pdf",
+   "sha256": "afb9b46db5d7c382bb73ff327584eefb64b40826f485382f1c20d957da4dbfe0",
+   "modifica": [
+    "RCD 187-2023-OS/CD"
+   ],
+   "nota": "Emitida el 28/11/2023 y publicada el 06/12/2023 (Resoluciones-GRT-2023.aspx). No se halló modificatoria ni fe de erratas posterior en las páginas GRT 2023 y 2024 (consulta del 2026-11-14).",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.factores_expansion",
+     "valor": {
+      "periodo": {
+       "desde": "2023-11-01",
+       "hasta": "2027-10-31"
+      },
+      "orden": [
+       "PEMT",
+       "PPMT",
+       "PESED",
+       "PPSED",
+       "PEBT",
+       "PPBT",
+       "PEBTCO",
+       "PPBTCO"
+      ],
+      "empresas": {
+       "Electrocentro": {
+        "fe": {
+         "PEMT": 1.0305,
+         "PPMT": 1.0291,
+         "PESED": 1.0205,
+         "PPSED": 1.0223,
+         "PEBT": 1.0768,
+         "PPBT": 1.0876,
+         "PEBTCO": 1.0737,
+         "PPBTCO": 1.0825
+        }
+       },
+       "Electronoroeste": {
+        "fe": {
+         "PEMT": 1.0135,
+         "PPMT": 1.0203,
+         "PESED": 1.017,
+         "PPSED": 1.0167,
+         "PEBT": 1.068,
+         "PPBT": 1.0755,
+         "PEBTCO": 1.065,
+         "PPBTCO": 1.0696
+        }
+       },
+       "Electronorte": {
+        "fe": {
+         "PEMT": 1.0152,
+         "PPMT": 1.022,
+         "PESED": 1.0188,
+         "PPSED": 1.0202,
+         "PEBT": 1.0716,
+         "PPBT": 1.0823,
+         "PEBTCO": 1.0685,
+         "PPBTCO": 1.0765
+        }
+       },
+       "Hidrandina": {
+        "fe": {
+         "PEMT": 1.0104,
+         "PPMT": 1.0214,
+         "PESED": 1.0199,
+         "PPSED": 1.0209,
+         "PEBT": 1.0655,
+         "PPBT": 1.0781,
+         "PEBTCO": 1.0627,
+         "PPBTCO": 1.0723
+        }
+       },
+       "Electro Puno": {
+        "fe": {
+         "PEMT": 1.0205,
+         "PPMT": 1.0276,
+         "PESED": 1.03,
+         "PPSED": 1.0323,
+         "PEBT": 1.0947,
+         "PPBT": 1.1055,
+         "PEBTCO": 1.0942,
+         "PPBTCO": 1.105
+        }
+       },
+       "Electro Sur Este": {
+        "fe": {
+         "PEMT": 1.018,
+         "PPMT": 1.025,
+         "PESED": 1.0225,
+         "PPSED": 1.0269,
+         "PEBT": 1.0872,
+         "PPBT": 1.0915,
+         "PEBTCO": 1.0868,
+         "PPBTCO": 1.0911
+        }
+       },
+       "Electrosur": {
+        "fe": {
+         "PEMT": 1.0163,
+         "PPMT": 1.0236,
+         "PESED": 1.019,
+         "PPSED": 1.0198,
+         "PEBT": 1.0904,
+         "PPBT": 1.0927,
+         "PEBTCO": 1.09,
+         "PPBTCO": 1.0923
+        }
+       },
+       "Seal": {
+        "fe": {
+         "PEMT": 1.0202,
+         "PPMT": 1.0236,
+         "PESED": 1.0173,
+         "PPSED": 1.023,
+         "PEBT": 1.083,
+         "PPBT": 1.102,
+         "PEBTCO": 1.0826,
+         "PPBTCO": 1.1016
+        }
+       },
+       "Adinelsa": {
+        "fe": {
+         "PEMT": 1.0215,
+         "PPMT": 1.0314,
+         "PESED": 1.0246,
+         "PPSED": 1.0361,
+         "PEBT": 1.0702,
+         "PPBT": 1.0945,
+         "PEBTCO": 1.0679,
+         "PPBTCO": 1.0907
+        }
+       },
+       "Electro Oriente": {
+        "fe": {
+         "PEMT": 1.0112,
+         "PPMT": 1.016,
+         "PESED": 1.0211,
+         "PPSED": 1.0298,
+         "PEBT": 1.0889,
+         "PPBT": 1.1128,
+         "PEBTCO": 1.0883,
+         "PPBTCO": 1.112
+        }
+       },
+       "Electro Ucayali": {
+        "fe": {
+         "PEMT": 1.013,
+         "PPMT": 1.0192,
+         "PESED": 1.0201,
+         "PPSED": 1.0284,
+         "PEBT": 1.0913,
+         "PPBT": 1.1182,
+         "PEBTCO": 1.0903,
+         "PPBTCO": 1.1167
+        }
+       }
+      },
+      "uso": "MT: ventas × FE_MT; BT: ventas × FE_BT × FE_SED × FE_MT; BT con medición centralizada: ventas × FE_BTCO × FE_SED × FE_MT; potencia con los PP; AT y MAT sin pérdidas (217-2013, art. 8.1). El (1+%p) de la 217 se lee como este factor, que es 1/(1−p)"
+     },
+     "articulo_o_anexo": "art. 4 (modifica el num. 2.5 de la RCD 187-2023)",
+     "pagina": "4",
+     "cita_literal": "Artículo 4.- Modificar el numeral 2.5 Factores de Expansión de Pérdidas del Artículo 1 de la Resolución Osinergmin N° 187-2023-OS/CD, según lo siguiente: Factores de Expansión de Pérdidas",
+     "interpretacion": "transcritos desde la página renderizada (130 ppp) y comprobados con la capa de texto del PDF por columnas: 88 de 88 valores iguales"
+    }
+   ]
+  }
+ ]
+}

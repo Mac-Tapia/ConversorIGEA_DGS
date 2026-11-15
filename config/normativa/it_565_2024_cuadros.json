@@ -1,0 +1,124 @@
+{
+ "amplia": "RCD 149-2024-OS/CD",
+ "esquema": "registro_normativo_v1",
+ "nota": "Anexos A y B del Informe Técnico 565-2024-GRT (sha256 del PDF f315d7123ad5df0df4c89207c03120e89f819dd6d80668fa1bed82e096b8e80e, del texto 1f80ac1c27a99195b954dfcdb744dd52453687e8009290ddd8a8f57eb6cf6c98): solo columnas.",
+ "reglas": [
+  {
+   "articulo_o_anexo": "IT 565-2024-GRT, anexo A, cuadro A1.1",
+   "cita_literal": "PLAN DE INVERSIONES 2025-2029 (NUEVAS INSTALACIONES) Cuadro A1.1: Proyectos necesarios en el Periodo 2025-2029 Área de Demanda 1 Proyecto N° Año previsto (*) Titular Proyecto Instalación Inversión USD",
+   "clave": "pit.cuadro.nuevas",
+   "lineas": "556-566",
+   "pagina": "17",
+   "unidad": "",
+   "valor": {
+    "columnas": [
+     {
+      "campo": "numero",
+      "nombre": "Proyecto N°"
+     },
+     {
+      "campo": "anio",
+      "nombre": "Año previsto"
+     },
+     {
+      "campo": "titular",
+      "nombre": "Titular"
+     },
+     {
+      "campo": "descripcion",
+      "nombre": "Proyecto"
+     },
+     {
+      "campo": "instalacion",
+      "nombre": "Instalación"
+     },
+     {
+      "campo": "inversion",
+      "moneda": "USD",
+      "nombre": "Inversión USD"
+     }
+    ],
+    "filas": "altas",
+    "numeracion": "A<área>.1",
+    "por": "Área de Demanda",
+    "titulo": "Proyectos necesarios en el Periodo"
+   }
+  },
+  {
+   "articulo_o_anexo": "IT 565-2024-GRT, anexo A, cuadro A1.2",
+   "cita_literal": "Cuadro A1.2: Proyectos previstos a darse de Baja en el Periodo 2025-2029 Área de Demanda 1 N° Año Titular Elemento Instalación",
+   "clave": "pit.cuadro.bajas",
+   "lineas": "587-589",
+   "pagina": "17",
+   "unidad": "",
+   "valor": {
+    "columnas": [
+     {
+      "campo": "numero",
+      "nombre": "N°"
+     },
+     {
+      "campo": "anio",
+      "nombre": "Año"
+     },
+     {
+      "campo": "titular",
+      "nombre": "Titular"
+     },
+     {
+      "campo": "descripcion",
+      "nombre": "Elemento"
+     },
+     {
+      "campo": "instalacion",
+      "nombre": "Instalación"
+     }
+    ],
+    "filas": "bajas",
+    "numeracion": "A<área>.2",
+    "por": "Área de Demanda",
+    "titulo": "Proyectos previstos a darse de Baja en el Periodo"
+   }
+  },
+  {
+   "articulo_o_anexo": "IT 565-2024-GRT, anexo B, cuadro B1.1",
+   "cita_literal": "Cuadro B1.1: Elementos Retirados del Plan de Inversiones 2021-2025 Área de Demanda 2 Titular Año Elemento Instalación Módulo Estándar Sustento",
+   "clave": "pit.cuadro.retirados",
+   "lineas": "1579-1581",
+   "pagina": "38",
+   "unidad": "",
+   "valor": {
+    "columnas": [
+     {
+      "campo": "titular",
+      "nombre": "Titular"
+     },
+     {
+      "campo": "anio",
+      "nombre": "Año"
+     },
+     {
+      "campo": "descripcion",
+      "nombre": "Elemento"
+     },
+     {
+      "campo": "instalacion",
+      "nombre": "Instalación"
+     },
+     {
+      "campo": "modulo",
+      "nombre": "Módulo Estándar"
+     },
+     {
+      "campo": "sustento",
+      "nombre": "Sustento"
+     }
+    ],
+    "filas": "retirados",
+    "numeracion": "B<n>.1",
+    "por": "Área de Demanda",
+    "titulo": "Elementos Retirados del Plan de Inversiones anterior"
+   }
+  }
+ ]
+}

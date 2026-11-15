@@ -57,6 +57,22 @@ la 108. En ese caso, la tarea T1 de la 107 solo añade lo que le falte, con su p
 un solo módulo y un solo vocabulario. La 107 necesita, al menos, distinguir `vigente_comprobada`, `modificada`,
 `prepublicada` y `no_verificada` (RF-7), y que el módulo no quede dentro de `vad/` ni de `pit/`.
 
+## Ampliación del 2026-11-14: entregables de Osinergmin (aclaraciones de RF-9 y RF-10; RF-13 a RF-18)
+
+Del veredicto de 7e sobre `OSINERGMIN_ENTREGABLES/INVENTARIO.md`. Cada parte amplía un módulo que ya existe o añade
+uno al paquete `pit/`; ninguna crea una spec nueva.
+
+| Parte | Ficheros (propuestos) | Cubre |
+| --- | --- | --- |
+| **K. Formatos de la norma registrada.** La lista de formatos y sus columnas salen de la regla de formatos de la norma vigente del registro (`pit.formatos_*`, con `transcrito: true` y las columnas de cada formato); el escritor no conoce ningún número de formato ni de columnas. Un formato listado y no transcrito va a `cuadros_no_transcritos` del resumen. Una celda derivada de otro formato se escribe como fórmula que apunta a la celda de origen, con el mecanismo `formulas` de `libro_informe`. | `pit/cuadros.py` (ampliado), `config/normativa/` | Aclaración de RF-9 |
+| **L. Absolución.** `observaciones.escribir_absolucion`: cada observación con su objeto, su respuesta y la traza de lo que cambió (celdas o elementos antes y después, por su huella). | `pit/observaciones.py` (ampliado) | Aclaración de RF-10 |
+| **M. Resumen ejecutivo.** Demanda del área por año, alternativa elegida y programa, leídos del expediente emitido; ninguna cifra calculada aparte. | `pit/informe.py` | RF-13 |
+| **N. Memoria y relación de sustento.** `expediente.emitir` añade a cada sección su memoria (criterios, metodología, entradas, resultados) y la relación de los documentos de sustento con descripción, uso y huella. | `pit/expediente.py` (ampliado) | RF-14 |
+| **O. Unifilar DXF.** Una hoja (bloque de presentación) por alternativa y año, con el marco, las barras, los transformadores y el flujo de cada línea del diagnóstico. El DXF se escribe con `ezdxf`; el DWG, solo si la configuración o el PATH dan el ODA File Converter, nunca con una ruta fija; si falta, el DXF se entrega con un aviso que dice cómo obtener el DWG. | `pit/unifilar.py` | RF-15 |
+| **P. Transformadores de reserva.** Con la regla del procedimiento vigente registrado (la RCD 094-2022 cuando esté transcrita); sin regla, un aviso que la nombra. | `pit/reserva.py` | RF-16 |
+| **Q. Modificación del plan vigente.** Modo `modificacion` del expediente: compara el programa vigente con el nuevo y lista lo que se elimina, cambia o agrega, con su razón; demanda y alternativas con los mismos criterios. | `pit/programa.py` y `pit/expediente.py` (ampliados) | RF-17 |
+| **R. Formato F-208.** La estadística de fallas y los índices de desempeño de las fuentes importadas (confiabilidad, spec 012); el hueco nombrado cuando faltan. | `pit/cuadros.py` (ampliado) | RF-18 |
+
 ## Decisiones
 
 - **Un paquete `pit/` aparte del PIDE.** Descartado: ampliar `pide.py` y `formatos_pide.py` (lo que proponía la fila
@@ -92,6 +108,10 @@ un solo módulo y un solo vocabulario. La 107 necesita, al menos, distinguir `vi
 - **Elemento compartido entre dos áreas: su asignación la declara el perfil.** Sin declaración, el elemento aparece en
   los dos ámbitos marcado como compartido y sin asignar, y el diagnóstico de ese elemento no se da por completo (RF-4).
   Descartado: repartirlo a partes iguales, que sería un dato inventado.
+- **Unifilar en DXF, y DWG solo como añadido** (RF-15, decisión de e6 por orden del usuario). Descartado: entregar
+  solo DWG, porque es un formato cerrado que exige un convertidor externo y dejaría la entrega a merced de él; y dibujar
+  el unifilar como imagen, porque el entregable pide ficheros que se editen en CAD. No hay escritor de DXF en el
+  conversor (los diagramas de `mapa_informe` son imágenes), así que no se duplica ninguno.
 
 ## Comprobación contra la constitución
 
@@ -100,13 +120,16 @@ un solo módulo y un solo vocabulario. La 107 necesita, al menos, distinguir `vi
   normas para la 107 y la 108.
 - **P7.** El diagnóstico de varios años y la evaluación de alternativas son trabajos en cola, cancelables entre años y
   entre alternativas; DIgSILENT, en su carril en serie.
-- **P8.** pandapower ya es dependencia del núcleo; no hace falta ninguna nueva.
+- **P8.** pandapower ya es dependencia del núcleo; no hace falta ninguna nueva para RF-1 a RF-14 y RF-16 a RF-18. RF-15 necesita
+  `ezdxf` (escribir y leer DXF), que no está en el `.venv`: es dependencia OBLIGATORIA, con versión fijada (veredicto del
+  auditor ca, 2026-11-14 20:55), porque el DXF es la entrega garantizada; solo el DWG, con el ODA File Converter, es
+  opcional. Su tarea queda bloqueada hasta que el integrador la añada.
 - **P9.** El expediente y los datos del área se quedan en local o en la nube propia del usuario. Nada se envía al
   regulador desde el sistema (fuera de alcance).
 - **P10.** Código, mensajes y expediente en español.
 - **P12.** Cada RF tiene su tarea y su prueba que lo cita (`107:RF-n`).
 - **P13 y RF-11.** Ningún número de área, titular, tensión, límite, tasa, vida útil ni año en el código: van en el
-  perfil (`pit.areas`, libro de la red, libro modelo) o en el registro. Electro Dunas es el primer caso real, con su área
+  perfil (`pit.areas`, libro de la red, libro modelo) o en el registro. La primera empresa de prueba es el primer caso real, con su área
   y su titular en su perfil (G1, punto 3).
 - **Determinismo (requisito no funcional).** Orden estable de elementos, años y alternativas; JSON con claves ordenadas;
   sin fecha de reloj dentro del expediente salvo la que entra como dato.

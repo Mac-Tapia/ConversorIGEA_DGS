@@ -1,0 +1,149 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 217-2013-OS/CD",
+   "estado_juridico": "modificada",
+   "fecha_consulta": "2026-11-14",
+   "fichero_local": "rcd_217-2013.txt",
+   "modificada_por": [
+    "RCD 018-2018-OS/CD",
+    "RCD 177-2021-OS/CD",
+    "RCD 242-2021-OS/CD"
+   ],
+   "nota": "Modificada al menos por la 018-2018 (num. 5.8.2 y 12.3), la 177-2021 (disposición transitoria; no leída) y la 242-2021 (num. 24.5 y nuevos 15.7, 17.5, 24.11, 25.4 y 28.6). Las reglas de aquí son de numerales que esas modificatorias no tocan, pero no se ha comprobado que ninguna norma posterior las cambie: sin fecha de vigencia comprobada, se usan como referencia (107:RF-8). El 12.3 vigente está en la 018-2018.",
+   "reglas": [
+    {
+     "articulo_o_anexo": "art. 3.14",
+     "cita_literal": "3.14. Horizonte de Estudio:  30 años para efectos de proyección de la demanda y dimensionamiento de la transmisión asignada a la demanda, 4 años de la asignada a la generación y; 10 años para efectos de la evaluación comparativa de alternativas  de expansión de la red de transmisión.",
+     "clave": "pit.horizonte_demanda_anios",
+     "lineas": "422-426",
+     "pagina": "10",
+     "unidad": "años",
+     "valor": 30
+    },
+    {
+     "articulo_o_anexo": "art. 3.14",
+     "cita_literal": "3.14. Horizonte de Estudio:  30 años para efectos de proyección de la demanda y dimensionamiento de la transmisión asignada a la demanda, 4 años de la asignada a la generación y; 10 años para efectos de la evaluación comparativa de alternativas  de expansión de la red de transmisión.",
+     "clave": "pit.horizonte_alternativas_anios",
+     "lineas": "422-426",
+     "pagina": "10",
+     "unidad": "años",
+     "valor": 10
+    },
+    {
+     "articulo_o_anexo": "art. 5.9.3",
+     "cita_literal": "5.9.3. Para determinar el Plan de Inversiones , se analizarán técnica y económicamente diversas alternativas  de expansión de la red de transmisión, a fin de definir la  que, además de cumplir durante todo el horizonte de 10 años, con las normas vigentes aplicables, corresponda a la alternativa de mínimo costo total (Inversión+COyM+Pérdidas).",
+     "clave": "pit.criterio_alternativas",
+     "lineas": "672-676",
+     "pagina": "15",
+     "unidad": "",
+     "valor": "minimo_costo_total_inversion_coym_perdidas"
+    },
+    {
+     "articulo_o_anexo": "art. 5.9.4",
+     "cita_literal": "5.9.4. Para la programación de las inversiones necesarias, primero se determina la configuración para el año horizonte: i) 4 para las instalaciones asignadas a la generación y, ii) 30 para las instalaciones asignadas a la demanda. Luego se define el desarrollo progresivo de la red: i) para los años 1, 2, 3 y 4 en el caso de las instalaciones asignadas a la generación y, ii) para los años 1, 2, 3, 4, 5, 8 , 10 y para los años que resulten necesarios en el caso de las instalaciones asignadas total o parcialmente a la demanda. En ambos casos se parte de la red del año inicial del estudio ( la que puede ser la red real o el SEA  cuando corresponda), teniendo siempre como objetivo el sistema de transmisión definido para el año horizonte.",
+     "clave": "pit.anios_programacion_demanda",
+     "interpretacion": "además de los años que resulten necesarios",
+     "lineas": "691-701",
+     "pagina": "16",
+     "unidad": "año del horizonte",
+     "valor": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      8,
+      10
+     ]
+    },
+    {
+     "articulo_o_anexo": "art. 11.3",
+     "cita_literal": "11.3. El Plan de Inversiones  debe definirse a partir de la evaluación de distintas alternativas y corresponde a la alternativa que constituya la solución de mínimo costo total en el horizonte de  10 años, teniendo en cuenta lo establecido en la presente Norma y la siguiente expresión: Costo Total = Valor presente de (Inversión + Operación + Mantenimiento + Pérdidas) Donde: Pérdidas: Pérdidas físicas de Potencia y Energía  valorizadas a los precios vigentes de las Barras de Referencia de Generación. Las pérdidas de cada alternativa se obtienen como el valor presente de la diferencia entre las pérdidas que presenta el sistema de la alternativa evaluada, en cada año  del horizonte (10 años), y las pérdidas correspondientes al primer año de dicho horizonte sin la implementación de ninguna instalación.",
+     "clave": "pit.costo_total",
+     "interpretacion": "pérdidas valorizadas a los precios de las Barras de Referencia de Generación, como diferencia con las del primer año sin ninguna instalación",
+     "lineas": "1201-1215",
+     "pagina": "26",
+     "unidad": "",
+     "valor": "valor_presente(inversion+operacion+mantenimiento+perdidas)"
+    },
+    {
+     "articulo_o_anexo": "art. 12.1.6",
+     "cita_literal": "12.1.6. Para las líneas en MAT, AT y las SET,’s se considera un factor de utilización (f.u.) máximo de 1,0 en operación normal para la condición de máxima demanda.",
+     "clave": "pit.factor_utilizacion_max",
+     "interpretacion": "cargabilidad máxima del 100 % en operación normal a máxima demanda, en líneas MAT y AT y SET",
+     "lineas": "1281-1283",
+     "pagina": "28",
+     "unidad": "p.u.",
+     "valor": 1.0
+    },
+    {
+     "articulo_o_anexo": "art. 12.1.8.c",
+     "cita_literal": "12.1.8.c Se  considera un factor de potencia de 0,95 en barras de MT de las SET.",
+     "clave": "pit.factor_potencia_barras_mt",
+     "lineas": "1306-1307",
+     "pagina": "28",
+     "unidad": "",
+     "valor": 0.95
+    },
+    {
+     "articulo_o_anexo": "art. 17.2 y 17.3",
+     "cita_literal": "17.2. El COyM de cada Elemento de un sistema de transmisión, excepto los SSTD, se determina multiplicando el porcentaje respecto de  los costos de inversión aprobados por el OSINERGMIN por el respectivo costo de inversión. 17.3. Los porcentajes para la determinación del  COyM, que se empleen , deberán ser los que correspondan a las características de ubicación geográfica y nivel de tensión de cada Elemento. Para el caso de transformadores, se considera el porcentaje correspondiente al nivel de mayor tensión.",
+     "clave": "pit.coym_metodo",
+     "interpretacion": "los porcentajes los fija Osinergmin por ubicación y nivel de tensión; no están en esta norma",
+     "lineas": "1569-1577",
+     "pagina": "34",
+     "unidad": "",
+     "valor": "porcentaje_de_la_inversion"
+    },
+    {
+     "articulo_o_anexo": "art. 24.2",
+     "cita_literal": "@CI : Anualidad del costo de inversión del nivel de tensión “ n”, referido al final del año, calculado para una vida útil de 30 años y Tasa de Actualización vigente según el Artículo 79º de la LCE.",
+     "clave": "pit.vida_util_anios",
+     "lineas": "1866-1869",
+     "pagina": "41",
+     "unidad": "años",
+     "valor": 30
+    },
+    {
+     "articulo_o_anexo": "art. 24.2",
+     "cita_literal": "@CI : Anualidad del costo de inversión del nivel de tensión “ n”, referido al final del año, calculado para una vida útil de 30 años y Tasa de Actualización vigente según el Artículo 79º de la LCE.",
+     "clave": "pit.tasa_actualizacion_fuente",
+     "interpretacion": "la norma remite a la tasa del art. 79 de la LCE y no da su valor",
+     "lineas": "1866-1869",
+     "pagina": "41",
+     "unidad": "",
+     "valor": "art. 79 de la LCE"
+    },
+    {
+     "articulo_o_anexo": "art. 30.1 (tabla 1)",
+     "cita_literal": "Tabla 1 Formatos para presentar Propuestas de Tarifas Grupo de Formatos Formatos Cantidad Formatos de Información General F-001 al F-003 3 Formatos de Demanda F-101 al F-124  24 Formatos del Sistema Eléctrico a Remunerar F-201 al F-212 12 Formato de Costos de Inversión F-301 al F-306 6 Formato de Costos de Operación y Mantenimiento F-401 1 Formatos de Tarifas y Compensaciones F-501 al F-523 23",
+     "clave": "pit.formatos_217",
+     "interpretacion": "los grupos de la tabla 1; las plantillas de cada formato, transcritas hoja por hoja de los libros Excel oficiales en rcd_217_2013_formatos.json (reglas pit.formato.F-xxx)",
+     "lineas": "2188-2196",
+     "pagina": "48",
+     "unidad": "",
+     "valor": {
+      "fichero": "rcd_217_2013_formatos.json",
+      "grupos": {
+       "F-001 a F-003": "Información General",
+       "F-101 a F-124": "Demanda",
+       "F-201 a F-212": "Sistema Eléctrico a Remunerar",
+       "F-301 a F-306": "Costos de Inversión",
+       "F-401": "Costos de Operación y Mantenimiento",
+       "F-501 a F-523": "Tarifas y Compensaciones"
+      },
+      "transcrito": true
+     }
+    }
+   ],
+   "sha256": "b61ce11bf2ef05fa7d0d3f453030f624c6499f74fc159a5a194afcff980c4128",
+   "sha256_texto": "169ec5832f7cbeb5e4f088f9a4071c6688e82caa623c148f63ff19f095626d3f",
+   "titulo": "Norma «Tarifas y Compensaciones para Sistemas Secundarios de Transmisión y Sistemas Complementarios de Transmisión»",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2013/OSINERGMIN%20No.217-2013-OS-CD.pdf",
+   "version": "texto original (Lima, 31 de octubre de 2013)"
+  }
+ ],
+ "nota": "107 T2. Texto original de 2013 con su huella; las modificatorias leídas van en sus ficheros."
+}

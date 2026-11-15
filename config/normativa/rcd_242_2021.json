@@ -1,0 +1,20 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 242-2021-OS/CD",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-14",
+   "fichero_local": "rcd_242-2021.txt",
+   "modifica": [
+    "RCD 217-2013-OS/CD"
+   ],
+   "nota": "Leída solo su parte resolutiva; trata la actualización del CMA de instalaciones reasignadas, que el PIT no calcula. Sin reglas para el PIT.",
+   "sha256": "3c07b38d4a492eea0f15b65ecc53f850243072acb3ca85611cebdcc086adbc41",
+   "sha256_texto": "3118234940e46855dfd3b428f044ac418f4916ae15675283606030d7aed58a7d",
+   "titulo": "Modifica el numeral 24.5 e incorpora los numerales 15.7, 17.5, 24.11, 25.4 y 28.6 de la Norma de la RCD 217-2013-OS/CD",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2021/Osinergmin-242-2021-OS-CD.pdf",
+   "version": "Lima, 16 de diciembre de 2021"
+  }
+ ]
+}

@@ -659,7 +659,11 @@ GUIONES_SERVIBLES = frozenset({
     # 017:RF-124: la lectura de dónde está hoy cada carga nueva; fuera de la lista, cada «Actualizar desde
     # DIgSILENT» cerraba el servidor y pagaba otra conexión.
     'ubicacion_cargas_pf.py',
-    'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
+    'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py',
+    # 107 (FIX-107d): la red de transmisión del área y sus estudios por año. Activa un proyecto que ya existe y
+    # estudia, como estudios_pf.py (no importa DGS ni crea proyectos); fuera de la lista, cada estudio del PIT
+    # cerraba el servidor y pagaba otra conexión.
+    'pit_pf.py'})
 #: Guiones que conectan con :func:`conectar` (064:RF-1) pero corren en su propio proceso:
 #: los cuatro primeros importan DGS y crean proyectos, como la aceptación; los dos últimos
 #: son sondas que el operador lanza a mano.

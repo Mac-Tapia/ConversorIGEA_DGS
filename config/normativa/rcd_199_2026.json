@@ -1,0 +1,111 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 199-2026-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-14",
+   "fecha_publicacion": "2026-11-14",
+   "fichero_local": "rcd_199-2026.txt",
+   "modifica": [
+    "RCD 112-2024-OS/CD",
+    "RCD 149-2024-OS/CD"
+   ],
+   "nota": "Ficha: https://busquedas.elperuano.pe/dispositivo/NL/2574534-1. Comprobados su existencia, su objeto (art. 2: el PIT 2025-2029 en el Área de Demanda 9, a partir de las solicitudes de dos titulares) y su publicación. La resolución no fija fecha de vigencia propia; no se registra vigencia_desde supuesta. El detalle de los elementos modificados está en el IT 655-2026-GRT, sección 6.4, que el art. 4 manda consignar en https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx y que el 2026-11-14 da HTTP 404 (Informe-Tecnico-655-2026-GRT.pdf): sin él no hay regla de elementos. El art. 3 manda consolidar las modificaciones en una resolución complementaria posterior.",
+   "reglas": [
+    {
+     "articulo_o_anexo": "art. 2",
+     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución Nº 112-2024-OS/CD y reemplazado con Resolución Nº 149-2024-OS/CD, en lo correspondiente al área de demanda 9, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico Nº 655-2026-GRT, a partir de las solicitudes de Empresa Regional de Servicio Público de Electricidad - Electrosur S.A. y Sociedad Eléctrica del Sur Oeste S.A.",
+     "clave": "pit.modificacion_2025_2029.areas_modificadas",
+     "interpretacion": "el detalle de los elementos está en la sección 6.4 del IT 655-2026-GRT, no transcrita (404)",
+     "lineas": "128-128",
+     "pagina": "2",
+     "unidad": "área de demanda",
+     "valor": [
+      9
+     ]
+    },
+    {
+     "articulo_o_anexo": "art. 3",
+     "cita_literal": "Artículo 3.- Disponer que las modificaciones al Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución Nº 112-2024-OS/ CD y reemplazado con Resolución Nº 149-2024-OS/ CD, y la corrección de un error material identificado, que resulten como consecuencia de lo dispuesto en la presente resolución, sean consolidadas en su oportunidad en resolución complementaria, junto a las demás modificaciones producto de los procedimientos administrativos en curso.",
+     "clave": "pit.modificacion_2025_2029.consolidacion",
+     "lineas": "129-129",
+     "pagina": "2",
+     "unidad": "",
+     "valor": "resolucion_complementaria"
+    },
+    {
+     "articulo_o_anexo": "considerando (primera disposición transitoria de la RCD 112-2024-OS/CD)",
+     "cita_literal": "Que, en la primera disposición transitoria de la Resolución Nº 112-2024-OS/CD se establecen las siguientes fechas como única oportunidad para presentar propuestas e iniciar el proceso de modificación del Plan de Inversiones 2025 - 2029: (i) Para los titulares de las áreas de demanda 1, 3, 6, 12 y 13, el último día hábil del mes de mayo de 2026. (ii) Para los titulares de las áreas de demanda 2, 4, 7, 9 y 11, el último día hábil del mes de junio de 2026. (iii) Para los titulares de las áreas de demanda 5, 8, 10 y 14, el último día hábil del mes de julio de 2026;",
+     "clave": "pit.modificacion_2025_2029.oportunidad_por_area",
+     "interpretacion": "cita la primera disposición transitoria de la 112-2024: única oportunidad de presentar propuestas de modificación del PIT 2025-2029",
+     "lineas": "64-64",
+     "pagina": "1",
+     "unidad": "",
+     "valor": [
+      {
+       "areas": [
+        1,
+        3,
+        6,
+        12,
+        13
+       ],
+       "hasta": "último día hábil de mayo de 2026"
+      },
+      {
+       "areas": [
+        2,
+        4,
+        7,
+        9,
+        11
+       ],
+       "hasta": "último día hábil de junio de 2026"
+      },
+      {
+       "areas": [
+        5,
+        8,
+        10,
+        14
+       ],
+       "hasta": "último día hábil de julio de 2026"
+      }
+     ]
+    },
+    {
+     "articulo_o_anexo": "considerando (num. VII del lit. d del art. 139 del RLCE)",
+     "cita_literal": "Que, adicionalmente en el citado numeral del artículo 139 del RLCE, se dispone que Osinergmin debe emitir un pronunciamiento, sustentado técnica y económicamente, en un plazo máximo de sesenta días hábiles de presentada la solicitud; y debe establecer la oportunidad, los criterios y procedimientos para la presentación y aprobación de las modificaciones al Plan de Inversiones, las cuales siguen los mismos principios aplicados en la formulación del citado Plan;",
+     "clave": "pit.modificacion.plazo_pronunciamiento_dias_habiles",
+     "interpretacion": "plazo máximo de Osinergmin desde la solicitud; la fuente es el RLCE, citado en la resolución",
+     "lineas": "62-62",
+     "pagina": "1",
+     "unidad": "días hábiles",
+     "valor": 60
+    },
+    {
+     "articulo_o_anexo": "considerando (num. VII del lit. d del art. 139 del RLCE)",
+     "cita_literal": "Que, en el numeral VII) del literal d) del artículo 139 del RLCE, se señala que, en la eventualidad de ocurrir cambios significativos en la demanda proyectada de electricidad, o modificaciones en la configuración de las redes de transmisión aprobadas o en las condiciones técnicas o constructivas, o por otras razones debidamente justificadas, respecto a lo previsto en el Plan de Inversiones vigente, el respectivo titular puede solicitar a Osinergmin la modificación del referido Plan, acompañando el sustento técnico y económico debidamente documentado;",
+     "clave": "pit.modificacion.causales",
+     "interpretacion": "causales del RLCE citadas en la resolución; la solicitud va con sustento técnico y económico",
+     "lineas": "59-61",
+     "pagina": "1",
+     "unidad": "",
+     "valor": [
+      "cambios_significativos_demanda_proyectada",
+      "modificaciones_configuracion_redes",
+      "cambios_condiciones_tecnicas_o_constructivas",
+      "otras_razones_debidamente_justificadas"
+     ]
+    }
+   ],
+   "sha256": "cde65db34da6b6e616cc67748e57ceb362543a8b7c8392d7c97130e069c0091f",
+   "sha256_texto": "294432ef8073f15b2824863a9537ddc431a12362029e9f0e30146d202c1d45bc",
+   "titulo": "Modifica el Plan de Inversiones en Transmisión 2025-2029, aprobado mediante la RCD 112-2024-OS/CD, en lo correspondiente al Área de Demanda 9",
+   "url": "https://busquedas.elperuano.pe/api/archivo/file/4nK91BtAq9TBFYoNsImdfC/*/2574534-1.PDF",
+   "version": "Lima, 12 de noviembre del 2026; El Peruano, sábado 14 de noviembre de 2026, págs. 43-44 (2574534-1)"
+  }
+ ],
+ "nota": "107 T3. Leída el 2026-11-14 en la edición oficial de El Peruano (el enlace del portal de Osinergmin sigue en 404). Su detalle técnico está en el Informe Técnico 655-2026-GRT, sección 6.4, que da 404: bloqueo citado en la entrega."
+}

@@ -207,6 +207,30 @@
    ]
   },
   {
+   "titulo": "Motor: PIT (plan de inversiones en transmisión)",
+   "base": "src/convertersmartgrid/",
+   "ficheros": [
+    "pit/__init__.py",
+    "pit/ambito.py",
+    "pit/red_area.py",
+    "pit/red_pandapower.py",
+    "pit/motores.py",
+    "pit/diagnostico.py",
+    "pit/programa.py",
+    "pit/observaciones.py",
+    "pit/alternativas.py",
+    "pit/cuadros.py",
+    "pit/f208.py",
+    "pit/reserva.py",
+    "pit/llenado.py",
+    "pit/plantillas.py",
+    "pit/formatos_red.py",
+    "pit/expediente.py",
+    "pit/informe.py",
+    "web/rutas_pit.py"
+   ]
+  },
+  {
    "titulo": "Motor: gobierno de modelos",
    "base": "src/convertersmartgrid/",
    "ficheros": [
@@ -445,6 +469,7 @@
     "protecciones_pf.py",
     "transferencia_pf.py",
     "transformador_set_pf.py",
+    "pit_pf.py",
     "set_nueva_operacion_pf.py",
     "pide_pf.py",
     "escenarios_pf.py",

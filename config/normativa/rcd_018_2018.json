@@ -1,0 +1,32 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 018-2018-OS/CD",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-14",
+   "fichero_local": "rcd_018-2018.txt",
+   "modifica": [
+    "RCD 217-2013-OS/CD"
+   ],
+   "nota": "Texto leído con su huella; no se ha comprobado si una norma posterior volvió a modificar el 12.3.",
+   "reglas": [
+    {
+     "articulo_o_anexo": "art. 1 (num. 12.3.1 de la 217-2013)",
+     "cita_literal": "12.3.1. Se considerará redundancia bajo el criterio N -1, para la transmisión que atienda una demanda superior a los 30 MW, salvo en los casos que se justifique y se sustente de forma documentada que no es necesaria dicha redundancia , dentro del proceso de aprobación del Plan de Inversiones.",
+     "clave": "pit.n1_demanda_min_mw",
+     "interpretacion": "redundancia N-1 para la transmisión que atienda más de esa demanda, salvo sustento documentado",
+     "lineas": "103-106",
+     "pagina": "3",
+     "unidad": "MW",
+     "valor": 30
+    }
+   ],
+   "sha256": "19dd01e7399f0c7baca999991fa90c383467f6fa9d55a91900f97d0f171d4b6d",
+   "sha256_texto": "d1323328d9d2ec745b41a5adc2781fc265ec79b2b4e4350ae13ecfa755a89121",
+   "titulo": "Modifica los numerales 5.8.2 y 12.3 de la Norma aprobada por la RCD 217-2013-OS/CD",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2018/OSINERGMIN%20No.018-2018-OS-CD.pdf",
+   "version": "Lima, 15 de febrero de 2018"
+  }
+ ]
+}
