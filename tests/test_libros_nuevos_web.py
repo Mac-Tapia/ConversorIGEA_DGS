@@ -567,6 +567,12 @@ def test_el_dataset_que_pasa_su_plazo_se_termina_y_se_avisa(app, client, tmp_pat
     assert 'plazo' in dataset['motivo_interrupcion']
     assert not lanzados[0].vivo()
     assert any('plazo' in a['texto'] for a in _avisos_del_dataset(client, wid))
+    # 104:RF-45 (aclaración, 2026-11-14): cortado por su plazo, no se relanza hasta la próxima revisión de libros. Antes
+    # el carril lo volvía a lanzar en la misma vuelta (con reposo 0) y la prueba solo pasaba si una lectura acertaba el
+    # hueco de milisegundos entre el corte y el relanzamiento (rep_plazo_6, rep_fichero_9).
+    time.sleep(1.0)
+    assert _estado_guardado(app, wid)['dataset']['estado'] == 'desactualizado'
+    assert len(lanzados) == 1, f'se relanzó {len(lanzados) - 1} vez(ces) sin una revisión de libros'
     app.state.libros_nuevos.parar()
 
 
@@ -728,3 +734,123 @@ def test_104_rf45_al_terminar_el_proceso_ninguna_lectura_lo_da_por_muerto(app, c
     assert wid not in vig._procesos and proc.terminado
     textos = [a['texto'] for a in _avisos_del_dataset(client, wid)]
     assert not any('sin proceso vivo' in t for t in textos), textos
+
+
+def test_104_rf45_el_dataset_cortado_por_su_plazo_sale_del_carril_hasta_la_proxima_revision(app, client, tmp_path,
+                                                                                           monkeypatch):
+    """104:RF-45 — aclaración (2026-11-14, causa de la F intermitente de la prueba del plazo): el dataset que se corta
+    por su plazo sale del carril de fondo; solo la próxima revisión de libros lo vuelve a poner (RF-44), como dice su
+    aviso. Antes seguía en la lista de pendientes y el bucle lo relanzaba en la misma vuelta. Sin tiempos ni hilos."""
+    vig = app.state.libros_nuevos
+    wid = _espacio_con_dataset(client, tmp_path)
+    monkeypatch.setenv('CSG_DATASET_PLAZO_MIN', '0.05')
+    _poner_regenerando(app, wid, inicio=time.time() - 3600)
+    proc = _ProcesoQueConsulta(None)
+    with vig._cv:
+        vig._procesos[wid] = (proc, [])
+        vig._datasets.add(wid)
+    vig._vigilar_plazo(wid, proc)
+    dataset = _estado_guardado(app, wid)['dataset']
+    assert dataset['estado'] == 'desactualizado' and 'plazo' in dataset['motivo_interrupcion'], dataset
+    assert proc.terminado and wid not in vig._procesos
+    assert wid not in vig._datasets, 'el dataset cortado por su plazo sigue pendiente: el carril lo relanzaría ya'
+
+
+# --------------------------------------------------------------------------- estado y avisos en un solo guardado (104:RF-47, RF-44)
+def _espiar_guardados(monkeypatch) -> list[dict]:
+    """Cada estado que se guarda, copiado en el instante del guardado (el espía no depende del tiempo)."""
+    import copy
+
+    from convertersmartgrid import libros_nuevos as ln
+
+    guardados: list[dict] = []
+    original = ln.guardar_estado
+
+    def espia(carpeta, estado):
+        guardados.append(copy.deepcopy(dict(estado)))
+        return original(carpeta, estado)
+
+    monkeypatch.setattr(ln, 'guardar_estado', espia)
+    return guardados
+
+
+def test_el_dataset_al_dia_se_guarda_con_sus_avisos_en_el_mismo_guardado(app, client, tmp_path, monkeypatch):
+    """104:RF-47 — aclaración (2026-11-14, causa de T2 con H14): el estado «al día» del dataset y los avisos de sus
+    libros (apartados y formatos) se guardan juntos. Antes eran dos guardados, y quien leía entre ambos (la web al
+    repintar, una prueba) veía «al día» sin los avisos nuevos; con la escritura duradera el hueco crecía."""
+    from test_libros_formas import _libro_desconocido
+
+    guardados = _espiar_guardados(monkeypatch)
+    wid = _espacio_con_dataset(client, tmp_path)
+    _libro_desconocido(tmp_path / 'clientes' / '2026/0726raro.xlsx')
+    app.state.libros_nuevos.en_fondo = False
+    monkeypatch.setenv('CSG_DATASET_REPOSO_MIN', '0')
+    _revisar(client, wid)
+    _esperar_dataset(client, wid, 'al_dia')
+    finales = [g for g in guardados if (g.get('dataset') or {}).get('estado') == 'al_dia'
+               and (g.get('dataset') or {}).get('libros_apartados')]
+    assert finales, 'el dataset no llegó a guardarse al día con libros apartados'
+    for g in finales:
+        libros = {a.get('libro') for a in g.get('avisos') or [] if a.get('tipo') == 'apartado'}
+        apartados = {x['libro'] for x in g['dataset']['libros_apartados']}
+        assert apartados <= libros, f'«al día» guardado sin el aviso de sus apartados: faltan {apartados - libros}'
+
+
+def test_el_dataset_interrumpido_se_guarda_con_su_aviso_en_el_mismo_guardado(app, client, tmp_path, monkeypatch):
+    """104:RF-44 — aclaración (2026-11-14): el estado «desactualizado» por interrupción y su aviso al operador se
+    guardan juntos. Antes eran dos guardados y la prueba del plazo (intermitente con H14) leía el estado sin el aviso."""
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    guardados = _espiar_guardados(monkeypatch)
+    app.state.libros_nuevos._interrumpir(ws, 'motivo de prueba', retomar=False)
+    interrumpidos = [g for g in guardados if (g.get('dataset') or {}).get('motivo_interrupcion') == 'motivo de prueba']
+    assert interrumpidos, 'no se guardó la interrupción'
+    for g in interrumpidos:
+        assert any(a.get('tipo') == 'dataset' and 'motivo de prueba' in a.get('texto', '') for a in g.get('avisos') or []), \
+            'el estado interrumpido se guardó sin su aviso'
+
+
+def test_cada_interrupcion_se_publica_aunque_su_aviso_ya_exista(app, client, tmp_path, monkeypatch):
+    """104:RF-44 y RF-39 — la segunda interrupción con el mismo motivo no añade aviso (ya está), pero el estado sí cambia:
+    la web tiene que enterarse igual y repintar (auditor 3e, 2026-11-14)."""
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    vig = app.state.libros_nuevos
+    publicados: list[str] = []
+    monkeypatch.setattr(vig, '_publicar', lambda w: publicados.append(w.id))
+    vig._interrumpir(ws, 'mismo motivo', retomar=False)
+    vig._interrumpir(ws, 'mismo motivo', retomar=False)
+    assert publicados == [wid, wid], publicados
+
+
+@pytest.mark.parametrize('camino', ['interrumpir', 'terminar'])
+def test_104_si_falla_el_aviso_el_estado_se_guarda_igual_con_un_aviso_generico(app, client, tmp_path, monkeypatch,
+                                                                                caplog, camino):
+    """104:RF-44, 104:RF-47 — endurecimiento pedido por el auditor 3e (2026-11-14): desde que el estado y su aviso van
+    en un solo guardado, un fallo al construir el aviso se llevaba también el estado (seguía «regenerando»). Ahora va
+    primero el estado; si el aviso falla, la traza va al Registro (ERROR) y queda un aviso genérico, nunca en silencio."""
+    import logging
+
+    from convertersmartgrid.web import libros_nuevos as wl
+
+    def falla(*_a, **_k):
+        raise RuntimeError('aviso roto a propósito')
+
+    vig = app.state.libros_nuevos
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    _poner_regenerando(app, wid, inicio=time.time() - 3600)
+    monkeypatch.setattr(wl, 'resumen_de_aviso', falla)
+    caplog.set_level(logging.ERROR, logger='convertersmartgrid.web.libros_nuevos')
+    if camino == 'interrumpir':
+        vig._interrumpir(ws, 'motivo de prueba', retomar=False)
+        esperado, tipo = 'desactualizado', 'dataset'
+    else:
+        resumen = {'huella': 'abcdef0123456789', 'objetivos': 1, 'apartados': 1,
+                   'libros_apartados': [{'libro': 'clientes/2026/0726raro.xlsx', 'motivo': 'formato desconocido'}]}
+        vig._terminar_dataset(ws, ['clientes/2026/1026clientes.xlsx'], resumen, None)
+        esperado, tipo = 'al_dia', 'dataset'
+    estado = _estado_guardado(app, wid)
+    assert estado['dataset']['estado'] == esperado, estado['dataset']
+    assert [a for a in estado.get('avisos') or [] if a.get('tipo') == tipo], estado.get('avisos')
+    assert any(r.levelno >= logging.ERROR and r.exc_info for r in caplog.records), caplog.records

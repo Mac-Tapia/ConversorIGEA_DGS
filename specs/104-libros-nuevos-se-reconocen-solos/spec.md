@@ -153,16 +153,19 @@ dataset, que nadie abre (089:RF-107 a RF-113 corrigen su lectura).
 - RF-44: CUANDO el dataset queda interrumpido, EL SISTEMA lo dirá en un aviso de los libros de demanda del espacio, con
   cuándo empezó y por qué se cortó, y lo retomará en el siguiente reposo del motor (RF-36), o en la siguiente revisión
   de libros si la vigilancia está apagada.
+- Aclaración de RF-44 (2026-11-14): el estado interrumpido del dataset y su aviso se guardarán en el mismo guardado.
 - RF-45: SI la regeneración que lleva esta web pasa su plazo (`CSG_DATASET_PLAZO_MIN`, 120 min), ENTONCES EL SISTEMA
   terminará su proceso, dejará el dataset desactualizado con ese motivo y lo avisará.
   Al terminarlo, por su plazo o porque el operador lanza un trabajo (RF-37), EL SISTEMA escribirá
   el estado del dataset antes de dejar de tenerlo como proceso propio, para que ninguna lectura en
   medio lo dé por «sin proceso vivo» (RF-43) ni deje un segundo aviso (carrera hallada el 2026-11-14).
+- Aclaración de RF-45 (2026-11-14): SI el sistema termina la regeneración por su plazo, ENTONCES EL SISTEMA no la relanzará hasta la próxima revisión de libros.
 - RF-46: CUANDO la web se apaga con el dataset regenerándose, EL SISTEMA terminará su proceso y lo dejará interrumpido
   en disco; al arrancar, también con la vigilancia apagada, revisará los «regenerando» de los espacios recientes sin
   abrir ningún libro.
 - RF-47: CUANDO la regeneración del dataset aparta un libro o dice algo de un libro entero (su formato, su mes), EL
   SISTEMA lo mostrará como aviso de los libros de demanda del espacio, con el nombre del libro y el motivo.
+- Aclaración de RF-47 (2026-11-14, causa de un fallo intermitente con la escritura duradera): el estado «al día» del dataset y los avisos de sus libros se guardarán en el mismo guardado; nadie verá el dataset al día sin sus avisos.
 - Aclaración de RF-26 (2026-11-13): el libro de abril de 2026 que se apartaba por repetir marzo es un acierto, no un falso
   positivo: en 19 hojas comparadas con energía, los 56 034 registros son iguales a los de marzo, y trae energía en 31
   días, que abril no tiene (089:RF-113).

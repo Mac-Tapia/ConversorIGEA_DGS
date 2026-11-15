@@ -568,17 +568,32 @@ class VigilanciaLibros:
         avisos.append({'id': uuid.uuid4().hex[:12], 'tipo': tipo, 'libro': libro, 'texto': resumen_de_aviso(texto),
                        'clave': clave_de_aviso(tipo, texto), 'cuando': self.ahora(), 'visto': False, 'ficha': ficha})
 
+    @staticmethod
+    def _anadir_avisos(ws, e: dict, avisos: list[dict]) -> bool:
+        """Añade al estado ``e`` los avisos que aún no conoce; devuelve si añadió alguno. Va dentro de un ``_modificar``,
+        para que un cambio de estado y sus avisos se guarden juntos (104:RF-44, RF-47)."""
+        if not avisos:
+            return False
+        compactar_avisos(e, archivar_en(carpeta_estado(ws)))
+        conocidas = {a.get('clave') for a in e.get('avisos') or []} | set(e.get('vistos') or [])
+        nuevos = [a for a in avisos if a['clave'] not in conocidas]
+        e['avisos'] = [*(e.get('avisos') or []), *nuevos][-100:]
+        return bool(nuevos)
+
+    def _aviso_generico(self, e: dict, texto: str) -> None:
+        """104:RF-44, RF-47: si falló el aviso detallado, uno corto y fijo en su lugar, para que el cambio de estado no
+        se pierda ni pase en silencio (auditor 3e, 2026-11-14). No compacta ni archiva: eso pudo ser lo que falló."""
+        clave = clave_de_aviso('dataset', texto)
+        if clave in {a.get('clave') for a in e.get('avisos') or []} | set(e.get('vistos') or []):
+            return
+        e['avisos'] = [*(e.get('avisos') or []), {'id': uuid.uuid4().hex[:12], 'tipo': 'dataset', 'libro': None,
+                                                  'texto': texto, 'clave': clave, 'cuando': self.ahora(),
+                                                  'visto': False, 'ficha': None}][-100:]
+
     def _guardar_avisos(self, ws, avisos: list[dict]) -> None:
         if not avisos:
             return
-
-        def anadir(e):
-            compactar_avisos(e, archivar_en(carpeta_estado(ws)))
-            conocidas = {a.get('clave') for a in e.get('avisos') or []} | set(e.get('vistos') or [])
-            nuevos = [a for a in avisos if a['clave'] not in conocidas]
-            e['avisos'] = [*(e.get('avisos') or []), *nuevos][-100:]
-            return bool(nuevos)
-        if self._modificar(ws, anadir):
+        if self._modificar(ws, lambda e: self._anadir_avisos(ws, e, avisos)):
             self._publicar(ws)
 
     def _reindexar(self, ws, ctx: ContextoFondo, tipo: str, c: dict) -> None:
@@ -771,10 +786,13 @@ class VigilanciaLibros:
                                              f'Se rehará tras {reposo_min():g} min sin trabajos (104:RF-37).'})
             self._publicar(ws)
 
-    def _avisar_libros_del_dataset(self, ws, resumen: dict) -> None:
+    def _avisos_libros_del_dataset(self, ws, resumen: dict, estado: dict) -> list[dict]:
         """104:RF-47: cada libro apartado y lo dicho de cada libro, como aviso del paso de la demanda. El 2026-11-12
-        «0225 Pulso e» y «0625 Pulso» quedaron fuera y solo constaban en la cuenta de «motivos_apartados»."""
-        abiertos = {a.get('texto') for a in ln.leer_estado(carpeta_estado(ws)).get('avisos') or [] if not a.get('visto')}
+        «0225 Pulso e» y «0625 Pulso» quedaron fuera y solo constaban en la cuenta de «motivos_apartados».
+
+        Aclaración de RF-47 (2026-11-14): se construyen sobre el ``estado`` que se está modificando, dentro del mismo
+        cerrojo que deja el dataset «al día», y se guardan con él en un solo guardado."""
+        abiertos = {a.get('texto') for a in estado.get('avisos') or [] if not a.get('visto')}
         avisos: list[dict] = []
         for x in resumen.get('libros_apartados') or []:
             texto = f"{x['libro']}: queda fuera del dataset del pronóstico: {x['motivo']} (104:RF-47)."
@@ -789,7 +807,7 @@ class VigilanciaLibros:
                 ficha = {'huella': huella_de_aviso(texto),
                          'falta': [x.strip() for x in falta.group(1).split(',')] if falta else []}
                 self._avisar(ws, avisos, 'formato', texto, libro=texto.split(':', 1)[0], ficha=ficha)
-        self._guardar_avisos(ws, avisos)
+        return avisos
 
     def formato_confirmado(self, ws, huella: str) -> None:
         """089:RF-110: una regla nueva cambia lo que se lee: el dataset queda desactualizado y se regenera en reposo."""
@@ -822,6 +840,9 @@ class VigilanciaLibros:
         self._interrumpir(ws, f'pasó su plazo de {plazo:g} min sin terminar (CSG_DATASET_PLAZO_MIN)', retomar=False)
         with self._cv:
             self._procesos.pop(wid, None)
+            # Aclaración de RF-45 (2026-11-14): fuera del carril hasta la próxima revisión, que lo vuelve a poner si sigue
+            # desactualizado (revisar). Seguía en la lista y el bucle lo relanzaba en la misma vuelta, en bucle.
+            self._datasets.discard(wid)
 
     @staticmethod
     def _vivo_en_otro_sitio(dataset: dict) -> bool:
@@ -866,24 +887,32 @@ class VigilanciaLibros:
     def _interrumpir(self, ws, motivo: str, *, retomar: bool = True) -> None:
         """RF-44: desactualizado con el motivo, un aviso en el paso de la demanda y, si se retoma, al carril de fondo."""
         ahora = self.ahora()
-        previo: dict = {}
+        sigue = (f'se retoma sola tras {reposo_min():g} min sin trabajos del operador' if retomar else
+                 'se retoma al revisar los libros (al abrir el espacio o con «Revisar ahora»)')
 
         def poner(e):
             d = e.setdefault('dataset', {})
-            previo.update(d)
+            inicio = d.get('inicio') or d.get('desde')
             d.update(estado='desactualizado', interrumpido=ahora, motivo_interrupcion=motivo)
             d.pop('proceso', None)
             d.pop('servidor', None)
+            # 104:RF-44 (aclaración, 2026-11-14): el estado interrumpido y su aviso, en el MISMO guardado. Primero el
+            # estado; si el aviso falla, se guarda igual, con la traza en el Registro y un aviso genérico.
+            try:
+                empezada = (time.strftime(' (empezada el %d/%m a las %H:%M)', time.localtime(inicio))
+                            if isinstance(inicio, (int, float)) else '')
+                avisos: list[dict] = []
+                self._avisar(ws, avisos, 'dataset', f'La regeneración del dataset del pronóstico{empezada} quedó '
+                                                    f'interrumpida: {motivo}; {sigue}. No se entrenó ningún modelo '
+                                                    '(104:RF-44).')
+                self._anadir_avisos(ws, e, avisos)
+            except Exception:  # noqa: BLE001 - el estado ya cambió; la traza va al Registro y queda un aviso genérico
+                log.exception('aviso de la interrupción del dataset de %s', ws.id)
+                self._aviso_generico(e, f'La regeneración del dataset del pronóstico quedó interrumpida: {motivo}; '
+                                        f'{sigue} (104:RF-44).')
         self._modificar(ws, poner)
-        inicio = previo.get('inicio') or previo.get('desde')
-        empezada = (time.strftime(' (empezada el %d/%m a las %H:%M)', time.localtime(inicio))
-                    if isinstance(inicio, (int, float)) else '')
-        sigue = (f'se retoma sola tras {reposo_min():g} min sin trabajos del operador' if retomar else
-                 'se retoma al revisar los libros (al abrir el espacio o con «Revisar ahora»)')
-        avisos: list[dict] = []
-        self._avisar(ws, avisos, 'dataset', f'La regeneración del dataset del pronóstico{empezada} quedó interrumpida: '
-                                            f'{motivo}; {sigue}. No se entrenó ningún modelo (104:RF-44).')
-        self._guardar_avisos(ws, avisos)
+        # RF-39: el estado cambió siempre (aunque el aviso ya existiera): la web tiene que repintar.
+        self._publicar(ws)
         if retomar:
             with self._cv:
                 self._datasets.add(ws.id)
@@ -900,9 +929,15 @@ class VigilanciaLibros:
                         if d.get('estado') == 'desactualizado' else [])
             d.update(estado='desactualizado' if llegados else 'al_dia', error=None, terminado=self.ahora(),
                      carpeta=str(carpeta_dataset(ws)), libros_incluidos=libros, libros_nuevos=llegados, **resumen)
+            # 104:RF-47 (aclaración, 2026-11-14): los avisos de sus libros, en el MISMO guardado que el estado. Primero
+            # el estado; si los avisos fallan, se guarda igual, con la traza en el Registro y un aviso genérico.
+            try:
+                self._anadir_avisos(ws, e, self._avisos_libros_del_dataset(ws, resumen or {}, e))
+            except Exception:  # noqa: BLE001 - el estado ya cambió; la traza va al Registro y queda un aviso genérico
+                log.exception('avisos de los libros del dataset de %s', ws.id)
+                self._aviso_generico(e, 'El dataset del pronóstico se regeneró, pero no se pudieron preparar los avisos '
+                                        'de sus libros: el detalle está en el Registro (104:RF-47).')
         self._modificar(ws, poner)
-        if not error:
-            self._avisar_libros_del_dataset(ws, resumen or {})
         texto = (f'El dataset del pronóstico no se pudo regenerar: {error}.' if error else
                  f"Dataset del pronóstico regenerado ({resumen['huella'][:12]}): {resumen['objetivos']} series, "
                  f"{resumen['apartados']} apartadas; no se entrenó ningún modelo (104:RF-23).")
