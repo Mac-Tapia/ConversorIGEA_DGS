@@ -164,6 +164,21 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       pasos con estado e «Ir al paso» a las secciones 1 a 5, aviso del PIDE sin «Con proyecto») y `GemeloPIDE` con el tipo.
       Evidencia: 14 pruebas de pytest y 8 de `node --test` aprobadas. Sin DIgSILENT ni revisión en el navegador real: la
       prueba de la web es de renderizado estático; queda verla con el operador junto con T11.
+      Ampliado el 2026-11-14 al asistente (rama `trabajo/asistente-plazos`; RF-18, RF-29, RF-31 a RF-35), sin tareas nuevas
+      en el catálogo, cuyas huellas sellan las pruebas (069:RF-13, 070:RF-69). Antes, el catálogo solo tenía `pide` y su
+      paso no mandaba el `plazo`: «haz el planeamiento de largo plazo de …» acababa en un PIDE que aplicaba obras, lo que
+      prohíbe RF-35. Ahora `tareas.tipos_de_analisis_de` lee el tipo en la orden y el intérprete manda el corto y el largo
+      plazo a su tarea aunque el modelo en uso entienda otra (consultar resultados o preguntar no cuenta); el largo plazo va
+      a `POST /pide` con `plazo='largo_plazo'` e `implementar=False`; el PIDE sigue con el cuerpo de siempre; sin tipo, o con
+      dos, el plan pregunta cuál. «Estudio de corto plazo con la carga X» es `evaluar_carga_nueva` con
+      `orquestador.ETAPAS_CORTO_PLAZO` (carga, escalera de obras, estudios e informe de estudio, en ese orden, un clic, su
+      propio punto de control; con un libro de cargas, `ETAPAS_CORTO_PLAZO_LIBRO`), que exige la calibración aplicada y el
+      formulario del informe de estudio. La etapa de obras ya no recibe como CAPEX la carpeta de los libros de demanda: va el
+      CAPEX que nombre la orden. Un ejemplo neutro de cada tipo en las plantillas del catálogo, al final de cada lista.
+      Hecho cuando: `pytest -q tests/test_asistente_planeamiento.py` en verde (12 pruebas, sin DIgSILENT ni GPU).
+      En la misma entrega, por la aclaración de 070:RF-51: los textos del plan ya no citan RF ni usan claves internas
+      (`tareas.sin_citas`, `descripcion_para_operador`; las citas pasan a comentarios), con la prueba permanente
+      `tests/test_asistente_textos_del_plan.py`, que arma el plan de cada tarea del catálogo, calibrado y sin calibrar.
 
 Nota de corrección P17 (2026-11-08), sin cerrar criterios originales: se corrigieron
 los Important I1/I2/I3 y los Minor M1/M2 de la revisión independiente de RF-23 a

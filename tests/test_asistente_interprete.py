@@ -68,7 +68,7 @@ def test_contrasta_los_datos_con_lo_que_existe():
     i = interpretar('integra las cargas de "D:/no/existe.xlsx" en CA101 13 PA217',
                     transformer=Transformer('cargas_nuevas', 0.99))
     plan = resolver(i, VOCAB)
-    assert 'ruta: Excel de cargas nuevas' in plan.faltan and any('no existe' in d for d in plan.dudas)
+    assert 'el fichero: Excel de cargas nuevas' in plan.faltan and any('no existe' in d for d in plan.dudas)
     assert parecido('pisko', VOCAB['sistema'], 0.75) == 'Pisco'
 
 

@@ -449,7 +449,14 @@ def test_el_asistente_no_borra():
     i = Interpretacion('borra la escalera de F1 en REAL', 'obras_escalera', 1.0, 'catalogo',
                        {'proyecto': [{'valor': 'REAL'}], 'alimentadores': [{'valor': 'F1'}]})
     plan = resolver(i, {'proyecto': ['REAL'], 'alimentadores': ['F1']})
-    assert not plan.listo and plan.tarea is None and any('084:RF-25' in f for f in plan.faltan)
+    # 084:RF-25, el comportamiento: con una orden de borrar no queda ninguna tarea que ejecutar, el plan no está listo
+    # y el operador recibe el porqué con la vista donde se hace (DIgSILENT, en su proyecto).
+    assert not plan.listo and plan.tarea is None and not plan.alternativas
+    (motivo,) = [f for f in plan.faltan if 'no borra' in f]
+    assert 'DIgSILENT' in motivo and 'proyecto' in motivo
+    # Aclaración de 084:RF-25: ese texto lo ve el operador («Falta …» en Asistente.tsx), así que va sin citas de
+    # requisitos ni claves internas (070:RF-51); la cita queda en el código y en esta prueba.
+    assert not any(re.search(r'\d{3}:RF-\d+', f) for f in plan.faltan)
     # Una tarea que solo lee sí responde aunque el texto hable de borrar.
     lectura = next(t for t in TAREAS.values() if not t.escribe)
     assert resolver(Interpretacion('¿cómo se quita esto?', lectura.nombre, 1.0, 'catalogo'), {}).tarea == lectura.nombre

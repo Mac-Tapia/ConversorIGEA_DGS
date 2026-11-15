@@ -72,6 +72,7 @@ en DIgSILENT no se deshace por la API.
 
 - RF-24: SI se pide borrar un objeto que no es del proyecto de la orden, ENTONCES EL SISTEMA no lo borrará y lo dirá con los dos proyectos.
 - RF-25: SI una orden al asistente pide borrar y su tarea escribe, ENTONCES EL SISTEMA no ejecutará el plan y dirá que el asistente no borra en DIgSILENT.
+- Aclaración de RF-25 (2026-11-14, por 070:RF-51): el motivo se dice en palabras del operador, con la vista donde se hace (DIgSILENT, en su proyecto), y sin cita de requisitos ni claves internas; la cita va en el código y en la prueba.
 - RF-26: EL SISTEMA aplicará la guarda de RF-24 a lo que el operador ordena deshacer en un proyecto: las variaciones, los símbolos y los tipos de sus cargas.
 - RF-27: EL SISTEMA tendrá justificado cada `Delete` de su código, en una lista que una prueba compara con el código.
 

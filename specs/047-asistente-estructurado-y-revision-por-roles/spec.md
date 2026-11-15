@@ -39,6 +39,8 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-24: SI otra orden espera en el carril o se cancela el trabajo de vectores, ENTONCES EL SISTEMA guardará lo calculado y dejará libre el carril.
 - RF-25: SI Ollama no da vectores, ENTONCES EL SISTEMA responderá con BM25.
 - RF-26: CUANDO se responda con documentos, EL SISTEMA dirá en la respuesta qué métodos de recuperación usó.
+- Aclaración de RF-26 (usuario, 2026-11-14: en la web, ninguna cita de RF ni jerga; aclaración de 070:RF-51): los métodos
+  van en el campo `recuperacion` de la respuesta y en el registro, no en el texto que lee el operador.
 - RF-27: EL SISTEMA usará el reranker solo si la decisión guardada de la evaluación sellada lo adoptó según la política declarada en el plan antes de medir.
 - RF-28: SI la consulta nombra un código que aparece tal cual en un fragmento, ENTONCES EL SISTEMA pondrá ese fragmento por delante de los demás, con reranker o sin él.
 - RF-29: SI una cita no se puede comprobar contra su fichero, ENTONCES EL SISTEMA la quitará de la respuesta y, sin citas, dirá que no lo sabe.

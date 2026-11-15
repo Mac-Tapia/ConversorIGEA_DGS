@@ -196,9 +196,14 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
         anio = str(datos.get('periodo') or '')[:4]
         # Los libros que la orden nombra, con los mismos campos que manda el formulario de la web.
         libros = {k: extras[k] for k in ('capex', 'formato_01') if extras.get(k)}
-        return [Paso('PIDE', 'POST', '/pide', {'project': proyecto, 'feeders': feeders,
-                                               **({'anio_presentacion': int(anio)} if anio.isdigit() else {}),
-                                               **libros})]
+        cuerpo = {'project': proyecto, 'feeders': feeders, **({'anio_presentacion': int(anio)} if anio.isdigit() else {}),
+                  **libros}
+        if extras.get('plazo') == 'largo_plazo':
+            # 072:RF-34, RF-35: el plan de largo plazo plantea las obras y escribe solo sus módulos; con el
+            # ``implementar`` por defecto de la ruta, las aplicaba en «Con proyecto».
+            return [Paso('plan de largo plazo (plantea las obras, no las aplica)', 'POST', '/pide',
+                         {**cuerpo, 'plazo': 'largo_plazo', 'implementar': False})]
+        return [Paso('PIDE', 'POST', '/pide', cuerpo)]
     if tarea == 'gemelo_aprender':
         return [Paso('aprendizaje activo del gemelo', 'POST', '/digital-twin/aprender',
                      {'project': proyecto, 'feeders': feeders, 'n': int(datos.get('numero') or 20)})]

@@ -14,7 +14,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..asistente.plan import ETIQUETA_DEL_DATO
 from ..asistente.sinteticos import normalizar
+from ..asistente.tareas import sin_citas
 
 _TIPO_CAMBIO = re.compile(r'tipo de cambio\s*(?:de|:|=)?\s*(\d+(?:[.,]\d+)?)')
 _DIRECTO = re.compile(r'\bdirect[oa]\b.*\bset nueva\b|\bset nueva\b.*\bdirect[oa]\b|\bsin (?:probar )?escalera\b')
@@ -70,7 +72,7 @@ def _libros_de_la_demanda(svc, ws, plan) -> None:
         plan.faltan.append('la carpeta de los libros de demanda: dígala en la orden o asígnelos en «2.1».')
         return
     plan.datos['ruta'] = carpeta
-    plan.razonamiento.append(f'libros de demanda: los del espacio, en {carpeta} (070:RF-6).')
+    plan.razonamiento.append(f'libros de demanda: los del espacio, en {carpeta}.')  # 070:RF-6
 
 
 def _obras(svc, ws, plan, extras: dict) -> None:
@@ -80,11 +82,21 @@ def _obras(svc, ws, plan, extras: dict) -> None:
     if plan.tarea == 'optimizar_con_proyecto' and _DIRECTO.search(normalizar(plan.texto)):
         extras['directo_set_nueva'] = True
         if not plan.datos.get('ruta'):
-            plan.faltan.append('el libro CAPEX: la SET nueva se elige entre sus módulos (042:RF-7).')
+            plan.faltan.append('el libro CAPEX: la SET nueva se elige entre sus módulos.')  # 042:RF-7
     try:
         parametros_de_costeo(tipo_cambio)
     except ValueError as exc:
-        plan.faltan.append(f'cómo costear las obras: {exc}')
+        plan.faltan.append(f'cómo costear las obras: {_claves_en_palabras(sin_citas(str(exc)))}')
+
+
+#: 070:RF-51: las secciones del perfil, como las nombra el operador.
+_SECCIONES_DEL_PERFIL = {'escalera': 'la escalera de obras', 'planificacion': 'la planificación', 'estudios': 'los estudios'}
+_CLAVE_DEL_PERFIL = re.compile(r'(?<![\w/\\])(escalera|planificacion|estudios)\.([a-z_]+)\b')
+
+
+def _claves_en_palabras(texto: str) -> str:
+    """«escalera.tolerancia_pu» → «tolerancia pu de la escalera de obras»: el perfil incompleto se dice sin sus claves."""
+    return _CLAVE_DEL_PERFIL.sub(lambda m: f"{m.group(2).replace('_', ' ')} de {_SECCIONES_DEL_PERFIL[m.group(1)]}", texto)
 
 
 def _factibilidad(plan, extras: dict) -> None:
@@ -96,7 +108,7 @@ def _factibilidad(plan, extras: dict) -> None:
 def _maxima_buscada(plan, extras: dict) -> None:
     if not (extras.get('ultima_maxima') or {}).get('id'):
         plan.faltan.append('la máxima: búsquela antes; las búsquedas viven en memoria y tras un reinicio hay que '
-                           'volver a buscarlas (070:RF-24).')
+                           'volver a buscarlas.')  # 070:RF-24
     if re.search(r'\bcon bancos\b|\bcompleta\w* (los )?bancos\b', normalizar(plan.texto)):
         extras['completar_bancos'] = True
 
@@ -116,6 +128,35 @@ def _libro_tras(texto: str, palabra: re.Pattern) -> str | None:
     return ruta_de(texto[m.end():]) if m else None
 
 
+#: 072:RF-29: lo que se pregunta cuando la orden no dice cuál de los tres análisis es, o dice más de uno.
+PREGUNTA_DEL_TIPO = ('el tipo de análisis: ¿corto plazo (la carga, la escalera de obras, los estudios y el informe), '
+                     'PIDE (aplica las obras de su periodo) o planeamiento de largo plazo (las plantea sin aplicarlas)? '
+                     'Dígalo en la orden.')  # 072:RF-29
+
+
+def _tipos_de_analisis(plan) -> list[str]:
+    from ..asistente.tareas import tipos_de_analisis_de
+
+    return tipos_de_analisis_de(normalizar(plan.texto))
+
+
+def _tipo_del_pide(plan, extras: dict) -> None:
+    """El PIDE o el largo plazo, por lo que dice la orden; si no lo dice, o dice dos, se pregunta (072:RF-29).
+
+    El largo plazo va por la misma ruta con su ``plazo``: escribe solo sus módulos y no aplica obras (072:RF-34, RF-35).
+    El PIDE sigue siendo el de siempre, con los dos entregables.
+    """
+    tipos = _tipos_de_analisis(plan)
+    if tipos == ['largo_plazo']:
+        extras['plazo'] = 'largo_plazo'
+        plan.razonamiento.append('tipo de análisis: planeamiento de largo plazo; plantea las obras sin aplicarlas en '
+                                 '«Con proyecto» y escribe solo sus módulos.')  # 072:RF-34, RF-35
+    elif tipos == ['pide']:
+        plan.razonamiento.append('tipo de análisis: PIDE, con las obras de su periodo.')  # 072:RF-31
+    else:
+        plan.faltan.append(PREGUNTA_DEL_TIPO)
+
+
 def _pide(plan, extras: dict) -> None:
     """El estudio de planeamiento, con lo mismo que pide la web antes de encolar (072:RF-1, RF-18).
 
@@ -125,6 +166,7 @@ def _pide(plan, extras: dict) -> None:
     """
     from ..perfil_empresa import datos_perfil
 
+    _tipo_del_pide(plan, extras)
     anio = str(plan.datos.get('periodo') or '')[:4]
     if not anio.isdigit():
         try:
@@ -133,10 +175,10 @@ def _pide(plan, extras: dict) -> None:
             del_perfil = None
         if del_perfil is None:
             plan.faltan.append('el año de presentación del estudio: dígalo en la orden («el pide de … para 2027») o '
-                               'en «planificacion.anio_presentacion» del perfil; sin él no hay módulos del plan ni del '
-                               'PIDE (072:RF-1).')
+                               'en la planificación del perfil de empresa; sin él no hay módulos del plan ni del '
+                               'PIDE.')  # 072:RF-1
         else:
-            plan.razonamiento.append(f'año de presentación: {del_perfil}, el del perfil de empresa (072:RF-1).')
+            plan.razonamiento.append(f'año de presentación: {del_perfil}, el del perfil de empresa.')  # 072:RF-1
     for clave, palabra, nombre in _LIBROS_DEL_PIDE:
         ruta = _libro_tras(plan.texto, palabra)
         if ruta is None:
@@ -145,7 +187,7 @@ def _pide(plan, extras: dict) -> None:
             plan.faltan.append(f'{nombre}: {ruta} no existe.')
             continue
         extras[clave] = ruta
-        plan.razonamiento.append(f'{nombre}: {ruta} (072:RF-18).')
+        plan.razonamiento.append(f'{nombre}: {ruta}.')  # 072:RF-18
 
 
 def _alimentadores_del_alcance(svc, ws, plan) -> tuple[str, list[str]]:
@@ -161,7 +203,7 @@ def _alimentadores_del_alcance(svc, ws, plan) -> tuple[str, list[str]]:
     try:
         zonales = svc.estructura_resumen(ws).get('zonales') or []
     except svc.UserError as exc:
-        plan.faltan.append(f'la estructura de la empresa: {exc}')
+        plan.faltan.append(f'la estructura de la empresa: {sin_citas(str(exc))}')
         return alcance, []
     if alcance == 'sistema':
         fila = next((z for z in zonales if z['nombre'] == pedido), None)
@@ -189,7 +231,7 @@ def _tope_de_alimentadores(svc, plan, feeders: list[str]) -> bool:
     try:
         svc.comprobar_analisis_por_alimentadores(feeders)
     except svc.UserError as exc:
-        plan.faltan.append(str(exc))
+        plan.faltan.append(sin_citas(str(exc)))
         return False
     return True
 
@@ -240,8 +282,6 @@ def _cruzar_clientes(plan, extras: dict) -> None:
 _NUMERO = r'(\d+(?:[.,]\d+)?)'
 _POTENCIA = re.compile(_NUMERO + r'\s*(kw|mw)\b')
 _FP = re.compile(r'\b(?:fp|factor de potencia)\s*(?:de|:|=)?\s*(\d?[.,]\d+)')
-_UTM = re.compile(r'\bx\s*[:=]?\s*' + _NUMERO + r'[\s,;]+(?:e\s+)?y\s*[:=]?\s*' + _NUMERO)
-_LATLON = re.compile(r'\blat\w*\s*[:=]?\s*(-?\d+[.,]\d+)[\s,;]+lon\w*\s*[:=]?\s*(-?\d+[.,]\d+)')
 _BARRA = re.compile(r'\bbarra\s+(\S+)', re.IGNORECASE)
 #: El que propone el formulario 3.2 (008:RF-27); el plan lo dice para que el operador lo cambie.
 FP_PROPUESTO = .98
@@ -274,12 +314,15 @@ def _datos_de_la_carga(plan, extras: dict) -> None:
         nueva['FP'] = _numero(m.group(1))
     else:
         nueva['FP'] = FP_PROPUESTO
-        plan.razonamiento.append('factor de potencia: 0,98, el que propone el formulario 3.2; dígalo si es otro (008:RF-27).')
-    utm, latlon, barra = _UTM.search(t), _LATLON.search(t), _BARRA.search(plan.texto)
-    if utm is not None:
-        nueva['CoordX'], nueva['CoordY'] = _numero(utm.group(1)), _numero(utm.group(2))
-    elif latlon is not None:
-        nueva['Lat'], nueva['Lon'] = float(latlon.group(1).replace(',', '.')), float(latlon.group(2).replace(',', '.'))
+        plan.razonamiento.append('factor de potencia: 0,98, el que propone el formulario 3.2; dígalo si es otro.')  # 008:RF-27
+    from ..asistente.interprete import ubicacion_de
+
+    # 070:RF-29: «x … y …», «coordenadas X Y» o «lat … lon …», con la misma lectura que aparta esos números de la SED.
+    lugar, barra = ubicacion_de(plan.texto) or {}, _BARRA.search(plan.texto)
+    if 'x' in lugar:
+        nueva['CoordX'], nueva['CoordY'] = _numero(lugar['x']), _numero(lugar['y'])
+    elif 'lat' in lugar:
+        nueva['Lat'], nueva['Lon'] = float(lugar['lat'].replace(',', '.')), float(lugar['lon'].replace(',', '.'))
     elif barra is not None:
         nueva['barra'] = barra.group(1).strip(' ,.;')
     else:
@@ -367,14 +410,20 @@ def alcance_de_sistema_web(svc, ws, plan) -> tuple[list[str], str]:
     return ['--zonal', d['sistema']], f"El sistema {d['sistema']}"
 
 
+#: 070:RF-51: los datos que puede faltarle a una etapa, como los llama el operador; «falta ruta_cargas» enseñaba el campo.
+_FALTA_DE_LA_ETAPA = {**ETIQUETA_DEL_DATO, 'ruta_cargas': 'el libro de cargas nuevas', 'formulario': 'el formulario del informe',
+                      'nueva': 'los datos de la carga', 'ruta': 'los libros de demanda', 'alimentadores': 'los alimentadores'}
+
+
 def _etapas_en_palabras(lista: dict) -> list[str]:
     def fila(e: dict) -> str:
-        por_que = e.get('motivo') or f"falta {', '.join(e['falta'])}"
+        falta = ', '.join(_FALTA_DE_LA_ETAPA.get(k, k.replace('_', ' ')) for k in e['falta'])
+        por_que = e.get('motivo') or f'falta {falta}'
         sufijo = {'hecha': ' (ya hecha)', 'se_omitira': f' (se omitirá: {por_que})',
-                  'falta_dato': f" (falta {', '.join(e['falta'])})"}.get(e['estado'], '')
+                  'falta_dato': f' (falta {falta})'}.get(e['estado'], '')
         if not sufijo and e.get('condicion'):
             sufijo = f" ({e['condicion']})"
-        return f"{e['nombre']}{sufijo}"
+        return f"{e['nombre'].replace('_', ' ')}{sufijo}"
 
     return [fila(e) for e in lista['etapas']]
 
@@ -394,6 +443,71 @@ def _proyecto_entero(svc, ws, plan, extras: dict) -> None:
 
 def _ruta_de_control_de_carga(plan_datos: dict) -> str:
     return f"agente_carga_{re.sub(r'[^0-9A-Za-z]+', '_', str(plan_datos.get('sed') or ''))[:40]}.json"
+
+
+def _capex_de_la_orden(plan, datos: dict) -> None:
+    """El libro CAPEX que nombra la orden, para la etapa de las obras (``orquestador._ruta_de_la_etapa``)."""
+    _clave, palabra, nombre = _LIBROS_DEL_PIDE[0]
+    ruta = _libro_tras(plan.texto, palabra)
+    if ruta is None:
+        return
+    if not Path(ruta).is_file():
+        plan.faltan.append(f'{nombre}: {ruta} no existe.')
+        return
+    datos['capex'] = ruta
+    plan.razonamiento.append(f'{nombre} de las obras: {ruta}.')  # 070:RF-13
+
+
+def _ruta_de_control_de_corto_plazo(datos: dict) -> str:
+    """Otro punto de control que el de la factibilidad de la misma carga: son dos análisis (072:RF-29)."""
+    nombre = datos.get('sed') or Path(str(datos.get('ruta_cargas') or '')).stem
+    return f"agente_corto_plazo_{re.sub(r'[^0-9A-Za-z]+', '_', str(nombre))[:40]}.json"
+
+
+def _lista_de_corto_plazo(svc, ws, datos: dict) -> tuple[tuple, dict]:
+    from ..asistente.orquestador import ETAPAS_CORTO_PLAZO, ETAPAS_CORTO_PLAZO_LIBRO
+
+    etapas = ETAPAS_CORTO_PLAZO_LIBRO if datos.get('ruta_cargas') else ETAPAS_CORTO_PLAZO
+    return etapas, svc.agente_proyecto_lista(ws, datos, etapas=etapas, control=_ruta_de_control_de_corto_plazo(datos))
+
+
+def _corto_plazo(svc, ws, plan, extras: dict) -> None:
+    """El estudio de corto plazo: la carga, la escalera de obras, los estudios y el informe, con un clic (072:RF-31 a
+    RF-33). La orden lo pedía y el asistente hacía una sola de las cuatro, la que entendiera el modelo.
+
+    La carga es la sola que describe la orden («… de 800 kW … barra …», como en 3.2) o las de un libro de cargas
+    nuevas. Todo parte de la calibración aplicada y el informe, de su formulario de 4.4: lo que falte se dice aquí.
+    """
+    proyecto = plan.datos.get('proyecto')
+    ruta = plan.datos.get('ruta')
+    libro = ruta if ruta and Path(str(ruta)).suffix.lower() in ('.xlsx', '.xls') else None
+    if libro:
+        # Con el libro no hay una SED que nombrar: son las del libro (specs 007 y 014).
+        plan.faltan[:] = [f for f in plan.faltan if not f.startswith(ETIQUETA_DEL_DATO['sed'] + ':')]
+    else:
+        _datos_de_la_carga(plan, extras)
+    _exige_calibracion(svc, ws, plan)
+    _obras(svc, ws, plan, extras)
+    if not proyecto or not plan.datos.get('alimentadores') or not (libro or plan.datos.get('sed')):
+        return
+    formulario = ((ws.informes.get('formularios') or {}).get(proyecto) or {}).get('estudio')
+    if not formulario:
+        plan.faltan.append('el formulario del informe de estudio: rellénelo una vez en el paso 4.4.')
+    datos: dict[str, Any] = {'proyecto': proyecto, 'alimentadores': list(plan.datos['alimentadores']),
+                             'formulario': formulario or {}}
+    if libro:
+        datos['ruta_cargas'] = libro
+    else:
+        datos.update(sed=plan.datos['sed'], nueva=extras.get('nueva') or {})
+    if extras.get('tipo_cambio'):
+        datos['tipo_cambio'] = extras['tipo_cambio']
+    _capex_de_la_orden(plan, datos)
+    _etapas, lista = _lista_de_corto_plazo(svc, ws, datos)
+    if lista['bloqueo']:
+        plan.faltan.append(lista['bloqueo'])
+    plan.razonamiento.append('tipo de análisis: corto plazo, con las obras de implementación inmediata.')  # 072:RF-31
+    extras.update(plazo='corto_plazo', datos_etapas=datos, lista_confirmacion=lista['confirmacion'],
+                  etapas_en_palabras=_etapas_en_palabras(lista))
 
 
 def _lista_de_la_carga(svc, ws, datos: dict) -> dict:
@@ -426,6 +540,7 @@ def _evaluar_carga(svc, ws, plan, extras: dict) -> None:
     tipo_cambio = tipo_de_cambio_de(plan.texto)
     if tipo_cambio:
         datos['tipo_cambio'] = tipo_cambio
+    _capex_de_la_orden(plan, datos)
     lista = _lista_de_la_carga(svc, ws, datos)
     if lista['bloqueo']:
         plan.faltan.append(lista['bloqueo'])
@@ -436,6 +551,17 @@ def _evaluar_carga(svc, ws, plan, extras: dict) -> None:
 
 def ejecutar_etapas(svc, ws, ctx, plan, extras: dict, base: str, http: Any) -> dict:
     """La lista confirmada; si cambió desde que se mostró, no se ejecuta (067:RF-39, 070:RF-52)."""
+    if plan.tarea == 'evaluar_carga_nueva' and extras.get('plazo') == 'corto_plazo':
+        from ..asistente.ejecutor import entregables
+
+        datos = extras['datos_etapas']
+        etapas, lista = _lista_de_corto_plazo(svc, ws, datos)
+        if lista['confirmacion'] != extras.get('lista_confirmacion'):
+            raise svc.UserError('La lista de etapas cambió desde que se mostró: escriba la orden de nuevo.')
+        svc.agente_proyecto_anotar(ws, datos, lista)
+        r = svc.agente_proyecto(ws, ctx, datos, base, http, etapas=etapas, control=_ruta_de_control_de_corto_plazo(datos))
+        return {**r, 'entregables': entregables(r.get('etapas')),
+                'texto': 'Estudio de corto plazo hecho: la carga, las obras, los estudios y el informe; vea el informe.'}
     if plan.tarea == 'evaluar_carga_nueva':
         from ..asistente.ejecutor import entregables
         from ..asistente.orquestador import ETAPAS_CARGA
@@ -485,7 +611,7 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         try:
             svc.comprobar_que_se_calibra(plan.datos.get('proyecto') or '')     # 070:RF-61
         except svc.UserError as exc:
-            plan.faltan.append(str(exc))
+            plan.faltan.append(sin_citas(str(exc)))
     elif tarea == 'buscar_maxima':
         _buscar_maxima(svc, ws, plan, extras)
     elif tarea == 'cruzar_clientes':
@@ -501,7 +627,8 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
     elif tarea == 'proyecto_entero':
         _proyecto_entero(svc, ws, plan, extras)
     elif tarea == 'evaluar_carga_nueva':
-        _evaluar_carga(svc, ws, plan, extras)
+        # 072:RF-29: «estudio de corto plazo con la carga X» y «evalúa la carga X» son dos análisis distintos.
+        (_corto_plazo if _tipos_de_analisis(plan) == ['corto_plazo'] else _evaluar_carga)(svc, ws, plan, extras)
     elif tarea in ('alimentadores_completo', 'set_completo'):
         _libros_de_la_demanda(svc, ws, plan)
         if tarea == 'alimentadores_completo':
@@ -510,7 +637,7 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         try:
             svc.recalibrar_datos(ws, plan.datos.get('proyecto') or '')
         except svc.UserError as exc:
-            plan.faltan.append(str(exc))
+            plan.faltan.append(sin_citas(str(exc)))
     elif tarea == 'estudios':
         _exige_calibracion(svc, ws, plan)
         _estudio_nombrado(svc, ws, plan)

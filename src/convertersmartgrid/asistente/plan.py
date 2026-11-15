@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from ..naming import feeder_short_name
-from .interprete import Interpretacion, numero_de, periodo_de
+from .interprete import Interpretacion, numero_de, periodo_de, ubicacion_de
 from .sinteticos import SUBTIPOS_ESTUDIO, normalizar
-from .tareas import EFECTOS, TAREAS, requiere_confirmacion
+from .tareas import EFECTOS, TAREAS, descripcion_para_operador, requiere_confirmacion, sin_citas
 
 #: 084:RF-25: los verbos de una orden de borrar. «borra la escalera de X» activaba la frase literal de la
 #: escalera y lanzaba justo la obra que se quería quitar.
@@ -60,7 +60,7 @@ class Plan:
     def publico(self) -> dict:
         return {**asdict(self), 'listo': self.listo, 'espera_confirmacion': self.espera_confirmacion,
                 'efectos': list(EFECTOS.get(self.tarea or '', ())),             # 086:RF-23
-                'descripcion': TAREAS[self.tarea].descripcion if self.tarea else ''}
+                'descripcion': descripcion_para_operador(self.tarea) if self.tarea else ''}
 
 
 #: 078:RF-29: las tareas cuyo destino puede ser un grupo ya convertido. Sin tarea nueva: el catálogo hasta la
@@ -73,7 +73,30 @@ def aviso_sin_transformer(motivo: str, modelo: str) -> str:
     sin decirlo, y una orden mal entendida parecía un fallo del Transformer."""
     respondio = (f'Esta orden la interpretó {modelo}.' if modelo not in ('', 'ninguno') else
                  'Ollama tampoco la entendió o no está en marcha: no respondió ninguno, así que no se adivina.')
-    return f'El Transformer de órdenes no está disponible: {motivo} {respondio}'
+    return f'El Transformer de órdenes no está disponible: {motivo_para_operador(motivo)} {respondio}'
+
+
+#: 070:RF-51: cómo llama el operador a cada dato; «sed: SED de la carga del informe» o «ruta: Excel de cargas nuevas»
+#: le enseñaban el nombre del campo (auditor, 2026-11-14).
+ETIQUETA_DEL_DATO = {'sed': 'la carga', 'ruta': 'el fichero', 'texto': 'el texto', 'numero': 'cuántos',
+                     'subtipo': 'el subtipo de estudio', 'estudio': 'el estudio', 'alcance': 'el alcance', 'anio': 'el año',
+                     'set': 'la SET', 'sistema': 'el sistema', 'periodo': 'el periodo', 'proyecto': 'el proyecto'}
+
+
+def falta_del_dato(nombre: str, descripcion: str) -> str:
+    """Lo que falta de un dato obligatorio, con el nombre que le da el operador."""
+    return f'{ETIQUETA_DEL_DATO.get(nombre, nombre)}: {descripcion}'
+
+
+def motivo_para_operador(motivo: str) -> str:
+    """El motivo en palabras del operador: sin la orden de consola, la revisión ni el error de la librería en inglés.
+
+    El aviso enseñaba «se prepara con: python tools/preparar_modelos_ia.py --descargar …: We couldn't connect to
+    'https://huggingface.co' …» (auditor, 2026-11-14). El motivo entero queda en el registro de la orden.
+    """
+    texto = re.split(r';\s*se prepara con:', motivo, maxsplit=1)[0]
+    texto = re.sub(r'\s*\(revisi[oó]n [0-9a-f]{7,}\)', '', sin_citas(texto)).strip().rstrip('.:;')
+    return f'{texto}. Lo prepara quien instala el programa.' if texto != motivo.strip().rstrip('.:;') else f'{texto}.'
 
 
 def _clave(s: str) -> str:
@@ -98,6 +121,24 @@ def parecido(valor: str, opciones: Sequence[str], corte: float = 0.8) -> str | N
         return por_clave[k]
     cerca = difflib.get_close_matches(k, list(por_clave), n=len(por_clave), cutoff=corte) if por_clave else []
     return next((por_clave[c] for c in cerca if not _otro_numero(k, c)), None)
+
+
+def empatados(valor: str, opciones: Sequence[str], corte: float = 0.8) -> list[str]:
+    """Las opciones que se parecen al valor exactamente igual, si son varias; vacío si una gana o el valor es una.
+
+    026:RF-6: «conviertme el qx51» daba QX512 sin dudar, con QX511 igual de cerca (auditor, 2026-11-14, F5):
+    ``parecido`` toma la primera de ``get_close_matches``. Ante un empate no se elige: se pregunta.
+    """
+    por_clave = {_clave(o): o for o in opciones}
+    k = _clave(valor)
+    if k in por_clave:
+        return []
+    puntos = sorted(((difflib.SequenceMatcher(None, k, c).ratio(), c) for c in por_clave if not _otro_numero(k, c)),
+                    reverse=True)
+    puntos = [(r, c) for r, c in puntos if r >= corte]
+    if len(puntos) < 2 or puntos[0][0] - puntos[1][0] > 1e-9:
+        return []
+    return sorted(por_clave[c] for r, c in puntos if puntos[0][0] - r <= 1e-9)
 
 
 def _nombrados(texto: str, opciones: Sequence[str]) -> list[str]:
@@ -177,9 +218,17 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
                 confianza=interp.confianza, alternativas=list(interp.alternativas))
     if interp.consultados:
         plan.razonamiento.append(f"Consulté: {', '.join(interp.consultados)}.")
+    if interp.tarea not in TAREAS and _PIDE_BORRAR.search(normalizar(interp.texto)):
+        # 084:RF-25: «borra el proyecto …» o «elimina todos los espacios» proponían «¿quiso decir optimizar con
+        # proyecto?» (auditor, 2026-11-14, F8). Borrar no es una orden del asistente: se dice, sin alternativas.
+        plan.tarea, plan.alternativas = None, []
+        plan.faltan.append('El asistente no borra proyectos de DIgSILENT, espacios ni ficheros: eso se hace a mano, en '
+                           'DIgSILENT o en la web, donde se ve lo que se borra.')
+        return plan
     if interp.tarea not in TAREAS:
         plan.tarea = None
-        dudas = ', '.join(f'{t} ({c:.0%})' for t, c in interp.alternativas[:3])
+        # 070:RF-51: la tarea por lo que hace, no por su nombre interno.
+        dudas = ', '.join(f'«{descripcion_para_operador(t) if t in TAREAS else t}» ({c:.0%})' for t, c in interp.alternativas[:3])
         plan.faltan.append('la tarea: no entendí la orden con suficiente confianza'
                            + (f'; ¿quiso decir {dudas}?' if dudas else ''))
         return plan
@@ -188,17 +237,20 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
     if tarea.escribe and _PIDE_BORRAR.search(normalizar(interp.texto)):
         # Protege datos reales: esta sí se detiene. El asistente no tiene ninguna orden de borrar.
         plan.tarea = None
-        plan.faltan.append('El asistente no borra en DIgSILENT: esa orden se da en DIgSILENT, en su proyecto '
-                           '(084:RF-25).')
+        plan.faltan.append('El asistente no borra en DIgSILENT: esa orden se da en DIgSILENT, en su proyecto.')  # 084:RF-25
         return plan
     quien = ('el Transformer propio' if interp.modelo == 'transformer' else
              'la frase literal del catálogo' if interp.modelo == 'catalogo' else
-             'la forma de la pregunta, que nombra un fichero o una ruta de la API (077:RF-74)' if interp.modelo == 'forma'
+             'la forma de la pregunta, que nombra un fichero o una ruta de la API' if interp.modelo == 'forma'  # 077:RF-74
              else f'el modelo local {interp.modelo}')
-    plan.razonamiento.append(f'Entendí «{tarea.descripcion}» con {quien} (confianza {interp.confianza:.0%})'
-                             + (f': {interp.razon}' if interp.razon else '.'))
+    plan.razonamiento.append(f'Entendí «{descripcion_para_operador(tarea.nombre)}» con {quien} (confianza {interp.confianza:.0%})'
+                             + (f': {sin_citas(interp.razon)}' if interp.razon else '.'))
+    ubicacion = set((ubicacion_de(interp.texto) or {}).values())
     for d in tarea.datos:
         valores = [x['valor'] for x in interp.datos.get(d.tipo) or []]
+        if ubicacion and d.tipo in ('sed', 'alimentadores'):
+            # 070:RF-29: las coordenadas de la orden son la ubicación de la carga, no una SED ni un alimentador.
+            valores = [v for v in valores if v.strip().replace(',', '.') not in {u.replace(',', '.') for u in ubicacion}]
         if d.tipo == 'alimentadores' and tarea.nombre in _IMPORTAN_GRUPO:
             # 078:RF-29, RF-31: la plantilla dice «importa {alimentadores}» y la web importa un grupo por su
             # nombre, pero el contraste solo miraba la fuente: «importa <grupo>» pedía alimentadores.
@@ -218,9 +270,9 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
             if plan.escribe and d.tipo in ('alimentadores', 'proyecto', 'sistema', 'set') and not vocab.get(d.tipo):
                 plan.faltan.append(f'contexto vinculado de {d.tipo}: cargar o leer su fuente antes de ejecutar')
         elif d.obligatorio:
-            plan.faltan.append(f'{d.nombre}: {d.descripcion}')
+            plan.faltan.append(falta_del_dato(d.nombre, d.descripcion))
     if plan.escribe:
-        plan.razonamiento.append('Esta tarea escribe en DIgSILENT o en disco: espera su confirmación (RF-8).')
+        plan.razonamiento.append('Esta tarea escribe en DIgSILENT o en disco: espera su confirmación.')  # 026:RF-8
     elif requiere_confirmacion(tarea.nombre):
         plan.razonamiento.append('Esta tarea usa la licencia de DIgSILENT o sale a la red: espera su confirmación.')
     return plan
@@ -240,6 +292,11 @@ def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Pl
     crudos = [p for v in valores for p in trozos_lista(v)]
     if any(normalizar(p) in ('todos', 'todo', 'todos los alimentadores') for p in crudos) or (not crudos and re.search(
             r'\btodos los alimentadores\b', normalizar(texto))):
+        if plan.datos.get('proyecto'):
+            # 026:RF-6: con un proyecto, «todos» son los suyos, que la ruta toma de su vínculo; los de la fuente
+            # metían en el PIDE de un sistema los 101 alimentadores de la empresa (auditor, 2026-11-14, F2).
+            plan.razonamiento.append(f"alimentadores: «todos» → los del proyecto {plan.datos['proyecto']}.")
+            return ['todos']
         if opciones:
             plan.razonamiento.append(f'alimentadores: «todos» → los {len(opciones)} de la fuente cargada.')
             return list(opciones)
@@ -261,6 +318,9 @@ def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Pl
         if _clave(p) in repetidos:
             # 026:RF-6: el mismo código en dos redes no se resuelve con la primera: se pregunta.
             preguntar(_clave(p))
+            continue
+        if opciones and (iguales := empatados(p, opciones)):
+            plan.faltan.append(f"cuál alimentador: «{p}» se parece igual a {' y '.join(iguales)}; dígalo completo.")
             continue
         # 026:RF-6: el NetworkID de la fuente («NET_2030_179_PA217») es el mismo alimentador que su código corto.
         o = (parecido(p, opciones) or parecido(feeder_short_name(p), opciones)) if opciones else p.upper()
@@ -284,6 +344,9 @@ def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Pl
 
 def _nombre(tipo: str, valores: list[str], texto: str, opciones: list[str], plan: Plan) -> str | None:
     for v in valores:
+        if opciones and (iguales := empatados(v, opciones, 0.75)):
+            plan.faltan.append(f"cuál {tipo}: «{v}» se parece igual a {' y '.join(iguales)}; dígalo completo.")
+            return None
         o = parecido(v, opciones, 0.75) if opciones else None
         if o is not None:
             plan.razonamiento.append(f'{tipo}: «{v}» → {o} (de lo que conoce la web).')

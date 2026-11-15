@@ -62,6 +62,19 @@ ETAPAS_CARGA: tuple[Etapa, ...] = (
     Etapa('informe', 'informe_factibilidad', ('proyecto', 'alimentadores', 'sed', 'formulario'), condicion='si_hubo_obras'),
 )
 
+#: 072:RF-31 a RF-33: el estudio de corto plazo con una carga nueva, en su orden: la carga sobre la calibración, la
+#: escalera de obras de implementación inmediata (025:RF-44), los estudios de la red con ella y el informe de estudio
+#: (spec 017). La factibilidad de una carga sola es otro análisis (``ETAPAS_CARGA``).
+ETAPAS_CORTO_PLAZO: tuple[Etapa, ...] = (
+    Etapa('carga', 'carga_nueva_sola', ('proyecto', 'alimentadores', 'sed', 'nueva')),
+    Etapa('obras', 'obras_escalera', ('proyecto', 'alimentadores')),
+    Etapa('estudios', 'estudios', ('proyecto', 'alimentadores')),
+    Etapa('informe', 'informe_estudio', ('proyecto', 'alimentadores', 'formulario')),
+)
+#: El mismo, con las cargas nuevas de un libro de planificación en vez de una sola (specs 007 y 014).
+ETAPAS_CORTO_PLAZO_LIBRO: tuple[Etapa, ...] = (
+    Etapa('cargas', 'cargas_nuevas', ('proyecto', 'alimentadores', 'ruta_cargas')), *ETAPAS_CORTO_PLAZO[1:])
+
 #: Qué se enseña de una condición antes de que se pueda comprobar.
 _CONDICIONES = {'sin_calibracion': 'solo si no tiene calibración', 'si_no_factible': 'solo si la evaluación pide obras',
                 'si_hubo_obras': 'solo si hubo obras'}
@@ -187,6 +200,23 @@ def _extras_de_etapa(e: Etapa, datos: Mapping[str, Any]) -> dict[str, Any]:
     return extras
 
 
+#: Las etapas cuya ``ruta`` es el libro CAPEX con que se costean las obras (070:RF-13).
+_RUTA_ES_CAPEX = ('obras_escalera', 'optimizar_con_proyecto')
+
+
+def _ruta_de_la_etapa(e: Etapa, datos: Mapping[str, Any]) -> Any:
+    """El fichero de cada etapa: el libro de cargas, el CAPEX de las obras o, en las demás, los libros de demanda.
+
+    La de las obras era la carpeta de los libros de demanda que añade la lista (070:RF-6), y la escalera la mandaba
+    como su libro CAPEX (072:RF-33): ahora va el CAPEX que nombra la orden y, sin él, ninguno, como desde la web.
+    """
+    if e.tarea == 'cargas_nuevas':
+        return datos.get('ruta_cargas')
+    if e.tarea in _RUTA_ES_CAPEX:
+        return datos.get('capex')
+    return datos.get('ruta')
+
+
 def _datos_tras(etapa: Etapa, datos: dict[str, Any], cliente: ClienteWeb) -> dict[str, Any]:
     """Lo que una etapa deja para las siguientes: tras el sistema, su proyecto y alimentadores."""
     if etapa.tarea != 'sistema_completo':
@@ -243,7 +273,7 @@ def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control:
             avance(i,len(etapas),e.nombre)
             continue
         log(f'Agente: etapa {i} de {len(etapas)}, {e.nombre}…')
-        datos_tarea = {**datos, 'ruta': datos.get('ruta_cargas') if e.tarea == 'cargas_nuevas' else datos.get('ruta')}
+        datos_tarea = {**datos, 'ruta': _ruta_de_la_etapa(e, datos)}
         extras = _extras_de_etapa(e, datos)
         gobierno = gobierno_etapa(e.tarea, datos_tarea, extras) if gobierno_etapa is not None else None
         cliente.gobierno = gobierno

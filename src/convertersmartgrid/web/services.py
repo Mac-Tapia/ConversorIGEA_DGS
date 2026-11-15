@@ -12765,7 +12765,7 @@ def _asistente_con_modelo_provisional(plan) -> None:
     """Un modelo provisional se dice en cada plan, y ese plan espera al operador (085:RF-30, RF-32).
 
     Va en todos: el que interpreta mal no sabe que interpreta mal, y confirmar a ciegas es lo que esto quiere evitar."""
-    from ..asistente.modelos_en_uso import aviso_provisional, uso_provisional
+    from ..asistente.modelos_en_uso import uso_provisional
 
     try:
         uso = uso_provisional('transformer')
@@ -12775,7 +12775,10 @@ def _asistente_con_modelo_provisional(plan) -> None:
         return
     if uso is not None:
         plan.solo_con_confirmacion = True
-        plan.avisos.append(aviso_provisional(uso))
+        # Aclaración de 085:RF-30 (usuario, 2026-11-14): en cada plan, sin las cifras de la puerta, que salían en todas
+        # las respuestas; esas cifras siguen en el estado de los modelos de la web (``aviso_provisional``).
+        plan.avisos.append('Modelo de órdenes provisional, no pasa las puertas: cada plan espera su confirmación. '
+                           'Sus cifras están en el estado de los modelos.')
 
 
 def _asistente_clasificador():
@@ -12793,7 +12796,9 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
     if t == 'estado':
         filas = feeder_rows(ws)
         salidas = [p for p in ws.out_dir.rglob('*') if p.is_file()] if ws.out_dir.is_dir() else []
-        en_curso = [j for j in trabajos if j.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled')]
+        # La propia orden no es un trabajo del operador: «1 trabajo(s) en curso: Interpretar la orden» (auditor, 2026-11-14).
+        en_curso = [j for j in trabajos if j.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
+                    and j.get('kind') not in ('asistente_interpretar', 'asistente_control', 'asistente_indice')]
         texto = (f"{'Fuente cargada' if ws.dataset is not None else 'Sin fuente cargada'}; {len(filas)} "
                  f'alimentador(es); {len(en_curso)} trabajo(s) en curso; {len(salidas)} fichero(s) de salida.')
         return {'texto': texto, 'trabajos': [{'titulo': j['title'], 'estado': j['status']} for j in en_curso]}
@@ -12866,6 +12871,7 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
 
         if (motivo := motivo_no_disponible()) is not None:
             plan.avisos.append(aviso_sin_transformer(motivo, plan.interpretado_por))
+            almacen.anotar('avisos', {'espacio': ws.id, 'plan': plan.id, 'motivo_sin_transformer': motivo})   # 070:RF-51
     _asistente_con_modelo_provisional(plan)
     extras = _asistente_extras(ws, plan, trabajos or [])
     extras['_trabajos'] = trabajos or []                                       # solo para los requisitos (070:RF-32)
@@ -12876,9 +12882,15 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
             c = _asistente_clasificador()
             if c is not None:
                 r = c.clasificar(texto)
-                plan.datos['subtipo'] = r['subtipo']
-                plan.razonamiento.append(f"subtipo de estudio: {r['subtipo']} según el clasificador "
-                                         f"({r['confianza_subtipo']:.0%}, 026:RF-14).")
+                if r['confianza_subtipo'] >= SUBTIPO_SEGURO:
+                    plan.datos['subtipo'] = r['subtipo']
+                    plan.razonamiento.append(f"subtipo de estudio: {r['subtipo']} según el clasificador "
+                                             f"({r['confianza_subtipo']:.0%}).")  # 026:RF-14
+                else:
+                    # 026:RF-14: «informe de estudio eléctrico del QX511» salía de «transferencia» al 75 % y ese subtipo
+                    # se guardaba como etiqueta del informe generado (auditor, 2026-11-14, F6). Sin seguridad, el del 4.4.
+                    plan.razonamiento.append('subtipo de estudio: el del formulario del paso 4.4; la orden no lo dice y '
+                                             f"el clasificador no está seguro ({r['subtipo']}, {r['confianza_subtipo']:.0%}).")
         if not extras.get('formulario') and plan.datos.get('proyecto'):
             plan.faltan.append('el formulario del informe: rellénelo una vez en el paso 4.4 de la web')
     from ..asistente.ejecutor import describir
@@ -12906,6 +12918,10 @@ _NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 
                      'set_completo', 'alimentadores_completo', 'proyecto_entero')
 
 
+#: 026:RF-14: la confianza con que el subtipo que propone el clasificador entra en el plan sin que la orden lo diga.
+SUBTIPO_SEGURO = 0.9
+
+
 def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     """Lo que la tarea necesita del espacio, comprobado con la misma validación de la web
     antes de ofrecer confirmar (026:RF-6).
@@ -12914,6 +12930,7 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     en la ruta con «Faltan entradas: RED…» (2026-10-24): lo que falta se dice en el plan. Con
     las entradas puestas y la fuente sin cargar, convertir empieza por cargarla.
     """
+    from ..asistente.tareas import sin_citas
     from .asistente_operacion import requisitos
 
     requisitos(sys.modules[__name__], ws, plan, extras)                        # 070:RF-2 a RF-15
@@ -12923,13 +12940,13 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
             carga_del_informe(ws, plan.datos['proyecto'], plan.datos['alimentadores'][0], plan.datos['sed'])
         except UserError as exc:
             # 070:RF-11: el mensaje decía «paso 3», que el asistente no enseña.
-            plan.faltan.append(f'{exc} Conéctela antes con la orden de una carga nueva sola.')
+            plan.faltan.append(f'{sin_citas(str(exc))} Conéctela antes con la orden de una carga nueva sola.')  # 070:RF-51
     if plan.tarea not in _NECESITAN_FUENTE or (plan.tarea != 'cargar_fuente' and ws.dataset is not None):
         return
     try:
         check_ready(ws)
     except UserError as exc:
-        plan.faltan.append(f'las entradas del espacio. {exc} Súbalas en «Entradas» (RED, CARGA y EQUIPOS, '
+        plan.faltan.append(f'las entradas del espacio. {sin_citas(str(exc))} Súbalas en «Entradas» (RED, CARGA y EQUIPOS, '
                            'una base .mdb o un paquete VNR-GIS) y repita la orden; para un proyecto ya '
                            'importado, use la fuente de su vínculo en «Cargas en DIgSILENT».')
         return
@@ -13628,6 +13645,7 @@ def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | No
     from ..asistente.equipo import LecturaGobernada
     from ..asistente.lectura_proyecto import RESTRINGIDA, politica_local
     from ..asistente.ollama import cliente_configurado, destino_llm
+    from ..asistente.tareas import sin_citas
     from ..documentos_solicitud import texto_pdf
     from .asistente_consultas import anotar_lecturas
     from ..trabajadores_ml import turno_gpu
@@ -13647,8 +13665,13 @@ def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | No
                          abstencion=servir['abstencion'],                 # 047:RF-31 a RF-33
                          lector=lector)
     anotar_lecturas(r['citas'])                                          # 077:RF-59
-    return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
-            'metodos': r['metodos'], 'corpus': servir['corpus']}
+    # 070:RF-51: lo que lee el operador va sin citas ni la línea del motor («BM25 + vectores … reranker apartado: GPU
+    # sin turno», auditor, 2026-11-14, F7); esa línea queda en «recuperacion» para el registro (047:RF-26).
+    notas = [f'Solo se lee lo público, lectura restringida: {aviso}'] if aviso and not es_local else []
+    if 'no es lo vigente' in r['recuperacion']:
+        notas.append('Solo hay documentos históricos: no es lo vigente.')                 # 077:RF-8
+    return {'texto': '\n\n'.join([sin_citas(r['respuesta']), *notas]), 'citas': r['citas'], 'sabe': r['sabe'],
+            'metodos': r['metodos'], 'recuperacion': r['recuperacion'], 'corpus': servir['corpus']}
 
 
 def asistente_vectores_pendientes() -> bool:

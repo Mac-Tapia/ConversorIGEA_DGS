@@ -133,7 +133,8 @@ def test_sin_ollama_responde_con_bm25_y_lo_dice(tmp_path):
 
 
 def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
-    """047:RF-26 — lo que ve el operador es ``texto``: ahí van los métodos, con citas."""
+    """047:RF-26 / 070:RF-51 — los métodos van en ``recuperacion``, para el registro; el ``texto`` que lee el operador
+    no lleva la jerga del motor (aclaración de 047:RF-26, usuario, 2026-11-14)."""
     repo = _repo(tmp_path)
     monkeypatch.setattr(services, 'project_root', lambda: repo)
     monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
@@ -142,9 +143,11 @@ def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
     monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
     monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion(calibrada=True, umbral_bm25_solo=2.0))
     r = services.asistente_pregunta('¿cómo se reparte la medida de la barra?')
-    assert r['sabe'] and r['citas'] and r['metodos'] == ['bm25'] and 'BM25' in r['texto']
+    assert r['sabe'] and r['citas'] and r['metodos'] == ['bm25'] and 'BM25' in r['recuperacion']
+    assert 'BM25' not in r['texto'] and 'Recuperación' not in r['texto']
     r = services.asistente_pregunta('receta de la tortilla de patatas')
-    assert not r['sabe'] and r['texto'].startswith('No lo sé') and not r['citas'] and 'BM25' in r['texto']
+    assert not r['sabe'] and r['texto'].startswith('No lo sé') and not r['citas'] and 'BM25' in r['recuperacion']
+    assert 'BM25' not in r['texto']
 
 
 # ------------------------------------------------------------------- vectores en trabajo

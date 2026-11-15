@@ -73,6 +73,8 @@ cifras a la vista y sin marcarlo aprobado: las puertas no bajan.
 - RF-28: EL SISTEMA dejará intacta la decisión de las puertas del candidato, sin darlo por aprobado ni por activo en el registro.
 - RF-29: CUANDO se vuelva al anterior o entre un modelo aprobado, EL SISTEMA dejará de tratar como provisional al modelo que sale.
 - RF-30: MIENTRAS el modelo de órdenes en uso sea provisional, EL SISTEMA dirá «provisional, no pasa las puertas» y sus cifras en la web y en cada plan del asistente.
+- Aclaración de RF-30 (usuario, 2026-11-14: en la web, ninguna cita de RF ni jerga; aclaración de 070:RF-51): cada plan dice
+  «provisional, no pasa las puertas» y que sus cifras están en el estado de los modelos, que es donde se dan.
 - RF-31: EL SISTEMA no ejecutará ninguna tarea que escribe sin la confirmación del operador, sea cual sea la confianza del modelo.
 - RF-32: MIENTRAS el modelo de órdenes en uso sea provisional, EL SISTEMA tampoco lanzará sin confirmación un trabajo de solo lectura.
 - RF-33: EL SISTEMA dará una herramienta para ver, poner y retirar el modelo provisional, que no aplica nada sin el candidato, quien decide y el motivo.

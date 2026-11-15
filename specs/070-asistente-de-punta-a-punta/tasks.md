@@ -4,12 +4,20 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k huecos` en verde.
 - [x] T2 Tareas nuevas por rutas existentes. (RF-17 a RF-39)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k tareas` en verde.
+  Ampliado el 2026-11-14 (prueba del auditor con órdenes reales, F3): «x … y …» y «coordenadas X Y» son la
+  ubicación de la carga (RF-29), ni una SED ni un alimentador (`interprete.ubicacion_de`); evidencia en
+  `tests/test_asistente_prueba_del_auditor.py`. Con ellos, F2 y F5 (026:RF-6): con un proyecto, «todos» son sus
+  alimentadores, que la ruta toma de su vínculo, y no los de toda la fuente; una errata que se parece igual a dos
+  alimentadores o proyectos se pregunta (`plan.empatados`).
 - [x] T3 Consulta de datos. (RF-40 a RF-46)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k consulta` en verde.
 - [x] T4 Respuestas de no disponible. (RF-47 a RF-49)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k nodisponible` en verde.
 - [x] T5 Encadenar la evaluación de una carga nueva. (RF-50 a RF-56)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k cadena` en verde.
+  Ampliado el 2026-11-14 (F4, F9): «si entra una carga … de punta a punta» va a esta cadena (RF-50); la primera
+  frase literal del catálogo decide la tarea que el modelo no conoce, y también la que conoce cuando el modelo
+  queda bajo su umbral (067:RF-36). Evidencia en `tests/test_asistente_prueba_del_auditor.py`.
 - [x] T6 Reglas de dominio. (RF-57 a RF-61)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k dominio` en verde.
 - [x] T7 Vía antigua de entrenamiento. (RF-62 a RF-66)

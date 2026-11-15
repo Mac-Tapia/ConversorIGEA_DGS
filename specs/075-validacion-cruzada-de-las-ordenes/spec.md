@@ -79,6 +79,7 @@ Los umbrales de esta spec se declaran antes de medir; ninguno se ajusta mirando 
 
 - RF-37: CUANDO el modelo con clase `ninguna` no llegue a su umbral y `ninguna` sea su primera o su segunda opción, EL SISTEMA dejará la orden sin tarea, sin consultar a Ollama.
 - RF-38: CUANDO eso ocurra, EL SISTEMA preguntará al operador por la tarea, ofreciendo las alternativas del modelo, y dirá en lo consultado que Ollama no se consultó.
+- Aclaración de RF-38 (2026-11-14, por 070:RF-51): cada alternativa se nombra al operador por lo que hace (su descripción, con su confianza), no por el nombre interno de la tarea.
 - RF-39: SI `ninguna` es la tercera opción o una posterior, ENTONCES EL SISTEMA consultará a Ollama como hasta ahora.
 - RF-40: MIENTRAS el modelo llegue a su umbral, EL SISTEMA no aplicará esta regla.
 - RF-41: SI el modelo no tiene clase `ninguna`, ENTONCES EL SISTEMA consultará a Ollama como hasta ahora.

@@ -85,6 +85,9 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 
 - RF-50: EL SISTEMA encadenará diagnóstico, calibración si hace falta, carga, evaluación, obras si hacen falta e informe.
 - RF-51: EL SISTEMA enseñará las etapas en el plan y las confirmará de una vez.
+- Aclaración de RF-51 (usuario, 2026-11-14: en la web, ninguna cita de RF ni jerga): lo que el plan enseña al operador
+  (etapas, faltantes, dudas, razonamiento y avisos) no lleva citas de requisitos, specs ni tareas, ni claves internas;
+  la cita va en el comentario del código y en el registro.
 - RF-52: SI las etapas cambiaron desde que se mostraron, ENTONCES EL SISTEMA no las ejecutará.
 - RF-53: DONDE el proyecto tenga calibración aplicada, EL SISTEMA omitirá la etapa de calibración y lo dirá.
 - RF-54: DONDE la evaluación concluya factible sin obras, EL SISTEMA omitirá las obras y lo dirá.

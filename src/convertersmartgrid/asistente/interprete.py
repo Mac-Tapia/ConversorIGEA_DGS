@@ -15,7 +15,7 @@ from typing import Any
 from .maestro_real import NINGUNA
 from .sinteticos import MESES, normalizar
 from .contratos_salida import validar_orden
-from .tareas import TAREAS
+from .tareas import TAREAS, tarea_del_tipo_de_analisis
 
 UMBRAL_TRANSFORMER = 0.85
 UMBRAL_OLLAMA = 0.6
@@ -71,6 +71,25 @@ def ruta_de(texto: str) -> str | None:
     return (m.group(1) or m.group(2)) if m else None
 
 
+_NUM = r'(-?\d+(?:[.,]\d+)?)'
+#: 070:RF-29: la ubicación de una carga nueva. «x 374207.83 y 8476517» daba la SED «374207.83» y la duda «8476517 no es
+#: un alimentador», y «coordenadas 374207.83 8476517» no se leía (auditor, 2026-11-14, F3): son una ubicación.
+_UTM = re.compile(r'\bx\s*[:=]?\s*' + _NUM + r'[\s,;]+(?:e\s+)?y\s*[:=]?\s*' + _NUM
+                  + r'|\bcoordenadas?(?:\s+utm)?\s*[:=]?\s*(?:x\s*[:=]?\s*)?' + _NUM + r'[\s,;]+(?:e\s+)?(?:y\s*[:=]?\s*)?' + _NUM)
+_LATLON = re.compile(r'\blat\w*\s*[:=]?\s*(-?\d+[.,]\d+)[\s,;]+lon\w*\s*[:=]?\s*(-?\d+[.,]\d+)')
+
+
+def ubicacion_de(texto: str) -> dict[str, str] | None:
+    """Las coordenadas que da la orden, tal como se escriben: ``{'x', 'y'}`` en UTM o ``{'lat', 'lon'}``."""
+    t = normalizar(texto)
+    if (m := _UTM.search(t)) is not None:
+        x, y = (m.group(1), m.group(2)) if m.group(1) is not None else (m.group(3), m.group(4))
+        return {'x': x, 'y': y}
+    if (m := _LATLON.search(t)) is not None:
+        return {'lat': m.group(1), 'lon': m.group(2)}
+    return None
+
+
 def _por_reglas(texto: str) -> dict[str, list[dict]]:
     datos: dict[str, list[dict]] = {}
     if (r := ruta_de(texto)) is not None:
@@ -103,13 +122,19 @@ def _por_frase_literal(texto: str, transformer: Any) -> str | None:
     «haz la escalera de …» como ``obras``, que aplica otra cosa. Una pregunta sobre ella no es una orden."""
     t = normalizar(texto)
     pregunta = '?' in texto or bool(_PREGUNTA.search(t))
-    conocidas = set(getattr(transformer, 'tareas', None) or ())
-    for tarea in TAREAS.values():
-        if pregunta and not tarea.literal_en_pregunta:
-            continue
-        if tarea.nombre not in conocidas and any(re.search(f, t) for f in tarea.frases_literales):
-            return tarea.nombre
-    return None
+    if not pregunta and (por_tipo := tarea_del_tipo_de_analisis(t)) is not None:
+        # 072:RF-29: el corto o el largo plazo lo nombra la orden, sepa o no el modelo en uso qué tarea es.
+        return por_tipo
+    primera = next((tarea.nombre for tarea in TAREAS.values() if (not pregunta or tarea.literal_en_pregunta)
+                    and any(re.search(f, t) for f in tarea.frases_literales)), None)
+    # Solo la primera del catálogo: «si entra una carga … de punta a punta» es la evaluación de esa carga, que el
+    # modelo conoce, y no el alimentador de punta a punta que viene después (auditor, 2026-11-14, F4). La que el
+    # modelo conoce la decide él, y su frase solo si él duda (``interpretar``, F9).
+    if primera == 'pregunta' and transformer is not None:
+        # La forma de una pregunta no le quita la orden al modelo (070:RF-39): «por qué no converge el flujo» sigue
+        # siendo suya. Su frase solo decide cuando el modelo duda (F7, F9), que es cuando se llama sin modelo.
+        return None
+    return primera if primera not in set(getattr(transformer, 'tareas', None) or ()) else None
 
 
 #: 077:RF-70: con qué empieza una pregunta; es la lista de ``_PREGUNTA`` y las demás interrogativas.
@@ -136,7 +161,8 @@ def pregunta_al_proyecto(texto: str) -> bool:
     if not (_INTERROGATIVA.search(t) or (('?' in t or '¿' in t) and _CONSULTA.search(t))):
         return False
     # 077:RF-72: «¿cuál es la máxima de D:/…/libro.xlsx?» es una orden que se pide preguntando.
-    if any(re.search(f, t) for tarea in TAREAS.values() if tarea.literal_en_pregunta for f in tarea.frases_literales):
+    if any(re.search(f, t) for tarea in TAREAS.values() if tarea.literal_en_pregunta and tarea.nombre != 'pregunta'
+           for f in tarea.frases_literales):
         return False
     sin_url = _URL.sub(' ', texto)                       # una dirección web no es un fichero del árbol
     return any(p.search(sin_url) for p in (_FICHERO, _SKILL, _SUBE, _API))
@@ -194,6 +220,12 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 and previa['confianza'] >= exigida):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
+        if previa is not None and (literal := _por_frase_literal(texto, None)) is not None:
+            # 067:RF-36: con el modelo por debajo de su umbral, la frase literal del catálogo también decide en las tareas
+            # que el modelo conoce. «cuántas sed tiene el QX511» se entendía sin el Transformer y no con él, que se
+            # quedaba en 0,80 (auditor, 2026-11-14, F9). Con el modelo seguro, manda el modelo.
+            return _con_reglas(Interpretacion(texto, literal, 1.0, 'catalogo', dict(previa.get('datos') or {}), [],
+                                              [*consultados, f'frase literal de «{literal}»']))
         if (ollama is not None and previa is not None and previa['confianza'] < exigida
                 and charla_cerca(transformer, texto, previa['confianza'])):
             # 075:RF-37: «muchas gracias» a secas cayó bajo el umbral y Ollama impuso `estado` con confianza 1,0

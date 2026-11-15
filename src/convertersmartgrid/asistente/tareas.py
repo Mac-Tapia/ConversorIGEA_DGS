@@ -13,6 +13,7 @@ encadena varias tareas con una sola confirmación de su lista (067:RF-37, 070:RF
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 #: Tipos de dato que el intérprete reconoce y el plan contrasta (RF-2, RF-6).
@@ -90,7 +91,10 @@ _TAREAS = (
               '[cómo|como] {texto}', '[qué|que] hace {texto}', 'explícame {texto}', 'explicame {texto}',
               '[dónde|donde] se {texto}', '[por qué|porque] {texto}', '¿[cómo|como] {texto}?',
               '¿[cómo|como] se {texto}?', '[cómo|como] funciona {texto}', '¿[qué|que] es {texto}?',
-              '[dime|explícame] [cómo|como] se {texto}')),
+              '[dime|explícame] [cómo|como] se {texto}'),
+          # 067:RF-36: «¿cómo se calcula la Q de las cargas fijas?» se quedaba sin responder con el modelo al 0,92
+          # (auditor, 2026-11-14, F7); con el modelo seguro de otra tarea, sigue mandando el modelo.
+          frases_literales=(r'^\W*(?:como se|por que|porque|explica\w*)\b',), literal_en_pregunta=True),
     Tarea('clasificar_informe', 'A qué tipo y subtipo de estudio corresponde un informe o un pedido.',
           (TXT,), False, 'consulta', 'asistente_clasificar', (
               'clasifica [este|el] informe {texto}', '[qué|que] tipo de estudio es {texto}',
@@ -177,7 +181,9 @@ _TAREAS = (
           (P, A, Dato('periodo', 'periodo', obligatorio=False, descripcion='año de presentación del estudio')),
           True, 'trabajo', 'pide_ejecutar', (
               '[haz|ejecuta|corre] el pide de {proyecto} {alimentadores}', 'plan de inversiones de {proyecto} {alimentadores}',
-              'pide [de|del proyecto|para] {proyecto} {alimentadores}', 'diagnóstico pide de {alimentadores} en {proyecto}')),
+              'pide [de|del proyecto|para] {proyecto} {alimentadores}', 'diagnóstico pide de {alimentadores} en {proyecto}',
+              # 072:RF-29, RF-34: la misma tarea con su plazo; va al final para no mover las semillas de las anteriores.
+              '[haz|corre] el planeamiento de largo plazo de {proyecto} {alimentadores}')),
     Tarea('gemelo_aprender', 'Aprendizaje activo del gemelo: escenarios en una copia del proyecto (024, T10).',
           (P, A, N), True, 'trabajo', 'gemelo_aprender', (
               '[que aprenda|aprende] el gemelo con {proyecto} {alimentadores}',
@@ -229,8 +235,12 @@ _TAREAS = (
               'evalúa la carga nueva {sed} en {alimentadores} de {proyecto}',
               '[¿|]se puede conectar {sed} en {alimentadores} de {proyecto}[?|]',
               'evaluación de conexión de {sed} en {alimentadores} de {proyecto}',
-              'ingreso de la carga nueva {sed} en {alimentadores} de {proyecto}'),
-          frases_literales=(r'\bevalu\w*\b.*\bcarga nueva\b', r'\bevalu\w*\b.*\bconexion\b', r'\bingreso de (una |la )?carga nueva\b')),
+              'ingreso de la carga nueva {sed} en {alimentadores} de {proyecto}',
+              # 072:RF-29, RF-33: el estudio de corto plazo con su carga, con sus propias etapas (orquestador).
+              '[haz|corre] el estudio de corto plazo con la carga {sed} en {alimentadores} de {proyecto}'),
+          frases_literales=(r'\bevalu\w*\b.*\bcarga nueva\b', r'\bevalu\w*\b.*\bconexion\b', r'\bingreso de (una |la )?carga nueva\b',
+                            # 070:RF-50: «quiero saber si entra una carga de 2 MW … de punta a punta» (auditor, F4).
+                            r'\bsi (entra|cabe)\b.*\bcarga\b', r'\bcarga\b.*\bde punta a punta\b')),
     Tarea('cancelar_trabajo', 'Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32).', (),
           True, 'trabajo', 'pf_projects', (
               '[cancela|cancelar|para] lo que [está|esta] corriendo', '[para|detén|deten] ese trabajo',
@@ -363,6 +373,56 @@ TAREAS_HASTA_069: dict[str, Tarea] = {n: TAREAS[n] for n in (
     'flujo', 'verificar_caso_base', 'cargas_nuevas', 'obras', 'estudios', 'obras_escalera', 'optimizar_con_proyecto',
     'transferencia', 'pide', 'gemelo_aprender', 'gemelo_entrenar', 'gemelo_temporal', 'informe_estudio',
     'informe_factibilidad', 'entrenar_asistente')}
+
+
+#: 072:RF-29: los tres tipos de análisis, por las palabras de la orden, y la tarea del catálogo que hace cada uno. Sin
+#: tareas nuevas: el catálogo entra en las huellas de las pruebas selladas (069:RF-13, 070:RF-69). «Haz el planeamiento
+#: de largo plazo» acababa en un PIDE que aplicaba obras en «Con proyecto», lo que prohíbe 072:RF-35: el largo plazo va
+#: por la misma ruta ``/pide`` con su ``plazo`` y sin aplicar (072:RF-34), y el corto plazo es la evaluación de su carga
+#: con sus propias etapas (``orquestador.ETAPAS_CORTO_PLAZO``).
+TIPOS_DE_ANALISIS = {'corto_plazo': 'evaluar_carga_nueva', 'pide': 'pide', 'largo_plazo': 'pide'}
+NOMBRE_DEL_TIPO = {'corto_plazo': 'corto plazo', 'pide': 'PIDE', 'largo_plazo': 'largo plazo'}
+_PALABRAS_DEL_TIPO = (('corto_plazo', re.compile(r'\bcorto plazo\b')),
+                      ('pide', re.compile(r'\bpide\b|\bplan de inversiones\b')),
+                      ('largo_plazo', re.compile(r'\blargo plazo\b')))
+#: Las rutas no son palabras de la orden: «E:/planeamiento/…» o una carpeta «largo plazo» no eligen nada.
+_RUTAS = re.compile(r'"[^"]*"|[a-z]:[\\/]\S*')
+#: Pedir lo que ya salió es una consulta (``resultados_pide``), no un estudio nuevo que escribe.
+_CONSULTA_DEL_TIPO = re.compile(r'\b(resultados?|muestra\w*|ver)\b')
+
+
+def tipos_de_analisis_de(texto: str) -> list[str]:
+    """Los tipos de análisis que nombra la orden ya normalizada (``sinteticos.normalizar``), en el orden del catálogo."""
+    t = _RUTAS.sub(' ', texto)
+    return [tipo for tipo, palabras in _PALABRAS_DEL_TIPO if palabras.search(t)]
+
+
+def tarea_del_tipo_de_analisis(texto: str) -> str | None:
+    """La tarea que manda la orden normalizada que nombra el corto o el largo plazo (072:RF-29), entienda lo que
+    entienda el modelo. El PIDE solo lo sigue decidiendo el modelo, que distingue hacerlo de consultar sus resultados;
+    si la orden nombra más de un tipo, va al PIDE, cuyo plan pregunta cuál (``web/asistente_operacion._pide``)."""
+    tipos = tipos_de_analisis_de(texto)
+    if not {'corto_plazo', 'largo_plazo'} & set(tipos) or _CONSULTA_DEL_TIPO.search(texto):
+        return None
+    return TIPOS_DE_ANALISIS[tipos[0]] if len(tipos) == 1 else 'pide'
+
+
+#: 070:RF-51: una cita de requisito, de spec o de tarea entre paréntesis: «(072:RF-29)», «(spec 017)», «(024, T13 y T14)».
+_CITA = re.compile(r'\s*\([^()]*\b(?:\d{3}\s*:\s*RF-\d+|RF-\d+|specs?\s+\d{3}|T\d+[a-z]?)\b[^()]*\)')
+
+
+def sin_citas(texto: str) -> str:
+    """El texto sin sus citas, para lo que lee el operador; la cita queda en el código y en el registro.
+
+    La consola enseña el plan tal cual y terminaba en «Dígalo en la orden (072:RF-29).». Sirve también para los
+    mensajes de otros módulos que llegan al plan (una excepción, el motivo de un modelo que no cargó).
+    """
+    return _CITA.sub('', texto)
+
+
+def descripcion_para_operador(tarea: str) -> str:
+    """La descripción de la tarea sin citas. La del catálogo no se toca: entra en las huellas selladas (069:RF-13)."""
+    return sin_citas(TAREAS[tarea].descripcion)
 
 
 def descripcion_para_modelo() -> list[dict]:

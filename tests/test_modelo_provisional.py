@@ -251,14 +251,18 @@ def test_con_modelo_provisional_tampoco_se_lanza_solo_un_trabajo_de_lectura(api,
 
 
 def test_cada_plan_lo_dice_con_sus_cifras_y_tambien_una_consulta(api, datos, monkeypatch):
-    """085:RF-30 — el asistente muestra «provisional, no pasa las puertas» y las cifras; una consulta sigue respondiendo al momento."""
+    """085:RF-30 / 070:RF-51 — cada plan dice «provisional, no pasa las puertas» y el estado de los modelos da sus cifras; una consulta sigue respondiendo al momento."""
     _poner(_candidato(datos))
     wid = api.post('/api/workspaces', json={'name': 'p'}).json()['id']
     r = _orden(api, wid, 'estado', monkeypatch)
     assert TAREAS['estado'].modo == 'consulta' and r['respuesta'] and r['plan']['espera_confirmacion'] is False
     (aviso,) = [a for a in r['plan']['avisos'] if 'provisional' in a]
+    # Aclaración de 085:RF-30 (usuario, 2026-11-14): en cada plan, sin las cifras de la puerta; esas, en el estado de los modelos.
+    assert 'no pasa las puertas' in aviso and 'estado de los modelos' in aviso
+    assert not any(c in aviso for c in ('0,964', '0,918', '110 órdenes'))
+    familia = next(f for f in api.get('/api/asistente/modelos').json()['familias'] if f['familia'] == 'transformer')
     for texto in ('no pasa las puertas', '0,964 de 0,98', '0,918 de 0,95', '110 órdenes', '0,860', '0,829', '0,0 %', 'usuario', '2026-11-04'):
-        assert texto in aviso, texto
+        assert texto in familia['provisional']['aviso'], texto
     guardados = api.get(f'/api/workspaces/{wid}/asistente/planes').json()
     assert isinstance(guardados['planes'], list)
 

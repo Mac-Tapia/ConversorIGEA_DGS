@@ -558,7 +558,17 @@ def test_ollama_se_pregunta_al_operador_con_las_alternativas():
     assert any(c.startswith('sin Ollama') for c in i.consultados) and not any(c.startswith('Ollama') for c in i.consultados)
     plan = resolver(i, {})
     assert plan.tarea is None and not plan.listo
-    assert any('la tarea' in f and 'estado (40%)' in f and 'flujo (10%)' in f for f in plan.faltan)
+    # 075:RF-38, el comportamiento: no se ejecuta nada, el plan conserva las alternativas del modelo y le pregunta al
+    # operador ofreciéndoselas, cada una con su confianza.
+    assert plan.alternativas == [('estado', .4), ('flujo', .1)]
+    # Aclaración de 075:RF-38: esa pregunta la ve el operador («Falta …» en Asistente.tsx), así que cada alternativa se
+    # nombra por lo que hace y no por su nombre interno (070:RF-51).
+    from convertersmartgrid.asistente.tareas import descripcion_para_operador
+
+    estado, flujo = (f'«{descripcion_para_operador(t)}»' for t in ('estado', 'flujo'))
+    (pregunta,) = [f for f in plan.faltan if f.startswith('la tarea')]
+    assert '¿quiso decir' in pregunta and f'{estado} (40%)' in pregunta and f'{flujo} (10%)' in pregunta, pregunta
+    assert ' estado (' not in pregunta and ' flujo (' not in pregunta
     assert any('sin Ollama' in r for r in plan.razonamiento)
 
 
