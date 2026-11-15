@@ -117,6 +117,11 @@ test('072:RF-34, 072:RF-35 «Planificar» manda el tipo; en largo plazo nunca ap
   const corto = cuerpoPlanificar('P', ['F1'], 'corto_plazo', f);
   assert.ok(!('plazo' in corto), 'el corto plazo no se planifica en el paso 5: sin tipo, como siempre');
   assert.ok(!('plazo' in cuerpoPlanificar('P', ['F1'], null, f)));
+  // 072:RF-18, 025:RF-67: el tipo de cambio va SOLO si el operador lo escribe (sin él, la llamada no cambia).
+  assert.ok(!('tipo_cambio' in pide), 'sin tipo de cambio escrito, no se envía');
+  assert.equal(cuerpoPlanificar('P', ['F1'], 'pide', { ...f, tipoCambio: '3,495' }).tipo_cambio, 3.495);
+  assert.equal(cuerpoPlanificar('P', ['F1'], 'pide', { ...f, tipoCambio: ' 3.5 ' }).tipo_cambio, 3.5);
+  assert.ok(!('tipo_cambio' in cuerpoPlanificar('P', ['F1'], 'pide', { ...f, tipoCambio: '  ' })));
 });
 
 test('072:RF-34, 072:RF-35 el paso 5 en largo plazo no deja aplicar obras y dice qué escribe', async () => {
@@ -177,4 +182,12 @@ test('024:RF-5 la tabla de episodios del gemelo se lee en español y sin rutas d
   assert.equal(avisosDeEpisodio([ruta(11799)]), 'barra 11799 a 0,9468 p.u., fuera de 0,95–1,05 (NTCSE)');
   assert.match(avisosDeEpisodio([ruta(1), ruta(2), ruta(3), ruta(4)]), /barra 1 .* · barra 2 .* · y 2 más$/);
   assert.equal(avisosDeEpisodio(['sin medida para comprobar la calibración']), 'sin medida para comprobar la calibración');
+});
+
+
+test('072:RF-18 — la pantalla del PIDE pide el tipo de cambio, con su rótulo y sin suponer moneda', async () => {
+  const { gemelo } = await cargar();
+  const html = gemelo('pide');
+  assert.match(html, /Tipo de cambio/);
+  assert.match(html, /inputMode="decimal"|inputmode="decimal"/);
 });

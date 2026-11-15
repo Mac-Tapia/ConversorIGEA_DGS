@@ -290,7 +290,8 @@ class PideIn(BaseModel):
     anual: PideAnualIn | None = None
     capex: str | None = None
     implementar: bool = True
-    anio_presentacion: int | None = None
+    # 072:RF-18: el mismo rango que la pantalla; un parámetro inválido es 422 (convención del auditor, 2026-11-14).
+    anio_presentacion: int | None = Field(None, ge=2000, le=2100)
     formato_01: str | None = None
     # 072:RF-29, RF-34: el tipo de análisis elegido en la web; sin él, los dos entregables, como siempre.
     plazo: Literal['pide', 'largo_plazo'] | None = None

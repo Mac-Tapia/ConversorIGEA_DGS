@@ -42,6 +42,7 @@ impide que vuelva.
 
 - [ ] Una opción nueva existe en los cuatro sitios: `DEFAULT_OPTIONS` (workspace.py), `OptionsIn` con su validación (app.py), `Options` (types.ts) y el panel
 - [ ] Valores fuera de rango rechazados por la API (422), no solo ocultos en la interfaz
+  (aclaración del auditor, 2026-11-14: **subidas: 400 con detalle; parámetros: 422** de Pydantic)
 - [ ] Todo lo que tarda más de un segundo va como trabajo, con progreso y cancelable
 - [ ] Botones desactivados mientras su trabajo corre; sin doble envío
 - [ ] Textos en español, sin tecnicismos del motor; el detalle técnico va al Registro

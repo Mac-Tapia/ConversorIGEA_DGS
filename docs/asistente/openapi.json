@@ -6159,6 +6159,8 @@
           "anio_presentacion": {
             "anyOf": [
               {
+                "maximum": 2100.0,
+                "minimum": 2000.0,
                 "type": "integer"
               },
               {

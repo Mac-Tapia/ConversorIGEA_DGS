@@ -169,6 +169,15 @@ def test_tipo_de_cambio_llega_al_pide_solo_si_se_envia(api, monkeypatch):
     assert c.post(f'/api/workspaces/{wid}/pide',json={**body,'tipo_cambio':0}).status_code==422      # gt=0
 
 
+def test_anio_de_presentacion_fuera_de_rango_se_rechaza_con_422(api):
+    """072:RF-18 — el año de presentación tiene el mismo rango en la API que en la pantalla (2000 a 2100): un
+    parámetro inválido se rechaza con 422 antes de encolar (convención del auditor: parámetros, 422)."""
+    c, wid = api
+    body={'project':'P','feeders':['F1'],'capex':'capex.xlsx','implementar':False}
+    for anio in (1999, 2101, -5):
+        assert c.post(f'/api/workspaces/{wid}/pide',json={**body,'anio_presentacion':anio}).status_code==422, anio
+
+
 def test_aceptacion_no_se_inventa_al_subir(api):
     """072:RF-24: evaluación rechazada conserva su estado y bloquea antes de la cola."""
     c,wid=api

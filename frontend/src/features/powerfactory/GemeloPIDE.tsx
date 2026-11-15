@@ -79,6 +79,11 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   const setAnio = onAnio ?? setAnioPropio;
   const [formato01, setFormato01] = useState('');
   const [implementar, setImplementar] = useState(true);
+  // 072:RF-18, 025:RF-67: el tipo de cambio lo escribe el operador; la moneda del costo sale del perfil (086:RF-28).
+  const [tipoCambio, setTipoCambio] = useState('');
+  const [moneda, setMoneda] = useState<string | null>(null);
+  const tcEscrito = tipoCambio.trim() !== '';
+  const tcValido = tipoDeCambio(tipoCambio) !== null;
   // 072:RF-34, RF-35: el largo plazo plantea las obras; el corto plazo no se planifica aquí (pasos 2 a 4).
   const plazoPeticion = planificacionDe(plazo);
   const aplicar = implementar && plazoPeticion !== 'largo_plazo';
@@ -96,6 +101,13 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
     if (e) setEpisodios(e);
   };
   useEffect(() => { if (project) void cargarEpisodios(); }, [project, ultima?.id, aprendido?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+  // La moneda del perfil, solo para el rótulo: si no llega, no se supone ninguna (086:RF-28).
+  useEffect(() => {
+    if (!project) return;
+    let vigente = true;
+    api.informesContexto(ws.id, project, feeders).then((c) => { if (vigente) setMoneda(c.moneda); }).catch(() => undefined);
+    return () => { vigente = false; };
+  }, [ws.id, project, feeders.join('|')]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const decidir = async (o: ObraPIDE, decision: 'aceptada' | 'rechazada' | 'modificada') => {
     await run(() => api.pideDecision(ws.id, { project, codigo: o.codigo, decision }));
@@ -126,12 +138,17 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
         <label className="field grow"><span>Formato 01 de la empresa (ruta en el servidor, opcional)</span>
           <input className="search" value={formato01} placeholder="p. ej. D:\…\formato01.xlsx"
             onChange={(e) => setFormato01(e.target.value)} /></label>
+        <label className="field"><span>Tipo de cambio{moneda ? ` (a ${moneda})` : ''}, opcional</span>
+          <input type="text" inputMode="decimal" size={8} value={tipoCambio} placeholder="p. ej. 3,495"
+            aria-label="Tipo de cambio de los precios de pérdidas a la moneda del costo"
+            aria-invalid={tcEscrito && !tcValido} onChange={(e) => setTipoCambio(e.target.value)} /></label>
         <label className="check" title={plazoPeticion === 'largo_plazo' ? 'El plan de largo plazo plantea las obras; no las aplica.' : undefined}>
           <input type="checkbox" checked={aplicar} disabled={plazoPeticion === 'largo_plazo'}
             onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>
-        <button className="btn btn-pf" disabled={pfBusy || !project}
+        <button className="btn btn-pf" disabled={pfBusy || !project || (tcEscrito && !tcValido)}
+          title={tcEscrito && !tcValido ? 'El tipo de cambio debe ser un número mayor que cero.' : undefined}
           onClick={() => startJob(() => api.pide(ws.id, cuerpoPlanificar(project, feeders, plazo, {
-            capex, anio, formato01, implementar })))}>
+            capex, anio, formato01, implementar, tipoCambio })))}>
           {plazoPeticion === 'largo_plazo' ? 'Planificar el largo plazo' : plazoPeticion === 'pide' ? 'Planificar como PIDE' : 'Planificar'}
         </button>
       </div>
@@ -192,11 +209,21 @@ export function planificacionDe(plazo: ClaveTipoAnalisis | null): 'pide' | 'larg
 
 /** 072:RF-34, RF-35: el cuerpo de «Planificar»; en largo plazo nunca pide aplicar obras. */
 export function cuerpoPlanificar(project: string, feeders: string[], plazo: ClaveTipoAnalisis | null,
-  f: { capex: string; anio: string; formato01: string; implementar: boolean }): PideSolicitud {
+  f: { capex: string; anio: string; formato01: string; implementar: boolean; tipoCambio?: string }): PideSolicitud {
   const tipo = planificacionDe(plazo);
+  // 072:RF-18, 025:RF-67: el tipo de cambio va SOLO si el operador lo escribe; sin él, la llamada no cambia.
+  const tc = tipoDeCambio(f.tipoCambio ?? '');
   return { project, feeders, capex: f.capex.trim() || null, anio_presentacion: f.anio.trim() ? Number(f.anio) : null,
     formato_01: f.formato01.trim() || null, implementar: f.implementar && tipo !== 'largo_plazo',
-    ...(tipo ? { plazo: tipo } : {}) };
+    ...(tipo ? { plazo: tipo } : {}), ...(tc !== null ? { tipo_cambio: tc } : {}) };
+}
+
+/** El tipo de cambio escrito, con coma o punto decimal; null si está vacío o no es un número positivo. */
+export function tipoDeCambio(texto: string): number | null {
+  const t = texto.trim();
+  if (!t) return null;
+  const n = Number(t.replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /** 072:RF-32: los documentos del estudio agrupados por su entregable, con las claves de módulo del servidor. */
