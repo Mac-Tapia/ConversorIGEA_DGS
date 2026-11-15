@@ -1,6 +1,6 @@
 # Plan — Spec 034
 
-Estado: cumplida (2026-10-29) · Spec: [spec.md](spec.md)
+Estado: aprobada (2026-11-14: RF-34 a RF-41; RF-1 a RF-33 cumplidos el 2026-10-29) · Spec: [spec.md](spec.md)
 
 Spec retrospectiva: no hay código nuevo. El plan es la tabla que une cada RF con el código que
 ya lo cumple y con las pruebas que lo comprueban; las pruebas pasan a citarlo en el docstring
@@ -41,5 +41,26 @@ de su módulo (033:RF-18) y `CODIGO_FUENTE.md` cambia «base» por «034» (033:
 | RF-31 | arquitectura C4 | `test_interactive_architecture.py` |
 | RF-32 | `sed_potencia.py` | `test_puentes.py` |
 | RF-33 | `tools/apply_catalog_to_model.py`, `tools/build_input_catalog.py`, `tools/compare_schema.py`, `tools/suggest_line_type_aliases.py`, `tools/build_system_grid.py`, `tools/prueba_representacion.py`, `tools/run_powerfactory_gate.bat` | `test_herramientas_base.py` |
+| RF-34, RF-35 | `docs/architecture/workspace_to_be.dsl` (extiende `workspace.dsl`) | `test_interactive_architecture.py` (`to_be`) |
+| RF-36 a RF-39, RF-41 | `docs/architecture/adr/ADR-*.md` y `adr/README.md` | `test_interactive_architecture.py` (`adr`) |
+| RF-40 | `docs/architecture/adr/deuda_excepciones_mudas.json` | `test_interactive_architecture.py` (`silent`) |
 
 P23, 2026-11-08 (RF-5; 086:RF-1): probe SQLite inspecciona solo rollback estable bajo guarda Windows de lectura; WAL/diarios/escritor activo y plataformas sin guarda comprobada devuelven motivo, sin inventario ficticio ni copias. El CLI devuelve fallo cuando ok=false y evita sobrescribir la fuente, incluido hardlink. El informe se publica con el escritor duradero comun: una escritura parcial por fallo de disco conserva el informe anterior. Prueba adversa roja y34regresiones probe correctas; persistencia de fuente/auxiliares y exclusión se verificaron con hijos reales propios. No acredita conversionSQLite/PF ni aceptacion de produccion.
+
+## Ampliación del 2026-11-14: C4 TO-BE y ADR (RF-34 a RF-41)
+
+- **TO-BE sobre el mismo modelo.** `workspace_to_be.dsl` empieza con `workspace extends workspace.dsl`: hereda el
+  modelo AS-IS y solo añade, con `!element`, lo que cambia (contenedor `cadWriter`, sistema `oda`, componentes
+  `cmpFachadaServicios` y `cmpCasosDeUso`) y sus relaciones, con vistas `ToBe-*` propias. Alternativa descartada: un
+  segundo DSL completo, que duplicaría el AS-IS y se desfasaría de él.
+- **ADR atados al código.** Cada ADR cita su evidencia con formas que la prueba resuelve sin importar el producto
+  (`ast` para Python, `tomllib` para las dependencias, texto literal para lo demás). Un ADR vigente sin su evidencia
+  falla (RF-38); uno pendiente con toda su evidencia, también (RF-39). Así el ADR del DXF pasará a vigente cuando
+  `ezdxf` sea dependencia obligatoria. Alternativa descartada: una herramienta nueva en `tools/`; la comprobación es
+  de documentación y vive en su prueba, como la del AS-IS.
+- **Detectores probados.** Cada comprobación se prueba también contra repositorios sintéticos con un defecto
+  sembrado (ADR sin sección, cita rota, tarea abierta, elemento desconocido, TO-BE que redefine, enlace sin fijar), y
+  el ADR o la TO-BE sanos no dan ningún problema.
+- **Deuda de excepciones mudas (RF-40).** El detector usa `ast`: cuenta los `except` amplios con un único cuerpo que
+  calla y respeta «# justificado:». La deuda es por fichero y solo se comprueba hacia arriba, porque varias tarjetas
+  retiran excepciones en paralelo (080, H8, H12) y un ratchet hacia abajo rompería su integración (ADR-005).

@@ -1,6 +1,6 @@
 # Spec 034 — Motor base de conversión y contrato universal de fuentes
 
-Estado: cumplida (2026-10-29, spec retrospectiva de la 033) · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`
+Estado: aprobada (2026-11-14: RF-34 a RF-41, C4 TO-BE y ADR; RF-1 a RF-33 cumplidos desde el 2026-10-29) · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`; ampliación del 2026-11-14: F-20 del Plan Maestro V1 (§30.7), aceptada por el auditor ca
 
 ## Contexto y objetivo
 
@@ -14,6 +14,13 @@ Esta spec no añade nada: escribe como requisitos lo que el código ya hace y su
 comprueban, para que la 033 pueda exigir que todo fichero de `src/` y de `tests/`
 pertenezca a una spec. Lo que cambie a partir de aquí entra en una spec nueva que cite la
 034.
+
+Ampliación del 2026-11-14 (F-20 del Plan Maestro V1, §30.7). El C4 AS-IS de RF-31 dice lo que hay, pero no adónde
+va la arquitectura ni por qué: las decisiones de frontera (partir `web/services.py`, el DXF de los expedientes, la
+escritura duradera del estado, los avisos en vez de excepciones mudas) estaban repartidas entre specs, veredictos y
+chats. Por orden del usuario se amplía esta spec en vez de abrir otra (memoria «modificar lo que existe»): un C4
+TO-BE que extiende el mismo modelo y un ADR por decisión, y pruebas que los comparan con lo que declara el código,
+para que no se desfasen como se desfasaba la arquitectura escrita a mano (spec 090).
 
 ## Usuarios / actores
 
@@ -111,11 +118,34 @@ Otros
   sesión, y uno nuevo sustituirá al anterior.
 - RF-31: EL SISTEMA generará la arquitectura C4 interactiva desde su modelo, con todas sus
   vistas y flujos.
+- Aclaración de RF-31 (2026-11-14): el C4 AS-IS describe lo que existe y lo que tiene una spec aprobada en
+  implementación, con la etiqueta «en implementación»; lo que cambia una frontera va en el C4 TO-BE con su ADR
+  (RF-34 a RF-41), y ninguno de los dos repite al otro.
 - RF-32: DONDE se pida, EL SISTEMA llevará al tamaño normalizado la SED cuya carga supera su
   transformador (apagado por defecto desde 032:RF-1).
 - RF-33: EL SISTEMA dará herramientas de línea de órdenes para el catálogo y el esquema
   (aplicar el catálogo al modelo, construir la tabla de entrada, comparar un esquema y
   proponer alias de tipos de línea) que arrancan sin DIgSILENT.
+
+Arquitectura TO-BE y decisiones (2026-11-14, F-20)
+
+- RF-34: EL SISTEMA mantendrá junto al C4 AS-IS un C4 TO-BE que extiende el mismo modelo Structurizr y solo declara
+  las fronteras nuevas o cambiadas, con sus propias vistas.
+- RF-35: SI el C4 TO-BE redefine un elemento o una vista del AS-IS, o relaciona un identificador que no está en
+  ninguno de los dos, ENTONCES la prueba de arquitectura fallará nombrando el identificador.
+- RF-36: EL SISTEMA tendrá un ADR por cada decisión de frontera, con su estado, contexto, decisión, alternativa
+  descartada, consecuencias, contratos afectados y vuelta atrás.
+- RF-37: SI un elemento nuevo del C4 TO-BE no cita un ADR que lo nombre, o un ADR nombra un elemento C4 que no está en
+  ningún modelo, ENTONCES la prueba de arquitectura fallará nombrando el elemento y el ADR.
+- RF-38: MIENTRAS un ADR esté vigente, la prueba de arquitectura exigirá que el código declare cada evidencia que cita
+  (definición, uso, dependencia o texto) y que sus tareas estén cerradas, y fallará nombrando el ADR y lo que falte.
+- RF-39: SI un ADR pendiente ya tiene en el código toda su evidencia y sus tareas cerradas, ENTONCES la prueba de
+  arquitectura fallará por ADR desfasado, para que pase a vigente en el mismo cambio que lo cierra.
+- RF-40: SI un fichero de `src/` o de `tools/` tiene más excepciones amplias que callan (`pass`, `...`, `continue`,
+  `return`, `return True` o `return None`, sin «# justificado:») que las registradas en la deuda del ADR de avisos,
+  ENTONCES la prueba de arquitectura fallará con el fichero y sus líneas.
+- RF-41: SI a un ADR le falta un campo o una sección obligatorios, o cita un RF, una spec, una tarea o un fichero que
+  no existen, ENTONCES la prueba de arquitectura fallará nombrando el ADR y lo que falta.
 
 ## Requisitos no funcionales
 
@@ -124,7 +154,9 @@ modo estricto (P4), publicación atómica (P6) y universalidad (P13).
 
 ## Fuera de alcance
 
-Cambiar el comportamiento: esta spec solo lo describe.
+Cambiar el comportamiento del motor: RF-1 a RF-33 solo lo describen. La TO-BE y los ADR (RF-34 a RF-41) tampoco
+ordenan mover código: cada cambio entra por la spec y la tarea que su ADR cita (002, 107, 111…). Renderizar la TO-BE
+en la página interactiva y en PNG queda fuera, igual que la validación con Structurizr, que necesita Java o Docker.
 
 ## Atribución de los commits `feat` sin spec
 
@@ -143,4 +175,5 @@ Cambiar el comportamiento: esta spec solo lo describe.
 ## Criterios de finalización
 
 Cada RF citado por al menos una prueba (`grep -rnoE "034:RF-[0-9]+" tests | sort -u`) y la
-suite en verde.
+suite en verde. Para RF-34 a RF-41, además, `tests/test_interactive_architecture.py` en rojo sobre 00d30651 sin la
+TO-BE ni los ADR, y en verde con ellos.
