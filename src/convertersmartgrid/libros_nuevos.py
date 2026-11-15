@@ -441,14 +441,17 @@ def leer_estado(carpeta: Path | str) -> dict[str, Any]:
 
 
 def guardar_estado(carpeta: Path | str, estado: Mapping[str, Any]) -> None:
-    """Se publica de una vez: un corte a mitad deja el estado anterior entero."""
+    """Se publica de una vez: un corte a mitad deja el estado anterior entero.
+
+    Con la escritura duradera (086:RF-1, RF-54), si Windows niega un instante el reemplazo porque la web lee el
+    estado en ese momento, se reintenta en vez de perder el guardado entero (104:RF-48).
+    """
     import json
 
-    carpeta = Path(carpeta)
-    carpeta.mkdir(parents=True, exist_ok=True)
-    temporal = carpeta / (NOMBRE_ESTADO + '.tmp')
-    temporal.write_text(json.dumps(estado, ensure_ascii=False, indent=1, default=str), encoding='utf-8')
-    temporal.replace(carpeta / NOMBRE_ESTADO)
+    from .util import publicar_duradero
+
+    publicar_duradero(Path(carpeta) / NOMBRE_ESTADO,
+                      json.dumps(estado, ensure_ascii=False, indent=1, default=str))
 
 
 def libros_repetidos(carpeta: Path | str) -> dict[str, str]:

@@ -37,3 +37,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       la confirmación de un formato (089:RF-110) se hace con su botón. (RF-44, RF-47)
       Hecho cuando: se ve en el navegador real, tras `npm run lint`, `npx tsc --noEmit -p .`, `npm test`, `npm run build`
       y `tools/generar_contrato_api.py --check` en verde.
+- [ ] T11. El estado del reconocimiento se guarda aunque Windows niegue un instante su sustitución, y un
+      bloqueo que persiste sube sin dañar el estado anterior. (RF-48)
+      Hecho cuando: `tests/test_libros_nuevos.py -k "windows_niegue or niega_siempre"` falla sin el arreglo
+      (`D:/csg/PM_IMPL/104_REINTENTO/rojo_192946.log`) y pasa con él, y `tests/test_libros_nuevos.py`,
+      `tests/test_libros_nuevos_web.py` y `tests/test_datos_duraderos.py` siguen en verde.

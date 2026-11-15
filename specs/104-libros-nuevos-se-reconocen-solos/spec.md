@@ -166,6 +166,9 @@ dataset, que nadie abre (089:RF-107 a RF-113 corrigen su lectura).
 - RF-47: CUANDO la regeneración del dataset aparta un libro o dice algo de un libro entero (su formato, su mes), EL
   SISTEMA lo mostrará como aviso de los libros de demanda del espacio, con el nombre del libro y el motivo.
 - Aclaración de RF-47 (2026-11-14, causa de un fallo intermitente con la escritura duradera): el estado «al día» del dataset y los avisos de sus libros se guardarán en el mismo guardado; nadie verá el dataset al día sin sus avisos.
+- RF-48: SI Windows niega un instante la sustitución del estado del reconocimiento porque otro proceso lo está
+  leyendo, ENTONCES EL SISTEMA reintentará la sustitución con la escritura duradera (086:RF-54) y, si la negativa
+  persiste, dirá el error y dejará entero el estado anterior (`PermissionError` [WinError 5] hallado el 2026-11-14).
 - Aclaración de RF-26 (2026-11-13): el libro de abril de 2026 que se apartaba por repetir marzo es un acierto, no un falso
   positivo: en 19 hojas comparadas con energía, los 56 034 registros son iguales a los de marzo, y trae energía en 31
   días, que abril no tiene (089:RF-113).

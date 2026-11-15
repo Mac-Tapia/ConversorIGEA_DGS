@@ -200,3 +200,45 @@ def test_la_herramienta_guarda_el_perfil_con_el_dataset(tmp_path):
         assert clave in fila
     serie = perfil['por_serie'][0]
     assert {'cobertura_pct', 'huecos', 'cero_pct', 'negativos_pct', 'max_sobre_p95'} <= set(serie)
+
+
+def test_el_estado_se_guarda_aunque_windows_niegue_un_instante_el_reemplazo(tmp_path, monkeypatch):
+    """104:RF-48. Si la web lee el estado mientras se publica, Windows niega el ``replace`` con WinError 5 y el guardado
+    se perdía entero (rep_fichero_9, 2026-11-14). Ahora se reintenta, y sigue siendo atómico."""
+    from convertersmartgrid import libros_nuevos as ln
+
+    monkeypatch.setattr('convertersmartgrid.util.os.name', 'nt')
+    monkeypatch.setattr('convertersmartgrid.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
+    ln.guardar_estado(tmp_path, {'dataset': {'estado': 'anterior'}})
+    original = Path.replace
+    negados = []
+
+    def replace_negado_una_vez(self, destino):
+        if not negados:
+            negados.append(self)
+            raise PermissionError(5, 'Acceso denegado', str(self))
+        return original(self, destino)
+
+    monkeypatch.setattr(Path, 'replace', replace_negado_una_vez)
+    ln.guardar_estado(tmp_path, {'dataset': {'estado': 'al día'}})
+
+    assert negados, 'la prueba no llegó a negar el reemplazo'
+    assert ln.leer_estado(tmp_path) == {'dataset': {'estado': 'al día'}}
+
+
+def test_el_estado_no_se_da_por_guardado_si_windows_lo_niega_siempre(tmp_path, monkeypatch):
+    """104:RF-48. Pasados los reintentos, el error sube y el estado anterior queda entero."""
+    from convertersmartgrid import libros_nuevos as ln
+
+    monkeypatch.setattr('convertersmartgrid.util.os.name', 'nt')
+    monkeypatch.setattr('convertersmartgrid.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
+    ln.guardar_estado(tmp_path, {'dataset': {'estado': 'anterior'}})
+
+    def replace_negado(self, destino):
+        raise PermissionError(5, 'Acceso denegado', str(self))
+
+    monkeypatch.setattr(Path, 'replace', replace_negado)
+    with pytest.raises(PermissionError):
+        ln.guardar_estado(tmp_path, {'dataset': {'estado': 'al día'}})
+
+    assert ln.leer_estado(tmp_path) == {'dataset': {'estado': 'anterior'}}
