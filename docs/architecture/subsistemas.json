@@ -202,7 +202,8 @@
     "costos_fuentes.py",
     "metrados.py",
     "formatos_pide.py",
-    "informes_planeamiento.py"
+    "informes_planeamiento.py",
+    "registro_normativo.py"
    ]
   },
   {

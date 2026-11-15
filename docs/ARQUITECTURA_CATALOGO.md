@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 333 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 335 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 108 |
 | Interfaz | `frontend/src/` | 71 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 448 |
+| Pruebas | `tests/` | 450 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -36,11 +36,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 129 |
 | aplicacion | Apl | 104 |
-| dominio | Dom | 47 |
+| dominio | Dom | 48 |
 | presentacion | Pre | 40 |
 | puertos | Pue | 3 |
 
-323 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+324 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -411,6 +411,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
 | `formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
 | `informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
+| `registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
 
 ### Motor: gobierno de modelos
 
@@ -886,6 +887,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
 | `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
 | `src/convertersmartgrid/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
+| `src/convertersmartgrid/schemas/registro_normativo_v1.schema.json` | — | 108, 107 | Esquema del registro normativo común: cada norma con su estado jurídico, huella y vigencia, y cada regla con su cita literal y su página o líneas. |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 | `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |

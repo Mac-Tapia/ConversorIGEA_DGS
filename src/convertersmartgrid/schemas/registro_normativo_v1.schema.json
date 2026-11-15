@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "registro_normativo_v1",
+  "title": "Registro normativo común (specs 107 y 108)",
+  "description": "Normas con su estado jurídico y sus reglas citadas. Un fichero trae «normas» o amplía con «reglas» la norma de «amplia».",
+  "type": "object",
+  "required": ["esquema"],
+  "properties": {
+    "esquema": {"const": "registro_normativo_v1"},
+    "nota": {"type": "string"},
+    "normas": {"type": "array", "items": {"$ref": "#/$defs/norma"}},
+    "amplia": {"type": "string", "minLength": 1},
+    "reglas": {"type": "array", "items": {"$ref": "#/$defs/regla"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "fecha": {"type": "string", "pattern": "^(\\d{4}-\\d{2}-\\d{2})?$"},
+    "norma": {
+      "type": "object",
+      "required": ["acto", "titulo", "estado_juridico"],
+      "properties": {
+        "acto": {"type": "string", "minLength": 1},
+        "titulo": {"type": "string", "minLength": 1},
+        "estado_juridico": {"enum": ["vigente_comprobada", "modificada", "prepublicada", "no_verificada", "derogada"]},
+        "url": {"type": "string"},
+        "fecha_publicacion": {"$ref": "#/$defs/fecha"},
+        "fecha_consulta": {"$ref": "#/$defs/fecha"},
+        "sha256": {"type": "string", "pattern": "^([0-9a-f]{64})?$"},
+        "sha256_texto": {"type": "string", "pattern": "^([0-9a-f]{64})?$"},
+        "fichero_local": {"type": "string"},
+        "version": {"type": "string"},
+        "vigencia_desde": {"$ref": "#/$defs/fecha"},
+        "vigencia_hasta": {"$ref": "#/$defs/fecha"},
+        "modifica": {"type": "array", "items": {"type": "string"}},
+        "modificada_por": {"type": "array", "items": {"type": "string"}},
+        "nota": {"type": "string"},
+        "reglas": {"type": "array", "items": {"$ref": "#/$defs/regla"}}
+      },
+      "additionalProperties": false
+    },
+    "regla": {
+      "type": "object",
+      "required": ["clave", "valor", "cita_literal"],
+      "properties": {
+        "clave": {"type": "string", "minLength": 1},
+        "valor": {},
+        "unidad": {"type": "string"},
+        "articulo_o_anexo": {"type": "string"},
+        "pagina": {"type": "string"},
+        "cita_literal": {"type": "string"},
+        "lineas": {"type": "string"},
+        "moneda": {"type": ["string", "null"]},
+        "igv": {"enum": ["incluido", "excluido", "sin_leer", "no_aplica"]},
+        "interpretacion": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
