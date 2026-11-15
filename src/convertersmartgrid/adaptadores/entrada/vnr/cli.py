@@ -12,6 +12,8 @@ import sys
 from datetime import UTC
 from pathlib import Path
 
+from convertersmartgrid.util import publicar_duradero
+
 from . import __version__
 from .config import Settings
 from .doctor import doctor
@@ -354,7 +356,7 @@ def _convert(args, log: Logger) -> int:
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
     canonical_path = out_dir / 'canonical.json'
-    canonical_path.write_text(json.dumps(model.to_dict(), ensure_ascii=False, indent=2), encoding='utf-8')
+    publicar_duradero(canonical_path, json.dumps(model.to_dict(), ensure_ascii=False, indent=2))   # 001:RF-5
     print(result.as_dict())
     print(f'Modelo canónico: {canonical_path}')
 

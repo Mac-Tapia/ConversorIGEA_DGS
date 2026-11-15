@@ -47,7 +47,13 @@ Acceso exclusivo al motor
 - RF-3: SI la conexión devuelve que el motor está ocupado, ENTONCES EL SISTEMA reintentará
   hasta el límite de RF-2 en vez de fallar a la primera.
 - RF-4: SI el proceso que tenía el motor terminó sin soltarlo, ENTONCES EL SISTEMA lo
-  detectará y lo liberará sin intervención.
+  detectará y lo liberará sin intervención. EL SISTEMA creará el turno con su contenido ya entero
+  (temporal sincronizado del mismo directorio y `os.link`, que falla si el turno existe; sin enlaces
+  duros, `O_EXCL`); SI el turno existente no se puede interpretar, ENTONCES lo esperará mientras tenga
+  menos de `GRACIA_CERROJO_S` (10 s, medida en `util.py`) y después lo liberará diciéndolo, apartándolo
+  con un renombrado que compara su identidad (lo devuelve si resultó ser uno nuevo), y solo entra uno; un dueño legible y vivo
+  nunca se libera. Ningún intento de tomarlo es sin fin: al agotar `TOPE_INTENTOS_CERROJO` vueltas o el
+  plazo de RF-2, el error dice quién lo tiene, su contenido o «ilegible desde hace N s» (H14, 2026-11-14).
 - RF-13: SI el operador tiene DIgSILENT abierto a mano, ENTONCES EL SISTEMA no lanzará la
   acción y avisará de que lo cierre.
 

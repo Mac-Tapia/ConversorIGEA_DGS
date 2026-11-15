@@ -12,9 +12,11 @@ import importlib
 import json
 import math
 import os
+import tempfile
+import uuid
 from pathlib import Path
 from types import ModuleType
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 
@@ -190,3 +192,193 @@ def escribir_csv(filas: Iterable[Mapping[str, Any]], columnas: tuple[str, ...], 
         for f in filas:
             w.writerow([_texto_csv(f.get(c)) for c in columnas])
     return destino
+
+
+# --- Cerrojos de fichero (019:RF-4, 106:RF-2) -------------------------------------------------------
+
+#: Cuánto se respeta un cerrojo ilegible antes de darlo por muerto (019:RF-4, 106:RF-2).
+#:
+#: Solo hace falta para los cerrojos con estado a medias: los del método antiguo (``os.open(O_EXCL)`` y después
+#: ``json.dump``) y los del camino de respaldo de :func:`crear_exclusivo` en un volumen sin enlaces duros. La vía
+#: ``os.link`` no la necesita: el nombre aparece con el contenido ya entero y sincronizado, nunca a medias.
+#:
+#: Medido en esta máquina el 2026-11-14, con la suite completa en marcha: entre ``os.open(O_EXCL)`` y el cierre
+#: tras ``json.dump``, el BloqueoGPU antiguo (que importaba psutil dentro) tardó como máximo 29 ms en 8 procesos
+#: nuevos; el turno antiguo de DIgSILENT (inicio del proceso y carpeta del código dentro), 77 ms; el respaldo nuevo,
+#: con el contenido ya serializado y ``fsync``, 5,7 ms en 500 vueltas. 10 s deja más de cien veces de margen para
+#: un equipo cargado o un antivirus que retenga el fichero.
+GRACIA_CERROJO_S = 10.0
+
+
+#: Cuántas vueltas sin esperar (el cerrojo cambió entretanto, otro se llevó el apartado) admite quien toma un
+#: cerrojo antes de rendirse con :func:`describir_cerrojo`: ningún bucle de toma es sin fin (019:RF-4, 106:RF-2).
+TOPE_INTENTOS_CERROJO = 50
+
+
+def describir_cerrojo(ruta: Path | str, ahora: Callable[[], float] | None = None) -> str:
+    """Quién tiene el cerrojo, para el error de quien se rinde: su contenido o «ilegible desde hace N s»."""
+    import time
+
+    estado, valor = leer_cerrojo(ruta)
+    if estado == 'legible':
+        return json.dumps(valor, ensure_ascii=False, default=str)[:300]
+    if estado == 'ausente':
+        return 'nadie: el cerrojo ya no está'
+    visto = identidad_fichero(ruta)
+    edad = f'desde hace {(ahora or time.time)() - visto[2] / 1e9:.0f} s' if visto else 'y ya no está'
+    return f'{"ilegible" if estado == "ilegible" else "no se deja leer"} {edad}'
+
+
+def identidad_fichero(ruta: Path | str) -> tuple[int, int, int] | None:
+    """``(st_ino, st_size, st_mtime_ns)`` del fichero, o ``None`` si no existe; en NTFS ``st_ino`` es su índice."""
+    try:
+        st = os.stat(ruta)
+    except FileNotFoundError:
+        return None
+    return st.st_ino, st.st_size, st.st_mtime_ns
+
+
+def leer_cerrojo(ruta: Path | str) -> tuple[str, Any]:
+    """``('legible', valor)``, ``('ilegible', None)``, ``('sin_acceso', None)`` o ``('ausente', None)``.
+
+    Un fichero que no se deja abrir (otro lo está sustituyendo en Windows) no es ilegible: solo se espera.
+    """
+    try:
+        crudo = Path(ruta).read_bytes()
+    except FileNotFoundError:
+        return 'ausente', None
+    except OSError:
+        return 'sin_acceso', None
+    try:
+        return 'legible', json.loads(crudo)
+    except ValueError:
+        return 'ilegible', None
+
+
+def crear_exclusivo(ruta: Path | str, contenido: str | bytes) -> bool:
+    """Crea ``ruta`` con ``contenido`` ya entero solo si no existe; ``False`` si ya existía (019:RF-4, 106:RF-2).
+
+    El contenido va primero a un temporal del mismo directorio, se sincroniza y se enlaza con ``os.link``, que falla
+    si el nombre ya existe: es una creación exclusiva sin estado a medias. Si el volumen no admite enlaces duros
+    (una unidad de Drive, FAT), se recurre a ``os.open(O_EXCL)``, que sí tiene un instante a medias: lo cubre
+    :data:`GRACIA_CERROJO_S`.
+    """
+    ruta = Path(ruta)
+    datos = contenido.encode('utf-8') if isinstance(contenido, str) else contenido
+    fd, temporal = tempfile.mkstemp(dir=ruta.parent, prefix=f'.{ruta.name}.', suffix='.nuevo')
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(datos)
+            f.flush()
+            os.fsync(f.fileno())
+        try:
+            os.link(temporal, ruta)
+            return True
+        except FileExistsError:
+            return False
+        except OSError:
+            pass                                # sin enlaces duros en este volumen: el respaldo
+    finally:
+        try:
+            os.unlink(temporal)
+        except FileNotFoundError:
+            pass
+    try:
+        fd = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except (FileExistsError, PermissionError):
+        return False
+    with os.fdopen(fd, 'wb') as f:
+        f.write(datos)
+        f.flush()
+        os.fsync(f.fileno())
+    return True
+
+
+def _devolver_cerrojo(muerto: Path, ruta: Path) -> bool:
+    """``False`` solo si otro ocupó el nombre antes de devolverlo; uno que ya no está lo devuelve quien lo tenga."""
+    try:
+        os.link(muerto, ruta)
+        return True
+    except FileExistsError:
+        return False
+    except FileNotFoundError:
+        return True
+    except OSError:
+        try:
+            return crear_exclusivo(ruta, muerto.read_bytes())
+        except FileNotFoundError:
+            return True
+
+
+def apartar_cerrojo(ruta: Path | str, visto: tuple[int, int, int], aviso: Callable[[str], None]) -> Path | None:
+    """Aparta el cerrojo ``ruta`` si sigue siendo el observado ``visto``; devuelve dónde quedó o ``None``.
+
+    Solo lo libera quien lo renombra: un segundo proceso recibe ``FileNotFoundError`` y vuelve a empezar. Si entre la
+    observación y el renombrado otro ya lo había sustituido por uno nuevo, se ha apartado uno vivo: se devuelve con
+    ``os.link`` y, si alguien entró entretanto, se dice con un aviso fuerte. Quien llama borra el apartado.
+
+    En Windows, ``os.replace`` renombra por el descriptor que abrió antes: dos renombrados simultáneos pueden «salir
+    bien» los dos y el segundo se lleva el apartado del primero (medido con dos hilos el 2026-11-14). Por eso, si el
+    apartado ya no está, se lo llevó otro y se vuelve a empezar; y aunque dos crean tenerlo, solo uno entra, porque
+    el cerrojo nuevo se crea con :func:`crear_exclusivo`.
+    """
+    ruta = Path(ruta)
+    muerto = ruta.with_name(f'{ruta.name}.muerto-{os.getpid()}-{uuid.uuid4().hex}')
+    try:
+        os.replace(ruta, muerto)
+    except (FileNotFoundError, PermissionError):
+        return None                             # otro lo apartó o lo tiene abierto: se vuelve a mirar
+    actual = identidad_fichero(muerto)
+    if actual is None:
+        return None                             # otro renombrado simultáneo se lo llevó: él decide
+    if actual == visto:
+        return muerto
+    try:
+        if not _devolver_cerrojo(muerto, ruta):
+            aviso(f'AVISO GRAVE: se apartó por error el cerrojo vivo {ruta.name} y otro proceso entró antes de '
+                  'devolverlo: puede haber dos dueños; compruebe los procesos que usan el recurso.')
+    finally:
+        muerto.unlink(missing_ok=True)
+    return None
+
+
+def intentar_cerrojo(ruta: Path | str, contenido: str | bytes, *, valido: Callable[[Any], bool],
+                     aviso: Callable[[str], None], gracia_s: float = GRACIA_CERROJO_S,
+                     ahora: Callable[[], float] | None = None) -> tuple[str, Any]:
+    """Un intento de tomar el cerrojo ``ruta`` (019:RF-4, 106:RF-2).
+
+    Devuelve ``('tomado', None)``; ``('ocupado', dueño)`` con un dueño legible, que decide quien llama (vivo, muerto,
+    cerrándose); ``('espera', motivo)`` con uno ilegible de menos de ``gracia_s`` o que no se deja leer; o
+    ``('otra_vez', None)`` si cambió entretanto. Uno ilegible más antiguo se libera con aviso y se toma.
+    """
+    import time
+
+    ruta = Path(ruta)
+    if crear_exclusivo(ruta, contenido):
+        return 'tomado', None
+    visto = identidad_fichero(ruta)
+    if visto is None:
+        return 'otra_vez', None
+    estado, valor = leer_cerrojo(ruta)
+    if estado == 'ausente':
+        return 'otra_vez', None
+    if estado == 'sin_acceso':
+        return 'espera', f'{ruta.name} no se deja leer'
+    if estado == 'legible' and valido(valor):
+        return 'ocupado', valor
+    edad = (ahora or time.time)() - visto[2] / 1e9
+    if edad < gracia_s:
+        return 'espera', f'cerrojo ilegible de hace {max(edad, 0):.0f} s: puede estar escribiéndose'
+    muerto = apartar_cerrojo(ruta, visto, aviso)
+    if muerto is None:
+        return 'otra_vez', None
+    try:
+        tomado = crear_exclusivo(ruta, contenido)
+        try:
+            previo = muerto.read_bytes()[:120].decode('utf-8', 'replace')
+        except OSError:
+            previo = '?'                        # se lo llevó otro renombrado simultáneo
+        aviso(f'Cerrojo ilegible de hace {edad:.0f} s: se libera ({ruta.name}, contenía {previo!r}).')
+    finally:
+        muerto.unlink(missing_ok=True)
+    return ('tomado', None) if tomado else ('otra_vez', None)

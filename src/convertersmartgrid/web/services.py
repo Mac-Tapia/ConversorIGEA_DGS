@@ -38,7 +38,7 @@ from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
 from ..powerfactory_binding import alimentadores_vinculados
-from ..util import nombre_seguro, write_json_atomic
+from ..util import nombre_seguro, publicar_duradero, write_json_atomic
 from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
 from .requisitos import UserError, require_active_source_run, require_loaded
 from .workspace import Workspace, leer_metadatos_espacio
@@ -2491,7 +2491,7 @@ def cargas_plan(
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'cargas_pf_{token}.json'
-    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(path, plan)                                     # 001:RF-5 (H14)
     resumen = {
         'token': token, 'kind': 'cargas_pf', 'project': plan['project'],
         'folder': plan['folder'], 'feeders': plan['feeders'], 'variacion': plan['variacion'],
@@ -4724,7 +4724,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
                   else f'ajuste_cabecera_{token}_{len(paths) + 1}.json')
         path = ws.plans_dir / nombre
-        path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        write_json_atomic(path, plan)                                 # 001:RF-5 (H14)
         paths.append(str(path))
         ajustes.append({'feeder': alimentador, 'objetivo': plan['objetivo'],
                         'n_clientes': len(clientes), 'n_desconectados': len(apagados),
@@ -5180,7 +5180,7 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
         datos['ultima_calibracion'] = (ws.calibraciones.get(clave_calibracion(
             plan['project'], plan.get('anio_casos'))) or {}).get(feeder)            # 025:RF-20
         copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
-        copia.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        write_json_atomic(copia, datos)                               # 001:RF-5 (H14)
         copias[path] = str(copia)
         ctx.log(f"{feeder}: transformadores nuevos para {', '.join(c['sed'] for c in cambios)}.")
     feeder = next(iter(cambios_por))
@@ -5457,10 +5457,10 @@ def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'verificar_{token}.json'
-    path.write_text(json.dumps({'project': project.strip(), 'folder': carpeta_de(ws, project),
+    publicar_duradero(path, json.dumps({'project': project.strip(), 'folder': carpeta_de(ws, project),  # 001:RF-5
                                 'feeders': feeders,
                                 'native_action_context': action_context},
-                               ensure_ascii=False), encoding='utf-8')
+                               ensure_ascii=False))
     report = ws.out_dir / f'verificar_{token}.json'
     report.parent.mkdir(parents=True, exist_ok=True)
     ctx.log(f'Proyecto de DIgSILENT: {project.strip()}  ·  verificar la convergencia')
@@ -6752,7 +6752,7 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     ruta_plan = ws.plans_dir / f'{nombre}_{token}.json'
-    ruta_plan.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(ruta_plan, plan)                                # 001:RF-5 (H14)
     report = ws.out_dir / f'{nombre}_{token}.json'
     report.parent.mkdir(parents=True, exist_ok=True)
     cmd = [str(interpreter), str(_script(script)), '--plan', str(ruta_plan),
@@ -10241,8 +10241,7 @@ def protecciones_dispositivos_guardar(ws: Workspace, project: str, dispositivos:
         previos[str(d['id'])] = dict(d)
     carpeta = _carpeta_protecciones(ws, project)
     carpeta.mkdir(parents=True, exist_ok=True)
-    (carpeta / 'dispositivos.json').write_text(
-        json.dumps({'dispositivos': list(previos.values())}, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(carpeta / 'dispositivos.json', {'dispositivos': list(previos.values())})   # 001:RF-5 (H14)
     return protecciones_estado(ws, project)
 
 
@@ -10540,7 +10539,7 @@ def _estudios_sin_calibracion(ws: Workspace, project: str, pedidos: list[str], c
 def _guardar_plan_estudios(ws: Workspace, token: str, plan: dict, excluidos: list, avisos: list) -> dict:
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'estudios_{token}.json'
-    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(path, plan)                                     # 001:RF-5 (H14)
     with ws.lock:
         ws.cargas_planes[token] = {'kind': 'estudios', 'path': str(path),
                                    'project': plan['project'], 'feeders': plan['feeders'],

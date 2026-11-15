@@ -471,3 +471,63 @@ def test_081_rf76_el_vigia_cubre_tambien_el_usuario_de_digsilent(turno):
     assert durante != 'fin'
     assert marca.read_text(encoding='utf-8') == 'fin'
     pf_arnes.soltar_turno()
+
+
+def _envejecer(ruta, segundos):
+    import time
+    viejo = time.time() - segundos
+    os.utime(ruta, (viejo, viejo))
+
+
+def test_turno_truncado_y_antiguo_se_libera_con_aviso(turno):
+    """019:RF-4 — un turno a medias de hace rato es de un dueño que murió escribiéndolo: se libera diciéndolo."""
+    turno.write_text('{"pid": 4242, "gui', encoding='utf-8')
+    _envejecer(turno, 3600)
+    avisos = []
+    _tomar(vivo=lambda pid: pytest.fail('un ilegible no tiene pid que mirar'), aviso=avisos.append)
+    assert pf_arnes.leer_turno()['pid'] == os.getpid()
+    assert any('ilegible de hace' in a and 'se libera' in a for a in avisos), avisos
+    assert not [p for p in turno.parent.iterdir() if '.muerto-' in p.name or p.name.endswith('.nuevo')]
+
+
+def test_turno_truncado_y_reciente_no_se_toma(turno):
+    """019:RF-4 — su dueño puede estar escribiéndolo: se espera dentro del plazo y no se toma ni se borra."""
+    turno.write_text('{"pid": 4242, "gui', encoding='utf-8')
+    reloj = Reloj()
+    with pytest.raises(PFNoDisponible, match='ilegible'):
+        _tomar(espera_s=1.0, reloj=reloj, dormir=reloj.dormir, aviso=lambda m: None)
+    assert turno.read_text(encoding='utf-8') == '{"pid": 4242, "gui'
+
+
+def test_dueno_legible_vivo_y_antiguo_no_se_libera(turno):
+    """019:RF-4 — un dueño vivo nunca se libera, por antiguo que sea su turno."""
+    contenido = json.dumps({'pid': 4242, 'guion': 'obras_pf.py', 'desde': '17:00'})
+    turno.write_text(contenido, encoding='utf-8')
+    _envejecer(turno, 3600)
+    reloj = Reloj()
+    with pytest.raises(PFNoDisponible, match='obras_pf.py'):
+        _tomar(espera_s=5.0, vivo=lambda pid: True, reloj=reloj, dormir=reloj.dormir, aviso=lambda m: None)
+    assert turno.read_text(encoding='utf-8') == contenido
+
+
+def test_un_rival_que_gana_siempre_termina_en_el_tope_diciendo_quien(turno, monkeypatch):
+    """019:RF-2, 019:RF-4 — si otro se lleva siempre el apartado, se rinde con tope y plazo: nunca un bucle sin fin."""
+    import time
+
+    from convertersmartgrid import util
+    turno.write_text('{"pid": 4242, "gui', encoding='utf-8')
+    _envejecer(turno, 3600)
+    reemplazar = util.os.replace
+
+    def rival(origen, destino, *a, **k):
+        if '.muerto-' in str(destino):
+            return None        # otro renombrado simultáneo se llevó el apartado y dejó el suyo
+        return reemplazar(origen, destino, *a, **k)
+
+    monkeypatch.setattr(util.os, 'replace', rival)
+    reloj, inicio = Reloj(), time.monotonic()
+    with pytest.raises(PFNoDisponible, match=r'intentos sin conseguirlo.*ilegible desde hace \d+ s'):
+        _tomar(reloj=reloj, dormir=reloj.dormir, aviso=lambda m: None)
+    assert time.monotonic() - inicio < 10
+    with pytest.raises(PFNoDisponible, match=r'tras esperar.*ilegible desde hace'):
+        _tomar(espera_s=0.05, reloj=reloj, dormir=reloj.dormir, aviso=lambda m: None)

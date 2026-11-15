@@ -10,6 +10,7 @@ import sys
 
 from .llm_checkpoint import sha256, validar_base_checkpoint, verificar_checkpoint  # noqa: F401 - API pública
 from ..runtime_paths import raiz_programa
+from ..util import publicar_duradero
 
 
 def sha256_en_commit(repo: Path, ruta: str) -> str:
@@ -54,7 +55,7 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
         with (destino/(nombre+'.log')).open('w',encoding='utf-8') as salida:
             r=subprocess.run(args,cwd=raiz,stdout=salida,stderr=subprocess.STDOUT)
         etapas.append({'etapa':nombre,'exit_code':r.returncode,'argv':[str(a) for a in args]})
-        (destino/'etapas.json').write_text(json.dumps(etapas,indent=2),encoding='utf-8')
+        publicar_duradero(destino/'etapas.json', json.dumps(etapas,indent=2))   # 001:RF-5
         if r.returncode:
             raise RuntimeError(f'{nombre} fallo con codigo {r.returncode}; ver log local')
     try:
@@ -82,9 +83,9 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
         resultado={'publicado':True,'activado':False,'modelo':modelo,'modelo_digest':instalado['digest'],
             'sha256_gguf':huella,'checkpoint':str(checkpoint),'checkpoint_estado_sha256':sha256(checkpoint/'estado.json'),
             'configuracion':estado['configuracion'],'exportacion':export,'etapas':etapas}
-        (destino/'runtime.json').write_text(json.dumps(resultado,indent=2),encoding='utf-8')
+        publicar_duradero(destino/'runtime.json', json.dumps(resultado,indent=2))
         return resultado
     except Exception as exc:
-        (destino/'error.json').write_text(json.dumps({'publicado':False,'activado':False,'error':str(exc),
-            'modelo':modelo,'etapas':etapas},indent=2),encoding='utf-8')
+        publicar_duradero(destino/'error.json', json.dumps({'publicado':False,'activado':False,'error':str(exc),
+            'modelo':modelo,'etapas':etapas},indent=2))
         raise

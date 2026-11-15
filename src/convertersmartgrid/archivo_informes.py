@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 from .runtime_paths import raiz_local
+from .util import publicar_duradero
 
 #: Intentos y espera inicial (se dobla en cada uno) ante un fichero bloqueado por la sincronización.
 REINTENTOS = 5
@@ -54,7 +55,7 @@ def guardar_carpeta(ruta: str | None) -> Path | None:
     if not carpeta.is_absolute() or not carpeta.is_dir():
         raise ArchivoError(f'{texto}: no es una carpeta de esta máquina.')
     destino.parent.mkdir(parents=True, exist_ok=True)
-    destino.write_text(json.dumps({'ruta': carpeta.as_posix()}, ensure_ascii=False) + '\n', encoding='utf-8')
+    publicar_duradero(destino, json.dumps({'ruta': carpeta.as_posix()}, ensure_ascii=False) + '\n')   # 001:RF-5
     return carpeta
 
 

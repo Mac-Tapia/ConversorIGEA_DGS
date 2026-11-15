@@ -616,13 +616,12 @@ COLUMNAS_VIOLACIONES = ('tipo', 'falla', 'dispositivo', 'valor', 'limite', 'deta
 
 def escribir_reporte(evaluacion: Mapping[str, Any], carpeta: Path, nombre: str) -> dict[str, str]:
     """El JSON y los CSV del estudio, iguales byte a byte para la misma evaluación (049:RF-7)."""
-    from .util import escribir_csv
+    from .util import escribir_csv, publicar_duradero
 
     carpeta = Path(carpeta)
     carpeta.mkdir(parents=True, exist_ok=True)
     rutas = {'json': carpeta / f'{nombre}.json'}
-    rutas['json'].write_text(json.dumps(evaluacion, indent=2, ensure_ascii=False, sort_keys=True) + '\n',
-                             encoding='utf-8')
+    publicar_duradero(rutas['json'], json.dumps(evaluacion, indent=2, ensure_ascii=False, sort_keys=True) + '\n')  # 001:RF-5
     for clave, columnas in (('tiempos', COLUMNAS_TIEMPOS), ('margenes', COLUMNAS_MARGENES),
                             ('violaciones', COLUMNAS_VIOLACIONES)):
         rutas[clave] = escribir_csv(evaluacion.get(clave) or [], columnas, carpeta / f'{nombre}_{clave}.csv')

@@ -14,6 +14,8 @@ from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
+from convertersmartgrid.util import publicar_duradero
+
 FAMILIES = (
     'REGULATORY_VNRGIS_PACKAGE',
     'REGULATORY_VNR_PUBLICATION',
@@ -181,18 +183,11 @@ class PublicationCatalog:
         directory.mkdir(parents=True, exist_ok=True)
         catalog_path = directory / 'catalog.json'
         companies_path = directory / 'companies.json'
-        catalog_path.write_text(
-            json.dumps(
-                [p.as_dict() for p in self.publications()],
-                ensure_ascii=False, indent=2,
-            ), encoding='utf-8',
-        )
-        companies_path.write_text(
-            json.dumps(
-                [c.as_dict() for c in self.companies()],
-                ensure_ascii=False, indent=2,
-            ), encoding='utf-8',
-        )
+        # 001:RF-5: sin fichero a medias si se corta a mitad.
+        publicar_duradero(catalog_path, json.dumps(
+            [p.as_dict() for p in self.publications()], ensure_ascii=False, indent=2))
+        publicar_duradero(companies_path, json.dumps(
+            [c.as_dict() for c in self.companies()], ensure_ascii=False, indent=2))
         return catalog_path, companies_path
 
     @classmethod

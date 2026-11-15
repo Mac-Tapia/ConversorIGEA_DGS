@@ -47,6 +47,7 @@ from .demanda_medida import (
 from .digital_twin.pronostico import Objetivo
 from .libros_nuevos import mes_anterior, nombre_de_mes, repite_otro_mes
 from .perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+from .util import publicar_duradero
 
 Curva = Sequence[tuple[datetime, float, float | None]]
 
@@ -1612,11 +1613,12 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
         pd.concat(tablas, ignore_index=True).to_parquet(carpeta / 'objetivos.parquet')
     dataset.huella = texto
     # 104:RF-24, RF-25: el perfil va con el dataset que describe, antes de su dataset.json.
-    (carpeta / 'perfil.json').write_text(json.dumps(perfil_del_dataset(dataset), ensure_ascii=False, indent=1, default=str),
-                                         encoding='utf-8')
-    (carpeta / 'dataset.json.tmp').write_text(json.dumps({'huella': texto, 'objetivos': indice, 'apartados': dataset.apartados, 'libros': dataset.libros,
-                                                       'ultimo_dato': dataset.ultimo_dato, 'avisos': dataset.avisos}, ensure_ascii=False, default=str), encoding='utf-8')
-    (carpeta / 'dataset.json.tmp').replace(carpeta / 'dataset.json')     # lo último: sin este fichero, el dataset no existe
+    publicar_duradero(carpeta / 'perfil.json', json.dumps(perfil_del_dataset(dataset), ensure_ascii=False, indent=1,
+                                                         default=str))                       # 001:RF-5
+    # Lo último: sin este fichero, el dataset no existe.
+    publicar_duradero(carpeta / 'dataset.json', json.dumps({'huella': texto, 'objetivos': indice, 'apartados': dataset.apartados,
+                                                            'libros': dataset.libros, 'ultimo_dato': dataset.ultimo_dato,
+                                                            'avisos': dataset.avisos}, ensure_ascii=False, default=str))
     return texto
 
 

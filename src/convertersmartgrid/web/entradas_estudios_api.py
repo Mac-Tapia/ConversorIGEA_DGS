@@ -15,7 +15,6 @@ cada cifra.
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import tempfile
 from collections.abc import Callable
@@ -27,7 +26,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..entradas_estudios import ESQUEMAS, EntradasError, cumplidas, esquemas_publicos, guardable, leer_entrada, texto_de
-from ..util import nombre_seguro
+from ..util import nombre_seguro, publicar_duradero
 from .api_contract import JobRespuesta
 
 KIND = 'entradas_estudios'
@@ -57,11 +56,7 @@ def _leer(ruta: Path) -> dict | None:
 
 def _escribir(ruta: Path, datos: dict) -> None:
     """Escritura atómica: una entrada a medias haría creer al catálogo que hay datos que no hay."""
-    ruta.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=ruta.parent, prefix=ruta.name, suffix='.tmp')
-    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
-        json.dump(datos, fh, ensure_ascii=False, indent=1)
-    os.replace(tmp, ruta)
+    publicar_duradero(ruta, json.dumps(datos, ensure_ascii=False, indent=1))   # 001:RF-5
 
 
 def guardadas(ws, project: str) -> dict[str, dict]:

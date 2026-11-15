@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 
 import hashlib
 import json
@@ -269,10 +270,7 @@ def registrar_evento_conversion(
         raiz.mkdir(parents=True, exist_ok=True)
         final = raiz / f'{event_id}.json'
         if not final.exists():
-            with staging_publicacion(final) as temporal:
-                temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
-                                    encoding='utf-8')
-                os.replace(temporal, final)
+            publicar_duradero(final, json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2))   # 001:RF-5
         return {'ok': True, 'event_id': event_id, 'path': str(final)}
     except Exception as exc:  # frontera: la IA no bloquea la conversión
         return {'ok': False, 'warning': f'DATASET_IA_NO_ACTUALIZADO: {exc}'}
@@ -565,10 +563,7 @@ def escribir_particiones(
     base = {'schema': ESQUEMA_DATASET, 'partitions': archivos,
             'qualities': dict(sorted(qualities.items())), 'audit': auditoria}
     base['sha256'] = _hash(base)
-    with staging_publicacion(raiz / 'manifest.json') as temporal:
-        temporal.write_text(json.dumps(base, ensure_ascii=False, sort_keys=True, indent=2),
-                            encoding='utf-8')
-        os.replace(temporal, raiz / 'manifest.json')
+    publicar_duradero(raiz / 'manifest.json', json.dumps(base, ensure_ascii=False, sort_keys=True, indent=2))
     return base
 
 

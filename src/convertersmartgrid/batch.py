@@ -38,7 +38,7 @@ from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
 from .registro_modulos import Resolucion, instalar_en_proceso, resolver
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset, project_root
 from .runtime_paths import raiz_local
-from .util import nombre_seguro
+from .util import nombre_seguro, write_json_atomic
 from .runtime_paths import staging_publicacion
 from .validate import parse_dgs, validate_dgs, write_validation_reports
 
@@ -640,7 +640,8 @@ def convert_selection(
             },
             'feeders': items,
         }
-        (out_dir / 'batch_manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        # 001:RF-5 (H14): la publicación atómica única; un corte a mitad deja el manifiesto anterior.
+        write_json_atomic(out_dir / 'batch_manifest.json', manifest)
     return manifest
 
 
@@ -830,8 +831,7 @@ def convert_group(
     finally:
         _clear_stage(stage)
         stage_manager.__exit__(None, None, None)
-        (out_dir / f'{nombre}_manifest.json').write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
+        write_json_atomic(out_dir / f'{nombre}_manifest.json', manifest)       # 001:RF-5 (H14)
     return manifest
 
 

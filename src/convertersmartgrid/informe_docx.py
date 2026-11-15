@@ -13,9 +13,9 @@ from __future__ import annotations
 import math
 
 from .runtime_paths import staging_publicacion
+from .util import write_json_atomic
 
 import io
-import json
 import os
 import re
 import zipfile
@@ -566,12 +566,10 @@ def _guardar(documento, destino: Path, resumen: Mapping[str, Any]) -> None:
     """Prepara Word y JSON fuera del checkout antes de publicarlos (RF-25, RF-27)."""
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
-    with (staging_publicacion(destino) as tmp_docx,
-          staging_publicacion(destino.with_suffix('.json')) as tmp_json):
+    with staging_publicacion(destino) as tmp_docx:
         documento.save(tmp_docx)
-        tmp_json.write_text(json.dumps(resumen, ensure_ascii=False, indent=2, default=str) + '\n',
-                            encoding='utf-8')
-        os.replace(tmp_json, destino.with_suffix('.json'))
+        # 001:RF-5: el JSON se serializa antes de publicar nada; el Word se publica después.
+        write_json_atomic(destino.with_suffix('.json'), resumen)
         os.replace(tmp_docx, destino)
 
 

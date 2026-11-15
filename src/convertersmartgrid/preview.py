@@ -21,6 +21,7 @@ from typing import Any
 from .geography import GeographyManifest
 from .model import FeederModel, LineType
 from .salidas_red import motivo_apagada, salida_permitida
+from .util import publicar_duradero, write_json_atomic
 
 CARPETA_LEAFLET = Path(__file__).resolve().parent / 'recursos' / 'leaflet'
 #: 086:RF-21: la huella que publica Leaflet para su 1.9.4; la comprueba una prueba.
@@ -451,10 +452,7 @@ def _write_leafmap_html(layers: PreviewLayers, path: Path) -> Path:
     except ImportError:
         # leafmap sin geopandas: GeoJSON temporal
         geojson_path = path.with_suffix('.geojson')
-        geojson_path.write_text(
-            json.dumps(layers_to_geojson(layers), ensure_ascii=False),
-            encoding='utf-8',
-        )
+        publicar_duradero(geojson_path, json.dumps(layers_to_geojson(layers), ensure_ascii=False))   # 001:RF-5
         m.add_geojson(str(geojson_path), layer_name=layers.feeder)
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -497,5 +495,5 @@ def write_preview_geojson(
     layers = build_preview_layers(model, geography)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(layers_to_geojson(layers), indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(out, layers_to_geojson(layers))
     return out

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 from . import almacen, corpus_proyecto, lectura_proyecto
 from .ollama import MODELO_EMBEDDINGS
 from .sinteticos import normalizar
@@ -475,12 +476,9 @@ def _guardar_vectores(por_clave: dict[str, Any], corpus: str = CORPUS_047) -> No
         with temporal.open('wb') as f:
             np.save(f, matriz, allow_pickle=False)
 
-    def meta(temporal: Path) -> None:
-        temporal.write_text(json.dumps({'modelo': modelo_vectores(), 'prefijo': prefijos()[1],
-                                        'claves': claves}), encoding='utf-8')
-
     _escribir(_carpeta(corpus) / 'vectores.npy', npy)
-    _escribir(_carpeta(corpus) / 'vectores_meta.json', meta)
+    publicar_duradero(_carpeta(corpus) / 'vectores_meta.json', json.dumps({'modelo': modelo_vectores(),
+                      'prefijo': prefijos()[1], 'claves': claves}))
 
 
 def _con_vectores(frags: list[Fragmento], corpus: str = CORPUS_047) -> Indice:
@@ -508,8 +506,7 @@ def construir(repo: Path, corpus: str = CORPUS_047) -> Indice:
     carpeta = _carpeta(corpus)
     carpeta.mkdir(parents=True, exist_ok=True)
     frags = fragmentos(repo) if corpus == CORPUS_047 else _fragmentos_con_cache(repo, corpus, carpeta)
-    (carpeta / 'fragmentos.json').write_text(json.dumps([asdict(f) for f in frags], ensure_ascii=False),
-                                             encoding='utf-8')
+    publicar_duradero(carpeta / 'fragmentos.json', json.dumps([asdict(f) for f in frags], ensure_ascii=False))
     (carpeta / 'huella.txt').write_text(huella(repo, corpus), encoding='utf-8')
     return _con_vectores(frags, corpus)
 

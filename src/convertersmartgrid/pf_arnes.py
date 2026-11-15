@@ -14,7 +14,7 @@ primera línea en cuanto DIgSILENT responde (RF-6, 005:RF-21).
 
 from __future__ import annotations
 
-from .runtime_paths import staging_publicacion
+from .util import TOPE_INTENTOS_CERROJO, describir_cerrojo, intentar_cerrojo, publicar_duradero
 
 import atexit
 import importlib
@@ -277,19 +277,9 @@ def leer_turno(ruta: Path | None = None) -> dict | None:
 
 def _escribir_turno(ruta: Path, datos: dict) -> None:
     """Reescribe el turno de golpe: quien lo lee nunca ve un fichero a medias."""
-    with staging_publicacion(ruta) as tmp:
-        tmp.write_text(json.dumps(datos), encoding='utf-8')
-        # En Windows ``os.replace`` falla con «acceso denegado» si otro proceso lee el turno
-        # en ese instante: se reintenta unas veces antes de rendirse.
-        for intento in range(20):
-            try:
-                os.replace(tmp, ruta)
-                return
-            except PermissionError:
-                if intento == 19:
-                    tmp.unlink(missing_ok=True)
-                    raise
-                time.sleep(0.05)
+    # 001:RF-5: en Windows ``replace`` falla con «acceso denegado» si otro proceso lee el turno en ese
+    # instante; ``publicar_duradero`` lo reintenta (086:RF-54) y limpia su temporal si no lo consigue.
+    publicar_duradero(ruta, json.dumps(datos))
 
 
 def marcar_turno(ruta: Path | None = None, **campos: Any) -> None:
@@ -396,7 +386,9 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
 
     RF-13: con DIgSILENT abierto a mano no se lanza nada (usuario, 2026-10-15: «avisas»).
     RF-2: si otro proceso lo tiene, se espera hasta ``espera_s`` diciendo quién.
-    RF-4: si su dueño ya no vive, se libera y se sigue.
+    RF-4: si su dueño ya no vive, se libera y se sigue. El turno se crea ya entero (``crear_exclusivo``); uno
+    ilegible se respeta ``GRACIA_CERROJO_S`` por si un dueño antiguo lo está escribiendo, y después se libera
+    con aviso. Un dueño legible y vivo nunca se libera.
     RF-19: un dueño que soltó el turno al salir sigue con el motor hasta morir; se le
     espera hasta ``CIERRE_S``.
     """
@@ -410,30 +402,50 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
     limite = reloj() + espera_s
     ultimo_aviso = None
     cierre_pedido = False
+    propio = {'pid': os.getpid(), 'inicio': inicio(os.getpid()), 'guion': guion,
+              'codigo': carpeta_del_codigo()}                                # 019:RF-27
+    vueltas = 0
+
+    def rendirse(motivo: str) -> PFNoDisponible:
+        return PFNoDisponible(f'No se pudo tomar el turno de DIgSILENT ({motivo}); lo tiene: '
+                              f'{describir_cerrojo(ruta, ahora)} (019:RF-2, 019:RF-4).')
+
     while True:
-        try:
-            fd = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            dueno = leer_turno(ruta)
-            if dueno is None and ruta.exists():
-                dormir(0.05)          # se está reescribiendo (``_escribir_turno``)
-                dueno = leer_turno(ruta)
-            muerto = dueno is None or not dueno_vivo(dueno, vivo, inicio)
-            cerrado = (dueno is not None and dueno.get('liberado') is not None
+        contenido = json.dumps({**propio, 'desde': datetime.now().isoformat(timespec='seconds')})
+        resultado, dueno = intentar_cerrojo(ruta, contenido, valido=lambda d: isinstance(d, dict),
+                                            aviso=aviso, ahora=ahora)
+        if resultado == 'otra_vez':
+            # Cambió entretanto u otro se llevó el apartado: se vuelve a mirar, con tope de vueltas y de plazo.
+            vueltas += 1
+            if vueltas >= TOPE_INTENTOS_CERROJO:
+                raise rendirse(f'{vueltas} intentos sin conseguirlo')
+            if reloj() >= limite:
+                raise rendirse(f'tras esperar {espera_s / 60:.0f} min')
+            dormir(0.01)
+            continue
+        if resultado == 'espera':
+            # RF-4: ilegible y reciente: puede ser un dueño que lo está escribiendo; se espera dentro del plazo.
+            if reloj() >= limite:
+                raise PFNoDisponible(f'DIgSILENT sigue ocupado ({dueno}) tras esperar {espera_s / 60:.0f} '
+                                     'min (019:RF-2).')
+            dormir(0.05)
+            continue
+        if resultado == 'ocupado':
+            muerto = not dueno_vivo(dueno, vivo, inicio)
+            cerrado = (dueno.get('liberado') is not None
                        and ahora() - float(dueno['liberado']) > CIERRE_S)
             if muerto or cerrado:
                 # RF-4: el dueño murió sin soltarlo (una sonda cortada, un guion matado).
                 # RF-19: o soltó al salir y lleva más de ``CIERRE_S`` sin acabar de cerrarse.
-                if dueno is None:
-                    _borrar_turno(ruta)
-                else:
-                    _borrar_si_sigue(ruta, dueno)
-                    aviso(f"Turno de DIgSILENT liberado: {dueno.get('guion')} (proceso "
-                          f"{dueno.get('pid')}) "
-                          + ('ya no estaba vivo.' if muerto else
-                             f'no terminó de cerrarse en {CIERRE_S:g} s.'))
+                _borrar_si_sigue(ruta, dueno)
+                aviso(f"Turno de DIgSILENT liberado: {dueno.get('guion')} (proceso "
+                      f"{dueno.get('pid')}) "
+                      + ('ya no estaba vivo.' if muerto else
+                         f'no terminó de cerrarse en {CIERRE_S:g} s.'))
+                vueltas += 1
+                if vueltas >= TOPE_INTENTOS_CERROJO:
+                    raise rendirse(f'{vueltas} intentos sin conseguirlo')
                 continue
-            assert dueno is not None
             if int(dueno['pid']) == os.getpid():
                 return ruta
             quien = (f"{dueno.get('guion')} (proceso {dueno.get('pid')}, desde "
@@ -455,10 +467,6 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
                 ultimo_aviso = reloj()
             dormir(PAUSA_S)
             continue
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump({'pid': os.getpid(), 'inicio': inicio(os.getpid()), 'guion': guion,
-                       'codigo': carpeta_del_codigo(),                      # 019:RF-27
-                       'desde': datetime.now().isoformat(timespec='seconds')}, f)
         return ruta
 
 

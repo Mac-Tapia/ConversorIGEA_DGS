@@ -8,6 +8,7 @@ from typing import Any
 
 from .dominio.dataset import TABLAS_TIPOS_LINEA, CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
+from .util import write_json_atomic
 
 
 def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
@@ -360,9 +361,7 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
 
 
 def write_inventory(inventory: dict[str, Any], path: Path | str) -> Path:
-    import json
-
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(out, inventory)                                                   # 001:RF-5
     return out

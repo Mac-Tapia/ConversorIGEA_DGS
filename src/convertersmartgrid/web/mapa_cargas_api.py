@@ -20,6 +20,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..util import publicar_duradero
 from .api_contract import JobRespuesta
 
 KIND = 'mapa_cargas_digsilent'
@@ -125,9 +126,8 @@ def dar_de_alta(ws, body: ConfirmarPuntoPeticion) -> dict:
         raise UserError(str(exc)) from exc
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     ws.out_dir.mkdir(parents=True, exist_ok=True)
-    (ws.plans_dir / f'cargas_pf_{token}.json').write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding='utf-8')
-    (ws.out_dir / f'cargas_pf_aplicacion_{token}.json').write_text(
-        json.dumps(aplicacion, indent=2, ensure_ascii=False), encoding='utf-8')
+    publicar_duradero(ws.plans_dir / f'cargas_pf_{token}.json', json.dumps(plan, indent=2, ensure_ascii=False))  # 001:RF-5
+    publicar_duradero(ws.out_dir / f'cargas_pf_aplicacion_{token}.json', json.dumps(aplicacion, indent=2, ensure_ascii=False))
     nombres = ', '.join(str(f['sed']) for f in filas)
     return {'altas': [str(f['sed']) for f in filas], 'token': token,
             'aviso': f'{nombres}: dada(s) de alta como carga(s) sola(s) con lo que guarda DIgSILENT; ya sirven para el '

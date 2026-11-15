@@ -6,6 +6,7 @@ documentos queda en ``context``; la aceptación nativa/humana vive fuera de este
 from __future__ import annotations
 
 from .runtime_paths import staging_publicacion
+from .util import publicar_duradero
 
 import hashlib
 import json
@@ -523,10 +524,8 @@ def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    with staging_publicacion(path) as temporal:
-        temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
-                            encoding='utf-8', newline='\n')
-        os.replace(temporal, path)
+    # 001:RF-5: en bytes, para conservar el fin de línea LF que fijaba ``newline``.
+    publicar_duradero(path, (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode('utf-8'))
 
 
 def _training_from_contract(contract: ContratoPide) -> list[dict[str, Any]]:

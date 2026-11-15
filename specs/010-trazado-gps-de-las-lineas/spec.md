@@ -1,6 +1,6 @@
 # Spec 010 — Trazado GPS de las líneas
 
-Estado: cumplida · Fecha: 2026-10-10 · Spec, plan e implementación aprobados por el
+Estado: aprobada · Fecha: 2026-10-10 · Spec, plan e implementación aprobados por el
 usuario el 2026-10-10, después de implementarse (lo pidió de forma explícita).
 
 ## Contexto y objetivo
@@ -41,6 +41,9 @@ PowerFactory; la prueba de aceptación en PowerFactory.
   difieren del manifiesto.
 - RF-7: SI alguna línea importada en PowerFactory no tiene el trazado del manifiesto,
   ENTONCES EL SISTEMA dará por fallida la comprobación del diagrama geográfico.
+- RF-8: SI algún punto intermedio de un tramo trae un SeqNumber vacío o no entero, ENTONCES EL SISTEMA
+  conservará el orden del fichero en ese tramo y avisará con el tramo y los valores; «3.0» vale 3. (Auditoría
+  del 2026-11-14, H14: un valor no numérico iba al final y uno vacío al principio, sin aviso.)
 
 ## Requisitos no funcionales
 - Determinismo: el DGS sigue siendo idéntico byte a byte con `workers=1` y `workers>1`.

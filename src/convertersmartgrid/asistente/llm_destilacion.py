@@ -17,6 +17,7 @@ from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS, sistema_alumno
 from ..dominio.dataset import CymdistDataset
 from ..evaluacion_modelos import huella, texto_canonico
 from ..runtime_paths import raiz_programa
+from ..util import publicar_duradero
 
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
 
@@ -416,7 +417,7 @@ def sellar_particiones(dataset: Path, destino: Path) -> dict:
         if (dataset / origen).is_file():
             shutil.copyfile(dataset / origen, destino / nombre)
             meta[clave] = custodiar(destino / nombre, localizador=clave)
-    (destino / 'dataset_manifest.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+    publicar_duradero(destino / 'dataset_manifest.json', json.dumps(meta, ensure_ascii=False, indent=2))   # 001:RF-5
     shutil.copyfile(dataset / 'corpus.json', destino / 'corpus_auditoria.json')
     return meta
 
@@ -654,10 +655,10 @@ def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path 
     inicio = time.monotonic()
     trainables, total_parametros = modelo.get_nb_trainable_parameters()
     torch.cuda.reset_peak_memory_stats(); modelo.train(); opt.zero_grad(set_to_none=True)
-    (destino / 'protocolo.json').write_text(json.dumps({'configuracion':configuracion,'base':ficha,
+    publicar_duradero(destino / 'protocolo.json', json.dumps({'configuracion':configuracion,'base':ficha,
         'epoca':epoca,'registros_train':len(registros),'max_tokens_observados':max(len(a) for a,_ in codificados),
         'parametros_entrenables':trainables,'parametros_totales':total_parametros,
-        'desde':str(desde) if desde else None,'teacher_logits':False,'metodo':'response_distillation_QLoRA'},indent=2),encoding='utf-8')
+        'desde':str(desde) if desde else None,'teacher_logits':False,'metodo':'response_distillation_QLoRA'},indent=2))
 
     def guardar(siguiente, completada=False):
         carpeta = destino / ('final' if completada else f'progreso_{updates:06d}')
@@ -676,8 +677,8 @@ def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path 
             'device':'cuda','gpu_peak_bytes':torch.cuda.max_memory_allocated(),
             'duracion_s':time.monotonic()-inicio,'promovido':False,'artefactos':artefactos}
         (carpeta / 'estado.json').write_text(json.dumps(estado,indent=2,allow_nan=False),encoding='utf-8')
-        (destino / 'ultimo_checkpoint.json').write_text(json.dumps({'ruta':str(carpeta.resolve()),
-            'optimizer_updates':updates,'training_completed':completada}),encoding='utf-8')
+        publicar_duradero(destino / 'ultimo_checkpoint.json', json.dumps({'ruta':str(carpeta.resolve()),
+            'optimizer_updates':updates,'training_completed':completada}))
         return {**estado,'checkpoint':str(carpeta.resolve())}
 
     pendientes = len(orden) - inicio_indice
@@ -714,7 +715,7 @@ def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path 
     if vistas != len(registros):
         raise RuntimeError('no se consumio el corpus completo')
     resultado = guardar(len(orden), True)
-    (destino / 'resultado.json').write_text(json.dumps(resultado,indent=2,allow_nan=False),encoding='utf-8')
+    publicar_duradero(destino / 'resultado.json', json.dumps(resultado,indent=2,allow_nan=False))
     return resultado
 
 
@@ -826,5 +827,5 @@ def exportar_fusionado(destino: Path, adaptador: Path | None = None, *, log=prin
         'adaptador': str(adaptador) if adaptador else None, 'tensores': len(index),
         'bytes_pesos': total, 'artefactos': artefactos, 'metodo': 'NF4 dequant + PEFT delta, FP16 por shard',
         'requiere_evaluacion_runtime': True, 'activado': False}
-    (destino / 'exportacion.json').write_text(json.dumps(resultado, indent=2), encoding='utf-8')
+    publicar_duradero(destino / 'exportacion.json', json.dumps(resultado, indent=2))   # 001:RF-5
     return resultado

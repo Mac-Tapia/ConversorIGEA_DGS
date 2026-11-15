@@ -16,7 +16,7 @@ retirada.
 | [007](007-cargas-nuevas-sobre-el-ajuste/spec.md) | Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida | 41 | 41 | — |
 | [008](008-pestana-cargas-en-tres-pasos/spec.md) | Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida | 28 | 28 | — |
 | [009](009-inventario-del-repositorio/spec.md) | Inventario del repositorio: cada fichero con su módulo y su spec | cumplida | 15 | 15 | — |
-| [010](010-trazado-gps-de-las-lineas/spec.md) | Trazado GPS de las líneas | cumplida | 7 | 7 | — |
+| [010](010-trazado-gps-de-las-lineas/spec.md) | Trazado GPS de las líneas | aprobada | 8 | 8 | T6 |
 | [011](011-estudios-sobre-la-red-calibrada/spec.md) | Estudios y obras de mejora sobre la red calibrada | cumplida | 137 | 137 | — |
 | [012](012-confiabilidad-y-capacidad-de-la-red/spec.md) | Confiabilidad y capacidad de la red calibrada | cumplida | 86 | 86 | — |
 | [013](013-mes-de-analisis-y-transferencia/spec.md) | Mes de análisis y transferencia entre dos alimentadores | cumplida | 32 | 32 | — |

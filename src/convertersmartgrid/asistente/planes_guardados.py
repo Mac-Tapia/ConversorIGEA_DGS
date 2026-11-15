@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 from .almacen import ahora
 from .plan import Plan
 
@@ -50,9 +49,7 @@ class PlanesGuardados:
     def _escribir(self, ruta: Path, doc: dict) -> None:
         doc = {**doc, 'huella': _firma(doc)}
         self.carpeta.mkdir(parents=True, exist_ok=True)
-        with staging_publicacion(ruta) as temporal:
-            temporal.write_text(json.dumps(doc, ensure_ascii=False, default=str), encoding='utf-8')
-            os.replace(temporal, ruta)
+        publicar_duradero(ruta, json.dumps(doc, ensure_ascii=False, default=str))   # 001:RF-5
 
     def guardar(self, plan: Plan, extras: dict, gobierno: Any) -> None:
         ruta = self._ruta(plan.id)

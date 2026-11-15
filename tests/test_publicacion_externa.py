@@ -60,21 +60,53 @@ def _escritor(nombre, ruta, monkeypatch):
         from convertersmartgrid.asistente import transformer
         monkeypatch.setattr(transformer, 'raiz_modelos', lambda _n: ruta.parent)
         return lambda: transformer.promover('v1', 'prueba')
+    # 001:RF-5 (H14): antes preparaban un .tmp junto al destino; ahora publican con publicar_duradero.
+    if nombre == 'libros_estado':
+        from convertersmartgrid import libros_nuevos
+        monkeypatch.setattr(libros_nuevos, 'NOMBRE_ESTADO', ruta.name)
+        return lambda: libros_nuevos.guardar_estado(ruta.parent, dato)
+    if nombre == 'aperturas':
+        from convertersmartgrid.obras_pf import escribir_aperturas
+        return lambda: escribir_aperturas(ruta, [dato])
+    if nombre == 'entradas_estudios':
+        from convertersmartgrid.web.entradas_estudios_api import _escribir
+        return lambda: _escribir(ruta, dato)
+    if nombre == 'salidas':
+        from convertersmartgrid import salidas_red as sr
+        return lambda: sr.guardar_salida('teselas', True, {sr.VARIABLE_RUTA_GUARDADAS: str(ruta)})
+    if nombre == 'crecimiento':
+        from types import SimpleNamespace
+
+        from convertersmartgrid import crecimiento, demanda_medida
+        monkeypatch.setattr(crecimiento, '_huella_del_libro', lambda *_a: 'huella')
+        monkeypatch.setattr(demanda_medida, 'leer_clientes',
+                            lambda *_a: ([SimpleNamespace(codigo='C1', pot=5.0)], []))
+        return lambda: crecimiento.pot_de_los_libros([('2026-01', 'clientes.xlsx')], None, cache=ruta.parent)
+    if nombre == 'pronostico_dataset':
+        from convertersmartgrid import pronostico_demanda as pd_
+        return lambda: pd_.guardar_dataset(pd_.Dataset([], [], [dato], {'cabecera': '2026-01'}), ruta.parent)
     raise AssertionError(nombre)
 
 
 ESCRITORES = ('registro', 'binding', 'coordinador', 'trabajador', 'almacen',
               'checkpoint', 'pide_json', 'pide_jsonl', 'custodia_json', 'turno',
-              'oraculo', 'transformer')
+              'oraculo', 'transformer', 'libros_estado', 'aperturas', 'entradas_estudios', 'salidas',
+              'crecimiento', 'pronostico_dataset')
+#: El nombre que publica cada escritor, si no es ``promovido.json``.
+DESTINOS = {'crecimiento': 'pot_huella.json', 'pronostico_dataset': 'dataset.json'}
+#: Lo que había antes, si no es un JSON válido: la caché del crecimiento solo se reescribe cuando está rota.
+ANTERIORES = {'crecimiento': b'{"roto'}
+#: 042:RF-96: una caché que no se guarda no para la lectura; el corte no sube, pero el destino sigue entero.
+SIN_ERROR_AL_CORTAR = {'crecimiento'}
 
 
 @pytest.mark.parametrize('nombre', ESCRITORES)
 @pytest.mark.parametrize('corte', [False, True])
 def test_publicacion_json_externa_conserva_anterior_y_limpia(tmp_path, monkeypatch, nombre, corte):
     """065:RF-10, 065:RF-11, 065:RF-12 — ruta privada, mismo volumen y fallo íntegro."""
-    ruta = tmp_path / 'producto' / 'promovido.json'
+    ruta = tmp_path / 'producto' / DESTINOS.get(nombre, 'promovido.json')
     ruta.parent.mkdir()
-    anterior = b'{"version": "anterior"}'
+    anterior = ANTERIORES.get(nombre, b'{"version": "anterior"}')
     ruta.write_bytes(anterior)
     publicar = _escritor(nombre, ruta, monkeypatch)
     reemplazar = os.replace
@@ -93,13 +125,17 @@ def test_publicacion_json_externa_conserva_anterior_y_limpia(tmp_path, monkeypat
         return reemplazar(origen, destino, *args, **kwargs)
 
     monkeypatch.setattr(os, 'replace', observar)
-    if corte:
+    if corte and nombre in SIN_ERROR_AL_CORTAR:
+        publicar()
+        assert ruta.read_bytes() == anterior
+    elif corte:
         with pytest.raises(OSError, match='corte antes'):
             publicar()
         assert ruta.read_bytes() == anterior
     else:
         publicar()
-        assert json.loads(ruta.read_text(encoding='utf-8')) != json.loads(anterior)
+        assert ruta.read_bytes() != anterior
+        json.loads(ruta.read_text(encoding='utf-8'))                    # publicado entero
     assert len(observados) == 1
     assert all(not p.exists() for p in observados)
     assert not list((tmp_path / 'runtime').rglob('owner.json'))

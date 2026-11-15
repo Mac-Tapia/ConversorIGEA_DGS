@@ -692,7 +692,10 @@ def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapp
         motivos += _puerta(nuevo, actual)['motivos']
     puesto = escribir and not motivos
     if puesto:
-        modulo_indice.escribir_publicado(modulo_indice.almacen.raiz() / modulo_indice.PUNTERO_VECTORES, lambda t: t.write_text(json.dumps(
+        # 001:RF-5 (H14): la publicación atómica única; antes, un temporal con «write_text» dentro de una lambda.
+        from ..util import publicar_duradero
+
+        publicar_duradero(modulo_indice.almacen.raiz() / modulo_indice.PUNTERO_VECTORES, json.dumps(
             {'modelo': modelo, 'calibraciones': dict(calibraciones), 'mediciones': dict(mediciones or {}), 'metodo': metodo,
-             'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1), encoding='utf-8'))
+             'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1))
     return {'puesto': puesto, 'motivos': motivos, 'modelo': modelo, 'en_uso': modulo_indice.modelo_vectores()}

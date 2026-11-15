@@ -34,6 +34,7 @@ from .demanda_medida import (
     registros_de_hoja,
 )
 from .libros_por_anio import arbol_de_libros
+from .util import publicar_duradero
 
 #: Un mes «repite» otro si al menos esta fracción de sus registros es igual (RF-15). Abril de 2026 frente a marzo:
 #: el 100 %; marzo frente a febrero, del 2 al 4 %; mayo frente a abril, el 0 %.
@@ -448,10 +449,9 @@ def guardar_estado(carpeta: Path | str, estado: Mapping[str, Any]) -> None:
     """
     import json
 
-    from .util import publicar_duradero
-
-    publicar_duradero(Path(carpeta) / NOMBRE_ESTADO,
-                      json.dumps(estado, ensure_ascii=False, indent=1, default=str))
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    publicar_duradero(carpeta / NOMBRE_ESTADO, json.dumps(estado, ensure_ascii=False, indent=1, default=str))   # 001:RF-5
 
 
 def libros_repetidos(carpeta: Path | str) -> dict[str, str]:

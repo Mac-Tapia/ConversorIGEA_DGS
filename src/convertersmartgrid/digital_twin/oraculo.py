@@ -17,12 +17,11 @@ mismo contrato (RF-38) y el resto del conversor funciona.
 """
 from __future__ import annotations
 
-from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 
 import hashlib
 import json
 import math
-import os
 import random
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -996,9 +995,7 @@ def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
         anterior = json.loads((raiz / 'promovido.json').read_text(encoding='utf-8'))['version']
     fila = {'version': version, 'anterior': anterior, 'motivo': motivo,
             'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')}
-    with staging_publicacion(raiz / 'promovido.json') as tmp:
-        tmp.write_text(json.dumps(fila, ensure_ascii=False), encoding='utf-8')
-        os.replace(tmp, raiz / 'promovido.json')
+    publicar_duradero(raiz / 'promovido.json', json.dumps(fila, ensure_ascii=False))   # 001:RF-5
     with open(raiz / 'historial.jsonl', 'a', encoding='utf-8') as f:
         f.write(json.dumps(fila, ensure_ascii=False) + '\n')
 

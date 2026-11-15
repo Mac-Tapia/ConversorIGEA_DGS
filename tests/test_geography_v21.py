@@ -81,3 +81,33 @@ def test_dgs_writer_includes_geographic_graphic_layer(ds, sample_model, tmp_path
     assert net['pDiagram'] == manifest.diagram_fid
     terms = tables['ElmTerm']['rows_dict']
     assert all(row['GPSlat'] and row['GPSlon'] for row in terms)
+
+
+def test_seqnumber_no_entero_conserva_el_orden_del_fichero_y_avisa():
+    """010:RF-8 (H14, 2026-11-14): con un SeqNumber vacío o no entero en un tramo no hay orden que comparar: se
+    conservan sus puntos en el orden del fichero (estable) y se avisa con el tramo y el valor. Antes «x» iba al
+    final y el vacío al principio, sin aviso."""
+    from convertersmartgrid.geography import ordenar_intermedios
+    filas = [{'SeqNumber': '2', 'CoordX': 'b'}, {'SeqNumber': 'x', 'CoordX': 'x'},
+             {'SeqNumber': '', 'CoordX': 'v'}, {'SeqNumber': '1', 'CoordX': 'a'}]
+    orden, avisos = ordenar_intermedios('S7', filas)
+    assert [f['CoordX'] for f in orden] == ['b', 'x', 'v', 'a']
+    assert len(avisos) == 1 and 'S7' in avisos[0] and "'x'" in avisos[0] and "''" in avisos[0]
+
+
+def test_seqnumber_entero_escrito_con_decimal_se_ordena_por_su_numero():
+    """010:RF-1 / 010:RF-8: «3.0» vale 3; todos enteros, los puntos van por su número y sin aviso."""
+    from convertersmartgrid.geography import ordenar_intermedios
+    filas = [{'SeqNumber': '3.0', 'CoordX': 'c'}, {'SeqNumber': '1', 'CoordX': 'a'},
+             {'SeqNumber': ' 2 ', 'CoordX': 'b'}, {'SeqNumber': '10', 'CoordX': 'd'}]
+    orden, avisos = ordenar_intermedios('S1', filas)
+    assert [f['CoordX'] for f in orden] == ['a', 'b', 'c', 'd'] and avisos == []
+
+
+def test_el_aviso_del_seqnumber_llega_a_la_validacion_de_la_geografia(ds, sample_model):
+    """010:RF-8: el aviso del tramo sale en los ``warnings`` de validate_geography, que ve el operador."""
+    from dataclasses import replace
+    from convertersmartgrid.geography import build_geography, validate_geography
+    geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
+    con_aviso = replace(geo, avisos=('S1: SeqNumber vacío o no entero (010:RF-8)',))
+    assert 'S1: SeqNumber vacío o no entero (010:RF-8)' in validate_geography(sample_model, con_aviso)['warnings']

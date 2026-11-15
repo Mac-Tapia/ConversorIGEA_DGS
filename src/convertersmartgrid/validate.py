@@ -5,14 +5,13 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from pathlib import Path
-import json
 import math
 
 from .model import FeederModel, Line, palabras_de
 from .naming import siglas_canonicas, nombre_canonico
 from .schema import load_schema
 from .geography import GeographyManifest
-from .util import finite_or_none
+from .util import finite_or_none, write_json_atomic
 
 
 def parse_dgs(path: Path | str) -> dict[str, dict]:
@@ -828,7 +827,7 @@ def write_validation_reports(report: dict, json_path: Path | str, txt_path: Path
     txt_path = Path(txt_path)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     txt_path.parent.mkdir(parents=True, exist_ok=True)
-    json_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_json_atomic(json_path, report)                                                # 001:RF-5
     c = report.get('counts', {})
     length = report.get('length_km', {})
     lines = [

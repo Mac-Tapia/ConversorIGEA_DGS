@@ -25,6 +25,7 @@ from .sinteticos import Ejemplo, expandir, normalizar
 from .tareas import TAREAS, TAREAS_HASTA_069
 from . import ordenes_maestro as ordenes_maestro_085
 from ..runtime_paths import raiz_programa
+from ..util import publicar_duradero
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
@@ -922,7 +923,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                     Path(__file__).with_name('maestro_real.py'), Path(vc.__file__), Path(af.__file__),
                     Path(__file__).with_name('ordenes_fijas.py'), Path(__file__).parents[1] / 'evaluacion_modelos.py'):
         (codigo / archivo.name).write_text(archivo.read_text(encoding='utf-8'), encoding='utf-8')
-    (destino / 'protocolo.json').write_text(json.dumps(protocolo, ensure_ascii=False, indent=2), encoding='utf-8')
+    publicar_duradero(destino / 'protocolo.json', json.dumps(protocolo, ensure_ascii=False, indent=2))   # 001:RF-5
     candidatos = []
     inicio = time.monotonic()
     for semilla in semillas:
@@ -938,12 +939,12 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
             comprobar_codificador_guardado(carpeta, nombre_cod, revision_cod)                    # 069:RF-34
             candidatos.append({'semilla': semilla, 'metodo': metodo, 'path': str(carpeta.resolve()),
                                'seleccion': seleccion, 'afinado': modelo.afinado})     # 079:RF-17
-            (destino / 'seleccion.json').write_text(json.dumps(candidatos, ensure_ascii=False, indent=2), encoding='utf-8')
+            publicar_duradero(destino / 'seleccion.json', json.dumps(candidatos, ensure_ascii=False, indent=2))
             del modelo
             tr.modulo_torch().cuda.empty_cache()
     elegido = elegir_candidato(candidatos)
     # El ganador queda registrado antes de leer calibración o prueba.
-    (destino / 'ganador_seleccion.json').write_text(json.dumps(elegido, ensure_ascii=False, indent=2), encoding='utf-8')
+    publicar_duradero(destino / 'ganador_seleccion.json', json.dumps(elegido, ensure_ascii=False, indent=2))
     filas_humanas = [r for r in por_parte['prueba'] if r['quality'] == 'gold_human']
     validacion = None
     if validacion_cruzada:
@@ -1068,7 +1069,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
         'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
         'confusiones': confundidas, 'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
-    (destino / 'decision.json').write_text(json.dumps(reporte, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
+    publicar_duradero(destino / 'decision.json', json.dumps(reporte, ensure_ascii=False, indent=2, allow_nan=False))
     return reporte
 
 

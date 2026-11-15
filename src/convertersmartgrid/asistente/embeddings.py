@@ -1,13 +1,12 @@
 """Dataset, evaluacion y persistencia auditable del recuperador hibrido."""
 from __future__ import annotations
 
-from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 from .indice import Fragmento, Indice, fusion_rrf  # noqa: F401 (fusion_rrf: se sigue pidiendo desde aquí)
 
 import hashlib
 import json
 import math
-import os
 import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -223,9 +222,7 @@ def guardar_indice_versionado(fragmentos: Sequence[Any], vectores: Sequence[Sequ
     archivos = {'fragmentos.json': frags, 'vectores.json': list(vectores) if vectores is not None else None}
     manifest = manifiesto_indice(fragmentos, vectores, modelo=modelo, segmentacion=segmentacion)
     for nombre, contenido in [*archivos.items(), ('manifest.json', manifest)]:
-        with staging_publicacion(raiz / nombre) as temporal:
-            temporal.write_text(json.dumps(contenido, ensure_ascii=False, sort_keys=True), encoding='utf-8')
-            os.replace(temporal, raiz / nombre)
+        publicar_duradero(raiz / nombre, json.dumps(contenido, ensure_ascii=False, sort_keys=True))   # 001:RF-5
     return manifest
 
 

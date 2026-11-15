@@ -29,6 +29,7 @@ from typing import Any
 import numpy as np
 
 from .oraculo import Entrenamiento, Muestra, OraculoPINN, entrenar_miembro, mae, particionar, separar_calibracion
+from ..util import publicar_duradero
 
 
 def _sugerir(trial, base: Entrenamiento) -> Entrenamiento:
@@ -108,6 +109,6 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
     if destino is not None:
         destino.mkdir(parents=True, exist_ok=True)
         ruta = destino / f"busqueda_{time.strftime('%Y%m%d-%H%M%S')}.json"
-        ruta.write_text(json.dumps(informe, indent=2, ensure_ascii=False), encoding='utf-8')
+        publicar_duradero(ruta, json.dumps(informe, indent=2, ensure_ascii=False))   # 001:RF-5
         informe['ruta'] = str(ruta)
     return informe

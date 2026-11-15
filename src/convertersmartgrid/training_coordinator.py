@@ -1,10 +1,11 @@
 """Coordinador secuencial, reanudable y con exclusión mutua de GPU."""
 from __future__ import annotations
 
-from .runtime_paths import staging_publicacion
+from .util import TOPE_INTENTOS_CERROJO, describir_cerrojo, intentar_cerrojo, publicar_duradero
 
 import json
 import hashlib
+import logging
 import math
 import os
 import uuid
@@ -194,11 +195,16 @@ def abrir_guardia_exclusiva(ruta: Path | str):
         raise
 
 
+def _propietario_valido(previo: Any) -> bool:
+    return isinstance(previo, dict) and type(previo.get('pid')) is int and previo['pid'] > 0
+
+
 class BloqueoGPU:
-    def __init__(self, ruta: Path | str, model: str):
+    def __init__(self, ruta: Path | str, model: str, *, aviso: Callable[[str], None] | None = None):
         self.ruta, self.model = Path(ruta), model
         self.token = uuid.uuid4().hex
         self._guardia = None
+        self.aviso = aviso or logging.getLogger(__name__).warning
 
     def __enter__(self):
         # 043:RF-6: la guardia OS permanece en disco; cerrar el descriptor libera
@@ -216,32 +222,30 @@ class BloqueoGPU:
             raise
 
     def _entrar_con_guardia(self):
-        for _ in range(2):
-            try:
-                fd = os.open(self.ruta, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
-            except FileExistsError:
-                try:
-                    previo = json.loads(self.ruta.read_text(encoding='utf-8'))
-                except (OSError, ValueError):
-                    raise RuntimeError('GPU ocupada: lock ilegible; se conserva fail-closed') from None
-                if not isinstance(previo, dict) or type(previo.get('pid')) is not int or previo['pid'] <= 0:
-                    raise RuntimeError('GPU ocupada: lock sin propietario válido; se conserva')
-                if proceso_vivo(previo['pid'], creado=previo.get('creado')):
-                    raise RuntimeError(f'GPU ocupada por PID {previo.get("pid")} ({previo.get("model")})')
-                try:
-                    self.ruta.unlink()
-                except FileNotFoundError:
-                    pass
-                continue
-            else:
-                with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                    import psutil
-                    payload = {'pid': os.getpid(), 'creado': psutil.Process().create_time(),
-                               'model': self.model, 'token': self.token,
-                               'started_at': datetime.now(timezone.utc).isoformat()}
-                    json.dump(payload, f)
+        """106:RF-2: el lock se crea ya entero; uno sin propietario válido se respeta ``GRACIA_CERROJO_S`` y después
+        se libera con aviso, para que la GPU no quede tomada para siempre. Un dueño vivo nunca se libera."""
+        import psutil
+        contenido = json.dumps({'pid': os.getpid(), 'creado': psutil.Process().create_time(),
+                                'model': self.model, 'token': self.token,
+                                'started_at': datetime.now(timezone.utc).isoformat()})
+        # Sin espera: el plazo lo pone quien espera (``trabajadores_ml.turno_gpu_con_plazo``, 106:RF-2, RF-3);
+        # aquí el tope es de vueltas, y al agotarlo se dice quién lo tiene.
+        for _ in range(TOPE_INTENTOS_CERROJO):
+            resultado, previo = intentar_cerrojo(self.ruta, contenido, valido=_propietario_valido, aviso=self.aviso)
+            if resultado == 'tomado':
                 return self
-        raise RuntimeError('GPU ocupada: no se pudo adquirir el lock')
+            if resultado == 'otra_vez':
+                continue
+            if resultado == 'espera':
+                raise RuntimeError(f'GPU ocupada: lock sin propietario válido ({previo}); se conserva por ahora')
+            if proceso_vivo(previo['pid'], creado=previo.get('creado')):
+                raise RuntimeError(f'GPU ocupada por PID {previo.get("pid")} ({previo.get("model")})')
+            try:
+                self.ruta.unlink()
+            except FileNotFoundError:
+                pass
+        raise RuntimeError(f'GPU ocupada: no se pudo adquirir el lock tras {TOPE_INTENTOS_CERROJO} intentos; lo tiene: '
+                           f'{describir_cerrojo(self.ruta)}')
 
     def __exit__(self, _tipo, _valor, _traza):
         try:
@@ -290,9 +294,7 @@ class TrainingCoordinator:
 
     def _escribir(self, ruta: Path, payload: dict[str, Any]) -> None:
         ruta.parent.mkdir(parents=True, exist_ok=True)
-        with staging_publicacion(ruta) as tmp:
-            tmp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2), encoding='utf-8')
-            os.replace(tmp, ruta)
+        publicar_duradero(ruta, json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2))   # 001:RF-5
 
     def run(self, *, resume: bool = True) -> dict[str, Any]:
         estado_ruta, reporte_ruta = self.run_dir / 'state.json', self.run_dir / 'report.json'

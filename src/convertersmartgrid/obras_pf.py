@@ -41,6 +41,7 @@ from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .instalacion_ternas import CONFIGURACIONES
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
 from .troncal import Red, TroncalError, aguas_abajo, camino_hasta, camino_y_ramales
+from .util import publicar_duradero
 
 #: DIgSILENT no admite más en ``loc_name``.
 LARGO_MAXIMO = 40
@@ -1519,8 +1520,7 @@ def leer_aperturas(ruta) -> list[dict[str, Any]]:
 
 
 def escribir_aperturas(ruta, entradas: Sequence[Mapping[str, Any]]) -> None:
-    """Escribe el registro de una vez (``os.replace``); sin entradas lo borra: no queda nada que restituir."""
-    import os
+    """Escribe el registro de una vez (``publicar_duradero``); sin entradas lo borra: no queda nada que restituir."""
     from pathlib import Path
 
     ruta = Path(ruta)
@@ -1531,9 +1531,7 @@ def escribir_aperturas(ruta, entradas: Sequence[Mapping[str, Any]]) -> None:
             pass
         return
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    temporal = ruta.with_suffix(ruta.suffix + '.tmp')
-    temporal.write_text(json.dumps({'aperturas': list(entradas)}, ensure_ascii=False, indent=1), encoding='utf-8')
-    os.replace(temporal, ruta)
+    publicar_duradero(ruta, json.dumps({'aperturas': list(entradas)}, ensure_ascii=False, indent=1))   # 001:RF-5
 
 
 def misma_apertura(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:

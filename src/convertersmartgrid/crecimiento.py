@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .util import publicar_duradero
+
 Curva = Sequence[tuple[Any, float | None, Any]]
 
 
@@ -193,9 +195,7 @@ def pot_de_los_libros(libros: Sequence[tuple[str, str]], alias: Any, *, progreso
         if guardado is not None:
             try:
                 carpeta.mkdir(parents=True, exist_ok=True)
-                temporal = guardado.with_suffix('.tmp')
-                temporal.write_text(json.dumps(pot, sort_keys=True), encoding='utf-8')
-                temporal.replace(guardado)
+                publicar_duradero(guardado, json.dumps(pot, sort_keys=True))   # 001:RF-5
             except OSError:
                 pass                                    # sin guardar se lee otra vez la próxima: no se bloquea
     return out

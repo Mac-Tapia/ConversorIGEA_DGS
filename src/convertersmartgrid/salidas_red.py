@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Literal, Mapping, MutableMapping
 
 from .edicion import es_edicion_producto
+from .util import publicar_duradero
 
 _ENCENDIDA = ('1', 'si', 'sí', 'true', 'on')
 _APAGADA = ('0', 'no', 'false', 'off')
@@ -103,9 +104,7 @@ def guardar_salida(nombre: str, encendida: bool, environ: Mapping[str, str] | No
     datos = salidas_guardadas(environ)
     datos[nombre] = bool(encendida)
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    temporal = ruta.with_name(ruta.name + '.tmp')
-    temporal.write_text(json.dumps(datos, ensure_ascii=False, sort_keys=True) + '\n', encoding='utf-8')
-    os.replace(temporal, ruta)
+    publicar_duradero(ruta, json.dumps(datos, ensure_ascii=False, sort_keys=True) + '\n')   # 001:RF-5
 
 
 def estado_salida(nombre: str, environ: Mapping[str, str] | None = None) -> tuple[bool, Origen]:

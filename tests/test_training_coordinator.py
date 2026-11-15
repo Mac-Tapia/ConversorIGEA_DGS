@@ -310,3 +310,89 @@ def test_el_presupuesto_del_ciclo_mide_como_los_trabajadores(monkeypatch):
         monkeypatch.setattr(tc, '_memoria_sistema', lambda f=fisica, c=commit: {'fisica_gib': f, 'commit_gib': c})
         assert tc.memoria_del_presupuesto() == esperado
 
+
+def _envejecer(ruta, segundos):
+    import time
+    viejo = time.time() - segundos
+    os.utime(ruta, (viejo, viejo))
+
+
+@pytest.mark.parametrize('contenido', ['{"pid": 4', '{}', '[]'])
+def test_lock_ilegible_y_antiguo_se_libera_con_aviso(tmp_path, contenido):
+    """106:RF-2 — antes quedaba tomado para siempre: pasada la gracia se libera diciéndolo y se toma."""
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = tmp_path / 'gpu.lock'
+    ruta.write_text(contenido, encoding='utf-8')
+    _envejecer(ruta, 3600)
+    avisos = []
+    with BloqueoGPU(ruta, 'gru', aviso=avisos.append):
+        assert json.loads(ruta.read_text(encoding='utf-8'))['pid'] == os.getpid()
+    assert not ruta.exists()
+    assert len(avisos) == 1 and 'ilegible de hace' in avisos[0] and 'se libera' in avisos[0]
+    assert not [p for p in tmp_path.iterdir() if '.muerto-' in p.name or p.name.endswith('.nuevo')]
+
+
+def test_lock_de_dueno_vivo_y_antiguo_no_se_libera(tmp_path):
+    """106:RF-2 — un dueño legible y vivo nunca se libera, por antiguo que sea su lock."""
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = tmp_path / 'gpu.lock'
+    contenido = json.dumps({'pid': os.getpid(), 'model': 'otro'})
+    ruta.write_text(contenido, encoding='utf-8')
+    _envejecer(ruta, 3600)
+    with pytest.raises(RuntimeError, match='ocupada por PID'), BloqueoGPU(ruta, 'nuevo', aviso=pytest.fail):
+        pass
+    assert ruta.read_text(encoding='utf-8') == contenido
+
+
+def test_dos_hilos_a_la_vez_solo_uno_toma_la_gpu(tmp_path):
+    """106:RF-2 — dos adquisiciones concurrentes en hilos: una entra y la otra dice que está ocupada."""
+    import threading
+
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = tmp_path / 'gpu.lock'
+    salida, soltar = threading.Barrier(2), threading.Event()
+    resultados = []
+
+    def tomar(nombre):
+        salida.wait()
+        try:
+            with BloqueoGPU(ruta, nombre):
+                resultados.append(('dentro', nombre))
+                soltar.wait(10)
+        except RuntimeError as exc:
+            resultados.append(('fuera', str(exc)))
+            soltar.set()
+
+    hilos = [threading.Thread(target=tomar, args=(n,)) for n in ('a', 'b')]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join(20)
+    assert sorted(r[0] for r in resultados) == ['dentro', 'fuera'], resultados
+    assert 'ocupada' in next(r[1] for r in resultados if r[0] == 'fuera')
+    assert not ruta.exists()
+
+
+def test_un_rival_que_gana_siempre_termina_en_el_tope_diciendo_quien(tmp_path, monkeypatch):
+    """106:RF-2 — si otro se lleva siempre el apartado, BloqueoGPU se rinde tras el tope diciendo quién lo tiene."""
+    import time
+
+    from convertersmartgrid import util
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = tmp_path / 'gpu.lock'
+    ruta.write_text('{"pid": 4', encoding='utf-8')
+    _envejecer(ruta, 3600)
+    reemplazar = util.os.replace
+
+    def rival(origen, destino, *a, **k):
+        if '.muerto-' in str(destino):
+            return None        # otro renombrado simultáneo se llevó el apartado y dejó el suyo
+        return reemplazar(origen, destino, *a, **k)
+
+    monkeypatch.setattr(util.os, 'replace', rival)
+    inicio = time.monotonic()
+    with pytest.raises(RuntimeError, match=rf'GPU ocupada.*tras {util.TOPE_INTENTOS_CERROJO} intentos.*'
+                                           r'ilegible desde hace \d+ s'), BloqueoGPU(ruta, 'gru', aviso=pytest.fail):
+        pytest.fail('entró sin el lock')
+    assert time.monotonic() - inicio < 10
+    assert ruta.read_text(encoding='utf-8') == '{"pid": 4', 'el lock del rival no se toca'

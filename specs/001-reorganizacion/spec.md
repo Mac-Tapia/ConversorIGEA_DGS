@@ -46,6 +46,8 @@ Utilidades
 
 - RF-4: EL SISTEMA calculará el SHA-256 de un fichero con una única implementación.
 - RF-5: EL SISTEMA escribirá los JSON de forma atómica con una única implementación.
+  También los manifiestos del lote, de la red unida y de la geografía (`batch_manifest.json`,
+  `<red>_manifest.json` y el geográfico), que se escribían en su sitio (auditoría del 2026-11-14, H14).
 - RF-6: EL SISTEMA reproyectará coordenadas con una única forma de construir el transformador.
 - RF-7: SI el CRS de origen no se puede construir al crear una plantilla de cargas,
   ENTONCES EL SISTEMA rechazará la operación con un error que nombre ese CRS.

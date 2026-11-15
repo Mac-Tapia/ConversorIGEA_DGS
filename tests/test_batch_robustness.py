@@ -246,6 +246,26 @@ class TestCancellation:
         assert manifest['summary']['requested'] == 0
         assert _stages(out) == []
 
+    def test_un_corte_al_publicar_el_manifiesto_deja_el_anterior_entero(self, tmp_path, monkeypatch):
+        """001:RF-5 (H14, 2026-11-14): batch_manifest.json se publica con la escritura atómica única. Antes se
+        escribía en su sitio con write_text, y un corte a mitad dejaba un JSON truncado que rompía su lectura
+        (dataset_entrenamiento)."""
+        from convertersmartgrid import util
+
+        ds = _write_two_feeders(tmp_path)
+        out = tmp_path / 'out'
+        out.mkdir()
+        anterior = '{"summary": {"status": "completed", "ok": 7}}\n'
+        (out / 'batch_manifest.json').write_text(anterior, encoding='utf-8')
+
+        def corte(temporal, destino):
+            raise OSError('corte simulado al sustituir')
+
+        monkeypatch.setattr(util, '_sustituir', corte)
+        with pytest.raises(OSError, match='corte simulado'):
+            convert_selection(ds, None, out, all_feeders=True, include_geography=False)
+        assert (out / 'batch_manifest.json').read_text(encoding='utf-8') == anterior
+
 
 class TestShortNameCollisions:
     """K-20: dos NetworkID distintos con el mismo nombre corto (lote multiempresa).

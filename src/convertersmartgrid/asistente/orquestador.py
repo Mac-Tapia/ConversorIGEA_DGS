@@ -10,7 +10,7 @@ dato que no se dio (el libro de cargas nuevas, el formulario del informe) se omi
 """
 from __future__ import annotations
 
-from ..runtime_paths import staging_publicacion
+from ..util import publicar_duradero
 
 import json
 import time
@@ -103,9 +103,7 @@ class PuntoDeControl:
         if datos is not None:
             self.estado['datos'] = dict(datos)
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        with staging_publicacion(self.ruta) as tmp:
-            tmp.write_text(json.dumps(self.estado, ensure_ascii=False, indent=1, default=str), encoding='utf-8')
-            tmp.replace(self.ruta)
+        publicar_duradero(self.ruta, json.dumps(self.estado, ensure_ascii=False, indent=1, default=str))   # 001:RF-5
 
 
 def lista_de_etapas(datos: Mapping[str, Any], control: Mapping[str, Any], contexto: Mapping[str, Any],

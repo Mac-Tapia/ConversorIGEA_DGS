@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .runtime_paths import raiz_programa
+from .util import publicar_duradero
 
 #: 103:RF-6: donde el instalador deja los intérpretes embebidos, uno por versión (``python_pf/3.9/python.exe``).
 CARPETA_PYTHON_EMBEBIDOS = 'python_pf'
@@ -226,7 +227,7 @@ def guardar_eleccion(carpeta_api: Path | None) -> None:
         ruta.unlink(missing_ok=True)
         return
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    ruta.write_text(json.dumps({'carpeta_api': str(carpeta_api)}, ensure_ascii=False) + '\n', encoding='utf-8')
+    publicar_duradero(ruta, json.dumps({'carpeta_api': str(carpeta_api)}, ensure_ascii=False) + '\n')   # 001:RF-5
 
 
 def pf_python_dir() -> Path | None:

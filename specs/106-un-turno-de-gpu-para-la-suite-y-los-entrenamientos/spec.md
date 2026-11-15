@@ -20,6 +20,11 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   tomará el turno de GPU de la máquina una vez para toda la sesión, y dentro de ella cada prueba y cada fixture usará una
   guardia de la propia sesión; una sesión lanzada por una prueba no lo pedirá.
 - RF-2: MIENTRAS otro proceso tiene el turno, EL SISTEMA esperará y lo tomará en cuanto quede libre.
+  `BloqueoGPU` creará el lock con su contenido ya entero (`util.crear_exclusivo`: temporal sincronizado y
+  `os.link`; sin enlaces duros, `O_EXCL`). SI el lock existente no tiene propietario válido, ENTONCES EL SISTEMA lo
+  conservará mientras tenga menos de `GRACIA_CERROJO_S` y después lo liberará con un aviso que dice qué contenía,
+  para que la GPU no quede tomada para siempre; un dueño legible y vivo nunca se libera. Al agotar `TOPE_INTENTOS_CERROJO` vueltas, el error dice quién lo tiene (su
+  contenido o «ilegible desde hace N s»); el plazo de la espera lo pone `turno_gpu_con_plazo` (H14, 2026-11-14).
 - RF-3: MIENTRAS espera, EL SISTEMA dirá cada minuto quién tiene el turno (proceso, orden y desde cuándo); SI vence el
   plazo, ENTONCES lanzará un error con ese dueño.
 - RF-4: SI la suite no consigue el turno en su plazo (`CSG_GPU_ESPERA_SUITE_S`, 7 200 s por defecto), ENTONCES pytest

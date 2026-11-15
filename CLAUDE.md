@@ -37,7 +37,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
-  | 010 Trazado GPS de las líneas | cumplida |  |
+  | 010 Trazado GPS de las líneas | aprobada | falta T6 |
   | 011 Estudios y obras de mejora sobre la red calibrada | cumplida |  |
   | 012 Confiabilidad y capacidad de la red calibrada | cumplida |  |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |

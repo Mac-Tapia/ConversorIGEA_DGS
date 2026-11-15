@@ -12,5 +12,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_linea_base_001.py` en verde con las tres `CSG_*`.
 - [x] T5. Prueba real: red unida NA203 + NA205 importada en PowerFactory con `--manifest`. (RF-6, RF-7)
       Hecho cuando: el informe da 0 líneas con trazado distinto del manifiesto.
-- [x] T6. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
-      Hecho cuando: `grep -rnoE "010:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.
+- [ ] T6. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+      Hecho cuando: `grep -rnoE "010:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.
+      Ampliada el 2026-11-14 con RF-8 (H14): `tests/test_geography_v21.py` en rojo con el `_seq` anterior.
+      Abierta hasta el verde integrado de RF-8: `tests/test_geography_v21.py` entero, con los TXT reales
+      y sin pruebas omitidas, en la puerta de integración (auditor 3e, 2026-11-14).

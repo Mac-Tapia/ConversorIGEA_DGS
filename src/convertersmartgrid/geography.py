@@ -3,13 +3,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-import json
 import math
 
 from .dataset import CymdistDataset
 from .model import FeederModel
+from .util import write_json_atomic
 
 
 class CrsOrigenFaltaError(ValueError):
@@ -124,6 +125,8 @@ class GeographyManifest:
     target_bounds: tuple[float, float, float, float]
     intermediate_point_count: int
     intermediate_section_count: int
+    #: 010:RF-8: lo que el trazado no pudo ordenar como dice su fuente, con el tramo y el valor.
+    avisos: tuple[str, ...] = ()
 
     @property
     def expected_counts(self) -> dict[str, int]:
@@ -147,11 +150,28 @@ def _as_float(value: str | float | int | None, *, field: str) -> float:
     return result
 
 
-def _seq(value: str | None) -> tuple[int, str]:
+def _entero(value: object) -> int | None:
+    """El SeqNumber como entero («3» y «3.0» valen 3); vacío, no numérico o con decimales: ``None``."""
     try:
-        return int(value or '0'), value or ''
-    except ValueError:
-        return 10**9, value or ''
+        numero = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return int(numero) if math.isfinite(numero) and numero.is_integer() else None
+
+
+def ordenar_intermedios(section_id: str, rows: Sequence[Mapping[str, object]]) -> tuple[list, list[str]]:
+    """Los puntos intermedios de un tramo en el orden de su SeqNumber (010:RF-1, RF-8).
+
+    Si alguno no trae un entero, no hay orden que comparar: se conserva el del fichero, que es estable, y se
+    avisa con el tramo y los valores. Antes un valor no numérico iba al final y uno vacío al principio, sin aviso.
+    """
+    claves = [_entero(r.get('SeqNumber')) for r in rows]
+    malos = [r.get('SeqNumber') for r, k in zip(rows, claves) if k is None]
+    if malos:
+        return list(rows), [f'{section_id}: SeqNumber vacío o no entero ({", ".join(repr(v) for v in malos[:5])}); '
+                            'sus puntos intermedios quedan en el orden del fichero (010:RF-8)']
+    enteros = [k for k in claves if k is not None]               # todos, porque ninguno falló
+    return [rows[i] for i in sorted(range(len(rows)), key=enteros.__getitem__)], []
 
 
 def build_geography(
@@ -194,9 +214,11 @@ def build_geography(
 
     lines: dict[str, GeoLine] = {}
     intermediate_point_count = 0
+    avisos: list[str] = []
     for line in model.lines:
         path: list[GeoPoint] = [nodes[line.from_node]]
-        rows = sorted(intermediate_by_section.get(line.section_id, ()), key=lambda r: _seq(r.get('SeqNumber')))
+        rows, avisos_tramo = ordenar_intermedios(line.section_id, intermediate_by_section.get(line.section_id, ()))
+        avisos += avisos_tramo
         for row in rows:
             x = _as_float(row.get('CoordX'), field=f'{line.section_id}.CoordX')
             y = _as_float(row.get('CoordY'), field=f'{line.section_id}.CoordY')
@@ -229,6 +251,7 @@ def build_geography(
         source_xy_bounds=(min(xs), min(ys), max(xs), max(ys)),
         target_bounds=(min(lons), min(lats), max(lons), max(lats)),
         intermediate_point_count=intermediate_point_count,
+        avisos=tuple(avisos),
         intermediate_section_count=len(intermediate_by_section),
     )
 
@@ -357,12 +380,13 @@ def write_geography_manifest(
 ) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(geography_to_dict(geo, model), indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    # 001:RF-5 (H14): la publicación atómica única; un corte a mitad deja el manifiesto anterior.
+    write_json_atomic(path, geography_to_dict(geo, model))
 
 
 def validate_geography(model: FeederModel, geo: GeographyManifest) -> dict:
     errors: list[str] = []
-    warnings: list[str] = []
+    warnings: list[str] = list(geo.avisos)                          # 010:RF-8
     if set(geo.nodes) != set(model.nodes):
         missing = set(model.nodes) - set(geo.nodes)
         extra = set(geo.nodes) - set(model.nodes)
